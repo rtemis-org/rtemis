@@ -236,13 +236,14 @@ draw_ts <- function(
 
   # Write to file ----
   if (!is.null(filename)) {
-    plotly::save_image(
+    export_plotly(
       plt,
-      file = file.path(filename),
+      filename = filename,
       width = file_width,
       height = file_height,
       scale = file_scale
     )
-  }
+  } # /export_plotly
+
   plt
 } # rtemis::draw_ts

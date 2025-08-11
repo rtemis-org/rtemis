@@ -662,14 +662,14 @@ draw_xt <- function(
 
   # Write to file ----
   if (!is.null(filename)) {
-    plotly::save_image(
+    export_plotly(
       plt,
-      file = normalizePath(filename, mustWork = FALSE),
+      filename = filename,
       width = file_width,
       height = file_height,
       scale = file_scale
     )
-  } # /save_image
+  } # /export_plotly
 
   # Rangeslider ----
   if (show_rangeslider) {

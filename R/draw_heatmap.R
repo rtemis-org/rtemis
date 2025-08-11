@@ -349,14 +349,14 @@ draw_heatmap <- function(
 
   # Write to file ----
   if (!is.null(filename)) {
-    plotly::save_image(
+    export_plotly(
       plt,
-      file.path(filename),
+      filename = filename,
       width = file_width,
       height = file_height,
       scale = file_scale
     )
-  }
+  } # /export_plotly
 
   plt
 } # rtemis::draw_heatmap

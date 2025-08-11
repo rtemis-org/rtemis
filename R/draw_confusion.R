@@ -446,14 +446,14 @@ draw_confusion <- function(
 
   # Write to file ----
   if (!is.null(filename)) {
-    plotly::save_image(
+    export_plotly(
       plt,
-      file = normalizePath(filename, mustWork = FALSE),
+      filename = filename,
       width = file_width,
       height = file_height,
       scale = file_scale
     )
-  }
+  } # /export_plotly
 
   return(plt)
 } # /rtemis::draw_confusion
