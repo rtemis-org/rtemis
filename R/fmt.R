@@ -439,7 +439,7 @@ fmt_gradient <- function(
     },
     error = function(e) {
       warning("Invalid gradient colors, using default")
-      return(x)
+      x
     }
   )
 
