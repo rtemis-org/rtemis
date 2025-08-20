@@ -11,9 +11,7 @@
 #' @details
 #' We are switching to `palette` being a color vector instead of the name of a built-in palette.
 #'
-#' @param x Datetime vector or list of vectors OR object of class `xt`. If `xt`, `x2`, `y`, `y2`,
-#' `xunits`, `yunits`, and `y2units` will be extracted from the object and the corresponding
-#' arguments will be ignored.
+#' @param x Datetime vector or list of vectors.
 #' @param y Numeric vector or named list of vectors: y-axis data.
 #' @param x2 Datetime vector or list of vectors, optional: must be provided if `y2` does not
 #' correspond to values in `x`. A single x-axis will be drawn for all values in `x` and `x2`.
@@ -117,7 +115,7 @@
 #' }
 draw_xt <- function(
   x,
-  y = NULL,
+  y,
   x2 = NULL,
   y2 = NULL,
   which_xy = NULL,
@@ -199,26 +197,6 @@ draw_xt <- function(
   .y2name <- labelify(gsub(".*\\$", "", deparse(substitute(y2))))
 
   # Data ----
-  if (inherits(x, "xt")) {
-    y <- x[["y"]]
-    x2 <- x[["x2"]]
-    y2 <- x[["y2"]]
-    xunits <- x[["xunits"]]
-    yunits <- x[["yunits"]]
-    y2units <- x[["y2units"]]
-    shade_bin <- x[["Shade"]]
-    zt <- x[["zt"]]
-    x <- x[["x"]]
-    if (!is.null(names(x)) && length(x) == 1) {
-      .xname <- names(x)
-    } else {
-      .xname <- NULL
-    }
-  } else {
-    if (is.null(y)) {
-      cli::cli_abort("y must be provided")
-    }
-  }
 
   # Data to lists
   if (!is.null(y2) && is.null(x2)) {
