@@ -311,7 +311,7 @@ read <- function(
     .dat <- preprocess(
       .dat,
       setup_Preprocessor(character2factor = TRUE)
-    )
+    )[["preprocessed"]]
   }
 
   if (!is.null(attr) && !is.null(value)) {
