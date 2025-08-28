@@ -6,7 +6,7 @@
 \usage{
 draw_xt(
   x,
-  y = NULL,
+  y,
   x2 = NULL,
   y2 = NULL,
   which_xy = NULL,
@@ -76,9 +76,7 @@ draw_xt(
 )
 }
 \arguments{
-\item{x}{Datetime vector or list of vectors OR object of class \code{xt}. If \code{xt}, \code{x2}, \code{y}, \code{y2},
-\code{xunits}, \code{yunits}, and \code{y2units} will be extracted from the object and the corresponding
-arguments will be ignored.}
+\item{x}{Datetime vector or list of vectors.}
 
 \item{y}{Numeric vector or named list of vectors: y-axis data.}
 

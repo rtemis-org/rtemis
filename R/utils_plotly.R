@@ -166,9 +166,10 @@ export_plotly <- function(
   }
 
   # Export to file ----
+  filename <- normalizePath(filename, mustWork = FALSE)
   plotly::save_image(
     x,
-    file = normalizePath(filename, mustWork = FALSE),
+    file = filename,
     width = width,
     height = height,
     scale = scale

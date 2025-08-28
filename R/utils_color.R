@@ -719,7 +719,7 @@ colorgrad <- function(
     cb_midpoint <- midpoint
   }
 
-  # [ Preview ] ----
+  # Preview ----
   if (preview) {
     plot(
       rep(1, n),

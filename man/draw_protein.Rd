@@ -9,7 +9,7 @@ draw_protein(
   site = NULL,
   region = NULL,
   ptm = NULL,
-  clv = NULL,
+  cleavage_site = NULL,
   variant = NULL,
   disease_variants = NULL,
   n_per_row = NULL,
@@ -119,7 +119,7 @@ highlighted by coloring the markers and lines of regions using the
 
 \item{ptm}{List of post-translational modifications.}
 
-\item{clv}{List of cleavage sites.}
+\item{cleavage_site}{List of cleavage sites.}
 
 \item{variant}{List of variant information.}
 

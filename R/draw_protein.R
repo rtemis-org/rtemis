@@ -14,7 +14,7 @@
 #' highlighted by coloring the markers and lines of regions using the
 #' `palette` colors.
 #' @param ptm List of post-translational modifications.
-#' @param clv List of cleavage sites.
+#' @param cleavage_site List of cleavage sites.
 #' @param variant List of variant information.
 #' @param disease_variants List of disease variant information.
 #' @param n_per_row Integer: Number of amino acids to show per row.
@@ -132,7 +132,7 @@ draw_protein <- function(
   site = NULL,
   region = NULL,
   ptm = NULL,
-  clv = NULL,
+  cleavage_site = NULL,
   variant = NULL,
   disease_variants = NULL,
   # label_group = NULL,
@@ -245,16 +245,16 @@ draw_protein <- function(
   verbosity = 1L
 ) {
   # Data ----
-  if (inherits(x, "a3")) {
+  if (inherits(x, "A3")) {
     dat <- x
-    x <- dat[["Sequence"]]
-    site <- iflengthy(dat[["Annotations"]][["Site"]])
-    region <- iflengthy(dat[["Annotations"]][["Region"]])
-    ptm <- iflengthy(dat[["Annotations"]][["PTM"]])
-    clv <- iflengthy(dat[["Annotations"]][["Cleavage_site"]])
-    variant <- iflengthy(dat[["Annotations"]][["Variant"]])
-    disease_variants <- iflengthy(dat[["Annotations"]][["Site"]][[
-      "Disease_associated_variant"
+    x <- dat[["sequence"]]
+    site <- iflengthy(dat[["annotations"]][["site"]])
+    region <- iflengthy(dat[["annotations"]][["region"]])
+    ptm <- iflengthy(dat[["annotations"]][["ptm"]])
+    cleavage_site <- iflengthy(dat[["annotations"]][["cleavage_site"]])
+    variant <- iflengthy(dat[["annotations"]][["variant"]])
+    disease_variants <- iflengthy(dat[["annotations"]][["site"]][[
+      "disease_associated_variant"
     ]])
   }
   if (length(x) == 1) {
@@ -264,19 +264,18 @@ draw_protein <- function(
         simplifyVector = TRUE,
         simplifyMatrix = FALSE
       )
-      x <- dat[["Sequence"]]
-      disease_variants <- dat[["Annotations"]][["Site"]][[
-        "Disease_associated_variant"
+      x <- dat[["sequence"]]
+      disease_variants <- dat[["annotations"]][["site"]][[
+        "disease_associated_variant"
       ]]
-      # dat[["Annotations"]][["Site"]][["Disease_associated_variant"]] <- NULL
-      site <- dat[["Annotations"]][["Site"]]
-      region <- dat[["Annotations"]][["Region"]]
-      ptm <- dat[["Annotations"]][["PTM"]]
-      clv <- dat[["Annotations"]][["Cleavage_site"]]
+      site <- dat[["annotations"]][["site"]]
+      region <- dat[["annotations"]][["region"]]
+      ptm <- dat[["annotations"]][["ptm"]]
+      cleavage_site <- dat[["annotations"]][["cleavage_site"]]
     } else {
       dat <- uniprot_get(x, verbosity = verbosity)
-      x <- dat[["Sequence"]]
-      if (is.null(main)) main <- dat[["Identifier"]]
+      x <- dat[["sequence"]]
+      # if (is.null(main)) main <- dat[["identifier"]]
     }
   }
   x <- toupper(x)
@@ -398,7 +397,7 @@ draw_protein <- function(
   # Variants: overwrite xnames with tooltip info
   if (!is.null(variant)) {
     for (i in seq_along(variant)) {
-      varidi <- variant[[i]][["Position"]]
+      varidi <- variant[[i]][["position"]]
       xnames[varidi] <- paste0(
         xnames[varidi],
         "\n\n",
@@ -425,13 +424,16 @@ draw_protein <- function(
     )
   }
   if (show_markers) {
-    clvtext <- if (!is.null(clv)) {
+    clvtext <- if (!is.null(cleavage_site)) {
       # Get cleavage sites for each amino acid
       sapply(position, \(i) {
-        if (i %in% unlist(clv)) {
+        if (i %in% unlist(cleavage_site)) {
           paste0(
             "\n<b><em>Cleavage site for:</em></b>\n",
-            paste0(names(clv)[sapply(clv, \(x) i %in% x)], collapse = "\n")
+            paste0(
+              names(cleavage_site)[sapply(cleavage_site, \(x) i %in% x)],
+              collapse = "\n"
+            )
           )
         } else {
           ""
@@ -673,11 +675,11 @@ draw_protein <- function(
     if (verbosity > 1L) {
       msg2("Adding PTM markers...")
     }
-    if (is.null(ptm.col)) {
-      ptm.col <- 1 + seq_along(ptm)
+    if (is.null(ptm_col)) {
+      ptm_col <- 1 + seq_along(ptm)
     }
-    ptm.symbol <- recycle(ptm.symbol, ptm)
-    ptm.names <- names(ptm)
+    ptm_symbol <- recycle(ptm_symbol, ptm)
+    ptm_names <- names(ptm)
     for (i in seq_along(ptm)) {
       polyoffset <- npad(i, n = length(ptm), pad = ptm_pad)
       plt <- plt |>
@@ -687,39 +689,39 @@ draw_protein <- function(
           type = "scatter",
           mode = "markers",
           marker = list(
-            color = plotly::toRGB(ptm.col[[i]]),
+            color = plotly::toRGB(ptm_col[[i]]),
             size = ptm_marker_size,
-            symbol = ptm.symbol[i]
+            symbol = ptm_symbol[i]
           ),
-          name = ptm.names[i],
+          name = ptm_names[i],
           showlegend = showlegend_ptm
         )
     }
   }
   # Cleavage sites ----
   # Note: Do not show both PTMs and cleavage sites using the same padding
-  if (!is.null(clv)) {
+  if (!is.null(cleavage_site)) {
     if (verbosity > 1L) {
       msg2("Adding cleavage site markers...")
     }
     if (is.null(clv_col)) {
       clv_col <- c(
         colorspace::qualitative_hcl(
-          (length(clv)),
+          (length(cleavage_site)),
           h = c(40, 360),
           c = 120,
           l = 50
         )
       )
     }
-    clv_symbol <- recycle(clv_symbol, clv)
-    clv_names <- names(clv)
-    for (i in seq_along(clv)) {
-      polyoffset <- npad(i, n = length(clv), pad = clv_pad)
+    clv_symbol <- recycle(clv_symbol, cleavage_site)
+    clv_names <- names(cleavage_site)
+    for (i in seq_along(cleavage_site)) {
+      polyoffset <- npad(i, n = length(cleavage_site), pad = clv_pad)
       plt <- plt |>
         plotly::add_trace(
-          x = xs[clv[[i]]] + polyoffset[1],
-          y = ys[clv[[i]]] + polyoffset[2],
+          x = xs[cleavage_site[[i]]] + polyoffset[1],
+          y = ys[cleavage_site[[i]]] + polyoffset[2],
           type = "scatter",
           mode = "markers",
           marker = list(
@@ -737,7 +739,7 @@ draw_protein <- function(
   if (show_labels) {
     # Variants
     if (!is.null(variant)) {
-      variant_idi <- sapply(variant, \(v) v[["Position"]])
+      variant_idi <- sapply(variant, \(v) v[["position"]])
       label_col[variant_idi] <- variant_col
     }
     # Disease variants
@@ -872,14 +874,14 @@ draw_protein <- function(
 
   # Write to file ----
   if (!is.null(filename)) {
-    plotly::save_image(
+    export_plotly(
       plt,
-      file = file.path(filename),
+      filename = filename,
       width = file_width,
       height = file_height,
       scale = file_scale
     )
-  }
+  } # /export_plotly
 
   return(plt)
 } # rtemis::draw_protein
