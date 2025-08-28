@@ -291,7 +291,7 @@ method(`.DollarNames`, Hyperparameters) <- function(x, pattern = "") {
   grep(pattern, all_names, value = TRUE)
 }
 
-# Make Hyperparameters@hyperparameters@name `[[`-accessible ---
+# Make Hyperparameters@hyperparameters@name `[[`-accessible ----
 method(`[[`, Hyperparameters) <- function(x, name) {
   x@hyperparameters[[name]]
 }
