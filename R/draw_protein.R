@@ -254,7 +254,7 @@ draw_protein <- function(
     cleavage_site <- iflengthy(dat[["annotations"]][["cleavage_site"]])
     variant <- iflengthy(dat[["annotations"]][["variant"]])
     disease_variants <- iflengthy(dat[["annotations"]][["site"]][[
-      "Disease_associated_variant"
+      "disease_associated_variant"
     ]])
   }
   if (length(x) == 1) {
@@ -264,9 +264,9 @@ draw_protein <- function(
         simplifyVector = TRUE,
         simplifyMatrix = FALSE
       )
-      x <- dat[["Sequence"]]
+      x <- dat[["sequence"]]
       disease_variants <- dat[["annotations"]][["site"]][[
-        "Disease_associated_variant"
+        "disease_associated_variant"
       ]]
       site <- dat[["annotations"]][["site"]]
       region <- dat[["annotations"]][["region"]]
