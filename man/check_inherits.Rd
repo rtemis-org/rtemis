@@ -7,6 +7,10 @@
 check_inherits(x, cl, allow_null = TRUE)
 }
 \arguments{
+\item{x}{Object to check.}
+
+\item{cl}{Character: class to check against.}
+
 \item{allow_null}{Logical: If TRUE, NULL values are allowed and return early.}
 }
 \value{

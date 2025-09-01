@@ -79,7 +79,8 @@ test_inherits <- function(x, cl) {
 
 #' Test class of object
 #'
-#' @inheritParams check_inherits
+#' @param x Object to check.
+#' @param cl Character: class to check against.
 #' @param allow_null Logical: If TRUE, NULL values are allowed and return early.
 #'
 #' @details

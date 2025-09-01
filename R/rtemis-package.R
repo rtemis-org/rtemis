@@ -21,8 +21,8 @@
 #'     \item{future.plan}{Default plan to use for parallel processing.}
 #' }
 #' @section Visualization:
-#' Graphics are handled using the `draw` family, which produces interactive plots using`plotly` and
-#' other packages.
+#' Graphics are handled using the `draw` family, which produces interactive plots primarily using
+#' `plotly` and other packages.
 #' @section Supervised Learning:
 #' Regression and Classification is performed using `train()`.
 #' This function allows you to preprocess, train, tune, and test models on multiple resamples.
