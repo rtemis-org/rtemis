@@ -5,7 +5,13 @@
 # References
 # S7 generics: https://rconsortium.github.io/S7/articles/generics-methods.html
 
-# string representation
+#' String representation
+#'
+#' @details
+#' Exported as internal function for use by other rtemis packages.
+#'
+#' @keywords internal
+#' @export
 repr <- new_generic("repr", "x")
 # Standard error of the fit.
 se <- new_generic("se", "x")
