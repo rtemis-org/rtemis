@@ -44,7 +44,9 @@
 #' with the *second* level of the factor being the 'positive' class.
 #'
 #' @name rtemis-package
-#' @import graphics grDevices methods stats utils S7 data.table htmltools cli
+#' @import stats methods graphics grDevices S7 data.table htmltools
+#' @importFrom utils packageVersion sessionInfo getFromNamespace head tail write.csv write.table zip
+#' @importFrom cli cli_abort cli_warn cli_progress_along
 "_PACKAGE"
 
 NULL
