@@ -464,7 +464,7 @@ train <- function(
   )
   # Print object to logfile
   if (!is.null(logfile)) {
-    cat("\n", show(mod, output_type = "plain"), file = logfile, append = TRUE)
+    cat("\n", repr(mod, output_type = "plain"), file = logfile, append = TRUE)
   }
   mod
 } # /rtemis::train

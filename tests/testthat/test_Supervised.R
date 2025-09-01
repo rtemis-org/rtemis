@@ -1147,26 +1147,26 @@ test_that("train saves SupervisedRes model to rds successfully", {
 })
 
 # Show Tuned Classification ----
-modt_c_glmnet_repr <- show(modt_c_glmnet, output_type = "ansi")
-test_that("show() Tuned Classification succeeds", {
+modt_c_glmnet_repr <- repr(modt_c_glmnet, output_type = "ansi")
+test_that("repr() Tuned Classification succeeds", {
   expect_type(modt_c_glmnet_repr, "character")
 })
 
 # Show Tuned ClassificationRes ----
-resmodt_r_cart_repr <- show(resmodt_r_cart, output_type = "ansi")
-test_that("show() Tuned ClassificationRes succeeds", {
+resmodt_r_cart_repr <- repr(resmodt_r_cart, output_type = "ansi")
+test_that("repr() Tuned ClassificationRes succeeds", {
   expect_type(resmodt_r_cart_repr, "character")
 })
 
 # Show Tuned Regression ----
-modt_r_glmnet_repr <- show(modt_r_glmnet, output_type = "ansi")
-test_that("show() Tuned Regression succeeds", {
+modt_r_glmnet_repr <- repr(modt_r_glmnet, output_type = "ansi")
+test_that("repr() Tuned Regression succeeds", {
   expect_type(modt_r_glmnet_repr, "character")
 })
 
 # Show Tuned RegressionRes ----
-resmodt_c_cart_repr <- show(resmodt_c_cart, output_type = "ansi")
-test_that("show() Tuned RegressionRes succeeds", {
+resmodt_c_cart_repr <- repr(resmodt_c_cart, output_type = "ansi")
+test_that("repr() Tuned RegressionRes succeeds", {
   expect_type(resmodt_c_cart_repr, "character")
 })
 

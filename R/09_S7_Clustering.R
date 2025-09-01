@@ -49,7 +49,7 @@ method(`[[`, Clustering) <- function(x, index) {
 # }
 
 # Show Clustering ----
-method(show, Clustering) <- function(
+method(repr, Clustering) <- function(
   x,
   pad = 0L,
   output_type = NULL
@@ -68,6 +68,6 @@ method(print, Clustering) <- function(
   output_type = NULL,
   ...
 ) {
-  cat(show(x, pad = pad, output_type = output_type))
+  cat(repr(x, pad = pad, output_type = output_type))
   invisible(x)
 } # /rtemis::print.Clustering
