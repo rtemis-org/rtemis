@@ -165,7 +165,7 @@ method(`[[`, Supervised) <- function(x, name) {
 #'
 #' @keywords internal
 #' @noRd
-method(show, Supervised) <- function(
+method(repr, Supervised) <- function(
   x,
   output_type = NULL,
   filename = NULL
@@ -219,14 +219,14 @@ method(show, Supervised) <- function(
   # Metrics, training
   out <- paste0(
     out,
-    show(x@metrics_training, pad = 2L, output_type = output_type)
+    repr(x@metrics_training, pad = 2L, output_type = output_type)
   )
 
   # Metrics, validation
   if (length(x@metrics_validation) > 0) {
     out <- paste0(
       out,
-      show(x@metrics_validation, pad = 2L, output_type = output_type)
+      repr(x@metrics_validation, pad = 2L, output_type = output_type)
     )
   }
 
@@ -235,7 +235,7 @@ method(show, Supervised) <- function(
     out <- paste0(
       out,
       "\n",
-      show(x@metrics_test, pad = 2L, output_type = output_type)
+      repr(x@metrics_test, pad = 2L, output_type = output_type)
     )
   }
   out
@@ -249,7 +249,7 @@ method(print, Supervised) <- function(
   ...
 ) {
   output_type <- match.arg(output_type)
-  cat(show(x, output_type = output_type))
+  cat(repr(x, output_type = output_type))
   invisible(x)
 }
 
@@ -346,7 +346,7 @@ Calibration <- new_class(
 ) # /Calibration
 
 # Show Calibration ----
-method(show, Calibration) <- function(x, output_type = NULL) {
+method(repr, Calibration) <- function(x, output_type = NULL) {
   output_type <- get_output_type(output_type)
   paste0(
     show_S7name("Calibration", output_type = output_type),
@@ -1212,7 +1212,7 @@ SupervisedRes <- new_class(
 #'
 #' @keywords internal
 #' @noRd
-method(show, SupervisedRes) <- function(
+method(repr, SupervisedRes) <- function(
   x,
   output_type = NULL,
   filename = NULL
@@ -1265,14 +1265,14 @@ method(show, SupervisedRes) <- function(
   out <- paste0(
     out,
     "\n",
-    show(x@metrics_training, pad = 2L, output_type = output_type)
+    repr(x@metrics_training, pad = 2L, output_type = output_type)
   )
 
   # Metrics, test
   out <- paste0(
     out,
     "\n",
-    show(x@metrics_test, pad = 2L, output_type = output_type)
+    repr(x@metrics_test, pad = 2L, output_type = output_type)
   )
 
   out
@@ -1285,7 +1285,7 @@ method(print, SupervisedRes) <- function(
   output_type = NULL,
   ...
 ) {
-  cat(show(x, output_type = output_type))
+  cat(repr(x, output_type = output_type))
   invisible(x)
 } # /SupervisedRes
 

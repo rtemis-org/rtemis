@@ -70,7 +70,7 @@ RegressionMetrics <- new_class(
 ) # /rtemis::RegressionMetrics
 
 # Show RegressionMetrics ----
-method(show, RegressionMetrics) <- function(
+method(repr, RegressionMetrics) <- function(
   x,
   pad = 0L,
   output_type = NULL
@@ -106,7 +106,7 @@ method(print, RegressionMetrics) <- function(
   output_type = c("ansi", "html", "plain"),
   ...
 ) {
-  cat(show(x, pad = pad, output_type = output_type))
+  cat(repr(x, pad = pad, output_type = output_type))
   invisible(x)
 } # /rtemis::print.RegressionMetrics
 
@@ -146,7 +146,7 @@ ClassificationMetrics <- new_class(
 
 
 # Show ClassificationMetrics ----
-method(show, ClassificationMetrics) <- function(
+method(repr, ClassificationMetrics) <- function(
   x,
   decimal_places = 3L,
   pad = 0L,
@@ -229,7 +229,7 @@ method(print, ClassificationMetrics) <- function(
   output_type = c("ansi", "html", "plain"),
   ...
 ) {
-  cat(show(
+  cat(repr(
     x,
     decimal_places = decimal_places,
     pad = pad,
@@ -261,7 +261,7 @@ MetricsRes <- new_class(
 
 
 # Show MetricsRes ----
-method(show, MetricsRes) <- function(
+method(repr, MetricsRes) <- function(
   x,
   decimal_places = 3L,
   pad = 0L,
@@ -316,7 +316,7 @@ method(print, MetricsRes) <- function(
   output_type = NULL,
   ...
 ) {
-  cat(show(x, decimal_places, pad = pad, output_type = output_type))
+  cat(repr(x, decimal_places, pad = pad, output_type = output_type))
   invisible(x)
 } # /rtemis::print.MetricsRes
 

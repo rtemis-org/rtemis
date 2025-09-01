@@ -301,7 +301,7 @@ method(describe, GridSearch) <- function(x) {
 #'
 #' @author EDG
 #' @noRd
-method(show, GridSearch) <- function(
+method(repr, GridSearch) <- function(
   x,
   header = TRUE,
   output_type = c("ansi", "html", "plain"),

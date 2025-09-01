@@ -53,7 +53,7 @@ method(`[[`, DecompositionParameters) <- function(x, name) {
 #'
 #' @author EDG
 #' @noRd
-method(show, DecompositionParameters) <- function(
+method(repr, DecompositionParameters) <- function(
   x,
   pad = 0L,
   output_type = NULL
@@ -86,7 +86,7 @@ method(print, DecompositionParameters) <- function(
   output_type = NULL,
   ...
 ) {
-  cat(show(x, pad = pad, output_type = output_type))
+  cat(repr(x, pad = pad, output_type = output_type))
   invisible(x)
 }
 

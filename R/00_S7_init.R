@@ -5,8 +5,14 @@
 # References
 # S7 generics: https://rconsortium.github.io/S7/articles/generics-methods.html
 
-# Show
-show <- new_generic("show", "x")
+#' String representation
+#'
+#' @details
+#' Exported as internal function for use by other rtemis packages.
+#'
+#' @keywords internal
+#' @export
+repr <- new_generic("repr", "x")
 # Standard error of the fit.
 se <- new_generic("se", "x")
 # Short description for inline printing.
@@ -332,12 +338,15 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' @param output_type Character vector of output types.
 #' @param filename Character: Filename for output.
 #'
+#' @details
+#' Exported as internal function for use by other rtemis packages.
+#'
 #' @return Character with selected output type.
 #'
 #' @author EDG
 #'
 #' @keywords internal
-#' @noRd
+#' @export
 get_output_type <- function(
   output_type = c("ansi", "html", "plain"),
   filename = NULL

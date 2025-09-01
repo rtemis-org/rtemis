@@ -125,7 +125,7 @@ Hyperparameters <- new_class(
 #'
 #' @author EDG
 #' @noRd
-method(show, Hyperparameters) <- function(
+method(repr, Hyperparameters) <- function(
   x,
   pad = 0L,
   maxlength = -1L,
@@ -202,7 +202,7 @@ method(show, Hyperparameters) <- function(
 
 # Print Hyperparameters ----
 method(print, Hyperparameters) <- function(x, output_type = NULL, ...) {
-  cat(show(x, output_type = output_type))
+  cat(repr(x, output_type = output_type))
   invisible(x)
 } # rtemis::print.Hyperparameters
 

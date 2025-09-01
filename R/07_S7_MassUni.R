@@ -22,7 +22,7 @@ MassGLM <- new_class(
 ) # /rtemis::MassGLM
 
 # Show MassGLM ----
-method(show, MassGLM) <- function(
+method(repr, MassGLM) <- function(
   x,
   output_type = NULL
 ) {
@@ -51,7 +51,7 @@ method(show, MassGLM) <- function(
 #' @author EDG
 #' @noRd
 print.MassGLM <- function(x, output_type = NULL, ...) {
-  cat(show(x, output_type = output_type))
+  cat(repr(x, output_type = output_type))
 } # /rtemis::print.MassGLM
 
 method(print, MassGLM) <- print.MassGLM

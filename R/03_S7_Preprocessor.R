@@ -81,7 +81,7 @@ method(`[[`, PreprocessorParameters) <- function(x, name) {
 }
 
 # Show PreprocessorParameters ----
-method(show, PreprocessorParameters) <- function(
+method(repr, PreprocessorParameters) <- function(
   x,
   limit = -1L,
   pad = 0L,
@@ -102,7 +102,7 @@ method(print, PreprocessorParameters) <- function(
   output_type = NULL,
   ...
 ) {
-  cat(show(x, limit = limit, output_type = output_type))
+  cat(repr(x, limit = limit, output_type = output_type))
   invisible(x)
 } # /rtemis::print.PreprocessorParameters
 
@@ -341,7 +341,7 @@ Preprocessor <- new_class(
 ) # /Preprocessor
 
 # Show Preprocessor ----
-method(show, Preprocessor) <- function(
+method(repr, Preprocessor) <- function(
   x,
   pad = 0L,
   print_df = FALSE,
@@ -356,7 +356,7 @@ method(show, Preprocessor) <- function(
 
 # Print Preprocessor ----
 method(print, Preprocessor) <- function(x, pad = 0L, output_type = NULL, ...) {
-  cat(show(x, output_type = output_type))
+  cat(repr(x, output_type = output_type))
   invisible(x)
 } # /rtemis::print.Preprocessor
 
