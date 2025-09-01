@@ -437,7 +437,7 @@ previewcolor <- function(
     xlim <- c(0.3, width + .7)
   }
   if (!is.null(filename)) {
-    pdf(filename, pdf_width, pdf_height)
+    grDevices::pdf(filename, pdf_width, pdf_height)
   }
   par(bg = bg, xaxs = "i", yaxs = "i", mar = mar, oma = c(0, 0, 0, 0))
 
