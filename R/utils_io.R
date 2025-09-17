@@ -23,7 +23,7 @@ rt_save <- function(
   # Message before expanding outdir to preserve privacy when using relative paths.
   if (verbosity > 0L) {
     start_time <- Sys.time()
-    msg20(
+    msg0(
       "Writing data to ",
       outdir,
       "...",
@@ -44,7 +44,7 @@ rt_save <- function(
     if (verbosity > 0L) {
       yay(format(elapsed, digits = 2), gray(" [rt_save]"), sep = "")
       if (print_load_info) {
-        msg20(gray(
+        msg0(gray(
           paste0(
             "Reload with:",
             "> obj <- readRDS('",
@@ -78,7 +78,7 @@ rt_save <- function(
 #' @noRd
 check_files <- function(paths, verbosity = 1L, pad = 0) {
   if (verbosity > 0L) {
-    msg20("Checking ", singorplu(length(paths), "file"), ":")
+    msg0("Checking ", singorplu(length(paths), "file"), ":")
   }
 
   for (f in paths) {

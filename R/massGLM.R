@@ -107,7 +107,7 @@ massGLM <- function(
 
   # Fit models ----
   if (verbosity > 0L) {
-    msg2(
+    msg(
       "Fitting",
       highlight(length(ynames)),
       "GLMs of family",

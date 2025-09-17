@@ -23,7 +23,9 @@ synth_reg_data <- function(
   seed = NULL,
   verbosity = 0L
 ) {
-  if (!is.null(seed)) set.seed(seed)
+  if (!is.null(seed)) {
+    set.seed(seed)
+  }
   x <- rnormmat(nrow, ncol)
   w <- rnorm(ncol)
   y <- c(x %*% w)
@@ -116,7 +118,9 @@ synth_multimodal <- function(
   seed = NULL,
   filename = NULL
 ) {
-  if (!is.null(seed)) set.seed(seed)
+  if (!is.null(seed)) {
+    set.seed(seed)
+  }
 
   # Synth features ----
   x <- lapply(seq(n_groups), function(i) {
@@ -141,7 +145,9 @@ synth_multimodal <- function(
     sort(sample(seq(n_feat_per_group[i]), contrib_p * n_feat_per_group[i]))
   })
   names(index.contrib) <- names(x)
-  if (verbosity > 0L) cat("  Got index.contrib\n")
+  if (verbosity > 0L) {
+    cat("  Got index.contrib\n")
+  }
 
   # '- linear ----
   # index_linear: The features within index.contrib that will be included linearly
@@ -149,7 +155,9 @@ synth_multimodal <- function(
     sort(sample(index.contrib[[i]], linear_p * length(index.contrib[[i]])))
   })
   names(index_linear) <- names(x)
-  if (verbosity > 0L) cat("  Got index_square\n")
+  if (verbosity > 0L) {
+    cat("  Got index_square\n")
+  }
 
   # '- square ----
   # index_square: The features within index.contrib that will be squared
@@ -157,7 +165,9 @@ synth_multimodal <- function(
     sort(sample(index.contrib[[i]], square_p * length(index.contrib[[i]])))
   })
   names(index_square) <- names(x)
-  if (verbosity > 0L) cat("  Got index_square\n")
+  if (verbosity > 0L) {
+    cat("  Got index_square\n")
+  }
 
   # '- atan ----
   # index_atan: The features within index.contrib that will be arctanned
@@ -166,7 +176,9 @@ synth_multimodal <- function(
     sort(sample(index.open, atan_p * length(index.contrib[[i]])))
   })
   names(index_atan) <- names(x)
-  if (verbosity > 0L) cat("  Got index_atan\n")
+  if (verbosity > 0L) {
+    cat("  Got index_atan\n")
+  }
 
   # '- pair.multiply ----
   # index_pair_multiply
@@ -180,7 +192,9 @@ synth_multimodal <- function(
     }
   })
   names(index_pair_multiply) <- names(x)
-  if (verbosity > 0L) cat("  Got index_pair_multiply\n")
+  if (verbosity > 0L) {
+    cat("  Got index_pair_multiply\n")
+  }
 
   # '- pair.square ----
   # index_pair_square
@@ -194,7 +208,9 @@ synth_multimodal <- function(
     }
   })
   names(index_pair_square) <- names(x)
-  if (verbosity > 0L) cat("  Got index_pair_square\n")
+  if (verbosity > 0L) {
+    cat("  Got index_pair_square\n")
+  }
 
   # index_pair_atan ----
   index_pair_atan <- lapply(seq(n_groups), function(i) {
@@ -206,11 +222,15 @@ synth_multimodal <- function(
       t(apply(matrix(index, ncol = 2, byrow = TRUE), 1, sort))
     }
   })
-  if (verbosity > 0L) cat("  Got index_pair_atan\n")
+  if (verbosity > 0L) {
+    cat("  Got index_pair_atan\n")
+  }
 
   # Outcome ----
   # '- linear, squares & atans ----
-  if (verbosity > 0L) cat("  Adding linear, square and atan terms...")
+  if (verbosity > 0L) {
+    cat("  Adding linear, square and atan terms...")
+  }
   y1 <- lapply(seq(n_groups), function(i) {
     matrixStats::rowSums2(
       rnorm(1) * x[[i]][, index_linear[[i]], drop = FALSE]
@@ -223,10 +243,14 @@ synth_multimodal <- function(
       )
   })
   names(y1) <- names(x)
-  if (verbosity > 0L) cat(" Done\n")
+  if (verbosity > 0L) {
+    cat(" Done\n")
+  }
 
   # '- pair.multiply ----
-  if (verbosity > 0L) cat("  Getting pair products...")
+  if (verbosity > 0L) {
+    cat("  Getting pair products...")
+  }
   y2 <- vector("list", n_groups)
   names(y2) <- names(x)
   for (i in seq_len(n_groups)) {
@@ -243,10 +267,14 @@ synth_multimodal <- function(
       rep(0, n_cases)
     }
   }
-  if (verbosity > 0L) cat(" Done\n")
+  if (verbosity > 0L) {
+    cat(" Done\n")
+  }
 
   # '- pair.square ----
-  if (verbosity > 0L) cat("  Squaring pair products...")
+  if (verbosity > 0L) {
+    cat("  Squaring pair products...")
+  }
   y3 <- vector("list", n_groups)
   names(y3) <- names(x)
   for (i in seq_len(n_groups)) {
@@ -263,10 +291,14 @@ synth_multimodal <- function(
       rep(0, n_cases)
     }
   }
-  if (verbosity > 0L) cat(" Done\n")
+  if (verbosity > 0L) {
+    cat(" Done\n")
+  }
 
   # '- pair.atan ----
-  if (verbosity > 0L) cat("  Atan of pair products...")
+  if (verbosity > 0L) {
+    cat("  Atan of pair products...")
+  }
   y4 <- vector("list", n_groups)
   names(y4) <- names(x)
   for (i in seq_len(n_groups)) {
@@ -283,7 +315,9 @@ synth_multimodal <- function(
       rep(0, n_cases)
     }
   }
-  if (verbosity > 0L) cat(" Done\n")
+  if (verbosity > 0L) {
+    cat(" Done\n")
+  }
 
   y <- lapply(
     seq_len(n_groups),
@@ -304,10 +338,12 @@ synth_multimodal <- function(
 
   # Save RDS ----
   if (!is.null(filename)) {
-    if (verbosity > 0L) cat("Saving data to file...\n")
+    if (verbosity > 0L) {
+      cat("Saving data to file...\n")
+    }
     filename <- paste0(gsub(".rds", "", filename), ".rds")
     saveRDS(out, filename)
-    if (verbosity > 0L) msg2("Saved", filename)
+    if (verbosity > 0L) msg("Saved", filename)
   }
 
   out

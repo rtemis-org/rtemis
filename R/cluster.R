@@ -38,7 +38,7 @@ cluster <- function(
   # Cluster ----
   algorithm <- get_clust_name(algorithm)
   if (verbosity > 0L) {
-    msg20(bold(paste0("Clustering with ", algorithm, "...")))
+    msg0(bold(paste0("Clustering with ", algorithm, "...")))
   }
   clust <- do_call(
     fn = get_clust_fn(algorithm),
@@ -58,7 +58,7 @@ cluster <- function(
     # For algorithms where k is not prescribed, but determined from the clustering result
     k <- length(unique(clusters))
     if (verbosity > 0L) {
-      msg20(paste0("Found ", highlight(k), " clusters."))
+      msg0(paste0("Found ", highlight(k), " clusters."))
     }
   }
 

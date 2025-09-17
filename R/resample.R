@@ -45,12 +45,12 @@ resample <- function(
   if (NCOL(x) > 1) {
     if (survival::is.Surv(x)) {
       if (verbosity > 0L) {
-        msg2("Survival object will be stratified on time.")
+        msg("Survival object will be stratified on time.")
       }
       x <- x[, 1]
     } else {
       if (verbosity > 0L) {
-        msg2("Input contains more than one column; stratifying on last.")
+        msg("Input contains more than one column; stratifying on last.")
       }
       x <- x[[NCOL(x)]]
     }
@@ -153,7 +153,7 @@ resample <- function(
     actual_n_bins <- attr(res_part, "strat_n_bins")
     if (actual_n_bins != parameters@strat_n_bins) {
       if (verbosity > 0L) {
-        msg20(
+        msg0(
           "Updated strat_n_bins from ",
           parameters@strat_n_bins,
           " to ",
@@ -240,7 +240,7 @@ kfold <- function(
       cli::cli_abort("Only one unique value present in stratify_var.")
     }
     if (verbosity > 0L) {
-      msg20("Using max n bins possible = ", max.bins, ".")
+      msg0("Using max n bins possible = ", max.bins, ".")
     }
     strat_n_bins <- max.bins
   }
@@ -304,7 +304,7 @@ strat_sub <- function(
   max.bins <- length(unique(stratify_var))
   if (max.bins < strat_n_bins) {
     if (verbosity > 0L) {
-      msg2("Using max n bins possible =", max.bins)
+      msg("Using max n bins possible =", max.bins)
     }
     strat_n_bins <- max.bins
   }

@@ -1753,7 +1753,7 @@ rtemis_palettes <- list(
 rtpalette <- function(palette = NULL, verbosity = 1L) {
   if (is.null(palette)) {
     if (verbosity > 0L) {
-      msg2(highlight("The following palettes are available:"))
+      msg(highlight("The following palettes are available:"))
       print(names(rtemis_palettes))
     }
   } else {

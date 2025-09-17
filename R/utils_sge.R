@@ -56,14 +56,14 @@ sge_submit <- function(
   expr <- as.character(as.expression(substitute(expr)))
 
   if (verbosity > 0L) {
-    msg2("Preparing SGE submission...")
+    msg("Preparing SGE submission...")
   }
 
   # Create temp_dir ----
   if (!dir.exists(temp_dir)) {
     dir.create(temp_dir, recursive = TRUE)
     stopifnot(dir.exists(temp_dir))
-    if (verbosity > 1L) msg2("Created temp_dir", temp_dir)
+    if (verbosity > 1L) msg("Created temp_dir", temp_dir)
   }
 
   # Save obj_names to temp ----
@@ -77,29 +77,29 @@ sge_submit <- function(
       )
     )
     if (verbosity > 1L) {
-      msg2("Temp file set to", .temp)
-      msg2("Objects written to temp file:", paste(obj_names, collapse = ", "))
+      msg("Temp file set to", .temp)
+      msg("Objects written to temp file:", paste(obj_names, collapse = ", "))
     }
   }
 
   # sge_out and sge_error ----
   if (!dir.exists(sge_out)) {
     dir.create(sge_out, recursive = TRUE)
-    if (verbosity > 1L) msg2("Created sge_out", sge_out)
+    if (verbosity > 1L) msg("Created sge_out", sge_out)
   }
   if (!dir.exists(sge_error)) {
     dir.create(sge_error, recursive = TRUE)
-    if (verbosity > 1L) msg2("Created sge_error", sge_error)
+    if (verbosity > 1L) msg("Created sge_error", sge_error)
   }
   if (verbosity > 1L) {
-    msg2("sge_out set to:", sge_out)
-    msg2("sge_error set to:", sge_error)
+    msg("sge_out set to:", sge_out)
+    msg("sge_error set to:", sge_error)
   }
 
   # Write {.R file} to temp_dir ----
   Rfilepath <- tempfile(pattern = "Rsub", tmpdir = temp_dir)
   if (verbosity > 1L) {
-    msg2("Rfilepath set to", Rfilepath)
+    msg("Rfilepath set to", Rfilepath)
   }
 
   ## init file ----
@@ -122,7 +122,7 @@ sge_submit <- function(
 
   ## Diag ----
   cat(
-    "rtemis:::msg2('Running on', Sys.getenv('HOSTNAME'), 'as', Sys.getenv('USER'), date = FALSE)",
+    "rtemis:::msg('Running on', Sys.getenv('HOSTNAME'), 'as', Sys.getenv('USER'), date = FALSE)",
     "\n",
     file = Rfilepath,
     append = TRUE
@@ -140,7 +140,7 @@ sge_submit <- function(
   # Write {.sh file} to temp_dir ----
   shfilepath <- tempfile(pattern = "SHsub", tmpdir = temp_dir)
   if (verbosity > 1L) {
-    msg2("shfile set to:", shfilepath)
+    msg("shfile set to:", shfilepath)
   }
 
   cat(sge_env, "\n", file = shfilepath)

@@ -16,7 +16,7 @@
 init_project_dir <- function(verbosity = 1L) {
   wd <- getwd()
   if (verbosity > 0L) {
-    msg2("Initializing project directory...")
+    msg("Initializing project directory...")
   }
   if (verbosity > 0L) {
     cat("  Working in ", wd, "...\n", sep = "")
@@ -124,8 +124,6 @@ drange <- function(x, lo = 0, hi = 1, byCol = TRUE) {
 #' Get Variable Name from Arguments
 #'
 #' Get the name of the variable passed as argument, limit number of characters in case of failure
-#'
-#' One way to test is to use [learn] with x.name = NULL, y.name = NULL
 #'
 #' @param x Variable whose name you want to extract
 #' @param alt Character: If name derived from `deparse(substitute(x))` exceeds `max_nchar` characters, use this name instead
@@ -776,7 +774,7 @@ winsorize <- function(
     min(x)
   }
   if (verbosity > 0L) {
-    msg2("Lo cut set to", lo.cut)
+    msg("Lo cut set to", lo.cut)
   }
 
   hi.cut <- if (!is.null(hi)) {
@@ -787,7 +785,7 @@ winsorize <- function(
     max(x)
   }
   if (verbosity > 0L) {
-    msg2("Hi cut set to", hi.cut)
+    msg("Hi cut set to", hi.cut)
   }
 
   xw <- ifelse(x < lo.cut, lo.cut, x)
@@ -929,7 +927,7 @@ table1 <- function(
   }
   .dim <- dim(x)
   if (verbosity > 0L) {
-    msg2(
+    msg(
       "Input:",
       highlight(.dim[1]),
       "cases with",

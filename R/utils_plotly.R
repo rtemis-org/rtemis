@@ -162,7 +162,7 @@ export_plotly <- function(
 
   # Intro
   if (verbosity > 0L) {
-    msg2start("Exporting plotly plot to ", filename, "...")
+    msgstart("Exporting plotly plot to ", filename, "...")
   }
 
   # Export to file ----
@@ -182,7 +182,7 @@ export_plotly <- function(
     )
   } else {
     if (verbosity > 0L) {
-      msg2done()
+      msgdone()
     }
   }
 } # rtemis::export_plotly

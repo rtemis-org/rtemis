@@ -30,7 +30,7 @@ match_cases_by_rules <- function(x, rules, prefix = "Rule_", verbosity = 1L) {
   x[, ID := seq_len(n_cases)]
   cxr <- matrix(0, n_cases, n_rules)
   if (verbosity > 0L) {
-    msg2start(
+    msgstart(
       "Matching",
       highlight(n_rules),
       "rules to",
@@ -46,7 +46,7 @@ match_cases_by_rules <- function(x, rules, prefix = "Rule_", verbosity = 1L) {
     colnames(cxr) <- paste0(prefix, seq_len(n_rules))
   }
   if (verbosity > 0L) {
-    msg2done()
+    msgdone()
   }
   cxr
 } # rtemis::match_cases_by_rules
@@ -239,7 +239,7 @@ rules2medmod <- function(rules, x, .ddSci = TRUE, verbosity = 1L) {
   rules_f <- vector("character", nrules)
   frmt <- if (.ddSci) ddSci else I
   if (verbosity > 0L) {
-    msg2("Converting rules...")
+    msg("Converting rules...")
   }
   for (i in seq(rules)) {
     if (verbosity > 1L) {
@@ -280,7 +280,7 @@ rules2medmod <- function(rules, x, .ddSci = TRUE, verbosity = 1L) {
   } # /loop through rules
 
   if (verbosity > 0L) {
-    msg2("Done")
+    msg("Done")
   }
   rules_f
 } # rtemis::rules2medmod

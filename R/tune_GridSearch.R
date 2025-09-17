@@ -10,8 +10,8 @@
 #' as they need to be resampled along `x` and `y`, and should not be passed along with
 #' `grid_params`. `ifw` and `ifw_type` should be passed as part of `grid_params`
 #' and will be passed on to the learner.
-#' Includes a special case for training [s_H2OGBM] or [s_GBM] which requires extracting and averaging n.trees
-#' along with params.
+#' Includes a algorithm-specific extraction of parameters that are determined internally,
+#' such as `lambda` for `GLMNET`, `nrounds` for `LightGBM`, etc.
 #'
 #' @param x data.frame or similar: Training set.
 #' @param hyperparameters List: Hyperparameters.
@@ -65,7 +65,7 @@ tune_GridSearch <- function(
   # If n_workers = 1, use direct lapply for simplicity and better error handling
   if (n_workers == 1L && parallel_type != "none") {
     if (verbosity > 1L) {
-      msg2_info("Using sequential execution (n_workers = 1)")
+      msg_info("Using sequential execution (n_workers = 1)")
     }
     parallel_type <- "none"
   }
@@ -95,7 +95,7 @@ tune_GridSearch <- function(
 
   # Intro pt. 2 ----
   if (verbosity > 0L) {
-    msg20(
+    msg0(
       fmt("<> ", col = col_tuner, bold = TRUE),
       "Tuning ",
       algorithm,
@@ -105,7 +105,7 @@ tune_GridSearch <- function(
       desc(tuner_parameters@parameters[["resampler_parameters"]]),
       "..."
     )
-    msg20(
+    msg0(
       fmt(n_param_combinations, col = col_tuner, bold = TRUE),
       ngettext(
         n_param_combinations,
@@ -147,7 +147,7 @@ tune_GridSearch <- function(
     n_res_x_comb
   ) {
     if (verbosity > 1L) {
-      msg2(
+      msg(
         "Running grid line #",
         fmt(index, col = col_tuner, bold = TRUE),
         "/",
@@ -203,7 +203,7 @@ tune_GridSearch <- function(
       # Check best_iter is meaningful, otherwise issue message and set to 100L
       best_iter <- mod1@model[["best_iter"]]
       if (is.null(best_iter) || best_iter == -1 || best_iter == 0) {
-        msg2_info(
+        msg_info(
           paste(
             "best_iter returned from lightgbm:",
             best_iter,
@@ -253,12 +253,12 @@ tune_GridSearch <- function(
     if (n_workers == 1L) {
       future::plan(strategy = "sequential")
       if (verbosity > 0L) {
-        msg2("Tuning in sequence")
+        msg("Tuning in sequence")
       }
     } else {
       future::plan(strategy = future_plan, workers = n_workers)
       if (verbosity > 0L) {
-        msg20(
+        msg0(
           "Tuning using future (",
           bold(future_plan),
           "); N workers: ",
@@ -282,7 +282,7 @@ tune_GridSearch <- function(
     )
   } else if (parallel_type == "mirai") {
     if (verbosity > 0L) {
-      msg2("Tuning using mirai; N workers:", bold(n_workers))
+      msg("Tuning using mirai; N workers:", bold(n_workers))
     }
     mirai::daemons(n_workers, dispatcher = TRUE)
     on.exit(mirai::daemons(0L))
@@ -396,7 +396,7 @@ tune_GridSearch <- function(
       # if lambda was NULL, cv.glmnet was run and optimal lambda was estimated
       # For each i in grid_run, get grid_run[[i]]$hyperparameters[[grid_run[[i]]$hyperparameters$which_lambda_cv]]
       if (verbosity > 1L) {
-        msg2_info("Extracting best lambda from GLMNET models...")
+        msg_info("Extracting best lambda from GLMNET models...")
       }
       lambda_cv2 <- data.table(
         lambda = sapply(
@@ -435,7 +435,7 @@ tune_GridSearch <- function(
   if (algorithm == "LightGBM") {
     if (is.null(grid_params[["nrounds"]])) {
       if (verbosity > 1L) {
-        msg2_info("Extracting best N of iterations from LightGBM models...")
+        msg_info("Extracting best N of iterations from LightGBM models...")
       }
       nrounds_cv <- data.table(
         nrounds = sapply(grid_run, \(x) x[["hyperparameters"]][["best_iter"]])
@@ -476,7 +476,7 @@ tune_GridSearch <- function(
   ## XGBoost ----
   # if (algorithm == "XGBoost") {
   #   if (verbosity > 1L) {
-  #     msg2(highlight("Extracting best N of iterations from XGBoost models..."))
+  #     msg(highlight("Extracting best N of iterations from XGBoost models..."))
   #   }
   #   est.nrounds.all <- data.frame(nrounds = plyr::laply(
   #     grid_run,
@@ -499,7 +499,7 @@ tune_GridSearch <- function(
   ## LINAD ----
   # if (algorithm %in% c("LINAD", "LINOA")) {
   #   if (verbosity > 1L) {
-  #     msg2_info("Extracting best N leaves from LINAD models...")
+  #     msg_info("Extracting best N leaves from LINAD models...")
   #   }
   #   est.n.leaves.all <- data.frame(n.leaves = plyr::laply(
   #     grid_run,
@@ -522,7 +522,7 @@ tune_GridSearch <- function(
   ## LIHADBoost ----
   # if (algorithm == "LIHADBoost") {
   #   if (verbosity > 1L) {
-  #     msg2(highlight("Extracting best N steps from LIHADBoost models..."))
+  #     msg(highlight("Extracting best N steps from LIHADBoost models..."))
   #   }
   #   est.n.steps.all <- data.frame(n.steps = plyr::laply(
   #     grid_run,
@@ -553,7 +553,7 @@ tune_GridSearch <- function(
   )
   best_param_combo <- as.list(param_grid[best_param_combo_id, -1, drop = FALSE])
   if (verbosity > 0L) {
-    msg2(
+    msg(
       paste0("Best parameters to ", paste(verb, metric), ":")
     )
     print_tune_finding(grid_params, best_param_combo)
@@ -564,7 +564,7 @@ tune_GridSearch <- function(
   outro(start_time, verbosity = verbosity - 1)
 
   if (verbosity > 0L) {
-    msg2(
+    msg(
       fmt("</>", col = col_tuner, bold = TRUE),
       "Tuning done."
     )

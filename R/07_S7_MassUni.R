@@ -94,7 +94,7 @@ plot.MassGLM <- function(
     ))
   }
   if (verbosity > 0L) {
-    msg2(
+    msg(
       "Plotting coefficients for",
       highlight(coefname),
       "x",

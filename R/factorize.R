@@ -79,13 +79,19 @@ factorize <- function(
   check_dependencies("psych")
 
   # Arguments ----
-  if (is.null(x_name)) x_name <- deparse(substitute(x))
-  if (is.null(n_factors)) do_pa <- TRUE
+  if (is.null(x_name)) {
+    x_name <- deparse(substitute(x))
+  }
+  if (is.null(n_factors)) {
+    do_pa <- TRUE
+  }
   omega_rotation <- match.arg(omega_rotation)
 
   # Parallel Analysis - Estimate Number of Factors ----
   if (do_pa) {
-    if (verbosity > 0L) msg2("Running Parallel Analysis...")
+    if (verbosity > 0L) {
+      msg("Running Parallel Analysis...")
+    }
     parallel_analysis <- psych::fa.parallel(
       x,
       fm = method,
@@ -99,23 +105,27 @@ factorize <- function(
       }
     } else {
       if (n_factors != parallel_analysis[["nfact"]]) {
-        msg2(
+        msg(
           n_factors,
           "requested; Parallel analysis suggests",
           parallel_analysis[["nfact"]],
           "factors."
         )
-        msg2("Check scree plot")
+        msg("Check scree plot")
       }
     }
   } else {
     parallel_analysis <- NULL
   }
-  if (verbosity > 0L) msg2("Using", n_factors, "factors")
+  if (verbosity > 0L) {
+    msg("Using", n_factors, "factors")
+  }
 
   # Factor Analysis ----
   if (do_fa) {
-    if (verbosity > 0L) msg2("Running Exploratory Factor Analysis...")
+    if (verbosity > 0L) {
+      msg("Running Exploratory Factor Analysis...")
+    }
     x_fa <- psych::fa(
       x,
       nfactors = n_factors,
@@ -137,7 +147,9 @@ factorize <- function(
 
   # Bifactor Analysis ----
   if (do_bifactor) {
-    if (verbosity > 0L) msg2("Running Bifactor Analysis...")
+    if (verbosity > 0L) {
+      msg("Running Bifactor Analysis...")
+    }
     x_omega <- psych::omegaSem(
       x,
       nfactors = n_factors,
@@ -155,7 +167,9 @@ factorize <- function(
 
   # Hierarchical Cluster Analysis ----
   if (do_hclust) {
-    if (verbosity > 0L) msg2("Performing hierarchical cluster analysis...")
+    if (verbosity > 0L) {
+      msg("Performing hierarchical cluster analysis...")
+    }
     x_pvclust <- pvclust::pvclust(x)
     if (print_plot) plot(x_pvclust)
   } else {
