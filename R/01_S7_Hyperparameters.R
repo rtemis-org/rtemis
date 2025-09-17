@@ -173,8 +173,7 @@ method(repr, Hyperparameters) <- function(
           "\n  ",
           ngettext(length(need_tuning), "Hyperparameter ", "Hyperparameters "),
           oxfordcomma(
-            need_tuning,
-            format_fn = underline
+            need_tuning
           ),
           ngettext(length(need_tuning), " needs ", " need "),
           "tuning.\n"

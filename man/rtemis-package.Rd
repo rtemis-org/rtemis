@@ -29,8 +29,8 @@ future::availableCores(). In shared systems, you should limit this as appropriat
 
 \section{Visualization}{
 
-Graphics are handled using the \code{draw} family, which produces interactive plots using\code{plotly} and
-other packages.
+Graphics are handled using the \code{draw} family, which produces interactive plots primarily using
+\code{plotly} and other packages.
 }
 
 \section{Supervised Learning}{
