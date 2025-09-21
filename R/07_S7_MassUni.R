@@ -28,7 +28,7 @@ method(repr, MassGLM) <- function(
 ) {
   output_type <- get_output_type(output_type)
   paste0(
-    show_S7name("MassGLM"),
+    repr_S7name("MassGLM"),
     highlight(length(x@ynames)),
     " GLMs of family ",
     bold(x@family),

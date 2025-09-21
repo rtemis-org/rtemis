@@ -77,13 +77,13 @@ method(repr, RegressionMetrics) <- function(
 ) {
   output_type <- get_output_type(output_type)
   out <- if (!is.null(x@sample)) {
-    show_S7name(
+    repr_S7name(
       paste(x@sample, "Regression Metrics"),
       pad = pad,
       output_type = output_type
     )
   } else {
-    show_S7name("Regression Metrics", pad = pad, output_type = output_type)
+    repr_S7name("Regression Metrics", pad = pad, output_type = output_type)
   }
   out <- paste0(
     out,
@@ -156,13 +156,13 @@ method(repr, ClassificationMetrics) <- function(
   output_type <- get_output_type(output_type)
 
   if (!is.null(x@sample)) {
-    out <- show_S7name(
+    out <- repr_S7name(
       paste(x@sample, "Classification Metrics"),
       pad = pad,
       output_type = output_type
     )
   } else {
-    out <- show_S7name(
+    out <- repr_S7name(
       "Classification Metrics",
       pad = pad,
       output_type = output_type
@@ -273,7 +273,7 @@ method(repr, MetricsRes) <- function(
   } else {
     "Classification"
   }
-  out <- show_S7name(
+  out <- repr_S7name(
     paste("Resampled", type, x@sample, "Metrics"),
     pad = pad,
     output_type = output_type

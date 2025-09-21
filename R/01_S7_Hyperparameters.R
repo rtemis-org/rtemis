@@ -133,7 +133,7 @@ method(repr, Hyperparameters) <- function(
   output_type = NULL
 ) {
   output_type <- get_output_type(output_type)
-  out <- show_S7name(
+  out <- repr_S7name(
     paste0(x@algorithm, "Hyperparameters"),
     pad = pad,
     output_type = output_type

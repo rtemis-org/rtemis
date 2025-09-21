@@ -60,7 +60,7 @@ method(repr, DecompositionParameters) <- function(
 ) {
   output_type <- get_output_type(output_type)
   paste0(
-    show_S7name(
+    repr_S7name(
       paste(x["algorithm"], "DecompositionParameters"),
       pad = pad,
       output_type = output_type

@@ -173,7 +173,7 @@ method(repr, Supervised) <- function(
   output_type <- get_output_type(output_type, filename)
   # Class name
   out <- paste0(
-    show_S7name(x@type, output_type = output_type),
+    repr_S7name(x@type, output_type = output_type),
     highlight(x@algorithm, output_type = output_type),
     " (",
     desc_alg(x@algorithm),
@@ -349,7 +349,7 @@ Calibration <- new_class(
 method(repr, Calibration) <- function(x, output_type = NULL) {
   output_type <- get_output_type(output_type)
   paste0(
-    show_S7name("Calibration", output_type = output_type),
+    repr_S7name("Calibration", output_type = output_type),
     highlight(x@algorithm, output_type = output_type),
     " (",
     desc_alg(x@algorithm),
@@ -1221,7 +1221,7 @@ method(repr, SupervisedRes) <- function(
 
   # Class name + Alg name (2 lines)
   out <- paste0(
-    show_S7name(paste("Resampled", x@type, "Model"), output_type = output_type),
+    repr_S7name(paste("Resampled", x@type, "Model"), output_type = output_type),
     highlight(x@algorithm, output_type = output_type),
     " (",
     desc_alg(x@algorithm),
