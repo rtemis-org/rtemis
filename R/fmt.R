@@ -38,6 +38,8 @@
 #' fmt("Highlight", col = "white", bg = "blue", bold = TRUE)
 #' }
 #'
+#' @author EDG
+#' @export
 #' @keywords internal
 #' @noRd
 fmt <- function(
@@ -170,7 +172,7 @@ fmt <- function(
 #' @return Character: Formatted text with highlight.
 #'
 #' @author EDG
-#'
+#' @export
 #' @keywords internal
 #' @noRd
 highlight <- function(

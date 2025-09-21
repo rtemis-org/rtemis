@@ -345,8 +345,10 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #'
 #' @author EDG
 #'
-#' @keywords internal
 #' @export
+#' @keywords internal
+#' @noRd
+
 get_output_type <- function(
   output_type = c("ansi", "html", "plain"),
   filename = NULL

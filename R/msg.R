@@ -143,7 +143,9 @@ msg <- function(
   }
 } # rtemis::msg
 
-
+#' @export
+#' @keywords internal
+#' @noRd
 msg0 <- function(
   ...,
   caller = NULL,

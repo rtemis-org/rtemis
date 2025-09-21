@@ -578,6 +578,7 @@ abbreviate_class <- function(x, n = 4L) {
 #'
 #' @author EDG
 #'
+#' @export
 #' @keywords internal
 #' @noRd
 check_dependencies <- function(..., verbosity = 0L) {
