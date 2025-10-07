@@ -85,14 +85,13 @@ logloss <- function(true_int, predicted_prob, eps = 1e-16) {
 #'
 #' The first factor level is considered the positive case.
 #'
-#' @param true True labels
-#' @param predicted predicted labels
-#' @param harmonize Logical: If TRUE, run `factor_harmonize` first
+#' @param true Factor: True labels.
+#' @param predicted Factor: Predicted labels.
+#' @param harmonize Logical: If TRUE, run `factor_harmonize` first.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @export
 #' @keywords internal
-#' @noRd
 sensitivity <- function(true, predicted, harmonize = FALSE, verbosity = 1L) {
   if (harmonize) {
     predicted <- factor_harmonize(true, predicted, verbosity = verbosity)

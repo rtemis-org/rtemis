@@ -312,7 +312,7 @@ pastebox <- function(x, pad = 0) {
 #' Show S7 class name
 #'
 #' @param x Character: S7 class name.
-#' @param col Color: Color code for the class name.
+#' @param colors Character: Color codes for the object name.
 #' @param pad Integer: Number of spaces to pad the message with.
 #' @param verbosity Integer: Verbosity level. If > 1, adds package name to the output.
 #' @param output_type Character: Output type ("ansi", "html", "plain").
@@ -322,7 +322,6 @@ pastebox <- function(x, pad = 0) {
 #' @author EDG
 #' @export
 #' @keywords internal
-#' @noRd
 repr_S7name <- function(
   x,
   colors = c(rtemis_teal, rtemis_light_teal),

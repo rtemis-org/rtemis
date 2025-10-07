@@ -41,7 +41,6 @@
 #' @author EDG
 #' @export
 #' @keywords internal
-#' @noRd
 fmt <- function(
   x,
   col = NULL,
@@ -174,7 +173,6 @@ fmt <- function(
 #' @author EDG
 #' @export
 #' @keywords internal
-#' @noRd
 highlight <- function(
   x,
   output_type = c("ansi", "html", "plain")

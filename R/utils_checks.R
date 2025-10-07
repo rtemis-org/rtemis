@@ -580,7 +580,6 @@ abbreviate_class <- function(x, n = 4L) {
 #'
 #' @export
 #' @keywords internal
-#' @noRd
 check_dependencies <- function(..., verbosity = 0L) {
   ns <- as.list(c(...))
   err <- !sapply(ns, \(i) requireNamespace(i, quietly = TRUE))

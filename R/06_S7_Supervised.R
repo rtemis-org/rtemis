@@ -840,6 +840,7 @@ method(plot_true_pred, Regression) <- function(
 #'
 #' @param x Classification object.
 #' @param what Character vector: What to plot. "training", "validation", "test"
+#' @param xlab Character: x axis label. If NULL, will be generated automatically.
 #' @param theme Theme object.
 #' @param ... Additional arguments passed to the plotting function.
 #'
@@ -878,19 +879,7 @@ plot_true_pred.Classification <- function(
     ...
   )
 } # /rtemis::plot_true_pred.Classification
-method(plot_true_pred, Classification) <- function(
-  x,
-  what = NULL,
-  theme = choose_theme(),
-  ...
-) {
-  plot_true_pred.Classification(
-    x = x,
-    what = what,
-    theme = theme,
-    ...
-  )
-}
+method(plot_true_pred, Classification) <- plot_true_pred.Classification
 
 
 # plot_ROC Classification ----

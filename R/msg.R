@@ -100,7 +100,7 @@ format_caller <- function(call_stack, call_depth, caller_id, max_char = 30L) {
 #' @param caller_id Integer: Which function in the call stack to print
 #' @param newline_pre Logical: If TRUE begin with a new line.
 #' @param newline Logical: If TRUE end with a new line.
-#' @param color Color fn
+#' @param format_fn Function: Formatting function to use on the message text.
 #' @param sep Character: Use to separate objects in `...`
 #'
 #' @return Invisibly: List with call, message, and date
@@ -108,7 +108,6 @@ format_caller <- function(call_stack, call_depth, caller_id, max_char = 30L) {
 #'
 #' @export
 #' @keywords internal
-#' @noRd
 msg <- function(
   ...,
   date = rtemis_date,
@@ -143,9 +142,10 @@ msg <- function(
   }
 } # rtemis::msg
 
+#' @inheritParams msg
+#'
 #' @export
 #' @keywords internal
-#' @noRd
 msg0 <- function(
   ...,
   caller = NULL,
@@ -195,6 +195,7 @@ pcat <- function(left, right, pad = 17, newline = TRUE) {
   cat(pad_string(left), right)
   if (newline) cat("\n")
 }
+
 
 pad_string <- function(x, target = 17, char = " ") {
   lpad <- max(0, target - max(0, nchar(x)))
