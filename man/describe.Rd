@@ -7,7 +7,7 @@
 describe(x, ...)
 }
 \arguments{
-\item{x}{An rtemis object.}
+\item{x}{\code{Supervised} or \code{SupervisedRes} object or list of such objects.}
 
 \item{...}{Not used.}
 }
