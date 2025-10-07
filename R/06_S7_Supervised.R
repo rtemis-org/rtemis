@@ -848,6 +848,7 @@ method(plot_true_pred, Regression) <- function(
 plot_true_pred.Classification <- function(
   x,
   what = NULL,
+  xlab = NULL,
   theme = choose_theme(),
   ...
 ) {
@@ -867,10 +868,13 @@ plot_true_pred.Classification <- function(
   } else if (what == "test") {
     x@metrics_test
   }
+  if (is.null(xlab)) {
+    xlab <- labelify(paste("Predicted", what))
+  }
   draw_confusion(
     .confmat,
     theme = theme,
-    xlab = labelify(paste("Predicted", what)),
+    xlab = xlab,
     ...
   )
 } # /rtemis::plot_true_pred.Classification
@@ -1774,6 +1778,8 @@ plot_true_pred.ClassificationRes <- function(
   # if (labelify) {
   #   names(predicted_l) <- labelify(names(predicted_l))
   # }
+  # => Do not pass filename to both training & testing, latter will overwrite; pass to subplot if
+  # plotting both
   # Training
   if ("training" %in% what) {
     plt_training <- draw_confusion(
@@ -1992,7 +1998,7 @@ method(plot_varimp, SupervisedRes) <- function(
   if (is.null(ylab)) {
     ylab <- paste0(
       labelify(paste(summarize_fn, "Variable Importance")),
-      " (across ",
+      "\n(across ",
       desc_alt(x@outer_resampler),
       ")"
     )
