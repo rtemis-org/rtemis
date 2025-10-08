@@ -29,7 +29,19 @@ printls(
 
 \item{pad}{Integer: Pad output with this many spaces.}
 
+\item{item_format}{Formatting function for list item names.}
+
+\item{maxlength}{Integer: Maximum length of items to show using \code{headdot()} before truncating with ellipsis.}
+
 \item{center_title}{Logical: If TRUE, autopad title for centering, if present.}
+
+\item{title}{Character: Optional title to print before list.}
+
+\item{title_newline}{Logical: If TRUE, print title on new line.}
+
+\item{newline_pre}{Logical: If TRUE, print newline before list.}
+
+\item{format_fn_rhs}{Formatting function for right-hand side values.}
 
 \item{print_class}{Logical: If TRUE, print abbreviated class of object.}
 
@@ -39,9 +51,7 @@ printls(
 
 \item{print_S4}{Logical: If TRUE, print S4 object contents, otherwise print class name.}
 
-\item{format_fn}{Formatting function.}
-
-\item{output_type}{Character: One of "console", "ansi", "html" for output formatting.}
+\item{limit}{Integer: Maximum number of items to show. Use -1 for unlimited.}
 }
 \description{
 Pretty print a list (or data frame) recursively

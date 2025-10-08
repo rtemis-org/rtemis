@@ -33,13 +33,18 @@ is_common_struct <- function(x) {
 #' @param x list or object that will be converted to a list.
 #' @param prefix Character: Optional prefix for names.
 #' @param pad Integer: Pad output with this many spaces.
+#' @param item_format Formatting function for list item names.
+#' @param maxlength Integer: Maximum length of items to show using `headdot()` before truncating with ellipsis.
 #' @param center_title Logical: If TRUE, autopad title for centering, if present.
-#' @param format_fn Formatting function.
+#' @param title Character: Optional title to print before list.
+#' @param title_newline Logical: If TRUE, print title on new line.
+#' @param newline_pre Logical: If TRUE, print newline before list.
+#' @param format_fn_rhs Formatting function for right-hand side values.
 #' @param print_class Logical: If TRUE, print abbreviated class of object.
 #' @param abbrev_class_n Integer: Number of characters to abbreviate class names to.
 #' @param print_df Logical: If TRUE, print data frame contents, otherwise print n rows and columns.
 #' @param print_S4 Logical: If TRUE, print S4 object contents, otherwise print class name.
-#' @param output_type Character: One of "console", "ansi", "html" for output formatting.
+#' @param limit Integer: Maximum number of items to show. Use -1 for unlimited.
 #'
 #' @author EDG
 #'

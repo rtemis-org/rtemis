@@ -142,7 +142,7 @@ msg <- function(
   }
 } # rtemis::msg
 
-#' @inheritParams msg
+#' @rdname msg
 #'
 #' @export
 #' @keywords internal

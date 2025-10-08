@@ -2,6 +2,7 @@
 % Please edit documentation in R/msg.R
 \name{msg}
 \alias{msg}
+\alias{msg0}
 \title{Message with provenance}
 \usage{
 msg(
@@ -14,6 +15,17 @@ msg(
   newline = TRUE,
   format_fn = plain,
   sep = " "
+)
+
+msg0(
+  ...,
+  caller = NULL,
+  call_depth = 1,
+  caller_id = 1,
+  newline_pre = FALSE,
+  newline = TRUE,
+  format_fn = plain,
+  sep = ""
 )
 }
 \arguments{
