@@ -89,7 +89,7 @@ method(repr, PreprocessorParameters) <- function(
 ) {
   output_type <- get_output_type(output_type)
   paste0(
-    show_S7name("PreprocessorParameters", pad = pad, output_type = output_type),
+    repr_S7name("PreprocessorParameters", pad = pad, output_type = output_type),
     show_ls(props(x), pad = pad, limit = limit, output_type = output_type)
   )
 } # /rtemis::show.PreprocessorParameters
@@ -349,7 +349,7 @@ method(repr, Preprocessor) <- function(
 ) {
   output_type <- get_output_type(output_type)
   out <- paste0(
-    show_S7name("Preprocessor", pad = pad, output_type = output_type),
+    repr_S7name("Preprocessor", pad = pad, output_type = output_type),
     show_ls(props(x), pad = pad, print_df = print_df)
   )
 } # /rtemis::show.Preprocessor

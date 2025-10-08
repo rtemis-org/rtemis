@@ -36,7 +36,7 @@ intro <- function(
     if (newline_pre) {
       cat("\n")
     }
-    msg2(
+    msg(
       message,
       call_depth = call_depth,
       sep = "",
@@ -82,7 +82,7 @@ outro <- function(
       cat("\n")
     }
     if (real_user_system) {
-      msg20(
+      msg0(
         paste0(
           "Done in ",
           format_seconds(elapsed[3]),
@@ -98,7 +98,7 @@ outro <- function(
         caller_id = 2
       )
     } else {
-      msg20(
+      msg0(
         paste0(
           "Done in ",
           format_seconds(elapsed[3]),
@@ -133,8 +133,8 @@ summarize_supervised <- function(
   dat_validation = NULL,
   dat_test = NULL
 ) {
-  # msg2("Input data summary:")
-  msg20(
+  # msg("Input data summary:")
+  msg0(
     if (!is.null(dat_validation)) "  ",
     "Training set: ",
     highlight(NROW(x)),
@@ -143,7 +143,7 @@ summarize_supervised <- function(
     " features."
   )
   if (!is.null(dat_validation)) {
-    msg20(
+    msg0(
       "Validation set: ",
       highlight(NROW(dat_validation)),
       " cases x ",
@@ -152,7 +152,7 @@ summarize_supervised <- function(
     )
   }
   if (!is.null(dat_test)) {
-    msg20(
+    msg0(
       if (!is.null(dat_validation)) "  ",
       "    Test set: ",
       highlight(NROW(dat_test)),
@@ -171,7 +171,7 @@ summarize_supervised <- function(
 #' @keywords internal
 #' @noRd
 summarize_unsupervised <- function(x) {
-  msg2(
+  msg(
     "Input:",
     highlight(NROW(x)),
     "cases x",
@@ -191,7 +191,7 @@ summarize_unsupervised <- function(x) {
 #' name of the list or data frame prepended.
 #' @param ... Variables to print
 #' @param title Character: title
-#' @param pad Integer: Pad for [printls]
+#' @param pad Integer: Pad for `printls()`
 #' @param newline_pre Logical: If TRUE, start with a newline.
 #' @param newline Logical: If TRUE, end with anew (empty) line.
 #'

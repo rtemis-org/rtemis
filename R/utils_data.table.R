@@ -86,7 +86,7 @@ dt_keybin_reshape <- function(
     key_name
   ))
   if (verbosity > 0L) {
-    msg2("Reshaping", highlight(xname), "to wide format...")
+    msg("Reshaping", highlight(xname), "to wide format...")
     catsize(x, "Input size")
   }
   # Reshape to wide, filling all absent with negative value
@@ -162,7 +162,7 @@ dt_merge <- function(
       "\u27D7"
     )
     if (left_on == right_on) {
-      msg20(
+      msg0(
         bold(green(icon)),
         " Merging ",
         highlight(left_name),
@@ -173,7 +173,7 @@ dt_merge <- function(
         "..."
       )
     } else {
-      msg20(
+      msg0(
         bold(green(icon)),
         " Merging ",
         highlight(left_name),
@@ -312,7 +312,7 @@ dt_pctmatch <- function(
   matchpct <- nmatch / n * 100
   if (verbosity > 0L) {
     by_final <- paste(unique(c(left_on, right_on)), collapse = ", ")
-    msg20(
+    msg0(
       "Matched ",
       highlight(nmatch),
       "/",
@@ -497,7 +497,7 @@ inspect_type <- function(
     xclass %in% c("character", "factor") && (num_na / n_non_na) < thresh
   ) {
     if (verbosity > 0L) {
-      msg20(
+      msg0(
         "Possible type error: ",
         highlight(xname),
         " is a ",
@@ -564,7 +564,7 @@ dt_set_autotypes <- function(x, cols = NULL, verbosity = 1L) {
   for (i in cols) {
     if (inspect_type(x[[i]], i, verbosity = 0L) == "numeric") {
       if (verbosity > 0L) {
-        msg2("Converting", highlight(i), "to", bold("numeric"))
+        msg("Converting", highlight(i), "to", bold("numeric"))
       }
       x[, (i) := as.numeric(x[[i]])]
     }
@@ -839,7 +839,7 @@ pfread <- function(
 
   nparts <- ceiling(nrows / part_nrows)
   if (verbosity > 0L) {
-    msg2("Reading part 1...")
+    msg("Reading part 1...")
     i <- 1
   }
   dat1 <- fread(
@@ -872,7 +872,7 @@ pfread <- function(
 
   dat <- rbindlist(c(list(dat1), parts))
   if (verbosity > 0L) {
-    msg2("Read", highlightbig(nrow(dat)), "rows")
+    msg("Read", highlightbig(nrow(dat)), "rows")
   }
   dat
 } # rtemis::pfread
@@ -899,7 +899,7 @@ pfread1 <- function(
 
   nparts <- ceiling(nrows / part_nrows)
   if (verbosity > 0L) {
-    msg2("Reading part 1...")
+    msg("Reading part 1...")
     i <- 1
   }
   dat <- fread(
@@ -915,14 +915,14 @@ pfread1 <- function(
   }
   ndone <- part_nrows
   if (verbosity > 0L) {
-    msg2("Total read =", highlightbig(ndone))
+    msg("Total read =", highlightbig(ndone))
   }
   col_classes <- sapply(dat, \(i) class(i)[1])
   .col.names <- names(col_classes)
   .colClasses <- unname(col_classes)
   for (i in seq_len(nparts)[-1]) {
     if (verbosity > 0L) {
-      msg20("Reading part ", i, "...")
+      msg0("Reading part ", i, "...")
       i <- i + 1
     }
 
@@ -940,7 +940,7 @@ pfread1 <- function(
       )
     )
     ndone <- nrow(dat)
-    if (verbosity > 0L) msg2("Total read =", highlightbig(ndone))
+    if (verbosity > 0L) msg("Total read =", highlightbig(ndone))
   }
 
   invisible(dat)

@@ -17,14 +17,14 @@ datetime <- function(datetime_format = "%Y-%m-%d %H:%M:%S") {
 #'
 #' @keywords internal
 #' @noRd
-# Used by msg2(), msg20(), msg2start()
+# Used by msg(), msg0(), msgstart()
 msgdatetime <- function(datetime_format = "%Y-%m-%d %H:%M:%S") {
   message(gray(paste0(datetime(), gray(" "))), appendLF = FALSE)
 }
 
 
-msg2_info <- function(..., format_fn = highlight2) {
-  msg20(..., format_fn = format_fn, caller_id = 2)
+msg_info <- function(..., format_fn = highlight2) {
+  msg0(..., format_fn = format_fn, caller_id = 2)
 }
 
 suggest <- function(...) {
@@ -88,7 +88,7 @@ format_caller <- function(call_stack, call_depth, caller_id, max_char = 30L) {
 #'
 #' If `msg` is called directly from the console, it will print `[interactive>]` in place of
 #'   the call stack.
-#' `msg0`, similar to `paste0`, is `msg2(..., sep = "")`
+#' `msg0`, similar to `paste0`, is `msg(..., sep = "")`
 #'
 # Add following to each function using \code{msg}:
 # \code{current <- as.list(sys.call())[[1]]}
@@ -100,14 +100,15 @@ format_caller <- function(call_stack, call_depth, caller_id, max_char = 30L) {
 #' @param caller_id Integer: Which function in the call stack to print
 #' @param newline_pre Logical: If TRUE begin with a new line.
 #' @param newline Logical: If TRUE end with a new line.
-#' @param color Color fn
+#' @param format_fn Function: Formatting function to use on the message text.
 #' @param sep Character: Use to separate objects in `...`
 #'
 #' @return Invisibly: List with call, message, and date
 #' @author EDG
+#'
+#' @export
 #' @keywords internal
-#' @noRd
-msg2 <- function(
+msg <- function(
   ...,
   date = rtemis_date,
   caller = NULL,
@@ -139,10 +140,13 @@ msg2 <- function(
   } else if (newline) {
     message("")
   }
-} # rtemis::msg2
+} # rtemis::msg
 
-
-msg20 <- function(
+#' @rdname msg
+#'
+#' @export
+#' @keywords internal
+msg0 <- function(
   ...,
   caller = NULL,
   call_depth = 1,
@@ -171,7 +175,7 @@ msg20 <- function(
   } else if (newline) {
     message("")
   }
-} # rtemis::msg20
+} # rtemis::msg0
 
 
 #' Pad-cat
@@ -181,7 +185,7 @@ msg20 <- function(
 #' @examples
 #' \dontrun{
 #' {
-#'   msg2("Hello")
+#'   msg("Hello")
 #'   pcat("super", "wow")
 #'   pcat(NULL, "oooo")
 #' }
@@ -192,6 +196,7 @@ pcat <- function(left, right, pad = 17, newline = TRUE) {
   if (newline) cat("\n")
 }
 
+
 pad_string <- function(x, target = 17, char = " ") {
   lpad <- max(0, target - max(0, nchar(x)))
   paste0(
@@ -201,13 +206,13 @@ pad_string <- function(x, target = 17, char = " ") {
 }
 
 
-#' msg2start
+#' msgstart
 #'
 #' @inheritParams msg
 #'
 #' @keywords internal
 #' @noRd
-msg2start <- function(
+msgstart <- function(
   ...,
   newline_pre = FALSE,
   sep = ""
@@ -218,16 +223,16 @@ msg2start <- function(
   }
   msgdatetime()
   message(plain(paste(txt, collapse = sep)), appendLF = FALSE)
-} # rtemis::msg2start
+} # rtemis::msgstart
 
 
-#' msg2done
+#' msgdone
 #'
 #' @inheritParams msg
 #'
 #' @keywords internal
 #' @noRd
-msg2done <- function(caller = NULL, call_depth = 1, caller_id = 1, sep = " ") {
+msgdone <- function(caller = NULL, call_depth = 1, caller_id = 1, sep = " ") {
   if (is.null(caller)) {
     call_stack <- as.list(sys.calls())
     caller <- format_caller(call_stack, call_depth, caller_id)
@@ -235,4 +240,4 @@ msg2done <- function(caller = NULL, call_depth = 1, caller_id = 1, sep = " ") {
   message(" ", appendLF = FALSE)
   yay(end = "")
   message(gray(paste0("[", caller, "]\n")), appendLF = FALSE)
-} # rtemis::msg2done
+} # rtemis::msgdone

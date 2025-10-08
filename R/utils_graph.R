@@ -93,7 +93,7 @@ graph_node_metrics <- function(x, verbosity = 1L) {
 
   if (any(.edgeweights < 0)) {
     if (verbosity > 0L) {
-      msg2("Negative weights found: Betweenness and Closeness will be NA")
+      msg("Negative weights found: Betweenness and Closeness will be NA")
     }
     .betweenness <- .closeness <- NA
   } else {
@@ -144,7 +144,7 @@ lotri2edgeList <- function(A, filename = NULL, verbosity = 1L) {
   # Check A is a square matrix
   dim.A <- dim(A)
   if (verbosity > 0L) {
-    msg2("Input dimensions are", dim.A)
+    msg("Input dimensions are", dim.A)
   }
   if (dim.A[1] != dim.A[2]) {
     cli::cli_abort("Error: Input matrix is not square.")
@@ -176,7 +176,7 @@ lotri2edgeList <- function(A, filename = NULL, verbosity = 1L) {
       quote = FALSE,
       sep = ","
     )
-    msg20("Saved ", highlight(filename), ".")
+    msg0("Saved ", highlight(filename), ".")
   }
   invisible(out)
 } # rtemis::lotri2edgelist

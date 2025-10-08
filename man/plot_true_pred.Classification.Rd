@@ -4,12 +4,20 @@
 \alias{plot_true_pred.Classification}
 \title{Plot True vs. Predicted for Classification}
 \usage{
-plot_true_pred.Classification(x, what = NULL, theme = choose_theme(), ...)
+plot_true_pred.Classification(
+  x,
+  what = NULL,
+  xlab = NULL,
+  theme = choose_theme(),
+  ...
+)
 }
 \arguments{
 \item{x}{Classification object.}
 
 \item{what}{Character vector: What to plot. "training", "validation", "test"}
+
+\item{xlab}{Character: x axis label. If NULL, will be generated automatically.}
 
 \item{theme}{Theme object.}
 

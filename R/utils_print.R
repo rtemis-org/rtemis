@@ -33,34 +33,40 @@ is_common_struct <- function(x) {
 #' @param x list or object that will be converted to a list.
 #' @param prefix Character: Optional prefix for names.
 #' @param pad Integer: Pad output with this many spaces.
+#' @param item_format Formatting function for list item names.
+#' @param maxlength Integer: Maximum length of items to show using `headdot()` before truncating with ellipsis.
 #' @param center_title Logical: If TRUE, autopad title for centering, if present.
-#' @param format_fn Formatting function.
+#' @param title Character: Optional title to print before list.
+#' @param title_newline Logical: If TRUE, print title on new line.
+#' @param newline_pre Logical: If TRUE, print newline before list.
+#' @param format_fn_rhs Formatting function for right-hand side values.
 #' @param print_class Logical: If TRUE, print abbreviated class of object.
 #' @param abbrev_class_n Integer: Number of characters to abbreviate class names to.
 #' @param print_df Logical: If TRUE, print data frame contents, otherwise print n rows and columns.
 #' @param print_S4 Logical: If TRUE, print S4 object contents, otherwise print class name.
-#' @param output_type Character: One of "console", "ansi", "html" for output formatting.
+#' @param limit Integer: Maximum number of items to show. Use -1 for unlimited.
 #'
 #' @author EDG
+#'
+#' @export
 #' @keywords internal
-#' @noRd
-
 printls <- function(
-    x,
-    prefix = "",
-    pad = 2L,
-    item_format = bold,
-    maxlength = 4L,
-    center_title = TRUE,
-    title = NULL,
-    title_newline = TRUE,
-    newline_pre = FALSE,
-    format_fn_rhs = ddSci,
-    print_class = TRUE,
-    abbrev_class_n = 3L,
-    print_df = FALSE,
-    print_S4 = FALSE,
-    limit = 12L) {
+  x,
+  prefix = "",
+  pad = 2L,
+  item_format = bold,
+  maxlength = 4L,
+  center_title = TRUE,
+  title = NULL,
+  title_newline = TRUE,
+  newline_pre = FALSE,
+  format_fn_rhs = ddSci,
+  print_class = TRUE,
+  abbrev_class_n = 3L,
+  print_df = FALSE,
+  print_S4 = FALSE,
+  limit = 12L
+) {
   # Arguments ----
   if (newline_pre) {
     cat("\n")
@@ -116,7 +122,7 @@ printls <- function(
     if (limit != -1L && length(x) > limit) {
       padcat(
         italic(thin(
-          paste0(
+          paste(
             "Showing first",
             limit,
             "of",
@@ -135,7 +141,7 @@ printls <- function(
             paste0(
               "...",
               length(x) - limit,
-              "more items not shown.\n"
+              " more items not shown.\n"
             )
           )),
           pad = pad
@@ -339,18 +345,19 @@ cpad <- function(x, length = NULL, adjust = c("right", "left")) {
 #' @noRd
 
 printdf <- function(
-    x,
-    pad = 0,
-    spacing = 1,
-    ddSci_dp = NULL,
-    transpose = FALSE,
-    justify = "right",
-    colnames = TRUE,
-    rownames = TRUE,
-    column_fmt = highlight,
-    row_col = gray,
-    newline_pre = FALSE,
-    newline = FALSE) {
+  x,
+  pad = 0,
+  spacing = 1,
+  ddSci_dp = NULL,
+  transpose = FALSE,
+  justify = "right",
+  colnames = TRUE,
+  rownames = TRUE,
+  column_fmt = highlight,
+  row_col = gray,
+  newline_pre = FALSE,
+  newline = FALSE
+) {
   if (transpose) {
     x <- as.data.frame(t(x))
   }
@@ -442,17 +449,18 @@ printdf <- function(
 #' @keywords internal
 #' @noRd
 show_df <- function(
-    x,
-    pad = 0L,
-    spacing = 1L,
-    ddSci_dp = NULL,
-    transpose = FALSE,
-    justify = "right",
-    incl_colnames = TRUE,
-    incl_rownames = TRUE,
-    colnames_formatter = highlight,
-    rownames_formatter = gray,
-    output_type = c("ansi", "html", "plain")) {
+  x,
+  pad = 0L,
+  spacing = 1L,
+  ddSci_dp = NULL,
+  transpose = FALSE,
+  justify = "right",
+  incl_colnames = TRUE,
+  incl_rownames = TRUE,
+  colnames_formatter = highlight,
+  rownames_formatter = gray,
+  output_type = c("ansi", "html", "plain")
+) {
   output_type <- match.arg(output_type)
 
   if (transpose) {
@@ -556,11 +564,12 @@ show_df <- function(
 #' @keywords internal
 #' @noRd
 show_table <- function(
-    x,
-    spacing = 2L,
-    pad = 2L,
-    formatter = highlight,
-    output_type = c("ansi", "html", "plain")) {
+  x,
+  spacing = 2L,
+  pad = 2L,
+  formatter = highlight,
+  output_type = c("ansi", "html", "plain")
+) {
   output_type <- match.arg(output_type)
 
   dim_names <- names(attr(x, "dimnames"))
@@ -670,19 +679,20 @@ headdot <- function(x, maxlength = 6L, format_fn = identity) {
 #' @keywords internal
 #' @noRd
 twocol2html <- function(
-    x,
-    font_family = "'Lato'",
-    font_col = "#ffffff",
-    font_size = "18px",
-    header_bg = "#404040",
-    table_bg = "#7F7F7F",
-    dat_col = rep("#525252", NROW(x)), # get color grad using all tables
-    dat_font_col = "#ffffff",
-    height = "50px",
-    # header
-    head_padding = "5px",
-    # table
-    dat_padding = "5px") {
+  x,
+  font_family = "'Lato'",
+  font_col = "#ffffff",
+  font_size = "18px",
+  header_bg = "#404040",
+  table_bg = "#7F7F7F",
+  dat_col = rep("#525252", NROW(x)), # get color grad using all tables
+  dat_font_col = "#ffffff",
+  height = "50px",
+  # header
+  head_padding = "5px",
+  # table
+  dat_padding = "5px"
+) {
   # 1. table style ----
   tablestyle <- paste0(
     '<table style="font-family: ',
@@ -833,12 +843,13 @@ list2text <- function(x, sep = ": ", line = "\n") {
 #' @keywords internal
 #' @noRd
 list2html <- function(
-    x,
-    sep = ": ",
-    col = "#16A0AC",
-    key_weight = 100,
-    value_weight = 300,
-    line = "<br>") {
+  x,
+  sep = ": ",
+  col = "#16A0AC",
+  key_weight = 100,
+  value_weight = 300,
+  line = "<br>"
+) {
   .names <- names(x)
   sapply(seq_along(x), \(i) {
     paste0(
@@ -872,10 +883,11 @@ printchar <- function(x, left_pad = 2) {
 
 # Helper function to build padded string equivalent of padcat
 show_padded <- function(
-    text,
-    pad = 2L,
-    newline_pre = FALSE,
-    newline = FALSE) {
+  text,
+  pad = 2L,
+  newline_pre = FALSE,
+  newline = FALSE
+) {
   result <- ""
   if (newline_pre) {
     result <- paste0(result, "\n")
@@ -923,22 +935,23 @@ show_padded <- function(
 #' @export
 
 show_ls <- function(
-    x,
-    prefix = "",
-    pad = 2L,
-    item_format = bold,
-    maxlength = 4L,
-    center_title = TRUE,
-    title = NULL,
-    title_newline = TRUE,
-    newline_pre = FALSE,
-    format_fn_rhs = ddSci,
-    print_class = TRUE,
-    abbrev_class_n = 3L,
-    print_df = FALSE,
-    print_S4 = FALSE,
-    limit = 12L,
-    output_type = c("ansi", "html", "plain")) {
+  x,
+  prefix = "",
+  pad = 2L,
+  item_format = bold,
+  maxlength = 4L,
+  center_title = TRUE,
+  title = NULL,
+  title_newline = TRUE,
+  newline_pre = FALSE,
+  format_fn_rhs = ddSci,
+  print_class = TRUE,
+  abbrev_class_n = 3L,
+  print_df = FALSE,
+  print_S4 = FALSE,
+  limit = 12L,
+  output_type = c("ansi", "html", "plain")
+) {
   output_type <- match.arg(output_type)
 
   # Initialize output string

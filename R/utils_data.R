@@ -164,7 +164,7 @@ merge_long_treatment <- function(
 
   # Print input summary ----
   if (verbosity > 0L) {
-    msg2("There are", n_sets, "input datasets:")
+    msg("There are", n_sets, "input datasets:")
     .summary <- t(data.frame(sapply(
       x,
       function(i) paste(NROW(i), "x", NCOL(i))
@@ -191,7 +191,7 @@ merge_long_treatment <- function(
     setkeyv(dat, c(.key, time_varname))
     setkeyv(x[[i]], c(.key, time_varname))
     if (verbosity > 0L) {
-      msg20(
+      msg0(
         "Merge ",
         orange(i),
         " of ",
@@ -202,9 +202,9 @@ merge_long_treatment <- function(
     }
     # if (try({
     dat <- x[[i]][dat, roll = TRUE]
-    # })) msg20("Successfully merged ", .names[i], ":")
+    # })) msg0("Successfully merged ", .names[i], ":")
     if (verbosity > 0L) {
-      msg2(
+      msg(
         "Merged dataset now contains",
         highlight(NROW(dat)),
         "rows and",
@@ -397,7 +397,7 @@ matchcases <- function(
   mc <- data.frame(targetID = targetID, match = matrix(NA, ntarget, n_matches))
   for (i in seq(ntarget)) {
     if (verbosity > 0L) {
-      msg2("Working on case", i, "of", ntarget)
+      msg("Working on case", i, "of", ntarget)
     }
     if (is.null(exactmatch_cols)) {
       subpool <- pool_s

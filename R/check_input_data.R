@@ -93,7 +93,7 @@ check_supervised <- function(
   # if (upsample && downsample) cli::cli_abort("Only one of upsample and downsample can be TRUE")
 
   if (verbosity > 0L) {
-    msg2start("Checking data is ready for training...")
+    msgstart("Checking data is ready for training...")
   }
 
   # Check types ----
@@ -155,7 +155,7 @@ check_supervised <- function(
   check_factor_levels(x = x, y = dat_validation, z = dat_test)
 
   if (verbosity > 0L) {
-    msg2done()
+    msgdone()
   }
   invisible()
 } # /rtemis::check_supervised
@@ -177,7 +177,7 @@ check_supervised <- function(
 #' }
 check_unsupervised_data <- function(x, allow_missing = FALSE, verbosity = 1L) {
   if (verbosity > 0L) {
-    msg2start("Checking unsupervised data...")
+    msgstart("Checking unsupervised data...")
   }
   if (NCOL(x) < 2) {
     cli::cli_abort("Data must contain at least 2 columns.")
@@ -189,7 +189,7 @@ check_unsupervised_data <- function(x, allow_missing = FALSE, verbosity = 1L) {
     cli::cli_abort("Data should not contain missing values.")
   }
   if (verbosity > 0L) {
-    msg2done()
+    msgdone()
   }
   invisible()
 } # /rtemis::check_unsupervised_data

@@ -30,7 +30,7 @@ uniprot_get <- function(
   Annotation <- attr(dat[[1]], "Annot")
   Identifier <- gsub(" .*", "", Annotation)
   if (verbosity > 0L) {
-    msg2("Got:", highlight(Annotation))
+    msg("Got:", highlight(Annotation))
   }
 
   list(

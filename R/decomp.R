@@ -34,7 +34,7 @@ decomp <- function(x, algorithm = "ICA", parameters = NULL, verbosity = 1L) {
   algorithm <- get_decom_name(algorithm)
   decom_fn <- get_decom_fn(algorithm)
   if (verbosity > 0L) {
-    msg20("Decomposing with ", algorithm, "...")
+    msg0("Decomposing with ", algorithm, "...")
   }
   decom <- do_call(
     fn = decom_fn,

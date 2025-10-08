@@ -56,7 +56,7 @@ method(repr, Clustering) <- function(
 ) {
   output_type <- get_output_type(output_type)
   paste0(
-    show_S7name(paste(x$algorithm, "Clustering")),
+    repr_S7name(paste(x$algorithm, "Clustering")),
     show_ls(props(x)[-1], pad = pad, output_type = output_type)
   )
 } # /rtemis::show.Clustering

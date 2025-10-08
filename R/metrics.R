@@ -18,7 +18,7 @@
 mae <- function(x, y, na.rm = TRUE) {
   error <- x - y
   mean(abs(error), na.rm = na.rm)
-} # rtemis::mae
+} # /rtemis::mae
 
 #' @rdname error
 #' @keywords internal
@@ -26,7 +26,7 @@ mae <- function(x, y, na.rm = TRUE) {
 mse <- function(x, y, na.rm = TRUE) {
   error <- x - y
   mean(error^2, na.rm = na.rm)
-} # rtemis::mse
+} # /rtemis::mse
 
 #' Weighted MSE
 #'
@@ -37,7 +37,7 @@ msew <- function(x, y, weights = rep(1, length(y)), na.rm = TRUE) {
   error <- x - y
   error <- error * weights
   mean(error^2, na.rm = na.rm)
-} # rtemis::msew
+} # /rtemis::msew
 
 #' @rdname error
 #' @keywords internal
@@ -85,13 +85,13 @@ logloss <- function(true_int, predicted_prob, eps = 1e-16) {
 #'
 #' The first factor level is considered the positive case.
 #'
-#' @param true True labels
-#' @param predicted predicted labels
-#' @param harmonize Logical: If TRUE, run [factor_harmonize] first
+#' @param true Factor: True labels.
+#' @param predicted Factor: Predicted labels.
+#' @param harmonize Logical: If TRUE, run `factor_harmonize` first.
 #' @param verbosity Integer: Verbosity level.
 #'
+#' @export
 #' @keywords internal
-#' @noRd
 sensitivity <- function(true, predicted, harmonize = FALSE, verbosity = 1L) {
   if (harmonize) {
     predicted <- factor_harmonize(true, predicted, verbosity = verbosity)
@@ -102,13 +102,14 @@ sensitivity <- function(true, predicted, harmonize = FALSE, verbosity = 1L) {
   true_pos / condition_pos
 }
 
+
 #' Specificity
 #'
 #' The first factor level is considered the positive case.
 #'
 #' @param true True labels
 #' @param predicted predicted labels
-#' @param harmonize Logical: If TRUE, run [factor_harmonize] first
+#' @param harmonize Logical: If TRUE, run `factor_harmonize` first
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @keywords internal
@@ -131,13 +132,13 @@ specificity <- function(true, predicted, harmonize = FALSE, verbosity = 1L) {
 #'
 #' @param true Factor: True labels.
 #' @param predicted Factor: Predicted labels.
-#' @param harmonize Logical: passed to [sensitivity] and [specificity], which use [factor_harmonize].
+#' @param harmonize Logical: passed to `sensitivity()` and `specificity`, which use `factor_harmonize`.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @keywords internal
 #' @noRd
 bacc <- function(true, predicted, harmonize = FALSE, verbosity = 1L) {
-  .5 *
+  0.5 *
     (sensitivity(
       true,
       predicted,
@@ -150,7 +151,7 @@ bacc <- function(true, predicted, harmonize = FALSE, verbosity = 1L) {
         harmonize = harmonize,
         verbosity = verbosity
       ))
-}
+} # /rtemis::bacc
 
 #' Precision (aka PPV)
 #'
@@ -158,7 +159,7 @@ bacc <- function(true, predicted, harmonize = FALSE, verbosity = 1L) {
 #'
 #' @param true Factor: True labels
 #' @param predicted Factor: predicted labels
-#' @param harmonize Logical: If TRUE, run [factor_harmonize] first
+#' @param harmonize Logical: If TRUE, run `factor_harmonize` first
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @keywords internal
@@ -176,17 +177,18 @@ precision <- function(true, predicted, harmonize = FALSE, verbosity = 1L) {
   } else {
     hits / predicted_totals
   }
-} # rtemis::precision
+} # /rtemis::precision
 
 #' Factor harmonize
 #'
-#' @param x Input factor.
 #' @param reference Reference factor.
+#' @param x Input factor.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Factor: x with levels in the same order as reference.
 #'
 #' @author EDG
+#'
 #' @keywords internal
 #' @noRd
 factor_harmonize <- function(reference, x, verbosity = 1L) {
@@ -196,22 +198,23 @@ factor_harmonize <- function(reference, x, verbosity = 1L) {
   if (!all(levels(x) == levels(reference))) {
     if (!all(levels(x) %in% levels(reference))) {
       if (verbosity > 0L) {
-        msg2("Levels of x:")
+        msg("Levels of x:")
       }
       levels(x)
       if (verbosity > 0L) {
-        msg2("levels of reference:")
+        msg("levels of reference:")
       }
       levels(reference)
       cli::cli_abort("Levels of two inputs do not match")
     }
     if (verbosity > 0L) {
-      msg2("Input factor levels are not in the same order, correcting")
+      msg("Input factor levels are not in the same order, correcting")
     }
     x <- factor(x, levels = levels(reference))
   }
   x
 } # /rtemis::factor_harmonize
+
 
 #' F1 score
 #'
@@ -251,7 +254,7 @@ f1 <- function(precision, recall) {
 #' (e.g. c(.32, .75, .63), etc)
 #' @param labels True labels of outcomes (e.g. c(0, 1, 1))
 #' @param method Character: "pROC", "auc_pairs", or "ROCR": Method to use.
-#' Will use `pROC::roc`, [auc_pairs], `ROCR::performance`, respectively.
+#' Will use `pROC::roc`, `auc_pairs()`, `ROCR::performance`, respectively.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Numeric.
@@ -303,7 +306,7 @@ auc <- function(true_int, predicted_prob, method = "lightAUC", verbosity = 0L) {
   }
 
   if (verbosity > 0L) {
-    msg2("AUC =", auc.)
+    msg("AUC =", auc.)
   }
   auc.
 } # rtemis::auc
@@ -327,6 +330,8 @@ auc <- function(true_int, predicted_prob, method = "lightAUC", verbosity = 0L) {
 #' estimated.score <- c(0.7, 0.55, 0.45, 0.25, 0.6, 0.7, 0.2)
 #' auc_pairs(estimated.score, true.labels, verbosity = 1L)
 #' }
+#'
+#' @keywords internal
 #' @noRd
 auc_pairs <- function(estimated.score, true.labels, verbosity = 1L) {
   true.labels <- as.factor(true.labels)
@@ -345,8 +350,8 @@ auc_pairs <- function(estimated.score, true.labels, verbosity = 1L) {
     )
   }
   if (verbosity > 0L) {
-    msg2("Positive class:", true.levels[1])
-    msg2("AUC =", .auc)
+    msg("Positive class:", true.levels[1])
+    msg("AUC =", .auc)
   }
   invisible(.auc)
 } # rtemis::auc_pairs
@@ -469,13 +474,13 @@ classification_metrics <- function(
   Positive_Class <- if (n_classes == 2) true_levels[1] else NA
   if (verbosity > 0L) {
     if (n_classes == 2) {
-      msg2(
+      msg(
         "There are two outcome classes:",
         highlight(paste(rev(true_levels), collapse = ", "))
       )
-      msg2("        The positive class is:", highlight(Positive_Class))
+      msg("        The positive class is:", highlight(Positive_Class))
     } else {
-      msg2(
+      msg(
         "There are",
         n_classes,
         "classes:",

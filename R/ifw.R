@@ -24,7 +24,7 @@ ifw <- function(y, type = c("case_weights", "class_weights"), verbosity = 1L) {
   stopifnot(is.factor(y))
   type <- match.arg(type)
   if (verbosity > 0L) {
-    msg2(
+    msg(
       "Calculating",
       sub("_", " ", type),
       "using Inverse Frequency Weighting."

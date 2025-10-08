@@ -6,6 +6,10 @@
 #'
 #' @param true_labels Factor: True outcome labels.
 #' @param predicted_prob Numeric vector \[0, 1\]: Predicted probabilities for the positive class (i.e. second level of outcome).
+#' Or, for multiclass, a matrix of predicted probabilities with one column per class.
+#' Or, a list of such vectors/matrices to draw multiple ROC curves on the same plot.
+#' @param multiclass_fill_labels Logical: If TRUE, fill in labels for multiclass ROC curves.
+#' If FALSE, column names of `predicted_prob` must match levels of `true_labels`.
 #' @param main Character: Main title for the plot.
 #' @param theme Theme object.
 #' @param col Color vector.
@@ -31,6 +35,7 @@
 draw_roc <- function(
   true_labels,
   predicted_prob,
+  multiclass_fill_labels = TRUE,
   main = NULL,
   theme = choose_theme(),
   col = rtpalette(rtemis_palette),
@@ -65,28 +70,74 @@ draw_roc <- function(
       "You must have the same N of sets of `predicted_prob` and `true_labels`."
     )
   }
+
+  # Binary vs. Multiclass
+  # Determine number of classes from number of columns in predicted_prob
+  # If ncol is NULL, it is binary classification
+  n_classes <- unique(sapply(probl, \(x) {
+    if (is.null(ncol(x))) {
+      2L
+    } else {
+      ncol(x)
+    }
+  }))
+
+  if (length(n_classes) > 1) {
+    cli::cli_abort(
+      "You must have the same number of classes in each set of `predicted_prob`."
+    )
+  }
+
   # Check lengths of corresponding sets
+  # NROW() works for both vectors and matrices
   for (i in seq_along(probl)) {
-    if (length(probl[[i]]) != length(labelsl[[i]])) {
+    if (NROW(probl[[i]]) != length(labelsl[[i]])) {
       cli::cli_abort(
         "You must have the same N of `predicted_prob` and `true_labels`."
       )
     }
   }
 
-  .roc <- lapply(seq_along(probl), \(i) {
-    pROC::roc(
-      response = labelsl[[i]],
-      predictor = probl[[i]],
-      levels = levels(labelsl[[i]]),
-      direction = "<"
-    )
-  })
+  if (n_classes == 2L) {
+    .roc <- lapply(seq_along(probl), \(i) {
+      pROC::roc(
+        response = labelsl[[i]],
+        predictor = probl[[i]],
+        levels = levels(labelsl[[i]]),
+        direction = "<"
+      )
+    })
+  } else {
+    .roc <- lapply(seq_along(probl), \(i) {
+      pred <- probl[[i]]
+      if (is.null(colnames(pred))) {
+        if (multiclass_fill_labels) {
+          colnames(pred) <- levels(labelsl[[i]])
+        } else {
+          cli::cli_abort(
+            "For multiclass, `predicted_prob` must have column names matching levels of `true_labels`."
+          )
+        }
+      }
+      pROC::multiclass.roc(
+        response = labelsl[[i]],
+        predictor = pred,
+        levels = levels(labelsl[[i]])
+      )
+    })
+  }
 
   .names <- names(probl)
-  TPR <- lapply(.roc, \(r) r[["sensitivities"]])
-  FPR <- lapply(.roc, \(r) 1 - r[["specificities"]])
-  AUC <- lapply(.roc, \(r) r[["auc"]])
+
+  if (n_classes == 2L) {
+    TPR <- lapply(.roc, \(r) r[["sensitivities"]])
+    FPR <- lapply(.roc, \(r) 1 - r[["specificities"]])
+    AUC <- lapply(.roc, \(r) r[["auc"]])
+  } else {
+    TPR <- lapply(.roc, \(r) r[["rocs"]][[1]][["sensitivities"]])
+    FPR <- lapply(.roc, \(r) 1 - r[["rocs"]][[1]][["specificities"]])
+    AUC <- lapply(.roc, \(r) r[["auc"]])
+  }
   names(TPR) <- names(FPR) <- names(AUC) <- .names
   theme@parameters[["zerolines"]] <- FALSE
   draw_scatter(

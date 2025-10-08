@@ -520,7 +520,7 @@ get_n_workers_for_learner <- function(
       algorithm %in% live[["parallelized_learners"]]
   ) {
     if (verbosity > 0L && !is.null(n_workers) && n_workers > 1) {
-      msg2(
+      msg(
         highlight2(
           paste0(
             "Running a parallelized learner and n_workers is greater than 1, but plan ",
@@ -539,7 +539,7 @@ get_n_workers_for_learner <- function(
     if (
       verbosity > 0L && !is.null(n_workers) && n_workers > available_workers
     ) {
-      msg2(highlight2("Requested n_workers is greater than available cores."))
+      msg(highlight2("Requested n_workers is greater than available cores."))
     }
   }
   max(future::availableCores() - 1L, 1L)
@@ -578,8 +578,8 @@ abbreviate_class <- function(x, n = 4L) {
 #'
 #' @author EDG
 #'
+#' @export
 #' @keywords internal
-#' @noRd
 check_dependencies <- function(..., verbosity = 0L) {
   ns <- as.list(c(...))
   err <- !sapply(ns, \(i) requireNamespace(i, quietly = TRUE))
@@ -593,6 +593,6 @@ check_dependencies <- function(..., verbosity = 0L) {
       )
     )
   } else {
-    if (verbosity > 0L) msg2("Dependency check passed")
+    if (verbosity > 0L) msg("Dependency check passed")
   }
 } # rtemis::check_dependencies

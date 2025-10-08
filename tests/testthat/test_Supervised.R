@@ -22,7 +22,10 @@ datr_test <- datr[-resr$Fold_1, ]
 
 ## Classification Data ----
 ### Binary ----
-datc2 <- iris[51:150, ]
+datc2 <- data.frame(
+  gn = factor(sample(c("alpha", "beta", "gamma"), 100, replace = TRUE)),
+  iris[51:150, ]
+)
 datc2$Species <- factor(datc2$Species)
 resc2 <- resample(datc2)
 datc2_train <- datc2[resc2$Fold_1, ]
@@ -59,6 +62,7 @@ test_that("class_imbalance() works", {
   expect_type(class_imbalance(outcome(datc2)), "double")
 })
 
+# --- GLM ------------------------------------------------------------------------------------------
 ## GLM Regression ----
 mod_r_glm <- train(
   x = datr_train,
@@ -130,7 +134,7 @@ test_that("train() GLM ClassificationRes succeeds", {
   expect_s7_class(resmod_c_glm, ClassificationRes)
 })
 
-## GLMNET ----
+# --- GLMNET ---------------------------------------------------------------------------------------
 hyperparameters <- setup_GLMNET()
 hyperparameters
 hyperparameters <- setup_GLMNET(alpha = c(0, 0.5, 1))
@@ -221,6 +225,7 @@ test_that("train() GLMNET Multiclass Classification succeeds", {
   expect_s7_class(modt_c3_glmnet, Classification)
 })
 
+# --- GAM ------------------------------------------------------------------------------------------
 ## GAM Regression ----
 hyperparameters <- setup_GAM()
 hyperparameters
@@ -296,6 +301,7 @@ test_that("train() GAM Classification with IFW succeeds", {
   expect_s7_class(mod_c_gam_ifw, Classification)
 })
 
+# --- LinearSVM ------------------------------------------------------------------------------------
 ## LinearSVM Regression ----
 mod_r_svml <- train(
   x = datr_train,
@@ -355,7 +361,7 @@ test_that("train() Res LinearSVM Classification succeeds", {
   expect_s7_class(resmod_c_linearsvm, ClassificationRes)
 })
 
-
+# --- RadialSVM ------------------------------------------------------------------------------------
 ## RadialSVM Regression ----
 mod_r_svmr <- train(
   x = datr_train,
@@ -446,7 +452,7 @@ test_that("train() RadialSVM Multiclass Classification succeeds", {
   expect_s7_class(modt_c3_radialsvm, Classification)
 })
 
-
+# --- CART -----------------------------------------------------------------------------------------
 ## CART Regression ----
 mod_r_cart <- train(
   datr_train,
@@ -575,6 +581,7 @@ test_that("train() CART Multiclass Classification succeeds", {
   expect_s7_class(modt_c3_cart, Classification)
 })
 
+# --- LightCART ------------------------------------------------------------------------------------
 ## LightCART Regression ----
 mod_r_lightcart <- train(
   x = datr_train,
@@ -621,16 +628,8 @@ test_that("train() LightCART Multiclass Classification succeeds", {
   expect_s7_class(modt_c3_lightcart, Classification)
 })
 
+# --- LightRF --------------------------------------------------------------------------------------
 ## LightRF Regression ----
-mod_r_lightrf <- train(
-  x = datr_train,
-  dat_test = datr_test,
-  hyperparameters = setup_LightRF(nrounds = 20L)
-)
-test_that("train() LightRF Regression succeeds", {
-  expect_s7_class(mod_r_lightrf, Regression)
-})
-
 mod_r_lightrf <- train(
   x = datr_train,
   dat_test = datr_test,
@@ -643,6 +642,13 @@ mod_r_lightrf <- train(
 )
 test_that("train() LightRF Regression with l1, l2 succeeds", {
   expect_s7_class(mod_r_lightrf, Regression)
+})
+
+## LightRF Regression predict ----
+predicted <- predict(mod_r_lightrf, features(datr_test))
+test_that("predict() LightRF Regression succeeds", {
+  expect_identical(mod_r_lightrf@predicted_test, predicted)
+  expect_null(dim(predicted))
 })
 
 ## LightRF Regression + grid search ----
@@ -682,6 +688,14 @@ mod_c_lightrf <- train(
 )
 test_that("train() LightRF Binary Classification succeeds", {
   expect_s7_class(mod_c_lightrf, Classification)
+})
+
+## LightRF Binary Classification predict ----
+# S7::method_explain(predict, Classification)
+# methods(class = Classification) # try again after loading all
+predicted_prob_test <- predict(mod_c_lightrf, features(datc2_test))
+test_that("predict() LightRF Classification succeeds", {
+  expect_identical(mod_c_lightrf@predicted_prob_test, predicted_prob_test)
 })
 
 modt_c_lightrf <- train(

@@ -133,7 +133,7 @@ method(repr, Hyperparameters) <- function(
   output_type = NULL
 ) {
   output_type <- get_output_type(output_type)
-  out <- show_S7name(
+  out <- repr_S7name(
     paste0(x@algorithm, "Hyperparameters"),
     pad = pad,
     output_type = output_type
@@ -173,8 +173,7 @@ method(repr, Hyperparameters) <- function(
           "\n  ",
           ngettext(length(need_tuning), "Hyperparameter ", "Hyperparameters "),
           oxfordcomma(
-            need_tuning,
-            format_fn = underline
+            need_tuning
           ),
           ngettext(length(need_tuning), " needs ", " need "),
           "tuning.\n"

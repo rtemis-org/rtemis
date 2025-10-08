@@ -202,7 +202,7 @@ train <- function(
   # on multiple inner resamples (training-validation sets) for hyperparameter tuning.
   if (!is.null(outer_resampling)) {
     if (verbosity > 0L) {
-      msg20(
+      msg0(
         fmt("<> ", col = col_outer, bold = TRUE),
         "Training ",
         highlight(paste(algorithm, type)),
@@ -239,7 +239,7 @@ train <- function(
     )
     names(models) <- names(outer_resampler@resamples)
     hyperparameters@resampled <- 1L
-    msg2(fmt("</>", col = col_outer, bold = TRUE), "Outer resampling done.")
+    msg(fmt("</>", col = col_outer, bold = TRUE), "Outer resampling done.")
   } # /Outer Resampling
 
   if (hyperparameters@resampled == 0L) {
@@ -300,13 +300,13 @@ train <- function(
     # Train ALG ----
     if (verbosity > 0L) {
       if (is_tuned(hyperparameters)) {
-        msg2(
+        msg(
           "Training",
           highlight(paste(algorithm, type)),
           "with tuned hyperparameters..."
         )
       } else {
-        msg20("Training ", highlight(paste(algorithm, type)), "...")
+        msg0("Training ", highlight(paste(algorithm, type)), "...")
       }
     } # /Print training message
     # Only algorithms with early stopping can use dat_validation.
@@ -527,7 +527,7 @@ get_n_workers <- function(
     workers_tuning <- 1L
     workers_outer_resampling <- 1L
     if (verbosity > 1L && (requires_tuning || requires_resampling)) {
-      msg2(
+      msg(
         bold(algorithm),
         "is parallelized. Disabling tuning and outer resampling parallelization."
       )
@@ -538,7 +538,7 @@ get_n_workers <- function(
     workers_tuning <- n_workers
     workers_outer_resampling <- 1L
     if (verbosity > 0L && requires_resampling) {
-      msg2(
+      msg(
         "Tuning parallelization enabled. Disabling outer resampling parallelization."
       )
     }
@@ -555,7 +555,7 @@ get_n_workers <- function(
   }
 
   if (verbosity > 0L) {
-    msg20(
+    msg0(
       bold("//"),
       " Max workers: ",
       highlight(n_workers),

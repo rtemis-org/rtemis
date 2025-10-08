@@ -46,7 +46,7 @@ method(repr, ClusteringParameters) <- function(
   ...
 ) {
   output_type <- get_output_type(output_type)
-  out <- show_S7name(
+  out <- repr_S7name(
     paste(x@algorithm, "ClusteringParameters"),
     pad = pad,
     output_type = output_type

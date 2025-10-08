@@ -102,7 +102,7 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' @description
 #' This generic is used to provide a description of an rtemis object in plain language.
 #'
-#' @param x An rtemis object.
+#' @param x `Supervised` or `SupervisedRes` object or list of such objects.
 #' @param ... Not used.
 #'
 #' @return A character string describing the object.
@@ -116,7 +116,7 @@ describe <- new_generic("describe", "x")
 #' @description
 #' This generic is used to present an rtemis object using plots and text.
 #'
-#' @param x An rtemis object.
+#' @param x `Supervised` or `SupervisedRes` object or list of such objects.
 #' @param ... Additional arguments passed to the plotting function.
 #'
 #' @return A plotly object along with console output.
@@ -345,8 +345,9 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #'
 #' @author EDG
 #'
-#' @keywords internal
 #' @export
+#' @keywords internal
+
 get_output_type <- function(
   output_type = c("ansi", "html", "plain"),
   filename = NULL

@@ -79,7 +79,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   # Complete cases ----
   if (parameters@complete_cases) {
     if (verbosity > 0L) {
-      msg2("Filtering complete cases...")
+      msg("Filtering complete cases...")
     }
     x <- x[complete.cases(x), ]
   }
@@ -94,7 +94,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   # Remove named features ----
   if (!is.null(parameters@remove_features)) {
     if (verbosity > 0L) {
-      msg2("Removing", length(parameters@remove_features), "features...")
+      msg("Removing", length(parameters@remove_features), "features...")
     }
     values$remove_features <- parameters@remove_features
     x <- x[, !names(x) %in% parameters@remove_features, drop = FALSE]
@@ -110,7 +110,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     ))
     if (length(constant) > 0) {
       if (verbosity > 0L) {
-        msg20(
+        msg0(
           "Removing ",
           singorplu(length(constant), "constant feature"),
           "..."
@@ -127,7 +127,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     Ndups <- length(duplicate_index)
     if (Ndups > 0) {
       if (verbosity > 0L) {
-        msg20("Removing ", singorplu(Ndups, "duplicate case"), "...")
+        msg0("Removing ", singorplu(Ndups, "duplicate case"), "...")
       }
       x <- unique(x)
     }
@@ -151,7 +151,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
       )
       if (length(index_remove_cases_thres) > 0) {
         if (verbosity > 0L) {
-          msg2(
+          msg(
             "Removing",
             length(index_remove_cases_thres),
             "cases with >=",
@@ -177,7 +177,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
       )
       if (length(removeFeat_thres_index) > 0) {
         if (verbosity > 0L) {
-          msg2(
+          msg(
             "Removing",
             length(removeFeat_thres_index),
             "features with >=",
@@ -199,13 +199,13 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     )
     if (verbosity > 0L) {
       if (length(index_integer) > 0) {
-        msg2(
+        msg(
           "Converting",
           singorplu(length(index_integer), "integer"),
           "to factor..."
         )
       } else {
-        msg2("No integers to convert to factor...")
+        msg("No integers to convert to factor...")
       }
     }
     for (i in index_integer) {
@@ -218,7 +218,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     index_logical <- which(sapply(x, is.logical))
     if (verbosity > 0L) {
       if (length(index_logical) > 0) {
-        msg20(
+        msg0(
           "Converting ",
           singorplu(length(index_logical), "logical feature"),
           " to ",
@@ -226,7 +226,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
           "..."
         )
       } else {
-        msg2("No logicals to convert to factor...")
+        msg("No logicals to convert to factor...")
       }
     }
     for (i in index_logical) {
@@ -238,7 +238,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   if (parameters@numeric2factor) {
     index_numeric <- which(sapply(x, is.numeric))
     if (verbosity > 0L) {
-      msg2("Converting numeric to factors...")
+      msg("Converting numeric to factors...")
     }
     if (is.null(parameters@numeric2factor_levels)) {
       for (i in index_numeric) {
@@ -256,7 +256,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     index_char <- which(sapply(x, is.character))
     if (verbosity > 0L) {
       if (length(index_char) > 0) {
-        msg20(
+        msg0(
           "Converting ",
           singorplu(length(index_char), "character feature"),
           " to ",
@@ -264,7 +264,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
           "..."
         )
       } else {
-        msg2("No character features to convert to factors found.")
+        msg("No character features to convert to factors found.")
       }
     }
     for (i in index_char) {
@@ -283,7 +283,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     index_len <- setdiff(index_len, index_factor)
     if (verbosity > 0L) {
       if (length(index_len) > 0) {
-        msg2(
+        msg(
           "Converting",
           singorplu(length(index_len), "feature"),
           "with <=",
@@ -291,7 +291,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
           "unique values to factors..."
         )
       } else {
-        msg2(
+        msg(
           "No features with <=",
           parameters@unique_len2factor,
           "unique values found."
@@ -313,13 +313,13 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     }
     if (verbosity > 0L) {
       if (length(index_integer) > 0) {
-        msg2(
+        msg(
           "Converting",
           singorplu(length(index_integer), "integer"),
           "to numeric..."
         )
       } else {
-        msg2("No integers to convert to numeric...")
+        msg("No integers to convert to numeric...")
       }
     }
     for (i in index_integer) {
@@ -331,7 +331,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   if (parameters@logical2numeric) {
     index_logical <- which(sapply(x, is.logical))
     if (verbosity > 0L) {
-      msg2("Converting logicals to numeric...")
+      msg("Converting logicals to numeric...")
     }
     for (i in index_logical) {
       x[, i] <- as.numeric(x[, i])
@@ -343,7 +343,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     index_numeric <- which(sapply(x, is.numeric))
     if (length(index_numeric) > 0) {
       if (verbosity > 0L) {
-        msg2("Cutting numeric features in", parameters@numeric_cut_n, "bins...")
+        msg("Cutting numeric features in", parameters@numeric_cut_n, "bins...")
       }
       for (i in index_numeric) {
         x[, i] <- factor(
@@ -366,7 +366,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     }
     if (length(index_numeric2q) > 0) {
       if (verbosity > 0L) {
-        msg2(
+        msg(
           "Cutting numeric features in",
           parameters@numeric_quant_n,
           "quantiles..."
@@ -400,7 +400,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     index_factor <- which(sapply(x, is.factor))
     if (verbosity > 0L) {
       if (length(index_factor) > 0) {
-        msg20(
+        msg0(
           "Converting ",
           length(index_factor),
           ngettext(length(index_factor), " factor's", " factors'"),
@@ -409,7 +409,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
           "'..."
         )
       } else {
-        msg2("No factors found.")
+        msg("No factors found.")
       }
     }
     for (i in index_factor) {
@@ -424,13 +424,13 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     index_factor <- which(sapply(x, is.factor))
     if (verbosity > 0L) {
       if (length(index_factor) > 0) {
-        msg2(
+        msg(
           "Converting",
           singorplu(length(index_factor), "factor"),
           "to integer..."
         )
       } else {
-        msg2("No factors found to convert to integer...")
+        msg("No factors found to convert to integer...")
       }
     }
     if (parameters@factor2integer_startat0) {
@@ -451,7 +451,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     for (i in cols_with_na) {
       x[, paste0(.colnames[i], "_missing")] <- factor(as.numeric(is.na(x[, i])))
       if (verbosity > 0L) {
-        msg20("Created missingness indicator for ", .colnames[i], "...")
+        msg0("Created missingness indicator for ", .colnames[i], "...")
       }
     }
   }
@@ -463,11 +463,11 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
       check_dependencies("missRanger")
       if (verbosity > 0L) {
         if (parameters@impute_missRanger_params$pmm.k > 0) {
-          msg2(
+          msg(
             "Imputing missing values using predictive mean matching with missRanger..."
           )
         } else {
-          msg2("Imputing missing values using missRanger...")
+          msg("Imputing missing values using missRanger...")
         }
       }
       x <- missRanger::missRanger(
@@ -478,7 +478,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     } else if (parameters@impute_type == "micePMM") {
       check_dependencies("mice")
       if (verbosity > 0L) {
-        msg2(
+        msg(
           "Imputing missing values by predictive mean matching using mice..."
         )
       }
@@ -486,7 +486,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     } else {
       # '- mean/mode ----
       if (verbosity > 0L) {
-        msg2(
+        msg(
           "Imputing missing values using",
           parameters@impute_discrete,
           "(discrete) and",
@@ -529,7 +529,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     ce <- if (parameters@center) "centering" else NULL
     if (length(numeric_index) > 0) {
       if (verbosity > 0L) {
-        msg2(
+        msg(
           paste(c(sc, ce), collapse = " and "),
           length(numeric_index),
           "numeric features..."
@@ -576,7 +576,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
       #   x[, i] <- x_num_scaled[, j]
       # }
     } else {
-      msg2(
+      msg(
         paste(c(sc, ce), collapse = " and "),
         "was requested \n                                but no numeric features were found: Please check data."
       )
@@ -595,7 +595,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   # Add date features ----
   if (parameters@add_date_features) {
     if (verbosity > 0L) {
-      msg2("Extracting date features...")
+      msg("Extracting date features...")
     }
     # Find date columns
     date_cols <- which(sapply(x, function(col) inherits(col, "Date")))
@@ -613,7 +613,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   # Add holidays ----
   if (parameters@add_holidays) {
     if (verbosity > 0L) {
-      msg2("Extracting holidays...")
+      msg("Extracting holidays...")
     }
     # Find date columns
     date_cols <- which(sapply(x, \(col) inherits(col, "Date")))
@@ -648,14 +648,14 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     data.table::setDT(x)
   }
   if (verbosity > 0L) {
-    msg2("Preprocessing done.")
+    msg("Preprocessing done.")
   }
 
   preprocessed <- list(training = x)
 
   if (!is.null(dat_validation)) {
     if (verbosity > 0L) {
-      msg2("Applying preprocessing to validation data...")
+      msg("Applying preprocessing to validation data...")
     }
     prp_validation <- preprocess(
       x = dat_validation,
@@ -673,7 +673,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
   if (!is.null(dat_test)) {
     if (verbosity > 0L) {
-      msg2("Applying preprocessing to test data...")
+      msg("Applying preprocessing to test data...")
     }
     prp_test <- preprocess(
       x = dat_test,
@@ -834,7 +834,7 @@ method(one_hot, class_data.frame) <- function(
   }
   for (i in factor_index) {
     if (verbosity > 0L) {
-      msg2start("One hot encoding ", .names[i], "...")
+      msgstart("One hot encoding ", .names[i], "...")
     }
     .levels <- if (!is.null(factor_levels)) {
       factor_levels[[i]]
@@ -851,7 +851,7 @@ method(one_hot, class_data.frame) <- function(
     one.hot[[i]] <- oh
   }
   if (verbosity > 0L) {
-    msg2done()
+    msgdone()
   }
   # do.call below creates a matrix, maintaining column names in one.hot matrix.
   # as.data.frame on one.hot would have added {name_of_oh_element}.{column_names}
@@ -876,7 +876,7 @@ method(one_hot, class_data.table) <- function(x, verbosity = 1L) {
   .names <- colnames(x)
   for (i in factor_index) {
     if (verbosity > 0L) {
-      msg2_info("One hot encoding ", .names[i], "...")
+      msg_info("One hot encoding ", .names[i], "...")
     }
     .levels <- levels(x[[i]])
     index <- as.integer(x[[i]])
@@ -890,7 +890,7 @@ method(one_hot, class_data.table) <- function(x, verbosity = 1L) {
   # remove original factor(s)
   x[, paste(.names[factor_index]) := NULL]
   if (verbosity > 0L) {
-    msg2("Done")
+    msg("Done")
   }
   invisible(x)
 } # rtemis::one_hot.data.table
@@ -922,7 +922,7 @@ dt_set_one_hot <- function(x, xname = NULL, verbosity = 1L) {
   .names <- colnames(x)
   for (i in factor_index) {
     if (verbosity > 0L) {
-      msg2_info("One hot encoding ", .names[i], "...")
+      msg_info("One hot encoding ", .names[i], "...")
     }
     .levels <- levels(x[[i]])
     index <- as.numeric(x[[i]])
@@ -936,7 +936,7 @@ dt_set_one_hot <- function(x, xname = NULL, verbosity = 1L) {
   # remove original factor(s)
   x[, paste(.names[factor_index]) := NULL]
   if (verbosity > 0L) {
-    msg2("Done")
+    msg("Done")
   }
   invisible(x)
 } # rtemis::dt_set_one_hot

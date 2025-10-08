@@ -101,7 +101,7 @@ read <- function(
   if (ext == "parquet") {
     check_dependencies("arrow")
     if (verbosity > 0L) {
-      msg20(
+      msg0(
         bold(green("\u25B6")),
         " Reading ",
         highlight(basename(path)),
@@ -112,7 +112,7 @@ read <- function(
     if (output == "data.table") setDT(.dat)
   } else if (ext == "rds") {
     if (verbosity > 0L) {
-      msg20(
+      msg0(
         bold(green("\u25B6")),
         " Reading ",
         highlight(basename(path)),
@@ -123,7 +123,7 @@ read <- function(
   } else if (ext == "xlsx") {
     check_dependencies("openxlsx")
     if (verbosity > 0L) {
-      msg20(
+      msg0(
         bold(green("\u25B6")),
         " Reading ",
         highlight(basename(path)),
@@ -140,7 +140,7 @@ read <- function(
   } else if (ext == "dta") {
     check_dependencies("haven")
     if (verbosity > 0L) {
-      msg20(
+      msg0(
         bold(green("\u25B6")),
         " Reading ",
         highlight(basename(path)),
@@ -152,7 +152,7 @@ read <- function(
   } else if (ext == "fasta") {
     check_dependencies("seqinr")
     if (verbosity > 0L) {
-      msg20(
+      msg0(
         bold(green("\u25B6")),
         " Reading ",
         highlight(basename(path)),
@@ -168,7 +168,7 @@ read <- function(
   } else if (ext == "arff") {
     check_dependencies("farff")
     if (verbosity > 0L) {
-      msg20(
+      msg0(
         bold(green("\u25B6")),
         " Reading ",
         highlight(basename(path)),
@@ -179,7 +179,7 @@ read <- function(
     if (output == "data.table") setDT(.dat)
   } else {
     if (verbosity > 0L) {
-      msg20(
+      msg0(
         bold(green("\u25B6")),
         " Reading ",
         highlight(basename(path)),
@@ -206,7 +206,7 @@ read <- function(
         sep <- ","
       }
       if (length(na_strings) > 1) {
-        msg2(
+        msg(
           "Note: 'na_strings' must be a single string for duckdb; setting to '",
           na_strings[1],
           "'"
@@ -276,7 +276,7 @@ read <- function(
   .nrow <- nrow(.dat)
   .ncol <- ncol(.dat)
   if (verbosity > 0L) {
-    msg2(
+    msg(
       "Read in",
       highlightbig(.nrow),
       "x",
@@ -288,13 +288,13 @@ read <- function(
     .nrowp <- nrow(.dat)
     .dup <- .nrow - .nrowp
     if (verbosity > 0L && .dup > 0) {
-      msg2(
+      msg(
         "Removed",
         bold(orange(format(.dup, big.mark = ","))),
         "duplicate",
         paste0(ngettext(.dup, "row", "rows"), ".")
       )
-      msg2(
+      msg(
         "New dimensions:",
         highlightbig(.nrowp),
         "x",
@@ -331,7 +331,7 @@ msgread <- function(x, caller = "", use_basename = TRUE) {
   if (use_basename) {
     x <- basename(x)
   }
-  msg20(
+  msg0(
     bold(green("\u25B6")),
     " Reading ",
     highlight(x),

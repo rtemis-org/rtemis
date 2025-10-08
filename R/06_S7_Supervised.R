@@ -173,7 +173,7 @@ method(repr, Supervised) <- function(
   output_type <- get_output_type(output_type, filename)
   # Class name
   out <- paste0(
-    show_S7name(x@type, output_type = output_type),
+    repr_S7name(x@type, output_type = output_type),
     highlight(x@algorithm, output_type = output_type),
     " (",
     desc_alg(x@algorithm),
@@ -349,7 +349,7 @@ Calibration <- new_class(
 method(repr, Calibration) <- function(x, output_type = NULL) {
   output_type <- get_output_type(output_type)
   paste0(
-    show_S7name("Calibration", output_type = output_type),
+    repr_S7name("Calibration", output_type = output_type),
     highlight(x@algorithm, output_type = output_type),
     " (",
     desc_alg(x@algorithm),
@@ -840,6 +840,7 @@ method(plot_true_pred, Regression) <- function(
 #'
 #' @param x Classification object.
 #' @param what Character vector: What to plot. "training", "validation", "test"
+#' @param xlab Character: x axis label. If NULL, will be generated automatically.
 #' @param theme Theme object.
 #' @param ... Additional arguments passed to the plotting function.
 #'
@@ -848,6 +849,7 @@ method(plot_true_pred, Regression) <- function(
 plot_true_pred.Classification <- function(
   x,
   what = NULL,
+  xlab = NULL,
   theme = choose_theme(),
   ...
 ) {
@@ -867,26 +869,17 @@ plot_true_pred.Classification <- function(
   } else if (what == "test") {
     x@metrics_test
   }
+  if (is.null(xlab)) {
+    xlab <- labelify(paste("Predicted", what))
+  }
   draw_confusion(
     .confmat,
     theme = theme,
-    xlab = labelify(paste("Predicted", what)),
+    xlab = xlab,
     ...
   )
 } # /rtemis::plot_true_pred.Classification
-method(plot_true_pred, Classification) <- function(
-  x,
-  what = NULL,
-  theme = choose_theme(),
-  ...
-) {
-  plot_true_pred.Classification(
-    x = x,
-    what = what,
-    theme = theme,
-    ...
-  )
-}
+method(plot_true_pred, Classification) <- plot_true_pred.Classification
 
 
 # plot_ROC Classification ----
@@ -899,7 +892,7 @@ method(plot_roc, Classification) <- function(
   ...
 ) {
   if (is.null(x@predicted_prob_training)) {
-    msg2(highlight2("No predicted probabilities available."))
+    msg(highlight2("No predicted probabilities available."))
     return(invisible())
   }
   if (is.null(what)) {
@@ -1221,7 +1214,7 @@ method(repr, SupervisedRes) <- function(
 
   # Class name + Alg name (2 lines)
   out <- paste0(
-    show_S7name(paste("Resampled", x@type, "Model"), output_type = output_type),
+    repr_S7name(paste("Resampled", x@type, "Model"), output_type = output_type),
     highlight(x@algorithm, output_type = output_type),
     " (",
     desc_alg(x@algorithm),
@@ -1774,6 +1767,8 @@ plot_true_pred.ClassificationRes <- function(
   # if (labelify) {
   #   names(predicted_l) <- labelify(names(predicted_l))
   # }
+  # => Do not pass filename to both training & testing, latter will overwrite; pass to subplot if
+  # plotting both
   # Training
   if ("training" %in% what) {
     plt_training <- draw_confusion(
@@ -1941,7 +1936,7 @@ method(plot_varimp, Supervised) <- function(
   ...
 ) {
   if (is.null(x@varimp)) {
-    msg2(highlight2("No variable importance available."))
+    msg(highlight2("No variable importance available."))
     return(invisible())
   }
   draw_varimp(x@varimp, theme = theme, filename = filename, ...)
@@ -1959,7 +1954,7 @@ method(plot_varimp, SupervisedRes) <- function(
   ...
 ) {
   if (is.null(x@varimp)) {
-    msg2(highlight2("No variable importance available."))
+    msg(highlight2("No variable importance available."))
     return(invisible())
   }
   check_inherits(summarize_fn, "character")
@@ -1992,7 +1987,7 @@ method(plot_varimp, SupervisedRes) <- function(
   if (is.null(ylab)) {
     ylab <- paste0(
       labelify(paste(summarize_fn, "Variable Importance")),
-      " (across ",
+      "\n(across ",
       desc_alt(x@outer_resampler),
       ")"
     )
