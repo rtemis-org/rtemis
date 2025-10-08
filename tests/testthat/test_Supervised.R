@@ -644,6 +644,13 @@ test_that("train() LightRF Regression with l1, l2 succeeds", {
   expect_s7_class(mod_r_lightrf, Regression)
 })
 
+## LightRF Regression predict ----
+predicted <- predict(mod_r_lightrf, features(datr_test))
+test_that("predict() LightRF Regression succeeds", {
+  expect_identical(mod_r_lightrf@predicted_test, predicted)
+  expect_null(dim(predicted))
+})
+
 ## LightRF Regression + grid search ----
 modt_r_lightrf <- train(
   x = datr_train,
@@ -686,7 +693,10 @@ test_that("train() LightRF Binary Classification succeeds", {
 ## LightRF Binary Classification predict ----
 # S7::method_explain(predict, Classification)
 # methods(class = Classification) # try again after loading all
-predicted <- predict(mod_c_lightrf, features(datc2_test))
+predicted_prob_test <- predict(mod_c_lightrf, features(datc2_test))
+test_that("predict() LightRF Classification succeeds", {
+  expect_identical(mod_c_lightrf@predicted_prob_test, predicted_prob_test)
+})
 
 modt_c_lightrf <- train(
   x = datc2_train,
