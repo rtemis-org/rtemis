@@ -122,7 +122,7 @@ printls <- function(
     if (limit != -1L && length(x) > limit) {
       padcat(
         italic(thin(
-          paste0(
+          paste(
             "Showing first",
             limit,
             "of",
@@ -141,7 +141,7 @@ printls <- function(
             paste0(
               "...",
               length(x) - limit,
-              "more items not shown.\n"
+              " more items not shown.\n"
             )
           )),
           pad = pad
