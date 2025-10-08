@@ -68,5 +68,6 @@ docs
 # pkgdown
 _pkgdown.yml
 
-# Gemini
+# Assistants
+.github/copilot-instructions.md
 GEMINI.md
