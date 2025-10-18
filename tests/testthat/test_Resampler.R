@@ -4,9 +4,9 @@
 
 # library(testthat)
 
-# StratSubParams ----
-test_that("StratSubParams succeeds", {
-  rsp <- StratSubParams(
+# StratSubConfig ----
+test_that("StratSubConfig succeeds", {
+  rsp <- StratSubConfig(
     n = 10L,
     stratify_var = NULL,
     train_p = .75,
@@ -14,34 +14,34 @@ test_that("StratSubParams succeeds", {
     id_strat = NULL,
     seed = NULL
   )
-  expect_s7_class(rsp, StratSubParams)
+  expect_s7_class(rsp, StratSubConfig)
 })
 
-# KFoldParams ----
-test_that("KFoldParams succeeds", {
-  rsp <- KFoldParams(
+# KFoldConfig ----
+test_that("KFoldConfig succeeds", {
+  rsp <- KFoldConfig(
     n = 10L,
     stratify_var = NULL,
     strat_n_bins = 4L,
     id_strat = NULL,
     seed = NULL
   )
-  expect_s7_class(rsp, KFoldParams)
+  expect_s7_class(rsp, KFoldConfig)
 })
 
-# BootstrapParams ----
-test_that("BootstrapParams succeeds", {
-  rsp <- BootstrapParams(
+# BootstrapConfig ----
+test_that("BootstrapConfig succeeds", {
+  rsp <- BootstrapConfig(
     n = 10L,
     id_strat = NULL,
     seed = NULL
   )
-  expect_s7_class(rsp, BootstrapParams)
+  expect_s7_class(rsp, BootstrapConfig)
 })
 
-# StratBootParams ----
-test_that("StratBootParams succeeds", {
-  rsp <- StratBootParams(
+# StratBootConfig ----
+test_that("StratBootConfig succeeds", {
+  rsp <- StratBootConfig(
     n = 10L,
     stratify_var = NULL,
     train_p = .75,
@@ -50,23 +50,23 @@ test_that("StratBootParams succeeds", {
     id_strat = NULL,
     seed = NULL
   )
-  expect_s7_class(rsp, StratBootParams)
+  expect_s7_class(rsp, StratBootConfig)
 })
 
-# LOOCVParams ----
-test_that("LOOCVParams succeeds", {
-  rsp <- LOOCVParams(
+# LOOCVConfig ----
+test_that("LOOCVConfig succeeds", {
+  rsp <- LOOCVConfig(
     n = 10L
   )
-  expect_s7_class(rsp, LOOCVParams)
+  expect_s7_class(rsp, LOOCVConfig)
 })
 
-# CustomParams ----
-test_that("CustomParams succeeds", {
-  rsp <- CustomParams(
+# CustomConfig ----
+test_that("CustomConfig succeeds", {
+  rsp <- CustomConfig(
     n = 10L
   )
-  expect_s7_class(rsp, CustomParams)
+  expect_s7_class(rsp, CustomConfig)
 })
 
 # setup_Resampler() defaults ----
@@ -78,19 +78,19 @@ test_that("setup_Resampler() succeeds", {
 # setup_Resampler() kfold ----
 test_that("setup_Resampler() kfold succeeds", {
   rsp <- setup_Resampler(type = "KFold")
-  expect_s7_class(rsp, KFoldParams)
+  expect_s7_class(rsp, KFoldConfig)
 })
 
 # setup_Resampler() strat_sub ----
 test_that("setup_Resampler() strat_sub succeeds", {
   rsp <- setup_Resampler(type = "StratSub")
-  expect_s7_class(rsp, StratSubParams)
+  expect_s7_class(rsp, StratSubConfig)
 })
 
 # setup_Resampler() strat_boot ----
 test_that("setup_Resampler() strat_boot succeeds", {
   rsp <- setup_Resampler(type = "StratBoot")
-  expect_s7_class(rsp, StratBootParams)
+  expect_s7_class(rsp, StratBootConfig)
 })
 
 test_that("setup_Resampler() strat_boot fails with invalid train_p", {
@@ -102,13 +102,13 @@ test_that("setup_Resampler() strat_boot fails with invalid train_p", {
 # setup_Resampler() bootstrap ----
 test_that("setup_Resampler() bootstrap succeeds", {
   rsp <- setup_Resampler(type = "Bootstrap")
-  expect_s7_class(rsp, BootstrapParams)
+  expect_s7_class(rsp, BootstrapConfig)
 })
 
 # setup_Resampler() loocv ----
 test_that("setup_Resampler() loocv succeeds", {
   rsp <- setup_Resampler(type = "LOOCV")
-  expect_s7_class(rsp, LOOCVParams)
+  expect_s7_class(rsp, LOOCVConfig)
 })
 
 # Resampler ----

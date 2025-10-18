@@ -95,16 +95,16 @@ method(desc_alt, ResamplerConfig) <- function(x) {
   )
 } # /rtemis::desc.ResamplerConfig
 
-# KFoldParams ----
-#' @title KFoldParams
+# KFoldConfig ----
+#' @title KFoldConfig
 #'
 #' @description
 #' ResamplerConfig subclass for k-fold resampling.
 #'
 #' @author EDG
 #' @noRd
-KFoldParams <- new_class(
-  name = "KFoldParams",
+KFoldConfig <- new_class(
+  name = "KFoldConfig",
   parent = ResamplerConfig,
   properties = list(
     stratify_var = class_character | NULL,
@@ -124,18 +124,18 @@ KFoldParams <- new_class(
       seed = seed
     )
   }
-) # /KFoldParams
+) # /KFoldConfig
 
-# StratSubParams ----
-#' @title StratSubParams
+# StratSubConfig ----
+#' @title StratSubConfig
 #'
 #' @description
 #' ResamplerConfig subclass for stratified subsampling.
 #'
 #' @author EDG
 #' @noRd
-StratSubParams <- new_class(
-  name = "StratSubParams",
+StratSubConfig <- new_class(
+  name = "StratSubConfig",
   parent = ResamplerConfig,
   properties = list(
     n = scalar_int_pos,
@@ -165,18 +165,18 @@ StratSubParams <- new_class(
       seed = seed
     )
   }
-) # /StratSubParams
+) # /StratSubConfig
 
-# StratBootParams ----
-#' @title StratBootParams
+# StratBootConfig ----
+#' @title StratBootConfig
 #'
 #' @description
 #' ResamplerConfig subclass for stratified bootstrapping.
 #'
 #' @author EDG
 #' @noRd
-StratBootParams <- new_class(
-  name = "StratBootParams",
+StratBootConfig <- new_class(
+  name = "StratBootConfig",
   parent = ResamplerConfig,
   properties = list(
     stratify_var = class_character | NULL,
@@ -208,18 +208,18 @@ StratBootParams <- new_class(
       seed = seed
     )
   }
-) # /StratBootParams
+) # /StratBootConfig
 
-# BootstrapParams ----
-#' @title BootstrapParams
+# BootstrapConfig ----
+#' @title BootstrapConfig
 #'
 #' @description
 #' ResamplerConfig subclass for bootstrap resampling.
 #'
 #' @author EDG
 #' @noRd
-BootstrapParams <- new_class(
-  name = "BootstrapParams",
+BootstrapConfig <- new_class(
+  name = "BootstrapConfig",
   parent = ResamplerConfig,
   properties = list(
     id_strat = class_vector | NULL,
@@ -235,18 +235,18 @@ BootstrapParams <- new_class(
       seed = seed
     )
   }
-) # /BootstrapParams
+) # /BootstrapConfig
 
-# LOOCVParams ----
-#' @title LOOCVParams
+# LOOCVConfig ----
+#' @title LOOCVConfig
 #'
 #' @description
 #' ResamplerConfig subclass for leave-one-out cross-validation.
 #'
 #' @author EDG
 #' @noRd
-LOOCVParams <- new_class(
-  name = "LOOCVParams",
+LOOCVConfig <- new_class(
+  name = "LOOCVConfig",
   parent = ResamplerConfig,
   constructor = function(n) {
     new_object(
@@ -256,18 +256,18 @@ LOOCVParams <- new_class(
       )
     )
   }
-) # /LOOCVParams
+) # /LOOCVConfig
 
-# CustomParams ----
-#' @title CustomParams
+# CustomConfig ----
+#' @title CustomConfig
 #'
 #' @description
 #' ResamplerConfig subclass for custom resampling.
 #'
 #' @author EDG
 #' @noRd
-CustomParams <- new_class(
-  name = "CustomParams",
+CustomConfig <- new_class(
+  name = "CustomConfig",
   parent = ResamplerConfig,
   constructor = function(n) {
     new_object(
@@ -277,7 +277,7 @@ CustomParams <- new_class(
       )
     )
   }
-) # /CustomParams
+) # /CustomConfig
 
 # setup_Resampler() ----
 #' Setup Resampler
@@ -324,7 +324,7 @@ setup_Resampler <- function(
   seed <- clean_int(seed)
 
   if (type == "KFold") {
-    KFoldParams(
+    KFoldConfig(
       n = n_resamples,
       stratify_var = stratify_var,
       strat_n_bins = strat_n_bins,
@@ -332,7 +332,7 @@ setup_Resampler <- function(
       seed = seed
     )
   } else if (type == "StratSub") {
-    StratSubParams(
+    StratSubConfig(
       n = n_resamples,
       train_p = train_p,
       stratify_var = stratify_var,
@@ -341,7 +341,7 @@ setup_Resampler <- function(
       seed = seed
     )
   } else if (type == "StratBoot") {
-    StratBootParams(
+    StratBootConfig(
       n = n_resamples,
       train_p = train_p,
       stratify_var = stratify_var,
@@ -351,13 +351,13 @@ setup_Resampler <- function(
       seed = seed
     )
   } else if (type == "Bootstrap") {
-    BootstrapParams(
+    BootstrapConfig(
       n = n_resamples,
       id_strat = id_strat,
       seed = seed
     )
   } else if (type == "LOOCV") {
-    LOOCVParams(
+    LOOCVConfig(
       n = NA_integer_
     )
   } else {
