@@ -38,7 +38,7 @@ each case can only be present in the training or test set, but not both.}
 \item{verbosity}{Integer: Verbosity level.}
 }
 \value{
-ResamplerParameters object.
+ResamplerConfig object.
 }
 \description{
 Setup Resampler

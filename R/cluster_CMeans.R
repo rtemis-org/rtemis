@@ -6,9 +6,9 @@
 #'
 #' @keywords internal
 #' @noRd
-cluster_CMeans <- function(x, parameters, verbosity = 1L) {
+cluster_CMeans <- function(x, config, verbosity = 1L) {
   # Checks ----
-  check_is_S7(parameters, CMeansParameters)
+  check_is_S7(config, CMeansConfig)
 
   # Dependencies ----
   check_dependencies("e1071")
@@ -19,15 +19,15 @@ cluster_CMeans <- function(x, parameters, verbosity = 1L) {
   # Cluster ----
   clust <- e1071::cmeans(
     x = x,
-    centers = parameters[["k"]],
-    iter.max = parameters[["max_iter"]],
+    centers = config[["k"]],
+    iter.max = config[["max_iter"]],
     verbose = verbosity > 0L,
-    dist = parameters[["dist"]],
-    method = parameters[["method"]],
-    m = parameters[["m"]],
-    rate.par = parameters[["rate_par"]],
-    weights = parameters[["weights"]],
-    control = parameters[["control"]]
+    dist = config[["dist"]],
+    method = config[["method"]],
+    m = config[["m"]],
+    rate.par = config[["rate_par"]],
+    weights = config[["weights"]],
+    control = config[["control"]]
   )
   check_inherits(clust, "fclust")
   clust

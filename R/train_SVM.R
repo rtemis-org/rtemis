@@ -11,7 +11,7 @@
 #' @param x data.frame or similar: Training set.
 #' @param weights Numeric vector: Case weights.
 #' @param hyperparameters `SVMHyperparameters` object: make using [setup_RadialSVM].
-#' @param tuner_parameters `TunerParameters` object: make using [setup_GridSearch].
+#' @param tuner_config `TunerConfig` object: make using [setup_GridSearch].
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Object of class `svm`.
@@ -23,7 +23,7 @@ train_SVM <- function(
   x,
   weights = NULL,
   hyperparameters = NULL,
-  tuner_parameters = NULL,
+  tuner_config = NULL,
   verbosity = 1L
 ) {
   # Dependencies ----
@@ -63,7 +63,7 @@ train_SVM <- function(
   y <- outcome(x)
   x <- preprocess(
     features(x),
-    parameters = setup_Preprocessor(one_hot = TRUE),
+    config = setup_Preprocessor(one_hot = TRUE),
     verbosity = verbosity
   )@preprocessed
 
@@ -111,7 +111,7 @@ train_LinearSVM <- train_RadialSVM <- train_SVM
 predict_SVM <- function(model, newdata, type, verbosity = 0L) {
   newdata <- preprocess(
     newdata,
-    parameters = setup_Preprocessor(one_hot = TRUE),
+    config = setup_Preprocessor(one_hot = TRUE),
     verbosity = verbosity - 1L
   )@preprocessed
   if (type == "Classification") {

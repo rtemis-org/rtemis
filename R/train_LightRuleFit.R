@@ -50,7 +50,7 @@ train_LightRuleFit <- function(
   # LightRuleFit_tunable includes the names of all LightGBM hyperparameters used by LightRuleFit.
   lgbm_parameters <- update(
     setup_LightGBM(),
-    get_params(hyperparameters, LightRuleFit_lightgbm_params)
+    get_hyperparams(hyperparameters, LightRuleFit_lightgbm_params)
   )
   lgbm_parameters@hyperparameters[["ifw"]] <- hyperparameters[["ifw_lightgbm"]]
   mod_lgbm <- train(
@@ -58,7 +58,7 @@ train_LightRuleFit <- function(
     dat_validation = dat_validation,
     weights = lightgbm_weights,
     hyperparameters = lgbm_parameters,
-    # tuner_parameters = tuner_parameters, # ? add tuner_parameters to LightRuleFitHyperparameters
+    # tuner_config = tuner_config, # ? add tuner_config to LightRuleFitHyperparameters
     outer_resampling = NULL,
     verbosity = verbosity
   )

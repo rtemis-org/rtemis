@@ -11,7 +11,7 @@
 #' @param x data.frame or similar: Training set.
 #' @param weights Numeric vector: Case weights.
 #' @param hyperparameters `TabNetHyperparameters` object: make using [setup_TabNet].
-#' @param tuner_parameters `TunerParameters` object: make using [setup_GridSearch].
+#' @param tuner_config `TunerConfig` object: make using [setup_GridSearch].
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Object of class `TabNet`.
@@ -23,7 +23,7 @@ train_TabNet <- function(
   x,
   weights = NULL,
   hyperparameters = NULL,
-  tuner_parameters = NULL,
+  tuner_config = NULL,
   verbosity = 1L
 ) {
   # Dependencies ----
@@ -55,7 +55,7 @@ train_TabNet <- function(
   y <- outcome(x)
   prp <- preprocess(
     features(x),
-    parameters = setup_Preprocessor(scale = TRUE, center = TRUE)
+    config = setup_Preprocessor(scale = TRUE, center = TRUE)
   )
   x <- prp@preprocessed
 

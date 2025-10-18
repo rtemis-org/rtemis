@@ -6,14 +6,14 @@
 #'
 #' @keywords internal
 #' @noRd
-decom_tSNE <- function(x, parameters, verbosity = 1L) {
+decom_tSNE <- function(x, config, verbosity = 1L) {
   # Checks ----
-  check_is_S7(parameters, tSNEParameters)
+  check_is_S7(config, tSNEConfig)
   check_dependencies("Rtsne")
   check_unsupervised_data(x = x, allow_missing = FALSE)
 
   # Decompose ----
-  args <- c(list(X = x, dims = parameters[["k"]]), parameters@parameters)
+  args <- c(list(X = x, dims = config[["k"]]), config@config)
   args[["k"]] <- NULL
   decom <- do_call(
     Rtsne::Rtsne,

@@ -165,7 +165,7 @@ method(repr, Hyperparameters) <- function(
       )
     )
   } else if (x@tuned == TUNED_STATUS_UNTUNED) {
-    need_tuning <- names(get_params_need_tuning(x))
+    need_tuning <- names(get_hyperparams_need_tuning(x))
     out <- paste0(
       out,
       highlight2(
@@ -304,21 +304,21 @@ method(needs_tuning, Hyperparameters) <- function(x) {
   x@tuned == 0
 } # /needs_tuning.Hyperparameters
 
-# get_params_need_tuning ----
+# get_hyperparams_need_tuning ----
 #' Get hyperparameters that need tuning in an algorithm-specific way.
 #'
 #' @keywords internal
 #' @noRd
-method(get_params_need_tuning, Hyperparameters) <- function(x) {
+method(get_hyperparams_need_tuning, Hyperparameters) <- function(x) {
   # -> list
   # Get tunable hyperparameters with more than one value
   x@hyperparameters[x@tunable_hyperparameters[
     sapply(x@hyperparameters[x@tunable_hyperparameters], length) > 1
   ]]
-} # /get_params_need_tuning.Hyperparameters
+} # /get_hyperparams_need_tuning.Hyperparameters
 
-# get_params.(Hyperparameters, character) ----
-method(get_params, list(Hyperparameters, class_character)) <- function(
+# get_hyperparams.(Hyperparameters, character) ----
+method(get_hyperparams, list(Hyperparameters, class_character)) <- function(
   x,
   param_names
 ) {
@@ -676,7 +676,7 @@ stopifnot(all(
   c(GLMNET_tunable, GLMNET_fixed) %in% names(formals(setup_GLMNET))
 ))
 
-method(get_params_need_tuning, GLMNETHyperparameters) <- function(x) {
+method(get_hyperparams_need_tuning, GLMNETHyperparameters) <- function(x) {
   # Get tunable hyperparameters with more than one value
   out <- x@hyperparameters[x@tunable_hyperparameters[
     sapply(x@hyperparameters[x@tunable_hyperparameters], length) > 1
@@ -685,7 +685,7 @@ method(get_params_need_tuning, GLMNETHyperparameters) <- function(x) {
     out <- c(out, list(lambda = NULL))
   }
   out
-} # /get_params_need_tuning.GLMNETHyperparameters
+} # /get_hyperparams_need_tuning.GLMNETHyperparameters
 
 # LightCARTHyperparameters ----
 LightCART_tunable <- c(
@@ -1189,7 +1189,7 @@ stopifnot(all(
   c(LightGBM_tunable, LightGBM_fixed) %in% names(formals(setup_LightGBM))
 ))
 
-method(get_params_need_tuning, LightGBMHyperparameters) <- function(x) {
+method(get_hyperparams_need_tuning, LightGBMHyperparameters) <- function(x) {
   # Get tunable hyperparameters with more than one value
   out <- x@hyperparameters[x@tunable_hyperparameters[
     sapply(x@hyperparameters[x@tunable_hyperparameters], length) > 1
@@ -1198,7 +1198,7 @@ method(get_params_need_tuning, LightGBMHyperparameters) <- function(x) {
     out <- c(out, list(nrounds = NULL))
   }
   out
-} # /get_params_need_tuning.LightGBMHyperparameters
+} # /get_hyperparams_need_tuning.LightGBMHyperparameters
 
 
 # LightRuleFitHyperparameters ----

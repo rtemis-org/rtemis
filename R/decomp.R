@@ -8,19 +8,19 @@
 #'
 #' @param x Matrix or data frame: Input data.
 #' @param algorithm Character: Decomposition algorithm.
-#' @param parameters DecompositionParameters: Algorithm-specific parameters.
+#' @param config DecompositionConfig: Algorithm-specific config.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Decomposition object.
 #'
 #' @author EDG
 #' @export
-decomp <- function(x, algorithm = "ICA", parameters = NULL, verbosity = 1L) {
+decomp <- function(x, algorithm = "ICA", config = NULL, verbosity = 1L) {
   # Checks ----
-  if (is.null(parameters)) {
-    parameters <- get_default_decomparams(algorithm)
+  if (is.null(config)) {
+    config <- get_default_decomparams(algorithm)
   }
-  check_is_S7(parameters, DecompositionParameters)
+  check_is_S7(config, DecompositionConfig)
 
   # Intro ----
   start_time <- intro(verbosity = verbosity)
@@ -38,14 +38,14 @@ decomp <- function(x, algorithm = "ICA", parameters = NULL, verbosity = 1L) {
   }
   decom <- do_call(
     fn = decom_fn,
-    args = list(x = x, parameters = parameters)
+    args = list(x = x, config = config)
   )
 
   # Outro ----
   outro(start_time, verbosity = verbosity)
   Decomposition(
     algorithm = algorithm,
-    parameters = parameters,
+    config = config,
     decom = decom[["decom"]],
     transformed = decom[["transformed"]]
   )

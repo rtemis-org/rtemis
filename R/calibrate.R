@@ -101,7 +101,7 @@ calibrate.Classification <- function(
 #' @param x ClassificationRes object.
 #' @param algorithm Character: Algorithm to use to train calibration model.
 #' @param hyperparameters Hyperparameters object: Setup using one of `setup_*` functions.
-#' @param resampler_parameters ResamplerParameters
+#' @param resampler_config ResamplerConfig
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used
 #'
@@ -128,7 +128,7 @@ calibrate.ClassificationRes <- function(
   x,
   algorithm = "isotonic",
   hyperparameters = NULL,
-  resampler_parameters = setup_Resampler(
+  resampler_config = setup_Resampler(
     n_resamples = 5L,
     type = "KFold"
   ),
@@ -137,7 +137,7 @@ calibrate.ClassificationRes <- function(
 ) {
   # Check inputs
   check_inherits(algorithm, "character")
-  check_is_S7(resampler_parameters, ResamplerParameters)
+  check_is_S7(resampler_config, ResamplerConfig)
   verbosity <- clean_int(verbosity)
 
   # Check IFW is FALSE
@@ -157,7 +157,7 @@ calibrate.ClassificationRes <- function(
         dat,
         algorithm = algorithm,
         hyperparameters = hyperparameters,
-        outer_resampling = resampler_parameters
+        outer_resampling = resampler_config
       )
     }
   )
@@ -165,7 +165,7 @@ calibrate.ClassificationRes <- function(
 
   # calcv <- CalibrationRes(
   #   models = calmods,
-  #   resampler_parameters = resampler_parameters
+  #   resampler_config = resampler_config
   # )
 
   # CalibratedClassificationRes

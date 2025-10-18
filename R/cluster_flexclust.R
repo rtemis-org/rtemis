@@ -6,9 +6,9 @@
 #'
 #' @keywords internal
 #' @noRd
-cluster_KMeans <- function(x, parameters, verbosity = 1L) {
+cluster_KMeans <- function(x, config, verbosity = 1L) {
   # Checks ----
-  check_is_S7(parameters, KMeansParameters)
+  check_is_S7(config, KMeansConfig)
 
   # Dependencies ----
   check_dependencies("flexclust")
@@ -19,8 +19,8 @@ cluster_KMeans <- function(x, parameters, verbosity = 1L) {
   # Cluster ----
   clust <- flexclust::cclust(
     x = x,
-    k = parameters[["k"]],
-    dist = parameters[["dist"]],
+    k = config[["k"]],
+    dist = config[["dist"]],
     method = "kmeans"
   )
   check_inherits(clust, "kcca")
@@ -32,9 +32,9 @@ cluster_KMeans <- function(x, parameters, verbosity = 1L) {
 #'
 #' @keywords internal
 #' @noRd
-cluster_HardCL <- function(x, parameters, verbosity = 1L) {
+cluster_HardCL <- function(x, config, verbosity = 1L) {
   # Checks ----
-  check_is_S7(parameters, HardCLParameters)
+  check_is_S7(config, HardCLConfig)
 
   # Dependencies ----
   check_dependencies("flexclust")
@@ -45,8 +45,8 @@ cluster_HardCL <- function(x, parameters, verbosity = 1L) {
   # Cluster ----
   clust <- flexclust::cclust(
     x = x,
-    k = parameters[["k"]],
-    dist = parameters[["dist"]],
+    k = config[["k"]],
+    dist = config[["dist"]],
     method = "hardcl"
   )
   check_inherits(clust, "kcca")
@@ -58,9 +58,9 @@ cluster_HardCL <- function(x, parameters, verbosity = 1L) {
 #'
 #' @keywords internal
 #' @noRd
-cluster_NeuralGas <- function(x, parameters, verbosity = 1L) {
+cluster_NeuralGas <- function(x, config, verbosity = 1L) {
   # Checks ----
-  check_is_S7(parameters, NeuralGasParameters)
+  check_is_S7(config, NeuralGasConfig)
 
   # Dependencies ----
   check_dependencies("flexclust")
@@ -71,8 +71,8 @@ cluster_NeuralGas <- function(x, parameters, verbosity = 1L) {
   # Cluster ----
   clust <- flexclust::cclust(
     x = x,
-    k = parameters[["k"]],
-    dist = parameters[["dist"]],
+    k = config[["k"]],
+    dist = config[["dist"]],
     method = "neuralgas"
   )
   check_inherits(clust, "kcca")

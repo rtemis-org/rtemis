@@ -21,10 +21,10 @@
 #' @param dat_validation data.frame or similar: Validation set data.
 #' @param dat_test data.frame or similar: Test set data.
 #' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
-#' @param preprocessor_parameters PreprocessorParameters object or NULL: Setup using [setup_Preprocessor].
+#' @param preprocessor_config PreprocessorConfig object or NULL: Setup using [setup_Preprocessor].
 #' @param hyperparameters Hyperparameters object: Setup using one of `setup_*` functions.
-#' @param tuner_parameters TunerParameters object: Setup using [setup_GridSearch].
-#' @param outer_resampling ResamplerParameters object or NULL: Setup using [setup_Resampler]. This
+#' @param tuner_config TunerConfig object: Setup using [setup_GridSearch].
+#' @param outer_resampling ResamplerConfig object or NULL: Setup using [setup_Resampler]. This
 #' defines the outer resampling method, i.e. the splitting into training and test sets for the
 #' purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
 #' you might want to use a `dat_test` dataset to assess model performance on a single test set.
@@ -58,10 +58,10 @@ train <- function(
   dat_validation = NULL,
   dat_test = NULL,
   algorithm = NULL,
-  preprocessor_parameters = NULL, # PreprocessorParameters
+  preprocessor_config = NULL, # PreprocessorConfig
   hyperparameters = NULL, # Hyperparameters
-  tuner_parameters = NULL, # TunerParameters
-  outer_resampling = NULL, # ResamplerParameters
+  tuner_config = NULL, # TunerConfig
+  outer_resampling = NULL, # ResamplerConfig
   weights = NULL,
   question = NULL,
   outdir = NULL,
@@ -111,17 +111,17 @@ train <- function(
 
   check_is_S7(hyperparameters, Hyperparameters)
 
-  # Set default tuner_parameters if tuning is needed but none specified
-  if (needs_tuning(hyperparameters) && is.null(tuner_parameters)) {
-    tuner_parameters <- setup_GridSearch()
+  # Set default tuner_config if tuning is needed but none specified
+  if (needs_tuning(hyperparameters) && is.null(tuner_config)) {
+    tuner_config <- setup_GridSearch()
   }
 
-  if (!is.null(tuner_parameters)) {
-    check_is_S7(tuner_parameters, TunerParameters)
+  if (!is.null(tuner_config)) {
+    check_is_S7(tuner_config, TunerConfig)
   }
 
-  if (!is.null(preprocessor_parameters)) {
-    check_is_S7(preprocessor_parameters, PreprocessorParameters)
+  if (!is.null(preprocessor_config)) {
+    check_is_S7(preprocessor_config, PreprocessorConfig)
   }
 
   # If outer_resampling is set, dat_validation and dat_test must be NULL
@@ -136,7 +136,7 @@ train <- function(
   ## Arguments ----
   parallel_type <- match.arg(parallel_type)
   if (!is.null(outer_resampling)) {
-    check_is_S7(outer_resampling, ResamplerParameters)
+    check_is_S7(outer_resampling, ResamplerConfig)
     if (!is.null(outer_resampling[["id_strat"]])) {
       stopifnot(length(outer_resampling[["id_strat"]]) == NROW(x))
     }
@@ -213,12 +213,12 @@ train <- function(
     }
     outer_resampler <- resample(
       x,
-      parameters = outer_resampling,
+      config = outer_resampling,
       verbosity = verbosity
     )
     models <- lapply(
       cli::cli_progress_along(
-        seq_len(outer_resampler@parameters@n),
+        seq_len(outer_resampler@config@n),
         name = "Training outer resamples...",
         type = "tasks"
       ),
@@ -227,9 +227,9 @@ train <- function(
           x = x[outer_resampler[[i]], ],
           dat_test = x[-outer_resampler[[i]], ],
           algorithm = algorithm,
-          preprocessor_parameters = preprocessor_parameters,
+          preprocessor_config = preprocessor_config,
           hyperparameters = hyperparameters,
-          tuner_parameters = tuner_parameters,
+          tuner_config = tuner_config,
           outer_resampling = NULL,
           weights = weights,
           question = question,
@@ -251,7 +251,7 @@ train <- function(
       tuner <- tune(
         x = x,
         hyperparameters = hyperparameters,
-        tuner_parameters = tuner_parameters,
+        tuner_config = tuner_config,
         weights = weights,
         parallel_type = parallel_type,
         future_plan = future_plan,
@@ -267,10 +267,10 @@ train <- function(
     } # /Tune
 
     # Preprocess ----
-    if (!is.null(preprocessor_parameters)) {
+    if (!is.null(preprocessor_config)) {
       preprocessor <- preprocess(
         x = x,
-        parameters = preprocessor_parameters,
+        config = preprocessor_config,
         dat_validation = dat_validation,
         dat_test = dat_test
       )
@@ -433,7 +433,7 @@ train <- function(
       models = models,
       preprocessor = preprocessor,
       hyperparameters = hyperparameters,
-      tuner_parameters = tuner_parameters,
+      tuner_config = tuner_config,
       outer_resampler = outer_resampler,
       y_training = y_training,
       y_test = y_test,
@@ -481,7 +481,7 @@ train <- function(
 #'
 #' @param algorithm Character: Algorithm name.
 #' @param hyperparameters Hyperparameters object: Setup using one of `setup_*` functions.
-#' @param outer_resampling ResamplerParameters object or NULL: Setup using [setup_Resampler].
+#' @param outer_resampling ResamplerConfig object or NULL: Setup using [setup_Resampler].
 #' @param n_workers Integer: Total number of workers you want to use.
 #' @param verbosity Integer: Verbosity level.
 #'

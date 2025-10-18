@@ -139,7 +139,7 @@ draw_roc <- function(
     AUC <- lapply(.roc, \(r) r[["auc"]])
   }
   names(TPR) <- names(FPR) <- names(AUC) <- .names
-  theme@parameters[["zerolines"]] <- FALSE
+  theme@config[["zerolines"]] <- FALSE
   draw_scatter(
     x = FPR,
     y = TPR,

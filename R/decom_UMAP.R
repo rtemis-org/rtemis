@@ -5,7 +5,7 @@
 #' UMAP Decomposition
 #'
 #' @param x A numeric matrix or data frame to be decomposed.
-#' @param parameters `UMAPParameters` object.
+#' @param config `UMAPConfig` object.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return A list containing the decomposition and transformed data.
@@ -13,16 +13,16 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-decom_UMAP <- function(x, parameters, verbosity = 1L) {
+decom_UMAP <- function(x, config, verbosity = 1L) {
   # Checks ----
-  check_is_S7(parameters, UMAPParameters)
+  check_is_S7(config, UMAPConfig)
   check_dependencies("uwot")
   check_unsupervised_data(x = x, allow_missing = FALSE)
 
   # Decompose ----
   args <- c(
-    list(X = x, n_components = parameters[["k"]], ret_model = TRUE),
-    parameters@parameters
+    list(X = x, n_components = config[["k"]], ret_model = TRUE),
+    config@config
   )
   args[["k"]] <- NULL
   decom <- do_call(

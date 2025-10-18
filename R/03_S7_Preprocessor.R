@@ -6,16 +6,16 @@
 # https://github.com/RConsortium/S7/
 # https://rconsortium.github.io/S7
 
-# PreprocessorParameters ----
-#' @title PreprocessorParameters
+# PreprocessorConfig ----
+#' @title PreprocessorConfig
 #'
 #' @description
-#' PreprocessorParameters class.
+#' PreprocessorConfig class.
 #'
 #' @author EDG
 #' @noRd
-PreprocessorParameters <- new_class(
-  name = "PreprocessorParameters",
+PreprocessorConfig <- new_class(
+  name = "PreprocessorConfig",
   properties = list(
     complete_cases = class_logical,
     remove_features_thres = class_numeric | NULL,
@@ -57,31 +57,31 @@ PreprocessorParameters <- new_class(
     add_holidays = class_logical,
     exclude = class_character | NULL
   )
-) # /PreprocessorParameters
+) # /PreprocessorConfig
 
-# Names PreprocessorParameters ----
-method(names, PreprocessorParameters) <- function(x) {
+# Names PreprocessorConfig ----
+method(names, PreprocessorConfig) <- function(x) {
   names(props(x))
 }
 
 # Make props `$`-accessible ----
-method(`$`, PreprocessorParameters) <- function(x, name) {
+method(`$`, PreprocessorConfig) <- function(x, name) {
   props(x)[[name]]
 }
 
 # DollarSign tab-complete property names ----
-method(`.DollarNames`, PreprocessorParameters) <- function(x, pattern = "") {
+method(`.DollarNames`, PreprocessorConfig) <- function(x, pattern = "") {
   all_names <- names(props(x))
   grep(pattern, all_names, value = TRUE)
 }
 
 # Make proprs `[[`-accessible ----
-method(`[[`, PreprocessorParameters) <- function(x, name) {
+method(`[[`, PreprocessorConfig) <- function(x, name) {
   props(x)[[name]]
 }
 
-# Show PreprocessorParameters ----
-method(repr, PreprocessorParameters) <- function(
+# Show PreprocessorConfig ----
+method(repr, PreprocessorConfig) <- function(
   x,
   limit = -1L,
   pad = 0L,
@@ -89,14 +89,14 @@ method(repr, PreprocessorParameters) <- function(
 ) {
   output_type <- get_output_type(output_type)
   paste0(
-    repr_S7name("PreprocessorParameters", pad = pad, output_type = output_type),
+    repr_S7name("PreprocessorConfig", pad = pad, output_type = output_type),
     show_ls(props(x), pad = pad, limit = limit, output_type = output_type)
   )
-} # /rtemis::show.PreprocessorParameters
+} # /rtemis::show.PreprocessorConfig
 
 
-# Print PreprocessorParameters ----
-method(print, PreprocessorParameters) <- function(
+# Print PreprocessorConfig ----
+method(print, PreprocessorConfig) <- function(
   x,
   limit = -1L,
   output_type = NULL,
@@ -104,11 +104,11 @@ method(print, PreprocessorParameters) <- function(
 ) {
   cat(repr(x, limit = limit, output_type = output_type))
   invisible(x)
-} # /rtemis::print.PreprocessorParameters
+} # /rtemis::print.PreprocessorConfig
 
 
 # setup_Preprocessor() ----
-#' Setup `PreprocessorParameters`
+#' Setup `PreprocessorConfig`
 #'
 #' @param complete_cases Logical: If TRUE, only retain complete cases (no missing data).
 #' @param remove_cases_thres Float (0, 1): Remove cases with >= to this fraction
@@ -187,7 +187,7 @@ method(print, PreprocessorParameters) <- function(
 #' @param add_holidays Logical: If TRUE, extract holidays from date columns.
 #' @param exclude Integer, vector: Exclude these columns from preprocessing.
 #'
-#' @return `PreprocessorParameters` object.
+#' @return `PreprocessorConfig` object.
 #'
 #' @author EDG
 #' @export
@@ -244,8 +244,8 @@ setup_Preprocessor <- function(
 ) {
   # Match args
   impute_type <- match.arg(impute_type)
-  # Checks performed in the `PreprocessorParameters` constructor
-  PreprocessorParameters(
+  # Checks performed in the `PreprocessorConfig` constructor
+  PreprocessorConfig(
     complete_cases = complete_cases,
     remove_features_thres = remove_features_thres,
     remove_cases_thres = remove_cases_thres,
@@ -298,11 +298,11 @@ data_dependent_props <- c(
 #' @title Preprocessor
 #'
 #' @description
-#' Class to hold output of preprocessing values after applying `PreprocessorParameters` to
+#' Class to hold output of preprocessing values after applying `PreprocessorConfig` to
 #' training dataset, so that the same preprocessing can be applied to validation and test
 #' datasets.
 #'
-#' @field parameters `PreprocessorParameters` object.
+#' @field config `PreprocessorConfig` object.
 #' @field preprocessed Data frame or list: Preprocessed data. If a single data.frame is passed to
 #' `preprocess`, this will be a data.frame. If additional data sets are passed to the
 #' `dat_validation` and/or `dat_test` arguments, this will be a named list.
@@ -314,12 +314,12 @@ data_dependent_props <- c(
 Preprocessor <- new_class(
   name = "Preprocessor",
   properties = list(
-    parameters = PreprocessorParameters,
+    config = PreprocessorConfig,
     preprocessed = class_data.frame | class_list,
     values = class_list
   ),
   constructor = function(
-    parameters,
+    config,
     preprocessed,
     scale_centers = NULL,
     scale_coefficients = NULL,
@@ -328,7 +328,7 @@ Preprocessor <- new_class(
   ) {
     new_object(
       S7_object(),
-      parameters = parameters,
+      config = config,
       preprocessed = preprocessed,
       values = list(
         scale_centers = scale_centers,

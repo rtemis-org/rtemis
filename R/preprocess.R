@@ -10,16 +10,16 @@
 #'
 #' @usage
 #' ## S7 generic
-#' preprocess(x, parameters, ...)
+#' preprocess(x, config, ...)
 #'
 #' @param x data.frame or similar: Data to be preprocessed.
-#' @param parameters PreprocessorParameters or Preprocessor: PreprocessorParameters when
+#' @param config PreprocessorConfig or Preprocessor: PreprocessorConfig when
 #' preprocessing training set data. Setup using [setup_Preprocessor].
 #' Preprocessor when preprocessing validation and test set data.
 #' @param ... Used to pass `dat_validation` and `dat_test` to the method for Preprocessor.
 #'
 #' @details
-#' Methods are provided for preprocessing training set data, which accepts a PreprocessorParameters
+#' Methods are provided for preprocessing training set data, which accepts a PreprocessorConfig
 #' object, and for preprocessing validation and test set data, which accept a Preprocessor
 #' object.
 #'
@@ -50,11 +50,11 @@
 #' @author EDG
 #' @rdname preprocess
 #' @export
-preprocess <- new_generic("preprocess", c("x", "parameters"))
-# preprocess(x, PreprocessorParameters, ...) ----
-method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
+preprocess <- new_generic("preprocess", c("x", "config"))
+# preprocess(x, PreprocessorConfig, ...) ----
+method(preprocess, list(class_data.frame, PreprocessorConfig)) <- function(
   x,
-  parameters,
+  config,
   dat_validation = NULL,
   dat_test = NULL,
   verbosity = 1L
@@ -62,7 +62,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   # -> Preprocessor
   # Intro ----
   start_time <- intro(verbosity = verbosity - 1L)
-  # parameters <- x
+  # config <- x
   # x <- dat
   # Init values list for Preprocessor output.
   values <- list(
@@ -77,7 +77,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   x <- as.data.frame(x)
 
   # Complete cases ----
-  if (parameters@complete_cases) {
+  if (config@complete_cases) {
     if (verbosity > 0L) {
       msg("Filtering complete cases...")
     }
@@ -85,28 +85,28 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Set aside excluded ----
-  if (!is.null(parameters@exclude) && length(parameters@exclude) > 0) {
-    excluded <- x[, parameters@exclude, drop = FALSE]
-    excluded_names <- colnames(x)[parameters@exclude]
-    x <- x[, -parameters@exclude, drop = FALSE]
+  if (!is.null(config@exclude) && length(config@exclude) > 0) {
+    excluded <- x[, config@exclude, drop = FALSE]
+    excluded_names <- colnames(x)[config@exclude]
+    x <- x[, -config@exclude, drop = FALSE]
   }
 
   # Remove named features ----
-  if (!is.null(parameters@remove_features)) {
+  if (!is.null(config@remove_features)) {
     if (verbosity > 0L) {
-      msg("Removing", length(parameters@remove_features), "features...")
+      msg("Removing", length(config@remove_features), "features...")
     }
-    values$remove_features <- parameters@remove_features
-    x <- x[, !names(x) %in% parameters@remove_features, drop = FALSE]
+    values$remove_features <- config@remove_features
+    x <- x[, !names(x) %in% config@remove_features, drop = FALSE]
   }
 
   # Remove constants ----
   # Must be ahead of numeric quantile at least
-  if (parameters@remove_constants) {
+  if (config@remove_constants) {
     constant <- which(sapply(
       x,
       is_constant,
-      skip_missing = parameters@remove_constants_skip_missing
+      skip_missing = config@remove_constants_skip_missing
     ))
     if (length(constant) > 0) {
       if (verbosity > 0L) {
@@ -121,7 +121,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Remove duplicates ----
-  if (parameters@remove_duplicates) {
+  if (config@remove_duplicates) {
     # Ndups <- sum(duplicated(x))
     duplicate_index <- which(duplicated(x))
     Ndups <- length(duplicate_index)
@@ -136,7 +136,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Remove Cases by missing feature threshold ----
-  if (!is.null(parameters@remove_cases_thres)) {
+  if (!is.null(config@remove_cases_thres)) {
     if (anyNA(x)) {
       xt <- data.table::as.data.table(x)
       # na_fraction_bycase <- apply(x, 1, function(i) sum(is.na(i))/length(i))
@@ -147,7 +147,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
         }
       )]
       index_remove_cases_thres <- which(
-        na_fraction_bycase >= parameters@remove_cases_thres
+        na_fraction_bycase >= config@remove_cases_thres
       )
       if (length(index_remove_cases_thres) > 0) {
         if (verbosity > 0L) {
@@ -155,7 +155,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
             "Removing",
             length(index_remove_cases_thres),
             "cases with >=",
-            parameters@remove_cases_thres,
+            config@remove_cases_thres,
             "missing data..."
           )
         }
@@ -166,14 +166,14 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Remove Features by missing feature threshold ----
-  if (!is.null(parameters@remove_features_thres)) {
+  if (!is.null(config@remove_features_thres)) {
     if (anyNA(x)) {
       xt <- data.table::as.data.table(x)
       na.fraction.byfeat <- xt[, lapply(.SD, function(i) {
         sum(is.na(i)) / length(i)
       })]
       removeFeat_thres_index <- which(
-        na.fraction.byfeat >= parameters@remove_features_thres
+        na.fraction.byfeat >= config@remove_features_thres
       )
       if (length(removeFeat_thres_index) > 0) {
         if (verbosity > 0L) {
@@ -181,7 +181,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
             "Removing",
             length(removeFeat_thres_index),
             "features with >=",
-            parameters@remove_features_thres,
+            config@remove_features_thres,
             "missing data..."
           )
         }
@@ -192,7 +192,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
 
   # Integer to factor ----
   index_integer <- NULL
-  if (parameters@integer2factor) {
+  if (config@integer2factor) {
     index_integer <- c(
       which(sapply(x, is.integer)),
       which(sapply(x, bit64::is.integer64))
@@ -214,7 +214,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Logical to factor ----
-  if (parameters@logical2factor) {
+  if (config@logical2factor) {
     index_logical <- which(sapply(x, is.logical))
     if (verbosity > 0L) {
       if (length(index_logical) > 0) {
@@ -235,24 +235,24 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Numeric to factor ----
-  if (parameters@numeric2factor) {
+  if (config@numeric2factor) {
     index_numeric <- which(sapply(x, is.numeric))
     if (verbosity > 0L) {
       msg("Converting numeric to factors...")
     }
-    if (is.null(parameters@numeric2factor_levels)) {
+    if (is.null(config@numeric2factor_levels)) {
       for (i in index_numeric) {
         x[, i] <- as.factor(x[, i])
       }
     } else {
       for (i in index_numeric) {
-        x[, i] <- factor(x[, i], levels = parameters@numeric2factor_levels)
+        x[, i] <- factor(x[, i], levels = config@numeric2factor_levels)
       }
     }
   }
 
   # Character to factor ----
-  if (parameters@character2factor) {
+  if (config@character2factor) {
     index_char <- which(sapply(x, is.character))
     if (verbosity > 0L) {
       if (length(index_char) > 0) {
@@ -273,10 +273,10 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # unique_len2factor ----
-  if (parameters@unique_len2factor > 1) {
+  if (config@unique_len2factor > 1) {
     index_len <- which(sapply(
       x,
-      \(i) length(unique(i)) <= parameters@unique_len2factor
+      \(i) length(unique(i)) <= config@unique_len2factor
     ))
     # Exclude factors
     index_factor <- which(sapply(x, is.factor))
@@ -287,13 +287,13 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
           "Converting",
           singorplu(length(index_len), "feature"),
           "with <=",
-          parameters@unique_len2factor,
+          config@unique_len2factor,
           "unique values to factors..."
         )
       } else {
         msg(
           "No features with <=",
-          parameters@unique_len2factor,
+          config@unique_len2factor,
           "unique values found."
         )
       }
@@ -304,7 +304,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Integer to numeric ----
-  if (parameters@integer2numeric) {
+  if (config@integer2numeric) {
     if (is.null(index_integer)) {
       index_integer <- c(
         which(sapply(x, is.integer)),
@@ -328,7 +328,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Logical to numeric ----
-  if (parameters@logical2numeric) {
+  if (config@logical2numeric) {
     index_logical <- which(sapply(x, is.logical))
     if (verbosity > 0L) {
       msg("Converting logicals to numeric...")
@@ -339,18 +339,18 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Numeric cut ----
-  if (parameters@numeric_cut_n > 0) {
+  if (config@numeric_cut_n > 0) {
     index_numeric <- which(sapply(x, is.numeric))
     if (length(index_numeric) > 0) {
       if (verbosity > 0L) {
-        msg("Cutting numeric features in", parameters@numeric_cut_n, "bins...")
+        msg("Cutting numeric features in", config@numeric_cut_n, "bins...")
       }
       for (i in index_numeric) {
         x[, i] <- factor(
           cut(
             x[, i],
-            breaks = parameters@numeric_cut_n,
-            labels = parameters@numeric_cut_labels
+            breaks = config@numeric_cut_n,
+            labels = config@numeric_cut_labels
           )
         )
       }
@@ -358,8 +358,8 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Numeric quantile ----
-  if (parameters@numeric_quant_n > 0) {
-    index_numeric2q <- if (parameters@numeric_quant_nAonly) {
+  if (config@numeric_quant_n > 0) {
+    index_numeric2q <- if (config@numeric_quant_nAonly) {
       index_numeric2q <- which(sapply(x, is.numeric) & sapply(x, anyNA))
     } else {
       which(sapply(x, is.numeric))
@@ -368,7 +368,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
       if (verbosity > 0L) {
         msg(
           "Cutting numeric features in",
-          parameters@numeric_quant_n,
+          config@numeric_quant_n,
           "quantiles..."
         )
       }
@@ -376,12 +376,12 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
         rng <- abs(diff(range(x[, i], na.rm = TRUE)))
         quantiles <- quantile(
           x[, i],
-          probs = seq(0, 1, length.out = parameters@numeric_quant_n),
+          probs = seq(0, 1, length.out = config@numeric_quant_n),
           na.rm = TRUE
         )
         quantiles[1] <- quantiles[1] - .02 * rng
-        quantiles[parameters@numeric_quant_n] <- quantiles[
-          parameters@numeric_quant_n
+        quantiles[config@numeric_quant_n] <- quantiles[
+          config@numeric_quant_n
         ] +
           .02 * rng
         quantiles <- unique(quantiles)
@@ -396,7 +396,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # factor NA to level ----
-  if (parameters@factorNA2missing) {
+  if (config@factorNA2missing) {
     index_factor <- which(sapply(x, is.factor))
     if (verbosity > 0L) {
       if (length(index_factor) > 0) {
@@ -405,7 +405,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
           length(index_factor),
           ngettext(length(index_factor), " factor's", " factors'"),
           " NA values to level '",
-          parameters@factorNA2missing_level,
+          config@factorNA2missing_level,
           "'..."
         )
       } else {
@@ -413,14 +413,14 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
       }
     }
     for (i in index_factor) {
-      x[, i] <- factor_NA2missing(x[, i], parameters@factorNA2missing_level)
+      x[, i] <- factor_NA2missing(x[, i], config@factorNA2missing_level)
     }
   }
 
   # Factor to integer ----
   # e.g. for algorithms that do not support factors directly, but can handle integers
   # as categorical (e.g. LightGBM)
-  if (parameters@factor2integer) {
+  if (config@factor2integer) {
     index_factor <- which(sapply(x, is.factor))
     if (verbosity > 0L) {
       if (length(index_factor) > 0) {
@@ -433,7 +433,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
         msg("No factors found to convert to integer...")
       }
     }
-    if (parameters@factor2integer_startat0) {
+    if (config@factor2integer_startat0) {
       for (i in index_factor) {
         x[, i] <- as.integer(x[, i]) - 1
       }
@@ -445,7 +445,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Missingness ----
-  if (parameters@missingness) {
+  if (config@missingness) {
     cols_with_na <- which(apply(x, 2, anyNA))
     .colnames <- colnames(x)
     for (i in cols_with_na) {
@@ -457,12 +457,12 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Impute ----
-  if (parameters@impute) {
-    if (parameters@impute_type == "missRanger") {
+  if (config@impute) {
+    if (config@impute_type == "missRanger") {
       # '- missRanger ----
       check_dependencies("missRanger")
       if (verbosity > 0L) {
-        if (parameters@impute_missRanger_params$pmm.k > 0) {
+        if (config@impute_missRanger_params$pmm.k > 0) {
           msg(
             "Imputing missing values using predictive mean matching with missRanger..."
           )
@@ -472,10 +472,10 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
       }
       x <- missRanger::missRanger(
         x,
-        pmm.k = parameters@impute_missRanger_params$pmm.k,
+        pmm.k = config@impute_missRanger_params$pmm.k,
         verbose = verbosity
       )
-    } else if (parameters@impute_type == "micePMM") {
+    } else if (config@impute_type == "micePMM") {
       check_dependencies("mice")
       if (verbosity > 0L) {
         msg(
@@ -488,9 +488,9 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
       if (verbosity > 0L) {
         msg(
           "Imputing missing values using",
-          parameters@impute_discrete,
+          config@impute_discrete,
           "(discrete) and",
-          parameters@impute_continuous,
+          config@impute_continuous,
           "(continuous)..."
         )
       }
@@ -500,7 +500,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
         for (i in index_discrete) {
           index <- which(is.na(x[, i]))
           imputed <- do_call(
-            parameters@impute_discrete,
+            config@impute_discrete,
             list(x[[i]], na.rm = TRUE)
           )
           x[index, i] <- imputed
@@ -512,7 +512,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
         for (i in index_numeric) {
           index <- which(is.na(x[, i]))
           imputed <- do_call(
-            parameters@impute_continuous,
+            config@impute_continuous,
             list(x[[i]], na.rm = TRUE)
           )
           x[index, i] <- imputed
@@ -522,11 +522,11 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Scale +/- center ----
-  if (parameters@scale || parameters@center) {
+  if (config@scale || config@center) {
     # Get index of numeric features
     numeric_index <- which(sapply(x, is.numeric))
-    sc <- if (parameters@scale) "Scaling" else NULL
-    ce <- if (parameters@center) "centering" else NULL
+    sc <- if (config@scale) "Scaling" else NULL
+    ce <- if (config@center) "centering" else NULL
     if (length(numeric_index) > 0) {
       if (verbosity > 0L) {
         msg(
@@ -536,25 +536,25 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
         )
       }
       # Info: scale outputs a matrix.
-      scale_ <- if (!is.null(parameters@scale_coefficients)) {
+      scale_ <- if (!is.null(config@scale_coefficients)) {
         # Check names match
         stopifnot(identical(
-          names(parameters@scale_coefficients),
+          names(config@scale_coefficients),
           names(x[, numeric_index])
         ))
-        parameters@scale_coefficients
+        config@scale_coefficients
       } else {
-        parameters@scale
+        config@scale
       }
-      center_ <- if (!is.null(parameters@scale_centers)) {
+      center_ <- if (!is.null(config@scale_centers)) {
         # Check names match
         stopifnot(identical(
-          names(parameters@scale_centers),
+          names(config@scale_centers),
           names(x[, numeric_index])
         ))
-        parameters@scale_centers
+        config@scale_centers
       } else {
-        parameters@center
+        config@center
       }
       x_num_scaled <- scale(
         x[, numeric_index, drop = FALSE],
@@ -584,16 +584,16 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # One Hot Encoding ----
-  if (parameters@one_hot) {
+  if (config@one_hot) {
     x <- one_hot(
       x,
       verbosity = verbosity,
-      factor_levels = parameters@one_hot_levels
+      factor_levels = config@one_hot_levels
     )
   }
 
   # Add date features ----
-  if (parameters@add_date_features) {
+  if (config@add_date_features) {
     if (verbosity > 0L) {
       msg("Extracting date features...")
     }
@@ -603,7 +603,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     for (i in date_cols) {
       .date_features <- dates2features(
         x[[i]],
-        features = parameters@date_features
+        features = config@date_features
       )
       names(.date_features) <- paste0(names(x)[i], "_", names(.date_features))
       x <- cbind(x, .date_features)
@@ -611,7 +611,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Add holidays ----
-  if (parameters@add_holidays) {
+  if (config@add_holidays) {
     if (verbosity > 0L) {
       msg("Extracting holidays...")
     }
@@ -625,7 +625,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
 
   # Add back excluded ----
-  if (!is.null(parameters@exclude) && length(parameters@exclude) > 0) {
+  if (!is.null(config@exclude) && length(config@exclude) > 0) {
     # remove any duplicates
     if (!is.null(duplicate_index)) {
       excluded <- excluded[-duplicate_index, , drop = FALSE]
@@ -633,7 +633,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
 
     # remove by case thres
     if (
-      !is.null(parameters@remove_cases_thres) &&
+      !is.null(config@remove_cases_thres) &&
         length(index_remove_cases_thres) > 0
     ) {
       n_feat_inc <- NCOL(x)
@@ -659,8 +659,8 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     }
     prp_validation <- preprocess(
       x = dat_validation,
-      parameters = Preprocessor(
-        parameters = parameters,
+      config = Preprocessor(
+        config = config,
         preprocessed = list(),
         scale_centers = values$scale_centers,
         scale_coefficients = values$scale_coefficients,
@@ -677,8 +677,8 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     }
     prp_test <- preprocess(
       x = dat_test,
-      parameters = Preprocessor(
-        parameters = parameters,
+      config = Preprocessor(
+        config = config,
         preprocessed = list(),
         scale_centers = values$scale_centers,
         scale_coefficients = values$scale_coefficients,
@@ -691,7 +691,7 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
   }
   outro(start_time, verbosity = verbosity - 1L)
   Preprocessor(
-    parameters = parameters,
+    config = config,
     preprocessed = if (length(preprocessed) == 1) {
       preprocessed[[1]]
     } else {
@@ -702,21 +702,21 @@ method(preprocess, list(class_data.frame, PreprocessorParameters)) <- function(
     one_hot_levels = values$one_hot_levels,
     remove_features = values$remove_features
   )
-} # /rtemis::preprocess(PreprocessorParameters, ...)
+} # /rtemis::preprocess(PreprocessorConfig, ...)
 
 # preprocess(x, Preprocessor, ...) ----
 method(preprocess, list(class_data.frame, Preprocessor)) <- function(
   x,
-  parameters,
+  config,
   verbosity = 1L
 ) {
   # -> Preprocessor
-  params <- parameters@parameters
+  params <- config@config
   # Overwrite scale_centers, scale_coefficients, one_hot_levels, and remove_features
-  params@scale_centers <- parameters@values$scale_centers
-  params@scale_coefficients <- parameters@values$scale_coefficients
-  params@one_hot_levels <- parameters@values$one_hot_levels
-  params@remove_features <- parameters@values$remove_features
+  params@scale_centers <- config@values$scale_centers
+  params@scale_coefficients <- config@values$scale_coefficients
+  params@one_hot_levels <- config@values$one_hot_levels
+  params@remove_features <- config@values$remove_features
 
   preprocess(x, params, verbosity = verbosity)
 } # /rtemis::preprocess(Preprocessor, ...)

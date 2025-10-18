@@ -181,58 +181,6 @@ summarize_unsupervised <- function(x) {
 } # rtemis::summarize_unsupervised
 
 
-#' `rtemis-internals`: `parameter_summary`
-#'
-#' Pretty print a collection of objects
-#'
-#' Any number of R objects can be supplied. Their names and corresponding values will be printed line by line.
-#' If input is a single data frame or list, its elements names and values will be printed.
-#' If input includes multiple objects, any list's or data frame's elements' names will be printed with the
-#' name of the list or data frame prepended.
-#' @param ... Variables to print
-#' @param title Character: title
-#' @param pad Integer: Pad for `printls()`
-#' @param newline_pre Logical: If TRUE, start with a newline.
-#' @param newline Logical: If TRUE, end with anew (empty) line.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-
-parameter_summary <- function(
-  ...,
-  title = "Parameters",
-  pad = 0,
-  newline_pre = FALSE,
-  newline = FALSE
-) {
-  if (newline_pre) {
-    message()
-  }
-  if (length(list(...)) > 0) {
-    x <- list(...)
-    xnames <- as.character(substitute(list(...)))[-1L]
-    names(x) <- xnames
-    for (i in seq_along(x)) {
-      if (is.list(x[[i]]) && length(x[[i]]) > 0) {
-        if (is.null(names(x[[i]]))) {
-          names(x[[i]]) <- paste0(
-            xnames[i],
-            ".",
-            seq_len(length(x[[i]]))
-          )
-        }
-      }
-      if (is.null(x[[i]])) x[[i]] <- "NULL"
-    }
-    printls(x, pad = pad + 3, title = title, center_title = FALSE)
-    if (newline) {
-      message()
-    }
-  }
-} # rtemis::parameter_summary
-
-
 #' Log to file
 #'
 #' @param x Character: Message to log.

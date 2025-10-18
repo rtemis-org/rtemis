@@ -20,10 +20,10 @@
 #' @param edge_width Numeric: Edge thickness.
 #' @param layout Character: one of: "fr", "dh", "drl", "gem", "graphopt", "kk", "lgl", "mds", "sugiyama", corresponding to all the available layouts in \pkg{igraph}.
 #' @param coords Output of precomputed \pkg{igraph} layout. If provided, `layout` is ignored.
-#' @param layout_params List of parameters to pass to `layout` function.
+#' @param layout_args List of arguments to pass to `layout` function.
 #' @param cluster Character: one of: "edge_betweenness", "fast_greedy", "infomap", "label_prop", "leading_eigen", "louvain", "optimal", "spinglass", "walktrap", corresponding to all the available \pkg{igraph} clustering functions.
 #' @param groups Output of precomputed \pkg{igraph} clustering. If provided, `cluster` is ignored.
-#' @param cluster_params List of parameters to pass to `cluster` function.
+#' @param cluster_config List of arguments to pass to `cluster` function.
 #' @param cluster_mark_groups Logical: If TRUE, draw polygons to indicate clusters, if `groups` or `cluster` are defined.
 #' @param cluster_color_vertices Logical: If TRUE, color vertices by cluster membership.
 #' @param main Character: Main title.
@@ -64,10 +64,10 @@ draw_graphjs <- function(
     "sugiyama"
   ),
   coords = NULL,
-  layout_params = list(),
+  layout_args = list(),
   cluster = NULL,
   groups = NULL,
-  cluster_params = list(),
+  cluster_config = list(),
   cluster_mark_groups = TRUE,
   cluster_color_vertices = FALSE,
   main = "",
@@ -100,7 +100,7 @@ draw_graphjs <- function(
   if (is.null(coords) && !is.null(layout)) {
     coords <- do.call(
       getFromNamespace(paste0("layout_with_", layout), "igraph"),
-      c(list(net, dim = 3), layout_params)
+      c(list(net, dim = 3), layout_args)
     )
     if (layout == "sugiyama") coords <- coords[["layout"]]
   }
@@ -109,7 +109,7 @@ draw_graphjs <- function(
   if (is.null(groups) && !is.null(cluster)) {
     groups <- do.call(
       getFromNamespace(paste0("cluster_", cluster), "igraph"),
-      c(list(net), cluster_params)
+      c(list(net), cluster_config)
     )
   }
 

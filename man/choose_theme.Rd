@@ -7,13 +7,13 @@
 choose_theme(
   x = c("white", "whitegrid", "whiteigrid", "black", "blackgrid", "blackigrid",
     "darkgray", "darkgraygrid", "darkgrayigrid", "lightgraygrid", "mediumgraygrid"),
-  parameters = NULL
+  config = NULL
 )
 }
 \arguments{
 \item{x}{Character: Name of theme to select. If not defined, will use \code{getOption("rtemis_theme", "whitegrid")}.}
 
-\item{parameters}{List: Optional list of parameters to override the defaults.}
+\item{config}{List: Optional list of config to override the defaults.}
 }
 \value{
 \code{Theme} object.

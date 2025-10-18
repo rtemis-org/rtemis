@@ -7,7 +7,7 @@
 #' @param nrow Integer: Number of rows.
 #' @param ncol Integer: Number of columns.
 #' @param noise_sd_factor Numeric: Add rnorm(nrow, sd = noise_sd_factor * sd(y)).
-#' @param resampler_parameters Output of [setup_Resampler] defining training/test split. The first resulting resample
+#' @param resampler_config Output of [setup_Resampler] defining training/test split. The first resulting resample
 #' will be used to create `dat_training` and `dat_test` output; all resample output under `resamples`
 #' @param seed Integer: Seed for random number generator.
 #' @param verbosity Integer: Verbosity level.
@@ -19,7 +19,7 @@ synth_reg_data <- function(
   nrow = 500,
   ncol = 50,
   noise_sd_factor = 1,
-  resampler_parameters = setup_Resampler(),
+  resampler_config = setup_Resampler(),
   seed = NULL,
   verbosity = 0L
 ) {
@@ -33,7 +33,7 @@ synth_reg_data <- function(
   dat <- data.frame(x, y)
   colnames(dat)[seq(ncol)] <- paste0("Feature_", seq(ncol))
 
-  res <- resample(y, parameters = resampler_parameters)
+  res <- resample(y, config = resampler_config)
   dat_training <- dat[res[[1]], ]
   dat_test <- dat[-res[[1]], ]
 

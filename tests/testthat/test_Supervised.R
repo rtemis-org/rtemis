@@ -139,7 +139,7 @@ hyperparameters <- setup_GLMNET()
 hyperparameters
 hyperparameters <- setup_GLMNET(alpha = c(0, 0.5, 1))
 hyperparameters
-get_params_need_tuning(hyperparameters)
+get_hyperparams_need_tuning(hyperparameters)
 
 ## GLMNET Regression ----
 mod_r_glmnet <- train(
@@ -464,8 +464,8 @@ test_that("train() Regression succeeds", {
 })
 
 ## CART Regression + grid search ----
-tuner_parameters <- setup_GridSearch()
-tuner_parameters
+tuner_config <- setup_GridSearch()
+tuner_config
 hyperparameters <- setup_CART(
   maxdepth = c(1, 2, 10),
   minbucket = c(1L, 4L)
@@ -768,8 +768,8 @@ mod_c_lightgbm <- train(
   # hyperparameters = setup_LightGBM(
   #   force_nrounds = 100L
   # ),
-  tuner_parameters = setup_GridSearch(
-    resampler_parameters = setup_Resampler(
+  tuner_config = setup_GridSearch(
+    resampler_config = setup_Resampler(
       n_resamples = 3L,
       type = "KFold"
     )

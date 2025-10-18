@@ -9,9 +9,9 @@ train(
   dat_validation = NULL,
   dat_test = NULL,
   algorithm = NULL,
-  preprocessor_parameters = NULL,
+  preprocessor_config = NULL,
   hyperparameters = NULL,
-  tuner_parameters = NULL,
+  tuner_config = NULL,
   outer_resampling = NULL,
   weights = NULL,
   question = NULL,
@@ -31,13 +31,13 @@ train(
 
 \item{algorithm}{Character: Algorithm to use. Can be left NULL, if \code{hyperparameters} is defined.}
 
-\item{preprocessor_parameters}{PreprocessorParameters object or NULL: Setup using \link{setup_Preprocessor}.}
+\item{preprocessor_config}{PreprocessorConfig object or NULL: Setup using \link{setup_Preprocessor}.}
 
 \item{hyperparameters}{Hyperparameters object: Setup using one of \verb{setup_*} functions.}
 
-\item{tuner_parameters}{TunerParameters object: Setup using \link{setup_GridSearch}.}
+\item{tuner_config}{TunerConfig object: Setup using \link{setup_GridSearch}.}
 
-\item{outer_resampling}{ResamplerParameters object or NULL: Setup using \link{setup_Resampler}. This
+\item{outer_resampling}{ResamplerConfig object or NULL: Setup using \link{setup_Resampler}. This
 defines the outer resampling method, i.e. the splitting into training and test sets for the
 purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
 you might want to use a \code{dat_test} dataset to assess model performance on a single test set.}

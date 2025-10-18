@@ -92,7 +92,7 @@ Perform parallel analysis, factor analysis, bifactor analysis
 and hierarchical clustering.
 }
 \details{
-Consult \code{psych::fa} for more information on the parameters.
+Consult \code{psych::fa} for more information on arguments
 }
 \author{
 EDG

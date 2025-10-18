@@ -21,10 +21,10 @@ SuperConfig <- new_class(
     dat_validation = class_character,
     dat_test = class_character,
     algorithm = class_character,
-    preprocessor = PreprocessorParameters | NULL,
+    preprocessor = PreprocessorConfig | NULL,
     hyperparameters = Hyperparameters | NULL,
-    tuner_parameters = TunerParameters | NULL,
-    outer_resampling = ResamplerParameters | NULL,
+    tuner_config = TunerConfig | NULL,
+    outer_resampling = ResamplerConfig | NULL,
     weights = class_character | NULL, # column name in dat_training
     question = class_character | NULL,
     outdir = class_character,
@@ -42,8 +42,7 @@ SuperConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-print.SuperConfig <- function(x, ...) {
-} # /rtemis::print.SuperConfig
+print.SuperConfig <- function(x, ...) {} # /rtemis::print.SuperConfig
 
 method(print, SuperConfig) <- function(x, ...) {
   objcat("SuperConfig")

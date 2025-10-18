@@ -4,14 +4,14 @@
 \alias{cluster}
 \title{Perform Clustering}
 \usage{
-cluster(x, algorithm = "KMeans", parameters = NULL, verbosity = 1L)
+cluster(x, algorithm = "KMeans", config = NULL, verbosity = 1L)
 }
 \arguments{
 \item{x}{Matrix or data.frame: Data to cluster. Rows are cases to be clustered.}
 
 \item{algorithm}{Character: Clustering algorithm.}
 
-\item{parameters}{List: Algorithm-specific parameters.}
+\item{config}{List: Algorithm-specific config.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }

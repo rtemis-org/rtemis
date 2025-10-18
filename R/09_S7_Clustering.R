@@ -12,7 +12,7 @@
 #' @field clust Any: Clustering object.
 #' @field k Integer: Number of clusters.
 #' @field clusters List: Cluster assignment.
-#' @field parameters ClusteringParameters: Algorithm-specific parameters.
+#' @field config ClusteringConfig: Algorithm-specific config.
 #'
 #' @author EDG
 #' @noRd
@@ -23,7 +23,7 @@ Clustering <- new_class(
     clust = class_any,
     k = class_integer,
     clusters = class_integer | class_list,
-    parameters = ClusteringParameters
+    config = ClusteringConfig
   )
 ) # /Clustering
 

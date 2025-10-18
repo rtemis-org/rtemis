@@ -125,10 +125,10 @@ describe <- new_generic("describe", "x")
 #' @export
 present <- new_generic("present", "x")
 
-# Get parameters that need tuning.
-get_params_need_tuning <- new_generic("get_params_need_tuning", "x")
-# Get parameters.
-get_params <- new_generic("get_params", c("x", "param_names"))
+# Get hyperparameters that need tuning.
+get_hyperparams_need_tuning <- new_generic("get_hyperparams_need_tuning", "x")
+# Get hyperparameters.
+get_hyperparams <- new_generic("get_hyperparams", c("x", "param_names"))
 # Extract rules from a model.
 extract_rules <- new_generic("extract_rules", "x")
 

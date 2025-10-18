@@ -48,7 +48,7 @@
 #' @param verbosity Integer: Verbosity level.
 #' @param fread_verbosity Integer: Verbosity level. Passed to `data.table::fread`
 #' @param timed Logical: If TRUE, time the process and print to console
-#' @param ... Additional parameters to pass to `data.table::fread`,
+#' @param ... Additional arguments to pass to `data.table::fread`,
 #' `arrow::read_delim_arrow()`, `vroom::vroom()`,
 #' or `readxl::read_excel()`
 #'

@@ -12,7 +12,7 @@ draw_scatter(
   se_times = 1.96,
   include_fit_name = TRUE,
   cluster = NULL,
-  cluster_params = list(k = 2),
+  cluster_config = list(k = 2),
   group = NULL,
   rsq = TRUE,
   mode = "markers",
@@ -121,7 +121,7 @@ draw_scatter(
 
 \item{cluster}{Character: Clustering method.}
 
-\item{cluster_params}{List: Parameters for clustering.}
+\item{cluster_config}{List: Config for clustering.}
 
 \item{group}{Factor: Grouping variable.}
 
@@ -265,7 +265,7 @@ draw_scatter(
 
 \item{diagonal_alpha}{Numeric: Alpha for diagonal line.}
 
-\item{fit_params}{Hyperparameters: Parameters for fit.}
+\item{fit_params}{Hyperparameters for fit.}
 
 \item{vline}{Numeric: X position for vertical line.}
 

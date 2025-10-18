@@ -4,14 +4,14 @@
 \alias{decomp}
 \title{Perform Data Decomposition}
 \usage{
-decomp(x, algorithm = "ICA", parameters = NULL, verbosity = 1L)
+decomp(x, algorithm = "ICA", config = NULL, verbosity = 1L)
 }
 \arguments{
 \item{x}{Matrix or data frame: Input data.}
 
 \item{algorithm}{Character: Decomposition algorithm.}
 
-\item{parameters}{DecompositionParameters: Algorithm-specific parameters.}
+\item{config}{DecompositionConfig: Algorithm-specific config.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }

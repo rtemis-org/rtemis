@@ -15,7 +15,7 @@
 #' data.frame, but must use a list instead.
 #'
 #' @param x Vector or data.frame: Usually the outcome; `NROW(x)` defines the sample size.
-#' @param parameters Resampler object created by [setup_Resampler].
+#' @param config Resampler object created by [setup_Resampler].
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return `Resampler` object.
@@ -34,14 +34,14 @@
 #' }
 resample <- function(
   x,
-  parameters = setup_Resampler(),
+  config = setup_Resampler(),
   #  index = NULL,
   #  group = NULL,
   verbosity = 1L
 ) {
-  check_is_S7(parameters, ResamplerParameters)
+  check_is_S7(config, ResamplerConfig)
   # Input ----
-  type <- parameters@type
+  type <- config@type
   if (NCOL(x) > 1) {
     if (survival::is.Surv(x)) {
       if (verbosity > 0L) {
@@ -58,7 +58,7 @@ resample <- function(
 
   # Stratify on case IDs ----
   id_strat <- if (type != "LOOCV") {
-    parameters@id_strat
+    config@id_strat
   } else {
     NULL
   }
@@ -70,34 +70,34 @@ resample <- function(
   }
 
   if (type == "StratBoot") {
-    target_length <- if (is.null(parameters@target_length)) {
+    target_length <- if (is.null(config@target_length)) {
       NROW(x)
     } else {
-      parameters@target_length
+      config@target_length
     }
   }
 
   # resample ----
   if (!type %in% c("Bootstrap", "LOOCV")) {
-    .stratify_var <- if (is.null(parameters@stratify_var)) {
+    .stratify_var <- if (is.null(config@stratify_var)) {
       x
     } else {
-      parameters@stratify_var
+      config@stratify_var
     }
   }
 
   # stratify_var is for printing with parameter_summary
-  # stratify_var <- if (is.null(parameters@stratify_var)) {
+  # stratify_var <- if (is.null(config@stratify_var)) {
   #   getName(x, "x")
   # } else {
   #   deparse(substitute(stratify_var))
   # }
 
-  n_resamples <- if (type == "LOOCV") length(x) else parameters@n
+  n_resamples <- if (type == "LOOCV") length(x) else config@n
 
-  # Print parameters ----
+  # Print config ----
   if (verbosity > 1L) {
-    print(parameters)
+    print(config)
   }
 
   # Make resamples ----
@@ -106,10 +106,10 @@ resample <- function(
     res_part <- strat_sub(
       x = x,
       n_resamples = n_resamples,
-      train_p = parameters@train_p,
+      train_p = config@train_p,
       stratify_var = .stratify_var,
-      strat_n_bins = parameters@strat_n_bins,
-      seed = parameters@seed,
+      strat_n_bins = config@strat_n_bins,
+      seed = config@seed,
       verbosity = verbosity
     )
   } else if (type == "Bootstrap") {
@@ -117,7 +117,7 @@ resample <- function(
     res_part <- bootstrap(
       x = x,
       n_resamples = n_resamples,
-      seed = parameters@seed
+      seed = config@seed
     )
   } else if (type == "KFold") {
     ## KFold ----
@@ -125,25 +125,25 @@ resample <- function(
       x = x,
       k = n_resamples,
       stratify_var = .stratify_var,
-      strat_n_bins = parameters@strat_n_bins,
-      seed = parameters@seed,
+      strat_n_bins = config@strat_n_bins,
+      seed = config@seed,
       verbosity = verbosity
     )
   } else if (type == "LOOCV") {
     ## LOOCV ----
     res_part <- loocv(x = x)
     # Get number of resamples
-    parameters@n <- length(res_part)
+    config@n <- length(res_part)
   } else if (type == "StratBoot") {
     ## StratBoot ----
     res_part <- strat_boot(
       x = x,
       n_resamples = n_resamples,
-      train_p = parameters@train_p,
+      train_p = config@train_p,
       stratify_var = .stratify_var,
-      strat_n_bins = parameters@strat_n_bins,
+      strat_n_bins = config@strat_n_bins,
       target_length = target_length,
-      seed = parameters@seed,
+      seed = config@seed,
       verbosity = verbosity
     )
   }
@@ -151,17 +151,17 @@ resample <- function(
   # Update strat_n_bins ----
   if (type == "StratSub" || type == "StratBoot") {
     actual_n_bins <- attr(res_part, "strat_n_bins")
-    if (actual_n_bins != parameters@strat_n_bins) {
+    if (actual_n_bins != config@strat_n_bins) {
       if (verbosity > 0L) {
         msg0(
           "Updated strat_n_bins from ",
-          parameters@strat_n_bins,
+          config@strat_n_bins,
           " to ",
           actual_n_bins,
-          " in ResamplerParameters object."
+          " in ResamplerConfig object."
         )
       }
-      parameters@strat_n_bins <- actual_n_bins
+      config@strat_n_bins <- actual_n_bins
     }
   }
 
@@ -173,7 +173,7 @@ resample <- function(
   }
 
   # Output ----
-  Resampler(type, res_part, parameters)
+  Resampler(type, res_part, config)
 } # rtemis::resample
 
 

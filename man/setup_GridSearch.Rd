@@ -2,10 +2,10 @@
 % Please edit documentation in R/05_S7_Tuner.R
 \name{setup_GridSearch}
 \alias{setup_GridSearch}
-\title{Setup Grid Search Parameters}
+\title{Setup Grid Search Config}
 \usage{
 setup_GridSearch(
-  resampler_parameters = setup_Resampler(n_resamples = 5L, type = "KFold"),
+  resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold"),
   search_type = "exhaustive",
   randomize_p = NULL,
   metrics_aggregate_fn = "mean",
@@ -16,11 +16,11 @@ setup_GridSearch(
 )
 }
 \arguments{
-\item{resampler_parameters}{\code{ResamplerParameters} set by \link{setup_Resampler}.}
+\item{resampler_config}{\code{ResamplerConfig} set by \link{setup_Resampler}.}
 
 \item{search_type}{Character: "exhaustive" or "randomized". Type of
 grid search to use. Exhaustive search will try all combinations of
-parameters. Randomized will try a random sample of size
+config. Randomized will try a random sample of size
 \code{randomize_p} * \verb{N of total combinations}}
 
 \item{randomize_p}{Float (0, 1): For \code{search_type == "randomized"},
@@ -37,10 +37,10 @@ randomly test this proportion of combinations.}
 \item{n_workers}{Integer: Number of workers to use.}
 }
 \value{
-A \code{GridSearchParams} object.
+A \code{GridSearchConfig} object.
 }
 \description{
-Create a \code{GridSearchParams} object that can be passed to \link{train}.
+Create a \code{GridSearchConfig} object that can be passed to \link{train}.
 }
 \author{
 EDG

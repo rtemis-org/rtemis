@@ -63,7 +63,7 @@ default data structure, otherwise convert to data.table}
 
 \item{timed}{Logical: If TRUE, time the process and print to console}
 
-\item{...}{Additional parameters to pass to \code{data.table::fread},
+\item{...}{Additional arguments to pass to \code{data.table::fread},
 \code{arrow::read_delim_arrow()}, \code{vroom::vroom()},
 or \code{readxl::read_excel()}}
 }

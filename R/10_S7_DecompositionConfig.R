@@ -1,51 +1,51 @@
-# S7_DecompositionParameters.R
+# S7_DecompositionConfig.R
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# DecompositionParameters ----
-#' @title DecompositionParameters
+# DecompositionConfig ----
+#' @title DecompositionConfig
 #'
 #' @description
-#' Decomposition parameters class.
+#' Decomposition config class.
 #'
 #' @field algorithm Character: Algorithm name.
-#' @field parameters List: Algorithm-specific parameters.
+#' @field config List: Algorithm-specific config.
 #'
 #' @author EDG
 #' @noRd
-DecompositionParameters <- new_class(
-  name = "DecompositionParameters",
+DecompositionConfig <- new_class(
+  name = "DecompositionConfig",
   properties = list(
     algorithm = class_character,
-    parameters = class_list
+    config = class_list
   )
-) # /DecompositionParameters
+) # /DecompositionConfig
 
-# Make DecompositionParameters@parameters `$`-accessible ----
-method(`$`, DecompositionParameters) <- function(x, name) {
-  x@parameters[[name]]
+# Make DecompositionConfig@config `$`-accessible ----
+method(`$`, DecompositionConfig) <- function(x, name) {
+  x@config[[name]]
 }
 
-# `$`-autocomplete DecompositionParameters@parameters ----
-method(`.DollarNames`, DecompositionParameters) <- function(x, pattern = "") {
-  all_names <- names(x@parameters)
+# `$`-autocomplete DecompositionConfig@config ----
+method(`.DollarNames`, DecompositionConfig) <- function(x, pattern = "") {
+  all_names <- names(x@config)
   grep(pattern, all_names, value = TRUE)
 }
 
 # Make props `[`-accessible ----
-method(`[`, DecompositionParameters) <- function(x, name) {
+method(`[`, DecompositionConfig) <- function(x, name) {
   props(x)[[name]]
 }
 
-# Make DecompositionParameters@parameters `[[`-accessible ----
-method(`[[`, DecompositionParameters) <- function(x, name) {
-  x@parameters[[name]]
+# Make DecompositionConfig@config `[[`-accessible ----
+method(`[[`, DecompositionConfig) <- function(x, name) {
+  x@config[[name]]
 }
 
-# Show DecompositionParameters ----
-#' Show Method for DecompositionParameters
+# Show DecompositionConfig ----
+#' Show Method for DecompositionConfig
 #'
-#' @param object DecompositionParameters object.
+#' @param object DecompositionConfig object.
 #' @param pad Integer: Left side padding.
 #' @param output_type Character {"ansi", "html", "plain"}: Output type.
 #'
@@ -53,7 +53,7 @@ method(`[[`, DecompositionParameters) <- function(x, name) {
 #'
 #' @author EDG
 #' @noRd
-method(repr, DecompositionParameters) <- function(
+method(repr, DecompositionConfig) <- function(
   x,
   pad = 0L,
   output_type = NULL
@@ -61,26 +61,26 @@ method(repr, DecompositionParameters) <- function(
   output_type <- get_output_type(output_type)
   paste0(
     repr_S7name(
-      paste(x["algorithm"], "DecompositionParameters"),
+      paste(x["algorithm"], "DecompositionConfig"),
       pad = pad,
       output_type = output_type
     ),
-    show_ls(x["parameters"], pad = pad, limit = -1L, output_type = output_type)
+    show_ls(x["config"], pad = pad, limit = -1L, output_type = output_type)
   )
-} # /rtemis::show.DecompositionParameters
+} # /rtemis::show.DecompositionConfig
 
-# Print DecompositionParameters ----
-#' Print Method for DecompositionParameters
+# Print DecompositionConfig ----
+#' Print Method for DecompositionConfig
 #'
-#' @param x DecompositionParameters object.
+#' @param x DecompositionConfig object.
 #' @param pad Integer: Left side padding.
 #' @param ... Not used.
 #'
-#' @return DecompositionParameters object, invisibly.
+#' @return DecompositionConfig object, invisibly.
 #'
 #' @author EDG
 #' @noRd
-method(print, DecompositionParameters) <- function(
+method(print, DecompositionConfig) <- function(
   x,
   pad = 0L,
   output_type = NULL,
@@ -90,27 +90,27 @@ method(print, DecompositionParameters) <- function(
   invisible(x)
 }
 
-# PCAParameters ----
-#' @title PCAParameters
+# PCAConfig ----
+#' @title PCAConfig
 #'
 #' @description
-#' DecompositionParameters subclass for Principal Component Analysis.
+#' DecompositionConfig subclass for Principal Component Analysis.
 #' Internal use only.
 #'
 #' @author EDG
 #' @noRd
-PCAParameters <- new_class(
-  name = "PCAParameters",
-  parent = DecompositionParameters,
+PCAConfig <- new_class(
+  name = "PCAConfig",
+  parent = DecompositionConfig,
   constructor = function(k, center, scale, tol) {
     k <- clean_posint(k)
     check_logical(center)
     check_logical(scale)
     check_float0pos(tol)
     new_object(
-      DecompositionParameters(
+      DecompositionConfig(
         algorithm = "PCA",
-        parameters = list(
+        config = list(
           k = k,
           center = center,
           scale = scale,
@@ -119,17 +119,17 @@ PCAParameters <- new_class(
       )
     )
   }
-) # /rtemis::PCAParameters
+) # /rtemis::PCAConfig
 
 # setup_PCA ----
-#' Setup PCA parameters.
+#' Setup PCA config.
 #'
 #' @param k Integer: Number of components. (passed to `prcomp` `rank.`)
 #' @param center Logical: If TRUE, center the data.
 #' @param scale Logical: If TRUE, scale the data.
 #' @param tol Numeric: Tolerance.
 #'
-#' @return PCAParameters object.
+#' @return PCAConfig object.
 #'
 #' @author EDG
 #' @export
@@ -138,26 +138,26 @@ setup_PCA <- function(k = 3L, center = TRUE, scale = TRUE, tol = NULL) {
   check_logical(center)
   check_logical(scale)
   check_float0pos(tol)
-  PCAParameters(k, center, scale, tol)
+  PCAConfig(k, center, scale, tol)
 } # /rtemis::setup_PCA
 
-# ICAParameters ----
-#' @title ICAParameters
+# ICAConfig ----
+#' @title ICAConfig
 #'
 #' @description
-#' DecompositionParameters subclass for Independent Component Analysis.
+#' DecompositionConfig subclass for Independent Component Analysis.
 #' Internal use only.
 #'
 #' @author EDG
 #' @noRd
-ICAParameters <- new_class(
-  name = "ICAParameters",
-  parent = DecompositionParameters,
+ICAConfig <- new_class(
+  name = "ICAConfig",
+  parent = DecompositionConfig,
   constructor = function(k, type, fun, alpha, row_norm, maxit, tol) {
     new_object(
-      DecompositionParameters(
+      DecompositionConfig(
         algorithm = "ICA",
-        parameters = list(
+        config = list(
           k = k,
           type = type,
           fun = fun,
@@ -169,13 +169,13 @@ ICAParameters <- new_class(
       )
     )
   }
-) # /rtemis::ICAParameters
+) # /rtemis::ICAConfig
 
 # setup_ICA ----
 #' @title setup_ICA
 #'
 #' @description
-#' Setup ICA parameters.
+#' Setup ICA config.
 #'
 #' @param k Integer: Number of components.
 #' @param type Character: Type of ICA: "parallel" or "deflation".
@@ -185,7 +185,7 @@ ICAParameters <- new_class(
 #' @param maxit Integer: Maximum number of iterations.
 #' @param tol Numeric: Tolerance.
 #'
-#' @return ICAParameters object.
+#' @return ICAConfig object.
 #'
 #' @author EDG
 #' @export
@@ -205,7 +205,7 @@ setup_ICA <- function(
   check_inherits(row_norm, "logical")
   maxit <- clean_posint(maxit)
   check_inherits(tol, "numeric")
-  ICAParameters(
+  ICAConfig(
     k = k,
     type = type,
     fun = fun,
@@ -216,26 +216,26 @@ setup_ICA <- function(
   )
 } # /rtemis::setup_ICA
 
-# NMFParameters ----
-#' @title NMFParameters
+# NMFConfig ----
+#' @title NMFConfig
 #'
 #' @description
-#' DecompositionParameters subclass for Non-negative Matrix Factorization.
+#' DecompositionConfig subclass for Non-negative Matrix Factorization.
 #' Internal use only.
 #'
 #' @author EDG
 #' @noRd
-NMFParameters <- new_class(
-  name = "NMFParameters",
-  parent = DecompositionParameters,
+NMFConfig <- new_class(
+  name = "NMFConfig",
+  parent = DecompositionConfig,
   constructor = function(k, method, nrun) {
     k <- clean_posint(k)
     check_inherits(method, "character")
     nrun <- clean_posint(nrun)
     new_object(
-      DecompositionParameters(
+      DecompositionConfig(
         algorithm = "NMF",
-        parameters = list(
+        config = list(
           k = k,
           method = method,
           nrun = nrun
@@ -243,16 +243,16 @@ NMFParameters <- new_class(
       )
     )
   }
-) # /rtemis::NMFParameters
+) # /rtemis::NMFConfig
 
 # setup_NMF ----
-#' Setup NMF parameters.
+#' Setup NMF config.
 #'
 #' @param k Integer: Number of components.
 #' @param method Character: NMF method. See `NMF::nmf`.
 #' @param nrun Integer: Number of runs to perform.
 #'
-#' @return NMFParameters object.
+#' @return NMFConfig object.
 #'
 #' @author EDG
 #' @export
@@ -264,21 +264,21 @@ setup_NMF <- function(
   k <- clean_posint(k)
   check_inherits(method, "character")
   nrun <- clean_posint(nrun)
-  NMFParameters(k, method, nrun)
+  NMFConfig(k, method, nrun)
 } # /rtemis::setup_NMF
 
-# UMAPParameters ----
-#' @title UMAPParameters
+# UMAPConfig ----
+#' @title UMAPConfig
 #'
 #' @description
-#' DecompositionParameters subclass for Uniform Manifold Approximation and Projection.
+#' DecompositionConfig subclass for Uniform Manifold Approximation and Projection.
 #' Internal use only.
 #'
 #' @author EDG
 #' @noRd
-UMAPParameters <- new_class(
-  name = "UMAPParameters",
-  parent = DecompositionParameters,
+UMAPConfig <- new_class(
+  name = "UMAPConfig",
+  parent = DecompositionConfig,
   constructor = function(
     k,
     n_neighbors,
@@ -296,9 +296,9 @@ UMAPParameters <- new_class(
     check_float0pos(learning_rate)
     check_inherits(scale, "logical")
     new_object(
-      DecompositionParameters(
+      DecompositionConfig(
         algorithm = "UMAP",
-        parameters = list(
+        config = list(
           k = k,
           n_neighbors = n_neighbors,
           init = init,
@@ -310,10 +310,10 @@ UMAPParameters <- new_class(
       )
     )
   }
-) # /rtemis::UMAPParameters
+) # /rtemis::UMAPConfig
 
 # setup_UMAP ----
-#' Setup UMAP parameters.
+#' Setup UMAP config.
 #'
 #' @details
 #' A high `n_neighbors` value may give error in some systems:
@@ -329,7 +329,7 @@ UMAPParameters <- new_class(
 #' @param learning_rate Float: Learning rate.
 #' @param scale Logical: If TRUE, scale input data before doing UMAP.
 #'
-#' @return UMAPParameters object.
+#' @return UMAPConfig object.
 #'
 #' @author EDG
 #' @export
@@ -349,7 +349,7 @@ setup_UMAP <- function(
   check_inherits(n_epochs, "integer")
   check_float0pos(learning_rate)
   check_inherits(scale, "logical")
-  UMAPParameters(
+  UMAPConfig(
     k = k,
     n_neighbors = n_neighbors,
     init = init,
@@ -360,17 +360,17 @@ setup_UMAP <- function(
   )
 } # /rtemis::setup_UMAP
 
-# tSNEParameters ----
-#' @title tSNEParameters
+# tSNEConfig ----
+#' @title tSNEConfig
 #'
 #' @description
-#' DecompositionParameters subclass for t-Distributed Stochastic Neighbor Embedding.
+#' DecompositionConfig subclass for t-Distributed Stochastic Neighbor Embedding.
 #'
 #' @author EDG
 #' @noRd
-tSNEParameters <- new_class(
-  name = "tSNEParameters",
-  parent = DecompositionParameters,
+tSNEConfig <- new_class(
+  name = "tSNEConfig",
+  parent = DecompositionConfig,
   constructor = function(
     k = NULL,
     initial_dims = NULL,
@@ -410,9 +410,9 @@ tSNEParameters <- new_class(
     mom_switch_iter <- clean_posint(mom_switch_iter)
     num_threads <- clean_posint(num_threads)
     new_object(
-      DecompositionParameters(
+      DecompositionConfig(
         algorithm = "tSNE",
-        parameters = list(
+        config = list(
           k = k,
           initial_dims = initial_dims,
           perplexity = perplexity,
@@ -438,14 +438,14 @@ tSNEParameters <- new_class(
       )
     )
   }
-) # /rtemis::tSNEParameters
+) # /rtemis::tSNEConfig
 
 
 # setup_tSNE ----
-#' Setup tSNE parameters.
+#' Setup tSNE config.
 #'
 #' @details
-#' Get more information on the parameters by running `?Rtsne::Rtsne`.
+#' Get more information on the config by running `?Rtsne::Rtsne`.
 #'
 #' @param k Integer: Number of components.
 #' @param initial_dims Integer: Initial dimensions.
@@ -469,7 +469,7 @@ tSNEParameters <- new_class(
 #' @param exaggeration_factor Float: Exaggeration factor.
 #' @param num_threads Integer: Number of threads.
 #'
-#' @return tSNEParameters object.
+#' @return tSNEConfig object.
 #'
 #' @author EDG
 #' @export
@@ -496,7 +496,7 @@ setup_tSNE <- function(
   exaggeration_factor = 12,
   num_threads = 1L
 ) {
-  tSNEParameters(
+  tSNEConfig(
     k = k,
     initial_dims = initial_dims,
     perplexity = perplexity,
@@ -522,17 +522,17 @@ setup_tSNE <- function(
 } # /rtemis::setup_tSNE
 
 
-# IsomapParameters ----
-#' @title IsomapParameters
+# IsomapConfig ----
+#' @title IsomapConfig
 #'
 #' @description
-#' DecompositionParameters subclass for Isomap.
+#' DecompositionConfig subclass for Isomap.
 #'
 #' @author EDG
 #' @noRd
-IsomapParameters <- new_class(
-  name = "IsomapParameters",
-  parent = DecompositionParameters,
+IsomapConfig <- new_class(
+  name = "IsomapConfig",
+  parent = DecompositionConfig,
   constructor = function(
     k,
     dist_method = NULL,
@@ -544,9 +544,9 @@ IsomapParameters <- new_class(
     nsd <- clean_int(nsd)
     check_inherits(path, "character")
     new_object(
-      DecompositionParameters(
+      DecompositionConfig(
         algorithm = "Isomap",
-        parameters = list(
+        config = list(
           k = k,
           dist_method = dist_method,
           nsd = nsd,
@@ -555,18 +555,18 @@ IsomapParameters <- new_class(
       )
     )
   }
-) # /rtemis::IsomapParameters
+) # /rtemis::IsomapConfig
 
 
 # setup_Isomap ----
-#' Setup Isomap parameters.
+#' Setup Isomap config.
 #'
 #' @param k Integer: Number of components.
 #' @param dist_method Character: Distance method.
 #' @param nsd Integer: Number of shortest dissimilarities retained.
 #' @param path Character: Path argument for `vegan::isomap`.
 #'
-#' @return IsomapParameters object.
+#' @return IsomapConfig object.
 #'
 #' @author EDG
 #' @export
@@ -580,5 +580,5 @@ setup_Isomap <- function(
   dist_method <- match.arg(dist_method)
   nsd <- clean_int(nsd)
   path <- match.arg(path)
-  IsomapParameters(k, dist_method, nsd, path)
+  IsomapConfig(k, dist_method, nsd, path)
 } # /rtemis::setup_Isomap

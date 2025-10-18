@@ -4,11 +4,11 @@
 
 # library(testthat)
 
-# PreprocessorParameters ----
+# PreprocessorConfig ----
 prp <- setup_Preprocessor()
 prp
 testthat::test_that("setup_Preprocessor() succeeds", {
-  expect_s7_class(setup_Preprocessor(), PreprocessorParameters)
+  expect_s7_class(setup_Preprocessor(), PreprocessorConfig)
 })
 
 prp <- setup_Preprocessor(
@@ -16,10 +16,10 @@ prp <- setup_Preprocessor(
   remove_duplicates = TRUE
 )
 testthat::test_that("setup_Preprocessor() succeeds", {
-  expect_s7_class(prp, PreprocessorParameters)
+  expect_s7_class(prp, PreprocessorConfig)
 })
 
-# Preprocessor: preprocess(PreprocessorParameters) ----
+# Preprocessor: preprocess(PreprocessorConfig) ----
 res <- resample(iris, setup_Resampler(seed = 2025))
 iris_train <- iris[res$Fold_1, ]
 iris_test <- iris[-res$Fold_1, ]
@@ -27,7 +27,7 @@ iris_Pre <- preprocess(
   iris_train,
   setup_Preprocessor(remove_duplicates = TRUE, scale = TRUE, center = TRUE)
 )
-test_that("preprocess(x, PreprocessorParameters) succeeds", {
+test_that("preprocess(x, PreprocessorConfig) succeeds", {
   expect_s7_class(iris_Pre, Preprocessor)
 })
 iris_Pre
@@ -44,11 +44,11 @@ iris_Pre_too <- preprocess(
   setup_Preprocessor(remove_duplicates = TRUE, scale = TRUE, center = TRUE),
   dat_test = iris_test
 )
-test_that("preprocess(x, PreprocessorParameters) succeeds", {
+test_that("preprocess(x, PreprocessorConfig) succeeds", {
   expect_s7_class(iris_Pre_too, Preprocessor)
 })
 
-test_that("preprocess(x, PreprocessorParameters) and preprocess(x, Preprocessor) give same test set", {
+test_that("preprocess(x, PreprocessorConfig) and preprocess(x, Preprocessor) give same test set", {
   expect_equal(iris_Pre_too@preprocessed$test, iris_test_Pre@preprocessed)
 })
 

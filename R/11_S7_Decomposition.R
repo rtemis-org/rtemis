@@ -10,7 +10,7 @@
 #'
 #' @field algorithm Character: Algorithm name.
 #' @field decom Any: Decomposition object.
-#' @field parameters List: Algorithm-specific parameters.
+#' @field config List: Algorithm-specific config.
 #' @field decom: Decomposition model.
 #' @field transformed: transformedransformed data, i.e. either a projection or an embedding of the input data.
 #'
@@ -20,7 +20,7 @@ Decomposition <- new_class(
   name = "Decomposition",
   properties = list(
     algorithm = class_character,
-    parameters = DecompositionParameters,
+    config = DecompositionConfig,
     decom = class_any,
     transformed = class_any
   )
