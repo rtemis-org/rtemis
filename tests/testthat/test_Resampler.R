@@ -72,7 +72,7 @@ test_that("CustomParams succeeds", {
 # setup_Resampler() defaults ----
 test_that("setup_Resampler() succeeds", {
   rsp <- setup_Resampler()
-  expect_s7_class(rsp, ResamplerParameters)
+  expect_s7_class(rsp, ResamplerConfig)
 })
 
 # setup_Resampler() kfold ----
@@ -116,7 +116,7 @@ test_that("Resampler() succeeds", {
   res <- Resampler(
     type = "Custom",
     resamples = list(),
-    parameters = setup_Resampler()
+    config = setup_Resampler()
   )
   expect_s7_class(res, Resampler)
 })

@@ -10,12 +10,12 @@
 #' as they need to be resampled along `x` and `y`, and should not be passed along with
 #' `grid_params`. `ifw` and `ifw_type` should be passed as part of `grid_params`
 #' and will be passed on to the learner.
-#' Includes a algorithm-specific extraction of parameters that are determined internally,
+#' Includes a algorithm-specific extraction of config that are determined internally,
 #' such as `lambda` for `GLMNET`, `nrounds` for `LightGBM`, etc.
 #'
 #' @param x data.frame or similar: Training set.
 #' @param hyperparameters List: Hyperparameters.
-#' @param tuner_parameters List: Tuner parameters.
+#' @param tuner_config List: Tuner config.
 #' @param weights Vector: Class weights.
 #' @param save_mods Logical: Save models in tuning results.
 #' @param n_workers Integer: Number of workers to use for parallel processing.
@@ -32,7 +32,7 @@
 tune_GridSearch <- function(
   x,
   hyperparameters,
-  tuner_parameters,
+  tuner_config,
   weights = NULL,
   save_mods = FALSE,
   n_workers = 1L,
@@ -41,7 +41,7 @@ tune_GridSearch <- function(
   verbosity = 1L
 ) {
   check_is_S7(hyperparameters, Hyperparameters)
-  check_is_S7(tuner_parameters, TunerParameters)
+  check_is_S7(tuner_config, TunerConfig)
   stopifnot(needs_tuning(hyperparameters))
 
   # Dependencies ----
@@ -71,10 +71,10 @@ tune_GridSearch <- function(
   }
 
   # Make Grid ----
-  grid_params <- get_params_need_tuning(hyperparameters)
+  grid_params <- get_hyperparams_need_tuning(hyperparameters)
   n_params <- length(grid_params)
-  n_resamples <- tuner_parameters[["resampler_parameters"]][["n"]]
-  search_type <- tuner_parameters[["search_type"]]
+  n_resamples <- tuner_config[["resampler_config"]][["n"]]
+  search_type <- tuner_config[["search_type"]]
   # expand_grid convert NULL to "null" for expansion to work.
   param_grid <- expand_grid(grid_params, stringsAsFactors = FALSE)
   # param_grid <- expand.grid(grid_params, stringsAsFactors = FALSE)
@@ -88,7 +88,7 @@ tune_GridSearch <- function(
   if (search_type == "randomized") {
     index_per_resample <- sample(
       n_param_combinations,
-      round(tuner_parameters[["randomize_p"]] * n_param_combinations)
+      round(tuner_config[["randomize_p"]] * n_param_combinations)
     )
     res_param_grid <- res_param_grid[rep(index_per_resample, n_resamples), ]
   }
@@ -102,7 +102,7 @@ tune_GridSearch <- function(
       " by ",
       search_type,
       " grid search with ",
-      desc(tuner_parameters@parameters[["resampler_parameters"]]),
+      desc(tuner_config@config[["resampler_config"]]),
       "..."
     )
     msg0(
@@ -127,7 +127,7 @@ tune_GridSearch <- function(
   # Resamples ----
   res <- resample(
     x = x,
-    parameters = tuner_parameters[["resampler_parameters"]],
+    config = tuner_config[["resampler_config"]],
     verbosity = verbosity
   )
 
@@ -304,8 +304,8 @@ tune_GridSearch <- function(
 
   # Metric ----
   type <- supervised_type(x)
-  metric <- tuner_parameters@parameters[["metric"]]
-  maximize <- tuner_parameters@parameters[["maximize"]]
+  metric <- tuner_config@config[["metric"]]
+  maximize <- tuner_config@config[["maximize"]]
   if (is.null(metric)) {
     if (type == "Classification") {
       metric <- "Balanced_Accuracy"
@@ -314,12 +314,12 @@ tune_GridSearch <- function(
     } else {
       metric <- "Concordance"
     }
-    tuner_parameters@parameters[["metric"]] <- metric
+    tuner_config@config[["metric"]] <- metric
   }
   if (is.null(maximize)) {
     maximize <- metric %in%
       c("Accuracy", "Balanced_Accuracy", "Concordance", "Rsq", "r")
-    tuner_parameters@parameters[["maximize"]] <- maximize
+    tuner_config@config[["maximize"]] <- maximize
   }
   select_fn <- if (maximize) which.max else which.min
   verb <- if (maximize) "maximize" else "minimize"
@@ -369,14 +369,14 @@ tune_GridSearch <- function(
   metrics_training_by_combo_id <- metrics_training_all[,
     lapply(
       .SD,
-      get(tuner_parameters[["metrics_aggregate_fn"]])
+      get(tuner_config[["metrics_aggregate_fn"]])
     ),
     by = param_combo_id
   ]
   metrics_validation_by_combo_id <- metrics_validation_all[,
     lapply(
       .SD,
-      get(tuner_parameters[["metrics_aggregate_fn"]])
+      get(tuner_config[["metrics_aggregate_fn"]])
     ),
     by = param_combo_id
   ]
@@ -417,10 +417,10 @@ tune_GridSearch <- function(
       # lambda_by_param_combo_id <- aggregate(
       #   lambda ~ param_combo_id,
       #   lambda_cv2,
-      #   tuner_parameters[["metrics_aggregate_fn"]]
+      #   tuner_config[["metrics_aggregate_fn"]]
       # )
       lambda_by_param_combo_id <- lambda_cv2[,
-        lapply(.SD, get(tuner_parameters[["metrics_aggregate_fn"]])),
+        lapply(.SD, get(tuner_config[["metrics_aggregate_fn"]])),
         by = param_combo_id
       ]
       # Replace NULL lambda in tune_results$param_grid with average value of CV-squared lambda
@@ -445,7 +445,7 @@ tune_GridSearch <- function(
         each = n_resamples
       )
       nrounds_by_param_combo_id <- nrounds_cv[,
-        lapply(.SD, get(tuner_parameters[["metrics_aggregate_fn"]])),
+        lapply(.SD, get(tuner_config[["metrics_aggregate_fn"]])),
         by = param_combo_id
       ]
       # Replace NULL nrounds in tune_results$param_grid with average value of Res nrounds
@@ -554,7 +554,7 @@ tune_GridSearch <- function(
   best_param_combo <- as.list(param_grid[best_param_combo_id, -1, drop = FALSE])
   if (verbosity > 0L) {
     msg(
-      paste0("Best parameters to ", paste(verb, metric), ":")
+      paste0("Best config to ", paste(verb, metric), ":")
     )
     print_tune_finding(grid_params, best_param_combo)
   }
@@ -574,7 +574,7 @@ tune_GridSearch <- function(
   # if (save_mods) mods <- grid_run
   GridSearch(
     hyperparameters = hyperparameters,
-    tuner_parameters = tuner_parameters,
+    tuner_config = tuner_config,
     tuning_results = list(
       param_grid = param_grid,
       training = metrics_training_by_combo_id,

@@ -2,7 +2,7 @@
 % Please edit documentation in R/03_S7_Preprocessor.R
 \name{setup_Preprocessor}
 \alias{setup_Preprocessor}
-\title{Setup \code{PreprocessorParameters}}
+\title{Setup \code{PreprocessorConfig}}
 \usage{
 setup_Preprocessor(
   complete_cases = FALSE,
@@ -163,10 +163,10 @@ one-hot encoding to validation or test data using \code{Preprocessor}.}
 \item{exclude}{Integer, vector: Exclude these columns from preprocessing.}
 }
 \value{
-\code{PreprocessorParameters} object.
+\code{PreprocessorConfig} object.
 }
 \description{
-Setup \code{PreprocessorParameters}
+Setup \code{PreprocessorConfig}
 }
 \author{
 EDG

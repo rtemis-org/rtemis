@@ -10,7 +10,7 @@ draw_3Dscatter(
   z = NULL,
   fit = NULL,
   cluster = NULL,
-  cluster_params = list(k = 2),
+  cluster_config = NULL,
   group = NULL,
   formula = NULL,
   rsq = TRUE,
@@ -71,7 +71,7 @@ draw_3Dscatter(
 
 \item{cluster}{Character: Clustering method.}
 
-\item{cluster_params}{List: Parameters for clustering.}
+\item{cluster_config}{List: Config for clustering.}
 
 \item{group}{Factor: Grouping variable.}
 
@@ -145,7 +145,7 @@ draw_3Dscatter(
 
 \item{margin}{Numeric, named list: Margins for top, bottom, left, right.}
 
-\item{fit_params}{Hyperparameters: Parameters for fit.}
+\item{fit_params}{Hyperparameters for fit.}
 
 \item{width}{Numeric: Width of plot.}
 

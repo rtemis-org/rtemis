@@ -57,7 +57,7 @@ train_LightCART <- function(
   if (length(factor_index) > 0L) {
     prp <- preprocess(
       x,
-      parameters = setup_Preprocessor(
+      config = setup_Preprocessor(
         factor2integer = TRUE,
         factor2integer_startat0 = TRUE
       ),
@@ -117,7 +117,7 @@ predict_LightCART <- function(model, newdata, type, verbosity = 0L) {
   newdata <- as.matrix(
     preprocess(
       newdata,
-      parameters = setup_Preprocessor(
+      config = setup_Preprocessor(
         factor2integer = TRUE,
         factor2integer_startat0 = TRUE
       ),

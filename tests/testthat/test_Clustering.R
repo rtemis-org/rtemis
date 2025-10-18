@@ -7,7 +7,7 @@ x <- iris[, -5]
 
 # setup_KMeans ----
 test_that("setup_KMeans() succeeds", {
-  expect_s7_class(setup_KMeans(), KMeansParameters)
+  expect_s7_class(setup_KMeans(), KMeansConfig)
 })
 
 # setup_KMeans throws error ----
@@ -20,7 +20,7 @@ test_that("setup_KMeans() throws error", {
 iris_kmeans <- cluster(
   x,
   algorithm = "kmeans",
-  parameters = setup_KMeans(k = 3L)
+  config = setup_KMeans(k = 3L)
 )
 test_that("cluster_KMeans() succeeds", {
   expect_s7_class(iris_kmeans, Clustering)
@@ -30,7 +30,7 @@ test_that("cluster_KMeans() succeeds", {
 iris_kmeans10 <- cluster(
   x,
   algorithm = "kmeans",
-  parameters = setup_KMeans(k = 10L)
+  config = setup_KMeans(k = 10L)
 )
 iris_kmeans10
 test_that("cluster_KMeans() with k = 10 succeeds", {
@@ -39,14 +39,14 @@ test_that("cluster_KMeans() with k = 10 succeeds", {
 
 # setup_HardCL ----
 test_that("setup_HardCL() succeeds", {
-  expect_s7_class(setup_HardCL(), HardCLParameters)
+  expect_s7_class(setup_HardCL(), HardCLConfig)
 })
 
 # cluster HardCL ----
 iris_hardcl <- cluster(
   x,
   algorithm = "HardCL",
-  parameters = setup_HardCL(k = 3L)
+  config = setup_HardCL(k = 3L)
 )
 test_that("cluster_HardCL() succeeds", {
   expect_s7_class(iris_hardcl, Clustering)
@@ -54,14 +54,14 @@ test_that("cluster_HardCL() succeeds", {
 
 # setup_NeuralGas ----
 test_that("setup_NeuralGas() succeeds", {
-  expect_s7_class(setup_NeuralGas(), NeuralGasParameters)
+  expect_s7_class(setup_NeuralGas(), NeuralGasConfig)
 })
 
 # cluster NeuralGas ----
 iris_neuralgas <- cluster(
   x,
   algorithm = "NeuralGas",
-  parameters = setup_NeuralGas(k = 3L)
+  config = setup_NeuralGas(k = 3L)
 )
 test_that("cluster_NeuralGas() succeeds", {
   expect_s7_class(iris_neuralgas, Clustering)
@@ -69,14 +69,14 @@ test_that("cluster_NeuralGas() succeeds", {
 
 # setup_CMeans ----
 test_that("setup_CMeans() succeeds", {
-  expect_s7_class(setup_CMeans(), CMeansParameters)
+  expect_s7_class(setup_CMeans(), CMeansConfig)
 })
 
 # cluster CMeans ----
 iris_cmeans <- cluster(
   x,
   algorithm = "CMeans",
-  parameters = setup_CMeans(k = 3L)
+  config = setup_CMeans(k = 3L)
 )
 test_that("cluster_CMeans() succeeds", {
   expect_s7_class(iris_cmeans, Clustering)
@@ -84,14 +84,14 @@ test_that("cluster_CMeans() succeeds", {
 
 # setup_DBSCAN ----
 test_that("setup_DBSCAN() succeeds", {
-  expect_s7_class(setup_DBSCAN(), DBSCANParameters)
+  expect_s7_class(setup_DBSCAN(), DBSCANConfig)
 })
 
 # cluster DBSCAN ----
 iris_dbscan <- cluster(
   x,
   algorithm = "DBSCAN",
-  parameters = setup_DBSCAN(eps = 0.5, min_points = 5L)
+  config = setup_DBSCAN(eps = 0.5, min_points = 5L)
 )
 test_that("cluster_DBSCAN() succeeds", {
   expect_s7_class(iris_dbscan, Clustering)

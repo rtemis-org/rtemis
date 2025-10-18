@@ -6,9 +6,9 @@
 #'
 #' @keywords internal
 #' @noRd
-cluster_DBSCAN <- function(x, parameters, verbosity = 1L) {
+cluster_DBSCAN <- function(x, config, verbosity = 1L) {
   # Checks ----
-  check_is_S7(parameters, DBSCANParameters)
+  check_is_S7(config, DBSCANConfig)
 
   # Dependencies ----
   check_dependencies("dbscan")
@@ -19,14 +19,14 @@ cluster_DBSCAN <- function(x, parameters, verbosity = 1L) {
   # Cluster ----
   clust <- dbscan::dbscan(
     x = x,
-    eps = parameters[["eps"]],
-    minPts = parameters[["min_points"]],
-    weights = parameters[["weights"]],
-    borderPoints = parameters[["border_points"]],
-    search = parameters[["search"]],
-    bucketSize = parameters[["bucket_size"]],
-    splitRule = parameters[["split_rule"]],
-    approx = parameters[["approx"]]
+    eps = config[["eps"]],
+    minPts = config[["min_points"]],
+    weights = config[["weights"]],
+    borderPoints = config[["border_points"]],
+    search = config[["search"]],
+    bucketSize = config[["bucket_size"]],
+    splitRule = config[["split_rule"]],
+    approx = config[["approx"]]
   )
   check_inherits(clust, "dbscan")
   clust

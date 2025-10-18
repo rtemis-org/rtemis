@@ -1,45 +1,45 @@
-# S7_ClusteringParameters.R
+# S7_ClusteringConfig.R
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# ClusteringParameters ----
-#' @title ClusteringParameters
+# ClusteringConfig ----
+#' @title ClusteringConfig
 #'
 #' @description
-#' Clustering parameters class.
+#' Clustering config class.
 #'
 #' @field algorithm Character: Algorithm name.
-#' @field parameters List: Algorithm-specific parameters.
+#' @field config List: Algorithm-specific config.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-ClusteringParameters <- new_class(
-  name = "ClusteringParameters",
+ClusteringConfig <- new_class(
+  name = "ClusteringConfig",
   properties = list(
     algorithm = class_character,
-    parameters = class_list
+    config = class_list
   )
-) # /ClusteringParameters
+) # /ClusteringConfig
 
-# Make ClusteringParameters@parameters `$`-accessible
-method(`$`, ClusteringParameters) <- function(x, name) {
-  x@parameters[[name]]
+# Make ClusteringConfig@config `$`-accessible
+method(`$`, ClusteringConfig) <- function(x, name) {
+  x@config[[name]]
 }
 
-# `$`-autocomplete ClusteringParameters@parameters ----
-method(`.DollarNames`, ClusteringParameters) <- function(x, pattern = "") {
-  all_names <- names(x@parameters)
+# `$`-autocomplete ClusteringConfig@config ----
+method(`.DollarNames`, ClusteringConfig) <- function(x, pattern = "") {
+  all_names <- names(x@config)
   grep(pattern, all_names, value = TRUE)
 }
 
-# Make ClusteringParameters@parameters `[[`-accessible
-method(`[[`, ClusteringParameters) <- function(x, index) {
-  x@parameters[[index]]
+# Make ClusteringConfig@config `[[`-accessible
+method(`[[`, ClusteringConfig) <- function(x, index) {
+  x@config[[index]]
 }
 
-# Show ClusteringParameters ----
-method(repr, ClusteringParameters) <- function(
+# Show ClusteringConfig ----
+method(repr, ClusteringConfig) <- function(
   x,
   pad = 0L,
   output_type = NULL,
@@ -47,28 +47,28 @@ method(repr, ClusteringParameters) <- function(
 ) {
   output_type <- get_output_type(output_type)
   out <- repr_S7name(
-    paste(x@algorithm, "ClusteringParameters"),
+    paste(x@algorithm, "ClusteringConfig"),
     pad = pad,
     output_type = output_type
   )
   paste0(
     out,
-    show_ls(props(x)[["parameters"]], pad = pad, output_type = output_type)
+    show_ls(props(x)[["config"]], pad = pad, output_type = output_type)
   )
 } # /show
 
-# Print ClusteringParameters ----
-#' Print Method for ClusteringParameters
+# Print ClusteringConfig ----
+#' Print Method for ClusteringConfig
 #'
-#' @param x ClusteringParameters object.
+#' @param x ClusteringConfig object.
 #' @param pad Integer: Left side padding.
 #'
-#' @return ClusteringParameters object, invisibly.
+#' @return ClusteringConfig object, invisibly.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(print, ClusteringParameters) <- function(
+method(print, ClusteringConfig) <- function(
   x,
   pad = 0L,
   output_type = NULL,
@@ -76,147 +76,147 @@ method(print, ClusteringParameters) <- function(
 ) {
   cat(repr(x, pad = pad, output_type = output_type))
   invisible(x)
-} # /print.ClusteringParameters
+} # /print.ClusteringConfig
 
-# KMeansParameters ----
-#' @title KMeansParameters
+# KMeansConfig ----
+#' @title KMeansConfig
 #'
 #' @description
-#' ClusteringParameters subclass for K-means Clustering.
+#' ClusteringConfig subclass for K-means Clustering.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-KMeansParameters <- new_class(
-  name = "KMeansParameters",
-  parent = ClusteringParameters,
+KMeansConfig <- new_class(
+  name = "KMeansConfig",
+  parent = ClusteringConfig,
   constructor = function(k, dist) {
     k <- clean_posint(k)
     check_inherits(dist, "character")
     new_object(
-      ClusteringParameters(
+      ClusteringConfig(
         algorithm = "KMeans",
-        parameters = list(
+        config = list(
           k = k,
           dist = dist
         )
       )
     )
   }
-) # /KMeansParameters
+) # /KMeansConfig
 
-#' Setup KMmeansParameters
+#' Setup KMeansConfig
 #'
 #' @param k Number of clusters.
 #' @param dist Character: Distance measure to use: 'euclidean' or 'manhattan'.
 #'
-#' @return KMeansParameters object.
+#' @return KMeansConfig object.
 #'
 #' @author EDG
 #' @export
 setup_KMeans <- function(k = 3L, dist = c("euclidean", "manhattan")) {
   k <- clean_posint(k)
   dist <- match.arg(dist)
-  KMeansParameters(k, dist)
+  KMeansConfig(k, dist)
 } # /rtemis::setup_KMeans
 
-# HardCLParameters ----
-#' @title HardCLParameters
+# HardCLConfig ----
+#' @title HardCLConfig
 #'
 #' @description
-#' ClusteringParameters subclass for HardCL Clustering.
+#' ClusteringConfig subclass for HardCL Clustering.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-HardCLParameters <- new_class(
-  name = "HardCLParameters",
-  parent = ClusteringParameters,
+HardCLConfig <- new_class(
+  name = "HardCLConfig",
+  parent = ClusteringConfig,
   constructor = function(k, dist) {
     k <- clean_posint(k)
     check_inherits(dist, "character")
     new_object(
-      ClusteringParameters(
+      ClusteringConfig(
         algorithm = "HardCL",
-        parameters = list(
+        config = list(
           k = k,
           dist = dist
         )
       )
     )
   }
-) # /HardCLParameters
+) # /HardCLConfig
 
-#' Setup HardCLParameters
+#' Setup HardCLConfig
 #'
 #' @param k Number of clusters.
 #' @param dist Character: Distance measure to use: 'euclidean' or 'manhattan'.
 #'
-#' @return HardCLParameters object.
+#' @return HardCLConfig object.
 #'
 #' @author EDG
 #' @export
 setup_HardCL <- function(k = 3L, dist = c("euclidean", "manhattan")) {
   k <- clean_posint(k)
   dist <- match.arg(dist)
-  HardCLParameters(k, dist)
+  HardCLConfig(k, dist)
 } # /rtemis::setup_HardCL
 
-# NeuralGasParameters ----
-#' @title NeuralGasParameters
+# NeuralGasConfig ----
+#' @title NeuralGasConfig
 #'
 #' @description
-#' ClusteringParameters subclass for Neural Gas Clustering.
+#' ClusteringConfig subclass for Neural Gas Clustering.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-NeuralGasParameters <- new_class(
-  name = "NeuralGasParameters",
-  parent = ClusteringParameters,
+NeuralGasConfig <- new_class(
+  name = "NeuralGasConfig",
+  parent = ClusteringConfig,
   constructor = function(k, dist) {
     k <- clean_posint(k)
     check_inherits(dist, "character")
     new_object(
-      ClusteringParameters(
+      ClusteringConfig(
         algorithm = "NeuralGas",
-        parameters = list(
+        config = list(
           k = k,
           dist = dist
         )
       )
     )
   }
-) # /NeuralGasParameters
+) # /NeuralGasConfig
 
-#' Setup NeuralGasParameters
+#' Setup NeuralGasConfig
 #'
 #' @param k Number of clusters.
 #' @param dist Character: Distance measure to use: 'euclidean' or 'manhattan'.
 #'
-#' @return NeuralGasParameters object.
+#' @return NeuralGasConfig object.
 #'
 #' @author EDG
 #' @export
 setup_NeuralGas <- function(k = 3L, dist = c("euclidean", "manhattan")) {
   k <- clean_posint(k)
   dist <- match.arg(dist)
-  NeuralGasParameters(k, dist)
+  NeuralGasConfig(k, dist)
 } # /rtemis::setup_NeuralGas
 
 
-# CMeansParameters ----
-#' @title CMeansParameters
+# CMeansConfig ----
+#' @title CMeansConfig
 #'
 #' @description
-#' ClusteringParameters subclass for CMeans Clustering.
+#' ClusteringConfig subclass for CMeans Clustering.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-CMeansParameters <- new_class(
-  name = "CMeansParameters",
-  parent = ClusteringParameters,
+CMeansConfig <- new_class(
+  name = "CMeansConfig",
+  parent = ClusteringConfig,
   constructor = function(
     k,
     max_iter,
@@ -236,9 +236,9 @@ CMeansParameters <- new_class(
     check_inherits(weights, "numeric")
     check_inherits(control, "list")
     new_object(
-      ClusteringParameters(
+      ClusteringConfig(
         algorithm = "CMeans",
-        parameters = list(
+        config = list(
           k = k,
           max_iter = max_iter,
           dist = dist,
@@ -251,9 +251,9 @@ CMeansParameters <- new_class(
       )
     )
   }
-) # /CMeansParameters
+) # /CMeansConfig
 
-#' Setup CMeansParameters
+#' Setup CMeansConfig
 #'
 #' @param k Integer: Number of clusters.
 #' @param max_iter Integer: Maximum number of iterations.
@@ -262,9 +262,9 @@ CMeansParameters <- new_class(
 #' @param m Float (>1): Degree of fuzzification.
 #' @param rate_par Float (0, 1): Learning rate for the online variant.
 #' @param weights Float (>0): Case weights.
-#' @param control List: Control parameters for clustering algorithm.
+#' @param control List: Control config for clustering algorithm.
 #'
-#' @return CMeansParameters object.
+#' @return CMeansConfig object.
 #'
 #' @author EDG
 #' @export
@@ -286,7 +286,7 @@ setup_CMeans <- function(
   stopifnot(m > 1)
   check_float01inc(rate_par)
   check_inherits(weights, "numeric")
-  CMeansParameters(
+  CMeansConfig(
     k = k,
     max_iter = max_iter,
     dist = dist,
@@ -299,18 +299,18 @@ setup_CMeans <- function(
 } # /rtemis::setup_CMeans
 
 
-# DBSCAN Parameters ----
-#' @title DBSCANParameters
+# DBSCANConfig ----
+#' @title DBSCANConfig
 #'
 #' @description
-#' ClusteringParameters subclass for DBSCAN Clustering.
+#' ClusteringConfig subclass for DBSCAN Clustering.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-DBSCANParameters <- new_class(
-  name = "DBSCANParameters",
-  parent = ClusteringParameters,
+DBSCANConfig <- new_class(
+  name = "DBSCANConfig",
+  parent = ClusteringConfig,
   constructor = function(
     eps,
     min_points,
@@ -330,9 +330,9 @@ DBSCANParameters <- new_class(
     check_inherits(split_rule, "character")
     check_inherits(approx, "logical")
     new_object(
-      ClusteringParameters(
+      ClusteringConfig(
         algorithm = "DBSCAN",
-        parameters = list(
+        config = list(
           eps = eps,
           min_points = min_points,
           weights = weights,
@@ -345,9 +345,9 @@ DBSCANParameters <- new_class(
       )
     )
   }
-) # /DBSCANParameters
+) # /DBSCANConfig
 
-#' Setup DBSCANParameters
+#' Setup DBSCANConfig
 #'
 #' @param eps Float: Radius of neighborhood.
 #' @param min_points Integer: Minimum number of points in a neighborhood to form a cluster.
@@ -357,7 +357,7 @@ DBSCANParameters <- new_class(
 #' @param bucket_size Integer: Size of buckets for k-dtree search.
 #' @param split_rule Character: Rule for splitting clusters: "SUGGEST", "STD", "MIDPT", "FAIR", "SL_MIDPT", "SL_FAIR".
 #' @param approx Logical: If TRUE, use approximate nearest neighbor search.
-#' @return DBSCANParameters object.
+#' @return DBSCANConfig object.
 #'
 #' @author EDG
 #' @export
@@ -379,7 +379,7 @@ setup_DBSCAN <- function(
   check_inherits(bucket_size, "integer")
   split_rule <- match.arg(split_rule)
   check_inherits(approx, "logical")
-  DBSCANParameters(
+  DBSCANConfig(
     eps = eps,
     min_points = min_points,
     weights = weights,

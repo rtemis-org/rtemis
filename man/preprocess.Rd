@@ -5,12 +5,12 @@
 \title{Preprocess Data}
 \usage{
 ## S7 generic
-preprocess(x, parameters, ...)
+preprocess(x, config, ...)
 }
 \arguments{
 \item{x}{data.frame or similar: Data to be preprocessed.}
 
-\item{parameters}{PreprocessorParameters or Preprocessor: PreprocessorParameters when
+\item{config}{PreprocessorConfig or Preprocessor: PreprocessorConfig when
 preprocessing training set data. Setup using \link{setup_Preprocessor}.
 Preprocessor when preprocessing validation and test set data.}
 
@@ -23,7 +23,7 @@ Preprocessor object.
 Preprocess data for analysis and visualization.
 }
 \details{
-Methods are provided for preprocessing training set data, which accepts a PreprocessorParameters
+Methods are provided for preprocessing training set data, which accepts a PreprocessorConfig
 object, and for preprocessing validation and test set data, which accept a Preprocessor
 object.
 

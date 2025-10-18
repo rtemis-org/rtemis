@@ -7,7 +7,7 @@
 #' Perform parallel analysis, factor analysis, bifactor analysis
 #' and hierarchical clustering.
 #'
-#' Consult `psych::fa` for more information on the parameters.
+#' Consult `psych::fa` for more information on arguments
 #'
 #' @param x Data. Will be coerced to data frame
 #' @param n_factors Integer: If NULL, will be estimated using parallel analysis

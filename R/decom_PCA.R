@@ -6,18 +6,18 @@
 #'
 #' @keywords internal
 #' @noRd
-decom_PCA <- function(x, parameters, verbosity = 1L) {
+decom_PCA <- function(x, config, verbosity = 1L) {
   # Checks ----
-  check_is_S7(parameters, PCAParameters)
+  check_is_S7(config, PCAConfig)
   check_unsupervised_data(x = x, allow_missing = FALSE)
 
   # Decompose ----
   decom <- prcomp(
     x = x,
-    center = parameters[["center"]],
-    scale. = parameters[["scale"]],
-    tol = parameters[["tol"]],
-    rank. = parameters[["k"]]
+    center = config[["center"]],
+    scale. = config[["scale"]],
+    tol = config[["tol"]],
+    rank. = config[["k"]]
   )
   check_inherits(decom, "prcomp")
   list(decom = decom, transformed = decom[["x"]])

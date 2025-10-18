@@ -19,7 +19,7 @@ get_tuner_fn <- function(type = "GridSearch") {
 #'
 #' @param x data.frame or similar: Training set data.
 #' @param hyperparameters `Hyperparameters` object: make using each learner's `setup_*` function.
-#' @param tuner_parameters `TunerParameters` object: created with [setup_GridSearch].
+#' @param tuner_config `TunerConfig` object: created with [setup_GridSearch].
 #' @param weights Numeric vector: Optional case weights.
 #' @param verbosity Integer: Verbosity level.
 #'
@@ -29,7 +29,7 @@ get_tuner_fn <- function(type = "GridSearch") {
 tune <- function(
   x,
   hyperparameters,
-  tuner_parameters,
+  tuner_config,
   weights = NULL,
   verbosity = 1L,
   parallel_type = "none",
@@ -37,14 +37,14 @@ tune <- function(
   n_workers = 1L
 ) {
   check_is_S7(hyperparameters, Hyperparameters)
-  check_is_S7(tuner_parameters, TunerParameters)
+  check_is_S7(tuner_config, TunerConfig)
   stopifnot(needs_tuning(hyperparameters))
 
-  if (tuner_parameters@type == "GridSearch") {
+  if (tuner_config@type == "GridSearch") {
     tune_GridSearch(
       x = x,
       hyperparameters = hyperparameters,
-      tuner_parameters = tuner_parameters,
+      tuner_config = tuner_config,
       weights = weights,
       verbosity = verbosity,
       parallel_type = parallel_type,
@@ -52,6 +52,6 @@ tune <- function(
       n_workers = n_workers
     )
   } else {
-    cli::cli_abort("Unsupported tuner type: {tuner_parameters@type}")
+    cli::cli_abort("Unsupported tuner type: {tuner_config@type}")
   }
 } # /rtemis::tune

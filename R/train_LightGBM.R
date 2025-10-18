@@ -76,7 +76,7 @@ train_LightGBM <- function(
   if (length(factor_index) > 0) {
     prp <- preprocess(
       x,
-      parameters = setup_Preprocessor(
+      config = setup_Preprocessor(
         factor2integer = TRUE,
         factor2integer_startat0 = TRUE
       ),
@@ -156,7 +156,7 @@ predict_LightGBM <- function(model, newdata, type, verbosity = 0L) {
   newdata <- as.matrix(
     preprocess(
       newdata,
-      parameters = setup_Preprocessor(
+      config = setup_Preprocessor(
         factor2integer = TRUE,
         factor2integer_startat0 = TRUE
       ),
@@ -203,7 +203,7 @@ explain_LightGBM <- function(model, x, verbosity = 0L, ...) {
   # Preprocess ----
   x <- preprocess(
     x,
-    parameters = setup_Preprocessor(
+    config = setup_Preprocessor(
       factor2integer = TRUE,
       factor2integer_startat0 = TRUE
     ),

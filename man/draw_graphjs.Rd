@@ -19,10 +19,10 @@ draw_graphjs(
   edge_width = 2,
   layout = c("fr", "dh", "drl", "gem", "graphopt", "kk", "lgl", "mds", "sugiyama"),
   coords = NULL,
-  layout_params = list(),
+  layout_args = list(),
   cluster = NULL,
   groups = NULL,
-  cluster_params = list(),
+  cluster_config = list(),
   cluster_mark_groups = TRUE,
   cluster_color_vertices = FALSE,
   main = "",
@@ -64,13 +64,13 @@ draw_graphjs(
 
 \item{coords}{Output of precomputed \pkg{igraph} layout. If provided, \code{layout} is ignored.}
 
-\item{layout_params}{List of parameters to pass to \code{layout} function.}
+\item{layout_args}{List of arguments to pass to \code{layout} function.}
 
 \item{cluster}{Character: one of: "edge_betweenness", "fast_greedy", "infomap", "label_prop", "leading_eigen", "louvain", "optimal", "spinglass", "walktrap", corresponding to all the available \pkg{igraph} clustering functions.}
 
 \item{groups}{Output of precomputed \pkg{igraph} clustering. If provided, \code{cluster} is ignored.}
 
-\item{cluster_params}{List of parameters to pass to \code{cluster} function.}
+\item{cluster_config}{List of arguments to pass to \code{cluster} function.}
 
 \item{cluster_mark_groups}{Logical: If TRUE, draw polygons to indicate clusters, if \code{groups} or \code{cluster} are defined.}
 

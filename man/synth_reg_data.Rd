@@ -8,7 +8,7 @@ synth_reg_data(
   nrow = 500,
   ncol = 50,
   noise_sd_factor = 1,
-  resampler_parameters = setup_Resampler(),
+  resampler_config = setup_Resampler(),
   seed = NULL,
   verbosity = 0L
 )
@@ -20,7 +20,7 @@ synth_reg_data(
 
 \item{noise_sd_factor}{Numeric: Add rnorm(nrow, sd = noise_sd_factor * sd(y)).}
 
-\item{resampler_parameters}{Output of \link{setup_Resampler} defining training/test split. The first resulting resample
+\item{resampler_config}{Output of \link{setup_Resampler} defining training/test split. The first resulting resample
 will be used to create \code{dat_training} and \code{dat_test} output; all resample output under \code{resamples}}
 
 \item{seed}{Integer: Seed for random number generator.}

@@ -65,7 +65,7 @@ train_LightRF <- function(
   if (length(factor_index) > 0L) {
     prp <- preprocess(
       x,
-      parameters = setup_Preprocessor(
+      config = setup_Preprocessor(
         factor2integer = TRUE,
         factor2integer_startat0 = TRUE
       ),
@@ -104,7 +104,7 @@ train_LightRF <- function(
 
   # Train ----
   params <- hyperparameters@hyperparameters
-  # Remove parameters that are not used by LightGBM
+  # Remove params that are not used by LightGBM
   params[["ifw"]] <- NULL
   params[["early_stopping_rounds"]] <- NULL
   # num_class is required for multiclass classification only, must be 1 or unset for regression & binary classification
@@ -145,7 +145,7 @@ predict_LightRF <- function(model, newdata, type, verbosity = 0L) {
   newdata <- as.matrix(
     preprocess(
       newdata,
-      parameters = setup_Preprocessor(
+      config = setup_Preprocessor(
         factor2integer = TRUE,
         factor2integer_startat0 = TRUE
       ),

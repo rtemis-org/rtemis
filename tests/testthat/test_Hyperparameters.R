@@ -22,9 +22,9 @@ test_that("CARTHyperparameters() errors", {
   expect_error(CARTHyperparameters())
 })
 
-# get_params_need_tuning ----
-test_that("get_params_need_tuning() succeeds", {
-  expect_type(get_params_need_tuning(hpr), "list")
+# get_hyperparams_need_tuning ----
+test_that("get_hyperparams_need_tuning() succeeds", {
+  expect_type(get_hyperparams_need_tuning(hpr), "list")
 })
 
 # Check printing of hp that need tuning ----

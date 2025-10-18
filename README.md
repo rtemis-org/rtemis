@@ -8,7 +8,7 @@ The new version (0.99+) features:
 
 - Backend: complete rewrite of the supervised and unsupervised learning backend using the new [**S7** class system](https://github.com/RConsortium/S7), replacing all previous use of R6 and S3 classes.
 - API: **Functional user-facing API**, to maintain a consistent, user-friendly interface.
-- Extended use of **`setup_()`** functions, to offer increased transparency & clear separation of parameters.
+- Extended use of **`setup_()`** functions, to offer increased transparency of configuration options.
 - Strict **type checking** and **condition validation** throughout to minimize user error and provide highly focused error messages & suggestions.
 - Expanded transparent messaging through each step.
 

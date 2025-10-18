@@ -13,7 +13,7 @@
 #' @param se_times Numeric: Multiplier for standard error.
 #' @param include_fit_name Logical: If TRUE, include fit name in legend.
 #' @param cluster Character: Clustering method.
-#' @param cluster_params List: Parameters for clustering.
+#' @param cluster_config List: Config for clustering.
 #' @param group Factor: Grouping variable.
 # @param formula Formula: Formula for non-linear least squares fit.
 #' @param rsq Logical: If TRUE, print R-squared values in legend if `fit` is set.
@@ -86,7 +86,7 @@
 #' @param diagonal_col Color for diagonal line.
 #' @param diagonal_dash Character: "solid", "dash", "dot", "dashdot", "longdash", "longdashdot". Dash type for diagonal line.
 #' @param diagonal_alpha Numeric: Alpha for diagonal line.
-#' @param fit_params Hyperparameters: Parameters for fit.
+#' @param fit_params Hyperparameters for fit.
 #' @param vline Numeric: X position for vertical line.
 #' @param vline_col Color for vertical line.
 #' @param vline_width Numeric: Width for vertical line.
@@ -125,7 +125,7 @@ draw_scatter <- function(
   se_times = 1.96,
   include_fit_name = TRUE,
   cluster = NULL,
-  cluster_params = list(k = 2),
+  cluster_config = list(k = 2),
   group = NULL,
   # formula = NULL,
   rsq = TRUE,
@@ -282,9 +282,9 @@ draw_scatter <- function(
       cluster(
         x = data.frame(x, y),
         algorithm = cluster,
-        parameters = do_call(
+        config = do_call(
           get_clust_setup_fn(cluster),
-          cluster_params
+          cluster_config
         )
       )@clusters
     )

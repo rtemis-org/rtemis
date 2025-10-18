@@ -6,7 +6,7 @@
 #' Theme
 #'
 #' @field name Character: Name of theme.
-#' @field parameters Named list of theme parameters.
+#' @field config Named list of theme config.
 #'
 #' @author EDG
 #' @noRd
@@ -14,7 +14,7 @@ Theme <- new_class(
   name = "Theme",
   properties = list(
     name = class_character,
-    parameters = class_list
+    config = class_list
   )
 ) # /Theme
 
@@ -30,25 +30,25 @@ Theme <- new_class(
 #' @noRd
 print.Theme <- function(x, ...) {
   objcat(paste(x@name, "Theme"))
-  printls(props(x)[["parameters"]])
+  printls(props(x)[["config"]])
   invisible(x)
 }
 method(print, Theme) <- function(x, ...) {
   print.Theme(x)
 } # /rtemis::print.Theme
 
-# Make Theme@parameters `$`-accessible with autocomplete ----
+# Make Theme@config `$`-accessible with autocomplete ----
 method(`$`, Theme) <- function(x, name) {
-  x@parameters[[name]]
+  x@config[[name]]
 } # /rtemis::Theme$
 method(`.DollarNames`, Theme) <- function(x, pattern = "") {
-  all_names <- names(x@parameters)
+  all_names <- names(x@config)
   grep(pattern, all_names, value = TRUE)
 } # /rtemis::Theme.DollarNames
 
-# Make Theme@parameters `[[`-accessible ----
+# Make Theme@config `[[`-accessible ----
 method(`[[`, Theme) <- function(x, name) {
-  x@parameters[[name]]
+  x@config[[name]]
 } # /rtemis::Theme[[]]
 
 # Names Theme ----
@@ -61,7 +61,7 @@ method(`[[`, Theme) <- function(x, name) {
 #' @author EDG
 #' @noRd
 names.Theme <- function(x) {
-  names(x@parameters)
+  names(x@config)
 } # /rtemis::names.Theme
 method(names, Theme) <- function(x) {
   names.Theme(x)

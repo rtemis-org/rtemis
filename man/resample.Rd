@@ -4,12 +4,12 @@
 \alias{resample}
 \title{Resample data}
 \usage{
-resample(x, parameters = setup_Resampler(), verbosity = 1L)
+resample(x, config = setup_Resampler(), verbosity = 1L)
 }
 \arguments{
 \item{x}{Vector or data.frame: Usually the outcome; \code{NROW(x)} defines the sample size.}
 
-\item{parameters}{Resampler object created by \link{setup_Resampler}.}
+\item{config}{Resampler object created by \link{setup_Resampler}.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }

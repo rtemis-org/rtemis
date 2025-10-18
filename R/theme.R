@@ -120,7 +120,7 @@ theme_black <- function(
 ) {
   Theme(
     name = "black",
-    parameters = list(
+    config = list(
       bg = bg,
       plot_bg = plot_bg,
       fg = fg,
@@ -238,7 +238,7 @@ theme_blackgrid <- function(
 ) {
   Theme(
     name = "blackgrid",
-    parameters = list(
+    config = list(
       bg = bg,
       plot_bg = plot_bg,
       fg = fg,
@@ -357,7 +357,7 @@ theme_blackigrid <- function(
 ) {
   Theme(
     name = "blackigrid",
-    parameters = list(
+    config = list(
       bg = bg,
       plot_bg = plot_bg,
       fg = fg,
@@ -476,7 +476,7 @@ theme_darkgray <- function(
 ) {
   Theme(
     name = "darkgray",
-    parameters = list(
+    config = list(
       bg = bg,
       plot_bg = plot_bg,
       fg = fg,
@@ -593,7 +593,7 @@ theme_darkgraygrid <- function(
 ) {
   Theme(
     name = "darkgraygrid",
-    parameters = list(
+    config = list(
       bg = bg,
       plot_bg = plot_bg,
       fg = fg,
@@ -710,7 +710,7 @@ theme_darkgrayigrid <- function(
 ) {
   Theme(
     name = "darkgrayigrid",
-    parameters = list(
+    config = list(
       bg = bg,
       plot_bg = plot_bg,
       fg = fg,
@@ -829,7 +829,7 @@ theme_white <- function(
 ) {
   Theme(
     name = "white",
-    parameters = list(
+    config = list(
       bg = bg,
       plot_bg = plot_bg,
       fg = fg,
@@ -946,7 +946,7 @@ theme_whitegrid <- function(
 ) {
   Theme(
     name = "whitegrid",
-    parameters = list(
+    config = list(
       bg = bg,
       plot_bg = plot_bg,
       fg = fg,
@@ -1063,7 +1063,7 @@ theme_whiteigrid <- function(
 ) {
   Theme(
     name = "whiteigrid",
-    parameters = list(
+    config = list(
       bg = bg,
       plot_bg = plot_bg,
       fg = fg,
@@ -1182,7 +1182,7 @@ theme_lightgraygrid <- function(
 ) {
   Theme(
     name = "lightgraygrid",
-    parameters = list(
+    config = list(
       bg = bg,
       plot_bg = plot_bg,
       fg = fg,
@@ -1300,7 +1300,7 @@ theme_mediumgraygrid <- function(
 ) {
   Theme(
     name = "mediumgraygrid",
-    parameters = list(
+    config = list(
       bg = bg,
       plot_bg = plot_bg,
       fg = fg,
@@ -1376,7 +1376,7 @@ available_themes <- function() {
 #' Select an rtemis theme
 #'
 #' @param x Character: Name of theme to select. If not defined, will use `getOption("rtemis_theme", "whitegrid")`.
-#' @param parameters List: Optional list of parameters to override the defaults.
+#' @param config List: Optional list of config to override the defaults.
 #'
 #' @return `Theme` object.
 #'
@@ -1396,14 +1396,14 @@ choose_theme <- function(
     "lightgraygrid",
     "mediumgraygrid"
   ),
-  parameters = NULL
+  config = NULL
 ) {
   if (length(x) > 1) {
     x <- getOption("rtemis_theme", "whitegrid")
   }
-  if (is.null(parameters)) {
-    parameters <- list()
+  if (is.null(config)) {
+    config <- list()
   }
 
-  do_call(paste0("theme_", x), parameters)
+  do_call(paste0("theme_", x), config)
 } # /rtemis::theme

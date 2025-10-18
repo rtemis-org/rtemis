@@ -7,28 +7,28 @@
 # https://rconsortium.github.io/S7
 
 # Description
-# `ResamplerParameters` class and subclasses create objects that store resampling parameters
+# `ResamplerConfig` class and subclasses create objects that store resampling configuration.
 # They are set by `setup_Resampler()` and perform type checking and validation.
 # They are used by `resample()`.
-# `Resampler` class stores resamples and their parameters.
+# `Resampler` class stores resamples and their configuration.
 # `Resampler` objects are created by `resample()`.
 
 # Notes
 # `id_strat` is used by `resample()`, not individual resamplers
 
-# ResamplerParameters ----
-#' @title ResamplerParameters
+# ResamplerConfig ----
+#' @title ResamplerConfig
 #'
 #' @description
-#' Superclass for resampler parameters.
+#' Superclass for resampler configuration.
 #'
 #' @field type Character: Type of resampler.
 #' @field n Integer: Number of resamples.
 #'
 #' @author EDG
 #' @noRd
-ResamplerParameters <- new_class(
-  name = "ResamplerParameters",
+ResamplerConfig <- new_class(
+  name = "ResamplerConfig",
   properties = list(
     type = class_character,
     n = class_integer # scalar_int_pos
@@ -42,35 +42,35 @@ ResamplerParameters <- new_class(
       n = n
     )
   }
-) # /ResamplerParameters
+) # /ResamplerConfig
 
 # Make S7 properties `$`-accessible
-method(`$`, ResamplerParameters) <- function(x, name) {
+method(`$`, ResamplerConfig) <- function(x, name) {
   prop(x, name)
 }
 
 # Make S7 properties `[[`-accessible
-method(`[[`, ResamplerParameters) <- function(x, name) {
+method(`[[`, ResamplerConfig) <- function(x, name) {
   prop(x, name)
 }
 
-#' Print ResamplerParameters
+#' Print ResamplerConfig
 #'
 #' @description
-#' print ResamplerParameters object
+#' print ResamplerConfig object
 #'
-#' @param x ResamplerParameters object
+#' @param x ResamplerConfig object
 #'
 #' @author EDG
 #' @noRd
-method(print, ResamplerParameters) <- function(x, pad = 0L, ...) {
-  objcat(paste(x@type, "ResamplerParameters"), pad = pad)
+method(print, ResamplerConfig) <- function(x, pad = 0L, ...) {
+  objcat(paste(x@type, "ResamplerConfig"), pad = pad)
   printls(props(x)[-1], pad = pad + 2L)
   invisible(x)
-} # rtemis::print.ResamplerParameters
+} # rtemis::print.ResamplerConfig
 
-# desc ResamplerParameters ----
-method(desc, ResamplerParameters) <- function(x) {
+# desc ResamplerConfig ----
+method(desc, ResamplerConfig) <- function(x) {
   switch(
     x@type,
     KFold = paste0(x@n, "-fold crossvalidation"),
@@ -79,10 +79,10 @@ method(desc, ResamplerParameters) <- function(x) {
     Bootstrap = paste0(x@n, " bootstraps"),
     LOOCV = "Leave-one-out crossvalidation"
   )
-} # /rtemis::desc.ResamplerParameters
+} # /rtemis::desc.ResamplerConfig
 
-# desc_alt ResamplerParameters ----
-method(desc_alt, ResamplerParameters) <- function(x) {
+# desc_alt ResamplerConfig ----
+method(desc_alt, ResamplerConfig) <- function(x) {
   switch(
     x@type,
     KFold = paste0(x@n, " independent folds"),
@@ -93,19 +93,19 @@ method(desc_alt, ResamplerParameters) <- function(x) {
     LOOCV = paste0(x@n, " leave-one-out folds"),
     paste0(x@n, " resamples")
   )
-} # /rtemis::desc.ResamplerParameters
+} # /rtemis::desc.ResamplerConfig
 
 # KFoldParams ----
 #' @title KFoldParams
 #'
 #' @description
-#' ResamplerParameters subclass for k-fold resampling.
+#' ResamplerConfig subclass for k-fold resampling.
 #'
 #' @author EDG
 #' @noRd
 KFoldParams <- new_class(
   name = "KFoldParams",
-  parent = ResamplerParameters,
+  parent = ResamplerConfig,
   properties = list(
     stratify_var = class_character | NULL,
     strat_n_bins = scalar_int_pos,
@@ -114,7 +114,7 @@ KFoldParams <- new_class(
   ),
   constructor = function(n, stratify_var, strat_n_bins, id_strat, seed) {
     new_object(
-      ResamplerParameters(
+      ResamplerConfig(
         type = "KFold",
         n = n
       ),
@@ -130,13 +130,13 @@ KFoldParams <- new_class(
 #' @title StratSubParams
 #'
 #' @description
-#' ResamplerParameters subclass for stratified subsampling.
+#' ResamplerConfig subclass for stratified subsampling.
 #'
 #' @author EDG
 #' @noRd
 StratSubParams <- new_class(
   name = "StratSubParams",
-  parent = ResamplerParameters,
+  parent = ResamplerConfig,
   properties = list(
     n = scalar_int_pos,
     train_p = scalar_dbl_01excl,
@@ -154,7 +154,7 @@ StratSubParams <- new_class(
     seed
   ) {
     new_object(
-      ResamplerParameters(
+      ResamplerConfig(
         type = "StratSub",
         n = n
       ),
@@ -171,13 +171,13 @@ StratSubParams <- new_class(
 #' @title StratBootParams
 #'
 #' @description
-#' ResamplerParameters subclass for stratified bootstrapping.
+#' ResamplerConfig subclass for stratified bootstrapping.
 #'
 #' @author EDG
 #' @noRd
 StratBootParams <- new_class(
   name = "StratBootParams",
-  parent = ResamplerParameters,
+  parent = ResamplerConfig,
   properties = list(
     stratify_var = class_character | NULL,
     train_p = scalar_dbl_01excl,
@@ -196,7 +196,7 @@ StratBootParams <- new_class(
     seed
   ) {
     new_object(
-      ResamplerParameters(
+      ResamplerConfig(
         type = "StratBoot",
         n = n
       ),
@@ -214,20 +214,20 @@ StratBootParams <- new_class(
 #' @title BootstrapParams
 #'
 #' @description
-#' ResamplerParameters subclass for bootstrap resampling.
+#' ResamplerConfig subclass for bootstrap resampling.
 #'
 #' @author EDG
 #' @noRd
 BootstrapParams <- new_class(
   name = "BootstrapParams",
-  parent = ResamplerParameters,
+  parent = ResamplerConfig,
   properties = list(
     id_strat = class_vector | NULL,
     seed = scalar_int_pos
   ),
   constructor = function(n, id_strat, seed) {
     new_object(
-      ResamplerParameters(
+      ResamplerConfig(
         type = "Bootstrap",
         n = n
       ),
@@ -241,16 +241,16 @@ BootstrapParams <- new_class(
 #' @title LOOCVParams
 #'
 #' @description
-#' ResamplerParameters subclass for leave-one-out cross-validation.
+#' ResamplerConfig subclass for leave-one-out cross-validation.
 #'
 #' @author EDG
 #' @noRd
 LOOCVParams <- new_class(
   name = "LOOCVParams",
-  parent = ResamplerParameters,
+  parent = ResamplerConfig,
   constructor = function(n) {
     new_object(
-      ResamplerParameters(
+      ResamplerConfig(
         type = "LOOCV",
         n = n
       )
@@ -262,16 +262,16 @@ LOOCVParams <- new_class(
 #' @title CustomParams
 #'
 #' @description
-#' ResamplerParameters subclass for custom resampling.
+#' ResamplerConfig subclass for custom resampling.
 #'
 #' @author EDG
 #' @noRd
 CustomParams <- new_class(
   name = "CustomParams",
-  parent = ResamplerParameters,
+  parent = ResamplerConfig,
   constructor = function(n) {
     new_object(
-      ResamplerParameters(
+      ResamplerConfig(
         type = "Custom",
         n = n
       )
@@ -294,7 +294,7 @@ CustomParams <- new_class(
 #' @param seed Integer: Random seed.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return ResamplerParameters object.
+#' @return ResamplerConfig object.
 #'
 #' @author EDG
 #' @export
@@ -383,7 +383,7 @@ Resampler <- new_class(
   properties = list(
     type = class_character,
     resamples = class_list,
-    parameters = ResamplerParameters
+    config = ResamplerConfig
   )
 ) # /Resampler
 
@@ -432,12 +432,12 @@ method(`[[`, Resampler) <- function(x, index) {
 
 # desc Resampler ----
 method(desc, Resampler) <- function(x) {
-  desc(x@parameters)
+  desc(x@config)
 } # /rtemis::desc.Resampler
 
 # desc_alt Resampler ----
 method(desc_alt, Resampler) <- function(x) {
-  desc_alt(x@parameters)
+  desc_alt(x@config)
 } # /rtemis::desc_alt.Resampler
 
 # print1.resample <- function(x, verbosity = 0L, ...) {

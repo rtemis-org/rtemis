@@ -8,7 +8,7 @@
 #'
 #' @param x Matrix or data.frame: Data to cluster. Rows are cases to be clustered.
 #' @param algorithm Character: Clustering algorithm.
-#' @param parameters List: Algorithm-specific parameters.
+#' @param config List: Algorithm-specific config.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Clustering object.
@@ -18,14 +18,14 @@
 cluster <- function(
   x,
   algorithm = "KMeans",
-  parameters = NULL,
+  config = NULL,
   verbosity = 1L
 ) {
   # Checks ----
-  if (is.null(parameters)) {
-    parameters <- get_default_clusterparams(algorithm)
+  if (is.null(config)) {
+    config <- get_default_clusterparams(algorithm)
   }
-  check_is_S7(parameters, ClusteringParameters)
+  check_is_S7(config, ClusteringConfig)
 
   # Intro ----
   start_time <- intro(verbosity = verbosity)
@@ -42,7 +42,7 @@ cluster <- function(
   }
   clust <- do_call(
     fn = get_clust_fn(algorithm),
-    args = list(x = x, parameters = parameters, verbosity = verbosity)
+    args = list(x = x, config = config, verbosity = verbosity)
   )
 
   # Clusters ----
@@ -51,9 +51,9 @@ cluster <- function(
     args = list(clust = clust)
   )
 
-  if (!is.null(parameters[["k"]])) {
-    # For algorithms where k is specified in parameters
-    k <- parameters[["k"]]
+  if (!is.null(config[["k"]])) {
+    # For algorithms where k is specified in config
+    k <- config[["k"]]
   } else {
     # For algorithms where k is not prescribed, but determined from the clustering result
     k <- length(unique(clusters))
@@ -69,6 +69,6 @@ cluster <- function(
     clust = clust,
     k = k,
     clusters = clusters,
-    parameters = parameters
+    config = config
   )
 } # /rtemis::cluster

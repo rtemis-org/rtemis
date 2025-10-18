@@ -71,7 +71,7 @@
 #' @param file_height Numeric: Height of the saved plot image.
 #' @param file_scale Numeric: Scale of the saved plot image.
 #' @param verbosity Integer: Verbosity level.
-#' @param ... Additional parameters passed to [draw_scatter].
+#' @param ... Additional arguments passed to [draw_scatter].
 #'
 #' @return `plotly` object.
 #'

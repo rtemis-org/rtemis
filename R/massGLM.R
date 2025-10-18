@@ -84,7 +84,7 @@ massGLM <- function(
   if (scale_y || center_y) {
     y <- preprocess(
       y,
-      parameters = setup_Preprocessor(scale = scale_y, center = center_y),
+      config = setup_Preprocessor(scale = scale_y, center = center_y),
       verbosity = verbosity
     )[["preprocessed"]]
   }

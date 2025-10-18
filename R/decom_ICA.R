@@ -6,23 +6,23 @@
 #'
 #' @keywords internal
 #' @noRd
-decom_ICA <- function(x, parameters, verbosity = 1L) {
+decom_ICA <- function(x, config, verbosity = 1L) {
   # Checks ----
-  check_is_S7(parameters, ICAParameters)
+  check_is_S7(config, ICAConfig)
   check_dependencies("fastICA")
   check_unsupervised_data(x = x, allow_missing = FALSE)
 
   # Decompose ----
   decom <- fastICA::fastICA(
     X = as.matrix(x),
-    n.comp = parameters[["k"]],
-    alg.typ = parameters[["type"]],
-    fun = parameters[["fun"]],
-    alpha = parameters[["alpha"]],
+    n.comp = config[["k"]],
+    alg.typ = config[["type"]],
+    fun = config[["fun"]],
+    alpha = config[["alpha"]],
     method = "C",
-    row.norm = parameters[["row_norm"]],
-    maxit = parameters[["maxit"]],
-    tol = parameters[["tol"]],
+    row.norm = config[["row_norm"]],
+    maxit = config[["maxit"]],
+    tol = config[["tol"]],
     verbose = verbosity > 0L
   )
   check_inherits(decom, "list")

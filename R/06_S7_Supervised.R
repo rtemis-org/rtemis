@@ -211,7 +211,7 @@ method(repr, Supervised) <- function(
       " Calibrated using ",
       desc_alg(x@calibration_models[[1]]@algorithm),
       " with ",
-      desc(x@calibration_models[[1]]@outer_resampler@parameters),
+      desc(x@calibration_models[[1]]@outer_resampler@config),
       ".\n\n"
     )
   }
@@ -377,11 +377,11 @@ CalibrationRes <- new_class(
   name = "CalibrationRes",
   properties = list(
     models = class_list,
-    resampler_parameters = ResamplerParameters
+    resampler_config = ResamplerConfig
     # brier_score_delta_training = class_numeric | NULL,
     # brier_score_delta_test = class_numeric | NULL
   )
-  # constructor = function(models, resampler_parameters) {
+  # constructor = function(models, resampler_config) {
 
   # }
 ) # /CalibrationRes
@@ -1133,7 +1133,7 @@ SupervisedRes <- new_class(
     type = class_character,
     preprocessor = Preprocessor | NULL,
     hyperparameters = Hyperparameters | NULL,
-    tuner_parameters = TunerParameters | NULL,
+    tuner_config = TunerConfig | NULL,
     outer_resampler = Resampler,
     y_training = class_any,
     y_test = class_any,
@@ -1153,7 +1153,7 @@ SupervisedRes <- new_class(
     type,
     preprocessor,
     hyperparameters,
-    tuner_parameters,
+    tuner_config,
     outer_resampler,
     y_training,
     y_test,
@@ -1174,7 +1174,7 @@ SupervisedRes <- new_class(
       models = models,
       type = models[[1]]@type,
       hyperparameters = hyperparameters,
-      tuner_parameters = tuner_parameters,
+      tuner_config = tuner_config,
       outer_resampler = outer_resampler,
       y_training = y_training,
       y_test = y_test,
@@ -1222,12 +1222,12 @@ method(repr, SupervisedRes) <- function(
   )
 
   # Tuning, if available (1 line)
-  if (!is.null(x@tuner_parameters)) {
+  if (!is.null(x@tuner_config)) {
     out <- paste0(
       out,
       fmt("\U2699", col = col_tuner, bold = TRUE, output_type = output_type),
       " Tuned using ",
-      desc(x@tuner_parameters),
+      desc(x@tuner_config),
       ".\n"
     )
   }
@@ -1249,7 +1249,7 @@ method(repr, SupervisedRes) <- function(
       " Calibrated using ",
       desc_alg(x@calibration_models[[1]]@algorithm),
       " with ",
-      desc(x@calibration_models[[1]]@outer_resampler@parameters),
+      desc(x@calibration_models[[1]]@outer_resampler@config),
       ".\n"
     )
   }
@@ -1354,7 +1354,7 @@ ClassificationRes <- new_class(
     models,
     preprocessor,
     hyperparameters,
-    tuner_parameters,
+    tuner_config,
     outer_resampler,
     y_training,
     y_validation = NULL,
@@ -1383,7 +1383,7 @@ ClassificationRes <- new_class(
         type = "Classification",
         preprocessor = preprocessor,
         hyperparameters = hyperparameters,
-        tuner_parameters = tuner_parameters,
+        tuner_config = tuner_config,
         outer_resampler = outer_resampler,
         y_training = y_training,
         y_test = y_test,
@@ -1493,12 +1493,12 @@ method(print, CalibratedClassificationRes) <- function(x, ...) {
     ".\n",
     sep = ""
   )
-  if (!is.null(x@tuner_parameters)) {
+  if (!is.null(x@tuner_config)) {
     cat(
       "  ",
       fmt("\U2699", col = col_tuner, bold = TRUE),
       " Tuned using ",
-      desc(x@tuner_parameters),
+      desc(x@tuner_config),
       ".\n",
       sep = ""
     )
@@ -1509,7 +1509,7 @@ method(print, CalibratedClassificationRes) <- function(x, ...) {
     " Calibrated using ",
     desc_alg(x@calibration_models[[1]]@algorithm),
     " with ",
-    desc(x@calibration_models[[1]]@outer_resampler@parameters),
+    desc(x@calibration_models[[1]]@outer_resampler@config),
     ".\n\n",
     sep = ""
   )
@@ -1556,7 +1556,7 @@ RegressionRes <- new_class(
     models,
     preprocessor,
     hyperparameters,
-    tuner_parameters,
+    tuner_config,
     outer_resampler,
     y_training,
     y_validation = NULL,
@@ -1590,7 +1590,7 @@ RegressionRes <- new_class(
         type = "Regression",
         preprocessor = preprocessor,
         hyperparameters = hyperparameters,
-        tuner_parameters = tuner_parameters,
+        tuner_config = tuner_config,
         outer_resampler = outer_resampler,
         y_training = y_training,
         y_test = y_test,
@@ -1620,11 +1620,11 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
   out <- paste0(algorithm, " was used for ", tolower(type), ".")
 
   # Tuning ----
-  if (length(x@tuner_parameters) > 0) {
+  if (length(x@tuner_config) > 0) {
     out <- paste0(
       out,
       " Hyperparameter tuning was performed using ",
-      desc(x@tuner_parameters),
+      desc(x@tuner_config),
       "."
     )
   }
@@ -2023,7 +2023,7 @@ make_SupervisedRes <- function(
   models,
   preprocessor,
   hyperparameters,
-  tuner_parameters,
+  tuner_config,
   outer_resampler,
   y_training,
   y_test,
@@ -2045,7 +2045,7 @@ make_SupervisedRes <- function(
       models = models,
       preprocessor = preprocessor,
       hyperparameters = hyperparameters,
-      tuner_parameters = tuner_parameters,
+      tuner_config = tuner_config,
       outer_resampler = outer_resampler,
       y_training = y_training,
       y_test = y_test,
@@ -2064,7 +2064,7 @@ make_SupervisedRes <- function(
       models = models,
       preprocessor = preprocessor,
       hyperparameters = hyperparameters,
-      tuner_parameters = tuner_parameters,
+      tuner_config = tuner_config,
       outer_resampler = outer_resampler,
       y_training = y_training,
       y_test = y_test,
@@ -2205,8 +2205,8 @@ method(desc, class_list) <- function(
   # SupervisedRes ----
   if (type == "SupervisedRes") {
     # Check that the same resampling method was used - ideally same seed, but do not enforce that, but report it
-    # Get resampling parameters from each
-    res_params <- lapply(x, function(m) m@outer_resampler@parameters)
+    # Get resampling config from each
+    res_params <- lapply(x, function(m) m@outer_resampler@config)
     # Check all resamplers of same type
     if (!all(sapply(res_params, function(p) p@type == res_params[[1]]@type))) {
       cli::cli_warn(

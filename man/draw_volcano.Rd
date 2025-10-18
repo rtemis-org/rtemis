@@ -167,7 +167,7 @@ significant points above \code{x_thresh}.}
 
 \item{verbosity}{Integer: Verbosity level.}
 
-\item{...}{Additional parameters passed to \link{draw_scatter}.}
+\item{...}{Additional arguments passed to \link{draw_scatter}.}
 }
 \value{
 \code{plotly} object.

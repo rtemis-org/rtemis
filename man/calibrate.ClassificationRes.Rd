@@ -10,7 +10,7 @@
 
 \item{hyperparameters}{Hyperparameters object: Setup using one of \verb{setup_*} functions.}
 
-\item{resampler_parameters}{ResamplerParameters}
+\item{resampler_config}{ResamplerConfig}
 
 \item{verbosity}{Integer: Verbosity level.}
 

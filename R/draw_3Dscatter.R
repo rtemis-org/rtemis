@@ -13,7 +13,7 @@
 #' @param z Numeric, vector/data.frame/list: z-axis data.
 #' @param fit Character: Fit method.
 #' @param cluster Character: Clustering method.
-#' @param cluster_params List: Parameters for clustering.
+#' @param cluster_config List: Config for clustering.
 #' @param group Factor: Grouping variable.
 #' @param formula Formula: Formula for non-linear least squares fit.
 #' @param rsq Logical: If TRUE, print R-squared values in legend if `fit` is set.
@@ -50,7 +50,7 @@
 #' @param legend_borderwidth Numeric: Border width for legend.
 #' @param legend_group_gap Numeric: Gap between legend groups.
 #' @param margin Numeric, named list: Margins for top, bottom, left, right.
-#' @param fit_params Hyperparameters: Parameters for fit.
+#' @param fit_params Hyperparameters for fit.
 #' @param width Numeric: Width of plot.
 #' @param height Numeric: Height of plot.
 #' @param padding Numeric: Graph padding.
@@ -76,7 +76,7 @@ draw_3Dscatter <- function(
   z = NULL,
   fit = NULL,
   cluster = NULL,
-  cluster_params = list(k = 2),
+  cluster_config = NULL,
   group = NULL,
   formula = NULL,
   rsq = TRUE,
@@ -169,9 +169,9 @@ draw_3Dscatter <- function(
       cluster(
         x = data.frame(x, y),
         algorithm = cluster,
-        parameters = do_call(
+        config = do_call(
           get_clust_setup_fn(cluster),
-          cluster_params
+          cluster_config
         )
       )@clusters
     )
