@@ -21,10 +21,10 @@ SuperConfig <- new_class(
     dat_validation = class_character,
     dat_test = class_character,
     algorithm = class_character,
-    preprocessor = PreprocessorConfig | NULL,
+    preprocessor_config = PreprocessorConfig | NULL,
     hyperparameters = Hyperparameters | NULL,
     tuner_config = TunerConfig | NULL,
-    outer_resampling = ResamplerConfig | NULL,
+    outer_resampling_config = ResamplerConfig | NULL,
     weights = class_character | NULL, # column name in dat_training
     question = class_character | NULL,
     outdir = class_character,

@@ -97,7 +97,7 @@ test_that("train() GLM Regression with missing data throws error", {
 resmod_r_glm <- train(
   x = datr,
   algorithm = "glm",
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() Res GLM Regression succeeds", {
   expect_s7_class(resmod_r_glm, RegressionRes)
@@ -128,7 +128,7 @@ test_that("train() GLM Classification with IFW succeeds", {
 resmod_c_glm <- train(
   x = datc2,
   algorithm = "glm",
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() GLM ClassificationRes succeeds", {
   expect_s7_class(resmod_c_glm, ClassificationRes)
@@ -199,7 +199,7 @@ resmodt_r_glmnet <- train(
   x = datr_train,
   algorithm = "glmnet",
   hyperparameters = setup_GLMNET(alpha = c(0.5, 1)),
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() Res-GLMNET Regression with auto-lambda + alpha grid search succeeds", {
   expect_s7_class(resmodt_r_glmnet, RegressionRes)
@@ -277,7 +277,7 @@ test_that("predict() GAM Regression succeeds", {
 resmod_r_gam <- train(
   x = datr,
   algorithm = "gam",
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 
 ## GAM Classification ----
@@ -326,7 +326,7 @@ test_that("train() LinearSVM Regression with tuning succeeds", {
 resmod_r_svml <- train(
   x = datr,
   algorithm = "linearsvm",
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() Res LinearSVM Regression succeeds", {
   expect_s7_class(resmod_r_svml, RegressionRes)
@@ -355,7 +355,7 @@ test_that("train() LinearSVM Multiclass Classification succeeds", {
 resmod_c_linearsvm <- train(
   x = datc2,
   algorithm = "linearsvm",
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() Res LinearSVM Classification succeeds", {
   expect_s7_class(resmod_c_linearsvm, ClassificationRes)
@@ -386,7 +386,7 @@ test_that("train() RadialSVM Regression with tuning succeeds", {
 resmod_r_svmr <- train(
   x = datr,
   algorithm = "radialsvm",
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() Res RadialSVM Regression succeeds", {
   expect_s7_class(resmod_r_svmr, RegressionRes)
@@ -396,7 +396,7 @@ test_that("train() Res RadialSVM Regression succeeds", {
 resmodt_r_svmr <- train(
   x = datr,
   hyperparameters = setup_RadialSVM(cost = c(1, 10)),
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() Res RadialSVM Regression with tuning succeeds", {
   expect_s7_class(resmodt_r_svmr, RegressionRes)
@@ -426,7 +426,7 @@ test_that("train() RadialSVM Classification with tuning succeeds", {
 resmod_c_radialsvm <- train(
   x = datc2,
   algorithm = "radialsvm",
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() Res RadialSVM Classification succeeds", {
   expect_s7_class(resmod_c_radialsvm, ClassificationRes)
@@ -436,7 +436,7 @@ test_that("train() Res RadialSVM Classification succeeds", {
 resmodt_c_radialsvm <- train(
   x = datc2,
   hyperparameters = setup_RadialSVM(cost = c(1, 10)),
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() Res RadialSVM Classification with tuning succeeds", {
   expect_s7_class(resmodt_c_radialsvm, ClassificationRes)
@@ -495,7 +495,7 @@ test_that("tuned is set correctly", {
 resmod_r_cart <- train(
   x = datr,
   hyperparameters = setup_CART(),
-  outer_resampling = setup_Resampler(3L)
+  outer_resampling_config = setup_Resampler(3L)
 )
 test_that("train() RegressionRes succeeds", {
   expect_s7_class(resmod_r_cart, RegressionRes)
@@ -505,7 +505,7 @@ test_that("train() RegressionRes succeeds", {
 resmodt_r_cart <- train(
   x = datr,
   hyperparameters = setup_CART(maxdepth = 1:3, prune_cp = c(.001, .01)),
-  outer_resampling = setup_Resampler(10L)
+  outer_resampling_config = setup_Resampler(10L)
 )
 test_that("train() RegressionRes succeeds", {
   expect_s7_class(resmodt_r_cart, RegressionRes)
@@ -514,7 +514,7 @@ test_that("train() RegressionRes succeeds", {
 resmod_r_cart <- train(
   x = datr,
   hyperparameters = setup_CART(prune_cp = c(.001, .01)),
-  outer_resampling = setup_Resampler(3L)
+  outer_resampling_config = setup_Resampler(3L)
 )
 test_that("train() RegressionRes succeeds", {
   expect_s7_class(resmod_r_cart, RegressionRes)
@@ -565,7 +565,7 @@ resmodt_c_cart <- train(
   hyperparameters = setup_CART(
     maxdepth = c(2L, 3L)
   ),
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() CART ClassificationRes succeeds", {
   expect_s7_class(resmodt_c_cart, ClassificationRes)
@@ -674,7 +674,7 @@ resmodt_r_lightrf <- train(
     nrounds = 20L,
     lambda_l1 = c(0, 10)
   ),
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() Res LightRF Regression with l1 tuning succeeds", {
   expect_s7_class(resmodt_r_lightrf, RegressionRes)
@@ -711,7 +711,7 @@ test_that("train() LightRF Binary Classification with tuning succeeds", {
 resmod_c_lightrf <- train(
   x = datc2,
   hyperparameters = setup_LightRF(nrounds = 20L),
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() LightRF ClassificationRes succeeds", {
   expect_s7_class(resmod_c_lightrf, ClassificationRes)
@@ -754,7 +754,7 @@ test_that("train() LightGBM Regression with autotune nrounds succeeds", {
 resmodt_r_lightgbm <- train(
   x = datr_train,
   hyperparameters = setup_LightGBM(max_nrounds = 50L),
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() Res LightGBM Regression with autotune nrounds succeeds", {
   expect_s7_class(resmodt_r_lightgbm, RegressionRes)
@@ -906,7 +906,7 @@ test_that("train() Ranger Regression with grid search succeeds", {
 resmod_r_ranger <- train(
   x = datr,
   hyperparameters = setup_Ranger(num_trees = 5000L),
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() Res Ranger Regression succeeds", {
   expect_s7_class(resmod_r_ranger, RegressionRes)
@@ -936,7 +936,7 @@ test_that("train() Ranger Classification with grid search succeeds", {
 resmod_c_ranger <- train(
   x = datc2,
   hyperparameters = setup_Ranger(num_trees = 10L),
-  outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 test_that("train() Res Ranger Classification succeeds", {
   expect_s7_class(resmod_c_ranger, ClassificationRes)
@@ -1153,7 +1153,7 @@ test_that("train saves SupervisedRes model to rds successfully", {
   resmod_r_glm <- train(
     x = datr,
     algorithm = "glm",
-    outer_resampling = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
     outdir = outdir
   )
 

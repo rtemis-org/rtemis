@@ -12,7 +12,7 @@ train(
   preprocessor_config = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
-  outer_resampling = NULL,
+  outer_resampling_config = NULL,
   weights = NULL,
   question = NULL,
   outdir = NULL,
@@ -37,7 +37,7 @@ train(
 
 \item{tuner_config}{TunerConfig object: Setup using \link{setup_GridSearch}.}
 
-\item{outer_resampling}{ResamplerConfig object or NULL: Setup using \link{setup_Resampler}. This
+\item{outer_resampling_config}{ResamplerConfig object or NULL: Setup using \link{setup_Resampler}. This
 defines the outer resampling method, i.e. the splitting into training and test sets for the
 purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
 you might want to use a \code{dat_test} dataset to assess model performance on a single test set.}

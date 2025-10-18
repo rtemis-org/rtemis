@@ -24,7 +24,7 @@
 #' @param preprocessor_config PreprocessorConfig object or NULL: Setup using [setup_Preprocessor].
 #' @param hyperparameters Hyperparameters object: Setup using one of `setup_*` functions.
 #' @param tuner_config TunerConfig object: Setup using [setup_GridSearch].
-#' @param outer_resampling ResamplerConfig object or NULL: Setup using [setup_Resampler]. This
+#' @param outer_resampling_config ResamplerConfig object or NULL: Setup using [setup_Resampler]. This
 #' defines the outer resampling method, i.e. the splitting into training and test sets for the
 #' purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
 #' you might want to use a `dat_test` dataset to assess model performance on a single test set.
@@ -61,7 +61,7 @@ train <- function(
   preprocessor_config = NULL, # PreprocessorConfig
   hyperparameters = NULL, # Hyperparameters
   tuner_config = NULL, # TunerConfig
-  outer_resampling = NULL, # ResamplerConfig
+  outer_resampling_config = NULL, # ResamplerConfig
   weights = NULL,
   question = NULL,
   outdir = NULL,
@@ -124,21 +124,21 @@ train <- function(
     check_is_S7(preprocessor_config, PreprocessorConfig)
   }
 
-  # If outer_resampling is set, dat_validation and dat_test must be NULL
-  if (!is.null(outer_resampling)) {
+  # If outer_resampling_config is set, dat_validation and dat_test must be NULL
+  if (!is.null(outer_resampling_config)) {
     if (!is.null(dat_validation) || !is.null(dat_test)) {
       cli::cli_abort(
-        "If outer_resampling is set, dat_validation and dat_test must be NULL."
+        "If outer_resampling_config is set, dat_validation and dat_test must be NULL."
       )
     }
   }
 
   ## Arguments ----
   parallel_type <- match.arg(parallel_type)
-  if (!is.null(outer_resampling)) {
-    check_is_S7(outer_resampling, ResamplerConfig)
-    if (!is.null(outer_resampling[["id_strat"]])) {
-      stopifnot(length(outer_resampling[["id_strat"]]) == NROW(x))
+  if (!is.null(outer_resampling_config)) {
+    check_is_S7(outer_resampling_config, ResamplerConfig)
+    if (!is.null(outer_resampling_config[["id_strat"]])) {
+      stopifnot(length(outer_resampling_config[["id_strat"]]) == NROW(x))
     }
   }
 
@@ -189,7 +189,7 @@ train <- function(
   workers <- get_n_workers(
     algorithm = algorithm,
     hyperparameters = hyperparameters,
-    outer_resampling = outer_resampling,
+    outer_resampling_config = outer_resampling_config,
     n_workers = n_workers,
     verbosity = verbosity
   )
@@ -197,23 +197,23 @@ train <- function(
   tuner <- NULL
 
   # Outer Resampling ----
-  # if outer_resampling is set, this function calls itself
+  # if outer_resampling_config is set, this function calls itself
   # on multiple outer resamples (training-test sets), each of which may call itself
   # on multiple inner resamples (training-validation sets) for hyperparameter tuning.
-  if (!is.null(outer_resampling)) {
+  if (!is.null(outer_resampling_config)) {
     if (verbosity > 0L) {
       msg0(
         fmt("<> ", col = col_outer, bold = TRUE),
         "Training ",
         highlight(paste(algorithm, type)),
         " using ",
-        desc(outer_resampling),
+        desc(outer_resampling_config),
         "..."
       )
     }
     outer_resampler <- resample(
       x,
-      config = outer_resampling,
+      config = outer_resampling_config,
       verbosity = verbosity
     )
     models <- lapply(
@@ -230,7 +230,7 @@ train <- function(
           preprocessor_config = preprocessor_config,
           hyperparameters = hyperparameters,
           tuner_config = tuner_config,
-          outer_resampling = NULL,
+          outer_resampling_config = NULL,
           weights = weights,
           question = question,
           verbosity = verbosity - 1L
@@ -481,7 +481,7 @@ train <- function(
 #'
 #' @param algorithm Character: Algorithm name.
 #' @param hyperparameters Hyperparameters object: Setup using one of `setup_*` functions.
-#' @param outer_resampling ResamplerConfig object or NULL: Setup using [setup_Resampler].
+#' @param outer_resampling_config ResamplerConfig object or NULL: Setup using [setup_Resampler].
 #' @param n_workers Integer: Total number of workers you want to use.
 #' @param verbosity Integer: Verbosity level.
 #'
@@ -495,14 +495,14 @@ train <- function(
 #' @return Named list with the number of workers for each level:
 #' - `algorithm`: Number of workers for algorithm training.
 #' - `tuning`: Number of workers for tuning (if applicable).
-#' - `outer_resampling`: Number of workers for outer resampling (if applicable).
+#' - `outer_resampling_config`: Number of workers for outer resampling (if applicable).
 #'
 #' @keywords internal
 #' @noRd
 get_n_workers <- function(
   algorithm,
   hyperparameters,
-  outer_resampling,
+  outer_resampling_config,
   n_workers,
   verbosity = 1L
 ) {
@@ -518,7 +518,7 @@ get_n_workers <- function(
   # Check parallelization conditions
   is_parallelized <- algorithm %in% live[["parallelized_learners"]]
   requires_tuning <- needs_tuning(hyperparameters)
-  requires_resampling <- !is.null(outer_resampling)
+  requires_resampling <- !is.null(outer_resampling_config)
 
   # Assign workers to innermost parallelization level to avoid over-subscription
   if (is_parallelized) {

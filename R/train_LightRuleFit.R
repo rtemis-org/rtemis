@@ -59,7 +59,7 @@ train_LightRuleFit <- function(
     weights = lightgbm_weights,
     hyperparameters = lgbm_parameters,
     # tuner_config = tuner_config, # ? add tuner_config to LightRuleFitHyperparameters
-    outer_resampling = NULL,
+    outer_resampling_config = NULL,
     verbosity = verbosity
   )
 

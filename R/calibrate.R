@@ -157,7 +157,7 @@ calibrate.ClassificationRes <- function(
         dat,
         algorithm = algorithm,
         hyperparameters = hyperparameters,
-        outer_resampling = resampler_config
+        outer_resampling_config = resampler_config
       )
     }
   )
