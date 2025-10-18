@@ -1,5 +1,5 @@
 Package: rtemis
-Version: 0.99.9100
+Version: 0.99.1000
 Title: Advanced Machine Learning and Visualization
 Date: 2025-10-18
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre"), email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
