@@ -867,20 +867,6 @@ list2html <- function(
 } # /rtemis::list2html
 
 
-#' @author EDG
-#' @keywords internal
-#' @noRd
-printchar <- function(x, left_pad = 2) {
-  target_length <- left_pad + max(nchar(x))
-  for (i in x) {
-    cat(
-      highlight(leftpad(i, target_length)),
-      "\n"
-    )
-  }
-} # /rtemis::printchar
-
-
 # Helper function to build padded string equivalent of padcat
 show_padded <- function(
   text,

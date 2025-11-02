@@ -163,7 +163,7 @@ dt_merge <- function(
     )
     if (left_on == right_on) {
       msg0(
-        bold(green(icon)),
+        bold(highlight(icon)),
         " Merging ",
         highlight(left_name),
         " & ",
@@ -174,7 +174,7 @@ dt_merge <- function(
       )
     } else {
       msg0(
-        bold(green(icon)),
+        bold(highlight(icon)),
         " Merging ",
         highlight(left_name),
         " & ",

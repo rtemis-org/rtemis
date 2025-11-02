@@ -81,14 +81,14 @@ ddb_data <- function(
   fileext <- tools::file_ext(path)
 
   out <- paste(
-    bold(green("\u25B6")),
+    bold(highlight("\u25B6")),
     ifelse(collect, "Reading", "Lazy-reading"),
     highlight(basename(path))
   )
   if (!is.null(filter_column)) {
     out <- paste(
       out,
-      bold(green("\u29e8")),
+      bold(highlight("\u29e8")),
       "filtering on",
       bold(filter_column)
     )

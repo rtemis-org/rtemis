@@ -230,15 +230,6 @@ clean_colnames <- function(x) {
 }
 
 
-leftpad <- function(x, target_length, pad_char = " ") {
-  lpad <- target_length - nchar(x)
-  if (lpad > 0) {
-    paste0(paste0(rep(pad_char, lpad), collapse = ""), x)
-  } else {
-    x
-  }
-}
-
 #' Force plain text when using `message()`
 #'
 #' @param x Character: Text to be output to console.
