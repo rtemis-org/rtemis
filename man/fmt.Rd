@@ -13,6 +13,7 @@ fmt(
   thin = FALSE,
   muted = FALSE,
   bg = NULL,
+  pad = 0L,
   output_type = c("ansi", "html", "plain")
 )
 }
