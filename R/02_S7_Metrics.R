@@ -87,7 +87,7 @@ method(repr, RegressionMetrics) <- function(
   }
   out <- paste0(
     out,
-    show_ls(
+    repr_ls(
       x@metrics,
       print_class = FALSE,
       print_df = TRUE,
@@ -296,7 +296,7 @@ method(repr, MetricsRes) <- function(
   names(metricsl) <- names(x@mean_metrics)
   out <- paste0(
     out,
-    show_ls(
+    repr_ls(
       metricsl,
       print_class = FALSE,
       print_df = TRUE,

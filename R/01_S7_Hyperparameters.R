@@ -141,7 +141,7 @@ method(repr, Hyperparameters) <- function(
   )
   out <- paste0(
     out,
-    show_ls(
+    repr_ls(
       props(x)[-1],
       pad = pad,
       maxlength = maxlength,

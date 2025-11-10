@@ -645,7 +645,7 @@ pastels <- function(x, bullet = "  -") {
 #' Get first few elements of a vector with ellipsis
 #'
 #' @details
-#' Used, for example, by `show_ls`
+#' Used, for example, by `repr_ls`
 #'
 #' @return Character.
 #'
@@ -890,7 +890,7 @@ show_padded <- function(
 #' Show list as formatted string
 #'
 #' Works exactly like printls, but instead of printing to console with cat,
-#' it outputs a single string, formatted using mformat, so that cat(show_ls(x))
+#' it outputs a single string, formatted using mformat, so that cat(repr_ls(x))
 #' looks identical to printls(x) for any list x
 #'
 #' @param x list or object that will be converted to a list.
@@ -920,7 +920,7 @@ show_padded <- function(
 #' @keywords internal
 #' @export
 
-show_ls <- function(
+repr_ls <- function(
   x,
   prefix = "",
   pad = 2L,
@@ -1075,7 +1075,7 @@ show_ls <- function(
           result <- paste0(result, item_text)
 
           if (is_common_struct(x[[i]])) {
-            sub_result <- show_ls(
+            sub_result <- repr_ls(
               x[[i]],
               pad = lhs + 2,
               item_format = item_format,
@@ -1263,4 +1263,4 @@ show_ls <- function(
   }
 
   result
-} # /rtemis::show_ls
+} # /rtemis::repr_ls

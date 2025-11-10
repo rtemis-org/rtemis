@@ -597,7 +597,7 @@ dt_names_by_class <- function(
   } else {
     sapply(vals, \(i) names(x)[classes == i])
   }
-  cat(show_ls(out, item_format = item_format, maxlength = maxlength))
+  cat(repr_ls(out, item_format = item_format, maxlength = maxlength))
   invisible()
 } # /rtemis::dt_names_by_class
 

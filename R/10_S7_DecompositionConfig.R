@@ -65,7 +65,7 @@ method(repr, DecompositionConfig) <- function(
       pad = pad,
       output_type = output_type
     ),
-    show_ls(x["config"], pad = pad, limit = -1L, output_type = output_type)
+    repr_ls(x["config"], pad = pad, limit = -1L, output_type = output_type)
   )
 } # /rtemis::show.DecompositionConfig
 
