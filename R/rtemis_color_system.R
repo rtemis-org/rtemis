@@ -44,8 +44,8 @@ rt_teal <- rtemis_teal
 rt_purple <- rtemis_purple
 rt_magenta <- rtemis_magenta
 
-col_object <- rt_teal
 highlight_col <- rt_teal
+col_object <- rt_teal
 col_info <- highlight2_col <- lmd_burgundy
 col_outer <- rt_red
 col_tuner <- rt_orange # genlib orange
