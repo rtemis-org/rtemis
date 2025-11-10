@@ -50,11 +50,12 @@ fmt <- function(
   thin = FALSE,
   muted = FALSE,
   bg = NULL,
+  pad = 0L,
   output_type = c("ansi", "html", "plain")
 ) {
   output_type <- match.arg(output_type)
 
-  switch(
+  out <- switch(
     output_type,
     "ansi" = {
       codes <- character()
@@ -157,7 +158,11 @@ fmt <- function(
       }
     },
     "plain" = x
-  )
+  ) # /switch
+  if (pad > 0L) {
+    out <- paste0(strrep(" ", pad), out)
+  }
+  out
 } # /rtemis::fmt
 
 
