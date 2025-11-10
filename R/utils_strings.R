@@ -315,7 +315,8 @@ pastebox <- function(x, pad = 0) {
 #' @keywords internal
 repr_S7name <- function(
   x,
-  colors = c(rtemis_teal, rtemis_light_teal),
+  # colors = c(rtemis_teal, rtemis_light_teal),
+  col = col_object,
   pad = 0L,
   verbosity = 2L,
   output_type = NULL
@@ -324,13 +325,14 @@ repr_S7name <- function(
   paste0(
     strrep(" ", pad),
     gray(if (verbosity > 1L) "<rt " else "<", output_type = output_type),
-    # fmt(x, col = col, bold = TRUE, output_type = output_type),
-    fmt_gradient(
-      x,
-      colors = colors,
-      bold = TRUE,
-      output_type = output_type
-    ),
+    fmt(x, col = col, bold = TRUE, output_type = output_type),
+    # gradient version
+    # fmt_gradient(
+    #   x,
+    #   colors = colors,
+    #   bold = TRUE,
+    #   output_type = output_type
+    # ),
     gray(">", output_type = output_type),
     "\n"
   )
