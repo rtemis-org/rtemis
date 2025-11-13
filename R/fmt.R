@@ -171,6 +171,7 @@ fmt <- function(
 #' A `fmt()` convenience wrapper for highlighting text.
 #'
 #' @param x Character: Text to highlight.
+#' @param pad Integer: Number of spaces to pad before text.
 #' @param output_type Character: Output type ("ansi", "html", "plain").
 #'
 #' @return Character: Formatted text with highlight.
@@ -180,9 +181,10 @@ fmt <- function(
 #' @keywords internal
 highlight <- function(
   x,
+  pad = 0L,
   output_type = c("ansi", "html", "plain")
 ) {
-  fmt(x, col = highlight_col, bold = TRUE, output_type = output_type)
+  fmt(x, col = highlight_col, bold = TRUE, pad = pad, output_type = output_type)
 } # /rtemis::highlight
 
 highlight2 <- function(
