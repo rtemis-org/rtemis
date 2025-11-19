@@ -4,14 +4,12 @@
 \alias{repr_S7name}
 \title{Show S7 class name}
 \usage{
-repr_S7name(x, col = col_object, pad = 0L, verbosity = 2L, output_type = NULL)
+repr_S7name(x, col = col_object, pad = 0L, prefix = NULL, output_type = NULL)
 }
 \arguments{
 \item{x}{Character: S7 class name.}
 
 \item{pad}{Integer: Number of spaces to pad the message with.}
-
-\item{verbosity}{Integer: Verbosity level. If > 1, adds package name to the output.}
 
 \item{output_type}{Character: Output type ("ansi", "html", "plain").}
 

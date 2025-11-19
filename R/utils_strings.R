@@ -305,7 +305,6 @@ pastebox <- function(x, pad = 0) {
 #' @param x Character: S7 class name.
 #' @param colors Character: Color codes for the object name.
 #' @param pad Integer: Number of spaces to pad the message with.
-#' @param verbosity Integer: Verbosity level. If > 1, adds package name to the output.
 #' @param output_type Character: Output type ("ansi", "html", "plain").
 #'
 #' @return Character: Formatted string that can be printed with cat().
@@ -318,13 +317,16 @@ repr_S7name <- function(
   # colors = c(rtemis_teal, rtemis_light_teal),
   col = col_object,
   pad = 0L,
-  verbosity = 2L,
+  prefix = NULL,
   output_type = NULL
 ) {
   output_type <- get_output_type(output_type)
   paste0(
     strrep(" ", pad),
-    gray(if (verbosity > 1L) "<rt " else "<", output_type = output_type),
+    gray("<", output_type = output_type),
+    if (!is.null(prefix)) {
+      gray(prefix, output_type = output_type)
+    },
     fmt(x, col = col, bold = TRUE, output_type = output_type),
     # gradient version
     # fmt_gradient(
