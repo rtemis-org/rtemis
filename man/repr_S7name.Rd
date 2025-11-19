@@ -9,11 +9,13 @@ repr_S7name(x, col = col_object, pad = 0L, prefix = NULL, output_type = NULL)
 \arguments{
 \item{x}{Character: S7 class name.}
 
+\item{col}{Color: Color code for the object name.}
+
 \item{pad}{Integer: Number of spaces to pad the message with.}
 
-\item{output_type}{Character: Output type ("ansi", "html", "plain").}
+\item{prefix}{Character: Prefix to add to the object name.}
 
-\item{colors}{Character: Color codes for the object name.}
+\item{output_type}{Character: Output type ("ansi", "html", "plain").}
 }
 \value{
 Character: Formatted string that can be printed with cat().

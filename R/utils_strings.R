@@ -303,8 +303,9 @@ pastebox <- function(x, pad = 0) {
 #' Show S7 class name
 #'
 #' @param x Character: S7 class name.
-#' @param colors Character: Color codes for the object name.
+#' @param col Color: Color code for the object name.
 #' @param pad Integer: Number of spaces to pad the message with.
+#' @param prefix Character: Prefix to add to the object name.
 #' @param output_type Character: Output type ("ansi", "html", "plain").
 #'
 #' @return Character: Formatted string that can be printed with cat().
@@ -314,7 +315,6 @@ pastebox <- function(x, pad = 0) {
 #' @keywords internal
 repr_S7name <- function(
   x,
-  # colors = c(rtemis_teal, rtemis_light_teal),
   col = col_object,
   pad = 0L,
   prefix = NULL,
@@ -328,17 +328,11 @@ repr_S7name <- function(
       gray(prefix, output_type = output_type)
     },
     fmt(x, col = col, bold = TRUE, output_type = output_type),
-    # gradient version
-    # fmt_gradient(
-    #   x,
-    #   colors = colors,
-    #   bold = TRUE,
-    #   output_type = output_type
-    # ),
     gray(">", output_type = output_type),
     "\n"
   )
 } # /rtemis::repr_S7name
+
 
 #' Cat object
 #'
@@ -358,20 +352,20 @@ objcat <- function(
   x,
   col = col_object,
   pad = 0L,
-  verbosity = 2L,
+  prefix = NULL,
   output_type = c("ansi", "html", "plain")
 ) {
   output_type <- match.arg(output_type)
 
   out <- repr_S7name(
     x,
-    colors = col,
+    col = col,
     pad = pad,
-    verbosity = verbosity,
     output_type = output_type
   )
   cat(out)
 } # rtemis::objcat
+
 
 #' Function to label
 #'
