@@ -361,6 +361,7 @@ objcat <- function(
     x,
     col = col,
     pad = pad,
+    prefix = prefix,
     output_type = output_type
   )
   cat(out)
