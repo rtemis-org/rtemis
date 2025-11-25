@@ -102,7 +102,7 @@ read <- function(
     check_dependencies("arrow")
     if (verbosity > 0L) {
       msg0(
-        bold(highlight("\u25B6")),
+        highlight("\u25B6"),
         " Reading ",
         highlight(basename(path)),
         " using arrow::read_parquet()..."
