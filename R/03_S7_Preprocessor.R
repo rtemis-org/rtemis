@@ -385,3 +385,8 @@ method(`[`, Preprocessor) <- function(x, name) {
 method(`[[`, Preprocessor) <- function(x, name) {
   props(x)[[name]]
 }
+
+# preprocessed.Preprocessor ----
+method(preprocessed, Preprocessor) <- function(x) {
+  x@preprocessed
+}

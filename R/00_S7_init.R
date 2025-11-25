@@ -5,6 +5,8 @@
 # References
 # S7 generics: https://rconsortium.github.io/S7/articles/generics-methods.html
 
+# --- Generics -------------------------------------------------------------------------------------
+
 #' String representation
 #'
 #' @details
@@ -366,3 +368,13 @@ get_output_type <- function(
 
   match.arg(output_type)
 } # /rtemis::get_output_type
+
+
+#' Get preprocessed data from Preprocessor
+#'
+#' @param x Preprocessor: A Preprocessor object.
+#'
+#' @return data.frame: The preprocessed data.
+#'
+#' @export
+preprocessed <- new_generic("preprocessed", "x")
