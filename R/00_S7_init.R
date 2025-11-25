@@ -373,6 +373,7 @@ get_output_type <- function(
 #' Get preprocessed data from Preprocessor
 #'
 #' @param x Preprocessor: A Preprocessor object.
+#' @param ... Not used.
 #'
 #' @return data.frame: The preprocessed data.
 #'

@@ -8,6 +8,8 @@ preprocessed(x, ...)
 }
 \arguments{
 \item{x}{Preprocessor: A Preprocessor object.}
+
+\item{...}{Not used.}
 }
 \value{
 data.frame: The preprocessed data.
