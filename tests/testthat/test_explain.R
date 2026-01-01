@@ -27,7 +27,7 @@ datc2_test <- datc2[-resc2$Fold_1, ]
 
 ## GLMET Regression ----
 mod_r_glmnet <- train(
-  x = datr_train,
+  datr_train,
   dat_test = datr_test,
   algorithm = "glmnet",
   hyperparameters = setup_GLMNET(lambda = 0.01)
