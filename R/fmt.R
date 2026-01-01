@@ -289,7 +289,7 @@ muted <- function(x, output_type = c("ansi", "html", "plain")) {
 #' @keywords internal
 #' @noRd
 gray <- function(x, output_type = c("ansi", "html", "plain")) {
-  fmt(x, col = "gray", output_type = output_type)
+  fmt(x, col = "#808080", output_type = output_type)
 } # /rtemis::gray
 
 

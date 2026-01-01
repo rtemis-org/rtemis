@@ -121,7 +121,7 @@ printls <- function(
     # Print each item up to limit items
     if (limit != -1L && length(x) > limit) {
       padcat(
-        italic(thin(
+        italic(gray(
           paste(
             "Showing first",
             limit,
@@ -137,7 +137,7 @@ printls <- function(
       counter <- counter + 1L
       if (limit != -1L && counter > limit) {
         padcat(
-          italic(thin(
+          italic(gray(
             paste0(
               "...",
               length(x) - limit,
@@ -1008,7 +1008,7 @@ repr_ls <- function(
     if (limit != -1L && length(x) > limit) {
       limit_text <- paste0(
         italic(
-          thin(
+          gray(
             paste0(
               "Showing first ",
               limit,
@@ -1029,7 +1029,7 @@ repr_ls <- function(
       if (limit != -1L && counter > limit) {
         more_text <- paste0(
           italic(
-            thin(
+            gray(
               paste0(
                 "...",
                 length(x) - limit,
