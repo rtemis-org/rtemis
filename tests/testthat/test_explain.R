@@ -43,7 +43,7 @@ ex_r_glmnet <- explain(
   dat_training = features(datr_train)
 )
 
-test_that("explain() on GLMNET succeeds", {
+test_that("explain() on GLMNET Regression succeeds", {
   expect_s3_class(ex_r_glmnet, "shapr")
 })
 
@@ -58,9 +58,13 @@ mod_c_glmnet <- train(
 
 ex_c_glmnet <- explain(
   model = mod_c_glmnet,
-  x = features(datr_test[1, ]),
-  dat_training = features(datr_train)
+  x = features(datc2_test[1, ]),
+  dat_training = features(datc2_train)
 )
+
+test_that("explain() on GLMNET Classification succeeds", {
+  expect_s3_class(ex_c_glmnet, "shapr")
+})
 
 ## LightRF Regression ----
 mod_r_lightrf <- train(
@@ -74,6 +78,6 @@ ex_r_lightrf <- explain(
   model = mod_r_lightrf,
   x = features(datr_test[1, ])
 )
-test_that("explain() on LightRF succeeds", {
+test_that("explain() on LightRF Regression succeeds", {
   expect_true(is.list(ex_r_lightrf))
 })
