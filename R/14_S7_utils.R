@@ -401,7 +401,7 @@ print.CheckData <- function(
     } else {
       out <- paste(
         out,
-        bold(green("  * Everything looks good")),
+        highlight("  * Everything looks good"),
         sep = "\n"
       )
     }

@@ -90,7 +90,7 @@ method(repr, PreprocessorConfig) <- function(
   output_type <- get_output_type(output_type)
   paste0(
     repr_S7name("PreprocessorConfig", pad = pad, output_type = output_type),
-    show_ls(props(x), pad = pad, limit = limit, output_type = output_type)
+    repr_ls(props(x), pad = pad, limit = limit, output_type = output_type)
   )
 } # /rtemis::show.PreprocessorConfig
 
@@ -350,7 +350,7 @@ method(repr, Preprocessor) <- function(
   output_type <- get_output_type(output_type)
   out <- paste0(
     repr_S7name("Preprocessor", pad = pad, output_type = output_type),
-    show_ls(props(x), pad = pad, print_df = print_df)
+    repr_ls(props(x), pad = pad, print_df = print_df)
   )
 } # /rtemis::show.Preprocessor
 
@@ -384,4 +384,9 @@ method(`[`, Preprocessor) <- function(x, name) {
 # Make props `[[`-accessible ----
 method(`[[`, Preprocessor) <- function(x, name) {
   props(x)[[name]]
+}
+
+# preprocessed.Preprocessor ----
+method(preprocessed, Preprocessor) <- function(x) {
+  x@preprocessed
 }

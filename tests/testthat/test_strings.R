@@ -26,14 +26,14 @@ test_that("fmt_gradient() works", {
   expect_true(is.character(out))
 })
 
-# show_ls ----
+# repr_ls ----
 x <- list(
   a = 1:5,
   b = letters[1:5],
   c = rnorm(5)
 )
-out <- show_ls(x, title = "Test List")
-test_that("show_ls() works", {
+out <- repr_ls(x, title = "Test List")
+test_that("repr_ls() works", {
   expect_true(is.character(out))
 })
 
@@ -53,10 +53,10 @@ x <- list(
   l = setup_LightCART()
 )
 
-# show_ls(x, limit = 5L) |> cat()
-# show_ls(x, limit = -1L) |> cat()
+# repr_ls(x, limit = 5L) |> cat()
+# repr_ls(x, limit = -1L) |> cat()
 
-test_that("show_ls() handles long lists", {
-  expect_true(is.character(show_ls(x, limit = 5L)))
-  expect_true(is.character(show_ls(x, limit = -1L)))
+test_that("repr_ls() handles long lists", {
+  expect_true(is.character(repr_ls(x, limit = 5L)))
+  expect_true(is.character(repr_ls(x, limit = -1L)))
 })

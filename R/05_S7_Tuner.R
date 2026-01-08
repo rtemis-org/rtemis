@@ -340,7 +340,7 @@ method(repr, GridSearch) <- function(
   )
   out <- paste(
     out,
-    show_ls(x@best_hyperparameters, output_type = output_type),
+    repr_ls(x@best_hyperparameters, output_type = output_type),
     sep = ""
   )
   out

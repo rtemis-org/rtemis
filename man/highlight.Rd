@@ -4,10 +4,12 @@
 \alias{highlight}
 \title{Highlight text}
 \usage{
-highlight(x, output_type = c("ansi", "html", "plain"))
+highlight(x, pad = 0L, output_type = c("ansi", "html", "plain"))
 }
 \arguments{
 \item{x}{Character: Text to highlight.}
+
+\item{pad}{Integer: Number of spaces to pad before text.}
 
 \item{output_type}{Character: Output type ("ansi", "html", "plain").}
 }

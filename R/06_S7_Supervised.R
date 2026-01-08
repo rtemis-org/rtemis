@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# Refs & Res
+# References
 # https://github.com/RConsortium/S7/
 # https://rconsortium.github.io/S7
 # https://rconsortium.github.io/S7/articles/classes-objects.html?q=computed#computed-properties
@@ -411,6 +411,7 @@ method(print, CalibrationRes) <- function(x, ...) {
 get_explain_fn <- function(algorithm) {
   paste0("explain_", algorithm)
 }
+
 
 # Explain Supervised ----
 #' Explain Supervised

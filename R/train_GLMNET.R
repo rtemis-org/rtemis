@@ -201,17 +201,21 @@ explain_GLMNET <- function(model, x, dat_training, method = NULL) {
   if (!method %in% c("shapr")) {
     cli::cli_abort("Explain method for GLMNET must be 'shapr'")
   }
-  newdata <- as.matrix(
-    model.matrix(~., dat_training)[, -1, drop = FALSE]
-  )
+  x_mat <- model.matrix(~., x)[, -1, drop = FALSE]
+  dat_training_mat <- model.matrix(~., dat_training)[, -1, drop = FALSE]
   if (method == "shapr") {
+    phi0 <- if (model@type == "Classification") {
+      mean(model@predicted_prob_training)
+    } else {
+      mean(model@predicted_training)
+    }
     shapr::explain(
       model = model@model,
-      x_explain = x,
-      x_train = dat_training,
+      x_explain = x_mat,
+      x_train = dat_training_mat,
       predict_model = predict_GLMNET,
       approach = "ctree",
-      phi0 = mean(model@predicted_training)
+      phi0 = phi0
     )
   }
 } # /rtemis::explain_GLMNET

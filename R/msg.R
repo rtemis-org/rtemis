@@ -19,7 +19,7 @@ datetime <- function(datetime_format = "%Y-%m-%d %H:%M:%S") {
 #' @noRd
 # Used by msg(), msg0(), msgstart()
 msgdatetime <- function(datetime_format = "%Y-%m-%d %H:%M:%S") {
-  message(gray(paste0(datetime(), gray(" "))), appendLF = FALSE)
+  message(gray(paste0(datetime(), " ")), appendLF = FALSE)
 }
 
 

@@ -121,7 +121,7 @@ printls <- function(
     # Print each item up to limit items
     if (limit != -1L && length(x) > limit) {
       padcat(
-        italic(thin(
+        italic(gray(
           paste(
             "Showing first",
             limit,
@@ -137,7 +137,7 @@ printls <- function(
       counter <- counter + 1L
       if (limit != -1L && counter > limit) {
         padcat(
-          italic(thin(
+          italic(gray(
             paste0(
               "...",
               length(x) - limit,
@@ -645,7 +645,7 @@ pastels <- function(x, bullet = "  -") {
 #' Get first few elements of a vector with ellipsis
 #'
 #' @details
-#' Used, for example, by `show_ls`
+#' Used, for example, by `repr_ls`
 #'
 #' @return Character.
 #'
@@ -867,20 +867,6 @@ list2html <- function(
 } # /rtemis::list2html
 
 
-#' @author EDG
-#' @keywords internal
-#' @noRd
-printchar <- function(x, left_pad = 2) {
-  target_length <- left_pad + max(nchar(x))
-  for (i in x) {
-    cat(
-      highlight(leftpad(i, target_length)),
-      "\n"
-    )
-  }
-} # /rtemis::printchar
-
-
 # Helper function to build padded string equivalent of padcat
 show_padded <- function(
   text,
@@ -904,7 +890,7 @@ show_padded <- function(
 #' Show list as formatted string
 #'
 #' Works exactly like printls, but instead of printing to console with cat,
-#' it outputs a single string, formatted using mformat, so that cat(show_ls(x))
+#' it outputs a single string, formatted using mformat, so that cat(repr_ls(x))
 #' looks identical to printls(x) for any list x
 #'
 #' @param x list or object that will be converted to a list.
@@ -934,7 +920,7 @@ show_padded <- function(
 #' @keywords internal
 #' @export
 
-show_ls <- function(
+repr_ls <- function(
   x,
   prefix = "",
   pad = 2L,
@@ -1022,7 +1008,7 @@ show_ls <- function(
     if (limit != -1L && length(x) > limit) {
       limit_text <- paste0(
         italic(
-          thin(
+          gray(
             paste0(
               "Showing first ",
               limit,
@@ -1043,7 +1029,7 @@ show_ls <- function(
       if (limit != -1L && counter > limit) {
         more_text <- paste0(
           italic(
-            thin(
+            gray(
               paste0(
                 "...",
                 length(x) - limit,
@@ -1089,7 +1075,7 @@ show_ls <- function(
           result <- paste0(result, item_text)
 
           if (is_common_struct(x[[i]])) {
-            sub_result <- show_ls(
+            sub_result <- repr_ls(
               x[[i]],
               pad = lhs + 2,
               item_format = item_format,
@@ -1277,4 +1263,4 @@ show_ls <- function(
   }
 
   result
-} # /rtemis::show_ls
+} # /rtemis::repr_ls

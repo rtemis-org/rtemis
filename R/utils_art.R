@@ -308,7 +308,7 @@ show_col <- function(
   if (limit != -1L && length(x) > limit) {
     limit_text <- paste0(
       italic(
-        thin(
+        gray(
           paste0(
             "Showing first ",
             limit,
@@ -330,7 +330,7 @@ show_col <- function(
     if (limit != -1L && counter > limit) {
       more_text <- paste0(
         italic(
-          thin(
+          gray(
             paste0(
               "...",
               length(x) - limit,

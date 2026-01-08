@@ -53,7 +53,7 @@ method(repr, ClusteringConfig) <- function(
   )
   paste0(
     out,
-    show_ls(props(x)[["config"]], pad = pad, output_type = output_type)
+    repr_ls(props(x)[["config"]], pad = pad, output_type = output_type)
   )
 } # /show
 

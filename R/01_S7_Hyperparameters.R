@@ -23,7 +23,7 @@ TUNED_STATUS_TUNED <- 1L
 
 # `resampled` values ----
 # 0: Running on single training set.
-# 1: Running on cross-validated training sets.
+# 1: Running on resampled training sets.
 
 #' @title Hyperparameters
 #'
@@ -32,10 +32,11 @@ TUNED_STATUS_TUNED <- 1L
 #'
 #' @field algorithm Character: Algorithm name.
 #' @field hyperparameters Named list of algorithm hyperparameter values.
-#' @field tuned Integer: Tuning status.
-#' @field resampled Integer: Cross-validation status.
 #' @field tunable_hyperparameters Character: Names of tunable hyperparameters.
 #' @field fixed_hyperparameters Character: Names of fixed hyperparameters.
+#' @field tuned Integer: Tuning status.
+#' @field resampled Integer: Outer resampling status.
+#' @field n_workers Integer: Number of workers to use for tuning.
 #'
 #' @author EDG
 #' @noRd
@@ -140,7 +141,7 @@ method(repr, Hyperparameters) <- function(
   )
   out <- paste0(
     out,
-    show_ls(
+    repr_ls(
       props(x)[-1],
       pad = pad,
       maxlength = maxlength,

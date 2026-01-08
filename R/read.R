@@ -102,7 +102,7 @@ read <- function(
     check_dependencies("arrow")
     if (verbosity > 0L) {
       msg0(
-        bold(green("\u25B6")),
+        highlight("\u25B6"),
         " Reading ",
         highlight(basename(path)),
         " using arrow::read_parquet()..."
@@ -113,7 +113,7 @@ read <- function(
   } else if (ext == "rds") {
     if (verbosity > 0L) {
       msg0(
-        bold(green("\u25B6")),
+        bold(highlight("\u25B6")),
         " Reading ",
         highlight(basename(path)),
         "..."
@@ -124,7 +124,7 @@ read <- function(
     check_dependencies("openxlsx")
     if (verbosity > 0L) {
       msg0(
-        bold(green("\u25B6")),
+        bold(highlight("\u25B6")),
         " Reading ",
         highlight(basename(path)),
         " using readxl::read_excel()..."
@@ -141,7 +141,7 @@ read <- function(
     check_dependencies("haven")
     if (verbosity > 0L) {
       msg0(
-        bold(green("\u25B6")),
+        bold(highlight("\u25B6")),
         " Reading ",
         highlight(basename(path)),
         " using haven::read_dta()..."
@@ -153,7 +153,7 @@ read <- function(
     check_dependencies("seqinr")
     if (verbosity > 0L) {
       msg0(
-        bold(green("\u25B6")),
+        bold(highlight("\u25B6")),
         " Reading ",
         highlight(basename(path)),
         " using seqinr::read.fasta()..."
@@ -169,7 +169,7 @@ read <- function(
     check_dependencies("farff")
     if (verbosity > 0L) {
       msg0(
-        bold(green("\u25B6")),
+        bold(highlight("\u25B6")),
         " Reading ",
         highlight(basename(path)),
         " using farff::readARFF()..."
@@ -180,7 +180,7 @@ read <- function(
   } else {
     if (verbosity > 0L) {
       msg0(
-        bold(green("\u25B6")),
+        bold(highlight("\u25B6")),
         " Reading ",
         highlight(basename(path)),
         " using ",
@@ -332,7 +332,7 @@ msgread <- function(x, caller = "", use_basename = TRUE) {
     x <- basename(x)
   }
   msg0(
-    bold(green("\u25B6")),
+    bold(highlight("\u25B6")),
     " Reading ",
     highlight(x),
     "...",
