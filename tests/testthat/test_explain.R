@@ -4,6 +4,10 @@
 
 # Test individual-level explanations
 
+# library(data.table)
+# library(rtemis)
+# library(testthat)
+
 # Data ----
 ## Regression Data ----
 n <- 400
@@ -27,7 +31,7 @@ datc2_test <- datc2[-resc2$Fold_1, ]
 
 ## GLMET Regression ----
 mod_r_glmnet <- train(
-  datr_train,
+  x = datr_train,
   dat_test = datr_test,
   algorithm = "glmnet",
   hyperparameters = setup_GLMNET(lambda = 0.01)
@@ -50,6 +54,12 @@ mod_c_glmnet <- train(
   dat_test = datc2_test,
   algorithm = "glmnet",
   hyperparameters = setup_GLMNET(lambda = 0.01)
+)
+
+ex_c_glmnet <- explain(
+  model = mod_c_glmnet,
+  x = features(datr_test[1, ]),
+  dat_training = features(datr_train)
 )
 
 ## LightRF Regression ----
