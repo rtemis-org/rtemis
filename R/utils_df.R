@@ -4,6 +4,10 @@
 
 #' Get names by string matching
 #'
+#' @details
+#' `pattern`, `starts_with`, and `ends_with` are applied sequentially.
+#' If more than one is provided, the result will be the intersection of all matches.
+#'
 #' @param x object with `names()` method.
 #' @param pattern Character: pattern to match anywhere in names of x.
 #' @param starts_with Character: pattern to match in the beginning of names of x.
@@ -14,6 +18,10 @@
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' getnames(iris, starts_with = "Sepal")
+#' getnames(iris, ends_with = "Width")
 getnames <- function(
   x,
   pattern = NULL,
@@ -26,16 +34,29 @@ getnames <- function(
   } else {
     names(x)
   }
+  # Apply filters sequentially
   if (!is.null(pattern)) {
-    .names[grep(pattern, .names, ignore.case = ignore_case)]
-  } else if (!is.null(starts_with)) {
-    .names[grep(paste0("^", starts_with), .names, ignore.case = ignore_case)]
-  } else if (!is.null(ends_with)) {
-    .names[grep(paste0(ends_with, "$"), .names, ignore.case = ignore_case)]
+    .names <- .names[grep(pattern, .names, ignore.case = ignore_case)]
   }
-}
+  if (!is.null(starts_with)) {
+    .names <- .names[
+      grep(paste0("^", starts_with), .names, ignore.case = ignore_case)
+    ]
+  }
+  if (!is.null(ends_with)) {
+    .names <- .names[
+      grep(paste0(ends_with, "$"), .names, ignore.case = ignore_case)
+    ]
+  }
+  .names
+} # /rtemis::getnames
+
 
 #' Get names by string matching multiple patterns
+#'
+#' @details
+#' `pattern`, `starts_with`, and `ends_with` are applied and the union of all matches is returned.
+#' `pattern` can be a character vector of multiple patterns to match.
 #'
 #' @param x Character vector or object with `names()` method.
 #' @param pattern Character vector: pattern(s) to match anywhere in names of x.
@@ -48,6 +69,11 @@ getnames <- function(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' mgetnames(iris, pattern = c("Sepal", "Petal"))
+#' mgetnames(iris, starts_with = "Sepal")
+#' mgetnames(iris, ends_with = "Width")
 mgetnames <- function(
   x,
   pattern = NULL,

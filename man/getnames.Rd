@@ -41,6 +41,14 @@ Character vector of matched names.
 \description{
 Get names by string matching
 }
+\details{
+\code{pattern}, \code{starts_with}, and \code{ends_with} are applied sequentially.
+If more than one is provided, the result will be the intersection of all matches.
+}
+\examples{
+getnames(iris, starts_with = "Sepal")
+getnames(iris, ends_with = "Width")
+}
 \author{
 EDG
 }
