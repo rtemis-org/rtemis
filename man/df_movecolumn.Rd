@@ -4,14 +4,14 @@
 \alias{df_movecolumn}
 \title{Move data frame column}
 \usage{
-df_movecolumn(x, from, to = ncol(x))
+df_movecolumn(x, colname, to = ncol(x))
 }
 \arguments{
 \item{x}{data.frame.}
 
-\item{from}{String or Integer: Define which column holds the vector you want to move.}
+\item{colname}{Character: Name of column you want to move.}
 
-\item{to}{Integer: Define which column number you want the vector to be moved to.
+\item{to}{Integer: Which column position to move the vector to.
 Default = \code{ncol(x)} i.e. the last column.}
 }
 \value{
@@ -22,7 +22,7 @@ Move data frame column
 }
 \examples{
 \dontrun{
-mtcars_hp <- df_movecolumn(mtcars, "hp")
+ir <- df_movecolumn(iris, colname = "Species", to = 1L)
 }
 }
 \author{

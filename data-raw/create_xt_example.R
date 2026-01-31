@@ -5,7 +5,7 @@
 set.seed(2025)
 
 # Create a small longitudinal dataset with various participation patterns
-# 15 participants measured at up to 5 time points (years 2020-2024)
+# 10 participants measured at up to 5 time points (years 2020-2024)
 
 patient_id <- c(
   rep(1, 5), # Complete participation (all 5 time points)

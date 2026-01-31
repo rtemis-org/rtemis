@@ -287,7 +287,7 @@ singorplu <- function(n, x) {
 #' @param x any object with `length()` or `dim()`.
 #' @param verbosity Integer: Verbosity level. If > 0, print size to console
 #'
-#' @return Integer vector of length same a number of dimensions of input `x`, invisibly
+#' @return Integer vector with length equal to the number of dimensions of `x`, invisibly.
 #'
 #' @author EDG
 #' @export
@@ -295,7 +295,7 @@ singorplu <- function(n, x) {
 #' @examples
 #' x <- rnorm(20)
 #' size(x)
-#' # 20  1
+#' # 20
 #' x <- matrix(rnorm(100), 20, 5)
 #' size(x)
 #' # 20  5
