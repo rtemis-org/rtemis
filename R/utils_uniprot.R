@@ -10,9 +10,9 @@
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return List with three elements: Identifier, Annotation, and Sequence.
-#'
 #' @author E.D. Gennatas
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' mapt <- uniprot_get("Q9UMX9")
@@ -38,4 +38,4 @@ uniprot_get <- function(
     Annotation = Annotation,
     Sequence = as.character(dat[[1]])
   )
-} # rtemis::uniprot_get
+} # /rtemis::uniprot_get

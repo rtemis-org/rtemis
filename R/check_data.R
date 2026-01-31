@@ -168,7 +168,7 @@ check_data <- function(
     na_case_pct = na_case_pct,
     n_na_last_col = n_na_last_col
   )
-} # rtemis::check_data
+} # /rtemis::check_data
 
 # chck <- function(x) {
 #     setDT(x)

@@ -154,4 +154,4 @@ draw_graphjs <- function(
     verbosity = verbosity,
     ...
   )
-} # rtemis::draw_graphjs
+} # /rtemis::draw_graphjs

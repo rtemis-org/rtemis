@@ -59,6 +59,10 @@ Setup hyperparameters for CART training.
 \details{
 Get more information from \link[rpart:rpart]{rpart::rpart} and \link[rpart:rpart.control]{rpart::rpart.control}.
 }
+\examples{
+cart_hyperparams <- setup_CART(cp = 0.01, maxdepth = 10L, ifw = TRUE)
+cart_hyperparams
+}
 \author{
 EDG
 }

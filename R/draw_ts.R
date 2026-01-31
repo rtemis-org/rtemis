@@ -246,4 +246,4 @@ draw_ts <- function(
   } # /export_plotly
 
   plt
-} # rtemis::draw_ts
+} # /rtemis::draw_ts

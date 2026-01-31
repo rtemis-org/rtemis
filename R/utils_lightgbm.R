@@ -1,8 +1,6 @@
 # lightgbm_ops
 # ::rtemis::
-# 2023 EDG rtemis.org
-
-# get_lgb_tree ----
+# 2023- EDG rtemis.org
 
 #' Get LightGBM Booster Trees
 #'
@@ -22,7 +20,7 @@ get_lgb_tree <- function(x, n_iter = -1) {
   )
   names(out) <- paste0("Tree_", seq_along(out))
   out
-} # rtemis::get_lgb_tree
+} # /rtemis::get_lgb_tree
 
 
 # preorderlgb ----
@@ -119,7 +117,7 @@ preorderlgb <- function(
     verbosity = verbosity
   )
   rule <- c(rule, rule_right)
-} # rtemis::preorderlgb
+} # /rtemis::preorderlgb
 
 
 # lgbtree2rules ----
@@ -135,7 +133,7 @@ lgbtree2rules <- function(x, xnames, factor_levels, right_cat_type = "in") {
   )
   # remove root node "TRUE & "
   substr(tree[["leafs"]], 8, 99999)
-} # rtemis::lgbtree2rules
+} # /rtemis::lgbtree2rules
 
 
 # lgb2rules ----
@@ -146,6 +144,8 @@ lgbtree2rules <- function(x, xnames, factor_levels, right_cat_type = "in") {
 #' @param xnames Character vector: Names of features
 #'
 #' @return Character vector of rules
+#'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 lgb2rules <- function(
@@ -177,8 +177,12 @@ lgb2rules <- function(
     msgdone()
   }
   if (return_unique) unique(rules) else rules
-} # rtemis::lgb2rules
+} # /rtemis::lgb2rules
 
+
+# extract_rules.lgb.Booster ----
+#' @keywords internal
+#' @noRd
 method(extract_rules, class_lgb.Booster) <- function(
   x,
   n_iter = NULL,
@@ -224,17 +228,22 @@ method(extract_rules, class_lgb.Booster) <- function(
 
 
 # decision_left ----
+#' @keywords internal
+#' @noRd
 decision_left <- function(decision_type) {
   switch(decision_type, "<=" = " <= ", "==" = " %in% ")
-} # rtemis::decision_left
+} # /rtemis::decision_left
 
+
+#' @keywords internal
+#' @noRd
 decision_right <- function(decision_type, cat_type) {
   switch(
     decision_type,
     "<=" = " > ",
     "==" = if (cat_type == "in") " %in% " else " %notin% "
   )
-} # rtemis::decision_right
+} # /rtemis::decision_right
 
 
 #' Format rule thresholds
@@ -259,7 +268,8 @@ fmt_thresh <- function(catsplit, feature, threshold, factor_levels) {
   } else {
     threshold
   }
-} # rtemis::fmt_thresh
+} # /rtemis::fmt_thresh
+
 
 #' @rdname fmt_thresh
 #' @keywords internal
@@ -285,4 +295,4 @@ fmt_thresh_right <- function(
   } else {
     threshold
   }
-} # rtemis::fmt_thresh_right
+} # /rtemis::fmt_thresh_right

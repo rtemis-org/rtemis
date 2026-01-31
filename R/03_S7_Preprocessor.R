@@ -191,6 +191,10 @@ method(print, PreprocessorConfig) <- function(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' preproc_config <- setup_Preprocessor(factorNA2missing = TRUE)
+#' preproc_config
 setup_Preprocessor <- function(
   complete_cases = FALSE,
   remove_features_thres = NULL,

@@ -159,4 +159,4 @@ draw_table <- function(
   )
 
   plt
-} # rtemis::draw_table
+} # /rtemis::draw_table

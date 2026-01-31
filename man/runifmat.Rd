@@ -32,6 +32,10 @@ runifmat(
 \description{
 Create a matrix or data frame of defined dimensions, whose columns are random uniform vectors
 }
+\examples{
+x <- runifmat(20, 5, min = 12, max = 18, return_df = TRUE, seed = 2026)
+x
+}
 \author{
 EDG
 }

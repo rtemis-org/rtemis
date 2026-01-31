@@ -18,6 +18,13 @@ Calculate class imbalance as given by:
 where \eqn{K} is the number of classes, and \eqn{n_i} is the number of
 instances of class \eqn{i}
 }
+\examples{
+# iris is perfectly balanced
+class_imbalance(iris[["Species"]])
+# Simulate imbalanced outcome
+x <- factor(sample(c("A", "B"), size = 500L, replace = TRUE, prob = c(0.9, 0.1)))
+class_imbalance(x)
+}
 \author{
 EDG
 }

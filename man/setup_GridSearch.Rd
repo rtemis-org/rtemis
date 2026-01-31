@@ -42,6 +42,13 @@ A \code{GridSearchConfig} object.
 \description{
 Create a \code{GridSearchConfig} object that can be passed to \link{train}.
 }
+\examples{
+gridsearch_config <- setup_GridSearch(
+  resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold"),
+  search_type = "exhaustive"
+)
+gridsearch_config
+}
 \author{
 EDG
 }

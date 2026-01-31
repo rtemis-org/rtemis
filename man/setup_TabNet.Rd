@@ -123,6 +123,10 @@ TabNetHyperparameters object.
 \description{
 Setup hyperparameters for TabNet training.
 }
+\examples{
+tabnet_hyperparams <- setup_TabNet(epochs = 100L, learn_rate = 0.01)
+tabnet_hyperparams
+}
 \author{
 EDG
 }

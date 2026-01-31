@@ -17,6 +17,10 @@ object of same class as \code{data}
 \description{
 Move outcome to last column
 }
+\examples{
+ir <- set_outcome(iris, "Sepal.Length")
+head(ir)
+}
 \author{
 EDG
 }

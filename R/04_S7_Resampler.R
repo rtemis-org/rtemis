@@ -67,7 +67,7 @@ method(print, ResamplerConfig) <- function(x, pad = 0L, ...) {
   objcat(paste(x@type, "ResamplerConfig"), pad = pad)
   printls(props(x)[-1], pad = pad + 2L)
   invisible(x)
-} # rtemis::print.ResamplerConfig
+} # /rtemis::print.ResamplerConfig
 
 # desc ResamplerConfig ----
 method(desc, ResamplerConfig) <- function(x) {
@@ -298,6 +298,10 @@ CustomConfig <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' tenfold_resampler <- setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)
+#' tenfold_resampler
 setup_Resampler <- function(
   n_resamples = 10L,
   type = c("KFold", "StratSub", "StratBoot", "Bootstrap", "LOOCV"),
@@ -407,7 +411,7 @@ print.Resampler <- function(x, ...) {
 }
 method(print, Resampler) <- function(x, ...) {
   print.Resampler(x)
-} # rtemis::print.Resampler
+} # /rtemis::print.Resampler
 
 # Names Resampler ----
 method(names, Resampler) <- function(x) {
@@ -458,7 +462,7 @@ method(desc_alt, Resampler) <- function(x) {
 
 #   if (verbosity > 0L) print(.text)
 #   invisible(.text)
-# } # rtemis::print1.resample
+# } # /rtemis::print1.resample
 
 # Plot Resampler ----
 #' Plot Resampler
@@ -475,4 +479,4 @@ method(desc_alt, Resampler) <- function(x) {
 # }
 # method(plot, Resampler) <- function(x, col = NULL, ...) {
 #   plot.Resampler(x, col = col, ...)
-# } # rtemis::plot.Resampler
+# } # /rtemis::plot.Resampler

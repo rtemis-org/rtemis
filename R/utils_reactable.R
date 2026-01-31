@@ -18,7 +18,12 @@
 #'
 #' @author E D Gennatas
 #' @export
-
+#'
+#' @examples
+#' \dontrun{
+#' # needs html viewer
+#' rt_reactable(iris, datatypes = sapply(iris, class))
+#' }
 rt_reactable <- function(
   x,
   datatypes = NULL,
@@ -101,4 +106,4 @@ rt_reactable <- function(
     theme = theme,
     ...
   )
-} # rtemis::rt_reactable
+} # /rtemis::rt_reactable

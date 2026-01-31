@@ -4,24 +4,31 @@
 
 #' Describe longitudinal dataset
 #'
-#' This is a test to emulate the `xtdescribe` function in Stata.
+#' This function emulates the `xtdescribe` function in Stata.
 #'
-#' @param x data.frame with longitudinal data
-#' @param ID_col Integer: The column position of the ID variable
-#' @param time_col Integer: The column position of the time variable
-#' @param n_patterns Integer: The number of patterns to display
+#' @param x data.frame: Longitudinal data with ID and time variables.
+#' @param id_col Integer: The column position of the ID variable.
+#' @param time_col Integer: The column position of the time variable.
+#' @param n_patterns Integer: The number of patterns to display.
 #'
-#' @return `data.frame`, invisibly.
+#' @return data.frame: Summary of participation patterns, returned invisibly.
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' # Load example longitudinal dataset
+#' data(xt_example)
+#'
+#' # Describe the longitudinal structure
+#' xtdescribe(xt_example)
 xtdescribe <- function(
   x,
-  ID_col = 1,
+  id_col = 1,
   time_col = 2,
   n_patterns = 9
 ) {
-  id_name <- names(x)[ID_col]
+  id_name <- names(x)[id_col]
   time_name <- names(x)[time_col]
   # Print vec_describe of ID, with n = number of unique IDs
   id_us <- sort(unique(x[[id_name]]))
@@ -181,6 +188,9 @@ xtdescribe <- function(
   invisible(pattern_summary)
 } # /rtemis::xtdescribe
 
+
+#' @keywords internal
+#' @noRd
 vec_describe <- function(x, sort_unique = FALSE) {
   # sort_unique defaults to FALSE since it needs to be computed already
   # within xtdescribe

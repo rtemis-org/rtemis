@@ -18,12 +18,10 @@ Vector.
 Symmetric Set Difference
 }
 \examples{
-\dontrun{
 setdiff(1:10, 1:5)
 setdiff(1:5, 1:10)
 setdiffsym(1:10, 1:5)
 setdiffsym(1:5, 1:10)
-}
 }
 \author{
 EDG

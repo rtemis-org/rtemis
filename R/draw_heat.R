@@ -87,4 +87,4 @@ draw_heat <- function(
       yaxis = y.axis
     )
   p
-} # rtemis::draw_heat
+} # /rtemis::draw_heat

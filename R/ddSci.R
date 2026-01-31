@@ -91,6 +91,8 @@ ddSci <- function(x, decimal_places = 2, hi = 1e06, as_numeric = FALSE) {
     }
   }
   xf <- as.character(xf)
-  if (as_numeric) xf <- as.numeric(xf)
+  if (as_numeric) {
+    xf <- as.numeric(xf)
+  }
   xf
-} # rtemis::ddSci
+} # /rtemis::ddSci

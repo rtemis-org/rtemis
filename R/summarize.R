@@ -26,7 +26,7 @@ summarize <- function(
   na.rm = TRUE
 ) {
   UseMethod("summarize")
-} # rtemis::summarize
+} # /rtemis::summarize
 
 #' @method summarize data.frame
 #' @export
@@ -44,7 +44,7 @@ summarize.data.frame <- function(
     type,
     na.rm
   )
-} # rtemis::summarize.data.frame
+} # /rtemis::summarize.data.frame
 
 #' @method summarize data.table
 #' @export
@@ -96,4 +96,4 @@ summarize.data.table <- function(
       by = group_by
     ]
   }
-} # rtemis::summarize.data.table
+} # /rtemis::summarize.data.table

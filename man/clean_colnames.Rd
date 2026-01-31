@@ -16,9 +16,7 @@ Character vector.
 Clean column names by replacing all spaces and punctuation with a single underscore
 }
 \examples{
-\dontrun{
 clean_colnames(iris)
-}
 }
 \author{
 EDG

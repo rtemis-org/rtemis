@@ -7,10 +7,13 @@
 get_loaded_pkg_version()
 }
 \value{
-Data frame with columns "Package_Name" and "Version"
+Data frame with columns "Package_Name" and "Version".
 }
 \description{
 Get version of all loaded packages (namespaces)
+}
+\examples{
+get_loaded_pkg_version()
 }
 \author{
 EDG

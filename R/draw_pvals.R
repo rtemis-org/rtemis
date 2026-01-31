@@ -56,4 +56,4 @@ draw_pvals <- function(
     hline_dash = hline_dash,
     ...
   )
-} # rtemis::draw_pvals
+} # /rtemis::draw_pvals

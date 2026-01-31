@@ -269,7 +269,7 @@ xlsx2list <- function(
   names(out) <- sheet
 
   out
-} # rtemis::xlsx2list
+} # /rtemis::xlsx2list
 
 
 #' Match cases by covariates

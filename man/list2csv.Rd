@@ -18,6 +18,16 @@ Nothing, writes CSV files to \code{outdir}.
 \description{
 Write list elements to CSV files
 }
+\examples{
+\dontrun{
+x <- list(
+   iris = iris,
+   iris_normalized = as.data.frame(scale(iris[, -5]))
+)
+outdir <- "./exports"
+list2csv(x, outdir)
+}
+}
 \author{
 EDG
 }

@@ -24,6 +24,13 @@ Source, Target, Weight
 \details{
 The output can be read, for example, into gephi
 }
+\examples{
+A <- matrix(rnorm(100), nrow = 10)
+A[lower.tri(A)] <- t(A)[lower.tri(A)]
+diag(A) <- 1
+edgelist <- lotri2edgeList(A, filename = NULL)
+head(edgelist)
+}
 \author{
 EDG
 }

@@ -183,10 +183,15 @@ rtlogo <- local({
 })
 
 ## rtascii
+#' @keywords internal
+#' @noRd
 rtascii <- function() {
   cat(rtaart(), sep = "\n")
 }
 
+
+#' @keywords internal
+#' @noRd
 rtasciitxt <- function() {
   paste(paste0(paste0("  ", rtaart(), "\n")), collapse = "")
 }
@@ -225,7 +230,6 @@ rtlogo2 <- paste0(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-
 show_col <- function(
   x,
   pad = 2L,

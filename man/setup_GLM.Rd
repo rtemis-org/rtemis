@@ -15,6 +15,10 @@ GLMHyperparameters object.
 \description{
 Setup hyperparameters for GLM training.
 }
+\examples{
+glm_hyperparams <- setup_GLM(ifw = TRUE)
+glm_hyperparams
+}
 \author{
 EDG
 }

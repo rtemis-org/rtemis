@@ -168,6 +168,10 @@ one-hot encoding to validation or test data using \code{Preprocessor}.}
 \description{
 Setup \code{PreprocessorConfig}
 }
+\examples{
+preproc_config <- setup_Preprocessor(factorNA2missing = TRUE)
+preproc_config
+}
 \author{
 EDG
 }

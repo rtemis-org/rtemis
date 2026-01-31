@@ -43,6 +43,10 @@ ResamplerConfig object.
 \description{
 Setup Resampler
 }
+\examples{
+tenfold_resampler <- setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)
+tenfold_resampler
+}
 \author{
 EDG
 }

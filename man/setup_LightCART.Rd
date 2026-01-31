@@ -47,6 +47,10 @@ Setup hyperparameters for LightCART training.
 \details{
 Get more information from \link[lightgbm:lgb.train]{lightgbm::lgb.train}.
 }
+\examples{
+lightcart_hyperparams <- setup_LightCART(num_leaves = 32L, ifw = FALSE)
+lightcart_hyperparams
+}
 \author{
 EDG
 }

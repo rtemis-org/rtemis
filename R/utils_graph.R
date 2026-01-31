@@ -2,7 +2,31 @@
 # ::rtemis::
 # 2022 EDG rtemis.org
 
-igraph_layout <- function(net, layout = "mds", dims = 2) {
+#' igraph Layout Wrapper
+#'
+#' Wrapper for various igraph layout functions
+#'
+#' @param net \pkg{igraph} network.
+#' @param layout Character: Layout method. One of:
+#'   * "bipartite"
+#'   * "circle"
+#'   * "drl"
+#'   * "fr"
+#'   * "grid"
+#'   * "kk"
+#'   * "mds"
+#'   * "nicely"
+#'   * "sphere"
+#'   * "star"
+#'   * "sugiyama"
+#'   * "tree"
+#' @param dims Integer: Number of dimensions. 2 or 3.
+#' @return Matrix of x, y (and z) coordinates.
+#' @author EDG
+#'
+#' @keywords internal
+#' @noRd
+igraph_layout <- function(net, layout = "mds", dims = 2L) {
   if (layout == "bipartite") {
     igraph::layout_as_bipartite(net)
   } else if (layout == "star") {
@@ -50,7 +74,7 @@ igraph_layout <- function(net, layout = "mds", dims = 2) {
     }
     out
   }
-} # rtemis::igraph_layout
+} # /rtemis::igraph_layout
 
 
 # dims: drl, fr, kk, mds
@@ -139,7 +163,13 @@ graph_node_metrics <- function(x, verbosity = 1L) {
 #'
 #' @author EDG
 #' @export
-
+#'
+#' @examples
+#' A <- matrix(rnorm(100), nrow = 10)
+#' A[lower.tri(A)] <- t(A)[lower.tri(A)]
+#' diag(A) <- 1
+#' edgelist <- lotri2edgeList(A, filename = NULL)
+#' head(edgelist)
 lotri2edgeList <- function(A, filename = NULL, verbosity = 1L) {
   # Check A is a square matrix
   dim.A <- dim(A)
@@ -179,4 +209,4 @@ lotri2edgeList <- function(A, filename = NULL, verbosity = 1L) {
     msg0("Saved ", highlight(filename), ".")
   }
   invisible(out)
-} # rtemis::lotri2edgelist
+} # /rtemis::lotri2edgelist

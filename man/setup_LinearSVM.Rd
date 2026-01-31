@@ -20,6 +20,10 @@ Setup hyperparameters for LinearSVM training.
 \details{
 Get more information from \link[e1071:svm]{e1071::svm}.
 }
+\examples{
+linear_svm_hyperparams <- setup_LinearSVM(cost = 0.5, ifw = TRUE)
+linear_svm_hyperparams
+}
 \author{
 EDG
 }

@@ -103,7 +103,7 @@ dt_keybin_reshape <- function(
     catsize(x, "Output size")
   }
   x
-} # rtemis::dt_keybin_reshape
+} # /rtemis::dt_keybin_reshape
 
 
 #' Merge data.tables
@@ -224,7 +224,7 @@ dt_merge <- function(
     catsize(dat, "Merged")
   }
   dat
-} # rtemis::dt_merge
+} # /rtemis::dt_merge
 
 
 #' Clean factor levels of data.table in-place
@@ -258,7 +258,7 @@ dt_set_cleanfactorlevels <- function(x, prefix_digits = NA) {
       )
     ]
   }
-} # rtemis::dt_set_cleanfactorlevels
+} # /rtemis::dt_set_cleanfactorlevels
 
 
 #' Index columns by attribute name & value
@@ -655,7 +655,7 @@ dt_set_clean_all <- function(x, prefix_digits = NA) {
       )
     ]
   }
-} # rtemis::dt_set_clean_all
+} # /rtemis::dt_set_clean_all
 
 
 #' Describe data.table
@@ -875,7 +875,7 @@ pfread <- function(
     msg("Read", highlightbig(nrow(dat)), "rows")
   }
   dat
-} # rtemis::pfread
+} # /rtemis::pfread
 
 
 pfread1 <- function(
@@ -944,4 +944,4 @@ pfread1 <- function(
   }
 
   invisible(dat)
-} # rtemis::pfread1
+} # /rtemis::pfread1

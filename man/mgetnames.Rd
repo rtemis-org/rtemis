@@ -32,6 +32,15 @@ Character vector of matched names or integer index.
 \description{
 Get names by string matching multiple patterns
 }
+\details{
+\code{pattern}, \code{starts_with}, and \code{ends_with} are applied and the union of all matches is returned.
+\code{pattern} can be a character vector of multiple patterns to match.
+}
+\examples{
+mgetnames(iris, pattern = c("Sepal", "Petal"))
+mgetnames(iris, starts_with = "Sepal")
+mgetnames(iris, ends_with = "Width")
+}
 \author{
 EDG
 }

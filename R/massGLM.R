@@ -143,4 +143,4 @@ massGLM <- function(
     coefnames = gsub("Coefficient_", "", getnames(tbl, "Coefficient")),
     family = .family
   )
-} # rtemis::massGLM
+} # /rtemis::massGLM

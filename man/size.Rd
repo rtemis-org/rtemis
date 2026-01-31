@@ -2,31 +2,31 @@
 % Please edit documentation in R/utils.R
 \name{size}
 \alias{size}
-\title{Size of matrix or vector}
+\title{Size of object}
 \usage{
 size(x, verbosity = 1L)
 }
 \arguments{
-\item{x}{Vector or matrix input}
+\item{x}{any object with \code{length()} or \code{dim()}.}
 
 \item{verbosity}{Integer: Verbosity level. If > 0, print size to console}
 }
 \value{
-Integer vector of length 2: c(Nrow, Ncols), invisibly
+Integer vector of length same a number of dimensions of input \code{x}, invisibly
 }
 \description{
-Return the size of a matrix or vector as (Nrows, Ncolumns)
-Are you tired of getting NULL when you run dim() on a vector?
+Returns the size of an object
+}
+\details{
+If \code{dim(x)} is NULL, returns \code{length(x)}.
 }
 \examples{
-\dontrun{
 x <- rnorm(20)
 size(x)
 # 20  1
 x <- matrix(rnorm(100), 20, 5)
 size(x)
 # 20  5
-}
 }
 \author{
 EDG

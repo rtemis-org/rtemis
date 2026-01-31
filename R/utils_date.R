@@ -79,7 +79,7 @@ get_holidays <- function(
   )
   holidays_fct[dates %in% .holidays] <- "Holiday"
   holidays_fct
-} # rtemis::get_holidays
+} # /rtemis::get_holidays
 
 #' Date to factor time bin
 #'

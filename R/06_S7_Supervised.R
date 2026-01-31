@@ -431,6 +431,13 @@ get_explain_fn <- function(algorithm) {
 #' @return Object depending on model: list, shapr, or other.
 #'
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' mod <- train(iris, alg = "GLMNET")
+#' explanation <- explain(mod, x = features(iris[1, ]), dat_training = features(iris))
+#' explanation
+#' }
 explain <- function(model, x, dat_training = NULL, method = NULL) {
   check_is_S7(model, Supervised)
   check_inherits(x, "data.frame")
@@ -682,7 +689,7 @@ method(predict, CalibratedClassification) <- function(object, newdata, ...) {
     object@calibration_model,
     newdata = data.frame(predicted_probabilities = raw_prob)
   )
-} # rtemis::predict.CalibratedClassification
+} # /rtemis::predict.CalibratedClassification
 
 se_compat_algorithms <- c("GLM", "GAM")
 
@@ -1333,7 +1340,7 @@ method(predict, SupervisedRes) <- function(
       sd = sd_predictions
     ))
   }
-} # rtemis::predict.SupervisedRes
+} # /rtemis::predict.SupervisedRes
 
 # ClassificationRes ----
 #' @title ClassificationRes
@@ -1534,7 +1541,7 @@ method(predict, CalibratedClassificationRes) <- function(object, newdata, ...) {
   cal_prob <- lapply(object@calibration_models, function(mod) {
     predict(mod, data.frame(predicted_probabilities = raw_prob))
   })
-} # rtemis::predict.CalibratedClassificationRes
+} # /rtemis::predict.CalibratedClassificationRes
 
 # RegressionRes ----
 #' @title RegressionRes
@@ -2292,7 +2299,7 @@ method(desc, class_list) <- function(
     " respectively."
   )
   out
-} # rtemis::desc.list
+} # /rtemis::desc.list
 
 
 #' Print description of a list of Supervised or SupervisedRes objects
@@ -2320,4 +2327,4 @@ method(describe, class_list) <- function(
   )
   cat(out, "\n")
   invisible(out)
-} # rtemis::describe.list(Supervised/Res)
+} # /rtemis::describe.list(Supervised/Res)

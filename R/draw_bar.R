@@ -432,4 +432,4 @@ draw_bar <- function(
   } # /export_plotly
 
   plt
-} # rtemis::draw_bar.R
+} # /rtemis::draw_bar.R

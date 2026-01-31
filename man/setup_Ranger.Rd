@@ -126,6 +126,10 @@ Setup hyperparameters for Ranger Random Forest training.
 \details{
 Get more information from \link[ranger:ranger]{ranger::ranger}.
 }
+\examples{
+ranger_hyperparams <- setup_Ranger(num_trees = 1000L, ifw = FALSE)
+ranger_hyperparams
+}
 \author{
 EDG
 }
