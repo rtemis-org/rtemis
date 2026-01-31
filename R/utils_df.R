@@ -217,20 +217,8 @@ df_movecolumn <- function(x, colname, to = ncol(x)) {
     cli::cli_abort("{.arg to} must be between 1 and {.val {ncols}}.")
   }
 
-  v <- x[, colname, drop = FALSE]
-  x[, colname] <- NULL
-
-  if (to == ncols) {
-    cbind(x, v)
-  } else if (to == 1L) {
-    cbind(v, x)
-  } else {
-    cbind(
-      x[, 1:(to - 1), drop = FALSE],
-      v,
-      x[, to:(ncols - 1), drop = FALSE]
-    )
-  }
+  xnames <- setdiff(names(x), colname)
+  x[, append(xnames, colname, after = to - 1L)]
 } # /rtemis::df_movecolumn
 
 
