@@ -39,6 +39,12 @@ e.g. \code{c("numeric", "factor", "character")}}
 \description{
 View table using reactable
 }
+\examples{
+\dontrun{
+# needs html viewer
+rt_reactable(iris, datatypes = sapply(iris, class))
+}
+}
 \author{
 E D Gennatas
 }

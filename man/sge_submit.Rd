@@ -71,6 +71,14 @@ Character, invisibly: The command that was submitted to SGE.
 \description{
 Submit expression to SGE grid
 }
+\examples{
+\dontrun{
+sge_submit({
+  # Your code here
+}, obj_names = c("df1", "model1"), packages = c("rtemis", "data.table"),
+queue = "all.q", n_workers = 4, h_rt = "01:00:00", mem_free = "4G")
+}
+}
 \author{
 EDG
 }

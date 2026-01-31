@@ -15,3 +15,8 @@ Run SGE qstat
 \details{
 alias for \code{system("qstat")}
 }
+\examples{
+\dontrun{
+qstat()
+}
+}
