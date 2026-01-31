@@ -8,7 +8,7 @@ supervised_type <- function(dat) {
   } else {
     "Regression"
   }
-} # rtemis::supervised_type
+} # /rtemis::supervised_type
 
 #' Convert probabilities to categorical (factor)
 #'
@@ -55,9 +55,11 @@ prob2categorical <- function(x, levels, binclasspos = 2L) {
     )
   }
   fitted
-} # rtemis::prob2categorical
+} # /rtemis::prob2categorical
 
 
+#' @keywords internal
+#' @noRd
 check_supervised_inputs <- function(x, y = NULL) {
   if (is.null(y) && NCOL(x) < 2) {
     cli::cli_abort("y is missing")
@@ -92,7 +94,7 @@ set_outcome <- function(dat, outcome_column) {
   } else {
     dat[, c(setdiff(seq_len(NCOL(dat)), id), id)]
   }
-} # rtemis::set_outcome
+} # /rtemis::set_outcome
 
 
 #' Make formula
@@ -101,11 +103,11 @@ set_outcome <- function(dat, outcome_column) {
 #'
 #' @param x data.frame
 #'
+#' @return character
 #' @author EDG
+#'
 #' @keywords internal
 #' @noRd
-#'
-#' @return character
 make_formula <- function(x, output = "character") {
   outcome <- names(x)[NCOL(x)]
   out <- paste(outcome, "~ .")
@@ -114,7 +116,7 @@ make_formula <- function(x, output = "character") {
   } else {
     out
   }
-} # rtemis::make_formula
+} # /rtemis::make_formula
 
 
 # glm2table.R
@@ -197,7 +199,7 @@ glm2table <- function(x, xnames = NULL, include_anova = NA, info = TRUE) {
   }
 
   out
-} # rtemis::glm2table
+} # /rtemis::glm2table
 
 
 #' Collect summary table (p-values) from list of massGAMs with same predictors,
@@ -254,7 +256,7 @@ get_gam_pvals <- function(m, warn = TRUE) {
     pvals[lteps] <- eps
   }
   pvals
-} # rtemis::get_gam_pvals
+} # /rtemis::get_gam_pvals
 
 
 #' Class Imbalance
@@ -286,7 +288,7 @@ class_imbalance <- function(x) {
   freq <- as.data.frame(table(x))
 
   K * sum(sapply(seq(K), function(i) (freq[["Freq"]][i] / N - 1 / K)^2))
-} # rtemis::class_imbalance
+} # /rtemis::class_imbalance
 
 
 # nullmod.R
@@ -308,7 +310,7 @@ class_imbalance <- function(x) {
 
 predict.nullmod <- function(object, newdata = NULL, ...) {
   if (!is.null(object[["fitted"]])) object[["fitted"]] else 0
-} # rtemis::predict.nullmod
+} # /rtemis::predict.nullmod
 
 
 # expand_grid.R

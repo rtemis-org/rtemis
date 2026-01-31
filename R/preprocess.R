@@ -777,7 +777,7 @@ method(one_hot, class_any) <- function(x, xname = NULL, verbosity = 1L) {
     oh[i, index[i]] <- 1
   }
   oh
-} # rtemis::one_hot.default
+} # /rtemis::one_hot.default
 
 
 # included for benchmarking mostly
@@ -856,7 +856,7 @@ method(one_hot, class_data.frame) <- function(
   # do.call below creates a matrix, maintaining column names in one.hot matrix.
   # as.data.frame on one.hot would have added {name_of_oh_element}.{column_names}
   as.data.frame(do.call(cbind, one.hot))
-} # rtemis::one_hot.data.frame
+} # /rtemis::one_hot.data.frame
 
 # one_hot.data.table ----
 #' @rdname one_hot
@@ -893,7 +893,7 @@ method(one_hot, class_data.table) <- function(x, verbosity = 1L) {
     msg("Done")
   }
   invisible(x)
-} # rtemis::one_hot.data.table
+} # /rtemis::one_hot.data.table
 
 
 #' Convert data.table's factor to one-hot encoding in-place
@@ -939,7 +939,7 @@ dt_set_one_hot <- function(x, xname = NULL, verbosity = 1L) {
     msg("Done")
   }
   invisible(x)
-} # rtemis::dt_set_one_hot
+} # /rtemis::dt_set_one_hot
 
 
 #' Convert one-hot encoded matrix to factor
@@ -974,7 +974,7 @@ one_hot2factor <- function(x, labels = colnames(x)) {
     out[x[, i] == 1] <- labels[i]
   }
   out
-} # rtemis::one_hot2factor
+} # /rtemis::one_hot2factor
 
 
 #' Binary matrix times character vector
@@ -999,7 +999,7 @@ binmat2vec <- function(x, labels = colnames(x)) {
   out <- dt[, list(fn(.SD)), by = seq_len(NROW(dt))][[2]]
   out[out == ""] <- NA
   out
-} # rtemis::binmat2vec
+} # /rtemis::binmat2vec
 
 
 #' Binary matrix times character vector
@@ -1038,4 +1038,4 @@ binmat2lvec <- function(x, labels = colnames(x), return.list = FALSE) {
     out[out == ""] <- NA
   }
   out
-} # rtemis::binmat2lvec
+} # /rtemis::binmat2lvec

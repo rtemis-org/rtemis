@@ -23,7 +23,7 @@ catrange <- function(x, ddSci = TRUE, decimal_places = 1, na.rm = TRUE) {
     paste(range(x, na.rm = na.rm), collapse = " to ")
   }
   invisible()
-} # rtemis::catrange
+} # /rtemis::catrange
 
 
 #' Set Dynamic Range
@@ -62,7 +62,7 @@ drange <- function(x, lo = 0, hi = 1, byCol = TRUE) {
   } else {
     dr(x, lo, hi)
   }
-} # rtemis::drange
+} # /rtemis::drange
 
 
 #' Factor NA to "missing" level
@@ -91,7 +91,7 @@ factor_NA2missing <- function(x, na_level_name = "missing") {
   } else {
     x
   }
-} # rtemis::factor_NA2missing
+} # /rtemis::factor_NA2missing
 
 
 #' Filter order
@@ -134,7 +134,7 @@ get_loaded_pkg_version <- function() {
     Version = sapply(loaded_, function(i) as.character(packageVersion(i))),
     row.names = seq(loaded_)
   )
-} # rtemis::get_loaded_pkg_version
+} # /rtemis::get_loaded_pkg_version
 
 
 #' Get the mode of a factor or integer
@@ -219,7 +219,7 @@ is_constant <- function(x, skip_missing = FALSE) {
     x <- na.exclude(x)
   }
   isTRUE(all(x == x[1]))
-} # rtemis::is_constant
+} # /rtemis::is_constant
 
 
 #' Check if variable is discrete (factor or integer)
@@ -232,7 +232,7 @@ is_constant <- function(x, skip_missing = FALSE) {
 #' @export
 is_discrete <- function(x) {
   is.factor(x) || is.integer(x) || is.logical(x) || is.character(x)
-} # rtemis::is_discrete
+} # /rtemis::is_discrete
 
 
 #' Return object if it has length > 0
@@ -336,7 +336,7 @@ recycle <- function(x, target) {
   } else {
     rep(x, ceiling(lent / lenx))[seq(lent)]
   }
-} # rtemis::recycle
+} # /rtemis::recycle
 
 
 #' Random Normal Matrix
@@ -381,7 +381,7 @@ rnormmat <- function(
     mat <- as.data.frame(mat)
   }
   mat
-} # rtemis::rnormmat
+} # /rtemis::rnormmat
 
 
 #' Random Uniform Matrix
@@ -426,7 +426,7 @@ runifmat <- function(
     mat <- as.data.frame(mat)
   }
   mat
-} # rtemis::runifmat
+} # /rtemis::runifmat
 
 
 #' Get rtemis version and system info
@@ -445,7 +445,7 @@ rtversion <- function() {
   )
   printls(out, print_class = FALSE)
   invisible(out)
-} # rtemis::rtversion
+} # /rtemis::rtversion
 
 
 #' Symmetric Set Difference
@@ -465,7 +465,7 @@ rtversion <- function() {
 #' setdiffsym(1:5, 1:10)
 setdiffsym <- function(x, y) {
   union(setdiff(x, y), setdiff(y, x))
-} # rtemis::setdiffsym
+} # /rtemis::setdiffsym
 
 
 #' Construct an n-length vector of letters

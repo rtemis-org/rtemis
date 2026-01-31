@@ -167,7 +167,7 @@ resample <- function(
 
   # Output ----
   Resampler(type, res_part, config)
-} # rtemis::resample
+} # /rtemis::resample
 
 
 #' Bootstrap Resampling
@@ -197,7 +197,7 @@ bootstrap <- function(x, n_resamples = 10, seed = NULL) {
   )
   names(res) <- paste0("Bootsrap_", seq(n_resamples))
   res
-} # rtemis::bootstrap
+} # /rtemis::bootstrap
 
 
 #' K-fold Resampling
@@ -266,7 +266,7 @@ kfold <- function(
   names(res) <- paste0("Fold_", seq(k))
   attr(res, "strat_n_bins") <- strat_n_bins
   res
-} # rtemis::kfold
+} # /rtemis::kfold
 
 
 #' Resample using Stratified Subsamples
@@ -314,7 +314,7 @@ strat_sub <- function(
   names(res) <- paste0("Subsample_", seq(n_resamples))
   attr(res, "strat_n_bins") <- strat_n_bins
   res
-} # rtemis::strat_sub
+} # /rtemis::strat_sub
 
 
 #' Stratified Bootstrap Resampling
@@ -370,7 +370,7 @@ strat_boot <- function(
   names(res) <- paste0("StratBoot_", seq(n_resamples))
   attr(res, "strat_n_bins") <- strat_n_bins
   res
-} # rtemis::strat_boot
+} # /rtemis::strat_boot
 
 
 #' Leave-one-out Resampling
@@ -385,4 +385,4 @@ loocv <- function(x) {
   res <- lapply(seq(x), function(i) (seq(x))[-i])
   names(res) <- paste0("Fold_", seq(res))
   res
-} # rtemis::loocv
+} # /rtemis::loocv

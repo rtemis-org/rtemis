@@ -36,6 +36,14 @@
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' sge_submit({
+#'   # Your code here
+#' }, obj_names = c("df1", "model1"), packages = c("rtemis", "data.table"),
+#' queue = "all.q", n_workers = 4, h_rt = "01:00:00", mem_free = "4G")
+#' }
 sge_submit <- function(
   expr,
   obj_names = NULL,
@@ -186,6 +194,11 @@ sge_submit <- function(
 #' @return Called for its side effect of printing the SGE queue status.
 #'
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' qstat()
+#' }
 qstat <- function() {
   system("qstat")
   invisible()

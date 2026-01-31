@@ -204,7 +204,7 @@ method(repr, Hyperparameters) <- function(
 method(print, Hyperparameters) <- function(x, output_type = NULL, ...) {
   cat(repr(x, output_type = output_type))
   invisible(x)
-} # rtemis::print.Hyperparameters
+} # /rtemis::print.Hyperparameters
 
 # is_tuned() ----
 is_tuned <- new_generic("is_tuned", "x")

@@ -65,7 +65,7 @@ rt_save <- function(
     }
     cli::cli_abort("Error: Saving model to ", outdir, " failed.")
   }
-} # rtemis::rt_save
+} # /rtemis::rt_save
 
 #' Check file(s) exist
 #'
@@ -74,6 +74,7 @@ rt_save <- function(
 #' @param pad Integer: Number of spaces to pad to the left
 #'
 #' @author EDG
+#'
 #' @keywords internal
 #' @noRd
 check_files <- function(paths, verbosity = 1L, pad = 0) {
@@ -93,7 +94,7 @@ check_files <- function(paths, verbosity = 1L, pad = 0) {
       cli::cli_abort("File not found")
     }
   }
-} # rtemis::check_files
+} # /rtemis::check_files
 
 
 #' Write list elements to CSV files
@@ -106,6 +107,16 @@ check_files <- function(paths, verbosity = 1L, pad = 0) {
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' /dontrun{
+#' x <- list(
+#'    iris = iris,
+#'    iris_normalized = as.data.frame(scale(iris[, -5]))
+#' )
+#' outdir <- "./exports"
+#' list2csv(x, outdir)
+#' }
 list2csv <- function(x, outdir) {
   if (!inherits(x, "list")) {
     cli::cli_abort("Input must be a list")

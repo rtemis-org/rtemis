@@ -45,9 +45,12 @@ intro <- function(
     )
   }
   invisible(start_time)
-} # rtemis::intro
+} # /rtemis::intro
+
 
 # Function to output seconds if seconds < 60, otherwise output minutes
+#' @keywords internal
+#' @noRd
 format_seconds <- function(seconds) {
   if (seconds < 60) {
     paste0(bold(ddSci(seconds)), " seconds")
@@ -116,7 +119,7 @@ outro <- function(
     log_to_file("Done.", logfile = logfile)
   }
   invisible(elapsed)
-} # rtemis::outro
+} # /rtemis::outro
 
 
 #' Summarize supervised inputs
@@ -161,7 +164,8 @@ summarize_supervised <- function(
       " features."
     )
   }
-} # rtemis::summarize_supervised
+} # /rtemis::summarize_supervised
+
 
 #' Summarize unsupervised inputs
 #'
@@ -178,7 +182,7 @@ summarize_unsupervised <- function(x) {
     highlight(NCOL(x)),
     "features."
   )
-} # rtemis::summarize_unsupervised
+} # /rtemis::summarize_unsupervised
 
 
 #' Log to file
@@ -201,4 +205,4 @@ log_to_file <- function(x, logfile) {
     file = logfile,
     append = TRUE
   )
-} # rtemis::log_to_file
+} # /rtemis::log_to_file

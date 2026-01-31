@@ -8,12 +8,11 @@
 #' @param rules Character vector: Rules
 #' @param verbosity Integer: Verbosity level.
 #'
+#' @return cases-by-rules matrix (binary; 1: match, 0: no match)
 #' @author EDG
 #'
-#' @return cases-by-rules matrix (binary; 1: match, 0: no match)
 #' @keywords internal
 #' @noRd
-
 match_cases_by_rules <- function(x, rules, prefix = "Rule_", verbosity = 1L) {
   n_cases <- NROW(x)
   n_rules <- length(rules)
@@ -49,7 +48,8 @@ match_cases_by_rules <- function(x, rules, prefix = "Rule_", verbosity = 1L) {
     msgdone()
   }
   cxr
-} # rtemis::match_cases_by_rules
+} # /rtemis::match_cases_by_rules
+
 
 #' Index cases by rules
 #'
@@ -59,9 +59,9 @@ match_cases_by_rules <- function(x, rules, prefix = "Rule_", verbosity = 1L) {
 #' @inheritParams match_cases_by_rules
 #'
 #' @author EDG
+#'
 #' @keywords internal
 #' @noRd
-
 index_cases_by_rules <- function(x, rules, verbosity = 1L) {
   cxr <- match_cases_by_rules(x, rules, verbosity)
   apply(cxr, 1, \(i) which(i == 1))
@@ -76,9 +76,9 @@ index_cases_by_rules <- function(x, rules, verbosity = 1L) {
 #'
 #' @return Character: The pruned rule.
 #' @author EDG
+#'
 #' @keywords internal
 #' @noRd
-
 simple_prune_ <- function(rule, max_length, sep = " & ") {
   conditions <- strsplit(rule, sep)[[1]]
   if (length(conditions) > max_length) {
@@ -87,7 +87,7 @@ simple_prune_ <- function(rule, max_length, sep = " & ") {
   } else {
     rule
   }
-} # rtemis::simple_prune_
+} # /rtemis::simple_prune_
 
 
 #' Prune rules to a maximum length
@@ -99,6 +99,7 @@ simple_prune_ <- function(rule, max_length, sep = " & ") {
 #' @return Character: The pruned rule.
 #'
 #' @author EDG
+#'
 #' @keywords internal
 #' @noRd
 simple_prune <- function(rules, max_length, sep = " & ") {
@@ -110,7 +111,7 @@ simple_prune <- function(rules, max_length, sep = " & ") {
     USE.NAMES = FALSE
   )
   rules
-} # rtemis::simple_prune
+} # /rtemis::simple_prune
 
 
 #' Extract variable names from rules
@@ -168,7 +169,7 @@ format_rules <- function(x, space_after_comma = FALSE, decimal_places = NULL) {
     )
   }
   x
-} # rtemis::format_rules
+} # /rtemis::format_rules
 
 
 #' Format LightRuleFit rules
@@ -210,7 +211,7 @@ format_LightRuleFit_rules <- function(
     )
   }
   gsub("  ", " ", x)
-} # rtemis::format_LightRuleFit_rules
+} # /rtemis::format_LightRuleFit_rules
 
 
 # rules2medmod
@@ -283,4 +284,4 @@ rules2medmod <- function(rules, x, .ddSci = TRUE, verbosity = 1L) {
     msg("Done")
   }
   rules_f
-} # rtemis::rules2medmod
+} # /rtemis::rules2medmod

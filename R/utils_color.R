@@ -70,7 +70,7 @@ color_op <- function(col, fn = c("invert", "mean"), space = c("HSV", "RGB")) {
       return(averaged)
     }
   }
-} # rtemis::color_op
+} # /rtemis::color_op
 
 #' Squared Color Distance
 #'
@@ -93,7 +93,7 @@ color_sqdist <- function(x, y) {
   y.rgb <- col2rgb(y)
 
   sum((x.rgb - y.rgb)^2)
-} # rtemis::color_sqdist
+} # /rtemis::color_sqdist
 
 #' Order colors
 #'
@@ -124,7 +124,7 @@ color_order <- function(
     x <- x[-id]
   }
   c(out, x)
-} # rtemis::color_order
+} # /rtemis::color_order
 
 #' Color to Grayscale
 #'
@@ -194,7 +194,7 @@ color_invertRGB <- function(x) {
     names(invertedl) <- paste0(names(col), ".invert")
   }
   invertedl
-} # rtemis::color_invertRGB
+} # /rtemis::color_invertRGB
 
 #' Fade color towards target
 #'
@@ -256,7 +256,7 @@ desaturate <- function(x, s = .3) {
 
   names(xp) <- .names
   xp
-} # rtemis::desaturate
+} # /rtemis::desaturate
 
 
 #' Convert R color to hexadecimal code
@@ -292,7 +292,7 @@ col2hex <- function(color) {
       )
     )
   })
-} # rtemis::col2hex
+} # /rtemis::col2hex
 
 
 #' Adjust HSV Color
@@ -318,7 +318,7 @@ color_adjust <- function(color, alpha = NULL, hue = 0, sat = 0, val = 0) {
     ac <- adjustcolor(color, alpha.f = alpha)
   }
   ac
-} # rtemis::color_adjust
+} # /rtemis::color_adjust
 
 #' Create an alternating sequence of graded colors
 #'
@@ -359,7 +359,7 @@ color_mix <- function(color, n = 4) {
   color.grad <- lapply(color, function(i) colorRampPalette(i)(n))
 
   c(t(as.data.frame(color.grad)))
-} # rtemis::color_mix
+} # /rtemis::color_mix
 
 
 #' Preview color
@@ -512,7 +512,7 @@ previewcolor <- function(
   if (!is.null(filename)) {
     dev.off()
   }
-} # rtemis::previewcolor
+} # /rtemis::previewcolor
 
 
 rhombus <- function(
@@ -884,7 +884,7 @@ colorgrad <- function(
     return(p)
   }
   invisible(grad)
-} # rtemis::colorgrad
+} # /rtemis::colorgrad
 
 # 3-letter Color Name Abbreviations
 # wht white

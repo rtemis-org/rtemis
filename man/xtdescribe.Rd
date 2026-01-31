@@ -7,19 +7,26 @@
 xtdescribe(x, id_col = 1, time_col = 2, n_patterns = 9)
 }
 \arguments{
-\item{x}{data.frame with longitudinal data}
+\item{x}{data.frame: Longitudinal data with ID and time variables.}
 
-\item{id_col}{Integer: The column position of the ID variable}
+\item{id_col}{Integer: The column position of the ID variable.}
 
-\item{time_col}{Integer: The column position of the time variable}
+\item{time_col}{Integer: The column position of the time variable.}
 
-\item{n_patterns}{Integer: The number of patterns to display}
+\item{n_patterns}{Integer: The number of patterns to display.}
 }
 \value{
-\code{data.frame}, invisibly.
+data.frame: Summary of participation patterns, returned invisibly.
 }
 \description{
 This function emulates the \code{xtdescribe} function in Stata.
+}
+\examples{
+# Load example longitudinal dataset
+data(xt_example)
+
+# Describe the longitudinal structure
+xtdescribe(xt_example)
 }
 \author{
 EDG

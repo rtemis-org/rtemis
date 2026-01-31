@@ -595,4 +595,4 @@ check_dependencies <- function(..., verbosity = 0L) {
   } else {
     if (verbosity > 0L) msg("Dependency check passed")
   }
-} # rtemis::check_dependencies
+} # /rtemis::check_dependencies

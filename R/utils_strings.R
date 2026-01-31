@@ -178,7 +178,7 @@ labelify <- function(
   xf <- gsub("\\[\\[.*\\]\\]", "", xf)
 
   return(xf)
-} # rtemis::labelify
+} # /rtemis::labelify
 
 
 #' Clean names
@@ -256,7 +256,7 @@ oxfordcomma <- function(..., format_fn = identity) {
   } else {
     format_fn(x)
   }
-} # rtemis::oxfordcomma
+} # /rtemis::oxfordcomma
 
 #' Padded cat
 #'
@@ -294,7 +294,7 @@ padcat <- function(
   if (newline) {
     cat("\n")
   }
-} # rtemis::padcat
+} # /rtemis::padcat
 
 pastebox <- function(x, pad = 0) {
   paste0(strrep(" ", pad), ".:", x)
@@ -365,7 +365,7 @@ objcat <- function(
     output_type = output_type
   )
   cat(out)
-} # rtemis::objcat
+} # /rtemis::objcat
 
 
 #' Function to label

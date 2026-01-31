@@ -96,9 +96,9 @@ rule_dist <- function(
 
   class(out) <- c("rtrule_dist", "list")
   out
-} # rtemis::rule_dist
+} # /rtemis::rule_dist
 
 
 hamming <- function(x, y) {
   sum(x != y)
-} # rtemis::hamming
+} # /rtemis::hamming

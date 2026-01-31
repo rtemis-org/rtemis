@@ -44,7 +44,7 @@ msew <- function(x, y, weights = rep(1, length(y)), na.rm = TRUE) {
 #' @noRd
 rmse <- function(x, y, na.rm = TRUE) {
   sqrt(mse(x, y, na.rm = na.rm))
-} # rtemis::rmse
+} # /rtemis::rmse
 
 #' R-squared
 #'
@@ -61,7 +61,7 @@ rsq <- function(x, y) {
   SST <- sum((x - mean(x))^2)
   # R-squared a.k.a. Coefficient of Determination i.e. percent variance explained
   1 - (SSE / SST)
-} # rtemis::rsq
+} # /rtemis::rsq
 
 
 #' Log Loss for a binary classifier
@@ -78,7 +78,7 @@ logloss <- function(true_int, predicted_prob, eps = 1e-16) {
   -mean(
     true_int * log(predicted_prob) + (1 - true_int) * log(1 - predicted_prob)
   )
-} # rtemis::logloss
+} # /rtemis::logloss
 
 
 #' Sensitivity
@@ -309,7 +309,7 @@ auc <- function(true_int, predicted_prob, method = "lightAUC", verbosity = 0L) {
     msg("AUC =", auc.)
   }
   auc.
-} # rtemis::auc
+} # /rtemis::auc
 
 
 #' Area under the Curve by pairwise concordance
@@ -354,7 +354,7 @@ auc_pairs <- function(estimated.score, true.labels, verbosity = 1L) {
     msg("AUC =", .auc)
   }
   invisible(.auc)
-} # rtemis::auc_pairs
+} # /rtemis::auc_pairs
 
 
 #' Brier_Score
@@ -396,7 +396,7 @@ labels2int <- function(x, binclasspos = 2L) {
     xi <- as.integer(x) - 1L
   }
   xi
-} # rtemis::labels2int
+} # /rtemis::labels2int
 
 # classification_metrics() ----
 #' Classification Metrics

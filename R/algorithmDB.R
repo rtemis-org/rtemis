@@ -344,4 +344,4 @@ available_draw <- function() {
   cat("Available draw functions:\n")
   printls(fns, print_class = FALSE, limit = -1L)
   invisible()
-} # rtemis::available_draw
+} # /rtemis::available_draw

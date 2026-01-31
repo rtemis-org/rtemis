@@ -140,7 +140,7 @@ msg <- function(
   } else if (newline) {
     message("")
   }
-} # rtemis::msg
+} # /rtemis::msg
 
 #' @rdname msg
 #'
@@ -175,7 +175,7 @@ msg0 <- function(
   } else if (newline) {
     message("")
   }
-} # rtemis::msg0
+} # /rtemis::msg0
 
 
 #' Pad-cat
@@ -223,7 +223,7 @@ msgstart <- function(
   }
   msgdatetime()
   message(plain(paste(txt, collapse = sep)), appendLF = FALSE)
-} # rtemis::msgstart
+} # /rtemis::msgstart
 
 
 #' msgdone
@@ -240,4 +240,4 @@ msgdone <- function(caller = NULL, call_depth = 1, caller_id = 1, sep = " ") {
   message(" ", appendLF = FALSE)
   yay(end = "")
   message(gray(paste0("[", caller, "]\n")), appendLF = FALSE)
-} # rtemis::msgdone
+} # /rtemis::msgdone

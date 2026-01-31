@@ -1763,7 +1763,7 @@ rtpalette <- function(palette = NULL, verbosity = 1L) {
     )
     rtemis_palettes[[palette]]
   }
-} # rtemis::rtpalette
+} # /rtemis::rtpalette
 
 
 #' Access rtemis palette colors
@@ -1786,7 +1786,7 @@ rtemis_palette <- function(n, palette = rtemis_palette) {
   .palette <- unlist(rtpalette(palette))
   names(.palette) <- NULL
   .palette[seq_len(n)]
-} # rtemis::rtemis_palette
+} # /rtemis::rtemis_palette
 
 penn_heat <- function(
   n = 11,
@@ -1904,7 +1904,7 @@ penn_heat <- function(
   }
 
   return(grad)
-} # rtemis::penn_heat
+} # /rtemis::penn_heat
 
 # Xterm Colors ----
 XtermCol <- list(

@@ -22,4 +22,4 @@ make_path <- function(..., expand_path = TRUE) {
     path <- path.expand(path)
   }
   path
-} # rtemis::make_path
+} # /rtemis::make_path

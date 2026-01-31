@@ -663,6 +663,6 @@ draw_xt <- function(
   } # /rangeslider
 
   return(plt)
-} # rtemis::draw_xt
+} # /rtemis::draw_xt
 
 # tickmode = "array", tickvals: placement, ticktext: labels

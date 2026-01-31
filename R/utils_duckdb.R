@@ -178,7 +178,7 @@ ddb_data <- function(
   # Outro ----
   outro(start_time, verbosity = verbosity)
   out
-} # rtemis::ddb_data
+} # /rtemis::ddb_data
 
 
 # output: '"alpha", "beta", "gamma"'
@@ -226,4 +226,4 @@ ddb_collect <- function(
     setDT(out)
   }
   out
-} # rtemis::ddb_collect
+} # /rtemis::ddb_collect

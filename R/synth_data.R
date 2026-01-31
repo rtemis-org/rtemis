@@ -45,7 +45,7 @@ synth_reg_data <- function(
     w = w,
     seed = seed
   )
-} # rtemis::synth_reg_data
+} # /rtemis::synth_reg_data
 
 #' Create "Multimodal" Synthetic Data
 #'
@@ -347,4 +347,4 @@ synth_multimodal <- function(
   }
 
   out
-} # rtemis::synth_multimodal
+} # /rtemis::synth_multimodal

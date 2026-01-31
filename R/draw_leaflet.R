@@ -217,4 +217,4 @@ draw_leaflet <- function(
   )
   map <- htmlwidgets::prependContent(map, insert)
   map
-} # rtemis:: draw_leaflet
+} # /rtemis:: draw_leaflet

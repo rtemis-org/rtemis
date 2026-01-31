@@ -359,4 +359,4 @@ draw_heatmap <- function(
   } # /export_plotly
 
   plt
-} # rtemis::draw_heatmap
+} # /rtemis::draw_heatmap

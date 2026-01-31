@@ -151,7 +151,7 @@ getnamesandtypes <- function(x) {
   xnames <- names(x)
   attr(xnames, "type") <- sapply(x, class)
   xnames
-} # rtemis::namesandtypes
+} # /rtemis::namesandtypes
 
 
 #' Unique values per feature
@@ -176,7 +176,7 @@ uniquevalsperfeat <- function(x, excludeNA = FALSE) {
   } else {
     apply(x, 2, function(i) length(unique(i)))
   }
-} # rtemis::uniquevalsperfeat
+} # /rtemis::uniquevalsperfeat
 
 
 # df_movecolumn.R
@@ -222,7 +222,7 @@ df_movecolumn <- function(x, from, to = ncol(x)) {
   } else {
     cbind(x[, 1:(to - 1), drop = FALSE], v, x[, (to + 1):ncol(x), drop = FALSE])
   }
-} # rtemis::df_movecolumn
+} # /rtemis::df_movecolumn
 
 
 #' Vector to data.frame
@@ -244,4 +244,4 @@ vec2df <- function(x, col_names = NULL) {
     names(x) <- col_names
   }
   as.data.frame(t(x))
-} # rtemis::vec2df
+} # /rtemis::vec2df

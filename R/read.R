@@ -325,7 +325,7 @@ read <- function(
   }
 
   return(.dat)
-} # rtemis::read
+} # /rtemis::read
 
 msgread <- function(x, caller = "", use_basename = TRUE) {
   if (use_basename) {

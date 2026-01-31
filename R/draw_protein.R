@@ -884,7 +884,7 @@ draw_protein <- function(
   } # /export_plotly
 
   return(plt)
-} # rtemis::draw_protein
+} # /rtemis::draw_protein
 
 aa <- data.frame(
   Abbreviation1 = c(
