@@ -121,7 +121,7 @@ nay <- function(..., sep = " ", end = "\n", pad = 0) {
 #' Format text for label printing
 #'
 #' @param x Character: Input
-#' @param underscoresToSpaces Logical: If TRUE, convert underscores to spaces.
+#' @param underscores_to_spaces Logical: If TRUE, convert underscores to spaces.
 #' @param dotsToSpaces Logical: If TRUE, convert dots to spaces.
 #' @param toLower Logical: If TRUE, convert to lowercase (precedes `toTitleCase`).
 #' Default = FALSE (Good for getting all-caps words converted to title case, bad for abbreviations
@@ -136,9 +136,13 @@ nay <- function(..., sep = " ", end = "\n", pad = 0) {
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' x <- c("county_name", "total.cost$", "age", "weight.kg")
+#' labelify(x)
 labelify <- function(
   x,
-  underscoresToSpaces = TRUE,
+  underscores_to_spaces = TRUE,
   dotsToSpaces = TRUE,
   toLower = FALSE,
   toTitleCase = TRUE,
@@ -155,7 +159,7 @@ labelify <- function(
   for (i in capitalize_strings) {
     xf <- gsub(paste0("^", i, "$"), toupper(i), xf, ignore.case = TRUE)
   }
-  if (underscoresToSpaces) {
+  if (underscores_to_spaces) {
     xf <- gsub("_", " ", xf)
   }
   if (dotsToSpaces) {
@@ -192,11 +196,9 @@ labelify <- function(
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' x <- c("Patient ID", "_Date-of-Birth", "SBP (mmHg)")
 #' x
 #' clean_names(x)
-#' }
 clean_names <- function(x, prefix_digits = "V_") {
   xc <- gsub("[^[:alnum:]]{1,}", "_", x)
   xc <- gsub("^_|_$", "", xc)
@@ -219,9 +221,7 @@ clean_names <- function(x, prefix_digits = "V_") {
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' clean_colnames(iris)
-#' }
 clean_colnames <- function(x) {
   if (!inherits(x, "character")) {
     x <- if (inherits(x, "matrix")) colnames(x) else names(x)

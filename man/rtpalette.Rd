@@ -22,10 +22,10 @@ any graphics function.
 \code{rtpalette(palette_name)} returns a list of colors for a given palette.
 }
 \examples{
-\dontrun{
-rtpalette("imperial")
+# Print available palettes
 rtpalette()
-}
+# Get the Imperial palette
+rtpalette("imperial")
 }
 \author{
 EDG

@@ -359,6 +359,10 @@ GLMHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' glm_hyperparams <- setup_GLM(ifw = TRUE)
+#' glm_hyperparams
 setup_GLM <- function(ifw = FALSE) {
   GLMHyperparameters(ifw = ifw)
 }
@@ -403,6 +407,10 @@ GAMHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' gam_hyperparams <- setup_GAM(k = 5L, ifw = FALSE)
+#' gam_hyperparams
 setup_GAM <- function(k = 5L, ifw = FALSE) {
   k <- clean_posint(k)
   GAMHyperparameters(k = k, ifw = ifw)
@@ -501,6 +509,10 @@ CARTHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' cart_hyperparams <- setup_CART(cp = 0.01, maxdepth = 10L, ifw = TRUE)
+#' cart_hyperparams
 setup_CART <- function(
   # tunable
   cp = 0.01,
@@ -638,6 +650,10 @@ GLMNETHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' glm_hyperparams <- setup_GLMNET(alpha = 1, ifw = TRUE)
+#' glm_hyperparams
 setup_GLMNET <- function(
   # tunable
   alpha = 1,
@@ -768,6 +784,10 @@ LightCARTHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' lightcart_hyperparams <- setup_LightCART(num_leaves = 32L, ifw = FALSE)
+#' lightcart_hyperparams
 setup_LightCART <- function(
   num_leaves = 32L,
   max_depth = -1L,
@@ -918,6 +938,10 @@ LightRFHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' lightrf_hyperparams <- setup_LightRF(nrounds = 1000L, ifw = FALSE)
+#' lightrf_hyperparams
 setup_LightRF <- function(
   nrounds = 500L,
   num_leaves = 4096L,
@@ -1124,6 +1148,11 @@ method(update, LightGBMHyperparameters) <- function(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' lightgbm_hyperparams <- setup_LightGBM(max_nrounds = 500L,
+#'    learning_rate = c(0.001, 0.01, 0.05), ifw = TRUE)
+#' lightgbm_hyperparams
 setup_LightGBM <- function(
   # nrounds will be auto-tuned if force_nrounds is NULL with a value up to max_nrounds and
   # using early_stopping_rounds.
@@ -1315,6 +1344,10 @@ LightRuleFitHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' lightrulefit_hyperparams <- setup_LightRuleFit(nrounds = 300L, max_depth = 3L)
+#' lightrulefit_hyperparams
 setup_LightRuleFit <- function(
   nrounds = 200L,
   num_leaves = 32L,
@@ -1414,7 +1447,10 @@ IsotonicHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
-
+#'
+#' @examples
+#' isotonic_hyperparams <- setup_Isotonic(ifw = TRUE)
+#' isotonic_hyperparams
 setup_Isotonic <- function(ifw = FALSE) {
   IsotonicHyperparameters(ifw = ifw)
 } # /rtemis::setup_Isotonic
@@ -1491,6 +1527,10 @@ LinearSVMHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' linear_svm_hyperparams <- setup_LinearSVM(cost = 0.5, ifw = TRUE)
+#' linear_svm_hyperparams
 setup_LinearSVM <- function(
   cost = 1,
   ifw = FALSE
@@ -1556,6 +1596,10 @@ RadialSVMHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' radial_svm_hyperparams <- setup_RadialSVM(cost = 10, gamma = 0.1, ifw = TRUE)
+#' radial_svm_hyperparams
 setup_RadialSVM <- function(
   cost = 1,
   gamma = 0.01,
@@ -1762,6 +1806,10 @@ TabNetHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' tabnet_hyperparams <- setup_TabNet(epochs = 100L, learn_rate = 0.01)
+#' tabnet_hyperparams
 setup_TabNet <- function(
   batch_size = 1024^2,
   penalty = 0.001,
@@ -2034,6 +2082,10 @@ RangerHyperparameters <- new_class(
 #' @return RangerHyperparameters object.
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' ranger_hyperparams <- setup_Ranger(num_trees = 1000L, ifw = FALSE)
+#' ranger_hyperparams
 setup_Ranger <- function(
   num_trees = 500,
   mtry = NULL,

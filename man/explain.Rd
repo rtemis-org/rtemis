@@ -27,3 +27,10 @@ Different models require different inputs.
 Currently, different explain methods output different objects.
 This will likely be replaced in the future using a custom S7 class.
 }
+\examples{
+\dontrun{
+mod <- train(iris, alg = "GLMNET")
+explanation <- explain(mod, x = features(iris[1, ]), dat_training = features(iris))
+explanation
+}
+}

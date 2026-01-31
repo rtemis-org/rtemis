@@ -105,10 +105,10 @@ draw_heatmap <- function(
   # Colnames ----
   if (is.null(colnames(x))) {
     colnames(x) <- seq_len(NCOL(x))
-  } # rtLetters(NCOL(x))
+  }
   if (is.null(rownames(x))) {
     rownames(x) <- seq_len(NROW(x))
-  } # rtLetters(NCOL(x), caps = TRUE)
+  }
 
   # Margins ----
   # By default, allow 7 px per character

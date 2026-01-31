@@ -22,6 +22,10 @@ Setup hyperparameters for RadialSVM training.
 \details{
 Get more information from \link[e1071:svm]{e1071::svm}.
 }
+\examples{
+radial_svm_hyperparams <- setup_RadialSVM(cost = 10, gamma = 0.1, ifw = TRUE)
+radial_svm_hyperparams
+}
 \author{
 EDG
 }

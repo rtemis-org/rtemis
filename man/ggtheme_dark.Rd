@@ -42,11 +42,10 @@ ggtheme_dark(
 \pkg{rtemis} \code{ggplot2} dark theme
 }
 \examples{
-\dontrun{
-(p <- ggplot(iris, aes(Sepal.Length, Petal.Length, color = Species)) +
+p <- ggplot(iris, aes(Sepal.Length, Petal.Length, color = Species)) +
   geom_point() +
-  ggtheme_light())
-}
+  ggtheme_light()
+p
 }
 \author{
 EDG

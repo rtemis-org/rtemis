@@ -251,11 +251,10 @@ ggtheme_light <- function(
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' (p <- ggplot(iris, aes(Sepal.Length, Petal.Length, color = Species)) +
+#' p <- ggplot(iris, aes(Sepal.Length, Petal.Length, color = Species)) +
 #'   geom_point() +
-#'   ggtheme_light())
-#' }
+#'   ggtheme_light()
+#' p
 ggtheme_dark <- function(
   base_size = 14,
   base_family = "Helvetica Neue",
@@ -272,14 +271,14 @@ ggtheme_dark <- function(
   ggplot2::theme(
     line = ggplot2::element_line(
       colour = "white",
-      size = base_line_size,
+      linewidth = base_line_size,
       linetype = 1,
       lineend = "butt"
     ),
     rect = ggplot2::element_rect(
       fill = "black", # bg
       colour = "white",
-      size = base_rect_size,
+      linewidth = base_rect_size,
       linetype = 1
     ),
     text = ggplot2::element_text(

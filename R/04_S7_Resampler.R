@@ -298,6 +298,10 @@ CustomConfig <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' tenfold_resampler <- setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)
+#' tenfold_resampler
 setup_Resampler <- function(
   n_resamples = 10L,
   type = c("KFold", "StratSub", "StratBoot", "Bootstrap", "LOOCV"),

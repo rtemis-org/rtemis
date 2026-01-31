@@ -6,7 +6,7 @@
 \usage{
 labelify(
   x,
-  underscoresToSpaces = TRUE,
+  underscores_to_spaces = TRUE,
   dotsToSpaces = TRUE,
   toLower = FALSE,
   toTitleCase = TRUE,
@@ -17,7 +17,7 @@ labelify(
 \arguments{
 \item{x}{Character: Input}
 
-\item{underscoresToSpaces}{Logical: If TRUE, convert underscores to spaces.}
+\item{underscores_to_spaces}{Logical: If TRUE, convert underscores to spaces.}
 
 \item{dotsToSpaces}{Logical: If TRUE, convert dots to spaces.}
 
@@ -38,6 +38,10 @@ Character vector.
 }
 \description{
 Format text for label printing
+}
+\examples{
+x <- c("county_name", "total.cost$", "age", "weight.kg")
+labelify(x)
 }
 \author{
 EDG

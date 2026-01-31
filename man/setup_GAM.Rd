@@ -20,6 +20,10 @@ Setup hyperparameters for GAM training.
 \details{
 Get more information from \link[mgcv:gam]{mgcv::gam}.
 }
+\examples{
+gam_hyperparams <- setup_GAM(k = 5L, ifw = FALSE)
+gam_hyperparams
+}
 \author{
 EDG
 }

@@ -18,6 +18,10 @@ Setup hyperparameters for Isotonic Regression.
 \details{
 There are not hyperparameters for this algorithm at this moment.
 }
+\examples{
+isotonic_hyperparams <- setup_Isotonic(ifw = TRUE)
+isotonic_hyperparams
+}
 \author{
 EDG
 }

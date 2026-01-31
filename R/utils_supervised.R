@@ -74,6 +74,10 @@ check_supervised_inputs <- function(x, y = NULL) {
 #' @author EDG
 #'
 #' @export
+#'
+#' @examples
+#' ir <- set_outcome(iris, "Sepal.Length")
+#' head(ir)
 set_outcome <- function(dat, outcome_column) {
   # Get index of outcome column
   id <- grep(outcome_column, names(dat))
@@ -266,7 +270,13 @@ get_gam_pvals <- function(m, warn = TRUE) {
 #'
 #' @author EDG
 #' @export
-
+#'
+#' @examples
+#' # iris is perfectly balanced
+#' class_imbalance(iris[["Species"]])
+#' # Simulate imbalanced outcome
+#' x <- factor(sample(c("A", "B"), size = 500L, replace = TRUE, prob = c(0.9, 0.1)))
+#' class_imbalance(x)
 class_imbalance <- function(x) {
   if (!is.factor(x)) {
     cli::cli_abort("Input must be a factor")

@@ -48,6 +48,10 @@ Setup hyperparameters for GLMNET training.
 \details{
 Get more information from \link[glmnet:glmnet]{glmnet::glmnet}.
 }
+\examples{
+glm_hyperparams <- setup_GLMNET(alpha = 1, ifw = TRUE)
+glm_hyperparams
+}
 \author{
 EDG
 }

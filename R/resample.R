@@ -86,13 +86,6 @@ resample <- function(
     }
   }
 
-  # stratify_var is for printing with parameter_summary
-  # stratify_var <- if (is.null(config@stratify_var)) {
-  #   getName(x, "x")
-  # } else {
-  #   deparse(substitute(stratify_var))
-  # }
-
   n_resamples <- if (type == "LOOCV") length(x) else config@n
 
   # Print config ----

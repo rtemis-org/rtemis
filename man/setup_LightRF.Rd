@@ -65,6 +65,10 @@ Note that hyperparameters subsample_freq and early_stopping_rounds are fixed,
 and cannot be set because they are what makes \code{lightgbm} train a random forest.
 These can all be set when training gradient boosting with LightGBM.
 }
+\examples{
+lightrf_hyperparams <- setup_LightRF(nrounds = 1000L, ifw = FALSE)
+lightrf_hyperparams
+}
 \author{
 EDG
 }

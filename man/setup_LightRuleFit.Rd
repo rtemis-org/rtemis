@@ -61,6 +61,10 @@ Setup hyperparameters for LightRuleFit training.
 \details{
 Get more information from \link[lightgbm:lgb.train]{lightgbm::lgb.train}.
 }
+\examples{
+lightrulefit_hyperparams <- setup_LightRuleFit(nrounds = 300L, max_depth = 3L)
+lightrulefit_hyperparams
+}
 \author{
 EDG
 }

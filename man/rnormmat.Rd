@@ -32,6 +32,10 @@ rnormmat(
 \description{
 Create a matrix or data frame of defined dimensions, whose columns are random normal vectors
 }
+\examples{
+x <- rnormmat(20, 5, mean = 12, sd = 6, return_df = TRUE, seed = 2026)
+x
+}
 \author{
 EDG
 }

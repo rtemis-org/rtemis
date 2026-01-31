@@ -431,6 +431,13 @@ get_explain_fn <- function(algorithm) {
 #' @return Object depending on model: list, shapr, or other.
 #'
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' mod <- train(iris, alg = "GLMNET")
+#' explanation <- explain(mod, x = features(iris[1, ]), dat_training = features(iris))
+#' explanation
+#' }
 explain <- function(model, x, dat_training = NULL, method = NULL) {
   check_is_S7(model, Supervised)
   check_inherits(x, "data.frame")

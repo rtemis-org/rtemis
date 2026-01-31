@@ -4,10 +4,10 @@
 
 #' Describe longitudinal dataset
 #'
-#' This is a test to emulate the `xtdescribe` function in Stata.
+#' This function emulates the `xtdescribe` function in Stata.
 #'
 #' @param x data.frame with longitudinal data
-#' @param ID_col Integer: The column position of the ID variable
+#' @param id_col Integer: The column position of the ID variable
 #' @param time_col Integer: The column position of the time variable
 #' @param n_patterns Integer: The number of patterns to display
 #'
@@ -17,11 +17,11 @@
 #' @export
 xtdescribe <- function(
   x,
-  ID_col = 1,
+  id_col = 1,
   time_col = 2,
   n_patterns = 9
 ) {
-  id_name <- names(x)[ID_col]
+  id_name <- names(x)[id_col]
   time_name <- names(x)[time_col]
   # Print vec_describe of ID, with n = number of unique IDs
   id_us <- sort(unique(x[[id_name]]))

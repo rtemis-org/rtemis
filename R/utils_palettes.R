@@ -1746,10 +1746,10 @@ rtemis_palettes <- list(
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' rtpalette("imperial")
+#' # Print available palettes
 #' rtpalette()
-#' }
+#' # Get the Imperial palette
+#' rtpalette("imperial")
 rtpalette <- function(palette = NULL, verbosity = 1L) {
   if (is.null(palette)) {
     if (verbosity > 0L) {
