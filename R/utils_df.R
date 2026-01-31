@@ -182,8 +182,8 @@ uniquevalsperfeat <- function(x, excludeNA = FALSE) {
 #' Move data frame column
 #'
 #' @param x data.frame.
-#' @param from String or Integer: Define which column holds the vector you want to move.
-#' @param to Integer: Define which column number you want the vector to be moved to.
+#' @param colname Character: Name of column you want to move.
+#' @param to Integer: Which column position to move the vector to.
 #' Default = `ncol(x)` i.e. the last column.
 #'
 #' @return data.frame
@@ -193,30 +193,43 @@ uniquevalsperfeat <- function(x, excludeNA = FALSE) {
 #'
 #' @examples
 #' \dontrun{
-#' mtcars_hp <- df_movecolumn(mtcars, "hp")
+#' ir <- df_movecolumn(iris, colname = "Species", to = 1L)
 #' }
-df_movecolumn <- function(x, from, to = ncol(x)) {
+df_movecolumn <- function(x, colname, to = ncol(x)) {
   if (!is.data.frame(x)) {
-    cli::cli_abort("Input must be data frame")
+    cli::cli_abort("Input {.arg x} must be a data frame.")
   }
 
-  if (is.character(from)) {
-    from_name <- from
-    from <- grep(from, colnames(x))
-    if (length(from) == 0) {
-      cli::cli_abort("Did not find \"", from, "\" in input")
-    }
-  } else {
-    from_name <- colnames(x)[from]
+  check_character(colname, allow_null = FALSE)
+
+  to <- clean_int(to)
+
+  if (NCOL(x) < 2) {
+    cli::cli_abort("Input data.frame {.arg x} must have at least 2 columns.")
   }
 
-  v <- x[, from_name, drop = FALSE]
-  x[, from_name] <- NULL
+  if (!(colname %in% names(x))) {
+    cli::cli_abort("Column {.val {colname}} not found in input data frame.")
+  }
 
-  if (to == ncol(x)) {
+  ncols <- ncol(x)
+  if (to < 1L || to > ncols) {
+    cli::cli_abort("{.arg to} must be between 1 and {.val {ncols}}.")
+  }
+
+  v <- x[, colname, drop = FALSE]
+  x[, colname] <- NULL
+
+  if (to == ncols) {
     cbind(x, v)
+  } else if (to == 1L) {
+    cbind(v, x)
   } else {
-    cbind(x[, 1:(to - 1), drop = FALSE], v, x[, (to + 1):ncol(x), drop = FALSE])
+    cbind(
+      x[, 1:(to - 1), drop = FALSE],
+      v,
+      x[, to:(ncols - 1), drop = FALSE]
+    )
   }
 } # /rtemis::df_movecolumn
 
