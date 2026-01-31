@@ -179,10 +179,6 @@ uniquevalsperfeat <- function(x, excludeNA = FALSE) {
 } # /rtemis::uniquevalsperfeat
 
 
-# df_movecolumn.R
-# ::rtemis::
-# 2020 EDG rtemis.org
-
 #' Move data frame column
 #'
 #' @param x data.frame.
@@ -214,8 +210,8 @@ df_movecolumn <- function(x, from, to = ncol(x)) {
     from_name <- colnames(x)[from]
   }
 
-  v <- x[, from, drop = FALSE]
-  x[, from] <- NULL
+  v <- x[, from_name, drop = FALSE]
+  x[, from_name] <- NULL
 
   if (to == ncol(x)) {
     cbind(x, v)

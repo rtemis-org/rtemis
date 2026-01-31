@@ -109,7 +109,7 @@ check_files <- function(paths, verbosity = 1L, pad = 0) {
 #' @export
 #'
 #' @examples
-#' /dontrun{
+#' \dontrun{
 #' x <- list(
 #'    iris = iris,
 #'    iris_normalized = as.data.frame(scale(iris[, -5]))
