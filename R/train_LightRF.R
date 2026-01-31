@@ -170,29 +170,3 @@ varimp_LightRF <- function(model) {
   names(out) <- vi[["Feature"]]
   out
 } # /rtemis::varimp_LightRF
-
-#' Explain LightRF model
-#'
-#' Get SHAP values for a LightRF model.
-#'
-#' @param model Supervised model trained with [train] (`algorithm="LightRF"`).
-#' @param x data.frame or similar: Data to explain.
-#' @param dat_training data.frame or similar: Training data.
-#' @param dat_validation data.frame or similar: Validation data.
-#' @param method Character: Method to use.
-#' @param ... Not used.
-#'
-#' @keywords internal
-#' @noRd
-explain_LightRF <- function(
-  model,
-  x,
-  verbosity = 0L,
-  ...
-) {
-  explain_LightGBM(
-    model = model,
-    x = x,
-    verbosity = verbosity
-  )
-} # /rtemis::explain_LightRF

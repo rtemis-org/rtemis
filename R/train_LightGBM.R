@@ -181,37 +181,3 @@ varimp_LightGBM <- function(model) {
   names(out) <- vi[["Feature"]]
   out
 } # /rtemis::varimp_LightGBM
-
-#' Explain LightGBM model
-#'
-#' Get SHAP values for a LightRF model.
-#'
-#' @param model Supervised model trained with [train] (`algorithm="LightRF"`).
-#' @param x data.frame or similar: Data to explain.
-#' @param dat_training data.frame or similar: Training data.
-#' @param dat_validation data.frame or similar: Validation data.
-#' @param method Character: Method to use.
-#' @param ... Not used.
-#'
-#' @keywords internal
-#' @noRd
-explain_LightGBM <- function(model, x, verbosity = 0L, ...) {
-  # x should include only features
-  check_inherits(model@model, "lgb.Booster")
-  check_inherits(x, "data.frame")
-  factor_index <- names(x)[which(sapply(x, is.factor))]
-  # Preprocess ----
-  x <- preprocess(
-    x,
-    config = setup_Preprocessor(
-      factor2integer = TRUE,
-      factor2integer_startat0 = TRUE
-    ),
-    verbosity = verbosity - 1L
-  )@preprocessed
-  lightgbm::lgb.interprete(
-    model = model@model,
-    data = as.matrix(x),
-    idxset = seq_len(nrow(x))
-  )
-} # /rtemis::explain_LightGBM
