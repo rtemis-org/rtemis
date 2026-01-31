@@ -167,19 +167,18 @@ strict <- function(object, class, allow_null = TRUE) {
 #' clean_int(c(3, 5, 7.01)) # Error
 #' }
 clean_int <- function(x) {
-  xname <- deparse(substitute(x))
   if (is.integer(x)) {
     return(x)
   } else if (is.numeric(x)) {
     if (all(x %% 1 == 0)) {
       return(as.integer(x))
     } else {
-      cli::cli_abort("{.var {xname}} must be integer.")
+      cli::cli_abort("{.arg x} must be integer.")
     }
   } else if (is.null(x)) {
     return(NULL)
   }
-  cli::cli_abort("{.var {xname}} must be integer.")
+  cli::cli_abort("{.arg x} must be integer.")
 } # /rtemis::clean_int
 
 
