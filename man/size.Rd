@@ -12,7 +12,7 @@ size(x, verbosity = 1L)
 \item{verbosity}{Integer: Verbosity level. If > 0, print size to console}
 }
 \value{
-Integer vector of length same a number of dimensions of input \code{x}, invisibly
+Integer vector with length equal to the number of dimensions of \code{x}, invisibly.
 }
 \description{
 Returns the size of an object
@@ -23,7 +23,7 @@ If \code{dim(x)} is NULL, returns \code{length(x)}.
 \examples{
 x <- rnorm(20)
 size(x)
-# 20  1
+# 20
 x <- matrix(rnorm(100), 20, 5)
 size(x)
 # 20  5
