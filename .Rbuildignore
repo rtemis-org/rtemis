@@ -9,4 +9,5 @@
 ^pkgdown$
 ^\.github$
 ^dev$
+^data-raw$
 GEMINI.md
