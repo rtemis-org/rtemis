@@ -304,21 +304,6 @@ printdf1 <- function(x, pad = 2) {
 } # /rtemis::printdf1
 
 
-cpad <- function(x, length = NULL, adjust = c("right", "left")) {
-  adjust <- match.arg(adjust)
-  if (is.null(length)) {
-    cat(x)
-  } else {
-    reps <- max(0, length - nchar(x))
-    if (adjust == "right") {
-      paste0(strrep(" ", reps), x)
-    } else {
-      paste0(x, strrep(" ", reps))
-    }
-  }
-} # /rtemis::cpad
-
-
 #' Print data frame
 #'
 #' Pretty print a data frame
