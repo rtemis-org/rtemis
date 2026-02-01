@@ -4,10 +4,6 @@ Thank you for your interest in contributing to **rtemis**! This guide will help 
 
 ## Before Opening an Issue
 
-### Check Existing Issues
-
-Please search [existing issues](https://github.com/rtemis-org/rtemis/issues) to see if your problem or suggestion has already been reported. If you find a related issue, add a comment with any additional information.
-
 ### Update to Latest Version
 
 Ensure you're using the latest version of rtemis (v0.99+). Many issues may already be fixed in recent updates.
@@ -23,6 +19,10 @@ install.packages('rtemis', repos = 'https://egenn.r-universe.dev')
 packageVersion("rtemis")
 ```
 
+### Check Existing Issues
+
+Please search [existing issues](https://github.com/rtemis-org/rtemis/issues) to see if your problem or suggestion has already been reported. If you find a related issue, add a comment with any additional information.
+
 ### Review Documentation
 
 - **API Documentation**: https://rdocs.rtemis.org/api/
@@ -35,10 +35,10 @@ packageVersion("rtemis")
 
 We welcome the following types of issues:
 
-1. **🐛 Bug Reports**: Unexpected behavior, errors, or crashes
-2. **✨ Feature Requests**: Ideas for new functionality
-3. **📚 Documentation**: Improvements to docs or examples
-4. **❓ Questions**: Usage questions (consider [Discussions](https://github.com/rtemis-org/rtemis/discussions) for general questions)
+1. **🐛 Bug Reports**: Unexpected behavior, errors, or crashes. (Use `[BUG]` in the title)
+2. **✨ Feature Requests**: Ideas for new functionality. (Use `[FEATURE]` in the title)
+3. **📚 Documentation**: Improvements to docs or examples. (Use `[DOC]` in the title)
+4. **❓ Questions**: Use [Discussions](https://github.com/rtemis-org/rtemis/discussions) for usage questions
 
 ### Bug Reports
 
