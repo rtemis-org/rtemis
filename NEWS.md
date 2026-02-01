@@ -23,9 +23,9 @@
 
 ## S7 re-write
 
-* The package was re-written to use S7 classes and methods throughout, insteead of the previous R6-based implementation.
+* The package was re-written to use S7 classes and methods throughout, instead of the previous R6-based implementation.
 * The goal is to provide a robust, type-safe backend while maintaining a functional user-facing API.
-* The original package featured ~80 supervised learning algorithms, mnay of which we never used. The new version begins with a core set of essential algorithms, with more planned for future releases.
+* The original package featured ~80 supervised learning algorithms, many of which we never used. The new version begins with a core set of essential algorithms, with more planned for future releases.
 
 ---
 

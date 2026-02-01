@@ -16,7 +16,7 @@ Integer vector
 Clean integer input
 }
 \details{
-The goal is to return an integer vectors.
+The goal is to return an integer vector.
 If the input is integer, it is returned as is.
 If the input is numeric, it is coerced to integer only if the numeric values are integers,
 otherwise an error is thrown.
