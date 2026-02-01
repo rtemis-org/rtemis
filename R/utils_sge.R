@@ -1,6 +1,6 @@
 # sge_submit.R
 # ::rtemis::
-# 2021 EDG rtemis.org
+# 2021- EDG rtemis.org
 
 #' Submit expression to SGE grid
 #'

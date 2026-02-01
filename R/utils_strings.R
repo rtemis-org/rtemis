@@ -37,6 +37,11 @@ highlightbig <- function(x, output_type = c("ansi", "html", "plain")) {
 }
 
 
+#' Red
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 red <- function(..., bold = FALSE) {
   fmt(
     paste(...),
@@ -46,7 +51,11 @@ red <- function(..., bold = FALSE) {
 }
 
 
-# og green: "92m"
+#' Green
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 green <- function(..., bold = FALSE) {
   fmt(
     paste(...),
@@ -55,6 +64,12 @@ green <- function(..., bold = FALSE) {
   )
 }
 
+
+#' Blue
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 blue <- function(..., bold = FALSE) {
   fmt(
     paste(...),
@@ -63,6 +78,12 @@ blue <- function(..., bold = FALSE) {
   )
 }
 
+
+#' Orange
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 orange <- function(..., bold = FALSE) {
   fmt(
     paste(...),
@@ -71,27 +92,36 @@ orange <- function(..., bold = FALSE) {
   )
 }
 
+
+#' Reset ANSI formatting
+#'
+#' @param ... Optional character: Text to be output to console.
+#'
+#' @return Character: Text with ANSI reset code prepended.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 reset <- function(...) {
   paste0("\033[0m", paste(...))
 }
 
-citation("rtemis")
 
-# rtcitation <- paste0(
-#   "> ",
-#   col256("citation", col = "69"),
-#   "(",
-#   col256("rtemis", col = "177"),
-#   ")"
-# )
-
+#' Get rtemis citation
+#'
+#' @return Character: Citation command.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 rtcitation <- paste0(
   "> ",
   fmt("citation", col = rt_blue),
   "(",
-  fmt("rtemis", col = rt_magenta),
+  fmt("rtemis", col = rt_teal),
   ")"
 )
+
 
 yay <- function(..., sep = " ", end = "\n", pad = 0) {
   message(
@@ -257,6 +287,7 @@ oxfordcomma <- function(..., format_fn = identity) {
     format_fn(x)
   }
 } # /rtemis::oxfordcomma
+
 
 #' Padded cat
 #'
