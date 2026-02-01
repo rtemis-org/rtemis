@@ -1,6 +1,6 @@
 # utils_art.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 #' Color columns of text art
 #'
@@ -166,7 +166,7 @@ rtaart <- local({
 })
 
 ## rtemis_logo.utf8
-rtlogo <- local({
+rtlogo1 <- local({
   paste0(
     "  ",
     mapply(
@@ -182,7 +182,9 @@ rtlogo <- local({
   )
 })
 
-## rtascii
+#' rtascii
+#'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 rtascii <- function() {
@@ -190,13 +192,21 @@ rtascii <- function() {
 }
 
 
+#' rtasciitxt
+#'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 rtasciitxt <- function() {
   paste(paste0(paste0("  ", rtaart(), "\n")), collapse = "")
 }
 
-## rtemis_logo2.utf8
+
+#' rtlogo2
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 # Read rtemis_logo2.utf8 and apply color_txt_columns()
 rtlogo2 <- paste0(
   color_txt_columns(
@@ -211,6 +221,29 @@ rtlogo2 <- paste0(
   ),
   collapse = "\n"
 ) # /rtemis::rtlogo2
+
+
+#' rtlogo3
+#'
+#' Uses the original ascii art
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+rtlogo3 <- paste0(
+  "  ",
+  color_txt_columns(
+    readLines(system.file(
+      package = .packageName,
+      "resources",
+      "rtemis_logo.utf8"
+    )),
+    color_left = rt_red,
+    color_right = rt_orange,
+    output_type = "ansi"
+  ),
+  collapse = "\n"
+) # /rtemis::rtlogo3
 
 
 #' Show colors
