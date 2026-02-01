@@ -11,3 +11,8 @@
 ^dev$
 ^data-raw$
 GEMINI.md
+^\.vscode$
+^\.gemini$
+^\.rtms-instructions\.md$
+^cran-comments\.md$
+^NEWS\.md$

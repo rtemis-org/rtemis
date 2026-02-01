@@ -330,20 +330,19 @@ cpad <- function(x, length = NULL, adjust = c("right", "left")) {
 #' @param pad Integer: Pad output with this many spaces.
 #' @param spacing Integer: Number of spaces between columns.
 #' @param ddSci_dp Integer: Number of decimal places to print using [ddSci]. Default = NULL for no
-#' formatting
+#' formatting.
 #' @param transpose Logical: If TRUE, transpose `x` before printing.
 #' @param justify Character: "right", "left".
 #' @param colnames Logical: If TRUE, print column names.
 #' @param rownames Logical: If TRUE, print row names.
-#' @param column_fmt Color fn for printing column names.
-#' @param row_col Color fn for printing row names.
+#' @param column_fmt Formatting fn for printing column names.
+#' @param row_fmt Formatting fn for printing row names.
 #' @param newline_pre Logical: If TRUE, print a new line before printing data frame.
 #' @param newline Logical: If TRUE, print a new line after printing data frame.
 #'
 #' @author EDG
+#' @export
 #' @keywords internal
-#' @noRd
-
 printdf <- function(
   x,
   pad = 0,
@@ -354,7 +353,7 @@ printdf <- function(
   colnames = TRUE,
   rownames = TRUE,
   column_fmt = highlight,
-  row_col = gray,
+  row_fmt = gray,
   newline_pre = FALSE,
   newline = FALSE
 ) {
@@ -394,11 +393,9 @@ printdf <- function(
     cat("\n")
   }
 
-  # cat(gray(" ]]\n"))
   if (rownames) {
     for (i in seq_len(NROW(x))) {
-      # cat(row_col(cpad(xrownames[i], xrownames_spacing)))
-      cat(row_col(format(
+      cat(row_fmt(format(
         xrownames[i],
         width = xrownames_spacing,
         justify = "right"
@@ -514,7 +511,6 @@ show_df <- function(
   # Row names
   if (incl_rownames) {
     for (i in seq_len(NROW(x))) {
-      # cat(row_col(cpad(xrownames[i], xrownames_spacing)))
       out <- paste0(
         out,
         rownames_formatter(
@@ -917,8 +913,8 @@ show_padded <- function(
 #'
 #' @author EDG
 #'
-#' @keywords internal
 #' @export
+#' @keywords internal
 
 repr_ls <- function(
   x,

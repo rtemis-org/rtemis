@@ -68,6 +68,10 @@ docs
 # pkgdown
 _pkgdown.yml
 
+# CRAN
+cran-comments.md
+
 # Assistants
-.github/copilot-instructions.md
+copilot-instructions.md
 GEMINI.md
+.rtms-instructions.md

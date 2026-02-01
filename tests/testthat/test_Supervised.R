@@ -691,8 +691,6 @@ test_that("train() LightRF Binary Classification succeeds", {
 })
 
 ## LightRF Binary Classification predict ----
-# S7::method_explain(predict, Classification)
-# methods(class = Classification) # try again after loading all
 predicted_prob_test <- predict(mod_c_lightrf, features(datc2_test))
 test_that("predict() LightRF Classification succeeds", {
   expect_identical(mod_c_lightrf@predicted_prob_test, predicted_prob_test)

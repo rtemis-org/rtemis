@@ -169,7 +169,7 @@ method(repr, ClassificationMetrics) <- function(
     )
   }
   # Confusion Matrix
-  # suggestion: explain 17 and 9
+  # suggestion: document 17 and 9
   tblpad <- 17L -
     max(nchar(colnames(x@metrics[["Confusion_Matrix"]])), 9L) +
     pad
