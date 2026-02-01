@@ -99,7 +99,7 @@ draw_3Dscatter(
 
 \item{plot_bg}{Plot background color.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Character: Color palette.}
 
@@ -145,7 +145,7 @@ draw_3Dscatter(
 
 \item{margin}{Numeric, named list: Margins for top, bottom, left, right.}
 
-\item{fit_params}{Hyperparameters for fit.}
+\item{fit_params}{\code{Hyperparameters} for fit.}
 
 \item{width}{Numeric: Width of plot.}
 

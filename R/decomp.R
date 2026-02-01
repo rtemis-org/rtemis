@@ -11,7 +11,7 @@
 #' @param config DecompositionConfig: Algorithm-specific config.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return Decomposition object.
+#' @return `Decomposition` object.
 #'
 #' @author EDG
 #' @export

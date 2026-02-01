@@ -4,12 +4,10 @@
 \alias{preprocessed}
 \title{Get preprocessed data from Preprocessor}
 \usage{
-preprocessed(x, ...)
+preprocessed(x)
 }
 \arguments{
-\item{x}{Preprocessor: A Preprocessor object.}
-
-\item{...}{Not used.}
+\item{x}{\code{Preprocessor}: A \code{Preprocessor} object.}
 }
 \value{
 data.frame: The preprocessed data.

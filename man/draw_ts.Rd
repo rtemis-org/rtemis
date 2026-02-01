@@ -97,7 +97,7 @@ whether spikelines are stuck to the cursor or to the closest datapoints.}
 
 \item{modeBar_file_format}{Character: modeBar image export file format}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Character: palette name, or list of colors}
 

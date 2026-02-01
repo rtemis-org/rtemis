@@ -37,7 +37,7 @@
 #' @param alpha Float (0, 1]: Transparency for box colors.
 #' @param bg Color: Background color.
 #' @param plot_bg Color: Background color for plot area.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Character: Name of \pkg{rtemis} palette to use. Only used if `col = NULL`.
 #' @param quartilemethod Character: "linear", "exclusive", "inclusive"
 #' @param xlim Numeric vector: x-axis limits

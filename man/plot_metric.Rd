@@ -7,7 +7,7 @@
 plot_metric(x, ...)
 }
 \arguments{
-\item{x}{Supervised or SupervisedRes object.}
+\item{x}{\code{SupervisedRes} object.}
 
 \item{...}{Additional arguments passed to the plotting function.}
 }
@@ -15,8 +15,9 @@ plot_metric(x, ...)
 plotly object
 }
 \description{
-Plot metric for Supervised or SupervisedRes objects.
+Plot metric for \code{SupervisedRes} objects.
 }
 \author{
 EDG
 }
+\keyword{internal}

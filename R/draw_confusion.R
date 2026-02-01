@@ -15,7 +15,7 @@
 #' @param main Character: plot title.
 #' @param main_y Numeric: y position of the title.
 #' @param main_yanchor Character: y anchor of the title.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param margin List: Plot margins.
 #' @param filename Character: file name to save the plot. Default is NULL.
 #' @param file_width Numeric: width of the file. Default is 500.

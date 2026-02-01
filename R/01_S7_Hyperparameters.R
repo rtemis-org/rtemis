@@ -118,7 +118,7 @@ Hyperparameters <- new_class(
 #'
 #' Show method for Hyperparameters object.
 #'
-#' @param x Hyperparameters object.
+#' @param x `Hyperparameters` object.
 #' @param pad Integer: Left padding for printed output.
 #' @param maxlength Integer: Maximum length of items to show using `headdot()` before truncating with ellipsis. `-1` means no limit.
 #' @param limit Integer: Limit number of items to show. `-1` means no limit.
@@ -229,7 +229,7 @@ method(get_tuned_status, Hyperparameters) <- function(x) {
 # Update Hyperparameters ----
 #' Update Hyperparameters
 #'
-#' @param x Hyperparameters object.
+#' @param x `Hyperparameters` object.
 #' @param hyperparameters Named list of algorithm hyperparameter values.
 #'
 #' @author EDG
@@ -257,7 +257,7 @@ method(update, Hyperparameters) <- function(
 # Freeze Hyperparameters ----
 #' Freeze Hyperparameters
 #'
-#' @param x Hyperparameters object.
+#' @param x `Hyperparameters` object.
 #'
 #' @author EDG
 #' @keywords internal
@@ -270,7 +270,7 @@ method(freeze, Hyperparameters) <- function(x) {
 # Lock Hyperparameters ----
 #' Lock Hyperparameters
 #'
-#' @param x Hyperparameters object.
+#' @param x `Hyperparameters` object.
 #'
 #' @author EDG
 #' @keywords internal
@@ -2210,7 +2210,7 @@ stopifnot(all(
 #'
 #' Get Ranger configuration from RangerHyperparameters object.
 #'
-#' @param hyperparameters RangerHyperparameters object.
+#' @param hyperparameters `RangerHyperparameters` object.
 #'
 #' @return List with Ranger configuration.
 #'

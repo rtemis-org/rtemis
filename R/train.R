@@ -22,7 +22,7 @@
 #' @param dat_test data.frame or similar: Test set data.
 #' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
 #' @param preprocessor_config PreprocessorConfig object or NULL: Setup using [setup_Preprocessor].
-#' @param hyperparameters Hyperparameters object: Setup using one of `setup_*` functions.
+#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param tuner_config TunerConfig object: Setup using [setup_GridSearch].
 #' @param outer_resampling_config ResamplerConfig object or NULL: Setup using [setup_Resampler]. This
 #' defines the outer resampling method, i.e. the splitting into training and test sets for the
@@ -480,7 +480,7 @@ train <- function(
 #' available parallelization level to avoid over-subscription.
 #'
 #' @param algorithm Character: Algorithm name.
-#' @param hyperparameters Hyperparameters object: Setup using one of `setup_*` functions.
+#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param outer_resampling_config ResamplerConfig object or NULL: Setup using [setup_Resampler].
 #' @param n_workers Integer: Total number of workers you want to use.
 #' @param verbosity Integer: Verbosity level.

@@ -396,7 +396,7 @@ Resampler <- new_class(
 #'
 #' Print Resampler object
 #'
-#' @param x Resampler object.
+#' @param x `Resampler` object.
 #' @param ... Not used.
 #'
 #' @author EDG
@@ -469,7 +469,7 @@ method(desc_alt, Resampler) <- function(x) {
 #'
 #' Plot Resampler object
 #'
-#' @param x Resampler object.
+#' @param x `Resampler` object.
 #' @param ... Not used.
 #'
 #' @author EDG

@@ -78,7 +78,7 @@ draw_graphjs(
 
 \item{main}{Character: Main title.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Color vector or name of rtemis palette.}
 

@@ -27,7 +27,7 @@
 #' @param font_size Integer: Overall font size to use (essentially for the
 #' title at this point).
 #' @param axis_font_size Integer: Font size to use for axis labels and tick labels.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param showlegend Logical: If TRUE, show legend.
 #' @param filename Character: Path to save the plot image.
 #' @param file_width Numeric: Width of the saved plot image.

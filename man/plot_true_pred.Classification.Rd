@@ -13,13 +13,13 @@ plot_true_pred.Classification(
 )
 }
 \arguments{
-\item{x}{Classification object.}
+\item{x}{\code{Classification} object.}
 
 \item{what}{Character vector: What to plot. "training", "validation", "test"}
 
 \item{xlab}{Character: x axis label. If NULL, will be generated automatically.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{...}{Additional arguments passed to the plotting function.}
 }

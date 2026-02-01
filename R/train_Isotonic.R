@@ -14,7 +14,7 @@
 #' @param dat_validation data.frame or similar: Validation set.
 #' @param dat_test data.frame or similar: Test set.
 #' @param weights Not used.
-#' @param hyperparameters IsotonicHyperparameters object: make using [setup_Isotonic].
+#' @param hyperparameters `IsotonicHyperparameters` object: make using [setup_Isotonic].
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @return Object of class `stepfun`.

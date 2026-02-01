@@ -38,15 +38,15 @@ calibrate <- new_generic(
 #' Important: The calibration model's training data should be different from the classification
 #' model's training data.
 #'
-#' @param x Classification object.
+#' @param x `Classification` object.
 #' @param predicted_probabilities Numeric vector: Predicted probabilities.
 #' @param true_labels Factor: True class labels.
 #' @param algorithm Character: Algorithm to use to train calibration model.
-#' @param hyperparameters Hyperparameters object: Setup using one of `setup_*` functions.
+#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used
 #'
-#' @return CalibratedClassification object.
+#' @return `CalibratedClassification` object.
 #'
 #' @author EDG
 #' @export
@@ -98,9 +98,9 @@ calibrate.Classification <- function(
 #' model so that they better reflect the true probabilities (i.e. empirical risk) of the positive
 #' class.
 #'
-#' @param x ClassificationRes object.
+#' @param x `ClassificationRes` object.
 #' @param algorithm Character: Algorithm to use to train calibration model.
-#' @param hyperparameters Hyperparameters object: Setup using one of `setup_*` functions.
+#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param resampler_config ResamplerConfig
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used

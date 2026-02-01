@@ -7,7 +7,7 @@
 plot_roc(x, ...)
 }
 \arguments{
-\item{x}{Classification or ClassificationRes object.}
+\item{x}{\code{Classification} or \code{ClassificationRes} object.}
 
 \item{...}{Additional arguments passed to the plotting function.}
 }

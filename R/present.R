@@ -6,11 +6,11 @@
 #'
 #' Plot training and testing performance boxplots of multiple `Supervised` or `SupervisedRes` objects
 #'
-#' @param x List of Supervised or SupervisedRes objects.
+#' @param x List of `Supervised` or `SupervisedRes` objects.
 #' @param metric Character: Metric to plot.
 #' @param model_names Character: Names of models being plotted.
 #' @param ylim Numeric vector of length 2: y-axis limits for the boxplots.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param boxpoints Character: "all", "outliers", or "suspectedoutliers". Determines how points are
 #' displayed in the boxplot.
 #' @param filename Character: Filename to save the plot to.

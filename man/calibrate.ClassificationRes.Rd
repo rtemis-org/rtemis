@@ -4,11 +4,11 @@
 \alias{calibrate.ClassificationRes}
 \title{Calibrate Cross-validated Binary Classification Models}
 \arguments{
-\item{x}{ClassificationRes object.}
+\item{x}{\code{ClassificationRes} object.}
 
 \item{algorithm}{Character: Algorithm to use to train calibration model.}
 
-\item{hyperparameters}{Hyperparameters object: Setup using one of \verb{setup_*} functions.}
+\item{hyperparameters}{\code{Hyperparameters} object: Setup using one of \verb{setup_*} functions.}
 
 \item{resampler_config}{ResamplerConfig}
 

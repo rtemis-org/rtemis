@@ -51,7 +51,7 @@ the \code{category.names} argument.}
 
 \item{plot_bg}{Character: Plot background color.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Character: Color palette to use.}
 

@@ -7,9 +7,9 @@
 plot_true_pred(x, ...)
 }
 \arguments{
-\item{x}{Supervised or SupervisedRes object.}
+\item{x}{\code{Supervised} or \code{SupervisedRes} object.}
 
-\item{...}{Additional arguments passed to the plotting function.}
+\item{...}{Additional arguments passed to methods.}
 }
 \value{
 plotly object.

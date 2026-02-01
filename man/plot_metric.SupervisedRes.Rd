@@ -15,7 +15,7 @@ plot_metric.SupervisedRes(
 )
 }
 \arguments{
-\item{x}{SupervisedRes object.}
+\item{x}{\code{SupervisedRes} object.}
 
 \item{what}{Character vector: "training", "test". What to print. Default is to print both.}
 
@@ -25,7 +25,7 @@ plot_metric.SupervisedRes(
 
 \item{boxpoints}{Character:"all", "outliers" - How to display points in the boxplot.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{...}{Additional arguments passed to the plotting function.}
 }

@@ -27,7 +27,7 @@
 #' @param alpha Numeric: Alpha for markers.
 #' @param bg Background color.
 #' @param plot_bg Plot background color.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Character: Color palette.
 #' @param axes_square Logical: If TRUE, draw a square plot.
 #' @param group_names Character: Names for groups.
@@ -50,7 +50,7 @@
 #' @param legend_borderwidth Numeric: Border width for legend.
 #' @param legend_group_gap Numeric: Gap between legend groups.
 #' @param margin Numeric, named list: Margins for top, bottom, left, right.
-#' @param fit_params Hyperparameters for fit.
+#' @param fit_params `Hyperparameters` for fit.
 #' @param width Numeric: Width of plot.
 #' @param height Numeric: Height of plot.
 #' @param padding Numeric: Graph padding.

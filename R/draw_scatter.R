@@ -25,7 +25,7 @@
 #' @param ylab Character: y-axis label.
 #' @param col Color for markers.
 #' @param alpha Numeric: Alpha for markers.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Character: Color palette.
 #' @param axes_square Logical: If TRUE, draw a square plot.
 #' @param group_names Character: Names for groups.
@@ -86,7 +86,7 @@
 #' @param diagonal_col Color for diagonal line.
 #' @param diagonal_dash Character: "solid", "dash", "dot", "dashdot", "longdash", "longdashdot". Dash type for diagonal line.
 #' @param diagonal_alpha Numeric: Alpha for diagonal line.
-#' @param fit_params Hyperparameters for fit.
+#' @param fit_params `Hyperparameters` for fit.
 #' @param vline Numeric: X position for vertical line.
 #' @param vline_col Color for vertical line.
 #' @param vline_width Numeric: Width for vertical line.

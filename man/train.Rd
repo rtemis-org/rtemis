@@ -33,7 +33,7 @@ train(
 
 \item{preprocessor_config}{PreprocessorConfig object or NULL: Setup using \link{setup_Preprocessor}.}
 
-\item{hyperparameters}{Hyperparameters object: Setup using one of \verb{setup_*} functions.}
+\item{hyperparameters}{\code{Hyperparameters} object: Setup using one of \verb{setup_*} functions.}
 
 \item{tuner_config}{TunerConfig object: Setup using \link{setup_GridSearch}.}
 

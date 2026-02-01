@@ -19,7 +19,7 @@ present.list(
 )
 }
 \arguments{
-\item{x}{List of Supervised or SupervisedRes objects.}
+\item{x}{List of \code{Supervised} or \code{SupervisedRes} objects.}
 
 \item{metric}{Character: Metric to plot.}
 
@@ -27,7 +27,7 @@ present.list(
 
 \item{ylim}{Numeric vector of length 2: y-axis limits for the boxplots.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{boxpoints}{Character: "all", "outliers", or "suspectedoutliers". Determines how points are
 displayed in the boxplot.}

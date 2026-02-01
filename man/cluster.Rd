@@ -16,7 +16,7 @@ cluster(x, algorithm = "KMeans", config = NULL, verbosity = 1L)
 \item{verbosity}{Integer: Verbosity level.}
 }
 \value{
-Clustering object.
+\code{Clustering} object.
 }
 \description{
 Perform clustering on the rows (usually cases) of a dataset.

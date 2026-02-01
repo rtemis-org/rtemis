@@ -15,7 +15,7 @@ calibrate.Classification(
 )
 }
 \arguments{
-\item{x}{Classification object.}
+\item{x}{\code{Classification} object.}
 
 \item{predicted_probabilities}{Numeric vector: Predicted probabilities.}
 
@@ -23,14 +23,14 @@ calibrate.Classification(
 
 \item{algorithm}{Character: Algorithm to use to train calibration model.}
 
-\item{hyperparameters}{Hyperparameters object: Setup using one of \verb{setup_*} functions.}
+\item{hyperparameters}{\code{Hyperparameters} object: Setup using one of \verb{setup_*} functions.}
 
 \item{verbosity}{Integer: Verbosity level.}
 
 \item{...}{Not used}
 }
 \value{
-CalibratedClassification object.
+\code{CalibratedClassification} object.
 }
 \description{
 The goal of calibration is to adjust the predicted probabilities of a binary classification

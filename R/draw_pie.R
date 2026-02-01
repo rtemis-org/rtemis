@@ -16,7 +16,7 @@
 #' @param alpha Numeric: Alpha for the pie slices.
 #' @param bg Character: Background color.
 #' @param plot_bg Character: Plot background color.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Character: Color palette to use.
 #' @param category_names Character, vector, length = NROW(x): Category names. Default = NULL, which uses
 #' either `rownames(x)`, or the first column of `x` if `ncol(x) = 2`.

@@ -14,13 +14,13 @@ plot_true_pred.RegressionRes(
 )
 }
 \arguments{
-\item{x}{RegressionRes object.}
+\item{x}{\code{RegressionRes} object.}
 
 \item{what}{Character vector: "all", "training", "test". Which set(s) to plot.}
 
 \item{fit}{Character: Algorithm to use to draw fit line.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{labelify}{Logical: If TRUE, labelify the axis labels.}
 

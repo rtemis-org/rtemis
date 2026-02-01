@@ -14,11 +14,11 @@ plot_roc.ClassificationRes(
 )
 }
 \arguments{
-\item{x}{ClassificationRes object.}
+\item{x}{\code{ClassificationRes} object.}
 
 \item{what}{Character vector: "all", "training", "test". Which set(s) to plot.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{col}{Character vector: Colors to use for the ROC curves.}
 

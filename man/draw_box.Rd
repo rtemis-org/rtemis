@@ -109,7 +109,7 @@ colors from \code{palette}}
 
 \item{plot_bg}{Color: Background color for plot area.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Character: Name of \pkg{rtemis} palette to use. Only used if \code{col = NULL}.}
 

@@ -120,7 +120,7 @@ draw_spectrogram(
 
 \item{showticklabels}{Logical: If TRUE, show tick labels.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{font_size}{Numeric: Font size.}
 

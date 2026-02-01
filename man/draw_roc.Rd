@@ -38,7 +38,7 @@ If FALSE, column names of \code{predicted_prob} must match levels of \code{true_
 
 \item{main}{Character: Main title for the plot.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{col}{Color vector.}
 

@@ -48,7 +48,7 @@
 #' as reference. 0: to the left of the plot area; 1: to the right of the plot area.
 #' @param annotate Logical: If TRUE, annotate significant points.
 #' @param annotate_col Color for annotations.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param font_size Integer: Font size.
 #' @param palette Character: Name of \pkg{rtemis} palette to use.
 #' @param legend_x_lo Numeric: x position of `legend_lo`.

@@ -728,11 +728,11 @@ Regression <- new_class(
 # Plot True Pred Regression ----
 #' Plot True vs. Predicted for Regression
 #'
-#' @param x Regression object.
+#' @param x `Regression` object.
 #' @param what Character vector: What to plot. Can include "training", "validation", "test", or
 #' "all", which will plot all available.
 #' @param fit Character: Algorithm to use to draw fit line.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param labelify Logical: If TRUE, labelify the axis labels.
 #' @param ... Additional arguments passed to the plotting function.
 #'
@@ -790,10 +790,10 @@ method(plot_true_pred, Regression) <- function(
 # Plot True Pred Classification ----
 #' Plot True vs. Predicted for Classification
 #'
-#' @param x Classification object.
+#' @param x `Classification` object.
 #' @param what Character vector: What to plot. "training", "validation", "test"
 #' @param xlab Character: x axis label. If NULL, will be generated automatically.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param ... Additional arguments passed to the plotting function.
 #'
 #' @author EDG
@@ -1240,7 +1240,7 @@ method(print, SupervisedRes) <- function(
 #'
 #' Predict Method for SupervisedRes objects
 #'
-#' @param object SupervisedRes object.
+#' @param object `SupervisedRes` object.
 #' @param newdata data.frame or similar: New data to predict.
 #' @param type Character: Type of prediction to output: "avg" applies `avg_fn` (default "mean") to
 #' the predictions of individual models, "all" returns the predictions of all models in a
@@ -1628,10 +1628,10 @@ method(present, SupervisedRes) <- function(x, theme = choose_theme(), ...) {
 # Plot true vs. predicted aggregated across resamples for either training, test, or both.
 #' Plot True vs. Predicted for RegressionRes
 #'
-#' @param x RegressionRes object.
+#' @param x `RegressionRes` object.
 #' @param what Character vector: "all", "training", "test". Which set(s) to plot.
 #' @param fit Character: Algorithm to use to draw fit line.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param labelify Logical: If TRUE, labelify the axis labels.
 #' @param ... Additional arguments passed to [draw_fit].
 #'
@@ -1691,9 +1691,9 @@ method(plot_true_pred, RegressionRes) <- function(
 # because scatter can overplot train & test, but confusion matrices must be subplots.
 #' Plot True vs. Predicted for ClassificationRes
 #'
-#' @param x ClassificationRes object.
+#' @param x `ClassificationRes` object.
 #' @param what Character vector: "all", "training", "test". Which set(s) to plot.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param ... Additional arguments passed to [draw_confusion].
 #'
 #' @author EDG
@@ -1762,9 +1762,9 @@ method(plot_true_pred, ClassificationRes) <- plot_true_pred.ClassificationRes
 # Plot ROC ClassificationRes ----
 #' Plot ROC for ClassificationRes
 #'
-#' @param x ClassificationRes object.
+#' @param x `ClassificationRes` object.
 #' @param what Character vector: "all", "training", "test". Which set(s) to plot.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param col Character vector: Colors to use for the ROC curves.
 #' @param filename Character: Filename to save the plot to.
 #' @param ... Additional arguments passed to [draw_roc].
@@ -1812,12 +1812,12 @@ method(plot_roc, ClassificationRes) <- plot_roc.ClassificationRes
 #'
 #' Plot boxplot of performance metrics across resamples.
 #'
-#' @param x SupervisedRes object.
+#' @param x `SupervisedRes` object.
 #' @param what Character vector: "training", "test". What to print. Default is to print both.
 #' @param metric Character: Metric to plot.
 #' @param ylab Character: Label for the y-axis.
 #' @param boxpoints Character:"all", "outliers" - How to display points in the boxplot.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param ... Additional arguments passed to the plotting function.
 #'
 #' @author EDG
@@ -2110,7 +2110,7 @@ method(get_metric, ClassificationRes) <- function(x, set, metric) {
 # Describe list of Supervised/Res ----
 #' Describe multiple Supervised or SupervisedRes objects
 #'
-#' @param x List of Supervised or SupervisedRes objects.
+#' @param x List of `Supervised` or `SupervisedRes` objects.
 #' @param metric Character: Metric to use for description. Default is NULL, which uses "Balanced_Accuracy" for Classification and "Rsq" for Regression.
 #' @param decimal_places Integer: Number of decimal places to round metrics to.
 #' @param output_type Character: Output type for formatting.
@@ -2248,7 +2248,7 @@ method(desc, class_list) <- function(
 
 #' Print description of a list of Supervised or SupervisedRes objects
 #'
-#' @param x List of Supervised or SupervisedRes objects.
+#' @param x List of `Supervised` or `SupervisedRes` objects.
 #'
 #' @return Character of description invisibly. Prints description to output.
 #'

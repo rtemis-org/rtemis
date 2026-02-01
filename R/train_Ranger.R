@@ -157,7 +157,7 @@ varimp_Ranger <- function(model) {
 #' Validate Ranger Hyperparameters given training data.
 #'
 #' @param x data.frame or similar: Training data.
-#' @param hyperparameters RangerHyperparameters: Hyperparameters to check.
+#' @param hyperparameters `RangerHyperparameters`: Hyperparameters to check.
 #'
 #' @return NULL. Will throw error if hyperparameters are invalid.
 #'

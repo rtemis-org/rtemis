@@ -27,7 +27,7 @@
 #' @param cluster_mark_groups Logical: If TRUE, draw polygons to indicate clusters, if `groups` or `cluster` are defined.
 #' @param cluster_color_vertices Logical: If TRUE, color vertices by cluster membership.
 #' @param main Character: Main title.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Color vector or name of rtemis palette.
 #' @param mar Numeric vector, length 4: `par`'s margin argument.
 #' @param par_reset Logical: If TRUE, reset par before exiting.

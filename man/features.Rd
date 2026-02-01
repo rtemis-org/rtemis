@@ -2,20 +2,26 @@
 % Please edit documentation in R/00_S7_init.R
 \name{features}
 \alias{features}
-\title{Get features (all columns except the last one)}
+\title{Get features}
 \usage{
-features(x, ...)
+features(x)
 }
 \arguments{
 \item{x}{data.frame or similar.}
-
-\item{...}{Not used.}
 }
 \value{
 object same as input, after removing the last column.
 }
 \description{
-Get features (all columns except the last one)
+Returns all columns except the last one
+}
+\details{
+This applied to tabular datasets used for supervised learning in rtemis,
+where, by convention, the last column is the outcome variable and all other columns
+are features.
+}
+\examples{
+features(iris) |> head()
 }
 \author{
 EDG

@@ -44,7 +44,7 @@
 #' @param file_height Numeric: Height of exported image.
 #' @param file_scale Numeric: Scale of exported image.
 #' @param plot_method Character: Plot method to use. Default = "plotly".
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param ... Additional arguments to be passed to `heatmaply::heatmaply`.
 #'
 #' @return `plotly` object.`

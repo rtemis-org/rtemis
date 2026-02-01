@@ -17,7 +17,7 @@ Preprocessor when preprocessing validation and test set data.}
 \item{...}{Used to pass \code{dat_validation} and \code{dat_test} to the method for Preprocessor.}
 }
 \value{
-Preprocessor object.
+\code{Preprocessor} object.
 }
 \description{
 Preprocess data for analysis and visualization.

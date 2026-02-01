@@ -65,7 +65,7 @@ colors from \code{palette}}
 
 \item{horizontal}{Logical: If TRUE, plot bars horizontally}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Character: Name of \pkg{rtemis} palette to use.}
 

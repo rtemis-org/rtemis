@@ -64,7 +64,7 @@ title at this point).}
 
 \item{axis_font_size}{Integer: Font size to use for axis labels and tick labels.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{showlegend}{Logical: If TRUE, show legend.}
 

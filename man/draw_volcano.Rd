@@ -121,7 +121,7 @@ Default = \code{list(b = 65, l = 65, t = 50, r = 10, pad = 0)}.}
 \item{hline_annotation_x}{Numeric: x position to place annotation with paper
 as reference. 0: to the left of the plot area; 1: to the right of the plot area.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{annotate}{Logical: If TRUE, annotate significant points.}
 

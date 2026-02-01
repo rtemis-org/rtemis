@@ -45,7 +45,7 @@
 #'   * scale and/or center
 #'   * one-hot encoding
 #'
-#' @return Preprocessor object.
+#' @return `Preprocessor` object.
 #'
 #' @author EDG
 #' @rdname preprocess

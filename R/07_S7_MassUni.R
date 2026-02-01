@@ -66,7 +66,7 @@ method(print, MassGLM) <- print.MassGLM
 #' @param p_transform Function to transform p-values for plotting. Default is `function(x) -log10(x)`.
 #' @param xlab Character: x-axis label.
 #' @param ylab Character: y-axis label.
-#' @param theme Theme object
+#' @param theme `Theme` object
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @param ... Additional arguments passed to [draw_volcano] or [draw_bar]
@@ -147,7 +147,7 @@ method(plot, MassGLM) <- plot.MassGLM
 #' p-value adjustment method.
 #' @param p_transform Function to transform p-values for plotting. Default is `function(x) -log10(x)`.
 #' @param ylab Character: y-axis label.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param col_pos Character: Color for positive significant coefficients.
 #' @param col_neg Character: Color for negative significant coefficients.
 #' @param alpha Numeric: Transparency level for the bars.

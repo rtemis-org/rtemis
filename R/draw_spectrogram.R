@@ -44,7 +44,7 @@
 #' @param main Character: Main title.
 #' @param key_title Character: Title of the key.
 #' @param showticklabels Logical: If TRUE, show tick labels.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param font_size Numeric: Font size.
 #' @param padding Numeric: Padding between cells.
 #' @param displayModeBar Logical: If TRUE, display the plotly mode bar.

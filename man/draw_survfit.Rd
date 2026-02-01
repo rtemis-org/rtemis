@@ -48,7 +48,7 @@ draw_survfit(
 
 \item{legend_yanchor}{Character: Y anchor for legend.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{nrisk_table}{Logical: If \code{TRUE}, subplot a table of the number at risk at each time point.}
 

@@ -16,7 +16,7 @@ decomp(x, algorithm = "ICA", config = NULL, verbosity = 1L)
 \item{verbosity}{Integer: Verbosity level.}
 }
 \value{
-Decomposition object.
+\code{Decomposition} object.
 }
 \description{
 Perform linear or non-linear decomposition of numeric data.

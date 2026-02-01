@@ -20,7 +20,7 @@
 #' @param col Color: Colors for the plot.
 #' @param alpha Numeric: Alpha transparency for plot elements.
 #' @param plot_bg Color: Background color for plot area.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Character: Color palette to use.
 #' @param axes_square Logical: If TRUE, draw a square plot to fill the graphic device. Default = FALSE.
 #' @param group_names Character: Names for the groups.

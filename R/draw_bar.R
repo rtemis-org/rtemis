@@ -14,7 +14,7 @@
 #' @param col Color, vector: Color for bars. Default NULL, which will draw
 #' colors from `palette`
 #' @param alpha Float (0, 1]: Transparency for bar colors.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Character: Name of \pkg{rtemis} palette to use.
 #' @param barmode Character: Type of bar plot to make: "group", "relative",
 #' "stack", "overlay". Default = "group". Use

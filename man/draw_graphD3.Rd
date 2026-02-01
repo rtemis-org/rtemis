@@ -40,7 +40,7 @@ draw_graphD3(
 
 \item{palette}{Vector of colors, or Character defining a builtin palette - get options with \code{rtpalette()}.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{...}{Additional arguments to pass to \code{networkD3}.}
 }

@@ -23,7 +23,7 @@ Theme <- new_class(
 #'
 #' Print Theme object
 #'
-#' @param x Theme object.
+#' @param x `Theme` object.
 #' @param ... Not used.
 #'
 #' @author EDG
@@ -54,9 +54,9 @@ method(`[[`, Theme) <- function(x, name) {
 # Names Theme ----
 #' Get names of Theme object
 #'
-#' @param x Theme object.
+#' @param x `Theme` object.
 #'
-#' @return Character vector of names of Theme object.
+#' @return Character vector of names of `Theme` object.
 #'
 #' @author EDG
 #' @noRd

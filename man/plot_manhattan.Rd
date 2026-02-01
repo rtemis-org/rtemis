@@ -35,7 +35,7 @@ p-value adjustment method.}
 
 \item{ylab}{Character: y-axis label.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{col_pos}{Character: Color for positive significant coefficients.}
 
@@ -44,7 +44,7 @@ p-value adjustment method.}
 \item{alpha}{Numeric: Transparency level for the bars.}
 }
 \description{
-Draw a Manhattan plot for MassGLM objects created with \link{massGLM}.
+Draw a Manhattan plot for \code{MassGLM} objects created with \link{massGLM}.
 
 Create a Manhattan plot for MassGLM objects created with \link{massGLM}.
 }

@@ -13,7 +13,7 @@
 #'
 #' @param x data.frame or similar: Training set.
 #' @param weights Numeric vector: Case weights.
-#' @param hyperparameters GLMHyperparameters object: make using [setup_GLM].
+#' @param hyperparameters `GLMHyperparameters` object: make using [setup_GLM].
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @return GLM model.

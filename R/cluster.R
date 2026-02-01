@@ -11,7 +11,7 @@
 #' @param config List: Algorithm-specific config.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return Clustering object.
+#' @return `Clustering` object.
 #'
 #' @author EDG
 #' @export
