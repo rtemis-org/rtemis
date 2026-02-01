@@ -72,6 +72,6 @@ _pkgdown.yml
 cran-comments.md
 
 # Assistants
-.github/copilot-instructions.md
+copilot-instructions.md
 GEMINI.md
 .rtms-instructions.md
