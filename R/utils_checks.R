@@ -142,6 +142,7 @@ strict <- function(object, class, allow_null = TRUE) {
   }
 } # /rtemis::strict
 
+
 #' Clean integer input
 #'
 #' @details
@@ -155,8 +156,8 @@ strict <- function(object, class, allow_null = TRUE) {
 #' @return Integer vector
 #' @author EDG
 #'
+#' @export
 #' @keywords internal
-#' @noRd
 #'
 #' @examples
 #' \dontrun{
@@ -218,8 +219,6 @@ check_logical <- function(x, allow_null = TRUE) {
     return(invisible())
   }
 
-  xname <- deparse(substitute(x))
-
   if (is.null(x)) {
     cli::cli_abort("{.var {xname}} cannot be NULL.", call. = FALSE)
   }
@@ -240,8 +239,6 @@ check_character <- function(x, allow_null = TRUE) {
     return(invisible())
   }
 
-  xname <- deparse(substitute(x))
-
   if (is.null(x)) {
     cli::cli_abort("{.var {xname}} cannot be NULL.", call. = FALSE)
   }
@@ -261,8 +258,6 @@ check_floatpos <- function(x, allow_null = TRUE) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
-
-  xname <- deparse(substitute(x))
 
   if (is.null(x)) {
     cli::cli_abort("{.var {xname}} cannot be NULL.", call. = FALSE)
@@ -296,8 +291,6 @@ check_float01exc <- function(x, allow_null = TRUE) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
-
-  xname <- deparse(substitute(x))
 
   if (is.null(x)) {
     cli::cli_abort("{.var {xname}} cannot be NULL.", call. = FALSE)
@@ -336,8 +329,6 @@ check_float01inc <- function(x, allow_null = TRUE) {
     return(invisible())
   }
 
-  xname <- deparse(substitute(x))
-
   if (is.null(x)) {
     cli::cli_abort("{.var {xname}} cannot be NULL.")
   }
@@ -356,8 +347,6 @@ check_floatpos1 <- function(x, allow_null = TRUE) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
-
-  xname <- deparse(substitute(x))
 
   if (is.null(x)) {
     cli::cli_abort("{.var {xname}} cannot be NULL.")
@@ -389,7 +378,6 @@ check_floatpos1 <- function(x, allow_null = TRUE) {
 #' clean_posint(5)
 #' }
 clean_posint <- function(x, allow_na = FALSE) {
-  xname <- deparse(substitute(x))
   if (is.null(x)) {
     return(NULL)
   }
@@ -423,8 +411,6 @@ check_float0pos <- function(x, allow_null = TRUE) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
-
-  xname <- deparse(substitute(x))
 
   if (is.null(x)) {
     cli::cli_abort("{.var {xname}} cannot be NULL.")
@@ -461,8 +447,6 @@ check_float_neg1_1 <- function(x, allow_null = TRUE) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
-
-  xname <- deparse(substitute(x))
 
   if (is.null(x)) {
     cli::cli_abort("{.var {xname}} cannot be NULL.")
