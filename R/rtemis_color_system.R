@@ -30,6 +30,7 @@ kaimana_blue <- "#0067e0"
 kaimana_light_blue <- "#479cff"
 genlib_orange <- "#ff9f20"
 kaimana_green <- "#00ffb3"
+kaimana_med_green <- "#00996b"
 rtemis_purple <- "#6125f7"
 rtemis_magenta <- "#912ac8"
 rtemis_magenta_light <- "#b25bd6"
@@ -38,7 +39,7 @@ lmd_burgundy <- "#a92459"
 
 rt_red <- kaimana_red
 rt_blue <- kaimana_light_blue
-rt_green <- kaimana_green
+rt_green <- kaimana_med_green
 rt_orange <- genlib_orange
 rt_teal <- rtemis_teal
 rt_purple <- rtemis_purple
