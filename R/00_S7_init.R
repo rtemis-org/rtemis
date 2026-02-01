@@ -185,7 +185,9 @@ inc <- new_generic("inc", "x", function(x, idx) {
 #' @examples
 #' exc(iris, "Species") |> head()
 #' exc(iris, c(1, 3)) |> head()
-exc <- new_generic("exc", c("x", "idx"))
+exc <- new_generic("exc", c("x", "idx"), function(x, idx) {
+  S7_dispatch()
+})
 method(inc, class_data.frame) <- function(x, idx) {
   x[, idx, drop = FALSE]
 }

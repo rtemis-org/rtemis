@@ -4,7 +4,7 @@
 \alias{exc}
 \title{Exclude columns by character or numeric vector.}
 \usage{
-exc(x, idx, ...)
+exc(x, idx)
 }
 \arguments{
 \item{x}{data.frame or similar.}
