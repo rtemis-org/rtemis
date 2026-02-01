@@ -20,7 +20,7 @@ live[["parallelized_learners"]] <- c(
 
 # vars
 rtemis_version <- packageVersion("rtemis")
-cores_available <- parallelly::availableCores()
+cores_available <- future::availableCores()
 cores_to_use <- max(cores_available - 3L, 1L)
 
 # References

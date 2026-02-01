@@ -22,8 +22,7 @@ Imports:
     data.table,
     future,
     htmltools,
-    cli,
-    parallelly
+    cli
 Suggests:
     arrow,
     bit64,
