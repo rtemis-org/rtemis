@@ -6,12 +6,17 @@
 #'
 #' Train models using a combination of parameter values for model selection
 #'
+#' @details
 #' Note that weights, if defined (and not NULL), should be passed directly to `grid_search`
 #' as they need to be resampled along `x` and `y`, and should not be passed along with
 #' `grid_params`. `ifw` and `ifw_type` should be passed as part of `grid_params`
 #' and will be passed on to the learner.
 #' Includes a algorithm-specific extraction of config that are determined internally,
 #' such as `lambda` for `GLMNET`, `nrounds` for `LightGBM`, etc.
+#'
+#' The current implementation allows running sequentially either directly using lapply + cli
+#' progress, or using a sequential future plan. The former may give better debugging information.
+#' The latter may be helpful to test that the future parallelization setup works correctly.
 #'
 #' @param x data.frame or similar: Training set.
 #' @param hyperparameters List: Hyperparameters.
@@ -37,8 +42,8 @@ tune_GridSearch <- function(
   weights = NULL,
   save_mods = FALSE,
   n_workers = 1L,
-  parallel_type = "none",
-  future_plan = "multicore",
+  parallel_type = NULL,
+  future_plan = NULL,
   verbosity = 1L
 ) {
   check_is_S7(hyperparameters, Hyperparameters)
@@ -63,12 +68,24 @@ tune_GridSearch <- function(
   algorithm <- hyperparameters@algorithm
 
   # Parallel Processing Strategy ----
-  # If n_workers = 1, use direct lapply for simplicity and better error handling
-  if (n_workers == 1L && parallel_type != "none") {
-    if (verbosity > 1L) {
-      msg_info("Using sequential execution (n_workers = 1)")
-    }
+  # If parallel_type is NULL, default to "none"
+  if (is.null(parallel_type)) {
     parallel_type <- "none"
+  }
+
+  # If parallel_type is "future" or "mirai" with n_workers = 1, we execute
+  # sequentially using the respective backend just to test that the
+  # parallelization setup works.
+  # If the user wants standard sequential execution, they should use/leave
+  # parallel_type = "none" (default).
+  if (parallel_type != "none" && n_workers == 1L) {
+    if (verbosity > 0L) {
+      msg0(
+        "Using ",
+        parallel_type,
+        " with 1 worker"
+      )
+    }
   }
 
   # Make Grid ----
@@ -232,6 +249,9 @@ tune_GridSearch <- function(
 
   # Train Grid ----
   if (parallel_type == "none") {
+    if (verbosity > 0L) {
+      msg("Tuning in sequence")
+    }
     # Sequential execution with cli progress.
     grid_run <- lapply(
       cli::cli_progress_along(
@@ -251,24 +271,36 @@ tune_GridSearch <- function(
     )
   } else if (parallel_type == "future") {
     # Future parallelization
-    if (n_workers == 1L) {
-      with(future::plan(strategy = "sequential"), local = TRUE)
-      if (verbosity > 0L) {
-        msg("Tuning in sequence")
-      }
-    } else {
-      with(
-        future::plan(strategy = future_plan, workers = n_workers),
-        local = TRUE
+    # If n_workers was 1L, it would have been caught above and parallel_type set to "none"
+    # Therefore, n_workers here is >= 2L
+
+    # If future_plan is NULL, determine plan based on current plan
+    # if (is.null(future_plan)) {
+    #   # Check if the user has specified a future plan
+    #   current_plan <- future::plan()
+    #   future_plan <- future_plan %||%
+    #     if (inherits(current_plan, "sequential")) {
+    #       "sequential"
+    #     } else {
+    #       "multicore"
+    #     }
+    # }
+    # with(
+    #   future::plan(strategy = future_plan, workers = n_workers),
+    #   local = TRUE
+    # )
+    future_plan <- set_preferred_plan(
+      requested_plan = future_plan,
+      n_workers = n_workers,
+      verbosity = verbosity
+    )
+    if (verbosity > 0L) {
+      msg0(
+        "Tuning using future (",
+        bold(future_plan),
+        "); N workers: ",
+        bold(n_workers)
       )
-      if (verbosity > 0L) {
-        msg0(
-          "Tuning using future (",
-          bold(future_plan),
-          "); N workers: ",
-          bold(n_workers)
-        )
-      }
     }
     grid_run <- future.apply::future_lapply(
       X = seq_len(n_res_x_comb),
@@ -565,7 +597,7 @@ tune_GridSearch <- function(
 
   # Outro ----
   # Since this is always called from within `train()`, we don't want to print "Completed..."
-  outro(start_time, verbosity = verbosity - 1)
+  outro(start_time, verbosity = verbosity - 1L)
 
   if (verbosity > 0L) {
     msg(
@@ -604,5 +636,7 @@ print_tune_finding <- function(grid_params, best_param_combo, pad = 22L) {
     )
   })
   names(tfl) <- names(grid_params)
-  printls(tfl, print_class = FALSE, pad = pad)
+  # Capture output to sync with msg stream (stderr)
+  out <- utils::capture.output(printls(tfl, print_class = FALSE, pad = pad))
+  message(paste(out, collapse = "\n"))
 } # /rtemis::print_tune_finding
