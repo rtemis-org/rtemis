@@ -165,7 +165,8 @@ modt_r_glmnet <- train(
   dat_test = datr_test,
   algorithm = "glmnet",
   hyperparameters = setup_GLMNET(alpha = 1),
-  parallel_type = "future"
+  parallel_type = "future",
+  n_workers = 1L
 )
 test_that("train() GLMNET Regression with auto-lambda grid search using future succeeds", {
   expect_s7_class(modt_r_glmnet, Regression)
