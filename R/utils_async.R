@@ -45,6 +45,8 @@ identify_plan <- function(x = NULL) {
 #'
 #' @return Character: Name of plan set
 #'
+#' @author EDG
+#' @keywords internal
 #' @noRd
 set_preferred_plan <- function(
   requested_plan = NULL,
@@ -58,7 +60,9 @@ set_preferred_plan <- function(
     # determined.
     with(
       future::plan(strategy = requested_plan, workers = n_workers),
-      local = TRUE
+      local = TRUE,
+      #envir must be of caller's caller's frame
+      envir = parent.frame(2)
     )
     return(identify_plan())
   }
@@ -77,7 +81,11 @@ set_preferred_plan <- function(
   # n workers.
   # If n_workers was set to 1 and no requested_plan was defined, use sequential
   if (!is.null(n_workers) && n_workers == 1L) {
-    with(future::plan(strategy = "sequential"), local = TRUE)
+    with(
+      future::plan(strategy = "sequential"),
+      local = TRUE,
+      envir = parent.frame(2)
+    )
     return("sequential")
   }
 
@@ -89,8 +97,25 @@ set_preferred_plan <- function(
   }
   with(
     future::plan(strategy = preferred_plan, workers = n_workers),
-    local = TRUE
+    local = TRUE,
+    envir = parent.frame(2)
   )
   # This will still be sequential and not "preferred_plan" if n_workers = 1
   identify_plan()
 } # /set_preferred_plan
+
+
+#' Get number of workers in current future plan
+#'
+#' @return List with two elements: tweaks_workers and backend_workers
+#'
+#' @author EDG
+#'@keywords internal
+#' @noRd
+future_get_plan_n_workers <- function() {
+  current_plan <- future::plan()
+  list(
+    tweaks_workers = attr(current_plan, "tweaks")[["workers"]],
+    backend_workers = attr(current_plan, "backend")[["workers"]]
+  )
+}
