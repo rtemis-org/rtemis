@@ -216,6 +216,8 @@ draw_volcano <- function(
     main = main,
     xlab = xlab,
     ylab = ylab,
+    xlim = xlim,
+    ylim = ylim,
     alpha = alpha,
     theme = theme,
     margin = margin,
@@ -284,7 +286,6 @@ draw_volcano <- function(
 
   # Annotations ----
   if (annotate) {
-    yrange <- range(p_transformed)
     index_ltxthresh <- x < x_thresh
     index_gtxthresh <- x > x_thresh
 

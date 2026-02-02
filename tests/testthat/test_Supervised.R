@@ -1248,3 +1248,18 @@ plt <- present(x)
 test_that("present() list of RegressionRes objects returns plotly object", {
   expect_s3_class(plt, "plotly")
 })
+
+# --- CalibratedClassificationRes ------------------------------------------------------------------
+## Calibrate ClassificationRes ----
+# Using resmod_c_glm from above
+resmod_c_glm_cal <- calibrate(resmod_c_glm)
+test_that("calibrate() ClassificationRes succeeds", {
+  expect_s7_class(resmod_c_glm_cal, CalibratedClassificationRes)
+})
+
+## Predict CalibratedClassificationRes ----
+predicted_cal <- predict(resmod_c_glm_cal, features(datc2_test))
+test_that("predict() CalibratedClassificationRes succeeds", {
+  expect_type(predicted_cal, "double")
+  expect_length(predicted_cal, nrow(datc2_test))
+})

@@ -7,7 +7,7 @@
 dt_set_autotypes(x, cols = NULL, verbosity = 1L)
 }
 \arguments{
-\item{x}{data.table}
+\item{x}{data.table: Input data.table. Will be modified \emph{\strong{in-place}}, if needed.}
 
 \item{cols}{Character vector: columns to work on. If not defined, will work on all
 columns}
@@ -19,7 +19,7 @@ data.table, invisibly.
 }
 \description{
 This function inspects a data.table and attempts to identify columns that should be
-numeric but have been read in as character, and fixes their type in-place.
+numeric but have been read in as character, and fixes their type \emph{\strong{in-place}}.
 This can happen when one or more fields contain non-numeric characters, for example.
 }
 \examples{
@@ -31,7 +31,7 @@ x <- data.table(
   c = c(1, 2, 3, 4, 5, 6)
 )
 str(x)
-# in-place operation means no assignment is needed
+# ***in-place*** operation means no assignment is needed
 dt_set_autotypes(x)
 str(x)
 }

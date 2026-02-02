@@ -51,13 +51,9 @@ check_data <- function(
   n_numeric <- max0(counts["numeric"])
 
   ## Integers ----
-  # index_integer <- which(sapply(x, is.integer))
-  # n_integer <- length(index_integer)
   n_integer <- max0(counts["integer"])
 
   ## Characters ----
-  # index_character <- which(sapply(x, is.character))
-  # n_character <- length(index_character)
   n_character <- max0(counts["character"])
 
   ## Factors ----
@@ -65,19 +61,8 @@ check_data <- function(
   n_factor <- length(index_factor)
   index_ordered <- which(sapply(x, is.ordered))
   n_ordered <- length(index_ordered)
-  # index_gt2levels_nonordered <- which(
-  #     sapply(
-  #         x[, setdiff(index_factor, index_ordered), drop = FALSE],
-  #         \(x) nlevels(x) > 2
-  #     )
-  # )
-  # n_gt2levels_nonordered <- length(index_gt2levels_nonordered)
 
   ## Dates ----
-  # index_date <- which(
-  #     sapply(x, \(col) inherits(col, "Date"))
-  # )
-  # n_date <- length(index_date)
   n_date <- sum(
     max0(counts["Date"]),
     max0(counts["IDate"]),
@@ -92,8 +77,6 @@ check_data <- function(
   n_constant <- length(index_constant)
 
   ## Duplicates ----
-  # cindex_dups <- which(duplicated(x))
-  # n_duplicates <- length(cindex_dups)
   n_duplicates <- if (get_duplicates) {
     n_rows - uniqueN(x)
   } else {
@@ -211,8 +194,6 @@ tohtml <- function(
   n_cols_anyna <- x[["n_cols_anyna"]]
   n_na <- x[["n_na"]]
   classes_na <- x[["classes_na"]]
-  na_feature_pct <- x[["na_feature_pct"]]
-  na_case_pct <- x[["na_case_pct"]]
 
   ## Data Types ----
   numeric <- HTML(paste(
@@ -291,7 +272,6 @@ tohtml <- function(
   }
 
   ## Recs ----
-  rec_char <- NULL
   rec_constant <- if (n_constant > 0) {
     tags[["li"]](HTML(paste(html_orange(
       "Remove the constant",
@@ -309,12 +289,6 @@ tohtml <- function(
   } else {
     NULL
   }
-
-  # rec_na <- if (n_cols_anyna > 0) {
-  #     tags[["li"]](HTML(paste(html_orange("Consider imputing missing values or use complete cases only"))))
-  # } else {
-  #     NULL
-  # }
 
   rec_na <- if (n_cols_anyna > 0) {
     list(

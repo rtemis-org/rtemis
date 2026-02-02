@@ -387,7 +387,7 @@ show_col <- function(
     # Create color blocks: 2 solid, 2 medium, 2 light
     if (output_type == "ansi") {
       # Use the color directly
-      tryCatch(
+      color_display <- tryCatch(
         {
           # Create blocks with varying intensities
           solid_block <- fmt(
@@ -406,7 +406,7 @@ show_col <- function(
             output_type = output_type
           )
 
-          color_display <- paste0(
+          paste0(
             solid_block,
             solid_block,
             medium_block,
@@ -417,7 +417,7 @@ show_col <- function(
         },
         error = function(e) {
           # Fallback if color conversion fails
-          color_display <- paste0(
+          paste0(
             "\u2588\u2588\u2593\u2593\u2591\u2591 (",
             color_val,
             ")"

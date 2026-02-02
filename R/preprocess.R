@@ -62,8 +62,6 @@ method(preprocess, list(class_data.frame, PreprocessorConfig)) <- function(
   # -> Preprocessor
   # Intro ----
   start_time <- intro(verbosity = verbosity - 1L)
-  # config <- x
-  # x <- dat
   # Init values list for Preprocessor output.
   values <- list(
     scale_centers = NULL,
@@ -462,7 +460,7 @@ method(preprocess, list(class_data.frame, PreprocessorConfig)) <- function(
       # '- missRanger ----
       check_dependencies("missRanger")
       if (verbosity > 0L) {
-        if (config@impute_missRanger_params$pmm.k > 0) {
+        if (config@impute_missRanger_params[["pmm.k"]] > 0) {
           msg(
             "Imputing missing values using predictive mean matching with missRanger..."
           )
@@ -472,7 +470,7 @@ method(preprocess, list(class_data.frame, PreprocessorConfig)) <- function(
       }
       x <- missRanger::missRanger(
         x,
-        pmm.k = config@impute_missRanger_params$pmm.k,
+        pmm.k = config@impute_missRanger_params[["pmm.k"]],
         verbose = verbosity
       )
     } else if (config@impute_type == "micePMM") {
@@ -662,10 +660,10 @@ method(preprocess, list(class_data.frame, PreprocessorConfig)) <- function(
       config = Preprocessor(
         config = config,
         preprocessed = list(),
-        scale_centers = values$scale_centers,
-        scale_coefficients = values$scale_coefficients,
-        one_hot_levels = values$one_hot_levels,
-        remove_features = values$remove_features
+        scale_centers = values[["scale_centers"]],
+        scale_coefficients = values[["scale_coefficients"]],
+        one_hot_levels = values[["one_hot_levels"]],
+        remove_features = values[["remove_features"]]
       ),
       verbosity = verbosity
     )
@@ -680,10 +678,10 @@ method(preprocess, list(class_data.frame, PreprocessorConfig)) <- function(
       config = Preprocessor(
         config = config,
         preprocessed = list(),
-        scale_centers = values$scale_centers,
-        scale_coefficients = values$scale_coefficients,
-        one_hot_levels = values$one_hot_levels,
-        remove_features = values$remove_features
+        scale_centers = values[["scale_centers"]],
+        scale_coefficients = values[["scale_coefficients"]],
+        one_hot_levels = values[["one_hot_levels"]],
+        remove_features = values[["remove_features"]]
       ),
       verbosity = verbosity
     )
@@ -697,10 +695,10 @@ method(preprocess, list(class_data.frame, PreprocessorConfig)) <- function(
     } else {
       preprocessed
     },
-    scale_centers = values$scale_centers,
-    scale_coefficients = values$scale_coefficients,
-    one_hot_levels = values$one_hot_levels,
-    remove_features = values$remove_features
+    scale_centers = values[["scale_centers"]],
+    scale_coefficients = values[["scale_coefficients"]],
+    one_hot_levels = values[["one_hot_levels"]],
+    remove_features = values[["remove_features"]]
   )
 } # /rtemis::preprocess(PreprocessorConfig, ...)
 
@@ -713,10 +711,10 @@ method(preprocess, list(class_data.frame, Preprocessor)) <- function(
   # -> Preprocessor
   params <- config@config
   # Overwrite scale_centers, scale_coefficients, one_hot_levels, and remove_features
-  params@scale_centers <- config@values$scale_centers
-  params@scale_coefficients <- config@values$scale_coefficients
-  params@one_hot_levels <- config@values$one_hot_levels
-  params@remove_features <- config@values$remove_features
+  params@scale_centers <- config@values[["scale_centers"]]
+  params@scale_coefficients <- config@values[["scale_coefficients"]]
+  params@one_hot_levels <- config@values[["one_hot_levels"]]
+  params@remove_features <- config@values[["remove_features"]]
 
   preprocess(x, params, verbosity = verbosity)
 } # /rtemis::preprocess(Preprocessor, ...)
@@ -739,7 +737,7 @@ method(preprocess, list(class_data.frame, Preprocessor)) <- function(
 #' only column of type factor will be one-hot encoded.
 #' This function is used by [preprocess].
 #' `one_hot.data.table` operates on a copy of its input.
-#' `one_hot_` performs one-hot encoding in-place.
+#' `one_hot_` performs one-hot encoding ***in-place***.
 #'
 #' @param x Vector or data.frame
 #' @param xname Character: Variable name
@@ -896,20 +894,20 @@ method(one_hot, class_data.table) <- function(x, verbosity = 1L) {
 } # /rtemis::one_hot.data.table
 
 
-#' Convert data.table's factor to one-hot encoding in-place
+#' Convert data.table's factor to one-hot encoding ***in-place***
 #'
-#' @param x data.table.
+#' @param x data.table: Input data.table. Will be modified ***in-place***.
 #' @param xname Character, optional: Dataset name.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return The input, invisibly, after it has been modified in-place.
+#' @return The input, invisibly, after it has been modified ***in-place***.
 #'
 #' @author EDG
 #' @export
 #' @examples
 #' \dontrun{
 #' ir <- data.table::as.data.table(iris)
-#' # dt_set_one_hot operates in-place; therefore no assignment is used:
+#' # dt_set_one_hot operates ***in-place***; therefore no assignment is used:
 #' dt_set_one_hot(ir)
 #' ir
 #' }

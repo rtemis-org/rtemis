@@ -2,18 +2,18 @@
 % Please edit documentation in R/utils_data.table.R
 \name{dt_set_cleanfactorlevels}
 \alias{dt_set_cleanfactorlevels}
-\title{Clean factor levels of data.table in-place}
+\title{Clean factor levels of data.table \emph{\strong{in-place}}}
 \usage{
 dt_set_cleanfactorlevels(x, prefix_digits = NA)
 }
 \arguments{
-\item{x}{data.table}
+\item{x}{data.table: Input data.table. Will be modified \emph{\strong{in-place}}.}
 
 \item{prefix_digits}{Character: If not NA, add this prefix to all factor levels that
 are numbers}
 }
 \value{
-Nothing, modifies \code{x} in-place.
+Nothing, modifies \code{x} \emph{\strong{in-place}}.
 }
 \description{
 Finds all factors in a data.table and cleans factor levels to include

@@ -340,11 +340,6 @@ draw_3Dscatter <- function(
   } else {
     se <- NULL
   }
-  if (rsq) {
-    .rsq <- list()
-  } else {
-    .rsq <- NULL
-  }
   if (!is.null(fit)) {
     # learner <- get_train_fn(fit)
     fitted <- list()

@@ -4,7 +4,7 @@
 \alias{clean_int}
 \title{Clean integer input}
 \usage{
-clean_int(x)
+clean_int(x, xname = deparse(substitute(x)))
 }
 \arguments{
 \item{x}{Double or integer vector to check.}

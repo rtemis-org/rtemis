@@ -247,10 +247,8 @@ method(inc, class_data.frame) <- function(x, idx) {
   x[, idx, drop = FALSE]
 }
 
-# may cause R CMD check note, consider defining `..` or using the `with = FALSE` approach instead.
-.. <- identity
 method(inc, class_data.table) <- function(x, idx) {
-  x[, ..idx]
+  x[, .SD, .SDcols = idx]
 }
 
 method(exc, list(class_data.frame, class_character)) <- function(x, idx) {
@@ -270,12 +268,12 @@ method(
   exc,
   list(class_data.table, class_character | class_integer)
 ) <- function(x, idx) {
-  x[, !..idx]
+  x[, .SD, .SDcols = -idx]
 }
 
 method(exc, list(class_data.table, class_double)) <- function(x, idx) {
   idx <- clean_int(idx)
-  x[, !idx]
+  x[, .SD, .SDcols = -idx]
 }
 
 

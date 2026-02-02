@@ -56,7 +56,7 @@
 #' @param histnorm Character: NULL, "percent", "probability", "density", "probability density".
 #' @param histfunc Character: "count", "sum", "avg", "min", "max".
 #' @param hist_n_bins Integer: Number of bins to use if type = "histogram".
-#' @param barmode Character: Barmode for histogram. Default = "overlay".
+#' @param barmode Character: Barmode for histogram. One of "overlay", "stack", "relative", "group".
 #' @param ridge_sharex Logical: If TRUE, draw single x-axis when `mode = "ridge"`.
 #' @param ridge_y_labs Logical: If TRUE, show individual y labels when `mode = "ridge"`.
 #' @param ridge_order_on_mean Logical: If TRUE, order groups by mean value when `mode = "ridge"`.

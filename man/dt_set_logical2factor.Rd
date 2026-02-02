@@ -13,7 +13,7 @@ dt_set_logical2factor(
 )
 }
 \arguments{
-\item{x}{data.table}
+\item{x}{data.table: Input data.table. Will be modified \emph{\strong{in-place}}.}
 
 \item{cols}{Integer or character: columns to convert, if NULL, operates on all
 logical columns}
@@ -28,7 +28,7 @@ logical columns}
 data.table, invisibly.
 }
 \description{
-Convert data.table logical columns to factors with custom labels in-place
+Convert data.table logical columns to factors with custom labels \emph{\strong{in-place}}
 }
 \examples{
 library(data.table)

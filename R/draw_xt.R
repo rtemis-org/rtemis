@@ -426,20 +426,7 @@ draw_xt <- function(
   }
 
   # Plot ----
-  # if (!is.null(x.ticktext)) {
-  #   stopifnot(!is.null(x.tickvals))
-  #   plt <- plotly::plot_ly(
-  #     x = x.tickvals,
-  #     y = NA,
-  #     type = "scatter",
-  #     mode = "lines",
-  #     text = x.ticktext
-  #   )
-  # } else {
-  #   plt <- plotly::plot_ly(type = "scatter", mode = "lines")
-  # }
   plt <- plotly::plot_ly(type = "scatter", mode = "lines")
-  # browser()
 
   # Shade intervals ----
   if (!is.null(shade_interval)) {

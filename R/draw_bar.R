@@ -174,7 +174,7 @@ draw_bar <- function(
   }
 
   if (verbosity > 0L) {
-    cat("group_names_:", group_names_, "\n")
+    msg("group_names_:", group_names_, "\n")
   }
 
   # Feature names ----
@@ -188,7 +188,7 @@ draw_bar <- function(
   }
 
   if (verbosity > 0L) {
-    cat("feature_names_:", feature_names_, "\n")
+    msg("feature_names_:", feature_names_, "\n")
   }
   if (is.null(legend)) {
     legend <- length(feature_names_) > 1
@@ -212,7 +212,6 @@ draw_bar <- function(
   tick_col <- plotly::toRGB(theme[["tick_col"]])
   labs_col <- plotly::toRGB(theme[["labs_col"]])
   main_col <- plotly::toRGB(theme[["main_col"]])
-  axes_col <- plotly::toRGB(theme[["axes_col"]])
 
   # Derived
   if (is.null(legend_col)) {

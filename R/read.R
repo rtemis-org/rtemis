@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2022- EDG rtemis.org
 
-# need a way to ignore errors with duckdb::duckdb_read_csv()
-# polars nullstring is buggy, only recognizes NULL
-
 #' Read tabular data from a variety of formats
 #'
 #' Read data and optionally clean column names, keep unique rows, and convert
@@ -14,8 +11,7 @@
 #' `read` is a convenience function to read:
 #'
 #' - **Delimited** files using `data.table:fread()`, `arrow:read_delim_arrow()`,
-#'   `vroom::vroom()`, `duckdb::duckdb_read_csv()`
-#   or `polars::pl$read_csv()`
+#'   `vroom::vroom()`, or `duckdb::duckdb_read_csv()`
 #' - **ARFF** files using `farff::readARFF()`
 #' - **Parquet** files using `arrow::read_parquet()`
 #' - **XLSX** files using `readxl::read_excel()`
@@ -38,9 +34,6 @@
 #' @param quote Single character: quote character
 #' @param na_strings Character vector: Strings to be interpreted as NA values.
 #' For `delim_reader = "duckdb"`, this must be a single string.
-# For `delim_reader = "polars"`, this must be a single string, otherwise, if an
-# unnamed character vector, it maps each string to each column. If named, the names
-# should match columns. See `?polars::csv_reader` for more details.
 #' @param output Character: "default" or "data.table", If default, return the delim_reader's
 #' default data structure, otherwise convert to data.table
 #' @param attr Character: Attribute to set (Optional)
@@ -59,7 +52,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' datadir <- "~/icloud/Data"
+#' datadir <- "/Data"
 #' dat <- read("iris.csv", datadir)
 #' }
 read <- function(
@@ -73,10 +66,6 @@ read <- function(
   sep = NULL,
   quote = "\"",
   na_strings = c(""),
-  #  polars_ignore_errors = TRUE,
-  #  polars_infer_schema_length = 100,
-  #  polars_encoding = "utf8-lossy",
-  #  polars_parse_dates = TRUE,
   output = c("data.table", "default"),
   attr = NULL,
   value = NULL,
@@ -215,7 +204,7 @@ read <- function(
         na_strings <- na_strings[1]
       }
       con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
-      .db <- duckdb::duckdb_read_csv(
+      duckdb::duckdb_read_csv(
         con,
         "data",
         path,
@@ -227,10 +216,9 @@ read <- function(
         ...
       )
       .dat <- DBI::dbReadTable(con, "data")
-      # .dat <- ddb_data(path,
-      #     sep = sep, quote = quote, ...
-      # )
-      if (output == "data.table") setDT(.dat)
+      if (output == "data.table") {
+        setDT(.dat)
+      }
     } else if (delim_reader == "arrow") {
       check_dependencies("arrow")
       if (is.null(sep)) {
@@ -243,23 +231,9 @@ read <- function(
         na = na_strings,
         ...
       )
-      if (output == "data.table") setDT(.dat)
-      # } else if (delim_reader == "polars") {
-      #   check_dependencies("polars")
-      #   attachNamespace("polars")
-      #   if (is.null(sep)) sep <- ","
-      #   .dat <- polars::pl$read_csv(
-      #     path,
-      #     sep = sep,
-      #     has_header = TRUE,
-      #     ignore_errors = polars_ignore_errors,
-      #     quote_char = quote,
-      #     # null_values = na_strings
-      #     infer_schema_length = polars_infer_schema_length,
-      #     encoding = polars_encoding,
-      #     parse_dates = polars_parse_dates, ...
-      #   )$as_data_frame()
-      #   if (output == "data.table") setDT(.dat)
+      if (output == "data.table") {
+        setDT(.dat)
+      }
     } else {
       check_dependencies("vroom")
       .dat <- vroom::vroom(
@@ -270,7 +244,9 @@ read <- function(
         progress = verbosity > 0L,
         ...
       )
-      if (output == "data.table") setDT(.dat)
+      if (output == "data.table") {
+        setDT(.dat)
+      }
     }
   }
 
@@ -325,9 +301,15 @@ read <- function(
     outro(start_time)
   }
 
-  return(.dat)
+  .dat
 } # /rtemis::read
 
+
+#' Msg for data reading
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 msgread <- function(x, caller = "", use_basename = TRUE) {
   if (use_basename) {
     x <- basename(x)
@@ -339,4 +321,4 @@ msgread <- function(x, caller = "", use_basename = TRUE) {
     "...",
     caller = caller
   )
-}
+} # /rtemis::msgread

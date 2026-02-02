@@ -7,7 +7,7 @@
 dt_nunique_perfeat(x, excludeNA = FALSE, limit = 20L, verbosity = 1L)
 }
 \arguments{
-\item{x}{data.table}
+\item{x}{data.table: Input data.table.}
 
 \item{excludeNA}{Logical: If TRUE, exclude NA values.}
 

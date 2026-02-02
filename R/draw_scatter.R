@@ -254,9 +254,6 @@ draw_scatter <- function(
   .mode <- mode
   .names <- group_names
 
-  # fit & formula
-  # if (!is.null(formula)) fit <- "NLS"
-
   if (se_fit) {
     if (!fit %in% c("GLM", "LM", "LOESS", "GAM", "NW")) {
       warning(paste(
@@ -379,10 +376,6 @@ draw_scatter <- function(
     }
   }
 
-  if (!is.null(fit) && fit == "LOESS") {
-    id <- !is.na(x)
-  }
-
   # Colors ----
   if (is.character(palette)) {
     palette <- rtpalette(palette)
@@ -446,9 +439,6 @@ draw_scatter <- function(
   }
 
   # Size ----
-  # if (axes_square) {
-  # width <- height <- min(dev.size("px"))
-  # }
   # fitted & se_fit ----
   # If plotting se bands, need to include (fitted +/- se_times * se) in the axis limits
   if (se_fit) {
@@ -456,14 +446,7 @@ draw_scatter <- function(
   } else {
     se <- NULL
   }
-  if (rsq) {
-    .rsq <- list()
-  } else {
-    .rsq <- NULL
-  }
-  # if (rsq_pval) rsqp <- list() else rsqp <- NULL
   if (!is.null(fit)) {
-    # algorithm <- get_alg_name(fit)
     fitted <- list()
     fitted_text <- character()
     for (i in seq_len(n_groups)) {
@@ -537,11 +520,6 @@ draw_scatter <- function(
         )))
         ylim <- range(ylim_lo, ylim_hi, y)
       }
-      # if (is.list(error_y)) {
-      #   error_y_hi <- lapply(seq(y), function(i) yl[[i]] + error_y[[i]])
-      #   error_y_lo <- lapply(seq(y), function(i) yl[[i]] - error_y[[i]])
-      #   ylim <- range(error_y_lo, error_y_hi, ylim)
-      # }
     }
 
     xlim <- ylim <- range(xlim, ylim)
@@ -783,7 +761,6 @@ draw_scatter <- function(
       spikemode = spikemode,
       spikesnap = spikesnap,
       spikethickness = spikethickness,
-      # mirror = axes_mirrored,
       titlefont = f,
       showgrid = theme[["grid"]],
       gridcolor = grid_col,

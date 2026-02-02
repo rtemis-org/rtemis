@@ -92,12 +92,15 @@ test_inherits <- function(x, cl) {
 #'
 #' @keywords internal
 #' @export
-check_inherits <- function(x, cl, allow_null = TRUE) {
+check_inherits <- function(
+  x,
+  cl,
+  allow_null = TRUE,
+  xname = deparse(substitute(x))
+) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
-
-  xname <- deparse(substitute(x))
 
   if (is.null(x)) {
     cli::cli_abort("{.var {xname}} cannot be NULL.")
@@ -130,15 +133,19 @@ check_inherits <- function(x, cl, allow_null = TRUE) {
 #' strict(c(1, 2.5, 3.2), "integer") # Error
 #' strict(iris, "list") # Error
 #' }
-strict <- function(object, class, allow_null = TRUE) {
-  name. <- deparse(substitute(object))
+strict <- function(
+  object,
+  class,
+  allow_null = TRUE,
+  xname = deparse(substitute(object))
+) {
   if (allow_null && is.null(object)) {
     return(NULL)
   }
   if (inherits(object, class)) {
     return(object)
   } else {
-    cli::cli_abort(name., " must be ", bold(class))
+    cli::cli_abort(xname, " must be ", bold(class))
   }
 } # /rtemis::strict
 
@@ -166,19 +173,19 @@ strict <- function(object, class, allow_null = TRUE) {
 #' clean_int(c(3, 5, 7))
 #' clean_int(c(3, 5, 7.01)) # Error
 #' }
-clean_int <- function(x) {
+clean_int <- function(x, xname = deparse(substitute(x))) {
   if (is.integer(x)) {
     return(x)
   } else if (is.numeric(x)) {
     if (all(x %% 1 == 0)) {
       return(as.integer(x))
     } else {
-      cli::cli_abort("{.arg x} must be integer.")
+      cli::cli_abort("{.var {xname}} must be integer.")
     }
   } else if (is.null(x)) {
     return(NULL)
   }
-  cli::cli_abort("{.arg x} must be integer.")
+  cli::cli_abort("{.var {xname}} must be integer.")
 } # /rtemis::clean_int
 
 
@@ -213,22 +220,24 @@ match_arg <- function(x, choices) {
 #'
 #' @keywords internal
 #' @noRd
-check_logical <- function(x, allow_null = TRUE) {
+check_logical <- function(
+  x,
+  allow_null = TRUE,
+  xname = deparse(substitute(x))
+) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
 
-  xname <- deparse(substitute(x))
-
   if (is.null(x)) {
-    cli::cli_abort("{.var {xname}} cannot be NULL.", call. = FALSE)
+    cli::cli_abort("{.var {xname}} cannot be NULL.")
   }
 
   if (anyNA(x)) {
-    cli::cli_abort("{.var {xname}} must not contain NAs.", call. = FALSE)
+    cli::cli_abort("{.var {xname}} must not contain NAs.")
   }
   if (!is.logical(x)) {
-    cli::cli_abort("{.var {xname}} must be logical.", call. = FALSE)
+    cli::cli_abort("{.var {xname}} must be logical.")
   }
 
   invisible()
@@ -245,22 +254,24 @@ check_logical <- function(x, allow_null = TRUE) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_character <- function(x, allow_null = TRUE) {
+check_character <- function(
+  x,
+  allow_null = TRUE,
+  xname = deparse(substitute(x))
+) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
 
-  xname <- deparse(substitute(x))
-
   if (is.null(x)) {
-    cli::cli_abort("{.var {xname}} cannot be NULL.", call. = FALSE)
+    cli::cli_abort("{.var {xname}} cannot be NULL.")
   }
 
   if (anyNA(x)) {
-    cli::cli_abort("{.var {xname}} must not contain NAs.", call. = FALSE)
+    cli::cli_abort("{.var {xname}} must not contain NAs.")
   }
   if (!is.character(x)) {
-    cli::cli_abort("{.var {xname}} must be character.", call. = FALSE)
+    cli::cli_abort("{.var {xname}} must be character.")
   }
 
   invisible()
@@ -268,6 +279,11 @@ check_character <- function(x, allow_null = TRUE) {
 
 
 #' Check positive float
+#'
+#' @details
+#' Checking with `is.numeric()` allows integer inputs as well, which should be ok since it is
+#' unlikely the function that consumes this will enforce double type only, but instead is most
+#' likely to allow implicit coercion from integer to numeric.
 #'
 #' @param x Float vector.
 #' @param allow_null Logical: If TRUE, NULL values are allowed and return early.
@@ -277,22 +293,29 @@ check_character <- function(x, allow_null = TRUE) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_floatpos <- function(x, allow_null = TRUE) {
+check_floatpos <- function(
+  x,
+  allow_null = TRUE,
+  xname = deparse(substitute(x))
+) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
 
-  xname <- deparse(substitute(x))
-
   if (is.null(x)) {
-    cli::cli_abort("{.var {xname}} cannot be NULL.", call. = FALSE)
+    cli::cli_abort("{.var {xname}} cannot be NULL.")
+  }
+
+  if (!is.numeric(x)) {
+    cli::cli_abort("{.var {xname}} must be numeric.")
   }
 
   if (anyNA(x)) {
-    cli::cli_abort("{.var {xname}} must not contain NAs.", call. = FALSE)
+    cli::cli_abort("{.var {xname}} must not contain NAs.")
   }
+
   if (any(x <= 0)) {
-    cli::cli_abort("{.var {xname}} must be greater than 0.", call. = FALSE)
+    cli::cli_abort("{.var {xname}} must be greater than 0.")
   }
 
   invisible()
@@ -311,24 +334,30 @@ check_floatpos <- function(x, allow_null = TRUE) {
 #' @noRd
 #' @examples
 #' check_float01exc(0.5)
-check_float01exc <- function(x, allow_null = TRUE) {
+check_float01exc <- function(
+  x,
+  allow_null = TRUE,
+  xname = deparse(substitute(x))
+) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
 
-  xname <- deparse(substitute(x))
-
   if (is.null(x)) {
-    cli::cli_abort("{.var {xname}} cannot be NULL.", call. = FALSE)
+    cli::cli_abort("{.var {xname}} cannot be NULL.")
+  }
+
+  if (!is.numeric(x)) {
+    cli::cli_abort("{.var {xname}} must be numeric.")
   }
 
   if (anyNA(x)) {
-    cli::cli_abort("{.var {xname}} must not contain NAs.", call. = FALSE)
+    cli::cli_abort("{.var {xname}} must not contain NAs.")
   }
+
   if (any(x < 0 | x > 1)) {
     cli::cli_abort(
-      "{.var {xname}} must be between 0 and 1, exclusive.",
-      call. = FALSE
+      "{.var {xname}} must be between 0 and 1, exclusive."
     )
   }
 
@@ -348,20 +377,27 @@ check_float01exc <- function(x, allow_null = TRUE) {
 #' @noRd
 #' @examples
 #' check_float01inc(0.5)
-check_float01inc <- function(x, allow_null = TRUE) {
+check_float01inc <- function(
+  x,
+  allow_null = TRUE,
+  xname = deparse(substitute(x))
+) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
-
-  xname <- deparse(substitute(x))
 
   if (is.null(x)) {
     cli::cli_abort("{.var {xname}} cannot be NULL.")
   }
 
+  if (!is.numeric(x)) {
+    cli::cli_abort("{.var {xname}} must be numeric.", call. = FALSE)
+  }
+
   if (anyNA(x)) {
     cli::cli_abort("{.var {xname}} must not contain NAs.")
   }
+
   if (any(x < 0 | x > 1)) {
     cli::cli_abort("{.var {xname}} must be between 0 and 1, inclusive.")
   }
@@ -369,20 +405,27 @@ check_float01inc <- function(x, allow_null = TRUE) {
   invisible()
 } # /rtemis::check_float01
 
-check_floatpos1 <- function(x, allow_null = TRUE) {
+check_floatpos1 <- function(
+  x,
+  allow_null = TRUE,
+  xname = deparse(substitute(x))
+) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
-
-  xname <- deparse(substitute(x))
 
   if (is.null(x)) {
     cli::cli_abort("{.var {xname}} cannot be NULL.")
   }
 
+  if (!is.numeric(x)) {
+    cli::cli_abort("{.var {xname}} must be numeric.")
+  }
+
   if (anyNA(x)) {
     cli::cli_abort("{.var {xname}} must not contain NAs.")
   }
+
   if (any(x <= 0) || any(x > 1)) {
     cli::cli_abort(
       "{.var {xname}} must be greater than 0 and less or equal to 1."
@@ -405,20 +448,22 @@ check_floatpos1 <- function(x, allow_null = TRUE) {
 #'
 #' @examples
 #' clean_posint(5)
-clean_posint <- function(x, allow_na = FALSE) {
-  xname <- deparse(substitute(x))
+clean_posint <- function(x, allow_na = FALSE, xname = deparse(substitute(x))) {
   if (is.null(x)) {
     return(NULL)
   }
+
   if (!allow_na && anyNA(x)) {
     cli::cli_abort("{.var {xname}} must not contain NAs.")
   } else {
     x <- na.exclude(x)
   }
+
   if (any(x <= 0)) {
     cli::cli_abort("{.var {xname}} must contain only positive integers.")
   }
-  clean_int(x)
+
+  clean_int(x, xname = xname)
 } # /rtemis::clean_posint
 
 
@@ -436,19 +481,21 @@ clean_posint <- function(x, allow_na = FALSE) {
 #'
 #' @keywords internal
 #' @noRd
-check_float0pos <- function(x, allow_null = TRUE) {
+check_float0pos <- function(
+  x,
+  allow_null = TRUE,
+  xname = deparse(substitute(x))
+) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
-
-  xname <- deparse(substitute(x))
 
   if (is.null(x)) {
     cli::cli_abort("{.var {xname}} cannot be NULL.")
   }
 
-  if (!inherits(x, "numeric")) {
-    cli::cli_abort("{.var {xname}} must be of class {.cls numeric}.")
+  if (!is.numeric(x)) {
+    cli::cli_abort("{.var {xname}} must be numeric.")
   }
 
   if (anyNA(x)) {
@@ -474,19 +521,21 @@ check_float0pos <- function(x, allow_null = TRUE) {
 #'
 #' @keywords internal
 #' @noRd
-check_float_neg1_1 <- function(x, allow_null = TRUE) {
+check_float_neg1_1 <- function(
+  x,
+  allow_null = TRUE,
+  xname = deparse(substitute(x))
+) {
   if (allow_null && is.null(x)) {
     return(invisible())
   }
-
-  xname <- deparse(substitute(x))
 
   if (is.null(x)) {
     cli::cli_abort("{.var {xname}} cannot be NULL.")
   }
 
-  if (!inherits(x, "numeric")) {
-    cli::cli_abort("{.var {xname}} must be of class {.cls numeric}.")
+  if (!is.numeric(x)) {
+    cli::cli_abort("{.var {xname}} must be numeric.")
   }
 
   if (anyNA(x)) {
@@ -620,8 +669,7 @@ check_dependencies <- function(..., verbosity = 0L) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_data.table <- function(x) {
-  xname <- deparse(substitute(x))
+check_data.table <- function(x, xname = deparse(substitute(x))) {
   if (!data.table::is.data.table(x)) {
     cli::cli_abort("{.var {xname}} must be a data.table.")
   }

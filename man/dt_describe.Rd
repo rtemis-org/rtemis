@@ -7,7 +7,7 @@
 dt_describe(x, verbosity = 1L)
 }
 \arguments{
-\item{x}{data.table input.}
+\item{x}{data.table: Input data.table.}
 
 \item{verbosity}{Integer: If > 0, print output to console.}
 }

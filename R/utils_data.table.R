@@ -4,7 +4,7 @@
 
 #' Number of unique values per feature
 #'
-#' @param x data.table
+#' @param x data.table: Input data.table.
 #' @param excludeNA Logical: If TRUE, exclude NA values.
 #' @param limit Integer: Print up to this many features. Set to -1L to print all.
 #' @param verbosity Integer: If > 0, print output to console.
@@ -233,16 +233,16 @@ dt_merge <- function(
 } # /rtemis::dt_merge
 
 
-#' Clean factor levels of data.table in-place
+#' Clean factor levels of data.table ***in-place***
 #'
 #' Finds all factors in a data.table and cleans factor levels to include
 #' only underscore symbols
 #'
-#' @param x data.table
+#' @param x data.table: Input data.table. Will be modified ***in-place***.
 #' @param prefix_digits Character: If not NA, add this prefix to all factor levels that
 #' are numbers
 #'
-#' @return Nothing, modifies `x` in-place.
+#' @return Nothing, modifies `x` ***in-place***.
 #'
 #' @author EDG
 #' @export
@@ -270,8 +270,8 @@ dt_set_cleanfactorlevels <- function(x, prefix_digits = NA) {
 
 #' Get N and percent match of values between two columns of two data.tables
 #'
-#' @param x data.table
-#' @param y data.table
+#' @param x data.table: First input data.table.
+#' @param y data.table: Second input data.table.
 #' @param on Integer or character: column to read in `x` and `y`, if it is the
 #' same
 #' @param left_on Integer or character: column to read in `x`
@@ -352,9 +352,9 @@ dt_pctmissing <- function(x, verbosity = 1L) {
 
 #' Convert data.table logical columns to factors
 #'
-#' Convert data.table logical columns to factors with custom labels in-place
+#' Convert data.table logical columns to factors with custom labels ***in-place***
 #'
-#' @param x data.table
+#' @param x data.table: Input data.table. Will be modified ***in-place***.
 #' @param cols Integer or character: columns to convert, if NULL, operates on all
 #' logical columns
 #' @param labels Character: labels for factor levels
@@ -422,87 +422,12 @@ dt_set_logical2factor <- function(
 }
 
 
-#' Inspect character and factor vector
-#'
-#' Checks character or factor vector to determine whether it might be best to convert to
-#' numeric.
-#'
-#' @details
-#' All data can be represented as a character string. A numeric variable may be read as
-#' a character variable if there are non-numeric characters in the data.
-#' It is important to be able to automatically detect such variables and convert them,
-#' which would mean introducing NA values.
-#'
-#' @param x Character or factor vector.
-#' @param xname Character: Name of input vector `x`.
-#' @param verbosity Integer: Verbosity level.
-#' @param thresh Numeric: Threshold for determining whether to convert to numeric.
-#' @param na.omit Logical: If TRUE, remove NA values before checking.
-#'
-#' @return Character.
-#'
-#' @author EDG
-#' @export
-#'
-#' @examples
-#' x <- c("3", "5", "undefined", "21", "4", NA)
-#' inspect_type(x)
-#' z <- c("mango", "banana", "tangerine", NA)
-#' inspect_type(z)
-inspect_type <- function(
-  x,
-  xname = NULL,
-  verbosity = 1L,
-  thresh = .5,
-  na.omit = TRUE
-) {
-  if (is.null(xname)) {
-    xname <- deparse(substitute(x))
-  }
-  if (na.omit) {
-    x <- na.omit(x)
-  }
-  xclass <- class(x)[1]
-  xlen <- length(x)
-  raw_na <- sum(is.na(x))
-  n_non_na <- xlen - raw_na
-  # char_na <- sum(is.na(as.character(x)))
-  suppressWarnings({
-    num_na <- if (xclass == "character") {
-      sum(is.na(as.numeric(x)))
-    } else {
-      sum(is.na(as.numeric(as.character(x))))
-    }
-  })
-  if (raw_na == xlen) {
-    "NA"
-  } else if (
-    xclass %in% c("character", "factor") && (num_na / n_non_na) < thresh
-  ) {
-    if (verbosity > 0L) {
-      msg0(
-        "Possible type error: ",
-        highlight(xname),
-        " is a ",
-        bold(xclass),
-        ", but perhaps should be ",
-        bold("numeric"),
-        "."
-      )
-    }
-    "numeric"
-  } else {
-    xclass
-  }
-} # /rtemis::inspect_type
-
-
 #' Inspect column types
 #'
 #' Will attempt to identify columns that should be numeric but are either character or
 #' factor by running [inspect_type] on each column.
 #'
-#' @param x data.table
+#' @param x data.table: Input data.table.
 #' @param cols Character vector: columns to inspect.
 #' @param verbosity Integer: Verbosity level.
 #'
@@ -538,10 +463,10 @@ dt_inspect_types <- function(x, cols = NULL, verbosity = 1L) {
 #' Set column types automatically
 #'
 #' This function inspects a data.table and attempts to identify columns that should be
-#' numeric but have been read in as character, and fixes their type in-place.
+#' numeric but have been read in as character, and fixes their type ***in-place***.
 #' This can happen when one or more fields contain non-numeric characters, for example.
 #'
-#' @param x data.table
+#' @param x data.table: Input data.table. Will be modified ***in-place***, if needed.
 #' @param cols Character vector: columns to work on. If not defined, will work on all
 #' columns
 #' @param verbosity Integer: Verbosity level.
@@ -560,7 +485,7 @@ dt_inspect_types <- function(x, cols = NULL, verbosity = 1L) {
 #'   c = c(1, 2, 3, 4, 5, 6)
 #' )
 #' str(x)
-#' # in-place operation means no assignment is needed
+#' # ***in-place*** operation means no assignment is needed
 #' dt_set_autotypes(x)
 #' str(x)
 dt_set_autotypes <- function(x, cols = NULL, verbosity = 1L) {
@@ -585,10 +510,10 @@ dt_set_autotypes <- function(x, cols = NULL, verbosity = 1L) {
 
 #' List column names by attribute
 #'
-#' @param x data.table
-#' @param attribute Character: name of attribute
-#' @param exact Logical: If TRUE, use exact matching
-#' @param sorted Logical: If TRUE, sort the output
+#' @param x data.table: Input data.table.
+#' @param attribute Character: name of attribute.
+#' @param exact Logical: If TRUE, use exact matching.
+#' @param sorted Logical: If TRUE, sort the output.
 #'
 #' @return Character vector.
 #'
@@ -609,13 +534,13 @@ dt_names_by_attr <- function(x, attribute, exact = TRUE, sorted = TRUE) {
 } # /rtemis::dt_names_by_attr
 
 
-#' Clean column names and factor levels in-place
+#' Clean column names and factor levels ***in-place***
 #'
-#' @param x data.table
+#' @param x data.table: Input data.table. Will be modified ***in-place***, if needed.
 #' @param prefix_digits Character: prefix to add to names beginning with a
 #' digit. Set to NA to skip
 #'
-#' @return Nothing, modifies `x` in-place.
+#' @return Nothing, modifies `x` ***in-place***.
 #'
 #' @author EDG
 #' @export
@@ -626,7 +551,7 @@ dt_names_by_attr <- function(x, attribute, exact = TRUE, sorted = TRUE) {
 #' levels(x[["Species"]]) <- c("setosa:iris", "versicolor$iris", "virginica iris")
 #' names(x)
 #' levels(x[["Species"]])
-#' # in-place operation means no assignment is needed
+#' # ***in-place*** operation means no assignment is needed
 #' dt_set_clean_all(x)
 #' names(x)
 #' levels(x[["Species"]])
@@ -649,7 +574,7 @@ dt_set_clean_all <- function(x, prefix_digits = NA) {
 
 #' Describe data.table
 #'
-#' @param x data.table input.
+#' @param x data.table: Input data.table.
 #' @param verbosity Integer: If > 0, print output to console.
 #'
 #' @return List with three data.tables: Numeric, Categorical, and Date.

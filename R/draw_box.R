@@ -332,7 +332,6 @@ draw_box <- function(
   tick_col <- plotly::toRGB(theme[["tick_col"]])
   labs_col <- plotly::toRGB(theme[["labs_col"]])
   main_col <- plotly::toRGB(theme[["main_col"]])
-  # axes_col <- plotly::toRGB(theme[["axes_col"]])
 
   # Derived
   if (is.null(legend_col)) {
@@ -1205,5 +1204,3 @@ draw_box <- function(
 
   plt
 } # /rtemis::draw_box.R
-
-# todo: htest.compare = n

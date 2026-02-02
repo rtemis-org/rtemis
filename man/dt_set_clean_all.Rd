@@ -2,21 +2,21 @@
 % Please edit documentation in R/utils_data.table.R
 \name{dt_set_clean_all}
 \alias{dt_set_clean_all}
-\title{Clean column names and factor levels in-place}
+\title{Clean column names and factor levels \emph{\strong{in-place}}}
 \usage{
 dt_set_clean_all(x, prefix_digits = NA)
 }
 \arguments{
-\item{x}{data.table}
+\item{x}{data.table: Input data.table. Will be modified \emph{\strong{in-place}}, if needed.}
 
 \item{prefix_digits}{Character: prefix to add to names beginning with a
 digit. Set to NA to skip}
 }
 \value{
-Nothing, modifies \code{x} in-place.
+Nothing, modifies \code{x} \emph{\strong{in-place}}.
 }
 \description{
-Clean column names and factor levels in-place
+Clean column names and factor levels \emph{\strong{in-place}}
 }
 \examples{
 library(data.table)
@@ -24,7 +24,7 @@ x <- as.data.table(iris)
 levels(x[["Species"]]) <- c("setosa:iris", "versicolor$iris", "virginica iris")
 names(x)
 levels(x[["Species"]])
-# in-place operation means no assignment is needed
+# ***in-place*** operation means no assignment is needed
 dt_set_clean_all(x)
 names(x)
 levels(x[["Species"]])

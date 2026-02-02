@@ -148,7 +148,7 @@ predict_Ranger <- function(
 #' @noRd
 varimp_Ranger <- function(model) {
   check_inherits(model, "ranger")
-  varimp <- ranger::importance(model)
+  ranger::importance(model)
 } # /rtemis::varimp_Ranger
 
 

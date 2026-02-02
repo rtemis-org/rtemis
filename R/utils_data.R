@@ -287,7 +287,7 @@ index_col_by_attr <- function(x, name, value) {
 
 #' Tabulate column attributes
 #'
-#' @param x data.table
+#' @param x data.frame or similar: Input data set.
 #' @param attr Character: Attribute to get
 #' @param useNA Character: Passed to `table`
 #'
@@ -352,3 +352,78 @@ names_by_class <- function(
   cat(repr_ls(out, item_format = item_format, maxlength = maxlength))
   invisible()
 } # /rtemis::names_by_class
+
+
+#' Inspect character and factor vector
+#'
+#' Checks character or factor vector to determine whether it might be best to convert to
+#' numeric.
+#'
+#' @details
+#' All data can be represented as a character string. A numeric variable may be read as
+#' a character variable if there are non-numeric characters in the data.
+#' It is important to be able to automatically detect such variables and convert them,
+#' which would mean introducing NA values.
+#'
+#' @param x Character or factor vector.
+#' @param xname Character: Name of input vector `x`.
+#' @param verbosity Integer: Verbosity level.
+#' @param thresh Numeric: Threshold for determining whether to convert to numeric.
+#' @param na.omit Logical: If TRUE, remove NA values before checking.
+#'
+#' @return Character.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' x <- c("3", "5", "undefined", "21", "4", NA)
+#' inspect_type(x)
+#' z <- c("mango", "banana", "tangerine", NA)
+#' inspect_type(z)
+inspect_type <- function(
+  x,
+  xname = NULL,
+  verbosity = 1L,
+  thresh = .5,
+  na.omit = TRUE
+) {
+  if (is.null(xname)) {
+    xname <- deparse(substitute(x))
+  }
+  if (na.omit) {
+    x <- na.omit(x)
+  }
+  xclass <- class(x)[1]
+  xlen <- length(x)
+  raw_na <- sum(is.na(x))
+  n_non_na <- xlen - raw_na
+  # char_na <- sum(is.na(as.character(x)))
+  suppressWarnings({
+    num_na <- if (xclass == "character") {
+      sum(is.na(as.numeric(x)))
+    } else {
+      sum(is.na(as.numeric(as.character(x))))
+    }
+  })
+  if (raw_na == xlen) {
+    "NA"
+  } else if (
+    xclass %in% c("character", "factor") && (num_na / n_non_na) < thresh
+  ) {
+    if (verbosity > 0L) {
+      msg0(
+        "Possible type error: ",
+        highlight(xname),
+        " is a ",
+        bold(xclass),
+        ", but perhaps should be ",
+        bold("numeric"),
+        "."
+      )
+    }
+    "numeric"
+  } else {
+    xclass
+  }
+} # /rtemis::inspect_type

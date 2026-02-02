@@ -1,30 +1,6 @@
-# test_colorsystem.R
+# test_strings.R
 # ::rtemis::
 # 2025 EDG rtemis.org
-
-# show_col ----
-x <- list(
-  highlight_col = highlight_col,
-  col_object = col_object,
-  col_outer = col_outer,
-  col_tuner = col_tuner,
-  col_info = col_info
-)
-# show_col(x, title = "rtemis Color System") |> cat()
-out <- show_col(x, title = "rtemis Color System")
-test_that("show_col() works", {
-  expect_true(is.character(out))
-})
-
-# fmt_gradient ----
-out <- fmt_gradient(
-  "Supervised",
-  colors = c(rtemis_teal, rtemis_light_teal),
-  bold = TRUE
-)
-test_that("fmt_gradient() works", {
-  expect_true(is.character(out))
-})
 
 # repr_ls ----
 x <- list(
@@ -52,9 +28,6 @@ x <- list(
   k = rnorm(100),
   l = setup_LightCART()
 )
-
-# repr_ls(x, limit = 5L) |> cat()
-# repr_ls(x, limit = -1L) |> cat()
 
 test_that("repr_ls() handles long lists", {
   expect_true(is.character(repr_ls(x, limit = 5L)))

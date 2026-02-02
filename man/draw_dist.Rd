@@ -149,7 +149,7 @@ draw_dist(
 
 \item{hist_n_bins}{Integer: Number of bins to use if type = "histogram".}
 
-\item{barmode}{Character: Barmode for histogram. Default = "overlay".}
+\item{barmode}{Character: Barmode for histogram. One of "overlay", "stack", "relative", "group".}
 
 \item{ridge_sharex}{Logical: If TRUE, draw single x-axis when \code{mode = "ridge"}.}
 

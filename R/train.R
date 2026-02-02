@@ -184,7 +184,6 @@ train <- function(
   # Data ----
   if (type == "Classification") {
     classes <- levels(outcome(x))
-    n_classes <- length(classes)
   }
 
   ## Print data summary ----

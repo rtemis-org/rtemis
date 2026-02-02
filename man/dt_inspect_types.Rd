@@ -7,7 +7,7 @@
 dt_inspect_types(x, cols = NULL, verbosity = 1L)
 }
 \arguments{
-\item{x}{data.table}
+\item{x}{data.table: Input data.table.}
 
 \item{cols}{Character vector: columns to inspect.}
 

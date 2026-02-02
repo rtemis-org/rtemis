@@ -78,7 +78,7 @@ characters to factors
 \code{read} is a convenience function to read:
 \itemize{
 \item \strong{Delimited} files using \code{data.table:fread()}, \code{arrow:read_delim_arrow()},
-\code{vroom::vroom()}, \code{duckdb::duckdb_read_csv()}
+\code{vroom::vroom()}, or \code{duckdb::duckdb_read_csv()}
 \item \strong{ARFF} files using \code{farff::readARFF()}
 \item \strong{Parquet} files using \code{arrow::read_parquet()}
 \item \strong{XLSX} files using \code{readxl::read_excel()}
@@ -89,7 +89,7 @@ characters to factors
 }
 \examples{
 \dontrun{
-datadir <- "~/icloud/Data"
+datadir <- "/Data"
 dat <- read("iris.csv", datadir)
 }
 }

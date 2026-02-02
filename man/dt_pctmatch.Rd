@@ -7,9 +7,9 @@
 dt_pctmatch(x, y, on = NULL, left_on = NULL, right_on = NULL, verbosity = 1L)
 }
 \arguments{
-\item{x}{data.table}
+\item{x}{data.table: First input data.table.}
 
-\item{y}{data.table}
+\item{y}{data.table: Second input data.table.}
 
 \item{on}{Integer or character: column to read in \code{x} and \code{y}, if it is the
 same}

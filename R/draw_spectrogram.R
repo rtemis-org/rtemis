@@ -210,7 +210,7 @@ draw_spectrogram <- function(
     font = list(
       family = theme[["font_family"]],
       size = font_size,
-      color = bg
+      color = fg
     )
   )
 
@@ -253,7 +253,7 @@ draw_spectrogram <- function(
       x = theme[["main_adj"]]
     ),
     paper_bgcolor = bg,
-    plot_bgcolor = bg,
+    plot_bgcolor = plot_bg,
     legend = .legend,
     hoverlabel = list(align = hoverlabel_align)
   )

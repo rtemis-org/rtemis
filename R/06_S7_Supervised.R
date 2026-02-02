@@ -635,7 +635,7 @@ method(predict, CalibratedClassification) <- function(object, newdata, ...) {
   # Get the classification model's predicted probabilities
   raw_prob <- do_call(predict_fn, list(model = object@model, newdata = newdata))
   # Get the calibration model's predicted probabilities
-  cal_prob <- predict(
+  predict(
     object@calibration_model,
     newdata = data.frame(predicted_probabilities = raw_prob)
   )
@@ -964,22 +964,6 @@ write_Supervised <- function(
   if (verbosity > 0L) {
     print(object)
   }
-  if (!is.null(outdir)) {
-    filename_train <- paste0(
-      outdir,
-      object@algorithm,
-      "_Predicted_Training_vs_True.pdf"
-    )
-    if (!is.null(object@y_test)) {
-      filename_test <- paste0(
-        outdir,
-        object@algorithm,
-        "_predicted_test_vs_True.pdf"
-      )
-    }
-  } else {
-    filename_train <- filename_test <- NULL
-  }
 
   if (save_mod) {
     rt_save(rt, outdir, verbosity = verbosity)
@@ -1272,7 +1256,7 @@ method(predict, SupervisedRes) <- function(
     function(mod) {
       do_call(
         predict_fn,
-        list(model = mod, newdata = newdata, type = object@type)
+        list(model = mod@model, newdata = newdata, type = object@type)
       )
     }
   ) # -> data.frame n cases x n resamples
@@ -1432,8 +1416,6 @@ CalibratedClassificationRes <- new_class(
 
 # Print CalibratedClassificationRes ----
 method(print, CalibratedClassificationRes) <- function(x, ...) {
-  # cat(gray(".:"))
-  res_type <- sub("Res$", "", S7_class(x)@name)
   objcat("Resampled Classification Model")
   cat(
     "  ",
@@ -1478,20 +1460,59 @@ method(print, CalibratedClassificationRes) <- function(x, ...) {
 
 
 # Predict CalibratedClassificationRes ----
-# =>tocomplete
-method(predict, CalibratedClassificationRes) <- function(object, newdata, ...) {
+method(predict, CalibratedClassificationRes) <- function(
+  object,
+  newdata,
+  type = c("avg", "all", "metrics"),
+  avg_fn = "mean",
+  ...
+) {
   check_inherits(newdata, "data.frame")
-  raw_prob <- predict(object, newdata = newdata)
-  # Get the classification model's predicted probabilities
-  raw_prob <- do_call(
-    class_predict_fn,
-    list(model = object@model, newdata = newdata)
-  )
-  # Get the calibration model's predicted probabilities
-  cal_prob <- lapply(object@calibration_models, function(mod) {
-    predict(mod, data.frame(predicted_probabilities = raw_prob))
-  })
+  type <- match.arg(type)
+
+  # Check lengths match
+  if (length(object@models) != length(object@calibration_models)) {
+    cli::cli_abort("Number of base models and calibration models must match.")
+  }
+
+  predicted <- mapply(
+    function(base_mod, cal_mod) {
+      # 1. Predict with base model
+      predict_fn <- get_predict_fn(base_mod@algorithm)
+      raw_prob <- do_call(
+        predict_fn,
+        list(model = base_mod@model, newdata = newdata, type = base_mod@type)
+      )
+
+      # 2. Predict with calibration model
+      predict(
+        cal_mod,
+        newdata = data.frame(predicted_probabilities = raw_prob)
+      )
+    },
+    object@models,
+    object@calibration_models,
+    SIMPLIFY = TRUE
+  ) # -> matrix n cases x n resamples
+
+  if (type == "all") {
+    return(predicted)
+  } else if (type == "avg") {
+    return(apply(predicted, 1, avg_fn))
+  } else if (type == "metrics") {
+    mean_predictions <- apply(predicted, 2, mean)
+    sd_predictions <- apply(predicted, 2, sd)
+    # Return both aggregated prediction metrics (per resample)
+    # AND optionally aggregated predictions per case?
+    # Keeping consistent with SupervisedRes
+    return(list(
+      predictions = predicted,
+      mean = mean_predictions,
+      sd = sd_predictions
+    ))
+  }
 } # /rtemis::predict.CalibratedClassificationRes
+
 
 # RegressionRes ----
 #' @title RegressionRes
