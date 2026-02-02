@@ -6,6 +6,9 @@
 #'
 #' Draw a heatmap using `plotly`.
 #'
+#' @details
+#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#'
 #' @param z Input matrix.
 #' @param x Vectors for x-axis.
 #' @param y Vectors for y-axis.
@@ -20,6 +23,12 @@
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' mat <- matrix(rnorm(100), nrow = 10)
+#' draw_heat(mat, x = 1:10, y = 1:10, title = "Heatmap Example")
+#' }
 draw_heat <- function(
   z,
   x = NULL,

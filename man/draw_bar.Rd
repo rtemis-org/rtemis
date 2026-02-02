@@ -157,6 +157,9 @@ is set.}
 \description{
 Draw interactive barplots using \code{plotly}
 }
+\details{
+See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
+}
 \examples{
 \dontrun{
 draw_bar(VADeaths, legend_xy = c(0, 1))

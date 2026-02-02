@@ -31,14 +31,12 @@ in which case they will be converted to scientific notation with 2 significant f
 This function can be used to format numbers in plots, on the console, in logs, etc.
 }
 \examples{
-\dontrun{
 x <- .34876549
 ddSci(x)
 # "0.35"
 x <- .00000000457823
 ddSci(x)
 # "4.6e-09"
-}
 }
 \author{
 EDG

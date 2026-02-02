@@ -18,6 +18,7 @@ Theme <- new_class(
   )
 ) # /Theme
 
+
 # Print Theme ----
 #' Print Theme
 #'
@@ -37,6 +38,7 @@ method(print, Theme) <- function(x, ...) {
   print.Theme(x)
 } # /rtemis::print.Theme
 
+
 # Make Theme@config `$`-accessible with autocomplete ----
 method(`$`, Theme) <- function(x, name) {
   x@config[[name]]
@@ -50,6 +52,7 @@ method(`.DollarNames`, Theme) <- function(x, pattern = "") {
 method(`[[`, Theme) <- function(x, name) {
   x@config[[name]]
 } # /rtemis::Theme[[]]
+
 
 # Names Theme ----
 #' Get names of Theme object

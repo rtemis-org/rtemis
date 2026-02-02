@@ -6,6 +6,9 @@
 #'
 #' Draw interactive barplots using `plotly`
 #'
+#' @details
+#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#'
 #' @param x vector (possibly named), matrix, or data.frame: If matrix or
 #' data.frame, rows are groups (can be 1 row), columns are features
 #' @param main Character: Main plot title.
@@ -73,6 +76,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' draw_bar(VADeaths, legend_xy = c(0, 1))

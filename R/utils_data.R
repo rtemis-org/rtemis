@@ -15,7 +15,8 @@
 #' @return Named list of factor levels. Names correspond to column names.
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 get_factor_levels <- new_generic(
   "get_factor_levels",
   "x",
@@ -48,7 +49,7 @@ method(get_factor_levels, class_data.table) <- function(x) {
 #' @examples
 #' \dontrun{
 #' # Small number of levels
-#' fct_describe(iris$Species)
+#' fct_describe(iris[["Species"]])
 #'
 #' # Large number of levels: show top n by count
 #' x <- factor(sample(letters, 1000, TRUE))
@@ -96,200 +97,23 @@ fct_describe <- function(x, max_n = 5, return_ordered = TRUE) {
 } # /rtemis::fct_describe
 
 
-#' Merge panel data treatment and outcome data
-#'
-#' Merge long format treatment and outcome data from multiple sources with possibly hierarchical
-#' matching IDs using **data.table**
-#'
-#' @param x Named list: Long form datasets to merge. Will be converted to `data.table`
-#' @param group_varnames Vector, character: Variable names to merge by, in order. If first is present on
-#' a given pair of datasets, merge on that, otherwise try the next in line.
-#' @param time_varname Character: Name of column that should be present in all datasets containing
-#' time information.
-#' @param start_date Date or character: Start date for final dataset in format "YYYY-MM-DD"
-#' @param end_date Date or character: End dat for final dataset in format "YYYY-MM-DD"
-#' @param interval_days Integer: Starting with `start_date` create timepoints every this many
-#' days.
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @return `data.table` with merged data.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-merge_long_treatment <- function(
-  x,
-  group_varnames,
-  time_varname = "Date",
-  start_date,
-  end_date,
-  interval_days = 14L,
-  verbosity = 1L
-) {
-  # Arguments ----
-  if (!is.list(x)) {
-    cli::cli_abort("x must be a named list")
-  }
-  n_sets <- length(x)
-  if (is.null(names(x))) {
-    names(x) <- paste0("Dataset", seq(x))
-  }
-  .names <- names(x)
-
-  # Check there are at least 2 inputs
-  if (n_sets < 2) {
-    cli::cli_abort("Please provide at least 2 datasets as a named list in 'x'")
-  }
-
-  # Check all inputs contain at least one of group_varname and the time_varname
-  for (i in seq(x)) {
-    .names <- names(x[[i]])
-    if (!time_varname %in% .names) {
-      cli::cli_abort(
-        "dataset",
-        .names[i],
-        "does not include time variable",
-        time_varname
-      )
-    }
-    if (any(!group_varnames %in% .names)) {
-      cli::cli_abort(
-        "Dataset",
-        .names[i],
-        "does not include any variable named",
-        paste(group_varnames, collapse = " or ")
-      )
-    }
-  }
-
-  # Print input summary ----
-  if (verbosity > 0L) {
-    msg("There are", n_sets, "input datasets:")
-    .summary <- t(data.frame(sapply(
-      x,
-      function(i) paste(NROW(i), "x", NCOL(i))
-    )))
-    printdf1(.summary, pad = 4)
-  }
-
-  # Base dataset ----
-  # Contains final number of rows,
-  # with "Date" and "ID" columns.
-  # Each merge will add columns (not rows) by rolling joins
-  dat <- data.table::as.data.table(expand.grid(
-    Date = seq(
-      as.Date(start_date),
-      as.Date(end_date),
-      interval_days
-    ),
-    ID = group_varnames[1]
-  ))
-
-  # Merges ----
-  for (i in seq(x)) {
-    .key <- group_varnames[min(which(group_varnames %in% names(x[[i]])))]
-    setkeyv(dat, c(.key, time_varname))
-    setkeyv(x[[i]], c(.key, time_varname))
-    if (verbosity > 0L) {
-      msg0(
-        "Merge ",
-        orange(i),
-        " of ",
-        orange(n_sets),
-        ": Using keys ",
-        paste0(highlight(.key), ", ", highlight(time_varname))
-      )
-    }
-    # if (try({
-    dat <- x[[i]][dat, roll = TRUE]
-    # })) msg0("Successfully merged ", .names[i], ":")
-    if (verbosity > 0L) {
-      msg(
-        "Merged dataset now contains",
-        highlight(NROW(dat)),
-        "rows and",
-        highlight(NCOL(dat)),
-        "columns"
-      )
-    }
-  }
-
-  dat
-} # /rtemis::merge_long_treatment
-
-
-#' Read all sheets of an XLSX file into a list
-#'
-#' @param x Character: path or URL to XLSX file
-#' @param sheet Integer, vector: Sheet(s) to read. If NULL, will read all
-#' sheets in `x`
-#' @param startRow Integer, vector: First row to start reading. Will be
-#' recycled as needed for all sheets
-#' @param colNames Logical: If TRUE, use the first row of data
-#' @param na.strings Character vector: stringd to be interpreted as NA
-#' @param detectDates Logical: If TRUE, try to automatically detect dates
-#' @param skipEmptyRows Logical: If TRUE, skip empty rows
-#' @param skipEmptyCols Logical: If TRUE, skip empty columns
-#'
-#' @return List of data.frames
-#'
-#' @author EDG
-#' @export
-xlsx2list <- function(
-  x,
-  sheet = NULL,
-  startRow = 1,
-  colNames = TRUE,
-  na.strings = "NA",
-  detectDates = TRUE,
-  skipEmptyRows = TRUE,
-  skipEmptyCols = TRUE
-) {
-  if (is.null(sheet)) {
-    sheet <- openxlsx::getSheetNames(x)
-  }
-
-  if (length(startRow) != length(sheet)) {
-    startRow <- recycle(startRow, sheet)
-  }
-
-  out <- lapply(seq_along(sheet), \(i) {
-    openxlsx::read.xlsx(
-      x,
-      sheet = i,
-      startRow = startRow[i],
-      colNames = colNames,
-      na.strings = na.strings,
-      detectDates = detectDates,
-      skipEmptyRows = skipEmptyRows,
-      skipEmptyCols = skipEmptyCols
-    )
-  })
-
-  names(out) <- sheet
-
-  out
-} # /rtemis::xlsx2list
-
-
 #' Match cases by covariates
 #'
 #' Find one or more cases from a `pool` data.frame that match cases in a target
 #' data.frame. Match exactly and/or by distance (sum of squared distances).
 #'
-#' @param target data.frame you are matching against
-#' @param pool data.frame you are looking for matches from
-#' @param n_matches Integer: Number of matches to return
+#' @param target data.frame you are matching against.
+#' @param pool data.frame you are looking for matches from.
+#' @param n_matches Integer: Number of matches to return.
 #' @param target_id Character: Column name in `target` that holds unique
-#' cases IDs. Default = NULL, in which case integer case numbers will be used
-#' @param pool_id Character: Same as `target_id` for `pool`
+#' cases IDs. Default = NULL, in which case integer case numbers will be used.
+#' @param pool_id Character: Same as `target_id` for `pool`.
 #' @param exactmatch_factors Logical: If TRUE, selected cases will have to
-#' exactly match factors
-#' available in `target`
+#' exactly match factors available in `target`.
 #' @param exactmatch_cols Character: Names of columns that should be matched
-#' exactly
+#' exactly.
 #' @param distmatch_cols Character: Names of columns that should be
-#' distance-matched
+#' distance-matched.
 #' @param norepeats Logical: If TRUE, cases in `pool` can only be chosen
 #' once.
 #' @param ignore_na Logical: If TRUE, ignore NA values during exact matching.
@@ -337,7 +161,7 @@ matchcases <- function(
   ntarget <- nrow(target)
   npool <- nrow(pool)
 
-  # Get IDs ----
+  # Get IDs
   if (is.null(target_id)) {
     targetID <- seq(ntarget)
   } else {
@@ -375,7 +199,6 @@ matchcases <- function(
   pool[, .remove] <- NULL
 
   # Convert all non-exact-matching to numeric
-  # index_num <- which(sapply(target, is.numeric))
   tonumeric <- distmatch_cols[!sapply(target[, distmatch_cols], is.numeric)]
   if (length(tonumeric) > 0) {
     target[, tonumeric] <- lapply(target[, tonumeric, drop = FALSE], as.numeric)
@@ -410,8 +233,6 @@ matchcases <- function(
       })
       subpool <- pool_s[ind, , drop = FALSE]
     }
-    # distord <- order(sapply(seq(nrow(subpool)),
-    #                           function(j) sum((target_s[i, distmatch_cols] - subpool[j, distmatch_cols])^2)))
     distord <- order(sapply(
       seq_len(nrow(subpool)),
       function(j) {
@@ -431,3 +252,101 @@ matchcases <- function(
 
   mc
 } # /rtemis::matchcases
+
+
+#' Index columns by attribute name & value
+#'
+#' @param x data.frame or compatible
+#' @param name Character: Name of attribute
+#' @param value Character: Value of attribute
+#'
+#' @return Integer vector.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' x <- data.table(
+#'   id = 1:5,
+#'   sbp = rnorm(5, 120, 15),
+#'   dbp = rnorm(5, 80, 10),
+#'   paO2 = rnorm(5, 90, 10),
+#'   paCO2 = rnorm(5, 40, 5)
+#' )
+#' setattr(x[["sbp"]], "source", "outpatient")
+#' setattr(x[["dbp"]], "source", "outpatient")
+#' setattr(x[["paO2"]], "source", "icu")
+#' setattr(x[["paCO2"]], "source", "icu")
+#' dt_index_attr(x, "source", "icu")
+index_col_by_attr <- function(x, name, value) {
+  colattr <- unlist(sapply(x, \(i) attr(i, name)))
+  which(colattr == value)
+} # /rtemis::index_col_by_attr
+
+
+#' Tabulate column attributes
+#'
+#' @param x data.table
+#' @param attr Character: Attribute to get
+#' @param useNA Character: Passed to `table`
+#'
+#' @return table.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' x <- data.table(
+#'   id = 1:5,
+#'   sbp = rnorm(5, 120, 15),
+#'   dbp = rnorm(5, 80, 10),
+#'   paO2 = rnorm(5, 90, 10),
+#'   paCO2 = rnorm(5, 40, 5)
+#' )
+#' setattr(x[["sbp"]], "source", "outpatient")
+#' setattr(x[["dbp"]], "source", "outpatient")
+#' setattr(x[["paO2"]], "source", "icu")
+#' setattr(x[["paCO2"]], "source", "icu")
+#' dt_get_column_attr(x, "source")
+table_column_attr <- function(x, attr = "source", useNA = "always") {
+  attrs <- sapply(x, \(i) {
+    if (is.null(attr(i, attr, exact = TRUE))) {
+      NA_character_
+    } else {
+      attr(i, attr, exact = TRUE)
+    }
+  })
+  table(attrs, useNA = useNA)
+} # /rtemis::table_column_attr
+
+
+#' List column names by class
+#'
+#' @param x data.table
+#' @param sorted Logical: If TRUE, sort the output
+#' @param item_format Function: Function to format each item
+#' @param maxlength Integer: Maximum number of items to print
+#'
+#' @return `NULL`, invisibly.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' names_by_class(iris)
+names_by_class <- function(
+  x,
+  sorted = TRUE,
+  item_format = highlight,
+  maxlength = 24
+) {
+  classes <- sapply(x, class)
+  vals <- unique(classes)
+  out <- if (sorted) {
+    sapply(vals, \(i) sort(names(x)[classes == i]))
+  } else {
+    sapply(vals, \(i) names(x)[classes == i])
+  }
+  cat(repr_ls(out, item_format = item_format, maxlength = maxlength))
+  invisible()
+} # /rtemis::names_by_class

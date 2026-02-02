@@ -3,6 +3,16 @@
 \name{calibrate.ClassificationRes}
 \alias{calibrate.ClassificationRes}
 \title{Calibrate Cross-validated Binary Classification Models}
+\usage{
+calibrate.ClassificationRes(
+  x,
+  algorithm = "isotonic",
+  hyperparameters = NULL,
+  resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold"),
+  verbosity = 1L,
+  ...
+)
+}
 \arguments{
 \item{x}{\code{ClassificationRes} object.}
 
@@ -10,16 +20,35 @@
 
 \item{hyperparameters}{\code{Hyperparameters} object: Setup using one of \verb{setup_*} functions.}
 
-\item{resampler_config}{ResamplerConfig}
+\item{resampler_config}{\code{ResamplerConfig} object: Configuration for resampling during calibration model training.}
 
 \item{verbosity}{Integer: Verbosity level.}
 
 \item{...}{Not used}
 }
+\value{
+\code{CalibratedClassificationRes} object.
+}
 \description{
 The goal of calibration is to adjust the predicted probabilities of a binary classification
 model so that they better reflect the true probabilities (i.e. empirical risk) of the positive
 class.
+}
+\examples{
+\dontrun{
+datc2 <- data.frame(
+ gn = factor(sample(c("alpha", "beta", "gamma"), 100, replace = TRUE)),
+ iris[51:150, ]
+)
+datc2$Species <- factor(datc2$Species)
+resmod_c_lightrf <- train(
+ x = datc2,
+ hyperparameters = setup_LightRF(nrounds = 20L),
+ outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+)
+resmod_c_lightrf_cal <- calibrate(resmod_c_lightrf)
+resmod_c_lightrf_cal
+}
 }
 \author{
 EDG

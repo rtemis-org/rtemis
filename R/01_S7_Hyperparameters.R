@@ -324,7 +324,8 @@ method(get_hyperparams, list(Hyperparameters, class_character)) <- function(
   param_names
 ) {
   sapply(param_names, function(p) x@hyperparameters[p], USE.NAMES = FALSE)
-}
+} # /rtemis::get_hyperparams_need_tuning.Hyperparameters
+
 
 # GLMHyperparameters ----
 #' @author EDG

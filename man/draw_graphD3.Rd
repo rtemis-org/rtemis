@@ -50,6 +50,13 @@ draw_graphD3(
 \description{
 Plot graph using \pkg{networkD3}
 }
+\examples{
+\dontrun{
+library(igraph)
+g <- make_ring(10)
+draw_graphD3(g)
+}
+}
 \author{
 EDG
 }

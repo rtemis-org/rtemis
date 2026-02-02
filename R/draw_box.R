@@ -6,6 +6,9 @@
 #'
 #' Draw interactive boxplots or violin plots using \pkg{plotly}
 #'
+#' @details
+#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#'
 #' For multiple box plots, the recommendation is:
 #' - `x=dat[, columnindex]` for multiple variables of a data.frame
 #' - `x=list(a=..., b=..., etc.)` for multiple variables of potentially
@@ -121,6 +124,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' # A.1 Box plot of 4 variables

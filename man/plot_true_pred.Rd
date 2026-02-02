@@ -19,6 +19,13 @@ Plot True vs. Predicted Values for Supervised objects.
 For classification, it plots a confusion matrix.
 For regression, it plots a scatter plot of true vs. predicted values.
 }
+\examples{
+\dontrun{
+x <- set_outcome(iris, "Sepal.Length")
+sepallength_glm <- train(x, algorithm = "GLM")
+plot_true_pred(sepallength_glm)
+}
+}
 \author{
 EDG
 }

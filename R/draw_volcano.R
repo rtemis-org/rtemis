@@ -77,6 +77,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' set.seed(2019)

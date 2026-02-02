@@ -6,6 +6,9 @@
 #'
 #' Perform clustering on the rows (usually cases) of a dataset.
 #'
+#' @details
+#' See [rdocs.rtemis.org/cluster](https://rdocs.rtemis.org/cluster) for detailed documentation.
+#'
 #' @param x Matrix or data.frame: Data to cluster. Rows are cases to be clustered.
 #' @param algorithm Character: Clustering algorithm.
 #' @param config List: Algorithm-specific config.
@@ -15,6 +18,11 @@
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' iris_km <- cluster(exc(iris, "Species"), algorithm = "KMeans")
+#' }
 cluster <- function(
   x,
   algorithm = "KMeans",

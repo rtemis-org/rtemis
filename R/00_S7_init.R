@@ -12,19 +12,52 @@
 #' @details
 #' Exported as internal function for use by other rtemis packages.
 #'
+#' @return Character string representation of the object.
+#'
+#' @author EDG
 #' @keywords internal
 #' @export
 repr <- new_generic("repr", "x")
+
 # Standard error of the fit.
 se <- new_generic("se", "x")
-# Short description for inline printing.
+
+#' Short description for inline printing.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 desc <- new_generic("desc", "x")
-# Alt description for inline printing.
+
+#' Alt description for inline printing.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 desc_alt <- new_generic("desc_alt", "x")
-# Get metrics
+
+
+#' Get metric
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 get_metric <- new_generic("get_metric", "x")
-# check hyperparameters given training data
-validate_hyperparameters <- new_generic("validate_hyperparameters", "x")
+
+
+#' Check hyperparameters given training data
+#'
+#' @param x data.frame or similar: Training data.
+#' @param hyperparameters `Hyperparameters` to check.
+#'
+validate_hyperparameters <- new_generic(
+  "validate_hyperparameters",
+  "x",
+  function(x, hyperparameters) {
+    S7_dispatch()
+  }
+)
+
 
 #' Plot Metric
 #'
@@ -37,8 +70,8 @@ validate_hyperparameters <- new_generic("validate_hyperparameters", "x")
 #' @return plotly object
 #'
 #' @author EDG
-#' @export
 #' @keywords internal
+#' @noRd
 plot_metric <- new_generic("plot_metric", "x")
 
 
@@ -54,6 +87,14 @@ plot_metric <- new_generic("plot_metric", "x")
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' x <- as.data.table(iris[51:150, ])
+#' x[, Species := factor(Species)]
+#' species_glm <- train(x, algorithm = "GLM")
+#' plot_roc(species_glm)
+#' }
 plot_roc <- new_generic("plot_roc", "x")
 
 
@@ -86,6 +127,13 @@ plot_varimp <- new_generic("plot_varimp", "x")
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' x <- set_outcome(iris, "Sepal.Length")
+#' sepallength_glm <- train(x, algorithm = "GLM")
+#' plot_true_pred(sepallength_glm)
+#' }
 plot_true_pred <- new_generic("plot_true_pred", "x")
 
 
@@ -97,6 +145,7 @@ plot_true_pred <- new_generic("plot_true_pred", "x")
 #' @param x `MassGLM` object.
 #' @param ... Additional arguments passed to methods.
 plot_manhattan <- new_generic("plot_manhattan", "x")
+
 
 #' Describe rtemis object
 #'
@@ -112,6 +161,7 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' @export
 describe <- new_generic("describe", "x")
 
+
 #' Present rtemis object
 #'
 #' @description
@@ -126,12 +176,16 @@ describe <- new_generic("describe", "x")
 #' @export
 present <- new_generic("present", "x")
 
+
 #' Get hyperparameters that need tuning.
+#'
+#' @return Character vector of hyperparameter names that need tuning.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 get_hyperparams_need_tuning <- new_generic("get_hyperparams_need_tuning", "x")
+
 
 #' Get hyperparameters.
 #'
@@ -139,6 +193,7 @@ get_hyperparams_need_tuning <- new_generic("get_hyperparams_need_tuning", "x")
 #' @keywords internal
 #' @noRd
 get_hyperparams <- new_generic("get_hyperparams", c("x", "param_names"))
+
 
 #' Extract rules from a model.
 #'
@@ -476,7 +531,6 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 #'
 #' @export
 #' @keywords internal
-
 get_output_type <- function(
   output_type = c("ansi", "html", "plain"),
   filename = NULL

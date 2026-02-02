@@ -21,6 +21,14 @@ cluster(x, algorithm = "KMeans", config = NULL, verbosity = 1L)
 \description{
 Perform clustering on the rows (usually cases) of a dataset.
 }
+\details{
+See \href{https://rdocs.rtemis.org/cluster}{rdocs.rtemis.org/cluster} for detailed documentation.
+}
+\examples{
+\dontrun{
+iris_km <- cluster(exc(iris, "Species"), algorithm = "KMeans")
+}
+}
 \author{
 EDG
 }

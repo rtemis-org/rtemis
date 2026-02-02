@@ -406,6 +406,7 @@ ansi256_to_hex <- function(code) {
   )
 } # /rtemis::ansi256_to_hex
 
+
 #' Gradient text
 #'
 #' @param x Character: Text to colorize.

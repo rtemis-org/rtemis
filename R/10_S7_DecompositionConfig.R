@@ -21,10 +21,12 @@ DecompositionConfig <- new_class(
   )
 ) # /DecompositionConfig
 
+
 # Make DecompositionConfig@config `$`-accessible ----
 method(`$`, DecompositionConfig) <- function(x, name) {
   x@config[[name]]
 }
+
 
 # `$`-autocomplete DecompositionConfig@config ----
 method(`.DollarNames`, DecompositionConfig) <- function(x, pattern = "") {
@@ -32,15 +34,18 @@ method(`.DollarNames`, DecompositionConfig) <- function(x, pattern = "") {
   grep(pattern, all_names, value = TRUE)
 }
 
+
 # Make props `[`-accessible ----
 method(`[`, DecompositionConfig) <- function(x, name) {
   props(x)[[name]]
 }
 
+
 # Make DecompositionConfig@config `[[`-accessible ----
 method(`[[`, DecompositionConfig) <- function(x, name) {
   x@config[[name]]
 }
+
 
 # Show DecompositionConfig ----
 #' Show Method for DecompositionConfig
@@ -69,6 +74,7 @@ method(repr, DecompositionConfig) <- function(
   )
 } # /rtemis::show.DecompositionConfig
 
+
 # Print DecompositionConfig ----
 #' Print Method for DecompositionConfig
 #'
@@ -89,6 +95,7 @@ method(print, DecompositionConfig) <- function(
   cat(repr(x, pad = pad, output_type = output_type))
   invisible(x)
 }
+
 
 # PCAConfig ----
 #' @title PCAConfig
@@ -121,6 +128,7 @@ PCAConfig <- new_class(
   }
 ) # /rtemis::PCAConfig
 
+
 # setup_PCA ----
 #' Setup PCA config.
 #'
@@ -140,6 +148,7 @@ setup_PCA <- function(k = 3L, center = TRUE, scale = TRUE, tol = NULL) {
   check_float0pos(tol)
   PCAConfig(k, center, scale, tol)
 } # /rtemis::setup_PCA
+
 
 # ICAConfig ----
 #' @title ICAConfig
@@ -170,6 +179,7 @@ ICAConfig <- new_class(
     )
   }
 ) # /rtemis::ICAConfig
+
 
 # setup_ICA ----
 #' @title setup_ICA
@@ -216,6 +226,7 @@ setup_ICA <- function(
   )
 } # /rtemis::setup_ICA
 
+
 # NMFConfig ----
 #' @title NMFConfig
 #'
@@ -244,6 +255,7 @@ NMFConfig <- new_class(
     )
   }
 ) # /rtemis::NMFConfig
+
 
 # setup_NMF ----
 #' Setup NMF config.

@@ -48,6 +48,21 @@ plotly object
 \description{
 Plot training and testing performance boxplots of multiple \code{Supervised} or \code{SupervisedRes} objects
 }
+\examples{
+\dontrun{
+iris_lightrf <- train(
+  iris,
+  algorithm = "lightrf",
+  outer_resampling_config = setup_Resampler(seed = 2026)
+)
+iris_rsvm <- train(
+  iris,
+  algorithm = "radialsvm",
+  outer_resampling_config = setup_Resampler(seed = 2026)
+)
+present(list(iris_lightrf, iris_rsvm), metric = "Balanced_Accuracy")
+}
+}
 \author{
 EDG
 }

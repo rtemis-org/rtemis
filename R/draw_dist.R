@@ -8,6 +8,9 @@
 #'
 #' Draw Distributions using Histograms and Density Plots using `plotly`.
 #'
+#' @details
+#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#'
 #' If input is data.frame, non-numeric variables will be removed.
 #'
 #' @param x Numeric vector / data.frame / list: Input. If not a vector, each column / each element is drawn.
@@ -70,6 +73,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' # Will automatically use only numeric columns

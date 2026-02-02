@@ -78,6 +78,8 @@ Preprocess, tune, train, and test supervised learning models with a single funct
 using nested resampling
 }
 \details{
+See \href{https://rdocs.rtemis.org/train}{rdocs.rtemis.org/train} for detailed documentation.
+
 Important: For binary classification, the outcome should be a factor where the 2nd level
 corresponds to the positive class.
 
@@ -86,6 +88,15 @@ replacement if you will also be using an inner resampling (for tuning).
 The duplicated cases from the outer resampling may appear both in the
 training and test sets of the inner resamples, leading to underestimated
 test error.
+}
+\examples{
+\dontrun{
+iris_c_lightRF <- train(
+   iris,
+   algorithm = "LightRF",
+   outer_resampling_config = setup_Resampler(),
+)
+}
 }
 \author{
 EDG

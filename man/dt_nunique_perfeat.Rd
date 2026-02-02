@@ -22,9 +22,9 @@ Named integer vector of length \code{NCOL(x)} with number of unique values per c
 Number of unique values per feature
 }
 \examples{
-\dontrun{
-dt_nunique_perfeat(iris)
-}
+library(data.table)
+ir <- as.data.table(iris)
+dt_nunique_perfeat(ir)
 }
 \author{
 EDG

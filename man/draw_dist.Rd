@@ -180,6 +180,8 @@ draw_dist(
 Draw Distributions using Histograms and Density Plots using \code{plotly}.
 }
 \details{
+See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
+
 If input is data.frame, non-numeric variables will be removed.
 }
 \examples{

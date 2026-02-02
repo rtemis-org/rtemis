@@ -71,7 +71,6 @@
 #' group <- c(rep("Alpha", 100), rep("Beta", 140))
 #' draw_ts(x, time, 7, group)
 #' }
-#'
 draw_ts <- function(
   x,
   time,

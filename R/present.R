@@ -23,6 +23,21 @@
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' iris_lightrf <- train(
+#'   iris,
+#'   algorithm = "lightrf",
+#'   outer_resampling_config = setup_Resampler(seed = 2026)
+#' )
+#' iris_rsvm <- train(
+#'   iris,
+#'   algorithm = "radialsvm",
+#'   outer_resampling_config = setup_Resampler(seed = 2026)
+#' )
+#' present(list(iris_lightrf, iris_rsvm), metric = "Balanced_Accuracy")
+#' }
 present.list <- function(
   x,
   metric = NULL,

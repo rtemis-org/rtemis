@@ -39,6 +39,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' draw_pie(VADeaths[, 1, drop = FALSE])

@@ -19,18 +19,17 @@
 #' 1.2035 becomes "1.20" if `as_numeric = FALSE`, but 1.2 otherwise
 #' This can be helpful if you want to be able to use the output as numbers / not just for printing.
 #' @return Formatted number
+#'
 #' @author EDG
+#' @export
+#'
 #' @examples
-#' \dontrun{
 #' x <- .34876549
 #' ddSci(x)
 #' # "0.35"
 #' x <- .00000000457823
 #' ddSci(x)
 #' # "4.6e-09"
-#' }
-#' @export
-
 ddSci <- function(x, decimal_places = 2, hi = 1e06, as_numeric = FALSE) {
   if (is.null(x)) {
     if (as_numeric) {

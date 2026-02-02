@@ -235,6 +235,16 @@ check_logical <- function(x, allow_null = TRUE) {
 } # /rtemis::check_logical
 
 
+#' Check character
+#'
+#' @param x Vector to check
+#' @param allow_null Logical: If TRUE, NULL values are allowed and return early.
+#'
+#' @return Called for side effects. Throws an error if checks fail.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 check_character <- function(x, allow_null = TRUE) {
   if (allow_null && is.null(x)) {
     return(invisible())
@@ -257,6 +267,16 @@ check_character <- function(x, allow_null = TRUE) {
 } # /rtemis::check_character
 
 
+#' Check positive float
+#'
+#' @param x Float vector.
+#' @param allow_null Logical: If TRUE, NULL values are allowed and return early.
+#'
+#' @return Called for side effects. Throws an error if checks fail, otherwise invisible().
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 check_floatpos <- function(x, allow_null = TRUE) {
   if (allow_null && is.null(x)) {
     return(invisible())
@@ -278,6 +298,7 @@ check_floatpos <- function(x, allow_null = TRUE) {
   invisible()
 } # /rtemis::check_floatpos
 
+
 #' Check float between 0 and 1, exclusive
 #'
 #' @param x Vector to check
@@ -289,9 +310,7 @@ check_floatpos <- function(x, allow_null = TRUE) {
 #' @keywords internal
 #' @noRd
 #' @examples
-#' \dontrun{
 #' check_float01exc(0.5)
-#' }
 check_float01exc <- function(x, allow_null = TRUE) {
   if (allow_null && is.null(x)) {
     return(invisible())
@@ -328,9 +347,7 @@ check_float01exc <- function(x, allow_null = TRUE) {
 #' @keywords internal
 #' @noRd
 #' @examples
-#' \dontrun{
 #' check_float01inc(0.5)
-#' }
 check_float01inc <- function(x, allow_null = TRUE) {
   if (allow_null && is.null(x)) {
     return(invisible())
@@ -375,6 +392,7 @@ check_floatpos1 <- function(x, allow_null = TRUE) {
   invisible()
 } # /rtemis::check_floatpos1
 
+
 #' Check positive integer
 #'
 #' @param x Integer vector.
@@ -384,10 +402,9 @@ check_floatpos1 <- function(x, allow_null = TRUE) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
+#'
 #' @examples
-#' \dontrun{
 #' clean_posint(5)
-#' }
 clean_posint <- function(x, allow_na = FALSE) {
   xname <- deparse(substitute(x))
   if (is.null(x)) {
@@ -560,11 +577,6 @@ abbreviate_class <- function(x, n = 4L) {
 } # /rtemis::abbr_class
 
 
-# check_dependencies.R
-# ::rtemis::
-# 2022 EDG rtemis.org
-# replaced depCheck
-
 #' \pkg{rtemis} internal: Dependencies check
 #'
 #' Checks if dependencies can be loaded; names missing dependencies if not.
@@ -594,4 +606,24 @@ check_dependencies <- function(..., verbosity = 0L) {
   } else {
     if (verbosity > 0L) msg("Dependency check passed")
   }
+  invisible()
 } # /rtemis::check_dependencies
+
+
+#' Check data.table
+#'
+#' @param x Object to check.
+#'
+#' @return Called for side effects. Throws an error if input is not a data.table, returns x
+#' invisibly otherwise.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_data.table <- function(x) {
+  xname <- deparse(substitute(x))
+  if (!data.table::is.data.table(x)) {
+    cli::cli_abort("{.var {xname}} must be a data.table.")
+  }
+  invisible(x)
+} # /rtemis::check_data.table

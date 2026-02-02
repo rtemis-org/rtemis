@@ -134,6 +134,9 @@ draw_heatmap(
 \description{
 Draw interactive heatmaps using \code{heatmaply}.
 }
+\details{
+See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
+}
 \examples{
 \dontrun{
 x <- rnormmat(200, 20)

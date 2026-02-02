@@ -26,6 +26,12 @@ list.
 \description{
 Get N and percent match of values between two columns of two data.tables
 }
+\examples{
+library(data.table)
+x <- data.table(ID = 1:5, Alpha = letters[1:5])
+y <- data.table(ID = c(3, 4, 5, 6), Beta = LETTERS[3:6])
+dt_pctmatch(x, y, on = "ID")
+}
 \author{
 EDG
 }

@@ -111,6 +111,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' draw_scatter(iris$Sepal.Length, iris$Petal.Length,

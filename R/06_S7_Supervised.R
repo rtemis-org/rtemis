@@ -1,6 +1,6 @@
 # S7_Supervised.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # References
 # https://github.com/RConsortium/S7/
@@ -95,6 +95,7 @@ Supervised <- new_class(
   }
 ) # /Supervised
 
+
 # Predict Supervised ----
 #' Predict `Supervised`
 #'
@@ -113,6 +114,7 @@ method(predict, Supervised) <- function(object, newdata, ...) {
   )
 } # /predict.Supervised
 
+
 # Fitted Supervised ----
 #' Fitted `Supervised`
 #'
@@ -125,6 +127,7 @@ method(predict, Supervised) <- function(object, newdata, ...) {
 method(fitted, Supervised) <- function(object, ...) {
   object@predicted_training
 } # /fitted.Supervised
+
 
 # Standard Error Supervised ----
 #' Standard Error `Supervised`
@@ -143,6 +146,7 @@ method(se, Supervised) <- function(x, ...) {
 method(`$`, Supervised) <- function(x, name) {
   prop(x, name)
 }
+
 
 # `$`-autocomplete Supervised props ----
 method(`.DollarNames`, Supervised) <- function(x, pattern = "") {
@@ -253,6 +257,7 @@ method(print, Supervised) <- function(
   invisible(x)
 }
 
+
 # Describe Supervised ----
 method(describe, Supervised) <- function(x) {
   type <- x@type
@@ -344,6 +349,7 @@ Calibration <- new_class(
     brier_score_delta_test = class_numeric | NULL
   )
 ) # /Calibration
+
 
 # Show Calibration ----
 method(repr, Calibration) <- function(x, output_type = NULL) {

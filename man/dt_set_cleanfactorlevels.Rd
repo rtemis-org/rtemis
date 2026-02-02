@@ -20,12 +20,12 @@ Finds all factors in a data.table and cleans factor levels to include
 only underscore symbols
 }
 \examples{
-\dontrun{
+library(data.table)
 x <- as.data.table(iris)
-levels(x$Species) <- c("setosa:iris", "versicolor$iris", "virginica iris")
+levels(x[["Species"]]) <- c("setosa:iris", "versicolor$iris", "virginica iris")
+levels(x[["Species"]])
 dt_set_cleanfactorlevels(x)
-x
-}
+levels(x[["Species"]])
 }
 \author{
 EDG

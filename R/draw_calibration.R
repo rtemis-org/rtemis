@@ -29,6 +29,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' data(segment_logistic, package = "probably")

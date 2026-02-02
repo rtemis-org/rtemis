@@ -4,10 +4,12 @@
 \alias{dt_describe}
 \title{Describe data.table}
 \usage{
-dt_describe(x)
+dt_describe(x, verbosity = 1L)
 }
 \arguments{
-\item{x}{data.table}
+\item{x}{data.table input.}
+
+\item{verbosity}{Integer: If > 0, print output to console.}
 }
 \value{
 List with three data.tables: Numeric, Categorical, and Date.
@@ -16,7 +18,7 @@ List with three data.tables: Numeric, Categorical, and Date.
 Describe data.table
 }
 \examples{
-\dontrun{
+library(data.table)
 origin <- as.POSIXct("2022-01-01 00:00:00", tz = "America/Los_Angeles")
 x <- data.table(
   ID = paste0("ID", 1:10),
@@ -39,7 +41,6 @@ x <- data.table(
   C1 = sample(c("alpha", "beta", "gamma"), 10, TRUE),
   F1 = factor(sample(c("delta", "epsilon", "zeta"), 10, TRUE))
 )
-}
 }
 \author{
 EDG

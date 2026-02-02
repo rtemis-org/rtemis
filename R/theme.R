@@ -62,7 +62,10 @@
 #'
 #' @rdname theme
 #' @export
-
+#'
+#' @examples
+#' theme <- theme_black(font_family = "Geist")
+#' theme
 theme_black <- function(
   bg = "#000000",
   plot_bg = "transparent",

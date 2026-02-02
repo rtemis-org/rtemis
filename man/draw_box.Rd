@@ -252,6 +252,8 @@ is set.}
 Draw interactive boxplots or violin plots using \pkg{plotly}
 }
 \details{
+See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
+
 For multiple box plots, the recommendation is:
 \itemize{
 \item \code{x=dat[, columnindex]} for multiple variables of a data.frame

@@ -123,6 +123,16 @@ rtcitation <- paste0(
 )
 
 
+#' Success message
+#'
+#' @param ... Character: Message components.
+#' @param sep Character: Separator between message components.
+#' @param end Character: End character.
+#' @param pad Integer: Number of spaces to pad the message with.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 yay <- function(..., sep = " ", end = "\n", pad = 0) {
   message(
     strrep(" ", pad),
@@ -133,6 +143,17 @@ yay <- function(..., sep = " ", end = "\n", pad = 0) {
   )
 }
 
+
+#' Failure message
+#'
+#' @param ... Character: Message components.
+#' @param sep Character: Separator between message components.
+#' @param end Character: End character.
+#' @param pad Integer: Number of spaces to pad the message with.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 nay <- function(..., sep = " ", end = "\n", pad = 0) {
   message(
     strrep(" ", pad),
@@ -143,10 +164,6 @@ nay <- function(..., sep = " ", end = "\n", pad = 0) {
   )
 }
 
-
-# labelify.R
-# ::rtemis::
-# 2017 EDG rtemis.org
 
 #' Format text for label printing
 #'
@@ -205,9 +222,7 @@ labelify <- function(
   xf <- gsub(" $", "", xf)
 
   # Remove [[X]], where X is any length of characters or numbers
-  xf <- gsub("\\[\\[.*\\]\\]", "", xf)
-
-  return(xf)
+  gsub("\\[\\[.*\\]\\]", "", xf)
 } # /rtemis::labelify
 
 
@@ -238,6 +253,7 @@ clean_names <- function(x, prefix_digits = "V_") {
   }
   xc
 }
+
 
 #' Clean column names
 #'
@@ -273,6 +289,17 @@ plain <- function(x) {
   paste0("\033[0m", x)
 }
 
+
+#' Oxford comma
+#'
+#' @param ... Character vector: Items to be combined.
+#' @param format_fn Function: Any function to be applied to each item.
+#'
+#' @return Character: Formatted string with oxford comma.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 oxfordcomma <- function(..., format_fn = identity) {
   x <- unlist(list(...))
   if (length(x) > 2) {
@@ -327,9 +354,21 @@ padcat <- function(
   }
 } # /rtemis::padcat
 
+
+#' Paste with box
+#'
+#' @param x Character: Text to be output to console.
+#' @param pad Integer: Number of spaces to pad to the left.
+#'
+#' @return Character: Padded string with box.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 pastebox <- function(x, pad = 0) {
   paste0(strrep(" ", pad), ".:", x)
 }
+
 
 #' Show S7 class name
 #'
@@ -344,6 +383,9 @@ pastebox <- function(x, pad = 0) {
 #' @author EDG
 #' @export
 #' @keywords internal
+#'
+#' @examples
+#' repr_S7name("Supervised") |> cat()
 repr_S7name <- function(
   x,
   col = col_object,
@@ -378,7 +420,6 @@ repr_S7name <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-
 objcat <- function(
   x,
   col = col_object,

@@ -10,16 +10,24 @@ dt_set_clean_all(x, prefix_digits = NA)
 \item{x}{data.table}
 
 \item{prefix_digits}{Character: prefix to add to names beginning with a
-digit. Set to NA to skip
-
-Note: If \code{x} is not a data.table, it will be converted in place, i.e. the original
-object will be modified.}
+digit. Set to NA to skip}
 }
 \value{
 Nothing, modifies \code{x} in-place.
 }
 \description{
 Clean column names and factor levels in-place
+}
+\examples{
+library(data.table)
+x <- as.data.table(iris)
+levels(x[["Species"]]) <- c("setosa:iris", "versicolor$iris", "virginica iris")
+names(x)
+levels(x[["Species"]])
+# in-place operation means no assignment is needed
+dt_set_clean_all(x)
+names(x)
+levels(x[["Species"]])
 }
 \author{
 EDG

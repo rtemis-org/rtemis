@@ -8,6 +8,8 @@
 #' using nested resampling
 #'
 #' @details
+#' See [rdocs.rtemis.org/train](https://rdocs.rtemis.org/train) for detailed documentation.
+#'
 #' Important: For binary classification, the outcome should be a factor where the 2nd level
 #' corresponds to the positive class.
 #'
@@ -53,6 +55,15 @@
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' iris_c_lightRF <- train(
+#'    iris,
+#'    algorithm = "LightRF",
+#'    outer_resampling_config = setup_Resampler(),
+#' )
+#' }
 train <- function(
   x,
   dat_validation = NULL,

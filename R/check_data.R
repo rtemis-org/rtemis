@@ -4,13 +4,13 @@
 
 #' Check Data
 #'
-#' @param x data.frame, data.table or similar structure
-#' @param name Character: Name of dataset
-#' @param get_duplicates Logical: If TRUE, check for duplicate cases
+#' @param x data.frame, data.table or similar structure.
+#' @param name Character: Name of dataset.
+#' @param get_duplicates Logical: If TRUE, check for duplicate cases.
 #' @param get_na_case_pct Logical: If TRUE, calculate percent of NA values per
-#' case
+#' case.
 #' @param get_na_feature_pct Logical: If TRUE, calculate percent of NA values
-#' per feature
+#' per feature.
 #'
 #' @return `CheckData` object.
 #'
@@ -18,7 +18,6 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' n <- 1000
 #' x <- rnormmat(n, 50, return_df = TRUE)
 #' x$char1 <- sample(letters, n, TRUE)
@@ -30,8 +29,6 @@
 #' x[sample(nrow(x), 20), 10] <- NA
 #' x$fct[30:35] <- NA
 #' check_data(x)
-#' }
-#'
 check_data <- function(
   x,
   name = NULL,
@@ -170,23 +167,17 @@ check_data <- function(
   )
 } # /rtemis::check_data
 
-# chck <- function(x) {
-#     setDT(x)
-#     cat("Input has", NROW(x), "rows\n")
-# }
-# x <- iris
-# class(x)
-# chck(x)
-# class(x)
-
-# x <- data.frame(
-#     ID = c(101L, 102L, 103L),
-#     V1 = rnorm(3),
-#     V3 = c(3L, 5L, 7L)
-# )
-# sapply(x, is.double)
-
+#' Helper function to get max or 0
+#'
+#' @param x Numeric vector
+#'
+#' @return Numeric: max(x, 0)
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 max0 <- function(x) max(x, 0, na.rm = TRUE)
+
 
 #' Generate `CheckData` object description in HTML
 #'

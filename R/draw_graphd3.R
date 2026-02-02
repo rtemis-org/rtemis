@@ -21,6 +21,13 @@
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' library(igraph)
+#' g <- make_ring(10)
+#' draw_graphD3(g)
+#' }
 draw_graphD3 <- function(
   net,
   groups = NULL,

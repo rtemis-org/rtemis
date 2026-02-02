@@ -31,7 +31,6 @@ data.table, invisibly.
 Convert data.table logical columns to factors with custom labels in-place
 }
 \examples{
-\dontrun{
 library(data.table)
 x <- data.table(a = 1:5, b = c(T, F, F, F, T))
 x
@@ -52,7 +51,6 @@ for (i in seq_along(z)) setattr(z[[i]], "source", "Guava")
 str(z)
 dt_set_logical2factor(z, cols = "beta", labels = c("No", "Yes"))
 str(z)
-}
 }
 \author{
 EDG

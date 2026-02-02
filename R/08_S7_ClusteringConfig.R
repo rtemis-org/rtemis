@@ -1,6 +1,6 @@
 # S7_ClusteringConfig.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # ClusteringConfig ----
 #' @title ClusteringConfig
@@ -27,6 +27,7 @@ method(`$`, ClusteringConfig) <- function(x, name) {
   x@config[[name]]
 }
 
+
 # `$`-autocomplete ClusteringConfig@config ----
 method(`.DollarNames`, ClusteringConfig) <- function(x, pattern = "") {
   all_names <- names(x@config)
@@ -37,6 +38,7 @@ method(`.DollarNames`, ClusteringConfig) <- function(x, pattern = "") {
 method(`[[`, ClusteringConfig) <- function(x, index) {
   x@config[[index]]
 }
+
 
 # Show ClusteringConfig ----
 method(repr, ClusteringConfig) <- function(
@@ -56,6 +58,7 @@ method(repr, ClusteringConfig) <- function(
     repr_ls(props(x)[["config"]], pad = pad, output_type = output_type)
   )
 } # /show
+
 
 # Print ClusteringConfig ----
 #' Print Method for ClusteringConfig
@@ -77,6 +80,7 @@ method(print, ClusteringConfig) <- function(
   cat(repr(x, pad = pad, output_type = output_type))
   invisible(x)
 } # /print.ClusteringConfig
+
 
 # KMeansConfig ----
 #' @title KMeansConfig
@@ -120,6 +124,7 @@ setup_KMeans <- function(k = 3L, dist = c("euclidean", "manhattan")) {
   KMeansConfig(k, dist)
 } # /rtemis::setup_KMeans
 
+
 # HardCLConfig ----
 #' @title HardCLConfig
 #'
@@ -161,6 +166,7 @@ setup_HardCL <- function(k = 3L, dist = c("euclidean", "manhattan")) {
   dist <- match.arg(dist)
   HardCLConfig(k, dist)
 } # /rtemis::setup_HardCL
+
 
 # NeuralGasConfig ----
 #' @title NeuralGasConfig

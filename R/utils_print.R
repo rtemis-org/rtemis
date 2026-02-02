@@ -173,7 +173,12 @@ printls <- function(
             )
           )
           if (is_common_struct(x[[i]])) {
-            printls(x[[i]], pad = lhs + 2, newline_pre = TRUE)
+            printls(
+              x[[i]],
+              pad = lhs + 2,
+              newline_pre = TRUE,
+              print_df = print_df
+            )
           } else {
             cat(
               italic("object of class:", class(x[[i]])),

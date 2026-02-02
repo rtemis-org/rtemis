@@ -56,6 +56,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' datadir <- "~/icloud/Data"

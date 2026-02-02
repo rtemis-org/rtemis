@@ -6,6 +6,9 @@
 #'
 #' Draw interactive heatmaps using `heatmaply`.
 #'
+#' @details
+#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#'
 #' @param x Input matrix.
 #' @param Rowv Logical or dendrogram. If Logical: Compute dendrogram and reorder rows. Defaults to FALSE. If dendrogram: use as is, without reordering. See more at `heatmaply::heatmaply("Rowv")`.
 #' @param Colv Logical or dendrogram. If Logical: Compute dendrogram and reorder columns. Defaults to FALSE. If dendrogram: use as is, without reordering. See more at `heatmaply::heatmaply("Colv")`.

@@ -35,6 +35,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' fips <- c(06075, 42101)

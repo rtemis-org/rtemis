@@ -1,6 +1,6 @@
 # S7_Clustering.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # Clustering ----
 #' @title Clustering
@@ -43,10 +43,6 @@ method(`[[`, Clustering) <- function(x, index) {
   props(x, index)
 }
 
-# !! Make Clustering@clusters `[[`-accessible
-# method(`[[`, Clustering) <- function(x, index) {
-#   props(x, "clusters")[[index]]
-# }
 
 # Show Clustering ----
 method(repr, Clustering) <- function(
@@ -60,6 +56,7 @@ method(repr, Clustering) <- function(
     repr_ls(props(x)[-1], pad = pad, output_type = output_type)
   )
 } # /rtemis::show.Clustering
+
 
 # Print Clustering ----
 method(print, Clustering) <- function(

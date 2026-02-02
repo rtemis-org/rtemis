@@ -117,6 +117,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' tau <- seqinr::read.fasta("https://rest.uniprot.org/uniprotkb/P10636.fasta",

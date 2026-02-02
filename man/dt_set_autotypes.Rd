@@ -19,8 +19,21 @@ data.table, invisibly.
 }
 \description{
 This function inspects a data.table and attempts to identify columns that should be
-numeric but have been read in as character, and changes types in-place.
-This can happen when one or more fields contain non-numeric characters.
+numeric but have been read in as character, and fixes their type in-place.
+This can happen when one or more fields contain non-numeric characters, for example.
+}
+\examples{
+library(data.table)
+x <- data.table(
+  id = 8001:8006,
+  a = c("3", "5", "undefined", "21", "4", NA),
+  b = c("mango", "banana", "tangerine", NA, "apple", "kiwi"),
+  c = c(1, 2, 3, 4, 5, 6)
+)
+str(x)
+# in-place operation means no assignment is needed
+dt_set_autotypes(x)
+str(x)
 }
 \author{
 EDG
