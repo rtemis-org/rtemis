@@ -69,6 +69,7 @@ Suggests:
     networkD3,
     NMF,
     openxlsx,
+    parallelly,
     partykit,
     plotly,
     pROC,

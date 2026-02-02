@@ -78,7 +78,7 @@ train <- function(
   outdir = NULL,
   parallel_type = c("future", "mirai", "none"),
   future_plan = getOption("future.plan", "multicore"),
-  n_workers = max(future::availableCores() - 3L, 1L),
+  n_workers = parallelly::availableCores(omit = 3L),
   verbosity = 1L
 ) {
   # Checks ----
