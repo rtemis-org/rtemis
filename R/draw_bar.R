@@ -6,6 +6,9 @@
 #'
 #' Draw interactive barplots using `plotly`
 #'
+#' @details
+#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#'
 #' @param x vector (possibly named), matrix, or data.frame: If matrix or
 #' data.frame, rows are groups (can be 1 row), columns are features
 #' @param main Character: Main plot title.
@@ -14,7 +17,7 @@
 #' @param col Color, vector: Color for bars. Default NULL, which will draw
 #' colors from `palette`
 #' @param alpha Float (0, 1]: Transparency for bar colors.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Character: Name of \pkg{rtemis} palette to use.
 #' @param barmode Character: Type of bar plot to make: "group", "relative",
 #' "stack", "overlay". Default = "group". Use
@@ -73,6 +76,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' draw_bar(VADeaths, legend_xy = c(0, 1))
@@ -170,7 +174,7 @@ draw_bar <- function(
   }
 
   if (verbosity > 0L) {
-    cat("group_names_:", group_names_, "\n")
+    msg("group_names_:", group_names_, "\n")
   }
 
   # Feature names ----
@@ -184,7 +188,7 @@ draw_bar <- function(
   }
 
   if (verbosity > 0L) {
-    cat("feature_names_:", feature_names_, "\n")
+    msg("feature_names_:", feature_names_, "\n")
   }
   if (is.null(legend)) {
     legend <- length(feature_names_) > 1
@@ -208,7 +212,6 @@ draw_bar <- function(
   tick_col <- plotly::toRGB(theme[["tick_col"]])
   labs_col <- plotly::toRGB(theme[["labs_col"]])
   main_col <- plotly::toRGB(theme[["main_col"]])
-  axes_col <- plotly::toRGB(theme[["axes_col"]])
 
   # Derived
   if (is.null(legend_col)) {

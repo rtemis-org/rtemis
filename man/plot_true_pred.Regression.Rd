@@ -14,14 +14,14 @@ plot_true_pred.Regression(
 )
 }
 \arguments{
-\item{x}{Regression object.}
+\item{x}{\code{Regression} object.}
 
 \item{what}{Character vector: What to plot. Can include "training", "validation", "test", or
 "all", which will plot all available.}
 
 \item{fit}{Character: Algorithm to use to draw fit line.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{labelify}{Logical: If TRUE, labelify the axis labels.}
 

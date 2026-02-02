@@ -65,7 +65,7 @@ colors from \code{palette}}
 
 \item{horizontal}{Logical: If TRUE, plot bars horizontally}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Character: Name of \pkg{rtemis} palette to use.}
 
@@ -156,6 +156,9 @@ is set.}
 }
 \description{
 Draw interactive barplots using \code{plotly}
+}
+\details{
+See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
 }
 \examples{
 \dontrun{

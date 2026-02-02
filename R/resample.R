@@ -22,6 +22,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' y <- rnorm(200)

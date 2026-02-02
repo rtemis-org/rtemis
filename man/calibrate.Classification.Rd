@@ -15,7 +15,7 @@ calibrate.Classification(
 )
 }
 \arguments{
-\item{x}{Classification object.}
+\item{x}{\code{Classification} object.}
 
 \item{predicted_probabilities}{Numeric vector: Predicted probabilities.}
 
@@ -23,14 +23,14 @@ calibrate.Classification(
 
 \item{algorithm}{Character: Algorithm to use to train calibration model.}
 
-\item{hyperparameters}{Hyperparameters object: Setup using one of \verb{setup_*} functions.}
+\item{hyperparameters}{\code{Hyperparameters} object: Setup using one of \verb{setup_*} functions.}
 
 \item{verbosity}{Integer: Verbosity level.}
 
 \item{...}{Not used}
 }
 \value{
-CalibratedClassification object.
+\code{CalibratedClassification} object.
 }
 \description{
 The goal of calibration is to adjust the predicted probabilities of a binary classification
@@ -40,6 +40,28 @@ class.
 \details{
 Important: The calibration model's training data should be different from the classification
 model's training data.
+}
+\examples{
+\dontrun{
+datc2 <- data.frame(
+ gn = factor(sample(c("alpha", "beta", "gamma"), 100, replace = TRUE)),
+ iris[51:150, ]
+)
+datc2$Species <- factor(datc2$Species)
+datc2_train <- datc2[resc2$Fold_1, ]
+datc2_test <- datc2[-resc2$Fold_1, ]
+mod_c_lightrf <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_LightRF(nrounds = 20L)
+)
+mod_c_lightrf_cal <- calibrate(
+  mod_c_lightrf,
+  predicted_probabilities = mod_c_lightrf$predicted_prob_training,
+  true_labels = mod_c_lightrf$y_training
+)
+mod_c_lightrf_cal
+}
 }
 \author{
 EDG

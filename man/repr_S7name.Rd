@@ -23,6 +23,9 @@ Character: Formatted string that can be printed with cat().
 \description{
 Show S7 class name
 }
+\examples{
+repr_S7name("Supervised") |> cat()
+}
 \author{
 EDG
 }

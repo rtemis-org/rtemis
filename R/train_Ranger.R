@@ -148,7 +148,7 @@ predict_Ranger <- function(
 #' @noRd
 varimp_Ranger <- function(model) {
   check_inherits(model, "ranger")
-  varimp <- ranger::importance(model)
+  ranger::importance(model)
 } # /rtemis::varimp_Ranger
 
 
@@ -157,7 +157,7 @@ varimp_Ranger <- function(model) {
 #' Validate Ranger Hyperparameters given training data.
 #'
 #' @param x data.frame or similar: Training data.
-#' @param hyperparameters RangerHyperparameters: Hyperparameters to check.
+#' @param hyperparameters `RangerHyperparameters`: Hyperparameters to check.
 #'
 #' @return NULL. Will throw error if hyperparameters are invalid.
 #'

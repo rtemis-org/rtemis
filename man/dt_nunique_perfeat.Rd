@@ -7,7 +7,7 @@
 dt_nunique_perfeat(x, excludeNA = FALSE, limit = 20L, verbosity = 1L)
 }
 \arguments{
-\item{x}{data.table}
+\item{x}{data.table: Input data.table.}
 
 \item{excludeNA}{Logical: If TRUE, exclude NA values.}
 
@@ -22,9 +22,9 @@ Named integer vector of length \code{NCOL(x)} with number of unique values per c
 Number of unique values per feature
 }
 \examples{
-\dontrun{
-dt_nunique_perfeat(iris)
-}
+library(data.table)
+ir <- as.data.table(iris)
+dt_nunique_perfeat(ir)
 }
 \author{
 EDG

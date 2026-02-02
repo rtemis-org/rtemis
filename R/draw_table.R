@@ -29,6 +29,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #'  df <- data.frame(

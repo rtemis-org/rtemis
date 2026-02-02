@@ -352,7 +352,7 @@ method(repr, Preprocessor) <- function(
   output_type = NULL
 ) {
   output_type <- get_output_type(output_type)
-  out <- paste0(
+  paste0(
     repr_S7name("Preprocessor", pad = pad, output_type = output_type),
     repr_ls(props(x), pad = pad, print_df = print_df)
   )

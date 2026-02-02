@@ -7,11 +7,11 @@
 plot_true_pred.ClassificationRes(x, what = "all", theme = choose_theme(), ...)
 }
 \arguments{
-\item{x}{ClassificationRes object.}
+\item{x}{\code{ClassificationRes} object.}
 
 \item{what}{Character vector: "all", "training", "test". Which set(s) to plot.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{...}{Additional arguments passed to \link{draw_confusion}.}
 }

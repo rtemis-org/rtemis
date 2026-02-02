@@ -4,7 +4,7 @@
 
 #' Write \pkg{rtemis} model to RDS file
 #'
-#' @param object Supervised object.
+#' @param object `Supervised` object.
 #' @param outdir Path to output directory.
 #' @param file_prefix Character: Prefix for filename.
 #' @param verbosity Integer: Verbosity level.

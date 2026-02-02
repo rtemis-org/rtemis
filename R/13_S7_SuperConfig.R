@@ -32,6 +32,7 @@ SuperConfig <- new_class(
   )
 ) # /rtemis::SuperConfig
 
+
 # Print SuperConfig ----
 #' Print SuperConfig
 #'

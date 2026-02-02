@@ -2,15 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# calibrate <- new_generic("calibrate", "x")
-
-# calibrate <- new_generic(
-#   "calibrate", ("x"),
-#   function(x, predicted_probabilities, true_labels, algorithm = "isotonic", hyperparameters = NULL) {
-#     S7_dispatch()
-#   }
-# )
-
+# Calibrate Generic ----
 calibrate <- new_generic(
   "calibrate",
   ("x"),
@@ -25,6 +17,7 @@ calibrate <- new_generic(
   }
 )
 
+
 #' @name calibrate.Classification
 #' @title
 #' Calibrate Binary Classification Models
@@ -38,19 +31,40 @@ calibrate <- new_generic(
 #' Important: The calibration model's training data should be different from the classification
 #' model's training data.
 #'
-#' @param x Classification object.
+#' @param x `Classification` object.
 #' @param predicted_probabilities Numeric vector: Predicted probabilities.
 #' @param true_labels Factor: True class labels.
 #' @param algorithm Character: Algorithm to use to train calibration model.
-#' @param hyperparameters Hyperparameters object: Setup using one of `setup_*` functions.
+#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used
 #'
-#' @return CalibratedClassification object.
+#' @return `CalibratedClassification` object.
 #'
 #' @author EDG
 #' @export
-
+#'
+#' @examples
+#' \dontrun{
+#' datc2 <- data.frame(
+#'  gn = factor(sample(c("alpha", "beta", "gamma"), 100, replace = TRUE)),
+#'  iris[51:150, ]
+#' )
+#' datc2$Species <- factor(datc2$Species)
+#' datc2_train <- datc2[resc2$Fold_1, ]
+#' datc2_test <- datc2[-resc2$Fold_1, ]
+#' mod_c_lightrf <- train(
+#'   x = datc2_train,
+#'   dat_test = datc2_test,
+#'   hyperparameters = setup_LightRF(nrounds = 20L)
+#' )
+#' mod_c_lightrf_cal <- calibrate(
+#'   mod_c_lightrf,
+#'   predicted_probabilities = mod_c_lightrf$predicted_prob_training,
+#'   true_labels = mod_c_lightrf$y_training
+#')
+#' mod_c_lightrf_cal
+#' }
 calibrate.Classification <- function(
   x,
   predicted_probabilities,
@@ -98,16 +112,15 @@ calibrate.Classification <- function(
 #' model so that they better reflect the true probabilities (i.e. empirical risk) of the positive
 #' class.
 #'
-#' @param x ClassificationRes object.
+#' @param x `ClassificationRes` object.
 #' @param algorithm Character: Algorithm to use to train calibration model.
-#' @param hyperparameters Hyperparameters object: Setup using one of `setup_*` functions.
+#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param resampler_config ResamplerConfig
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used
 #'
 #' @author EDG
 #' @export
-
 method(calibrate, Classification) <- function(
   x,
   algorithm = "isotonic",
@@ -124,6 +137,35 @@ method(calibrate, Classification) <- function(
   )
 }
 
+
+#' Calibrate Resampled Classification Models
+#'
+#' @param x `ClassificationRes` object.
+#' @param algorithm Character: Algorithm to use to train calibration model.
+#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
+#' @param resampler_config `ResamplerConfig` object: Configuration for resampling during calibration model training.
+#' @param verbosity Integer: Verbosity level.
+#' @param ... Not used
+#'
+#' @return `CalibratedClassificationRes` object.
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' datc2 <- data.frame(
+#'  gn = factor(sample(c("alpha", "beta", "gamma"), 100, replace = TRUE)),
+#'  iris[51:150, ]
+#' )
+#' datc2$Species <- factor(datc2$Species)
+#' resmod_c_lightrf <- train(
+#'  x = datc2,
+#'  hyperparameters = setup_LightRF(nrounds = 20L),
+#'  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+#' )
+#' resmod_c_lightrf_cal <- calibrate(resmod_c_lightrf)
+#' resmod_c_lightrf_cal
+#' }
 calibrate.ClassificationRes <- function(
   x,
   algorithm = "isotonic",

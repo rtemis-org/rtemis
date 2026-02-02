@@ -11,7 +11,7 @@
 #' @param multiclass_fill_labels Logical: If TRUE, fill in labels for multiclass ROC curves.
 #' If FALSE, column names of `predicted_prob` must match levels of `true_labels`.
 #' @param main Character: Main title for the plot.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param col Color vector.
 #' @param legend Logical: If TRUE, draw legend.
 #' @param legend_title Character: Title for the legend.

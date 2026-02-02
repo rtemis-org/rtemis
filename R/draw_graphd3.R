@@ -14,13 +14,20 @@
 #' @param zoom Logical: If TRUE, graph is zoomable.
 #' @param legend Logical: If TRUE, display legend for groups.
 #' @param palette Vector of colors, or Character defining a builtin palette - get options with `rtpalette()`.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param ... Additional arguments to pass to `networkD3`.
 #'
 #' @return `forceNetwork` object.
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' library(igraph)
+#' g <- make_ring(10)
+#' draw_graphD3(g)
+#' }
 draw_graphD3 <- function(
   net,
   groups = NULL,

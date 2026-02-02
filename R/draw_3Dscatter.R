@@ -6,6 +6,9 @@
 #'
 #' Draw interactive 3D scatter plots using `plotly`.
 #'
+#' @details
+#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#'
 #' Note that `draw_3Dscatter` uses the theme's `plot_bg` as `grid_col`.
 #'
 #' @param x Numeric, vector/data.frame/list: x-axis data.
@@ -27,7 +30,7 @@
 #' @param alpha Numeric: Alpha for markers.
 #' @param bg Background color.
 #' @param plot_bg Plot background color.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Character: Color palette.
 #' @param axes_square Logical: If TRUE, draw a square plot.
 #' @param group_names Character: Names for groups.
@@ -50,7 +53,7 @@
 #' @param legend_borderwidth Numeric: Border width for legend.
 #' @param legend_group_gap Numeric: Gap between legend groups.
 #' @param margin Numeric, named list: Margins for top, bottom, left, right.
-#' @param fit_params Hyperparameters for fit.
+#' @param fit_params `Hyperparameters` for fit.
 #' @param width Numeric: Width of plot.
 #' @param height Numeric: Height of plot.
 #' @param padding Numeric: Graph padding.
@@ -336,11 +339,6 @@ draw_3Dscatter <- function(
     se <- list()
   } else {
     se <- NULL
-  }
-  if (rsq) {
-    .rsq <- list()
-  } else {
-    .rsq <- NULL
   }
   if (!is.null(fit)) {
     # learner <- get_train_fn(fit)

@@ -188,8 +188,6 @@ print.CheckData <- function(
   n_duplicates <- x[["n_duplicates"]]
   n_cols_anyna <- x[["n_cols_anyna"]]
   n_na <- x[["n_na"]]
-  na_feature_pct <- x[["na_feature_pct"]]
-  na_case_pct <- x[["na_case_pct"]]
   n_na_last_col <- x[["n_na_last_col"]]
 
   if (type == "ansi") {

@@ -44,7 +44,7 @@
 #' @param main Character: Main title.
 #' @param key_title Character: Title of the key.
 #' @param showticklabels Logical: If TRUE, show tick labels.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param font_size Numeric: Font size.
 #' @param padding Numeric: Padding between cells.
 #' @param displayModeBar Logical: If TRUE, display the plotly mode bar.
@@ -59,6 +59,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' # Example data
@@ -209,7 +210,7 @@ draw_spectrogram <- function(
     font = list(
       family = theme[["font_family"]],
       size = font_size,
-      color = bg
+      color = fg
     )
   )
 
@@ -252,7 +253,7 @@ draw_spectrogram <- function(
       x = theme[["main_adj"]]
     ),
     paper_bgcolor = bg,
-    plot_bgcolor = bg,
+    plot_bgcolor = plot_bg,
     legend = .legend,
     hoverlabel = list(align = hoverlabel_align)
   )

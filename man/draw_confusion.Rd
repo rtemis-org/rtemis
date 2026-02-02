@@ -43,7 +43,7 @@ the first row and column are the positive class.}
 
 \item{main_yanchor}{Character: y anchor of the title.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{margin}{List: Plot margins.}
 

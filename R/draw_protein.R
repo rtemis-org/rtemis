@@ -51,7 +51,7 @@
 #' @param region_line_smoothing Numeric: Smoothing for region lines.
 #' @param region_line_width Numeric: Width for region lines.
 #' @param region_line_alpha Numeric: Alpha for region lines.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param region_palette Named list of colors for regions.
 #' @param region_outline_only Logical: If TRUE, only show outline of regions.
 #' @param region_outline_pad Numeric: Padding for region outline.
@@ -117,6 +117,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' tau <- seqinr::read.fasta("https://rest.uniprot.org/uniprotkb/P10636.fasta",

@@ -7,9 +7,9 @@
 dt_pctmatch(x, y, on = NULL, left_on = NULL, right_on = NULL, verbosity = 1L)
 }
 \arguments{
-\item{x}{data.table}
+\item{x}{data.table: First input data.table.}
 
-\item{y}{data.table}
+\item{y}{data.table: Second input data.table.}
 
 \item{on}{Integer or character: column to read in \code{x} and \code{y}, if it is the
 same}
@@ -25,6 +25,12 @@ list.
 }
 \description{
 Get N and percent match of values between two columns of two data.tables
+}
+\examples{
+library(data.table)
+x <- data.table(ID = 1:5, Alpha = letters[1:5])
+y <- data.table(ID = c(3, 4, 5, 6), Beta = LETTERS[3:6])
+dt_pctmatch(x, y, on = "ID")
 }
 \author{
 EDG

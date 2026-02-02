@@ -83,7 +83,7 @@ draw_dist(
 
 \item{plot_bg}{Color: Background color for plot area.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Character: Color palette to use.}
 
@@ -149,7 +149,7 @@ draw_dist(
 
 \item{hist_n_bins}{Integer: Number of bins to use if type = "histogram".}
 
-\item{barmode}{Character: Barmode for histogram. Default = "overlay".}
+\item{barmode}{Character: Barmode for histogram. One of "overlay", "stack", "relative", "group".}
 
 \item{ridge_sharex}{Logical: If TRUE, draw single x-axis when \code{mode = "ridge"}.}
 
@@ -180,6 +180,8 @@ draw_dist(
 Draw Distributions using Histograms and Density Plots using \code{plotly}.
 }
 \details{
+See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
+
 If input is data.frame, non-numeric variables will be removed.
 }
 \examples{

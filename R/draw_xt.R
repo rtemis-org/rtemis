@@ -57,7 +57,7 @@
 #' @param show_rangeslider Logical: If TRUE, show a range slider.
 #' @param slider_start Numeric: Start of range slider.
 #' @param slider_end Numeric: End of range slider.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Color list: will be used to draw each vector in `y` and `y2`, in order.
 #' @param font_size Numeric: Font size for text.
 #' @param yfill Character: Fill type for y-axis: "none", "tozeroy", "tonexty".
@@ -99,6 +99,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' datetime <- seq(
@@ -425,20 +426,7 @@ draw_xt <- function(
   }
 
   # Plot ----
-  # if (!is.null(x.ticktext)) {
-  #   stopifnot(!is.null(x.tickvals))
-  #   plt <- plotly::plot_ly(
-  #     x = x.tickvals,
-  #     y = NA,
-  #     type = "scatter",
-  #     mode = "lines",
-  #     text = x.ticktext
-  #   )
-  # } else {
-  #   plt <- plotly::plot_ly(type = "scatter", mode = "lines")
-  # }
   plt <- plotly::plot_ly(type = "scatter", mode = "lines")
-  # browser()
 
   # Shade intervals ----
   if (!is.null(shade_interval)) {

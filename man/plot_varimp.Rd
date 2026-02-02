@@ -7,9 +7,9 @@
 plot_varimp(x, ...)
 }
 \arguments{
-\item{x}{Supervised or SupervisedRes object.}
+\item{x}{\code{Supervised} or \code{SupervisedRes} object.}
 
-\item{...}{Additional arguments passed to the plotting function.}
+\item{...}{Additional arguments passed to methods.}
 }
 \value{
 plotly object or invisible NULL if no variable importance is available.

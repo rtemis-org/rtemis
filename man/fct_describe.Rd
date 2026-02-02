@@ -23,7 +23,7 @@ Outputs a single character with names and counts of each level of the input fact
 \examples{
 \dontrun{
 # Small number of levels
-fct_describe(iris$Species)
+fct_describe(iris[["Species"]])
 
 # Large number of levels: show top n by count
 x <- factor(sample(letters, 1000, TRUE))

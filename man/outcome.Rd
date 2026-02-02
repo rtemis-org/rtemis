@@ -2,20 +2,26 @@
 % Please edit documentation in R/00_S7_init.R
 \name{outcome}
 \alias{outcome}
-\title{Get last column as a vector}
+\title{Get the outcome as a vector}
 \usage{
-outcome(x, ...)
+outcome(x)
 }
 \arguments{
 \item{x}{data.frame or similar.}
-
-\item{...}{Not used.}
 }
 \value{
 Vector containing the last column of \code{x}.
 }
 \description{
-Get last column as a vector
+Returns the last column of \code{x}, which is by convention the outcome variable.
+}
+\details{
+This applied to tabular datasets used for supervised learning in rtemis,
+where, by convention, the last column is the outcome variable and all other columns
+are features.
+}
+\examples{
+outcome(iris)
 }
 \author{
 EDG

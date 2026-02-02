@@ -15,7 +15,7 @@
 #' @param main Character: plot title.
 #' @param main_y Numeric: y position of the title.
 #' @param main_yanchor Character: y anchor of the title.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param margin List: Plot margins.
 #' @param filename Character: file name to save the plot. Default is NULL.
 #' @param file_width Numeric: width of the file. Default is 500.
@@ -70,7 +70,7 @@ draw_confusion <- function(
   condition_negative <- total - class_totals
   predicted_totals <- colSums(x)
   hits <- diag(x)
-  misses <- class_totals - hits
+  # misses = class_totals - hits
   class_sensitivity <- hits / class_totals
   true_negative <- total - predicted_totals - (class_totals - hits)
   class_specificity <- true_negative / condition_negative
@@ -85,9 +85,6 @@ draw_confusion <- function(
 
   bg <- plotly::toRGB(theme[["bg"]])
   plot_bg <- plotly::toRGB(theme[["plot_bg"]])
-  grid_col <- plotly::toRGB(theme[["grid_col"]], theme[["grid_alpha"]])
-  tick_col <- plotly::toRGB(theme[["tick_col"]])
-  legend_col <- labs_col <- plotly::toRGB(theme[["labs_col"]])
   main_col <- plotly::toRGB(theme[["main_col"]])
 
   # Colors ----

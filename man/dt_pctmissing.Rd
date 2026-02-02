@@ -17,6 +17,11 @@ list
 \description{
 Get percent of missing values from every column
 }
+\examples{
+library(data.table)
+x <- data.table(a = c(1, 2, NA, 4), b = c(NA, NA, 3, 4), c = c("A", "B", "C", NA))
+dt_pctmissing(x)
+}
 \author{
 EDG
 }

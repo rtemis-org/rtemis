@@ -58,7 +58,7 @@ the second level is the positive class.}
 
 \item{show_brier}{Logical: If TRUE, add Brier scores to trace names.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{filename}{Character: Path to save output.}
 

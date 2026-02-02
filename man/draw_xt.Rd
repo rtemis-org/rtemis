@@ -156,7 +156,7 @@ included.}
 
 \item{slider_end}{Numeric: End of range slider.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Color list: will be used to draw each vector in \code{y} and \code{y2}, in order.}
 

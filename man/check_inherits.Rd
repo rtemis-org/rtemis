@@ -4,7 +4,7 @@
 \alias{check_inherits}
 \title{Test class of object}
 \usage{
-check_inherits(x, cl, allow_null = TRUE)
+check_inherits(x, cl, allow_null = TRUE, xname = deparse(substitute(x)))
 }
 \arguments{
 \item{x}{Object to check.}

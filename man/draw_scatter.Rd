@@ -143,7 +143,7 @@ draw_scatter(
 
 \item{alpha}{Numeric: Alpha for markers.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Character: Color palette.}
 
@@ -265,7 +265,7 @@ draw_scatter(
 
 \item{diagonal_alpha}{Numeric: Alpha for diagonal line.}
 
-\item{fit_params}{Hyperparameters for fit.}
+\item{fit_params}{\code{Hyperparameters} for fit.}
 
 \item{vline}{Numeric: X position for vertical line.}
 

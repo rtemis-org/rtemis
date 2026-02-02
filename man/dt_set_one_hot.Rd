@@ -2,27 +2,27 @@
 % Please edit documentation in R/preprocess.R
 \name{dt_set_one_hot}
 \alias{dt_set_one_hot}
-\title{Convert data.table's factor to one-hot encoding in-place}
+\title{Convert data.table's factor to one-hot encoding \emph{\strong{in-place}}}
 \usage{
 dt_set_one_hot(x, xname = NULL, verbosity = 1L)
 }
 \arguments{
-\item{x}{data.table.}
+\item{x}{data.table: Input data.table. Will be modified \emph{\strong{in-place}}.}
 
 \item{xname}{Character, optional: Dataset name.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }
 \value{
-The input, invisibly, after it has been modified in-place.
+The input, invisibly, after it has been modified \emph{\strong{in-place}}.
 }
 \description{
-Convert data.table's factor to one-hot encoding in-place
+Convert data.table's factor to one-hot encoding \emph{\strong{in-place}}
 }
 \examples{
 \dontrun{
 ir <- data.table::as.data.table(iris)
-# dt_set_one_hot operates in-place; therefore no assignment is used:
+# dt_set_one_hot operates ***in-place***; therefore no assignment is used:
 dt_set_one_hot(ir)
 ir
 }

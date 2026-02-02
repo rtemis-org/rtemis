@@ -109,7 +109,7 @@ colors from \code{palette}}
 
 \item{plot_bg}{Color: Background color for plot area.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Character: Name of \pkg{rtemis} palette to use. Only used if \code{col = NULL}.}
 
@@ -252,6 +252,8 @@ is set.}
 Draw interactive boxplots or violin plots using \pkg{plotly}
 }
 \details{
+See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
+
 For multiple box plots, the recommendation is:
 \itemize{
 \item \code{x=dat[, columnindex]} for multiple variables of a data.frame

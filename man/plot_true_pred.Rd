@@ -7,9 +7,9 @@
 plot_true_pred(x, ...)
 }
 \arguments{
-\item{x}{Supervised or SupervisedRes object.}
+\item{x}{\code{Supervised} or \code{SupervisedRes} object.}
 
-\item{...}{Additional arguments passed to the plotting function.}
+\item{...}{Additional arguments passed to methods.}
 }
 \value{
 plotly object.
@@ -18,6 +18,13 @@ plotly object.
 Plot True vs. Predicted Values for Supervised objects.
 For classification, it plots a confusion matrix.
 For regression, it plots a scatter plot of true vs. predicted values.
+}
+\examples{
+\dontrun{
+x <- set_outcome(iris, "Sepal.Length")
+sepallength_glm <- train(x, algorithm = "GLM")
+plot_true_pred(sepallength_glm)
+}
 }
 \author{
 EDG

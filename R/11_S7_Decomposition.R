@@ -24,7 +24,8 @@ Decomposition <- new_class(
     decom = class_any,
     transformed = class_any
   )
-) # /Decomposition
+) # /rtemis::Decomposition
+
 
 # Make Decomposition properties `$`-accessible
 method(`$`, Decomposition) <- function(x, name) {

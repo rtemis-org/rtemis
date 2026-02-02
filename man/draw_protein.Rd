@@ -190,7 +190,7 @@ middle.}
 
 \item{region_line_alpha}{Numeric: Alpha for region lines.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{region_palette}{Named list of colors for regions.}
 

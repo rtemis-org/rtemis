@@ -6,6 +6,9 @@
 #'
 #' Draw interactive heatmaps using `heatmaply`.
 #'
+#' @details
+#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#'
 #' @param x Input matrix.
 #' @param Rowv Logical or dendrogram. If Logical: Compute dendrogram and reorder rows. Defaults to FALSE. If dendrogram: use as is, without reordering. See more at `heatmaply::heatmaply("Rowv")`.
 #' @param Colv Logical or dendrogram. If Logical: Compute dendrogram and reorder columns. Defaults to FALSE. If dendrogram: use as is, without reordering. See more at `heatmaply::heatmaply("Colv")`.
@@ -44,7 +47,7 @@
 #' @param file_height Numeric: Height of exported image.
 #' @param file_scale Numeric: Scale of exported image.
 #' @param plot_method Character: Plot method to use. Default = "plotly".
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param ... Additional arguments to be passed to `heatmaply::heatmaply`.
 #'
 #' @return `plotly` object.`
@@ -146,7 +149,6 @@ draw_heatmap <- function(
   fg <- plotly::toRGB(theme[["fg"]])
   plot_bg <- plotly::toRGB(theme[["plot_bg"]])
   grid_col <- plotly::toRGB(theme[["grid_col"]])
-  # tick_col <- plotly::toRGB(theme[["tick_col"]])
   tick_labels_col <- plotly::toRGB(theme[["tick_labels_col"]])
   labs_col <- plotly::toRGB(theme[["labs_col"]])
   main_col <- plotly::toRGB(theme[["main_col"]])
@@ -207,7 +209,7 @@ draw_heatmap <- function(
     as.dendrogram() |>
     dendextend::set("branches_k_color", k = 1) |>
     dendextend::set("branches_lwd", 1) |>
-    dendextend::set("branches_col", theme[["fg"]]) |>
+    dendextend::set("branches_col", fg) |>
     dendextend::ladderize()
   #    rotate_DendSer(ser_weight = dist(x))
   Colv <- x |>
@@ -217,7 +219,7 @@ draw_heatmap <- function(
     as.dendrogram() |>
     dendextend::set("branches_k_color", k = 1) |>
     dendextend::set("branches_lwd", 1) |>
-    dendextend::set("branches_col", theme[["fg"]]) |>
+    dendextend::set("branches_col", fg) |>
     dendextend::ladderize()
 
   plt <- suppressWarnings(heatmaply::heatmaply(
@@ -264,7 +266,7 @@ draw_heatmap <- function(
     font = list(
       family = theme[["font_family"]],
       size = font_size,
-      color = bg
+      color = fg
     )
   )
 
@@ -272,11 +274,9 @@ draw_heatmap <- function(
     plt,
     yaxis2 = list(
       title = list(
-        # text = ylab,
         font = f
       ), # gets assigned to dendrogram
       titlefont = f,
-      # showgrid = FALSE,
       tickcolor = bg,
       showline = FALSE,
       gridcolor = grid_col,
@@ -285,11 +285,9 @@ draw_heatmap <- function(
     ),
     xaxis = list(
       title = list(
-        # text = xlab,
         font = f
       ),
       titlefont = f,
-      # showgrid = FALSE,
       tickcolor = bg,
       showline = FALSE,
       gridcolor = grid_col,
@@ -307,9 +305,8 @@ draw_heatmap <- function(
       x = theme[["main_adj"]]
     ),
     paper_bgcolor = bg,
-    plot_bgcolor = bg,
+    plot_bgcolor = plot_bg,
     legend = .legend
-    # margin = margin
   )
 
   # Manual theme colors

@@ -1,9 +1,6 @@
 # palettes.R
 # ::rtemis::
-# 2016-22 EDG rtemis.org
-
-# Useful color resource
-# https://encycolorpedia.com
+# 2016- EDG rtemis.org
 
 # Colors ----
 #'
@@ -194,6 +191,7 @@ ucmercedCol <- list(
 #'
 #' `ucsbCol`: UC Santa Barbara color palette
 #' (https://www.ucsb.edu/visual-identity/color)
+#'
 #' @keywords internal
 #' @noRd
 ucsbCol <- list(
@@ -1905,6 +1903,7 @@ penn_heat <- function(
 
   return(grad)
 } # /rtemis::penn_heat
+
 
 # Xterm Colors ----
 XtermCol <- list(

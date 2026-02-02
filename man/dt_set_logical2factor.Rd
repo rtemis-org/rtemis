@@ -13,7 +13,7 @@ dt_set_logical2factor(
 )
 }
 \arguments{
-\item{x}{data.table}
+\item{x}{data.table: Input data.table. Will be modified \emph{\strong{in-place}}.}
 
 \item{cols}{Integer or character: columns to convert, if NULL, operates on all
 logical columns}
@@ -28,31 +28,36 @@ logical columns}
 data.table, invisibly.
 }
 \description{
-Convert data.table logical columns to factors with custom labels in-place
+Convert data.table logical columns to factors with custom labels \emph{\strong{in-place}}
 }
 \examples{
-\dontrun{
 library(data.table)
-x <- data.table(a = 1:5, b = c(T, F, F, F, T))
+x <- data.table(a = 1:5, b = c(TRUE, FALSE, FALSE, FALSE, TRUE))
 x
 dt_set_logical2factor(x)
 x
-z <- data.table(alpha = 1:5, beta = c(T, F, T, NA, T), gamma = c(F, F, T, F, NA))
-z
+z <- data.table(
+  alpha = 1:5,
+  beta = c(TRUE, FALSE, TRUE, NA, TRUE),
+  gamma = c(FALSE, FALSE, TRUE, FALSE, NA)
+)
 # You can usee fillNA to fill NA values with a constant
 dt_set_logical2factor(z, cols = "beta", labels = c("No", "Yes"), fillNA = "No")
 z
-w <- data.table(mango = 1:5, banana = c(F, F, T, T, F))
+w <- data.table(mango = 1:5, banana = c(FALSE, FALSE, TRUE, TRUE, FALSE))
 w
 dt_set_logical2factor(w, cols = 2, labels = c("Ugh", "Huh"))
 w
 # Column attributes are maintained by default:
-z <- data.table(alpha = 1:5, beta = c(T, F, T, NA, T), gamma = c(F, F, T, F, NA))
+z <- data.table(
+  alpha = 1:5,
+  beta = c(TRUE, FALSE, TRUE, NA, TRUE),
+  gamma = c(FALSE, FALSE, TRUE, FALSE, NA)
+)
 for (i in seq_along(z)) setattr(z[[i]], "source", "Guava")
 str(z)
 dt_set_logical2factor(z, cols = "beta", labels = c("No", "Yes"))
 str(z)
-}
 }
 \author{
 EDG

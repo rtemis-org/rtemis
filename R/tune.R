@@ -15,6 +15,7 @@ get_tuner_fn <- function(type = "GridSearch") {
   switch(type, "GridSearch" = "tune_GridSearch")
 } # /rtemis::get_tuner_fn
 
+
 #' Tune Supervised Learning Model
 #'
 #' @param x data.frame or similar: Training set data.

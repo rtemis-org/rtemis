@@ -18,12 +18,13 @@ Theme <- new_class(
   )
 ) # /Theme
 
+
 # Print Theme ----
 #' Print Theme
 #'
 #' Print Theme object
 #'
-#' @param x Theme object.
+#' @param x `Theme` object.
 #' @param ... Not used.
 #'
 #' @author EDG
@@ -36,6 +37,7 @@ print.Theme <- function(x, ...) {
 method(print, Theme) <- function(x, ...) {
   print.Theme(x)
 } # /rtemis::print.Theme
+
 
 # Make Theme@config `$`-accessible with autocomplete ----
 method(`$`, Theme) <- function(x, name) {
@@ -51,12 +53,13 @@ method(`[[`, Theme) <- function(x, name) {
   x@config[[name]]
 } # /rtemis::Theme[[]]
 
+
 # Names Theme ----
 #' Get names of Theme object
 #'
-#' @param x Theme object.
+#' @param x `Theme` object.
 #'
-#' @return Character vector of names of Theme object.
+#' @return Character vector of names of `Theme` object.
 #'
 #' @author EDG
 #' @noRd

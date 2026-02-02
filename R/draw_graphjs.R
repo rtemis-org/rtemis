@@ -6,7 +6,7 @@
 #'
 #' Interactive plotting of an \pkg{igraph} net using \pkg{threejs}.
 #'
-#' @param net `igraph` network.
+#' @param net \pkg{igraph} network.
 #' @param vertex_size Numeric: Vertex size.
 #' @param vertex_col Color for vertices.
 #' @param vertex_label_col Color for vertex labels.
@@ -27,7 +27,7 @@
 #' @param cluster_mark_groups Logical: If TRUE, draw polygons to indicate clusters, if `groups` or `cluster` are defined.
 #' @param cluster_color_vertices Logical: If TRUE, color vertices by cluster membership.
 #' @param main Character: Main title.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Color vector or name of rtemis palette.
 #' @param mar Numeric vector, length 4: `par`'s margin argument.
 #' @param par_reset Logical: If TRUE, reset par before exiting.
@@ -39,6 +39,13 @@
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' library(igraph)
+#' g <- make_ring(10)
+#' draw_graphjs(g)
+#' }
 draw_graphjs <- function(
   net,
   vertex_size = 1,

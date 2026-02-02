@@ -41,6 +41,15 @@ draw_heat(
 \description{
 Draw a heatmap using \code{plotly}.
 }
+\details{
+See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
+}
+\examples{
+\dontrun{
+mat <- matrix(rnorm(100), nrow = 10)
+draw_heat(mat, x = 1:10, y = 1:10, title = "Heatmap Example")
+}
+}
 \author{
 EDG
 }

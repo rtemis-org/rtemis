@@ -13,17 +13,17 @@ check_data(
 )
 }
 \arguments{
-\item{x}{data.frame, data.table or similar structure}
+\item{x}{data.frame, data.table or similar structure.}
 
-\item{name}{Character: Name of dataset}
+\item{name}{Character: Name of dataset.}
 
-\item{get_duplicates}{Logical: If TRUE, check for duplicate cases}
+\item{get_duplicates}{Logical: If TRUE, check for duplicate cases.}
 
 \item{get_na_case_pct}{Logical: If TRUE, calculate percent of NA values per
-case}
+case.}
 
 \item{get_na_feature_pct}{Logical: If TRUE, calculate percent of NA values
-per feature}
+per feature.}
 }
 \value{
 \code{CheckData} object.
@@ -32,7 +32,6 @@ per feature}
 Check Data
 }
 \examples{
-\dontrun{
 n <- 1000
 x <- rnormmat(n, 50, return_df = TRUE)
 x$char1 <- sample(letters, n, TRUE)
@@ -44,8 +43,6 @@ x[sample(nrow(x), 20), 3] <- NA
 x[sample(nrow(x), 20), 10] <- NA
 x$fct[30:35] <- NA
 check_data(x)
-}
-
 }
 \author{
 EDG

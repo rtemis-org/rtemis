@@ -4,7 +4,7 @@
 
 #' Number of unique values per feature
 #'
-#' @param x data.table
+#' @param x data.table: Input data.table.
 #' @param excludeNA Logical: If TRUE, exclude NA values.
 #' @param limit Integer: Print up to this many features. Set to -1L to print all.
 #' @param verbosity Integer: If > 0, print output to console.
@@ -15,9 +15,9 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' dt_nunique_perfeat(iris)
-#' }
+#' library(data.table)
+#' ir <- as.data.table(iris)
+#' dt_nunique_perfeat(ir)
 dt_nunique_perfeat <- function(
   x,
   excludeNA = FALSE,
@@ -53,14 +53,14 @@ dt_nunique_perfeat <- function(
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
-#' \dontrun{
+#' library(data.table)
 #' x <- data.table(
 #'   ID = rep(1:3, each = 2),
 #'   Dx = c("A", "C", "B", "C", "D", "A")
 #' )
 #' dt_keybin_reshape(x, id_name = "ID", key_name = "Dx")
-#' }
 dt_keybin_reshape <- function(
   x,
   id_name,
@@ -127,6 +127,12 @@ dt_keybin_reshape <- function(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' library(data.table)
+#' xleft <- data.table(ID = 1:5, Alpha = letters[1:5])
+#' xright <- data.table(ID = c(3, 4, 5, 6), Beta = LETTERS[3:6])
+#' xlr_inner <- dt_merge(xleft, xright, on = "ID", how = "inner")
 dt_merge <- function(
   left,
   right,
@@ -227,26 +233,27 @@ dt_merge <- function(
 } # /rtemis::dt_merge
 
 
-#' Clean factor levels of data.table in-place
+#' Clean factor levels of data.table ***in-place***
 #'
 #' Finds all factors in a data.table and cleans factor levels to include
 #' only underscore symbols
 #'
-#' @param x data.table
+#' @param x data.table: Input data.table. Will be modified ***in-place***.
 #' @param prefix_digits Character: If not NA, add this prefix to all factor levels that
 #' are numbers
 #'
-#' @return Nothing, modifies `x` in-place.
+#' @return Nothing, modifies `x` ***in-place***.
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
-#' \dontrun{
+#' library(data.table)
 #' x <- as.data.table(iris)
-#' levels(x$Species) <- c("setosa:iris", "versicolor$iris", "virginica iris")
+#' levels(x[["Species"]]) <- c("setosa:iris", "versicolor$iris", "virginica iris")
+#' levels(x[["Species"]])
 #' dt_set_cleanfactorlevels(x)
-#' x
-#' }
+#' levels(x[["Species"]])
 dt_set_cleanfactorlevels <- function(x, prefix_digits = NA) {
   stopifnot(inherits(x, "data.table"))
   idi <- names(x)[sapply(x, is.factor)]
@@ -261,26 +268,10 @@ dt_set_cleanfactorlevels <- function(x, prefix_digits = NA) {
 } # /rtemis::dt_set_cleanfactorlevels
 
 
-#' Index columns by attribute name & value
-#'
-#' @param x data.frame or compatible
-#' @param name Character: Name of attribute
-#' @param value Character: Value of attribute
-#'
-#' @return Integer vector.
-#'
-#' @author EDG
-#' @export
-dt_index_attr <- function(x, name, value) {
-  colattr <- unlist(sapply(x, \(i) attr(i, name)))
-  which(colattr == value)
-}
-
-
 #' Get N and percent match of values between two columns of two data.tables
 #'
-#' @param x data.table
-#' @param y data.table
+#' @param x data.table: First input data.table.
+#' @param y data.table: Second input data.table.
 #' @param on Integer or character: column to read in `x` and `y`, if it is the
 #' same
 #' @param left_on Integer or character: column to read in `x`
@@ -291,6 +282,12 @@ dt_index_attr <- function(x, name, value) {
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' library(data.table)
+#' x <- data.table(ID = 1:5, Alpha = letters[1:5])
+#' y <- data.table(ID = c(3, 4, 5, 6), Beta = LETTERS[3:6])
+#' dt_pctmatch(x, y, on = "ID")
 dt_pctmatch <- function(
   x,
   y,
@@ -325,7 +322,7 @@ dt_pctmatch <- function(
     )
   }
   invisible(list(nmatch = nmatch, matchpct = matchpct))
-}
+} # /rtemis::dt_pctmatch
 
 
 #' Get percent of missing values from every column
@@ -337,22 +334,27 @@ dt_pctmatch <- function(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' library(data.table)
+#' x <- data.table(a = c(1, 2, NA, 4), b = c(NA, NA, 3, 4), c = c("A", "B", "C", NA))
+#' dt_pctmissing(x)
 dt_pctmissing <- function(x, verbosity = 1L) {
   nmissing <- sapply(x, \(i) sum(is.na(i)))
   pctmissing <- nmissing / NROW(x)
   if (verbosity > 0L) {
     cat("Percent missing per column:\n")
-    printls(pctmissing)
+    printls(pctmissing, print_class = FALSE)
   }
   invisible(list(nmissing = nmissing, pctmissing = pctmissing))
-}
+} # /rtemis::dt_pctmissing
 
 
 #' Convert data.table logical columns to factors
 #'
-#' Convert data.table logical columns to factors with custom labels in-place
+#' Convert data.table logical columns to factors with custom labels ***in-place***
 #'
-#' @param x data.table
+#' @param x data.table: Input data.table. Will be modified ***in-place***.
 #' @param cols Integer or character: columns to convert, if NULL, operates on all
 #' logical columns
 #' @param labels Character: labels for factor levels
@@ -363,29 +365,35 @@ dt_pctmissing <- function(x, verbosity = 1L) {
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
-#' \dontrun{
 #' library(data.table)
-#' x <- data.table(a = 1:5, b = c(T, F, F, F, T))
+#' x <- data.table(a = 1:5, b = c(TRUE, FALSE, FALSE, FALSE, TRUE))
 #' x
 #' dt_set_logical2factor(x)
 #' x
-#' z <- data.table(alpha = 1:5, beta = c(T, F, T, NA, T), gamma = c(F, F, T, F, NA))
-#' z
+#' z <- data.table(
+#'   alpha = 1:5,
+#'   beta = c(TRUE, FALSE, TRUE, NA, TRUE),
+#'   gamma = c(FALSE, FALSE, TRUE, FALSE, NA)
+#' )
 #' # You can usee fillNA to fill NA values with a constant
 #' dt_set_logical2factor(z, cols = "beta", labels = c("No", "Yes"), fillNA = "No")
 #' z
-#' w <- data.table(mango = 1:5, banana = c(F, F, T, T, F))
+#' w <- data.table(mango = 1:5, banana = c(FALSE, FALSE, TRUE, TRUE, FALSE))
 #' w
 #' dt_set_logical2factor(w, cols = 2, labels = c("Ugh", "Huh"))
 #' w
 #' # Column attributes are maintained by default:
-#' z <- data.table(alpha = 1:5, beta = c(T, F, T, NA, T), gamma = c(F, F, T, F, NA))
+#' z <- data.table(
+#'   alpha = 1:5,
+#'   beta = c(TRUE, FALSE, TRUE, NA, TRUE),
+#'   gamma = c(FALSE, FALSE, TRUE, FALSE, NA)
+#' )
 #' for (i in seq_along(z)) setattr(z[[i]], "source", "Guava")
 #' str(z)
 #' dt_set_logical2factor(z, cols = "beta", labels = c("No", "Yes"))
 #' str(z)
-#' }
 dt_set_logical2factor <- function(
   x,
   cols = NULL,
@@ -414,112 +422,12 @@ dt_set_logical2factor <- function(
 }
 
 
-#' Tabulate column attributes
-#'
-#' @param x data.table
-#' @param attr Character: Attribute to get
-#' @param useNA Character: Passed to `table`
-#'
-#' @return table.
-#'
-#' @author EDG
-#' @export
-dt_get_column_attr <- function(x, attr = "source", useNA = "always") {
-  attrs <- sapply(x, \(i) {
-    if (is.null(attr(i, attr, exact = TRUE))) {
-      NA_character_
-    } else {
-      attr(i, attr, exact = TRUE)
-    }
-  })
-  table(attrs, useNA = useNA)
-}
-
-# dt_missing_by_class <- function(x) {
-
-# }
-
-# All data can be represented as a character string. A numeric variable may be read as
-# a character variable if there are non-numeric characters in the data.
-# It is important to be able to automatically detect such variables and convert them,
-# which would mean introducing NA values.
-
-#' Inspect character and factor vector
-#'
-#' Checks character or factor vector to determine whether it might be best to convert to
-#' numeric.
-#'
-#' @param x Character or factor vector.
-#' @param xname Character: Name of input vector `x`.
-#' @param verbosity Integer: Verbosity level.
-#' @param thresh Numeric: Threshold for determining whether to convert to numeric.
-#' @param na.omit Logical: If TRUE, remove NA values before checking.
-#'
-#' @return Character.
-#'
-#' @author EDG
-#' @export
-#' @examples
-#' \dontrun{
-#' x <- c("3", "5", "undefined", "21", "4", NA)
-#' inspect_type(x)
-#' z <- c("mango", "banana", "tangerine", NA)
-#' inspect_type(z)
-#' }
-inspect_type <- function(
-  x,
-  xname = NULL,
-  verbosity = 1L,
-  thresh = .5,
-  na.omit = TRUE
-) {
-  if (is.null(xname)) {
-    xname <- deparse(substitute(x))
-  }
-  if (na.omit) {
-    x <- na.omit(x)
-  }
-  xclass <- class(x)[1]
-  xlen <- length(x)
-  raw_na <- sum(is.na(x))
-  n_non_na <- xlen - raw_na
-  # char_na <- sum(is.na(as.character(x)))
-  suppressWarnings({
-    num_na <- if (xclass == "character") {
-      sum(is.na(as.numeric(x)))
-    } else {
-      sum(is.na(as.numeric(as.character(x))))
-    }
-  })
-  if (raw_na == xlen) {
-    "NA"
-  } else if (
-    xclass %in% c("character", "factor") && (num_na / n_non_na) < thresh
-  ) {
-    if (verbosity > 0L) {
-      msg0(
-        "Possible type error: ",
-        highlight(xname),
-        " is a ",
-        bold(xclass),
-        ", but perhaps should be ",
-        bold("numeric"),
-        "."
-      )
-    }
-    "numeric"
-  } else {
-    xclass
-  }
-} # /rtemis::inspect_type
-
-
 #' Inspect column types
 #'
 #' Will attempt to identify columns that should be numeric but are either character or
 #' factor by running [inspect_type] on each column.
 #'
-#' @param x data.table
+#' @param x data.table: Input data.table.
 #' @param cols Character vector: columns to inspect.
 #' @param verbosity Integer: Verbosity level.
 #'
@@ -527,7 +435,17 @@ inspect_type <- function(
 #'
 #' @author EDG
 #' @export
-dt_inspect_type <- function(x, cols = NULL, verbosity = 1L) {
+#'
+#' @examples
+#' library(data.table)
+#' x <- data.table(
+#'   id = 8001:8006,
+#'   a = c("3", "5", "undefined", "21", "4", NA),
+#'   b = c("mango", "banana", "tangerine", NA, "apple", "kiwi"),
+#'   c = c(1, 2, 3, 4, 5, 6)
+#' )
+#' dt_inspect_types(x)
+dt_inspect_types <- function(x, cols = NULL, verbosity = 1L) {
   if (is.null(cols)) {
     char_factor_idi <- which(sapply(x, is.character) | sapply(x, is.factor))
     cols <- names(x[, .SD, .SDcols = char_factor_idi])
@@ -545,10 +463,10 @@ dt_inspect_type <- function(x, cols = NULL, verbosity = 1L) {
 #' Set column types automatically
 #'
 #' This function inspects a data.table and attempts to identify columns that should be
-#' numeric but have been read in as character, and changes types in-place.
-#' This can happen when one or more fields contain non-numeric characters.
+#' numeric but have been read in as character, and fixes their type ***in-place***.
+#' This can happen when one or more fields contain non-numeric characters, for example.
 #'
-#' @param x data.table
+#' @param x data.table: Input data.table. Will be modified ***in-place***, if needed.
 #' @param cols Character vector: columns to work on. If not defined, will work on all
 #' columns
 #' @param verbosity Integer: Verbosity level.
@@ -557,57 +475,58 @@ dt_inspect_type <- function(x, cols = NULL, verbosity = 1L) {
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' library(data.table)
+#' x <- data.table(
+#'   id = 8001:8006,
+#'   a = c("3", "5", "undefined", "21", "4", NA),
+#'   b = c("mango", "banana", "tangerine", NA, "apple", "kiwi"),
+#'   c = c(1, 2, 3, 4, 5, 6)
+#' )
+#' str(x)
+#' # ***in-place*** operation means no assignment is needed
+#' dt_set_autotypes(x)
+#' str(x)
+#'
+#' # Try excluding column 'a' from autotyping
+#' x <- data.table(
+#'   id = 8001:8006,
+#'   a = c("3", "5", "undefined", "21", "4", NA),
+#'   b = c("mango", "banana", "tangerine", NA, "apple", "kiwi"),
+#'   c = c(1, 2, 3, 4, 5, 6)
+#' )
+#' str(x)
+#' # exclude column 'a' from autotyping
+#' dt_set_autotypes(x, cols = setdiff(names(x), "a"))
+#' str(x)
 dt_set_autotypes <- function(x, cols = NULL, verbosity = 1L) {
   if (is.null(cols)) {
     cols <- names(x)
   }
-  for (i in cols) {
+  character_idx <- sapply(x[, .SD, .SDcols = cols], is.character)
+  char_cols <- names(character_idx)[character_idx]
+  for (i in char_cols) {
     if (inspect_type(x[[i]], i, verbosity = 0L) == "numeric") {
       if (verbosity > 0L) {
         msg("Converting", highlight(i), "to", bold("numeric"))
       }
-      x[, (i) := as.numeric(x[[i]])]
+      # This will generate warnings if there are non-numeric values
+      suppressWarnings({
+        x[, (i) := as.numeric(x[[i]])]
+      })
     }
   }
   invisible(x)
 } # /rtemis::dt_set_autotypes
 
 
-#' List column names by class
-#'
-#' @param x data.table
-#' @param sorted Logical: If TRUE, sort the output
-#' @param item_format Function: Function to format each item
-#' @param maxlength Integer: Maximum number of items to print
-#'
-#' @return `NULL`, invisibly.
-#'
-#' @author EDG
-#' @export
-dt_names_by_class <- function(
-  x,
-  sorted = TRUE,
-  item_format = highlight,
-  maxlength = 24
-) {
-  classes <- sapply(x, class)
-  vals <- unique(classes)
-  out <- if (sorted) {
-    sapply(vals, \(i) sort(names(x)[classes == i]))
-  } else {
-    sapply(vals, \(i) names(x)[classes == i])
-  }
-  cat(repr_ls(out, item_format = item_format, maxlength = maxlength))
-  invisible()
-} # /rtemis::dt_names_by_class
-
-
 #' List column names by attribute
 #'
-#' @param x data.table
-#' @param attribute Character: name of attribute
-#' @param exact Logical: If TRUE, use exact matching
-#' @param sorted Logical: If TRUE, sort the output
+#' @param x data.table: Input data.table.
+#' @param attribute Character: name of attribute.
+#' @param exact Logical: If TRUE, use exact matching.
+#' @param sorted Logical: If TRUE, sort the output.
 #'
 #' @return Character vector.
 #'
@@ -628,22 +547,30 @@ dt_names_by_attr <- function(x, attribute, exact = TRUE, sorted = TRUE) {
 } # /rtemis::dt_names_by_attr
 
 
-#' Clean column names and factor levels in-place
+#' Clean column names and factor levels ***in-place***
 #'
-#' @param x data.table
+#' @param x data.table: Input data.table. Will be modified ***in-place***, if needed.
 #' @param prefix_digits Character: prefix to add to names beginning with a
 #' digit. Set to NA to skip
 #'
-#' Note: If `x` is not a data.table, it will be converted in place, i.e. the original
-#' object will be modified.
-#'
-#' @return Nothing, modifies `x` in-place.
+#' @return Nothing, modifies `x` ***in-place***.
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' library(data.table)
+#' x <- as.data.table(iris)
+#' levels(x[["Species"]]) <- c("setosa:iris", "versicolor$iris", "virginica iris")
+#' names(x)
+#' levels(x[["Species"]])
+#' # ***in-place*** operation means no assignment is needed
+#' dt_set_clean_all(x)
+#' names(x)
+#' levels(x[["Species"]])
 dt_set_clean_all <- function(x, prefix_digits = NA) {
   if (!is.data.table(x)) {
-    setDT(x)
+    cli::cli_abort("{.arg x} must be a data.table")
   }
   data.table::setnames(x, names(x), clean_colnames(x))
   idi <- names(x)[sapply(x, is.factor)]
@@ -660,7 +587,8 @@ dt_set_clean_all <- function(x, prefix_digits = NA) {
 
 #' Describe data.table
 #'
-#' @param x data.table
+#' @param x data.table: Input data.table.
+#' @param verbosity Integer: If > 0, print output to console.
 #'
 #' @return List with three data.tables: Numeric, Categorical, and Date.
 #'
@@ -668,7 +596,7 @@ dt_set_clean_all <- function(x, prefix_digits = NA) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
+#' library(data.table)
 #' origin <- as.POSIXct("2022-01-01 00:00:00", tz = "America/Los_Angeles")
 #' x <- data.table(
 #'   ID = paste0("ID", 1:10),
@@ -691,24 +619,23 @@ dt_set_clean_all <- function(x, prefix_digits = NA) {
 #'   C1 = sample(c("alpha", "beta", "gamma"), 10, TRUE),
 #'   F1 = factor(sample(c("delta", "epsilon", "zeta"), 10, TRUE))
 #' )
-#' }
-dt_describe <- function(x) {
+dt_describe <- function(x, verbosity = 1L) {
   if (!is.data.table(x)) {
-    setDT(x)
+    cli::cli_abort("{.arg x} must be a data.table")
   }
   nrows <- NROW(x)
 
   # appease R CMD check: do not use ..var in DT frame, use with = FALSE instead
 
-  # Numeric ----
+  # Numeric
   index_nm <- which(sapply(x, is.numeric))
 
   nm_summary <- if (length(index_nm) > 0) {
-    data.table(
+    data.frame(
       Variable = x[, index_nm, with = FALSE] |> names(),
       Min = sapply(x[, index_nm, with = FALSE], min, na.rm = TRUE),
       Max = sapply(x[, index_nm, with = FALSE], max, na.rm = TRUE),
-      Median = sapply(x[, index_nm], with = FALSE, median, na.rm = TRUE),
+      Median = sapply(x[, index_nm, with = FALSE], median, na.rm = TRUE),
       Mean = sapply(x[, index_nm, with = FALSE], mean, na.rm = TRUE),
       SD = sapply(x[, index_nm, with = FALSE], sd, na.rm = TRUE),
       Pct_missing = sapply(
@@ -717,7 +644,7 @@ dt_describe <- function(x) {
       )
     )
   } else {
-    data.table(
+    data.frame(
       Variable = character(),
       Min = numeric(),
       Max = numeric(),
@@ -728,11 +655,11 @@ dt_describe <- function(x) {
     )
   }
 
-  # Characters & factors ----
+  # Characters & factors
   index_cf <- c(which(sapply(x, is.character)), which(sapply(x, is.factor)))
 
   cf_summary <- if (length(index_cf) > 0) {
-    data.table(
+    data.frame(
       Variable = x[, index_cf, with = FALSE] |> names(),
       N_unique = sapply(
         x[, index_cf, with = FALSE],
@@ -746,7 +673,7 @@ dt_describe <- function(x) {
       )
     )
   } else {
-    data.table(
+    data.frame(
       Variable = numeric(),
       N_unique = integer(),
       Mode = character(),
@@ -755,14 +682,14 @@ dt_describe <- function(x) {
     )
   }
 
-  # Dates ----
+  # Dates
   index_dt <- which(sapply(
     x,
     \(col) any(class(col) %in% c("Date", "IDate", "POSIXct", "POSIXt"))
   ))
 
   dt_summary <- if (length(index_dt) > 0) {
-    data.table(
+    data.frame(
       Variable = x[, index_dt, with = FALSE] |> names(),
       Min = do.call(c, lapply(x[, index_dt, with = FALSE], min, na.rm = TRUE)),
       Max = do.call(c, lapply(x[, index_dt, with = FALSE], max, na.rm = TRUE)),
@@ -780,7 +707,7 @@ dt_describe <- function(x) {
       )
     )
   } else {
-    data.table(
+    data.frame(
       Variable = character(),
       Min = numeric(),
       Max = numeric(),
@@ -790,158 +717,13 @@ dt_describe <- function(x) {
     )
   }
 
-  invisible(list(
+  out <- list(
     Numeric = nm_summary,
     Categorical = cf_summary,
     Date = dt_summary
-  ))
+  )
+  if (verbosity > 0L) {
+    printls(out, print_df = TRUE)
+  }
+  invisible(out)
 } # /rtemis::dt_describe
-
-
-#' Read delimited file in parts
-#'
-#' Read delimited file in parts using `data.table::fread()`.
-#'
-#' @param x Character: Path to delimited file
-#' @param part_nrows Integer: Number of rows to read in each part
-#' @param nrows Integer: Number of rows in the file
-#' @param header Logical: If TRUE, the file is assumed to include a header row
-#' @param sep Character: Delimiter
-#' @param verbosity Integer: Verbosity level.
-#' @param stringsAsFactors Logical: If TRUE, characters will be converted to
-#' factors
-#' @param ... Additional arguments to pass to `data.table::fread()`
-#'
-#' @return `data.table`.
-#'
-#' @author EDG
-#' @export
-pfread <- function(
-  x,
-  part_nrows,
-  nrows = NULL,
-  header = TRUE,
-  sep = "auto",
-  verbosity = 1L,
-  stringsAsFactors = TRUE,
-  ...
-) {
-  # nrows <- as.integer(R.utils::countLines(x))
-  # nrows <- system(paste("wc -l", x))
-  if (is.null(nrows)) {
-    nrows <- system2("wc", c("-l", x), stdout = TRUE)
-    nrows <- gsub("^ ", "", nrows)
-    nrows <- strsplit(nrows, " ")[[1]][1] |> as.integer()
-    if (header) {
-      nrows <- nrows - 1
-    }
-  }
-
-  nparts <- ceiling(nrows / part_nrows)
-  if (verbosity > 0L) {
-    msg("Reading part 1...")
-    i <- 1
-  }
-  dat1 <- fread(
-    x,
-    nrows = part_nrows,
-    header = header,
-    sep = sep,
-    stringsAsFactors = stringsAsFactors,
-    ...
-  )
-  if (nparts == 1) {
-    return(dat1)
-  }
-  ndone <- part_nrows
-  col_classes <- sapply(dat1, \(i) class(i)[1])
-  .col.names <- names(col_classes)
-  .colClasses <- unname(col_classes)
-  parts <- lapply(seq_len(nparts)[-1], \(i) {
-    fread(
-      x,
-      nrows = part_nrows,
-      skip = ndone + header,
-      header = FALSE,
-      sep = sep,
-      col.names = .col.names,
-      colClasses = .colClasses,
-      ...
-    )
-  })
-
-  dat <- rbindlist(c(list(dat1), parts))
-  if (verbosity > 0L) {
-    msg("Read", highlightbig(nrow(dat)), "rows")
-  }
-  dat
-} # /rtemis::pfread
-
-
-pfread1 <- function(
-  x,
-  part_nrows,
-  nrows = NULL,
-  header = TRUE,
-  sep = "auto",
-  verbosity = 1L,
-  stringsAsFactors = TRUE,
-  ...
-) {
-  # nrows <- as.integer(R.utils::countLines(x))
-  # nrows <- system(paste("wc -l", x))
-  if (is.null(nrows)) {
-    nrows <- system2("wc", c("-l", x), stdout = TRUE)
-    nrows <- gsub("^ ", "", nrows)
-    nrows <- strsplit(nrows, " ")[[1]][1] |> as.integer()
-    if (header) nrows <- nrows - 1
-  }
-
-  nparts <- ceiling(nrows / part_nrows)
-  if (verbosity > 0L) {
-    msg("Reading part 1...")
-    i <- 1
-  }
-  dat <- fread(
-    x,
-    nrows = part_nrows,
-    header = header,
-    sep = sep,
-    stringsAsFactors = stringsAsFactors,
-    ...
-  )
-  if (nparts == 1) {
-    return(dat)
-  }
-  ndone <- part_nrows
-  if (verbosity > 0L) {
-    msg("Total read =", highlightbig(ndone))
-  }
-  col_classes <- sapply(dat, \(i) class(i)[1])
-  .col.names <- names(col_classes)
-  .colClasses <- unname(col_classes)
-  for (i in seq_len(nparts)[-1]) {
-    if (verbosity > 0L) {
-      msg0("Reading part ", i, "...")
-      i <- i + 1
-    }
-
-    dat <- rbind(
-      dat,
-      fread(
-        x,
-        nrows = part_nrows,
-        skip = ndone + header,
-        header = FALSE,
-        sep = sep,
-        col.names = .col.names,
-        colClasses = .colClasses,
-        ...
-      )
-    )
-    ndone <- nrow(dat)
-    if (verbosity > 0L) msg("Total read =", highlightbig(ndone))
-  }
-
-  invisible(dat)
-} # /rtemis::pfread1

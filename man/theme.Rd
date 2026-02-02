@@ -682,3 +682,7 @@ title.}
 \description{
 Themes for \verb{draw_*} functions
 }
+\examples{
+theme <- theme_black(font_family = "Geist")
+theme
+}

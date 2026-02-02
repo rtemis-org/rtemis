@@ -36,7 +36,7 @@ draw_graphjs(
 )
 }
 \arguments{
-\item{net}{\code{igraph} network.}
+\item{net}{\pkg{igraph} network.}
 
 \item{vertex_size}{Numeric: Vertex size.}
 
@@ -78,7 +78,7 @@ draw_graphjs(
 
 \item{main}{Character: Main title.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Color vector or name of rtemis palette.}
 
@@ -97,6 +97,13 @@ draw_graphjs(
 }
 \description{
 Interactive plotting of an \pkg{igraph} net using \pkg{threejs}.
+}
+\examples{
+\dontrun{
+library(igraph)
+g <- make_ring(10)
+draw_graphjs(g)
+}
 }
 \author{
 EDG

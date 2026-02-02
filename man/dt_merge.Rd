@@ -52,6 +52,12 @@ Merged data.table.
 \description{
 Merge data.tables
 }
+\examples{
+library(data.table)
+xleft <- data.table(ID = 1:5, Alpha = letters[1:5])
+xright <- data.table(ID = c(3, 4, 5, 6), Beta = LETTERS[3:6])
+xlr_inner <- dt_merge(xleft, xright, on = "ID", how = "inner")
+}
 \author{
 EDG
 }

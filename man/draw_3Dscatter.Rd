@@ -99,7 +99,7 @@ draw_3Dscatter(
 
 \item{plot_bg}{Plot background color.}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Character: Color palette.}
 
@@ -145,7 +145,7 @@ draw_3Dscatter(
 
 \item{margin}{Numeric, named list: Margins for top, bottom, left, right.}
 
-\item{fit_params}{Hyperparameters for fit.}
+\item{fit_params}{\code{Hyperparameters} for fit.}
 
 \item{width}{Numeric: Width of plot.}
 
@@ -174,6 +174,8 @@ A \code{plotly} object.
 Draw interactive 3D scatter plots using \code{plotly}.
 }
 \details{
+See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
+
 Note that \code{draw_3Dscatter} uses the theme's \code{plot_bg} as \code{grid_col}.
 }
 \examples{

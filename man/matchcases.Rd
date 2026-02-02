@@ -19,26 +19,25 @@ matchcases(
 )
 }
 \arguments{
-\item{target}{data.frame you are matching against}
+\item{target}{data.frame you are matching against.}
 
-\item{pool}{data.frame you are looking for matches from}
+\item{pool}{data.frame you are looking for matches from.}
 
-\item{n_matches}{Integer: Number of matches to return}
+\item{n_matches}{Integer: Number of matches to return.}
 
 \item{target_id}{Character: Column name in \code{target} that holds unique
-cases IDs. Default = NULL, in which case integer case numbers will be used}
+cases IDs. Default = NULL, in which case integer case numbers will be used.}
 
-\item{pool_id}{Character: Same as \code{target_id} for \code{pool}}
+\item{pool_id}{Character: Same as \code{target_id} for \code{pool}.}
 
 \item{exactmatch_factors}{Logical: If TRUE, selected cases will have to
-exactly match factors
-available in \code{target}}
+exactly match factors available in \code{target}.}
 
 \item{exactmatch_cols}{Character: Names of columns that should be matched
-exactly}
+exactly.}
 
 \item{distmatch_cols}{Character: Names of columns that should be
-distance-matched}
+distance-matched.}
 
 \item{norepeats}{Logical: If TRUE, cases in \code{pool} can only be chosen
 once.}

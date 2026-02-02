@@ -100,7 +100,7 @@ draw_heatmap(
 
 \item{plot_method}{Character: Plot method to use. Default = "plotly".}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{row_side_colors}{Data frame: Column names will be label names, cells should be label colors. See \code{heatmaply::heatmaply("row_side_colors")}.}
 
@@ -133,6 +133,9 @@ draw_heatmap(
 }
 \description{
 Draw interactive heatmaps using \code{heatmaply}.
+}
+\details{
+See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
 }
 \examples{
 \dontrun{

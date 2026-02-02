@@ -7,13 +7,13 @@
 dt_names_by_attr(x, attribute, exact = TRUE, sorted = TRUE)
 }
 \arguments{
-\item{x}{data.table}
+\item{x}{data.table: Input data.table.}
 
-\item{attribute}{Character: name of attribute}
+\item{attribute}{Character: name of attribute.}
 
-\item{exact}{Logical: If TRUE, use exact matching}
+\item{exact}{Logical: If TRUE, use exact matching.}
 
-\item{sorted}{Logical: If TRUE, sort the output}
+\item{sorted}{Logical: If TRUE, sort the output.}
 }
 \value{
 Character vector.

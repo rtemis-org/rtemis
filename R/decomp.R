@@ -6,15 +6,23 @@
 #'
 #' Perform linear or non-linear decomposition of numeric data.
 #'
+#' @details
+#' See [rdocs.rtemis.org/decomp](https://rdocs.rtemis.org/decomp) for detailed documentation.
+#'
 #' @param x Matrix or data frame: Input data.
 #' @param algorithm Character: Decomposition algorithm.
 #' @param config DecompositionConfig: Algorithm-specific config.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return Decomposition object.
+#' @return `Decomposition` object.
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")
+#' }
 decomp <- function(x, algorithm = "ICA", config = NULL, verbosity = 1L) {
   # Checks ----
   if (is.null(config)) {

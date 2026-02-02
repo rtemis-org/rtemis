@@ -8,6 +8,9 @@
 #'
 #' Draw Distributions using Histograms and Density Plots using `plotly`.
 #'
+#' @details
+#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#'
 #' If input is data.frame, non-numeric variables will be removed.
 #'
 #' @param x Numeric vector / data.frame / list: Input. If not a vector, each column / each element is drawn.
@@ -20,7 +23,7 @@
 #' @param col Color: Colors for the plot.
 #' @param alpha Numeric: Alpha transparency for plot elements.
 #' @param plot_bg Color: Background color for plot area.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Character: Color palette to use.
 #' @param axes_square Logical: If TRUE, draw a square plot to fill the graphic device. Default = FALSE.
 #' @param group_names Character: Names for the groups.
@@ -53,7 +56,7 @@
 #' @param histnorm Character: NULL, "percent", "probability", "density", "probability density".
 #' @param histfunc Character: "count", "sum", "avg", "min", "max".
 #' @param hist_n_bins Integer: Number of bins to use if type = "histogram".
-#' @param barmode Character: Barmode for histogram. Default = "overlay".
+#' @param barmode Character: Barmode for histogram. One of "overlay", "stack", "relative", "group".
 #' @param ridge_sharex Logical: If TRUE, draw single x-axis when `mode = "ridge"`.
 #' @param ridge_y_labs Logical: If TRUE, show individual y labels when `mode = "ridge"`.
 #' @param ridge_order_on_mean Logical: If TRUE, order groups by mean value when `mode = "ridge"`.
@@ -70,6 +73,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' # Will automatically use only numeric columns

@@ -97,7 +97,7 @@ whether spikelines are stuck to the cursor or to the closest datapoints.}
 
 \item{modeBar_file_format}{Character: modeBar image export file format}
 
-\item{theme}{Theme object.}
+\item{theme}{\code{Theme} object.}
 
 \item{palette}{Character: palette name, or list of colors}
 
@@ -134,7 +134,6 @@ x <- c(rnorm(100), rnorm(140, 1, 1.5))
 group <- c(rep("Alpha", 100), rep("Beta", 140))
 draw_ts(x, time, 7, group)
 }
-
 }
 \author{
 EDG

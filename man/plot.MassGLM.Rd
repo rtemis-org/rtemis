@@ -30,7 +30,7 @@ p-value adjustment method.}
 
 \item{ylab}{Character: y-axis label.}
 
-\item{theme}{Theme object}
+\item{theme}{\code{Theme} object}
 
 \item{verbosity}{Integer: Verbosity level.}
 

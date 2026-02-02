@@ -8,6 +8,8 @@
 #' using nested resampling
 #'
 #' @details
+#' See [rdocs.rtemis.org/train](https://rdocs.rtemis.org/train) for detailed documentation.
+#'
 #' Important: For binary classification, the outcome should be a factor where the 2nd level
 #' corresponds to the positive class.
 #'
@@ -22,7 +24,7 @@
 #' @param dat_test data.frame or similar: Test set data.
 #' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
 #' @param preprocessor_config PreprocessorConfig object or NULL: Setup using [setup_Preprocessor].
-#' @param hyperparameters Hyperparameters object: Setup using one of `setup_*` functions.
+#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param tuner_config TunerConfig object: Setup using [setup_GridSearch].
 #' @param outer_resampling_config ResamplerConfig object or NULL: Setup using [setup_Resampler]. This
 #' defines the outer resampling method, i.e. the splitting into training and test sets for the
@@ -53,6 +55,15 @@
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' iris_c_lightRF <- train(
+#'    iris,
+#'    algorithm = "LightRF",
+#'    outer_resampling_config = setup_Resampler(),
+#' )
+#' }
 train <- function(
   x,
   dat_validation = NULL,
@@ -173,7 +184,6 @@ train <- function(
   # Data ----
   if (type == "Classification") {
     classes <- levels(outcome(x))
-    n_classes <- length(classes)
   }
 
   ## Print data summary ----
@@ -480,7 +490,7 @@ train <- function(
 #' available parallelization level to avoid over-subscription.
 #'
 #' @param algorithm Character: Algorithm name.
-#' @param hyperparameters Hyperparameters object: Setup using one of `setup_*` functions.
+#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param outer_resampling_config ResamplerConfig object or NULL: Setup using [setup_Resampler].
 #' @param n_workers Integer: Total number of workers you want to use.
 #' @param verbosity Integer: Verbosity level.

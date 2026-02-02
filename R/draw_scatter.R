@@ -25,7 +25,7 @@
 #' @param ylab Character: y-axis label.
 #' @param col Color for markers.
 #' @param alpha Numeric: Alpha for markers.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Character: Color palette.
 #' @param axes_square Logical: If TRUE, draw a square plot.
 #' @param group_names Character: Names for groups.
@@ -86,7 +86,7 @@
 #' @param diagonal_col Color for diagonal line.
 #' @param diagonal_dash Character: "solid", "dash", "dot", "dashdot", "longdash", "longdashdot". Dash type for diagonal line.
 #' @param diagonal_alpha Numeric: Alpha for diagonal line.
-#' @param fit_params Hyperparameters for fit.
+#' @param fit_params `Hyperparameters` for fit.
 #' @param vline Numeric: X position for vertical line.
 #' @param vline_col Color for vertical line.
 #' @param vline_width Numeric: Width for vertical line.
@@ -111,6 +111,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' draw_scatter(iris$Sepal.Length, iris$Petal.Length,
@@ -253,9 +254,6 @@ draw_scatter <- function(
   .mode <- mode
   .names <- group_names
 
-  # fit & formula
-  # if (!is.null(formula)) fit <- "NLS"
-
   if (se_fit) {
     if (!fit %in% c("GLM", "LM", "LOESS", "GAM", "NW")) {
       warning(paste(
@@ -378,10 +376,6 @@ draw_scatter <- function(
     }
   }
 
-  if (!is.null(fit) && fit == "LOESS") {
-    id <- !is.na(x)
-  }
-
   # Colors ----
   if (is.character(palette)) {
     palette <- rtpalette(palette)
@@ -445,9 +439,6 @@ draw_scatter <- function(
   }
 
   # Size ----
-  # if (axes_square) {
-  # width <- height <- min(dev.size("px"))
-  # }
   # fitted & se_fit ----
   # If plotting se bands, need to include (fitted +/- se_times * se) in the axis limits
   if (se_fit) {
@@ -455,14 +446,7 @@ draw_scatter <- function(
   } else {
     se <- NULL
   }
-  if (rsq) {
-    .rsq <- list()
-  } else {
-    .rsq <- NULL
-  }
-  # if (rsq_pval) rsqp <- list() else rsqp <- NULL
   if (!is.null(fit)) {
-    # algorithm <- get_alg_name(fit)
     fitted <- list()
     fitted_text <- character()
     for (i in seq_len(n_groups)) {
@@ -536,11 +520,6 @@ draw_scatter <- function(
         )))
         ylim <- range(ylim_lo, ylim_hi, y)
       }
-      # if (is.list(error_y)) {
-      #   error_y_hi <- lapply(seq(y), function(i) yl[[i]] + error_y[[i]])
-      #   error_y_lo <- lapply(seq(y), function(i) yl[[i]] - error_y[[i]])
-      #   ylim <- range(error_y_lo, error_y_hi, ylim)
-      # }
     }
 
     xlim <- ylim <- range(xlim, ylim)
@@ -782,7 +761,6 @@ draw_scatter <- function(
       spikemode = spikemode,
       spikesnap = spikesnap,
       spikethickness = spikethickness,
-      # mirror = axes_mirrored,
       titlefont = f,
       showgrid = theme[["grid"]],
       gridcolor = grid_col,

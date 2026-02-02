@@ -6,6 +6,9 @@
 #'
 #' Draw interactive boxplots or violin plots using \pkg{plotly}
 #'
+#' @details
+#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#'
 #' For multiple box plots, the recommendation is:
 #' - `x=dat[, columnindex]` for multiple variables of a data.frame
 #' - `x=list(a=..., b=..., etc.)` for multiple variables of potentially
@@ -37,7 +40,7 @@
 #' @param alpha Float (0, 1]: Transparency for box colors.
 #' @param bg Color: Background color.
 #' @param plot_bg Color: Background color for plot area.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param palette Character: Name of \pkg{rtemis} palette to use. Only used if `col = NULL`.
 #' @param quartilemethod Character: "linear", "exclusive", "inclusive"
 #' @param xlim Numeric vector: x-axis limits
@@ -121,6 +124,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' # A.1 Box plot of 4 variables
@@ -328,7 +332,6 @@ draw_box <- function(
   tick_col <- plotly::toRGB(theme[["tick_col"]])
   labs_col <- plotly::toRGB(theme[["labs_col"]])
   main_col <- plotly::toRGB(theme[["main_col"]])
-  # axes_col <- plotly::toRGB(theme[["axes_col"]])
 
   # Derived
   if (is.null(legend_col)) {
@@ -1201,5 +1204,3 @@ draw_box <- function(
 
   plt
 } # /rtemis::draw_box.R
-
-# todo: htest.compare = n

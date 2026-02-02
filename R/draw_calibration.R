@@ -21,7 +21,7 @@
 #' @param marginal_size Numeric: Size of marginal plot
 #' @param mode Character: "lines", "markers", "lines+markers": How to plot.
 #' @param show_brier Logical: If TRUE, add Brier scores to trace names.
-#' @param theme Theme object.
+#' @param theme `Theme` object.
 #' @param filename Character: Path to save output.
 #' @param ... Additional arguments passed to [draw_scatter]
 #'
@@ -29,6 +29,7 @@
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' data(segment_logistic, package = "probably")

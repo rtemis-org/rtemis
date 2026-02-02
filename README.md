@@ -2,6 +2,8 @@
 
 # rtemis: Advanced Machine Learning &amp; Visualization.
 
+![rtemis v1.0.0 console ascii](https://www.rtemis.org/rtemis_1.0.0.jpg)
+
 This is the new version of the rtemis R package and remains under active development.
 
 The new version (0.99+) features:
@@ -41,17 +43,17 @@ pak::pkg_install("rtemis")
 ### Algorithms
 
 The original version included a long list of algorithms for supervised and unsupervised learning for testing and experimentation, many of which were rarely used.
-The initial release of the new version focuses on a smaller set of algorithms, that will keep growing.
+The initial release of the new version focuses on a smaller set of core algorithms, that will keep growing.
 
 ### Visualization
 
 The original version included the `mplot3` family of visualization functions using base R graphics and the `dplot3` family using `plotly`.
 The new release includes the `draw` family of functions, the evolution of the `dplot3` family.
-Ongoing planning is looking at organizing the long list of arguments in `draw` functions potentially using dedicated `setup_*()` functions and plot-specific `theme_*()` functions.
 
 ## Documentation
 
-The documentation is available at [rdocs.rtemis.org](https://rdocs.rtemis.org).
+The documentation is available at [rdocs.rtemis.org](https://rdocs.rtemis.org), which includes
+walkthroughs of main features and full API reference.
 
 [![rtemis cover](https://rdocs.rtemis.org/assets/rtemis-mlv-cover.webp)](https://rdocs.rtemis.org)
 
