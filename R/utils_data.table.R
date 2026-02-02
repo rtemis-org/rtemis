@@ -488,12 +488,25 @@ dt_inspect_types <- function(x, cols = NULL, verbosity = 1L) {
 #' # ***in-place*** operation means no assignment is needed
 #' dt_set_autotypes(x)
 #' str(x)
+#'
+#' # Try excluding column 'a' from autotyping
+#' x <- data.table(
+#'   id = 8001:8006,
+#'   a = c("3", "5", "undefined", "21", "4", NA),
+#'   b = c("mango", "banana", "tangerine", NA, "apple", "kiwi"),
+#'   c = c(1, 2, 3, 4, 5, 6)
+#' )
+#' str(x)
+#' # exclude column 'a' from autotyping
+#' dt_set_autotypes(x, cols = setdiff(names(x), "a"))
+#' str(x)
 dt_set_autotypes <- function(x, cols = NULL, verbosity = 1L) {
   if (is.null(cols)) {
     cols <- names(x)
   }
-  character_idx <- which(sapply(x, is.character))
-  for (i in character_idx) {
+  character_idx <- sapply(x[, .SD, .SDcols = cols], is.character)
+  char_cols <- names(character_idx)[character_idx]
+  for (i in char_cols) {
     if (inspect_type(x[[i]], i, verbosity = 0L) == "numeric") {
       if (verbosity > 0L) {
         msg("Converting", highlight(i), "to", bold("numeric"))
