@@ -88,6 +88,22 @@ replacement if you will also be using an inner resampling (for tuning).
 The duplicated cases from the outer resampling may appear both in the
 training and test sets of the inner resamples, leading to underestimated
 test error.
+
+Important note on parallelization:
+There are three levels of parallelization that may be used during training:
+\enumerate{
+\item Algorithm training (e.g. a parallelized learner like LightGBM)
+\item Tuning (inner resampling, where multiple resamples can be processed in parallel)
+\item Outer resampling (where multiple outer resamples can be processed in parallel)
+}
+
+The \code{train()} function and its sub-functions will automatically manage parallelization depending
+on:
+\itemize{
+\item The number of workers specifies by the user using \code{n_workers}
+\item Whether the training algorithm supports parallelization itself
+\item Whether hyperparameter tuning is needed
+}
 }
 \examples{
 \dontrun{

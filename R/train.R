@@ -19,6 +19,19 @@
 #' training and test sets of the inner resamples, leading to underestimated
 #' test error.
 #'
+#' Important note on parallelization:
+#' There are three levels of parallelization that may be used during training:
+#'
+#' 1. Algorithm training (e.g. a parallelized learner like LightGBM)
+#' 2. Tuning (inner resampling, where multiple resamples can be processed in parallel)
+#' 3. Outer resampling (where multiple outer resamples can be processed in parallel)
+#'
+#' The `train()` function and its sub-functions will automatically manage parallelization depending
+#' on:
+#' - The number of workers specifies by the user using `n_workers`
+#' - Whether the training algorithm supports parallelization itself
+#' - Whether hyperparameter tuning is needed
+#'
 #' @param x data.frame or similar: Training set data.
 #' @param dat_validation data.frame or similar: Validation set data.
 #' @param dat_test data.frame or similar: Test set data.
