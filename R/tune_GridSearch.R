@@ -278,9 +278,6 @@ tune_GridSearch <- function(
     )
   } else if (parallel_type == "future") {
     # Future parallelization
-    # If n_workers was 1L, it would have been caught above and parallel_type set to "none"
-    # Therefore, n_workers here is >= 2L
-
     # If future_plan is NULL, determine plan based on current plan
     # if (is.null(future_plan)) {
     #   # Check if the user has specified a future plan
