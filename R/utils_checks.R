@@ -597,7 +597,7 @@ get_n_workers_for_learner <- function(
     }
     return(1L)
   }
-  available_workers <- future::availableCores()
+  available_workers <- parallelly::availableCores()
   if (!is.null(n_workers) && n_workers <= available_workers) {
     return(n_workers)
   } else {
@@ -607,7 +607,7 @@ get_n_workers_for_learner <- function(
       msg(highlight2("Requested n_workers is greater than available cores."))
     }
   }
-  max(future::availableCores() - 1L, 1L)
+  parallelly::availableCores(omit = 1L)
 } # /rtemis::get_n_workers_for_learner
 
 

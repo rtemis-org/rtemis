@@ -19,7 +19,8 @@
 #' @param weights Vector: Class weights.
 #' @param save_mods Logical: Save models in tuning results.
 #' @param n_workers Integer: Number of workers to use for parallel processing.
-#' @param parallel_type Character: Type of parallelization to use. Options are "none", "future", or "mirai".
+#' @param parallel_type Character: Type of parallelization to use. Options are "none", "future",
+#' or "mirai".
 #' @param future_plan Character: Future plan to use if `parallel_type` is "future".
 #' @param verbosity Integer: Verbosity level.
 #'
@@ -251,12 +252,15 @@ tune_GridSearch <- function(
   } else if (parallel_type == "future") {
     # Future parallelization
     if (n_workers == 1L) {
-      future::plan(strategy = "sequential")
+      with(future::plan(strategy = "sequential"), local = TRUE)
       if (verbosity > 0L) {
         msg("Tuning in sequence")
       }
     } else {
-      future::plan(strategy = future_plan, workers = n_workers)
+      with(
+        future::plan(strategy = future_plan, workers = n_workers),
+        local = TRUE
+      )
       if (verbosity > 0L) {
         msg0(
           "Tuning using future (",

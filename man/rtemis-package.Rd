@@ -22,7 +22,7 @@ so you do not have to define each time you execute a function.
 \item{rt.palette}{Name of default palette to use in plots. See options by running \code{rtpalette()}}
 \item{rt.font}{Font family to use in plots.}
 \item{rt.cores}{Number of cores to use. By default, rtemis will use available cores reported by
-future::availableCores(). In shared systems, you should limit this as appropriate.}
+parallelly::availableCores(). In shared systems, you should limit this as appropriate.}
 \item{future.plan}{Default plan to use for parallel processing.}
 }
 }

@@ -34,6 +34,18 @@ str(x)
 # ***in-place*** operation means no assignment is needed
 dt_set_autotypes(x)
 str(x)
+
+# Try excluding column 'a' from autotyping
+x <- data.table(
+  id = 8001:8006,
+  a = c("3", "5", "undefined", "21", "4", NA),
+  b = c("mango", "banana", "tangerine", NA, "apple", "kiwi"),
+  c = c(1, 2, 3, 4, 5, 6)
+)
+str(x)
+# exclude column 'a' from autotyping
+dt_set_autotypes(x, cols = setdiff(names(x), "a"))
+str(x)
 }
 \author{
 EDG
