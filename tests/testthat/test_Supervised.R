@@ -160,16 +160,43 @@ test_that("predict() GLMNET Regression succeeds", {
 })
 
 ## GLMNET Regression + auto-lambda grid search using future ----
+# set plan to multisession with 2 workers
+future::plan("multisession", workers = 2L)
+
+# ask train to use multicore with 4 workers
 modt_r_glmnet <- train(
   x = datr_train,
   dat_test = datr_test,
   algorithm = "glmnet",
   hyperparameters = setup_GLMNET(alpha = 1),
   parallel_type = "future",
-  n_workers = 1L
+  n_workers = 1L,
+  future_plan = "sequential"
 )
+
+# Make sure plan is automatically reset to multisession with 2 workers
+test_that("future plan was successfully reset after train()", {
+  expect_equal(future_get_plan_n_workers()[["tweaks_workers"]], 2L)
+  expect_identical(identify_plan(), "multisession")
+})
+
 test_that("train() GLMNET Regression with auto-lambda grid search using future succeeds", {
   expect_s7_class(modt_r_glmnet, Regression)
+})
+
+# The following should fail
+test_that("sequential with >1 worker throws error", {
+  expect_error(
+    modt_r_glmnet <- train(
+      x = datr_train,
+      dat_test = datr_test,
+      algorithm = "glmnet",
+      hyperparameters = setup_GLMNET(alpha = 1),
+      parallel_type = "future",
+      n_workers = 4L,
+      future_plan = "sequential"
+    )
+  )
 })
 
 ## GLMNET Regression + auto-lambda grid search using mirai ----
