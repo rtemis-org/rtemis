@@ -1,12 +1,19 @@
 Package: rtemis
 Version: 1.0.0
 Title: Advanced Machine Learning and Visualization
-Date: 2026-01-31
-Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre"), 
+Date: 2026-02-01
+Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
     email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
-Description: Advanced machine learning, including supervised learning, unsupervised learning 
-    (decomposition, clustering), and interactive visualization. Using S7 classes and methods internally throughout and a highly efficient and intuitive functional user-facing API.
-License: GPL (>= 3) + file LICENSE
+Description: A comprehensive machine learning and visualization package with an 
+    'S7' backend featuring rigorous type checking and value validation, paired with an 
+    efficient, user-friendly functional API. A single call to 'train()' can handle preprocessing, 
+    training, hyperparameter tuning, and testing - streamlining workflows with unparalleled 
+    efficiency. Supports supervised learning with automatic nested resampling, probability 
+    calibration, unsupervised learning (clustering, decomposition). The user maintaines
+    complete control over all configuration options and hyperparameters through 
+    transparent, type-checked and validated 'setup_*()' functions. Support data.frame, data.tables,
+    and tibbles, parallel execution, and modern interactive visualizations via 'plotly'.
+License: GPL (>= 3)
 URL: https://www.rtemis.org, https://rdocs.rtemis.org
 BugReports: https://github.com/rtemis-org/rtemis/issues
 ByteCompile: yes
