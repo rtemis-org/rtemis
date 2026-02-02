@@ -9,10 +9,10 @@ Description: A comprehensive machine learning and visualization package with an
     efficient, user-friendly functional API. A single call to 'train()' can handle preprocessing, 
     training, hyperparameter tuning, and testing - streamlining workflows with unparalleled 
     efficiency. Supports supervised learning with automatic nested resampling, probability 
-    calibration, unsupervised learning (clustering, decomposition). The user maintaines
+    calibration, unsupervised learning (clustering, decomposition). The user maintains
     complete control over all configuration options and hyperparameters through 
-    transparent, type-checked and validated 'setup_*()' functions. Support data.frame, data.tables,
-    and tibbles, parallel execution, and modern interactive visualizations via 'plotly'.
+    transparent, type-checked and validated 'setup_*()' functions. Supports data.frames, 
+    data.tables, and tibbles, parallel execution, and interactive visualizations.
 License: GPL (>= 3)
 URL: https://www.rtemis.org, https://rdocs.rtemis.org
 BugReports: https://github.com/rtemis-org/rtemis/issues
