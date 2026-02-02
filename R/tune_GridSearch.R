@@ -53,6 +53,13 @@ tune_GridSearch <- function(
   # Dependencies ----
   if (parallel_type == "future") {
     check_dependencies("future.apply")
+    if (!is.null(future_plan) && future_plan == "sequential") {
+      if (n_workers > 1L) {
+        cli::cli_abort(
+          "Requested 'sequential' future plan but {.val {n_workers}} workers."
+        )
+      }
+    }
   } else if (parallel_type == "mirai") {
     check_dependencies("mirai")
   }
@@ -301,6 +308,11 @@ tune_GridSearch <- function(
         "); N workers: ",
         bold(n_workers)
       )
+    }
+    if (verbosity > 1L) {
+      # verify plan set by set_preferred_plan with parent.frame(2)
+      msg("Current future plan:")
+      print(future::plan())
     }
     grid_run <- future.apply::future_lapply(
       X = seq_len(n_res_x_comb),
