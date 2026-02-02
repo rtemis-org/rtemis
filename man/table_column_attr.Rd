@@ -20,6 +20,7 @@ table.
 Tabulate column attributes
 }
 \examples{
+library(data.table)
 x <- data.table(
   id = 1:5,
   sbp = rnorm(5, 120, 15),
@@ -31,7 +32,7 @@ setattr(x[["sbp"]], "source", "outpatient")
 setattr(x[["dbp"]], "source", "outpatient")
 setattr(x[["paO2"]], "source", "icu")
 setattr(x[["paCO2"]], "source", "icu")
-dt_get_column_attr(x, "source")
+table_column_attr(x, "source")
 }
 \author{
 EDG

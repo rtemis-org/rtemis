@@ -7,11 +7,11 @@
 index_col_by_attr(x, name, value)
 }
 \arguments{
-\item{x}{data.frame or compatible}
+\item{x}{data.frame or similar.}
 
-\item{name}{Character: Name of attribute}
+\item{name}{Character: Name of attribute.}
 
-\item{value}{Character: Value of attribute}
+\item{value}{Character: Value of attribute.}
 }
 \value{
 Integer vector.
@@ -20,6 +20,7 @@ Integer vector.
 Index columns by attribute name & value
 }
 \examples{
+library(data.table)
 x <- data.table(
   id = 1:5,
   sbp = rnorm(5, 120, 15),
@@ -31,7 +32,7 @@ setattr(x[["sbp"]], "source", "outpatient")
 setattr(x[["dbp"]], "source", "outpatient")
 setattr(x[["paO2"]], "source", "icu")
 setattr(x[["paCO2"]], "source", "icu")
-dt_index_attr(x, "source", "icu")
+index_col_by_attr(x, "source", "icu")
 }
 \author{
 EDG

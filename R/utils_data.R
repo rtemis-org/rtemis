@@ -10,7 +10,7 @@
 #' @usage
 #' get_factor_levels(x)
 #'
-#' @param x data.frame or data.table.
+#' @param x data.frame or similar.
 #'
 #' @return Named list of factor levels. Names correspond to column names.
 #'
@@ -256,9 +256,9 @@ matchcases <- function(
 
 #' Index columns by attribute name & value
 #'
-#' @param x data.frame or compatible
-#' @param name Character: Name of attribute
-#' @param value Character: Value of attribute
+#' @param x data.frame or similar.
+#' @param name Character: Name of attribute.
+#' @param value Character: Value of attribute.
 #'
 #' @return Integer vector.
 #'
@@ -266,6 +266,7 @@ matchcases <- function(
 #' @export
 #'
 #' @examples
+#' library(data.table)
 #' x <- data.table(
 #'   id = 1:5,
 #'   sbp = rnorm(5, 120, 15),
@@ -277,7 +278,7 @@ matchcases <- function(
 #' setattr(x[["dbp"]], "source", "outpatient")
 #' setattr(x[["paO2"]], "source", "icu")
 #' setattr(x[["paCO2"]], "source", "icu")
-#' dt_index_attr(x, "source", "icu")
+#' index_col_by_attr(x, "source", "icu")
 index_col_by_attr <- function(x, name, value) {
   colattr <- unlist(sapply(x, \(i) attr(i, name)))
   which(colattr == value)
@@ -296,6 +297,7 @@ index_col_by_attr <- function(x, name, value) {
 #' @export
 #'
 #' @examples
+#' library(data.table)
 #' x <- data.table(
 #'   id = 1:5,
 #'   sbp = rnorm(5, 120, 15),
@@ -307,7 +309,7 @@ index_col_by_attr <- function(x, name, value) {
 #' setattr(x[["dbp"]], "source", "outpatient")
 #' setattr(x[["paO2"]], "source", "icu")
 #' setattr(x[["paCO2"]], "source", "icu")
-#' dt_get_column_attr(x, "source")
+#' table_column_attr(x, "source")
 table_column_attr <- function(x, attr = "source", useNA = "always") {
   attrs <- sapply(x, \(i) {
     if (is.null(attr(i, attr, exact = TRUE))) {
@@ -322,7 +324,7 @@ table_column_attr <- function(x, attr = "source", useNA = "always") {
 
 #' List column names by class
 #'
-#' @param x data.table
+#' @param x data.frame or similar.
 #' @param sorted Logical: If TRUE, sort the output
 #' @param item_format Function: Function to format each item
 #' @param maxlength Integer: Maximum number of items to print
