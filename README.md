@@ -2,6 +2,8 @@
 
 # rtemis: Advanced Machine Learning &amp; Visualization.
 
+![rtemis v1.0.0 console ascii](https://www.rtemis.org/rtemis_1.0.0.jpg)
+
 This is the new version of the rtemis R package and remains under active development.
 
 The new version (0.99+) features:
