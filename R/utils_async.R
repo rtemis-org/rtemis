@@ -2,6 +2,17 @@
 # ::rtemis::
 # 2026 EDG rtemis.org
 
+# Define allowed future plans
+ALLOWED_PLANS <- c(
+  "sequential",
+  "multicore",
+  "multisession",
+  "cluster",
+  "remote",
+  "transparent",
+  "mirai"
+)
+
 #' Check if system is Windows
 #'
 #' @return Logical: TRUE if Windows, FALSE otherwise
@@ -20,15 +31,14 @@ identify_plan <- function(x = NULL) {
   if (is.null(x)) {
     x <- future::plan()
   }
-  if (inherits(x, "sequential")) {
-    "sequential"
-  } else if (inherits(x, "multicore")) {
-    "multicore"
-  } else if (inherits(x, "multisession")) {
-    "multisession"
-  } else {
-    "other"
+  for (p in ALLOWED_PLANS) {
+    if (inherits(x, p)) {
+      return(p)
+    }
   }
+  cli::cli_abort(
+    "Detected future plan not in allowed plans ({.val {ALLOWED_PLANS}}). Detected plan class: {.val {class(x)}}"
+  )
 } # /rtemis::identify_plan
 
 
@@ -55,6 +65,12 @@ set_preferred_plan <- function(
 ) {
   # If user has requested a specific plan, try to set it
   if (!is.null(requested_plan)) {
+    # Security check
+    if (!requested_plan %in% ALLOWED_PLANS) {
+      cli::cli_abort(
+        "Requested plan {.val {requested_plan}} is not one of allowed plans: {.val {ALLOWED_PLANS}}"
+      )
+    }
     # future::plan will determine workers if NULL & will set to sequential if only 1 core available
     # therefore plan set by following call is not always the requested one and needs to be
     # determined.
