@@ -169,7 +169,7 @@ tune_GridSearch <- function(
     n_res_x_comb
   ) {
     if (verbosity > 1L) {
-      msg(
+      msg_info(
         "Running grid line #",
         fmt(index, col = col_tuner, bold = TRUE),
         "/",
@@ -278,6 +278,7 @@ tune_GridSearch <- function(
     future_plan <- set_preferred_plan(
       requested_plan = future_plan,
       n_workers = n_workers,
+      envir = parent.frame(),
       verbosity = verbosity
     )
     if (verbosity > 0L) {
@@ -289,8 +290,8 @@ tune_GridSearch <- function(
       )
     }
     if (verbosity > 1L) {
-      # verify plan set by set_preferred_plan with parent.frame(2)
-      msg("Current future plan:")
+      # verify plan set by set_preferred_plan with envir
+      msg_info("Current future plan:")
       print(future::plan())
     }
     grid_run <- lapply(

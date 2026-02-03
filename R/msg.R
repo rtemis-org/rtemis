@@ -2,10 +2,26 @@
 # ::rtemis::
 # 2016- EDG rtemis.org
 
-# used by msgdatetime, log_to_file
+#' Get current date and time
+#'
+#' @details
+#' used by msgdatetime, log_to_file
+#'
+#' @param datetime_format Character: Format for the date and time.
+#'
+#' @return Character: Formatted date and time.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+#' @examples
+#' \dontrun{
+#' datetime()
+#' }
 datetime <- function(datetime_format = "%Y-%m-%d %H:%M:%S") {
   format(Sys.time(), datetime_format)
 }
+
 
 #' Message datetime()
 #'
@@ -14,7 +30,6 @@ datetime <- function(datetime_format = "%Y-%m-%d %H:%M:%S") {
 #' @return Character: Formatted date and time.
 #'
 #' @author EDG
-#'
 #' @keywords internal
 #' @noRd
 # Used by msg(), msg0(), msgstart()
@@ -23,23 +38,29 @@ msgdatetime <- function(datetime_format = "%Y-%m-%d %H:%M:%S") {
 }
 
 
+#' Info msg
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 msg_info <- function(..., format_fn = highlight2) {
   msg0(..., format_fn = format_fn, caller_id = 2)
 }
 
-suggest <- function(...) {
-  message <- paste(...)
-  cat(highlight2(paste0("Suggestion: ", message, "\n")))
-}
 
+#' Format caller
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 format_caller <- function(call_stack, call_depth, caller_id, max_char = 30L) {
-  stack.length <- length(call_stack)
-  if (stack.length < 2) {
+  stack_length <- length(call_stack)
+  if (stack_length < 2) {
     caller <- NA
   } else {
     call_depth <- call_depth + caller_id
-    if (call_depth > stack.length) {
-      call_depth <- stack.length
+    if (call_depth > stack_length) {
+      call_depth <- stack_length
     }
     caller <- paste(
       lapply(
@@ -103,9 +124,9 @@ format_caller <- function(call_stack, call_depth, caller_id, max_char = 30L) {
 #' @param format_fn Function: Formatting function to use on the message text.
 #' @param sep Character: Use to separate objects in `...`
 #'
-#' @return Invisibly: List with call, message, and date
-#' @author EDG
+#' @return List with call, message, and date, invisibly.
 #'
+#' @author EDG
 #' @export
 #' @keywords internal
 msg <- function(
@@ -141,6 +162,7 @@ msg <- function(
     message("")
   }
 } # /rtemis::msg
+
 
 #' @rdname msg
 #'
@@ -178,26 +200,18 @@ msg0 <- function(
 } # /rtemis::msg0
 
 
-#' Pad-cat
+#' Pad string
 #'
+#' @param x Character: String to pad.
+#' @param target Integer: Target length.
+#' @param char Character: Padding character.
+#'
+#' @return Character: Padded string.
+#'
+#' @author EDG
 #' @keywords internal
 #' @noRd
-#' @examples
-#' \dontrun{
-#' {
-#'   msg("Hello")
-#'   pcat("super", "wow")
-#'   pcat(NULL, "oooo")
-#' }
-#' }
-pcat <- function(left, right, pad = 17, newline = TRUE) {
-  lpad <- max(0, pad - 1 - max(0, nchar(left)))
-  cat(pad_string(left), right)
-  if (newline) cat("\n")
-}
-
-
-pad_string <- function(x, target = 17, char = " ") {
+pad_string <- function(x, target = 17L, char = " ") {
   lpad <- max(0, target - max(0, nchar(x)))
   paste0(
     paste(rep(char, lpad), collapse = ""),
@@ -210,6 +224,7 @@ pad_string <- function(x, target = 17, char = " ") {
 #'
 #' @inheritParams msg
 #'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 msgstart <- function(
@@ -230,6 +245,7 @@ msgstart <- function(
 #'
 #' @inheritParams msg
 #'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 msgdone <- function(caller = NULL, call_depth = 1, caller_id = 1, sep = " ") {

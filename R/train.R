@@ -173,7 +173,7 @@ train <- function(
       dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
     }
     if (verbosity > 1L) {
-      message("Output directory set to ", outdir, ".")
+      msg_info("Output directory set to ", outdir, ".")
     }
   }
 

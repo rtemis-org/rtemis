@@ -177,10 +177,13 @@ test_that(
       algorithm = "glmnet",
       hyperparameters = setup_GLMNET(alpha = 1),
       parallel_type = "future",
-      n_workers = 1L,
-      future_plan = "multicore"
+      n_workers = 4L,
+      future_plan = "multicore",
+      verbosity = 2L
     )
+    # Check that model trained correctly
     expect_s7_class(modt_r_glmnet, Regression)
+    # Check that future plan has been reset to multisession with 2 workers
     expect_equal(rtemis:::identify_plan(), "multisession")
     expect_equal(future::nbrOfWorkers(), 2L)
   }

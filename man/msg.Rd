@@ -48,7 +48,7 @@ msg0(
 \item{sep}{Character: Use to separate objects in \code{...}}
 }
 \value{
-Invisibly: List with call, message, and date
+List with call, message, and date, invisibly.
 }
 \description{
 Print message to output with a prefix including data and time, and calling function or full

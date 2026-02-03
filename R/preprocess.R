@@ -13,7 +13,7 @@
 #' preprocess(x, config, ...)
 #'
 #' @param x data.frame or similar: Data to be preprocessed.
-#' @param config PreprocessorConfig or Preprocessor: PreprocessorConfig when
+#' @param config `PreprocessorConfig` or `Preprocessor`: PreprocessorConfig when
 #' preprocessing training set data. Setup using [setup_Preprocessor].
 #' Preprocessor when preprocessing validation and test set data.
 #' @param ... Used to pass `dat_validation` and `dat_test` to the method for Preprocessor.
@@ -50,6 +50,33 @@
 #' @author EDG
 #' @rdname preprocess
 #' @export
+#'
+#' @examples
+#' # Setup a `Preprocessor`: this outputs a `PreprocessorConfig` object.
+#' prp <- setup_Preprocessor(remove_duplicates = TRUE, scale = TRUE, center = TRUE)
+#'
+#' # Includes a long list of parameters
+#' prp
+#'
+#' # Resample iris to get train and test data
+#' res <- resample(iris, setup_Resampler(seed = 2026))
+#' iris_train <- iris[res[[1]], ]
+#' iris_test <- iris[-res[[1]], ]
+#'
+#' # Preprocess training data
+#' iris_pre <- preprocess(iris_train, prp)
+#'
+#' # Access preprocessd training data with `preprocessed()`
+#' preprocessed(iris_pre)
+#'
+#' # Apply the same preprocessing to test data
+#' # In this case, the scale and center values from training data will be used.
+#' # Note how `preprocess()` accepts either a `PreprocessorConfig` or `Preprocessor` object for
+#' # this reason.
+#' iris_test_pre <- preprocess(iris_test, iris_pre)
+#'
+#' # Access preprocessed test data
+#' preprocessed(iris_test_pre)
 preprocess <- new_generic("preprocess", c("x", "config"))
 # preprocess(x, PreprocessorConfig, ...) ----
 method(preprocess, list(class_data.frame, PreprocessorConfig)) <- function(
@@ -808,6 +835,7 @@ one_hotcm <- function(
 # one_hot.data.frame ----
 #' @rdname one_hot
 #'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 #' @examples
@@ -856,9 +884,11 @@ method(one_hot, class_data.frame) <- function(
   as.data.frame(do.call(cbind, one.hot))
 } # /rtemis::one_hot.data.frame
 
+
 # one_hot.data.table ----
 #' @rdname one_hot
 #'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 #' @examples
@@ -1018,9 +1048,14 @@ binmat2vec <- function(x, labels = colnames(x)) {
   out <- dt[, list(fn(.SD)), by = seq_len(NROW(dt))][[2]]
   out[out == ""] <- NA
   out
-}
+} # /rtemis::`%BC%`
 
 
+#' Binary matrix to list vector
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 binmat2lvec <- function(x, labels = colnames(x), return.list = FALSE) {
   if (NCOL(x) == 1) {
     return(factor(x))

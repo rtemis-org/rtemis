@@ -674,7 +674,7 @@ draw_protein <- function(
   # Note: Do not show both PTMs and cleavage sites using the same padding
   if (!is.null(ptm)) {
     if (verbosity > 1L) {
-      msg("Adding PTM markers...")
+      msg_info("Adding PTM markers...")
     }
     if (is.null(ptm_col)) {
       ptm_col <- 1 + seq_along(ptm)
@@ -703,7 +703,7 @@ draw_protein <- function(
   # Note: Do not show both PTMs and cleavage sites using the same padding
   if (!is.null(cleavage_site)) {
     if (verbosity > 1L) {
-      msg("Adding cleavage site markers...")
+      msg_info("Adding cleavage site markers...")
     }
     if (is.null(clv_col)) {
       clv_col <- c(

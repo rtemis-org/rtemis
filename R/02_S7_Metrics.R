@@ -37,6 +37,7 @@ method(`[[`, Metrics) <- function(x, name) {
   x@metrics[[name]]
 }
 
+
 # RegressionMetrics ----
 #' @title RegressionMetrics
 #'

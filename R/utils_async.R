@@ -61,6 +61,7 @@ identify_plan <- function(x = NULL) {
 set_preferred_plan <- function(
   requested_plan = NULL,
   n_workers = NULL,
+  envir = parent.frame(),
   verbosity = 1L
 ) {
   # If user has requested a specific plan, try to set it
@@ -79,13 +80,13 @@ set_preferred_plan <- function(
       with(
         future::plan(strategy = requested_plan),
         local = TRUE,
-        envir = parent.frame(2)
+        envir = envir
       )
     } else {
       with(
         future::plan(strategy = requested_plan, workers = n_workers),
         local = TRUE,
-        envir = parent.frame(2)
+        envir = envir
       )
     }
 
@@ -109,7 +110,7 @@ set_preferred_plan <- function(
     with(
       future::plan(strategy = "sequential"),
       local = TRUE,
-      envir = parent.frame(2)
+      envir = envir
     )
     return("sequential")
   }
@@ -123,7 +124,7 @@ set_preferred_plan <- function(
   with(
     future::plan(strategy = preferred_plan, workers = n_workers),
     local = TRUE,
-    envir = parent.frame(2)
+    envir = envir
   )
   # This will still be sequential and not "preferred_plan" if n_workers = 1
   identify_plan()
