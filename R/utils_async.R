@@ -74,12 +74,21 @@ set_preferred_plan <- function(
     # future::plan will determine workers if NULL & will set to sequential if only 1 core available
     # therefore plan set by following call is not always the requested one and needs to be
     # determined.
-    with(
-      future::plan(strategy = requested_plan, workers = n_workers),
-      local = TRUE,
-      #envir must be of caller's caller's frame
-      envir = parent.frame(2)
-    )
+
+    if (requested_plan == "sequential") {
+      with(
+        future::plan(strategy = requested_plan),
+        local = TRUE,
+        envir = parent.frame(2)
+      )
+    } else {
+      with(
+        future::plan(strategy = requested_plan, workers = n_workers),
+        local = TRUE,
+        envir = parent.frame(2)
+      )
+    }
+
     return(identify_plan())
   }
 
@@ -119,19 +128,3 @@ set_preferred_plan <- function(
   # This will still be sequential and not "preferred_plan" if n_workers = 1
   identify_plan()
 } # /set_preferred_plan
-
-
-#' Get number of workers in current future plan
-#'
-#' @return List with two elements: tweaks_workers and backend_workers
-#'
-#' @author EDG
-#'@keywords internal
-#' @noRd
-future_get_plan_n_workers <- function() {
-  current_plan <- future::plan()
-  list(
-    tweaks_workers = attr(current_plan, "tweaks")[["workers"]],
-    backend_workers = attr(current_plan, "backend")[["workers"]]
-  )
-}

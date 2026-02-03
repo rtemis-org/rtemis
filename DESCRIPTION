@@ -47,6 +47,7 @@ Suggests:
     flexclust,
     future.apply,
     future.mirai,
+    futurize,
     geosphere,
     ggplot2,
     glmnet,
