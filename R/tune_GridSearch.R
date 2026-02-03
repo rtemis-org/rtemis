@@ -52,7 +52,7 @@ tune_GridSearch <- function(
 
   # Dependencies ----
   if (parallel_type == "future") {
-    check_dependencies("future.apply")
+    check_dependencies("futurize", "future.apply")
     if (!is.null(future_plan) && future_plan == "sequential") {
       if (n_workers > 1L) {
         cli::cli_abort(
@@ -275,21 +275,6 @@ tune_GridSearch <- function(
     )
   } else if (parallel_type == "future") {
     # Future parallelization
-    # If future_plan is NULL, determine plan based on current plan
-    # if (is.null(future_plan)) {
-    #   # Check if the user has specified a future plan
-    #   current_plan <- future::plan()
-    #   future_plan <- future_plan %||%
-    #     if (inherits(current_plan, "sequential")) {
-    #       "sequential"
-    #     } else {
-    #       "multicore"
-    #     }
-    # }
-    # with(
-    #   future::plan(strategy = future_plan, workers = n_workers),
-    #   local = TRUE
-    # )
     future_plan <- set_preferred_plan(
       requested_plan = future_plan,
       n_workers = n_workers,
@@ -308,7 +293,7 @@ tune_GridSearch <- function(
       msg("Current future plan:")
       print(future::plan())
     }
-    grid_run <- future.apply::future_lapply(
+    grid_run <- lapply(
       X = seq_len(n_res_x_comb),
       FUN = learner1,
       x = x,
@@ -318,10 +303,9 @@ tune_GridSearch <- function(
       weights = weights,
       verbosity = verbosity,
       save_mods = save_mods,
-      n_res_x_comb = n_res_x_comb,
-      future.seed = TRUE,
-      future.globals = FALSE # See: https://github.com/futureverse/globals/issues/93
-    )
+      n_res_x_comb = n_res_x_comb
+    ) |>
+      futurize::futurize(seed = TRUE, globals = FALSE)
   } else if (parallel_type == "mirai") {
     if (verbosity > 0L) {
       msg("Tuning using mirai; N workers:", bold(n_workers))
