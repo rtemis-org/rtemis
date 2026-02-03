@@ -1,7 +1,7 @@
 Package: rtemis
 Version: 1.0.0
 Title: Advanced Machine Learning and Visualization
-Date: 2026-02-01
+Date: 2026-02-02
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
     email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
 Description: A comprehensive machine learning and visualization package with an 
@@ -12,7 +12,9 @@ Description: A comprehensive machine learning and visualization package with an
     calibration, unsupervised learning (clustering, decomposition). The user maintains
     complete control over all configuration options and hyperparameters through 
     transparent, type-checked and validated 'setup_*()' functions. Supports data.frames, 
-    data.tables, and tibbles, parallel execution, and interactive visualizations.
+    data.tables, and tibbles, parallel execution, and interactive visualizations. The package 
+    first appeared in PhD thesis 
+    <https://repository.upenn.edu/entities/publication/d81892ea-3087-4b71-a6f5-739c58626d64>.
 License: GPL (>= 3)
 URL: https://www.rtemis.org, https://rdocs.rtemis.org
 BugReports: https://github.com/rtemis-org/rtemis/issues
@@ -90,6 +92,7 @@ Suggests:
     tabnet,
     threejs,
     testthat (>= 3.0.0),
+    tibble,
     timeDate,
     torch,
     uwot,
