@@ -316,45 +316,6 @@ oxfordcomma <- function(..., format_fn = identity) {
 } # /rtemis::oxfordcomma
 
 
-#' Padded cat
-#'
-#' @param x Character: Text to be output to console.
-#' @param format_fn Function: Any function to be applied to `x`.
-#' @param col Color: Any color fn.
-#' @param newline_pre Logical: If TRUE, start with a new line.
-#' @param newline Logical: If TRUE, end with a new (empty) line.
-#' @param pad Integer: Pad message with this many spaces on the left.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-padcat <- function(
-  x,
-  format_fn = I,
-  col = NULL,
-  newline_pre = FALSE,
-  newline = FALSE,
-  pad = 2L
-) {
-  x <- as.character(x)
-  if (!is.null(format_fn)) {
-    x <- format_fn(x)
-  }
-  if (newline_pre) {
-    cat("\n")
-  }
-  cat(strrep(" ", pad))
-  if (!is.null(col)) {
-    cat(col(x, TRUE))
-  } else {
-    cat(bold(x))
-  }
-  if (newline) {
-    cat("\n")
-  }
-} # /rtemis::padcat
-
-
 #' Paste with box
 #'
 #' @param x Character: Text to be output to console.
@@ -458,3 +419,84 @@ fn2label <- function(fn, varname) {
   # Replace "x" with variable name
   sub("\\(x\\)", paste0("(", varname, ")"), fn_body)
 } # /rtemis::fn2label
+
+
+#' Padded cat
+#'
+#' @param x Character: Text to be output to console.
+#' @param format_fn Function: Any function to be applied to `x`.
+#' @param col Color: Any color fn.
+#' @param newline_pre Logical: If TRUE, start with a new line.
+#' @param newline Logical: If TRUE, end with a new (empty) line.
+#' @param pad Integer: Pad message with this many spaces on the left.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+padcat <- function(
+  x,
+  format_fn = I,
+  col = NULL,
+  newline_pre = FALSE,
+  newline = FALSE,
+  pad = 2L
+) {
+  x <- as.character(x)
+  if (!is.null(format_fn)) {
+    x <- format_fn(x)
+  }
+  if (newline_pre) {
+    cat("\n")
+  }
+  cat(strrep(" ", pad))
+  if (!is.null(col)) {
+    cat(col(x, TRUE))
+  } else {
+    cat(bold(x))
+  }
+  if (newline) {
+    cat("\n")
+  }
+} # /rtemis::padcat
+
+
+#' Pad string to target length
+#'
+#' @param x Character: String to pad.
+#' @param target Integer: Target length.
+#' @param char Character: Padding character.
+#'
+#' @return Character: Padded string.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+pad_string <- function(x, target = 17L, char = " ") {
+  lpad <- max(0, target - max(0, nchar(x)))
+  paste0(
+    strrep(char, lpad),
+    x
+  )
+} # /rtemis::pad_string
+
+
+#' Pad left string to target length and print with right string
+#'
+#' @return Called for side effect: prints padded left string and right string.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+#'
+#' @examples
+#' \dontrun{
+#' {
+#'   msg("Hello")
+#'   pcat("super", "wow")
+#'   pcat(NULL, "oooo")
+#' }
+#' }
+pcat <- function(left, right, target = 17, newline = TRUE) {
+  cat(pad_string(left, target = target), right)
+  if (newline) cat("\n")
+}

@@ -10,7 +10,7 @@ preprocess(x, config, ...)
 \arguments{
 \item{x}{data.frame or similar: Data to be preprocessed.}
 
-\item{config}{PreprocessorConfig or Preprocessor: PreprocessorConfig when
+\item{config}{\code{PreprocessorConfig} or \code{Preprocessor}: PreprocessorConfig when
 preprocessing training set data. Setup using \link{setup_Preprocessor}.
 Preprocessor when preprocessing validation and test set data.}
 
@@ -49,6 +49,33 @@ Order of operations:
 \item scale and/or center
 \item one-hot encoding
 }
+}
+\examples{
+# Setup a `Preprocessor`: this outputs a `PreprocessorConfig` object.
+prp <- setup_Preprocessor(remove_duplicates = TRUE, scale = TRUE, center = TRUE)
+
+# Includes a long list of parameters
+prp
+
+# Resample iris to get train and test data
+res <- resample(iris, setup_Resampler(seed = 2026))
+iris_train <- iris[res[[1]], ]
+iris_test <- iris[-res[[1]], ]
+
+# Preprocess training data
+iris_pre <- preprocess(iris_train, prp)
+
+# Access preprocessd training data with `preprocessed()`
+preprocessed(iris_pre)
+
+# Apply the same preprocessing to test data
+# In this case, the scale and center values from training data will be used.
+# Note how `preprocess()` accepts either a `PreprocessorConfig` or `Preprocessor` object for
+# this reason.
+iris_test_pre <- preprocess(iris_test, iris_pre)
+
+# Access preprocessed test data
+preprocessed(iris_test_pre)
 }
 \author{
 EDG

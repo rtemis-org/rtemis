@@ -754,7 +754,8 @@ twocol2html <- function(
 #' @return vector of NROW, NCOL invisibly
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 #'
 #' @examples
 #' \dontrun{
@@ -825,6 +826,8 @@ list2text <- function(x, sep = ": ", line = "\n") {
 } # /rtemis::list2text
 
 
+#' List to HTML
+#'
 #' @author EDG
 #' @keywords internal
 #' @noRd
@@ -853,7 +856,18 @@ list2html <- function(
 } # /rtemis::list2html
 
 
-# Helper function to build padded string equivalent of padcat
+#' Helper function to build padded string equivalent of padcat
+#'
+#' @param text Character: Text to pad.
+#' @param pad Integer: Number of spaces to pad.
+#' @param newline_pre Logical: If TRUE, add newline before text.
+#' @param newline Logical: If TRUE, add newline after text.
+#'
+#' @return Character: Padded string.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 show_padded <- function(
   text,
   pad = 2L,

@@ -200,26 +200,6 @@ msg0 <- function(
 } # /rtemis::msg0
 
 
-#' Pad string
-#'
-#' @param x Character: String to pad.
-#' @param target Integer: Target length.
-#' @param char Character: Padding character.
-#'
-#' @return Character: Padded string.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-pad_string <- function(x, target = 17L, char = " ") {
-  lpad <- max(0, target - max(0, nchar(x)))
-  paste0(
-    paste(rep(char, lpad), collapse = ""),
-    x
-  )
-}
-
-
 #' msgstart
 #'
 #' @inheritParams msg
