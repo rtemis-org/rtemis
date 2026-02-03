@@ -160,30 +160,32 @@ test_that("predict() GLMNET Regression succeeds", {
 })
 
 ## GLMNET Regression + auto-lambda grid search using future ----
-# set plan to multisession with 2 workers
-with(future::plan("multisession", workers = 2L), local = TRUE)
-
-# ask train to use multicore with 4 workers
-modt_r_glmnet <- train(
-  x = datr_train,
-  dat_test = datr_test,
-  algorithm = "glmnet",
-  hyperparameters = setup_GLMNET(alpha = 1),
-  parallel_type = "future",
-  n_workers = 1L,
-  future_plan = "sequential"
+test_that(
+  paste(
+    "train > tune_GridSearch resets future plan after execution",
+    "train() GLMNET Regression with auto-lambda grid search using future succeeds"
+  ),
+  {
+    # for local testing only, can't assume multisession or multicore are available
+    skip_on_cran()
+    # Simulate user has set plan to multisession with 2 workers
+    with(future::plan("multisession", workers = 2L), local = TRUE)
+    # Run train with multicore and 4 workers
+    modt_r_glmnet <- train(
+      x = datr_train,
+      dat_test = datr_test,
+      algorithm = "glmnet",
+      hyperparameters = setup_GLMNET(alpha = 1),
+      parallel_type = "future",
+      n_workers = 1L,
+      future_plan = "multicore"
+    )
+    expect_s7_class(modt_r_glmnet, Regression)
+    expect_equal(rtemis:::identify_plan(), "multisession")
+    expect_equal(future::nbrOfWorkers(), 2L)
+  }
 )
 
-# Make sure plan is automatically reset to multisession with 2 workers
-# This is testing internal functions
-test_that("future plan was successfully reset after train()", {
-  expect_equal(rtemis:::future_get_plan_n_workers()[["tweaks_workers"]], 2L)
-  expect_identical(rtemis:::identify_plan(), "multisession")
-})
-
-test_that("train() GLMNET Regression with auto-lambda grid search using future succeeds", {
-  expect_s7_class(modt_r_glmnet, Regression)
-})
 
 # The following should fail
 test_that("sequential with >1 worker throws error", {
