@@ -97,7 +97,6 @@ tune_GridSearch <- function(
 
   # Make Grid ----
   grid_params <- get_hyperparams_need_tuning(hyperparameters)
-  n_params <- length(grid_params)
   n_resamples <- tuner_config[["resampler_config"]][["n"]]
   search_type <- tuner_config[["search_type"]]
   # expand_grid converts NULL to "null" for expansion to work.
