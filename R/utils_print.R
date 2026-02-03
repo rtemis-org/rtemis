@@ -105,14 +105,14 @@ printls <- function(
     xnames <- names(x)
     lhs <- max(nchar(paste0(prefix, xnames))) + pad
     if (!is.null(title)) {
-      title.pad <- if (center_title) {
+      title_pad <- if (center_title) {
         max(0, lhs - round((.5 * nchar(title))) - 3)
       } else {
         0
       }
       padcat(
         title,
-        pad = title.pad,
+        pad = title_pad,
         newline = title_newline,
         newline_pre = FALSE
       )
@@ -978,14 +978,14 @@ repr_ls <- function(
     lhs <- max(nchar(paste0(prefix, xnames))) + pad
 
     if (!is.null(title)) {
-      title.pad <- if (center_title) {
+      title_pad <- if (center_title) {
         max(0, lhs - round((.5 * nchar(title))) - 3)
       } else {
         0
       }
       result <- paste0(
         result,
-        show_padded(title, pad = title.pad, newline = title_newline)
+        show_padded(title, pad = title_pad, newline = title_newline)
       )
     } # /title
 
