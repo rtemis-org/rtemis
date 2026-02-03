@@ -16,3 +16,4 @@ GEMINI.md
 ^\.rtms-instructions\.md$
 ^cran-comments\.md$
 ^NEWS\.md$
+^\.lintr$
