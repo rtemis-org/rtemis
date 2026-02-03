@@ -79,7 +79,7 @@ setup_progress <- function() {
       " cores available)\n  "
     )
     packageStartupMessage(paste0(
-      rtlogo3,
+      pkglogo(),
       vline,
       fmt_gradient(
         paste0(rep("\u2500", nchar(vline) - 13L), collapse = ""),
@@ -106,7 +106,7 @@ setup_progress <- function() {
       gray("Cite: "),
       rtcitation,
       "\n\n  ",
-      red("PSA:"),
+      fmt("PSA:", col = rt_red, bold = TRUE),
       " Do not throw data at algorithms. Compute responsibly!"
     ))
   } else {

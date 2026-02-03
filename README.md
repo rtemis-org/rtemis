@@ -14,7 +14,7 @@ The new version (0.99+) features:
 - Strict **type checking** and **condition validation** throughout to minimize user error and provide highly focused error messages & suggestions.
 - Expanded transparent messaging through each step.
 
-## Installation
+## Installation of rtemis
 
 Using `pak` from GitHub:
 
@@ -37,6 +37,10 @@ Using `pak` from `r-universe`:
 pak::repo_add(myuniverse = "https://egenn.r-universe.dev")
 pak::pkg_install("rtemis")
 ```
+
+## Installation of dependencies
+
+Every `rtemis` call that uses external packages includes a check for required dependencies and will print a message if any are missing.
 
 ## Changes & Ongoing work
 

@@ -204,6 +204,7 @@ highlight2 <- function(
 #'
 #' @return Character: Formatted text with bold styling
 #'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 bold <- function(text, output_type = c("ansi", "html", "plain")) {
@@ -219,6 +220,7 @@ bold <- function(text, output_type = c("ansi", "html", "plain")) {
 #'
 #' @return Character: Formatted text with italic styling
 #'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 italic <- function(text, output_type = c("ansi", "html", "plain")) {
@@ -235,6 +237,7 @@ italic <- function(text, output_type = c("ansi", "html", "plain")) {
 #'
 #' @return Character: Formatted text with underline styling
 #'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 underline <- function(text, output_type = c("ansi", "html", "plain")) {
@@ -251,6 +254,7 @@ underline <- function(text, output_type = c("ansi", "html", "plain")) {
 #'
 #' @return Character: Formatted text with thin/light styling
 #'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 thin <- function(text, output_type = c("ansi", "html", "plain")) {
@@ -267,6 +271,7 @@ thin <- function(text, output_type = c("ansi", "html", "plain")) {
 #'
 #' @return Character: Formatted text with muted styling
 #'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 muted <- function(x, output_type = c("ansi", "html", "plain")) {
@@ -286,6 +291,7 @@ muted <- function(x, output_type = c("ansi", "html", "plain")) {
 #' @details
 #' Can be useful in contexts where muted is not supported.
 #'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 gray <- function(x, output_type = c("ansi", "html", "plain")) {
@@ -302,6 +308,7 @@ gray <- function(x, output_type = c("ansi", "html", "plain")) {
 #'
 #' @return Character: Formatted text with 256-color styling
 #'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 col256 <- function(
@@ -350,7 +357,10 @@ col256 <- function(
 #' Convert ANSI 256 color code to HEX
 #'
 #' @param code Integer: ANSI 256 color code (0-255).
+#'
 #' @return Character: HEX color string.
+#'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 ansi256_to_hex <- function(code) {
@@ -415,6 +425,7 @@ ansi256_to_hex <- function(code) {
 #'
 #' @return Character: Text with gradient color applied.
 #'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 fmt_gradient <- function(
@@ -465,31 +476,3 @@ fmt_gradient <- function(
   # Combine all colored characters
   paste(gradient_chars, collapse = "")
 } # /rtemis::fmt_gradient
-
-
-#' Add padding
-#'
-#' Convenience function to add padding.
-#'
-#' @param pad Integer: Number of spaces to ouput - that's all.
-#'
-#' @keywords internal
-#' @noRd
-show_pad <- function(pad = 2L, output_type = NULL) {
-  if (is.null(output_type)) {
-    output_type <- get_output_type()
-  }
-  pad_str <- strrep(" ", pad)
-  switch(
-    output_type,
-    "ansi" = {
-      # ANSI: pad with spaces, optionally style (no color for pad)
-      pad_str
-    },
-    "html" = {
-      # HTML: pad with non-breaking spaces
-      strrep("&nbsp;", pad)
-    },
-    "plain" = pad_str
-  )
-} # /rtemis::show_pad

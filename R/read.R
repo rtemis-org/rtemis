@@ -66,7 +66,7 @@ read <- function(
   sep = NULL,
   quote = "\"",
   na_strings = c(""),
-  output = c("data.table", "default"),
+  output = c("data.table", "tibble", "data.frame"),
   attr = NULL,
   value = NULL,
   verbosity = 1L,
@@ -80,6 +80,9 @@ read <- function(
   }
   delim_reader <- match.arg(delim_reader)
   output <- match.arg(output)
+  if (output == "tibble") {
+    check_dependencies("tibble")
+  }
   ext <- tools::file_ext(filename)
   path <- if (is.null(datadir)) {
     filename
@@ -92,14 +95,13 @@ read <- function(
     check_dependencies("arrow")
     if (verbosity > 0L) {
       msg0(
-        highlight("\u25B6"),
+        bold(highlight("\u25B6")),
         " Reading ",
         highlight(basename(path)),
         " using arrow::read_parquet()..."
       )
     }
     .dat <- arrow::read_parquet(path, ...)
-    if (output == "data.table") setDT(.dat)
   } else if (ext == "rds") {
     if (verbosity > 0L) {
       msg0(
@@ -111,7 +113,7 @@ read <- function(
     }
     .dat <- readRDS(path)
   } else if (ext == "xlsx") {
-    check_dependencies("openxlsx")
+    check_dependencies("readxl")
     if (verbosity > 0L) {
       msg0(
         bold(highlight("\u25B6")),
@@ -121,12 +123,11 @@ read <- function(
       )
     }
     .dat <- readxl::read_excel(
-      filename,
+      path,
       sheet = xlsx_sheet,
       na = na_strings,
       ...
     )
-    if (output == "data.table") setDT(.dat)
   } else if (ext == "dta") {
     check_dependencies("haven")
     if (verbosity > 0L) {
@@ -138,7 +139,6 @@ read <- function(
       )
     }
     .dat <- haven::read_dta(path, ...)
-    if (output == "data.table") setDT(.dat)
   } else if (ext == "fasta") {
     check_dependencies("seqinr")
     if (verbosity > 0L) {
@@ -166,7 +166,6 @@ read <- function(
       )
     }
     .dat <- farff::readARFF(path, ...)
-    if (output == "data.table") setDT(.dat)
   } else {
     if (verbosity > 0L) {
       msg0(
@@ -204,6 +203,7 @@ read <- function(
         na_strings <- na_strings[1]
       }
       con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
       duckdb::duckdb_read_csv(
         con,
         "data",
@@ -216,9 +216,6 @@ read <- function(
         ...
       )
       .dat <- DBI::dbReadTable(con, "data")
-      if (output == "data.table") {
-        setDT(.dat)
-      }
     } else if (delim_reader == "arrow") {
       check_dependencies("arrow")
       if (is.null(sep)) {
@@ -231,9 +228,6 @@ read <- function(
         na = na_strings,
         ...
       )
-      if (output == "data.table") {
-        setDT(.dat)
-      }
     } else {
       check_dependencies("vroom")
       .dat <- vroom::vroom(
@@ -244,9 +238,6 @@ read <- function(
         progress = verbosity > 0L,
         ...
       )
-      if (output == "data.table") {
-        setDT(.dat)
-      }
     }
   }
 
@@ -301,24 +292,18 @@ read <- function(
     outro(start_time)
   }
 
+  # Set output structure
+  if (output == "data.table") {
+    if (!is.data.table(.dat)) setDT(.dat)
+  } else if (output == "tibble") {
+    .dat <- tibble::as_tibble(.dat)
+  } else if (output == "data.frame") {
+    if (!is.data.frame(.dat)) {
+      .dat <- as.data.frame(.dat)
+    } else {
+      setDF(.dat)
+    }
+  }
+
   .dat
 } # /rtemis::read
-
-
-#' Msg for data reading
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-msgread <- function(x, caller = "", use_basename = TRUE) {
-  if (use_basename) {
-    x <- basename(x)
-  }
-  msg0(
-    bold(highlight("\u25B6")),
-    " Reading ",
-    highlight(x),
-    "...",
-    caller = caller
-  )
-} # /rtemis::msgread

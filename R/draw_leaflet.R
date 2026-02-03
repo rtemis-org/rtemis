@@ -4,7 +4,7 @@
 
 #' Plot interactive choropleth map using \pkg{leaflet}
 #'
-#' @param fips Character vector of FIPS codes. (If numeric, it will be appropriately zero-padded).
+#' @param fips Character vector: FIPS codes. (If numeric, it will be appropriately zero-padded).
 #' @param values Values to map to `fips`.
 #' @param names Character vector: Optional county names to appear on hover along `values`.
 #' @param fillOpacity Float: Opacity for fill colors.

@@ -1,6 +1,6 @@
 # S7_Metrics.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # Metrics ----
 #' @title Metrics
@@ -36,6 +36,7 @@ method(`.DollarNames`, Metrics) <- function(x, pattern = "") {
 method(`[[`, Metrics) <- function(x, name) {
   x@metrics[[name]]
 }
+
 
 # RegressionMetrics ----
 #' @title RegressionMetrics

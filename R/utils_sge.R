@@ -85,8 +85,11 @@ sge_submit <- function(
       )
     )
     if (verbosity > 1L) {
-      msg("Temp file set to", .temp)
-      msg("Objects written to temp file:", paste(obj_names, collapse = ", "))
+      msg_info("Temp file set to", .temp)
+      msg_info(
+        "Objects written to temp file:",
+        paste(obj_names, collapse = ", ")
+      )
     }
   }
 
@@ -107,7 +110,7 @@ sge_submit <- function(
   # Write {.R file} to temp_dir ----
   Rfilepath <- tempfile(pattern = "Rsub", tmpdir = temp_dir)
   if (verbosity > 1L) {
-    msg("Rfilepath set to", Rfilepath)
+    msg_info("Rfilepath set to", Rfilepath)
   }
 
   ## init file ----
@@ -148,7 +151,7 @@ sge_submit <- function(
   # Write {.sh file} to temp_dir ----
   shfilepath <- tempfile(pattern = "SHsub", tmpdir = temp_dir)
   if (verbosity > 1L) {
-    msg("shfile set to:", shfilepath)
+    msg_info("shfile set to:", shfilepath)
   }
 
   cat(sge_env, "\n", file = shfilepath)
