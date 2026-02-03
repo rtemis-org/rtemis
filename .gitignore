@@ -31,6 +31,9 @@ __out/
 # Output files from R CMD check
 /*.Rcheck/
 
+# Air
+air.toml
+
 # RStudio files
 .Rproj.user/
 
