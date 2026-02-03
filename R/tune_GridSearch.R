@@ -56,7 +56,7 @@ tune_GridSearch <- function(
     if (!is.null(future_plan) && future_plan == "sequential") {
       if (n_workers > 1L) {
         cli::cli_abort(
-          "Requested 'sequential' future plan but {.val {n_workers}} workers."
+          "Requested 'sequential' future plan, which supports {.val 1L} worker, but {.val {n_workers}} workers were requested."
         )
       }
     }
@@ -100,9 +100,8 @@ tune_GridSearch <- function(
   n_params <- length(grid_params)
   n_resamples <- tuner_config[["resampler_config"]][["n"]]
   search_type <- tuner_config[["search_type"]]
-  # expand_grid convert NULL to "null" for expansion to work.
+  # expand_grid converts NULL to "null" for expansion to work.
   param_grid <- expand_grid(grid_params, stringsAsFactors = FALSE)
-  # param_grid <- expand.grid(grid_params, stringsAsFactors = FALSE)
   param_grid <- cbind(param_combo_id = seq_len(NROW(param_grid)), param_grid)
   n_param_combinations <- NROW(param_grid)
   res_param_grid <- expand_grid(
@@ -141,8 +140,6 @@ tune_GridSearch <- function(
       " resamples: ",
       fmt(n_res_x_comb, col = col_tuner, bold = TRUE),
       " models total",
-      # highlight(n_res_x_comb), " models total running on ",
-      # singorplu(n_workers, "worker"),
       " (",
       Sys.getenv("R_PLATFORM"),
       ")."

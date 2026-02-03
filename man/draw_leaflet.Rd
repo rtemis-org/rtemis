@@ -34,7 +34,7 @@ draw_leaflet(
 )
 }
 \arguments{
-\item{fips}{Character vector of FIPS codes. (If numeric, it will be appropriately zero-padded).}
+\item{fips}{Character vector: FIPS codes. (If numeric, it will be appropriately zero-padded).}
 
 \item{values}{Values to map to \code{fips}.}
 

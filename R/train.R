@@ -28,7 +28,7 @@
 #'
 #' The `train()` function and its sub-functions will automatically manage parallelization depending
 #' on:
-#' - The number of workers specifies by the user using `n_workers`
+#' - The number of workers specified by the user using `n_workers`
 #' - Whether the training algorithm supports parallelization itself
 #' - Whether hyperparameter tuning is needed
 #'

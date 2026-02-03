@@ -100,7 +100,7 @@ There are three levels of parallelization that may be used during training:
 The \code{train()} function and its sub-functions will automatically manage parallelization depending
 on:
 \itemize{
-\item The number of workers specifies by the user using \code{n_workers}
+\item The number of workers specified by the user using \code{n_workers}
 \item Whether the training algorithm supports parallelization itself
 \item Whether hyperparameter tuning is needed
 }

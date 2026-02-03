@@ -51,7 +51,7 @@ identify_plan <- function(x = NULL) {
 #' - Check if Windows
 #'
 #' @param requested_plan Optional character: Requested plan, one of "multicore", "multisession", "sequential".
-#' @param workers Optional integer: Number of workers to use.
+#' @param n_workers Optional integer: Number of workers to use.
 #'
 #' @return Character: Name of plan set
 #'

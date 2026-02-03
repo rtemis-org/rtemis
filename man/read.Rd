@@ -15,7 +15,7 @@ read(
   sep = NULL,
   quote = "\\"",
   na_strings = c(""),
-  output = c("data.table", "default"),
+  output = c("data.table", "tibble", "data.frame"),
   attr = NULL,
   value = NULL,
   verbosity = 1L,

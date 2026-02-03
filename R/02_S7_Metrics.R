@@ -1,6 +1,6 @@
 # S7_Metrics.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # Metrics ----
 #' @title Metrics
