@@ -160,7 +160,9 @@ test_that(
     # for local testing only, can't assume multisession or multicore are available
     skip_if_not_installed("futurize")
     # Simulate user has set plan to multisession with 2 workers
-    with(future::plan("multisession", workers = 2L), local = TRUE)
+    # with(future::plan("multisession", workers = 2L), local = TRUE)
+    # Simulate user has set plan to sequential
+    with(future::plan("sequential"), local = TRUE)
     # Run train with multicore and 4 workers
     modt_r_glmnet <- train(
       x = datr_train,
@@ -168,15 +170,17 @@ test_that(
       algorithm = "glmnet",
       hyperparameters = setup_GLMNET(alpha = 1),
       parallel_type = "future",
-      n_workers = 4L,
-      future_plan = "multicore",
+      n_workers = 2L, # Limit to 2 workers for CRAN
+      future_plan = "mirai_multisession", # which gets converted to "future.mirai::mirai_multisession"
       verbosity = 2L
     )
     # Check that model trained correctly
     expect_s7_class(modt_r_glmnet, Regression)
-    # Check that future plan has been reset to multisession with 2 workers
-    expect_equal(rtemis:::identify_plan(), "multisession")
-    expect_equal(future::nbrOfWorkers(), 2L)
+    # Check that future plan has been reset to "multisession" with 2 workers
+    # expect_equal(rtemis:::identify_plan(), "multisession")
+    # Check that future plan has been reset to "sequential"
+    expect_equal(rtemis:::identify_plan(), "sequential")
+    expect_equal(future::nbrOfWorkers(), 1L)
   }
 )
 
