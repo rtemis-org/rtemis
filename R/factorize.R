@@ -54,7 +54,6 @@
 #'
 #' @author EDG
 #' @export
-
 factorize <- function(
   x,
   n_factors = NULL,
