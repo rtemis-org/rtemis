@@ -5,15 +5,13 @@ Date: 2026-02-02
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
     email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
 Description: A comprehensive machine learning and visualization package with an 
-    'S7' backend featuring rigorous type checking and value validation, paired with an 
-    efficient, user-friendly functional API. A single call to 'train()' can handle preprocessing, 
-    training, hyperparameter tuning, and testing - streamlining workflows with unparalleled 
-    efficiency. Supports supervised learning with automatic nested resampling, probability 
-    calibration, unsupervised learning (clustering, decomposition). The user maintains
-    complete control over all configuration options and hyperparameters through 
-    transparent, type-checked and validated 'setup_*()' functions. Supports data.frames, 
-    data.tables, and tibbles, parallel execution, and interactive visualizations. The package 
-    first appeared in PhD thesis 
+    'S7' backend featuring rigorous type checking and validation, paired with an 
+    efficient, user-friendly functional API. `train()`, `cluster()`, and `decomp()` provide 
+    one-call access to supervised and unsupervised learning. `setup_` functions provide 
+    transparent and validated configuration for each step. A single call to 'train()' 
+    can handle preprocessing, training, hyperparameter tuning, and testing with nested resampling, 
+    offering unparalleled efficiency. Supports data.frames, data.tables, and tibbles, 
+    parallel execution, and interactive visualizations. The package first appeared in  
     <https://repository.upenn.edu/entities/publication/d81892ea-3087-4b71-a6f5-739c58626d64>.
 License: GPL (>= 3)
 URL: https://www.rtemis.org, https://rdocs.rtemis.org
