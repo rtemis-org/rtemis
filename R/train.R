@@ -90,7 +90,7 @@ train <- function(
   question = NULL,
   outdir = NULL,
   parallel_type = c("future", "mirai", "none"),
-  future_plan = getOption("future.plan", "multicore"),
+  future_plan = getOption("future.plan", "mirai_multisession"),
   n_workers = parallelly::availableCores(omit = 3L),
   verbosity = 1L
 ) {
@@ -157,8 +157,10 @@ train <- function(
     }
   }
 
-  ## Arguments ----
   parallel_type <- match.arg(parallel_type)
+  if (parallel_type == "future" && future_plan == "mirai_multisession") {
+    future_plan <- "future.mirai::mirai_multisession"
+  }
   if (!is.null(outer_resampling_config)) {
     check_is_S7(outer_resampling_config, ResamplerConfig)
     if (!is.null(outer_resampling_config[["id_strat"]])) {
