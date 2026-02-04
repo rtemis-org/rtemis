@@ -10,7 +10,7 @@ Description: A comprehensive machine learning and visualization package with an
     one-call access to supervised and unsupervised learning. `setup_` functions provide 
     transparent and validated configuration for each step. A single call to 'train()' 
     can handle preprocessing, training, hyperparameter tuning, and testing with nested resampling, 
-    offering unparalleled efficiency. Supports data.frames, data.tables, and tibbles, 
+    offering unparalleled efficiency. Supports data.frame, data.table, and tibble inputs, 
     parallel execution, and interactive visualizations. The package first appeared in 
     <https://repository.upenn.edu/entities/publication/d81892ea-3087-4b71-a6f5-739c58626d64>.
 License: GPL (>= 3)
