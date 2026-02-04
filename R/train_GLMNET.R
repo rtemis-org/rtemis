@@ -95,7 +95,6 @@ train_GLMNET <- function(
     hyperparameters@hyperparameters[["penalty_factor"]] <- rep(1, NCOL(xm))
     if (verbosity > 1L) {
       msg_info("NCOL(xm): ", NCOL(xm))
-      msg_info("names(xm): ", paste(names(xm), collapse = ", "))
       msg_info('Updated hyperparameters[["penalty_factor"]] to all 1s.')
     }
   } else {
