@@ -219,6 +219,13 @@ train <- function(
   hyperparameters@n_workers <- workers[["algorithm"]]
   tuner <- NULL
 
+  # Set parallel type to "none" if workers[["tuning"]] == 1L
+  parallel_type <- if (workers[["tuning"]] == 1L) {
+    "none"
+  } else {
+    parallel_type
+  }
+
   # Outer Resampling ----
   # if outer_resampling_config is set, this function calls itself
   # on multiple outer resamples (training-test sets), each of which may call itself
