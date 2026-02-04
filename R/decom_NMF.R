@@ -22,6 +22,9 @@ decom_NMF <- function(x, config, verbosity = 1L) {
   check_unsupervised_data(x = x, allow_missing = FALSE)
 
   # Decompose ----
+  if (verbosity > 0L) {
+    msg("Decomposing with", config@algorithm, "...")
+  }
   xm <- as.matrix(x)
   args <- list(x = t(xm), rank = config[["k"]], nrun = config[["nrun"]])
   decom <- do_call(NMF::nmf, args)

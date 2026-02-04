@@ -13,6 +13,9 @@ decom_Isomap <- function(x, config, verbosity = 1L) {
   check_unsupervised_data(x = x, allow_missing = FALSE)
 
   # Decompose ----
+  if (verbosity > 0L) {
+    msg("Decomposing with", config@algorithm, "...")
+  }
   dst <- vegan::vegdist(x = x, method = config[["dist_method"]])
   decom <- vegan::isomap(
     dist = dst,

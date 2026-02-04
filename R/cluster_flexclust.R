@@ -17,6 +17,9 @@ cluster_KMeans <- function(x, config, verbosity = 1L) {
   check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)
 
   # Cluster ----
+  if (verbosity > 0L) {
+    msg("Clustering with", config@algorithm, "...")
+  }
   clust <- flexclust::cclust(
     x = x,
     k = config[["k"]],
@@ -43,6 +46,9 @@ cluster_HardCL <- function(x, config, verbosity = 1L) {
   check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)
 
   # Cluster ----
+  if (verbosity > 0L) {
+    msg("Clustering with", config@algorithm, "...")
+  }
   clust <- flexclust::cclust(
     x = x,
     k = config[["k"]],
@@ -69,6 +75,9 @@ cluster_NeuralGas <- function(x, config, verbosity = 1L) {
   check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)
 
   # Cluster ----
+  if (verbosity > 0L) {
+    msg("Clustering with", config@algorithm, "...")
+  }
   clust <- flexclust::cclust(
     x = x,
     k = config[["k"]],
@@ -80,6 +89,11 @@ cluster_NeuralGas <- function(x, config, verbosity = 1L) {
 } # /rtemis::cluster_NeuralGas
 
 
+#' clustpredict methods for KMeans, HardCL, NeuralGas
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 clustpredict_KMeans <- clustpredict_HardCL <- clustpredict_NeuralGas <- function(
   clust,
   newdata = NULL

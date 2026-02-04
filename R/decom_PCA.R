@@ -12,6 +12,9 @@ decom_PCA <- function(x, config, verbosity = 1L) {
   check_unsupervised_data(x = x, allow_missing = FALSE)
 
   # Decompose ----
+  if (verbosity > 0L) {
+    msg("Decomposing with", config@algorithm, "...")
+  }
   decom <- prcomp(
     x = x,
     center = config[["center"]],

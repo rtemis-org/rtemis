@@ -13,6 +13,9 @@ decom_tSNE <- function(x, config, verbosity = 1L) {
   check_unsupervised_data(x = x, allow_missing = FALSE)
 
   # Decompose ----
+  if (verbosity > 0L) {
+    msg("Decomposing with", config@algorithm, "...")
+  }
   args <- c(list(X = x, dims = config[["k"]]), config@config)
   args[["k"]] <- NULL
   decom <- do_call(
