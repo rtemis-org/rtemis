@@ -10,9 +10,7 @@ setup_GridSearch(
   randomize_p = NULL,
   metrics_aggregate_fn = "mean",
   metric = NULL,
-  maximize = NULL,
-  parallel_type = "future",
-  n_workers = rtemis_workers
+  maximize = NULL
 )
 }
 \arguments{
@@ -31,10 +29,6 @@ randomly test this proportion of combinations.}
 \item{metric}{Character: Metric to minimize or maximize.}
 
 \item{maximize}{Logical: If TRUE, maximize \code{metric}, otherwise minimize it.}
-
-\item{parallel_type}{Character: Parallel backend to use.}
-
-\item{n_workers}{Integer: Number of workers to use.}
 }
 \value{
 A \code{GridSearchConfig} object.
