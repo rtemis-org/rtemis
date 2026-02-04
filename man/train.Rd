@@ -17,7 +17,7 @@ train(
   question = NULL,
   outdir = NULL,
   parallel_type = c("future", "mirai", "none"),
-  future_plan = getOption("future.plan", "multicore"),
+  future_plan = getOption("future.plan", "mirai_multisession"),
   n_workers = parallelly::availableCores(omit = 3L),
   verbosity = 1L
 )
