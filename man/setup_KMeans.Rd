@@ -17,6 +17,10 @@ KMeansConfig object.
 \description{
 Setup KMeansConfig
 }
+\examples{
+kmeans_config <- setup_KMeans(k = 4L, dist = "euclidean")
+kmeans_config
+}
 \author{
 EDG
 }

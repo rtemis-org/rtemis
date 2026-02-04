@@ -1,6 +1,6 @@
 # draw_confusion.R
 # ::rtemis::
-# 2024 EDG rtemis.org
+# 2024- EDG rtemis.org
 
 #' Plot confusion matrix
 #'
@@ -455,6 +455,12 @@ draw_confusion <- function(
   return(plt)
 } # /rtemis::draw_confusion
 
+
+#' Make plotly confusion matrix tile
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 make_plotly_conf_tile <- function(
   p,
   x,

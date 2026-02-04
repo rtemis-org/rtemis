@@ -38,6 +38,10 @@ DBSCANConfig object.
 \description{
 Setup DBSCANConfig
 }
+\examples{
+dbscan_config <- setup_DBSCAN(eps = 0.5, min_points = 5L)
+dbscan_config
+}
 \author{
 EDG
 }

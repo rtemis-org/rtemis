@@ -73,8 +73,8 @@ dataset. This column will be set as key in the data.table output.}
 data.frame or data.table.
 }
 \description{
-Lazy-read a CSV file, optionally filter rows, remove duplicates,
-clean column names, convert character to factor, and collect.
+Lazy-read a CSV file, optionally: filter rows, remove duplicates,
+clean column names, convert character to factor, collect.
 }
 \examples{
 \dontrun{

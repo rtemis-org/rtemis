@@ -10,7 +10,8 @@ ALLOWED_PLANS <- c(
   "cluster",
   "remote",
   "transparent",
-  "mirai"
+  "future.mirai::mirai_multisession", # what user sets
+  "mirai_multisession" # what future::plan() returns
 )
 
 #' Check if system is Windows

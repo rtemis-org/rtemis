@@ -42,7 +42,83 @@ pak::pkg_install("rtemis")
 
 Every `rtemis` call that uses external packages includes a check for required dependencies and will print a message if any are missing.
 
-## Changes & Ongoing work
+## Transparent messaging
+
+It is essential to maintain transparency of operations at all times.
+`rtemis` functions often call multiple other functions, sometime recursively. The package uses a formatted messaging system to provide logging output which includes:
+
+- Timestamp
+- Message
+- Origin (function name)
+
+Most function include a `verbosity` argument to control the level of messaging output, with support for three levels:
+
+- `0`: silent
+- `1`: normal messaging
+- `2`: detailed messaging for debugging
+
+## Text formatting
+
+`rtemis` includes an automatic text formatting system, which supports:
+
+- plain text output (for output to log files)
+- ANSI colored output (for R console)
+- HTML formatted output (for Quarto documents, shiny apps, etc.)
+
+## `setup_` functions
+
+Machine learning workflows involve multiple steps, each with their own configuration options.
+
+It is essential that a) the user has complete control over each step, while maintaining an intuitive, user-friendly interface, and b) the user input is validated immediately and before a potentially long-running operation is started.
+
+The following `setup_` functions are available to configure each step of the workflow:
+
+- Supervised Learning:  `setup_CART()`, `setup_GAM()`, etc.
+- Tuning: `setup_GridSearch()`
+- Clustering: `setup_CMeans()`, `setup_HardCL()`, etc.
+- Decomposition: `setup_NMF()`, `setup_ICA()`, etc.
+- Resampling: `setup_Resampler()`
+- Preprocessing: `setup_Preprocessor()`
+
+## Supervised Learning
+
+The following will perform hyperparameter tuning and 10-fold cross-validation.  
+It will train `(3*3*2*5 + 1) * 25 = 2275` models total (!).
+
+```r
+mod <- train(
+  dat,
+  hyperparameters = setup_LightGBM(
+        num_leaves = 2^(1:3),
+        learning_rate = c(.001, .005, .01),
+        subsample = c(.6, .9)
+  ),
+  outer_resampling_config = setup_Resampler(
+    n_resamples = 25L,
+    type = "StratSub"
+  )
+)
+```
+
+## Clustering
+
+```r
+clust <- cluster(
+  dat,
+  config = setup_CMeans(k = 4L)
+)
+```
+
+## Decomposition
+
+```r
+decomp <- decompose(
+  dat,
+  config = setup_ICA(k = 12L)
+)
+```
+
+## Changes from original implementation & Ongoing work
 
 ### Algorithms
 

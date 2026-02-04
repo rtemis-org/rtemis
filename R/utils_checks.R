@@ -162,8 +162,8 @@ strict <- function(
 #' @return Integer vector
 #' @author EDG
 #'
-#' @export
 #' @keywords internal
+#' @noRd
 #'
 #' @examples
 #' \dontrun{
@@ -636,10 +636,12 @@ abbreviate_class <- function(x, n = 4L) {
 #' Setting this to FALSE stops it from printing
 #' "Dependencies check passed".
 #'
+#' @return Called for side effects. Aborts and prints list of missing dependencies, if any.
+#'
 #' @author EDG
 #'
-#' @export
 #' @keywords internal
+#' @noRd
 check_dependencies <- function(..., verbosity = 0L) {
   ns <- as.list(c(...))
   err <- !sapply(ns, \(i) requireNamespace(i, quietly = TRUE))

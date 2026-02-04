@@ -35,6 +35,10 @@ ICAConfig object.
 \description{
 Setup ICA config.
 }
+\examples{
+ica_config <- setup_ICA(k = 3L)
+ica_config
+}
 \author{
 EDG
 }

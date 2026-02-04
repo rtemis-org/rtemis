@@ -12,7 +12,7 @@
 #' @keywords internal
 #' @noRd
 intro <- function(
-  message = "\u25b6",
+  .message = "\u25b6",
   logfile = NULL,
   call_depth = 1,
   caller = NULL,
@@ -37,7 +37,7 @@ intro <- function(
       cat("\n")
     }
     msg(
-      message,
+      .message,
       call_depth = call_depth,
       sep = "",
       caller_id = 2,
@@ -58,6 +58,7 @@ format_seconds <- function(seconds) {
     paste0(bold(ddSci(round(seconds / 60))), " minutes")
   }
 }
+
 
 #' `rtemis-internals`: `outro`
 #'
@@ -87,7 +88,7 @@ outro <- function(
     if (real_user_system) {
       msg0(
         paste0(
-          "Done in ",
+          "\u2714 Done in ",
           format_seconds(elapsed[3]),
           " (",
           "Real:",
@@ -103,7 +104,7 @@ outro <- function(
     } else {
       msg0(
         paste0(
-          "Done in ",
+          "\u2714 Done in ",
           format_seconds(elapsed[3]),
           "."
         ),

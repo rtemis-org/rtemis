@@ -39,8 +39,8 @@
 #' }
 #'
 #' @author EDG
-#' @export
 #' @keywords internal
+#' @noRd
 fmt <- function(
   x,
   col = NULL,

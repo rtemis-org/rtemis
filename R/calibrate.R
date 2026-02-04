@@ -3,6 +3,26 @@
 # 2025 EDG rtemis.org
 
 # Calibrate Generic ----
+#' Calibrate Classification & ClassificationRes Models
+#'
+#' @description
+#' Generic function to calibrate binary classification models.
+#'
+#' @details
+#' The goal of calibration is to adjust the predicted probabilities of a binary classification
+#' model so that they better reflect the true probabilities (i.e. empirical risk) of the positive
+#' class.
+#'
+#' @param x `Classification` or `ClassificationRes` object to calibrate.
+#' @param algorithm Character: Algorithm to use to train calibration model.
+#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
+#' @param verbosity Integer: Verbosity level.
+#' @param ... Additional arguments passed to specific methods.
+#'
+#' @return Calibrated model object.
+#'
+#' @author EDG
+#' @export
 calibrate <- new_generic(
   "calibrate",
   ("x"),
@@ -15,11 +35,9 @@ calibrate <- new_generic(
   ) {
     S7_dispatch()
   }
-)
+) # /rtemis::calibrate
 
 
-#' @name calibrate.Classification
-#' @title
 #' Calibrate Binary Classification Models
 #'
 #' @description
@@ -120,7 +138,6 @@ calibrate.Classification <- function(
 #' @param ... Not used
 #'
 #' @author EDG
-#' @export
 method(calibrate, Classification) <- function(
   x,
   algorithm = "isotonic",
@@ -135,7 +152,7 @@ method(calibrate, Classification) <- function(
     verbosity = verbosity,
     ...
   )
-}
+} # /rtemis::calibrate.Classification
 
 
 #' Calibrate Resampled Classification Models
@@ -215,6 +232,16 @@ calibrate.ClassificationRes <- function(
 } # /rtemis::calibrate.ClassificationRes
 
 
+#' Calibrate ClassificationRes
+#'
+#' @param x `ClassificationRes` object.
+#' @param algorithm Character: Algorithm to use to train calibration model.
+#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 method(calibrate, ClassificationRes) <- function(
   x,
   algorithm = "isotonic",
@@ -229,4 +256,4 @@ method(calibrate, ClassificationRes) <- function(
     verbosity = verbosity,
     ...
   )
-}
+} # /rtemis::calibrate.ClassificationRes

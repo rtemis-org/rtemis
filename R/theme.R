@@ -183,7 +183,6 @@ theme_black <- function(
 
 #' @rdname theme
 #' @export
-
 theme_blackgrid <- function(
   bg = "#000000",
   plot_bg = "transparent",
@@ -302,7 +301,6 @@ theme_blackgrid <- function(
 
 #' @rdname theme
 #' @export
-
 theme_blackigrid <- function(
   bg = "#000000",
   plot_bg = "#1A1A1A",

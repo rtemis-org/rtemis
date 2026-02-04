@@ -2,11 +2,13 @@
 # ::rtemis::
 # 2021 EDG rtemis.org
 
-#' Get names by string matching
+#' Get names by string matching or class
 #'
 #' @details
+#' For `getnames()` only:
 #' `pattern`, `starts_with`, and `ends_with` are applied sequentially.
 #' If more than one is provided, the result will be the intersection of all matches.
+#'
 #'
 #' @param x object with `names()` method.
 #' @param pattern Character: pattern to match anywhere in names of x.
@@ -107,14 +109,12 @@ mgetnames <- function(
   }
 }
 
-#' Get factor/numeric/logical/character names from data.frame/data.table
+# Get factor/numeric/logical/character names from data.frame/data.table ----
+
+# @param x data.frame or data.table (or data.frame-compatible object)
+# @return Character vector of column names of x with the specified class.
 #'
-#' @name get-names
-#' @param x data.frame or data.table (or data.frame-compatible object)
-#'
-#' @return Character vector of column names of x with the specified class.
-#'
-#' @author EDG
+#' @rdname getnames
 #' @export
 getfactornames <- function(x) names(x)[sapply(x, is.factor)]
 

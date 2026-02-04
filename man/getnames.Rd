@@ -2,11 +2,12 @@
 % Please edit documentation in R/utils_df.R
 \name{getnames}
 \alias{getnames}
+\alias{getfactornames}
 \alias{getnumericnames}
 \alias{getlogicalnames}
 \alias{getcharacternames}
 \alias{getdatenames}
-\title{Get names by string matching}
+\title{Get names by string matching or class}
 \usage{
 getnames(
   x,
@@ -15,6 +16,8 @@ getnames(
   ends_with = NULL,
   ignore_case = TRUE
 )
+
+getfactornames(x)
 
 getnumericnames(x)
 
@@ -39,9 +42,10 @@ getdatenames(x)
 Character vector of matched names.
 }
 \description{
-Get names by string matching
+Get names by string matching or class
 }
 \details{
+For \code{getnames()} only:
 \code{pattern}, \code{starts_with}, and \code{ends_with} are applied sequentially.
 If more than one is provided, the result will be the intersection of all matches.
 }

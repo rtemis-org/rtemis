@@ -17,6 +17,14 @@ A plotly object along with console output.
 \description{
 This generic is used to present an rtemis object using plots and text.
 }
+\examples{
+\dontrun{
+species_lightrf <- train(iris, algorithm = "lightrf")
+present(species_lightrf)
+# LightGBM Random Forest was used for classification.
+# Balanced accuracy was 0.95 on the training set.
+}
+}
 \author{
 EDG
 }

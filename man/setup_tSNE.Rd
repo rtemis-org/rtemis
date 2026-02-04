@@ -80,6 +80,10 @@ Setup tSNE config.
 \details{
 Get more information on the config by running \code{?Rtsne::Rtsne}.
 }
+\examples{
+tSNE_config <- setup_tSNE(k = 3L)
+tSNE_config
+}
 \author{
 EDG
 }

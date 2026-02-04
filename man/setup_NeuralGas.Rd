@@ -17,6 +17,10 @@ NeuralGasConfig object.
 \description{
 Setup NeuralGasConfig
 }
+\examples{
+neuralgas_config <- setup_NeuralGas(k = 4L, dist = "euclidean")
+neuralgas_config
+}
 \author{
 EDG
 }

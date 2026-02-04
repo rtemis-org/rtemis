@@ -110,7 +110,7 @@ Hyperparameters <- new_class(
       n_workers = n_workers
     )
   }
-) # /Hyperparameters
+) # /rtemis::Hyperparameters
 
 
 # Show Hyperparameters ----
@@ -224,7 +224,7 @@ method(get_tuned_status, Hyperparameters) <- function(x) {
   } else {
     -2L
   }
-} # /get_tuned_status.Hyperparameters
+} # /rtemis::get_tuned_status.Hyperparameters
 
 
 # Update Hyperparameters ----
@@ -252,7 +252,7 @@ method(update, Hyperparameters) <- function(
     object@tuned <- tuned
   }
   object
-} # /update.Hyperparameters
+} # /rtemis::update.Hyperparameters
 
 
 # Freeze Hyperparameters ----
@@ -266,7 +266,7 @@ method(update, Hyperparameters) <- function(
 freeze <- new_generic("freeze", "x")
 method(freeze, Hyperparameters) <- function(x) {
   x@tuned <- -1
-}
+} # /rtemis::freeze.Hyperparameters
 
 
 # Lock Hyperparameters ----
@@ -278,23 +278,21 @@ method(freeze, Hyperparameters) <- function(x) {
 #' @keywords internal
 #' @noRd
 lock <- new_generic("lock", "x")
+
 method(lock, Hyperparameters) <- function(x) {
   x@tuned <- 1
 }
-
 
 # Make Hyperparameters@hyperparameters@name `$`-accessible ----
 method(`$`, Hyperparameters) <- function(x, name) {
   x@hyperparameters[[name]]
 }
 
-
 # `$`-autocomplete Hyperparameters@hyperparameters ----
 method(`.DollarNames`, Hyperparameters) <- function(x, pattern = "") {
   all_names <- names(x@hyperparameters)
   grep(pattern, all_names, value = TRUE)
 }
-
 
 # Make Hyperparameters@hyperparameters@name `[[`-accessible ----
 method(`[[`, Hyperparameters) <- function(x, name) {
@@ -309,7 +307,7 @@ method(`[[`, Hyperparameters) <- function(x, name) {
 needs_tuning <- new_generic("needs_tuning", "x")
 method(needs_tuning, Hyperparameters) <- function(x) {
   x@tuned == 0
-} # /needs_tuning.Hyperparameters
+} # /rtemis::needs_tuning.Hyperparameters
 
 
 # get_hyperparams_need_tuning ----
@@ -373,7 +371,7 @@ GLMHyperparameters <- new_class(
 #' glm_hyperparams
 setup_GLM <- function(ifw = FALSE) {
   GLMHyperparameters(ifw = ifw)
-}
+} # /rtemis::setup_GLM
 
 
 # GAMHyperparameters ----
@@ -569,7 +567,7 @@ setup_CART <- function(
     cost = cost,
     ifw = ifw
   )
-} # /setup_CART
+} # /rtemis::setup_CART
 
 # Test that all CART hyperparameters are set by setup_CART
 stopifnot(all(c(CART_tunable, CART_fixed) %in% names(formals(setup_CART))))
@@ -695,7 +693,7 @@ setup_GLMNET <- function(
     intercept = intercept,
     ifw = ifw
   )
-} # /setup_GLMNET
+} # /rtemis::setup_GLMNET
 
 # Test that all GLMNET hyperparameters are set by setup_GLMNET
 stopifnot(all(
@@ -711,7 +709,7 @@ method(get_hyperparams_need_tuning, GLMNETHyperparameters) <- function(x) {
     out <- c(out, list(lambda = NULL))
   }
   out
-} # /get_hyperparams_need_tuning.GLMNETHyperparameters
+} # /rtemis::get_hyperparams_need_tuning.GLMNETHyperparameters
 
 
 # LightCARTHyperparameters ----

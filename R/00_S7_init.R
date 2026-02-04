@@ -1,6 +1,6 @@
 # S7_init.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # References
 # S7 generics: https://rconsortium.github.io/S7/articles/generics-methods.html
@@ -23,18 +23,12 @@ repr <- new_generic("repr", "x")
 se <- new_generic("se", "x")
 
 #' Short description for inline printing.
+#' This is like `repr` for single-line descriptions.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 desc <- new_generic("desc", "x")
-
-#' Alt description for inline printing.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-desc_alt <- new_generic("desc_alt", "x")
 
 
 #' Get metric
@@ -56,7 +50,7 @@ validate_hyperparameters <- new_generic(
   function(x, hyperparameters) {
     S7_dispatch()
   }
-)
+) # /rtemis::validate_hyperparameters
 
 
 #' Plot Metric
@@ -144,6 +138,11 @@ plot_true_pred <- new_generic("plot_true_pred", "x")
 #'
 #' @param x `MassGLM` object.
 #' @param ... Additional arguments passed to methods.
+#'
+#' @return plotly object.
+#'
+#' @author EDG
+#' @export
 plot_manhattan <- new_generic("plot_manhattan", "x")
 
 
@@ -159,6 +158,14 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' species_lightrf <- train(iris, algorithm = "lightrf")
+#' describe(species_lightrf)
+#' # LightGBM Random Forest was used for classification.
+#' # Balanced accuracy was 0.95 on the training set.
+#' }
 describe <- new_generic("describe", "x")
 
 
@@ -174,6 +181,14 @@ describe <- new_generic("describe", "x")
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' species_lightrf <- train(iris, algorithm = "lightrf")
+#' present(species_lightrf)
+#' # LightGBM Random Forest was used for classification.
+#' # Balanced accuracy was 0.95 on the training set.
+#' }
 present <- new_generic("present", "x")
 
 
@@ -221,7 +236,6 @@ class_lgb.Booster <- new_S3_class("lgb.Booster")
 #' @examples
 #' inc(iris, c(3, 4)) |> head()
 #' inc(iris, c("Sepal.Length", "Species")) |> head()
-
 inc <- new_generic("inc", "x", function(x, idx) {
   S7_dispatch()
 })
@@ -243,6 +257,7 @@ inc <- new_generic("inc", "x", function(x, idx) {
 exc <- new_generic("exc", c("x", "idx"), function(x, idx) {
   S7_dispatch()
 })
+
 method(inc, class_data.frame) <- function(x, idx) {
   x[, idx, drop = FALSE]
 }
@@ -298,7 +313,7 @@ outcome_name <- new_generic("outcome_name", "x", function(x) {
 })
 method(outcome_name, class_data.frame) <- function(x) {
   names(x)[NCOL(x)]
-}
+} # /rtemis::outcome_name
 
 
 #' Get the outcome as a vector
@@ -321,7 +336,8 @@ method(outcome_name, class_data.frame) <- function(x) {
 #' outcome(iris)
 outcome <- new_generic("outcome", "x", function(x) {
   S7_dispatch()
-})
+}) # /rtemis::outcome
+
 method(outcome, class_data.frame) <- function(x) {
   x[[NCOL(x)]]
 }
@@ -347,7 +363,8 @@ method(outcome, class_data.frame) <- function(x) {
 #' features(iris) |> head()
 features <- new_generic("features", "x", function(x) {
   S7_dispatch()
-})
+}) # /rtemis::features
+
 method(features, class_data.frame) <- function(x) {
   stopifnot(NCOL(x) > 1)
   x[, 1:(NCOL(x) - 1), drop = FALSE]
@@ -374,7 +391,8 @@ method(features, class_data.frame) <- function(x) {
 #' feature_names(iris)
 feature_names <- new_generic("feature_names", "x", function(x) {
   S7_dispatch()
-})
+}) # /rtemis::feature_names
+
 method(feature_names, class_data.frame) <- function(x) {
   names(x)[1:(NCOL(x) - 1)]
 }
@@ -398,7 +416,8 @@ method(feature_names, class_data.frame) <- function(x) {
 #' get_factor_names(iris)
 get_factor_names <- new_generic("get_factor_names", "x", function(x) {
   S7_dispatch()
-})
+}) # /rtemis::get_factor_names
+
 method(get_factor_names, class_data.frame) <- function(x) {
   names(x)[sapply(x, is.factor)]
 }
@@ -407,7 +426,6 @@ method(get_factor_names, class_data.frame) <- function(x) {
 # --- Custom S7 validators -------------------------------------------------------------------------
 
 #' Scalar double
-#'
 #'
 #' @author EDG
 #' @keywords internal
@@ -423,7 +441,7 @@ scalar_dbl <- S7::new_property(
       }
     }
   }
-) # /scalar_dbl
+) # /rtemis::scalar_dbl
 
 
 #' Scalar double between 0 and 1, exclusive
@@ -442,7 +460,7 @@ scalar_dbl_01excl <- S7::new_property(
       }
     }
   }
-) # /scalar_dbl_01excl
+) # /rtemis::scalar_dbl_01excl
 
 
 #' Scalar double between 0 and 1, inclusive
@@ -461,7 +479,7 @@ scalar_dbl_01incl <- S7::new_property(
       }
     }
   }
-) # /scalar_dbl_01incl
+) # /rtemis::scalar_dbl_01incl
 
 
 #' Scalar integer
@@ -478,7 +496,7 @@ scalar_int <- S7::new_property(
       }
     }
   }
-) # /scalar_int
+) # /rtemis::scalar_int
 
 
 #' Scalar positive integer
@@ -497,7 +515,7 @@ scalar_int_pos <- S7::new_property(
       }
     }
   }
-) # /scalar_int_pos
+) # /rtemis::scalar_int_pos
 
 
 #' Get preprocessed data from Preprocessor
@@ -509,7 +527,7 @@ scalar_int_pos <- S7::new_property(
 #' @export
 preprocessed <- new_generic("preprocessed", "x", function(x) {
   S7_dispatch()
-})
+}) # /rtemis::preprocessed
 
 
 # --- Internal functions ---------------------------------------------------------------------------

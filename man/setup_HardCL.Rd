@@ -17,6 +17,10 @@ HardCLConfig object.
 \description{
 Setup HardCLConfig
 }
+\examples{
+hardcl_config <- setup_HardCL(k = 4L, dist = "euclidean")
+hardcl_config
+}
 \author{
 EDG
 }

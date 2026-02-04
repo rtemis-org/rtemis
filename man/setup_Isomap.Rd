@@ -26,6 +26,10 @@ IsomapConfig object.
 \description{
 Setup Isomap config.
 }
+\examples{
+isomap_config <- setup_Isomap(k = 3L)
+isomap_config
+}
 \author{
 EDG
 }

@@ -1,6 +1,6 @@
 # S7_Tuner.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # References
 # S7
@@ -36,7 +36,7 @@ TunerConfig <- new_class(
     type = class_character,
     config = class_list
   )
-) # /TunerConfig
+) # /rtemis::TunerConfig
 
 # Print TunerConfig ----
 #' Print TunerConfig
@@ -59,7 +59,7 @@ method(desc, TunerConfig) <- function(x) {
   if (x@type == "GridSearch") {
     paste(x@config[["search_type"]], "grid search")
   }
-} # /rtemis::describe.Tuner
+}
 
 # Make TunerConfig@config `$`-accessible
 method(`$`, TunerConfig) <- function(x, name) {
@@ -126,7 +126,7 @@ GridSearchConfig <- new_class(
       )
     )
   }
-) # /GridSearchConfig
+) # /rtemis::GridSearchConfig
 
 # setup_GridSearch() ----
 #' Setup Grid Search Config
@@ -190,7 +190,7 @@ setup_GridSearch <- function(
     parallel_type = parallel_type,
     n_workers = n_workers
   )
-} # /setup_GridSearch
+} # /rtemis::setup_GridSearch
 
 # Tuner ----
 #' Tuner Class
@@ -212,7 +212,7 @@ Tuner <- new_class(
     tuning_results = class_list, # with 2 elements: metrics_training, metrics_validation
     best_hyperparameters = class_list
   )
-) # /Tuner
+) # /rtemis::Tuner
 
 # Describe Tuner ----
 method(desc, Tuner) <- function(x) {
@@ -248,7 +248,7 @@ GridSearch <- new_class(
       )
     )
   }
-) # /GridSearch
+) # /rtemis::GridSearch
 
 # Print GridSearch ----
 #' Print GridSearch
@@ -291,12 +291,12 @@ method(print, GridSearch) <- function(x, header = TRUE, ...) {
   )
   printls(x@best_hyperparameters)
   invisible(x)
-} # /print.GridSearch
+} # /rtemis::print.GridSearch
 
 # describe.GridSearch ----
 method(describe, GridSearch) <- function(x) {
   print(x, header = FALSE)
-} # /describe.GridSearch
+}
 
 # Show GridSearch ----
 #' Show GridSearch
@@ -351,4 +351,4 @@ method(repr, GridSearch) <- function(
     sep = ""
   )
   out
-} # /show.GridSearch
+} # /rtemis::repr.GridSearch
