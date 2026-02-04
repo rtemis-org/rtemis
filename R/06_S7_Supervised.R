@@ -743,8 +743,8 @@ Regression <- new_class(
 #' @param ... Additional arguments passed to the plotting function.
 #'
 #' @author EDG
-#' @export
-plot_true_pred.Regression <- function(
+#' @rdname plot_true_pred
+method(plot_true_pred, Regression) <- function(
   x,
   what = "all",
   fit = "glm",
@@ -777,21 +777,6 @@ plot_true_pred.Regression <- function(
   )
 } # /rtemis::plot_true_pred.Regression
 
-method(plot_true_pred, Regression) <- function(
-  x,
-  what = "all",
-  fit = "glm",
-  theme = choose_theme(),
-  ...
-) {
-  plot_true_pred.Regression(
-    x = x,
-    what = what,
-    fit = fit,
-    theme = theme,
-    ...
-  )
-}
 
 # Plot True Pred Classification ----
 #' Plot True vs. Predicted for Classification
@@ -803,8 +788,8 @@ method(plot_true_pred, Regression) <- function(
 #' @param ... Additional arguments passed to the plotting function.
 #'
 #' @author EDG
-#' @export
-plot_true_pred.Classification <- function(
+#' @rdname plot_true_pred
+method(plot_true_pred, Classification) <- function(
   x,
   what = NULL,
   xlab = NULL,
@@ -837,7 +822,6 @@ plot_true_pred.Classification <- function(
     ...
   )
 } # /rtemis::plot_true_pred.Classification
-method(plot_true_pred, Classification) <- plot_true_pred.Classification
 
 
 # plot_ROC Classification ----
@@ -1663,8 +1647,8 @@ method(present, SupervisedRes) <- function(x, theme = choose_theme(), ...) {
 #' @param ... Additional arguments passed to [draw_fit].
 #'
 #' @author EDG
-#' @export
-plot_true_pred.RegressionRes <- function(
+#' @rdname plot_true_pred
+method(plot_true_pred, RegressionRes) <- function(
   x,
   what = "all",
   fit = "glm",
@@ -1696,22 +1680,6 @@ plot_true_pred.RegressionRes <- function(
   )
 } # /rtemis::plot_true_pred.RegressionRes
 
-method(plot_true_pred, RegressionRes) <- function(
-  x,
-  what = "all",
-  fit = "glm",
-  theme = choose_theme(),
-  ...
-) {
-  plot_true_pred.RegressionRes(
-    x,
-    what = what,
-    fit = fit,
-    theme = theme,
-    ...
-  )
-} # /rtemis::plot_true_pred.RegressionRes
-
 
 # Plot True Pred ClassificationRes ----
 # Cannot be combined with plot_true_pred.RegressionRes
@@ -1724,8 +1692,8 @@ method(plot_true_pred, RegressionRes) <- function(
 #' @param ... Additional arguments passed to [draw_confusion].
 #'
 #' @author EDG
-#' @export
-plot_true_pred.ClassificationRes <- function(
+#' @rdname plot_true_pred
+method(plot_true_pred, ClassificationRes) <- function(
   x,
   what = "all",
   theme = choose_theme(),
@@ -1783,8 +1751,6 @@ plot_true_pred.ClassificationRes <- function(
   }
 } # /rtemis::plot_true_pred.ClassificationRes
 
-method(plot_true_pred, ClassificationRes) <- plot_true_pred.ClassificationRes
-
 
 # Plot ROC ClassificationRes ----
 #' Plot ROC for ClassificationRes
@@ -1799,8 +1765,8 @@ method(plot_true_pred, ClassificationRes) <- plot_true_pred.ClassificationRes
 #' @return plotly object.
 #'
 #' @author EDG
-#' @export
-plot_roc.ClassificationRes <- function(
+#' @rdname plot_roc
+method(plot_roc, ClassificationRes) <- function(
   x,
   what = "all",
   theme = choose_theme(),
@@ -1832,7 +1798,6 @@ plot_roc.ClassificationRes <- function(
   )
 } # /rtemis::plot_roc.ClassificationRes
 
-method(plot_roc, ClassificationRes) <- plot_roc.ClassificationRes
 
 # Plot Metric SupervisedRes ----
 #' Plot Metric SupervisedRes
@@ -1848,8 +1813,8 @@ method(plot_roc, ClassificationRes) <- plot_roc.ClassificationRes
 #' @param ... Additional arguments passed to the plotting function.
 #'
 #' @author EDG
-#' @export
-plot_metric.SupervisedRes <- function(
+#' @rdname plot_metric
+method(plot_metric, SupervisedRes) <- function(
   x,
   what = c("training", "test"),
   metric = NULL,
@@ -1903,8 +1868,6 @@ plot_metric.SupervisedRes <- function(
   # Boxplot ----
   draw_box(xl, theme = theme, ylab = ylab, boxpoints = boxpoints, ...)
 } # /rtemis::plot_metric.SupervisedRes
-
-method(plot_metric, SupervisedRes) <- plot_metric.SupervisedRes
 
 
 # Plot Variable Importance Supervised ----
@@ -1987,15 +1950,6 @@ method(plot_varimp, SupervisedRes) <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-# make_SupervisedRes <- function(algorithm, models, hyperparameters) {
-#   SupervisedRes(
-#     algorithm = algorithm,
-#     models = models,
-#     hyperparameters = hyperparameters
-#   )
-# } # /make_SupervisedRes
-# => predict method for {Regression,Classification}Res with average_fn = "mean"
-
 make_SupervisedRes <- function(
   algorithm,
   type,

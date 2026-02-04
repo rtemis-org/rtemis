@@ -17,6 +17,14 @@ A character string describing the object.
 \description{
 This generic is used to provide a description of an rtemis object in plain language.
 }
+\examples{
+\dontrun{
+species_lightrf <- train(iris, algorithm = "lightrf")
+describe(species_lightrf)
+# LightGBM Random Forest was used for classification.
+# Balanced accuracy was 0.95 on the training set.
+}
+}
 \author{
 EDG
 }

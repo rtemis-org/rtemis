@@ -43,10 +43,27 @@ p-value adjustment method.}
 
 \item{alpha}{Numeric: Transparency level for the bars.}
 }
+\value{
+plotly object.
+}
 \description{
 Draw a Manhattan plot for \code{MassGLM} objects created with \link{massGLM}.
 
 Create a Manhattan plot for MassGLM objects created with \link{massGLM}.
+}
+\examples{
+\dontrun{
+# x: outcome of interest as first column, optional covariates in the other columns
+# y: features whose association with x we want to study
+set.seed(2022)
+y <- data.table(rnormmat(500, 40))
+x <- data.table(
+  x1 = y[[3]] - y[[5]] + y[[14]] + rnorm(500),
+  x2 = y[[21]] + rnorm(500)
+)
+massmod <- massGLM(x, y)
+plot_manhattan(massmod)
+}
 }
 \author{
 EDG

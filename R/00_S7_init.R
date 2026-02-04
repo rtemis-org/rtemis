@@ -144,6 +144,25 @@ plot_true_pred <- new_generic("plot_true_pred", "x")
 #'
 #' @param x `MassGLM` object.
 #' @param ... Additional arguments passed to methods.
+#'
+#' @return plotly object.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # x: outcome of interest as first column, optional covariates in the other columns
+#' # y: features whose association with x we want to study
+#' set.seed(2022)
+#' y <- data.table(rnormmat(500, 40))
+#' x <- data.table(
+#'   x1 = y[[3]] - y[[5]] + y[[14]] + rnorm(500),
+#'   x2 = y[[21]] + rnorm(500)
+#' )
+#' massmod <- massGLM(x, y)
+#' plot_manhattan(massmod)
+#' }
 plot_manhattan <- new_generic("plot_manhattan", "x")
 
 
@@ -159,6 +178,14 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' species_lightrf <- train(iris, algorithm = "lightrf")
+#' describe(species_lightrf)
+#' # LightGBM Random Forest was used for classification.
+#' # Balanced accuracy was 0.95 on the training set.
+#' }
 describe <- new_generic("describe", "x")
 
 
@@ -174,6 +201,14 @@ describe <- new_generic("describe", "x")
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' species_lightrf <- train(iris, algorithm = "lightrf")
+#' present(species_lightrf)
+#' # LightGBM Random Forest was used for classification.
+#' # Balanced accuracy was 0.95 on the training set.
+#' }
 present <- new_generic("present", "x")
 
 

@@ -78,6 +78,7 @@
 #' # Access preprocessed test data
 #' preprocessed(iris_test_pre)
 preprocess <- new_generic("preprocess", c("x", "config"))
+
 # preprocess(x, PreprocessorConfig, ...) ----
 method(preprocess, list(class_data.frame, PreprocessorConfig)) <- function(
   x,

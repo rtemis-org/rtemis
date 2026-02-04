@@ -51,7 +51,7 @@ datc3_test <- datc3[-resc3$Fold_1, ]
 #   x3 = rnorm(n),
 #   g = factor(sample(c("A", "B"), n, replace = TRUE, prob = c(.1, .9)))
 # )
-# # Binary outcome dependent on x2 and g, with levels "neg" and "pos", where "pos" is 10% of the data
+# Binary outcome dependent on x2 and g, with levels "neg" and "pos", where "pos" is 10% of the data
 # datc2$y <- factor(ifelse(datc2$x2 > 0 & datc2$g == "A", "pos", "neg"))
 # resc2 <- resample(datc2)
 # datc2_train <- datc2[resc2$Fold_1, ]
@@ -993,7 +993,7 @@ test_that("predict() SupervisedRes succeeds", {
 })
 
 
-# Calibration ----
+# --- Calibration ----------------------------------------------------------------------------------
 # Calibrate mod_c_cart trained above
 model <- mod_c_lightrf
 predicted_probabilities <- model$predicted_prob_training
@@ -1017,7 +1017,7 @@ test_that("predict() CalibratedClassification succeeds", {
   )
 })
 
-# CalibrationRes ----
+# --- CalibrationRes -------------------------------------------------------------------------------
 resmod_c_lightrf_cal <- calibrate(resmod_c_lightrf)
 test_that("calibrate() succeeds on ClassificationRes", {
   expect_s7_class(resmod_c_lightrf_cal, CalibratedClassificationRes)
