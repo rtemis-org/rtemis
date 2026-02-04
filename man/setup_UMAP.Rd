@@ -41,6 +41,10 @@ A high \code{n_neighbors} value may give error in some systems:
 "Error in irlba::irlba(L, nv = n, nu = 0, maxit = iters) :
 function 'as_cholmod_sparse' not provided by package 'Matrix'"
 }
+\examples{
+umap_config <- setup_UMAP(k = 3L)
+umap_config
+}
 \author{
 EDG
 }

@@ -141,6 +141,10 @@ PCAConfig <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' pca_config <- setup_PCA(k = 3L)
+#' pca_config
 setup_PCA <- function(k = 3L, center = TRUE, scale = TRUE, tol = NULL) {
   k <- clean_posint(k)
   check_logical(center)
@@ -199,6 +203,10 @@ ICAConfig <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' ica_config <- setup_ICA(k = 3L)
+#' ica_config
 setup_ICA <- function(
   k = 3L,
   type = c("parallel", "deflation"),
@@ -268,6 +276,10 @@ NMFConfig <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' nmf_config <- setup_NMF(k = 3L)
+#' nmf_config
 setup_NMF <- function(
   k = 2L,
   method = "brunet",
@@ -345,6 +357,10 @@ UMAPConfig <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' umap_config <- setup_UMAP(k = 3L)
+#' umap_config
 setup_UMAP <- function(
   k = 2L,
   n_neighbors = 15L,
@@ -485,6 +501,10 @@ tSNEConfig <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' tSNE_config <- setup_tSNE(k = 3L)
+#' tSNE_config
 setup_tSNE <- function(
   k = 2L,
   initial_dims = 50L,
@@ -582,6 +602,10 @@ IsomapConfig <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' isomap_config <- setup_Isomap(k = 3L)
+#' isomap_config
 setup_Isomap <- function(
   k = 2L,
   dist_method = c("euclidean", "manhattan"),

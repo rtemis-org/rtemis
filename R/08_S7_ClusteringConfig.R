@@ -118,6 +118,10 @@ KMeansConfig <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' kmeans_config <- setup_KMeans(k = 4L, dist = "euclidean")
+#' kmeans_config
 setup_KMeans <- function(k = 3L, dist = c("euclidean", "manhattan")) {
   k <- clean_posint(k)
   dist <- match.arg(dist)
@@ -161,6 +165,10 @@ HardCLConfig <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' hardcl_config <- setup_HardCL(k = 4L, dist = "euclidean")
+#' hardcl_config
 setup_HardCL <- function(k = 3L, dist = c("euclidean", "manhattan")) {
   k <- clean_posint(k)
   dist <- match.arg(dist)
@@ -204,6 +212,10 @@ NeuralGasConfig <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' neuralgas_config <- setup_NeuralGas(k = 4L, dist = "euclidean")
+#' neuralgas_config
 setup_NeuralGas <- function(k = 3L, dist = c("euclidean", "manhattan")) {
   k <- clean_posint(k)
   dist <- match.arg(dist)
@@ -274,6 +286,10 @@ CMeansConfig <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' cmeans_config <- setup_CMeans(k = 4L, dist = "euclidean")
+#' cmeans_config
 setup_CMeans <- function(
   k = 2L,
   max_iter = 100L,
@@ -367,6 +383,10 @@ DBSCANConfig <- new_class(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' dbscan_config <- setup_DBSCAN(eps = 0.5, min_points = 5L)
+#' dbscan_config
 setup_DBSCAN <- function(
   eps = 0.5,
   min_points = 5L,

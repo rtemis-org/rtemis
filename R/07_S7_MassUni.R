@@ -74,7 +74,7 @@ method(print, MassGLM) <- print.MassGLM
 #'
 #' @author EDG
 #' @export
-plot.MassGLM <- function(
+method(plot, MassGLM) <- function(
   x,
   coefname = NULL,
   p_adjust_method = "holm",
@@ -128,8 +128,6 @@ plot.MassGLM <- function(
     ...
   )
 } # /rtemis::plot.MassGLM
-
-method(plot, MassGLM) <- plot.MassGLM
 
 
 # Plot Manhattan ----

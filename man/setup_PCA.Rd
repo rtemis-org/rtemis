@@ -21,6 +21,10 @@ PCAConfig object.
 \description{
 Setup PCA config.
 }
+\examples{
+pca_config <- setup_PCA(k = 3L)
+pca_config
+}
 \author{
 EDG
 }

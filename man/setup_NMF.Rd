@@ -19,6 +19,10 @@ NMFConfig object.
 \description{
 Setup NMF config.
 }
+\examples{
+nmf_config <- setup_NMF(k = 3L)
+nmf_config
+}
 \author{
 EDG
 }

@@ -43,7 +43,6 @@
 #'   main_col = "#00b2b2"
 #' )
 #' }
-
 draw_table <- function(
   x,
   .ddSci = TRUE,

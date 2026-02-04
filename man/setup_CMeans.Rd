@@ -38,6 +38,10 @@ CMeansConfig object.
 \description{
 Setup CMeansConfig
 }
+\examples{
+cmeans_config <- setup_CMeans(k = 4L, dist = "euclidean")
+cmeans_config
+}
 \author{
 EDG
 }
