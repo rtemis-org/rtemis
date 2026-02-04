@@ -68,7 +68,7 @@ test_that("setup_tSNE() succeeds", {
 # Test that t-SNE fails with duplicates
 test_that("decomp() t-SNE fails with duplicates", {
   skip_if_not_installed("Rtsne")
-  expect_error(decomp(x, algorithm = "tsne", config = config))
+  expect_error(decomp(x, algorithm = "tsne"))
 })
 
 # Test that t-SNE works after removing duplicates
