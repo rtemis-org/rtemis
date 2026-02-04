@@ -23,7 +23,7 @@ show_range <- function(x, ddSci = TRUE, decimal_places = 1, na.rm = TRUE) {
   } else {
     paste(range(x, na.rm = na.rm), collapse = " to ")
   }
-} # /rtemis::catrange
+} # /rtemis::show_range
 
 
 #' Set Dynamic Range

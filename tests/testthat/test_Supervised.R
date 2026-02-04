@@ -590,7 +590,7 @@ test_that("train() CART Classification with IFW succeeds", {
 })
 
 ## {CART}[train]<Classification> Grid search ----
-modr_c_cart_tuned <- train(
+modt_c_cart_tuned <- train(
   x = datc2_train,
   dat_test = datc2_test,
   hyperparameters = setup_CART(
@@ -599,7 +599,7 @@ modr_c_cart_tuned <- train(
   parallel_type = "none"
 )
 test_that("train() Classification with grid_search() succeeds", {
-  expect_s7_class(modr_c_cart_tuned, Classification)
+  expect_s7_class(modt_c_cart_tuned, Classification)
 })
 
 ## {CART}[train]<ClassificationRes> ----

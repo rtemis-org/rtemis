@@ -40,7 +40,7 @@ method(repr, MassGLM) <- function(
     paste(highlight(x@coefnames), collapse = ", "),
     "\n"
   )
-} # /rtemis::show.MassGLM
+} # /rtemis::repr.MassGLM
 
 
 # Print MassGLM ----

@@ -11,7 +11,7 @@ Description: A comprehensive machine learning and visualization package with an
     transparent and validated configuration for each step. A single call to 'train()' 
     can handle preprocessing, training, hyperparameter tuning, and testing with nested resampling, 
     offering unparalleled efficiency. Supports data.frames, data.tables, and tibbles, 
-    parallel execution, and interactive visualizations. The package first appeared in  
+    parallel execution, and interactive visualizations. The package first appeared in 
     <https://repository.upenn.edu/entities/publication/d81892ea-3087-4b71-a6f5-739c58626d64>.
 License: GPL (>= 3)
 URL: https://www.rtemis.org, https://rdocs.rtemis.org
