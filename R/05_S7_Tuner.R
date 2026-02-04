@@ -95,8 +95,6 @@ GridSearchConfig <- new_class(
     metrics_aggregate_fn = NULL,
     metric = NULL,
     maximize = NULL
-    # parallel_type = NULL,
-    # n_workers = NULL
   ) {
     check_is_S7(resampler_config, ResamplerConfig)
     check_inherits(search_type, "character")
@@ -104,8 +102,6 @@ GridSearchConfig <- new_class(
     check_character(metrics_aggregate_fn)
     check_inherits(metric, "character")
     check_inherits(maximize, "logical")
-    # check_inherits(parallel_type, "character")
-    # n_workers <- clean_posint(n_workers)
     # Only assign randomize_p if search_type is "randomized"
     params <- list(
       search_type = search_type,
@@ -113,8 +109,6 @@ GridSearchConfig <- new_class(
       metrics_aggregate_fn = metrics_aggregate_fn,
       metric = metric,
       maximize = maximize
-      # parallel_type = parallel_type,
-      # n_workers = n_workers
     )
     if (search_type == "randomized") {
       params[["randomize_p"]] <- randomize_p
@@ -162,8 +156,6 @@ setup_GridSearch <- function(
   metrics_aggregate_fn = "mean",
   metric = NULL,
   maximize = NULL
-  # parallel_type = "future", # These are set in train()
-  # n_workers = rtemis_workers
 ) {
   # Arguments ----
   check_is_S7(resampler_config, ResamplerConfig)
@@ -176,8 +168,6 @@ setup_GridSearch <- function(
   check_character(metrics_aggregate_fn)
   check_inherits(metric, "character")
   check_inherits(maximize, "logical")
-  # check_inherits(parallel_type, "character")
-  # n_workers <- clean_int(n_workers)
   GridSearchConfig(
     resampler_config = resampler_config,
     search_type = search_type,
@@ -185,8 +175,6 @@ setup_GridSearch <- function(
     metrics_aggregate_fn = metrics_aggregate_fn,
     metric = metric,
     maximize = maximize
-    # parallel_type = parallel_type,
-    # n_workers = n_workers
   )
 } # /rtemis::setup_GridSearch
 

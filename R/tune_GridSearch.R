@@ -20,7 +20,7 @@
 #'
 #' @param x data.frame or similar: Training set.
 #' @param hyperparameters `Hyperparameters` object created with a learner's `setup_*` function.
-#' @param tuner_config `TunerConfig` object: e.g.created with [setup_GridSearch].
+#' @param tuner_config `TunerConfig` object created with [setup_GridSearch].
 #' @param weights Vector: Class weights.
 #' @param save_mods Logical: Save models in tuning results.
 #' @param n_workers Integer: Number of workers to use for parallel processing.
