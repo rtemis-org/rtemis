@@ -74,7 +74,7 @@ method(print, MassGLM) <- print.MassGLM
 #'
 #' @author EDG
 #' @export
-method(plot, MassGLM) <- function(
+plot.MassGLM <- method(plot, MassGLM) <- function(
   x,
   coefname = NULL,
   p_adjust_method = "holm",
