@@ -48,8 +48,6 @@ plotly object.
 }
 \description{
 Draw a Manhattan plot for \code{MassGLM} objects created with \link{massGLM}.
-
-Create a Manhattan plot for MassGLM objects created with \link{massGLM}.
 }
 \examples{
 \dontrun{

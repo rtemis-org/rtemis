@@ -93,7 +93,7 @@ Supervised <- new_class(
       session_info = sessionInfo()
     )
   }
-) # /Supervised
+) # /rtemis::Supervised
 
 
 # Predict Supervised ----
@@ -112,7 +112,7 @@ method(predict, Supervised) <- function(object, newdata, ...) {
     predict_fn,
     list(model = object@model, newdata = newdata, type = object@type)
   )
-} # /predict.Supervised
+} # /rtemis::predict.Supervised
 
 
 # Fitted Supervised ----
@@ -126,7 +126,7 @@ method(predict, Supervised) <- function(object, newdata, ...) {
 #' @noRd
 method(fitted, Supervised) <- function(object, ...) {
   object@predicted_training
-} # /fitted.Supervised
+} # /rtemis::fitted.Supervised
 
 
 # Standard Error Supervised ----
@@ -140,7 +140,7 @@ method(fitted, Supervised) <- function(object, ...) {
 #' @noRd
 method(se, Supervised) <- function(x, ...) {
   x@se_training
-} # /se.Supervised
+}
 
 # Make Supervised props `$`- accessible ----
 method(`$`, Supervised) <- function(x, name) {
@@ -254,7 +254,7 @@ method(print, Supervised) <- function(
 ) {
   cat(repr(x, output_type = output_type))
   invisible(x)
-}
+} # /rtemis::print.Supervised
 
 
 # Describe Supervised ----
@@ -329,7 +329,7 @@ method(describe, Supervised) <- function(x) {
   }
   cat("\n")
   invisible(desc)
-} # / describe
+} # /rtemis::describe.Supervised
 
 
 # Calibration ----
@@ -347,7 +347,7 @@ Calibration <- new_class(
     brier_score_delta_training = class_numeric | NULL,
     brier_score_delta_test = class_numeric | NULL
   )
-) # /Calibration
+) # /rtemis::Calibration
 
 
 # Show Calibration ----
@@ -389,7 +389,7 @@ CalibrationRes <- new_class(
   # constructor = function(models, resampler_config) {
 
   # }
-) # /CalibrationRes
+) # /rtemis::CalibrationRes
 
 # Print CalibrationRes ----
 method(print, CalibrationRes) <- function(x, ...) {
@@ -403,7 +403,7 @@ method(print, CalibrationRes) <- function(x, ...) {
     ")\n",
     sep = ""
   )
-}
+} # /rtemis::print.CalibrationRes
 
 
 # Classification ----
@@ -498,7 +498,7 @@ Classification <- new_class(
       binclasspos = binclasspos
     )
   }
-) # /Classification
+) # /rtemis::Classification
 
 
 # CalibratedClassification ----
@@ -625,7 +625,7 @@ CalibratedClassification <- new_class(
       metrics_test_calibrated = metrics_test_calibrated
     )
   }
-) # rtemmis::CalibratedClassification
+) # /rtemis::CalibratedClassification
 
 # Predict CalibratedClassification ----
 method(predict, CalibratedClassification) <- function(object, newdata, ...) {
@@ -728,7 +728,7 @@ Regression <- new_class(
       se_test = se_test
     )
   }
-) # /Regression
+) # /rtemis::Regression
 
 # Plot True Pred Regression ----
 #' Plot True vs. Predicted for Regression
@@ -864,7 +864,7 @@ method(plot_roc, Classification) <- function(
     filename = filename,
     ...
   )
-} # /plot_ROC.Classification
+} # /rtemis::plot_ROC.Classification
 
 # make_Supervised() ----
 make_Supervised <- function(
@@ -936,7 +936,7 @@ make_Supervised <- function(
       extra = extra
     )
   }
-} # /make_Supervised
+} # /rtemis::make_Supervised
 
 # Write Supervised ----
 write_Supervised <- function(
@@ -953,7 +953,7 @@ write_Supervised <- function(
   if (save_mod) {
     rt_save(rt, outdir, verbosity = verbosity)
   }
-} # /write_Supervised
+} # /rtemis::write_Supervised
 
 
 # Present Regression ----
@@ -1118,7 +1118,7 @@ SupervisedRes <- new_class(
       session_info = sessionInfo()
     )
   }
-) # /SupervisedRes
+) # /rtemis::SupervisedRes
 
 
 # Show SupervisedRes ----
@@ -1207,7 +1207,7 @@ method(print, SupervisedRes) <- function(
 ) {
   cat(repr(x, output_type = output_type))
   invisible(x)
-} # /SupervisedRes
+} # /rtemis::print.SupervisedRes
 
 
 # Predict SupervisedRes ----
@@ -1329,7 +1329,7 @@ ClassificationRes <- new_class(
       predicted_prob_test = predicted_prob_test
     )
   }
-) # /ClassificationRes
+) # /rtemis::ClassificationRes
 
 
 # CalibratedClassificationRes ----
@@ -1396,7 +1396,7 @@ CalibratedClassificationRes <- new_class(
       calibration_models = calibrations_models
     )
   }
-) # /CalibratedClassificationRes
+) # /rtemis::CalibratedClassificationRes
 
 
 # Print CalibratedClassificationRes ----
@@ -1441,7 +1441,7 @@ method(print, CalibratedClassificationRes) <- function(x, ...) {
   print(x@metrics_training)
   cat("\n")
   print(x@metrics_test)
-} # /print.CalibratedClassificationRes
+} # /rtemis::print.CalibratedClassificationRes
 
 
 # Predict CalibratedClassificationRes ----
@@ -1573,7 +1573,7 @@ RegressionRes <- new_class(
       se_test = se_test
     )
   }
-) # /RegressionRes
+) # /rtemis::RegressionRes
 
 
 # desc SupervisedRes ----
@@ -1625,7 +1625,7 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
 # Describe SupervisedRes ----
 method(describe, SupervisedRes) <- function(x, ...) {
   cat(desc(x), "\n")
-} # /rtemis::describe.SupervisedRes
+}
 
 # Present SupervisedRes ----
 method(present, SupervisedRes) <- function(x, theme = choose_theme(), ...) {
@@ -1887,7 +1887,7 @@ method(plot_varimp, Supervised) <- function(
     return(invisible())
   }
   draw_varimp(x@varimp, theme = theme, filename = filename, ...)
-} # /plot_varimp.Supervised
+} # /rtemis::plot_varimp.Supervised
 
 
 # Plot Variable Importance SupervisedRes ----
@@ -1946,7 +1946,7 @@ method(plot_varimp, SupervisedRes) <- function(
     filename = filename,
     ...
   )
-} # /plot_varimp.SupervisedRes
+} # /rtemis::plot_varimp.SupervisedRes
 
 
 # Make SupervisedRes ----
@@ -2016,7 +2016,7 @@ make_SupervisedRes <- function(
       extra = extra
     )
   }
-} # /make_SupervisedRes
+} # /rtemis::make_SupervisedRes
 
 early_stopping_algs <- c("LightGBM", "LightRF", "LightRuleFit")
 
@@ -2090,7 +2090,7 @@ method(get_metric, ClassificationRes) <- function(x, set, metric) {
       r[["Overall"]][[metric]]
     }
   )
-}
+} # /rtemis::get_metric.ClassificationRes
 
 
 # Describe list of Supervised/Res ----
@@ -2204,7 +2204,7 @@ method(desc, class_list) <- function(
       # Regression
       metricv <- sapply(x, function(m) m@metrics_test@metrics[[metric]])
     }
-  } # /Supervised
+  } # /rtemis::Supervised
 
   # 3. Report mean metric across all models, sorting by performance
   metric_sorted <- sort(metricv, decreasing = TRUE)

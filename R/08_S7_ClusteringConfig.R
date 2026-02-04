@@ -20,7 +20,7 @@ ClusteringConfig <- new_class(
     algorithm = class_character,
     config = class_list
   )
-) # /ClusteringConfig
+) # /rtemis::ClusteringConfig
 
 # Make ClusteringConfig@config `$`-accessible
 method(`$`, ClusteringConfig) <- function(x, name) {
@@ -57,7 +57,7 @@ method(repr, ClusteringConfig) <- function(
     out,
     repr_ls(props(x)[["config"]], pad = pad, output_type = output_type)
   )
-} # /show
+} # /rtemis::repr.ClusteringConfig
 
 
 # Print ClusteringConfig ----
@@ -79,7 +79,7 @@ method(print, ClusteringConfig) <- function(
 ) {
   cat(repr(x, pad = pad, output_type = output_type))
   invisible(x)
-} # /print.ClusteringConfig
+} # /rtemis::print.ClusteringConfig
 
 
 # KMeansConfig ----
@@ -107,7 +107,7 @@ KMeansConfig <- new_class(
       )
     )
   }
-) # /KMeansConfig
+) # /rtemis::KMeansConfig
 
 #' Setup KMeansConfig
 #'
@@ -150,7 +150,7 @@ HardCLConfig <- new_class(
       )
     )
   }
-) # /HardCLConfig
+) # /rtemis::HardCLConfig
 
 #' Setup HardCLConfig
 #'
@@ -193,7 +193,7 @@ NeuralGasConfig <- new_class(
       )
     )
   }
-) # /NeuralGasConfig
+) # /rtemis::NeuralGasConfig
 
 #' Setup NeuralGasConfig
 #'
@@ -257,7 +257,7 @@ CMeansConfig <- new_class(
       )
     )
   }
-) # /CMeansConfig
+) # /rtemis::CMeansConfig
 
 #' Setup CMeansConfig
 #'
@@ -351,7 +351,7 @@ DBSCANConfig <- new_class(
       )
     )
   }
-) # /DBSCANConfig
+) # /rtemis::DBSCANConfig
 
 #' Setup DBSCANConfig
 #'

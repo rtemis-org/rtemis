@@ -42,6 +42,7 @@ method(repr, MassGLM) <- function(
   )
 } # /rtemis::show.MassGLM
 
+
 # Print MassGLM ----
 #' Print MassGLM
 #'
@@ -52,7 +53,7 @@ method(repr, MassGLM) <- function(
 #' @noRd
 print.MassGLM <- function(x, output_type = NULL, ...) {
   cat(repr(x, output_type = output_type))
-} # /rtemis::print.MassGLM
+}
 
 method(print, MassGLM) <- print.MassGLM
 
@@ -135,12 +136,6 @@ method(plot, MassGLM) <- plot.MassGLM
 #' @name
 #' plot_manhattan
 #'
-#' @title
-#' Manhattan plot for MassGLM
-#'
-#' @description
-#' Create a Manhattan plot for MassGLM objects created with [massGLM].
-#'
 #' @param x MassGLM object.
 #' @param coefname Character: Name of coefficient to plot. If `NULL`, the first coefficient is used.
 #' @param p_adjust_method Character: "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none" -
@@ -155,7 +150,21 @@ method(plot, MassGLM) <- plot.MassGLM
 #'
 #' @author EDG
 #' @export
-plot_manhattan.MassGLM <- function(
+#'
+#' @examples
+#' \dontrun{
+#' # x: outcome of interest as first column, optional covariates in the other columns
+#' # y: features whose association with x we want to study
+#' set.seed(2022)
+#' y <- data.table(rnormmat(500, 40))
+#' x <- data.table(
+#'   x1 = y[[3]] - y[[5]] + y[[14]] + rnorm(500),
+#'   x2 = y[[21]] + rnorm(500)
+#' )
+#' massmod <- massGLM(x, y)
+#' plot_manhattan(massmod)
+#' }
+plot_manhattan.MassGLM <- method(plot_manhattan, MassGLM) <- function(
   x,
   coefname = NULL,
   p_adjust_method = c(
@@ -217,5 +226,3 @@ plot_manhattan.MassGLM <- function(
     ...
   )
 } # /rtemis::plot_manhattan.MassGLM
-
-method(plot_manhattan, MassGLM) <- plot_manhattan.MassGLM

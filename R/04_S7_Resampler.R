@@ -1,6 +1,6 @@
 # S7_Resampler.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # References
 # https://github.com/RConsortium/S7/
@@ -41,7 +41,7 @@ ResamplerConfig <- new_class(
       n = n
     )
   }
-) # /ResamplerConfig
+) # /rtemis::ResamplerConfig
 
 # Make S7 properties `$`-accessible
 method(`$`, ResamplerConfig) <- function(x, name) {
@@ -135,7 +135,7 @@ KFoldConfig <- new_class(
       seed = seed
     )
   }
-) # /KFoldConfig
+) # /rtemis::KFoldConfig
 
 # StratSubConfig ----
 #' @title StratSubConfig
@@ -176,7 +176,7 @@ StratSubConfig <- new_class(
       seed = seed
     )
   }
-) # /StratSubConfig
+) # /rtemis::StratSubConfig
 
 # StratBootConfig ----
 #' @title StratBootConfig
@@ -219,7 +219,7 @@ StratBootConfig <- new_class(
       seed = seed
     )
   }
-) # /StratBootConfig
+) # /rtemis::StratBootConfig
 
 # BootstrapConfig ----
 #' @title BootstrapConfig
@@ -246,7 +246,7 @@ BootstrapConfig <- new_class(
       seed = seed
     )
   }
-) # /BootstrapConfig
+) # /rtemis::BootstrapConfig
 
 # LOOCVConfig ----
 #' @title LOOCVConfig
@@ -267,7 +267,7 @@ LOOCVConfig <- new_class(
       )
     )
   }
-) # /LOOCVConfig
+) # /rtemis::LOOCVConfig
 
 # CustomConfig ----
 #' @title CustomConfig
@@ -288,7 +288,7 @@ CustomConfig <- new_class(
       )
     )
   }
-) # /CustomConfig
+) # /rtemis::CustomConfig
 
 # setup_Resampler() ----
 #' Setup Resampler
@@ -383,7 +383,7 @@ setup_Resampler <- function(
       "Supported types are: 'KFold', 'StratSub', 'StratBoot', 'Bootstrap', 'LOOCV'."
     ))
   }
-} # /setup_Resampler
+} # /rtemis::setup_Resampler
 
 # Resampler ----
 #' @title Resampler
@@ -400,7 +400,7 @@ Resampler <- new_class(
     resamples = class_list,
     config = ResamplerConfig
   )
-) # /Resampler
+) # /rtemis::Resampler
 
 
 # repr Resampler ----
@@ -439,7 +439,7 @@ method(print, Resampler) <- function(
 ) {
   cat(repr(x, output_type = output_type))
   invisible(x)
-} # /rtemis::print.Resampler
+}
 
 # Names Resampler ----
 method(names, Resampler) <- function(x) {
@@ -465,4 +465,4 @@ method(`[[`, Resampler) <- function(x, index) {
 # desc Resampler ----
 method(desc, Resampler) <- function(x) {
   desc(x@config)
-} # /rtemis::desc.Resampler
+}
