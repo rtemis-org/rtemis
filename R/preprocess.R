@@ -1015,31 +1015,6 @@ one_hot2factor <- function(x, labels = colnames(x)) {
 #'
 #' @author EDG
 #' @export
-# input: mat/df/dt of binary columns
-# output: character vector of concatenated values
-# repeated vals removed
-binmat2vec <- function(x, labels = colnames(x)) {
-  if (NCOL(x) == 1) {
-    return(factor(x))
-  }
-  dt <- as.data.table(x)
-  # dt[, which (.SD == 1), by = 1:NROW(dt)]
-  fn <- \(r) paste(unique(labels[which(r == 1)]), collapse = ",")
-  out <- dt[, list(fn(.SD)), by = seq_len(NROW(dt))][[2]]
-  out[out == ""] <- NA
-  out
-} # /rtemis::binmat2vec
-
-
-#' Binary matrix times character vector
-#'
-#' @param x A binary matrix or data.frame
-#' @param labels Character vector length equal to `ncol(x)`
-#'
-#' @return a character vector
-#'
-#' @author EDG
-#' @export
 `%BC%` <- function(x, labels) {
   if (NCOL(x) == 1) {
     return(factor(x))

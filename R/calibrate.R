@@ -35,7 +35,7 @@ calibrate <- new_generic(
   ) {
     S7_dispatch()
   }
-)
+) # /rtemis::calibrate
 
 
 #' Calibrate Binary Classification Models
@@ -152,7 +152,7 @@ method(calibrate, Classification) <- function(
     verbosity = verbosity,
     ...
   )
-}
+} # /rtemis::calibrate.Classification
 
 
 #' Calibrate Resampled Classification Models
@@ -240,6 +240,8 @@ calibrate.ClassificationRes <- function(
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @author EDG
+#' @keywords internal
+#' @noRd
 method(calibrate, ClassificationRes) <- function(
   x,
   algorithm = "isotonic",
@@ -254,4 +256,4 @@ method(calibrate, ClassificationRes) <- function(
     verbosity = verbosity,
     ...
   )
-}
+} # /rtemis::calibrate.ClassificationRes

@@ -1,11 +1,11 @@
 # ddb_ops.R
 # ::rtemis::
-# 2022-3 EDG rtemis.org
+# 2022- EDG rtemis.org
 
 #' Read CSV using DuckDB
 #'
-#' Lazy-read a CSV file, optionally filter rows, remove duplicates,
-#' clean column names, convert character to factor, and collect.
+#' Lazy-read a CSV file, optionally: filter rows, remove duplicates,
+#' clean column names, convert character to factor, collect.
 #'
 #' @param filename Character: file name; either full path or just the file name,
 #' if `datadir` is also provided.

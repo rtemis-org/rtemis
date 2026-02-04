@@ -13,8 +13,7 @@
 # `Resampler` class stores resamples and their configuration.
 # `Resampler` objects are created by `resample()`.
 
-# Notes
-# `id_strat` is used by `resample()`, not individual resamplers
+# Note: `id_strat` is used by `resample()`, not individual resamplers
 
 # ResamplerConfig ----
 #' @title ResamplerConfig
@@ -54,6 +53,26 @@ method(`[[`, ResamplerConfig) <- function(x, name) {
   prop(x, name)
 }
 
+
+# repr ResamplerConfig ----
+#' repr ResamplerConfig
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(repr, ResamplerConfig) <- function(x, pad = 0L, output_type = NULL) {
+  output_type <- get_output_type(output_type)
+  paste0(
+    repr_S7name(x, pad = pad, output_type = output_type),
+    repr_ls(
+      props(x)[-1],
+      pad = pad + 2L,
+      print_class = FALSE,
+      output_type = output_type
+    )
+  )
+} # /rtemis::repr.ResamplerConfig
+
 #' Print ResamplerConfig
 #'
 #' @description
@@ -63,26 +82,18 @@ method(`[[`, ResamplerConfig) <- function(x, name) {
 #'
 #' @author EDG
 #' @noRd
-method(print, ResamplerConfig) <- function(x, pad = 0L, ...) {
-  objcat(paste(x@type, "ResamplerConfig"), pad = pad)
-  printls(props(x)[-1], pad = pad + 2L)
+method(print, ResamplerConfig) <- function(
+  x,
+  pad = 0L,
+  output_type = c("ansi", "html", "plain"),
+  ...
+) {
+  cat(repr(x, pad = pad, output_type = output_type))
   invisible(x)
 } # /rtemis::print.ResamplerConfig
 
 # desc ResamplerConfig ----
 method(desc, ResamplerConfig) <- function(x) {
-  switch(
-    x@type,
-    KFold = paste0(x@n, "-fold crossvalidation"),
-    StratSub = paste0(x@n, " stratified subsamples"),
-    StratBoot = paste0(x@n, " stratified bootstraps"),
-    Bootstrap = paste0(x@n, " bootstraps"),
-    LOOCV = "Leave-one-out crossvalidation"
-  )
-} # /rtemis::desc.ResamplerConfig
-
-# desc_alt ResamplerConfig ----
-method(desc_alt, ResamplerConfig) <- function(x) {
   switch(
     x@type,
     KFold = paste0(x@n, " independent folds"),
@@ -391,6 +402,26 @@ Resampler <- new_class(
   )
 ) # /Resampler
 
+
+# repr Resampler ----
+#' repr Resampler
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(repr, Resampler) <- function(x, pad = 0L, output_type = NULL) {
+  output_type <- get_output_type(output_type)
+  paste0(
+    repr_S7name(x, pad = pad, output_type = output_type),
+    repr_ls(
+      props(x),
+      pad = pad + 2L,
+      print_class = FALSE,
+      output_type = output_type
+    )
+  )
+} # /rtemis::repr.Resampler
+
 # Print Resampler ----
 #' Print Resampler
 #'
@@ -401,16 +432,13 @@ Resampler <- new_class(
 #'
 #' @author EDG
 #' @noRd
-print.Resampler <- function(x, ...) {
-  objcat(paste(x@type, "Resampler"))
-  propsl <- props(x)
-  # type is already printed by objcat
-  propsl[["type"]] <- NULL
-  printls(propsl)
+method(print, Resampler) <- function(
+  x,
+  output_type = c("ansi", "html", "plain"),
+  ...
+) {
+  cat(repr(x, output_type = output_type))
   invisible(x)
-}
-method(print, Resampler) <- function(x, ...) {
-  print.Resampler(x)
 } # /rtemis::print.Resampler
 
 # Names Resampler ----
@@ -438,45 +466,3 @@ method(`[[`, Resampler) <- function(x, index) {
 method(desc, Resampler) <- function(x) {
   desc(x@config)
 } # /rtemis::desc.Resampler
-
-# desc_alt Resampler ----
-method(desc_alt, Resampler) <- function(x) {
-  desc_alt(x@config)
-} # /rtemis::desc_alt.Resampler
-
-# print1.resample <- function(x, verbosity = 0L, ...) {
-#   resampler <- attr(x, "resampler")
-#   if (resampler == "loocv") {
-#     .text <- "Leave-one-out crossvalidation"
-#   } else {
-#     .text <- paste0(
-#       attr(x, "N"),
-#       resamples <- switch(resampler,
-#         strat_sub = " stratified subsamples",
-#         bootstrap = " bootstraps",
-#         strat_boot = " stratified bootstraps",
-#         kfold = "-fold crossvalidation"
-#       )
-#     )
-#   }
-
-#   if (verbosity > 0L) print(.text)
-#   invisible(.text)
-# } # /rtemis::print1.resample
-
-# Plot Resampler ----
-#' Plot Resampler
-#'
-#' Plot Resampler object
-#'
-#' @param x `Resampler` object.
-#' @param ... Not used.
-#'
-#' @author EDG
-#' @noRd
-# plot.Resampler <- function(x, col = NULL, ...) {
-#   mplot3_res(x, col = col, ...)
-# }
-# method(plot, Resampler) <- function(x, col = NULL, ...) {
-#   plot.Resampler(x, col = col, ...)
-# } # /rtemis::plot.Resampler

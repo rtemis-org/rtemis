@@ -252,7 +252,6 @@ method(print, Supervised) <- function(
   output_type = c("ansi", "html", "plain"),
   ...
 ) {
-  output_type <- match.arg(output_type)
   cat(repr(x, output_type = output_type))
   invisible(x)
 }
@@ -743,7 +742,8 @@ Regression <- new_class(
 #' @param ... Additional arguments passed to the plotting function.
 #'
 #' @author EDG
-#' @rdname plot_true_pred
+#' @keywords internal
+#' @noRd
 method(plot_true_pred, Regression) <- function(
   x,
   what = "all",
@@ -788,7 +788,8 @@ method(plot_true_pred, Regression) <- function(
 #' @param ... Additional arguments passed to the plotting function.
 #'
 #' @author EDG
-#' @rdname plot_true_pred
+#' @keywords internal
+#' @noRd
 method(plot_true_pred, Classification) <- function(
   x,
   what = NULL,
@@ -1617,9 +1618,9 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
       "on the test set across "
     )
   }
-  out <- paste0(out, desc_alt(x@outer_resampler), ".")
+  out <- paste0(out, desc(x@outer_resampler), ".")
   invisible(out)
-} # / rtemis::desc.SupervisedRes
+} # /rtemis::desc.SupervisedRes
 
 # Describe SupervisedRes ----
 method(describe, SupervisedRes) <- function(x, ...) {
@@ -1647,7 +1648,8 @@ method(present, SupervisedRes) <- function(x, theme = choose_theme(), ...) {
 #' @param ... Additional arguments passed to [draw_fit].
 #'
 #' @author EDG
-#' @rdname plot_true_pred
+#' @keywords internal
+#' @noRd
 method(plot_true_pred, RegressionRes) <- function(
   x,
   what = "all",
@@ -1692,7 +1694,8 @@ method(plot_true_pred, RegressionRes) <- function(
 #' @param ... Additional arguments passed to [draw_confusion].
 #'
 #' @author EDG
-#' @rdname plot_true_pred
+#' @keywords internal
+#' @noRd
 method(plot_true_pred, ClassificationRes) <- function(
   x,
   what = "all",
@@ -1765,7 +1768,8 @@ method(plot_true_pred, ClassificationRes) <- function(
 #' @return plotly object.
 #'
 #' @author EDG
-#' @rdname plot_roc
+#' @keywords internal
+#' @noRd
 method(plot_roc, ClassificationRes) <- function(
   x,
   what = "all",
@@ -1813,7 +1817,8 @@ method(plot_roc, ClassificationRes) <- function(
 #' @param ... Additional arguments passed to the plotting function.
 #'
 #' @author EDG
-#' @rdname plot_metric
+#' @keywords internal
+#' @noRd
 method(plot_metric, SupervisedRes) <- function(
   x,
   what = c("training", "test"),
@@ -1930,7 +1935,7 @@ method(plot_varimp, SupervisedRes) <- function(
     ylab <- paste0(
       labelify(paste(summarize_fn, "Variable Importance")),
       "\n(across ",
-      desc_alt(x@outer_resampler),
+      desc(x@outer_resampler),
       ")"
     )
   }
@@ -2039,7 +2044,7 @@ LightRuleFit <- new_class(
     xnames = class_character,
     complexity_metrics = class_data.frame
   )
-) # /LightRuleFit
+) # /rtemis::LightRuleFit
 
 # Print LightRuleFit ----
 method(print, LightRuleFit) <- function(x, ...) {
@@ -2075,7 +2080,7 @@ method(get_metric, RegressionRes) <- function(x, set, metric) {
       r[[metric]]
     }
   )
-}
+} # /rtemis::get_metric.RegressionRes
 
 # get_metric ClassificationRes ----
 method(get_metric, ClassificationRes) <- function(x, set, metric) {

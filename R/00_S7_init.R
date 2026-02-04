@@ -23,18 +23,12 @@ repr <- new_generic("repr", "x")
 se <- new_generic("se", "x")
 
 #' Short description for inline printing.
+#' This is like `repr` for single-line descriptions.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 desc <- new_generic("desc", "x")
-
-#' Alt description for inline printing.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-desc_alt <- new_generic("desc_alt", "x")
 
 
 #' Get metric

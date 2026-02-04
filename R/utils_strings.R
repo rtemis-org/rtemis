@@ -342,8 +342,8 @@ pastebox <- function(x, pad = 0) {
 #' @return Character: Formatted string that can be printed with cat().
 #'
 #' @author EDG
-#' @export
 #' @keywords internal
+#' @noRd
 #'
 #' @examples
 #' repr_S7name("Supervised") |> cat()
@@ -355,6 +355,11 @@ repr_S7name <- function(
   output_type = NULL
 ) {
   output_type <- get_output_type(output_type)
+
+  if (S7_inherits(x)) {
+    x <- S7_class(x)@name
+  }
+
   paste0(
     strrep(" ", pad),
     gray("<", output_type = output_type),

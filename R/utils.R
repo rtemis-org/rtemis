@@ -12,8 +12,9 @@
 #' @return Called for its side effect of printing the range of `x`.
 #'
 #' @author EDG
-#' @export
-catrange <- function(x, ddSci = TRUE, decimal_places = 1, na.rm = TRUE) {
+#' @keywords internal
+#' @noRd
+show_range <- function(x, ddSci = TRUE, decimal_places = 1, na.rm = TRUE) {
   if (ddSci) {
     paste(
       ddSci(range(x, na.rm = na.rm), decimal_places = decimal_places),
@@ -22,7 +23,6 @@ catrange <- function(x, ddSci = TRUE, decimal_places = 1, na.rm = TRUE) {
   } else {
     paste(range(x, na.rm = na.rm), collapse = " to ")
   }
-  invisible()
 } # /rtemis::catrange
 
 
