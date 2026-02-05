@@ -11,7 +11,7 @@
 #' @param x data.frame or similar: Training set.
 #' @param weights Numeric vector: Case weights.
 #' @param hyperparameters `SVMHyperparameters` object: make using [setup_RadialSVM].
-#' @param tuner_config `TunerConfig` object: make using [setup_GridSearch].
+#' @param tuner_config `TunerConfig` object created using [setup_GridSearch].
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Object of class `svm`.

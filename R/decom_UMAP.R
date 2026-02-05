@@ -20,6 +20,9 @@ decom_UMAP <- function(x, config, verbosity = 1L) {
   check_unsupervised_data(x = x, allow_missing = FALSE)
 
   # Decompose ----
+  if (verbosity > 0L) {
+    msg("Decomposing with", config@algorithm, "...")
+  }
   args <- c(
     list(X = x, n_components = config[["k"]], ret_model = TRUE),
     config@config

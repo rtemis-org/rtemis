@@ -17,6 +17,9 @@ cluster_CMeans <- function(x, config, verbosity = 1L) {
   check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)
 
   # Cluster ----
+  if (verbosity > 0L) {
+    msg("Clustering with", config@algorithm, "...")
+  }
   clust <- e1071::cmeans(
     x = x,
     centers = config[["k"]],

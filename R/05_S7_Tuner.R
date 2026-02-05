@@ -94,9 +94,7 @@ GridSearchConfig <- new_class(
     randomize_p = NULL,
     metrics_aggregate_fn = NULL,
     metric = NULL,
-    maximize = NULL,
-    parallel_type = NULL,
-    n_workers = NULL
+    maximize = NULL
   ) {
     check_is_S7(resampler_config, ResamplerConfig)
     check_inherits(search_type, "character")
@@ -104,17 +102,13 @@ GridSearchConfig <- new_class(
     check_character(metrics_aggregate_fn)
     check_inherits(metric, "character")
     check_inherits(maximize, "logical")
-    check_inherits(parallel_type, "character")
-    n_workers <- clean_posint(n_workers)
     # Only assign randomize_p if search_type is "randomized"
     params <- list(
       search_type = search_type,
       resampler_config = resampler_config,
       metrics_aggregate_fn = metrics_aggregate_fn,
       metric = metric,
-      maximize = maximize,
-      parallel_type = parallel_type,
-      n_workers = n_workers
+      maximize = maximize
     )
     if (search_type == "randomized") {
       params[["randomize_p"]] <- randomize_p
@@ -143,8 +137,6 @@ GridSearchConfig <- new_class(
 #' @param metrics_aggregate_fn Character: Name of function to use to aggregate error metrics.
 #' @param metric Character: Metric to minimize or maximize.
 #' @param maximize Logical: If TRUE, maximize `metric`, otherwise minimize it.
-#' @param parallel_type Character: Parallel backend to use.
-#' @param n_workers Integer: Number of workers to use.
 #'
 #' @return A `GridSearchConfig` object.
 #'
@@ -163,9 +155,7 @@ setup_GridSearch <- function(
   randomize_p = NULL,
   metrics_aggregate_fn = "mean",
   metric = NULL,
-  maximize = NULL,
-  parallel_type = "future",
-  n_workers = rtemis_workers
+  maximize = NULL
 ) {
   # Arguments ----
   check_is_S7(resampler_config, ResamplerConfig)
@@ -178,17 +168,13 @@ setup_GridSearch <- function(
   check_character(metrics_aggregate_fn)
   check_inherits(metric, "character")
   check_inherits(maximize, "logical")
-  check_inherits(parallel_type, "character")
-  n_workers <- clean_int(n_workers)
   GridSearchConfig(
     resampler_config = resampler_config,
     search_type = search_type,
     randomize_p = randomize_p,
     metrics_aggregate_fn = metrics_aggregate_fn,
     metric = metric,
-    maximize = maximize,
-    parallel_type = parallel_type,
-    n_workers = n_workers
+    maximize = maximize
   )
 } # /rtemis::setup_GridSearch
 
