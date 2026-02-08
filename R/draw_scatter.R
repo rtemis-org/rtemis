@@ -915,12 +915,10 @@ draw_scatter <- function(
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' if (interactive()) {
+#' @examplesIf interactive()
 #' x <- rnorm(500)
 #' y <- x + rnorm(500)
 #' draw_fit(x, y)
-#' }
 draw_fit <- function(
   x,
   y,
