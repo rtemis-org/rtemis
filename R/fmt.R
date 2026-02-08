@@ -23,8 +23,11 @@
 #' making it more efficient than nested function calls. It generates
 #' optimized ANSI escape sequences and clean HTML output.
 #'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+#'
 #' @examples
-#' \dontrun{
 #' # Simple color
 #' fmt("Hello", col = "red")
 #'
@@ -36,11 +39,6 @@
 #'
 #' # With background
 #' fmt("Highlight", col = "white", bg = "blue", bold = TRUE)
-#' }
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
 fmt <- function(
   x,
   col = NULL,

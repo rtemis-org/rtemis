@@ -14,6 +14,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
+#'
 #' @examples
 #' \dontrun{
 #' datetime()
