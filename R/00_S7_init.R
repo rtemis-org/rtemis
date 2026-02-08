@@ -5,6 +5,11 @@
 # References
 # S7 generics: https://rconsortium.github.io/S7/articles/generics-methods.html
 
+# --- S3 Classes for S7 ----------------------------------------------------------------------------
+class_data.table <- new_S3_class("data.table")
+class_lgb.Booster <- new_S3_class("lgb.Booster")
+
+
 # --- Generics -------------------------------------------------------------------------------------
 
 #' String representation
@@ -83,12 +88,10 @@ plot_metric <- new_generic("plot_metric", "x")
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' x <- as.data.table(iris[51:150, ])
 #' x[, Species := factor(Species)]
 #' species_glm <- train(x, algorithm = "GLM")
 #' plot_roc(species_glm)
-#' }
 plot_roc <- new_generic("plot_roc", "x")
 
 
@@ -123,11 +126,9 @@ plot_varimp <- new_generic("plot_varimp", "x")
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' x <- set_outcome(iris, "Sepal.Length")
 #' sepallength_glm <- train(x, algorithm = "GLM")
 #' plot_true_pred(sepallength_glm)
-#' }
 plot_true_pred <- new_generic("plot_true_pred", "x")
 
 
@@ -160,35 +161,28 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' species_lightrf <- train(iris, algorithm = "lightrf")
 #' describe(species_lightrf)
-#' # LightGBM Random Forest was used for classification.
-#' # Balanced accuracy was 0.95 on the training set.
-#' }
 describe <- new_generic("describe", "x")
 
 
 #' Present rtemis object
 #'
 #' @description
-#' This generic is used to present an rtemis object using plots and text.
+#' This generic is used to present an rtemis object by printing to console and drawing plots.
 #'
 #' @param x `Supervised` or `SupervisedRes` object or list of such objects.
 #' @param ... Additional arguments passed to the plotting function.
 #'
-#' @return A plotly object along with console output.
+#' @return A plotly object.
 #'
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
-#' species_lightrf <- train(iris, algorithm = "lightrf")
-#' present(species_lightrf)
-#' # LightGBM Random Forest was used for classification.
-#' # Balanced accuracy was 0.95 on the training set.
-#' }
+#' @examplesIf interactive()
+#' ir <- set_outcome(iris, "Sepal.Length")
+#' seplen_lightrf <- train(ir, algorithm = "lightrf")
+#' present(seplen_lightrf)
 present <- new_generic("present", "x")
 
 
@@ -217,12 +211,53 @@ get_hyperparams <- new_generic("get_hyperparams", c("x", "param_names"))
 #' @noRd
 extract_rules <- new_generic("extract_rules", "x")
 
-# --- S3 Classes -----------------------------------------------------------------------------------
-class_data.table <- new_S3_class("data.table")
-class_lgb.Booster <- new_S3_class("lgb.Booster")
+
+#' @name get_factor_levels
+#'
+#' @title
+#' Get factor levels from data.frame or similar
+#'
+#' @usage
+#' get_factor_levels(x)
+#'
+#' @param x data.frame or similar.
+#'
+#' @return Named list of factor levels. Names correspond to column names.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+get_factor_levels <- new_generic(
+  "get_factor_levels",
+  "x",
+  function(x) S7_dispatch()
+)
+method(get_factor_levels, class_data.frame) <- function(x) {
+  factor_index <- which(sapply(x, is.factor))
+  lapply(x[, factor_index, drop = FALSE], levels)
+}
+method(get_factor_levels, class_data.table) <- function(x) {
+  factor_index <- which(sapply(x, is.factor))
+  lapply(x[, factor_index, with = FALSE], levels)
+}
 
 
-# data.frame data.table compatibility ----
+#' Convert to TOML
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+to_toml <- new_generic("to_toml", "x")
+
+
+#' Read from TOML
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+from_toml <- new_generic("from_toml", "x")
+
+
 #' Select (include) columns by character or numeric vector.
 #'
 #' @param x data.frame or similar.
@@ -423,6 +458,41 @@ method(get_factor_names, class_data.frame) <- function(x) {
 }
 
 
+#' Calibrate `Classification` & `ClassificationRes` Models
+#'
+#' @description
+#' Generic function to calibrate binary classification models.
+#'
+#' @details
+#' The goal of calibration is to adjust the predicted probabilities of a binary classification
+#' model so that they better reflect the true probabilities (i.e. empirical risk) of the positive
+#' class.
+#'
+#' @param x `Classification` or `ClassificationRes` object to calibrate.
+#' @param algorithm Character: Algorithm to use to train calibration model.
+#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
+#' @param verbosity Integer: Verbosity level.
+#' @param ... Additional arguments passed to specific methods.
+#'
+#' @return Calibrated model object.
+#'
+#' @author EDG
+#' @export
+calibrate <- new_generic(
+  "calibrate",
+  ("x"),
+  function(
+    x,
+    algorithm = "isotonic",
+    hyperparameters = NULL,
+    verbosity = 1L,
+    ...
+  ) {
+    S7_dispatch()
+  }
+) # /rtemis::calibrate
+
+
 # --- Custom S7 validators -------------------------------------------------------------------------
 
 #' Scalar double
@@ -518,7 +588,9 @@ scalar_int_pos <- S7::new_property(
 ) # /rtemis::scalar_int_pos
 
 
-#' Get preprocessed data from Preprocessor
+#' Get preprocessed data from `Preprocessor`.
+#'
+#' Returns the preprocessed data from a `Preprocessor` object.
 #'
 #' @param x `Preprocessor`: A `Preprocessor` object.
 #'
@@ -547,6 +619,7 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 #'
 #' @export
 #' @keywords internal
+#' @noRd
 get_output_type <- function(
   output_type = c("ansi", "html", "plain"),
   filename = NULL
