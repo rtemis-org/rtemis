@@ -42,11 +42,12 @@ highlightbig <- function(x, output_type = c("ansi", "html", "plain")) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-red <- function(..., bold = FALSE) {
+red <- function(..., bold = FALSE, output_type = c("ansi", "html", "plain")) {
   fmt(
     paste(...),
     col = rt_red,
-    bold = bold
+    bold = bold,
+    output_type = output_type
   )
 }
 
@@ -56,11 +57,12 @@ red <- function(..., bold = FALSE) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-green <- function(..., bold = FALSE) {
+green <- function(..., bold = FALSE, output_type = c("ansi", "html", "plain")) {
   fmt(
     paste(...),
     col = rt_green,
-    bold = bold
+    bold = bold,
+    output_type = output_type
   )
 }
 
@@ -70,11 +72,12 @@ green <- function(..., bold = FALSE) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-blue <- function(..., bold = FALSE) {
+blue <- function(..., bold = FALSE, output_type = c("ansi", "html", "plain")) {
   fmt(
     paste(...),
     col = rt_blue,
-    bold = bold
+    bold = bold,
+    output_type = output_type
   )
 }
 
@@ -84,11 +87,16 @@ blue <- function(..., bold = FALSE) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-orange <- function(..., bold = FALSE) {
+orange <- function(
+  ...,
+  bold = FALSE,
+  output_type = c("ansi", "html", "plain")
+) {
   fmt(
     paste(...),
     col = rt_orange,
-    bold = bold
+    bold = bold,
+    output_type = output_type
   )
 }
 
@@ -123,6 +131,11 @@ rtcitation <- paste0(
 )
 
 
+checkmark <- function(output_type = c("ansi", "html", "plain")) {
+  fmt("\u2713", col = rt_green, bold = TRUE, output_type = output_type)
+}
+
+
 #' Success message
 #'
 #' @param ... Character: Message components.
@@ -136,12 +149,11 @@ rtcitation <- paste0(
 yay <- function(..., sep = " ", end = "\n", pad = 0) {
   message(
     strrep(" ", pad),
-    green("\u2714 "),
-    paste(..., sep = sep),
+    paste(checkmark(), ..., sep = sep),
     end,
     appendLF = FALSE
   )
-}
+} # /rtemis::yay
 
 
 #' Failure message
@@ -157,12 +169,12 @@ yay <- function(..., sep = " ", end = "\n", pad = 0) {
 nay <- function(..., sep = " ", end = "\n", pad = 0) {
   message(
     strrep(" ", pad),
-    red("\u2715 "),
+    fmt("\u2715 ", col = rt_red, bold = TRUE),
     paste(..., sep = sep),
     end,
     appendLF = FALSE
   )
-}
+} # /rtemis::nay
 
 
 #' Format text for label printing
