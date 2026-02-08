@@ -43,10 +43,8 @@ show_range <- function(x, ddSci = TRUE, decimal_places = 1, na.rm = TRUE) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' x <- runif(20, -10, 10)
 #' x <- drange(x)
-#' }
 drange <- function(x, lo = 0, hi = 1, byCol = TRUE) {
   dr <- function(x, lo, hi) {
     .min <- min(x, na.rm = TRUE)
@@ -105,11 +103,9 @@ factor_NA2missing <- function(x, na_level_name = "missing") {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
 #' x <- rnorm(10)
 #' x
 #' x[filter_order(x, x < 0)]
-#' }
 filter_order <- function(x, idl, decreasing = FALSE) {
   idi <- which(idl)
   flt_ord <- order(x[idi], decreasing = decreasing)
@@ -206,13 +202,11 @@ get_mode <- function(
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' x <- rep(9, 1000000)
 #' is_constant(x)
 #' x[10] <- NA
 #' is_constant(x)
 #' is_constant(x, skip_missing = TRUE)
-#' }
 is_constant <- function(x, skip_missing = FALSE) {
   # all(duplicated(x)[-1L])
   if (skip_missing) {
@@ -263,11 +257,9 @@ pval_stars <- function(x) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
 #' singorplu(0, "cat")
 #' singorplu(1, "cat")
 #' singorplu(2, "cat")
-#' }
 singorplu <- function(n, x) {
   switch(
     as.character(n),
@@ -299,7 +291,6 @@ singorplu <- function(n, x) {
 #' x <- matrix(rnorm(100), 20, 5)
 #' size(x)
 #' # 20  5
-
 size <- function(x, verbosity = 1L) {
   z <- if (is.null(dim(x))) {
     length(x)
@@ -493,33 +484,31 @@ rt_letters <- function(n = 100, caps = FALSE) {
 #'
 #' Initializes Directory Structure: "R", "Data", "Results"
 #'
+#' @param path Character: Path to initialize project directory in.
+#' @param output_dir Character: Name of output directory to create.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return Character: the working directory path, invisibly.
+#' @return Character: the path where the project directory was initialized, invisibly.
 #'
 #' @author EDG
 #' @export
-
-init_project_dir <- function(verbosity = 1L) {
-  wd <- getwd()
+init_project_dir <- function(path, output_dir = "Out", verbosity = 1L) {
   if (verbosity > 0L) {
     msg("Initializing project directory...")
   }
-  if (verbosity > 0L) {
-    cat("  Working in ", wd, "...\n", sep = "")
-  }
+  path <- normalizePath(path)
 
-  # rtInit.log ----
-  # if (verbosity > 0L) cat(highlight("  Writing 'rtInit.log' file..."))
-  sink("rtInit.log", append = TRUE)
-  cat(".:rtemis Project Directory\n")
-  cat(date(), "\n")
-  cat("--------------------------\n")
+  # Log file: rtemis_init.log ----
+  logfile_path <- file.path(path, "rtemis_init.log")
+  sink(file = logfile_path, append = TRUE)
+  cat("<rtemis Project>\n")
+  cat("Initialized: ", datetime(), "\n", sep = "")
+  cat("--------------------------------\n")
   print(sessionInfo())
   sink()
 
-  # ./R ./Data ./Results ----
-  dirs <- c("R", "Data", "Results")
+  # Directories: /R /Data /output_dir ----
+  dirs <- file.path(path, c("R", "Data", output_dir))
   for (i in dirs) {
     if (verbosity > 0L) {
       cat("  > Creating ", bold(i), " folder...", sep = "")
@@ -527,17 +516,16 @@ init_project_dir <- function(verbosity = 1L) {
     if (!dir.exists(i)) {
       dir.create(i)
       if (dir.exists(i)) {
-        if (verbosity > 0L) cat(highlight(" Done\n"))
+        if (verbosity > 0L) yay()
       } else {
-        if (verbosity > 0L) cat(bold(red(" Failed")))
+        if (verbosity > 0L) nay()
       }
     } else {
-      if (verbosity > 0L) cat(bold(orange(" Already present\n")))
+      if (verbosity > 0L) cat(orange(" Already present\n", bold = TRUE))
     }
   }
-
   if (verbosity > 0L) {
-    cat(highlight("  All done\n"))
+    msg("Done.")
   }
-  invisible(wd)
+  invisible(path)
 } # /rtemis::init_project_dir
