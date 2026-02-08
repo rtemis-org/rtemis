@@ -1865,8 +1865,8 @@ penn_heat <- function(
   }
 
   if (colorbar) {
-    # bar.grad <- c(penn.vlight2blue.lab(31), penn.blue2red2yellow.lab(30))
-    par.orig <- par(no.readonly = TRUE)
+    par_orig <- par(no.readonly = TRUE)
+    on.exit(par(par_orig))
     par(mar = c(1, 1, 1, 1))
     if (!is.null(filename)) {
       grDevices::pdf(filename, width = 3, height = 9)
@@ -1898,7 +1898,6 @@ penn_heat <- function(
     if (!is.null(filename)) {
       grDevices::dev.off()
     }
-    par(par.orig)
   }
 
   return(grad)
