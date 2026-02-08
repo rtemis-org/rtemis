@@ -20,9 +20,7 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")
-#' }
 decomp <- function(x, algorithm = "ICA", config = NULL, verbosity = 1L) {
   # Checks ----
   if (is.null(config)) {
