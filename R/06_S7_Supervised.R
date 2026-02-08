@@ -332,80 +332,6 @@ method(describe, Supervised) <- function(x) {
 } # /rtemis::describe.Supervised
 
 
-# Calibration ----
-#' @title Calibration
-#'
-#' @description
-#' Calibration class.
-#'
-#' @author EDG
-#' @noRd
-Calibration <- new_class(
-  name = "Calibration",
-  properties = list(
-    model = Supervised,
-    brier_score_delta_training = class_numeric | NULL,
-    brier_score_delta_test = class_numeric | NULL
-  )
-) # /rtemis::Calibration
-
-
-# Show Calibration ----
-method(repr, Calibration) <- function(x, output_type = NULL) {
-  output_type <- get_output_type(output_type)
-  paste0(
-    repr_S7name("Calibration", output_type = output_type),
-    highlight(x@algorithm, output_type = output_type),
-    " (",
-    desc_alg(x@algorithm),
-    ")\n"
-  )
-} # /rtemis::show.Calibration
-
-
-# Print Calibration ----
-method(print, Calibration) <- function(x, ...) {
-  # cat(gray(".:"))
-  objcat("Calibration Model")
-  cat(
-    "  ",
-    highlight(x@algorithm),
-    " (",
-    desc_alg(x@algorithm),
-    ")\n",
-    sep = ""
-  )
-} # /rtemis::print.Calibration
-
-# CalibrationRes ----
-CalibrationRes <- new_class(
-  name = "CalibrationRes",
-  properties = list(
-    models = class_list,
-    resampler_config = ResamplerConfig
-    # brier_score_delta_training = class_numeric | NULL,
-    # brier_score_delta_test = class_numeric | NULL
-  )
-  # constructor = function(models, resampler_config) {
-
-  # }
-) # /rtemis::CalibrationRes
-
-# Print CalibrationRes ----
-method(print, CalibrationRes) <- function(x, ...) {
-  # cat(gray(".:"))
-  objcat("Resampled Calibration Model")
-  cat(
-    "  ",
-    highlight(x@algorithm),
-    " (",
-    desc_alg(x@algorithm),
-    ")\n",
-    sep = ""
-  )
-} # /rtemis::print.CalibrationRes
-
-
 # Classification ----
 #' @title Classification
 #'
@@ -2258,3 +2184,64 @@ method(describe, class_list) <- function(
   cat(out, "\n")
   invisible(out)
 } # /rtemis::describe.list(Supervised/Res)
+
+# %% Internal functions ----------------------------------------------------------------------------
+#' Get number of workers for learner
+#'
+#' Checks the proposed plan and number of workers and avoids overparallelization.
+#'
+#' @param learner Character: Name of learner.
+#' @param plan Character: Name of future plan.
+#' @param n_workers Integer: Number of workers.
+#'
+#' @return n_workers Integer n of workers.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+get_n_workers_for_learner <- function(
+  algorithm,
+  parallel_type,
+  n_workers = NULL,
+  verbosity = 1L
+) {
+  # If n_workers is not set, set it to available cores.
+  # If learner uses parallelization and plan is run on single machine,
+  # set n_workers to 1 to avoid overparallelization.
+  single_machine_types <- c(
+    "future::multicore",
+    "future::callr",
+    "future::multisession",
+    "future.mirai::mirai_multisession",
+    "mirai"
+  )
+  if (
+    parallel_type %in%
+      single_machine_types &&
+      algorithm %in% live[["parallelized_learners"]]
+  ) {
+    if (verbosity > 0L && !is.null(n_workers) && n_workers > 1) {
+      msg(
+        highlight2(
+          paste0(
+            "Running a parallelized learner and n_workers is greater than 1, but plan ",
+            parallel_type,
+            " is run on single machine. Setting n_workers to 1."
+          )
+        )
+      )
+    }
+    return(1L)
+  }
+  available_workers <- parallelly::availableCores()
+  if (!is.null(n_workers) && n_workers <= available_workers) {
+    return(n_workers)
+  } else {
+    if (
+      verbosity > 0L && !is.null(n_workers) && n_workers > available_workers
+    ) {
+      msg(highlight2("Requested n_workers is greater than available cores."))
+    }
+  }
+  parallelly::availableCores(omit = 1L)
+} # /rtemis::get_n_workers_for_learner
