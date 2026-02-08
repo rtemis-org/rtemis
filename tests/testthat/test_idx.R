@@ -1,4 +1,4 @@
-# test-idx.R
+# test_idx.R
 # ::rtemis::
 # 2025 EDG rtemis.org
 

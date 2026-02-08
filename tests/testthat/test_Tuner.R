@@ -1,8 +1,8 @@
-# test-Tuner.R
+# test_Tuner.R
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# Note: Actual tuning is tested in test-Supervised.R with `train()`
+# Note: Tuning is tested in test_Supervised.R with `train()`
 
 # TunerConfig ----
 tn_pr <- setup_GridSearch()

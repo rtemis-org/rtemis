@@ -1,4 +1,4 @@
-# test-draw_scatter.R
+# test_draw.R
 # ::rtemis::
 # 2025 EDG rtemis.org
 

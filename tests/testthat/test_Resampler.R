@@ -1,4 +1,4 @@
-# test-Resampler.R
+# test_Resampler.R
 # ::rtemis::
 # EDG rtemis.org
 

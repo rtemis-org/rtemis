@@ -1,4 +1,4 @@
-# test-Supervised.R
+# test_Supervised.R
 # ::rtemis::
 # EDG rtemis.org
 
@@ -1043,7 +1043,7 @@ test_that("predict() CalibratedClassification succeeds", {
   )
 })
 
-# --- CalibrationRes -------------------------------------------------------------------------------
+# --- CalibratedClassificationRes ------------------------------------------------------------------
 ## {LightRF}[calibrate]<ClassificationRes>
 resmod_c_lightrf_cal <- calibrate(resmod_c_lightrf)
 test_that("calibrate() succeeds on ClassificationRes", {
