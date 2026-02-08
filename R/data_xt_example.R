@@ -23,10 +23,9 @@
 #' }
 #'
 #' @examples
-#' \dontrun{
 #' data(xt_example)
-#' xtdescribe(xt_example)
-#' }
+#' head(xt_example)
+#' summary(xt_example)
 #'
 #' @keywords datasets
 "xt_example"
