@@ -384,7 +384,6 @@ color_mix <- function(color, n = 4) {
 #' @param label_cex Float: Character expansion for labels. Default = NULL, and is
 #' calculated automatically based on length of `x`
 #' @param mar Numeric vector, length 4: margin size.
-#' @param par_reset Logical: If TRUE, reset `par` settings on exit.
 #' @param filename Character: Path to save plot as PDF.
 #' @param pdf_width Numeric: Width of PDF in inches.
 #' @param pdf_height Numeric: Height of PDF in inches.
@@ -425,10 +424,10 @@ previewcolor <- function(
     main <- deparse(substitute(x))
   }
   x <- unlist(x)
-  if (par_reset) {
-    .par <- par(no.readonly = TRUE)
-    on.exit(par(.par))
-  }
+
+  # Always reset par on exit
+  par_orig <- par(no.readonly = TRUE)
+  on.exit(par(par_orig))
 
   if (is.null(width)) {
     width <- max(3, .3 * length(x))
