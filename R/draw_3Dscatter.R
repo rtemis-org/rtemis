@@ -69,10 +69,9 @@
 #'
 #' @author EDG
 #' @export
-#' @examples
-#' \dontrun{
+#'
+#' @examplesIf interactive()
 #' draw_3Dscatter(iris, group = iris$Species, theme = theme_darkgraygrid())
-#' }
 draw_3Dscatter <- function(
   x,
   y = NULL,

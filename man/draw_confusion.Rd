@@ -62,14 +62,14 @@ the first row and column are the positive class.}
 Plot confusion matrix
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # Assume positive class is "b"
 true_labels <- factor(c("a", "a", "a", "b", "b", "b", "b", "b", "b", "b"))
 predicted_labels <- factor(c("a", "b", "a", "b", "b", "a", "b", "b", "b", "a"))
 predicted_prob <- c(0.3, 0.55, 0.45, 0.75, 0.57, 0.3, 0.8, 0.63, 0.62, 0.39)
 metrics <- classification_metrics(true_labels, predicted_labels, predicted_prob)
 draw_confusion(metrics)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

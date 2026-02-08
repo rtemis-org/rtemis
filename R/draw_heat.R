@@ -24,11 +24,9 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' mat <- matrix(rnorm(100), nrow = 10)
 #' draw_heat(mat, x = 1:10, y = 1:10, title = "Heatmap Example")
-#' }
 draw_heat <- function(
   z,
   x = NULL,

@@ -237,7 +237,7 @@ Plot timeseries data
 We are switching to \code{palette} being a color vector instead of the name of a built-in palette.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 datetime <- seq(
   as.POSIXct("2020-01-01 00:00"),
   as.POSIXct("2020-01-02 00:00"),
@@ -249,7 +249,7 @@ df <- data.frame(
   value2 = rnorm(length(datetime))
 )
 draw_xt(df, x = df[, 1], y = df[, 2:3])
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

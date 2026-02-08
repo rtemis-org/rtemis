@@ -93,9 +93,9 @@ either \code{rownames(x)}, or the first column of \code{x} if \code{ncol(x) = 2}
 Draw interactive pie charts using \code{plotly}.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 draw_pie(VADeaths[, 1, drop = FALSE])
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

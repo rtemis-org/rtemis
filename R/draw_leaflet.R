@@ -36,13 +36,11 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' fips <- c(06075, 42101)
 #' population <- c(874961, 1579000)
 #' names <- c("SF", "Philly")
 #' draw_leaflet(fips, population, names)
-#' }
 # NA in legend issue: https://github.com/rstudio/leaflet/issues/615
 draw_leaflet <- function(
   fips,

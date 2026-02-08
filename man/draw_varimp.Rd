@@ -87,13 +87,13 @@ A simple \code{plotly} wrapper to plot horizontal barplots, sorted by value,
 which can be used to visualize variable importance, model coefficients, etc.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # made-up data
 x <- rnorm(10)
 names(x) <- paste0("Feature_", seq(x))
 draw_varimp(x)
 draw_varimp(x, orientation = "h")
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

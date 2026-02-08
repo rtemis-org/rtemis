@@ -125,8 +125,8 @@
 #' )
 #' draw_protein(as.character(tau[[1]]))
 #'
-#' # or directly using the UniProt accession number:
-#' draw_protein("P10636")
+#'   # or directly using the UniProt accession number:
+#'   draw_protein("P10636")
 #' }
 draw_protein <- function(
   x,

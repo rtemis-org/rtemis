@@ -51,11 +51,11 @@ draw_graphD3(
 Plot graph using \pkg{networkD3}
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 library(igraph)
 g <- make_ring(10)
 draw_graphD3(g)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

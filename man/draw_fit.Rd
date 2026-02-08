@@ -46,7 +46,7 @@ draw_fit(
 A \code{draw_scatter} wrapper for plotting true vs. predicted values
 }
 \examples{
-\dontrun{
+if (interactive()) {
 x <- rnorm(500)
 y <- x + rnorm(500)
 draw_fit(x, y)

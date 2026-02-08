@@ -77,8 +77,7 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' draw_bar(VADeaths, legend_xy = c(0, 1))
 #' draw_bar(VADeaths, legend_xy = c(1, 1), legend_xanchor = "left")
 #' # simple individual bars
@@ -90,7 +89,6 @@
 #' draw_bar(b)
 #' # stacked
 #' draw_bar(b, barmode = "stack")
-#' }
 draw_bar <- function(
   x,
   main = NULL,

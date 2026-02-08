@@ -71,7 +71,7 @@ the second level is the positive class.}
 Draw calibration plot
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 data(segment_logistic, package = "probably")
 
 # Plot the calibration curve of the original predictions
@@ -92,7 +92,7 @@ draw_calibration(
   n_bins = 10L,
   binclasspos = 2L
 )
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

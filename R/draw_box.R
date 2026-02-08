@@ -125,8 +125,7 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' # A.1 Box plot of 4 variables
 #' draw_box(iris[, 1:4])
 #' # A.2 Grouped Box plot
@@ -150,8 +149,6 @@
 #'   legend.yanchor = "bottom"
 #' )
 #' # (Note how the boxplots widen when the period includes data from both dat1 and dat2)
-#' }
-#'
 draw_box <- function(
   x,
   time = NULL,

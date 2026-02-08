@@ -319,14 +319,14 @@ middle.}
 Plot an amino acid sequence with multiple site and/or region annotations.
 }
 \examples{
-\dontrun{
-tau <- seqinr::read.fasta("https://rest.uniprot.org/uniprotkb/P10636.fasta",
-  seqtype = "AA"
-)
-draw_protein(as.character(tau[[1]]))
+if (interactive()) {
+  tau <- seqinr::read.fasta("https://rest.uniprot.org/uniprotkb/P10636.fasta",
+    seqtype = "AA"
+  )
+  draw_protein(as.character(tau[[1]]))
 
-# or directly using the UniProt accession number:
-draw_protein("P10636")
+  # or directly using the UniProt accession number:
+  draw_protein("P10636")
 }
 }
 \author{

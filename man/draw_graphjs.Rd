@@ -99,11 +99,11 @@ draw_graphjs(
 Interactive plotting of an \pkg{igraph} net using \pkg{threejs}.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 library(igraph)
 g <- make_ring(10)
 draw_graphjs(g)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

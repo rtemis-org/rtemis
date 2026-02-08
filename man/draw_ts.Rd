@@ -118,7 +118,7 @@ whether spikelines are stuck to the cursor or to the closest datapoints.}
 Draw interactive timeseries plots using \code{plotly}
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 time <- sample(seq(as.Date("2020-03-01"), as.Date("2020-09-23"), length.out = 140))
 x1 <- rnorm(140)
 x2 <- rnorm(140, 1, 1.2)
@@ -133,7 +133,7 @@ time <- c(time1, time2)
 x <- c(rnorm(100), rnorm(140, 1, 1.5))
 group <- c(rep("Alpha", 100), rep("Beta", 140))
 draw_ts(x, time, 7, group)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

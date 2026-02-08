@@ -40,10 +40,8 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' draw_pie(VADeaths[, 1, drop = FALSE])
-#' }
 draw_pie <- function(
   x,
   main = NULL,

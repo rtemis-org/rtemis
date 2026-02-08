@@ -185,12 +185,11 @@ See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed doc
 If input is data.frame, non-numeric variables will be removed.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # Will automatically use only numeric columns
 draw_dist(iris)
 draw_dist(iris[["Sepal.Length"]], group = iris[["Species"]])
-}
-
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

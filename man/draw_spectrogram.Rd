@@ -151,7 +151,7 @@ To set custom colors, use a minimum of \code{lo} and \code{hi}, optionally also
 \code{lomid}, \code{mid}, \code{midhi} colors and set \code{colorscale = NULL}.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # Example data
 time <- seq(0, 10, length.out = 100)
 freq <- seq(1, 100, length.out = 100)
@@ -161,7 +161,7 @@ draw_spectrogram(
   y = freq,
   z = power
 )
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

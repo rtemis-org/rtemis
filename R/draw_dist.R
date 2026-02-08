@@ -74,13 +74,10 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' # Will automatically use only numeric columns
 #' draw_dist(iris)
 #' draw_dist(iris[["Sepal.Length"]], group = iris[["Species"]])
-#' }
-#'
 draw_dist <- function(
   x,
   type = c("density", "histogram"),

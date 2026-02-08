@@ -161,7 +161,7 @@ Draw interactive barplots using \code{plotly}
 See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 draw_bar(VADeaths, legend_xy = c(0, 1))
 draw_bar(VADeaths, legend_xy = c(1, 1), legend_xanchor = "left")
 # simple individual bars
@@ -173,7 +173,7 @@ rownames(b) <- c("Jen", "Ben", "Ren")
 draw_bar(b)
 # stacked
 draw_bar(b, barmode = "stack")
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

@@ -30,8 +30,7 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' data(segment_logistic, package = "probably")
 #'
 #' # Plot the calibration curve of the original predictions
@@ -52,7 +51,6 @@
 #'   n_bins = 10L,
 #'   binclasspos = 2L
 #' )
-#' }
 draw_calibration <- function(
   true_labels,
   predicted_prob,

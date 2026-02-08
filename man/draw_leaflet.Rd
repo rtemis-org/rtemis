@@ -93,12 +93,12 @@ draw_leaflet(
 Plot interactive choropleth map using \pkg{leaflet}
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 fips <- c(06075, 42101)
 population <- c(874961, 1579000)
 names <- c("SF", "Philly")
 draw_leaflet(fips, population, names)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

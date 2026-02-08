@@ -138,11 +138,11 @@ Draw interactive heatmaps using \code{heatmaply}.
 See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 x <- rnormmat(200, 20)
 xcor <- cor(x)
 draw_heatmap(xcor)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

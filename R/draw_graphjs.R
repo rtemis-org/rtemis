@@ -40,12 +40,10 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' library(igraph)
 #' g <- make_ring(10)
 #' draw_graphjs(g)
-#' }
 draw_graphjs <- function(
   net,
   vertex_size = 1,

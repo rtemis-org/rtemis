@@ -75,12 +75,12 @@ If FALSE, column names of \code{predicted_prob} must match levels of \code{true_
 Draw ROC curve
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # Binary classification
 true_labels <- factor(c("A", "B", "A", "A", "B", "A", "B", "B", "A", "B"))
 predicted_prob <- c(0.1, 0.4, 0.35, 0.8, 0.65, 0.2, 0.9, 0.55, 0.3, 0.7)
 draw_roc(true_labels, predicted_prob)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

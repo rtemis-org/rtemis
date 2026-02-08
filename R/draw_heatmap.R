@@ -54,12 +54,11 @@
 #'
 #' @author EDG
 #' @export
-#' @examples
-#' \dontrun{
+#'
+#' @examplesIf interactive()
 #' x <- rnormmat(200, 20)
 #' xcor <- cor(x)
 #' draw_heatmap(xcor)
-#' }
 draw_heatmap <- function(
   x,
   Rowv = TRUE,

@@ -78,15 +78,12 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' set.seed(2019)
 #' x <- rnormmat(500, 500)
 #' y <- x[, 3] + x[, 5] - x[, 9] + x[, 15] + rnorm(500)
 #' mod <- massGLM(y, x)
 #' draw_volcano(mod$summary$`Coefficient y`, mod$summary$`p_value y`)
-#' }
-#'
 draw_volcano <- function(
   x,
   pvals,

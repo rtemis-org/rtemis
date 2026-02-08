@@ -28,8 +28,7 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' # Get the lung dataset
 #' data(cancer, package = "survival")
 #' sf1 <- survival::survfit(survival::Surv(time, status) ~ 1, data = lung)
@@ -38,7 +37,6 @@
 #' draw_survfit(sf2)
 #' # with N at risk table
 #' draw_survfit(sf2)
-#' }
 draw_survfit <- function(
   x,
   # plot_median = TRUE,

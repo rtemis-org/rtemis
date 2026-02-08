@@ -176,14 +176,13 @@ significant points above \code{x_thresh}.}
 Volcano Plot
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 set.seed(2019)
 x <- rnormmat(500, 500)
 y <- x[, 3] + x[, 5] - x[, 9] + x[, 15] + rnorm(500)
 mod <- massGLM(y, x)
 draw_volcano(mod$summary$`Coefficient y`, mod$summary$`p_value y`)
-}
-
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

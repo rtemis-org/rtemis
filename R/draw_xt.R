@@ -100,8 +100,7 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' datetime <- seq(
 #'   as.POSIXct("2020-01-01 00:00"),
 #'   as.POSIXct("2020-01-02 00:00"),
@@ -113,7 +112,6 @@
 #'   value2 = rnorm(length(datetime))
 #' )
 #' draw_xt(df, x = df[, 1], y = df[, 2:3])
-#' }
 draw_xt <- function(
   x,
   y,
@@ -224,10 +222,10 @@ draw_xt <- function(
     x2 <- rep(x2, length(y2))
   }
   if (length(x) != length(y)) {
-    cli::cli_abort("x and y must be the same length")
+    cli::cli_abort("{.arg x} and {.arg y} must be the same length")
   }
   if (!is.null(y2) && length(x2) != length(y2)) {
-    cli::cli_abort("x2 and y2 must be the same length")
+    cli::cli_abort("{.arg x2} and {.arg y2} must be the same length")
   }
 
   # Which traces to plot ----
@@ -259,7 +257,9 @@ draw_xt <- function(
 
   # Check args ----
   if (!is.null(shade_bin) && !is.null(shade_interval)) {
-    cli::cli_abort("Only set shade_bin or shade_interval, not both")
+    cli::cli_abort(
+      "Only set {.arg shade_bin} or {.arg shade_interval}, not both"
+    )
   }
 
   # Names ----
