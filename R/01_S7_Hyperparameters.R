@@ -152,16 +152,20 @@ method(repr, Hyperparameters) <- function(
   if (x@tuned == TUNED_STATUS_TUNING) {
     out <- paste0(
       out,
-      highlight2(
+      fmt(
         "\n  Hyperparameters are being tuned.\n",
+        col = col_tuner,
+        bold = TRUE,
         output_type = output_type
       )
     )
   } else if (x@tuned == TUNED_STATUS_NOT_TUNABLE) {
     out <- paste0(
       out,
-      highlight2(
+      fmt(
         "\n  No hyperparameters are tunable.\n",
+        col = col_tuner,
+        bold = TRUE,
         output_type = output_type
       )
     )
@@ -169,7 +173,7 @@ method(repr, Hyperparameters) <- function(
     need_tuning <- names(get_hyperparams_need_tuning(x))
     out <- paste0(
       out,
-      highlight2(
+      fmt(
         paste0(
           "\n  ",
           ngettext(length(need_tuning), "Hyperparameter ", "Hyperparameters "),
@@ -179,21 +183,30 @@ method(repr, Hyperparameters) <- function(
           ngettext(length(need_tuning), " needs ", " need "),
           "tuning.\n"
         ),
+        col = col_tuner,
+        bold = TRUE,
         output_type = output_type
       )
     )
   } else if (x@tuned == TUNED_STATUS_NO_SEARCH_VALUES) {
     out <- paste0(
       out,
-      highlight2(
+      fmt(
         "\n  No search values defined for tunable hyperparameters.\n",
+        col = col_tuner,
+        bold = TRUE,
         output_type = output_type
       )
     )
   } else if (x@tuned == TUNED_STATUS_TUNED) {
     out <- paste0(
       out,
-      highlight2("\n  Hyperparameters are tuned.\n", output_type = output_type)
+      fmt(
+        "\n  Hyperparameters are tuned.\n",
+        col = col_tuner,
+        bold = TRUE,
+        output_type = output_type
+      )
     )
   }
   out
