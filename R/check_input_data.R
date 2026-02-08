@@ -79,6 +79,7 @@ method(check_factor_levels, class_data.table) <- function(x, y, z) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
+#'
 #' @examples
 #' \dontrun{
 #' check_supervised(training_data, validation_data, test_data)
@@ -171,6 +172,7 @@ check_supervised <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
+#'
 #' @examples
 #' \dontrun{
 #' check_unsupervised_data(features_data)
