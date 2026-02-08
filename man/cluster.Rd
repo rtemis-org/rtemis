@@ -25,9 +25,7 @@ Perform clustering on the rows (usually cases) of a dataset.
 See \href{https://rdocs.rtemis.org/cluster}{rdocs.rtemis.org/cluster} for detailed documentation.
 }
 \examples{
-\dontrun{
 iris_km <- cluster(exc(iris, "Species"), algorithm = "KMeans")
-}
 }
 \author{
 EDG

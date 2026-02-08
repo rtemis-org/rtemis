@@ -25,9 +25,7 @@ Perform linear or non-linear decomposition of numeric data.
 See \href{https://rdocs.rtemis.org/decomp}{rdocs.rtemis.org/decomp} for detailed documentation.
 }
 \examples{
-\dontrun{
 iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")
-}
 }
 \author{
 EDG

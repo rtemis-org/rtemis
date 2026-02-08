@@ -24,10 +24,8 @@ Numeric vector.
 By default normalizes to 0-1 range.
 }
 \examples{
-\dontrun{
 x <- runif(20, -10, 10)
 x <- drange(x)
-}
 }
 \author{
 EDG

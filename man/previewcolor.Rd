@@ -62,8 +62,6 @@ calculated automatically based on length of \code{x}}
 
 \item{mar}{Numeric vector, length 4: margin size.}
 
-\item{par_reset}{Logical: If TRUE, reset \code{par} settings on exit.}
-
 \item{filename}{Character: Path to save plot as PDF.}
 
 \item{pdf_width}{Numeric: Width of PDF in inches.}

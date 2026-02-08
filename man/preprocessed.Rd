@@ -2,7 +2,7 @@
 % Please edit documentation in R/00_S7_init.R
 \name{preprocessed}
 \alias{preprocessed}
-\title{Get preprocessed data from Preprocessor}
+\title{Get preprocessed data from \code{Preprocessor}.}
 \usage{
 preprocessed(x)
 }
@@ -13,5 +13,5 @@ preprocessed(x)
 data.frame: The preprocessed data.
 }
 \description{
-Get preprocessed data from Preprocessor
+Returns the preprocessed data from a \code{Preprocessor} object.
 }

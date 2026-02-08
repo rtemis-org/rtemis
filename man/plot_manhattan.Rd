@@ -50,7 +50,7 @@ plotly object.
 Draw a Manhattan plot for \code{MassGLM} objects created with \link{massGLM}.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # x: outcome of interest as first column, optional covariates in the other columns
 # y: features whose association with x we want to study
 set.seed(2022)
@@ -61,7 +61,7 @@ x <- data.table(
 )
 massmod <- massGLM(x, y)
 plot_manhattan(massmod)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG
