@@ -82,7 +82,13 @@ calibrate.Classification <- method(calibrate, Classification) <- function(
     verbosity = verbosity
   )
 
-  CalibratedClassification(x, cal_model)
+  mod_cal <- CalibratedClassification(x, cal_model)
+  if (verbosity > 0L) {
+    message()
+    print(mod_cal)
+    message()
+  }
+  mod_cal
 } # /rtemis::calibrate
 
 
@@ -162,4 +168,5 @@ calibrate.ClassificationRes <- method(calibrate, ClassificationRes) <- function(
     print(modres_cal)
     message()
   }
+  modres_cal
 } # /rtemis::calibrate.ClassificationRes
