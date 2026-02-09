@@ -160,8 +160,8 @@ method(`[[`, Supervised) <- function(x, name) {
 }
 
 
-# Show Supervised ----
-#' Show `Supervised`
+# repr Supervised ----
+#' repr `Supervised`
 #'
 #' @param x `Supervised` object.
 #'
@@ -194,7 +194,6 @@ method(repr, Supervised) <- function(
       ".\n"
     )
   }
-  out <- paste0(out, "\n")
 
   # Calibration, if available
   if (prop_exists(x, "calibration_model")) {
@@ -203,47 +202,82 @@ method(repr, Supervised) <- function(
       fmt("\U27CB", col = rt_green, bold = TRUE, output_type = output_type),
       " Calibrated using ",
       desc_alg(x@calibration_model@algorithm),
-      ".\n\n"
+      ".\n"
     )
   }
 
-  # CalibrationRes, if available
-  if (prop_exists(x, "calibration_models")) {
+  out <- paste0(out, "\n")
+
+  # {Regression, Classification} vs. CalibratedClassification
+  if (prop_exists(x, "calibration_model")) {
+    # CalibratedClassification
+    # Metrics, training
     out <- paste0(
       out,
-      fmt("\U27CB", col = rt_green, bold = TRUE, output_type = output_type),
-      " Calibrated using ",
-      desc_alg(x@calibration_models[[1]]@algorithm),
-      " with ",
-      desc(x@calibration_models[[1]]@outer_resampler@config),
-      ".\n\n"
+      # repr(x@metrics_training, pad = 2L, output_type = output_type)
+      repr_CalibratedClassificationMetrics(
+        x@metrics_training,
+        x@metrics_training_calibrated,
+        pad = 2L,
+        output_type = output_type
+      )
     )
-  }
 
-  # Metrics, training
-  out <- paste0(
-    out,
-    repr(x@metrics_training, pad = 2L, output_type = output_type)
-  )
+    # Metrics, validation
+    if (length(x@metrics_validation) > 0) {
+      out <- paste0(
+        out,
+        repr_CalibratedClassificationMetrics(
+          x@metrics_validation,
+          x@metrics_validation_calibrated,
+          pad = 2L,
+          output_type = output_type
+        )
+      )
+    }
 
-  # Metrics, validation
-  if (length(x@metrics_validation) > 0) {
+    # Metrics, test
+    if (length(x@metrics_test) > 0) {
+      out <- paste0(
+        out,
+        "\n",
+        repr_CalibratedClassificationMetrics(
+          x@metrics_test,
+          x@metrics_test_calibrated,
+          pad = 2L,
+          output_type = output_type
+        )
+      )
+    }
+  } else {
+    # {Regression, Classification}
+
+    # Metrics, training
     out <- paste0(
       out,
-      repr(x@metrics_validation, pad = 2L, output_type = output_type)
+      repr(x@metrics_training, pad = 2L, output_type = output_type)
     )
+
+    # Metrics, validation
+    if (length(x@metrics_validation) > 0) {
+      out <- paste0(
+        out,
+        repr(x@metrics_validation, pad = 2L, output_type = output_type)
+      )
+    }
+
+    # Metrics, test
+    if (length(x@metrics_test) > 0) {
+      out <- paste0(
+        out,
+        "\n",
+        repr(x@metrics_test, pad = 2L, output_type = output_type)
+      )
+    }
   }
 
-  # Metrics, test
-  if (length(x@metrics_test) > 0) {
-    out <- paste0(
-      out,
-      "\n",
-      repr(x@metrics_test, pad = 2L, output_type = output_type)
-    )
-  }
   out
-} # /rtemis::show.Supervised
+} # /rtemis::repr.Supervised
 
 
 # Print Supervised ----
@@ -1047,8 +1081,8 @@ SupervisedRes <- new_class(
 ) # /rtemis::SupervisedRes
 
 
-# Show SupervisedRes ----
-#' Show `SupervisedRes`
+# repr SupervisedRes ----
+#' repr `SupervisedRes`
 #'
 #' @param x `SupervisedRes` object.
 #' @param output_type Character: Output type (for formatting).
@@ -1094,7 +1128,7 @@ method(repr, SupervisedRes) <- function(
     ".\n"
   )
 
-  # Calibration, if available (for CalibratedClassificationRes)
+  # Calibration, if available
   if (prop_exists(x, "calibration_models")) {
     out <- paste0(
       out,
@@ -1107,10 +1141,11 @@ method(repr, SupervisedRes) <- function(
     )
   }
 
+  out <- paste0(out, "\n")
+
   # Metrics, training
   out <- paste0(
     out,
-    "\n",
     repr(x@metrics_training, pad = 2L, output_type = output_type)
   )
 
@@ -1122,7 +1157,7 @@ method(repr, SupervisedRes) <- function(
   )
 
   out
-} # /rtemis::show.SupervisedRes
+} # /rtemis::repr.SupervisedRes
 
 
 # Print SupervisedRes ----
