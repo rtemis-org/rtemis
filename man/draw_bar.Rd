@@ -63,7 +63,7 @@ data.frame, rows are groups (can be 1 row), columns are features}
 
 \item{theme}{\code{Theme} object.}
 
-\item{palette}{List of colors to use.}
+\item{palette}{Character vector: Colors to use.}
 
 \item{barmode}{Character: Type of bar plot to make: "group", "relative",
 "stack", "overlay". Default = "group". Use

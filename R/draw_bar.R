@@ -16,7 +16,7 @@
 #' @param ylab  Character: y-axis label.
 #' @param alpha Float (0, 1]: Transparency for bar colors.
 #' @param theme `Theme` object.
-#' @param palette List of colors to use.
+#' @param palette Character vector: Colors to use.
 #' @param barmode Character: Type of bar plot to make: "group", "relative",
 #' "stack", "overlay". Default = "group". Use
 #' "relative" for stacked bars, wich handles negative values correctly,
