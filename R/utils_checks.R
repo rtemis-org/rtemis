@@ -83,15 +83,12 @@ test_inherits <- function(x, cl) {
 #' @param cl Character: class to check against.
 #' @param allow_null Logical: If TRUE, NULL values are allowed and return early.
 #'
-#' @details
-#' Exported as internal function for use by other rtemis packages.
-#'
 #' @return Called for side effects. Throws an error if checks fail.
 #'
 #' @author EDG
 #'
 #' @keywords internal
-#' @export
+#' @noRd
 check_inherits <- function(
   x,
   cl,
