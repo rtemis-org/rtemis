@@ -510,7 +510,9 @@ init_project_dir <- function(path, output_dir = "Out", verbosity = 1L) {
       if (verbosity > 0L) {
         nay()
       }
-      cli::cli_abort("Failed to create project directory at {.val {path}}")
+      cli::cli_abort(
+        "Failed to create project directory at {.file {path}}. Check path & permissions."
+      )
     }
   }
 
