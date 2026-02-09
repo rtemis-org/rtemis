@@ -594,15 +594,18 @@ rhombus <- function(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' colorgrad()
 colorgrad <- function(
   n = 21,
   colors = NULL,
   space = c("rgb", "Lab"),
-  lo = "#18A3AC",
+  lo = rt_teal,
   lomid = NULL,
   mid = NULL,
   midhi = NULL,
-  hi = "#F48024",
+  hi = rt_orange,
   preview = FALSE,
   colorbar = FALSE,
   cb_n = 21,
@@ -620,7 +623,7 @@ colorgrad <- function(
   filename = NULL,
   pdf_width = 3,
   pdf_height = 7,
-  theme = getOption("rt.theme", "light"),
+  theme = getOption("rt_theme", "light"),
   bg = NULL,
   col_text = NULL,
   plotlycb = FALSE,

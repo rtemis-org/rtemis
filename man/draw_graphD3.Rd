@@ -14,7 +14,7 @@ draw_graphD3(
   edge_alpha = 0.33,
   zoom = TRUE,
   legend = FALSE,
-  palette = rtemis_palette,
+  palette = getOption("rtemis_palette", "rtms"),
   theme = choose_theme(),
   ...
 )

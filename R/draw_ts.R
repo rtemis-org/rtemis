@@ -97,7 +97,7 @@ draw_ts <- function(
   displayModeBar = TRUE,
   modeBar_file_format = "svg",
   theme = choose_theme(),
-  palette = rtemis_palette,
+  palette = getOption("rtemis_palette", "rtms"),
   filename = NULL,
   file_width = 500,
   file_height = 500,

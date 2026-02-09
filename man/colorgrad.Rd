@@ -8,11 +8,11 @@ colorgrad(
   n = 21,
   colors = NULL,
   space = c("rgb", "Lab"),
-  lo = "#18A3AC",
+  lo = rt_teal,
   lomid = NULL,
   mid = NULL,
   midhi = NULL,
-  hi = "#F48024",
+  hi = rt_orange,
   preview = FALSE,
   colorbar = FALSE,
   cb_n = 21,
@@ -30,7 +30,7 @@ colorgrad(
   filename = NULL,
   pdf_width = 3,
   pdf_height = 7,
-  theme = getOption("rt.theme", "light"),
+  theme = getOption("rt_theme", "light"),
   bg = NULL,
   col_text = NULL,
   plotlycb = FALSE,
@@ -136,6 +136,9 @@ which will correspond to values: \{"lo","hi"\}; \{"lo", "mid", "hi"\}; \{"lo", "
 For example, try \code{colorgrad(21, "blugrnblkredyel", colorbar = TRUE)}
 3-letter color abbreviations:
 wht: white; blk: black; red; grn: green; blu: blue; yel: yellow; rng: orange; prl: purple
+}
+\examples{
+colorgrad()
 }
 \author{
 EDG

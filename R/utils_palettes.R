@@ -1780,7 +1780,7 @@ rtpalette <- function(palette = NULL, verbosity = 1L) {
 #' \dontrun{
 #' rtemis_palette(3)
 #' }
-rtemis_palette <- function(n, palette = rtemis_palette) {
+rtemis_palette <- function(n, palette = getOption("rtemis_palette", "rtms")) {
   .palette <- unlist(rtpalette(palette))
   names(.palette) <- NULL
   .palette[seq_len(n)]

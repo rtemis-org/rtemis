@@ -77,7 +77,7 @@ draw_graphjs <- function(
   cluster_color_vertices = FALSE,
   main = "",
   theme = choose_theme(),
-  palette = rtemis_palette,
+  palette = getOption("rtemis_palette", "rtms"),
   mar = rep(0, 4),
   par_reset = TRUE,
   filename = NULL,

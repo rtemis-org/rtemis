@@ -14,7 +14,7 @@ draw_pie(
   bg = NULL,
   plot_bg = NULL,
   theme = choose_theme(),
-  palette = rtemis_palette,
+  palette = getOption("rtemis_palette", "rtms"),
   category_names = NULL,
   textinfo = "label+percent",
   font_size = 16,

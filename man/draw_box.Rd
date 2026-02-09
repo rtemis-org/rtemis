@@ -19,7 +19,7 @@ draw_box(
   bg = NULL,
   plot_bg = NULL,
   theme = choose_theme(),
-  palette = rtemis_palette,
+  palette = getOption("rtemis_palette", "rtms"),
   boxpoints = "outliers",
   quartilemethod = "linear",
   xlim = NULL,

@@ -116,7 +116,6 @@ format_caller <- function(call_stack, call_depth, caller_id, max_char = 30L) {
 # \code{current <- as.list(sys.call())[[1]]}
 #'
 #' @param ... Message to print
-#' @param date Logical: if TRUE, include date and time in the prefix
 #' @param caller Character: Name of calling function
 #' @param call_depth Integer: Print the system call path of this depth.
 #' @param caller_id Integer: Which function in the call stack to print
@@ -132,7 +131,6 @@ format_caller <- function(call_stack, call_depth, caller_id, max_char = 30L) {
 #' @keywords internal
 msg <- function(
   ...,
-  date = rtemis_date,
   caller = NULL,
   call_depth = 1L,
   caller_id = 1L,
@@ -150,9 +148,7 @@ msg <- function(
   if (newline_pre) {
     message("")
   }
-  if (date) {
-    msgdatetime()
-  }
+  msgdatetime()
   message(
     format_fn(paste(txt, collapse = sep)),
     appendLF = FALSE

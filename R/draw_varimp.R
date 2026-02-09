@@ -58,7 +58,7 @@ draw_varimp <- function(
   labelify = TRUE,
   col = NULL,
   alpha = 1,
-  palette = rtemis_palette,
+  palette = getOption("rtemis_palette", "rtms"),
   mar = NULL,
   font_size = 16,
   axis_font_size = 14,

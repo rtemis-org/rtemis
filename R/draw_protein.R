@@ -173,7 +173,7 @@ draw_protein <- function(
   region_line_width = 1,
   region_line_alpha = .6,
   theme = choose_theme(),
-  region_palette = rtemis_palette,
+  region_palette = getOption("rtemis_palette", "rtms"),
   region_outline_only = FALSE,
   region_outline_pad = 2, # for fake polys
   region_pad = .35, # for real polys
@@ -187,7 +187,7 @@ draw_protein <- function(
   site_marker_symbol = marker_symbol,
   site_marker_alpha = 1,
   site_border_width = 1.5,
-  site_palette = rtemis_palette,
+  site_palette = getOption("rtemis_palette", "rtms"),
   # Variants
   variant_col = "#FA6E1E",
   # Text groups

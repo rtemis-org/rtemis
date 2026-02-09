@@ -13,7 +13,7 @@ draw_bar(
   alpha = 1,
   horizontal = FALSE,
   theme = choose_theme(),
-  palette = rtemis_palette,
+  palette = getOption("rtemis_palette", "rtms"),
   barmode = c("group", "relative", "stack", "overlay"),
   group_names = NULL,
   order_by_val = FALSE,

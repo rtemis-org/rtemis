@@ -119,7 +119,7 @@ theme_black <- function(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 ) {
   Theme(
     name = "black",
@@ -236,7 +236,7 @@ theme_blackgrid <- function(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 ) {
   Theme(
     name = "blackgrid",
@@ -354,7 +354,7 @@ theme_blackigrid <- function(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 ) {
   Theme(
     name = "blackigrid",
@@ -473,7 +473,7 @@ theme_darkgray <- function(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 ) {
   Theme(
     name = "darkgray",
@@ -590,7 +590,7 @@ theme_darkgraygrid <- function(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 ) {
   Theme(
     name = "darkgraygrid",
@@ -707,7 +707,7 @@ theme_darkgrayigrid <- function(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 ) {
   Theme(
     name = "darkgrayigrid",
@@ -826,7 +826,7 @@ theme_white <- function(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 ) {
   Theme(
     name = "white",
@@ -943,7 +943,7 @@ theme_whitegrid <- function(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 ) {
   Theme(
     name = "whitegrid",
@@ -1060,7 +1060,7 @@ theme_whiteigrid <- function(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 ) {
   Theme(
     name = "whiteigrid",
@@ -1179,7 +1179,7 @@ theme_lightgraygrid <- function(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 ) {
   Theme(
     name = "lightgraygrid",
@@ -1297,7 +1297,7 @@ theme_mediumgraygrid <- function(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 ) {
   Theme(
     name = "mediumgraygrid",
@@ -1376,13 +1376,26 @@ available_themes <- function() {
 
 #' Select an rtemis theme
 #'
+#' @details
+#' If `x` is not defined, `choose_theme()` will use `getOption("rtemis_theme", "whitegrid")` to
+#' select the theme. This allows users to set a default theme for all rtemis plots by setting
+#' `options(rtemis_theme = "theme_name")` at any point.
+#'
 #' @param x Character: Name of theme to select. If not defined, will use `getOption("rtemis_theme", "whitegrid")`.
-#' @param config List: Optional list of config to override the defaults.
+#' @param override Optional List: Theme parameters to override defaults.
 #'
 #' @return `Theme` object.
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' # Get default theme:
+#' choose_theme()
+#' # Get darkgraygrid theme. Same as `theme_darkgraygrid()`:
+#' choose_theme("darkgraygrid")
+#' # This will use the default theme, and override the foreground color to red:
+#' choose_theme(override = list(fg = "#ff0000"))
 choose_theme <- function(
   x = c(
     "white",
@@ -1397,14 +1410,14 @@ choose_theme <- function(
     "lightgraygrid",
     "mediumgraygrid"
   ),
-  config = NULL
+  override = NULL
 ) {
   if (length(x) > 1) {
     x <- getOption("rtemis_theme", "whitegrid")
   }
-  if (is.null(config)) {
-    config <- list()
+  if (is.null(override)) {
+    override <- list()
   }
 
-  do_call(paste0("theme_", x), config)
+  do_call(paste0("theme_", x), override)
 } # /rtemis::theme

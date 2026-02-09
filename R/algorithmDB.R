@@ -262,9 +262,6 @@ get_decom_predict_fn <- function(algorithm) {
 #'
 #' @author EDG
 #' @export
-#'
-#' @examples
-#' available_algorithms()
 available_supervised <- function() {
   algs <- structure(
     supervised_algorithms[, 2],

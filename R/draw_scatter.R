@@ -137,7 +137,7 @@ draw_scatter <- function(
   col = NULL,
   alpha = NULL,
   theme = choose_theme(),
-  palette = rtemis_palette,
+  palette = getOption("rtemis_palette", "rtms"),
   axes_square = FALSE,
   group_names = NULL,
   font_size = 16,

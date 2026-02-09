@@ -20,7 +20,6 @@ Called for its side effect of printing available algorithms.
 Print available algorithms for supervised learning, clustering, and decomposition.
 }
 \examples{
-available_algorithms()
 available_clustering()
 available_decomposition()
 }
