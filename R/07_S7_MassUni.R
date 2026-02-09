@@ -21,7 +21,24 @@ MassGLM <- new_class(
   )
 ) # /rtemis::MassGLM
 
-# Show MassGLM ----
+
+# Make MassGLM@name `$`-accessible ----
+method(`$`, MassGLM) <- function(x, name) {
+  prop(x, name)
+}
+
+# `$`-autocomplete MassGLM ----
+method(`.DollarNames`, MassGLM) <- function(x, pattern = "") {
+  prop_names <- names(props(x))
+  grep(pattern, prop_names, value = TRUE)
+}
+
+# Make MassGLM@name `[[`-accessible ----
+method(`[[`, MassGLM) <- function(x, name) {
+  prop(x, name)
+}
+
+# repr MassGLM ----
 method(repr, MassGLM) <- function(
   x,
   output_type = NULL
@@ -218,9 +235,15 @@ plot_manhattan.MassGLM <- method(plot_manhattan, MassGLM) <- function(
   draw_bar(
     x = p_transform(pvals),
     theme = theme,
-    col = col,
+    palette = col,
     group_names = x@ynames,
     ylab = ylab,
     ...
   )
 } # /rtemis::plot_manhattan.MassGLM
+
+
+# summary MassGLM ----
+method(summary, MassGLM) <- function(object, ...) {
+  object@summary
+} # /rtemis::summary.MassGLM
