@@ -5,7 +5,6 @@
 # Notes:
 # Some algorithms do not work with variable names containing dots (SparkML)
 
-check_factor_levels <- new_generic("check_factor_levels", c("x"))
 method(check_factor_levels, class_data.frame) <- function(x, y, z) {
   if (!is.null(y) || !is.null(z)) {
     index_factor <- which(sapply(x, is.factor))

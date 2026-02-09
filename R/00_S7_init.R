@@ -88,9 +88,9 @@ plot_metric <- new_generic("plot_metric", "x")
 #' @export
 #'
 #' @examples
-#' x <- as.data.table(iris[51:150, ])
-#' x[, Species := factor(Species)]
-#' species_glm <- train(x, algorithm = "GLM")
+#' ir <- iris[51:150, ]
+#' ir[["Species"]] <- factor(ir[["Species"]])
+#' species_glm <- train(ir, algorithm = "GLM")
 #' plot_roc(species_glm)
 plot_roc <- new_generic("plot_roc", "x")
 
@@ -232,10 +232,12 @@ get_factor_levels <- new_generic(
   "x",
   function(x) S7_dispatch()
 )
+
 method(get_factor_levels, class_data.frame) <- function(x) {
   factor_index <- which(sapply(x, is.factor))
   lapply(x[, factor_index, drop = FALSE], levels)
 }
+
 method(get_factor_levels, class_data.table) <- function(x) {
   factor_index <- which(sapply(x, is.factor))
   lapply(x[, factor_index, with = FALSE], levels)
@@ -346,6 +348,7 @@ method(exc, list(class_data.table, class_double)) <- function(x, idx) {
 outcome_name <- new_generic("outcome_name", "x", function(x) {
   S7_dispatch()
 })
+
 method(outcome_name, class_data.frame) <- function(x) {
   names(x)[NCOL(x)]
 } # /rtemis::outcome_name
@@ -431,6 +434,14 @@ feature_names <- new_generic("feature_names", "x", function(x) {
 method(feature_names, class_data.frame) <- function(x) {
   names(x)[1:(NCOL(x) - 1)]
 }
+
+
+#' Check factor levels
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_factor_levels <- new_generic("check_factor_levels", c("x"))
 
 
 #' Get factor names

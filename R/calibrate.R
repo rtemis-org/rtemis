@@ -3,40 +3,6 @@
 # 2025 EDG rtemis.org
 
 # Calibrate Generic ----
-#' Calibrate Classification & ClassificationRes Models
-#'
-#' @description
-#' Generic function to calibrate binary classification models.
-#'
-#' @details
-#' The goal of calibration is to adjust the predicted probabilities of a binary classification
-#' model so that they better reflect the true probabilities (i.e. empirical risk) of the positive
-#' class.
-#'
-#' @param x `Classification` or `ClassificationRes` object to calibrate.
-#' @param algorithm Character: Algorithm to use to train calibration model.
-#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
-#' @param verbosity Integer: Verbosity level.
-#' @param ... Additional arguments passed to specific methods.
-#'
-#' @return Calibrated model object.
-#'
-#' @author EDG
-#' @export
-calibrate <- new_generic(
-  "calibrate",
-  ("x"),
-  function(
-    x,
-    algorithm = "isotonic",
-    hyperparameters = NULL,
-    verbosity = 1L,
-    ...
-  ) {
-    S7_dispatch()
-  }
-) # /rtemis::calibrate
-
 
 #' Calibrate Binary Classification Models
 #'
@@ -63,14 +29,14 @@ calibrate <- new_generic(
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' datc2 <- data.frame(
-#'  gn = factor(sample(c("alpha", "beta", "gamma"), 100, replace = TRUE)),
-#'  iris[51:150, ]
+#'   gn = factor(sample(c("alpha", "beta", "gamma"), 100, replace = TRUE)),
+#'   iris[51:150, ]
 #' )
+#' res <- resample(datc2)
 #' datc2$Species <- factor(datc2$Species)
-#' datc2_train <- datc2[resc2$Fold_1, ]
-#' datc2_test <- datc2[-resc2$Fold_1, ]
+#' datc2_train <- datc2[res[[1]], ]
+#' datc2_test <- datc2[-res[[1]], ]
 #' mod_c_lightrf <- train(
 #'   x = datc2_train,
 #'   dat_test = datc2_test,
@@ -82,7 +48,7 @@ calibrate <- new_generic(
 #'   true_labels = mod_c_lightrf$y_training
 #')
 #' mod_c_lightrf_cal
-#' }
+#' # Note: In this trivial example, there may be no change in predicted probabilities.
 calibrate.Classification <- function(
   x,
   predicted_probabilities,
@@ -221,11 +187,6 @@ calibrate.ClassificationRes <- function(
     }
   )
   names(calmods) <- names(x@models)
-
-  # calcv <- CalibrationRes(
-  #   models = calmods,
-  #   resampler_config = resampler_config
-  # )
 
   # CalibratedClassificationRes
   CalibratedClassificationRes(x, calmods)

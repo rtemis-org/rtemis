@@ -27,7 +27,6 @@ method(`$`, ClusteringConfig) <- function(x, name) {
   x@config[[name]]
 }
 
-
 # `$`-autocomplete ClusteringConfig@config ----
 method(`.DollarNames`, ClusteringConfig) <- function(x, pattern = "") {
   all_names <- names(x@config)

@@ -72,26 +72,15 @@ Draw calibration plot
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
-data(segment_logistic, package = "probably")
-
-# Plot the calibration curve of the original predictions
-draw_calibration(
-  true_labels = segment_logistic$Class,
-  predicted_prob = segment_logistic$.pred_poor,
-  n_bins = 10L,
-  binclasspos = 2L
+# Synthetic data with n cases
+n <- 500L
+true_labels <- factor(sample(c("A", "B"), n, replace = TRUE))
+# Synthetic probabilities where A has mean 0.25 and B has mean 0.75
+predicted_prob <- ifelse(true_labels == "A",
+  rbeta(n, 2, 6),
+  rbeta(n, 6, 2)
 )
-
-# Plot the calibration curve of the calibrated predictions
-draw_calibration(
-  true_labels = segment_logistic$Class,
-  predicted_prob = calibrate(
-    segment_logistic$Class,
-    segment_logistic$.pred_poor
-  )$fitted.values,
-  n_bins = 10L,
-  binclasspos = 2L
-)
+draw_calibration(true_labels, predicted_prob)
 \dontshow{\}) # examplesIf}
 }
 \author{

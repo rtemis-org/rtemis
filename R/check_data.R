@@ -171,6 +171,7 @@ max0 <- function(x) max(x, 0, na.rm = TRUE)
 #' @return `shiny.tag` object.
 #'
 #' @author EDG
+#' @keywords internal
 #' @noRd
 tohtml <- function(
   x,

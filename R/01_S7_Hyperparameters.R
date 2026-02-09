@@ -277,6 +277,7 @@ method(update, Hyperparameters) <- function(
 #' @keywords internal
 #' @noRd
 freeze <- new_generic("freeze", "x")
+
 method(freeze, Hyperparameters) <- function(x) {
   x@tuned <- -1
 } # /rtemis::freeze.Hyperparameters
@@ -318,6 +319,7 @@ method(`[[`, Hyperparameters) <- function(x, name) {
 #' @keywords internal
 #' @noRd
 needs_tuning <- new_generic("needs_tuning", "x")
+
 method(needs_tuning, Hyperparameters) <- function(x) {
   x@tuned == 0
 } # /rtemis::needs_tuning.Hyperparameters
@@ -384,7 +386,7 @@ GLMHyperparameters <- new_class(
 #' glm_hyperparams
 setup_GLM <- function(ifw = FALSE) {
   GLMHyperparameters(ifw = ifw)
-} # /rtemis::setup_GLM
+}
 
 
 # GAMHyperparameters ----
@@ -433,7 +435,7 @@ GAMHyperparameters <- new_class(
 setup_GAM <- function(k = 5L, ifw = FALSE) {
   k <- clean_posint(k)
   GAMHyperparameters(k = k, ifw = ifw)
-} # /rtemis::setup_GAM
+}
 
 
 # CARTHyperparameters ----

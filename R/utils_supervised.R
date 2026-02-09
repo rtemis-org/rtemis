@@ -291,28 +291,6 @@ class_imbalance <- function(x) {
 } # /rtemis::class_imbalance
 
 
-# nullmod.R
-# ::rtemis::
-# EDG rtemis.org
-
-#' \pkg{rtemis} internal: predict for an object of class `nullmod`
-#'
-#' @param object `nullmod` object.
-#' @param newdata Not used.
-#' @param ... Not used.
-#'
-#' @method predict nullmod
-#'
-#' @author EDG
-#'
-#' @keywords internal
-#' @noRd
-
-predict.nullmod <- function(object, newdata = NULL, ...) {
-  if (!is.null(object[["fitted"]])) object[["fitted"]] else 0
-} # /rtemis::predict.nullmod
-
-
 # expand_grid.R
 # ::rtemis::
 # 2025 EDG rtemis.org
@@ -325,6 +303,7 @@ predict.nullmod <- function(object, newdata = NULL, ...) {
 #' they have to be converted back to NULL as needed downstream.
 #' So make sure your data does not have cheeky character vector with "null" values in it that are
 #' not actually NULLs.
+#'
 #' @param x named list
 #'
 #' @return data.frame
@@ -334,10 +313,8 @@ predict.nullmod <- function(object, newdata = NULL, ...) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
 #' x <- list(a = c(1, 2, 3), b = NULL, c = c("z", "v"))
 #' expand_grid(x)
-#' }
 expand_grid <- function(x, stringsAsFactors = FALSE) {
   stopifnot(is.list(x))
   # Convert all NULL to "null"

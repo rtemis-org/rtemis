@@ -423,15 +423,6 @@ method(repr, Resampler) <- function(x, pad = 0L, output_type = NULL) {
 } # /rtemis::repr.Resampler
 
 # Print Resampler ----
-#' Print Resampler
-#'
-#' Print Resampler object
-#'
-#' @param x `Resampler` object.
-#' @param ... Not used.
-#'
-#' @author EDG
-#' @noRd
 method(print, Resampler) <- function(
   x,
   output_type = c("ansi", "html", "plain"),

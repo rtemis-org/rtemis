@@ -29,15 +29,11 @@ Theme <- new_class(
 #'
 #' @author EDG
 #' @noRd
-print.Theme <- function(x, ...) {
+method(print, Theme) <- function(x, ...) {
   objcat(paste(x@name, "Theme"))
   printls(props(x)[["config"]])
   invisible(x)
 }
-method(print, Theme) <- function(x, ...) {
-  print.Theme(x)
-} # /rtemis::print.Theme
-
 
 # Make Theme@config `$`-accessible with autocomplete ----
 method(`$`, Theme) <- function(x, name) {

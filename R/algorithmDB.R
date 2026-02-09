@@ -261,8 +261,10 @@ get_decom_predict_fn <- function(algorithm) {
 #' @return Called for its side effect of printing available algorithms.
 #'
 #' @author EDG
-#'
 #' @export
+#'
+#' @examples
+#' available_algorithms()
 available_supervised <- function() {
   algs <- structure(
     supervised_algorithms[, 2],
@@ -275,6 +277,9 @@ available_supervised <- function() {
 
 #' @rdname available_algorithms
 #' @export
+#'
+#' @examples
+#' available_clustering()
 available_clustering <- function() {
   algs <- structure(
     clust_algorithms[, 2],
@@ -287,6 +292,9 @@ available_clustering <- function() {
 
 #' @rdname available_algorithms
 #' @export
+#'
+#' @examples
+#' available_decomposition()
 available_decomposition <- function() {
   algs <- structure(
     decom_algorithms[, 2],
@@ -335,6 +343,9 @@ colnames(draw_fns) <- c("Function Name", "Description")
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' available_draw()
 available_draw <- function() {
   fns <- structure(
     draw_fns[, 2],

@@ -21,12 +21,10 @@ DecompositionConfig <- new_class(
   )
 ) # /DecompositionConfig
 
-
 # Make DecompositionConfig@config `$`-accessible ----
 method(`$`, DecompositionConfig) <- function(x, name) {
   x@config[[name]]
 }
-
 
 # `$`-autocomplete DecompositionConfig@config ----
 method(`.DollarNames`, DecompositionConfig) <- function(x, pattern = "") {
@@ -34,18 +32,15 @@ method(`.DollarNames`, DecompositionConfig) <- function(x, pattern = "") {
   grep(pattern, all_names, value = TRUE)
 }
 
-
 # Make props `[`-accessible ----
 method(`[`, DecompositionConfig) <- function(x, name) {
   props(x)[[name]]
 }
 
-
 # Make DecompositionConfig@config `[[`-accessible ----
 method(`[[`, DecompositionConfig) <- function(x, name) {
   x@config[[name]]
 }
-
 
 # Show DecompositionConfig ----
 #' Show Method for DecompositionConfig

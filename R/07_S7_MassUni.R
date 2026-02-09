@@ -49,13 +49,15 @@ method(repr, MassGLM) <- function(
 #' @param x MassGLM object.
 #' @param ... Not used.
 #'
+#' @return `x`, invisibly.
+#'
 #' @author EDG
 #' @noRd
-print.MassGLM <- function(x, output_type = NULL, ...) {
+method(print, MassGLM) <- function(x, output_type = NULL, ...) {
   cat(repr(x, output_type = output_type))
-}
+  invisible(x)
+} # /rtemis::print.MassGLM
 
-method(print, MassGLM) <- print.MassGLM
 
 # Plot MassGLM ----
 #' Plot MassGLM using volcano plot
