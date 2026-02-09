@@ -41,10 +41,6 @@ setup_progress <- function() {
 .onLoad <- function(libname, pkgname) {
   # S7
   S7::methods_register()
-  # Get Defaults e.g. from .Rprofile ----
-  rtemis_theme <- getOption("rtemis_theme", "darkgraygrid")
-  rtemis_font <- getOption("rtemis_font", "Helvetica")
-  rtemis_palette <- getOption("rtemis_palette", "rtms")
   # setup_progress()
 }
 
@@ -73,13 +69,13 @@ setup_progress <- function() {
       bold("\n  Defaults"),
       "\n  \u2502   ",
       gray("Theme: "),
-      rtemis_theme,
+      getOption("rtemis_theme", "whitegrid"),
       "\n  \u2502    ",
       gray("Font: "),
-      rtemis_font,
+      getOption("rtemis_font", "Helvetica"),
       "\n  \u2514 ",
       gray("Palette: "),
-      rtemis_palette,
+      getOption("rtemis_palette", "rtms"),
       bold("\n  Resources"),
       "\n  \u2502    ",
       gray("Docs:"),
