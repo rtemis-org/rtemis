@@ -135,6 +135,10 @@ checkmark <- function(output_type = c("ansi", "html", "plain")) {
   fmt("\u2713", col = rt_green, bold = TRUE, output_type = output_type)
 }
 
+crossmark <- function(output_type = c("ansi", "html", "plain")) {
+  fmt("\u2715", col = rt_red, bold = TRUE, output_type = output_type)
+}
+
 
 #' Success message
 #'
@@ -169,8 +173,7 @@ yay <- function(..., sep = " ", end = "\n", pad = 0) {
 nay <- function(..., sep = " ", end = "\n", pad = 0) {
   message(
     strrep(" ", pad),
-    fmt("\u2715 ", col = rt_red, bold = TRUE),
-    paste(..., sep = sep),
+    paste(crossmark(), ..., sep = sep),
     end,
     appendLF = FALSE
   )
