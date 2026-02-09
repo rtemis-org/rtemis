@@ -9,7 +9,7 @@ draw_heat(
   x = NULL,
   y = NULL,
   title = NULL,
-  col = penn_heat(21),
+  palette = penn_heat(21),
   xlab = NULL,
   ylab = NULL,
   zlab = NULL,
@@ -25,7 +25,7 @@ draw_heat(
 
 \item{title}{Plot title.}
 
-\item{col}{Set of colors to make gradient from.}
+\item{palette}{Character vector: Colors to use.}
 
 \item{xlab}{x-axis label.}
 

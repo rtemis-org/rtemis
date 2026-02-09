@@ -10,7 +10,7 @@ draw_roc(
   multiclass_fill_labels = TRUE,
   main = NULL,
   theme = choose_theme(),
-  col = rtpalette(rtemis_palette),
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   legend = TRUE,
   legend_title = "Group (AUC)",
   legend_xy = c(1, 0),
@@ -40,7 +40,7 @@ If FALSE, column names of \code{predicted_prob} must match levels of \code{true_
 
 \item{theme}{\code{Theme} object.}
 
-\item{col}{Color vector.}
+\item{palette}{Character vector: Colors to use.}
 
 \item{legend}{Logical: If TRUE, draw legend.}
 

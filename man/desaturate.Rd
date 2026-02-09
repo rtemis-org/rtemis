@@ -7,13 +7,13 @@
 desaturate(x, s = 0.3)
 }
 \arguments{
-\item{x}{Color, vector: Color(s) to operate on}
+\item{x}{Color vector: Color(s) to operate on}
 
-\item{s}{Float: Decrease saturation by this fraction. Default = .3, which means if saturation of given color is 1,
-it will become .7}
+\item{s}{Float: Decrease saturation by this fraction. For example, if \code{s = 0.3} and saturation of
+input color is 1, it will become 0.7.}
 }
 \value{
-List of adjusted colors
+Character vector with hex codes of modified colors.
 }
 \description{
 Lower a color's saturation by a given percent in the HSV color system

@@ -29,7 +29,6 @@ draw_graphjs(
   theme = choose_theme(),
   palette = getOption("rtemis_palette", "rtms"),
   mar = rep(0, 4),
-  par_reset = TRUE,
   filename = NULL,
   verbosity = 1L,
   ...
@@ -83,8 +82,6 @@ draw_graphjs(
 \item{palette}{Color vector or name of rtemis palette.}
 
 \item{mar}{Numeric vector, length 4: \code{par}'s margin argument.}
-
-\item{par_reset}{Logical: If TRUE, reset par before exiting.}
 
 \item{filename}{Character: If provided, save plot to this filepath.}
 

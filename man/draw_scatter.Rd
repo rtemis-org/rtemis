@@ -21,10 +21,9 @@ draw_scatter(
   subtitle = NULL,
   xlab = NULL,
   ylab = NULL,
-  col = NULL,
   alpha = NULL,
   theme = choose_theme(),
-  palette = getOption("rtemis_palette", "rtms"),
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   axes_square = FALSE,
   group_names = NULL,
   font_size = 16,
@@ -139,13 +138,11 @@ draw_scatter(
 
 \item{ylab}{Character: y-axis label.}
 
-\item{col}{Color for markers.}
-
 \item{alpha}{Numeric: Alpha for markers.}
 
 \item{theme}{\code{Theme} object.}
 
-\item{palette}{Character: Color palette.}
+\item{palette}{Character vector: Colors to use.}
 
 \item{axes_square}{Logical: If TRUE, draw a square plot.}
 

@@ -14,12 +14,11 @@ draw_box(
   main = NULL,
   xlab = "",
   ylab = NULL,
-  col = NULL,
   alpha = 0.6,
   bg = NULL,
   plot_bg = NULL,
   theme = choose_theme(),
-  palette = getOption("rtemis_palette", "rtms"),
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   boxpoints = "outliers",
   quartilemethod = "linear",
   xlim = NULL,
@@ -100,9 +99,6 @@ comparable}
 
 \item{ylab}{Character: y-axis label.}
 
-\item{col}{Color, vector: Color for boxes. If NULL, which will draw
-colors from \code{palette}}
-
 \item{alpha}{Float (0, 1]: Transparency for box colors.}
 
 \item{bg}{Color: Background color.}
@@ -111,7 +107,7 @@ colors from \code{palette}}
 
 \item{theme}{\code{Theme} object.}
 
-\item{palette}{Character: Name of \pkg{rtemis} palette to use. Only used if \code{col = NULL}.}
+\item{palette}{Character vector: Colors to use.}
 
 \item{boxpoints}{Character or FALSE: "all", "suspectedoutliers", "outliers"
 See \url{https://plotly.com/r/box-plots/#choosing-the-algorithm-for-computing-quartiles}}

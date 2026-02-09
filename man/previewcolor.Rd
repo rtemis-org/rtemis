@@ -21,7 +21,6 @@ previewcolor(
   labels_y = 1.55,
   label_cex = NULL,
   mar = c(0, 0, 0, 1),
-  par_reset = TRUE,
   filename = NULL,
   pdf_width = 8,
   pdf_height = 2.5

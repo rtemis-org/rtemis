@@ -40,7 +40,7 @@ draw_xt(
   slider_start = NULL,
   slider_end = NULL,
   theme = choose_theme(),
-  palette = rtpalette(rtemis_palette),
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   font_size = 16,
   yfill = "none",
   y2fill = "none",
@@ -158,7 +158,7 @@ included.}
 
 \item{theme}{\code{Theme} object.}
 
-\item{palette}{Color list: will be used to draw each vector in \code{y} and \code{y2}, in order.}
+\item{palette}{Character vector: Colors to be used to draw each vector in \code{y} and \code{y2}, in order.}
 
 \item{font_size}{Numeric: Font size for text.}
 
@@ -232,9 +232,6 @@ bar image export.}
 }
 \description{
 Plot timeseries data
-}
-\details{
-We are switching to \code{palette} being a color vector instead of the name of a built-in palette.
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}

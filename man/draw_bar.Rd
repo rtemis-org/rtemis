@@ -9,11 +9,10 @@ draw_bar(
   main = NULL,
   xlab = NULL,
   ylab = NULL,
-  col = NULL,
   alpha = 1,
   horizontal = FALSE,
   theme = choose_theme(),
-  palette = getOption("rtemis_palette", "rtms"),
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   barmode = c("group", "relative", "stack", "overlay"),
   group_names = NULL,
   order_by_val = FALSE,
@@ -58,16 +57,13 @@ data.frame, rows are groups (can be 1 row), columns are features}
 
 \item{ylab}{Character: y-axis label.}
 
-\item{col}{Color, vector: Color for bars. Default NULL, which will draw
-colors from \code{palette}}
-
 \item{alpha}{Float (0, 1]: Transparency for bar colors.}
 
 \item{horizontal}{Logical: If TRUE, plot bars horizontally}
 
 \item{theme}{\code{Theme} object.}
 
-\item{palette}{Character: Name of \pkg{rtemis} palette to use.}
+\item{palette}{List of colors to use.}
 
 \item{barmode}{Character: Type of bar plot to make: "group", "relative",
 "stack", "overlay". Default = "group". Use
