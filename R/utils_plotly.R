@@ -167,6 +167,16 @@ export_plotly <- function(
 
   # Export to file ----
   filename <- normalizePath(filename, mustWork = FALSE)
+  # Create parent directory if it doesn't exist
+  parent_dir <- dirname(filename)
+  if (!dir.exists(parent_dir)) {
+    dir.create(parent_dir, recursive = TRUE)
+    if (!dir.exists(parent_dir)) {
+      cli::cli_abort(
+        "Failed to create directory {.file {parent_dir}}. Check path & permissions."
+      )
+    }
+  }
   plotly::save_image(
     x,
     file = filename,
