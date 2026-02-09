@@ -1,6 +1,6 @@
 # ifw.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 #' Inverse Frequency Weighting
 #'
@@ -15,11 +15,9 @@
 #' @author EDG
 #'
 #' @examples
-#' \dontrun{
-#' y <- factor(sample(c("A", "B"), size = 1000, replace = 1000, prob = c(.1, .9)))
+#' y <- factor(sample(c("A", "B"), size = 100, replace = TRUE, prob = c(.1, .9)))
 #' ifw(y)
-#' ifw(y, type = "case_weights")
-#' }
+#' ifw(y, type = "class_weights")
 ifw <- function(y, type = c("case_weights", "class_weights"), verbosity = 1L) {
   stopifnot(is.factor(y))
   type <- match.arg(type)

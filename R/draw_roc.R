@@ -12,7 +12,7 @@
 #' If FALSE, column names of `predicted_prob` must match levels of `true_labels`.
 #' @param main Character: Main title for the plot.
 #' @param theme `Theme` object.
-#' @param col Color vector.
+#' @param palette Character vector: Colors to use.
 #' @param legend Logical: If TRUE, draw legend.
 #' @param legend_title Character: Title for the legend.
 #' @param legend_xy Numeric vector: Position of the legend in the form c(x, y).
@@ -32,20 +32,18 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' # Binary classification
 #' true_labels <- factor(c("A", "B", "A", "A", "B", "A", "B", "B", "A", "B"))
 #' predicted_prob <- c(0.1, 0.4, 0.35, 0.8, 0.65, 0.2, 0.9, 0.55, 0.3, 0.7)
 #' draw_roc(true_labels, predicted_prob)
-#'}
 draw_roc <- function(
   true_labels,
   predicted_prob,
   multiclass_fill_labels = TRUE,
   main = NULL,
-  theme = choose_theme(),
-  col = rtpalette(rtemis_palette),
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   legend = TRUE,
   legend_title = "Group (AUC)",
   legend_xy = c(1, 0),
@@ -154,7 +152,7 @@ draw_roc <- function(
     ylab = "True Positive Rate",
     main = main,
     theme = theme,
-    col = col,
+    palette = palette,
     mode = "lines",
     group_names = paste0(.names, " (", ddSci(unlist(AUC), auc_dp), ")"),
     legend = legend,

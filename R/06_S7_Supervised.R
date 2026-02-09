@@ -160,8 +160,8 @@ method(`[[`, Supervised) <- function(x, name) {
 }
 
 
-# Show Supervised ----
-#' Show `Supervised`
+# repr Supervised ----
+#' repr `Supervised`
 #'
 #' @param x `Supervised` object.
 #'
@@ -194,7 +194,6 @@ method(repr, Supervised) <- function(
       ".\n"
     )
   }
-  out <- paste0(out, "\n")
 
   # Calibration, if available
   if (prop_exists(x, "calibration_model")) {
@@ -203,47 +202,82 @@ method(repr, Supervised) <- function(
       fmt("\U27CB", col = rt_green, bold = TRUE, output_type = output_type),
       " Calibrated using ",
       desc_alg(x@calibration_model@algorithm),
-      ".\n\n"
+      ".\n"
     )
   }
 
-  # CalibrationRes, if available
-  if (prop_exists(x, "calibration_models")) {
+  out <- paste0(out, "\n")
+
+  # {Regression, Classification} vs. CalibratedClassification
+  if (prop_exists(x, "calibration_model")) {
+    # CalibratedClassification
+    # Metrics, training
     out <- paste0(
       out,
-      fmt("\U27CB", col = rt_green, bold = TRUE, output_type = output_type),
-      " Calibrated using ",
-      desc_alg(x@calibration_models[[1]]@algorithm),
-      " with ",
-      desc(x@calibration_models[[1]]@outer_resampler@config),
-      ".\n\n"
+      # repr(x@metrics_training, pad = 2L, output_type = output_type)
+      repr_CalibratedClassificationMetrics(
+        x@metrics_training,
+        x@metrics_training_calibrated,
+        pad = 2L,
+        output_type = output_type
+      )
     )
-  }
 
-  # Metrics, training
-  out <- paste0(
-    out,
-    repr(x@metrics_training, pad = 2L, output_type = output_type)
-  )
+    # Metrics, validation
+    if (length(x@metrics_validation) > 0) {
+      out <- paste0(
+        out,
+        repr_CalibratedClassificationMetrics(
+          x@metrics_validation,
+          x@metrics_validation_calibrated,
+          pad = 2L,
+          output_type = output_type
+        )
+      )
+    }
 
-  # Metrics, validation
-  if (length(x@metrics_validation) > 0) {
+    # Metrics, test
+    if (length(x@metrics_test) > 0) {
+      out <- paste0(
+        out,
+        "\n",
+        repr_CalibratedClassificationMetrics(
+          x@metrics_test,
+          x@metrics_test_calibrated,
+          pad = 2L,
+          output_type = output_type
+        )
+      )
+    }
+  } else {
+    # {Regression, Classification}
+
+    # Metrics, training
     out <- paste0(
       out,
-      repr(x@metrics_validation, pad = 2L, output_type = output_type)
+      repr(x@metrics_training, pad = 2L, output_type = output_type)
     )
+
+    # Metrics, validation
+    if (length(x@metrics_validation) > 0) {
+      out <- paste0(
+        out,
+        repr(x@metrics_validation, pad = 2L, output_type = output_type)
+      )
+    }
+
+    # Metrics, test
+    if (length(x@metrics_test) > 0) {
+      out <- paste0(
+        out,
+        "\n",
+        repr(x@metrics_test, pad = 2L, output_type = output_type)
+      )
+    }
   }
 
-  # Metrics, test
-  if (length(x@metrics_test) > 0) {
-    out <- paste0(
-      out,
-      "\n",
-      repr(x@metrics_test, pad = 2L, output_type = output_type)
-    )
-  }
   out
-} # /rtemis::show.Supervised
+} # /rtemis::repr.Supervised
 
 
 # Print Supervised ----
@@ -330,80 +364,6 @@ method(describe, Supervised) <- function(x) {
   cat("\n")
   invisible(desc)
 } # /rtemis::describe.Supervised
-
-
-# Calibration ----
-#' @title Calibration
-#'
-#' @description
-#' Calibration class.
-#'
-#' @author EDG
-#' @noRd
-Calibration <- new_class(
-  name = "Calibration",
-  properties = list(
-    model = Supervised,
-    brier_score_delta_training = class_numeric | NULL,
-    brier_score_delta_test = class_numeric | NULL
-  )
-) # /rtemis::Calibration
-
-
-# Show Calibration ----
-method(repr, Calibration) <- function(x, output_type = NULL) {
-  output_type <- get_output_type(output_type)
-  paste0(
-    repr_S7name("Calibration", output_type = output_type),
-    highlight(x@algorithm, output_type = output_type),
-    " (",
-    desc_alg(x@algorithm),
-    ")\n"
-  )
-} # /rtemis::show.Calibration
-
-
-# Print Calibration ----
-method(print, Calibration) <- function(x, ...) {
-  # cat(gray(".:"))
-  objcat("Calibration Model")
-  cat(
-    "  ",
-    highlight(x@algorithm),
-    " (",
-    desc_alg(x@algorithm),
-    ")\n",
-    sep = ""
-  )
-} # /rtemis::print.Calibration
-
-# CalibrationRes ----
-CalibrationRes <- new_class(
-  name = "CalibrationRes",
-  properties = list(
-    models = class_list,
-    resampler_config = ResamplerConfig
-    # brier_score_delta_training = class_numeric | NULL,
-    # brier_score_delta_test = class_numeric | NULL
-  )
-  # constructor = function(models, resampler_config) {
-
-  # }
-) # /rtemis::CalibrationRes
-
-# Print CalibrationRes ----
-method(print, CalibrationRes) <- function(x, ...) {
-  # cat(gray(".:"))
-  objcat("Resampled Calibration Model")
-  cat(
-    "  ",
-    highlight(x@algorithm),
-    " (",
-    desc_alg(x@algorithm),
-    ")\n",
-    sep = ""
-  )
-} # /rtemis::print.CalibrationRes
 
 
 # Classification ----
@@ -748,7 +708,7 @@ method(plot_true_pred, Regression) <- function(
   x,
   what = "all",
   fit = "glm",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   labelify = TRUE,
   ...
 ) {
@@ -794,7 +754,7 @@ method(plot_true_pred, Classification) <- function(
   x,
   what = NULL,
   xlab = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   ...
 ) {
   if (is.null(what)) {
@@ -829,8 +789,8 @@ method(plot_true_pred, Classification) <- function(
 method(plot_roc, Classification) <- function(
   x,
   what = NULL,
-  theme = choose_theme(),
-  col = rtpalette(rtemis_palette)[1:2],
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   filename = NULL,
   ...
 ) {
@@ -860,7 +820,7 @@ method(plot_roc, Classification) <- function(
     true_labels = labelsl,
     predicted_prob = probl,
     theme = theme,
-    col = col,
+    palette = palette,
     filename = filename,
     ...
   )
@@ -943,7 +903,7 @@ write_Supervised <- function(
   object,
   outdir = NULL,
   save_mod = FALSE,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   verbosity = 1L
 ) {
   if (verbosity > 0L) {
@@ -963,7 +923,7 @@ write_Supervised <- function(
 method(present, Regression) <- function(
   x,
   what = c("training", "test"),
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   filename = NULL,
   ...
 ) {
@@ -986,8 +946,8 @@ method(present, Classification) <- function(
   x,
   what = c("training", "test"),
   type = c("ROC", "confusion"),
-  theme = choose_theme(),
-  col = rtpalette(rtemis_palette)[1:2],
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   filename = NULL
 ) {
   type <- match.arg(type)
@@ -1000,7 +960,7 @@ method(present, Classification) <- function(
       x,
       what = what,
       theme = theme,
-      col = col,
+      palette = palette,
       filename = filename
     )
   } else if (type == "confusion") {
@@ -1121,8 +1081,8 @@ SupervisedRes <- new_class(
 ) # /rtemis::SupervisedRes
 
 
-# Show SupervisedRes ----
-#' Show `SupervisedRes`
+# repr SupervisedRes ----
+#' repr `SupervisedRes`
 #'
 #' @param x `SupervisedRes` object.
 #' @param output_type Character: Output type (for formatting).
@@ -1168,7 +1128,7 @@ method(repr, SupervisedRes) <- function(
     ".\n"
   )
 
-  # Calibration, if available (for CalibratedClassificationRes)
+  # Calibration, if available
   if (prop_exists(x, "calibration_models")) {
     out <- paste0(
       out,
@@ -1181,22 +1141,48 @@ method(repr, SupervisedRes) <- function(
     )
   }
 
+  out <- paste0(out, "\n")
+
   # Metrics, training
-  out <- paste0(
-    out,
-    "\n",
-    repr(x@metrics_training, pad = 2L, output_type = output_type)
-  )
+  if (prop_exists(x, "calibration_models")) {
+    out <- paste0(
+      out,
+      repr_CalibratedClassificationRes(
+        x@metrics_training,
+        x@metrics_training_calibrated,
+        pad = 2L,
+        output_type = output_type
+      )
+    )
+  } else {
+    out <- paste0(
+      out,
+      repr(x@metrics_training, pad = 2L, output_type = output_type)
+    )
+  }
 
   # Metrics, test
-  out <- paste0(
-    out,
-    "\n",
-    repr(x@metrics_test, pad = 2L, output_type = output_type)
-  )
+  if (prop_exists(x, "calibration_models")) {
+    out <- paste0(
+      out,
+      "\n",
+      repr_CalibratedClassificationRes(
+        x@metrics_test,
+        x@metrics_test_calibrated,
+        pad = 2L,
+        output_type = output_type
+      )
+    )
+  } else {
+    out <- paste0(
+      out,
+      "\n",
+      repr(x@metrics_test, pad = 2L, output_type = output_type)
+    )
+  }
 
   out
-} # /rtemis::show.SupervisedRes
+} # /rtemis::repr.SupervisedRes
 
 
 # Print SupervisedRes ----
@@ -1346,7 +1332,7 @@ CalibratedClassificationRes <- new_class(
   name = "CalibratedClassificationRes",
   parent = ClassificationRes,
   properties = list(
-    calibration_models = class_list, # => create CalibrationRes class
+    calibration_models = class_list,
     predicted_training_calibrated = new_property(
       getter = function(self) {
         lapply(self@calibration_models, function(mod) {
@@ -1375,73 +1361,43 @@ CalibratedClassificationRes <- new_class(
         })
       }
     ),
-    metrics_training_calibrated = new_property(
-      getter = function(self) {
-        lapply(self@calibration_models, function(mod) {
-          mod@metrics_training
-        })
-      }
-    ),
-    metrics_test_calibrated = new_property(
-      getter = function(self) {
-        lapply(self@calibration_models, function(mod) {
-          mod@metrics_test
-        })
-      }
-    )
+    metrics_training_calibrated = ClassificationMetricsRes,
+    metrics_test_calibrated = ClassificationMetricsRes
   ),
   constructor = function(ClassificationRes_model, calibrations_models) {
+    # Aggregate calibrated metrics from individual models within each calibration resample
+    # calibrations_models is a list of *Res objects, each containing multiple models
+    # We need to extract all individual model metrics and aggregate them
+    all_training_metrics <- unlist(
+      lapply(calibrations_models, function(calmod) {
+        calmod@metrics_training@res_metrics
+      }),
+      recursive = FALSE
+    )
+    all_test_metrics <- unlist(
+      lapply(calibrations_models, function(calmod) {
+        calmod@metrics_test@res_metrics
+      }),
+      recursive = FALSE
+    )
+
+    metrics_training_calibrated <- ClassificationMetricsRes(
+      sample = "Training",
+      res_metrics = all_training_metrics
+    )
+    metrics_test_calibrated <- ClassificationMetricsRes(
+      sample = "Test",
+      res_metrics = all_test_metrics
+    )
+
     new_object(
       ClassificationRes_model,
-      calibration_models = calibrations_models
+      calibration_models = calibrations_models,
+      metrics_training_calibrated = metrics_training_calibrated,
+      metrics_test_calibrated = metrics_test_calibrated
     )
   }
 ) # /rtemis::CalibratedClassificationRes
-
-
-# Print CalibratedClassificationRes ----
-method(print, CalibratedClassificationRes) <- function(x, ...) {
-  objcat("Resampled Classification Model")
-  cat(
-    "  ",
-    highlight(x@algorithm),
-    " (",
-    desc_alg(x@algorithm),
-    ")\n",
-    sep = ""
-  )
-  cat(
-    "  ",
-    bold(orange("\U27F3")),
-    " Tested using ",
-    desc(x@outer_resampler),
-    ".\n",
-    sep = ""
-  )
-  if (!is.null(x@tuner_config)) {
-    cat(
-      "  ",
-      fmt("\U2699", col = col_tuner, bold = TRUE),
-      " Tuned using ",
-      desc(x@tuner_config),
-      ".\n",
-      sep = ""
-    )
-  }
-  cat(
-    "  ",
-    bold(green("\U27CB")),
-    " Calibrated using ",
-    desc_alg(x@calibration_models[[1]]@algorithm),
-    " with ",
-    desc(x@calibration_models[[1]]@outer_resampler@config),
-    ".\n\n",
-    sep = ""
-  )
-  print(x@metrics_training)
-  cat("\n")
-  print(x@metrics_test)
-} # /rtemis::print.CalibratedClassificationRes
 
 
 # Predict CalibratedClassificationRes ----
@@ -1628,7 +1584,11 @@ method(describe, SupervisedRes) <- function(x, ...) {
 }
 
 # Present SupervisedRes ----
-method(present, SupervisedRes) <- function(x, theme = choose_theme(), ...) {
+method(present, SupervisedRes) <- function(
+  x,
+  theme = choose_theme(getOption("rtemis_theme")),
+  ...
+) {
   # Describe the model
   describe(x)
   # Plot the performance metrics
@@ -1654,7 +1614,7 @@ method(plot_true_pred, RegressionRes) <- function(
   x,
   what = "all",
   fit = "glm",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   labelify = TRUE,
   ...
 ) {
@@ -1699,7 +1659,7 @@ method(plot_true_pred, RegressionRes) <- function(
 method(plot_true_pred, ClassificationRes) <- function(
   x,
   what = "all",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   ...
 ) {
   if (length(what) == 1 && what == "all") {
@@ -1773,8 +1733,8 @@ method(plot_true_pred, ClassificationRes) <- function(
 method(plot_roc, ClassificationRes) <- function(
   x,
   what = "all",
-  theme = choose_theme(),
-  col = rtpalette(rtemis_palette)[1:2],
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   filename = NULL,
   ...
 ) {
@@ -1796,7 +1756,7 @@ method(plot_roc, ClassificationRes) <- function(
     true_labels = labelsl,
     predicted_prob = probl,
     theme = theme,
-    col = col,
+    palette = palette,
     filename = filename,
     ...
   )
@@ -1825,7 +1785,7 @@ method(plot_metric, SupervisedRes) <- function(
   metric = NULL,
   ylab = labelify(metric),
   boxpoints = "all",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   ...
 ) {
   what <- match.arg(what, several.ok = TRUE)
@@ -1878,7 +1838,7 @@ method(plot_metric, SupervisedRes) <- function(
 # Plot Variable Importance Supervised ----
 method(plot_varimp, Supervised) <- function(
   x,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   filename = NULL,
   ...
 ) {
@@ -1896,7 +1856,7 @@ method(plot_varimp, SupervisedRes) <- function(
   ylab = NULL,
   summarize_fn = "mean",
   show_top = 20L,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   filename = NULL,
   ...
 ) {

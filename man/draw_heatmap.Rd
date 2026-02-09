@@ -31,7 +31,7 @@ draw_heatmap(
   showticklabels = NULL,
   colorbar_len = 0.7,
   plot_method = "plotly",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   row_side_colors = NULL,
   row_side_palette = NULL,
   col_side_colors = NULL,
@@ -138,11 +138,11 @@ Draw interactive heatmaps using \code{heatmaply}.
 See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 x <- rnormmat(200, 20)
 xcor <- cor(x)
 draw_heatmap(xcor)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

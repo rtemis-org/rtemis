@@ -74,13 +74,10 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' # Will automatically use only numeric columns
 #' draw_dist(iris)
 #' draw_dist(iris[["Sepal.Length"]], group = iris[["Species"]])
-#' }
-#'
 draw_dist <- function(
   x,
   type = c("density", "histogram"),
@@ -92,8 +89,8 @@ draw_dist <- function(
   col = NULL,
   alpha = .75,
   plot_bg = NULL,
-  theme = choose_theme(),
-  palette = rtemis_palette,
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = getOption("rtemis_palette", "rtms"),
   axes_square = FALSE,
   group_names = NULL,
   font_size = 16,
@@ -209,7 +206,7 @@ draw_dist <- function(
 
   # Colors ----
   if (is.character(palette)) {
-    palette <- rtpalette(palette)
+    palette <- get_palette(palette)
   }
   n_groups <- length(x)
   if (is.null(col)) {

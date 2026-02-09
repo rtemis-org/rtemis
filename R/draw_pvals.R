@@ -20,18 +20,15 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' draw_pvals(c(0.01, 0.02, 0.03), xnames = c("Feature1", "Feature2", "Feature3"))
-#' }
-#' @author EDG
 draw_pvals <- function(
   x,
   xnames = NULL,
   yname = NULL,
   p_adjust_method = "none",
   pval_hline = .05,
-  hline_col = "#FE4AA3",
+  hline_col = rt_red,
   hline_dash = "dash",
   ...
 ) {

@@ -60,8 +60,7 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' # Example data
 #' time <- seq(0, 10, length.out = 100)
 #' freq <- seq(1, 100, length.out = 100)
@@ -71,8 +70,6 @@
 #'   y = freq,
 #'   z = power
 #' )
-#' }
-
 draw_spectrogram <- function(
   x,
   y,
@@ -108,7 +105,7 @@ draw_spectrogram <- function(
   main = NULL,
   key_title = NULL,
   showticklabels = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   font_size = NULL,
   padding = 0,
   displayModeBar = TRUE,

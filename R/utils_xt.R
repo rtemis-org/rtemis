@@ -189,6 +189,16 @@ xtdescribe <- function(
 } # /rtemis::xtdescribe
 
 
+#' Describe vector
+#'
+#' Helper function to describe a vector by showing the first 2 and last value, separated by "..."
+#'
+#' @param x Vector to describe.
+#' @param sort_unique Logical: If TRUE, sort the unique values of the vector before describing.
+#'
+#' @return Character string describing the vector.
+#'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 vec_describe <- function(x, sort_unique = FALSE) {

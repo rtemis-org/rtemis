@@ -20,12 +20,11 @@ draw_3Dscatter(
   xlab = NULL,
   ylab = NULL,
   zlab = NULL,
-  col = NULL,
   alpha = 0.8,
   bg = NULL,
   plot_bg = NULL,
-  theme = choose_theme(),
-  palette = rtemis_palette,
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   axes_square = FALSE,
   group_names = NULL,
   font_size = 16,
@@ -91,8 +90,6 @@ draw_3Dscatter(
 
 \item{zlab}{Character: z-axis label.}
 
-\item{col}{Color for markers.}
-
 \item{alpha}{Numeric: Alpha for markers.}
 
 \item{bg}{Background color.}
@@ -101,7 +98,7 @@ draw_3Dscatter(
 
 \item{theme}{\code{Theme} object.}
 
-\item{palette}{Character: Color palette.}
+\item{palette}{Character vector: Colors to use.}
 
 \item{axes_square}{Logical: If TRUE, draw a square plot.}
 
@@ -179,9 +176,9 @@ See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed doc
 Note that \code{draw_3Dscatter} uses the theme's \code{plot_bg} as \code{grid_col}.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 draw_3Dscatter(iris, group = iris$Species, theme = theme_darkgraygrid())
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

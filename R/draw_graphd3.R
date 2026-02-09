@@ -13,7 +13,7 @@
 #' @param edge_alpha Float \[0, 1\]: Edge opacity.
 #' @param zoom Logical: If TRUE, graph is zoomable.
 #' @param legend Logical: If TRUE, display legend for groups.
-#' @param palette Vector of colors, or Character defining a builtin palette - get options with `rtpalette()`.
+#' @param palette Character vector: Colors to use.
 #' @param theme `Theme` object.
 #' @param ... Additional arguments to pass to `networkD3`.
 #'
@@ -22,12 +22,10 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' library(igraph)
 #' g <- make_ring(10)
 #' draw_graphD3(g)
-#' }
 draw_graphD3 <- function(
   net,
   groups = NULL,
@@ -38,8 +36,8 @@ draw_graphD3 <- function(
   edge_alpha = .33,
   zoom = TRUE,
   legend = FALSE,
-  palette = rtemis_palette,
-  theme = choose_theme(),
+  palette = get_palette(getOption("rtemis_palette")),
+  theme = choose_theme(getOption("rtemis_theme")),
   ...
 ) {
   # Dependencies ----
@@ -69,7 +67,7 @@ draw_graphD3 <- function(
       )
     } else {
       if (is.character(palette)) {
-        palette <- adjustcolor(unlist(rtpalette(palette)), node_alpha)
+        palette <- adjustcolor(unlist(get_palette(palette)), node_alpha)
       }
       ngroups <- length(unique(groups))
       .groups <- paste0(sort(unique(groups)), collapse = '", "')

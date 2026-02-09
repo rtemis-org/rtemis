@@ -4,13 +4,17 @@
 \alias{init_project_dir}
 \title{Initialize Project Directory}
 \usage{
-init_project_dir(verbosity = 1L)
+init_project_dir(path, output_dir = "Out", verbosity = 1L)
 }
 \arguments{
+\item{path}{Character: Path to initialize project directory in.}
+
+\item{output_dir}{Character: Name of output directory to create.}
+
 \item{verbosity}{Integer: Verbosity level.}
 }
 \value{
-Character: the working directory path, invisibly.
+Character: the path where the project directory was initialized, invisibly.
 }
 \description{
 Initializes Directory Structure: "R", "Data", "Results"

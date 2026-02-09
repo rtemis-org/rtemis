@@ -19,10 +19,8 @@
 #' @param orientation Character: "h" or "v".
 #' @param line_width Numeric: Line width.
 #' @param labelify Logical: If TRUE, labelify feature names.
-#' @param col Vector, colors: Single value, or multiple values to define bar
-#' (feature) color(s).
 #' @param alpha Numeric: Transparency.
-#' @param palette Character: Name of \pkg{rtemis} palette to use.
+#' @param palette Character vector: Colors to use.
 #' @param mar Vector, numeric, length 4: Plot margins in pixels (NOT inches).
 #' @param font_size Integer: Overall font size to use (essentially for the
 #' title at this point).
@@ -39,14 +37,12 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
-#' # made-up data
+#' @examplesIf interactive()
+#' # synthetic data
 #' x <- rnorm(10)
 #' names(x) <- paste0("Feature_", seq(x))
 #' draw_varimp(x)
 #' draw_varimp(x, orientation = "h")
-#' }
 draw_varimp <- function(
   x,
   names = NULL,
@@ -58,13 +54,12 @@ draw_varimp <- function(
   orientation = "v",
   line_width = 12,
   labelify = TRUE,
-  col = NULL,
   alpha = 1,
-  palette = rtemis_palette,
+  palette = get_palette(getOption("rtemis_palette")),
   mar = NULL,
   font_size = 16,
   axis_font_size = 14,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   showlegend = TRUE,
   filename = NULL,
   file_width = 500,
@@ -82,10 +77,6 @@ draw_varimp <- function(
 
   # Theme ----
   check_is_S7(theme, Theme)
-
-  if (is.character(palette)) {
-    palette <- rtpalette(palette)
-  }
 
   bg <- plotly::toRGB(theme[["bg"]])
   plot_bg <- plotly::toRGB(theme[["plot_bg"]])
@@ -151,9 +142,7 @@ draw_varimp <- function(
   y <- factor(.names, levels = .names)
 
   # Colors ----
-  if (is.null(col)) {
-    col <- palette[[1]]
-  }
+  col <- palette[[1]]
   col <- color_adjust(col, alpha = alpha)
 
   # plotly ----

@@ -1,4 +1,4 @@
-# test-checks.R
+# test_checks.R
 # ::rtemis::
 # 2025 EDG rtemis.org
 

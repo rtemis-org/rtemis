@@ -26,12 +26,11 @@
 #' @param xlab Character: x-axis label.
 #' @param ylab Character: y-axis label.
 #' @param zlab Character: z-axis label.
-#' @param col Color for markers.
 #' @param alpha Numeric: Alpha for markers.
 #' @param bg Background color.
 #' @param plot_bg Plot background color.
 #' @param theme `Theme` object.
-#' @param palette Character: Color palette.
+#' @param palette Character vector: Colors to use.
 #' @param axes_square Logical: If TRUE, draw a square plot.
 #' @param group_names Character: Names for groups.
 #' @param font_size Numeric: Font size.
@@ -69,10 +68,9 @@
 #'
 #' @author EDG
 #' @export
-#' @examples
-#' \dontrun{
+#'
+#' @examplesIf interactive()
 #' draw_3Dscatter(iris, group = iris$Species, theme = theme_darkgraygrid())
-#' }
 draw_3Dscatter <- function(
   x,
   y = NULL,
@@ -89,12 +87,11 @@ draw_3Dscatter <- function(
   xlab = NULL,
   ylab = NULL,
   zlab = NULL,
-  col = NULL,
   alpha = .8,
   bg = NULL,
   plot_bg = NULL,
-  theme = choose_theme(),
-  palette = rtemis_palette,
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   axes_square = FALSE,
   group_names = NULL,
   font_size = 16,
@@ -282,15 +279,7 @@ draw_3Dscatter <- function(
   # }
 
   # Colors ----
-  if (is.character(palette)) {
-    palette <- rtpalette(palette)
-  }
-  if (is.null(col)) {
-    col <- palette[seq_len(n_groups)]
-  }
-  if (length(col) < n_groups) {
-    col <- rep(col, n_groups / length(col))
-  }
+  col <- recycle(palette, seq_len(n_groups))
 
   # Convert inputs to RGB
   spike_col <- plotly::toRGB(spike_col)

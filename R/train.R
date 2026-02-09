@@ -70,7 +70,7 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' iris_c_lightRF <- train(
 #'    iris,
 #'    algorithm = "LightRF",

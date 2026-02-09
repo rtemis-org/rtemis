@@ -8,9 +8,6 @@
 
 #' Plot timeseries data
 #'
-#' @details
-#' We are switching to `palette` being a color vector instead of the name of a built-in palette.
-#'
 #' @param x Datetime vector or list of vectors.
 #' @param y Numeric vector or named list of vectors: y-axis data.
 #' @param x2 Datetime vector or list of vectors, optional: must be provided if `y2` does not
@@ -58,7 +55,7 @@
 #' @param slider_start Numeric: Start of range slider.
 #' @param slider_end Numeric: End of range slider.
 #' @param theme `Theme` object.
-#' @param palette Color list: will be used to draw each vector in `y` and `y2`, in order.
+#' @param palette Character vector: Colors to be used to draw each vector in `y` and `y2`, in order.
 #' @param font_size Numeric: Font size for text.
 #' @param yfill Character: Fill type for y-axis: "none", "tozeroy", "tonexty".
 #' @param y2fill Character: Fill type for y2-axis: "none", "tozeroy", "tonexty".
@@ -100,8 +97,7 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' datetime <- seq(
 #'   as.POSIXct("2020-01-01 00:00"),
 #'   as.POSIXct("2020-01-02 00:00"),
@@ -113,7 +109,6 @@
 #'   value2 = rnorm(length(datetime))
 #' )
 #' draw_xt(df, x = df[, 1], y = df[, 2:3])
-#' }
 draw_xt <- function(
   x,
   y,
@@ -150,8 +145,8 @@ draw_xt <- function(
   show_rangeslider = NULL,
   slider_start = NULL,
   slider_end = NULL,
-  theme = choose_theme(),
-  palette = rtpalette(rtemis_palette),
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   font_size = 16,
   yfill = "none",
   y2fill = "none",
@@ -224,10 +219,10 @@ draw_xt <- function(
     x2 <- rep(x2, length(y2))
   }
   if (length(x) != length(y)) {
-    cli::cli_abort("x and y must be the same length")
+    cli::cli_abort("{.arg x} and {.arg y} must be the same length")
   }
   if (!is.null(y2) && length(x2) != length(y2)) {
-    cli::cli_abort("x2 and y2 must be the same length")
+    cli::cli_abort("{.arg x2} and {.arg y2} must be the same length")
   }
 
   # Which traces to plot ----
@@ -259,7 +254,9 @@ draw_xt <- function(
 
   # Check args ----
   if (!is.null(shade_bin) && !is.null(shade_interval)) {
-    cli::cli_abort("Only set shade_bin or shade_interval, not both")
+    cli::cli_abort(
+      "Only set {.arg shade_bin} or {.arg shade_interval}, not both"
+    )
   }
 
   # Names ----

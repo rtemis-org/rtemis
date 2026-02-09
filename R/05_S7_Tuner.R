@@ -39,15 +39,6 @@ TunerConfig <- new_class(
 ) # /rtemis::TunerConfig
 
 # Print TunerConfig ----
-#' Print TunerConfig
-#'
-#' Print TunerConfig object
-#'
-#' @param x TunerConfig object.
-#' @param ... Not used.
-#'
-#' @author EDG
-#' @noRd
 method(print, TunerConfig) <- function(x, pad = 0L, ...) {
   objcat(paste(x@type, "TunerConfig"))
   printls(x@config, pad = pad + 2L)
@@ -242,6 +233,7 @@ GridSearch <- new_class(
 #' Print GridSearch object
 #'
 #' @param x GridSearch object.
+#' @param header Logical: If TRUE, print header with type of tuner.
 #' @param ... Not used.
 #'
 #' @author EDG

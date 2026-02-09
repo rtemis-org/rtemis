@@ -5,7 +5,6 @@
 # Notes:
 # Some algorithms do not work with variable names containing dots (SparkML)
 
-check_factor_levels <- new_generic("check_factor_levels", c("x"))
 method(check_factor_levels, class_data.frame) <- function(x, y, z) {
   if (!is.null(y) || !is.null(z)) {
     index_factor <- which(sapply(x, is.factor))
@@ -79,6 +78,7 @@ method(check_factor_levels, class_data.table) <- function(x, y, z) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
+#'
 #' @examples
 #' \dontrun{
 #' check_supervised(training_data, validation_data, test_data)
@@ -171,6 +171,7 @@ check_supervised <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
+#'
 #' @examples
 #' \dontrun{
 #' check_unsupervised_data(features_data)

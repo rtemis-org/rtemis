@@ -43,8 +43,8 @@ draw_protein(
   region_line_smoothing = 1,
   region_line_width = 1,
   region_line_alpha = 0.6,
-  theme = choose_theme(),
-  region_palette = rtemis_palette,
+  theme = choose_theme(getOption("rtemis_theme")),
+  region_palette = getOption("rtemis_palette", "rtms"),
   region_outline_only = FALSE,
   region_outline_pad = 2,
   region_pad = 0.35,
@@ -57,7 +57,7 @@ draw_protein(
   site_marker_symbol = marker_symbol,
   site_marker_alpha = 1,
   site_border_width = 1.5,
-  site_palette = rtemis_palette,
+  site_palette = getOption("rtemis_palette", "rtms"),
   variant_col = "#FA6E1E",
   disease_variant_col = "#E266AE",
   showlegend_ptm = TRUE,
@@ -325,8 +325,8 @@ tau <- seqinr::read.fasta("https://rest.uniprot.org/uniprotkb/P10636.fasta",
 )
 draw_protein(as.character(tau[[1]]))
 
-# or directly using the UniProt accession number:
-draw_protein("P10636")
+  # or directly using the UniProt accession number:
+  draw_protein("P10636")
 }
 }
 \author{

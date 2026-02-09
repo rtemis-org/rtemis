@@ -9,11 +9,10 @@ draw_bar(
   main = NULL,
   xlab = NULL,
   ylab = NULL,
-  col = NULL,
   alpha = 1,
   horizontal = FALSE,
-  theme = choose_theme(),
-  palette = rtemis_palette,
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   barmode = c("group", "relative", "stack", "overlay"),
   group_names = NULL,
   order_by_val = FALSE,
@@ -58,16 +57,13 @@ data.frame, rows are groups (can be 1 row), columns are features}
 
 \item{ylab}{Character: y-axis label.}
 
-\item{col}{Color, vector: Color for bars. Default NULL, which will draw
-colors from \code{palette}}
-
 \item{alpha}{Float (0, 1]: Transparency for bar colors.}
 
 \item{horizontal}{Logical: If TRUE, plot bars horizontally}
 
 \item{theme}{\code{Theme} object.}
 
-\item{palette}{Character: Name of \pkg{rtemis} palette to use.}
+\item{palette}{Character vector: Colors to use.}
 
 \item{barmode}{Character: Type of bar plot to make: "group", "relative",
 "stack", "overlay". Default = "group". Use
@@ -161,7 +157,7 @@ Draw interactive barplots using \code{plotly}
 See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 draw_bar(VADeaths, legend_xy = c(0, 1))
 draw_bar(VADeaths, legend_xy = c(1, 1), legend_xanchor = "left")
 # simple individual bars
@@ -173,7 +169,7 @@ rownames(b) <- c("Jen", "Ben", "Ren")
 draw_bar(b)
 # stacked
 draw_bar(b, barmode = "stack")
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

@@ -21,7 +21,24 @@ MassGLM <- new_class(
   )
 ) # /rtemis::MassGLM
 
-# Show MassGLM ----
+
+# Make MassGLM@name `$`-accessible ----
+method(`$`, MassGLM) <- function(x, name) {
+  prop(x, name)
+}
+
+# `$`-autocomplete MassGLM ----
+method(`.DollarNames`, MassGLM) <- function(x, pattern = "") {
+  prop_names <- names(props(x))
+  grep(pattern, prop_names, value = TRUE)
+}
+
+# Make MassGLM@name `[[`-accessible ----
+method(`[[`, MassGLM) <- function(x, name) {
+  prop(x, name)
+}
+
+# repr MassGLM ----
 method(repr, MassGLM) <- function(
   x,
   output_type = NULL
@@ -49,13 +66,15 @@ method(repr, MassGLM) <- function(
 #' @param x MassGLM object.
 #' @param ... Not used.
 #'
+#' @return `x`, invisibly.
+#'
 #' @author EDG
 #' @noRd
-print.MassGLM <- function(x, output_type = NULL, ...) {
+method(print, MassGLM) <- function(x, output_type = NULL, ...) {
   cat(repr(x, output_type = output_type))
-}
+  invisible(x)
+} # /rtemis::print.MassGLM
 
-method(print, MassGLM) <- print.MassGLM
 
 # Plot MassGLM ----
 #' Plot MassGLM using volcano plot
@@ -81,7 +100,7 @@ plot.MassGLM <- method(plot, MassGLM) <- function(
   p_transform = function(x) -log10(x),
   xlab = "Coefficient",
   ylab = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   verbosity = 1L,
   ...
 ) {
@@ -149,8 +168,7 @@ plot.MassGLM <- method(plot, MassGLM) <- function(
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' # x: outcome of interest as first column, optional covariates in the other columns
 #' # y: features whose association with x we want to study
 #' set.seed(2022)
@@ -161,7 +179,6 @@ plot.MassGLM <- method(plot, MassGLM) <- function(
 #' )
 #' massmod <- massGLM(x, y)
 #' plot_manhattan(massmod)
-#' }
 plot_manhattan.MassGLM <- method(plot_manhattan, MassGLM) <- function(
   x,
   coefname = NULL,
@@ -177,7 +194,7 @@ plot_manhattan.MassGLM <- method(plot_manhattan, MassGLM) <- function(
   ),
   p_transform = function(x) -log10(x),
   ylab = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   col_pos = "#43A4AC",
   col_neg = "#FA9860",
   alpha = 0.8,
@@ -218,9 +235,15 @@ plot_manhattan.MassGLM <- method(plot_manhattan, MassGLM) <- function(
   draw_bar(
     x = p_transform(pvals),
     theme = theme,
-    col = col,
+    palette = col,
     group_names = x@ynames,
     ylab = ylab,
     ...
   )
 } # /rtemis::plot_manhattan.MassGLM
+
+
+# summary MassGLM ----
+method(summary, MassGLM) <- function(object, ...) {
+  object@summary
+} # /rtemis::summary.MassGLM

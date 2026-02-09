@@ -14,8 +14,8 @@ draw_graphD3(
   edge_alpha = 0.33,
   zoom = TRUE,
   legend = FALSE,
-  palette = rtemis_palette,
-  theme = choose_theme(),
+  palette = get_palette(getOption("rtemis_palette")),
+  theme = choose_theme(getOption("rtemis_theme")),
   ...
 )
 }
@@ -38,7 +38,7 @@ draw_graphD3(
 
 \item{legend}{Logical: If TRUE, display legend for groups.}
 
-\item{palette}{Vector of colors, or Character defining a builtin palette - get options with \code{rtpalette()}.}
+\item{palette}{Character vector: Colors to use.}
 
 \item{theme}{\code{Theme} object.}
 
@@ -51,11 +51,11 @@ draw_graphD3(
 Plot graph using \pkg{networkD3}
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 library(igraph)
 g <- make_ring(10)
 draw_graphD3(g)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

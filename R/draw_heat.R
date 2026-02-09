@@ -13,7 +13,7 @@
 #' @param x Vectors for x-axis.
 #' @param y Vectors for y-axis.
 #' @param title Plot title.
-#' @param col Set of colors to make gradient from.
+#' @param palette Character vector: Colors to use.
 #' @param xlab x-axis label.
 #' @param ylab y-axis label.
 #' @param zlab z value label.
@@ -24,17 +24,15 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' mat <- matrix(rnorm(100), nrow = 10)
 #' draw_heat(mat, x = 1:10, y = 1:10, title = "Heatmap Example")
-#' }
 draw_heat <- function(
   z,
   x = NULL,
   y = NULL,
   title = NULL,
-  col = penn_heat(21),
+  palette = penn_heat(21),
   xlab = NULL,
   ylab = NULL,
   zlab = NULL,
@@ -85,7 +83,7 @@ draw_heat <- function(
     y = y,
     transpose = transpose,
     type = "heatmap",
-    colors = col,
+    colors = palette,
     colorbar = colorbar,
     text = paste("Value =", ddSci(z)),
     hoverinfo = "all"

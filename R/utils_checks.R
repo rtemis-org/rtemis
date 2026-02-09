@@ -83,15 +83,12 @@ test_inherits <- function(x, cl) {
 #' @param cl Character: class to check against.
 #' @param allow_null Logical: If TRUE, NULL values are allowed and return early.
 #'
-#' @details
-#' Exported as internal function for use by other rtemis packages.
-#'
 #' @return Called for side effects. Throws an error if checks fail.
 #'
 #' @author EDG
 #'
 #' @keywords internal
-#' @export
+#' @noRd
 check_inherits <- function(
   x,
   cl,
@@ -548,67 +545,6 @@ check_float_neg1_1 <- function(
 
   invisible()
 } # /rtemis::check_float_neg1_1
-
-
-#' Check future settings for learner
-#'
-#' Checks the proposed plan and number of workers and avoids overparallelization.
-#'
-#' @param learner Character: Name of learner.
-#' @param plan Character: Name of future plan.
-#' @param n_workers Integer: Number of workers.
-#'
-#' @return n_workers Integer n of workers.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-get_n_workers_for_learner <- function(
-  algorithm,
-  parallel_type,
-  n_workers = NULL,
-  verbosity = 1L
-) {
-  # If n_workers is not set, set it to available cores.
-  # If learner uses parallelization and plan is run on single machine,
-  # set n_workers to 1 to avoid overparallelization.
-  single_machine_types <- c(
-    "future::multicore",
-    "future::callr",
-    "future::multisession",
-    "future.mirai::mirai_multisession",
-    "mirai"
-  )
-  if (
-    parallel_type %in%
-      single_machine_types &&
-      algorithm %in% live[["parallelized_learners"]]
-  ) {
-    if (verbosity > 0L && !is.null(n_workers) && n_workers > 1) {
-      msg(
-        highlight2(
-          paste0(
-            "Running a parallelized learner and n_workers is greater than 1, but plan ",
-            parallel_type,
-            " is run on single machine. Setting n_workers to 1."
-          )
-        )
-      )
-    }
-    return(1L)
-  }
-  available_workers <- parallelly::availableCores()
-  if (!is.null(n_workers) && n_workers <= available_workers) {
-    return(n_workers)
-  } else {
-    if (
-      verbosity > 0L && !is.null(n_workers) && n_workers > available_workers
-    ) {
-      msg(highlight2("Requested n_workers is greater than available cores."))
-    }
-  }
-  parallelly::availableCores(omit = 1L)
-} # /rtemis::get_n_workers_for_learner
 
 
 #' Abbreviate object class name

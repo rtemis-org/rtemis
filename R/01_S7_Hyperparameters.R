@@ -113,10 +113,10 @@ Hyperparameters <- new_class(
 ) # /rtemis::Hyperparameters
 
 
-# Show Hyperparameters ----
-#' Show Hyperparameters
+# repr Hyperparameters ----
+#' Repr Hyperparameters
 #'
-#' Show method for Hyperparameters object.
+#' repr method for Hyperparameters object.
 #'
 #' @param x `Hyperparameters` object.
 #' @param pad Integer: Left padding for printed output.
@@ -152,16 +152,20 @@ method(repr, Hyperparameters) <- function(
   if (x@tuned == TUNED_STATUS_TUNING) {
     out <- paste0(
       out,
-      highlight2(
+      fmt(
         "\n  Hyperparameters are being tuned.\n",
+        col = col_tuner,
+        bold = TRUE,
         output_type = output_type
       )
     )
   } else if (x@tuned == TUNED_STATUS_NOT_TUNABLE) {
     out <- paste0(
       out,
-      highlight2(
+      fmt(
         "\n  No hyperparameters are tunable.\n",
+        col = col_tuner,
+        bold = TRUE,
         output_type = output_type
       )
     )
@@ -169,7 +173,7 @@ method(repr, Hyperparameters) <- function(
     need_tuning <- names(get_hyperparams_need_tuning(x))
     out <- paste0(
       out,
-      highlight2(
+      fmt(
         paste0(
           "\n  ",
           ngettext(length(need_tuning), "Hyperparameter ", "Hyperparameters "),
@@ -179,25 +183,34 @@ method(repr, Hyperparameters) <- function(
           ngettext(length(need_tuning), " needs ", " need "),
           "tuning.\n"
         ),
+        col = col_tuner,
+        bold = TRUE,
         output_type = output_type
       )
     )
   } else if (x@tuned == TUNED_STATUS_NO_SEARCH_VALUES) {
     out <- paste0(
       out,
-      highlight2(
+      fmt(
         "\n  No search values defined for tunable hyperparameters.\n",
+        col = col_tuner,
+        bold = TRUE,
         output_type = output_type
       )
     )
   } else if (x@tuned == TUNED_STATUS_TUNED) {
     out <- paste0(
       out,
-      highlight2("\n  Hyperparameters are tuned.\n", output_type = output_type)
+      fmt(
+        "\n  Hyperparameters are tuned.\n",
+        col = col_tuner,
+        bold = TRUE,
+        output_type = output_type
+      )
     )
   }
   out
-} # /rtemis::show.Hyperparameters
+} # /rtemis::repr.Hyperparameters
 
 
 # Print Hyperparameters ----
@@ -264,6 +277,7 @@ method(update, Hyperparameters) <- function(
 #' @keywords internal
 #' @noRd
 freeze <- new_generic("freeze", "x")
+
 method(freeze, Hyperparameters) <- function(x) {
   x@tuned <- -1
 } # /rtemis::freeze.Hyperparameters
@@ -305,6 +319,7 @@ method(`[[`, Hyperparameters) <- function(x, name) {
 #' @keywords internal
 #' @noRd
 needs_tuning <- new_generic("needs_tuning", "x")
+
 method(needs_tuning, Hyperparameters) <- function(x) {
   x@tuned == 0
 } # /rtemis::needs_tuning.Hyperparameters
@@ -371,7 +386,7 @@ GLMHyperparameters <- new_class(
 #' glm_hyperparams
 setup_GLM <- function(ifw = FALSE) {
   GLMHyperparameters(ifw = ifw)
-} # /rtemis::setup_GLM
+}
 
 
 # GAMHyperparameters ----
@@ -420,7 +435,7 @@ GAMHyperparameters <- new_class(
 setup_GAM <- function(k = 5L, ifw = FALSE) {
   k <- clean_posint(k)
   GAMHyperparameters(k = k, ifw = ifw)
-} # /rtemis::setup_GAM
+}
 
 
 # CARTHyperparameters ----

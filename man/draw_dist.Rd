@@ -15,8 +15,8 @@ draw_dist(
   col = NULL,
   alpha = 0.75,
   plot_bg = NULL,
-  theme = choose_theme(),
-  palette = rtemis_palette,
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = getOption("rtemis_palette", "rtms"),
   axes_square = FALSE,
   group_names = NULL,
   font_size = 16,
@@ -185,12 +185,11 @@ See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed doc
 If input is data.frame, non-numeric variables will be removed.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # Will automatically use only numeric columns
 draw_dist(iris)
 draw_dist(iris[["Sepal.Length"]], group = iris[["Species"]])
-}
-
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

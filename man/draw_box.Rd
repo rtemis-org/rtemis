@@ -14,12 +14,11 @@ draw_box(
   main = NULL,
   xlab = "",
   ylab = NULL,
-  col = NULL,
   alpha = 0.6,
   bg = NULL,
   plot_bg = NULL,
-  theme = choose_theme(),
-  palette = rtemis_palette,
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   boxpoints = "outliers",
   quartilemethod = "linear",
   xlim = NULL,
@@ -100,9 +99,6 @@ comparable}
 
 \item{ylab}{Character: y-axis label.}
 
-\item{col}{Color, vector: Color for boxes. If NULL, which will draw
-colors from \code{palette}}
-
 \item{alpha}{Float (0, 1]: Transparency for box colors.}
 
 \item{bg}{Color: Background color.}
@@ -111,7 +107,7 @@ colors from \code{palette}}
 
 \item{theme}{\code{Theme} object.}
 
-\item{palette}{Character: Name of \pkg{rtemis} palette to use. Only used if \code{col = NULL}.}
+\item{palette}{Character vector: Colors to use.}
 
 \item{boxpoints}{Character or FALSE: "all", "suspectedoutliers", "outliers"
 See \url{https://plotly.com/r/box-plots/#choosing-the-algorithm-for-computing-quartiles}}
@@ -270,7 +266,7 @@ Similarly, \code{x.axist.type} applies to y-axis - this defaults to
 "category" and would not normally need changing.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # A.1 Box plot of 4 variables
 draw_box(iris[, 1:4])
 # A.2 Grouped Box plot
@@ -294,8 +290,7 @@ draw_box(x, time, "month",
   legend.yanchor = "bottom"
 )
 # (Note how the boxplots widen when the period includes data from both dat1 and dat2)
-}
-
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

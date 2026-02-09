@@ -9,12 +9,11 @@ draw_pie(
   main = NULL,
   xlab = NULL,
   ylab = NULL,
-  col = NULL,
   alpha = 0.8,
   bg = NULL,
   plot_bg = NULL,
-  theme = choose_theme(),
-  palette = rtemis_palette,
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   category_names = NULL,
   textinfo = "label+percent",
   font_size = 16,
@@ -43,8 +42,6 @@ the \code{category.names} argument.}
 
 \item{ylab}{Character: y-axis label.}
 
-\item{col}{Character: Colors for the pie slices.}
-
 \item{alpha}{Numeric: Alpha for the pie slices.}
 
 \item{bg}{Character: Background color.}
@@ -53,7 +50,7 @@ the \code{category.names} argument.}
 
 \item{theme}{\code{Theme} object.}
 
-\item{palette}{Character: Color palette to use.}
+\item{palette}{Character vector: Colors to use.}
 
 \item{category_names}{Character, vector, length = NROW(x): Category names. Default = NULL, which uses
 either \code{rownames(x)}, or the first column of \code{x} if \code{ncol(x) = 2}.}
@@ -93,9 +90,9 @@ either \code{rownames(x)}, or the first column of \code{x} if \code{ncol(x) = 2}
 Draw interactive pie charts using \code{plotly}.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 draw_pie(VADeaths[, 1, drop = FALSE])
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

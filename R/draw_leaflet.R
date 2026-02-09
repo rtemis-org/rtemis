@@ -8,7 +8,6 @@
 #' @param values Values to map to `fips`.
 #' @param names Character vector: Optional county names to appear on hover along `values`.
 #' @param fillOpacity Float: Opacity for fill colors.
-#' @param palette Character: Color palette to use.
 #' @param color_mapping Character: "Numeric" or "Bin".
 #' @param col_lo Overlay color mapped to lowest value.
 #' @param col_hi Overlay color mapped to highest value.
@@ -36,20 +35,17 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' fips <- c(06075, 42101)
 #' population <- c(874961, 1579000)
 #' names <- c("SF", "Philly")
 #' draw_leaflet(fips, population, names)
-#' }
 # NA in legend issue: https://github.com/rstudio/leaflet/issues/615
 draw_leaflet <- function(
   fips,
   values,
   names = NULL,
   fillOpacity = 1,
-  palette = NULL,
   color_mapping = c("Numeric", "Bin"),
   col_lo = "#0290EE",
   col_hi = "#FE4AA3",
@@ -84,12 +80,10 @@ draw_leaflet <- function(
   vals_name <- deparse(substitute(values))
   color_mapping <- match.arg(color_mapping)
   col_interpolate <- match.arg(col_interpolate)
-  if (is.null(palette)) {
-    palette <- colorRamp(
-      colors = c(col_lo, col_hi),
-      interpolate = col_interpolate
-    )
-  }
+  palette <- colorRamp(
+    colors = c(col_lo, col_hi),
+    interpolate = col_interpolate
+  )
   legend_position <- match.arg(legend_position)
   if (is.null(legend_title)) {
     legend_title <- labelify(vals_name)

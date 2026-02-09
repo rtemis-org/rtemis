@@ -912,14 +912,10 @@ show_padded <- function(
 #'
 #' @return Character: Formatted string that can be printed with cat()
 #'
-#' @details
-#' Exported as internal function for use by other rtemis packages.
-#'
 #' @author EDG
 #'
-#' @export
 #' @keywords internal
-
+#' @noRd
 repr_ls <- function(
   x,
   prefix = "",

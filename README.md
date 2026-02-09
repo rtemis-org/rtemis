@@ -19,7 +19,7 @@ The new version (0.99+) features:
 Using `pak` from GitHub:
 
 ```r
-pak::pkg_install("rtemis-org/rtemis")
+pak::pak("rtemis-org/rtemis")
 ```
 
 Using `install.packages` from `r-universe`:
@@ -27,15 +27,15 @@ Using `install.packages` from `r-universe`:
 ```r
 install.packages(
   'rtemis',
-  repos = c('https://egenn.r-universe.dev', 'https://cloud.r-project.org')
+  repos = c('https://rtemis-org.r-universe.dev', 'https://cloud.r-project.org')
 )
 ```
 
 Using `pak` from `r-universe`:
 
 ```r
-pak::repo_add(myuniverse = "https://egenn.r-universe.dev")
-pak::pkg_install("rtemis")
+pak::repo_add(myuniverse = "https://rtemis-org.r-universe.dev")
+pak::pak("rtemis")
 ```
 
 ## Installation of dependencies
@@ -139,4 +139,4 @@ walkthroughs of main features and full API reference.
 
 ## rtemisalpha
 
-The original, unmaintained version of rtemis remains available as `rtemisalpha` [here](https://github.com/rtemis-org/rtemis-legacy).
+The original, unmaintained version of rtemis remains available as `rtemisalpha` at [rtemis-org/rtemis-legacy](https://github.com/rtemis-org/rtemis-legacy).

@@ -9,7 +9,6 @@ draw_leaflet(
   values,
   names = NULL,
   fillOpacity = 1,
-  palette = NULL,
   color_mapping = c("Numeric", "Bin"),
   col_lo = "#0290EE",
   col_hi = "#FE4AA3",
@@ -41,8 +40,6 @@ draw_leaflet(
 \item{names}{Character vector: Optional county names to appear on hover along \code{values}.}
 
 \item{fillOpacity}{Float: Opacity for fill colors.}
-
-\item{palette}{Character: Color palette to use.}
 
 \item{color_mapping}{Character: "Numeric" or "Bin".}
 
@@ -93,12 +90,12 @@ draw_leaflet(
 Plot interactive choropleth map using \pkg{leaflet}
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 fips <- c(06075, 42101)
 population <- c(874961, 1579000)
 names <- c("SF", "Philly")
 draw_leaflet(fips, population, names)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

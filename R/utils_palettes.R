@@ -3,30 +3,9 @@
 # 2016- EDG rtemis.org
 
 # Colors ----
-#'
-#' `ucsfCol`: UCSF color palette (https://identity.ucsf.edu/brand-guide/color)
-#'
 #' @keywords internal
 #' @noRd
-ucsfLegacyCol <- list(
-  navy = "#052049",
-  teal = "#18A3AC",
-  green = "#90BD31",
-  blue = "#178CCB",
-  orange = "#F48024",
-  purple = "#716FB2",
-  red = "#EC1848",
-  yellow = "#FFDD00",
-  iTeal = "#058488",
-  iGreen = "#6EA400",
-  iBlue = "#007CBE",
-  iOrange = "#F26D04",
-  iRed = "#EB093C"
-)
-
-#' @keywords internal
-#' @noRd
-ucsfCol <- list(
+ucsfCol <- c(
   Navy = "#052049",
   A2 = "#0F388A",
   A3_CTA_Blue = "#006BE9",
@@ -94,7 +73,7 @@ ucsfPalette <- ucsfCol[c(
 #' (https://marketingtoolbox.ucdavis.edu/visual-identity/color.html)
 #' @keywords internal
 #' @noRd
-ucdCol <- list(
+ucdCol <- c(
   davisBlue = "#002855",
   davisGold = "#DAAA00",
   unitransRed = "#BA0C2F",
@@ -124,7 +103,7 @@ ucdCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-berkeleyCol <- list(
+berkeleyCol <- c(
   Berkeley_Blue = "#003262",
   Founders_Rock = "#3B7EA1",
   California_Gold = "#FDB515",
@@ -154,7 +133,7 @@ berkeleyCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-ucscCol <- list(
+ucscCol <- c(
   blue = "#003c6c",
   gold = "#fdc700",
   mediumBlue = "#006aad",
@@ -175,7 +154,7 @@ ucscCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-ucmercedCol <- list(
+ucmercedCol <- c(
   mercedRiverBlue = "#092f44",
   foothillsGold = "#a29061",
   sierraSkyBlue = "#5f8498",
@@ -194,7 +173,7 @@ ucmercedCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-ucsbCol <- list(
+ucsbCol <- c(
   navy = "#003660",
   gold = "#FEBC11",
   aqua = "#04859B",
@@ -215,7 +194,7 @@ ucsbCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-uclaCol <- list(
+uclaCol <- c(
   Blue = "#2774AE",
   Gold = "#FFD100",
   Darkest_Blue = "#003B5C",
@@ -239,7 +218,7 @@ uclaCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-ucrColor <- list(
+ucrColor <- c(
   ucrBlue = "#2d6cc0",
   ucrGold = "#f1ab00",
   ucrGray = "#393b41"
@@ -253,7 +232,7 @@ ucrColor <- list(
 #'
 #' @keywords internal
 #' @noRd
-uciCol <- list(
+uciCol <- c(
   blue = "#0064a4",
   yellow = "#ffd200",
   teal = "#6aa2b8",
@@ -273,7 +252,7 @@ uciCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-ucsdCol <- list(
+ucsdCol <- c(
   blue = "#182B49",
   mediumBlue = "#006A96",
   gold = "#C69214",
@@ -296,7 +275,7 @@ ucsdCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-ucCol <- list(
+ucCol <- c(
   ucBlue = "#1295D8",
   ucGold = "#FFB511",
   blue = "#005581",
@@ -324,7 +303,7 @@ ucCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-stanfordCol <- list(
+stanfordCol <- c(
   Cardinal = "#8c1515",
   Cool_Grey = "#4d4f53",
   Black = "#2e2d29",
@@ -362,7 +341,7 @@ stanfordCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-csuCol <- list(
+csuCol <- c(
   red = "#CC0B2A",
   coolGray = "#D9D9D6",
   black = "#2F2F2F"
@@ -377,7 +356,7 @@ csuCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-calpolyCol <- list(
+calpolyCol <- c(
   calpolygreen = "#154734",
   calpolygold = "#C69214",
   stadiumgold = "#F8E08E",
@@ -405,7 +384,7 @@ calpolyCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-caltechCol <- list(
+caltechCol <- c(
   orange = "#FF6C0C",
   coolGray9 = "#76777B",
   coolGray3c = "#C8C8C8",
@@ -434,7 +413,7 @@ caltechCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-scrippsCol <- list(
+scrippsCol <- c(
   yellow = "#edb035",
   orange = "#f1624f",
   maroon = "#610f37",
@@ -451,7 +430,7 @@ scrippsCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-pennCol <- list(
+pennCol <- c(
   darkestBlue = "#000f3a",
   darkerBlue = "#00144d",
   blue = "#01256e",
@@ -525,7 +504,7 @@ pennLightPalette <- pennCol[c(
 #'
 #' @keywords internal
 #' @noRd
-cmuCol <- list(
+cmuCol <- c(
   cmuRed = "#bb0000",
   gray = "#e0e0e0",
   darkGray = "#666666",
@@ -545,7 +524,7 @@ cmuCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-mitCol <- list(
+mitCol <- c(
   red = "#A31F34",
   gray = "#8A8B8C",
   lightGray = "#C2C0BF"
@@ -560,7 +539,7 @@ mitCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-princetonCol <- list(
+princetonCol <- c(
   orangeOnWhite = "#e77500",
   orangeOnBlack = "#f58025"
 )
@@ -574,7 +553,7 @@ princetonCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-columbiaCol <- list(
+columbiaCol <- c(
   blue = "#000d74",
   blue1 = "#C4D8E2",
   blue2 = "#75AADB",
@@ -605,7 +584,7 @@ columbiaCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-brownCol <- list(
+brownCol <- c(
   red = "#ED1C24",
   brown = "#4E3629",
   gold = "#FFC72C",
@@ -624,7 +603,7 @@ brownCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-yaleCol <- list(
+yaleCol <- c(
   yaleBlue = "#00356b",
   mediumBlue = "#286dc0",
   lightBlue = "#63aaff",
@@ -646,7 +625,7 @@ yaleCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-cornellCol <- list(
+cornellCol <- c(
   carnellian = "#B31B1B",
   darkGrey = "#222222",
   lightGrey = "#F7F7F7",
@@ -671,7 +650,7 @@ cornellCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-hmsCol <- list(
+hmsCol <- c(
   crimson = "#A51C30",
   black = "#1E1E1E",
   mortar = "#8C8179",
@@ -697,7 +676,7 @@ hmsCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-dartmouthCol <- list(
+dartmouthCol <- c(
   dartmouthGreen = "#00693e",
   forestGreen = "#12312b",
   webGray1 = "#f7f7f7",
@@ -723,7 +702,7 @@ dartmouthCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-usfCol <- list(
+usfCol <- c(
   green = "#205C40",
   yellow = "#ffb81c",
   gray = "#75787B"
@@ -738,7 +717,7 @@ usfCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-uwCol <- list(
+uwCol <- c(
   purple = "#4b2e83",
   gold = "#b7a57a",
   metallicGold = "#85754d"
@@ -753,7 +732,7 @@ uwCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-jhuCol <- list(
+jhuCol <- c(
   heritageBlue = "#002d72",
   spiritBlue = "#68ace5",
   orange = "#cf4520",
@@ -786,7 +765,7 @@ jhuCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-nyuCol <- list(
+nyuCol <- c(
   brightPurple = "#8900e1",
   nyuPurple = "#57068c",
   darkerPurple = "#330662",
@@ -814,7 +793,7 @@ nyuCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-washuCol <- list(
+washuCol <- c(
   red = "#a51417",
   gray = "#6c7373",
   lightGray = "#c8c8c8",
@@ -844,7 +823,7 @@ washuCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-chicagoCol <- list(
+chicagoCol <- c(
   maroon = "#800000",
   darkGray = "#767676",
   lightGray = "#D6D6CE",
@@ -881,7 +860,7 @@ chicagoCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-pennstateCol <- list(
+pennstateCol <- c(
   nittanyNavy = "#001E44",
   beaverBlue = "#1E407C",
   pennsylvaniaSky = "#009CDE",
@@ -913,7 +892,7 @@ pennstateCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-sfsuCol <- list(
+sfsuCol <- c(
   `2755C` = "#231161",
   `2755C_85pc` = "#463077",
   `117C` = "#C99700",
@@ -933,7 +912,7 @@ sfsuCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-illinoisCol <- list(
+illinoisCol <- c(
   uofiblue = "#13294b",
   urbanaOrange = "#E84A27",
   uicRed = "#D50032",
@@ -959,7 +938,7 @@ illinoisCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-umdCol <- list(
+umdCol <- c(
   umdRed = "#E21833",
   umdYellow = "#ffd200",
   umdBrown = "#AD7C59"
@@ -973,7 +952,7 @@ umdCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-msuCol <- list(
+msuCol <- c(
   SpartanGreen = "#18453B",
   White = "#FFFFFF",
   Black = "#000000",
@@ -990,7 +969,7 @@ msuCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-michiganCol <- list(
+michiganCol <- c(
   Maize = "#FFCB05",
   Blue = "#00274C",
   TappanRed = "#9A3324",
@@ -1016,7 +995,7 @@ michiganCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-iowaCol <- list(
+iowaCol <- c(
   Gold = "#FFCD00",
   Gray = "#BBBCBC",
   Blue = "#00A9E0",
@@ -1036,7 +1015,7 @@ iowaCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-texasCol <- list(
+texasCol <- c(
   burntOrange = "#bf5700",
   gray = "#333f48",
   brightOrange = "#f8971f",
@@ -1058,7 +1037,7 @@ texasCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-emoryCol <- list(
+emoryCol <- c(
   emoryBlue = "#012169",
   darkBlue = "#0c2340",
   mediumBlue = "#0033a0",
@@ -1091,7 +1070,7 @@ emoryCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-techCol <- list(
+techCol <- c(
   techGold = "#B3A369",
   buzzGold = "#EAAA00",
   blue = "#00263A"
@@ -1106,7 +1085,7 @@ techCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-vanderbiltCol <- list(
+vanderbiltCol <- c(
   gold = "#D8AB4C",
   blue = "#006682",
   red = "#993D1B",
@@ -1125,7 +1104,7 @@ vanderbiltCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-jeffersonCol <- list(
+jeffersonCol <- c(
   jeffDeepBlue = "#152456",
   jeffBrightBlue = "#59B7df",
   legacyMaroon = "#9f2943",
@@ -1143,7 +1122,7 @@ jeffersonCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-hawaiiCol <- list(
+hawaiiCol <- c(
   manoa = "#024731",
   hilo = "#DA291C",
   westOahu = "#A71930",
@@ -1164,7 +1143,7 @@ hawaiiCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-nihCol <- list(
+nihCol <- c(
   blue = "#20558a",
   gray = "#616265"
 )
@@ -1177,7 +1156,7 @@ nihCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-imperialCol <- list(
+imperialCol <- c(
   navy = "#002147",
   imperialBlue = "#003E74",
   lightGrey = "#EBEEEE",
@@ -1213,7 +1192,7 @@ imperialCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-uclCol <- list(
+uclCol <- c(
   darkGreen = "#555025",
   darkRed = "#651D32",
   darkPurple = "#4B384C",
@@ -1246,7 +1225,7 @@ uclCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-oxfordCol <- list(
+oxfordCol <- c(
   oxfordBlue = "#002147",
   pantone279 = "#4891DC",
   pantone291 = "#9ECEEB",
@@ -1281,7 +1260,7 @@ oxfordCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-nhsCol <- list(
+nhsCol <- c(
   nhsDarkBlue = "#003087",
   nhsBlue = "#005EB8",
   nhsBrightBlue = "#0072CE",
@@ -1312,7 +1291,7 @@ nhsCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-ubcCol <- list(
+ubcCol <- c(
   ubcBlue = "#002145",
   blue2 = "#0055B7",
   blue3 = "#00A7E1",
@@ -1328,7 +1307,7 @@ ubcCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-torontoCol <- list(
+torontoCol <- c(
   blue = "#002043",
   red = "#bb133e"
 )
@@ -1340,7 +1319,7 @@ torontoCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-mcgillCol <- list(
+mcgillCol <- c(
   mcgillRed = "#ED1B2F",
   grey = "#5D6770",
   pastelOrange = "#FFD794",
@@ -1377,7 +1356,7 @@ mcgillCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-ethCol <- list(
+ethCol <- c(
   eth1 = "#1F407A",
   eth2 = "#3C5A0F",
   eth3 = "#0069B4",
@@ -1397,7 +1376,7 @@ ethCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-rwthCol <- list(
+rwthCol <- c(
   blau1 = "#00549F",
   blau2 = "#407FB7",
   blau3 = "#8EBAE5",
@@ -1468,7 +1447,7 @@ rwthCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-mozillaCol <- list(
+mozillaCol <- c(
   neonBlue = "#00ffff",
   lemonYellow = "#fff44f",
   warmRed = "#ff4f5e",
@@ -1487,7 +1466,7 @@ mozillaCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-firefoxCol <- list(
+firefoxCol <- c(
   Green = "#53FEBE",
   Blue = "#0290EE",
   Purple = "#AC71FF",
@@ -1506,7 +1485,7 @@ firefoxCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-appleCol <- list(
+appleCol <- c(
   red = "#FF3B30",
   orange = "#FF9500",
   yellow = "#FFCC00",
@@ -1525,7 +1504,7 @@ appleCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-googleCol <- list(
+googleCol <- c(
   blue = "#4285F4",
   red = "#DB4437",
   yellow = "#F4B400",
@@ -1540,7 +1519,7 @@ googleCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-amazonCol <- list(
+amazonCol <- c(
   orange = "#FF9900",
   blue = "#146EB4"
 )
@@ -1553,7 +1532,7 @@ amazonCol <- list(
 #'
 #' @keywords internal
 #' @noRd
-microsoftCol <- list(
+microsoftCol <- c(
   orange = "#f65314",
   green = "#7cbb00",
   blue = "#00a1f1",
@@ -1612,28 +1591,34 @@ rtCol2 <- c(
 )
 
 rtms <- c(
-  ucsfCol[["C3_Teal"]],
-  ucsfCol[["M3_Orange"]],
-  pennCol[["lighterRed"]],
-  pennCol[["lighterBlue"]],
-  ucsfCol[["C4"]],
-  ucsfCol[["L3_Yellow"]],
-  ucsfCol[["H3_Magenta"]],
-  ucsfCol[["A3_CTA_Blue"]]
+  teal = ucsfCol[["C3_Teal"]],
+  orange = ucsfCol[["M3_Orange"]],
+  red = pennCol[["lighterRed"]],
+  blue = pennCol[["lighterBlue"]],
+  lighter_teal = ucsfCol[["C4"]],
+  yellow = ucsfCol[["L3_Yellow"]],
+  magenta = ucsfCol[["H3_Magenta"]],
+  lighter_blue = ucsfCol[["A3_CTA_Blue"]]
 ) |>
   desaturate()
 
-rtcoldev <- list(
+rtcoldev <- c(
   rtemisblue = "#80ffff",
   rtemisbluetoo = "#00D6FF",
   lavender = "#ff80ffff",
   orange = "#ffb200ff"
 )
 
-grays <- list("gray10", "gray30", "gray50", "gray70", "gray90")
+grays <- c(
+  Gray10 = "gray10",
+  Gray30 = "gray30",
+  Gray50 = "gray50",
+  Gray70 = "gray70",
+  Gray90 = "gray90"
+)
 
 # Pantone 2022 ----
-pantoneBalancingAct <- list(
+pantoneBalancingAct <- c(
   Granite_Green = "#86A293",
   Muted_Clay = "#D29381",
   Very_Peri = "#6667AB",
@@ -1644,7 +1629,7 @@ pantoneBalancingAct <- list(
   Burnished_Lilac = "#C4AEB1"
 )
 
-pantoneWellspring <- list(
+pantoneWellspring <- c(
   Eggshell_Blue = "#A1CAC9",
   Celery = "#CFBF54",
   Dewberry = "#8C5896",
@@ -1655,7 +1640,7 @@ pantoneWellspring <- list(
   Foliage = "#759F51"
 )
 
-pantoneAmusements <- list(
+pantoneAmusements <- c(
   Tawny_Orange = "#D77E6F",
   Very_Peri = "#6667AB",
   Iced_Coffee = "#B38F6A",
@@ -1665,6 +1650,7 @@ pantoneAmusements <- list(
   Cornsilk = "#EEC272",
   Tourmaline = "#85A0A9"
 )
+
 # rtemis_palettes ----
 rtemis_palettes <- list(
   ucsfCol = ucsfCol,
@@ -1727,28 +1713,29 @@ rtemis_palettes <- list(
   rtms = rtms
 )
 
-#' Color Palettes
+#' Get Color Palette
 #'
-#' `rtpalette()` prints names of available color palettes
+#' `get_palette()` returns a color palette (character vector of colors).
+#' Without arguments, prints names of available color palettes.
 #' Each palette is a named list of hexadecimal color definitions which can be used with
 #' any graphics function.
-#' `rtpalette(palette_name)` returns a list of colors for a given palette.
 #'
 #' @param palette Character: Name of palette to return. Default = NULL: available palette
 #' names are printed and no palette is returned.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return A list of available palettes, invisibly.
+#' @return Character vector of colors for the specified palette, or invisibly returns
+#' list of available palettes if `palette = NULL`.
 #'
 #' @author EDG
 #' @export
 #'
 #' @examples
 #' # Print available palettes
-#' rtpalette()
+#' get_palette()
 #' # Get the Imperial palette
-#' rtpalette("imperial")
-rtpalette <- function(palette = NULL, verbosity = 1L) {
+#' get_palette("imperial")
+get_palette <- function(palette = NULL, verbosity = 1L) {
   if (is.null(palette)) {
     if (verbosity > 0L) {
       msg(highlight("The following palettes are available:"))
@@ -1761,7 +1748,7 @@ rtpalette <- function(palette = NULL, verbosity = 1L) {
     )
     rtemis_palettes[[palette]]
   }
-} # /rtemis::rtpalette
+} # /rtemis::get_palette
 
 
 #' Access rtemis palette colors
@@ -1770,7 +1757,7 @@ rtpalette <- function(palette = NULL, verbosity = 1L) {
 #' ggplot.
 #'
 #' @param n Integer: Number of colors to output
-#' @param palette Character: Palette to use. See available options with `rtpalette()`.
+#' @param palette Character: Palette to use. See available options with `get_palette()`.
 #'
 #' @author EDG
 #' @keywords internal
@@ -1780,8 +1767,8 @@ rtpalette <- function(palette = NULL, verbosity = 1L) {
 #' \dontrun{
 #' rtemis_palette(3)
 #' }
-rtemis_palette <- function(n, palette = rtemis_palette) {
-  .palette <- unlist(rtpalette(palette))
+rtemis_palette <- function(n, palette = getOption("rtemis_palette", "rtms")) {
+  .palette <- unlist(get_palette(palette))
   names(.palette) <- NULL
   .palette[seq_len(n)]
 } # /rtemis::rtemis_palette
@@ -1865,8 +1852,8 @@ penn_heat <- function(
   }
 
   if (colorbar) {
-    # bar.grad <- c(penn.vlight2blue.lab(31), penn.blue2red2yellow.lab(30))
-    par.orig <- par(no.readonly = TRUE)
+    par_orig <- par(no.readonly = TRUE)
+    on.exit(par(par_orig))
     par(mar = c(1, 1, 1, 1))
     if (!is.null(filename)) {
       grDevices::pdf(filename, width = 3, height = 9)
@@ -1898,7 +1885,6 @@ penn_heat <- function(
     if (!is.null(filename)) {
       grDevices::dev.off()
     }
-    par(par.orig)
   }
 
   return(grad)
@@ -1906,7 +1892,7 @@ penn_heat <- function(
 
 
 # Xterm Colors ----
-XtermCol <- list(
+XtermCol <- c(
   `Black (SYSTEM)` = "#000000",
   `Maroon (SYSTEM)` = "#800000",
   `Green (SYSTEM)` = "#008000",

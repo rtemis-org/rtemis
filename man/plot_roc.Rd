@@ -18,12 +18,10 @@ A plotly object containing the ROC curve.
 This generic is used to plot the ROC curve for a model.
 }
 \examples{
-\dontrun{
-x <- as.data.table(iris[51:150, ])
-x[, Species := factor(Species)]
-species_glm <- train(x, algorithm = "GLM")
+ir <- iris[51:150, ]
+ir[["Species"]] <- factor(ir[["Species"]])
+species_glm <- train(ir, algorithm = "GLM")
 plot_roc(species_glm)
-}
 }
 \author{
 EDG

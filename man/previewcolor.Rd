@@ -21,7 +21,6 @@ previewcolor(
   labels_y = 1.55,
   label_cex = NULL,
   mar = c(0, 0, 0, 1),
-  par_reset = TRUE,
   filename = NULL,
   pdf_width = 8,
   pdf_height = 2.5
@@ -61,8 +60,6 @@ previewcolor(
 calculated automatically based on length of \code{x}}
 
 \item{mar}{Numeric vector, length 4: margin size.}
-
-\item{par_reset}{Logical: If TRUE, reset \code{par} settings on exit.}
 
 \item{filename}{Character: Path to save plot as PDF.}
 

@@ -46,11 +46,11 @@ draw_fit(
 A \code{draw_scatter} wrapper for plotting true vs. predicted values
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 x <- rnorm(500)
 y <- x + rnorm(500)
 draw_fit(x, y)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

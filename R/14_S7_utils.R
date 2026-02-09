@@ -158,7 +158,7 @@ method(`[[`, CheckData) <- function(x, name) {
 #'
 #' @author EDG
 #' @noRd
-print.CheckData <- function(
+method(print, CheckData) <- function(
   x,
   type = c("ansi", "html"),
   name = NULL,
@@ -412,9 +412,6 @@ print.CheckData <- function(
     )
   }
   invisible(x)
-} # /rtemis::print.CheckData
-method(print, CheckData) <- function(x, ...) {
-  print.CheckData(x)
 } # /rtemis::print.CheckData
 
 

@@ -26,6 +26,7 @@ Get protein sequence from UniProt
 }
 \examples{
 \dontrun{
+# This grabs the sequence from uniprot.org by default
 mapt <- uniprot_get("Q9UMX9")
 }
 }

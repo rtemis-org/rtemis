@@ -14,7 +14,7 @@ plot_manhattan.MassGLM(
     "none"),
   p_transform = function(x) -log10(x),
   ylab = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   col_pos = "#43A4AC",
   col_neg = "#FA9860",
   alpha = 0.8,
@@ -50,7 +50,7 @@ plotly object.
 Draw a Manhattan plot for \code{MassGLM} objects created with \link{massGLM}.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # x: outcome of interest as first column, optional covariates in the other columns
 # y: features whose association with x we want to study
 set.seed(2022)
@@ -61,7 +61,7 @@ x <- data.table(
 )
 massmod <- massGLM(x, y)
 plot_manhattan(massmod)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

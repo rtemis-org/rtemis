@@ -32,7 +32,7 @@ draw_volcano(
   hline_dash = "solid",
   hline_annotate = NULL,
   hline_annotation_x = 1,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   annotate = TRUE,
   annotate_col = theme[["labs_col"]],
   font_size = 16,
@@ -129,7 +129,10 @@ as reference. 0: to the left of the plot area; 1: to the right of the plot area.
 
 \item{font_size}{Integer: Font size.}
 
-\item{palette}{Character: Name of \pkg{rtemis} palette to use.}
+\item{palette}{Character vector: Colors to use. If \code{group} is NULL, the first, second and third
+colors will be used for significant points with negative coefficients, non-significant points, and
+significant points with positive coefficients, respectively. If \code{group} is not NULL, colors will
+be assigned to groups, in order of appearance.}
 
 \item{legend_x_lo}{Numeric: x position of \code{legend_lo}.}
 
@@ -176,14 +179,13 @@ significant points above \code{x_thresh}.}
 Volcano Plot
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 set.seed(2019)
-x <- rnormmat(500, 500)
-y <- x[, 3] + x[, 5] - x[, 9] + x[, 15] + rnorm(500)
-mod <- massGLM(y, x)
-draw_volcano(mod$summary$`Coefficient y`, mod$summary$`p_value y`)
-}
-
+y <- rnormmat(500, 500, return_df = TRUE)
+x <- data.frame(x = y[, 3] + y[, 5] - y[, 9] + y[, 15] + rnorm(500))
+mod <- massGLM(x, y)
+draw_volcano(summary(mod)[["Coefficient_x"]], summary(mod)[["p_value_x"]])
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

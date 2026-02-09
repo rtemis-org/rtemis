@@ -12,6 +12,9 @@ NULL, invisibly.
 \description{
 Print available draw functions for visualization.
 }
+\examples{
+available_draw()
+}
 \author{
 EDG
 }

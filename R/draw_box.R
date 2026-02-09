@@ -35,13 +35,11 @@
 #' @param main Character: Plot title.
 #' @param xlab Character: x-axis label.
 #' @param ylab  Character: y-axis label.
-#' @param col Color, vector: Color for boxes. If NULL, which will draw
-#' colors from `palette`
 #' @param alpha Float (0, 1]: Transparency for box colors.
 #' @param bg Color: Background color.
 #' @param plot_bg Color: Background color for plot area.
 #' @param theme `Theme` object.
-#' @param palette Character: Name of \pkg{rtemis} palette to use. Only used if `col = NULL`.
+#' @param palette Character vector: Colors to use.
 #' @param quartilemethod Character: "linear", "exclusive", "inclusive"
 #' @param xlim Numeric vector: x-axis limits
 #' @param ylim Numeric vector: y-axis limits
@@ -125,8 +123,7 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' # A.1 Box plot of 4 variables
 #' draw_box(iris[, 1:4])
 #' # A.2 Grouped Box plot
@@ -150,8 +147,6 @@
 #'   legend.yanchor = "bottom"
 #' )
 #' # (Note how the boxplots widen when the period includes data from both dat1 and dat2)
-#' }
-#'
 draw_box <- function(
   x,
   time = NULL,
@@ -162,12 +157,11 @@ draw_box <- function(
   main = NULL,
   xlab = "",
   ylab = NULL,
-  col = NULL,
   alpha = .6,
   bg = NULL,
   plot_bg = NULL,
-  theme = choose_theme(),
-  palette = rtemis_palette,
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   boxpoints = "outliers",
   quartilemethod = "linear",
   xlim = NULL,
@@ -292,33 +286,25 @@ draw_box <- function(
   if (!is.null(group)) {
     group <- factor(group)
   }
-  n.groups <- if (is.null(group)) {
+  n_groups <- if (is.null(group)) {
     length(x)
   } else {
     nlevels(group)
   }
-  if (n.groups == 1) {
+  if (n_groups == 1) {
     htest <- "none"
   }
   .xnames <- xnames
   if (is.null(.xnames)) {
     .xnames <- names(x)
     if (is.null(.xnames)) {
-      .xnames <- paste0("Feature", seq(n.groups))
+      .xnames <- paste0("Feature", seq(n_groups))
     }
     if (labelify) .xnames <- labelify(.xnames)
   }
 
   # Colors ----
-  if (is.character(palette)) {
-    palette <- rtpalette(palette)
-  }
-  if (is.null(col)) {
-    col <- recycle(palette, seq(n.groups))[seq(n.groups)]
-  }
-  if (!is.null(order_by_fn)) {
-    col <- col[.order]
-  }
+  col <- recycle(palette, seq(n_groups))
 
   # Theme ----
   check_is_S7(theme, Theme)
@@ -368,7 +354,7 @@ draw_box <- function(
           # width = width
         )
       )
-      if (!is.null(hovertext) && n.groups == 1) {
+      if (!is.null(hovertext) && n_groups == 1) {
         hovertext <- list(hovertext)
       }
       if (type == "box") {
@@ -385,8 +371,8 @@ draw_box <- function(
         .args[["box"]] <- list(visible = violin_box)
       }
       plt <- do.call(plotly::plot_ly, .args)
-      if (n.groups > 1) {
-        for (i in seq_len(n.groups)[-1]) {
+      if (n_groups > 1) {
+        for (i in seq_len(n_groups)[-1]) {
           plt <- plotly::add_trace(
             plt,
             x = if (horizontal) x[[i]] else NULL,

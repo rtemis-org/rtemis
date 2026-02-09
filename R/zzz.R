@@ -41,25 +41,16 @@ setup_progress <- function() {
 .onLoad <- function(libname, pkgname) {
   # S7
   S7::methods_register()
-  # Defaults ----
-  rtemis_plan <- getOption("future.plan", "multicore")
-  assign("rtemis_plan", rtemis_plan, envir = parent.env(environment()))
-  rtemis_workers <- getOption("rtemis_workers", cores_to_use)
-  assign("rtemis_workers", rtemis_workers, envir = parent.env(environment()))
-  rtemis_theme <- getOption("rtemis_theme", "darkgraygrid")
-  assign("rtemis_theme", rtemis_theme, envir = parent.env(environment()))
-  rtemis_font <- getOption("rtemis_font", "Helvetica")
-  assign("rtemis_font", rtemis_font, envir = parent.env(environment()))
-  rtemis_palette <- getOption("rtemis_palette", "rtms")
-  assign("rtemis_palette", rtemis_palette, envir = parent.env(environment()))
-  rtemis_date <- getOption("rtemis_date", TRUE)
-  assign("rtemis_date", rtemis_date, envir = parent.env(environment()))
-  rtemis_plotfileformat <- getOption("rtemis_plotfileformat", "svg")
-  assign(
-    "rtemis_plotfileformat",
-    rtemis_plotfileformat,
-    envir = parent.env(environment())
-  )
+  # Set default options if not already set by user
+  if (is.null(getOption("rtemis_theme"))) {
+    options(rtemis_theme = "whitegrid")
+  }
+  if (is.null(getOption("rtemis_palette"))) {
+    options(rtemis_palette = "rtms")
+  }
+  if (is.null(getOption("rtemis_font"))) {
+    options(rtemis_font = "Helvetica")
+  }
   # setup_progress()
 }
 
@@ -88,13 +79,13 @@ setup_progress <- function() {
       bold("\n  Defaults"),
       "\n  \u2502   ",
       gray("Theme: "),
-      rtemis_theme,
+      getOption("rtemis_theme", "whitegrid"),
       "\n  \u2502    ",
       gray("Font: "),
-      rtemis_font,
+      getOption("rtemis_font", "Helvetica"),
       "\n  \u2514 ",
       gray("Palette: "),
-      rtemis_palette,
+      getOption("rtemis_palette", "rtms"),
       bold("\n  Resources"),
       "\n  \u2502    ",
       gray("Docs:"),

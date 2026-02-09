@@ -1,4 +1,4 @@
-# test-Decomposition.R
+# test_Decomposition.R
 # ::rtemis::
 # 2025 EDG rtemis.org
 

@@ -7,19 +7,32 @@
 choose_theme(
   x = c("white", "whitegrid", "whiteigrid", "black", "blackgrid", "blackigrid",
     "darkgray", "darkgraygrid", "darkgrayigrid", "lightgraygrid", "mediumgraygrid"),
-  config = NULL
+  override = NULL
 )
 }
 \arguments{
 \item{x}{Character: Name of theme to select. If not defined, will use \code{getOption("rtemis_theme", "whitegrid")}.}
 
-\item{config}{List: Optional list of config to override the defaults.}
+\item{override}{Optional List: Theme parameters to override defaults.}
 }
 \value{
 \code{Theme} object.
 }
 \description{
 Select an rtemis theme
+}
+\details{
+If \code{x} is not defined, \code{choose_theme()} will use \code{getOption("rtemis_theme", "whitegrid")} to
+select the theme. This allows users to set a default theme for all rtemis plots by setting
+\code{options(rtemis_theme = "theme_name")} at any point.
+}
+\examples{
+# Get default theme:
+choose_theme()
+# Get darkgraygrid theme. Same as `theme_darkgraygrid()`:
+choose_theme("darkgraygrid")
+# This will use the default theme, and override the foreground color to red:
+choose_theme(override = list(fg = "#ff0000"))
 }
 \author{
 EDG

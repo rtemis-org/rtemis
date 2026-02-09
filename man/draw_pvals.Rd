@@ -10,7 +10,7 @@ draw_pvals(
   yname = NULL,
   p_adjust_method = "none",
   pval_hline = 0.05,
-  hline_col = "#FE4AA3",
+  hline_col = rt_red,
   hline_dash = "dash",
   ...
 )
@@ -39,9 +39,9 @@ draw_pvals(
 Plot 1 - p-values as a barplot
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 draw_pvals(c(0.01, 0.02, 0.03), xnames = c("Feature1", "Feature2", "Feature3"))
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

@@ -30,7 +30,6 @@
 #' @param theme `Theme` object.
 #' @param palette Color vector or name of rtemis palette.
 #' @param mar Numeric vector, length 4: `par`'s margin argument.
-#' @param par_reset Logical: If TRUE, reset par before exiting.
 #' @param filename Character: If provided, save plot to this filepath.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Extra arguments to pass to `igraph::plot.igraph()`.
@@ -40,12 +39,10 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' library(igraph)
 #' g <- make_ring(10)
 #' draw_graphjs(g)
-#' }
 draw_graphjs <- function(
   net,
   vertex_size = 1,
@@ -78,10 +75,9 @@ draw_graphjs <- function(
   cluster_mark_groups = TRUE,
   cluster_color_vertices = FALSE,
   main = "",
-  theme = choose_theme(),
-  palette = rtemis_palette,
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = getOption("rtemis_palette", "rtms"),
   mar = rep(0, 4),
-  par_reset = TRUE,
   filename = NULL,
   verbosity = 1L,
   ...
@@ -93,7 +89,7 @@ draw_graphjs <- function(
   check_is_S7(theme, Theme)
 
   if (is.character(palette)) {
-    palette <- unname(unlist(rtpalette(palette)))
+    palette <- unname(unlist(get_palette(palette)))
   }
 
   # Vertex names ----

@@ -9,7 +9,7 @@ present.list(
   metric = NULL,
   model_names = NULL,
   ylim = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   boxpoints = "all",
   filename = NULL,
   file_width = 800,

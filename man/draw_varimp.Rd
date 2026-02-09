@@ -15,13 +15,12 @@ draw_varimp(
   orientation = "v",
   line_width = 12,
   labelify = TRUE,
-  col = NULL,
   alpha = 1,
-  palette = rtemis_palette,
+  palette = get_palette(getOption("rtemis_palette")),
   mar = NULL,
   font_size = 16,
   axis_font_size = 14,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   showlegend = TRUE,
   filename = NULL,
   file_width = 500,
@@ -50,12 +49,9 @@ draw_varimp(
 
 \item{labelify}{Logical: If TRUE, labelify feature names.}
 
-\item{col}{Vector, colors: Single value, or multiple values to define bar
-(feature) color(s).}
-
 \item{alpha}{Numeric: Transparency.}
 
-\item{palette}{Character: Name of \pkg{rtemis} palette to use.}
+\item{palette}{Character vector: Colors to use.}
 
 \item{mar}{Vector, numeric, length 4: Plot margins in pixels (NOT inches).}
 
@@ -87,13 +83,13 @@ A simple \code{plotly} wrapper to plot horizontal barplots, sorted by value,
 which can be used to visualize variable importance, model coefficients, etc.
 }
 \examples{
-\dontrun{
-# made-up data
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+# synthetic data
 x <- rnorm(10)
 names(x) <- paste0("Feature_", seq(x))
 draw_varimp(x)
 draw_varimp(x, orientation = "h")
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

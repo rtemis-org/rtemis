@@ -7,7 +7,6 @@
 \usage{
 msg(
   ...,
-  date = rtemis_date,
   caller = NULL,
   call_depth = 1L,
   caller_id = 1L,
@@ -30,8 +29,6 @@ msg0(
 }
 \arguments{
 \item{...}{Message to print}
-
-\item{date}{Logical: if TRUE, include date and time in the prefix}
 
 \item{caller}{Character: Name of calling function}
 

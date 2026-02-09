@@ -32,10 +32,9 @@ The dataset demonstrates various participation patterns typical in longitudinal 
 }
 }
 \examples{
-\dontrun{
 data(xt_example)
-xtdescribe(xt_example)
-}
+head(xt_example)
+summary(xt_example)
 
 }
 \keyword{datasets}

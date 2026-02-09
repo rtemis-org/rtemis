@@ -39,8 +39,8 @@ draw_xt(
   show_rangeslider = NULL,
   slider_start = NULL,
   slider_end = NULL,
-  theme = choose_theme(),
-  palette = rtpalette(rtemis_palette),
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   font_size = 16,
   yfill = "none",
   y2fill = "none",
@@ -158,7 +158,7 @@ included.}
 
 \item{theme}{\code{Theme} object.}
 
-\item{palette}{Color list: will be used to draw each vector in \code{y} and \code{y2}, in order.}
+\item{palette}{Character vector: Colors to be used to draw each vector in \code{y} and \code{y2}, in order.}
 
 \item{font_size}{Numeric: Font size for text.}
 
@@ -233,11 +233,8 @@ bar image export.}
 \description{
 Plot timeseries data
 }
-\details{
-We are switching to \code{palette} being a color vector instead of the name of a built-in palette.
-}
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 datetime <- seq(
   as.POSIXct("2020-01-01 00:00"),
   as.POSIXct("2020-01-02 00:00"),
@@ -249,7 +246,7 @@ df <- data.frame(
   value2 = rnorm(length(datetime))
 )
 draw_xt(df, x = df[, 1], y = df[, 2:3])
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

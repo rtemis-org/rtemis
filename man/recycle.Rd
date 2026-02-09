@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{recycle}
 \alias{recycle}
-\title{Recycle values of vector to match length of target}
+\title{Recycle values of vector to match length of target.}
 \usage{
 recycle(x, target)
 }
@@ -15,9 +15,12 @@ recycle(x, target)
 Vector.
 }
 \description{
-Recycle values of vector to match length of target
+Recycle values of vector to match length of target.
 }
 \details{
+If \code{target} is longer than \code{x}, the values of \code{x} will be recycled to match the length of
+\code{target}. If \code{x} is longer than \code{target}, the values of \code{x} will be truncated to match the
+length of \code{target}.
 Used internally by many functions.
 }
 \author{

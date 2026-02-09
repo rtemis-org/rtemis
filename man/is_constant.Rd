@@ -18,13 +18,11 @@ Logical.
 Check if vector is constant
 }
 \examples{
-\dontrun{
 x <- rep(9, 1000000)
 is_constant(x)
 x[10] <- NA
 is_constant(x)
 is_constant(x, skip_missing = TRUE)
-}
 }
 \author{
 EDG

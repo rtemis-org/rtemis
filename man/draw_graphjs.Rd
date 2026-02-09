@@ -26,10 +26,9 @@ draw_graphjs(
   cluster_mark_groups = TRUE,
   cluster_color_vertices = FALSE,
   main = "",
-  theme = choose_theme(),
-  palette = rtemis_palette,
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = getOption("rtemis_palette", "rtms"),
   mar = rep(0, 4),
-  par_reset = TRUE,
   filename = NULL,
   verbosity = 1L,
   ...
@@ -84,8 +83,6 @@ draw_graphjs(
 
 \item{mar}{Numeric vector, length 4: \code{par}'s margin argument.}
 
-\item{par_reset}{Logical: If TRUE, reset par before exiting.}
-
 \item{filename}{Character: If provided, save plot to this filepath.}
 
 \item{verbosity}{Integer: Verbosity level.}
@@ -99,11 +96,11 @@ draw_graphjs(
 Interactive plotting of an \pkg{igraph} net using \pkg{threejs}.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 library(igraph)
 g <- make_ring(10)
 draw_graphjs(g)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

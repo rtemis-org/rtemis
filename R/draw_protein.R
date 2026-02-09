@@ -125,8 +125,8 @@
 #' )
 #' draw_protein(as.character(tau[[1]]))
 #'
-#' # or directly using the UniProt accession number:
-#' draw_protein("P10636")
+#'   # or directly using the UniProt accession number:
+#'   draw_protein("P10636")
 #' }
 draw_protein <- function(
   x,
@@ -172,8 +172,8 @@ draw_protein <- function(
   region_line_smoothing = 1,
   region_line_width = 1,
   region_line_alpha = .6,
-  theme = choose_theme(),
-  region_palette = rtemis_palette,
+  theme = choose_theme(getOption("rtemis_theme")),
+  region_palette = getOption("rtemis_palette", "rtms"),
   region_outline_only = FALSE,
   region_outline_pad = 2, # for fake polys
   region_pad = .35, # for real polys
@@ -187,7 +187,7 @@ draw_protein <- function(
   site_marker_symbol = marker_symbol,
   site_marker_alpha = 1,
   site_border_width = 1.5,
-  site_palette = rtemis_palette,
+  site_palette = getOption("rtemis_palette", "rtms"),
   # Variants
   variant_col = "#FA6E1E",
   # Text groups
@@ -362,10 +362,10 @@ draw_protein <- function(
 
   # Palette ----
   if (is.character(region_palette)) {
-    region_palette <- rtpalette(region_palette)
+    region_palette <- get_palette(region_palette)
   }
   if (is.character(site_palette)) {
-    site_palette <- rtpalette(site_palette)
+    site_palette <- get_palette(site_palette)
   }
 
   # Match abbreviations to full names ----

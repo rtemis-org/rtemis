@@ -27,15 +27,13 @@
 #' @author EDG
 #' @export
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' # Assume positive class is "b"
 #' true_labels <- factor(c("a", "a", "a", "b", "b", "b", "b", "b", "b", "b"))
 #' predicted_labels <- factor(c("a", "b", "a", "b", "b", "a", "b", "b", "b", "a"))
 #' predicted_prob <- c(0.3, 0.55, 0.45, 0.75, 0.57, 0.3, 0.8, 0.63, 0.62, 0.39)
 #' metrics <- classification_metrics(true_labels, predicted_labels, predicted_prob)
 #' draw_confusion(metrics)
-#' }
 draw_confusion <- function(
   x,
   xlab = "Predicted",
@@ -46,7 +44,7 @@ draw_confusion <- function(
   main = NULL,
   main_y = 1,
   main_yanchor = "bottom",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   margin = list(l = 20, r = 5, b = 5, t = 20),
   # write to file
   filename = NULL,

@@ -2,7 +2,7 @@
 % Please edit documentation in R/calibrate.R
 \name{calibrate.ClassificationRes}
 \alias{calibrate.ClassificationRes}
-\title{Calibrate Cross-validated Binary Classification Models}
+\title{Calibrate Resampled Classification Models}
 \usage{
 calibrate.ClassificationRes(
   x,
@@ -30,9 +30,7 @@ calibrate.ClassificationRes(
 \code{CalibratedClassificationRes} object.
 }
 \description{
-The goal of calibration is to adjust the predicted probabilities of a binary classification
-model so that they better reflect the true probabilities (i.e. empirical risk) of the positive
-class.
+Calibrate Resampled Classification Models
 }
 \examples{
 \dontrun{

@@ -20,9 +20,7 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' iris_km <- cluster(exc(iris, "Species"), algorithm = "KMeans")
-#' }
 cluster <- function(
   x,
   algorithm = "KMeans",

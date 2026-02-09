@@ -7,10 +7,10 @@
 massGLM(x, y, scale_y = NULL, center_y = NULL, verbosity = 1L)
 }
 \arguments{
-\item{x}{data.frame or similar: Predictor variables}
+\item{x}{data.frame or similar: Predictor variables. Usually a small number of covariates.}
 
 \item{y}{data.frame or similar: Each column is a different outcome. The function will train one
-GLM for each column of \code{y}.}
+GLM for each column of \code{y}. Usually a large number of features.}
 
 \item{scale_y}{Logical: If TRUE, scale each column of \code{y} to have mean 0 and sd 1. If \code{NULL},
 defaults to TRUE if \code{y} is numeric, FALSE otherwise.}
@@ -27,18 +27,15 @@ to TRUE if \code{scale_y} is TRUE, FALSE otherwise.}
 Mass-univariate GLM Analysis
 }
 \examples{
-\dontrun{
-# x: outcome of interest as first column, optional covariates in the other columns
-# y: features whose association with x we want to study
 set.seed(2022)
-y <- data.table(rnormmat(500, 40))
-x <- data.table(
+y <- rnormmat(500, 40, return_df = TRUE)
+x <- data.frame(
   x1 = y[[3]] - y[[5]] + y[[14]] + rnorm(500),
   x2 = y[[21]] + rnorm(500)
 )
 massmod <- massGLM(x, y)
-plot(massmod)
-}
+# Print table of coefficients, p-values, etc. for all models
+summary(massmod)
 }
 \author{
 EDG

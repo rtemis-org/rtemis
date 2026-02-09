@@ -11,7 +11,7 @@
   p_transform = function(x) -log10(x),
   xlab = "Coefficient",
   ylab = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   verbosity = 1L,
   ...
 )

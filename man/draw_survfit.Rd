@@ -17,7 +17,7 @@ draw_survfit(
   legend_xy = c(1, 1),
   legend_xanchor = "right",
   legend_yanchor = "top",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   nrisk_table = FALSE,
   filename = NULL,
   ...
@@ -63,7 +63,7 @@ draw_survfit(
 Draw a \code{survfit} object using \link{draw_scatter}.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # Get the lung dataset
 data(cancer, package = "survival")
 sf1 <- survival::survfit(survival::Surv(time, status) ~ 1, data = lung)
@@ -72,7 +72,7 @@ sf2 <- survival::survfit(survival::Surv(time, status) ~ sex, data = lung)
 draw_survfit(sf2)
 # with N at risk table
 draw_survfit(sf2)
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

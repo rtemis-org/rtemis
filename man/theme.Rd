@@ -62,7 +62,7 @@ theme_black(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 )
 
 theme_blackgrid(
@@ -113,7 +113,7 @@ theme_blackgrid(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 )
 
 theme_blackigrid(
@@ -164,7 +164,7 @@ theme_blackigrid(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 )
 
 theme_darkgray(
@@ -215,7 +215,7 @@ theme_darkgray(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 )
 
 theme_darkgraygrid(
@@ -266,7 +266,7 @@ theme_darkgraygrid(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 )
 
 theme_darkgrayigrid(
@@ -317,7 +317,7 @@ theme_darkgrayigrid(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 )
 
 theme_white(
@@ -368,7 +368,7 @@ theme_white(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 )
 
 theme_whitegrid(
@@ -419,7 +419,7 @@ theme_whitegrid(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 )
 
 theme_whiteigrid(
@@ -470,7 +470,7 @@ theme_whiteigrid(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 )
 
 theme_lightgraygrid(
@@ -521,7 +521,7 @@ theme_lightgraygrid(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 )
 
 theme_mediumgraygrid(
@@ -572,7 +572,7 @@ theme_mediumgraygrid(
   main_adj = 0,
   main_font = 2,
   main_col = fg,
-  font_family = "Helvetica"
+  font_family = getOption("rtemis_font", "Helvetica")
 )
 }
 \arguments{

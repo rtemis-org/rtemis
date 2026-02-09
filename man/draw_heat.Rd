@@ -9,7 +9,7 @@ draw_heat(
   x = NULL,
   y = NULL,
   title = NULL,
-  col = penn_heat(21),
+  palette = penn_heat(21),
   xlab = NULL,
   ylab = NULL,
   zlab = NULL,
@@ -25,7 +25,7 @@ draw_heat(
 
 \item{title}{Plot title.}
 
-\item{col}{Set of colors to make gradient from.}
+\item{palette}{Character vector: Colors to use.}
 
 \item{xlab}{x-axis label.}
 
@@ -45,10 +45,10 @@ Draw a heatmap using \code{plotly}.
 See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
 }
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 mat <- matrix(rnorm(100), nrow = 10)
 draw_heat(mat, x = 1:10, y = 1:10, title = "Heatmap Example")
-}
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

@@ -12,18 +12,17 @@ present(x, ...)
 \item{...}{Additional arguments passed to the plotting function.}
 }
 \value{
-A plotly object along with console output.
+A plotly object.
 }
 \description{
-This generic is used to present an rtemis object using plots and text.
+This generic is used to present an rtemis object by printing to console and drawing plots.
 }
 \examples{
-\dontrun{
-species_lightrf <- train(iris, algorithm = "lightrf")
-present(species_lightrf)
-# LightGBM Random Forest was used for classification.
-# Balanced accuracy was 0.95 on the training set.
-}
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+ir <- set_outcome(iris, "Sepal.Length")
+seplen_lightrf <- train(ir, algorithm = "lightrf")
+present(seplen_lightrf)
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG
