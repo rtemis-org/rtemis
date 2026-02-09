@@ -219,11 +219,11 @@ color_fade <- function(x, to = "#000000", pct = .5) {
 #'
 #' Lower a color's saturation by a given percent in the HSV color system
 #'
-#' @param x Color, vector: Color(s) to operate on
-#' @param s Float: Decrease saturation by this fraction. Default = .3, which means if saturation of given color is 1,
-#' it will become .7
+#' @param x Color vector: Color(s) to operate on
+#' @param s Float: Decrease saturation by this fraction. For example, if `s = 0.3` and saturation of
+#' input color is 1, it will become 0.7.
 #'
-#' @return List of adjusted colors
+#' @return Character vector with hex codes of modified colors.
 #'
 #' @author EDG
 #' @export
@@ -235,17 +235,16 @@ color_fade <- function(x, to = "#000000", pct = .5) {
 #' cols_d <- desaturate(cols)
 #' previewcolor(cols_d)
 #' }
-desaturate <- function(x, s = .3) {
+desaturate <- function(x, s = 0.3) {
   # Infer color names, if available
-  if (is.character(x)) {
-    .names <- x
-  } else if (!is.null(names(x))) {
+  if (!is.null(names(x))) {
     .names <- names(x)
+  } else if (is.character(x)) {
+    .names <- x
   } else {
     .names <- NULL
   }
 
-  x <- as.list(x)
   x <- lapply(x, col2rgb)
   x <- lapply(x, rgb2hsv)
   xp <- lapply(x, function(i) {
@@ -255,7 +254,7 @@ desaturate <- function(x, s = .3) {
   })
 
   names(xp) <- .names
-  xp
+  unlist(xp)
 } # /rtemis::desaturate
 
 
@@ -320,47 +319,6 @@ color_adjust <- function(color, alpha = NULL, hue = 0, sat = 0, val = 0) {
   ac
 } # /rtemis::color_adjust
 
-#' Create an alternating sequence of graded colors
-#'
-#' @param color List: List of two or more elements, each containing two colors.
-#' A gradient will be created from the first to the second color of each element
-#' @param n Integer: Number of steps in each gradient.
-#'
-#' @return Character vector of color hex codes.
-#'
-#' @author EDG
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' color <- list(
-#'   blue = c("#82afd3", "#000f3a"),
-#'   gray = c("gray10", "gray85")
-#' )
-#' previewcolor(desaturate(color_mix(color, 6), .3))
-#'
-#' color <- list(
-#'   blue = c("#82afd3", "#57000a"),
-#'   gray = c("gray10", "gray85")
-#' )
-#' previewcolor(desaturate(color_mix(color, 6), .3))
-#'
-#' color <- list(
-#'   blue = c("#82afd3", "#000f3a"),
-#'   purple = c("#23001f", "#c480c1")
-#' )
-#' previewcolor(desaturate(color_mix(color, 5), .3))
-#' }
-color_mix <- function(color, n = 4) {
-  if (class(color)[1] != "list") {
-    cli::cli_abort("Please provide list of color pairs")
-  }
-
-  color.grad <- lapply(color, function(i) colorRampPalette(i)(n))
-
-  c(t(as.data.frame(color.grad)))
-} # /rtemis::color_mix
-
 
 #' Preview color
 #'
@@ -415,7 +373,6 @@ previewcolor <- function(
   labels_y = 1.55,
   label_cex = NULL,
   mar = c(0, 0, 0, 1),
-  par_reset = TRUE,
   filename = NULL,
   pdf_width = 8,
   pdf_height = 2.5
@@ -588,15 +545,12 @@ rhombus <- function(
 #' @param return_plotly Logical: If TRUE, return `plotly` object
 #' @param margins Vector: Plotly margins.
 #' @param pad Float: Padding for `plotly`.
-#' @param par_reset Logical: If TRUE (Default), reset `par` settings after running
 #'
 #' @return Invisible vector of hexadecimal colors / plotly object if `return_plotly = TRUE`
 #'
 #' @author EDG
-#' @export
-#'
-#' @examples
-#' colorgrad()
+#' @keywords internal
+#' @noRd
 colorgrad <- function(
   n = 21,
   colors = NULL,
@@ -631,8 +585,7 @@ colorgrad <- function(
   plotly_height = 500,
   return_plotly = FALSE,
   margins = c(0, 0, 0, 0),
-  pad = 0,
-  par_reset = TRUE
+  pad = 0
 ) {
   # Arguments ----
   n <- as.integer(n)
@@ -758,7 +711,7 @@ colorgrad <- function(
     }
 
     par_orig <- par(no.readonly = TRUE)
-    if (par_reset && !cb_add) {
+    if (!cb_add) {
       on.exit(suppressWarnings(par(par_orig)))
     }
     if (cb_add) {
