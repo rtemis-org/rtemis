@@ -15,7 +15,7 @@ draw_dist(
   col = NULL,
   alpha = 0.75,
   plot_bg = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   palette = getOption("rtemis_palette", "rtms"),
   axes_square = FALSE,
   group_names = NULL,

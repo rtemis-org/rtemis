@@ -17,7 +17,7 @@ draw_survfit(
   legend_xy = c(1, 1),
   legend_xanchor = "right",
   legend_yanchor = "top",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   nrisk_table = FALSE,
   filename = NULL,
   ...

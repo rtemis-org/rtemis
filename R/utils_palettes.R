@@ -1713,28 +1713,29 @@ rtemis_palettes <- list(
   rtms = rtms
 )
 
-#' Color Palettes
+#' Get Color Palette
 #'
-#' `rtpalette()` prints names of available color palettes
+#' `get_palette()` returns a color palette (character vector of colors).
+#' Without arguments, prints names of available color palettes.
 #' Each palette is a named list of hexadecimal color definitions which can be used with
 #' any graphics function.
-#' `rtpalette(palette_name)` returns a list of colors for a given palette.
 #'
 #' @param palette Character: Name of palette to return. Default = NULL: available palette
 #' names are printed and no palette is returned.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return A list of available palettes, invisibly.
+#' @return Character vector of colors for the specified palette, or invisibly returns
+#' list of available palettes if `palette = NULL`.
 #'
 #' @author EDG
 #' @export
 #'
 #' @examples
 #' # Print available palettes
-#' rtpalette()
+#' get_palette()
 #' # Get the Imperial palette
-#' rtpalette("imperial")
-rtpalette <- function(palette = NULL, verbosity = 1L) {
+#' get_palette("imperial")
+get_palette <- function(palette = NULL, verbosity = 1L) {
   if (is.null(palette)) {
     if (verbosity > 0L) {
       msg(highlight("The following palettes are available:"))
@@ -1747,7 +1748,7 @@ rtpalette <- function(palette = NULL, verbosity = 1L) {
     )
     rtemis_palettes[[palette]]
   }
-} # /rtemis::rtpalette
+} # /rtemis::get_palette
 
 
 #' Access rtemis palette colors
@@ -1756,7 +1757,7 @@ rtpalette <- function(palette = NULL, verbosity = 1L) {
 #' ggplot.
 #'
 #' @param n Integer: Number of colors to output
-#' @param palette Character: Palette to use. See available options with `rtpalette()`.
+#' @param palette Character: Palette to use. See available options with `get_palette()`.
 #'
 #' @author EDG
 #' @keywords internal
@@ -1767,7 +1768,7 @@ rtpalette <- function(palette = NULL, verbosity = 1L) {
 #' rtemis_palette(3)
 #' }
 rtemis_palette <- function(n, palette = getOption("rtemis_palette", "rtms")) {
-  .palette <- unlist(rtpalette(palette))
+  .palette <- unlist(get_palette(palette))
   names(.palette) <- NULL
   .palette[seq_len(n)]
 } # /rtemis::rtemis_palette

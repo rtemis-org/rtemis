@@ -39,7 +39,7 @@ draw_spectrogram(
   main = NULL,
   key_title = NULL,
   showticklabels = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   font_size = NULL,
   padding = 0,
   displayModeBar = TRUE,

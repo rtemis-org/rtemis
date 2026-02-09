@@ -20,7 +20,7 @@ so you do not have to define each time you execute a function.
 \describe{
 \item{rtemis_theme}{General plotting theme; set to e.g. "whiteigrid" or "darkgraygrid"}
 \item{rtemis_font}{Font family to use in plots.}
-\item{rtemis_palette}{Name of default palette to use in plots. See options by running \code{rtpalette()}}
+\item{rtemis_palette}{Name of default palette to use in plots. See options by running \code{get_palette()}}
 }
 }
 

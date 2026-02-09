@@ -172,7 +172,7 @@ draw_protein <- function(
   region_line_smoothing = 1,
   region_line_width = 1,
   region_line_alpha = .6,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   region_palette = getOption("rtemis_palette", "rtms"),
   region_outline_only = FALSE,
   region_outline_pad = 2, # for fake polys
@@ -362,10 +362,10 @@ draw_protein <- function(
 
   # Palette ----
   if (is.character(region_palette)) {
-    region_palette <- rtpalette(region_palette)
+    region_palette <- get_palette(region_palette)
   }
   if (is.character(site_palette)) {
-    site_palette <- rtpalette(site_palette)
+    site_palette <- get_palette(site_palette)
   }
 
   # Match abbreviations to full names ----

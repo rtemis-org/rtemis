@@ -89,7 +89,7 @@ draw_dist <- function(
   col = NULL,
   alpha = .75,
   plot_bg = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   palette = getOption("rtemis_palette", "rtms"),
   axes_square = FALSE,
   group_names = NULL,
@@ -206,7 +206,7 @@ draw_dist <- function(
 
   # Colors ----
   if (is.character(palette)) {
-    palette <- rtpalette(palette)
+    palette <- get_palette(palette)
   }
   n_groups <- length(x)
   if (is.null(col)) {

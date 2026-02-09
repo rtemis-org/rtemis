@@ -15,7 +15,7 @@
 #' \describe{
 #'     \item{rtemis_theme}{General plotting theme; set to e.g. "whiteigrid" or "darkgraygrid"}
 #'     \item{rtemis_font}{Font family to use in plots.}
-#'     \item{rtemis_palette}{Name of default palette to use in plots. See options by running `rtpalette()`}
+#'     \item{rtemis_palette}{Name of default palette to use in plots. See options by running `get_palette()`}
 #' }
 #' @section Visualization:
 #' Graphics are handled using the `draw` family, which produces interactive plots primarily using

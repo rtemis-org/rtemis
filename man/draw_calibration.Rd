@@ -20,7 +20,7 @@ draw_calibration(
   marginal_size = 10,
   mode = "markers+lines",
   show_brier = TRUE,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   filename = NULL,
   ...
 )

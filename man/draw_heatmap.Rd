@@ -31,7 +31,7 @@ draw_heatmap(
   showticklabels = NULL,
   colorbar_len = 0.7,
   plot_method = "plotly",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   row_side_colors = NULL,
   row_side_palette = NULL,
   col_side_colors = NULL,

@@ -96,7 +96,7 @@ draw_ts <- function(
   spikethickness = 1,
   displayModeBar = TRUE,
   modeBar_file_format = "svg",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   palette = getOption("rtemis_palette", "rtms"),
   filename = NULL,
   file_width = 500,
@@ -170,7 +170,7 @@ draw_ts <- function(
 
   # Palette ----
   if (is.character(palette)) {
-    palette <- rtpalette(palette)
+    palette <- get_palette(palette)
   }
   if (is.null(roll_col)) {
     roll_col <- palette[seq_along(x)]

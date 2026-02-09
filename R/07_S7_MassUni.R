@@ -100,7 +100,7 @@ plot.MassGLM <- method(plot, MassGLM) <- function(
   p_transform = function(x) -log10(x),
   xlab = "Coefficient",
   ylab = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   verbosity = 1L,
   ...
 ) {
@@ -194,7 +194,7 @@ plot_manhattan.MassGLM <- method(plot_manhattan, MassGLM) <- function(
   ),
   p_transform = function(x) -log10(x),
   ylab = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   col_pos = "#43A4AC",
   col_neg = "#FA9860",
   alpha = 0.8,

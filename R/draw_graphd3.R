@@ -36,8 +36,8 @@ draw_graphD3 <- function(
   edge_alpha = .33,
   zoom = TRUE,
   legend = FALSE,
-  palette = rtpalette(getOption("rtemis_palette", "rtms")),
-  theme = choose_theme(),
+  palette = get_palette(getOption("rtemis_palette")),
+  theme = choose_theme(getOption("rtemis_theme")),
   ...
 ) {
   # Dependencies ----
@@ -67,7 +67,7 @@ draw_graphD3 <- function(
       )
     } else {
       if (is.character(palette)) {
-        palette <- adjustcolor(unlist(rtpalette(palette)), node_alpha)
+        palette <- adjustcolor(unlist(get_palette(palette)), node_alpha)
       }
       ngroups <- length(unique(groups))
       .groups <- paste0(sort(unique(groups)), collapse = '", "')

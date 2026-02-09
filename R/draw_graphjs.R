@@ -75,7 +75,7 @@ draw_graphjs <- function(
   cluster_mark_groups = TRUE,
   cluster_color_vertices = FALSE,
   main = "",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   palette = getOption("rtemis_palette", "rtms"),
   mar = rep(0, 4),
   filename = NULL,
@@ -89,7 +89,7 @@ draw_graphjs <- function(
   check_is_S7(theme, Theme)
 
   if (is.character(palette)) {
-    palette <- unname(unlist(rtpalette(palette)))
+    palette <- unname(unlist(get_palette(palette)))
   }
 
   # Vertex names ----

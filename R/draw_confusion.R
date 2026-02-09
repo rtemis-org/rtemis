@@ -44,7 +44,7 @@ draw_confusion <- function(
   main = NULL,
   main_y = 1,
   main_yanchor = "bottom",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   margin = list(l = 20, r = 5, b = 5, t = 20),
   # write to file
   filename = NULL,

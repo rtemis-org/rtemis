@@ -86,7 +86,7 @@ draw_heatmap <- function(
   showticklabels = NULL,
   colorbar_len = .7,
   plot_method = "plotly",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   row_side_colors = NULL,
   row_side_palette = NULL,
   col_side_colors = NULL,
@@ -198,7 +198,7 @@ draw_heatmap <- function(
     plot.caption = ggp2text
   )
 
-  # if (is.character(palette)) palette <- rtpalette(palette)
+  # if (is.character(palette)) palette <- get_palette(palette)
 
   # Dendrogram ----
   # for now, set to theme[["fg"]]

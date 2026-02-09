@@ -30,7 +30,7 @@ draw_ts(
   spikethickness = 1,
   displayModeBar = TRUE,
   modeBar_file_format = "svg",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   palette = getOption("rtemis_palette", "rtms"),
   filename = NULL,
   file_width = 500,

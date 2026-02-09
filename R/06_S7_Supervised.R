@@ -674,7 +674,7 @@ method(plot_true_pred, Regression) <- function(
   x,
   what = "all",
   fit = "glm",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   labelify = TRUE,
   ...
 ) {
@@ -720,7 +720,7 @@ method(plot_true_pred, Classification) <- function(
   x,
   what = NULL,
   xlab = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   ...
 ) {
   if (is.null(what)) {
@@ -755,8 +755,8 @@ method(plot_true_pred, Classification) <- function(
 method(plot_roc, Classification) <- function(
   x,
   what = NULL,
-  theme = choose_theme(),
-  palette = rtpalette(getOption("rtemis_palette", "rtms")),
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   filename = NULL,
   ...
 ) {
@@ -869,7 +869,7 @@ write_Supervised <- function(
   object,
   outdir = NULL,
   save_mod = FALSE,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   verbosity = 1L
 ) {
   if (verbosity > 0L) {
@@ -889,7 +889,7 @@ write_Supervised <- function(
 method(present, Regression) <- function(
   x,
   what = c("training", "test"),
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   filename = NULL,
   ...
 ) {
@@ -912,8 +912,8 @@ method(present, Classification) <- function(
   x,
   what = c("training", "test"),
   type = c("ROC", "confusion"),
-  theme = choose_theme(),
-  palette = rtpalette(getOption("rtemis_palette", "rtms")),
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   filename = NULL
 ) {
   type <- match.arg(type)
@@ -1554,7 +1554,11 @@ method(describe, SupervisedRes) <- function(x, ...) {
 }
 
 # Present SupervisedRes ----
-method(present, SupervisedRes) <- function(x, theme = choose_theme(), ...) {
+method(present, SupervisedRes) <- function(
+  x,
+  theme = choose_theme(getOption("rtemis_theme")),
+  ...
+) {
   # Describe the model
   describe(x)
   # Plot the performance metrics
@@ -1580,7 +1584,7 @@ method(plot_true_pred, RegressionRes) <- function(
   x,
   what = "all",
   fit = "glm",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   labelify = TRUE,
   ...
 ) {
@@ -1625,7 +1629,7 @@ method(plot_true_pred, RegressionRes) <- function(
 method(plot_true_pred, ClassificationRes) <- function(
   x,
   what = "all",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   ...
 ) {
   if (length(what) == 1 && what == "all") {
@@ -1699,8 +1703,8 @@ method(plot_true_pred, ClassificationRes) <- function(
 method(plot_roc, ClassificationRes) <- function(
   x,
   what = "all",
-  theme = choose_theme(),
-  palette = rtpalette(getOption("rtemis_palette", "rtms")),
+  theme = choose_theme(getOption("rtemis_theme")),
+  palette = get_palette(getOption("rtemis_palette")),
   filename = NULL,
   ...
 ) {
@@ -1751,7 +1755,7 @@ method(plot_metric, SupervisedRes) <- function(
   metric = NULL,
   ylab = labelify(metric),
   boxpoints = "all",
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   ...
 ) {
   what <- match.arg(what, several.ok = TRUE)
@@ -1804,7 +1808,7 @@ method(plot_metric, SupervisedRes) <- function(
 # Plot Variable Importance Supervised ----
 method(plot_varimp, Supervised) <- function(
   x,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   filename = NULL,
   ...
 ) {
@@ -1822,7 +1826,7 @@ method(plot_varimp, SupervisedRes) <- function(
   ylab = NULL,
   summarize_fn = "mean",
   show_top = 20L,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   filename = NULL,
   ...
 ) {

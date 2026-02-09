@@ -14,7 +14,7 @@ plot_manhattan.MassGLM(
     "none"),
   p_transform = function(x) -log10(x),
   ylab = NULL,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   col_pos = "#43A4AC",
   col_neg = "#FA9860",
   alpha = 0.8,

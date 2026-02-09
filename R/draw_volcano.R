@@ -123,7 +123,7 @@ draw_volcano <- function(
   hline_dash = "solid",
   hline_annotate = NULL,
   hline_annotation_x = 1,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   annotate = TRUE,
   annotate_col = theme[["labs_col"]],
   font_size = 16,
@@ -193,7 +193,7 @@ draw_volcano <- function(
 
   # Colors for groups
   if (is.null(palette)) {
-    palette <- rtpalette(getOption("rtemis_palette", "rtms"))
+    palette <- get_palette(getOption("rtemis_palette", "rtms"))
   }
 
   # Theme ----

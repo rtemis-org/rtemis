@@ -43,7 +43,7 @@ draw_protein(
   region_line_smoothing = 1,
   region_line_width = 1,
   region_line_alpha = 0.6,
-  theme = choose_theme(),
+  theme = choose_theme(getOption("rtemis_theme")),
   region_palette = getOption("rtemis_palette", "rtms"),
   region_outline_only = FALSE,
   region_outline_pad = 2,

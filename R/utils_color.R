@@ -577,7 +577,7 @@ colorgrad <- function(
   filename = NULL,
   pdf_width = 3,
   pdf_height = 7,
-  theme = getOption("rt_theme", "light"),
+  theme = choose_theme(getOption("rtemis_theme")),
   bg = NULL,
   col_text = NULL,
   plotlycb = FALSE,
@@ -603,7 +603,7 @@ colorgrad <- function(
     if (cb_n %% 2 != 1) cb_n <- cb_n + 1
   }
   space <- match.arg(space)
-  theme <- if (strtrim(theme, 4) == "dark") {
+  theme <- if (strtrim(theme@name, 4) %in% c("dark", "blac")) {
     "dark"
   } else {
     "light"
