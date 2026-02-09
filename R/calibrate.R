@@ -48,7 +48,6 @@
 #'   true_labels = mod_c_lightrf$y_training
 #')
 #' mod_c_lightrf_cal
-#' # Note: In this trivial example, there may be no change in predicted probabilities.
 calibrate.Classification <- method(calibrate, Classification) <- function(
   x,
   predicted_probabilities,
@@ -155,5 +154,12 @@ calibrate.ClassificationRes <- method(calibrate, ClassificationRes) <- function(
   names(calmods) <- names(x@models)
 
   # CalibratedClassificationRes
-  CalibratedClassificationRes(x, calmods)
+  modres_cal <- CalibratedClassificationRes(x, calmods)
+
+  # Outro ----
+  if (verbosity > 0L) {
+    message()
+    print(modres_cal)
+    message()
+  }
 } # /rtemis::calibrate.ClassificationRes

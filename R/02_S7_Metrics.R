@@ -473,3 +473,75 @@ repr_CalibratedClassificationMetrics <- function(
   }
   out
 } # /rtemis::repr_CalibratedClassification
+
+
+# %% repr for CalibratedClassificationRes ----
+#' @param x `ClassificationMetricsRes` before calibration.
+#' @param x_cal `ClassificationMetricsRes` after calibration.
+#'
+#' @author EDG
+#'
+#' @keywords internal
+#' @noRd
+repr_CalibratedClassificationRes <- function(
+  x,
+  x_cal,
+  decimal_places = 2L,
+  pad = 2L,
+  output_type = NULL
+) {
+  output_type <- get_output_type(output_type)
+
+  out <- repr_S7name(
+    paste("Resampled Classification", x@sample, "Metrics (Pre=>Post Calibration)"),
+    pad = pad,
+    output_type = output_type
+  )
+  out <- paste0(out, strrep(" ", pad))
+  out <- paste0(
+    out,
+    italic(
+      "  Showing mean (sd) across resamples, Pre=>Post calibration.\n",
+      output_type = output_type
+    )
+  )
+
+  # Create pre and post formatted strings: mean (sd)
+  pre_strings <- lapply(seq_along(x@mean_metrics), function(i) {
+    paste0(
+      ddSci(x@mean_metrics[[i]], decimal_places),
+      " (",
+      ddSci(x@sd_metrics[[i]], decimal_places),
+      ")"
+    )
+  })
+  names(pre_strings) <- names(x@mean_metrics)
+
+  post_strings <- lapply(seq_along(x_cal@mean_metrics), function(i) {
+    paste0(
+      ddSci(x_cal@mean_metrics[[i]], decimal_places),
+      " (",
+      ddSci(x_cal@sd_metrics[[i]], decimal_places),
+      ")"
+    )
+  })
+  names(post_strings) <- names(x_cal@mean_metrics)
+
+  # Combine pre=>post
+  prepost_strings <- lapply(seq_along(pre_strings), function(i) {
+    paste(pre_strings[[i]], post_strings[[i]], sep = "=>")
+  })
+  names(prepost_strings) <- names(pre_strings)
+
+  out <- paste0(
+    out,
+    repr_ls(
+      prepost_strings,
+      print_class = FALSE,
+      print_df = TRUE,
+      pad = pad + 2L,
+      output_type = output_type
+    )
+  )
+  out
+} # /rtemis::repr_CalibratedClassificationRes

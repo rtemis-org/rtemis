@@ -61,7 +61,6 @@ mod_c_lightrf_cal <- calibrate(
   true_labels = mod_c_lightrf$y_training
 )
 mod_c_lightrf_cal
-# Note: In this trivial example, there may be no change in predicted probabilities.
 }
 \author{
 EDG

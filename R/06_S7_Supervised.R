@@ -1144,17 +1144,42 @@ method(repr, SupervisedRes) <- function(
   out <- paste0(out, "\n")
 
   # Metrics, training
-  out <- paste0(
-    out,
-    repr(x@metrics_training, pad = 2L, output_type = output_type)
-  )
+  if (prop_exists(x, "calibration_models")) {
+    out <- paste0(
+      out,
+      repr_CalibratedClassificationRes(
+        x@metrics_training,
+        x@metrics_training_calibrated,
+        pad = 2L,
+        output_type = output_type
+      )
+    )
+  } else {
+    out <- paste0(
+      out,
+      repr(x@metrics_training, pad = 2L, output_type = output_type)
+    )
+  }
 
   # Metrics, test
-  out <- paste0(
-    out,
-    "\n",
-    repr(x@metrics_test, pad = 2L, output_type = output_type)
-  )
+  if (prop_exists(x, "calibration_models")) {
+    out <- paste0(
+      out,
+      "\n",
+      repr_CalibratedClassificationRes(
+        x@metrics_test,
+        x@metrics_test_calibrated,
+        pad = 2L,
+        output_type = output_type
+      )
+    )
+  } else {
+    out <- paste0(
+      out,
+      "\n",
+      repr(x@metrics_test, pad = 2L, output_type = output_type)
+    )
+  }
 
   out
 } # /rtemis::repr.SupervisedRes
@@ -1307,7 +1332,7 @@ CalibratedClassificationRes <- new_class(
   name = "CalibratedClassificationRes",
   parent = ClassificationRes,
   properties = list(
-    calibration_models = class_list, # => create CalibrationRes class
+    calibration_models = class_list,
     predicted_training_calibrated = new_property(
       getter = function(self) {
         lapply(self@calibration_models, function(mod) {
@@ -1336,73 +1361,43 @@ CalibratedClassificationRes <- new_class(
         })
       }
     ),
-    metrics_training_calibrated = new_property(
-      getter = function(self) {
-        lapply(self@calibration_models, function(mod) {
-          mod@metrics_training
-        })
-      }
-    ),
-    metrics_test_calibrated = new_property(
-      getter = function(self) {
-        lapply(self@calibration_models, function(mod) {
-          mod@metrics_test
-        })
-      }
-    )
+    metrics_training_calibrated = ClassificationMetricsRes,
+    metrics_test_calibrated = ClassificationMetricsRes
   ),
   constructor = function(ClassificationRes_model, calibrations_models) {
+    # Aggregate calibrated metrics from individual models within each calibration resample
+    # calibrations_models is a list of *Res objects, each containing multiple models
+    # We need to extract all individual model metrics and aggregate them
+    all_training_metrics <- unlist(
+      lapply(calibrations_models, function(calmod) {
+        calmod@metrics_training@res_metrics
+      }),
+      recursive = FALSE
+    )
+    all_test_metrics <- unlist(
+      lapply(calibrations_models, function(calmod) {
+        calmod@metrics_test@res_metrics
+      }),
+      recursive = FALSE
+    )
+
+    metrics_training_calibrated <- ClassificationMetricsRes(
+      sample = "Training",
+      res_metrics = all_training_metrics
+    )
+    metrics_test_calibrated <- ClassificationMetricsRes(
+      sample = "Test",
+      res_metrics = all_test_metrics
+    )
+
     new_object(
       ClassificationRes_model,
-      calibration_models = calibrations_models
+      calibration_models = calibrations_models,
+      metrics_training_calibrated = metrics_training_calibrated,
+      metrics_test_calibrated = metrics_test_calibrated
     )
   }
 ) # /rtemis::CalibratedClassificationRes
-
-
-# Print CalibratedClassificationRes ----
-method(print, CalibratedClassificationRes) <- function(x, ...) {
-  objcat("Resampled Classification Model")
-  cat(
-    "  ",
-    highlight(x@algorithm),
-    " (",
-    desc_alg(x@algorithm),
-    ")\n",
-    sep = ""
-  )
-  cat(
-    "  ",
-    bold(orange("\U27F3")),
-    " Tested using ",
-    desc(x@outer_resampler),
-    ".\n",
-    sep = ""
-  )
-  if (!is.null(x@tuner_config)) {
-    cat(
-      "  ",
-      fmt("\U2699", col = col_tuner, bold = TRUE),
-      " Tuned using ",
-      desc(x@tuner_config),
-      ".\n",
-      sep = ""
-    )
-  }
-  cat(
-    "  ",
-    bold(green("\U27CB")),
-    " Calibrated using ",
-    desc_alg(x@calibration_models[[1]]@algorithm),
-    " with ",
-    desc(x@calibration_models[[1]]@outer_resampler@config),
-    ".\n\n",
-    sep = ""
-  )
-  print(x@metrics_training)
-  cat("\n")
-  print(x@metrics_test)
-} # /rtemis::print.CalibratedClassificationRes
 
 
 # Predict CalibratedClassificationRes ----
