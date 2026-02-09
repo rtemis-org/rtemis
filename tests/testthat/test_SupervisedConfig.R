@@ -11,7 +11,7 @@ test_that("SuperConfig() succeeds", {
     algorithm = "GLMNET",
     preprocessor_config = setup_Preprocessor(),
     hyperparameters = setup_GLMNET(),
-    tuner_config = setup_Tuner(),
+    tuner_config = setup_GridSearch(),
     outer_resampling_config = setup_Resampler(),
     weights = NULL,
     question = "What is the best model?",
