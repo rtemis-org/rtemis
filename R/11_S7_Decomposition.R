@@ -66,7 +66,7 @@ method(repr, Decomposition) <- function(
     ),
     repr_ls(props(x)[-1], pad = pad, output_type = output_type)
   )
-} # /rtemis::show.Decomposition
+} # /rtemis::repr.Decomposition
 
 
 # Print Decomposition ----

@@ -210,7 +210,7 @@ method(repr, Hyperparameters) <- function(
     )
   }
   out
-} # /rtemis::show.Hyperparameters
+} # /rtemis::repr.Hyperparameters
 
 
 # Print Hyperparameters ----

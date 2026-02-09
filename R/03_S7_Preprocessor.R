@@ -92,7 +92,7 @@ method(repr, PreprocessorConfig) <- function(
     repr_S7name("PreprocessorConfig", pad = pad, output_type = output_type),
     repr_ls(props(x), pad = pad, limit = limit, output_type = output_type)
   )
-} # /rtemis::show.PreprocessorConfig
+} # /rtemis::repr.PreprocessorConfig
 
 
 # Print PreprocessorConfig ----
@@ -356,7 +356,7 @@ method(repr, Preprocessor) <- function(
     repr_S7name("Preprocessor", pad = pad, output_type = output_type),
     repr_ls(props(x), pad = pad, print_df = print_df)
   )
-} # /rtemis::show.Preprocessor
+} # /rtemis::repr.Preprocessor
 
 # Print Preprocessor ----
 method(print, Preprocessor) <- function(x, pad = 0L, output_type = NULL, ...) {

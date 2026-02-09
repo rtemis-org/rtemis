@@ -49,7 +49,7 @@
 #')
 #' mod_c_lightrf_cal
 #' # Note: In this trivial example, there may be no change in predicted probabilities.
-calibrate.Classification <- function(
+calibrate.Classification <- method(calibrate, Classification) <- function(
   x,
   predicted_probabilities,
   true_labels,
@@ -87,40 +87,6 @@ calibrate.Classification <- function(
 } # /rtemis::calibrate
 
 
-#' @name calibrate.ClassificationRes
-#' @title
-#' Calibrate Cross-validated Binary Classification Models
-#'
-#' @description
-#' The goal of calibration is to adjust the predicted probabilities of a binary classification
-#' model so that they better reflect the true probabilities (i.e. empirical risk) of the positive
-#' class.
-#'
-#' @param x `ClassificationRes` object.
-#' @param algorithm Character: Algorithm to use to train calibration model.
-#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
-#' @param resampler_config ResamplerConfig
-#' @param verbosity Integer: Verbosity level.
-#' @param ... Not used
-#'
-#' @author EDG
-method(calibrate, Classification) <- function(
-  x,
-  algorithm = "isotonic",
-  hyperparameters = NULL,
-  verbosity = 1L,
-  ...
-) {
-  calibrate.Classification(
-    x,
-    algorithm = algorithm,
-    hyperparameters = hyperparameters,
-    verbosity = verbosity,
-    ...
-  )
-} # /rtemis::calibrate.Classification
-
-
 #' Calibrate Resampled Classification Models
 #'
 #' @param x `ClassificationRes` object.
@@ -149,7 +115,7 @@ method(calibrate, Classification) <- function(
 #' resmod_c_lightrf_cal <- calibrate(resmod_c_lightrf)
 #' resmod_c_lightrf_cal
 #' }
-calibrate.ClassificationRes <- function(
+calibrate.ClassificationRes <- method(calibrate, ClassificationRes) <- function(
   x,
   algorithm = "isotonic",
   hyperparameters = NULL,
@@ -190,31 +156,4 @@ calibrate.ClassificationRes <- function(
 
   # CalibratedClassificationRes
   CalibratedClassificationRes(x, calmods)
-} # /rtemis::calibrate.ClassificationRes
-
-
-#' Calibrate ClassificationRes
-#'
-#' @param x `ClassificationRes` object.
-#' @param algorithm Character: Algorithm to use to train calibration model.
-#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-method(calibrate, ClassificationRes) <- function(
-  x,
-  algorithm = "isotonic",
-  hyperparameters = NULL,
-  verbosity = 1L,
-  ...
-) {
-  calibrate.ClassificationRes(
-    x,
-    algorithm = algorithm,
-    hyperparameters = hyperparameters,
-    verbosity = verbosity,
-    ...
-  )
 } # /rtemis::calibrate.ClassificationRes
