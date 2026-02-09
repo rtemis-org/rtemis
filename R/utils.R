@@ -306,9 +306,12 @@ size <- function(x, verbosity = 1L) {
 } # /rtemis::size
 
 
-#' Recycle values of vector to match length of target
+#' Recycle values of vector to match length of target.
 #'
 #' @details
+#' If `target` is longer than `x`, the values of `x` will be recycled to match the length of
+#' `target`. If `x` is longer than `target`, the values of `x` will be truncated to match the
+#' length of `target`.
 #' Used internally by many functions.
 #'
 #' @param x Vector to be recycled
@@ -321,12 +324,7 @@ size <- function(x, verbosity = 1L) {
 recycle <- function(x, target) {
   lenx <- length(x)
   lent <- length(target)
-
-  if (lenx >= lent) {
-    x
-  } else {
-    rep(x, ceiling(lent / lenx))[seq(lent)]
-  }
+  rep(x, ceiling(lent / lenx))[seq_len(lent)]
 } # /rtemis::recycle
 
 
