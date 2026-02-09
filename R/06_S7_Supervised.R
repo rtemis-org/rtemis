@@ -756,7 +756,7 @@ method(plot_roc, Classification) <- function(
   x,
   what = NULL,
   theme = choose_theme(),
-  col = rtpalette(rtemis_palette)[1:2],
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   filename = NULL,
   ...
 ) {
@@ -786,7 +786,7 @@ method(plot_roc, Classification) <- function(
     true_labels = labelsl,
     predicted_prob = probl,
     theme = theme,
-    col = col,
+    palette = palette,
     filename = filename,
     ...
   )
@@ -913,7 +913,7 @@ method(present, Classification) <- function(
   what = c("training", "test"),
   type = c("ROC", "confusion"),
   theme = choose_theme(),
-  col = rtpalette(rtemis_palette)[1:2],
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   filename = NULL
 ) {
   type <- match.arg(type)
@@ -926,7 +926,7 @@ method(present, Classification) <- function(
       x,
       what = what,
       theme = theme,
-      col = col,
+      palette = palette,
       filename = filename
     )
   } else if (type == "confusion") {
@@ -1700,7 +1700,7 @@ method(plot_roc, ClassificationRes) <- function(
   x,
   what = "all",
   theme = choose_theme(),
-  col = rtpalette(rtemis_palette)[1:2],
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   filename = NULL,
   ...
 ) {
@@ -1722,7 +1722,7 @@ method(plot_roc, ClassificationRes) <- function(
     true_labels = labelsl,
     predicted_prob = probl,
     theme = theme,
-    col = col,
+    palette = palette,
     filename = filename,
     ...
   )
