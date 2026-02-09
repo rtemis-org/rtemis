@@ -494,7 +494,25 @@ init_project_dir <- function(path, output_dir = "Out", verbosity = 1L) {
   if (verbosity > 0L) {
     msg("Initializing project directory...")
   }
-  path <- normalizePath(path)
+  path <- normalizePath(path, mustWork = FALSE)
+
+  # Create project directory if it doesn't exist
+  if (!dir.exists(path)) {
+    if (verbosity > 0L) {
+      cat("  > Creating ", bold(path), " folder...", sep = "")
+    }
+    dir.create(path, recursive = TRUE)
+    if (dir.exists(path)) {
+      if (verbosity > 0L) {
+        yay()
+      }
+    } else {
+      if (verbosity > 0L) {
+        nay()
+      }
+      cli::cli_abort("Failed to create project directory at {.val {path}}")
+    }
+  }
 
   # Log file: rtemis_init.log ----
   logfile_path <- file.path(path, "rtemis_init.log")
