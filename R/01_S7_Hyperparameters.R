@@ -113,10 +113,10 @@ Hyperparameters <- new_class(
 ) # /rtemis::Hyperparameters
 
 
-# Show Hyperparameters ----
-#' Show Hyperparameters
+# repr Hyperparameters ----
+#' Repr Hyperparameters
 #'
-#' Show method for Hyperparameters object.
+#' repr method for Hyperparameters object.
 #'
 #' @param x `Hyperparameters` object.
 #' @param pad Integer: Left padding for printed output.
