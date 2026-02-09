@@ -8,9 +8,6 @@
 
 #' Plot timeseries data
 #'
-#' @details
-#' We are switching to `palette` being a color vector instead of the name of a built-in palette.
-#'
 #' @param x Datetime vector or list of vectors.
 #' @param y Numeric vector or named list of vectors: y-axis data.
 #' @param x2 Datetime vector or list of vectors, optional: must be provided if `y2` does not
@@ -58,7 +55,7 @@
 #' @param slider_start Numeric: Start of range slider.
 #' @param slider_end Numeric: End of range slider.
 #' @param theme `Theme` object.
-#' @param palette Color list: will be used to draw each vector in `y` and `y2`, in order.
+#' @param palette Character vector: Colors to be used to draw each vector in `y` and `y2`, in order.
 #' @param font_size Numeric: Font size for text.
 #' @param yfill Character: Fill type for y-axis: "none", "tozeroy", "tonexty".
 #' @param y2fill Character: Fill type for y2-axis: "none", "tozeroy", "tonexty".
@@ -149,7 +146,7 @@ draw_xt <- function(
   slider_start = NULL,
   slider_end = NULL,
   theme = choose_theme(),
-  palette = rtpalette(rtemis_palette),
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   font_size = 16,
   yfill = "none",
   y2fill = "none",

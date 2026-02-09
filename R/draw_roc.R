@@ -12,7 +12,7 @@
 #' If FALSE, column names of `predicted_prob` must match levels of `true_labels`.
 #' @param main Character: Main title for the plot.
 #' @param theme `Theme` object.
-#' @param col Color vector.
+#' @param palette Character vector: Colors to use.
 #' @param legend Logical: If TRUE, draw legend.
 #' @param legend_title Character: Title for the legend.
 #' @param legend_xy Numeric vector: Position of the legend in the form c(x, y).
@@ -43,7 +43,7 @@ draw_roc <- function(
   multiclass_fill_labels = TRUE,
   main = NULL,
   theme = choose_theme(),
-  col = rtpalette(rtemis_palette),
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   legend = TRUE,
   legend_title = "Group (AUC)",
   legend_xy = c(1, 0),
@@ -152,7 +152,7 @@ draw_roc <- function(
     ylab = "True Positive Rate",
     main = main,
     theme = theme,
-    col = col,
+    palette = palette,
     mode = "lines",
     group_names = paste0(.names, " (", ddSci(unlist(AUC), auc_dp), ")"),
     legend = legend,

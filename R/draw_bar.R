@@ -14,11 +14,9 @@
 #' @param main Character: Main plot title.
 #' @param xlab Character: x-axis label.
 #' @param ylab  Character: y-axis label.
-#' @param col Color, vector: Color for bars. Default NULL, which will draw
-#' colors from `palette`
 #' @param alpha Float (0, 1]: Transparency for bar colors.
 #' @param theme `Theme` object.
-#' @param palette Character: Name of \pkg{rtemis} palette to use.
+#' @param palette List of colors to use.
 #' @param barmode Character: Type of bar plot to make: "group", "relative",
 #' "stack", "overlay". Default = "group". Use
 #' "relative" for stacked bars, wich handles negative values correctly,
@@ -94,11 +92,10 @@ draw_bar <- function(
   main = NULL,
   xlab = NULL,
   ylab = NULL,
-  col = NULL,
   alpha = 1,
   horizontal = FALSE,
   theme = choose_theme(),
-  palette = getOption("rtemis_palette", "rtms"),
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   barmode = c("group", "relative", "stack", "overlay"),
   group_names = NULL,
   order_by_val = FALSE,
@@ -193,13 +190,8 @@ draw_bar <- function(
   }
 
   # Colors ----
-  if (is.character(palette)) {
-    palette <- rtpalette(palette)
-  }
   p <- NCOL(dat)
-  if (is.null(col)) {
-    col <- recycle(palette, seq(p))[seq(p)]
-  }
+  col <- recycle(palette, seq(p))[seq(p)]
 
   # Theme ----
   check_is_S7(theme, Theme)

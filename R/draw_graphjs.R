@@ -30,7 +30,6 @@
 #' @param theme `Theme` object.
 #' @param palette Color vector or name of rtemis palette.
 #' @param mar Numeric vector, length 4: `par`'s margin argument.
-#' @param par_reset Logical: If TRUE, reset par before exiting.
 #' @param filename Character: If provided, save plot to this filepath.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Extra arguments to pass to `igraph::plot.igraph()`.
@@ -79,7 +78,6 @@ draw_graphjs <- function(
   theme = choose_theme(),
   palette = getOption("rtemis_palette", "rtms"),
   mar = rep(0, 4),
-  par_reset = TRUE,
   filename = NULL,
   verbosity = 1L,
   ...

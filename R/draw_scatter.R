@@ -23,10 +23,9 @@
 #' @param subtitle Character: Subtitle.
 #' @param xlab Character: x-axis label.
 #' @param ylab Character: y-axis label.
-#' @param col Color for markers.
 #' @param alpha Numeric: Alpha for markers.
 #' @param theme `Theme` object.
-#' @param palette Character: Color palette.
+#' @param palette Character vector: Colors to use.
 #' @param axes_square Logical: If TRUE, draw a square plot.
 #' @param group_names Character: Names for groups.
 #' @param font_size Numeric: Font size.
@@ -134,10 +133,9 @@ draw_scatter <- function(
   subtitle = NULL,
   xlab = NULL,
   ylab = NULL,
-  col = NULL,
   alpha = NULL,
   theme = choose_theme(),
-  palette = getOption("rtemis_palette", "rtms"),
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   axes_square = FALSE,
   group_names = NULL,
   font_size = 16,
@@ -251,6 +249,8 @@ draw_scatter <- function(
   }
   .mode <- mode
   .names <- group_names
+
+  check_is_S7(theme, Theme)
 
   if (se_fit) {
     if (!fit %in% c("GLM", "LM", "LOESS", "GAM", "NW")) {
@@ -375,15 +375,7 @@ draw_scatter <- function(
   }
 
   # Colors ----
-  if (is.character(palette)) {
-    palette <- rtpalette(palette)
-  }
-  if (is.null(col)) {
-    col <- palette[seq_len(n_groups)]
-  }
-  if (length(col) < n_groups) {
-    col <- rep(col, n_groups / length(col))
-  }
+  col <- recycle(palette, seq_len(n_groups))
   if (is.null(alpha)) {
     alpha <- if (mode == "markers") {
       autoalpha(max(lengths(x)))
@@ -393,8 +385,6 @@ draw_scatter <- function(
   }
 
   # Theme ----
-  check_is_S7(theme, Theme)
-
   if (diagonal) {
     if (is.null(diagonal_col)) {
       diagonal_col <- theme[["fg"]]

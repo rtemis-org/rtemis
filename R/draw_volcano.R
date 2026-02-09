@@ -50,7 +50,10 @@
 #' @param annotate_col Color for annotations.
 #' @param theme `Theme` object.
 #' @param font_size Integer: Font size.
-#' @param palette Character: Name of \pkg{rtemis} palette to use.
+#' @param palette Character vector: Colors to use. If `group` is NULL, the first, second and third
+#' colors will be used for significant points with negative coefficients, non-significant points, and
+#' significant points with positive coefficients, respectively. If `group` is not NULL, colors will
+#' be assigned to groups, in order of appearance.
 #' @param legend_x_lo Numeric: x position of `legend_lo`.
 #' @param legend_x_hi Numeric: x position of `legend_hi`.
 #' @param legend_y Numeric: y position for `legend_lo` and `legend_hi`.
@@ -80,10 +83,10 @@
 #'
 #' @examplesIf interactive()
 #' set.seed(2019)
-#' x <- rnormmat(500, 500)
-#' y <- x[, 3] + x[, 5] - x[, 9] + x[, 15] + rnorm(500)
-#' mod <- massGLM(y, x)
-#' draw_volcano(mod$summary$`Coefficient y`, mod$summary$`p_value y`)
+#' y <- rnormmat(500, 500, return_df = TRUE)
+#' x <- data.frame(x = y[, 3] + y[, 5] - y[, 9] + y[, 15] + rnorm(500))
+#' mod <- massGLM(x, y)
+#' draw_volcano(summary(mod)[["Coefficient_x"]], summary(mod)[["p_value_x"]])
 draw_volcano <- function(
   x,
   pvals,
@@ -188,8 +191,9 @@ draw_volcano <- function(
     print(group.counts)
   }
 
+  # Colors for groups
   if (is.null(palette)) {
-    palette <- rtpalette(rtemis_palette)
+    palette <- rtpalette(getOption("rtemis_palette", "rtms"))
   }
 
   # Theme ----

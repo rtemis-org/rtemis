@@ -13,7 +13,7 @@
 #' @param edge_alpha Float \[0, 1\]: Edge opacity.
 #' @param zoom Logical: If TRUE, graph is zoomable.
 #' @param legend Logical: If TRUE, display legend for groups.
-#' @param palette Vector of colors, or Character defining a builtin palette - get options with `rtpalette()`.
+#' @param palette Character vector: Colors to use.
 #' @param theme `Theme` object.
 #' @param ... Additional arguments to pass to `networkD3`.
 #'
@@ -36,7 +36,7 @@ draw_graphD3 <- function(
   edge_alpha = .33,
   zoom = TRUE,
   legend = FALSE,
-  palette = getOption("rtemis_palette", "rtms"),
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   theme = choose_theme(),
   ...
 ) {

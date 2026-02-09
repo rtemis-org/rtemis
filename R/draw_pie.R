@@ -12,12 +12,11 @@
 #' @param main Character: Plot title. Default = NULL, which results in `colnames(x)[1]`.
 #' @param xlab Character: x-axis label.
 #' @param ylab Character: y-axis label.
-#' @param col Character: Colors for the pie slices.
 #' @param alpha Numeric: Alpha for the pie slices.
 #' @param bg Character: Background color.
 #' @param plot_bg Character: Plot background color.
 #' @param theme `Theme` object.
-#' @param palette Character: Color palette to use.
+#' @param palette Character vector: Colors to use.
 #' @param category_names Character, vector, length = NROW(x): Category names. Default = NULL, which uses
 #' either `rownames(x)`, or the first column of `x` if `ncol(x) = 2`.
 #' @param textinfo Character: Info to show over each slice: "label", "percent", "label+percent".
@@ -47,12 +46,11 @@ draw_pie <- function(
   main = NULL,
   xlab = NULL,
   ylab = NULL,
-  col = NULL,
   alpha = .8,
   bg = NULL,
   plot_bg = NULL,
   theme = choose_theme(),
-  palette = getOption("rtemis_palette", "rtms"),
+  palette = rtpalette(getOption("rtemis_palette", "rtms")),
   category_names = NULL,
   textinfo = "label+percent",
   font_size = 16,
@@ -107,16 +105,8 @@ draw_pie <- function(
   }
 
   # Colors ----
-  if (is.character(palette)) {
-    palette <- rtpalette(palette)
-  }
   p <- NROW(x)
-  if (is.null(col)) {
-    col <- palette[seq_len(p)]
-  }
-  if (length(col) < p) {
-    col <- rep(col, p / length(col))
-  }
+  col <- recycle(palette, seq_len(p))
 
   # Theme ----
   check_is_S7(theme, Theme)
