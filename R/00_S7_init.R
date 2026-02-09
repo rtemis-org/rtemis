@@ -14,14 +14,11 @@ class_lgb.Booster <- new_S3_class("lgb.Booster")
 
 #' String representation
 #'
-#' @details
-#' Exported as internal function for use by other rtemis packages.
-#'
 #' @return Character string representation of the object.
 #'
 #' @author EDG
 #' @keywords internal
-#' @export
+#' @noRd
 repr <- new_generic("repr", "x")
 
 # Standard error of the fit.
@@ -621,14 +618,10 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 #' @param output_type Character vector of output types.
 #' @param filename Character: Filename for output.
 #'
-#' @details
-#' Exported as internal function for use by other rtemis packages.
-#'
 #' @return Character with selected output type.
 #'
 #' @author EDG
 #'
-#' @export
 #' @keywords internal
 #' @noRd
 get_output_type <- function(
