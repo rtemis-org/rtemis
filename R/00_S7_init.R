@@ -8,11 +8,16 @@
 # --- S3 Classes for S7 ----------------------------------------------------------------------------
 class_data.table <- new_S3_class("data.table")
 class_lgb.Booster <- new_S3_class("lgb.Booster")
-
+class_tabular <- new_union(class_data.frame, class_data.table)
 
 # --- Generics -------------------------------------------------------------------------------------
 
+#' Train
+train <- new_generic("train", "x")
+
 #' String representation
+#'
+#' @param x rtemis object.
 #'
 #' @return Character string representation of the object.
 #'
@@ -679,7 +684,7 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 #'
 #' Get output type for printing text.
 #'
-#' @param output_type Character vector of output types.
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #' @param filename Character: Filename for output.
 #'
 #' @return Character with selected output type.
