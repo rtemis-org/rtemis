@@ -165,7 +165,7 @@ pkglogo <- function(
   fmt_fn = color_txt_columns,
   args = list(
     color_left = kaimana_red,
-    color_right = genlib_orange,
+    color_right = coastside_orange,
     output_type = "ansi"
   ),
   pad = 2L

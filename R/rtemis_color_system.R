@@ -28,7 +28,7 @@ rtemis_teal <- "#00b2b2"
 kaimana_red <- "#ff004c"
 kaimana_blue <- "#0067e0"
 kaimana_light_blue <- "#479cff"
-genlib_orange <- "#ff9f20"
+coastside_orange <- "#ff9f20"
 kaimana_green <- "#00ffb3"
 kaimana_med_green <- "#00996b"
 rtemis_purple <- "#6125f7"
@@ -40,7 +40,7 @@ lmd_burgundy <- "#a92459"
 rt_red <- kaimana_red
 rt_blue <- kaimana_light_blue
 rt_green <- kaimana_med_green
-rt_orange <- genlib_orange
+rt_orange <- coastside_orange
 rt_teal <- rtemis_teal
 rt_purple <- rtemis_purple
 rt_magenta <- rtemis_magenta
@@ -49,4 +49,5 @@ highlight_col <- rt_teal
 col_object <- rt_teal
 col_info <- highlight2_col <- lmd_burgundy
 col_outer <- rt_red
-col_tuner <- rt_orange # genlib orange
+col_tuner <- rt_orange # coastside orange
+col_calibrator <- rt_magenta
