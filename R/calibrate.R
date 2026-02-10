@@ -36,17 +36,17 @@
 #' datc2$Species <- factor(datc2$Species)
 #' datc2_train <- datc2[res[[1]], ]
 #' datc2_test <- datc2[-res[[1]], ]
-#' mod_c_lightrf <- train(
+#' mod_c_glm <- train(
 #'   x = datc2_train,
 #'   dat_test = datc2_test,
-#'   hyperparameters = setup_LightRF(nrounds = 20L)
+#'   algorithm = "glm"
 #' )
-#' mod_c_lightrf_cal <- calibrate(
-#'   mod_c_lightrf,
-#'   predicted_probabilities = mod_c_lightrf$predicted_prob_training,
-#'   true_labels = mod_c_lightrf$y_training
-#')
-#' mod_c_lightrf_cal
+#' mod_c_glm_cal <- calibrate(
+#'   mod_c_glm,
+#'   predicted_probabilities = mod_c_glm$predicted_prob_training,
+#'   true_labels = mod_c_glm$y_training
+#' )
+#' mod_c_glm_cal
 method(calibrate, Classification) <- function(
   x,
   predicted_probabilities,
