@@ -113,7 +113,7 @@ plot_roc <- new_generic("plot_roc", "x")
 #'
 #' @seealso [draw_varimp], which is called by this method
 #'
-#' @examples
+#' @examplesIf interactive()
 #' ir <- set_outcome(iris, "Sepal.Length")
 #' seplen_cart <- train(ir, algorithm = "CART")
 #' plot_varimp(seplen_cart)
@@ -522,34 +522,34 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' dat_train <- dat[res[[1]], ]
 #' dat_test <- dat[-res[[1]], ]
 #'
-#' # Train LightRF on a training/test split
-#' mod_c_lightrf <- train(
+#' # Train GLM on a training/test split
+#' mod_c_glm <- train(
 #'   x = dat_train,
 #'   dat_test = dat_test,
-#'   hyperparameters = setup_LightRF(nrounds = 20L)
+#'   algorithm = "glm"
 #' )
 #'
 #' # Calibrate the `Classification` by defining `predicted_probabilities` and `true_labels`,
 #' # in this case using the training data, but it could be a separate calibration dataset.
-#' mod_c_lightrf_cal <- calibrate(
-#'   mod_c_lightrf,
-#'   predicted_probabilities = mod_c_lightrf$predicted_prob_training,
-#'   true_labels = mod_c_lightrf$y_training
-#')
-#' mod_c_lightrf_cal
+#' mod_c_glm_cal <- calibrate(
+#'   mod_c_glm,
+#'   predicted_probabilities = mod_c_glm$predicted_prob_training,
+#'   true_labels = mod_c_glm$y_training
+#' )
+#' mod_c_glm_cal
 #'
 #' # --- Calibrate ClassificationRes ---
 #'
-#' # Train LightRF with cross-validation
-#' resmod_c_lightrf <- train(
+#' # Train GLM with cross-validation
+#' resmod_c_glm <- train(
 #'  x = dat,
-#'  hyperparameters = setup_LightRF(nrounds = 20L),
+#'  algorithm = "glm",
 #'  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 #' )
 #'
 #' # Calibrate the `ClassificationRes` using the same resampling configuration as used for training.
-#' resmod_c_lightrf_cal <- calibrate(resmod_c_lightrf)
-#' resmod_c_lightrf_cal
+#' resmod_c_glm_cal <- calibrate(resmod_c_glm)
+#' resmod_c_glm_cal
 calibrate <- new_generic(
   "calibrate",
   ("x"),
