@@ -34,6 +34,59 @@ The goal of calibration is to adjust the predicted probabilities of a binary cla
 model so that they better reflect the true probabilities (i.e. empirical risk) of the positive
 class.
 }
+\section{Method-specific parameters}{
+
+
+\strong{For \code{Classification} objects:}
+\itemize{
+\item \code{predicted_probabilities}: Numeric vector of predicted probabilities
+\item \code{true_labels}: Factor of true class labels
+}
+
+\strong{For \code{ClassificationRes} objects:}
+\itemize{
+\item \code{resampler_config}: \code{ResamplerConfig} object for calibration training
+\item \code{train_verbosity}: Integer controlling calibration model training output
+}
+}
+
+\examples{
+# --- Calibrate Classification ---
+dat <- iris[51:150, ]
+res <- resample(dat)
+dat$Species <- factor(dat$Species)
+dat_train <- dat[res[[1]], ]
+dat_test <- dat[-res[[1]], ]
+
+# Train LightRF on a training/test split
+mod_c_lightrf <- train(
+  x = dat_train,
+  dat_test = dat_test,
+  hyperparameters = setup_LightRF(nrounds = 20L)
+)
+
+# Calibrate the `Classification` by defining `predicted_probabilities` and `true_labels`,
+# in this case using the training data, but it could be a separate calibration dataset.
+mod_c_lightrf_cal <- calibrate(
+  mod_c_lightrf,
+  predicted_probabilities = mod_c_lightrf$predicted_prob_training,
+  true_labels = mod_c_lightrf$y_training
+)
+mod_c_lightrf_cal
+
+# --- Calibrate ClassificationRes ---
+
+# Train LightRF with cross-validation
+resmod_c_lightrf <- train(
+ x = dat,
+ hyperparameters = setup_LightRF(nrounds = 20L),
+ outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+)
+
+# Calibrate the `ClassificationRes` using the same resampling configuration as used for training.
+resmod_c_lightrf_cal <- calibrate(resmod_c_lightrf)
+resmod_c_lightrf_cal
+}
 \author{
 EDG
 }
