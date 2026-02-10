@@ -908,7 +908,7 @@ show_padded <- function(
 #' @param print_df Logical: If TRUE, print data frame contents, otherwise print n rows and columns.
 #' @param print_S4 Logical: If TRUE, print S4 object contents, otherwise print class name.
 #' @param limit Integer: Maximum number of items to show.
-#' @param output_type Character: Output type for mformat ("ansi", "html", "plain").
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted string that can be printed with cat()
 #'

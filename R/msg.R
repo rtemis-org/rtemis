@@ -231,6 +231,6 @@ msgdone <- function(caller = NULL, call_depth = 1, caller_id = 1, sep = " ") {
     caller <- format_caller(call_stack, call_depth, caller_id)
   }
   message(" ", appendLF = FALSE)
-  yay(end = "")
+  yay(end = " ")
   message(gray(paste0("[", caller, "]\n")), appendLF = FALSE)
 } # /rtemis::msgdone

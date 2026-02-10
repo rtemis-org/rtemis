@@ -14,7 +14,7 @@
 #' @param thin Logical: If TRUE, make text thin/light.
 #' @param muted Logical: If TRUE, make text muted/dimmed.
 #' @param bg Character: Background color (hex code, named color, or NULL).
-#' @param output_type Character: Output type ("ansi", "html", "plain").
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted text with specified styling.
 #'
@@ -170,7 +170,7 @@ fmt <- function(
 #'
 #' @param x Character: Text to highlight.
 #' @param pad Integer: Number of spaces to pad before text.
-#' @param output_type Character: Output type ("ansi", "html", "plain").
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted text with highlight.
 #'
@@ -198,7 +198,7 @@ highlight2 <- function(
 #' A `fmt()` convenience wrapper for making text bold.
 #'
 #' @param text Character: Text to make bold
-#' @param output_type Character: Output type ("ansi", "html", "plain")
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted text with bold styling
 #'
@@ -214,7 +214,7 @@ bold <- function(text, output_type = c("ansi", "html", "plain")) {
 #' A `fmt()` convenience wrapper for making text italic.
 #'
 #' @param text Character: Text to make italic
-#' @param output_type Character: Output type ("ansi", "html", "plain")
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted text with italic styling
 #'
@@ -231,7 +231,7 @@ italic <- function(text, output_type = c("ansi", "html", "plain")) {
 #' A `fmt()` convenience wrapper for making text underlined.
 #'
 #' @param text Character: Text to underline
-#' @param output_type Character: Output type ("ansi", "html", "plain")
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted text with underline styling
 #'
@@ -248,7 +248,7 @@ underline <- function(text, output_type = c("ansi", "html", "plain")) {
 #' A `fmt()` convenience wrapper for making text thin/light.
 #'
 #' @param text Character: Text to make thin
-#' @param output_type Character: Output type ("ansi", "html", "plain")
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted text with thin/light styling
 #'
@@ -265,7 +265,7 @@ thin <- function(text, output_type = c("ansi", "html", "plain")) {
 #' A `fmt()` convenience wrapper for making text muted.
 #'
 #' @param x Character: Text to format
-#' @param output_type Character: Output type ("ansi", "html", "plain")
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted text with muted styling
 #'
@@ -282,7 +282,7 @@ muted <- function(x, output_type = c("ansi", "html", "plain")) {
 #' A `fmt()` convenience wrapper for making text gray.
 #'
 #' @param x Character: Text to format
-#' @param output_type Character: Output type ("ansi", "html", "plain")
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted text with gray styling
 #'
@@ -302,7 +302,7 @@ gray <- function(x, output_type = c("ansi", "html", "plain")) {
 #' @param text Character: Text to color
 #' @param col Character or numeric: Color (ANSI 256-color code, hex for HTML)
 #' @param bg Logical: If TRUE, apply as background color
-#' @param output_type Character: Output type ("ansi", "html", "plain")
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted text with 256-color styling
 #'
@@ -419,7 +419,7 @@ ansi256_to_hex <- function(code) {
 #'
 #' @param x Character: Text to colorize.
 #' @param colors Character vector: Colors to use for the gradient.
-#' @param output_type Character: Output type ("ansi", "html", "plain").
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Text with gradient color applied.
 #'
