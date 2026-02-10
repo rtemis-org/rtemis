@@ -98,6 +98,7 @@ calibrate.Classification <- method(calibrate, Classification) <- function(
 #' @param algorithm Character: Algorithm to use to train calibration model.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param resampler_config `ResamplerConfig` object: Configuration for resampling during calibration model training.
+#' @param train_verbosity Integer: Verbosity level for training calibration models.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used
 #'
@@ -128,6 +129,7 @@ calibrate.ClassificationRes <- method(calibrate, ClassificationRes) <- function(
     n_resamples = 5L,
     type = "KFold"
   ),
+  train_verbosity = 0L,
   verbosity = 1L,
   ...
 ) {
@@ -153,7 +155,8 @@ calibrate.ClassificationRes <- method(calibrate, ClassificationRes) <- function(
         dat,
         algorithm = algorithm,
         hyperparameters = hyperparameters,
-        outer_resampling_config = resampler_config
+        outer_resampling_config = resampler_config,
+        verbosity = train_verbosity
       )
     }
   )

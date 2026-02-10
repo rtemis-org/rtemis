@@ -9,6 +9,7 @@ calibrate.ClassificationRes(
   algorithm = "isotonic",
   hyperparameters = NULL,
   resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold"),
+  train_verbosity = 0L,
   verbosity = 1L,
   ...
 )
@@ -21,6 +22,8 @@ calibrate.ClassificationRes(
 \item{hyperparameters}{\code{Hyperparameters} object: Setup using one of \verb{setup_*} functions.}
 
 \item{resampler_config}{\code{ResamplerConfig} object: Configuration for resampling during calibration model training.}
+
+\item{train_verbosity}{Integer: Verbosity level for training calibration models.}
 
 \item{verbosity}{Integer: Verbosity level.}
 
