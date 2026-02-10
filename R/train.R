@@ -271,7 +271,9 @@ train <- function(
     )
     names(models) <- names(outer_resampler@resamples)
     hyperparameters@resampled <- 1L
-    msg(fmt("</>", col = col_outer, bold = TRUE), "Outer resampling done.")
+    if (verbosity > 0L) {
+      msg(fmt("</>", col = col_outer, bold = TRUE), "Outer resampling done.")
+    }
   } # /Outer Resampling
 
   if (hyperparameters@resampled == 0L) {
