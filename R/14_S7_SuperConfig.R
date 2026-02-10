@@ -96,7 +96,7 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' @export
 #'
 #' @examples
-#' sc <- setup_superconfig(
+#' sc <- setup_SuperConfig(
 #'   dat_training_path = "train.csv",
 #'   preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
 #'   algorithm = "LightRF",
@@ -107,7 +107,7 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #'   question = "Can we tell iris species apart given their measurements?",
 #'   outdir = "models/"
 #' )
-setup_superconfig <- function(
+setup_SuperConfig <- function(
   dat_training_path,
   dat_validation_path = NULL,
   dat_test_path = NULL,
@@ -137,4 +137,4 @@ setup_superconfig <- function(
     outdir = outdir,
     verbosity = verbosity
   )
-} # /setup_superconfig
+} # /setup_SuperConfig

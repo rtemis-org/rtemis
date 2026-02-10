@@ -75,8 +75,8 @@ Object of class \code{Regression(Supervised)}, \code{RegressionRes(SupervisedRes
 \code{Classification(Supervised)}, or \code{ClassificationRes(SupervisedRes)}.
 }
 \description{
-Preprocess, tune, train, and test supervised learning models with a single function
-using nested resampling
+Preprocess, tune, train, and test supervised learning models with a single call
+using nested resampling.
 }
 \details{
 See \href{https://rdocs.rtemis.org/train}{rdocs.rtemis.org/train} for detailed documentation.
