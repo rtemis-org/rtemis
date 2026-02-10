@@ -24,6 +24,7 @@ If you pass a number between 0 and 1 to the \code{plot_top} argument, the method
 fraction of top features.
 }
 \examples{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 ir <- set_outcome(iris, "Sepal.Length")
 seplen_cart <- train(ir, algorithm = "CART")
 plot_varimp(seplen_cart)
@@ -31,6 +32,7 @@ plot_varimp(seplen_cart)
 plot_varimp(seplen_cart, orientation = "h")
 plot_varimp(seplen_cart, orientation = "h", plot_top = 3L)
 plot_varimp(seplen_cart, orientation = "h", plot_top = 0.5)
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \link{draw_varimp}, which is called by this method
