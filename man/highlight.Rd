@@ -11,7 +11,7 @@ highlight(x, pad = 0L, output_type = c("ansi", "html", "plain"))
 
 \item{pad}{Integer: Number of spaces to pad before text.}
 
-\item{output_type}{Character: Output type ("ansi", "html", "plain").}
+\item{output_type}{Character {"ansi", "html", or "plain"}: Output type.}
 }
 \value{
 Character: Formatted text with highlight.
