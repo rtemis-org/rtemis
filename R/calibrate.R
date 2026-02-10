@@ -2,8 +2,6 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# Calibrate Generic ----
-
 #' Calibrate Binary Classification Models
 #'
 #' @description
@@ -26,7 +24,8 @@
 #' @return `CalibratedClassification` object.
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 #'
 #' @examples
 #' datc2 <- data.frame(
@@ -48,7 +47,7 @@
 #'   true_labels = mod_c_lightrf$y_training
 #')
 #' mod_c_lightrf_cal
-calibrate.Classification <- method(calibrate, Classification) <- function(
+method(calibrate, Classification) <- function(
   x,
   predicted_probabilities,
   true_labels,
@@ -58,7 +57,6 @@ calibrate.Classification <- method(calibrate, Classification) <- function(
   ...
 ) {
   # Check inputs
-  check_is_S7(x, Classification)
   check_float01inc(predicted_probabilities)
   check_inherits(true_labels, "factor")
 
@@ -74,6 +72,14 @@ calibrate.Classification <- method(calibrate, Classification) <- function(
     dat_test <- NULL
   }
   # Calibration model
+  if (verbosity > 0L) {
+    msg(
+      fmt("<>", col = col_calibrator, bold = TRUE),
+      "Calibrating",
+      x@algorithm,
+      "classification..."
+    )
+  }
   cal_model <- train(
     dat,
     dat_test = dat_test,
@@ -87,6 +93,9 @@ calibrate.Classification <- method(calibrate, Classification) <- function(
     message()
     print(mod_cal)
     message()
+  }
+  if (verbosity > 0L) {
+    msg(fmt("</>", col = col_calibrator, bold = TRUE), "Calibration done.")
   }
   mod_cal
 } # /rtemis::calibrate
@@ -104,24 +113,9 @@ calibrate.Classification <- method(calibrate, Classification) <- function(
 #'
 #' @return `CalibratedClassificationRes` object.
 #' @author EDG
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' datc2 <- data.frame(
-#'  gn = factor(sample(c("alpha", "beta", "gamma"), 100, replace = TRUE)),
-#'  iris[51:150, ]
-#' )
-#' datc2$Species <- factor(datc2$Species)
-#' resmod_c_lightrf <- train(
-#'  x = datc2,
-#'  hyperparameters = setup_LightRF(nrounds = 20L),
-#'  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
-#' )
-#' resmod_c_lightrf_cal <- calibrate(resmod_c_lightrf)
-#' resmod_c_lightrf_cal
-#' }
-calibrate.ClassificationRes <- method(calibrate, ClassificationRes) <- function(
+#' @keywords internal
+#' @noRd
+method(calibrate, ClassificationRes) <- function(
   x,
   algorithm = "isotonic",
   hyperparameters = NULL,
@@ -144,6 +138,14 @@ calibrate.ClassificationRes <- method(calibrate, ClassificationRes) <- function(
   }
 
   # Calibration models
+  if (verbosity > 0L) {
+    msg(
+      fmt("<>", col = col_calibrator, bold = TRUE),
+      "Calibrating",
+      x@algorithm,
+      "resampled classification..."
+    )
+  }
   calmods <- lapply(
     x@models,
     function(mod) {
@@ -170,6 +172,9 @@ calibrate.ClassificationRes <- method(calibrate, ClassificationRes) <- function(
     message()
     print(modres_cal)
     message()
+  }
+  if (verbosity > 0L) {
+    msg(fmt("</>", col = col_calibrator, bold = TRUE), "Calibration done.")
   }
   modres_cal
 } # /rtemis::calibrate.ClassificationRes
