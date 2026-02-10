@@ -55,6 +55,9 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
+# future
+.future
+
 # pkgdown site
 docs/
 
