@@ -74,10 +74,7 @@ Nothing, prints plot.
 Preview one or multiple colors using little rhombi with their little labels up top
 }
 \examples{
-\dontrun{
-colors <- colorgradient_x(seq(-5, 5))
-previewcolor(colors)
-}
+previewcolor(get_palette("rtms"))
 }
 \author{
 EDG

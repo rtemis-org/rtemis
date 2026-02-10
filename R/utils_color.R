@@ -352,10 +352,7 @@ color_adjust <- function(color, alpha = NULL, hue = 0, sat = 0, val = 0) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' colors <- colorgradient_x(seq(-5, 5))
-#' previewcolor(colors)
-#' }
+#' previewcolor(get_palette("rtms"))
 previewcolor <- function(
   x,
   main = NULL,
@@ -552,7 +549,7 @@ rhombus <- function(
 #' @keywords internal
 #' @noRd
 colorgrad <- function(
-  n = 21,
+  n = 21L,
   colors = NULL,
   space = c("rgb", "Lab"),
   lo = rt_teal,
@@ -562,7 +559,7 @@ colorgrad <- function(
   hi = rt_orange,
   preview = FALSE,
   colorbar = FALSE,
-  cb_n = 21,
+  cb_n = 21L,
   cb_mar = c(1, 1, 1, 1),
   cb_add = FALSE,
   cb_add_mar = c(5, 0, 2, 5),
@@ -585,7 +582,7 @@ colorgrad <- function(
   plotly_height = 500,
   return_plotly = FALSE,
   margins = c(0, 0, 0, 0),
-  pad = 0
+  pad = 0L
 ) {
   # Arguments ----
   n <- as.integer(n)

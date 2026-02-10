@@ -199,7 +199,12 @@ method(repr, Supervised) <- function(
   if (prop_exists(x, "calibration_model")) {
     out <- paste0(
       out,
-      fmt("\U27CB", col = rt_green, bold = TRUE, output_type = output_type),
+      fmt(
+        "\U27CB",
+        col = col_calibrator,
+        bold = TRUE,
+        output_type = output_type
+      ),
       " Calibrated using ",
       desc_alg(x@calibration_model@algorithm),
       ".\n"
@@ -1132,7 +1137,12 @@ method(repr, SupervisedRes) <- function(
   if (prop_exists(x, "calibration_models")) {
     out <- paste0(
       out,
-      fmt("\U27CB", col = rt_green, bold = TRUE, output_type = output_type),
+      fmt(
+        "\U27CB",
+        col = col_calibrator,
+        bold = TRUE,
+        output_type = output_type
+      ),
       " Calibrated using ",
       desc_alg(x@calibration_models[[1]]@algorithm),
       " with ",
@@ -1147,7 +1157,7 @@ method(repr, SupervisedRes) <- function(
   if (prop_exists(x, "calibration_models")) {
     out <- paste0(
       out,
-      repr_CalibratedClassificationRes(
+      repr_CalibratedClassificationResMetrics(
         x@metrics_training,
         x@metrics_training_calibrated,
         pad = 2L,
@@ -1166,7 +1176,7 @@ method(repr, SupervisedRes) <- function(
     out <- paste0(
       out,
       "\n",
-      repr_CalibratedClassificationRes(
+      repr_CalibratedClassificationResMetrics(
         x@metrics_test,
         x@metrics_test_calibrated,
         pad = 2L,

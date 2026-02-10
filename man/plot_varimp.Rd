@@ -17,6 +17,26 @@ plotly object or invisible NULL if no variable importance is available.
 \description{
 Plot Variable Importance for Supervised objects.
 }
+\details{
+This method calls \link{draw_varimp} internally.
+If you pass an integer to the \code{plot_top} argument, the method will plot this many top features.
+If you pass a number between 0 and 1 to the \code{plot_top} argument, the method will plot this
+fraction of top features.
+}
+\examples{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+ir <- set_outcome(iris, "Sepal.Length")
+seplen_cart <- train(ir, algorithm = "CART")
+plot_varimp(seplen_cart)
+# Plot horizontally
+plot_varimp(seplen_cart, orientation = "h")
+plot_varimp(seplen_cart, orientation = "h", plot_top = 3L)
+plot_varimp(seplen_cart, orientation = "h", plot_top = 0.5)
+\dontshow{\}) # examplesIf}
+}
+\seealso{
+\link{draw_varimp}, which is called by this method
+}
 \author{
 EDG
 }

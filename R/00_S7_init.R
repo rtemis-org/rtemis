@@ -100,10 +100,27 @@ plot_roc <- new_generic("plot_roc", "x")
 #' @param x `Supervised` or `SupervisedRes` object.
 #' @param ... Additional arguments passed to methods.
 #'
+#' @details
+#' This method calls [draw_varimp] internally.
+#' If you pass an integer to the `plot_top` argument, the method will plot this many top features.
+#' If you pass a number between 0 and 1 to the `plot_top` argument, the method will plot this
+#' fraction of top features.
+#'
 #' @return plotly object or invisible NULL if no variable importance is available.
 #'
 #' @author EDG
 #' @export
+#'
+#' @seealso [draw_varimp], which is called by this method
+#'
+#' @examplesIf interactive()
+#' ir <- set_outcome(iris, "Sepal.Length")
+#' seplen_cart <- train(ir, algorithm = "CART")
+#' plot_varimp(seplen_cart)
+#' # Plot horizontally
+#' plot_varimp(seplen_cart, orientation = "h")
+#' plot_varimp(seplen_cart, orientation = "h", plot_top = 3L)
+#' plot_varimp(seplen_cart, orientation = "h", plot_top = 0.5)
 plot_varimp <- new_generic("plot_varimp", "x")
 
 
@@ -477,6 +494,16 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Additional arguments passed to specific methods.
 #'
+#' @section Method-specific parameters:
+#'
+#' **For `Classification` objects:**
+#' * `predicted_probabilities`: Numeric vector of predicted probabilities
+#' * `true_labels`: Factor of true class labels
+#'
+#' **For `ClassificationRes` objects:**
+#' * `resampler_config`: `ResamplerConfig` object for calibration training
+#' * `train_verbosity`: Integer controlling calibration model training output
+#'
 #' @details
 #' The goal of calibration is to adjust the predicted probabilities of a binary classification
 #' model so that they better reflect the true probabilities (i.e. empirical risk) of the positive
@@ -486,6 +513,43 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' # --- Calibrate Classification ---
+#' dat <- iris[51:150, ]
+#' res <- resample(dat)
+#' dat$Species <- factor(dat$Species)
+#' dat_train <- dat[res[[1]], ]
+#' dat_test <- dat[-res[[1]], ]
+#'
+#' # Train GLM on a training/test split
+#' mod_c_glm <- train(
+#'   x = dat_train,
+#'   dat_test = dat_test,
+#'   algorithm = "glm"
+#' )
+#'
+#' # Calibrate the `Classification` by defining `predicted_probabilities` and `true_labels`,
+#' # in this case using the training data, but it could be a separate calibration dataset.
+#' mod_c_glm_cal <- calibrate(
+#'   mod_c_glm,
+#'   predicted_probabilities = mod_c_glm$predicted_prob_training,
+#'   true_labels = mod_c_glm$y_training
+#' )
+#' mod_c_glm_cal
+#'
+#' # --- Calibrate ClassificationRes ---
+#'
+#' # Train GLM with cross-validation
+#' resmod_c_glm <- train(
+#'  x = dat,
+#'  algorithm = "glm",
+#'  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+#' )
+#'
+#' # Calibrate the `ClassificationRes` using the same resampling configuration as used for training.
+#' resmod_c_glm_cal <- calibrate(resmod_c_glm)
+#' resmod_c_glm_cal
 calibrate <- new_generic(
   "calibrate",
   ("x"),
