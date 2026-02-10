@@ -395,13 +395,13 @@ repr_CalibratedClassificationMetrics <- function(
 
   if (!is.null(x@sample)) {
     out <- repr_S7name(
-      paste(x@sample, "Classification Metrics (Pre=>Post Calibration)"),
+      paste(x@sample, "Classification Metrics (Pre => Post Calibration)"),
       pad = pad,
       output_type = output_type
     )
   } else {
     out <- repr_S7name(
-      "Classification Metrics (Pre=>Post Calibration)",
+      "Classification Metrics (Pre => Post Calibration)",
       pad = pad,
       output_type = output_type
     )
@@ -410,7 +410,8 @@ repr_CalibratedClassificationMetrics <- function(
   # Confusion Matrix: Pre=>Post
   prepost_cm <- paste_tables(
     x@metrics[["Confusion_Matrix"]],
-    x_cal@metrics[["Confusion_Matrix"]]
+    x_cal@metrics[["Confusion_Matrix"]],
+    sep = " => "
   )
   tblpad <- 17L -
     max(nchar(colnames(prepost_cm)), 9L) +
@@ -429,6 +430,7 @@ repr_CalibratedClassificationMetrics <- function(
       paste_dfs(
         x@metrics[["Overall"]],
         x_cal@metrics[["Overall"]],
+        sep = " => ",
         decimal_places = decimal_places
       ),
       pad = pad,
@@ -483,7 +485,7 @@ repr_CalibratedClassificationMetrics <- function(
 #'
 #' @keywords internal
 #' @noRd
-repr_CalibratedClassificationRes <- function(
+repr_CalibratedClassificationResMetrics <- function(
   x,
   x_cal,
   decimal_places = 2L,
@@ -493,7 +495,11 @@ repr_CalibratedClassificationRes <- function(
   output_type <- get_output_type(output_type)
 
   out <- repr_S7name(
-    paste("Resampled Classification", x@sample, "Metrics (Pre=>Post Calibration)"),
+    paste(
+      "Resampled Classification",
+      x@sample,
+      "Metrics (Pre => Post Calibration)"
+    ),
     pad = pad,
     output_type = output_type
   )
@@ -501,7 +507,7 @@ repr_CalibratedClassificationRes <- function(
   out <- paste0(
     out,
     italic(
-      "  Showing mean (sd) across resamples, Pre=>Post calibration.\n",
+      "  Showing mean (sd) across resamples, Pre => Post calibration.\n",
       output_type = output_type
     )
   )
@@ -510,9 +516,10 @@ repr_CalibratedClassificationRes <- function(
   pre_strings <- lapply(seq_along(x@mean_metrics), function(i) {
     paste0(
       ddSci(x@mean_metrics[[i]], decimal_places),
-      " (",
-      ddSci(x@sd_metrics[[i]], decimal_places),
-      ")"
+      gray(
+        paste0(" (", ddSci(x@sd_metrics[[i]], decimal_places), ")"),
+        output_type = output_type
+      )
     )
   })
   names(pre_strings) <- names(x@mean_metrics)
@@ -520,16 +527,17 @@ repr_CalibratedClassificationRes <- function(
   post_strings <- lapply(seq_along(x_cal@mean_metrics), function(i) {
     paste0(
       ddSci(x_cal@mean_metrics[[i]], decimal_places),
-      " (",
-      ddSci(x_cal@sd_metrics[[i]], decimal_places),
-      ")"
+      gray(
+        paste0(" (", ddSci(x_cal@sd_metrics[[i]], decimal_places), ")"),
+        output_type = output_type
+      )
     )
   })
   names(post_strings) <- names(x_cal@mean_metrics)
 
   # Combine pre=>post
   prepost_strings <- lapply(seq_along(pre_strings), function(i) {
-    paste(pre_strings[[i]], post_strings[[i]], sep = "=>")
+    paste(pre_strings[[i]], post_strings[[i]], sep = " => ")
   })
   names(prepost_strings) <- names(pre_strings)
 
@@ -544,4 +552,4 @@ repr_CalibratedClassificationRes <- function(
     )
   )
   out
-} # /rtemis::repr_CalibratedClassificationRes
+} # /rtemis::repr_CalibratedClassificationResMetrics
