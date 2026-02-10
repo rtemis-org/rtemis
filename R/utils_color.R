@@ -352,8 +352,7 @@ color_adjust <- function(color, alpha = NULL, hue = 0, sat = 0, val = 0) {
 #' @export
 #'
 #' @examples
-#' colors <- colorgradient_x(seq(-5, 5))
-#' previewcolor(colors)
+#' previewcolor(get_palette("rtms"))
 previewcolor <- function(
   x,
   main = NULL,
