@@ -66,5 +66,3 @@ test_that("train() works with SuperConfig", {
   mod <- train(sc)
   expect_s7_class(mod, SupervisedRes)
 }
-
-modtoo <- readRDS("./models/train_LightRF.rds")
