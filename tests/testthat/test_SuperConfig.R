@@ -46,7 +46,6 @@ test_that("setup_SuperConfig() succeeds", {
 # %% train SuperConfig ----
 test_that("train() works with SuperConfig", {
   testthat::skip("For local testing only; requires CSV file")
-  mod1 <- train(read("~/Data/iris.csv", character2factor = TRUE), hyperparameters = setup_LightRF())
   sc <- setup_SuperConfig(
     dat_training_path = "~/Data/iris.csv",
     dat_validation_path = NULL,
@@ -65,4 +64,4 @@ test_that("train() works with SuperConfig", {
   sc
   mod <- train(sc)
   expect_s7_class(mod, SupervisedRes)
-}
+})
