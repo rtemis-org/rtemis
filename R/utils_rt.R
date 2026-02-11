@@ -75,7 +75,6 @@ outro <- function(
   message = NULL,
   sink_off = FALSE,
   logfile = NULL,
-  #   color = gray,
   newline_pre = FALSE,
   real_user_system = FALSE,
   verbosity = 1L

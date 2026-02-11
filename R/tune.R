@@ -33,7 +33,7 @@ tune <- function(
   tuner_config,
   weights = NULL,
   verbosity = 1L,
-  parallel_type = "none",
+  backend = "none",
   future_plan = "multicore",
   n_workers = 1L
 ) {
@@ -48,7 +48,7 @@ tune <- function(
       tuner_config = tuner_config,
       weights = weights,
       verbosity = verbosity,
-      parallel_type = parallel_type,
+      backend = backend,
       future_plan = future_plan,
       n_workers = n_workers
     )

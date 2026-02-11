@@ -12,8 +12,7 @@
 #' @param x Character vector of text to colorize.
 #' @param color_left Color for the left side of the gradient.
 #' @param color_right Color for the right side of the gradient.
-#' @param output_type Character: Output type. One of "ansi", "html", "plain".
-#'   Default = "ansi".
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character vector with color formatting applied to each column.
 #'
@@ -84,8 +83,7 @@ color_txt_columns <- function(
 #' @param x Character vector of text to colorize.
 #' @param color_top Color for the top of the gradient.
 #' @param color_bottom Color for the bottom of the gradient.
-#' @param output_type Character: Output type. One of "ansi", "html", "plain".
-#'   Default = "ansi".
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character vector with color formatting applied to each row.
 #'
@@ -194,7 +192,7 @@ pkglogo <- function(
 #' @param title Character: Optional title to display. Default = NULL.
 #' @param title_newline Logical: If TRUE, add newline after title. Default = TRUE.
 #' @param limit Integer: Maximum number of colors to show. Set to -1L for no limit. Default = 12L.
-#' @param output_type Character: Output type ("ansi", "html", "plain"). Default = "ansi".
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted string that can be printed with cat()
 #'

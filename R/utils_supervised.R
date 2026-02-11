@@ -74,7 +74,6 @@ check_supervised_inputs <- function(x, y = NULL) {
 #' @return object of same class as `data`
 #'
 #' @author EDG
-#'
 #' @export
 #'
 #' @examples

@@ -48,8 +48,8 @@ is_common_struct <- function(x) {
 #'
 #' @author EDG
 #'
-#' @export
 #' @keywords internal
+#' @noRd
 printls <- function(
   x,
   prefix = "",
@@ -308,111 +308,6 @@ printdf1 <- function(x, pad = 2) {
   }
 } # /rtemis::printdf1
 
-
-#' Print data frame
-#'
-#' Pretty print a data frame
-#'
-#' By design, numbers will not be justified, but using ddSci_dp will convert to characters,
-#' which will be justified. This is intentional for internal use.
-#'
-#' @param x data frame
-#' @param pad Integer: Pad output with this many spaces.
-#' @param spacing Integer: Number of spaces between columns.
-#' @param ddSci_dp Integer: Number of decimal places to print using [ddSci]. Default = NULL for no
-#' formatting.
-#' @param transpose Logical: If TRUE, transpose `x` before printing.
-#' @param justify Character: "right", "left".
-#' @param colnames Logical: If TRUE, print column names.
-#' @param rownames Logical: If TRUE, print row names.
-#' @param column_fmt Formatting fn for printing column names.
-#' @param row_fmt Formatting fn for printing row names.
-#' @param newline_pre Logical: If TRUE, print a new line before printing data frame.
-#' @param newline Logical: If TRUE, print a new line after printing data frame.
-#'
-#' @author EDG
-#' @export
-#' @keywords internal
-printdf <- function(
-  x,
-  pad = 0,
-  spacing = 1,
-  ddSci_dp = NULL,
-  transpose = FALSE,
-  justify = "right",
-  colnames = TRUE,
-  rownames = TRUE,
-  column_fmt = highlight,
-  row_fmt = gray,
-  newline_pre = FALSE,
-  newline = FALSE
-) {
-  if (transpose) {
-    x <- as.data.frame(t(x))
-  }
-  xnames <- colnames(x)
-  xrownames <- gsub(pattern = "\\.", replacement = " ", rownames(x))
-  if (!is.null(ddSci_dp)) {
-    xf <- as.data.frame(matrix(ddSci(x, decimal_places = ddSci_dp), NROW(x)))
-    colnames(xf) <- xnames
-    rownames(xf) <- xrownames
-    x <- xf
-  }
-
-  col_char <- sapply(seq_along(xnames), \(i) {
-    max(nchar(as.character(x[, i])), nchar(xnames[i]))
-  })
-
-  xrownames_spacing <- if (rownames) max(nchar(xrownames)) + pad else pad
-  spacer <- strrep(" ", spacing)
-  if (newline_pre) {
-    cat("\n")
-  }
-  if (colnames) {
-    cat(strrep(" ", xrownames_spacing))
-    if (justify == "left") {
-      cat(spacer)
-    }
-    for (i in seq_len(NCOL(x))) {
-      cat(column_fmt(format(
-        xnames[i],
-        width = col_char[i] + spacing,
-        justify = justify
-      )))
-    }
-    cat("\n")
-  }
-
-  if (rownames) {
-    for (i in seq_len(NROW(x))) {
-      cat(row_fmt(format(
-        xrownames[i],
-        width = xrownames_spacing,
-        justify = "right"
-      )))
-      for (j in seq_len(NCOL(x))) {
-        cat(
-          spacer,
-          paste(format(x[i, j], width = col_char[j], justify = justify)),
-          sep = ""
-        )
-      }
-      cat("\n")
-    }
-  } else {
-    for (i in seq_len(NROW(x))) {
-      for (j in seq_len(NCOL(x))) {
-        cat(
-          spacer,
-          paste(format(x[i, j], width = col_char[j], justify = justify)),
-          sep = ""
-        )
-      }
-      cat("\n")
-    }
-  }
-  if (newline) cat("\n")
-} # /rtemis::printdf
 
 #' Show data.frame
 #'
@@ -908,7 +803,7 @@ show_padded <- function(
 #' @param print_df Logical: If TRUE, print data frame contents, otherwise print n rows and columns.
 #' @param print_S4 Logical: If TRUE, print S4 object contents, otherwise print class name.
 #' @param limit Integer: Maximum number of items to show.
-#' @param output_type Character: Output type for mformat ("ansi", "html", "plain").
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted string that can be printed with cat()
 #'

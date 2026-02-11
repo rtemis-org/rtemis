@@ -33,6 +33,7 @@ Supervised <- new_class(
     preprocessor = Preprocessor | NULL,
     hyperparameters = Hyperparameters | NULL,
     tuner = Tuner | NULL,
+    execution_config = ExecutionConfig,
     y_training = class_any,
     y_validation = class_any,
     y_test = class_any,
@@ -55,6 +56,7 @@ Supervised <- new_class(
     preprocessor,
     hyperparameters,
     tuner,
+    execution_config,
     y_training,
     y_validation,
     y_test,
@@ -77,6 +79,7 @@ Supervised <- new_class(
       preprocessor = preprocessor,
       hyperparameters = hyperparameters,
       tuner = tuner,
+      execution_config = execution_config,
       y_training = y_training,
       y_validation = y_validation,
       y_test = y_test,
@@ -394,6 +397,7 @@ Classification <- new_class(
     preprocessor = NULL, # Preprocessor
     hyperparameters = NULL, # Hyperparameters
     tuner = NULL, # Tuner
+    execution_config,
     y_training = NULL,
     y_validation = NULL,
     y_test = NULL,
@@ -443,6 +447,7 @@ Classification <- new_class(
         preprocessor = preprocessor,
         hyperparameters = hyperparameters,
         tuner = tuner,
+        execution_config = execution_config,
         y_training = y_training,
         y_validation = y_validation,
         y_test = y_test,
@@ -628,6 +633,7 @@ Regression <- new_class(
     preprocessor = NULL, # Preprocessor
     hyperparameters = NULL, # Hyperparameters
     tuner = NULL, # Tuner
+    execution_config, # ExecutionConfig
     y_training = NULL,
     y_validation = NULL,
     y_test = NULL,
@@ -674,6 +680,7 @@ Regression <- new_class(
         preprocessor = preprocessor,
         hyperparameters = hyperparameters,
         tuner = tuner,
+        execution_config = execution_config,
         y_training = y_training,
         y_validation = y_validation,
         y_test = y_test,
@@ -838,6 +845,7 @@ make_Supervised <- function(
   preprocessor = NULL,
   hyperparameters = NULL,
   tuner = NULL,
+  execution_config,
   y_training = NULL,
   y_validation = NULL,
   y_test = NULL,
@@ -864,6 +872,7 @@ make_Supervised <- function(
       preprocessor = preprocessor,
       hyperparameters = hyperparameters,
       tuner = tuner,
+      execution_config = execution_config,
       y_training = y_training,
       y_validation = y_validation,
       y_test = y_test,
@@ -886,6 +895,7 @@ make_Supervised <- function(
       preprocessor = preprocessor,
       hyperparameters = hyperparameters,
       tuner = tuner,
+      execution_config = execution_config,
       y_training = y_training,
       y_validation = y_validation,
       y_test = y_test,
@@ -1027,6 +1037,7 @@ SupervisedRes <- new_class(
     hyperparameters = Hyperparameters | NULL,
     tuner_config = TunerConfig | NULL,
     outer_resampler = Resampler,
+    execution_config = ExecutionConfig,
     y_training = class_any,
     y_test = class_any,
     predicted_training = class_any,
@@ -1047,6 +1058,7 @@ SupervisedRes <- new_class(
     hyperparameters,
     tuner_config,
     outer_resampler,
+    execution_config,
     y_training,
     y_test,
     predicted_training,
@@ -1068,6 +1080,7 @@ SupervisedRes <- new_class(
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       outer_resampler = outer_resampler,
+      execution_config = execution_config,
       y_training = y_training,
       y_test = y_test,
       predicted_training = predicted_training,
@@ -1090,7 +1103,7 @@ SupervisedRes <- new_class(
 #' repr `SupervisedRes`
 #'
 #' @param x `SupervisedRes` object.
-#' @param output_type Character: Output type (for formatting).
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #' @param filename Character: Filename to save output to (not used).
 #'
 #' @author EDG
@@ -1279,6 +1292,7 @@ ClassificationRes <- new_class(
     hyperparameters,
     tuner_config,
     outer_resampler,
+    execution_config,
     y_training,
     y_validation = NULL,
     y_test = NULL,
@@ -1308,6 +1322,7 @@ ClassificationRes <- new_class(
         hyperparameters = hyperparameters,
         tuner_config = tuner_config,
         outer_resampler = outer_resampler,
+        execution_config = execution_config,
         y_training = y_training,
         y_test = y_test,
         predicted_training = predicted_training,
@@ -1488,6 +1503,7 @@ RegressionRes <- new_class(
     hyperparameters,
     tuner_config,
     outer_resampler,
+    execution_config,
     y_training,
     y_validation = NULL,
     y_test = NULL,
@@ -1522,6 +1538,7 @@ RegressionRes <- new_class(
         hyperparameters = hyperparameters,
         tuner_config = tuner_config,
         outer_resampler = outer_resampler,
+        execution_config = execution_config,
         y_training = y_training,
         y_test = y_test,
         predicted_training = predicted_training,
@@ -1933,6 +1950,7 @@ make_SupervisedRes <- function(
   hyperparameters,
   tuner_config,
   outer_resampler,
+  execution_config,
   y_training,
   y_test,
   predicted_training,
@@ -1946,7 +1964,6 @@ make_SupervisedRes <- function(
   question = character(),
   extra = NULL
 ) {
-  # Supervised ----
   if (type == "Classification") {
     ClassificationRes(
       algorithm = algorithm,
@@ -1955,6 +1972,7 @@ make_SupervisedRes <- function(
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       outer_resampler = outer_resampler,
+      execution_config = execution_config,
       y_training = y_training,
       y_test = y_test,
       predicted_training = predicted_training,
@@ -1974,6 +1992,7 @@ make_SupervisedRes <- function(
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       outer_resampler = outer_resampler,
+      execution_config = execution_config,
       y_training = y_training,
       y_test = y_test,
       predicted_training = predicted_training,
@@ -2069,7 +2088,7 @@ method(get_metric, ClassificationRes) <- function(x, set, metric) {
 #' @param x List of `Supervised` or `SupervisedRes` objects.
 #' @param metric Character: Metric to use for description. Default is NULL, which uses "Balanced_Accuracy" for Classification and "Rsq" for Regression.
 #' @param decimal_places Integer: Number of decimal places to round metrics to.
-#' @param output_type Character: Output type for formatting.
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @author EDG
 #'

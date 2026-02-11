@@ -24,6 +24,8 @@
 #' @examples
 #' getnames(iris, starts_with = "Sepal")
 #' getnames(iris, ends_with = "Width")
+#' getfactornames(iris)
+#' getnumericnames(iris)
 getnames <- function(
   x,
   pattern = NULL,
@@ -147,6 +149,9 @@ getdatenames <- function(x) {
 #' column
 #'
 #' @export
+#'
+#' @examples
+#' getnamesandtypes(iris)
 getnamesandtypes <- function(x) {
   xnames <- names(x)
   attr(xnames, "type") <- sapply(x, class)
@@ -166,17 +171,16 @@ getnamesandtypes <- function(x) {
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
-#' \dontrun{
-#' uniquevalsperfeat(iris)
-#' }
-uniquevalsperfeat <- function(x, excludeNA = FALSE) {
+#' df_nunique_perfeat(iris)
+df_nunique_perfeat <- function(x, excludeNA = FALSE) {
   if (excludeNA) {
     apply(x, 2, function(i) length(unique(na.exclude(i))))
   } else {
     apply(x, 2, function(i) length(unique(i)))
   }
-} # /rtemis::uniquevalsperfeat
+} # /rtemis::df_nunique_perfeat
 
 
 #' Move data frame column
@@ -192,9 +196,7 @@ uniquevalsperfeat <- function(x, excludeNA = FALSE) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' ir <- df_movecolumn(iris, colname = "Species", to = 1L)
-#' }
 df_movecolumn <- function(x, colname, to = ncol(x)) {
   if (!is.data.frame(x)) {
     cli::cli_abort("Input {.arg x} must be a data frame.")
@@ -232,7 +234,8 @@ df_movecolumn <- function(x, colname, to = ncol(x)) {
 #' @return data.frame.
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 vec2df <- function(x, col_names = NULL) {
   if (!is.vector(x)) {
     cli::cli_abort("Input must be a vector")

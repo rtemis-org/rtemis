@@ -14,6 +14,7 @@ ALLOWED_PLANS <- c(
   "mirai_multisession" # what future::plan() returns
 )
 
+
 #' Check if system is Windows
 #'
 #' @return Logical: TRUE if Windows, FALSE otherwise

@@ -352,7 +352,7 @@ pastebox <- function(x, pad = 0) {
 #' @param col Color: Color code for the object name.
 #' @param pad Integer: Number of spaces to pad the message with.
 #' @param prefix Character: Prefix to add to the object name.
-#' @param output_type Character: Output type ("ansi", "html", "plain").
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted string that can be printed with cat().
 #'

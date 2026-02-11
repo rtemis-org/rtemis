@@ -21,6 +21,23 @@ Character vector.
 \description{
 List column names by attribute
 }
+\examples{
+library(data.table)
+x <- data.table(
+  id = 1:5,
+  sbp = rnorm(5, 120, 15),
+  dbp = rnorm(5, 80, 10),
+  paO2 = rnorm(5, 90, 10),
+  paCO2 = rnorm(5, 40, 5)
+)
+setattr(x[["id"]], "source", "demographics")
+setattr(x[["sbp"]], "source", "outpatient")
+setattr(x[["dbp"]], "source", "outpatient")
+setattr(x[["paO2"]], "source", "icu")
+setattr(x[["paCO2"]], "source", "icu")
+
+dt_names_by_attr(x, "source", "outpatient")
+}
 \author{
 EDG
 }

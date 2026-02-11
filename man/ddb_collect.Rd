@@ -22,8 +22,9 @@ Collect a table read with \code{ddb_data(x, collect = FALSE)}
 }
 \examples{
 \dontrun{
-sql <- ddb_data("/Data/iris.csv", collect = FALSE)
-ir <- ddb_ollect(sql)
+  # Required local CSV file; replace with your own path
+  sql <- ddb_data("/Data/iris.csv", collect = FALSE)
+  ir <- ddb_collect(sql)
 }
 }
 \author{

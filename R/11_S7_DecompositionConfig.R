@@ -47,7 +47,7 @@ method(`[[`, DecompositionConfig) <- function(x, name) {
 #'
 #' @param object DecompositionConfig object.
 #' @param pad Integer: Left side padding.
-#' @param output_type Character {"ansi", "html", "plain"}: Output type.
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return character
 #'

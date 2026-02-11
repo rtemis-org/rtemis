@@ -204,9 +204,12 @@ color_invertRGB <- function(x) {
 #' `x` and `to` to move. e.g. .5 gets the mean RGBA value of the two
 #'
 #' @return Color in hex notation
+#'
 #' @author EDG
 #' @export
-
+#'
+#' @examples
+#' previewcolor(c("red", color_fade("red", "blue", .5), "blue"))
 color_fade <- function(x, to = "#000000", pct = .5) {
   col <- col2rgb(x, alpha = TRUE)
   col2 <- col2rgb(to, alpha = TRUE)
@@ -303,10 +306,14 @@ col2hex <- function(color) {
 #' @param hue Float: How much hue to add to `color`
 #' @param sat Float: How much saturation to add to `color`
 #' @param val Float: How much to increase value of `color` by
+#'
 #' @return Adjusted color
+#'
 #' @author EDG
 #' @export
-
+#'
+#' @examples
+#' previewcolor(c(teal = "#00ffff", teal50 = color_adjust("#00ffff", alpha = 0.5)))
 color_adjust <- function(color, alpha = NULL, hue = 0, sat = 0, val = 0) {
   ac <- color
   # HSV ----

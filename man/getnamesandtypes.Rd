@@ -16,3 +16,6 @@ column
 \description{
 Get data.frame names and types
 }
+\examples{
+getnamesandtypes(iris)
+}

@@ -24,9 +24,9 @@
 #' @param weights Vector: Class weights.
 #' @param save_mods Logical: Save models in tuning results.
 #' @param n_workers Integer: Number of workers to use for parallel processing.
-#' @param parallel_type Character: Type of parallelization to use. Options are "none", "future",
+#' @param backend Character: Type of parallelization to use. Options are "none", "future",
 #' or "mirai".
-#' @param future_plan Character: Future plan to use if `parallel_type` is "future".
+#' @param future_plan Character: Future plan to use if `backend` is "future".
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return `GridSearch` object.
@@ -42,7 +42,7 @@ tune_GridSearch <- function(
   weights = NULL,
   save_mods = FALSE,
   n_workers = 1L,
-  parallel_type = NULL,
+  backend = NULL,
   future_plan = NULL,
   verbosity = 1L
 ) {
@@ -51,7 +51,7 @@ tune_GridSearch <- function(
   stopifnot(needs_tuning(hyperparameters))
 
   # Dependencies ----
-  if (parallel_type == "future") {
+  if (backend == "future") {
     check_dependencies("futurize", "future.apply")
     if (!is.null(future_plan) && future_plan == "sequential") {
       if (n_workers > 1L) {
@@ -60,7 +60,7 @@ tune_GridSearch <- function(
         )
       }
     }
-  } else if (parallel_type == "mirai") {
+  } else if (backend == "mirai") {
     check_dependencies("mirai")
   }
 
@@ -75,21 +75,21 @@ tune_GridSearch <- function(
   algorithm <- hyperparameters@algorithm
 
   # Parallel Processing Strategy ----
-  # If parallel_type is NULL, default to "none"
-  if (is.null(parallel_type)) {
-    parallel_type <- "none"
+  # If backend is NULL, default to "none"
+  if (is.null(backend)) {
+    backend <- "none"
   }
 
-  # If parallel_type is "future" or "mirai" with n_workers = 1, we execute
+  # If backend is "future" or "mirai" with n_workers = 1, we execute
   # sequentially using the respective backend just to test that the
   # parallelization setup works.
   # If the user wants standard sequential execution, they should use/leave
-  # parallel_type = "none" (default).
-  if (parallel_type != "none" && n_workers == 1L) {
+  # backend = "none" (default).
+  if (backend != "none" && n_workers == 1L) {
     if (verbosity > 0L) {
       msg0(
         "Using ",
-        parallel_type,
+        backend,
         " with 1 worker"
       )
     }
@@ -153,7 +153,7 @@ tune_GridSearch <- function(
   )
 
   # learner1 ----
-  if (parallel_type == "future") {
+  if (backend == "future") {
     ptn <- progressr::progressor(steps = NROW(res_param_grid))
   }
   learner1 <- function(
@@ -244,14 +244,14 @@ tune_GridSearch <- function(
     if (save_mods) {
       out1[["mod1"]] <- mod1
     }
-    if (parallel_type == "future") {
+    if (backend == "future") {
       ptn(sprintf("Tuning resample %i/%i", index, n_res_x_comb))
     }
     out1
   } # /learner1
 
   # Train Grid ----
-  if (parallel_type == "none") {
+  if (backend == "none") {
     if (verbosity > 0L) {
       msg("Tuning in sequence")
     }
@@ -272,7 +272,7 @@ tune_GridSearch <- function(
       save_mods = save_mods,
       n_res_x_comb = n_res_x_comb
     )
-  } else if (parallel_type == "future") {
+  } else if (backend == "future") {
     # Future parallelization
     future_plan <- set_preferred_plan(
       requested_plan = future_plan,
@@ -306,7 +306,7 @@ tune_GridSearch <- function(
       n_res_x_comb = n_res_x_comb
     ) |>
       futurize::futurize(seed = TRUE, globals = FALSE)
-  } else if (parallel_type == "mirai") {
+  } else if (backend == "mirai") {
     if (verbosity > 0L) {
       msg("Tuning using mirai; N workers:", bold(n_workers))
     }
@@ -353,7 +353,7 @@ tune_GridSearch <- function(
   # Aggregate ----
   # Average test errors
   # if using mirai, wait for all to finish
-  if (parallel_type == "mirai") {
+  if (backend == "mirai") {
     # Appease R CMD check
     .progress <- NULL
     grid_run <- grid_run[.progress]

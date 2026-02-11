@@ -19,6 +19,12 @@ Character: the path where the project directory was initialized, invisibly.
 \description{
 Initializes Directory Structure: "R", "Data", "Results"
 }
+\examples{
+\dontrun{
+# Will create "my_project" directory with
+init_project_dir("my_project")
+}
+}
 \author{
 EDG
 }

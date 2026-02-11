@@ -21,9 +21,7 @@ data.frame
 Move data frame column
 }
 \examples{
-\dontrun{
 ir <- df_movecolumn(iris, colname = "Species", to = 1L)
-}
 }
 \author{
 EDG

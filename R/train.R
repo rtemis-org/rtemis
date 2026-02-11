@@ -2,96 +2,20 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-#' Train Supervised Learning Models
-#'
-#' Preprocess, tune, train, and test supervised learning models with a single function
-#' using nested resampling
-#'
-#' @details
-#' See [rdocs.rtemis.org/train](https://rdocs.rtemis.org/train) for detailed documentation.
-#'
-#' Important: For binary classification, the outcome should be a factor where the 2nd level
-#' corresponds to the positive class.
-#'
-#' Note on resampling: You should never use an outer resampling method with
-#' replacement if you will also be using an inner resampling (for tuning).
-#' The duplicated cases from the outer resampling may appear both in the
-#' training and test sets of the inner resamples, leading to underestimated
-#' test error.
-#'
-#' Important note on parallelization:
-#' There are three levels of parallelization that may be used during training:
-#'
-#' 1. Algorithm training (e.g. a parallelized learner like LightGBM)
-#' 2. Tuning (inner resampling, where multiple resamples can be processed in parallel)
-#' 3. Outer resampling (where multiple outer resamples can be processed in parallel)
-#'
-#' The `train()` function and its sub-functions will automatically manage parallelization depending
-#' on:
-#' - The number of workers specified by the user using `n_workers`
-#' - Whether the training algorithm supports parallelization itself
-#' - Whether hyperparameter tuning is needed
-#'
-#' @param x data.frame or similar: Training set data.
-#' @param dat_validation data.frame or similar: Validation set data.
-#' @param dat_test data.frame or similar: Test set data.
-#' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
-#' @param preprocessor_config PreprocessorConfig object or NULL: Setup using [setup_Preprocessor].
-#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
-#' @param tuner_config TunerConfig object: Setup using [setup_GridSearch].
-#' @param outer_resampling_config ResamplerConfig object or NULL: Setup using [setup_Resampler]. This
-#' defines the outer resampling method, i.e. the splitting into training and test sets for the
-#' purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
-#' you might want to use a `dat_test` dataset to assess model performance on a single test set.
-#' @param weights Optional vector of case weights.
-#' @param question Optional character string defining the question that the model is trying to
-#' answer.
-#' @param outdir Character, optional: String defining the output directory.
-#' @param parallel_type Character: "none", "future", or "mirai".
-#' @param future_plan Character: Future plan to use for parallel processing.
-#' @param n_workers Integer: Number of workers to use for parallel processing in total.
-#' Parallelization may happen at three different levels, from innermost to outermost:
-#' 1. Algorithm training (e.g. a parallelized learner like LightGBM)
-#' 2. Tuning (inner resampling, where multiple resamples can be processed in parallel)
-#' 3. Outer resampling (where multiple outer resamples can be processed in parallel)
-#' The `train()` function will assign the number of workers to the innermost available
-#' parallelization level. Best to leave a few cores for the OS and other processes, especially
-#' on shared systems or when working with large datasets, since parallelization will increase
-#' memory usage.
-#' @param verbosity Integer: Verbosity level.
-# @param ... Additional arguments to pass to the hyperparameters setup function. Only used if
-#' `hyperparameters` is not defined. Avoid relying on this, instead use the appropriate `setup_*`
-#' function with the `hyperparameters` argument.
-#'
-#' @return Object of class `Regression(Supervised)`, `RegressionRes(SupervisedRes)`,
-#' `Classification(Supervised)`, or `ClassificationRes(SupervisedRes)`.
-#'
-#' @author EDG
-#' @export
-#'
-#' @examples
-#' \donttest{
-#' iris_c_lightRF <- train(
-#'    iris,
-#'    algorithm = "LightRF",
-#'    outer_resampling_config = setup_Resampler(),
-#' )
-#' }
-train <- function(
+# %% train.class_tabular ----
+method(train, class_tabular) <- function(
   x,
   dat_validation = NULL,
   dat_test = NULL,
+  weights = NULL,
   algorithm = NULL,
   preprocessor_config = NULL, # PreprocessorConfig
   hyperparameters = NULL, # Hyperparameters
   tuner_config = NULL, # TunerConfig
   outer_resampling_config = NULL, # ResamplerConfig
-  weights = NULL,
+  execution_config = setup_ExecutionConfig(), # ExecutionConfig
   question = NULL,
   outdir = NULL,
-  parallel_type = c("future", "mirai", "none"),
-  future_plan = getOption("future.plan", "mirai_multisession"),
-  n_workers = parallelly::availableCores(omit = 3L),
   verbosity = 1L
 ) {
   # Checks ----
@@ -109,15 +33,11 @@ train <- function(
   ncols <- ncol(x)
 
   if (is.null(hyperparameters) && !is.null(algorithm)) {
-    # without extra args
     hyperparameters <- get_default_hyperparameters(
       algorithm,
       type = type,
       ncols = ncols
     )
-    # with extra args
-    # setup_fn <- get_alg_setup(algorithm)
-    # hyperparameters <- do_call(setup_fn, hpr_args)
   }
 
   if (
@@ -148,6 +68,13 @@ train <- function(
     check_is_S7(preprocessor_config, PreprocessorConfig)
   }
 
+  # execution_config must always be set
+  check_is_S7(execution_config, ExecutionConfig)
+  # Override parallelization parameters with those from execution_config
+  backend <- execution_config@backend
+  n_workers <- execution_config@n_workers
+  future_plan <- execution_config@future_plan
+
   # If outer_resampling_config is set, dat_validation and dat_test must be NULL
   if (!is.null(outer_resampling_config)) {
     if (!is.null(dat_validation) || !is.null(dat_test)) {
@@ -157,8 +84,7 @@ train <- function(
     }
   }
 
-  parallel_type <- match.arg(parallel_type)
-  if (parallel_type == "future" && future_plan == "mirai_multisession") {
+  if (backend == "future" && future_plan == "mirai_multisession") {
     future_plan <- "future.mirai::mirai_multisession"
   }
   if (!is.null(outer_resampling_config)) {
@@ -221,11 +147,11 @@ train <- function(
   hyperparameters@n_workers <- workers[["algorithm"]]
   tuner <- NULL
 
-  # Set parallel type to "none" if workers[["tuning"]] == 1L
-  parallel_type <- if (workers[["tuning"]] == 1L) {
+  # Set backend to "none" if workers[["tuning"]] == 1L
+  backend <- if (workers[["tuning"]] == 1L) {
     "none"
   } else {
-    parallel_type
+    backend
   }
 
   # Outer Resampling ----
@@ -287,7 +213,7 @@ train <- function(
         hyperparameters = hyperparameters,
         tuner_config = tuner_config,
         weights = weights,
-        parallel_type = parallel_type,
+        backend = backend,
         future_plan = future_plan,
         n_workers = workers[["tuning"]],
         verbosity = verbosity
@@ -428,6 +354,7 @@ train <- function(
       preprocessor = preprocessor,
       hyperparameters = hyperparameters,
       tuner = tuner,
+      execution_config = execution_config,
       y_training = x[[ncols]],
       y_validation = if (!is.null(dat_validation)) dat_validation[[ncols]],
       y_test = if (!is.null(dat_test)) dat_test[[ncols]],
@@ -469,6 +396,7 @@ train <- function(
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       outer_resampler = outer_resampler,
+      execution_config = execution_config,
       y_training = y_training,
       y_test = y_test,
       predicted_training = predicted_training,
@@ -494,11 +422,16 @@ train <- function(
     start_time,
     logfile = logfile,
     verbosity = verbosity
-    # sink_off = ifelse(is.null(logfile), FALSE, TRUE)
   )
   # Print object to logfile
   if (!is.null(logfile)) {
-    cat("\n", repr(mod, output_type = "plain"), file = logfile, append = TRUE)
+    cat(
+      "\n",
+      repr(mod, output_type = "plain"),
+      file = logfile,
+      append = TRUE,
+      sep = ""
+    )
   }
   mod
 } # /rtemis::train
@@ -609,3 +542,36 @@ get_n_workers <- function(
     outer_resampling = workers_outer_resampling
   )
 } # /rtemis::get_n_workers
+
+
+# %% train SuperConfig ----
+method(train, SuperConfig) <- function(x) {
+  # Read data from paths in x:SuperConfig
+  dat_training <- read(x@dat_training_path, character2factor = TRUE)
+  dat_validation <- if (!is.null(x@dat_validation_path)) {
+    read(x@dat_validation_path)
+  } else {
+    NULL
+  }
+  dat_test <- if (!is.null(x@dat_test_path)) {
+    read(x@dat_test_path)
+  } else {
+    NULL
+  }
+  # Call train() with data and other parameters from config
+  train(
+    x = dat_training,
+    dat_validation = dat_validation,
+    dat_test = dat_test,
+    weights = x@weights,
+    preprocessor_config = x@preprocessor_config,
+    algorithm = x@algorithm,
+    hyperparameters = x@hyperparameters,
+    tuner_config = x@tuner_config,
+    outer_resampling_config = x@outer_resampling_config,
+    execution_config = x@execution_config,
+    question = x@question,
+    outdir = x@outdir,
+    verbosity = x@verbosity
+  )
+} # /rtemis::train.SuperConfig
