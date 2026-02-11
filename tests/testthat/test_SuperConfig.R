@@ -109,5 +109,3 @@ test_that("SuperConfig can be written to TOML", {
   write_toml(x, "~/dev/rtemis.toml")
   testthat::expect_true(file.exists("~/dev/rtemis.toml"))
 })
-
-x <- read_config("~/dev/rtemis.toml")
