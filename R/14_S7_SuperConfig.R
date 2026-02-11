@@ -172,6 +172,8 @@ method(to_toml, SuperConfig) <- function(x) {
 #' @return `SuperConfig` object, invisibly.
 #'
 #' @author EDG
+#' @keywords internal
+#' @noRd
 method(write_toml, SuperConfig) <- function(
   x,
   file,
