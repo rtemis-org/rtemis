@@ -140,3 +140,107 @@ setup_SuperConfig <- function(
     verbosity = verbosity
   )
 } # /setup_SuperConfig
+
+
+# %% to_toml SuperConfig ----
+#' Convert `SuperConfig` to TOML
+#'
+#' Convert `SuperConfig` object to TOML format for saving to file that can be read back in with
+#' `read_config()`.
+#'
+#' @param x `SuperConfig` object.
+#'
+#' @return Character: TOML string representation of the `SuperConfig` object.
+#'
+#' @author EDG
+method(to_toml, SuperConfig) <- function(x) {
+  xl <- S7_to_list(props(x))
+  toml::write_toml(xl)
+} # /rtemis::to_toml.SuperConfig
+
+
+# %% write_toml SuperConfig ----
+#' Write `SuperConfig` to TOML file
+#'
+#' Write `SuperConfig` object to TOML file that can be read back in with `read_toml()`.
+#'
+#' @param x `SuperConfig` object.
+#' @param file Character: Path to output TOML file.
+#'
+#' @return `SuperConfig` object, invisibly.
+#'
+#' @author EDG
+method(write_toml, SuperConfig) <- function(
+  x,
+  file,
+  overwrite = FALSE,
+  verbosity = 1L
+) {
+  toml_str <- to_toml(x)
+  write_lines(
+    toml_str,
+    file = file,
+    overwrite = overwrite,
+    verbosity = verbosity
+  )
+  invisible(x)
+} # /rtemis::write_toml.SuperConfig
+
+
+# %% read_config ----
+#' Read `SuperConfig` from TOML file
+#'
+#' Read `SuperConfig` object from TOML file that was written with `write_toml()`.
+#'
+#' @param file Character: Path to input TOML file.
+#'
+#' @return `SuperConfig` object.
+#'
+#' @author EDG
+#' @export
+read_config <- function(file) {
+  check_dependencies("toml")
+  file <- normalizePath(file, mustWork = TRUE)
+  if (!file.exists(file)) {
+    cli::cli_abort("File does not exist: {file}")
+  }
+  xl <- toml::read_toml(file)
+  xl <- toml_empty_to_null(xl)
+  # Convert list to SuperConfig object
+
+  setup_SuperConfig(
+    dat_training_path = xl[["dat_training_path"]],
+    dat_validation_path = xl[["dat_validation_path"]],
+    dat_test_path = xl[["dat_test_path"]],
+    weights = xl[["weights"]],
+    preprocessor_config = if (is.null(xl[["preprocessor_config"]])) {
+      NULL
+    } else {
+      do.call(setup_Preprocessor, xl[["preprocessor_config"]])
+    },
+    algorithm = xl[["algorithm"]],
+    hyperparameters = if (is.null(xl[["hyperparameters"]])) {
+      NULL
+    } else {
+      list_to_Hyperparameters(xl[["hyperparameters"]])
+    },
+    tuner_config = if (is.null(xl[["tuner_config"]])) {
+      NULL
+    } else {
+      list_to_TunerConfig(xl[["tuner_config"]])
+    },
+    outer_resampling_config = if (is.null(xl[["outer_resampling_config"]])) {
+      NULL
+    } else {
+      list_to_ResamplerConfig(xl[["outer_resampling_config"]])
+    },
+    execution_config = if (is.null(xl[["execution_config"]])) {
+      setup_ExecutionConfig()
+    } else {
+      do.call(setup_ExecutionConfig, xl[["execution_config"]])
+    },
+    question = iflengthy(xl[["question"]]),
+    outdir = iflengthy(xl[["outdir"]]),
+    verbosity = iflengthy(xl[["verbosity"]])
+  )
+} # /rtemis::read_config
