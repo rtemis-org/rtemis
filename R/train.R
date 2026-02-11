@@ -2,105 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# %% train.classdf
-
-#' @name
-#' train
-#'
-#' @title
-#' Train Supervised Learning Models
-#'
-#' @description
-#' Preprocess, tune, train, and test supervised learning models with a single call
-#' using nested resampling.
-#'
-#' @usage
-#' ## S7 method for tabular data (data.frame, data.table, tibble)
-#' train(
-#'   x,
-#'   dat_validation = NULL,
-#'   dat_test = NULL,
-#'   weights = NULL,
-#'   algorithm = NULL,
-#'   preprocessor_config = NULL, # PreprocessorConfig
-#'   hyperparameters = NULL, # Hyperparameters
-#'   tuner_config = NULL, # TunerConfig
-#'   outer_resampling_config = NULL, # ResamplerConfig
-#'   execution_config = setup_ExecutionConfig(), # ExecutionConfig
-#'   question = NULL,
-#'   verbosity = 1L
-#' )
-#'
-#' ## S7 method for SuperConfig
-#' train(x)
-#'
-#' @details
-#' See [rdocs.rtemis.org/train](https://rdocs.rtemis.org/train) for detailed documentation.
-#'
-#' Important: For binary classification, the outcome should be a factor where the 2nd level
-#' corresponds to the positive class.
-#'
-#' Note on resampling: You should never use an outer resampling method with
-#' replacement if you will also be using an inner resampling (for tuning).
-#' The duplicated cases from the outer resampling may appear both in the
-#' training and test sets of the inner resamples, leading to underestimated
-#' test error.
-#'
-#' Important note on parallelization:
-#' There are three levels of parallelization that may be used during training:
-#'
-#' 1. Algorithm training (e.g. a parallelized learner like LightGBM)
-#' 2. Tuning (inner resampling, where multiple resamples can be processed in parallel)
-#' 3. Outer resampling (where multiple outer resamples can be processed in parallel)
-#'
-#' The `train()` function and its sub-functions will automatically manage parallelization depending
-#' on:
-#' - The number of workers specified by the user using `n_workers`
-#' - Whether the training algorithm supports parallelization itself
-#' - Whether hyperparameter tuning is needed
-#'
-#' @param x data.frame or similar: Training set data.
-#' @param dat_validation data.frame or similar: Validation set data.
-#' @param dat_test data.frame or similar: Test set data.
-#' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
-#' @param preprocessor_config PreprocessorConfig object or NULL: Setup using [setup_Preprocessor].
-#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
-#' @param tuner_config TunerConfig object: Setup using [setup_GridSearch].
-#' @param outer_resampling_config ResamplerConfig object or NULL: Setup using [setup_Resampler]. This
-#' defines the outer resampling method, i.e. the splitting into training and test sets for the
-#' purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
-#' you might want to use a `dat_test` dataset to assess model performance on a single test set.
-#' @param weights Optional vector of case weights.
-#' @param question Optional character string defining the question that the model is trying to
-#' answer.
-#' @param outdir Character, optional: String defining the output directory.
-#' @param backend Character: "none", "future", or "mirai".
-#' @param future_plan Character: Future plan to use for parallel processing.
-#' @param n_workers Integer: Number of workers to use for parallel processing in total.
-#' Parallelization may happen at three different levels, from innermost to outermost:
-#' 1. Algorithm training (e.g. a parallelized learner like LightGBM)
-#' 2. Tuning (inner resampling, where multiple resamples can be processed in parallel)
-#' 3. Outer resampling (where multiple outer resamples can be processed in parallel)
-#' The `train()` function will assign the number of workers to the innermost available
-#' parallelization level. Best to leave a few cores for the OS and other processes, especially
-#' on shared systems or when working with large datasets, since parallelization will increase
-#' memory usage.
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @return Object of class `Regression(Supervised)`, `RegressionRes(SupervisedRes)`,
-#' `Classification(Supervised)`, or `ClassificationRes(SupervisedRes)`.
-#'
-#' @author EDG
-#' @export
-#'
-#' @examples
-#' \donttest{
-#' iris_c_lightRF <- train(
-#'    iris,
-#'    algorithm = "LightRF",
-#'    outer_resampling_config = setup_Resampler(),
-#' )
-#' }
+# %% train.class_tabular ----
 method(train, class_tabular) <- function(
   x,
   dat_validation = NULL,
@@ -643,10 +545,6 @@ get_n_workers <- function(
 
 
 # %% train SuperConfig ----
-#' @param x `SuperConfig` object: Configuration for the `train()` function.
-#'
-#' @author EDG
-#' @noRd
 method(train, SuperConfig) <- function(x) {
   # Read data from paths in x:SuperConfig
   dat_training <- read(x@dat_training_path, character2factor = TRUE)

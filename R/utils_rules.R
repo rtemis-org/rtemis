@@ -122,7 +122,8 @@ simple_prune <- function(rules, max_length, sep = " & ") {
 #' @return Character vector: Variable names.
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 get_vars_from_rules <- function(rules, unique = FALSE) {
   # Extract variables from rules
   vars <- unique(unlist(strsplit(rules, " & ")))
@@ -133,7 +134,7 @@ get_vars_from_rules <- function(rules, unique = FALSE) {
     vars <- unique(vars)
   }
   vars
-}
+} # /rtemis::get_vars_from_rules
 
 #' Format rules
 #'
@@ -232,8 +233,8 @@ format_LightRuleFit_rules <- function(
 #' @return Character vector.
 #'
 #' @author EDG
-#' @export
-
+#' @keywords internal
+#' @noRd
 rules2medmod <- function(rules, x, .ddSci = TRUE, verbosity = 1L) {
   cxr <- match_cases_by_rules(x, rules, verbosity = verbosity)
   nrules <- length(rules)

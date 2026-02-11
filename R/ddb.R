@@ -207,8 +207,9 @@ ls2sel <- function(x) {
 #'
 #' @examples
 #' \dontrun{
-#' sql <- ddb_data("/Data/iris.csv", collect = FALSE)
-#' ir <- ddb_ollect(sql)
+#'   # Required local CSV file; replace with your own path
+#'   sql <- ddb_data("/Data/iris.csv", collect = FALSE)
+#'   ir <- ddb_collect(sql)
 #' }
 ddb_collect <- function(
   sql,

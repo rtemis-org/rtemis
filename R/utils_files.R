@@ -10,7 +10,8 @@
 #' @return Character: Path.
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 make_path <- function(..., expand_path = TRUE) {
   path <- list(...)
   # Remove final "/"

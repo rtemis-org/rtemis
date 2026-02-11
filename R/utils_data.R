@@ -44,8 +44,8 @@ method(get_factor_levels, class_data.table) <- function(x) {
 #' @return Character with level counts.
 #'
 #' @author EDG
-#'
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' # Small number of levels
@@ -123,6 +123,7 @@ fct_describe <- function(x, max_n = 5, return_ordered = TRUE) {
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
 #' \dontrun{
 #' set.seed(2021)
@@ -279,10 +280,14 @@ matchcases <- function(
 #' setattr(x[["paO2"]], "source", "icu")
 #' setattr(x[["paCO2"]], "source", "icu")
 #' index_col_by_attr(x, "source", "icu")
-index_col_by_attr <- function(x, name, value) {
-  colattr <- unlist(sapply(x, \(i) attr(i, name)))
+index_col_by_attr <- function(x, key, value, exact = TRUE) {
+  colattr <- lapply(x, \(i) attr(i, key, exact = exact))
+  # Convert to character vector maintaining NULL values (where attribute is not set)
+  colattr <- sapply(colattr, function(i) {
+    if (is.null(i)) NA_character_ else as.character(i)
+  })
   which(colattr == value)
-} # /rtemis::index_col_by_attr
+} # /rtemis.utils::index_col_by_attr
 
 
 #' Tabulate column attributes

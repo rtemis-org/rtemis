@@ -86,6 +86,8 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' @param tuner_config `TunerConfig` object: Configuration for hyperparameter tuning.
 #' @param outer_resampling_config `ResamplerConfig` object: Configuration for outer res
 #' resampling during model training.
+#' @param execution_config `ExecutionConfig` object: Configuration for execution settings. Setup
+#' with [setup_ExecutionConfig].
 #' @param question Character: Question to answer with the supervised learning analysis.
 #' @param outdir Character: Output directory for results.
 #' @param verbosity Integer: Verbosity level.
@@ -117,7 +119,7 @@ setup_SuperConfig <- function(
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
-  execution_config,
+  execution_config = setup_ExecutionConfig(),
   question = NULL,
   outdir = "results/",
   verbosity = 1L

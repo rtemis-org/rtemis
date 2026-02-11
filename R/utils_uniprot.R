@@ -10,6 +10,7 @@
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return List with three elements: Identifier, Annotation, and Sequence.
+#'
 #' @author E.D. Gennatas
 #' @export
 #'

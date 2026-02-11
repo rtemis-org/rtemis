@@ -31,6 +31,12 @@ ExecutionConfig <- new_class(
   validator = function(self) {
     if (self@backend == "future" && is.null(self@future_plan)) {
       "@future_plan must be set when backend is 'future'."
+    } else if (self@backend == "none" && self@n_workers != 1L) {
+      "n_workers must be 1 when backend is 'none'."
+    } else if (self@backend == "mirai" && self@n_workers < 1L) {
+      "n_workers must be at least 1 when backend is 'mirai'."
+    } else if (self@backend == "future" && self@n_workers < 1L) {
+      "n_workers must be at least 1 when backend is 'future'."
     }
   }
 ) # /rtemis::ExecutionConfig
@@ -74,23 +80,35 @@ method(print, ExecutionConfig) <- function(x, output_type = NULL, ...) {
 #' setup_ExecutionConfig(backend = "future", n_workers = 4L, future_plan = "multisession")
 setup_ExecutionConfig <- function(
   backend = c("future", "mirai", "none"),
-  n_workers = parallelly::availableCores(omit = 3L),
-  future_plan = getOption("future.plan", "mirai_multisession")
+  n_workers = NULL,
+  future_plan = NULL
 ) {
   backend <- match.arg(backend)
   if (backend == "future") {
     check_dependencies("futurize")
     check_character(future_plan)
     if (is.null(future_plan)) {
-      cli::cli_abort("future_plan must be set when backend is 'future'.")
+      future_plan <- getOption("future.plan", "mirai_multisession")
     }
     if (!future_plan %in% ALLOWED_PLANS) {
       cli::cli_abort(
         "{.val {future_plan}} is not an allowed future plan. Allowed plans: {.val {ALLOWED_PLANS}}."
       )
     }
+    if (is.null(n_workers)) {
+      n_workers <- parallelly::availableCores(omit = 3L)
+    }
   } else if (backend == "mirai") {
     check_dependencies("mirai")
+    if (is.null(n_workers)) {
+      n_workers <- parallelly::availableCores(omit = 3L)
+    }
+  } else if (backend == "none") {
+    if (is.null(n_workers)) {
+      n_workers <- 1L
+    } else if (n_workers != 1L) {
+      cli::cli_abort("n_workers must be 1 when backend is 'none'.")
+    }
   }
   n_workers <- clean_int(n_workers)
   if (n_workers < 1L) {

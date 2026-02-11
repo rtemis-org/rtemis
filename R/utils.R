@@ -40,7 +40,8 @@ show_range <- function(x, ddSci = TRUE, decimal_places = 1, na.rm = TRUE) {
 #' @return Numeric vector.
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 #'
 #' @examples
 #' x <- runif(20, -10, 10)
@@ -74,7 +75,8 @@ drange <- function(x, lo = 0, hi = 1, byCol = TRUE) {
 #' @return factor.
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 #'
 #' @examples
 #' x <- factor(sample(letters[1:3], 100, TRUE))
@@ -119,7 +121,8 @@ filter_order <- function(x, idl, decreasing = FALSE) {
 #'
 #' @return Data frame with columns "Package_Name" and "Version".
 #'
-#' @export
+#' @keywords internal
+#' @noRd
 #'
 #' @examples
 #' get_loaded_pkg_version()
@@ -223,7 +226,8 @@ is_constant <- function(x, skip_missing = FALSE) {
 #' @return Logical.
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 is_discrete <- function(x) {
   is.factor(x) || is.integer(x) || is.logical(x) || is.character(x)
 } # /rtemis::is_discrete
@@ -320,7 +324,8 @@ size <- function(x, verbosity = 1L) {
 #' @return Vector.
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 recycle <- function(x, target) {
   lenx <- length(x)
   lent <- length(target)
@@ -490,6 +495,12 @@ rt_letters <- function(n = 100, caps = FALSE) {
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' # Will create "my_project" directory with
+#' init_project_dir("my_project")
+#' }
 init_project_dir <- function(path, output_dir = "Out", verbosity = 1L) {
   if (verbosity > 0L) {
     msg("Initializing project directory...")

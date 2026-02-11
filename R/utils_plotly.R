@@ -134,7 +134,8 @@ plotly_shade <- function(
 #' @return NULL
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 export_plotly <- function(
   x,
   filename,

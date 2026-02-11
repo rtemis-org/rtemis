@@ -175,8 +175,8 @@ fmt <- function(
 #' @return Character: Formatted text with highlight.
 #'
 #' @author EDG
-#' @export
 #' @keywords internal
+#' @noRd
 highlight <- function(
   x,
   pad = 0L,
