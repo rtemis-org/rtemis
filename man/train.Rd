@@ -7,7 +7,7 @@
 train(x, ...)
 }
 \arguments{
-\item{x}{Tabular data OR \code{SuperConfig} object. => See \emph{\strong{Details}} for usage and parameters for each method.}
+\item{x}{Tabular data OR \code{SuperConfig} object. See \emph{\strong{Details}} for usage and arguments for each method.}
 
 \item{...}{Not used.}
 }

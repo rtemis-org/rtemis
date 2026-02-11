@@ -28,7 +28,7 @@ class_tabular <- new_union(class_data.frame, class_data.table)
 #' @details
 #' See [rdocs.rtemis.org/train](https://rdocs.rtemis.org/train) for detailed documentation.
 #'
-#' @param x Tabular data OR `SuperConfig` object. => See ***Details*** for usage and parameters for each method.
+#' @param x Tabular data OR `SuperConfig` object. See below for usage and arguments for each method.
 #' @param ... Not used.
 #'
 #' @section S7 method for tabular input (`data.frame`, `data.table`, `tbl_df`):
@@ -41,7 +41,7 @@ class_tabular <- new_union(class_data.frame, class_data.table)
 #'   outer_resampling_config = NULL, execution_config = setup_ExecutionConfig(),
 #'   question = NULL, outdir = NULL, verbosity = 1L
 #'  )
-#'  ````
+#'  ```
 #'
 #'  **Arguments**
 #'

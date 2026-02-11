@@ -86,7 +86,7 @@ setup_ExecutionConfig <- function(
   backend <- match.arg(backend)
   if (backend == "future") {
     check_dependencies("futurize")
-    check_character(future_plan)
+    check_character(future_plan, allow_null = TRUE)
     if (is.null(future_plan)) {
       future_plan <- getOption("future.plan", "mirai_multisession")
     }
