@@ -153,6 +153,8 @@ setup_SuperConfig <- function(
 #' @return Character: TOML string representation of the `SuperConfig` object.
 #'
 #' @author EDG
+#' @keywords internal
+#' @noRd
 method(to_toml, SuperConfig) <- function(x) {
   xl <- S7_to_list(props(x))
   toml::write_toml(xl)
