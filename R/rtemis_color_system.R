@@ -25,7 +25,7 @@ rt_green <- kaimana_med_green
 rt_orange <- coastside_orange
 rt_teal <- rtemis_teal
 rt_purple <- rtemis_purple
-rt_magenta <- rtemis_magenta
+rt_magenta <- rtemis_magenta_light
 
 highlight_col <- rt_orange
 col_object <- rt_teal # incl repr_S7name
