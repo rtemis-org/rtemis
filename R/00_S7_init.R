@@ -361,6 +361,8 @@ method(get_factor_levels, class_data.table) <- function(x) {
 }
 
 
+# %% to_toml
+
 #' Convert to TOML
 #'
 #' @author EDG
@@ -368,6 +370,28 @@ method(get_factor_levels, class_data.table) <- function(x) {
 #' @noRd
 to_toml <- new_generic("to_toml", "x")
 
+
+# %% write_toml
+
+#' Write to TOML file
+#'
+#' @param x `SuperConfig` object to write to TOML file.
+#' @param file Character: Path to output TOML file.
+#'
+#' @return `SuperConfig` object, invisibly.
+#'
+#' @author EDG
+#' @export
+write_toml <- new_generic(
+  "write_toml",
+  "x",
+  function(x, file, overwrite = FALSE, verbosity = 1L) {
+    S7_dispatch()
+  }
+)
+
+
+# %% from_toml
 
 #' Read from TOML
 #'
@@ -809,3 +833,101 @@ get_output_type <- function(
 
   match.arg(output_type)
 } # /rtemis::get_output_type
+
+
+# %% S7_to_list ----
+S7_to_list <- function(x) {
+  if (S7_inherits(x)) {
+    x <- props(x)
+  }
+  if (is.list(x)) {
+    x <- lapply(x, S7_to_list)
+  }
+  x
+} # /rtemis::S7_to_list
+
+
+# %% toml_to_list ----
+
+# %% toml_empty_to_null ----
+toml_empty_to_null <- function(x) {
+  if (!is.list(x)) {
+    return(x)
+  }
+  if (length(x) == 0L) {
+    return(NULL)
+  }
+  if (is.null(names(x))) {
+    scalar_types <- vapply(
+      x,
+      function(el) {
+        is.atomic(el) && length(el) == 1L && !is.null(el)
+      },
+      logical(1)
+    )
+    if (all(scalar_types)) {
+      return(unlist(x, use.names = FALSE))
+    }
+  }
+  lapply(x, toml_empty_to_null)
+} # /rtemis::toml_empty_to_null
+
+# %% write_lines
+
+#' Write lines to file
+#'
+#' Normalizes path, check if directory exists, creates it if necessary,
+#' writes lines to file, and checks if file was created successfully.
+#'
+#' @param x Character: Text to write to file.
+#' @param file Character: Path to output file.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Invisible NULL. Called for side effect of writing to file.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+write_lines <- function(x, file, overwrite = FALSE, verbosity = 1L) {
+  # Normalize path
+  filepath <- normalizePath(file, mustWork = FALSE)
+  # Check if file exists
+  if (file.exists(file)) {
+    if (overwrite) {
+      if (verbosity >= 1L) {
+        msg(fmt(
+          paste("Overwriting existing file:", file),
+          col = rtemis_colors[["orange"]]
+        ))
+      }
+    } else {
+      cli::cli_abort(
+        "File already exists: {file}. Set `overwrite = TRUE` to overwrite."
+      )
+    }
+  }
+  # Get directory name
+  dir <- dirname(file)
+  # Check if directory exists, create it if not
+  if (!dir.exists(dir)) {
+    dir.create(dir, recursive = TRUE)
+    if (!dir.exists(dir)) {
+      cli::cli_abort("Failed to create directory: {dir}")
+    } else {
+      if (verbosity >= 1L) {
+        msg(checkmark(), "Created directory:", dir)
+      }
+    }
+  }
+  # Write lines to file
+  writeLines(x, con = file)
+  # Check if file was created successfully
+  if (!file.exists(file)) {
+    cli::cli_abort("Failed to create file: {file}")
+  } else {
+    if (verbosity >= 1L) {
+      msg(checkmark(), "Created file:", file)
+    }
+  }
+  invisible(NULL)
+} # /rtemis::write_lines
