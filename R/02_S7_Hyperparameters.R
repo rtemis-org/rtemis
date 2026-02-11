@@ -2268,3 +2268,14 @@ get_ranger_config <- function(hyperparameters) {
   hpr[["ifw"]] <- NULL
   hpr
 } # /get_ranger_config
+
+
+# %% list_to_Hyperparameters ----
+list_to_Hyperparameters <- function(x) {
+  fn <- paste0("setup_", x[["algorithm"]])
+  args <- x[["hyperparameters"]]
+  # Keep only arguments that are in the setup function
+  setup_formals <- names(formals(get(fn)))
+  args <- args[names(args) %in% setup_formals]
+  do.call(fn, args)
+}
