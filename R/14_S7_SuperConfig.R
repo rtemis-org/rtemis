@@ -168,6 +168,8 @@ method(to_toml, SuperConfig) <- function(x) {
 #'
 #' @param x `SuperConfig` object.
 #' @param file Character: Path to output TOML file.
+#' @param overwrite Logical: If TRUE, overwrite existing file.
+#' @param verbosity Integer: Verbosity level.
 #'
 #' @return `SuperConfig` object, invisibly.
 #'

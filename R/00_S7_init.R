@@ -377,6 +377,8 @@ to_toml <- new_generic("to_toml", "x")
 #'
 #' @param x `SuperConfig` object to write to TOML file.
 #' @param file Character: Path to output TOML file.
+#' @param overwrite Logical: If TRUE, overwrite existing file.
+#' @param verbosity Integer: Verbosity level.
 #'
 #' @return `SuperConfig` object, invisibly.
 #'

@@ -10,6 +10,10 @@ write_toml(x, file, overwrite = FALSE, verbosity = 1L)
 \item{x}{\code{SuperConfig} object to write to TOML file.}
 
 \item{file}{Character: Path to output TOML file.}
+
+\item{overwrite}{Logical: If TRUE, overwrite existing file.}
+
+\item{verbosity}{Integer: Verbosity level.}
 }
 \value{
 \code{SuperConfig} object, invisibly.
