@@ -20,6 +20,9 @@ Color in hex notation
 \description{
 Fade color towards target
 }
+\examples{
+previewcolor(c("red", color_fade("red", "blue", .5), "blue"))
+}
 \author{
 EDG
 }

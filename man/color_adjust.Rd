@@ -23,6 +23,9 @@ Adjusted color
 \description{
 Modify alpha, hue, saturation and value (HSV) of a color
 }
+\examples{
+previewcolor(c(teal = "#00ffff", teal50 = color_adjust("#00ffff", alpha = 0.5)))
+}
 \author{
 EDG
 }

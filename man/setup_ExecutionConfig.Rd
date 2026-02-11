@@ -6,8 +6,8 @@
 \usage{
 setup_ExecutionConfig(
   backend = c("future", "mirai", "none"),
-  n_workers = parallelly::availableCores(omit = 3L),
-  future_plan = getOption("future.plan", "mirai_multisession")
+  n_workers = NULL,
+  future_plan = NULL
 )
 }
 \arguments{
