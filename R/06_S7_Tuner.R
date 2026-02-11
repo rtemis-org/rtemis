@@ -330,3 +330,32 @@ method(repr, GridSearch) <- function(
   )
   out
 } # /rtemis::repr.GridSearch
+
+
+# %% list_to_TunerConfig ----
+#' List to TunerConfig
+#'
+#' Convert a named list to a TunerConfig object. Used by `read_config()``
+#'
+#' @param x Named list with elements "type" and "config".
+#'
+#' @return TunerConfig object.
+#'
+#' @author EDG
+#' @noRd
+list_to_TunerConfig <- function(x) {
+  if (x[["type"]] == "GridSearch") {
+    setup_GridSearch(
+      resampler_config = list_to_ResamplerConfig(x[["config"]][[
+        "resampler_config"
+      ]]),
+      search_type = x[["config"]][["search_type"]],
+      randomize_p = x[["config"]][["randomize_p"]],
+      metrics_aggregate_fn = x[["config"]][["metrics_aggregate_fn"]],
+      metric = x[["config"]][["metric"]],
+      maximize = x[["config"]][["maximize"]]
+    )
+  } else {
+    cli::cli_abort("Unsupported tuner type: {x[['type']]}")
+  }
+} # /rtemis::list_to_TunerConfig
