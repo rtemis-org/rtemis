@@ -391,16 +391,6 @@ write_toml <- new_generic(
 )
 
 
-# %% from_toml
-
-#' Read from TOML
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-from_toml <- new_generic("from_toml", "x")
-
-
 #' Select (include) columns by character or numeric vector.
 #'
 #' @param x data.frame or similar.
