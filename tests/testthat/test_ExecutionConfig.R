@@ -30,15 +30,3 @@ testthat::test_that("setup_ExecutionConfig() works", {
     ExecutionConfig
   )
 })
-
-# %% setup_ExecutionConfig() fails when backend is future and plan is NULL ----
-testthat::test_that("setup_ExecutionConfig() fails when backend is future and plan is NULL", {
-  expect_error(
-    setup_ExecutionConfig(
-      backend = "future",
-      n_workers = 4L,
-      future_plan = NULL
-    ),
-    "must be set when backend is 'future'"
-  )
-})

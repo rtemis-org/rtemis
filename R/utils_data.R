@@ -260,6 +260,8 @@ matchcases <- function(
 #' @param x data.frame or similar.
 #' @param name Character: Name of attribute.
 #' @param value Character: Value of attribute.
+#' @param exact Logical: Passed to `attr` when retrieving attribute value. If `TRUE`, attribute
+#' name must match `name` exactly, otherwise, partial match is allowed.
 #'
 #' @return Integer vector.
 #'
@@ -280,8 +282,8 @@ matchcases <- function(
 #' setattr(x[["paO2"]], "source", "icu")
 #' setattr(x[["paCO2"]], "source", "icu")
 #' index_col_by_attr(x, "source", "icu")
-index_col_by_attr <- function(x, key, value, exact = TRUE) {
-  colattr <- lapply(x, \(i) attr(i, key, exact = exact))
+index_col_by_attr <- function(x, name, value, exact = TRUE) {
+  colattr <- lapply(x, \(i) attr(i, name, exact = exact))
   # Convert to character vector maintaining NULL values (where attribute is not set)
   colattr <- sapply(colattr, function(i) {
     if (is.null(i)) NA_character_ else as.character(i)

@@ -61,7 +61,6 @@ test_that("train() works with SuperConfig", {
     outdir = "models/",
     verbosity = 1L
   )
-  sc
   mod <- train(sc)
   expect_s7_class(mod, SupervisedRes)
 })
