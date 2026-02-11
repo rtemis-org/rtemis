@@ -169,9 +169,11 @@ test_that(
       dat_test = datr_test,
       algorithm = "glmnet",
       hyperparameters = setup_GLMNET(alpha = 1),
-      backend = "future",
-      n_workers = 2L, # Limit to 2 workers for CRAN
-      future_plan = "mirai_multisession", # which gets converted to "future.mirai::mirai_multisession"
+      execution_config = setup_ExecutionConfig(
+        backend = "future",
+        n_workers = 2L, # Limit to 2 workers for CRAN
+        future_plan = "mirai_multisession" # which gets converted to "future.mirai::mirai_multisession"
+      ),
       verbosity = 2L
     )
     # Check that model trained correctly
@@ -194,9 +196,11 @@ test_that("sequential with >1 worker throws error", {
       dat_test = datr_test,
       algorithm = "glmnet",
       hyperparameters = setup_GLMNET(alpha = 1),
-      backend = "future",
-      future_plan = "sequential",
-      n_workers = 2L
+      execution_config = setup_ExecutionConfig(
+        backend = "future",
+        future_plan = "sequential",
+        n_workers = 2L
+      )
     )
   )
 })
@@ -209,8 +213,7 @@ test_that("train() GLMNET Regression with auto-lambda grid search using mirai su
     dat_test = datr_test,
     algorithm = "glmnet",
     hyperparameters = setup_GLMNET(alpha = 1),
-    backend = "mirai",
-    n_workers = 2L
+    execution_config = setup_ExecutionConfig(backend = "mirai", n_workers = 2L)
   )
   expect_s7_class(modt_r_glmnet, Regression)
 })
@@ -222,7 +225,7 @@ test_that("train() GLMNET Regression with auto-lambda + alpha grid search succee
     dat_test = datr_test,
     algorithm = "glmnet",
     hyperparameters = setup_GLMNET(alpha = c(0, 1)),
-    backend = "none"
+    execution_config = setup_ExecutionConfig(backend = "none")
   )
   expect_s7_class(modt_r_glmnet, Regression)
 })
@@ -234,7 +237,7 @@ test_that("train() Res-GLMNET Regression with auto-lambda + alpha grid search su
     algorithm = "glmnet",
     hyperparameters = setup_GLMNET(alpha = c(0.5, 1)),
     outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-    backend = "none"
+    execution_config = setup_ExecutionConfig(backend = "none")
   )
   expect_s7_class(resmodt_r_glmnet, RegressionRes)
 })
@@ -250,13 +253,13 @@ test_that("train() GLMNET Classification succeeds", {
 })
 
 ## {GLMNET}[train]<Classification> Multiclass ----
-modt_c3_glmnet <- train(
-  x = datc3_train,
-  dat_test = datc3_test,
-  hyperparameters = setup_GLMNET(alpha = 1),
-  backend = "none"
-)
 test_that("train() GLMNET Multiclass Classification succeeds", {
+  modt_c3_glmnet <- train(
+    x = datc3_train,
+    dat_test = datc3_test,
+    hyperparameters = setup_GLMNET(alpha = 1),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
   expect_s7_class(modt_c3_glmnet, Classification)
 })
 
@@ -298,8 +301,7 @@ modt_r_gam <- train(
   x = datr_train,
   dat_test = datr_test,
   algorithm = "gam",
-  hyperparameters = setup_GAM(k = c(3, 5, 7)),
-  backend = "none"
+  hyperparameters = setup_GAM(k = c(3, 5, 7))
 )
 test_that("train() GAM Regression with grid_search() succeeds", {
   expect_s7_class(modt_r_gam, Regression)
@@ -355,7 +357,7 @@ modt_r_svml <- train(
   x = datr_train,
   dat_test = datr_test,
   hyperparameters = setup_LinearSVM(cost = c(1, 10)),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() LinearSVM Regression with tuning succeeds", {
   expect_s7_class(modt_r_svml, Regression)
@@ -396,7 +398,7 @@ resmod_c_linearsvm <- train(
   x = datc2,
   algorithm = "linearsvm",
   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() Res LinearSVM Classification succeeds", {
   expect_s7_class(resmod_c_linearsvm, ClassificationRes)
@@ -428,7 +430,7 @@ resmod_r_svmr <- train(
   x = datr,
   algorithm = "radialsvm",
   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() Res RadialSVM Regression succeeds", {
   expect_s7_class(resmod_r_svmr, RegressionRes)
@@ -439,7 +441,7 @@ resmodt_r_svmr <- train(
   x = datr,
   hyperparameters = setup_RadialSVM(cost = c(1, 10)),
   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() Res RadialSVM Regression with tuning succeeds", {
   expect_s7_class(resmodt_r_svmr, RegressionRes)
@@ -460,7 +462,7 @@ modt_c_radialsvm <- train(
   x = datc2_train,
   dat_test = datc2_test,
   hyperparameters = setup_RadialSVM(cost = c(1, 10)),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() RadialSVM Classification with tuning succeeds", {
   expect_s7_class(modt_c_radialsvm, Classification)
@@ -471,7 +473,7 @@ resmod_c_radialsvm <- train(
   x = datc2,
   algorithm = "radialsvm",
   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() Res RadialSVM Classification succeeds", {
   expect_s7_class(resmod_c_radialsvm, ClassificationRes)
@@ -482,7 +484,7 @@ resmodt_c_radialsvm <- train(
   x = datc2,
   hyperparameters = setup_RadialSVM(cost = c(1, 10)),
   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() Res RadialSVM Classification with tuning succeeds", {
   expect_s7_class(resmodt_c_radialsvm, ClassificationRes)
@@ -523,7 +525,7 @@ modt_r_cart <- train(
   datr_train,
   dat_test = datr_test,
   hyperparameters = setup_CART(maxdepth = 2:3),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() Regression with grid_search() succeeds", {
   expect_s7_class(modt_r_cart, Regression)
@@ -539,7 +541,7 @@ resmod_r_cart <- train(
   x = datr,
   hyperparameters = setup_CART(),
   outer_resampling_config = setup_Resampler(3L),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() RegressionRes succeeds", {
   expect_s7_class(resmod_r_cart, RegressionRes)
@@ -550,7 +552,7 @@ resmodt_r_cart <- train(
   x = datr,
   hyperparameters = setup_CART(maxdepth = 1:2, prune_cp = c(.001, .01)),
   outer_resampling_config = setup_Resampler(3),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() RegressionRes succeeds", {
   expect_s7_class(resmodt_r_cart, RegressionRes)
@@ -561,7 +563,7 @@ resmod_r_cart <- train(
   x = datr,
   hyperparameters = setup_CART(prune_cp = c(.001, .01)),
   outer_resampling_config = setup_Resampler(3L),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() RegressionRes succeeds", {
   expect_s7_class(resmod_r_cart, RegressionRes)
@@ -600,7 +602,7 @@ modt_c_cart_tuned <- train(
   hyperparameters = setup_CART(
     maxdepth = c(1L, 2L)
   ),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() Classification with grid_search() succeeds", {
   expect_s7_class(modt_c_cart_tuned, Classification)
@@ -615,7 +617,7 @@ resmodt_c_cart <- train(
     maxdepth = c(1L, 2L)
   ),
   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() CART ClassificationRes succeeds", {
   expect_s7_class(resmodt_c_cart, ClassificationRes)
@@ -710,7 +712,7 @@ modt_r_lightrf <- train(
     nrounds = 20L,
     lambda_l1 = c(0, .1)
   ),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() LightRF Regression with l1 tuning succeeds", {
   expect_s7_class(modt_r_lightrf, Regression)
@@ -725,7 +727,7 @@ resmodt_r_lightrf <- train(
     lambda_l1 = c(0, 10)
   ),
   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() Res LightRF Regression with l1 tuning succeeds", {
   expect_s7_class(resmodt_r_lightrf, RegressionRes)
@@ -762,7 +764,7 @@ resmod_c_lightrf <- train(
   x = datc2,
   hyperparameters = setup_LightRF(nrounds = 20L),
   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() LightRF ClassificationRes succeeds", {
   expect_s7_class(resmod_c_lightrf, ClassificationRes)
@@ -806,7 +808,7 @@ resmodt_r_lightgbm <- train(
   x = datr_train,
   hyperparameters = setup_LightGBM(max_nrounds = 50L),
   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() Res LightGBM Regression with autotune nrounds succeeds", {
   expect_s7_class(resmodt_r_lightgbm, RegressionRes)
@@ -826,7 +828,7 @@ mod_c_lightgbm <- train(
       type = "KFold"
     )
   ),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() LightGBM Classification succeeds", {
   expect_s7_class(mod_c_lightgbm, Classification)
@@ -951,7 +953,7 @@ modt_r_ranger <- train(
   x = datr_train,
   dat_test = datr_test,
   hyperparameters = setup_Ranger(num_trees = 50L, mtry = c(3, 6)),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() Ranger Regression with grid search succeeds", {
   expect_s7_class(modt_r_ranger, Regression)
@@ -982,7 +984,7 @@ modt_c_ranger <- train(
   x = datc2_train,
   dat_test = datc2_test,
   hyperparameters = setup_Ranger(num_trees = 10L, mtry = c(2, 4)),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() Ranger Classification with grid search succeeds", {
   expect_s7_class(modt_c_ranger, Classification)
@@ -993,7 +995,7 @@ resmod_c_ranger <- train(
   x = datc2,
   hyperparameters = setup_Ranger(num_trees = 10L),
   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  backend = "none"
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() Res Ranger Classification succeeds", {
   expect_s7_class(resmod_c_ranger, ClassificationRes)
