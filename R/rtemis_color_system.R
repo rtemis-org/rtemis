@@ -1,6 +1,6 @@
 # rtemis color system
-# ::rtemis::
-# 2025 EDG rtemis.org
+# ::rtemis.utils::
+# 2025- EDG rtemis.org
 
 # Violet: Class names (structure)
 # Blue: Outer resampling (evaluation)
@@ -16,12 +16,6 @@
 # Unicode emojis: https://www.unicode.org/emoji/charts/full-emoji-list.html
 # UTF-8 icons: https://www.utf8icons.com/
 
-#' rtemis Color System
-#'
-#' @author EDG
-#'
-#' @keywords internal
-#' @noRd
 rtemis_light_teal <- "#00fdfd"
 rtemis_light_blue <- "#30cefe"
 rtemis_teal <- "#00b2b2"
@@ -50,4 +44,51 @@ col_object <- rt_teal
 col_info <- highlight2_col <- lmd_burgundy
 col_outer <- rt_red
 col_tuner <- rt_orange # coastside orange
-col_calibrator <- rt_magenta
+
+
+#' rtemis Color System
+#'
+#' A named list of colors used consistently across all packages
+#' in the rtemis ecosystem.
+#'
+#' Colors are provided as hex strings.
+#'
+#' @format A named list with the following elements:
+#' \describe{
+#'   \item{rt_red}{"kaimana red"}
+#'   \item{rt_blue}{"kaimana light blue"}
+#'   \item{rt_green}{"kaimana medium green"}
+#'   \item{rt_orange}{"coastside orange"}
+#'   \item{rt_teal}{"rtemis teal"}
+#'   \item{rt_purple}{"rtemis purple"}
+#'   \item{rt_magenta}{"rtemis magenta"}
+#'   \item{highlight_col}{"rtemis teal"}
+#'   \item{col_object}{"rtemis teal"}
+#'   \item{col_info}{"lmd burgundy"}
+#'   \item{col_outer}{"kaimana red"}
+#'   \item{col_tuner}{"coastside orange"}
+#' }
+#'
+#' @examples
+#' rtemis_colors[["rt_teal"]]
+#'
+#' @author EDG
+#'
+#' @export
+#'
+#' @examples
+#' rtemis_colors[["teal"]]
+rtemis_colors <- list(
+  red = rt_red,
+  blue = rt_blue,
+  green = rt_green,
+  orange = rt_orange,
+  teal = rt_teal,
+  purple = rt_purple,
+  magenta = rt_magenta,
+  highlight_col = highlight_col,
+  object = col_object,
+  info = col_info,
+  outer = col_outer,
+  tuner = col_tuner
+) # /rtemis.utils::rtemis_colors
