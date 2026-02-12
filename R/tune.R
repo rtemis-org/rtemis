@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% get_tuner_fn ----
 #' Get Tuner Function
 #'
 #' @param type Character: Type of tuner.
@@ -16,6 +17,7 @@ get_tuner_fn <- function(type = "GridSearch") {
 } # /rtemis::get_tuner_fn
 
 
+# %% tune ----
 #' Tune Supervised Learning Model
 #'
 #' @param x data.frame or similar: Training set data.

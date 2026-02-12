@@ -666,9 +666,9 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #'
 #' # Train GLM with cross-validation
 #' resmod_c_glm <- train(
-#'  x = dat,
-#'  algorithm = "glm",
-#'  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+#'   x = dat,
+#'   algorithm = "glm",
+#'   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 #' )
 #'
 #' # Calibrate the `ClassificationRes` using the same resampling configuration as used for training.
@@ -687,6 +687,39 @@ calibrate <- new_generic(
     S7_dispatch()
   }
 ) # /rtemis::calibrate
+
+
+#' @name get_factor_levels
+#'
+#' @title
+#' Get factor levels from data.frame or similar
+#'
+#' @usage
+#' get_factor_levels(x)
+#'
+#' @param x data.frame or similar.
+#'
+#' @return Named list of factor levels. Names correspond to column names.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+get_factor_levels <- new_generic(
+  "get_factor_levels",
+  "x",
+  function(x) S7_dispatch()
+)
+
+method(get_factor_levels, class_data.frame) <- function(x) {
+  factor_index <- which(sapply(x, is.factor))
+  lapply(x[, factor_index, drop = FALSE], levels)
+}
+
+method(get_factor_levels, class_data.table) <- function(x) {
+  factor_index <- which(sapply(x, is.factor))
+  # with = FALSE slightly more performance than using .SD
+  lapply(x[, factor_index, with = FALSE], levels)
+}
 
 
 # --- Custom S7 validators -------------------------------------------------------------------------

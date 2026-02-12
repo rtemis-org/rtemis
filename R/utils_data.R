@@ -2,35 +2,7 @@
 # ::rtemis::
 # EDG rtemis.org
 
-#' @name get_factor_levels
-#'
-#' @title
-#' Get factor levels from data.frame or similar
-#'
-#' @usage
-#' get_factor_levels(x)
-#'
-#' @param x data.frame or similar.
-#'
-#' @return Named list of factor levels. Names correspond to column names.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-get_factor_levels <- new_generic(
-  "get_factor_levels",
-  "x",
-  function(x) S7_dispatch()
-)
-method(get_factor_levels, class_data.frame) <- function(x) {
-  factor_index <- which(sapply(x, is.factor))
-  lapply(x[, factor_index, drop = FALSE], levels)
-}
-method(get_factor_levels, class_data.table) <- function(x) {
-  factor_index <- which(sapply(x, is.factor))
-  lapply(x[, factor_index, with = FALSE], levels)
-}
-
+# %% Public ----------------------------------------------------------------------------------------
 
 #' Describe factor
 #'

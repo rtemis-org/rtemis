@@ -220,7 +220,7 @@ rt_reactable <- function(
   if (isTRUE(lightsout)) {
     widget <- htmlwidgets::prependContent(
       widget,
-      htmltools::tags$style(sprintf(
+      htmltools::tags[["style"]](sprintf(
         "body { background: %s; }",
         bg
       ))

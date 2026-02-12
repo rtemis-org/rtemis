@@ -611,9 +611,15 @@ tune_GridSearch <- function(
 } # /rtemis::tune_GridSearch
 
 
-# Print tuning results ----
-# Print set of search values and best value in the form {1, 3, 5} => 3
-# for each hyperparameter that was tuned.
+# %% Print tuning results ----
+#' Print tuning results
+#'
+#' Prints set of search values and best value in the form {1, 3, 5} => 3
+#' for each hyperparameter that was tuned.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 print_tune_finding <- function(grid_params, best_param_combo, pad = 22L) {
   # Make list of search values and best value
   tfl <- lapply(seq_along(grid_params), function(i) {

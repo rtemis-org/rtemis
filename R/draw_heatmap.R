@@ -8,6 +8,7 @@
 #'
 #' @details
 #' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#' 'heatmaply' unfortunately forces loading of the 'colorspace' namespace.
 #'
 #' @param x Input matrix.
 #' @param Rowv Logical or dendrogram. If Logical: Compute dendrogram and reorder rows. Defaults to FALSE. If dendrogram: use as is, without reordering. See more at `heatmaply::heatmaply("Rowv")`.

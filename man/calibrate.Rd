@@ -78,9 +78,9 @@ mod_c_glm_cal
 
 # Train GLM with cross-validation
 resmod_c_glm <- train(
- x = dat,
- algorithm = "glm",
- outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+  x = dat,
+  algorithm = "glm",
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 
 # Calibrate the `ClassificationRes` using the same resampling configuration as used for training.
