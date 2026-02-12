@@ -66,7 +66,7 @@ method(repr, ResamplerConfig) <- function(x, pad = 0L, output_type = NULL) {
     repr_S7name(x, pad = pad, output_type = output_type),
     repr_ls(
       props(x)[-1],
-      pad = pad + 2L,
+      pad = pad,
       print_class = FALSE,
       output_type = output_type
     )
@@ -415,7 +415,7 @@ method(repr, Resampler) <- function(x, pad = 0L, output_type = NULL) {
     repr_S7name(x, pad = pad, output_type = output_type),
     repr_ls(
       props(x),
-      pad = pad + 2L,
+      pad = pad,
       print_class = FALSE,
       output_type = output_type
     )

@@ -174,13 +174,14 @@ method(`[[`, Supervised) <- function(x, name) {
 #' @noRd
 method(repr, Supervised) <- function(
   x,
+  pad = 0L,
   output_type = NULL,
   filename = NULL
 ) {
   output_type <- get_output_type(output_type, filename)
   # Class name
   out <- paste0(
-    repr_S7name(x@type, output_type = output_type),
+    repr_S7name(x@type, pad = pad, output_type = output_type),
     highlight(x@algorithm, output_type = output_type),
     " (",
     desc_alg(x@algorithm),
@@ -191,7 +192,13 @@ method(repr, Supervised) <- function(
   if (!is.null(x@tuner)) {
     out <- paste0(
       out,
-      fmt("\U2699", col = col_tuner, bold = TRUE, output_type = output_type),
+      fmt(
+        "\U2699",
+        col = col_tuner,
+        bold = TRUE,
+        pad = pad,
+        output_type = output_type
+      ),
       " Tuned using ",
       desc(x@tuner),
       ".\n"
@@ -206,6 +213,7 @@ method(repr, Supervised) <- function(
         "\U27CB",
         col = col_calibrator,
         bold = TRUE,
+        pad = pad,
         output_type = output_type
       ),
       " Calibrated using ",
@@ -226,7 +234,7 @@ method(repr, Supervised) <- function(
       repr_CalibratedClassificationMetrics(
         x@metrics_training,
         x@metrics_training_calibrated,
-        pad = 2L,
+        pad = pad + 2L,
         output_type = output_type
       )
     )
@@ -238,7 +246,7 @@ method(repr, Supervised) <- function(
         repr_CalibratedClassificationMetrics(
           x@metrics_validation,
           x@metrics_validation_calibrated,
-          pad = 2L,
+          pad = pad + 2L,
           output_type = output_type
         )
       )
@@ -252,7 +260,7 @@ method(repr, Supervised) <- function(
         repr_CalibratedClassificationMetrics(
           x@metrics_test,
           x@metrics_test_calibrated,
-          pad = 2L,
+          pad = pad + 2L,
           output_type = output_type
         )
       )
@@ -263,14 +271,14 @@ method(repr, Supervised) <- function(
     # Metrics, training
     out <- paste0(
       out,
-      repr(x@metrics_training, pad = 2L, output_type = output_type)
+      repr(x@metrics_training, pad = pad + 2L, output_type = output_type)
     )
 
     # Metrics, validation
     if (length(x@metrics_validation) > 0) {
       out <- paste0(
         out,
-        repr(x@metrics_validation, pad = 2L, output_type = output_type)
+        repr(x@metrics_validation, pad = pad + 2L, output_type = output_type)
       )
     }
 
@@ -279,7 +287,7 @@ method(repr, Supervised) <- function(
       out <- paste0(
         out,
         "\n",
-        repr(x@metrics_test, pad = 2L, output_type = output_type)
+        repr(x@metrics_test, pad = pad + 2L, output_type = output_type)
       )
     }
   }

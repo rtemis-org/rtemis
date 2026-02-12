@@ -987,7 +987,13 @@ write_lines <- function(x, file, overwrite = FALSE, verbosity = 1L) {
 #' created_at = 2026-2-11T22:45:00Z
 #' ```
 #' @param x Object to create metadata for. Class name will be included in metadata.
+#' @param schema_version Character: Version of the schema to include in metadata.
 #'
+#' @return Named list containing metadata.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 toml_meta <- function(x, schema_version = "1.0") {
   list(
     `_meta` = list(
@@ -1010,6 +1016,12 @@ toml_meta <- function(x, schema_version = "1.0") {
 #'
 #' Creates a TOML string with an inline metadata table followed by the TOML representation of the
 #' object.
+#'
+#' @param x Object to convert to TOML. Class name will be included in metadata.
+#'
+#'
+#' @return Character string containing TOML representation of the object, with metadata included as
+#' an inline table at the top.
 #'
 #' @author EDG
 #' @keywords internal

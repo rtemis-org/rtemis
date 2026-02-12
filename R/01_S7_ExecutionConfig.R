@@ -51,7 +51,7 @@ method(repr, ExecutionConfig) <- function(x, pad = 0L, output_type = NULL) {
   }
   out <- paste0(
     out,
-    repr_ls(.props, pad = pad + 2L, output_type = output_type)
+    repr_ls(.props, pad = pad, output_type = output_type)
   )
 } # /rtemis::repr.ExecutionConfig
 

@@ -49,7 +49,7 @@ method(repr, SuperConfig) <- function(x, pad = 0L, output_type = NULL) {
   out <- repr_S7name("SuperConfig", pad = pad, output_type = output_type)
   out <- paste0(
     out,
-    repr_ls(props(x), pad = pad + 2L, limit = 20L, output_type = output_type)
+    repr_ls(props(x), pad = pad, limit = 20L, output_type = output_type)
   )
   out
 } # /rtemis::repr.SuperConfig

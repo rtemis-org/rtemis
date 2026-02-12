@@ -41,11 +41,12 @@ method(`[[`, MassGLM) <- function(x, name) {
 # repr MassGLM ----
 method(repr, MassGLM) <- function(
   x,
+  pad = 0L,
   output_type = NULL
 ) {
   output_type <- get_output_type(output_type)
   paste0(
-    repr_S7name("MassGLM"),
+    repr_S7name("MassGLM", pad = pad),
     highlight(length(x@ynames)),
     " GLMs of family ",
     bold(x@family),
