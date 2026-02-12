@@ -11,7 +11,57 @@ class_lgb.Booster <- new_S3_class("lgb.Booster")
 class_tabular <- new_union(class_data.frame, class_data.table)
 
 # --- Generics -------------------------------------------------------------------------------------
+# %% preprocess ----
+#' @name
+#' preprocess
+#'
+#' @title
+#' Preprocess Data
+#'
+#' @description
+#' Preprocess data for analysis and visualization.
+#'
+#' @details
+#' Methods are provided for preprocessing training set data, which accepts a `PreprocessorConfig`
+#' object, and for preprocessing validation and test set data, which accept a `Preprocessor`
+#' object.
+#'
+#' @return `Preprocessor` object.
+#'
+#' @author EDG
+#' @rdname preprocess
+#' @export
+#'
+#' @examples
+#' # Setup a `Preprocessor`: this outputs a `PreprocessorConfig` object.
+#' prp <- setup_Preprocessor(remove_duplicates = TRUE, scale = TRUE, center = TRUE)
+#'
+#' # Includes a long list of parameters
+#' prp
+#'
+#' # Resample iris to get train and test data
+#' res <- resample(iris, setup_Resampler(seed = 2026))
+#' iris_train <- iris[res[[1]], ]
+#' iris_test <- iris[-res[[1]], ]
+#'
+#' # Preprocess training data
+#' iris_pre <- preprocess(iris_train, prp)
+#'
+#' # Access preprocessd training data with `preprocessed()`
+#' preprocessed(iris_pre)
+#'
+#' # Apply the same preprocessing to test data
+#' # In this case, the scale and center values from training data will be used.
+#' # Note how `preprocess()` accepts either a `PreprocessorConfig` or `Preprocessor` object for
+#' # this reason.
+#' iris_test_pre <- preprocess(iris_test, iris_pre)
+#'
+#' # Access preprocessed test data
+#' preprocessed(iris_test_pre)
+preprocess <- new_generic("preprocess", c("x", "config"))
 
+
+# %% train ----
 #' @name
 #' train
 #'
@@ -19,73 +69,38 @@ class_tabular <- new_union(class_data.frame, class_data.table)
 #' Train Supervised Learning Models
 #'
 #' @description
-#' Preprocess, tune, train, and test supervised learning models with a single call
+#' Preprocess, tune, train, and test supervised learning models in a single call
 #' using nested resampling.
 #'
-#' @usage
-#' train(x, ...)
-#'
 #' @details
+#' **Online documentation**
 #' See [rdocs.rtemis.org/train](https://rdocs.rtemis.org/train) for detailed documentation.
 #'
-#' @param x Tabular data OR `SuperConfig` object. See below for usage and arguments for each method.
-#' @param ... Not used.
-#'
-#' @section S7 method for tabular input (`data.frame`, `data.table`, `tbl_df`):
-#'
-#' **Usage**
-#'
-#' ```R
-#' train(x, dat_validation = NULL, dat_test = NULL, weights = NULL, algorithm = NULL,
-#'   preprocessor_config = NULL, hyperparameters = NULL, tuner_config = NULL,
-#'   outer_resampling_config = NULL, execution_config = setup_ExecutionConfig(),
-#'   question = NULL, outdir = NULL, verbosity = 1L
-#'  )
-#'  ```
-#'
-#'  **Arguments**
-#'
-#' - `dat_validation`: data.frame or similar. Optional validation set.
-#' - `dat_test`: data.frame or similar. Optional test set.
-#' - `weights`: Numeric vector or NULL. Optional case weights.
-#' - `algorithm`: Character. Algorithm to use (ignored if `hyperparameters` is set).
-#' - `preprocessor_config`: `PreprocessorConfig` object or NULL. Setup using `setup_Preprocessor`.
-#' - `hyperparameters`: `Hyperparameters` object. Setup using one of the `setup_*` functions.
-#' - `tuner_config`: `TunerConfig` object or NULL. Setup using `setup_GridSearch`.
-#' - `outer_resampling_config`: `ResamplerConfig` object or NULL. Setup using `setup_Resampler`.
-#' - `execution_config`: `ExecutionConfig` object. Setup using `setup_ExecutionConfig`.
-#'   This controls `backend`, `future_plan`, and `n_workers`.
-#' - `question`: Character or NULL. Optional question the model is trying to answer.
-#' - `outdir`: Character or NULL. Output directory.
-#' - `verbosity`: Integer. Verbosity level.
-#'
-#' @section S7 method for `SuperConfig` input:
-#'
-#' **Usage**
-#'
-#' ```R
-#' train(x)
-#' ```
-#'
-#' **Arguments**
-#'
-#' - `x`: `SuperConfig` object.
-#'
-#' @section Binary Classification:
-#'
-#' Important: For binary classification, the outcome should be a factor where the 2nd level
+#' **Binary Classification**
+#' For binary classification, the outcome should be a factor where the 2nd level
 #' corresponds to the positive class.
 #'
-#' @section Resampling:
-#'
-#' Note on resampling: You should never use an outer resampling method with
+#' **Resampling**
+#' Note that you should not use an outer resampling method with
 #' replacement if you will also be using an inner resampling (for tuning).
 #' The duplicated cases from the outer resampling may appear both in the
 #' training and test sets of the inner resamples, leading to underestimated
 #' test error.
 #'
-#' @section Parallelization:
+#' **Reproducibility**
+#' If using ***outer resampling***, you can set a seed when defining `outer_resampling_config`, e.g.
+#' ```r
+#' outer_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)`
+#' ```
+#' If using ***tuning with inner resampling***, you can set a seed when defining `tuner_config`,
+#' e.g.
+#' ```r
+#' tuner_config = setup_GridSearch(
+#'   resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold", seed = 2027L)
+#' )
+#' ```
 #'
+#' **Parallelization**
 #' There are three levels of parallelization that may be used during training:
 #'
 #' 1. Algorithm training (e.g. a parallelized learner like LightGBM)
@@ -94,23 +109,13 @@ class_tabular <- new_union(class_data.frame, class_data.table)
 #'
 #' The `train()` function and its sub-functions will automatically manage parallelization depending
 #' on:
-#' - The number of workers specified by the user via `setup_ExecutionConfig`
+#' - The number of workers specified by the user using `n_workers`
 #' - Whether the training algorithm supports parallelization itself
 #' - Whether hyperparameter tuning is needed
 #'
-#' @return Object of class `Regression`, `RegressionRes`, `Classification`, or `ClassificationRes`
-#'
 #' @author EDG
 #' @export
-#'
-#' @examples
-#' \donttest{
-#' iris_c_lightRF <- train(
-#'    iris,
-#'    algorithm = "LightRF",
-#'    outer_resampling_config = setup_Resampler(),
-#' )
-#' }
+# Examples are provided in the method-specific documentation.
 train <- new_generic("train", "x")
 
 #' String representation
@@ -390,7 +395,7 @@ write_toml <- new_generic(
   function(x, file, overwrite = FALSE, verbosity = 1L) {
     S7_dispatch()
   }
-)
+) # /rtemis::write_toml
 
 
 #' Select (include) columns by character or numeric vector.

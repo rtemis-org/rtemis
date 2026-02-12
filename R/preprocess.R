@@ -2,85 +2,23 @@
 # ::rtemis::
 # 2017- EDG rtemis.org
 
-#' @title
-#' Preprocess Data
+# %% preprocess(x, PreprocessorConfig, ...) ----
+#' @name
+#' preprocess
 #'
-#' @description
-#' Preprocess data for analysis and visualization.
-#'
-#' @usage
-#' ## S7 generic
-#' preprocess(x, config, ...)
-#'
-#' @param x data.frame or similar: Data to be preprocessed.
-#' @param config `PreprocessorConfig` or `Preprocessor`: PreprocessorConfig when
-#' preprocessing training set data. Setup using [setup_Preprocessor].
-#' Preprocessor when preprocessing validation and test set data.
-#' @param ... Used to pass `dat_validation` and `dat_test` to the method for Preprocessor.
-#'
-#' @details
-#' Methods are provided for preprocessing training set data, which accepts a PreprocessorConfig
-#' object, and for preprocessing validation and test set data, which accept a Preprocessor
-#' object.
-#'
-#' Order of operations:
-#'
-#'   * keep complete cases only
-#'   * remove constants
-#'   * remove duplicates
-#'   * remove cases by missingness threshold
-#'   * remove features by missingness threshold
-#'   * integer to factor
-#'   * integer to numeric
-#'   * logical to factor
-#'   * logical to numeric
-#'   * numeric to factor
-#'   * cut numeric to n bins
-#'   * cut numeric to n quantiles
-#'   * numeric with less than N unique values to factor
-#'   * character to factor
-#'   * factor NA to named level
-#'   * add missingness column
-#'   * impute
-#'   * scale and/or center
-#'   * one-hot encoding
-#'
-#' @return `Preprocessor` object.
+#' @param x data.frame, data.table, tbl_df (tabular data): Data to be preprocessed.
+#' @param config `PreprocessorConfig`: Setup using [setup_Preprocessor].
+#' @param dat_validation tabular data: Validation set data.
+#' @param dat_test tabular data: Test set data.
+#' @param verbosity Integer: Verbosity level.
+#' @param ... Not used.
 #'
 #' @author EDG
-#' @rdname preprocess
 #' @export
-#'
-#' @examples
-#' # Setup a `Preprocessor`: this outputs a `PreprocessorConfig` object.
-#' prp <- setup_Preprocessor(remove_duplicates = TRUE, scale = TRUE, center = TRUE)
-#'
-#' # Includes a long list of parameters
-#' prp
-#'
-#' # Resample iris to get train and test data
-#' res <- resample(iris, setup_Resampler(seed = 2026))
-#' iris_train <- iris[res[[1]], ]
-#' iris_test <- iris[-res[[1]], ]
-#'
-#' # Preprocess training data
-#' iris_pre <- preprocess(iris_train, prp)
-#'
-#' # Access preprocessd training data with `preprocessed()`
-#' preprocessed(iris_pre)
-#'
-#' # Apply the same preprocessing to test data
-#' # In this case, the scale and center values from training data will be used.
-#' # Note how `preprocess()` accepts either a `PreprocessorConfig` or `Preprocessor` object for
-#' # this reason.
-#' iris_test_pre <- preprocess(iris_test, iris_pre)
-#'
-#' # Access preprocessed test data
-#' preprocessed(iris_test_pre)
-preprocess <- new_generic("preprocess", c("x", "config"))
-
-# preprocess(x, PreprocessorConfig, ...) ----
-method(preprocess, list(class_data.frame, PreprocessorConfig)) <- function(
+preprocess.class_tabular.PreprocessorConfig <- method(
+  preprocess,
+  list(class_tabular, PreprocessorConfig)
+) <- function(
   x,
   config,
   dat_validation = NULL,
@@ -730,8 +668,17 @@ method(preprocess, list(class_data.frame, PreprocessorConfig)) <- function(
   )
 } # /rtemis::preprocess(PreprocessorConfig, ...)
 
-# preprocess(x, Preprocessor, ...) ----
-method(preprocess, list(class_data.frame, Preprocessor)) <- function(
+
+# %% preprocess(x, Preprocessor, ...) ----
+#' @name
+#' preprocess
+#'
+#' @author EDG
+#' @export
+preprocess.class_tabular.Preprocessor <- method(
+  preprocess,
+  list(class_tabular, Preprocessor)
+) <- function(
   x,
   config,
   verbosity = 1L
