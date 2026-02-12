@@ -354,7 +354,7 @@ method(repr, GridSearch) <- function(
 # %% list_to_TunerConfig ----
 #' List to TunerConfig
 #'
-#' Convert a named list to a TunerConfig object. Used by `read_config()``
+#' Convert a named list to a TunerConfig object. Used by `read_config()`
 #'
 #' @param x Named list with elements "type" and "config".
 #'
