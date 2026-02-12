@@ -74,13 +74,16 @@ preprocess <- new_generic("preprocess", c("x", "config"))
 #'
 #' @details
 #' **Online documentation**
+#'
 #' See [rdocs.rtemis.org/train](https://rdocs.rtemis.org/train) for detailed documentation.
 #'
 #' **Binary Classification**
+#'
 #' For binary classification, the outcome should be a factor where the 2nd level
 #' corresponds to the positive class.
 #'
 #' **Resampling**
+#'
 #' Note that you should not use an outer resampling method with
 #' replacement if you will also be using an inner resampling (for tuning).
 #' The duplicated cases from the outer resampling may appear both in the
@@ -88,6 +91,7 @@ preprocess <- new_generic("preprocess", c("x", "config"))
 #' test error.
 #'
 #' **Reproducibility**
+#'
 #' If using ***outer resampling***, you can set a seed when defining `outer_resampling_config`, e.g.
 #' ```r
 #' outer_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)
@@ -101,13 +105,14 @@ preprocess <- new_generic("preprocess", c("x", "config"))
 #' ```
 #'
 #' **Parallelization**
+#'
 #' There are three levels of parallelization that may be used during training:
 #'
 #' 1. Algorithm training (e.g. a parallelized learner like LightGBM)
 #' 2. Tuning (inner resampling, where multiple resamples can be processed in parallel)
 #' 3. Outer resampling (where multiple outer resamples can be processed in parallel)
 #'
-#' The `train()` function and its sub-functions will automatically manage parallelization depending
+#' The `train()` function will automatically manage parallelization depending
 #' on:
 #' - The number of workers specified by the user using `n_workers`
 #' - Whether the training algorithm supports parallelization itself
