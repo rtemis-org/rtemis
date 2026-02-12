@@ -367,7 +367,6 @@ method(get_factor_levels, class_data.table) <- function(x) {
 
 
 # %% to_toml
-
 #' Convert to TOML
 #'
 #' @author EDG
@@ -376,16 +375,22 @@ method(get_factor_levels, class_data.table) <- function(x) {
 to_toml <- new_generic("to_toml", "x")
 
 
+# %% to_yaml
+#' Convert to YAML
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+to_yaml <- new_generic("to_yaml", "x")
+
+
 # %% write_toml
 
+#' @name
+#' write_toml
+#'
+#' @title
 #' Write to TOML file
-#'
-#' @param x `SuperConfig` object to write to TOML file.
-#' @param file Character: Path to output TOML file.
-#' @param overwrite Logical: If TRUE, overwrite existing file.
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @return `SuperConfig` object, invisibly.
 #'
 #' @author EDG
 #' @export
@@ -961,3 +966,65 @@ write_lines <- function(x, file, overwrite = FALSE, verbosity = 1L) {
   }
   invisible(NULL)
 } # /rtemis::write_lines
+
+
+# %% toml_meta ----
+#' @name
+#' toml_meta
+#'
+#' @title
+#' Write TOML metadata
+#'
+#' @description
+#' Creates named list which will become first TOML table in the following format:
+#'
+#' ```toml
+#' [_meta]
+#' package = "rtemis"
+#' package_version = "0.4.2"
+#' schema_version = "1.0"
+#' object_type = "SuperConfig"
+#' created_at = 2026-2-11T22:45:00Z
+#' ```
+#' @param x Object to create metadata for. Class name will be included in metadata.
+#'
+toml_meta <- function(x, schema_version = "1.0") {
+  list(
+    `_meta` = list(
+      package = "rtemis",
+      package_version = as.character(packageVersion("rtemis")),
+      schema_version = schema_version,
+      object_type = S7_class(x)@name,
+      created_at = format(
+        Sys.time(),
+        "%Y-%m-%dT%H:%M:%SZ",
+        tz = "UTC"
+      )
+    )
+  )
+} # /rtemis::toml_meta
+
+
+# %% toml_with_meta ----
+#' Create TOML string with metadata
+#'
+#' Creates a TOML string with an inline metadata table followed by the TOML representation of the
+#' object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+toml_with_meta <- function(x, payload, schema_version = "1.0") {
+  meta_block <- toml::write_toml(
+    toml_meta(x, schema_version = schema_version)
+  )
+  meta_lines <- strsplit(meta_block, "\n", fixed = TRUE)[[1]]
+  meta_lines <- meta_lines[meta_lines != "" & meta_lines != "[_meta]"]
+  meta_inline <- paste0(
+    "_meta = { ",
+    paste(meta_lines, collapse = ", "),
+    " }"
+  )
+  payload_str <- toml::write_toml(payload)
+  paste(meta_inline, payload_str, sep = "\n\n")
+} # /rtemis::toml_with_meta
