@@ -90,7 +90,7 @@ preprocess <- new_generic("preprocess", c("x", "config"))
 #' **Reproducibility**
 #' If using ***outer resampling***, you can set a seed when defining `outer_resampling_config`, e.g.
 #' ```r
-#' outer_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)`
+#' outer_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)
 #' ```
 #' If using ***tuning with inner resampling***, you can set a seed when defining `tuner_config`,
 #' e.g.
@@ -925,7 +925,7 @@ toml_empty_to_null <- function(x) {
 #' @noRd
 write_lines <- function(x, file, overwrite = FALSE, verbosity = 1L) {
   # Normalize path
-  filepath <- normalizePath(file, mustWork = FALSE)
+  file <- normalizePath(file, mustWork = FALSE)
   # Check if file exists
   if (file.exists(file)) {
     if (overwrite) {
