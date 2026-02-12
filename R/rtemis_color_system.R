@@ -44,22 +44,22 @@ col_calibrator <- rt_magenta
 #'
 #' @format A named list with the following elements:
 #' \describe{
-#'   \item{rt_red}{"kaimana red"}
-#'   \item{rt_blue}{"kaimana light blue"}
-#'   \item{rt_green}{"kaimana medium green"}
-#'   \item{rt_orange}{"coastside orange"}
-#'   \item{rt_teal}{"rtemis teal"}
-#'   \item{rt_purple}{"rtemis purple"}
-#'   \item{rt_magenta}{"rtemis magenta"}
-#'   \item{highlight_col}{"rtemis teal"}
-#'   \item{col_object}{"rtemis teal"}
-#'   \item{col_info}{"lmd burgundy"}
-#'   \item{col_outer}{"kaimana red"}
-#'   \item{col_tuner}{"coastside orange"}
+#'   \item{red}{"kaimana red"}
+#'   \item{blue}{"kaimana light blue"}
+#'   \item{green}{"kaimana medium green"}
+#'   \item{orange}{"coastside orange"}
+#'   \item{teal}{"rtemis teal"}
+#'   \item{purple}{"rtemis purple"}
+#'   \item{magenta}{"rtemis magenta"}
+#'   \item{highlight_col}{"highlight color"}
+#'   \item{object}{"rtemis teal"}
+#'   \item{info}{"lmd burgundy"}
+#'   \item{outer}{"kaimana red"}
+#'   \item{tuner}{"coastside orange"}
 #' }
 #'
 #' @examples
-#' rtemis_colors[["rt_teal"]]
+#' rtemis_colors[["orange"]]
 #'
 #' @author EDG
 #'
