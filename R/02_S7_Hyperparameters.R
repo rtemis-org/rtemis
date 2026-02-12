@@ -2273,6 +2273,9 @@ get_ranger_config <- function(hyperparameters) {
 # %% list_to_Hyperparameters ----
 list_to_Hyperparameters <- function(x) {
   fn <- paste0("setup_", x[["algorithm"]])
+  if (!exists(fn, mode = "function")) {
+    cli::cli_abort(".val Invalid algorithm: {x[['algorithm']]}.")
+  }
   args <- x[["hyperparameters"]]
   # Keep only arguments that are in the setup function
   setup_formals <- names(formals(get(fn)))
