@@ -156,6 +156,7 @@ setup_SuperConfig <- function(
 #' @keywords internal
 #' @noRd
 method(to_toml, SuperConfig) <- function(x) {
+  check_dependencies("toml")
   xl <- S7_to_list(props(x))
   toml_with_meta(x, xl)
 } # /rtemis::to_toml.SuperConfig
@@ -223,7 +224,8 @@ write_toml.SuperConfig <- method(write_toml, SuperConfig) <- function(
 #' @export
 read_config <- function(file) {
   check_dependencies("toml")
-  file <- normalizePath(file, mustWork = TRUE)
+  file <- normalizePath(file, mustWork = FALSE)
+  # Let cli_abort() handle error reporting
   if (!file.exists(file)) {
     cli::cli_abort("File does not exist: {file}")
   }
