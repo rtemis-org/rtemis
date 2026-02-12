@@ -12,7 +12,6 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-
 rt_save <- function(
   object,
   outdir,

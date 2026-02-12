@@ -115,27 +115,6 @@ filter_order <- function(x, idl, decreasing = FALSE) {
 }
 
 
-#' Get version of all loaded packages (namespaces)
-#'
-#' @author EDG
-#'
-#' @return Data frame with columns "Package_Name" and "Version".
-#'
-#' @keywords internal
-#' @noRd
-#'
-#' @examples
-#' get_loaded_pkg_version()
-get_loaded_pkg_version <- function() {
-  loaded_ <- loadedNamespaces()
-  data.frame(
-    Package_Name = loaded_,
-    Version = sapply(loaded_, function(i) as.character(packageVersion(i))),
-    row.names = seq(loaded_)
-  )
-} # /rtemis::get_loaded_pkg_version
-
-
 #' Get the mode of a factor or integer
 #'
 #' Returns the mode of a factor or integer

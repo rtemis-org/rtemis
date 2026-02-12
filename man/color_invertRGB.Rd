@@ -10,19 +10,17 @@ color_invertRGB(x)
 \item{x}{Color, vector}
 }
 \value{
-Inverted colors using hexadecimal notation #RRGGBBAA
+Inverted colors using hexadecimal notation \verb{#RRGGBBAA}.
 }
 \description{
 Invert Color in RGB space
 }
 \examples{
-\dontrun{
 cols <- c("red", "green", "blue")
 previewcolor(cols)
 cols |>
   color_invertRGB() |>
   previewcolor()
-}
 }
 \author{
 EDG

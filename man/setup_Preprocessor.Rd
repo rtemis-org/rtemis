@@ -2,7 +2,7 @@
 % Please edit documentation in R/04_S7_Preprocessor.R
 \name{setup_Preprocessor}
 \alias{setup_Preprocessor}
-\title{Setup \code{PreprocessorConfig}}
+\title{Setup Preprocessor}
 \usage{
 setup_Preprocessor(
   complete_cases = FALSE,
@@ -166,7 +166,7 @@ one-hot encoding to validation or test data using \code{Preprocessor}.}
 \code{PreprocessorConfig} object.
 }
 \description{
-Setup \code{PreprocessorConfig}
+Creates a \code{PreprocessorConfig} object, which can be used in \link{preprocess}.
 }
 \section{Order of Operations}{
 

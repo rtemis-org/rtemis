@@ -17,7 +17,8 @@
 #' @return Color
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 color_op <- function(col, fn = c("invert", "mean"), space = c("HSV", "RGB")) {
   # Arguments ----
   fn <- match.arg(fn)
@@ -162,19 +163,17 @@ col2grayscale <- function(x, what = c("color", "decimal")) {
 #'
 #' @param x Color, vector
 #'
-#' @return Inverted colors using hexadecimal notation #RRGGBBAA
+#' @return Inverted colors using hexadecimal notation `#RRGGBBAA`.
 #'
 #' @author EDG
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' cols <- c("red", "green", "blue")
 #' previewcolor(cols)
 #' cols |>
 #'   color_invertRGB() |>
 #'   previewcolor()
-#' }
 color_invertRGB <- function(x) {
   col <- as.list(x)
   col_rgb <- col2rgb(col, alpha = TRUE)
@@ -386,7 +385,6 @@ previewcolor <- function(
   }
   x <- unlist(x)
 
-  # Always reset par on exit
   par_orig <- par(no.readonly = TRUE)
   on.exit(par(par_orig))
 
