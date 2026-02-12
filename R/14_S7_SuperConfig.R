@@ -157,14 +157,13 @@ setup_SuperConfig <- function(
 #' @noRd
 method(to_toml, SuperConfig) <- function(x) {
   xl <- S7_to_list(props(x))
-  toml::write_toml(xl)
+  toml_with_meta(x, xl)
 } # /rtemis::to_toml.SuperConfig
 
 
 # %% write_toml SuperConfig ----
-#' Write `SuperConfig` to TOML file
-#'
-#' Write `SuperConfig` object to TOML file that can be read back in with `read_toml()`.
+#' @name
+#' write_toml
 #'
 #' @param x `SuperConfig` object.
 #' @param file Character: Path to output TOML file.
@@ -174,9 +173,27 @@ method(to_toml, SuperConfig) <- function(x) {
 #' @return `SuperConfig` object, invisibly.
 #'
 #' @author EDG
-#' @keywords internal
-#' @noRd
-method(write_toml, SuperConfig) <- function(
+#' @export
+#'
+#' @examples
+#' x <- setup_SuperConfig(
+#'   dat_training_path = "~/Data/iris.csv",
+#'   dat_validation_path = NULL,
+#'   dat_test_path = NULL,
+#'   weights = NULL,
+#'   preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
+#'   algorithm = "LightRF",
+#'   hyperparameters = setup_LightRF(),
+#'   tuner_config = setup_GridSearch(),
+#'   outer_resampling_config = setup_Resampler(),
+#'   execution_config = setup_ExecutionConfig(),
+#'   question = "Can we tell iris species apart given their measurements?",
+#'   outdir = "models/",
+#'   verbosity = 1L
+#' )
+#' tmpdir <- tempdir()
+#' write_toml(x, file.path(tmpdir, "rtemis.toml"))
+write_toml.SuperConfig <- method(write_toml, SuperConfig) <- function(
   x,
   file,
   overwrite = FALSE,
@@ -250,3 +267,22 @@ read_config <- function(file) {
     verbosity = iflengthy(xl[["verbosity"]])
   )
 } # /rtemis::read_config
+
+
+# %% to_yaml SuperConfig ----
+#' Convert `SuperConfig` to YAML
+#'
+#' Convert `SuperConfig` object to YAML format for saving to file that can be read back in with
+#' `read_config()`.
+#'
+#' @param x `SuperConfig` object.
+#'
+#' @return Character: YAML string representation of the `SuperConfig` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(to_yaml, SuperConfig) <- function(x) {
+  xl <- S7_to_list(props(x))
+  yaml::as.yaml(xl)
+} # /rtemis::to_yaml.SuperConfig
