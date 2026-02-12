@@ -66,7 +66,7 @@ test_that("train() works with SuperConfig", {
 })
 
 
-# %% Test converting SuperConfig to TOML ----
+# %% Test to_toml.SuperConfig ----
 test_that("SuperConfig can be written to TOML", {
   x <- setup_SuperConfig(
     dat_training_path = "~/Data/iris.csv",
@@ -88,9 +88,8 @@ test_that("SuperConfig can be written to TOML", {
 })
 
 
-# %% write SuperConfig to TOML file ----
+# %% write_toml.SuperConfig & read_config ----
 test_that("SuperConfig can be written to TOML", {
-  skip("For local testing only; requires writing to file")
   x <- setup_SuperConfig(
     dat_training_path = "~/Data/iris.csv",
     dat_validation_path = NULL,
@@ -106,6 +105,31 @@ test_that("SuperConfig can be written to TOML", {
     outdir = "models/",
     verbosity = 1L
   )
-  write_toml(x, "~/dev/rtemis.toml")
-  testthat::expect_true(file.exists("~/dev/rtemis.toml"))
+  tmpdir <- tempdir()
+  write_toml(x, file.path(tmpdir, "rtemis.toml"), overwrite = TRUE)
+  testthat::expect_true(file.exists(file.path(tmpdir, "rtemis.toml")))
+  xtoo <- read_config(file.path(tmpdir, "rtemis.toml"))
+  expect_s7_class(xtoo, SuperConfig)
+})
+
+
+# %% Test to_yaml.SuperConfig ----
+test_that("SuperConfig can be written to YAML", {
+  x <- setup_SuperConfig(
+    dat_training_path = "~/Data/iris.csv",
+    dat_validation_path = NULL,
+    dat_test_path = NULL,
+    weights = NULL,
+    preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
+    algorithm = "LightRF",
+    hyperparameters = setup_LightRF(),
+    tuner_config = setup_GridSearch(),
+    outer_resampling_config = setup_Resampler(),
+    execution_config = setup_ExecutionConfig(),
+    question = "Can we tell iris species apart given their measurements?",
+    outdir = "models/",
+    verbosity = 1L
+  )
+  yaml_str <- to_yaml(x)
+  expect_type(yaml_str, "character")
 })
