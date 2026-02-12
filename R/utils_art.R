@@ -187,11 +187,11 @@ pkglogo <- function(
 #' Display color previews with ANSI color blocks
 #'
 #' @param x Named vector or list of colors to preview.
-#' @param pad Integer: Pad output with this many spaces. Default = 2L.
-#' @param center_title Logical: If TRUE, autopad title for centering, if present. Default = TRUE.
-#' @param title Character: Optional title to display. Default = NULL.
-#' @param title_newline Logical: If TRUE, add newline after title. Default = TRUE.
-#' @param limit Integer: Maximum number of colors to show. Set to -1L for no limit. Default = 12L.
+#' @param pad Integer: Pad output with this many spaces.
+#' @param center_title Logical: If TRUE, autopad title for centering, if present.
+#' @param title Character: Optional title to display.
+#' @param title_newline Logical: If TRUE, add newline after title.
+#' @param limit Integer: Maximum number of colors to show. Set to -1L for no limit.
 #' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted string that can be printed with cat()

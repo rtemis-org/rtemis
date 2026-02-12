@@ -17,7 +17,7 @@
 )
 }
 \arguments{
-\item{x}{MassGLM object}
+\item{x}{MassGLM object trained using \link{massGLM}.}
 
 \item{coefname}{Character: Name of coefficient to plot. If \code{NULL}, the first coefficient is used.}
 
@@ -30,14 +30,24 @@ p-value adjustment method.}
 
 \item{ylab}{Character: y-axis label.}
 
-\item{theme}{\code{Theme} object}
+\item{theme}{\code{Theme} object. Create using one of the \code{theme_} functions, e.g.
+\code{theme_whitegrid()}.}
 
 \item{verbosity}{Integer: Verbosity level.}
 
-\item{...}{Additional arguments passed to \link{draw_volcano} or \link{draw_bar}}
+\item{...}{Additional arguments passed to \link{draw_volcano}.}
 }
 \description{
 Plot MassGLM using volcano plot
+}
+\examples{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+set.seed(2019)
+y <- rnormmat(500, 500, return_df = TRUE)
+x <- data.frame(x = y[, 3] + y[, 5] - y[, 9] + y[, 15] + rnorm(500))
+mod <- massGLM(x, y)
+plot(mod)
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

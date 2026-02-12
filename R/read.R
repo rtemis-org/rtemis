@@ -19,31 +19,31 @@
 #' - **FASTA** files using `seqinr::read.fasta()`
 #' - **RDS** files using `readRDS()`
 #'
-#' @param filename Character: filename or full path if `datadir = NULL`
+#' @param filename Character: filename or full path if `datadir = NULL`.
 #' @param datadir Character: Optional path to directory where `filename`
 #' is located. If not specified, `filename` must be the full path.
-#' @param make_unique Logical: If TRUE, keep unique rows only
+#' @param make_unique Logical: If TRUE, keep unique rows only.
 #' @param character2factor Logical: If TRUE, convert character variables to
-#' factors
+#' factors.
 #' @param clean_colnames Logical: If TRUE, clean columns names using
-#' [clean_colnames]
-#' @param delim_reader Character: package to use for reading delimited data
-#' @param xlsx_sheet Integer or character: Name or number of XLSX sheet to read
+#' [clean_colnames].
+#' @param delim_reader Character: package to use for reading delimited data.
+#' @param xlsx_sheet Integer or character: Name or number of XLSX sheet to read.
 #' @param sep Single character: field separator. If `delim_reader = "fread"`
-#' and `sep = NULL`, this defaults to "auto", otherwise defaults to ","
-#' @param quote Single character: quote character
+#' and `sep = NULL`, this defaults to "auto", otherwise defaults to ",".
+#' @param quote Single character: quote character.
 #' @param na_strings Character vector: Strings to be interpreted as NA values.
 #' For `delim_reader = "duckdb"`, this must be a single string.
 #' @param output Character: "default" or "data.table", If default, return the delim_reader's
-#' default data structure, otherwise convert to data.table
-#' @param attr Character: Attribute to set (Optional)
-#' @param value Character: Value to set (if `attr` is not NULL)
+#' default data structure, otherwise convert to data.table.
+#' @param attr Character: Attribute to set (Optional).
+#' @param value Character: Value to set (if `attr` is not NULL).
 #' @param verbosity Integer: Verbosity level.
 #' @param fread_verbosity Integer: Verbosity level. Passed to `data.table::fread`
 #' @param timed Logical: If TRUE, time the process and print to console
 #' @param ... Additional arguments to pass to `data.table::fread`,
 #' `arrow::read_delim_arrow()`, `vroom::vroom()`,
-#' or `readxl::read_excel()`
+#' or `readxl::read_excel()`.
 #'
 #' @return data.frame, data.table, or tibble.
 #'
@@ -58,7 +58,7 @@
 read <- function(
   filename,
   datadir = NULL,
-  make_unique = TRUE,
+  make_unique = FALSE,
   character2factor = FALSE,
   clean_colnames = TRUE,
   delim_reader = c("data.table", "vroom", "duckdb", "arrow"),

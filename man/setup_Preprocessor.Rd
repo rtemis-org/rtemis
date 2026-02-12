@@ -2,7 +2,7 @@
 % Please edit documentation in R/04_S7_Preprocessor.R
 \name{setup_Preprocessor}
 \alias{setup_Preprocessor}
-\title{Setup \code{PreprocessorConfig}}
+\title{Setup Preprocessor}
 \usage{
 setup_Preprocessor(
   complete_cases = FALSE,
@@ -166,8 +166,33 @@ one-hot encoding to validation or test data using \code{Preprocessor}.}
 \code{PreprocessorConfig} object.
 }
 \description{
-Setup \code{PreprocessorConfig}
+Creates a \code{PreprocessorConfig} object, which can be used in \link{preprocess}.
 }
+\section{Order of Operations}{
+
+\itemize{
+\item keep complete cases only
+\item remove constants
+\item remove duplicates
+\item remove cases by missingness threshold
+\item remove features by missingness threshold
+\item integer to factor
+\item integer to numeric
+\item logical to factor
+\item logical to numeric
+\item numeric to factor
+\item cut numeric to n bins
+\item cut numeric to n quantiles
+\item numeric with less than N unique values to factor
+\item character to factor
+\item factor NA to named level
+\item add missingness column
+\item impute
+\item scale and/or center
+\item one-hot encoding
+}
+}
+
 \examples{
 preproc_config <- setup_Preprocessor(factorNA2missing = TRUE)
 preproc_config

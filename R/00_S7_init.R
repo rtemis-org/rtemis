@@ -11,7 +11,57 @@ class_lgb.Booster <- new_S3_class("lgb.Booster")
 class_tabular <- new_union(class_data.frame, class_data.table)
 
 # --- Generics -------------------------------------------------------------------------------------
+# %% preprocess ----
+#' @name
+#' preprocess
+#'
+#' @title
+#' Preprocess Data
+#'
+#' @description
+#' Preprocess data for analysis and visualization.
+#'
+#' @details
+#' Methods are provided for preprocessing training set data, which accepts a `PreprocessorConfig`
+#' object, and for preprocessing validation and test set data, which accept a `Preprocessor`
+#' object.
+#'
+#' @return `Preprocessor` object.
+#'
+#' @author EDG
+#' @rdname preprocess
+#' @export
+#'
+#' @examples
+#' # Setup a `Preprocessor`: this outputs a `PreprocessorConfig` object.
+#' prp <- setup_Preprocessor(remove_duplicates = TRUE, scale = TRUE, center = TRUE)
+#'
+#' # Includes a long list of parameters
+#' prp
+#'
+#' # Resample iris to get train and test data
+#' res <- resample(iris, setup_Resampler(seed = 2026))
+#' iris_train <- iris[res[[1]], ]
+#' iris_test <- iris[-res[[1]], ]
+#'
+#' # Preprocess training data
+#' iris_pre <- preprocess(iris_train, prp)
+#'
+#' # Access preprocessd training data with `preprocessed()`
+#' preprocessed(iris_pre)
+#'
+#' # Apply the same preprocessing to test data
+#' # In this case, the scale and center values from training data will be used.
+#' # Note how `preprocess()` accepts either a `PreprocessorConfig` or `Preprocessor` object for
+#' # this reason.
+#' iris_test_pre <- preprocess(iris_test, iris_pre)
+#'
+#' # Access preprocessed test data
+#' preprocessed(iris_test_pre)
+preprocess <- new_generic("preprocess", c("x", "config"))
 
+
+# %% train ----
 #' @name
 #' train
 #'
@@ -19,72 +69,42 @@ class_tabular <- new_union(class_data.frame, class_data.table)
 #' Train Supervised Learning Models
 #'
 #' @description
-#' Preprocess, tune, train, and test supervised learning models with a single call
+#' Preprocess, tune, train, and test supervised learning models in a single call
 #' using nested resampling.
 #'
-#' @usage
-#' train(x, ...)
-#'
 #' @details
+#' **Online documentation**
+#'
 #' See [rdocs.rtemis.org/train](https://rdocs.rtemis.org/train) for detailed documentation.
 #'
-#' @param x Tabular data OR `SuperConfig` object. => See ***Details*** for usage and parameters for each method.
-#' @param ... Not used.
+#' **Binary Classification**
 #'
-#' @section S7 method for tabular input (`data.frame`, `data.table`, `tbl_df`):
-#'
-#' **Usage**
-#'
-#' ```R
-#' train(x, dat_validation = NULL, dat_test = NULL, weights = NULL, algorithm = NULL,
-#'   preprocessor_config = NULL, hyperparameters = NULL, tuner_config = NULL,
-#'   outer_resampling_config = NULL, execution_config = setup_ExecutionConfig(),
-#'   question = NULL, outdir = NULL, verbosity = 1L
-#'  )
-#'  ````
-#'
-#'  **Arguments**
-#'
-#' - `dat_validation`: data.frame or similar. Optional validation set.
-#' - `dat_test`: data.frame or similar. Optional test set.
-#' - `weights`: Numeric vector or NULL. Optional case weights.
-#' - `algorithm`: Character. Algorithm to use (ignored if `hyperparameters` is set).
-#' - `preprocessor_config`: `PreprocessorConfig` object or NULL. Setup using `setup_Preprocessor`.
-#' - `hyperparameters`: `Hyperparameters` object. Setup using one of the `setup_*` functions.
-#' - `tuner_config`: `TunerConfig` object or NULL. Setup using `setup_GridSearch`.
-#' - `outer_resampling_config`: `ResamplerConfig` object or NULL. Setup using `setup_Resampler`.
-#' - `execution_config`: `ExecutionConfig` object. Setup using `setup_ExecutionConfig`.
-#'   This controls `backend`, `future_plan`, and `n_workers`.
-#' - `question`: Character or NULL. Optional question the model is trying to answer.
-#' - `outdir`: Character or NULL. Output directory.
-#' - `verbosity`: Integer. Verbosity level.
-#'
-#' @section S7 method for `SuperConfig` input:
-#'
-#' **Usage**
-#'
-#' ```R
-#' train(x)
-#' ```
-#'
-#' **Arguments**
-#'
-#' - `x`: `SuperConfig` object.
-#'
-#' @section Binary Classification:
-#'
-#' Important: For binary classification, the outcome should be a factor where the 2nd level
+#' For binary classification, the outcome should be a factor where the 2nd level
 #' corresponds to the positive class.
 #'
-#' @section Resampling:
+#' **Resampling**
 #'
-#' Note on resampling: You should never use an outer resampling method with
+#' Note that you should not use an outer resampling method with
 #' replacement if you will also be using an inner resampling (for tuning).
 #' The duplicated cases from the outer resampling may appear both in the
 #' training and test sets of the inner resamples, leading to underestimated
 #' test error.
 #'
-#' @section Parallelization:
+#' **Reproducibility**
+#'
+#' If using ***outer resampling***, you can set a seed when defining `outer_resampling_config`, e.g.
+#' ```r
+#' outer_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)
+#' ```
+#' If using ***tuning with inner resampling***, you can set a seed when defining `tuner_config`,
+#' e.g.
+#' ```r
+#' tuner_config = setup_GridSearch(
+#'   resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold", seed = 2027L)
+#' )
+#' ```
+#'
+#' **Parallelization**
 #'
 #' There are three levels of parallelization that may be used during training:
 #'
@@ -92,25 +112,15 @@ class_tabular <- new_union(class_data.frame, class_data.table)
 #' 2. Tuning (inner resampling, where multiple resamples can be processed in parallel)
 #' 3. Outer resampling (where multiple outer resamples can be processed in parallel)
 #'
-#' The `train()` function and its sub-functions will automatically manage parallelization depending
+#' The `train()` function will automatically manage parallelization depending
 #' on:
-#' - The number of workers specified by the user via `setup_ExecutionConfig`
+#' - The number of workers specified by the user using `n_workers`
 #' - Whether the training algorithm supports parallelization itself
 #' - Whether hyperparameter tuning is needed
 #'
-#' @return Object of class `Regression`, `RegressionRes`, `Classification`, or `ClassificationRes`
-#'
 #' @author EDG
 #' @export
-#'
-#' @examples
-#' \donttest{
-#' iris_c_lightRF <- train(
-#'    iris,
-#'    algorithm = "LightRF",
-#'    outer_resampling_config = setup_Resampler(),
-#' )
-#' }
+# Examples are provided in the method-specific documentation.
 train <- new_generic("train", "x")
 
 #' String representation
@@ -361,6 +371,7 @@ method(get_factor_levels, class_data.table) <- function(x) {
 }
 
 
+# %% to_toml
 #' Convert to TOML
 #'
 #' @author EDG
@@ -369,12 +380,32 @@ method(get_factor_levels, class_data.table) <- function(x) {
 to_toml <- new_generic("to_toml", "x")
 
 
-#' Read from TOML
+# %% to_yaml
+#' Convert to YAML
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-from_toml <- new_generic("from_toml", "x")
+to_yaml <- new_generic("to_yaml", "x")
+
+
+# %% write_toml
+
+#' @name
+#' write_toml
+#'
+#' @title
+#' Write to TOML file
+#'
+#' @author EDG
+#' @export
+write_toml <- new_generic(
+  "write_toml",
+  "x",
+  function(x, file, overwrite = FALSE, verbosity = 1L) {
+    S7_dispatch()
+  }
+) # /rtemis::write_toml
 
 
 #' Select (include) columns by character or numeric vector.
@@ -645,9 +676,9 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #'
 #' # Train GLM with cross-validation
 #' resmod_c_glm <- train(
-#'  x = dat,
-#'  algorithm = "glm",
-#'  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+#'   x = dat,
+#'   algorithm = "glm",
+#'   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 #' )
 #'
 #' # Calibrate the `ClassificationRes` using the same resampling configuration as used for training.
@@ -666,6 +697,39 @@ calibrate <- new_generic(
     S7_dispatch()
   }
 ) # /rtemis::calibrate
+
+
+#' @name get_factor_levels
+#'
+#' @title
+#' Get factor levels from data.frame or similar
+#'
+#' @usage
+#' get_factor_levels(x)
+#'
+#' @param x data.frame or similar.
+#'
+#' @return Named list of factor levels. Names correspond to column names.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+get_factor_levels <- new_generic(
+  "get_factor_levels",
+  "x",
+  function(x) S7_dispatch()
+)
+
+method(get_factor_levels, class_data.frame) <- function(x) {
+  factor_index <- which(sapply(x, is.factor))
+  lapply(x[, factor_index, drop = FALSE], levels)
+}
+
+method(get_factor_levels, class_data.table) <- function(x) {
+  factor_index <- which(sapply(x, is.factor))
+  # with = FALSE slightly more performance than using .SD
+  lapply(x[, factor_index, with = FALSE], levels)
+}
 
 
 # --- Custom S7 validators -------------------------------------------------------------------------
@@ -809,3 +873,175 @@ get_output_type <- function(
 
   match.arg(output_type)
 } # /rtemis::get_output_type
+
+
+# %% S7_to_list ----
+S7_to_list <- function(x) {
+  if (S7_inherits(x)) {
+    x <- props(x)
+  }
+  if (is.list(x)) {
+    x <- lapply(x, S7_to_list)
+  }
+  x
+} # /rtemis::S7_to_list
+
+
+# %% toml_to_list ----
+
+# %% toml_empty_to_null ----
+toml_empty_to_null <- function(x) {
+  if (!is.list(x)) {
+    return(x)
+  }
+  if (length(x) == 0L) {
+    return(NULL)
+  }
+  if (is.null(names(x))) {
+    scalar_types <- vapply(
+      x,
+      function(el) {
+        is.atomic(el) && length(el) == 1L && !is.null(el)
+      },
+      logical(1)
+    )
+    if (all(scalar_types)) {
+      return(unlist(x, use.names = FALSE))
+    }
+  }
+  lapply(x, toml_empty_to_null)
+} # /rtemis::toml_empty_to_null
+
+# %% write_lines
+
+#' Write lines to file
+#'
+#' Normalizes path, check if directory exists, creates it if necessary,
+#' writes lines to file, and checks if file was created successfully.
+#'
+#' @param x Character: Text to write to file.
+#' @param file Character: Path to output file.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Invisible NULL. Called for side effect of writing to file.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+write_lines <- function(x, file, overwrite = FALSE, verbosity = 1L) {
+  # Normalize path
+  file <- normalizePath(file, mustWork = FALSE)
+  # Check if file exists
+  if (file.exists(file)) {
+    if (overwrite) {
+      if (verbosity >= 1L) {
+        msg(fmt(
+          paste("Overwriting existing file:", file),
+          col = rtemis_colors[["orange"]]
+        ))
+      }
+    } else {
+      cli::cli_abort(
+        "File already exists: {file}. Set `overwrite = TRUE` to overwrite."
+      )
+    }
+  }
+  # Get directory name
+  dir <- dirname(file)
+  # Check if directory exists, create it if not
+  if (!dir.exists(dir)) {
+    dir.create(dir, recursive = TRUE)
+    if (!dir.exists(dir)) {
+      cli::cli_abort("Failed to create directory: {dir}")
+    } else {
+      if (verbosity >= 1L) {
+        msg(checkmark(), "Created directory:", dir)
+      }
+    }
+  }
+  # Write lines to file
+  writeLines(x, con = file)
+  # Check if file was created successfully
+  if (!file.exists(file)) {
+    cli::cli_abort("Failed to create file: {file}")
+  } else {
+    if (verbosity >= 1L) {
+      msg(checkmark(), "Created file:", file)
+    }
+  }
+  invisible(NULL)
+} # /rtemis::write_lines
+
+
+# %% toml_meta ----
+#' @name
+#' toml_meta
+#'
+#' @title
+#' Write TOML metadata
+#'
+#' @description
+#' Creates named list which will become first TOML table in the following format:
+#'
+#' ```toml
+#' [_meta]
+#' package = "rtemis"
+#' package_version = "0.4.2"
+#' schema_version = "1.0"
+#' object_type = "SuperConfig"
+#' created_at = 2026-2-11T22:45:00Z
+#' ```
+#' @param x Object to create metadata for. Class name will be included in metadata.
+#' @param schema_version Character: Version of the schema to include in metadata.
+#'
+#' @return Named list containing metadata.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+toml_meta <- function(x, schema_version = "1.0") {
+  list(
+    `_meta` = list(
+      package = "rtemis",
+      package_version = as.character(packageVersion("rtemis")),
+      schema_version = schema_version,
+      object_type = S7_class(x)@name,
+      created_at = format(
+        Sys.time(),
+        "%Y-%m-%dT%H:%M:%SZ",
+        tz = "UTC"
+      )
+    )
+  )
+} # /rtemis::toml_meta
+
+
+# %% toml_with_meta ----
+#' Create TOML string with metadata
+#'
+#' Creates a TOML string with an inline metadata table followed by the TOML representation of the
+#' object.
+#'
+#' @param x Object to convert to TOML. Class name will be included in metadata.
+#'
+#'
+#' @return Character string containing TOML representation of the object, with metadata included as
+#' an inline table at the top.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+toml_with_meta <- function(x, payload, schema_version = "1.0") {
+  meta_block <- toml::write_toml(
+    toml_meta(x, schema_version = schema_version)
+  )
+  meta_lines <- strsplit(meta_block, "\n", fixed = TRUE)[[1]]
+  meta_lines <- meta_lines[meta_lines != "" & meta_lines != "[_meta]"]
+  meta_inline <- paste0(
+    "_meta = { ",
+    paste(meta_lines, collapse = ", "),
+    " }"
+  )
+  payload_str <- toml::write_toml(payload)
+  paste(meta_inline, payload_str, sep = "\n\n")
+} # /rtemis::toml_with_meta

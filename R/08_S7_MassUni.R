@@ -41,11 +41,12 @@ method(`[[`, MassGLM) <- function(x, name) {
 # repr MassGLM ----
 method(repr, MassGLM) <- function(
   x,
+  pad = 0L,
   output_type = NULL
 ) {
   output_type <- get_output_type(output_type)
   paste0(
-    repr_S7name("MassGLM"),
+    repr_S7name("MassGLM", pad = pad),
     highlight(length(x@ynames)),
     " GLMs of family ",
     bold(x@family),
@@ -79,20 +80,28 @@ method(print, MassGLM) <- function(x, output_type = NULL, ...) {
 # Plot MassGLM ----
 #' Plot MassGLM using volcano plot
 #'
-#' @param x MassGLM object
+#' @param x MassGLM object trained using [massGLM].
 #' @param coefname Character: Name of coefficient to plot. If `NULL`, the first coefficient is used.
 #' @param p_adjust_method Character: "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none" -
 #' p-value adjustment method.
 #' @param p_transform Function to transform p-values for plotting. Default is `function(x) -log10(x)`.
 #' @param xlab Character: x-axis label.
 #' @param ylab Character: y-axis label.
-#' @param theme `Theme` object
+#' @param theme `Theme` object. Create using one of the `theme_` functions, e.g.
+#' `theme_whitegrid()`.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @param ... Additional arguments passed to [draw_volcano] or [draw_bar]
+#' @param ... Additional arguments passed to [draw_volcano].
 #'
 #' @author EDG
 #' @export
+#'
+#' @examplesIf interactive()
+#' set.seed(2019)
+#' y <- rnormmat(500, 500, return_df = TRUE)
+#' x <- data.frame(x = y[, 3] + y[, 5] - y[, 9] + y[, 15] + rnorm(500))
+#' mod <- massGLM(x, y)
+#' plot(mod)
 plot.MassGLM <- method(plot, MassGLM) <- function(
   x,
   coefname = NULL,

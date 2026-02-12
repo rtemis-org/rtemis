@@ -66,7 +66,7 @@ draw_scatter(
   spikecolor = NULL,
   spikethickness = 1,
   margin = list(b = 65, l = 65, t = 50, r = 10, pad = 0),
-  main_y = 1,
+  main_y = 1.01,
   main_yanchor = "bottom",
   subtitle_x = 0.02,
   subtitle_y = 0.99,

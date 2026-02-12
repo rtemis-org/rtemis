@@ -5,6 +5,8 @@
 #' Get LightGBM Booster Trees
 #'
 #' @return A list of trees
+#'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 get_lgb_tree <- function(x, n_iter = -1) {
@@ -41,6 +43,9 @@ get_lgb_tree <- function(x, n_iter = -1) {
 #' @param factor_levels Named list of factor levels.
 #' @param verbosity Integer: Verbosity level.
 #'
+#' @return Character vector of rules.
+#'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 preorderlgb <- function(
@@ -181,6 +186,7 @@ lgb2rules <- function(
 
 
 # extract_rules.lgb.Booster ----
+#' author EDG
 #' @keywords internal
 #' @noRd
 method(extract_rules, class_lgb.Booster) <- function(
@@ -228,6 +234,7 @@ method(extract_rules, class_lgb.Booster) <- function(
 
 
 # decision_left ----
+#' @author EDG
 #' @keywords internal
 #' @noRd
 decision_left <- function(decision_type) {
@@ -235,6 +242,7 @@ decision_left <- function(decision_type) {
 } # /rtemis::decision_left
 
 
+#' @author EDG
 #' @keywords internal
 #' @noRd
 decision_right <- function(decision_type, cat_type) {
@@ -254,6 +262,7 @@ decision_right <- function(decision_type, cat_type) {
 #' @param factor_levels Named list of factor levels. Names should correspond to training
 #' set column names.
 #'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 fmt_thresh <- function(catsplit, feature, threshold, factor_levels) {
@@ -271,7 +280,7 @@ fmt_thresh <- function(catsplit, feature, threshold, factor_levels) {
 } # /rtemis::fmt_thresh
 
 
-#' @rdname fmt_thresh
+#' @author EDG
 #' @keywords internal
 #' @noRd
 fmt_thresh_right <- function(

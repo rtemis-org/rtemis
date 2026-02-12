@@ -93,6 +93,7 @@ Suggests:
     testthat (>= 3.0.0),
     tibble,
     timeDate,
+    toml,
     torch,
     uwot,
     vegan,

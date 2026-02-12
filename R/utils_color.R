@@ -17,7 +17,8 @@
 #' @return Color
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 color_op <- function(col, fn = c("invert", "mean"), space = c("HSV", "RGB")) {
   # Arguments ----
   fn <- match.arg(fn)
@@ -162,19 +163,17 @@ col2grayscale <- function(x, what = c("color", "decimal")) {
 #'
 #' @param x Color, vector
 #'
-#' @return Inverted colors using hexadecimal notation #RRGGBBAA
+#' @return Inverted colors using hexadecimal notation `#RRGGBBAA`.
 #'
 #' @author EDG
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' cols <- c("red", "green", "blue")
 #' previewcolor(cols)
 #' cols |>
 #'   color_invertRGB() |>
 #'   previewcolor()
-#' }
 color_invertRGB <- function(x) {
   col <- as.list(x)
   col_rgb <- col2rgb(col, alpha = TRUE)
@@ -386,7 +385,6 @@ previewcolor <- function(
   }
   x <- unlist(x)
 
-  # Always reset par on exit
   par_orig <- par(no.readonly = TRUE)
   on.exit(par(par_orig))
 
@@ -491,7 +489,7 @@ rhombus <- function(
     col = col,
     border = NA
   )
-}
+} # /rtemis::rhombus
 
 
 #' Color Gradient
@@ -523,23 +521,11 @@ rhombus <- function(
 #' @param midhi Color for middle-high
 #' @param hi Color for high end
 #' @param preview Logical: Plot the colors horizontally
-#' @param colorbar Logical: Create a vertical colorbar
 #' @param cb_n Integer: How many steps you would like in the colorbar
-#' @param cb_mar Vector, length 4: Colorbar margins. Default: c(1, 1, 1, 1)
-#' @param cb_add Logical: If TRUE, colorbar will be added to existing plot
-#' @param cb_add_mar Vector: Margins for colorbar (See `par("mar")`)
-#' @param cb_axis_pos Float: Position of axis (See `axis("pos")`)
-#' @param cb_axis_las Integer \{0,1,2,3\}: Style of axis labels. 0: Always parallel to the axis,
-#' 1: Horizontal, 2: Perpendicular, 3: Vertical.
-#' @param cb_axis_hadj Float: Adjustment parallel to the reading direction (See `par("adj")`)
-#' @param cb_cex Float: Character expansion factor for colorbar (See `par("cex")`)
 #' @param bar_min Numeric: Lowest value in colorbar
 #' @param bar_mid Numeric: Middle value in colorbar
 #' @param bar_max Numeric: Max value in colorbar
 #' @param cex Float: Character expansion for axis
-#' @param filename String (Optional: Path to file to save colorbar
-#' @param pdf_width Float: Width for PDF output.
-#' @param pdf_height Float: Height for PDF output.
 #' @param theme Theme object.
 #' @param bg Color: Background color
 #' @param col_text Color: Colorbar text color
@@ -565,22 +551,11 @@ colorgrad <- function(
   midhi = NULL,
   hi = rt_orange,
   preview = FALSE,
-  colorbar = FALSE,
   cb_n = 21L,
-  cb_mar = c(1, 1, 1, 1),
-  cb_add = FALSE,
-  cb_add_mar = c(5, 0, 2, 5),
-  cb_axis_pos = 1.1,
-  cb_axis_las = 1,
-  cb_axis_hadj = 0,
-  cb_cex = 6,
   bar_min = -1,
   bar_mid = 0,
   bar_max = 1,
   cex = 1.2,
-  filename = NULL,
-  pdf_width = 3,
-  pdf_height = 7,
   theme = choose_theme(getOption("rtemis_theme")),
   bg = NULL,
   col_text = NULL,
@@ -596,9 +571,7 @@ colorgrad <- function(
   if (n %% 2 != 1) {
     n <- n + 1
   }
-  if (!is.null(filename)) {
-    colorbar <- TRUE
-  }
+
   if (return_plotly) {
     plotlycb <- TRUE
   }
@@ -700,66 +673,6 @@ colorgrad <- function(
     segments(midpoint, .95, midpoint, 1.05, lwd = 2, lty = 2, col = NA)
   }
 
-  # Colorbar ----
-  if (colorbar) {
-    if (theme == "light") {
-      if (is.null(bg)) {
-        bg <- "white"
-      }
-      if (is.null(col_text)) col_text <- "black"
-    } else if (theme == "dark") {
-      if (is.null(bg)) {
-        bg <- "black"
-      }
-      if (is.null(col_text)) col_text <- "white"
-    }
-
-    par_orig <- par(no.readonly = TRUE)
-    if (!cb_add) {
-      on.exit(suppressWarnings(par(par_orig)))
-    }
-    if (cb_add) {
-      par(new = cb_add, pty = "m", mar = cb_add_mar)
-    } else {
-      par(bg = bg, mar = cb_mar, pty = "m")
-    }
-
-    if (!is.null(filename)) {
-      grDevices::pdf(
-        filename,
-        width = pdf_width,
-        height = pdf_height,
-        title = "rtemis Graphics"
-      )
-    }
-    plot(
-      rep(1, cb_n),
-      1:cb_n,
-      col = cb_grad,
-      pch = 19,
-      cex = cb_cex,
-      xlim = c(.5, 1.5),
-      ylim = c(.5, cb_n + .5),
-      ann = FALSE,
-      axes = FALSE
-    )
-    # box() # to visualize position
-    # text(1.5, c(1, midpoint, n), labels = c(bar_min, bar_mid, bar_max), col = col_text)
-    axis(
-      side = 4,
-      at = c(1, cb_midpoint, cb_n),
-      labels = c(bar_min, bar_mid, bar_max),
-      col = color_adjust("black", 0),
-      col.axis = col_text,
-      col.ticks = color_adjust("black", 0),
-      pos = cb_axis_pos,
-      las = cb_axis_las,
-      cex.axis = cex,
-      hadj = cb_axis_hadj
-    )
-    if (!is.null(filename)) grDevices::dev.off()
-  }
-
   # Plotly cb ----
   if (plotlycb) {
     requireNamespace("plotly")
@@ -844,6 +757,7 @@ colorgrad <- function(
   }
   invisible(grad)
 } # /rtemis::colorgrad
+
 
 # 3-letter Color Name Abbreviations
 # wht white

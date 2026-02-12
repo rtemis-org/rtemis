@@ -1,21 +1,3 @@
-# rtemis color system
-# ::rtemis::
-# 2025 EDG rtemis.org
-
-# Violet: Class names (structure)
-# Blue: Outer resampling (evaluation)
-# Orange: Hyperparameter tuning (optimization)
-# Green: Model training + important highlights (execution)
-# Cyan: Info messages (communication)
-
-# References
-# ANSI escape codes
-# https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
-# Xterm color names: https://jonasjacek.github.io/colors/
-# CSS color keywords: https://www.uxgem.com/docs/css-color-keywords
-# Unicode emojis: https://www.unicode.org/emoji/charts/full-emoji-list.html
-# UTF-8 icons: https://www.utf8icons.com/
-
 #' rtemis Color System
 #'
 #' @author EDG
@@ -43,11 +25,59 @@ rt_green <- kaimana_med_green
 rt_orange <- coastside_orange
 rt_teal <- rtemis_teal
 rt_purple <- rtemis_purple
-rt_magenta <- rtemis_magenta
+rt_magenta <- rtemis_magenta_light
 
-highlight_col <- rt_teal
-col_object <- rt_teal
+highlight_col <- rt_orange
+col_object <- rt_teal # incl repr_S7name
 col_info <- highlight2_col <- lmd_burgundy
-col_outer <- rt_red
-col_tuner <- rt_orange # coastside orange
+col_outer <- rt_green
+col_tuner <- rt_blue
 col_calibrator <- rt_magenta
+
+
+#' rtemis Color System
+#'
+#' A named list of colors used consistently across all packages
+#' in the rtemis ecosystem.
+#'
+#' Colors are provided as hex strings.
+#'
+#' @format A named list with the following elements:
+#' \describe{
+#'   \item{red}{"kaimana red"}
+#'   \item{blue}{"kaimana light blue"}
+#'   \item{green}{"kaimana medium green"}
+#'   \item{orange}{"coastside orange"}
+#'   \item{teal}{"rtemis teal"}
+#'   \item{purple}{"rtemis purple"}
+#'   \item{magenta}{"rtemis magenta"}
+#'   \item{highlight_col}{"highlight color"}
+#'   \item{object}{"rtemis teal"}
+#'   \item{info}{"lmd burgundy"}
+#'   \item{outer}{"kaimana red"}
+#'   \item{tuner}{"coastside orange"}
+#' }
+#'
+#' @examples
+#' rtemis_colors[["orange"]]
+#'
+#' @author EDG
+#'
+#' @export
+#'
+#' @examples
+#' rtemis_colors[["teal"]]
+rtemis_colors <- list(
+  red = rt_red,
+  blue = rt_blue,
+  green = rt_green,
+  orange = rt_orange,
+  teal = rt_teal,
+  purple = rt_purple,
+  magenta = rt_magenta,
+  highlight_col = highlight_col,
+  object = col_object,
+  info = col_info,
+  outer = col_outer,
+  tuner = col_tuner
+) # /rtemis.utils::rtemis_colors

@@ -19,3 +19,6 @@ Get data.frame names and types
 \examples{
 getnamesandtypes(iris)
 }
+\author{
+EDG
+}

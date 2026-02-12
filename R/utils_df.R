@@ -148,6 +148,7 @@ getdatenames <- function(x) {
 #' @return character vector of column names with attribute "type" holding the class of each
 #' column
 #'
+#' @author EDG
 #' @export
 #'
 #' @examples

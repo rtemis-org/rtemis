@@ -66,7 +66,7 @@ method(repr, ResamplerConfig) <- function(x, pad = 0L, output_type = NULL) {
     repr_S7name(x, pad = pad, output_type = output_type),
     repr_ls(
       props(x)[-1],
-      pad = pad + 2L,
+      pad = pad,
       print_class = FALSE,
       output_type = output_type
     )
@@ -415,7 +415,7 @@ method(repr, Resampler) <- function(x, pad = 0L, output_type = NULL) {
     repr_S7name(x, pad = pad, output_type = output_type),
     repr_ls(
       props(x),
-      pad = pad + 2L,
+      pad = pad,
       print_class = FALSE,
       output_type = output_type
     )
@@ -457,3 +457,46 @@ method(`[[`, Resampler) <- function(x, index) {
 method(desc, Resampler) <- function(x) {
   desc(x@config)
 }
+
+
+# %% list_to_ResamplerConfig ----
+list_to_ResamplerConfig <- function(x) {
+  switch(
+    x[["type"]],
+    KFold = KFoldConfig(
+      n = x[["n"]],
+      stratify_var = x[["stratify_var"]],
+      strat_n_bins = x[["strat_n_bins"]],
+      id_strat = x[["id_strat"]],
+      seed = x[["seed"]]
+    ),
+    StratSub = StratSubConfig(
+      n = x[["n"]],
+      train_p = x[["train_p"]],
+      stratify_var = x[["stratify_var"]],
+      strat_n_bins = x[["strat_n_bins"]],
+      id_strat = x[["id_strat"]],
+      seed = x[["seed"]]
+    ),
+    StratBoot = StratBootConfig(
+      n = x[["n"]],
+      train_p = x[["train_p"]],
+      stratify_var = x[["stratify_var"]],
+      strat_n_bins = x[["strat_n_bins"]],
+      target_length = x[["target_length"]],
+      id_strat = x[["id_strat"]],
+      seed = x[["seed"]]
+    ),
+    Bootstrap = BootstrapConfig(
+      n = x[["n"]],
+      id_strat = x[["id_strat"]],
+      seed = x[["seed"]]
+    ),
+    LOOCV = LOOCVConfig(
+      n = NA_integer_
+    ),
+    Custom = CustomConfig(
+      n = x[["n"]]
+    )
+  )
+} # /rtemis::list_to_ResamplerConfig

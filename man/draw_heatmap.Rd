@@ -136,6 +136,7 @@ Draw interactive heatmaps using \code{heatmaply}.
 }
 \details{
 See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
+'heatmaply' unfortunately forces loading of the 'colorspace' namespace.
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}

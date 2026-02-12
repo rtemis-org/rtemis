@@ -38,10 +38,28 @@ TunerConfig <- new_class(
   )
 ) # /rtemis::TunerConfig
 
+
+# %% repr TunerConfig ----
+method(repr, TunerConfig) <- function(
+  x,
+  pad = 0L,
+  output_type = NULL
+) {
+  output_type <- get_output_type(output_type)
+  paste0(
+    repr_S7name(
+      paste(x@type, "TunerConfig"),
+      pad = pad,
+      output_type = output_type
+    ),
+    repr_ls(x@config, pad = pad, output_type = output_type)
+  )
+} # /rtemis::repr.TunerConfig
+
+
 # Print TunerConfig ----
 method(print, TunerConfig) <- function(x, pad = 0L, ...) {
-  objcat(paste(x@type, "TunerConfig"))
-  printls(x@config, pad = pad + 2L)
+  cat(repr(x, pad = pad), "\n")
   invisible(x)
 }
 
@@ -289,13 +307,14 @@ method(describe, GridSearch) <- function(x) {
 method(repr, GridSearch) <- function(
   x,
   header = TRUE,
+  pad = 0L,
   output_type = c("ansi", "html", "plain"),
   ...
 ) {
   output_type <- match.arg(output_type)
   out <- character()
   if (header) {
-    out <- paste0(out, repr_S7name(x@type), "\n")
+    out <- paste0(out, repr_S7name(x@type, pad = pad), "\n")
   }
   type <- if (x@tuner_config[["search_type"]] == "exhaustive") {
     "An exhaustive grid search"
@@ -325,8 +344,37 @@ method(repr, GridSearch) <- function(
   )
   out <- paste(
     out,
-    repr_ls(x@best_hyperparameters, output_type = output_type),
+    repr_ls(x@best_hyperparameters, pad = pad, output_type = output_type),
     sep = ""
   )
   out
 } # /rtemis::repr.GridSearch
+
+
+# %% list_to_TunerConfig ----
+#' List to TunerConfig
+#'
+#' Convert a named list to a TunerConfig object. Used by `read_config()`
+#'
+#' @param x Named list with elements "type" and "config".
+#'
+#' @return TunerConfig object.
+#'
+#' @author EDG
+#' @noRd
+list_to_TunerConfig <- function(x) {
+  if (x[["type"]] == "GridSearch") {
+    setup_GridSearch(
+      resampler_config = list_to_ResamplerConfig(x[["config"]][[
+        "resampler_config"
+      ]]),
+      search_type = x[["config"]][["search_type"]],
+      randomize_p = x[["config"]][["randomize_p"]],
+      metrics_aggregate_fn = x[["config"]][["metrics_aggregate_fn"]],
+      metric = x[["config"]][["metric"]],
+      maximize = x[["config"]][["maximize"]]
+    )
+  } else {
+    cli::cli_abort("Unsupported tuner type: {x[['type']]}")
+  }
+} # /rtemis::list_to_TunerConfig

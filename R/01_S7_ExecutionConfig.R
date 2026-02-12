@@ -51,7 +51,7 @@ method(repr, ExecutionConfig) <- function(x, pad = 0L, output_type = NULL) {
   }
   out <- paste0(
     out,
-    repr_ls(.props, pad = pad + 2L, output_type = output_type)
+    repr_ls(.props, pad = pad, output_type = output_type)
   )
 } # /rtemis::repr.ExecutionConfig
 
@@ -86,7 +86,7 @@ setup_ExecutionConfig <- function(
   backend <- match.arg(backend)
   if (backend == "future") {
     check_dependencies("futurize")
-    check_character(future_plan)
+    check_character(future_plan, allow_null = TRUE)
     if (is.null(future_plan)) {
       future_plan <- getOption("future.plan", "mirai_multisession")
     }
