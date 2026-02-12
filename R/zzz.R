@@ -97,14 +97,6 @@ setup_progress <- function() {
       gray("Cite: "),
       rtcitation,
       "\n\n  ",
-      "Key: ",
-      fmt("<>", col = col_outer, bold = TRUE),
-      " Outer resampling ",
-      fmt("<>", col = col_tuner, bold = TRUE),
-      " Tuning ",
-      fmt("<>", col = col_calibrator, bold = TRUE),
-      " Calibration",
-      "\n\n  ",
       fmt("PSA:", col = rt_red, bold = TRUE),
       " Do not throw data at algorithms. Compute responsibly!"
     ))

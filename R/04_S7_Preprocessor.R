@@ -108,7 +108,10 @@ method(print, PreprocessorConfig) <- function(
 
 
 # setup_Preprocessor() ----
-#' Setup `PreprocessorConfig`
+#' Setup Preprocessor
+#'
+#' @description
+#' Creates a `PreprocessorConfig` object, which can be used in [preprocess].
 #'
 #' @param complete_cases Logical: If TRUE, only retain complete cases (no missing data).
 #' @param remove_cases_thres Float (0, 1): Remove cases with >= to this fraction
@@ -186,6 +189,28 @@ method(print, PreprocessorConfig) <- function(
 #' @param date_features Character vector: Features to extract from dates.
 #' @param add_holidays Logical: If TRUE, extract holidays from date columns.
 #' @param exclude Integer, vector: Exclude these columns from preprocessing.
+#'
+#' @section Order of Operations:
+#'
+#'   * keep complete cases only
+#'   * remove constants
+#'   * remove duplicates
+#'   * remove cases by missingness threshold
+#'   * remove features by missingness threshold
+#'   * integer to factor
+#'   * integer to numeric
+#'   * logical to factor
+#'   * logical to numeric
+#'   * numeric to factor
+#'   * cut numeric to n bins
+#'   * cut numeric to n quantiles
+#'   * numeric with less than N unique values to factor
+#'   * character to factor
+#'   * factor NA to named level
+#'   * add missingness column
+#'   * impute
+#'   * scale and/or center
+#'   * one-hot encoding
 #'
 #' @return `PreprocessorConfig` object.
 #'

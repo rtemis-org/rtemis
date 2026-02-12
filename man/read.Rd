@@ -7,7 +7,7 @@
 read(
   filename,
   datadir = NULL,
-  make_unique = TRUE,
+  make_unique = FALSE,
   character2factor = FALSE,
   clean_colnames = TRUE,
   delim_reader = c("data.table", "vroom", "duckdb", "arrow"),
@@ -25,37 +25,37 @@ read(
 )
 }
 \arguments{
-\item{filename}{Character: filename or full path if \code{datadir = NULL}}
+\item{filename}{Character: filename or full path if \code{datadir = NULL}.}
 
 \item{datadir}{Character: Optional path to directory where \code{filename}
 is located. If not specified, \code{filename} must be the full path.}
 
-\item{make_unique}{Logical: If TRUE, keep unique rows only}
+\item{make_unique}{Logical: If TRUE, keep unique rows only.}
 
 \item{character2factor}{Logical: If TRUE, convert character variables to
-factors}
+factors.}
 
 \item{clean_colnames}{Logical: If TRUE, clean columns names using
-\link{clean_colnames}}
+\link{clean_colnames}.}
 
-\item{delim_reader}{Character: package to use for reading delimited data}
+\item{delim_reader}{Character: package to use for reading delimited data.}
 
-\item{xlsx_sheet}{Integer or character: Name or number of XLSX sheet to read}
+\item{xlsx_sheet}{Integer or character: Name or number of XLSX sheet to read.}
 
 \item{sep}{Single character: field separator. If \code{delim_reader = "fread"}
-and \code{sep = NULL}, this defaults to "auto", otherwise defaults to ","}
+and \code{sep = NULL}, this defaults to "auto", otherwise defaults to ",".}
 
-\item{quote}{Single character: quote character}
+\item{quote}{Single character: quote character.}
 
 \item{na_strings}{Character vector: Strings to be interpreted as NA values.
 For \code{delim_reader = "duckdb"}, this must be a single string.}
 
 \item{output}{Character: "default" or "data.table", If default, return the delim_reader's
-default data structure, otherwise convert to data.table}
+default data structure, otherwise convert to data.table.}
 
-\item{attr}{Character: Attribute to set (Optional)}
+\item{attr}{Character: Attribute to set (Optional).}
 
-\item{value}{Character: Value to set (if \code{attr} is not NULL)}
+\item{value}{Character: Value to set (if \code{attr} is not NULL).}
 
 \item{verbosity}{Integer: Verbosity level.}
 
@@ -65,7 +65,7 @@ default data structure, otherwise convert to data.table}
 
 \item{...}{Additional arguments to pass to \code{data.table::fread},
 \code{arrow::read_delim_arrow()}, \code{vroom::vroom()},
-or \code{readxl::read_excel()}}
+or \code{readxl::read_excel()}.}
 }
 \value{
 data.frame, data.table, or tibble.

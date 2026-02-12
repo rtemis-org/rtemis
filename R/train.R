@@ -3,7 +3,45 @@
 # 2025 EDG rtemis.org
 
 # %% train.class_tabular ----
-method(train, class_tabular) <- function(
+#' @name
+#' train
+#'
+#' @param x tabular data, i.e. data.frame, data.table, or tbl_df (tibble): Training set data.
+#' @param dat_validation tabular data: Validation set data.
+#' @param dat_test tabular data: Test set data.
+#' @param weights Optional vector of case weights.
+#' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
+#' @param preprocessor_config PreprocessorConfig object or NULL: Setup using [setup_Preprocessor].
+#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
+#' @param tuner_config TunerConfig object: Setup using [setup_GridSearch].
+#' @param outer_resampling_config ResamplerConfig object or NULL: Setup using [setup_Resampler]. This
+#' defines the outer resampling method, i.e. the splitting into training and test sets for the
+#' purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
+#' you might want to use a `dat_test` dataset to assess model performance on a single test set.
+#' @param execution_config `ExecutionConfig` object: Setup using [setup_ExecutionConfig]. This
+#' allows you to set backend ("future", "mirai", or "none"), number of workers, and future plan if
+#' using `backend = "future"`.
+#' @param question Optional character string defining the question that the model is trying to
+#' answer.
+#' @param outdir Character, optional: String defining the output directory.
+#' @param verbosity Integer: Verbosity level.
+#' @param ... Not used.
+#'
+#' @return Object of class `Regression(Supervised)`, `RegressionRes(SupervisedRes)`,
+#' `Classification(Supervised)`, or `ClassificationRes(SupervisedRes)`.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' \donttest{
+#' iris_c_lightRF <- train(
+#'    iris,
+#'    algorithm = "LightRF",
+#'    outer_resampling_config = setup_Resampler(),
+#' )
+#' }
+train.data.frame <- method(train, class_tabular) <- function(
   x,
   dat_validation = NULL,
   dat_test = NULL,
@@ -16,12 +54,20 @@ method(train, class_tabular) <- function(
   execution_config = setup_ExecutionConfig(), # ExecutionConfig
   question = NULL,
   outdir = NULL,
-  verbosity = 1L
+  verbosity = 1L,
+  ...
 ) {
   # Checks ----
   if (is.null(hyperparameters) && is.null(algorithm)) {
     cli::cli_abort(
       "You must define either `hyperparameters` or `algorithm`."
+    )
+  }
+
+  extra_args <- list(...)
+  if (length(extra_args) > 0L) {
+    cli::cli_abort(
+      "Unused extra arguments were provided: {.val {names(extra_args)}}. Please check your function call."
     )
   }
 
@@ -545,7 +591,7 @@ get_n_workers <- function(
 
 
 # %% train SuperConfig ----
-method(train, SuperConfig) <- function(x) {
+train.SuperConfig <- method(train, SuperConfig) <- function(x) {
   # Read data from paths in x:SuperConfig
   dat_training <- read(x@dat_training_path, character2factor = TRUE)
   dat_validation <- if (!is.null(x@dat_validation_path)) {
