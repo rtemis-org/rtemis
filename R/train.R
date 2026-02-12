@@ -41,7 +41,7 @@
 #'    outer_resampling_config = setup_Resampler(),
 #' )
 #' }
-train.data.frame <- method(train, class_tabular) <- function(
+train.class_tabular <- method(train, class_tabular) <- function(
   x,
   dat_validation = NULL,
   dat_test = NULL,

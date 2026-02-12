@@ -2,12 +2,12 @@
 % Please edit documentation in R/00_S7_init.R, R/train.R
 \name{train}
 \alias{train}
-\alias{train.data.frame}
+\alias{train.class_tabular}
 \title{Train Supervised Learning Models}
 \usage{
 train(x, ...)
 
-train.data.frame(
+train.class_tabular(
   x,
   dat_validation = NULL,
   dat_test = NULL,
@@ -69,13 +69,16 @@ using nested resampling.
 }
 \details{
 \strong{Online documentation}
+
 See \href{https://rdocs.rtemis.org/train}{rdocs.rtemis.org/train} for detailed documentation.
 
 \strong{Binary Classification}
+
 For binary classification, the outcome should be a factor where the 2nd level
 corresponds to the positive class.
 
 \strong{Resampling}
+
 Note that you should not use an outer resampling method with
 replacement if you will also be using an inner resampling (for tuning).
 The duplicated cases from the outer resampling may appear both in the
@@ -83,9 +86,10 @@ training and test sets of the inner resamples, leading to underestimated
 test error.
 
 \strong{Reproducibility}
+
 If using \emph{\strong{outer resampling}}, you can set a seed when defining \code{outer_resampling_config}, e.g.
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{outer_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)`
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{outer_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)
 }\if{html}{\out{</div>}}
 
 If using \emph{\strong{tuning with inner resampling}}, you can set a seed when defining \code{tuner_config},
@@ -97,6 +101,7 @@ e.g.
 }\if{html}{\out{</div>}}
 
 \strong{Parallelization}
+
 There are three levels of parallelization that may be used during training:
 \enumerate{
 \item Algorithm training (e.g. a parallelized learner like LightGBM)
@@ -104,7 +109,7 @@ There are three levels of parallelization that may be used during training:
 \item Outer resampling (where multiple outer resamples can be processed in parallel)
 }
 
-The \code{train()} function and its sub-functions will automatically manage parallelization depending
+The \code{train()} function will automatically manage parallelization depending
 on:
 \itemize{
 \item The number of workers specified by the user using \code{n_workers}
