@@ -36,6 +36,8 @@ plotly_vline <- function(x, color = "#F48024", width = 1, dash = "dot") {
 }
 
 
+# plotly_hline calls plotly_hline1 to create a list for one or more horizontal
+# lines, to be passed to plotly::layout's shapes argument
 plotly_hline1 <- function(y, color = "#F48024", width = 1, dash = "dot") {
   list(
     type = "line",
