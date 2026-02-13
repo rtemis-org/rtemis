@@ -48,23 +48,6 @@ ucsfCol <- c(
   N3_Red = "#E61048"
 )
 
-#' UCSF Color Palette
-#'
-#' `ucsfPalette`: Subset of `ucsfCol`
-#'
-#' @keywords internal
-#' @noRd
-ucsfPalette <- ucsfCol[c(
-  "teal",
-  "orange",
-  "blue",
-  "yellow",
-  "purple",
-  "red",
-  "navy",
-  "green"
-)]
-
 
 # UC Davis ----
 #' UC Davis Colors
