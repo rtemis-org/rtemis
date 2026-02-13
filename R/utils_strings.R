@@ -131,8 +131,11 @@ rtcitation <- paste0(
 )
 
 
-checkmark <- function(output_type = c("ansi", "html", "plain")) {
-  fmt("\u2713", col = rt_green, bold = TRUE, output_type = output_type)
+checkmark <- function(
+  col = rt_green,
+  output_type = c("ansi", "html", "plain")
+) {
+  fmt("\u2713", col = col, bold = TRUE, output_type = output_type)
 }
 
 crossmark <- function(output_type = c("ansi", "html", "plain")) {
@@ -377,12 +380,12 @@ repr_S7name <- function(
 
   paste0(
     strrep(" ", pad),
-    gray("<", output_type = output_type),
+    fmt("<", col = rt_teal, output_type = output_type),
     if (!is.null(prefix)) {
       gray(prefix, output_type = output_type)
     },
-    fmt(x, col = col, bold = TRUE, output_type = output_type),
-    gray(">", output_type = output_type),
+    fmt(x, col = col, bold = FALSE, output_type = output_type),
+    fmt(">", col = rt_teal, output_type = output_type),
     "\n"
   )
 } # /rtemis::repr_S7name
