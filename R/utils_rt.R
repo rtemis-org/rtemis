@@ -87,7 +87,8 @@ outro <- function(
     if (real_user_system) {
       msg0(
         paste0(
-          "\u2714 Done in ",
+          checkmark(),
+          " Done in ",
           format_seconds(elapsed[3]),
           " (",
           "Real:",
@@ -103,7 +104,8 @@ outro <- function(
     } else {
       msg0(
         paste0(
-          "\u2714 Done in ",
+          checkmark(),
+          " Done in ",
           format_seconds(elapsed[3]),
           "."
         ),

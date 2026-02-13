@@ -28,7 +28,7 @@ rt_purple <- rtemis_purple
 rt_magenta <- rtemis_magenta_light
 
 highlight_col <- rt_orange
-col_object <- rt_teal # incl repr_S7name
+col_object <- "#808080" # incl repr_S7name
 col_info <- highlight2_col <- lmd_burgundy
 col_outer <- rt_green
 col_tuner <- rt_blue
