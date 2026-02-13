@@ -380,12 +380,12 @@ repr_S7name <- function(
 
   paste0(
     strrep(" ", pad),
-    fmt("<", col = rtemis_colors[["teal"]], output_type = output_type),
+    fmt("<", col = rt_teal, output_type = output_type),
     if (!is.null(prefix)) {
       gray(prefix, output_type = output_type)
     },
     fmt(x, col = col, bold = FALSE, output_type = output_type),
-    fmt(">", col = rtemis_colors[["teal"]], output_type = output_type),
+    fmt(">", col = rt_teal, output_type = output_type),
     "\n"
   )
 } # /rtemis::repr_S7name

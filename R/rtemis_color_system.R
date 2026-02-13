@@ -18,7 +18,9 @@ rtemis_magenta <- "#912ac8"
 rtemis_magenta_light <- "#b25bd6"
 magenta <- "#ff00ff"
 lmd_burgundy <- "#a92459"
+rtms_gray <- "#808080"
 
+rt_gray <- rtms_gray
 rt_red <- kaimana_red
 rt_blue <- kaimana_light_blue
 rt_green <- kaimana_med_green
@@ -28,7 +30,7 @@ rt_purple <- rtemis_purple
 rt_magenta <- rtemis_magenta_light
 
 highlight_col <- rt_orange
-col_object <- "#808080" # incl repr_S7name
+col_object <- rt_gray # incl repr_S7name
 col_info <- highlight2_col <- lmd_burgundy
 col_outer <- rt_green
 col_tuner <- rt_blue
