@@ -1,10 +1,13 @@
 # train.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% train.class_tabular ----
-#' @name
-#' train
+#' Train Supervised Learning Models
+#'
+#' @description
+#' Preprocess, tune, train, and test supervised learning models in a single call
+#' using nested resampling.
 #'
 #' @param x tabular data, i.e. data.frame, data.table, or tbl_df (tibble): Training set data.
 #' @param dat_validation tabular data: Validation set data.
@@ -14,8 +17,8 @@
 #' @param preprocessor_config PreprocessorConfig object or NULL: Setup using [setup_Preprocessor].
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param tuner_config TunerConfig object: Setup using [setup_GridSearch].
-#' @param outer_resampling_config ResamplerConfig object or NULL: Setup using [setup_Resampler]. This
-#' defines the outer resampling method, i.e. the splitting into training and test sets for the
+#' @param outer_resampling_config ResamplerConfig object or NULL: Setup using [setup_Resampler].
+#' This defines the outer resampling method, i.e. the splitting into training and test sets for the
 #' purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
 #' you might want to use a `dat_test` dataset to assess model performance on a single test set.
 #' @param execution_config `ExecutionConfig` object: Setup using [setup_ExecutionConfig]. This
@@ -26,6 +29,52 @@
 #' @param outdir Character, optional: String defining the output directory.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used.
+#'
+#' @details
+#' **Online book & documentation**
+#'
+#' See [rdocs.rtemis.org/train](https://rdocs.rtemis.org/train) for detailed documentation.
+#'
+#' **Binary Classification**
+#'
+#' For binary classification, the outcome should be a factor where the 2nd level
+#' corresponds to the positive class.
+#'
+#' **Resampling**
+#'
+#' Note that you should not use an outer resampling method with
+#' replacement if you will also be using an inner resampling (for tuning).
+#' The duplicated cases from the outer resampling may appear both in the
+#' training and test sets of the inner resamples, leading to underestimated
+#' test error.
+#'
+#' **Reproducibility**
+#'
+#' If using ***outer resampling***, you can set a seed when defining `outer_resampling_config`, e.g.
+#' ```r
+#' outer_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)
+#' ```
+#' If using ***tuning with inner resampling***, you can set a seed when defining `tuner_config`,
+#' e.g.
+#' ```r
+#' tuner_config = setup_GridSearch(
+#'   resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold", seed = 2027L)
+#' )
+#' ```
+#'
+#' **Parallelization**
+#'
+#' There are three levels of parallelization that may be used during training:
+#'
+#' 1. Algorithm training (e.g. a parallelized learner like LightGBM)
+#' 2. Tuning (inner resampling, where multiple resamples can be processed in parallel)
+#' 3. Outer resampling (where multiple outer resamples can be processed in parallel)
+#'
+#' The `train()` function will automatically manage parallelization depending
+#' on:
+#' - The number of workers specified by the user using `n_workers`
+#' - Whether the training algorithm supports parallelization itself
+#' - Whether hyperparameter tuning is needed
 #'
 #' @return Object of class `Regression(Supervised)`, `RegressionRes(SupervisedRes)`,
 #' `Classification(Supervised)`, or `ClassificationRes(SupervisedRes)`.
@@ -41,7 +90,7 @@
 #'    outer_resampling_config = setup_Resampler(),
 #' )
 #' }
-train.class_tabular <- method(train, class_tabular) <- function(
+train <- function(
   x,
   dat_validation = NULL,
   dat_test = NULL,
@@ -57,6 +106,37 @@ train.class_tabular <- method(train, class_tabular) <- function(
   verbosity = 1L,
   ...
 ) {
+  # SuperConfig dispatch ----
+  if (S7_inherits(x, SuperConfig)) {
+    dat_training <- read(x@dat_training_path, character2factor = TRUE)
+    dat_validation <- if (!is.null(x@dat_validation_path)) {
+      read(x@dat_validation_path)
+    } else {
+      NULL
+    }
+    dat_test <- if (!is.null(x@dat_test_path)) {
+      read(x@dat_test_path)
+    } else {
+      NULL
+    }
+    # Call train() with data and other parameters from config
+    return(train(
+      x = dat_training,
+      dat_validation = dat_validation,
+      dat_test = dat_test,
+      weights = x@weights,
+      preprocessor_config = x@preprocessor_config,
+      algorithm = x@algorithm,
+      hyperparameters = x@hyperparameters,
+      tuner_config = x@tuner_config,
+      outer_resampling_config = x@outer_resampling_config,
+      execution_config = x@execution_config,
+      question = x@question,
+      outdir = x@outdir,
+      verbosity = x@verbosity
+    ))
+  } # / train.SuperConfig
+
   # Checks ----
   if (is.null(hyperparameters) && is.null(algorithm)) {
     cli::cli_abort(
@@ -319,28 +399,30 @@ train.class_tabular <- method(train, class_tabular) <- function(
     # Note: All training, validation, and test metrics are calculated by Supervised or SupervisedRes.
     # => Introduce supports_weights() if any algorithms do NOT support case weights
     # or only support class weights
-    args <- list(
-      x = x,
-      weights = weights,
-      hyperparameters = hyperparameters,
-      verbosity = verbosity
-    )
+
     # Validation data is only passed to learners using early stopping.
     # Otherwise, tuning functions collect validation metrics.
-    if (algorithm %in% early_stopping_algs) {
-      args[["dat_validation"]] <- dat_validation
+    dat_validation_for_training <- if (algorithm %in% early_stopping_algs) {
+      dat_validation
+    } else {
+      NULL
     }
 
-    model <- do_call(get_train_fn(algorithm), args)
-    # each train_* function checks output is the correct model class.
+    model <- train_super(
+      hyperparameters = hyperparameters,
+      x = x,
+      weights = weights,
+      dat_validation = dat_validation_for_training,
+      verbosity = verbosity
+    )
+    # each train_* method checks output is the correct model class.
 
     # Predicted Values ----
-    predict_fn <- get_predict_fn(algorithm)
-    varimp_fn <- get_varimp_fn(algorithm)
     predicted_prob_training <- predicted_prob_validation <- predicted_prob_test <- NULL
-    predicted_training <- do_call(
-      predict_fn,
-      list(model, newdata = features(x), type = type)
+    predicted_training <- predict_super(
+      model = model,
+      newdata = features(x),
+      type = type
     )
     if (type == "Classification") {
       predicted_prob_training <- predicted_training
@@ -351,9 +433,10 @@ train.class_tabular <- method(train, class_tabular) <- function(
     }
     predicted_validation <- predicted_test <- NULL
     if (!is.null(dat_validation)) {
-      predicted_validation <- do_call(
-        predict_fn,
-        list(model, newdata = features(dat_validation), type = type)
+      predicted_validation <- predict_super(
+        model = model,
+        newdata = features(dat_validation),
+        type = type
       )
       if (type == "Classification") {
         predicted_prob_validation <- predicted_validation
@@ -364,9 +447,10 @@ train.class_tabular <- method(train, class_tabular) <- function(
       }
     }
     if (!is.null(dat_test)) {
-      predicted_test <- do_call(
-        predict_fn,
-        list(model, newdata = features(dat_test), type = type)
+      predicted_test <- predict_super(
+        model = model,
+        newdata = features(dat_test),
+        type = type
       )
       if (type == "Classification") {
         predicted_prob_test <- predicted_test
@@ -380,16 +464,15 @@ train.class_tabular <- method(train, class_tabular) <- function(
     # Standard Errors ----
     se_training <- se_validation <- se_test <- NULL
     if (type == "Regression" && algorithm %in% se_compat_algorithms) {
-      se_fn <- get_se_fn(algorithm)
-      se_training <- do_call(se_fn, list(model, newdata = features(x)))
+      se_training <- se_super(model = model, newdata = features(x))
       if (!is.null(dat_validation)) {
-        se_validation <- do_call(
-          se_fn,
-          list(model, newdata = features(dat_validation))
+        se_validation <- se_super(
+          model = model,
+          newdata = features(dat_validation)
         )
       }
       if (!is.null(dat_test)) {
-        se_test <- do_call(se_fn, list(model, newdata = features(dat_test)))
+        se_test <- se_super(model = model, newdata = features(dat_test))
       }
     }
 
@@ -414,7 +497,7 @@ train.class_tabular <- method(train, class_tabular) <- function(
       se_validation = se_validation,
       se_test = se_test,
       xnames = names(x)[-ncols],
-      varimp = do_call(varimp_fn, list(model)),
+      varimp = varimp_super(model = model),
       question = question
     )
   } else {
@@ -588,36 +671,3 @@ get_n_workers <- function(
     outer_resampling = workers_outer_resampling
   )
 } # /rtemis::get_n_workers
-
-
-# %% train SuperConfig ----
-train.SuperConfig <- method(train, SuperConfig) <- function(x) {
-  # Read data from paths in x:SuperConfig
-  dat_training <- read(x@dat_training_path, character2factor = TRUE)
-  dat_validation <- if (!is.null(x@dat_validation_path)) {
-    read(x@dat_validation_path)
-  } else {
-    NULL
-  }
-  dat_test <- if (!is.null(x@dat_test_path)) {
-    read(x@dat_test_path)
-  } else {
-    NULL
-  }
-  # Call train() with data and other parameters from config
-  train(
-    x = dat_training,
-    dat_validation = dat_validation,
-    dat_test = dat_test,
-    weights = x@weights,
-    preprocessor_config = x@preprocessor_config,
-    algorithm = x@algorithm,
-    hyperparameters = x@hyperparameters,
-    tuner_config = x@tuner_config,
-    outer_resampling_config = x@outer_resampling_config,
-    execution_config = x@execution_config,
-    question = x@question,
-    outdir = x@outdir,
-    verbosity = x@verbosity
-  )
-} # /rtemis::train.SuperConfig

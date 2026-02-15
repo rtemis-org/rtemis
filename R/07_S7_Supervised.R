@@ -110,9 +110,8 @@ Supervised <- new_class(
 #' @noRd
 method(predict, Supervised) <- function(object, newdata, ...) {
   check_inherits(newdata, "data.frame")
-  predict_fn <- get_predict_fn(object@algorithm)
   do_call(
-    predict_fn,
+    predict_super,
     list(model = object@model, newdata = newdata, type = object@type)
   )
 } # /rtemis::predict.Supervised
@@ -608,9 +607,11 @@ CalibratedClassification <- new_class(
 # Predict CalibratedClassification ----
 method(predict, CalibratedClassification) <- function(object, newdata, ...) {
   check_inherits(newdata, "data.frame")
-  predict_fn <- get_predict_fn(object@algorithm)
   # Get the classification model's predicted probabilities
-  raw_prob <- do_call(predict_fn, list(model = object@model, newdata = newdata))
+  raw_prob <- do_call(
+    predict_super,
+    list(model = object@model, newdata = newdata)
+  )
   # Get the calibration model's predicted probabilities
   predict(
     object@calibration_model,
@@ -1251,13 +1252,12 @@ method(predict, SupervisedRes) <- function(
 ) {
   check_inherits(newdata, "data.frame")
   type <- match.arg(type)
-  predict_fn <- get_predict_fn(object@algorithm)
 
   predicted <- sapply(
     object@models,
     function(mod) {
       do_call(
-        predict_fn,
+        predict_super,
         list(model = mod@model, newdata = newdata, type = object@type)
       )
     }
@@ -1452,10 +1452,10 @@ method(predict, CalibratedClassificationRes) <- function(
   predicted <- mapply(
     function(base_mod, cal_mod) {
       # 1. Predict with base model
-      predict_fn <- get_predict_fn(base_mod@algorithm)
-      raw_prob <- do_call(
-        predict_fn,
-        list(model = base_mod@model, newdata = newdata, type = base_mod@type)
+      raw_prob <- predict(
+        base_mod,
+        newdata = newdata,
+        type = base_mod@type
       )
 
       # 2. Predict with calibration model

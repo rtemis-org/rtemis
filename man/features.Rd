@@ -7,7 +7,7 @@
 features(x)
 }
 \arguments{
-\item{x}{data.frame or similar.}
+\item{x}{tabular data.}
 }
 \value{
 object same as input, after removing the last column.

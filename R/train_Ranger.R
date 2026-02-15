@@ -7,18 +7,22 @@
 
 #' Random Forest using Ranger
 #'
-#' @inheritParams train_GLMNET
+#' @param hyperparameters `RangerHyperparameters`: Hyperparameters for Ranger.
+#' @param x tabular data: Training data.
+#' @param weights Numeric vector: Case weights.
+#' @param dat_validation tabular data: Validation data (currently unused).
+#' @param verbosity Integer: Verbosity level.
 #'
 #' @return `ranger` model object.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-train_Ranger <- function(
+method(train_super, RangerHyperparameters) <- function(
+  hyperparameters,
   x,
-  dat_validation = NULL,
   weights = NULL,
-  hyperparameters = setup_Ranger(),
+  dat_validation = NULL,
   verbosity = 1L
 ) {
   # Dependencies ----
@@ -42,7 +46,6 @@ train_Ranger <- function(
   # Data ----
   check_supervised(
     x = x,
-    dat_validation = dat_validation,
     allow_missing = TRUE,
     verbosity = verbosity
   )
@@ -103,19 +106,23 @@ train_Ranger <- function(
   )
   check_inherits(model, "ranger")
   model
-} # /rtemis::train_Ranger
+} # /rtemis::train_super.RangerHyperparameters
 
 #' Predict from Ranger model
 #'
 #' @param model `ranger` model object.
 #' @param newdata data.frame or similar: Data to predict on.
+#' @param type Character: Prediction type.
+#' @param verbosity Integer: Verbosity level.
+#' @param ranger_type Character: Ranger prediction type.
+#' @param ... Additional arguments passed to ranger predict.
 #'
 #' @keywords internal
 #' @noRd
-predict_Ranger <- function(
+method(predict_super, class_ranger) <- function(
   model,
   newdata,
-  type,
+  type = NULL,
   verbosity = 0L,
   ranger_type = "response",
   ...
@@ -137,7 +144,7 @@ predict_Ranger <- function(
     predicted <- predicted[, 2L]
   }
   predicted
-} # /rtemis::predict_Ranger
+} # /rtemis::predict_super.class_ranger
 
 
 #' Get variable importance from Ranger model
@@ -146,17 +153,17 @@ predict_Ranger <- function(
 #'
 #' @keywords internal
 #' @noRd
-varimp_Ranger <- function(model) {
+method(varimp_super, class_ranger) <- function(model) {
   check_inherits(model, "ranger")
   ranger::importance(model)
-} # /rtemis::varimp_Ranger
+} # /rtemis::varimp_super.class_ranger
 
 
 #' Validate Ranger Hyperparameters
 #'
 #' Validate Ranger Hyperparameters given training data.
 #'
-#' @param x data.frame or similar: Training data.
+#' @param x tabular data: Training data.
 #' @param hyperparameters `RangerHyperparameters`: Hyperparameters to check.
 #'
 #' @return NULL. Will throw error if hyperparameters are invalid.

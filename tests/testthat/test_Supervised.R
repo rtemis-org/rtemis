@@ -1327,3 +1327,17 @@ test_that("predict() CalibratedClassificationRes succeeds", {
   expect_type(predicted_cal, "double")
   expect_length(predicted_cal, nrow(datc2_test))
 })
+
+## {CART}[calibrate]<ClassificationRes> ----
+# Using resmod_c_cart from above
+resmodt_c_cart_cal <- calibrate(resmodt_c_cart)
+test_that("calibrate() ClassificationRes succeeds", {
+  expect_s7_class(resmodt_c_cart_cal, CalibratedClassificationRes)
+})
+
+## {CART}[predict]<CalibratedClassificationRes> ----
+predicted_cal <- predict(resmodt_c_cart_cal, features(datc2_test))
+test_that("predict() CalibratedClassificationRes succeeds", {
+  expect_type(predicted_cal, "double")
+  expect_length(predicted_cal, nrow(datc2_test))
+})

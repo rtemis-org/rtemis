@@ -5,12 +5,24 @@
 # References
 # S7 generics: https://rconsortium.github.io/S7/articles/generics-methods.html
 
-# --- S3 Classes for S7 ----------------------------------------------------------------------------
+# %% --- S3 Classes for S7 ----------------------------------------------------------------------------
 class_data.table <- new_S3_class("data.table")
 class_lgb.Booster <- new_S3_class("lgb.Booster")
+# All internal methods should support data.frame, data.table, tbl_df
 class_tabular <- new_union(class_data.frame, class_data.table)
+# Supervised learning model classes
+class_glm <- new_S3_class("glm")
+class_gam <- new_S3_class("gam")
+class_glmnet <- new_S3_class("glmnet")
+class_cv.glmnet <- new_S3_class("cv.glmnet")
+class_stepfun <- new_S3_class("stepfun") # Isotonic regression
+class_rpart <- new_S3_class("rpart")
+class_ranger <- new_S3_class("ranger")
+class_svm <- new_S3_class("svm")
+class_tabnet_fit <- new_S3_class("tabnet_fit")
 
-# --- Generics -------------------------------------------------------------------------------------
+
+# %% --- Generics -------------------------------------------------------------------------------------
 # %% preprocess ----
 #' @name
 #' preprocess
@@ -61,68 +73,113 @@ class_tabular <- new_union(class_data.frame, class_data.table)
 preprocess <- new_generic("preprocess", c("x", "config"))
 
 
-# %% train ----
-#' @name
-#' train
-#'
-#' @title
-#' Train Supervised Learning Models
+# %% train_super ----
+#' Train supervised learning model (internal)
 #'
 #' @description
-#' Preprocess, tune, train, and test supervised learning models in a single call
-#' using nested resampling.
+#' Internal S7 generic that dispatches algorithm-specific training based on
+#' `Hyperparameters` class. Called by `train()`.
 #'
-#' @details
-#' **Online documentation**
+#' @param hyperparameters `Hyperparameters` object: Algorithm-specific hyperparameters.
+#' @param x tabular data: Training set.
+#' @param weights Optional Numeric vector: Case weights.
+#' @param dat_validation Optional tabular data: Validation set for algorithms that support early stopping.
+#' @param verbosity Integer: Verbosity level.
 #'
-#' See [rdocs.rtemis.org/train](https://rdocs.rtemis.org/train) for detailed documentation.
-#'
-#' **Binary Classification**
-#'
-#' For binary classification, the outcome should be a factor where the 2nd level
-#' corresponds to the positive class.
-#'
-#' **Resampling**
-#'
-#' Note that you should not use an outer resampling method with
-#' replacement if you will also be using an inner resampling (for tuning).
-#' The duplicated cases from the outer resampling may appear both in the
-#' training and test sets of the inner resamples, leading to underestimated
-#' test error.
-#'
-#' **Reproducibility**
-#'
-#' If using ***outer resampling***, you can set a seed when defining `outer_resampling_config`, e.g.
-#' ```r
-#' outer_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)
-#' ```
-#' If using ***tuning with inner resampling***, you can set a seed when defining `tuner_config`,
-#' e.g.
-#' ```r
-#' tuner_config = setup_GridSearch(
-#'   resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold", seed = 2027L)
-#' )
-#' ```
-#'
-#' **Parallelization**
-#'
-#' There are three levels of parallelization that may be used during training:
-#'
-#' 1. Algorithm training (e.g. a parallelized learner like LightGBM)
-#' 2. Tuning (inner resampling, where multiple resamples can be processed in parallel)
-#' 3. Outer resampling (where multiple outer resamples can be processed in parallel)
-#'
-#' The `train()` function will automatically manage parallelization depending
-#' on:
-#' - The number of workers specified by the user using `n_workers`
-#' - Whether the training algorithm supports parallelization itself
-#' - Whether hyperparameter tuning is needed
+#' @return Algorithm-specific fitted model object.
 #'
 #' @author EDG
-#' @export
-# Examples are provided in the method-specific documentation.
-train <- new_generic("train", "x")
+#' @keywords internal
+#' @noRd
+train_super <- new_generic(
+  "train_super",
+  "hyperparameters",
+  function(
+    hyperparameters,
+    x,
+    weights = NULL,
+    dat_validation = NULL,
+    verbosity = 1L,
+    ...
+  ) {
+    S7_dispatch()
+  }
+) # /rtemis::train_super
 
+
+# %% predict_super ----
+#' Predict from supervised learning model (internal)
+#'
+#' @description
+#' Internal S7 generic that dispatches algorithm-specific prediction based on
+#' model class.
+#'
+#' @param model Fitted model object.
+#' @param newdata tabular data: New data for prediction.
+#' @param type Character: Type of supervised learning ("Classification" or "Regression").
+#' @param ... Additional arguments (not currently used).
+#'
+#' @return Predictions (class probabilities for classification, numeric for regression).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+predict_super <- new_generic(
+  "predict_super",
+  "model",
+  function(model, newdata, type = NULL, ...) {
+    S7_dispatch()
+  }
+) # /rtemis::predict_super
+
+
+# %% varimp_super ----
+#' Get variable importance (internal)
+#'
+#' @description
+#' Internal S7 generic that dispatches algorithm-specific variable importance
+#' extraction based on model class.
+#'
+#' @param object Fitted model object.
+#'
+#' @return Numeric vector of variable importance scores (named by feature).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+varimp_super <- new_generic(
+  "varimp_super",
+  "model",
+  function(model, ...) {
+    S7_dispatch()
+  }
+) # /rtemis::varimp_super
+
+
+# %% se_super ----
+#' Get standard errors of predictions (internal)
+#'
+#' @description
+#' Internal S7 generic for extracting standard errors from regression models.
+#'
+#' @param object Fitted model object.
+#' @param newdata tabular data: New data for prediction.
+#'
+#' @return Numeric vector of standard errors.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+se_super <- new_generic(
+  "se_super",
+  "model",
+  function(model, newdata) {
+    S7_dispatch()
+  }
+)
+
+
+# %% repr ----
 #' String representation
 #'
 #' @param x rtemis object.
@@ -156,7 +213,7 @@ get_metric <- new_generic("get_metric", "x")
 
 #' Check hyperparameters given training data
 #'
-#' @param x data.frame or similar: Training data.
+#' @param x tabular data: Training data.
 #' @param hyperparameters `Hyperparameters` to check.
 #'
 validate_hyperparameters <- new_generic(
@@ -347,7 +404,7 @@ extract_rules <- new_generic("extract_rules", "x")
 #' @usage
 #' get_factor_levels(x)
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #'
 #' @return Named list of factor levels. Names correspond to column names.
 #'
@@ -410,7 +467,7 @@ write_toml <- new_generic(
 
 #' Select (include) columns by character or numeric vector.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #' @param idx Character or numeric vector: Column names or indices to include.
 #'
 #' @return data.frame, tibble, or data.table.
@@ -428,7 +485,7 @@ inc <- new_generic("inc", "x", function(x, idx) {
 
 #' Exclude columns by character or numeric vector.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #' @param idx Character or numeric vector: Column names or indices to exclude.
 #'
 #' @return data.frame, tibble, or data.table.
@@ -484,7 +541,7 @@ method(exc, list(class_data.table, class_double)) <- function(x, idx) {
 #' where, by convention, the last column is the outcome variable and all other columns
 #' are features.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #'
 #' @return Name of the last column.
 #'
@@ -511,7 +568,7 @@ method(outcome_name, class_data.frame) <- function(x) {
 #' where, by convention, the last column is the outcome variable and all other columns
 #' are features.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #'
 #' @return Vector containing the last column of `x`.
 #'
@@ -538,7 +595,7 @@ method(outcome, class_data.frame) <- function(x) {
 #' where, by convention, the last column is the outcome variable and all other columns
 #' are features.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #'
 #' @return object same as input, after removing the last column.
 #'
@@ -566,7 +623,7 @@ method(features, class_data.frame) <- function(x) {
 #' where, by convention, the last column is the outcome variable and all other columns
 #' are features.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #'
 #' @return Character vector of feature names.
 #'
@@ -599,7 +656,7 @@ check_factor_levels <- new_generic("check_factor_levels", c("x"))
 #' where, by convention, the last column is the outcome variable and all other columns
 #' are features.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #'
 #' @return Character vector of factor names.
 #'
@@ -707,7 +764,7 @@ calibrate <- new_generic(
 #' @usage
 #' get_factor_levels(x)
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #'
 #' @return Named list of factor levels. Names correspond to column names.
 #'

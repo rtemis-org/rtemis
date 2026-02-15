@@ -7,7 +7,7 @@
 validate_hyperparameters(x, hyperparameters)
 }
 \arguments{
-\item{x}{data.frame or similar: Training data.}
+\item{x}{tabular data: Training data.}
 
 \item{hyperparameters}{\code{Hyperparameters} to check.}
 }

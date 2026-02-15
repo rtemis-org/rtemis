@@ -2,19 +2,25 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-#' Random Forest using LightGBM
+#' Train a LightRuleFit model
 #'
-#' @inheritParams train_GLMNET
+#' Train a LightRuleFit model using LightGBM and GLMNET.
+#'
+#' @param hyperparameters `LightRuleFitHyperparameters` object: make using [setup_LightRuleFit].
+#' @param x tabular data: Training set.
+#' @param weights Numeric vector: Case weights.
+#' @param dat_validation tabular data: Validation set.
+#' @param verbosity Integer: If > 0, print messages.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-train_LightRuleFit <- function(
-  x,
-  dat_validation = NULL,
-  weights = NULL,
+method(train_super, LightRuleFitHyperparameters) <- function(
   hyperparameters,
-  verbosity
+  x,
+  weights = NULL,
+  dat_validation = NULL,
+  verbosity = 1L
 ) {
   # Dependencies ----
   check_dependencies("lightgbm", "glmnet", "matrixStats", "gsubfn")
@@ -108,7 +114,6 @@ train_LightRuleFit <- function(
 
   # Empirical risk ----
   if (type == "Classification" && nclasses == 2) {
-    # {data.table}
     x <- as.data.table(x)
     empirical_risk <- vector("numeric", length(rules_selected))
     for (i in seq_along(rules_selected)) {
@@ -158,17 +163,22 @@ train_LightRuleFit <- function(
       n_nonzero_rules = length(nonzero_index)
     )
   )
-} # /rtemis::train_LightRuleFit
+} # /rtemis::train_super.LightRuleFitHyperparameters
+
 
 #' Predict from LightRuleFit LightGBM model
 #'
-#' @param model lgb.Booster object trained using `train_LightRuleFit`.
+#' @param model LightRuleFit object trained using `train_LightRuleFit`.
 #' @param newdata data.frame or similar: Data to predict on.
 #'
 #' @keywords internal
 #' @noRd
-predict_LightRuleFit <- function(model, newdata, type, verbosity = 1L) {
-  check_is_S7(model, LightRuleFit)
+method(predict_super, LightRuleFit) <- function(
+  model,
+  newdata,
+  type = NULL,
+  verbosity = 1L
+) {
   check_inherits(newdata, "data.frame")
 
   rules <- model@rules
@@ -188,15 +198,15 @@ predict_LightRuleFit <- function(model, newdata, type, verbosity = 1L) {
   } else {
     as.numeric(predict(model@model_glmnet@model, newx = datm))
   }
-} # /rtemis::predict_LightRuleFit
+} # /rtemis::predict_super.LightRuleFit
+
 
 #' Get variable importance from LightRuleFit model
 #'
-#' @param model lgb.Booster object trained using `train_LightRuleFit`.
+#' @param model LightRuleFit object trained using `train_LightRuleFit`.
 #'
 #' @keywords internal
 #' @noRd
-varimp_LightRuleFit <- function(model) {
-  check_is_S7(model, LightRuleFit)
+method(varimp_super, LightRuleFit) <- function(model) {
   coef(model@model_glmnet@model)
-} # /rtemis::varimp_LightRuleFit
+} # /rtemis::varimp_super.LightRuleFit

@@ -20,7 +20,7 @@ get_tuner_fn <- function(type = "GridSearch") {
 # %% tune ----
 #' Tune Supervised Learning Model
 #'
-#' @param x data.frame or similar: Training set data.
+#' @param x tabular data: Training set data.
 #' @param hyperparameters `Hyperparameters` object: make using each learner's `setup_*` function.
 #' @param tuner_config `TunerConfig` object: created with [setup_GridSearch].
 #' @param weights Numeric vector: Optional case weights.

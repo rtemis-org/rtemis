@@ -1,6 +1,6 @@
 # train_CART.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 #' Train a CART decision tree
 #'
@@ -11,17 +11,20 @@
 #' The "train_*" functions train a single model.
 #' Use [train] for tuning and test using nested cross-validation.
 #'
-#' @inheritParams train_GLMNET
 #' @param hyperparameters `CARTHyperparameters` object: make using [setup_CART].
+#' @param x tabular data: Training set.
+#' @param weights Numeric vector: Case weights.
+#' @param dat_validation tabular data or NULL: Not used for CART.
+#' @param verbosity Integer: If > 0, print messages.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-
-train_CART <- function(
+method(train_super, CARTHyperparameters) <- function(
+  hyperparameters,
   x,
   weights = NULL,
-  hyperparameters = setup_CART(),
+  dat_validation = NULL,
   verbosity = 1L
 ) {
   # Dependencies ----
@@ -42,7 +45,6 @@ train_CART <- function(
   if (is.null(weights)) {
     weights <- rep(1, NROW(x))
   }
-  type <- supervised_type(x)
 
   # Train ----
   # weights can't be NULL.
@@ -71,16 +73,22 @@ train_CART <- function(
   }
   check_inherits(model, "rpart")
   model
-} # /rtemis::train_CART
+} # /rtemis::train_super.CARTHyperparameters
+
 
 #' Predict from rpart model
 #'
 #' @param model rpart model.
-#' @param newdata data.frame or similar: Data to predict on.
+#' @param newdata tabular data: Data to predict on.
+#' @param type Character: Type of supervised learning ("Classification" or "Regression").
 #'
 #' @keywords internal
 #' @noRd
-predict_CART <- function(model, newdata, type) {
+method(predict_super, class_rpart) <- function(
+  model,
+  newdata,
+  type = NULL
+) {
   if (type == "Classification") {
     # Classification
     # predict.rpart returns a matrix n_cases x n_classes,
@@ -94,7 +102,8 @@ predict_CART <- function(model, newdata, type) {
   } else {
     predict(model, newdata = newdata, type = "vector")
   }
-} # /rtemis::predict_CART
+} # /rtemis::predict_super.rpart
+
 
 #' Get variable importance from rpart model
 #'
@@ -102,6 +111,6 @@ predict_CART <- function(model, newdata, type) {
 #'
 #' @keywords internal
 #' @noRd
-varimp_CART <- function(model) {
+method(varimp_super, class_rpart) <- function(model) {
   model[["variable.importance"]]
-} # /rtemis::varimp_CART
+} # /rtemis::varimp_super.rpart

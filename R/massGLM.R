@@ -4,7 +4,7 @@
 
 #' Mass-univariate GLM Analysis
 #'
-#' @param x data.frame or similar: Predictor variables. Usually a small number of covariates.
+#' @param x tabular data: Predictor variables. Usually a small number of covariates.
 #' @param y data.frame or similar: Each column is a different outcome. The function will train one
 #' GLM for each column of `y`. Usually a large number of features.
 #' @param scale_y Logical: If TRUE, scale each column of `y` to have mean 0 and sd 1. If `NULL`,
@@ -116,7 +116,7 @@ massGLM <- function(
     )
   }
   tbls <- lapply(
-    cli_progress_along(seq_along(y), name = "GLMs", type = "tasks"),
+    cli::cli_progress_along(seq_along(y), name = "GLMs", type = "tasks"),
     function(i) {
       fit1(index = i, dat = dat, family = .family, ynames = ynames)
     }

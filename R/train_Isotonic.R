@@ -10,11 +10,10 @@
 #' correspond to `1`, i.e. positive class in y.
 #' outcome `1`.
 #'
-#' @param x data.frame or similar: Training set. Only a single predictor is allowed.
-#' @param dat_validation data.frame or similar: Validation set.
-#' @param dat_test data.frame or similar: Test set.
-#' @param weights Not used.
 #' @param hyperparameters `IsotonicHyperparameters` object: make using [setup_Isotonic].
+#' @param x tabular data: Training set. Only a single predictor is allowed.
+#' @param weights Not used.
+#' @param dat_validation Not used.
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @return Object of class `stepfun`.
@@ -23,12 +22,11 @@
 #' @keywords internal
 #' @noRd
 
-train_Isotonic <- function(
+method(train_super, IsotonicHyperparameters) <- function(
+  hyperparameters,
   x,
-  dat_validation = NULL,
-  dat_test = NULL,
   weights = NULL,
-  hyperparameters = NULL,
+  dat_validation = NULL,
   verbosity = 1L
 ) {
   # Checks ----
@@ -37,8 +35,6 @@ train_Isotonic <- function(
   # Data ----
   check_supervised(
     x = x,
-    dat_validation = dat_validation,
-    dat_test = dat_test,
     allow_missing = FALSE,
     verbosity = verbosity
   )
@@ -68,19 +64,22 @@ train_Isotonic <- function(
   model <- as.stepfun(ir)
   check_inherits(model, "stepfun")
   model
-} # /rtemis::train_Isotonic
+} # /rtemis::train_super.IsotonicHyperparameters
+
 
 #' Predict from Isotonic model
 #'
 #' @param model Isotonic model.
 #' @param newdata data.frame or similar: Data to predict on.
+#' @param type Not used.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-predict_Isotonic <- function(model, newdata, type, verbosity = 0L) {
+method(predict_super, class_stepfun) <- function(model, newdata, type = NULL) {
   model(newdata[[1]])
-} # /rtemis::predict_Isotonic
+} # /rtemis::predict_super.class_stepfun
+
 
 #' Get coefficients from Isotonic model
 #'
@@ -88,6 +87,6 @@ predict_Isotonic <- function(model, newdata, type, verbosity = 0L) {
 #'
 #' @keywords internal
 #' @noRd
-varimp_Isotonic <- function(model) {
+method(varimp_super, class_stepfun) <- function(model) {
   NA
-} # /rtemis::varimp_Isotonic
+} # /rtemis::varimp_super.class_stepfun

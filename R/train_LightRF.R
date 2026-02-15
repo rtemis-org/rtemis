@@ -7,18 +7,21 @@
 
 #' Random Forest using LightGBM
 #'
-#' @inheritParams train_GLMNET
-#'
-#' @return `lgb.Booster` object.
+#' @param hyperparameters `LightRFHyperparameters` object: make using [setup_LightRF].
+#' @param x tabular data: Training set.
+#' @param weights Numeric vector: Case weights.
+#' @param dat_validation tabular data or NULL: Validation set for early stopping.
+#' @param verbosity Integer: If > 0, print messages.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-train_LightRF <- function(
+
+method(train_super, LightRFHyperparameters) <- function(
+  hyperparameters,
   x,
-  dat_validation = NULL,
   weights = NULL,
-  hyperparameters = setup_LightRF(),
+  dat_validation = NULL,
   verbosity = 1L
 ) {
   # Dependencies ----
@@ -128,45 +131,4 @@ train_LightRF <- function(
   )
   check_inherits(model, "lgb.Booster")
   model
-} # /rtemis::train_LightRF
-
-#' Predict from LightRF LightGBM model
-#'
-#' @param model lgb.Booster object trained using `train_LightRF`.
-#' @param newdata data.frame or similar: Data to predict on.
-#'
-#' @keywords internal
-#' @noRd
-predict_LightRF <- function(model, newdata, type, verbosity = 0L) {
-  check_inherits(model, "lgb.Booster")
-  check_inherits(newdata, "data.frame")
-
-  # Preprocess ----
-  newdata <- as.matrix(
-    preprocess(
-      newdata,
-      config = setup_Preprocessor(
-        factor2integer = TRUE,
-        factor2integer_startat0 = TRUE
-      ),
-      verbosity = 0L
-    )@preprocessed
-  )
-
-  # Predict ----
-  predict(model, newdata = newdata)
-} # /rtemis::predict_LightRF
-
-#' Get variable importance from LightRF model
-#'
-#' @param model `lgb.Booster`` object trained using `train_LightRF`.
-#'
-#' @keywords internal
-#' @noRd
-varimp_LightRF <- function(model) {
-  check_inherits(model, "lgb.Booster")
-  vi <- lightgbm::lgb.importance(model, percentage = TRUE)
-  out <- data.frame(t(vi[["Gain"]]))
-  names(out) <- vi[["Feature"]]
-  out
-} # /rtemis::varimp_LightRF
+} # /rtemis::train_super.LightRFHyperparameters

@@ -7,21 +7,21 @@
 
 #' Gradient Boosting with LightGBM
 #'
-#' @param x data.frame or similar: Training set.
-#' @param dat_validation data.frame or similar: Validation set.
+#' @param hyperparameters `LightGBMHyperparameters` object: make using [setup_LightGBM].
+#' @param x tabular data: Training set.
 #' @param weights Numeric vector: Case weights.
-#' @param hyperparameters `GLMNETHyperparameters` object: make using [setup_GLMNET].
+#' @param dat_validation tabular data or NULL: Validation set for early stopping.
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 
-train_LightGBM <- function(
+method(train_super, LightGBMHyperparameters) <- function(
+  hyperparameters,
   x,
-  dat_validation = NULL,
   weights = NULL,
-  hyperparameters = setup_LightGBM(),
+  dat_validation = NULL,
   verbosity = 1L
 ) {
   # Dependencies ----
@@ -139,16 +139,23 @@ train_LightGBM <- function(
   )
   check_inherits(model, "lgb.Booster")
   model
-} # /rtemis::train_LightGBM
+} # /rtemis::train_super.LightGBMHyperparameters
 
-#' Predict from LightGBM LightGBM model
+
+#' Predict from LightGBM model
 #'
-#' @param model lgb.Booster object trained using `train_LightGBM`.
-#' @param newdata data.frame or similar: Data to predict on.
+#' @param model lgb.Booster object.
+#' @param newdata tabular data: Data to predict on.
+#' @param type Character: Type of supervised learning.
 #'
 #' @keywords internal
 #' @noRd
-predict_LightGBM <- function(model, newdata, type, verbosity = 0L) {
+method(predict_super, class_lgb.Booster) <- function(
+  model,
+  newdata,
+  type = NULL,
+  verbosity = 0L
+) {
   check_inherits(model, "lgb.Booster")
   check_inherits(newdata, "data.frame")
 
@@ -166,18 +173,19 @@ predict_LightGBM <- function(model, newdata, type, verbosity = 0L) {
 
   # Predict ----
   predict(model, newdata = newdata)
-} # /rtemis::predict_LightGBM
+} # /rtemis::predict_super.lgb.Booster
+
 
 #' Get variable importance from LightGBM model
 #'
-#' @param model lgb.Booster object trained using `train_LightGBM`.
+#' @param model lgb.Booster object.
 #'
 #' @keywords internal
 #' @noRd
-varimp_LightGBM <- function(model) {
+method(varimp_super, class_lgb.Booster) <- function(model) {
   check_inherits(model, "lgb.Booster")
   vi <- lightgbm::lgb.importance(model, percentage = TRUE)
   out <- data.frame(t(vi[["Gain"]]))
   names(out) <- vi[["Feature"]]
   out
-} # /rtemis::varimp_LightGBM
+} # /rtemis::varimp_super.lgb.Booster

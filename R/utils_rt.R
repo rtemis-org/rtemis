@@ -126,7 +126,7 @@ outro <- function(
 
 #' Summarize supervised inputs
 #'
-#' @param x data.frame or similar: Training set data.
+#' @param x tabular data: Training set data.
 #' @param dat_validation data.frame or similar: Validation set data.
 #' @param dat_test data.frame or similar: Test set data.
 #'
@@ -171,7 +171,7 @@ summarize_supervised <- function(
 
 #' Summarize unsupervised inputs
 #'
-#' @param x data.frame or similar: Training set data.
+#' @param x tabular data: Training set data.
 #'
 #' @author EDG
 #' @keywords internal

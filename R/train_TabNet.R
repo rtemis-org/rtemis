@@ -8,10 +8,10 @@
 #'
 #' TabNet does not work in the presence of missing values.
 #'
-#' @param x data.frame or similar: Training set.
-#' @param weights Numeric vector: Case weights.
 #' @param hyperparameters `TabNetHyperparameters` object: make using [setup_TabNet].
-#' @param tuner_config `TunerConfig` object created using [setup_GridSearch].
+#' @param x tabular data: Training set.
+#' @param weights Numeric vector: Case weights.
+#' @param dat_validation tabular data: Validation set for early stopping.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Object of class `TabNet`.
@@ -19,11 +19,11 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-train_TabNet <- function(
+method(train_super, TabNetHyperparameters) <- function(
+  hyperparameters,
   x,
   weights = NULL,
-  hyperparameters = NULL,
-  tuner_config = NULL,
+  dat_validation = NULL,
   verbosity = 1L
 ) {
   # Dependencies ----
@@ -74,16 +74,22 @@ train_TabNet <- function(
   )
   check_inherits(model, "tabnet_fit")
   model
-} # /rtemis::train_TabNet
+} # /rtemis::train_super.TabNetHyperparameters
+
 
 #' Predict from TabNet model
 #'
 #' @param model TabNet model.
 #' @param newdata data.frame or similar: Data to predict on.
+#' @param type Character: "Regression" or "Classification".
 #'
 #' @keywords internal
 #' @noRd
-predict_TabNet <- function(model, newdata, type) {
+method(predict_super, class_tabnet_fit) <- function(
+  model,
+  newdata,
+  type = NULL
+) {
   if (type == "Regression") {
     predict(model, new_data = newdata)[[1]]
   } else if (type == "Classification") {
@@ -94,7 +100,8 @@ predict_TabNet <- function(model, newdata, type) {
       predicted
     }
   }
-} # /rtemis::predict_TabNet
+} # /rtemis::predict_super.class_tabnet_fit
+
 
 #' Get coefficients from TabNet model
 #'
@@ -102,6 +109,6 @@ predict_TabNet <- function(model, newdata, type) {
 #'
 #' @keywords internal
 #' @noRd
-varimp_TabNet <- function(model) {
+method(varimp_super, class_tabnet_fit) <- function(model) {
   NULL
-} # /rtemis::varimp_TabNet
+} # /rtemis::varimp_super.class_tabnet_fit

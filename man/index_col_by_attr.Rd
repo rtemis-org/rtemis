@@ -7,7 +7,7 @@
 index_col_by_attr(x, name, value, exact = TRUE)
 }
 \arguments{
-\item{x}{data.frame or similar.}
+\item{x}{tabular data.}
 
 \item{name}{Character: Name of attribute.}
 

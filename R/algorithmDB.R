@@ -121,21 +121,6 @@ get_default_hyperparameters <- function(algorithm, type, ncols) {
   }
 } # /rtemis::get_default_hyperparameters
 
-get_predict_fn <- function(algorithm) {
-  paste0("predict_", get_alg_name(algorithm))
-}
-
-get_se_fn <- function(algorithm) {
-  paste0("se_", get_alg_name(algorithm))
-}
-
-# get_predict_prob_fn <- function(algorithm) {
-#   paste0("predict_prob_", get_alg_name(algorithm))
-# }
-
-get_varimp_fn <- function(algorithm) {
-  paste0("varimp_", get_alg_name(algorithm))
-}
 
 # use e.g. in draw_scatter
 setup_alg <- function(algorithm, ...) {
