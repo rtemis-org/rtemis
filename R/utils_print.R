@@ -1155,3 +1155,21 @@ repr_ls <- function(
 
   result
 } # /rtemis::repr_ls
+
+
+# %% inspect.class_data.frame ----
+method(inspect, class_data.frame) <- function(x) {
+  out <- paste0(
+    fmt("<", col = "#808080"),
+    fmt(class(x)[[1L]], col = highlight_col, bold = TRUE),
+    fmt(">", col = "#808080"),
+    " ",
+    fmt(NROW(x), bold = TRUE),
+    fmt(" x ", col = "#808080"),
+    fmt(NCOL(x), bold = TRUE),
+    "\n",
+    repr_ls(x, pad = 0L, print_class = TRUE, print_df = TRUE)
+  )
+  cat(out)
+  invisible(out)
+} # /rtemis::inspect.class_data.frame
