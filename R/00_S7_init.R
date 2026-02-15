@@ -23,6 +23,37 @@ class_tabnet_fit <- new_S3_class("tabnet_fit")
 
 
 # %% --- Generics -------------------------------------------------------------------------------------
+# %% repr ----
+#' String representation
+#'
+#' @param x rtemis object.
+#'
+#' @return Character string representation of the object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+repr <- new_generic("repr", "x")
+
+
+# %% inspect ----
+#' Inspect rtemis object
+#'
+#' @param x R object to inspect.
+#'
+#' @return Called for side effect of printing information to console; returns character string
+#' invisibly.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' inspect(iris)
+inspect <- new_generic("inspect", "x", function(x) {
+  S7_dispatch()
+}) # /rtemis::inspect
+
+
 # %% preprocess ----
 #' @name
 #' preprocess
@@ -179,21 +210,12 @@ se_super <- new_generic(
 )
 
 
-# %% repr ----
-#' String representation
-#'
-#' @param x rtemis object.
-#'
-#' @return Character string representation of the object.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-repr <- new_generic("repr", "x")
-
+# %% se ----
 # Standard error of the fit.
 se <- new_generic("se", "x")
 
+
+# %% desc ----
 #' Short description for inline printing.
 #' This is like `repr` for single-line descriptions.
 #'
@@ -203,6 +225,7 @@ se <- new_generic("se", "x")
 desc <- new_generic("desc", "x")
 
 
+# %% get_metric ----
 #' Get metric
 #'
 #' @author EDG
@@ -211,6 +234,7 @@ desc <- new_generic("desc", "x")
 get_metric <- new_generic("get_metric", "x")
 
 
+# %% validate_hyperparameters ----
 #' Check hyperparameters given training data
 #'
 #' @param x tabular data: Training data.
@@ -225,6 +249,7 @@ validate_hyperparameters <- new_generic(
 ) # /rtemis::validate_hyperparameters
 
 
+# %% plot_metric ----
 #' Plot Metric
 #'
 #' @description
@@ -241,6 +266,7 @@ validate_hyperparameters <- new_generic(
 plot_metric <- new_generic("plot_metric", "x")
 
 
+# %% plot_roc ----
 #' Plot ROC curve
 #'
 #' @description
@@ -262,6 +288,7 @@ plot_metric <- new_generic("plot_metric", "x")
 plot_roc <- new_generic("plot_roc", "x")
 
 
+# %% plot_varimp ----
 #' Plot Variable Importance
 #'
 #' @description
@@ -294,6 +321,7 @@ plot_roc <- new_generic("plot_roc", "x")
 plot_varimp <- new_generic("plot_varimp", "x")
 
 
+# %% plot_true_pred ----
 #' Plot True vs. Predicted Values
 #'
 #' @description
@@ -316,6 +344,7 @@ plot_varimp <- new_generic("plot_varimp", "x")
 plot_true_pred <- new_generic("plot_true_pred", "x")
 
 
+# %% plot_manhattan ----
 #' Manhattan plot
 #'
 #' @description
@@ -331,6 +360,7 @@ plot_true_pred <- new_generic("plot_true_pred", "x")
 plot_manhattan <- new_generic("plot_manhattan", "x")
 
 
+# %% describe ----
 #' Describe rtemis object
 #'
 #' @description
@@ -350,6 +380,7 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 describe <- new_generic("describe", "x")
 
 
+# %% present ----
 #' Present rtemis object
 #'
 #' @description
@@ -370,6 +401,7 @@ describe <- new_generic("describe", "x")
 present <- new_generic("present", "x")
 
 
+# %% get_hyperparams_need_tuning ----
 #' Get hyperparameters that need tuning.
 #'
 #' @return Character vector of hyperparameter names that need tuning.
@@ -380,6 +412,7 @@ present <- new_generic("present", "x")
 get_hyperparams_need_tuning <- new_generic("get_hyperparams_need_tuning", "x")
 
 
+# %% get_hyperparams ----
 #' Get hyperparameters.
 #'
 #' @author EDG
@@ -388,6 +421,7 @@ get_hyperparams_need_tuning <- new_generic("get_hyperparams_need_tuning", "x")
 get_hyperparams <- new_generic("get_hyperparams", c("x", "param_names"))
 
 
+# %% extract_rules ----
 #' Extract rules from a model.
 #'
 #' @author EDG
@@ -396,6 +430,7 @@ get_hyperparams <- new_generic("get_hyperparams", c("x", "param_names"))
 extract_rules <- new_generic("extract_rules", "x")
 
 
+# %% get_factor_levels ----
 #' @name get_factor_levels
 #'
 #' @title
@@ -428,7 +463,7 @@ method(get_factor_levels, class_data.table) <- function(x) {
 }
 
 
-# %% to_toml
+# %% to_toml ----
 #' Convert to TOML
 #'
 #' @author EDG
@@ -437,7 +472,7 @@ method(get_factor_levels, class_data.table) <- function(x) {
 to_toml <- new_generic("to_toml", "x")
 
 
-# %% to_yaml
+# %% to_yaml ----
 #' Convert to YAML
 #'
 #' @author EDG
@@ -446,8 +481,7 @@ to_toml <- new_generic("to_toml", "x")
 to_yaml <- new_generic("to_yaml", "x")
 
 
-# %% write_toml
-
+# %% write_toml ----
 #' @name
 #' write_toml
 #'
@@ -465,6 +499,7 @@ write_toml <- new_generic(
 ) # /rtemis::write_toml
 
 
+# %% inc ----
 #' Select (include) columns by character or numeric vector.
 #'
 #' @param x tabular data.
@@ -483,6 +518,7 @@ inc <- new_generic("inc", "x", function(x, idx) {
 })
 
 
+# %% exc ----
 #' Exclude columns by character or numeric vector.
 #'
 #' @param x tabular data.
@@ -534,6 +570,7 @@ method(exc, list(class_data.table, class_double)) <- function(x, idx) {
 }
 
 
+# %% outcome_name ----
 #' Get the name of the last column
 #'
 #' @details
@@ -559,6 +596,7 @@ method(outcome_name, class_data.frame) <- function(x) {
 } # /rtemis::outcome_name
 
 
+# %% outcome ----
 #' Get the outcome as a vector
 #'
 #' Returns the last column of `x`, which is by convention the outcome variable.
@@ -586,6 +624,7 @@ method(outcome, class_data.frame) <- function(x) {
 }
 
 
+# %% features ----
 #' Get features from tabular data
 #'
 #' Returns all columns except the last one.
@@ -620,9 +659,10 @@ method(features, class_data.table) <- function(x) {
     cli::cli_abort("Input must have at least 2 columns.")
   }
   x[, -NCOL(x), with = FALSE]
-}
+} # /rtemis::features.class_data.table
 
 
+# %% feature_names ----
 #' Get feature names
 #'
 #' Returns all column names except the last one
@@ -650,7 +690,7 @@ method(feature_names, class_data.frame) <- function(x) {
     cli::cli_abort("Input must have at least 2 columns.")
   }
   names(x)[-NCOL(x)]
-}
+} # /rtemis::feature_names.class_data.frame
 
 
 # %% check_factor_levels ----
@@ -662,6 +702,7 @@ method(feature_names, class_data.frame) <- function(x) {
 check_factor_levels <- new_generic("check_factor_levels", c("x"))
 
 
+# %% get_factor_names ----
 #' Get factor names
 #'
 #' @details
@@ -687,6 +728,7 @@ method(get_factor_names, class_data.frame) <- function(x) {
 }
 
 
+# %% calibrate ----
 #' Calibrate `Classification` & `ClassificationRes` Models
 #'
 #' @description
@@ -769,6 +811,7 @@ calibrate <- new_generic(
 ) # /rtemis::calibrate
 
 
+# %% get_factor_levels ----
 #' @name get_factor_levels
 #'
 #' @title
@@ -803,7 +846,7 @@ method(get_factor_levels, class_data.table) <- function(x) {
 
 
 # --- Custom S7 validators -------------------------------------------------------------------------
-
+# %% scalar_dbl ----
 #' Scalar double
 #'
 #' @author EDG
@@ -823,6 +866,7 @@ scalar_dbl <- S7::new_property(
 ) # /rtemis::scalar_dbl
 
 
+# %% scalar_dbl_01excl ----
 #' Scalar double between 0 and 1, exclusive
 #'
 #' @author EDG
@@ -842,6 +886,7 @@ scalar_dbl_01excl <- S7::new_property(
 ) # /rtemis::scalar_dbl_01excl
 
 
+# %% scalar_dbl_01incl ----
 #' Scalar double between 0 and 1, inclusive
 #'
 #' @author EDG
@@ -861,6 +906,7 @@ scalar_dbl_01incl <- S7::new_property(
 ) # /rtemis::scalar_dbl_01incl
 
 
+# %% scalar_int ----
 #' Scalar integer
 #'
 #' @author EDG
@@ -878,6 +924,7 @@ scalar_int <- S7::new_property(
 ) # /rtemis::scalar_int
 
 
+# %% scalar_int_pos ----
 #' Scalar positive integer
 #'
 #' @author EDG
@@ -897,6 +944,7 @@ scalar_int_pos <- S7::new_property(
 ) # /rtemis::scalar_int_pos
 
 
+# %% preprocessed ----
 #' Get preprocessed data from `Preprocessor`.
 #'
 #' Returns the preprocessed data from a `Preprocessor` object.
@@ -957,8 +1005,6 @@ S7_to_list <- function(x) {
 } # /rtemis::S7_to_list
 
 
-# %% toml_to_list ----
-
 # %% toml_empty_to_null ----
 toml_empty_to_null <- function(x) {
   if (!is.list(x)) {
@@ -982,8 +1028,8 @@ toml_empty_to_null <- function(x) {
   lapply(x, toml_empty_to_null)
 } # /rtemis::toml_empty_to_null
 
-# %% write_lines
 
+# %% write_lines ----
 #' Write lines to file
 #'
 #' Normalizes path, check if directory exists, creates it if necessary,
