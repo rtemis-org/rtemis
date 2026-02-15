@@ -183,7 +183,7 @@ sanitize_path <- function(
       cli::cli_abort("Path does not exist: {.file {normalized_path}}")
     }
 
-    if (type == "file" && !file_test("-f", normalized_path)) {
+    if (type == "file" && dir.exists(normalized_path)) {
       cli::cli_abort("Path is not a file: {.file {normalized_path}}")
     }
 
