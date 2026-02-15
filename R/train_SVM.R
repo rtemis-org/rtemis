@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% train_super.LinearSVMHyperparameters ----
 #' Train a Linear SVM model
 #'
 #' Train a Linear SVM model using `e1071::svm`.
@@ -28,6 +29,13 @@ method(train_super, LinearSVMHyperparameters) <- function(
 ) {
   # Dependencies ----
   check_dependencies("e1071")
+
+  # Checks ----
+  if (!is.null(weights)) {
+    cli::cli_abort(
+      "Case weights are not supported by e1071::svm. You can enable `ifw` in the hyperparameters to use inverse frequency weighting instead."
+    )
+  }
 
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
@@ -90,6 +98,7 @@ method(train_super, LinearSVMHyperparameters) <- function(
 } # /rtemis::train_super.LinearSVMHyperparameters
 
 
+# %% train_super.RadialSVMHyperparameters ----
 #' Train a Radial SVM model
 #'
 #' Train a Radial SVM model using `e1071::svm`.
@@ -116,6 +125,13 @@ method(train_super, RadialSVMHyperparameters) <- function(
 ) {
   # Dependencies ----
   check_dependencies("e1071")
+
+  # Checks ----
+  if (!is.null(weights)) {
+    cli::cli_abort(
+      "Case weights are not supported by e1071::svm. You can enable `ifw` in the hyperparameters to use inverse frequency weighting instead."
+    )
+  }
 
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
