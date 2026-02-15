@@ -1316,28 +1316,28 @@ test_that("present() list of RegressionRes objects returns plotly object", {
 # --- CalibratedClassificationRes ------------------------------------------------------------------
 ## {GLM}[calibrate]<ClassificationRes> ----
 # Using resmod_c_glm from above
-resmod_c_glm_cal <- calibrate(resmod_c_glm)
-test_that("calibrate() ClassificationRes succeeds", {
+test_that("calibrate() GLM ClassificationRes succeeds", {
+  resmod_c_glm_cal <- calibrate(resmod_c_glm)
   expect_s7_class(resmod_c_glm_cal, CalibratedClassificationRes)
 })
 
 ## {GLM}[predict]<CalibratedClassificationRes> ----
-predicted_cal <- predict(resmod_c_glm_cal, features(datc2_test))
-test_that("predict() CalibratedClassificationRes succeeds", {
+test_that("predict() GLM CalibratedClassificationRes succeeds", {
+  predicted_cal <- predict(resmod_c_glm_cal, features(datc2_test))
   expect_type(predicted_cal, "double")
   expect_length(predicted_cal, nrow(datc2_test))
 })
 
 ## {CART}[calibrate]<ClassificationRes> ----
 # Using resmod_c_cart from above
-resmodt_c_cart_cal <- calibrate(resmodt_c_cart)
-test_that("calibrate() ClassificationRes succeeds", {
+test_that("calibrate() CART ClassificationRes succeeds", {
+  resmodt_c_cart_cal <- calibrate(resmodt_c_cart)
   expect_s7_class(resmodt_c_cart_cal, CalibratedClassificationRes)
 })
 
 ## {CART}[predict]<CalibratedClassificationRes> ----
-predicted_cal <- predict(resmodt_c_cart_cal, features(datc2_test))
-test_that("predict() CalibratedClassificationRes succeeds", {
+test_that("predict() CART CalibratedClassificationRes succeeds", {
+  predicted_cal <- predict(resmodt_c_cart_cal, features(datc2_test))
   expect_type(predicted_cal, "double")
   expect_length(predicted_cal, nrow(datc2_test))
 })
