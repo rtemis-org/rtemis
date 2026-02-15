@@ -586,18 +586,18 @@ method(outcome, class_data.frame) <- function(x) {
 }
 
 
-#' Get features
+#' Get features from tabular data
 #'
-#' Returns all columns except the last one
+#' Returns all columns except the last one.
 #'
 #' @details
-#' This applied to tabular datasets used for supervised learning in rtemis,
+#' This can be applied to tabular datasets used for supervised learning in \pkg{rtemis},
 #' where, by convention, the last column is the outcome variable and all other columns
 #' are features.
 #'
-#' @param x tabular data.
+#' @param x tabular data: Input data to get features from.
 #'
-#' @return object same as input, after removing the last column.
+#' @return Object of the same class as the input, after removing the last column.
 #'
 #' @author EDG
 #' @export
@@ -609,8 +609,17 @@ features <- new_generic("features", "x", function(x) {
 }) # /rtemis::features
 
 method(features, class_data.frame) <- function(x) {
-  stopifnot(NCOL(x) > 1)
-  x[, 1:(NCOL(x) - 1), drop = FALSE]
+  if (NCOL(x) < 2) {
+    cli::cli_abort("Input must have at least 2 columns.")
+  }
+  x[, -NCOL(x), drop = FALSE]
+}
+
+method(features, class_data.table) <- function(x) {
+  if (NCOL(x) < 2) {
+    cli::cli_abort("Input must have at least 2 columns.")
+  }
+  x[, -NCOL(x), with = FALSE]
 }
 
 
@@ -637,10 +646,14 @@ feature_names <- new_generic("feature_names", "x", function(x) {
 }) # /rtemis::feature_names
 
 method(feature_names, class_data.frame) <- function(x) {
-  names(x)[1:(NCOL(x) - 1)]
+  if (NCOL(x) < 2) {
+    cli::cli_abort("Input must have at least 2 columns.")
+  }
+  names(x)[-NCOL(x)]
 }
 
 
+# %% check_factor_levels ----
 #' Check factor levels
 #'
 #' @author EDG
