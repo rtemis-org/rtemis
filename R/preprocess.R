@@ -1020,5 +1020,6 @@ feature_matrix <- function(x) {
   x |>
     features() |>
     preprocess(setup_Preprocessor(one_hot = TRUE)) |>
-    preprocessed()
+    preprocessed() |>
+    as.matrix()
 } # /rtemis::feature_matrix
