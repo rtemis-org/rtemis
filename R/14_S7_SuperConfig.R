@@ -124,6 +124,22 @@ setup_SuperConfig <- function(
   outdir = "results/",
   verbosity = 1L
 ) {
+  # Sanitize paths for security
+  dat_training_path <- sanitize_path(dat_training_path, must_exist = FALSE)
+
+  if (!is.null(dat_validation_path)) {
+    dat_validation_path <- sanitize_path(
+      dat_validation_path,
+      must_exist = FALSE
+    )
+  }
+
+  if (!is.null(dat_test_path)) {
+    dat_test_path <- sanitize_path(dat_test_path, must_exist = FALSE)
+  }
+
+  outdir <- sanitize_path(outdir, must_exist = FALSE, type = "any")
+
   SuperConfig(
     dat_training_path = dat_training_path,
     dat_validation_path = dat_validation_path,
@@ -224,11 +240,7 @@ write_toml.SuperConfig <- method(write_toml, SuperConfig) <- function(
 #' @export
 read_config <- function(file) {
   check_dependencies("toml")
-  file <- normalizePath(file, mustWork = FALSE)
-  # Let cli_abort() handle error reporting
-  if (!file.exists(file)) {
-    cli::cli_abort("File does not exist: {file}")
-  }
+  file <- sanitize_path(file, must_exist = TRUE, type = "file")
   xl <- toml::read_toml(file)
   xl <- toml_empty_to_null(xl)
   # Convert list to SuperConfig object
