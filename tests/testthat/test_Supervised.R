@@ -1316,8 +1316,8 @@ test_that("present() list of RegressionRes objects returns plotly object", {
 # --- CalibratedClassificationRes ------------------------------------------------------------------
 ## {GLM}[calibrate]<ClassificationRes> ----
 # Using resmod_c_glm from above
+resmod_c_glm_cal <- calibrate(resmod_c_glm)
 test_that("calibrate() GLM ClassificationRes succeeds", {
-  resmod_c_glm_cal <- calibrate(resmod_c_glm)
   expect_s7_class(resmod_c_glm_cal, CalibratedClassificationRes)
 })
 
@@ -1330,8 +1330,8 @@ test_that("predict() GLM CalibratedClassificationRes succeeds", {
 
 ## {CART}[calibrate]<ClassificationRes> ----
 # Using resmod_c_cart from above
+resmodt_c_cart_cal <- calibrate(resmodt_c_cart)
 test_that("calibrate() CART ClassificationRes succeeds", {
-  resmodt_c_cart_cal <- calibrate(resmodt_c_cart)
   expect_s7_class(resmodt_c_cart_cal, CalibratedClassificationRes)
 })
 
