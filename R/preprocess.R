@@ -995,3 +995,30 @@ binmat2lvec <- function(x, labels = colnames(x), return.list = FALSE) {
   }
   out
 } # /rtemis::binmat2lvec
+
+
+# %% feature_matrix ----
+#' Convert tabular data to feature matrix
+#'
+#' Convert a tabular dataset to a matrix, one-hot encoding factors, if present.
+#'
+#' @details
+#' This is a convenience function that uses  [features()], [preprocess()], `as.matrix()`.
+#'
+#' @param x tabular data: Input data to convert to a feature matrix.
+#'
+#' @return Matrix with features. Factors are one-hot encoded, if present.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' # reorder columns so that we have a categorical feature
+#' x <- set_outcome(iris, "Sepal.Length")
+#' feature_matrix(x) |> head()
+feature_matrix <- function(x) {
+  x |>
+    features() |>
+    preprocess(setup_Preprocessor(one_hot = TRUE)) |>
+    preprocessed()
+} # /rtemis::feature_matrix
