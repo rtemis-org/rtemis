@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# Theme ----
+# %% Theme ----
 #' Theme
 #'
 #' @field name Character: Name of theme.
@@ -19,7 +19,7 @@ Theme <- new_class(
 ) # /Theme
 
 
-# Print Theme ----
+# %% print.Theme ----
 #' Print Theme
 #'
 #' Print Theme object
@@ -35,22 +35,29 @@ method(print, Theme) <- function(x, ...) {
   invisible(x)
 }
 
+
+# %% `$`.Theme ----
 # Make Theme@config `$`-accessible with autocomplete ----
 method(`$`, Theme) <- function(x, name) {
   x@config[[name]]
 } # /rtemis::Theme$
+
+
+# %% `.DollarNames`.Theme ----
 method(`.DollarNames`, Theme) <- function(x, pattern = "") {
   all_names <- names(x@config)
   grep(pattern, all_names, value = TRUE)
 } # /rtemis::Theme.DollarNames
 
+
+# %% `[[`.Theme ----
 # Make Theme@config `[[`-accessible ----
 method(`[[`, Theme) <- function(x, name) {
   x@config[[name]]
 } # /rtemis::Theme[[]]
 
 
-# Names Theme ----
+# %% names.Theme ----
 #' Get names of Theme object
 #'
 #' @param x `Theme` object.
@@ -62,6 +69,9 @@ method(`[[`, Theme) <- function(x, name) {
 names.Theme <- function(x) {
   names(x@config)
 } # /rtemis::names.Theme
+
+
+# %% names.Theme method ----
 method(names, Theme) <- function(x) {
   names.Theme(x)
 } # /rtemis::names.Theme

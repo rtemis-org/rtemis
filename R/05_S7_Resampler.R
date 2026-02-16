@@ -15,7 +15,7 @@
 
 # Note: `id_strat` is used by `resample()`, not individual resamplers
 
-# ResamplerConfig ----
+# %% ResamplerConfig ----
 #' @title ResamplerConfig
 #'
 #' @description
@@ -43,18 +43,22 @@ ResamplerConfig <- new_class(
   }
 ) # /rtemis::ResamplerConfig
 
+
+# %% `$`.ResamplerConfig ----
 # Make S7 properties `$`-accessible
 method(`$`, ResamplerConfig) <- function(x, name) {
   prop(x, name)
 }
 
+
+# %% `[[`.ResamplerConfig ----
 # Make S7 properties `[[`-accessible
 method(`[[`, ResamplerConfig) <- function(x, name) {
   prop(x, name)
 }
 
 
-# repr ResamplerConfig ----
+# %% repr.ResamplerConfig ----
 #' repr ResamplerConfig
 #'
 #' @author EDG
@@ -73,6 +77,8 @@ method(repr, ResamplerConfig) <- function(x, pad = 0L, output_type = NULL) {
   )
 } # /rtemis::repr.ResamplerConfig
 
+
+# %% print.ResamplerConfig ----
 #' Print ResamplerConfig
 #'
 #' @description
@@ -92,7 +98,8 @@ method(print, ResamplerConfig) <- function(
   invisible(x)
 } # /rtemis::print.ResamplerConfig
 
-# desc ResamplerConfig ----
+
+# %% desc.ResamplerConfig ----
 method(desc, ResamplerConfig) <- function(x) {
   switch(
     x@type,
@@ -106,7 +113,8 @@ method(desc, ResamplerConfig) <- function(x) {
   )
 } # /rtemis::desc.ResamplerConfig
 
-# KFoldConfig ----
+
+# %% KFoldConfig ----
 #' @title KFoldConfig
 #'
 #' @description
@@ -137,7 +145,8 @@ KFoldConfig <- new_class(
   }
 ) # /rtemis::KFoldConfig
 
-# StratSubConfig ----
+
+# %% StratSubConfig ----
 #' @title StratSubConfig
 #'
 #' @description
@@ -178,7 +187,8 @@ StratSubConfig <- new_class(
   }
 ) # /rtemis::StratSubConfig
 
-# StratBootConfig ----
+
+# %% StratBootConfig ----
 #' @title StratBootConfig
 #'
 #' @description
@@ -221,7 +231,8 @@ StratBootConfig <- new_class(
   }
 ) # /rtemis::StratBootConfig
 
-# BootstrapConfig ----
+
+# %% BootstrapConfig ----
 #' @title BootstrapConfig
 #'
 #' @description
@@ -248,7 +259,8 @@ BootstrapConfig <- new_class(
   }
 ) # /rtemis::BootstrapConfig
 
-# LOOCVConfig ----
+
+# %% LOOCVConfig ----
 #' @title LOOCVConfig
 #'
 #' @description
@@ -269,7 +281,8 @@ LOOCVConfig <- new_class(
   }
 ) # /rtemis::LOOCVConfig
 
-# CustomConfig ----
+
+# %% CustomConfig ----
 #' @title CustomConfig
 #'
 #' @description
@@ -290,7 +303,8 @@ CustomConfig <- new_class(
   }
 ) # /rtemis::CustomConfig
 
-# setup_Resampler() ----
+
+# %% setup_Resampler ----
 #' Setup Resampler
 #'
 #' @param n_resamples Integer: Number of resamples to make.
@@ -385,7 +399,8 @@ setup_Resampler <- function(
   }
 } # /rtemis::setup_Resampler
 
-# Resampler ----
+
+# %% Resampler ----
 #' @title Resampler
 #'
 #' @description
@@ -403,7 +418,7 @@ Resampler <- new_class(
 ) # /rtemis::Resampler
 
 
-# repr Resampler ----
+# %% repr.Resampler ----
 #' repr Resampler
 #'
 #' @author EDG
@@ -422,7 +437,8 @@ method(repr, Resampler) <- function(x, pad = 0L, output_type = NULL) {
   )
 } # /rtemis::repr.Resampler
 
-# Print Resampler ----
+
+# %% print.Resampler ----
 method(print, Resampler) <- function(
   x,
   output_type = c("ansi", "html", "plain"),
@@ -432,34 +448,54 @@ method(print, Resampler) <- function(
   invisible(x)
 }
 
-# Names Resampler ----
+# %% names.Resampler ----
 method(names, Resampler) <- function(x) {
   names(x@resamples)
 }
 
+
+# %% `$`.Resampler ----
 # Access Resampler$resamples resamples using `$` ----
 method(`$`, Resampler) <- function(x, name) {
   x@resamples[[name]]
 }
 
-# DollarSign tab-complete Resampler@resamples names ----
+
+# %% `.DollarNames`.Resampler ----
+# DollarSign tab-complete Resampler@resamples names
 method(`.DollarNames`, Resampler) <- function(x, pattern = "") {
   all_names <- names(x@resamples)
   grep(pattern, all_names, value = TRUE)
 }
 
+
+# %% `[[`.Resampler ----
 # Access Resampler$resamples resamples using `[[` ----
 method(`[[`, Resampler) <- function(x, index) {
   x@resamples[[index]]
 }
 
-# desc Resampler ----
+
+# %% desc.Resampler ----
 method(desc, Resampler) <- function(x) {
   desc(x@config)
 }
 
 
+# %% --- Internal functions ----
+
 # %% list_to_ResamplerConfig ----
+#' Convert list to ResamplerConfig object
+#'
+#' This is used by `SuperConfig` when loading a saved `SuperConfig` object from TOML.
+#'
+#' @param x List: List containing `ResamplerConfig` properties.
+#'
+#' @return `ResamplerConfig` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 list_to_ResamplerConfig <- function(x) {
   switch(
     x[["type"]],

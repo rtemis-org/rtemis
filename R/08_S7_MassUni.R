@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# MassGLM ----
+# %% MassGLM ----
 #' @title MassGLM
 #'
 #' @description
@@ -22,23 +22,29 @@ MassGLM <- new_class(
 ) # /rtemis::MassGLM
 
 
+# %% `$`.MassGLM ----
 # Make MassGLM@name `$`-accessible ----
 method(`$`, MassGLM) <- function(x, name) {
   prop(x, name)
 }
 
+
+# %% `.DollarNames`.MassGLM ----
 # `$`-autocomplete MassGLM ----
 method(`.DollarNames`, MassGLM) <- function(x, pattern = "") {
   prop_names <- names(props(x))
   grep(pattern, prop_names, value = TRUE)
 }
 
+
+# %% `[[`.MassGLM ----
 # Make MassGLM@name `[[`-accessible ----
 method(`[[`, MassGLM) <- function(x, name) {
   prop(x, name)
 }
 
-# repr MassGLM ----
+
+# %% repr.MassGLM ----
 method(repr, MassGLM) <- function(
   x,
   pad = 0L,
@@ -61,7 +67,7 @@ method(repr, MassGLM) <- function(
 } # /rtemis::repr.MassGLM
 
 
-# Print MassGLM ----
+# %% print.MassGLM ----
 #' Print MassGLM
 #'
 #' @param x MassGLM object.
@@ -77,7 +83,7 @@ method(print, MassGLM) <- function(x, output_type = NULL, ...) {
 } # /rtemis::print.MassGLM
 
 
-# Plot MassGLM ----
+# %% plot.MassGLM ----
 #' Plot MassGLM using volcano plot
 #'
 #' @param x MassGLM object trained using [massGLM].
@@ -158,7 +164,7 @@ plot.MassGLM <- method(plot, MassGLM) <- function(
 } # /rtemis::plot.MassGLM
 
 
-# Plot Manhattan ----
+# %% plot_manhattan.MassGLM ----
 #' @name
 #' plot_manhattan
 #'
@@ -252,7 +258,7 @@ plot_manhattan.MassGLM <- method(plot_manhattan, MassGLM) <- function(
 } # /rtemis::plot_manhattan.MassGLM
 
 
-# summary MassGLM ----
+# %% summary.MassGLM ----
 method(summary, MassGLM) <- function(object, ...) {
   object@summary
 } # /rtemis::summary.MassGLM

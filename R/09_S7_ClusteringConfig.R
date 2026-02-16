@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
-# ClusteringConfig ----
+# %% ClusteringConfig ----
 #' @title ClusteringConfig
 #'
 #' @description
@@ -22,24 +22,30 @@ ClusteringConfig <- new_class(
   )
 ) # /rtemis::ClusteringConfig
 
+
+# %% `$`.ClusteringConfig ----
 # Make ClusteringConfig@config `$`-accessible
 method(`$`, ClusteringConfig) <- function(x, name) {
   x@config[[name]]
 }
 
+
+# %% `.DollarNames`.ClusteringConfig ----
 # `$`-autocomplete ClusteringConfig@config ----
 method(`.DollarNames`, ClusteringConfig) <- function(x, pattern = "") {
   all_names <- names(x@config)
   grep(pattern, all_names, value = TRUE)
 }
 
+
+# %% `[[`.ClusteringConfig ----
 # Make ClusteringConfig@config `[[`-accessible
 method(`[[`, ClusteringConfig) <- function(x, index) {
   x@config[[index]]
 }
 
 
-# Show ClusteringConfig ----
+# %% repr.ClusteringConfig ----
 method(repr, ClusteringConfig) <- function(
   x,
   pad = 0L,
@@ -59,7 +65,7 @@ method(repr, ClusteringConfig) <- function(
 } # /rtemis::repr.ClusteringConfig
 
 
-# Print ClusteringConfig ----
+# %% print.ClusteringConfig ----
 #' Print Method for ClusteringConfig
 #'
 #' @param x ClusteringConfig object.
@@ -81,7 +87,7 @@ method(print, ClusteringConfig) <- function(
 } # /rtemis::print.ClusteringConfig
 
 
-# KMeansConfig ----
+# %% KMeansConfig ----
 #' @title KMeansConfig
 #'
 #' @description
@@ -108,6 +114,8 @@ KMeansConfig <- new_class(
   }
 ) # /rtemis::KMeansConfig
 
+
+# %% setup_KMeans ----
 #' Setup KMeansConfig
 #'
 #' @param k Number of clusters.
@@ -128,7 +136,7 @@ setup_KMeans <- function(k = 3L, dist = c("euclidean", "manhattan")) {
 } # /rtemis::setup_KMeans
 
 
-# HardCLConfig ----
+# %% HardCLConfig ----
 #' @title HardCLConfig
 #'
 #' @description
@@ -155,6 +163,8 @@ HardCLConfig <- new_class(
   }
 ) # /rtemis::HardCLConfig
 
+
+# %% setup_HardCL ----
 #' Setup HardCLConfig
 #'
 #' @param k Number of clusters.
@@ -175,7 +185,7 @@ setup_HardCL <- function(k = 3L, dist = c("euclidean", "manhattan")) {
 } # /rtemis::setup_HardCL
 
 
-# NeuralGasConfig ----
+# %% NeuralGasConfig ----
 #' @title NeuralGasConfig
 #'
 #' @description
@@ -202,6 +212,8 @@ NeuralGasConfig <- new_class(
   }
 ) # /rtemis::NeuralGasConfig
 
+
+# %% setup_NeuralGas ----
 #' Setup NeuralGasConfig
 #'
 #' @param k Number of clusters.
@@ -222,7 +234,7 @@ setup_NeuralGas <- function(k = 3L, dist = c("euclidean", "manhattan")) {
 } # /rtemis::setup_NeuralGas
 
 
-# CMeansConfig ----
+# %% CMeansConfig ----
 #' @title CMeansConfig
 #'
 #' @description
@@ -270,6 +282,8 @@ CMeansConfig <- new_class(
   }
 ) # /rtemis::CMeansConfig
 
+
+# %% setup_CMeans ----
 #' Setup CMeansConfig
 #'
 #' @param k Integer: Number of clusters.
@@ -320,7 +334,7 @@ setup_CMeans <- function(
 } # /rtemis::setup_CMeans
 
 
-# DBSCANConfig ----
+# %% DBSCANConfig ----
 #' @title DBSCANConfig
 #'
 #' @description
@@ -368,6 +382,8 @@ DBSCANConfig <- new_class(
   }
 ) # /rtemis::DBSCANConfig
 
+
+# %% setup_DBSCAN ----
 #' Setup DBSCANConfig
 #'
 #' @param eps Float: Radius of neighborhood.

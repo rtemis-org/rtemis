@@ -811,6 +811,36 @@ calibrate <- new_generic(
 ) # /rtemis::calibrate
 
 
+# %% freeze ----
+#' Freeze Hyperparameters
+#'
+#' @param x `Hyperparameters` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+freeze <- new_generic("freeze", "x")
+
+
+# %% lock ----
+#' Lock Hyperparameters
+#'
+#' @param x `Hyperparameters` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lock <- new_generic("lock", "x")
+
+
+# %% needs_tuning ----
+#' needs_tuning
+#'
+#' @keywords internal
+#' @noRd
+needs_tuning <- new_generic("needs_tuning", "x")
+
+
 # %% get_factor_levels ----
 #' @name get_factor_levels
 #'

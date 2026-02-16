@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# Decomposition ----
+# %% Decomposition ----
 #' @title Decomposition
 #'
 #' @description
@@ -27,6 +27,7 @@ Decomposition <- new_class(
 ) # /rtemis::Decomposition
 
 
+# %% `$`.Decomposition ----
 # Make Decomposition properties `$`-accessible
 method(`$`, Decomposition) <- function(x, name) {
   prop_names <- names(props(x))
@@ -40,18 +41,26 @@ method(`$`, Decomposition) <- function(x, name) {
     ))
   }
 }
+
+
+
+# %% `.DollarNames`.Decomposition ----
 method(`.DollarNames`, Decomposition) <- function(x, pattern = "") {
   prop_names <- names(props(x))
   grep(pattern, prop_names, value = TRUE)
 }
 
+
+
+# %% `[[`.Decomposition ----
 # Make Decomposition@transformed `[[`-accessible
 method(`[[`, Decomposition) <- function(x, index) {
   props(x, "transformed")[[index]]
 }
 
 
-# Show Decomposition ----
+
+# %% repr.Decomposition ----
 method(repr, Decomposition) <- function(
   x,
   pad = 0L,
@@ -69,7 +78,8 @@ method(repr, Decomposition) <- function(
 } # /rtemis::repr.Decomposition
 
 
-# Print Decomposition ----
+
+# %% print.Decomposition ----
 method(print, Decomposition) <- function(
   x,
   pad = 0L,

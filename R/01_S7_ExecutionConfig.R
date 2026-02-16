@@ -42,7 +42,7 @@ ExecutionConfig <- new_class(
 ) # /rtemis::ExecutionConfig
 
 
-# %% repr ExecutionConfig ----
+# %% repr.ExecutionConfig ----
 method(repr, ExecutionConfig) <- function(x, pad = 0L, output_type = NULL) {
   out <- repr_S7name("ExecutionConfig", pad = pad, output_type = output_type)
   .props <- props(x)
@@ -55,14 +55,17 @@ method(repr, ExecutionConfig) <- function(x, pad = 0L, output_type = NULL) {
   )
 } # /rtemis::repr.ExecutionConfig
 
-# %%print ExecutionConfig ----
+
+# %% print.ExecutionConfig ----
 method(print, ExecutionConfig) <- function(x, output_type = NULL, ...) {
   cat(repr(x, output_type = output_type), "\n")
   invisible(x)
 } # /rtemis::print.ExecutionConfig
 
 
-# %% User API ----
+# %% --- User API ----
+
+# %% setup_ExecutionConfig ----
 #' Setup Execution Configuration
 #'
 #' @param backend Character: Execution backend: "future", "mirai", or "none".

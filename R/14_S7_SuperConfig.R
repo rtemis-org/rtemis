@@ -6,7 +6,8 @@
 # https://github.com/RConsortium/S7
 # https://rconsortium.github.io/S7/
 
-# %% SuperConfig Class ----
+
+# %% SuperConfig ----
 #' SuperConfig Class
 #'
 #' @description
@@ -34,7 +35,8 @@ SuperConfig <- new_class(
 ) # /rtemis::SuperConfig
 
 
-# %% repr SuperConfig ----
+
+# %% repr.SuperConfig ----
 #' Repr SuperConfig
 #'
 #' @param x `SuperConfig` object.
@@ -55,7 +57,8 @@ method(repr, SuperConfig) <- function(x, pad = 0L, output_type = NULL) {
 } # /rtemis::repr.SuperConfig
 
 
-# %% print `SuperConfig` ----
+
+# %% print.SuperConfig ----
 #' Print `SuperConfig`
 #'
 #' Print `SuperConfig` object
@@ -71,7 +74,8 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 } # /rtemis::print.SuperConfig
 
 
-# %% setup SuperConfig ----
+
+# %% setup_SuperConfig ----
 #' Setup SuperConfig
 #'
 #' Setup `SuperConfig` object.
@@ -158,7 +162,8 @@ setup_SuperConfig <- function(
 } # /setup_SuperConfig
 
 
-# %% to_toml SuperConfig ----
+
+# %% to_toml.SuperConfig ----
 #' Convert `SuperConfig` to TOML
 #'
 #' Convert `SuperConfig` object to TOML format for saving to file that can be read back in with
@@ -178,7 +183,8 @@ method(to_toml, SuperConfig) <- function(x) {
 } # /rtemis::to_toml.SuperConfig
 
 
-# %% write_toml SuperConfig ----
+
+# %% write_toml.SuperConfig ----
 #' @name
 #' write_toml
 #'
@@ -225,6 +231,7 @@ write_toml.SuperConfig <- method(write_toml, SuperConfig) <- function(
   )
   invisible(x)
 } # /rtemis::write_toml.SuperConfig
+
 
 
 # %% read_config ----
@@ -283,7 +290,8 @@ read_config <- function(file) {
 } # /rtemis::read_config
 
 
-# %% to_yaml SuperConfig ----
+
+# %% to_yaml.SuperConfig ----
 #' Convert `SuperConfig` to YAML
 #'
 #' Convert `SuperConfig` object to YAML format for saving to file that can be read back in with

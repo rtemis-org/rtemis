@@ -9,6 +9,7 @@
 # LightGBM parameters
 # - https://lightgbm.readthedocs.io/en/latest/Parameters.html
 
+# %% Constants ----
 # `tuned` values ----
 # -9: Set by Tuner: Actively being tuned (Values fixed by Tuner).
 # -2: Set by constructor: Not tunable (No tunable_hyperparameters).
@@ -25,6 +26,7 @@ TUNED_STATUS_TUNED <- 1L
 # 0: Running on single training set.
 # 1: Running on resampled training sets.
 
+# %% Hyperparameters ----
 #' @title Hyperparameters
 #'
 #' @description
@@ -113,7 +115,8 @@ Hyperparameters <- new_class(
 ) # /rtemis::Hyperparameters
 
 
-# repr Hyperparameters ----
+
+# %% repr.Hyperparameters ----
 #' Repr Hyperparameters
 #'
 #' repr method for Hyperparameters object.
@@ -213,19 +216,21 @@ method(repr, Hyperparameters) <- function(
 } # /rtemis::repr.Hyperparameters
 
 
-# Print Hyperparameters ----
+# %% print.Hyperparameters ----
 method(print, Hyperparameters) <- function(x, output_type = NULL, ...) {
   cat(repr(x, output_type = output_type))
   invisible(x)
 } # /rtemis::print.Hyperparameters
 
-# is_tuned() ----
+
+# %% is_tuned.Hyperparameters ----
 is_tuned <- new_generic("is_tuned", "x")
 method(is_tuned, Hyperparameters) <- function(x) {
   x@tuned == 1L
 } # /is_tuned.Hyperparameters
 
-# get_tuned_status() ----
+
+# %% get_tuned_status.Hyperparameters ----
 get_tuned_status <- new_generic("get_tuned_status", "x")
 method(get_tuned_status, Hyperparameters) <- function(x) {
   if (length(x@tunable_hyperparameters) > 0) {
@@ -240,7 +245,7 @@ method(get_tuned_status, Hyperparameters) <- function(x) {
 } # /rtemis::get_tuned_status.Hyperparameters
 
 
-# Update Hyperparameters ----
+# %% update.Hyperparameters ----
 #' Update Hyperparameters
 #'
 #' @param x `Hyperparameters` object.
@@ -268,64 +273,49 @@ method(update, Hyperparameters) <- function(
 } # /rtemis::update.Hyperparameters
 
 
-# Freeze Hyperparameters ----
-#' Freeze Hyperparameters
-#'
-#' @param x `Hyperparameters` object.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-freeze <- new_generic("freeze", "x")
-
+# %% freeze.Hyperparameters ----
 method(freeze, Hyperparameters) <- function(x) {
   x@tuned <- -1
 } # /rtemis::freeze.Hyperparameters
 
 
-# Lock Hyperparameters ----
-#' Lock Hyperparameters
-#'
-#' @param x `Hyperparameters` object.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-lock <- new_generic("lock", "x")
-
+# %% lock.Hyperparameters ----
 method(lock, Hyperparameters) <- function(x) {
   x@tuned <- 1
 }
 
-# Make Hyperparameters@hyperparameters@name `$`-accessible ----
+
+
+# %% `$`.Hyperparameters ----
+# Make Hyperparameters@hyperparameters@name `$`-accessible
 method(`$`, Hyperparameters) <- function(x, name) {
   x@hyperparameters[[name]]
 }
 
-# `$`-autocomplete Hyperparameters@hyperparameters ----
+
+# %% `.DollarNames`.Hyperparameters ----
+# `$`-autocomplete Hyperparameters@hyperparameters
 method(`.DollarNames`, Hyperparameters) <- function(x, pattern = "") {
   all_names <- names(x@hyperparameters)
   grep(pattern, all_names, value = TRUE)
 }
 
-# Make Hyperparameters@hyperparameters@name `[[`-accessible ----
+
+
+# %% `[[`.Hyperparameters ----
+# Make Hyperparameters@hyperparameters@name `[[`-accessible
 method(`[[`, Hyperparameters) <- function(x, name) {
   x@hyperparameters[[name]]
 }
 
 
-#' needs_tuning ----
-#'
-#' @keywords internal
-#' @noRd
-needs_tuning <- new_generic("needs_tuning", "x")
-
+# %% needs_tuning.Hyperparameters ----
 method(needs_tuning, Hyperparameters) <- function(x) {
   x@tuned == 0
 } # /rtemis::needs_tuning.Hyperparameters
 
 
-# get_hyperparams_need_tuning ----
+# %% get_hyperparams_need_tuning.Hyperparameters ----
 #' Get hyperparameters that need tuning in an algorithm-specific way.
 #'
 #' @keywords internal
@@ -338,7 +328,8 @@ method(get_hyperparams_need_tuning, Hyperparameters) <- function(x) {
   ]]
 } # /get_hyperparams_need_tuning.Hyperparameters
 
-# get_hyperparams.(Hyperparameters, character) ----
+
+# %% get_hyperparams.(Hyperparameters, class_character) ----
 method(get_hyperparams, list(Hyperparameters, class_character)) <- function(
   x,
   param_names
@@ -347,7 +338,7 @@ method(get_hyperparams, list(Hyperparameters, class_character)) <- function(
 } # /rtemis::get_hyperparams_need_tuning.Hyperparameters
 
 
-# GLMHyperparameters ----
+# %% GLMHyperparameters ----
 #' @author EDG
 #'
 #' @keywords internal
@@ -370,6 +361,7 @@ GLMHyperparameters <- new_class(
 ) # /rtemis::GLMHyperparameters
 
 
+# %% setup_GLM ----
 #' Setup GLM Hyperparameters
 #'
 #' Setup hyperparameters for GLM training.
@@ -389,7 +381,7 @@ setup_GLM <- function(ifw = FALSE) {
 }
 
 
-# GAMHyperparameters ----
+# %% GAMHyperparameters ----
 GAM_tunable <- c("k", "ifw")
 GAM_fixed <- character()
 
@@ -415,6 +407,7 @@ GAMHyperparameters <- new_class(
 ) # /rtemis::GAMHyperparameters
 
 
+# %% setup_GAM ----
 #' Setup GAM Hyperparameters
 #'
 #' Setup hyperparameters for GAM training.
@@ -438,7 +431,7 @@ setup_GAM <- function(k = 5L, ifw = FALSE) {
 }
 
 
-# CARTHyperparameters ----
+# %% CARTHyperparameters ----
 CART_tunable <- c("cp", "maxdepth", "minsplit", "minbucket", "prune_cp", "ifw")
 CART_fixed <- c(
   "method",
@@ -506,6 +499,7 @@ CARTHyperparameters <- new_class(
 ) # /rtemis::CARTHyperparameters
 
 
+# %% setup_CART ----
 #' Setup CART Hyperparameters
 #'
 #' Setup hyperparameters for CART training.
@@ -588,7 +582,7 @@ setup_CART <- function(
 stopifnot(all(c(CART_tunable, CART_fixed) %in% names(formals(setup_CART))))
 
 
-# GLMNETHyperparameters ----
+# %% GLMNETHyperparameters ----
 GLMNET_tunable <- c("alpha", "ifw")
 GLMNET_fixed <- c(
   "family",
@@ -727,7 +721,7 @@ method(get_hyperparams_need_tuning, GLMNETHyperparameters) <- function(x) {
 } # /rtemis::get_hyperparams_need_tuning.GLMNETHyperparameters
 
 
-# LightCARTHyperparameters ----
+# %% LightCARTHyperparameters ----
 LightCART_tunable <- c(
   "num_leaves",
   "max_depth",
@@ -787,6 +781,7 @@ LightCARTHyperparameters <- new_class(
 ) # /rtemis::LightCARTHyperparameters
 
 
+# %% setup_LightCART ----
 #' Setup LightCART Hyperparameters
 #'
 #' Setup hyperparameters for LightCART training.
@@ -847,7 +842,7 @@ setup_LightCART <- function(
 } # /rtemis::setup_LightCART
 
 
-# LightRFHyperparameters ----
+# %% LightRFHyperparameters ----
 LightRF_tunable <- c(
   "nrounds",
   "num_leaves",
@@ -934,6 +929,7 @@ LightRFHyperparameters <- new_class(
 ) # /rtemis::LightRFHyperparameters
 
 
+# %% setup_LightRF ----
 #' Setup LightRF Hyperparameters
 #'
 #' Setup hyperparameters for LightRF training.
@@ -1019,7 +1015,7 @@ setup_LightRF <- function(
 stopifnot(all(LightRF_tunable %in% names(formals(setup_LightRF))))
 
 
-# LightGBMHyperparameters ----
+# %% LightGBMHyperparameters ----
 LightGBM_tunable <- c(
   "num_leaves",
   "max_depth",
@@ -1142,6 +1138,7 @@ method(update, LightGBMHyperparameters) <- function(
 } # /update.LightGBMHyperparameters
 
 
+# %% setup_LightGBM ----
 # References:
 # LightGBM parameters: https://lightgbm.readthedocs.io/en/latest/Parameters.html
 
@@ -1260,7 +1257,7 @@ method(get_hyperparams_need_tuning, LightGBMHyperparameters) <- function(x) {
 } # /get_hyperparams_need_tuning.LightGBMHyperparameters
 
 
-# LightRuleFitHyperparameters ----
+# %% LightRuleFitHyperparameters ----
 LightRuleFit_tunable <- c(
   "nrounds",
   "num_leaves",
@@ -1347,6 +1344,7 @@ LightRuleFitHyperparameters <- new_class(
 ) # /rtemis::LightRuleFitHyperparameters
 
 
+# %% setup_LightRuleFit ----
 #' Setup LightRuleFit Hyperparameters
 #'
 #' Setup hyperparameters for LightRuleFit training.
@@ -1436,7 +1434,7 @@ setup_LightRuleFit <- function(
 } # /rtemis::setup_LightRuleFit
 
 
-# IsotonicHyperparameters ----
+# %% IsotonicHyperparameters ----
 Isotonic_tunable <- character()
 Isotonic_fixed <- character()
 
@@ -1466,7 +1464,7 @@ IsotonicHyperparameters <- new_class(
 ) # /rtemis::IsotonicHyperparameters
 
 
-# setup_Isotonic ----
+# %% setup_Isotonic ----
 #' Setup Isotonic Hyperparameters
 #'
 #' Setup hyperparameters for Isotonic Regression.
@@ -1488,7 +1486,7 @@ setup_Isotonic <- function(ifw = FALSE) {
 } # /rtemis::setup_Isotonic
 
 
-# SVMHyperparameters ----
+# %% SVMHyperparameters ----
 #' @title SVMHyperparameters
 #'
 #' @description
@@ -1516,10 +1514,9 @@ SVMHyperparameters <- new_class(
   } # /constructor
 ) # /rtemis::SVMHyperparameters
 
-# LinearSVMHyperparameters ----
+# %% LinearSVMHyperparameters ----
 LinearSVM_tunable <- c("cost", "ifw")
 LinearSVM_fixed <- character()
-
 
 #' @title LinearSVMHyperparameters
 #'
@@ -1549,6 +1546,7 @@ LinearSVMHyperparameters <- new_class(
 ) # /rtemis::LinearSVMHyperparameters
 
 
+# %% setup_LinearSVM ----
 #' Setup LinearSVM Hyperparameters
 #'
 #' Setup hyperparameters for LinearSVM training.
@@ -1583,8 +1581,7 @@ stopifnot(all(
 ))
 
 
-# RadialSVMHyperparameters ----
-
+# %% RadialSVMHyperparameters ----
 RadialSVM_tunable <- c("cost", "gamma", "ifw")
 RadialSVM_fixed <- character()
 
@@ -1617,6 +1614,7 @@ RadialSVMHyperparameters <- new_class(
 ) # /rtemis::RadialSVMHyperparameters
 
 
+# %% setup_RadialSVM ----
 #' Setup RadialSVM Hyperparameters
 #'
 #' Setup hyperparameters for RadialSVM training.
@@ -1657,7 +1655,7 @@ stopifnot(all(
 ))
 
 
-# TabNetHyperparameters ----
+# %% TabNetHyperparameters ----
 tabnet_tunable <- c(
   "batch_size",
   "penalty",
@@ -1792,6 +1790,7 @@ TabNetHyperparameters <- new_class(
 ) # /rtemis::TabNetHyperparameters
 
 
+# %% setup_TabNet ----
 #' Setup TabNet Hyperparameters
 #'
 #' Setup hyperparameters for TabNet training.
@@ -1935,7 +1934,7 @@ get_tabnet_config <- function(hyperparameters) {
 } # /get_tabnet_config
 
 
-# RangerHyperparameters ----
+# %% RangerHyperparameters ----
 ranger_tunable <- c(
   "num_trees",
   "mtry",
@@ -2077,6 +2076,7 @@ RangerHyperparameters <- new_class(
 ) # /rtemis::RangerHyperparameters
 
 
+# %% setup_Ranger ----
 #' Setup Ranger Hyperparameters
 #'
 #' Setup hyperparameters for Ranger Random Forest training.
@@ -2249,7 +2249,7 @@ stopifnot(all(
 ))
 
 
-# get_ranger_config ----
+# %% get_ranger_config ----
 #' Get Ranger Configuration
 #'
 #' Get Ranger configuration from RangerHyperparameters object.
