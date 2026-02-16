@@ -735,7 +735,6 @@ preprocess.class_tabular.Preprocessor <- method(
 #' vf <- factor(rep("alpha", 20), levels = c("alpha", "beta"))
 #' vf_one_hot <- one_hot(vf)
 #' }
-one_hot <- new_generic("one_hot", "x")
 method(one_hot, class_any) <- function(x, xname = NULL, verbosity = 1L) {
   if (is.null(xname)) {
     xname <- deparse(substitute(x))
