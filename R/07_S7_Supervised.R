@@ -1478,12 +1478,12 @@ CalibratedClassificationRes <- new_class(
 method(predict, CalibratedClassificationRes) <- function(
   object,
   newdata,
-  type = c("avg", "all", "metrics"),
+  what = c("avg", "all", "metrics"),
   avg_fn = "mean",
   ...
 ) {
   check_inherits(newdata, "data.frame")
-  type <- match.arg(type)
+  what <- match.arg(what)
 
   # Check lengths match
   if (length(object@models) != length(object@calibration_models)) {
@@ -1495,8 +1495,7 @@ method(predict, CalibratedClassificationRes) <- function(
       # 1. Predict with base model
       raw_prob <- predict(
         base_mod,
-        newdata = newdata,
-        type = base_mod@type
+        newdata = newdata
       )
 
       # 2. Predict with calibration model
@@ -1510,15 +1509,14 @@ method(predict, CalibratedClassificationRes) <- function(
     SIMPLIFY = TRUE
   ) # -> matrix n cases x n resamples
 
-  if (type == "all") {
+  if (what == "all") {
     return(predicted)
-  } else if (type == "avg") {
+  } else if (what == "avg") {
     return(apply(predicted, 1, avg_fn))
-  } else if (type == "metrics") {
+  } else if (what == "metrics") {
     mean_predictions <- apply(predicted, 2, mean)
     sd_predictions <- apply(predicted, 2, sd)
     # Return both aggregated prediction metrics (per resample)
-    # AND optionally aggregated predictions per case?
     # Keeping consistent with SupervisedRes
     return(list(
       predictions = predicted,
