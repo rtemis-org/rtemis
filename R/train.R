@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
-# %% train.class_tabular ----
+# %% train ----
 #' Train Supervised Learning Models
 #'
 #' @description
@@ -566,6 +566,7 @@ train <- function(
 } # /rtemis::train
 
 
+# %% get_n_workers ----
 # Function to assign number of workers to algorithm, tuning, or outer resampling
 # based on whether algorithm is parallelized, tuning is needed, and outer resampling is set.
 
