@@ -21,7 +21,10 @@ preprocess.class_tabular.Preprocessor(x, config, verbosity = 1L)
 \arguments{
 \item{x}{data.frame, data.table, tbl_df (tabular data): Data to be preprocessed.}
 
-\item{config}{\code{PreprocessorConfig}: Setup using \link{setup_Preprocessor}.}
+\item{config}{\code{PreprocessorConfig}: Setup using \link{setup_Preprocessor} OR \code{Preprocessor} object:
+Output of previous run of \code{preprocess}. This allows, for example, applying preprocessing to a
+validation or test set using the same parameters as were used for the training set. In
+particular, the same scale centers and coefficients will be applied to the new data.}
 
 \item{...}{Not used.}
 

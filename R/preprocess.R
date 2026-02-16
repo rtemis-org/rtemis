@@ -7,7 +7,10 @@
 #' preprocess
 #'
 #' @param x data.frame, data.table, tbl_df (tabular data): Data to be preprocessed.
-#' @param config `PreprocessorConfig`: Setup using [setup_Preprocessor].
+#' @param config `PreprocessorConfig`: Setup using [setup_Preprocessor] OR `Preprocessor` object:
+#' Output of previous run of `preprocess`. This allows, for example, applying preprocessing to a
+#' validation or test set using the same parameters as were used for the training set. In
+#' particular, the same scale centers and coefficients will be applied to the new data.
 #' @param dat_validation tabular data: Validation set data.
 #' @param dat_test tabular data: Test set data.
 #' @param verbosity Integer: Verbosity level.
