@@ -308,8 +308,9 @@ test_that("train() GAM Regression with grid_search() succeeds", {
 })
 
 ## {GAM}[predict]<Regression> ----
-predicted <- predict(modt_r_gam, datr_test)
-test_that("predict() GAM Regression succeeds", {
+test_that("predict() GAM Regression works", {
+  expect_error(predicted <- predict(modt_r_gam, datr_test))
+  predicted <- predict(modt_r_gam, features(datr_test))
   expect_identical(modt_r_gam@predicted_test, predicted)
 })
 
@@ -1340,4 +1341,21 @@ test_that("predict() CART CalibratedClassificationRes succeeds", {
   predicted_cal <- predict(resmodt_c_cart_cal, features(datc2_test))
   expect_type(predicted_cal, "double")
   expect_length(predicted_cal, nrow(datc2_test))
+})
+
+
+# %% Test preprocessing in train() is applied to test data in predict() ----
+## {GLM}[train]<Classification> Preprocessing ----
+mod_c_glm_pp <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  algorithm = "glm",
+  preprocessor = setup_Preprocessor(
+    scale = TRUE,
+    center = TRUE
+  )
+)
+test_that("train() with preprocessor creates a model with the preprocessor", {
+  expect_s7_class(mod_c_glm_pp, Classification)
+  expect_true(!is.null(mod_c_glm_pp@preprocessor))
 })
