@@ -767,7 +767,6 @@ method(plot_true_pred, Regression) <- function(
 } # /rtemis::plot_true_pred.Regression
 
 
-
 # %% plot_true_pred.Classification ----
 #' Plot True vs. Predicted for Classification
 #'
@@ -973,7 +972,6 @@ method(present, Regression) <- function(
     ...
   )
 } # /rtemis::present.Regression
-
 
 
 # %% present.Classification ----
@@ -1446,7 +1444,6 @@ CalibratedClassificationRes <- new_class(
     )
   }
 ) # /rtemis::CalibratedClassificationRes
-
 
 
 # %% predict.CalibratedClassificationRes ----
