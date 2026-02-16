@@ -65,11 +65,11 @@ method(train_super, LightCARTHyperparameters) <- function(
         factor2integer = TRUE,
         factor2integer_startat0 = TRUE
       ),
-      verbosity = verbosity - 1L
+      verbosity = verbosity
     )
     x <- prp@preprocessed
   } else {
-    factor_index <- NULL
+    factor_index <- prp <- NULL
   }
 
   x <- lightgbm::lgb.Dataset(
@@ -102,5 +102,5 @@ method(train_super, LightCARTHyperparameters) <- function(
     verbose = verbosity - 2L
   )
   check_inherits(model, "lgb.Booster")
-  model
+  list(model = model, preprocessor = prp)
 } # /rtemis::method(train_super, LightCARTHyperparameters)

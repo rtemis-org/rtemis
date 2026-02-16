@@ -63,7 +63,7 @@ method(train_super, IsotonicHyperparameters) <- function(
   ir <- isoreg(cbind(x[[1]], y))
   model <- as.stepfun(ir)
   check_inherits(model, "stepfun")
-  model
+  list(model = model, preprocessor = NULL)
 } # /rtemis::train_super.IsotonicHyperparameters
 
 

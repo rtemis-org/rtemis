@@ -70,7 +70,7 @@ method(train_super, GLMHyperparameters) <- function(
     weights = weights
   )
   check_inherits(model, "glm")
-  model
+  list(model = model, preprocessor = NULL)
 } # /rtemis::train_super.GLMHyperparameters
 
 

@@ -31,6 +31,7 @@ Supervised <- new_class(
     model = class_any,
     type = class_character,
     preprocessor = Preprocessor | NULL,
+    preprocessor_internal = Preprocessor | NULL,
     hyperparameters = Hyperparameters | NULL,
     tuner = Tuner | NULL,
     execution_config = ExecutionConfig,
@@ -54,6 +55,7 @@ Supervised <- new_class(
     model,
     type,
     preprocessor,
+    preprocessor_internal,
     hyperparameters,
     tuner,
     execution_config,
@@ -77,6 +79,7 @@ Supervised <- new_class(
       model = model,
       type = type,
       preprocessor = preprocessor,
+      preprocessor_internal = preprocessor_internal,
       hyperparameters = hyperparameters,
       tuner = tuner,
       execution_config = execution_config,
@@ -111,7 +114,7 @@ Supervised <- new_class(
 method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
   check_inherits(newdata, "data.frame")
 
-  # Apply preprocessing if preprocessor is available
+  # Apply user-specified preprocessor if available
   if (!is.null(object@preprocessor)) {
     newdata <- preprocess(
       newdata,
@@ -120,6 +123,17 @@ method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
     ) |>
       preprocessed()
   }
+
+  # Apply algorithm-specific preprocessor if available
+  if (!is.null(object@preprocessor_internal)) {
+    newdata <- preprocess(
+      newdata,
+      object@preprocessor_internal,
+      verbosity = verbosity
+    ) |>
+      preprocessed()
+  }
+
   # After preprocessing, enforce strict predictor names and order
   if (!identical(names(newdata), object@xnames)) {
     extra_cols <- setdiff(names(newdata), object@xnames)
@@ -139,6 +153,8 @@ method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
       }
     ))
   }
+
+  # Call predict_super with fully preprocessed data
   predict_super(
     model = object@model,
     newdata = newdata,
@@ -438,6 +454,7 @@ Classification <- new_class(
     algorithm = NULL,
     model = NULL,
     preprocessor = NULL, # Preprocessor
+    preprocessor_internal = NULL, # Algorithm-specific preprocessor
     hyperparameters = NULL, # Hyperparameters
     tuner = NULL, # Tuner
     execution_config,
@@ -488,6 +505,7 @@ Classification <- new_class(
         model = model,
         type = "Classification",
         preprocessor = preprocessor,
+        preprocessor_internal = preprocessor_internal,
         hyperparameters = hyperparameters,
         tuner = tuner,
         execution_config = execution_config,
@@ -678,6 +696,7 @@ Regression <- new_class(
     algorithm = NULL,
     model = NULL,
     preprocessor = NULL, # Preprocessor
+    preprocessor_internal = NULL, # Algorithm-specific preprocessor
     hyperparameters = NULL, # Hyperparameters
     tuner = NULL, # Tuner
     execution_config, # ExecutionConfig
@@ -725,6 +744,7 @@ Regression <- new_class(
         model = model,
         type = "Regression",
         preprocessor = preprocessor,
+        preprocessor_internal = preprocessor_internal,
         hyperparameters = hyperparameters,
         tuner = tuner,
         execution_config = execution_config,
@@ -892,6 +912,7 @@ make_Supervised <- function(
   algorithm = NULL,
   model = NULL,
   preprocessor = NULL,
+  preprocessor_internal = NULL,
   hyperparameters = NULL,
   tuner = NULL,
   execution_config,
@@ -919,6 +940,7 @@ make_Supervised <- function(
       algorithm = algorithm,
       model = model,
       preprocessor = preprocessor,
+      preprocessor_internal = preprocessor_internal,
       hyperparameters = hyperparameters,
       tuner = tuner,
       execution_config = execution_config,
@@ -942,6 +964,7 @@ make_Supervised <- function(
       algorithm = algorithm,
       model = model,
       preprocessor = preprocessor,
+      preprocessor_internal = preprocessor_internal,
       hyperparameters = hyperparameters,
       tuner = tuner,
       execution_config = execution_config,
@@ -1086,6 +1109,7 @@ SupervisedRes <- new_class(
     models = class_list,
     type = class_character,
     preprocessor = Preprocessor | NULL,
+    preprocessor_internal = Preprocessor | NULL,
     hyperparameters = Hyperparameters | NULL,
     tuner_config = TunerConfig | NULL,
     outer_resampler = Resampler,
@@ -1107,6 +1131,7 @@ SupervisedRes <- new_class(
     models,
     type,
     preprocessor,
+    preprocessor_internal,
     hyperparameters,
     tuner_config,
     outer_resampler,
@@ -1338,6 +1363,7 @@ ClassificationRes <- new_class(
     algorithm,
     models,
     preprocessor,
+    preprocessor_internal = NULL,
     hyperparameters,
     tuner_config,
     outer_resampler,
@@ -1368,6 +1394,7 @@ ClassificationRes <- new_class(
         models = models,
         type = "Classification",
         preprocessor = preprocessor,
+        preprocessor_internal = preprocessor_internal,
         hyperparameters = hyperparameters,
         tuner_config = tuner_config,
         outer_resampler = outer_resampler,
@@ -1547,6 +1574,7 @@ RegressionRes <- new_class(
     algorithm,
     models,
     preprocessor,
+    preprocessor_internal,
     hyperparameters,
     tuner_config,
     outer_resampler,
@@ -1582,6 +1610,7 @@ RegressionRes <- new_class(
         models = models,
         type = "Regression",
         preprocessor = preprocessor,
+        preprocessor_internal = preprocessor_internal,
         hyperparameters = hyperparameters,
         tuner_config = tuner_config,
         outer_resampler = outer_resampler,
@@ -1994,6 +2023,7 @@ make_SupervisedRes <- function(
   type,
   models,
   preprocessor,
+  preprocessor_internal,
   hyperparameters,
   tuner_config,
   outer_resampler,
@@ -2016,6 +2046,7 @@ make_SupervisedRes <- function(
       algorithm = algorithm,
       models = models,
       preprocessor = preprocessor,
+      preprocessor_internal = preprocessor_internal,
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       outer_resampler = outer_resampler,
@@ -2036,6 +2067,7 @@ make_SupervisedRes <- function(
       algorithm = algorithm,
       models = models,
       preprocessor = preprocessor,
+      preprocessor_internal = preprocessor_internal,
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       outer_resampler = outer_resampler,

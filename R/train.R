@@ -35,6 +35,24 @@
 #'
 #' See [rdocs.rtemis.org/train](https://rdocs.rtemis.org/train) for detailed documentation.
 #'
+#' **Preprocessing**
+#'
+#' There are many different stages at which preprocessing could be applied, when running a
+#' supervised learning pipeline with nested resampling. Some operations are best done before
+#' passing data to `train()`:
+#'
+#' - Duplicate rows should be removed before resampling, so that duplicates don't end up in
+#' different resamples, e.g. one in training and one in test.
+#' - Constant columns should be removed before resampling. A column may appear constant in a small
+#' resample, even if it is not constant in the full dataset. Removing it will inconsistently will
+#' throw an error during prediction.
+#' - All data-dependent preprocessing steps need to be performed on training data only and applied
+#' on validation and test data, e.g. scaling, centering, imputation.
+#'
+#' User-defined preprocessing through `preprocessor_config` is applied on training set data,
+#' the learned parameters are stored in the returned Supervised or SupervisedRes object, and the
+#' preprocessing is applied on validation and test data.
+#'
 #' **Binary Classification**
 #'
 #' For binary classification, the outcome should be a factor where the 2nd level
@@ -408,7 +426,7 @@ train <- function(
       NULL
     }
 
-    model <- train_super(
+    trained <- train_super(
       hyperparameters = hyperparameters,
       x = x,
       weights = weights,
@@ -417,13 +435,29 @@ train <- function(
     )
     # each train_* method checks output is the correct model class.
 
+    model <- trained[["model"]]
+    preprocessor_internal <- trained[["preprocessor"]]
+
     # Predicted Values ----
     predicted_prob_training <- predicted_prob_validation <- predicted_prob_test <- NULL
+
+    # Apply algorithm-specific preprocessing to training data if available
+    x_features <- features(x)
+    if (!is.null(preprocessor_internal)) {
+      x_features <- preprocess(
+        x_features,
+        preprocessor_internal,
+        verbosity = 0L
+      ) |>
+        preprocessed()
+    }
+
     predicted_training <- predict_super(
       model = model,
-      newdata = features(x),
+      newdata = x_features,
       type = type
     )
+
     if (type == "Classification") {
       predicted_prob_training <- predicted_training
       predicted_training <- prob2categorical(
@@ -431,13 +465,26 @@ train <- function(
         levels = classes
       )
     }
+
     predicted_validation <- predicted_test <- NULL
     if (!is.null(dat_validation)) {
+      # Apply algorithm-specific preprocessing to validation data if available
+      dat_validation_features <- features(dat_validation)
+      if (!is.null(preprocessor_internal)) {
+        dat_validation_features <- preprocess(
+          dat_validation_features,
+          preprocessor_internal,
+          verbosity = 0L
+        ) |>
+          preprocessed()
+      }
+
       predicted_validation <- predict_super(
         model = model,
-        newdata = features(dat_validation),
+        newdata = dat_validation_features,
         type = type
       )
+
       if (type == "Classification") {
         predicted_prob_validation <- predicted_validation
         predicted_validation <- prob2categorical(
@@ -446,12 +493,25 @@ train <- function(
         )
       }
     }
+
     if (!is.null(dat_test)) {
+      # Apply algorithm-specific preprocessing to test data if available
+      dat_test_features <- features(dat_test)
+      if (!is.null(preprocessor_internal)) {
+        dat_test_features <- preprocess(
+          dat_test_features,
+          preprocessor_internal,
+          verbosity = 0L
+        ) |>
+          preprocessed()
+      }
+
       predicted_test <- predict_super(
         model = model,
-        newdata = features(dat_test),
+        newdata = dat_test_features,
         type = type
       )
+
       if (type == "Classification") {
         predicted_prob_test <- predicted_test
         predicted_test <- prob2categorical(
@@ -481,6 +541,7 @@ train <- function(
       algorithm = algorithm,
       model = model,
       preprocessor = preprocessor,
+      preprocessor_internal = preprocessor_internal,
       hyperparameters = hyperparameters,
       tuner = tuner,
       execution_config = execution_config,
@@ -522,6 +583,7 @@ train <- function(
       type = type,
       models = models,
       preprocessor = preprocessor,
+      preprocessor_internal = preprocessor_internal,
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       outer_resampler = outer_resampler,
