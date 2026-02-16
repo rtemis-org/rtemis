@@ -1329,7 +1329,7 @@ test_that("predict() GLM CalibratedClassificationRes succeeds", {
 })
 
 ## {CART}[calibrate]<ClassificationRes> ----
-# Using resmod_c_cart from above
+# Using resmodt_c_cart from above
 resmodt_c_cart_cal <- calibrate(resmodt_c_cart)
 test_that("calibrate() CART ClassificationRes succeeds", {
   expect_s7_class(resmodt_c_cart_cal, CalibratedClassificationRes)
