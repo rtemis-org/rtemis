@@ -52,16 +52,15 @@
 #'
 #' @section Tabular Data:
 #' \pkg{rtemis} internally uses methods for efficient handling of tabular data, with support for
-#' data.frame, data.table, and tibble. If a function is documented as accepting "tabular data" or
-#' "data.frame or similar", it should work with any of these data structures. If a function is documented
-#' as accepting only one of these data structures, it should only be used with that data structure.
-#' For example, some optimized data.table operations that perform in-place modifications only work
-#' with data.table objects.
+#' `data.frame`, `data.table`, and `tibble`. If a function is documented as accepting
+#' "tabular data", it should work with any of these data structures. If a function is documented
+#' as accepting only one of these, then it should only be used with that structure.
+#' For example, some optimized `data.table` operations that perform in-place modifications only
+#' work with `data.table` objects.
 #'
 #' @name rtemis-package
 #' @import stats methods graphics grDevices S7 data.table htmltools
-#' @importFrom utils packageVersion sessionInfo getFromNamespace head tail write.csv write.table zip
-#' @importFrom cli cli_abort cli_warn cli_progress_along
+#' @importFrom utils packageVersion sessionInfo getFromNamespace head tail
 "_PACKAGE"
 
 NULL

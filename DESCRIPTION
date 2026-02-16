@@ -1,7 +1,7 @@
 Package: rtemis
 Version: 1.0.0
 Title: Machine Learning and Visualization
-Date: 2026-02-08
+Date: 2026-02-15
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
     email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
 Description: A machine learning and visualization package with an 'S7' backend 

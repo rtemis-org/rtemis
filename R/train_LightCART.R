@@ -1,19 +1,23 @@
 # train_LightCART.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 #' Decision Tree using LightGBM
 #'
-#' @inheritParams train_LightGBM
+#' @param hyperparameters `LightCARTHyperparameters` object: make using [setup_LightCART].
+#' @param x tabular data: Training set.
+#' @param weights Numeric vector: Case weights.
+#' @param dat_validation data.frame or similar: Validation set (not used for LightCART).
+#' @param verbosity Integer: If > 0, print messages.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-
-train_LightCART <- function(
+method(train_super, LightCARTHyperparameters) <- function(
+  hyperparameters,
   x,
   weights = NULL,
-  hyperparameters = setup_LightCART(),
+  dat_validation = NULL,
   verbosity = 1L
 ) {
   # Dependencies ----
@@ -99,46 +103,4 @@ train_LightCART <- function(
   )
   check_inherits(model, "lgb.Booster")
   model
-} # /rtemis::train_LightCART
-
-#' Predict from LightCART LightGBM model
-#'
-#' @param model lgb.Booster object trained using `train_LightCART`.
-#' @param newdata data.frame or similar: Data to predict on.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-predict_LightCART <- function(model, newdata, type, verbosity = 0L) {
-  check_inherits(model, "lgb.Booster")
-  check_inherits(newdata, "data.frame")
-
-  # Preprocess ----
-  newdata <- as.matrix(
-    preprocess(
-      newdata,
-      config = setup_Preprocessor(
-        factor2integer = TRUE,
-        factor2integer_startat0 = TRUE
-      ),
-      verbosity = 0L
-    )@preprocessed
-  )
-
-  # Predict ----
-  predict(model, newdata = newdata)
-} # /rtemis::predict_LightCART
-
-#' Get variable importance from LightCART model
-#'
-#' @param model lgb.Booster object trained using `train_LightCART`.
-#'
-#' @keywords internal
-#' @noRd
-varimp_LightCART <- function(model) {
-  check_inherits(model, "lgb.Booster")
-  vi <- lightgbm::lgb.importance(model, percentage = TRUE)
-  out <- data.frame(t(vi[["Gain"]]))
-  names(out) <- vi[["Feature"]]
-  out
-} # /rtemis::varimp_LightCART
+} # /rtemis::method(train_super, LightCARTHyperparameters)

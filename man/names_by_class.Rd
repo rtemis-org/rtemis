@@ -7,7 +7,7 @@
 names_by_class(x, sorted = TRUE, item_format = highlight, maxlength = 24)
 }
 \arguments{
-\item{x}{data.frame or similar.}
+\item{x}{tabular data.}
 
 \item{sorted}{Logical: If TRUE, sort the output}
 

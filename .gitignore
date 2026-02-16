@@ -78,6 +78,8 @@ _pkgdown.yml
 cran-comments.md
 
 # Assistants
+inst/AGENTS.md
 copilot-instructions.md
 GEMINI.md
 .rtms-instructions.md
+.github/agents/

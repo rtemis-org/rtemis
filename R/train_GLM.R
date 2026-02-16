@@ -11,7 +11,7 @@
 #' This function uses the formula interface to `glm` to train a GLM model.
 #' No preprocessing is needed.
 #'
-#' @param x data.frame or similar: Training set.
+#' @param x tabular data: Training set.
 #' @param weights Numeric vector: Case weights.
 #' @param hyperparameters `GLMHyperparameters` object: make using [setup_GLM].
 #' @param verbosity Integer: If > 0, print messages.
@@ -21,16 +21,13 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-
-train_GLM <- function(
+method(train_super, GLMHyperparameters) <- function(
+  hyperparameters,
   x,
   weights = NULL,
-  hyperparameters,
+  dat_validation = NULL,
   verbosity = 1L
 ) {
-  # Checks ----
-  check_is_S7(hyperparameters, GLMHyperparameters)
-
   # Data ----
   check_supervised(
     x = x,
@@ -74,7 +71,8 @@ train_GLM <- function(
   )
   check_inherits(model, "glm")
   model
-} # /rtemis::train_GLM
+} # /rtemis::train_super.GLMHyperparameters
+
 
 #' Predict from GLM model
 #'
@@ -83,9 +81,14 @@ train_GLM <- function(
 #'
 #' @keywords internal
 #' @noRd
-predict_GLM <- function(model, newdata, type) {
+method(predict_super, class_glm) <- function(
+  model,
+  newdata,
+  type = NULL
+) {
   predict(model, newdata = newdata, type = "response")
-} # /rtemis::predict_GLM
+} # /rtemis::predict_super.glm
+
 
 #' Get coefficients from GLM model
 #'
@@ -93,9 +96,18 @@ predict_GLM <- function(model, newdata, type) {
 #'
 #' @keywords internal
 #' @noRd
-varimp_GLM <- function(model) {
-  coef(model)
-} # /rtemis::varimp_GLM
+method(varimp_super, class_glm) <- function(
+  model,
+  type = c("coefficients", "p-value")
+) {
+  type <- match.arg(type)
+  if (type == "coefficients") {
+    coef(model)
+  } else if (type == "p-value") {
+    summary(model)[["coefficients"]][, 4]
+  }
+} # /rtemis::varimp_super.glm
+
 
 #' Get Standard Errors from GLM model
 #'
@@ -105,6 +117,6 @@ varimp_GLM <- function(model) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-se_GLM <- function(model, newdata) {
+method(se_super, class_glm) <- function(model, newdata) {
   predict(model, newdata = newdata, se.fit = TRUE)[["se.fit"]]
-}
+} # /rtemis::se_super.glm

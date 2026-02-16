@@ -20,7 +20,7 @@
 # Should both class constructors (e.g. GridSearch@constructor) and setup functions
 # (e.g. setup_GridSearch) perform type checking and validation?
 
-# TunerConfig ----
+# %% TunerConfig ----
 #' TunerConfig
 #'
 #' Superclass for tuner config.
@@ -39,7 +39,7 @@ TunerConfig <- new_class(
 ) # /rtemis::TunerConfig
 
 
-# %% repr TunerConfig ----
+# %% repr.TunerConfig ----
 method(repr, TunerConfig) <- function(
   x,
   pad = 0L,
@@ -57,36 +57,43 @@ method(repr, TunerConfig) <- function(
 } # /rtemis::repr.TunerConfig
 
 
-# Print TunerConfig ----
+# %% print.TunerConfig ----
 method(print, TunerConfig) <- function(x, pad = 0L, ...) {
   cat(repr(x, pad = pad), "\n")
   invisible(x)
 }
 
-# Describe Tuner ----
+# %% desc.TunerConfig ----
 method(desc, TunerConfig) <- function(x) {
   if (x@type == "GridSearch") {
     paste(x@config[["search_type"]], "grid search")
   }
 }
 
+
+# %% `$`.TunerConfig ----
 # Make TunerConfig@config `$`-accessible
 method(`$`, TunerConfig) <- function(x, name) {
   x@config[[name]]
 }
 
-# `$`-autocomplete TunerConfig@config ----
+
+# %% `.DollarNames`.TunerConfig ----
+# `$`-autocomplete TunerConfig@config
 method(`.DollarNames`, TunerConfig) <- function(x, pattern = "") {
   all_names <- names(x@config)
   grep(pattern, all_names, value = TRUE)
 }
 
+
+# %% `[[`.TunerConfig ----
 # Make TunerConfig@config `[[`-accessible
 method(`[[`, TunerConfig) <- function(x, name) {
   x@config[[name]]
 }
 
-# GridSearchConfig ----
+
+# %% GridSearchConfig ----
 #' @title GridSearchConfig
 #'
 #' @description
@@ -131,7 +138,8 @@ GridSearchConfig <- new_class(
   }
 ) # /rtemis::GridSearchConfig
 
-# setup_GridSearch() ----
+
+# %% setup_GridSearch ----
 #' Setup Grid Search Config
 #'
 #' Create a `GridSearchConfig` object that can be passed to [train].
@@ -187,7 +195,8 @@ setup_GridSearch <- function(
   )
 } # /rtemis::setup_GridSearch
 
-# Tuner ----
+
+# %% Tuner ----
 #' Tuner Class
 #'
 #' @field type Character: Type of tuner.
@@ -209,14 +218,16 @@ Tuner <- new_class(
   )
 ) # /rtemis::Tuner
 
-# Describe Tuner ----
+
+# %% desc.Tuner ----
 method(desc, Tuner) <- function(x) {
   if (x@type == "GridSearch") {
     paste(x@tuner_config[["search_type"]], "grid search")
   }
 } # /rtemis::describe.Tuner
 
-# GridSearch ----
+
+# %% GridSearch ----
 #' GridSearch Class
 #'
 #' Tuner subclass for grid search.
@@ -245,7 +256,8 @@ GridSearch <- new_class(
   }
 ) # /rtemis::GridSearch
 
-# Print GridSearch ----
+
+# print.GridSearch ----
 #' Print GridSearch
 #'
 #' Print GridSearch object
@@ -289,21 +301,14 @@ method(print, GridSearch) <- function(x, header = TRUE, ...) {
   invisible(x)
 } # /rtemis::print.GridSearch
 
-# describe.GridSearch ----
+
+# %% describe.GridSearch ----
 method(describe, GridSearch) <- function(x) {
   print(x, header = FALSE)
 }
 
-# Show GridSearch ----
-#' Show GridSearch
-#'
-#' Show GridSearch object
-#'
-#' @param x GridSearch object.
-#' @param ... Not used.
-#'
-#' @author EDG
-#' @noRd
+
+# %% repr.GridSearch ----
 method(repr, GridSearch) <- function(
   x,
   header = TRUE,

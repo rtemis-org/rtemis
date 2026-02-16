@@ -2,21 +2,21 @@
 % Please edit documentation in R/00_S7_init.R
 \name{features}
 \alias{features}
-\title{Get features}
+\title{Get features from tabular data}
 \usage{
 features(x)
 }
 \arguments{
-\item{x}{data.frame or similar.}
+\item{x}{tabular data: Input data to get features from.}
 }
 \value{
-object same as input, after removing the last column.
+Object of the same class as the input, after removing the last column.
 }
 \description{
-Returns all columns except the last one
+Returns all columns except the last one.
 }
 \details{
-This applied to tabular datasets used for supervised learning in rtemis,
+This can be applied to tabular datasets used for supervised learning in \pkg{rtemis},
 where, by convention, the last column is the outcome variable and all other columns
 are features.
 }

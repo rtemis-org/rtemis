@@ -4,7 +4,7 @@
 
 #' Prepare data for GLMNET
 #'
-#' @param x data.frame or similar: Features.
+#' @param x tabular data: Features.
 #'
 #' @return Matrix with features.
 #'
@@ -22,19 +22,21 @@ preproc_GLMNET <- function(x) {
 #'
 #' GLMNET does not work in the presence of missing values.
 #'
-#' @param x data.frame or similar: Training set.
-#' @param weights Numeric vector: Case weights.
 #' @param hyperparameters `GLMNETHyperparameters` object: make using [setup_GLMNET].
+#' @param x tabular data: Training set.
+#' @param weights Numeric vector: Case weights.
+#' @param dat_validation tabular data: Validation set (unused).
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 
-train_GLMNET <- function(
+method(train_super, GLMNETHyperparameters) <- function(
+  hyperparameters,
   x,
   weights = NULL,
-  hyperparameters = setup_GLMNET(),
+  dat_validation = NULL,
   verbosity = 1L
 ) {
   # Dependencies ----
@@ -136,17 +138,18 @@ train_GLMNET <- function(
     check_inherits(model, "glmnet")
   }
   model
-} # /rtemis::train_GLMNET
+} # /rtemis::train_super.GLMNETHyperparameters
 
 #' Predict from GLMNET model
 #'
 #' @param model glmnet model.
 #' @param newdata data.frame or similar: Data to predict on.
+#' @param type Character: "Regression" or "Classification" (auto-detected if NULL).
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-predict_GLMNET <- function(model, newdata, type = NULL) {
+method(predict_super, class_glmnet) <- function(model, newdata, type = NULL) {
   # Determine type
   # if model@classnames exists, type is Classification
   if (is.null(type)) {
@@ -170,7 +173,40 @@ predict_GLMNET <- function(model, newdata, type = NULL) {
     }
     predicted_prob
   }
-} # /rtemis::predict_GLMNET
+} # /rtemis::predict_super.class_glmnet
+
+#' @keywords internal
+#' @noRd
+method(predict_super, class_cv.glmnet) <- function(
+  model,
+  newdata,
+  type = NULL
+) {
+  # Determine type
+  # if model@classnames exists, type is Classification
+  if (is.null(type)) {
+    type <- if (!is.null(model[["classnames"]])) {
+      "Classification"
+    } else {
+      "Regression"
+    }
+  }
+  newdata <- as.matrix(
+    model.matrix(~., newdata)[, -1, drop = FALSE]
+  )
+  if (type == "Regression") {
+    predict(model, newx = newdata, type = "response")[, 1]
+  } else if (type == "Classification") {
+    predicted_prob <- predict(model, newx = newdata, type = "response")
+    if (NCOL(predicted_prob) == 1) {
+      # In binary classification, glmnet returns matrix with 1 column
+      # with probabilities of second level.
+      predicted_prob <- as.numeric(predicted_prob)
+    }
+    predicted_prob
+  }
+} # /rtemis::predict_super.class_cv.glmnet
+
 
 #' Get coefficients from GLMNET model
 #'
@@ -178,6 +214,13 @@ predict_GLMNET <- function(model, newdata, type = NULL) {
 #'
 #' @keywords internal
 #' @noRd
-varimp_GLMNET <- function(model) {
+method(varimp_super, class_glmnet) <- function(model) {
   coef(model)
-} # /rtemis::varimp_GLMNET
+} # /rtemis::varimp_super.class_glmnet
+
+
+#' @keywords internal
+#' @noRd
+method(varimp_super, class_cv.glmnet) <- function(model) {
+  coef(model)
+} # /rtemis::varimp_super.class_cv.glmnet

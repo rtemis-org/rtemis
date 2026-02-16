@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# SuperWorkers ----
+# %% SuperWorkers ----
 #' @keywords internal
 #' @noRd
 SuperWorkers <- new_class(
@@ -45,7 +45,8 @@ SuperWorkers <- new_class(
   }
 ) # /rtemis::SuperWorkers
 
-# CheckData ----
+
+# %% CheckData ----
 #' @author EDG
 #' @noRd
 CheckData <- new_class(
@@ -128,23 +129,30 @@ CheckData <- new_class(
   }
 ) # /rtemis::CheckData
 
+
+# %% `$`.CheckData ----
 # Make CheckData properties `$`-accessible
 method(`$`, CheckData) <- function(x, name) {
   prop(x, name)
 } # /rtemis::`$`.CheckData
 
+
+# %% `.DollarNames`.CheckData ----
 # `$`-autocomplete CheckData properties
 method(`.DollarNames`, CheckData) <- function(x, pattern = "") {
   all_names <- names(x)
   grep(pattern, all_names, value = TRUE)
 } # /rtemis::`.DollarNames`.CheckData
 
+
+# %% `[[`.CheckData ----
 # Make CheckData properties `[[`-accessible
 method(`[[`, CheckData) <- function(x, name) {
   prop(x, name)
 } # /rtemis::`[[`.CheckData
 
-# Print CheckData ----
+
+# %% print.CheckData ----
 #' Print `CheckData` object
 #'
 #' @method print CheckData
@@ -415,7 +423,7 @@ method(print, CheckData) <- function(
 } # /rtemis::print.CheckData
 
 
-# BiasVariance ----
+# %% BiasVariance ----
 BiasVariance <- new_class(
   name = "BiasVariance",
   properties = list(
@@ -428,7 +436,8 @@ BiasVariance <- new_class(
   )
 )
 
-# Print BiasVariance ----
+
+# %% print.BiasVariance ----
 #' Print method for BiasVariance
 #'
 #' @param x BiasVariance object.

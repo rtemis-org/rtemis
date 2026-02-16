@@ -8,19 +8,20 @@
 #'
 #' GAM does not work in the presence of missing values.
 #'
-#' @param x data.frame or similar: Training set.
-#' @param weights Numeric vector: Case weights.
 #' @param hyperparameters `GAMHyperparameters` object: make using [setup_GAM].
+#' @param x tabular data: Training set.
+#' @param weights Numeric vector: Case weights.
+#' @param dat_validation tabular data or NULL: Not used for GAM.
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-
-train_GAM <- function(
+method(train_super, GAMHyperparameters) <- function(
+  hyperparameters,
   x,
   weights = NULL,
-  hyperparameters = NULL,
+  dat_validation = NULL,
   verbosity = 1L
 ) {
   # Dependencies ----
@@ -108,23 +109,29 @@ train_GAM <- function(
   )
   check_inherits(model, "gam")
   model
-} # /rtemis::train_GAM
+} # /rtemis::train_super.GAMHyperparameters
 
 #' Predict from GAM model
 #'
 #' @param model GAM model.
-#' @param newdata data.frame or similar: Data to predict on.
+#' @param newdata tabular data: Data to predict on.
+#' @param type Character: Type of supervised learning ("Classification" or "Regression").
 #'
 #' @keywords internal
 #' @noRd
-predict_GAM <- function(model, newdata, type) {
+method(predict_super, class_gam) <- function(
+  model,
+  newdata,
+  type = NULL
+) {
   out <- predict(object = model, newdata = newdata, type = "response")
   if (model[["family"]][["family"]] == "binomial") {
     # mgvc::predict.gam returns an array of 1 dimension that causes errors during type-checking.
     out <- as.numeric(out)
   }
   out
-} # /rtemis::predict_GAM
+} # /rtemis::predict_super.gam
+
 
 #' Get coefficients from GAM model
 #'
@@ -132,7 +139,10 @@ predict_GAM <- function(model, newdata, type) {
 #'
 #' @keywords internal
 #' @noRd
-varimp_GAM <- function(model, type = c("p-value", "coefficients", "edf")) {
+method(varimp_super, class_gam) <- function(
+  model,
+  type = c("p-value", "edf", "coefficients")
+) {
   type <- match.arg(type)
   if (type == "p-value") {
     # Get parametric and smooth term p-values
@@ -142,19 +152,21 @@ varimp_GAM <- function(model, type = c("p-value", "coefficients", "edf")) {
       summary_[["s.table"]][, "p-value"],
       summary_[["p.table"]][, ncol(summary_[["p.table"]])][-1]
     ))
-  } else if (type == "coefficients") {
-    coef(model)
   } else if (type == "edf") {
     summary(model)[["s.table"]][, "edf"]
+  } else if (type == "coefficients") {
+    coef(model)
   }
-} # /rtemis::varimp_GAM
+} # /rtemis::varimp_super.gam
+
 
 #' Get Standard Errors from GAM model
 #'
 #' @param model mgcv gam model.
+#' @param newdata tabular data: Data to predict on.
 #'
 #' @keywords internal
 #' @noRd
-se_GAM <- function(model, newdata) {
+method(se_super, class_gam) <- function(model, newdata) {
   predict(model, newdata = newdata, se.fit = TRUE)[["se.fit"]]
-}
+} # /rtemis::se_super.gam

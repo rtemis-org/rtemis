@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
-# Clustering ----
+# %% Clustering ----
 #' @title Clustering
 #'
 #' @description
@@ -27,24 +27,30 @@ Clustering <- new_class(
   )
 ) # /Clustering
 
+
+# %% `$`.Clustering ----
 # Make Clustering props `$`-accessible
 method(`$`, Clustering) <- function(x, name) {
   prop(x, name)
 }
 
+
+# %% `.DollarNames`.Clustering ----
 # `$`-autocomplete Clustering props
 method(`.DollarNames`, Clustering) <- function(x, pattern = "") {
   prop_names <- names(props(x))
   grep(pattern, prop_names, value = TRUE)
 }
 
+
+# %% `[[`.Clustering ----
 # Make Clustering props `[[`-accessible
 method(`[[`, Clustering) <- function(x, index) {
   props(x, index)
 }
 
 
-# Show Clustering ----
+# %% repr.Clustering ----
 method(repr, Clustering) <- function(
   x,
   pad = 0L,
@@ -58,7 +64,7 @@ method(repr, Clustering) <- function(
 } # /rtemis::repr.Clustering
 
 
-# Print Clustering ----
+# %% print.Clustering ----
 method(print, Clustering) <- function(
   x,
   pad = 0L,

@@ -18,7 +18,7 @@
 #' progress, or using a sequential future plan. The former may give better debugging information.
 #' The latter may be helpful to test that the future parallelization setup works correctly.
 #'
-#' @param x data.frame or similar: Training set.
+#' @param x tabular data: Training set.
 #' @param hyperparameters `Hyperparameters` object created with a learner's `setup_*` function.
 #' @param tuner_config `TunerConfig` object created with [setup_GridSearch].
 #' @param weights Vector: Class weights.

@@ -7,7 +7,7 @@
 feature_names(x)
 }
 \arguments{
-\item{x}{data.frame or similar.}
+\item{x}{tabular data.}
 }
 \value{
 Character vector of feature names.

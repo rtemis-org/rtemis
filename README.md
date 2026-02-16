@@ -137,6 +137,10 @@ walkthroughs of main features and full API reference.
 
 [![rtemis cover](https://rdocs.rtemis.org/assets/rtemis-mlv-cover.webp)](https://rdocs.rtemis.org)
 
+## Ongoing work
+
+There is a lot more coming - both within this package and the other packages in the rtemis framework.
+
 ## rtemisalpha
 
 The original, unmaintained version of rtemis remains available as `rtemisalpha` at [rtemis-org/rtemis-legacy](https://github.com/rtemis-org/rtemis-legacy).

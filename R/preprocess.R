@@ -7,7 +7,10 @@
 #' preprocess
 #'
 #' @param x data.frame, data.table, tbl_df (tabular data): Data to be preprocessed.
-#' @param config `PreprocessorConfig`: Setup using [setup_Preprocessor].
+#' @param config `PreprocessorConfig`: Setup using [setup_Preprocessor] OR `Preprocessor` object:
+#' Output of previous run of `preprocess`. This allows, for example, applying preprocessing to a
+#' validation or test set using the same parameters as were used for the training set. In
+#' particular, the same scale centers and coefficients will be applied to the new data.
 #' @param dat_validation tabular data: Validation set data.
 #' @param dat_test tabular data: Test set data.
 #' @param verbosity Integer: Verbosity level.
@@ -732,7 +735,6 @@ preprocess.class_tabular.Preprocessor <- method(
 #' vf <- factor(rep("alpha", 20), levels = c("alpha", "beta"))
 #' vf_one_hot <- one_hot(vf)
 #' }
-one_hot <- new_generic("one_hot", "x")
 method(one_hot, class_any) <- function(x, xname = NULL, verbosity = 1L) {
   if (is.null(xname)) {
     xname <- deparse(substitute(x))
@@ -995,3 +997,31 @@ binmat2lvec <- function(x, labels = colnames(x), return.list = FALSE) {
   }
   out
 } # /rtemis::binmat2lvec
+
+
+# %% feature_matrix ----
+#' Convert tabular data to feature matrix
+#'
+#' Convert a tabular dataset to a matrix, one-hot encoding factors, if present.
+#'
+#' @details
+#' This is a convenience function that uses  [features()], [preprocess()], `as.matrix()`.
+#'
+#' @param x tabular data: Input data to convert to a feature matrix.
+#'
+#' @return Matrix with features. Factors are one-hot encoded, if present.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' # reorder columns so that we have a categorical feature
+#' x <- set_outcome(iris, "Sepal.Length")
+#' feature_matrix(x) |> head()
+feature_matrix <- function(x) {
+  x |>
+    features() |>
+    preprocess(setup_Preprocessor(one_hot = TRUE)) |>
+    preprocessed() |>
+    as.matrix()
+} # /rtemis::feature_matrix

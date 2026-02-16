@@ -6,7 +6,7 @@
 # https://github.com/RConsortium/S7/
 # https://rconsortium.github.io/S7
 
-# PreprocessorConfig ----
+# %% PreprocessorConfig ----
 #' @title PreprocessorConfig
 #'
 #' @description
@@ -59,28 +59,37 @@ PreprocessorConfig <- new_class(
   )
 ) # /PreprocessorConfig
 
-# Names PreprocessorConfig ----
+
+# %% names.PreprocessorConfig ----
+# Names PreprocessorConfig
 method(names, PreprocessorConfig) <- function(x) {
   names(props(x))
 }
 
-# Make props `$`-accessible ----
+
+# %% `$`.PreprocessorConfig ----
+# Make props `$`-accessible
 method(`$`, PreprocessorConfig) <- function(x, name) {
   props(x)[[name]]
 }
 
-# DollarSign tab-complete property names ----
+
+# %% `.DollarNames`.PreprocessorConfig ----
+# DollarSign tab-complete property names
 method(`.DollarNames`, PreprocessorConfig) <- function(x, pattern = "") {
   all_names <- names(props(x))
   grep(pattern, all_names, value = TRUE)
 }
 
-# Make proprs `[[`-accessible ----
+
+# %% `[[`.PreprocessorConfig ----
+# Make proprs `[[`-accessible
 method(`[[`, PreprocessorConfig) <- function(x, name) {
   props(x)[[name]]
 }
 
-# Show PreprocessorConfig ----
+
+# %% repr.PreprocessorConfig ----
 method(repr, PreprocessorConfig) <- function(
   x,
   limit = -1L,
@@ -95,7 +104,7 @@ method(repr, PreprocessorConfig) <- function(
 } # /rtemis::repr.PreprocessorConfig
 
 
-# Print PreprocessorConfig ----
+# %% print.PreprocessorConfig ----
 method(print, PreprocessorConfig) <- function(
   x,
   limit = -1L,
@@ -107,7 +116,7 @@ method(print, PreprocessorConfig) <- function(
 } # /rtemis::print.PreprocessorConfig
 
 
-# setup_Preprocessor() ----
+# %% setup_Preprocessor ----
 #' Setup Preprocessor
 #'
 #' @description
@@ -317,13 +326,15 @@ setup_Preprocessor <- function(
   )
 } # /setup_Preprocessor
 
-data_dependent_props <- c(
-  "scale_centers", # Named vector with feature scaling centers.
-  "scale_coefficients", # Named vector with feature scaling coefficients.
-  "one_hot_levels", # Named list of the form "feature_name" = "levels".
-  "remove_features" # Character vector of feature names to remove.
-)
-# Preprocessor ----
+# Note:
+# data_dependent_props <- c(
+#   "scale_centers", # Named vector with feature scaling centers.
+#   "scale_coefficients", # Named vector with feature scaling coefficients.
+#   "one_hot_levels", # Named list of the form "feature_name" = "levels".
+#   "remove_features" # Character vector of feature names to remove.
+# )
+
+# %% Preprocessor ----
 #' @title Preprocessor
 #'
 #' @description
@@ -369,7 +380,7 @@ Preprocessor <- new_class(
   }
 ) # /Preprocessor
 
-# Show Preprocessor ----
+# %% repr.Preprocessor ----
 method(repr, Preprocessor) <- function(
   x,
   pad = 0L,
@@ -383,39 +394,51 @@ method(repr, Preprocessor) <- function(
   )
 } # /rtemis::repr.Preprocessor
 
-# Print Preprocessor ----
+
+# %% print.Preprocessor ----
 method(print, Preprocessor) <- function(x, pad = 0L, output_type = NULL, ...) {
   cat(repr(x, output_type = output_type))
   invisible(x)
 } # /rtemis::print.Preprocessor
 
-# `names(Preprocessor)` ----
+
+# %% names.Preprocessor ----
 method(names, Preprocessor) <- function(x) {
   names(props(x))
 }
 
-# Make props `$`-accessible ----
+
+# %% `$`.Preprocessor ----
+# Make props `$`-accessible
 method(`$`, Preprocessor) <- function(x, name) {
   props(x)[[name]]
 }
 
-# DollarSign tab-complete property names ----
+
+# %% `.DollarNames`.Preprocessor ----
+# DollarSign tab-complete property names
 method(`.DollarNames`, Preprocessor) <- function(x, pattern = "") {
   all_names <- names(props(x))
   grep(pattern, all_names, value = TRUE)
 }
 
-# Make props `[`-accessible ----
+
+# %% `[`.Preprocessor ----
+# Make props `[`-accessible
 method(`[`, Preprocessor) <- function(x, name) {
   props(x)[[name]]
 }
 
-# Make props `[[`-accessible ----
+
+
+# %% `[[`.Preprocessor ----
+# Make props `[[`-accessible
 method(`[[`, Preprocessor) <- function(x, name) {
   props(x)[[name]]
 }
 
-# preprocessed.Preprocessor ----
+
+# %% preprocessed.Preprocessor ----
 method(preprocessed, Preprocessor) <- function(x) {
   x@preprocessed
 }

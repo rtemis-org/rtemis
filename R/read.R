@@ -90,6 +90,8 @@ read <- function(
     file.path(datadir, filename)
   }
   path <- path.expand(path)
+  # Sanitize path for security
+  path <- sanitize_path(path, must_exist = FALSE)
 
   if (ext == "parquet") {
     check_dependencies("arrow")

@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# DecompositionConfig ----
+# %% DecompositionConfig ----
 #' @title DecompositionConfig
 #'
 #' @description
@@ -21,28 +21,37 @@ DecompositionConfig <- new_class(
   )
 ) # /DecompositionConfig
 
+
+# %% `$`.DecompositionConfig ----
 # Make DecompositionConfig@config `$`-accessible ----
 method(`$`, DecompositionConfig) <- function(x, name) {
   x@config[[name]]
 }
 
+
+# %% `.DollarNames`.DecompositionConfig ----
 # `$`-autocomplete DecompositionConfig@config ----
 method(`.DollarNames`, DecompositionConfig) <- function(x, pattern = "") {
   all_names <- names(x@config)
   grep(pattern, all_names, value = TRUE)
 }
 
+
+# %% `[`.DecompositionConfig ----
 # Make props `[`-accessible ----
 method(`[`, DecompositionConfig) <- function(x, name) {
   props(x)[[name]]
 }
 
+
+# %% `[[`.DecompositionConfig ----
 # Make DecompositionConfig@config `[[`-accessible ----
 method(`[[`, DecompositionConfig) <- function(x, name) {
   x@config[[name]]
 }
 
-# Show DecompositionConfig ----
+
+# %% repr.DecompositionConfig ----
 #' Show Method for DecompositionConfig
 #'
 #' @param object DecompositionConfig object.
@@ -70,7 +79,7 @@ method(repr, DecompositionConfig) <- function(
 } # /rtemis::repr.DecompositionConfig
 
 
-# Print DecompositionConfig ----
+# %% print.DecompositionConfig ----
 #' Print Method for DecompositionConfig
 #'
 #' @param x DecompositionConfig object.
@@ -92,7 +101,7 @@ method(print, DecompositionConfig) <- function(
 }
 
 
-# PCAConfig ----
+# %% PCAConfig ----
 #' @title PCAConfig
 #'
 #' @description
@@ -124,7 +133,7 @@ PCAConfig <- new_class(
 ) # /rtemis::PCAConfig
 
 
-# setup_PCA ----
+# %% setup_PCA ----
 #' Setup PCA config.
 #'
 #' @param k Integer: Number of components. (passed to `prcomp` `rank.`)
@@ -149,7 +158,7 @@ setup_PCA <- function(k = 3L, center = TRUE, scale = TRUE, tol = NULL) {
 } # /rtemis::setup_PCA
 
 
-# ICAConfig ----
+# %% ICAConfig ----
 #' @title ICAConfig
 #'
 #' @description
@@ -180,7 +189,7 @@ ICAConfig <- new_class(
 ) # /rtemis::ICAConfig
 
 
-# setup_ICA ----
+# %% setup_ICA ----
 #' @title setup_ICA
 #'
 #' @description
@@ -230,7 +239,7 @@ setup_ICA <- function(
 } # /rtemis::setup_ICA
 
 
-# NMFConfig ----
+# %% NMFConfig ----
 #' @title NMFConfig
 #'
 #' @description
@@ -260,7 +269,7 @@ NMFConfig <- new_class(
 ) # /rtemis::NMFConfig
 
 
-# setup_NMF ----
+# %% setup_NMF ----
 #' Setup NMF config.
 #'
 #' @param k Integer: Number of components.
@@ -286,7 +295,8 @@ setup_NMF <- function(
   NMFConfig(k, method, nrun)
 } # /rtemis::setup_NMF
 
-# UMAPConfig ----
+
+# %% UMAPConfig ----
 #' @title UMAPConfig
 #'
 #' @description
@@ -331,7 +341,8 @@ UMAPConfig <- new_class(
   }
 ) # /rtemis::UMAPConfig
 
-# setup_UMAP ----
+
+# %% setup_UMAP ----
 #' Setup UMAP config.
 #'
 #' @details
@@ -383,7 +394,8 @@ setup_UMAP <- function(
   )
 } # /rtemis::setup_UMAP
 
-# tSNEConfig ----
+
+# %% tSNEConfig ----
 #' @title tSNEConfig
 #'
 #' @description
@@ -464,7 +476,7 @@ tSNEConfig <- new_class(
 ) # /rtemis::tSNEConfig
 
 
-# setup_tSNE ----
+# %% setup_tSNE ----
 #' Setup tSNE config.
 #'
 #' @details
@@ -549,7 +561,7 @@ setup_tSNE <- function(
 } # /rtemis::setup_tSNE
 
 
-# IsomapConfig ----
+# %% IsomapConfig ----
 #' @title IsomapConfig
 #'
 #' @description
@@ -585,7 +597,7 @@ IsomapConfig <- new_class(
 ) # /rtemis::IsomapConfig
 
 
-# setup_Isomap ----
+# %% setup_Isomap ----
 #' Setup Isomap config.
 #'
 #' @param k Integer: Number of components.

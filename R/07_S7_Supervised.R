@@ -16,7 +16,7 @@
 # RegressionRes: plot_metric, plot_true_pred,
 # ClassificationRes: plot_metric, plot_true_pred, plot_roc
 
-# Supervised ----
+# %% Supervised ----
 #' @title Supervised
 #'
 #' @description
@@ -99,7 +99,7 @@ Supervised <- new_class(
 ) # /rtemis::Supervised
 
 
-# Predict Supervised ----
+# %% predict.Supervised ----
 #' Predict `Supervised`
 #'
 #' Predict Method for `Supervised` objects
@@ -108,17 +108,47 @@ Supervised <- new_class(
 #' @param newdata data.frame or similar: New data to predict.
 #'
 #' @noRd
-method(predict, Supervised) <- function(object, newdata, ...) {
+method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
   check_inherits(newdata, "data.frame")
-  predict_fn <- get_predict_fn(object@algorithm)
-  do_call(
-    predict_fn,
-    list(model = object@model, newdata = newdata, type = object@type)
+
+  # Apply preprocessing if preprocessor is available
+  if (!is.null(object@preprocessor)) {
+    newdata <- preprocess(
+      newdata,
+      object@preprocessor,
+      verbosity = verbosity
+    ) |>
+      preprocessed()
+  }
+  # After preprocessing, enforce strict predictor names and order
+  if (!identical(names(newdata), object@xnames)) {
+    extra_cols <- setdiff(names(newdata), object@xnames)
+    missing_cols <- setdiff(object@xnames, names(newdata))
+    cli::cli_abort(c(
+      "x" = "Predictor names and order in newdata must exactly match training data.",
+      "i" = "Expected {length(object@xnames)} columns; got {NCOL(newdata)}.",
+      "i" = if (length(extra_cols) > 0L) {
+        paste0("Unexpected columns: ", paste(extra_cols, collapse = ", "))
+      } else {
+        "Unexpected columns: none."
+      },
+      "i" = if (length(missing_cols) > 0L) {
+        paste0("Missing columns: ", paste(missing_cols, collapse = ", "))
+      } else {
+        "Missing columns: none."
+      }
+    ))
+  }
+  predict_super(
+    model = object@model,
+    newdata = newdata,
+    type = object@type,
+    ...
   )
 } # /rtemis::predict.Supervised
 
 
-# Fitted Supervised ----
+# %% fitted.Supervised ----
 #' Fitted `Supervised`
 #'
 #' Fitted Method for `Supervised` objects
@@ -132,7 +162,7 @@ method(fitted, Supervised) <- function(object, ...) {
 } # /rtemis::fitted.Supervised
 
 
-# Standard Error Supervised ----
+# %% se.Supervised ----
 #' Standard Error `Supervised`
 #'
 #' Standard Error Method for `Supervised` objects
@@ -145,25 +175,30 @@ method(se, Supervised) <- function(x, ...) {
   x@se_training
 }
 
-# Make Supervised props `$`- accessible ----
+
+# %% `$`.Supervised ----
+# Make Supervised props `$`- accessible
 method(`$`, Supervised) <- function(x, name) {
   prop(x, name)
 }
 
 
-# `$`-autocomplete Supervised props ----
+# %% `.DollarNames`.Supervised ----
+# `$`-autocomplete Supervised props
 method(`.DollarNames`, Supervised) <- function(x, pattern = "") {
   all_names <- names(props(x))
   grep(pattern, all_names, value = TRUE)
 }
 
+
+# %% `[[`.Supervised ----
 # Make Supervised props `[[`- accessible ----
 method(`[[`, Supervised) <- function(x, name) {
   prop(x, name)
 }
 
 
-# repr Supervised ----
+# %% repr.Supervised ----
 #' repr `Supervised`
 #'
 #' @param x `Supervised` object.
@@ -296,7 +331,7 @@ method(repr, Supervised) <- function(
 } # /rtemis::repr.Supervised
 
 
-# Print Supervised ----
+# %% print.Supervised ----
 method(print, Supervised) <- function(
   x,
   output_type = c("ansi", "html", "plain"),
@@ -307,7 +342,7 @@ method(print, Supervised) <- function(
 } # /rtemis::print.Supervised
 
 
-# Describe Supervised ----
+# %% describe.Supervised ----
 method(describe, Supervised) <- function(x) {
   type <- x@type
   algorithm <- desc_alg(x@algorithm)
@@ -382,7 +417,7 @@ method(describe, Supervised) <- function(x) {
 } # /rtemis::describe.Supervised
 
 
-# Classification ----
+# %% Classification ----
 #' @title Classification
 #'
 #' @description
@@ -479,7 +514,7 @@ Classification <- new_class(
 ) # /rtemis::Classification
 
 
-# CalibratedClassification ----
+# %% CalibratedClassification ----
 #' @title CalibratedClassification
 #'
 #' @description
@@ -605,12 +640,15 @@ CalibratedClassification <- new_class(
   }
 ) # /rtemis::CalibratedClassification
 
-# Predict CalibratedClassification ----
+
+# %% predict.CalibratedClassification ----
 method(predict, CalibratedClassification) <- function(object, newdata, ...) {
   check_inherits(newdata, "data.frame")
-  predict_fn <- get_predict_fn(object@algorithm)
   # Get the classification model's predicted probabilities
-  raw_prob <- do_call(predict_fn, list(model = object@model, newdata = newdata))
+  raw_prob <- do_call(
+    predict_super,
+    list(model = object@model, newdata = newdata, type = "Classification")
+  )
   # Get the calibration model's predicted probabilities
   predict(
     object@calibration_model,
@@ -620,7 +658,8 @@ method(predict, CalibratedClassification) <- function(object, newdata, ...) {
 
 se_compat_algorithms <- c("GLM", "GAM")
 
-# Regression ----
+
+# %% Regression ----
 #' @title Regression
 #' @description
 #' Supervised subclass for regression models.
@@ -710,7 +749,8 @@ Regression <- new_class(
   }
 ) # /rtemis::Regression
 
-# Plot True Pred Regression ----
+
+# %% plot_true_pred.Regression ----
 #' Plot True vs. Predicted for Regression
 #'
 #' @param x `Regression` object.
@@ -758,7 +798,7 @@ method(plot_true_pred, Regression) <- function(
 } # /rtemis::plot_true_pred.Regression
 
 
-# Plot True Pred Classification ----
+# %% plot_true_pred.Classification ----
 #' Plot True vs. Predicted for Classification
 #'
 #' @param x `Classification` object.
@@ -805,7 +845,7 @@ method(plot_true_pred, Classification) <- function(
 } # /rtemis::plot_true_pred.Classification
 
 
-# plot_ROC Classification ----
+# %% plot_roc.Classification ----
 method(plot_roc, Classification) <- function(
   x,
   what = NULL,
@@ -846,7 +886,8 @@ method(plot_roc, Classification) <- function(
   )
 } # /rtemis::plot_ROC.Classification
 
-# make_Supervised() ----
+
+# %% make_Supervised ----
 make_Supervised <- function(
   algorithm = NULL,
   model = NULL,
@@ -921,7 +962,8 @@ make_Supervised <- function(
   }
 } # /rtemis::make_Supervised
 
-# Write Supervised ----
+
+# %% write_Supervised ----
 write_Supervised <- function(
   object,
   outdir = NULL,
@@ -939,7 +981,7 @@ write_Supervised <- function(
 } # /rtemis::write_Supervised
 
 
-# Present Regression ----
+# %% present.Regression ----
 # present method for Regression objects
 # Plot training + test metrics, if available, side by side using `plotly::subplot()`
 # & run `describe()` on the object
@@ -962,7 +1004,8 @@ method(present, Regression) <- function(
   )
 } # /rtemis::present.Regression
 
-# Present Classification ----
+
+# %% present.Classification ----
 # present method for Classification objects
 # Plot training + test metrics if available, side by side
 method(present, Classification) <- function(
@@ -1025,7 +1068,8 @@ method(present, Classification) <- function(
   }
 } # /rtemis::present.Classification
 
-# SupervisedRes ----
+
+# %% SupervisedRes ----
 # fields metrics_training/metrics_validation/metrics_test
 # could be active bindings that are collected from @models
 #' SupervisedRes
@@ -1107,7 +1151,7 @@ SupervisedRes <- new_class(
 ) # /rtemis::SupervisedRes
 
 
-# repr SupervisedRes ----
+# %% repr.SupervisedRes ----
 #' repr `SupervisedRes`
 #'
 #' @param x `SupervisedRes` object.
@@ -1216,7 +1260,7 @@ method(repr, SupervisedRes) <- function(
 } # /rtemis::repr.SupervisedRes
 
 
-# Print SupervisedRes ----
+# %% print.SupervisedRes ----
 method(print, SupervisedRes) <- function(
   x,
   output_type = NULL,
@@ -1227,7 +1271,7 @@ method(print, SupervisedRes) <- function(
 } # /rtemis::print.SupervisedRes
 
 
-# Predict SupervisedRes ----
+# %% predict.SupervisedRes ----
 #' Predict SupervisedRes
 #'
 #' Predict Method for SupervisedRes objects
@@ -1251,15 +1295,11 @@ method(predict, SupervisedRes) <- function(
 ) {
   check_inherits(newdata, "data.frame")
   type <- match.arg(type)
-  predict_fn <- get_predict_fn(object@algorithm)
 
   predicted <- sapply(
     object@models,
     function(mod) {
-      do_call(
-        predict_fn,
-        list(model = mod@model, newdata = newdata, type = object@type)
-      )
+      predict(mod, newdata = newdata)
     }
   ) # -> data.frame n cases x n resamples
 
@@ -1278,7 +1318,8 @@ method(predict, SupervisedRes) <- function(
   }
 } # /rtemis::predict.SupervisedRes
 
-# ClassificationRes ----
+
+# %% ClassificationRes ----
 #' @title ClassificationRes
 #'
 #' @description
@@ -1351,7 +1392,7 @@ ClassificationRes <- new_class(
 ) # /rtemis::ClassificationRes
 
 
-# CalibratedClassificationRes ----
+# %% CalibratedClassificationRes ----
 #' @title CalibratedClassificationRes
 #'
 #' @description
@@ -1433,16 +1474,16 @@ CalibratedClassificationRes <- new_class(
 ) # /rtemis::CalibratedClassificationRes
 
 
-# Predict CalibratedClassificationRes ----
+# %% predict.CalibratedClassificationRes ----
 method(predict, CalibratedClassificationRes) <- function(
   object,
   newdata,
-  type = c("avg", "all", "metrics"),
+  what = c("avg", "all", "metrics"),
   avg_fn = "mean",
   ...
 ) {
   check_inherits(newdata, "data.frame")
-  type <- match.arg(type)
+  what <- match.arg(what)
 
   # Check lengths match
   if (length(object@models) != length(object@calibration_models)) {
@@ -1452,10 +1493,9 @@ method(predict, CalibratedClassificationRes) <- function(
   predicted <- mapply(
     function(base_mod, cal_mod) {
       # 1. Predict with base model
-      predict_fn <- get_predict_fn(base_mod@algorithm)
-      raw_prob <- do_call(
-        predict_fn,
-        list(model = base_mod@model, newdata = newdata, type = base_mod@type)
+      raw_prob <- predict(
+        base_mod,
+        newdata = newdata
       )
 
       # 2. Predict with calibration model
@@ -1469,15 +1509,14 @@ method(predict, CalibratedClassificationRes) <- function(
     SIMPLIFY = TRUE
   ) # -> matrix n cases x n resamples
 
-  if (type == "all") {
+  if (what == "all") {
     return(predicted)
-  } else if (type == "avg") {
+  } else if (what == "avg") {
     return(apply(predicted, 1, avg_fn))
-  } else if (type == "metrics") {
+  } else if (what == "metrics") {
     mean_predictions <- apply(predicted, 2, mean)
     sd_predictions <- apply(predicted, 2, sd)
     # Return both aggregated prediction metrics (per resample)
-    # AND optionally aggregated predictions per case?
     # Keeping consistent with SupervisedRes
     return(list(
       predictions = predicted,
@@ -1488,7 +1527,7 @@ method(predict, CalibratedClassificationRes) <- function(
 } # /rtemis::predict.CalibratedClassificationRes
 
 
-# RegressionRes ----
+# %% RegressionRes ----
 #' @title RegressionRes
 #'
 #' @description
@@ -1567,7 +1606,7 @@ RegressionRes <- new_class(
 ) # /rtemis::RegressionRes
 
 
-# desc SupervisedRes ----
+# %% desc.SupervisedRes ----
 method(desc, SupervisedRes) <- function(x, metric = NULL) {
   type <- x@type
   algorithm <- desc_alg(x@algorithm)
@@ -1613,12 +1652,12 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
   invisible(out)
 } # /rtemis::desc.SupervisedRes
 
-# Describe SupervisedRes ----
+# %% describe.SupervisedRes ----
 method(describe, SupervisedRes) <- function(x, ...) {
   cat(desc(x), "\n")
 }
 
-# Present SupervisedRes ----
+# %% present.SupervisedRes ----
 method(present, SupervisedRes) <- function(
   x,
   theme = choose_theme(getOption("rtemis_theme")),
@@ -1631,7 +1670,7 @@ method(present, SupervisedRes) <- function(
 } # /rtemis::present.SupervisedRes
 
 
-# Plot True Pred RegressionRes ----
+# %% plot_true_pred.RegressionRes ----
 # Plot true vs. predicted aggregated across resamples for either training, test, or both.
 #' Plot True vs. Predicted for RegressionRes
 #'
@@ -1678,7 +1717,7 @@ method(plot_true_pred, RegressionRes) <- function(
 } # /rtemis::plot_true_pred.RegressionRes
 
 
-# Plot True Pred ClassificationRes ----
+# %% plot_true_pred.ClassificationRes ----
 # Cannot be combined with plot_true_pred.RegressionRes
 # because scatter can overplot train & test, but confusion matrices must be subplots.
 #' Plot True vs. Predicted for ClassificationRes
@@ -1750,7 +1789,7 @@ method(plot_true_pred, ClassificationRes) <- function(
 } # /rtemis::plot_true_pred.ClassificationRes
 
 
-# Plot ROC ClassificationRes ----
+# %% plot_roc.ClassificationRes ----
 #' Plot ROC for ClassificationRes
 #'
 #' @param x `ClassificationRes` object.
@@ -1798,7 +1837,7 @@ method(plot_roc, ClassificationRes) <- function(
 } # /rtemis::plot_roc.ClassificationRes
 
 
-# Plot Metric SupervisedRes ----
+# %% plot_metric.SupervisedRes ----
 #' Plot Metric SupervisedRes
 #'
 #' Plot boxplot of performance metrics across resamples.
@@ -1870,7 +1909,7 @@ method(plot_metric, SupervisedRes) <- function(
 } # /rtemis::plot_metric.SupervisedRes
 
 
-# Plot Variable Importance Supervised ----
+# %% plot_varimp.Supervised ----
 method(plot_varimp, Supervised) <- function(
   x,
   theme = choose_theme(getOption("rtemis_theme")),
@@ -1885,7 +1924,7 @@ method(plot_varimp, Supervised) <- function(
 } # /rtemis::plot_varimp.Supervised
 
 
-# Plot Variable Importance SupervisedRes ----
+# %% plot_varimp.SupervisedRes ----
 method(plot_varimp, SupervisedRes) <- function(
   x,
   ylab = NULL,
@@ -1944,7 +1983,7 @@ method(plot_varimp, SupervisedRes) <- function(
 } # /rtemis::plot_varimp.SupervisedRes
 
 
-# Make SupervisedRes ----
+# %% make_SupervisedRes ----
 #' Make SupervisedRes
 #'
 #' @author EDG
@@ -2137,7 +2176,7 @@ method(desc, class_list) <- function(
   }
   suptype <- x[[1]]@type
 
-  # SupervisedRes ----
+  # SupervisedRes
   if (type == "SupervisedRes") {
     # Check that the same resampling method was used - ideally same seed, but do not enforce that, but report it
     # Get resampling config from each
@@ -2174,9 +2213,7 @@ method(desc, class_list) <- function(
     }
     metricv <- sapply(x, function(m) m@metrics_test@mean_metrics[[metric]])
   } # /SupervisedRes
-  # => Supervised ----
   if (type == "Supervised") {
-    # Describe SupervisedRes objects
     # 1. Report names of algorithms used.
     out <- paste0(
       oxfordcomma(sapply(x, function(m) desc_abb_alg(m@algorithm))),
@@ -2229,6 +2266,7 @@ method(desc, class_list) <- function(
 } # /rtemis::desc.list
 
 
+# %% describe.list(Supervised/Res) ----
 #' Print description of a list of Supervised or SupervisedRes objects
 #'
 #' @param x List of `Supervised` or `SupervisedRes` objects.

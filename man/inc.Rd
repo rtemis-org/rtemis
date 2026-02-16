@@ -7,7 +7,7 @@
 inc(x, idx)
 }
 \arguments{
-\item{x}{data.frame or similar.}
+\item{x}{tabular data.}
 
 \item{idx}{Character or numeric vector: Column names or indices to include.}
 }

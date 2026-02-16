@@ -7,7 +7,7 @@
 massGLM(x, y, scale_y = NULL, center_y = NULL, verbosity = 1L)
 }
 \arguments{
-\item{x}{data.frame or similar: Predictor variables. Usually a small number of covariates.}
+\item{x}{tabular data: Predictor variables. Usually a small number of covariates.}
 
 \item{y}{data.frame or similar: Each column is a different outcome. The function will train one
 GLM for each column of \code{y}. Usually a large number of features.}

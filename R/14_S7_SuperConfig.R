@@ -6,7 +6,8 @@
 # https://github.com/RConsortium/S7
 # https://rconsortium.github.io/S7/
 
-# %% SuperConfig Class ----
+
+# %% SuperConfig ----
 #' SuperConfig Class
 #'
 #' @description
@@ -34,7 +35,8 @@ SuperConfig <- new_class(
 ) # /rtemis::SuperConfig
 
 
-# %% repr SuperConfig ----
+
+# %% repr.SuperConfig ----
 #' Repr SuperConfig
 #'
 #' @param x `SuperConfig` object.
@@ -55,7 +57,8 @@ method(repr, SuperConfig) <- function(x, pad = 0L, output_type = NULL) {
 } # /rtemis::repr.SuperConfig
 
 
-# %% print `SuperConfig` ----
+
+# %% print.SuperConfig ----
 #' Print `SuperConfig`
 #'
 #' Print `SuperConfig` object
@@ -71,7 +74,8 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 } # /rtemis::print.SuperConfig
 
 
-# %% setup SuperConfig ----
+
+# %% setup_SuperConfig ----
 #' Setup SuperConfig
 #'
 #' Setup `SuperConfig` object.
@@ -124,6 +128,22 @@ setup_SuperConfig <- function(
   outdir = "results/",
   verbosity = 1L
 ) {
+  # Sanitize paths for security
+  dat_training_path <- sanitize_path(dat_training_path, must_exist = FALSE)
+
+  if (!is.null(dat_validation_path)) {
+    dat_validation_path <- sanitize_path(
+      dat_validation_path,
+      must_exist = FALSE
+    )
+  }
+
+  if (!is.null(dat_test_path)) {
+    dat_test_path <- sanitize_path(dat_test_path, must_exist = FALSE)
+  }
+
+  outdir <- sanitize_path(outdir, must_exist = FALSE, type = "any")
+
   SuperConfig(
     dat_training_path = dat_training_path,
     dat_validation_path = dat_validation_path,
@@ -142,7 +162,8 @@ setup_SuperConfig <- function(
 } # /setup_SuperConfig
 
 
-# %% to_toml SuperConfig ----
+
+# %% to_toml.SuperConfig ----
 #' Convert `SuperConfig` to TOML
 #'
 #' Convert `SuperConfig` object to TOML format for saving to file that can be read back in with
@@ -162,7 +183,8 @@ method(to_toml, SuperConfig) <- function(x) {
 } # /rtemis::to_toml.SuperConfig
 
 
-# %% write_toml SuperConfig ----
+
+# %% write_toml.SuperConfig ----
 #' @name
 #' write_toml
 #'
@@ -211,6 +233,7 @@ write_toml.SuperConfig <- method(write_toml, SuperConfig) <- function(
 } # /rtemis::write_toml.SuperConfig
 
 
+
 # %% read_config ----
 #' Read `SuperConfig` from TOML file
 #'
@@ -224,11 +247,7 @@ write_toml.SuperConfig <- method(write_toml, SuperConfig) <- function(
 #' @export
 read_config <- function(file) {
   check_dependencies("toml")
-  file <- normalizePath(file, mustWork = FALSE)
-  # Let cli_abort() handle error reporting
-  if (!file.exists(file)) {
-    cli::cli_abort("File does not exist: {file}")
-  }
+  file <- sanitize_path(file, must_exist = TRUE, type = "file")
   xl <- toml::read_toml(file)
   xl <- toml_empty_to_null(xl)
   # Convert list to SuperConfig object
@@ -271,7 +290,8 @@ read_config <- function(file) {
 } # /rtemis::read_config
 
 
-# %% to_yaml SuperConfig ----
+
+# %% to_yaml.SuperConfig ----
 #' Convert `SuperConfig` to YAML
 #'
 #' Convert `SuperConfig` object to YAML format for saving to file that can be read back in with

@@ -7,7 +7,7 @@
 table_column_attr(x, attr = "source", useNA = "always")
 }
 \arguments{
-\item{x}{data.frame or similar: Input data set.}
+\item{x}{tabular data: Input data set.}
 
 \item{attr}{Character: Attribute to get}
 

@@ -7,7 +7,7 @@
 outcome(x)
 }
 \arguments{
-\item{x}{data.frame or similar.}
+\item{x}{tabular data.}
 }
 \value{
 Vector containing the last column of \code{x}.

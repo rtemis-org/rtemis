@@ -229,7 +229,7 @@ matchcases <- function(
 
 #' Index columns by attribute name & value
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #' @param name Character: Name of attribute.
 #' @param value Character: Value of attribute.
 #' @param exact Logical: Passed to `attr` when retrieving attribute value. If `TRUE`, attribute
@@ -266,7 +266,7 @@ index_col_by_attr <- function(x, name, value, exact = TRUE) {
 
 #' Tabulate column attributes
 #'
-#' @param x data.frame or similar: Input data set.
+#' @param x tabular data: Input data set.
 #' @param attr Character: Attribute to get
 #' @param useNA Character: Passed to `table`
 #'
@@ -303,7 +303,7 @@ table_column_attr <- function(x, attr = "source", useNA = "always") {
 
 #' List column names by class
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #' @param sorted Logical: If TRUE, sort the output
 #' @param item_format Function: Function to format each item
 #' @param maxlength Integer: Maximum number of items to print

@@ -5,12 +5,55 @@
 # References
 # S7 generics: https://rconsortium.github.io/S7/articles/generics-methods.html
 
-# --- S3 Classes for S7 ----------------------------------------------------------------------------
+# %% --- S3 Classes for S7 ----------------------------------------------------------------------------
 class_data.table <- new_S3_class("data.table")
 class_lgb.Booster <- new_S3_class("lgb.Booster")
+# All internal methods should support data.frame, data.table, tbl_df
 class_tabular <- new_union(class_data.frame, class_data.table)
+# Supervised learning model classes
+class_glm <- new_S3_class("glm")
+class_gam <- new_S3_class("gam")
+class_glmnet <- new_S3_class("glmnet")
+class_cv.glmnet <- new_S3_class("cv.glmnet")
+class_stepfun <- new_S3_class("stepfun") # Isotonic regression
+class_rpart <- new_S3_class("rpart")
+class_ranger <- new_S3_class("ranger")
+class_svm <- new_S3_class("svm")
+class_tabnet_fit <- new_S3_class("tabnet_fit")
 
-# --- Generics -------------------------------------------------------------------------------------
+
+# %% --- Generics -------------------------------------------------------------------------------------
+# %% repr ----
+#' String representation
+#'
+#' @param x rtemis object.
+#'
+#' @return Character string representation of the object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+repr <- new_generic("repr", "x")
+
+
+# %% inspect ----
+#' Inspect rtemis object
+#'
+#' @param x R object to inspect.
+#'
+#' @return Called for side effect of printing information to console; returns character string
+#' invisibly.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' inspect(iris)
+inspect <- new_generic("inspect", "x", function(x) {
+  S7_dispatch()
+}) # /rtemis::inspect
+
+
 # %% preprocess ----
 #' @name
 #' preprocess
@@ -61,82 +104,118 @@ class_tabular <- new_union(class_data.frame, class_data.table)
 preprocess <- new_generic("preprocess", c("x", "config"))
 
 
-# %% train ----
-#' @name
-#' train
-#'
-#' @title
-#' Train Supervised Learning Models
+# %% train_super ----
+#' Train supervised learning model (internal)
 #'
 #' @description
-#' Preprocess, tune, train, and test supervised learning models in a single call
-#' using nested resampling.
+#' Internal S7 generic that dispatches algorithm-specific training based on
+#' `Hyperparameters` class. Called by `train()`.
 #'
-#' @details
-#' **Online documentation**
+#' @param hyperparameters `Hyperparameters` object: Algorithm-specific hyperparameters.
+#' @param x tabular data: Training set.
+#' @param weights Optional Numeric vector: Case weights.
+#' @param dat_validation Optional tabular data: Validation set for algorithms that support early stopping.
+#' @param verbosity Integer: Verbosity level.
 #'
-#' See [rdocs.rtemis.org/train](https://rdocs.rtemis.org/train) for detailed documentation.
-#'
-#' **Binary Classification**
-#'
-#' For binary classification, the outcome should be a factor where the 2nd level
-#' corresponds to the positive class.
-#'
-#' **Resampling**
-#'
-#' Note that you should not use an outer resampling method with
-#' replacement if you will also be using an inner resampling (for tuning).
-#' The duplicated cases from the outer resampling may appear both in the
-#' training and test sets of the inner resamples, leading to underestimated
-#' test error.
-#'
-#' **Reproducibility**
-#'
-#' If using ***outer resampling***, you can set a seed when defining `outer_resampling_config`, e.g.
-#' ```r
-#' outer_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)
-#' ```
-#' If using ***tuning with inner resampling***, you can set a seed when defining `tuner_config`,
-#' e.g.
-#' ```r
-#' tuner_config = setup_GridSearch(
-#'   resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold", seed = 2027L)
-#' )
-#' ```
-#'
-#' **Parallelization**
-#'
-#' There are three levels of parallelization that may be used during training:
-#'
-#' 1. Algorithm training (e.g. a parallelized learner like LightGBM)
-#' 2. Tuning (inner resampling, where multiple resamples can be processed in parallel)
-#' 3. Outer resampling (where multiple outer resamples can be processed in parallel)
-#'
-#' The `train()` function will automatically manage parallelization depending
-#' on:
-#' - The number of workers specified by the user using `n_workers`
-#' - Whether the training algorithm supports parallelization itself
-#' - Whether hyperparameter tuning is needed
-#'
-#' @author EDG
-#' @export
-# Examples are provided in the method-specific documentation.
-train <- new_generic("train", "x")
-
-#' String representation
-#'
-#' @param x rtemis object.
-#'
-#' @return Character string representation of the object.
+#' @return Algorithm-specific fitted model object.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-repr <- new_generic("repr", "x")
+train_super <- new_generic(
+  "train_super",
+  "hyperparameters",
+  function(
+    hyperparameters,
+    x,
+    weights = NULL,
+    dat_validation = NULL,
+    verbosity = 1L,
+    ...
+  ) {
+    S7_dispatch()
+  }
+) # /rtemis::train_super
 
+
+# %% predict_super ----
+#' Predict from supervised learning model (internal)
+#'
+#' @description
+#' Internal S7 generic that dispatches algorithm-specific prediction based on
+#' model class.
+#'
+#' @param model Fitted model object.
+#' @param newdata tabular data: New data for prediction.
+#' @param type Character: Type of supervised learning ("Classification" or "Regression").
+#' @param ... Additional arguments (not currently used).
+#'
+#' @return Predictions (class probabilities for classification, numeric for regression).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+predict_super <- new_generic(
+  "predict_super",
+  "model",
+  function(model, newdata, type = NULL, ...) {
+    S7_dispatch()
+  }
+) # /rtemis::predict_super
+
+
+# %% varimp_super ----
+#' Get variable importance (internal)
+#'
+#' @description
+#' Internal S7 generic that dispatches algorithm-specific variable importance
+#' extraction based on model class.
+#'
+#' @param object Fitted model object.
+#'
+#' @return Numeric vector of variable importance scores (named by feature).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+varimp_super <- new_generic(
+  "varimp_super",
+  "model",
+  function(model, ...) {
+    S7_dispatch()
+  }
+) # /rtemis::varimp_super
+
+
+# %% se_super ----
+#' Get standard errors of predictions (internal)
+#'
+#' @description
+#' Internal S7 generic for extracting standard errors from regression models.
+#'
+#' @param object Fitted model object.
+#' @param newdata tabular data: New data for prediction.
+#'
+#' @return Numeric vector of standard errors.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+se_super <- new_generic(
+  "se_super",
+  "model",
+  function(model, newdata) {
+    S7_dispatch()
+  }
+)
+
+
+# %% se ----
 # Standard error of the fit.
 se <- new_generic("se", "x")
 
+
+# %% desc ----
 #' Short description for inline printing.
 #' This is like `repr` for single-line descriptions.
 #'
@@ -146,6 +225,7 @@ se <- new_generic("se", "x")
 desc <- new_generic("desc", "x")
 
 
+# %% get_metric ----
 #' Get metric
 #'
 #' @author EDG
@@ -154,9 +234,10 @@ desc <- new_generic("desc", "x")
 get_metric <- new_generic("get_metric", "x")
 
 
+# %% validate_hyperparameters ----
 #' Check hyperparameters given training data
 #'
-#' @param x data.frame or similar: Training data.
+#' @param x tabular data: Training data.
 #' @param hyperparameters `Hyperparameters` to check.
 #'
 validate_hyperparameters <- new_generic(
@@ -168,6 +249,7 @@ validate_hyperparameters <- new_generic(
 ) # /rtemis::validate_hyperparameters
 
 
+# %% plot_metric ----
 #' Plot Metric
 #'
 #' @description
@@ -184,6 +266,7 @@ validate_hyperparameters <- new_generic(
 plot_metric <- new_generic("plot_metric", "x")
 
 
+# %% plot_roc ----
 #' Plot ROC curve
 #'
 #' @description
@@ -205,6 +288,7 @@ plot_metric <- new_generic("plot_metric", "x")
 plot_roc <- new_generic("plot_roc", "x")
 
 
+# %% plot_varimp ----
 #' Plot Variable Importance
 #'
 #' @description
@@ -237,6 +321,7 @@ plot_roc <- new_generic("plot_roc", "x")
 plot_varimp <- new_generic("plot_varimp", "x")
 
 
+# %% plot_true_pred ----
 #' Plot True vs. Predicted Values
 #'
 #' @description
@@ -259,6 +344,7 @@ plot_varimp <- new_generic("plot_varimp", "x")
 plot_true_pred <- new_generic("plot_true_pred", "x")
 
 
+# %% plot_manhattan ----
 #' Manhattan plot
 #'
 #' @description
@@ -274,6 +360,7 @@ plot_true_pred <- new_generic("plot_true_pred", "x")
 plot_manhattan <- new_generic("plot_manhattan", "x")
 
 
+# %% describe ----
 #' Describe rtemis object
 #'
 #' @description
@@ -293,6 +380,7 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 describe <- new_generic("describe", "x")
 
 
+# %% present ----
 #' Present rtemis object
 #'
 #' @description
@@ -313,6 +401,7 @@ describe <- new_generic("describe", "x")
 present <- new_generic("present", "x")
 
 
+# %% get_hyperparams_need_tuning ----
 #' Get hyperparameters that need tuning.
 #'
 #' @return Character vector of hyperparameter names that need tuning.
@@ -323,6 +412,7 @@ present <- new_generic("present", "x")
 get_hyperparams_need_tuning <- new_generic("get_hyperparams_need_tuning", "x")
 
 
+# %% get_hyperparams ----
 #' Get hyperparameters.
 #'
 #' @author EDG
@@ -331,6 +421,7 @@ get_hyperparams_need_tuning <- new_generic("get_hyperparams_need_tuning", "x")
 get_hyperparams <- new_generic("get_hyperparams", c("x", "param_names"))
 
 
+# %% extract_rules ----
 #' Extract rules from a model.
 #'
 #' @author EDG
@@ -339,6 +430,7 @@ get_hyperparams <- new_generic("get_hyperparams", c("x", "param_names"))
 extract_rules <- new_generic("extract_rules", "x")
 
 
+# %% get_factor_levels ----
 #' @name get_factor_levels
 #'
 #' @title
@@ -347,7 +439,7 @@ extract_rules <- new_generic("extract_rules", "x")
 #' @usage
 #' get_factor_levels(x)
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #'
 #' @return Named list of factor levels. Names correspond to column names.
 #'
@@ -371,7 +463,7 @@ method(get_factor_levels, class_data.table) <- function(x) {
 }
 
 
-# %% to_toml
+# %% to_toml ----
 #' Convert to TOML
 #'
 #' @author EDG
@@ -380,7 +472,7 @@ method(get_factor_levels, class_data.table) <- function(x) {
 to_toml <- new_generic("to_toml", "x")
 
 
-# %% to_yaml
+# %% to_yaml ----
 #' Convert to YAML
 #'
 #' @author EDG
@@ -389,8 +481,7 @@ to_toml <- new_generic("to_toml", "x")
 to_yaml <- new_generic("to_yaml", "x")
 
 
-# %% write_toml
-
+# %% write_toml ----
 #' @name
 #' write_toml
 #'
@@ -408,9 +499,10 @@ write_toml <- new_generic(
 ) # /rtemis::write_toml
 
 
+# %% inc ----
 #' Select (include) columns by character or numeric vector.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #' @param idx Character or numeric vector: Column names or indices to include.
 #'
 #' @return data.frame, tibble, or data.table.
@@ -426,9 +518,10 @@ inc <- new_generic("inc", "x", function(x, idx) {
 })
 
 
+# %% exc ----
 #' Exclude columns by character or numeric vector.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #' @param idx Character or numeric vector: Column names or indices to exclude.
 #'
 #' @return data.frame, tibble, or data.table.
@@ -477,6 +570,7 @@ method(exc, list(class_data.table, class_double)) <- function(x, idx) {
 }
 
 
+# %% outcome_name ----
 #' Get the name of the last column
 #'
 #' @details
@@ -484,7 +578,7 @@ method(exc, list(class_data.table, class_double)) <- function(x, idx) {
 #' where, by convention, the last column is the outcome variable and all other columns
 #' are features.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #'
 #' @return Name of the last column.
 #'
@@ -502,6 +596,7 @@ method(outcome_name, class_data.frame) <- function(x) {
 } # /rtemis::outcome_name
 
 
+# %% outcome ----
 #' Get the outcome as a vector
 #'
 #' Returns the last column of `x`, which is by convention the outcome variable.
@@ -511,7 +606,7 @@ method(outcome_name, class_data.frame) <- function(x) {
 #' where, by convention, the last column is the outcome variable and all other columns
 #' are features.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #'
 #' @return Vector containing the last column of `x`.
 #'
@@ -529,18 +624,19 @@ method(outcome, class_data.frame) <- function(x) {
 }
 
 
-#' Get features
+# %% features ----
+#' Get features from tabular data
 #'
-#' Returns all columns except the last one
+#' Returns all columns except the last one.
 #'
 #' @details
-#' This applied to tabular datasets used for supervised learning in rtemis,
+#' This can be applied to tabular datasets used for supervised learning in \pkg{rtemis},
 #' where, by convention, the last column is the outcome variable and all other columns
 #' are features.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data: Input data to get features from.
 #'
-#' @return object same as input, after removing the last column.
+#' @return Object of the same class as the input, after removing the last column.
 #'
 #' @author EDG
 #' @export
@@ -552,11 +648,21 @@ features <- new_generic("features", "x", function(x) {
 }) # /rtemis::features
 
 method(features, class_data.frame) <- function(x) {
-  stopifnot(NCOL(x) > 1)
-  x[, 1:(NCOL(x) - 1), drop = FALSE]
+  if (NCOL(x) < 2) {
+    cli::cli_abort("Input must have at least 2 columns.")
+  }
+  x[, -NCOL(x), drop = FALSE]
 }
 
+method(features, class_data.table) <- function(x) {
+  if (NCOL(x) < 2) {
+    cli::cli_abort("Input must have at least 2 columns.")
+  }
+  x[, -NCOL(x), with = FALSE]
+} # /rtemis::features.class_data.table
 
+
+# %% feature_names ----
 #' Get feature names
 #'
 #' Returns all column names except the last one
@@ -566,7 +672,7 @@ method(features, class_data.frame) <- function(x) {
 #' where, by convention, the last column is the outcome variable and all other columns
 #' are features.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #'
 #' @return Character vector of feature names.
 #'
@@ -580,10 +686,14 @@ feature_names <- new_generic("feature_names", "x", function(x) {
 }) # /rtemis::feature_names
 
 method(feature_names, class_data.frame) <- function(x) {
-  names(x)[1:(NCOL(x) - 1)]
-}
+  if (NCOL(x) < 2) {
+    cli::cli_abort("Input must have at least 2 columns.")
+  }
+  names(x)[-NCOL(x)]
+} # /rtemis::feature_names.class_data.frame
 
 
+# %% check_factor_levels ----
 #' Check factor levels
 #'
 #' @author EDG
@@ -592,6 +702,7 @@ method(feature_names, class_data.frame) <- function(x) {
 check_factor_levels <- new_generic("check_factor_levels", c("x"))
 
 
+# %% get_factor_names ----
 #' Get factor names
 #'
 #' @details
@@ -599,7 +710,7 @@ check_factor_levels <- new_generic("check_factor_levels", c("x"))
 #' where, by convention, the last column is the outcome variable and all other columns
 #' are features.
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #'
 #' @return Character vector of factor names.
 #'
@@ -617,6 +728,7 @@ method(get_factor_names, class_data.frame) <- function(x) {
 }
 
 
+# %% calibrate ----
 #' Calibrate `Classification` & `ClassificationRes` Models
 #'
 #' @description
@@ -699,6 +811,37 @@ calibrate <- new_generic(
 ) # /rtemis::calibrate
 
 
+# %% freeze ----
+#' Freeze Hyperparameters
+#'
+#' @param x `Hyperparameters` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+freeze <- new_generic("freeze", "x")
+
+
+# %% lock ----
+#' Lock Hyperparameters
+#'
+#' @param x `Hyperparameters` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lock <- new_generic("lock", "x")
+
+
+# %% needs_tuning ----
+#' needs_tuning
+#'
+#' @keywords internal
+#' @noRd
+needs_tuning <- new_generic("needs_tuning", "x")
+
+
+# %% get_factor_levels ----
 #' @name get_factor_levels
 #'
 #' @title
@@ -707,7 +850,7 @@ calibrate <- new_generic(
 #' @usage
 #' get_factor_levels(x)
 #'
-#' @param x data.frame or similar.
+#' @param x tabular data.
 #'
 #' @return Named list of factor levels. Names correspond to column names.
 #'
@@ -732,8 +875,20 @@ method(get_factor_levels, class_data.table) <- function(x) {
 }
 
 
-# --- Custom S7 validators -------------------------------------------------------------------------
+# %% is_tuned ----
+is_tuned <- new_generic("is_tuned", "x")
 
+
+# %% get_tuned_status ----
+get_tuned_status <- new_generic("get_tuned_status", "x")
+
+
+# %% one_hot ----
+one_hot <- new_generic("one_hot", "x")
+
+
+# --- Custom S7 validators -------------------------------------------------------------------------
+# %% scalar_dbl ----
 #' Scalar double
 #'
 #' @author EDG
@@ -753,6 +908,7 @@ scalar_dbl <- S7::new_property(
 ) # /rtemis::scalar_dbl
 
 
+# %% scalar_dbl_01excl ----
 #' Scalar double between 0 and 1, exclusive
 #'
 #' @author EDG
@@ -772,6 +928,7 @@ scalar_dbl_01excl <- S7::new_property(
 ) # /rtemis::scalar_dbl_01excl
 
 
+# %% scalar_dbl_01incl ----
 #' Scalar double between 0 and 1, inclusive
 #'
 #' @author EDG
@@ -791,6 +948,7 @@ scalar_dbl_01incl <- S7::new_property(
 ) # /rtemis::scalar_dbl_01incl
 
 
+# %% scalar_int ----
 #' Scalar integer
 #'
 #' @author EDG
@@ -808,6 +966,7 @@ scalar_int <- S7::new_property(
 ) # /rtemis::scalar_int
 
 
+# %% scalar_int_pos ----
 #' Scalar positive integer
 #'
 #' @author EDG
@@ -827,6 +986,7 @@ scalar_int_pos <- S7::new_property(
 ) # /rtemis::scalar_int_pos
 
 
+# %% preprocessed ----
 #' Get preprocessed data from `Preprocessor`.
 #'
 #' Returns the preprocessed data from a `Preprocessor` object.
@@ -887,8 +1047,6 @@ S7_to_list <- function(x) {
 } # /rtemis::S7_to_list
 
 
-# %% toml_to_list ----
-
 # %% toml_empty_to_null ----
 toml_empty_to_null <- function(x) {
   if (!is.list(x)) {
@@ -912,8 +1070,8 @@ toml_empty_to_null <- function(x) {
   lapply(x, toml_empty_to_null)
 } # /rtemis::toml_empty_to_null
 
-# %% write_lines
 
+# %% write_lines ----
 #' Write lines to file
 #'
 #' Normalizes path, check if directory exists, creates it if necessary,

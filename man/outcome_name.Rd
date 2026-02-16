@@ -7,7 +7,7 @@
 outcome_name(x)
 }
 \arguments{
-\item{x}{data.frame or similar.}
+\item{x}{tabular data.}
 }
 \value{
 Name of the last column.

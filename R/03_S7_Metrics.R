@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
-# Metrics ----
+# %% Metrics ----
 #' @title Metrics
 #'
 #' @description
@@ -21,24 +21,30 @@ Metrics <- new_class(
   )
 ) # /rtemis::Metrics
 
+
+# %% `$`.Metrics ----
 # Make Metrics@metrics `$`-accessible
 method(`$`, Metrics) <- function(x, name) {
   x@metrics[[name]]
 }
 
+
+# %% `.DollarNames`.Metrics ----
 # `$`-autocomplete Metrics@metrics
 method(`.DollarNames`, Metrics) <- function(x, pattern = "") {
   all_names <- names(x@metrics)
   grep(pattern, all_names, value = TRUE)
 }
 
+
+# %% `[[`.Metrics ----
 # Make Metrics@metrics `[[`-accessible
 method(`[[`, Metrics) <- function(x, name) {
   x@metrics[[name]]
 }
 
 
-# RegressionMetrics ----
+# %% RegressionMetrics ----
 #' @title RegressionMetrics
 #'
 #' @description
@@ -70,6 +76,8 @@ RegressionMetrics <- new_class(
   }
 ) # /rtemis::RegressionMetrics
 
+
+# %% repr.RegressionMetrics ----
 # Show RegressionMetrics ----
 method(repr, RegressionMetrics) <- function(
   x,
@@ -100,7 +108,7 @@ method(repr, RegressionMetrics) <- function(
 } # /rtemis::repr.RegressionMetrics
 
 
-# Print RegressionMetrics ----
+# %% print.RegressionMetrics ----
 method(print, RegressionMetrics) <- function(
   x,
   pad = 0L,
@@ -112,7 +120,7 @@ method(print, RegressionMetrics) <- function(
 } # /rtemis::print.RegressionMetrics
 
 
-# ClassificationMetrics ----
+# %% ClassificationMetrics ----
 #' @title ClassificationMetrics
 #'
 #' @description
@@ -146,7 +154,7 @@ ClassificationMetrics <- new_class(
 ) # /rtemis::ClassificationMetrics
 
 
-# repr ClassificationMetrics ----
+# %% repr.ClassificationMetrics ----
 method(repr, ClassificationMetrics) <- function(
   x,
   decimal_places = 3L,
@@ -222,7 +230,7 @@ method(repr, ClassificationMetrics) <- function(
 } # /rtemis::repr.ClassificationMetrics
 
 
-# Print ClassificationMetrics ----
+# %% print.ClassificationMetrics ----
 method(print, ClassificationMetrics) <- function(
   x,
   decimal_places = 3,
@@ -240,7 +248,7 @@ method(print, ClassificationMetrics) <- function(
 } # /rtemis::print.ClassificationMetrics
 
 
-# MetricsRes ----
+# %% MetricsRes ----
 #' @title MetricsRes
 #'
 #' @description
@@ -261,7 +269,7 @@ MetricsRes <- new_class(
 ) # /rtemis::MetricsRes
 
 
-# Show MetricsRes ----
+# %% repr.MetricsRes ----
 method(repr, MetricsRes) <- function(
   x,
   decimal_places = 3L,
@@ -309,7 +317,7 @@ method(repr, MetricsRes) <- function(
 } # /rtemis::repr.MetricsRes
 
 
-# Print MetricsRes ----
+# %% print.MetricsRes ----
 method(print, MetricsRes) <- function(
   x,
   decimal_places = 3L,
@@ -322,8 +330,7 @@ method(print, MetricsRes) <- function(
 } # /rtemis::print.MetricsRes
 
 
-# RegressionMetricsRes ----
-
+# %% RegressionMetricsRes ----
 #' @author EDG
 #' @noRd
 RegressionMetricsRes <- new_class(
@@ -344,6 +351,7 @@ RegressionMetricsRes <- new_class(
     )
   }
 ) # /rtemis::RegressionMetricsRes
+
 
 #' @author EDG
 #' @noRd
@@ -376,7 +384,7 @@ ClassificationMetricsRes <- new_class(
 ) # /rtemis::ClassificationMetricsRes
 
 
-# %% repr for CalibratedClassification ----
+# %% repr.CalibratedClassification ----
 #' @param x `ClassificationMetrics` before calibration.
 #' @param x_cal `ClassificationMetrics` after calibration.
 #'
@@ -477,7 +485,7 @@ repr_CalibratedClassificationMetrics <- function(
 } # /rtemis::repr_CalibratedClassification
 
 
-# %% repr for CalibratedClassificationRes ----
+# %% repr.CalibratedClassificationResMetrics ----
 #' @param x `ClassificationMetricsRes` before calibration.
 #' @param x_cal `ClassificationMetricsRes` after calibration.
 #'
