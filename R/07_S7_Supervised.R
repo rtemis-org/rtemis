@@ -108,11 +108,42 @@ Supervised <- new_class(
 #' @param newdata data.frame or similar: New data to predict.
 #'
 #' @noRd
-method(predict, Supervised) <- function(object, newdata, ...) {
+method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
   check_inherits(newdata, "data.frame")
-  do_call(
-    predict_super,
-    list(model = object@model, newdata = newdata, type = object@type)
+
+  # Apply preprocessing if preprocessor is available
+  if (!is.null(object@preprocessor)) {
+    newdata <- preprocess(
+      newdata,
+      object@preprocessor,
+      verbosity = verbosity
+    ) |>
+      preprocessed()
+  }
+  # After preprocessing, enforce strict predictor names and order
+  if (!identical(names(newdata), object@xnames)) {
+    extra_cols <- setdiff(names(newdata), object@xnames)
+    missing_cols <- setdiff(object@xnames, names(newdata))
+    cli::cli_abort(c(
+      "x" = "Predictor names and order in newdata must exactly match training data.",
+      "i" = "Expected {length(object@xnames)} columns; got {NCOL(newdata)}.",
+      "i" = if (length(extra_cols) > 0L) {
+        paste0("Unexpected columns: ", paste(extra_cols, collapse = ", "))
+      } else {
+        "Unexpected columns: none."
+      },
+      "i" = if (length(missing_cols) > 0L) {
+        paste0("Missing columns: ", paste(missing_cols, collapse = ", "))
+      } else {
+        "Missing columns: none."
+      }
+    ))
+  }
+  predict_super(
+    model = object@model,
+    newdata = newdata,
+    type = object@type,
+    ...
   )
 } # /rtemis::predict.Supervised
 
@@ -1268,10 +1299,7 @@ method(predict, SupervisedRes) <- function(
   predicted <- sapply(
     object@models,
     function(mod) {
-      do_call(
-        predict_super,
-        list(model = mod@model, newdata = newdata, type = object@type)
-      )
+      predict(mod, newdata = newdata)
     }
   ) # -> data.frame n cases x n resamples
 
