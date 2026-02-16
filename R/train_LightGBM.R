@@ -160,6 +160,8 @@ method(predict_super, class_lgb.Booster) <- function(
   check_inherits(newdata, "data.frame")
 
   # Preprocess ----
+  # Ref: Categorical Feature Support in LightGBM Docs:
+  # (https://lightgbm.readthedocs.io/en/latest/Advanced-Topics.html#categorical-feature-support)
   newdata <- as.matrix(
     preprocess(
       newdata,
