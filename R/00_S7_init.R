@@ -875,26 +875,12 @@ method(get_factor_levels, class_data.table) <- function(x) {
 }
 
 
-# %% is_tuned.Hyperparameters ----
+# %% is_tuned ----
 is_tuned <- new_generic("is_tuned", "x")
-method(is_tuned, Hyperparameters) <- function(x) {
-  x@tuned == 1L
-} # /is_tuned.Hyperparameters
 
 
-# %% get_tuned_status.Hyperparameters ----
+# %% get_tuned_status ----
 get_tuned_status <- new_generic("get_tuned_status", "x")
-method(get_tuned_status, Hyperparameters) <- function(x) {
-  if (length(x@tunable_hyperparameters) > 0) {
-    if (any(sapply(x@hyperparameters[x@tunable_hyperparameters], length) > 1)) {
-      0L
-    } else {
-      -1L
-    }
-  } else {
-    -2L
-  }
-} # /rtemis::get_tuned_status.Hyperparameters
 
 
 # %% one_hot ----

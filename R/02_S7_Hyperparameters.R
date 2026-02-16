@@ -222,6 +222,26 @@ method(print, Hyperparameters) <- function(x, output_type = NULL, ...) {
 } # /rtemis::print.Hyperparameters
 
 
+# %% is_tuned.Hyperparameters ----
+method(is_tuned, Hyperparameters) <- function(x) {
+  x@tuned == 1L
+} # /is_tuned.Hyperparameters
+
+
+# %% get_tuned_status.Hyperparameters ----
+method(get_tuned_status, Hyperparameters) <- function(x) {
+  if (length(x@tunable_hyperparameters) > 0) {
+    if (any(sapply(x@hyperparameters[x@tunable_hyperparameters], length) > 1)) {
+      0L
+    } else {
+      -1L
+    }
+  } else {
+    -2L
+  }
+} # /rtemis::get_tuned_status.Hyperparameters
+
+
 # %% update.Hyperparameters ----
 #' Update Hyperparameters
 #'
