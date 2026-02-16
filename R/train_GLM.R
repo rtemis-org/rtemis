@@ -104,7 +104,7 @@ method(varimp_super, class_glm) <- function(
   if (type == "coefficients") {
     coef(model)
   } else if (type == "p-value") {
-    summary(model)[["coefficients"]][, "Pr(>|t|)"]
+    summary(model)[["coefficients"]][, 4]
   }
 } # /rtemis::varimp_super.glm
 
