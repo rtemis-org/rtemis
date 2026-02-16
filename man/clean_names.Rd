@@ -4,10 +4,12 @@
 \alias{clean_names}
 \title{Clean names}
 \usage{
-clean_names(x, prefix_digits = "V_")
+clean_names(x, sep = "_", prefix_digits = "V_")
 }
 \arguments{
 \item{x}{Character vector.}
+
+\item{sep}{Character: Separator to replace symbols with.}
 
 \item{prefix_digits}{Character: prefix to add to names beginning with a
 digit. Set to NA to skip.}
@@ -23,6 +25,7 @@ underscores, ensuring no name begins or ends with a symbol
 x <- c("Patient ID", "_Date-of-Birth", "SBP (mmHg)")
 x
 clean_names(x)
+clean_names(x, sep = " ")
 }
 \author{
 EDG

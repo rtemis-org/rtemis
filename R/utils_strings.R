@@ -250,6 +250,7 @@ labelify <- function(
 #' underscores, ensuring no name begins or ends with a symbol
 #'
 #' @param x Character vector.
+#' @param sep Character: Separator to replace symbols with.
 #' @param prefix_digits Character: prefix to add to names beginning with a
 #' digit. Set to NA to skip.
 #'
@@ -262,36 +263,60 @@ labelify <- function(
 #' x <- c("Patient ID", "_Date-of-Birth", "SBP (mmHg)")
 #' x
 #' clean_names(x)
-clean_names <- function(x, prefix_digits = "V_") {
-  xc <- gsub("[^[:alnum:]]{1,}", "_", x)
-  xc <- gsub("^_|_$", "", xc)
+#' clean_names(x, sep = " ")
+clean_names <- function(x, sep = "_", prefix_digits = "V_") {
+  xc <- gsub("[^[:alnum:]]{1,}", sep, x)
+  xc <- gsub(paste0("^", sep, "+|", sep, "+$"), "", xc)
   if (!is.na(prefix_digits)) {
     sn_idi <- grep("^[0-9]", xc)
     xc[sn_idi] <- paste0(prefix_digits, xc[sn_idi])
   }
   xc
-}
+} # /rtemis::clean_names
 
 
 #' Clean column names
 #'
 #' Clean column names by replacing all spaces and punctuation with a single underscore
 #'
-#' @param x Character vector or matrix with colnames or any object with `names()` method.
+#' @param x Character vector OR any object with `colnames()` method, like matrix, data.frame,
+#' data.table, tibble, etc.
+#' @param lowercase Logical: If TRUE, convert to lowercase.
+#' @param uppercase Logical: If TRUE, convert to uppercase.
+#' @param titlecase Logical: If TRUE, convert to Title Case.
 #'
-#' @return Character vector.
+#' @return Character vector with cleaned names.
 #'
 #' @author EDG
 #' @export
 #'
 #' @examples
-#' clean_colnames(iris)
-clean_colnames <- function(x) {
-  if (!inherits(x, "character")) {
-    x <- if (inherits(x, "matrix")) colnames(x) else names(x)
+#' clean_colnames(iris, lowercase = FALSE, uppercase = FALSE, titlecase = FALSE)
+clean_colnames <- function(
+  x,
+  lowercase = FALSE,
+  uppercase = FALSE,
+  titlecase = FALSE
+) {
+  # Check arguments: only one of lowercase, uppercase, or titlecase can be TRUE
+  if (sum(c(lowercase, uppercase, titlecase)) > 1) {
+    cli::cli_abort(
+      "Only one of {.arg lowercase}, {.arg uppercase}, or {.arg titlecase} can be TRUE."
+    )
   }
-  clean_names(x)
-}
+  if (!inherits(x, "character")) {
+    x <- colnames(x)
+  }
+  if (lowercase) {
+    clean_names(tolower(x))
+  } else if (uppercase) {
+    clean_names(toupper(x))
+  } else if (titlecase) {
+    gsub(" ", "_", tools::toTitleCase(clean_names(x, sep = " ")))
+  } else {
+    clean_names(x)
+  }
+} # /rtemis::clean_colnames
 
 
 #' Force plain text when using `message()`
