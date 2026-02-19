@@ -73,6 +73,7 @@ color_op <- function(col, fn = c("invert", "mean"), space = c("HSV", "RGB")) {
   }
 } # /rtemis::color_op
 
+
 #' Squared Color Distance
 #'
 #' Get the squared RGB distance between two colors
@@ -95,6 +96,7 @@ color_sqdist <- function(x, y) {
 
   sum((x.rgb - y.rgb)^2)
 } # /rtemis::color_sqdist
+
 
 #' Order colors
 #'
@@ -126,6 +128,7 @@ color_order <- function(
   }
   c(out, x)
 } # /rtemis::color_order
+
 
 #' Color to Grayscale
 #'
@@ -159,6 +162,7 @@ col2grayscale <- function(x, what = c("color", "decimal")) {
   }
 } # /rtemis::col2grayscale
 
+
 #' Invert Color in RGB space
 #'
 #' @param x Color, vector
@@ -166,7 +170,8 @@ col2grayscale <- function(x, what = c("color", "decimal")) {
 #' @return Inverted colors using hexadecimal notation `#RRGGBBAA`.
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 #'
 #' @examples
 #' cols <- c("red", "green", "blue")
@@ -195,6 +200,7 @@ color_invertRGB <- function(x) {
   invertedl
 } # /rtemis::color_invertRGB
 
+
 #' Fade color towards target
 #'
 #' @param x Color source
@@ -205,7 +211,8 @@ color_invertRGB <- function(x) {
 #' @return Color in hex notation
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 #'
 #' @examples
 #' previewcolor(c("red", color_fade("red", "blue", .5), "blue"))
@@ -216,6 +223,7 @@ color_fade <- function(x, to = "#000000", pct = .5) {
   colf <- (col + d) / 255
   rgb(colf[1], colf[2], colf[3], colf[4])
 }
+
 
 #' Pastelify a color (make a color more pastel)
 #'
@@ -228,7 +236,8 @@ color_fade <- function(x, to = "#000000", pct = .5) {
 #' @return Character vector with hex codes of modified colors.
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 #'
 #' @examples
 #' \dontrun{
@@ -269,12 +278,11 @@ desaturate <- function(x, s = 0.3) {
 #' @return Character vector of hexadecimal codes.
 #'
 #' @author EDG
-#' @export
+#' @keywords internal
+#' @noRd
 #'
 #' @examples
-#' \dontrun{
 #' col2hex(c("gray50", "skyblue"))
-#' }
 col2hex <- function(color) {
   .rgb <- col2rgb(color)
   sapply(seq_along(color), function(i) {
@@ -397,18 +405,18 @@ previewcolor <- function(
   if (!is.null(filename)) {
     grDevices::pdf(filename, pdf_width, pdf_height)
   }
-  par(bg = bg, xaxs = "i", yaxs = "i", mar = mar, oma = c(0, 0, 0, 0))
+  par(bg = bg, mar = mar, oma = c(0, 0, 0, 0), xaxs = "i", yaxs = "i")
 
   # Plot ----
   plot(
     NULL,
     NULL,
+    asp = asp,
     axes = FALSE,
     xlim = xlim,
     ylim = ylim,
     xlab = NA,
-    ylab = NA,
-    asp = asp
+    ylab = NA
   )
 
   if (length(x) >= 3) {
@@ -424,16 +432,8 @@ previewcolor <- function(
   }
 
   # '- Labels ----
-  # ncolors => label_cex
-  # 100, .4
-  # 10, 1.2
-  # 4, 1.3
-  # lm(c(.4, 1.2, 1.3) ~ c(100, 10, 4))
-
   if (is.null(label_cex)) {
-    # label_cex <- max(.1, 1.30 - .02 * length(x))
     label_cex <- 1.30 - .02 * length(x)
-    # label_cex <- max(.1, 1.34167 - .01042 * length(x))
     label_cex <- 1.314869 - 0.009163 * length(x)
   }
 

@@ -380,6 +380,7 @@ Preprocessor <- new_class(
   }
 ) # /Preprocessor
 
+
 # %% repr.Preprocessor ----
 method(repr, Preprocessor) <- function(
   x,
@@ -428,7 +429,6 @@ method(`.DollarNames`, Preprocessor) <- function(x, pattern = "") {
 method(`[`, Preprocessor) <- function(x, name) {
   props(x)[[name]]
 }
-
 
 
 # %% `[[`.Preprocessor ----
