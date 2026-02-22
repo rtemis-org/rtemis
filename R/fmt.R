@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% fmt ----
 #' Text formatting
 #'
 #' Formats text with specified color, styles, and background using ANSI escape codes or HTML, with support for plain text output.
@@ -164,6 +165,7 @@ fmt <- function(
 } # /rtemis::fmt
 
 
+# %% highlight ----
 #' Highlight text
 #'
 #' A `fmt()` convenience wrapper for highlighting text.
@@ -185,6 +187,8 @@ highlight <- function(
   fmt(x, col = highlight_col, bold = TRUE, pad = pad, output_type = output_type)
 } # /rtemis::highlight
 
+
+# %% highlight2 ----
 highlight2 <- function(
   x,
   output_type = c("ansi", "html", "plain")
@@ -193,6 +197,7 @@ highlight2 <- function(
 } # /rtemis::highlight2
 
 
+# %% bold ----
 #' Make text bold
 #'
 #' A `fmt()` convenience wrapper for making text bold.
@@ -209,6 +214,8 @@ bold <- function(text, output_type = c("ansi", "html", "plain")) {
   fmt(text, bold = TRUE, output_type = output_type)
 } # /rtemis::bold
 
+
+# %% italic ----
 #' Make text italic
 #'
 #' A `fmt()` convenience wrapper for making text italic.
@@ -226,6 +233,7 @@ italic <- function(text, output_type = c("ansi", "html", "plain")) {
 } # /rtemis::italic
 
 
+# %% underline ----
 #' Make text underlined
 #'
 #' A `fmt()` convenience wrapper for making text underlined.
@@ -243,6 +251,7 @@ underline <- function(text, output_type = c("ansi", "html", "plain")) {
 } # /rtemis::underline
 
 
+# %% thin ----
 #' Make text thin/light
 #'
 #' A `fmt()` convenience wrapper for making text thin/light.
@@ -260,6 +269,7 @@ thin <- function(text, output_type = c("ansi", "html", "plain")) {
 } # /rtemis::thin
 
 
+# %% muted ----
 #' Muted text
 #'
 #' A `fmt()` convenience wrapper for making text muted.
@@ -277,6 +287,7 @@ muted <- function(x, output_type = c("ansi", "html", "plain")) {
 } # /rtemis::muted
 
 
+# %% gray ----
 #' Gray text
 #'
 #' A `fmt()` convenience wrapper for making text gray.
@@ -297,6 +308,7 @@ gray <- function(x, output_type = c("ansi", "html", "plain")) {
 } # /rtemis::gray
 
 
+# %% col256 ----
 #' Apply 256-color formatting
 #'
 #' @param text Character: Text to color
@@ -352,6 +364,7 @@ col256 <- function(
 } # /rtemis::col256
 
 
+# %% ansi256_to_hex ----
 #' Convert ANSI 256 color code to HEX
 #'
 #' @param code Integer: ANSI 256 color code (0-255).
@@ -415,10 +428,13 @@ ansi256_to_hex <- function(code) {
 } # /rtemis::ansi256_to_hex
 
 
+# %% fmt_gradient ----
 #' Gradient text
 #'
 #' @param x Character: Text to colorize.
 #' @param colors Character vector: Colors to use for the gradient.
+#' @param bold Logical: If TRUE, make text bold.
+#' @param space Character {"rgb", "Lab"}: Color space for gradient interpolation.
 #' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Text with gradient color applied.
@@ -430,6 +446,7 @@ fmt_gradient <- function(
   x,
   colors,
   bold = FALSE,
+  space = "Lab",
   output_type = c("ansi", "html", "plain")
 ) {
   output_type <- match.arg(output_type)
@@ -450,7 +467,7 @@ fmt_gradient <- function(
   # Generate gradient colors using colorRampPalette
   tryCatch(
     {
-      gradient_colors <- grDevices::colorRampPalette(colors)(
+      gradient_colors <- grDevices::colorRampPalette(colors, space = space)(
         n_chars
       )
     },
@@ -474,3 +491,78 @@ fmt_gradient <- function(
   # Combine all colored characters
   paste(gradient_chars, collapse = "")
 } # /rtemis::fmt_gradient
+
+
+# %% map_value_to_color ----
+#' Map numeric value to color
+#'
+#' Maps a numeric value to a color based on a specified range and color palette using `fmt`
+#' for formatting. Useful for visualizing numeric values in text output.
+#'
+#' @param x Numeric: Value to map to a color.
+#' @param range Numeric vector of length 2: Minimum and maximum values for mapping.
+#' @param colors Character vector: Colors to use for the gradient mapping.
+#' @param bold Logical: If TRUE, make text bold.
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
+#'
+#' @return Character: Formatted text with color corresponding to the numeric value.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+map_value_to_color <- function(
+  x,
+  range = c(0, 1),
+  colors = c("#ff9f20", "#00b2b2"),
+  space = "Lab",
+  bold = TRUE,
+  output_type = c("ansi", "html", "plain")
+) {
+  output_type <- match.arg(output_type)
+  if (output_type == "plain") {
+    return(as.character(x))
+  }
+  if (!is.numeric(x) || length(x) != 1L || is.na(x)) {
+    cli::cli_abort("`x` must be a single non-missing numeric value.")
+  }
+  if (!is.numeric(range) || length(range) != 2L || anyNA(range)) {
+    cli::cli_abort(
+      "`range` must be a numeric vector of length 2 with no missing values."
+    )
+  }
+  if (range[1] >= range[2]) {
+    cli::cli_abort("`range[1]` must be strictly less than `range[2]`.")
+  }
+  if (!is.character(colors) || length(colors) < 2L || anyNA(colors)) {
+    cli::cli_abort(
+      "`colors` must be a character vector of at least 2 non-missing colors."
+    )
+  }
+  # Check x is within range
+  if (x < range[1] || x > range[2]) {
+    cli::cli_abort(
+      "Value {x} is out of range [{range[1]}, {range[2]}]"
+    )
+  }
+
+  n_colors <- 256L
+  gradient <- tryCatch(
+    {
+      grDevices::colorRampPalette(colors, space = space)(n_colors)
+    },
+    error = function(e) {
+      cli::cli_abort("Invalid `colors` specification.")
+    }
+  )
+
+  p <- (x - range[1]) / (range[2] - range[1])
+  idx <- as.integer(round(p * (n_colors - 1L))) + 1L
+  idx <- max(1L, min(n_colors, idx))
+
+  fmt(
+    as.character(x),
+    col = gradient[idx],
+    bold = bold,
+    output_type = output_type
+  )
+} # /rtemis::map_value_to_color
