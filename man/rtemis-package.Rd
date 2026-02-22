@@ -82,7 +82,7 @@ work with \code{data.table} objects.
 Useful links:
 \itemize{
   \item \url{https://www.rtemis.org}
-  \item \url{https://rdocs.rtemis.org}
+  \item \url{https://docs.rtemis.org/r/}
   \item Report bugs at \url{https://github.com/rtemis-org/rtemis/issues}
 }
 
