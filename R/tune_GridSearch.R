@@ -440,11 +440,6 @@ tune_GridSearch <- function(
           each = n_resamples
         )
       ]
-      # lambda_by_param_combo_id <- aggregate(
-      #   lambda ~ param_combo_id,
-      #   lambda_cv2,
-      #   tuner_config[["metrics_aggregate_fn"]]
-      # )
       lambda_by_param_combo_id <- lambda_cv2[,
         lapply(.SD, get(tuner_config[["metrics_aggregate_fn"]])),
         by = param_combo_id
