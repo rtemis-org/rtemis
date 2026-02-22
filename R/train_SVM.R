@@ -164,7 +164,7 @@ method(train_super, RadialSVMHyperparameters) <- function(
   y <- outcome(x)
   x <- features(x)
   factor_index <- names(x)[which(sapply(x, is.factor))]
-  if (length(factor_index) > 0) {
+  if (length(factor_index) > 0L) {
     prp <- preprocess(
       x,
       config = setup_Preprocessor(one_hot = TRUE),

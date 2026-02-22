@@ -502,6 +502,7 @@ fmt_gradient <- function(
 #' @param x Numeric: Value to map to a color.
 #' @param range Numeric vector of length 2: Minimum and maximum values for mapping.
 #' @param colors Character vector: Colors to use for the gradient mapping.
+#' @param space Character {"rgb", "Lab"}: Color space for gradient interpolation.
 #' @param bold Logical: If TRUE, make text bold.
 #' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'

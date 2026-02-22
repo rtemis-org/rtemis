@@ -78,7 +78,7 @@ passing data to \code{train()}:
 \item Duplicate rows should be removed before resampling, so that duplicates don't end up in
 different resamples, e.g. one in training and one in test.
 \item Constant columns should be removed before resampling. A column may appear constant in a small
-resample, even if it is not constant in the full dataset. Removing it will inconsistently will
+resample, even if it is not constant in the full dataset. Removing it inconsistently will
 throw an error during prediction.
 \item All data-dependent preprocessing steps need to be performed on training data only and applied
 on validation and test data, e.g. scaling, centering, imputation.
