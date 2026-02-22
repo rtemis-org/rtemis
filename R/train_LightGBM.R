@@ -71,7 +71,9 @@ method(train_super, LightGBMHyperparameters) <- function(
     }
   }
 
-  ## Preprocess ----
+  ## Preprocess for LightGBM ----
+  # Preprocess features and outcome.
+  # Outcome will be removed from factor_index if it is a factor
   factor_index <- names(x)[which(sapply(x, is.factor))]
   if (length(factor_index) > 0) {
     prp <- preprocess(
@@ -81,7 +83,7 @@ method(train_super, LightGBMHyperparameters) <- function(
         factor2integer_startat0 = TRUE
       ),
       dat_validation = dat_validation,
-      verbosity = verbosity - 1L
+      verbosity = verbosity
     )
     if (is.null(dat_validation)) {
       x <- prp@preprocessed
@@ -90,7 +92,7 @@ method(train_super, LightGBMHyperparameters) <- function(
       dat_validation <- prp@preprocessed[["validation"]]
     }
   } else {
-    factor_index <- NULL
+    factor_index <- prp <- NULL
   }
   if (type == "Classification") {
     # remove outcomes from factor_index
@@ -138,7 +140,7 @@ method(train_super, LightGBMHyperparameters) <- function(
     verbose = verbosity - 1L
   )
   check_inherits(model, "lgb.Booster")
-  model
+  list(model = model, preprocessor = prp)
 } # /rtemis::train_super.LightGBMHyperparameters
 
 
@@ -159,22 +161,12 @@ method(predict_super, class_lgb.Booster) <- function(
   check_inherits(model, "lgb.Booster")
   check_inherits(newdata, "data.frame")
 
-  # Preprocess ----
-  # Ref: Categorical Feature Support in LightGBM Docs:
-  # (https://lightgbm.readthedocs.io/en/latest/Advanced-Topics.html#categorical-feature-support)
-  newdata <- as.matrix(
-    preprocess(
-      newdata,
-      config = setup_Preprocessor(
-        factor2integer = TRUE,
-        factor2integer_startat0 = TRUE
-      ),
-      verbosity = 0L
-    )@preprocessed
-  )
+  # Algorithm-specific preprocessing (factor2integer) is applied by
+  # predict.Supervised before calling this method. See R/train.R:420-504
+  # and R/07_S7_Supervised.R:127-135
 
   # Predict ----
-  predict(model, newdata = newdata)
+  predict(model, newdata = as.matrix(newdata))
 } # /rtemis::predict_super.lgb.Booster
 
 

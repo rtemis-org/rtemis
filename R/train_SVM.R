@@ -59,11 +59,18 @@ method(train_super, LinearSVMHyperparameters) <- function(
 
   # One-hot encode ----
   y <- outcome(x)
-  x <- preprocess(
-    features(x),
-    config = setup_Preprocessor(one_hot = TRUE),
-    verbosity = verbosity
-  )@preprocessed
+  x <- features(x)
+  factor_index <- names(x)[which(sapply(x, is.factor))]
+  if (length(factor_index) > 0L) {
+    prp <- preprocess(
+      x,
+      config = setup_Preprocessor(one_hot = TRUE),
+      verbosity = verbosity
+    )
+    x <- preprocessed(prp)
+  } else {
+    prp <- NULL
+  }
 
   # Can use class_weights or set class.weights = "inverse" in svm()
   # if (is.null(weights)) {
@@ -94,7 +101,7 @@ method(train_super, LinearSVMHyperparameters) <- function(
     probability = TRUE
   )
   check_inherits(model, "svm")
-  model
+  list(model = model, preprocessor = prp)
 } # /rtemis::train_super.LinearSVMHyperparameters
 
 
@@ -155,11 +162,18 @@ method(train_super, RadialSVMHyperparameters) <- function(
 
   # One-hot encode ----
   y <- outcome(x)
-  x <- preprocess(
-    features(x),
-    config = setup_Preprocessor(one_hot = TRUE),
-    verbosity = verbosity
-  )@preprocessed
+  x <- features(x)
+  factor_index <- names(x)[which(sapply(x, is.factor))]
+  if (length(factor_index) > 0L) {
+    prp <- preprocess(
+      x,
+      config = setup_Preprocessor(one_hot = TRUE),
+      verbosity = verbosity
+    )
+    x <- preprocessed(prp)
+  } else {
+    prp <- NULL
+  }
 
   # Can use class_weights or set class.weights = "inverse" in svm()
   # if (is.null(weights)) {
@@ -190,9 +204,11 @@ method(train_super, RadialSVMHyperparameters) <- function(
     probability = TRUE
   )
   check_inherits(model, "svm")
-  model
+  list(model = model, preprocessor = prp)
 } # /rtemis::train_super.RadialSVMHyperparameters
 
+
+# %% predict_super.svm ----
 #' Predict from SVM model
 #'
 #' @param model SVM model.
@@ -206,11 +222,6 @@ method(predict_super, class_svm) <- function(
   newdata,
   type = NULL
 ) {
-  newdata <- preprocess(
-    newdata,
-    config = setup_Preprocessor(one_hot = TRUE),
-    verbosity = 0L
-  )@preprocessed
   if (type == "Classification") {
     predicted_prob <- attr(
       predict(model, newdata = newdata, probability = TRUE),

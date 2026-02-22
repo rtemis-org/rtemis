@@ -4,19 +4,26 @@
 \alias{clean_colnames}
 \title{Clean column names}
 \usage{
-clean_colnames(x)
+clean_colnames(x, lowercase = FALSE, uppercase = FALSE, titlecase = FALSE)
 }
 \arguments{
-\item{x}{Character vector or matrix with colnames or any object with \code{names()} method.}
+\item{x}{Character vector OR any object with \code{colnames()} method, like matrix, data.frame,
+data.table, tibble, etc.}
+
+\item{lowercase}{Logical: If TRUE, convert to lowercase.}
+
+\item{uppercase}{Logical: If TRUE, convert to uppercase.}
+
+\item{titlecase}{Logical: If TRUE, convert to Title Case.}
 }
 \value{
-Character vector.
+Character vector with cleaned names.
 }
 \description{
 Clean column names by replacing all spaces and punctuation with a single underscore
 }
 \examples{
-clean_colnames(iris)
+clean_colnames(iris, lowercase = FALSE, uppercase = FALSE, titlecase = FALSE)
 }
 \author{
 EDG

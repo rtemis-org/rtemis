@@ -31,6 +31,9 @@ __out/
 # Output files from R CMD check
 /*.Rcheck/
 
+# pkgdown files
+pkgdown/
+
 # Air
 air.toml
 

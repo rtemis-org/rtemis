@@ -105,7 +105,7 @@ method(train_super, RangerHyperparameters) <- function(
     na.action = hyperparameters@hyperparameters[["na_action"]]
   )
   check_inherits(model, "ranger")
-  model
+  list(model = model, preprocessor = NULL)
 } # /rtemis::train_super.RangerHyperparameters
 
 #' Predict from Ranger model

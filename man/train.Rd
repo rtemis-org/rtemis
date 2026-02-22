@@ -69,6 +69,25 @@ using nested resampling.
 
 See \href{https://rdocs.rtemis.org/train}{rdocs.rtemis.org/train} for detailed documentation.
 
+\strong{Preprocessing}
+
+There are many different stages at which preprocessing could be applied, when running a
+supervised learning pipeline with nested resampling. Some operations are best done before
+passing data to \code{train()}:
+\itemize{
+\item Duplicate rows should be removed before resampling, so that duplicates don't end up in
+different resamples, e.g. one in training and one in test.
+\item Constant columns should be removed before resampling. A column may appear constant in a small
+resample, even if it is not constant in the full dataset. Removing it inconsistently will
+throw an error during prediction.
+\item All data-dependent preprocessing steps need to be performed on training data only and applied
+on validation and test data, e.g. scaling, centering, imputation.
+}
+
+User-defined preprocessing through \code{preprocessor_config} is applied on training set data,
+the learned parameters are stored in the returned Supervised or SupervisedRes object, and the
+preprocessing is applied on validation and test data.
+
 \strong{Binary Classification}
 
 For binary classification, the outcome should be a factor where the 2nd level

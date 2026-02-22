@@ -73,7 +73,7 @@ method(train_super, LightRFHyperparameters) <- function(
         factor2integer_startat0 = TRUE
       ),
       dat_validation = dat_validation,
-      verbosity = verbosity - 1L
+      verbosity = verbosity
     )
     if (is.null(dat_validation)) {
       x <- prp@preprocessed
@@ -82,7 +82,7 @@ method(train_super, LightRFHyperparameters) <- function(
       dat_validation <- prp@preprocessed[["validation"]]
     }
   } else {
-    factor_index <- NULL
+    factor_index <- prp <- NULL
   }
   if (type == "Classification") {
     # remove outcomes from factor_index
@@ -130,5 +130,5 @@ method(train_super, LightRFHyperparameters) <- function(
     verbose = verbosity - 2L
   )
   check_inherits(model, "lgb.Booster")
-  model
+  list(model = model, preprocessor = prp)
 } # /rtemis::train_super.LightRFHyperparameters

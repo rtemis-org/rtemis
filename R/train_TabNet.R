@@ -73,7 +73,7 @@ method(train_super, TabNetHyperparameters) <- function(
     weights = weights
   )
   check_inherits(model, "tabnet_fit")
-  model
+  list(model = model, preprocessor = prp)
 } # /rtemis::train_super.TabNetHyperparameters
 
 

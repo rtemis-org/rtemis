@@ -137,7 +137,7 @@ method(train_super, GLMNETHyperparameters) <- function(
     )
     check_inherits(model, "glmnet")
   }
-  model
+  list(model = model, preprocessor = NULL)
 } # /rtemis::train_super.GLMNETHyperparameters
 
 #' Predict from GLMNET model

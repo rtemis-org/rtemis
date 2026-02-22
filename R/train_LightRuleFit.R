@@ -147,7 +147,7 @@ method(train_super, LightRuleFitHyperparameters) <- function(
   setorder(rules_selected_formatted_coefs, -Coefficient)
 
   # LightRuleFit ----
-  LightRuleFit(
+  model <- LightRuleFit(
     model_lightgbm = mod_lgbm,
     model_glmnet = mod_glmnet,
     rules = lgbm_rules,
@@ -163,6 +163,7 @@ method(train_super, LightRuleFitHyperparameters) <- function(
       n_nonzero_rules = length(nonzero_index)
     )
   )
+  list(model = model, preprocessor = NULL)
 } # /rtemis::train_super.LightRuleFitHyperparameters
 
 

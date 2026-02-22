@@ -108,7 +108,7 @@ method(train_super, GAMHyperparameters) <- function(
     weights = weights
   )
   check_inherits(model, "gam")
-  model
+  list(model = model, preprocessor = NULL)
 } # /rtemis::train_super.GAMHyperparameters
 
 #' Predict from GAM model

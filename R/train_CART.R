@@ -72,7 +72,7 @@ method(train_super, CARTHyperparameters) <- function(
     model <- rpart::prune(model, cp = hyperparameters[["prune_cp"]])
   }
   check_inherits(model, "rpart")
-  model
+  list(model = model, preprocessor = NULL)
 } # /rtemis::train_super.CARTHyperparameters
 
 
