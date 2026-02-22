@@ -132,10 +132,10 @@ The new release includes the `draw` family of functions, the evolution of the `d
 
 ## Documentation
 
-The documentation is available at [rdocs.rtemis.org](https://rdocs.rtemis.org), which includes
+The documentation is available at [docs.rtemis.org/r](https://docs.rtemis.org/r/), which includes
 walkthroughs of main features and full API reference.
 
-[![rtemis cover](https://rdocs.rtemis.org/assets/rtemis-mlv-cover.webp)](https://rdocs.rtemis.org)
+[![rtemis cover](https://docs.rtemis.org/r/assets/docs-cover.avif)](https://docs.rtemis.org/r/)
 
 ## Ongoing work
 
