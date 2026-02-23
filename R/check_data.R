@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2022- EDG rtemis.org
 
+# %% check_data ----
 #' Check Data
 #'
 #' @param x data.frame, data.table or similar structure.
@@ -150,6 +151,8 @@ check_data <- function(
   )
 } # /rtemis::check_data
 
+
+# %% max0 ----
 #' Helper function to get max or 0
 #'
 #' @param x Numeric vector
@@ -162,6 +165,7 @@ check_data <- function(
 max0 <- function(x) max(x, 0, na.rm = TRUE)
 
 
+# %% to_html.CheckData ----
 #' Generate `CheckData` object description in HTML
 #'
 #' @param x `CheckData` object
@@ -173,7 +177,7 @@ max0 <- function(x) max(x, 0, na.rm = TRUE)
 #' @author EDG
 #' @keywords internal
 #' @noRd
-tohtml <- function(
+method(to_html, CheckData) <- function(
   x,
   name = NULL,
   css = list(
@@ -366,4 +370,4 @@ tohtml <- function(
       ";"
     )
   )
-} # /rtemis::tohtml
+} # /rtemis::to_html.CheckData
