@@ -463,6 +463,15 @@ method(get_factor_levels, class_data.table) <- function(x) {
 }
 
 
+# %% to_html ----
+#' Convert to HTML
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+to_html <- new_generic("to_html", "x")
+
+
 # %% to_toml ----
 #' Convert to TOML
 #'
