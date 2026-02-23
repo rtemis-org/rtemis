@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
+# %% train_super.CARTHyperparameters ----
 #' Train a CART decision tree
 #'
 #' Train a CART decision tree using `rpart`.
@@ -76,6 +77,7 @@ method(train_super, CARTHyperparameters) <- function(
 } # /rtemis::train_super.CARTHyperparameters
 
 
+# %% predict_super.class_rpart ----
 #' Predict from rpart model
 #'
 #' @param model rpart model.
@@ -105,6 +107,7 @@ method(predict_super, class_rpart) <- function(
 } # /rtemis::predict_super.rpart
 
 
+# %% varimp_super.class_rpart ----
 #' Get variable importance from rpart model
 #'
 #' @param model rpart model.

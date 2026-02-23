@@ -1,6 +1,6 @@
 # train_SVM.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% train_super.LinearSVMHyperparameters ----
 #' Train a Linear SVM model
@@ -238,6 +238,7 @@ method(predict_super, class_svm) <- function(
 } # /rtemis::predict_super.svm
 
 
+# %% varimp_super.class_svm ----
 #' Get coefficients from SVM model
 #'
 #' @param model SVM model.

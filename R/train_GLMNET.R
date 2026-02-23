@@ -1,21 +1,8 @@
 # train_GLMNET.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
-#' Prepare data for GLMNET
-#'
-#' @param x tabular data: Features.
-#'
-#' @return Matrix with features.
-#'
-#' @keywords internal
-#' @noRd
-preproc_GLMNET <- function(x) {
-  as.matrix(
-    model.matrix(~., x)[, -1]
-  )
-}
-
+# %% train_super.GLMNETHyperparameters ----
 #' Train a GLMNET model
 #'
 #' Train a GLMNET model using `glmnet`.
@@ -31,7 +18,6 @@ preproc_GLMNET <- function(x) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-
 method(train_super, GLMNETHyperparameters) <- function(
   hyperparameters,
   x,
@@ -208,6 +194,7 @@ method(predict_super, class_cv.glmnet) <- function(
 } # /rtemis::predict_super.class_cv.glmnet
 
 
+# %% varimp_super.class_glmnet ----
 #' Get coefficients from GLMNET model
 #'
 #' @param model glmnet model.
@@ -219,6 +206,7 @@ method(varimp_super, class_glmnet) <- function(model) {
 } # /rtemis::varimp_super.class_glmnet
 
 
+# %% varimp_super.class_cv.glmnet ----
 #' @keywords internal
 #' @noRd
 method(varimp_super, class_cv.glmnet) <- function(model) {

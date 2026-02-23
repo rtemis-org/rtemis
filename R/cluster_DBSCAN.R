@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% cluster_DBSCAN ----
 #' Density-based spatial clustering of applications with noise (DBSCAN)
 #'
 #' @keywords internal

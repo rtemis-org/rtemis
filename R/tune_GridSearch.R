@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% tune_GridSearch ----
 #' \pkg{rtemis} internal: Grid Search for Hyperparameter Tuning of \pkg{rtemis} Learners
 #'
 #' Train models using a combination of parameter values for model selection
@@ -606,7 +607,7 @@ tune_GridSearch <- function(
 } # /rtemis::tune_GridSearch
 
 
-# %% Print tuning results ----
+# %% print_tune_finding ----
 #' Print tuning results
 #'
 #' Prints set of search values and best value in the form {1, 3, 5} => 3

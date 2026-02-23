@@ -5,6 +5,7 @@
 # References
 # LightGBM parameters: https://lightgbm.readthedocs.io/en/latest/Parameters.html
 
+# %% train_super.LightRFHyperparameters ----
 #' Random Forest using LightGBM
 #'
 #' @param hyperparameters `LightRFHyperparameters` object: make using [setup_LightRF].
@@ -16,7 +17,6 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-
 method(train_super, LightRFHyperparameters) <- function(
   hyperparameters,
   x,

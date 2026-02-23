@@ -1,7 +1,8 @@
 # train_Isotonic.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
+# %% train_super.IsotonicHyperparameters ----
 #' Train an Isotonic model
 #'
 #' @details
@@ -21,7 +22,6 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-
 method(train_super, IsotonicHyperparameters) <- function(
   hyperparameters,
   x,
@@ -67,6 +67,7 @@ method(train_super, IsotonicHyperparameters) <- function(
 } # /rtemis::train_super.IsotonicHyperparameters
 
 
+# %% predict_super.class_stepfun ----
 #' Predict from Isotonic model
 #'
 #' @param model Isotonic model.
@@ -81,6 +82,7 @@ method(predict_super, class_stepfun) <- function(model, newdata, type = NULL) {
 } # /rtemis::predict_super.class_stepfun
 
 
+# %% varimp_super.class_stepfun ----
 #' Get coefficients from Isotonic model
 #'
 #' @param model Isotonic model.

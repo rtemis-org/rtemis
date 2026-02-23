@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% train_super.TabNetHyperparameters ----
 #' Train a TabNet model
 #'
 #' Train a TabNet model using `TabNet`.
@@ -77,6 +78,7 @@ method(train_super, TabNetHyperparameters) <- function(
 } # /rtemis::train_super.TabNetHyperparameters
 
 
+# %% predict_super.class_tabnet_fit ----
 #' Predict from TabNet model
 #'
 #' @param model TabNet model.
@@ -103,6 +105,7 @@ method(predict_super, class_tabnet_fit) <- function(
 } # /rtemis::predict_super.class_tabnet_fit
 
 
+# %% varimp_super.class_tabnet_fit ----
 #' Get coefficients from TabNet model
 #'
 #' @param model TabNet model.

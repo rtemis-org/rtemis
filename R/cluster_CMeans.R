@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% cluster_CMeans ----
 #' C-means Clustering
 #'
 #' @keywords internal
