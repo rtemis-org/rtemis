@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% train_.TabNetHyperparameters ----
 #' Train a TabNet model
 #'
 #' Train a TabNet model using `TabNet`.
@@ -19,7 +20,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_super, TabNetHyperparameters) <- function(
+method(train_, TabNetHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -74,9 +75,10 @@ method(train_super, TabNetHyperparameters) <- function(
   )
   check_inherits(model, "tabnet_fit")
   list(model = model, preprocessor = prp)
-} # /rtemis::train_super.TabNetHyperparameters
+} # /rtemis::train_.TabNetHyperparameters
 
 
+# %% predict_super.class_tabnet_fit ----
 #' Predict from TabNet model
 #'
 #' @param model TabNet model.
@@ -103,6 +105,7 @@ method(predict_super, class_tabnet_fit) <- function(
 } # /rtemis::predict_super.class_tabnet_fit
 
 
+# %% varimp_super.class_tabnet_fit ----
 #' Get coefficients from TabNet model
 #'
 #' @param model TabNet model.

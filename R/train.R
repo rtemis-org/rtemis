@@ -426,7 +426,7 @@ train <- function(
       NULL
     }
 
-    trained <- train_super(
+    trained <- train_(
       hyperparameters = hyperparameters,
       x = x,
       weights = weights,

@@ -2,11 +2,12 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% decomp_.tSNEConfig ----
 #' tSNE Decomposition
 #'
 #' @keywords internal
 #' @noRd
-decom_tSNE <- function(x, config, verbosity = 1L) {
+method(decomp_, tSNEConfig) <- function(config, x, verbosity = 1L) {
   # Checks ----
   check_is_S7(config, tSNEConfig)
   check_dependencies("Rtsne")
@@ -27,4 +28,4 @@ decom_tSNE <- function(x, config, verbosity = 1L) {
   )
   check_inherits(decom, "Rtsne")
   list(decom = decom, transformed = decom[["Y"]])
-} # /rtemis::decom_tSNE
+} # /rtemis::decomp_.tSNEConfig

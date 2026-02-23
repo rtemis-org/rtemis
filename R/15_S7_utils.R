@@ -415,7 +415,7 @@ method(print, CheckData) <- function(
   } else {
     # HTML ----
     htmltools::html_print(
-      tohtml(x),
+      to_html(x),
       background = css[["background.color"]]
     )
   }

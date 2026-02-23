@@ -5,6 +5,7 @@
 # References
 # https://imbs-hl.github.io/ranger/reference/ranger.html
 
+# %% train_.RangerHyperparameters ----
 #' Random Forest using Ranger
 #'
 #' @param hyperparameters `RangerHyperparameters`: Hyperparameters for Ranger.
@@ -18,7 +19,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_super, RangerHyperparameters) <- function(
+method(train_, RangerHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -106,7 +107,7 @@ method(train_super, RangerHyperparameters) <- function(
   )
   check_inherits(model, "ranger")
   list(model = model, preprocessor = NULL)
-} # /rtemis::train_super.RangerHyperparameters
+} # /rtemis::train_.RangerHyperparameters
 
 #' Predict from Ranger model
 #'
@@ -147,6 +148,7 @@ method(predict_super, class_ranger) <- function(
 } # /rtemis::predict_super.class_ranger
 
 
+# %% varimp_super.class_ranger ----
 #' Get variable importance from Ranger model
 #'
 #' @param model `ranger` model object.
@@ -159,6 +161,7 @@ method(varimp_super, class_ranger) <- function(model) {
 } # /rtemis::varimp_super.class_ranger
 
 
+# %% validate_hyperparameters.RangerHyperparameters ----
 #' Validate Ranger Hyperparameters
 #'
 #' Validate Ranger Hyperparameters given training data.

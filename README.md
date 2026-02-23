@@ -2,7 +2,7 @@
 
 # rtemis: Advanced Machine Learning &amp; Visualization.
 
-![rtemis v1.0.0 console ascii](https://www.rtemis.org/rtemis_1.0.0.jpg)
+[![rtemis cover](https://docs.rtemis.org/r/assets/docs-cover.avif)](https://docs.rtemis.org/r/)
 
 This is the new version of the rtemis R package and remains under active development.
 
@@ -13,6 +13,8 @@ The new version (0.99+) features:
 - Extended use of **`setup_()`** functions, to offer increased transparency of configuration options.
 - Strict **type checking** and **condition validation** throughout to minimize user error and provide highly focused error messages & suggestions.
 - Expanded transparent messaging through each step.
+
+![rtemis v1.0.0 console ascii](https://www.rtemis.org/rtemis_1.0.0.jpg)
 
 ## Installation of rtemis
 
@@ -134,8 +136,6 @@ The new release includes the `draw` family of functions, the evolution of the `d
 
 The documentation is available at [docs.rtemis.org/r](https://docs.rtemis.org/r/), which includes
 walkthroughs of main features and full API reference.
-
-[![rtemis cover](https://docs.rtemis.org/r/assets/docs-cover.avif)](https://docs.rtemis.org/r/)
 
 ## Ongoing work
 

@@ -5,6 +5,7 @@
 # Notes:
 # Some algorithms do not work with variable names containing dots (SparkML)
 
+# %% check_factor_levels.class_data.frame ----
 method(check_factor_levels, class_data.frame) <- function(x, y, z) {
   if (!is.null(y) || !is.null(z)) {
     index_factor <- which(sapply(x, is.factor))
@@ -161,6 +162,7 @@ check_supervised <- function(
 } # /rtemis::check_supervised
 
 
+# %% check_unsupervised_data ----
 #' Check data ahead of unsupervised learning
 #'
 #' @param x Data frame: Features for unsupervised learning.

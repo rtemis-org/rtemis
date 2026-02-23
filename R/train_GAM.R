@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% train_.GAMHyperparameters ----
 #' Train a GAM model
 #'
 #' Train a GAM model using `GAM`.
@@ -17,7 +18,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_super, GAMHyperparameters) <- function(
+method(train_, GAMHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -109,8 +110,10 @@ method(train_super, GAMHyperparameters) <- function(
   )
   check_inherits(model, "gam")
   list(model = model, preprocessor = NULL)
-} # /rtemis::train_super.GAMHyperparameters
+} # /rtemis::train_.GAMHyperparameters
 
+
+# %% predict_super.class_gam ----
 #' Predict from GAM model
 #'
 #' @param model GAM model.
@@ -133,6 +136,7 @@ method(predict_super, class_gam) <- function(
 } # /rtemis::predict_super.gam
 
 
+# %% varimp_super.class_gam ----
 #' Get coefficients from GAM model
 #'
 #' @param model mgcv gam model.
@@ -160,6 +164,7 @@ method(varimp_super, class_gam) <- function(
 } # /rtemis::varimp_super.gam
 
 
+# %% se_super.class_gam ----
 #' Get Standard Errors from GAM model
 #'
 #' @param model mgcv gam model.

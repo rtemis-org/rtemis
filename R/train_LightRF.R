@@ -5,6 +5,7 @@
 # References
 # LightGBM parameters: https://lightgbm.readthedocs.io/en/latest/Parameters.html
 
+# %% train_.LightRFHyperparameters ----
 #' Random Forest using LightGBM
 #'
 #' @param hyperparameters `LightRFHyperparameters` object: make using [setup_LightRF].
@@ -16,8 +17,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-
-method(train_super, LightRFHyperparameters) <- function(
+method(train_, LightRFHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -131,4 +131,4 @@ method(train_super, LightRFHyperparameters) <- function(
   )
   check_inherits(model, "lgb.Booster")
   list(model = model, preprocessor = prp)
-} # /rtemis::train_super.LightRFHyperparameters
+} # /rtemis::train_.LightRFHyperparameters

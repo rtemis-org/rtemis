@@ -2,11 +2,12 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% decomp_.PCAConfig ----
 #' PCA Decomposition
 #'
 #' @keywords internal
 #' @noRd
-decom_PCA <- function(x, config, verbosity = 1L) {
+method(decomp_, PCAConfig) <- function(config, x, verbosity = 1L) {
   # Checks ----
   check_is_S7(config, PCAConfig)
   check_unsupervised_data(x = x, allow_missing = FALSE)
@@ -24,4 +25,4 @@ decom_PCA <- function(x, config, verbosity = 1L) {
   )
   check_inherits(decom, "prcomp")
   list(decom = decom, transformed = decom[["x"]])
-} # /rtemis::decom_PCA
+} # /rtemis::decomp_.PCAConfig

@@ -30,8 +30,9 @@ rt_teal <- rtemis_teal
 rt_purple <- rtemis_purple
 rt_magenta <- rtemis_magenta_light
 
+# %% rtemis colors ----
 highlight_col <- rt_orange
-col_object <- rt_gray # incl repr_S7name
+col_object <- rt_gray # object name in repr_S7name
 col_info <- highlight2_col <- lmd_burgundy
 col_outer <- rt_green
 col_tuner <- rt_blue

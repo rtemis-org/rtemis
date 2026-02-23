@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% calibrate.Classification ----
 #' Calibrate Binary Classification Models
 #'
 #' @description
@@ -101,6 +102,7 @@ method(calibrate, Classification) <- function(
 } # /rtemis::calibrate
 
 
+# %% calibrate.ClassificationRes ----
 #' Calibrate Resampled Classification Models
 #'
 #' @param x `ClassificationRes` object.

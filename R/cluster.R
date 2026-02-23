@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% cluster ----
 #' Perform Clustering
 #'
 #' Perform clustering on the rows (usually cases) of a dataset.
@@ -46,10 +47,7 @@ cluster <- function(
   if (verbosity > 0L) {
     msg0(bold(paste0("Clustering with ", algorithm, "...")))
   }
-  clust <- do_call(
-    fn = get_clust_fn(algorithm),
-    args = list(x = x, config = config, verbosity = verbosity)
-  )
+  clust <- cluster_(config = config, x = x, verbosity = verbosity)
 
   # Clusters ----
   clusters <- do_call(

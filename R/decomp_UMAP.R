@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% decomp_.UMAPConfig ----
 #' UMAP Decomposition
 #'
 #' @param x A numeric matrix or data frame to be decomposed.
@@ -13,7 +14,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-decom_UMAP <- function(x, config, verbosity = 1L) {
+method(decomp_, UMAPConfig) <- function(config, x, verbosity = 1L) {
   # Checks ----
   check_is_S7(config, UMAPConfig)
   check_dependencies("uwot")
@@ -38,4 +39,4 @@ decom_UMAP <- function(x, config, verbosity = 1L) {
   # ret_model = TRUE returns list
   check_inherits(decom, "list")
   list(decom = decom, transformed = decom[["embedding"]])
-} # /rtemis::decom_UMAP
+} # /rtemis::decomp_.UMAPConfig

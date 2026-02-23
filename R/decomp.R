@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% decomp ----
 #' Perform Data Decomposition
 #'
 #' Perform linear or non-linear decomposition of numeric data.
@@ -38,14 +39,12 @@ decomp <- function(x, algorithm = "ICA", config = NULL, verbosity = 1L) {
 
   # Decompose ----
   algorithm <- get_decom_name(algorithm)
-  decom_fn <- get_decom_fn(algorithm)
   if (verbosity > 0L) {
     msg0("Decomposing with ", algorithm, "...")
   }
-  decom <- do_call(
-    fn = decom_fn,
-    args = list(x = x, config = config)
-  )
+
+  # decomp_ -> list with elements 'decom' and 'transformed'
+  decom <- decomp_(config = config, x = x, verbosity = verbosity)
 
   # Outro ----
   outro(start_time, verbosity = verbosity)

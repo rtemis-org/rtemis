@@ -5,9 +5,7 @@
 # Key
 # {Algorithm}[method]<Class> Further conditions
 
-# Setup ----
-# library(rtemis)
-# library(testthat)
+# %% Packages ----
 library(data.table)
 
 # Data ----

@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
+# %% train_.LightCARTHyperparameters ----
 #' Decision Tree using LightGBM
 #'
 #' @param hyperparameters `LightCARTHyperparameters` object: make using [setup_LightCART].
@@ -13,7 +14,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_super, LightCARTHyperparameters) <- function(
+method(train_, LightCARTHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -103,4 +104,4 @@ method(train_super, LightCARTHyperparameters) <- function(
   )
   check_inherits(model, "lgb.Booster")
   list(model = model, preprocessor = prp)
-} # /rtemis::method(train_super, LightCARTHyperparameters)
+} # /rtemis::train_.LightCARTHyperparameters

@@ -393,6 +393,8 @@ pastebox <- function(x, pad = 0) {
 repr_S7name <- function(
   x,
   col = col_object,
+  bold = FALSE,
+  underline = TRUE,
   pad = 0L,
   prefix = NULL,
   output_type = NULL
@@ -405,12 +407,24 @@ repr_S7name <- function(
 
   paste0(
     strrep(" ", pad),
-    fmt("<", col = rt_teal, output_type = output_type),
+    fmt("<", col = highlight_col, output_type = output_type),
     if (!is.null(prefix)) {
-      gray(prefix, output_type = output_type)
+      fmt(
+        prefix,
+        col = col_object,
+        bold = bold,
+        underline = underline,
+        output_type = output_type
+      )
     },
-    fmt(x, col = col, bold = TRUE, output_type = output_type),
-    fmt(">", col = rt_teal, output_type = output_type),
+    fmt(
+      x,
+      col = col,
+      bold = bold,
+      underline = underline,
+      output_type = output_type
+    ),
+    fmt(">", col = highlight_col, output_type = output_type),
     "\n"
   )
 } # /rtemis::repr_S7name

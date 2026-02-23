@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% decomp_.NMFConfig ----
 #' Non-negative Matrix Factorization (NMF)
 #'
 #' Decomposes a data matrix into non-negative factors using NMF.
@@ -15,7 +16,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-decom_NMF <- function(x, config, verbosity = 1L) {
+method(decomp_, NMFConfig) <- function(config, x, verbosity = 1L) {
   # Checks ----
   check_is_S7(config, NMFConfig)
   check_dependencies("NMF")
@@ -33,4 +34,4 @@ decom_NMF <- function(x, config, verbosity = 1L) {
   transformed <- xm %*% basis
   colnames(transformed) <- paste0("NMF_", seq_len(NCOL(transformed)))
   list(decom = decom, transformed = transformed)
-} # /rtemis::decom_NMF
+} # /rtemis::decomp_.NMFConfig

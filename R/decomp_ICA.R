@@ -2,13 +2,13 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% decomp_.ICAConfig ----
 #' ICA Decomposition
 #'
 #' @keywords internal
 #' @noRd
-decom_ICA <- function(x, config, verbosity = 1L) {
+method(decomp_, ICAConfig) <- function(config, x, verbosity = 1L) {
   # Checks ----
-  check_is_S7(config, ICAConfig)
   check_dependencies("fastICA")
   check_unsupervised_data(x = x, allow_missing = FALSE)
 
@@ -30,4 +30,4 @@ decom_ICA <- function(x, config, verbosity = 1L) {
   )
   check_inherits(decom, "list")
   list(decom = decom, transformed = decom[["S"]])
-} # /rtemis::decom_ICA
+} # /rtemis::decomp_.ICAConfig
