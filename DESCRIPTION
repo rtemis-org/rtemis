@@ -1,7 +1,7 @@
 Package: rtemis
 Version: 1.0.0
 Title: Machine Learning and Visualization
-Date: 2026-02-21
+Date: 2026-02-22
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
     email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
 Description: Machine learning and visualization package with an 'S7' backend 
@@ -14,7 +14,7 @@ Description: Machine learning and visualization package with an 'S7' backend
     E.D. Gennatas (2017)
     <https://repository.upenn.edu/entities/publication/d81892ea-3087-4b71-a6f5-739c58626d64>.
 License: GPL (>= 3)
-URL: https://www.rtemis.org, https://docs.rtemis.org/r/
+URL: https://www.rtemis.org, https://docs.rtemis.org/r/, https://docs.rtemis.org/r-api/,
 BugReports: https://github.com/rtemis-org/rtemis/issues
 ByteCompile: yes
 Depends:
