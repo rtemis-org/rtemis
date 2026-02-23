@@ -1,16 +1,13 @@
 # cluster_CMeans.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
-# %% cluster_CMeans ----
+# %% cluster_.CMeansConfig ----
 #' C-means Clustering
 #'
 #' @keywords internal
 #' @noRd
-cluster_CMeans <- function(x, config, verbosity = 1L) {
-  # Checks ----
-  check_is_S7(config, CMeansConfig)
-
+method(cluster_, CMeansConfig) <- function(config, x, verbosity = 1L) {
   # Dependencies ----
   check_dependencies("e1071")
 
@@ -35,8 +32,10 @@ cluster_CMeans <- function(x, config, verbosity = 1L) {
   )
   check_inherits(clust, "fclust")
   clust
-} # /rtemis::cluster_CMeans
+} # /rtemis::cluster_.CMeansConfig
 
+
+# %% clustpredict_CMeans ----
 clustpredict_CMeans <- function(clust) {
   check_inherits(clust, "fclust")
   clust[["cluster"]]

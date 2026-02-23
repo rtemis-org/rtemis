@@ -1,15 +1,13 @@
 # cluster_KMeans.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
+# %% cluster_.KMeansConfig ----
 #' K-means Clustering
 #'
 #' @keywords internal
 #' @noRd
-cluster_KMeans <- function(x, config, verbosity = 1L) {
-  # Checks ----
-  check_is_S7(config, KMeansConfig)
-
+method(cluster_, KMeansConfig) <- function(config, x, verbosity = 1L) {
   # Dependencies ----
   check_dependencies("flexclust")
 
@@ -28,14 +26,15 @@ cluster_KMeans <- function(x, config, verbosity = 1L) {
   )
   check_inherits(clust, "kcca")
   clust
-} # /rtemis::cluster_KMeans
+} # /rtemis::cluster_.KMeansConfig
 
 
+# %% cluster_.HardCLConfig ----
 #' Hard Competitive Learning Clustering
 #'
 #' @keywords internal
 #' @noRd
-cluster_HardCL <- function(x, config, verbosity = 1L) {
+method(cluster_, HardCLConfig) <- function(config, x, verbosity = 1L) {
   # Checks ----
   check_is_S7(config, HardCLConfig)
 
@@ -57,17 +56,15 @@ cluster_HardCL <- function(x, config, verbosity = 1L) {
   )
   check_inherits(clust, "kcca")
   clust
-} # /rtemis::cluster_HardCL
+} # /rtemis::cluster_.HardCLConfig
 
 
+# %% cluster_.NeuralGasConfig ----
 #' Neural Gas Clustering
 #'
 #' @keywords internal
 #' @noRd
-cluster_NeuralGas <- function(x, config, verbosity = 1L) {
-  # Checks ----
-  check_is_S7(config, NeuralGasConfig)
-
+method(cluster_, NeuralGasConfig) <- function(config, x, verbosity = 1L) {
   # Dependencies ----
   check_dependencies("flexclust")
 
@@ -86,9 +83,10 @@ cluster_NeuralGas <- function(x, config, verbosity = 1L) {
   )
   check_inherits(clust, "kcca")
   clust
-} # /rtemis::cluster_NeuralGas
+} # /rtemis::cluster_.NeuralGasConfig
 
 
+# %% clustpredict_{KMeans,HardCL,NeuralGas} ----
 #' clustpredict methods for KMeans, HardCL, NeuralGas
 #'
 #' @author EDG

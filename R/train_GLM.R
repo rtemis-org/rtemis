@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# %% train_super.GLMHyperparameters ----
+# %% train_.GLMHyperparameters ----
 #' Train a GLM model
 #'
 #' Train a GLM model using `stats::glm`.
@@ -22,7 +22,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_super, GLMHyperparameters) <- function(
+method(train_, GLMHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -72,7 +72,7 @@ method(train_super, GLMHyperparameters) <- function(
   )
   check_inherits(model, "glm")
   list(model = model, preprocessor = NULL)
-} # /rtemis::train_super.GLMHyperparameters
+} # /rtemis::train_.GLMHyperparameters
 
 
 # %% predict_super.class_glm ----

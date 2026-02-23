@@ -2,7 +2,6 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-library(rtemis)
 # Data ----
 x <- iris[, -5]
 

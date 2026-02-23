@@ -104,8 +104,8 @@ inspect <- new_generic("inspect", "x", function(x) {
 preprocess <- new_generic("preprocess", c("x", "config"))
 
 
-# %% train_super ----
-#' Train supervised learning model (internal)
+# %% train_ ----
+#' Generic for training supervised learning models
 #'
 #' @description
 #' Internal S7 generic that dispatches algorithm-specific training based on
@@ -122,8 +122,8 @@ preprocess <- new_generic("preprocess", c("x", "config"))
 #' @author EDG
 #' @keywords internal
 #' @noRd
-train_super <- new_generic(
-  "train_super",
+train_ <- new_generic(
+  "train_",
   "hyperparameters",
   function(
     hyperparameters,
@@ -135,7 +135,7 @@ train_super <- new_generic(
   ) {
     S7_dispatch()
   }
-) # /rtemis::train_super
+) # /rtemis::train_
 
 
 # %% predict_super ----
@@ -213,6 +213,36 @@ se_super <- new_generic(
 # %% se ----
 # Standard error of the fit.
 se <- new_generic("se", "x")
+
+
+# %% decomp_ ----
+#' Generic for decomposition
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+decomp_ <- new_generic(
+  "decomp_",
+  "config",
+  function(config, x, verbosity = 1L) {
+    S7_dispatch()
+  }
+) # /rtemis::decomp_
+
+
+# %% cluster_ ----
+#' Generic for clustering
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+cluster_ <- new_generic(
+  "cluster_",
+  "config",
+  function(config, x, verbosity = 1L) {
+    S7_dispatch()
+  }
+) # /rtemis::cluster_
 
 
 # %% desc ----

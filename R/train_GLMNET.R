@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
-# %% train_super.GLMNETHyperparameters ----
+# %% train_.GLMNETHyperparameters ----
 #' Train a GLMNET model
 #'
 #' Train a GLMNET model using `glmnet`.
@@ -18,7 +18,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_super, GLMNETHyperparameters) <- function(
+method(train_, GLMNETHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -124,7 +124,7 @@ method(train_super, GLMNETHyperparameters) <- function(
     check_inherits(model, "glmnet")
   }
   list(model = model, preprocessor = NULL)
-} # /rtemis::train_super.GLMNETHyperparameters
+} # /rtemis::train_.GLMNETHyperparameters
 
 #' Predict from GLMNET model
 #'

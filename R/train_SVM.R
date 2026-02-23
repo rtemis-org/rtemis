@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
-# %% train_super.LinearSVMHyperparameters ----
+# %% train_.LinearSVMHyperparameters ----
 #' Train a Linear SVM model
 #'
 #' Train a Linear SVM model using `e1071::svm`.
@@ -20,7 +20,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_super, LinearSVMHyperparameters) <- function(
+method(train_, LinearSVMHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -102,10 +102,10 @@ method(train_super, LinearSVMHyperparameters) <- function(
   )
   check_inherits(model, "svm")
   list(model = model, preprocessor = prp)
-} # /rtemis::train_super.LinearSVMHyperparameters
+} # /rtemis::train_.LinearSVMHyperparameters
 
 
-# %% train_super.RadialSVMHyperparameters ----
+# %% train_.RadialSVMHyperparameters ----
 #' Train a Radial SVM model
 #'
 #' Train a Radial SVM model using `e1071::svm`.
@@ -123,7 +123,7 @@ method(train_super, LinearSVMHyperparameters) <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_super, RadialSVMHyperparameters) <- function(
+method(train_, RadialSVMHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -205,7 +205,7 @@ method(train_super, RadialSVMHyperparameters) <- function(
   )
   check_inherits(model, "svm")
   list(model = model, preprocessor = prp)
-} # /rtemis::train_super.RadialSVMHyperparameters
+} # /rtemis::train_.RadialSVMHyperparameters
 
 
 # %% predict_super.svm ----

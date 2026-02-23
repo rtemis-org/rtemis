@@ -2,12 +2,12 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# %% cluster_DBSCAN ----
+# %% cluster_.DBSCANConfig ----
 #' Density-based spatial clustering of applications with noise (DBSCAN)
 #'
 #' @keywords internal
 #' @noRd
-cluster_DBSCAN <- function(x, config, verbosity = 1L) {
+method(cluster_, DBSCANConfig) <- function(config, x, verbosity = 1L) {
   # Checks ----
   check_is_S7(config, DBSCANConfig)
 
@@ -34,9 +34,10 @@ cluster_DBSCAN <- function(x, config, verbosity = 1L) {
   )
   check_inherits(clust, "dbscan")
   clust
-} # /rtemis::cluster_DBSCAN
+} # /rtemis::cluster_.DBSCANConfig
 
 
+# %% clustpredict_DBSCAN ----
 clustpredict_DBSCAN <- function(clust, dat_train = NULL, newdata = NULL) {
   check_inherits(clust, "dbscan")
   if (is.null(newdata)) {

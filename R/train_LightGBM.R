@@ -5,7 +5,7 @@
 # LightGBM parameters
 # https://lightgbm.readthedocs.io/en/latest/Parameters.html
 
-# %% train_super.LightGBMHyperparameters ----
+# %% train_.LightGBMHyperparameters ----
 #' Gradient Boosting with LightGBM
 #'
 #' @param hyperparameters `LightGBMHyperparameters` object: make using [setup_LightGBM].
@@ -17,7 +17,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_super, LightGBMHyperparameters) <- function(
+method(train_, LightGBMHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -141,7 +141,7 @@ method(train_super, LightGBMHyperparameters) <- function(
   )
   check_inherits(model, "lgb.Booster")
   list(model = model, preprocessor = prp)
-} # /rtemis::train_super.LightGBMHyperparameters
+} # /rtemis::train_.LightGBMHyperparameters
 
 
 # %% predict_super.class_lgb.Booster ----

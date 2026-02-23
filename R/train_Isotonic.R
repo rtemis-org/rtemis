@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
-# %% train_super.IsotonicHyperparameters ----
+# %% train_.IsotonicHyperparameters ----
 #' Train an Isotonic model
 #'
 #' @details
@@ -22,7 +22,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_super, IsotonicHyperparameters) <- function(
+method(train_, IsotonicHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -64,7 +64,7 @@ method(train_super, IsotonicHyperparameters) <- function(
   model <- as.stepfun(ir)
   check_inherits(model, "stepfun")
   list(model = model, preprocessor = NULL)
-} # /rtemis::train_super.IsotonicHyperparameters
+} # /rtemis::train_.IsotonicHyperparameters
 
 
 # %% predict_super.class_stepfun ----

@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# %% train_super.LightRuleFitHyperparameters ----
+# %% train_.LightRuleFitHyperparameters ----
 #' Train a LightRuleFit model
 #'
 #' Train a LightRuleFit model using LightGBM and GLMNET.
@@ -16,7 +16,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_super, LightRuleFitHyperparameters) <- function(
+method(train_, LightRuleFitHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -165,7 +165,7 @@ method(train_super, LightRuleFitHyperparameters) <- function(
     )
   )
   list(model = model, preprocessor = NULL)
-} # /rtemis::train_super.LightRuleFitHyperparameters
+} # /rtemis::train_.LightRuleFitHyperparameters
 
 
 # %% predict_super.LightRuleFitHyperparameters ----

@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
-# %% train_super.GAMHyperparameters ----
+# %% train_.GAMHyperparameters ----
 #' Train a GAM model
 #'
 #' Train a GAM model using `GAM`.
@@ -18,7 +18,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_super, GAMHyperparameters) <- function(
+method(train_, GAMHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -110,7 +110,7 @@ method(train_super, GAMHyperparameters) <- function(
   )
   check_inherits(model, "gam")
   list(model = model, preprocessor = NULL)
-} # /rtemis::train_super.GAMHyperparameters
+} # /rtemis::train_.GAMHyperparameters
 
 
 # %% predict_super.class_gam ----

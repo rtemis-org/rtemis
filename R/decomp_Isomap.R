@@ -2,13 +2,13 @@
 # ::rtemis::
 # 2025 EDG rtemis.org
 
+# %% decomp_.IsomapConfig ----
 #' Isomap Decomposition
 #'
 #' @keywords internal
 #' @noRd
-decom_Isomap <- function(x, config, verbosity = 1L) {
+method(decomp_, IsomapConfig) <- function(config, x, verbosity = 1L) {
   # Checks ----
-  check_is_S7(config, IsomapConfig)
   check_dependencies("vegan")
   check_unsupervised_data(x = x, allow_missing = FALSE)
 
@@ -25,4 +25,4 @@ decom_Isomap <- function(x, config, verbosity = 1L) {
   )
   check_inherits(decom, "isomap")
   list(decom = decom, transformed = decom[["points"]])
-} # /rtemis::decom_Isomap
+} # /rtemis::decomp_.IsomapConfig

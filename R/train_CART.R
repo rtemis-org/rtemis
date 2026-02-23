@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
-# %% train_super.CARTHyperparameters ----
+# %% train_.CARTHyperparameters ----
 #' Train a CART decision tree
 #'
 #' Train a CART decision tree using `rpart`.
@@ -21,7 +21,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_super, CARTHyperparameters) <- function(
+method(train_, CARTHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -74,7 +74,7 @@ method(train_super, CARTHyperparameters) <- function(
   }
   check_inherits(model, "rpart")
   list(model = model, preprocessor = NULL)
-} # /rtemis::train_super.CARTHyperparameters
+} # /rtemis::train_.CARTHyperparameters
 
 
 # %% predict_super.class_rpart ----
