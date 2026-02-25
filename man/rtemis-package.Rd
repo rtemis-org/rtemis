@@ -83,6 +83,7 @@ Useful links:
 \itemize{
   \item \url{https://www.rtemis.org}
   \item \url{https://docs.rtemis.org/r/}
+  \item \url{https://docs.rtemis.org/r-api/,}
   \item Report bugs at \url{https://github.com/rtemis-org/rtemis/issues}
 }
 
