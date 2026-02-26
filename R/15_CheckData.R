@@ -442,26 +442,12 @@ method(repr, CheckData) <- function(
 
 
 # %% print.CheckData ----
-#' Print `CheckData` object
-#'
-#' @method print CheckData
-#' @param x `CheckData` object.
-#' @param type Character: Output type: "ansi" or "html".
-#' @param name Character: Dataset name.
-#' @param check_integers Logical: If TRUE and there are integer features, prints a
-#' message to consider converting to factors.
-#' @param css List with `font.family`, `color`, and `background.color` elements.
-#' @param ... Not used.
-#'
-#' @return `CheckData` object, invisibly.
-#'
-#' @author EDG
-#' @noRd
 method(print, CheckData) <- function(
   x,
   name = NULL,
   check_integers = FALSE,
-  output_type = NULL
+  output_type = NULL,
+  ...
 ) {
   cat(repr(
     x,
