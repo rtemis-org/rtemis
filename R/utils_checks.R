@@ -613,3 +613,26 @@ check_data.table <- function(x, xname = deparse(substitute(x))) {
   }
   invisible(x)
 } # /rtemis::check_data.table
+
+
+# %% check_tabular ----
+#' Check object is tabular
+#'
+#' Checks if object is of class `data.frame`, `data.table`, or `tbl_df`.
+#'
+#' @param x Object to check.
+#'
+#' @return Called for side effects. Throws an error if input is not tabular, returns x invisibly
+#' otherwise.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_tabular <- function(x) {
+  if (!inherits(x, c("data.frame", "data.table", "tbl_df"))) {
+    cli::cli_abort(
+      "{.var {deparse(substitute(x))}} must be a data.frame, data.table, or tbl_df."
+    )
+  }
+  invisible(x)
+} # /rtemis::check_tabular

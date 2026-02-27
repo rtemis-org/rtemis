@@ -393,7 +393,7 @@ pastebox <- function(x, pad = 0) {
 repr_S7name <- function(
   x,
   col = col_object,
-  bold = FALSE,
+  bold = TRUE,
   underline = TRUE,
   pad = 0L,
   prefix = NULL,
