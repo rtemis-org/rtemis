@@ -161,6 +161,18 @@ method(repr, CheckData) <- function(
   )
 
   ## Data Types ----
+  isOrdered <- if (n_factor == 1) {
+    paste(", which", ngettext(n_ordered, "is", "is not"), "ordered")
+  } else if (n_factor > 1) {
+    paste(
+      ", of which",
+      fmt(n_ordered, bold = TRUE, pad = pad, output_type = output_type),
+      ngettext(n_ordered, "is", "are"),
+      "ordered"
+    )
+  } else {
+    ""
+  }
   out <- paste(
     out,
     fmt("\n  Data types", bold = TRUE, pad = pad, output_type = output_type),
@@ -176,42 +188,18 @@ method(repr, CheckData) <- function(
       "integer",
       ngettext(n_integer, "feature", "features")
     ),
-    sep = "\n"
-  )
-  isOrdered <- if (n_factor == 1) {
-    paste(", which", ngettext(n_ordered, "is", "is not"), "ordered")
-  } else if (n_factor > 1) {
-    paste(
-      ", of which",
-      fmt(n_ordered, bold = TRUE, pad = pad, output_type = output_type),
-      ngettext(n_ordered, "is", "are"),
-      "ordered"
-    )
-  } else {
-    ""
-  }
-  out <- paste(
-    out,
     paste0(
       "  * ",
       fmt(n_factor, bold = TRUE, pad = pad, output_type = output_type),
       ngettext(n_factor, " factor", " factors"),
       isOrdered
     ),
-    sep = "\n"
-  )
-  out <- paste(
-    out,
     paste(
       "  *",
       fmt(n_character, bold = TRUE, pad = pad, output_type = output_type),
       "character",
       ngettext(n_character, "feature", "features")
     ),
-    sep = "\n"
-  )
-  out <- paste(
-    out,
     paste(
       "  *",
       fmt(n_date, bold = TRUE, pad = pad, output_type = output_type),
@@ -279,18 +267,22 @@ method(repr, CheckData) <- function(
       ngettext(n_na, "value", "values"),
       "total\n    *",
       paste0(
-        sapply(seq_along(classes_na), \(i) {
-          paste(
-            fmt(
-              classes_na[i],
-              col = .col,
-              bold = TRUE,
-              pad = pad,
-              output_type = output_type
-            ),
-            tolower(names(classes_na)[i])
-          )
-        }),
+        mapply(
+          function(val, name) {
+            paste(
+              fmt(
+                val,
+                col = .col,
+                bold = TRUE,
+                pad = pad,
+                output_type = output_type
+              ),
+              tolower(name)
+            )
+          },
+          classes_na,
+          names(classes_na)
+        ),
         collapse = "; "
       )
     )
@@ -430,7 +422,7 @@ method(repr, CheckData) <- function(
       out,
       fmt(
         "  * Everything looks good",
-        col = highlight_col,
+        col = rt_green,
         pad = pad,
         output_type = output_type
       ),
