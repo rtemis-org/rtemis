@@ -423,6 +423,7 @@ method(repr, CheckData) <- function(
       fmt(
         "  * Everything looks good",
         col = rt_green,
+        bold = TRUE,
         pad = pad,
         output_type = output_type
       ),
