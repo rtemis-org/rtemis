@@ -901,6 +901,7 @@ method(plot_roc, Classification) <- function(
     predicted_prob = probl,
     theme = theme,
     palette = palette,
+    legend_title = "Sample (AUC)",
     filename = filename,
     ...
   )
@@ -1037,7 +1038,8 @@ method(present, Classification) <- function(
   type = c("ROC", "confusion"),
   theme = choose_theme(getOption("rtemis_theme")),
   palette = get_palette(getOption("rtemis_palette")),
-  filename = NULL
+  filename = NULL,
+  ...
 ) {
   type <- match.arg(type)
 
@@ -1860,6 +1862,7 @@ method(plot_roc, ClassificationRes) <- function(
     predicted_prob = probl,
     theme = theme,
     palette = palette,
+    legend_title = "Sample (AUC)",
     filename = filename,
     ...
   )
