@@ -688,7 +688,7 @@ get_n_workers <- function(
     if (verbosity > 1L && (requires_tuning || requires_resampling)) {
       msg(
         bold(algorithm),
-        "is parallelized. Disabling tuning and outer resampling parallelization."
+        "is parallelized. Disabling tuning parallelization."
       )
     }
   } else if (requires_tuning) {
@@ -698,7 +698,7 @@ get_n_workers <- function(
     workers_outer_resampling <- 1L
     if (verbosity > 0L && requires_resampling) {
       msg(
-        "Tuning parallelization enabled. Disabling outer resampling parallelization."
+        "Tuning parallelization enabled."
       )
     }
   } else if (requires_resampling) {

@@ -45,7 +45,7 @@ rt_save <- function(
       if (print_load_info) {
         msg0(gray(
           paste0(
-            "Reload with:",
+            "Reload with: ",
             "> obj <- readRDS('",
             rds_path,
             "')"
