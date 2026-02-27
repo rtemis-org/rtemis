@@ -13,7 +13,7 @@ check_data(
 )
 }
 \arguments{
-\item{x}{data.frame, data.table or similar structure.}
+\item{x}{tabular data: Input to be checked.}
 
 \item{name}{Character: Name of dataset.}
 

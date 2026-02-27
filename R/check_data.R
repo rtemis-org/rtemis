@@ -5,7 +5,7 @@
 # %% check_data ----
 #' Check Data
 #'
-#' @param x data.frame, data.table or similar structure.
+#' @param x tabular data: Input to be checked.
 #' @param name Character: Name of dataset.
 #' @param get_duplicates Logical: If TRUE, check for duplicate cases.
 #' @param get_na_case_pct Logical: If TRUE, calculate percent of NA values per
@@ -40,6 +40,11 @@ check_data <- function(
   if (is.null(name)) {
     name <- deparse(substitute(x))
   }
+  # Check is tabular
+  check_tabular(x)
+  # Get class of x before converting to data.table
+  object_class <- class(x)[1]
+  # Convert to data.table
   x <- as.data.table(x)
   n_rows <- NROW(x)
   n_cols <- NCOL(x)
@@ -130,7 +135,7 @@ check_data <- function(
 
   # CheckData ----
   CheckData(
-    object_class = class(x)[1],
+    object_class = object_class,
     name = name,
     n_rows = n_rows,
     n_cols = n_cols,
