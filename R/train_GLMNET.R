@@ -203,11 +203,17 @@ method(predict_super, class_cv.glmnet) <- function(
 #' @noRd
 method(varimp_super, class_glmnet) <- function(model) {
   coefs <- coef(model)
+
+  # In multiclass, coef(model) returns a list of coefficient matrices, one for each class.
+  if (is.list(coefs)) {
+    return(coefs)
+  }
+
   if (NCOL(coefs) > 1) {
     msg("GLMNET with multiple sets of coefficients - returning first column.")
   }
   # Exclude intercept
-  coefs[, 1][-1]
+  coefs <- coefs[, 1][-1]
 } # /rtemis::varimp_super.class_glmnet
 
 
