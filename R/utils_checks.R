@@ -5,54 +5,6 @@
 # clean_* functions performm checks and return clean inputs.
 # check_* functions perform checks (do not return a value).
 
-# %% is_check ----
-#' Check type of object
-#'
-#' @param x Object to check
-#' @param fn Function to check against, any `is.*` function, e.g. `is.character`
-#'
-#' @return Logical
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-#'
-#' @examples
-#' is_check("papaya", is.character) # TRUE
-#' is_check(c(1, 2.5, 3.2), is.integer) # FALSE
-#' is_check(iris, is.list) # TRUE
-is_check <- function(x, fn) {
-  if (!fn(x)) {
-    input <- deparse(substitute(x))
-    type <- substr(deparse(substitute(fn)), 4, 99)
-    message(red(bold(input), "is not", bold(type)))
-    return(FALSE)
-  }
-  TRUE
-} # /rtemis::is_check
-
-
-# %% is_test ----
-#' Test type of object
-#'
-#' @inheritParams is_check
-#'
-#' @return NULL (invisibly)
-#'
-#' @author EDG
-#'
-#' @keywords internal
-#' @noRd
-is_test <- function(x, fn) {
-  if (!is.null(x) && !fn(x)) {
-    input <- deparse(substitute(x))
-    type <- substr(deparse(substitute(fn)), 4, 99)
-    cli::cli_abort(bold(input), " is not ", bold(type))
-  }
-  invisible()
-} # /rtemis::is_test
-
-
 # %% test_inherits ----
 #' Check class of object
 #'
