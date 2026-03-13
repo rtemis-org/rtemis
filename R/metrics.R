@@ -242,15 +242,6 @@ f1 <- function(precision, recall) {
 #'
 #' Get the Area under the ROC curve to assess classifier performance.
 #'
-#' Important Note: We assume that true labels are a factor where the first level
-#' is the "positive" case, a.k.a. the event. All methods used here, "pROC",
-#' "auc_pairs", "ROCR", have been setup to expect this. This goes against the
-#' default setting for both "pROC" and "ROCR", which will not give an AUC less
-#' than .5 because they will reorder levels. We don't want this because you
-#' can have a classifier perform worse than .5 and it can be very confusing if
-#' levels are reordered automatically and different functions give you different
-#' AUC.
-#'
 #' @param true_int Integer vector: True labels of outcomes (e.g. c(0, 1, 1))
 #' @param predicted_prob Numeric Vector: Probabilities or model scores
 #' (e.g. c(.32, .75, .63), etc)
@@ -290,7 +281,7 @@ auc <- function(
     .pred <- try(ROCR::prediction(
       predicted_prob,
       true_int,
-      label.ordering = rev(levels(true_int))
+      label.ordering = NULL
     ))
     auc. <- try(ROCR::performance(.pred, "auc")@y.values[[1]])
   }
