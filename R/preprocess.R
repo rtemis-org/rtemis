@@ -927,7 +927,7 @@ dt_set_one_hot <- function(x, xname = NULL, verbosity = 1L) {
 #' @examples
 #' x <- data.frame(matrix(FALSE, 10, 3))
 #' colnames(x) <- c("Dx1", "Dx2", "Dx3")
-#' x$Dx1[1:3] <- x$Dx2[4:6] <- x$Dx3[7:10] <- T
+#' x$Dx1[1:3] <- x$Dx2[4:6] <- x$Dx3[7:10] <- TRUE
 #' one_hot2factor(x)
 one_hot2factor <- function(x, labels = colnames(x)) {
   if (NCOL(x) == 1) {
