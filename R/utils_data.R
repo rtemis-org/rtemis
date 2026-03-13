@@ -4,8 +4,11 @@
 
 # %% Public ----------------------------------------------------------------------------------------
 
-#' Describe factor
+#' @name describe.factor
 #'
+#' @title Describe factor
+#'
+#' @description
 #' Outputs a single character with names and counts of each level of the input factor.
 #'
 #' @param x factor.
@@ -25,6 +28,7 @@
 #' x <- factor(sample(letters, 1000, TRUE))
 #' describe(x)
 #' describe(x, 3)
+#' describe(x, 3, return_ordered = FALSE)
 method(describe, class_factor) <- function(
   x,
   max_n = 5,
@@ -57,13 +61,14 @@ method(describe, class_factor) <- function(
         paste(x_levels[idi], x_freqs[idi], sep = ": ", collapse = "; ")
       )
     } else {
+      idx <- seq_len(max_n)
       paste0(
         "(First ",
         max_n,
         " of ",
         n_unique,
         ") ",
-        paste(x_levels, x_freqs, sep = ": ", collapse = "; ")
+        paste(x_levels[idx], x_freqs[idx], sep = ": ", collapse = "; ")
       )
     }
   }
