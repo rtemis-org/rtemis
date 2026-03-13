@@ -46,7 +46,6 @@ Note that auc_method = "pROC" is the only one that will output an AUC even if
 one or more predicted probabilities are NA.
 }
 \examples{
-\dontrun{
 # Assume positive class is "b"
 true_labels <- factor(c("a", "a", "a", "b", "b", "b", "b", "b", "b", "b"))
 predicted_labels <- factor(c("a", "b", "a", "b", "b", "a", "b", "b", "b", "a"))
@@ -54,7 +53,6 @@ predicted_prob <- c(0.3, 0.55, 0.45, 0.75, 0.57, 0.3, 0.8, 0.63, 0.62, 0.39)
 
 classification_metrics(true_labels, predicted_labels, predicted_prob)
 classification_metrics(true_labels, predicted_labels, 1 - predicted_prob, binclasspos = 1L)
-}
 }
 \author{
 EDG

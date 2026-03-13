@@ -89,6 +89,7 @@ characters to factors
 }
 \examples{
 \dontrun{
+# Replace with your own data directory and filename
 datadir <- "/Data"
 dat <- read("iris.csv", datadir)
 }

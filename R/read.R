@@ -2,6 +2,7 @@
 # ::rtemis::
 # 2022- EDG rtemis.org
 
+# %% read ----
 #' Read tabular data from a variety of formats
 #'
 #' Read data and optionally clean column names, keep unique rows, and convert
@@ -52,6 +53,7 @@
 #'
 #' @examples
 #' \dontrun{
+#' # Replace with your own data directory and filename
 #' datadir <- "/Data"
 #' dat <- read("iris.csv", datadir)
 #' }

@@ -683,7 +683,7 @@ dt_describe <- function(x, verbosity = 1L) {
         \(col) length(unique(col))
       ),
       Mode = sapply(x[, index_cf, with = FALSE], get_mode),
-      Counts = sapply(x[, index_cf, with = FALSE], fct_describe),
+      Counts = sapply(x[, index_cf, with = FALSE], describe),
       Pct_missing = sapply(
         x[, index_cf, with = FALSE],
         \(col) sum(is.na(col)) / nrows

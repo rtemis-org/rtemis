@@ -1734,29 +1734,6 @@ get_palette <- function(palette = NULL, verbosity = 1L) {
 } # /rtemis::get_palette
 
 
-#' Access rtemis palette colors
-#'
-#' Allows you to get `n` colors of a defined palette, useful for passing to other functions, like
-#' ggplot.
-#'
-#' @param n Integer: Number of colors to output
-#' @param palette Character: Palette to use. See available options with `get_palette()`.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-#'
-#' @examples
-#' \dontrun{
-#' rtemis_palette(3)
-#' }
-rtemis_palette <- function(n, palette = getOption("rtemis_palette", "rtms")) {
-  .palette <- unlist(get_palette(palette))
-  names(.palette) <- NULL
-  .palette[seq_len(n)]
-} # /rtemis::rtemis_palette
-
-
 # Xterm Colors ----
 XtermCol <- c(
   `Black (SYSTEM)` = "#000000",

@@ -16,9 +16,7 @@
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
 #' datetime()
-#' }
 datetime <- function(datetime_format = "%Y-%m-%d %H:%M:%S") {
   format(Sys.time(), datetime_format)
 }

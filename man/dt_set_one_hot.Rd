@@ -20,12 +20,10 @@ The input, invisibly, after it has been modified \emph{\strong{in-place}}.
 Convert data.table's factor to one-hot encoding \emph{\strong{in-place}}
 }
 \examples{
-\dontrun{
 ir <- data.table::as.data.table(iris)
 # dt_set_one_hot operates ***in-place***; therefore no assignment is used:
 dt_set_one_hot(ir)
 ir
-}
 }
 \author{
 EDG

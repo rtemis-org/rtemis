@@ -394,7 +394,7 @@ repr_S7name <- function(
   x,
   col = col_object,
   bold = TRUE,
-  underline = TRUE,
+  underline = FALSE,
   pad = 0L,
   prefix = NULL,
   output_type = NULL
@@ -551,12 +551,9 @@ pad_string <- function(x, target = 17L, char = " ") {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
 #' {
-#'   msg("Hello")
 #'   pcat("super", "wow")
 #'   pcat(NULL, "oooo")
-#' }
 #' }
 pcat <- function(left, right, target = 17, newline = TRUE) {
   cat(pad_string(left, target = target), right)

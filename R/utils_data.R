@@ -16,19 +16,20 @@
 #' @return Character with level counts.
 #'
 #' @author EDG
-#' @export
 #'
 #' @examples
-#' \dontrun{
 #' # Small number of levels
-#' fct_describe(iris[["Species"]])
+#' describe(iris[["Species"]])
 #'
 #' # Large number of levels: show top n by count
 #' x <- factor(sample(letters, 1000, TRUE))
-#' fct_describe(x)
-#' fct_describe(x, 3)
-#' }
-fct_describe <- function(x, max_n = 5, return_ordered = TRUE) {
+#' describe(x)
+#' describe(x, 3)
+method(describe, class_factor) <- function(
+  x,
+  max_n = 5,
+  return_ordered = TRUE
+) {
   x <- factor(x)
   x_levels <- levels(x)
   n_unique <- length(x_levels)
@@ -66,7 +67,7 @@ fct_describe <- function(x, max_n = 5, return_ordered = TRUE) {
       )
     }
   }
-} # /rtemis::fct_describe
+} # /rtemis::describe.factor
 
 
 #' Match cases by covariates
@@ -97,7 +98,6 @@ fct_describe <- function(x, max_n = 5, return_ordered = TRUE) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' set.seed(2021)
 #' cases <- data.frame(
 #'   PID = paste0("PID", seq(4)),
@@ -117,7 +117,6 @@ fct_describe <- function(x, max_n = 5, return_ordered = TRUE) {
 #' )
 #'
 #' mc <- matchcases(cases, controls, 2, "PID", "CID")
-#' }
 matchcases <- function(
   target,
   pool,

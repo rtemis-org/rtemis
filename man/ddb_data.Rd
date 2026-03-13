@@ -70,7 +70,7 @@ dataset. This column will be set as key in the data.table output.}
 \item{verbosity}{Integer: Verbosity level.}
 }
 \value{
-data.frame or data.table.
+data.frame or data.table if \code{collect} is TRUE, otherwise a character with the SQL query
 }
 \description{
 Lazy-read a CSV file, optionally: filter rows, remove duplicates,
@@ -78,10 +78,11 @@ clean column names, convert character to factor, collect.
 }
 \examples{
 \dontrun{
-ir <- ddb_data("/Data/massive_dataset.csv",
-  filter_column = "ID",
-  filter_vals = 8001:9999
-)
+  # Requires local CSV file; replace with your own path
+  ir <- ddb_data("/Data/massive_dataset.csv",
+    filter_column = "ID",
+    filter_vals = 8001:9999
+  )
 }
 }
 \author{

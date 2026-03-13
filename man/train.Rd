@@ -90,8 +90,8 @@ preprocessing is applied on validation and test data.
 
 \strong{Binary Classification}
 
-For binary classification, the outcome should be a factor where the 2nd level
-corresponds to the positive class.
+For binary classification, the outcome should be a factor where \emph{the 2nd level
+corresponds to the positive class}.
 
 \strong{Resampling}
 

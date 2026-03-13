@@ -81,6 +81,7 @@ get_holidays <- function(
   holidays_fct
 } # /rtemis::get_holidays
 
+
 #' Date to factor time bin
 #'
 #' Convert Date to time bin factor.
@@ -94,7 +95,7 @@ get_holidays <- function(
 #' time periods define by `time_bin` within `bin_range`. This means factor levels can be
 #' empty. Otherwise, if "present", factor levels only include time periods present in data.
 #' @param bin_range Date, vector, length 2: Range of dates to make levels for. Defaults to range of
-#' input dates `x`
+#' input dates `x`.
 #' @param ordered Logical: If TRUE, factor output is ordered.
 #'
 #' @return factor of time periods
@@ -104,7 +105,6 @@ get_holidays <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
 #' library(data.table)
 #' startDate <- as.Date("2018-01-01")
 #' endDate <- as.Date("2020-12-31")
@@ -113,11 +113,10 @@ get_holidays <- function(
 #' date2factor(time, "quarter")
 #' date2factor(time, "month")
 #' date2factor(time, "day")
-#' # range vs present
+#' # range vs. present
 #' x <- sample(seq(as.Date("2018-01-01"), as.Date("2021-01-01"), by = 1), 10)
 #' date2factor(x, time_bin = "quarter", make_bins = "present")
 #' date2factor(x, time_bin = "quarter", make_bins = "range")
-#' }
 date2factor <- function(
   x,
   time_bin = c("year", "quarter", "month", "day"),

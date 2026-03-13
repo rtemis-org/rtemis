@@ -543,99 +543,6 @@ headdot <- function(x, maxlength = 6L, format_fn = identity) {
   }
 } # /rtemis::headdot
 
-# twocol2html.R
-# ::rtemis::
-# 2020 EDG rtemis.org
-
-#' Create html table from a data.frame with 2 columns: Var name, and Coefs
-#'
-#' @examples
-#' \dontrun{
-#' x <- data.frame(
-#'   ID = c("Int", paste0("V", 1:10)),
-#'   Coef = rnorm(11)
-#' )
-#' twocol2html(x)
-#' }
-#' @keywords internal
-#' @noRd
-twocol2html <- function(
-  x,
-  font_family = "'Lato'",
-  font_col = "#ffffff",
-  font_size = "18px",
-  header_bg = "#404040",
-  table_bg = "#7F7F7F",
-  dat_col = rep("#525252", NROW(x)), # get color grad using all tables
-  dat_font_col = "#ffffff",
-  height = "50px",
-  # header
-  head_padding = "5px",
-  # table
-  dat_padding = "5px"
-) {
-  # 1. table style ----
-  tablestyle <- paste0(
-    '<table style="font-family: ',
-    font_family,
-    ", sans-serif; display: table; border-collapse: collapse; margin-left: auto; margin-right: auto; color:",
-    font_col,
-    "; font-size: ",
-    font_size,
-    "; padding: 0px; text-align: right; background-color: ",
-    table_bg,
-    "; width: auto; border-top-style: none; border-bottom-style: none; overflow-y: scroll; height: ",
-    height,
-    '; display: box">'
-  )
-
-  # 2. header row ----
-  header <- paste0(
-    '<tr><th style="font-weight: bold; padding: ',
-    head_padding,
-    "; text-align: center;",
-    "background-color: ",
-    header_bg,
-    '">',
-    colnames(x)[1],
-    '</th>
-    <th style="font-weight: bold; padding:',
-    head_padding,
-    "; text-align: center;",
-    "background-color: ",
-    header_bg,
-    '">',
-    colnames(x)[2],
-    "</th></tr>"
-  )
-
-  # 3. Data rows ----
-  tab <- vector("character", NROW(x))
-  for (i in seq_along(tab)) {
-    # first column: variable name; second column: coefficient
-    tab[i] <- paste0(
-      "<tr><td>",
-      x[i, 1],
-      '</td><td style="color: ',
-      dat_font_col,
-      "; font-variant-numeric: tabular-nums; background-color: ",
-      dat_col[i],
-      "; padding: ",
-      dat_padding,
-      '">',
-      ddSci(x[i, 2], 3),
-      "</td></tr>"
-    )
-  }
-
-  # '- convert minus to &minus;
-  tab <- gsub(">-", ">&minus;", tab)
-  tab <- paste(tab, collapse = "")
-
-  # Combine
-  paste(tablestyle, header, tab, "</table>", collapse = "")
-} # /rtemis::twocol2html
-
 
 #' Print Size
 #'
@@ -653,9 +560,7 @@ twocol2html <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
 #' catsize(iris)
-#' }
 catsize <- function(x, name = NULL, verbosity = 1L, newline = TRUE) {
   if (inherits(x, c("matrix", "data.frame"))) {
     .nrow <- NROW(x)

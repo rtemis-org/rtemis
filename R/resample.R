@@ -24,15 +24,19 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' y <- rnorm(200)
 #' # 10-fold (stratified)
-#' res <- resample(y, 10, "KFold")
+#' y_10fold <- resample(y, setup_Resampler(10L, "kfold"))
+#' y_10fold
 #' # 25 stratified subsamples
-#' res <- resample(y, 25, "StratSub")
+#' y_25strat <- resample(y, setup_Resampler(25L, "stratsub"))
+#' y_25strat
 #' # 100 stratified bootstraps
-#' res <- resample(y, 100, "StratBoot")
-#' }
+#' y_100strat <- resample(y, setup_Resampler(100L, "stratboot"))
+#' y_100strat
+#' # LOOCV
+#' y_loocv <- resample(y, setup_Resampler(type = "LOOCV"))
+#' y_loocv
 resample <- function(
   x,
   config = setup_Resampler(),

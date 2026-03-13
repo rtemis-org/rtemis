@@ -23,10 +23,8 @@ Uses the NTSC grayscale conversion:
 0.299 * R + 0.587 * G + 0.114 * B
 }
 \examples{
-\dontrun{
 col2grayscale("red")
 col2grayscale("red", "dec")
-}
 }
 \author{
 EDG

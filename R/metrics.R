@@ -251,11 +251,10 @@ f1 <- function(precision, recall) {
 #' levels are reordered automatically and different functions give you different
 #' AUC.
 #'
-#' @param preds Numeric, Vector: Probabilities or model scores
+#' @param true_int Integer vector: True labels of outcomes (e.g. c(0, 1, 1))
+#' @param predicted_prob Numeric Vector: Probabilities or model scores
 #' (e.g. c(.32, .75, .63), etc)
-#' @param labels True labels of outcomes (e.g. c(0, 1, 1))
-#' @param method Character: "pROC", "auc_pairs", or "ROCR": Method to use.
-#' Will use `pROC::roc`, `auc_pairs()`, `ROCR::performance`, respectively.
+#' @param method Character {"lightAUC" "ROCR"}: Package to use.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Numeric.
@@ -265,14 +264,16 @@ f1 <- function(precision, recall) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
 #' preds <- c(0.7, 0.55, 0.45, 0.25, 0.6, 0.7, 0.2)
-#' labels <- factor(c("a", "a", "a", "b", "b", "b", "b"))
-#' auc(preds, labels, method = "ROCR")
-#' auc(preds, labels, method = "pROC")
-#' auc(preds, labels, method = "auc_pairs")
-#' }
-auc <- function(true_int, predicted_prob, method = "lightAUC", verbosity = 0L) {
+#' labels <- 2L - as.integer(factor(c("a", "a", "a", "b", "b", "b", "b")))
+#' auc(labels, preds, method = "lightAUC")
+#' auc(labels, preds, method = "ROCR")
+auc <- function(
+  true_int,
+  predicted_prob,
+  method = c("lightAUC", "ROCR"),
+  verbosity = 0L
+) {
   # Checks ----
   method <- match.arg(method)
   check_inherits(true_int, "integer")
@@ -292,15 +293,7 @@ auc <- function(true_int, predicted_prob, method = "lightAUC", verbosity = 0L) {
       label.ordering = rev(levels(true_int))
     ))
     auc. <- try(ROCR::performance(.pred, "auc")@y.values[[1]])
-  } # else if (method == "pROC") {
-  # check_dependencies("pROC")
-  #   check_dependencies("pROC")
-  #   .auc <- try(pROC::roc(
-  #     true_int, predicted_prob,
-  #     levels = rev(levels(true_int)),
-  #     direction = "<"
-  #   )[["auc"]])
-  # }
+  }
 
   if (inherits(auc., "try-error")) {
     auc. <- NaN
@@ -326,11 +319,9 @@ auc <- function(true_int, predicted_prob, method = "lightAUC", verbosity = 0L) {
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @examples
-#' \dontrun{
 #' true.labels <- factor(c("a", "a", "a", "b", "b", "b", "b"))
 #' estimated.score <- c(0.7, 0.55, 0.45, 0.25, 0.6, 0.7, 0.2)
 #' auc_pairs(estimated.score, true.labels, verbosity = 1L)
-#' }
 #'
 #' @keywords internal
 #' @noRd
@@ -422,7 +413,6 @@ labels2int <- function(x, binclasspos = 2L) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' # Assume positive class is "b"
 #' true_labels <- factor(c("a", "a", "a", "b", "b", "b", "b", "b", "b", "b"))
 #' predicted_labels <- factor(c("a", "b", "a", "b", "b", "a", "b", "b", "b", "a"))
@@ -430,7 +420,6 @@ labels2int <- function(x, binclasspos = 2L) {
 #'
 #' classification_metrics(true_labels, predicted_labels, predicted_prob)
 #' classification_metrics(true_labels, predicted_labels, 1 - predicted_prob, binclasspos = 1L)
-#' }
 classification_metrics <- function(
   true_labels,
   predicted_labels,

@@ -74,62 +74,6 @@ color_op <- function(col, fn = c("invert", "mean"), space = c("HSV", "RGB")) {
 } # /rtemis::color_op
 
 
-#' Squared Color Distance
-#'
-#' Get the squared RGB distance between two colors
-#'
-#' @param x Color
-#' @param y Color
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-#'
-#' @examples
-#' \dontrun{
-#' color_sqdist("red", "green")
-#' color_sqdist("#16A0AC", "#FA6E1E")
-#' }
-color_sqdist <- function(x, y) {
-  x.rgb <- col2rgb(x)
-  y.rgb <- col2rgb(y)
-
-  sum((x.rgb - y.rgb)^2)
-} # /rtemis::color_sqdist
-
-
-#' Order colors
-#'
-#' Order colors by RGB distance
-#'
-#' @param x Vector of colors
-#' @param start_with Integer: Which color to output in first position
-#' @param order_by Character: "similarity" or "dissimilarity"
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-color_order <- function(
-  x,
-  start_with = 1,
-  order_by = c("similarity", "dissimilarity")
-) {
-  order_by <- match.arg(order_by)
-  if (!is.integer(start_with)) {
-    start_with <- which(x == start_with)
-  }
-  fn <- switch(order_by, similarity = which.min, dissimilarity = which.max)
-  out <- x[start_with]
-  x <- x[-start_with]
-  while (length(x) > 1) {
-    id <- fn(sapply(x, \(i) color_sqdist(rev(out)[1], i)))
-    out <- c(out, x[id])
-    x <- x[-id]
-  }
-  c(out, x)
-} # /rtemis::color_order
-
-
 #' Color to Grayscale
 #'
 #' Convert a color to grayscale
@@ -147,10 +91,8 @@ color_order <- function(
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' col2grayscale("red")
 #' col2grayscale("red", "dec")
-#' }
 col2grayscale <- function(x, what = c("color", "decimal")) {
   what <- match.arg(what)
   col <- col2rgb(x)
@@ -240,12 +182,10 @@ color_fade <- function(x, to = "#000000", pct = .5) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
 #' cols <- c("red", "green", "blue")
 #' previewcolor(cols)
 #' cols_d <- desaturate(cols)
 #' previewcolor(cols_d)
-#' }
 desaturate <- function(x, s = 0.3) {
   # Infer color names, if available
   if (!is.null(names(x))) {
