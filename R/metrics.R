@@ -563,11 +563,16 @@ classification_metrics <- function(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' true <- rnorm(100)
+#' predicted <- true + rnorm(100, sd = 0.5)
+#' regression_metrics(true, predicted)
 regression_metrics <- function(
   true,
   predicted,
   na.rm = TRUE,
-  sample = character()
+  sample = NULL
 ) {
   RegressionMetrics(
     MAE = mae(true, predicted, na.rm = na.rm),
