@@ -116,7 +116,8 @@
 #' @param file_height Integer: File height in pixels for when `filename`
 #' is set.
 #' @param file_scale Numeric: If saving to file, scale plot by this number
-#' @param mathjax Character: "local", "cdn", or NULL
+#' @param mathjax Optional Character {"local", "cdn"}: Whether to use local or CDN version of
+#' MathJax for rendering mathematical annotations.
 #'
 #' @return `plotly` object.
 #'

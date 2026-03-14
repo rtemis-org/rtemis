@@ -387,6 +387,7 @@ plot_true_pred <- new_generic("plot_true_pred", "x")
 #'
 #' @author EDG
 #' @export
+# example included in `plot_manhattan.MassGLM` method.
 plot_manhattan <- new_generic("plot_manhattan", "x")
 
 
@@ -529,6 +530,25 @@ to_yaml <- new_generic("to_yaml", "x")
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' x <- setup_SuperConfig(
+#'   dat_training_path = "~/Data/iris.csv",
+#'   dat_validation_path = NULL,
+#'   dat_test_path = NULL,
+#'   weights = NULL,
+#'   preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
+#'   algorithm = "LightRF",
+#'   hyperparameters = setup_LightRF(),
+#'   tuner_config = setup_GridSearch(),
+#'   outer_resampling_config = setup_Resampler(),
+#'   execution_config = setup_ExecutionConfig(),
+#'   question = "Can we tell iris species apart given their measurements?",
+#'   outdir = "models/",
+#'   verbosity = 1L
+#' )
+#' tmpdir <- tempdir()
+#' write_toml(x, file.path(tmpdir, "rtemis.toml"))
 write_toml <- new_generic(
   "write_toml",
   "x",
@@ -1035,6 +1055,10 @@ scalar_int_pos <- S7::new_property(
 #' @return data.frame: The preprocessed data.
 #'
 #' @export
+#'
+#' @examples
+#' prp <- preprocess(iris, setup_Preprocessor(scale = TRUE, center = TRUE))
+#' preprocessed(prp)
 preprocessed <- new_generic("preprocessed", "x", function(x) {
   S7_dispatch()
 }) # /rtemis::preprocessed

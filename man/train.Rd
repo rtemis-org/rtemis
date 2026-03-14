@@ -32,13 +32,13 @@ train(
 
 \item{algorithm}{Character: Algorithm to use. Can be left NULL, if \code{hyperparameters} is defined.}
 
-\item{preprocessor_config}{PreprocessorConfig object or NULL: Setup using \link{setup_Preprocessor}.}
+\item{preprocessor_config}{Optional PreprocessorConfig object: Setup using \link{setup_Preprocessor}.}
 
 \item{hyperparameters}{\code{Hyperparameters} object: Setup using one of \verb{setup_*} functions.}
 
 \item{tuner_config}{TunerConfig object: Setup using \link{setup_GridSearch}.}
 
-\item{outer_resampling_config}{ResamplerConfig object or NULL: Setup using \link{setup_Resampler}.
+\item{outer_resampling_config}{Optional ResamplerConfig object: Setup using \link{setup_Resampler}.
 This defines the outer resampling method, i.e. the splitting into training and test sets for the
 purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
 you might want to use a \code{dat_test} dataset to assess model performance on a single test set.}
@@ -67,7 +67,7 @@ using nested resampling.
 \details{
 \strong{Online book & documentation}
 
-See \href{https://rdocs.rtemis.org/train}{rdocs.rtemis.org/train} for detailed documentation.
+See \href{https://docs.rtemis.org/r/}{docs.rtemis.org/r} for detailed documentation.
 
 \strong{Preprocessing}
 

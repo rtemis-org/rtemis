@@ -63,7 +63,7 @@ draw_volcano(
 
 \item{xnames}{Character vector: \code{x} names.}
 
-\item{group}{Factor: Used to color code points. If NULL, significant points
+\item{group}{Optional factor: Used to color code points. If NULL, significant points
 below \code{x_thresh}, non-significant points, and significant points
 above \code{x_thresh} will be plotted with the first, second and third
 color of \code{palette}.}

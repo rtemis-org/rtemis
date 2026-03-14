@@ -355,11 +355,11 @@ dt_pctmissing <- function(x, verbosity = 1L) {
 #' Convert data.table logical columns to factors with custom labels ***in-place***
 #'
 #' @param x data.table: Input data.table. Will be modified ***in-place***.
-#' @param cols Integer or character: columns to convert, if NULL, operates on all
-#' logical columns
-#' @param labels Character: labels for factor levels
-#' @param maintain_attributes Logical: If TRUE, maintain column attributes
-#' @param fillNA Character: If not NULL, fill NA values with this constant
+#' @param cols Optional Integer or character: columns to convert. If NULL, operates on all
+#' logical columns.
+#' @param labels Character: labels for factor levels.
+#' @param maintain_attributes Logical: If TRUE, maintain column attributes.
+#' @param fillNA Optional Character: If not NULL, fill NA values with this constant.
 #'
 #' @return data.table, invisibly.
 #'

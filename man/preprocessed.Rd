@@ -15,3 +15,7 @@ data.frame: The preprocessed data.
 \description{
 Returns the preprocessed data from a \code{Preprocessor} object.
 }
+\examples{
+prp <- preprocess(iris, setup_Preprocessor(scale = TRUE, center = TRUE))
+preprocessed(prp)
+}

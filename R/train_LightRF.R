@@ -11,7 +11,7 @@
 #' @param hyperparameters `LightRFHyperparameters` object: make using [setup_LightRF].
 #' @param x tabular data: Training set.
 #' @param weights Numeric vector: Case weights.
-#' @param dat_validation tabular data or NULL: Validation set for early stopping.
+#' @param dat_validation Optional tabular data: Validation set for early stopping.
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @author EDG

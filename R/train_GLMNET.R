@@ -130,7 +130,7 @@ method(train_, GLMNETHyperparameters) <- function(
 #'
 #' @param model glmnet model.
 #' @param newdata data.frame or similar: Data to predict on.
-#' @param type Character: "Regression" or "Classification" (auto-detected if NULL).
+#' @param type Optional character: "Regression" or "Classification". Auto-detected if NULL.
 #'
 #' @author EDG
 #' @keywords internal

@@ -133,8 +133,8 @@ both.}
 
 \item{show_zt}{Logical: If TRUE, show zt on x-axis, if zt is provided.}
 
-\item{show_zt_every}{Integer: Show zt every \code{show_zt_every} ticks. If NULL, will be calculated
-to be \code{x_nticks} +/- 1 if \code{x_nticks} is not 0, otherwise 12 +/- 1.}
+\item{show_zt_every}{Optional integer: Show zt every \code{show_zt_every} ticks. If NULL, will be
+calculated to be \code{x_nticks} +/- 1 if \code{x_nticks} is not 0, otherwise 12 +/- 1.}
 
 \item{zt_nticks}{Integer: Number of zt ticks to show. Only used if \code{show_zt_every} is NULL.
 The actual number of ticks shown will depend on the periodicity of zt, so that zt = 0 is always

@@ -110,8 +110,6 @@ format_caller <- function(call_stack, call_depth, caller_id, max_char = 30L) {
 #'   the call stack.
 #' `msg0`, similar to `paste0`, is `msg(..., sep = "")`
 #'
-# Add following to each function using \code{msg}:
-# \code{current <- as.list(sys.call())[[1]]}
 #'
 #' @param ... Message to print
 #' @param caller Character: Name of calling function
@@ -125,8 +123,11 @@ format_caller <- function(call_stack, call_depth, caller_id, max_char = 30L) {
 #' @return List with call, message, and date, invisibly.
 #'
 #' @author EDG
-#' @export
 #' @keywords internal
+#' @noRd
+#'
+#' @examples
+#' msg("Hello")
 msg <- function(
   ...,
   caller = NULL,
@@ -161,8 +162,8 @@ msg <- function(
 
 #' @rdname msg
 #'
-#' @export
 #' @keywords internal
+#' @noRd
 msg0 <- function(
   ...,
   caller = NULL,

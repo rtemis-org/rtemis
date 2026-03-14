@@ -14,10 +14,10 @@
 #' @param dat_test tabular data: Test set data.
 #' @param weights Optional vector of case weights.
 #' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
-#' @param preprocessor_config PreprocessorConfig object or NULL: Setup using [setup_Preprocessor].
+#' @param preprocessor_config Optional PreprocessorConfig object: Setup using [setup_Preprocessor].
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param tuner_config TunerConfig object: Setup using [setup_GridSearch].
-#' @param outer_resampling_config ResamplerConfig object or NULL: Setup using [setup_Resampler].
+#' @param outer_resampling_config Optional ResamplerConfig object: Setup using [setup_Resampler].
 #' This defines the outer resampling method, i.e. the splitting into training and test sets for the
 #' purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
 #' you might want to use a `dat_test` dataset to assess model performance on a single test set.
@@ -640,7 +640,7 @@ train <- function(
 #'
 #' @param algorithm Character: Algorithm name.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
-#' @param outer_resampling_config ResamplerConfig object or NULL: Setup using [setup_Resampler].
+#' @param outer_resampling_config Optional ResamplerConfig object: Setup using [setup_Resampler].
 #' @param n_workers Integer: Total number of workers you want to use.
 #' @param verbosity Integer: Verbosity level.
 #'

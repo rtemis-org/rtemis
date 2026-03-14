@@ -12,3 +12,9 @@ Called for its side effect of printing available themes.
 \description{
 Print available \pkg{rtemis} themes
 }
+\examples{
+available_themes()
+}
+\author{
+EDG
+}

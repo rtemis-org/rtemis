@@ -8,13 +8,14 @@
 #' Formats text with specified color, styles, and background using ANSI escape codes or HTML, with support for plain text output.
 #'
 #' @param x Character: Text to format.
-#' @param col Character: Color (hex code, named color, or NULL for no color).
+#' @param col Optional Character: Color using hex code or name. If NULL, no color is applied.
 #' @param bold Logical: If TRUE, make text bold.
 #' @param italic Logical: If TRUE, make text italic.
 #' @param underline Logical: If TRUE, underline text.
 #' @param thin Logical: If TRUE, make text thin/light.
 #' @param muted Logical: If TRUE, make text muted/dimmed.
-#' @param bg Character: Background color (hex code, named color, or NULL).
+#' @param bg Optional Character: Background color using hex code or name. If NULL, no background
+#' color is applied.
 #' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character: Formatted text with specified styling.

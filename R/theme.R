@@ -2,7 +2,7 @@
 # ::rtemis::
 # EDG rtemis.org
 
-# Black ----
+# %% Black ----
 #' Themes for `draw_*` functions
 #'
 #' @param bg Color: Figure background.
@@ -180,6 +180,7 @@ theme_black <- function(
     )
   )
 } # /rtemis::theme_black
+
 
 #' @rdname theme
 #' @export
@@ -416,7 +417,6 @@ theme_blackigrid <- function(
   )
 } # /rtemis::theme_darkgrid
 
-# Darkgray ----
 
 #' @rdname theme
 #' @export
@@ -535,6 +535,7 @@ theme_darkgray <- function(
   )
 } # /rtemis::theme_darkgray
 
+
 #' @rdname theme
 #' @export
 theme_darkgraygrid <- function(
@@ -651,6 +652,7 @@ theme_darkgraygrid <- function(
     )
   )
 } # /rtemis::theme_darkgraygrid
+
 
 #' @rdname theme
 #' @export
@@ -769,8 +771,8 @@ theme_darkgrayigrid <- function(
   )
 } # /rtemis::theme_darkgrayigrid
 
-# White ----
 
+# %% White ----
 #' @rdname theme
 #' @export
 theme_white <- function(
@@ -1122,8 +1124,8 @@ theme_whiteigrid <- function(
   )
 } # /rtemis::theme_whiteigrid
 
-# Grays ----
 
+# %% Gray ----
 #' @rdname theme
 #' @export
 theme_lightgraygrid <- function(
@@ -1359,11 +1361,16 @@ theme_mediumgraygrid <- function(
   )
 } # /rtemis::theme_mediumdgray
 
+
 #' Print available \pkg{rtemis} themes
 #'
 #' @return Called for its side effect of printing available themes.
 #'
+#' @author EDG
 #' @export
+#'
+#' @examples
+#' available_themes()
 available_themes <- function() {
   cat(highlight("  Available themes:\n"))
   cat('    "white", "whitegrid", "whiteigrid,\n')
@@ -1374,6 +1381,7 @@ available_themes <- function() {
 }
 
 
+# %% choose_theme ----
 #' Select an rtemis theme
 #'
 #' @details
@@ -1390,7 +1398,8 @@ available_themes <- function() {
 #' @export
 #'
 #' @examples
-#' # Get default theme:
+#' # Get default theme set by options(rtemis_theme = "theme_name").
+#' # If not set, defaults to "whitegrid":
 #' choose_theme()
 #' # Get darkgraygrid theme. Same as `theme_darkgraygrid()`:
 #' choose_theme("darkgraygrid")
