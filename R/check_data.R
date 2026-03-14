@@ -101,7 +101,7 @@ check_data <- function(
       data.frame(
         Feature = names(cols_anyna),
         Pct_NA = sapply(seq_len(n_cols_anyna), \(i) {
-          sum(is.na(x[[cols_anyna[1]]])) / n_cols
+          sum(is.na(x[[cols_anyna[i]]])) / n_rows
         })
       )
     } else {
@@ -115,7 +115,7 @@ check_data <- function(
       data.frame(
         Case = index_incomplete,
         Pct_NA = sapply(seq_len(n_incomplete), \(i) {
-          sum(is.na(x[index_incomplete[i], ])) / n_rows
+          sum(is.na(x[index_incomplete[i], ])) / n_cols
         })
       )
     } else {
