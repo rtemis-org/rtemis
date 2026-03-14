@@ -12,7 +12,7 @@
 #' @param hyperparameters `LinearSVMHyperparameters` object: make using [setup_LinearSVM].
 #' @param x tabular data: Training set.
 #' @param weights Numeric vector: Case weights.
-#' @param dat_validation tabular data or NULL: Not used for Linear SVM.
+#' @param dat_validation Optional tabular data: Not used for Linear SVM.
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @return Object of class `svm`.
@@ -115,7 +115,7 @@ method(train_, LinearSVMHyperparameters) <- function(
 #' @param hyperparameters `RadialSVMHyperparameters` object: make using [setup_RadialSVM].
 #' @param x tabular data: Training set.
 #' @param weights Numeric vector: Case weights.
-#' @param dat_validation tabular data or NULL: Not used for Radial SVM.
+#' @param dat_validation Optional tabular data: Not used for Radial SVM.
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @return Object of class `svm`.

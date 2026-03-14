@@ -54,7 +54,6 @@ Find one or more cases from a \code{pool} data.frame that match cases in a targe
 data.frame. Match exactly and/or by distance (sum of squared distances).
 }
 \examples{
-\dontrun{
 set.seed(2021)
 cases <- data.frame(
   PID = paste0("PID", seq(4)),
@@ -74,7 +73,6 @@ controls <- data.frame(
 )
 
 mc <- matchcases(cases, controls, 2, "PID", "CID")
-}
 }
 \author{
 EDG

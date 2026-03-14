@@ -2,12 +2,9 @@
 % Please edit documentation in R/00_S7init.R, R/14_SuperConfig.R
 \name{write_toml}
 \alias{write_toml}
-\alias{write_toml.SuperConfig}
 \title{Write to TOML file}
 \usage{
 write_toml(x, file, overwrite = FALSE, verbosity = 1L)
-
-write_toml.SuperConfig(x, file, overwrite = FALSE, verbosity = 1L)
 }
 \arguments{
 \item{x}{\code{SuperConfig} object.}

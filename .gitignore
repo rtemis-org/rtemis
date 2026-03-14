@@ -82,7 +82,9 @@ cran-comments.md
 
 # Assistants
 inst/AGENTS.md
+.claude/
 copilot-instructions.md
 GEMINI.md
 .rtms-instructions.md
 .github/agents/
+SKILL.md

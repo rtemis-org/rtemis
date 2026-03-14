@@ -22,7 +22,7 @@ decomp(x, algorithm = "ICA", config = NULL, verbosity = 1L)
 Perform linear or non-linear decomposition of numeric data.
 }
 \details{
-See \href{https://rdocs.rtemis.org/decomp}{rdocs.rtemis.org/decomp} for detailed documentation.
+See \href{https://docs.rtemis.org/r/}{docs.rtemis.org/r} for detailed documentation.
 }
 \examples{
 iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")

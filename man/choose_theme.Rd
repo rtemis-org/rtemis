@@ -27,7 +27,8 @@ select the theme. This allows users to set a default theme for all rtemis plots 
 \code{options(rtemis_theme = "theme_name")} at any point.
 }
 \examples{
-# Get default theme:
+# Get default theme set by options(rtemis_theme = "theme_name").
+# If not set, defaults to "whitegrid":
 choose_theme()
 # Get darkgraygrid theme. Same as `theme_darkgraygrid()`:
 choose_theme("darkgraygrid")

@@ -7,7 +7,7 @@
 #' Draw interactive boxplots or violin plots using \pkg{plotly}
 #'
 #' @details
-#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#' See [docs.rtemis.org/r](https://docs.rtemis.org/r/) for detailed documentation.
 #'
 #' For multiple box plots, the recommendation is:
 #' - `x=dat[, columnindex]` for multiple variables of a data.frame
@@ -116,7 +116,8 @@
 #' @param file_height Integer: File height in pixels for when `filename`
 #' is set.
 #' @param file_scale Numeric: If saving to file, scale plot by this number
-#' @param mathjax Character: "local", "cdn", or NULL
+#' @param mathjax Optional Character \{"local", "cdn"\}: Whether to use local or CDN version of
+#' MathJax for rendering mathematical annotations.
 #'
 #' @return `plotly` object.
 #'

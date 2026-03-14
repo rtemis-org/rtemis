@@ -15,6 +15,20 @@ read_config(file)
 \description{
 Read \code{SuperConfig} object from TOML file that was written with \code{write_toml()}.
 }
+\examples{
+# Create a SuperConfig object
+x <- setup_SuperConfig(
+  dat_training_path = "~/Data/iris.csv",
+  algorithm = "LightRF",
+  hyperparameters = setup_LightRF()
+)
+# Write TOML file
+tmpdir <- tempdir()
+tmpfile <- file.path(tmpdir, "rtemis_test.toml")
+write_toml(x, tmpfile)
+# Read config from TOML file
+x_read <- read_config(tmpfile)
+}
 \author{
 EDG
 }

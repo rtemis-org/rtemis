@@ -135,7 +135,7 @@ draw_heatmap(
 Draw interactive heatmaps using \code{heatmaply}.
 }
 \details{
-See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
+See \href{https://docs.rtemis.org/r/}{docs.rtemis.org/r} for detailed documentation.
 'heatmaply' unfortunately forces loading of the 'colorspace' namespace.
 }
 \examples{

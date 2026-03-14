@@ -387,6 +387,7 @@ plot_true_pred <- new_generic("plot_true_pred", "x")
 #'
 #' @author EDG
 #' @export
+# example included in `plot_manhattan.MassGLM` method.
 plot_manhattan <- new_generic("plot_manhattan", "x")
 
 
@@ -529,6 +530,7 @@ to_yaml <- new_generic("to_yaml", "x")
 #'
 #' @author EDG
 #' @export
+# examples include in method documentation
 write_toml <- new_generic(
   "write_toml",
   "x",
@@ -1035,6 +1037,10 @@ scalar_int_pos <- S7::new_property(
 #' @return data.frame: The preprocessed data.
 #'
 #' @export
+#'
+#' @examples
+#' prp <- preprocess(iris, setup_Preprocessor(scale = TRUE, center = TRUE))
+#' preprocessed(prp)
 preprocessed <- new_generic("preprocessed", "x", function(x) {
   S7_dispatch()
 }) # /rtemis::preprocessed

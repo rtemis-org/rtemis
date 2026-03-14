@@ -15,14 +15,14 @@ dt_set_logical2factor(
 \arguments{
 \item{x}{data.table: Input data.table. Will be modified \emph{\strong{in-place}}.}
 
-\item{cols}{Integer or character: columns to convert, if NULL, operates on all
-logical columns}
+\item{cols}{Optional Integer or character: columns to convert. If NULL, operates on all
+logical columns.}
 
-\item{labels}{Character: labels for factor levels}
+\item{labels}{Character: labels for factor levels.}
 
-\item{maintain_attributes}{Logical: If TRUE, maintain column attributes}
+\item{maintain_attributes}{Logical: If TRUE, maintain column attributes.}
 
-\item{fillNA}{Character: If not NULL, fill NA values with this constant}
+\item{fillNA}{Optional Character: If not NULL, fill NA values with this constant.}
 }
 \value{
 data.table, invisibly.

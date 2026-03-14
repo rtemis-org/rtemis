@@ -5,53 +5,7 @@
 # clean_* functions performm checks and return clean inputs.
 # check_* functions perform checks (do not return a value).
 
-#' Check type of object
-#'
-#' @param x Object to check
-#' @param fn Function to check against, any `is.*` function, e.g. `is.character`
-#'
-#' @return Logical
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-#' @examples
-#' \dontrun{
-#' is_check("papaya", is.character) # TRUE
-#' is_check(c(1, 2.5, 3.2), is.integer) # FALSE
-#' is_check(iris, is.list) # TRUE
-#' }
-is_check <- function(x, fn) {
-  if (!fn(x)) {
-    input <- deparse(substitute(x))
-    type <- substr(deparse(substitute(fn)), 4, 99)
-    message(red(bold(input), "is not", bold(type)))
-    return(FALSE)
-  }
-  TRUE
-} # /rtemis::is_check
-
-
-#' Test type of object
-#'
-#' @inheritParams is_check
-#'
-#' @return NULL (invisibly)
-#'
-#' @author EDG
-#'
-#' @keywords internal
-#' @noRd
-is_test <- function(x, fn) {
-  if (!is.null(x) && !fn(x)) {
-    input <- deparse(substitute(x))
-    type <- substr(deparse(substitute(fn)), 4, 99)
-    cli::cli_abort(bold(input), " is not ", bold(type))
-  }
-  invisible()
-} # /rtemis::is_test
-
-
+# %% test_inherits ----
 #' Check class of object
 #'
 #' @param x Object to check
@@ -61,12 +15,11 @@ is_test <- function(x, fn) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
+#'
 #' @examples
-#' \dontrun{
-#' check_inherits("papaya", "character") # TRUE
-#' check_inherits(c(1, 2.5, 3.2), "integer") # FALSE
-#' check_inherits(iris, "list") # FALSE, compare to is_check(iris, is.list)
-#' }
+#' test_inherits("papaya", "character") # TRUE
+#' test_inherits(c(1, 2.5, 3.2), "integer")
+#' test_inherits(iris, "list") # FALSE, compare to is_check(iris, is.list)
 test_inherits <- function(x, cl) {
   if (!inherits(x, cl)) {
     input <- deparse(substitute(x))
@@ -77,7 +30,8 @@ test_inherits <- function(x, cl) {
 } # /rtemis::test_inherits
 
 
-#' Test class of object
+# %% check_inherits ----
+#' Check class of object
 #'
 #' @param x Object to check.
 #' @param cl Character: class to check against.
@@ -89,6 +43,12 @@ test_inherits <- function(x, cl) {
 #'
 #' @keywords internal
 #' @noRd
+#'
+#' @examples
+#' check_inherits("papaya", "character")
+#' # These will throw errors:
+#' # check_inherits(c(1, 2.5, 3.2), "integer")
+#' # check_inherits(iris, "list")
 check_inherits <- function(
   x,
   cl,
@@ -113,39 +73,7 @@ check_inherits <- function(
 } # /rtemis::check_inherits
 
 
-#' Function that returns object if it is of a certain class
-#'
-#' @param object Object to check and return
-#' @param class Character vector: class(es) to check against
-#' @param allow_null Logical: if TRUE, allows NULL objects
-#'
-#' @return Object
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-#' @examples
-#' \dontrun{
-#' strict("papaya", "character") # "papaya"
-#' strict(c(1, 2.5, 3.2), "integer") # Error
-#' strict(iris, "list") # Error
-#' }
-strict <- function(
-  object,
-  class,
-  allow_null = TRUE,
-  xname = deparse(substitute(object))
-) {
-  if (allow_null && is.null(object)) {
-    return(NULL)
-  }
-  if (inherits(object, class)) {
-    return(object)
-  } else {
-    cli::cli_abort(xname, " must be ", bold(class))
-  }
-} # /rtemis::strict
-
+# %% clean_int ----
 #' Clean integer input
 #'
 #' @details
@@ -163,13 +91,11 @@ strict <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
 #' clean_int(6L)
 #' clean_int(3)
-#' clean_int(12.1) # Error
+#' # clean_int(12.1) # Error
 #' clean_int(c(3, 5, 7))
-#' clean_int(c(3, 5, 7.01)) # Error
-#' }
+#' # clean_int(c(3, 5, 7.01)) # Error
 clean_int <- function(x, xname = deparse(substitute(x))) {
   if (is.integer(x)) {
     return(x)
@@ -186,6 +112,7 @@ clean_int <- function(x, xname = deparse(substitute(x))) {
 } # /rtemis::clean_int
 
 
+# %% match_arg ----
 #' Match Arguments Ignoring Case
 #'
 #' @param x Character: Argument to match.
@@ -197,16 +124,16 @@ clean_int <- function(x, xname = deparse(substitute(x))) {
 #'
 #' @keywords internal
 #' @noRd
+#'
 #' @examples
-#' \dontrun{
 #' match_arg("papaya", c("AppleExtreme", "SuperBanana", "PapayaMaster"))
-#' }
 match_arg <- function(x, choices) {
   out <- match.arg(tolower(x), tolower(choices))
   grep(out, choices, value = TRUE, ignore.case = TRUE)
 } # /rtemis::match_arg
 
 
+# %% check_logical ----
 #' Check logical
 #'
 #' @param x Vector to check
@@ -241,6 +168,7 @@ check_logical <- function(
 } # /rtemis::check_logical
 
 
+# %% check_character ----
 #' Check character
 #'
 #' @param x Vector to check
@@ -275,6 +203,7 @@ check_character <- function(
 } # /rtemis::check_character
 
 
+# %% check_floatpos ----
 #' Check positive float
 #'
 #' @details
@@ -319,6 +248,7 @@ check_floatpos <- function(
 } # /rtemis::check_floatpos
 
 
+# %% check_float01exc ----
 #' Check float between 0 and 1, exclusive
 #'
 #' @param x Vector to check
@@ -362,6 +292,7 @@ check_float01exc <- function(
 } # /rtemis::check_float01
 
 
+# %% check_float01inc ----
 #' Check float between 0 and 1, inclusive
 #'
 #' @param x Float vector.
@@ -402,6 +333,8 @@ check_float01inc <- function(
   invisible()
 } # /rtemis::check_float01
 
+
+# %% check_floatpos1 ----
 check_floatpos1 <- function(
   x,
   allow_null = TRUE,
@@ -433,6 +366,7 @@ check_floatpos1 <- function(
 } # /rtemis::check_floatpos1
 
 
+# %% clean_posint ----
 #' Check positive integer
 #'
 #' @param x Integer vector.
@@ -464,6 +398,7 @@ clean_posint <- function(x, allow_na = FALSE, xname = deparse(substitute(x))) {
 } # /rtemis::clean_posint
 
 
+# %% check_float0pos ----
 #' Check float greater than or equal to 0
 #'
 #' Checks if an input is a numeric vector containing non-negative
@@ -507,6 +442,7 @@ check_float0pos <- function(
 } # /rtemis::check_float0pos
 
 
+# %% check_float_neg1_1 ----
 #' Check float -1 <= x <= 1
 #'
 #' @param x Numeric vector: The input object to check.
@@ -547,6 +483,7 @@ check_float_neg1_1 <- function(
 } # /rtemis::check_float_neg1_1
 
 
+# %% abbreviate_class ----
 #' Abbreviate object class name
 #'
 #' @param x Object
@@ -562,6 +499,7 @@ abbreviate_class <- function(x, n = 4L) {
 } # /rtemis::abbr_class
 
 
+# %% check_dependencies ----
 #' \pkg{rtemis} internal: Dependencies check
 #'
 #' Checks if dependencies can be loaded; names missing dependencies if not.
@@ -597,6 +535,7 @@ check_dependencies <- function(..., verbosity = 0L) {
 } # /rtemis::check_dependencies
 
 
+# %% check_data.table ----
 #' Check data.table
 #'
 #' @param x Object to check.

@@ -10,7 +10,7 @@ Advanced Machine Learning & Visualization made efficient, accessible, reproducib
 }
 \section{Online Documentation and Vignettes}{
 
-\url{https://rdocs.rtemis.org}
+\url{https://docs.rtemis.org/r/}
 }
 
 \section{System Setup}{

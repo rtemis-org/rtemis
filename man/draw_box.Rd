@@ -239,7 +239,8 @@ is set.}
 
 \item{file_scale}{Numeric: If saving to file, scale plot by this number}
 
-\item{mathjax}{Character: "local", "cdn", or NULL}
+\item{mathjax}{Optional Character \{"local", "cdn"\}: Whether to use local or CDN version of
+MathJax for rendering mathematical annotations.}
 }
 \value{
 \code{plotly} object.
@@ -248,7 +249,7 @@ is set.}
 Draw interactive boxplots or violin plots using \pkg{plotly}
 }
 \details{
-See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
+See \href{https://docs.rtemis.org/r/}{docs.rtemis.org/r} for detailed documentation.
 
 For multiple box plots, the recommendation is:
 \itemize{

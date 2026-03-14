@@ -15,7 +15,7 @@
 #' @param hyperparameters `CARTHyperparameters` object: make using [setup_CART].
 #' @param x tabular data: Training set.
 #' @param weights Numeric vector: Case weights.
-#' @param dat_validation tabular data or NULL: Not used for CART.
+#' @param dat_validation Optional tabular data: Not used for CART.
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @author EDG

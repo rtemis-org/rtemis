@@ -35,17 +35,18 @@
 #' [clean_colnames].
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return data.frame or data.table.
+#' @return data.frame or data.table if `collect` is TRUE, otherwise a character with the SQL query
 #'
 #' @author EDG
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' ir <- ddb_data("/Data/massive_dataset.csv",
-#'   filter_column = "ID",
-#'   filter_vals = 8001:9999
-#' )
+#'   # Requires local CSV file; replace with your own path
+#'   ir <- ddb_data("/Data/massive_dataset.csv",
+#'     filter_column = "ID",
+#'     filter_vals = 8001:9999
+#'   )
 #' }
 ddb_data <- function(
   filename,
@@ -207,7 +208,7 @@ ls2sel <- function(x) {
 #'
 #' @examples
 #' \dontrun{
-#'   # Required local CSV file; replace with your own path
+#'   # Requires local CSV file; replace with your own path
 #'   sql <- ddb_data("/Data/iris.csv", collect = FALSE)
 #'   ir <- ddb_collect(sql)
 #' }

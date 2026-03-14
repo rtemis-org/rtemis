@@ -27,7 +27,8 @@ setup_SuperConfig(
 
 \item{dat_test_path}{Character: Path to test data file.}
 
-\item{weights}{Optional Character: Column name in training data to use as observation weights. If NULL, no weights are used.}
+\item{weights}{Optional Character: Column name in training data to use as observation weights.
+If NULL, no weights are used.}
 
 \item{preprocessor_config}{\code{PreprocessorConfig} object: Configuration for data preprocessing.}
 

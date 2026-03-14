@@ -355,11 +355,11 @@ dt_pctmissing <- function(x, verbosity = 1L) {
 #' Convert data.table logical columns to factors with custom labels ***in-place***
 #'
 #' @param x data.table: Input data.table. Will be modified ***in-place***.
-#' @param cols Integer or character: columns to convert, if NULL, operates on all
-#' logical columns
-#' @param labels Character: labels for factor levels
-#' @param maintain_attributes Logical: If TRUE, maintain column attributes
-#' @param fillNA Character: If not NULL, fill NA values with this constant
+#' @param cols Optional Integer or character: columns to convert. If NULL, operates on all
+#' logical columns.
+#' @param labels Character: labels for factor levels.
+#' @param maintain_attributes Logical: If TRUE, maintain column attributes.
+#' @param fillNA Optional Character: If not NULL, fill NA values with this constant.
 #'
 #' @return data.table, invisibly.
 #'
@@ -683,7 +683,7 @@ dt_describe <- function(x, verbosity = 1L) {
         \(col) length(unique(col))
       ),
       Mode = sapply(x[, index_cf, with = FALSE], get_mode),
-      Counts = sapply(x[, index_cf, with = FALSE], fct_describe),
+      Counts = sapply(x[, index_cf, with = FALSE], describe),
       Pct_missing = sapply(
         x[, index_cf, with = FALSE],
         \(col) sum(is.na(col)) / nrows

@@ -698,10 +698,7 @@ preprocess.class_tabular.Preprocessor <- method(
 } # /rtemis::preprocess(Preprocessor, ...)
 
 
-# one_hot.R
-# ::rtemis::
-# 2019 EDG rtemis.org
-
+# %% one_hot ----
 #' @name one_hot
 #'
 #' @title
@@ -729,12 +726,10 @@ preprocess.class_tabular.Preprocessor <- method(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
-#' iris_oh <- one_hot(iris)
 #' # factor with only one unique value but 2 levels:
 #' vf <- factor(rep("alpha", 20), levels = c("alpha", "beta"))
 #' vf_one_hot <- one_hot(vf)
-#' }
+#' vf_one_hot
 method(one_hot, class_any) <- function(x, xname = NULL, verbosity = 1L) {
   if (is.null(xname)) {
     xname <- deparse(substitute(x))
@@ -782,17 +777,15 @@ one_hotcm <- function(
 # x <- iris$Species
 # microbenchmark::microbenchmark(loop = one_hot.default(x), dt = one_hotcm(x))
 
-# one_hot.data.frame ----
+# %% one_hot.data.frame ----
 #' @rdname one_hot
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
+#'
 #' @examples
-#' \dontrun{
 #' one_hot(iris) |> head()
-#' }
-# one_hot.data.frame
 method(one_hot, class_data.frame) <- function(
   x,
   factor_levels = NULL,
@@ -835,18 +828,17 @@ method(one_hot, class_data.frame) <- function(
 } # /rtemis::one_hot.data.frame
 
 
-# one_hot.data.table ----
+# %% one_hot.data.table ----
 #' @rdname one_hot
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
+#'
 #' @examples
-#' \dontrun{
 #' ir <- data.table::as.data.table(iris)
 #' ir_oh <- one_hot(ir)
 #' ir_oh
-#' }
 method(one_hot, class_data.table) <- function(x, verbosity = 1L) {
   x <- copy(x)
   ncases <- NROW(x)
@@ -884,13 +876,12 @@ method(one_hot, class_data.table) <- function(x, verbosity = 1L) {
 #'
 #' @author EDG
 #' @export
+#'
 #' @examples
-#' \dontrun{
 #' ir <- data.table::as.data.table(iris)
 #' # dt_set_one_hot operates ***in-place***; therefore no assignment is used:
 #' dt_set_one_hot(ir)
 #' ir
-#' }
 dt_set_one_hot <- function(x, xname = NULL, verbosity = 1L) {
   if (is.null(xname)) {
     xname <- deparse(substitute(x))
@@ -932,14 +923,12 @@ dt_set_one_hot <- function(x, xname = NULL, verbosity = 1L) {
 #'
 #' @author EDG
 #' @export
-#' @examples
-#' \dontrun{
-#' x <- data.frame(matrix(F, 10, 3))
-#' colnames(x) <- c("Dx1", "Dx2", "Dx3")
-#' x$Dx1[1:3] <- x$Dx2[4:6] <- x$Dx3[7:10] <- T
-#' one_hot2factor(x)
-#' }
 #'
+#' @examples
+#' x <- data.frame(matrix(FALSE, 10, 3))
+#' colnames(x) <- c("Dx1", "Dx2", "Dx3")
+#' x$Dx1[1:3] <- x$Dx2[4:6] <- x$Dx3[7:10] <- TRUE
+#' one_hot2factor(x)
 one_hot2factor <- function(x, labels = colnames(x)) {
   if (NCOL(x) == 1) {
     return(factor(x))

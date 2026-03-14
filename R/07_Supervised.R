@@ -823,7 +823,7 @@ method(plot_true_pred, Regression) <- function(
 #'
 #' @param x `Classification` object.
 #' @param what Character vector: What to plot. "training", "validation", "test"
-#' @param xlab Character: x axis label. If NULL, will be generated automatically.
+#' @param xlab Optional Character: x axis label. If NULL, will be generated automatically.
 #' @param theme `Theme` object.
 #' @param ... Additional arguments passed to the plotting function.
 #'

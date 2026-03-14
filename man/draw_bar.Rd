@@ -154,7 +154,7 @@ is set.}
 Draw interactive barplots using \code{plotly}
 }
 \details{
-See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
+See \href{https://docs.rtemis.org/r/}{docs.rtemis.org/r} for detailed documentation.
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}

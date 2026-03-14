@@ -23,7 +23,6 @@ supervised_type <- function(dat) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
 #' # Binary classification where "A" is the positive class, so .1 => B, .5 & .9 => A
 #' prob2categorical(c(.1, .5, .9), c("A", "B"), 1)
 #' # Binary classification where "B" is the positive class, so .1 => A, .5 & .9 => B
@@ -31,7 +30,6 @@ supervised_type <- function(dat) {
 #' # Multi-class classification
 #' prob <- matrix(c(.1, .3, .6, .05, .6, .35, .4, .3, .3), nrow = 3, byrow = TRUE)
 #' prob2categorical(prob, c("A", "B", "C"))
-#' }
 prob2categorical <- function(x, levels, binclasspos = 2L) {
   n_classes <- length(levels)
   if (n_classes == 2) {

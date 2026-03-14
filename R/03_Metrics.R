@@ -16,7 +16,7 @@
 Metrics <- new_class(
   name = "Metrics",
   properties = list(
-    sample = class_character,
+    sample = class_character | NULL,
     metrics = class_list | class_data.frame
   )
 ) # /rtemis::Metrics
@@ -61,7 +61,7 @@ RegressionMetrics <- new_class(
   #   RMSE = class_numeric,
   #   Rsq = class_numeric
   # ),
-  constructor = function(MAE, MSE, RMSE, Rsq, sample = character()) {
+  constructor = function(MAE, MSE, RMSE, Rsq, sample = NULL) {
     new_object(
       Metrics(
         sample = sample,
@@ -137,7 +137,7 @@ ClassificationMetrics <- new_class(
     Overall,
     Class,
     Positive_Class,
-    sample = character()
+    sample = NULL
   ) {
     new_object(
       Metrics(

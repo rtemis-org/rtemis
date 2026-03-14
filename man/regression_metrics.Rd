@@ -4,7 +4,7 @@
 \alias{regression_metrics}
 \title{Regression Metrics}
 \usage{
-regression_metrics(true, predicted, na.rm = TRUE, sample = character())
+regression_metrics(true, predicted, na.rm = TRUE, sample = NULL)
 }
 \arguments{
 \item{true}{Numeric vector: True values.}
@@ -20,6 +20,11 @@ regression_metrics(true, predicted, na.rm = TRUE, sample = character())
 }
 \description{
 Regression Metrics
+}
+\examples{
+true <- rnorm(100)
+predicted <- true + rnorm(100, sd = 0.5)
+regression_metrics(true, predicted)
 }
 \author{
 EDG

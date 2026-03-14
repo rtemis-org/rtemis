@@ -81,9 +81,10 @@ method(check_factor_levels, class_data.table) <- function(x, y, z) {
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
-#' check_supervised(training_data, validation_data, test_data)
-#' }
+#' res <- resample(iris)
+#' iris_train <- iris[res[[1]], ]
+#' iris_test <- iris[-res[[1]], ]
+#' check_supervised(iris_train, dat_test = iris_test)
 check_supervised <- function(
   x,
   dat_validation = NULL,
@@ -175,9 +176,7 @@ check_supervised <- function(
 #' @noRd
 #'
 #' @examples
-#' \dontrun{
-#' check_unsupervised_data(features_data)
-#' }
+#' check_unsupervised_data(iris[, -5])
 check_unsupervised_data <- function(x, allow_missing = FALSE, verbosity = 1L) {
   if (verbosity > 0L) {
     msgstart("Checking unsupervised data...")

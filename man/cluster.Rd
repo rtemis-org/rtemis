@@ -22,7 +22,7 @@ cluster(x, algorithm = "KMeans", config = NULL, verbosity = 1L)
 Perform clustering on the rows (usually cases) of a dataset.
 }
 \details{
-See \href{https://rdocs.rtemis.org/cluster}{rdocs.rtemis.org/cluster} for detailed documentation.
+See \href{https://docs.rtemis.org/r/}{docs.rtemis.org/r} for detailed documentation.
 }
 \examples{
 iris_km <- cluster(exc(iris, "Species"), algorithm = "KMeans")

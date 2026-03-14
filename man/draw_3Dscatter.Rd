@@ -171,7 +171,7 @@ A \code{plotly} object.
 Draw interactive 3D scatter plots using \code{plotly}.
 }
 \details{
-See \href{https://rdocs.rtemis.org/draw}{rdocs.rtemis.org/draw} for detailed documentation.
+See \href{https://docs.rtemis.org/r/}{docs.rtemis.org/r} for detailed documentation.
 
 Note that \code{draw_3Dscatter} uses the theme's \code{plot_bg} as \code{grid_col}.
 }

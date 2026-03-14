@@ -41,8 +41,8 @@
 #' @param zt Numeric vector: Zeitgeber time. If provided, will be shown on the x-axis instead of
 #' `x`. To be used only with a single `x` vector and no `x2`.
 #' @param show_zt Logical: If TRUE, show zt on x-axis, if zt is provided.
-#' @param show_zt_every Integer: Show zt every `show_zt_every` ticks. If NULL, will be calculated
-#' to be `x_nticks` +/- 1 if `x_nticks` is not 0, otherwise 12 +/- 1.
+#' @param show_zt_every Optional integer: Show zt every `show_zt_every` ticks. If NULL, will be
+#' calculated to be `x_nticks` +/- 1 if `x_nticks` is not 0, otherwise 12 +/- 1.
 #' @param zt_nticks Integer: Number of zt ticks to show. Only used if `show_zt_every` is NULL.
 #' The actual number of ticks shown will depend on the periodicity of zt, so that zt = 0 is always
 #' included.

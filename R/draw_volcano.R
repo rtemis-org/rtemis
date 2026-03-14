@@ -11,7 +11,7 @@
 #' @param x Numeric vector: Input values, e.g. log2 fold change, coefficients, etc.
 #' @param pvals Numeric vector: p-values.
 #' @param xnames Character vector: `x` names.
-#' @param group Factor: Used to color code points. If NULL, significant points
+#' @param group Optional factor: Used to color code points. If NULL, significant points
 #' below `x_thresh`, non-significant points, and significant points
 #' above `x_thresh` will be plotted with the first, second and third
 #' color of `palette`.

@@ -8,7 +8,7 @@
 #' Perform clustering on the rows (usually cases) of a dataset.
 #'
 #' @details
-#' See [rdocs.rtemis.org/cluster](https://rdocs.rtemis.org/cluster) for detailed documentation.
+#' See [docs.rtemis.org/r](https://docs.rtemis.org/r/) for detailed documentation.
 #'
 #' @param x Matrix or data.frame: Data to cluster. Rows are cases to be clustered.
 #' @param algorithm Character: Clustering algorithm.

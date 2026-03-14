@@ -6,7 +6,6 @@
 # https://github.com/RConsortium/S7
 # https://rconsortium.github.io/S7/
 
-
 # %% SuperConfig ----
 #' SuperConfig Class
 #'
@@ -35,7 +34,6 @@ SuperConfig <- new_class(
 ) # /rtemis::SuperConfig
 
 
-
 # %% repr.SuperConfig ----
 #' Repr SuperConfig
 #'
@@ -57,7 +55,6 @@ method(repr, SuperConfig) <- function(x, pad = 0L, output_type = NULL) {
 } # /rtemis::repr.SuperConfig
 
 
-
 # %% print.SuperConfig ----
 #' Print `SuperConfig`
 #'
@@ -74,7 +71,6 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 } # /rtemis::print.SuperConfig
 
 
-
 # %% setup_SuperConfig ----
 #' Setup SuperConfig
 #'
@@ -83,7 +79,8 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' @param dat_training_path Character: Path to training data file.
 #' @param dat_validation_path Character: Path to validation data file.
 #' @param dat_test_path Character: Path to test data file.
-#' @param weights Optional Character: Column name in training data to use as observation weights. If NULL, no weights are used.
+#' @param weights Optional Character: Column name in training data to use as observation weights.
+#' If NULL, no weights are used.
 #' @param preprocessor_config `PreprocessorConfig` object: Configuration for data preprocessing.
 #' @param algorithm Character: Algorithm to use for training.
 #' @param hyperparameters `Hyperparameters` object: Configuration for model hyperparameters.
@@ -162,7 +159,6 @@ setup_SuperConfig <- function(
 } # /setup_SuperConfig
 
 
-
 # %% to_toml.SuperConfig ----
 #' Convert `SuperConfig` to TOML
 #'
@@ -183,7 +179,6 @@ method(to_toml, SuperConfig) <- function(x) {
 } # /rtemis::to_toml.SuperConfig
 
 
-
 # %% write_toml.SuperConfig ----
 #' @name
 #' write_toml
@@ -196,7 +191,7 @@ method(to_toml, SuperConfig) <- function(x) {
 #' @return `SuperConfig` object, invisibly.
 #'
 #' @author EDG
-#' @export
+#' @rdname write_toml
 #'
 #' @examples
 #' x <- setup_SuperConfig(
@@ -216,7 +211,7 @@ method(to_toml, SuperConfig) <- function(x) {
 #' )
 #' tmpdir <- tempdir()
 #' write_toml(x, file.path(tmpdir, "rtemis.toml"))
-write_toml.SuperConfig <- method(write_toml, SuperConfig) <- function(
+method(write_toml, SuperConfig) <- function(
   x,
   file,
   overwrite = FALSE,
@@ -233,7 +228,6 @@ write_toml.SuperConfig <- method(write_toml, SuperConfig) <- function(
 } # /rtemis::write_toml.SuperConfig
 
 
-
 # %% read_config ----
 #' Read `SuperConfig` from TOML file
 #'
@@ -245,6 +239,20 @@ write_toml.SuperConfig <- method(write_toml, SuperConfig) <- function(
 #'
 #' @author EDG
 #' @export
+#'
+#' @examples
+#' # Create a SuperConfig object
+#' x <- setup_SuperConfig(
+#'   dat_training_path = "~/Data/iris.csv",
+#'   algorithm = "LightRF",
+#'   hyperparameters = setup_LightRF()
+#' )
+#' # Write TOML file
+#' tmpdir <- tempdir()
+#' tmpfile <- file.path(tmpdir, "rtemis_test.toml")
+#' write_toml(x, tmpfile)
+#' # Read config from TOML file
+#' x_read <- read_config(tmpfile)
 read_config <- function(file) {
   check_dependencies("toml")
   file <- sanitize_path(file, must_exist = TRUE, type = "file")
@@ -288,7 +296,6 @@ read_config <- function(file) {
     verbosity = iflengthy(xl[["verbosity"]])
   )
 } # /rtemis::read_config
-
 
 
 # %% to_yaml.SuperConfig ----

@@ -4,8 +4,11 @@
 
 # %% Public ----------------------------------------------------------------------------------------
 
-#' Describe factor
+#' @name describe.factor
 #'
+#' @title Describe factor
+#'
+#' @description
 #' Outputs a single character with names and counts of each level of the input factor.
 #'
 #' @param x factor.
@@ -16,19 +19,21 @@
 #' @return Character with level counts.
 #'
 #' @author EDG
-#' @export
 #'
 #' @examples
-#' \dontrun{
 #' # Small number of levels
-#' fct_describe(iris[["Species"]])
+#' describe(iris[["Species"]])
 #'
 #' # Large number of levels: show top n by count
 #' x <- factor(sample(letters, 1000, TRUE))
-#' fct_describe(x)
-#' fct_describe(x, 3)
-#' }
-fct_describe <- function(x, max_n = 5, return_ordered = TRUE) {
+#' describe(x)
+#' describe(x, 3)
+#' describe(x, 3, return_ordered = FALSE)
+method(describe, class_factor) <- function(
+  x,
+  max_n = 5,
+  return_ordered = TRUE
+) {
   x <- factor(x)
   x_levels <- levels(x)
   n_unique <- length(x_levels)
@@ -56,17 +61,18 @@ fct_describe <- function(x, max_n = 5, return_ordered = TRUE) {
         paste(x_levels[idi], x_freqs[idi], sep = ": ", collapse = "; ")
       )
     } else {
+      idx <- seq_len(max_n)
       paste0(
         "(First ",
         max_n,
         " of ",
         n_unique,
         ") ",
-        paste(x_levels, x_freqs, sep = ": ", collapse = "; ")
+        paste(x_levels[idx], x_freqs[idx], sep = ": ", collapse = "; ")
       )
     }
   }
-} # /rtemis::fct_describe
+} # /rtemis::describe.factor
 
 
 #' Match cases by covariates
@@ -97,7 +103,6 @@ fct_describe <- function(x, max_n = 5, return_ordered = TRUE) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' set.seed(2021)
 #' cases <- data.frame(
 #'   PID = paste0("PID", seq(4)),
@@ -117,7 +122,6 @@ fct_describe <- function(x, max_n = 5, return_ordered = TRUE) {
 #' )
 #'
 #' mc <- matchcases(cases, controls, 2, "PID", "CID")
-#' }
 matchcases <- function(
   target,
   pool,
