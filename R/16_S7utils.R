@@ -59,6 +59,38 @@ BiasVariance <- new_class(
   )
 )
 
+# %% `[[`.BiasVariance ----
+# Make BiasVariance props `[[`- accessible ----
+method(`[[`, BiasVariance) <- function(x, name) {
+  prop(x, name)
+}
+
+
+# %% repr.BiasVariance ----
+method(repr, BiasVariance) <- function(
+  x,
+  pad = 0L,
+  output_type = NULL
+) {
+  output_type <- get_output_type(output_type)
+  paste0(
+    repr_S7name("BiasVariance"),
+    "Mean squared bias: ",
+    highlight(ddSci(x[["mean_bias_squared"]]), output_type = output_type),
+    " (",
+    ddSci(x[["sd_bias_squared"]]),
+    ")\n",
+    "Mean variance: ",
+    highlight(
+      ddSci(x[["mean_variance"]]),
+      output_type = output_type
+    ),
+    " (",
+    ddSci(x[["sd_variance"]]),
+    ")\n"
+  )
+} # /rtemis::repr.BiasVariance
+
 
 # %% print.BiasVariance ----
 #' Print method for BiasVariance
@@ -66,15 +98,11 @@ BiasVariance <- new_class(
 #' @param x BiasVariance object.
 #' @param ... Not used.
 #'
+#' @return `x`, invisibly.
+#'
 #' @author EDG
 #' @noRd
 method(print, BiasVariance) <- function(x, ...) {
-  objcat("BiasVariance")
-  cat("Mean squared bias: ")
-  cat(highlight(ddSci(x[["mean_bias_squared"]])))
-  cat(" (", ddSci(x[["sd_bias_squared"]]), ")\n", sep = "")
-  cat("    Mean variance: ")
-  cat(highlight(ddSci(x[["mean_variance"]])))
-  cat(" (", ddSci(x[["sd_variance"]]), ")\n", sep = "")
-  cat("\n")
+  cat(repr(x))
+  invisible(x)
 } # /rtemis::print.BiasVariance
