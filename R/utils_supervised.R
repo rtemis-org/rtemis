@@ -82,7 +82,7 @@ set_outcome <- function(dat, outcome_column) {
   id <- grep(outcome_column, names(dat))
   # Check
   if (length(id) == 0) {
-    cli::cli_abort('Column "', outcome_column, '" not found in data.')
+    cli::cli_abort('Column "{outcome_column}" not found in data.')
   }
   # Reorder columns
   # => Make S7 generic
@@ -231,29 +231,6 @@ gam2table <- function(mods, modnames = NULL) {
   setnames(out, names(out)[-1], paste("p_value", names(out)[-1]))
   out
 }
-
-#' Get GAM model's p-values for parametric and spline terms
-#'
-#' @keywords internal
-#' @noRd
-get_gam_pvals <- function(m, warn = TRUE) {
-  eps <- .Machine[["double.eps"]]
-  ms <- summary(m)
-  pvals <- cbind(
-    # s terms
-    as.data.frame(t(ms[["s.table"]][, 4])),
-    # p terms
-    as.data.frame(t(ms[["p.table"]][, 4]))[-1]
-  )
-  lteps <- pvals < eps
-  if (length(lteps) > 0) {
-    if (warn) {
-      warning("Values < machine double eps converted to double eps")
-    }
-    pvals[lteps] <- eps
-  }
-  pvals
-} # /rtemis::get_gam_pvals
 
 
 #' Class Imbalance
