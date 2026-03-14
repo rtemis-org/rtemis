@@ -46,7 +46,7 @@ method(`.DollarNames`, Clustering) <- function(x, pattern = "") {
 # %% `[[`.Clustering ----
 # Make Clustering props `[[`-accessible
 method(`[[`, Clustering) <- function(x, index) {
-  props(x, index)
+  prop(x, index)
 }
 
 
