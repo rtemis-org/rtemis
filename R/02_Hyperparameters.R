@@ -272,13 +272,13 @@ method(update, Hyperparameters) <- function(
 
 # %% freeze.Hyperparameters ----
 method(freeze, Hyperparameters) <- function(x) {
-  x@tuned <- -1
+  x@tuned <- -1L
 } # /rtemis::freeze.Hyperparameters
 
 
 # %% lock.Hyperparameters ----
 method(lock, Hyperparameters) <- function(x) {
-  x@tuned <- 1
+  x@tuned <- 1L
 }
 
 
@@ -1085,6 +1085,7 @@ LightGBMHyperparameters <- new_class(
           num_leaves = num_leaves,
           max_depth = max_depth,
           learning_rate = learning_rate,
+          feature_fraction = feature_fraction,
           subsample = subsample,
           subsample_freq = subsample_freq,
           lambda_l1 = lambda_l1,
@@ -1681,9 +1682,6 @@ tabnet_tunable <- c(
   "importance_sample_size",
   "early_stopping_monitor",
   "early_stopping_tolerance",
-  "early_stopping_patience",
-  "num_workers",
-  "skip_importance",
   "early_stopping_patience",
   "ifw"
 )
