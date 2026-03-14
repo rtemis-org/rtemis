@@ -339,11 +339,11 @@ rnormmat <- function(
   return_df = FALSE,
   seed = NULL
 ) {
-  if (length(mean) < ncol) {
-    mean <- rep(mean, ncol / length(mean))
+  if (length(mean) != ncol) {
+    mean <- rep_len(mean, ncol)
   }
-  if (length(sd) < ncol) {
-    sd <- rep(sd, ncol / length(sd))
+  if (length(sd) != ncol) {
+    sd <- rep_len(sd, ncol)
   }
 
   if (!is.null(seed)) {
