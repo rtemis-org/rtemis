@@ -857,7 +857,7 @@ draw_protein <- function(
     margin = margin,
     legend = .legend,
     hoverlabel = list(
-      align = "hoverlabel_align"
+      align = hoverlabel_align
     )
   )
 
