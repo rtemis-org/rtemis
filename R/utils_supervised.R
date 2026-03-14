@@ -213,15 +213,14 @@ glm2table <- function(x, xnames = NULL, include_anova = NA, info = TRUE) {
 #' Collect summary table (p-values) from list of massGAMs with same predictors,
 #' different outcome ("massy")
 #'
-#' @param x list of [mgcv::gam] models
-#' @param xnames Character, vector: names of models
+#' @param mods list of [mgcv::gam] models.
+#' @param modnames Character, vector: names of models.
 #'
-#' @return `data.table` with glm summaries
+#' @return `data.table` with GAM p-value summaries.
 #' @author EDG
 #'
 #' @keywords internal
 #' @noRd
-
 gam2table <- function(mods, modnames = NULL) {
   if (is.null(modnames)) {
     modnames <- if (!is.null(names(mods))) {
@@ -240,7 +239,31 @@ gam2table <- function(mods, modnames = NULL) {
   )
   setnames(out, names(out)[-1], paste("p_value", names(out)[-1]))
   out
-}
+} # /rtemis::gam2table
+
+
+#' Get GAM model's p-values for parametric and spline terms
+#'
+#' @keywords internal
+#' @noRd
+get_gam_pvals <- function(m, warn = TRUE) {
+  eps <- .Machine[["double.eps"]]
+  ms <- summary(m)
+  pvals <- cbind(
+    # s terms
+    as.data.frame(t(ms[["s.table"]][, 4])),
+    # p terms
+    as.data.frame(t(ms[["p.table"]][, 4]))[-1]
+  )
+  lteps <- pvals < eps
+  if (any(lteps)) {
+    if (warn) {
+      warning("Values < machine double eps converted to double eps")
+    }
+    pvals[lteps] <- eps
+  }
+  pvals
+} # rtemis::get_gam_pvals
 
 
 #' Class Imbalance
