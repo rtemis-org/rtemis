@@ -125,7 +125,9 @@ make_formula <- function(x, output = "character") {
 #'
 #' @param x list of [glm] models
 #' @param xnames Character, vector: names of models
-#' @param include_anova Integer vector {1, 3}: Output ANOVA I and/or III p-vals. NA to not.
+#' @param include_anova Integer vector {1, 2, 3}: Output ANOVA Type I, II, and/or III
+#' p-vals. Type I uses base R `anova()` (sequential); Types II and III use `car::Anova()`.
+#' NA to skip.
 #' @param info Logical: If TRUE, warn when values < than machine eps are replaced by
 #' machine eps
 #'
@@ -144,7 +146,7 @@ glm2table <- function(x, xnames = NULL, include_anova = NA, info = TRUE) {
     }
   }
 
-  if (!is.na(include_anova)) {
+  if (any(c(2L, 3L) %in% include_anova)) {
     check_dependencies("car")
   }
 
@@ -178,6 +180,15 @@ glm2table <- function(x, xnames = NULL, include_anova = NA, info = TRUE) {
   # }
 
   if (1 %in% include_anova) {
+    pvals1 <- t(sapply(x, \(i) anova(i, test = "F")[, 5]))
+    colnames(pvals1) <- paste(
+      "p_value type I",
+      x[[1]] |> terms() |> attr("term.labels")
+    )
+    out <- cbind(out, pvals1)
+  }
+
+  if (2 %in% include_anova) {
     pvals2 <- t(sapply(x, \(i) car::Anova(i, type = 2)[, 3]))
     colnames(pvals2) <- paste(
       "p_value type II",
@@ -204,7 +215,6 @@ glm2table <- function(x, xnames = NULL, include_anova = NA, info = TRUE) {
 #'
 #' @param x list of [mgcv::gam] models
 #' @param xnames Character, vector: names of models
-#' @param include_anova Integer: 1 or 3; to output ANOVA I or III p-vals. NA to not
 #'
 #' @return `data.table` with glm summaries
 #' @author EDG
