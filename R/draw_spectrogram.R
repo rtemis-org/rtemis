@@ -122,18 +122,18 @@ draw_spectrogram <- function(
   # Tick Labels ----
   if (is.null(showticklabels)) {
     showticklabels <- c(
-      ifelse(NCOL(x) < 50, TRUE, FALSE),
-      ifelse(NROW(x) < 50, TRUE, FALSE)
+      ifelse(NCOL(z) < 50, TRUE, FALSE),
+      ifelse(NROW(z) < 50, TRUE, FALSE)
     )
   }
 
   if (is.null(font_size)) {
-    font_size <- 17.0769 - 0.2692 * ncol(x)
+    font_size <- 17.0769 - 0.2692 * ncol(z)
   }
 
   # Limits ----
   if (is.null(limits)) {
-    maxabs <- max(abs(x), na.rm = TRUE)
+    maxabs <- max(abs(z), na.rm = TRUE)
     if (.2 < maxabs && maxabs < 1) {
       maxabs <- 1
     }
