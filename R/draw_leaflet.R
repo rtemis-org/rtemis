@@ -161,7 +161,7 @@ draw_leaflet <- function(
     }) |>
       lapply(htmltools::HTML)
   }
-  geo[["labels"]] <- labels[index]
+  geo[["labels"]] <- labels
 
   # leaflet map ----
   map <- leaflet::leaflet(geo) |>
