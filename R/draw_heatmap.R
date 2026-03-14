@@ -200,7 +200,7 @@ draw_heatmap <- function(
   )
 
   # Dendrogram ----
-  if (Rowv) {
+  if (isTRUE(Rowv)) {
     Rowv <- x |>
       dist() |>
       hclust() |>
@@ -211,7 +211,7 @@ draw_heatmap <- function(
       dendextend::ladderize()
   }
 
-  if (Colv) {
+  if (isTRUE(Colv)) {
     Colv <- x |>
       t() |>
       dist() |>
