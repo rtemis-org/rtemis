@@ -7,7 +7,7 @@
 #' Draw interactive heatmaps using `heatmaply`.
 #'
 #' @details
-#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#' See [docs.rtemis.org/r](https://docs.rtemis.org/r/) for detailed documentation.
 #' 'heatmaply' unfortunately forces loading of the 'colorspace' namespace.
 #'
 #' @param x Input matrix.

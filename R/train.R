@@ -33,7 +33,7 @@
 #' @details
 #' **Online book & documentation**
 #'
-#' See [rdocs.rtemis.org/train](https://rdocs.rtemis.org/train) for detailed documentation.
+#' See [docs.rtemis.org/r](https://docs.rtemis.org/r/) for detailed documentation.
 #'
 #' **Preprocessing**
 #'

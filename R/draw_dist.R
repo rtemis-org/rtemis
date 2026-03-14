@@ -9,7 +9,7 @@
 #' Draw Distributions using Histograms and Density Plots using `plotly`.
 #'
 #' @details
-#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#' See [docs.rtemis.org/r](https://docs.rtemis.org/r/) for detailed documentation.
 #'
 #' If input is data.frame, non-numeric variables will be removed.
 #'

@@ -7,7 +7,7 @@
 #' Draw interactive 3D scatter plots using `plotly`.
 #'
 #' @details
-#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#' See [docs.rtemis.org/r](https://docs.rtemis.org/r/) for detailed documentation.
 #'
 #' Note that `draw_3Dscatter` uses the theme's `plot_bg` as `grid_col`.
 #'

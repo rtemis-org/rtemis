@@ -7,7 +7,7 @@
 #' Draw interactive barplots using `plotly`
 #'
 #' @details
-#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#' See [docs.rtemis.org/r](https://docs.rtemis.org/r/) for detailed documentation.
 #'
 #' @param x vector (possibly named), matrix, or data.frame: If matrix or
 #' data.frame, rows are groups (can be 1 row), columns are features

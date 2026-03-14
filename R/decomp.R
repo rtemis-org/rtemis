@@ -8,7 +8,7 @@
 #' Perform linear or non-linear decomposition of numeric data.
 #'
 #' @details
-#' See [rdocs.rtemis.org/decomp](https://rdocs.rtemis.org/decomp) for detailed documentation.
+#' See [docs.rtemis.org/r](https://docs.rtemis.org/r/) for detailed documentation.
 #'
 #' @param x Matrix or data frame: Input data.
 #' @param algorithm Character: Decomposition algorithm.

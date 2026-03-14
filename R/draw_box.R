@@ -7,7 +7,7 @@
 #' Draw interactive boxplots or violin plots using \pkg{plotly}
 #'
 #' @details
-#' See [rdocs.rtemis.org/draw](https://rdocs.rtemis.org/draw) for detailed documentation.
+#' See [docs.rtemis.org/r](https://docs.rtemis.org/r/) for detailed documentation.
 #'
 #' For multiple box plots, the recommendation is:
 #' - `x=dat[, columnindex]` for multiple variables of a data.frame
