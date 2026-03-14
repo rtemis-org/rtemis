@@ -199,28 +199,29 @@ draw_heatmap <- function(
     plot.caption = ggp2text
   )
 
-  # if (is.character(palette)) palette <- get_palette(palette)
-
   # Dendrogram ----
-  # for now, set to theme[["fg"]]
-  Rowv <- x |>
-    dist() |>
-    hclust() |>
-    as.dendrogram() |>
-    dendextend::set("branches_k_color", k = 1) |>
-    dendextend::set("branches_lwd", 1) |>
-    dendextend::set("branches_col", fg) |>
-    dendextend::ladderize()
-  #    rotate_DendSer(ser_weight = dist(x))
-  Colv <- x |>
-    t() |>
-    dist() |>
-    hclust() |>
-    as.dendrogram() |>
-    dendextend::set("branches_k_color", k = 1) |>
-    dendextend::set("branches_lwd", 1) |>
-    dendextend::set("branches_col", fg) |>
-    dendextend::ladderize()
+  if (Rowv) {
+    Rowv <- x |>
+      dist() |>
+      hclust() |>
+      as.dendrogram() |>
+      dendextend::set("branches_k_color", k = 1) |>
+      dendextend::set("branches_lwd", 1) |>
+      dendextend::set("branches_col", fg) |>
+      dendextend::ladderize()
+  }
+
+  if (Colv) {
+    Colv <- x |>
+      t() |>
+      dist() |>
+      hclust() |>
+      as.dendrogram() |>
+      dendextend::set("branches_k_color", k = 1) |>
+      dendextend::set("branches_lwd", 1) |>
+      dendextend::set("branches_col", fg) |>
+      dendextend::ladderize()
+  }
 
   plt <- suppressWarnings(heatmaply::heatmaply(
     x,
