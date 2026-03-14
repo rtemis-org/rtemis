@@ -349,7 +349,9 @@ rnormmat <- function(
   if (!is.null(seed)) {
     set.seed(seed)
   }
-  mat <- sapply(seq_len(ncol), function(j) rnorm(nrow, mean = mean, sd = sd))
+  mat <- sapply(seq_len(ncol), function(j) {
+    rnorm(nrow, mean = mean[j], sd = sd[j])
+  })
   if (return_df) {
     mat <- as.data.frame(mat)
   }
@@ -439,27 +441,6 @@ rtversion <- function() {
 setdiffsym <- function(x, y) {
   union(setdiff(x, y), setdiff(y, x))
 } # /rtemis::setdiffsym
-
-
-#' Construct an n-length vector of letters
-#'
-#' Returns an n-length vector of the latin alphabet, replicating for every 26 characters
-#'
-#' @param n Length of vector to return
-#' @param caps Logical: If TRUE, return all caps
-#'
-#' @keywords internal
-#' @noRd
-rt_letters <- function(n = 100, caps = FALSE) {
-  reps <- ceiling(n / 26)
-  prtlet <- function(x = NULL) paste0(x, if (caps) LETTERS else letters)
-  out <- NULL
-  for (i in 1:reps) {
-    out_length <- length(out)
-    out <- c(out, prtlet(out[(out_length - 25):out_length]))
-  }
-  out[1:n]
-} # /rtemis::rt_letters
 
 
 #' Initialize Project Directory
