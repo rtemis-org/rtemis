@@ -14,7 +14,7 @@ The new version (0.99+) features:
 - Strict **type checking** and **condition validation** throughout to minimize user error and provide highly focused error messages & suggestions.
 - Expanded transparent messaging through each step.
 
-![rtemis v1.0.0 console ascii](https://www.rtemis.org/rtemis_1.0.0.jpg)
+![rtemis v1.0.0 console ascii](https://www.rtemis.org/rtemis-splash.webp)
 
 ## Installation of rtemis
 
