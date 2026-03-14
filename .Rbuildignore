@@ -19,3 +19,4 @@
 ^\.claude$
 ^\.gemini$
 GEMINI.md
+^SKILL\.md$
