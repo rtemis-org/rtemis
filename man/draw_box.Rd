@@ -239,7 +239,7 @@ is set.}
 
 \item{file_scale}{Numeric: If saving to file, scale plot by this number}
 
-\item{mathjax}{Optional Character {"local", "cdn"}: Whether to use local or CDN version of
+\item{mathjax}{Optional Character \{"local", "cdn"\}: Whether to use local or CDN version of
 MathJax for rendering mathematical annotations.}
 }
 \value{
