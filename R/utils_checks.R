@@ -282,7 +282,7 @@ check_float01exc <- function(
     cli::cli_abort("{.var {xname}} must not contain NAs.")
   }
 
-  if (any(x < 0 | x > 1)) {
+  if (any(x <= 0 | x >= 1)) {
     cli::cli_abort(
       "{.var {xname}} must be between 0 and 1, exclusive."
     )

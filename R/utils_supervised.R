@@ -82,7 +82,7 @@ set_outcome <- function(dat, outcome_column) {
   id <- grep(outcome_column, names(dat))
   # Check
   if (length(id) == 0) {
-    cli::cli_abort('Column "', outcome_column, '" not found in data.')
+    cli::cli_abort('Column "{outcome_column}" not found in data.')
   }
   # Reorder columns
   # => Make S7 generic
@@ -125,7 +125,9 @@ make_formula <- function(x, output = "character") {
 #'
 #' @param x list of [glm] models
 #' @param xnames Character, vector: names of models
-#' @param include_anova Integer vector {1, 3}: Output ANOVA I and/or III p-vals. NA to not.
+#' @param include_anova Integer vector {1, 2, 3}: Output ANOVA Type I, II, and/or III
+#' p-vals. Type I uses base R `anova()` (sequential); Types II and III use `car::Anova()`.
+#' NA to skip.
 #' @param info Logical: If TRUE, warn when values < than machine eps are replaced by
 #' machine eps
 #'
@@ -144,7 +146,7 @@ glm2table <- function(x, xnames = NULL, include_anova = NA, info = TRUE) {
     }
   }
 
-  if (!is.na(include_anova)) {
+  if (any(c(2L, 3L) %in% include_anova)) {
     check_dependencies("car")
   }
 
@@ -177,20 +179,40 @@ glm2table <- function(x, xnames = NULL, include_anova = NA, info = TRUE) {
   #   }
   # }
 
+  term_labels <- x[[1]] |> terms() |> attr("term.labels")
+
   if (1 %in% include_anova) {
-    pvals2 <- t(sapply(x, \(i) car::Anova(i, type = 2)[, 3]))
+    pvals1 <- t(sapply(
+      x,
+      \(i) anova(i, test = "F")[seq_along(term_labels), 5]
+    ))
+    colnames(pvals1) <- paste(
+      "p_value type I",
+      term_labels
+    )
+    out <- cbind(out, pvals1)
+  }
+
+  if (2 %in% include_anova) {
+    pvals2 <- t(sapply(
+      x,
+      \(i) car::Anova(i, type = 2)[seq_along(term_labels), 3]
+    ))
     colnames(pvals2) <- paste(
       "p_value type II",
-      x[[1]] |> terms() |> attr("term.labels")
+      term_labels
     )
     out <- cbind(out, pvals2)
   }
 
   if (3 %in% include_anova) {
-    pvals3 <- t(sapply(x, \(i) car::Anova(i, type = 3)[, 3]))
+    pvals3 <- t(sapply(
+      x,
+      \(i) car::Anova(i, type = 3)[seq_along(term_labels) + 1, 3]
+    ))
     colnames(pvals3) <- paste(
       "p_value type III",
-      x[[1]] |> terms() |> attr("term.labels")
+      term_labels
     )
     out <- cbind(out, pvals3)
   }
@@ -202,16 +224,14 @@ glm2table <- function(x, xnames = NULL, include_anova = NA, info = TRUE) {
 #' Collect summary table (p-values) from list of massGAMs with same predictors,
 #' different outcome ("massy")
 #'
-#' @param x list of [mgcv::gam] models
-#' @param xnames Character, vector: names of models
-#' @param include_anova Integer: 1 or 3; to output ANOVA I or III p-vals. NA to not
+#' @param mods list of [mgcv::gam] models.
+#' @param modnames Character, vector: names of models.
 #'
-#' @return `data.table` with glm summaries
+#' @return `data.table` with GAM p-value summaries.
 #' @author EDG
 #'
 #' @keywords internal
 #' @noRd
-
 gam2table <- function(mods, modnames = NULL) {
   if (is.null(modnames)) {
     modnames <- if (!is.null(names(mods))) {
@@ -230,7 +250,8 @@ gam2table <- function(mods, modnames = NULL) {
   )
   setnames(out, names(out)[-1], paste("p_value", names(out)[-1]))
   out
-}
+} # /rtemis::gam2table
+
 
 #' Get GAM model's p-values for parametric and spline terms
 #'
@@ -246,14 +267,14 @@ get_gam_pvals <- function(m, warn = TRUE) {
     as.data.frame(t(ms[["p.table"]][, 4]))[-1]
   )
   lteps <- pvals < eps
-  if (length(lteps) > 0) {
+  if (any(lteps)) {
     if (warn) {
       warning("Values < machine double eps converted to double eps")
     }
     pvals[lteps] <- eps
   }
   pvals
-} # /rtemis::get_gam_pvals
+} # rtemis::get_gam_pvals
 
 
 #' Class Imbalance

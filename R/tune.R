@@ -23,6 +23,8 @@ get_tuner_fn <- function(type = "GridSearch") {
 #' @param x tabular data: Training set data.
 #' @param hyperparameters `Hyperparameters` object: make using each learner's `setup_*` function.
 #' @param tuner_config `TunerConfig` object: created with [setup_GridSearch].
+#' @param preprocessor_config Optional `PreprocessorConfig` object: created with
+#' [setup_Preprocessor].
 #' @param weights Numeric vector: Optional case weights.
 #' @param verbosity Integer: Verbosity level.
 #'
@@ -33,6 +35,7 @@ tune <- function(
   x,
   hyperparameters,
   tuner_config,
+  preprocessor_config = NULL,
   weights = NULL,
   verbosity = 1L,
   backend = "none",
@@ -48,6 +51,7 @@ tune <- function(
       x = x,
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
+      preprocessor_config = preprocessor_config,
       weights = weights,
       verbosity = verbosity,
       backend = backend,

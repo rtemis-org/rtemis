@@ -1,6 +1,87 @@
-# lightgbm_ops
+# utils_lightgbm.R
 # ::rtemis::
 # 2023- EDG rtemis.org
+
+
+# %% prepare_lgb_data ----
+#' Prepare data for LightGBM-based learners
+#'
+#' Shared data preparation for LightGBM, LightRF, and LightCART.
+#' Converts factors to 0-based integers, removes the outcome from
+#' `categorical_feature`, and creates `lgb.Dataset` objects.
+#'
+#' @param x tabular data: Training set (features + outcome in last column).
+#' @param dat_validation Optional tabular data: Validation set.
+#' @param type Character: "Classification" or "Regression".
+#' @param weights Optional numeric vector: Case weights for training data.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Named list with elements:
+#' - `train_data`: `lgb.Dataset` for training.
+#' - `valid_data`: `lgb.Dataset` for validation, or NULL.
+#' - `preprocessor`: `Preprocessor` object if factors were converted, or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prepare_lgb_data <- function(
+  x,
+  dat_validation = NULL,
+  type,
+  weights = NULL,
+  verbosity = 1L
+) {
+  # Factor-to-integer preprocessing ----
+  factor_index <- names(x)[which(sapply(x, is.factor))]
+  if (length(factor_index) > 0L) {
+    prp <- preprocess(
+      x,
+      config = setup_Preprocessor(
+        factor2integer = TRUE,
+        factor2integer_startat0 = TRUE
+      ),
+      dat_validation = dat_validation,
+      verbosity = verbosity
+    )
+    if (is.null(dat_validation)) {
+      x <- prp@preprocessed
+    } else {
+      x <- prp@preprocessed[["training"]]
+      dat_validation <- prp@preprocessed[["validation"]]
+    }
+  } else {
+    prp <- NULL
+  }
+
+  # Remove outcome from factor_index (outcome is last column).
+  # For Classification, the outcome is a factor that was also converted;
+  # it must not be listed as a categorical feature.
+  if (type == "Classification" && length(factor_index) > 0L) {
+    factor_index <- factor_index[seq_len(length(factor_index) - 1L)]
+  }
+
+  # Create lgb.Datasets ----
+  train_data <- lightgbm::lgb.Dataset(
+    data = as.matrix(features(x)),
+    categorical_feature = factor_index,
+    label = outcome(x),
+    weight = weights
+  )
+
+  valid_data <- if (!is.null(dat_validation)) {
+    lightgbm::lgb.Dataset(
+      data = as.matrix(features(dat_validation)),
+      categorical_feature = factor_index,
+      label = outcome(dat_validation)
+    )
+  }
+
+  list(
+    train_data = train_data,
+    valid_data = valid_data,
+    preprocessor = prp
+  )
+} # /rtemis::prepare_lgb_data
 
 #' Get LightGBM Booster Trees
 #'

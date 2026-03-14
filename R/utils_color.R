@@ -268,7 +268,7 @@ color_adjust <- function(color, alpha = NULL, hue = 0, sat = 0, val = 0) {
   ac <- grDevices::hsv(ac.hsv[1] + hue, ac.hsv[2] + sat, ac.hsv[3] + val)
   # alpha ----
   if (!is.null(alpha)) {
-    ac <- adjustcolor(color, alpha.f = alpha)
+    ac <- adjustcolor(ac, alpha.f = alpha)
   }
   ac
 } # /rtemis::color_adjust

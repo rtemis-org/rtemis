@@ -189,11 +189,7 @@ train <- function(
       tolower(algorithm) != tolower(hyperparameters@algorithm)
   ) {
     cli::cli_abort(
-      "You defined algorithm to be '",
-      algorithm,
-      "', but defined hyperparameters for ",
-      hyperparameters@algorithm,
-      "."
+      "You defined algorithm to be '{algorithm}', but defined hyperparameters for {hyperparameters@algorithm}."
     )
   }
 
@@ -298,10 +294,23 @@ train <- function(
     backend
   }
 
-  # Outer Resampling ----
-  # if outer_resampling_config is set, this function calls itself
-  # on multiple outer resamples (training-test sets), each of which may call itself
-  # on multiple inner resamples (training-validation sets) for hyperparameter tuning.
+  # Preprocessors ----
+  # `preprocessor`: User-level preprocessing (Preprocessor object created from
+  #   `preprocessor_config`). Handles scaling, imputation, encoding, etc.
+  # `preprocessor_internal`: Algorithm-level preprocessing (Preprocessor object
+  #   returned by each train_*() method). Handles transformations the algorithm
+  #   requires internally (e.g. factor-to-integer conversion for LightGBM).
+  # Both are stored on the trained model so predict() can re-apply them in order:
+  # user-level first, then algorithm-level.
+  # Initialized to NULL here; set in the single-model path below.
+  # In the outer resampling path, each sub-model carries its own pair.
+  preprocessor <- preprocessor_internal <- NULL
+
+  # == Outer Resampling ==
+  # Splits data into multiple training-test folds and calls train() recursively
+  # on each. Each recursive call enters the Single Model path below (which may
+  # itself tune via inner resampling). After all folds complete, execution falls
+  # through to the Outer Aggregation path.
   if (!is.null(outer_resampling_config)) {
     if (verbosity > 0L) {
       msg0(
@@ -333,7 +342,12 @@ train <- function(
           hyperparameters = hyperparameters,
           tuner_config = tuner_config,
           outer_resampling_config = NULL,
-          weights = weights,
+          execution_config = execution_config,
+          weights = if (!is.null(weights)) {
+            weights[outer_resampler[[i]]]
+          } else {
+            NULL
+          },
           question = question,
           verbosity = verbosity - 1L
         )
@@ -347,15 +361,19 @@ train <- function(
   } # /Outer Resampling
 
   if (hyperparameters@resampled == 0L) {
-    # Path 1: Normal training path for a single model.
-    # This needs to be skipped if multiple single models have already been trained
-    # in the outer resampling loop above, which calls train() recursively.
+    # == Single Model path ==
+    # Trains one model: optionally tune (inner resampling) → preprocess →
+    # train algorithm → predict → returns Supervised.
+    # Skipped when outer resampling was performed (resampled == 1L).
+
     # Tune ----
+    # Inner resampling for hyperparameter optimization.
     if (needs_tuning(hyperparameters)) {
       tuner <- tune(
         x = x,
         hyperparameters = hyperparameters,
         tuner_config = tuner_config,
+        preprocessor_config = preprocessor_config,
         weights = weights,
         backend = backend,
         future_plan = future_plan,
@@ -370,7 +388,7 @@ train <- function(
       )
     } # /Tune
 
-    # Preprocess ----
+    # User-level preprocessing ----
     if (!is.null(preprocessor_config)) {
       preprocessor <- preprocess(
         x = x,
@@ -389,10 +407,10 @@ train <- function(
       if (!is.null(dat_test)) dat_test <- preprocessor@preprocessed[["test"]]
     } else {
       preprocessor <- NULL
-    } # /Preprocess
+    } # /User-level preprocessing
 
     # IFW ----
-    # Weight calculation must follow preprocessing since N cases may change
+    # Weight calculation must follow preprocessing since N cases may change.
     if (type == "Classification" && hyperparameters[["ifw"]]) {
       if (!is.null(weights)) {
         cli::cli_abort("Custom weights are defined, but IFW is set to TRUE.")
@@ -401,7 +419,7 @@ train <- function(
       }
     } # /IFW
 
-    # Train ALG ----
+    # Train algorithm ----
     if (verbosity > 0L) {
       if (is_tuned(hyperparameters)) {
         msg(
@@ -412,14 +430,9 @@ train <- function(
       } else {
         msg0("Training ", highlight(paste(algorithm, type)), "...")
       }
-    } # /Print training message
-    # Only algorithms with early stopping can use dat_validation.
-    # Note: All training, validation, and test metrics are calculated by Supervised or SupervisedRes.
-    # => Introduce supports_weights() if any algorithms do NOT support case weights
-    # or only support class weights
-
-    # Validation data is only passed to learners using early stopping.
-    # Otherwise, tuning functions collect validation metrics.
+    }
+    # Validation data is only passed to learners that use early stopping.
+    # For other learners, validation metrics are collected during tuning.
     dat_validation_for_training <- if (algorithm %in% early_stopping_algs) {
       dat_validation
     } else {
@@ -433,15 +446,16 @@ train <- function(
       dat_validation = dat_validation_for_training,
       verbosity = verbosity
     )
-    # each train_* method checks output is the correct model class.
 
     model <- trained[["model"]]
+    # Algorithm-level preprocessing (e.g. factor-to-integer for LightGBM),
+    # returned by train_*() if needed.
     preprocessor_internal <- trained[["preprocessor"]]
 
-    # Predicted Values ----
+    # Predictions ----
     predicted_prob_training <- predicted_prob_validation <- predicted_prob_test <- NULL
 
-    # Apply algorithm-specific preprocessing to training data if available
+    # Re-apply algorithm-level preprocessing before predicting on each dataset.
     x_features <- features(x)
     if (!is.null(preprocessor_internal)) {
       x_features <- preprocess(
@@ -468,7 +482,6 @@ train <- function(
 
     predicted_validation <- predicted_test <- NULL
     if (!is.null(dat_validation)) {
-      # Apply algorithm-specific preprocessing to validation data if available
       dat_validation_features <- features(dat_validation)
       if (!is.null(preprocessor_internal)) {
         dat_validation_features <- preprocess(
@@ -495,7 +508,6 @@ train <- function(
     }
 
     if (!is.null(dat_test)) {
-      # Apply algorithm-specific preprocessing to test data if available
       dat_test_features <- features(dat_test)
       if (!is.null(preprocessor_internal)) {
         dat_test_features <- preprocess(
@@ -522,21 +534,22 @@ train <- function(
     }
 
     # Standard Errors ----
+    # Use the same (algorithm-level preprocessed) features as predictions.
     se_training <- se_validation <- se_test <- NULL
     if (type == "Regression" && algorithm %in% se_compat_algorithms) {
-      se_training <- se_super(model = model, newdata = features(x))
+      se_training <- se_super(model = model, newdata = x_features)
       if (!is.null(dat_validation)) {
         se_validation <- se_super(
           model = model,
-          newdata = features(dat_validation)
+          newdata = dat_validation_features
         )
       }
       if (!is.null(dat_test)) {
-        se_test <- se_super(model = model, newdata = features(dat_test))
+        se_test <- se_super(model = model, newdata = dat_test_features)
       }
     }
 
-    # Make Supervised/Res ----
+    # Return Supervised ----
     mod <- make_Supervised(
       algorithm = algorithm,
       model = model,
@@ -562,6 +575,9 @@ train <- function(
       question = question
     )
   } else {
+    # == Outer Aggregation path ==
+    # Reached after outer resampling. Each sub-model (Supervised) in `models`
+    # carries its own preprocessor pair. Aggregate results → SupervisedRes.
     y_training <- lapply(models, function(mod) mod@y_training)
     y_test <- lapply(models, function(mod) mod@y_test)
     predicted_training <- lapply(models, function(mod) mod@predicted_training)
@@ -578,6 +594,7 @@ train <- function(
     } else {
       predicted_prob_training <- predicted_prob_test <- NULL
     }
+    # Return SupervisedRes ----
     mod <- make_SupervisedRes(
       algorithm = algorithm,
       type = type,

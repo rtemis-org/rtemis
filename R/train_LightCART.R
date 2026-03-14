@@ -58,31 +58,15 @@ method(train_, LightCARTHyperparameters) <- function(
       }
     }
   }
-  factor_index <- names(x)[which(sapply(features(x), is.factor))]
-  if (length(factor_index) > 0L) {
-    prp <- preprocess(
-      x,
-      config = setup_Preprocessor(
-        factor2integer = TRUE,
-        factor2integer_startat0 = TRUE
-      ),
-      verbosity = verbosity
-    )
-    x <- prp@preprocessed
-  } else {
-    factor_index <- prp <- NULL
-  }
-
-  x <- lightgbm::lgb.Dataset(
-    data = as.matrix(features(x)),
-    categorical_feature = factor_index,
-    label = if (type == "Classification") {
-      as.integer(outcome(x)) - 1
-    } else {
-      outcome(x)
-    },
-    weight = weights
+  ## Preprocess & create lgb.Dataset ----
+  lgb_data <- prepare_lgb_data(
+    x = x,
+    type = type,
+    weights = weights,
+    verbosity = verbosity
   )
+  x <- lgb_data[["train_data"]]
+  prp <- lgb_data[["preprocessor"]]
 
   # Train ----
   params <- hyperparameters@hyperparameters

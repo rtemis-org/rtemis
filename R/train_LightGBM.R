@@ -51,6 +51,7 @@ method(train_, LightGBMHyperparameters) <- function(
     verbosity = verbosity
   )
   type <- supervised_type(x)
+
   ## Objective ----
   if (type == "Classification") {
     nclasses <- nlevels(outcome(x))
@@ -71,55 +72,24 @@ method(train_, LightGBMHyperparameters) <- function(
     }
   }
 
-  ## Preprocess for LightGBM ----
-  # Preprocess features and outcome.
-  # Outcome will be removed from factor_index if it is a factor
-  factor_index <- names(x)[which(sapply(x, is.factor))]
-  if (length(factor_index) > 0) {
-    prp <- preprocess(
-      x,
-      config = setup_Preprocessor(
-        factor2integer = TRUE,
-        factor2integer_startat0 = TRUE
-      ),
-      dat_validation = dat_validation,
-      verbosity = verbosity
-    )
-    if (is.null(dat_validation)) {
-      x <- prp@preprocessed
-    } else {
-      x <- prp@preprocessed[["training"]]
-      dat_validation <- prp@preprocessed[["validation"]]
-    }
-  } else {
-    factor_index <- prp <- NULL
-  }
-  if (type == "Classification") {
-    # remove outcomes from factor_index
-    # will be character(0) if only outcome was factor, but that works
-    factor_index <- factor_index[seq_len(length(factor_index) - 1)]
-  }
-
-  x <- lightgbm::lgb.Dataset(
-    data = as.matrix(exc(x, ncol(x))),
-    categorical_feature = factor_index,
-    label = outcome(x),
-    weight = weights
+  ## Preprocess & create lgb.Datasets ----
+  lgb_data <- prepare_lgb_data(
+    x = x,
+    dat_validation = dat_validation,
+    type = type,
+    weights = weights,
+    verbosity = verbosity
   )
-
-  if (!is.null(dat_validation)) {
-    dat_validation <- lightgbm::lgb.Dataset(
-      data = as.matrix(features(dat_validation)),
-      categorical_feature = factor_index,
-      label = outcome(dat_validation)
-    )
-  }
+  x <- lgb_data[["train_data"]]
+  dat_validation <- lgb_data[["valid_data"]]
+  prp <- lgb_data[["preprocessor"]]
 
   # Train ----
   params <- hyperparameters@hyperparameters
-  params[["max_nrounds"]] <- NULL
-  params[["force_nrounds"]] <- NULL
-  params[["ifw"]] <- NULL
+  params[["nrounds"]] <- params[["max_nrounds"]] <- params[[
+    "early_stopping_rounds"
+  ]] <- params[["force_nrounds"]] <- params[["ifw"]] <- NULL
+
   # num_class is required for multiclass classification only, must be 1 or unset for regression & binary classification
   if (nclasses > 2L) {
     params[["num_class"]] <- nclasses

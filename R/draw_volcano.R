@@ -154,6 +154,7 @@ draw_volcano <- function(
   } else {
     xnames <- xnames
   }
+  xnames <- xnames[filt]
   if (!is.null(group)) {
     group <- group[filt]
   }
@@ -419,8 +420,6 @@ draw_volcano <- function(
         )
     }
   }
-
-  plt |> plotly::config(toImageButtonOptions = list(format = "svg"))
 
   # Config ----
   plt <- plotly::config(

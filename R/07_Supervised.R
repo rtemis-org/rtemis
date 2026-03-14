@@ -1000,7 +1000,7 @@ write_Supervised <- function(
   }
 
   if (save_mod) {
-    rt_save(rt, outdir, verbosity = verbosity)
+    rt_save(object, outdir, verbosity = verbosity)
   }
 } # /rtemis::write_Supervised
 
@@ -1156,6 +1156,8 @@ SupervisedRes <- new_class(
       algorithm = algorithm,
       models = models,
       type = models[[1]]@type,
+      preprocessor = preprocessor,
+      preprocessor_internal = preprocessor_internal,
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       outer_resampler = outer_resampler,

@@ -170,7 +170,7 @@ ddb_data <- function(
       }
     }
     if (character2factor) {
-      out <- preprocess(out, character2factor = TRUE)
+      out <- preprocess(out, setup_Preprocessor(character2factor = TRUE))
     }
   } else {
     out <- sql

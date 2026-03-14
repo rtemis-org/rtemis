@@ -162,10 +162,6 @@ draw_bar <- function(
   group_names_ <- group_names
   if (is.null(group_names)) {
     if (!is.null(rownames(dat))) group_names_ <- rownames(dat)
-  } else if (is.numeric(group_names)) {
-    group_names_ <- dat[, group_names]
-    rownames(dat) <- group_names_
-    dat <- dat[, group_names_]
   }
 
   if (verbosity > 0L) {

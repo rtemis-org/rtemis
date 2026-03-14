@@ -230,11 +230,11 @@ labelify <- function(
   if (dotsToSpaces) {
     xf <- gsub("\\.", " ", xf)
   }
-  if (toTitleCase) {
-    xf <- tools::toTitleCase(xf)
-  }
   if (toLower) {
     xf <- tolower(xf)
+  }
+  if (toTitleCase) {
+    xf <- tools::toTitleCase(xf)
   }
   xf <- gsub(" {2,}", " ", xf)
   xf <- gsub(" $", "", xf)
