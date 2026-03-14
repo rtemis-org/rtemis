@@ -179,29 +179,40 @@ glm2table <- function(x, xnames = NULL, include_anova = NA, info = TRUE) {
   #   }
   # }
 
+  term_labels <- x[[1]] |> terms() |> attr("term.labels")
+
   if (1 %in% include_anova) {
-    pvals1 <- t(sapply(x, \(i) anova(i, test = "F")[, 5]))
+    pvals1 <- t(sapply(
+      x,
+      \(i) anova(i, test = "F")[seq_along(term_labels), 5]
+    ))
     colnames(pvals1) <- paste(
       "p_value type I",
-      x[[1]] |> terms() |> attr("term.labels")
+      term_labels
     )
     out <- cbind(out, pvals1)
   }
 
   if (2 %in% include_anova) {
-    pvals2 <- t(sapply(x, \(i) car::Anova(i, type = 2)[, 3]))
+    pvals2 <- t(sapply(
+      x,
+      \(i) car::Anova(i, type = 2)[seq_along(term_labels), 3]
+    ))
     colnames(pvals2) <- paste(
       "p_value type II",
-      x[[1]] |> terms() |> attr("term.labels")
+      term_labels
     )
     out <- cbind(out, pvals2)
   }
 
   if (3 %in% include_anova) {
-    pvals3 <- t(sapply(x, \(i) car::Anova(i, type = 3)[, 3]))
+    pvals3 <- t(sapply(
+      x,
+      \(i) car::Anova(i, type = 3)[seq_along(term_labels) + 1, 3]
+    ))
     colnames(pvals3) <- paste(
       "p_value type III",
-      x[[1]] |> terms() |> attr("term.labels")
+      term_labels
     )
     out <- cbind(out, pvals3)
   }
