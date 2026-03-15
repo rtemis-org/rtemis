@@ -6,12 +6,12 @@
 #' Train Supervised Learning Models
 #'
 #' @description
-#' Preprocess, tune, train, and test supervised learning models in a single call
-#' using nested resampling.
+#' Preprocess, tune, train, and test supervised learning models using nested resampling in a single
+#' call.
 #'
-#' @param x tabular data, i.e. data.frame, data.table, or tbl_df (tibble): Training set data.
-#' @param dat_validation tabular data: Validation set data.
-#' @param dat_test tabular data: Test set data.
+#' @param x Tabular data, i.e. data.frame, data.table, or tbl_df (tibble): Training set data.
+#' @param dat_validation Tabular data: Validation set data.
+#' @param dat_test Tabular data: Test set data.
 #' @param weights Optional vector of case weights.
 #' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
 #' @param preprocessor_config Optional PreprocessorConfig object: Setup using [setup_Preprocessor].

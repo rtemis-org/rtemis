@@ -22,11 +22,11 @@ train(
 )
 }
 \arguments{
-\item{x}{tabular data, i.e. data.frame, data.table, or tbl_df (tibble): Training set data.}
+\item{x}{Tabular data, i.e. data.frame, data.table, or tbl_df (tibble): Training set data.}
 
-\item{dat_validation}{tabular data: Validation set data.}
+\item{dat_validation}{Tabular data: Validation set data.}
 
-\item{dat_test}{tabular data: Test set data.}
+\item{dat_test}{Tabular data: Test set data.}
 
 \item{weights}{Optional vector of case weights.}
 
@@ -61,8 +61,8 @@ Object of class \code{Regression(Supervised)}, \code{RegressionRes(SupervisedRes
 \code{Classification(Supervised)}, or \code{ClassificationRes(SupervisedRes)}.
 }
 \description{
-Preprocess, tune, train, and test supervised learning models in a single call
-using nested resampling.
+Preprocess, tune, train, and test supervised learning models using nested resampling in a single
+call.
 }
 \details{
 \strong{Online book & documentation}
