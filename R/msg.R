@@ -42,8 +42,8 @@ msgdatetime <- function(datetime_format = "%Y-%m-%d %H:%M:%S") {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-msg_info <- function(..., format_fn = highlight2) {
-  msg0(..., format_fn = format_fn, caller_id = 2)
+msg_info <- function(..., format_fn = highlight2, verbosity = 1L) {
+  msg0(..., format_fn = format_fn, caller_id = 2, verbosity = verbosity)
 }
 
 
@@ -119,8 +119,11 @@ format_caller <- function(call_stack, call_depth, caller_id, max_char = 30L) {
 #' @param newline Logical: If TRUE end with a new line.
 #' @param format_fn Function: Formatting function to use on the message text.
 #' @param sep Character: Use to separate objects in `...`
+#' @param verbosity Integer: Verbosity level of the message. If 0L, does not print anything and
+#' returns NULL, invisibly.
 #'
-#' @return List with call, message, and date, invisibly.
+#' @return If verbosity > 0L, returns a list with call, message, and date, invisibly, otherwise
+#' returns NULL invisibly.
 #'
 #' @author EDG
 #' @keywords internal
@@ -136,8 +139,12 @@ msg <- function(
   newline_pre = FALSE,
   newline = TRUE,
   format_fn = plain,
-  sep = " "
+  sep = " ",
+  verbosity = 1L
 ) {
+  if (verbosity == 0L) {
+    return(invisible(NULL))
+  }
   if (is.null(caller)) {
     call_stack <- as.list(sys.calls())
     caller <- format_caller(call_stack, call_depth, caller_id)
@@ -172,8 +179,12 @@ msg0 <- function(
   newline_pre = FALSE,
   newline = TRUE,
   format_fn = plain,
-  sep = ""
+  sep = "",
+  verbosity = 1L
 ) {
+  if (verbosity == 0L) {
+    return(invisible(NULL))
+  }
   if (is.null(caller)) {
     call_stack <- as.list(sys.calls())
     caller <- format_caller(call_stack, call_depth, caller_id)

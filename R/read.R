@@ -97,35 +97,32 @@ read <- function(
 
   if (ext == "parquet") {
     check_dependencies("arrow")
-    if (verbosity > 0L) {
-      msg0(
-        bold(highlight("\u25B6")),
-        " Reading ",
-        highlight(basename(path)),
-        " using arrow::read_parquet()..."
-      )
-    }
+    msg0(
+      bold(highlight("\u25B6")),
+      " Reading ",
+      highlight(basename(path)),
+      " using arrow::read_parquet()...",
+      verbosity = verbosity
+    )
     .dat <- arrow::read_parquet(path, ...)
   } else if (ext == "rds") {
-    if (verbosity > 0L) {
-      msg0(
-        bold(highlight("\u25B6")),
-        " Reading ",
-        highlight(basename(path)),
-        "..."
-      )
-    }
+    msg0(
+      bold(highlight("\u25B6")),
+      " Reading ",
+      highlight(basename(path)),
+      "...",
+      verbosity = verbosity
+    )
     .dat <- readRDS(path)
   } else if (ext == "xlsx") {
     check_dependencies("readxl")
-    if (verbosity > 0L) {
-      msg0(
-        bold(highlight("\u25B6")),
-        " Reading ",
-        highlight(basename(path)),
-        " using readxl::read_excel()..."
-      )
-    }
+    msg0(
+      bold(highlight("\u25B6")),
+      " Reading ",
+      highlight(basename(path)),
+      " using readxl::read_excel()...",
+      verbosity = verbosity
+    )
     .dat <- readxl::read_excel(
       path,
       sheet = xlsx_sheet,
@@ -134,25 +131,23 @@ read <- function(
     )
   } else if (ext == "dta") {
     check_dependencies("haven")
-    if (verbosity > 0L) {
-      msg0(
-        bold(highlight("\u25B6")),
-        " Reading ",
-        highlight(basename(path)),
-        " using haven::read_dta()..."
-      )
-    }
+    msg0(
+      bold(highlight("\u25B6")),
+      " Reading ",
+      highlight(basename(path)),
+      " using haven::read_dta()...",
+      verbosity = verbosity
+    )
     .dat <- haven::read_dta(path, ...)
   } else if (ext == "fasta") {
     check_dependencies("seqinr")
-    if (verbosity > 0L) {
-      msg0(
-        bold(highlight("\u25B6")),
-        " Reading ",
-        highlight(basename(path)),
-        " using seqinr::read.fasta()..."
-      )
-    }
+    msg0(
+      bold(highlight("\u25B6")),
+      " Reading ",
+      highlight(basename(path)),
+      " using seqinr::read.fasta()...",
+      verbosity = verbosity
+    )
     .dat <- seqinr::read.fasta(path, ...)
     # if single sequence, return as character
     if (length(.dat) == 1) {
@@ -161,26 +156,24 @@ read <- function(
     return(.dat)
   } else if (ext == "arff") {
     check_dependencies("farff")
-    if (verbosity > 0L) {
-      msg0(
-        bold(highlight("\u25B6")),
-        " Reading ",
-        highlight(basename(path)),
-        " using farff::readARFF()..."
-      )
-    }
+    msg0(
+      bold(highlight("\u25B6")),
+      " Reading ",
+      highlight(basename(path)),
+      " using farff::readARFF()...",
+      verbosity = verbosity
+    )
     .dat <- farff::readARFF(path, ...)
   } else {
-    if (verbosity > 0L) {
-      msg0(
-        bold(highlight("\u25B6")),
-        " Reading ",
-        highlight(basename(path)),
-        " using ",
-        delim_reader,
-        "..."
-      )
-    }
+    msg0(
+      bold(highlight("\u25B6")),
+      " Reading ",
+      highlight(basename(path)),
+      " using ",
+      delim_reader,
+      "...",
+      verbosity = verbosity
+    )
     if (delim_reader == "data.table") {
       if (is.null(sep)) {
         sep <- "auto"
@@ -247,14 +240,13 @@ read <- function(
 
   .nrow <- nrow(.dat)
   .ncol <- ncol(.dat)
-  if (verbosity > 0L) {
-    msg(
-      "Read in",
-      highlightbig(.nrow),
-      "x",
-      highlightbig(.ncol)
-    )
-  }
+  msg(
+    "Read in",
+    highlightbig(.nrow),
+    "x",
+    highlightbig(.ncol),
+    verbosity = verbosity
+  )
   if (make_unique) {
     .dat <- unique(.dat)
     .nrowp <- nrow(.dat)

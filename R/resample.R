@@ -49,14 +49,13 @@ resample <- function(
   type <- config@type
   if (NCOL(x) > 1) {
     if (survival::is.Surv(x)) {
-      if (verbosity > 0L) {
-        msg("Survival object will be stratified on time.")
-      }
+      msg("Survival object will be stratified on time.", verbosity = verbosity)
       x <- x[, 1]
     } else {
-      if (verbosity > 0L) {
-        msg("Input contains more than one column; stratifying on last.")
-      }
+      msg(
+        "Input contains more than one column; stratifying on last.",
+        verbosity = verbosity
+      )
       x <- x[[NCOL(x)]]
     }
   }

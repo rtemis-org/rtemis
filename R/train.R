@@ -158,7 +158,7 @@ train <- function(
   # Checks ----
   if (is.null(hyperparameters) && is.null(algorithm)) {
     cli::cli_abort(
-      "You must define either `hyperparameters` or `algorithm`."
+      "You must define either {.arg hyperparameters} or {.arg algorithm}."
     )
   }
 
@@ -219,7 +219,7 @@ train <- function(
   if (!is.null(outer_resampling_config)) {
     if (!is.null(dat_validation) || !is.null(dat_test)) {
       cli::cli_abort(
-        "If outer_resampling_config is set, dat_validation and dat_test must be NULL."
+        "If outer_resampling_config is set, {.arg dat_validation} and {.arg dat_test} must be NULL."
       )
     }
   }
@@ -296,7 +296,7 @@ train <- function(
 
   # Preprocessors ----
   # `preprocessor`: User-level preprocessing (Preprocessor object created from
-  #   `preprocessor_config`). Handles scaling, imputation, encoding, etc.
+  #   `setup_Preprocessor`). Handles scaling, imputation, encoding, etc.
   # `preprocessor_internal`: Algorithm-level preprocessing (Preprocessor object
   #   returned by each train_*() method). Handles transformations the algorithm
   #   requires internally (e.g. factor-to-integer conversion for LightGBM).
@@ -306,22 +306,21 @@ train <- function(
   # In the outer resampling path, each sub-model carries its own pair.
   preprocessor <- preprocessor_internal <- NULL
 
-  # == Outer Resampling ==
+  # === Outer Resampling ===
   # Splits data into multiple training-test folds and calls train() recursively
   # on each. Each recursive call enters the Single Model path below (which may
   # itself tune via inner resampling). After all folds complete, execution falls
   # through to the Outer Aggregation path.
   if (!is.null(outer_resampling_config)) {
-    if (verbosity > 0L) {
-      msg0(
-        fmt("<> ", col = col_outer, bold = TRUE),
-        "Training ",
-        highlight(paste(algorithm, type)),
-        " using ",
-        desc(outer_resampling_config),
-        "..."
-      )
-    }
+    msg0(
+      fmt("<> ", col = col_outer, bold = TRUE),
+      "Training ",
+      highlight(paste(algorithm, type)),
+      " using ",
+      desc(outer_resampling_config),
+      "...",
+      verbosity = verbosity
+    )
     outer_resampler <- resample(
       x,
       config = outer_resampling_config,
@@ -341,7 +340,7 @@ train <- function(
           preprocessor_config = preprocessor_config,
           hyperparameters = hyperparameters,
           tuner_config = tuner_config,
-          outer_resampling_config = NULL,
+          outer_resampling_config = NULL, # This model is one of the outer resamples.
           execution_config = execution_config,
           weights = if (!is.null(weights)) {
             weights[outer_resampler[[i]]]
@@ -355,13 +354,15 @@ train <- function(
     )
     names(models) <- names(outer_resampler@resamples)
     hyperparameters@resampled <- 1L
-    if (verbosity > 0L) {
-      msg(fmt("</>", col = col_outer, bold = TRUE), "Outer resampling done.")
-    }
+    msg(
+      fmt("</>", col = col_outer, bold = TRUE),
+      "Outer resampling done.",
+      verbosity = verbosity
+    )
   } # /Outer Resampling
 
   if (hyperparameters@resampled == 0L) {
-    # == Single Model path ==
+    # === Inner path ===
     # Trains one model: optionally tune (inner resampling) → preprocess →
     # train algorithm → predict → returns Supervised.
     # Skipped when outer resampling was performed (resampled == 1L).
@@ -420,16 +421,20 @@ train <- function(
     } # /IFW
 
     # Train algorithm ----
-    if (verbosity > 0L) {
-      if (is_tuned(hyperparameters)) {
-        msg(
-          "Training",
-          highlight(paste(algorithm, type)),
-          "with tuned hyperparameters..."
-        )
-      } else {
-        msg0("Training ", highlight(paste(algorithm, type)), "...")
-      }
+    if (is_tuned(hyperparameters)) {
+      msg(
+        "Training",
+        highlight(paste(algorithm, type)),
+        "with tuned hyperparameters...",
+        verbosity = verbosity
+      )
+    } else {
+      msg0(
+        "Training ",
+        highlight(paste(algorithm, type)),
+        "...",
+        verbosity = verbosity
+      )
     }
     # Validation data is only passed to learners that use early stopping.
     # For other learners, validation metrics are collected during tuning.
@@ -575,7 +580,7 @@ train <- function(
       question = question
     )
   } else {
-    # == Outer Aggregation path ==
+    # === Outer Aggregation path ===
     # Reached after outer resampling. Each sub-model (Supervised) in `models`
     # carries its own preprocessor pair. Aggregate results → SupervisedRes.
     y_training <- lapply(models, function(mod) mod@y_training)
@@ -713,9 +718,10 @@ get_n_workers <- function(
     workers_algorithm <- 1L
     workers_tuning <- n_workers
     workers_outer_resampling <- 1L
-    if (verbosity > 0L && requires_resampling) {
+    if (requires_resampling) {
       msg(
-        "Tuning parallelization enabled."
+        "Tuning parallelization enabled.",
+        verbosity = verbosity
       )
     }
   } else if (requires_resampling) {
@@ -730,20 +736,19 @@ get_n_workers <- function(
     workers_outer_resampling <- 1L
   }
 
-  if (verbosity > 0L) {
-    msg0(
-      bold("//"),
-      " Max workers: ",
-      highlight(n_workers),
-      " => ",
-      "Algorithm: ",
-      highlight(workers_algorithm),
-      "; Tuning: ",
-      highlight(workers_tuning),
-      "; Outer Resampling: ",
-      highlight(workers_outer_resampling)
-    )
-  }
+  msg0(
+    bold("//"),
+    " Max workers: ",
+    highlight(n_workers),
+    " => ",
+    "Algorithm: ",
+    highlight(workers_algorithm),
+    "; Tuning: ",
+    highlight(workers_tuning),
+    "; Outer Resampling: ",
+    highlight(workers_outer_resampling),
+    verbosity = verbosity
+  )
 
   list(
     algorithm = workers_algorithm,
