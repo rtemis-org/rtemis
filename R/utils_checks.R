@@ -319,7 +319,10 @@ check_float01inc <- function(
   }
 
   if (!is.numeric(x)) {
-    cli::cli_abort("{.var {xname}} must be numeric.", call. = FALSE)
+    cli::cli_abort(
+      "{.var {xname}} must be numeric. Received: {.val {x}} of class {class(x)}",
+      call. = FALSE
+    )
   }
 
   if (anyNA(x)) {
