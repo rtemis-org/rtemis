@@ -59,8 +59,8 @@ CheckData <- new_class(
     n_duplicates <- clean_int(n_duplicates)
     n_cols_anyna <- clean_int(n_cols_anyna)
     n_na <- clean_int(n_na)
-    check_tabular(na_feature_pct)
-    check_tabular(na_case_pct)
+    check_inherits(na_feature_pct, "data.frame")
+    check_inherits(na_case_pct, "data.frame")
     n_na_last_col <- clean_int(n_na_last_col)
     new_object(
       S7_object(),
