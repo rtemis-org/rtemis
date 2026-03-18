@@ -23,8 +23,8 @@ CheckData <- new_class(
     n_cols_anyna = class_integer,
     n_na = class_integer,
     classes_na = class_any | NULL,
-    na_feature_pct = class_double | NULL,
-    na_case_pct = class_double | NULL,
+    na_feature_pct = class_data.frame | NULL,
+    na_case_pct = class_data.frame | NULL,
     n_na_last_col = class_integer | NULL
   ),
   constructor = function(
@@ -59,7 +59,8 @@ CheckData <- new_class(
     n_duplicates <- clean_int(n_duplicates)
     n_cols_anyna <- clean_int(n_cols_anyna)
     n_na <- clean_int(n_na)
-    check_float01inc(na_case_pct)
+    check_inherits(na_feature_pct, "data.frame")
+    check_inherits(na_case_pct, "data.frame")
     n_na_last_col <- clean_int(n_na_last_col)
     new_object(
       S7_object(),

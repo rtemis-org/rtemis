@@ -130,7 +130,22 @@ check_data <- function(
   } else {
     n_na_last_col <- 0
     classes_na <- NULL
-    na_feature_pct <- na_case_pct <- rep(0, n_cols)
+    na_feature_pct <- if (get_na_feature_pct) {
+      data.frame(
+        Feature = character(0),
+        Pct_NA = double(0)
+      )
+    } else {
+      NULL
+    }
+    na_case_pct <- if (get_na_case_pct) {
+      data.frame(
+        Case = integer(0),
+        Pct_NA = double(0)
+      )
+    } else {
+      NULL
+    }
   }
 
   # CheckData ----
