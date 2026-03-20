@@ -153,10 +153,18 @@ method(repr, CheckData) <- function(
       ": A",
       x[["object_class"]],
       "with",
-      highlight(n_rows, pad = pad, output_type = output_type),
+      highlight(
+        format(n_rows, trim = TRUE, big.mark = ",", scientific = FALSE),
+        pad = pad,
+        output_type = output_type
+      ),
       ngettext(n_rows, "row", "rows"),
       "and",
-      highlight(n_cols, pad = pad, output_type = output_type),
+      highlight(
+        format(n_cols, trim = TRUE, big.mark = ",", scientific = FALSE),
+        pad = pad,
+        output_type = output_type
+      ),
       ngettext(n_cols, "column.", "columns.")
     )
   )
