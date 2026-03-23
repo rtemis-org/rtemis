@@ -359,21 +359,6 @@ oxfordcomma <- function(..., format_fn = identity) {
 } # /rtemis::oxfordcomma
 
 
-#' Paste with box
-#'
-#' @param x Character: Text to be output to console.
-#' @param pad Integer: Number of spaces to pad to the left.
-#'
-#' @return Character: Padded string with box.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-pastebox <- function(x, pad = 0) {
-  paste0(strrep(" ", pad), ".:", x)
-}
-
-
 #' Show S7 class name
 #'
 #' @param x Character: S7 class name.

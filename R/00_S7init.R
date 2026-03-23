@@ -270,6 +270,9 @@ get_metric <- new_generic("get_metric", "x")
 #' @param x tabular data: Training data.
 #' @param hyperparameters `Hyperparameters` to check.
 #'
+#' @author EDG
+#' @keywords internal
+#' @noRd
 validate_hyperparameters <- new_generic(
   "validate_hyperparameters",
   "x",

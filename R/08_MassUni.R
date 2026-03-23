@@ -96,8 +96,9 @@ method(print, MassGLM) <- function(x, output_type = NULL, ...) {
 #' @param theme `Theme` object. Create using one of the `theme_` functions, e.g.
 #' `theme_whitegrid()`.
 #' @param verbosity Integer: Verbosity level.
-#'
 #' @param ... Additional arguments passed to [draw_volcano].
+#'
+#' @return plotly object with volcano plot.
 #'
 #' @author EDG
 #' @export
