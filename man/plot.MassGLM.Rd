@@ -37,6 +37,9 @@ p-value adjustment method.}
 
 \item{...}{Additional arguments passed to \link{draw_volcano}.}
 }
+\value{
+plotly object.
+}
 \description{
 Plot MassGLM using volcano plot
 }
