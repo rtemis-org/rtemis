@@ -16,7 +16,7 @@
 ^data-raw$
 ^dev$
 ^docs$
-^GEMINI\.md$
+^AGENTS\.md$
 ^NEWS\.md$
 ^pkgdown$
 ^SKILL\.md$
