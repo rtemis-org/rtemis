@@ -1142,13 +1142,6 @@ qrtpad <- function(i, pad = .3) {
   )
 }
 
-# plot(x = 0:2, y = 0:2, pch = 19)
-# for (i in 1:7) {
-#   pd <- qrtpad(i)
-#   points(x = 1 + pd[1], y = 1 + pd[2], pch = 2, col = "red")
-# }
-# sapply(1:7, qrtpad)
-
 # npad: function to calculate circular offset of a point from the center of a region
 # by dividing circle into n equal parts, beginning from the top
 npad <- function(i, n = 12, pad = .3) {
