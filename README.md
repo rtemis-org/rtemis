@@ -1,3 +1,4 @@
+ [![CRAN status](https://www.r-pkg.org/badges/version/rtemis)](https://CRAN.R-project.org/package=rtemis)
 [![R-CMD-check](https://github.com/rtemis-org/rtemis/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/rtemis-org/rtemis/actions/workflows/R-CMD-check.yaml)
 
 # rtemis: Advanced Machine Learning &amp; Visualization.
@@ -16,15 +17,22 @@ The new version (0.99+) features:
 
 ![rtemis v1.0.0 console ascii](https://www.rtemis.org/rtemis-splash.webp)
 
-## Installation of rtemis
+## Installation
 
-Using `pak` from GitHub:
+### Latest version from GitHub
 
 ```r
 pak::pak("rtemis-org/rtemis")
 ```
 
-Using `install.packages` from `r-universe`:
+### Latest version from `r-universe`
+
+```r
+pak::repo_add(myuniverse = "https://rtemis-org.r-universe.dev")
+pak::pak("rtemis")
+```
+
+or using `install.packages`:
 
 ```r
 install.packages(
@@ -33,11 +41,16 @@ install.packages(
 )
 ```
 
-Using `pak` from `r-universe`:
+### From CRAN
+
+```{r}
+pak::pak("rtemis")
+```
+
+or
 
 ```r
-pak::repo_add(myuniverse = "https://rtemis-org.r-universe.dev")
-pak::pak("rtemis")
+install.packages("rtemis")
 ```
 
 ## Installation of dependencies
