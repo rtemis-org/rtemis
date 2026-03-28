@@ -19,6 +19,18 @@ The new version (0.99+) features:
 
 ## Installation
 
+### From CRAN
+
+```{r}
+pak::pak("rtemis")
+```
+
+or
+
+```r
+install.packages("rtemis")
+```
+
 ### Latest version from GitHub
 
 ```r
@@ -39,18 +51,6 @@ install.packages(
   'rtemis',
   repos = c('https://rtemis-org.r-universe.dev', 'https://cloud.r-project.org')
 )
-```
-
-### From CRAN
-
-```{r}
-pak::pak("rtemis")
-```
-
-or
-
-```r
-install.packages("rtemis")
 ```
 
 ## Installation of dependencies
