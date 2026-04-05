@@ -235,8 +235,7 @@ method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
     model = object@model,
     newdata = newdata,
     type = object@type,
-    verbosity = verbosity,
-    ...
+    verbosity = verbosity
   )
 } # /rtemis::predict.Supervised
 

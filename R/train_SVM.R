@@ -224,7 +224,8 @@ method(train_, RadialSVMHyperparameters) <- function(
 method(predict_super, class_svm) <- function(
   model,
   newdata,
-  type = NULL
+  type = NULL,
+  verbosity = 0L
 ) {
   if (type == "Classification") {
     predicted_prob <- attr(

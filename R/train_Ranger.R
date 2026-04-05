@@ -122,9 +122,7 @@ method(predict_super, class_ranger) <- function(
   model,
   newdata,
   type = NULL,
-  verbosity = 0L,
-  ranger_type = "response",
-  ...
+  verbosity = 0L
 ) {
   check_inherits(model, "ranger")
   check_inherits(newdata, "data.frame")
@@ -133,9 +131,8 @@ method(predict_super, class_ranger) <- function(
   predicted <- predict(
     model,
     data = newdata,
-    type = ranger_type,
-    verbose = verbosity > 0L,
-    ...
+    type = "response",
+    verbose = verbosity > 0L
   )[["predictions"]]
   if (type == "Classification" && NCOL(predicted) == 2L) {
     # In binary classification, ranger returns matrix with 2 columns

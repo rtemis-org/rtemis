@@ -87,7 +87,8 @@ method(train_, GLMHyperparameters) <- function(
 method(predict_super, class_glm) <- function(
   model,
   newdata,
-  type = NULL
+  type = NULL,
+  verbosity = 0L
 ) {
   predict(model, newdata = newdata, type = "response")
 } # /rtemis::predict_super.glm

@@ -81,7 +81,8 @@ method(train_, TabNetHyperparameters) <- function(
 method(predict_super, class_tabnet_fit) <- function(
   model,
   newdata,
-  type = NULL
+  type = NULL,
+  verbosity = 0L
 ) {
   if (type == "Regression") {
     predict(model, new_data = newdata)[[1]]

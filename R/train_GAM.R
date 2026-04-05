@@ -123,7 +123,8 @@ method(train_, GAMHyperparameters) <- function(
 method(predict_super, class_gam) <- function(
   model,
   newdata,
-  type = NULL
+  type = NULL,
+  verbosity = 0L
 ) {
   out <- predict(object = model, newdata = newdata, type = "response")
   if (model[["family"]][["family"]] == "binomial") {

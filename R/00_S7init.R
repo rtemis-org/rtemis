@@ -158,7 +158,7 @@ train_ <- new_generic(
 predict_super <- new_generic(
   "predict_super",
   "model",
-  function(model, newdata, type = NULL, ...) {
+  function(model, newdata, type = NULL, verbosity = 0L) {
     S7_dispatch()
   }
 ) # /rtemis::predict_super

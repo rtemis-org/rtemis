@@ -90,7 +90,8 @@ method(train_, CARTHyperparameters) <- function(
 method(predict_super, class_rpart) <- function(
   model,
   newdata,
-  type = NULL
+  type = NULL,
+  verbosity = 0L
 ) {
   if (type == "Classification") {
     # Classification

@@ -125,7 +125,8 @@ method(train_, LightGBMHyperparameters) <- function(
 method(predict_super, class_lgb.Booster) <- function(
   model,
   newdata,
-  type = NULL
+  type = NULL,
+  verbosity = 0L
 ) {
   check_inherits(model, "lgb.Booster")
   check_inherits(newdata, "data.frame")
