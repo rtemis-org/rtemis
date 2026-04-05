@@ -5,6 +5,12 @@
 # Key
 # {Algorithm}[method]<Class> Further conditions
 
+# Note
+# We are using very small and simple datasets to reduce runtime.
+# GLM models are expected to give warnings, including:
+#   - "glm.fit: fitted probabilities numerically 0 or 1 occurred"
+#   - "glm.fit: algorithm did not converge"
+
 # %% Packages ----
 library(data.table)
 
