@@ -115,5 +115,11 @@ method(predict_super, class_rpart) <- function(
 #' @keywords internal
 #' @noRd
 method(varimp_super, class_rpart) <- function(model) {
-  model[["variable.importance"]]
+  vi <- model[["variable.importance"]]
+  VariableImportance(
+    data.table(
+      variable = names(vi),
+      importance = unname(vi)
+    )
+  )
 } # /rtemis::varimp_super.rpart

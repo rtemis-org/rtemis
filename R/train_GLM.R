@@ -104,11 +104,17 @@ method(varimp_super, class_glm) <- function(
   type = c("coefficients", "p-value")
 ) {
   type <- match.arg(type)
-  if (type == "coefficients") {
+  .coef <- if (type == "coefficients") {
     coef(model)
   } else if (type == "p-value") {
     summary(model)[["coefficients"]][, 4]
   }
+  VariableImportance(
+    data.table(
+      variable = names(.coef),
+      Coefficient = unname(.coef)
+    )
+  )
 } # /rtemis::varimp_super.glm
 
 

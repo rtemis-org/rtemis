@@ -201,9 +201,10 @@ method(predict_super, class_cv.glmnet) <- function(
 method(varimp_super, class_glmnet) <- function(model) {
   coefs <- coef(model)
 
-  # In multiclass, coef(model) returns a list of coefficient matrices, one for each class.
+  # In multiclass, coef(model) returns a list of coefficient matrices, one per class.
+  # Not yet supported as VariableImportance.
   if (is.list(coefs)) {
-    return(coefs)
+    return(NULL)
   }
 
   if (NCOL(coefs) > 1) {
@@ -211,6 +212,12 @@ method(varimp_super, class_glmnet) <- function(model) {
   }
   # Exclude intercept
   coefs <- coefs[, 1][-1]
+  VariableImportance(
+    data.table(
+      variable = names(coefs),
+      Coefficient = unname(coefs)
+    )
+  )
 } # /rtemis::varimp_super.class_glmnet
 
 
@@ -218,5 +225,20 @@ method(varimp_super, class_glmnet) <- function(model) {
 #' @keywords internal
 #' @noRd
 method(varimp_super, class_cv.glmnet) <- function(model) {
-  coef(model)
+  coefs <- coef(model)
+
+  # In multiclass, coef(model) returns a list of coefficient matrices, one per class.
+  # Not yet supported as VariableImportance.
+  if (is.list(coefs)) {
+    return(NULL)
+  }
+
+  # Exclude intercept
+  coefs <- coefs[-1]
+  VariableImportance(
+    data.table(
+      variable = names(coefs),
+      Coefficient = unname(coefs)
+    )
+  )
 } # /rtemis::varimp_super.class_cv.glmnet

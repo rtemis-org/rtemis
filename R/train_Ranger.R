@@ -154,7 +154,13 @@ method(predict_super, class_ranger) <- function(
 #' @noRd
 method(varimp_super, class_ranger) <- function(model) {
   check_inherits(model, "ranger")
-  ranger::importance(model)
+  vi <- ranger::importance(model)
+  VariableImportance(
+    data.table(
+      variable = names(vi),
+      importance = unname(vi)
+    )
+  )
 } # /rtemis::varimp_super.class_ranger
 
 

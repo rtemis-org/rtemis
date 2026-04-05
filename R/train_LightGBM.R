@@ -148,8 +148,7 @@ method(predict_super, class_lgb.Booster) <- function(
 #' @noRd
 method(varimp_super, class_lgb.Booster) <- function(model) {
   check_inherits(model, "lgb.Booster")
-  vi <- lightgbm::lgb.importance(model, percentage = TRUE)
-  out <- data.frame(t(vi[["Gain"]]))
-  names(out) <- vi[["Feature"]]
-  out
+  vi <- lightgbm::lgb.importance(model, percentage = TRUE) # -> data.table
+  names(vi)[1] <- "variable"
+  VariableImportance(vi)
 } # /rtemis::varimp_super.lgb.Booster

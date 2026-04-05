@@ -96,7 +96,7 @@ method(predict_super, class_tabnet_fit) <- function(
 
 
 # %% varimp_super.class_tabnet_fit ----
-#' Get coefficients from TabNet model
+#' Get variable importance from TabNet model
 #'
 #' @param model TabNet model.
 #'

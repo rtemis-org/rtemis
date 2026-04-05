@@ -249,7 +249,13 @@ method(predict_super, class_svm) <- function(
 method(varimp_super, class_svm) <- function(model) {
   # Only for linear kernel with binary classification
   if (model[["kernel"]] == 0L && model[["nclasses"]] == 2) {
-    coef(model)
+    .coefs <- coef(model)
+    VariableImportance(
+      data.table(
+        variable = names(.coefs),
+        Coefficient = unname(.coefs)
+      )
+    )
   } else {
     NULL
   }

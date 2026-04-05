@@ -209,5 +209,11 @@ method(predict_super, LightRuleFit) <- function(
 #' @keywords internal
 #' @noRd
 method(varimp_super, LightRuleFit) <- function(model) {
-  coef(model@model_glmnet@model)
+  .coef <- coef(model@model_glmnet@model)
+  VariableImportance(
+    data.table(
+      variable = names(.coef),
+      Coefficient = unname(.coef)
+    )
+  )
 } # /rtemis::varimp_super.LightRuleFit

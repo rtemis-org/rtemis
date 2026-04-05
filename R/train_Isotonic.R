@@ -87,5 +87,5 @@ method(predict_super, class_stepfun) <- function(model, newdata, type = NULL) {
 #' @keywords internal
 #' @noRd
 method(varimp_super, class_stepfun) <- function(model) {
-  NA
+  NULL
 } # /rtemis::varimp_super.class_stepfun

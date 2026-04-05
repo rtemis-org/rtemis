@@ -145,7 +145,7 @@ method(varimp_super, class_gam) <- function(
   type = c("p-value", "edf", "coefficients")
 ) {
   type <- match.arg(type)
-  if (type == "p-value") {
+  .coef <- if (type == "p-value") {
     # Get parametric and smooth term p-values
     summary_ <- summary(model)
     # Exclude intercept
@@ -158,6 +158,12 @@ method(varimp_super, class_gam) <- function(
   } else if (type == "coefficients") {
     coef(model)
   }
+  VariableImportance(
+    data.table(
+      variable = names(.coef),
+      Coefficient = unname(.coef)
+    )
+  )
 } # /rtemis::varimp_super.gam
 
 
