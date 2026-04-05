@@ -877,7 +877,8 @@ test_that("train() LightRuleFit Regression with l1, l2 params passed", {
 mod_c_lightrlft <- train(
   x = datc2_train,
   dat_test = datc2_test,
-  hyperparameters = setup_LightRuleFit(nrounds = 50L)
+  hyperparameters = setup_LightRuleFit(nrounds = 50L),
+  execution_config = setup_ExecutionConfig(backend = "none")
 )
 test_that("train() LightRuleFit Binary Classification succeeds", {
   expect_s7_class(mod_c_lightrlft, Classification)
