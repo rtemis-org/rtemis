@@ -29,9 +29,6 @@ method(train_, RangerHyperparameters) <- function(
   # Dependencies ----
   check_dependencies("ranger")
 
-  # Checks ----
-  check_is_S7(hyperparameters, RangerHyperparameters)
-
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
   if (needs_tuning(hyperparameters)) {

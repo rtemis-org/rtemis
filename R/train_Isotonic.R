@@ -29,9 +29,6 @@ method(train_, IsotonicHyperparameters) <- function(
   dat_validation = NULL,
   verbosity = 1L
 ) {
-  # Checks ----
-  check_is_S7(hyperparameters, IsotonicHyperparameters)
-
   # Data ----
   check_supervised(
     x = x,

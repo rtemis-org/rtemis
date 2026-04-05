@@ -28,9 +28,6 @@ method(train_, GAMHyperparameters) <- function(
   # Dependencies ----
   check_dependencies("mgcv")
 
-  # Checks ----
-  check_is_S7(hyperparameters, GAMHyperparameters)
-
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
   if (needs_tuning(hyperparameters)) {

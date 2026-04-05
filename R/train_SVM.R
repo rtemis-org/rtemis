@@ -57,7 +57,8 @@ method(train_, LinearSVMHyperparameters) <- function(
     NA
   }
 
-  # One-hot encode ----
+  # Preprocess ----
+  # One-hot encode
   y <- outcome(x)
   x <- features(x)
   factor_index <- names(x)[which(sapply(x, is.factor))]

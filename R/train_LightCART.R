@@ -24,9 +24,6 @@ method(train_, LightCARTHyperparameters) <- function(
   # Dependencies ----
   check_dependencies("lightgbm")
 
-  # Checks ----
-  check_is_S7(hyperparameters, LightCARTHyperparameters)
-
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
   if (needs_tuning(hyperparameters)) {

@@ -27,9 +27,6 @@ method(train_, LightGBMHyperparameters) <- function(
   # Dependencies ----
   check_dependencies("lightgbm")
 
-  # Checks ----
-  check_is_S7(hyperparameters, LightGBMHyperparameters)
-
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
   if (needs_tuning(hyperparameters)) {
@@ -118,7 +115,8 @@ method(train_, LightGBMHyperparameters) <- function(
 #' Predict from LightGBM model
 #'
 #' @param model lgb.Booster object.
-#' @param newdata tabular data: Data to predict on.
+#' @param newdata tabular data: Data to predict on. Will have been preprocessed by
+#' `predict.Supervised` before calling this method if algorithm-specific preprocessing was performed during training.
 #' @param type Character: Type of supervised learning.
 #'
 #' @keywords internal

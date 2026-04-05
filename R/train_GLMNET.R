@@ -28,9 +28,6 @@ method(train_, GLMNETHyperparameters) <- function(
   # Dependencies ----
   check_dependencies("glmnet")
 
-  # Checks ----
-  check_is_S7(hyperparameters, GLMNETHyperparameters)
-
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
   if (needs_tuning(hyperparameters)) {

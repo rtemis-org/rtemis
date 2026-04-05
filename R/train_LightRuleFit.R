@@ -26,9 +26,6 @@ method(train_, LightRuleFitHyperparameters) <- function(
   # Dependencies ----
   check_dependencies("lightgbm", "glmnet", "matrixStats", "gsubfn")
 
-  # Checks ----
-  check_is_S7(hyperparameters, LightRuleFitHyperparameters)
-
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
   if (needs_tuning(hyperparameters)) {

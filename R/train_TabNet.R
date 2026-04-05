@@ -30,9 +30,6 @@ method(train_, TabNetHyperparameters) <- function(
   # Dependencies ----
   check_dependencies("torch", "tabnet")
 
-  # Checks ----
-  check_is_S7(hyperparameters, TabNetHyperparameters)
-
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
   if (needs_tuning(hyperparameters)) {
@@ -46,11 +43,6 @@ method(train_, TabNetHyperparameters) <- function(
     verbosity = verbosity
   )
   type <- supervised_type(x)
-  # n_classes <- if (type == "Classification") {
-  #   nlevels(outcome(x))
-  # } else {
-  #   NA
-  # }
 
   # Scale data ----
   y <- outcome(x)
@@ -59,8 +51,6 @@ method(train_, TabNetHyperparameters) <- function(
     config = setup_Preprocessor(scale = TRUE, center = TRUE)
   )
   x <- prp@preprocessed
-
-  # ?Any params that may be NULL by setup_ but aren't allowed to be NULL by training f
 
   # Train ----
   # The predictor data should be standardized (e.g. centered or scaled). The model treats
