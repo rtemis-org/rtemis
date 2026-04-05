@@ -130,8 +130,8 @@ train_ <- new_generic(
     x,
     weights = NULL,
     dat_validation = NULL,
-    verbosity = 1L,
-    ...
+    execution_config = setup_ExecutionConfig(),
+    verbosity = 1L
   ) {
     S7_dispatch()
   }
@@ -158,7 +158,7 @@ train_ <- new_generic(
 predict_super <- new_generic(
   "predict_super",
   "model",
-  function(model, newdata, type = NULL, ...) {
+  function(model, newdata, type = NULL, verbosity = 0L) {
     S7_dispatch()
   }
 ) # /rtemis::predict_super

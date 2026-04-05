@@ -24,13 +24,11 @@ method(train_, RangerHyperparameters) <- function(
   x,
   weights = NULL,
   dat_validation = NULL,
+  execution_config = setup_ExecutionConfig(),
   verbosity = 1L
 ) {
   # Dependencies ----
   check_dependencies("ranger")
-
-  # Checks ----
-  check_is_S7(hyperparameters, RangerHyperparameters)
 
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
@@ -124,9 +122,7 @@ method(predict_super, class_ranger) <- function(
   model,
   newdata,
   type = NULL,
-  verbosity = 0L,
-  ranger_type = "response",
-  ...
+  verbosity = 0L
 ) {
   check_inherits(model, "ranger")
   check_inherits(newdata, "data.frame")
@@ -135,9 +131,8 @@ method(predict_super, class_ranger) <- function(
   predicted <- predict(
     model,
     data = newdata,
-    type = ranger_type,
-    verbose = verbosity > 0L,
-    ...
+    type = "response",
+    verbose = verbosity > 0L
   )[["predictions"]]
   if (type == "Classification" && NCOL(predicted) == 2L) {
     # In binary classification, ranger returns matrix with 2 columns
@@ -157,7 +152,13 @@ method(predict_super, class_ranger) <- function(
 #' @noRd
 method(varimp_super, class_ranger) <- function(model) {
   check_inherits(model, "ranger")
-  ranger::importance(model)
+  vi <- ranger::importance(model)
+  VariableImportance(
+    data.table(
+      variable = names(vi),
+      importance = unname(vi)
+    )
+  )
 } # /rtemis::varimp_super.class_ranger
 
 

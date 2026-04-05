@@ -27,6 +27,7 @@ method(train_, GLMHyperparameters) <- function(
   x,
   weights = NULL,
   dat_validation = NULL,
+  execution_config = setup_ExecutionConfig(),
   verbosity = 1L
 ) {
   # Data ----
@@ -86,7 +87,8 @@ method(train_, GLMHyperparameters) <- function(
 method(predict_super, class_glm) <- function(
   model,
   newdata,
-  type = NULL
+  type = NULL,
+  verbosity = 0L
 ) {
   predict(model, newdata = newdata, type = "response")
 } # /rtemis::predict_super.glm
@@ -104,11 +106,17 @@ method(varimp_super, class_glm) <- function(
   type = c("coefficients", "p-value")
 ) {
   type <- match.arg(type)
-  if (type == "coefficients") {
+  .coef <- if (type == "coefficients") {
     coef(model)
   } else if (type == "p-value") {
     summary(model)[["coefficients"]][, 4]
   }
+  VariableImportance(
+    data.table(
+      variable = names(.coef),
+      Coefficient = unname(.coef)
+    )
+  )
 } # /rtemis::varimp_super.glm
 
 

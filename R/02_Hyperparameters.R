@@ -2242,27 +2242,6 @@ stopifnot(all(
 ))
 
 
-# %% get_ranger_config ----
-#' Get Ranger Configuration
-#'
-#' Get Ranger configuration from RangerHyperparameters object.
-#'
-#' @param hyperparameters `RangerHyperparameters` object.
-#'
-#' @return List with Ranger configuration.
-#'
-#' @author EDG
-#'
-#' @keywords internal
-#' @noRd
-get_ranger_config <- function(hyperparameters) {
-  check_is_S7(hyperparameters, RangerHyperparameters)
-  hpr <- hyperparameters@hyperparameters
-  hpr[["ifw"]] <- NULL
-  hpr
-} # /get_ranger_config
-
-
 # %% list_to_Hyperparameters ----
 list_to_Hyperparameters <- function(x) {
   fn <- paste0("setup_", x[["algorithm"]])

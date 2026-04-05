@@ -128,7 +128,7 @@ draw_dist <- function(
   ),
   histfunc = c("count", "sum", "avg", "min", "max"),
   hist_n_bins = 20,
-  barmode = "overlay", # TODO: alternatives
+  barmode = "overlay", # ?alternatives
   ridge_sharex = TRUE,
   ridge_y_labs = FALSE,
   ridge_order_on_mean = TRUE,

@@ -22,13 +22,11 @@ method(train_, LightRFHyperparameters) <- function(
   x,
   weights = NULL,
   dat_validation = NULL,
+  execution_config = setup_ExecutionConfig(),
   verbosity = 1L
 ) {
   # Dependencies ----
   check_dependencies("lightgbm")
-
-  # Checks ----
-  check_is_S7(hyperparameters, LightRFHyperparameters)
 
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.

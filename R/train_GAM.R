@@ -23,13 +23,11 @@ method(train_, GAMHyperparameters) <- function(
   x,
   weights = NULL,
   dat_validation = NULL,
+  execution_config = setup_ExecutionConfig(),
   verbosity = 1L
 ) {
   # Dependencies ----
   check_dependencies("mgcv")
-
-  # Checks ----
-  check_is_S7(hyperparameters, GAMHyperparameters)
 
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
@@ -125,7 +123,8 @@ method(train_, GAMHyperparameters) <- function(
 method(predict_super, class_gam) <- function(
   model,
   newdata,
-  type = NULL
+  type = NULL,
+  verbosity = 0L
 ) {
   out <- predict(object = model, newdata = newdata, type = "response")
   if (model[["family"]][["family"]] == "binomial") {
@@ -137,7 +136,16 @@ method(predict_super, class_gam) <- function(
 
 
 # %% varimp_super.class_gam ----
-#' Get coefficients from GAM model
+#' Get variable importance from GAM model
+#'
+#' Variable importance for GAM is estimated as the variance of each predictor's partial effect,
+#' obtained via predict(model, type = "terms"). This measures each smooth term's contribution to
+#' the variance of the fitted values. Values are normalized to sum to one, representing each
+#' predictor's proportion of total predicted variance. This approach is computationally efficient
+#' (no refitting required) and analogous to importance measures in tree-based methods. It assumes
+#' approximate uncorrelatedness of partial effects, which penalized smooths tend to satisfy. For
+#' models with high concurvity, consider hierarchical partitioning of R² (e.g. via the gam.hp
+#' package) as an alternative.
 #'
 #' @param model mgcv gam model.
 #'
@@ -145,22 +153,17 @@ method(predict_super, class_gam) <- function(
 #' @noRd
 method(varimp_super, class_gam) <- function(
   model,
-  type = c("p-value", "edf", "coefficients")
+  type = c("partial_effect", "F-test")
 ) {
-  type <- match.arg(type)
-  if (type == "p-value") {
-    # Get parametric and smooth term p-values
-    summary_ <- summary(model)
-    # Exclude intercept
-    -log10(c(
-      summary_[["s.table"]][, "p-value"],
-      summary_[["p.table"]][, ncol(summary_[["p.table"]])][-1]
-    ))
-  } else if (type == "edf") {
-    summary(model)[["s.table"]][, "edf"]
-  } else if (type == "coefficients") {
-    coef(model)
-  }
+  peff <- predict(model, type = "terms")
+  vi <- apply(peff, 2, var)
+  npeff <- vi / sum(vi) # normalized importance
+  VariableImportance(
+    data.table(
+      variable = names(npeff),
+      Partial_Effect_Variance = unname(npeff)
+    )
+  )
 } # /rtemis::varimp_super.gam
 
 

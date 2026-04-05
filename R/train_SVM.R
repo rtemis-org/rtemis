@@ -25,6 +25,7 @@ method(train_, LinearSVMHyperparameters) <- function(
   x,
   weights = NULL,
   dat_validation = NULL,
+  execution_config = setup_ExecutionConfig(),
   verbosity = 1L
 ) {
   # Dependencies ----
@@ -57,7 +58,8 @@ method(train_, LinearSVMHyperparameters) <- function(
     NA
   }
 
-  # One-hot encode ----
+  # Preprocess ----
+  # One-hot encode
   y <- outcome(x)
   x <- features(x)
   factor_index <- names(x)[which(sapply(x, is.factor))]
@@ -128,6 +130,7 @@ method(train_, RadialSVMHyperparameters) <- function(
   x,
   weights = NULL,
   dat_validation = NULL,
+  execution_config = setup_ExecutionConfig(),
   verbosity = 1L
 ) {
   # Dependencies ----
@@ -160,7 +163,8 @@ method(train_, RadialSVMHyperparameters) <- function(
     NA
   }
 
-  # One-hot encode ----
+  # Preprocess ----
+  # One-hot encode
   y <- outcome(x)
   x <- features(x)
   factor_index <- names(x)[which(sapply(x, is.factor))]
@@ -220,7 +224,8 @@ method(train_, RadialSVMHyperparameters) <- function(
 method(predict_super, class_svm) <- function(
   model,
   newdata,
-  type = NULL
+  type = NULL,
+  verbosity = 0L
 ) {
   if (type == "Classification") {
     predicted_prob <- attr(
@@ -248,7 +253,13 @@ method(predict_super, class_svm) <- function(
 method(varimp_super, class_svm) <- function(model) {
   # Only for linear kernel with binary classification
   if (model[["kernel"]] == 0L && model[["nclasses"]] == 2) {
-    coef(model)
+    .coefs <- coef(model)
+    VariableImportance(
+      data.table(
+        variable = names(.coefs),
+        Coefficient = unname(.coefs)
+      )
+    )
   } else {
     NULL
   }

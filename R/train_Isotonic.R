@@ -27,11 +27,9 @@ method(train_, IsotonicHyperparameters) <- function(
   x,
   weights = NULL,
   dat_validation = NULL,
+  execution_config = setup_ExecutionConfig(),
   verbosity = 1L
 ) {
-  # Checks ----
-  check_is_S7(hyperparameters, IsotonicHyperparameters)
-
   # Data ----
   check_supervised(
     x = x,
@@ -77,7 +75,7 @@ method(train_, IsotonicHyperparameters) <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(predict_super, class_stepfun) <- function(model, newdata, type = NULL) {
+method(predict_super, class_stepfun) <- function(model, newdata, type = NULL, verbosity = 0L) {
   model(newdata[[1]])
 } # /rtemis::predict_super.class_stepfun
 
@@ -90,5 +88,5 @@ method(predict_super, class_stepfun) <- function(model, newdata, type = NULL) {
 #' @keywords internal
 #' @noRd
 method(varimp_super, class_stepfun) <- function(model) {
-  NA
+  NULL
 } # /rtemis::varimp_super.class_stepfun

@@ -25,13 +25,11 @@ method(train_, TabNetHyperparameters) <- function(
   x,
   weights = NULL,
   dat_validation = NULL,
+  execution_config = setup_ExecutionConfig(),
   verbosity = 1L
 ) {
   # Dependencies ----
   check_dependencies("torch", "tabnet")
-
-  # Checks ----
-  check_is_S7(hyperparameters, TabNetHyperparameters)
 
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
@@ -46,11 +44,6 @@ method(train_, TabNetHyperparameters) <- function(
     verbosity = verbosity
   )
   type <- supervised_type(x)
-  # n_classes <- if (type == "Classification") {
-  #   nlevels(outcome(x))
-  # } else {
-  #   NA
-  # }
 
   # Scale data ----
   y <- outcome(x)
@@ -59,8 +52,6 @@ method(train_, TabNetHyperparameters) <- function(
     config = setup_Preprocessor(scale = TRUE, center = TRUE)
   )
   x <- prp@preprocessed
-
-  # ?Any params that may be NULL by setup_ but aren't allowed to be NULL by training f
 
   # Train ----
   # The predictor data should be standardized (e.g. centered or scaled). The model treats
@@ -90,7 +81,8 @@ method(train_, TabNetHyperparameters) <- function(
 method(predict_super, class_tabnet_fit) <- function(
   model,
   newdata,
-  type = NULL
+  type = NULL,
+  verbosity = 0L
 ) {
   if (type == "Regression") {
     predict(model, new_data = newdata)[[1]]
@@ -106,7 +98,7 @@ method(predict_super, class_tabnet_fit) <- function(
 
 
 # %% varimp_super.class_tabnet_fit ----
-#' Get coefficients from TabNet model
+#' Get variable importance from TabNet model
 #'
 #' @param model TabNet model.
 #'

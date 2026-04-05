@@ -8,6 +8,82 @@
 # https://rconsortium.github.io/S7/articles/classes-objects.html?q=computed#computed-properties
 # https://utf8-icons.com/
 
+# %% VariableImportance ----
+#' @title VariableImportance
+#'
+#' @description
+#' Class for variable importance objects. Allows for one or more variable importance measures,
+#' stored in a data.table with columns "variable", and at least one
+#' more column with a descriptive name.
+#'
+#' @author EDG
+#' @noRd
+VariableImportance <- new_class(
+  name = "VariableImportance",
+  properties = list(
+    data = class_data.table
+  ),
+  validator = function(self) {
+    # Must include at least two columns
+    if (NCOL(self@data) < 2L) {
+      cli::cli_abort(
+        "Variable importance data must include at least two columns: 'variable' and at least one importance measure."
+      )
+    }
+    # Must include column "variable" of type character
+    if (!"variable" %in% names(self@data)) {
+      cli::cli_abort(
+        "Variable importance data must include a 'variable' column."
+      )
+    }
+    if (!is.character(self@data[["variable"]])) {
+      cli::cli_abort("Column 'variable' must be of type character.")
+    }
+    # All other columns must be numeric
+    other_cols <- setdiff(names(self@data), "variable")
+    if (!all(self@data[, sapply(.SD, is.numeric), .SDcols = other_cols])) {
+      cli::cli_abort(
+        "All columns other than 'variable' must be numeric."
+      )
+    }
+    # Number of rows will be checked by Supervised to be at least as many as
+    # the number of predictors.
+  }
+) # /rtemis::VariableImportance
+
+
+# %% repr.VariableImportance ----
+method(repr, VariableImportance) <- function(x, pad = 0L, output_type = NULL) {
+  output_type <- get_output_type(output_type)
+  # "N variable importance measures for M predictors"
+  n_m <- NCOL(x@data) - 1L
+  paste0(
+    repr_S7name("VariableImportance", pad = pad, output_type = output_type),
+    strrep(" ", pad),
+    fmt(n_m, col = highlight_col, bold = TRUE, output_type = output_type),
+    ngettext(
+      n_m,
+      " variable importance measure for ",
+      " variable importance measures for "
+    ),
+    fmt(
+      NROW(x@data),
+      col = highlight_col,
+      bold = TRUE,
+      output_type = output_type
+    ),
+    ngettext(NROW(x@data), " predictor", " predictors")
+  )
+} # /rtemis::repr.VariableImportance
+
+
+# %% print.VariableImportance ----
+method(print, VariableImportance) <- function(x, output_type = NULL, ...) {
+  cat(repr(x, output_type = output_type), "\n")
+  invisible(x)
+} # /rtemis::print.VariableImportance
+
+
 # Plot methods
 # Supervised: plot_varimp
 # SupervisedRes: plot_varimp, plot_metric
@@ -45,7 +121,7 @@ Supervised <- new_class(
     metrics_validation = Metrics | NULL,
     metrics_test = Metrics | NULL,
     xnames = class_character,
-    varimp = class_any,
+    varimp = VariableImportance | NULL,
     question = class_character | NULL,
     extra = class_any,
     session_info = class_any
@@ -159,7 +235,7 @@ method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
     model = object@model,
     newdata = newdata,
     type = object@type,
-    ...
+    verbosity = verbosity
   )
 } # /rtemis::predict.Supervised
 
@@ -1123,7 +1199,7 @@ SupervisedRes <- new_class(
     metrics_training = MetricsRes,
     metrics_test = MetricsRes,
     xnames = class_character,
-    varimp = class_any,
+    varimp = class_list | NULL,
     question = class_character | NULL,
     extra = class_any,
     session_info = class_any
@@ -1946,6 +2022,7 @@ method(plot_metric, SupervisedRes) <- function(
 # %% plot_varimp.Supervised ----
 method(plot_varimp, Supervised) <- function(
   x,
+  measure = NULL,
   theme = choose_theme(getOption("rtemis_theme")),
   filename = NULL,
   ...
@@ -1954,13 +2031,20 @@ method(plot_varimp, Supervised) <- function(
     msg(highlight2("No variable importance available."))
     return(invisible())
   }
-  draw_varimp(x@varimp, theme = theme, filename = filename, ...)
+  if (is.null(measure)) {
+    vi <- x@varimp@data[[2L]]
+  } else {
+    vi <- x@varimp@data[[measure]]
+  }
+  names(vi) <- x@varimp@data[["variable"]]
+  draw_varimp(vi, theme = theme, filename = filename, ...)
 } # /rtemis::plot_varimp.Supervised
 
 
 # %% plot_varimp.SupervisedRes ----
 method(plot_varimp, SupervisedRes) <- function(
   x,
+  measure = NULL,
   ylab = NULL,
   summarize_fn = "mean",
   show_top = 20L,
@@ -1974,34 +2058,33 @@ method(plot_varimp, SupervisedRes) <- function(
   }
   check_inherits(summarize_fn, "character")
 
-  # ! Variable importance may be returned in different order in each resample !
-  # Order varimp vectors by variable names
-  # First, check each varimp vector is named
-  if (!all(sapply(x@varimp, function(z) !is.null(names(z))))) {
-    cli::cli_abort("Variable importance elements must be named vectors.")
-  }
-  # Not every variable gets a variable importance score necessarily
-  # Each varimp vector as a one row data.table in order to rbindlist them, filling in NAs as needed.
-  # x@varimp[[i]] may be named vector or data.frame
-  varimp_dt <- lapply(x@varimp, function(z) {
-    as.data.table(as.list(z), keep.rownames = TRUE)
+  # Extract named numeric vectors from each VariableImportance object.
+  # Not every variable gets a score in every resample, so rbindlist with fill.
+  varimp_list <- lapply(x@varimp, function(z) {
+    vi <- if (is.null(measure)) z@data[[2L]] else z@data[[measure]]
+    names(vi) <- z@data[["variable"]]
+    as.data.table(as.list(vi))
   })
 
-  varimp <- rbindlist(varimp_dt, use.names = TRUE, fill = TRUE)
-  # Convert NA values to 0
+  varimp <- rbindlist(varimp_list, use.names = TRUE, fill = TRUE)
+  # Missing scores (variable absent in a resample) treated as 0
   setDF(varimp)
   varimp[is.na(varimp)] <- 0
-  # Summarize variable importance
+  # Summarize and sort
   varimp_summary <- apply(varimp, 2, summarize_fn)
-  # Sort columns by descending variable importance
   varimp_sorted <- varimp_summary[order(-varimp_summary)]
   if (length(varimp_sorted) > show_top) {
     varimp_sorted <- varimp_sorted[seq_len(show_top)]
   }
   # ylab
   if (is.null(ylab)) {
+    measure_name <- if (is.null(measure)) {
+      names(x@varimp[[1L]]@data)[2L]
+    } else {
+      measure
+    }
     ylab <- paste0(
-      labelify(paste(summarize_fn, "Variable Importance")),
+      labelify(paste(summarize_fn, measure_name)),
       "\n(across ",
       desc(x@outer_resampler),
       ")"
