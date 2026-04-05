@@ -449,6 +449,7 @@ train <- function(
       x = x,
       weights = weights,
       dat_validation = dat_validation_for_training,
+      execution_config = execution_config, # used by LightRuleFit
       verbosity = verbosity
     )
 

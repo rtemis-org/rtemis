@@ -21,6 +21,7 @@ method(train_, LightRuleFitHyperparameters) <- function(
   x,
   weights = NULL,
   dat_validation = NULL,
+  execution_config = setup_ExecutionConfig(),
   verbosity = 1L
 ) {
   # Dependencies ----
@@ -64,6 +65,7 @@ method(train_, LightRuleFitHyperparameters) <- function(
     hyperparameters = lgbm_parameters,
     # tuner_config = tuner_config, # ? add tuner_config to LightRuleFitHyperparameters
     outer_resampling_config = NULL,
+    execution_config = execution_config,
     verbosity = verbosity
   )
 
@@ -96,6 +98,7 @@ method(train_, LightRuleFitHyperparameters) <- function(
     dat_rules,
     hyperparameters = lasso_hyperparameters,
     weights = glmnet_weights,
+    execution_config = execution_config,
     verbosity = verbosity
   )
 

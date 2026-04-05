@@ -130,8 +130,8 @@ train_ <- new_generic(
     x,
     weights = NULL,
     dat_validation = NULL,
-    verbosity = 1L,
-    ...
+    execution_config = setup_ExecutionConfig(),
+    verbosity = 1L
   ) {
     S7_dispatch()
   }
