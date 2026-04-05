@@ -180,7 +180,7 @@ method(predict_super, LightRuleFit) <- function(
   model,
   newdata,
   type = NULL,
-  verbosity = 1L
+  verbosity = 0L
 ) {
   check_inherits(newdata, "data.frame")
 
