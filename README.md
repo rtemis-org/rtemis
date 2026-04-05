@@ -1,4 +1,5 @@
- [![CRAN status](https://www.r-pkg.org/badges/version/rtemis)](https://CRAN.R-project.org/package=rtemis)
+[![CRAN status](https://www.r-pkg.org/badges/version/rtemis)](https://CRAN.R-project.org/package=rtemis)
+[![r-universe](https://rtemis-org.r-universe.dev/badges/rtemis)](https://rtemis-org.r-universe.dev/rtemis)
 [![R-CMD-check](https://github.com/rtemis-org/rtemis/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/rtemis-org/rtemis/actions/workflows/R-CMD-check.yaml)
 
 # rtemis: Advanced Machine Learning &amp; Visualization.
