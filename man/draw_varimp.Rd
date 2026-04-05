@@ -29,7 +29,7 @@ draw_varimp(
 )
 }
 \arguments{
-\item{x}{Numeric vector: Input.}
+\item{x}{Numeric vector (or coercible to numeric): Input.}
 
 \item{names}{Vector, string: Names of features.}
 

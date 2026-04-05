@@ -9,7 +9,7 @@
 #' A simple `plotly` wrapper to plot horizontal barplots, sorted by value,
 #' which can be used to visualize variable importance, model coefficients, etc.
 #'
-#' @param x Numeric vector: Input.
+#' @param x Numeric vector (or coercible to numeric): Input.
 #' @param names Vector, string: Names of features.
 #' @param main Character: Main title.
 #' @param type Character: "bar" or "line".
