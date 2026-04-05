@@ -269,8 +269,6 @@ test_that("train() GLMNET Multiclass Classification succeeds", {
 
 # --- GAM ------------------------------------------------------------------------------------------
 ## {GAM}[train]<Regression> spline & parametric ----
-hyperparameters <- setup_GAM()
-hyperparameters
 mod_r_gam <- train(
   x = datr_train,
   dat_test = datr_test,
