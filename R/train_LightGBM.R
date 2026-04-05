@@ -131,8 +131,7 @@ method(predict_super, class_lgb.Booster) <- function(
   check_inherits(newdata, "data.frame")
 
   # Algorithm-specific preprocessing (factor2integer) is applied by
-  # predict.Supervised before calling this method. See R/train.R:420-504
-  # and R/07_S7_Supervised.R:127-135
+  # predict.Supervised before calling this method. See R/train.R and R/07_Supervised.R
 
   # Predict ----
   predict(model, newdata = as.matrix(newdata))
