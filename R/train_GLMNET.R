@@ -211,6 +211,7 @@ method(varimp_super, class_glmnet) <- function(model) {
   if (NCOL(coefs) > 1) {
     msg("GLMNET with multiple sets of coefficients - returning first column.")
   }
+
   # Exclude intercept
   coefs <- coefs[, 1][-1]
   VariableImportance(
@@ -235,7 +236,7 @@ method(varimp_super, class_cv.glmnet) <- function(model) {
   }
 
   # Exclude intercept
-  coefs <- coefs[-1]
+  coefs <- coefs[, 1][-1]
   VariableImportance(
     data.table(
       variable = names(coefs),
