@@ -142,7 +142,7 @@ msg <- function(
   sep = " ",
   verbosity = 1L
 ) {
-  if (verbosity == 0L) {
+  if (verbosity < 1L) {
     return(invisible(NULL))
   }
   if (is.null(caller)) {
@@ -182,7 +182,7 @@ msg0 <- function(
   sep = "",
   verbosity = 1L
 ) {
-  if (verbosity == 0L) {
+  if (verbosity < 0L) {
     return(invisible(NULL))
   }
   if (is.null(caller)) {
