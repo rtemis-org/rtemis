@@ -1,4 +1,4 @@
-.PHONY: install test site
+.PHONY: document install test site
 
 # ── Document ─────────────────────────────────────────────────────────────────
 document:
