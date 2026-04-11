@@ -289,7 +289,7 @@ check_float01exc <- function(
   }
 
   invisible()
-} # /rtemis::check_float01
+} # /rtemis::check_float01exc
 
 
 # %% check_float01inc ----
