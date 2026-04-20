@@ -158,3 +158,8 @@ There is a lot more coming - both within this package and the other packages in 
 ## rtemisalpha
 
 The original, unmaintained version of rtemis remains available as `rtemisalpha` at [rtemis-org/rtemis-legacy](https://github.com/rtemis-org/rtemis-legacy).
+
+---
+
+© 2016–2026 E.D. Gennatas. Licensed under [GPL (>= 3)](https://www.gnu.org/licenses/gpl-3.0.html).
+
