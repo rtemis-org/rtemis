@@ -161,8 +161,6 @@ While this guide focuses on issues, pull requests are welcome! Key points:
 - Include tests for new functionality
 - Update documentation as needed
 
-See `.github/copilot-instructions.md` for detailed coding conventions.
-
 ## Questions?
 
 - **General usage**: [GitHub Discussions](https://github.com/rtemis-org/rtemis/discussions)
