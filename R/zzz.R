@@ -89,7 +89,7 @@ setup_progress <- function() {
       bold("\n  Resources"),
       "\n  \u2502    ",
       gray("Docs:"),
-      " https://docs.rtemis.org/r/",
+      " https://docs.rtemis.org/r/ml",
       "\n  \u2502 ",
       gray("Learn R:"),
       " https://pdsr.rtemis.org",
