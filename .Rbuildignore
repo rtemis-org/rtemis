@@ -17,6 +17,7 @@
 ^data-raw$
 ^dev$
 ^docs$
+^specs$
 ^AGENTS\.md$
 ^NEWS\.md$
 ^pkgdown$
