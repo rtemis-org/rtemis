@@ -4,7 +4,7 @@
 
 # rtemis: Advanced Machine Learning &amp; Visualization.
 
-[![rtemis cover](https://docs.rtemis.org/r/assets/docs-cover.avif)](https://docs.rtemis.org/r/)
+[![rtemis cover](https://docs.rtemis.org/r/ml/assets/docs-cover.avif)](https://docs.rtemis.org/r/ml/)
 
 This is the new version of the rtemis R package and remains under active development.
 
@@ -148,7 +148,7 @@ The new release includes the `draw` family of functions, the evolution of the `d
 
 ## Documentation
 
-The documentation is available at [docs.rtemis.org/r](https://docs.rtemis.org/r/), which includes
+The documentation is available at [docs.rtemis.org/r/ml](https://docs.rtemis.org/r/ml), which includes
 walkthroughs of main features and full API reference.
 
 ## Ongoing work
@@ -158,3 +158,8 @@ There is a lot more coming - both within this package and the other packages in 
 ## rtemisalpha
 
 The original, unmaintained version of rtemis remains available as `rtemisalpha` at [rtemis-org/rtemis-legacy](https://github.com/rtemis-org/rtemis-legacy).
+
+---
+
+© 2016–2026 E.D. Gennatas. Licensed under [GPL (>= 3)](https://www.gnu.org/licenses/gpl-3.0.html).
+

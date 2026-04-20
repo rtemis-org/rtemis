@@ -9,11 +9,14 @@ Thank you for your interest in contributing to **rtemis**! This guide will help 
 Ensure you're using the latest version of rtemis (v0.99+). Many issues may already be fixed in recent updates.
 
 ```r
-# Update from GitHub
-pak::pkg_install("rtemis-org/rtemis")
+# Install from CRAN
+install.packages("rtemis")
 
-# Or from r-universe
-install.packages('rtemis', repos = 'https://egenn.r-universe.dev')
+# Install from GitHub
+pak::pak("rtemis-org/rtemis")
+
+# Install from r-universe
+install.packages('rtemis', repos = 'https://rtemis-org.r-universe.dev')
 
 # Check your version
 packageVersion("rtemis")
@@ -25,9 +28,8 @@ Please search [existing issues](https://github.com/rtemis-org/rtemis/issues) to 
 
 ### Review Documentation
 
-- **API Documentation**: https://rdocs.rtemis.org/api/
-- **General Documentation**: https://rdocs.rtemis.org
-- **Copilot Instructions**: `.github/copilot-instructions.md` (for developers)
+- **API Documentation**: https://docs.rtemis.org/r/ml-api/
+- **General Documentation**: https://docs.rtemis.org/r/ml
 
 ## Opening an Issue
 
@@ -158,8 +160,6 @@ While this guide focuses on issues, pull requests are welcome! Key points:
 - All `@param` must follow format: `Class: Description ending with period.`
 - Include tests for new functionality
 - Update documentation as needed
-
-See `.github/copilot-instructions.md` for detailed coding conventions.
 
 ## Questions?
 

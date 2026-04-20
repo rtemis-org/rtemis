@@ -13,9 +13,11 @@
 ^\.rtms-instructions\.md$
 ^\.vscode$
 ^cran-comments\.md$
+^LICENSE\.md$
 ^data-raw$
 ^dev$
 ^docs$
+^specs$
 ^AGENTS\.md$
 ^NEWS\.md$
 ^pkgdown$

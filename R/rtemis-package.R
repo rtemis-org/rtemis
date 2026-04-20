@@ -8,7 +8,7 @@
 #' Advanced Machine Learning & Visualization made efficient, accessible, reproducible
 #'
 #' @section Online Documentation and Vignettes:
-#' <https://docs.rtemis.org/r/>
+#' <https://docs.rtemis.org/r/ml>
 #'
 #' @section System Setup:
 #' There are some options you can define in your .Rprofile (usually found in your home directory),

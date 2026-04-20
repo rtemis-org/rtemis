@@ -3,6 +3,7 @@ __dev/
 __validation/
 dev/
 __out/
+specs/
 
 # Mac OS
 .DS_Store
