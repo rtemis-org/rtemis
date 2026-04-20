@@ -1363,9 +1363,3 @@ test_that("train() with preprocessor creates a model with the preprocessor", {
   expect_s7_class(mod_c_glm_pp, Classification)
   expect_true(!is.null(mod_c_glm_pp@preprocessor))
 })
-
-# %% GAM univariate
-x <- rnorm(500)
-x2 <- rnorm(500)
-y <- x^3 + rnorm(500)
-mod <- train(data.table(x, x2, y), algorithm = "gam")
