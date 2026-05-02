@@ -66,7 +66,7 @@ method(`[[`, Theme) <- function(x, name) {
 #'
 #' @author EDG
 #' @noRd
-names.Theme <- function(x) {
+method(names, Theme) <- function(x) {
   names(x@config)
 } # /rtemis::names.Theme
 
