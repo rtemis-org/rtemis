@@ -5,6 +5,9 @@
 \title{Write to TOML file}
 \usage{
 write_toml(x, file, overwrite = FALSE, verbosity = 1L)
+
+## S7 method for class <rtemis::SuperConfig>
+write_toml(x, file, overwrite = FALSE, verbosity = 1L)
 }
 \arguments{
 \item{x}{\code{SuperConfig} object.}

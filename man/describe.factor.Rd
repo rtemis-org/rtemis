@@ -3,6 +3,10 @@
 \name{describe.factor}
 \alias{describe.factor}
 \title{Describe factor}
+\usage{
+## S7 method for class <factor>
+describe(x, max_n = 5, return_ordered = TRUE)
+}
 \arguments{
 \item{x}{factor.}
 
