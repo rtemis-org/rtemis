@@ -43,7 +43,6 @@ method(`$`, Decomposition) <- function(x, name) {
 }
 
 
-
 # %% `.DollarNames`.Decomposition ----
 method(`.DollarNames`, Decomposition) <- function(x, pattern = "") {
   prop_names <- names(props(x))
@@ -51,13 +50,11 @@ method(`.DollarNames`, Decomposition) <- function(x, pattern = "") {
 }
 
 
-
 # %% `[[`.Decomposition ----
 # Make Decomposition@transformed `[[`-accessible
 method(`[[`, Decomposition) <- function(x, index) {
   props(x, "transformed")[[index]]
 }
-
 
 
 # %% repr.Decomposition ----
@@ -76,7 +73,6 @@ method(repr, Decomposition) <- function(
     repr_ls(props(x)[-1], pad = pad, output_type = output_type)
   )
 } # /rtemis::repr.Decomposition
-
 
 
 # %% print.Decomposition ----

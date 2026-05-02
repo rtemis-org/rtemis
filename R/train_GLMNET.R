@@ -133,7 +133,12 @@ method(train_, GLMNETHyperparameters) <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(predict_super, class_glmnet) <- function(model, newdata, type = NULL, verbosity = 0L) {
+method(predict_super, class_glmnet) <- function(
+  model,
+  newdata,
+  type = NULL,
+  verbosity = 0L
+) {
   # Determine type
   # if model@classnames exists, type is Classification
   if (is.null(type)) {
