@@ -1,9 +1,14 @@
-.PHONY: document install test site
+.PHONY: format document install test site
+
+# ── Format ───────────────────────────────────────────────────────────────────
+format:
+	@echo "=> Formatting rtemis"
+	air format .
 
 # ── Document ─────────────────────────────────────────────────────────────────
-document:
+document: format
 	@echo "=> Documenting rtemis"
-	Rscript -e "devtools::document()"
+	Rscript -e "roxygen2::roxygenize()"
 
 # ── Install ──────────────────────────────────────────────────────────────────
 install: document
