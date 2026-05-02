@@ -32,7 +32,8 @@ specs/
 # Output files from R CMD check
 /*.Rcheck/
 
-# pkgdown files
+# pkgdown
+_pkgdown.yml
 pkgdown/
 
 # Air
@@ -62,9 +63,6 @@ vignettes/*.pdf
 # future
 .future
 
-# pkgdown site
-docs/
-
 # translation temp files
 po/*~
 
@@ -73,10 +71,6 @@ rsconnect/
 
 # lintr
 .lintr
-docs
-
-# pkgdown
-_pkgdown.yml
 
 # CRAN
 cran-comments.md
