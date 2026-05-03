@@ -69,9 +69,3 @@ method(`[[`, Theme) <- function(x, name) {
 method(names, Theme) <- function(x) {
   names(x@config)
 } # /rtemis::names.Theme
-
-
-# %% names.Theme method ----
-method(names, Theme) <- function(x) {
-  names.Theme(x)
-} # /rtemis::names.Theme
