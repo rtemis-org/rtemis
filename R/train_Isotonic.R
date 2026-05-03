@@ -75,7 +75,12 @@ method(train_, IsotonicHyperparameters) <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(predict_super, class_stepfun) <- function(model, newdata, type = NULL, verbosity = 0L) {
+method(predict_super, class_stepfun) <- function(
+  model,
+  newdata,
+  type = NULL,
+  verbosity = 0L
+) {
   model(newdata[[1]])
 } # /rtemis::predict_super.class_stepfun
 

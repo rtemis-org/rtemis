@@ -2,24 +2,44 @@
 % Please edit documentation in R/00_S7init.R
 \name{describe}
 \alias{describe}
-\title{Describe rtemis object}
+\title{Describe object}
 \usage{
 describe(x, ...)
 }
 \arguments{
-\item{x}{\code{Supervised} or \code{SupervisedRes} object or list of such objects.}
+\item{x}{R object to describe. See method documentation for supported classes.}
 
-\item{...}{Not used.}
-}
-\value{
-A character string describing the object.
+\item{...}{Additional arguments passed to methods. See details.}
 }
 \description{
-This generic is used to provide a description of an rtemis object in plain language.
+Describe object
+}
+\details{
+Extra arguments for \code{factor} method:
+\itemize{
+\item \code{max_n}: Integer: Return counts for up to this many levels.
+\item \code{return_ordered}: Logical: If TRUE, return levels ordered by count, otherwise return in level order.
+\item \code{verbosity}: Integer: Verbosity level.
+}
 }
 \examples{
+# --- For `Supervised` objects ---
 species_lightrf <- train(iris, algorithm = "lightrf")
 describe(species_lightrf)
+
+# --- For `SupervisedRes` objects ---
+mod <- train(iris, algorithm = "CART", outer_resampling_config = setup_Resampler())
+describe(mod)
+
+# --- For factors ---
+# Small number of levels
+describe(iris[["Species"]])
+
+# Large number of levels: show top n by count
+x <- factor(sample(letters, 1000, TRUE))
+describe(x)
+describe(x, 3)
+describe(x, 3, return_ordered = FALSE)
 }
 \author{
 EDG

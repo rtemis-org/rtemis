@@ -22,7 +22,7 @@
 #' @return plotly object
 #'
 #' @author EDG
-#' @export
+#' @noRd
 #'
 #' @examples
 #' \dontrun{
@@ -38,7 +38,7 @@
 #' )
 #' present(list(iris_lightrf, iris_rsvm), metric = "Balanced_Accuracy")
 #' }
-present.list <- function(
+method(present, class_list) <- function(
   x,
   metric = NULL,
   model_names = NULL,
@@ -156,5 +156,3 @@ present.list <- function(
   }
   plt
 } # /rtemis::present.list
-
-method(present, class_list) <- present.list

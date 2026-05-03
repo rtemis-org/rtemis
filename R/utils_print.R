@@ -593,27 +593,6 @@ catsize <- function(x, name = NULL, verbosity = 1L, newline = TRUE) {
 } # /rtemis::catsize
 
 
-#' Print single line of object info
-#'
-#' @param x object to print
-#' @param ... Not used.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-
-print1 <- function(x, ...) {
-  UseMethod("print1")
-} # /rtemis::print1
-
-#' @author EDG
-#' @keywords internal
-#' @noRd
-print1.default <- function(x, ...) {
-  head(x, 1)
-} # /rtemis::print1.default
-
-
 #' @author EDG
 #' @keywords internal
 #' @noRd

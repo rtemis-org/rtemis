@@ -302,12 +302,6 @@ method(print, GridSearch) <- function(x, header = TRUE, ...) {
 } # /rtemis::print.GridSearch
 
 
-# %% describe.GridSearch ----
-method(describe, GridSearch) <- function(x) {
-  print(x, header = FALSE)
-}
-
-
 # %% repr.GridSearch ----
 method(repr, GridSearch) <- function(
   x,

@@ -4,21 +4,23 @@
 
 # %% Public ----------------------------------------------------------------------------------------
 
-#' @name describe.factor
+#' Describe factor
 #'
-#' @title Describe factor
-#'
-#' @description
 #' Outputs a single character with names and counts of each level of the input factor.
 #'
 #' @param x factor.
-#' @param max_n Integer: Return counts for up to this many levels.
-#' @param return_ordered Logical: If TRUE, return levels ordered by count, otherwise
-#' return in level order.
+#' @param ... See details.
+#'
+#' @details
+#' Extra arguments:
+#' - `max_n`: Integer: Return counts for up to this many levels.
+#' - `return_ordered`: Logical: If TRUE, return levels ordered by count, otherwise return in level order.
+#' - `verbosity`: Integer: Verbosity level.
 #'
 #' @return Character with level counts.
 #'
 #' @author EDG
+#' @noRd
 #'
 #' @examples
 #' # Small number of levels
@@ -32,7 +34,8 @@
 method(describe, class_factor) <- function(
   x,
   max_n = 5,
-  return_ordered = TRUE
+  return_ordered = TRUE,
+  verbosity = 1L
 ) {
   x <- factor(x)
   x_levels <- levels(x)
@@ -44,15 +47,15 @@ method(describe, class_factor) <- function(
 
   if (n_unique <= max_n) {
     if (return_ordered) {
-      paste(x_levels[idi], x_freqs[idi], sep = ": ", collapse = "; ")
+      out <- paste(x_levels[idi], x_freqs[idi], sep = ": ", collapse = "; ")
     } else {
-      paste(x_levels, x_freqs, sep = ": ", collapse = "; ")
+      out <- paste(x_levels, x_freqs, sep = ": ", collapse = "; ")
     }
   } else {
     idi <- order(x_freqs, decreasing = TRUE)
     if (return_ordered) {
       idi <- idi[seq_len(max_n)]
-      paste0(
+      out <- paste0(
         "(Top ",
         max_n,
         " of ",
@@ -62,7 +65,7 @@ method(describe, class_factor) <- function(
       )
     } else {
       idx <- seq_len(max_n)
-      paste0(
+      out <- paste0(
         "(First ",
         max_n,
         " of ",
@@ -72,6 +75,10 @@ method(describe, class_factor) <- function(
       )
     }
   }
+  if (verbosity > 0L) {
+    print(out)
+  }
+  invisible(out)
 } # /rtemis::describe.factor
 
 
