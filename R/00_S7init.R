@@ -395,22 +395,38 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 
 
 # %% describe ----
-#' Describe rtemis object
+#' Describe object
 #'
-#' @description
-#' This generic is used to provide a description of an rtemis object in plain language.
+#' @param x R object to describe. See method documentation for supported classes.
+#' @param ... Additional arguments passed to methods. See details.
 #'
-#' @param x `Supervised` or `SupervisedRes` object or list of such objects.
-#' @param ... Not used.
-#'
-#' @return A character string describing the object.
+#' @details
+#' Extra arguments for `factor` method:
+#' - `max_n`: Integer: Return counts for up to this many levels.
+#' - `return_ordered`: Logical: If TRUE, return levels ordered by count, otherwise return in level order.
+#' - `verbosity`: Integer: Verbosity level.
 #'
 #' @author EDG
 #' @export
 #'
 #' @examples
+#' # --- For `Supervised` objects ---
 #' species_lightrf <- train(iris, algorithm = "lightrf")
 #' describe(species_lightrf)
+#'
+#' # --- For `SupervisedRes` objects ---
+#' mod <- train(iris, algorithm = "CART", outer_resampling_config = setup_Resampler())
+#' describe(mod)
+#'
+#' # --- For factors ---
+#' # Small number of levels
+#' describe(iris[["Species"]])
+#'
+#' # Large number of levels: show top n by count
+#' x <- factor(sample(letters, 1000, TRUE))
+#' describe(x)
+#' describe(x, 3)
+#' describe(x, 3, return_ordered = FALSE)
 describe <- new_generic("describe", "x")
 
 

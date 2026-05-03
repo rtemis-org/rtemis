@@ -435,6 +435,19 @@ method(print, Supervised) <- function(
 
 
 # %% describe.Supervised ----
+#' Describe `Supervised` object
+#'
+#' @param x `Supervised` object.
+#' @param ... Not used.
+#'
+#' @return Character string describing the `Supervised` object, invisibly.
+#'
+#' @author EDG
+#' @noRd
+#'
+#' @examples
+#' species_lightrf <- train(iris, algorithm = "lightrf")
+#' describe(species_lightrf)
 method(describe, Supervised) <- function(x) {
   type <- x@type
   algorithm <- desc_alg(x@algorithm)
@@ -1761,10 +1774,25 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
   invisible(out)
 } # /rtemis::desc.SupervisedRes
 
+
 # %% describe.SupervisedRes ----
+#' Describe `SupervisedRes`
+#'
+#' @param x `SupervisedRes` object.
+#' @param ... Not used.
+#'
+#' @return Character string describing the `SupervisedRes` object, invisibly.
+#'
+#' @author EDG
+#' @noRd
+#'
+#' @examples
+#' mod <- train(iris, algorithm = "CART", outer_resampling_config = setup_Resampler())
+#' describe(mod)
 method(describe, SupervisedRes) <- function(x, ...) {
   cat(desc(x), "\n")
 }
+
 
 # %% present.SupervisedRes ----
 method(present, SupervisedRes) <- function(
@@ -2390,6 +2418,13 @@ method(desc, class_list) <- function(
 #' Print description of a list of Supervised or SupervisedRes objects
 #'
 #' @param x List of `Supervised` or `SupervisedRes` objects.
+#' @param ... See details.
+#'
+#' @details
+#' Extra arguments:
+#' - `metric`: Character: Metric to use for description. If NULL, defaults to "Balanced_Accuracy" for Classification and "Rsq" for Regression.
+#' - `decimal_places`: Integer: Number of decimal places to round metrics to.
+#' - `output_type`: Character {"ansi", "html", or "plain"}: Output type.
 #'
 #' @return Character of description invisibly. Prints description to output.
 #'
