@@ -75,6 +75,9 @@ rsconnect/
 # CRAN
 cran-comments.md
 
+# Manual
+*.pdf
+
 # Assistants
 AGENTS.md
 .rtms-instructions.md
