@@ -1,6 +1,6 @@
 # utils_async.R
 # ::rtemis::
-# 2026 EDG rtemis.org
+# 2026- EDG rtemis.org
 
 # Define allowed future plans
 ALLOWED_PLANS <- c(

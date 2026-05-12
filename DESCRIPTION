@@ -1,7 +1,7 @@
 Package: rtemis
-Version: 1.0.1
+Version: 1.2.0
 Title: Machine Learning and Visualization
-Date: 2026-04-20
+Date: 2026-05-12
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
     email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
 Description: Machine learning and visualization package with an 'S7' backend 
@@ -57,6 +57,7 @@ Suggests:
     htmlwidgets,
     igraph,
     jsonlite,
+    later,
     leaflet,
     leaps,
     lightAUC,
@@ -66,12 +67,14 @@ Suggests:
     mice,
     mirai,
     missRanger,
+    nanonext,
     networkD3,
     NMF,
     openxlsx,
     parallelly,
     partykit,
     plotly,
+    plumber,
     pROC,
     progressr,
     psych,

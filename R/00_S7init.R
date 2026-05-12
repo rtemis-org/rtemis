@@ -540,6 +540,76 @@ to_toml <- new_generic("to_toml", "x")
 to_yaml <- new_generic("to_yaml", "x")
 
 
+# %% to_json ----
+#' Convert to JSON-serializable list
+#'
+#' Convert an rtemis S7 object to a named list suitable for
+#' `jsonlite::toJSON(auto_unbox = TRUE)`. Used by the rtemislive backend
+#' to send structured results to the browser frontend without scraping
+#' R console output.
+#'
+#' Each output list includes a `.class` field equal to the most specific
+#' S7 class name, allowing the frontend to dispatch to a class-specific
+#' renderer.
+#'
+#' The default method walks `props(x)`, recursing into S7-typed properties
+#' and passing through primitive properties as-is. Per-class methods
+#' override where the default isn't appropriate (e.g. classes whose props
+#' include a `data.table`, an opaque model fit, or where some props should
+#' be excluded for size or relevance reasons).
+#'
+#' @param x rtemis S7 object.
+#' @param ... Additional arguments passed to method.
+#'
+#' @return Named list. Pass through `jsonlite::toJSON(auto_unbox = TRUE)`
+#' for serialization.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+to_json <- new_generic("to_json", "x")
+
+
+# %% to_json default ----
+#' @name to_json
+#' @keywords internal
+#' @noRd
+method(to_json, S7_object) <- function(x, ...) {
+  ps <- props(x)
+  body <- lapply(ps, .to_json_value)
+  c(list(.class = S7_class(x)@name), body)
+} # /rtemis::to_json.S7_object
+
+
+#' Recursively convert a value to a JSON-serializable form
+#'
+#' Handles the common composite shapes encountered when walking S7 props:
+#' nested S7 objects (recurse via the generic), lists that may *contain*
+#' S7 objects (recurse element-wise), and primitives / data.frames
+#' (pass through — jsonlite supports them natively).
+#'
+#' @param v Value from an S7 property.
+#'
+#' @return JSON-serializable value.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+.to_json_value <- function(v) {
+  if (is.null(v)) {
+    return(NULL)
+  }
+  if (inherits(v, "S7_object")) {
+    return(to_json(v))
+  }
+  # data.frame / data.table are list-like but jsonlite handles them natively.
+  if (is.list(v) && !is.data.frame(v)) {
+    return(lapply(v, .to_json_value))
+  }
+  v
+} # /rtemis::.to_json_value
+
+
 # %% write_toml ----
 #' @name
 #' write_toml

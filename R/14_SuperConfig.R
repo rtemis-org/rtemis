@@ -315,3 +315,127 @@ method(to_yaml, SuperConfig) <- function(x) {
   xl <- S7_to_list(props(x))
   yaml::as.yaml(xl)
 } # /rtemis::to_yaml.SuperConfig
+
+
+# %% SuperConfigLive ----
+#' SuperConfigLive Class
+#'
+#' @description
+#' Like `SuperConfig`, but carries in-memory training/validation/test data
+#' instead of file paths. Used by `rtemislive` (uploads arrive over a WS
+#' frame, not as a file) and by future HPC submission paths that hand the
+#' data directly to a worker.
+#'
+#' Not TOML-serialisable — in-memory data does not round-trip cleanly to
+#' a config file. Use `SuperConfig` when you need on-disk reproducibility.
+#'
+#' @author EDG
+#' @noRd
+SuperConfigLive <- new_class(
+  name = "SuperConfigLive",
+  properties = list(
+    dat_training = class_tabular,
+    dat_validation = class_tabular | NULL,
+    dat_test = class_tabular | NULL,
+    weights = class_character | NULL, # column name in dat_training
+    preprocessor_config = PreprocessorConfig | NULL,
+    algorithm = class_character | NULL,
+    hyperparameters = Hyperparameters | NULL,
+    tuner_config = TunerConfig | NULL,
+    outer_resampling_config = ResamplerConfig | NULL,
+    execution_config = ExecutionConfig,
+    question = class_character | NULL,
+    outdir = class_character | NULL,
+    verbosity = class_integer
+  )
+) # /rtemis::SuperConfigLive
+
+
+# %% repr.SuperConfigLive ----
+#' @author EDG
+#' @noRd
+method(repr, SuperConfigLive) <- function(x, pad = 0L, output_type = NULL) {
+  out <- repr_S7name("SuperConfigLive", pad = pad, output_type = output_type)
+  # Replace heavy data slots with a {rows, cols} summary so the printout
+  # stays readable.
+  pl <- props(x)
+  fmt_dim <- function(d) {
+    if (is.null(d)) {
+      return(NULL)
+    }
+    paste0("<", NROW(d), " x ", NCOL(d), ">")
+  }
+  pl[["dat_training"]] <- fmt_dim(pl[["dat_training"]])
+  pl[["dat_validation"]] <- fmt_dim(pl[["dat_validation"]])
+  pl[["dat_test"]] <- fmt_dim(pl[["dat_test"]])
+  out <- paste0(
+    out,
+    repr_ls(pl, pad = pad, limit = 20L, output_type = output_type)
+  )
+  out
+} # /rtemis::repr.SuperConfigLive
+
+
+# %% print.SuperConfigLive ----
+#' @author EDG
+#' @noRd
+method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
+  cat(repr(x, output_type = output_type))
+  invisible(x)
+} # /rtemis::print.SuperConfigLive
+
+
+# %% setup_SuperConfigLive ----
+#' Setup SuperConfigLive
+#'
+#' Build a `SuperConfigLive` — same shape as [setup_SuperConfig] but with
+#' in-memory tabular data instead of file paths.
+#'
+#' @param dat_training data.frame or data.table. Training data.
+#' @param dat_validation data.frame, data.table, or `NULL`.
+#' @param dat_test data.frame, data.table, or `NULL`.
+#' @param weights Character or `NULL`. Column name in `dat_training` used
+#'   as observation weights.
+#' @param preprocessor_config,algorithm,hyperparameters,tuner_config,outer_resampling_config,execution_config,question,verbosity
+#'   See [setup_SuperConfig].
+#' @param outdir Character or `NULL`. Output directory; `NULL` (the
+#'   default) means "do not write to disk" (the rtemislive case).
+#'
+#' @return `SuperConfigLive` object.
+#'
+#' @author EDG
+#' @export
+setup_SuperConfigLive <- function(
+  dat_training,
+  dat_validation = NULL,
+  dat_test = NULL,
+  weights = NULL,
+  preprocessor_config = NULL,
+  algorithm = NULL,
+  hyperparameters = NULL,
+  tuner_config = NULL,
+  outer_resampling_config = NULL,
+  execution_config = setup_ExecutionConfig(),
+  question = NULL,
+  outdir = NULL,
+  verbosity = 1L
+) {
+  if (!is.null(outdir)) {
+    outdir <- sanitize_path(outdir, must_exist = FALSE, type = "any")
+  }
+  SuperConfigLive(
+    dat_training = dat_training,
+    dat_validation = dat_validation,
+    dat_test = dat_test,
+    weights = weights,
+    preprocessor_config = preprocessor_config,
+    algorithm = algorithm,
+    hyperparameters = hyperparameters,
+    tuner_config = tuner_config,
+    outer_resampling_config = outer_resampling_config,
+    execution_config = execution_config,
+    question = question,
+    outdir = outdir,
+    verbosity = as.integer(verbosity)
+  )
+} # /rtemis::setup_SuperConfigLive

@@ -4,7 +4,7 @@
 \alias{available_draw}
 \title{Available Draw Functions}
 \usage{
-available_draw()
+available_draw(verbosity = 1L)
 }
 \value{
 NULL, invisibly.
