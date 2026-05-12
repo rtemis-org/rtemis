@@ -243,21 +243,24 @@ get_decom_predict_fn <- function(algorithm) {
 #' @rdname available_algorithms
 #' @aliases available_algorithms
 #'
-#' @return Called for its side effect of printing available algorithms.
+#' @param verbosity Integer: Verbosity level.
+#' @return Named list of algorithm descriptions, invisibly.
 #'
 #' @author EDG
 #' @export
 #'
 #' @examples
 #' available_supervised()
-available_supervised <- function() {
+available_supervised <- function(verbosity = 1L) {
   algs <- structure(
     supervised_algorithms[, 2],
     names = supervised_algorithms[, 1],
     class = "list"
   )
-  printls(algs, print_class = FALSE, limit = -1L)
-  invisible()
+  if (verbosity > 0L) {
+    printls(algs, print_class = FALSE, limit = -1L)
+  }
+  invisible(algs)
 }
 
 #' @rdname available_algorithms
@@ -265,29 +268,34 @@ available_supervised <- function() {
 #'
 #' @examples
 #' available_clustering()
-available_clustering <- function() {
+available_clustering <- function(verbosity = 1L) {
   algs <- structure(
     clust_algorithms[, 2],
     names = clust_algorithms[, 1],
     class = "list"
   )
-  printls(algs, print_class = FALSE, limit = -1L)
-  invisible()
+  if (verbosity > 0L) {
+    printls(algs, print_class = FALSE, limit = -1L)
+  }
+  invisible(algs)
 }
+
 
 #' @rdname available_algorithms
 #' @export
 #'
 #' @examples
 #' available_decomposition()
-available_decomposition <- function() {
+available_decomposition <- function(verbosity = 1L) {
   algs <- structure(
     decom_algorithms[, 2],
     names = decom_algorithms[, 1],
     class = "list"
   )
-  printls(algs, print_class = FALSE, limit = -1L)
-  invisible()
+  if (verbosity > 0L) {
+    printls(algs, print_class = FALSE, limit = -1L)
+  }
+  invisible(algs)
 }
 
 # Draw ----
@@ -324,20 +332,24 @@ colnames(draw_fns) <- c("Function Name", "Description")
 #'
 #' Print available draw functions for visualization.
 #'
-#' @return NULL, invisibly.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Named list of draw function descriptions, invisibly.
 #'
 #' @author EDG
 #' @export
 #'
 #' @examples
 #' available_draw()
-available_draw <- function() {
+available_draw <- function(verbosity = 1L) {
   fns <- structure(
     draw_fns[, 2],
     names = draw_fns[, 1],
     class = "list"
   )
-  cat("Available draw functions:\n")
-  printls(fns, print_class = FALSE, limit = -1L)
-  invisible()
+  if (verbosity > 0L) {
+    cat("Available draw functions:\n")
+    printls(fns, print_class = FALSE, limit = -1L)
+  }
+  invisible(fns)
 } # /rtemis::available_draw

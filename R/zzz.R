@@ -16,6 +16,12 @@ live[["parallelized_learners"]] <- c(
   "LightRuleFit",
   "Ranger"
 )
+# msg() sink. NULL = console output (default).
+# When set to a function, msg()/msg0()/msgstart()/msgdone() route their
+# structured output through it instead of writing to the console.
+# Used by rtemislive to forward training messages over a WebSocket.
+# See `set_msg_sink()`.
+live[["msg_sink"]] <- NULL
 
 # vars
 rtemis_version <- packageVersion("rtemis")

@@ -124,6 +124,25 @@ train <- function(
   verbosity = 1L,
   ...
 ) {
+  # SuperConfigLive dispatch ----
+  if (S7_inherits(x, SuperConfigLive)) {
+    return(train(
+      x = x@dat_training,
+      dat_validation = x@dat_validation,
+      dat_test = x@dat_test,
+      weights = x@weights,
+      preprocessor_config = x@preprocessor_config,
+      algorithm = x@algorithm,
+      hyperparameters = x@hyperparameters,
+      tuner_config = x@tuner_config,
+      outer_resampling_config = x@outer_resampling_config,
+      execution_config = x@execution_config,
+      question = x@question,
+      outdir = x@outdir,
+      verbosity = x@verbosity
+    ))
+  } # / train.SuperConfigLive
+
   # SuperConfig dispatch ----
   if (S7_inherits(x, SuperConfig)) {
     dat_training <- read(x@dat_training_path, character2factor = TRUE)

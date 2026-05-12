@@ -2242,8 +2242,25 @@ stopifnot(all(
 ))
 
 
-# %% list_to_Hyperparameters ----
-list_to_Hyperparameters <- function(x) {
+# %% .list_to_Hyperparameters ----
+#' Convert a list to a Hyperparameters object
+#'
+#' Internal function used by `rtemis.server` to reconstruct a `Hyperparameters`
+#' object from a wire-format list. Not intended for direct use by end users.
+#'
+#' @param x Named list with two elements:
+#'   \describe{
+#'     \item{`algorithm`}{Character: algorithm name, e.g. `"GLM"`, `"RF"`.}
+#'     \item{`hyperparameters`}{Named list of hyperparameter name-value pairs
+#'       passed to the corresponding `setup_<algorithm>()` function.}
+#'   }
+#'
+#' @return A `Hyperparameters` object as returned by `setup_<algorithm>()`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+.list_to_Hyperparameters <- function(x) {
   fn <- paste0("setup_", x[["algorithm"]])
   if (!exists(fn, mode = "function")) {
     cli::cli_abort(".val Invalid algorithm: {x[['algorithm']]}.")

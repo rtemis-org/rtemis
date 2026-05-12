@@ -4,10 +4,13 @@
 \alias{available_draw}
 \title{Available Draw Functions}
 \usage{
-available_draw()
+available_draw(verbosity = 1L)
+}
+\arguments{
+\item{verbosity}{Integer: Verbosity level.}
 }
 \value{
-NULL, invisibly.
+Named list of draw function descriptions, invisibly.
 }
 \description{
 Print available draw functions for visualization.

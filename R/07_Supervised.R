@@ -423,6 +423,76 @@ method(repr, Supervised) <- function(
 } # /rtemis::repr.Supervised
 
 
+# %% to_json.Supervised ----
+#' to_json `Supervised`
+#'
+#' Convert a `Supervised` (or `Regression` / `Classification` /
+#' `CalibratedClassification`) object to a JSON-serializable list. Excludes
+#' the model object, full prediction vectors, full outcome vectors, the
+#' R session_info, and `extra` — all of which are either not JSON-friendly,
+#' too large for the control-plane response, or fetched separately as
+#' Arrow IPC bulk data.
+#'
+#' @param x `Supervised` object.
+#'
+#' @return Named list. Pass to `jsonlite::toJSON(auto_unbox = TRUE)`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(to_json, Supervised) <- function(x, ...) {
+  # Use `.to_json_value()` for every prop — it handles nested S7 objects,
+  # nested lists containing S7 objects, and primitive types uniformly.
+  # That matters when a prop's *declared* type is S7 but the actual value
+  # is a primitive (e.g. `varimp` is sometimes a plain numeric vector
+  # rather than a VariableImportance — a rtemis-internal type mismatch
+  # that this method must tolerate).
+  out <- list(
+    .class = S7_class(x)@name,
+    algorithm = x@algorithm,
+    type = x@type,
+    question = x@question,
+    xnames = x@xnames,
+    n_features = length(x@xnames),
+    preprocessor = .to_json_value(x@preprocessor),
+    preprocessor_internal = .to_json_value(x@preprocessor_internal),
+    hyperparameters = .to_json_value(x@hyperparameters),
+    tuner = .to_json_value(x@tuner),
+    execution_config = .to_json_value(x@execution_config),
+    metrics_training = .to_json_value(x@metrics_training),
+    metrics_validation = .to_json_value(x@metrics_validation),
+    metrics_test = .to_json_value(x@metrics_test),
+    varimp = .to_json_value(x@varimp)
+  )
+
+  # Subclass-specific extras
+  if (prop_exists(x, "binclasspos")) {
+    out[["binclasspos"]] <- x@binclasspos
+  }
+  if (prop_exists(x, "se_training")) {
+    # Regression: don't serialize full SE vectors (large); flag presence only
+    out[["has_se"]] <- !is.null(x@se_training)
+  }
+  if (prop_exists(x, "calibration_model")) {
+    out[["calibration_model"]] <- .to_json_value(x@calibration_model)
+    if (prop_exists(x, "metrics_training_calibrated")) {
+      out[["metrics_training_calibrated"]] <-
+        .to_json_value(x@metrics_training_calibrated)
+    }
+    if (prop_exists(x, "metrics_validation_calibrated")) {
+      out[["metrics_validation_calibrated"]] <-
+        .to_json_value(x@metrics_validation_calibrated)
+    }
+    if (prop_exists(x, "metrics_test_calibrated")) {
+      out[["metrics_test_calibrated"]] <-
+        .to_json_value(x@metrics_test_calibrated)
+    }
+  }
+
+  Filter(Negate(is.null), out)
+} # /rtemis::to_json.Supervised
+
+
 # %% print.Supervised ----
 method(print, Supervised) <- function(
   x,
@@ -1376,6 +1446,49 @@ method(repr, SupervisedRes) <- function(
 
   out
 } # /rtemis::repr.SupervisedRes
+
+
+# %% to_json.SupervisedRes ----
+#' to_json `SupervisedRes`
+#'
+#' Convert a `SupervisedRes` (or `RegressionRes` / `ClassificationRes`)
+#' object to a JSON-serializable list. The list of per-resample fitted
+#' models (`@models`) is summarised by length only — individual model
+#' details remain available on the server and can be fetched via
+#' separate `job.result` requests if needed.
+#'
+#' @param x `SupervisedRes` object.
+#'
+#' @return Named list. Pass to `jsonlite::toJSON(auto_unbox = TRUE)`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(to_json, SupervisedRes) <- function(x, ...) {
+  out <- list(
+    .class = S7_class(x)@name,
+    algorithm = x@algorithm,
+    type = x@type,
+    question = x@question,
+    xnames = x@xnames,
+    n_features = length(x@xnames),
+    n_resamples = length(x@models),
+    preprocessor = .to_json_value(x@preprocessor),
+    preprocessor_internal = .to_json_value(x@preprocessor_internal),
+    hyperparameters = .to_json_value(x@hyperparameters),
+    tuner_config = .to_json_value(x@tuner_config),
+    outer_resampler = .to_json_value(x@outer_resampler),
+    execution_config = .to_json_value(x@execution_config),
+    metrics_training = .to_json_value(x@metrics_training),
+    metrics_test = .to_json_value(x@metrics_test),
+    # varimp is `class_list | NULL` of VariableImportance.
+    # `.to_json_value` recurses through lists, dispatching `to_json` on
+    # S7 elements and passing through anything else.
+    varimp_per_resample = .to_json_value(x@varimp)
+  )
+
+  Filter(Negate(is.null), out)
+} # /rtemis::to_json.SupervisedRes
 
 
 # %% print.SupervisedRes ----

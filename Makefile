@@ -21,6 +21,7 @@ help:
 		'  check       Run R CMD check on the built tarball' \
 		'  check-cran  Run R CMD check --as-cran' \
 		'  check-cran-no-tests  Run R CMD check --as-cran --no-tests' \
+		'  manual      Build package manual' \
 		'  site        Build pkgdown site' \
 		'  clean       Remove tarballs and .Rcheck output'
 
@@ -69,6 +70,11 @@ check-cran-no-tests: build
 	$(call msg,─── Running R CMD check --as-cran on $(PKG)... ───)
 	$(R) CMD check $(TARBALL_GLOB) --as-cran --no-tests
 	rm -f $(TARBALL_GLOB)
+	$(call msg,Done)
+
+manual:
+	$(call msg,─── Building manual for $(PKG)... ───)
+	$(R) CMD Rd2pdf . --output=$(PKG).pdf
 	$(call msg,Done)
 
 site:
