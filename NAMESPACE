@@ -2,6 +2,9 @@
 
 S3method(plot,MassGLM)
 export("%BC%")
+export(.list_to_Hyperparameters)
+export(.list_to_ResamplerConfig)
+export(.list_to_TunerConfig)
 export(available_clustering)
 export(available_decomposition)
 export(available_draw)

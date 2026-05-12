@@ -484,19 +484,34 @@ method(desc, Resampler) <- function(x) {
 
 # %% --- Internal functions ----
 
-# %% list_to_ResamplerConfig ----
-#' Convert list to ResamplerConfig object
+# %% .list_to_ResamplerConfig ----
+#' Convert a list to a ResamplerConfig object
 #'
-#' This is used by `SuperConfig` when loading a saved `SuperConfig` object from TOML.
+#' Internal function used by `rtemis.server` and `SuperConfig` deserialization
+#' to reconstruct a `ResamplerConfig` object from a named list. Not intended
+#' for direct use by end users.
 #'
-#' @param x List: List containing `ResamplerConfig` properties.
+#' @param x Named list with the following elements:
+#'   \describe{
+#'     \item{`type`}{Character: resampler type — one of `"KFold"`,
+#'       `"StratSub"`, `"StratBoot"`, `"Bootstrap"`, `"LOOCV"`, `"Custom"`.}
+#'     \item{`n`}{Integer: number of resamples (not used for `"LOOCV"`).}
+#'     \item{`train_p`}{Numeric: training proportion (used by `"StratSub"` and
+#'       `"StratBoot"`).}
+#'     \item{`stratify_var`}{Character or `NULL`: stratification variable name.}
+#'     \item{`strat_n_bins`}{Integer: number of bins for stratification.}
+#'     \item{`target_length`}{Integer or `NULL`: target resample length
+#'       (`"StratBoot"` only).}
+#'     \item{`id_strat`}{Character or `NULL`: ID stratification variable.}
+#'     \item{`seed`}{Integer or `NULL`: random seed.}
+#'   }
 #'
-#' @return `ResamplerConfig` object.
+#' @return A `ResamplerConfig` object of the appropriate subtype.
 #'
 #' @author EDG
 #' @keywords internal
-#' @noRd
-list_to_ResamplerConfig <- function(x) {
+#' @export
+.list_to_ResamplerConfig <- function(x) {
   switch(
     x[["type"]],
     KFold = KFoldConfig(
@@ -535,4 +550,4 @@ list_to_ResamplerConfig <- function(x) {
       n = x[["n"]]
     )
   )
-} # /rtemis::list_to_ResamplerConfig
+} # /rtemis::.list_to_ResamplerConfig

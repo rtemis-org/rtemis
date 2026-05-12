@@ -350,21 +350,32 @@ method(repr, GridSearch) <- function(
 } # /rtemis::repr.GridSearch
 
 
-# %% list_to_TunerConfig ----
-#' List to TunerConfig
+# %% .list_to_TunerConfig ----
+#' Convert a list to a TunerConfig object
 #'
-#' Convert a named list to a TunerConfig object. Used by `read_config()`
+#' Internal function used by `rtemis.server` and `SuperConfig` deserialization
+#' to reconstruct a `TunerConfig` object from a named list. Not intended for
+#' direct use by end users.
 #'
-#' @param x Named list with elements "type" and "config".
+#' @param x Named list with two elements:
+#'   \describe{
+#'     \item{`type`}{Character: tuner type. Currently only `"GridSearch"` is
+#'       supported.}
+#'     \item{`config`}{Named list of tuner configuration fields. For
+#'       `"GridSearch"`: `resampler_config` (a list accepted by
+#'       [.list_to_ResamplerConfig()]), `search_type`, `randomize_p`,
+#'       `metrics_aggregate_fn`, `metric`, and `maximize`.}
+#'   }
 #'
-#' @return TunerConfig object.
+#' @return A `TunerConfig` object (currently a `GridSearchConfig`).
 #'
 #' @author EDG
-#' @noRd
-list_to_TunerConfig <- function(x) {
+#' @keywords internal
+#' @export
+.list_to_TunerConfig <- function(x) {
   if (x[["type"]] == "GridSearch") {
     setup_GridSearch(
-      resampler_config = list_to_ResamplerConfig(x[["config"]][[
+      resampler_config = .list_to_ResamplerConfig(x[["config"]][[
         "resampler_config"
       ]]),
       search_type = x[["config"]][["search_type"]],
@@ -376,4 +387,4 @@ list_to_TunerConfig <- function(x) {
   } else {
     cli::cli_abort("Unsupported tuner type: {x[['type']]}")
   }
-} # /rtemis::list_to_TunerConfig
+} # /rtemis::.list_to_TunerConfig

@@ -274,17 +274,17 @@ read_config <- function(file) {
     hyperparameters = if (is.null(xl[["hyperparameters"]])) {
       NULL
     } else {
-      list_to_Hyperparameters(xl[["hyperparameters"]])
+      .list_to_Hyperparameters(xl[["hyperparameters"]])
     },
     tuner_config = if (is.null(xl[["tuner_config"]])) {
       NULL
     } else {
-      list_to_TunerConfig(xl[["tuner_config"]])
+      .list_to_TunerConfig(xl[["tuner_config"]])
     },
     outer_resampling_config = if (is.null(xl[["outer_resampling_config"]])) {
       NULL
     } else {
-      list_to_ResamplerConfig(xl[["outer_resampling_config"]])
+      .list_to_ResamplerConfig(xl[["outer_resampling_config"]])
     },
     execution_config = if (is.null(xl[["execution_config"]])) {
       setup_ExecutionConfig()
