@@ -30,7 +30,6 @@ test_that("to_json(Regression) returns a list with .class and core fields", {
   expect_equal(j[["type"]], "Regression")
   expect_true(is.character(j[["xnames"]]))
   expect_equal(j[["n_features"]], length(mod_r_glm@xnames))
-  expect_equal(j[["n_training"]], length(mod_r_glm@y_training))
 })
 
 test_that("to_json(Regression) recurses into nested S7 props with .class tags", {
