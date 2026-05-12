@@ -599,7 +599,7 @@ method(to_json, S7_object) <- function(x, ...) {
   if (is.null(v)) {
     return(NULL)
   }
-  if (inherits(v, "S7_object")) {
+  if (S7_inherits(v)) {
     return(to_json(v))
   }
   # data.frame / data.table are list-like but jsonlite handles them natively.

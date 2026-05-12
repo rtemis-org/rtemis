@@ -454,9 +454,6 @@ method(to_json, Supervised) <- function(x, ...) {
     question = x@question,
     xnames = x@xnames,
     n_features = length(x@xnames),
-    n_training = if (!is.null(x@y_training)) length(x@y_training) else 0L,
-    n_validation = if (!is.null(x@y_validation)) length(x@y_validation) else 0L,
-    n_test = if (!is.null(x@y_test)) length(x@y_test) else 0L,
     preprocessor = .to_json_value(x@preprocessor),
     preprocessor_internal = .to_json_value(x@preprocessor_internal),
     hyperparameters = .to_json_value(x@hyperparameters),
@@ -1476,8 +1473,6 @@ method(to_json, SupervisedRes) <- function(x, ...) {
     xnames = x@xnames,
     n_features = length(x@xnames),
     n_resamples = length(x@models),
-    n_training = if (!is.null(x@y_training)) length(x@y_training) else 0L,
-    n_test = if (!is.null(x@y_test)) length(x@y_test) else 0L,
     preprocessor = .to_json_value(x@preprocessor),
     preprocessor_internal = .to_json_value(x@preprocessor_internal),
     hyperparameters = .to_json_value(x@hyperparameters),
@@ -1486,7 +1481,7 @@ method(to_json, SupervisedRes) <- function(x, ...) {
     execution_config = .to_json_value(x@execution_config),
     metrics_training = .to_json_value(x@metrics_training),
     metrics_test = .to_json_value(x@metrics_test),
-    # varimp is `class_list | NULL` of (typically) VariableImportance.
+    # varimp is `class_list | NULL` of VariableImportance.
     # `.to_json_value` recurses through lists, dispatching `to_json` on
     # S7 elements and passing through anything else.
     varimp_per_resample = .to_json_value(x@varimp)

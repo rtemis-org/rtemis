@@ -332,7 +332,9 @@ colnames(draw_fns) <- c("Function Name", "Description")
 #'
 #' Print available draw functions for visualization.
 #'
-#' @return NULL, invisibly.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Named list of draw function descriptions, invisibly.
 #'
 #' @author EDG
 #' @export
