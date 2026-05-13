@@ -4,7 +4,7 @@
 
 # rtemis: Advanced Machine Learning &amp; Visualization.
 
-[![rtemis cover](https://docs.rtemis.org/r/ml/assets/docs-cover.avif)](https://docs.rtemis.org/r/ml/)
+[![rtemis cover](https://www.rtemis.org/rtemis-cover.avif)](https://docs.rtemis.org/r/ml/)
 
 This is the new version of the rtemis R package and remains under active development.
 
