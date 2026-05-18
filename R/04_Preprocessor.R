@@ -7,15 +7,17 @@
 # https://rconsortium.github.io/S7
 
 # %% PreprocessorConfig ----
-#' @title PreprocessorConfig
+#' PreprocessorConfig
 #'
 #' @description
 #' PreprocessorConfig class.
 #'
 #' @author EDG
+# Do not @export
 #' @noRd
 PreprocessorConfig <- new_class(
   name = "PreprocessorConfig",
+  package = "rtemis",
   properties = list(
     complete_cases = class_logical,
     remove_features_thres = class_numeric | NULL,
@@ -335,7 +337,7 @@ setup_Preprocessor <- function(
 # )
 
 # %% Preprocessor ----
-#' @title Preprocessor
+#' Preprocessor
 #'
 #' @description
 #' Class to hold output of preprocessing values after applying `PreprocessorConfig` to
@@ -350,9 +352,11 @@ setup_Preprocessor <- function(
 #' preprocessing.
 #'
 #' @author EDG
+# Do not @export
 #' @noRd
 Preprocessor <- new_class(
   name = "Preprocessor",
+  package = "rtemis",
   properties = list(
     config = PreprocessorConfig,
     preprocessed = class_data.frame | class_list,

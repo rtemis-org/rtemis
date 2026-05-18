@@ -3,7 +3,7 @@
 # 2025 EDG rtemis.org
 
 # %% DecompositionConfig ----
-#' @title DecompositionConfig
+#' DecompositionConfig
 #'
 #' @description
 #' Decomposition config class.
@@ -12,9 +12,12 @@
 #' @field config List: Algorithm-specific config.
 #'
 #' @author EDG
+#' @keywords internal
+# Do not @export
 #' @noRd
 DecompositionConfig <- new_class(
   name = "DecompositionConfig",
+  package = "rtemis",
   properties = list(
     algorithm = class_character,
     config = class_list

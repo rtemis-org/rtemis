@@ -3,7 +3,7 @@
 # 2025- EDG rtemis.org
 
 # %% Metrics ----
-#' @title Metrics
+#' Metrics
 #'
 #' @description
 #' Superclass for Metrics metrics.
@@ -12,9 +12,12 @@
 #' @field metrics List or data.frame: Metrics.
 #'
 #' @author EDG
+#' @keywords internal
+# Do not @export
 #' @noRd
 Metrics <- new_class(
   name = "Metrics",
+  package = "rtemis",
   properties = list(
     sample = class_character | NULL,
     metrics = class_list | class_data.frame

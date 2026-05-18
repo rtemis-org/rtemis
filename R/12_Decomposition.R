@@ -3,7 +3,7 @@
 # 2025 EDG rtemis.org
 
 # %% Decomposition ----
-#' @title Decomposition
+#' Decomposition
 #'
 #' @description
 #' Decomposition class.
@@ -15,9 +15,11 @@
 #' @field transformed: transformedransformed data, i.e. either a projection or an embedding of the input data.
 #'
 #' @author EDG
+# Do not @export
 #' @noRd
 Decomposition <- new_class(
   name = "Decomposition",
+  package = "rtemis",
   properties = list(
     algorithm = class_character,
     config = DecompositionConfig,

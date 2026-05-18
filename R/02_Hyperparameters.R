@@ -27,7 +27,7 @@ TUNED_STATUS_TUNED <- 1L
 # 1: Running on resampled training sets.
 
 # %% Hyperparameters ----
-#' @title Hyperparameters
+#' Hyperparameters
 #'
 #' @description
 #' Superclass for hyperparameters.
@@ -41,9 +41,12 @@ TUNED_STATUS_TUNED <- 1L
 #' @field n_workers Integer: Number of workers to use for tuning.
 #'
 #' @author EDG
+#' @keywords internal
+# Do not @export
 #' @noRd
 Hyperparameters <- new_class(
   name = "Hyperparameters",
+  package = "rtemis",
   properties = list(
     algorithm = class_character,
     hyperparameters = class_list,

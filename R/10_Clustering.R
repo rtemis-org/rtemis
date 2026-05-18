@@ -3,7 +3,7 @@
 # 2025- EDG rtemis.org
 
 # %% Clustering ----
-#' @title Clustering
+#' Clustering
 #'
 #' @description
 #' Clustering class.
@@ -15,9 +15,12 @@
 #' @field config ClusteringConfig: Algorithm-specific config.
 #'
 #' @author EDG
+#' @keywords internal
+# Do not @export
 #' @noRd
 Clustering <- new_class(
   name = "Clustering",
+  package = "rtemis",
   properties = list(
     algorithm = class_character,
     clust = class_any,

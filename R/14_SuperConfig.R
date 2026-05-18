@@ -13,9 +13,11 @@
 #' Supervised Learning Configuration Class.
 #'
 #' @author EDG
+# Do not @export
 #' @noRd
 SuperConfig <- new_class(
   name = "SuperConfig",
+  package = "rtemis",
   properties = list(
     dat_training_path = class_character,
     dat_validation_path = class_character | NULL,
@@ -318,21 +320,23 @@ method(to_yaml, SuperConfig) <- function(x) {
 
 
 # %% SuperConfigLive ----
-#' SuperConfigLive Class
+#' SuperConfigLive
 #'
-#' @description
+#' @details
 #' Like `SuperConfig`, but carries in-memory training/validation/test data
 #' instead of file paths. Used by `rtemislive` (uploads arrive over a WS
 #' frame, not as a file) and by future HPC submission paths that hand the
 #' data directly to a worker.
-#'
-#' Not TOML-serialisable — in-memory data does not round-trip cleanly to
+#' Not TOML-serializable — in-memory data does not round-trip cleanly to
 #' a config file. Use `SuperConfig` when you need on-disk reproducibility.
 #'
 #' @author EDG
+#' @keywords internal
+# Do not @export
 #' @noRd
 SuperConfigLive <- new_class(
   name = "SuperConfigLive",
+  package = "rtemis",
   properties = list(
     dat_training = class_tabular,
     dat_validation = class_tabular | NULL,

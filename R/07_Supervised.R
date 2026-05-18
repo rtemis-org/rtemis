@@ -9,7 +9,7 @@
 # https://utf8-icons.com/
 
 # %% VariableImportance ----
-#' @title VariableImportance
+#' VariableImportance
 #'
 #' @description
 #' Class for variable importance objects. Allows for one or more variable importance measures,
@@ -17,9 +17,12 @@
 #' more column with a descriptive name.
 #'
 #' @author EDG
+#' @keywords internal
+# Do not @export
 #' @noRd
 VariableImportance <- new_class(
   name = "VariableImportance",
+  package = "rtemis",
   properties = list(
     data = class_data.table
   ),
@@ -93,15 +96,17 @@ method(print, VariableImportance) <- function(x, output_type = NULL, ...) {
 # ClassificationRes: plot_metric, plot_true_pred, plot_roc
 
 # %% Supervised ----
-#' @title Supervised
+#' Supervised
 #'
 #' @description
 #' Superclass for supervised learning models.
 #'
 #' @author EDG
+# Do not @export
 #' @noRd
 Supervised <- new_class(
   name = "Supervised",
+  package = "rtemis",
   properties = list(
     algorithm = class_character,
     model = class_any,
@@ -593,7 +598,7 @@ method(describe, Supervised) <- function(x) {
 
 
 # %% Classification ----
-#' @title Classification
+#' Classification
 #'
 #' @description
 #' Supervised subclass for classification models.
@@ -602,6 +607,7 @@ method(describe, Supervised) <- function(x) {
 #' @noRd
 Classification <- new_class(
   name = "Classification",
+  package = "rtemis",
   parent = Supervised,
   properties = list(
     predicted_prob_training = class_double | class_data.frame | NULL,
@@ -692,7 +698,7 @@ Classification <- new_class(
 
 
 # %% CalibratedClassification ----
-#' @title CalibratedClassification
+#' CalibratedClassification
 #'
 #' @description
 #' Classification subclass for calibrated classification models.
@@ -1262,9 +1268,11 @@ method(present, Classification) <- function(
 #' Superclass for Resampled supervised learning models.
 #'
 #' @author EDG
+# Do not @export
 #' @noRd
 SupervisedRes <- new_class(
   name = "SupervisedRes",
+  package = "rtemis",
   properties = list(
     algorithm = class_character,
     models = class_list,
@@ -2319,7 +2327,7 @@ early_stopping_algs <- c("LightGBM", "LightRF", "LightRuleFit")
 
 
 # LightRuleFit ----
-#' @title LightRuleFit
+#' LightRuleFit
 #'
 #' @description
 #' Class for LightRuleFit models.

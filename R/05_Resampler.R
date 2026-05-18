@@ -16,7 +16,7 @@
 # Note: `id_strat` is used by `resample()`, not individual resamplers
 
 # %% ResamplerConfig ----
-#' @title ResamplerConfig
+#' ResamplerConfig
 #'
 #' @description
 #' Superclass for resampler configuration.
@@ -25,9 +25,11 @@
 #' @field n Integer: Number of resamples.
 #'
 #' @author EDG
+# Do not @export
 #' @noRd
 ResamplerConfig <- new_class(
   name = "ResamplerConfig",
+  package = "rtemis",
   properties = list(
     type = class_character,
     n = class_integer # scalar_int_pos
@@ -401,15 +403,17 @@ setup_Resampler <- function(
 
 
 # %% Resampler ----
-#' @title Resampler
+#' Resampler
 #'
 #' @description
 #' Class for resampling objects.
 #'
 #' @author EDG
+# Do not @export
 #' @noRd
 Resampler <- new_class(
   name = "Resampler",
+  package = "rtemis",
   properties = list(
     type = class_character,
     resamples = class_list,

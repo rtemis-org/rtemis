@@ -3,15 +3,17 @@
 # 2025 EDG rtemis.org
 
 # %% MassGLM ----
-#' @title MassGLM
+#' MassGLM
 #'
 #' @description
 #' Superclass for mass-univariate models.
 #'
 #' @author EDG
+#' @keywords internal
 #' @noRd
 MassGLM <- new_class(
   name = "MassGLM",
+  package = "rtemis",
   properties = list(
     summary = class_data.table,
     ynames = class_character,

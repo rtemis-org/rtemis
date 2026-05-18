@@ -9,9 +9,11 @@
 #' @field config Named list of theme config.
 #'
 #' @author EDG
+# Do not @export
 #' @noRd
 Theme <- new_class(
   name = "Theme",
+  package = "rtemis",
   properties = list(
     name = class_character,
     config = class_list
