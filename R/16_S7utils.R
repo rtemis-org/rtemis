@@ -1,6 +1,6 @@
 # S7_utils
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% SuperWorkers ----
 #' @keywords internal
