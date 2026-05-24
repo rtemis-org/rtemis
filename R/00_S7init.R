@@ -36,6 +36,22 @@ class_tabnet_fit <- new_S3_class("tabnet_fit")
 repr <- new_generic("repr", "x")
 
 
+# %% get_varimp ----
+#' Get variable importance
+#'
+#' @param x `Supervised` or `SupervisedRes` object.
+#'
+#' @return Numeric vector or data.table of variable importance scores.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' mod <- train(iris, algorithm = "LightRF")
+#' get_varimp(mod)
+get_varimp <- new_generic("get_varimp", "x")
+
+
 # %% inspect ----
 #' Inspect rtemis object
 #'

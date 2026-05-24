@@ -2569,3 +2569,14 @@ method(describe, class_list) <- function(
   cat(out, "\n")
   invisible(out)
 } # /rtemis::describe.list(Supervised/Res)
+
+
+# %% get_varimp.Supervised ----
+method(get_varimp, Supervised) <- function(x) {
+  x@varimp
+} # /rtemis::get_varimp.Supervised
+
+# %% get_varimp.SupervisedRes ----
+method(get_varimp, SupervisedRes) <- function(x) {
+  x@varimp
+} # /rtemis::get_varimp.SupervisedRes
