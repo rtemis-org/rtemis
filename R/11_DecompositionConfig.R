@@ -229,7 +229,7 @@ setup_ICA <- function(
   stopifnot(alpha >= 1, alpha <= 2)
   check_inherits(row_norm, "logical")
   maxit <- clean_posint(maxit)
-  check_inherits(tol, "numeric")
+  rtemis.core::check_numeric(tol)
   ICAConfig(
     k = k,
     type = type,
