@@ -28,7 +28,8 @@ Imports:
     data.table,
     future,
     htmltools,
-    cli
+    cli,
+    rtemis.core
 Suggests:
     arrow,
     bit64,
