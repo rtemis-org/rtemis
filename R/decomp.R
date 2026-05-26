@@ -1,6 +1,6 @@
 # decomp.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% decomp ----
 #' Perform Data Decomposition
