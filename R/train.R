@@ -28,6 +28,22 @@
 #' answer.
 #' @param outdir Character, optional: String defining the output directory.
 #' @param verbosity Integer: Verbosity level.
+#' @param progress Optional function: Callback invoked at progress
+#'   checkpoints during training. When supplied, called at each outer
+#'   resampling fold boundary as
+#'   `progress(stage, current, total, message)`:
+#'   \describe{
+#'     \item{`stage`}{Character. Currently `"outer_fold"`.}
+#'     \item{`current`}{Integer. 1-based index of the fold about to run.}
+#'     \item{`total`}{Integer. Total number of outer folds.}
+#'     \item{`message`}{Character. Human-readable line, e.g.
+#'       `"Outer fold 2/5"`.}
+#'   }
+#'   When `NULL` (default), the existing `cli::cli_progress_along()`
+#'   interactive progress bar runs untouched. Designed for non-interactive
+#'   callers (e.g. `rtemis.server`) that need to forward fold progress
+#'   over a wire protocol; errors raised by the callback are swallowed
+#'   so a broken sink cannot interrupt training.
 #' @param ... Not used.
 #'
 #' @details
@@ -122,6 +138,7 @@ train <- function(
   question = NULL,
   outdir = NULL,
   verbosity = 1L,
+  progress = NULL,
   ...
 ) {
   # SuperConfigLive dispatch ----
@@ -139,7 +156,8 @@ train <- function(
       execution_config = x@execution_config,
       question = x@question,
       outdir = x@outdir,
-      verbosity = x@verbosity
+      verbosity = x@verbosity,
+      progress = progress
     ))
   } # / train.SuperConfigLive
 
@@ -170,7 +188,8 @@ train <- function(
       execution_config = x@execution_config,
       question = x@question,
       outdir = x@outdir,
-      verbosity = x@verbosity
+      verbosity = x@verbosity,
+      progress = progress
     ))
   } # / train.SuperConfig
 
@@ -181,6 +200,7 @@ train <- function(
     )
   }
 
+  # Defense against invalid args
   extra_args <- list(...)
   if (length(extra_args) > 0L) {
     cli::cli_abort(
@@ -345,13 +365,35 @@ train <- function(
       config = outer_resampling_config,
       verbosity = verbosity
     )
-    models <- lapply(
+    n_outer <- outer_resampler@config@n
+    # When a `progress` callback is supplied (typically by rtemis.server to
+    # forward fold boundaries over the wire), use a plain lapply and invoke
+    # it per fold; the interactive `cli_progress_along` UI is replaced.
+    # Otherwise, keep the existing terminal progress UI for interactive
+    # users.
+    iter <- if (is.function(progress)) {
+      seq_len(n_outer)
+    } else {
       cli::cli_progress_along(
-        seq_len(outer_resampler@config@n),
+        seq_len(n_outer),
         name = "Training outer resamples...",
         type = "tasks"
-      ),
+      )
+    }
+    models <- lapply(
+      iter,
       function(i) {
+        if (is.function(progress)) {
+          tryCatch(
+            progress(
+              stage = "outer_fold",
+              current = i,
+              total = n_outer,
+              message = paste0("Outer fold ", i, "/", n_outer)
+            ),
+            error = function(e) NULL
+          )
+        }
         train(
           x = x[outer_resampler[[i]], ],
           dat_test = x[-outer_resampler[[i]], ],
