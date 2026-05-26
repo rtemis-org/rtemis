@@ -18,6 +18,7 @@ train(
   question = NULL,
   outdir = NULL,
   verbosity = 1L,
+  progress = NULL,
   ...
 )
 }
@@ -53,6 +54,23 @@ answer.}
 \item{outdir}{Character, optional: String defining the output directory.}
 
 \item{verbosity}{Integer: Verbosity level.}
+
+\item{progress}{Optional function: Callback invoked at progress
+checkpoints during training. When supplied, called at each outer
+resampling fold boundary as
+\code{progress(stage, current, total, message)}:
+\describe{
+\item{\code{stage}}{Character. Currently \code{"outer_fold"}.}
+\item{\code{current}}{Integer. 1-based index of the fold about to run.}
+\item{\code{total}}{Integer. Total number of outer folds.}
+\item{\code{message}}{Character. Human-readable line, e.g.
+\code{"Outer fold 2/5"}.}
+}
+When \code{NULL} (default), the existing \code{cli::cli_progress_along()}
+interactive progress bar runs untouched. Designed for non-interactive
+callers (e.g. \code{rtemis.server}) that need to forward fold progress
+over a wire protocol; errors raised by the callback are swallowed
+so a broken sink cannot interrupt training.}
 
 \item{...}{Not used.}
 }
