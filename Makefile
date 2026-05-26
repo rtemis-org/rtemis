@@ -4,7 +4,7 @@ RSCRIPT ?= Rscript
 CHECK_DIR := $(PKG).Rcheck
 TARBALL_GLOB := $(PKG)_*.tar.gz
 
-msg = @printf '\033[38;2;108;163;160m[%s] %s\033[0m\n' "$$(date -u '+%Y-%m-%d %H:%M:%SZ')" "$(1)"
+msg = @printf '\033[38;2;108;163;160m[%s] %s\033[0m\n' "$$(date '+%Y-%m-%d %H:%M:%S')" "$(1)"
 
 .DEFAULT_GOAL := help
 
