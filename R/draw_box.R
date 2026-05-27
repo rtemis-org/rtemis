@@ -960,10 +960,10 @@ draw_box <- function(
       setorder()
 
     ## Long data
-    # appease R CMD check ?rm timeperiod <- NULL
+    # appease R CMD check
     ID <- timeperiod <- NULL
     dtlong <- data.table::melt(
-      dt[, let(ID = .I)],
+      dt[, ID := .I],
       id.vars = c(
         "ID",
         "timeperiod",
