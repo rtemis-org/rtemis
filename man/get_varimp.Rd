@@ -8,6 +8,8 @@ get_varimp(x, ...)
 }
 \arguments{
 \item{x}{\code{Supervised} or \code{SupervisedRes} object.}
+
+\item{...}{Additional arguments passed to methods.}
 }
 \value{
 Numeric vector or data.table of variable importance scores.

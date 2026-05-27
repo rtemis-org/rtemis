@@ -40,6 +40,7 @@ repr <- new_generic("repr", "x")
 #' Get variable importance
 #'
 #' @param x `Supervised` or `SupervisedRes` object.
+#' @param ... Additional arguments passed to methods.
 #'
 #' @return Numeric vector or data.table of variable importance scores.
 #'
