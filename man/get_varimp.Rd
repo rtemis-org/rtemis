@@ -12,7 +12,7 @@ get_varimp(x, ...)
 \item{...}{Additional arguments passed to methods.}
 }
 \value{
-Numeric vector or data.table of variable importance scores.
+\code{VariableImportance} object or list of \code{VariableImportance} objects.
 }
 \description{
 Get variable importance
