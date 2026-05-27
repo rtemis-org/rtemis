@@ -16,7 +16,6 @@
 #'
 #' @author EDG
 #' @keywords internal
-# Do not @export
 #' @noRd
 Clustering <- new_class(
   name = "Clustering",

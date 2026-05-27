@@ -9,7 +9,6 @@
 #' Execution Configuration Class, defining sequential/parallel/distributed execution settings.
 #'
 #' @author EDG
-# Do not @export
 #' @noRd
 ExecutionConfig <- new_class(
   name = "ExecutionConfig",

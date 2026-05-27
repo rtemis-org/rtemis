@@ -42,7 +42,6 @@ TUNED_STATUS_TUNED <- 1L
 #'
 #' @author EDG
 #' @keywords internal
-# Do not @export
 #' @noRd
 Hyperparameters <- new_class(
   name = "Hyperparameters",

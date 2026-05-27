@@ -25,7 +25,6 @@
 #' @field n Integer: Number of resamples.
 #'
 #' @author EDG
-# Do not @export
 #' @noRd
 ResamplerConfig <- new_class(
   name = "ResamplerConfig",
@@ -409,7 +408,6 @@ setup_Resampler <- function(
 #' Class for resampling objects.
 #'
 #' @author EDG
-# Do not @export
 #' @noRd
 Resampler <- new_class(
   name = "Resampler",

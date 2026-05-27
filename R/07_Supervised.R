@@ -18,7 +18,6 @@
 #'
 #' @author EDG
 #' @keywords internal
-# Do not @export
 #' @noRd
 VariableImportance <- new_class(
   name = "VariableImportance",
@@ -102,7 +101,6 @@ method(print, VariableImportance) <- function(x, output_type = NULL, ...) {
 #' Superclass for supervised learning models.
 #'
 #' @author EDG
-# Do not @export
 #' @noRd
 Supervised <- new_class(
   name = "Supervised",
@@ -1268,7 +1266,6 @@ method(present, Classification) <- function(
 #' Superclass for Resampled supervised learning models.
 #'
 #' @author EDG
-# Do not @export
 #' @noRd
 SupervisedRes <- new_class(
   name = "SupervisedRes",

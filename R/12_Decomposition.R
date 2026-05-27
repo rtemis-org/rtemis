@@ -15,7 +15,6 @@
 #' @field transformed: transformedransformed data, i.e. either a projection or an embedding of the input data.
 #'
 #' @author EDG
-# Do not @export
 #' @noRd
 Decomposition <- new_class(
   name = "Decomposition",

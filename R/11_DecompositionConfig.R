@@ -13,7 +13,6 @@
 #'
 #' @author EDG
 #' @keywords internal
-# Do not @export
 #' @noRd
 DecompositionConfig <- new_class(
   name = "DecompositionConfig",

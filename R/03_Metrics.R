@@ -13,7 +13,6 @@
 #'
 #' @author EDG
 #' @keywords internal
-# Do not @export
 #' @noRd
 Metrics <- new_class(
   name = "Metrics",

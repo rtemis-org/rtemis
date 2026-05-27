@@ -30,7 +30,6 @@
 #'
 #' @author EDG
 #' @keywords internal
-# Do not @export
 #' @noRd
 TunerConfig <- new_class(
   name = "TunerConfig",
@@ -210,7 +209,6 @@ setup_GridSearch <- function(
 #' hyperparameters that were tuned.
 #'
 #' @author EDG
-# Do not @export
 #' @noRd
 Tuner <- new_class(
   name = "Tuner",

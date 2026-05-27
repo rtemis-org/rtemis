@@ -13,7 +13,6 @@
 #' Supervised Learning Configuration Class.
 #'
 #' @author EDG
-# Do not @export
 #' @noRd
 SuperConfig <- new_class(
   name = "SuperConfig",
@@ -331,8 +330,6 @@ method(to_yaml, SuperConfig) <- function(x) {
 #' a config file. Use `SuperConfig` when you need on-disk reproducibility.
 #'
 #' @author EDG
-#' @keywords internal
-# Do not @export
 #' @noRd
 SuperConfigLive <- new_class(
   name = "SuperConfigLive",

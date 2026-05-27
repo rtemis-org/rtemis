@@ -13,7 +13,6 @@
 #' PreprocessorConfig class.
 #'
 #' @author EDG
-# Do not @export
 #' @noRd
 PreprocessorConfig <- new_class(
   name = "PreprocessorConfig",
@@ -352,7 +351,6 @@ setup_Preprocessor <- function(
 #' preprocessing.
 #'
 #' @author EDG
-# Do not @export
 #' @noRd
 Preprocessor <- new_class(
   name = "Preprocessor",
