@@ -961,7 +961,7 @@ draw_box <- function(
 
     ## Long data
     # appease R CMD check ?rm timeperiod <- NULL
-    timeperiod <- NULL
+    ID <- timeperiod <- NULL
     dtlong <- data.table::melt(
       dt[, let(ID = .I)],
       id.vars = c(
