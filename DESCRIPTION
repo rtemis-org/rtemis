@@ -19,17 +19,17 @@ ByteCompile: yes
 Depends:
     R (>= 4.1.0)
 Imports:
-    grDevices,
-    graphics,
-    stats,
-    methods,
-    utils,
-    S7,
+    cli,
     data.table,
     future,
+    grDevices,
+    graphics,
     htmltools,
-    cli,
-    rtemis.core
+    methods,
+    rtemis.core (>= 0.2.0),
+    stats,
+    S7,
+    utils
 Suggests:
     arrow,
     bit64,
@@ -101,6 +101,8 @@ Suggests:
     vegan,
     vroom,
     withr
+Additional_repositories: 
+    https://rtemis-org.r-universe.dev
 Encoding: UTF-8
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
