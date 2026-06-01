@@ -9,6 +9,7 @@ setup_SuperConfigLive(
   dat_validation = NULL,
   dat_test = NULL,
   weights = NULL,
+  positive_class = NULL,
   preprocessor_config = NULL,
   algorithm = NULL,
   hyperparameters = NULL,
@@ -29,6 +30,11 @@ setup_SuperConfigLive(
 
 \item{weights}{Character or \code{NULL}. Column name in \code{dat_training} used
 as observation weights.}
+
+\item{positive_class}{Character or \code{NULL}. For binary classification, the
+outcome level to treat as positive; forwarded to \link{train} which reorders
+the outcome factor via \link{set_positive_class}. \code{NULL} keeps the existing
+level order.}
 
 \item{preprocessor_config, algorithm, hyperparameters, tuner_config, outer_resampling_config, execution_config, question, verbosity}{See \link{setup_SuperConfig}.}
 
