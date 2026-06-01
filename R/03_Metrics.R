@@ -134,6 +134,9 @@ method(print, RegressionMetrics) <- function(
 ClassificationMetrics <- new_class(
   name = "ClassificationMetrics",
   parent = Metrics,
+  properties = list(
+    Confusion_Matrix = class_table
+  ),
   constructor = function(
     Confusion_Matrix,
     Overall,
@@ -142,10 +145,10 @@ ClassificationMetrics <- new_class(
     sample = NULL
   ) {
     new_object(
+      Confusion_Matrix = Confusion_Matrix,
       Metrics(
         sample = sample,
         metrics = list(
-          Confusion_Matrix = Confusion_Matrix,
           Overall = Overall,
           Class = Class,
           Positive_Class = Positive_Class
@@ -182,11 +185,11 @@ method(repr, ClassificationMetrics) <- function(
   # Confusion Matrix
   # suggestion: document 17 and 9
   tblpad <- 17L -
-    max(nchar(colnames(x@metrics[["Confusion_Matrix"]])), 9L) +
+    max(nchar(colnames(x@Confusion_Matrix)), 9L) +
     pad
   out <- paste0(
     out,
-    show_table(x[["Confusion_Matrix"]], pad = tblpad, output_type = output_type)
+    show_table(x@Confusion_Matrix, pad = tblpad, output_type = output_type)
   )
   out <- paste0(
     out,
@@ -289,6 +292,22 @@ method(repr, MetricsRes) <- function(
     pad = pad,
     output_type = output_type
   )
+  # Confusion Matrix
+  if (type == "Classification") {
+    tblpad <- 17L -
+      max(nchar(colnames(x@Confusion_Matrix)), 9L) +
+      pad
+    out <- paste0(
+      out,
+      strrep(" ", pad),
+      italic(
+        "  Aggregate Confusion Matrix across resamples.\n",
+        output_type = output_type
+      ),
+      show_table(x@Confusion_Matrix, pad = tblpad, output_type = output_type),
+      "\n"
+    )
+  }
   out <- paste0(out, strrep(" ", pad))
   out <- paste0(
     out,
@@ -360,8 +379,12 @@ RegressionMetricsRes <- new_class(
 ClassificationMetricsRes <- new_class(
   name = "ClassificationMetricsRes",
   parent = MetricsRes,
-  constructor = function(sample, res_metrics) {
+  properties = list(
+    Confusion_Matrix = class_table
+  ),
+  constructor = function(sample, Confusion_Matrix, res_metrics) {
     new_object(
+      Confusion_Matrix = Confusion_Matrix,
       MetricsRes(
         sample = sample,
         res_metrics = res_metrics,
@@ -419,8 +442,8 @@ repr_CalibratedClassificationMetrics <- function(
 
   # Confusion Matrix: Pre=>Post
   prepost_cm <- paste_tables(
-    x@metrics[["Confusion_Matrix"]],
-    x_cal@metrics[["Confusion_Matrix"]],
+    x@Confusion_Matrix,
+    x_cal@Confusion_Matrix,
     sep = " => "
   )
   tblpad <- 17L -
