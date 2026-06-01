@@ -1591,12 +1591,32 @@ ClassificationRes <- new_class(
     question = NULL,
     extra = NULL
   ) {
+    conf_mat_training <- table(
+      unlist(y_training),
+      unlist(predicted_training)
+    )
+    names(attributes(conf_mat_training)[["dimnames"]]) <- c(
+      "Reference",
+      "Predicted"
+    )
+    conf_mat_test <- table(
+      unlist(y_test),
+      unlist(predicted_test)
+    )
+    names(attributes(conf_mat_test)[["dimnames"]]) <- c(
+      "Reference",
+      "Predicted"
+    )
     metrics_training <- ClassificationMetricsRes(
       sample = "Training",
+      # Aggregate confusion matrix from concatenated true and predicted labels
+      Confusion_Matrix = conf_mat_training,
       res_metrics = lapply(models, function(mod) mod@metrics_training)
     )
     metrics_test <- ClassificationMetricsRes(
       sample = "Test",
+      # Aggregate confusion matrix from concatenated true and predicted labels
+      Confusion_Matrix = conf_mat_test,
       res_metrics = lapply(models, function(mod) mod@metrics_test)
     )
     new_object(
@@ -1695,10 +1715,18 @@ CalibratedClassificationRes <- new_class(
 
     metrics_training_calibrated <- ClassificationMetricsRes(
       sample = "Training",
+      Confusion_Matrix = table(
+        unlist(ClassificationRes_model@y_training),
+        unlist(ClassificationRes_model@predicted_training)
+      ),
       res_metrics = all_training_metrics
     )
     metrics_test_calibrated <- ClassificationMetricsRes(
       sample = "Test",
+      Confusion_Matrix = table(
+        unlist(ClassificationRes_model@y_test),
+        unlist(ClassificationRes_model@predicted_test)
+      ),
       res_metrics = all_test_metrics
     )
 
