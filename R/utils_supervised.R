@@ -66,7 +66,7 @@ check_supervised_inputs <- function(x, y = NULL) {
 
 #' Move outcome to last column
 #'
-#' @param dat data.frame or similar.
+#' @param dat tabular dataset.
 #' @param outcome_column Character: Name of outcome column.
 #'
 #' @return object of same class as `data`
@@ -92,6 +92,60 @@ set_outcome <- function(dat, outcome_column) {
     dat[, c(setdiff(seq_len(NCOL(dat)), id), id)]
   }
 } # /rtemis::set_outcome
+
+
+#' Set positive class
+#'
+#' Checks and sets the positive class for binary classification in a tabular dataset.
+#'
+#' @param x Tabular data, i.e. data.frame, data.table, or tbl_df (tibble): Input dataset. The last column will be treated as the outcome variable.
+#' @param positive_class Character scalar: The name of the positive class. Must be one of the levels of the outcome variable.
+#'
+#' @return Tabular data of the same class as `x`, with the positive class set as the second level of the outcome factor.
+#' @author EDG
+#' @export
+set_positive_class <- function(x, positive_class) {
+  # Check outcome is factor with 2 levels and positive_class is one of them
+  if (!is.factor(outcome(x))) {
+    cli::cli_abort(
+      "You defined {.arg positive_class}, but the outcome is not a factor."
+    )
+  }
+  if (nlevels(outcome(x)) != 2L) {
+    cli::cli_abort(
+      "You defined {.arg positive_class}, but the outcome does not have 2 levels."
+    )
+  }
+  if (!positive_class %in% levels(outcome(x))) {
+    cli::cli_abort(
+      "You defined {.arg positive_class} as '{positive_class}', but the outcome levels are: {.val {levels(outcome(x))}}."
+    )
+  }
+  if (positive_class == levels(outcome(x))[2L]) {
+    # Already in correct order
+    return(x)
+  }
+  # Reorder factor levels to put positive_class second
+  if (is.data.table(x)) {
+    set(
+      x,
+      j = outcome_name(x),
+      value = factor(
+        outcome(x),
+        levels = c(
+          setdiff(levels(outcome(x)), positive_class),
+          positive_class
+        )
+      )
+    )
+  } else {
+    x[[outcome_name(x)]] <- factor(
+      outcome(x),
+      levels = c(setdiff(levels(outcome(x)), positive_class), positive_class)
+    )
+    x
+  }
+} # /rtemis::set_positive_class
 
 
 #' Make formula
