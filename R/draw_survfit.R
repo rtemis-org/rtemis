@@ -1,6 +1,6 @@
 # draw_survfit.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # draw_scatter(time, survival_prob, mode = "lines", line_shape = "hv")
 # ?median lines, error bands, nrisk_table

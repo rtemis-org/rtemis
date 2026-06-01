@@ -1,6 +1,6 @@
 # test_checks.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # Test do_call ----
 test_that("do_call() succeeds", {

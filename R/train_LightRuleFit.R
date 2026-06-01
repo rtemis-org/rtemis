@@ -1,6 +1,6 @@
 # train_LightRuleFit.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% train_.LightRuleFitHyperparameters ----
 #' Train a LightRuleFit model

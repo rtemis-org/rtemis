@@ -1,6 +1,6 @@
 # test_MassGLM.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # library(rtemis)
 # library(data.table)

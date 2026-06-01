@@ -1,6 +1,6 @@
 # fmt.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% fmt ----
 #' Text formatting

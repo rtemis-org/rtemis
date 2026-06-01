@@ -1,6 +1,6 @@
 # S7_DecompositionConfig.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% DecompositionConfig ----
 #' DecompositionConfig

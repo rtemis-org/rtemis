@@ -1,6 +1,6 @@
 # present.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 #' Present list of Supervised or SupervisedRes objects
 #'

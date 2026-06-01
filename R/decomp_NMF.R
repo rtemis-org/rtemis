@@ -1,6 +1,6 @@
 # decom_NMF.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% decomp_.NMFConfig ----
 #' Non-negative Matrix Factorization (NMF)

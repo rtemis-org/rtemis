@@ -365,7 +365,7 @@ class_imbalance <- function(x) {
 
 # expand_grid.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 #' Expand Grid
 #'

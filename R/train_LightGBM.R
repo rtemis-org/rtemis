@@ -1,6 +1,6 @@
 # train_LightGBM.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # LightGBM parameters
 # https://lightgbm.readthedocs.io/en/latest/Parameters.html

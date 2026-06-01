@@ -1,6 +1,6 @@
 # decom_UMAP.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% decomp_.UMAPConfig ----
 #' UMAP Decomposition

@@ -1,6 +1,6 @@
 # decom_PCA.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% decomp_.PCAConfig ----
 #' PCA Decomposition
