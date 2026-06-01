@@ -68,6 +68,7 @@ test_that("RegressionMetricsRes() succeeds", {
 res_metrics <- list(mod1 = class_metrics1, mod2 = class_metrics2)
 cmcv <- ClassificationMetricsRes(
   sample = "Test",
+  Confusion_Matrix = table(true_labels, predicted_labels),
   res_metrics = res_metrics
 )
 cmcv
