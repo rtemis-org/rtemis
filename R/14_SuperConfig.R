@@ -339,6 +339,7 @@ SuperConfigLive <- new_class(
     dat_validation = class_tabular | NULL,
     dat_test = class_tabular | NULL,
     weights = class_character | NULL, # column name in dat_training
+    positive_class = class_character | NULL, # binary-classification positive level
     preprocessor_config = PreprocessorConfig | NULL,
     algorithm = class_character | NULL,
     hyperparameters = Hyperparameters | NULL,
@@ -397,6 +398,10 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 #' @param dat_test data.frame, data.table, or `NULL`.
 #' @param weights Character or `NULL`. Column name in `dat_training` used
 #'   as observation weights.
+#' @param positive_class Character or `NULL`. For binary classification, the
+#'   outcome level to treat as positive; forwarded to [train] which reorders
+#'   the outcome factor via [set_positive_class]. `NULL` keeps the existing
+#'   level order.
 #' @param preprocessor_config,algorithm,hyperparameters,tuner_config,outer_resampling_config,execution_config,question,verbosity
 #'   See [setup_SuperConfig].
 #' @param outdir Character or `NULL`. Output directory; `NULL` (the
@@ -411,6 +416,7 @@ setup_SuperConfigLive <- function(
   dat_validation = NULL,
   dat_test = NULL,
   weights = NULL,
+  positive_class = NULL,
   preprocessor_config = NULL,
   algorithm = NULL,
   hyperparameters = NULL,
@@ -429,6 +435,7 @@ setup_SuperConfigLive <- function(
     dat_validation = dat_validation,
     dat_test = dat_test,
     weights = weights,
+    positive_class = positive_class,
     preprocessor_config = preprocessor_config,
     algorithm = algorithm,
     hyperparameters = hyperparameters,
