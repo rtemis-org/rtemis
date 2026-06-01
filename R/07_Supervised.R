@@ -1591,7 +1591,7 @@ ClassificationRes <- new_class(
     question = NULL,
     extra = NULL
   ) {
-    conf_mat_training <- table(
+    conf_mat_training <- conf_table(
       unlist(y_training),
       unlist(predicted_training)
     )
@@ -1599,7 +1599,7 @@ ClassificationRes <- new_class(
       "Reference",
       "Predicted"
     )
-    conf_mat_test <- table(
+    conf_mat_test <- conf_table(
       unlist(y_test),
       unlist(predicted_test)
     )
@@ -1715,7 +1715,7 @@ CalibratedClassificationRes <- new_class(
 
     metrics_training_calibrated <- ClassificationMetricsRes(
       sample = "Training",
-      confusion_matrix = table(
+      confusion_matrix = conf_table(
         unlist(ClassificationRes_model@y_training),
         unlist(ClassificationRes_model@predicted_training)
       ),
@@ -1723,7 +1723,7 @@ CalibratedClassificationRes <- new_class(
     )
     metrics_test_calibrated <- ClassificationMetricsRes(
       sample = "Test",
-      confusion_matrix = table(
+      confusion_matrix = conf_table(
         unlist(ClassificationRes_model@y_test),
         unlist(ClassificationRes_model@predicted_test)
       ),
@@ -2039,7 +2039,7 @@ method(plot_true_pred, ClassificationRes) <- function(
   # Training
   if ("training" %in% what) {
     plt_training <- draw_confusion(
-      table(true_l[["y_training"]], predicted_l[["predicted_training"]]),
+      conf_table(true_l[["y_training"]], predicted_l[["predicted_training"]]),
       xlab = "Predicted Training",
       theme = theme,
       ...
@@ -2047,7 +2047,7 @@ method(plot_true_pred, ClassificationRes) <- function(
   }
   if ("test" %in% what) {
     plt_test <- draw_confusion(
-      table(true_l[["y_test"]], predicted_l[["predicted_test"]]),
+      conf_table(true_l[["y_test"]], predicted_l[["predicted_test"]]),
       xlab = "Predicted Test",
       theme = theme,
       ...

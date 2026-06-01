@@ -2,6 +2,19 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
+# %% conf_table() ----
+# Helper to place positive class in first row and column of confusion matrix,
+# while train expects positive class to be second factor level.
+conf_table <- function(true, pred, binclasspos = 2L) {
+  # If binary and binclasspos is 2L, reorder factor levels
+  if (length(levels(true)) == 2L && binclasspos == 2L) {
+    true <- factor(true, levels = rev(levels(true)))
+    pred <- factor(pred, levels = rev(levels(pred)))
+  }
+  table(true, pred)
+}
+
+
 # %% Metrics ----
 #' Metrics
 #'
