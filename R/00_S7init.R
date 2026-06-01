@@ -6,6 +6,7 @@
 # S7 generics: https://rconsortium.github.io/S7/articles/generics-methods.html
 
 # %% --- S3 Classes for S7 ----------------------------------------------------------------------------
+class_table <- new_S3_class("table")
 class_data.table <- new_S3_class("data.table")
 class_lgb.Booster <- new_S3_class("lgb.Booster")
 # All internal methods should support data.frame, data.table, tbl_df
