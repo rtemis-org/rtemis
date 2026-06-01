@@ -135,23 +135,23 @@ ClassificationMetrics <- new_class(
   name = "ClassificationMetrics",
   parent = Metrics,
   properties = list(
-    Confusion_Matrix = class_table
+    confusion_matrix = class_table
   ),
   constructor = function(
-    Confusion_Matrix,
-    Overall,
-    Class,
-    Positive_Class,
+    confusion_matrix,
+    overall,
+    class,
+    positive_class,
     sample = NULL
   ) {
     new_object(
-      Confusion_Matrix = Confusion_Matrix,
+      confusion_matrix = confusion_matrix,
       Metrics(
         sample = sample,
         metrics = list(
-          Overall = Overall,
-          Class = Class,
-          Positive_Class = Positive_Class
+          overall = overall,
+          class = class,
+          positive_class = positive_class
         )
       )
     )
@@ -185,17 +185,17 @@ method(repr, ClassificationMetrics) <- function(
   # Confusion Matrix
   # suggestion: document 17 and 9
   tblpad <- 17L -
-    max(nchar(colnames(x@Confusion_Matrix)), 9L) +
+    max(nchar(colnames(x@confusion_matrix)), 9L) +
     pad
   out <- paste0(
     out,
-    show_table(x@Confusion_Matrix, pad = tblpad, output_type = output_type)
+    show_table(x@confusion_matrix, pad = tblpad, output_type = output_type)
   )
   out <- paste0(
     out,
     "\n",
     show_df(
-      x@metrics[["Overall"]],
+      x@metrics[["overall"]],
       pad = pad,
       transpose = TRUE,
       ddSci_dp = decimal_places,
@@ -205,11 +205,11 @@ method(repr, ClassificationMetrics) <- function(
     )
   )
 
-  if (is.na(x@metrics[["Positive_Class"]])) {
+  if (is.na(x@metrics[["positive_class"]])) {
     out <- paste0(
       out,
       show_df(
-        x@metrics[["Class"]],
+        x@metrics[["class"]],
         pad = pad,
         transpose = TRUE,
         ddSci_dp = decimal_places,
@@ -223,7 +223,7 @@ method(repr, ClassificationMetrics) <- function(
       out,
       "\n     Positive Class ",
       fmt(
-        x@metrics[["Positive_Class"]],
+        x@metrics[["positive_class"]],
         col = highlight_col,
         bold = TRUE,
         output_type = output_type
@@ -295,7 +295,7 @@ method(repr, MetricsRes) <- function(
   # Confusion Matrix
   if (type == "Classification") {
     tblpad <- 17L -
-      max(nchar(colnames(x@Confusion_Matrix)), 9L) +
+      max(nchar(colnames(x@confusion_matrix)), 9L) +
       pad
     out <- paste0(
       out,
@@ -304,7 +304,7 @@ method(repr, MetricsRes) <- function(
         "  Aggregate Confusion Matrix across resamples.\n",
         output_type = output_type
       ),
-      show_table(x@Confusion_Matrix, pad = tblpad, output_type = output_type),
+      show_table(x@confusion_matrix, pad = tblpad, output_type = output_type),
       "\n"
     )
   }
@@ -380,25 +380,25 @@ ClassificationMetricsRes <- new_class(
   name = "ClassificationMetricsRes",
   parent = MetricsRes,
   properties = list(
-    Confusion_Matrix = class_table
+    confusion_matrix = class_table
   ),
-  constructor = function(sample, Confusion_Matrix, res_metrics) {
+  constructor = function(sample, confusion_matrix, res_metrics) {
     new_object(
-      Confusion_Matrix = Confusion_Matrix,
+      confusion_matrix = confusion_matrix,
       MetricsRes(
         sample = sample,
         res_metrics = res_metrics,
         mean_metrics = vec2df(
           colMeans(do.call(
             rbind,
-            lapply(res_metrics, function(x) x@metrics[["Overall"]])
+            lapply(res_metrics, function(x) x@metrics[["overall"]])
           ))
         ),
         sd_metrics = vec2df(
           sapply(
             do.call(
               rbind,
-              lapply(res_metrics, function(x) x@metrics[["Overall"]])
+              lapply(res_metrics, function(x) x@metrics[["overall"]])
             ),
             sd
           )
@@ -442,8 +442,8 @@ repr_CalibratedClassificationMetrics <- function(
 
   # Confusion Matrix: Pre=>Post
   prepost_cm <- paste_tables(
-    x@Confusion_Matrix,
-    x_cal@Confusion_Matrix,
+    x@confusion_matrix,
+    x_cal@confusion_matrix,
     sep = " => "
   )
   tblpad <- 17L -
@@ -461,8 +461,8 @@ repr_CalibratedClassificationMetrics <- function(
     "\n",
     show_df(
       paste_dfs(
-        x@metrics[["Overall"]],
-        x_cal@metrics[["Overall"]],
+        x@metrics[["overall"]],
+        x_cal@metrics[["overall"]],
         sep = " => ",
         decimal_places = decimal_places
       ),
@@ -476,13 +476,13 @@ repr_CalibratedClassificationMetrics <- function(
   )
 
   # Class metrics: Pre=>Post (for multiclass) or Positive Class (for binary)
-  if (is.na(x@metrics[["Positive_Class"]])) {
+  if (is.na(x@metrics[["positive_class"]])) {
     out <- paste0(
       out,
       show_df(
         paste_dfs(
-          x@metrics[["Class"]],
-          x_cal@metrics[["Class"]],
+          x@metrics[["class"]],
+          x_cal@metrics[["class"]],
           decimal_places = decimal_places
         ),
         pad = pad,
@@ -498,7 +498,7 @@ repr_CalibratedClassificationMetrics <- function(
       out,
       "\n     Positive Class ",
       fmt(
-        x@metrics[["Positive_Class"]],
+        x@metrics[["positive_class"]],
         col = highlight_col,
         bold = TRUE,
         output_type = output_type

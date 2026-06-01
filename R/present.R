@@ -36,7 +36,7 @@
 #'   algorithm = "radialsvm",
 #'   outer_resampling_config = setup_Resampler(seed = 2026)
 #' )
-#' present(list(iris_lightrf, iris_rsvm), metric = "Balanced_Accuracy")
+#' present(list(iris_lightrf, iris_rsvm), metric = "balanced_accuracy")
 #' }
 method(present, class_list) <- function(
   x,
@@ -92,7 +92,7 @@ method(present, class_list) <- function(
   if (is.null(metric)) {
     metric <- switch(
       type,
-      Classification = "Balanced_Accuracy",
+      Classification = "balanced_accuracy",
       Regression = "Rsq"
     )
   }

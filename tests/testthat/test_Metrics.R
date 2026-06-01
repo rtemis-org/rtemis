@@ -44,12 +44,12 @@ test_that("classification_metrics() succeeds", {
 # Test that class_metrics2 has higher AUC and lower Brier score than class_metrics1
 test_that("classification_metrics() returns correct metrics", {
   expect_true(
-    class_metrics2@metrics[["Overall"]][["AUC"]] >
-      class_metrics1@metrics[["Overall"]][["AUC"]]
+    class_metrics2@metrics[["overall"]][["AUC"]] >
+      class_metrics1@metrics[["overall"]][["AUC"]]
   )
   expect_true(
-    class_metrics2@metrics[["Overall"]][["Brier_Score"]] <
-      class_metrics1@metrics[["Overall"]][["Brier_Score"]]
+    class_metrics2@metrics[["overall"]][["brier_score"]] <
+      class_metrics1@metrics[["overall"]][["brier_score"]]
   )
 })
 
@@ -68,7 +68,7 @@ test_that("RegressionMetricsRes() succeeds", {
 res_metrics <- list(mod1 = class_metrics1, mod2 = class_metrics2)
 cmcv <- ClassificationMetricsRes(
   sample = "Test",
-  Confusion_Matrix = table(true_labels, predicted_labels),
+  confusion_matrix = table(true_labels, predicted_labels),
   res_metrics = res_metrics
 )
 cmcv

@@ -27,7 +27,7 @@ classification_metrics(
 
 \item{calc_auc}{Logical: If TRUE, calculate AUC. May be slow in very large datasets.}
 
-\item{calc_brier}{Logical: If TRUE, calculate Brier_Score.}
+\item{calc_brier}{Logical: If TRUE, calculate Brier score.}
 
 \item{auc_method}{Character: "lightAUC", "pROC", "ROCR".}
 

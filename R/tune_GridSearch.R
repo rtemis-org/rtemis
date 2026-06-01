@@ -343,7 +343,7 @@ tune_GridSearch <- function(
   maximize <- tuner_config@config[["maximize"]]
   if (is.null(metric)) {
     if (type == "Classification") {
-      metric <- "Balanced_Accuracy"
+      metric <- "balanced_accuracy"
     } else if (type == "Regression") {
       metric <- "MSE"
     } else {
@@ -353,7 +353,7 @@ tune_GridSearch <- function(
   }
   if (is.null(maximize)) {
     maximize <- metric %in%
-      c("Accuracy", "Balanced_Accuracy", "Concordance", "Rsq", "r")
+      c("accuracy", "balanced_accuracy", "Rsq", "r")
     tuner_config@config[["maximize"]] <- maximize
   }
   select_fn <- if (maximize) which.max else which.min
@@ -380,11 +380,11 @@ tune_GridSearch <- function(
   } else if (type == "Classification") {
     metrics_training_all <- as.data.table(t(sapply(
       grid_run,
-      function(r) unlist(r[["metrics_training"]]@metrics[["Overall"]])
+      function(r) unlist(r[["metrics_training"]]@metrics[["overall"]])
     )))
     metrics_validation_all <- as.data.table(t(sapply(
       grid_run,
-      function(r) unlist(r[["metrics_validation"]]@metrics[["Overall"]])
+      function(r) unlist(r[["metrics_validation"]]@metrics[["overall"]])
     )))
   }
   # appease R CMD check

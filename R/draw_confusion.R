@@ -54,7 +54,7 @@ draw_confusion <- function(
 ) {
   # Input ----
   if (S7_inherits(x, ClassificationMetrics)) {
-    x <- x@Confusion_Matrix
+    x <- x@confusion_matrix
   }
 
   if (is.null(dim(x)) || ncol(x) != nrow(x)) {
@@ -72,7 +72,7 @@ draw_confusion <- function(
   class_sensitivity <- hits / class_totals
   true_negative <- total - predicted_totals - (class_totals - hits)
   class_specificity <- true_negative / condition_negative
-  class_balancedAccuracy <- .5 * (class_sensitivity + class_specificity)
+  class_balanced_accuracy <- .5 * (class_sensitivity + class_specificity)
   # PPV = true positive / predicted condition positive
   class_ppv <- hits / predicted_totals
   # NPV  = true negative / predicted condition negative
@@ -422,8 +422,8 @@ draw_confusion <- function(
   ba_pad <- ifelse(nclasses == 2, 0.15, 0.2)
   ba <- ifelse(
     nclasses == 2,
-    class_balancedAccuracy[1],
-    mean(class_balancedAccuracy)
+    class_balanced_accuracy[1],
+    mean(class_balanced_accuracy)
   )
   plt <- plotly::add_annotations(
     plt,

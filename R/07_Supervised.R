@@ -536,25 +536,25 @@ method(describe, Supervised) <- function(x) {
   if (type == "Classification") {
     cat(
       "Balanced accuracy was",
-      ddSci(x@metrics_training[["Overall"]][["Balanced_Accuracy"]]),
+      ddSci(x@metrics_training[["overall"]][["balanced_accuracy"]]),
       "on the training set"
     )
     desc <- paste(
       desc,
       "Balanced accuracy was",
-      ddSci(x@metrics_training[["Overall"]][["Balanced_Accuracy"]]),
+      ddSci(x@metrics_training[["overall"]][["balanced_accuracy"]]),
       "in the training set"
     )
-    if (!is.null(x@metrics_test[["Overall"]][["Balanced_Accuracy"]])) {
+    if (!is.null(x@metrics_test[["overall"]][["balanced_accuracy"]])) {
       cat(
         " and",
-        ddSci(x@metrics_test[["Overall"]][["Balanced_Accuracy"]]),
+        ddSci(x@metrics_test[["overall"]][["balanced_accuracy"]]),
         "in the test set."
       )
       desc <- paste(
         desc,
         "and",
-        ddSci(x@metrics_test[["Overall"]][["Balanced_Accuracy"]]),
+        ddSci(x@metrics_test[["overall"]][["balanced_accuracy"]]),
         "in the test set."
       )
     } else {
@@ -1610,13 +1610,13 @@ ClassificationRes <- new_class(
     metrics_training <- ClassificationMetricsRes(
       sample = "Training",
       # Aggregate confusion matrix from concatenated true and predicted labels
-      Confusion_Matrix = conf_mat_training,
+      confusion_matrix = conf_mat_training,
       res_metrics = lapply(models, function(mod) mod@metrics_training)
     )
     metrics_test <- ClassificationMetricsRes(
       sample = "Test",
       # Aggregate confusion matrix from concatenated true and predicted labels
-      Confusion_Matrix = conf_mat_test,
+      confusion_matrix = conf_mat_test,
       res_metrics = lapply(models, function(mod) mod@metrics_test)
     )
     new_object(
@@ -1715,7 +1715,7 @@ CalibratedClassificationRes <- new_class(
 
     metrics_training_calibrated <- ClassificationMetricsRes(
       sample = "Training",
-      Confusion_Matrix = table(
+      confusion_matrix = table(
         unlist(ClassificationRes_model@y_training),
         unlist(ClassificationRes_model@predicted_training)
       ),
@@ -1723,7 +1723,7 @@ CalibratedClassificationRes <- new_class(
     )
     metrics_test_calibrated <- ClassificationMetricsRes(
       sample = "Test",
-      Confusion_Matrix = table(
+      confusion_matrix = table(
         unlist(ClassificationRes_model@y_test),
         unlist(ClassificationRes_model@predicted_test)
       ),
@@ -1894,16 +1894,16 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
   # Metrics ----
   if (type == "Classification") {
     if (is.null(metric)) {
-      metric <- "Balanced_Accuracy"
+      metric <- "balanced_accuracy"
     }
     out <- paste(
       out,
       "Mean",
       labelify(metric, toLower = TRUE),
       "was",
-      ddSci(x@metrics_training@mean_metrics[["Balanced_Accuracy"]]),
+      ddSci(x@metrics_training@mean_metrics[["balanced_accuracy"]]),
       "in the training set and",
-      ddSci(x@metrics_test@mean_metrics[["Balanced_Accuracy"]]),
+      ddSci(x@metrics_test@mean_metrics[["balanced_accuracy"]]),
       "in the test set across "
     )
   } else if (type == "Regression") {
@@ -2152,7 +2152,7 @@ method(plot_metric, SupervisedRes) <- function(
   # Metric
   if (is.null(metric)) {
     if (.class) {
-      metric <- "Balanced_Accuracy"
+      metric <- "balanced_accuracy"
     } else {
       metric <- "Rsq"
     }
@@ -2164,7 +2164,7 @@ method(plot_metric, SupervisedRes) <- function(
       xl[["Training"]] <- sapply(
         x@metrics_training@res_metrics,
         function(fold) {
-          fold[["Overall"]][[metric]]
+          fold[["overall"]][[metric]]
         }
       )
     } else {
@@ -2179,7 +2179,7 @@ method(plot_metric, SupervisedRes) <- function(
   if ("test" %in% what) {
     if (.class) {
       xl[["Test"]] <- sapply(x@metrics_test@res_metrics, function(fold) {
-        fold[["Overall"]][[metric]]
+        fold[["overall"]][[metric]]
       })
     } else {
       xl[["Test"]] <- sapply(x@metrics_test@res_metrics, function(fold) {
@@ -2399,7 +2399,7 @@ method(get_metric, Regression) <- function(x, set, metric) {
 
 # get_metric Classification ----
 method(get_metric, Classification) <- function(x, set, metric) {
-  prop(prop(x, paste0("metrics_", set)), "metrics")[["Overall"]][[metric]]
+  prop(prop(x, paste0("metrics_", set)), "metrics")[["overall"]][[metric]]
 } # /get_metric.Classification
 
 # get_metric RegressionRes ----
@@ -2417,7 +2417,7 @@ method(get_metric, ClassificationRes) <- function(x, set, metric) {
   sapply(
     prop(prop(x, paste0("metrics_", set)), "res_metrics"),
     function(r) {
-      r[["Overall"]][[metric]]
+      r[["overall"]][[metric]]
     }
   )
 } # /rtemis::get_metric.ClassificationRes
@@ -2427,7 +2427,7 @@ method(get_metric, ClassificationRes) <- function(x, set, metric) {
 #' Describe multiple Supervised or SupervisedRes objects
 #'
 #' @param x List of `Supervised` or `SupervisedRes` objects.
-#' @param metric Character: Metric to use for description. Default is NULL, which uses "Balanced_Accuracy" for Classification and "Rsq" for Regression.
+#' @param metric Character: Metric to use for description. Default is NULL, which uses "balanced_accuracy" for Classification and "Rsq" for Regression.
 #' @param decimal_places Integer: Number of decimal places to round metrics to.
 #' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
@@ -2500,7 +2500,7 @@ method(desc, class_list) <- function(
     # 2. Get metric
     if (is.null(metric)) {
       metric <- if (suptype == "Classification") {
-        "Balanced_Accuracy"
+        "balanced_accuracy"
       } else {
         "Rsq"
       }
@@ -2518,7 +2518,7 @@ method(desc, class_list) <- function(
     # 2. Get metric
     if (is.null(metric)) {
       metric <- if (suptype == "Classification") {
-        "Balanced_Accuracy"
+        "balanced_accuracy"
       } else {
         "Rsq"
       }
@@ -2526,7 +2526,7 @@ method(desc, class_list) <- function(
     if (suptype == "Classification") {
       # Classification
       metricv <- sapply(x, function(m) {
-        m@metrics_test@metrics[["Overall"]][[metric]]
+        m@metrics_test@metrics[["overall"]][[metric]]
       })
     } else {
       # Regression
@@ -2568,7 +2568,7 @@ method(desc, class_list) <- function(
 #'
 #' @details
 #' Extra arguments:
-#' - `metric`: Character: Metric to use for description. If NULL, defaults to "Balanced_Accuracy" for Classification and "Rsq" for Regression.
+#' - `metric`: Character: Metric to use for description. If NULL, defaults to "balanced_accuracy" for Classification and "Rsq" for Regression.
 #' - `decimal_places`: Integer: Number of decimal places to round metrics to.
 #' - `output_type`: Character {"ansi", "html", or "plain"}: Output type.
 #'
