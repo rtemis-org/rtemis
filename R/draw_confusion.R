@@ -54,7 +54,7 @@ draw_confusion <- function(
 ) {
   # Input ----
   if (S7_inherits(x, ClassificationMetrics)) {
-    x <- x@metrics[["Confusion_Matrix"]]
+    x <- x@Confusion_Matrix
   }
 
   if (is.null(dim(x)) || ncol(x) != nrow(x)) {
