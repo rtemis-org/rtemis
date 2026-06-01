@@ -143,7 +143,7 @@ train <- function(
 ) {
   # SuperConfigLive dispatch ----
   if (S7_inherits(x, SuperConfigLive)) {
-    return(train(
+    train_args <- list(
       x = x@dat_training,
       dat_validation = x@dat_validation,
       dat_test = x@dat_test,
@@ -158,7 +158,13 @@ train <- function(
       outdir = x@outdir,
       verbosity = x@verbosity,
       progress = progress
-    ))
+    )
+    # `positive_class` is handled via `...` (not a formal arg) and aborts if
+    # passed as NULL, so include it only when set.
+    if (!is.null(x@positive_class)) {
+      train_args[["positive_class"]] <- x@positive_class
+    }
+    return(do.call(train, train_args))
   } # / train.SuperConfigLive
 
   # SuperConfig dispatch ----
@@ -202,6 +208,11 @@ train <- function(
 
   # Defense against invalid args
   extra_args <- list(...)
+  if (!is.null(extra_args[["positive_class"]])) {
+    positive_class <- extra_args[["positive_class"]]
+    x <- set_positive_class(x, positive_class)
+    extra_args[["positive_class"]] <- NULL
+  }
   if (length(extra_args) > 0L) {
     cli::cli_abort(
       "Unused extra arguments were provided: {.val {names(extra_args)}}. Please check your function call."
