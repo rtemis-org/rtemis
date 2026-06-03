@@ -445,16 +445,15 @@ method(repr, Supervised) <- function(
 #' @noRd
 method(to_json, Supervised) <- function(x, ...) {
   # Use `.to_json_value()` for every prop — it handles nested S7 objects,
-  # nested lists containing S7 objects, and primitive types uniformly.
-  # That matters when a prop's *declared* type is S7 but the actual value
-  # is a primitive (e.g. `varimp` is sometimes a plain numeric vector
-  # rather than a VariableImportance — a rtemis-internal type mismatch
-  # that this method must tolerate).
+  # nested lists containing S7 objects, and primitive types uniformly,
+  # including props that may be NULL (e.g. `varimp` is either a
+  # `VariableImportance` object or NULL).
   out <- list(
     .class = S7_class(x)@name,
     algorithm = x@algorithm,
     type = x@type,
     question = x@question,
+    description = desc(x), # used by rtemislive
     xnames = x@xnames,
     n_features = length(x@xnames),
     preprocessor = .to_json_value(x@preprocessor),
@@ -507,6 +506,62 @@ method(print, Supervised) <- function(
 } # /rtemis::print.Supervised
 
 
+# %% desc.Supervised ----
+method(desc, Supervised) <- function(x) {
+  type <- x@type
+  algorithm <- desc_alg(x@algorithm)
+  out <- paste0(algorithm, " was used for ", tolower(type), ".")
+
+  # Tuning ----
+  if (length(x@tuner) > 0) {
+    out <- paste0(
+      out,
+      " Hyperparameter tuning was performed using ",
+      desc(x@tuner),
+      "."
+    )
+  }
+
+  # Metrics ----
+  if (type == "Classification") {
+    out <- paste(
+      out,
+      "Balanced accuracy was",
+      ddSci(x@metrics_training[["overall"]][["balanced_accuracy"]]),
+      "in the training set"
+    )
+    if (!is.null(x@metrics_test[["overall"]][["balanced_accuracy"]])) {
+      out <- paste(
+        out,
+        "and",
+        ddSci(x@metrics_test[["overall"]][["balanced_accuracy"]]),
+        "in the test set."
+      )
+    } else {
+      out <- paste0(out, ".")
+    }
+  } else if (type == "Regression") {
+    out <- paste(
+      out,
+      "R-squared was",
+      ddSci(x@metrics_training[["Rsq"]]),
+      "on the training set"
+    )
+    if (!is.null(x@metrics_test[["Rsq"]])) {
+      out <- paste(
+        out,
+        "and",
+        ddSci(x@metrics_test[["Rsq"]]),
+        "on the test set."
+      )
+    } else {
+      out <- paste0(out, ".")
+    }
+  }
+  invisible(out)
+} # /rtemis::desc.Supervised
+
+
 # %% describe.Supervised ----
 #' Describe `Supervised` object
 #'
@@ -521,77 +576,8 @@ method(print, Supervised) <- function(
 #' @examples
 #' species_lightrf <- train(iris, algorithm = "lightrf")
 #' describe(species_lightrf)
-method(describe, Supervised) <- function(x) {
-  type <- x@type
-  algorithm <- desc_alg(x@algorithm)
-  cat(algorithm, " was used for ", tolower(type), ".\n", sep = "")
-  desc <- paste0(algorithm, " was used for ", tolower(type), ".")
-
-  # Tuning ----
-  if (length(x@tuner) > 0) {
-    describe(x@tuner)
-  }
-
-  # Metrics ----
-  if (type == "Classification") {
-    cat(
-      "Balanced accuracy was",
-      ddSci(x@metrics_training[["overall"]][["balanced_accuracy"]]),
-      "on the training set"
-    )
-    desc <- paste(
-      desc,
-      "Balanced accuracy was",
-      ddSci(x@metrics_training[["overall"]][["balanced_accuracy"]]),
-      "in the training set"
-    )
-    if (!is.null(x@metrics_test[["overall"]][["balanced_accuracy"]])) {
-      cat(
-        " and",
-        ddSci(x@metrics_test[["overall"]][["balanced_accuracy"]]),
-        "in the test set."
-      )
-      desc <- paste(
-        desc,
-        "and",
-        ddSci(x@metrics_test[["overall"]][["balanced_accuracy"]]),
-        "in the test set."
-      )
-    } else {
-      cat(".")
-      desc <- paste0(desc, ".")
-    }
-  } else if (type == "Regression") {
-    cat(
-      "R-squared was",
-      ddSci(x@metrics_training[["Rsq"]]),
-      "in the training set"
-    )
-    desc <- paste(
-      desc,
-      "R-squared was",
-      ddSci(x@metrics_training[["Rsq"]]),
-      "on the training set"
-    )
-    if (!is.null(x@metrics_test[["Rsq"]])) {
-      cat(
-        " and",
-        ddSci(x@metrics_test[["Rsq"]]),
-        "in the test."
-      )
-      desc <- paste(
-        desc,
-        "and",
-        ddSci(x@metrics_test[["Rsq"]]),
-        "on the test set."
-      )
-    } else {
-      cat(".")
-      desc <- paste0(desc, ".")
-    }
-  }
-  cat("\n")
-  invisible(desc)
+method(describe, Supervised) <- function(x, ...) {
+  cat(desc(x), "\n")
 } # /rtemis::describe.Supervised
 
 
@@ -1475,6 +1461,10 @@ method(to_json, SupervisedRes) <- function(x, ...) {
     algorithm = x@algorithm,
     type = x@type,
     question = x@question,
+    # Human-readable model summary (algorithm, tuning, headline metrics across
+    # resamples), so consumers can show a one-line description without
+    # re-deriving it.
+    description = desc(x),
     xnames = x@xnames,
     n_features = length(x@xnames),
     n_resamples = length(x@models),
@@ -1483,6 +1473,9 @@ method(to_json, SupervisedRes) <- function(x, ...) {
     hyperparameters = .to_json_value(x@hyperparameters),
     tuner_config = .to_json_value(x@tuner_config),
     outer_resampler = .to_json_value(x@outer_resampler),
+    # Human-readable resampling strategy (e.g. "10 independent folds"), so
+    # consumers can caption aggregate results without re-deriving it.
+    resampler_desc = desc(x@outer_resampler),
     execution_config = .to_json_value(x@execution_config),
     metrics_training = .to_json_value(x@metrics_training),
     metrics_test = .to_json_value(x@metrics_test),
