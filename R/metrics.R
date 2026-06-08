@@ -390,25 +390,25 @@ classification_metrics <- function(
   class[["balanced_accuracy"]] <- .5 *
     (class[["sensitivity"]] + class[["specificity"]])
   # PPV = true positive / predicted condition positive
-  class[["PPV"]] <- class[["Hits"]] / class[["Predicted_totals"]]
+  class[["ppv"]] <- class[["Hits"]] / class[["Predicted_totals"]]
   # NPV  = true negative / predicted condition negative
-  class[["NPV"]] <- class[["True_negative"]] /
+  class[["npv"]] <- class[["True_negative"]] /
     (Total - class[["Predicted_totals"]])
-  class[["F1"]] <- 2 *
-    (class[["PPV"]] * class[["sensitivity"]]) /
-    (class[["PPV"]] + class[["sensitivity"]])
+  class[["f1"]] <- 2 *
+    (class[["ppv"]] * class[["sensitivity"]]) /
+    (class[["ppv"]] + class[["sensitivity"]])
 
   # Binary vs Multiclass ----
   if (n_classes == 2) {
     overall[["sensitivity"]] <- class[["sensitivity"]][1]
     overall[["specificity"]] <- class[["specificity"]][1]
     overall[["balanced_accuracy"]] <- class[["balanced_accuracy"]][1]
-    overall[["PPV"]] <- class[["PPV"]][1]
-    overall[["NPV"]] <- class[["NPV"]][1]
-    overall[["F1"]] <- class[["F1"]][1]
+    overall[["ppv"]] <- class[["ppv"]][1]
+    overall[["npv"]] <- class[["npv"]][1]
+    overall[["f1"]] <- class[["f1"]][1]
   } else {
     overall[["balanced_accuracy"]] <- mean(class[["sensitivity"]])
-    overall[["F1"]] <- mean(class[["F1"]])
+    overall[["f1"]] <- mean(class[["f1"]])
   }
   overall[["accuracy"]] <- sum(class[["Hits"]]) / Total
 
@@ -417,7 +417,7 @@ classification_metrics <- function(
     # Positive class has been set to first level
     true_int <- 2L - as.integer(true_labels)
     if (calc_auc) {
-      overall[["AUC"]] <- auc(
+      overall[["auc"]] <- auc(
         true_int = true_int,
         predicted_prob = predicted_prob,
         method = auc_method
@@ -436,9 +436,9 @@ classification_metrics <- function(
     sensitivity = class[["sensitivity"]],
     specificity = class[["specificity"]],
     balanced_accuracy = class[["balanced_accuracy"]],
-    PPV = class[["PPV"]],
-    NPV = class[["NPV"]],
-    F1 = class[["F1"]]
+    ppv = class[["ppv"]],
+    npv = class[["npv"]],
+    f1 = class[["f1"]]
   ))
 
   ClassificationMetrics(
@@ -475,10 +475,10 @@ regression_metrics <- function(
   sample = NULL
 ) {
   RegressionMetrics(
-    MAE = mae(true, predicted, na.rm = na.rm),
-    MSE = mse(true, predicted, na.rm = na.rm),
-    RMSE = rmse(true, predicted, na.rm = na.rm),
-    Rsq = rsq(true, predicted),
+    mae = mae(true, predicted, na.rm = na.rm),
+    mse = mse(true, predicted, na.rm = na.rm),
+    rmse = rmse(true, predicted, na.rm = na.rm),
+    rsq = rsq(true, predicted),
     sample = sample
   )
 } # /rtemis::regression_metrics

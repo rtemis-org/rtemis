@@ -10,7 +10,7 @@ labelify(
   dotsToSpaces = TRUE,
   toLower = FALSE,
   toTitleCase = TRUE,
-  capitalize_strings = c("id"),
+  capitalize_strings = c("id", "auc", "ppv", "npv", "mae", "mse", "rmse"),
   stringsToSpaces = c("\\\\$", "`")
 )
 }
@@ -28,7 +28,7 @@ you want to keep all-caps)}
 \item{toTitleCase}{Logical: If TRUE, convert to Title Case. Default = TRUE (This does not change
 all-caps words, set \code{toLower} to TRUE if desired)}
 
-\item{capitalize_strings}{Character, vector: Always capitalize these strings, if present. Default = \code{"id"}}
+\item{capitalize_strings}{Character, vector: Always capitalize these strings, if present.}
 
 \item{stringsToSpaces}{Character, vector: Replace these strings with spaces. Escape as needed for \code{gsub}.
 Default = \code{"\\\\$"}, which formats common input of the type \code{data.frame$variable}}

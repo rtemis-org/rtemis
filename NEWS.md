@@ -5,8 +5,9 @@
 - Added `set_positive_class()`. Can be used directly by users. Used by `rtemis.server` and `rtemislive` to pass positive case from UI to `rtemis`.
 - Added `positive_class` field to `SuperConfigLive`.
 - Added aggregated confusion matrix to `ClassificationMetricsRes`.
-- Converted `ClassificationMetrics` field names to lower case.
-- added `description` field to `to_json()` output
+- Converted Regression and Classification metrics field names to lower case.
+- Added `description` field to `to_json()` output.
+- Added `verbosity` argument to `describe()` S7 generic and methods.
 
 ## 1.2.0
 

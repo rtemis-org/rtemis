@@ -544,14 +544,14 @@ method(desc, Supervised) <- function(x) {
     out <- paste(
       out,
       "R-squared was",
-      ddSci(x@metrics_training[["Rsq"]]),
+      ddSci(x@metrics_training[["rsq"]]),
       "on the training set"
     )
-    if (!is.null(x@metrics_test[["Rsq"]])) {
+    if (!is.null(x@metrics_test[["rsq"]])) {
       out <- paste(
         out,
         "and",
-        ddSci(x@metrics_test[["Rsq"]]),
+        ddSci(x@metrics_test[["rsq"]]),
         "on the test set."
       )
     } else {
@@ -576,8 +576,12 @@ method(desc, Supervised) <- function(x) {
 #' @examples
 #' species_lightrf <- train(iris, algorithm = "lightrf")
 #' describe(species_lightrf)
-method(describe, Supervised) <- function(x, ...) {
-  cat(desc(x), "\n")
+method(describe, Supervised) <- function(x, verbosity = 1L) {
+  descx <- desc(x)
+  if (verbosity >= 1L) {
+    cat(descx, "\n")
+  }
+  invisible(descx)
 } # /rtemis::describe.Supervised
 
 
@@ -1903,9 +1907,9 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
     out <- paste(
       out,
       "Mean R-squared was",
-      ddSci(x@metrics_training@mean_metrics[["Rsq"]]),
+      ddSci(x@metrics_training@mean_metrics[["rsq"]]),
       "on the training set and",
-      ddSci(x@metrics_test@mean_metrics[["Rsq"]]),
+      ddSci(x@metrics_test@mean_metrics[["rsq"]]),
       "on the test set across "
     )
   }
@@ -1928,8 +1932,12 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
 #' @examples
 #' mod <- train(iris, algorithm = "CART", outer_resampling_config = setup_Resampler())
 #' describe(mod)
-method(describe, SupervisedRes) <- function(x, ...) {
-  cat(desc(x), "\n")
+method(describe, SupervisedRes) <- function(x, verbosity = 1L) {
+  descx <- desc(x)
+  if (verbosity >= 1L) {
+    cat(descx, "\n")
+  }
+  invisible(descx)
 }
 
 
@@ -2147,7 +2155,7 @@ method(plot_metric, SupervisedRes) <- function(
     if (.class) {
       metric <- "balanced_accuracy"
     } else {
-      metric <- "Rsq"
+      metric <- "rsq"
     }
   }
 
@@ -2420,7 +2428,7 @@ method(get_metric, ClassificationRes) <- function(x, set, metric) {
 #' Describe multiple Supervised or SupervisedRes objects
 #'
 #' @param x List of `Supervised` or `SupervisedRes` objects.
-#' @param metric Character: Metric to use for description. Default is NULL, which uses "balanced_accuracy" for Classification and "Rsq" for Regression.
+#' @param metric Character: Metric to use for description. Default is NULL, which uses "balanced_accuracy" for Classification and "rsq" for Regression.
 #' @param decimal_places Integer: Number of decimal places to round metrics to.
 #' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
@@ -2495,7 +2503,7 @@ method(desc, class_list) <- function(
       metric <- if (suptype == "Classification") {
         "balanced_accuracy"
       } else {
-        "Rsq"
+        "rsq"
       }
     }
     metricv <- sapply(x, function(m) m@metrics_test@mean_metrics[[metric]])
@@ -2513,7 +2521,7 @@ method(desc, class_list) <- function(
       metric <- if (suptype == "Classification") {
         "balanced_accuracy"
       } else {
-        "Rsq"
+        "rsq"
       }
     }
     if (suptype == "Classification") {
@@ -2561,7 +2569,7 @@ method(desc, class_list) <- function(
 #'
 #' @details
 #' Extra arguments:
-#' - `metric`: Character: Metric to use for description. If NULL, defaults to "balanced_accuracy" for Classification and "Rsq" for Regression.
+#' - `metric`: Character: Metric to use for description. If NULL, defaults to "balanced_accuracy" for Classification and "rsq" for Regression.
 #' - `decimal_places`: Integer: Number of decimal places to round metrics to.
 #' - `output_type`: Character {"ansi", "html", or "plain"}: Output type.
 #'
@@ -2576,6 +2584,7 @@ method(describe, class_list) <- function(
   metric = NULL,
   decimal_places = 3L,
   output_type = NULL,
+  verbosity = 1L,
   ...
 ) {
   out <- desc(
@@ -2584,7 +2593,9 @@ method(describe, class_list) <- function(
     decimal_places = decimal_places,
     output_type = output_type
   )
-  cat(out, "\n")
+  if (verbosity >= 1L) {
+    cat(out, "\n")
+  }
   invisible(out)
 } # /rtemis::describe.list(Supervised/Res)
 

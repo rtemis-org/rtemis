@@ -93,7 +93,7 @@ method(present, class_list) <- function(
     metric <- switch(
       type,
       Classification = "balanced_accuracy",
-      Regression = "Rsq"
+      Regression = "rsq"
     )
   }
 

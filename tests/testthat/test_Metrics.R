@@ -44,8 +44,8 @@ test_that("classification_metrics() succeeds", {
 # Test that class_metrics2 has higher AUC and lower Brier score than class_metrics1
 test_that("classification_metrics() returns correct metrics", {
   expect_true(
-    class_metrics2@metrics[["overall"]][["AUC"]] >
-      class_metrics1@metrics[["overall"]][["AUC"]]
+    class_metrics2@metrics[["overall"]][["auc"]] >
+      class_metrics1@metrics[["overall"]][["auc"]]
   )
   expect_true(
     class_metrics2@metrics[["overall"]][["brier_score"]] <

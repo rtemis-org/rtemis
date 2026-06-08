@@ -345,7 +345,7 @@ tune_GridSearch <- function(
     if (type == "Classification") {
       metric <- "balanced_accuracy"
     } else if (type == "Regression") {
-      metric <- "MSE"
+      metric <- "mse"
     } else {
       metric <- "Concordance"
     }
@@ -353,7 +353,7 @@ tune_GridSearch <- function(
   }
   if (is.null(maximize)) {
     maximize <- metric %in%
-      c("accuracy", "balanced_accuracy", "Rsq", "r")
+      c("accuracy", "balanced_accuracy", "rsq", "r")
     tuner_config@config[["maximize"]] <- maximize
   }
   select_fn <- if (maximize) which.max else which.min

@@ -15,6 +15,23 @@ conf_table <- function(true, pred, binclasspos = 2L) {
 }
 
 
+# %% label_metrics() ----
+# Prettify metric names for printing (e.g. balanced_accuracy -> "Balanced
+# Accuracy", auc -> "AUC", rsq -> "R^2"). labelify() uppercases the acronyms
+# via its capitalize_strings defaults; R-squared gets a Unicode superscript two.
+# Stored field names stay lowercase.
+label_metrics <- function(x) {
+  sub("^Rsq$", "R\u00b2", labelify(x))
+}
+
+# Apply label_metrics() to a metric data.frame's row and column names.
+label_metric_df <- function(df) {
+  colnames(df) <- label_metrics(colnames(df))
+  rownames(df) <- label_metrics(rownames(df))
+  df
+}
+
+
 # %% Metrics ----
 #' Metrics
 #'
@@ -76,15 +93,15 @@ RegressionMetrics <- new_class(
   #   RMSE = class_numeric,
   #   Rsq = class_numeric
   # ),
-  constructor = function(MAE, MSE, RMSE, Rsq, sample = NULL) {
+  constructor = function(mae, mse, rmse, rsq, sample = NULL) {
     new_object(
       Metrics(
         sample = sample,
         metrics = data.frame(
-          MAE = MAE,
-          MSE = MSE,
-          RMSE = RMSE,
-          Rsq = Rsq
+          mae = mae,
+          mse = mse,
+          rmse = rmse,
+          rsq = rsq
         )
       )
     )
@@ -112,7 +129,7 @@ method(repr, RegressionMetrics) <- function(
   out <- paste0(
     out,
     repr_ls(
-      x@metrics,
+      label_metric_df(x@metrics),
       print_class = FALSE,
       print_df = TRUE,
       pad = pad + 2L,
@@ -208,7 +225,7 @@ method(repr, ClassificationMetrics) <- function(
     out,
     "\n",
     show_df(
-      x@metrics[["overall"]],
+      label_metric_df(x@metrics[["overall"]]),
       pad = pad,
       transpose = TRUE,
       ddSci_dp = decimal_places,
@@ -222,7 +239,7 @@ method(repr, ClassificationMetrics) <- function(
     out <- paste0(
       out,
       show_df(
-        x@metrics[["class"]],
+        label_metric_df(x@metrics[["class"]]),
         pad = pad,
         transpose = TRUE,
         ddSci_dp = decimal_places,
@@ -336,7 +353,7 @@ method(repr, MetricsRes) <- function(
       )
     )
   })
-  names(metricsl) <- names(x@mean_metrics)
+  names(metricsl) <- label_metrics(names(x@mean_metrics))
   out <- paste0(
     out,
     repr_ls(
@@ -473,12 +490,12 @@ repr_CalibratedClassificationMetrics <- function(
     out,
     "\n",
     show_df(
-      paste_dfs(
+      label_metric_df(paste_dfs(
         x@metrics[["overall"]],
         x_cal@metrics[["overall"]],
         sep = " => ",
         decimal_places = decimal_places
-      ),
+      )),
       pad = pad,
       transpose = TRUE,
       ddSci_dp = NULL,
@@ -493,11 +510,11 @@ repr_CalibratedClassificationMetrics <- function(
     out <- paste0(
       out,
       show_df(
-        paste_dfs(
+        label_metric_df(paste_dfs(
           x@metrics[["class"]],
           x_cal@metrics[["class"]],
           decimal_places = decimal_places
-        ),
+        )),
         pad = pad,
         transpose = TRUE,
         ddSci_dp = NULL,
