@@ -416,7 +416,8 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' Describe object
 #'
 #' @param x R object to describe. See method documentation for supported classes.
-#' @param ... Additional arguments passed to methods. See details.
+#' @param verbosity Integer: Verbosity level.
+#' @param ... Additional arguments passed to methods.
 #'
 #' @details
 #' Extra arguments for `factor` method:
@@ -445,7 +446,9 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' describe(x)
 #' describe(x, 3)
 #' describe(x, 3, return_ordered = FALSE)
-describe <- new_generic("describe", "x")
+describe <- new_generic("describe", "x", function(x, verbosity = 1L, ...) {
+  S7_dispatch()
+})
 
 
 # %% present ----
