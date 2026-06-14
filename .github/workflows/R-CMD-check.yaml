@@ -29,6 +29,17 @@ jobs:
       - uses: r-lib/actions/setup-r@v2
         with:
           use-public-rspm: true
+      # Temporary: use rtemis.core 0.2.0 from r-universe
+      # pak ignores DESCRIPTION's Additional_repositories:
+      # persist the r-universe repo into the repos
+      # option that the pak driver reads.
+      - name: Add rtemis r-universe to repos
+        run: |
+          cat(
+            'options(repos = c(getOption("repos"), rtemisorg = "https://rtemis-org.r-universe.dev"))',
+            file = "~/.Rprofile", sep = "\n", append = TRUE
+          )
+        shell: Rscript {0}
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           extra-packages: any::rcmdcheck
