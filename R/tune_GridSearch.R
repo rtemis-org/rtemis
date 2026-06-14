@@ -24,6 +24,8 @@
 #' @param tuner_config `TunerConfig` object created with [setup_GridSearch].
 #' @param preprocessor_config Optional `PreprocessorConfig` object: Applied within each tuning
 #' fold so hyperparameters are evaluated on preprocessed data.
+#' @param decomposition_config Optional `DecompositionConfig` object: Setup using a decomposition
+#' `setup_`*` function.
 #' @param weights Vector: Class weights.
 #' @param save_mods Logical: Save models in tuning results.
 #' @param n_workers Integer: Number of workers to use for parallel processing.
@@ -43,6 +45,7 @@ tune_GridSearch <- function(
   hyperparameters,
   tuner_config,
   preprocessor_config = NULL,
+  decomposition_config = NULL,
   weights = NULL,
   save_mods = FALSE,
   n_workers = 1L,
@@ -167,6 +170,7 @@ tune_GridSearch <- function(
     res_param_grid,
     hyperparameters,
     preprocessor_config,
+    decomposition_config,
     weights,
     verbosity,
     save_mods,
@@ -201,6 +205,7 @@ tune_GridSearch <- function(
         dat_validation = dat_valid1,
         algorithm = hyperparams1@algorithm,
         preprocessor_config = preprocessor_config,
+        decomposition_config = decomposition_config,
         hyperparameters = hyperparams1,
         weights = weights1,
         verbosity = verbosity - 1L
@@ -274,6 +279,7 @@ tune_GridSearch <- function(
       hyperparameters = hyperparameters,
       res_param_grid = res_param_grid,
       preprocessor_config = preprocessor_config,
+      decomposition_config = decomposition_config,
       weights = weights,
       verbosity = verbosity,
       save_mods = save_mods,
@@ -308,6 +314,7 @@ tune_GridSearch <- function(
       hyperparameters = hyperparameters,
       res_param_grid = res_param_grid,
       preprocessor_config = preprocessor_config,
+      decomposition_config = decomposition_config,
       weights = weights,
       verbosity = verbosity,
       save_mods = save_mods,
@@ -329,6 +336,7 @@ tune_GridSearch <- function(
         hyperparameters = hyperparameters,
         res_param_grid = res_param_grid,
         preprocessor_config = preprocessor_config,
+        decomposition_config = decomposition_config,
         weights = weights,
         verbosity = verbosity,
         save_mods = save_mods,

@@ -11,6 +11,7 @@ train(
   weights = NULL,
   algorithm = NULL,
   preprocessor_config = NULL,
+  decomposition_config = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
@@ -34,6 +35,9 @@ train(
 \item{algorithm}{Character: Algorithm to use. Can be left NULL, if \code{hyperparameters} is defined.}
 
 \item{preprocessor_config}{Optional PreprocessorConfig object: Setup using \link{setup_Preprocessor}.}
+
+\item{decomposition_config}{Optional DecompositionConfig object: Setup using a decomposition
+\verb{setup_*} function.}
 
 \item{hyperparameters}{\code{Hyperparameters} object: Setup using one of \verb{setup_*} functions.}
 

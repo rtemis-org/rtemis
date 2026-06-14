@@ -627,3 +627,24 @@ setup_Isomap <- function(
   path <- match.arg(path)
   IsomapConfig(k, dist_method, nsd, path)
 } # /rtemis::setup_Isomap
+
+# %% List of Decomposition Algorithms that can be applied on new data ----
+# These algorithms learn a transformation on the training data that can later be
+# applied to new (validation / test / unseen) data via `apply_decomp()`.
+# Non-parametric embeddings (tSNE, Isomap) have no out-of-sample extension and
+# are therefore excluded.
+decom_algorithms_applicable <- c("PCA", "ICA", "NMF", "UMAP")
+
+# %% decom_can_apply ----
+#' Check whether a decomposition algorithm can be applied on new data
+#'
+#' @param algorithm Character: Decomposition algorithm name.
+#'
+#' @return Logical.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+decom_can_apply <- function(algorithm) {
+  get_decom_name(algorithm) %in% decom_algorithms_applicable
+} # /rtemis::decom_can_apply

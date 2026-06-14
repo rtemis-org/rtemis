@@ -40,3 +40,30 @@ method(decomp_, UMAPConfig) <- function(config, x, verbosity = 1L) {
   check_inherits(decom, "list")
   list(decom = decom, transformed = decom[["embedding"]])
 } # /rtemis::decomp_.UMAPConfig
+
+
+# %% apply_decomp_.UMAPConfig ----
+#' Apply a fitted UMAP decomposition to new data
+#'
+#' @details
+#' Uses `uwot::umap_transform()`, which requires the model to have been fit with
+#' `ret_model = TRUE` (as done in `decomp_.UMAPConfig`).
+#'
+#' @param config `UMAPConfig` object.
+#' @param decom Fitted uwot UMAP model (list).
+#' @param new_data Tabular data: New data to embed.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Matrix of UMAP embedding coordinates.
+#'
+#' @keywords internal
+#' @noRd
+method(apply_decomp_, UMAPConfig) <- function(
+  config,
+  decom,
+  new_data,
+  verbosity = 1L
+) {
+  check_dependencies("uwot")
+  uwot::umap_transform(X = new_data, model = decom)
+} # /rtemis::apply_decomp_.UMAPConfig

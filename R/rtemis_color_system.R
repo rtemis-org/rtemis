@@ -37,6 +37,7 @@ col_info <- highlight2_col <- lmd_burgundy
 col_outer <- rt_green
 col_tuner <- rt_blue
 col_calibrator <- rt_magenta
+col_decom <- rt_purple
 
 
 #' rtemis Color System

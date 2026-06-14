@@ -11,6 +11,7 @@ setup_SuperConfigLive(
   weights = NULL,
   positive_class = NULL,
   preprocessor_config = NULL,
+  decomposition_config = NULL,
   algorithm = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
@@ -37,6 +38,8 @@ the outcome factor via \link{set_positive_class}. \code{NULL} keeps the existing
 level order.}
 
 \item{preprocessor_config, algorithm, hyperparameters, tuner_config, outer_resampling_config, execution_config, question, verbosity}{See \link{setup_SuperConfig}.}
+
+\item{decomposition_config}{\code{DecompositionConfig} object: Configuration for data decomposition.}
 
 \item{outdir}{Character or \code{NULL}. Output directory; \code{NULL} (the
 default) means "do not write to disk" (the rtemislive case).}

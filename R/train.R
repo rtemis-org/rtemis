@@ -15,6 +15,8 @@
 #' @param weights Optional vector of case weights.
 #' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
 #' @param preprocessor_config Optional PreprocessorConfig object: Setup using [setup_Preprocessor].
+#' @param decomposition_config Optional DecompositionConfig object: Setup using a decomposition
+#'  `setup_*` function.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param tuner_config TunerConfig object: Setup using [setup_GridSearch].
 #' @param outer_resampling_config Optional ResamplerConfig object: Setup using [setup_Resampler].
@@ -131,6 +133,7 @@ train <- function(
   weights = NULL,
   algorithm = NULL,
   preprocessor_config = NULL, # PreprocessorConfig
+  decomposition_config = NULL, # DecompositionConfig
   hyperparameters = NULL, # Hyperparameters
   tuner_config = NULL, # TunerConfig
   outer_resampling_config = NULL, # ResamplerConfig
@@ -149,6 +152,7 @@ train <- function(
       dat_test = x@dat_test,
       weights = x@weights,
       preprocessor_config = x@preprocessor_config,
+      decomposition_config = x@decomposition_config,
       algorithm = x@algorithm,
       hyperparameters = x@hyperparameters,
       tuner_config = x@tuner_config,
@@ -187,6 +191,7 @@ train <- function(
       dat_test = dat_test,
       weights = x@weights,
       preprocessor_config = x@preprocessor_config,
+      decomposition_config = x@decomposition_config,
       algorithm = x@algorithm,
       hyperparameters = x@hyperparameters,
       tuner_config = x@tuner_config,
@@ -256,6 +261,18 @@ train <- function(
 
   if (!is.null(preprocessor_config)) {
     check_is_S7(preprocessor_config, PreprocessorConfig)
+  }
+
+  # Can only use algorithms whose output can be applied on new data: we need to apply the
+  # transformation learned on the training data to validation and test sets.
+  if (!is.null(decomposition_config)) {
+    check_is_S7(decomposition_config, DecompositionConfig)
+    if (!decomposition_config@algorithm %in% decom_algorithms_applicable) {
+      cli::cli_abort(c(
+        "Decomposition algorithm {.val {decomposition_config@algorithm}} cannot be applied on new data and is not supported in {.fn train}.",
+        "i" = "Supported decomposition algorithms: {.val {decom_algorithms_applicable}}."
+      ))
+    }
   }
 
   # execution_config must always be set
@@ -355,6 +372,10 @@ train <- function(
   # Initialized to NULL here; set in the single-model path below.
   # In the outer resampling path, each sub-model carries its own pair.
   preprocessor <- preprocessor_internal <- NULL
+  # `decomposition`: fitted Decomposition (from `decomposition_config`) learned on
+  # the training features and re-applied to validation/test here, and to new data
+  # at predict() time. Stored on the returned model. NULL when no decomposition.
+  decomposition <- NULL
 
   # === Outer Resampling ===
   # Splits data into multiple training-test folds and calls train() recursively
@@ -410,6 +431,7 @@ train <- function(
           dat_test = x[-outer_resampler[[i]], ],
           algorithm = algorithm,
           preprocessor_config = preprocessor_config,
+          decomposition_config = decomposition_config,
           hyperparameters = hyperparameters,
           tuner_config = tuner_config,
           outer_resampling_config = NULL, # This model is one of the outer resamples.
@@ -447,6 +469,7 @@ train <- function(
         hyperparameters = hyperparameters,
         tuner_config = tuner_config,
         preprocessor_config = preprocessor_config,
+        decomposition_config = decomposition_config,
         weights = weights,
         backend = backend,
         future_plan = future_plan,
@@ -481,6 +504,44 @@ train <- function(
     } else {
       preprocessor <- NULL
     } # /User-level preprocessing
+
+    # Decomposition ----
+    # Learn the decomposition on the training features, then apply the learned
+    # transformation to the validation and test features. The outcome column is
+    # left untouched and re-attached to the transformed features. The fitted
+    # Decomposition is stored on the returned model so predict() can re-apply it
+    # to new data.
+    if (!is.null(decomposition_config)) {
+      outcome_nm <- names(x)[ncols]
+      decomposition <- decomp(
+        x = features(x),
+        algorithm = decomposition_config@algorithm,
+        config = decomposition_config,
+        verbosity = verbosity
+      )
+      # Decomposed training data
+      x_outcome <- x[[ncols]]
+      x <- as.data.frame(decomposition@transformed)
+      x[[outcome_nm]] <- x_outcome
+      # Apply decomposition to validation data
+      if (!is.null(dat_validation)) {
+        val_outcome <- dat_validation[[ncols]]
+        dat_validation <- as.data.frame(
+          apply_decomp(decomposition, features(dat_validation), verbosity = 0L)
+        )
+        dat_validation[[outcome_nm]] <- val_outcome
+      }
+      # Apply decomposition to test data
+      if (!is.null(dat_test)) {
+        test_outcome <- dat_test[[ncols]]
+        dat_test <- as.data.frame(
+          apply_decomp(decomposition, features(dat_test), verbosity = 0L)
+        )
+        dat_test[[outcome_nm]] <- test_outcome
+      }
+      # Number of columns changes after decomposition.
+      ncols <- ncol(x)
+    }
 
     # IFW ----
     # Weight calculation must follow preprocessing since N cases may change.
@@ -633,6 +694,7 @@ train <- function(
       model = model,
       preprocessor = preprocessor,
       preprocessor_internal = preprocessor_internal,
+      decomposition = decomposition,
       hyperparameters = hyperparameters,
       tuner = tuner,
       execution_config = execution_config,

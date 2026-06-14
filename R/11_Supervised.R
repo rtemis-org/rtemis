@@ -111,6 +111,7 @@ Supervised <- new_class(
     type = class_character,
     preprocessor = Preprocessor | NULL,
     preprocessor_internal = Preprocessor | NULL,
+    decomposition = Decomposition | NULL,
     hyperparameters = Hyperparameters | NULL,
     tuner = Tuner | NULL,
     execution_config = ExecutionConfig,
@@ -135,6 +136,7 @@ Supervised <- new_class(
     type,
     preprocessor,
     preprocessor_internal,
+    decomposition = NULL,
     hyperparameters,
     tuner,
     execution_config,
@@ -159,6 +161,7 @@ Supervised <- new_class(
       type = type,
       preprocessor = preprocessor,
       preprocessor_internal = preprocessor_internal,
+      decomposition = decomposition,
       hyperparameters = hyperparameters,
       tuner = tuner,
       execution_config = execution_config,
@@ -181,16 +184,25 @@ Supervised <- new_class(
 ) # /rtemis::Supervised
 
 
-# %% predict.Supervised ----
-#' Predict `Supervised`
+# %% predict_supervised_ ----
+#' Run the `Supervised` prediction pipeline
 #'
-#' Predict Method for `Supervised` objects
+#' Re-applies, in order, the stored user preprocessor, decomposition, and
+#' algorithm-internal preprocessor to `newdata`, enforces predictor names/order,
+#' then calls `predict_super()`. Shared by `predict.Supervised` and
+#' `predict.CalibratedClassification` (the latter cannot call its parent method
+#' directly because `predict` is an S3/base generic, not an S7 generic).
 #'
-#' @param object `Supervised` object.
-#' @param newdata data.frame or similar: New data to predict.
+#' @param object `Supervised` (or subclass) object.
+#' @param newdata data.frame: New data to predict.
+#' @param verbosity Integer: Verbosity level.
 #'
+#' @return Output of `predict_super()` (raw predictions / probabilities).
+#'
+#' @author EDG
+#' @keywords internal
 #' @noRd
-method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
+predict_supervised_ <- function(object, newdata, verbosity = 1L) {
   check_inherits(newdata, "data.frame")
 
   # Apply user-specified preprocessor if available
@@ -201,6 +213,16 @@ method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
       verbosity = verbosity
     ) |>
       preprocessed()
+  }
+
+  # Apply decomposition if available.
+  # In train(), the decomposition is learned on the (user-preprocessed) training
+  # features, so it is re-applied here after user preprocessing and before the
+  # algorithm-specific preprocessor, which was fit on the decomposed features.
+  if (!is.null(object@decomposition)) {
+    newdata <- as.data.frame(
+      apply_decomp(object@decomposition, newdata, verbosity = verbosity)
+    )
   }
 
   # Apply algorithm-specific preprocessor if available
@@ -240,6 +262,20 @@ method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
     type = object@type,
     verbosity = verbosity
   )
+} # /rtemis::predict_supervised_
+
+
+# %% predict.Supervised ----
+#' Predict `Supervised`
+#'
+#' Predict Method for `Supervised` objects
+#'
+#' @param object `Supervised` object.
+#' @param newdata data.frame or similar: New data to predict.
+#'
+#' @noRd
+method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
+  predict_supervised_(object, newdata, verbosity = verbosity)
 } # /rtemis::predict.Supervised
 
 
@@ -331,6 +367,23 @@ method(repr, Supervised) <- function(
       ),
       " Tuned using ",
       desc(x@tuner),
+      ".\n"
+    )
+  }
+
+  # Decomposition, if available
+  if (!is.null(x@decomposition)) {
+    out <- paste0(
+      out,
+      fmt(
+        "\U25C8",
+        col = col_decom,
+        bold = TRUE,
+        pad = pad,
+        output_type = output_type
+      ),
+      " Decomposed using ",
+      x@decomposition@algorithm,
       ".\n"
     )
   }
@@ -458,6 +511,11 @@ method(to_json, Supervised) <- function(x, ...) {
     n_features = length(x@xnames),
     preprocessor = .to_json_value(x@preprocessor),
     preprocessor_internal = .to_json_value(x@preprocessor_internal),
+    decomposition = if (!is.null(x@decomposition)) {
+      x@decomposition@algorithm
+    } else {
+      NULL
+    },
     hyperparameters = .to_json_value(x@hyperparameters),
     tuner = .to_json_value(x@tuner),
     execution_config = .to_json_value(x@execution_config),
@@ -506,11 +564,126 @@ method(print, Supervised) <- function(
 } # /rtemis::print.Supervised
 
 
+# %% desc_preprocessor_steps ----
+#' Human-readable summary of the active preprocessing steps
+#'
+#' Maps the `PreprocessorConfig` flags onto short labels for use in `desc()`
+#' sentences. Returns `character(0)` when no recognized step is active.
+#'
+#' @param config `PreprocessorConfig` object.
+#'
+#' @return Character vector of step labels.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+desc_preprocessor_steps <- function(config) {
+  steps <- character()
+  if (isTRUE(config@complete_cases)) {
+    steps <- c(steps, "complete-case filtering")
+  }
+  if (!is.null(config@remove_features_thres)) {
+    steps <- c(steps, "high-missingness feature removal")
+  }
+  if (!is.null(config@remove_cases_thres)) {
+    steps <- c(steps, "high-missingness case removal")
+  }
+  if (isTRUE(config@impute)) {
+    steps <- c(steps, "imputation")
+  }
+  type_conversion <- c(
+    config@integer2factor,
+    config@integer2numeric,
+    config@logical2factor,
+    config@logical2numeric,
+    config@numeric2factor,
+    config@character2factor,
+    config@factor2integer
+  )
+  if (any(vapply(type_conversion, isTRUE, logical(1L)))) {
+    steps <- c(steps, "type conversion")
+  }
+  if (isTRUE(config@center)) {
+    steps <- c(steps, "centering")
+  }
+  if (isTRUE(config@scale)) {
+    steps <- c(steps, "scaling")
+  }
+  if (isTRUE(config@remove_constants)) {
+    steps <- c(steps, "constant-feature removal")
+  }
+  if (isTRUE(config@remove_duplicates)) {
+    steps <- c(steps, "duplicate removal")
+  }
+  if (!is.null(config@remove_features)) {
+    steps <- c(steps, "manual feature removal")
+  }
+  if (isTRUE(config@one_hot)) {
+    steps <- c(steps, "one-hot encoding")
+  }
+  if (isTRUE(config@add_date_features)) {
+    steps <- c(steps, "date feature extraction")
+  }
+  steps
+} # /rtemis::desc_preprocessor_steps
+
+
+# %% desc_preprocessing_decomposition ----
+#' Append preprocessing & decomposition sentences to a `desc()` string
+#'
+#' Shared by `desc.Supervised` and `desc.SupervisedRes`. `preprocessor` and
+#' `decomposition` are the fitted objects (or `NULL`); each contributes a
+#' sentence only when present.
+#'
+#' @param out Character: The description string to append to.
+#' @param preprocessor `Preprocessor` object or `NULL`.
+#' @param decomposition `Decomposition` object or `NULL`.
+#'
+#' @return Character: `out` with any applicable sentences appended.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+desc_preprocessing_decomposition <- function(out, preprocessor, decomposition) {
+  # Preprocessing ----
+  if (!is.null(preprocessor)) {
+    steps <- desc_preprocessor_steps(preprocessor@config)
+    out <- paste0(
+      out,
+      if (length(steps) > 0L) {
+        paste0(
+          " Preprocessing was applied (",
+          paste(steps, collapse = ", "),
+          ")."
+        )
+      } else {
+        " Preprocessing was applied."
+      }
+    )
+  }
+  # Decomposition ----
+  if (!is.null(decomposition)) {
+    k <- decomposition@config[["k"]]
+    out <- paste0(
+      out,
+      " Decomposition was performed using ",
+      decomposition@algorithm,
+      if (!is.null(k)) paste0(" (k = ", k, ")"),
+      "."
+    )
+  }
+  out
+} # /rtemis::desc_preprocessing_decomposition
+
+
 # %% desc.Supervised ----
 method(desc, Supervised) <- function(x) {
   type <- x@type
   algorithm <- desc_alg(x@algorithm)
   out <- paste0(algorithm, " was used for ", tolower(type), ".")
+
+  # Preprocessing & Decomposition ----
+  out <- desc_preprocessing_decomposition(out, x@preprocessor, x@decomposition)
 
   # Tuning ----
   if (length(x@tuner) > 0) {
@@ -608,6 +781,7 @@ Classification <- new_class(
     model = NULL,
     preprocessor = NULL, # Preprocessor
     preprocessor_internal = NULL, # Algorithm-specific preprocessor
+    decomposition = NULL, # Decomposition
     hyperparameters = NULL, # Hyperparameters
     tuner = NULL, # Tuner
     execution_config,
@@ -659,6 +833,7 @@ Classification <- new_class(
         type = "Classification",
         preprocessor = preprocessor,
         preprocessor_internal = preprocessor_internal,
+        decomposition = decomposition,
         hyperparameters = hyperparameters,
         tuner = tuner,
         execution_config = execution_config,
@@ -815,11 +990,13 @@ CalibratedClassification <- new_class(
 # %% predict.CalibratedClassification ----
 method(predict, CalibratedClassification) <- function(object, newdata, ...) {
   check_inherits(newdata, "data.frame")
-  # Get the classification model's predicted probabilities
-  raw_prob <- do_call(
-    predict_super,
-    list(model = object@model, newdata = newdata, type = "Classification")
-  )
+  # Get the classification model's predicted probabilities, routing through the
+  # parent `Supervised` predict method so the stored preprocessor, decomposition,
+  # and algorithm-internal preprocessor are re-applied to `newdata` before the
+  # underlying model is queried. `predict` is an S3/base generic, so the parent
+  # `Supervised` method cannot be invoked via `super()`; call the shared pipeline
+  # helper instead.
+  raw_prob <- predict_supervised_(object, newdata)
   # Get the calibration model's predicted probabilities
   predict(
     object@calibration_model,
@@ -850,6 +1027,7 @@ Regression <- new_class(
     model = NULL,
     preprocessor = NULL, # Preprocessor
     preprocessor_internal = NULL, # Algorithm-specific preprocessor
+    decomposition = NULL, # Decomposition
     hyperparameters = NULL, # Hyperparameters
     tuner = NULL, # Tuner
     execution_config, # ExecutionConfig
@@ -898,6 +1076,7 @@ Regression <- new_class(
         type = "Regression",
         preprocessor = preprocessor,
         preprocessor_internal = preprocessor_internal,
+        decomposition = decomposition,
         hyperparameters = hyperparameters,
         tuner = tuner,
         execution_config = execution_config,
@@ -1067,6 +1246,7 @@ make_Supervised <- function(
   model = NULL,
   preprocessor = NULL,
   preprocessor_internal = NULL,
+  decomposition = NULL,
   hyperparameters = NULL,
   tuner = NULL,
   execution_config,
@@ -1095,6 +1275,7 @@ make_Supervised <- function(
       model = model,
       preprocessor = preprocessor,
       preprocessor_internal = preprocessor_internal,
+      decomposition = decomposition,
       hyperparameters = hyperparameters,
       tuner = tuner,
       execution_config = execution_config,
@@ -1119,6 +1300,7 @@ make_Supervised <- function(
       model = model,
       preprocessor = preprocessor,
       preprocessor_internal = preprocessor_internal,
+      decomposition = decomposition,
       hyperparameters = hyperparameters,
       tuner = tuner,
       execution_config = execution_config,
@@ -1877,6 +2059,18 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
   algorithm <- desc_alg(x@algorithm)
   # cat(algorithm, " was used for ", tolower(type), ".\n", sep = "")
   out <- paste0(algorithm, " was used for ", tolower(type), ".")
+
+  # Preprocessing & Decomposition ----
+  # In the outer-resampling path the top-level props are NULL; each fold carries
+  # its own (identical) config, so describe from the first model.
+  mod1 <- if (length(x@models) > 0L) x@models[[1L]] else NULL
+  if (!is.null(mod1)) {
+    out <- desc_preprocessing_decomposition(
+      out,
+      mod1@preprocessor,
+      mod1@decomposition
+    )
+  }
 
   # Tuning ----
   if (length(x@tuner_config) > 0) {

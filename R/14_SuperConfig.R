@@ -23,6 +23,7 @@ SuperConfig <- new_class(
     dat_test_path = class_character | NULL,
     weights = class_character | NULL, # column name in dat_training
     preprocessor_config = PreprocessorConfig | NULL,
+    decomposition_config = DecompositionConfig | NULL,
     algorithm = class_character | NULL,
     hyperparameters = Hyperparameters | NULL,
     tuner_config = TunerConfig | NULL,
@@ -83,6 +84,7 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' @param weights Optional Character: Column name in training data to use as observation weights.
 #' If NULL, no weights are used.
 #' @param preprocessor_config `PreprocessorConfig` object: Configuration for data preprocessing.
+#' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
 #' @param algorithm Character: Algorithm to use for training.
 #' @param hyperparameters `Hyperparameters` object: Configuration for model hyperparameters.
 #' @param tuner_config `TunerConfig` object: Configuration for hyperparameter tuning.
@@ -117,6 +119,7 @@ setup_SuperConfig <- function(
   dat_test_path = NULL,
   weights = NULL,
   preprocessor_config = NULL,
+  decomposition_config = NULL,
   algorithm = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
@@ -148,6 +151,7 @@ setup_SuperConfig <- function(
     dat_test_path = dat_test_path,
     weights = weights,
     preprocessor_config = preprocessor_config,
+    decomposition_config = decomposition_config,
     algorithm = algorithm,
     hyperparameters = hyperparameters,
     tuner_config = tuner_config,
@@ -271,6 +275,11 @@ read_config <- function(file) {
     } else {
       do.call(setup_Preprocessor, xl[["preprocessor_config"]])
     },
+    decomposition_config = if (is.null(xl[["decomposition_config"]])) {
+      NULL
+    } else {
+      .list_to_DecompositionConfig(xl[["decomposition_config"]])
+    },
     algorithm = xl[["algorithm"]],
     hyperparameters = if (is.null(xl[["hyperparameters"]])) {
       NULL
@@ -341,6 +350,7 @@ SuperConfigLive <- new_class(
     weights = class_character | NULL, # column name in dat_training
     positive_class = class_character | NULL, # binary-classification positive level
     preprocessor_config = PreprocessorConfig | NULL,
+    decomposition_config = DecompositionConfig | NULL,
     algorithm = class_character | NULL,
     hyperparameters = Hyperparameters | NULL,
     tuner_config = TunerConfig | NULL,
@@ -404,6 +414,7 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 #'   level order.
 #' @param preprocessor_config,algorithm,hyperparameters,tuner_config,outer_resampling_config,execution_config,question,verbosity
 #'   See [setup_SuperConfig].
+#' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
 #' @param outdir Character or `NULL`. Output directory; `NULL` (the
 #'   default) means "do not write to disk" (the rtemislive case).
 #'
@@ -418,6 +429,7 @@ setup_SuperConfigLive <- function(
   weights = NULL,
   positive_class = NULL,
   preprocessor_config = NULL,
+  decomposition_config = NULL,
   algorithm = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
@@ -437,6 +449,7 @@ setup_SuperConfigLive <- function(
     weights = weights,
     positive_class = positive_class,
     preprocessor_config = preprocessor_config,
+    decomposition_config = decomposition_config,
     algorithm = algorithm,
     hyperparameters = hyperparameters,
     tuner_config = tuner_config,

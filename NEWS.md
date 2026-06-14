@@ -1,5 +1,9 @@
 # rtemis news
 
+## 1.2.2
+
+- Added `decomposition_config` argument to `train()` and all associated internal functions and methods, and to `SuperConfig` and `SuperConfigLive` S7 classes. 
+
 ## 1.2.1
 
 - Added `set_positive_class()`. Can be used directly by users. Used by `rtemis.server` and `rtemislive` to pass positive case from UI to `rtemis`.

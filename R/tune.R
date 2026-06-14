@@ -25,6 +25,8 @@ get_tuner_fn <- function(type = "GridSearch") {
 #' @param tuner_config `TunerConfig` object: created with [setup_GridSearch].
 #' @param preprocessor_config Optional `PreprocessorConfig` object: created with
 #' [setup_Preprocessor].
+#' @param decomposition_config Optional `DecompositionConfig` object: created with a
+#' decomposition `setup_*` function.
 #' @param weights Numeric vector: Optional case weights.
 #' @param verbosity Integer: Verbosity level.
 #'
@@ -36,6 +38,7 @@ tune <- function(
   hyperparameters,
   tuner_config,
   preprocessor_config = NULL,
+  decomposition_config = NULL,
   weights = NULL,
   verbosity = 1L,
   backend = "none",
@@ -52,6 +55,7 @@ tune <- function(
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       preprocessor_config = preprocessor_config,
+      decomposition_config = decomposition_config,
       weights = weights,
       verbosity = verbosity,
       backend = backend,
