@@ -248,6 +248,24 @@ decomp_ <- new_generic(
 ) # /rtemis::decomp_
 
 
+# %% apply_decomp_ ----
+#' Generic for applying a fitted decomposition to new data
+#'
+#' Dispatches on the `DecompositionConfig` subclass. Implemented only for
+#' algorithms listed in `decom_algorithms_applicable`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+apply_decomp_ <- new_generic(
+  "apply_decomp_",
+  "config",
+  function(config, decom, new_data, verbosity = 1L) {
+    S7_dispatch()
+  }
+) # /rtemis::apply_decomp_
+
+
 # %% cluster_ ----
 #' Generic for clustering
 #'
