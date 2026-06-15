@@ -506,22 +506,62 @@ train <- function(
     } # /User-level preprocessing
 
     # Decomposition ----
-    # Learn the decomposition on the training features, then apply the learned
-    # transformation to the validation and test features. The outcome column is
-    # left untouched and re-attached to the transformed features. The fitted
-    # Decomposition is stored on the returned model so predict() can re-apply it
-    # to new data.
+    # Learn the decomposition on the selected training features, then apply the
+    # learned transformation to the validation and test features. Features not
+    # selected for decomposition are kept as-is, in front of the components, and
+    # the outcome column is re-attached last: layout `[kept features, components,
+    # outcome]`. The fitted Decomposition (carrying the resolved feature names)
+    # is stored on the returned model so predict() can re-apply it to new data.
     if (!is.null(decomposition_config)) {
       outcome_nm <- names(x)[ncols]
+      feat <- as.data.frame(features(x))
+      # Resolve the columns to decompose: NULL -> all numeric features.
+      decomp_features <- decomposition_config@features
+      if (is.null(decomp_features)) {
+        decomp_features <- names(numeric_features(x))
+      }
+      # Validate the selection against the actual (post-preprocessing) data.
+      missing_cols <- setdiff(decomp_features, names(feat))
+      if (length(missing_cols) > 0L) {
+        cli::cli_abort(c(
+          "{.arg decomposition_config} selects {cli::qty(missing_cols)}column{?s} that {?is/are} not {?a/} feature{?s}.",
+          "x" = "Not found among features: {.val {missing_cols}}."
+        ))
+      }
+      non_numeric <- decomp_features[
+        !vapply(feat[decomp_features], is.numeric, logical(1L))
+      ]
+      if (length(non_numeric) > 0L) {
+        cli::cli_abort(c(
+          "Decomposition can only be applied to numeric features.",
+          "x" = "Non-numeric column{?s} selected: {.val {non_numeric}}."
+        ))
+      }
+      if (length(decomp_features) < 2L) {
+        cli::cli_abort(c(
+          "Decomposition requires at least 2 numeric feature columns.",
+          "i" = "{length(decomp_features)} {?was/were} available to decompose."
+        ))
+      }
+      # Persist the resolved names so apply_decomp() replays the same selection
+      # on validation/test here and on new data at predict() time.
+      decomposition_config@features <- decomp_features
       decomposition <- decomp(
-        x = features(x),
+        x = feat[, decomp_features, drop = FALSE],
         algorithm = decomposition_config@algorithm,
         config = decomposition_config,
         verbosity = verbosity
       )
-      # Decomposed training data
+      # Columns not decomposed are kept as-is, in front of the components.
+      kept_features <- setdiff(names(feat), decomp_features)
+      # Decomposed training data: [kept features, components, outcome].
       x_outcome <- x[[ncols]]
-      x <- as.data.frame(decomposition@transformed)
+      components <- as.data.frame(decomposition@transformed)
+      x <- if (length(kept_features) > 0L) {
+        cbind(feat[, kept_features, drop = FALSE], components)
+      } else {
+        components
+      }
       x[[outcome_nm]] <- x_outcome
       # Apply decomposition to validation data
       if (!is.null(dat_validation)) {

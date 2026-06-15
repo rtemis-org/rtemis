@@ -4,7 +4,7 @@
 \alias{setup_PCA}
 \title{Setup PCA config.}
 \usage{
-setup_PCA(k = 3L, center = TRUE, scale = TRUE, tol = NULL)
+setup_PCA(k = 3L, center = TRUE, scale = TRUE, tol = NULL, features = NULL)
 }
 \arguments{
 \item{k}{Integer: Number of components. (passed to \code{prcomp} \code{rank.})}
@@ -14,6 +14,9 @@ setup_PCA(k = 3L, center = TRUE, scale = TRUE, tol = NULL)
 \item{scale}{Logical: If TRUE, scale the data.}
 
 \item{tol}{Numeric: Tolerance.}
+
+\item{features}{Optional Character: Names of the feature columns to decompose.
+\code{NULL} decomposes all numeric features.}
 }
 \value{
 PCAConfig object.

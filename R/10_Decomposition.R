@@ -98,7 +98,16 @@ method(print, Decomposition) <- function(
 #'   decomposition will be applied.
 #' @param verbosity Integer: Verbosity level
 #'
-#' @return Transformed data: a matrix of the learned components for `new_data`.
+#' @details
+#' When the fitted decomposition was learned on a subset of the features (i.e.
+#' `decom@config@features` is not `NULL`), only those columns of `new_data` are
+#' transformed; the remaining columns are returned unchanged, alongside the
+#' learned components, in the layout `[kept features, components]`. When
+#' `features` is `NULL` (the standalone default), all columns of `new_data` are
+#' decomposed and only the components are returned.
+#'
+#' @return A data.frame of the learned components for `new_data`, preceded by any
+#' feature columns that were not decomposed.
 #' @author EDG
 #' @export
 apply_decomp <- function(decom, new_data, verbosity = 1L) {
@@ -109,12 +118,33 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
       "i" = "Algorithms that support application on new data: {.val {decom_algorithms_applicable}}."
     ))
   }
-  apply_decomp_(
+  new_data <- as.data.frame(new_data)
+  features <- decom@config@features
+  if (is.null(features)) {
+    selected <- new_data
+    kept <- NULL
+  } else {
+    missing_cols <- setdiff(features, names(new_data))
+    if (length(missing_cols) > 0L) {
+      cli::cli_abort(c(
+        "New data is missing {length(missing_cols)} column{?s} required by the decomposition.",
+        "x" = "Missing: {.val {missing_cols}}."
+      ))
+    }
+    selected <- new_data[, features, drop = FALSE]
+    kept <- new_data[, setdiff(names(new_data), features), drop = FALSE]
+  }
+  transformed <- as.data.frame(apply_decomp_(
     config = decom@config,
     decom = decom@decom,
-    new_data = new_data,
+    new_data = selected,
     verbosity = verbosity
-  )
+  ))
+  if (is.null(kept) || ncol(kept) == 0L) {
+    transformed
+  } else {
+    cbind(kept, transformed)
+  }
 } # /rtemis::apply_decomp
 
 
@@ -150,11 +180,15 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
   }
   # Normalize casing and drop `algorithm` before forwarding to the setup fn.
   algorithm <- get_decom_name(algorithm)
-  # Params may arrive flat (UI / server: `list(algorithm, k, ...)`) or nested
-  # under `config` (S7_to_list serialization of a DecompositionConfig, as used
-  # by the TOML round-trip).
+  # Params may arrive flat (UI / server: `list(algorithm, k, ..., features)`) or
+  # nested under `config` (S7_to_list serialization of a DecompositionConfig, as
+  # used by the TOML round-trip). In the nested shape `features` is a sibling of
+  # `config`, so it is re-attached explicitly.
   params <- if (is.list(x[["config"]])) {
-    x[["config"]]
+    c(
+      x[["config"]],
+      if (!is.null(x[["features"]])) list(features = x[["features"]])
+    )
   } else {
     x[setdiff(names(x), "algorithm")]
   }

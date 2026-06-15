@@ -15,10 +15,19 @@ decomposition will be applied.}
 \item{verbosity}{Integer: Verbosity level}
 }
 \value{
-Transformed data: a matrix of the learned components for \code{new_data}.
+A data.frame of the learned components for \code{new_data}, preceded by any
+feature columns that were not decomposed.
 }
 \description{
 Apply a fitted decomposition to new data for algorithms that support this.
+}
+\details{
+When the fitted decomposition was learned on a subset of the features (i.e.
+\code{decom@config@features} is not \code{NULL}), only those columns of \code{new_data} are
+transformed; the remaining columns are returned unchanged, alongside the
+learned components, in the layout \verb{[kept features, components]}. When
+\code{features} is \code{NULL} (the standalone default), all columns of \code{new_data} are
+decomposed and only the components are returned.
 }
 \author{
 EDG

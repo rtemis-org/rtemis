@@ -11,7 +11,8 @@ setup_ICA(
   alpha = 1,
   row_norm = TRUE,
   maxit = 100L,
-  tol = 1e-04
+  tol = 1e-04,
+  features = NULL
 )
 }
 \arguments{
@@ -28,6 +29,9 @@ setup_ICA(
 \item{maxit}{Integer: Maximum number of iterations.}
 
 \item{tol}{Numeric: Tolerance.}
+
+\item{features}{Optional Character: Names of the feature columns to decompose.
+\code{NULL} decomposes all numeric features.}
 }
 \value{
 ICAConfig object.

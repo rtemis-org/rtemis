@@ -10,6 +10,8 @@
 #'
 #' @field algorithm Character: Algorithm name.
 #' @field config List: Algorithm-specific config.
+#' @field features Optional Character: Names of the feature columns to decompose.
+#' `NULL` means all numeric features.
 #'
 #' @author EDG
 #' @keywords internal
@@ -19,7 +21,8 @@ DecompositionConfig <- new_class(
   package = "rtemis",
   properties = list(
     algorithm = class_character,
-    config = class_list
+    config = class_list,
+    features = class_character | NULL
   )
 ) # /DecompositionConfig
 
@@ -70,13 +73,18 @@ method(repr, DecompositionConfig) <- function(
   output_type = NULL
 ) {
   output_type <- get_output_type(output_type)
+  features <- x["features"]
+  config <- x["config"]
+  if (!is.null(features)) {
+    config <- c(config, list(features = features))
+  }
   paste0(
     repr_S7name(
       paste(x["algorithm"], "DecompositionConfig"),
       pad = pad,
       output_type = output_type
     ),
-    repr_ls(x["config"], pad = pad, limit = -1L, output_type = output_type)
+    repr_ls(config, pad = pad, limit = -1L, output_type = output_type)
   )
 } # /rtemis::repr.DecompositionConfig
 
@@ -103,6 +111,42 @@ method(print, DecompositionConfig) <- function(
 }
 
 
+# %% validate_decom_features ----
+#' Validate a decomposition `features` selection
+#'
+#' Light validation performed at `setup_*` time, where the data are not yet
+#' available: confirms the selection is a character vector of unique names with at
+#' least two entries. The "columns exist and are numeric" check is deferred to
+#' [train()], which has the data.
+#'
+#' @param features Optional Character: Feature column names to decompose, or `NULL`.
+#'
+#' @return `features`, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+validate_decom_features <- function(features) {
+  if (is.null(features)) {
+    return(invisible(NULL))
+  }
+  if (!is.character(features)) {
+    cli::cli_abort(
+      "{.arg features} must be a character vector of column names or {.code NULL}."
+    )
+  }
+  if (anyDuplicated(features)) {
+    cli::cli_abort("{.arg features} must not contain duplicate names.")
+  }
+  if (length(features) < 2L) {
+    cli::cli_abort(
+      "{.arg features} must name at least 2 columns to decompose, but {length(features)} {?was/were} given."
+    )
+  }
+  invisible(features)
+} # /rtemis::validate_decom_features
+
+
 # %% PCAConfig ----
 #' @title PCAConfig
 #'
@@ -115,7 +159,7 @@ method(print, DecompositionConfig) <- function(
 PCAConfig <- new_class(
   name = "PCAConfig",
   parent = DecompositionConfig,
-  constructor = function(k, center, scale, tol) {
+  constructor = function(k, center, scale, tol, features = NULL) {
     k <- clean_posint(k)
     check_logical(center)
     check_logical(scale)
@@ -128,7 +172,8 @@ PCAConfig <- new_class(
           center = center,
           scale = scale,
           tol = tol
-        )
+        ),
+        features = features
       )
     )
   }
@@ -142,6 +187,8 @@ PCAConfig <- new_class(
 #' @param center Logical: If TRUE, center the data.
 #' @param scale Logical: If TRUE, scale the data.
 #' @param tol Numeric: Tolerance.
+#' @param features Optional Character: Names of the feature columns to decompose.
+#' `NULL` decomposes all numeric features.
 #'
 #' @return PCAConfig object.
 #'
@@ -151,12 +198,19 @@ PCAConfig <- new_class(
 #' @examples
 #' pca_config <- setup_PCA(k = 3L)
 #' pca_config
-setup_PCA <- function(k = 3L, center = TRUE, scale = TRUE, tol = NULL) {
+setup_PCA <- function(
+  k = 3L,
+  center = TRUE,
+  scale = TRUE,
+  tol = NULL,
+  features = NULL
+) {
   k <- clean_posint(k)
   check_logical(center)
   check_logical(scale)
   check_float0pos(tol)
-  PCAConfig(k, center, scale, tol)
+  validate_decom_features(features)
+  PCAConfig(k, center, scale, tol, features = features)
 } # /rtemis::setup_PCA
 
 
@@ -172,7 +226,16 @@ setup_PCA <- function(k = 3L, center = TRUE, scale = TRUE, tol = NULL) {
 ICAConfig <- new_class(
   name = "ICAConfig",
   parent = DecompositionConfig,
-  constructor = function(k, type, fun, alpha, row_norm, maxit, tol) {
+  constructor = function(
+    k,
+    type,
+    fun,
+    alpha,
+    row_norm,
+    maxit,
+    tol,
+    features = NULL
+  ) {
     new_object(
       DecompositionConfig(
         algorithm = "ICA",
@@ -184,7 +247,8 @@ ICAConfig <- new_class(
           row_norm = row_norm,
           maxit = maxit,
           tol = tol
-        )
+        ),
+        features = features
       )
     )
   }
@@ -204,6 +268,8 @@ ICAConfig <- new_class(
 #' @param row_norm Logical: If TRUE, normalize rows of `x` before ICA.
 #' @param maxit Integer: Maximum number of iterations.
 #' @param tol Numeric: Tolerance.
+#' @param features Optional Character: Names of the feature columns to decompose.
+#' `NULL` decomposes all numeric features.
 #'
 #' @return ICAConfig object.
 #'
@@ -220,7 +286,8 @@ setup_ICA <- function(
   alpha = 1.0,
   row_norm = TRUE,
   maxit = 100L,
-  tol = 1e-04
+  tol = 1e-04,
+  features = NULL
 ) {
   k <- clean_posint(k)
   type <- match.arg(type)
@@ -229,6 +296,7 @@ setup_ICA <- function(
   check_inherits(row_norm, "logical")
   maxit <- clean_posint(maxit)
   rtemis.core::check_numeric(tol)
+  validate_decom_features(features)
   ICAConfig(
     k = k,
     type = type,
@@ -236,7 +304,8 @@ setup_ICA <- function(
     alpha = alpha,
     row_norm = row_norm,
     maxit = maxit,
-    tol = tol
+    tol = tol,
+    features = features
   )
 } # /rtemis::setup_ICA
 
@@ -253,7 +322,7 @@ setup_ICA <- function(
 NMFConfig <- new_class(
   name = "NMFConfig",
   parent = DecompositionConfig,
-  constructor = function(k, method, nrun) {
+  constructor = function(k, method, nrun, features = NULL) {
     k <- clean_posint(k)
     check_inherits(method, "character")
     nrun <- clean_posint(nrun)
@@ -264,7 +333,8 @@ NMFConfig <- new_class(
           k = k,
           method = method,
           nrun = nrun
-        )
+        ),
+        features = features
       )
     )
   }
@@ -277,6 +347,8 @@ NMFConfig <- new_class(
 #' @param k Integer: Number of components.
 #' @param method Character: NMF method. See `NMF::nmf`.
 #' @param nrun Integer: Number of runs to perform.
+#' @param features Optional Character: Names of the feature columns to decompose.
+#' `NULL` decomposes all numeric features.
 #'
 #' @return NMFConfig object.
 #'
@@ -289,12 +361,14 @@ NMFConfig <- new_class(
 setup_NMF <- function(
   k = 2L,
   method = "brunet",
-  nrun = if (length(k) > 1L) 30L else 1L
+  nrun = if (length(k) > 1L) 30L else 1L,
+  features = NULL
 ) {
   k <- clean_posint(k)
   check_inherits(method, "character")
   nrun <- clean_posint(nrun)
-  NMFConfig(k, method, nrun)
+  validate_decom_features(features)
+  NMFConfig(k, method, nrun, features = features)
 } # /rtemis::setup_NMF
 
 
@@ -317,7 +391,8 @@ UMAPConfig <- new_class(
     metric,
     n_epochs,
     learning_rate,
-    scale
+    scale,
+    features = NULL
   ) {
     k <- clean_posint(k)
     n_neighbors <- clean_posint(n_neighbors)
@@ -337,7 +412,8 @@ UMAPConfig <- new_class(
           n_epochs = n_epochs,
           learning_rate = learning_rate,
           scale = scale
-        )
+        ),
+        features = features
       )
     )
   }
@@ -360,6 +436,8 @@ UMAPConfig <- new_class(
 #' @param n_epochs Integer: Number of epochs.
 #' @param learning_rate Float: Learning rate.
 #' @param scale Logical: If TRUE, scale input data before doing UMAP.
+#' @param features Optional Character: Names of the feature columns to decompose.
+#' `NULL` decomposes all numeric features.
 #'
 #' @return UMAPConfig object.
 #'
@@ -376,7 +454,8 @@ setup_UMAP <- function(
   metric = c("euclidean", "cosine", "manhattan", "hamming", "categorical"),
   n_epochs = NULL,
   learning_rate = 1.0,
-  scale = TRUE
+  scale = TRUE,
+  features = NULL
 ) {
   k <- clean_posint(k)
   n_neighbors <- clean_posint(n_neighbors)
@@ -385,6 +464,7 @@ setup_UMAP <- function(
   check_inherits(n_epochs, "integer")
   check_float0pos(learning_rate)
   check_inherits(scale, "logical")
+  validate_decom_features(features)
   UMAPConfig(
     k = k,
     n_neighbors = n_neighbors,
@@ -392,7 +472,8 @@ setup_UMAP <- function(
     metric = metric,
     n_epochs = n_epochs,
     learning_rate = learning_rate,
-    scale = scale
+    scale = scale,
+    features = features
   )
 } # /rtemis::setup_UMAP
 
