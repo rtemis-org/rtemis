@@ -192,5 +192,13 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
   } else {
     x[setdiff(names(x), "algorithm")]
   }
+  # `features` may arrive from the wire as a list of scalars (a JSON array parsed
+  # without vector simplification); flatten it to a character vector so the
+  # strict `setup_*` check accepts it.
+  if (!is.null(params[["features"]])) {
+    params[["features"]] <- as.character(
+      unlist(params[["features"]], use.names = FALSE)
+    )
+  }
   do.call(get_decom_setup_fn(algorithm), params)
 } # /rtemis::.list_to_DecompositionConfig
