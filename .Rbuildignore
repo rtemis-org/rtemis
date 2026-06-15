@@ -18,6 +18,7 @@
 ^docs$
 ^specs$
 ^AGENTS\.md$
+^CLAUDE\.md$
 ^NEWS\.md$
 ^pkgdown$
 ^Makefile$
