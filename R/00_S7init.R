@@ -831,6 +831,42 @@ method(features, class_data.table) <- function(x) {
 } # /rtemis::features.class_data.table
 
 
+# %% numeric_features ----
+#' Get numeric features from tabular data
+#'
+#' Returns the numeric columns among the features (all columns except the last).
+#'
+#' @details
+#' Mirrors [features()]: by \pkg{rtemis} convention the last column is the outcome
+#' variable and all other columns are features. This drops the outcome, then keeps
+#' the numeric features (both double and integer). Useful, for example, to feed only
+#' the continuous features to a decomposition: `decomp(numeric_features(iris), ...)`.
+#'
+#' @param x tabular data: Input data to get numeric features from.
+#'
+#' @return Object of the same class as the input, containing only the numeric
+#' feature columns.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' numeric_features(iris) |> head()
+numeric_features <- new_generic("numeric_features", "x", function(x) {
+  S7_dispatch()
+}) # /rtemis::numeric_features
+
+method(numeric_features, class_data.frame) <- function(x) {
+  feat <- features(x)
+  feat[, vapply(feat, is.numeric, logical(1L)), drop = FALSE]
+}
+
+method(numeric_features, class_data.table) <- function(x) {
+  feat <- features(x)
+  feat[, vapply(feat, is.numeric, logical(1L)), with = FALSE]
+} # /rtemis::numeric_features.class_data.table
+
+
 # %% feature_names ----
 #' Get feature names
 #'
