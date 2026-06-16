@@ -54,7 +54,11 @@ get_alg_name <- function(algorithm) {
     tolower(algorithm) == tolower(supervised_algorithms[, 1])
   ]
   if (length(algname) == 0) {
-    cli::cli_abort(algorithm, "Incorrect algorithm specified")
+    rtemis.core::abort(
+      "Incorrect algorithm specified: ",
+      algorithm,
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   algname
 }
@@ -78,7 +82,11 @@ desc_alg <- function(algorithm) {
     tolower(algorithm) == tolower(supervised_algorithms[, 1])
   ]
   if (length(algdesc) == 0) {
-    cli::cli_abort(algorithm, "Incorrect algorithm specified")
+    rtemis.core::abort(
+      "Incorrect algorithm specified: ",
+      algorithm,
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   algdesc
 } # /rtemis::desc_alg
@@ -150,7 +158,11 @@ get_clust_name <- function(algorithm) {
     tolower(algorithm) == tolower(clust_algorithms[, 1])
   ]
   if (length(clustname) == 0) {
-    cli::cli_abort(algorithm, "Incorrect clustering algorithm specified")
+    rtemis.core::abort(
+      "Incorrect clustering algorithm specified: ",
+      algorithm,
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   clustname
 } # /rtemis::get_clust_name
@@ -160,7 +172,11 @@ get_clust_desc <- function(algorithm) {
     tolower(algorithm) == tolower(clust_algorithms[, 1])
   ]
   if (length(clustdesc) == 0) {
-    cli::cli_abort(algorithm, "Incorrect clustering algorithm specified")
+    rtemis.core::abort(
+      "Incorrect clustering algorithm specified: ",
+      algorithm,
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   clustdesc
 } # /rtemis::get_clust_desc
@@ -204,7 +220,11 @@ get_decom_name <- function(algorithm) {
     tolower(algorithm) == tolower(decom_algorithms[, 1])
   ]
   if (length(decomname) == 0) {
-    cli::cli_abort(algorithm, "Incorrect decomposition algorithm specified")
+    rtemis.core::abort(
+      "Incorrect decomposition algorithm specified: ",
+      algorithm,
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   decomname
 } # /rtemis::get_decom_name
@@ -214,7 +234,11 @@ get_decom_desc <- function(algorithm) {
     tolower(algorithm) == tolower(decom_algorithms[, 1])
   ]
   if (length(decomdesc) == 0) {
-    cli::cli_abort(algorithm, "Incorrect decomposition algorithm specified")
+    rtemis.core::abort(
+      "Incorrect decomposition algorithm specified: ",
+      algorithm,
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   decomdesc
 } # /rtemis::get_decom_desc

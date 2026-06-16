@@ -94,7 +94,10 @@ logloss <- function(true_int, predicted_prob, eps = 1e-16) {
 #' @noRd
 factor_harmonize <- function(reference, x, verbosity = 1L) {
   if (!is.factor(x) || !is.factor(reference)) {
-    cli::cli_abort("Inputs must be factors")
+    rtemis.core::abort(
+      "Inputs must be factors.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
   }
   if (!all(levels(x) == levels(reference))) {
     if (!all(levels(x) %in% levels(reference))) {
@@ -106,7 +109,10 @@ factor_harmonize <- function(reference, x, verbosity = 1L) {
         msg("levels of reference:")
       }
       levels(reference)
-      cli::cli_abort("Levels of two inputs do not match")
+      rtemis.core::abort(
+        "Levels of two inputs do not match.",
+        class = c("rtemis_level_mismatch", "rtemis_data_error")
+      )
     }
     if (verbosity > 0L) {
       msg("Input factor levels are not in the same order, correcting")
@@ -228,8 +234,9 @@ auc_pairs <- function(estimated.score, true.labels, verbosity = 1L) {
     )
     .auc <- mean((outer.diff > 0) + .5 * (outer.diff == 0))
   } else {
-    cli::cli_abort(
-      "Multiclass AUC does not have a unique definition and is not yet implemented"
+    rtemis.core::abort(
+      "Multiclass AUC does not have a unique definition and is not yet implemented.",
+      class = "rtemis_unsupported_error"
     )
   }
   if (verbosity > 0L) {
@@ -331,12 +338,13 @@ classification_metrics <- function(
 
   # Check same levels in
   if (!all(levels(true_labels) == levels(predicted_labels))) {
-    cli::cli_abort(
+    rtemis.core::abort(
       "True and predicted labels must have the same levels, in the same order.",
       "\n     levels(true_labels): ",
       paste(levels(true_labels), collapse = ", "),
       "\nlevels(predicted_labels): ",
-      paste(levels(predicted_labels), collapse = ", ")
+      paste(levels(predicted_labels), collapse = ", "),
+      class = c("rtemis_level_mismatch", "rtemis_data_error")
     )
   }
 

@@ -934,7 +934,10 @@ one_hot2factor <- function(x, labels = colnames(x)) {
     return(factor(x))
   }
   if (any(na.exclude(rowSums(x)) > 1)) {
-    cli::cli_abort("Input must be one-hot encoded.")
+    rtemis.core::abort(
+      "Input must be one-hot encoded.",
+      class = "rtemis_data_error"
+    )
   }
   out <- factor(rep(NA, NROW(x)), levels = labels)
   for (i in seq_along(labels)) {

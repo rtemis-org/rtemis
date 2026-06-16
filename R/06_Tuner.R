@@ -182,7 +182,10 @@ setup_GridSearch <- function(
   check_inherits(search_type, "character")
   check_float01exc(randomize_p)
   if (search_type == "exhaustive" && !is.null(randomize_p)) {
-    cli::cli_abort("search_type is 'exhaustive': do not set randomize_p.")
+    rtemis.core::abort(
+      "search_type is 'exhaustive': do not set randomize_p.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   # check_inherits(metrics_aggregate_fn, "function")
   check_character(metrics_aggregate_fn)
@@ -390,6 +393,10 @@ method(repr, GridSearch) <- function(
       maximize = x[["config"]][["maximize"]]
     )
   } else {
-    cli::cli_abort("Unsupported tuner type: {x[['type']]}")
+    rtemis.core::abort(
+      "Unsupported tuner type: ",
+      x[["type"]],
+      class = "rtemis_unsupported_error"
+    )
   }
 } # /rtemis::.list_to_TunerConfig

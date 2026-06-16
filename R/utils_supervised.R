@@ -60,7 +60,10 @@ prob2categorical <- function(x, levels, binclasspos = 2L) {
 #' @noRd
 check_supervised_inputs <- function(x, y = NULL) {
   if (is.null(y) && NCOL(x) < 2) {
-    cli::cli_abort("y is missing")
+    rtemis.core::abort(
+      "y is missing.",
+      class = c("rtemis_null_input", "rtemis_input_error")
+    )
   }
 }
 
@@ -82,7 +85,12 @@ set_outcome <- function(dat, outcome_column) {
   id <- grep(outcome_column, names(dat))
   # Check
   if (length(id) == 0) {
-    cli::cli_abort('Column "{outcome_column}" not found in data.')
+    rtemis.core::abort(
+      'Column "',
+      outcome_column,
+      '" not found in data.',
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   # Reorder columns
   # => Make S7 generic
@@ -107,18 +115,25 @@ set_outcome <- function(dat, outcome_column) {
 set_positive_class <- function(x, positive_class) {
   # Check outcome is factor with 2 levels and positive_class is one of them
   if (!is.factor(outcome(x))) {
-    cli::cli_abort(
-      "You defined {.arg positive_class}, but the outcome is not a factor."
+    rtemis.core::abort(
+      "You defined `positive_class`, but the outcome is not a factor.",
+      class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
   if (nlevels(outcome(x)) != 2L) {
-    cli::cli_abort(
-      "You defined {.arg positive_class}, but the outcome does not have 2 levels."
+    rtemis.core::abort(
+      "You defined `positive_class`, but the outcome does not have 2 levels.",
+      class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
   if (!positive_class %in% levels(outcome(x))) {
-    cli::cli_abort(
-      "You defined {.arg positive_class} as '{positive_class}', but the outcome levels are: {.val {levels(outcome(x))}}."
+    rtemis.core::abort(
+      "You defined `positive_class` as '",
+      positive_class,
+      "', but the outcome levels are: ",
+      paste(levels(outcome(x)), collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
   if (positive_class == levels(outcome(x))[2L]) {
@@ -353,7 +368,10 @@ get_gam_pvals <- function(m, warn = TRUE) {
 #' class_imbalance(x)
 class_imbalance <- function(x) {
   if (!is.factor(x)) {
-    cli::cli_abort("Input must be a factor")
+    rtemis.core::abort(
+      "Input must be a factor.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
   }
   K <- nlevels(x)
   N <- length(x)

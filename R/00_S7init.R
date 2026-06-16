@@ -818,14 +818,20 @@ features <- new_generic("features", "x", function(x) {
 
 method(features, class_data.frame) <- function(x) {
   if (NCOL(x) < 2) {
-    cli::cli_abort("Input must have at least 2 columns.")
+    rtemis.core::abort(
+      "Input must have at least 2 columns.",
+      class = c("rtemis_dim_error", "rtemis_data_error")
+    )
   }
   x[, -NCOL(x), drop = FALSE]
 }
 
 method(features, class_data.table) <- function(x) {
   if (NCOL(x) < 2) {
-    cli::cli_abort("Input must have at least 2 columns.")
+    rtemis.core::abort(
+      "Input must have at least 2 columns.",
+      class = c("rtemis_dim_error", "rtemis_data_error")
+    )
   }
   x[, -NCOL(x), with = FALSE]
 } # /rtemis::features.class_data.table
@@ -892,7 +898,10 @@ feature_names <- new_generic("feature_names", "x", function(x) {
 
 method(feature_names, class_data.frame) <- function(x) {
   if (NCOL(x) < 2) {
-    cli::cli_abort("Input must have at least 2 columns.")
+    rtemis.core::abort(
+      "Input must have at least 2 columns.",
+      class = c("rtemis_dim_error", "rtemis_data_error")
+    )
   }
   names(x)[-NCOL(x)]
 } # /rtemis::feature_names.class_data.frame
@@ -1276,8 +1285,11 @@ write_lines <- function(x, file, overwrite = FALSE, verbosity = 1L) {
         ))
       }
     } else {
-      cli::cli_abort(
-        "File already exists: {file}. Set `overwrite = TRUE` to overwrite."
+      rtemis.core::abort(
+        "File already exists: ",
+        file,
+        ". Set `overwrite = TRUE` to overwrite.",
+        class = c("rtemis_file_exists", "rtemis_io_error")
       )
     }
   }
@@ -1287,7 +1299,11 @@ write_lines <- function(x, file, overwrite = FALSE, verbosity = 1L) {
   if (!dir.exists(dir)) {
     dir.create(dir, recursive = TRUE)
     if (!dir.exists(dir)) {
-      cli::cli_abort("Failed to create directory: {dir}")
+      rtemis.core::abort(
+        "Failed to create directory: ",
+        dir,
+        class = "rtemis_io_error"
+      )
     } else {
       if (verbosity >= 1L) {
         msg(checkmark(), "Created directory:", dir)
@@ -1298,7 +1314,11 @@ write_lines <- function(x, file, overwrite = FALSE, verbosity = 1L) {
   writeLines(x, con = file)
   # Check if file was created successfully
   if (!file.exists(file)) {
-    cli::cli_abort("Failed to create file: {file}")
+    rtemis.core::abort(
+      "Failed to create file: ",
+      file,
+      class = "rtemis_io_error"
+    )
   } else {
     if (verbosity >= 1L) {
       msg(checkmark(), "Created file:", file)

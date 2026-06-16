@@ -45,7 +45,10 @@ method(train_, GLMHyperparameters) <- function(
   if (type == "Classification") {
     n_classes <- nlevels(outcome(x))
     if (n_classes > 2L) {
-      cli::cli_abort("GLM does not support multiclass classification")
+      rtemis.core::abort(
+        "GLM does not support multiclass classification.",
+        class = "rtemis_unsupported_error"
+      )
     }
   } else {
     n_classes <- NA_integer_

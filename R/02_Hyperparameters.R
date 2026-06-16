@@ -1408,10 +1408,16 @@ setup_LightRuleFit <- function(
   # If ifw, cannot have ifw_lightgbm or ifw_glmnet
   if (ifw) {
     if (ifw_lightgbm) {
-      cli::cli_abort("Cannot set ifw and ifw_lightgbm at the same time.")
+      rtemis.core::abort(
+        "Cannot set ifw and ifw_lightgbm at the same time.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
     }
     if (ifw_glmnet) {
-      cli::cli_abort("Cannot set ifw and ifw_glmnet at the same time.")
+      rtemis.core::abort(
+        "Cannot set ifw and ifw_glmnet at the same time.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
     }
   }
   LightRuleFitHyperparameters(
@@ -2266,7 +2272,12 @@ stopifnot(all(
 .list_to_Hyperparameters <- function(x) {
   fn <- paste0("setup_", x[["algorithm"]])
   if (!exists(fn, mode = "function")) {
-    cli::cli_abort(".val Invalid algorithm: {x[['algorithm']]}.")
+    rtemis.core::abort(
+      "Invalid algorithm: ",
+      x[["algorithm"]],
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   args <- x[["hyperparameters"]]
   # Keep only arguments that are in the setup function

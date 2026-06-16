@@ -62,8 +62,11 @@ tune_GridSearch <- function(
     check_dependencies("futurize", "future.apply")
     if (!is.null(future_plan) && future_plan == "sequential") {
       if (n_workers > 1L) {
-        cli::cli_abort(
-          "Requested 'sequential' future plan, which supports {.val 1L} worker, but {.val {n_workers}} workers were requested."
+        rtemis.core::abort(
+          "Requested 'sequential' future plan, which supports 1 worker, but ",
+          n_workers,
+          " workers were requested.",
+          class = c("rtemis_value_error", "rtemis_input_error")
         )
       }
     }

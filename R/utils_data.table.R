@@ -587,7 +587,10 @@ dt_names_by_attr <- function(x, attribute, exact = TRUE, sorted = TRUE) {
 #' levels(x[["Species"]])
 dt_set_clean_all <- function(x, prefix_digits = NA) {
   if (!is.data.table(x)) {
-    cli::cli_abort("{.arg x} must be a data.table")
+    rtemis.core::abort(
+      "`x` must be a data.table.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
   }
   data.table::setnames(x, names(x), clean_colnames(x))
   idi <- names(x)[sapply(x, is.factor)]
@@ -638,7 +641,10 @@ dt_set_clean_all <- function(x, prefix_digits = NA) {
 #' )
 dt_describe <- function(x, verbosity = 1L) {
   if (!is.data.table(x)) {
-    cli::cli_abort("{.arg x} must be a data.table")
+    rtemis.core::abort(
+      "`x` must be a data.table.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
   }
   nrows <- NROW(x)
 

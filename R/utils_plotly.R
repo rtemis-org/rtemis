@@ -175,8 +175,11 @@ export_plotly <- function(
   if (!dir.exists(parent_dir)) {
     dir.create(parent_dir, recursive = TRUE)
     if (!dir.exists(parent_dir)) {
-      cli::cli_abort(
-        "Failed to create directory {.file {parent_dir}}. Check path & permissions."
+      rtemis.core::abort(
+        "Failed to create directory `",
+        parent_dir,
+        "`. Check path & permissions.",
+        class = "rtemis_io_error"
       )
     }
   }
@@ -190,8 +193,11 @@ export_plotly <- function(
 
   # Check if the file was created
   if (!file.exists(filename)) {
-    cli::cli_abort(
-      "Failed to save plotly plot to {.file {filename}}. Check if the file path is correct and writable."
+    rtemis.core::abort(
+      "Failed to save plotly plot to `",
+      filename,
+      "`. Check if the file path is correct and writable.",
+      class = "rtemis_io_error"
     )
   } else {
     if (verbosity > 0L) {

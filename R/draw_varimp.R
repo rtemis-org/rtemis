@@ -101,7 +101,10 @@ draw_varimp <- function(
 
   # Data ----
   if (NCOL(x) > 1 && NROW(x) > 1) {
-    cli::cli_abort("x must be a vector or single row or column")
+    rtemis.core::abort(
+      "x must be a vector or single row or column.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
   }
 
   ## Names ----

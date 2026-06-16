@@ -126,10 +126,14 @@ plot.MassGLM <- method(plot, MassGLM) <- function(
     coefname <- x@coefnames[1]
   }
   if (!coefname %in% x@coefnames) {
-    cli::cli_abort(c(
-      "i" = "{.var coefname} must be one of available coefnames: {.strong {x@coefnames}}",
-      "x" = "You asked for: {.strong {coefname}}"
-    ))
+    rtemis.core::abort(
+      "`coefname` must be one of available coefnames: ",
+      paste(x@coefnames, collapse = ", "),
+      ". You asked for: ",
+      coefname,
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   if (verbosity > 0L) {
     msg(

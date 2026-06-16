@@ -60,15 +60,19 @@ method(present, class_list) <- function(
   }))
 
   if (!(all_supervised || all_supervisedres)) {
-    cli::cli_abort(
-      "Input must be a list of Supervised or SupervisedRes objects."
+    rtemis.core::abort(
+      "Input must be a list of Supervised or SupervisedRes objects.",
+      class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
 
   # Check all models are of the same type
   type <- unique(sapply(x, function(m) m@type))
   if (length(type) > 1) {
-    cli::cli_abort("All models must be of the same type")
+    rtemis.core::abort(
+      "All models must be of the same type.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
 
   # Describe

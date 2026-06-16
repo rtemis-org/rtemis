@@ -116,8 +116,13 @@ setup_ExecutionConfig <- function(
       future_plan <- getOption("future.plan", "mirai_multisession")
     }
     if (!future_plan %in% ALLOWED_PLANS) {
-      cli::cli_abort(
-        "{.val {future_plan}} is not an allowed future plan. Allowed plans: {.val {ALLOWED_PLANS}}."
+      rtemis.core::abort(
+        "'",
+        future_plan,
+        "' is not an allowed future plan. Allowed plans: ",
+        paste(ALLOWED_PLANS, collapse = ", "),
+        ".",
+        class = c("rtemis_value_error", "rtemis_input_error")
       )
     }
     if (is.null(n_workers)) {
@@ -132,12 +137,18 @@ setup_ExecutionConfig <- function(
     if (is.null(n_workers)) {
       n_workers <- 1L
     } else if (n_workers != 1L) {
-      cli::cli_abort("n_workers must be 1 when backend is 'none'.")
+      rtemis.core::abort(
+        "n_workers must be 1 when backend is 'none'.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
     }
   }
   n_workers <- clean_int(n_workers)
   if (n_workers < 1L) {
-    cli::cli_abort("n_workers must be at least 1.")
+    rtemis.core::abort(
+      "n_workers must be at least 1.",
+      class = c("rtemis_range_error", "rtemis_input_error")
+    )
   }
   ExecutionConfig(
     backend = backend,

@@ -247,7 +247,10 @@ draw_box <- function(
   }
   nvars <- length(x)
   if (nvars > 1 && !is.null(group) && !is.null(time)) {
-    cli::cli_abort("Better use subplot for each variable")
+    rtemis.core::abort(
+      "Better use subplot for each variable.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   horizontal <- orientation == "h"
 
@@ -257,7 +260,10 @@ draw_box <- function(
     } else if (x_transform == "minmax") {
       x <- lapply(x, drange)
     } else {
-      cli::cli_abort("Unsupported x_transform specified")
+      rtemis.core::abort(
+        "Unsupported x_transform specified.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
     }
   }
 
@@ -276,7 +282,10 @@ draw_box <- function(
         xnames <- xnames[.order]
       }
     } else {
-      cli::cli_abort("Cannot use `order_by_fn` with `time`")
+      rtemis.core::abort(
+        "Cannot use `order_by_fn` with `time`.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
     }
   }
 

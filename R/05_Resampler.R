@@ -347,8 +347,9 @@ setup_Resampler <- function(
     c("KFold", "StratSub", "StratBoot", "Bootstrap", "LOOCV")
   )
   if (length(type) == 0) {
-    cli::cli_abort(
-      "Invalid resampler type. Must be one of: 'StratSub', 'StratBoot', 'KFold', 'Bootstrap', 'LOOCV'"
+    rtemis.core::abort(
+      "Invalid resampler type. Must be one of: 'StratSub', 'StratBoot', 'KFold', 'Bootstrap', 'LOOCV'.",
+      class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
   seed <- clean_int(seed)
@@ -391,12 +392,13 @@ setup_Resampler <- function(
       n = NA_integer_
     )
   } else {
-    cli::cli_abort(paste(
-      "Resampler'",
+    rtemis.core::abort(
+      "Resampler '",
       type,
-      "'is not supported.",
-      "Supported types are: 'KFold', 'StratSub', 'StratBoot', 'Bootstrap', 'LOOCV'."
-    ))
+      "' is not supported. ",
+      "Supported types are: 'KFold', 'StratSub', 'StratBoot', 'Bootstrap', 'LOOCV'.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
 } # /rtemis::setup_Resampler
 
