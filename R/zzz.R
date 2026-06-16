@@ -16,12 +16,6 @@ live[["parallelized_learners"]] <- c(
   "LightRuleFit",
   "Ranger"
 )
-# msg() sink. NULL = console output (default).
-# When set to a function, msg()/msg0()/msgstart()/msgdone() route their
-# structured output through it instead of writing to the console.
-# Used by rtemislive to forward training messages over a WebSocket.
-# See `set_msg_sink()`.
-live[["msg_sink"]] <- NULL
 
 # vars
 rtemis_version <- packageVersion("rtemis")
@@ -80,7 +74,11 @@ setup_progress <- function() {
       vline,
       fmt_gradient(
         paste0(rep("\u2500", nchar(vline) - 13L), collapse = ""),
-        colors = c(rt_red, rt_orange, rt_red)
+        colors = c(
+          rtemis_colors[["red"]],
+          rtemis_colors[["orange"]],
+          rtemis_colors[["red"]]
+        )
       ),
       bold("\n  Defaults"),
       "\n  \u2502   ",
@@ -103,7 +101,7 @@ setup_progress <- function() {
       gray("Cite: "),
       rtcitation,
       "\n\n  ",
-      fmt("PSA:", col = rt_red, bold = TRUE),
+      fmt("PSA:", col = rtemis_colors[["red"]], bold = TRUE),
       " Do not throw data at algorithms. Compute responsibly!"
     ))
   } else {

@@ -1207,7 +1207,7 @@ method(plot_roc, Classification) <- function(
   ...
 ) {
   if (is.null(x@predicted_prob_training)) {
-    msg(highlight2("No predicted probabilities available."))
+    msg("No predicted probabilities available.")
     return(invisible())
   }
   if (is.null(what)) {
@@ -2397,7 +2397,7 @@ method(plot_varimp, Supervised) <- function(
   ...
 ) {
   if (is.null(x@varimp)) {
-    msg(highlight2("No variable importance available."))
+    msg("No variable importance available.")
     return(invisible())
   }
   if (is.null(measure)) {
@@ -2422,7 +2422,7 @@ method(plot_varimp, SupervisedRes) <- function(
   ...
 ) {
   if (is.null(x@varimp)) {
-    msg(highlight2("No variable importance available."))
+    msg("No variable importance available.")
     return(invisible())
   }
   check_inherits(summarize_fn, "character")

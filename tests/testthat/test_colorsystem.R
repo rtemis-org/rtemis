@@ -19,7 +19,7 @@ test_that("show_col() works", {
 # fmt_gradient ----
 out <- fmt_gradient(
   "Supervised",
-  colors = c(rtemis_teal, rtemis_light_teal),
+  colors = c(rtemis_colors[["orange"]], rtemis_colors[["red"]]),
   bold = TRUE
 )
 test_that("fmt_gradient() works", {

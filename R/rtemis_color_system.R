@@ -30,59 +30,26 @@ rt_teal <- rtemis_teal
 rt_purple <- rtemis_purple
 rt_magenta <- rtemis_magenta_light
 
+# rtemis_colors <- list(
+#   red = rt_red,
+#   blue = rt_blue,
+#   green = rt_green,
+#   orange = rt_orange,
+#   teal = rt_teal,
+#   purple = rt_purple,
+#   magenta = rt_magenta,
+#   highlight_col = highlight_col,
+#   object = col_object,
+#   info = col_info,
+#   outer = col_outer,
+#   tuner = col_tuner
+# ) # /rtemis.utils::rtemis_colors
+
 # %% rtemis colors ----
-highlight_col <- rt_orange
-col_object <- rt_gray # object name in repr_S7name
-col_info <- highlight2_col <- lmd_burgundy
-col_outer <- rt_green
-col_tuner <- rt_blue
-col_calibrator <- rt_magenta
-col_decom <- rt_purple
-
-
-#' rtemis Color System
-#'
-#' A named list of colors used consistently across all packages
-#' in the rtemis ecosystem.
-#'
-#' Colors are provided as hex strings.
-#'
-#' @format A named list with the following elements:
-#' \describe{
-#'   \item{red}{"kaimana red"}
-#'   \item{blue}{"kaimana light blue"}
-#'   \item{green}{"kaimana medium green"}
-#'   \item{orange}{"coastside orange"}
-#'   \item{teal}{"rtemis teal"}
-#'   \item{purple}{"rtemis purple"}
-#'   \item{magenta}{"rtemis magenta"}
-#'   \item{highlight_col}{"highlight color"}
-#'   \item{object}{"rtemis teal"}
-#'   \item{info}{"lmd burgundy"}
-#'   \item{outer}{"kaimana red"}
-#'   \item{tuner}{"coastside orange"}
-#' }
-#'
-#' @examples
-#' rtemis_colors[["orange"]]
-#'
-#' @author EDG
-#'
-#' @export
-#'
-#' @examples
-#' rtemis_colors[["teal"]]
-rtemis_colors <- list(
-  red = rt_red,
-  blue = rt_blue,
-  green = rt_green,
-  orange = rt_orange,
-  teal = rt_teal,
-  purple = rt_purple,
-  magenta = rt_magenta,
-  highlight_col = highlight_col,
-  object = col_object,
-  info = col_info,
-  outer = col_outer,
-  tuner = col_tuner
-) # /rtemis.utils::rtemis_colors
+highlight_col <- rtemis_colors[["orange"]]
+col_object <- "#808080" # object name in repr_S7name
+col_info <- rtemis_colors[["dark_magenta"]]
+col_outer <- rtemis_colors[["green"]]
+col_tuner <- rtemis_colors[["blue"]]
+col_calibrator <- rtemis_colors[["magenta"]]
+col_decom <- rtemis_colors[["purple"]]

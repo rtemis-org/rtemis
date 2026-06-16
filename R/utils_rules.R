@@ -245,7 +245,7 @@ rules2medmod <- function(rules, x, .ddSci = TRUE, verbosity = 1L) {
   }
   for (i in seq(rules)) {
     if (verbosity > 1L) {
-      msg_info("#", i, "/", nrules, "...")
+      info("#", i, "/", nrules, "...")
     }
     dat <- x[cxr[, i] == 1, ]
     sub <- strsplit(rules[i], "&")[[1]]

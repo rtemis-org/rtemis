@@ -10,7 +10,7 @@ draw_pvals(
   yname = NULL,
   p_adjust_method = "none",
   pval_hline = 0.05,
-  hline_col = rt_red,
+  hline_col = rtemis_colors[["red"]],
   hline_dash = "dash",
   ...
 )
