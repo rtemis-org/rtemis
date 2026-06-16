@@ -16,7 +16,7 @@
 # Note: `id_strat` is used by `resample()`, not individual resamplers
 
 # %% ResamplerConfig ----
-#' @title ResamplerConfig
+#' ResamplerConfig
 #'
 #' @description
 #' Superclass for resampler configuration.
@@ -28,6 +28,7 @@
 #' @noRd
 ResamplerConfig <- new_class(
   name = "ResamplerConfig",
+  package = "rtemis",
   properties = list(
     type = class_character,
     n = class_integer # scalar_int_pos
@@ -401,7 +402,7 @@ setup_Resampler <- function(
 
 
 # %% Resampler ----
-#' @title Resampler
+#' Resampler
 #'
 #' @description
 #' Class for resampling objects.
@@ -410,6 +411,7 @@ setup_Resampler <- function(
 #' @noRd
 Resampler <- new_class(
   name = "Resampler",
+  package = "rtemis",
   properties = list(
     type = class_character,
     resamples = class_list,

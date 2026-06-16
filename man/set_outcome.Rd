@@ -7,7 +7,7 @@
 set_outcome(dat, outcome_column)
 }
 \arguments{
-\item{dat}{data.frame or similar.}
+\item{dat}{tabular dataset.}
 
 \item{outcome_column}{Character: Name of outcome column.}
 }

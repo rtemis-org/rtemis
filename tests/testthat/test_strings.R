@@ -1,6 +1,6 @@
 # test_strings.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # repr_ls ----
 x <- list(

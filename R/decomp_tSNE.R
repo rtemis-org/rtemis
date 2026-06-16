@@ -1,6 +1,6 @@
 # decom_tSNE.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% decomp_.tSNEConfig ----
 #' tSNE Decomposition

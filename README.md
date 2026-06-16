@@ -41,7 +41,7 @@ pak::pak("rtemis-org/rtemis")
 ### Latest version from `r-universe`
 
 ```r
-pak::repo_add(myuniverse = "https://rtemis-org.r-universe.dev")
+pak::repo_add(rtemis_universe = "https://rtemis-org.r-universe.dev")
 pak::pak("rtemis")
 ```
 

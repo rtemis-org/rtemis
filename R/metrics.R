@@ -80,106 +80,6 @@ logloss <- function(true_int, predicted_prob, eps = 1e-16) {
   )
 } # /rtemis::logloss
 
-
-#' Sensitivity
-#'
-#' The first factor level is considered the positive case.
-#'
-#' @param true Factor: True labels.
-#' @param predicted Factor: Predicted labels.
-#' @param harmonize Logical: If TRUE, run `factor_harmonize` first.
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-sensitivity <- function(true, predicted, harmonize = FALSE, verbosity = 1L) {
-  if (harmonize) {
-    predicted <- factor_harmonize(true, predicted, verbosity = verbosity)
-  }
-  pos_index <- true == levels(true)[1]
-  condition_pos <- sum(pos_index)
-  true_pos <- sum(true[pos_index] == predicted[pos_index])
-  true_pos / condition_pos
-}
-
-
-#' Specificity
-#'
-#' The first factor level is considered the positive case.
-#'
-#' @param true True labels
-#' @param predicted predicted labels
-#' @param harmonize Logical: If TRUE, run `factor_harmonize` first
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @keywords internal
-#' @noRd
-specificity <- function(true, predicted, harmonize = FALSE, verbosity = 1L) {
-  if (harmonize) {
-    predicted <- factor_harmonize(true, predicted, verbosity = verbosity)
-  }
-  neg_index <- true == levels(true)[2]
-  condition_neg <- sum(neg_index)
-  true_neg <- sum(true[neg_index] == predicted[neg_index])
-  true_neg / condition_neg
-}
-
-#' Balanced Accuracy
-#'
-#' Balanced Accuracy of a binary classifier
-#'
-#' BAcc = .5 * (Sensitivity + Specificity)
-#'
-#' @param true Factor: True labels.
-#' @param predicted Factor: Predicted labels.
-#' @param harmonize Logical: passed to `sensitivity()` and `specificity`, which use `factor_harmonize`.
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @keywords internal
-#' @noRd
-bacc <- function(true, predicted, harmonize = FALSE, verbosity = 1L) {
-  0.5 *
-    (sensitivity(
-      true,
-      predicted,
-      harmonize = harmonize,
-      verbosity = verbosity
-    ) +
-      specificity(
-        true,
-        predicted,
-        harmonize = harmonize,
-        verbosity = verbosity
-      ))
-} # /rtemis::bacc
-
-#' Precision (aka PPV)
-#'
-#' The first factor level is considered the positive case.
-#'
-#' @param true Factor: True labels
-#' @param predicted Factor: predicted labels
-#' @param harmonize Logical: If TRUE, run `factor_harmonize` first
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @keywords internal
-#' @noRd
-precision <- function(true, predicted, harmonize = FALSE, verbosity = 1L) {
-  if (harmonize) {
-    predicted <- factor_harmonize(true, predicted, verbosity = verbosity)
-  }
-  tbl <- table(predicted, true)
-  predicted_totals <- rowSums(tbl)[1]
-  hits <- diag(tbl)[1]
-
-  if (hits == 0 && predicted_totals == 0) {
-    1
-  } else {
-    hits / predicted_totals
-  }
-} # /rtemis::precision
-
 #' Factor harmonize
 #'
 #' @param reference Reference factor.
@@ -393,7 +293,7 @@ labels2int <- function(x, binclasspos = 2L) {
 #' @param predicted_prob Numeric vector: predicted probabilities.
 #' @param binclasspos Integer: Factor level position of the positive class in binary classification.
 #' @param calc_auc Logical: If TRUE, calculate AUC. May be slow in very large datasets.
-#' @param calc_brier Logical: If TRUE, calculate Brier_Score.
+#' @param calc_brier Logical: If TRUE, calculate Brier score.
 #' @param auc_method Character: "lightAUC", "pROC", "ROCR".
 #' @param sample Character: Sample name.
 #' @param verbosity Integer: Verbosity level.
@@ -452,14 +352,14 @@ classification_metrics <- function(
   true_levels <- levels(true_labels)
 
   # Levels already set so that the first level is the positive class
-  Positive_Class <- if (n_classes == 2) true_levels[1] else NA
+  positive_class <- if (n_classes == 2) true_levels[1] else NA
   if (verbosity > 0L) {
     if (n_classes == 2) {
       msg(
         "There are two outcome classes:",
         highlight(paste(rev(true_levels), collapse = ", "))
       )
-      msg("        The positive class is:", highlight(Positive_Class))
+      msg("        The positive class is:", highlight(positive_class))
     } else {
       msg(
         "There are",
@@ -473,80 +373,80 @@ classification_metrics <- function(
   # attr(tbl, "dimnames") <- list(Reference = true_levels, Predicted = true_levels)
   names(attributes(tbl)[["dimnames"]]) <- c("Reference", "Predicted")
 
-  Class <- list()
-  Overall <- list()
-  Class[["Totals"]] <- rowSums(tbl)
-  Class[["Predicted_totals"]] <- colSums(tbl)
+  class <- list()
+  overall <- list()
+  class[["Totals"]] <- rowSums(tbl)
+  class[["Predicted_totals"]] <- colSums(tbl)
   Total <- sum(tbl)
-  Class[["Hits"]] <- diag(tbl)
-  # Class[["Misses"]] <- Class[["Totals"]] - Class[["Hits"]]
-  Class[["Sensitivity"]] <- Class[["Hits"]] / Class[["Totals"]]
-  Class[["Condition_negative"]] <- Total - Class[["Totals"]]
-  Class[["True_negative"]] <- Total -
-    Class[["Predicted_totals"]] -
-    (Class[["Totals"]] - Class[["Hits"]])
-  Class[["Specificity"]] <- Class[["True_negative"]] /
-    Class[["Condition_negative"]]
-  Class[["Balanced_Accuracy"]] <- .5 *
-    (Class[["Sensitivity"]] + Class[["Specificity"]])
+  class[["Hits"]] <- diag(tbl)
+  # class[["Misses"]] <- class[["Totals"]] - class[["Hits"]]
+  class[["sensitivity"]] <- class[["Hits"]] / class[["Totals"]]
+  class[["Condition_negative"]] <- Total - class[["Totals"]]
+  class[["True_negative"]] <- Total -
+    class[["Predicted_totals"]] -
+    (class[["Totals"]] - class[["Hits"]])
+  class[["specificity"]] <- class[["True_negative"]] /
+    class[["Condition_negative"]]
+  class[["balanced_accuracy"]] <- .5 *
+    (class[["sensitivity"]] + class[["specificity"]])
   # PPV = true positive / predicted condition positive
-  Class[["PPV"]] <- Class[["Hits"]] / Class[["Predicted_totals"]]
+  class[["ppv"]] <- class[["Hits"]] / class[["Predicted_totals"]]
   # NPV  = true negative / predicted condition negative
-  Class[["NPV"]] <- Class[["True_negative"]] /
-    (Total - Class[["Predicted_totals"]])
-  Class[["F1"]] <- 2 *
-    (Class[["PPV"]] * Class[["Sensitivity"]]) /
-    (Class[["PPV"]] + Class[["Sensitivity"]])
+  class[["npv"]] <- class[["True_negative"]] /
+    (Total - class[["Predicted_totals"]])
+  class[["f1"]] <- 2 *
+    (class[["ppv"]] * class[["sensitivity"]]) /
+    (class[["ppv"]] + class[["sensitivity"]])
 
   # Binary vs Multiclass ----
   if (n_classes == 2) {
-    Overall[["Sensitivity"]] <- Class[["Sensitivity"]][1]
-    Overall[["Specificity"]] <- Class[["Specificity"]][1]
-    Overall[["Balanced_Accuracy"]] <- Class[["Balanced_Accuracy"]][1]
-    Overall[["PPV"]] <- Class[["PPV"]][1]
-    Overall[["NPV"]] <- Class[["NPV"]][1]
-    Overall[["F1"]] <- Class[["F1"]][1]
+    overall[["sensitivity"]] <- class[["sensitivity"]][1]
+    overall[["specificity"]] <- class[["specificity"]][1]
+    overall[["balanced_accuracy"]] <- class[["balanced_accuracy"]][1]
+    overall[["ppv"]] <- class[["ppv"]][1]
+    overall[["npv"]] <- class[["npv"]][1]
+    overall[["f1"]] <- class[["f1"]][1]
   } else {
-    Overall[["Balanced_Accuracy"]] <- mean(Class[["Sensitivity"]])
-    Overall[["F1"]] <- mean(Class[["F1"]])
+    overall[["balanced_accuracy"]] <- mean(class[["sensitivity"]])
+    overall[["f1"]] <- mean(class[["f1"]])
   }
-  Overall[["Accuracy"]] <- sum(Class[["Hits"]]) / Total
+  overall[["accuracy"]] <- sum(class[["Hits"]]) / Total
 
   # Probability-based metrics ----
   if (!is.null(predicted_prob) && n_classes == 2L) {
     # Positive class has been set to first level
     true_int <- 2L - as.integer(true_labels)
     if (calc_auc) {
-      Overall[["AUC"]] <- auc(
+      overall[["auc"]] <- auc(
         true_int = true_int,
         predicted_prob = predicted_prob,
         method = auc_method
       )
     }
     if (calc_brier) {
-      Overall[["Brier_Score"]] <- brier_score(true_int, predicted_prob)
+      overall[["brier_score"]] <- brier_score(true_int, predicted_prob)
     }
-    # Overall[["Log loss"]] <- logloss(true_int, predicted_prob)
+    # overall[["Log loss"]] <- logloss(true_int, predicted_prob)
   }
 
   # Outro ----
-  Overall <- as.data.frame(do.call(cbind, Overall))
-  rownames(Overall) <- "Overall"
-  Class <- (data.frame(
-    Sensitivity = Class[["Sensitivity"]],
-    Specificity = Class[["Specificity"]],
-    Balanced_Accuracy = Class[["Balanced_Accuracy"]],
-    PPV = Class[["PPV"]],
-    NPV = Class[["NPV"]],
-    F1 = Class[["F1"]]
+  overall <- as.data.frame(do.call(cbind, overall))
+  rownames(overall) <- "overall"
+  class <- (data.frame(
+    sensitivity = class[["sensitivity"]],
+    specificity = class[["specificity"]],
+    balanced_accuracy = class[["balanced_accuracy"]],
+    ppv = class[["ppv"]],
+    npv = class[["npv"]],
+    f1 = class[["f1"]]
   ))
 
   ClassificationMetrics(
     sample = sample,
-    Confusion_Matrix = tbl,
-    Overall = Overall,
-    Class = Class,
-    Positive_Class = Positive_Class
+    confusion_matrix = tbl,
+    overall = overall,
+    class = class,
+    positive_class = positive_class
   )
 } # /rtemis::classification_metrics
 
@@ -575,10 +475,10 @@ regression_metrics <- function(
   sample = NULL
 ) {
   RegressionMetrics(
-    MAE = mae(true, predicted, na.rm = na.rm),
-    MSE = mse(true, predicted, na.rm = na.rm),
-    RMSE = rmse(true, predicted, na.rm = na.rm),
-    Rsq = rsq(true, predicted),
+    mae = mae(true, predicted, na.rm = na.rm),
+    mse = mse(true, predicted, na.rm = na.rm),
+    rmse = rmse(true, predicted, na.rm = na.rm),
+    rsq = rsq(true, predicted),
     sample = sample
   )
 } # /rtemis::regression_metrics

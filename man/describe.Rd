@@ -4,12 +4,14 @@
 \alias{describe}
 \title{Describe object}
 \usage{
-describe(x, ...)
+describe(x, verbosity = 1L, ...)
 }
 \arguments{
 \item{x}{R object to describe. See method documentation for supported classes.}
 
-\item{...}{Additional arguments passed to methods. See details.}
+\item{verbosity}{Integer: Verbosity level.}
+
+\item{...}{Additional arguments passed to methods.}
 }
 \description{
 Describe object

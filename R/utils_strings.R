@@ -193,7 +193,7 @@ nay <- function(..., sep = " ", end = "\n", pad = 0) {
 #' you want to keep all-caps)
 #' @param toTitleCase Logical: If TRUE, convert to Title Case. Default = TRUE (This does not change
 #' all-caps words, set `toLower` to TRUE if desired)
-#' @param capitalize_strings Character, vector: Always capitalize these strings, if present. Default = `"id"`
+#' @param capitalize_strings Character, vector: Always capitalize these strings, if present.
 #' @param stringsToSpaces Character, vector: Replace these strings with spaces. Escape as needed for `gsub`.
 #' Default = `"\\$"`, which formats common input of the type `data.frame$variable`
 #'
@@ -211,7 +211,7 @@ labelify <- function(
   dotsToSpaces = TRUE,
   toLower = FALSE,
   toTitleCase = TRUE,
-  capitalize_strings = c("id"),
+  capitalize_strings = c("id", "auc", "ppv", "npv", "mae", "mse", "rmse"),
   stringsToSpaces = c("\\$", "`")
 ) {
   if (is.null(x)) {

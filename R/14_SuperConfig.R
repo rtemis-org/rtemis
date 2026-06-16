@@ -16,12 +16,14 @@
 #' @noRd
 SuperConfig <- new_class(
   name = "SuperConfig",
+  package = "rtemis",
   properties = list(
     dat_training_path = class_character,
     dat_validation_path = class_character | NULL,
     dat_test_path = class_character | NULL,
     weights = class_character | NULL, # column name in dat_training
     preprocessor_config = PreprocessorConfig | NULL,
+    decomposition_config = DecompositionConfig | NULL,
     algorithm = class_character | NULL,
     hyperparameters = Hyperparameters | NULL,
     tuner_config = TunerConfig | NULL,
@@ -82,6 +84,7 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' @param weights Optional Character: Column name in training data to use as observation weights.
 #' If NULL, no weights are used.
 #' @param preprocessor_config `PreprocessorConfig` object: Configuration for data preprocessing.
+#' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
 #' @param algorithm Character: Algorithm to use for training.
 #' @param hyperparameters `Hyperparameters` object: Configuration for model hyperparameters.
 #' @param tuner_config `TunerConfig` object: Configuration for hyperparameter tuning.
@@ -116,6 +119,7 @@ setup_SuperConfig <- function(
   dat_test_path = NULL,
   weights = NULL,
   preprocessor_config = NULL,
+  decomposition_config = NULL,
   algorithm = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
@@ -147,6 +151,7 @@ setup_SuperConfig <- function(
     dat_test_path = dat_test_path,
     weights = weights,
     preprocessor_config = preprocessor_config,
+    decomposition_config = decomposition_config,
     algorithm = algorithm,
     hyperparameters = hyperparameters,
     tuner_config = tuner_config,
@@ -270,6 +275,11 @@ read_config <- function(file) {
     } else {
       do.call(setup_Preprocessor, xl[["preprocessor_config"]])
     },
+    decomposition_config = if (is.null(xl[["decomposition_config"]])) {
+      NULL
+    } else {
+      .list_to_DecompositionConfig(xl[["decomposition_config"]])
+    },
     algorithm = xl[["algorithm"]],
     hyperparameters = if (is.null(xl[["hyperparameters"]])) {
       NULL
@@ -318,27 +328,29 @@ method(to_yaml, SuperConfig) <- function(x) {
 
 
 # %% SuperConfigLive ----
-#' SuperConfigLive Class
+#' SuperConfigLive
 #'
-#' @description
+#' @details
 #' Like `SuperConfig`, but carries in-memory training/validation/test data
 #' instead of file paths. Used by `rtemislive` (uploads arrive over a WS
 #' frame, not as a file) and by future HPC submission paths that hand the
 #' data directly to a worker.
-#'
-#' Not TOML-serialisable — in-memory data does not round-trip cleanly to
+#' Not TOML-serializable — in-memory data does not round-trip cleanly to
 #' a config file. Use `SuperConfig` when you need on-disk reproducibility.
 #'
 #' @author EDG
 #' @noRd
 SuperConfigLive <- new_class(
   name = "SuperConfigLive",
+  package = "rtemis",
   properties = list(
     dat_training = class_tabular,
     dat_validation = class_tabular | NULL,
     dat_test = class_tabular | NULL,
     weights = class_character | NULL, # column name in dat_training
+    positive_class = class_character | NULL, # binary-classification positive level
     preprocessor_config = PreprocessorConfig | NULL,
+    decomposition_config = DecompositionConfig | NULL,
     algorithm = class_character | NULL,
     hyperparameters = Hyperparameters | NULL,
     tuner_config = TunerConfig | NULL,
@@ -396,8 +408,13 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 #' @param dat_test data.frame, data.table, or `NULL`.
 #' @param weights Character or `NULL`. Column name in `dat_training` used
 #'   as observation weights.
+#' @param positive_class Character or `NULL`. For binary classification, the
+#'   outcome level to treat as positive; forwarded to [train] which reorders
+#'   the outcome factor via [set_positive_class]. `NULL` keeps the existing
+#'   level order.
 #' @param preprocessor_config,algorithm,hyperparameters,tuner_config,outer_resampling_config,execution_config,question,verbosity
 #'   See [setup_SuperConfig].
+#' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
 #' @param outdir Character or `NULL`. Output directory; `NULL` (the
 #'   default) means "do not write to disk" (the rtemislive case).
 #'
@@ -410,7 +427,9 @@ setup_SuperConfigLive <- function(
   dat_validation = NULL,
   dat_test = NULL,
   weights = NULL,
+  positive_class = NULL,
   preprocessor_config = NULL,
+  decomposition_config = NULL,
   algorithm = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
@@ -428,7 +447,9 @@ setup_SuperConfigLive <- function(
     dat_validation = dat_validation,
     dat_test = dat_test,
     weights = weights,
+    positive_class = positive_class,
     preprocessor_config = preprocessor_config,
+    decomposition_config = decomposition_config,
     algorithm = algorithm,
     hyperparameters = hyperparameters,
     tuner_config = tuner_config,

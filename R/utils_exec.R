@@ -1,6 +1,6 @@
 # utils_exec.Ranger
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 #' Do call with tryCatch and suggestion
 #'

@@ -1,6 +1,6 @@
 # train_GAM.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% train_.GAMHyperparameters ----
 #' Train a GAM model

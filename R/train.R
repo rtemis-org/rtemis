@@ -15,6 +15,8 @@
 #' @param weights Optional vector of case weights.
 #' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
 #' @param preprocessor_config Optional PreprocessorConfig object: Setup using [setup_Preprocessor].
+#' @param decomposition_config Optional DecompositionConfig object: Setup using a decomposition
+#'  `setup_*` function.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param tuner_config TunerConfig object: Setup using [setup_GridSearch].
 #' @param outer_resampling_config Optional ResamplerConfig object: Setup using [setup_Resampler].
@@ -28,6 +30,22 @@
 #' answer.
 #' @param outdir Character, optional: String defining the output directory.
 #' @param verbosity Integer: Verbosity level.
+#' @param progress Optional function: Callback invoked at progress
+#'   checkpoints during training. When supplied, called at each outer
+#'   resampling fold boundary as
+#'   `progress(stage, current, total, message)`:
+#'   \describe{
+#'     \item{`stage`}{Character. Currently `"outer_fold"`.}
+#'     \item{`current`}{Integer. 1-based index of the fold about to run.}
+#'     \item{`total`}{Integer. Total number of outer folds.}
+#'     \item{`message`}{Character. Human-readable line, e.g.
+#'       `"Outer fold 2/5"`.}
+#'   }
+#'   When `NULL` (default), the existing `cli::cli_progress_along()`
+#'   interactive progress bar runs untouched. Designed for non-interactive
+#'   callers (e.g. `rtemis.server`) that need to forward fold progress
+#'   over a wire protocol; errors raised by the callback are swallowed
+#'   so a broken sink cannot interrupt training.
 #' @param ... Not used.
 #'
 #' @details
@@ -115,6 +133,7 @@ train <- function(
   weights = NULL,
   algorithm = NULL,
   preprocessor_config = NULL, # PreprocessorConfig
+  decomposition_config = NULL, # DecompositionConfig
   hyperparameters = NULL, # Hyperparameters
   tuner_config = NULL, # TunerConfig
   outer_resampling_config = NULL, # ResamplerConfig
@@ -122,16 +141,18 @@ train <- function(
   question = NULL,
   outdir = NULL,
   verbosity = 1L,
+  progress = NULL,
   ...
 ) {
   # SuperConfigLive dispatch ----
   if (S7_inherits(x, SuperConfigLive)) {
-    return(train(
+    train_args <- list(
       x = x@dat_training,
       dat_validation = x@dat_validation,
       dat_test = x@dat_test,
       weights = x@weights,
       preprocessor_config = x@preprocessor_config,
+      decomposition_config = x@decomposition_config,
       algorithm = x@algorithm,
       hyperparameters = x@hyperparameters,
       tuner_config = x@tuner_config,
@@ -139,8 +160,15 @@ train <- function(
       execution_config = x@execution_config,
       question = x@question,
       outdir = x@outdir,
-      verbosity = x@verbosity
-    ))
+      verbosity = x@verbosity,
+      progress = progress
+    )
+    # `positive_class` is handled via `...` (not a formal arg) and aborts if
+    # passed as NULL, so include it only when set.
+    if (!is.null(x@positive_class)) {
+      train_args[["positive_class"]] <- x@positive_class
+    }
+    return(do.call(train, train_args))
   } # / train.SuperConfigLive
 
   # SuperConfig dispatch ----
@@ -163,6 +191,7 @@ train <- function(
       dat_test = dat_test,
       weights = x@weights,
       preprocessor_config = x@preprocessor_config,
+      decomposition_config = x@decomposition_config,
       algorithm = x@algorithm,
       hyperparameters = x@hyperparameters,
       tuner_config = x@tuner_config,
@@ -170,7 +199,8 @@ train <- function(
       execution_config = x@execution_config,
       question = x@question,
       outdir = x@outdir,
-      verbosity = x@verbosity
+      verbosity = x@verbosity,
+      progress = progress
     ))
   } # / train.SuperConfig
 
@@ -181,7 +211,13 @@ train <- function(
     )
   }
 
+  # Defense against invalid args
   extra_args <- list(...)
+  if (!is.null(extra_args[["positive_class"]])) {
+    positive_class <- extra_args[["positive_class"]]
+    x <- set_positive_class(x, positive_class)
+    extra_args[["positive_class"]] <- NULL
+  }
   if (length(extra_args) > 0L) {
     cli::cli_abort(
       "Unused extra arguments were provided: {.val {names(extra_args)}}. Please check your function call."
@@ -225,6 +261,18 @@ train <- function(
 
   if (!is.null(preprocessor_config)) {
     check_is_S7(preprocessor_config, PreprocessorConfig)
+  }
+
+  # Can only use algorithms whose output can be applied on new data: we need to apply the
+  # transformation learned on the training data to validation and test sets.
+  if (!is.null(decomposition_config)) {
+    check_is_S7(decomposition_config, DecompositionConfig)
+    if (!decomposition_config@algorithm %in% decom_algorithms_applicable) {
+      cli::cli_abort(c(
+        "Decomposition algorithm {.val {decomposition_config@algorithm}} cannot be applied on new data and is not supported in {.fn train}.",
+        "i" = "Supported decomposition algorithms: {.val {decom_algorithms_applicable}}."
+      ))
+    }
   }
 
   # execution_config must always be set
@@ -324,6 +372,10 @@ train <- function(
   # Initialized to NULL here; set in the single-model path below.
   # In the outer resampling path, each sub-model carries its own pair.
   preprocessor <- preprocessor_internal <- NULL
+  # `decomposition`: fitted Decomposition (from `decomposition_config`) learned on
+  # the training features and re-applied to validation/test here, and to new data
+  # at predict() time. Stored on the returned model. NULL when no decomposition.
+  decomposition <- NULL
 
   # === Outer Resampling ===
   # Splits data into multiple training-test folds and calls train() recursively
@@ -345,18 +397,41 @@ train <- function(
       config = outer_resampling_config,
       verbosity = verbosity
     )
-    models <- lapply(
+    n_outer <- outer_resampler@config@n
+    # When a `progress` callback is supplied (typically by rtemis.server to
+    # forward fold boundaries over the wire), use a plain lapply and invoke
+    # it per fold; the interactive `cli_progress_along` UI is replaced.
+    # Otherwise, keep the existing terminal progress UI for interactive
+    # users.
+    iter <- if (is.function(progress)) {
+      seq_len(n_outer)
+    } else {
       cli::cli_progress_along(
-        seq_len(outer_resampler@config@n),
+        seq_len(n_outer),
         name = "Training outer resamples...",
         type = "tasks"
-      ),
+      )
+    }
+    models <- lapply(
+      iter,
       function(i) {
+        if (is.function(progress)) {
+          tryCatch(
+            progress(
+              stage = "outer_fold",
+              current = i,
+              total = n_outer,
+              message = paste0("Outer fold ", i, "/", n_outer)
+            ),
+            error = function(e) NULL
+          )
+        }
         train(
           x = x[outer_resampler[[i]], ],
           dat_test = x[-outer_resampler[[i]], ],
           algorithm = algorithm,
           preprocessor_config = preprocessor_config,
+          decomposition_config = decomposition_config,
           hyperparameters = hyperparameters,
           tuner_config = tuner_config,
           outer_resampling_config = NULL, # This model is one of the outer resamples.
@@ -394,6 +469,7 @@ train <- function(
         hyperparameters = hyperparameters,
         tuner_config = tuner_config,
         preprocessor_config = preprocessor_config,
+        decomposition_config = decomposition_config,
         weights = weights,
         backend = backend,
         future_plan = future_plan,
@@ -428,6 +504,84 @@ train <- function(
     } else {
       preprocessor <- NULL
     } # /User-level preprocessing
+
+    # Decomposition ----
+    # Learn the decomposition on the selected training features, then apply the
+    # learned transformation to the validation and test features. Features not
+    # selected for decomposition are kept as-is, in front of the components, and
+    # the outcome column is re-attached last: layout `[kept features, components,
+    # outcome]`. The fitted Decomposition (carrying the resolved feature names)
+    # is stored on the returned model so predict() can re-apply it to new data.
+    if (!is.null(decomposition_config)) {
+      outcome_nm <- names(x)[ncols]
+      feat <- as.data.frame(features(x))
+      # Resolve the columns to decompose: NULL -> all numeric features.
+      decomp_features <- decomposition_config@features
+      if (is.null(decomp_features)) {
+        decomp_features <- names(numeric_features(x))
+      }
+      # Validate the selection against the actual (post-preprocessing) data.
+      missing_cols <- setdiff(decomp_features, names(feat))
+      if (length(missing_cols) > 0L) {
+        cli::cli_abort(c(
+          "{.arg decomposition_config} selects {cli::qty(missing_cols)}column{?s} that {?is/are} not {?a/} feature{?s}.",
+          "x" = "Not found among features: {.val {missing_cols}}."
+        ))
+      }
+      non_numeric <- decomp_features[
+        !vapply(feat[decomp_features], is.numeric, logical(1L))
+      ]
+      if (length(non_numeric) > 0L) {
+        cli::cli_abort(c(
+          "Decomposition can only be applied to numeric features.",
+          "x" = "Non-numeric column{?s} selected: {.val {non_numeric}}."
+        ))
+      }
+      if (length(decomp_features) < 2L) {
+        cli::cli_abort(c(
+          "Decomposition requires at least 2 numeric feature columns.",
+          "i" = "{length(decomp_features)} {?was/were} available to decompose."
+        ))
+      }
+      # Persist the resolved names so apply_decomp() replays the same selection
+      # on validation/test here and on new data at predict() time.
+      decomposition_config@features <- decomp_features
+      decomposition <- decomp(
+        x = feat[, decomp_features, drop = FALSE],
+        algorithm = decomposition_config@algorithm,
+        config = decomposition_config,
+        verbosity = verbosity
+      )
+      # Columns not decomposed are kept as-is, in front of the components.
+      kept_features <- setdiff(names(feat), decomp_features)
+      # Decomposed training data: [kept features, components, outcome].
+      x_outcome <- x[[ncols]]
+      components <- as.data.frame(decomposition@transformed)
+      x <- if (length(kept_features) > 0L) {
+        cbind(feat[, kept_features, drop = FALSE], components)
+      } else {
+        components
+      }
+      x[[outcome_nm]] <- x_outcome
+      # Apply decomposition to validation data
+      if (!is.null(dat_validation)) {
+        val_outcome <- dat_validation[[ncols]]
+        dat_validation <- as.data.frame(
+          apply_decomp(decomposition, features(dat_validation), verbosity = 0L)
+        )
+        dat_validation[[outcome_nm]] <- val_outcome
+      }
+      # Apply decomposition to test data
+      if (!is.null(dat_test)) {
+        test_outcome <- dat_test[[ncols]]
+        dat_test <- as.data.frame(
+          apply_decomp(decomposition, features(dat_test), verbosity = 0L)
+        )
+        dat_test[[outcome_nm]] <- test_outcome
+      }
+      # Number of columns changes after decomposition.
+      ncols <- ncol(x)
+    }
 
     # IFW ----
     # Weight calculation must follow preprocessing since N cases may change.
@@ -580,6 +734,7 @@ train <- function(
       model = model,
       preprocessor = preprocessor,
       preprocessor_internal = preprocessor_internal,
+      decomposition = decomposition,
       hyperparameters = hyperparameters,
       tuner = tuner,
       execution_config = execution_config,

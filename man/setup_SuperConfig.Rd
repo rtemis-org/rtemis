@@ -10,6 +10,7 @@ setup_SuperConfig(
   dat_test_path = NULL,
   weights = NULL,
   preprocessor_config = NULL,
+  decomposition_config = NULL,
   algorithm = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
@@ -31,6 +32,8 @@ setup_SuperConfig(
 If NULL, no weights are used.}
 
 \item{preprocessor_config}{\code{PreprocessorConfig} object: Configuration for data preprocessing.}
+
+\item{decomposition_config}{\code{DecompositionConfig} object: Configuration for data decomposition.}
 
 \item{algorithm}{Character: Algorithm to use for training.}
 

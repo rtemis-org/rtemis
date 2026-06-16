@@ -6,6 +6,7 @@
 # S7 generics: https://rconsortium.github.io/S7/articles/generics-methods.html
 
 # %% --- S3 Classes for S7 ----------------------------------------------------------------------------
+class_table <- new_S3_class("table")
 class_data.table <- new_S3_class("data.table")
 class_lgb.Booster <- new_S3_class("lgb.Booster")
 # All internal methods should support data.frame, data.table, tbl_df
@@ -34,6 +35,23 @@ class_tabnet_fit <- new_S3_class("tabnet_fit")
 #' @keywords internal
 #' @noRd
 repr <- new_generic("repr", "x")
+
+
+# %% get_varimp ----
+#' Get variable importance
+#'
+#' @param x `Supervised` or `SupervisedRes` object.
+#' @param ... Additional arguments passed to methods.
+#'
+#' @return `VariableImportance` object or list of `VariableImportance` objects.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' mod <- train(iris, algorithm = "LightRF")
+#' get_varimp(mod)
+get_varimp <- new_generic("get_varimp", "x")
 
 
 # %% inspect ----
@@ -230,6 +248,24 @@ decomp_ <- new_generic(
 ) # /rtemis::decomp_
 
 
+# %% apply_decomp_ ----
+#' Generic for applying a fitted decomposition to new data
+#'
+#' Dispatches on the `DecompositionConfig` subclass. Implemented only for
+#' algorithms listed in `decom_algorithms_applicable`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+apply_decomp_ <- new_generic(
+  "apply_decomp_",
+  "config",
+  function(config, decom, new_data, verbosity = 1L) {
+    S7_dispatch()
+  }
+) # /rtemis::apply_decomp_
+
+
 # %% cluster_ ----
 #' Generic for clustering
 #'
@@ -398,7 +434,8 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' Describe object
 #'
 #' @param x R object to describe. See method documentation for supported classes.
-#' @param ... Additional arguments passed to methods. See details.
+#' @param verbosity Integer: Verbosity level.
+#' @param ... Additional arguments passed to methods.
 #'
 #' @details
 #' Extra arguments for `factor` method:
@@ -427,7 +464,9 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' describe(x)
 #' describe(x, 3)
 #' describe(x, 3, return_ordered = FALSE)
-describe <- new_generic("describe", "x")
+describe <- new_generic("describe", "x", function(x, verbosity = 1L, ...) {
+  S7_dispatch()
+})
 
 
 # %% present ----
@@ -790,6 +829,42 @@ method(features, class_data.table) <- function(x) {
   }
   x[, -NCOL(x), with = FALSE]
 } # /rtemis::features.class_data.table
+
+
+# %% numeric_features ----
+#' Get numeric features from tabular data
+#'
+#' Returns the numeric columns among the features (all columns except the last).
+#'
+#' @details
+#' Mirrors [features()]: by \pkg{rtemis} convention the last column is the outcome
+#' variable and all other columns are features. This drops the outcome, then keeps
+#' the numeric features (both double and integer). Useful, for example, to feed only
+#' the continuous features to a decomposition: `decomp(numeric_features(iris), ...)`.
+#'
+#' @param x tabular data: Input data to get numeric features from.
+#'
+#' @return Object of the same class as the input, containing only the numeric
+#' feature columns.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' numeric_features(iris) |> head()
+numeric_features <- new_generic("numeric_features", "x", function(x) {
+  S7_dispatch()
+}) # /rtemis::numeric_features
+
+method(numeric_features, class_data.frame) <- function(x) {
+  feat <- features(x)
+  feat[, vapply(feat, is.numeric, logical(1L)), drop = FALSE]
+}
+
+method(numeric_features, class_data.table) <- function(x) {
+  feat <- features(x)
+  feat[, vapply(feat, is.numeric, logical(1L)), with = FALSE]
+} # /rtemis::numeric_features.class_data.table
 
 
 # %% feature_names ----

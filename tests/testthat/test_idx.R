@@ -1,6 +1,6 @@
 # test_idx.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # Packages ----
 library(data.table)

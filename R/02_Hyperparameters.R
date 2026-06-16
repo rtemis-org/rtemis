@@ -27,7 +27,7 @@ TUNED_STATUS_TUNED <- 1L
 # 1: Running on resampled training sets.
 
 # %% Hyperparameters ----
-#' @title Hyperparameters
+#' Hyperparameters
 #'
 #' @description
 #' Superclass for hyperparameters.
@@ -41,9 +41,11 @@ TUNED_STATUS_TUNED <- 1L
 #' @field n_workers Integer: Number of workers to use for tuning.
 #'
 #' @author EDG
+#' @keywords internal
 #' @noRd
 Hyperparameters <- new_class(
   name = "Hyperparameters",
+  package = "rtemis",
   properties = list(
     algorithm = class_character,
     hyperparameters = class_list,
@@ -542,11 +544,11 @@ setup_CART <- function(
   cost = NULL,
   ifw = FALSE
 ) {
-  check_inherits(cp, "numeric")
+  rtemis.core::check_numeric(cp)
   maxdepth <- clean_int(maxdepth)
   minsplit <- clean_int(minsplit)
   minbucket <- clean_int(minbucket)
-  check_inherits(prune_cp, "numeric")
+  rtemis.core::check_numeric(prune_cp)
   check_inherits(method, "character")
   check_inherits(model, "logical")
   maxcompete <- clean_int(maxcompete)
@@ -554,7 +556,7 @@ setup_CART <- function(
   usesurrogate <- clean_int(usesurrogate)
   surrogatestyle <- clean_int(surrogatestyle)
   xval <- clean_int(xval)
-  check_inherits(cost, "numeric")
+  rtemis.core::check_numeric(cost)
   CARTHyperparameters(
     cp = cp,
     maxdepth = maxdepth,
@@ -615,7 +617,7 @@ GLMNETHyperparameters <- new_class(
     check_float01inc(alpha)
     check_inherits(which_lambda_cv, "character")
     nlambda <- clean_posint(nlambda)
-    check_inherits(penalty_factor, "numeric")
+    rtemis.core::check_numeric(penalty_factor)
     check_inherits(standardize, "logical")
     new_object(
       Hyperparameters(
@@ -682,7 +684,7 @@ setup_GLMNET <- function(
   check_float01inc(alpha)
   check_inherits(which_lambda_cv, "character")
   nlambda <- clean_posint(nlambda)
-  check_inherits(penalty_factor, "numeric")
+  rtemis.core::check_numeric(penalty_factor)
   check_logical(standardize)
   check_logical(ifw)
   GLMNETHyperparameters(
@@ -1395,10 +1397,10 @@ setup_LightRuleFit <- function(
   check_floatpos1(learning_rate)
   check_floatpos1(subsample)
   subsample_freq <- clean_posint(subsample_freq)
-  check_inherits(lambda_l1, "numeric")
-  check_inherits(lambda_l2, "numeric")
+  rtemis.core::check_numeric(lambda_l1)
+  rtemis.core::check_numeric(lambda_l2)
   check_float01inc(alpha)
-  check_inherits(lambda, "numeric")
+  rtemis.core::check_numeric(lambda)
   check_logical(ifw_lightgbm)
   check_logical(ifw_glmnet)
   check_logical(ifw)
@@ -1563,7 +1565,7 @@ setup_LinearSVM <- function(
   cost = 1,
   ifw = FALSE
 ) {
-  check_inherits(cost, "numeric")
+  rtemis.core::check_numeric(cost)
   check_logical(ifw)
   LinearSVMHyperparameters(
     cost = cost,
@@ -1634,8 +1636,8 @@ setup_RadialSVM <- function(
   gamma = 0.01,
   ifw = FALSE
 ) {
-  check_inherits(cost, "numeric")
-  check_inherits(gamma, "numeric")
+  rtemis.core::check_numeric(cost)
+  rtemis.core::check_numeric(gamma)
   check_logical(ifw)
   RadialSVMHyperparameters(
     cost = cost,
@@ -2170,30 +2172,30 @@ setup_Ranger <- function(
   max_depth <- clean_posint(max_depth)
   check_inherits(replace, "logical")
   check_float01inc(sample_fraction)
-  check_inherits(case_weights, "numeric")
-  check_inherits(class_weights, "numeric")
+  rtemis.core::check_numeric(case_weights)
+  rtemis.core::check_numeric(class_weights)
   check_inherits(splitrule, "character")
   num_random_splits <- clean_posint(num_random_splits)
   check_float01inc(alpha)
   check_float01inc(minprop)
-  check_inherits(poisson_tau, "numeric")
-  check_inherits(split_select_weights, "numeric")
+  rtemis.core::check_numeric(poisson_tau)
+  rtemis.core::check_numeric(split_select_weights)
   check_inherits(always_split_variables, "character")
   check_inherits(respect_unordered_factors, "logical")
   check_inherits(scale_permutation_importance, "logical")
   check_inherits(local_importance, "logical")
-  check_inherits(regularization_factor, "numeric")
+  rtemis.core::check_numeric(regularization_factor)
   check_inherits(regularization_usedepth, "logical")
   check_inherits(keep_inbag, "logical")
   check_inherits(inbag, "list")
   check_inherits(holdout, "logical")
   check_inherits(quantreg, "logical")
-  check_inherits(time_interest, "numeric")
+  rtemis.core::check_numeric(time_interest)
   check_inherits(oob_error, "logical")
   check_inherits(save_memory, "logical")
   check_inherits(verbose, "logical")
   check_inherits(node_stats, "logical")
-  check_inherits(seed, "numeric")
+  rtemis.core::check_numeric(seed)
   check_inherits(na_action, "character")
   check_logical(ifw)
   RangerHyperparameters(

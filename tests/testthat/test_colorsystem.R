@@ -1,6 +1,6 @@
 # test_colorsystem.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # show_col ----
 x <- list(

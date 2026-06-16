@@ -24,7 +24,8 @@
 #' y <- rnormmat(500, 40, return_df = TRUE)
 #' x <- data.frame(
 #'   x1 = y[[3]] - y[[5]] + y[[14]] + rnorm(500),
-#'   x2 = y[[21]] + rnorm(500)
+#'   x2 = y[[21]] + rnorm(500),
+#'   g = factor(sample(letters[1:3], 500, replace = TRUE))
 #' )
 #' massmod <- massGLM(x, y)
 #' # Print table of coefficients, p-values, etc. for all models

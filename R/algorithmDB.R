@@ -1,6 +1,6 @@
 # algorithmDB.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # Supervised Learning ----
 supervised_algorithms <- data.frame(rbind(

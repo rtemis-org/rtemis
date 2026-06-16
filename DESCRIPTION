@@ -1,7 +1,7 @@
 Package: rtemis
-Version: 1.2.0
+Version: 1.2.3
 Title: Machine Learning and Visualization
-Date: 2026-05-12
+Date: 2026-06-14
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
     email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
 Description: Machine learning and visualization package with an 'S7' backend 
@@ -19,16 +19,17 @@ ByteCompile: yes
 Depends:
     R (>= 4.1.0)
 Imports:
-    grDevices,
-    graphics,
-    stats,
-    methods,
-    utils,
-    S7,
+    cli,
     data.table,
     future,
+    grDevices,
+    graphics,
     htmltools,
-    cli
+    methods,
+    rtemis.core (>= 0.2.0),
+    stats,
+    S7,
+    utils
 Suggests:
     arrow,
     bit64,
@@ -74,7 +75,6 @@ Suggests:
     parallelly,
     partykit,
     plotly,
-    plumber,
     pROC,
     progressr,
     psych,
@@ -101,6 +101,7 @@ Suggests:
     vegan,
     vroom,
     withr
+Additional_repositories: https://rtemis-org.r-universe.dev
 Encoding: UTF-8
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)

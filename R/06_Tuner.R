@@ -29,9 +29,11 @@
 #' @field config Named list of tuner config.
 #'
 #' @author EDG
+#' @keywords internal
 #' @noRd
 TunerConfig <- new_class(
   name = "TunerConfig",
+  package = "rtemis",
   properties = list(
     type = class_character,
     config = class_list
@@ -94,7 +96,7 @@ method(`[[`, TunerConfig) <- function(x, name) {
 
 
 # %% GridSearchConfig ----
-#' @title GridSearchConfig
+#' GridSearchConfig
 #'
 #' @description
 #' TunerConfig subclass for grid search config.
@@ -104,6 +106,7 @@ method(`[[`, TunerConfig) <- function(x, name) {
 GridSearchConfig <- new_class(
   name = "GridSearchConfig",
   parent = TunerConfig,
+  package = "rtemis",
   constructor = function(
     resampler_config = NULL,
     search_type = NULL,
@@ -209,6 +212,7 @@ setup_GridSearch <- function(
 #' @noRd
 Tuner <- new_class(
   name = "Tuner",
+  package = "rtemis",
   properties = list(
     type = class_character,
     hyperparameters = Hyperparameters,
@@ -237,6 +241,7 @@ method(desc, Tuner) <- function(x) {
 GridSearch <- new_class(
   name = "GridSearch",
   parent = Tuner,
+  package = "rtemis",
   constructor = function(
     hyperparameters,
     tuner_config,

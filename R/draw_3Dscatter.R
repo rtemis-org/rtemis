@@ -351,7 +351,7 @@ draw_3Dscatter <- function(
           fitted_text[i],
           if (n_groups == 1) " (" else " ",
           "R<sup>2</sup> = ",
-          ddSci(mod@metrics_training[["Rsq"]]),
+          ddSci(mod@metrics_training[["rsq"]]),
           if (n_groups == 1) ")"
         )
       }

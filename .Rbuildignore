@@ -10,7 +10,6 @@
 ^\.gemini$
 ^\.github$
 ^\.lintr$
-^\.rtms-instructions\.md$
 ^\.vscode$
 ^cran-comments\.md$
 ^LICENSE\.md$
@@ -19,7 +18,9 @@
 ^docs$
 ^specs$
 ^AGENTS\.md$
+^CLAUDE\.md$
 ^NEWS\.md$
 ^pkgdown$
 ^Makefile$
 ^SKILL\.md$
+^.*\.pdf$

@@ -11,6 +11,7 @@ train(
   weights = NULL,
   algorithm = NULL,
   preprocessor_config = NULL,
+  decomposition_config = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
@@ -18,6 +19,7 @@ train(
   question = NULL,
   outdir = NULL,
   verbosity = 1L,
+  progress = NULL,
   ...
 )
 }
@@ -33,6 +35,9 @@ train(
 \item{algorithm}{Character: Algorithm to use. Can be left NULL, if \code{hyperparameters} is defined.}
 
 \item{preprocessor_config}{Optional PreprocessorConfig object: Setup using \link{setup_Preprocessor}.}
+
+\item{decomposition_config}{Optional DecompositionConfig object: Setup using a decomposition
+\verb{setup_*} function.}
 
 \item{hyperparameters}{\code{Hyperparameters} object: Setup using one of \verb{setup_*} functions.}
 
@@ -53,6 +58,23 @@ answer.}
 \item{outdir}{Character, optional: String defining the output directory.}
 
 \item{verbosity}{Integer: Verbosity level.}
+
+\item{progress}{Optional function: Callback invoked at progress
+checkpoints during training. When supplied, called at each outer
+resampling fold boundary as
+\code{progress(stage, current, total, message)}:
+\describe{
+\item{\code{stage}}{Character. Currently \code{"outer_fold"}.}
+\item{\code{current}}{Integer. 1-based index of the fold about to run.}
+\item{\code{total}}{Integer. Total number of outer folds.}
+\item{\code{message}}{Character. Human-readable line, e.g.
+\code{"Outer fold 2/5"}.}
+}
+When \code{NULL} (default), the existing \code{cli::cli_progress_along()}
+interactive progress bar runs untouched. Designed for non-interactive
+callers (e.g. \code{rtemis.server}) that need to forward fold progress
+over a wire protocol; errors raised by the callback are swallowed
+so a broken sink cannot interrupt training.}
 
 \item{...}{Not used.}
 }

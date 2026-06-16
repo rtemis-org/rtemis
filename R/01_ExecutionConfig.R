@@ -12,6 +12,7 @@
 #' @noRd
 ExecutionConfig <- new_class(
   name = "ExecutionConfig",
+  package = "rtemis",
   properties = list(
     backend = class_character,
     n_workers = class_integer,

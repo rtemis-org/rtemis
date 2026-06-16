@@ -3,7 +3,7 @@
 # 2025- EDG rtemis.org
 
 # %% ClusteringConfig ----
-#' @title ClusteringConfig
+#' ClusteringConfig
 #'
 #' @description
 #' Clustering config class.
@@ -16,6 +16,7 @@
 #' @noRd
 ClusteringConfig <- new_class(
   name = "ClusteringConfig",
+  package = "rtemis",
   properties = list(
     algorithm = class_character,
     config = class_list
@@ -262,7 +263,7 @@ CMeansConfig <- new_class(
     check_character(method)
     check_floatpos(m)
     check_float01inc(rate_par)
-    check_inherits(weights, "numeric")
+    rtemis.core::check_numeric(weights)
     check_inherits(control, "list")
     new_object(
       ClusteringConfig(
@@ -320,7 +321,7 @@ setup_CMeans <- function(
   check_floatpos(m)
   stopifnot(m > 1)
   check_float01inc(rate_par)
-  check_inherits(weights, "numeric")
+  rtemis.core::check_numeric(weights)
   CMeansConfig(
     k = k,
     max_iter = max_iter,
@@ -358,7 +359,7 @@ DBSCANConfig <- new_class(
   ) {
     check_floatpos(eps)
     min_points <- clean_posint(min_points)
-    check_inherits(weights, "numeric")
+    rtemis.core::check_numeric(weights)
     check_inherits(border_points, "logical")
     check_inherits(search, "character")
     check_inherits(bucket_size, "integer")
@@ -414,7 +415,7 @@ setup_DBSCAN <- function(
 ) {
   check_floatpos(eps)
   min_points <- clean_posint(min_points)
-  check_inherits(weights, "numeric")
+  rtemis.core::check_numeric(weights)
   check_inherits(border_points, "logical")
   search <- match.arg(search)
   check_inherits(bucket_size, "integer")

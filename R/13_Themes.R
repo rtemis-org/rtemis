@@ -1,6 +1,6 @@
 # S7_Themes.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% Theme ----
 #' Theme
@@ -12,6 +12,7 @@
 #' @noRd
 Theme <- new_class(
   name = "Theme",
+  package = "rtemis",
   properties = list(
     name = class_character,
     config = class_list

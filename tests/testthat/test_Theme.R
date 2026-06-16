@@ -1,6 +1,6 @@
 # test_Theme.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # Theme ----
 test_that("Theme succeeds", {

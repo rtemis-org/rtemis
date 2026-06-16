@@ -1,6 +1,6 @@
 # train_GLM.R
 # ::rtemis::
-# 2025 EDG rtemis.org
+# 2025- EDG rtemis.org
 
 # %% train_.GLMHyperparameters ----
 #' Train a GLM model

@@ -9,7 +9,7 @@
 # https://utf8-icons.com/
 
 # %% VariableImportance ----
-#' @title VariableImportance
+#' VariableImportance
 #'
 #' @description
 #' Class for variable importance objects. Allows for one or more variable importance measures,
@@ -17,9 +17,11 @@
 #' more column with a descriptive name.
 #'
 #' @author EDG
+#' @keywords internal
 #' @noRd
 VariableImportance <- new_class(
   name = "VariableImportance",
+  package = "rtemis",
   properties = list(
     data = class_data.table
   ),
@@ -93,7 +95,7 @@ method(print, VariableImportance) <- function(x, output_type = NULL, ...) {
 # ClassificationRes: plot_metric, plot_true_pred, plot_roc
 
 # %% Supervised ----
-#' @title Supervised
+#' Supervised
 #'
 #' @description
 #' Superclass for supervised learning models.
@@ -102,12 +104,14 @@ method(print, VariableImportance) <- function(x, output_type = NULL, ...) {
 #' @noRd
 Supervised <- new_class(
   name = "Supervised",
+  package = "rtemis",
   properties = list(
     algorithm = class_character,
     model = class_any,
     type = class_character,
     preprocessor = Preprocessor | NULL,
     preprocessor_internal = Preprocessor | NULL,
+    decomposition = Decomposition | NULL,
     hyperparameters = Hyperparameters | NULL,
     tuner = Tuner | NULL,
     execution_config = ExecutionConfig,
@@ -132,6 +136,7 @@ Supervised <- new_class(
     type,
     preprocessor,
     preprocessor_internal,
+    decomposition = NULL,
     hyperparameters,
     tuner,
     execution_config,
@@ -156,6 +161,7 @@ Supervised <- new_class(
       type = type,
       preprocessor = preprocessor,
       preprocessor_internal = preprocessor_internal,
+      decomposition = decomposition,
       hyperparameters = hyperparameters,
       tuner = tuner,
       execution_config = execution_config,
@@ -178,16 +184,25 @@ Supervised <- new_class(
 ) # /rtemis::Supervised
 
 
-# %% predict.Supervised ----
-#' Predict `Supervised`
+# %% predict_supervised_ ----
+#' Run the `Supervised` prediction pipeline
 #'
-#' Predict Method for `Supervised` objects
+#' Re-applies, in order, the stored user preprocessor, decomposition, and
+#' algorithm-internal preprocessor to `newdata`, enforces predictor names/order,
+#' then calls `predict_super()`. Shared by `predict.Supervised` and
+#' `predict.CalibratedClassification` (the latter cannot call its parent method
+#' directly because `predict` is an S3/base generic, not an S7 generic).
 #'
-#' @param object `Supervised` object.
-#' @param newdata data.frame or similar: New data to predict.
+#' @param object `Supervised` (or subclass) object.
+#' @param newdata data.frame: New data to predict.
+#' @param verbosity Integer: Verbosity level.
 #'
+#' @return Output of `predict_super()` (raw predictions / probabilities).
+#'
+#' @author EDG
+#' @keywords internal
 #' @noRd
-method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
+predict_supervised_ <- function(object, newdata, verbosity = 1L) {
   check_inherits(newdata, "data.frame")
 
   # Apply user-specified preprocessor if available
@@ -198,6 +213,16 @@ method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
       verbosity = verbosity
     ) |>
       preprocessed()
+  }
+
+  # Apply decomposition if available.
+  # In train(), the decomposition is learned on the (user-preprocessed) training
+  # features, so it is re-applied here after user preprocessing and before the
+  # algorithm-specific preprocessor, which was fit on the decomposed features.
+  if (!is.null(object@decomposition)) {
+    newdata <- as.data.frame(
+      apply_decomp(object@decomposition, newdata, verbosity = verbosity)
+    )
   }
 
   # Apply algorithm-specific preprocessor if available
@@ -237,6 +262,20 @@ method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
     type = object@type,
     verbosity = verbosity
   )
+} # /rtemis::predict_supervised_
+
+
+# %% predict.Supervised ----
+#' Predict `Supervised`
+#'
+#' Predict Method for `Supervised` objects
+#'
+#' @param object `Supervised` object.
+#' @param newdata data.frame or similar: New data to predict.
+#'
+#' @noRd
+method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
+  predict_supervised_(object, newdata, verbosity = verbosity)
 } # /rtemis::predict.Supervised
 
 
@@ -328,6 +367,23 @@ method(repr, Supervised) <- function(
       ),
       " Tuned using ",
       desc(x@tuner),
+      ".\n"
+    )
+  }
+
+  # Decomposition, if available
+  if (!is.null(x@decomposition)) {
+    out <- paste0(
+      out,
+      fmt(
+        "\U25C8",
+        col = col_decom,
+        bold = TRUE,
+        pad = pad,
+        output_type = output_type
+      ),
+      " Decomposed using ",
+      x@decomposition@algorithm,
       ".\n"
     )
   }
@@ -442,20 +498,24 @@ method(repr, Supervised) <- function(
 #' @noRd
 method(to_json, Supervised) <- function(x, ...) {
   # Use `.to_json_value()` for every prop — it handles nested S7 objects,
-  # nested lists containing S7 objects, and primitive types uniformly.
-  # That matters when a prop's *declared* type is S7 but the actual value
-  # is a primitive (e.g. `varimp` is sometimes a plain numeric vector
-  # rather than a VariableImportance — a rtemis-internal type mismatch
-  # that this method must tolerate).
+  # nested lists containing S7 objects, and primitive types uniformly,
+  # including props that may be NULL (e.g. `varimp` is either a
+  # `VariableImportance` object or NULL).
   out <- list(
     .class = S7_class(x)@name,
     algorithm = x@algorithm,
     type = x@type,
     question = x@question,
+    description = desc(x), # used by rtemislive
     xnames = x@xnames,
     n_features = length(x@xnames),
     preprocessor = .to_json_value(x@preprocessor),
     preprocessor_internal = .to_json_value(x@preprocessor_internal),
+    decomposition = if (!is.null(x@decomposition)) {
+      x@decomposition@algorithm
+    } else {
+      NULL
+    },
     hyperparameters = .to_json_value(x@hyperparameters),
     tuner = .to_json_value(x@tuner),
     execution_config = .to_json_value(x@execution_config),
@@ -504,6 +564,177 @@ method(print, Supervised) <- function(
 } # /rtemis::print.Supervised
 
 
+# %% desc_preprocessor_steps ----
+#' Human-readable summary of the active preprocessing steps
+#'
+#' Maps the `PreprocessorConfig` flags onto short labels for use in `desc()`
+#' sentences. Returns `character(0)` when no recognized step is active.
+#'
+#' @param config `PreprocessorConfig` object.
+#'
+#' @return Character vector of step labels.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+desc_preprocessor_steps <- function(config) {
+  steps <- character()
+  if (isTRUE(config@complete_cases)) {
+    steps <- c(steps, "complete-case filtering")
+  }
+  if (!is.null(config@remove_features_thres)) {
+    steps <- c(steps, "high-missingness feature removal")
+  }
+  if (!is.null(config@remove_cases_thres)) {
+    steps <- c(steps, "high-missingness case removal")
+  }
+  if (isTRUE(config@impute)) {
+    steps <- c(steps, "imputation")
+  }
+  type_conversion <- c(
+    config@integer2factor,
+    config@integer2numeric,
+    config@logical2factor,
+    config@logical2numeric,
+    config@numeric2factor,
+    config@character2factor,
+    config@factor2integer
+  )
+  if (any(vapply(type_conversion, isTRUE, logical(1L)))) {
+    steps <- c(steps, "type conversion")
+  }
+  if (isTRUE(config@center)) {
+    steps <- c(steps, "centering")
+  }
+  if (isTRUE(config@scale)) {
+    steps <- c(steps, "scaling")
+  }
+  if (isTRUE(config@remove_constants)) {
+    steps <- c(steps, "constant-feature removal")
+  }
+  if (isTRUE(config@remove_duplicates)) {
+    steps <- c(steps, "duplicate removal")
+  }
+  if (!is.null(config@remove_features)) {
+    steps <- c(steps, "manual feature removal")
+  }
+  if (isTRUE(config@one_hot)) {
+    steps <- c(steps, "one-hot encoding")
+  }
+  if (isTRUE(config@add_date_features)) {
+    steps <- c(steps, "date feature extraction")
+  }
+  steps
+} # /rtemis::desc_preprocessor_steps
+
+
+# %% desc_preprocessing_decomposition ----
+#' Append preprocessing & decomposition sentences to a `desc()` string
+#'
+#' Shared by `desc.Supervised` and `desc.SupervisedRes`. `preprocessor` and
+#' `decomposition` are the fitted objects (or `NULL`); each contributes a
+#' sentence only when present.
+#'
+#' @param out Character: The description string to append to.
+#' @param preprocessor `Preprocessor` object or `NULL`.
+#' @param decomposition `Decomposition` object or `NULL`.
+#'
+#' @return Character: `out` with any applicable sentences appended.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+desc_preprocessing_decomposition <- function(out, preprocessor, decomposition) {
+  # Preprocessing ----
+  if (!is.null(preprocessor)) {
+    steps <- desc_preprocessor_steps(preprocessor@config)
+    out <- paste0(
+      out,
+      if (length(steps) > 0L) {
+        paste0(
+          " Preprocessing was applied (",
+          paste(steps, collapse = ", "),
+          ")."
+        )
+      } else {
+        " Preprocessing was applied."
+      }
+    )
+  }
+  # Decomposition ----
+  if (!is.null(decomposition)) {
+    k <- decomposition@config[["k"]]
+    out <- paste0(
+      out,
+      " Decomposition was performed using ",
+      decomposition@algorithm,
+      if (!is.null(k)) paste0(" (k = ", k, ")"),
+      "."
+    )
+  }
+  out
+} # /rtemis::desc_preprocessing_decomposition
+
+
+# %% desc.Supervised ----
+method(desc, Supervised) <- function(x) {
+  type <- x@type
+  algorithm <- desc_alg(x@algorithm)
+  out <- paste0(algorithm, " was used for ", tolower(type), ".")
+
+  # Preprocessing & Decomposition ----
+  out <- desc_preprocessing_decomposition(out, x@preprocessor, x@decomposition)
+
+  # Tuning ----
+  if (length(x@tuner) > 0) {
+    out <- paste0(
+      out,
+      " Hyperparameter tuning was performed using ",
+      desc(x@tuner),
+      "."
+    )
+  }
+
+  # Metrics ----
+  if (type == "Classification") {
+    out <- paste(
+      out,
+      "Balanced accuracy was",
+      ddSci(x@metrics_training[["overall"]][["balanced_accuracy"]]),
+      "in the training set"
+    )
+    if (!is.null(x@metrics_test[["overall"]][["balanced_accuracy"]])) {
+      out <- paste(
+        out,
+        "and",
+        ddSci(x@metrics_test[["overall"]][["balanced_accuracy"]]),
+        "in the test set."
+      )
+    } else {
+      out <- paste0(out, ".")
+    }
+  } else if (type == "Regression") {
+    out <- paste(
+      out,
+      "R-squared was",
+      ddSci(x@metrics_training[["rsq"]]),
+      "on the training set"
+    )
+    if (!is.null(x@metrics_test[["rsq"]])) {
+      out <- paste(
+        out,
+        "and",
+        ddSci(x@metrics_test[["rsq"]]),
+        "on the test set."
+      )
+    } else {
+      out <- paste0(out, ".")
+    }
+  }
+  invisible(out)
+} # /rtemis::desc.Supervised
+
+
 # %% describe.Supervised ----
 #' Describe `Supervised` object
 #'
@@ -518,82 +749,17 @@ method(print, Supervised) <- function(
 #' @examples
 #' species_lightrf <- train(iris, algorithm = "lightrf")
 #' describe(species_lightrf)
-method(describe, Supervised) <- function(x) {
-  type <- x@type
-  algorithm <- desc_alg(x@algorithm)
-  cat(algorithm, " was used for ", tolower(type), ".\n", sep = "")
-  desc <- paste0(algorithm, " was used for ", tolower(type), ".")
-
-  # Tuning ----
-  if (length(x@tuner) > 0) {
-    describe(x@tuner)
+method(describe, Supervised) <- function(x, verbosity = 1L) {
+  descx <- desc(x)
+  if (verbosity >= 1L) {
+    cat(descx, "\n")
   }
-
-  # Metrics ----
-  if (type == "Classification") {
-    cat(
-      "Balanced accuracy was",
-      ddSci(x@metrics_training[["Overall"]][["Balanced_Accuracy"]]),
-      "on the training set"
-    )
-    desc <- paste(
-      desc,
-      "Balanced accuracy was",
-      ddSci(x@metrics_training[["Overall"]][["Balanced_Accuracy"]]),
-      "in the training set"
-    )
-    if (!is.null(x@metrics_test[["Overall"]][["Balanced_Accuracy"]])) {
-      cat(
-        " and",
-        ddSci(x@metrics_test[["Overall"]][["Balanced_Accuracy"]]),
-        "in the test set."
-      )
-      desc <- paste(
-        desc,
-        "and",
-        ddSci(x@metrics_test[["Overall"]][["Balanced_Accuracy"]]),
-        "in the test set."
-      )
-    } else {
-      cat(".")
-      desc <- paste0(desc, ".")
-    }
-  } else if (type == "Regression") {
-    cat(
-      "R-squared was",
-      ddSci(x@metrics_training[["Rsq"]]),
-      "in the training set"
-    )
-    desc <- paste(
-      desc,
-      "R-squared was",
-      ddSci(x@metrics_training[["Rsq"]]),
-      "on the training set"
-    )
-    if (!is.null(x@metrics_test[["Rsq"]])) {
-      cat(
-        " and",
-        ddSci(x@metrics_test[["Rsq"]]),
-        "in the test."
-      )
-      desc <- paste(
-        desc,
-        "and",
-        ddSci(x@metrics_test[["Rsq"]]),
-        "on the test set."
-      )
-    } else {
-      cat(".")
-      desc <- paste0(desc, ".")
-    }
-  }
-  cat("\n")
-  invisible(desc)
+  invisible(descx)
 } # /rtemis::describe.Supervised
 
 
 # %% Classification ----
-#' @title Classification
+#' Classification
 #'
 #' @description
 #' Supervised subclass for classification models.
@@ -602,6 +768,7 @@ method(describe, Supervised) <- function(x) {
 #' @noRd
 Classification <- new_class(
   name = "Classification",
+  package = "rtemis",
   parent = Supervised,
   properties = list(
     predicted_prob_training = class_double | class_data.frame | NULL,
@@ -614,6 +781,7 @@ Classification <- new_class(
     model = NULL,
     preprocessor = NULL, # Preprocessor
     preprocessor_internal = NULL, # Algorithm-specific preprocessor
+    decomposition = NULL, # Decomposition
     hyperparameters = NULL, # Hyperparameters
     tuner = NULL, # Tuner
     execution_config,
@@ -665,6 +833,7 @@ Classification <- new_class(
         type = "Classification",
         preprocessor = preprocessor,
         preprocessor_internal = preprocessor_internal,
+        decomposition = decomposition,
         hyperparameters = hyperparameters,
         tuner = tuner,
         execution_config = execution_config,
@@ -692,7 +861,7 @@ Classification <- new_class(
 
 
 # %% CalibratedClassification ----
-#' @title CalibratedClassification
+#' CalibratedClassification
 #'
 #' @description
 #' Classification subclass for calibrated classification models.
@@ -821,11 +990,13 @@ CalibratedClassification <- new_class(
 # %% predict.CalibratedClassification ----
 method(predict, CalibratedClassification) <- function(object, newdata, ...) {
   check_inherits(newdata, "data.frame")
-  # Get the classification model's predicted probabilities
-  raw_prob <- do_call(
-    predict_super,
-    list(model = object@model, newdata = newdata, type = "Classification")
-  )
+  # Get the classification model's predicted probabilities, routing through the
+  # parent `Supervised` predict method so the stored preprocessor, decomposition,
+  # and algorithm-internal preprocessor are re-applied to `newdata` before the
+  # underlying model is queried. `predict` is an S3/base generic, so the parent
+  # `Supervised` method cannot be invoked via `super()`; call the shared pipeline
+  # helper instead.
+  raw_prob <- predict_supervised_(object, newdata)
   # Get the calibration model's predicted probabilities
   predict(
     object@calibration_model,
@@ -856,6 +1027,7 @@ Regression <- new_class(
     model = NULL,
     preprocessor = NULL, # Preprocessor
     preprocessor_internal = NULL, # Algorithm-specific preprocessor
+    decomposition = NULL, # Decomposition
     hyperparameters = NULL, # Hyperparameters
     tuner = NULL, # Tuner
     execution_config, # ExecutionConfig
@@ -904,6 +1076,7 @@ Regression <- new_class(
         type = "Regression",
         preprocessor = preprocessor,
         preprocessor_internal = preprocessor_internal,
+        decomposition = decomposition,
         hyperparameters = hyperparameters,
         tuner = tuner,
         execution_config = execution_config,
@@ -1073,6 +1246,7 @@ make_Supervised <- function(
   model = NULL,
   preprocessor = NULL,
   preprocessor_internal = NULL,
+  decomposition = NULL,
   hyperparameters = NULL,
   tuner = NULL,
   execution_config,
@@ -1101,6 +1275,7 @@ make_Supervised <- function(
       model = model,
       preprocessor = preprocessor,
       preprocessor_internal = preprocessor_internal,
+      decomposition = decomposition,
       hyperparameters = hyperparameters,
       tuner = tuner,
       execution_config = execution_config,
@@ -1125,6 +1300,7 @@ make_Supervised <- function(
       model = model,
       preprocessor = preprocessor,
       preprocessor_internal = preprocessor_internal,
+      decomposition = decomposition,
       hyperparameters = hyperparameters,
       tuner = tuner,
       execution_config = execution_config,
@@ -1265,6 +1441,7 @@ method(present, Classification) <- function(
 #' @noRd
 SupervisedRes <- new_class(
   name = "SupervisedRes",
+  package = "rtemis",
   properties = list(
     algorithm = class_character,
     models = class_list,
@@ -1470,6 +1647,10 @@ method(to_json, SupervisedRes) <- function(x, ...) {
     algorithm = x@algorithm,
     type = x@type,
     question = x@question,
+    # Human-readable model summary (algorithm, tuning, headline metrics across
+    # resamples), so consumers can show a one-line description without
+    # re-deriving it.
+    description = desc(x),
     xnames = x@xnames,
     n_features = length(x@xnames),
     n_resamples = length(x@models),
@@ -1478,6 +1659,9 @@ method(to_json, SupervisedRes) <- function(x, ...) {
     hyperparameters = .to_json_value(x@hyperparameters),
     tuner_config = .to_json_value(x@tuner_config),
     outer_resampler = .to_json_value(x@outer_resampler),
+    # Human-readable resampling strategy (e.g. "10 independent folds"), so
+    # consumers can caption aggregate results without re-deriving it.
+    resampler_desc = desc(x@outer_resampler),
     execution_config = .to_json_value(x@execution_config),
     metrics_training = .to_json_value(x@metrics_training),
     metrics_test = .to_json_value(x@metrics_test),
@@ -1586,12 +1770,32 @@ ClassificationRes <- new_class(
     question = NULL,
     extra = NULL
   ) {
+    conf_mat_training <- conf_table(
+      unlist(y_training),
+      unlist(predicted_training)
+    )
+    names(attributes(conf_mat_training)[["dimnames"]]) <- c(
+      "Reference",
+      "Predicted"
+    )
+    conf_mat_test <- conf_table(
+      unlist(y_test),
+      unlist(predicted_test)
+    )
+    names(attributes(conf_mat_test)[["dimnames"]]) <- c(
+      "Reference",
+      "Predicted"
+    )
     metrics_training <- ClassificationMetricsRes(
       sample = "Training",
+      # Aggregate confusion matrix from concatenated true and predicted labels
+      confusion_matrix = conf_mat_training,
       res_metrics = lapply(models, function(mod) mod@metrics_training)
     )
     metrics_test <- ClassificationMetricsRes(
       sample = "Test",
+      # Aggregate confusion matrix from concatenated true and predicted labels
+      confusion_matrix = conf_mat_test,
       res_metrics = lapply(models, function(mod) mod@metrics_test)
     )
     new_object(
@@ -1690,10 +1894,18 @@ CalibratedClassificationRes <- new_class(
 
     metrics_training_calibrated <- ClassificationMetricsRes(
       sample = "Training",
+      confusion_matrix = conf_table(
+        unlist(ClassificationRes_model@y_training),
+        unlist(ClassificationRes_model@predicted_training)
+      ),
       res_metrics = all_training_metrics
     )
     metrics_test_calibrated <- ClassificationMetricsRes(
       sample = "Test",
+      confusion_matrix = conf_table(
+        unlist(ClassificationRes_model@y_test),
+        unlist(ClassificationRes_model@predicted_test)
+      ),
       res_metrics = all_test_metrics
     )
 
@@ -1848,6 +2060,18 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
   # cat(algorithm, " was used for ", tolower(type), ".\n", sep = "")
   out <- paste0(algorithm, " was used for ", tolower(type), ".")
 
+  # Preprocessing & Decomposition ----
+  # In the outer-resampling path the top-level props are NULL; each fold carries
+  # its own (identical) config, so describe from the first model.
+  mod1 <- if (length(x@models) > 0L) x@models[[1L]] else NULL
+  if (!is.null(mod1)) {
+    out <- desc_preprocessing_decomposition(
+      out,
+      mod1@preprocessor,
+      mod1@decomposition
+    )
+  }
+
   # Tuning ----
   if (length(x@tuner_config) > 0) {
     out <- paste0(
@@ -1861,25 +2085,25 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
   # Metrics ----
   if (type == "Classification") {
     if (is.null(metric)) {
-      metric <- "Balanced_Accuracy"
+      metric <- "balanced_accuracy"
     }
     out <- paste(
       out,
       "Mean",
       labelify(metric, toLower = TRUE),
       "was",
-      ddSci(x@metrics_training@mean_metrics[["Balanced_Accuracy"]]),
+      ddSci(x@metrics_training@mean_metrics[["balanced_accuracy"]]),
       "in the training set and",
-      ddSci(x@metrics_test@mean_metrics[["Balanced_Accuracy"]]),
+      ddSci(x@metrics_test@mean_metrics[["balanced_accuracy"]]),
       "in the test set across "
     )
   } else if (type == "Regression") {
     out <- paste(
       out,
       "Mean R-squared was",
-      ddSci(x@metrics_training@mean_metrics[["Rsq"]]),
+      ddSci(x@metrics_training@mean_metrics[["rsq"]]),
       "on the training set and",
-      ddSci(x@metrics_test@mean_metrics[["Rsq"]]),
+      ddSci(x@metrics_test@mean_metrics[["rsq"]]),
       "on the test set across "
     )
   }
@@ -1902,8 +2126,12 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
 #' @examples
 #' mod <- train(iris, algorithm = "CART", outer_resampling_config = setup_Resampler())
 #' describe(mod)
-method(describe, SupervisedRes) <- function(x, ...) {
-  cat(desc(x), "\n")
+method(describe, SupervisedRes) <- function(x, verbosity = 1L) {
+  descx <- desc(x)
+  if (verbosity >= 1L) {
+    cat(descx, "\n")
+  }
+  invisible(descx)
 }
 
 
@@ -2006,7 +2234,7 @@ method(plot_true_pred, ClassificationRes) <- function(
   # Training
   if ("training" %in% what) {
     plt_training <- draw_confusion(
-      table(true_l[["y_training"]], predicted_l[["predicted_training"]]),
+      conf_table(true_l[["y_training"]], predicted_l[["predicted_training"]]),
       xlab = "Predicted Training",
       theme = theme,
       ...
@@ -2014,7 +2242,7 @@ method(plot_true_pred, ClassificationRes) <- function(
   }
   if ("test" %in% what) {
     plt_test <- draw_confusion(
-      table(true_l[["y_test"]], predicted_l[["predicted_test"]]),
+      conf_table(true_l[["y_test"]], predicted_l[["predicted_test"]]),
       xlab = "Predicted Test",
       theme = theme,
       ...
@@ -2119,9 +2347,9 @@ method(plot_metric, SupervisedRes) <- function(
   # Metric
   if (is.null(metric)) {
     if (.class) {
-      metric <- "Balanced_Accuracy"
+      metric <- "balanced_accuracy"
     } else {
-      metric <- "Rsq"
+      metric <- "rsq"
     }
   }
 
@@ -2131,7 +2359,7 @@ method(plot_metric, SupervisedRes) <- function(
       xl[["Training"]] <- sapply(
         x@metrics_training@res_metrics,
         function(fold) {
-          fold[["Overall"]][[metric]]
+          fold[["overall"]][[metric]]
         }
       )
     } else {
@@ -2146,7 +2374,7 @@ method(plot_metric, SupervisedRes) <- function(
   if ("test" %in% what) {
     if (.class) {
       xl[["Test"]] <- sapply(x@metrics_test@res_metrics, function(fold) {
-        fold[["Overall"]][[metric]]
+        fold[["overall"]][[metric]]
       })
     } else {
       xl[["Test"]] <- sapply(x@metrics_test@res_metrics, function(fold) {
@@ -2319,7 +2547,7 @@ early_stopping_algs <- c("LightGBM", "LightRF", "LightRuleFit")
 
 
 # LightRuleFit ----
-#' @title LightRuleFit
+#' LightRuleFit
 #'
 #' @description
 #' Class for LightRuleFit models.
@@ -2366,7 +2594,7 @@ method(get_metric, Regression) <- function(x, set, metric) {
 
 # get_metric Classification ----
 method(get_metric, Classification) <- function(x, set, metric) {
-  prop(prop(x, paste0("metrics_", set)), "metrics")[["Overall"]][[metric]]
+  prop(prop(x, paste0("metrics_", set)), "metrics")[["overall"]][[metric]]
 } # /get_metric.Classification
 
 # get_metric RegressionRes ----
@@ -2384,7 +2612,7 @@ method(get_metric, ClassificationRes) <- function(x, set, metric) {
   sapply(
     prop(prop(x, paste0("metrics_", set)), "res_metrics"),
     function(r) {
-      r[["Overall"]][[metric]]
+      r[["overall"]][[metric]]
     }
   )
 } # /rtemis::get_metric.ClassificationRes
@@ -2394,7 +2622,7 @@ method(get_metric, ClassificationRes) <- function(x, set, metric) {
 #' Describe multiple Supervised or SupervisedRes objects
 #'
 #' @param x List of `Supervised` or `SupervisedRes` objects.
-#' @param metric Character: Metric to use for description. Default is NULL, which uses "Balanced_Accuracy" for Classification and "Rsq" for Regression.
+#' @param metric Character: Metric to use for description. Default is NULL, which uses "balanced_accuracy" for Classification and "rsq" for Regression.
 #' @param decimal_places Integer: Number of decimal places to round metrics to.
 #' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
@@ -2467,9 +2695,9 @@ method(desc, class_list) <- function(
     # 2. Get metric
     if (is.null(metric)) {
       metric <- if (suptype == "Classification") {
-        "Balanced_Accuracy"
+        "balanced_accuracy"
       } else {
-        "Rsq"
+        "rsq"
       }
     }
     metricv <- sapply(x, function(m) m@metrics_test@mean_metrics[[metric]])
@@ -2485,15 +2713,15 @@ method(desc, class_list) <- function(
     # 2. Get metric
     if (is.null(metric)) {
       metric <- if (suptype == "Classification") {
-        "Balanced_Accuracy"
+        "balanced_accuracy"
       } else {
-        "Rsq"
+        "rsq"
       }
     }
     if (suptype == "Classification") {
       # Classification
       metricv <- sapply(x, function(m) {
-        m@metrics_test@metrics[["Overall"]][[metric]]
+        m@metrics_test@metrics[["overall"]][[metric]]
       })
     } else {
       # Regression
@@ -2535,7 +2763,7 @@ method(desc, class_list) <- function(
 #'
 #' @details
 #' Extra arguments:
-#' - `metric`: Character: Metric to use for description. If NULL, defaults to "Balanced_Accuracy" for Classification and "Rsq" for Regression.
+#' - `metric`: Character: Metric to use for description. If NULL, defaults to "balanced_accuracy" for Classification and "rsq" for Regression.
 #' - `decimal_places`: Integer: Number of decimal places to round metrics to.
 #' - `output_type`: Character {"ansi", "html", or "plain"}: Output type.
 #'
@@ -2550,6 +2778,7 @@ method(describe, class_list) <- function(
   metric = NULL,
   decimal_places = 3L,
   output_type = NULL,
+  verbosity = 1L,
   ...
 ) {
   out <- desc(
@@ -2558,6 +2787,19 @@ method(describe, class_list) <- function(
     decimal_places = decimal_places,
     output_type = output_type
   )
-  cat(out, "\n")
+  if (verbosity >= 1L) {
+    cat(out, "\n")
+  }
   invisible(out)
 } # /rtemis::describe.list(Supervised/Res)
+
+
+# %% get_varimp.Supervised ----
+method(get_varimp, Supervised) <- function(x) {
+  x@varimp
+} # /rtemis::get_varimp.Supervised
+
+# %% get_varimp.SupervisedRes ----
+method(get_varimp, SupervisedRes) <- function(x) {
+  x@varimp
+} # /rtemis::get_varimp.SupervisedRes
