@@ -61,6 +61,7 @@ setup_progress <- function() {
 .onAttach <- function(libname, pkgname) {
   if (interactive()) {
     # setup_progress()
+    ncores <- default_n_workers(omit = 0L)
     vline <- paste0(
       "\n  .:",
       bold(pkgname),
@@ -70,8 +71,9 @@ setup_progress <- function() {
       " ",
       sessionInfo()[[2]],
       " (",
-      default_n_workers(omit = 0L),
-      " cores available)\n  "
+      ncores,
+      ngettext(ncores, " core", " cores"),
+      " available)\n  "
     )
     packageStartupMessage(paste0(
       pkglogo(),
