@@ -28,24 +28,30 @@ VariableImportance <- new_class(
   validator = function(self) {
     # Must include at least two columns
     if (NCOL(self@data) < 2L) {
-      cli::cli_abort(
-        "Variable importance data must include at least two columns: 'variable' and at least one importance measure."
+      rtemis.core::abort(
+        "Variable importance data must include at least two columns: 'variable' and at least one importance measure.",
+        class = c("rtemis_dim_error", "rtemis_data_error")
       )
     }
     # Must include column "variable" of type character
     if (!"variable" %in% names(self@data)) {
-      cli::cli_abort(
-        "Variable importance data must include a 'variable' column."
+      rtemis.core::abort(
+        "Variable importance data must include a 'variable' column.",
+        class = "rtemis_data_error"
       )
     }
     if (!is.character(self@data[["variable"]])) {
-      cli::cli_abort("Column 'variable' must be of type character.")
+      rtemis.core::abort(
+        "Column 'variable' must be of type character.",
+        class = "rtemis_data_error"
+      )
     }
     # All other columns must be numeric
     other_cols <- setdiff(names(self@data), "variable")
     if (!all(self@data[, sapply(.SD, is.numeric), .SDcols = other_cols])) {
-      cli::cli_abort(
-        "All columns other than 'variable' must be numeric."
+      rtemis.core::abort(
+        "All columns other than 'variable' must be numeric.",
+        class = "rtemis_data_error"
       )
     }
     # Number of rows will be checked by Supervised to be at least as many as
@@ -239,20 +245,26 @@ predict_supervised_ <- function(object, newdata, verbosity = 1L) {
   if (!identical(names(newdata), object@xnames)) {
     extra_cols <- setdiff(names(newdata), object@xnames)
     missing_cols <- setdiff(object@xnames, names(newdata))
-    cli::cli_abort(c(
-      "x" = "Predictor names and order in newdata must exactly match training data.",
-      "i" = "Expected {length(object@xnames)} columns; got {NCOL(newdata)}.",
-      "i" = if (length(extra_cols) > 0L) {
+    rtemis.core::abort(
+      "Predictor names and order in newdata must exactly match training data.\n",
+      "Expected ",
+      length(object@xnames),
+      " columns; got ",
+      NCOL(newdata),
+      ".\n",
+      if (length(extra_cols) > 0L) {
         paste0("Unexpected columns: ", paste(extra_cols, collapse = ", "))
       } else {
         "Unexpected columns: none."
       },
-      "i" = if (length(missing_cols) > 0L) {
+      "\n",
+      if (length(missing_cols) > 0L) {
         paste0("Missing columns: ", paste(missing_cols, collapse = ", "))
       } else {
         "Missing columns: none."
-      }
-    ))
+      },
+      class = c("rtemis_dim_error", "rtemis_data_error")
+    )
   }
 
   # Call predict_super with fully preprocessed data
@@ -1932,7 +1944,10 @@ method(predict, CalibratedClassificationRes) <- function(
 
   # Check lengths match
   if (length(object@models) != length(object@calibration_models)) {
-    cli::cli_abort("Number of base models and calibration models must match.")
+    rtemis.core::abort(
+      "Number of base models and calibration models must match.",
+      class = c("rtemis_length_error", "rtemis_input_error")
+    )
   }
 
   predicted <- mapply(
@@ -2642,8 +2657,9 @@ method(desc, class_list) <- function(
     !all(sapply(x, S7_inherits, Supervised)) &&
       !all(sapply(x, S7_inherits, SupervisedRes))
   ) {
-    cli::cli_abort(
-      "All elements must be either Supervised or SupervisedRes objects"
+    rtemis.core::abort(
+      "All elements must be either Supervised or SupervisedRes objects.",
+      class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
   type <- if (S7_inherits(x[[1]], SupervisedRes)) {
@@ -2654,8 +2670,9 @@ method(desc, class_list) <- function(
 
   # Check that all models are of the same type
   if (!all(sapply(x, function(m) m@type == x[[1]]@type))) {
-    cli::cli_abort(
-      "All objects must be of the same supervised learning type (Classification or Regression)."
+    rtemis.core::abort(
+      "All objects must be of the same supervised learning type (Classification or Regression).",
+      class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
 

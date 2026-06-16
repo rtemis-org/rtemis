@@ -63,6 +63,10 @@ tune <- function(
       n_workers = n_workers
     )
   } else {
-    cli::cli_abort("Unsupported tuner type: {tuner_config@type}")
+    rtemis.core::abort(
+      "Unsupported tuner type: ",
+      tuner_config@type,
+      class = "rtemis_unsupported_error"
+    )
   }
 } # /rtemis::tune

@@ -234,7 +234,10 @@ kfold <- function(
   max.bins <- length(unique(stratify_var))
   if (max.bins < strat_n_bins) {
     if (max.bins == 1) {
-      cli::cli_abort("Only one unique value present in stratify_var.")
+      rtemis.core::abort(
+        "Only one unique value present in stratify_var.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
     }
     if (verbosity > 0L) {
       msg0("Using max n bins possible = ", max.bins, ".")

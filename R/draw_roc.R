@@ -71,8 +71,9 @@ draw_roc <- function(
   }
   # Check N sets
   if (length(probl) != length(labelsl)) {
-    cli::cli_abort(
-      "You must have the same N of sets of `predicted_prob` and `true_labels`."
+    rtemis.core::abort(
+      "You must have the same N of sets of `predicted_prob` and `true_labels`.",
+      class = c("rtemis_length_error", "rtemis_input_error")
     )
   }
 
@@ -88,8 +89,9 @@ draw_roc <- function(
   }))
 
   if (length(n_classes) > 1) {
-    cli::cli_abort(
-      "You must have the same number of classes in each set of `predicted_prob`."
+    rtemis.core::abort(
+      "You must have the same number of classes in each set of `predicted_prob`.",
+      class = c("rtemis_length_error", "rtemis_input_error")
     )
   }
 
@@ -97,8 +99,9 @@ draw_roc <- function(
   # NROW() works for both vectors and matrices
   for (i in seq_along(probl)) {
     if (NROW(probl[[i]]) != length(labelsl[[i]])) {
-      cli::cli_abort(
-        "You must have the same N of `predicted_prob` and `true_labels`."
+      rtemis.core::abort(
+        "You must have the same N of `predicted_prob` and `true_labels`.",
+        class = c("rtemis_length_error", "rtemis_input_error")
       )
     }
   }
@@ -119,8 +122,9 @@ draw_roc <- function(
         if (multiclass_fill_labels) {
           colnames(pred) <- levels(labelsl[[i]])
         } else {
-          cli::cli_abort(
-            "For multiclass, `predicted_prob` must have column names matching levels of `true_labels`."
+          rtemis.core::abort(
+            "For multiclass, `predicted_prob` must have column names matching levels of `true_labels`.",
+            class = c("rtemis_value_error", "rtemis_input_error")
           )
         }
       }

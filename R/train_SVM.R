@@ -33,15 +33,19 @@ method(train_, LinearSVMHyperparameters) <- function(
 
   # Checks ----
   if (!is.null(weights)) {
-    cli::cli_abort(
-      "Case weights are not supported by e1071::svm. You can enable `ifw` in the hyperparameters to use inverse frequency weighting instead."
+    rtemis.core::abort(
+      "Case weights are not supported by e1071::svm. You can enable `ifw` in the hyperparameters to use inverse frequency weighting instead.",
+      class = "rtemis_unsupported_error"
     )
   }
 
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
   if (needs_tuning(hyperparameters)) {
-    cli::cli_abort("Hyperparameters must be fixed - use train() instead.")
+    rtemis.core::abort(
+      "Hyperparameters must be fixed - use train() instead.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
 
   # Data ----
@@ -138,15 +142,19 @@ method(train_, RadialSVMHyperparameters) <- function(
 
   # Checks ----
   if (!is.null(weights)) {
-    cli::cli_abort(
-      "Case weights are not supported by e1071::svm. You can enable `ifw` in the hyperparameters to use inverse frequency weighting instead."
+    rtemis.core::abort(
+      "Case weights are not supported by e1071::svm. You can enable `ifw` in the hyperparameters to use inverse frequency weighting instead.",
+      class = "rtemis_unsupported_error"
     )
   }
 
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
   if (needs_tuning(hyperparameters)) {
-    cli::cli_abort("Hyperparameters must be fixed - use train() instead.")
+    rtemis.core::abort(
+      "Hyperparameters must be fixed - use train() instead.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
 
   # Data ----

@@ -35,11 +35,12 @@ method(`$`, Decomposition) <- function(x, name) {
   if (name %in% prop_names) {
     prop(x, name)
   } else {
-    cli::cli_abort(paste0(
+    rtemis.core::abort(
       "No property named '",
       name,
-      "' in Decomposition object."
-    ))
+      "' in Decomposition object.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
 }
 
@@ -113,10 +114,15 @@ method(print, Decomposition) <- function(
 apply_decomp <- function(decom, new_data, verbosity = 1L) {
   check_is_S7(decom, Decomposition)
   if (!decom@algorithm %in% decom_algorithms_applicable) {
-    cli::cli_abort(c(
-      "{.val {decom@algorithm}} decomposition cannot be applied on new data.",
-      "i" = "Algorithms that support application on new data: {.val {decom_algorithms_applicable}}."
-    ))
+    rtemis.core::abort(
+      "'",
+      decom@algorithm,
+      "' decomposition cannot be applied on new data.\n",
+      "Algorithms that support application on new data: ",
+      paste(decom_algorithms_applicable, collapse = ", "),
+      ".",
+      class = "rtemis_unsupported_error"
+    )
   }
   new_data <- as.data.frame(new_data)
   features <- decom@config@features
@@ -126,10 +132,15 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
   } else {
     missing_cols <- setdiff(features, names(new_data))
     if (length(missing_cols) > 0L) {
-      cli::cli_abort(c(
-        "New data is missing {length(missing_cols)} column{?s} required by the decomposition.",
-        "x" = "Missing: {.val {missing_cols}}."
-      ))
+      rtemis.core::abort(
+        "New data is missing ",
+        length(missing_cols),
+        " column(s) required by the decomposition.\n",
+        "Missing: ",
+        paste(missing_cols, collapse = ", "),
+        ".",
+        class = c("rtemis_dim_error", "rtemis_data_error")
+      )
     }
     selected <- new_data[, features, drop = FALSE]
     kept <- new_data[, setdiff(names(new_data), features), drop = FALSE]
@@ -168,15 +179,21 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
 .list_to_DecompositionConfig <- function(x) {
   algorithm <- x[["algorithm"]]
   if (is.null(algorithm)) {
-    cli::cli_abort(
-      "{.arg algorithm} is required to build a DecompositionConfig."
+    rtemis.core::abort(
+      "`algorithm` is required to build a DecompositionConfig.",
+      class = c("rtemis_null_input", "rtemis_input_error")
     )
   }
   if (!decom_can_apply(algorithm)) {
-    cli::cli_abort(c(
-      "Decomposition algorithm {.val {algorithm}} cannot be applied on new data.",
-      "i" = "Supported algorithms: {.val {decom_algorithms_applicable}}."
-    ))
+    rtemis.core::abort(
+      "Decomposition algorithm '",
+      algorithm,
+      "' cannot be applied on new data.\n",
+      "Supported algorithms: ",
+      paste(decom_algorithms_applicable, collapse = ", "),
+      ".",
+      class = "rtemis_unsupported_error"
+    )
   }
   # Normalize casing and drop `algorithm` before forwarding to the setup fn.
   algorithm <- get_decom_name(algorithm)

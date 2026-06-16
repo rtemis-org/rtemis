@@ -30,8 +30,9 @@ SuperWorkers <- new_class(
       max_workers_algorithm + max_workers_tuning + max_workers_resampling >
         max_workers
     ) {
-      cli::cli_abort(
-        "Total workers for algorithm, tuning, and resampling cannot exceed max_workers."
+      rtemis.core::abort(
+        "Total workers for algorithm, tuning, and resampling cannot exceed max_workers.",
+        class = c("rtemis_value_error", "rtemis_input_error")
       )
     }
     new_object(

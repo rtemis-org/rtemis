@@ -219,10 +219,16 @@ draw_xt <- function(
     x2 <- rep(x2, length(y2))
   }
   if (length(x) != length(y)) {
-    cli::cli_abort("{.arg x} and {.arg y} must be the same length")
+    rtemis.core::abort(
+      "`x` and `y` must be the same length.",
+      class = c("rtemis_length_error", "rtemis_input_error")
+    )
   }
   if (!is.null(y2) && length(x2) != length(y2)) {
-    cli::cli_abort("{.arg x2} and {.arg y2} must be the same length")
+    rtemis.core::abort(
+      "`x2` and `y2` must be the same length.",
+      class = c("rtemis_length_error", "rtemis_input_error")
+    )
   }
 
   # Which traces to plot ----
@@ -254,8 +260,9 @@ draw_xt <- function(
 
   # Check args ----
   if (!is.null(shade_bin) && !is.null(shade_interval)) {
-    cli::cli_abort(
-      "Only set {.arg shade_bin} or {.arg shade_interval}, not both"
+    rtemis.core::abort(
+      "Only set `shade_bin` or `shade_interval`, not both.",
+      class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
 

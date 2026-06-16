@@ -38,8 +38,13 @@ identify_plan <- function(x = NULL) {
       return(p)
     }
   }
-  cli::cli_abort(
-    "Detected future plan not in allowed plans ({.val {ALLOWED_PLANS}}). Detected plan class: {.val {class(x)}}"
+  rtemis.core::abort(
+    "Detected future plan not in allowed plans (",
+    paste(ALLOWED_PLANS, collapse = ", "),
+    "). Detected plan class: ",
+    paste(class(x), collapse = "/"),
+    ".",
+    class = c("rtemis_value_error", "rtemis_input_error")
   )
 } # /rtemis::identify_plan
 
@@ -70,8 +75,13 @@ set_preferred_plan <- function(
   if (!is.null(requested_plan)) {
     # Security check
     if (!requested_plan %in% ALLOWED_PLANS) {
-      cli::cli_abort(
-        "Requested plan {.val {requested_plan}} is not one of allowed plans: {.val {ALLOWED_PLANS}}"
+      rtemis.core::abort(
+        "Requested plan '",
+        requested_plan,
+        "' is not one of allowed plans: ",
+        paste(ALLOWED_PLANS, collapse = ", "),
+        ".",
+        class = c("rtemis_value_error", "rtemis_input_error")
       )
     }
     # future::plan will determine workers if NULL & will set to sequential if only 1 core available

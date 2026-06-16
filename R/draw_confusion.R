@@ -58,7 +58,10 @@ draw_confusion <- function(
   }
 
   if (is.null(dim(x)) || ncol(x) != nrow(x)) {
-    cli::cli_abort("The confusion matrix must be a square matrix.")
+    rtemis.core::abort(
+      "The confusion matrix must be a square matrix.",
+      class = c("rtemis_dim_error", "rtemis_data_error")
+    )
   }
 
   # Metrics ----

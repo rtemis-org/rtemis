@@ -37,18 +37,27 @@ method(train_, IsotonicHyperparameters) <- function(
     verbosity = verbosity
   )
   if (NCOL(x) > 2) {
-    cli::cli_abort("Isotonic requires a single predictor.")
+    rtemis.core::abort(
+      "Isotonic requires a single predictor.",
+      class = c("rtemis_dim_error", "rtemis_data_error")
+    )
   }
 
   if (!is.null(weights)) {
-    cli::cli_abort("Isotonic does not support weights.")
+    rtemis.core::abort(
+      "Isotonic does not support weights.",
+      class = "rtemis_unsupported_error"
+    )
   }
 
   type <- supervised_type(x)
   if (type == "Classification") {
     n_classes <- nlevels(outcome(x))
     if (n_classes > 2L) {
-      cli::cli_abort("Isotonic does not support multiclass classification")
+      rtemis.core::abort(
+        "Isotonic does not support multiclass classification.",
+        class = "rtemis_unsupported_error"
+      )
     }
     # Assuming binclasspos = 2L
     y <- as.numeric(x[[2]]) - 1

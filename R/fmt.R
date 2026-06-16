@@ -33,25 +33,40 @@ map_value_to_color <- function(
     return(as.character(x))
   }
   if (!is.numeric(x) || length(x) != 1L || is.na(x)) {
-    cli::cli_abort("`x` must be a single non-missing numeric value.")
+    rtemis.core::abort(
+      "`x` must be a single non-missing numeric value.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
   }
   if (!is.numeric(range) || length(range) != 2L || anyNA(range)) {
-    cli::cli_abort(
-      "`range` must be a numeric vector of length 2 with no missing values."
+    rtemis.core::abort(
+      "`range` must be a numeric vector of length 2 with no missing values.",
+      class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
   if (range[1] >= range[2]) {
-    cli::cli_abort("`range[1]` must be strictly less than `range[2]`.")
+    rtemis.core::abort(
+      "`range[1]` must be strictly less than `range[2]`.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   if (!is.character(colors) || length(colors) < 2L || anyNA(colors)) {
-    cli::cli_abort(
-      "`colors` must be a character vector of at least 2 non-missing colors."
+    rtemis.core::abort(
+      "`colors` must be a character vector of at least 2 non-missing colors.",
+      class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
   # Check x is within range
   if (x < range[1] || x > range[2]) {
-    cli::cli_abort(
-      "Value {x} is out of range [{range[1]}, {range[2]}]"
+    rtemis.core::abort(
+      "Value ",
+      x,
+      " is out of range [",
+      range[1],
+      ", ",
+      range[2],
+      "].",
+      class = c("rtemis_range_error", "rtemis_input_error")
     )
   }
 
@@ -61,7 +76,10 @@ map_value_to_color <- function(
       grDevices::colorRampPalette(colors, space = space)(n_colors)
     },
     error = function(e) {
-      cli::cli_abort("Invalid `colors` specification.")
+      rtemis.core::abort(
+        "Invalid `colors` specification.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
     }
   )
 

@@ -47,7 +47,10 @@ color_op <- function(col, fn = c("invert", "mean"), space = c("HSV", "RGB")) {
     return(invertedl)
   } else if (fn == "mean") {
     if (length(col) < 2) {
-      cli::cli_abort("Need at least two colors to average")
+      rtemis.core::abort(
+        "Need at least two colors to average.",
+        class = c("rtemis_length_error", "rtemis_input_error")
+      )
     }
     if (space == "RGB") {
       averaged <- rowMeans(col.rgb)
@@ -711,8 +714,9 @@ colorgrad <- function(
 
 colorvec <- function(cols) {
   if (nchar(cols) %% 3 != 0) {
-    cli::cli_abort(
-      "All colors must be specified by their 3-letter abbreviations"
+    rtemis.core::abort(
+      "All colors must be specified by their 3-letter abbreviations.",
+      class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
 

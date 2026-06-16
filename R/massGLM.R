@@ -47,20 +47,27 @@ massGLM <- function(
   if (y_class[1] == "numeric") {
     # Check all are numeric
     if (!all(y_class == "numeric")) {
-      cli::cli_abort(
-        "All columns of y must be the same type: either numeric or factors with 2 levels"
+      rtemis.core::abort(
+        "All columns of y must be the same type: either numeric or factors with 2 levels.",
+        class = "rtemis_data_error"
       )
     }
     .family <- "gaussian"
   } else if (y_class[1] == "factor") {
     n_levels <- sapply(y, nlevels)
     if (!all(n_levels == 2)) {
-      cli::cli_abort("All factor columns of y must have 2 levels")
+      rtemis.core::abort(
+        "All factor columns of y must have 2 levels.",
+        class = "rtemis_data_error"
+      )
     }
     .family <- "binomial"
   } else {
-    cli::cli_abort(
-      "All columns of y must be either numeric or factors with 2 levels. Found: {.val {y_class}}"
+    rtemis.core::abort(
+      "All columns of y must be either numeric or factors with 2 levels. Found: ",
+      paste(y_class, collapse = ", "),
+      ".",
+      class = "rtemis_data_error"
     )
   }
 

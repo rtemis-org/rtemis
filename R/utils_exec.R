@@ -59,7 +59,10 @@ do_call <- function(
           ))
           if (length(idi) > 0) {
             for (i in idi) {
-              cat(orange(warn_pat_sug[[i]], "\n"))
+              cat(fmt(
+                paste0(warn_pat_sug[[i]], "\n"),
+                col = rtemis_colors[["orange"]]
+              ))
             }
           }
           invokeRestart("muffleWarning")
@@ -74,16 +77,17 @@ do_call <- function(
         suggestions <- sapply(idi, function(i) err_pat_sug[[i]])
         errmsg <- paste0(
           red(errmsg),
-          orange(
+          fmt(
             paste0(
               bold("\nSuggestion:\n  "),
               paste0(suggestions, collapse = "\n  ")
-            )
+            ),
+            col = rtemis_colors[["orange"]]
           )
         )
       }
       cat("\n")
-      cli::cli_abort(errmsg, call = call)
+      rtemis.core::abort(errmsg, class = "rtemis_runtime_error", parent = e)
     } # /error
   ) # /tryCatch
 } # /rtemis::do_call

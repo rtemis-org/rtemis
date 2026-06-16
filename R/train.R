@@ -206,8 +206,9 @@ train <- function(
 
   # Checks ----
   if (is.null(hyperparameters) && is.null(algorithm)) {
-    cli::cli_abort(
-      "You must define either {.arg hyperparameters} or {.arg algorithm}."
+    rtemis.core::abort(
+      "You must define either `hyperparameters` or `algorithm`.",
+      class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
 
@@ -219,8 +220,11 @@ train <- function(
     extra_args[["positive_class"]] <- NULL
   }
   if (length(extra_args) > 0L) {
-    cli::cli_abort(
-      "Unused extra arguments were provided: {.val {names(extra_args)}}. Please check your function call."
+    rtemis.core::abort(
+      "Unused extra arguments were provided: ",
+      paste(names(extra_args), collapse = ", "),
+      ". Please check your function call.",
+      class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
 
@@ -243,8 +247,13 @@ train <- function(
     !is.null(algorithm) &&
       tolower(algorithm) != tolower(hyperparameters@algorithm)
   ) {
-    cli::cli_abort(
-      "You defined algorithm to be '{algorithm}', but defined hyperparameters for {hyperparameters@algorithm}."
+    rtemis.core::abort(
+      "You defined algorithm to be '",
+      algorithm,
+      "', but defined hyperparameters for ",
+      hyperparameters@algorithm,
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
 
@@ -268,10 +277,15 @@ train <- function(
   if (!is.null(decomposition_config)) {
     check_is_S7(decomposition_config, DecompositionConfig)
     if (!decomposition_config@algorithm %in% decom_algorithms_applicable) {
-      cli::cli_abort(c(
-        "Decomposition algorithm {.val {decomposition_config@algorithm}} cannot be applied on new data and is not supported in {.fn train}.",
-        "i" = "Supported decomposition algorithms: {.val {decom_algorithms_applicable}}."
-      ))
+      rtemis.core::abort(
+        "Decomposition algorithm '",
+        decomposition_config@algorithm,
+        "' cannot be applied on new data and is not supported in `train()`.\n",
+        "Supported decomposition algorithms: ",
+        paste(decom_algorithms_applicable, collapse = ", "),
+        ".",
+        class = "rtemis_unsupported_error"
+      )
     }
   }
 
@@ -285,8 +299,9 @@ train <- function(
   # If outer_resampling_config is set, dat_validation and dat_test must be NULL
   if (!is.null(outer_resampling_config)) {
     if (!is.null(dat_validation) || !is.null(dat_test)) {
-      cli::cli_abort(
-        "If outer_resampling_config is set, {.arg dat_validation} and {.arg dat_test} must be NULL."
+      rtemis.core::abort(
+        "If `outer_resampling_config` is set, `dat_validation` and `dat_test` must be NULL.",
+        class = c("rtemis_value_error", "rtemis_input_error")
       )
     }
   }
@@ -523,25 +538,33 @@ train <- function(
       # Validate the selection against the actual (post-preprocessing) data.
       missing_cols <- setdiff(decomp_features, names(feat))
       if (length(missing_cols) > 0L) {
-        cli::cli_abort(c(
-          "{.arg decomposition_config} selects {cli::qty(missing_cols)}column{?s} that {?is/are} not {?a/} feature{?s}.",
-          "x" = "Not found among features: {.val {missing_cols}}."
-        ))
+        rtemis.core::abort(
+          "`decomposition_config` selects columns that are not features.\n",
+          "Not found among features: ",
+          paste(missing_cols, collapse = ", "),
+          ".",
+          class = c("rtemis_value_error", "rtemis_input_error")
+        )
       }
       non_numeric <- decomp_features[
         !vapply(feat[decomp_features], is.numeric, logical(1L))
       ]
       if (length(non_numeric) > 0L) {
-        cli::cli_abort(c(
-          "Decomposition can only be applied to numeric features.",
-          "x" = "Non-numeric column{?s} selected: {.val {non_numeric}}."
-        ))
+        rtemis.core::abort(
+          "Decomposition can only be applied to numeric features.\n",
+          "Non-numeric columns selected: ",
+          paste(non_numeric, collapse = ", "),
+          ".",
+          class = c("rtemis_type_error", "rtemis_input_error")
+        )
       }
       if (length(decomp_features) < 2L) {
-        cli::cli_abort(c(
-          "Decomposition requires at least 2 numeric feature columns.",
-          "i" = "{length(decomp_features)} {?was/were} available to decompose."
-        ))
+        rtemis.core::abort(
+          "Decomposition requires at least 2 numeric feature columns.\n",
+          length(decomp_features),
+          " available to decompose.",
+          class = c("rtemis_length_error", "rtemis_input_error")
+        )
       }
       # Persist the resolved names so apply_decomp() replays the same selection
       # on validation/test here and on new data at predict() time.
@@ -587,7 +610,10 @@ train <- function(
     # Weight calculation must follow preprocessing since N cases may change.
     if (type == "Classification" && hyperparameters[["ifw"]]) {
       if (!is.null(weights)) {
-        cli::cli_abort("Custom weights are defined, but IFW is set to TRUE.")
+        rtemis.core::abort(
+          "Custom weights are defined, but IFW is set to TRUE.",
+          class = c("rtemis_value_error", "rtemis_input_error")
+        )
       } else {
         weights <- ifw(x[[ncols]], type = "case_weights", verbosity = verbosity)
       }

@@ -33,12 +33,18 @@ method(train_, RangerHyperparameters) <- function(
   # Hyperparameters ----
   # Hyperparameters must be either untunable or frozen by `train`.
   if (needs_tuning(hyperparameters)) {
-    cli::cli_abort("Hyperparameters must be fixed - use train() instead.")
+    rtemis.core::abort(
+      "Hyperparameters must be fixed - use train() instead.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   # mtry cannot be larger than number of features
   if (any(hyperparameters@hyperparameters[["mtry"]] > NCOL(features(x)))) {
-    cli::cli_abort(
-      "mtry cannot be greater than number of features: {ncol(features(x))}."
+    rtemis.core::abort(
+      "mtry cannot be greater than number of features: ",
+      ncol(features(x)),
+      ".",
+      class = c("rtemis_range_error", "rtemis_input_error")
     )
   }
 
@@ -183,8 +189,11 @@ method(validate_hyperparameters, RangerHyperparameters) <- function(
 
   # Check mtry
   if (any(hyperparameters@hyperparameters[["mtry"]] > NCOL(features(x)))) {
-    cli::cli_abort(
-      "mtry cannot be greater than number of features: {ncol(features(x))}."
+    rtemis.core::abort(
+      "mtry cannot be greater than number of features: ",
+      ncol(features(x)),
+      ".",
+      class = c("rtemis_range_error", "rtemis_input_error")
     )
   }
 

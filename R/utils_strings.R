@@ -73,18 +73,28 @@ crossmark <- function(output_type = c("ansi", "html", "plain")) {
 paste_tables <- function(left, right, sep = "=>") {
   # Check inputs are tables
   if (!inherits(left, "table") || !inherits(right, "table")) {
-    cli::cli_abort(c(
-      "x" = "Both {.arg left} and {.arg right} must be {.cls table} objects.",
-      "i" = "Got: {.cls {class(left)}} and {.cls {class(right)}}."
-    ))
+    rtemis.core::abort(
+      "Both `left` and `right` must be <table> objects.\n",
+      "Got: <",
+      paste(class(left), collapse = "/"),
+      "> and <",
+      paste(class(right), collapse = "/"),
+      ">.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
   }
 
   # Check dimensions match
   if (!identical(dim(left), dim(right))) {
-    cli::cli_abort(c(
-      "x" = "Tables must have matching dimensions.",
-      "i" = "Got dimensions: {dim(left)} and {dim(right)}."
-    ))
+    rtemis.core::abort(
+      "Tables must have matching dimensions.\n",
+      "Got dimensions: ",
+      paste(dim(left), collapse = " x "),
+      " and ",
+      paste(dim(right), collapse = " x "),
+      ".",
+      class = c("rtemis_length_error", "rtemis_input_error")
+    )
   }
 
   # Paste values element-wise
@@ -133,18 +143,28 @@ paste_tables <- function(left, right, sep = "=>") {
 paste_dfs <- function(left, right, sep = "=>", decimal_places = 2L) {
   # Check inputs are data frames
   if (!inherits(left, "data.frame") || !inherits(right, "data.frame")) {
-    cli::cli_abort(c(
-      "x" = "Both {.arg left} and {.arg right} must be {.cls data.frame} objects.",
-      "i" = "Got: {.cls {class(left)}} and {.cls {class(right)}}."
-    ))
+    rtemis.core::abort(
+      "Both `left` and `right` must be <data.frame> objects.\n",
+      "Got: <",
+      paste(class(left), collapse = "/"),
+      "> and <",
+      paste(class(right), collapse = "/"),
+      ">.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
   }
 
   # Check dimensions match
   if (!identical(dim(left), dim(right))) {
-    cli::cli_abort(c(
-      "x" = "Data frames must have matching dimensions.",
-      "i" = "Got dimensions: {dim(left)} and {dim(right)}."
-    ))
+    rtemis.core::abort(
+      "Data frames must have matching dimensions.\n",
+      "Got dimensions: ",
+      paste(dim(left), collapse = " x "),
+      " and ",
+      paste(dim(right), collapse = " x "),
+      ".",
+      class = c("rtemis_length_error", "rtemis_input_error")
+    )
   }
 
   # Paste values element-wise for each column

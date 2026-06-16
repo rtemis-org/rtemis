@@ -481,8 +481,11 @@ init_project_dir <- function(path, output_dir = "Out", verbosity = 1L) {
       if (verbosity > 0L) {
         nay()
       }
-      cli::cli_abort(
-        "Failed to create project directory at {.file {path}}. Check path & permissions."
+      rtemis.core::abort(
+        "Failed to create project directory at `",
+        path,
+        "`. Check path & permissions.",
+        class = "rtemis_io_error"
       )
     }
   }
@@ -510,7 +513,13 @@ init_project_dir <- function(path, output_dir = "Out", verbosity = 1L) {
         if (verbosity > 0L) nay()
       }
     } else {
-      if (verbosity > 0L) cat(orange(" Already present\n", bold = TRUE))
+      if (verbosity > 0L) {
+        cat(fmt(
+          " Already present\n",
+          col = rtemis_colors[["orange"]],
+          bold = TRUE
+        ))
+      }
     }
   }
   if (verbosity > 0L) {

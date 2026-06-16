@@ -164,8 +164,9 @@ draw_dist <- function(
     x <- as.data.frame(x)
     # Can't have multiple vectors in `x` and `group`
     if (length(x) > 1 && !is.null(group)) {
-      cli::cli_abort(
-        "Can't have both multiple vectors in `x` and `group` defined."
+      rtemis.core::abort(
+        "Can't have both multiple vectors in `x` and `group` defined.",
+        class = c("rtemis_value_error", "rtemis_input_error")
       )
     }
     x <- split(x, group)

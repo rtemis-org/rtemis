@@ -131,16 +131,23 @@ validate_decom_features <- function(features) {
     return(invisible(NULL))
   }
   if (!is.character(features)) {
-    cli::cli_abort(
-      "{.arg features} must be a character vector of column names or {.code NULL}."
+    rtemis.core::abort(
+      "`features` must be a character vector of column names or `NULL`.",
+      class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
   if (anyDuplicated(features)) {
-    cli::cli_abort("{.arg features} must not contain duplicate names.")
+    rtemis.core::abort(
+      "`features` must not contain duplicate names.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
   if (length(features) < 2L) {
-    cli::cli_abort(
-      "{.arg features} must name at least 2 columns to decompose, but {length(features)} {?was/were} given."
+    rtemis.core::abort(
+      "`features` must name at least 2 columns to decompose, but ",
+      length(features),
+      " given.",
+      class = c("rtemis_length_error", "rtemis_input_error")
     )
   }
   invisible(features)
