@@ -78,6 +78,12 @@ For example, some optimized \code{data.table} operations that perform in-place m
 work with \code{data.table} objects.
 }
 
+\section{Error Conditions}{
+
+Errors are signalled as classed conditions that can be handled with
+\code{\link[=tryCatch]{tryCatch()}}. See \link{rtemis_conditions} for the class hierarchy.
+}
+
 \seealso{
 Useful links:
 \itemize{

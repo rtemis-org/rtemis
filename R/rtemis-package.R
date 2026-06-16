@@ -58,6 +58,10 @@
 #' For example, some optimized `data.table` operations that perform in-place modifications only
 #' work with `data.table` objects.
 #'
+#' @section Error Conditions:
+#' Errors are signalled as classed conditions that can be handled with
+#' [tryCatch()]. See [rtemis_conditions] for the class hierarchy.
+#'
 #' @name rtemis-package
 #' @import stats methods graphics S7 data.table htmltools rtemis.core
 # rtemis.core exports `gray()` (colored text); exclude grDevices::gray() to
