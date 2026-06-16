@@ -139,6 +139,13 @@ massGLM <- function(
       "The names of the outcome variables in y ({.val ynames}) do not match the names in the summary table ({.val summary[['Variable']]})",
       "Check the summary table."
     ))
+    rtemis.core::warn(
+      "The names of the outcome variables in y (",
+      paste(ynames, collapse = ", "),
+      ") do not match the names in the summary table (",
+      paste(tbl[["Variable"]], collapse = ", "),
+      "). Check the summary table."
+    )
   }
   outro(start_time)
   MassGLM(
