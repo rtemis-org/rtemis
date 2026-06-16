@@ -99,7 +99,10 @@ read <- function(
   path <- sanitize_path(path, must_exist = FALSE)
 
   if (ext == "parquet") {
-    if (length(parquet_reader) > 1L && substr(version[[1]], 1, 4) == "wasm") {
+    if (
+      length(parquet_reader) > 1L &&
+        substr(base::R.Version()[["arch"]], 1, 4) == "wasm"
+    ) {
       parquet_reader <- "nanoparquet"
     }
     parquet_reader <- match.arg(parquet_reader)
