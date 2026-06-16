@@ -69,6 +69,7 @@ Suggests:
     mirai,
     missRanger,
     nanonext,
+    nanoparquet,
     networkD3,
     NMF,
     openxlsx,
