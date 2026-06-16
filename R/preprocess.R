@@ -846,7 +846,7 @@ method(one_hot, class_data.table) <- function(x, verbosity = 1L) {
   .names <- colnames(x)
   for (i in factor_index) {
     if (verbosity > 0L) {
-      msg_info("One hot encoding ", .names[i], "...")
+      info("One hot encoding ", .names[i], "...")
     }
     .levels <- levels(x[[i]])
     index <- as.integer(x[[i]])
@@ -891,7 +891,7 @@ dt_set_one_hot <- function(x, xname = NULL, verbosity = 1L) {
   .names <- colnames(x)
   for (i in factor_index) {
     if (verbosity > 0L) {
-      msg_info("One hot encoding ", .names[i], "...")
+      info("One hot encoding ", .names[i], "...")
     }
     .levels <- levels(x[[i]])
     index <- as.numeric(x[[i]])

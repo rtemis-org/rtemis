@@ -59,7 +59,11 @@
 #' work with `data.table` objects.
 #'
 #' @name rtemis-package
-#' @import stats methods graphics grDevices S7 data.table htmltools
+#' @import stats methods graphics S7 data.table htmltools rtemis.core
+# rtemis.core exports `gray()` (colored text); exclude grDevices::gray() to
+# avoid masking it, matching the previous local definition. Use
+# `grDevices::gray()` explicitly where the grayscale palette is needed.
+#' @rawNamespace import(grDevices, except = gray)
 #' @importFrom utils packageVersion sessionInfo getFromNamespace head tail
 "_PACKAGE"
 

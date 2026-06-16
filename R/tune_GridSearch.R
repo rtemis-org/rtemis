@@ -177,14 +177,13 @@ tune_GridSearch <- function(
     n_res_x_comb
   ) {
     if (verbosity > 1L) {
-      msg_info(
+      info(
         "Running grid line #",
         fmt(index, col = col_tuner, bold = TRUE),
         "/",
         NROW(res_param_grid),
         "...",
-        caller = "tune_GridSearch",
-        sep = ""
+        caller = "tune_GridSearch"
       )
     }
     res1 <- res[[res_param_grid[index, "resample_id"]]]
@@ -235,7 +234,7 @@ tune_GridSearch <- function(
       # Check best_iter is meaningful, otherwise issue message and set to 100L
       best_iter <- mod1@model[["best_iter"]]
       if (is.null(best_iter) || best_iter == -1 || best_iter == 0) {
-        msg_info(
+        info(
           paste(
             "best_iter returned from lightgbm:",
             best_iter,
@@ -303,7 +302,7 @@ tune_GridSearch <- function(
     }
     if (verbosity > 1L) {
       # verify plan set by set_preferred_plan with envir
-      msg_info("Current future plan:")
+      info("Current future plan:")
       print(future::plan())
     }
     grid_run <- lapply(
@@ -439,7 +438,7 @@ tune_GridSearch <- function(
       # if lambda was NULL, cv.glmnet was run and optimal lambda was estimated
       # For each i in grid_run, get grid_run[[i]]$hyperparameters[[grid_run[[i]]$hyperparameters$which_lambda_cv]]
       if (verbosity > 1L) {
-        msg_info("Extracting best lambda from GLMNET models...")
+        info("Extracting best lambda from GLMNET models...")
       }
       lambda_cv2 <- data.table(
         lambda = sapply(
@@ -473,7 +472,7 @@ tune_GridSearch <- function(
   if (algorithm == "LightGBM") {
     if (is.null(grid_params[["nrounds"]])) {
       if (verbosity > 1L) {
-        msg_info("Extracting best N of iterations from LightGBM models...")
+        info("Extracting best N of iterations from LightGBM models...")
       }
       nrounds_cv <- data.table(
         nrounds = sapply(grid_run, \(x) x[["hyperparameters"]][["best_iter"]])
@@ -537,7 +536,7 @@ tune_GridSearch <- function(
   ## LINAD ----
   # if (algorithm %in% c("LINAD", "LINOA")) {
   #   if (verbosity > 1L) {
-  #     msg_info("Extracting best N leaves from LINAD models...")
+  #     info("Extracting best N leaves from LINAD models...")
   #   }
   #   est.n.leaves.all <- data.frame(n.leaves = plyr::laply(
   #     grid_run,

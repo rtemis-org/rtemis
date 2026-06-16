@@ -230,7 +230,7 @@ method(repr, CheckData) <- function(
       "  *",
       fmt(
         n_constant,
-        col = if (n_constant > 0) rt_red else NULL,
+        col = if (n_constant > 0) rtemis_colors[["red"]] else NULL,
         bold = TRUE,
         pad = pad,
         output_type = output_type
@@ -247,7 +247,7 @@ method(repr, CheckData) <- function(
       "  *",
       fmt(
         n_duplicates,
-        col = if (n_duplicates > 0) rt_orange else NULL,
+        col = if (n_duplicates > 0) rtemis_colors[["orange"]] else NULL,
         bold = TRUE,
         pad = pad,
         output_type = output_type
@@ -260,7 +260,7 @@ method(repr, CheckData) <- function(
 
   nas <- if (n_cols_anyna > 0) {
     classes_na <- x[["classes_na"]]
-    .col <- if (n_cols_anyna > 0) rt_orange else NULL
+    .col <- if (n_cols_anyna > 0) rtemis_colors[["orange"]] else NULL
     out_nas <- paste(
       fmt(
         n_cols_anyna,
@@ -339,7 +339,7 @@ method(repr, CheckData) <- function(
         out,
         fmt(
           "  * Consider converting character features to factors or excluding them.",
-          col = rt_orange,
+          col = rtemis_colors[["orange"]],
           bold = TRUE,
           pad = pad,
           output_type = output_type
@@ -355,7 +355,7 @@ method(repr, CheckData) <- function(
             "  * Remove the constant",
             ngettext(n_constant, "feature.", "features.")
           )),
-          col = rt_red,
+          col = rtemis_colors[["red"]],
           bold = TRUE,
           pad = pad,
           output_type = output_type
@@ -372,7 +372,7 @@ method(repr, CheckData) <- function(
             "  * Consider removing the duplicate",
             ngettext(n_duplicates, "case.", "cases.")
           ),
-          col = rt_orange,
+          col = rtemis_colors[["orange"]],
           bold = TRUE,
           pad = pad,
           output_type = output_type
@@ -388,7 +388,7 @@ method(repr, CheckData) <- function(
           paste(
             "  * Consider using algorithms that can handle missingness or imputing missing values."
           ),
-          col = rt_blue,
+          col = rtemis_colors[["blue"]],
           bold = TRUE,
           pad = pad,
           output_type = output_type
@@ -401,7 +401,7 @@ method(repr, CheckData) <- function(
           out,
           fmt(
             "\n  * Filter cases with missing values in the last column if using dataset for supervised learning.\n",
-            col = rt_orange,
+            col = rtemis_colors[["orange"]],
             bold = TRUE,
             pad = pad,
             output_type = output_type
@@ -431,7 +431,7 @@ method(repr, CheckData) <- function(
       out,
       fmt(
         "  * Everything looks good",
-        col = rt_green,
+        col = rtemis_colors[["green"]],
         bold = TRUE,
         pad = pad,
         output_type = output_type

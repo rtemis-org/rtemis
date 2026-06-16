@@ -1211,38 +1211,6 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 
 
 # --- Internal functions ---------------------------------------------------------------------------
-#' Get output type
-#'
-#' Get output type for printing text.
-#'
-#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
-#' @param filename Character: Filename for output.
-#'
-#' @return Character with selected output type.
-#'
-#' @author EDG
-#'
-#' @keywords internal
-#' @noRd
-get_output_type <- function(
-  output_type = c("ansi", "html", "plain"),
-  filename = NULL
-) {
-  if (!is.null(filename)) {
-    return("plain")
-  }
-
-  if (is.null(output_type)) {
-    if (interactive()) {
-      return("ansi")
-    } else {
-      return("plain")
-    }
-  }
-
-  match.arg(output_type)
-} # /rtemis::get_output_type
-
 
 # %% S7_to_list ----
 S7_to_list <- function(x) {

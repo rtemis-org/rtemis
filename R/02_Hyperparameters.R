@@ -124,7 +124,8 @@ Hyperparameters <- new_class(
 #'
 #' @param x `Hyperparameters` object.
 #' @param pad Integer: Left padding for printed output.
-#' @param maxlength Integer: Maximum length of items to show using `headdot()` before truncating with ellipsis. `-1` means no limit.
+#' @param maxlength Integer: Maximum length of items to show before truncating with ellipsis.
+#'   `-1` means no limit.
 #' @param limit Integer: Limit number of items to show. `-1` means no limit.
 #' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
