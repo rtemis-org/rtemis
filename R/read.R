@@ -94,9 +94,9 @@ read <- function(
   } else {
     file.path(datadir, filename)
   }
-  path <- path.expand(path)
+
   # Sanitize path for security
-  path <- sanitize_path(path, must_exist = FALSE)
+  path <- sanitize_path(path, must_exist = TRUE)
 
   if (ext == "parquet") {
     if (
@@ -274,7 +274,11 @@ read <- function(
     if (verbosity > 0L && .dup > 0) {
       msg(
         "Removed",
-        bold(orange(format(.dup, big.mark = ","))),
+        fmt(
+          format(.dup, big.mark = ","),
+          col = rtemis_colors[["orange"]],
+          bold = TRUE
+        ),
         "duplicate",
         paste0(ngettext(.dup, "row", "rows"), ".")
       )
