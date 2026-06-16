@@ -142,10 +142,10 @@ sanitize_path <- function(
 ) {
   type <- match.arg(type)
 
-  # Check for NULL or empty
-  if (is.null(path) || length(path) == 0L || nchar(path) == 0L) {
+  # Check for NULL, NA, or empty length
+  if (is.null(path) || length(path) == 0L || anyNA(path)) {
     rtemis.core::abort(
-      "Path cannot be NULL or empty.",
+      "Path cannot be NULL, NA, or empty.",
       class = c("rtemis_null_input", "rtemis_input_error")
     )
   }
@@ -157,6 +157,14 @@ sanitize_path <- function(
       length(path),
       " paths.",
       class = c("rtemis_length_error", "rtemis_input_error")
+    )
+  }
+
+  # Check for empty string
+  if (nchar(path) == 0L) {
+    rtemis.core::abort(
+      "Path cannot be empty.",
+      class = c("rtemis_null_input", "rtemis_input_error")
     )
   }
 
