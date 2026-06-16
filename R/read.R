@@ -14,7 +14,7 @@
 #' - **Delimited** files using `data.table:fread()`, `arrow:read_delim_arrow()`,
 #'   `vroom::vroom()`, or `duckdb::duckdb_read_csv()`
 #' - **ARFF** files using `farff::readARFF()`
-#' - **Parquet** files using `arrow::read_parquet()`
+#' - **Parquet** files using `arrow::read_parquet()` or `nanoparquet::read_parquet`
 #' - **XLSX** files using `readxl::read_excel()`
 #' - **DTA** files from Stata using `haven::read_dta()`
 #' - **FASTA** files using `seqinr::read.fasta()`
@@ -29,6 +29,8 @@
 #' @param clean_colnames Logical: If TRUE, clean columns names using
 #' [clean_colnames].
 #' @param delim_reader Character: package to use for reading delimited data.
+#' @param parquet_reader Character: package to use for reading Parquet files. If undefined and
+#'   system is WASM, defaults to "nanoparquet", otherwise defaults to "arrow".
 #' @param xlsx_sheet Integer or character: Name or number of XLSX sheet to read.
 #' @param sep Single character: field separator. If `delim_reader = "fread"`
 #' and `sep = NULL`, this defaults to "auto", otherwise defaults to ",".
@@ -64,6 +66,7 @@ read <- function(
   character2factor = FALSE,
   clean_colnames = TRUE,
   delim_reader = c("data.table", "vroom", "duckdb", "arrow"),
+  parquet_reader = c("arrow", "nanoparquet"),
   xlsx_sheet = 1,
   sep = NULL,
   quote = "\"",
@@ -96,15 +99,32 @@ read <- function(
   path <- sanitize_path(path, must_exist = FALSE)
 
   if (ext == "parquet") {
-    check_dependencies("arrow")
+    if (
+      length(parquet_reader) > 1L &&
+        substr(base::R.Version()[["arch"]], 1, 4) == "wasm"
+    ) {
+      parquet_reader <- "nanoparquet"
+    }
+    parquet_reader <- match.arg(parquet_reader)
+    if (parquet_reader == "arrow") {
+      check_dependencies("arrow")
+    } else {
+      check_dependencies("nanoparquet")
+    }
     msg0(
       bold(highlight("\u25B6")),
       " Reading ",
       highlight(basename(path)),
-      " using arrow::read_parquet()...",
+      " using ",
+      parquet_reader,
+      "...",
       verbosity = verbosity
     )
-    .dat <- arrow::read_parquet(path, ...)
+    .dat <- switch(
+      parquet_reader,
+      "arrow" = arrow::read_parquet(path, ...),
+      "nanoparquet" = nanoparquet::read_parquet(path, ...)
+    )
   } else if (ext == "rds") {
     msg0(
       bold(highlight("\u25B6")),
