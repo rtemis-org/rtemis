@@ -64,6 +64,27 @@ method(print, ExecutionConfig) <- function(x, output_type = NULL, ...) {
 } # /rtemis::print.ExecutionConfig
 
 
+# %% default_n_workers ----
+#' Default number of workers
+#'
+#' Determine the default number of parallel workers, guarding against errors in
+#' environments where `parallelly::availableCores()` is unavailable (e.g. wasm/webR).
+#'
+#' @param omit Integer: Number of cores to omit from the count.
+#'
+#' @return Integer: Number of workers.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+default_n_workers <- function(omit = 3L) {
+  tryCatch(
+    parallelly::availableCores(omit = omit),
+    error = function(e) 1L
+  )
+} # /rtemis::default_n_workers
+
+
 # %% --- User API ----
 
 # %% setup_ExecutionConfig ----
@@ -100,12 +121,12 @@ setup_ExecutionConfig <- function(
       )
     }
     if (is.null(n_workers)) {
-      n_workers <- parallelly::availableCores(omit = 3L)
+      n_workers <- default_n_workers()
     }
   } else if (backend == "mirai") {
     check_dependencies("mirai")
     if (is.null(n_workers)) {
-      n_workers <- parallelly::availableCores(omit = 3L)
+      n_workers <- default_n_workers()
     }
   } else if (backend == "none") {
     if (is.null(n_workers)) {

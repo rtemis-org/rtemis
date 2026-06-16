@@ -25,11 +25,6 @@ live[["msg_sink"]] <- NULL
 
 # vars
 rtemis_version <- packageVersion("rtemis")
-cores_available <- tryCatch(
-  parallelly::availableCores(),
-  error = function(e) 1L
-)
-cores_to_use <- max(cores_available - 3L, 1L)
 
 # References
 # Unicode emojis: https://www.unicode.org/emoji/charts/full-emoji-list.html
@@ -75,7 +70,7 @@ setup_progress <- function() {
       " ",
       sessionInfo()[[2]],
       " (",
-      cores_available,
+      default_n_workers(omit = 0L),
       " cores available)\n  "
     )
     packageStartupMessage(paste0(
