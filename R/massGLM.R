@@ -135,15 +135,11 @@ massGLM <- function(
   # ynames should be the same as tbl[["Variable"]]
   # <> Check in MassGLM constructor
   if (!all(ynames == tbl[["Variable"]])) {
-    cli::cli_warn(c(
-      "The names of the outcome variables in y ({.val ynames}) do not match the names in the summary table ({.val summary[['Variable']]})",
-      "Check the summary table."
-    ))
     rtemis.core::warn(
       "The names of the outcome variables in y (",
-      paste(ynames, collapse = ", "),
+      collapse_head(ynames),
       ") do not match the names in the summary table (",
-      paste(tbl[["Variable"]], collapse = ", "),
+      collapse_head(tbl[["Variable"]]),
       "). Check the summary table."
     )
   }
