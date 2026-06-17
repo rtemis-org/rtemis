@@ -1400,3 +1400,15 @@ toml_with_meta <- function(x, payload, schema_version = "1.0") {
   payload_str <- toml::write_toml(payload)
   paste(meta_inline, payload_str, sep = "\n\n")
 } # /rtemis::toml_with_meta
+
+# %% coming up in rtemis.core
+collapse_head <- function(x, maxlength = 6L, format_fn = identity) {
+  if (maxlength == -1L || length(x) <= maxlength) {
+    paste(format_fn(x), collapse = ", ")
+  } else {
+    paste0(
+      paste(format_fn(head(as.vector(x), n = maxlength)), collapse = ", "),
+      ", ..."
+    )
+  }
+}
