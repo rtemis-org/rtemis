@@ -337,12 +337,14 @@ node_exit <- function(node_id, status = "ok", meta = list(), error = NULL) {
     rec[["meta"]] <- utils::modifyList(rec[["meta"]], meta)
   }
   s[["nodes"]][[node_id]] <- rec
+  # Render before popping: session_render derives indentation from the stack length, so
+  # the "done" line must see the same stack depth as the matching "start" line did.
+  session_render(rec, phase = "done", verbosity = s[["verbosity"]])
   # Pop the stack down to (and excluding) this node; defensive against skipped exits.
   pos <- match(node_id, s[["stack"]])
   if (!is.na(pos)) {
     s[["stack"]] <- s[["stack"]][seq_len(pos - 1L)]
   }
-  session_render(rec, phase = "done", verbosity = s[["verbosity"]])
   session_emit_sink(rec, phase = if (status == "ok") "done" else status)
   invisible(NULL)
 } # /rtemis::node_exit
