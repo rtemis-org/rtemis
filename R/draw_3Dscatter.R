@@ -248,7 +248,7 @@ draw_3Dscatter <- function(
   legend <- if (is.null(legend) && n_groups == 1) FALSE else TRUE
 
   if (length(.mode) < n_groups) {
-    .mode <- c(.mode, rep(tail(.mode)[1], n_groups - length(.mode)))
+    .mode <- c(.mode, rep(utils::tail(.mode)[1], n_groups - length(.mode)))
   }
 
   # if (is.null(legend)) legend <- n_groups > 1

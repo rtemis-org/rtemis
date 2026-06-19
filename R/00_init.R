@@ -1358,7 +1358,7 @@ toml_meta <- function(x, schema_version = "1.0") {
   list(
     `_meta` = list(
       package = "rtemis",
-      package_version = as.character(packageVersion("rtemis")),
+      package_version = as.character(utils::packageVersion("rtemis")),
       schema_version = schema_version,
       object_type = S7_class(x)@name,
       created_at = format(
@@ -1407,7 +1407,10 @@ collapse_head <- function(x, maxlength = 6L, format_fn = identity) {
     paste(format_fn(x), collapse = ", ")
   } else {
     paste0(
-      paste(format_fn(head(as.vector(x), n = maxlength)), collapse = ", "),
+      paste(
+        format_fn(utils::head(as.vector(x), n = maxlength)),
+        collapse = ", "
+      ),
       ", ..."
     )
   }

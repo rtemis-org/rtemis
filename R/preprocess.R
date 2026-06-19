@@ -45,9 +45,7 @@ preprocess.class_tabular.PreprocessorConfig <- method(
 
   # Complete cases ----
   if (config@complete_cases) {
-    if (verbosity > 0L) {
-      msg("Filtering complete cases...")
-    }
+    msg("Filtering complete cases...", verbosity = verbosity)
     x <- x[complete.cases(x), ]
   }
 
@@ -60,9 +58,12 @@ preprocess.class_tabular.PreprocessorConfig <- method(
 
   # Remove named features ----
   if (!is.null(config@remove_features)) {
-    if (verbosity > 0L) {
-      msg("Removing", length(config@remove_features), "features...")
-    }
+    msg(
+      "Removing",
+      length(config@remove_features),
+      "features...",
+      verbosity = verbosity
+    )
     values$remove_features <- config@remove_features
     x <- x[, !names(x) %in% config@remove_features, drop = FALSE]
   }
@@ -117,15 +118,14 @@ preprocess.class_tabular.PreprocessorConfig <- method(
         na_fraction_bycase >= config@remove_cases_thres
       )
       if (length(index_remove_cases_thres) > 0) {
-        if (verbosity > 0L) {
-          msg(
-            "Removing",
-            length(index_remove_cases_thres),
-            "cases with >=",
-            config@remove_cases_thres,
-            "missing data..."
-          )
-        }
+        msg(
+          "Removing",
+          length(index_remove_cases_thres),
+          "cases with >=",
+          config@remove_cases_thres,
+          "missing data...",
+          verbosity = verbosity
+        )
         xt <- xt[-index_remove_cases_thres, ]
       }
       x <- as.data.frame(xt)
@@ -143,15 +143,14 @@ preprocess.class_tabular.PreprocessorConfig <- method(
         na.fraction.byfeat >= config@remove_features_thres
       )
       if (length(removeFeat_thres_index) > 0) {
-        if (verbosity > 0L) {
-          msg(
-            "Removing",
-            length(removeFeat_thres_index),
-            "features with >=",
-            config@remove_features_thres,
-            "missing data..."
-          )
-        }
+        msg(
+          "Removing",
+          length(removeFeat_thres_index),
+          "features with >=",
+          config@remove_features_thres,
+          "missing data...",
+          verbosity = verbosity
+        )
         x <- x[, -removeFeat_thres_index]
       }
     }
@@ -169,7 +168,7 @@ preprocess.class_tabular.PreprocessorConfig <- method(
         msg(
           "Converting",
           singorplu(length(index_integer), "integer"),
-          "to factor..."
+          "to factor...",
         )
       } else {
         msg("No integers to convert to factor...")
@@ -204,9 +203,7 @@ preprocess.class_tabular.PreprocessorConfig <- method(
   # Numeric to factor ----
   if (config@numeric2factor) {
     index_numeric <- which(sapply(x, is.numeric))
-    if (verbosity > 0L) {
-      msg("Converting numeric to factors...")
-    }
+    msg("Converting numeric to factors...", verbosity = verbosity)
     if (is.null(config@numeric2factor_levels)) {
       for (i in index_numeric) {
         x[, i] <- as.factor(x[, i])
@@ -297,9 +294,7 @@ preprocess.class_tabular.PreprocessorConfig <- method(
   # Logical to numeric ----
   if (config@logical2numeric) {
     index_logical <- which(sapply(x, is.logical))
-    if (verbosity > 0L) {
-      msg("Converting logicals to numeric...")
-    }
+    msg("Converting logicals to numeric...", verbosity = verbosity)
     for (i in index_logical) {
       x[, i] <- as.numeric(x[, i])
     }
@@ -308,10 +303,13 @@ preprocess.class_tabular.PreprocessorConfig <- method(
   # Numeric cut ----
   if (config@numeric_cut_n > 0) {
     index_numeric <- which(sapply(x, is.numeric))
+    msg(
+      "Cutting numeric features in",
+      config@numeric_cut_n,
+      "bins...",
+      verbosity = verbosity
+    )
     if (length(index_numeric) > 0) {
-      if (verbosity > 0L) {
-        msg("Cutting numeric features in", config@numeric_cut_n, "bins...")
-      }
       for (i in index_numeric) {
         x[, i] <- factor(
           cut(
@@ -332,13 +330,12 @@ preprocess.class_tabular.PreprocessorConfig <- method(
       which(sapply(x, is.numeric))
     }
     if (length(index_numeric2q) > 0) {
-      if (verbosity > 0L) {
-        msg(
-          "Cutting numeric features in",
-          config@numeric_quant_n,
-          "quantiles..."
-        )
-      }
+      msg(
+        "Cutting numeric features in",
+        config@numeric_quant_n,
+        "quantiles...",
+        verbosity = verbosity
+      )
       for (i in index_numeric2q) {
         rng <- abs(diff(range(x[, i], na.rm = TRUE)))
         quantiles <- quantile(
@@ -444,23 +441,21 @@ preprocess.class_tabular.PreprocessorConfig <- method(
       )
     } else if (config@impute_type == "micePMM") {
       check_dependencies("mice")
-      if (verbosity > 0L) {
-        msg(
-          "Imputing missing values by predictive mean matching using mice..."
-        )
-      }
+      msg(
+        "Imputing missing values by predictive mean matching using mice...",
+        verbosity = verbosity
+      )
       x <- mice::complete(mice::mice(x, m = 1, method = "pmm"))
     } else {
       # '- mean/mode ----
-      if (verbosity > 0L) {
-        msg(
-          "Imputing missing values using",
-          config@impute_discrete,
-          "(discrete) and",
-          config@impute_continuous,
-          "(continuous)..."
-        )
-      }
+      msg(
+        "Imputing missing values using",
+        config@impute_discrete,
+        "(discrete) and",
+        config@impute_continuous,
+        "(continuous)...",
+        verbosity = verbosity
+      )
 
       index_discrete <- which(sapply(x, function(i) is_discrete(i) && anyNA(i)))
       if (length(index_discrete) > 0) {
@@ -495,13 +490,12 @@ preprocess.class_tabular.PreprocessorConfig <- method(
     sc <- if (config@scale) "Scaling" else NULL
     ce <- if (config@center) "centering" else NULL
     if (length(numeric_index) > 0) {
-      if (verbosity > 0L) {
-        msg(
-          paste(c(sc, ce), collapse = " and "),
-          length(numeric_index),
-          "numeric features..."
-        )
-      }
+      msg(
+        paste(c(sc, ce), collapse = " and "),
+        length(numeric_index),
+        "numeric features...",
+        verbosity = verbosity
+      )
       # Info: scale outputs a matrix.
       scale_ <- if (!is.null(config@scale_coefficients)) {
         # Check names match
@@ -545,7 +539,8 @@ preprocess.class_tabular.PreprocessorConfig <- method(
     } else {
       msg(
         paste(c(sc, ce), collapse = " and "),
-        "was requested \n                                but no numeric features were found: Please check data."
+        "was requested \n                                but no numeric features were found: Please check data.",
+        verbosity = verbosity
       )
     }
   }
@@ -561,9 +556,7 @@ preprocess.class_tabular.PreprocessorConfig <- method(
 
   # Add date features ----
   if (config@add_date_features) {
-    if (verbosity > 0L) {
-      msg("Extracting date features...")
-    }
+    msg("Extracting date features...", verbosity = verbosity)
     # Find date columns
     date_cols <- which(sapply(x, function(col) inherits(col, "Date")))
     # For each date column, extract features
@@ -579,9 +572,7 @@ preprocess.class_tabular.PreprocessorConfig <- method(
 
   # Add holidays ----
   if (config@add_holidays) {
-    if (verbosity > 0L) {
-      msg("Extracting holidays...")
-    }
+    msg("Extracting holidays...", verbosity = verbosity)
     # Find date columns
     date_cols <- which(sapply(x, \(col) inherits(col, "Date")))
     # For each date column, extract holidays
@@ -614,16 +605,12 @@ preprocess.class_tabular.PreprocessorConfig <- method(
   if (isdatatable) {
     data.table::setDT(x)
   }
-  if (verbosity > 0L) {
-    msg("Preprocessing done.")
-  }
+  msg("Preprocessing done.", verbosity = verbosity)
 
   preprocessed <- list(training = x)
 
   if (!is.null(dat_validation)) {
-    if (verbosity > 0L) {
-      msg("Applying preprocessing to validation data...")
-    }
+    msg("Applying preprocessing to validation data...", verbosity = verbosity)
     prp_validation <- preprocess(
       x = dat_validation,
       config = Preprocessor(
@@ -639,9 +626,7 @@ preprocess.class_tabular.PreprocessorConfig <- method(
     preprocessed$validation <- prp_validation@preprocessed
   }
   if (!is.null(dat_test)) {
-    if (verbosity > 0L) {
-      msg("Applying preprocessing to test data...")
-    }
+    msg("Applying preprocessing to test data...", verbosity = verbosity)
     prp_test <- preprocess(
       x = dat_test,
       config = Preprocessor(
@@ -859,9 +844,7 @@ method(one_hot, class_data.table) <- function(x, verbosity = 1L) {
   }
   # remove original factor(s)
   x[, paste(.names[factor_index]) := NULL]
-  if (verbosity > 0L) {
-    msg("Done")
-  }
+  msg("Done", verbosity = verbosity)
   invisible(x)
 } # /rtemis::one_hot.data.table
 
@@ -904,9 +887,7 @@ dt_set_one_hot <- function(x, xname = NULL, verbosity = 1L) {
   }
   # remove original factor(s)
   x[, paste(.names[factor_index]) := NULL]
-  if (verbosity > 0L) {
-    msg("Done")
-  }
+  msg("Done", verbosity = verbosity)
   invisible(x)
 } # /rtemis::dt_set_one_hot
 
