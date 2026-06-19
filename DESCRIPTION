@@ -28,7 +28,8 @@ Imports:
     methods,
     rtemis.core (>= 0.3.0),
     stats,
-    S7
+    S7,
+    utils
 Suggests:
     arrow,
     bit64,
