@@ -134,7 +134,8 @@ Supervised <- new_class(
     varimp = VariableImportance | NULL,
     question = class_character | NULL,
     extra = class_any,
-    session_info = class_any
+    session_info = class_any,
+    session = SupervisedSession | NULL
   ),
   constructor = function(
     algorithm,
@@ -184,7 +185,8 @@ Supervised <- new_class(
       varimp = varimp,
       question = question,
       extra = extra,
-      session_info = sessionInfo()
+      session_info = utils::sessionInfo(),
+      session = NULL
     )
   }
 ) # /rtemis::Supervised
@@ -1474,7 +1476,8 @@ SupervisedRes <- new_class(
     varimp = class_list | NULL,
     question = class_character | NULL,
     extra = class_any,
-    session_info = class_any
+    session_info = class_any,
+    session = SupervisedSession | NULL
   ),
   constructor = function(
     algorithm,
@@ -1522,7 +1525,8 @@ SupervisedRes <- new_class(
       varimp = varimp,
       question = question,
       extra = extra,
-      session_info = sessionInfo()
+      session_info = utils::sessionInfo(),
+      session = NULL
     )
   }
 ) # /rtemis::SupervisedRes

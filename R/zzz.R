@@ -18,7 +18,7 @@ live[["parallelized_learners"]] <- c(
 )
 
 # vars
-rtemis_version <- packageVersion("rtemis")
+rtemis_version <- utils::packageVersion("rtemis")
 
 # References
 # Unicode emojis: https://www.unicode.org/emoji/charts/full-emoji-list.html
@@ -63,7 +63,7 @@ setup_progress <- function() {
       rtemis_version,
       " \U1F30A",
       " ",
-      sessionInfo()[[2]],
+      utils::sessionInfo()[[2]],
       " (",
       ncores,
       ngettext(ncores, " core", " cores"),
@@ -113,7 +113,7 @@ setup_progress <- function() {
         rtemis_version,
         " \U1F30A",
         " ",
-        sessionInfo()[[2]]
+        utils::sessionInfo()[[2]]
       )
     )
   }

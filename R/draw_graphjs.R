@@ -102,7 +102,7 @@ draw_graphjs <- function(
   layout <- match.arg(layout)
   if (is.null(coords) && !is.null(layout)) {
     coords <- do.call(
-      getFromNamespace(paste0("layout_with_", layout), "igraph"),
+      utils::getFromNamespace(paste0("layout_with_", layout), "igraph"),
       c(list(net, dim = 3), layout_args)
     )
     if (layout == "sugiyama") coords <- coords[["layout"]]
@@ -111,7 +111,7 @@ draw_graphjs <- function(
   # Cluster ----
   if (is.null(groups) && !is.null(cluster)) {
     groups <- do.call(
-      getFromNamespace(paste0("cluster_", cluster), "igraph"),
+      utils::getFromNamespace(paste0("cluster_", cluster), "igraph"),
       c(list(net), cluster_config)
     )
   }

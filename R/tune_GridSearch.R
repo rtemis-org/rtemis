@@ -51,7 +51,8 @@ tune_GridSearch <- function(
   n_workers = 1L,
   backend = NULL,
   future_plan = NULL,
-  verbosity = 1L
+  verbosity = 1L,
+  on_error = "continue"
 ) {
   check_is_S7(hyperparameters, Hyperparameters)
   check_is_S7(tuner_config, TunerConfig)
@@ -177,12 +178,13 @@ tune_GridSearch <- function(
     weights,
     verbosity,
     save_mods,
-    n_res_x_comb
+    n_res_x_comb,
+    on_error = "continue"
   ) {
     if (verbosity > 1L) {
       info(
         "Running grid line #",
-        fmt(index, col = col_tuner, bold = TRUE),
+        fmt(index, bold = TRUE),
         "/",
         NROW(res_param_grid),
         "...",
@@ -197,22 +199,55 @@ tune_GridSearch <- function(
     hyperparams1 <- update(
       hyperparams1,
       as.list(res_param_grid[index, 2:NCOL(res_param_grid), drop = FALSE]),
-      tuned = -9L # Hyperparameters are being tuned
+      tuned = TUNED_STATUS_TUNING # Hyperparameters are being tuned
     )
 
-    mod1 <- do_call(
-      "train",
-      args = list(
-        x = dat_train1,
-        dat_validation = dat_valid1,
-        algorithm = hyperparams1@algorithm,
-        preprocessor_config = preprocessor_config,
-        decomposition_config = decomposition_config,
-        hyperparameters = hyperparams1,
-        weights = weights1,
-        verbosity = verbosity - 1L
+    # Detach any active observability session so the inner train() is opaque to the host
+    # graph; the host host-synthesizes one grid_cell node per cell (uniform across
+    # backends). In daemons the session is already NULL, so this is a harmless no-op.
+    saved_session <- live[["session"]]
+    live[["session"]] <- NULL
+    on.exit(live[["session"]] <- saved_session, add = TRUE)
+    run_cell <- function() {
+      do_call(
+        "train",
+        args = list(
+          x = dat_train1,
+          dat_validation = dat_valid1,
+          algorithm = hyperparams1@algorithm,
+          preprocessor_config = preprocessor_config,
+          decomposition_config = decomposition_config,
+          hyperparameters = hyperparams1,
+          weights = weights1,
+          verbosity = verbosity - 1L
+        )
       )
-    )
+    }
+    # Failure policy (specs/observability.md section 7): under "continue" a grid-cell
+    # failure is captured and returned as a marker (non-fatal); otherwise it propagates.
+    # Timestamps bracket the actual cell run so the host can record real durations on the
+    # synthesized grid_cell nodes (rather than a zero-width now/now interval).
+    cell_t_start <- Sys.time()
+    mod1 <- if (identical(on_error, "continue")) {
+      tryCatch(run_cell(), error = function(e) e)
+    } else {
+      run_cell()
+    }
+    cell_t_end <- Sys.time()
+    if (inherits(mod1, "condition")) {
+      return(list(
+        id = index,
+        resample_id = res_param_grid[index, "resample_id"],
+        metrics_training = NULL,
+        metrics_validation = NULL,
+        type = NA_character_,
+        hyperparameters = hyperparams1,
+        failed = TRUE,
+        error = conditionMessage(mod1),
+        t_start = cell_t_start,
+        t_end = cell_t_end
+      ))
+    }
 
     out1 <- list(
       id = index,
@@ -220,7 +255,10 @@ tune_GridSearch <- function(
       metrics_training = mod1@metrics_training,
       metrics_validation = mod1@metrics_validation,
       type = mod1@type,
-      hyperparameters = hyperparams1
+      hyperparameters = hyperparams1,
+      failed = FALSE,
+      t_start = cell_t_start,
+      t_end = cell_t_end
     )
 
     # Algorithm-specific params ----
@@ -285,7 +323,8 @@ tune_GridSearch <- function(
       weights = weights,
       verbosity = verbosity,
       save_mods = save_mods,
-      n_res_x_comb = n_res_x_comb
+      n_res_x_comb = n_res_x_comb,
+      on_error = on_error
     )
   } else if (backend == "future") {
     # Future parallelization
@@ -320,7 +359,8 @@ tune_GridSearch <- function(
       weights = weights,
       verbosity = verbosity,
       save_mods = save_mods,
-      n_res_x_comb = n_res_x_comb
+      n_res_x_comb = n_res_x_comb,
+      on_error = on_error
     ) |>
       futurize::futurize(seed = TRUE, globals = FALSE)
   } else if (backend == "mirai") {
@@ -342,7 +382,8 @@ tune_GridSearch <- function(
         weights = weights,
         verbosity = verbosity,
         save_mods = save_mods,
-        n_res_x_comb = n_res_x_comb
+        n_res_x_comb = n_res_x_comb,
+        on_error = on_error
       )
     )
   }
@@ -378,25 +419,69 @@ tune_GridSearch <- function(
     grid_run <- grid_run[.progress]
     # grid_run <- mirai::collect_mirai(grid_run)
   }
-  if (type %in% c("Regression", "Survival")) {
-    metrics_training_all <- as.data.table(t(sapply(
-      grid_run,
-      function(r) unlist(r[["metrics_training"]]@metrics)
-    )))
-    metrics_validation_all <- as.data.table(t(sapply(
-      grid_run,
-      function(r) unlist(r[["metrics_validation"]]@metrics)
-    )))
-  } else if (type == "Classification") {
-    metrics_training_all <- as.data.table(t(sapply(
-      grid_run,
-      function(r) unlist(r[["metrics_training"]]@metrics[["overall"]])
-    )))
-    metrics_validation_all <- as.data.table(t(sapply(
-      grid_run,
-      function(r) unlist(r[["metrics_validation"]]@metrics[["overall"]])
-    )))
+  # Host-synthesize one grid_cell node per cell under the active "tune" node, with status
+  # and error filled from the returned results. See specs/observability.md section 4.
+  for (r in grid_run) {
+    failed_cell <- isTRUE(r[["failed"]])
+    session_add_node(
+      "grid_cell",
+      label = paste0(
+        "#",
+        r[["id"]],
+        " (resample ",
+        r[["resample_id"]],
+        ")"
+      ),
+      status = if (failed_cell) "error" else "ok",
+      meta = list(resample_id = r[["resample_id"]], error = r[["error"]]),
+      t_start = r[["t_start"]],
+      t_end = r[["t_end"]]
+    )
   }
+  node_meta(list(n_combos = n_param_combinations, n_inner = n_resamples))
+  # Tolerant metric extraction: failed cells (only possible under on_error = "continue")
+  # become NA rows so the combo aggregation excludes them. With no failures this is
+  # identical to the previous extraction.
+  ok_idx <- which(
+    !vapply(
+      grid_run,
+      function(r) isTRUE(r[["failed"]]),
+      logical(1L)
+    )
+  )
+  if (length(ok_idx) == 0L) {
+    rtemis.core::abort(
+      "All ",
+      n_res_x_comb,
+      " tuning grid cells failed; cannot select hyperparameters.",
+      class = c("rtemis_error", "rtemis_runtime_error")
+    )
+  }
+  extract_row <- function(r, slot) {
+    m <- r[[slot]]
+    if (type == "Classification") {
+      unlist(m@metrics[["overall"]])
+    } else {
+      unlist(m@metrics)
+    }
+  }
+  tmpl_tr <- names(extract_row(grid_run[[ok_idx[1L]]], "metrics_training"))
+  tmpl_va <- names(extract_row(grid_run[[ok_idx[1L]]], "metrics_validation"))
+  row_or_na <- function(r, slot, tmpl) {
+    if (isTRUE(r[["failed"]]) || is.null(r[[slot]])) {
+      stats::setNames(rep(NA_real_, length(tmpl)), tmpl)
+    } else {
+      extract_row(r, slot)
+    }
+  }
+  metrics_training_all <- as.data.table(do.call(
+    rbind,
+    lapply(grid_run, row_or_na, "metrics_training", tmpl_tr)
+  ))
+  metrics_validation_all <- as.data.table(do.call(
+    rbind,
+    lapply(grid_run, row_or_na, "metrics_validation", tmpl_va)
+  ))
   # appease R CMD check
   param_combo_id <- NULL
   metrics_validation_all[,

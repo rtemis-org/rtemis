@@ -43,7 +43,8 @@ tune <- function(
   verbosity = 1L,
   backend = "none",
   future_plan = "multicore",
-  n_workers = 1L
+  n_workers = 1L,
+  on_error = "continue"
 ) {
   check_is_S7(hyperparameters, Hyperparameters)
   check_is_S7(tuner_config, TunerConfig)
@@ -60,7 +61,8 @@ tune <- function(
       verbosity = verbosity,
       backend = backend,
       future_plan = future_plan,
-      n_workers = n_workers
+      n_workers = n_workers,
+      on_error = on_error
     )
   } else {
     rtemis.core::abort(

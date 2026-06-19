@@ -415,7 +415,7 @@ runifmat <- function(
 #' rtversion()
 rtversion <- function() {
   out <- c(
-    list(rtemis_version = as.character(packageVersion("rtemis"))),
+    list(rtemis_version = as.character(utils::packageVersion("rtemis"))),
     as.list(Sys.info())
   )
   printls(out, print_class = FALSE)
@@ -496,7 +496,7 @@ init_project_dir <- function(path, output_dir = "Out", verbosity = 1L) {
   cat("<rtemis Project>\n")
   cat("Initialized: ", datetime(), "\n", sep = "")
   cat("--------------------------------\n")
-  print(sessionInfo())
+  print(utils::sessionInfo())
   sink()
 
   # Directories: /R /Data /output_dir ----

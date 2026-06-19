@@ -48,7 +48,7 @@ A good bug report should include:
 
 #### Required Information
 
-1. **rtemis version**: Output of `packageVersion("rtemis")`
+1. **rtemis version**: Output of `utils::packageVersion("rtemis")`
 2. **R version**: Output of `R.version.string`
 3. **Operating System**: e.g., macOS 14.5, Ubuntu 22.04, Windows 11
 4. **Clear description**: What did you expect vs. what actually happened?
@@ -93,7 +93,7 @@ Error in train(...):
 For crashes or environment-specific issues, include:
 
 ```r
-sessionInfo()
+utils::sessionInfo()
 ```
 
 ### Feature Requests

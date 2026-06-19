@@ -68,7 +68,6 @@
 # avoid masking it, matching the previous local definition. Use
 # `grDevices::gray()` explicitly where the grayscale palette is needed.
 #' @rawNamespace import(grDevices, except = gray)
-#' @importFrom utils packageVersion sessionInfo getFromNamespace head tail
 "_PACKAGE"
 
 NULL

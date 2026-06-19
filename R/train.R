@@ -344,6 +344,19 @@ train <- function(
   # Start timer & logfile ----
   start_time <- intro(verbosity = verbosity, logfile = logfile)
 
+  # Observability session ----
+  # The top-level call creates the ambient session; nested (per outer-fold) calls reuse
+  # it so their step nodes nest under the fold node. See specs/observability.md.
+  on_error <- execution_config@on_error
+  session_created <- session_start(verbosity = verbosity)
+  # Safety net: on any exit (incl. error) the top-level call clears the ambient slot.
+  on.exit(if (session_created) session_clear(), add = TRUE)
+  root_node <- if (session_created) {
+    node_enter("train", label = paste(algorithm, type))
+  } else {
+    NULL
+  }
+
   # Data ----
   if (type == "Classification") {
     classes <- levels(outcome(x))
@@ -441,27 +454,77 @@ train <- function(
             error = function(e) NULL
           )
         }
-        train(
-          x = x[outer_resampler[[i]], ],
-          dat_test = x[-outer_resampler[[i]], ],
-          algorithm = algorithm,
-          preprocessor_config = preprocessor_config,
-          decomposition_config = decomposition_config,
-          hyperparameters = hyperparameters,
-          tuner_config = tuner_config,
-          outer_resampling_config = NULL, # This model is one of the outer resamples.
-          execution_config = execution_config,
-          weights = if (!is.null(weights)) {
-            weights[outer_resampler[[i]]]
-          } else {
-            NULL
-          },
-          question = question,
-          verbosity = verbosity - 1L
+        fold_node <- node_enter(
+          "outer_fold",
+          label = paste0(i, "/", n_outer),
+          meta = list(fold = i)
         )
+        # Failure policy (specs/observability.md section 7): under "continue" an outer
+        # fold failure is non-fatal (recorded, warned, excluded); under "stop"/
+        # "stop_outer" it is recorded then re-raised.
+        out <- tryCatch(
+          train(
+            x = x[outer_resampler[[i]], ],
+            dat_test = x[-outer_resampler[[i]], ],
+            algorithm = algorithm,
+            preprocessor_config = preprocessor_config,
+            decomposition_config = decomposition_config,
+            hyperparameters = hyperparameters,
+            tuner_config = tuner_config,
+            outer_resampling_config = NULL, # This model is one of the outer resamples.
+            execution_config = execution_config,
+            weights = if (!is.null(weights)) {
+              weights[outer_resampler[[i]]]
+            } else {
+              NULL
+            },
+            question = question,
+            verbosity = verbosity - 1L
+          ),
+          error = function(e) {
+            node_exit(fold_node, status = "error", error = e)
+            if (identical(on_error, "continue")) {
+              rtemis.core::warn(
+                "Outer fold ",
+                i,
+                "/",
+                n_outer,
+                " failed: ",
+                conditionMessage(e)
+              )
+              return(NULL)
+            }
+            stop(e)
+          }
+        )
+        if (!is.null(out)) {
+          node_exit(fold_node, status = "ok")
+        }
+        out
       }
     )
     names(models) <- names(outer_resampler@resamples)
+    # Drop failed folds (only possible under on_error = "continue").
+    failed_folds <- vapply(models, is.null, logical(1L))
+    if (all(failed_folds)) {
+      rtemis.core::abort(
+        "All ",
+        n_outer,
+        " outer folds failed.",
+        class = c("rtemis_error", "rtemis_runtime_error")
+      )
+    }
+    if (any(failed_folds)) {
+      rtemis.core::warn(
+        sum(failed_folds),
+        " of ",
+        n_outer,
+        " outer folds failed; aggregating over ",
+        sum(!failed_folds),
+        " surviving folds."
+      )
+      models <- models[!failed_folds]
+    }
     hyperparameters@resampled <- 1L
     msg(
       fmt("</>", col = col_outer, bold = TRUE),
@@ -479,6 +542,9 @@ train <- function(
     # Tune ----
     # Inner resampling for hyperparameter optimization.
     if (needs_tuning(hyperparameters)) {
+      # The "tune" node is the parent under which tune_GridSearch() host-synthesizes one
+      # grid_cell node per (combo x inner resample). See specs/observability.md section 4.
+      tune_node <- node_enter("tune")
       tuner <- tune(
         x = x,
         hyperparameters = hyperparameters,
@@ -489,7 +555,8 @@ train <- function(
         backend = backend,
         future_plan = future_plan,
         n_workers = workers[["tuning"]],
-        verbosity = verbosity
+        verbosity = verbosity,
+        on_error = on_error
       )
       # Update hyperparameters
       hyperparameters <- update(
@@ -497,15 +564,21 @@ train <- function(
         tuner@best_hyperparameters,
         tuned = 1L
       )
+      node_exit(tune_node, status = "ok")
     } # /Tune
 
     # User-level preprocessing ----
     if (!is.null(preprocessor_config)) {
+      prep_node <- node_enter("preprocess")
+      if (verbosity == 1L) {
+        msg("Preprocessing...")
+      }
       preprocessor <- preprocess(
         x = x,
         config = preprocessor_config,
         dat_validation = dat_validation,
-        dat_test = dat_test
+        dat_test = dat_test,
+        verbosity = verbosity - 1L
       )
       x <- if (is.null(dat_validation) && is.null(dat_test)) {
         preprocessor@preprocessed
@@ -515,7 +588,10 @@ train <- function(
       if (!is.null(dat_validation)) {
         dat_validation <- preprocessor@preprocessed[["validation"]]
       }
-      if (!is.null(dat_test)) dat_test <- preprocessor@preprocessed[["test"]]
+      if (!is.null(dat_test)) {
+        dat_test <- preprocessor@preprocessed[["test"]]
+      }
+      node_exit(prep_node, status = "ok")
     } else {
       preprocessor <- NULL
     } # /User-level preprocessing
@@ -528,6 +604,10 @@ train <- function(
     # outcome]`. The fitted Decomposition (carrying the resolved feature names)
     # is stored on the returned model so predict() can re-apply it to new data.
     if (!is.null(decomposition_config)) {
+      decomp_node <- node_enter(
+        "decompose",
+        label = decomposition_config@algorithm
+      )
       outcome_nm <- names(x)[ncols]
       feat <- as.data.frame(features(x))
       # Resolve the columns to decompose: NULL -> all numeric features.
@@ -604,6 +684,7 @@ train <- function(
       }
       # Number of columns changes after decomposition.
       ncols <- ncol(x)
+      node_exit(decomp_node, status = "ok")
     }
 
     # IFW ----
@@ -643,6 +724,11 @@ train <- function(
       NULL
     }
 
+    algo_node <- node_enter(
+      "train_alg",
+      label = algorithm,
+      meta = list(algorithm = algorithm, n = NROW(x))
+    )
     trained <- train_(
       hyperparameters = hyperparameters,
       x = x,
@@ -651,6 +737,7 @@ train <- function(
       execution_config = execution_config, # used by LightRuleFit
       verbosity = verbosity
     )
+    node_exit(algo_node, status = "ok")
 
     model <- trained[["model"]]
     # Algorithm-level preprocessing (e.g. factor-to-integer for LightGBM),
@@ -658,6 +745,7 @@ train <- function(
     preprocessor_internal <- trained[["preprocessor"]]
 
     # Predictions ----
+    predict_node <- node_enter("predict")
     predicted_prob_training <- predicted_prob_validation <- predicted_prob_test <- NULL
 
     # Re-apply algorithm-level preprocessing before predicting on each dataset.
@@ -666,7 +754,7 @@ train <- function(
       x_features <- preprocess(
         x_features,
         preprocessor_internal,
-        verbosity = 0L
+        verbosity = verbosity - 1L
       ) |>
         preprocessed()
     }
@@ -692,7 +780,7 @@ train <- function(
         dat_validation_features <- preprocess(
           dat_validation_features,
           preprocessor_internal,
-          verbosity = 0L
+          verbosity = verbosity - 1L
         ) |>
           preprocessed()
       }
@@ -718,7 +806,7 @@ train <- function(
         dat_test_features <- preprocess(
           dat_test_features,
           preprocessor_internal,
-          verbosity = 0L
+          verbosity = verbosity - 1L
         ) |>
           preprocessed()
       }
@@ -753,8 +841,23 @@ train <- function(
         se_test <- se_super(model = model, newdata = dat_test_features)
       }
     }
+    node_exit(predict_node, status = "ok")
 
-    # Return Supervised ----
+    # Variable importance ----
+    # Skipped during tuning (inner resampling): those models are discarded and only
+    # the outer folds' / final model's varimp is used. For kept models it can be a
+    # major cost (e.g. LightGBM tree -> data.table extraction), so record a node.
+    varimp <- NULL
+    if (hyperparameters@tuned != TUNED_STATUS_TUNING) {
+      varimp_node <- node_enter("varimp", label = algorithm)
+      varimp <- varimp_super(model = model)
+      node_exit(varimp_node, status = "ok")
+    }
+
+    # Inner path: Return Supervised ----
+    # The Classification/Regression constructor computes train/validation/test
+    # metrics (e.g. AUC, which can dominate on large data), so wrap it in a node.
+    metrics_node <- node_enter("metrics")
     mod <- make_Supervised(
       algorithm = algorithm,
       model = model,
@@ -777,9 +880,10 @@ train <- function(
       se_validation = se_validation,
       se_test = se_test,
       xnames = names(x)[-ncols],
-      varimp = varimp_super(model = model),
+      varimp = varimp,
       question = question
     )
+    node_exit(metrics_node, status = "ok")
   } else {
     # === Outer Aggregation path ===
     # Reached after outer resampling. Each sub-model (Supervised) in `models`
@@ -823,11 +927,23 @@ train <- function(
     )
   }
 
+  # Finalize observability session ----
+  # Only the top-level call finalizes and attaches the session; nested (per outer-fold)
+  # calls leave their sub-model's `session` NULL, as the root session already contains
+  # their nodes. See specs/observability.md sections 3 and 10.
+  if (session_created) {
+    node_exit(root_node, status = "ok")
+    mod@session <- session_finalize()
+  }
+
   # Outro ----
   if (verbosity > 0L) {
     message()
     print(mod)
     message()
+  }
+  if (session_created && verbosity >= 2L) {
+    session_report(mod@session, verbosity = verbosity)
   }
   if (!is.null(outdir)) {
     rt_save(mod, outdir = outdir, file_prefix = paste0("train_", algorithm))
