@@ -168,7 +168,7 @@ preprocess.class_tabular.PreprocessorConfig <- method(
         msg(
           "Converting",
           singorplu(length(index_integer), "integer"),
-          "to factor...",
+          "to factor..."
         )
       } else {
         msg("No integers to convert to factor...")
