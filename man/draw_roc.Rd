@@ -7,7 +7,6 @@
 draw_roc(
   true_labels,
   predicted_prob,
-  multiclass_fill_labels = TRUE,
   main = NULL,
   theme = choose_theme(getOption("rtemis_theme")),
   palette = get_palette(getOption("rtemis_palette")),
@@ -32,9 +31,6 @@ draw_roc(
 \item{predicted_prob}{Numeric vector [0, 1]: Predicted probabilities for the positive class (i.e. second level of outcome).
 Or, for multiclass, a matrix of predicted probabilities with one column per class.
 Or, a list of such vectors/matrices to draw multiple ROC curves on the same plot.}
-
-\item{multiclass_fill_labels}{Logical: If TRUE, fill in labels for multiclass ROC curves.
-If FALSE, column names of \code{predicted_prob} must match levels of \code{true_labels}.}
 
 \item{main}{Character: Main title for the plot.}
 
