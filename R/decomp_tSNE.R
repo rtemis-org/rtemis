@@ -11,12 +11,10 @@ method(decomp_, tSNEConfig) <- function(config, x, verbosity = 1L) {
   # Checks ----
   check_is_S7(config, tSNEConfig)
   check_dependencies("Rtsne")
-  check_unsupervised_data(x = x, allow_missing = FALSE)
+  check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)
 
   # Decompose ----
-  if (verbosity > 0L) {
-    msg("Decomposing with", config@algorithm, "...")
-  }
+  msg("Decomposing with", config@algorithm, "...", verbosity = verbosity)
   args <- c(list(X = x, dims = config[["k"]]), config@config)
   args[["k"]] <- NULL
   decom <- do_call(
