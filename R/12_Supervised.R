@@ -712,7 +712,8 @@ desc_preprocessor_steps <- function(config) {
 #' Shared by `desc.Supervised` and `desc.SupervisedRes`. Each argument
 #' contributes a sentence only when present. `decomposition` may be a
 #' `Decomposition` or a `DecompositionConfig`; both expose `@config` and
-#' `@algorithm`.
+#' `@algorithm`, and the resolved decomposed feature names are read from
+#' `@config@features` (`Decomposition`) or `@features` (`DecompositionConfig`).
 #'
 #' @param out Character: The description string to append to.
 #' @param preprocessor_config `PreprocessorConfig` object or `NULL`.
@@ -746,12 +747,34 @@ desc_preprocessing_decomposition <- function(
   }
   # Decomposition ----
   if (!is.null(decomposition)) {
+    # `decomposition` may be a `Decomposition` (whose `@config` is a
+    # `DecompositionConfig` exposing `@features`) or a `DecompositionConfig`
+    # (which exposes `@features` directly). Mirror the values reported by the
+    # `repr` methods: number of numeric features decomposed and number of
+    # components (`k`).
+    features <- if (S7_inherits(decomposition, Decomposition)) {
+      decomposition@config@features
+    } else {
+      decomposition@features
+    }
+    n_features <- length(features)
     k <- decomposition@config[["k"]]
     out <- paste0(
       out,
       " Decomposition was performed using ",
       decomposition@algorithm,
-      if (!is.null(k)) paste0(" (k = ", k, ")"),
+      ", reducing ",
+      n_features,
+      " numeric feature",
+      if (n_features != 1L) "s",
+      if (!is.null(k)) {
+        paste0(
+          " to ",
+          k,
+          " component",
+          if (k != 1L) "s"
+        )
+      },
       "."
     )
   }
@@ -2191,11 +2214,23 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
 
   # Preprocessing & Decomposition ----
   # The configs are shared identically across all outer folds; describe from
-  # the configs stored on the resampled object.
+  # the configs stored on the resampled object. For decomposition, prefer the
+  # fitted `Decomposition` of the first fold (which carries the resolved feature
+  # names) so the reported feature count matches `repr.SupervisedRes`; fall back
+  # to the shared config when no fitted model is available.
+  decomposition <- if (
+    !is.null(x@decomposition_config) &&
+      length(x@models) > 0L &&
+      !is.null(x@models[[1L]]@decomposition)
+  ) {
+    x@models[[1L]]@decomposition
+  } else {
+    x@decomposition_config
+  }
   out <- desc_preprocessing_decomposition(
     out,
     x@preprocessor_config,
-    x@decomposition_config
+    decomposition
   )
 
   # Tuning ----
