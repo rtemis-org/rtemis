@@ -201,8 +201,8 @@ Supervised <- new_class(
 #' `predict.CalibratedClassification` (the latter cannot call its parent method
 #' directly because `predict` is an S3/base generic, not an S7 generic).
 #'
-#' @param object `Supervised` (or subclass) object.
-#' @param newdata data.frame: New data to predict.
+#' @param object `Supervised` object.
+#' @param newdata tabular data: New data to predict.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Output of `predict_super()` (raw predictions / probabilities).
@@ -343,6 +343,53 @@ method(`[[`, Supervised) <- function(x, name) {
 }
 
 
+# %% repr_decomposition_line ----
+#' Build the decomposition line for `repr` methods
+#'
+#' Shared by `repr.Supervised` and `repr.SupervisedRes`. Formats a single line
+#' of the form "Decomposed {n} features to {k} components using {algorithm}.".
+#'
+#' @param n_features Integer: Number of features that were decomposed.
+#' @param k Integer: Number of components produced.
+#' @param algorithm Character: Decomposition algorithm name.
+#' @param pad Integer: Left side padding.
+#' @param output_type Character {"ansi", "html", or "plain"}: Output type.
+#'
+#' @return Character: The formatted line (ending in a newline).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+repr_decomposition_line <- function(
+  n_features,
+  k,
+  algorithm,
+  pad = 0L,
+  output_type
+) {
+  paste0(
+    fmt(
+      "\U25C8",
+      col = col_decom,
+      bold = TRUE,
+      pad = pad,
+      output_type = output_type
+    ),
+    " Decomposed ",
+    n_features,
+    " feature",
+    if (n_features != 1L) "s",
+    " to ",
+    k,
+    " component",
+    if (k != 1L) "s",
+    " using ",
+    algorithm,
+    ".\n"
+  )
+} # /rtemis::repr_decomposition_line
+
+
 # %% repr.Supervised ----
 #' repr `Supervised`
 #'
@@ -368,6 +415,40 @@ method(repr, Supervised) <- function(
     ")\n"
   )
 
+  # Preprocessing, if available
+  if (!is.null(x@preprocessor)) {
+    steps <- desc_preprocessor_steps(x@preprocessor@config)
+    out <- paste0(
+      out,
+      fmt(
+        "\U25A3",
+        col = col_preprocessor,
+        bold = TRUE,
+        pad = pad,
+        output_type = output_type
+      ),
+      if (length(steps) > 0L) {
+        paste0(" Preprocessed using ", paste(steps, collapse = ", "), ".\n")
+      } else {
+        " Preprocessed.\n"
+      }
+    )
+  }
+
+  # Decomposition, if available
+  if (!is.null(x@decomposition)) {
+    out <- paste0(
+      out,
+      repr_decomposition_line(
+        n_features = length(x@decomposition@config@features),
+        k = x@decomposition@config[["k"]],
+        algorithm = x@decomposition@algorithm,
+        pad = pad,
+        output_type = output_type
+      )
+    )
+  }
+
   # Tuning, if available
   if (!is.null(x@tuner)) {
     out <- paste0(
@@ -381,23 +462,6 @@ method(repr, Supervised) <- function(
       ),
       " Tuned using ",
       desc(x@tuner),
-      ".\n"
-    )
-  }
-
-  # Decomposition, if available
-  if (!is.null(x@decomposition)) {
-    out <- paste0(
-      out,
-      fmt(
-        "\U25C8",
-        col = col_decom,
-        bold = TRUE,
-        pad = pad,
-        output_type = output_type
-      ),
-      " Decomposed using ",
-      x@decomposition@algorithm,
       ".\n"
     )
   }
@@ -645,23 +709,28 @@ desc_preprocessor_steps <- function(config) {
 # %% desc_preprocessing_decomposition ----
 #' Append preprocessing & decomposition sentences to a `desc()` string
 #'
-#' Shared by `desc.Supervised` and `desc.SupervisedRes`. `preprocessor` and
-#' `decomposition` are the fitted objects (or `NULL`); each contributes a
-#' sentence only when present.
+#' Shared by `desc.Supervised` and `desc.SupervisedRes`. Each argument
+#' contributes a sentence only when present. `decomposition` may be a fitted
+#' `Decomposition` or a `DecompositionConfig`; both expose `@config` and
+#' `@algorithm`.
 #'
 #' @param out Character: The description string to append to.
-#' @param preprocessor `Preprocessor` object or `NULL`.
-#' @param decomposition `Decomposition` object or `NULL`.
+#' @param preprocessor_config `PreprocessorConfig` object or `NULL`.
+#' @param decomposition `Decomposition` / `DecompositionConfig` object or `NULL`.
 #'
 #' @return Character: `out` with any applicable sentences appended.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-desc_preprocessing_decomposition <- function(out, preprocessor, decomposition) {
+desc_preprocessing_decomposition <- function(
+  out,
+  preprocessor_config,
+  decomposition
+) {
   # Preprocessing ----
-  if (!is.null(preprocessor)) {
-    steps <- desc_preprocessor_steps(preprocessor@config)
+  if (!is.null(preprocessor_config)) {
+    steps <- desc_preprocessor_steps(preprocessor_config)
     out <- paste0(
       out,
       if (length(steps) > 0L) {
@@ -697,7 +766,11 @@ method(desc, Supervised) <- function(x) {
   out <- paste0(algorithm, " was used for ", tolower(type), ".")
 
   # Preprocessing & Decomposition ----
-  out <- desc_preprocessing_decomposition(out, x@preprocessor, x@decomposition)
+  out <- desc_preprocessing_decomposition(
+    out,
+    if (!is.null(x@preprocessor)) x@preprocessor@config else NULL,
+    x@decomposition
+  )
 
   # Tuning ----
   if (length(x@tuner) > 0) {
@@ -1460,8 +1533,8 @@ SupervisedRes <- new_class(
     algorithm = class_character,
     models = class_list,
     type = class_character,
-    preprocessor = Preprocessor | NULL,
-    preprocessor_internal = Preprocessor | NULL,
+    preprocessor_config = PreprocessorConfig | NULL,
+    decomposition_config = DecompositionConfig | NULL,
     hyperparameters = Hyperparameters | NULL,
     tuner_config = TunerConfig | NULL,
     outer_resampler = Resampler,
@@ -1483,8 +1556,8 @@ SupervisedRes <- new_class(
     algorithm,
     models,
     type,
-    preprocessor,
-    preprocessor_internal,
+    preprocessor_config,
+    decomposition_config,
     hyperparameters,
     tuner_config,
     outer_resampler,
@@ -1507,8 +1580,8 @@ SupervisedRes <- new_class(
       algorithm = algorithm,
       models = models,
       type = models[[1]]@type,
-      preprocessor = preprocessor,
-      preprocessor_internal = preprocessor_internal,
+      preprocessor_config = preprocessor_config,
+      decomposition_config = decomposition_config,
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       outer_resampler = outer_resampler,
@@ -1519,8 +1592,6 @@ SupervisedRes <- new_class(
       predicted_test = predicted_test,
       metrics_training = metrics_training,
       metrics_test = metrics_test,
-      # metrics_training_mean = metrics_training_mean,
-      # metrics_test_mean = metrics_test_mean,
       xnames = xnames,
       varimp = varimp,
       question = question,
@@ -1558,6 +1629,40 @@ method(repr, SupervisedRes) <- function(
     desc_alg(x@algorithm),
     ")\n"
   )
+
+  # Preprocessing, if available (1 line)
+  if (!is.null(x@preprocessor_config)) {
+    steps <- desc_preprocessor_steps(x@preprocessor_config)
+    out <- paste0(
+      out,
+      fmt(
+        "\U25A3",
+        col = col_preprocessor,
+        bold = TRUE,
+        output_type = output_type
+      ),
+      if (length(steps) > 0L) {
+        paste0(" Preprocessed using ", paste(steps, collapse = ", "), ".\n")
+      } else {
+        " Preprocessed.\n"
+      }
+    )
+  }
+
+  # Decomposition, if available (1 line)
+  # `k` and algorithm come from the (shared) config; the resolved feature count
+  # is read from the first fold's fitted decomposition.
+  if (!is.null(x@decomposition_config)) {
+    out <- paste0(
+      out,
+      repr_decomposition_line(
+        n_features = length(x@models[[1L]]@decomposition@config@features),
+        k = x@decomposition_config[["k"]],
+        algorithm = x@decomposition_config@algorithm,
+        output_type = output_type
+      )
+    )
+  }
 
   # Tuning, if available (1 line)
   if (!is.null(x@tuner_config)) {
@@ -1670,8 +1775,8 @@ method(to_json, SupervisedRes) <- function(x, ...) {
     xnames = x@xnames,
     n_features = length(x@xnames),
     n_resamples = length(x@models),
-    preprocessor = .to_json_value(x@preprocessor),
-    preprocessor_internal = .to_json_value(x@preprocessor_internal),
+    preprocessor_config = .to_json_value(x@preprocessor_config),
+    decomposition_config = .to_json_value(x@decomposition_config),
     hyperparameters = .to_json_value(x@hyperparameters),
     tuner_config = .to_json_value(x@tuner_config),
     outer_resampler = .to_json_value(x@outer_resampler),
@@ -1768,8 +1873,8 @@ ClassificationRes <- new_class(
   constructor = function(
     algorithm,
     models,
-    preprocessor,
-    preprocessor_internal = NULL,
+    preprocessor_config = NULL,
+    decomposition_config = NULL,
     hyperparameters,
     tuner_config,
     outer_resampler,
@@ -1819,8 +1924,8 @@ ClassificationRes <- new_class(
         algorithm = algorithm,
         models = models,
         type = "Classification",
-        preprocessor = preprocessor,
-        preprocessor_internal = preprocessor_internal,
+        preprocessor_config = preprocessor_config,
+        decomposition_config = decomposition_config,
         hyperparameters = hyperparameters,
         tuner_config = tuner_config,
         outer_resampler = outer_resampler,
@@ -2010,8 +2115,8 @@ RegressionRes <- new_class(
   constructor = function(
     algorithm,
     models,
-    preprocessor,
-    preprocessor_internal,
+    preprocessor_config = NULL,
+    decomposition_config = NULL,
     hyperparameters,
     tuner_config,
     outer_resampler,
@@ -2046,8 +2151,8 @@ RegressionRes <- new_class(
         algorithm = algorithm,
         models = models,
         type = "Regression",
-        preprocessor = preprocessor,
-        preprocessor_internal = preprocessor_internal,
+        preprocessor_config = preprocessor_config,
+        decomposition_config = decomposition_config,
         hyperparameters = hyperparameters,
         tuner_config = tuner_config,
         outer_resampler = outer_resampler,
@@ -2080,16 +2185,13 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
   out <- paste0(algorithm, " was used for ", tolower(type), ".")
 
   # Preprocessing & Decomposition ----
-  # In the outer-resampling path the top-level props are NULL; each fold carries
-  # its own (identical) config, so describe from the first model.
-  mod1 <- if (length(x@models) > 0L) x@models[[1L]] else NULL
-  if (!is.null(mod1)) {
-    out <- desc_preprocessing_decomposition(
-      out,
-      mod1@preprocessor,
-      mod1@decomposition
-    )
-  }
+  # The configs are shared identically across all outer folds; describe from
+  # the configs stored on the resampled object.
+  out <- desc_preprocessing_decomposition(
+    out,
+    x@preprocessor_config,
+    x@decomposition_config
+  )
 
   # Tuning ----
   if (length(x@tuner_config) > 0) {
@@ -2498,8 +2600,8 @@ make_SupervisedRes <- function(
   algorithm,
   type,
   models,
-  preprocessor,
-  preprocessor_internal,
+  preprocessor_config,
+  decomposition_config,
   hyperparameters,
   tuner_config,
   outer_resampler,
@@ -2521,8 +2623,8 @@ make_SupervisedRes <- function(
     ClassificationRes(
       algorithm = algorithm,
       models = models,
-      preprocessor = preprocessor,
-      preprocessor_internal = preprocessor_internal,
+      preprocessor_config = preprocessor_config,
+      decomposition_config = decomposition_config,
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       outer_resampler = outer_resampler,
@@ -2542,8 +2644,8 @@ make_SupervisedRes <- function(
     RegressionRes(
       algorithm = algorithm,
       models = models,
-      preprocessor = preprocessor,
-      preprocessor_internal = preprocessor_internal,
+      preprocessor_config = preprocessor_config,
+      decomposition_config = decomposition_config,
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       outer_resampler = outer_resampler,
