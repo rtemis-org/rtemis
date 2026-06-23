@@ -10,3 +10,31 @@ col_decom <- rtemis_colors[["green"]]
 col_tuner <- rtemis_colors[["pink"]]
 col_outer <- rtemis_colors[["magenta"]]
 col_calibrator <- rtemis_colors[["purple"]]
+
+
+# %% show_color_key() ----
+#' Show rtemis color key
+#'
+#' @return Used for side-effects: prints color key to console. Returns invisible NULL.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' show_color_key()
+show_color_key <- function() {
+  x <- list(
+    `General highlight` = highlight_col,
+    Info = col_info,
+    Warn = col_warn,
+    Error = col_error,
+    Success = col_success,
+    Preprocessor = col_preprocessor,
+    Decomposer = col_decom,
+    Outer = col_outer,
+    Tuner = col_tuner
+  )
+  out <- show_col(x, title = "rtemis Color System")
+  cat(out)
+  invisible(NULL)
+} # /show_color_key
