@@ -232,6 +232,16 @@ train <- function(
     algorithm <- hyperparameters@algorithm
   }
 
+  # Initial check targetting non-numeric or factor columns
+  # Will be checked again by individual learners;
+  # this stops sending to all resamples and failing, which fits our stop early design.
+  check_supervised(
+    x = x,
+    dat_validation = dat_validation,
+    dat_test = dat_test,
+    allow_missing = TRUE,
+    verbosity = verbosity
+  )
   type <- supervised_type(x)
   ncols <- ncol(x)
 
