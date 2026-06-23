@@ -133,7 +133,7 @@ method(repr, RegressionMetrics) <- function(
       label_metric_df(x@metrics),
       print_class = FALSE,
       print_df = TRUE,
-      pad = pad + 2L,
+      pad = pad,
       output_type = output_type
     )
   )
@@ -332,7 +332,7 @@ method(repr, MetricsRes) <- function(
       out,
       strrep(" ", pad),
       italic(
-        "  Aggregate Confusion Matrix across resamples.\n",
+        "Aggregate Confusion Matrix across resamples.\n",
         output_type = output_type
       ),
       show_table(x@confusion_matrix, pad = tblpad, output_type = output_type),
@@ -342,7 +342,7 @@ method(repr, MetricsRes) <- function(
   out <- paste0(out, strrep(" ", pad))
   out <- paste0(
     out,
-    italic("  Showing mean (sd) across resamples.\n", output_type = output_type)
+    italic("Showing mean (sd) across resamples.\n", output_type = output_type)
   )
   # Create list with mean_metrics (sd_metrics)
   metricsl <- lapply(seq_along(x@mean_metrics), function(i) {
@@ -361,7 +361,7 @@ method(repr, MetricsRes) <- function(
       metricsl,
       print_class = FALSE,
       print_df = TRUE,
-      pad = pad + 2L,
+      pad = pad,
       output_type = output_type
     )
   )
@@ -571,7 +571,7 @@ repr_CalibratedClassificationResMetrics <- function(
   out <- paste0(
     out,
     italic(
-      "  Showing mean (sd) across resamples, Pre => Post calibration.\n",
+      "Showing mean (sd) across resamples, Pre => Post calibration.\n",
       output_type = output_type
     )
   )
@@ -611,7 +611,7 @@ repr_CalibratedClassificationResMetrics <- function(
       prepost_strings,
       print_class = FALSE,
       print_df = TRUE,
-      pad = pad + 2L,
+      pad = pad,
       output_type = output_type
     )
   )
