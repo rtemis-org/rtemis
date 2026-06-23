@@ -1655,6 +1655,7 @@ method(repr, SupervisedRes) <- function(
   if (
     !is.null(x@decomposition_config) &&
       length(x@models) > 0L &&
+      !is.null(x@models[[1L]]@decomposition) &&
       !is.null(x@models[[1L]]@decomposition@config@features)
   ) {
     out <- paste0(
