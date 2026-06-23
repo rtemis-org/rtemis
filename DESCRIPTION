@@ -26,7 +26,7 @@ Imports:
     graphics,
     htmltools,
     methods,
-    rtemis.core (>= 0.3.0),
+    rtemis.core (>= 0.3.1),
     stats,
     S7,
     utils
