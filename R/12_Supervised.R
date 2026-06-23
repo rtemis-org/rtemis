@@ -1652,7 +1652,11 @@ method(repr, SupervisedRes) <- function(
   # Decomposition, if available (1 line)
   # `k` and algorithm come from the (shared) config; the resolved feature count
   # is read from the first fold's fitted decomposition.
-  if (!is.null(x@decomposition_config)) {
+  if (
+    !is.null(x@decomposition_config) &&
+      length(x@models) > 0L &&
+      !is.null(x@models[[1L]]@decomposition@config@features)
+  ) {
     out <- paste0(
       out,
       repr_decomposition_line(
