@@ -5,7 +5,6 @@
 # show_col ----
 x <- list(
   highlight_col = highlight_col,
-  col_object = col_object,
   col_outer = col_outer,
   col_tuner = col_tuner,
   col_info = col_info
