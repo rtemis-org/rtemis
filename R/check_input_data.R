@@ -5,6 +5,23 @@
 # Notes:
 # Some algorithms do not work with variable names containing dots (SparkML)
 
+# %% check_numeric_or_factor() ----
+check_numeric_or_factor <- function(x) {
+  # check all columns are either numeric or factor and report any that are not
+  non_numeric_or_factor <- which(
+    !sapply(x, function(x) is.numeric(x) || is.factor(x))
+  )
+  if (length(non_numeric_or_factor) > 0) {
+    rtemis.core::abort(
+      "Columns ",
+      paste0(names(x)[non_numeric_or_factor], collapse = ", "),
+      " are not numeric or factor.",
+      class = c("rtemis_data_error", "rtemis_input_error")
+    )
+  }
+}
+
+
 # %% check_factor_levels.class_data.frame ----
 method(check_factor_levels, class_data.frame) <- function(x, y, z) {
   if (!is.null(y) || !is.null(z)) {
@@ -140,6 +157,9 @@ check_supervised <- function(
       )
     }
   }
+
+  # Check for non-numeric or factor features ----
+  check_numeric_or_factor(features(x))
 
   # Missing values ----
   if (anyNA(outcome(x))) {
