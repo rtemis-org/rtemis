@@ -20,8 +20,9 @@ conf_table <- function(true, pred, binclasspos = 2L) {
 # Accuracy", auc -> "AUC", rsq -> "R^2"). labelify() uppercases the acronyms
 # via its capitalize_strings defaults; R-squared gets a Unicode superscript two.
 # Stored field names stay lowercase.
+CAP_METRICS <- c("mae", "mse", "rmse")
 label_metrics <- function(x) {
-  sub("^Rsq$", "R\u00b2", labelify(x))
+  sub("^Rsq$", "R\u00b2", labelify(x, capitalize_strings = CAP_METRICS))
 }
 
 # Apply label_metrics() to a metric data.frame's row and column names.
