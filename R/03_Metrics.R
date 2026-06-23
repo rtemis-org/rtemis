@@ -20,8 +20,9 @@ conf_table <- function(true, pred, binclasspos = 2L) {
 # Accuracy", auc -> "AUC", rsq -> "R^2"). labelify() uppercases the acronyms
 # via its capitalize_strings defaults; R-squared gets a Unicode superscript two.
 # Stored field names stay lowercase.
+CAP_METRICS <- c("mae", "mse", "rmse")
 label_metrics <- function(x) {
-  sub("^Rsq$", "R\u00b2", labelify(x))
+  sub("^Rsq$", "R\u00b2", labelify(x, capitalize_strings = CAP_METRICS))
 }
 
 # Apply label_metrics() to a metric data.frame's row and column names.
@@ -132,7 +133,7 @@ method(repr, RegressionMetrics) <- function(
       label_metric_df(x@metrics),
       print_class = FALSE,
       print_df = TRUE,
-      pad = pad + 2L,
+      pad = pad,
       output_type = output_type
     )
   )
@@ -331,7 +332,7 @@ method(repr, MetricsRes) <- function(
       out,
       strrep(" ", pad),
       italic(
-        "  Aggregate Confusion Matrix across resamples.\n",
+        "Aggregate Confusion Matrix across resamples.\n",
         output_type = output_type
       ),
       show_table(x@confusion_matrix, pad = tblpad, output_type = output_type),
@@ -341,7 +342,7 @@ method(repr, MetricsRes) <- function(
   out <- paste0(out, strrep(" ", pad))
   out <- paste0(
     out,
-    italic("  Showing mean (sd) across resamples.\n", output_type = output_type)
+    italic("Showing mean (sd) across resamples.\n", output_type = output_type)
   )
   # Create list with mean_metrics (sd_metrics)
   metricsl <- lapply(seq_along(x@mean_metrics), function(i) {
@@ -360,7 +361,7 @@ method(repr, MetricsRes) <- function(
       metricsl,
       print_class = FALSE,
       print_df = TRUE,
-      pad = pad + 2L,
+      pad = pad,
       output_type = output_type
     )
   )
@@ -570,7 +571,7 @@ repr_CalibratedClassificationResMetrics <- function(
   out <- paste0(
     out,
     italic(
-      "  Showing mean (sd) across resamples, Pre => Post calibration.\n",
+      "Showing mean (sd) across resamples, Pre => Post calibration.\n",
       output_type = output_type
     )
   )
@@ -610,7 +611,7 @@ repr_CalibratedClassificationResMetrics <- function(
       prepost_strings,
       print_class = FALSE,
       print_df = TRUE,
-      pad = pad + 2L,
+      pad = pad,
       output_type = output_type
     )
   )

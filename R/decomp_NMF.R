@@ -20,12 +20,10 @@ method(decomp_, NMFConfig) <- function(config, x, verbosity = 1L) {
   # Checks ----
   check_is_S7(config, NMFConfig)
   check_dependencies("NMF")
-  check_unsupervised_data(x = x, allow_missing = FALSE)
+  check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)
 
   # Decompose ----
-  if (verbosity > 0L) {
-    msg("Decomposing with", config@algorithm, "...")
-  }
+  msg("Decomposing with", config@algorithm, "...", verbosity = verbosity)
   xm <- as.matrix(x)
   args <- list(x = t(xm), rank = config[["k"]], nrun = config[["nrun"]])
   decom <- do_call(NMF::nmf, args)

@@ -25,17 +25,6 @@ class_tabnet_fit <- new_S3_class("tabnet_fit")
 
 # %% --- Generics -------------------------------------------------------------------------------------
 # %% repr ----
-#' String representation
-#'
-#' @param x rtemis object.
-#'
-#' @return Character string representation of the object.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-repr <- new_generic("repr", "x")
-
 
 # %% get_varimp ----
 #' Get variable importance

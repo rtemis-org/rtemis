@@ -10,12 +10,10 @@
 method(decomp_, ICAConfig) <- function(config, x, verbosity = 1L) {
   # Checks ----
   check_dependencies("fastICA")
-  check_unsupervised_data(x = x, allow_missing = FALSE)
+  check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)
 
   # Decompose ----
-  if (verbosity > 0L) {
-    msg("Decomposing with", config@algorithm, "...")
-  }
+  msg("Decomposing with", config@algorithm, "...", verbosity = verbosity)
   xm <- as.matrix(x)
   decom <- fastICA::fastICA(
     X = xm,

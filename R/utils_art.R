@@ -343,6 +343,10 @@ show_col <- function(
           )
 
           paste0(
+            light_block,
+            light_block,
+            medium_block,
+            medium_block,
             solid_block,
             solid_block,
             medium_block,

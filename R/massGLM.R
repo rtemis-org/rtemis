@@ -35,7 +35,6 @@ massGLM <- function(
   y,
   scale_y = NULL,
   center_y = NULL,
-  # include_anova = TRUE,
   verbosity = 1L
 ) {
   # Init ----
@@ -111,18 +110,17 @@ massGLM <- function(
   }
 
   # Fit models ----
-  if (verbosity > 0L) {
-    msg(
-      "Fitting",
-      highlight(length(ynames)),
-      "GLMs of family",
-      bold(.family),
-      "with",
-      highlight(length(xnames)),
-      ngettext(length(xnames), "predictor", "predictors"),
-      "each..."
-    )
-  }
+  msg(
+    "Fitting",
+    highlight(length(ynames)),
+    "GLMs of family",
+    bold(.family),
+    "with",
+    highlight(length(xnames)),
+    ngettext(length(xnames), "predictor", "predictors"),
+    "each...",
+    verbosity = verbosity
+  )
   tbls <- lapply(
     cli::cli_progress_along(seq_along(y), name = "GLMs", type = "tasks"),
     function(i) {

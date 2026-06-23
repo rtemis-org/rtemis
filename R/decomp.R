@@ -39,9 +39,7 @@ decomp <- function(x, algorithm = "ICA", config = NULL, verbosity = 1L) {
 
   # Decompose ----
   algorithm <- get_decom_name(algorithm)
-  if (verbosity > 0L) {
-    msg0("Decomposing with ", algorithm, "...")
-  }
+  msg0("Decomposing with ", algorithm, "...", verbosity = verbosity)
 
   # decomp_ -> list with elements 'decom' and 'transformed'
   decom <- decomp_(config = config, x = x, verbosity = verbosity)

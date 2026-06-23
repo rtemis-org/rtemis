@@ -10,12 +10,10 @@
 method(decomp_, IsomapConfig) <- function(config, x, verbosity = 1L) {
   # Checks ----
   check_dependencies("vegan")
-  check_unsupervised_data(x = x, allow_missing = FALSE)
+  check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)
 
   # Decompose ----
-  if (verbosity > 0L) {
-    msg("Decomposing with", config@algorithm, "...")
-  }
+  msg("Decomposing with", config@algorithm, "...", verbosity = verbosity)
   dst <- vegan::vegdist(x = x, method = config[["dist_method"]])
   decom <- vegan::isomap(
     dist = dst,

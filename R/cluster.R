@@ -44,9 +44,10 @@ cluster <- function(
 
   # Cluster ----
   algorithm <- get_clust_name(algorithm)
-  if (verbosity > 0L) {
-    msg0(bold(paste0("Clustering with ", algorithm, "...")))
-  }
+  msg0(
+    bold(paste0("Clustering with ", algorithm, "...")),
+    verbosity = verbosity
+  )
   clust <- cluster_(config = config, x = x, verbosity = verbosity)
 
   # Clusters ----
