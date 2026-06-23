@@ -710,7 +710,7 @@ desc_preprocessor_steps <- function(config) {
 #' Append preprocessing & decomposition sentences to a `desc()` string
 #'
 #' Shared by `desc.Supervised` and `desc.SupervisedRes`. Each argument
-#' contributes a sentence only when present. `decomposition` may be a fitted
+#' contributes a sentence only when present. `decomposition` may be a
 #' `Decomposition` or a `DecompositionConfig`; both expose `@config` and
 #' `@algorithm`.
 #'
@@ -1651,7 +1651,7 @@ method(repr, SupervisedRes) <- function(
 
   # Decomposition, if available (1 line)
   # `k` and algorithm come from the (shared) config; the resolved feature count
-  # is read from the first fold's fitted decomposition.
+  # is read from the first fold's decomposition.
   if (
     !is.null(x@decomposition_config) &&
       length(x@models) > 0L &&
