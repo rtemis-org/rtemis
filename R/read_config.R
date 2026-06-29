@@ -131,7 +131,11 @@ read_config <- function(file) {
     jsonlite::fromJSON(paste(out, collapse = "\n"), simplifyVector = FALSE),
     error = function(e) NULL
   )
-  result <- report[["results"]][[1L]]
+  result <- if (is.list(report) && length(report[["results"]]) >= 1L) {
+    report[["results"]][[1L]]
+  } else {
+    NULL
+  }
   if (is.null(result)) {
     msg <- paste0("Could not parse `rtemis validate` output for ", file, ".")
     if (policy == "always") {

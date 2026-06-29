@@ -178,7 +178,7 @@ train <- function(
     if (is.null(x@dat_training_path)) {
       rtemis.core::abort(
         "This `SuperConfig` has no `dat_training_path`; set it before training ",
-        '(e.g. `config@dat_training_path <- "data.parquet"`) or bind in-memory ',
+        '(e.g. `x@dat_training_path <- "data.parquet"`) or bind in-memory ',
         "data via `SuperConfigLive`.",
         class = c("rtemis_null_input", "rtemis_input_error")
       )

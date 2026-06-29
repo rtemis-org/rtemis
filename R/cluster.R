@@ -41,7 +41,7 @@ cluster <- function(
     if (is.null(x@dat_path)) {
       rtemis.core::abort(
         "This `ClusterConfig` has no `dat_path`; set it before clustering ",
-        '(e.g. `config@dat_path <- "data.csv"`).',
+        '(e.g. `x@dat_path <- "data.csv"`).',
         class = c("rtemis_null_input", "rtemis_input_error")
       )
     }
