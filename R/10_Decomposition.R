@@ -199,7 +199,7 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
   algorithm <- get_decom_name(algorithm)
   # Params may arrive flat (UI / server: `list(algorithm, k, ..., features)`) or
   # nested under `config` (S7_to_list serialization of a DecompositionConfig, as
-  # used by the TOML round-trip). In the nested shape `features` is a sibling of
+  # written by `write_config()`). In the nested shape `features` is a sibling of
   # `config`, so it is re-attached explicitly.
   params <- if (is.list(x[["config"]])) {
     c(
