@@ -173,6 +173,16 @@ train <- function(
 
   # SuperConfig dispatch ----
   if (S7_inherits(x, SuperConfig)) {
+    # `SuperConfig` is a recipe: `dat_training_path` may be unbound. Require it
+    # at train time (the CLI sets it from its data argument before calling).
+    if (is.null(x@dat_training_path)) {
+      rtemis.core::abort(
+        "This `SuperConfig` has no `dat_training_path`; set it before training ",
+        '(e.g. `config@dat_training_path <- "data.parquet"`) or bind in-memory ',
+        "data via `SuperConfigLive`.",
+        class = c("rtemis_null_input", "rtemis_input_error")
+      )
+    }
     dat_training <- read(x@dat_training_path, character2factor = TRUE)
     dat_validation <- if (!is.null(x@dat_validation_path)) {
       read(x@dat_validation_path)
@@ -185,7 +195,7 @@ train <- function(
       NULL
     }
     # Call train() with data and other parameters from config
-    return(train(
+    train_args <- list(
       x = dat_training,
       dat_validation = dat_validation,
       dat_test = dat_test,
@@ -201,7 +211,13 @@ train <- function(
       outdir = x@outdir,
       verbosity = x@verbosity,
       progress = progress
-    ))
+    )
+    # `positive_class` is handled via `...` (not a formal arg) and aborts if
+    # passed as NULL, so include it only when set.
+    if (!is.null(x@positive_class)) {
+      train_args[["positive_class"]] <- x@positive_class
+    }
+    return(do.call(train, train_args))
   } # / train.SuperConfig
 
   # Checks ----
@@ -1067,13 +1083,14 @@ get_n_workers <- function(
     bold("//"),
     " Max workers: ",
     highlight(n_workers),
-    " => ",
-    "Algorithm: ",
+    " {",
+    gray("Algorithm: "),
     highlight(workers_algorithm),
-    "; Tuning: ",
+    gray("; Tuning: "),
     highlight(workers_tuning),
-    "; Outer Resampling: ",
+    gray("; Outer Resampling: "),
     highlight(workers_outer_resampling),
+    "}",
     verbosity = verbosity
   )
 
