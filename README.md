@@ -102,7 +102,7 @@ The following will perform hyperparameter tuning and 10-fold cross-validation.
 It will train `(3*3*2*5 + 1) * 25 = 2275` models total (!).
 
 ```r
-mod <- train(
+mod_lightgbm <- train(
   dat,
   hyperparameters = setup_LightGBM(
         num_leaves = 2^(1:3),
@@ -119,7 +119,7 @@ mod <- train(
 ## Clustering
 
 ```r
-clust <- cluster(
+clust_cmeans <- cluster(
   dat,
   config = setup_CMeans(k = 4L)
 )
@@ -128,7 +128,7 @@ clust <- cluster(
 ## Decomposition
 
 ```r
-decomp <- decompose(
+decomp_ica <- decomp(
   dat,
   config = setup_ICA(k = 12L)
 )
