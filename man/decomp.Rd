@@ -4,14 +4,19 @@
 \alias{decomp}
 \title{Perform Data Decomposition}
 \usage{
-decomp(x, algorithm = "ICA", config = NULL, verbosity = 1L)
+decomp(x, algorithm = "ICA", config = NULL, outdir = NULL, verbosity = 1L)
 }
 \arguments{
-\item{x}{Matrix or data frame: Input data.}
+\item{x}{Matrix, data frame, or \code{DecomposeConfig} object: Input data, or a
+\code{DecomposeConfig} recipe (from \link{setup_DecomposeConfig}) carrying the data
+path, algorithm config, and output directory.}
 
 \item{algorithm}{Character: Decomposition algorithm.}
 
 \item{config}{DecompositionConfig: Algorithm-specific config.}
+
+\item{outdir}{Character, optional: Output directory. If not NULL, the returned
+\code{Decomposition} object is saved there as an \code{.rds} file.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }
