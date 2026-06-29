@@ -1,8 +1,20 @@
 # rtemis news
 
+## 1.2.7
+
+- Added `DecomposeConfig` and `ClusterConfig` pipeline-recipe classes with
+  `setup_DecomposeConfig()` / `setup_ClusterConfig()`, mirroring `SuperConfig`:
+  they bundle a data path, the algorithm config (`DecompositionConfig` /
+  `ClusteringConfig`), and an output directory.
+- `decomp()` now accepts `DecomposeConfig` objects.
+- `cluster()` now accepts `ClusterConfig` objects.
+- Added `outdir` arg to `decomp()` and `cluster()`
+- Added `read_config()` & `write_config()` with support for the new `supervised`, `decompose`, `cluster` schemas.
+- Switched from Makefile to justfile
+
 ## 1.2.2
 
-- Added `decomposition_config` argument to `train()` and all associated internal functions and methods, and to `SuperConfig` and `SuperConfigLive` S7 classes. 
+- Added `decomposition_config` to `SuperConfig`, `SuperConfigLive`, `train()`.
 
 ## 1.2.1
 

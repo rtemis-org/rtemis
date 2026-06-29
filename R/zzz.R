@@ -73,7 +73,7 @@ setup_progress <- function() {
       pkglogo(),
       vline,
       fmt_gradient(
-        paste0(rep("\u2500", nchar(vline) - 13L), collapse = ""),
+        paste0(rep("\u2500", nchar(vline) - 14L), collapse = ""),
         colors = c(
           rtemis_colors[["red"]],
           rtemis_colors[["orange"]],

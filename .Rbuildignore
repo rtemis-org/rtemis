@@ -21,6 +21,6 @@
 ^CLAUDE\.md$
 ^NEWS\.md$
 ^pkgdown$
-^Makefile$
+^justfile$
 ^SKILL\.md$
 ^.*\.pdf$

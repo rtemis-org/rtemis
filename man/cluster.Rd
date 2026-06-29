@@ -4,14 +4,20 @@
 \alias{cluster}
 \title{Perform Clustering}
 \usage{
-cluster(x, algorithm = "KMeans", config = NULL, verbosity = 1L)
+cluster(x, algorithm = "KMeans", config = NULL, outdir = NULL, verbosity = 1L)
 }
 \arguments{
-\item{x}{Matrix or data.frame: Data to cluster. Rows are cases to be clustered.}
+\item{x}{Matrix, data.frame, or \code{ClusterConfig} object: Data to cluster (rows
+are cases to be clustered), or a \code{ClusterConfig} recipe (from
+\link{setup_ClusterConfig}) carrying the data path, algorithm config, and output
+directory.}
 
 \item{algorithm}{Character: Clustering algorithm.}
 
 \item{config}{List: Algorithm-specific config.}
+
+\item{outdir}{Character, optional: Output directory. If not NULL, the returned
+\code{Clustering} object is saved there as an \code{.rds} file.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }

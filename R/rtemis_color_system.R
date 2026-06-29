@@ -29,10 +29,10 @@ show_color_key <- function() {
     Warn = col_warn,
     Error = col_error,
     Success = col_success,
-    Preprocessor = col_preprocessor,
-    Decomposer = col_decom,
-    Outer = col_outer,
-    Tuner = col_tuner
+    Preprocessing = col_preprocessor,
+    Decomposition = col_decom,
+    `Outer Resampling` = col_outer,
+    Tuning = col_tuner
   )
   out <- show_col(x, title = "rtemis Color System")
   cat(out)

@@ -5,10 +5,11 @@
 \title{Setup SuperConfig}
 \usage{
 setup_SuperConfig(
-  dat_training_path,
+  dat_training_path = NULL,
   dat_validation_path = NULL,
   dat_test_path = NULL,
   weights = NULL,
+  positive_class = NULL,
   preprocessor_config = NULL,
   decomposition_config = NULL,
   algorithm = NULL,
@@ -22,7 +23,8 @@ setup_SuperConfig(
 )
 }
 \arguments{
-\item{dat_training_path}{Character: Path to training data file.}
+\item{dat_training_path}{Character or NULL: Path to training data file. NULL
+leaves the recipe unbound; set it (or supply data) before \link{train}.}
 
 \item{dat_validation_path}{Character: Path to validation data file.}
 
@@ -30,6 +32,9 @@ setup_SuperConfig(
 
 \item{weights}{Optional Character: Column name in training data to use as observation weights.
 If NULL, no weights are used.}
+
+\item{positive_class}{Character or NULL: For binary classification, the
+outcome level to treat as positive. NULL keeps the existing factor level order.}
 
 \item{preprocessor_config}{\code{PreprocessorConfig} object: Configuration for data preprocessing.}
 
@@ -57,7 +62,10 @@ with \link{setup_ExecutionConfig}.}
 \code{SuperConfig} object.
 }
 \description{
-Setup \code{SuperConfig} object.
+Setup \code{SuperConfig} object. \code{SuperConfig} is a portable, data-agnostic recipe:
+\code{dat_training_path} is optional, so the same config can be validated, shared,
+or described without data and have a path bound later (e.g. by the \code{rtemis}
+CLI) before \link{train}.
 }
 \examples{
 sc <- setup_SuperConfig(

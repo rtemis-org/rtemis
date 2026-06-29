@@ -66,8 +66,8 @@ test_that("train() works with SuperConfig", {
 })
 
 
-# %% Test to_toml.SuperConfig ----
-test_that("SuperConfig can be written to TOML", {
+# %% write_config.SuperConfig & read_config ----
+test_that("SuperConfig round-trips through write_config/read_config JSON", {
   x <- setup_SuperConfig(
     dat_training_path = "~/Data/iris.csv",
     dat_validation_path = NULL,
@@ -83,53 +83,73 @@ test_that("SuperConfig can be written to TOML", {
     outdir = "models/",
     verbosity = 1L
   )
-  toml_str <- to_toml(x)
-  expect_type(toml_str, "character")
-})
-
-
-# %% write_toml.SuperConfig & read_config ----
-test_that("SuperConfig can be written to TOML", {
-  x <- setup_SuperConfig(
-    dat_training_path = "~/Data/iris.csv",
-    dat_validation_path = NULL,
-    dat_test_path = NULL,
-    weights = NULL,
-    preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
-    algorithm = "LightRF",
-    hyperparameters = setup_LightRF(),
-    tuner_config = setup_GridSearch(),
-    outer_resampling_config = setup_Resampler(),
-    execution_config = setup_ExecutionConfig(),
-    question = "Can we tell iris species apart given their measurements?",
-    outdir = "models/",
-    verbosity = 1L
+  file <- file.path(tempdir(), "rtemis_super.json")
+  write_config(x, file, overwrite = TRUE)
+  expect_true(file.exists(file))
+  xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
+  expect_identical(
+    xl[["$schema"]],
+    "https://schema.rtemis.org/supervised/v1/schema.json"
   )
-  tmpdir <- tempdir()
-  write_toml(x, file.path(tmpdir, "rtemis.toml"), overwrite = TRUE)
-  testthat::expect_true(file.exists(file.path(tmpdir, "rtemis.toml")))
-  xtoo <- read_config(file.path(tmpdir, "rtemis.toml"))
+  xtoo <- read_config(file)
   expect_s7_class(xtoo, SuperConfig)
+  expect_identical(xtoo@algorithm, x@algorithm)
 })
 
 
-# %% Test to_yaml.SuperConfig ----
-test_that("SuperConfig can be written to YAML", {
-  x <- setup_SuperConfig(
-    dat_training_path = "~/Data/iris.csv",
-    dat_validation_path = NULL,
-    dat_test_path = NULL,
-    weights = NULL,
-    preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
-    algorithm = "LightRF",
-    hyperparameters = setup_LightRF(),
-    tuner_config = setup_GridSearch(),
-    outer_resampling_config = setup_Resampler(),
-    execution_config = setup_ExecutionConfig(),
-    question = "Can we tell iris species apart given their measurements?",
-    outdir = "models/",
-    verbosity = 1L
+# %% write_config.DecompositionConfig & read_config ----
+test_that("DecompositionConfig round-trips through write_config/read_config", {
+  x <- setup_PCA(k = 3L)
+  file <- file.path(tempdir(), "rtemis_decom.json")
+  write_config(x, file, overwrite = TRUE)
+  expect_true(file.exists(file))
+  xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
+  expect_identical(
+    xl[["$schema"]],
+    "https://schema.rtemis.org/decomposition/v1/schema.json"
   )
-  yaml_str <- to_yaml(x)
-  expect_type(yaml_str, "character")
+  xtoo <- read_config(file)
+  expect_s7_class(xtoo, DecompositionConfig)
+  expect_identical(xtoo@algorithm, x@algorithm)
+})
+
+
+# %% write_config.ClusteringConfig & read_config ----
+test_that("ClusteringConfig round-trips through write_config/read_config", {
+  x <- setup_DBSCAN(eps = 0.5, min_points = 5L)
+  file <- file.path(tempdir(), "rtemis_clust.json")
+  write_config(x, file, overwrite = TRUE)
+  expect_true(file.exists(file))
+  xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
+  expect_identical(
+    xl[["$schema"]],
+    "https://schema.rtemis.org/clustering/v1/schema.json"
+  )
+  xtoo <- read_config(file)
+  expect_s7_class(xtoo, ClusteringConfig)
+  expect_identical(xtoo@algorithm, x@algorithm)
+})
+
+
+# %% read_config rejects missing $schema ----
+test_that("read_config errors when $schema is missing", {
+  file <- file.path(tempdir(), "rtemis_noschema.json")
+  jsonlite::write_json(
+    list(algorithm = "LightRF"),
+    file,
+    auto_unbox = TRUE
+  )
+  expect_error(read_config(file), class = "rtemis_value_error")
+})
+
+
+# %% read_config rejects unsupported $schema ----
+test_that("read_config errors on an unrecognized $schema", {
+  file <- file.path(tempdir(), "rtemis_badschema.json")
+  jsonlite::write_json(
+    list(`$schema` = "https://schema.rtemis.org/bogus/v1/schema.json"),
+    file,
+    auto_unbox = TRUE
+  )
+  expect_error(read_config(file), class = "rtemis_value_error")
 })

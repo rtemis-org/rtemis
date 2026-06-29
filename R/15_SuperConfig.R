@@ -18,10 +18,11 @@ SuperConfig <- new_class(
   name = "SuperConfig",
   package = "rtemis",
   properties = list(
-    dat_training_path = class_character,
+    dat_training_path = class_character | NULL,
     dat_validation_path = class_character | NULL,
     dat_test_path = class_character | NULL,
     weights = class_character | NULL, # column name in dat_training
+    positive_class = class_character | NULL, # binary-classification positive level
     preprocessor_config = PreprocessorConfig | NULL,
     decomposition_config = DecompositionConfig | NULL,
     algorithm = class_character | NULL,
@@ -76,13 +77,19 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 # %% setup_SuperConfig ----
 #' Setup SuperConfig
 #'
-#' Setup `SuperConfig` object.
+#' Setup `SuperConfig` object. `SuperConfig` is a portable, data-agnostic recipe:
+#' `dat_training_path` is optional, so the same config can be validated, shared,
+#' or described without data and have a path bound later (e.g. by the `rtemis`
+#' CLI) before [train].
 #'
-#' @param dat_training_path Character: Path to training data file.
+#' @param dat_training_path Character or NULL: Path to training data file. NULL
+#' leaves the recipe unbound; set it (or supply data) before [train].
 #' @param dat_validation_path Character: Path to validation data file.
 #' @param dat_test_path Character: Path to test data file.
 #' @param weights Optional Character: Column name in training data to use as observation weights.
 #' If NULL, no weights are used.
+#' @param positive_class Character or NULL: For binary classification, the
+#' outcome level to treat as positive. NULL keeps the existing factor level order.
 #' @param preprocessor_config `PreprocessorConfig` object: Configuration for data preprocessing.
 #' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
 #' @param algorithm Character: Algorithm to use for training.
@@ -114,10 +121,11 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #'   outdir = "models/"
 #' )
 setup_SuperConfig <- function(
-  dat_training_path,
+  dat_training_path = NULL,
   dat_validation_path = NULL,
   dat_test_path = NULL,
   weights = NULL,
+  positive_class = NULL,
   preprocessor_config = NULL,
   decomposition_config = NULL,
   algorithm = NULL,
@@ -130,7 +138,9 @@ setup_SuperConfig <- function(
   verbosity = 1L
 ) {
   # Sanitize paths for security
-  dat_training_path <- sanitize_path(dat_training_path, must_exist = FALSE)
+  if (!is.null(dat_training_path)) {
+    dat_training_path <- sanitize_path(dat_training_path, must_exist = FALSE)
+  }
 
   if (!is.null(dat_validation_path)) {
     dat_validation_path <- sanitize_path(
@@ -150,6 +160,7 @@ setup_SuperConfig <- function(
     dat_validation_path = dat_validation_path,
     dat_test_path = dat_test_path,
     weights = weights,
+    positive_class = positive_class,
     preprocessor_config = preprocessor_config,
     decomposition_config = decomposition_config,
     algorithm = algorithm,
@@ -164,167 +175,122 @@ setup_SuperConfig <- function(
 } # /setup_SuperConfig
 
 
-# %% to_toml.SuperConfig ----
-#' Convert `SuperConfig` to TOML
+# %% .detect_config_kind ----
+#' Detect the config family of a parsed config list
 #'
-#' Convert `SuperConfig` object to TOML format for saving to file that can be read back in with
-#' `read_config()`.
+#' Maps a parsed config's `$schema` URL to its rtemis family by exact match
+#' against the supported schemas (.RTEMIS_SUPPORTED_CONFIGS). A missing,
+#' malformed, or unrecognized `$schema` is an error: every config must declare a
+#' known schema.
 #'
-#' @param x `SuperConfig` object.
+#' @param x Named list from a parsed JSON config.
 #'
-#' @return Character: TOML string representation of the `SuperConfig` object.
+#' @return Character: a family name from .RTEMIS_SUPPORTED_CONFIGS.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(to_toml, SuperConfig) <- function(x) {
-  check_dependencies("toml")
-  xl <- S7_to_list(props(x))
-  toml_with_meta(x, xl)
-} # /rtemis::to_toml.SuperConfig
+.detect_config_kind <- function(x) {
+  schema <- x[["$schema"]]
+  supported <- .RTEMIS_SUPPORTED_CONFIGS
+  if (is.null(schema) || !is.character(schema) || length(schema) != 1L) {
+    rtemis.core::abort(
+      "Config is missing a valid `$schema`.\n",
+      "Every config must declare one of the supported schemas:\n",
+      paste0("  - ", supported, collapse = "\n"),
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  kind <- names(supported)[match(schema, supported)]
+  if (is.na(kind)) {
+    rtemis.core::abort(
+      "Unsupported `$schema`: ",
+      schema,
+      ".\nSupported schemas:\n",
+      paste0("  - ", supported, collapse = "\n"),
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  kind
+} # /rtemis::.detect_config_kind
 
 
-# %% write_toml.SuperConfig ----
-#' @name
-#' write_toml
+# %% .list_to_SuperConfig ----
+#' Convert a list to a `SuperConfig` object
 #'
-#' @param x `SuperConfig` object.
-#' @param file Character: Path to output TOML file.
-#' @param overwrite Logical: If TRUE, overwrite existing file.
-#' @param verbosity Integer: Verbosity level.
+#' Internal function used by [read_config] to reconstruct a `SuperConfig` from a
+#' named list, such as the result of parsing a JSON config. Nested config
+#' objects are rebuilt via their respective `.list_to_*` / `setup_*` functions.
 #'
-#' @return `SuperConfig` object, invisibly.
-#'
-#' @author EDG
-#' @rdname write_toml
-#'
-#' @examples
-#' x <- setup_SuperConfig(
-#'   dat_training_path = "~/Data/iris.csv",
-#'   dat_validation_path = NULL,
-#'   dat_test_path = NULL,
-#'   weights = NULL,
-#'   preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
-#'   algorithm = "LightRF",
-#'   hyperparameters = setup_LightRF(),
-#'   tuner_config = setup_GridSearch(),
-#'   outer_resampling_config = setup_Resampler(),
-#'   execution_config = setup_ExecutionConfig(),
-#'   question = "Can we tell iris species apart given their measurements?",
-#'   outdir = "models/",
-#'   verbosity = 1L
-#' )
-#' tmpdir <- tempdir()
-#' write_toml(x, file.path(tmpdir, "rtemis.toml"))
-method(write_toml, SuperConfig) <- function(
-  x,
-  file,
-  overwrite = FALSE,
-  verbosity = 1L
-) {
-  toml_str <- to_toml(x)
-  write_lines(
-    toml_str,
-    file = file,
-    overwrite = overwrite,
-    verbosity = verbosity
-  )
-  invisible(x)
-} # /rtemis::write_toml.SuperConfig
-
-
-# %% read_config ----
-#' Read `SuperConfig` from TOML file
-#'
-#' Read `SuperConfig` object from TOML file that was written with `write_toml()`.
-#'
-#' @param file Character: Path to input TOML file.
+#' @param x Named list carrying `SuperConfig` fields (e.g. `algorithm`,
+#'   `hyperparameters`, `decomposition_config`, `outer_resampling_config`).
 #'
 #' @return `SuperConfig` object.
 #'
 #' @author EDG
-#' @export
-#'
-#' @examples
-#' # Create a SuperConfig object
-#' x <- setup_SuperConfig(
-#'   dat_training_path = "~/Data/iris.csv",
-#'   algorithm = "LightRF",
-#'   hyperparameters = setup_LightRF()
-#' )
-#' # Write TOML file
-#' tmpdir <- tempdir()
-#' tmpfile <- file.path(tmpdir, "rtemis_test.toml")
-#' write_toml(x, tmpfile)
-#' # Read config from TOML file
-#' x_read <- read_config(tmpfile)
-read_config <- function(file) {
-  check_dependencies("toml")
-  file <- sanitize_path(file, must_exist = TRUE, type = "file")
-  xl <- toml::read_toml(file)
-  xl <- toml_empty_to_null(xl)
-  # Convert list to SuperConfig object
-
-  setup_SuperConfig(
-    dat_training_path = xl[["dat_training_path"]],
-    dat_validation_path = xl[["dat_validation_path"]],
-    dat_test_path = xl[["dat_test_path"]],
-    weights = xl[["weights"]],
-    preprocessor_config = if (is.null(xl[["preprocessor_config"]])) {
-      NULL
-    } else {
-      do.call(setup_Preprocessor, xl[["preprocessor_config"]])
-    },
-    decomposition_config = if (is.null(xl[["decomposition_config"]])) {
-      NULL
-    } else {
-      .list_to_DecompositionConfig(xl[["decomposition_config"]])
-    },
-    algorithm = xl[["algorithm"]],
-    hyperparameters = if (is.null(xl[["hyperparameters"]])) {
-      NULL
-    } else {
-      .list_to_Hyperparameters(xl[["hyperparameters"]])
-    },
-    tuner_config = if (is.null(xl[["tuner_config"]])) {
-      NULL
-    } else {
-      .list_to_TunerConfig(xl[["tuner_config"]])
-    },
-    outer_resampling_config = if (is.null(xl[["outer_resampling_config"]])) {
-      NULL
-    } else {
-      .list_to_ResamplerConfig(xl[["outer_resampling_config"]])
-    },
-    execution_config = if (is.null(xl[["execution_config"]])) {
-      setup_ExecutionConfig()
-    } else {
-      do.call(setup_ExecutionConfig, xl[["execution_config"]])
-    },
-    question = iflengthy(xl[["question"]]),
-    outdir = iflengthy(xl[["outdir"]]),
-    verbosity = iflengthy(xl[["verbosity"]])
-  )
-} # /rtemis::read_config
-
-
-# %% to_yaml.SuperConfig ----
-#' Convert `SuperConfig` to YAML
-#'
-#' Convert `SuperConfig` object to YAML format for saving to file that can be read back in with
-#' `read_config()`.
-#'
-#' @param x `SuperConfig` object.
-#'
-#' @return Character: YAML string representation of the `SuperConfig` object.
-#'
-#' @author EDG
 #' @keywords internal
 #' @noRd
-method(to_yaml, SuperConfig) <- function(x) {
-  xl <- S7_to_list(props(x))
-  yaml::as.yaml(xl)
-} # /rtemis::to_yaml.SuperConfig
+.list_to_SuperConfig <- function(x) {
+  args <- list(
+    dat_training_path = x[["dat_training_path"]],
+    dat_validation_path = x[["dat_validation_path"]],
+    dat_test_path = x[["dat_test_path"]],
+    weights = x[["weights"]],
+    positive_class = iflengthy(x[["positive_class"]]),
+    preprocessor_config = if (is.null(x[["preprocessor_config"]])) {
+      NULL
+    } else {
+      do.call(setup_Preprocessor, x[["preprocessor_config"]])
+    },
+    decomposition_config = if (is.null(x[["decomposition_config"]])) {
+      NULL
+    } else {
+      .list_to_DecompositionConfig(x[["decomposition_config"]])
+    },
+    algorithm = x[["algorithm"]],
+    # `.list_to_Hyperparameters` wants `{algorithm, hyperparameters}`. The JSON
+    # schema keeps `algorithm` as a top-level sibling with a flat
+    # `hyperparameters` map (as `write_config()` emits), so bundle it. A
+    # pre-nested `{algorithm, hyperparameters}` shape is also accepted.
+    hyperparameters = if (is.null(x[["hyperparameters"]])) {
+      NULL
+    } else if (!is.null(x[["hyperparameters"]][["hyperparameters"]])) {
+      .list_to_Hyperparameters(x[["hyperparameters"]])
+    } else {
+      .list_to_Hyperparameters(list(
+        algorithm = x[["algorithm"]],
+        hyperparameters = x[["hyperparameters"]]
+      ))
+    },
+    tuner_config = if (is.null(x[["tuner_config"]])) {
+      NULL
+    } else {
+      .list_to_TunerConfig(x[["tuner_config"]])
+    },
+    outer_resampling_config = if (is.null(x[["outer_resampling_config"]])) {
+      NULL
+    } else {
+      .list_to_ResamplerConfig(x[["outer_resampling_config"]])
+    },
+    question = iflengthy(x[["question"]])
+  )
+  # `execution_config`, `outdir`, and `verbosity` carry non-NULL defaults in
+  # `setup_SuperConfig`; only override them when the config actually supplies a
+  # value, so a portable recipe that omits them keeps the defaults.
+  if (!is.null(x[["execution_config"]])) {
+    args[["execution_config"]] <- do.call(
+      setup_ExecutionConfig,
+      x[["execution_config"]]
+    )
+  }
+  if (!is.null(x[["outdir"]])) {
+    args[["outdir"]] <- x[["outdir"]]
+  }
+  if (!is.null(x[["verbosity"]])) {
+    args[["verbosity"]] <- x[["verbosity"]]
+  }
+  do.call(setup_SuperConfig, args)
+} # /rtemis::.list_to_SuperConfig
 
 
 # %% SuperConfigLive ----
@@ -335,8 +301,8 @@ method(to_yaml, SuperConfig) <- function(x) {
 #' instead of file paths. Used by `rtemislive` (uploads arrive over a WS
 #' frame, not as a file) and by future HPC submission paths that hand the
 #' data directly to a worker.
-#' Not TOML-serializable — in-memory data does not round-trip cleanly to
-#' a config file. Use `SuperConfig` when you need on-disk reproducibility.
+#' Not serializable to a config file — in-memory data does not round-trip
+#' cleanly. Use `SuperConfig` when you need on-disk reproducibility.
 #'
 #' @author EDG
 #' @noRd
