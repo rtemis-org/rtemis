@@ -550,24 +550,6 @@ method(get_factor_levels, class_data.table) <- function(x) {
 to_html <- new_generic("to_html", "x")
 
 
-# %% to_toml ----
-#' Convert to TOML
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-to_toml <- new_generic("to_toml", "x")
-
-
-# %% to_yaml ----
-#' Convert to YAML
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-to_yaml <- new_generic("to_yaml", "x")
-
-
 # %% to_json ----
 #' Convert to JSON-serializable list
 #'
@@ -636,25 +618,6 @@ method(to_json, S7_object) <- function(x, ...) {
   }
   v
 } # /rtemis::.to_json_value
-
-
-# %% write_toml ----
-#' @name
-#' write_toml
-#'
-#' @title
-#' Write to TOML file
-#'
-#' @author EDG
-#' @export
-# examples include in method documentation
-write_toml <- new_generic(
-  "write_toml",
-  "x",
-  function(x, file, overwrite = FALSE, verbosity = 1L) {
-    S7_dispatch()
-  }
-) # /rtemis::write_toml
 
 
 # %% inc ----
@@ -1222,30 +1185,6 @@ S7_to_list <- function(x) {
 } # /rtemis::S7_to_list
 
 
-# %% toml_empty_to_null ----
-toml_empty_to_null <- function(x) {
-  if (!is.list(x)) {
-    return(x)
-  }
-  if (length(x) == 0L) {
-    return(NULL)
-  }
-  if (is.null(names(x))) {
-    scalar_types <- vapply(
-      x,
-      function(el) {
-        is.atomic(el) && length(el) == 1L && !is.null(el)
-      },
-      logical(1)
-    )
-    if (all(scalar_types)) {
-      return(unlist(x, use.names = FALSE))
-    }
-  }
-  lapply(x, toml_empty_to_null)
-} # /rtemis::toml_empty_to_null
-
-
 # %% write_lines ----
 #' Write lines to file
 #'
@@ -1316,79 +1255,6 @@ write_lines <- function(x, file, overwrite = FALSE, verbosity = 1L) {
   invisible(NULL)
 } # /rtemis::write_lines
 
-
-# %% toml_meta ----
-#' @name
-#' toml_meta
-#'
-#' @title
-#' Write TOML metadata
-#'
-#' @description
-#' Creates named list which will become first TOML table in the following format:
-#'
-#' ```toml
-#' [_meta]
-#' package = "rtemis"
-#' package_version = "0.4.2"
-#' schema_version = "1.0"
-#' object_type = "SuperConfig"
-#' created_at = 2026-2-11T22:45:00Z
-#' ```
-#' @param x Object to create metadata for. Class name will be included in metadata.
-#' @param schema_version Character: Version of the schema to include in metadata.
-#'
-#' @return Named list containing metadata.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-toml_meta <- function(x, schema_version = "1.0") {
-  list(
-    `_meta` = list(
-      package = "rtemis",
-      package_version = as.character(utils::packageVersion("rtemis")),
-      schema_version = schema_version,
-      object_type = S7_class(x)@name,
-      created_at = format(
-        Sys.time(),
-        "%Y-%m-%dT%H:%M:%SZ",
-        tz = "UTC"
-      )
-    )
-  )
-} # /rtemis::toml_meta
-
-
-# %% toml_with_meta ----
-#' Create TOML string with metadata
-#'
-#' Creates a TOML string with an inline metadata table followed by the TOML representation of the
-#' object.
-#'
-#' @param x Object to convert to TOML. Class name will be included in metadata.
-#'
-#'
-#' @return Character string containing TOML representation of the object, with metadata included as
-#' an inline table at the top.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-toml_with_meta <- function(x, payload, schema_version = "1.0") {
-  meta_block <- toml::write_toml(
-    toml_meta(x, schema_version = schema_version)
-  )
-  meta_lines <- strsplit(meta_block, "\n", fixed = TRUE)[[1]]
-  meta_lines <- meta_lines[meta_lines != "" & meta_lines != "[_meta]"]
-  meta_inline <- paste0(
-    "_meta = { ",
-    paste(meta_lines, collapse = ", "),
-    " }"
-  )
-  payload_str <- toml::write_toml(payload)
-  paste(meta_inline, payload_str, sep = "\n\n")
-} # /rtemis::toml_with_meta
 
 # %% coming up in rtemis.core
 collapse_head <- function(x, maxlength = 6L, format_fn = identity) {
