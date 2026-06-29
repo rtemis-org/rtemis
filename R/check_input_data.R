@@ -9,7 +9,7 @@
 check_numeric_or_factor <- function(x) {
   # check all columns are either numeric or factor and report any that are not
   non_numeric_or_factor <- which(
-    !sapply(x, function(x) is.numeric(x) || is.factor(x))
+    !vapply(x, function(col) is.numeric(col) || is.factor(col), logical(1L))
   )
   if (length(non_numeric_or_factor) > 0) {
     rtemis.core::abort(

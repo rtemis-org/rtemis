@@ -123,7 +123,7 @@ setup_DecomposeConfig <- function(
 #'
 #' Internal function used by [read_config] to reconstruct a `DecomposeConfig`
 #' from a named list, such as the result of parsing a JSON config. The nested
-#' `decomposition_config` is rebuilt via [.list_to_DecompositionConfig].
+#' `decomposition_config` is rebuilt via `.list_to_DecompositionConfig`.
 #'
 #' @param x Named list carrying `DecomposeConfig` fields (e.g. `dat_path`,
 #'   `decomposition_config`, `outdir`).

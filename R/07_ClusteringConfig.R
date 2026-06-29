@@ -461,11 +461,13 @@ setup_DBSCAN <- function(
   }
   algorithm <- get_clust_name(algorithm)
   # Params may arrive nested under `config` (JSON / S7_to_list serialization) or
-  # flat alongside `algorithm` (UI / server).
+  # flat alongside `algorithm` (UI / server). In the flat shape, drop `algorithm`
+  # and any `$`-prefixed metadata keys (e.g. `$schema`) that are not setup args.
   params <- if (is.list(x[["config"]])) {
     x[["config"]]
   } else {
-    x[setdiff(names(x), "algorithm")]
+    drop <- c("algorithm", grep("^\\$", names(x), value = TRUE))
+    x[setdiff(names(x), drop)]
   }
   do.call(get_clust_setup_fn(algorithm), params)
 } # /rtemis::.list_to_ClusteringConfig

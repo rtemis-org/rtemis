@@ -129,3 +129,27 @@ test_that("ClusteringConfig round-trips through write_config/read_config", {
   expect_s7_class(xtoo, ClusteringConfig)
   expect_identical(xtoo@algorithm, x@algorithm)
 })
+
+
+# %% read_config rejects missing $schema ----
+test_that("read_config errors when $schema is missing", {
+  file <- file.path(tempdir(), "rtemis_noschema.json")
+  jsonlite::write_json(
+    list(algorithm = "LightRF"),
+    file,
+    auto_unbox = TRUE
+  )
+  expect_error(read_config(file), class = "rtemis_value_error")
+})
+
+
+# %% read_config rejects unsupported $schema ----
+test_that("read_config errors on an unrecognized $schema", {
+  file <- file.path(tempdir(), "rtemis_badschema.json")
+  jsonlite::write_json(
+    list(`$schema` = "https://schema.rtemis.org/bogus/v1/schema.json"),
+    file,
+    auto_unbox = TRUE
+  )
+  expect_error(read_config(file), class = "rtemis_value_error")
+})

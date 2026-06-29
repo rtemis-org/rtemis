@@ -178,38 +178,40 @@ setup_SuperConfig <- function(
 # %% .detect_config_kind ----
 #' Detect the config family of a parsed config list
 #'
-#' Maps a parsed config's `$schema` URL to its rtemis family. Configs without a
-#' `$schema` default to `"supervised"`. The pipeline-recipe families
-#' (`"decompose"`, `"cluster"`) are distinct from the bare algorithm-config
-#' families (`"decomposition"`, `"clustering"`); the longer substrings are
-#' checked first so they are not shadowed.
+#' Maps a parsed config's `$schema` URL to its rtemis family by exact match
+#' against the supported schemas (.RTEMIS_SUPPORTED_CONFIGS). A missing,
+#' malformed, or unrecognized `$schema` is an error: every config must declare a
+#' known schema.
 #'
 #' @param x Named list from a parsed JSON config.
 #'
-#' @return Character: `"supervised"`, `"decompose"`, `"cluster"`,
-#'   `"decomposition"`, or `"clustering"`.
+#' @return Character: a family name from .RTEMIS_SUPPORTED_CONFIGS.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 .detect_config_kind <- function(x) {
   schema <- x[["$schema"]]
-  if (is.null(schema)) {
-    return("supervised")
+  supported <- .RTEMIS_SUPPORTED_CONFIGS
+  if (is.null(schema) || !is.character(schema) || length(schema) != 1L) {
+    rtemis.core::abort(
+      "Config is missing a valid `$schema`.\n",
+      "Every config must declare one of the supported schemas:\n",
+      paste0("  - ", supported, collapse = "\n"),
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
-  if (grepl("/decomposition/", schema, fixed = TRUE)) {
-    return("decomposition")
+  kind <- names(supported)[match(schema, supported)]
+  if (is.na(kind)) {
+    rtemis.core::abort(
+      "Unsupported `$schema`: ",
+      schema,
+      ".\nSupported schemas:\n",
+      paste0("  - ", supported, collapse = "\n"),
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
-  if (grepl("/clustering/", schema, fixed = TRUE)) {
-    return("clustering")
-  }
-  if (grepl("/decompose/", schema, fixed = TRUE)) {
-    return("decompose")
-  }
-  if (grepl("/cluster/", schema, fixed = TRUE)) {
-    return("cluster")
-  }
-  "supervised"
+  kind
 } # /rtemis::.detect_config_kind
 
 

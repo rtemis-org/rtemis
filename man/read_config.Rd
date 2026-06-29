@@ -4,14 +4,10 @@
 \alias{read_config}
 \title{Read an rtemis config from file}
 \usage{
-read_config(file, kind = NULL)
+read_config(file)
 }
 \arguments{
 \item{file}{Character: Path to input JSON config file.}
-
-\item{kind}{Character or NULL: Force the config family (\code{"supervised"},
-\code{"decompose"}, \code{"cluster"}, \code{"decomposition"}, or \code{"clustering"}) instead of
-detecting it from \verb{$schema}.}
 }
 \value{
 A \code{SuperConfig}, \code{DecomposeConfig}, \code{ClusterConfig},
@@ -26,8 +22,18 @@ path, algorithm config, and output directory (\code{SuperConfig},
 \link{write_config} and consumed by rtemislive and the \code{rtemis} CLI.
 }
 \details{
-The config family is taken from the instance's \verb{$schema}; pass \code{kind} to
-override (a config without a \verb{$schema} defaults to \code{supervised}).
+The config family is taken from the instance's \verb{$schema}, which must be one of
+the supported schemas; a missing or unrecognized \verb{$schema} is an error.
+
+When the \code{rtemis} CLI is on the \code{PATH}, the file is additionally validated
+against its vendored schema.rtemis.org JSON Schema before reconstruction, so
+structural problems (unknown fields, wrong nesting, missing required values)
+are caught up front with schema-path errors. Without the CLI, the \verb{setup_*}
+functions remain the backstop, validating field values during reconstruction.
+Control this with \code{options(rtemis.validate = )}: \code{"auto"} (default) uses the
+CLI when present and skips it otherwise, \code{"always"} errors if the CLI is
+missing, \code{"never"} skips the gate. The CLI binary can be overridden with
+\code{options(rtemis.cli = )}.
 }
 \examples{
 # Create a SuperConfig object

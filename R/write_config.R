@@ -50,20 +50,28 @@ write_config <- new_generic(
 ) # /rtemis::write_config
 
 
-# %% .rtemis_schema_url ----
-#' Build a schema.rtemis.org config schema URL
+# %% .RTEMIS_SUPPORTED_CONFIGS ----
+#' Supported rtemis config schemas
 #'
-#' @param kind Character: Config family (`"supervised"`, `"decomposition"`, or
-#'   `"clustering"`).
-#'
-#' @return Character: Schema URL.
+#' Single source of truth for the config families that [write_config] emits and
+#' [read_config] accepts: a named vector mapping each family to its complete
+#' schema.rtemis.org schema URL (matching the URLs the `rtemis` CLI embeds). The
+#' family name routes to the matching `.list_to_*` reconstructor; the URL is
+#' written as a config's `$schema` and matched on read. The pipeline-recipe
+#' families (`"decompose"`, `"cluster"`) bundle data path, algorithm config, and
+#' output dir; the bare algorithm-config families (`"decomposition"`,
+#' `"clustering"`) are the configs they wrap.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-.rtemis_schema_url <- function(kind) {
-  sprintf("https://schema.rtemis.org/%s/v1/schema.json", kind)
-} # /rtemis::.rtemis_schema_url
+.RTEMIS_SUPPORTED_CONFIGS <- c(
+  supervised = "https://schema.rtemis.org/supervised/v1/schema.json",
+  decompose = "https://schema.rtemis.org/decompose/v1/schema.json",
+  cluster = "https://schema.rtemis.org/cluster/v1/schema.json",
+  decomposition = "https://schema.rtemis.org/decomposition/v1/schema.json",
+  clustering = "https://schema.rtemis.org/clustering/v1/schema.json"
+) # /rtemis::.RTEMIS_SUPPORTED_CONFIGS
 
 
 # %% .compact_config ----
@@ -86,7 +94,12 @@ write_config <- new_generic(
     return(x)
   }
   x <- lapply(x, .compact_config)
-  x[lengths(x) > 0L]
+  # Only drop empty elements from named lists (JSON objects); compacting an
+  # unnamed list (JSON array) would renumber and shorten it, corrupting data.
+  if (!is.null(names(x))) {
+    x <- x[lengths(x) > 0L]
+  }
+  x
 } # /rtemis::.compact_config
 
 
@@ -136,7 +149,7 @@ method(write_config, SuperConfig) <- function(
   # `algorithm` left NULL) still round-trips: `read_config()` rebuilds it with
   # the matching `setup_<algorithm>()`.
   payload <- c(
-    list(`$schema` = .rtemis_schema_url("supervised")),
+    list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["supervised"]]),
     S7_to_list(props(x))
   )
   .write_config_json(payload, file, overwrite, verbosity)
@@ -154,7 +167,7 @@ method(write_config, DecomposeConfig) <- function(
   verbosity = 1L
 ) {
   payload <- c(
-    list(`$schema` = .rtemis_schema_url("decompose")),
+    list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["decompose"]]),
     S7_to_list(props(x))
   )
   .write_config_json(payload, file, overwrite, verbosity)
@@ -172,7 +185,7 @@ method(write_config, ClusterConfig) <- function(
   verbosity = 1L
 ) {
   payload <- c(
-    list(`$schema` = .rtemis_schema_url("cluster")),
+    list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["cluster"]]),
     S7_to_list(props(x))
   )
   .write_config_json(payload, file, overwrite, verbosity)
@@ -190,7 +203,7 @@ method(write_config, DecompositionConfig) <- function(
   verbosity = 1L
 ) {
   payload <- c(
-    list(`$schema` = .rtemis_schema_url("decomposition")),
+    list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["decomposition"]]),
     S7_to_list(props(x))
   )
   .write_config_json(payload, file, overwrite, verbosity)
@@ -208,7 +221,7 @@ method(write_config, ClusteringConfig) <- function(
   verbosity = 1L
 ) {
   payload <- c(
-    list(`$schema` = .rtemis_schema_url("clustering")),
+    list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["clustering"]]),
     S7_to_list(props(x))
   )
   .write_config_json(payload, file, overwrite, verbosity)

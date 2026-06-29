@@ -200,14 +200,16 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
   # Params may arrive flat (UI / server: `list(algorithm, k, ..., features)`) or
   # nested under `config` (S7_to_list serialization of a DecompositionConfig, as
   # written by `write_config()`). In the nested shape `features` is a sibling of
-  # `config`, so it is re-attached explicitly.
+  # `config`, so it is re-attached explicitly. In the flat shape, drop `algorithm`
+  # and any `$`-prefixed metadata keys (e.g. `$schema`) that are not setup args.
   params <- if (is.list(x[["config"]])) {
     c(
       x[["config"]],
       if (!is.null(x[["features"]])) list(features = x[["features"]])
     )
   } else {
-    x[setdiff(names(x), "algorithm")]
+    drop <- c("algorithm", grep("^\\$", names(x), value = TRUE))
+    x[setdiff(names(x), drop)]
   }
   # `features` may arrive from the wire as a list of scalars (a JSON array parsed
   # without vector simplification); flatten it to a character vector so the
