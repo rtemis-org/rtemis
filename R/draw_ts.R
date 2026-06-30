@@ -163,8 +163,7 @@ draw_ts <- function(
       max = lapply(
         x,
         \(xt) data.table::frollapply(xt, n = window, max, align = align)
-      ),
-      sum = lapply(x, \(xt) data.table::frollsum(xt, n = window, align = align))
+      )
     )
   }
 

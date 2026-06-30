@@ -39,9 +39,7 @@
 #' @param mid Character: Mid color for gradient.
 #' @param midhi Character: Mid-high color for gradient.
 #' @param hi Character: High color for gradient.
-#' @param limits Numeric, length 2: Determine color range. If NULL, automatically centers values around 0.
 #' @param main Character: Main title.
-#' @param key_title Character: Title of the key.
 #' @param showticklabels Logical: If TRUE, show tick labels.
 #' @param theme `Theme` object.
 #' @param font_size Numeric: Font size.
@@ -98,9 +96,7 @@ draw_spectrogram <- function(
   mid = NULL,
   midhi = NULL,
   hi = "#F48024",
-  limits = NULL,
   main = NULL,
-  key_title = NULL,
   showticklabels = NULL,
   theme = choose_theme(getOption("rtemis_theme")),
   font_size = NULL,
@@ -125,15 +121,6 @@ draw_spectrogram <- function(
 
   if (is.null(font_size)) {
     font_size <- 17.0769 - 0.2692 * ncol(z)
-  }
-
-  # Limits ----
-  if (is.null(limits)) {
-    maxabs <- max(abs(z), na.rm = TRUE)
-    if (.2 < maxabs && maxabs < 1) {
-      maxabs <- 1
-    }
-    limits <- c(-maxabs, maxabs)
   }
 
   # Theme ----

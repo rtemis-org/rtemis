@@ -15,7 +15,7 @@
 #' @param y Numeric, vector/data.frame/list: y-axis data.
 #' @param z Numeric, vector/data.frame/list: z-axis data.
 #' @param fit Character: Fit method.
-#' @param clustering_config `ClusteringConfig` object: If provided, cluster on `x` and `y` and pass clusters to `group`.
+#' @param clustering_config `ClusteringConfig` object: If provided, cluster on `x`, `y`, and `z` and pass clusters to `group`.
 #' @param group Factor: Grouping variable.
 #' @param rsq Logical: If TRUE, print R-squared values in legend if `fit` is set.
 #' @param mode Character, vector: "markers", "lines", "markers+lines".

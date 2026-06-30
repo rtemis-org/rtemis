@@ -29,7 +29,6 @@ draw_graphjs(
   theme = choose_theme(getOption("rtemis_theme")),
   palette = getOption("rtemis_palette", "rtms"),
   filename = NULL,
-  verbosity = 1L,
   ...
 )
 }
@@ -81,8 +80,6 @@ draw_graphjs(
 \item{palette}{Color vector or name of rtemis palette.}
 
 \item{filename}{Character: If provided, save plot to this filepath.}
-
-\item{verbosity}{Integer: Verbosity level.}
 
 \item{...}{Extra arguments to pass to \code{threejs::graphjs()}.}
 }

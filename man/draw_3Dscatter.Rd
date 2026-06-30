@@ -66,7 +66,7 @@ draw_3Dscatter(
 
 \item{fit}{Character: Fit method.}
 
-\item{clustering_config}{\code{ClusteringConfig} object: If provided, cluster on \code{x} and \code{y} and pass clusters to \code{group}.}
+\item{clustering_config}{\code{ClusteringConfig} object: If provided, cluster on \code{x}, \code{y}, and \code{z} and pass clusters to \code{group}.}
 
 \item{group}{Factor: Grouping variable.}
 

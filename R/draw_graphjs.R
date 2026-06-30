@@ -30,7 +30,6 @@
 #' @param theme `Theme` object.
 #' @param palette Color vector or name of rtemis palette.
 #' @param filename Character: If provided, save plot to this filepath.
-#' @param verbosity Integer: Verbosity level.
 #' @param ... Extra arguments to pass to `threejs::graphjs()`.
 #'
 #' @return `scatterplotThree` object.
@@ -77,7 +76,6 @@ draw_graphjs <- function(
   theme = choose_theme(getOption("rtemis_theme")),
   palette = getOption("rtemis_palette", "rtms"),
   filename = NULL,
-  verbosity = 1L,
   ...
 ) {
   # Dependencies ----
@@ -152,7 +150,6 @@ draw_graphjs <- function(
     vertex.label.family = theme[["font_family"]],
     font.main = theme[["font_family"]],
     stroke = NULL,
-    verbosity = verbosity,
     ...
   )
 } # /rtemis::draw_graphjs

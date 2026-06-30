@@ -34,9 +34,7 @@ draw_spectrogram(
   mid = NULL,
   midhi = NULL,
   hi = "#F48024",
-  limits = NULL,
   main = NULL,
-  key_title = NULL,
   showticklabels = NULL,
   theme = choose_theme(getOption("rtemis_theme")),
   font_size = NULL,
@@ -108,11 +106,7 @@ draw_spectrogram(
 
 \item{hi}{Character: High color for gradient.}
 
-\item{limits}{Numeric, length 2: Determine color range. If NULL, automatically centers values around 0.}
-
 \item{main}{Character: Main title.}
-
-\item{key_title}{Character: Title of the key.}
 
 \item{showticklabels}{Logical: If TRUE, show tick labels.}
 
