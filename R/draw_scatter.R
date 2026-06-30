@@ -82,7 +82,7 @@
 #' @param axes_equal Logical: If TRUE, set equal scaling for axes.
 #' @param diagonal Logical: If TRUE, add diagonal line.
 #' @param diagonal_col Color for diagonal line.
-#' @param diagonal_dash Character {"solid", "dash", "dot", "dashdot", "longdash", "longdashdot"}:
+#' @param diagonal_dash Character \{"solid", "dash", "dot", "dashdot", "longdash", "longdashdot"\}:
 #'   Dash type for diagonal line.
 #' @param diagonal_alpha Numeric: Alpha for diagonal line.
 #' @param fit_params `Hyperparameters` for fit.
