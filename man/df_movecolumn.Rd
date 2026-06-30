@@ -11,8 +11,7 @@ df_movecolumn(x, colname, to = ncol(x))
 
 \item{colname}{Character: Name of column you want to move.}
 
-\item{to}{Integer: Which column position to move the vector to.
-Default = \code{ncol(x)} i.e. the last column.}
+\item{to}{Integer: Which column position to move the vector to.}
 }
 \value{
 data.frame

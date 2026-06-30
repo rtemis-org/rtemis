@@ -94,8 +94,7 @@ get_holidays <- function(
 #' @param make_bins Character: "range" or "preseent". If "range" the factor levels will include all
 #' time periods define by `time_bin` within `bin_range`. This means factor levels can be
 #' empty. Otherwise, if "present", factor levels only include time periods present in data.
-#' @param bin_range Date, vector, length 2: Range of dates to make levels for. Defaults to range of
-#' input dates `x`.
+#' @param bin_range Date, vector, length 2: Range of dates to make levels for.
 #' @param ordered Logical: If TRUE, factor output is ordered.
 #'
 #' @return factor of time periods

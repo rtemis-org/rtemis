@@ -282,8 +282,8 @@ color_adjust <- function(color, alpha = NULL, hue = 0, sat = 0, val = 0) {
 #' Preview one or multiple colors using little rhombi with their little labels up top
 #'
 #' @param x Color, vector: One or more colors that R understands
-#' @param main Character: Title. Default = NULL, which results in
-#' `deparse(substitute(x))`
+#' @param main Character: Title. If NULL, set to
+#' `deparse(substitute(x))`.
 #' @param bg Background color.
 #' @param main_col Color: Title color
 #' @param main_x Float: x coordinate for `main`.
@@ -291,13 +291,13 @@ color_adjust <- function(color, alpha = NULL, hue = 0, sat = 0, val = 0) {
 #' @param main_adj Float: `adj` argument to mtext for `main`.
 #' @param main_cex Float: character expansion factor for `main`.
 #' @param main_font Integer, 1 or 2: Weight of `main` 1: regular, 2: bold.
-#' @param width Float: Plot width. Default = NULL, i.e. set automatically
-#' @param xlim Vector, length 2: x-axis limits. Default = NULL, i.e. set automatically
+#' @param width Float: Plot width. If NULL, set automatically.
+#' @param xlim Vector, length 2: x-axis limits. If NULL, set automatically.
 #' @param ylim Vector, length 2: y-axis limits.
 #' @param asp Float: Plot aspect ratio.
-#' @param labels_y Float: y coord for labels. Default = 1.55 (rhombi are fixed and range y .5 - 1.5)
-#' @param label_cex Float: Character expansion for labels. Default = NULL, and is
-#' calculated automatically based on length of `x`
+#' @param labels_y Float: y coord for labels (rhombi are fixed and range y .5 - 1.5).
+#' @param label_cex Float: Character expansion for labels. If NULL,
+#' calculated automatically based on length of `x`.
 #' @param mar Numeric vector, length 4: margin size.
 #' @param filename Character: Path to save plot as PDF.
 #' @param pdf_width Numeric: Width of PDF in inches.
@@ -451,12 +451,11 @@ rhombus <- function(
 #'   3-letter color abbreviations:
 #'    wht: white; blk: black; red; grn: green; blu: blue; yel: yellow; rng: orange; prl: purple
 #'
-#' @param n Integer: How many distinct colors you want. If not odd, converted to `n + 1`
-#'   Defaults to 21
-#' @param colors Character: Acts as a shortcut to defining `lo`, `mid`, etc for a number of defaults:
+#' @param n Integer: How many distinct colors you want. If not odd, converted to `n + 1`.
+#' @param colors Character: Acts as a shortcut to defining `lo`, `mid`, etc for a number of presets:
 #'   "french", "penn", "grnblkred",
 #' @param space Character: Which colorspace to use. Option: "rgb", or "Lab".
-#'   Recommendation: If `mid` is "white" or "black" (default), use "rgb", otherwise "Lab"
+#'   Recommendation: If `mid` is "white" or "black", use "rgb", otherwise "Lab"
 #' @param lo Color for low end
 #' @param lomid Color for low-mid
 #' @param mid Color for middle of the range or "mean", which will result in `color_op(c(lo, hi), "mean")`.

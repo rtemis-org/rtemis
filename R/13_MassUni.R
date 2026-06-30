@@ -92,7 +92,7 @@ method(print, MassGLM) <- function(x, output_type = NULL, ...) {
 #' @param coefname Character: Name of coefficient to plot. If `NULL`, the first coefficient is used.
 #' @param p_adjust_method Character: "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none" -
 #' p-value adjustment method.
-#' @param p_transform Function to transform p-values for plotting. Default is `function(x) -log10(x)`.
+#' @param p_transform Function to transform p-values for plotting.
 #' @param xlab Character: x-axis label.
 #' @param ylab Character: y-axis label.
 #' @param theme `Theme` object. Create using one of the `theme_` functions, e.g.
@@ -179,7 +179,7 @@ plot.MassGLM <- method(plot, MassGLM) <- function(
 #' @param coefname Character: Name of coefficient to plot. If `NULL`, the first coefficient is used.
 #' @param p_adjust_method Character: "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none" -
 #' p-value adjustment method.
-#' @param p_transform Function to transform p-values for plotting. Default is `function(x) -log10(x)`.
+#' @param p_transform Function to transform p-values for plotting.
 #' @param ylab Character: y-axis label.
 #' @param theme `Theme` object.
 #' @param col_pos Character: Color for positive significant coefficients.

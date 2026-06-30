@@ -13,8 +13,7 @@ uniprot_get(
 \arguments{
 \item{accession}{Character: UniProt Accession number - e.g. "Q9UMX9"}
 
-\item{baseURL}{Character: UniProt rest API base URL.
-Default = "https://rest.uniprot.org/uniprotkb"}
+\item{baseURL}{Character: UniProt rest API base URL.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }

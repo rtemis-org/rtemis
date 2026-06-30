@@ -133,10 +133,9 @@ method(print, PreprocessorConfig) <- function(
 #' @param impute Logical: If TRUE, impute missing cases. See `impute_discrete` and
 #' `impute_continuous`.
 #' @param impute_type Character: Package to use for imputation.
-#' @param impute_missRanger_params Named list with elements "pmm.k" and
-#' "maxiter", which are passed to `missRanger::missRanger`. `pmm.k`
-#' greater than 0 results in predictive mean matching. Default `pmm.k = 3`
-#' `maxiter = 10` `num.trees = 500`. Reduce `num.trees` for
+#' @param impute_missRanger_params Named list with elements "pmm.k",
+#' "maxiter", and "num.trees", which are passed to `missRanger::missRanger`. `pmm.k`
+#' greater than 0 results in predictive mean matching. Reduce `num.trees` for
 #' faster imputation especially in large datasets. Set `pmm.k = 0` to
 #' disable predictive mean matching.
 #' @param impute_discrete Character: Name of function that returns single value: How to impute
@@ -183,8 +182,7 @@ method(print, PreprocessorConfig) <- function(
 #' @param factor2integer Logical: If TRUE, convert all factors to integers.
 #' @param factor2integer_startat0 Logical: If TRUE, start integer coding at 0.
 #' @param scale Logical: If TRUE, scale columns of `x`.
-#' @param center Logical: If TRUE, center columns of `x`. Note that by
-#' default it is the same as `scale`.
+#' @param center Logical: If TRUE, center columns of `x`. If unset, follows `scale`.
 #' @param scale_centers Named vector: Centering values for each feature.
 #' @param scale_coefficients Named vector: Scaling values for each feature.
 #' @param remove_constants Logical: If TRUE, remove constant columns.

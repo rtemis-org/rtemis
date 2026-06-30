@@ -91,7 +91,7 @@ method(describe, class_factor) <- function(
 #' @param pool data.frame you are looking for matches from.
 #' @param n_matches Integer: Number of matches to return.
 #' @param target_id Character: Column name in `target` that holds unique
-#' cases IDs. Default = NULL, in which case integer case numbers will be used.
+#' cases IDs. If NULL, integer case numbers will be used.
 #' @param pool_id Character: Same as `target_id` for `pool`.
 #' @param exactmatch_factors Logical: If TRUE, selected cases will have to
 #' exactly match factors available in `target`.

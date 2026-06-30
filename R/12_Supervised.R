@@ -1842,7 +1842,7 @@ method(print, SupervisedRes) <- function(
 #'
 #' @param object `SupervisedRes` object.
 #' @param newdata data.frame or similar: New data to predict.
-#' @param type Character: Type of prediction to output: "avg" applies `avg_fn` (default "mean") to
+#' @param type Character: Type of prediction to output: "avg" applies `avg_fn` to
 #' the predictions of individual models, "all" returns the predictions of all models in a
 #' data.frame. "metrics" returns a list of data.frames with a) predictions from each model, b)
 #' the mean of the predictions, and c) the standard deviation of the predictions.
@@ -2483,7 +2483,7 @@ method(plot_roc, ClassificationRes) <- function(
 #' Plot boxplot of performance metrics across resamples.
 #'
 #' @param x `SupervisedRes` object.
-#' @param what Character vector: "training", "test". What to print. Default is to print both.
+#' @param what Character vector: "training", "test". What to print. If unset, prints both.
 #' @param metric Character: Metric to plot.
 #' @param ylab Character: Label for the y-axis.
 #' @param boxpoints Character:"all", "outliers" - How to display points in the boxplot.
@@ -2783,7 +2783,7 @@ method(get_metric, ClassificationRes) <- function(x, set, metric) {
 #' Describe multiple Supervised or SupervisedRes objects
 #'
 #' @param x List of `Supervised` or `SupervisedRes` objects.
-#' @param metric Character: Metric to use for description. Default is NULL, which uses "balanced_accuracy" for Classification and "rsq" for Regression.
+#' @param metric Character: Metric to use for description. If NULL, uses "balanced_accuracy" for Classification and "rsq" for Regression.
 #' @param decimal_places Integer: Number of decimal places to round metrics to.
 #' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
@@ -2926,7 +2926,7 @@ method(desc, class_list) <- function(
 #'
 #' @details
 #' Extra arguments:
-#' - `metric`: Character: Metric to use for description. If NULL, defaults to "balanced_accuracy" for Classification and "rsq" for Regression.
+#' - `metric`: Character: Metric to use for description. If NULL, uses "balanced_accuracy" for Classification and "rsq" for Regression.
 #' - `decimal_places`: Integer: Number of decimal places to round metrics to.
 #' - `output_type`: Character {"ansi", "html", or "plain"}: Output type.
 #'

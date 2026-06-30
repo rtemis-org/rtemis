@@ -2087,41 +2087,40 @@ RangerHyperparameters <- new_class(
 #'
 #' @param num_trees (Tunable) Positive integer: Number of trees.
 #' @param mtry (Tunable) Positive integer: Number of features to consider at each split.
-#' @param importance Character: Variable importance mode. "none", "impurity", "impurity_corrected", "permutation".
-#' The "impurity" measure is the Gini index for classification, the variance of the responses for regression.
-#' @param write_forest Logical: Save ranger.forest object, required for prediction. Set to FALSE to reduce memory usage if no prediction intended.
-#' @param probability Logical: Grow a probability forest as in Malley et al. (2012). For classification only.
-#' @param min_node_size (Tunable) Positive integer: Minimal node size. Default 1 for classification, 5 for regression, 3 for survival, and 10 for probability.
-#' @param min_bucket Positive integer: Minimal number of samples in a terminal node. Only for survival. Deprecated in favor of min_node_size.
-#' @param max_depth (Tunable) Positive integer: Maximal tree depth. A value of NULL or 0 (the default) corresponds to unlimited depth, 1 to tree stumps (1 split per tree).
-#' @param replace Logical: Sample with replacement.
-#' @param sample_fraction (Tunable) Numeric: Fraction of observations to sample. Default is 1 for sampling with replacement and 0.632 for sampling without replacement.
-#' @param case_weights Numeric vector: Weights for sampling of training observations. Observations with larger weights will be selected with higher probability in the bootstrap (or subsampled) samples for the trees.
-#' @param class_weights Numeric vector: Weights for the outcome classes for classification. Vector of the same length as the number of classes, with names corresponding to the class labels.
-#' @param splitrule (Tunable) Character: Splitting rule. For classification: "gini", "extratrees", "hellinger". For regression: "variance", "extratrees", "maxstat", "beta". For survival: "logrank", "extratrees", "C", "maxstat".
-#' @param num_random_splits (Tunable) Positive integer: For "extratrees" splitrule: Number of random splits to consider for each candidate splitting variable.
-#' @param alpha (Tunable) Numeric: For "maxstat" splitrule: significance threshold to allow splitting.
-#' @param minprop (Tunable) Numeric: For "maxstat" splitrule: lower quantile of covariate distribution to be considered for splitting.
-#' @param poisson_tau Numeric: For "poisson" regression splitrule: tau parameter for Poisson regression.
-#' @param split_select_weights Numeric vector: Numeric vector with weights between 0 and 1, representing the probability to select variables for splitting. Alternatively, a list of size num_trees, with one weight vector per tree.
-#' @param always_split_variables Character vector: Character vector with variable names to be always selected in addition to the mtry variables tried for splitting.
-#' @param respect_unordered_factors Character or logical: Handling of unordered factor covariates. For "partition" all 2^(k-1)-1 possible partitions are considered for splitting, where k is the number of factor levels. For "ignore", all factor levels are ordered by their first occurrence in the data. For "order", all factor levels are ordered by their average response. TRUE corresponds to "partition" for the randomForest package compatibility.
-#' @param scale_permutation_importance Logical: Scale permutation importance by standard error as in (Breiman 2001). Only applicable if permutation variable importance mode selected.
-#' @param local_importance Logical: For permutation variable importance, use local importance as in Breiman (2001) and Liaw & Wiener (2002).
-#' @param regularization_factor (Tunable) Numeric: Regularization factor. Penalize variables with many split points. Requires splitrule = "variance".
-#' @param regularization_usedepth Logical: Use regularization factor with node depth. Requires regularization_factor.
-#' @param keep_inbag Logical: Save how often observations are in-bag in each tree. These will be used for (local) variable importance if inbag.counts in predict() is NULL.
-#' @param inbag List: Manually set observations per tree. List of size num_trees, containing inbag counts for each observation. Can be used for stratified sampling.
-#' @param holdout Logical: Hold-out mode. Hold-out all samples with case weight 0 and use these for variable importance and prediction error.
-#' @param quantreg Logical: Prepare quantile prediction as in quantile regression forests (Meinshausen 2006). For regression only. Set keep_inbag = TRUE to prepare out-of-bag quantile prediction.
-#' @param time_interest Numeric: For GWAS data: SNP with this number will be used as time variable. Only for survival. Deprecated, use time.var in formula instead.
-#' @param oob_error Logical: Compute OOB prediction error. Set to FALSE to save computation time if only the forest is needed.
-#' @param save_memory Logical: Use memory saving (but slower) splitting mode. No effect for survival and GWAS data. Warning: This option slows down the tree growing, use only if you encounter memory problems.
-#' @param verbose Logical: Show computation status and estimated runtime.
-#' @param node_stats Logical: Save additional node statistics. Only terminal nodes for now.
-#' @param seed Positive integer: Random seed. Default is NULL, which generates the seed from R. Set to 0 to ignore the R seed.
-#' @param na_action Character: Action to take if the data contains missing values. "na.learn" uses observations with missing values in splitting, treating missing values as a separate category.
-#' @param ifw Logical: Inverse Frequency Weighting for classification. If TRUE, class weights are set inversely proportional to the class frequencies.
+#' @param importance Character: Variable importance mode: "none", "impurity", "impurity_corrected", or "permutation". "impurity" is the Gini index for classification, the response variance for regression.
+#' @param write_forest Logical: If TRUE, save the forest object (required for prediction). Set to FALSE to reduce memory if no prediction is intended.
+#' @param probability Logical: If TRUE, grow a probability forest. Classification only.
+#' @param min_node_size (Tunable) Positive integer: Minimal node size. If NULL, ranger uses 1 for classification, 5 for regression, 3 for survival, and 10 for probability.
+#' @param min_bucket Positive integer: Minimal number of samples in a terminal node. Survival only. Deprecated in favor of `min_node_size`.
+#' @param max_depth (Tunable) Positive integer: Maximal tree depth. NULL or 0 means unlimited depth, 1 means tree stumps.
+#' @param replace Logical: If TRUE, sample with replacement.
+#' @param sample_fraction (Tunable) Numeric \[0, 1\]: Fraction of observations to sample. If NULL, 1 with replacement and 0.632 without.
+#' @param case_weights Numeric vector: Per-observation sampling weights; larger weights raise selection probability in each tree's sample.
+#' @param class_weights Numeric vector: Per-class weights for classification. Length equal to the number of classes, named by class label.
+#' @param splitrule (Tunable) Character: Splitting rule. Classification: "gini", "extratrees", "hellinger"; regression: "variance", "extratrees", "maxstat", "beta"; survival: "logrank", "extratrees", "C", "maxstat".
+#' @param num_random_splits (Tunable) Positive integer: Number of random splits per candidate variable, for the "extratrees" splitrule.
+#' @param alpha (Tunable) Numeric \[0, 1\]: Significance threshold to allow splitting, for the "maxstat" splitrule.
+#' @param minprop (Tunable) Numeric \[0, 1\]: Lower quantile of the covariate distribution considered for splitting, for the "maxstat" splitrule.
+#' @param poisson_tau Numeric: Tau parameter, for the "poisson" regression splitrule.
+#' @param split_select_weights Numeric vector \[0, 1\]: Per-feature probabilities of being selected for splitting. Alternatively a list of length `num_trees`, one weight vector per tree.
+#' @param always_split_variables Character vector: Names of variables to always include as split candidates, in addition to the `mtry` variables.
+#' @param respect_unordered_factors Character or logical: Handling of unordered factors: "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response. TRUE corresponds to "partition".
+#' @param scale_permutation_importance Logical: If TRUE, scale permutation importance by its standard error. Permutation importance only.
+#' @param local_importance Logical: If TRUE, compute local (per-observation) permutation importance.
+#' @param regularization_factor (Tunable) Numeric: Regularization factor penalizing variables with many split points. Requires `splitrule = "variance"`.
+#' @param regularization_usedepth Logical: If TRUE, apply the regularization factor with node depth. Requires `regularization_factor`.
+#' @param keep_inbag Logical: If TRUE, record how often each observation is in-bag per tree.
+#' @param inbag List: Manually set in-bag counts per tree; list of length `num_trees`. Can be used for stratified sampling.
+#' @param holdout Logical: If TRUE, use hold-out mode: hold out samples with case weight 0 and use them for variable importance and prediction error.
+#' @param quantreg Logical: If TRUE, prepare quantile prediction (quantile regression forests). Regression only; set `keep_inbag = TRUE` for out-of-bag quantile prediction.
+#' @param time_interest Numeric: Time points of interest for survival prediction. Survival only. Deprecated.
+#' @param oob_error Logical: If TRUE, compute the OOB prediction error. Set to FALSE to save time if only the forest is needed.
+#' @param save_memory Logical: If TRUE, use the memory-saving (slower) splitting mode. Use only if you encounter memory problems.
+#' @param verbose Logical: If TRUE, show computation status and estimated runtime.
+#' @param node_stats Logical: If TRUE, save additional node statistics (terminal nodes only).
+#' @param seed Positive integer: Random seed. If NULL, the seed is generated from R. Set to 0 to ignore the R seed.
+#' @param na_action Character: How to handle missing values. "na.learn" uses observations with missing values in splitting, treating missing as a separate category.
+#' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return RangerHyperparameters object.
 #'

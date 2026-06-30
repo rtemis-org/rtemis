@@ -31,7 +31,7 @@ plot_manhattan.MassGLM(
 \item{p_adjust_method}{Character: "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none" -
 p-value adjustment method.}
 
-\item{p_transform}{Function to transform p-values for plotting. Default is \code{function(x) -log10(x)}.}
+\item{p_transform}{Function to transform p-values for plotting.}
 
 \item{ylab}{Character: y-axis label.}
 

@@ -7,7 +7,7 @@
 get_palette(palette = NULL, verbosity = 1L)
 }
 \arguments{
-\item{palette}{Character: Name of palette to return. Default = NULL: available palette
+\item{palette}{Character: Name of palette to return. If NULL, available palette
 names are printed and no palette is returned.}
 
 \item{verbosity}{Integer: Verbosity level.}

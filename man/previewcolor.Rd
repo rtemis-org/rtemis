@@ -29,8 +29,8 @@ previewcolor(
 \arguments{
 \item{x}{Color, vector: One or more colors that R understands}
 
-\item{main}{Character: Title. Default = NULL, which results in
-\code{deparse(substitute(x))}}
+\item{main}{Character: Title. If NULL, set to
+\code{deparse(substitute(x))}.}
 
 \item{bg}{Background color.}
 
@@ -46,18 +46,18 @@ previewcolor(
 
 \item{main_font}{Integer, 1 or 2: Weight of \code{main} 1: regular, 2: bold.}
 
-\item{width}{Float: Plot width. Default = NULL, i.e. set automatically}
+\item{width}{Float: Plot width. If NULL, set automatically.}
 
-\item{xlim}{Vector, length 2: x-axis limits. Default = NULL, i.e. set automatically}
+\item{xlim}{Vector, length 2: x-axis limits. If NULL, set automatically.}
 
 \item{ylim}{Vector, length 2: y-axis limits.}
 
 \item{asp}{Float: Plot aspect ratio.}
 
-\item{labels_y}{Float: y coord for labels. Default = 1.55 (rhombi are fixed and range y .5 - 1.5)}
+\item{labels_y}{Float: y coord for labels (rhombi are fixed and range y .5 - 1.5).}
 
-\item{label_cex}{Float: Character expansion for labels. Default = NULL, and is
-calculated automatically based on length of \code{x}}
+\item{label_cex}{Float: Character expansion for labels. If NULL,
+calculated automatically based on length of \code{x}.}
 
 \item{mar}{Numeric vector, length 4: margin size.}
 

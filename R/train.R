@@ -41,7 +41,7 @@
 #'     \item{`message`}{Character. Human-readable line, e.g.
 #'       `"Outer fold 2/5"`.}
 #'   }
-#'   When `NULL` (default), the existing `cli::cli_progress_along()`
+#'   When `NULL`, the existing `cli::cli_progress_along()`
 #'   interactive progress bar runs untouched. Designed for non-interactive
 #'   callers (e.g. `rtemis.server`) that need to forward fold progress
 #'   over a wire protocol; errors raised by the callback are swallowed

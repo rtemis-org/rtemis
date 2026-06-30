@@ -215,7 +215,7 @@ check_supervised <- function(
 #' Check data ahead of unsupervised learning
 #'
 #' @param x Data frame: Features for unsupervised learning.
-#' @param allow_missing Logical: If TRUE, allow missing values in the data. Default is FALSE.
+#' @param allow_missing Logical: If TRUE, allow missing values in the data.
 #'
 #' @return NULL, invisibly. Stops execution if checks fail.
 #'

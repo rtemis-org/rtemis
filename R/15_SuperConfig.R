@@ -381,8 +381,8 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 #' @param preprocessor_config,algorithm,hyperparameters,tuner_config,outer_resampling_config,execution_config,question,verbosity
 #'   See [setup_SuperConfig].
 #' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
-#' @param outdir Character or `NULL`. Output directory; `NULL` (the
-#'   default) means "do not write to disk" (the rtemislive case).
+#' @param outdir Character or `NULL`. Output directory; `NULL`
+#'   means "do not write to disk" (the rtemislive case).
 #'
 #' @return `SuperConfigLive` object.
 #'

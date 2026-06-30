@@ -8,8 +8,8 @@
 #' @param y data.frame or similar: Each column is a different outcome. The function will train one
 #' GLM for each column of `y`. Usually a large number of features.
 #' @param scale_y Logical: If TRUE, scale each column of `y` to have mean 0 and sd 1. If `NULL`,
-#' defaults to TRUE if `y` is numeric, FALSE otherwise.
-#' @param center_y Logical: If TRUE, center each column of `y` to have mean 0. If `NULL`, defaults
+#' set to TRUE if `y` is numeric, FALSE otherwise.
+#' @param center_y Logical: If TRUE, center each column of `y` to have mean 0. If `NULL`, set
 #' to TRUE if `scale_y` is TRUE, FALSE otherwise.
 # @param include_anova Logical: If TRUE, include ANOVA results in the summary.
 #' @param verbosity Integer: Verbosity level.
