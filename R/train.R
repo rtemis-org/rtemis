@@ -1083,14 +1083,14 @@ get_n_workers <- function(
     bold("//"),
     " Max workers: ",
     highlight(n_workers),
-    " {",
+    " { ",
     gray("Algorithm: "),
     highlight(workers_algorithm),
     gray("; Tuning: "),
     highlight(workers_tuning),
     gray("; Outer Resampling: "),
     highlight(workers_outer_resampling),
-    "}",
+    " }",
     verbosity = verbosity
   )
 
