@@ -3,8 +3,8 @@
 # 2026- EDG rtemis.org
 
 pkg := `awk '/^Package:/{print $2; exit}' DESCRIPTION`
-r := env_var_or_default("R", "R")
-rscript := env_var_or_default("RSCRIPT", "Rscript")
+r := env("R", "R")
+rscript := env("RSCRIPT", "Rscript")
 tarball_glob := pkg + "_*.tar.gz"
 
 # List available recipes
@@ -60,6 +60,12 @@ check-cran: (check "--as-cran")
 
 # Run R CMD check --as-cran --no-tests
 check-cran-no-tests: (check "--as-cran" "--no-tests")
+
+# Check URLs in package documentation with urlchecker
+urls:
+    @just _msg "─── Checking URLs for {{pkg}}... ───"
+    {{rscript}} -e "urlchecker::url_check()"
+    @just _msg "Done"
 
 # Build package manual (PDF)
 manual:
