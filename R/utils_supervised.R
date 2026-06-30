@@ -197,8 +197,6 @@ make_formula <- function(x, output = "character") {
 #' @param include_anova Integer vector {1, 2, 3}: Output ANOVA Type I, II, and/or III
 #' p-vals. Type I uses base R `anova()` (sequential); Types II and III use `car::Anova()`.
 #' NA to skip.
-#' @param info Logical: If TRUE, warn when values < than machine eps are replaced by
-#' machine eps
 #'
 #' @return `data.table` with glm summaries
 #' @author EDG
@@ -206,7 +204,7 @@ make_formula <- function(x, output = "character") {
 #' @keywords internal
 #' @noRd
 
-glm2table <- function(x, xnames = NULL, include_anova = NA, info = TRUE) {
+glm2table <- function(x, xnames = NULL, include_anova = NA) {
   if (is.null(xnames)) {
     xnames <- if (!is.null(names(x))) {
       names(x)

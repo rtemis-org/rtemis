@@ -72,7 +72,6 @@ format_seconds <- function(seconds) {
 #' @noRd
 outro <- function(
   start_time,
-  message = NULL,
   sink_off = FALSE,
   logfile = NULL,
   newline_pre = FALSE,

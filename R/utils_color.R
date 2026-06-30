@@ -463,14 +463,10 @@ rhombus <- function(
 #' @param midhi Color for middle-high
 #' @param hi Color for high end
 #' @param preview Logical: Plot the colors horizontally
-#' @param cb_n Integer: How many steps you would like in the colorbar
 #' @param bar_min Numeric: Lowest value in colorbar
 #' @param bar_mid Numeric: Middle value in colorbar
 #' @param bar_max Numeric: Max value in colorbar
-#' @param cex Float: Character expansion for axis
 #' @param theme Theme object.
-#' @param bg Color: Background color
-#' @param col_text Color: Colorbar text color
 #' @param plotlycb Logical: Create colorbar using `plotly` (instead of base R graphics)
 #' @param plotly_width Float: Width for plotly colorbar.
 #' @param plotly_height Float: Height for plotly colorbar.
@@ -493,14 +489,10 @@ colorgrad <- function(
   midhi = NULL,
   hi = rtemis_colors[["orange"]],
   preview = FALSE,
-  cb_n = 21L,
   bar_min = -1,
   bar_mid = 0,
   bar_max = 1,
-  cex = 1.2,
   theme = choose_theme(getOption("rtemis_theme")),
-  bg = NULL,
-  col_text = NULL,
   plotlycb = FALSE,
   plotly_width = 80,
   plotly_height = 500,
@@ -516,10 +508,6 @@ colorgrad <- function(
 
   if (return_plotly) {
     plotlycb <- TRUE
-  }
-  if (is.null(cb_n)) {
-    cb_n <- n
-    if (cb_n %% 2 != 1) cb_n <- cb_n + 1
   }
   space <- match.arg(space)
   theme <- if (strtrim(theme@name, 4) %in% c("dark", "blac")) {
@@ -575,22 +563,6 @@ colorgrad <- function(
     grad <- c(lo2mid(midpoint), mid2hi(n - midpoint + 1)[-1])
   } else {
     grad <- colorRampPalette(c(lo, hi), space = space)(n)
-  }
-
-  if (cb_n != n) {
-    cb_n <- as.integer(cb_n)
-    cb_midpoint <- ceiling(cb_n / 2)
-    # if (is.null(mid)) mid <- color_op(c(lo, hi), "mean")
-    # lo2mid <- grDevices::colorRampPalette(c(lo, lomid, mid), space = space)
-    # mid2hi <- grDevices::colorRampPalette(c(mid, midhi, hi), space = space)
-    if (!is.na(mid)) {
-      cb_grad <- c(lo2mid(cb_midpoint), mid2hi(cb_n - cb_midpoint + 1)[-1])
-    } else {
-      cb_grad <- colorRampPalette(c(lo, hi), space = space)(cb_n)
-    }
-  } else {
-    cb_grad <- grad
-    cb_midpoint <- midpoint
   }
 
   # Preview ----
