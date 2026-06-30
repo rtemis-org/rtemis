@@ -245,7 +245,7 @@ df <- data.frame(
   value1 = rnorm(length(datetime)),
   value2 = rnorm(length(datetime))
 )
-draw_xt(df, x = df[, 1], y = df[, 2:3])
+draw_xt(x = df[, 1], y = df[, 2:3])
 \dontshow{\}) # examplesIf}
 }
 \author{

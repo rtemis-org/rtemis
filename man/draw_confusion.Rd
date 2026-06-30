@@ -27,9 +27,9 @@ draw_confusion(
 where rows are the reference and columns are the estimated classes. For binary classification,
 the first row and column are the positive class.}
 
-\item{xlab}{Character: x-axis label. Default is "Predicted".}
+\item{xlab}{Character: x-axis label.}
 
-\item{ylab}{Character: y-axis label. Default is "Reference".}
+\item{ylab}{Character: y-axis label.}
 
 \item{true_col}{Color for true positives & true negatives.}
 
@@ -47,13 +47,13 @@ the first row and column are the positive class.}
 
 \item{margin}{List: Plot margins.}
 
-\item{filename}{Character: file name to save the plot. Default is NULL.}
+\item{filename}{Character: file name to save the plot.}
 
-\item{file_width}{Numeric: width of the file. Default is 500.}
+\item{file_width}{Numeric: width of the file.}
 
-\item{file_height}{Numeric: height of the file. Default is 500.}
+\item{file_height}{Numeric: height of the file.}
 
-\item{file_scale}{Numeric: scale of the file. Default is 1.}
+\item{file_scale}{Numeric: scale of the file.}
 }
 \value{
 \code{plotly} object.

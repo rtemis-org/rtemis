@@ -74,12 +74,12 @@ color of \code{palette}.}
 
 \item{p_adjust_method}{Character: p-value adjustment method.
 "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".
-Default = "holm". Use "none" for raw p-values.}
+Use "none" for raw p-values.}
 
 \item{p_transform}{function.}
 
-\item{legend}{Logical: If TRUE, show legend. Will default to FALSE, if
-\code{group = NULL}, otherwise to TRUE.}
+\item{legend}{Logical: If TRUE, show legend. If NULL, set to FALSE when
+\code{group = NULL}, otherwise TRUE.}
 
 \item{legend_lo}{Character: Legend to annotate significant points below the
 \code{x_thresh}.}
@@ -97,8 +97,7 @@ Default = "holm". Use "none" for raw p-values.}
 
 \item{ylab}{Character: y-axis label.}
 
-\item{margin}{Named list of plot margins.
-Default = \code{list(b = 65, l = 65, t = 50, r = 10, pad = 0)}.}
+\item{margin}{Named list of plot margins.}
 
 \item{xlim}{Numeric vector, length 2: x-axis limits.}
 

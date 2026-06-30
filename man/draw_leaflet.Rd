@@ -55,7 +55,7 @@ draw_leaflet(
 
 \item{col_bins}{Integer: Number of color bins to create if \code{color_mapping = "Bin"}.}
 
-\item{domain}{Limits for mapping colors to values. Default = NULL and set to range.}
+\item{domain}{Limits for mapping colors to values. If NULL, set to the range of \code{values}.}
 
 \item{weight}{Float: Weight of county border lines.}
 
@@ -73,11 +73,11 @@ draw_leaflet(
 
 \item{legend_alpha}{Float: Legend box transparency.}
 
-\item{legend_title}{Character: Defaults to name of \code{values} variable.}
+\item{legend_title}{Character: Legend title. If NULL, set to the name of the \code{values} variable.}
 
-\item{init_lng}{Float: Center map around this longitude (in decimal form). Default = -98.54180833333334 (US geographic center).}
+\item{init_lng}{Float: Longitude (in decimal form) to center the map around.}
 
-\item{init_lat}{Float: Center map around this latitude (in decimal form). Default = 39.207413888888894 (US geographic center).}
+\item{init_lat}{Float: Latitude (in decimal form) to center the map around.}
 
 \item{init_zoom}{Integer: Initial zoom level (depends on device, i.e. window, size).}
 

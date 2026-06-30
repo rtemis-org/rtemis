@@ -109,10 +109,10 @@ comparable}
 
 \item{palette}{Character vector: Colors to use.}
 
-\item{boxpoints}{Character or FALSE: "all", "suspectedoutliers", "outliers"
-See \url{https://plotly.com/r/box-plots/#choosing-the-algorithm-for-computing-quartiles}}
+\item{boxpoints}{Character or FALSE: "all", "suspectedoutliers", "outliers".}
 
-\item{quartilemethod}{Character: "linear", "exclusive", "inclusive"}
+\item{quartilemethod}{Character: "linear", "exclusive", "inclusive".
+See \url{https://plotly.com/r/box-plots/#choosing-the-algorithm-for-computing-quartiles}.}
 
 \item{xlim}{Numeric vector: x-axis limits}
 
@@ -135,7 +135,7 @@ violin plot}
 
 \item{annotate_col}{Color for annotations}
 
-\item{xnames}{Character, vector, length = NROW(x): x-axis names. Default = NULL, which
+\item{xnames}{Character, vector, length = NROW(x): x-axis names. If NULL,
 tries to set names automatically.}
 
 \item{group_lines}{Logical: If TRUE, add separating lines between groups of
@@ -159,8 +159,7 @@ this function (e.g. median).}
 
 \item{legend}{Logical: If TRUE, draw legend.}
 
-\item{legend_col}{Color: Legend text color. Default = NULL, determined by
-the theme.}
+\item{legend_col}{Color: Legend text color. If NULL, determined by the theme.}
 
 \item{legend_xy}{Float, vector, length 2: Relative x, y position for legend.}
 
@@ -219,11 +218,11 @@ be set}
 \item{use_plotly_group}{If TRUE, use plotly's \code{group} arg to group
 boxes.}
 
-\item{width}{Numeric: Force plot size to this width. Default = NULL, i.e. fill
-available space}
+\item{width}{Numeric: Force plot size to this width. If NULL, fill
+available space.}
 
-\item{height}{Numeric: Force plot size to this height. Default = NULL, i.e. fill
-available space}
+\item{height}{Numeric: Force plot size to this height. If NULL, fill
+available space.}
 
 \item{displayModeBar}{Logical: If TRUE, show plotly's modebar}
 
@@ -263,8 +262,8 @@ group names appear in legend
 }
 
 If \code{orientation == "h"}, \code{xlab} is applied to y-axis and vice versa.
-Similarly, \code{x.axist.type} applies to y-axis - this defaults to
-"category" and would not normally need changing.
+Similarly, \code{xaxis_type} applies to the y-axis - the "category" type would
+not normally need changing.
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}

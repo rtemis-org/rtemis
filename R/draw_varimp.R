@@ -15,7 +15,8 @@
 #' @param type Character: "bar" or "line".
 #' @param xlab Character: x-axis label.
 #' @param ylab Character: y-axis label.
-#' @param plot_top Integer: Plot this many top features.
+#' @param plot_top Numeric: Number of top features to plot if > 1, or the
+#' proportion of features to plot if <= 1 (e.g. 1 plots all features).
 #' @param orientation Character: "h" or "v".
 #' @param line_width Numeric: Line width.
 #' @param labelify Logical: If TRUE, labelify feature names.

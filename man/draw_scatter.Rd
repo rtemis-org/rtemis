@@ -258,7 +258,8 @@ draw_scatter(
 
 \item{diagonal_col}{Color for diagonal line.}
 
-\item{diagonal_dash}{Character: "solid", "dash", "dot", "dashdot", "longdash", "longdashdot". Dash type for diagonal line.}
+\item{diagonal_dash}{Character {"solid", "dash", "dot", "dashdot", "longdash", "longdashdot"}:
+Dash type for diagonal line.}
 
 \item{diagonal_alpha}{Numeric: Alpha for diagonal line.}
 

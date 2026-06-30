@@ -18,10 +18,9 @@
 #' @param cluster Character: Clustering method.
 #' @param cluster_config List: Config for clustering.
 #' @param group Factor: Grouping variable.
-#' @param formula Formula: Formula for non-linear least squares fit.
 #' @param rsq Logical: If TRUE, print R-squared values in legend if `fit` is set.
 #' @param mode Character, vector: "markers", "lines", "markers+lines".
-#' @param order_on_x Logical: If TRUE, order `x` and `y` on `x`.
+#' @param order_on_x Logical: If TRUE, order `x`, `y`, and `z` on `x`.
 #' @param main Character: Main title.
 #' @param xlab Character: x-axis label.
 #' @param ylab Character: y-axis label.
@@ -37,7 +36,7 @@
 #' @param marker_col Color for markers.
 #' @param marker_size Numeric: Marker size.
 #' @param fit_col Color for fit line.
-#' @param fit_alpha Numeric: Alpha for fit line.
+#' @param fit_alpha Numeric: Alpha for fit surface.
 #' @param fit_lwd Numeric: Line width for fit line.
 #' @param tick_font_size Numeric: Tick font size.
 #' @param spike_col Spike lines color.
@@ -79,7 +78,6 @@ draw_3Dscatter <- function(
   cluster = NULL,
   cluster_config = NULL,
   group = NULL,
-  formula = NULL,
   rsq = TRUE,
   mode = "markers",
   order_on_x = NULL,

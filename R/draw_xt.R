@@ -13,17 +13,17 @@
 #' @param x2 Datetime vector or list of vectors, optional: must be provided if `y2` does not
 #' correspond to values in `x`. A single x-axis will be drawn for all values in `x` and `x2`.
 #' @param y2 Numeric vector, optional: If provided, a second y-axis will be added to the right
-#' side of the plot.
+#'   side of the plot.
 #' @param which_xy Integer vector: Indices of `x` and `y` to plot.
-#' If not provided, will select up to the first two x-y traces.
+#'   If not provided, will select up to the first two x-y traces.
 #' @param which_xy2 Integer vector: Indices of `x2` and `y2` to plot.
-#' If not provided, will select up to the first two x2-y2 traces.
+#'   If not provided, will select up to the first two x2-y2 traces.
 #' @param shade_bin Integer vector \{0, 1\}: Time points in `x` to shade on the plot. For example,
-#' if there are 10 time points in `x`, and you want to shade time points 3 to 7,
-#' `shade_bin = c(0, 0, 1, 1, 1, 1, 1, 0, 0, 0)`. Only set `shade_bin` or `shade_interval`, not
-#' both.
+#'   if there are 10 time points in `x`, and you want to shade time points 3 to 7,
+#'   `shade_bin = c(0, 0, 1, 1, 1, 1, 1, 0, 0, 0)`. Only set `shade_bin` or `shade_interval`, not
+#'   both.
 #' @param shade_interval List of numeric vectors: Intervals to shade on the plot. Only set
-#' `shade_bin` or `shade_interval`, not both.
+#'   `shade_bin` or `shade_interval`, not both.
 #' @param shade_col Color: Color to shade intervals.
 #' @param shade_x Numeric vector: x-values to use for shading.
 #' @param shade_name Character: Name for shaded intervals.
@@ -108,7 +108,7 @@
 #'   value1 = rnorm(length(datetime)),
 #'   value2 = rnorm(length(datetime))
 #' )
-#' draw_xt(df, x = df[, 1], y = df[, 2:3])
+#' draw_xt(x = df[, 1], y = df[, 2:3])
 draw_xt <- function(
   x,
   y,

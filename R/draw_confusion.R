@@ -7,8 +7,8 @@
 #' @param x `ClassificationMetrics` object produced by [classification_metrics] or confusion matrix
 #' where rows are the reference and columns are the estimated classes. For binary classification,
 #' the first row and column are the positive class.
-#' @param xlab Character: x-axis label. Default is "Predicted".
-#' @param ylab Character: y-axis label. Default is "Reference".
+#' @param xlab Character: x-axis label.
+#' @param ylab Character: y-axis label.
 #' @param true_col Color for true positives & true negatives.
 #' @param false_col Color for false positives & false negatives.
 #' @param font_size Integer: font size.
@@ -17,10 +17,10 @@
 #' @param main_yanchor Character: y anchor of the title.
 #' @param theme `Theme` object.
 #' @param margin List: Plot margins.
-#' @param filename Character: file name to save the plot. Default is NULL.
-#' @param file_width Numeric: width of the file. Default is 500.
-#' @param file_height Numeric: height of the file. Default is 500.
-#' @param file_scale Numeric: scale of the file. Default is 1.
+#' @param filename Character: file name to save the plot.
+#' @param file_width Numeric: width of the file.
+#' @param file_height Numeric: height of the file.
+#' @param file_scale Numeric: scale of the file.
 #'
 #' @return `plotly` object.
 #'

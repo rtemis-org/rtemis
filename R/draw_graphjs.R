@@ -12,7 +12,7 @@
 #' @param vertex_label_col Color for vertex labels.
 #' @param vertex_label_alpha Numeric: Transparency for `vertex_label_col`.
 #' @param vertex_frame_col Color for vertex border (frame).
-#' @param vertex_label Character vector: Vertex labels. Default = NULL, which will keep existing names in `net` if any. Set to NA to avoid printing vertex labels.
+#' @param vertex_label Character vector: Vertex labels. If NULL, keep existing names in `net` if any. Set to NA to avoid printing vertex labels.
 #' @param vertex_shape Character, vector, length 1 or N nodes: Vertex shape. See `graphjs("vertex_shape")`.
 #' @param edge_col Color for edges.
 #' @param edge_alpha Numeric: Transparency for edges.
@@ -29,10 +29,9 @@
 #' @param main Character: Main title.
 #' @param theme `Theme` object.
 #' @param palette Color vector or name of rtemis palette.
-#' @param mar Numeric vector, length 4: `par`'s margin argument.
 #' @param filename Character: If provided, save plot to this filepath.
 #' @param verbosity Integer: Verbosity level.
-#' @param ... Extra arguments to pass to `igraph::plot.igraph()`.
+#' @param ... Extra arguments to pass to `threejs::graphjs()`.
 #'
 #' @return `scatterplotThree` object.
 #'
@@ -77,7 +76,6 @@ draw_graphjs <- function(
   main = "",
   theme = choose_theme(getOption("rtemis_theme")),
   palette = getOption("rtemis_palette", "rtms"),
-  mar = rep(0, 4),
   filename = NULL,
   verbosity = 1L,
   ...

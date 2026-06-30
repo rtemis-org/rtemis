@@ -12,8 +12,8 @@
 #' @param time Numeric or Date vector of time corresponding to values of `x`
 #' @param window Integer: apply `roll_fn` over this many units of time
 #' @param group Factor defining groups
-#' @param roll_fn Character: "mean", "median", "max", or "sum": Function to apply on
-#' rolling windows of `x`
+#' @param roll_fn Character: "mean", "median", "max", or "none": Function to apply on
+#' rolling windows of `x`. "none" disables the rolling line.
 #' @param roll_col Color for rolling line
 #' @param roll_alpha Numeric: transparency for rolling line
 #' @param roll_lwd Numeric: width of rolling line

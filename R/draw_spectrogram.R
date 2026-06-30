@@ -39,21 +39,19 @@
 #' @param mid Character: Mid color for gradient.
 #' @param midhi Character: Mid-high color for gradient.
 #' @param hi Character: High color for gradient.
-#' @param grid_gap Integer: Space between cells.
-#' @param limits Numeric, length 2: Determine color range. Default = NULL, which automatically centers values around 0.
+#' @param limits Numeric, length 2: Determine color range. If NULL, automatically centers values around 0.
 #' @param main Character: Main title.
 #' @param key_title Character: Title of the key.
 #' @param showticklabels Logical: If TRUE, show tick labels.
 #' @param theme `Theme` object.
 #' @param font_size Numeric: Font size.
-#' @param padding Numeric: Padding between cells.
+#' @param padding Numeric: Padding around the plot, in pixels.
 #' @param displayModeBar Logical: If TRUE, display the plotly mode bar.
 #' @param modeBar_file_format Character: File format for image exports from the mode bar.
-#' @param filename Character: Filename to save the plot. Default is NULL.
+#' @param filename Character: Filename to save the plot.
 #' @param file_width Numeric: Width of exported image.
 #' @param file_height Numeric: Height of exported image.
 #' @param file_scale Numeric: Scale of exported image.
-#' @param ... Additional arguments to be passed to `heatmaply::heatmaply`.
 #'
 #' @return `plotly` object.
 #'
@@ -100,7 +98,6 @@ draw_spectrogram <- function(
   mid = NULL,
   midhi = NULL,
   hi = "#F48024",
-  grid_gap = 0,
   limits = NULL,
   main = NULL,
   key_title = NULL,
@@ -113,8 +110,7 @@ draw_spectrogram <- function(
   filename = NULL,
   file_width = 500,
   file_height = 500,
-  file_scale = 1,
-  ...
+  file_scale = 1
 ) {
   # Dependencies ----
   check_dependencies("plotly")

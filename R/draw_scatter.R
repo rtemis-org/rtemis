@@ -15,7 +15,6 @@
 #' @param cluster Character: Clustering method.
 #' @param cluster_config List: Config for clustering.
 #' @param group Factor: Grouping variable.
-# @param formula Formula: Formula for non-linear least squares fit.
 #' @param rsq Logical: If TRUE, print R-squared values in legend if `fit` is set.
 #' @param mode Character, vector: "markers", "lines", "markers+lines".
 #' @param order_on_x Logical: If TRUE, order `x` and `y` on `x`.
@@ -83,7 +82,8 @@
 #' @param axes_equal Logical: If TRUE, set equal scaling for axes.
 #' @param diagonal Logical: If TRUE, add diagonal line.
 #' @param diagonal_col Color for diagonal line.
-#' @param diagonal_dash Character: "solid", "dash", "dot", "dashdot", "longdash", "longdashdot". Dash type for diagonal line.
+#' @param diagonal_dash Character {"solid", "dash", "dot", "dashdot", "longdash", "longdashdot"}:
+#'   Dash type for diagonal line.
 #' @param diagonal_alpha Numeric: Alpha for diagonal line.
 #' @param fit_params `Hyperparameters` for fit.
 #' @param vline Numeric: X position for vertical line.
@@ -125,7 +125,6 @@ draw_scatter <- function(
   cluster = NULL,
   cluster_config = list(k = 2),
   group = NULL,
-  # formula = NULL,
   rsq = TRUE,
   mode = "markers",
   order_on_x = NULL,

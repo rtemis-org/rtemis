@@ -66,12 +66,12 @@ data.frame, rows are groups (can be 1 row), columns are features}
 \item{palette}{Character vector: Colors to use.}
 
 \item{barmode}{Character: Type of bar plot to make: "group", "relative",
-"stack", "overlay". Default = "group". Use
-"relative" for stacked bars, wich handles negative values correctly,
+"stack", "overlay". Use
+"relative" for stacked bars, which handles negative values correctly,
 unlike "stack", as of writing.}
 
 \item{group_names}{Character, vector, length = NROW(x): Group names.
-Default = NULL, which uses \code{rownames(x)}}
+If NULL, uses \code{rownames(x)}.}
 
 \item{order_by_val}{Logical: If TRUE, order bars by increasing value.
 Only use for single group data.}
@@ -82,7 +82,7 @@ Only use for single group data.}
 hover over each bar.}
 
 \item{feature_names}{Character, vector, length = NCOL(x): Feature names.
-Default = NULL, which uses \code{colnames(x)}}
+If NULL, uses \code{colnames(x)}.}
 
 \item{font_size}{Float: Font size for all labels.}
 
@@ -90,11 +90,10 @@ Default = NULL, which uses \code{colnames(x)}}
 
 \item{annotate_col}{Color for annotations}
 
-\item{legend}{Logical: If TRUE, draw legend. Default = NULL, and will be
-turned on if there is more than one feature present}
+\item{legend}{Logical: If TRUE, draw legend. If NULL, turned on if there is
+more than one feature present.}
 
-\item{legend_col}{Color: Legend text color. Default = NULL, determined by
-theme}
+\item{legend_col}{Color: Legend text color. If NULL, determined by the theme.}
 
 \item{legend_xy}{Numeric, vector, length 2: x and y for plotly's legend}
 

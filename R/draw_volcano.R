@@ -12,28 +12,27 @@
 #' @param pvals Numeric vector: p-values.
 #' @param xnames Character vector: `x` names.
 #' @param group Optional factor: Used to color code points. If NULL, significant points
-#' below `x_thresh`, non-significant points, and significant points
-#' above `x_thresh` will be plotted with the first, second and third
-#' color of `palette`.
+#'   below `x_thresh`, non-significant points, and significant points
+#'   above `x_thresh` will be plotted with the first, second and third
+#'   color of `palette`.
 #' @param x_thresh Numeric x-axis threshold separating low from high.
 #' @param p_thresh Numeric: p-value threshold of significance.
 #' @param p_adjust_method Character: p-value adjustment method.
-#' "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".
-#' Default = "holm". Use "none" for raw p-values.
+#'   "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".
+#'   Use "none" for raw p-values.
 #' @param p_transform function.
-#' @param legend Logical: If TRUE, show legend. Will default to FALSE, if
-#' `group = NULL`, otherwise to TRUE.
+#' @param legend Logical: If TRUE, show legend. If NULL, set to FALSE when
+#'   `group = NULL`, otherwise TRUE.
 #' @param legend_lo Character: Legend to annotate significant points below the
-#' `x_thresh`.
+#'   `x_thresh`.
 #' @param legend_hi Character: Legend to annotate significant points above the
-#' `x_thresh`.
+#'   `x_thresh`.
 #' @param label_lo Character: label for low values.
 #' @param label_hi Character: label for high values.
 #' @param main Character: Main title.
 #' @param xlab Character: x-axis label.
 #' @param ylab Character: y-axis label.
 #' @param margin Named list of plot margins.
-#' Default = `list(b = 65, l = 65, t = 50, r = 10, pad = 0)`.
 #' @param xlim Numeric vector, length 2: x-axis limits.
 #' @param ylim Numeric vector, length 2: y-axis limits.
 #' @param alpha Numeric: point transparency.
@@ -41,31 +40,31 @@
 #' @param hline_col Color for `hline`.
 #' @param hline_width Numeric: Width for `hline`.
 #' @param hline_dash Character: Type of line to draw: "solid", "dot", "dash",
-#' "longdash", "dashdot", or "longdashdot".
+#'   "longdash", "dashdot", or "longdashdot".
 #' @param hline_annotate Character: Text of horizontal line annotation if
-#' `hline` is set.
+#'   `hline` is set.
 #' @param hline_annotation_x Numeric: x position to place annotation with paper
-#' as reference. 0: to the left of the plot area; 1: to the right of the plot area.
+#'   as reference. 0: to the left of the plot area; 1: to the right of the plot area.
 #' @param annotate Logical: If TRUE, annotate significant points.
 #' @param annotate_col Color for annotations.
 #' @param theme `Theme` object.
 #' @param font_size Integer: Font size.
 #' @param palette Character vector: Colors to use. If `group` is NULL, the first, second and third
-#' colors will be used for significant points with negative coefficients, non-significant points, and
-#' significant points with positive coefficients, respectively. If `group` is not NULL, colors will
-#' be assigned to groups, in order of appearance.
+#'   colors will be used for significant points with negative coefficients, non-significant points, and
+#'   significant points with positive coefficients, respectively. If `group` is not NULL, colors will
+#'   be assigned to groups, in order of appearance.
 #' @param legend_x_lo Numeric: x position of `legend_lo`.
 #' @param legend_x_hi Numeric: x position of `legend_hi`.
 #' @param legend_y Numeric: y position for `legend_lo` and `legend_hi`.
 #' @param annotate_n Integer: Number of significant points to annotate.
 #' @param ax_lo Numeric: Sets the x component of the arrow tail about the arrow head for
-#' significant points below `x_thresh`.
+#'   significant points below `x_thresh`.
 #' @param ay_lo Numeric: Sets the y component of the arrow tail about the arrow head for
-#' significant points below `x_thresh`.
+#'   significant points below `x_thresh`.
 #' @param ax_hi Numeric: Sets the x component of the arrow tail about the arrow head for
-#' significant points above `x_thresh`.
+#'   significant points above `x_thresh`.
 #' @param ay_hi Numeric: Sets the y component of the arrow tail about the arrow head for
-#' significant points above `x_thresh`.
+#'   significant points above `x_thresh`.
 #' @param annotate_alpha Numeric: Transparency for annotations.
 #' @param hovertext Character vector: Text to display on hover.
 #' @param displayModeBar Logical: If TRUE, display plotly mode bar.

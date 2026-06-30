@@ -12,7 +12,6 @@ draw_3Dscatter(
   cluster = NULL,
   cluster_config = NULL,
   group = NULL,
-  formula = NULL,
   rsq = TRUE,
   mode = "markers",
   order_on_x = NULL,
@@ -74,13 +73,11 @@ draw_3Dscatter(
 
 \item{group}{Factor: Grouping variable.}
 
-\item{formula}{Formula: Formula for non-linear least squares fit.}
-
 \item{rsq}{Logical: If TRUE, print R-squared values in legend if \code{fit} is set.}
 
 \item{mode}{Character, vector: "markers", "lines", "markers+lines".}
 
-\item{order_on_x}{Logical: If TRUE, order \code{x} and \code{y} on \code{x}.}
+\item{order_on_x}{Logical: If TRUE, order \code{x}, \code{y}, and \code{z} on \code{x}.}
 
 \item{main}{Character: Main title.}
 
@@ -112,7 +109,7 @@ draw_3Dscatter(
 
 \item{fit_col}{Color for fit line.}
 
-\item{fit_alpha}{Numeric: Alpha for fit line.}
+\item{fit_alpha}{Numeric: Alpha for fit surface.}
 
 \item{fit_lwd}{Numeric: Line width for fit line.}
 
