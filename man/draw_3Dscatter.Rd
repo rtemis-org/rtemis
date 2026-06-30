@@ -9,8 +9,7 @@ draw_3Dscatter(
   y = NULL,
   z = NULL,
   fit = NULL,
-  cluster = NULL,
-  cluster_config = NULL,
+  clustering_config = NULL,
   group = NULL,
   rsq = TRUE,
   mode = "markers",
@@ -67,9 +66,7 @@ draw_3Dscatter(
 
 \item{fit}{Character: Fit method.}
 
-\item{cluster}{Character: Clustering method.}
-
-\item{cluster_config}{List: Config for clustering.}
+\item{clustering_config}{\code{ClusteringConfig} object: If provided, cluster on \code{x} and \code{y} and pass clusters to \code{group}.}
 
 \item{group}{Factor: Grouping variable.}
 

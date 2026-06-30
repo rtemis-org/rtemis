@@ -12,8 +12,7 @@
 #' @param se_fit Logical: If TRUE, include standard error of the fit.
 #' @param se_times Numeric: Multiplier for standard error.
 #' @param include_fit_name Logical: If TRUE, include fit name in legend.
-#' @param cluster Character: Clustering method.
-#' @param cluster_config List: Config for clustering.
+#' @param clustering_config `ClusteringConfig` object: If provided, cluster on `x` and `y` and pass clusters to `group`.
 #' @param group Factor: Grouping variable.
 #' @param rsq Logical: If TRUE, print R-squared values in legend if `fit` is set.
 #' @param mode Character, vector: "markers", "lines", "markers+lines".
@@ -122,8 +121,7 @@ draw_scatter <- function(
   se_fit = FALSE,
   se_times = 1.96,
   include_fit_name = TRUE,
-  cluster = NULL,
-  cluster_config = list(k = 2),
+  clustering_config = NULL,
   group = NULL,
   rsq = TRUE,
   mode = "markers",
@@ -272,15 +270,11 @@ draw_scatter <- function(
   }
 
   # Cluster ----
-  if (!is.null(cluster)) {
+  if (!is.null(clustering_config)) {
     group <- suppressWarnings(
       cluster(
         x = data.frame(x, y),
-        algorithm = cluster,
-        config = do_call(
-          get_clust_setup_fn(cluster),
-          cluster_config
-        )
+        config = clustering_config
       )@clusters
     )
     group <- paste("Cluster", group)

@@ -15,8 +15,7 @@
 #' @param y Numeric, vector/data.frame/list: y-axis data.
 #' @param z Numeric, vector/data.frame/list: z-axis data.
 #' @param fit Character: Fit method.
-#' @param cluster Character: Clustering method.
-#' @param cluster_config List: Config for clustering.
+#' @param clustering_config `ClusteringConfig` object: If provided, cluster on `x` and `y` and pass clusters to `group`.
 #' @param group Factor: Grouping variable.
 #' @param rsq Logical: If TRUE, print R-squared values in legend if `fit` is set.
 #' @param mode Character, vector: "markers", "lines", "markers+lines".
@@ -75,8 +74,7 @@ draw_3Dscatter <- function(
   y = NULL,
   z = NULL,
   fit = NULL,
-  cluster = NULL,
-  cluster_config = NULL,
+  clustering_config = NULL,
   group = NULL,
   rsq = TRUE,
   mode = "markers",
@@ -162,15 +160,11 @@ draw_3Dscatter <- function(
   }
 
   # Cluster ----
-  if (!is.null(cluster)) {
+  if (!is.null(clustering_config)) {
     group <- suppressWarnings(
       cluster(
-        x = data.frame(x, y),
-        algorithm = cluster,
-        config = do_call(
-          get_clust_setup_fn(cluster),
-          cluster_config
-        )
+        x = data.frame(x, y, z),
+        config = clustering_config
       )@clusters
     )
     group <- paste("Cluster", group)
