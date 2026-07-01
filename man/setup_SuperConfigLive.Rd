@@ -51,6 +51,15 @@ means "do not write to disk" (the rtemislive case).}
 Build a \code{SuperConfigLive} — same shape as \link{setup_SuperConfig} but with
 in-memory tabular data instead of file paths.
 }
+\examples{
+scl <- setup_SuperConfigLive(
+  dat_training = iris,
+  algorithm = "LightGBM",
+  hyperparameters = setup_LightGBM(),
+  outer_resampling_config = setup_Resampler(),
+  question = "Can we tell iris species apart given their measurements?"
+)
+}
 \author{
 EDG
 }

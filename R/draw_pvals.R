@@ -19,7 +19,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' draw_pvals(c(0.01, 0.02, 0.03), xnames = c("Feature1", "Feature2", "Feature3"))
 draw_pvals <- function(

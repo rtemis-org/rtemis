@@ -117,7 +117,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' \dontrun{
 #'   # Reads sequence from UniProt server

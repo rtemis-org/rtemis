@@ -62,7 +62,6 @@
 #'
 #' @rdname theme
 #' @export
-#'
 #' @examples
 #' theme <- theme_black(font_family = "Geist")
 #' theme
@@ -1368,7 +1367,6 @@ theme_mediumgraygrid <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' available_themes()
 available_themes <- function() {
@@ -1396,7 +1394,6 @@ available_themes <- function() {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' # Get default theme set by options(rtemis_theme = "theme_name").
 #' # If not set, defaults to "whitegrid":

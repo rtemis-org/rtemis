@@ -53,7 +53,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' time <- sample(seq(as.Date("2020-03-01"), as.Date("2020-09-23"), length.out = 140))
 #' x1 <- rnorm(140)

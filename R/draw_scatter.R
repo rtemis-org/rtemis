@@ -109,7 +109,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' draw_scatter(iris$Sepal.Length, iris$Petal.Length,
 #'   fit = "gam", se_fit = TRUE, group = iris$Species
@@ -897,7 +896,6 @@ draw_scatter <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' x <- rnorm(500)
 #' y <- x + rnorm(500)

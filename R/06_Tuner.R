@@ -162,7 +162,6 @@ GridSearchConfig <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' gridsearch_config <- setup_GridSearch(
 #'   resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold"),
@@ -380,6 +379,14 @@ method(repr, GridSearch) <- function(
 #' @author EDG
 #' @keywords internal
 #' @export
+#' @examples
+#' .list_to_TunerConfig(list(
+#'   type = "GridSearch",
+#'   config = list(
+#'     resampler_config = list(type = "KFold", n = 5L),
+#'     search_type = "exhaustive"
+#'   )
+#' ))
 .list_to_TunerConfig <- function(x) {
   if (x[["type"]] == "GridSearch") {
     setup_GridSearch(

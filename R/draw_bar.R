@@ -73,7 +73,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' draw_bar(VADeaths, legend_xy = c(0, 1))
 #' draw_bar(VADeaths, legend_xy = c(1, 1), legend_xanchor = "left")

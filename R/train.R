@@ -117,7 +117,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' \donttest{
 #' iris_c_lightRF <- train(

@@ -96,7 +96,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' datetime <- seq(
 #'   as.POSIXct("2020-01-01 00:00"),

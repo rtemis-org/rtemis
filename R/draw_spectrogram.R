@@ -55,7 +55,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' # Example data
 #' time <- seq(0, 10, length.out = 100)

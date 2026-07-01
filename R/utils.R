@@ -128,7 +128,6 @@ filter_order <- function(x, idl, decreasing = FALSE) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' x <- c(9, 3, 4, 4, 0, 2, 2, NA)
 #' get_mode(x)
@@ -182,7 +181,6 @@ get_mode <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' x <- rep(9, 1000000)
 #' is_constant(x)
@@ -266,7 +264,6 @@ singorplu <- function(n, x) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' x <- rnorm(20)
 #' size(x)
@@ -327,7 +324,6 @@ recycle <- function(x, target) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' x <- rnormmat(20, 5, mean = 12, sd = 6, return_df = TRUE, seed = 2026)
 #' x
@@ -374,7 +370,6 @@ rnormmat <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' x <- runifmat(20, 5, min = 12, max = 18, return_df = TRUE, seed = 2026)
 #' x
@@ -410,7 +405,6 @@ runifmat <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' rtversion()
 rtversion <- function() {
@@ -432,7 +426,6 @@ rtversion <- function() {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' setdiff(1:10, 1:5)
 #' setdiff(1:5, 1:10)
@@ -455,7 +448,6 @@ setdiffsym <- function(x, y) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' \dontrun{
 #' # Will create "my_project" directory with

@@ -39,14 +39,13 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' \dontrun{
-#'   # Requires local CSV file; replace with your own path
-#'   ir <- ddb_data("/Data/massive_dataset.csv",
-#'     filter_column = "ID",
-#'     filter_vals = 8001:9999
-#'   )
+#' # Requires local CSV file; replace with your own path
+#' ir <- ddb_data("/Data/massive_dataset.csv",
+#'   filter_column = "ID",
+#'   filter_vals = 8001:9999
+#' )
 #' }
 ddb_data <- function(
   filename,
@@ -205,12 +204,11 @@ ls2sel <- function(x) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' \dontrun{
-#'   # Requires local CSV file; replace with your own path
-#'   sql <- ddb_data("/Data/iris.csv", collect = FALSE)
-#'   ir <- ddb_collect(sql)
+#' # Requires local CSV file; replace with your own path
+#' sql <- ddb_data("/Data/iris.csv", collect = FALSE)
+#' ir <- ddb_collect(sql)
 #' }
 ddb_collect <- function(
   sql,

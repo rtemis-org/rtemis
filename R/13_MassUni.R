@@ -104,7 +104,6 @@ method(print, MassGLM) <- function(x, output_type = NULL, ...) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' set.seed(2019)
 #' y <- rnormmat(500, 500, return_df = TRUE)
@@ -189,7 +188,6 @@ plot.MassGLM <- method(plot, MassGLM) <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' # x: outcome of interest as first column, optional covariates in the other columns
 #' # y: features whose association with x we want to study

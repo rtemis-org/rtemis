@@ -88,7 +88,6 @@ method(print, ClusterConfig) <- function(x, output_type = NULL, ...) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' cc <- setup_ClusterConfig(
 #'   dat_path = "data.csv",

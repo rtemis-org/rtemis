@@ -28,7 +28,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' x <- setup_SuperConfig(
 #'   dat_training_path = "~/Data/iris.csv",

@@ -201,7 +201,6 @@ PCAConfig <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' pca_config <- setup_PCA(k = 3L)
 #' pca_config
@@ -282,7 +281,6 @@ ICAConfig <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' ica_config <- setup_ICA(k = 3L)
 #' ica_config
@@ -361,7 +359,6 @@ NMFConfig <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' nmf_config <- setup_NMF(k = 3L)
 #' nmf_config
@@ -450,7 +447,6 @@ UMAPConfig <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' umap_config <- setup_UMAP(k = 3L)
 #' umap_config
@@ -598,7 +594,6 @@ tSNEConfig <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' tSNE_config <- setup_tSNE(k = 3L)
 #' tSNE_config
@@ -699,7 +694,6 @@ IsomapConfig <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' isomap_config <- setup_Isomap(k = 3L)
 #' isomap_config

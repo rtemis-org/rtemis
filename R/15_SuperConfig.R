@@ -107,7 +107,6 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' sc <- setup_SuperConfig(
 #'   dat_training_path = "train.csv",
@@ -388,6 +387,14 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 #'
 #' @author EDG
 #' @export
+#' @examples
+#' scl <- setup_SuperConfigLive(
+#'   dat_training = iris,
+#'   algorithm = "LightGBM",
+#'   hyperparameters = setup_LightGBM(),
+#'   outer_resampling_config = setup_Resampler(),
+#'   question = "Can we tell iris species apart given their measurements?"
+#' )
 setup_SuperConfigLive <- function(
   dat_training,
   dat_validation = NULL,

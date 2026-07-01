@@ -309,7 +309,6 @@ labels2int <- function(x, binclasspos = 2L) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' # Assume positive class is "b"
 #' true_labels <- factor(c("a", "a", "a", "b", "b", "b", "b", "b", "b", "b"))
@@ -471,7 +470,6 @@ classification_metrics <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' true <- rnorm(100)
 #' predicted <- true + rnorm(100, sd = 0.5)

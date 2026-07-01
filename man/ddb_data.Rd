@@ -78,11 +78,11 @@ clean column names, convert character to factor, collect.
 }
 \examples{
 \dontrun{
-  # Requires local CSV file; replace with your own path
-  ir <- ddb_data("/Data/massive_dataset.csv",
-    filter_column = "ID",
-    filter_vals = 8001:9999
-  )
+# Requires local CSV file; replace with your own path
+ir <- ddb_data("/Data/massive_dataset.csv",
+  filter_column = "ID",
+  filter_vals = 8001:9999
+)
 }
 }
 \author{

@@ -23,7 +23,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")
 decomp <- function(

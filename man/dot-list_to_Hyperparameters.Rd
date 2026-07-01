@@ -21,6 +21,9 @@ A \code{Hyperparameters} object as returned by \verb{setup_<algorithm>()}.
 Internal function used by \code{rtemis.server} to reconstruct a \code{Hyperparameters}
 object from a wire-format list. Not intended for direct use by end users.
 }
+\examples{
+.list_to_Hyperparameters(list(algorithm = "GLMNET", hyperparameters = list(alpha = 1)))
+}
 \author{
 EDG
 }

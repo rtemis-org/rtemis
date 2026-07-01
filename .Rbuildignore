@@ -24,3 +24,5 @@
 ^justfile$
 ^SKILL\.md$
 ^.*\.pdf$
+^CRAN-SUBMISSION$
+^WORDLIST$

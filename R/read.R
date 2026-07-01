@@ -52,7 +52,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' \dontrun{
 #' # Replace with your own data directory and filename

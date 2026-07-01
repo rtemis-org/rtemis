@@ -20,6 +20,9 @@ must carry an \code{algorithm} element naming a decomposition algorithm that can
 be applied on new data (see \code{decom_algorithms_applicable}); the remaining
 elements are passed to that algorithm's \verb{setup_*} function.
 }
+\examples{
+.list_to_DecompositionConfig(list(algorithm = "PCA", k = 3L))
+}
 \author{
 EDG
 }
