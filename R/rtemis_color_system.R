@@ -19,7 +19,6 @@ col_calibrator <- rtemis_colors[["purple"]]
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' show_color_key()
 show_color_key <- function() {

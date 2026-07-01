@@ -38,7 +38,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' draw_pie(VADeaths[, 1, drop = FALSE])
 draw_pie <- function(

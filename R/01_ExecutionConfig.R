@@ -115,7 +115,6 @@ default_n_workers <- function(omit = 3L) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' setup_ExecutionConfig(backend = "future", n_workers = 4L, future_plan = "multisession")
 setup_ExecutionConfig <- function(

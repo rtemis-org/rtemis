@@ -13,6 +13,9 @@ describe(x, verbosity = 1L, ...)
 
 \item{...}{Additional arguments passed to methods.}
 }
+\value{
+Character, invisibly.
+}
 \description{
 Describe object
 }

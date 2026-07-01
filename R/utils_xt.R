@@ -15,7 +15,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' # Load example longitudinal dataset
 #' data(xt_example)

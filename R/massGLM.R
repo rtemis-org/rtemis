@@ -18,7 +18,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' set.seed(2022)
 #' y <- rnormmat(500, 40, return_df = TRUE)

@@ -10,7 +10,7 @@
 #' curve data is needed without plotly (e.g. shipping the curve to a client).
 #'
 #' Binary problems yield a single curve for the positive class (the second
-#' level of `true_labels`, rtemis's convention); multiclass problems yield one
+#' level of `true_labels`, rtemis convention); multiclass problems yield one
 #' one-vs-rest curve per class. Points are ordered along the curve; pass
 #' `max_points` to down-sample very long curves (one vertex per distinct score)
 #' to a compact, smooth line.
@@ -30,7 +30,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' true_labels <- factor(c("A", "B", "A", "A", "B", "A", "B", "B", "A", "B"))
 #' predicted_prob <- c(0.1, 0.4, 0.35, 0.8, 0.65, 0.2, 0.9, 0.55, 0.3, 0.7)
@@ -162,7 +161,6 @@ roc_curve <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' # Binary classification
 #' true_labels <- factor(c("A", "B", "A", "A", "B", "A", "B", "B", "A", "B"))

@@ -111,6 +111,9 @@ method(print, Decomposition) <- function(
 #' feature columns that were not decomposed.
 #' @author EDG
 #' @export
+#' @examples
+#' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")
+#' apply_decomp(iris_pca, exc(iris, "Species"))
 apply_decomp <- function(decom, new_data, verbosity = 1L) {
   check_is_S7(decom, Decomposition)
   if (!decom@algorithm %in% decom_algorithms_applicable) {
@@ -176,6 +179,8 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
 #' @author EDG
 #' @keywords internal
 #' @export
+#' @examples
+#' .list_to_DecompositionConfig(list(algorithm = "PCA", k = 3L))
 .list_to_DecompositionConfig <- function(x) {
   algorithm <- x[["algorithm"]]
   if (is.null(algorithm)) {

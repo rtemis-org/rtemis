@@ -66,7 +66,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' draw_3Dscatter(iris, group = iris$Species, theme = theme_darkgraygrid())
 draw_3Dscatter <- function(

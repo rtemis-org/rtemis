@@ -22,7 +22,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' y <- rnorm(200)
 #' # 10-fold (stratified)

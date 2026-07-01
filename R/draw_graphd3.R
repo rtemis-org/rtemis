@@ -21,7 +21,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' library(igraph)
 #' g <- make_ring(10)

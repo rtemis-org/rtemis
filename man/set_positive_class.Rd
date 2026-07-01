@@ -17,6 +17,12 @@ Tabular data of the same class as \code{x}, with the positive class set as the s
 \description{
 Checks and sets the positive class for binary classification in a tabular dataset.
 }
+\examples{
+dat <- data.frame(x = rnorm(100), y = factor(sample(c("Case", "Control"), 100, replace = TRUE)))
+levels(dat[["y"]])
+dat <- set_positive_class(dat, "Case")
+levels(dat[["y"]])
+}
 \author{
 EDG
 }

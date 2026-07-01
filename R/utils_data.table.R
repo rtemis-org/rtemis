@@ -13,7 +13,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' ir <- as.data.table(iris)
@@ -53,7 +52,6 @@ dt_nunique_perfeat <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' x <- data.table(
@@ -127,7 +125,6 @@ dt_keybin_reshape <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' xleft <- data.table(ID = 1:5, Alpha = letters[1:5])
@@ -246,7 +243,6 @@ dt_merge <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' x <- as.data.table(iris)
@@ -282,7 +278,6 @@ dt_set_cleanfactorlevels <- function(x, prefix_digits = NA) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' x <- data.table(ID = 1:5, Alpha = letters[1:5])
@@ -334,7 +329,6 @@ dt_pctmatch <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' x <- data.table(a = c(1, 2, NA, 4), b = c(NA, NA, 3, 4), c = c("A", "B", "C", NA))
@@ -365,7 +359,6 @@ dt_pctmissing <- function(x, verbosity = 1L) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' x <- data.table(a = 1:5, b = c(TRUE, FALSE, FALSE, FALSE, TRUE))
@@ -435,7 +428,6 @@ dt_set_logical2factor <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' x <- data.table(
@@ -475,7 +467,6 @@ dt_inspect_types <- function(x, cols = NULL, verbosity = 1L) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' x <- data.table(
@@ -532,7 +523,6 @@ dt_set_autotypes <- function(x, cols = NULL, verbosity = 1L) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' x <- data.table(
@@ -574,7 +564,6 @@ dt_names_by_attr <- function(x, attribute, exact = TRUE, sorted = TRUE) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' x <- as.data.table(iris)
@@ -614,7 +603,6 @@ dt_set_clean_all <- function(x, prefix_digits = NA) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' origin <- as.POSIXct("2022-01-01 00:00:00", tz = "America/Los_Angeles")

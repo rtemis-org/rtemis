@@ -29,7 +29,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #'  df <- data.frame(
 #'    Name = c("Alice", "Bob", "Charlie"),

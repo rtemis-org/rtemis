@@ -22,5 +22,8 @@
 ^NEWS\.md$
 ^pkgdown$
 ^justfile$
+^tools$
 ^SKILL\.md$
 ^.*\.pdf$
+^CRAN-SUBMISSION$
+^WORDLIST$

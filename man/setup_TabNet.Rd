@@ -111,7 +111,7 @@ counter.}
 \item{early_stopping_patience}{Positive integer: Number of epochs without improving before
 stopping.}
 
-\item{num_workers}{Positive integer: Number of subprocesses for data loacding.}
+\item{num_workers}{Positive integer: Number of subprocesses for data loading.}
 
 \item{skip_importance}{Logical: If TRUE, skip importance calculation.}
 

@@ -73,7 +73,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' # Will automatically use only numeric columns
 #' draw_dist(iris)

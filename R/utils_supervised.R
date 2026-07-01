@@ -76,7 +76,6 @@ check_supervised_inputs <- function(x, y = NULL) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' ir <- set_outcome(iris, "Sepal.Length")
 #' head(ir)
@@ -112,6 +111,11 @@ set_outcome <- function(dat, outcome_column) {
 #' @return Tabular data of the same class as `x`, with the positive class set as the second level of the outcome factor.
 #' @author EDG
 #' @export
+#' @examples
+#' dat <- data.frame(x = rnorm(100), y = factor(sample(c("Case", "Control"), 100, replace = TRUE)))
+#' levels(dat[["y"]])
+#' dat <- set_positive_class(dat, "Case")
+#' levels(dat[["y"]])
 set_positive_class <- function(x, positive_class) {
   # Check outcome is factor with 2 levels and positive_class is one of them
   if (!is.factor(outcome(x))) {
@@ -246,7 +250,9 @@ glm2table <- function(x, xnames = NULL, include_anova = NA) {
   #   }
   # }
 
-  term_labels <- x[[1]] |> terms() |> attr("term.labels")
+  term_labels <- x[[1]] |>
+    terms() |>
+    attr("term.labels")
 
   if (1 %in% include_anova) {
     pvals1 <- t(sapply(
@@ -357,7 +363,6 @@ get_gam_pvals <- function(m, warn = TRUE) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' # iris is perfectly balanced
 #' class_imbalance(iris[["Species"]])

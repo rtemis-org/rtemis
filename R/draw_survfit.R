@@ -27,7 +27,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' # Get the lung dataset
 #' data(cancer, package = "survival")

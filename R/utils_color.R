@@ -92,7 +92,6 @@ color_op <- function(col, fn = c("invert", "mean"), space = c("HSV", "RGB")) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' col2grayscale("red")
 #' col2grayscale("red", "dec")
@@ -261,7 +260,6 @@ col2hex <- function(color) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' previewcolor(c(teal = "#00ffff", teal50 = color_adjust("#00ffff", alpha = 0.5)))
 color_adjust <- function(color, alpha = NULL, hue = 0, sat = 0, val = 0) {
@@ -307,7 +305,6 @@ color_adjust <- function(color, alpha = NULL, hue = 0, sat = 0, val = 0) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' previewcolor(get_palette("rtms"))
 previewcolor <- function(

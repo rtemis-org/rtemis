@@ -32,7 +32,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' # Create a SuperConfig object
 #' x <- setup_SuperConfig(

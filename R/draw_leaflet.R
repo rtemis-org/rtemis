@@ -34,7 +34,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' fips <- c(06075, 42101)
 #' population <- c(874961, 1579000)

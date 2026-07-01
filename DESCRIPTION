@@ -102,6 +102,7 @@ Suggests:
     vroom,
     withr
 Encoding: UTF-8
+Language: en-US
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 LazyData: true

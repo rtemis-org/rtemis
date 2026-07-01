@@ -29,6 +29,10 @@ learned components, in the layout \verb{[kept features, components]}. When
 \code{features} is \code{NULL} (the standalone default), all columns of \code{new_data} are
 decomposed and only the components are returned.
 }
+\examples{
+iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")
+apply_decomp(iris_pca, exc(iris, "Species"))
+}
 \author{
 EDG
 }

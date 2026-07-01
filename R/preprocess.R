@@ -859,7 +859,6 @@ method(one_hot, class_data.table) <- function(x, verbosity = 1L) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' ir <- data.table::as.data.table(iris)
 #' # dt_set_one_hot operates ***in-place***; therefore no assignment is used:
@@ -904,7 +903,6 @@ dt_set_one_hot <- function(x, xname = NULL, verbosity = 1L) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' x <- data.frame(matrix(FALSE, 10, 3))
 #' colnames(x) <- c("Dx1", "Dx2", "Dx3")
@@ -930,6 +928,13 @@ one_hot2factor <- function(x, labels = colnames(x)) {
 
 #' Binary matrix times character vector
 #'
+#' Collapse a binary indicator matrix into a character vector of labels. For each
+#' row, the labels of all columns equal to 1 are pasted together, comma-separated.
+#' This is the inverse of multi-hot encoding: unlike [one_hot2factor], which assumes
+#' a single 1 per row, `%BC%` supports rows with multiple 1s (multi-label data, e.g.
+#' multiple-choice survey responses, tags, or set membership). Rows of all zeros
+#' return `NA`.
+#'
 #' @param x A binary matrix or data.frame
 #' @param labels Character vector length equal to `ncol(x)`
 #'
@@ -937,6 +942,17 @@ one_hot2factor <- function(x, labels = colnames(x)) {
 #'
 #' @author EDG
 #' @export
+#' @examples
+#' # Multi-hot matrix: each row can belong to multiple categories
+#' x <- rbind(
+#'   c(1, 0, 1),
+#'   c(0, 1, 0),
+#'   c(1, 1, 1),
+#'   c(0, 0, 0)
+#' )
+#' labels <- c("apple", "banana", "cherry")
+#' x %BC% labels
+#' # -> "apple,cherry", "banana", "apple,banana,cherry", NA
 `%BC%` <- function(x, labels) {
   if (NCOL(x) == 1) {
     return(factor(x))
@@ -986,7 +1002,6 @@ binmat2lvec <- function(x, labels = colnames(x), return.list = FALSE) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' # reorder columns so that we have a categorical feature
 #' x <- set_outcome(iris, "Sepal.Length")

@@ -370,7 +370,6 @@ GLMHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' glm_hyperparams <- setup_GLM(ifw = TRUE)
 #' glm_hyperparams
@@ -419,7 +418,6 @@ GAMHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' gam_hyperparams <- setup_GAM(k = 5L, ifw = FALSE)
 #' gam_hyperparams
@@ -523,7 +521,6 @@ CARTHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' cart_hyperparams <- setup_CART(cp = 0.01, maxdepth = 10L, ifw = TRUE)
 #' cart_hyperparams
@@ -664,7 +661,6 @@ GLMNETHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' glm_hyperparams <- setup_GLMNET(alpha = 1, ifw = TRUE)
 #' glm_hyperparams
@@ -801,7 +797,6 @@ LightCARTHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' lightcart_hyperparams <- setup_LightCART(num_leaves = 32L, ifw = FALSE)
 #' lightcart_hyperparams
@@ -957,7 +952,6 @@ LightRFHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' lightrf_hyperparams <- setup_LightRF(nrounds = 1000L, ifw = FALSE)
 #' lightrf_hyperparams
@@ -1171,7 +1165,6 @@ method(update, LightGBMHyperparameters) <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' lightgbm_hyperparams <- setup_LightGBM(
 #'   max_nrounds = 500L,
@@ -1372,7 +1365,6 @@ LightRuleFitHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' lightrulefit_hyperparams <- setup_LightRuleFit(nrounds = 300L, max_depth = 3L)
 #' lightrulefit_hyperparams
@@ -1482,7 +1474,6 @@ IsotonicHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' isotonic_hyperparams <- setup_Isotonic(ifw = TRUE)
 #' isotonic_hyperparams
@@ -1564,7 +1555,6 @@ LinearSVMHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' linear_svm_hyperparams <- setup_LinearSVM(cost = 0.5, ifw = TRUE)
 #' linear_svm_hyperparams
@@ -1634,7 +1624,6 @@ RadialSVMHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' radial_svm_hyperparams <- setup_RadialSVM(cost = 10, gamma = 0.1, ifw = TRUE)
 #' radial_svm_hyperparams
@@ -1837,7 +1826,7 @@ TabNetHyperparameters <- new_class(
 #' counter.
 #' @param early_stopping_patience Positive integer: Number of epochs without improving before
 #' stopping.
-#' @param num_workers Positive integer: Number of subprocesses for data loacding.
+#' @param num_workers Positive integer: Number of subprocesses for data loading.
 #' @param skip_importance Logical: If TRUE, skip importance calculation.
 #' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
@@ -1845,7 +1834,6 @@ TabNetHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' tabnet_hyperparams <- setup_TabNet(epochs = 100L, learn_rate = 0.01)
 #' tabnet_hyperparams
@@ -2126,7 +2114,6 @@ RangerHyperparameters <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' ranger_hyperparams <- setup_Ranger(num_trees = 1000L, ifw = FALSE)
 #' ranger_hyperparams
@@ -2268,6 +2255,8 @@ stopifnot(all(
 #' @author EDG
 #' @keywords internal
 #' @export
+#' @examples
+#' .list_to_Hyperparameters(list(algorithm = "GLMNET", hyperparameters = list(alpha = 1)))
 .list_to_Hyperparameters <- function(x) {
   fn <- paste0("setup_", x[["algorithm"]])
   if (!exists(fn, mode = "function")) {

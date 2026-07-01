@@ -25,6 +25,15 @@ Internal function used by \code{rtemis.server} and \code{SuperConfig} deserializ
 to reconstruct a \code{TunerConfig} object from a named list. Not intended for
 direct use by end users.
 }
+\examples{
+.list_to_TunerConfig(list(
+  type = "GridSearch",
+  config = list(
+    resampler_config = list(type = "KFold", n = 5L),
+    search_type = "exhaustive"
+  )
+))
+}
 \author{
 EDG
 }

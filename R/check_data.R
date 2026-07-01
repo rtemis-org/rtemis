@@ -17,7 +17,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' n <- 1000
 #' x <- rnormmat(n, 50, return_df = TRUE)

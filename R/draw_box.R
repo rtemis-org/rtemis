@@ -122,7 +122,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' # A.1 Box plot of 4 variables
 #' draw_box(iris[, 1:4])

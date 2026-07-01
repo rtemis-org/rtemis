@@ -126,7 +126,6 @@ KMeansConfig <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' kmeans_config <- setup_KMeans(k = 4L, dist = "euclidean")
 #' kmeans_config
@@ -175,7 +174,6 @@ HardCLConfig <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' hardcl_config <- setup_HardCL(k = 4L, dist = "euclidean")
 #' hardcl_config
@@ -224,7 +222,6 @@ NeuralGasConfig <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' neuralgas_config <- setup_NeuralGas(k = 4L, dist = "euclidean")
 #' neuralgas_config
@@ -300,7 +297,6 @@ CMeansConfig <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' cmeans_config <- setup_CMeans(k = 4L, dist = "euclidean")
 #' cmeans_config
@@ -399,7 +395,6 @@ DBSCANConfig <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' dbscan_config <- setup_DBSCAN(eps = 0.5, min_points = 5L)
 #' dbscan_config

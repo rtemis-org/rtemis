@@ -108,7 +108,6 @@ method(describe, class_factor) <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' set.seed(2021)
 #' cases <- data.frame(
@@ -250,7 +249,6 @@ matchcases <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' x <- data.table(
@@ -285,7 +283,6 @@ index_col_by_attr <- function(x, name, value, exact = TRUE) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' library(data.table)
 #' x <- data.table(
@@ -323,7 +320,6 @@ table_column_attr <- function(x, attr = "source", useNA = "always") {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' names_by_class(iris)
 names_by_class <- function(
@@ -365,7 +361,6 @@ names_by_class <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' x <- c("3", "5", "undefined", "21", "4", NA)
 #' inspect_type(x)

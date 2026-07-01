@@ -30,6 +30,9 @@ Internal function used by \code{rtemis.server} and \code{SuperConfig} deserializ
 to reconstruct a \code{ResamplerConfig} object from a named list. Not intended
 for direct use by end users.
 }
+\examples{
+.list_to_ResamplerConfig(list(type = "KFold", n = 5L))
+}
 \author{
 EDG
 }

@@ -20,7 +20,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' getnames(iris, starts_with = "Sepal")
 #' getnames(iris, ends_with = "Width")
@@ -73,7 +72,6 @@ getnames <- function(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' mgetnames(iris, pattern = c("Sepal", "Petal"))
 #' mgetnames(iris, starts_with = "Sepal")
@@ -150,7 +148,6 @@ getdatenames <- function(x) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' getnamesandtypes(iris)
 getnamesandtypes <- function(x) {
@@ -172,7 +169,6 @@ getnamesandtypes <- function(x) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' df_nunique_perfeat(iris)
 df_nunique_perfeat <- function(x, excludeNA = FALSE) {
@@ -194,7 +190,6 @@ df_nunique_perfeat <- function(x, excludeNA = FALSE) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' ir <- df_movecolumn(iris, colname = "Species", to = 1L)
 df_movecolumn <- function(x, colname, to = ncol(x)) {

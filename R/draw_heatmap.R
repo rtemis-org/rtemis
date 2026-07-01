@@ -55,7 +55,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' x <- rnormmat(200, 20)
 #' xcor <- cor(x)

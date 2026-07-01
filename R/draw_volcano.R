@@ -79,7 +79,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' set.seed(2019)
 #' y <- rnormmat(500, 500, return_df = TRUE)

@@ -31,7 +31,7 @@ curve data is needed without plotly (e.g. shipping the curve to a client).
 }
 \details{
 Binary problems yield a single curve for the positive class (the second
-level of \code{true_labels}, rtemis's convention); multiclass problems yield one
+level of \code{true_labels}, rtemis convention); multiclass problems yield one
 one-vs-rest curve per class. Points are ordered along the curve; pass
 \code{max_points} to down-sample very long curves (one vertex per distinct score)
 to a compact, smooth line.

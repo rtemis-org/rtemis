@@ -37,7 +37,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' # synthetic data
 #' x <- rnorm(10)

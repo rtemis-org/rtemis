@@ -12,7 +12,6 @@
 #'
 #' @author E.D. Gennatas
 #' @export
-#'
 #' @examples
 #' \dontrun{
 #' # This gets the sequence from uniprot.org by default

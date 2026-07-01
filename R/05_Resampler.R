@@ -324,7 +324,6 @@ CustomConfig <- new_class(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' tenfold_resampler <- setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)
 #' tenfold_resampler
@@ -515,6 +514,8 @@ method(desc, Resampler) <- function(x) {
 #' @author EDG
 #' @keywords internal
 #' @export
+#' @examples
+#' .list_to_ResamplerConfig(list(type = "KFold", n = 5L))
 .list_to_ResamplerConfig <- function(x) {
   switch(
     x[["type"]],

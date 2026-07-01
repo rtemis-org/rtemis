@@ -26,7 +26,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' # Assume positive class is "b"
 #' true_labels <- factor(c("a", "a", "a", "b", "b", "b", "b", "b", "b", "b"))

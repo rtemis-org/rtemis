@@ -36,7 +36,6 @@ class_tabnet_fit <- new_S3_class("tabnet_fit")
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' mod <- train(iris, algorithm = "LightRF")
 #' get_varimp(mod)
@@ -53,7 +52,6 @@ get_varimp <- new_generic("get_varimp", "x")
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' inspect(iris)
 inspect <- new_generic("inspect", "x", function(x) {
@@ -81,7 +79,6 @@ inspect <- new_generic("inspect", "x", function(x) {
 #' @author EDG
 #' @rdname preprocess
 #' @export
-#'
 #' @examples
 #' # Setup a `Preprocessor`: this outputs a `PreprocessorConfig` object.
 #' prp <- setup_Preprocessor(remove_duplicates = TRUE, scale = TRUE, center = TRUE)
@@ -337,7 +334,6 @@ plot_metric <- new_generic("plot_metric", "x")
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' ir <- iris[51:150, ]
 #' ir[["Species"]] <- factor(ir[["Species"]])
@@ -365,9 +361,6 @@ plot_roc <- new_generic("plot_roc", "x")
 #'
 #' @author EDG
 #' @export
-#'
-#' @seealso [draw_varimp], which is called by this method
-#'
 #' @examplesIf interactive()
 #' ir <- set_outcome(iris, "Sepal.Length")
 #' seplen_cart <- train(ir, algorithm = "CART")
@@ -376,6 +369,8 @@ plot_roc <- new_generic("plot_roc", "x")
 #' plot_varimp(seplen_cart, orientation = "h")
 #' plot_varimp(seplen_cart, orientation = "h", plot_top = 3L)
 #' plot_varimp(seplen_cart, orientation = "h", plot_top = 0.5)
+#'
+#' @seealso [draw_varimp], which is called by this method
 plot_varimp <- new_generic("plot_varimp", "x")
 
 
@@ -394,7 +389,6 @@ plot_varimp <- new_generic("plot_varimp", "x")
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' x <- set_outcome(iris, "Sepal.Length")
 #' sepallength_glm <- train(x, algorithm = "GLM")
@@ -426,6 +420,8 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Additional arguments passed to methods.
 #'
+#' @return Character, invisibly.
+#'
 #' @details
 #' Extra arguments for `factor` method:
 #' - `max_n`: Integer: Return counts for up to this many levels.
@@ -434,7 +430,6 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' # --- For `Supervised` objects ---
 #' species_lightrf <- train(iris, algorithm = "lightrf")
@@ -471,7 +466,6 @@ describe <- new_generic("describe", "x", function(x, verbosity = 1L, ...) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' ir <- set_outcome(iris, "Sepal.Length")
 #' seplen_lightrf <- train(ir, algorithm = "lightrf")
@@ -577,6 +571,8 @@ to_html <- new_generic("to_html", "x")
 #' @author EDG
 #' @keywords internal
 #' @export
+#' @examples
+#' to_json(check_data(iris))
 to_json <- new_generic("to_json", "x")
 
 
@@ -630,7 +626,6 @@ method(to_json, S7_object) <- function(x, ...) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' inc(iris, c(3, 4)) |> head()
 #' inc(iris, c("Sepal.Length", "Species")) |> head()
@@ -649,7 +644,6 @@ inc <- new_generic("inc", "x", function(x, idx) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' exc(iris, "Species") |> head()
 #' exc(iris, c(1, 3)) |> head()
@@ -705,7 +699,6 @@ method(exc, list(class_data.table, class_double)) <- function(x, idx) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' outcome_name(iris)
 outcome_name <- new_generic("outcome_name", "x", function(x) {
@@ -733,7 +726,6 @@ method(outcome_name, class_data.frame) <- function(x) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' outcome(iris)
 outcome <- new_generic("outcome", "x", function(x) {
@@ -761,7 +753,6 @@ method(outcome, class_data.frame) <- function(x) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' features(iris) |> head()
 features <- new_generic("features", "x", function(x) {
@@ -807,7 +798,6 @@ method(features, class_data.table) <- function(x) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' numeric_features(iris) |> head()
 numeric_features <- new_generic("numeric_features", "x", function(x) {
@@ -841,7 +831,6 @@ method(numeric_features, class_data.table) <- function(x) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' feature_names(iris)
 feature_names <- new_generic("feature_names", "x", function(x) {
@@ -882,7 +871,6 @@ check_factor_levels <- new_generic("check_factor_levels", c("x"))
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' get_factor_names(iris)
 get_factor_names <- new_generic("get_factor_names", "x", function(x) {
@@ -925,7 +913,6 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' # --- Calibrate Classification ---
 #' dat <- iris[51:150, ]
@@ -1162,7 +1149,6 @@ scalar_int_pos <- S7::new_property(
 #' @return data.frame: The preprocessed data.
 #'
 #' @export
-#'
 #' @examples
 #' prp <- preprocess(iris, setup_Preprocessor(scale = TRUE, center = TRUE))
 #' preprocessed(prp)

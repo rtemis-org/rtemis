@@ -88,7 +88,6 @@ method(print, DecomposeConfig) <- function(x, output_type = NULL, ...) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' dc <- setup_DecomposeConfig(
 #'   dat_path = "data.csv",

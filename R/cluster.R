@@ -24,7 +24,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' iris_km <- cluster(exc(iris, "Species"), algorithm = "KMeans")
 cluster <- function(

@@ -15,7 +15,24 @@ x \%BC\% labels
 a character vector
 }
 \description{
-Binary matrix times character vector
+Collapse a binary indicator matrix into a character vector of labels. For each
+row, the labels of all columns equal to 1 are pasted together, comma-separated.
+This is the inverse of multi-hot encoding: unlike \link{one_hot2factor}, which assumes
+a single 1 per row, \verb{\%BC\%} supports rows with multiple 1s (multi-label data, e.g.
+multiple-choice survey responses, tags, or set membership). Rows of all zeros
+return \code{NA}.
+}
+\examples{
+# Multi-hot matrix: each row can belong to multiple categories
+x <- rbind(
+  c(1, 0, 1),
+  c(0, 1, 0),
+  c(1, 1, 1),
+  c(0, 0, 0)
+)
+labels <- c("apple", "banana", "cherry")
+x \%BC\% labels
+# -> "apple,cherry", "banana", "apple,banana,cherry", NA
 }
 \author{
 EDG

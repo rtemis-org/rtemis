@@ -1726,7 +1726,6 @@ rtemis_palettes <- list(
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' # Print available palettes
 #' get_palette()

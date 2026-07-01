@@ -261,7 +261,6 @@ get_decom_predict_fn <- function(algorithm) {
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' available_supervised()
 available_supervised <- function(verbosity = 1L) {
@@ -278,7 +277,6 @@ available_supervised <- function(verbosity = 1L) {
 
 #' @rdname available_algorithms
 #' @export
-#'
 #' @examples
 #' available_clustering()
 available_clustering <- function(verbosity = 1L) {
@@ -296,7 +294,6 @@ available_clustering <- function(verbosity = 1L) {
 
 #' @rdname available_algorithms
 #' @export
-#'
 #' @examples
 #' available_decomposition()
 available_decomposition <- function(verbosity = 1L) {
@@ -351,7 +348,6 @@ colnames(draw_fns) <- c("Function Name", "Description")
 #'
 #' @author EDG
 #' @export
-#'
 #' @examples
 #' available_draw()
 available_draw <- function(verbosity = 1L) {

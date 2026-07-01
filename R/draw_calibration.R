@@ -29,7 +29,6 @@
 #'
 #' @author EDG
 #' @export
-#'
 #' @examplesIf interactive()
 #' # Synthetic data with n cases
 #' n <- 500L

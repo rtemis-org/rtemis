@@ -32,6 +32,9 @@ override where the default isn't appropriate (e.g. classes whose props
 include a \code{data.table}, an opaque model fit, or where some props should
 be excluded for size or relevance reasons).
 }
+\examples{
+to_json(check_data(iris))
+}
 \author{
 EDG
 }
