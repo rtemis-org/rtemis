@@ -34,10 +34,7 @@ draw_spectrogram(
   mid = NULL,
   midhi = NULL,
   hi = "#F48024",
-  grid_gap = 0,
-  limits = NULL,
   main = NULL,
-  key_title = NULL,
   showticklabels = NULL,
   theme = choose_theme(getOption("rtemis_theme")),
   font_size = NULL,
@@ -47,8 +44,7 @@ draw_spectrogram(
   filename = NULL,
   file_width = 500,
   file_height = 500,
-  file_scale = 1,
-  ...
+  file_scale = 1
 )
 }
 \arguments{
@@ -110,13 +106,7 @@ draw_spectrogram(
 
 \item{hi}{Character: High color for gradient.}
 
-\item{grid_gap}{Integer: Space between cells.}
-
-\item{limits}{Numeric, length 2: Determine color range. Default = NULL, which automatically centers values around 0.}
-
 \item{main}{Character: Main title.}
-
-\item{key_title}{Character: Title of the key.}
 
 \item{showticklabels}{Logical: If TRUE, show tick labels.}
 
@@ -124,21 +114,19 @@ draw_spectrogram(
 
 \item{font_size}{Numeric: Font size.}
 
-\item{padding}{Numeric: Padding between cells.}
+\item{padding}{Numeric: Padding around the plot, in pixels.}
 
 \item{displayModeBar}{Logical: If TRUE, display the plotly mode bar.}
 
 \item{modeBar_file_format}{Character: File format for image exports from the mode bar.}
 
-\item{filename}{Character: Filename to save the plot. Default is NULL.}
+\item{filename}{Character: Filename to save the plot.}
 
 \item{file_width}{Numeric: Width of exported image.}
 
 \item{file_height}{Numeric: Height of exported image.}
 
 \item{file_scale}{Numeric: Scale of exported image.}
-
-\item{...}{Additional arguments to be passed to \code{heatmaply::heatmaply}.}
 }
 \value{
 \code{plotly} object.

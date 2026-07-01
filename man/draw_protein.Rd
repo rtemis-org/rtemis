@@ -142,7 +142,7 @@ middle.}
 
 \item{main_yanchor}{Character: yanchor for title.}
 
-\item{layout}{Character: "1curve", "grid": type of layout to use.}
+\item{layout}{Character: "simple", "grid", "1curve", "2curve": type of layout to use.}
 
 \item{show_markers}{Logical: If TRUE, show amino acid markers.}
 
@@ -284,7 +284,7 @@ middle.}
 
 \item{xaxis_autorange}{Logical: If TRUE, use automatic range for x axis.}
 
-\item{yaxis_autorange}{Character: If TRUE, use automatic range for y axis.}
+\item{yaxis_autorange}{Logical: If TRUE, use automatic range for y axis.}
 
 \item{scaleanchor_y}{Character: Scale anchor for y axis.}
 

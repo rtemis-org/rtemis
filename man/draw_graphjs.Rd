@@ -28,9 +28,7 @@ draw_graphjs(
   main = "",
   theme = choose_theme(getOption("rtemis_theme")),
   palette = getOption("rtemis_palette", "rtms"),
-  mar = rep(0, 4),
   filename = NULL,
-  verbosity = 1L,
   ...
 )
 }
@@ -47,7 +45,7 @@ draw_graphjs(
 
 \item{vertex_frame_col}{Color for vertex border (frame).}
 
-\item{vertex_label}{Character vector: Vertex labels. Default = NULL, which will keep existing names in \code{net} if any. Set to NA to avoid printing vertex labels.}
+\item{vertex_label}{Character vector: Vertex labels. If NULL, keep existing names in \code{net} if any. Set to NA to avoid printing vertex labels.}
 
 \item{vertex_shape}{Character, vector, length 1 or N nodes: Vertex shape. See \code{graphjs("vertex_shape")}.}
 
@@ -81,13 +79,9 @@ draw_graphjs(
 
 \item{palette}{Color vector or name of rtemis palette.}
 
-\item{mar}{Numeric vector, length 4: \code{par}'s margin argument.}
-
 \item{filename}{Character: If provided, save plot to this filepath.}
 
-\item{verbosity}{Integer: Verbosity level.}
-
-\item{...}{Extra arguments to pass to \code{igraph::plot.igraph()}.}
+\item{...}{Extra arguments to pass to \code{threejs::graphjs()}.}
 }
 \value{
 \code{scatterplotThree} object.

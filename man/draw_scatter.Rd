@@ -11,8 +11,7 @@ draw_scatter(
   se_fit = FALSE,
   se_times = 1.96,
   include_fit_name = TRUE,
-  cluster = NULL,
-  cluster_config = list(k = 2),
+  clustering_config = NULL,
   group = NULL,
   rsq = TRUE,
   mode = "markers",
@@ -118,9 +117,7 @@ draw_scatter(
 
 \item{include_fit_name}{Logical: If TRUE, include fit name in legend.}
 
-\item{cluster}{Character: Clustering method.}
-
-\item{cluster_config}{List: Config for clustering.}
+\item{clustering_config}{\code{ClusteringConfig} object: If provided, cluster on \code{x} and \code{y} and pass clusters to \code{group}.}
 
 \item{group}{Factor: Grouping variable.}
 
@@ -258,7 +255,8 @@ draw_scatter(
 
 \item{diagonal_col}{Color for diagonal line.}
 
-\item{diagonal_dash}{Character: "solid", "dash", "dot", "dashdot", "longdash", "longdashdot". Dash type for diagonal line.}
+\item{diagonal_dash}{Character \{"solid", "dash", "dot", "dashdot", "longdash", "longdashdot"\}:
+Dash type for diagonal line.}
 
 \item{diagonal_alpha}{Numeric: Alpha for diagonal line.}
 

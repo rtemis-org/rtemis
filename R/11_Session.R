@@ -494,7 +494,7 @@ session_render <- function(rec, phase, verbosity = 1L) {
 #' session is active.
 #'
 #' @param meta List: Metadata to merge.
-#' @param node_id Optional Character: Target node; defaults to the current stack top.
+#' @param node_id Optional Character: Target node; if NULL, the current stack top.
 #'
 #' @return Invisible NULL.
 #'

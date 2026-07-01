@@ -41,7 +41,8 @@ draw_varimp(
 
 \item{ylab}{Character: y-axis label.}
 
-\item{plot_top}{Integer: Plot this many top features.}
+\item{plot_top}{Numeric: Number of top features to plot if > 1, or the
+proportion of features to plot if <= 1 (e.g. 1 plots all features).}
 
 \item{orientation}{Character: "h" or "v".}
 

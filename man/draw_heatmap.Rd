@@ -50,23 +50,23 @@ draw_heatmap(
 \arguments{
 \item{x}{Input matrix.}
 
-\item{Rowv}{Logical or dendrogram. If Logical: Compute dendrogram and reorder rows. Defaults to FALSE. If dendrogram: use as is, without reordering. See more at \code{heatmaply::heatmaply("Rowv")}.}
+\item{Rowv}{Logical or dendrogram. If Logical: Compute dendrogram and reorder rows. If dendrogram: use as is, without reordering. See more at \code{heatmaply::heatmaply("Rowv")}.}
 
-\item{Colv}{Logical or dendrogram. If Logical: Compute dendrogram and reorder columns. Defaults to FALSE. If dendrogram: use as is, without reordering. See more at \code{heatmaply::heatmaply("Colv")}.}
+\item{Colv}{Logical or dendrogram. If Logical: Compute dendrogram and reorder columns. If dendrogram: use as is, without reordering. See more at \code{heatmaply::heatmaply("Colv")}.}
 
 \item{cluster}{Logical: If TRUE, set \code{Rowv} and \code{Colv} to TRUE.}
 
 \item{symm}{Logical: If TRUE, treat \code{x} symmetrically - \code{x} must be a square matrix.}
 
-\item{cellnote}{Matrix with values to be displayed on hover. Defaults to \code{ddSci(x)}.}
+\item{cellnote}{Matrix with values to be displayed on hover. Set to "values" to display \code{ddSci(x)}.}
 
-\item{colorgrad_n}{Integer: Number of colors in gradient. Default = 101.}
+\item{colorgrad_n}{Integer: Number of colors in gradient.}
 
 \item{colors}{Character vector: Colors to use in gradient.}
 
-\item{space}{Character: Color space to use. Default = "rgb".}
+\item{space}{Character: Color space to use.}
 
-\item{lo}{Character: Color for low values. Default = "#18A3AC".}
+\item{lo}{Character: Color for low values.}
 
 \item{lomid}{Character: Color for low-mid values.}
 
@@ -74,15 +74,15 @@ draw_heatmap(
 
 \item{midhi}{Character: Color for mid-high values.}
 
-\item{hi}{Character: Color for high values. Default = "#F48024".}
+\item{hi}{Character: Color for high values.}
 
-\item{k_row}{Integer: Number of desired number of groups by which to color dendrogram branches in the rows. Default = 1.}
+\item{k_row}{Integer: Number of desired number of groups by which to color dendrogram branches in the rows.}
 
-\item{k_col}{Integer: Number of desired number of groups by which to color dendrogram branches in the columns. Default = 1.}
+\item{k_col}{Integer: Number of desired number of groups by which to color dendrogram branches in the columns.}
 
-\item{grid_gap}{Integer: Space between cells. Default = 0 (no space).}
+\item{grid_gap}{Integer: Space between cells.}
 
-\item{limits}{Float, length 2: Determine color range. Default = NULL, which automatically centers values around 0.}
+\item{limits}{Float, length 2: Determine color range. If NULL, automatically centers values around 0.}
 
 \item{margins}{Float, length 4: Heatmap margins.}
 
@@ -98,7 +98,7 @@ draw_heatmap(
 
 \item{colorbar_len}{Numeric: Length of the colorbar.}
 
-\item{plot_method}{Character: Plot method to use. Default = "plotly".}
+\item{plot_method}{Character: Plot method to use.}
 
 \item{theme}{\code{Theme} object.}
 
@@ -112,7 +112,7 @@ draw_heatmap(
 
 \item{font_size}{Numeric: Font size.}
 
-\item{padding}{Numeric: Padding between cells.}
+\item{padding}{Numeric: Padding around the plot, in pixels.}
 
 \item{displayModeBar}{Logical: If TRUE, display the plotly mode bar.}
 
@@ -129,7 +129,7 @@ draw_heatmap(
 \item{...}{Additional arguments to be passed to \code{heatmaply::heatmaply}.}
 }
 \value{
-\code{plotly} object.`
+\code{plotly} object.
 }
 \description{
 Draw interactive heatmaps using \code{heatmaply}.

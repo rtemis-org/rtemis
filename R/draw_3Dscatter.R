@@ -15,13 +15,11 @@
 #' @param y Numeric, vector/data.frame/list: y-axis data.
 #' @param z Numeric, vector/data.frame/list: z-axis data.
 #' @param fit Character: Fit method.
-#' @param cluster Character: Clustering method.
-#' @param cluster_config List: Config for clustering.
+#' @param clustering_config `ClusteringConfig` object: If provided, cluster on `x`, `y`, and `z` and pass clusters to `group`.
 #' @param group Factor: Grouping variable.
-#' @param formula Formula: Formula for non-linear least squares fit.
 #' @param rsq Logical: If TRUE, print R-squared values in legend if `fit` is set.
 #' @param mode Character, vector: "markers", "lines", "markers+lines".
-#' @param order_on_x Logical: If TRUE, order `x` and `y` on `x`.
+#' @param order_on_x Logical: If TRUE, order `x`, `y`, and `z` on `x`.
 #' @param main Character: Main title.
 #' @param xlab Character: x-axis label.
 #' @param ylab Character: y-axis label.
@@ -37,7 +35,7 @@
 #' @param marker_col Color for markers.
 #' @param marker_size Numeric: Marker size.
 #' @param fit_col Color for fit line.
-#' @param fit_alpha Numeric: Alpha for fit line.
+#' @param fit_alpha Numeric: Alpha for fit surface.
 #' @param fit_lwd Numeric: Line width for fit line.
 #' @param tick_font_size Numeric: Tick font size.
 #' @param spike_col Spike lines color.
@@ -76,10 +74,8 @@ draw_3Dscatter <- function(
   y = NULL,
   z = NULL,
   fit = NULL,
-  cluster = NULL,
-  cluster_config = NULL,
+  clustering_config = NULL,
   group = NULL,
-  formula = NULL,
   rsq = TRUE,
   mode = "markers",
   order_on_x = NULL,
@@ -164,15 +160,11 @@ draw_3Dscatter <- function(
   }
 
   # Cluster ----
-  if (!is.null(cluster)) {
+  if (!is.null(clustering_config)) {
     group <- suppressWarnings(
       cluster(
-        x = data.frame(x, y),
-        algorithm = cluster,
-        config = do_call(
-          get_clust_setup_fn(cluster),
-          cluster_config
-        )
+        x = data.frame(x, y, z),
+        config = clustering_config
       )@clusters
     )
     group <- paste("Cluster", group)

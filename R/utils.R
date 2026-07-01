@@ -32,8 +32,8 @@ show_range <- function(x, ddSci = TRUE, decimal_places = 1, na.rm = TRUE) {
 #'   By default normalizes to 0-1 range.
 #'
 #' @param x Numeric vector or matrix / data frame: Input
-#' @param lo Target range minimum. Defaults to 0
-#' @param hi Target range maximum. Defaults to 1
+#' @param lo Target range minimum.
+#' @param hi Target range maximum.
 #' @param byCol Logical: If TRUE: if `x` is matrix, `drange` each
 #' column separately
 #'

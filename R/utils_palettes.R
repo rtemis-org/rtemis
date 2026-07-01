@@ -1717,7 +1717,7 @@ rtemis_palettes <- list(
 #' Each palette is a named list of hexadecimal color definitions which can be used with
 #' any graphics function.
 #'
-#' @param palette Character: Name of palette to return. Default = NULL: available palette
+#' @param palette Character: Name of palette to return. If NULL, available palette
 #' names are printed and no palette is returned.
 #' @param verbosity Integer: Verbosity level.
 #'

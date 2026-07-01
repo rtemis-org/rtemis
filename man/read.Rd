@@ -42,12 +42,12 @@ factors.}
 \item{delim_reader}{Character: package to use for reading delimited data.}
 
 \item{parquet_reader}{Character: package to use for reading Parquet files. If undefined and
-system is WASM, defaults to "nanoparquet", otherwise defaults to "arrow".}
+system is WASM, uses "nanoparquet", otherwise "arrow".}
 
 \item{xlsx_sheet}{Integer or character: Name or number of XLSX sheet to read.}
 
 \item{sep}{Single character: field separator. If \code{delim_reader = "fread"}
-and \code{sep = NULL}, this defaults to "auto", otherwise defaults to ",".}
+and \code{sep = NULL}, this is "auto", otherwise ",".}
 
 \item{quote}{Single character: quote character.}
 

@@ -11,23 +11,23 @@
 #' 'heatmaply' unfortunately forces loading of the 'colorspace' namespace.
 #'
 #' @param x Input matrix.
-#' @param Rowv Logical or dendrogram. If Logical: Compute dendrogram and reorder rows. Defaults to FALSE. If dendrogram: use as is, without reordering. See more at `heatmaply::heatmaply("Rowv")`.
-#' @param Colv Logical or dendrogram. If Logical: Compute dendrogram and reorder columns. Defaults to FALSE. If dendrogram: use as is, without reordering. See more at `heatmaply::heatmaply("Colv")`.
+#' @param Rowv Logical or dendrogram. If Logical: Compute dendrogram and reorder rows. If dendrogram: use as is, without reordering. See more at `heatmaply::heatmaply("Rowv")`.
+#' @param Colv Logical or dendrogram. If Logical: Compute dendrogram and reorder columns. If dendrogram: use as is, without reordering. See more at `heatmaply::heatmaply("Colv")`.
 #' @param cluster Logical: If TRUE, set `Rowv` and `Colv` to TRUE.
 #' @param symm Logical: If TRUE, treat `x` symmetrically - `x` must be a square matrix.
-#' @param cellnote Matrix with values to be displayed on hover. Defaults to `ddSci(x)`.
-#' @param colorgrad_n Integer: Number of colors in gradient. Default = 101.
+#' @param cellnote Matrix with values to be displayed on hover. Set to "values" to display `ddSci(x)`.
+#' @param colorgrad_n Integer: Number of colors in gradient.
 #' @param colors Character vector: Colors to use in gradient.
-#' @param space Character: Color space to use. Default = "rgb".
-#' @param lo Character: Color for low values. Default = "#18A3AC".
+#' @param space Character: Color space to use.
+#' @param lo Character: Color for low values.
 #' @param lomid Character: Color for low-mid values.
 #' @param mid Character: Color for mid values.
 #' @param midhi Character: Color for mid-high values.
-#' @param hi Character: Color for high values. Default = "#F48024".
-#' @param k_row Integer: Number of desired number of groups by which to color dendrogram branches in the rows. Default = 1.
-#' @param k_col Integer: Number of desired number of groups by which to color dendrogram branches in the columns. Default = 1.
-#' @param grid_gap Integer: Space between cells. Default = 0 (no space).
-#' @param limits Float, length 2: Determine color range. Default = NULL, which automatically centers values around 0.
+#' @param hi Character: Color for high values.
+#' @param k_row Integer: Number of desired number of groups by which to color dendrogram branches in the rows.
+#' @param k_col Integer: Number of desired number of groups by which to color dendrogram branches in the columns.
+#' @param grid_gap Integer: Space between cells.
+#' @param limits Float, length 2: Determine color range. If NULL, automatically centers values around 0.
 #' @param margins Float, length 4: Heatmap margins.
 #' @param main Character: Main title.
 #' @param xlab Character: x-axis label.
@@ -40,18 +40,18 @@
 #' @param col_side_colors Data frame: Column names will be label names, cells should be label colors. See `heatmaply::heatmaply("col_side_colors")`.
 #' @param col_side_palette Color palette function. See `heatmaply::heatmaply("col_side_palette")`.
 #' @param font_size Numeric: Font size.
-#' @param padding Numeric: Padding between cells.
+#' @param padding Numeric: Padding around the plot, in pixels.
 #' @param displayModeBar Logical: If TRUE, display the plotly mode bar.
 #' @param modeBar_file_format Character: File format for image exports from the mode bar.
 #' @param filename Character: File name to save the plot.
 #' @param file_width Numeric: Width of exported image.
 #' @param file_height Numeric: Height of exported image.
 #' @param file_scale Numeric: Scale of exported image.
-#' @param plot_method Character: Plot method to use. Default = "plotly".
+#' @param plot_method Character: Plot method to use.
 #' @param theme `Theme` object.
 #' @param ... Additional arguments to be passed to `heatmaply::heatmaply`.
 #'
-#' @return `plotly` object.`
+#' @return `plotly` object.
 #'
 #' @author EDG
 #' @export

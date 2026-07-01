@@ -25,12 +25,12 @@
 #' @param plot_bg Color: Background color for plot area.
 #' @param theme `Theme` object.
 #' @param palette Character: Color palette to use.
-#' @param axes_square Logical: If TRUE, draw a square plot to fill the graphic device. Default = FALSE.
+#' @param axes_square Logical: If TRUE, draw a square plot to fill the graphic device.
 #' @param group_names Character: Names for the groups.
 #' @param font_size Numeric: Font size for plot text.
 #' @param font_alpha Numeric: Alpha transparency for font.
-#' @param legend Logical: If TRUE, draw legend. Default = NULL, which will be set to TRUE if x is a list of more than 1 element.
-#' @param legend_xy Numeric, vector, length 2: Relative x, y position for legend. Default = c(0, 1).
+#' @param legend Logical: If TRUE, draw legend. If NULL, set to TRUE if x is a list of more than 1 element.
+#' @param legend_xy Numeric, vector, length 2: Relative x, y position for legend.
 #' @param legend_col Color: Color for the legend text.
 #' @param legend_bg Color: Background color for legend.
 #' @param legend_border_col Color: Border color for legend.
@@ -53,7 +53,7 @@
 #' @param zerolines Logical: If TRUE, draw lines at y = 0.
 #' @param density_kernel Character: Kernel to use for density estimation.
 #' @param density_bw Character: Bandwidth to use for density estimation.
-#' @param histnorm Character: NULL, "percent", "probability", "density", "probability density".
+#' @param histnorm Character: "", "density", "percent", "probability", "probability density".
 #' @param histfunc Character: "count", "sum", "avg", "min", "max".
 #' @param hist_n_bins Integer: Number of bins to use if type = "histogram".
 #' @param barmode Character: Barmode for histogram. One of "overlay", "stack", "relative", "group".
@@ -61,9 +61,9 @@
 #' @param ridge_y_labs Logical: If TRUE, show individual y labels when `mode = "ridge"`.
 #' @param ridge_order_on_mean Logical: If TRUE, order groups by mean value when `mode = "ridge"`.
 #' @param displayModeBar Logical: If TRUE, display the mode bar.
-#' @param modeBar_file_format Character: File format for mode bar. Default = "svg".
-#' @param width Numeric: Force plot size to this width. Default = NULL, i.e. fill available space.
-#' @param height Numeric: Force plot size to this height. Default = NULL, i.e. fill available space.
+#' @param modeBar_file_format Character: File format for mode bar.
+#' @param width Numeric: Force plot size to this width. If NULL, fill available space.
+#' @param height Numeric: Force plot size to this height. If NULL, fill available space.
 #' @param filename Character: Path to file to save static plot.
 #' @param file_width Integer: File width in pixels for when `filename` is set.
 #' @param file_height Integer: File height in pixels for when `filename` is set.

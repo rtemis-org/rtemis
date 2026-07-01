@@ -9,7 +9,7 @@
 #' @param x data.frame: Input: Either a) 1 numeric column with categories defined by rownames, or
 #' b) two columns, the first is category names, the second numeric or c) a numeric vector with categories defined using
 #' the `category.names` argument.
-#' @param main Character: Plot title. Default = NULL, which results in `colnames(x)[1]`.
+#' @param main Character: Plot title. If NULL, set to `colnames(x)[1]`.
 #' @param xlab Character: x-axis label.
 #' @param ylab Character: y-axis label.
 #' @param alpha Numeric: Alpha for the pie slices.
@@ -17,7 +17,7 @@
 #' @param plot_bg Character: Plot background color.
 #' @param theme `Theme` object.
 #' @param palette Character vector: Colors to use.
-#' @param category_names Character, vector, length = NROW(x): Category names. Default = NULL, which uses
+#' @param category_names Character, vector, length = NROW(x): Category names. If NULL, uses
 #' either `rownames(x)`, or the first column of `x` if `ncol(x) = 2`.
 #' @param textinfo Character: Info to show over each slice: "label", "percent", "label+percent".
 #' @param font_size Integer: Font size for labels.
@@ -26,7 +26,7 @@
 #' @param legend_col Character: Color for legend.
 #' @param sep_col Character: Separator color.
 #' @param margin List: Margin settings.
-#' @param padding Numeric: Padding between cells.
+#' @param padding Numeric: Padding around the plot, in pixels.
 #' @param displayModeBar Logical: If TRUE, display the plotly mode bar.
 #' @param modeBar_file_format Character: File format for image exports from the mode bar.
 #' @param filename Character: File name to save plot.

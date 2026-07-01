@@ -36,7 +36,7 @@ draw_pie(
 b) two columns, the first is category names, the second numeric or c) a numeric vector with categories defined using
 the \code{category.names} argument.}
 
-\item{main}{Character: Plot title. Default = NULL, which results in \code{colnames(x)[1]}.}
+\item{main}{Character: Plot title. If NULL, set to \code{colnames(x)[1]}.}
 
 \item{xlab}{Character: x-axis label.}
 
@@ -52,7 +52,7 @@ the \code{category.names} argument.}
 
 \item{palette}{Character vector: Colors to use.}
 
-\item{category_names}{Character, vector, length = NROW(x): Category names. Default = NULL, which uses
+\item{category_names}{Character, vector, length = NROW(x): Category names. If NULL, uses
 either \code{rownames(x)}, or the first column of \code{x} if \code{ncol(x) = 2}.}
 
 \item{textinfo}{Character: Info to show over each slice: "label", "percent", "label+percent".}
@@ -69,7 +69,7 @@ either \code{rownames(x)}, or the first column of \code{x} if \code{ncol(x) = 2}
 
 \item{margin}{List: Margin settings.}
 
-\item{padding}{Numeric: Padding between cells.}
+\item{padding}{Numeric: Padding around the plot, in pixels.}
 
 \item{displayModeBar}{Logical: If TRUE, display the plotly mode bar.}
 

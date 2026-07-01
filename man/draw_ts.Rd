@@ -48,8 +48,8 @@ draw_ts(
 
 \item{group}{Factor defining groups}
 
-\item{roll_fn}{Character: "mean", "median", "max", or "sum": Function to apply on
-rolling windows of \code{x}}
+\item{roll_fn}{Character: "mean", "median", "max", or "none": Function to apply on
+rolling windows of \code{x}. "none" disables the rolling line.}
 
 \item{roll_col}{Color for rolling line}
 

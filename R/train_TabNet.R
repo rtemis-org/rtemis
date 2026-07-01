@@ -46,7 +46,6 @@ method(train_, TabNetHyperparameters) <- function(
     allow_missing = FALSE,
     verbosity = verbosity
   )
-  type <- supervised_type(x)
 
   # Scale data ----
   y <- outcome(x)

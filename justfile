@@ -24,10 +24,39 @@ format:
     fi
     @just _msg "Done"
 
+# Check R code formatting without modifying files (CI-friendly; fails if unformatted)
+format-check:
+    @just _msg "─── Checking formatting for {{ pkg }}... ───"
+    @if command -v air >/dev/null 2>&1; then \
+        air format --check .; \
+    else \
+        echo "   Error: 'air' CLI not found."; \
+        exit 1; \
+    fi
+    @just _msg "Done"
+
 # Generate roxygen2 documentation
 document: format
     @just _msg "─── Documenting {{ pkg }} package... ───"
     {{ rscript }} -e "roxygen2::roxygenize()"
+    @just _msg "Done"
+
+# Lint package source for unused objects (variables/arguments) with lintr
+lint:
+    @just _msg "─── Linting {{ pkg }} source for unused objects... ───"
+    {{ rscript }} -e "l <- lintr::lint_dir('R', linters = list(lintr::object_usage_linter())); print(l); if (length(l) > 0L) quit(status = 1L)"
+    @just _msg "Done"
+
+# Spell-check package; accepted technical terms live in inst/WORDLIST (see `spell-update`)
+spell:
+    @just _msg "─── Spell-checking {{ pkg }}... ───"
+    {{ rscript }} -e "r <- spelling::spell_check_package(); print(r); if (nrow(r) > 0L) quit(status = 1L)"
+    @just _msg "Done"
+
+# Add all current spell-check terms to inst/WORDLIST (review the diff before committing)
+spell-update:
+    @just _msg "─── Updating inst/WORDLIST for {{ pkg }}... ───"
+    {{ rscript }} -e "spelling::update_wordlist(confirm = FALSE)"
     @just _msg "Done"
 
 # Document and install the package locally with pak

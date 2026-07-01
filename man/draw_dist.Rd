@@ -87,7 +87,7 @@ draw_dist(
 
 \item{palette}{Character: Color palette to use.}
 
-\item{axes_square}{Logical: If TRUE, draw a square plot to fill the graphic device. Default = FALSE.}
+\item{axes_square}{Logical: If TRUE, draw a square plot to fill the graphic device.}
 
 \item{group_names}{Character: Names for the groups.}
 
@@ -95,9 +95,9 @@ draw_dist(
 
 \item{font_alpha}{Numeric: Alpha transparency for font.}
 
-\item{legend}{Logical: If TRUE, draw legend. Default = NULL, which will be set to TRUE if x is a list of more than 1 element.}
+\item{legend}{Logical: If TRUE, draw legend. If NULL, set to TRUE if x is a list of more than 1 element.}
 
-\item{legend_xy}{Numeric, vector, length 2: Relative x, y position for legend. Default = c(0, 1).}
+\item{legend_xy}{Numeric, vector, length 2: Relative x, y position for legend.}
 
 \item{legend_col}{Color: Color for the legend text.}
 
@@ -143,7 +143,7 @@ draw_dist(
 
 \item{density_bw}{Character: Bandwidth to use for density estimation.}
 
-\item{histnorm}{Character: NULL, "percent", "probability", "density", "probability density".}
+\item{histnorm}{Character: "", "density", "percent", "probability", "probability density".}
 
 \item{histfunc}{Character: "count", "sum", "avg", "min", "max".}
 
@@ -159,11 +159,11 @@ draw_dist(
 
 \item{displayModeBar}{Logical: If TRUE, display the mode bar.}
 
-\item{modeBar_file_format}{Character: File format for mode bar. Default = "svg".}
+\item{modeBar_file_format}{Character: File format for mode bar.}
 
-\item{width}{Numeric: Force plot size to this width. Default = NULL, i.e. fill available space.}
+\item{width}{Numeric: Force plot size to this width. If NULL, fill available space.}
 
-\item{height}{Numeric: Force plot size to this height. Default = NULL, i.e. fill available space.}
+\item{height}{Numeric: Force plot size to this height. If NULL, fill available space.}
 
 \item{filename}{Character: Path to file to save static plot.}
 

@@ -18,23 +18,22 @@
 #' @param theme `Theme` object.
 #' @param palette Character vector: Colors to use.
 #' @param barmode Character: Type of bar plot to make: "group", "relative",
-#' "stack", "overlay". Default = "group". Use
-#' "relative" for stacked bars, wich handles negative values correctly,
+#' "stack", "overlay". Use
+#' "relative" for stacked bars, which handles negative values correctly,
 #' unlike "stack", as of writing.
 #' @param group_names Character, vector, length = NROW(x): Group names.
-#' Default = NULL, which uses `rownames(x)`
+#' If NULL, uses `rownames(x)`.
 #' @param order_by_val Logical: If TRUE, order bars by increasing value.
 #' Only use for single group data.
 #' @param ylim Float, vector, length 2: y-axis limits.
 #' @param hovernames Character, vector: Optional character vector to show on
 #' hover over each bar.
 #' @param feature_names Character, vector, length = NCOL(x): Feature names.
-#' Default = NULL, which uses `colnames(x)`
+#' If NULL, uses `colnames(x)`.
 #' @param font_size  Float: Font size for all labels.
-#' @param legend Logical: If TRUE, draw legend. Default = NULL, and will be
-#' turned on if there is more than one feature present
-#' @param legend_col Color: Legend text color. Default = NULL, determined by
-#' theme
+#' @param legend Logical: If TRUE, draw legend. If NULL, turned on if there is
+#' more than one feature present.
+#' @param legend_col Color: Legend text color. If NULL, determined by the theme.
 #' @param hline Float: If defined, draw a horizontal line at this y value.
 #' @param hline_col Color for `hline`.
 #' @param hline_width Float: Width for `hline`.

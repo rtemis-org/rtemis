@@ -26,7 +26,7 @@ matchcases(
 \item{n_matches}{Integer: Number of matches to return.}
 
 \item{target_id}{Character: Column name in \code{target} that holds unique
-cases IDs. Default = NULL, in which case integer case numbers will be used.}
+cases IDs. If NULL, integer case numbers will be used.}
 
 \item{pool_id}{Character: Same as \code{target_id} for \code{pool}.}
 

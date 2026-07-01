@@ -63,10 +63,6 @@ get_alg_name <- function(algorithm) {
   algname
 }
 
-get_alg_setup <- function(algorithm) {
-  paste0("setup_", get_alg_name(algorithm))
-}
-
 #' Get algorithm description
 #'
 #' @param algorithm Character: Algorithm name.
@@ -129,13 +125,6 @@ get_default_hyperparameters <- function(algorithm, type, ncols) {
   }
 } # /rtemis::get_default_hyperparameters
 
-
-# use e.g. in draw_scatter
-setup_alg <- function(algorithm, ...) {
-  alg_name <- get_alg_name(algorithm)
-  setup_fn <- get_alg_setup(algorithm)
-  do_call(setup_fn, list(...))
-} # /rtemis::setup_alg
 
 # Clustering ----
 clust_algorithms <- data.frame(rbind(

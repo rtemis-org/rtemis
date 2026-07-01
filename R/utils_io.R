@@ -111,13 +111,12 @@ check_files <- function(paths, verbosity = 1L, pad = 0) {
 #' including command injection, path traversal, and unauthorized file access.
 #'
 #' @param path Character: File or directory path to sanitize.
-#' @param must_exist Logical: If TRUE, abort if path does not exist. Default = FALSE.
+#' @param must_exist Logical: If TRUE, abort if path does not exist.
 #' @param allowed_base Character: Optional base directory to restrict paths to. If provided,
-#' the normalized path must be within this directory. Default = NULL (no restriction).
+#' the normalized path must be within this directory; if NULL, no restriction.
 #' @param allow_urls Logical: If TRUE, allow URL schemes (http://, https://, etc.).
-#' Default = FALSE.
 #' @param type Character: Expected path type - "file", "directory", or "any". Only checked
-#' if `must_exist = TRUE`. Default = "any".
+#' if `must_exist = TRUE`.
 #'
 #' @return Character: Sanitized and normalized absolute path.
 #'

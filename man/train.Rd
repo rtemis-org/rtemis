@@ -70,7 +70,7 @@ resampling fold boundary as
 \item{\code{message}}{Character. Human-readable line, e.g.
 \code{"Outer fold 2/5"}.}
 }
-When \code{NULL} (default), the existing \code{cli::cli_progress_along()}
+When \code{NULL}, the existing \code{cli::cli_progress_along()}
 interactive progress bar runs untouched. Designed for non-interactive
 callers (e.g. \code{rtemis.server}) that need to forward fold progress
 over a wire protocol; errors raised by the callback are swallowed

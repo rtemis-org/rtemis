@@ -30,10 +30,10 @@
 #' [clean_colnames].
 #' @param delim_reader Character: package to use for reading delimited data.
 #' @param parquet_reader Character: package to use for reading Parquet files. If undefined and
-#'   system is WASM, defaults to "nanoparquet", otherwise defaults to "arrow".
+#'   system is WASM, uses "nanoparquet", otherwise "arrow".
 #' @param xlsx_sheet Integer or character: Name or number of XLSX sheet to read.
 #' @param sep Single character: field separator. If `delim_reader = "fread"`
-#' and `sep = NULL`, this defaults to "auto", otherwise defaults to ",".
+#' and `sep = NULL`, this is "auto", otherwise ",".
 #' @param quote Single character: quote character.
 #' @param na_strings Character vector: Strings to be interpreted as NA values.
 #' For `delim_reader = "duckdb"`, this must be a single string.

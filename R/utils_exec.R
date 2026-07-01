@@ -21,7 +21,6 @@ do_call <- function(
   error_pattern_suggestion = NULL,
   warning_pattern_suggestion = NULL
 ) {
-  call <- parent.frame(n = 1L)
   common_errors <- list(
     "object '(.*)' not found" = "Check that the object exists and is spelled correctly.",
     "object of type 'closure' is not subsettable" = "Check that the object is a list or data.frame."

@@ -9,10 +9,8 @@ draw_3Dscatter(
   y = NULL,
   z = NULL,
   fit = NULL,
-  cluster = NULL,
-  cluster_config = NULL,
+  clustering_config = NULL,
   group = NULL,
-  formula = NULL,
   rsq = TRUE,
   mode = "markers",
   order_on_x = NULL,
@@ -68,19 +66,15 @@ draw_3Dscatter(
 
 \item{fit}{Character: Fit method.}
 
-\item{cluster}{Character: Clustering method.}
-
-\item{cluster_config}{List: Config for clustering.}
+\item{clustering_config}{\code{ClusteringConfig} object: If provided, cluster on \code{x}, \code{y}, and \code{z} and pass clusters to \code{group}.}
 
 \item{group}{Factor: Grouping variable.}
-
-\item{formula}{Formula: Formula for non-linear least squares fit.}
 
 \item{rsq}{Logical: If TRUE, print R-squared values in legend if \code{fit} is set.}
 
 \item{mode}{Character, vector: "markers", "lines", "markers+lines".}
 
-\item{order_on_x}{Logical: If TRUE, order \code{x} and \code{y} on \code{x}.}
+\item{order_on_x}{Logical: If TRUE, order \code{x}, \code{y}, and \code{z} on \code{x}.}
 
 \item{main}{Character: Main title.}
 
@@ -112,7 +106,7 @@ draw_3Dscatter(
 
 \item{fit_col}{Color for fit line.}
 
-\item{fit_alpha}{Numeric: Alpha for fit line.}
+\item{fit_alpha}{Numeric: Alpha for fit surface.}
 
 \item{fit_lwd}{Numeric: Line width for fit line.}
 

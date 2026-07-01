@@ -8,7 +8,7 @@
 #' "KFold" creates stratified folds, , "StratSub" creates stratified subsamples,
 #' "Bootstrap" gives the standard bootstrap, i.e. random sampling with replacement,
 #' while "StratBoot" uses StratSub and then randomly duplicates some of the training cases to
-#' reach original length of input (default) or length defined by `target_length`.
+#' reach the original length of the input, or the length defined by `target_length`.
 #'
 #' Note that option 'KFold' may result in resamples of slightly different length. Avoid all
 #' operations which rely on equal-length vectors. For example, you can't place resamples in a

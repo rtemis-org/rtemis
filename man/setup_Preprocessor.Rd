@@ -63,10 +63,9 @@ feature with missing values, indicating which cases were missing data.}
 
 \item{impute_type}{Character: Package to use for imputation.}
 
-\item{impute_missRanger_params}{Named list with elements "pmm.k" and
-"maxiter", which are passed to \code{missRanger::missRanger}. \code{pmm.k}
-greater than 0 results in predictive mean matching. Default \code{pmm.k = 3}
-\code{maxiter = 10} \code{num.trees = 500}. Reduce \code{num.trees} for
+\item{impute_missRanger_params}{Named list with elements "pmm.k",
+"maxiter", and "num.trees", which are passed to \code{missRanger::missRanger}. \code{pmm.k}
+greater than 0 results in predictive mean matching. Reduce \code{num.trees} for
 faster imputation especially in large datasets. Set \code{pmm.k = 0} to
 disable predictive mean matching.}
 
@@ -133,8 +132,7 @@ data in categorical variables and impute numeric variables in the same
 
 \item{scale}{Logical: If TRUE, scale columns of \code{x}.}
 
-\item{center}{Logical: If TRUE, center columns of \code{x}. Note that by
-default it is the same as \code{scale}.}
+\item{center}{Logical: If TRUE, center columns of \code{x}. If unset, follows \code{scale}.}
 
 \item{scale_centers}{Named vector: Centering values for each feature.}
 

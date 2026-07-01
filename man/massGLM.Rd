@@ -13,9 +13,9 @@ massGLM(x, y, scale_y = NULL, center_y = NULL, verbosity = 1L)
 GLM for each column of \code{y}. Usually a large number of features.}
 
 \item{scale_y}{Logical: If TRUE, scale each column of \code{y} to have mean 0 and sd 1. If \code{NULL},
-defaults to TRUE if \code{y} is numeric, FALSE otherwise.}
+set to TRUE if \code{y} is numeric, FALSE otherwise.}
 
-\item{center_y}{Logical: If TRUE, center each column of \code{y} to have mean 0. If \code{NULL}, defaults
+\item{center_y}{Logical: If TRUE, center each column of \code{y} to have mean 0. If \code{NULL}, set
 to TRUE if \code{scale_y} is TRUE, FALSE otherwise.}
 
 \item{verbosity}{Integer: Verbosity level.}

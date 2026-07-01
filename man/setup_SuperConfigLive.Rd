@@ -41,8 +41,8 @@ level order.}
 
 \item{decomposition_config}{\code{DecompositionConfig} object: Configuration for data decomposition.}
 
-\item{outdir}{Character or \code{NULL}. Output directory; \code{NULL} (the
-default) means "do not write to disk" (the rtemislive case).}
+\item{outdir}{Character or \code{NULL}. Output directory; \code{NULL}
+means "do not write to disk" (the rtemislive case).}
 }
 \value{
 \code{SuperConfigLive} object.

@@ -282,8 +282,8 @@ color_adjust <- function(color, alpha = NULL, hue = 0, sat = 0, val = 0) {
 #' Preview one or multiple colors using little rhombi with their little labels up top
 #'
 #' @param x Color, vector: One or more colors that R understands
-#' @param main Character: Title. Default = NULL, which results in
-#' `deparse(substitute(x))`
+#' @param main Character: Title. If NULL, set to
+#' `deparse(substitute(x))`.
 #' @param bg Background color.
 #' @param main_col Color: Title color
 #' @param main_x Float: x coordinate for `main`.
@@ -291,13 +291,13 @@ color_adjust <- function(color, alpha = NULL, hue = 0, sat = 0, val = 0) {
 #' @param main_adj Float: `adj` argument to mtext for `main`.
 #' @param main_cex Float: character expansion factor for `main`.
 #' @param main_font Integer, 1 or 2: Weight of `main` 1: regular, 2: bold.
-#' @param width Float: Plot width. Default = NULL, i.e. set automatically
-#' @param xlim Vector, length 2: x-axis limits. Default = NULL, i.e. set automatically
+#' @param width Float: Plot width. If NULL, set automatically.
+#' @param xlim Vector, length 2: x-axis limits. If NULL, set automatically.
 #' @param ylim Vector, length 2: y-axis limits.
 #' @param asp Float: Plot aspect ratio.
-#' @param labels_y Float: y coord for labels. Default = 1.55 (rhombi are fixed and range y .5 - 1.5)
-#' @param label_cex Float: Character expansion for labels. Default = NULL, and is
-#' calculated automatically based on length of `x`
+#' @param labels_y Float: y coord for labels (rhombi are fixed and range y .5 - 1.5).
+#' @param label_cex Float: Character expansion for labels. If NULL,
+#' calculated automatically based on length of `x`.
 #' @param mar Numeric vector, length 4: margin size.
 #' @param filename Character: Path to save plot as PDF.
 #' @param pdf_width Numeric: Width of PDF in inches.
@@ -451,12 +451,11 @@ rhombus <- function(
 #'   3-letter color abbreviations:
 #'    wht: white; blk: black; red; grn: green; blu: blue; yel: yellow; rng: orange; prl: purple
 #'
-#' @param n Integer: How many distinct colors you want. If not odd, converted to `n + 1`
-#'   Defaults to 21
-#' @param colors Character: Acts as a shortcut to defining `lo`, `mid`, etc for a number of defaults:
+#' @param n Integer: How many distinct colors you want. If not odd, converted to `n + 1`.
+#' @param colors Character: Acts as a shortcut to defining `lo`, `mid`, etc for a number of presets:
 #'   "french", "penn", "grnblkred",
 #' @param space Character: Which colorspace to use. Option: "rgb", or "Lab".
-#'   Recommendation: If `mid` is "white" or "black" (default), use "rgb", otherwise "Lab"
+#'   Recommendation: If `mid` is "white" or "black", use "rgb", otherwise "Lab"
 #' @param lo Color for low end
 #' @param lomid Color for low-mid
 #' @param mid Color for middle of the range or "mean", which will result in `color_op(c(lo, hi), "mean")`.
@@ -464,14 +463,10 @@ rhombus <- function(
 #' @param midhi Color for middle-high
 #' @param hi Color for high end
 #' @param preview Logical: Plot the colors horizontally
-#' @param cb_n Integer: How many steps you would like in the colorbar
 #' @param bar_min Numeric: Lowest value in colorbar
 #' @param bar_mid Numeric: Middle value in colorbar
 #' @param bar_max Numeric: Max value in colorbar
-#' @param cex Float: Character expansion for axis
 #' @param theme Theme object.
-#' @param bg Color: Background color
-#' @param col_text Color: Colorbar text color
 #' @param plotlycb Logical: Create colorbar using `plotly` (instead of base R graphics)
 #' @param plotly_width Float: Width for plotly colorbar.
 #' @param plotly_height Float: Height for plotly colorbar.
@@ -494,14 +489,10 @@ colorgrad <- function(
   midhi = NULL,
   hi = rtemis_colors[["orange"]],
   preview = FALSE,
-  cb_n = 21L,
   bar_min = -1,
   bar_mid = 0,
   bar_max = 1,
-  cex = 1.2,
   theme = choose_theme(getOption("rtemis_theme")),
-  bg = NULL,
-  col_text = NULL,
   plotlycb = FALSE,
   plotly_width = 80,
   plotly_height = 500,
@@ -517,10 +508,6 @@ colorgrad <- function(
 
   if (return_plotly) {
     plotlycb <- TRUE
-  }
-  if (is.null(cb_n)) {
-    cb_n <- n
-    if (cb_n %% 2 != 1) cb_n <- cb_n + 1
   }
   space <- match.arg(space)
   theme <- if (strtrim(theme@name, 4) %in% c("dark", "blac")) {
@@ -576,22 +563,6 @@ colorgrad <- function(
     grad <- c(lo2mid(midpoint), mid2hi(n - midpoint + 1)[-1])
   } else {
     grad <- colorRampPalette(c(lo, hi), space = space)(n)
-  }
-
-  if (cb_n != n) {
-    cb_n <- as.integer(cb_n)
-    cb_midpoint <- ceiling(cb_n / 2)
-    # if (is.null(mid)) mid <- color_op(c(lo, hi), "mean")
-    # lo2mid <- grDevices::colorRampPalette(c(lo, lomid, mid), space = space)
-    # mid2hi <- grDevices::colorRampPalette(c(mid, midhi, hi), space = space)
-    if (!is.na(mid)) {
-      cb_grad <- c(lo2mid(cb_midpoint), mid2hi(cb_n - cb_midpoint + 1)[-1])
-    } else {
-      cb_grad <- colorRampPalette(c(lo, hi), space = space)(cb_n)
-    }
-  } else {
-    cb_grad <- grad
-    cb_midpoint <- midpoint
   }
 
   # Preview ----

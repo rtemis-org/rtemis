@@ -15,7 +15,7 @@
 #' @param col_highlight Hover border color.
 #' @param col_interpolate Character: "linear" or "spline".
 #' @param col_bins Integer: Number of color bins to create if `color_mapping = "Bin"`.
-#' @param domain Limits for mapping colors to values. Default = NULL and set to range.
+#' @param domain Limits for mapping colors to values. If NULL, set to the range of `values`.
 #' @param weight Float: Weight of county border lines.
 #' @param color Color of county border lines.
 #' @param alpha Float: Overlay transparency.
@@ -24,9 +24,9 @@
 #' @param fg_tile_provider Foreground tile (above overlay colors), one of `leaflet::providers`.
 #' @param legend_position Character: One of: "topright", "bottomright", "bottomleft", "topleft".
 #' @param legend_alpha Float: Legend box transparency.
-#' @param legend_title Character: Defaults to name of `values` variable.
-#' @param init_lng Float: Center map around this longitude (in decimal form). Default = -98.54180833333334 (US geographic center).
-#' @param init_lat Float: Center map around this latitude (in decimal form). Default = 39.207413888888894 (US geographic center).
+#' @param legend_title Character: Legend title. If NULL, set to the name of the `values` variable.
+#' @param init_lng Float: Longitude (in decimal form) to center the map around.
+#' @param init_lat Float: Latitude (in decimal form) to center the map around.
 #' @param init_zoom Integer: Initial zoom level (depends on device, i.e. window, size).
 #' @param stroke Logical: If TRUE, draw polygon borders.
 #'
