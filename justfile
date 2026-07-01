@@ -47,6 +47,18 @@ lint:
     {{ rscript }} -e "l <- lintr::lint_dir('R', linters = list(lintr::object_usage_linter())); print(l); if (length(l) > 0L) quit(status = 1L)"
     @just _msg "Done"
 
+# Check that each man/*.Rd file has \value and \examples sections
+check-rd:
+    @just _msg "─── Checking Rd sections for {{ pkg }}... ───"
+    ~/Code/shell-utils/bin/check-rd-sections.sh man
+    @just _msg "Done"
+
+# Like check-rd but also enforces \keyword{internal} docs (data/package stay exempt)
+check-rd-all:
+    @just _msg "─── Checking Rd sections (incl. internal) for {{ pkg }}... ───"
+    ~/Code/shell-utils/bin/check-rd-sections.sh -internal man
+    @just _msg "Done"
+
 # Spell-check package; accepted technical terms live in inst/WORDLIST (see `spell-update`)
 spell:
     @just _msg "─── Spell-checking {{ pkg }}... ───"

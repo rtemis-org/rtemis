@@ -420,6 +420,8 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Additional arguments passed to methods.
 #'
+#' @return Character, invisibly.
+#'
 #' @details
 #' Extra arguments for `factor` method:
 #' - `max_n`: Integer: Return counts for up to this many levels.
