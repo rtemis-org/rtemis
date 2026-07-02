@@ -23,19 +23,6 @@ rtemis_version <- utils::packageVersion("rtemis")
 # References
 # Unicode emojis: https://www.unicode.org/emoji/charts/full-emoji-list.html
 
-# Progress reporting
-setup_progress <- function() {
-  progressr::handlers(global = TRUE)
-  progressr::handlers(
-    progressr::handler_cli(
-      format = "{cli::pb_spin} [{pb_current}/{pb_total}] {pb_status}",
-      format_done = "{cli::col_green(cli::symbol$tick)} Completed {pb_total} tasks",
-      show_after = 0,
-      clear = FALSE
-    )
-  )
-}
-
 .onLoad <- function(libname, pkgname) {
   # S7
   S7::methods_register()
@@ -49,12 +36,10 @@ setup_progress <- function() {
   if (is.null(getOption("rtemis_font"))) {
     options(rtemis_font = "Helvetica")
   }
-  # setup_progress()
 }
 
 .onAttach <- function(libname, pkgname) {
   if (interactive()) {
-    # setup_progress()
     ncores <- default_n_workers(omit = 0L)
     vline <- paste0(
       "\n  .:",
