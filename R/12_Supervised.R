@@ -2835,14 +2835,14 @@ method(desc, class_list) <- function(
     res_params <- lapply(x, function(m) m@outer_resampler@config)
     # Check all resamplers of same type
     if (!all(sapply(res_params, function(p) p@type == res_params[[1]]@type))) {
-      cli::cli_warn(
+      rtemis.core::warn(
         "All SupervisedRes objects must use the same resampling method."
       )
     }
     # ?replace with loop that checks all resampler params
     # Check all resamplers use same n
     if (!all(sapply(res_params, function(p) p@n == res_params[[1]]@n))) {
-      cli::cli_warn(
+      rtemis.core::warn(
         "All SupervisedRes objects must use the same number of resamples."
       )
     }
