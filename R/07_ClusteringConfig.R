@@ -53,7 +53,6 @@ method(repr, ClusteringConfig) <- function(
   output_type = NULL,
   ...
 ) {
-  output_type <- get_output_type(output_type)
   out <- repr_S7name(
     paste(x@algorithm, "ClusteringConfig"),
     pad = pad,

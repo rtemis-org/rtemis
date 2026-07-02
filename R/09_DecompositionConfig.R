@@ -72,7 +72,6 @@ method(repr, DecompositionConfig) <- function(
   pad = 0L,
   output_type = NULL
 ) {
-  output_type <- get_output_type(output_type)
   features <- x["features"]
   config <- x["config"]
   if (!is.null(features)) {

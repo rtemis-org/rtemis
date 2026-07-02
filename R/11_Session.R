@@ -43,7 +43,6 @@ SupervisedSession <- new_class(
 
 # %% repr.SupervisedSession ----
 method(repr, SupervisedSession) <- function(x, pad = 0L, output_type = NULL) {
-  output_type <- get_output_type(output_type)
   out <- repr_S7name("SupervisedSession", pad = pad, output_type = output_type)
   events <- x@events
   if (length(events) == 0L) {

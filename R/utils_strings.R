@@ -12,7 +12,7 @@
 orange <- function(
   ...,
   bold = FALSE,
-  output_type = c("ansi", "html", "plain")
+  output_type = NULL
 ) {
   fmt(
     paste(...),
@@ -37,23 +37,6 @@ rtcitation <- paste0(
   fmt("rtemis", col = rtemis_colors[["teal"]]),
   ")"
 )
-
-
-checkmark <- function(
-  col = rtemis_colors[["green"]],
-  output_type = c("ansi", "html", "plain")
-) {
-  fmt("\u2713", col = col, bold = TRUE, output_type = output_type)
-}
-
-crossmark <- function(output_type = c("ansi", "html", "plain")) {
-  fmt(
-    "\u2715",
-    col = rtemis_colors[["red"]],
-    bold = TRUE,
-    output_type = output_type
-  )
-}
 
 
 #' Paste tables
