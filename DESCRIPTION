@@ -25,7 +25,7 @@ Imports:
     graphics,
     htmltools,
     methods,
-    rtemis.core (>= 0.4.0),
+    rtemis.core (>= 0.4.1),
     stats,
     S7,
     utils
@@ -106,3 +106,4 @@ Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 LazyData: true
 Config/roxygen2/version: 8.0.0
+Additional_repositories: https://rtemis-org.r-universe.dev
