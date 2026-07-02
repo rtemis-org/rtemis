@@ -17,9 +17,7 @@
 #'
 #' @details
 #' Used internally by `tune_GridSearch()` around its future backend, wrapped
-#' as `progressr::with_progress(..., handlers = handler_rtemis(...))`. It can
-#' also be registered globally for arbitrary progressr-instrumented code:
-#' `progressr::handlers(handler_rtemis())`.
+#' as `progressr::with_progress(..., handlers = handler_rtemis(...))`.
 #'
 #' `enable` defaults to `TRUE` (unlike most progressr handlers, which default
 #' to interactive sessions only) because the rtemis progress system handles
@@ -49,22 +47,8 @@
 #'   [progressr::with_progress()] or [progressr::handlers()].
 #'
 #' @author EDG
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' progressr::with_progress(
-#'   {
-#'     p <- progressr::progressor(steps = 5L)
-#'     for (i in 1:5) {
-#'       Sys.sleep(0.1)
-#'       p()
-#'     }
-#'   },
-#'   handlers = handler_rtemis(label = "Working"),
-#'   enable = TRUE
-#' )
-#' }
+#' @keywords internal
+#' @noRd
 handler_rtemis <- function(
   label = "Progress",
   kind = "progress",
