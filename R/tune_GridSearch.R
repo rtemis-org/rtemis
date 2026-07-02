@@ -60,7 +60,7 @@ tune_GridSearch <- function(
 
   # Dependencies ----
   if (backend == "future") {
-    check_dependencies("futurize", "future.apply")
+    check_dependencies("futurize", "future.apply", "progressr")
     if (!is.null(future_plan) && future_plan == "sequential") {
       if (n_workers > 1L) {
         rtemis.core::abort(
@@ -164,9 +164,11 @@ tune_GridSearch <- function(
   )
 
   # learner1 ----
-  if (backend == "future") {
-    ptn <- progressr::progressor(steps = NROW(res_param_grid))
-  }
+  # `ptn` is the progressr progressor ticked by learner1 under the future
+  # backend. It is created inside the `with_progress()` block below (in this
+  # same frame, so learner1's closure sees it) - progressr requires the
+  # progressor to be created within an active progression session.
+  ptn <- NULL
   learner1 <- function(
     index,
     x,
@@ -306,25 +308,31 @@ tune_GridSearch <- function(
     if (verbosity > 0L) {
       msg("Tuning in sequence")
     }
-    # Sequential execution with cli progress.
-    grid_run <- lapply(
-      cli::cli_progress_along(
-        seq_len(n_res_x_comb),
-        name = paste0("Tuning... (", n_res_x_comb, " combinations)"),
-        type = "tasks"
-      ),
-      FUN = learner1,
-      x = x,
-      res = res,
-      hyperparameters = hyperparameters,
-      res_param_grid = res_param_grid,
-      preprocessor_config = preprocessor_config,
-      decomposition_config = decomposition_config,
-      weights = weights,
-      verbosity = verbosity,
-      save_mods = save_mods,
-      n_res_x_comb = n_res_x_comb,
-      on_error = on_error
+    # Sequential execution with rtemis.core progress. `learner1` is closed
+    # over rather than forwarded through `...` because its `x` and
+    # `verbosity` arguments would collide with progress_lapply()'s own
+    # parameters.
+    grid_run <- progress_lapply(
+      seq_len(n_res_x_comb),
+      function(index) {
+        learner1(
+          index,
+          x = x,
+          res = res,
+          hyperparameters = hyperparameters,
+          res_param_grid = res_param_grid,
+          preprocessor_config = preprocessor_config,
+          decomposition_config = decomposition_config,
+          weights = weights,
+          verbosity = verbosity,
+          save_mods = save_mods,
+          n_res_x_comb = n_res_x_comb,
+          on_error = on_error
+        )
+      },
+      label = "Tuning",
+      kind = "tune",
+      verbosity = verbosity
     )
   } else if (backend == "future") {
     # Future parallelization
@@ -347,22 +355,40 @@ tune_GridSearch <- function(
       info("Current future plan:")
       print(future::plan())
     }
-    grid_run <- lapply(
-      X = seq_len(n_res_x_comb),
-      FUN = learner1,
-      x = x,
-      res = res,
-      hyperparameters = hyperparameters,
-      res_param_grid = res_param_grid,
-      preprocessor_config = preprocessor_config,
-      decomposition_config = decomposition_config,
-      weights = weights,
-      verbosity = verbosity,
-      save_mods = save_mods,
-      n_res_x_comb = n_res_x_comb,
-      on_error = on_error
-    ) |>
-      futurize::futurize(seed = TRUE, globals = FALSE)
+    # Workers signal `progression` conditions via `ptn()`; future relays
+    # them to this session, where handler_rtemis() renders them through the
+    # rtemis progress system (breadcrumb line, sink envelopes). Relay
+    # granularity is bounded by chunk resolution.
+    grid_run <- progressr::with_progress(
+      {
+        ptn <- progressr::progressor(steps = NROW(res_param_grid))
+        lapply(
+          X = seq_len(n_res_x_comb),
+          FUN = learner1,
+          x = x,
+          res = res,
+          hyperparameters = hyperparameters,
+          res_param_grid = res_param_grid,
+          preprocessor_config = preprocessor_config,
+          decomposition_config = decomposition_config,
+          weights = weights,
+          verbosity = verbosity,
+          save_mods = save_mods,
+          n_res_x_comb = n_res_x_comb,
+          on_error = on_error
+        ) |>
+          futurize::futurize(seed = TRUE, globals = FALSE)
+      },
+      handlers = handler_rtemis(
+        label = "Tuning",
+        kind = "tune",
+        verbosity = verbosity
+      ),
+      # progressr gates delivery on `progressr.enable` (FALSE in
+      # non-interactive sessions); force it - the rtemis progress system
+      # does its own verbosity gating and non-interactive rendering.
+      enable = TRUE
+    )
   } else if (backend == "mirai") {
     if (verbosity > 0L) {
       msg("Tuning using mirai; N workers:", bold(n_workers))
@@ -412,12 +438,31 @@ tune_GridSearch <- function(
 
   # Aggregate ----
   # Average test errors
-  # if using mirai, wait for all to finish
+  # if using mirai, wait for all to finish. mirai does not relay progressr
+  # conditions, so poll resolution on this session and report through the
+  # rtemis progress system (replaces mirai's own `[.progress]` cli bar).
   if (backend == "mirai") {
-    # Appease R CMD check
-    .progress <- NULL
-    grid_run <- grid_run[.progress]
-    # grid_run <- mirai::collect_mirai(grid_run)
+    tune_progress <- progress_begin(
+      n_res_x_comb,
+      label = "Tuning",
+      kind = "tune",
+      verbosity = verbosity
+    )
+    poll_interval <- max(
+      as.numeric(getOption("rtemis.progress_throttle", 0.1)),
+      0.05
+    )
+    repeat {
+      n_done <- n_res_x_comb -
+        sum(vapply(grid_run, mirai::unresolved, logical(1L)))
+      progress_update(tune_progress, current = n_done)
+      if (n_done >= n_res_x_comb) {
+        break
+      }
+      Sys.sleep(poll_interval)
+    }
+    grid_run <- grid_run[]
+    progress_end(tune_progress, status = "done")
   }
   # Host-synthesize one grid_cell node per cell under the active "tune" node, with status
   # and error filled from the returned results. See specs/observability.md section 4.

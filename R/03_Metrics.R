@@ -117,7 +117,6 @@ method(repr, RegressionMetrics) <- function(
   pad = 0L,
   output_type = NULL
 ) {
-  output_type <- get_output_type(output_type)
   out <- if (!is.null(x@sample)) {
     repr_S7name(
       paste(x@sample, "Regression Metrics"),
@@ -145,7 +144,7 @@ method(repr, RegressionMetrics) <- function(
 method(print, RegressionMetrics) <- function(
   x,
   pad = 0L,
-  output_type = c("ansi", "html", "plain"),
+  output_type = NULL,
   ...
 ) {
   cat(repr(x, pad = pad, output_type = output_type))
@@ -198,8 +197,6 @@ method(repr, ClassificationMetrics) <- function(
   output_type = NULL,
   ...
 ) {
-  output_type <- get_output_type(output_type)
-
   if (!is.null(x@sample)) {
     out <- repr_S7name(
       paste(x@sample, "Classification Metrics"),
@@ -271,7 +268,7 @@ method(print, ClassificationMetrics) <- function(
   x,
   decimal_places = 3,
   pad = 0L,
-  output_type = c("ansi", "html", "plain"),
+  output_type = NULL,
   ...
 ) {
   cat(repr(
@@ -312,7 +309,6 @@ method(repr, MetricsRes) <- function(
   pad = 0L,
   output_type = NULL
 ) {
-  output_type <- get_output_type(output_type)
   type <- if (S7_inherits(x, RegressionMetricsRes)) {
     "Regression"
   } else {
@@ -455,8 +451,6 @@ repr_CalibratedClassificationMetrics <- function(
   pad = 2L,
   output_type = NULL
 ) {
-  output_type <- get_output_type(output_type)
-
   if (!is.null(x@sample)) {
     out <- repr_S7name(
       paste(x@sample, "Classification Metrics (Pre => Post Calibration)"),
@@ -556,8 +550,6 @@ repr_CalibratedClassificationResMetrics <- function(
   pad = 2L,
   output_type = NULL
 ) {
-  output_type <- get_output_type(output_type)
-
   out <- repr_S7name(
     paste(
       "Resampled Classification",

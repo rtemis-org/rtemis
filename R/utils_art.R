@@ -23,9 +23,8 @@ color_txt_columns <- function(
   x,
   color_left,
   color_right,
-  output_type = c("ansi", "html", "plain")
+  output_type = NULL
 ) {
-  output_type <- match.arg(output_type)
   # Count number of columns in input text
   ncols <- max(nchar(x, type = "width"))
 
@@ -94,10 +93,8 @@ color_txt_rows <- function(
   x,
   color_top,
   color_bottom,
-  output_type = c("ansi", "html", "plain")
+  output_type = NULL
 ) {
-  output_type <- match.arg(output_type)
-
   # Number of rows
   nrows <- length(x)
 
@@ -206,9 +203,9 @@ show_col <- function(
   title = NULL,
   title_newline = TRUE,
   limit = 12L,
-  output_type = c("ansi", "html", "plain")
+  output_type = NULL
 ) {
-  output_type <- match.arg(output_type)
+  output_type <- get_output_type(output_type)
 
   # Helper function to build padded string equivalent of padcat
   build_padcat <- function(

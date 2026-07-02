@@ -120,11 +120,14 @@ massGLM <- function(
     "each...",
     verbosity = verbosity
   )
-  tbls <- lapply(
-    cli::cli_progress_along(seq_along(y), name = "GLMs", type = "tasks"),
+  tbls <- progress_lapply(
+    seq_along(y),
     function(i) {
       fit1(index = i, dat = dat, family = .family, ynames = ynames)
-    }
+    },
+    label = "GLMs",
+    kind = "mass_glm",
+    verbosity = verbosity
   )
   tbl <- rbindlist(tbls)
 

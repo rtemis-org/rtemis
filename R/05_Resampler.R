@@ -66,7 +66,6 @@ method(`[[`, ResamplerConfig) <- function(x, name) {
 #' @keywords internal
 #' @noRd
 method(repr, ResamplerConfig) <- function(x, pad = 0L, output_type = NULL) {
-  output_type <- get_output_type(output_type)
   paste0(
     repr_S7name(x, pad = pad, output_type = output_type),
     repr_ls(
@@ -92,7 +91,7 @@ method(repr, ResamplerConfig) <- function(x, pad = 0L, output_type = NULL) {
 method(print, ResamplerConfig) <- function(
   x,
   pad = 0L,
-  output_type = c("ansi", "html", "plain"),
+  output_type = NULL,
   ...
 ) {
   cat(repr(x, pad = pad, output_type = output_type))
@@ -428,7 +427,6 @@ Resampler <- new_class(
 #' @keywords internal
 #' @noRd
 method(repr, Resampler) <- function(x, pad = 0L, output_type = NULL) {
-  output_type <- get_output_type(output_type)
   paste0(
     repr_S7name(x, pad = pad, output_type = output_type),
     repr_ls(
@@ -444,7 +442,7 @@ method(repr, Resampler) <- function(x, pad = 0L, output_type = NULL) {
 # %% print.Resampler ----
 method(print, Resampler) <- function(
   x,
-  output_type = c("ansi", "html", "plain"),
+  output_type = NULL,
   ...
 ) {
   cat(repr(x, output_type = output_type))
