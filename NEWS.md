@@ -2,28 +2,13 @@
 
 ## 1.2.8
 
-- Progress reporting now uses `rtemis.core::progress_lapply()` (new in
-  rtemis.core 0.4.0) instead of `cli::cli_progress_along()` in `train()`
-  outer resampling, sequential `tune_GridSearch()`, and `massGLM()`. Nested
-  runs render a single breadcrumb status line (`Outer resamples 2/5 › Tuning
-  7/30 ETA 0:41`) with a color-pulsing spinner, and emit structured
-  `level = "progress"` envelopes through the rtemis.core message sink for
-  `rtemis.server`. The **cli** dependency is dropped.
-- Parallel tuning now reports progress through the same system: new exported
-  `handler_rtemis()` bridges progressr `progression` conditions (relayed by
-  future from workers) onto the rtemis progress renderer, and
-  `tune_GridSearch()` wraps its future backend in
-  `progressr::with_progress(handlers = handler_rtemis(...))` - previously,
-  worker ticks were silent unless the user had activated progressr handlers
-  themselves. The mirai backend polls task resolution and reports through
-  the same renderer (replacing mirai's own cli collection bar).
+- Progress reporting now uses `rtemis.core::progress_lapply()` (new in rtemis.core 0.4.0) instead of `cli::cli_progress_along()` in `train()` outer resampling, sequential `tune_GridSearch()`, and `massGLM()`. Nested runs render a single breadcrumb status line (`Outer resamples 2/5 › Tuning 7/30 ETA 0:41`) with a color-pulsing spinner, and emit structured `level = "progress"` envelopes through the rtemis.core message sink for `rtemis.server`. The **cli** dependency is dropped.
+- Parallel tuning now reports progress through the same system: new `handler_rtemis()` bridges progressr `progression` conditions (relayed by future from workers) onto the rtemis progress renderer, and `tune_GridSearch()` wraps its future backend in `progressr::with_progress(handlers = handler_rtemis(...))` - previously, worker ticks were silent unless the user had activated progressr handlers themselves. The mirai backend polls task resolution and reports through the same renderer (replacing mirai's own cli collection bar).
 
 ## 1.2.7
 
-- Added `DecomposeConfig` and `ClusterConfig` pipeline-recipe classes with
-  `setup_DecomposeConfig()` / `setup_ClusterConfig()`, mirroring `SuperConfig`:
-  they bundle a data path, the algorithm config (`DecompositionConfig` /
-  `ClusteringConfig`), and an output directory.
+- Added `DecomposeConfig` and `ClusterConfig` pipeline-recipe classes with `setup_DecomposeConfig()` / `setup_ClusterConfig()`, mirroring `SuperConfig`: they bundle a data path, the algorithm config (`DecompositionConfig` /
+`ClusteringConfig`), and an output directory.
 - `decomp()` now accepts `DecomposeConfig` objects.
 - `cluster()` now accepts `ClusterConfig` objects.
 - Added `outdir` arg to `decomp()` and `cluster()`
