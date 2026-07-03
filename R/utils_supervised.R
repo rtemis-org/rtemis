@@ -244,7 +244,7 @@ glm2table <- function(x, xnames = NULL, include_anova = NA) {
   #   lteps <- out[, i, with = FALSE] < eps
   #   if (length(lteps) > 0) {
   #     if (info) {
-  #       cli::cli_inform("Values < machine double eps converted to double eps")
+  #       rtemis.core::info("Values < machine double eps converted to double eps")
   #     }
   #     out[, i, with = FALSE][lteps] <- eps
   #   }

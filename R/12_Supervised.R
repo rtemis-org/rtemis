@@ -62,7 +62,6 @@ VariableImportance <- new_class(
 
 # %% repr.VariableImportance ----
 method(repr, VariableImportance) <- function(x, pad = 0L, output_type = NULL) {
-  output_type <- get_output_type(output_type)
   # "N variable importance measures for M predictors"
   n_m <- NCOL(x@data) - 1L
   paste0(
@@ -634,7 +633,7 @@ method(to_json, Supervised) <- function(x, ...) {
 # %% print.Supervised ----
 method(print, Supervised) <- function(
   x,
-  output_type = c("ansi", "html", "plain"),
+  output_type = NULL,
   ...
 ) {
   cat(repr(x, output_type = output_type))
@@ -2797,7 +2796,6 @@ method(desc, class_list) <- function(
   decimal_places = 3L,
   output_type = NULL
 ) {
-  output_type <- get_output_type(output_type)
   # Check all elements are Supervised or all are SupervisedRes objects
   if (
     !all(sapply(x, S7_inherits, Supervised)) &&
@@ -2835,14 +2833,14 @@ method(desc, class_list) <- function(
     res_params <- lapply(x, function(m) m@outer_resampler@config)
     # Check all resamplers of same type
     if (!all(sapply(res_params, function(p) p@type == res_params[[1]]@type))) {
-      cli::cli_warn(
+      rtemis.core::warn(
         "All SupervisedRes objects must use the same resampling method."
       )
     }
     # ?replace with loop that checks all resampler params
     # Check all resamplers use same n
     if (!all(sapply(res_params, function(p) p@n == res_params[[1]]@n))) {
-      cli::cli_warn(
+      rtemis.core::warn(
         "All SupervisedRes objects must use the same number of resamples."
       )
     }

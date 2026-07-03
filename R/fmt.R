@@ -26,9 +26,9 @@ map_value_to_color <- function(
   colors = c("#ff9f20", "#00b2b2"),
   space = "Lab",
   bold = TRUE,
-  output_type = c("ansi", "html", "plain")
+  output_type = NULL
 ) {
-  output_type <- match.arg(output_type)
+  output_type <- get_output_type(output_type)
   if (output_type == "plain") {
     return(as.character(x))
   }

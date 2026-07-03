@@ -65,7 +65,6 @@ method(repr, Decomposition) <- function(
   pad = 0L,
   output_type = NULL
 ) {
-  output_type <- get_output_type(output_type)
   paste0(
     repr_S7name(
       paste(x@algorithm, "Decomposition"),

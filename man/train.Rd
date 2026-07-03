@@ -70,11 +70,13 @@ resampling fold boundary as
 \item{\code{message}}{Character. Human-readable line, e.g.
 \code{"Outer fold 2/5"}.}
 }
-When \code{NULL}, the existing \code{cli::cli_progress_along()}
-interactive progress bar runs untouched. Designed for non-interactive
-callers (e.g. \code{rtemis.server}) that need to forward fold progress
-over a wire protocol; errors raised by the callback are swallowed
-so a broken sink cannot interrupt training.}
+When \code{NULL}, outer folds run through
+\code{\link[rtemis.core:progress_lapply]{rtemis.core::progress_lapply()}}, which renders the interactive
+status line and emits structured progress envelopes when a message
+sink is set (see \code{\link[rtemis.core:set_msg_sink]{rtemis.core::set_msg_sink()}}). Designed for
+non-interactive callers (e.g. \code{rtemis.server}) that need to forward
+fold progress over a wire protocol; errors raised by the callback are
+swallowed so a broken sink cannot interrupt training.}
 
 \item{...}{Not used.}
 }

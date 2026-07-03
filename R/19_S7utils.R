@@ -73,7 +73,6 @@ method(repr, BiasVariance) <- function(
   pad = 0L,
   output_type = NULL
 ) {
-  output_type <- get_output_type(output_type)
   paste0(
     repr_S7name("BiasVariance"),
     "Mean squared bias: ",

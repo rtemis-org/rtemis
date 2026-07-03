@@ -41,11 +41,13 @@
 #'     \item{`message`}{Character. Human-readable line, e.g.
 #'       `"Outer fold 2/5"`.}
 #'   }
-#'   When `NULL`, the existing `cli::cli_progress_along()`
-#'   interactive progress bar runs untouched. Designed for non-interactive
-#'   callers (e.g. `rtemis.server`) that need to forward fold progress
-#'   over a wire protocol; errors raised by the callback are swallowed
-#'   so a broken sink cannot interrupt training.
+#'   When `NULL`, outer folds run through
+#'   [rtemis.core::progress_lapply()], which renders the interactive
+#'   status line and emits structured progress envelopes when a message
+#'   sink is set (see [rtemis.core::set_msg_sink()]). Designed for
+#'   non-interactive callers (e.g. `rtemis.server`) that need to forward
+#'   fold progress over a wire protocol; errors raised by the callback are
+#'   swallowed so a broken sink cannot interrupt training.
 #' @param ... Not used.
 #'
 #' @details
@@ -451,83 +453,81 @@ train <- function(
       verbosity = verbosity
     )
     n_outer <- outer_resampler@config@n
+    run_outer_fold <- function(i) {
+      if (is.function(progress)) {
+        tryCatch(
+          progress(
+            stage = "outer_fold",
+            current = i,
+            total = n_outer,
+            message = paste0("Outer fold ", i, "/", n_outer)
+          ),
+          error = function(e) NULL
+        )
+      }
+      fold_node <- node_enter(
+        "outer_fold",
+        label = paste0(i, "/", n_outer),
+        meta = list(fold = i)
+      )
+      # Failure policy (specs/observability.md section 7): under "continue" an outer
+      # fold failure is non-fatal (recorded, warned, excluded); under "stop"/
+      # "stop_outer" it is recorded then re-raised.
+      out <- tryCatch(
+        train(
+          x = x[outer_resampler[[i]], ],
+          dat_test = x[-outer_resampler[[i]], ],
+          algorithm = algorithm,
+          preprocessor_config = preprocessor_config,
+          decomposition_config = decomposition_config,
+          hyperparameters = hyperparameters,
+          tuner_config = tuner_config,
+          outer_resampling_config = NULL, # This model is one of the outer resamples.
+          execution_config = execution_config,
+          weights = if (!is.null(weights)) {
+            weights[outer_resampler[[i]]]
+          } else {
+            NULL
+          },
+          question = question,
+          verbosity = verbosity - 1L
+        ),
+        error = function(e) {
+          node_exit(fold_node, status = "error", error = e)
+          if (identical(on_error, "continue")) {
+            rtemis.core::warn(
+              "Outer fold ",
+              i,
+              "/",
+              n_outer,
+              " failed: ",
+              conditionMessage(e)
+            )
+            return(NULL)
+          }
+          stop(e)
+        }
+      )
+      if (!is.null(out)) {
+        node_exit(fold_node, status = "ok")
+      }
+      out
+    }
     # When a `progress` callback is supplied (typically by rtemis.server to
     # forward fold boundaries over the wire), use a plain lapply and invoke
-    # it per fold; the interactive `cli_progress_along` UI is replaced.
-    # Otherwise, keep the existing terminal progress UI for interactive
-    # users.
-    iter <- if (is.function(progress)) {
-      seq_len(n_outer)
+    # it per fold. Otherwise, progress_lapply() renders the terminal status
+    # line and emits sink envelopes when a message sink is set.
+    models <- if (is.function(progress)) {
+      lapply(seq_len(n_outer), run_outer_fold)
     } else {
-      cli::cli_progress_along(
+      progress_lapply(
         seq_len(n_outer),
-        name = "Training outer resamples...",
-        type = "tasks"
+        run_outer_fold,
+        label = "Outer resamples",
+        kind = "outer_resampling",
+        verbosity = verbosity
       )
     }
-    models <- lapply(
-      iter,
-      function(i) {
-        if (is.function(progress)) {
-          tryCatch(
-            progress(
-              stage = "outer_fold",
-              current = i,
-              total = n_outer,
-              message = paste0("Outer fold ", i, "/", n_outer)
-            ),
-            error = function(e) NULL
-          )
-        }
-        fold_node <- node_enter(
-          "outer_fold",
-          label = paste0(i, "/", n_outer),
-          meta = list(fold = i)
-        )
-        # Failure policy (specs/observability.md section 7): under "continue" an outer
-        # fold failure is non-fatal (recorded, warned, excluded); under "stop"/
-        # "stop_outer" it is recorded then re-raised.
-        out <- tryCatch(
-          train(
-            x = x[outer_resampler[[i]], ],
-            dat_test = x[-outer_resampler[[i]], ],
-            algorithm = algorithm,
-            preprocessor_config = preprocessor_config,
-            decomposition_config = decomposition_config,
-            hyperparameters = hyperparameters,
-            tuner_config = tuner_config,
-            outer_resampling_config = NULL, # This model is one of the outer resamples.
-            execution_config = execution_config,
-            weights = if (!is.null(weights)) {
-              weights[outer_resampler[[i]]]
-            } else {
-              NULL
-            },
-            question = question,
-            verbosity = verbosity - 1L
-          ),
-          error = function(e) {
-            node_exit(fold_node, status = "error", error = e)
-            if (identical(on_error, "continue")) {
-              rtemis.core::warn(
-                "Outer fold ",
-                i,
-                "/",
-                n_outer,
-                " failed: ",
-                conditionMessage(e)
-              )
-              return(NULL)
-            }
-            stop(e)
-          }
-        )
-        if (!is.null(out)) {
-          node_exit(fold_node, status = "ok")
-        }
-        out
-      }
-    )
     names(models) <- names(outer_resampler@resamples)
     # Drop failed folds (only possible under on_error = "continue").
     failed_folds <- vapply(models, is.null, logical(1L))

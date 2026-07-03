@@ -47,7 +47,6 @@ method(repr, TunerConfig) <- function(
   pad = 0L,
   output_type = NULL
 ) {
-  output_type <- get_output_type(output_type)
   paste0(
     repr_S7name(
       paste(x@type, "TunerConfig"),
@@ -314,10 +313,9 @@ method(repr, GridSearch) <- function(
   x,
   header = TRUE,
   pad = 0L,
-  output_type = c("ansi", "html", "plain"),
+  output_type = NULL,
   ...
 ) {
-  output_type <- match.arg(output_type)
   out <- character()
   if (header) {
     out <- paste0(out, repr_S7name(x@type, pad = pad), "\n")

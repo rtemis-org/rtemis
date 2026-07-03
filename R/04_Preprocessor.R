@@ -97,7 +97,6 @@ method(repr, PreprocessorConfig) <- function(
   pad = 0L,
   output_type = NULL
 ) {
-  output_type <- get_output_type(output_type)
   paste0(
     repr_S7name("PreprocessorConfig", pad = pad, output_type = output_type),
     repr_ls(props(x), pad = pad, limit = limit, output_type = output_type)
@@ -387,7 +386,6 @@ method(repr, Preprocessor) <- function(
   print_df = FALSE,
   output_type = NULL
 ) {
-  output_type <- get_output_type(output_type)
   paste0(
     repr_S7name("Preprocessor", pad = pad, output_type = output_type),
     repr_ls(props(x), pad = pad, print_df = print_df)
