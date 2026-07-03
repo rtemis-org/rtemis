@@ -439,8 +439,10 @@ tune_GridSearch <- function(
   # Aggregate ----
   # Average test errors
   # if using mirai, wait for all to finish. mirai does not relay progressr
-  # conditions, so poll resolution on this session and report through the
-  # rtemis progress system (replaces mirai's own `[.progress]` cli bar).
+  # conditions, so wait on each mirai in index order (event-driven, like
+  # mirai's own `[.progress]`) and report through the rtemis progress
+  # system. Tasks resolve out of order under the dispatcher, so recount
+  # completions after each wait to keep the counter accurate.
   if (backend == "mirai") {
     tune_progress <- progress_begin(
       n_res_x_comb,
@@ -448,18 +450,11 @@ tune_GridSearch <- function(
       kind = "tune",
       verbosity = verbosity
     )
-    poll_interval <- max(
-      as.numeric(getOption("rtemis.progress_throttle", 0.1)),
-      0.05
-    )
-    repeat {
+    for (i in seq_len(n_res_x_comb)) {
+      mirai::call_mirai(grid_run[[i]])
       n_done <- n_res_x_comb -
         sum(vapply(grid_run, mirai::unresolved, logical(1L)))
       progress_update(tune_progress, current = n_done)
-      if (n_done >= n_res_x_comb) {
-        break
-      }
-      Sys.sleep(poll_interval)
     }
     grid_run <- grid_run[]
     progress_end(tune_progress, status = "done")
