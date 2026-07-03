@@ -80,7 +80,7 @@ decomp <- function(
   msg0("Decomposing with ", algorithm, "...", verbosity = verbosity)
 
   # decomp_ -> list with elements 'decom' and 'transformed'
-  decom <- decomp_(config = config, x = x, verbosity = verbosity)
+  decom <- decomp_(config = config, x = x, verbosity = verbosity - 1L)
 
   # Outro ----
   outro(start_time, verbosity = verbosity)
