@@ -178,7 +178,7 @@ test_that(
         n_workers = 2L, # Limit to 2 workers for CRAN
         future_plan = "mirai_multisession" # which gets converted to "future.mirai::mirai_multisession"
       ),
-      verbosity = 2L
+      verbosity = 1L
     )
     # Check that model trained correctly
     expect_s7_class(modt_r_glmnet, Regression)
