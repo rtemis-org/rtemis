@@ -577,6 +577,234 @@ session_add_node <- function(
 } # /rtemis::session_add_node
 
 
+# %% session_timeline ----
+#' Session Execution Timeline Table
+#'
+#' Flatten the execution graph captured in a `SupervisedSession` (from
+#' [train()]) into a timeline (Gantt) table: one row per recorded node, ordered
+#' as a depth-first walk of the execution tree, with start/end offsets in
+#' milliseconds from session start.
+#'
+#' This is the single source of the tree-walk, labeling, and status logic for
+#' timeline renderers: `rtemis.draw`'s `plot()` method for `SupervisedSession`
+#' (htmlwidget) and `rtemis.server`'s `job.result` `session` slice (rtemislive
+#' web UI) both consume its output. Pair with [session_kind_colors()] to color
+#' bars by node kind.
+#'
+#' Nodes that never closed (status `"running"` or `"aborted"` with no end time)
+#' are drawn up to the session finish time when known, else to the latest
+#' recorded node start.
+#'
+#' @param session `SupervisedSession`: Session object, e.g. `model@session`.
+#'
+#' @return `data.table` with one row per node in depth-first order and columns:
+#' - `label` Character: Unique display label, indented two spaces per tree
+#'   depth (duplicates disambiguated with `" #<n>"` suffixes).
+#' - `start` Numeric: Node start, milliseconds from session start.
+#' - `end` Numeric: Node end, milliseconds from session start.
+#' - `kind` Character: Node kind (e.g. `"tune"`, `"grid_cell"`, `"train_alg"`).
+#' - `status` Character \{"ok", "error", "aborted", "running"\}: Node status.
+#' - `failed` Logical: `TRUE` when `status` is `"error"` or `"aborted"`.
+#' - `tip` Character: Preformatted tooltip text (`"name -- duration [status]"`).
+#'
+#' @author EDG
+#' @export
+session_timeline <- function(session) {
+  if (!S7_inherits(session, SupervisedSession)) {
+    rtemis.core::abort(
+      "`session` must be a SupervisedSession, e.g. `model@session`.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
+  events <- session@events
+  if (length(events) == 0L) {
+    rtemis.core::abort(
+      "This SupervisedSession has no recorded events.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  started <- session@started
+
+  # Elapsed milliseconds from session start.
+  to_ms <- function(t) {
+    if (is.null(t) || length(t) == 0L || is.na(t)) {
+      return(NA_real_)
+    }
+    as.numeric(difftime(t, started, units = "secs")) * 1000
+  }
+
+  # End fallback for nodes that never closed (running / aborted, NA t_end):
+  # the session finish time, else the latest known start.
+  finished <- session@finished
+  starts_ms <- vapply(events, function(e) to_ms(e[["t_start"]]), numeric(1L))
+  end_fallback <- if (
+    !is.null(finished) && length(finished) > 0L && !is.na(finished)
+  ) {
+    to_ms(finished)
+  } else if (all(is.na(starts_ms))) {
+    # Degenerate session (no finish time, no recorded starts): fall back to 0 so
+    # we never propagate -Inf (and its warning) into the bar geometry.
+    0
+  } else {
+    max(starts_ms, na.rm = TRUE)
+  }
+
+  # -- Rebuild the execution tree and order nodes depth-first ------------------
+  # Mirrors the console repr: index by node_id, collect children per parent
+  # (preserving insertion order), then DFS from the roots.
+  ids <- vapply(events, function(e) e[["node_id"]], character(1L))
+  by_id <- stats::setNames(events, ids)
+  parent_of <- vapply(
+    events,
+    function(e) {
+      p <- e[["parent_id"]]
+      if (is.null(p) || length(p) == 0L) NA_character_ else as.character(p)
+    },
+    character(1L)
+  )
+  children <- list()
+  roots <- character(0L)
+  for (i in seq_along(events)) {
+    p <- parent_of[[i]]
+    if (is.na(p) || is.null(by_id[[p]])) {
+      roots <- c(roots, ids[[i]])
+    } else {
+      children[[p]] <- c(children[[p]], ids[[i]])
+    }
+  }
+  ordered_ids <- character(0L)
+  depths <- integer(0L)
+  walk <- function(id, depth) {
+    ordered_ids[[length(ordered_ids) + 1L]] <<- id
+    depths[[length(depths) + 1L]] <<- depth
+    for (k in children[[id]]) {
+      walk(k, depth + 1L)
+    }
+  }
+  for (r in roots) {
+    walk(r, 0L)
+  }
+
+  fmt_dur <- function(ms) {
+    if (is.na(ms)) {
+      return("running")
+    }
+    if (ms < 0.5) {
+      return("<0.5 ms")
+    }
+    if (ms < 1000) {
+      return(sprintf("%.0f ms", ms))
+    }
+    sprintf("%.1f s", ms / 1000)
+  }
+
+  # -- Build the timeline frame in DFS order -----------------------------------
+  n <- length(ordered_ids)
+  label <- character(n)
+  start <- numeric(n)
+  end <- numeric(n)
+  status <- character(n)
+  kinds <- character(n)
+  tip <- character(n)
+  for (i in seq_len(n)) {
+    e <- by_id[[ordered_ids[[i]]]]
+    kind <- e[["kind"]]
+    kinds[[i]] <- kind
+    lbl <- e[["label"]]
+    # Non-redundant name: append the label only when it adds to `kind`.
+    nm <- if (!is.null(lbl) && nzchar(lbl) && !identical(lbl, kind)) {
+      paste(kind, lbl)
+    } else {
+      kind
+    }
+    # Indent by depth to convey hierarchy on the category axis.
+    label[[i]] <- paste0(strrep("  ", depths[[i]]), nm)
+    st <- to_ms(e[["t_start"]])
+    en <- to_ms(e[["t_end"]])
+    if (is.na(st)) {
+      st <- 0
+    }
+    if (is.na(en)) {
+      en <- end_fallback
+    }
+    if (en < st) {
+      en <- st
+    }
+    start[[i]] <- st
+    end[[i]] <- en
+    status[[i]] <- e[["status"]] %||% "ok"
+    tip[[i]] <- paste0(
+      trimws(nm),
+      "\u2014",
+      fmt_dur(en - st),
+      " [",
+      status[[i]],
+      "]"
+    )
+  }
+
+  # Duplicate display labels would collapse onto one category row; keep one row
+  # per node so the timeline matches the execution graph one-to-one.
+  label <- make.unique(label, sep = " #")
+
+  data.table(
+    label = label,
+    start = start,
+    end = end,
+    kind = kinds,
+    status = status,
+    # Failed/aborted nodes get flagged so renderers can outline them while the
+    # fill still encodes the kind.
+    failed = status %in% c("error", "aborted"),
+    tip = tip
+  )
+} # /rtemis::session_timeline
+
+
+# %% session_kind_colors ----
+#' Session Node Kind Colors
+#'
+#' Fixed color map for session node kinds, so timeline bars are colored
+#' consistently across renderers (`rtemis.draw` htmlwidget, rtemislive web UI).
+#' The fill is identical for like kinds, making same-color overlap read as a
+#' parallel process (only grid cells run concurrently; containers and
+#' sequential steps never share a fill *and* a time span). Kinds outside the
+#' fixed map fall back to `rtemis_colors`, recycled as needed.
+#'
+#' Exported for use by `rtemis.draw` and `rtemis.server`; not user-facing API.
+#'
+#' @param kinds Character vector: Node kinds to color, in display order, e.g.
+#'   `unique(session_timeline(session)[["kind"]])`.
+#'
+#' @return Named character vector of hex colors, one per element of `kinds`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+session_kind_colors <- function(kinds) {
+  rtemis.core::check_character(kinds)
+  fixed <- c(
+    train = "#808080",
+    outer_fold = col_outer,
+    tune = col_tuner,
+    # Grid cells are tuning work: same hue as `tune`, tinted halfway to white.
+    grid_cell = grDevices::colorRampPalette(c(col_tuner, "#FFFFFF"))(3L)[[2L]],
+    preprocess = col_preprocessor,
+    decompose = col_decom,
+    train_alg = highlight_col,
+    predict = rtemis_colors[["blue"]],
+    varimp = rtemis_colors[["light_blue"]],
+    metrics = rtemis_colors[["orange"]]
+  )
+  cols <- fixed[kinds]
+  names(cols) <- kinds
+  # rep_len recycles the palette so more unmapped kinds than palette colors
+  # still get a (repeated) color rather than NA.
+  cols[is.na(cols)] <- rep_len(unname(rtemis_colors), sum(is.na(cols)))
+  cols
+} # /rtemis::session_kind_colors
+
+
 # %% session_report ----
 #' End-of-run model-count and failure report
 #'
