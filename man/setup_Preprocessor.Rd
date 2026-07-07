@@ -61,7 +61,8 @@ feature with missing values, indicating which cases were missing data.}
 \item{impute}{Logical: If TRUE, impute missing cases. See \code{impute_discrete} and
 \code{impute_continuous}.}
 
-\item{impute_type}{Character: Package to use for imputation.}
+\item{impute_type}{Character \{"missRanger", "micePMM", "meanMode"\}: Package to use for
+imputation.}
 
 \item{impute_missRanger_params}{Named list with elements "pmm.k",
 "maxiter", and "num.trees", which are passed to \code{missRanger::missRanger}. \code{pmm.k}
