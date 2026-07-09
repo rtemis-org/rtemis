@@ -5,6 +5,8 @@
 - New `session_timeline()` flattens a `SupervisedSession` execution graph into a timeline (Gantt) table — one row per node in depth-first order with millisecond offsets, status, and tooltip text. It is the shared source for rtemis.draw's `plot()` method on `SupervisedSession` and rtemis.server's `job.result` `session` slice (rtemislive Timeline tab). `session_kind_colors()` (internal, exported) provides the matching fixed kind → color map so all renderers color steps identically.
 - Progress reporting now uses `rtemis.core::progress_lapply()` (new in rtemis.core 0.4.0) instead of `cli::cli_progress_along()` in `train()` outer resampling, sequential `tune_GridSearch()`, and `massGLM()`. Nested runs render a single breadcrumb status line (`Outer resamples 2/5 › Tuning 7/30 ETA 0:41`) with a color-pulsing spinner, and emit structured `level = "progress"` envelopes through the rtemis.core message sink for `rtemis.server`. The **cli** dependency is dropped.
 - Parallel tuning now reports progress through the same system: new `handler_rtemis()` bridges progressr `progression` conditions (relayed by future from workers) onto the rtemis progress renderer, and `tune_GridSearch()` wraps its future backend in `progressr::with_progress(handlers = handler_rtemis(...))` - previously, worker ticks were silent unless the user had activated progressr handlers themselves. The mirai backend polls task resolution and reports through the same renderer (replacing mirai's own cli collection bar).
+- `train(dat)` defaults to ranger instead of throwing an error.
+- `read` now uses preprocess to remove duplicates. renamed `make_unique` => `remove_duplicates`.
 
 ## 1.2.7
 
