@@ -14,6 +14,7 @@
 #' @param dat_test Tabular data: Test set data.
 #' @param weights Optional vector of case weights.
 #' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
+#'   If neither is defined, defaults to "ranger".
 #' @param preprocessor_config Optional PreprocessorConfig object: Setup using [setup_Preprocessor].
 #' @param decomposition_config Optional DecompositionConfig object: Setup using a decomposition
 #'  `setup_*` function.
@@ -222,12 +223,6 @@ train <- function(
   } # / train.SuperConfig
 
   # Checks ----
-  if (is.null(hyperparameters) && is.null(algorithm)) {
-    rtemis.core::abort(
-      "You must define either `hyperparameters` or `algorithm`.",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
 
   # Defense against invalid args
   extra_args <- list(...)
@@ -245,8 +240,12 @@ train <- function(
     )
   }
 
-  if (is.null(algorithm) && !is.null(hyperparameters)) {
-    algorithm <- hyperparameters@algorithm
+  if (is.null(algorithm)) {
+    if (!is.null(hyperparameters)) {
+      algorithm <- hyperparameters@algorithm
+    } else {
+      algorithm <- "ranger"
+    }
   }
 
   # Initial check targetting non-numeric or factor columns
