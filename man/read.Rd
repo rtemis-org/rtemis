@@ -7,7 +7,7 @@
 read(
   filename,
   datadir = NULL,
-  make_unique = FALSE,
+  remove_duplicates = FALSE,
   character2factor = FALSE,
   clean_colnames = TRUE,
   delim_reader = c("data.table", "vroom", "duckdb", "arrow"),
@@ -31,7 +31,7 @@ read(
 \item{datadir}{Character: Optional path to directory where \code{filename}
 is located. If not specified, \code{filename} must be the full path.}
 
-\item{make_unique}{Logical: If TRUE, keep unique rows only.}
+\item{remove_duplicates}{Logical: If TRUE, keep unique rows only.}
 
 \item{character2factor}{Logical: If TRUE, convert character variables to
 factors.}

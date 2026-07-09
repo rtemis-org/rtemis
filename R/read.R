@@ -23,7 +23,7 @@
 #' @param filename Character: filename or full path if `datadir = NULL`.
 #' @param datadir Character: Optional path to directory where `filename`
 #' is located. If not specified, `filename` must be the full path.
-#' @param make_unique Logical: If TRUE, keep unique rows only.
+#' @param remove_duplicates Logical: If TRUE, keep unique rows only.
 #' @param character2factor Logical: If TRUE, convert character variables to
 #' factors.
 #' @param clean_colnames Logical: If TRUE, clean columns names using
@@ -61,7 +61,7 @@
 read <- function(
   filename,
   datadir = NULL,
-  make_unique = FALSE,
+  remove_duplicates = FALSE,
   character2factor = FALSE,
   clean_colnames = TRUE,
   delim_reader = c("data.table", "vroom", "duckdb", "arrow"),
@@ -266,38 +266,18 @@ read <- function(
     highlightbig(.ncol),
     verbosity = verbosity
   )
-  if (make_unique) {
-    .dat <- unique(.dat)
-    .nrowp <- nrow(.dat)
-    .dup <- .nrow - .nrowp
-    if (verbosity > 0L && .dup > 0) {
-      msg(
-        "Removed",
-        fmt(
-          format(.dup, big.mark = ","),
-          col = rtemis_colors[["orange"]],
-          bold = TRUE
-        ),
-        "duplicate",
-        paste0(ngettext(.dup, "row", "rows"), ".")
-      )
-      msg(
-        "New dimensions:",
-        highlightbig(.nrowp),
-        "x",
-        highlightbig(.ncol)
-      )
-    }
-  }
 
   if (clean_colnames) {
     setnames(.dat, names(.dat), clean_colnames(.dat))
   }
 
-  if (character2factor) {
+  if (remove_duplicates | character2factor) {
     .dat <- preprocess(
       .dat,
-      setup_Preprocessor(character2factor = TRUE)
+      setup_Preprocessor(
+        character2factor = character2factor,
+        remove_duplicates = remove_duplicates
+      )
     )[["preprocessed"]]
   }
 
