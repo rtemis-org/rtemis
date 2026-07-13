@@ -242,6 +242,7 @@ train <- function(
 
   if (is.null(algorithm)) {
     if (!is.null(hyperparameters)) {
+      check_is_S7(hyperparameters, Hyperparameters)
       algorithm <- hyperparameters@algorithm
     } else {
       algorithm <- "ranger"

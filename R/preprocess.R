@@ -18,7 +18,7 @@
 #'
 #' @author EDG
 #' @export
-preprocess.class_tabular.PreprocessorConfig <- method(
+method(
   preprocess,
   list(class_tabular, PreprocessorConfig)
 ) <- function(
@@ -663,7 +663,7 @@ preprocess.class_tabular.PreprocessorConfig <- method(
 #'
 #' @author EDG
 #' @export
-preprocess.class_tabular.Preprocessor <- method(
+method(
   preprocess,
   list(class_tabular, Preprocessor)
 ) <- function(

@@ -271,13 +271,14 @@ read <- function(
     setnames(.dat, names(.dat), clean_colnames(.dat))
   }
 
-  if (remove_duplicates | character2factor) {
+  if (remove_duplicates || character2factor) {
     .dat <- preprocess(
       .dat,
       setup_Preprocessor(
         character2factor = character2factor,
         remove_duplicates = remove_duplicates
-      )
+      ),
+      verbosity = verbosity
     )[["preprocessed"]]
   }
 
