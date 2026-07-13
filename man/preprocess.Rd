@@ -2,21 +2,19 @@
 % Please edit documentation in R/00_init.R, R/preprocess.R
 \name{preprocess}
 \alias{preprocess}
-\alias{preprocess.class_tabular.PreprocessorConfig}
-\alias{preprocess.class_tabular.Preprocessor}
+\alias{preprocess,data.frame,rtemis::PreprocessorConfig-method}
+\alias{preprocess,data.table,rtemis::PreprocessorConfig-method}
+\alias{preprocess,data.frame,rtemis::Preprocessor-method}
+\alias{preprocess,data.table,rtemis::Preprocessor-method}
 \title{Preprocess Data}
 \usage{
 preprocess(x, config, ...)
 
-preprocess.class_tabular.PreprocessorConfig(
-  x,
-  config,
-  dat_validation = NULL,
-  dat_test = NULL,
-  verbosity = 1L
-)
+## S7 method for classes <data.frame>/<data.table>, <rtemis::PreprocessorConfig>
+preprocess(x, config, dat_validation = NULL, dat_test = NULL, verbosity = 1L)
 
-preprocess.class_tabular.Preprocessor(x, config, verbosity = 1L)
+## S7 method for classes <data.frame>/<data.table>, <rtemis::Preprocessor>
+preprocess(x, config, verbosity = 1L)
 }
 \arguments{
 \item{x}{data.frame, data.table, tbl_df (tabular data): Data to be preprocessed.}

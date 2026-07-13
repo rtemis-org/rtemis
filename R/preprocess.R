@@ -17,7 +17,6 @@
 #' @param ... Not used.
 #'
 #' @author EDG
-#' @export
 method(
   preprocess,
   list(class_tabular, PreprocessorConfig)
@@ -662,7 +661,6 @@ method(
 #' preprocess
 #'
 #' @author EDG
-#' @export
 method(
   preprocess,
   list(class_tabular, Preprocessor)
