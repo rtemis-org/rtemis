@@ -214,12 +214,11 @@ predict_supervised_ <- function(object, newdata, verbosity = 1L) {
 
   # Apply user-specified preprocessor if available
   if (!is.null(object@preprocessor)) {
-    newdata <- preprocess(
-      newdata,
+    newdata <- apply_preprocessor(
       object@preprocessor,
+      newdata,
       verbosity = verbosity
-    ) |>
-      preprocessed()
+    )
   }
 
   # Apply decomposition if available.
@@ -234,12 +233,11 @@ predict_supervised_ <- function(object, newdata, verbosity = 1L) {
 
   # Apply algorithm-specific preprocessor if available
   if (!is.null(object@preprocessor_internal)) {
-    newdata <- preprocess(
-      newdata,
+    newdata <- apply_preprocessor(
       object@preprocessor_internal,
+      newdata,
       verbosity = verbosity
-    ) |>
-      preprocessed()
+    )
   }
 
   # After preprocessing, enforce strict predictor names and order

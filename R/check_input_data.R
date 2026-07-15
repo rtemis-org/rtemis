@@ -177,14 +177,16 @@ check_supervised <- function(
 
   # Outcome class ----
   outcome_class <- class(x[[ncols]])
-  if (!outcome_class %in% c("integer", "numeric", "factor")) {
+  if (!inherits(x[[ncols]], c("integer", "numeric", "factor"))) {
     rtemis.core::abort(
-      "Outcome must be integer, numeric, or factor.",
+      "Outcome must be integer, numeric, or factor; was ",
+      outcome_class[[1L]],
+      ".",
       class = c("rtemis_outcome_error", "rtemis_data_error")
     )
   }
   if (!is.null(dat_validation)) {
-    if (class(dat_validation[[ncols]]) != outcome_class) {
+    if (!identical(class(dat_validation[[ncols]]), outcome_class)) {
       rtemis.core::abort(
         "Training and validation outcome must be of same class.",
         class = c("rtemis_outcome_error", "rtemis_data_error")
@@ -192,7 +194,7 @@ check_supervised <- function(
     }
   }
   if (!is.null(dat_test)) {
-    if (class(dat_test[[ncols]]) != outcome_class) {
+    if (!identical(class(dat_test[[ncols]]), outcome_class)) {
       rtemis.core::abort(
         "Training and test outcome must be of same class.",
         class = c("rtemis_outcome_error", "rtemis_data_error")

@@ -3,22 +3,7 @@
 # 2017- EDG rtemis.org
 
 # %% preprocess(x, PreprocessorConfig, ...) ----
-#' @name
-#' preprocess
-#'
-#' @param x data.frame, data.table, tbl_df (tabular data): Data to be preprocessed.
-#' @param config `PreprocessorConfig`: Setup using [setup_Preprocessor] OR `Preprocessor` object:
-#' Output of previous run of `preprocess`. This allows, for example, applying preprocessing to a
-#' validation or test set using the same parameters as were used for the training set. In
-#' particular, the same scale centers and coefficients will be applied to the new data.
-#' @param dat_validation tabular data: Validation set data.
-#' @param dat_test tabular data: Test set data.
-#' @param verbosity Integer: Verbosity level.
-#' @param ... Not used.
-#'
-#' @author EDG
-#' @export
-preprocess.class_tabular.PreprocessorConfig <- method(
+method(
   preprocess,
   list(class_tabular, PreprocessorConfig)
 ) <- function(
@@ -611,9 +596,8 @@ preprocess.class_tabular.PreprocessorConfig <- method(
 
   if (!is.null(dat_validation)) {
     msg("Applying preprocessing to validation data...", verbosity = verbosity)
-    prp_validation <- preprocess(
-      x = dat_validation,
-      config = Preprocessor(
+    preprocessed$validation <- apply_preprocessor(
+      preprocessor = Preprocessor(
         config = config,
         preprocessed = list(),
         scale_centers = values[["scale_centers"]],
@@ -621,15 +605,14 @@ preprocess.class_tabular.PreprocessorConfig <- method(
         one_hot_levels = values[["one_hot_levels"]],
         remove_features = values[["remove_features"]]
       ),
+      new_data = dat_validation,
       verbosity = verbosity
     )
-    preprocessed$validation <- prp_validation@preprocessed
   }
   if (!is.null(dat_test)) {
     msg("Applying preprocessing to test data...", verbosity = verbosity)
-    prp_test <- preprocess(
-      x = dat_test,
-      config = Preprocessor(
+    preprocessed$test <- apply_preprocessor(
+      preprocessor = Preprocessor(
         config = config,
         preprocessed = list(),
         scale_centers = values[["scale_centers"]],
@@ -637,9 +620,9 @@ preprocess.class_tabular.PreprocessorConfig <- method(
         one_hot_levels = values[["one_hot_levels"]],
         remove_features = values[["remove_features"]]
       ),
+      new_data = dat_test,
       verbosity = verbosity
     )
-    preprocessed$test <- prp_test@preprocessed
   }
   outro(start_time, verbosity = verbosity - 1L)
   Preprocessor(
@@ -657,30 +640,75 @@ preprocess.class_tabular.PreprocessorConfig <- method(
 } # /rtemis::preprocess(PreprocessorConfig, ...)
 
 
-# %% preprocess(x, Preprocessor, ...) ----
-#' @name
-#' preprocess
-#'
-#' @author EDG
-#' @export
-preprocess.class_tabular.Preprocessor <- method(
+# %% preprocess(x, missing, ...) ----
+method(
   preprocess,
-  list(class_tabular, Preprocessor)
+  list(class_tabular, class_missing)
 ) <- function(
   x,
   config,
-  verbosity = 1L
+  dat_validation = NULL,
+  dat_test = NULL,
+  verbosity = 1L,
+  ...
 ) {
   # -> Preprocessor
-  params <- config@config
-  # Overwrite scale_centers, scale_coefficients, one_hot_levels, and remove_features
-  params@scale_centers <- config@values[["scale_centers"]]
-  params@scale_coefficients <- config@values[["scale_coefficients"]]
-  params@one_hot_levels <- config@values[["one_hot_levels"]]
-  params@remove_features <- config@values[["remove_features"]]
+  if (...length() == 0L) {
+    rtemis.core::abort(
+      "No preprocessing parameters specified.\n",
+      "Pass a PreprocessorConfig created with setup_Preprocessor(), ",
+      "or pass setup_Preprocessor() arguments directly, e.g. preprocess(x, scale = TRUE).",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  preprocess(
+    x,
+    config = setup_Preprocessor(...),
+    dat_validation = dat_validation,
+    dat_test = dat_test,
+    verbosity = verbosity
+  )
+} # /rtemis::preprocess(missing, ...)
 
-  preprocess(x, params, verbosity = verbosity)
-} # /rtemis::preprocess(Preprocessor, ...)
+
+# %% apply_preprocessor ----
+#' Apply trained Preprocessor to new data
+#'
+#' Apply a trained `Preprocessor` to new data, reusing the values learned from the training
+#' data. For example, the same scale centers and coefficients, one-hot levels, and removed
+#' features will be applied to the new data.
+#'
+#' @param preprocessor `Preprocessor`: Trained preprocessor, i.e. the output of [preprocess].
+#' @param new_data data.frame or data.table: New data to preprocess.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Preprocessed data of the same class as `new_data` (data.frame or data.table).
+#'
+#' @author EDG
+#' @seealso [preprocess], [setup_Preprocessor]
+#' @export
+#' @examples
+#' res <- resample(iris, setup_Resampler(seed = 2026))
+#' iris_train <- iris[res[[1]], ]
+#' iris_test <- iris[-res[[1]], ]
+#'
+#' # Preprocess training data
+#' iris_pre <- preprocess(iris_train, setup_Preprocessor(scale = TRUE, center = TRUE))
+#'
+#' # Apply the same preprocessing to test data
+#' iris_test_pre <- apply_preprocessor(iris_pre, iris_test)
+apply_preprocessor <- function(preprocessor, new_data, verbosity = 1L) {
+  # -> data.frame or data.table
+  check_is_S7(preprocessor, Preprocessor)
+  config <- preprocessor@config
+  # Overwrite scale_centers, scale_coefficients, one_hot_levels, and remove_features
+  config@scale_centers <- preprocessor@values[["scale_centers"]]
+  config@scale_coefficients <- preprocessor@values[["scale_coefficients"]]
+  config@one_hot_levels <- preprocessor@values[["one_hot_levels"]]
+  config@remove_features <- preprocessor@values[["remove_features"]]
+
+  preprocessed(preprocess(new_data, config, verbosity = verbosity))
+} # /rtemis::apply_preprocessor
 
 
 # %% one_hot ----

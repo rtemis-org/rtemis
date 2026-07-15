@@ -808,7 +808,7 @@ session_kind_colors <- function(kinds) {
 # %% session_report ----
 #' End-of-run model-count and failure report
 #'
-#' Derives all counts from the session graph (so they cannot drift from reality) and
+#' Derives all counts from the session graph and
 #' prints a structured summary: how many models were trained, broken out, with
 #' succeeded/failed and elapsed time. See specs/observability.md section 8.
 #'

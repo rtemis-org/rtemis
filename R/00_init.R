@@ -70,13 +70,30 @@ inspect <- new_generic("inspect", "x", function(x) {
 #' Preprocess data for analysis and visualization.
 #'
 #' @details
-#' Methods are provided for preprocessing training set data, which accepts a `PreprocessorConfig`
-#' object, and for preprocessing validation and test set data, which accept a `Preprocessor`
-#' object.
+#' `preprocess()` preprocesses training data and learns any data-dependent values (e.g. scale
+#' centers and coefficients, one-hot levels). Optional `dat_validation` and `dat_test` data are
+#' preprocessed using the values learned from the training data. To apply a trained
+#' `Preprocessor` to new data, use [apply_preprocessor].
+#'
+#' For interactive use, `config` may be omitted and [setup_Preprocessor] arguments passed
+#' directly instead, e.g. `preprocess(x, scale = TRUE, center = TRUE)`. At least one
+#' preprocessing parameter must be specified: `preprocess(x)` is an error.
+#'
+#' @param x data.frame or data.table: Training set data to preprocess.
+#' @param config `PreprocessorConfig`: Preprocessing configuration created by
+#' [setup_Preprocessor]. May be omitted, in which case [setup_Preprocessor] arguments are
+#' passed directly via `...`.
+#' @param dat_validation Optional data.frame or data.table: Validation set data. Preprocessed
+#' using the values learned from the training set data.
+#' @param dat_test Optional data.frame or data.table: Test set data. Preprocessed using the
+#' values learned from the training set data.
+#' @param verbosity Integer: Verbosity level.
+#' @param ... [setup_Preprocessor] arguments: Only used when `config` is not provided.
 #'
 #' @return `Preprocessor` object.
 #'
 #' @author EDG
+#' @seealso [apply_preprocessor], [setup_Preprocessor]
 #' @rdname preprocess
 #' @export
 #' @examples
@@ -94,18 +111,30 @@ inspect <- new_generic("inspect", "x", function(x) {
 #' # Preprocess training data
 #' iris_pre <- preprocess(iris_train, prp)
 #'
-#' # Access preprocessd training data with `preprocessed()`
+#' # Alternatively, for interactive use, pass `setup_Preprocessor()` arguments directly
+#' iris_pre <- preprocess(iris_train, remove_duplicates = TRUE, scale = TRUE, center = TRUE)
+#'
+#' # Access preprocessed training data with `preprocessed()`
 #' preprocessed(iris_pre)
 #'
-#' # Apply the same preprocessing to test data
-#' # In this case, the scale and center values from training data will be used.
-#' # Note how `preprocess()` accepts either a `PreprocessorConfig` or `Preprocessor` object for
-#' # this reason.
-#' iris_test_pre <- preprocess(iris_test, iris_pre)
-#'
-#' # Access preprocessed test data
-#' preprocessed(iris_test_pre)
-preprocess <- new_generic("preprocess", c("x", "config"))
+#' # Apply the same preprocessing to test data with `apply_preprocessor()`,
+#' # which returns the preprocessed data directly.
+#' # The scale and center values learned from the training data will be used.
+#' iris_test_pre <- apply_preprocessor(iris_pre, iris_test)
+preprocess <- new_generic(
+  "preprocess",
+  c("x", "config"),
+  function(
+    x,
+    config,
+    dat_validation = NULL,
+    dat_test = NULL,
+    verbosity = 1L,
+    ...
+  ) {
+    S7_dispatch()
+  }
+)
 
 
 # %% train_ ----

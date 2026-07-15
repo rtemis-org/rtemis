@@ -48,14 +48,23 @@ intro <- function(
 } # /rtemis::intro
 
 
-# Function to output seconds if seconds < 60, otherwise output minutes
+# Format duration: seconds if < 60, otherwise M:SS or H:MM:SS
+# (matching the format used by rtemis.core progress reporting)
 #' @keywords internal
 #' @noRd
 format_seconds <- function(seconds) {
   if (seconds < 60) {
     paste0(bold(ddSci(seconds)), " seconds")
   } else {
-    paste0(bold(ddSci(round(seconds / 60))), " minutes")
+    s <- as.integer(round(seconds))
+    h <- s %/% 3600L
+    m <- (s %% 3600L) %/% 60L
+    sec <- s %% 60L
+    if (h > 0L) {
+      bold(sprintf("%d:%02d:%02d", h, m, sec))
+    } else {
+      bold(sprintf("%d:%02d", m, sec))
+    }
   }
 }
 

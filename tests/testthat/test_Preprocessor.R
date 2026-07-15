@@ -34,9 +34,9 @@ iris_Pre
 iris_Pre@preprocessed
 iris_Pre@values
 
-iris_test_Pre <- preprocess(iris_test, iris_Pre)
-test_that("preprocess(x, Preprocessor) succeeds", {
-  expect_s7_class(iris_test_Pre, Preprocessor)
+iris_test_pre <- apply_preprocessor(iris_Pre, iris_test)
+test_that("apply_preprocessor(Preprocessor, new_data) returns preprocessed data", {
+  expect_s3_class(iris_test_pre, "data.frame")
 })
 
 iris_Pre_too <- preprocess(
@@ -48,8 +48,30 @@ test_that("preprocess(x, PreprocessorConfig) succeeds", {
   expect_s7_class(iris_Pre_too, Preprocessor)
 })
 
-test_that("preprocess(x, PreprocessorConfig) and preprocess(x, Preprocessor) give same test set", {
-  expect_equal(iris_Pre_too@preprocessed$test, iris_test_Pre@preprocessed)
+test_that("preprocess(x, PreprocessorConfig) and apply_preprocessor() give same test set", {
+  expect_equal(iris_Pre_too@preprocessed$test, iris_test_pre)
+})
+
+# Preprocessor: preprocess(x, ...) with setup_Preprocessor arguments ----
+iris_Pre_direct <- preprocess(
+  iris_train,
+  remove_duplicates = TRUE,
+  scale = TRUE,
+  center = TRUE
+)
+test_that("preprocess(x, ...) with direct arguments matches PreprocessorConfig call", {
+  expect_s7_class(iris_Pre_direct, Preprocessor)
+  expect_equal(iris_Pre_direct@preprocessed, iris_Pre@preprocessed)
+})
+
+test_that("preprocess(x) with no preprocessing parameters errors", {
+  expect_error(preprocess(iris_train), class = "rtemis_input_error")
+})
+
+test_that("preprocess(x, config, ...) with extra setup arguments errors", {
+  expect_error(
+    preprocess(iris_train, setup_Preprocessor(scale = TRUE), center = TRUE)
+  )
 })
 
 # impute meanMode ----

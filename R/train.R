@@ -14,6 +14,7 @@
 #' @param dat_test Tabular data: Test set data.
 #' @param weights Optional vector of case weights.
 #' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
+#'   If neither is defined, defaults to "ranger".
 #' @param preprocessor_config Optional PreprocessorConfig object: Setup using [setup_Preprocessor].
 #' @param decomposition_config Optional DecompositionConfig object: Setup using a decomposition
 #'  `setup_*` function.
@@ -222,12 +223,6 @@ train <- function(
   } # / train.SuperConfig
 
   # Checks ----
-  if (is.null(hyperparameters) && is.null(algorithm)) {
-    rtemis.core::abort(
-      "You must define either `hyperparameters` or `algorithm`.",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
 
   # Defense against invalid args
   extra_args <- list(...)
@@ -245,8 +240,13 @@ train <- function(
     )
   }
 
-  if (is.null(algorithm) && !is.null(hyperparameters)) {
-    algorithm <- hyperparameters@algorithm
+  if (is.null(algorithm)) {
+    if (!is.null(hyperparameters)) {
+      check_is_S7(hyperparameters, Hyperparameters)
+      algorithm <- hyperparameters@algorithm
+    } else {
+      algorithm <- "ranger"
+    }
   }
 
   # Initial check targetting non-numeric or factor columns
@@ -776,12 +776,11 @@ train <- function(
     # Re-apply algorithm-level preprocessing before predicting on each dataset.
     x_features <- features(x)
     if (!is.null(preprocessor_internal)) {
-      x_features <- preprocess(
-        x_features,
+      x_features <- apply_preprocessor(
         preprocessor_internal,
+        x_features,
         verbosity = verbosity - 1L
-      ) |>
-        preprocessed()
+      )
     }
 
     predicted_training <- predict_super(
@@ -802,12 +801,11 @@ train <- function(
     if (!is.null(dat_validation)) {
       dat_validation_features <- features(dat_validation)
       if (!is.null(preprocessor_internal)) {
-        dat_validation_features <- preprocess(
-          dat_validation_features,
+        dat_validation_features <- apply_preprocessor(
           preprocessor_internal,
+          dat_validation_features,
           verbosity = verbosity - 1L
-        ) |>
-          preprocessed()
+        )
       }
 
       predicted_validation <- predict_super(
@@ -828,12 +826,11 @@ train <- function(
     if (!is.null(dat_test)) {
       dat_test_features <- features(dat_test)
       if (!is.null(preprocessor_internal)) {
-        dat_test_features <- preprocess(
-          dat_test_features,
+        dat_test_features <- apply_preprocessor(
           preprocessor_internal,
+          dat_test_features,
           verbosity = verbosity - 1L
-        ) |>
-          preprocessed()
+        )
       }
 
       predicted_test <- predict_super(
