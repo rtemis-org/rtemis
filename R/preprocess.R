@@ -700,14 +700,14 @@ method(
 apply_preprocessor <- function(preprocessor, new_data, verbosity = 1L) {
   # -> data.frame or data.table
   check_is_S7(preprocessor, Preprocessor)
-  params <- preprocessor@config
+  config <- preprocessor@config
   # Overwrite scale_centers, scale_coefficients, one_hot_levels, and remove_features
-  params@scale_centers <- preprocessor@values[["scale_centers"]]
-  params@scale_coefficients <- preprocessor@values[["scale_coefficients"]]
-  params@one_hot_levels <- preprocessor@values[["one_hot_levels"]]
-  params@remove_features <- preprocessor@values[["remove_features"]]
+  config@scale_centers <- preprocessor@values[["scale_centers"]]
+  config@scale_coefficients <- preprocessor@values[["scale_coefficients"]]
+  config@one_hot_levels <- preprocessor@values[["one_hot_levels"]]
+  config@remove_features <- preprocessor@values[["remove_features"]]
 
-  preprocessed(preprocess(new_data, params, verbosity = verbosity))
+  preprocessed(preprocess(new_data, config, verbosity = verbosity))
 } # /rtemis::apply_preprocessor
 
 
