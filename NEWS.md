@@ -7,6 +7,8 @@
 - Parallel tuning now reports progress through the same system: new `handler_rtemis()` bridges progressr `progression` conditions (relayed by future from workers) onto the rtemis progress renderer, and `tune_GridSearch()` wraps its future backend in `progressr::with_progress(handlers = handler_rtemis(...))` - previously, worker ticks were silent unless the user had activated progressr handlers themselves. The mirai backend polls task resolution and reports through the same renderer (replacing mirai's own cli collection bar).
 - `train(dat)` defaults to ranger instead of throwing an error.
 - `read` now uses preprocess to remove duplicates. renamed `make_unique` => `remove_duplicates`.
+- Breaking change: New `apply_preprocessor(preprocessor, new_data)` applies a trained `Preprocessor` to new data and returns the preprocessed data directly, analogous to `predict()` for models. It replaces `preprocess(x, Preprocessor)`; `preprocess(x, config)` now accepts only a `PreprocessorConfig`.
+- `preprocess()` now also accepts `setup_Preprocessor()` arguments directly for interactive use, e.g. `preprocess(x, scale = TRUE)`, creating the `PreprocessorConfig` internally. Calling `preprocess(x)` with no preprocessing parameters is an error.
 
 ## 1.2.7
 

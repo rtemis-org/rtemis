@@ -776,12 +776,11 @@ train <- function(
     # Re-apply algorithm-level preprocessing before predicting on each dataset.
     x_features <- features(x)
     if (!is.null(preprocessor_internal)) {
-      x_features <- preprocess(
-        x_features,
+      x_features <- apply_preprocessor(
         preprocessor_internal,
+        x_features,
         verbosity = verbosity - 1L
-      ) |>
-        preprocessed()
+      )
     }
 
     predicted_training <- predict_super(
@@ -802,12 +801,11 @@ train <- function(
     if (!is.null(dat_validation)) {
       dat_validation_features <- features(dat_validation)
       if (!is.null(preprocessor_internal)) {
-        dat_validation_features <- preprocess(
-          dat_validation_features,
+        dat_validation_features <- apply_preprocessor(
           preprocessor_internal,
+          dat_validation_features,
           verbosity = verbosity - 1L
-        ) |>
-          preprocessed()
+        )
       }
 
       predicted_validation <- predict_super(
@@ -828,12 +826,11 @@ train <- function(
     if (!is.null(dat_test)) {
       dat_test_features <- features(dat_test)
       if (!is.null(preprocessor_internal)) {
-        dat_test_features <- preprocess(
-          dat_test_features,
+        dat_test_features <- apply_preprocessor(
           preprocessor_internal,
+          dat_test_features,
           verbosity = verbosity - 1L
-        ) |>
-          preprocessed()
+        )
       }
 
       predicted_test <- predict_super(
