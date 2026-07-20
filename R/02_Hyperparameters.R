@@ -1,4 +1,4 @@
-# S7_Hyperparameters.R
+# 02_Hyperparameters.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -9,12 +9,33 @@
 # LightGBM parameters
 # - https://lightgbm.readthedocs.io/en/latest/Parameters.html
 
+# Architecture ----
+# Every `*Hyperparameters` class declares its hyperparameters with the
+# `prop_*` factories (00_Props.R): one declaration per hyperparameter carries
+# the type, default, bounds, enum, tunability, and description, from which S7
+# validators, the tunable/fixed name vectors, the `hyperparameters` list, and
+# the JSON Schema (S7_to_JSONSchema) are all generated. Parameters whose R
+# type cannot be expressed as a JSON type (e.g. character-or-function) are
+# declared as plain S7 properties: still stored and validated by class, but
+# non-tunable and excluded from schemas via `exclude`.
+#
+# The abstract `Hyperparameters` superclass provides computed properties:
+# - `hyperparameters`: assembles the named list from the subclass's own
+#   properties plus `hp_constants()` (getter), and routes assignments back to
+#   the properties, where they are validated (setter). Changing a constant
+#   is an error.
+# - `tunable_hyperparameters` / `fixed_hyperparameters`: derived from specs.
+# - `tuned`: derived from current values via `get_tuned_status()` unless the
+#   Tuner has set a status explicitly (backing store `.tuned`; NA = derive).
+# Subclasses use S7's default constructors (defaults come from the specs);
+# `setup_*` functions clean user input and construct.
+
 # %% Constants ----
 # `tuned` values ----
 # -9: Set by Tuner: Actively being tuned (Values fixed by Tuner).
-# -2: Set by constructor: Not tunable (No tunable_hyperparameters).
-# -1: Set by constructor: Not tunable (tunable_hyperparameters exist, but none of them have more than one value).
-#  0: Set by constructor: Untuned but tunable (at least one of tunable_hyperparameters has more than one value).
+# -2: Not tunable (No tunable_hyperparameters).
+# -1: Not tunable (tunable_hyperparameters exist, but none of them have more than one value).
+#  0: Untuned but tunable (search values present, or a tune-on-NULL parameter is unset).
 #  1: Set by Tuner: Tuned (Started as 0, set to 1 when tuned).
 TUNED_STATUS_TUNING <- -9L
 TUNED_STATUS_NOT_TUNABLE <- -2L
@@ -26,19 +47,135 @@ TUNED_STATUS_TUNED <- 1L
 # 0: Running on single training set.
 # 1: Running on resampled training sets.
 
+# %% prop_algorithm ----
+#' Computed constant `algorithm` property
+#'
+#' Each `Hyperparameters` subclass overrides the inherited `algorithm`
+#' property with a computed constant, so the value is always correct and
+#' never stored.
+#'
+#' @param algorithm Character: Algorithm name.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_algorithm <- function(algorithm) {
+  force(algorithm)
+  new_property(class_character, getter = function(self) algorithm)
+} # /rtemis::prop_algorithm
+
+
+# %% hp_prop_names ----
+#' Names of a Hyperparameters subclass's own (hyperparameter) properties
+#'
+#' All properties declared by the subclass itself — factory-built or plain —
+#' excluding the properties inherited from `Hyperparameters`.
+#'
+#' @param x S7 class (a `Hyperparameters` subclass).
+#'
+#' @return Character vector of property names.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+hp_prop_names <- function(x) {
+  setdiff(names(x@properties), names(Hyperparameters@properties))
+} # /rtemis::hp_prop_names
+
+
+# %% hp_prop_values ----
+#' Collect hyperparameter property values from an instance
+#'
+#' Named list of the subclass's own property values, mapping zero-length
+#' values to NULL (the package-wide "unset").
+#'
+#' @param self `Hyperparameters` object.
+#'
+#' @return Named list.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+hp_prop_values <- function(self) {
+  nms <- hp_prop_names(S7_class(self))
+  out <- lapply(nms, function(nm) {
+    v <- prop(self, nm)
+    if (length(v) == 0L && !is.function(v)) NULL else v
+  })
+  names(out) <- nms
+  out
+} # /rtemis::hp_prop_values
+
+
+# %% hp_constants ----
+#' Unsettable hyperparameter constants of a Hyperparameters object
+#'
+#' Named list of algorithm parameters that are fixed by the algorithm
+#' definition itself (e.g. `boosting_type = "rf"` for LightRF,
+#' `kernel = "linear"` for LinearSVM). They are appended to the
+#' `hyperparameters` list (so training backends receive them) but are not
+#' properties, cannot be changed, and are excluded from generated schemas.
+#'
+#' @param x `Hyperparameters` object.
+#'
+#' @return Named list.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+hp_constants <- new_generic("hp_constants", "x")
+
+method(hp_constants, class_any) <- function(x) {
+  list()
+} # /rtemis::hp_constants.default
+
+
+# %% tune_on_null ----
+#' Hyperparameters that need tuning when unset
+#'
+#' Names of hyperparameters whose NULL (unset) value means "determine by
+#' tuning": GLMNET's `lambda` (cv.glmnet) and LightGBM's `nrounds` (early
+#' stopping). `nullable + tunable` alone does not imply NULL => tune, so
+#' this is declared per class.
+#'
+#' @param x `Hyperparameters` object.
+#'
+#' @return Character vector of property names.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+tune_on_null <- new_generic("tune_on_null", "x")
+
+method(tune_on_null, class_any) <- function(x) {
+  character()
+} # /rtemis::tune_on_null.default
+
+
 # %% Hyperparameters ----
 #' Hyperparameters
 #'
 #' @description
-#' Superclass for hyperparameters.
+#' Abstract superclass for algorithm hyperparameters. Subclasses declare
+#' each hyperparameter as a property (see the Architecture note at the top
+#' of this file); this class contributes the run state and the computed,
+#' spec-derived views.
 #'
-#' @field algorithm Character: Algorithm name.
-#' @field hyperparameters Named list of algorithm hyperparameter values.
-#' @field tunable_hyperparameters Character: Names of tunable hyperparameters.
-#' @field fixed_hyperparameters Character: Names of fixed hyperparameters.
-#' @field tuned Integer: Tuning status.
+#' @field algorithm Character: Algorithm name (computed constant, overridden
+#'   per subclass).
+#' @field .tuned Integer: Backing store for `tuned`; NA = derive from values.
+#' @field tuned Integer: Tuning status (computed; see TUNED_STATUS constants).
 #' @field resampled Integer: Outer resampling status.
 #' @field n_workers Integer: Number of workers to use for tuning.
+#' @field hyperparameters Named list of hyperparameter values (computed from
+#'   the subclass's properties plus `hp_constants()`; assignment routes back
+#'   to the properties and validates).
+#' @field tunable_hyperparameters Character: Names of tunable hyperparameters
+#'   (derived from specs).
+#' @field fixed_hyperparameters Character: Names of fixed hyperparameters
+#'   (derived from specs, plus constants).
 #'
 #' @author EDG
 #' @keywords internal
@@ -46,74 +183,74 @@ TUNED_STATUS_TUNED <- 1L
 Hyperparameters <- new_class(
   name = "Hyperparameters",
   package = "rtemis",
+  abstract = TRUE,
   properties = list(
     algorithm = class_character,
-    hyperparameters = class_list,
-    tunable_hyperparameters = class_character,
-    fixed_hyperparameters = class_character,
-    tuned = class_integer,
-    resampled = class_integer,
-    n_workers = class_integer
-  ),
-  constructor = function(
-    algorithm,
-    hyperparameters,
-    tunable_hyperparameters,
-    fixed_hyperparameters,
-    n_workers = 1L
-  ) {
-    # Test if any tunable_hyperparameters have more than one value
-    if (length(tunable_hyperparameters) > 0) {
-      if (any(sapply(hyperparameters[tunable_hyperparameters], length) > 1)) {
-        tuned <- 0L # Search values defined for tunable hyperparameters.
-      } else {
-        tuned <- -1L # No search values defined for tunable hyperparameters.
-      }
-    } else {
-      tuned <- -2L # No tunable hyperparameters
-    }
-    # GLMNET
-    if (algorithm == "GLMNET") {
-      if (is.null(hyperparameters[["lambda"]])) {
-        tuned <- 0L
-      }
-    }
-    # LightGBM
-    if (algorithm == "LightGBM") {
-      if (is.null(hyperparameters[["nrounds"]])) {
-        tuned <- 0L
-      }
-    }
-    # SVM
-    # Check kernel-specific hyperparameters
-    if (algorithm == "SVM") {
-      # linear => cost
-      if (hyperparameters[["kernel"]] == "linear") {
-        if (length(hyperparameters[["cost"]]) > 1) {
-          tuned <- 0L
-        }
-      } else if (hyperparameters[["kernel"]] == "polynomial") {
-        if (length(hyperparameters[["degree"]]) > 1) {
-          tuned <- 0L
-        }
-      } else if (hyperparameters[["kernel"]] == "radial") {
-        if (length(hyperparameters[["sigma"]]) > 1) {
-          tuned <- 0L
+    .tuned = new_property(class_integer, default = NA_integer_),
+    tuned = new_property(
+      class_integer,
+      getter = function(self) {
+        if (is.na(self@.tuned)) {
+          get_tuned_status(self)
+        } else {
+          self@.tuned
         }
       }
-    }
-    n_workers <- clean_posint(n_workers)
-    new_object(
-      S7_object(),
-      algorithm = algorithm,
-      hyperparameters = hyperparameters,
-      tunable_hyperparameters = tunable_hyperparameters,
-      fixed_hyperparameters = fixed_hyperparameters,
-      tuned = tuned,
-      resampled = 0L,
-      n_workers = n_workers
+    ),
+    resampled = new_property(class_integer, default = 0L),
+    n_workers = new_property(class_integer, default = 1L),
+    hyperparameters = new_property(
+      class_list,
+      getter = function(self) {
+        c(hp_prop_values(self), hp_constants(self))
+      },
+      setter = function(self, value) {
+        settable <- hp_prop_names(S7_class(self))
+        constants <- hp_constants(self)
+        for (nm in names(value)) {
+          if (nm %in% settable) {
+            prop(self, nm) <- value[[nm]]
+          } else if (nm %in% names(constants)) {
+            if (!identical(value[[nm]], constants[[nm]])) {
+              rtemis.core::abort(
+                self@algorithm,
+                " hyperparameter '",
+                nm,
+                "' is a constant and cannot be changed.",
+                class = "rtemis_input_error"
+              )
+            }
+          } else {
+            rtemis.core::abort(
+              "Unknown ",
+              self@algorithm,
+              " hyperparameter '",
+              nm,
+              "'.",
+              class = "rtemis_input_error"
+            )
+          }
+        }
+        self
+      }
+    ),
+    tunable_hyperparameters = new_property(
+      class_character,
+      getter = function(self) {
+        tunable_spec_names(S7_class(self))
+      }
+    ),
+    fixed_hyperparameters = new_property(
+      class_character,
+      getter = function(self) {
+        cls <- S7_class(self)
+        c(
+          setdiff(hp_prop_names(cls), tunable_spec_names(cls)),
+          names(hp_constants(self))
+        )
+      }
     )
-  }
+  )
 ) # /rtemis::Hyperparameters
 
 
@@ -143,10 +280,20 @@ method(repr, Hyperparameters) <- function(
     pad = pad,
     output_type = output_type
   )
+  # Select the display props explicitly: subclasses declare each
+  # hyperparameter as its own property, which would otherwise print twice
+  # (individually and inside `hyperparameters`).
   out <- paste0(
     out,
     repr_ls(
-      props(x)[-1],
+      props(x)[c(
+        "hyperparameters",
+        "tunable_hyperparameters",
+        "fixed_hyperparameters",
+        "tuned",
+        "resampled",
+        "n_workers"
+      )],
       pad = pad,
       maxlength = maxlength,
       limit = limit,
@@ -226,29 +373,88 @@ method(print, Hyperparameters) <- function(x, output_type = NULL, ...) {
 
 # %% is_tuned.Hyperparameters ----
 method(is_tuned, Hyperparameters) <- function(x) {
-  x@tuned == 1L
+  x@tuned == TUNED_STATUS_TUNED
 } # /is_tuned.Hyperparameters
 
 
 # %% get_tuned_status.Hyperparameters ----
+#' Derive tuning status from current values
+#'
+#' Spec-driven: any tunable hyperparameter with more than one value (search
+#' values), or any `tune_on_null()` hyperparameter that is unset, means
+#' "needs tuning".
+#'
+#' @keywords internal
+#' @noRd
 method(get_tuned_status, Hyperparameters) <- function(x) {
-  if (length(x@tunable_hyperparameters) > 0) {
-    if (any(sapply(x@hyperparameters[x@tunable_hyperparameters], length) > 1)) {
-      0L
-    } else {
-      -1L
-    }
-  } else {
-    -2L
+  tunable <- x@tunable_hyperparameters
+  if (length(tunable) == 0L) {
+    return(TUNED_STATUS_NOT_TUNABLE)
   }
+  values <- x@hyperparameters
+  if (any(lengths(values[tunable]) > 1L)) {
+    return(TUNED_STATUS_UNTUNED)
+  }
+  null_tune <- vapply(
+    tune_on_null(x),
+    function(nm) is.null(values[[nm]]),
+    logical(1L)
+  )
+  if (any(null_tune)) {
+    return(TUNED_STATUS_UNTUNED)
+  }
+  TUNED_STATUS_NO_SEARCH_VALUES
 } # /rtemis::get_tuned_status.Hyperparameters
+
+
+# %% .update_hyperparameters ----
+#' Set hyperparameter values on a Hyperparameters object
+#'
+#' Shared engine for the `update()` methods. Values are assigned to the
+#' corresponding properties (validated). The literal string "null" is the
+#' grid sentinel produced by `expand_grid()` for NULL search entries and is
+#' converted back to NULL.
+#'
+#' @param object `Hyperparameters` object.
+#' @param hyperparameters Named list of values to set.
+#' @param tuned Integer or NULL: Tuning status to set; NULL re-derives from
+#'   the updated values.
+#'
+#' @return Updated `Hyperparameters` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+.update_hyperparameters <- function(object, hyperparameters, tuned) {
+  settable <- hp_prop_names(S7_class(object))
+  for (hp in names(hyperparameters)) {
+    if (!hp %in% settable) {
+      rtemis.core::abort(
+        "Unknown ",
+        object@algorithm,
+        " hyperparameter '",
+        hp,
+        "'.",
+        class = "rtemis_input_error"
+      )
+    }
+    value <- hyperparameters[[hp]]
+    if (identical(value, "null")) {
+      value <- NULL
+    }
+    prop(object, hp) <- value
+  }
+  object@.tuned <- if (is.null(tuned)) NA_integer_ else tuned
+  object
+} # /rtemis::.update_hyperparameters
 
 
 # %% update.Hyperparameters ----
 #' Update Hyperparameters
 #'
-#' @param x `Hyperparameters` object.
+#' @param object `Hyperparameters` object.
 #' @param hyperparameters Named list of algorithm hyperparameter values.
+#' @param tuned Integer or NULL: Tuning status; NULL re-derives it.
 #'
 #' @author EDG
 #' @keywords internal
@@ -259,29 +465,22 @@ method(update, Hyperparameters) <- function(
   tuned = NULL,
   ...
 ) {
-  for (hp in names(hyperparameters)) {
-    object@hyperparameters[[hp]] <- hyperparameters[[hp]]
-  }
-  # Update tuned status
-  if (is.null(tuned)) {
-    object@tuned <- get_tuned_status(object)
-  } else {
-    object@tuned <- tuned
-  }
-  object
+  .update_hyperparameters(object, hyperparameters, tuned)
 } # /rtemis::update.Hyperparameters
 
 
 # %% freeze.Hyperparameters ----
 method(freeze, Hyperparameters) <- function(x) {
-  x@tuned <- -1L
+  x@.tuned <- TUNED_STATUS_NO_SEARCH_VALUES
+  x
 } # /rtemis::freeze.Hyperparameters
 
 
 # %% lock.Hyperparameters ----
 method(lock, Hyperparameters) <- function(x) {
-  x@tuned <- 1L
-}
+  x@.tuned <- TUNED_STATUS_TUNED
+  x
+} # /rtemis::lock.Hyperparameters
 
 
 # %% `$`.Hyperparameters ----
@@ -308,21 +507,30 @@ method(`[[`, Hyperparameters) <- function(x, name) {
 
 # %% needs_tuning.Hyperparameters ----
 method(needs_tuning, Hyperparameters) <- function(x) {
-  x@tuned == 0
+  x@tuned == TUNED_STATUS_UNTUNED
 } # /rtemis::needs_tuning.Hyperparameters
 
 
 # %% get_hyperparams_need_tuning.Hyperparameters ----
-#' Get hyperparameters that need tuning in an algorithm-specific way.
+#' Get hyperparameters that need tuning.
+#'
+#' Tunable hyperparameters with more than one value (search values), plus
+#' any `tune_on_null()` hyperparameter that is unset (as a NULL entry, which
+#' `expand_grid()` converts to its "null" sentinel).
 #'
 #' @keywords internal
 #' @noRd
 method(get_hyperparams_need_tuning, Hyperparameters) <- function(x) {
   # -> list
-  # Get tunable hyperparameters with more than one value
-  x@hyperparameters[x@tunable_hyperparameters[
-    sapply(x@hyperparameters[x@tunable_hyperparameters], length) > 1
-  ]]
+  values <- x@hyperparameters
+  tunable <- x@tunable_hyperparameters
+  out <- values[tunable[lengths(values[tunable]) > 1L]]
+  for (nm in tune_on_null(x)) {
+    if (is.null(values[[nm]])) {
+      out <- c(out, stats::setNames(list(NULL), nm))
+    }
+  }
+  out
 } # /get_hyperparams_need_tuning.Hyperparameters
 
 
@@ -332,29 +540,29 @@ method(get_hyperparams, list(Hyperparameters, class_character)) <- function(
   param_names
 ) {
   sapply(param_names, function(p) x@hyperparameters[p], USE.NAMES = FALSE)
-} # /rtemis::get_hyperparams_need_tuning.Hyperparameters
+} # /rtemis::get_hyperparams.Hyperparameters
 
 
 # %% GLMHyperparameters ----
-#' @author EDG
+#' @title GLMHyperparameters
 #'
+#' @description
+#' Hyperparameters subclass for GLM.
+#'
+#' @author EDG
 #' @keywords internal
 #' @noRd
 GLMHyperparameters <- new_class(
   name = "GLMHyperparameters",
   parent = Hyperparameters,
-  constructor = function(ifw) {
-    new_object(
-      Hyperparameters(
-        algorithm = "GLM",
-        hyperparameters = list(
-          ifw = ifw
-        ),
-        tunable_hyperparameters = "ifw",
-        fixed_hyperparameters = character()
-      )
+  properties = list(
+    algorithm = prop_algorithm("GLM"),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
     )
-  } # /constructor
+  )
 ) # /rtemis::GLMHyperparameters
 
 
@@ -374,32 +582,35 @@ GLMHyperparameters <- new_class(
 #' glm_hyperparams
 setup_GLM <- function(ifw = FALSE) {
   GLMHyperparameters(ifw = ifw)
-}
+} # /rtemis::setup_GLM
 
 
 # %% GAMHyperparameters ----
-GAM_tunable <- c("k", "ifw")
-GAM_fixed <- character()
-
+#' @title GAMHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for GAM.
+#'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 GAMHyperparameters <- new_class(
   name = "GAMHyperparameters",
   parent = Hyperparameters,
-  constructor = function(k, ifw) {
-    new_object(
-      Hyperparameters(
-        algorithm = "GAM",
-        hyperparameters = list(
-          k = k,
-          ifw = ifw
-        ),
-        tunable_hyperparameters = GAM_tunable,
-        fixed_hyperparameters = GAM_fixed
-      )
+  properties = list(
+    algorithm = prop_algorithm("GAM"),
+    k = prop_integer(
+      5L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of knots."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
     )
-  } # /constructor
+  )
 ) # /rtemis::GAMHyperparameters
 
 
@@ -410,7 +621,7 @@ GAMHyperparameters <- new_class(
 #'
 #' Get more information from [mgcv::gam].
 #'
-#' @param k (Tunable) Integer: Number of knots.
+#' @param k (Tunable) Integer [1, Inf): Number of knots.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return GAMHyperparameters object.
@@ -423,23 +634,10 @@ GAMHyperparameters <- new_class(
 setup_GAM <- function(k = 5L, ifw = FALSE) {
   k <- clean_posint(k)
   GAMHyperparameters(k = k, ifw = ifw)
-}
+} # /rtemis::setup_GAM
 
 
 # %% CARTHyperparameters ----
-CART_tunable <- c("cp", "maxdepth", "minsplit", "minbucket", "prune_cp", "ifw")
-CART_fixed <- c(
-  "method",
-  "model",
-  "maxcompete",
-  "maxsurrogate",
-  "usesurrogate",
-  "surrogatestyle",
-  "xval",
-  "cost"
-)
-
-
 #' @title CARTHyperparameters
 #'
 #' @description
@@ -451,46 +649,89 @@ CART_fixed <- c(
 CARTHyperparameters <- new_class(
   name = "CARTHyperparameters",
   parent = Hyperparameters,
-  constructor = function(
-    cp,
-    maxdepth,
-    minsplit,
-    minbucket,
-    prune_cp,
-    method,
-    model,
-    maxcompete,
-    maxsurrogate,
-    usesurrogate,
-    surrogatestyle,
-    xval,
-    cost,
-    ifw
-  ) {
-    new_object(
-      Hyperparameters(
-        algorithm = "CART",
-        hyperparameters = list(
-          cp = cp,
-          maxdepth = maxdepth,
-          minsplit = minsplit,
-          minbucket = minbucket,
-          prune_cp = prune_cp,
-          method = method,
-          model = model,
-          maxcompete = maxcompete,
-          maxsurrogate = maxsurrogate,
-          usesurrogate = usesurrogate,
-          surrogatestyle = surrogatestyle,
-          xval = xval,
-          cost = cost,
-          ifw = ifw
-        ),
-        tunable_hyperparameters = CART_tunable,
-        fixed_hyperparameters = CART_fixed
-      )
+  properties = list(
+    algorithm = prop_algorithm("CART"),
+    cp = prop_float(
+      0.01,
+      min = 0,
+      tunable = TRUE,
+      description = "Complexity parameter."
+    ),
+    maxdepth = prop_integer(
+      20L,
+      min = 1L,
+      max = 30L,
+      tunable = TRUE,
+      description = "Maximum depth of tree (rpart limit: 30)."
+    ),
+    minsplit = prop_integer(
+      2L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Minimum number of observations in a node to attempt a split."
+    ),
+    minbucket = prop_integer(
+      1L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Minimum number of observations in a terminal node."
+    ),
+    prune_cp = prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Complexity for cost-complexity pruning after the tree is built."
+    ),
+    method = prop_string(
+      "auto",
+      enum = c("auto", "anova", "class", "poisson", "exp"),
+      description = "Splitting method. auto = set from outcome type."
+    ),
+    model = prop_boolean(
+      TRUE,
+      description = "Keep a copy of the model frame in the result."
+    ),
+    maxcompete = prop_integer(
+      4L,
+      min = 0L,
+      description = "Number of competitor splits retained in the output."
+    ),
+    maxsurrogate = prop_integer(
+      5L,
+      min = 0L,
+      description = "Number of surrogate splits retained in the output."
+    ),
+    usesurrogate = prop_integer(
+      2L,
+      min = 0L,
+      max = 2L,
+      description = "How to use surrogates in the splitting process."
+    ),
+    surrogatestyle = prop_integer(
+      0L,
+      min = 0L,
+      max = 1L,
+      description = "Controls the selection of the best surrogate."
+    ),
+    xval = prop_integer(
+      0L,
+      min = 0L,
+      description = "Number of rpart-internal cross-validation folds."
+    ),
+    cost = prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Variable costs, one per feature."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
     )
-  } # /constructor
+  )
 ) # /rtemis::CARTHyperparameters
 
 
@@ -501,20 +742,20 @@ CARTHyperparameters <- new_class(
 #'
 #' Get more information from [rpart::rpart] and [rpart::rpart.control].
 #'
-#' @param cp (Tunable) Numeric: Complexity parameter.
-#' @param maxdepth (Tunable) Integer: Maximum depth of tree.
-#' @param minsplit (Tunable) Integer: Minimum number of observations in a node to split.
-#' @param minbucket (Tunable) Integer: Minimum number of observations in a terminal node.
-#' @param prune_cp (Tunable) Numeric: Complexity for cost-complexity pruning after tree is built
-#' @param method String: Splitting method.
-#' @param model Logical: If TRUE, return a model.
-#' @param maxcompete Integer: Maximum number of competitive splits.
-#' @param maxsurrogate Integer: Maximum number of surrogate splits.
-#' @param usesurrogate Integer: Number of surrogate splits to use.
-#' @param surrogatestyle Integer: Type of surrogate splits.
-#' @param xval Integer: Number of cross-validation folds.
-#' @param cost Numeric (>=0): One for each feature.
-#' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#' @param cp (Tunable) Numeric [0, Inf): Complexity parameter.
+#' @param maxdepth (Tunable) Integer \[1, 30\]: Maximum depth of tree.
+#' @param minsplit (Tunable) Integer [1, Inf): Minimum number of observations in a node to split.
+#' @param minbucket (Tunable) Integer [1, Inf): Minimum number of observations in a terminal node.
+#' @param prune_cp (Tunable) Optional Numeric [0, Inf): Complexity for cost-complexity pruning after tree is built.
+#' @param method Character \{"auto", "anova", "class", "poisson", "exp"\}: Splitting method.
+#' @param model Logical: If TRUE, keep a copy of the model frame.
+#' @param maxcompete Integer [0, Inf): Maximum number of competitive splits.
+#' @param maxsurrogate Integer [0, Inf): Maximum number of surrogate splits.
+#' @param usesurrogate Integer \[0, 2\]: Number of surrogate splits to use.
+#' @param surrogatestyle Integer \[0, 1\]: Type of surrogate splits.
+#' @param xval Integer [0, Inf): Number of cross-validation folds.
+#' @param cost Optional Numeric (0, Inf): One for each feature.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return CARTHyperparameters object.
 #'
@@ -541,19 +782,14 @@ setup_CART <- function(
   cost = NULL,
   ifw = FALSE
 ) {
-  rtemis.core::check_numeric(cp)
   maxdepth <- clean_int(maxdepth)
   minsplit <- clean_int(minsplit)
   minbucket <- clean_int(minbucket)
-  rtemis.core::check_numeric(prune_cp)
-  check_inherits(method, "character")
-  check_inherits(model, "logical")
   maxcompete <- clean_int(maxcompete)
   maxsurrogate <- clean_int(maxsurrogate)
   usesurrogate <- clean_int(usesurrogate)
   surrogatestyle <- clean_int(surrogatestyle)
   xval <- clean_int(xval)
-  rtemis.core::check_numeric(cost)
   CARTHyperparameters(
     cp = cp,
     maxdepth = maxdepth,
@@ -572,26 +808,14 @@ setup_CART <- function(
   )
 } # /rtemis::setup_CART
 
-# Test that all CART hyperparameters are set by setup_CART
-stopifnot(all(c(CART_tunable, CART_fixed) %in% names(formals(setup_CART))))
-
 
 # %% GLMNETHyperparameters ----
-GLMNET_tunable <- c("alpha", "ifw")
-GLMNET_fixed <- c(
-  "family",
-  "offset",
-  "which_lambda_cv",
-  "nlambda",
-  "penalty_factor",
-  "standardize",
-  "intercept"
-)
-
 #' @title GLMNETHyperparameters
 #'
 #' @description
-#' Hyperparameters subclass for GLMNET.
+#' Hyperparameters subclass for GLMNET. `lambda.min` and `lambda.1se` are
+#' runtime state written by the Tuner (from cv.glmnet), not settable
+#' hyperparameters — exclude them from schema generation.
 #'
 #' @author EDG
 #' @keywords internal
@@ -599,62 +823,99 @@ GLMNET_fixed <- c(
 GLMNETHyperparameters <- new_class(
   name = "GLMNETHyperparameters",
   parent = Hyperparameters,
-  constructor = function(
-    alpha,
-    family,
-    offset,
-    which_lambda_cv,
-    nlambda,
-    lambda,
-    penalty_factor,
-    standardize,
-    intercept,
-    ifw
-  ) {
-    check_float01inc(alpha)
-    check_inherits(which_lambda_cv, "character")
-    nlambda <- clean_posint(nlambda)
-    rtemis.core::check_numeric(penalty_factor)
-    check_inherits(standardize, "logical")
-    new_object(
-      Hyperparameters(
-        algorithm = "GLMNET",
-        hyperparameters = list(
-          alpha = alpha,
-          family = family,
-          offset = offset,
-          which_lambda_cv = which_lambda_cv,
-          nlambda = nlambda,
-          lambda = lambda,
-          penalty_factor = penalty_factor,
-          standardize = standardize,
-          intercept = intercept,
-          ifw = ifw
-        ),
-        tunable_hyperparameters = GLMNET_tunable,
-        fixed_hyperparameters = GLMNET_fixed
-      )
-    )
-  } # /constructor
+  properties = list(
+    algorithm = prop_algorithm("GLMNET"),
+    alpha = prop_float(
+      1,
+      min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Elastic net mixing parameter (0 = ridge, 1 = lasso)."
+    ),
+    family = prop_string(
+      NULL,
+      enum = c(
+        "gaussian",
+        "binomial",
+        "poisson",
+        "multinomial",
+        "cox",
+        "mgaussian"
+      ),
+      nullable = TRUE,
+      description = "GLM family. NULL = set from outcome type."
+    ),
+    offset = prop_float(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Offset, one value per case."
+    ),
+    which_lambda_cv = prop_string(
+      "lambda.1se",
+      enum = c("lambda.1se", "lambda.min"),
+      description = "Which cross-validated lambda to use for prediction."
+    ),
+    nlambda = prop_integer(
+      100L,
+      min = 1L,
+      description = "Number of lambda values."
+    ),
+    lambda = prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Regularization strength. NULL = determined by cv.glmnet during tuning."
+    ),
+    penalty_factor = prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Penalty factor, one per feature."
+    ),
+    standardize = prop_boolean(
+      TRUE,
+      description = "Standardize features."
+    ),
+    intercept = prop_boolean(
+      TRUE,
+      description = "Include intercept."
+    ),
+    ifw = prop_boolean(
+      TRUE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    ),
+    # Runtime state (written by the Tuner from cv.glmnet results).
+    `lambda.min` = new_property(class_double | NULL, default = NULL),
+    `lambda.1se` = new_property(class_double | NULL, default = NULL)
+  )
 ) # /rtemis::GLMNETHyperparameters
 
+method(tune_on_null, GLMNETHyperparameters) <- function(x) {
+  "lambda"
+} # /rtemis::tune_on_null.GLMNETHyperparameters
+
+
+# %% setup_GLMNET ----
 #' Setup GLMNET Hyperparameters
 #'
 #' Setup hyperparameters for GLMNET training.
 #'
 #' Get more information from [glmnet::glmnet].
 #'
-#' @param alpha (Tunable) Numeric: Mixing parameter.
-#' @param family Character: Family for GLMNET.
-#' @param offset Numeric: Offset for GLMNET.
-#' @param which_lambda_cv Character: Which lambda to use for prediction:
-#' "lambda.1se" or "lambda.min"
-#' @param nlambda Positive integer: Number of lambda values.
-#' @param lambda Numeric: Lambda values.
-#' @param penalty_factor Numeric: Penalty factor for each feature.
+#' @param alpha (Tunable) Numeric \[0, 1\]: Elastic net mixing parameter.
+#' @param family Optional Character \{"gaussian", "binomial", "poisson", "multinomial", "cox", "mgaussian"\}: Family. NULL = set from outcome type.
+#' @param offset Optional Numeric vector: Offset, one value per case.
+#' @param which_lambda_cv Character \{"lambda.1se", "lambda.min"\}: Which lambda to use for prediction.
+#' @param nlambda Integer [1, Inf): Number of lambda values.
+#' @param lambda Optional Numeric [0, Inf) vector: Lambda values. NULL = determined by cv.glmnet during tuning.
+#' @param penalty_factor Optional Numeric [0, Inf) vector: Penalty factor for each feature.
 #' @param standardize Logical: If TRUE, standardize features.
 #' @param intercept Logical: If TRUE, include intercept.
-#' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return GLMNETHyperparameters object.
 #'
@@ -677,16 +938,11 @@ setup_GLMNET <- function(
   intercept = TRUE,
   ifw = TRUE
 ) {
-  check_float01inc(alpha)
-  check_inherits(which_lambda_cv, "character")
   nlambda <- clean_posint(nlambda)
-  rtemis.core::check_numeric(penalty_factor)
-  check_logical(standardize)
-  check_logical(ifw)
   GLMNETHyperparameters(
+    alpha = alpha,
     family = family,
     offset = offset,
-    alpha = alpha,
     which_lambda_cv = which_lambda_cv,
     nlambda = nlambda,
     lambda = lambda,
@@ -697,41 +953,12 @@ setup_GLMNET <- function(
   )
 } # /rtemis::setup_GLMNET
 
-# Test that all GLMNET hyperparameters are set by setup_GLMNET
-stopifnot(all(
-  c(GLMNET_tunable, GLMNET_fixed) %in% names(formals(setup_GLMNET))
-))
-
-method(get_hyperparams_need_tuning, GLMNETHyperparameters) <- function(x) {
-  # Get tunable hyperparameters with more than one value
-  out <- x@hyperparameters[x@tunable_hyperparameters[
-    sapply(x@hyperparameters[x@tunable_hyperparameters], length) > 1
-  ]]
-  if (is.null(x[["lambda"]])) {
-    out <- c(out, list(lambda = NULL))
-  }
-  out
-} # /rtemis::get_hyperparams_need_tuning.GLMNETHyperparameters
-
 
 # %% LightCARTHyperparameters ----
-LightCART_tunable <- c(
-  "num_leaves",
-  "max_depth",
-  "lambda_l1",
-  "lambda_l2",
-  "min_data_in_leaf",
-  "max_cat_threshold",
-  "min_data_per_group",
-  "linear_tree",
-  "ifw"
-)
-LightCART_fixed <- c("objective")
-
 #' @title LightCARTHyperparameters
 #'
 #' @description
-#' Hyperparameters subclass for LightCART
+#' Hyperparameters subclass for LightCART.
 #'
 #' @author EDG
 #' @keywords internal
@@ -739,38 +966,65 @@ LightCART_fixed <- c("objective")
 LightCARTHyperparameters <- new_class(
   name = "LightCARTHyperparameters",
   parent = Hyperparameters,
-  constructor = function(
-    num_leaves,
-    max_depth,
-    lambda_l1,
-    lambda_l2,
-    min_data_in_leaf,
-    max_cat_threshold,
-    min_data_per_group,
-    linear_tree,
-    objective,
-    ifw
-  ) {
-    new_object(
-      Hyperparameters(
-        algorithm = "LightCART",
-        hyperparameters = list(
-          num_leaves = num_leaves,
-          max_depth = max_depth,
-          lambda_l1 = lambda_l1,
-          lambda_l2 = lambda_l2,
-          min_data_in_leaf = min_data_in_leaf,
-          max_cat_threshold = max_cat_threshold,
-          min_data_per_group = min_data_per_group,
-          linear_tree = linear_tree,
-          objective = objective,
-          ifw = ifw
-        ),
-        tunable_hyperparameters = LightCART_tunable,
-        fixed_hyperparameters = LightCART_fixed
-      )
+  properties = list(
+    algorithm = prop_algorithm("LightCART"),
+    num_leaves = prop_integer(
+      32L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Maximum number of leaves in one tree."
+    ),
+    max_depth = prop_integer(
+      -1L,
+      tunable = TRUE,
+      description = "Maximum tree depth. -1 = no limit."
+    ),
+    lambda_l1 = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "L1 regularization."
+    ),
+    lambda_l2 = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "L2 regularization."
+    ),
+    min_data_in_leaf = prop_integer(
+      20L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Minimum number of cases in a leaf."
+    ),
+    max_cat_threshold = prop_integer(
+      32L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Maximum number of split points for categorical features."
+    ),
+    min_data_per_group = prop_integer(
+      100L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Minimum number of cases per categorical group."
+    ),
+    linear_tree = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Fit linear models at leaves."
+    ),
+    objective = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "LightGBM objective. NULL = set from outcome type."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
     )
-  } # /constructor
+  )
 ) # /rtemis::LightCARTHyperparameters
 
 
@@ -781,16 +1035,16 @@ LightCARTHyperparameters <- new_class(
 #'
 #' Get more information from [lightgbm::lgb.train].
 #'
-#' @param num_leaves (Tunable) Positive integer: Maximum number of leaves in one tree.
-#' @param max_depth (Tunable) Integer: Maximum depth of trees.
-#' @param lambda_l1 (Tunable) Numeric: L1 regularization.
-#' @param lambda_l2 (Tunable) Numeric: L2 regularization.
-#' @param min_data_in_leaf (Tunable) Positive integer: Minimum number of data in a leaf.
-#' @param max_cat_threshold (Tunable) Positive integer: Maximum number of categories for categorical features.
-#' @param min_data_per_group (Tunable) Positive integer: Minimum number of observations per categorical group.
+#' @param num_leaves (Tunable) Integer [1, Inf): Maximum number of leaves in one tree.
+#' @param max_depth (Tunable) Integer: Maximum depth of trees. -1 = no limit.
+#' @param lambda_l1 (Tunable) Numeric [0, Inf): L1 regularization.
+#' @param lambda_l2 (Tunable) Numeric [0, Inf): L2 regularization.
+#' @param min_data_in_leaf (Tunable) Integer [1, Inf): Minimum number of data in a leaf.
+#' @param max_cat_threshold (Tunable) Integer [1, Inf): Maximum number of categories for categorical features.
+#' @param min_data_per_group (Tunable) Integer [1, Inf): Minimum number of observations per categorical group.
 #' @param linear_tree (Tunable) Logical: If TRUE, use linear trees.
-#' @param objective Character: Objective function.
-#' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#' @param objective Optional Character: Objective function. NULL = set from outcome type.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return LightCARTHyperparameters object.
 #'
@@ -813,12 +1067,9 @@ setup_LightCART <- function(
 ) {
   num_leaves <- clean_posint(num_leaves)
   max_depth <- clean_int(max_depth)
-  check_float0pos(lambda_l1)
-  check_float0pos(lambda_l2)
   min_data_in_leaf <- clean_posint(min_data_in_leaf)
   max_cat_threshold <- clean_posint(max_cat_threshold)
   min_data_per_group <- clean_posint(min_data_per_group)
-  check_logical(linear_tree)
   LightCARTHyperparameters(
     num_leaves = num_leaves,
     max_depth = max_depth,
@@ -835,33 +1086,20 @@ setup_LightCART <- function(
 
 
 # %% LightRFHyperparameters ----
-LightRF_tunable <- c(
-  "nrounds",
-  "num_leaves",
-  "max_depth",
-  "feature_fraction",
-  "subsample",
-  "lambda_l1",
-  "lambda_l2",
-  "max_cat_threshold",
-  "min_data_per_group",
-  "ifw"
-)
-LightRF_fixed <- c(
-  "objective",
-  "device_type",
-  "tree_learner",
-  "boosting_type",
-  "learning_rate",
-  "subsample_freq",
-  "early_stopping_rounds",
-  "force_col_wise"
+# LightGBM parameters fixed by the RF mode: not settable and excluded from
+# the generated JSON Schema; appended to the `hyperparameters` list so
+# lgb.train receives them.
+LightRF_constants <- list(
+  boosting_type = "rf",
+  learning_rate = 1, # no effect? in boosting_type 'rf', but set for clarity
+  subsample_freq = 1L, # a.k.a. bagging_freq
+  early_stopping_rounds = -1L
 )
 
 #' @title LightRFHyperparameters
 #'
 #' @description
-#' Hyperparameters subclass for LightRF
+#' Hyperparameters subclass for LightRF (LightGBM random forest mode).
 #'
 #' @author EDG
 #' @keywords internal
@@ -869,56 +1107,98 @@ LightRF_fixed <- c(
 LightRFHyperparameters <- new_class(
   name = "LightRFHyperparameters",
   parent = Hyperparameters,
-  constructor = function(
-    nrounds,
-    num_leaves,
-    max_depth,
-    feature_fraction,
-    subsample,
-    lambda_l1,
-    lambda_l2,
-    max_cat_threshold,
-    min_data_per_group,
-    linear_tree,
-    ifw,
-    # fixed
-    objective,
-    device_type,
-    tree_learner,
-    force_col_wise
-  ) {
-    new_object(
-      Hyperparameters(
-        algorithm = "LightRF",
-        hyperparameters = list(
-          nrounds = nrounds,
-          num_leaves = num_leaves,
-          max_depth = max_depth,
-          feature_fraction = feature_fraction,
-          subsample = subsample,
-          lambda_l1 = lambda_l1,
-          lambda_l2 = lambda_l2,
-          max_cat_threshold = max_cat_threshold,
-          min_data_per_group = min_data_per_group,
-          linear_tree = linear_tree,
-          ifw = ifw,
-          # fixed
-          objective = objective,
-          device_type = device_type,
-          tree_learner = tree_learner,
-          force_col_wise = force_col_wise,
-          # unsettable: LightGBM params for RF
-          boosting_type = "rf",
-          learning_rate = 1, # no effect? in boosting_type 'rf', but set for clarity
-          subsample_freq = 1L, # a.k.a. bagging_freq
-          early_stopping_rounds = -1L
-        ),
-        tunable_hyperparameters = LightRF_tunable,
-        fixed_hyperparameters = LightRF_fixed
-      )
+  properties = list(
+    algorithm = prop_algorithm("LightRF"),
+    nrounds = prop_integer(
+      500L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of boosting rounds (trees)."
+    ),
+    num_leaves = prop_integer(
+      4096L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Maximum number of leaves per tree."
+    ),
+    max_depth = prop_integer(
+      -1L,
+      tunable = TRUE,
+      description = "Maximum tree depth. -1 = no limit."
+    ),
+    feature_fraction = prop_float(
+      0.7,
+      exclusive_min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Fraction of features sampled per tree."
+    ),
+    subsample = prop_float(
+      0.623,
+      exclusive_min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Fraction of cases sampled per tree (bagging fraction)."
+    ),
+    lambda_l1 = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "L1 regularization."
+    ),
+    lambda_l2 = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "L2 regularization."
+    ),
+    max_cat_threshold = prop_integer(
+      32L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Maximum number of split points for categorical features."
+    ),
+    min_data_per_group = prop_integer(
+      32L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Minimum number of cases per categorical group."
+    ),
+    linear_tree = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Fit linear models at leaves."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse frequency weighting of outcome classes."
+    ),
+    objective = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "LightGBM objective. NULL = set from outcome type."
+    ),
+    device_type = prop_string(
+      "cpu",
+      enum = c("cpu", "gpu", "cuda"),
+      description = "Compute device."
+    ),
+    tree_learner = prop_string(
+      "serial",
+      enum = c("serial", "feature", "data", "voting"),
+      description = "Tree learner type."
+    ),
+    force_col_wise = prop_boolean(
+      TRUE,
+      description = "Force column-wise histogram building (CPU only)."
     )
-  }
+  )
 ) # /rtemis::LightRFHyperparameters
+
+method(hp_constants, LightRFHyperparameters) <- function(x) {
+  LightRF_constants
+} # /rtemis::hp_constants.LightRFHyperparameters
 
 
 # %% setup_LightRF ----
@@ -931,20 +1211,20 @@ LightRFHyperparameters <- new_class(
 #' and cannot be set because they are what makes `lightgbm` train a random forest.
 #' These can all be set when training gradient boosting with LightGBM.
 #'
-#' @param nrounds (Tunable) Positive integer: Number of boosting rounds.
-#' @param num_leaves (Tunable) Positive integer: Maximum number of leaves in one tree.
-#' @param max_depth (Tunable) Integer: Maximum depth of trees.
-#' @param feature_fraction (Tunable) Numeric: Fraction of features to use.
-#' @param subsample (Tunable) Numeric: Fraction of data to use.
-#' @param lambda_l1 (Tunable) Numeric: L1 regularization.
-#' @param lambda_l2 (Tunable) Numeric: L2 regularization.
-#' @param max_cat_threshold (Tunable) Positive integer: Maximum number of categories for categorical features.
-#' @param min_data_per_group (Tunable) Positive integer: Minimum number of observations per categorical group.
-#' @param linear_tree Logical: If TRUE, use linear trees.
-#' @param objective Character: Objective function.
-#' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification.
-#' @param device_type Character: "cpu" or "gpu".
-#' @param tree_learner Character: "serial", "feature", "data", or "voting".
+#' @param nrounds (Tunable) Integer [1, Inf): Number of boosting rounds.
+#' @param num_leaves (Tunable) Integer [1, Inf): Maximum number of leaves in one tree.
+#' @param max_depth (Tunable) Integer: Maximum depth of trees. -1 = no limit.
+#' @param feature_fraction (Tunable) Numeric (0, 1]: Fraction of features to use.
+#' @param subsample (Tunable) Numeric (0, 1]: Fraction of data to use.
+#' @param lambda_l1 (Tunable) Numeric [0, Inf): L1 regularization.
+#' @param lambda_l2 (Tunable) Numeric [0, Inf): L2 regularization.
+#' @param max_cat_threshold (Tunable) Integer [1, Inf): Maximum number of categories for categorical features.
+#' @param min_data_per_group (Tunable) Integer [1, Inf): Minimum number of observations per categorical group.
+#' @param linear_tree (Tunable) Logical: If TRUE, use linear trees.
+#' @param objective Optional Character: Objective function. NULL = set from outcome type.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#' @param device_type Character \{"cpu", "gpu", "cuda"\}: Compute device.
+#' @param tree_learner Character \{"serial", "feature", "data", "voting"\}: Tree learner type.
 #' @param force_col_wise Logical: Use only with CPU - If TRUE, force col-wise histogram building.
 #'
 #' @return LightRFHyperparameters object.
@@ -975,13 +1255,8 @@ setup_LightRF <- function(
   nrounds <- clean_posint(nrounds)
   num_leaves <- clean_posint(num_leaves)
   max_depth <- clean_int(max_depth)
-  check_float01inc(feature_fraction)
-  check_float01inc(subsample)
-  check_float0pos(lambda_l1)
-  check_float0pos(lambda_l2)
   max_cat_threshold <- clean_posint(max_cat_threshold)
   min_data_per_group <- clean_posint(min_data_per_group)
-  check_logical(linear_tree)
   LightRFHyperparameters(
     nrounds = nrounds,
     num_leaves = num_leaves,
@@ -999,43 +1274,16 @@ setup_LightRF <- function(
     tree_learner = tree_learner,
     force_col_wise = force_col_wise
   )
-} # /rtemis::setupLightRF
-
-# Test that all LightRF hyperparameters are set by setup_LightRF
-# LightRF fixed hyperparameters are not editable.
-stopifnot(all(LightRF_tunable %in% names(formals(setup_LightRF))))
+} # /rtemis::setup_LightRF
 
 
 # %% LightGBMHyperparameters ----
-LightGBM_tunable <- c(
-  "num_leaves",
-  "max_depth",
-  "learning_rate",
-  "feature_fraction",
-  "subsample",
-  "subsample_freq",
-  "lambda_l1",
-  "lambda_l2",
-  "max_cat_threshold",
-  "min_data_per_group",
-  "linear_tree",
-  "ifw"
-)
-LightGBM_fixed <- c(
-  "max_nrounds",
-  "force_nrounds",
-  "early_stopping_rounds",
-  "objective",
-  "device_type",
-  "tree_learner",
-  "force_col_wise"
-)
-
-
 #' @title LightGBMHyperparameters
 #'
 #' @description
-#' Hyperparameters subclass for LightGBM
+#' Hyperparameters subclass for LightGBM. `nrounds` is derived (from
+#' `force_nrounds`, or by early-stopping during tuning) and `best_iter` is
+#' runtime state written by the Tuner — exclude both from schema generation.
 #'
 #' @author EDG
 #' @keywords internal
@@ -1043,64 +1291,126 @@ LightGBM_fixed <- c(
 LightGBMHyperparameters <- new_class(
   name = "LightGBMHyperparameters",
   parent = Hyperparameters,
-  constructor = function(
-    max_nrounds,
-    force_nrounds,
-    early_stopping_rounds,
-    # tunable
-    num_leaves,
-    max_depth,
-    learning_rate,
-    feature_fraction,
-    subsample,
-    subsample_freq,
-    lambda_l1,
-    lambda_l2,
-    max_cat_threshold,
-    min_data_per_group,
-    linear_tree,
-    ifw,
-    objective,
-    device_type,
-    tree_learner,
-    force_col_wise
-  ) {
-    nrounds <- if (!is.null(force_nrounds)) {
-      force_nrounds
-    } else {
-      NULL
-    }
-    new_object(
-      Hyperparameters(
-        algorithm = "LightGBM",
-        hyperparameters = list(
-          nrounds = nrounds,
-          max_nrounds = max_nrounds,
-          force_nrounds = force_nrounds,
-          early_stopping_rounds = early_stopping_rounds,
-          num_leaves = num_leaves,
-          max_depth = max_depth,
-          learning_rate = learning_rate,
-          feature_fraction = feature_fraction,
-          subsample = subsample,
-          subsample_freq = subsample_freq,
-          lambda_l1 = lambda_l1,
-          lambda_l2 = lambda_l2,
-          max_cat_threshold = max_cat_threshold,
-          min_data_per_group = min_data_per_group,
-          linear_tree = linear_tree,
-          ifw = ifw,
-          objective = objective,
-          device_type = device_type,
-          tree_learner = tree_learner,
-          force_col_wise = force_col_wise
-        ),
-        tunable_hyperparameters = LightGBM_tunable,
-        fixed_hyperparameters = LightGBM_fixed
-      )
-    )
-  }
+  properties = list(
+    algorithm = prop_algorithm("LightGBM"),
+    max_nrounds = prop_integer(
+      1000L,
+      min = 1L,
+      description = "Maximum number of boosting rounds when tuning nrounds by early stopping."
+    ),
+    force_nrounds = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      description = "Use this many boosting rounds; disables the search for nrounds."
+    ),
+    early_stopping_rounds = prop_integer(
+      10L,
+      min = 1L,
+      description = "Number of rounds without improvement to stop training."
+    ),
+    num_leaves = prop_integer(
+      8L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Maximum number of leaves in one tree."
+    ),
+    max_depth = prop_integer(
+      -1L,
+      tunable = TRUE,
+      description = "Maximum tree depth. -1 = no limit."
+    ),
+    learning_rate = prop_float(
+      0.01,
+      exclusive_min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Learning rate."
+    ),
+    feature_fraction = prop_float(
+      1.0,
+      exclusive_min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Fraction of features sampled per tree."
+    ),
+    subsample = prop_float(
+      1.0,
+      exclusive_min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Fraction of cases sampled per tree (bagging fraction)."
+    ),
+    subsample_freq = prop_integer(
+      1L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Bagging frequency."
+    ),
+    lambda_l1 = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "L1 regularization."
+    ),
+    lambda_l2 = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "L2 regularization."
+    ),
+    max_cat_threshold = prop_integer(
+      32L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Maximum number of split points for categorical features."
+    ),
+    min_data_per_group = prop_integer(
+      32L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Minimum number of cases per categorical group."
+    ),
+    linear_tree = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Fit linear models at leaves."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    ),
+    objective = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "LightGBM objective. NULL = set from outcome type."
+    ),
+    device_type = prop_string(
+      "cpu",
+      enum = c("cpu", "gpu", "cuda"),
+      description = "Compute device."
+    ),
+    tree_learner = prop_string(
+      "serial",
+      enum = c("serial", "feature", "data", "voting"),
+      description = "Tree learner type."
+    ),
+    force_col_wise = prop_boolean(
+      TRUE,
+      description = "Force column-wise histogram building (CPU only)."
+    ),
+    # Derived: force_nrounds if set, otherwise determined by early stopping
+    # during tuning.
+    nrounds = new_property(class_integer | NULL, default = NULL),
+    # Runtime state (best iteration, written by the Tuner).
+    best_iter = new_property(class_numeric | NULL, default = NULL)
+  )
 ) # /rtemis::LightGBMHyperparameters
+
+method(tune_on_null, LightGBMHyperparameters) <- function(x) {
+  "nrounds"
+} # /rtemis::tune_on_null.LightGBMHyperparameters
 
 method(update, LightGBMHyperparameters) <- function(
   object,
@@ -1108,56 +1418,42 @@ method(update, LightGBMHyperparameters) <- function(
   tuned = NULL,
   ...
 ) {
-  for (hp in names(hyperparameters)) {
-    object@hyperparameters[[hp]] <- hyperparameters[[hp]]
-  }
-  # Update tuned status
-  if (is.null(tuned)) {
-    object@tuned <- get_tuned_status(object)
-  } else {
-    object@tuned <- tuned
-  }
+  object <- .update_hyperparameters(object, hyperparameters, tuned)
   # Update nrounds (e.g. in LightRuleFit)
-  if (
-    is.null(object@hyperparameters[["nrounds"]]) &&
-      !is.null(object@hyperparameters[["force_nrounds"]])
-  ) {
-    object@hyperparameters[["nrounds"]] <- object@hyperparameters[[
-      "force_nrounds"
-    ]]
+  if (is.null(object@nrounds) && !is.null(object@force_nrounds)) {
+    object@nrounds <- object@force_nrounds
   }
   object
 } # /update.LightGBMHyperparameters
 
 
 # %% setup_LightGBM ----
-# References:
-# LightGBM parameters: https://lightgbm.readthedocs.io/en/latest/Parameters.html
-
 #' Setup LightGBM Hyperparameters
 #'
 #' Setup hyperparameters for LightGBM training.
 #'
 #' Get more information from [lightgbm::lgb.train].
+#' `nrounds` is auto-tuned using early stopping (up to `max_nrounds`) unless
+#' `force_nrounds` is set.
 #'
-#' @param max_nrounds Positive integer: Maximum number of boosting rounds.
-#' @param force_nrounds Positive integer: Use this many boosting rounds. Disable search for nrounds.
-#' @param early_stopping_rounds Positive integer: Number of rounds without improvement to stop training.
-#' @param num_leaves (Tunable) Positive integer: Maximum number of leaves in one tree.
-#' @param max_depth (Tunable) Integer: Maximum depth of trees.
-#' @param learning_rate (Tunable) Numeric: Learning rate.
-#' @param feature_fraction (Tunable) Numeric: Fraction of features to use.
-#' @param subsample (Tunable) Numeric: Fraction of data to use.
-#' @param subsample_freq (Tunable) Positive integer: Frequency of subsample.
-#' @param lambda_l1 (Tunable) Numeric: L1 regularization.
-#' @param lambda_l2 (Tunable) Numeric: L2 regularization.
-#' @param max_cat_threshold (Tunable) Positive integer: Maximum number of categories for categorical features.
-#' @param min_data_per_group (Tunable) Positive integer: Minimum number of observations per categorical group.
-#' @param linear_tree Logical: If TRUE, use linear trees.
-#' @param objective Character: Objective function.
-#' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification.
-#' @param device_type Character: "cpu" or "gpu".
-#' @param tree_learner Character: "serial", "feature", "data", or "voting".
+#' @param max_nrounds Integer [1, Inf): Maximum number of boosting rounds.
+#' @param force_nrounds Optional Integer [1, Inf): Use this many boosting rounds. Disables search for nrounds.
+#' @param early_stopping_rounds Integer [1, Inf): Number of rounds without improvement to stop training.
+#' @param num_leaves (Tunable) Integer [1, Inf): Maximum number of leaves in one tree.
+#' @param max_depth (Tunable) Integer: Maximum depth of trees. -1 = no limit.
+#' @param learning_rate (Tunable) Numeric (0, 1]: Learning rate.
+#' @param feature_fraction (Tunable) Numeric (0, 1]: Fraction of features to use.
+#' @param subsample (Tunable) Numeric (0, 1]: Fraction of data to use.
+#' @param subsample_freq (Tunable) Integer [1, Inf): Frequency of subsample.
+#' @param lambda_l1 (Tunable) Numeric [0, Inf): L1 regularization.
+#' @param lambda_l2 (Tunable) Numeric [0, Inf): L2 regularization.
+#' @param max_cat_threshold (Tunable) Integer [1, Inf): Maximum number of categories for categorical features.
+#' @param min_data_per_group (Tunable) Integer [1, Inf): Minimum number of observations per categorical group.
+#' @param linear_tree (Tunable) Logical: If TRUE, use linear trees.
+#' @param objective Optional Character: Objective function. NULL = set from outcome type.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#' @param device_type Character \{"cpu", "gpu", "cuda"\}: Compute device.
+#' @param tree_learner Character \{"serial", "feature", "data", "voting"\}: Tree learner type.
 #' @param force_col_wise Logical: Use only with CPU - If TRUE, force col-wise histogram building.
 #'
 #' @return LightGBMHyperparameters object.
@@ -1171,8 +1467,6 @@ method(update, LightGBMHyperparameters) <- function(
 #' )
 #' lightgbm_hyperparams
 setup_LightGBM <- function(
-  # nrounds will be auto-tuned if force_nrounds is NULL with a value up to max_nrounds and
-  # using early_stopping_rounds.
   max_nrounds = 1000L,
   force_nrounds = NULL,
   early_stopping_rounds = 10L,
@@ -1181,7 +1475,7 @@ setup_LightGBM <- function(
   max_depth = -1L,
   learning_rate = 0.01,
   feature_fraction = 1.0,
-  subsample = 1.0, # a.k.a. bagging_fraction {check:hyper}
+  subsample = 1.0, # a.k.a. bagging_fraction
   subsample_freq = 1L,
   lambda_l1 = 0,
   lambda_l2 = 0,
@@ -1199,15 +1493,9 @@ setup_LightGBM <- function(
   early_stopping_rounds <- clean_posint(early_stopping_rounds)
   num_leaves <- clean_posint(num_leaves)
   max_depth <- clean_int(max_depth)
-  check_floatpos1(learning_rate)
-  check_floatpos1(feature_fraction)
-  check_floatpos1(subsample)
   subsample_freq <- clean_posint(subsample_freq)
-  check_float0pos(lambda_l1)
-  check_float0pos(lambda_l2)
   max_cat_threshold <- clean_posint(max_cat_threshold)
   min_data_per_group <- clean_posint(min_data_per_group)
-  check_logical(linear_tree)
   LightGBMHyperparameters(
     max_nrounds = max_nrounds,
     force_nrounds = force_nrounds,
@@ -1227,42 +1515,15 @@ setup_LightGBM <- function(
     objective = objective,
     device_type = device_type,
     tree_learner = tree_learner,
-    force_col_wise = force_col_wise
+    force_col_wise = force_col_wise,
+    nrounds = force_nrounds
   )
-} # /rtemis::setupLightGBM
-
-# Test that all LightGBM hyperparameters are set by setup_LightGBM
-stopifnot(all(
-  c(LightGBM_tunable, LightGBM_fixed) %in% names(formals(setup_LightGBM))
-))
-
-method(get_hyperparams_need_tuning, LightGBMHyperparameters) <- function(x) {
-  # Get tunable hyperparameters with more than one value
-  out <- x@hyperparameters[x@tunable_hyperparameters[
-    sapply(x@hyperparameters[x@tunable_hyperparameters], length) > 1
-  ]]
-  if (is.null(x[["nrounds"]])) {
-    out <- c(out, list(nrounds = NULL))
-  }
-  out
-} # /get_hyperparams_need_tuning.LightGBMHyperparameters
+} # /rtemis::setup_LightGBM
 
 
 # %% LightRuleFitHyperparameters ----
-LightRuleFit_tunable <- c(
-  "nrounds",
-  "num_leaves",
-  "max_depth",
-  "learning_rate",
-  "subsample",
-  "subsample_freq",
-  "lambda_l1",
-  "lambda_l2",
-  "alpha",
-  "ifw_lightgbm",
-  "ifw_glmnet"
-)
-LightRuleFit_fixed <- c("lambda", "objective")
+# Names of hyperparameters forwarded to each step's setup function by
+# train_LightRuleFit.
 LightRuleFit_lightgbm_params <- c(
   "nrounds",
   "num_leaves",
@@ -1276,11 +1537,12 @@ LightRuleFit_lightgbm_params <- c(
 )
 LightRuleFit_glmnet_params <- c("alpha", "lambda")
 
-
 #' @title LightRuleFitHyperparameters
 #'
 #' @description
-#' Hyperparameters subclass for LightRuleFit.
+#' Hyperparameters subclass for LightRuleFit. The class validator enforces
+#' that `ifw` (which applies to both steps) is not combined with the
+#' per-step `ifw_lightgbm` / `ifw_glmnet`.
 #'
 #' @author EDG
 #' @keywords internal
@@ -1288,49 +1550,95 @@ LightRuleFit_glmnet_params <- c("alpha", "lambda")
 LightRuleFitHyperparameters <- new_class(
   name = "LightRuleFitHyperparameters",
   parent = Hyperparameters,
-  constructor = function(
-    nrounds,
-    num_leaves,
-    max_depth,
-    learning_rate,
-    subsample,
-    subsample_freq,
-    lambda_l1,
-    lambda_l2,
-    objective,
-    ifw_lightgbm,
-    # GLMNET
-    alpha,
-    lambda,
-    ifw_glmnet,
-    # IFW
-    ifw
-  ) {
-    new_object(
-      Hyperparameters(
-        algorithm = "LightRuleFit",
-        hyperparameters = list(
-          nrounds = nrounds,
-          num_leaves = num_leaves,
-          max_depth = max_depth,
-          learning_rate = learning_rate,
-          subsample = subsample,
-          subsample_freq = subsample_freq,
-          lambda_l1 = lambda_l1,
-          lambda_l2 = lambda_l2,
-          objective = objective,
-          ifw_lightgbm = ifw_lightgbm,
-          # GLMNET
-          alpha = alpha,
-          lambda = lambda,
-          ifw_glmnet = ifw_glmnet,
-          # IFW
-          ifw = ifw
-        ),
-        tunable_hyperparameters = LightRuleFit_tunable,
-        fixed_hyperparameters = LightRuleFit_fixed
-      )
+  properties = list(
+    algorithm = prop_algorithm("LightRuleFit"),
+    nrounds = prop_integer(
+      200L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of boosting rounds (LightGBM step)."
+    ),
+    num_leaves = prop_integer(
+      32L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Maximum number of leaves in one tree (LightGBM step)."
+    ),
+    max_depth = prop_integer(
+      4L,
+      tunable = TRUE,
+      description = "Maximum tree depth (LightGBM step). -1 = no limit."
+    ),
+    learning_rate = prop_float(
+      0.1,
+      exclusive_min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Learning rate (LightGBM step)."
+    ),
+    subsample = prop_float(
+      0.666,
+      exclusive_min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Fraction of cases sampled per tree (LightGBM step)."
+    ),
+    subsample_freq = prop_integer(
+      1L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Bagging frequency (LightGBM step)."
+    ),
+    lambda_l1 = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "L1 regularization (LightGBM step)."
+    ),
+    lambda_l2 = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "L2 regularization (LightGBM step)."
+    ),
+    objective = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "LightGBM objective. NULL = set from outcome type."
+    ),
+    ifw_lightgbm = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in the LightGBM step."
+    ),
+    alpha = prop_float(
+      1,
+      min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Elastic net mixing parameter (GLMNET step)."
+    ),
+    lambda = prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Regularization strength (GLMNET step). NULL = determined by cv.glmnet."
+    ),
+    ifw_glmnet = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in the GLMNET step."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      description = "Inverse Frequency Weighting in both steps. Cannot be combined with ifw_lightgbm or ifw_glmnet."
     )
+  ),
+  validator = function(self) {
+    if (any(self@ifw) && (any(self@ifw_lightgbm) || any(self@ifw_glmnet))) {
+      "@ifw cannot be combined with @ifw_lightgbm or @ifw_glmnet."
+    }
   }
 ) # /rtemis::LightRuleFitHyperparameters
 
@@ -1342,23 +1650,22 @@ LightRuleFitHyperparameters <- new_class(
 #'
 #' Get more information from [lightgbm::lgb.train].
 #'
-#' @param nrounds (Tunable) Positive integer: Number of boosting rounds.
-#' @param num_leaves (Tunable) Positive integer: Maximum number of leaves in one tree.
+#' @param nrounds (Tunable) Integer [1, Inf): Number of boosting rounds.
+#' @param num_leaves (Tunable) Integer [1, Inf): Maximum number of leaves in one tree.
 #' @param max_depth (Tunable) Integer: Maximum depth of trees.
-#' @param learning_rate (Tunable) Numeric: Learning rate.
-#' @param subsample (Tunable) Numeric: Fraction of data to use.
-#' @param subsample_freq (Tunable) Positive integer: Frequency of subsample.
-#' @param lambda_l1 (Tunable) Numeric: L1 regularization.
-#' @param lambda_l2 (Tunable) Numeric: L2 regularization.
-#' @param objective Character: Objective function.
+#' @param learning_rate (Tunable) Numeric (0, 1]: Learning rate.
+#' @param subsample (Tunable) Numeric (0, 1]: Fraction of data to use.
+#' @param subsample_freq (Tunable) Integer [1, Inf): Frequency of subsample.
+#' @param lambda_l1 (Tunable) Numeric [0, Inf): L1 regularization.
+#' @param lambda_l2 (Tunable) Numeric [0, Inf): L2 regularization.
+#' @param objective Optional Character: Objective function. NULL = set from outcome type.
 #' @param ifw_lightgbm (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in the LightGBM
 #' step.
-#' @param objective Character: Objective function.
-#' @param alpha (Tunable) Numeric: Alpha for GLMNET.
-#' @param lambda Numeric: Lambda for GLMNET.
+#' @param alpha (Tunable) Numeric \[0, 1\]: Alpha for GLMNET.
+#' @param lambda Optional Numeric [0, Inf) vector: Lambda for GLMNET. NULL = determined by cv.glmnet.
 #' @param ifw_glmnet (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in the GLMNET step.
 #' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification. This applies IFW
-#' to both LightGBM and GLMNET.
+#' to both LightGBM and GLMNET; cannot be combined with `ifw_lightgbm` or `ifw_glmnet`.
 #'
 #' @return LightRuleFitHyperparameters object.
 #'
@@ -1386,31 +1693,7 @@ setup_LightRuleFit <- function(
   nrounds <- clean_posint(nrounds)
   num_leaves <- clean_posint(num_leaves)
   max_depth <- clean_int(max_depth)
-  check_floatpos1(learning_rate)
-  check_floatpos1(subsample)
   subsample_freq <- clean_posint(subsample_freq)
-  rtemis.core::check_numeric(lambda_l1)
-  rtemis.core::check_numeric(lambda_l2)
-  check_float01inc(alpha)
-  rtemis.core::check_numeric(lambda)
-  check_logical(ifw_lightgbm)
-  check_logical(ifw_glmnet)
-  check_logical(ifw)
-  # If ifw, cannot have ifw_lightgbm or ifw_glmnet
-  if (ifw) {
-    if (ifw_lightgbm) {
-      rtemis.core::abort(
-        "Cannot set ifw and ifw_lightgbm at the same time.",
-        class = c("rtemis_value_error", "rtemis_input_error")
-      )
-    }
-    if (ifw_glmnet) {
-      rtemis.core::abort(
-        "Cannot set ifw and ifw_glmnet at the same time.",
-        class = c("rtemis_value_error", "rtemis_input_error")
-      )
-    }
-  }
   LightRuleFitHyperparameters(
     nrounds = nrounds,
     num_leaves = num_leaves,
@@ -1431,9 +1714,6 @@ setup_LightRuleFit <- function(
 
 
 # %% IsotonicHyperparameters ----
-Isotonic_tunable <- character()
-Isotonic_fixed <- character()
-
 #' @title IsotonicHyperparameters
 #'
 #' @description
@@ -1445,18 +1725,14 @@ Isotonic_fixed <- character()
 IsotonicHyperparameters <- new_class(
   name = "IsotonicHyperparameters",
   parent = Hyperparameters,
-  constructor = function(ifw) {
-    new_object(
-      Hyperparameters(
-        algorithm = "Isotonic",
-        hyperparameters = list(
-          ifw = ifw
-        ),
-        tunable_hyperparameters = "ifw",
-        fixed_hyperparameters = Isotonic_fixed
-      )
+  properties = list(
+    algorithm = prop_algorithm("Isotonic"),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
     )
-  }
+  )
 ) # /rtemis::IsotonicHyperparameters
 
 
@@ -1481,42 +1757,12 @@ setup_Isotonic <- function(ifw = FALSE) {
 } # /rtemis::setup_Isotonic
 
 
-# %% SVMHyperparameters ----
-#' @title SVMHyperparameters
-#'
-#' @description
-#' Hyperparameters subclass for SVM.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-SVMHyperparameters <- new_class(
-  name = "SVMHyperparameters",
-  parent = Hyperparameters,
-  constructor = function(
-    hyperparameters,
-    tunable_hyperparameters,
-    fixed_hyperparameters
-  ) {
-    new_object(
-      Hyperparameters(
-        algorithm = "SVM",
-        hyperparameters = hyperparameters,
-        tunable_hyperparameters = tunable_hyperparameters,
-        fixed_hyperparameters = fixed_hyperparameters
-      )
-    )
-  } # /constructor
-) # /rtemis::SVMHyperparameters
-
 # %% LinearSVMHyperparameters ----
-LinearSVM_tunable <- c("cost", "ifw")
-LinearSVM_fixed <- character()
-
 #' @title LinearSVMHyperparameters
 #'
 #' @description
-#' Hyperparameters subclass for SVM with linear kernel.
+#' Hyperparameters subclass for SVM with linear kernel. The kernel is a
+#' constant (see `hp_constants`).
 #'
 #' @author EDG
 #' @keywords internal
@@ -1524,21 +1770,25 @@ LinearSVM_fixed <- character()
 LinearSVMHyperparameters <- new_class(
   name = "LinearSVMHyperparameters",
   parent = Hyperparameters,
-  constructor = function(cost, ifw) {
-    new_object(
-      Hyperparameters(
-        algorithm = "LinearSVM",
-        hyperparameters = list(
-          kernel = "linear",
-          cost = cost,
-          ifw = ifw
-        ),
-        tunable_hyperparameters = c("cost", "ifw"),
-        fixed_hyperparameters = character()
-      )
+  properties = list(
+    algorithm = prop_algorithm("LinearSVM"),
+    cost = prop_float(
+      1,
+      exclusive_min = 0,
+      tunable = TRUE,
+      description = "Cost of constraints violation."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
     )
-  } # /constructor
+  )
 ) # /rtemis::LinearSVMHyperparameters
+
+method(hp_constants, LinearSVMHyperparameters) <- function(x) {
+  list(kernel = "linear")
+} # /rtemis::hp_constants.LinearSVMHyperparameters
 
 
 # %% setup_LinearSVM ----
@@ -1547,8 +1797,9 @@ LinearSVMHyperparameters <- new_class(
 #' Setup hyperparameters for LinearSVM training.
 #'
 #' Get more information from [e1071::svm].
-#' @param cost (Tunable) Numeric: Cost of constraints violation.
-#' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @param cost (Tunable) Numeric (0, Inf): Cost of constraints violation.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return LinearSVMHyperparameters object.
 #'
@@ -1561,28 +1812,19 @@ setup_LinearSVM <- function(
   cost = 1,
   ifw = FALSE
 ) {
-  rtemis.core::check_numeric(cost)
-  check_logical(ifw)
   LinearSVMHyperparameters(
     cost = cost,
     ifw = ifw
   )
 } # /setup_LinearSVM
 
-# Test that all SVM hyperparameters are set by setup_SVM
-stopifnot(all(
-  c(LinearSVM_tunable, LinearSVM_fixed) %in% names(formals(setup_LinearSVM))
-))
-
 
 # %% RadialSVMHyperparameters ----
-RadialSVM_tunable <- c("cost", "gamma", "ifw")
-RadialSVM_fixed <- character()
-
 #' @title RadialSVMHyperparameters
 #'
 #' @description
-#' Hyperparameters subclass for SVM with radial kernel.
+#' Hyperparameters subclass for SVM with radial kernel. The kernel is a
+#' constant (see `hp_constants`).
 #'
 #' @author EDG
 #' @keywords internal
@@ -1590,22 +1832,31 @@ RadialSVM_fixed <- character()
 RadialSVMHyperparameters <- new_class(
   name = "RadialSVMHyperparameters",
   parent = Hyperparameters,
-  constructor = function(cost, gamma, ifw) {
-    new_object(
-      Hyperparameters(
-        algorithm = "RadialSVM",
-        hyperparameters = list(
-          kernel = "radial",
-          cost = cost,
-          gamma = gamma,
-          ifw = ifw
-        ),
-        tunable_hyperparameters = c("cost", "gamma", "ifw"),
-        fixed_hyperparameters = character()
-      )
+  properties = list(
+    algorithm = prop_algorithm("RadialSVM"),
+    cost = prop_float(
+      1,
+      exclusive_min = 0,
+      tunable = TRUE,
+      description = "Cost of constraints violation."
+    ),
+    gamma = prop_float(
+      0.01,
+      exclusive_min = 0,
+      tunable = TRUE,
+      description = "Kernel coefficient."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
     )
-  } # /constructor
+  )
 ) # /rtemis::RadialSVMHyperparameters
+
+method(hp_constants, RadialSVMHyperparameters) <- function(x) {
+  list(kernel = "radial")
+} # /rtemis::hp_constants.RadialSVMHyperparameters
 
 
 # %% setup_RadialSVM ----
@@ -1615,9 +1866,9 @@ RadialSVMHyperparameters <- new_class(
 #'
 #' Get more information from [e1071::svm].
 #'
-#' @param cost (Tunable) Numeric: Cost of constraints violation.
-#' @param gamma (Tunable) Numeric: Kernel coefficient.
-#' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#' @param cost (Tunable) Numeric (0, Inf): Cost of constraints violation.
+#' @param gamma (Tunable) Numeric (0, Inf): Kernel coefficient.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return RadialSVMHyperparameters object.
 #'
@@ -1631,9 +1882,6 @@ setup_RadialSVM <- function(
   gamma = 0.01,
   ifw = FALSE
 ) {
-  rtemis.core::check_numeric(cost)
-  rtemis.core::check_numeric(gamma)
-  check_logical(ifw)
   RadialSVMHyperparameters(
     cost = cost,
     gamma = gamma,
@@ -1642,54 +1890,13 @@ setup_RadialSVM <- function(
 } # /setup_RadialSVM
 
 
-# Test that all SVM hyperparameters are set by setup_SVM
-stopifnot(all(
-  c(RadialSVM_tunable, RadialSVM_fixed) %in% names(formals(setup_RadialSVM))
-))
-
-
 # %% TabNetHyperparameters ----
-tabnet_tunable <- c(
-  "batch_size",
-  "penalty",
-  "clip_value",
-  "loss",
-  "epochs",
-  "drop_last",
-  "decision_width",
-  "attention_width",
-  "num_steps",
-  "feature_reusage",
-  "mask_type",
-  "virtual_batch_size",
-  "valid_split",
-  "learn_rate",
-  "optimizer",
-  "lr_scheduler",
-  "lr_decay",
-  "step_size",
-  "checkpoint_epochs",
-  "cat_emb_dim",
-  "num_independent",
-  "num_shared",
-  "num_independent_decoder",
-  "num_shared_decoder",
-  "momentum",
-  "pretraining_ratio",
-  "importance_sample_size",
-  "early_stopping_monitor",
-  "early_stopping_tolerance",
-  "early_stopping_patience",
-  "ifw"
-)
-
-tabnet_fixed <- c("device", "num_workers", "skip_importance")
-
-
 #' @title TabNetHyperparameters
 #'
 #' @description
-#' Hyperparameters subclass for TabNet.
+#' Hyperparameters subclass for TabNet. `optimizer` and `lr_scheduler`
+#' accept either a character name or a torch function, so they are plain
+#' properties (non-tunable, excluded from schema generation).
 #'
 #' @author EDG
 #' @keywords internal
@@ -1697,86 +1904,208 @@ tabnet_fixed <- c("device", "num_workers", "skip_importance")
 TabNetHyperparameters <- new_class(
   name = "TabNetHyperparameters",
   parent = Hyperparameters,
-  constructor = function(
-    batch_size,
-    penalty,
-    clip_value,
-    loss,
-    epochs,
-    drop_last,
-    decision_width,
-    attention_width,
-    num_steps,
-    feature_reusage,
-    mask_type,
-    virtual_batch_size,
-    valid_split,
-    learn_rate,
-    optimizer,
-    lr_scheduler,
-    lr_decay,
-    step_size,
-    checkpoint_epochs,
-    cat_emb_dim,
-    num_independent,
-    num_shared,
-    num_independent_decoder,
-    num_shared_decoder,
-    momentum,
-    pretraining_ratio,
-    device,
-    importance_sample_size,
-    early_stopping_monitor,
-    early_stopping_tolerance,
-    early_stopping_patience,
-    num_workers,
-    skip_importance,
-    ifw
-  ) {
-    new_object(
-      Hyperparameters(
-        algorithm = "TabNet",
-        hyperparameters = list(
-          batch_size = batch_size,
-          penalty = penalty,
-          clip_value = clip_value,
-          loss = loss,
-          epochs = epochs,
-          drop_last = drop_last,
-          decision_width = decision_width,
-          attention_width = attention_width,
-          num_steps = num_steps,
-          feature_reusage = feature_reusage,
-          mask_type = mask_type,
-          virtual_batch_size = virtual_batch_size,
-          valid_split = valid_split,
-          learn_rate = learn_rate,
-          optimizer = optimizer,
-          lr_scheduler = lr_scheduler,
-          lr_decay = lr_decay,
-          step_size = step_size,
-          checkpoint_epochs = checkpoint_epochs,
-          cat_emb_dim = cat_emb_dim,
-          num_independent = num_independent,
-          num_shared = num_shared,
-          num_independent_decoder = num_independent_decoder,
-          num_shared_decoder = num_shared_decoder,
-          momentum = momentum,
-          pretraining_ratio = pretraining_ratio,
-          device = device,
-          importance_sample_size = importance_sample_size,
-          early_stopping_monitor = early_stopping_monitor,
-          early_stopping_tolerance = early_stopping_tolerance,
-          early_stopping_patience = early_stopping_patience,
-          num_workers = num_workers,
-          skip_importance = skip_importance,
-          ifw = ifw
-        ),
-        tunable_hyperparameters = tabnet_tunable,
-        fixed_hyperparameters = tabnet_fixed
-      )
+  properties = list(
+    algorithm = prop_algorithm("TabNet"),
+    batch_size = prop_integer(
+      1048576L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Batch size."
+    ),
+    penalty = prop_float(
+      0.001,
+      min = 0,
+      tunable = TRUE,
+      description = "Sparsity regularization penalty."
+    ),
+    clip_value = prop_float(
+      NULL,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Gradient clip value."
+    ),
+    loss = prop_string(
+      "auto",
+      tunable = TRUE,
+      description = "Loss function. auto = set from outcome type."
+    ),
+    epochs = prop_integer(
+      50L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of training epochs."
+    ),
+    drop_last = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Drop the last incomplete batch."
+    ),
+    decision_width = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Decision prediction layer width."
+    ),
+    attention_width = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Attention embedding width."
+    ),
+    num_steps = prop_integer(
+      3L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of decision steps."
+    ),
+    feature_reusage = prop_float(
+      1.3,
+      min = 0,
+      tunable = TRUE,
+      description = "Feature reusage coefficient."
+    ),
+    mask_type = prop_string(
+      "sparsemax",
+      enum = c("sparsemax", "entmax"),
+      tunable = TRUE,
+      description = "Masking function."
+    ),
+    virtual_batch_size = prop_integer(
+      65536L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Virtual batch size (ghost batch normalization)."
+    ),
+    valid_split = prop_float(
+      0,
+      min = 0,
+      exclusive_max = 1,
+      tunable = TRUE,
+      description = "Fraction of data used for (tabnet-internal) validation."
+    ),
+    learn_rate = prop_float(
+      0.02,
+      exclusive_min = 0,
+      tunable = TRUE,
+      description = "Learning rate."
+    ),
+    optimizer = new_property(
+      class_character | class_function,
+      default = "adam"
+    ),
+    lr_scheduler = new_property(
+      class_character | class_function | NULL,
+      default = NULL
+    ),
+    lr_decay = prop_float(
+      0.1,
+      min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Learning rate decay."
+    ),
+    step_size = prop_integer(
+      30L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Learning rate scheduler step size."
+    ),
+    checkpoint_epochs = prop_integer(
+      10L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Checkpoint interval in epochs."
+    ),
+    cat_emb_dim = prop_integer(
+      1L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Categorical embedding dimension."
+    ),
+    num_independent = prop_integer(
+      2L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of independent GLU layers at each encoder step."
+    ),
+    num_shared = prop_integer(
+      2L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of shared GLU layers at each encoder step."
+    ),
+    num_independent_decoder = prop_integer(
+      1L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of independent GLU layers for pretraining."
+    ),
+    num_shared_decoder = prop_integer(
+      1L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of shared GLU layers for pretraining."
+    ),
+    momentum = prop_float(
+      0.02,
+      min = 0,
+      tunable = TRUE,
+      description = "Momentum for batch normalization."
+    ),
+    pretraining_ratio = prop_float(
+      0.5,
+      min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Ratio of features to mask during pretraining."
+    ),
+    device = prop_string(
+      "auto",
+      enum = c("auto", "cpu", "cuda"),
+      description = "Compute device."
+    ),
+    importance_sample_size = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Sample size for importance calculation."
+    ),
+    early_stopping_monitor = prop_string(
+      "auto",
+      enum = c("auto", "valid_loss", "train_loss"),
+      tunable = TRUE,
+      description = "Metric monitored for early stopping."
+    ),
+    early_stopping_tolerance = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "Minimum relative improvement to reset the patience counter."
+    ),
+    early_stopping_patience = prop_integer(
+      0L,
+      min = 0L,
+      tunable = TRUE,
+      description = "Number of epochs without improvement before stopping."
+    ),
+    num_workers = prop_integer(
+      0L,
+      min = 0L,
+      description = "Number of subprocesses for data loading."
+    ),
+    skip_importance = prop_boolean(
+      FALSE,
+      description = "Skip importance calculation."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
     )
-  } # /constructor
+  )
 ) # /rtemis::TabNetHyperparameters
 
 
@@ -1787,47 +2116,46 @@ TabNetHyperparameters <- new_class(
 #'
 # Get more information from [tabnet::tabnet_config]
 #'
-#' @param batch_size (Tunable) Positive integer: Batch size.
-#' @param penalty (Tunable) Numeric: Regularization penalty.
-#' @param clip_value Numeric: Clip value.
-#' @param loss Character: Loss function.
-#' @param epochs (Tunable) Positive integer: Number of epochs.
-#' @param drop_last Logical: If TRUE, drop last batch.
-#' @param decision_width (Tunable) Positive integer: Decision width.
-#' @param attention_width (Tunable) Positive integer: Attention width.
-#' @param num_steps (Tunable) Positive integer: Number of steps.
-#' @param feature_reusage (Tunable) Numeric: Feature reusage.
-#' @param mask_type Character: Mask type.
-#' @param virtual_batch_size (Tunable) Positive integer: Virtual batch size.
-#' @param valid_split Numeric: Validation split.
-#' @param learn_rate (Tunable) Numeric: Learning rate.
+#' @param batch_size (Tunable) Integer [1, Inf): Batch size.
+#' @param penalty (Tunable) Numeric [0, Inf): Regularization penalty.
+#' @param clip_value (Tunable) Optional Numeric: Clip value.
+#' @param loss (Tunable) Character: Loss function.
+#' @param epochs (Tunable) Integer [1, Inf): Number of epochs.
+#' @param drop_last (Tunable) Logical: If TRUE, drop last batch.
+#' @param decision_width (Tunable) Optional Integer [1, Inf): Decision width.
+#' @param attention_width (Tunable) Optional Integer [1, Inf): Attention width.
+#' @param num_steps (Tunable) Integer [1, Inf): Number of steps.
+#' @param feature_reusage (Tunable) Numeric [0, Inf): Feature reusage.
+#' @param mask_type (Tunable) Character \{"sparsemax", "entmax"\}: Mask type.
+#' @param virtual_batch_size (Tunable) Integer [1, Inf): Virtual batch size.
+#' @param valid_split (Tunable) Numeric [0, 1): Validation split.
+#' @param learn_rate (Tunable) Numeric (0, Inf): Learning rate.
 #' @param optimizer Character or torch function: Optimizer.
-#' @param lr_scheduler Character or torch function: "step", "reduce_on_plateau".
-#' @param lr_decay Numeric: Learning rate decay.
-#' @param step_size Positive integer: Step size.
-#' @param checkpoint_epochs (Tunable) Positive integer: Checkpoint epochs.
-#' @param cat_emb_dim (Tunable) Positive integer: Categorical embedding dimension.
-#' @param num_independent (Tunable) Positive integer: Number of independent Gated Linear Units (GLU)
+#' @param lr_scheduler Optional Character or torch function: "step", "reduce_on_plateau".
+#' @param lr_decay (Tunable) Numeric \[0, 1\]: Learning rate decay.
+#' @param step_size (Tunable) Integer [1, Inf): Step size.
+#' @param checkpoint_epochs (Tunable) Integer [1, Inf): Checkpoint epochs.
+#' @param cat_emb_dim (Tunable) Integer [1, Inf): Categorical embedding dimension.
+#' @param num_independent (Tunable) Integer [1, Inf): Number of independent Gated Linear Units (GLU)
 #' at each step of the encoder.
-#' @param num_shared (Tunable) Positive integer: Number of shared Gated Linear Units (GLU) at each
+#' @param num_shared (Tunable) Integer [1, Inf): Number of shared Gated Linear Units (GLU) at each
 #' step of the encoder.
-#' @param num_independent_decoder (Tunable) Positive integer: Number of independent GLU layers for
+#' @param num_independent_decoder (Tunable) Integer [1, Inf): Number of independent GLU layers for
 #' pretraining.
-#' @param num_shared_decoder (Tunable) Positive integer: Number of shared GLU layers for
+#' @param num_shared_decoder (Tunable) Integer [1, Inf): Number of shared GLU layers for
 #' pretraining.
-#' @param momentum (Tunable) Numeric: Momentum.
-#' @param pretraining_ratio (Tunable) Numeric: Pretraining ratio.
-#' @param device Character: Device "cpu" or "cuda".
-#' @param importance_sample_size Positive integer: Importance sample size.
-#' @param early_stopping_monitor Character: Early stopping monitor. "valid_loss", "train_loss",
-#' "auto".
-#' @param early_stopping_tolerance Numeric: Minimum relative improvement to reset the patience
+#' @param momentum (Tunable) Numeric [0, Inf): Momentum.
+#' @param pretraining_ratio (Tunable) Numeric \[0, 1\]: Pretraining ratio.
+#' @param device Character \{"auto", "cpu", "cuda"\}: Compute device.
+#' @param importance_sample_size (Tunable) Optional Integer [1, Inf): Importance sample size.
+#' @param early_stopping_monitor (Tunable) Character \{"auto", "valid_loss", "train_loss"\}: Early stopping monitor.
+#' @param early_stopping_tolerance (Tunable) Numeric [0, Inf): Minimum relative improvement to reset the patience
 #' counter.
-#' @param early_stopping_patience Positive integer: Number of epochs without improving before
+#' @param early_stopping_patience (Tunable) Integer [0, Inf): Number of epochs without improving before
 #' stopping.
-#' @param num_workers Positive integer: Number of subprocesses for data loading.
+#' @param num_workers Integer [0, Inf): Number of subprocesses for data loading.
 #' @param skip_importance Logical: If TRUE, skip importance calculation.
-#' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return TabNetHyperparameters object.
 #'
@@ -1837,7 +2165,7 @@ TabNetHyperparameters <- new_class(
 #' tabnet_hyperparams <- setup_TabNet(epochs = 100L, learn_rate = 0.01)
 #' tabnet_hyperparams
 setup_TabNet <- function(
-  batch_size = 1024^2,
+  batch_size = 1048576L, # 1024^2
   penalty = 0.001,
   clip_value = NULL,
   loss = "auto",
@@ -1848,13 +2176,13 @@ setup_TabNet <- function(
   num_steps = 3L,
   feature_reusage = 1.3,
   mask_type = "sparsemax",
-  virtual_batch_size = 256^2,
+  virtual_batch_size = 65536L, # 256^2
   valid_split = 0,
   learn_rate = 0.02,
   optimizer = "adam",
   lr_scheduler = NULL,
   lr_decay = 0.1,
-  step_size = 30,
+  step_size = 30L,
   checkpoint_epochs = 10L,
   cat_emb_dim = 1L,
   num_independent = 2L,
@@ -1867,11 +2195,27 @@ setup_TabNet <- function(
   importance_sample_size = NULL,
   early_stopping_monitor = "auto",
   early_stopping_tolerance = 0,
-  early_stopping_patience = 0,
+  early_stopping_patience = 0L,
   num_workers = 0L,
   skip_importance = FALSE,
   ifw = FALSE
 ) {
+  batch_size <- clean_posint(batch_size)
+  epochs <- clean_posint(epochs)
+  decision_width <- clean_posint(decision_width)
+  attention_width <- clean_posint(attention_width)
+  num_steps <- clean_posint(num_steps)
+  virtual_batch_size <- clean_posint(virtual_batch_size)
+  step_size <- clean_posint(step_size)
+  checkpoint_epochs <- clean_posint(checkpoint_epochs)
+  cat_emb_dim <- clean_posint(cat_emb_dim)
+  num_independent <- clean_posint(num_independent)
+  num_shared <- clean_posint(num_shared)
+  num_independent_decoder <- clean_posint(num_independent_decoder)
+  num_shared_decoder <- clean_posint(num_shared_decoder)
+  importance_sample_size <- clean_posint(importance_sample_size)
+  early_stopping_patience <- clean_int(early_stopping_patience)
+  num_workers <- clean_int(num_workers)
   TabNetHyperparameters(
     batch_size = batch_size,
     penalty = penalty,
@@ -1910,11 +2254,6 @@ setup_TabNet <- function(
   )
 } # /setup_TabNet
 
-# Test that all TabNet hyperparameters are set by setup_TabNet
-stopifnot(all(
-  c(tabnet_tunable, tabnet_fixed) %in% names(formals(setup_TabNet))
-))
-
 get_tabnet_config <- function(hyperparameters) {
   check_is_S7(hyperparameters, TabNetHyperparameters)
   hpr <- hyperparameters@hyperparameters
@@ -1924,53 +2263,14 @@ get_tabnet_config <- function(hyperparameters) {
 
 
 # %% RangerHyperparameters ----
-ranger_tunable <- c(
-  "num_trees",
-  "mtry",
-  "min_node_size",
-  "max_depth",
-  "sample_fraction",
-  "replace",
-  "splitrule",
-  "num_random_splits",
-  "alpha",
-  "minprop",
-  "regularization_factor",
-  "ifw"
-)
-
-ranger_fixed <- c(
-  "importance",
-  "write_forest",
-  "probability",
-  "min_bucket",
-  "case_weights", # set by train
-  "class_weights", # set by train
-  "poisson_tau",
-  "split_select_weights",
-  "always_split_variables",
-  "respect_unordered_factors",
-  "scale_permutation_importance",
-  "local_importance",
-  "regularization_usedepth",
-  "keep_inbag",
-  "inbag",
-  "holdout",
-  "quantreg",
-  "time_interest",
-  "oob_error",
-  "save_memory",
-  "verbose",
-  "node_stats",
-  "seed",
-  "na_action"
-)
-
-
 #' @title RangerHyperparameters
 #'
 #' @description
-#' Hyperparameters subclass for Ranger Random Forest.
+#' Hyperparameters subclass for Ranger Random Forest. `split_select_weights`
+#' (numeric vector or list of vectors), `respect_unordered_factors`
+#' (character or logical), and `inbag` (list) have union types that cannot
+#' be expressed as JSON types, so they are plain properties (non-tunable,
+#' excluded from schema generation).
 #'
 #' @author EDG
 #' @keywords internal
@@ -1978,90 +2278,194 @@ ranger_fixed <- c(
 RangerHyperparameters <- new_class(
   name = "RangerHyperparameters",
   parent = Hyperparameters,
-  constructor = function(
-    num_trees,
-    mtry,
-    importance,
-    write_forest,
-    probability,
-    min_node_size,
-    min_bucket,
-    max_depth,
-    replace,
-    sample_fraction,
-    case_weights,
-    class_weights,
-    splitrule,
-    num_random_splits,
-    alpha,
-    minprop,
-    poisson_tau,
-    split_select_weights,
-    always_split_variables,
-    respect_unordered_factors,
-    scale_permutation_importance,
-    local_importance,
-    regularization_factor,
-    regularization_usedepth,
-    keep_inbag,
-    inbag,
-    holdout,
-    quantreg,
-    time_interest,
-    oob_error,
-    save_memory,
-    verbose,
-    node_stats,
-    seed,
-    na_action,
-    ifw
-  ) {
-    new_object(
-      Hyperparameters(
-        algorithm = "Ranger",
-        hyperparameters = list(
-          num_trees = num_trees,
-          mtry = mtry,
-          importance = importance,
-          write_forest = write_forest,
-          probability = probability,
-          min_node_size = min_node_size,
-          min_bucket = min_bucket,
-          max_depth = max_depth,
-          replace = replace,
-          sample_fraction = sample_fraction,
-          case_weights = case_weights,
-          class_weights = class_weights,
-          splitrule = splitrule,
-          num_random_splits = num_random_splits,
-          alpha = alpha,
-          minprop = minprop,
-          poisson_tau = poisson_tau,
-          split_select_weights = split_select_weights,
-          always_split_variables = always_split_variables,
-          respect_unordered_factors = respect_unordered_factors,
-          scale_permutation_importance = scale_permutation_importance,
-          local_importance = local_importance,
-          regularization_factor = regularization_factor,
-          regularization_usedepth = regularization_usedepth,
-          keep_inbag = keep_inbag,
-          inbag = inbag,
-          holdout = holdout,
-          quantreg = quantreg,
-          time_interest = time_interest,
-          oob_error = oob_error,
-          save_memory = save_memory,
-          verbose = verbose,
-          node_stats = node_stats,
-          seed = seed,
-          na_action = na_action,
-          ifw = ifw
-        ),
-        tunable_hyperparameters = ranger_tunable,
-        fixed_hyperparameters = ranger_fixed
-      )
+  properties = list(
+    algorithm = prop_algorithm("Ranger"),
+    num_trees = prop_integer(
+      500L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of trees."
+    ),
+    mtry = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Number of features considered at each split. NULL = ranger default."
+    ),
+    importance = prop_string(
+      "impurity",
+      enum = c("none", "impurity", "impurity_corrected", "permutation"),
+      description = "Variable importance mode."
+    ),
+    write_forest = prop_boolean(
+      TRUE,
+      description = "Save the forest object (required for prediction)."
+    ),
+    probability = prop_boolean(
+      FALSE,
+      description = "Grow a probability forest (classification only)."
+    ),
+    min_node_size = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Minimal node size. NULL = ranger default by task type."
+    ),
+    min_bucket = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      description = "Minimal number of samples in a terminal node (survival only)."
+    ),
+    max_depth = prop_integer(
+      NULL,
+      min = 0L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Maximal tree depth. NULL or 0 = unlimited."
+    ),
+    replace = prop_boolean(
+      TRUE,
+      tunable = TRUE,
+      description = "Sample with replacement."
+    ),
+    sample_fraction = prop_float(
+      1,
+      exclusive_min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Fraction of observations to sample per tree."
+    ),
+    case_weights = prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Per-observation sampling weights."
+    ),
+    class_weights = prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Per-class weights (classification only)."
+    ),
+    splitrule = prop_string(
+      NULL,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Splitting rule (task-dependent). NULL = ranger default."
+    ),
+    num_random_splits = prop_integer(
+      1L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Random splits per candidate variable (extratrees splitrule)."
+    ),
+    alpha = prop_float(
+      0.5,
+      min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Significance threshold to allow splitting (maxstat splitrule)."
+    ),
+    minprop = prop_float(
+      0.1,
+      min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Lower quantile of covariate distribution considered for splitting (maxstat splitrule)."
+    ),
+    poisson_tau = prop_float(
+      1,
+      exclusive_min = 0,
+      description = "Tau parameter (poisson splitrule)."
+    ),
+    split_select_weights = new_property(
+      class_numeric | class_list | NULL,
+      default = NULL
+    ),
+    always_split_variables = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Variables always included as split candidates."
+    ),
+    respect_unordered_factors = new_property(
+      class_character | class_logical | NULL,
+      default = NULL
+    ),
+    scale_permutation_importance = prop_boolean(
+      FALSE,
+      description = "Scale permutation importance by its standard error."
+    ),
+    local_importance = prop_boolean(
+      FALSE,
+      description = "Compute local (per-observation) permutation importance."
+    ),
+    regularization_factor = prop_float(
+      1,
+      min = 0,
+      tunable = TRUE,
+      description = "Regularization factor penalizing variables with many split points."
+    ),
+    regularization_usedepth = prop_boolean(
+      FALSE,
+      description = "Apply the regularization factor with node depth."
+    ),
+    keep_inbag = prop_boolean(
+      FALSE,
+      description = "Record how often each observation is in-bag per tree."
+    ),
+    inbag = new_property(class_list | NULL, default = NULL),
+    holdout = prop_boolean(
+      FALSE,
+      description = "Hold-out mode: hold out samples with case weight 0."
+    ),
+    quantreg = prop_boolean(
+      FALSE,
+      description = "Prepare quantile prediction (regression only)."
+    ),
+    time_interest = prop_float(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Time points of interest for survival prediction."
+    ),
+    oob_error = prop_boolean(
+      TRUE,
+      description = "Compute the OOB prediction error."
+    ),
+    save_memory = prop_boolean(
+      FALSE,
+      description = "Use the memory-saving (slower) splitting mode."
+    ),
+    verbose = prop_boolean(
+      TRUE,
+      description = "Show ranger computation status."
+    ),
+    node_stats = prop_boolean(
+      FALSE,
+      description = "Save additional node statistics."
+    ),
+    seed = prop_integer(
+      NULL,
+      nullable = TRUE,
+      description = "Random seed. NULL = generated from R."
+    ),
+    na_action = prop_string(
+      "na.learn",
+      enum = c("na.learn", "na.omit", "na.fail"),
+      description = "How to handle missing values."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
     )
-  } # /constructor
+  )
 ) # /rtemis::RangerHyperparameters
 
 
@@ -2072,42 +2476,42 @@ RangerHyperparameters <- new_class(
 #'
 #' Get more information from [ranger::ranger].
 #'
-#' @param num_trees (Tunable) Positive integer: Number of trees.
-#' @param mtry (Tunable) Positive integer: Number of features to consider at each split.
-#' @param importance Character: Variable importance mode: "none", "impurity", "impurity_corrected", or "permutation". "impurity" is the Gini index for classification, the response variance for regression.
+#' @param num_trees (Tunable) Integer [1, Inf): Number of trees.
+#' @param mtry (Tunable) Optional Integer [1, Inf): Number of features to consider at each split.
+#' @param importance Character \{"none", "impurity", "impurity_corrected", "permutation"\}: Variable importance mode. "impurity" is the Gini index for classification, the response variance for regression.
 #' @param write_forest Logical: If TRUE, save the forest object (required for prediction). Set to FALSE to reduce memory if no prediction is intended.
 #' @param probability Logical: If TRUE, grow a probability forest. Classification only.
-#' @param min_node_size (Tunable) Positive integer: Minimal node size. If NULL, ranger uses 1 for classification, 5 for regression, 3 for survival, and 10 for probability.
-#' @param min_bucket Positive integer: Minimal number of samples in a terminal node. Survival only. Deprecated in favor of `min_node_size`.
-#' @param max_depth (Tunable) Positive integer: Maximal tree depth. NULL or 0 means unlimited depth, 1 means tree stumps.
-#' @param replace Logical: If TRUE, sample with replacement.
-#' @param sample_fraction (Tunable) Numeric \[0, 1\]: Fraction of observations to sample. If NULL, 1 with replacement and 0.632 without.
-#' @param case_weights Numeric vector: Per-observation sampling weights; larger weights raise selection probability in each tree's sample.
-#' @param class_weights Numeric vector: Per-class weights for classification. Length equal to the number of classes, named by class label.
-#' @param splitrule (Tunable) Character: Splitting rule. Classification: "gini", "extratrees", "hellinger"; regression: "variance", "extratrees", "maxstat", "beta"; survival: "logrank", "extratrees", "C", "maxstat".
-#' @param num_random_splits (Tunable) Positive integer: Number of random splits per candidate variable, for the "extratrees" splitrule.
+#' @param min_node_size (Tunable) Optional Integer [1, Inf): Minimal node size. If NULL, ranger uses 1 for classification, 5 for regression, 3 for survival, and 10 for probability.
+#' @param min_bucket Optional Integer [1, Inf): Minimal number of samples in a terminal node. Survival only. Deprecated in favor of `min_node_size`.
+#' @param max_depth (Tunable) Optional Integer [0, Inf): Maximal tree depth. NULL or 0 means unlimited depth, 1 means tree stumps.
+#' @param replace (Tunable) Logical: If TRUE, sample with replacement.
+#' @param sample_fraction (Tunable) Numeric (0, 1]: Fraction of observations to sample. Default is 1 with replacement and 0.632 without.
+#' @param case_weights Optional Numeric [0, Inf) vector: Per-observation sampling weights; larger weights raise selection probability in each tree's sample.
+#' @param class_weights Optional Numeric [0, Inf) vector: Per-class weights for classification. Length equal to the number of classes, named by class label.
+#' @param splitrule (Tunable) Optional Character: Splitting rule. Classification: "gini", "extratrees", "hellinger"; regression: "variance", "extratrees", "maxstat", "beta"; survival: "logrank", "extratrees", "C", "maxstat".
+#' @param num_random_splits (Tunable) Integer [1, Inf): Number of random splits per candidate variable, for the "extratrees" splitrule.
 #' @param alpha (Tunable) Numeric \[0, 1\]: Significance threshold to allow splitting, for the "maxstat" splitrule.
 #' @param minprop (Tunable) Numeric \[0, 1\]: Lower quantile of the covariate distribution considered for splitting, for the "maxstat" splitrule.
-#' @param poisson_tau Numeric: Tau parameter, for the "poisson" regression splitrule.
-#' @param split_select_weights Numeric vector \[0, 1\]: Per-feature probabilities of being selected for splitting. Alternatively a list of length `num_trees`, one weight vector per tree.
-#' @param always_split_variables Character vector: Names of variables to always include as split candidates, in addition to the `mtry` variables.
-#' @param respect_unordered_factors Character or logical: Handling of unordered factors: "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response. TRUE corresponds to "partition".
+#' @param poisson_tau Numeric (0, Inf): Tau parameter, for the "poisson" regression splitrule.
+#' @param split_select_weights Optional Numeric \[0, 1\] vector: Per-feature probabilities of being selected for splitting. Alternatively a list of length `num_trees`, one weight vector per tree.
+#' @param always_split_variables Optional Character vector: Names of variables to always include as split candidates, in addition to the `mtry` variables.
+#' @param respect_unordered_factors Optional Character or logical: Handling of unordered factors: "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response. TRUE corresponds to "partition".
 #' @param scale_permutation_importance Logical: If TRUE, scale permutation importance by its standard error. Permutation importance only.
 #' @param local_importance Logical: If TRUE, compute local (per-observation) permutation importance.
-#' @param regularization_factor (Tunable) Numeric: Regularization factor penalizing variables with many split points. Requires `splitrule = "variance"`.
+#' @param regularization_factor (Tunable) Numeric [0, Inf): Regularization factor penalizing variables with many split points. Requires `splitrule = "variance"`.
 #' @param regularization_usedepth Logical: If TRUE, apply the regularization factor with node depth. Requires `regularization_factor`.
 #' @param keep_inbag Logical: If TRUE, record how often each observation is in-bag per tree.
-#' @param inbag List: Manually set in-bag counts per tree; list of length `num_trees`. Can be used for stratified sampling.
+#' @param inbag Optional List: Manually set in-bag counts per tree; list of length `num_trees`. Can be used for stratified sampling.
 #' @param holdout Logical: If TRUE, use hold-out mode: hold out samples with case weight 0 and use them for variable importance and prediction error.
 #' @param quantreg Logical: If TRUE, prepare quantile prediction (quantile regression forests). Regression only; set `keep_inbag = TRUE` for out-of-bag quantile prediction.
-#' @param time_interest Numeric: Time points of interest for survival prediction. Survival only. Deprecated.
+#' @param time_interest Optional Numeric vector: Time points of interest for survival prediction. Survival only. Deprecated.
 #' @param oob_error Logical: If TRUE, compute the OOB prediction error. Set to FALSE to save time if only the forest is needed.
 #' @param save_memory Logical: If TRUE, use the memory-saving (slower) splitting mode. Use only if you encounter memory problems.
 #' @param verbose Logical: If TRUE, show computation status and estimated runtime.
 #' @param node_stats Logical: If TRUE, save additional node statistics (terminal nodes only).
-#' @param seed Positive integer: Random seed. If NULL, the seed is generated from R. Set to 0 to ignore the R seed.
-#' @param na_action Character: How to handle missing values. "na.learn" uses observations with missing values in splitting, treating missing as a separate category.
-#' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#' @param seed Optional Integer: Random seed. If NULL, the seed is generated from R. Set to 0 to ignore the R seed.
+#' @param na_action Character \{"na.learn", "na.omit", "na.fail"\}: How to handle missing values. "na.learn" uses observations with missing values in splitting, treating missing as a separate category.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return RangerHyperparameters object.
 #'
@@ -2117,7 +2521,7 @@ RangerHyperparameters <- new_class(
 #' ranger_hyperparams <- setup_Ranger(num_trees = 1000L, ifw = FALSE)
 #' ranger_hyperparams
 setup_Ranger <- function(
-  num_trees = 500,
+  num_trees = 500L,
   mtry = NULL,
   importance = "impurity",
   write_forest = TRUE,
@@ -2130,7 +2534,7 @@ setup_Ranger <- function(
   case_weights = NULL,
   class_weights = NULL,
   splitrule = NULL,
-  num_random_splits = 1,
+  num_random_splits = 1L,
   alpha = 0.5,
   minprop = 0.1,
   poisson_tau = 1,
@@ -2156,40 +2560,11 @@ setup_Ranger <- function(
 ) {
   num_trees <- clean_posint(num_trees)
   mtry <- clean_posint(mtry)
-  check_inherits(importance, "character")
-  check_inherits(write_forest, "logical")
-  check_inherits(probability, "logical")
   min_node_size <- clean_posint(min_node_size)
   min_bucket <- clean_posint(min_bucket)
-  max_depth <- clean_posint(max_depth)
-  check_inherits(replace, "logical")
-  check_float01inc(sample_fraction)
-  rtemis.core::check_numeric(case_weights)
-  rtemis.core::check_numeric(class_weights)
-  check_inherits(splitrule, "character")
+  max_depth <- clean_int(max_depth)
   num_random_splits <- clean_posint(num_random_splits)
-  check_float01inc(alpha)
-  check_float01inc(minprop)
-  rtemis.core::check_numeric(poisson_tau)
-  rtemis.core::check_numeric(split_select_weights)
-  check_inherits(always_split_variables, "character")
-  check_inherits(respect_unordered_factors, "logical")
-  check_inherits(scale_permutation_importance, "logical")
-  check_inherits(local_importance, "logical")
-  rtemis.core::check_numeric(regularization_factor)
-  check_inherits(regularization_usedepth, "logical")
-  check_inherits(keep_inbag, "logical")
-  check_inherits(inbag, "list")
-  check_inherits(holdout, "logical")
-  check_inherits(quantreg, "logical")
-  rtemis.core::check_numeric(time_interest)
-  check_inherits(oob_error, "logical")
-  check_inherits(save_memory, "logical")
-  check_inherits(verbose, "logical")
-  check_inherits(node_stats, "logical")
-  rtemis.core::check_numeric(seed)
-  check_inherits(na_action, "character")
-  check_logical(ifw)
+  seed <- clean_int(seed)
   RangerHyperparameters(
     num_trees = num_trees,
     mtry = mtry,
@@ -2229,11 +2604,6 @@ setup_Ranger <- function(
     ifw = ifw
   )
 } # /setup_Ranger
-
-# Test that all Ranger hyperparameters are set by setup_Ranger
-stopifnot(all(
-  c(ranger_tunable, ranger_fixed) %in% names(formals(setup_Ranger))
-))
 
 
 # %% .list_to_Hyperparameters ----

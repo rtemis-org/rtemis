@@ -18,25 +18,25 @@ setup_LightCART(
 )
 }
 \arguments{
-\item{num_leaves}{(Tunable) Positive integer: Maximum number of leaves in one tree.}
+\item{num_leaves}{(Tunable) Integer [1, Inf): Maximum number of leaves in one tree.}
 
-\item{max_depth}{(Tunable) Integer: Maximum depth of trees.}
+\item{max_depth}{(Tunable) Integer: Maximum depth of trees. -1 = no limit.}
 
-\item{lambda_l1}{(Tunable) Numeric: L1 regularization.}
+\item{lambda_l1}{(Tunable) Numeric [0, Inf): L1 regularization.}
 
-\item{lambda_l2}{(Tunable) Numeric: L2 regularization.}
+\item{lambda_l2}{(Tunable) Numeric [0, Inf): L2 regularization.}
 
-\item{min_data_in_leaf}{(Tunable) Positive integer: Minimum number of data in a leaf.}
+\item{min_data_in_leaf}{(Tunable) Integer [1, Inf): Minimum number of data in a leaf.}
 
-\item{max_cat_threshold}{(Tunable) Positive integer: Maximum number of categories for categorical features.}
+\item{max_cat_threshold}{(Tunable) Integer [1, Inf): Maximum number of categories for categorical features.}
 
-\item{min_data_per_group}{(Tunable) Positive integer: Minimum number of observations per categorical group.}
+\item{min_data_per_group}{(Tunable) Integer [1, Inf): Minimum number of observations per categorical group.}
 
 \item{linear_tree}{(Tunable) Logical: If TRUE, use linear trees.}
 
-\item{objective}{Character: Objective function.}
+\item{objective}{Optional Character: Objective function. NULL = set from outcome type.}
 
-\item{ifw}{Logical: If TRUE, use Inverse Frequency Weighting in classification.}
+\item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 }
 \value{
 LightCARTHyperparameters object.

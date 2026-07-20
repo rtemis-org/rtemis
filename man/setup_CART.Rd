@@ -22,33 +22,33 @@ setup_CART(
 )
 }
 \arguments{
-\item{cp}{(Tunable) Numeric: Complexity parameter.}
+\item{cp}{(Tunable) Numeric [0, Inf): Complexity parameter.}
 
-\item{maxdepth}{(Tunable) Integer: Maximum depth of tree.}
+\item{maxdepth}{(Tunable) Integer [1, 30]: Maximum depth of tree.}
 
-\item{minsplit}{(Tunable) Integer: Minimum number of observations in a node to split.}
+\item{minsplit}{(Tunable) Integer [1, Inf): Minimum number of observations in a node to split.}
 
-\item{minbucket}{(Tunable) Integer: Minimum number of observations in a terminal node.}
+\item{minbucket}{(Tunable) Integer [1, Inf): Minimum number of observations in a terminal node.}
 
-\item{prune_cp}{(Tunable) Numeric: Complexity for cost-complexity pruning after tree is built}
+\item{prune_cp}{(Tunable) Optional Numeric [0, Inf): Complexity for cost-complexity pruning after tree is built.}
 
-\item{method}{String: Splitting method.}
+\item{method}{Character \{"auto", "anova", "class", "poisson", "exp"\}: Splitting method.}
 
-\item{model}{Logical: If TRUE, return a model.}
+\item{model}{Logical: If TRUE, keep a copy of the model frame.}
 
-\item{maxcompete}{Integer: Maximum number of competitive splits.}
+\item{maxcompete}{Integer [0, Inf): Maximum number of competitive splits.}
 
-\item{maxsurrogate}{Integer: Maximum number of surrogate splits.}
+\item{maxsurrogate}{Integer [0, Inf): Maximum number of surrogate splits.}
 
-\item{usesurrogate}{Integer: Number of surrogate splits to use.}
+\item{usesurrogate}{Integer [0, 2]: Number of surrogate splits to use.}
 
-\item{surrogatestyle}{Integer: Type of surrogate splits.}
+\item{surrogatestyle}{Integer [0, 1]: Type of surrogate splits.}
 
-\item{xval}{Integer: Number of cross-validation folds.}
+\item{xval}{Integer [0, Inf): Number of cross-validation folds.}
 
-\item{cost}{Numeric (>=0): One for each feature.}
+\item{cost}{Optional Numeric (0, Inf): One for each feature.}
 
-\item{ifw}{Logical: If TRUE, use Inverse Frequency Weighting in classification.}
+\item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 }
 \value{
 CARTHyperparameters object.

@@ -56,7 +56,7 @@ PreprocessorConfig <- new_class(
     add_date_features = class_logical,
     date_features = class_character,
     add_holidays = class_logical,
-    exclude = class_character | NULL
+    exclude = class_integer | NULL
   )
 ) # /PreprocessorConfig
 

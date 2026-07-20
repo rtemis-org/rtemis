@@ -18,26 +18,25 @@ setup_GLMNET(
 )
 }
 \arguments{
-\item{alpha}{(Tunable) Numeric: Mixing parameter.}
+\item{alpha}{(Tunable) Numeric [0, 1]: Elastic net mixing parameter.}
 
-\item{family}{Character: Family for GLMNET.}
+\item{family}{Optional Character \{"gaussian", "binomial", "poisson", "multinomial", "cox", "mgaussian"\}: Family. NULL = set from outcome type.}
 
-\item{offset}{Numeric: Offset for GLMNET.}
+\item{offset}{Optional Numeric vector: Offset, one value per case.}
 
-\item{which_lambda_cv}{Character: Which lambda to use for prediction:
-"lambda.1se" or "lambda.min"}
+\item{which_lambda_cv}{Character \{"lambda.1se", "lambda.min"\}: Which lambda to use for prediction.}
 
-\item{nlambda}{Positive integer: Number of lambda values.}
+\item{nlambda}{Integer [1, Inf): Number of lambda values.}
 
-\item{lambda}{Numeric: Lambda values.}
+\item{lambda}{Optional Numeric [0, Inf) vector: Lambda values. NULL = determined by cv.glmnet during tuning.}
 
-\item{penalty_factor}{Numeric: Penalty factor for each feature.}
+\item{penalty_factor}{Optional Numeric [0, Inf) vector: Penalty factor for each feature.}
 
 \item{standardize}{Logical: If TRUE, standardize features.}
 
 \item{intercept}{Logical: If TRUE, include intercept.}
 
-\item{ifw}{Logical: If TRUE, use Inverse Frequency Weighting in classification.}
+\item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 }
 \value{
 GLMNETHyperparameters object.

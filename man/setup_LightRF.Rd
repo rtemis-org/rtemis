@@ -23,33 +23,33 @@ setup_LightRF(
 )
 }
 \arguments{
-\item{nrounds}{(Tunable) Positive integer: Number of boosting rounds.}
+\item{nrounds}{(Tunable) Integer [1, Inf): Number of boosting rounds.}
 
-\item{num_leaves}{(Tunable) Positive integer: Maximum number of leaves in one tree.}
+\item{num_leaves}{(Tunable) Integer [1, Inf): Maximum number of leaves in one tree.}
 
-\item{max_depth}{(Tunable) Integer: Maximum depth of trees.}
+\item{max_depth}{(Tunable) Integer: Maximum depth of trees. -1 = no limit.}
 
-\item{feature_fraction}{(Tunable) Numeric: Fraction of features to use.}
+\item{feature_fraction}{(Tunable) Numeric (0, 1]: Fraction of features to use.}
 
-\item{subsample}{(Tunable) Numeric: Fraction of data to use.}
+\item{subsample}{(Tunable) Numeric (0, 1]: Fraction of data to use.}
 
-\item{lambda_l1}{(Tunable) Numeric: L1 regularization.}
+\item{lambda_l1}{(Tunable) Numeric [0, Inf): L1 regularization.}
 
-\item{lambda_l2}{(Tunable) Numeric: L2 regularization.}
+\item{lambda_l2}{(Tunable) Numeric [0, Inf): L2 regularization.}
 
-\item{max_cat_threshold}{(Tunable) Positive integer: Maximum number of categories for categorical features.}
+\item{max_cat_threshold}{(Tunable) Integer [1, Inf): Maximum number of categories for categorical features.}
 
-\item{min_data_per_group}{(Tunable) Positive integer: Minimum number of observations per categorical group.}
+\item{min_data_per_group}{(Tunable) Integer [1, Inf): Minimum number of observations per categorical group.}
 
-\item{linear_tree}{Logical: If TRUE, use linear trees.}
+\item{linear_tree}{(Tunable) Logical: If TRUE, use linear trees.}
 
-\item{ifw}{Logical: If TRUE, use Inverse Frequency Weighting in classification.}
+\item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 
-\item{objective}{Character: Objective function.}
+\item{objective}{Optional Character: Objective function. NULL = set from outcome type.}
 
-\item{device_type}{Character: "cpu" or "gpu".}
+\item{device_type}{Character \{"cpu", "gpu", "cuda"\}: Compute device.}
 
-\item{tree_learner}{Character: "serial", "feature", "data", or "voting".}
+\item{tree_learner}{Character \{"serial", "feature", "data", "voting"\}: Tree learner type.}
 
 \item{force_col_wise}{Logical: Use only with CPU - If TRUE, force col-wise histogram building.}
 }
