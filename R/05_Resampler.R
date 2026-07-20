@@ -520,16 +520,20 @@ method(desc, Resampler) <- function(x) {
 #' @examples
 #' .list_to_ResamplerConfig(list(type = "KFold", n = 5L))
 .list_to_ResamplerConfig <- function(x) {
-  switch(
+  # Drop absent (NULL) elements so class defaults apply for non-nullable
+  # properties such as `strat_n_bins` and `train_p`.
+  args <- switch(
     x[["type"]],
-    KFold = KFoldConfig(
+    KFold = list(
+      constructor = KFoldConfig,
       n = x[["n"]],
       stratify_var = x[["stratify_var"]],
       strat_n_bins = x[["strat_n_bins"]],
       id_strat = x[["id_strat"]],
       seed = x[["seed"]]
     ),
-    StratSub = StratSubConfig(
+    StratSub = list(
+      constructor = StratSubConfig,
       n = x[["n"]],
       train_p = x[["train_p"]],
       stratify_var = x[["stratify_var"]],
@@ -537,7 +541,8 @@ method(desc, Resampler) <- function(x) {
       id_strat = x[["id_strat"]],
       seed = x[["seed"]]
     ),
-    StratBoot = StratBootConfig(
+    StratBoot = list(
+      constructor = StratBootConfig,
       n = x[["n"]],
       train_p = x[["train_p"]],
       stratify_var = x[["stratify_var"]],
@@ -546,16 +551,27 @@ method(desc, Resampler) <- function(x) {
       id_strat = x[["id_strat"]],
       seed = x[["seed"]]
     ),
-    Bootstrap = BootstrapConfig(
+    Bootstrap = list(
+      constructor = BootstrapConfig,
       n = x[["n"]],
       id_strat = x[["id_strat"]],
       seed = x[["seed"]]
     ),
-    LOOCV = LOOCVConfig(
-      n = NA_integer_
+    # LOOCV `n` is unset until `resample()` sees the data.
+    LOOCV = list(
+      constructor = LOOCVConfig
     ),
-    Custom = CustomConfig(
+    Custom = list(
+      constructor = CustomConfig,
       n = x[["n"]]
+    ),
+    rtemis.core::abort(
+      "Unsupported resampler type:",
+      x[["type"]],
+      class = c("rtemis_value_error", "rtemis_input_error")
     )
   )
+  constructor <- args[["constructor"]]
+  args[["constructor"]] <- NULL
+  do.call(constructor, Filter(Negate(is.null), args))
 } # /rtemis::.list_to_ResamplerConfig

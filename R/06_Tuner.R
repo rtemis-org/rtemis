@@ -401,16 +401,23 @@ method(repr, GridSearch) <- function(
 #' ))
 .list_to_TunerConfig <- function(x) {
   if (x[["type"]] == "GridSearch") {
-    setup_GridSearch(
-      resampler_config = .list_to_ResamplerConfig(x[["config"]][[
-        "resampler_config"
-      ]]),
-      search_type = x[["config"]][["search_type"]],
-      randomize_p = x[["config"]][["randomize_p"]],
-      metrics_aggregate_fn = x[["config"]][["metrics_aggregate_fn"]],
-      metric = x[["config"]][["metric"]],
-      maximize = x[["config"]][["maximize"]]
+    config <- x[["config"]]
+    # Drop absent (NULL) elements so `setup_GridSearch` defaults apply for
+    # non-nullable fields such as `search_type` and `metrics_aggregate_fn`.
+    args <- Filter(
+      Negate(is.null),
+      list(
+        search_type = config[["search_type"]],
+        randomize_p = config[["randomize_p"]],
+        metrics_aggregate_fn = config[["metrics_aggregate_fn"]],
+        metric = config[["metric"]],
+        maximize = config[["maximize"]]
+      )
     )
+    args[["resampler_config"]] <- .list_to_ResamplerConfig(
+      config[["resampler_config"]]
+    )
+    do.call(setup_GridSearch, args)
   } else {
     rtemis.core::abort(
       "Unsupported tuner type: ",
