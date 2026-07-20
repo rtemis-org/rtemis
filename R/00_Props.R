@@ -84,6 +84,13 @@ PropertySpec <- new_class(
     ) {
       return("@minimum must not exceed @maximum.")
     }
+    if (
+      !is.null(self@exclusive_minimum) &&
+        !is.null(self@exclusive_maximum) &&
+        self@exclusive_minimum > self@exclusive_maximum
+    ) {
+      return("@exclusive_minimum must not exceed @exclusive_maximum.")
+    }
     # The default must itself conform to the spec.
     # An invalid declaration fails on package load, not at first instantiation.
     if (!is.null(self@default)) {
@@ -870,6 +877,30 @@ S7_to_JSONSchema <- function(
 } # /rtemis::S7_to_JSONSchema
 
 
+# %% discriminator_value ----
+#' Read a class's constant discriminator value without constructing it
+#'
+#' Each dispatched subclass overrides the discriminator (`type` / `algorithm`)
+#' with a computed constant property (`prop_algorithm`), whose getter ignores
+#' `self`. Reading it via the getter avoids default-constructing the class,
+#' which may deliberately be invalid with defaults (e.g. `ResamplerConfig`
+#' requires `n` for every type except LOOCV). Falls back to instantiation for a
+#' plain (non-computed) discriminator property.
+#'
+#' @param cls S7 class.
+#' @param discriminator Character: Name of the discriminator property.
+#'
+#' @return Character scalar: the discriminator value.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+discriminator_value <- function(cls, discriminator) {
+  getter <- cls@properties[[discriminator]][["getter"]]
+  if (is.null(getter)) prop(cls(), discriminator) else getter(NULL)
+} # /rtemis::discriminator_value
+
+
 # %% S7_dispatcher_JSONSchema ----
 #' Generate a per-algorithm dispatcher JSON Schema
 #'
@@ -902,6 +933,11 @@ S7_to_JSONSchema <- function(
 #' @param extra_properties Named list: Additional top-level properties merged
 #'   after the discriminator and the payload (e.g. decomposition's
 #'   `features`, or the shared base fields in top-level mode).
+#' @param variant_required Named list keyed by discriminator value: for each
+#'   variant, a character vector of top-level property names to mark
+#'   `required` in that variant's `if/then` branch. Used to mirror
+#'   type-dependent R validators, e.g. `ResamplerConfig` requires `n` for every
+#'   type except LOOCV. Variants absent from the list add no extra requirement.
 #' @param instance_schema_url Character or NULL: If set, adds a `$schema`
 #'   const property so instances can self-identify.
 #'
@@ -943,6 +979,7 @@ S7_dispatcher_JSONSchema <- function(
   description = "",
   discriminator_description = "Algorithm name.",
   extra_properties = list(),
+  variant_required = list(),
   instance_schema_url = NULL
 ) {
   check_character(id, allow_null = FALSE)
@@ -956,7 +993,7 @@ S7_dispatcher_JSONSchema <- function(
           class = c("rtemis_type_error", "rtemis_input_error")
         )
       }
-      value <- prop(cls(), discriminator)
+      value <- discriminator_value(cls, discriminator)
       if (!is.character(value) || length(value) != 1L) {
         rtemis.core::abort(
           "Discriminator `",
@@ -1032,6 +1069,12 @@ S7_dispatcher_JSONSchema <- function(
           payload
         )
       )
+    }
+    # Type-dependent required properties (e.g. `n` for every resampler type
+    # except LOOCV), mirroring the R class validator.
+    req <- variant_required[[variant]]
+    if (!is.null(req)) {
+      consequence[["required"]] <- I(req)
     }
     list(`if` = condition, then = consequence)
   })

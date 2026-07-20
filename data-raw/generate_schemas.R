@@ -121,6 +121,9 @@ families <- list(
         description = "Number of resamples. null for LOOCV, where it is determined by the data."
       )
     ),
+    # `n` is required for every type except LOOCV (mirrors the R
+    # `ResamplerConfig` validator), so it is conditionally required per variant.
+    required_except = list(n = "LOOCV"),
     algorithms = list(
       list(
         cls = KFoldConfig,
@@ -267,7 +270,7 @@ for (family in names(families)) {
   # Leaves.
   for (algo in fam[["algorithms"]]) {
     cls <- algo[["cls"]]
-    slug <- tolower(prop(cls(), discriminator))
+    slug <- tolower(discriminator_value(cls, discriminator))
     id <- paste0(base_url, "/", family, "/", slug, "/v1/schema.json")
     schema <- S7_to_JSONSchema(
       cls,
@@ -309,6 +312,24 @@ for (family in names(families)) {
     } else {
       fam[["extra_properties"]]
     },
+    # Translate `required_except` (property -> variants to skip) into the
+    # per-variant `required` form the dispatcher generator consumes.
+    variant_required = local({
+      # The dispatcher keys `variant_required` by the raw discriminator value.
+      values <- vapply(
+        classes,
+        function(cls) discriminator_value(cls, discriminator),
+        character(1L)
+      )
+      req <- list()
+      for (prop_name in names(fam[["required_except"]])) {
+        except <- fam[["required_except"]][[prop_name]]
+        for (v in setdiff(values, except)) {
+          req[[v]] <- c(req[[v]], prop_name)
+        }
+      }
+      req
+    }),
     instance_schema_url = dispatcher_id
   )
   write_JSONSchema(

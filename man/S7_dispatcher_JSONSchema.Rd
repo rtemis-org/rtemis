@@ -13,6 +13,7 @@ S7_dispatcher_JSONSchema(
   description = "",
   discriminator_description = "Algorithm name.",
   extra_properties = list(),
+  variant_required = list(),
   instance_schema_url = NULL
 )
 }
@@ -40,6 +41,12 @@ discriminator property.}
 \item{extra_properties}{Named list: Additional top-level properties merged
 after the discriminator and the payload (e.g. decomposition's
 \code{features}, or the shared base fields in top-level mode).}
+
+\item{variant_required}{Named list keyed by discriminator value: for each
+variant, a character vector of top-level property names to mark
+\code{required} in that variant's \verb{if/then} branch. Used to mirror
+type-dependent R validators, e.g. \code{ResamplerConfig} requires \code{n} for every
+type except LOOCV. Variants absent from the list add no extra requirement.}
 
 \item{instance_schema_url}{Character or NULL: If set, adds a \verb{$schema}
 const property so instances can self-identify.}

@@ -40,7 +40,17 @@ ResamplerConfig <- new_class(
       nullable = TRUE,
       description = "Number of resamples."
     )
-  )
+  ),
+  validator = function(self) {
+    # `n` is only unset for LOOCV, where `resample()` derives it from the data
+    # (`resample.R`: `n_resamples <- if (type == "LOOCV") length(x) else config@n`).
+    # For every other type an unset `n` would fail deep inside `resample()`, so
+    # require it here at construction instead.
+    if (self@type != "LOOCV" && length(self@n) == 0L) {
+      return("@n must be set for all resampler types except 'LOOCV'.")
+    }
+    NULL
+  }
 ) # /rtemis::ResamplerConfig
 
 
