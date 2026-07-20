@@ -120,11 +120,11 @@ df
 dh
 disambiguated
 drl
-dtree
 duckdb
 eg
 eigen
 entmax
+enum
 extratrees
 fdr
 filesystem
@@ -152,7 +152,6 @@ jpeg
 json
 justfile
 kdtree
-keighbors
 kk
 labelify
 labelled

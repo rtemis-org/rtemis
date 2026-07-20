@@ -12,6 +12,8 @@ S7_to_JSONSchema(
   exclude = character(),
   required = NULL,
   extra = NULL,
+  refs = NULL,
+  closed = TRUE,
   instance_schema_url = NULL
 )
 }
@@ -36,6 +38,17 @@ optional, so omitted fields fall back to their \verb{setup_*} defaults on read
 \item{extra}{Named list merged into the schema after generation, for
 cross-field constraints that are not per-property (e.g. an \code{allOf} of
 if/then clauses for kernel-specific SVM hyperparameters).}
+
+\item{refs}{Named character: Properties holding a nested config object,
+mapped to the \verb{$id} of the schema for that config. Each emits a \verb{$ref} (or
+\verb{oneOf: [null, $ref]} when the property accepts NULL, detected from its
+S7 union), instead of requiring a \code{PropertySpec}. Names must match
+existing properties.}
+
+\item{closed}{Logical: If TRUE (default) the schema sets
+\code{additionalProperties: false}. Pass FALSE for leaves composed into a
+top-level-mode dispatcher, which enforces strictness with
+\code{unevaluatedProperties} instead (see \link{S7_dispatcher_JSONSchema}).}
 
 \item{instance_schema_url}{Character or NULL: If set, adds a \verb{$schema}
 const property (instances self-identify, as in the config families).}

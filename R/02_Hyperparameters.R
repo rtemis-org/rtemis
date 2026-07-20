@@ -47,26 +47,6 @@ TUNED_STATUS_TUNED <- 1L
 # 0: Running on single training set.
 # 1: Running on resampled training sets.
 
-# %% prop_algorithm ----
-#' Computed constant `algorithm` property
-#'
-#' Each `Hyperparameters` subclass overrides the inherited `algorithm`
-#' property with a computed constant, so the value is always correct and
-#' never stored.
-#'
-#' @param algorithm Character: Algorithm name.
-#'
-#' @return S7 property.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-prop_algorithm <- function(algorithm) {
-  force(algorithm)
-  new_property(class_character, getter = function(self) algorithm)
-} # /rtemis::prop_algorithm
-
-
 # %% hp_prop_names ----
 #' Names of a Hyperparameters subclass's own (hyperparameter) properties
 #'
@@ -81,7 +61,7 @@ prop_algorithm <- function(algorithm) {
 #' @keywords internal
 #' @noRd
 hp_prop_names <- function(x) {
-  setdiff(names(x@properties), names(Hyperparameters@properties))
+  own_prop_names(x, Hyperparameters)
 } # /rtemis::hp_prop_names
 
 
@@ -99,13 +79,7 @@ hp_prop_names <- function(x) {
 #' @keywords internal
 #' @noRd
 hp_prop_values <- function(self) {
-  nms <- hp_prop_names(S7_class(self))
-  out <- lapply(nms, function(nm) {
-    v <- prop(self, nm)
-    if (length(v) == 0L && !is.function(v)) NULL else v
-  })
-  names(out) <- nms
-  out
+  own_prop_values(self, Hyperparameters)
 } # /rtemis::hp_prop_values
 
 
@@ -205,33 +179,14 @@ Hyperparameters <- new_class(
         c(hp_prop_values(self), hp_constants(self))
       },
       setter = function(self, value) {
-        settable <- hp_prop_names(S7_class(self))
-        constants <- hp_constants(self)
-        for (nm in names(value)) {
-          if (nm %in% settable) {
-            prop(self, nm) <- value[[nm]]
-          } else if (nm %in% names(constants)) {
-            if (!identical(value[[nm]], constants[[nm]])) {
-              rtemis.core::abort(
-                self@algorithm,
-                " hyperparameter '",
-                nm,
-                "' is a constant and cannot be changed.",
-                class = "rtemis_input_error"
-              )
-            }
-          } else {
-            rtemis.core::abort(
-              "Unknown ",
-              self@algorithm,
-              " hyperparameter '",
-              nm,
-              "'.",
-              class = "rtemis_input_error"
-            )
-          }
-        }
-        self
+        route_config_assignment(
+          self,
+          Hyperparameters,
+          value,
+          constants = hp_constants(self),
+          label = self@algorithm,
+          noun = "hyperparameter"
+        )
       }
     ),
     tunable_hyperparameters = new_property(
@@ -369,6 +324,21 @@ method(print, Hyperparameters) <- function(x, output_type = NULL, ...) {
   cat(repr(x, output_type = output_type))
   invisible(x)
 } # /rtemis::print.Hyperparameters
+
+
+# %% serializable_props.Hyperparameters ----
+# A serialized config is `{algorithm, hyperparameters}` — exactly what
+# `.list_to_Hyperparameters()` consumes and what the hyperparameters schema
+# describes. Everything else on the object is either derived from the specs
+# (`tunable_`/`fixed_hyperparameters`) or run state set during training
+# (`tuned`, `resampled`, `n_workers`), so it is reconstructed on read rather
+# than written.
+method(serializable_props, Hyperparameters) <- function(x) {
+  list(
+    algorithm = x@algorithm,
+    hyperparameters = config_prop_values(x, Hyperparameters)
+  )
+} # /rtemis::serializable_props.Hyperparameters
 
 
 # %% is_tuned.Hyperparameters ----

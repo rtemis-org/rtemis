@@ -34,11 +34,28 @@
 TunerConfig <- new_class(
   name = "TunerConfig",
   package = "rtemis",
+  abstract = TRUE,
   properties = list(
     type = class_character,
-    config = class_list
+    config = new_property(
+      class_list,
+      getter = function(self) {
+        own_prop_values(self, TunerConfig)
+      },
+      setter = function(self, value) {
+        route_config_assignment(self, TunerConfig, value)
+      }
+    )
   )
 ) # /rtemis::TunerConfig
+
+
+# %% serializable_props.TunerConfig ----
+# Serialize as {type, config} (the public shape); the per-tuner properties
+# are redundant with the computed `config`.
+method(serializable_props, TunerConfig) <- function(x) {
+  list(type = x@type, config = config_prop_values(x, TunerConfig))
+} # /rtemis::serializable_props.TunerConfig
 
 
 # %% repr.TunerConfig ----
@@ -106,37 +123,44 @@ GridSearchConfig <- new_class(
   name = "GridSearchConfig",
   parent = TunerConfig,
   package = "rtemis",
-  constructor = function(
-    resampler_config = NULL,
-    search_type = NULL,
-    randomize_p = NULL,
-    metrics_aggregate_fn = NULL,
-    metric = NULL,
-    maximize = NULL
-  ) {
-    check_is_S7(resampler_config, ResamplerConfig)
-    check_inherits(search_type, "character")
-    check_float01exc(randomize_p)
-    check_character(metrics_aggregate_fn)
-    check_inherits(metric, "character")
-    check_inherits(maximize, "logical")
-    # Only assign randomize_p if search_type is "randomized"
-    params <- list(
-      search_type = search_type,
-      resampler_config = resampler_config,
-      metrics_aggregate_fn = metrics_aggregate_fn,
-      metric = metric,
-      maximize = maximize
+  properties = list(
+    type = prop_algorithm("GridSearch"),
+    # Nested config object; serialized/validated as a ResamplerConfig, so it
+    # is a plain property (excluded from generated schemas, where it is a
+    # `$ref` to the resampler schema).
+    resampler_config = new_property(NULL | ResamplerConfig, default = NULL),
+    search_type = prop_string(
+      "exhaustive",
+      enum = c("exhaustive", "randomized"),
+      description = "Grid search strategy."
+    ),
+    randomize_p = prop_float(
+      NULL,
+      exclusive_min = 0,
+      exclusive_max = 1,
+      nullable = TRUE,
+      description = "Fraction of combinations to test when search_type is 'randomized'."
+    ),
+    metrics_aggregate_fn = prop_string(
+      "mean",
+      description = "Name of the function used to aggregate metrics across resamples."
+    ),
+    metric = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Metric to minimize or maximize. NULL = set from outcome type."
+    ),
+    maximize = prop_boolean(
+      NULL,
+      nullable = TRUE,
+      description = "Maximize `metric` (otherwise minimize). NULL = set from the metric."
     )
-    if (search_type == "randomized") {
-      params[["randomize_p"]] <- randomize_p
+  ),
+  validator = function(self) {
+    # `randomize_p` only applies to a randomized search.
+    if (self@search_type == "exhaustive" && length(self@randomize_p) > 0L) {
+      "@randomize_p must not be set when @search_type is 'exhaustive'."
     }
-    new_object(
-      TunerConfig(
-        type = "GridSearch",
-        config = params
-      )
-    )
   }
 ) # /rtemis::GridSearchConfig
 
@@ -176,19 +200,9 @@ setup_GridSearch <- function(
   maximize = NULL
 ) {
   # Arguments ----
+  # Per-field validation and the exhaustive/randomize_p rule are enforced by
+  # the property specs and the `GridSearchConfig` validator.
   check_is_S7(resampler_config, ResamplerConfig)
-  check_inherits(search_type, "character")
-  check_float01exc(randomize_p)
-  if (search_type == "exhaustive" && !is.null(randomize_p)) {
-    rtemis.core::abort(
-      "search_type is 'exhaustive': do not set randomize_p.",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
-  # check_inherits(metrics_aggregate_fn, "function")
-  check_character(metrics_aggregate_fn)
-  check_inherits(metric, "character")
-  check_inherits(maximize, "logical")
   GridSearchConfig(
     resampler_config = resampler_config,
     search_type = search_type,

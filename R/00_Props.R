@@ -200,7 +200,8 @@ make_prop <- function(spec) {
 # %% prop_boolean ----
 #' Logical (boolean) S7 property with attached PropertySpec
 #'
-#' @param default Logical: Default value.
+#' @param default Logical: Default value (NULL only if `nullable`).
+#' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
 #' @param description Character: Human-readable description.
 #'
@@ -209,7 +210,12 @@ make_prop <- function(spec) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-prop_boolean <- function(default = FALSE, tunable = FALSE, description = "") {
+prop_boolean <- function(
+  default = FALSE,
+  nullable = FALSE,
+  tunable = FALSE,
+  description = ""
+) {
   make_prop(PropertySpec(
     type = "boolean",
     default = default,
@@ -218,7 +224,7 @@ prop_boolean <- function(default = FALSE, tunable = FALSE, description = "") {
     exclusive_minimum = NULL,
     exclusive_maximum = NULL,
     enum = NULL,
-    nullable = FALSE,
+    nullable = nullable,
     tunable = tunable,
     vector = FALSE,
     description = description
@@ -374,6 +380,27 @@ get_spec <- function(prop) {
 } # /rtemis::get_spec
 
 
+# %% prop_accepts_null ----
+#' Does an S7 property accept NULL?
+#'
+#' TRUE when the property's class is a union with NULL as a member (e.g.
+#' `NULL | PreprocessorConfig`), i.e. the field is optional. Used to decide
+#' whether a nested-config `$ref` should also admit `null`.
+#'
+#' @param prop S7 property (an element of `Class@properties`).
+#'
+#' @return Logical.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_accepts_null <- function(prop) {
+  cls <- prop[["class"]]
+  inherits(cls, "S7_union") &&
+    any(vapply(cls[["classes"]], is.null, logical(1L)))
+} # /rtemis::prop_accepts_null
+
+
 # %% spec_prop_names ----
 #' Names of factory-declared properties of an S7 class
 #'
@@ -456,6 +483,179 @@ spec_prop_values <- function(self) {
   names(out) <- nms
   out
 } # /rtemis::spec_prop_values
+
+
+# --- Config-family machinery -----------------------------------------------
+
+# %% prop_algorithm ----
+#' Computed constant `algorithm` property
+#'
+#' Each config subclass overrides the inherited `algorithm` property with a
+#' computed constant, so the value is always correct and never stored.
+#'
+#' @param algorithm Character: Algorithm name.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_algorithm <- function(algorithm) {
+  force(algorithm)
+  new_property(class_character, getter = function(self) algorithm)
+} # /rtemis::prop_algorithm
+
+
+# Shared by the config families whose public shape is an `algorithm` + a named
+# parameter list (`hyperparameters`, decomposition/clustering `config`): an
+# abstract base holding run/meta state, and per-algorithm subclasses that
+# declare each parameter as its own (factory or plain) property. The base's
+# list property is computed from the subclass's own properties (getter) and
+# assignments route back to them (setter). "Own" = declared by the subclass,
+# i.e. not inherited from the base.
+
+# %% own_prop_names ----
+#' Names of a subclass's own properties (excluding the base's)
+#'
+#' @param x S7 class (a subclass of `base`).
+#' @param base S7 class: the family base class.
+#'
+#' @return Character vector of property names declared by `x` itself.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+own_prop_names <- function(x, base) {
+  setdiff(names(x@properties), names(base@properties))
+} # /rtemis::own_prop_names
+
+
+# %% own_prop_values ----
+#' Collect a subclass's own property values as a named list
+#'
+#' Zero-length values (S7's "unset" for `class | NULL` unions) map to NULL;
+#' function-valued properties (e.g. a torch optimizer) pass through.
+#'
+#' @param self S7 object.
+#' @param base S7 class: the family base class.
+#'
+#' @return Named list of the subclass's own property values.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+own_prop_values <- function(self, base) {
+  nms <- own_prop_names(S7_class(self), base)
+  out <- lapply(nms, function(nm) {
+    v <- prop(self, nm)
+    # Zero-length is the "unset union" convention -> NULL (this also
+    # normalizes an empty list, so `class_list | NULL` props read as NULL
+    # whether S7 initialized them to `list()` or `NULL`). Functions pass
+    # through (e.g. a torch optimizer).
+    if (length(v) == 0L && !is.function(v)) NULL else v
+  })
+  names(out) <- nms
+  out
+} # /rtemis::own_prop_values
+
+
+# %% config_prop_values ----
+#' A subclass's own property values that belong in a serialized config
+#'
+#' The runtime parameter list (`@hyperparameters` / `@config`) intentionally
+#' carries everything a training backend needs, including algorithm constants
+#' and run state. A *serialized config* is narrower: only the declared,
+#' user-settable parameters — i.e. properties built by a `prop_*` factory —
+#' plus nested config objects (which serialize as their own schema). Dropped
+#' here, and correspondingly absent from the generated schemas:
+#' unsettable constants (`hp_constants()`, which are not properties at all),
+#' run state written during training (e.g. GLMNET `lambda.min`, LightGBM
+#' `best_iter`), and values with no JSON form (e.g. tSNE `Y_init`, TabNet
+#' `optimizer`). All are reconstructed or re-derived on read.
+#'
+#' @param self S7 object.
+#' @param base S7 class: the family base class.
+#'
+#' @return Named list.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+config_prop_values <- function(self, base) {
+  values <- own_prop_values(self, base)
+  declared <- spec_prop_names(S7_class(self))
+  keep <- vapply(
+    names(values),
+    function(nm) nm %in% declared || S7_inherits(values[[nm]]),
+    logical(1L)
+  )
+  values[keep]
+} # /rtemis::config_prop_values
+
+
+# %% route_config_assignment ----
+#' Route a named-list assignment to a config object's properties
+#'
+#' Shared setter body for the computed `hyperparameters` / `config` property.
+#' Each named element is assigned to the matching own property (where it is
+#' validated). Names in `constants` are unsettable: assigning an identical
+#' value is a no-op, a different value errors. Unknown names error. This
+#' makes `x@config[["p"]] <- v` (which desugars to a whole-list round-trip)
+#' both validate `v` and reject stray keys.
+#'
+#' @param self S7 object being modified.
+#' @param base S7 class: the family base class.
+#' @param value Named list of values to assign.
+#' @param constants Named list of unsettable constants (default none).
+#' @param label Character: object label for error messages (e.g. the
+#'   algorithm name).
+#' @param noun Character: what the named elements are, for error messages
+#'   (e.g. "hyperparameter", "parameter").
+#'
+#' @return `self`, modified.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+route_config_assignment <- function(
+  self,
+  base,
+  value,
+  constants = list(),
+  label = "config",
+  noun = "parameter"
+) {
+  settable <- own_prop_names(S7_class(self), base)
+  for (nm in names(value)) {
+    if (nm %in% settable) {
+      prop(self, nm) <- value[[nm]]
+    } else if (nm %in% names(constants)) {
+      if (!identical(value[[nm]], constants[[nm]])) {
+        rtemis.core::abort(
+          label,
+          " ",
+          noun,
+          " '",
+          nm,
+          "' is a constant and cannot be changed.",
+          class = "rtemis_input_error"
+        )
+      }
+    } else {
+      rtemis.core::abort(
+        "Unknown ",
+        label,
+        " ",
+        noun,
+        " '",
+        nm,
+        "'.",
+        class = "rtemis_input_error"
+      )
+    }
+  }
+  self
+} # /rtemis::route_config_assignment
 
 
 # %% spec_to_schema ----
@@ -550,6 +750,15 @@ spec_to_schema <- function(spec) {
 #' @param extra Named list merged into the schema after generation, for
 #'   cross-field constraints that are not per-property (e.g. an `allOf` of
 #'   if/then clauses for kernel-specific SVM hyperparameters).
+#' @param refs Named character: Properties holding a nested config object,
+#'   mapped to the `$id` of the schema for that config. Each emits a `$ref` (or
+#'   `oneOf: [null, $ref]` when the property accepts NULL, detected from its
+#'   S7 union), instead of requiring a `PropertySpec`. Names must match
+#'   existing properties.
+#' @param closed Logical: If TRUE (default) the schema sets
+#'   `additionalProperties: false`. Pass FALSE for leaves composed into a
+#'   top-level-mode dispatcher, which enforces strictness with
+#'   `unevaluatedProperties` instead (see [S7_dispatcher_JSONSchema]).
 #' @param instance_schema_url Character or NULL: If set, adds a `$schema`
 #'   const property (instances self-identify, as in the config families).
 #'
@@ -573,6 +782,8 @@ S7_to_JSONSchema <- function(
   exclude = character(),
   required = NULL,
   extra = NULL,
+  refs = NULL,
+  closed = TRUE,
   instance_schema_url = NULL
 ) {
   check_character(id, allow_null = FALSE)
@@ -584,6 +795,20 @@ S7_to_JSONSchema <- function(
   }
   props <- x@properties
   props <- props[!names(props) %in% exclude]
+  if (!is.null(refs)) {
+    unknown <- setdiff(names(refs), names(props))
+    if (length(unknown) > 0L) {
+      rtemis.core::abort(
+        "`refs` names no such (or excluded) propert",
+        if (length(unknown) == 1L) "y: " else "ies: ",
+        paste(unknown, collapse = ", "),
+        ".",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+  }
+  ref_props <- props[names(props) %in% names(refs)]
+  props <- props[!names(props) %in% names(refs)]
   specless <- names(props)[vapply(
     props,
     function(p) is.null(get_spec(p)),
@@ -591,13 +816,28 @@ S7_to_JSONSchema <- function(
   )]
   if (length(specless) > 0L) {
     rtemis.core::abort(
-      "Properties without a PropertySpec (build them with the prop_* factories, or `exclude` them): ",
+      "Properties without a PropertySpec (build them with the prop_* factories, `refs` them, or `exclude` them): ",
       paste(specless, collapse = ", "),
       ".",
       class = "rtemis_input_error"
     )
   }
   properties <- lapply(props, function(p) spec_to_schema(get_spec(p)))
+  # Nested config properties reference their own schema. A property whose S7
+  # class is a union containing NULL is optional, so it also admits null.
+  for (nm in names(ref_props)) {
+    ref <- list(`$ref` = unname(refs[[nm]]))
+    properties[[nm]] <- if (prop_accepts_null(ref_props[[nm]])) {
+      list(oneOf = list(list(type = "null"), ref))
+    } else {
+      ref
+    }
+  }
+  # Preserve declaration order.
+  properties <- properties[intersect(
+    names(x@properties),
+    names(properties)
+  )]
   if (!is.null(instance_schema_url)) {
     properties <- c(
       list(
@@ -616,7 +856,7 @@ S7_to_JSONSchema <- function(
     title = if (is.null(title)) x@name else title,
     description = if (nzchar(description)) description else NULL,
     type = "object",
-    additionalProperties = FALSE,
+    additionalProperties = if (closed) FALSE else NULL,
     properties = properties
   )
   schema <- Filter(Negate(is.null), schema)
@@ -628,6 +868,189 @@ S7_to_JSONSchema <- function(
   }
   schema
 } # /rtemis::S7_to_JSONSchema
+
+
+# %% S7_dispatcher_JSONSchema ----
+#' Generate a per-algorithm dispatcher JSON Schema
+#'
+#' Assembles the `<family>/v1` schema for a config family: an object with an
+#' `algorithm` discriminator and an algorithm-specific payload
+#' (`config` / `hyperparameters`), plus an `allOf` of `if/then` clauses that
+#' validate the payload against the per-algorithm leaf schema
+#' (`<family>/<algorithm>/v1`) selected by `algorithm`. The algorithm enum,
+#' the leaf `$ref` URLs, and the `allOf` table are all derived from the
+#' classes, so the dispatcher cannot drift from the leaves it dispatches to.
+#'
+#' The leaf URLs are derived from `id`: for a dispatcher
+#' `.../<family>/v1/schema.json`, algorithm `A` maps to
+#' `.../<family>/<tolower(A)>/v1/schema.json` — matching [S7_to_JSONSchema]'s
+#' `id` convention for the leaves.
+#'
+#' @param classes List of S7 classes: the family's per-variant subclasses
+#'   (each carries a computed constant discriminator property).
+#' @param id Character: Dispatcher `$id` URL
+#'   (e.g. "https://schema.rtemis.org/decomposition/v1/schema.json").
+#' @param discriminator Character: Name of the property that selects the
+#'   variant (e.g. "algorithm", "type").
+#' @param payload Character or NULL: Name of the variant-specific field
+#'   (e.g. "config", "hyperparameters"). `NULL` selects top-level mode, where
+#'   the variant's fields are siblings of the discriminator (see Details).
+#' @param title Optional Character: Schema title.
+#' @param description Character: Schema description. If empty, omitted.
+#' @param discriminator_description Character: Description of the
+#'   discriminator property.
+#' @param extra_properties Named list: Additional top-level properties merged
+#'   after the discriminator and the payload (e.g. decomposition's
+#'   `features`, or the shared base fields in top-level mode).
+#' @param instance_schema_url Character or NULL: If set, adds a `$schema`
+#'   const property so instances can self-identify.
+#'
+#' @details
+#' Two shapes, matching how the R classes serialize:
+#'
+#' * **Nested payload** (`payload` set): the variant's parameters live in one
+#'   object (`config` / `hyperparameters`), so each `then` narrows that
+#'   property to the leaf `$ref`. Leaves are closed
+#'   (`additionalProperties: false`) and independently valid.
+#' * **Top-level mode** (`payload = NULL`): the variant's fields are siblings
+#'   of the discriminator (as in `ResamplerConfig`), so each `then` applies
+#'   the leaf `$ref` to the whole object. `additionalProperties` is evaluated
+#'   per-schema and would not see the leaf's properties, so strictness comes
+#'   from draft 2020-12's `unevaluatedProperties: false`, which does account
+#'   for properties evaluated by the applied `$ref`. Leaves for this mode
+#'   must be generated open (`closed = FALSE` in [S7_to_JSONSchema]) so they
+#'   compose.
+#'
+#' @return Named list: the dispatcher JSON Schema. Serialize with
+#'   [write_JSONSchema].
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' \dontrun{
+#' schema <- S7_dispatcher_JSONSchema(
+#'   classes = list(PCAConfig, ICAConfig),
+#'   id = "https://schema.rtemis.org/decomposition/v1/schema.json",
+#'   payload = "config"
+#' )
+#' }
+S7_dispatcher_JSONSchema <- function(
+  classes,
+  id,
+  discriminator = "algorithm",
+  payload = "config",
+  title = NULL,
+  description = "",
+  discriminator_description = "Algorithm name.",
+  extra_properties = list(),
+  instance_schema_url = NULL
+) {
+  check_character(id, allow_null = FALSE)
+  check_character(discriminator, allow_null = FALSE)
+  variants <- vapply(
+    classes,
+    function(cls) {
+      if (!inherits(cls, "S7_class")) {
+        rtemis.core::abort(
+          "`classes` must be a list of S7 classes.",
+          class = c("rtemis_type_error", "rtemis_input_error")
+        )
+      }
+      value <- prop(cls(), discriminator)
+      if (!is.character(value) || length(value) != 1L) {
+        rtemis.core::abort(
+          "Discriminator `",
+          discriminator,
+          "` must be a constant string on each class, but ",
+          cls@name,
+          " gave a value of length ",
+          length(value),
+          ".",
+          class = c("rtemis_type_error", "rtemis_input_error")
+        )
+      }
+      value
+    },
+    character(1L)
+  )
+  if (anyDuplicated(variants) > 0L) {
+    rtemis.core::abort(
+      "Duplicate `",
+      discriminator,
+      "` values across classes: ",
+      paste(unique(variants[duplicated(variants)]), collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  # Leaf URLs share the dispatcher's family base; variant -> lowercase slug.
+  family_base <- sub("/v1/schema\\.json$", "", id)
+  leaf_id <- function(variant) {
+    paste0(family_base, "/", tolower(variant), "/v1/schema.json")
+  }
+  top_level <- is.null(payload)
+  properties <- list()
+  if (!is.null(instance_schema_url)) {
+    properties[["$schema"]] <- list(
+      type = "string",
+      const = instance_schema_url,
+      description = "JSON Schema URI for this config instance."
+    )
+  }
+  properties[[discriminator]] <- list(
+    type = "string",
+    enum = I(variants),
+    description = discriminator_description
+  )
+  if (!top_level) {
+    properties[[payload]] <- list(
+      type = "object",
+      description = paste0(
+        "Variant-specific parameters. Validated per `",
+        discriminator,
+        "` below."
+      )
+    )
+  }
+  properties <- c(properties, extra_properties)
+  all_of <- lapply(variants, function(variant) {
+    # `required` on the discriminator: a `properties`-only `if` is vacuously
+    # true when the property is absent, which would apply every branch at once.
+    condition <- list(
+      properties = stats::setNames(
+        list(list(const = variant)),
+        discriminator
+      ),
+      required = I(discriminator)
+    )
+    consequence <- if (top_level) {
+      list(`$ref` = leaf_id(variant))
+    } else {
+      list(
+        properties = stats::setNames(
+          list(list(`$ref` = leaf_id(variant))),
+          payload
+        )
+      )
+    }
+    list(`if` = condition, then = consequence)
+  })
+  schema <- list(
+    `$schema` = "https://json-schema.org/draft/2020-12/schema",
+    `$id` = id,
+    title = title,
+    description = if (nzchar(description)) description else NULL,
+    type = "object",
+    required = I(c(discriminator, payload)),
+    # Top-level mode composes the leaf into this object, so strictness must
+    # account for properties evaluated by the applied `$ref`.
+    additionalProperties = if (top_level) NULL else FALSE,
+    unevaluatedProperties = if (top_level) FALSE else NULL,
+    properties = properties,
+    allOf = all_of
+  )
+  Filter(Negate(is.null), schema)
+} # /rtemis::S7_dispatcher_JSONSchema
 
 
 # %% write_JSONSchema ----

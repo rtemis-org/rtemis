@@ -18,21 +18,58 @@ SuperConfig <- new_class(
   name = "SuperConfig",
   package = "rtemis",
   properties = list(
-    dat_training_path = class_character | NULL,
-    dat_validation_path = class_character | NULL,
-    dat_test_path = class_character | NULL,
-    weights = class_character | NULL, # column name in dat_training
-    positive_class = class_character | NULL, # binary-classification positive level
-    preprocessor_config = PreprocessorConfig | NULL,
-    decomposition_config = DecompositionConfig | NULL,
-    algorithm = class_character | NULL,
-    hyperparameters = Hyperparameters | NULL,
-    tuner_config = TunerConfig | NULL,
-    outer_resampling_config = ResamplerConfig | NULL,
+    dat_training_path = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Path to the training data."
+    ),
+    dat_validation_path = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Path to the validation data."
+    ),
+    dat_test_path = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Path to the held-out test data."
+    ),
+    # Column name in the training data.
+    weights = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Name of the column to use as case weights."
+    ),
+    # Binary-classification positive level.
+    positive_class = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Outcome level to treat as positive (binary classification)."
+    ),
+    preprocessor_config = NULL | PreprocessorConfig,
+    decomposition_config = NULL | DecompositionConfig,
+    algorithm = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Supervised-learning algorithm name."
+    ),
+    hyperparameters = NULL | Hyperparameters,
+    tuner_config = NULL | TunerConfig,
+    outer_resampling_config = NULL | ResamplerConfig,
     execution_config = ExecutionConfig,
-    question = class_character | NULL,
-    outdir = class_character,
-    verbosity = class_integer
+    question = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "User-provided label / question for the run."
+    ),
+    outdir = prop_string(
+      "results/",
+      description = "Output directory for results."
+    ),
+    verbosity = prop_integer(
+      1L,
+      min = 0L,
+      description = "Verbosity level."
+    )
   )
 ) # /rtemis::SuperConfig
 
@@ -312,18 +349,44 @@ SuperConfigLive <- new_class(
     dat_training = class_tabular,
     dat_validation = class_tabular | NULL,
     dat_test = class_tabular | NULL,
-    weights = class_character | NULL, # column name in dat_training
-    positive_class = class_character | NULL, # binary-classification positive level
-    preprocessor_config = PreprocessorConfig | NULL,
-    decomposition_config = DecompositionConfig | NULL,
-    algorithm = class_character | NULL,
-    hyperparameters = Hyperparameters | NULL,
-    tuner_config = TunerConfig | NULL,
-    outer_resampling_config = ResamplerConfig | NULL,
+    # Column name in dat_training.
+    weights = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Name of the column to use as case weights."
+    ),
+    # Binary-classification positive level.
+    positive_class = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Outcome level to treat as positive (binary classification)."
+    ),
+    preprocessor_config = NULL | PreprocessorConfig,
+    decomposition_config = NULL | DecompositionConfig,
+    algorithm = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Supervised-learning algorithm name."
+    ),
+    hyperparameters = NULL | Hyperparameters,
+    tuner_config = NULL | TunerConfig,
+    outer_resampling_config = NULL | ResamplerConfig,
     execution_config = ExecutionConfig,
-    question = class_character | NULL,
-    outdir = class_character | NULL,
-    verbosity = class_integer
+    question = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "User-provided label / question for the run."
+    ),
+    outdir = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Output directory for results. NULL = do not write to disk."
+    ),
+    verbosity = prop_integer(
+      1L,
+      min = 0L,
+      description = "Verbosity level."
+    )
   )
 ) # /rtemis::SuperConfigLive
 

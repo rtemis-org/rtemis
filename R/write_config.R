@@ -149,7 +149,7 @@ method(write_config, SuperConfig) <- function(
   # the matching `setup_<algorithm>()`.
   payload <- c(
     list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["supervised"]]),
-    S7_to_list(props(x))
+    S7_to_list(serializable_props(x))
   )
   .write_config_json(payload, file, overwrite, verbosity)
   invisible(x)
@@ -167,7 +167,7 @@ method(write_config, DecomposeConfig) <- function(
 ) {
   payload <- c(
     list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["decompose"]]),
-    S7_to_list(props(x))
+    S7_to_list(serializable_props(x))
   )
   .write_config_json(payload, file, overwrite, verbosity)
   invisible(x)
@@ -185,7 +185,7 @@ method(write_config, ClusterConfig) <- function(
 ) {
   payload <- c(
     list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["cluster"]]),
-    S7_to_list(props(x))
+    S7_to_list(serializable_props(x))
   )
   .write_config_json(payload, file, overwrite, verbosity)
   invisible(x)
@@ -203,7 +203,7 @@ method(write_config, DecompositionConfig) <- function(
 ) {
   payload <- c(
     list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["decomposition"]]),
-    S7_to_list(props(x))
+    S7_to_list(serializable_props(x))
   )
   .write_config_json(payload, file, overwrite, verbosity)
   invisible(x)
@@ -221,7 +221,7 @@ method(write_config, ClusteringConfig) <- function(
 ) {
   payload <- c(
     list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["clustering"]]),
-    S7_to_list(props(x))
+    S7_to_list(serializable_props(x))
   )
   .write_config_json(payload, file, overwrite, verbosity)
   invisible(x)
