@@ -1285,3 +1285,20 @@ collapse_head <- function(x, maxlength = 6L, format_fn = identity) {
     )
   }
 }
+
+
+# %% repr, S7 ----
+# generic for S7 objects, when no more specific method is defined.
+method(repr, S7_object) <- function(x, limit = -1L, output_type = NULL, ...) {
+  out <- paste0(
+    repr_S7name(x, output_type = output_type),
+    "\n",
+    repr_ls(props(x), limit = limit, output_type = output_type, ...)
+  )
+} # /rtemis::repr.S7_object
+
+
+method(print, S7_object) <- function(x, ...) {
+  cat(repr(x, ...), "\n")
+  invisible(x)
+} # /rtemis::print.S7_object
