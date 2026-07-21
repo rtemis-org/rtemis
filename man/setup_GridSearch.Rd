@@ -21,8 +21,9 @@ grid search to use. Exhaustive search will try all combinations of
 config. Randomized will try a random sample of size
 \code{randomize_p} * \verb{N of total combinations}}
 
-\item{randomize_p}{Float (0, 1): For \code{search_type == "randomized"},
-randomly test this proportion of combinations.}
+\item{randomize_p}{Optional Float (0, 1): Randomly test this proportion of
+combinations. Required when \code{search_type} is \code{"randomized"}; must be left
+\code{NULL} when it is \code{"exhaustive"}.}
 
 \item{metrics_aggregate_fn}{Character: Name of function to use to aggregate error metrics.}
 

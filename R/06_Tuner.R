@@ -157,9 +157,13 @@ GridSearchConfig <- new_class(
     )
   ),
   validator = function(self) {
-    # `randomize_p` only applies to a randomized search.
+    # `randomize_p` applies to, and is required by, a randomized search: it is
+    # the sampling fraction `tune_GridSearch()` multiplies the combination
+    # count by, so leaving it unset would fail there instead of here.
     if (self@search_type == "exhaustive" && !is.null(self@randomize_p)) {
       "@randomize_p must not be set when @search_type is 'exhaustive'."
+    } else if (self@search_type == "randomized" && is.null(self@randomize_p)) {
+      "@randomize_p must be set when @search_type is 'randomized'."
     }
   }
 ) # /rtemis::GridSearchConfig
@@ -175,8 +179,9 @@ GridSearchConfig <- new_class(
 #' grid search to use. Exhaustive search will try all combinations of
 #' config. Randomized will try a random sample of size
 #' `randomize_p` * `N of total combinations`
-#' @param randomize_p Float (0, 1): For `search_type == "randomized"`,
-#' randomly test this proportion of combinations.
+#' @param randomize_p Optional Float (0, 1): Randomly test this proportion of
+#' combinations. Required when `search_type` is `"randomized"`; must be left
+#' `NULL` when it is `"exhaustive"`.
 #' @param metrics_aggregate_fn Character: Name of function to use to aggregate error metrics.
 #' @param metric Character: Metric to minimize or maximize.
 #' @param maximize Logical: If TRUE, maximize `metric`, otherwise minimize it.

@@ -417,10 +417,12 @@ setup_Preprocessor <- function(
   add_holidays = FALSE,
   exclude = NULL
 ) {
-  # Bin counts are integer-typed properties; clean friendly numeric input.
+  # Integer-typed properties; clean friendly numeric input (`exclude` is
+  # vector-valued, which `clean_int()` handles elementwise).
   numeric_cut_n <- clean_int(numeric_cut_n)
   numeric_quant_n <- clean_int(numeric_quant_n)
   unique_len2factor <- clean_int(unique_len2factor)
+  exclude <- clean_int(exclude)
   # Per-field validation performed by the `prop_*` property validators.
   PreprocessorConfig(
     complete_cases = complete_cases,
