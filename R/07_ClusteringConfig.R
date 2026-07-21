@@ -370,7 +370,7 @@ DBSCANConfig <- new_class(
       min = 1L,
       description = "Minimum number of points in a neighborhood to form a cluster."
     ),
-    weights = new_property(class_numeric | NULL, default = NULL),
+    weights = NULL | class_numeric,
     border_points = prop_boolean(
       TRUE,
       description = "Assign border points to clusters."

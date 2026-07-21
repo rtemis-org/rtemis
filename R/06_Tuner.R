@@ -128,7 +128,7 @@ GridSearchConfig <- new_class(
     # Nested config object; serialized/validated as a ResamplerConfig, so it
     # is a plain property (excluded from generated schemas, where it is a
     # `$ref` to the resampler schema).
-    resampler_config = new_property(NULL | ResamplerConfig, default = NULL),
+    resampler_config = NULL | ResamplerConfig,
     search_type = prop_string(
       "exhaustive",
       enum = c("exhaustive", "randomized"),
@@ -158,7 +158,7 @@ GridSearchConfig <- new_class(
   ),
   validator = function(self) {
     # `randomize_p` only applies to a randomized search.
-    if (self@search_type == "exhaustive" && length(self@randomize_p) > 0L) {
+    if (self@search_type == "exhaustive" && !is.null(self@randomize_p)) {
       "@randomize_p must not be set when @search_type is 'exhaustive'."
     }
   }
@@ -402,8 +402,9 @@ method(repr, GridSearch) <- function(
 .list_to_TunerConfig <- function(x) {
   if (x[["type"]] == "GridSearch") {
     config <- x[["config"]]
-    # Drop absent (NULL) elements so `setup_GridSearch` defaults apply for
-    # non-nullable fields such as `search_type` and `metrics_aggregate_fn`.
+    # Drop absent (NULL) elements so that `setup_GridSearch`'s own argument
+    # defaults apply to whatever the config omits (e.g. `search_type`,
+    # `metrics_aggregate_fn`, `resampler_config`) instead of passing NULL.
     args <- Filter(
       Negate(is.null),
       list(
@@ -414,9 +415,11 @@ method(repr, GridSearch) <- function(
         maximize = config[["maximize"]]
       )
     )
-    args[["resampler_config"]] <- .list_to_ResamplerConfig(
-      config[["resampler_config"]]
-    )
+    if (!is.null(config[["resampler_config"]])) {
+      args[["resampler_config"]] <- .list_to_ResamplerConfig(
+        config[["resampler_config"]]
+      )
+    }
     do.call(setup_GridSearch, args)
   } else {
     rtemis.core::abort(

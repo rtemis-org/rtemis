@@ -224,7 +224,7 @@ method(train_, LightRuleFitHyperparameters) <- function(
   if (NCOL(coef_matrix) > 1L) {
     rules_selected_formatted_coefs <- cbind(
       rules_selected_formatted_coefs,
-      as.data.table(as.data.frame(coef_matrix[nonzero_index, , drop = FALSE]))
+      as.data.table(coef_matrix[nonzero_index, , drop = FALSE])
     )
   }
   if (type == "Classification" && nclasses == 2) {
@@ -310,7 +310,7 @@ method(varimp_super, LightRuleFit) <- function(model) {
     Coefficient = .rule_importance(coef_matrix)
   )
   if (NCOL(coef_matrix) > 1L) {
-    vi <- cbind(vi, as.data.table(as.data.frame(coef_matrix)))
+    vi <- cbind(vi, as.data.table(coef_matrix))
   }
   VariableImportance(vi)
 } # /rtemis::varimp_super.LightRuleFit

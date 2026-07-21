@@ -114,11 +114,11 @@ Supervised <- new_class(
     algorithm = class_character,
     model = class_any,
     type = class_character,
-    preprocessor = Preprocessor | NULL,
-    preprocessor_internal = Preprocessor | NULL,
-    decomposition = Decomposition | NULL,
+    preprocessor = NULL | Preprocessor,
+    preprocessor_internal = NULL | Preprocessor,
+    decomposition = NULL | Decomposition,
     hyperparameters = NULL | Hyperparameters,
-    tuner = Tuner | NULL,
+    tuner = NULL | Tuner,
     execution_config = ExecutionConfig,
     y_training = class_any,
     y_validation = class_any,
@@ -127,14 +127,14 @@ Supervised <- new_class(
     predicted_validation = class_any,
     predicted_test = class_any,
     metrics_training = Metrics,
-    metrics_validation = Metrics | NULL,
-    metrics_test = Metrics | NULL,
+    metrics_validation = NULL | Metrics,
+    metrics_test = NULL | Metrics,
     xnames = class_character,
-    varimp = VariableImportance | NULL,
-    question = class_character | NULL,
+    varimp = NULL | VariableImportance,
+    question = NULL | class_character,
     extra = class_any,
     session_info = class_any,
-    session = SupervisedSession | NULL
+    session = NULL | SupervisedSession
   ),
   constructor = function(
     algorithm,
@@ -498,7 +498,7 @@ method(repr, Supervised) <- function(
     )
 
     # Metrics, validation
-    if (length(x@metrics_validation) > 0) {
+    if (!is.null(x@metrics_validation)) {
       out <- paste0(
         out,
         repr_CalibratedClassificationMetrics(
@@ -511,7 +511,7 @@ method(repr, Supervised) <- function(
     }
 
     # Metrics, test
-    if (length(x@metrics_test) > 0) {
+    if (!is.null(x@metrics_test)) {
       out <- paste0(
         out,
         "\n",
@@ -533,7 +533,7 @@ method(repr, Supervised) <- function(
     )
 
     # Metrics, validation
-    if (length(x@metrics_validation) > 0) {
+    if (!is.null(x@metrics_validation)) {
       out <- paste0(
         out,
         repr(x@metrics_validation, pad = pad + 2L, output_type = output_type)
@@ -541,7 +541,7 @@ method(repr, Supervised) <- function(
     }
 
     # Metrics, test
-    if (length(x@metrics_test) > 0) {
+    if (!is.null(x@metrics_test)) {
       out <- paste0(
         out,
         "\n",
@@ -793,7 +793,7 @@ method(desc, Supervised) <- function(x) {
   )
 
   # Tuning ----
-  if (length(x@tuner) > 0) {
+  if (!is.null(x@tuner)) {
     out <- paste0(
       out,
       " Hyperparameter tuning was performed using ",
@@ -878,9 +878,9 @@ Classification <- new_class(
   package = "rtemis",
   parent = Supervised,
   properties = list(
-    predicted_prob_training = class_double | class_data.frame | NULL,
-    predicted_prob_validation = class_double | class_data.frame | NULL,
-    predicted_prob_test = class_double | class_data.frame | NULL,
+    predicted_prob_training = NULL | class_double | class_data.frame,
+    predicted_prob_validation = NULL | class_double | class_data.frame,
+    predicted_prob_test = NULL | class_double | class_data.frame,
     binclasspos = class_integer
   ),
   constructor = function(
@@ -983,14 +983,14 @@ CalibratedClassification <- new_class(
   properties = list(
     calibration_model = Supervised,
     predicted_training_calibrated = class_vector,
-    predicted_validation_calibrated = class_vector | NULL,
-    predicted_test_calibrated = class_vector | NULL,
+    predicted_validation_calibrated = NULL | class_vector,
+    predicted_test_calibrated = NULL | class_vector,
     predicted_prob_training_calibrated = class_double,
-    predicted_prob_validation_calibrated = class_double | NULL,
-    predicted_prob_test_calibrated = class_double | NULL,
+    predicted_prob_validation_calibrated = NULL | class_double,
+    predicted_prob_test_calibrated = NULL | class_double,
     metrics_training_calibrated = Metrics,
-    metrics_validation_calibrated = Metrics | NULL,
-    metrics_test_calibrated = Metrics | NULL
+    metrics_validation_calibrated = NULL | Metrics,
+    metrics_test_calibrated = NULL | Metrics
   ),
   constructor = function(classification_model, calibration_model) {
     # Predict calibrated probabilities of classification model datasets
@@ -1125,9 +1125,9 @@ Regression <- new_class(
   name = "Regression",
   parent = Supervised,
   properties = list(
-    se_training = class_double | NULL,
-    se_validation = class_double | NULL,
-    se_test = class_double | NULL
+    se_training = NULL | class_double,
+    se_validation = NULL | class_double,
+    se_test = NULL | class_double
   ),
   constructor = function(
     algorithm = NULL,
@@ -1566,11 +1566,11 @@ SupervisedRes <- new_class(
     metrics_training = MetricsRes,
     metrics_test = MetricsRes,
     xnames = class_character,
-    varimp = class_list | NULL,
-    question = class_character | NULL,
+    varimp = NULL | class_list,
+    question = NULL | class_character,
     extra = class_any,
     session_info = class_any,
-    session = SupervisedSession | NULL
+    session = NULL | SupervisedSession
   ),
   constructor = function(
     algorithm,
@@ -1811,7 +1811,7 @@ method(to_json, SupervisedRes) <- function(x, ...) {
     execution_config = .to_json_value(x@execution_config),
     metrics_training = .to_json_value(x@metrics_training),
     metrics_test = .to_json_value(x@metrics_test),
-    # varimp is `class_list | NULL` of VariableImportance.
+    # varimp is `NULL | class_list` of VariableImportance.
     # `.to_json_value` recurses through lists, dispatching `to_json` on
     # S7 elements and passing through anything else.
     varimp_per_resample = .to_json_value(x@varimp)
@@ -2231,7 +2231,7 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
   )
 
   # Tuning ----
-  if (length(x@tuner_config) > 0) {
+  if (!is.null(x@tuner_config)) {
     out <- paste0(
       out,
       " Hyperparameter tuning was performed using ",
@@ -2723,7 +2723,7 @@ LightRuleFit <- new_class(
     rules_selected = class_character,
     rules_selected_formatted = class_character,
     rules_selected_formatted_coefs = class_data.frame,
-    y_levels = class_character | NULL,
+    y_levels = NULL | class_character,
     xnames = class_character,
     complexity_metrics = class_data.frame
   )
