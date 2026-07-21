@@ -18,47 +18,190 @@ PreprocessorConfig <- new_class(
   name = "PreprocessorConfig",
   package = "rtemis",
   properties = list(
-    complete_cases = class_logical,
-    remove_features_thres = class_numeric | NULL,
-    remove_cases_thres = class_numeric | NULL,
-    missingness = class_logical,
-    impute = class_logical,
-    impute_type = class_character,
-    impute_missRanger_params = class_list,
-    impute_discrete = class_character,
-    impute_continuous = class_character,
-    integer2factor = class_logical,
-    integer2numeric = class_logical,
-    logical2factor = class_logical,
-    logical2numeric = class_logical,
-    numeric2factor = class_logical,
-    numeric2factor_levels = class_character | NULL,
-    numeric_cut_n = class_numeric,
-    numeric_cut_labels = class_logical,
-    numeric_quant_n = class_numeric,
-    numeric_quant_NAonly = class_logical,
-    unique_len2factor = class_numeric,
-    character2factor = class_logical,
-    factorNA2missing = class_logical,
-    factorNA2missing_level = class_character,
-    factor2integer = class_logical,
-    factor2integer_startat0 = class_logical,
-    scale = class_logical,
-    center = class_logical,
-    scale_centers = class_numeric | NULL,
-    scale_coefficients = class_numeric | NULL,
-    remove_constants = class_logical,
-    remove_constants_skip_missing = class_logical,
-    remove_duplicates = class_logical,
-    remove_features = class_character | NULL,
-    one_hot = class_logical,
-    one_hot_levels = class_list | NULL,
-    add_date_features = class_logical,
-    date_features = class_character,
-    add_holidays = class_logical,
-    exclude = class_character | NULL
+    complete_cases = prop_boolean(
+      FALSE,
+      description = "Retain only complete cases."
+    ),
+    remove_features_thres = prop_float(
+      NULL,
+      exclusive_min = 0,
+      max = 1,
+      nullable = TRUE,
+      description = "Remove features missing in >= this fraction of cases."
+    ),
+    remove_cases_thres = prop_float(
+      NULL,
+      exclusive_min = 0,
+      max = 1,
+      nullable = TRUE,
+      description = "Remove cases missing >= this fraction of features."
+    ),
+    missingness = prop_boolean(
+      FALSE,
+      description = "Add a boolean missingness indicator per feature with NAs."
+    ),
+    impute = prop_boolean(FALSE, description = "Impute missing values."),
+    impute_type = prop_string(
+      "missRanger",
+      enum = c("missRanger", "micePMM", "meanMode"),
+      description = "Imputation method."
+    ),
+    # A named parameter list; not JSON-scalar, injected into the schema via
+    # `.preprocessor_schema_extra`.
+    impute_missRanger_params = new_property(class_list, default = list()),
+    impute_discrete = prop_string(
+      "get_mode",
+      description = "Function name to impute discrete features."
+    ),
+    impute_continuous = prop_string(
+      "mean",
+      description = "Function name to impute continuous features."
+    ),
+    integer2factor = prop_boolean(
+      FALSE,
+      description = "Convert integers to factors."
+    ),
+    integer2numeric = prop_boolean(
+      FALSE,
+      description = "Convert integers to numeric."
+    ),
+    logical2factor = prop_boolean(
+      FALSE,
+      description = "Convert logicals to factors."
+    ),
+    logical2numeric = prop_boolean(
+      FALSE,
+      description = "Convert logicals to numeric."
+    ),
+    numeric2factor = prop_boolean(
+      FALSE,
+      description = "Convert numeric to factors."
+    ),
+    numeric2factor_levels = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Factor levels for numeric2factor."
+    ),
+    numeric_cut_n = prop_integer(
+      0L,
+      min = 0L,
+      description = "Cut numeric features into this many bins (0 = off)."
+    ),
+    numeric_cut_labels = prop_boolean(
+      FALSE,
+      description = "Use labels for numeric_cut bins."
+    ),
+    numeric_quant_n = prop_integer(
+      0L,
+      min = 0L,
+      description = "Cut numeric features into this many quantile bins (0 = off)."
+    ),
+    numeric_quant_NAonly = prop_boolean(
+      FALSE,
+      description = "Quantile-cut only features with NAs."
+    ),
+    unique_len2factor = prop_integer(
+      0L,
+      min = 0L,
+      description = "Convert features with <= this many unique values to factors (0 = off)."
+    ),
+    character2factor = prop_boolean(
+      FALSE,
+      description = "Convert character features to factors."
+    ),
+    factorNA2missing = prop_boolean(
+      FALSE,
+      description = "Convert factor NAs to a 'missing' level."
+    ),
+    factorNA2missing_level = prop_string(
+      "missing",
+      description = "Level name for factorNA2missing."
+    ),
+    factor2integer = prop_boolean(
+      FALSE,
+      description = "Convert factors to integers."
+    ),
+    factor2integer_startat0 = prop_boolean(
+      TRUE,
+      description = "factor2integer starts at 0."
+    ),
+    scale = prop_boolean(FALSE, description = "Scale features."),
+    center = prop_boolean(FALSE, description = "Center features."),
+    # Data-dependent (learned during preprocess); injected via
+    # `.preprocessor_schema_extra`.
+    scale_centers = NULL | class_numeric,
+    scale_coefficients = NULL | class_numeric,
+    remove_constants = prop_boolean(
+      FALSE,
+      description = "Remove constant features."
+    ),
+    remove_constants_skip_missing = prop_boolean(
+      TRUE,
+      description = "Ignore missing values when detecting constants."
+    ),
+    remove_duplicates = prop_boolean(
+      FALSE,
+      description = "Remove duplicate cases."
+    ),
+    remove_features = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Names of features to remove."
+    ),
+    one_hot = prop_boolean(FALSE, description = "One-hot encode factors."),
+    # Data-dependent (learned during preprocess).
+    one_hot_levels = NULL | class_list,
+    add_date_features = prop_boolean(
+      FALSE,
+      description = "Add date-derived features."
+    ),
+    date_features = prop_string(
+      c("weekday", "month", "year"),
+      enum = c("weekday", "month", "year"),
+      vector = TRUE,
+      description = "Date features to add."
+    ),
+    add_holidays = prop_boolean(
+      FALSE,
+      description = "Add a holiday indicator feature."
+    ),
+    exclude = prop_integer(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Column indices to exclude from preprocessing."
+    )
   )
 ) # /PreprocessorConfig
+
+
+# %% .preprocessor_schema_extra ----
+# Schema fragments for PreprocessorConfig properties whose R types are not
+# expressible via the prop_* factories (a params object and the
+# data-dependent learned values). Merged into the generated schema so it
+# matches the shape consumed by the CLI. See generate_schemas.R.
+.preprocessor_schema_extra <- list(
+  properties = list(
+    impute_missRanger_params = list(
+      type = "object",
+      description = "Parameters passed to missRanger (e.g. pmm.k, maxiter, num.trees)."
+    ),
+    scale_centers = list(
+      type = I(c("object", "null")),
+      `$comment` = "Data-dependent: learned during preprocess(); per-feature scaling centers."
+    ),
+    scale_coefficients = list(
+      type = I(c("object", "null")),
+      `$comment` = "Data-dependent: learned during preprocess(); per-feature scaling coefficients."
+    ),
+    one_hot_levels = list(
+      type = I(c("object", "null")),
+      `$comment` = "Data-dependent: learned during preprocess(); per-feature one-hot levels."
+    )
+  )
+)
 
 
 # %% names.PreprocessorConfig ----
@@ -233,11 +376,7 @@ setup_Preprocessor <- function(
   remove_cases_thres = NULL,
   missingness = FALSE,
   impute = FALSE,
-  impute_type = c(
-    "missRanger",
-    "micePMM",
-    "meanMode"
-  ),
+  impute_type = "missRanger",
   impute_missRanger_params = list(
     pmm.k = 3,
     maxiter = 10,
@@ -251,11 +390,11 @@ setup_Preprocessor <- function(
   logical2numeric = FALSE,
   numeric2factor = FALSE,
   numeric2factor_levels = NULL,
-  numeric_cut_n = 0,
+  numeric_cut_n = 0L,
   numeric_cut_labels = FALSE,
-  numeric_quant_n = 0,
+  numeric_quant_n = 0L,
   numeric_quant_NAonly = FALSE,
-  unique_len2factor = 0,
+  unique_len2factor = 0L,
   character2factor = FALSE,
   factorNA2missing = FALSE,
   factorNA2missing_level = "missing",
@@ -278,9 +417,13 @@ setup_Preprocessor <- function(
   add_holidays = FALSE,
   exclude = NULL
 ) {
-  # Match args
-  impute_type <- match.arg(impute_type)
-  # Checks performed in the `PreprocessorConfig` constructor
+  # Integer-typed properties; clean friendly numeric input (`exclude` is
+  # vector-valued, which `clean_int()` handles elementwise).
+  numeric_cut_n <- clean_int(numeric_cut_n)
+  numeric_quant_n <- clean_int(numeric_quant_n)
+  unique_len2factor <- clean_int(unique_len2factor)
+  exclude <- clean_int(exclude)
+  # Per-field validation performed by the `prop_*` property validators.
   PreprocessorConfig(
     complete_cases = complete_cases,
     remove_features_thres = remove_features_thres,

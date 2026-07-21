@@ -22,10 +22,10 @@ CheckData <- new_class(
     n_duplicates = class_integer,
     n_cols_anyna = class_integer,
     n_na = class_integer,
-    classes_na = class_any | NULL,
-    na_feature_pct = class_data.frame | NULL,
-    na_case_pct = class_data.frame | NULL,
-    n_na_last_col = class_integer | NULL
+    classes_na = NULL | class_any,
+    na_feature_pct = NULL | class_data.frame,
+    na_case_pct = NULL | class_data.frame,
+    n_na_last_col = NULL | class_integer
   ),
   constructor = function(
     object_class,

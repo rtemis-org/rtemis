@@ -22,11 +22,27 @@ ClusterConfig <- new_class(
   name = "ClusterConfig",
   package = "rtemis",
   properties = list(
-    dat_path = class_character | NULL,
-    algorithm = class_character | NULL,
-    clustering_config = ClusteringConfig | NULL,
-    outdir = class_character,
-    verbosity = class_integer
+    dat_path = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Path to the input data."
+    ),
+    algorithm = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Clustering algorithm name."
+    ),
+    # Nested config object (a `$ref` in the generated schema).
+    clustering_config = NULL | ClusteringConfig,
+    outdir = prop_string(
+      "results/",
+      description = "Output directory for results."
+    ),
+    verbosity = prop_integer(
+      1L,
+      min = 0L,
+      description = "Verbosity level."
+    )
   )
 ) # /rtemis::ClusterConfig
 

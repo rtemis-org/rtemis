@@ -9,26 +9,26 @@ setup_DBSCAN(
   min_points = 5L,
   weights = NULL,
   border_points = TRUE,
-  search = c("kdtree", "linear", "dist"),
+  search = "kdtree",
   bucket_size = 100L,
-  split_rule = c("SUGGEST", "STD", "MIDPT", "FAIR", "SL_MIDPT", "SL_FAIR"),
+  split_rule = "SUGGEST",
   approx = FALSE
 )
 }
 \arguments{
-\item{eps}{Float: Radius of neighborhood.}
+\item{eps}{Numeric (0, Inf): Radius of neighborhood.}
 
-\item{min_points}{Integer: Minimum number of points in a neighborhood to form a cluster.}
+\item{min_points}{Integer [1, Inf): Minimum number of points in a neighborhood to form a cluster.}
 
-\item{weights}{Numeric vector: Weights for data points.}
+\item{weights}{Optional Numeric vector: Weights for data points.}
 
 \item{border_points}{Logical: If TRUE, assign border points to clusters.}
 
-\item{search}{Character: Nearest neighbor search strategy: "kdtree", "linear", or "dist".}
+\item{search}{Character \{"kdtree", "linear", "dist"\}: Nearest neighbor search strategy.}
 
-\item{bucket_size}{Integer: Size of buckets for k-dtree search.}
+\item{bucket_size}{Integer [1, Inf): Size of buckets for k-d tree search.}
 
-\item{split_rule}{Character: Rule for splitting clusters: "SUGGEST", "STD", "MIDPT", "FAIR", "SL_MIDPT", "SL_FAIR".}
+\item{split_rule}{Character \{"SUGGEST", "STD", "MIDPT", "FAIR", "SL_MIDPT", "SL_FAIR"\}: Rule for splitting the k-d tree.}
 
 \item{approx}{Logical: If TRUE, use approximate nearest neighbor search.}
 }

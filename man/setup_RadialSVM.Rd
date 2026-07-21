@@ -7,11 +7,11 @@
 setup_RadialSVM(cost = 1, gamma = 0.01, ifw = FALSE)
 }
 \arguments{
-\item{cost}{(Tunable) Numeric: Cost of constraints violation.}
+\item{cost}{(Tunable) Numeric (0, Inf): Cost of constraints violation.}
 
-\item{gamma}{(Tunable) Numeric: Kernel coefficient.}
+\item{gamma}{(Tunable) Numeric (0, Inf): Kernel coefficient.}
 
-\item{ifw}{Logical: If TRUE, use Inverse Frequency Weighting in classification.}
+\item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 }
 \value{
 RadialSVMHyperparameters object.

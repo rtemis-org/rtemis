@@ -1070,104 +1070,6 @@ one_hot <- new_generic("one_hot", "x")
 
 
 # --- Custom S7 validators -------------------------------------------------------------------------
-# %% scalar_dbl ----
-#' Scalar double
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-scalar_dbl <- S7::new_property(
-  class = S7::class_double | NULL,
-  validator = function(value) {
-    if (!is.null(value)) {
-      if (length(value) != 1) {
-        "must be a scalar double."
-      } else if (!is.double(value)) {
-        "must be double."
-      }
-    }
-  }
-) # /rtemis::scalar_dbl
-
-
-# %% scalar_dbl_01excl ----
-#' Scalar double between 0 and 1, exclusive
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-scalar_dbl_01excl <- S7::new_property(
-  class = S7::class_double | NULL,
-  validator = function(value) {
-    if (!is.null(value)) {
-      if (length(value) != 1) {
-        "must be a scalar double."
-      } else if (value <= 0 || value >= 1) {
-        "must be between > 0 and < 1."
-      }
-    }
-  }
-) # /rtemis::scalar_dbl_01excl
-
-
-# %% scalar_dbl_01incl ----
-#' Scalar double between 0 and 1, inclusive
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-scalar_dbl_01incl <- S7::new_property(
-  class = S7::class_double | NULL,
-  validator = function(value) {
-    if (!is.null(value)) {
-      if (length(value) != 1) {
-        "must be a scalar double."
-      } else if (value < 0 || value > 1) {
-        "must be between >= 0 and <= 1."
-      }
-    }
-  }
-) # /rtemis::scalar_dbl_01incl
-
-
-# %% scalar_int ----
-#' Scalar integer
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-scalar_int <- S7::new_property(
-  class = S7::class_integer | NULL,
-  validator = function(value) {
-    if (!is.null(value)) {
-      if (length(value) != 1) {
-        "must be a scalar integer."
-      }
-    }
-  }
-) # /rtemis::scalar_int
-
-
-# %% scalar_int_pos ----
-#' Scalar positive integer
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-scalar_int_pos <- S7::new_property(
-  class = S7::class_integer | NULL,
-  validator = function(value) {
-    if (!is.null(value)) {
-      if (length(value) != 1) {
-        "must be a positive integer scalar."
-      } else if (value < 0) {
-        "must be >= 0."
-      }
-    }
-  }
-) # /rtemis::scalar_int_pos
-
-
 # %% preprocessed ----
 #' Get preprocessed data from `Preprocessor`.
 #'
@@ -1188,10 +1090,35 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 
 # --- Internal functions ---------------------------------------------------------------------------
 
+# %% serializable_props ----
+#' Properties of an S7 object to serialize
+#'
+#' The default returns every property. Config-family classes
+#' (`Hyperparameters`, `DecompositionConfig`, `ClusteringConfig`) override
+#' this to return only their canonical public shape (`algorithm` + the
+#' computed parameter list + any base fields), so the per-algorithm
+#' properties they now declare — redundant with the computed list — are not
+#' duplicated into the serialized output. See methods in the respective
+#' class files.
+#'
+#' @param x S7 object.
+#'
+#' @return Named list of properties to serialize.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+serializable_props <- new_generic("serializable_props", "x")
+
+method(serializable_props, S7_object) <- function(x) {
+  props(x)
+} # /rtemis::serializable_props.S7_object
+
+
 # %% S7_to_list ----
 S7_to_list <- function(x) {
   if (S7_inherits(x)) {
-    x <- props(x)
+    x <- serializable_props(x)
   }
   if (is.list(x)) {
     x <- lapply(x, S7_to_list)
@@ -1285,3 +1212,20 @@ collapse_head <- function(x, maxlength = 6L, format_fn = identity) {
     )
   }
 }
+
+
+# %% repr, S7 ----
+# generic for S7 objects, when no more specific method is defined.
+method(repr, S7_object) <- function(x, limit = -1L, output_type = NULL, ...) {
+  paste0(
+    repr_S7name(x, output_type = output_type),
+    "\n",
+    repr_ls(props(x), limit = limit, output_type = output_type, ...)
+  )
+} # /rtemis::repr.S7_object
+
+
+method(print, S7_object) <- function(x, ...) {
+  cat(repr(x, ...), "\n")
+  invisible(x)
+} # /rtemis::print.S7_object

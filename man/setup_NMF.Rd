@@ -12,11 +12,11 @@ setup_NMF(
 )
 }
 \arguments{
-\item{k}{Integer: Number of components.}
+\item{k}{Integer [1, Inf): Number of components.}
 
 \item{method}{Character: NMF method. See \code{NMF::nmf}.}
 
-\item{nrun}{Integer: Number of runs to perform.}
+\item{nrun}{Integer [1, Inf): Number of runs to perform.}
 
 \item{features}{Optional Character: Names of the feature columns to decompose.
 \code{NULL} decomposes all numeric features.}

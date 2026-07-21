@@ -2,6 +2,73 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
+# %% .rule_coefs ----
+#' Extract rule coefficients from the GLMNET step of LightRuleFit
+#'
+#' `coef()` on a `glmnet`/`cv.glmnet` model returns a sparse matrix, except
+#' for multinomial (multiclass) models, where it returns a *list* of sparse
+#' matrices, one per outcome class. This normalizes both to a dense numeric
+#' matrix of rule coefficients (rules in rows, one column per coefficient
+#' set), with the intercept row dropped.
+#'
+#' @param model `glmnet` or `cv.glmnet` model.
+#'
+#' @return Numeric matrix: rules x coefficient sets. Columns are named by
+#' outcome class for multiclass models, "Coefficient" otherwise.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+.rule_coefs <- function(model) {
+  coefs <- stats::coef(model)
+  if (is.list(coefs)) {
+    # Multinomial: one sparse matrix per class, each with the intercept first.
+    out <- do.call(
+      cbind,
+      lapply(coefs, function(m) as.matrix(m)[-1L, 1L])
+    )
+    colnames(out) <- names(coefs)
+  } else {
+    out <- as.matrix(coefs)[-1L, 1L, drop = FALSE]
+    colnames(out) <- "Coefficient"
+  }
+  out
+} # /rtemis::.rule_coefs
+
+
+# %% .rule_importance ----
+#' Reduce a rule's coefficient set to a single importance value
+#'
+#' Single-coefficient models (binary classification, regression) have one
+#' signed coefficient per rule, which is returned as-is: the sign is
+#' meaningful (direction of the rule's effect) and drives the descending
+#' ranking of rules.
+#'
+#' Multinomial (multiclass) models have one coefficient per outcome class per
+#' rule; there is no single meaningful sign, so importance is the total
+#' absolute influence across classes (L1 norm of the coefficient row). This
+#' is direction-agnostic and, unlike picking the largest single-class
+#' coefficient, does not arbitrarily privilege one class. The per-class
+#' coefficients themselves are preserved separately (see `train_` and
+#' `varimp_super`), so no information is lost.
+#'
+#' @param coef_matrix Numeric matrix: rules x coefficient sets, from
+#' `.rule_coefs`.
+#'
+#' @return Numeric vector, one value per rule.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+.rule_importance <- function(coef_matrix) {
+  if (NCOL(coef_matrix) == 1L) {
+    coef_matrix[, 1L]
+  } else {
+    rowSums(abs(coef_matrix))
+  }
+} # /rtemis::.rule_importance
+
+
 # %% train_.LightRuleFitHyperparameters ----
 #' Train a LightRuleFit model
 #'
@@ -55,12 +122,13 @@ method(train_, LightRuleFitHyperparameters) <- function(
   }
 
   # Train Gradient Boosting using LightGBM ----
-  # LightRuleFit_tunable includes the names of all LightGBM hyperparameters used by LightRuleFit.
+  # LightRuleFit_lightgbm_params names the LightGBM hyperparameters forwarded
+  # from LightRuleFit to the LightGBM step.
   lgbm_parameters <- update(
     setup_LightGBM(),
     get_hyperparams(hyperparameters, LightRuleFit_lightgbm_params)
   )
-  lgbm_parameters@hyperparameters[["ifw"]] <- hyperparameters[["ifw_lightgbm"]]
+  lgbm_parameters@ifw <- hyperparameters[["ifw_lightgbm"]]
   mod_lgbm <- train(
     x = x,
     dat_validation = dat_validation,
@@ -106,12 +174,19 @@ method(train_, LightRuleFitHyperparameters) <- function(
   )
 
   # Rule coefficients ----
-  rules_coefs <- data.matrix(coef(mod_glmnet@model))
-  # Need special handling for multiclass support starting here
-  intercept_coef <- rules_coefs[1, , drop = FALSE]
-  colnames(intercept_coef) <- "Coefficient"
-  rules_coefs <- data.frame(Rule = lgbm_rules, Coefficient = rules_coefs[-1, 1])
-  nonzero_index <- which(abs(rules_coefs[["Coefficient"]]) > 0)
+  # Multiclass models carry one coefficient per class per rule: rules are
+  # selected if nonzero for any class, and reduced to a single importance
+  # value for ranking (see `.rule_importance`). The per-class coefficients
+  # are kept verbatim as extra columns of `rules_coefs`.
+  coef_matrix <- .rule_coefs(mod_glmnet@model)
+  rules_coefs <- data.frame(
+    Rule = lgbm_rules,
+    Coefficient = .rule_importance(coef_matrix)
+  )
+  if (NCOL(coef_matrix) > 1L) {
+    rules_coefs <- cbind(rules_coefs, as.data.frame(coef_matrix))
+  }
+  nonzero_index <- which(rowSums(abs(coef_matrix)) > 0)
   rules_selected <- lgbm_rules[nonzero_index]
   cases_by_rules_selected <- cases_by_rules[, nonzero_index]
   Ncases_by_rules <- matrixStats::colSums2(cases_by_rules_selected)
@@ -143,6 +218,15 @@ method(train_, LightRuleFitHyperparameters) <- function(
     N_Cases = Ncases_by_rules,
     Coefficient = rules_coefs[["Coefficient"]][nonzero_index]
   )
+  # For multiclass, `Coefficient` is the aggregate importance used for
+  # ranking; break out the signed per-class coefficients so the listing is
+  # complete. (setorder below reorders these columns in lockstep.)
+  if (NCOL(coef_matrix) > 1L) {
+    rules_selected_formatted_coefs <- cbind(
+      rules_selected_formatted_coefs,
+      as.data.table(coef_matrix[nonzero_index, , drop = FALSE])
+    )
+  }
   if (type == "Classification" && nclasses == 2) {
     # appease R CMD check
     Empirical_Risk <- NULL
@@ -215,11 +299,18 @@ method(predict_super, LightRuleFit) <- function(
 #' @keywords internal
 #' @noRd
 method(varimp_super, LightRuleFit) <- function(model) {
-  .coef <- coef(model@model_glmnet@model)[-1, , drop = FALSE]
-  VariableImportance(
-    data.table(
-      variable = rownames(.coef),
-      Coefficient = unname(.coef[, 1])
-    )
+  # Column 2 (the default plotted measure) is the per-rule importance: the
+  # signed coefficient for single-coefficient models, the total absolute
+  # influence for multiclass (see `.rule_importance`). For multiclass, the
+  # signed per-class coefficients are appended as extra named columns, so
+  # `plot_varimp(measure = "<class>")` shows a single class.
+  coef_matrix <- .rule_coefs(model@model_glmnet@model)
+  vi <- data.table(
+    variable = rownames(coef_matrix),
+    Coefficient = .rule_importance(coef_matrix)
   )
+  if (NCOL(coef_matrix) > 1L) {
+    vi <- cbind(vi, as.data.table(coef_matrix))
+  }
+  VariableImportance(vi)
 } # /rtemis::varimp_super.LightRuleFit

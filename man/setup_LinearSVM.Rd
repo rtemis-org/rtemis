@@ -7,9 +7,9 @@
 setup_LinearSVM(cost = 1, ifw = FALSE)
 }
 \arguments{
-\item{cost}{(Tunable) Numeric: Cost of constraints violation.}
+\item{cost}{(Tunable) Numeric (0, Inf): Cost of constraints violation.}
 
-\item{ifw}{Logical: If TRUE, use Inverse Frequency Weighting in classification.}
+\item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 }
 \value{
 LinearSVMHyperparameters object.

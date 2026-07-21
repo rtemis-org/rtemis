@@ -5,7 +5,7 @@
 \title{Setup TabNet Hyperparameters}
 \usage{
 setup_TabNet(
-  batch_size = 1024^2,
+  batch_size = 1048576L,
   penalty = 0.001,
   clip_value = NULL,
   loss = "auto",
@@ -16,13 +16,13 @@ setup_TabNet(
   num_steps = 3L,
   feature_reusage = 1.3,
   mask_type = "sparsemax",
-  virtual_batch_size = 256^2,
+  virtual_batch_size = 65536L,
   valid_split = 0,
   learn_rate = 0.02,
   optimizer = "adam",
   lr_scheduler = NULL,
   lr_decay = 0.1,
-  step_size = 30,
+  step_size = 30L,
   checkpoint_epochs = 10L,
   cat_emb_dim = 1L,
   num_independent = 2L,
@@ -35,87 +35,86 @@ setup_TabNet(
   importance_sample_size = NULL,
   early_stopping_monitor = "auto",
   early_stopping_tolerance = 0,
-  early_stopping_patience = 0,
+  early_stopping_patience = 0L,
   num_workers = 0L,
   skip_importance = FALSE,
   ifw = FALSE
 )
 }
 \arguments{
-\item{batch_size}{(Tunable) Positive integer: Batch size.}
+\item{batch_size}{(Tunable) Integer [1, Inf): Batch size.}
 
-\item{penalty}{(Tunable) Numeric: Regularization penalty.}
+\item{penalty}{(Tunable) Numeric [0, Inf): Regularization penalty.}
 
-\item{clip_value}{Numeric: Clip value.}
+\item{clip_value}{(Tunable) Optional Numeric: Clip value.}
 
-\item{loss}{Character: Loss function.}
+\item{loss}{(Tunable) Character: Loss function.}
 
-\item{epochs}{(Tunable) Positive integer: Number of epochs.}
+\item{epochs}{(Tunable) Integer [1, Inf): Number of epochs.}
 
-\item{drop_last}{Logical: If TRUE, drop last batch.}
+\item{drop_last}{(Tunable) Logical: If TRUE, drop last batch.}
 
-\item{decision_width}{(Tunable) Positive integer: Decision width.}
+\item{decision_width}{(Tunable) Optional Integer [1, Inf): Decision width.}
 
-\item{attention_width}{(Tunable) Positive integer: Attention width.}
+\item{attention_width}{(Tunable) Optional Integer [1, Inf): Attention width.}
 
-\item{num_steps}{(Tunable) Positive integer: Number of steps.}
+\item{num_steps}{(Tunable) Integer [1, Inf): Number of steps.}
 
-\item{feature_reusage}{(Tunable) Numeric: Feature reusage.}
+\item{feature_reusage}{(Tunable) Numeric [0, Inf): Feature reusage.}
 
-\item{mask_type}{Character: Mask type.}
+\item{mask_type}{(Tunable) Character \{"sparsemax", "entmax"\}: Mask type.}
 
-\item{virtual_batch_size}{(Tunable) Positive integer: Virtual batch size.}
+\item{virtual_batch_size}{(Tunable) Integer [1, Inf): Virtual batch size.}
 
-\item{valid_split}{Numeric: Validation split.}
+\item{valid_split}{(Tunable) Numeric [0, 1): Validation split.}
 
-\item{learn_rate}{(Tunable) Numeric: Learning rate.}
+\item{learn_rate}{(Tunable) Numeric (0, Inf): Learning rate.}
 
 \item{optimizer}{Character or torch function: Optimizer.}
 
-\item{lr_scheduler}{Character or torch function: "step", "reduce_on_plateau".}
+\item{lr_scheduler}{Optional Character or torch function: "step", "reduce_on_plateau".}
 
-\item{lr_decay}{Numeric: Learning rate decay.}
+\item{lr_decay}{(Tunable) Numeric [0, 1]: Learning rate decay.}
 
-\item{step_size}{Positive integer: Step size.}
+\item{step_size}{(Tunable) Integer [1, Inf): Step size.}
 
-\item{checkpoint_epochs}{(Tunable) Positive integer: Checkpoint epochs.}
+\item{checkpoint_epochs}{(Tunable) Integer [1, Inf): Checkpoint epochs.}
 
-\item{cat_emb_dim}{(Tunable) Positive integer: Categorical embedding dimension.}
+\item{cat_emb_dim}{(Tunable) Integer [1, Inf): Categorical embedding dimension.}
 
-\item{num_independent}{(Tunable) Positive integer: Number of independent Gated Linear Units (GLU)
+\item{num_independent}{(Tunable) Integer [1, Inf): Number of independent Gated Linear Units (GLU)
 at each step of the encoder.}
 
-\item{num_shared}{(Tunable) Positive integer: Number of shared Gated Linear Units (GLU) at each
+\item{num_shared}{(Tunable) Integer [1, Inf): Number of shared Gated Linear Units (GLU) at each
 step of the encoder.}
 
-\item{num_independent_decoder}{(Tunable) Positive integer: Number of independent GLU layers for
+\item{num_independent_decoder}{(Tunable) Integer [1, Inf): Number of independent GLU layers for
 pretraining.}
 
-\item{num_shared_decoder}{(Tunable) Positive integer: Number of shared GLU layers for
+\item{num_shared_decoder}{(Tunable) Integer [1, Inf): Number of shared GLU layers for
 pretraining.}
 
-\item{momentum}{(Tunable) Numeric: Momentum.}
+\item{momentum}{(Tunable) Numeric [0, Inf): Momentum.}
 
-\item{pretraining_ratio}{(Tunable) Numeric: Pretraining ratio.}
+\item{pretraining_ratio}{(Tunable) Numeric [0, 1]: Pretraining ratio.}
 
-\item{device}{Character: Device "cpu" or "cuda".}
+\item{device}{Character \{"auto", "cpu", "cuda"\}: Compute device.}
 
-\item{importance_sample_size}{Positive integer: Importance sample size.}
+\item{importance_sample_size}{(Tunable) Optional Integer [1, Inf): Importance sample size.}
 
-\item{early_stopping_monitor}{Character: Early stopping monitor. "valid_loss", "train_loss",
-"auto".}
+\item{early_stopping_monitor}{(Tunable) Character \{"auto", "valid_loss", "train_loss"\}: Early stopping monitor.}
 
-\item{early_stopping_tolerance}{Numeric: Minimum relative improvement to reset the patience
+\item{early_stopping_tolerance}{(Tunable) Numeric [0, Inf): Minimum relative improvement to reset the patience
 counter.}
 
-\item{early_stopping_patience}{Positive integer: Number of epochs without improving before
+\item{early_stopping_patience}{(Tunable) Integer [0, Inf): Number of epochs without improving before
 stopping.}
 
-\item{num_workers}{Positive integer: Number of subprocesses for data loading.}
+\item{num_workers}{Integer [0, Inf): Number of subprocesses for data loading.}
 
 \item{skip_importance}{Logical: If TRUE, skip importance calculation.}
 
-\item{ifw}{Logical: If TRUE, use Inverse Frequency Weighting in classification.}
+\item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 }
 \value{
 TabNetHyperparameters object.

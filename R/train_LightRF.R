@@ -51,9 +51,7 @@ method(train_, LightRFHyperparameters) <- function(
     nclasses <- 1L
   }
   if (is.null(hyperparameters[["objective"]])) {
-    hyperparameters@hyperparameters[["objective"]] <- if (
-      type == "Regression"
-    ) {
+    hyperparameters@objective <- if (type == "Regression") {
       "regression"
     } else {
       if (nclasses == 2L) {

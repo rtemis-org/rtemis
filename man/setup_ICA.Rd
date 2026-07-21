@@ -6,8 +6,8 @@
 \usage{
 setup_ICA(
   k = 3L,
-  type = c("parallel", "deflation"),
-  fun = c("logcosh", "exp"),
+  type = "parallel",
+  fun = "logcosh",
   alpha = 1,
   row_norm = TRUE,
   maxit = 100L,
@@ -16,19 +16,19 @@ setup_ICA(
 )
 }
 \arguments{
-\item{k}{Integer: Number of components.}
+\item{k}{Integer [1, Inf): Number of components.}
 
-\item{type}{Character: Type of ICA: "parallel" or "deflation".}
+\item{type}{Character \{"parallel", "deflation"\}: Type of ICA.}
 
-\item{fun}{Character: ICA function: "logcosh", "exp".}
+\item{fun}{Character \{"logcosh", "exp"\}: ICA function.}
 
 \item{alpha}{Numeric [1, 2]: Used in approximation to neg-entropy with \code{fun = "logcosh"}.}
 
 \item{row_norm}{Logical: If TRUE, normalize rows of \code{x} before ICA.}
 
-\item{maxit}{Integer: Maximum number of iterations.}
+\item{maxit}{Integer [1, Inf): Maximum number of iterations.}
 
-\item{tol}{Numeric: Tolerance.}
+\item{tol}{Numeric [0, Inf): Tolerance.}
 
 \item{features}{Optional Character: Names of the feature columns to decompose.
 \code{NULL} decomposes all numeric features.}

@@ -14,40 +14,37 @@ ExecutionConfig <- new_class(
   name = "ExecutionConfig",
   package = "rtemis",
   properties = list(
-    backend = class_character,
-    n_workers = class_integer,
-    future_plan = class_character | NULL,
-    on_error = class_character
-  ),
-  constructor = function(
-    backend,
-    n_workers,
-    future_plan,
-    on_error = "continue"
-  ) {
-    n_workers <- clean_int(n_workers)
-    check_character(backend, allow_null = FALSE)
-    check_character(future_plan, allow_null = TRUE)
-    check_character(on_error, allow_null = FALSE)
-    new_object(
-      S7::S7_object(),
-      backend = backend,
-      n_workers = n_workers,
-      future_plan = future_plan,
-      on_error = on_error
+    # "none" (sequential) is the conservative default: valid with no
+    # `future_plan` and `n_workers = 1`. setup_ExecutionConfig defaults to
+    # "future" for interactive convenience.
+    backend = prop_string(
+      "none",
+      enum = c("future", "mirai", "none"),
+      description = "Execution backend."
+    ),
+    n_workers = prop_integer(
+      1L,
+      min = 1L,
+      description = "Number of parallel workers (used when backend is 'future' or 'mirai')."
+    ),
+    future_plan = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Future plan to use when backend is 'future'."
+    ),
+    on_error = prop_string(
+      "continue",
+      enum = c("continue", "stop", "stop_outer"),
+      description = "Failure policy."
     )
-  },
+  ),
+  # Cross-field constraints (the per-field type/enum/bounds are enforced by
+  # the prop_* validators).
   validator = function(self) {
-    if (!self@on_error %in% c("continue", "stop", "stop_outer")) {
-      "@on_error must be one of 'continue', 'stop', 'stop_outer'."
-    } else if (self@backend == "future" && is.null(self@future_plan)) {
+    if (self@backend == "future" && is.null(self@future_plan)) {
       "@future_plan must be set when backend is 'future'."
     } else if (self@backend == "none" && self@n_workers != 1L) {
       "n_workers must be 1 when backend is 'none'."
-    } else if (self@backend == "mirai" && self@n_workers < 1L) {
-      "n_workers must be at least 1 when backend is 'mirai'."
-    } else if (self@backend == "future" && self@n_workers < 1L) {
-      "n_workers must be at least 1 when backend is 'future'."
     }
   }
 ) # /rtemis::ExecutionConfig

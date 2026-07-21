@@ -22,11 +22,27 @@ DecomposeConfig <- new_class(
   name = "DecomposeConfig",
   package = "rtemis",
   properties = list(
-    dat_path = class_character | NULL,
-    algorithm = class_character | NULL,
-    decomposition_config = DecompositionConfig | NULL,
-    outdir = class_character,
-    verbosity = class_integer
+    dat_path = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Path to the input data."
+    ),
+    algorithm = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Decomposition algorithm name."
+    ),
+    # Nested config object (a `$ref` in the generated schema).
+    decomposition_config = NULL | DecompositionConfig,
+    outdir = prop_string(
+      "results/",
+      description = "Output directory for results."
+    ),
+    verbosity = prop_integer(
+      1L,
+      min = 0L,
+      description = "Verbosity level."
+    )
   )
 ) # /rtemis::DecomposeConfig
 

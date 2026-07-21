@@ -19,6 +19,17 @@ testthat::test_that("setup_Preprocessor() succeeds", {
   expect_s7_class(prp, PreprocessorConfig)
 })
 
+testthat::test_that("integer-typed args accept friendly numeric input", {
+  # Every integer-typed property is cleaned, so users need not write `L`.
+  # `exclude` is vector-valued, and `c(1, 2)` is a double vector in R.
+  expect_identical(setup_Preprocessor(exclude = c(1, 2))@exclude, c(1L, 2L))
+  expect_identical(setup_Preprocessor(exclude = 3)@exclude, 3L)
+  expect_identical(setup_Preprocessor(numeric_cut_n = 4)@numeric_cut_n, 4L)
+  expect_null(setup_Preprocessor()@exclude)
+  # Non-integral input is still an error, not a silent truncation.
+  expect_error(setup_Preprocessor(exclude = 1.5), class = "rtemis_type_error")
+})
+
 # Preprocessor: preprocess(PreprocessorConfig) ----
 res <- resample(iris, setup_Resampler(seed = 2025))
 iris_train <- iris[res$Fold_1, ]

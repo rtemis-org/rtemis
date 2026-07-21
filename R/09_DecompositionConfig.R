@@ -1,17 +1,33 @@
-# S7_DecompositionConfig.R
+# 09_DecompositionConfig.R
 # ::rtemis::
 # 2025- EDG rtemis.org
+
+# Architecture ----
+# Mirrors 02_Hyperparameters.R: each `*Config` subclass declares its
+# algorithm parameters with the `prop_*` factories, from which the S7
+# validators, the `config` list, and the JSON Schema (S7_to_JSONSchema) are
+# generated. The abstract `DecompositionConfig` superclass provides the
+# computed `config` list (assembled from the subclass's own properties;
+# assignment routes back to them) and carries the algorithm-agnostic
+# `features` selection. Decomposition has no tuning, so every parameter is a
+# fixed scalar (or, for `features`, a plain vector). Parameters whose R type
+# cannot be expressed as a JSON type (tSNE `Y_init`, a matrix) are plain
+# properties: stored and validated by class, but excluded from schemas.
 
 # %% DecompositionConfig ----
 #' DecompositionConfig
 #'
 #' @description
-#' Decomposition config class.
+#' Abstract superclass for decomposition configs. Subclasses declare each
+#' algorithm parameter as a property; this class contributes the computed
+#' `config` list and the `features` selection.
 #'
-#' @field algorithm Character: Algorithm name.
-#' @field config List: Algorithm-specific config.
-#' @field features Optional Character: Names of the feature columns to decompose.
-#' `NULL` means all numeric features.
+#' @field algorithm Character: Algorithm name (computed constant, overridden
+#'   per subclass).
+#' @field features Optional Character: Names of the feature columns to
+#'   decompose. `NULL` means all numeric features.
+#' @field config List: Algorithm-specific parameters (computed from the
+#'   subclass's properties; assignment routes back and validates).
 #'
 #' @author EDG
 #' @keywords internal
@@ -19,16 +35,40 @@
 DecompositionConfig <- new_class(
   name = "DecompositionConfig",
   package = "rtemis",
+  abstract = TRUE,
   properties = list(
     algorithm = class_character,
-    config = class_list,
-    features = class_character | NULL
+    features = NULL | class_character,
+    config = new_property(
+      class_list,
+      getter = function(self) {
+        own_prop_values(self, DecompositionConfig)
+      },
+      setter = function(self, value) {
+        route_config_assignment(self, DecompositionConfig, value)
+      }
+    )
   )
-) # /DecompositionConfig
+) # /rtemis::DecompositionConfig
+
+
+# %% serializable_props.DecompositionConfig ----
+# Serialize as {algorithm, config[, features]} (the public shape); the
+# per-algorithm properties are redundant with the computed `config`.
+method(serializable_props, DecompositionConfig) <- function(x) {
+  out <- list(
+    algorithm = x@algorithm,
+    config = config_prop_values(x, DecompositionConfig)
+  )
+  if (!is.null(x@features)) {
+    out[["features"]] <- x@features
+  }
+  out
+} # /rtemis::serializable_props.DecompositionConfig
 
 
 # %% `$`.DecompositionConfig ----
-# Make DecompositionConfig@config `$`-accessible ----
+# Make DecompositionConfig@config@name `$`-accessible ----
 method(`$`, DecompositionConfig) <- function(x, name) {
   x@config[[name]]
 }
@@ -50,7 +90,7 @@ method(`[`, DecompositionConfig) <- function(x, name) {
 
 
 # %% `[[`.DecompositionConfig ----
-# Make DecompositionConfig@config `[[`-accessible ----
+# Make DecompositionConfig@config@name `[[`-accessible ----
 method(`[[`, DecompositionConfig) <- function(x, name) {
   x@config[[name]]
 }
@@ -158,41 +198,38 @@ validate_decom_features <- function(features) {
 #'
 #' @description
 #' DecompositionConfig subclass for Principal Component Analysis.
-#' Internal use only.
 #'
 #' @author EDG
 #' @noRd
 PCAConfig <- new_class(
   name = "PCAConfig",
   parent = DecompositionConfig,
-  constructor = function(k, center, scale, tol, features = NULL) {
-    k <- clean_posint(k)
-    check_logical(center)
-    check_logical(scale)
-    check_float0pos(tol)
-    new_object(
-      DecompositionConfig(
-        algorithm = "PCA",
-        config = list(
-          k = k,
-          center = center,
-          scale = scale,
-          tol = tol
-        ),
-        features = features
-      )
+  properties = list(
+    algorithm = prop_algorithm("PCA"),
+    k = prop_integer(
+      3L,
+      min = 1L,
+      description = "Number of components to extract."
+    ),
+    center = prop_boolean(TRUE, description = "Center the data."),
+    scale = prop_boolean(TRUE, description = "Scale the data."),
+    tol = prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      description = "Magnitude tolerance below which components are omitted."
     )
-  }
+  )
 ) # /rtemis::PCAConfig
 
 
 # %% setup_PCA ----
 #' Setup PCA config.
 #'
-#' @param k Integer: Number of components. (passed to `prcomp` `rank.`)
+#' @param k Integer [1, Inf): Number of components. (passed to `prcomp` `rank.`)
 #' @param center Logical: If TRUE, center the data.
 #' @param scale Logical: If TRUE, scale the data.
-#' @param tol Numeric: Tolerance.
+#' @param tol Optional Numeric [0, Inf): Tolerance.
 #' @param features Optional Character: Names of the feature columns to decompose.
 #' `NULL` decomposes all numeric features.
 #'
@@ -211,11 +248,14 @@ setup_PCA <- function(
   features = NULL
 ) {
   k <- clean_posint(k)
-  check_logical(center)
-  check_logical(scale)
-  check_float0pos(tol)
   validate_decom_features(features)
-  PCAConfig(k, center, scale, tol, features = features)
+  PCAConfig(
+    k = k,
+    center = center,
+    scale = scale,
+    tol = tol,
+    features = features
+  )
 } # /rtemis::setup_PCA
 
 
@@ -224,39 +264,46 @@ setup_PCA <- function(
 #'
 #' @description
 #' DecompositionConfig subclass for Independent Component Analysis.
-#' Internal use only.
 #'
 #' @author EDG
 #' @noRd
 ICAConfig <- new_class(
   name = "ICAConfig",
   parent = DecompositionConfig,
-  constructor = function(
-    k,
-    type,
-    fun,
-    alpha,
-    row_norm,
-    maxit,
-    tol,
-    features = NULL
-  ) {
-    new_object(
-      DecompositionConfig(
-        algorithm = "ICA",
-        config = list(
-          k = k,
-          type = type,
-          fun = fun,
-          alpha = alpha,
-          row_norm = row_norm,
-          maxit = maxit,
-          tol = tol
-        ),
-        features = features
-      )
-    )
-  }
+  properties = list(
+    algorithm = prop_algorithm("ICA"),
+    k = prop_integer(
+      3L,
+      min = 1L,
+      description = "Number of components to extract."
+    ),
+    type = prop_string(
+      "parallel",
+      enum = c("parallel", "deflation"),
+      description = "Component extraction scheme."
+    ),
+    fun = prop_string(
+      "logcosh",
+      enum = c("logcosh", "exp"),
+      description = "Functional form of the approximation to neg-entropy."
+    ),
+    alpha = prop_float(
+      1.0,
+      min = 1,
+      max = 2,
+      description = "Used with `fun = \"logcosh\"`."
+    ),
+    row_norm = prop_boolean(
+      TRUE,
+      description = "Normalize rows of the input before ICA."
+    ),
+    maxit = prop_integer(
+      100L,
+      min = 1L,
+      description = "Maximum number of iterations."
+    ),
+    tol = prop_float(1e-04, min = 0, description = "Convergence tolerance.")
+  )
 ) # /rtemis::ICAConfig
 
 
@@ -266,13 +313,13 @@ ICAConfig <- new_class(
 #' @description
 #' Setup ICA config.
 #'
-#' @param k Integer: Number of components.
-#' @param type Character: Type of ICA: "parallel" or "deflation".
-#' @param fun Character: ICA function: "logcosh", "exp".
+#' @param k Integer [1, Inf): Number of components.
+#' @param type Character \{"parallel", "deflation"\}: Type of ICA.
+#' @param fun Character \{"logcosh", "exp"\}: ICA function.
 #' @param alpha Numeric \[1, 2\]: Used in approximation to neg-entropy with `fun = "logcosh"`.
 #' @param row_norm Logical: If TRUE, normalize rows of `x` before ICA.
-#' @param maxit Integer: Maximum number of iterations.
-#' @param tol Numeric: Tolerance.
+#' @param maxit Integer [1, Inf): Maximum number of iterations.
+#' @param tol Numeric [0, Inf): Tolerance.
 #' @param features Optional Character: Names of the feature columns to decompose.
 #' `NULL` decomposes all numeric features.
 #'
@@ -285,8 +332,8 @@ ICAConfig <- new_class(
 #' ica_config
 setup_ICA <- function(
   k = 3L,
-  type = c("parallel", "deflation"),
-  fun = c("logcosh", "exp"),
+  type = "parallel",
+  fun = "logcosh",
   alpha = 1.0,
   row_norm = TRUE,
   maxit = 100L,
@@ -294,12 +341,7 @@ setup_ICA <- function(
   features = NULL
 ) {
   k <- clean_posint(k)
-  type <- match.arg(type)
-  fun <- match.arg(fun)
-  stopifnot(alpha >= 1, alpha <= 2)
-  check_inherits(row_norm, "logical")
   maxit <- clean_posint(maxit)
-  rtemis.core::check_numeric(tol)
   validate_decom_features(features)
   ICAConfig(
     k = k,
@@ -319,38 +361,38 @@ setup_ICA <- function(
 #'
 #' @description
 #' DecompositionConfig subclass for Non-negative Matrix Factorization.
-#' Internal use only.
 #'
 #' @author EDG
 #' @noRd
 NMFConfig <- new_class(
   name = "NMFConfig",
   parent = DecompositionConfig,
-  constructor = function(k, method, nrun, features = NULL) {
-    k <- clean_posint(k)
-    check_inherits(method, "character")
-    nrun <- clean_posint(nrun)
-    new_object(
-      DecompositionConfig(
-        algorithm = "NMF",
-        config = list(
-          k = k,
-          method = method,
-          nrun = nrun
-        ),
-        features = features
-      )
+  properties = list(
+    algorithm = prop_algorithm("NMF"),
+    k = prop_integer(
+      2L,
+      min = 1L,
+      description = "Number of components to extract."
+    ),
+    method = prop_string(
+      "brunet",
+      description = "NMF method (see `NMF::nmf`)."
+    ),
+    nrun = prop_integer(
+      1L,
+      min = 1L,
+      description = "Number of runs to perform."
     )
-  }
+  )
 ) # /rtemis::NMFConfig
 
 
 # %% setup_NMF ----
 #' Setup NMF config.
 #'
-#' @param k Integer: Number of components.
+#' @param k Integer [1, Inf): Number of components.
 #' @param method Character: NMF method. See `NMF::nmf`.
-#' @param nrun Integer: Number of runs to perform.
+#' @param nrun Integer [1, Inf): Number of runs to perform.
 #' @param features Optional Character: Names of the feature columns to decompose.
 #' `NULL` decomposes all numeric features.
 #'
@@ -368,10 +410,9 @@ setup_NMF <- function(
   features = NULL
 ) {
   k <- clean_posint(k)
-  check_inherits(method, "character")
   nrun <- clean_posint(nrun)
   validate_decom_features(features)
-  NMFConfig(k, method, nrun, features = features)
+  NMFConfig(k = k, method = method, nrun = nrun, features = features)
 } # /rtemis::setup_NMF
 
 
@@ -380,46 +421,42 @@ setup_NMF <- function(
 #'
 #' @description
 #' DecompositionConfig subclass for Uniform Manifold Approximation and Projection.
-#' Internal use only.
 #'
 #' @author EDG
 #' @noRd
 UMAPConfig <- new_class(
   name = "UMAPConfig",
   parent = DecompositionConfig,
-  constructor = function(
-    k,
-    n_neighbors,
-    init,
-    metric,
-    n_epochs,
-    learning_rate,
-    scale,
-    features = NULL
-  ) {
-    k <- clean_posint(k)
-    n_neighbors <- clean_posint(n_neighbors)
-    check_inherits(init, "character")
-    check_inherits(metric, "character")
-    n_epochs <- clean_posint(n_epochs)
-    check_float0pos(learning_rate)
-    check_inherits(scale, "logical")
-    new_object(
-      DecompositionConfig(
-        algorithm = "UMAP",
-        config = list(
-          k = k,
-          n_neighbors = n_neighbors,
-          init = init,
-          metric = metric,
-          n_epochs = n_epochs,
-          learning_rate = learning_rate,
-          scale = scale
-        ),
-        features = features
-      )
-    )
-  }
+  properties = list(
+    algorithm = prop_algorithm("UMAP"),
+    k = prop_integer(
+      2L,
+      min = 1L,
+      description = "Number of components to extract."
+    ),
+    n_neighbors = prop_integer(
+      15L,
+      min = 1L,
+      description = "Number of neighbors."
+    ),
+    init = prop_string(
+      "spectral",
+      description = "Initialization type (see `uwot::umap` `init`)."
+    ),
+    metric = prop_string(
+      "euclidean",
+      enum = c("euclidean", "cosine", "manhattan", "hamming", "categorical"),
+      description = "Distance metric."
+    ),
+    n_epochs = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      description = "Number of epochs. NULL = algorithm default."
+    ),
+    learning_rate = prop_float(1.0, min = 0, description = "Learning rate."),
+    scale = prop_boolean(TRUE, description = "Scale input data before UMAP.")
+  )
 ) # /rtemis::UMAPConfig
 
 
@@ -431,13 +468,12 @@ UMAPConfig <- new_class(
 #' "Error in irlba::irlba(L, nv = n, nu = 0, maxit = iters) :
 #'  function 'as_cholmod_sparse' not provided by package 'Matrix'"
 #'
-#' @param k Integer: Number of components.
-#' @param n_neighbors Integer: Number of keighbors.
+#' @param k Integer [1, Inf): Number of components.
+#' @param n_neighbors Integer [1, Inf): Number of neighbors.
 #' @param init Character: Initialization type. See `uwot::umap "init"`.
-#' @param metric Character: Distance metric to use: "euclidean", "cosine",
-#' "manhattan", "hamming", "categorical".
-#' @param n_epochs Integer: Number of epochs.
-#' @param learning_rate Float: Learning rate.
+#' @param metric Character \{"euclidean", "cosine", "manhattan", "hamming", "categorical"\}: Distance metric.
+#' @param n_epochs Optional Integer [1, Inf): Number of epochs.
+#' @param learning_rate Numeric [0, Inf): Learning rate.
 #' @param scale Logical: If TRUE, scale input data before doing UMAP.
 #' @param features Optional Character: Names of the feature columns to decompose.
 #' `NULL` decomposes all numeric features.
@@ -453,7 +489,7 @@ setup_UMAP <- function(
   k = 2L,
   n_neighbors = 15L,
   init = "spectral",
-  metric = c("euclidean", "cosine", "manhattan", "hamming", "categorical"),
+  metric = "euclidean",
   n_epochs = NULL,
   learning_rate = 1.0,
   scale = TRUE,
@@ -461,11 +497,7 @@ setup_UMAP <- function(
 ) {
   k <- clean_posint(k)
   n_neighbors <- clean_posint(n_neighbors)
-  init <- match.arg(init)
-  metric <- match.arg(metric)
-  check_inherits(n_epochs, "integer")
-  check_float0pos(learning_rate)
-  check_inherits(scale, "logical")
+  n_epochs <- clean_posint(n_epochs)
   validate_decom_features(features)
   UMAPConfig(
     k = k,
@@ -485,79 +517,85 @@ setup_UMAP <- function(
 #'
 #' @description
 #' DecompositionConfig subclass for t-Distributed Stochastic Neighbor Embedding.
+#' `Y_init` (an optional initial embedding matrix) is a plain property: it is
+#' not JSON-expressible and is excluded from the generated schema.
 #'
 #' @author EDG
 #' @noRd
 tSNEConfig <- new_class(
   name = "tSNEConfig",
   parent = DecompositionConfig,
-  constructor = function(
-    k = NULL,
-    initial_dims = NULL,
-    perplexity = NULL,
-    theta = NULL,
-    check_duplicates = NULL,
-    pca = NULL,
-    partial_pca = NULL,
-    max_iter = NULL,
-    verbose = NULL,
-    is_distance = NULL,
-    Y_init = NULL,
-    pca_center = NULL,
-    pca_scale = NULL,
-    normalize = NULL,
-    stop_lying_iter = NULL,
-    mom_switch_iter = NULL,
-    momentum = NULL,
-    final_momentum = NULL,
-    eta = NULL,
-    exaggeration_factor = NULL,
-    num_threads = NULL
-  ) {
-    k <- clean_posint(k)
-    initial_dims <- clean_posint(initial_dims)
-    check_logical(check_duplicates)
-    check_logical(pca)
-    check_logical(partial_pca)
-    max_iter <- clean_posint(max_iter)
-    check_logical(verbose)
-    check_logical(is_distance)
-    check_inherits(Y_init, "matrix")
-    check_logical(pca_center)
-    check_logical(pca_scale)
-    check_logical(normalize)
-    stop_lying_iter <- clean_posint(stop_lying_iter)
-    mom_switch_iter <- clean_posint(mom_switch_iter)
-    num_threads <- clean_posint(num_threads)
-    new_object(
-      DecompositionConfig(
-        algorithm = "tSNE",
-        config = list(
-          k = k,
-          initial_dims = initial_dims,
-          perplexity = perplexity,
-          theta = theta,
-          check_duplicates = check_duplicates,
-          pca = pca,
-          partial_pca = partial_pca,
-          max_iter = max_iter,
-          verbose = verbose,
-          is_distance = is_distance,
-          Y_init = Y_init,
-          pca_center = pca_center,
-          pca_scale = pca_scale,
-          normalize = normalize,
-          stop_lying_iter = stop_lying_iter,
-          mom_switch_iter = mom_switch_iter,
-          momentum = momentum,
-          final_momentum = final_momentum,
-          eta = eta,
-          exaggeration_factor = exaggeration_factor,
-          num_threads = num_threads
-        )
-      )
+  properties = list(
+    algorithm = prop_algorithm("tSNE"),
+    k = prop_integer(
+      2L,
+      min = 1L,
+      description = "Number of components to extract."
+    ),
+    initial_dims = prop_integer(
+      50L,
+      min = 1L,
+      description = "Initial dimensions."
+    ),
+    perplexity = prop_float(30, min = 0, description = "Perplexity."),
+    theta = prop_float(
+      0.5,
+      min = 0,
+      max = 1,
+      description = "Speed/accuracy trade-off."
+    ),
+    check_duplicates = prop_boolean(
+      TRUE,
+      description = "Check for duplicates."
+    ),
+    pca = prop_boolean(TRUE, description = "Perform an initial PCA step."),
+    partial_pca = prop_boolean(
+      FALSE,
+      description = "Use truncated PCA (irlba)."
+    ),
+    max_iter = prop_integer(
+      1000L,
+      min = 1L,
+      description = "Maximum number of iterations."
+    ),
+    verbose = prop_boolean(FALSE, description = "Print progress."),
+    is_distance = prop_boolean(
+      FALSE,
+      description = "Treat the input as a distance matrix."
+    ),
+    Y_init = NULL | S7::new_S3_class("matrix"),
+    pca_center = prop_boolean(
+      TRUE,
+      description = "Center before the PCA step."
+    ),
+    pca_scale = prop_boolean(FALSE, description = "Scale before the PCA step."),
+    normalize = prop_boolean(TRUE, description = "Normalize the input."),
+    stop_lying_iter = prop_integer(
+      250L,
+      min = 0L,
+      description = "Iteration after which exaggeration stops."
+    ),
+    mom_switch_iter = prop_integer(
+      250L,
+      min = 0L,
+      description = "Iteration at which momentum switches."
+    ),
+    momentum = prop_float(0.5, description = "Initial momentum."),
+    final_momentum = prop_float(
+      0.8,
+      description = "Momentum used later in optimization."
+    ),
+    eta = prop_float(200, description = "Learning rate."),
+    exaggeration_factor = prop_float(
+      12,
+      description = "Early-exaggeration factor."
+    ),
+    num_threads = prop_integer(
+      1L,
+      min = 0L,
+      description = "Number of threads (0 = all cores)."
     )
-  }
+  )
 ) # /rtemis::tSNEConfig
 
 
@@ -567,27 +605,27 @@ tSNEConfig <- new_class(
 #' @details
 #' Get more information on the config by running `?Rtsne::Rtsne`.
 #'
-#' @param k Integer: Number of components.
-#' @param initial_dims Integer: Initial dimensions.
-#' @param perplexity Integer: Perplexity.
-#' @param theta Float: Theta.
+#' @param k Integer [1, Inf): Number of components.
+#' @param initial_dims Integer [1, Inf): Initial dimensions.
+#' @param perplexity Numeric [0, Inf): Perplexity.
+#' @param theta Numeric \[0, 1\]: Speed/accuracy trade-off.
 #' @param check_duplicates Logical: If TRUE, check for duplicates.
 #' @param pca Logical: If TRUE, perform PCA.
 #' @param partial_pca Logical: If TRUE, perform partial PCA.
-#' @param max_iter Integer: Maximum number of iterations.
+#' @param max_iter Integer [1, Inf): Maximum number of iterations.
 #' @param verbose Logical: If TRUE, print messages.
 #' @param is_distance Logical: If TRUE, `x` is a distance matrix.
-#' @param Y_init Matrix: Initial Y matrix.
+#' @param Y_init Optional Matrix: Initial Y matrix.
 #' @param pca_center Logical: If TRUE, center PCA.
 #' @param pca_scale Logical: If TRUE, scale PCA.
 #' @param normalize Logical: If TRUE, normalize.
-#' @param stop_lying_iter Integer: Stop lying iterations.
-#' @param mom_switch_iter Integer: Momentum switch iterations.
-#' @param momentum Float: Momentum.
-#' @param final_momentum Float: Final momentum.
-#' @param eta Float: Eta.
-#' @param exaggeration_factor Float: Exaggeration factor.
-#' @param num_threads Integer: Number of threads.
+#' @param stop_lying_iter Integer [0, Inf): Stop lying iterations.
+#' @param mom_switch_iter Integer [0, Inf): Momentum switch iterations.
+#' @param momentum Numeric: Momentum.
+#' @param final_momentum Numeric: Final momentum.
+#' @param eta Numeric: Eta.
+#' @param exaggeration_factor Numeric: Exaggeration factor.
+#' @param num_threads Integer [0, Inf): Number of threads.
 #'
 #' @return tSNEConfig object.
 #'
@@ -611,14 +649,20 @@ setup_tSNE <- function(
   pca_center = TRUE,
   pca_scale = FALSE,
   normalize = TRUE,
-  stop_lying_iter = ifelse(is.null(Y_init), 250L, 0L),
-  mom_switch_iter = ifelse(is.null(Y_init), 250L, 0L),
+  stop_lying_iter = if (is.null(Y_init)) 250L else 0L,
+  mom_switch_iter = if (is.null(Y_init)) 250L else 0L,
   momentum = 0.5,
   final_momentum = 0.8,
   eta = 200,
   exaggeration_factor = 12,
   num_threads = 1L
 ) {
+  k <- clean_posint(k)
+  initial_dims <- clean_posint(initial_dims)
+  max_iter <- clean_posint(max_iter)
+  stop_lying_iter <- clean_int(stop_lying_iter)
+  mom_switch_iter <- clean_int(mom_switch_iter)
+  num_threads <- clean_int(num_threads)
   tSNEConfig(
     k = k,
     initial_dims = initial_dims,
@@ -656,38 +700,39 @@ setup_tSNE <- function(
 IsomapConfig <- new_class(
   name = "IsomapConfig",
   parent = DecompositionConfig,
-  constructor = function(
-    k,
-    dist_method = NULL,
-    nsd = NULL,
-    path = NULL
-  ) {
-    k <- clean_posint(k)
-    check_inherits(dist_method, "character")
-    nsd <- clean_int(nsd)
-    check_inherits(path, "character")
-    new_object(
-      DecompositionConfig(
-        algorithm = "Isomap",
-        config = list(
-          k = k,
-          dist_method = dist_method,
-          nsd = nsd,
-          path = path
-        )
-      )
+  properties = list(
+    algorithm = prop_algorithm("Isomap"),
+    k = prop_integer(
+      2L,
+      min = 1L,
+      description = "Number of components to extract."
+    ),
+    dist_method = prop_string(
+      "euclidean",
+      enum = c("euclidean", "manhattan"),
+      description = "Distance method."
+    ),
+    nsd = prop_integer(
+      0L,
+      min = 0L,
+      description = "Number of shortest dissimilarities retained (0 = all)."
+    ),
+    path = prop_string(
+      "shortest",
+      enum = c("shortest", "extended"),
+      description = "`path` argument for `vegan::isomap`."
     )
-  }
+  )
 ) # /rtemis::IsomapConfig
 
 
 # %% setup_Isomap ----
 #' Setup Isomap config.
 #'
-#' @param k Integer: Number of components.
-#' @param dist_method Character: Distance method.
-#' @param nsd Integer: Number of shortest dissimilarities retained.
-#' @param path Character: Path argument for `vegan::isomap`.
+#' @param k Integer [1, Inf): Number of components.
+#' @param dist_method Character \{"euclidean", "manhattan"\}: Distance method.
+#' @param nsd Integer [0, Inf): Number of shortest dissimilarities retained.
+#' @param path Character \{"shortest", "extended"\}: Path argument for `vegan::isomap`.
 #'
 #' @return IsomapConfig object.
 #'
@@ -698,16 +743,15 @@ IsomapConfig <- new_class(
 #' isomap_config
 setup_Isomap <- function(
   k = 2L,
-  dist_method = c("euclidean", "manhattan"),
+  dist_method = "euclidean",
   nsd = 0L,
-  path = c("shortest", "extended")
+  path = "shortest"
 ) {
   k <- clean_posint(k)
-  dist_method <- match.arg(dist_method)
   nsd <- clean_int(nsd)
-  path <- match.arg(path)
-  IsomapConfig(k, dist_method, nsd, path)
+  IsomapConfig(k = k, dist_method = dist_method, nsd = nsd, path = path)
 } # /rtemis::setup_Isomap
+
 
 # %% List of Decomposition Algorithms that can be applied on new data ----
 # These algorithms learn a transformation on the training data that can later be

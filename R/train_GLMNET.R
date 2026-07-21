@@ -38,11 +38,6 @@ method(train_, GLMNETHyperparameters) <- function(
     )
   }
 
-  # Convert "null" lambda to NULL
-  if (hyperparameters[["lambda"]] == "null") {
-    hyperparameters@hyperparameters[["lambda"]] <- NULL
-  }
-
   # Data ----
   check_supervised(
     x = x,
@@ -81,7 +76,7 @@ method(train_, GLMNETHyperparameters) <- function(
   # Check data-specific hyperparameter values
   # penalty_factor must be of length = N features.
   if (is.null(hyperparameters[["penalty_factor"]])) {
-    hyperparameters@hyperparameters[["penalty_factor"]] <- rep(1, NCOL(xm))
+    hyperparameters@penalty_factor <- rep(1, NCOL(xm))
     if (verbosity > 1L) {
       info("NCOL(xm): ", NCOL(xm))
       info('Updated hyperparameters[["penalty_factor"]] to all 1s.')
