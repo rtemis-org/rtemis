@@ -128,7 +128,7 @@ GridSearchConfig <- new_class(
     # Nested config object; serialized/validated as a ResamplerConfig, so it
     # is a plain property (excluded from generated schemas, where it is a
     # `$ref` to the resampler schema).
-    resampler_config = new_property(NULL | ResamplerConfig, default = NULL),
+    resampler_config = NULL | ResamplerConfig,
     search_type = prop_string(
       "exhaustive",
       enum = c("exhaustive", "randomized"),
@@ -158,7 +158,7 @@ GridSearchConfig <- new_class(
   ),
   validator = function(self) {
     # `randomize_p` only applies to a randomized search.
-    if (self@search_type == "exhaustive" && length(self@randomize_p) > 0L) {
+    if (self@search_type == "exhaustive" && !is.null(self@randomize_p)) {
       "@randomize_p must not be set when @search_type is 'exhaustive'."
     }
   }

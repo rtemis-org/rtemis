@@ -68,8 +68,8 @@ hp_prop_names <- function(x) {
 # %% hp_prop_values ----
 #' Collect hyperparameter property values from an instance
 #'
-#' Named list of the subclass's own property values, mapping zero-length
-#' values to NULL (the package-wide "unset").
+#' Named list of the subclass's own property values. Unset hyperparameters
+#' read as NULL.
 #'
 #' @param self `Hyperparameters` object.
 #'
@@ -859,8 +859,8 @@ GLMNETHyperparameters <- new_class(
       description = "Inverse Frequency Weighting in classification."
     ),
     # Runtime state (written by the Tuner from cv.glmnet results).
-    `lambda.min` = new_property(class_double | NULL, default = NULL),
-    `lambda.1se` = new_property(class_double | NULL, default = NULL)
+    `lambda.min` = NULL | class_double,
+    `lambda.1se` = NULL | class_double
   )
 ) # /rtemis::GLMNETHyperparameters
 
@@ -1372,9 +1372,9 @@ LightGBMHyperparameters <- new_class(
     ),
     # Derived: force_nrounds if set, otherwise determined by early stopping
     # during tuning.
-    nrounds = new_property(class_integer | NULL, default = NULL),
+    nrounds = NULL | class_integer,
     # Runtime state (best iteration, written by the Tuner).
-    best_iter = new_property(class_numeric | NULL, default = NULL)
+    best_iter = NULL | class_numeric
   )
 ) # /rtemis::LightGBMHyperparameters
 
@@ -1965,10 +1965,7 @@ TabNetHyperparameters <- new_class(
       class_character | class_function,
       default = "adam"
     ),
-    lr_scheduler = new_property(
-      class_character | class_function | NULL,
-      default = NULL
-    ),
+    lr_scheduler = NULL | class_character | class_function,
     lr_decay = prop_float(
       0.1,
       min = 0,
@@ -2353,20 +2350,14 @@ RangerHyperparameters <- new_class(
       exclusive_min = 0,
       description = "Tau parameter (poisson splitrule)."
     ),
-    split_select_weights = new_property(
-      class_numeric | class_list | NULL,
-      default = NULL
-    ),
+    split_select_weights = NULL | class_numeric | class_list,
     always_split_variables = prop_string(
       NULL,
       nullable = TRUE,
       vector = TRUE,
       description = "Variables always included as split candidates."
     ),
-    respect_unordered_factors = new_property(
-      class_character | class_logical | NULL,
-      default = NULL
-    ),
+    respect_unordered_factors = NULL | class_character | class_logical,
     scale_permutation_importance = prop_boolean(
       FALSE,
       description = "Scale permutation importance by its standard error."
@@ -2389,7 +2380,7 @@ RangerHyperparameters <- new_class(
       FALSE,
       description = "Record how often each observation is in-bag per tree."
     ),
-    inbag = new_property(class_list | NULL, default = NULL),
+    inbag = NULL | class_list,
     holdout = prop_boolean(
       FALSE,
       description = "Hold-out mode: hold out samples with case weight 0."

@@ -49,7 +49,7 @@ Metrics <- new_class(
   name = "Metrics",
   package = "rtemis",
   properties = list(
-    sample = class_character | NULL,
+    sample = NULL | class_character,
     metrics = class_list | class_data.frame
   )
 ) # /rtemis::Metrics
@@ -294,7 +294,7 @@ method(print, ClassificationMetrics) <- function(
 MetricsRes <- new_class(
   name = "MetricsRes",
   properties = list(
-    sample = class_character | NULL,
+    sample = NULL | class_character,
     res_metrics = class_list,
     mean_metrics = class_data.frame,
     sd_metrics = class_data.frame

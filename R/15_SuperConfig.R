@@ -347,8 +347,8 @@ SuperConfigLive <- new_class(
   package = "rtemis",
   properties = list(
     dat_training = class_tabular,
-    dat_validation = class_tabular | NULL,
-    dat_test = class_tabular | NULL,
+    dat_validation = NULL | class_tabular,
+    dat_test = NULL | class_tabular,
     # Column name in dat_training.
     weights = prop_string(
       NULL,

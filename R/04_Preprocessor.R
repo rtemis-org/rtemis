@@ -130,8 +130,8 @@ PreprocessorConfig <- new_class(
     center = prop_boolean(FALSE, description = "Center features."),
     # Data-dependent (learned during preprocess); injected via
     # `.preprocessor_schema_extra`.
-    scale_centers = new_property(class_numeric | NULL, default = NULL),
-    scale_coefficients = new_property(class_numeric | NULL, default = NULL),
+    scale_centers = NULL | class_numeric,
+    scale_coefficients = NULL | class_numeric,
     remove_constants = prop_boolean(
       FALSE,
       description = "Remove constant features."
@@ -152,7 +152,7 @@ PreprocessorConfig <- new_class(
     ),
     one_hot = prop_boolean(FALSE, description = "One-hot encode factors."),
     # Data-dependent (learned during preprocess).
-    one_hot_levels = new_property(class_list | NULL, default = NULL),
+    one_hot_levels = NULL | class_list,
     add_date_features = prop_boolean(
       FALSE,
       description = "Add date-derived features."

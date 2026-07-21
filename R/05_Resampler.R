@@ -46,7 +46,7 @@ ResamplerConfig <- new_class(
     # (`resample.R`: `n_resamples <- if (type == "LOOCV") length(x) else config@n`).
     # For every other type an unset `n` would fail deep inside `resample()`, so
     # require it here at construction instead.
-    if (self@type != "LOOCV" && length(self@n) == 0L) {
+    if (self@type != "LOOCV" && is.null(self@n)) {
       return("@n must be set for all resampler types except 'LOOCV'.")
     }
     NULL
@@ -64,7 +64,7 @@ method(serializable_props, ResamplerConfig) <- function(x) {
   # `n` is unset for LOOCV, where the data determine it.
   base <- list(
     type = x@type,
-    n = if (length(x@n) == 0L) NULL else x@n
+    n = x@n
   )
   c(base, config_prop_values(x, ResamplerConfig))
 } # /rtemis::serializable_props.ResamplerConfig
@@ -162,7 +162,7 @@ KFoldConfig <- new_class(
       min = 1L,
       description = "Number of bins to stratify a continuous variable into."
     ),
-    id_strat = new_property(class_vector | NULL, default = NULL),
+    id_strat = NULL | class_vector,
     seed = prop_integer(
       NULL,
       min = 0L,
@@ -202,7 +202,7 @@ StratSubConfig <- new_class(
       min = 1L,
       description = "Number of bins to stratify a continuous variable into."
     ),
-    id_strat = new_property(class_vector | NULL, default = NULL),
+    id_strat = NULL | class_vector,
     seed = prop_integer(
       NULL,
       min = 0L,
@@ -248,7 +248,7 @@ StratBootConfig <- new_class(
       nullable = TRUE,
       description = "Target length for stratified bootstraps."
     ),
-    id_strat = new_property(class_vector | NULL, default = NULL),
+    id_strat = NULL | class_vector,
     seed = prop_integer(
       NULL,
       min = 0L,
@@ -272,7 +272,7 @@ BootstrapConfig <- new_class(
   parent = ResamplerConfig,
   properties = list(
     type = prop_algorithm("Bootstrap"),
-    id_strat = new_property(class_vector | NULL, default = NULL),
+    id_strat = NULL | class_vector,
     seed = prop_integer(
       NULL,
       min = 0L,

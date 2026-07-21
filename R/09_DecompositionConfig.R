@@ -38,7 +38,7 @@ DecompositionConfig <- new_class(
   abstract = TRUE,
   properties = list(
     algorithm = class_character,
-    features = class_character | NULL,
+    features = NULL | class_character,
     config = new_property(
       class_list,
       getter = function(self) {
@@ -563,10 +563,7 @@ tSNEConfig <- new_class(
       FALSE,
       description = "Treat the input as a distance matrix."
     ),
-    Y_init = new_property(
-      NULL | S7::new_S3_class("matrix"),
-      default = NULL
-    ),
+    Y_init = NULL | S7::new_S3_class("matrix"),
     pca_center = prop_boolean(
       TRUE,
       description = "Center before the PCA step."

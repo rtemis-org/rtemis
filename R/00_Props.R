@@ -55,11 +55,11 @@ PropertySpec <- new_class(
   properties = list(
     type = class_character,
     default = class_any,
-    minimum = class_numeric | NULL,
-    maximum = class_numeric | NULL,
-    exclusive_minimum = class_numeric | NULL,
-    exclusive_maximum = class_numeric | NULL,
-    enum = class_character | NULL,
+    minimum = NULL | class_numeric,
+    maximum = NULL | class_numeric,
+    exclusive_minimum = NULL | class_numeric,
+    exclusive_maximum = NULL | class_numeric,
+    enum = NULL | class_character,
     nullable = class_logical,
     tunable = class_logical,
     vector = class_logical,
@@ -131,11 +131,15 @@ PropertySpec <- new_class(
 #' @keywords internal
 #' @noRd
 validate_with_spec <- function(value, spec) {
-  if (is.null(value) || length(value) == 0L) {
-    # S7 initializes a `class | NULL` union property to the empty vector of
-    # its first member, so zero-length is the package-wide "unset" (compare
-    # `.compact_config`, which drops zero-length values on write).
-    return(if (spec@nullable) NULL else "must not be NULL or empty.")
+  if (is.null(value)) {
+    return(if (spec@nullable) NULL else "must not be NULL.")
+  }
+  if (length(value) == 0L) {
+    # NULL is the only "unset" value: nullable properties declare their class
+    # as `NULL | <base>` so that S7 prototypes them to NULL rather than to the
+    # base class's empty vector. An empty vector reaching here is a real value
+    # and is rejected, so that `!is.null()` guards downstream stay meaningful.
+    return("must not be empty (use NULL to leave it unset).")
   }
   if (length(value) > 1L && !spec@tunable && !spec@vector) {
     return("must be a single value (not tunable, no search values allowed).")
@@ -195,7 +199,7 @@ make_prop <- function(spec) {
     string = class_character
   )
   p <- new_property(
-    class = if (spec@nullable) base_class | NULL else base_class,
+    class = if (spec@nullable) NULL | base_class else base_class,
     default = spec@default,
     validator = function(value) validate_with_spec(value, spec)
   )
@@ -471,8 +475,7 @@ fixed_spec_names <- function(x) {
 #' Collect factory-declared property values from an S7 instance
 #'
 #' Returns the current values of all spec-carrying properties as a named
-#' list, mapping zero-length values to NULL (the package-wide "unset"; see
-#' `validate_with_spec`).
+#' list. Unset properties read as NULL (see `validate_with_spec`).
 #'
 #' @param self S7 object whose class declares `prop_*` properties.
 #'
@@ -483,10 +486,7 @@ fixed_spec_names <- function(x) {
 #' @noRd
 spec_prop_values <- function(self) {
   nms <- spec_prop_names(S7_class(self))
-  out <- lapply(nms, function(nm) {
-    v <- prop(self, nm)
-    if (length(v) == 0L) NULL else v
-  })
+  out <- lapply(nms, function(nm) prop(self, nm))
   names(out) <- nms
   out
 } # /rtemis::spec_prop_values
@@ -540,8 +540,9 @@ own_prop_names <- function(x, base) {
 # %% own_prop_values ----
 #' Collect a subclass's own property values as a named list
 #'
-#' Zero-length values (S7's "unset" for `class | NULL` unions) map to NULL;
-#' function-valued properties (e.g. a torch optimizer) pass through.
+#' Unset properties read as NULL: nullable properties declare their class as
+#' `NULL | <base>`, so S7 prototypes them to NULL rather than to the base
+#' class's empty value.
 #'
 #' @param self S7 object.
 #' @param base S7 class: the family base class.
@@ -553,14 +554,7 @@ own_prop_names <- function(x, base) {
 #' @noRd
 own_prop_values <- function(self, base) {
   nms <- own_prop_names(S7_class(self), base)
-  out <- lapply(nms, function(nm) {
-    v <- prop(self, nm)
-    # Zero-length is the "unset union" convention -> NULL (this also
-    # normalizes an empty list, so `class_list | NULL` props read as NULL
-    # whether S7 initialized them to `list()` or `NULL`). Functions pass
-    # through (e.g. a torch optimizer).
-    if (length(v) == 0L && !is.function(v)) NULL else v
-  })
+  out <- lapply(nms, function(nm) prop(self, nm))
   names(out) <- nms
   out
 } # /rtemis::own_prop_values

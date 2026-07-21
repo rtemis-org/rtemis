@@ -41,9 +41,7 @@ ExecutionConfig <- new_class(
   # Cross-field constraints (the per-field type/enum/bounds are enforced by
   # the prop_* validators).
   validator = function(self) {
-    # `future_plan` unset is a zero-length vector (S7's `class | NULL` empty),
-    # the package-wide "unset" convention.
-    if (self@backend == "future" && length(self@future_plan) == 0L) {
+    if (self@backend == "future" && is.null(self@future_plan)) {
       "@future_plan must be set when backend is 'future'."
     } else if (self@backend == "none" && self@n_workers != 1L) {
       "n_workers must be 1 when backend is 'none'."
