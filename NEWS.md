@@ -1,5 +1,11 @@
 # rtemis news
 
+## 1.3.0
+
+- All S7 classes now declare their properties through the `prop_*` factories (`prop_boolean()`, `prop_integer()`, `prop_float()`, `prop_string()`), completing the rollout begun in the hyperparameter classes. Each property carries a `PropertySpec` recording its type, bounds, enum, nullability, and description, so type checking, validation, and JSON Schema generation all derive from a single declaration instead of being written three times.
+- New `S7_to_JSONSchema()` generates a JSON Schema directly from an S7 class, `S7_dispatcher_JSONSchema()` composes leaf schemas into a discriminated-union dispatcher, and `write_JSONSchema()` serializes a schema to file. These generate the `supervised`, `hyperparameters`, `resampler`, `decompose`, and `cluster` schemas consumed by the rtemis CLI and rtemis.server.
+- Optional properties now reject zero-length values, with `NULL` as the only "unset" value.
+
 ## 1.2.8
 
 - New `session_timeline()` flattens a `SupervisedSession` execution graph into a timeline (Gantt) table — one row per node in depth-first order with millisecond offsets, status, and tooltip text. It is the shared source for rtemis.draw's `plot()` method on `SupervisedSession` and rtemis.server's `job.result` `session` slice (rtemislive Timeline tab). `session_kind_colors()` (internal, exported) provides the matching fixed kind → color map so all renderers color steps identically.
