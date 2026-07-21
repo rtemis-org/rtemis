@@ -106,9 +106,10 @@ testthat::test_that("factory defaults populate a bare instance", {
   testthat::expect_identical(x@nrounds, 500L)
   testthat::expect_identical(x@num_leaves, 4096L)
   testthat::expect_identical(x@feature_fraction, 0.7)
-  # Nullable prop without default: S7 initializes union props to the first
-  # member's empty vector — the package-wide "unset" (see validate_with_spec).
-  testthat::expect_length(x@objective, 0L)
+  # Nullable prop without default reads as NULL: factories declare nullable
+  # props as `NULL | <base>`, so S7 prototypes them to NULL rather than to the
+  # base class's empty vector (see validate_with_spec).
+  testthat::expect_null(x@objective)
   testthat::expect_identical(x@device_type, "cpu")
   testthat::expect_true(x@force_col_wise)
 })
@@ -131,6 +132,32 @@ testthat::test_that("spec-generated validators enforce bounds, enum, arity", {
   # Nullability.
   testthat::expect_no_error(LightRFProps(objective = NULL))
   testthat::expect_error(LightRFProps(device_type = NULL))
+})
+
+testthat::test_that("NULL is the only unset value; zero-length is rejected", {
+  # A nullable prop is NULL whether it was defaulted or set explicitly, and an
+  # empty vector is a real (invalid) value rather than a second spelling of
+  # "unset" — this is what keeps `!is.null()` guards meaningful downstream.
+  testthat::expect_null(LightRFProps()@objective)
+  testthat::expect_null(LightRFProps(objective = NULL)@objective)
+  testthat::expect_error(
+    LightRFProps(objective = character(0)),
+    "must not be empty"
+  )
+  testthat::expect_error(
+    LightRFProps(nrounds = integer(0)),
+    "must not be empty"
+  )
+  # The empty-value message may only point at NULL where NULL is accepted.
+  err <- testthat::expect_error(LightRFProps(objective = character(0)))
+  testthat::expect_match(conditionMessage(err), "use NULL", fixed = TRUE)
+  err <- testthat::expect_error(LightRFProps(nrounds = integer(0)))
+  testthat::expect_no_match(conditionMessage(err), "use NULL", fixed = TRUE)
+  # A non-nullable prop's class is the bare base class rather than a union
+  # with NULL, so S7's own type check rejects NULL before the spec validator
+  # is reached. (The validator's NULL branch guards the factory-time check of
+  # a spec's own default; see "bad defaults fail at factory time" below.)
+  testthat::expect_error(LightRFProps(nrounds = NULL), "not <NULL>")
 })
 
 testthat::test_that("tunable properties accept search vectors; fixed do not", {
@@ -187,6 +214,14 @@ testthat::test_that("vector props accept vectors, map to array schemas", {
   testthat::expect_identical(as.character(s[["type"]]), c("array", "null"))
   testthat::expect_identical(s[["items"]][["type"]], "number")
   testthat::expect_identical(s[["items"]][["minimum"]], 0)
+  # A length-1 default on an array-typed property must still serialize as an
+  # array, or the emitted default contradicts the emitted type.
+  testthat::skip_if_not_installed("jsonlite")
+  s1 <- spec_to_schema(get_spec(prop_string("a", vector = TRUE)))
+  testthat::expect_identical(
+    as.character(jsonlite::toJSON(s1[["default"]], auto_unbox = TRUE)),
+    "[\"a\"]"
+  )
 })
 
 # %% Spec introspection ----
