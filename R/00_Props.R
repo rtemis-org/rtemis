@@ -716,7 +716,10 @@ spec_to_schema <- function(spec) {
   }
   # Annotations last, at the top level of the property schema.
   if (!is.null(spec@default)) {
-    out[["default"]] <- spec@default
+    # A vector-valued default must stay an array even at length 1, otherwise
+    # `toJSON(auto_unbox = TRUE)` emits a scalar that contradicts
+    # `"type": "array"`.
+    out[["default"]] <- if (spec@vector) I(spec@default) else spec@default
   } else if (spec@nullable) {
     out[["default"]] <- NA # -> null (jsonlite na = "null")
   }

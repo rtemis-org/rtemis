@@ -403,7 +403,8 @@ method(repr, GridSearch) <- function(
   if (x[["type"]] == "GridSearch") {
     config <- x[["config"]]
     # Drop absent (NULL) elements so `setup_GridSearch` defaults apply for
-    # non-nullable fields such as `search_type` and `metrics_aggregate_fn`.
+    # non-nullable fields such as `search_type`, `metrics_aggregate_fn`, and
+    # `resampler_config`.
     args <- Filter(
       Negate(is.null),
       list(
@@ -414,9 +415,11 @@ method(repr, GridSearch) <- function(
         maximize = config[["maximize"]]
       )
     )
-    args[["resampler_config"]] <- .list_to_ResamplerConfig(
-      config[["resampler_config"]]
-    )
+    if (!is.null(config[["resampler_config"]])) {
+      args[["resampler_config"]] <- .list_to_ResamplerConfig(
+        config[["resampler_config"]]
+      )
+    }
     do.call(setup_GridSearch, args)
   } else {
     rtemis.core::abort(
