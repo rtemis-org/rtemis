@@ -4,12 +4,12 @@
 \alias{setup_HardCL}
 \title{Setup HardCLConfig}
 \usage{
-setup_HardCL(k = 3L, dist = c("euclidean", "manhattan"))
+setup_HardCL(k = 3L, dist = "euclidean")
 }
 \arguments{
-\item{k}{Number of clusters.}
+\item{k}{Integer [1, Inf): Number of clusters.}
 
-\item{dist}{Character: Distance measure to use: 'euclidean' or 'manhattan'.}
+\item{dist}{Character \{"euclidean", "manhattan"\}: Distance measure to use.}
 }
 \value{
 HardCLConfig object.

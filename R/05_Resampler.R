@@ -29,20 +29,45 @@
 ResamplerConfig <- new_class(
   name = "ResamplerConfig",
   package = "rtemis",
+  abstract = TRUE,
   properties = list(
     type = class_character,
-    n = class_integer # scalar_int_pos
-  ),
-  constructor = function(type, n) {
-    # LOOCV does not have a defined number of resamples, so n can be NA_integer_
-    n <- clean_posint(n, allow_na = TRUE)
-    new_object(
-      S7_object(),
-      type = type,
-      n = n
+    # LOOCV has no defined number of resamples until it sees the data
+    # (`resample()` fills it in), so `n` is unset by default.
+    n = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      description = "Number of resamples."
     )
+  ),
+  validator = function(self) {
+    # `n` is only unset for LOOCV, where `resample()` derives it from the data
+    # (`resample.R`: `n_resamples <- if (type == "LOOCV") length(x) else config@n`).
+    # For every other type an unset `n` would fail deep inside `resample()`, so
+    # require it here at construction instead.
+    if (self@type != "LOOCV" && length(self@n) == 0L) {
+      return("@n must be set for all resampler types except 'LOOCV'.")
+    }
+    NULL
   }
 ) # /rtemis::ResamplerConfig
+
+
+# %% serializable_props.ResamplerConfig ----
+# A resampler serializes its type-specific settings as siblings of `type`
+# (there is no nested `config` object). Only the declared parameters are
+# written; `id_strat` is a data-dependent grouping vector with no portable
+# form, so it is omitted (see `config_prop_values`).
+method(serializable_props, ResamplerConfig) <- function(x) {
+  # `type` and `n` live on the base class (so are not "own" properties);
+  # `n` is unset for LOOCV, where the data determine it.
+  base <- list(
+    type = x@type,
+    n = if (length(x@n) == 0L) NULL else x@n
+  )
+  c(base, config_prop_values(x, ResamplerConfig))
+} # /rtemis::serializable_props.ResamplerConfig
 
 
 # %% `$`.ResamplerConfig ----
@@ -126,23 +151,25 @@ KFoldConfig <- new_class(
   name = "KFoldConfig",
   parent = ResamplerConfig,
   properties = list(
-    stratify_var = class_character | NULL,
-    strat_n_bins = scalar_int_pos,
-    id_strat = class_vector | NULL,
-    seed = scalar_int_pos
-  ),
-  constructor = function(n, stratify_var, strat_n_bins, id_strat, seed) {
-    new_object(
-      ResamplerConfig(
-        type = "KFold",
-        n = n
-      ),
-      stratify_var = stratify_var,
-      strat_n_bins = strat_n_bins,
-      id_strat = id_strat,
-      seed = seed
+    type = prop_algorithm("KFold"),
+    stratify_var = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Name of the variable to stratify by."
+    ),
+    strat_n_bins = prop_integer(
+      4L,
+      min = 1L,
+      description = "Number of bins to stratify a continuous variable into."
+    ),
+    id_strat = new_property(class_vector | NULL, default = NULL),
+    seed = prop_integer(
+      NULL,
+      min = 0L,
+      nullable = TRUE,
+      description = "Random seed."
     )
-  }
+  )
 ) # /rtemis::KFoldConfig
 
 
@@ -158,33 +185,31 @@ StratSubConfig <- new_class(
   name = "StratSubConfig",
   parent = ResamplerConfig,
   properties = list(
-    n = scalar_int_pos,
-    train_p = scalar_dbl_01excl,
-    stratify_var = class_character | NULL,
-    strat_n_bins = scalar_int_pos,
-    id_strat = class_vector | NULL,
-    seed = scalar_int_pos
-  ),
-  constructor = function(
-    n,
-    train_p,
-    stratify_var,
-    strat_n_bins,
-    id_strat,
-    seed
-  ) {
-    new_object(
-      ResamplerConfig(
-        type = "StratSub",
-        n = n
-      ),
-      train_p = train_p,
-      stratify_var = stratify_var,
-      strat_n_bins = strat_n_bins,
-      id_strat = id_strat,
-      seed = seed
+    type = prop_algorithm("StratSub"),
+    train_p = prop_float(
+      0.75,
+      exclusive_min = 0,
+      exclusive_max = 1,
+      description = "Training set fraction."
+    ),
+    stratify_var = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Name of the variable to stratify by."
+    ),
+    strat_n_bins = prop_integer(
+      4L,
+      min = 1L,
+      description = "Number of bins to stratify a continuous variable into."
+    ),
+    id_strat = new_property(class_vector | NULL, default = NULL),
+    seed = prop_integer(
+      NULL,
+      min = 0L,
+      nullable = TRUE,
+      description = "Random seed."
     )
-  }
+  )
 ) # /rtemis::StratSubConfig
 
 
@@ -200,35 +225,37 @@ StratBootConfig <- new_class(
   name = "StratBootConfig",
   parent = ResamplerConfig,
   properties = list(
-    stratify_var = class_character | NULL,
-    train_p = scalar_dbl_01excl,
-    strat_n_bins = scalar_int_pos,
-    target_length = scalar_int_pos,
-    id_strat = class_vector | NULL,
-    seed = scalar_int_pos
-  ),
-  constructor = function(
-    n,
-    stratify_var,
-    train_p,
-    strat_n_bins,
-    target_length,
-    id_strat,
-    seed
-  ) {
-    new_object(
-      ResamplerConfig(
-        type = "StratBoot",
-        n = n
-      ),
-      stratify_var = stratify_var,
-      train_p = train_p,
-      strat_n_bins = strat_n_bins,
-      target_length = target_length,
-      id_strat = id_strat,
-      seed = seed
+    type = prop_algorithm("StratBoot"),
+    stratify_var = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Name of the variable to stratify by."
+    ),
+    train_p = prop_float(
+      0.75,
+      exclusive_min = 0,
+      exclusive_max = 1,
+      description = "Training set fraction."
+    ),
+    strat_n_bins = prop_integer(
+      4L,
+      min = 1L,
+      description = "Number of bins to stratify a continuous variable into."
+    ),
+    target_length = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      description = "Target length for stratified bootstraps."
+    ),
+    id_strat = new_property(class_vector | NULL, default = NULL),
+    seed = prop_integer(
+      NULL,
+      min = 0L,
+      nullable = TRUE,
+      description = "Random seed."
     )
-  }
+  )
 ) # /rtemis::StratBootConfig
 
 
@@ -244,19 +271,15 @@ BootstrapConfig <- new_class(
   name = "BootstrapConfig",
   parent = ResamplerConfig,
   properties = list(
-    id_strat = class_vector | NULL,
-    seed = scalar_int_pos
-  ),
-  constructor = function(n, id_strat, seed) {
-    new_object(
-      ResamplerConfig(
-        type = "Bootstrap",
-        n = n
-      ),
-      id_strat = id_strat,
-      seed = seed
+    type = prop_algorithm("Bootstrap"),
+    id_strat = new_property(class_vector | NULL, default = NULL),
+    seed = prop_integer(
+      NULL,
+      min = 0L,
+      nullable = TRUE,
+      description = "Random seed."
     )
-  }
+  )
 ) # /rtemis::BootstrapConfig
 
 
@@ -271,14 +294,9 @@ BootstrapConfig <- new_class(
 LOOCVConfig <- new_class(
   name = "LOOCVConfig",
   parent = ResamplerConfig,
-  constructor = function(n) {
-    new_object(
-      ResamplerConfig(
-        type = "LOOCV",
-        n = n
-      )
-    )
-  }
+  properties = list(
+    type = prop_algorithm("LOOCV")
+  )
 ) # /rtemis::LOOCVConfig
 
 
@@ -293,14 +311,9 @@ LOOCVConfig <- new_class(
 CustomConfig <- new_class(
   name = "CustomConfig",
   parent = ResamplerConfig,
-  constructor = function(n) {
-    new_object(
-      ResamplerConfig(
-        type = "Custom",
-        n = n
-      )
-    )
-  }
+  properties = list(
+    type = prop_algorithm("Custom")
+  )
 ) # /rtemis::CustomConfig
 
 
@@ -351,6 +364,9 @@ setup_Resampler <- function(
     )
   }
   seed <- clean_int(seed)
+  n_resamples <- clean_posint(n_resamples)
+  strat_n_bins <- clean_posint(strat_n_bins)
+  target_length <- clean_posint(target_length)
 
   if (type == "KFold") {
     KFoldConfig(
@@ -386,9 +402,8 @@ setup_Resampler <- function(
       seed = seed
     )
   } else if (type == "LOOCV") {
-    LOOCVConfig(
-      n = NA_integer_
-    )
+    # `n` is left unset: it is determined by the data in `resample()`.
+    LOOCVConfig()
   } else {
     rtemis.core::abort(
       "Resampler '",
@@ -515,16 +530,20 @@ method(desc, Resampler) <- function(x) {
 #' @examples
 #' .list_to_ResamplerConfig(list(type = "KFold", n = 5L))
 .list_to_ResamplerConfig <- function(x) {
-  switch(
+  # Drop absent (NULL) elements so class defaults apply for non-nullable
+  # properties such as `strat_n_bins` and `train_p`.
+  args <- switch(
     x[["type"]],
-    KFold = KFoldConfig(
+    KFold = list(
+      constructor = KFoldConfig,
       n = x[["n"]],
       stratify_var = x[["stratify_var"]],
       strat_n_bins = x[["strat_n_bins"]],
       id_strat = x[["id_strat"]],
       seed = x[["seed"]]
     ),
-    StratSub = StratSubConfig(
+    StratSub = list(
+      constructor = StratSubConfig,
       n = x[["n"]],
       train_p = x[["train_p"]],
       stratify_var = x[["stratify_var"]],
@@ -532,7 +551,8 @@ method(desc, Resampler) <- function(x) {
       id_strat = x[["id_strat"]],
       seed = x[["seed"]]
     ),
-    StratBoot = StratBootConfig(
+    StratBoot = list(
+      constructor = StratBootConfig,
       n = x[["n"]],
       train_p = x[["train_p"]],
       stratify_var = x[["stratify_var"]],
@@ -541,16 +561,27 @@ method(desc, Resampler) <- function(x) {
       id_strat = x[["id_strat"]],
       seed = x[["seed"]]
     ),
-    Bootstrap = BootstrapConfig(
+    Bootstrap = list(
+      constructor = BootstrapConfig,
       n = x[["n"]],
       id_strat = x[["id_strat"]],
       seed = x[["seed"]]
     ),
-    LOOCV = LOOCVConfig(
-      n = NA_integer_
+    # LOOCV `n` is unset until `resample()` sees the data.
+    LOOCV = list(
+      constructor = LOOCVConfig
     ),
-    Custom = CustomConfig(
+    Custom = list(
+      constructor = CustomConfig,
       n = x[["n"]]
+    ),
+    rtemis.core::abort(
+      "Unsupported resampler type:",
+      x[["type"]],
+      class = c("rtemis_value_error", "rtemis_input_error")
     )
   )
+  constructor <- args[["constructor"]]
+  args[["constructor"]] <- NULL
+  do.call(constructor, Filter(Negate(is.null), args))
 } # /rtemis::.list_to_ResamplerConfig

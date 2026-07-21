@@ -19,8 +19,8 @@ setup_tSNE(
   pca_center = TRUE,
   pca_scale = FALSE,
   normalize = TRUE,
-  stop_lying_iter = ifelse(is.null(Y_init), 250L, 0L),
-  mom_switch_iter = ifelse(is.null(Y_init), 250L, 0L),
+  stop_lying_iter = if (is.null(Y_init)) 250L else 0L,
+  mom_switch_iter = if (is.null(Y_init)) 250L else 0L,
   momentum = 0.5,
   final_momentum = 0.8,
   eta = 200,
@@ -29,13 +29,13 @@ setup_tSNE(
 )
 }
 \arguments{
-\item{k}{Integer: Number of components.}
+\item{k}{Integer [1, Inf): Number of components.}
 
-\item{initial_dims}{Integer: Initial dimensions.}
+\item{initial_dims}{Integer [1, Inf): Initial dimensions.}
 
-\item{perplexity}{Integer: Perplexity.}
+\item{perplexity}{Numeric [0, Inf): Perplexity.}
 
-\item{theta}{Float: Theta.}
+\item{theta}{Numeric [0, 1]: Speed/accuracy trade-off.}
 
 \item{check_duplicates}{Logical: If TRUE, check for duplicates.}
 
@@ -43,13 +43,13 @@ setup_tSNE(
 
 \item{partial_pca}{Logical: If TRUE, perform partial PCA.}
 
-\item{max_iter}{Integer: Maximum number of iterations.}
+\item{max_iter}{Integer [1, Inf): Maximum number of iterations.}
 
 \item{verbose}{Logical: If TRUE, print messages.}
 
 \item{is_distance}{Logical: If TRUE, \code{x} is a distance matrix.}
 
-\item{Y_init}{Matrix: Initial Y matrix.}
+\item{Y_init}{Optional Matrix: Initial Y matrix.}
 
 \item{pca_center}{Logical: If TRUE, center PCA.}
 
@@ -57,19 +57,19 @@ setup_tSNE(
 
 \item{normalize}{Logical: If TRUE, normalize.}
 
-\item{stop_lying_iter}{Integer: Stop lying iterations.}
+\item{stop_lying_iter}{Integer [0, Inf): Stop lying iterations.}
 
-\item{mom_switch_iter}{Integer: Momentum switch iterations.}
+\item{mom_switch_iter}{Integer [0, Inf): Momentum switch iterations.}
 
-\item{momentum}{Float: Momentum.}
+\item{momentum}{Numeric: Momentum.}
 
-\item{final_momentum}{Float: Final momentum.}
+\item{final_momentum}{Numeric: Final momentum.}
 
-\item{eta}{Float: Eta.}
+\item{eta}{Numeric: Eta.}
 
-\item{exaggeration_factor}{Float: Exaggeration factor.}
+\item{exaggeration_factor}{Numeric: Exaggeration factor.}
 
-\item{num_threads}{Integer: Number of threads.}
+\item{num_threads}{Integer [0, Inf): Number of threads.}
 }
 \value{
 tSNEConfig object.

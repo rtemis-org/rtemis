@@ -884,6 +884,40 @@ test_that("train() LightRuleFit Binary Classification succeeds", {
   expect_s7_class(mod_c_lightrlft, Classification)
 })
 
+## {LightRuleFit}[train]<Classification> multiclass----
+mod_c_lightrlft <- train(
+  x = datc3_train,
+  dat_test = datc3_test,
+  hyperparameters = setup_LightRuleFit(nrounds = 50L),
+  execution_config = setup_ExecutionConfig(backend = "none")
+)
+test_that("train() LightRuleFit Multiclass Classification succeeds", {
+  expect_s7_class(mod_c_lightrlft, Classification)
+  # Multiclass glmnet coefficients are a list (one per class); rule
+  # importance is the total absolute influence and the signed per-class
+  # coefficients are preserved as extra columns.
+  vi <- get_varimp(mod_c_lightrlft)@data
+  cls <- levels(datc3_train[[ncol(datc3_train)]])
+  expect_true(all(cls %in% names(vi)))
+  expect_identical(names(vi)[[2L]], "Coefficient")
+  expect_true(all(vi[["Coefficient"]] >= 0))
+  expect_equal(
+    vi[["Coefficient"]],
+    unname(rowSums(abs(as.matrix(vi[, cls, with = FALSE]))))
+  )
+  # Per-class importance is individually plottable.
+  expect_no_error(plot_varimp(mod_c_lightrlft, measure = cls[[1L]]))
+  # The formatted rule listing breaks out the signed per-class coefficients,
+  # with `Coefficient` the aggregate importance used to rank rows.
+  tab <- mod_c_lightrlft@model@rules_selected_formatted_coefs
+  expect_true(all(cls %in% names(tab)))
+  expect_equal(
+    tab[["Coefficient"]],
+    unname(rowSums(abs(as.matrix(tab[, cls, with = FALSE]))))
+  )
+  expect_false(is.unsorted(rev(tab[["Coefficient"]])))
+})
+
 ## {TabNet}[train]<Regression> ----
 # Test if lantern is installed
 if (torch::torch_is_installed()) {

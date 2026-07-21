@@ -1,5 +1,5 @@
 Package: rtemis
-Version: 1.2.8
+Version: 1.2.9
 Title: Machine Learning and Visualization
 Date: 2026-07-15
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 

@@ -8,7 +8,7 @@ setup_UMAP(
   k = 2L,
   n_neighbors = 15L,
   init = "spectral",
-  metric = c("euclidean", "cosine", "manhattan", "hamming", "categorical"),
+  metric = "euclidean",
   n_epochs = NULL,
   learning_rate = 1,
   scale = TRUE,
@@ -16,18 +16,17 @@ setup_UMAP(
 )
 }
 \arguments{
-\item{k}{Integer: Number of components.}
+\item{k}{Integer [1, Inf): Number of components.}
 
-\item{n_neighbors}{Integer: Number of keighbors.}
+\item{n_neighbors}{Integer [1, Inf): Number of neighbors.}
 
 \item{init}{Character: Initialization type. See \verb{uwot::umap "init"}.}
 
-\item{metric}{Character: Distance metric to use: "euclidean", "cosine",
-"manhattan", "hamming", "categorical".}
+\item{metric}{Character \{"euclidean", "cosine", "manhattan", "hamming", "categorical"\}: Distance metric.}
 
-\item{n_epochs}{Integer: Number of epochs.}
+\item{n_epochs}{Optional Integer [1, Inf): Number of epochs.}
 
-\item{learning_rate}{Float: Learning rate.}
+\item{learning_rate}{Numeric [0, Inf): Learning rate.}
 
 \item{scale}{Logical: If TRUE, scale input data before doing UMAP.}
 

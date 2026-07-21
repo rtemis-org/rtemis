@@ -7,8 +7,8 @@
 setup_CMeans(
   k = 2L,
   max_iter = 100L,
-  dist = c("euclidean", "manhattan"),
-  method = c("cmeans", "ufcl"),
+  dist = "euclidean",
+  method = "cmeans",
   m = 2,
   rate_par = NULL,
   weights = 1,
@@ -16,19 +16,19 @@ setup_CMeans(
 )
 }
 \arguments{
-\item{k}{Integer: Number of clusters.}
+\item{k}{Integer [1, Inf): Number of clusters.}
 
-\item{max_iter}{Integer: Maximum number of iterations.}
+\item{max_iter}{Integer [1, Inf): Maximum number of iterations.}
 
-\item{dist}{Character: Distance measure to use: 'euclidean' or 'manhattan'.}
+\item{dist}{Character \{"euclidean", "manhattan"\}: Distance measure to use.}
 
-\item{method}{Character: "cmeans" - fuzzy c-means clustering; "ufcl": on-line update.}
+\item{method}{Character \{"cmeans", "ufcl"\}: "cmeans" - fuzzy c-means clustering; "ufcl": on-line update.}
 
-\item{m}{Float (>1): Degree of fuzzification.}
+\item{m}{Numeric (1, Inf): Degree of fuzzification.}
 
-\item{rate_par}{Float (0, 1): Learning rate for the online variant.}
+\item{rate_par}{Optional Numeric [0, 1]: Learning rate for the online variant.}
 
-\item{weights}{Float (>0): Case weights.}
+\item{weights}{Numeric (0, Inf): Case weights.}
 
 \item{control}{List: Control config for clustering algorithm.}
 }

@@ -7,7 +7,7 @@
 setup_GAM(k = 5L, ifw = FALSE)
 }
 \arguments{
-\item{k}{(Tunable) Integer: Number of knots.}
+\item{k}{(Tunable) Integer [1, Inf): Number of knots.}
 
 \item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 }

@@ -7,13 +7,13 @@
 setup_PCA(k = 3L, center = TRUE, scale = TRUE, tol = NULL, features = NULL)
 }
 \arguments{
-\item{k}{Integer: Number of components. (passed to \code{prcomp} \code{rank.})}
+\item{k}{Integer [1, Inf): Number of components. (passed to \code{prcomp} \code{rank.})}
 
 \item{center}{Logical: If TRUE, center the data.}
 
 \item{scale}{Logical: If TRUE, scale the data.}
 
-\item{tol}{Numeric: Tolerance.}
+\item{tol}{Optional Numeric [0, Inf): Tolerance.}
 
 \item{features}{Optional Character: Names of the feature columns to decompose.
 \code{NULL} decomposes all numeric features.}

@@ -4,6 +4,7 @@ __validation/
 dev/
 __out/
 specs/
+plan/
 
 # Mac OS
 .DS_Store

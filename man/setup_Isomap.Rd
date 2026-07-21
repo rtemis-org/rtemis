@@ -4,21 +4,16 @@
 \alias{setup_Isomap}
 \title{Setup Isomap config.}
 \usage{
-setup_Isomap(
-  k = 2L,
-  dist_method = c("euclidean", "manhattan"),
-  nsd = 0L,
-  path = c("shortest", "extended")
-)
+setup_Isomap(k = 2L, dist_method = "euclidean", nsd = 0L, path = "shortest")
 }
 \arguments{
-\item{k}{Integer: Number of components.}
+\item{k}{Integer [1, Inf): Number of components.}
 
-\item{dist_method}{Character: Distance method.}
+\item{dist_method}{Character \{"euclidean", "manhattan"\}: Distance method.}
 
-\item{nsd}{Integer: Number of shortest dissimilarities retained.}
+\item{nsd}{Integer [0, Inf): Number of shortest dissimilarities retained.}
 
-\item{path}{Character: Path argument for \code{vegan::isomap}.}
+\item{path}{Character \{"shortest", "extended"\}: Path argument for \code{vegan::isomap}.}
 }
 \value{
 IsomapConfig object.

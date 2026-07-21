@@ -37,11 +37,10 @@ method(train_, LightGBMHyperparameters) <- function(
     )
   }
 
-  # Convert "null" nrounds to max_nrounds
-  if (hyperparameters[["nrounds"]] == "null") {
-    hyperparameters@hyperparameters[["nrounds"]] <- hyperparameters[[
-      "max_nrounds"
-    ]]
+  # When nrounds is unset (NULL), train up to max_nrounds using early
+  # stopping. (During tuning, the best iteration is captured as best_iter.)
+  if (is.null(hyperparameters[["nrounds"]])) {
+    hyperparameters@nrounds <- hyperparameters[["max_nrounds"]]
   }
 
   # Data ----
@@ -60,9 +59,7 @@ method(train_, LightGBMHyperparameters) <- function(
     nclasses <- 1L
   }
   if (is.null(hyperparameters[["objective"]])) {
-    hyperparameters@hyperparameters[["objective"]] <- if (
-      type == "Regression"
-    ) {
+    hyperparameters@objective <- if (type == "Regression") {
       "regression"
     } else {
       if (nclasses == 2L) {

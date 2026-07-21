@@ -22,35 +22,35 @@ setup_LightRuleFit(
 )
 }
 \arguments{
-\item{nrounds}{(Tunable) Positive integer: Number of boosting rounds.}
+\item{nrounds}{(Tunable) Integer [1, Inf): Number of boosting rounds.}
 
-\item{num_leaves}{(Tunable) Positive integer: Maximum number of leaves in one tree.}
+\item{num_leaves}{(Tunable) Integer [1, Inf): Maximum number of leaves in one tree.}
 
 \item{max_depth}{(Tunable) Integer: Maximum depth of trees.}
 
-\item{learning_rate}{(Tunable) Numeric: Learning rate.}
+\item{learning_rate}{(Tunable) Numeric (0, 1]: Learning rate.}
 
-\item{subsample}{(Tunable) Numeric: Fraction of data to use.}
+\item{subsample}{(Tunable) Numeric (0, 1]: Fraction of data to use.}
 
-\item{subsample_freq}{(Tunable) Positive integer: Frequency of subsample.}
+\item{subsample_freq}{(Tunable) Integer [1, Inf): Frequency of subsample.}
 
-\item{lambda_l1}{(Tunable) Numeric: L1 regularization.}
+\item{lambda_l1}{(Tunable) Numeric [0, Inf): L1 regularization.}
 
-\item{lambda_l2}{(Tunable) Numeric: L2 regularization.}
+\item{lambda_l2}{(Tunable) Numeric [0, Inf): L2 regularization.}
 
-\item{objective}{Character: Objective function.}
+\item{objective}{Optional Character: Objective function. NULL = set from outcome type.}
 
 \item{ifw_lightgbm}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in the LightGBM
 step.}
 
-\item{alpha}{(Tunable) Numeric: Alpha for GLMNET.}
+\item{alpha}{(Tunable) Numeric [0, 1]: Alpha for GLMNET.}
 
-\item{lambda}{Numeric: Lambda for GLMNET.}
+\item{lambda}{Optional Numeric [0, Inf) vector: Lambda for GLMNET. NULL = determined by cv.glmnet.}
 
 \item{ifw_glmnet}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in the GLMNET step.}
 
 \item{ifw}{Logical: If TRUE, use Inverse Frequency Weighting in classification. This applies IFW
-to both LightGBM and GLMNET.}
+to both LightGBM and GLMNET; cannot be combined with \code{ifw_lightgbm} or \code{ifw_glmnet}.}
 }
 \value{
 LightRuleFitHyperparameters object.

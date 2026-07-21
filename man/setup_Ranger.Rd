@@ -5,7 +5,7 @@
 \title{Setup Ranger Hyperparameters}
 \usage{
 setup_Ranger(
-  num_trees = 500,
+  num_trees = 500L,
   mtry = NULL,
   importance = "impurity",
   write_forest = TRUE,
@@ -18,7 +18,7 @@ setup_Ranger(
   case_weights = NULL,
   class_weights = NULL,
   splitrule = NULL,
-  num_random_splits = 1,
+  num_random_splits = 1L,
   alpha = 0.5,
   minprop = 0.1,
   poisson_tau = 1,
@@ -44,63 +44,63 @@ setup_Ranger(
 )
 }
 \arguments{
-\item{num_trees}{(Tunable) Positive integer: Number of trees.}
+\item{num_trees}{(Tunable) Integer [1, Inf): Number of trees.}
 
-\item{mtry}{(Tunable) Positive integer: Number of features to consider at each split.}
+\item{mtry}{(Tunable) Optional Integer [1, Inf): Number of features to consider at each split.}
 
-\item{importance}{Character: Variable importance mode: "none", "impurity", "impurity_corrected", or "permutation". "impurity" is the Gini index for classification, the response variance for regression.}
+\item{importance}{Character \{"none", "impurity", "impurity_corrected", "permutation"\}: Variable importance mode. "impurity" is the Gini index for classification, the response variance for regression.}
 
 \item{write_forest}{Logical: If TRUE, save the forest object (required for prediction). Set to FALSE to reduce memory if no prediction is intended.}
 
 \item{probability}{Logical: If TRUE, grow a probability forest. Classification only.}
 
-\item{min_node_size}{(Tunable) Positive integer: Minimal node size. If NULL, ranger uses 1 for classification, 5 for regression, 3 for survival, and 10 for probability.}
+\item{min_node_size}{(Tunable) Optional Integer [1, Inf): Minimal node size. If NULL, ranger uses 1 for classification, 5 for regression, 3 for survival, and 10 for probability.}
 
-\item{min_bucket}{Positive integer: Minimal number of samples in a terminal node. Survival only. Deprecated in favor of \code{min_node_size}.}
+\item{min_bucket}{Optional Integer [1, Inf): Minimal number of samples in a terminal node. Survival only. Deprecated in favor of \code{min_node_size}.}
 
-\item{max_depth}{(Tunable) Positive integer: Maximal tree depth. NULL or 0 means unlimited depth, 1 means tree stumps.}
+\item{max_depth}{(Tunable) Optional Integer [0, Inf): Maximal tree depth. NULL or 0 means unlimited depth, 1 means tree stumps.}
 
-\item{replace}{Logical: If TRUE, sample with replacement.}
+\item{replace}{(Tunable) Logical: If TRUE, sample with replacement.}
 
-\item{sample_fraction}{(Tunable) Numeric [0, 1]: Fraction of observations to sample. If NULL, 1 with replacement and 0.632 without.}
+\item{sample_fraction}{(Tunable) Numeric (0, 1]: Fraction of observations to sample. Default is 1 with replacement and 0.632 without.}
 
-\item{case_weights}{Numeric vector: Per-observation sampling weights; larger weights raise selection probability in each tree's sample.}
+\item{case_weights}{Optional Numeric [0, Inf) vector: Per-observation sampling weights; larger weights raise selection probability in each tree's sample.}
 
-\item{class_weights}{Numeric vector: Per-class weights for classification. Length equal to the number of classes, named by class label.}
+\item{class_weights}{Optional Numeric [0, Inf) vector: Per-class weights for classification. Length equal to the number of classes, named by class label.}
 
-\item{splitrule}{(Tunable) Character: Splitting rule. Classification: "gini", "extratrees", "hellinger"; regression: "variance", "extratrees", "maxstat", "beta"; survival: "logrank", "extratrees", "C", "maxstat".}
+\item{splitrule}{(Tunable) Optional Character: Splitting rule. Classification: "gini", "extratrees", "hellinger"; regression: "variance", "extratrees", "maxstat", "beta"; survival: "logrank", "extratrees", "C", "maxstat".}
 
-\item{num_random_splits}{(Tunable) Positive integer: Number of random splits per candidate variable, for the "extratrees" splitrule.}
+\item{num_random_splits}{(Tunable) Integer [1, Inf): Number of random splits per candidate variable, for the "extratrees" splitrule.}
 
 \item{alpha}{(Tunable) Numeric [0, 1]: Significance threshold to allow splitting, for the "maxstat" splitrule.}
 
 \item{minprop}{(Tunable) Numeric [0, 1]: Lower quantile of the covariate distribution considered for splitting, for the "maxstat" splitrule.}
 
-\item{poisson_tau}{Numeric: Tau parameter, for the "poisson" regression splitrule.}
+\item{poisson_tau}{Numeric (0, Inf): Tau parameter, for the "poisson" regression splitrule.}
 
-\item{split_select_weights}{Numeric vector [0, 1]: Per-feature probabilities of being selected for splitting. Alternatively a list of length \code{num_trees}, one weight vector per tree.}
+\item{split_select_weights}{Optional Numeric [0, 1] vector: Per-feature probabilities of being selected for splitting. Alternatively a list of length \code{num_trees}, one weight vector per tree.}
 
-\item{always_split_variables}{Character vector: Names of variables to always include as split candidates, in addition to the \code{mtry} variables.}
+\item{always_split_variables}{Optional Character vector: Names of variables to always include as split candidates, in addition to the \code{mtry} variables.}
 
-\item{respect_unordered_factors}{Character or logical: Handling of unordered factors: "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response. TRUE corresponds to "partition".}
+\item{respect_unordered_factors}{Optional Character or logical: Handling of unordered factors: "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response. TRUE corresponds to "partition".}
 
 \item{scale_permutation_importance}{Logical: If TRUE, scale permutation importance by its standard error. Permutation importance only.}
 
 \item{local_importance}{Logical: If TRUE, compute local (per-observation) permutation importance.}
 
-\item{regularization_factor}{(Tunable) Numeric: Regularization factor penalizing variables with many split points. Requires \code{splitrule = "variance"}.}
+\item{regularization_factor}{(Tunable) Numeric [0, Inf): Regularization factor penalizing variables with many split points. Requires \code{splitrule = "variance"}.}
 
 \item{regularization_usedepth}{Logical: If TRUE, apply the regularization factor with node depth. Requires \code{regularization_factor}.}
 
 \item{keep_inbag}{Logical: If TRUE, record how often each observation is in-bag per tree.}
 
-\item{inbag}{List: Manually set in-bag counts per tree; list of length \code{num_trees}. Can be used for stratified sampling.}
+\item{inbag}{Optional List: Manually set in-bag counts per tree; list of length \code{num_trees}. Can be used for stratified sampling.}
 
 \item{holdout}{Logical: If TRUE, use hold-out mode: hold out samples with case weight 0 and use them for variable importance and prediction error.}
 
 \item{quantreg}{Logical: If TRUE, prepare quantile prediction (quantile regression forests). Regression only; set \code{keep_inbag = TRUE} for out-of-bag quantile prediction.}
 
-\item{time_interest}{Numeric: Time points of interest for survival prediction. Survival only. Deprecated.}
+\item{time_interest}{Optional Numeric vector: Time points of interest for survival prediction. Survival only. Deprecated.}
 
 \item{oob_error}{Logical: If TRUE, compute the OOB prediction error. Set to FALSE to save time if only the forest is needed.}
 
@@ -110,11 +110,11 @@ setup_Ranger(
 
 \item{node_stats}{Logical: If TRUE, save additional node statistics (terminal nodes only).}
 
-\item{seed}{Positive integer: Random seed. If NULL, the seed is generated from R. Set to 0 to ignore the R seed.}
+\item{seed}{Optional Integer: Random seed. If NULL, the seed is generated from R. Set to 0 to ignore the R seed.}
 
-\item{na_action}{Character: How to handle missing values. "na.learn" uses observations with missing values in splitting, treating missing as a separate category.}
+\item{na_action}{Character \{"na.learn", "na.omit", "na.fail"\}: How to handle missing values. "na.learn" uses observations with missing values in splitting, treating missing as a separate category.}
 
-\item{ifw}{Logical: If TRUE, use Inverse Frequency Weighting in classification.}
+\item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 }
 \value{
 RangerHyperparameters object.
