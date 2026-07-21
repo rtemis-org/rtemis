@@ -402,9 +402,9 @@ method(repr, GridSearch) <- function(
 .list_to_TunerConfig <- function(x) {
   if (x[["type"]] == "GridSearch") {
     config <- x[["config"]]
-    # Drop absent (NULL) elements so `setup_GridSearch` defaults apply for
-    # non-nullable fields such as `search_type`, `metrics_aggregate_fn`, and
-    # `resampler_config`.
+    # Drop absent (NULL) elements so that `setup_GridSearch`'s own argument
+    # defaults apply to whatever the config omits (e.g. `search_type`,
+    # `metrics_aggregate_fn`, `resampler_config`) instead of passing NULL.
     args <- Filter(
       Negate(is.null),
       list(

@@ -139,7 +139,14 @@ validate_with_spec <- function(value, spec) {
     # as `NULL | <base>` so that S7 prototypes them to NULL rather than to the
     # base class's empty vector. An empty vector reaching here is a real value
     # and is rejected, so that `!is.null()` guards downstream stay meaningful.
-    return("must not be empty (use NULL to leave it unset).")
+    # Only point at NULL when NULL is actually accepted.
+    return(
+      if (spec@nullable) {
+        "must not be empty (use NULL to leave it unset)."
+      } else {
+        "must not be empty."
+      }
+    )
   }
   if (length(value) > 1L && !spec@tunable && !spec@vector) {
     return("must be a single value (not tunable, no search values allowed).")
