@@ -276,7 +276,7 @@ setup_SuperConfig <- function(
     preprocessor_config = if (is.null(x[["preprocessor_config"]])) {
       NULL
     } else {
-      do.call(setup_Preprocessor, x[["preprocessor_config"]])
+      do.call(setup_Preprocessor, .drop_meta_keys(x[["preprocessor_config"]]))
     },
     decomposition_config = if (is.null(x[["decomposition_config"]])) {
       NULL
@@ -316,7 +316,7 @@ setup_SuperConfig <- function(
   if (!is.null(x[["execution_config"]])) {
     args[["execution_config"]] <- do.call(
       setup_ExecutionConfig,
-      x[["execution_config"]]
+      .drop_meta_keys(x[["execution_config"]])
     )
   }
   if (!is.null(x[["outdir"]])) {

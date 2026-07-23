@@ -599,6 +599,32 @@ tSNEConfig <- new_class(
 ) # /rtemis::tSNEConfig
 
 
+# %% .tsne_schema_extra ----
+# Schema fragment for the tSNEConfig `Y_init` property (`NULL | matrix`), whose
+# R type the prop_* factories do not express. Merged into the generated schema.
+# See generate_schemas.R.
+.tsne_schema_extra <- list(
+  properties = list(
+    Y_init = list(
+      oneOf = list(
+        list(type = "null"),
+        list(
+          type = "array",
+          items = list(
+            type = "array",
+            items = list(type = "number"),
+            minItems = 1L
+          ),
+          minItems = 1L
+        )
+      ),
+      `$comment` = "Data-dependent: initial embedding matrix, rows = cases, columns = output dimensions.",
+      description = "Optional initial Y (embedding) matrix. null = random initialization."
+    )
+  )
+)
+
+
 # %% setup_tSNE ----
 #' Setup tSNE config.
 #'

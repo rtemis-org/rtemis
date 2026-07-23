@@ -317,6 +317,35 @@ CustomConfig <- new_class(
 ) # /rtemis::CustomConfig
 
 
+# %% .resampler_id_strat_schema_extra ----
+# Schema fragment for the `id_strat` property (KFold / StratSub / StratBoot /
+# Bootstrap), whose R type (`NULL | class_vector`) the prop_* factories do not
+# express. `id_strat` is `exclude`d from generation and its JSON Schema merged
+# in here. See generate_schemas.R.
+.resampler_id_strat_schema_extra <- list(
+  properties = list(
+    id_strat = list(
+      oneOf = list(
+        list(type = "null"),
+        list(
+          type = "array",
+          items = list(type = I(c("integer", "string"))),
+          minItems = 1L
+        )
+      ),
+      `$comment` = paste0(
+        "Data-dependent: per-case grouping IDs, length = number of cases; ",
+        "cases sharing an ID are kept in the same resample."
+      ),
+      description = paste0(
+        "Optional vector of case IDs (e.g. subject IDs) to keep together when ",
+        "resampling. null = ordinary resampling."
+      )
+    )
+  )
+)
+
+
 # %% setup_Resampler ----
 #' Setup Resampler
 #'

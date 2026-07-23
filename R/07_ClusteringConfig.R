@@ -301,6 +301,34 @@ CMeansConfig <- new_class(
 ) # /rtemis::CMeansConfig
 
 
+# %% .cmeans_schema_extra ----
+# Schema fragments for CMeansConfig properties whose R types the prop_*
+# factories do not express: `weights` (a per-case numeric vector) and `control`
+# (an open backend control list). Merged into the generated schema. See
+# generate_schemas.R.
+.cmeans_schema_extra <- list(
+  properties = list(
+    weights = list(
+      oneOf = list(
+        list(type = "number"),
+        list(
+          type = "array",
+          items = list(type = "number"),
+          minItems = 1L
+        )
+      ),
+      default = 1,
+      `$comment` = "Data-dependent when a vector: per-case weights, length = number of cases.",
+      description = "Case weights: a single number applied to every case, or a per-case vector."
+    ),
+    control = list(
+      type = "object",
+      description = "Control parameters passed to the clustering backend."
+    )
+  )
+)
+
+
 # %% setup_CMeans ----
 #' Setup CMeansConfig
 #'
@@ -398,6 +426,28 @@ DBSCANConfig <- new_class(
 ) # /rtemis::DBSCANConfig
 
 
+# %% .dbscan_schema_extra ----
+# Schema fragment for the DBSCANConfig `weights` property (`NULL |
+# class_numeric`, a per-point vector), not expressible via the prop_* factories.
+# Merged into the generated schema. See generate_schemas.R.
+.dbscan_schema_extra <- list(
+  properties = list(
+    weights = list(
+      oneOf = list(
+        list(type = "null"),
+        list(
+          type = "array",
+          items = list(type = "number"),
+          minItems = 1L
+        )
+      ),
+      `$comment` = "Data-dependent: per-point weights, length = number of points.",
+      description = "Optional weights for data points. null = unweighted."
+    )
+  )
+)
+
+
 # %% setup_DBSCAN ----
 #' Setup DBSCANConfig
 #'
@@ -469,13 +519,13 @@ setup_DBSCAN <- function(
   }
   algorithm <- get_clust_name(algorithm)
   # Params may arrive nested under `config` (JSON / S7_to_list serialization) or
-  # flat alongside `algorithm` (UI / server). In the flat shape, drop `algorithm`
-  # and any `$`-prefixed metadata keys (e.g. `$schema`) that are not setup args.
+  # flat alongside `algorithm` (UI / server). In the flat shape, drop
+  # `algorithm`. Either way `.drop_meta_keys()` removes document metadata
+  # (e.g. `$schema`), which is not a setup arg.
   params <- if (is.list(x[["config"]])) {
-    x[["config"]]
+    .drop_meta_keys(x[["config"]])
   } else {
-    drop <- c("algorithm", grep("^\\$", names(x), value = TRUE))
-    x[setdiff(names(x), drop)]
+    .drop_meta_keys(x[names(x) != "algorithm"])
   }
   do.call(get_clust_setup_fn(algorithm), params)
 } # /rtemis::.list_to_ClusteringConfig

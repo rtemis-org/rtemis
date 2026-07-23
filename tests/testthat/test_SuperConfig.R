@@ -97,6 +97,42 @@ test_that("SuperConfig round-trips through write_config/read_config JSON", {
 })
 
 
+# %% read_config ignores nested $schema ----
+test_that("read_config ignores `$schema` on nested configs", {
+  # Every family schema permits a `$schema`, so a nested config lifted verbatim
+  # out of its own standalone config file carries one. It is document metadata,
+  # not a `setup_*` argument, and must never reach the setup functions.
+  file <- file.path(tempdir(), "rtemis_nested_schema.json")
+  jsonlite::write_json(
+    list(
+      `$schema` = "https://schema.rtemis.org/supervised/v1/schema.json",
+      dat_training_path = "~/Data/iris.csv",
+      algorithm = "LightRF",
+      preprocessor_config = list(
+        `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+        remove_duplicates = TRUE
+      ),
+      decomposition_config = list(
+        `$schema` = "https://schema.rtemis.org/decomposition/v1/schema.json",
+        algorithm = "PCA",
+        config = list(k = 2L)
+      ),
+      execution_config = list(
+        `$schema` = "https://schema.rtemis.org/execution/v1/schema.json",
+        n_workers = 1L
+      )
+    ),
+    file,
+    auto_unbox = TRUE
+  )
+  x <- read_config(file)
+  expect_s7_class(x, SuperConfig)
+  expect_true(x@preprocessor_config@remove_duplicates)
+  expect_s7_class(x@decomposition_config, DecompositionConfig)
+  expect_identical(x@execution_config@n_workers, 1L)
+})
+
+
 # %% write_config.DecompositionConfig & read_config ----
 test_that("DecompositionConfig round-trips through write_config/read_config", {
   x <- setup_PCA(k = 3L)

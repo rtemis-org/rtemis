@@ -18,8 +18,10 @@ base_url <- "https://schema.rtemis.org"
 # Registry ------------------------------------------------------------------
 # Per family: the base class, the payload field name, the dispatcher's title /
 # descriptions / extra top-level properties, and the per-algorithm classes with
-# a one-line description plus any properties to exclude from the schema (the
-# non-JSON / runtime-state props that are stored but not schematized).
+# a one-line description, any properties to `exclude` from generation (runtime /
+# tuner-written state that is not a recipe input, or props whose R type the
+# prop_* factories cannot express), and an optional `extra` supplying
+# hand-written schema for the latter so they are still described.
 families <- list(
   decomposition = list(
     base_class = DecompositionConfig,
@@ -61,7 +63,8 @@ families <- list(
       list(
         cls = tSNEConfig,
         desc = "t-Distributed Stochastic Neighbor Embedding. See setup_tSNE.",
-        exclude = "Y_init"
+        exclude = "Y_init",
+        extra = .tsne_schema_extra
       ),
       list(cls = IsomapConfig, desc = "Isomap. See setup_Isomap.")
     )
@@ -90,12 +93,14 @@ families <- list(
       list(
         cls = CMeansConfig,
         desc = "Fuzzy c-means clustering. See setup_CMeans.",
-        exclude = c("weights", "control")
+        exclude = c("weights", "control"),
+        extra = .cmeans_schema_extra
       ),
       list(
         cls = DBSCANConfig,
         desc = "DBSCAN density-based clustering. See setup_DBSCAN.",
-        exclude = "weights"
+        exclude = "weights",
+        extra = .dbscan_schema_extra
       )
     )
   ),
@@ -128,22 +133,26 @@ families <- list(
       list(
         cls = KFoldConfig,
         desc = "K-fold cross-validation. See setup_Resampler.",
-        exclude = "id_strat"
+        exclude = "id_strat",
+        extra = .resampler_id_strat_schema_extra
       ),
       list(
         cls = StratSubConfig,
         desc = "Stratified subsampling. See setup_Resampler.",
-        exclude = "id_strat"
+        exclude = "id_strat",
+        extra = .resampler_id_strat_schema_extra
       ),
       list(
         cls = StratBootConfig,
         desc = "Stratified bootstrap. See setup_Resampler.",
-        exclude = "id_strat"
+        exclude = "id_strat",
+        extra = .resampler_id_strat_schema_extra
       ),
       list(
         cls = BootstrapConfig,
         desc = "Bootstrap resampling. See setup_Resampler.",
-        exclude = "id_strat"
+        exclude = "id_strat",
+        extra = .resampler_id_strat_schema_extra
       ),
       list(
         cls = LOOCVConfig,
@@ -237,16 +246,22 @@ families <- list(
       list(
         cls = TabNetHyperparameters,
         desc = "TabNet neural network. See `setup_TabNet`.",
-        exclude = c("optimizer", "lr_scheduler")
+        # `optimizer` / `lr_scheduler` accept an R function or a string; only
+        # the serializable string form is schematized (see the extra).
+        exclude = c("optimizer", "lr_scheduler"),
+        extra = .tabnet_hyperparameters_schema_extra
       ),
       list(
         cls = RangerHyperparameters,
         desc = "Ranger random forest. See `setup_Ranger`.",
+        # These three have union / list R types the prop_* factories cannot
+        # express; their JSON Schema is supplied by hand and merged in.
         exclude = c(
           "split_select_weights",
           "respect_unordered_factors",
           "inbag"
-        )
+        ),
+        extra = .ranger_hyperparameters_schema_extra
       )
     )
   )
@@ -278,6 +293,10 @@ for (family in names(families)) {
       title = paste0("rtemis ", cls@name),
       description = algo[["desc"]],
       exclude = c(base_props, algo[["exclude"]]),
+      # `extra` supplies hand-written schema for excluded props whose R type the
+      # prop_* factories cannot express (e.g. Ranger union/list params). NULL
+      # for algorithms that need none.
+      extra = algo[["extra"]],
       refs = algo[["refs"]],
       closed = !top_level
     )

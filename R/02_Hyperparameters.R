@@ -2076,6 +2076,32 @@ TabNetHyperparameters <- new_class(
 ) # /rtemis::TabNetHyperparameters
 
 
+# %% .tabnet_hyperparameters_schema_extra ----
+# Schema fragments for TabNetHyperparameters `optimizer` and `lr_scheduler`.
+# Both accept a torch function in R (not JSON-serializable) or a string; only
+# the string form is schematized, so a portable config validates while the
+# function form remains an R-only runtime option. Merged into the generated
+# schema. See generate_schemas.R.
+.tabnet_hyperparameters_schema_extra <- list(
+  properties = list(
+    optimizer = list(
+      type = "string",
+      default = "adam",
+      `$comment` = "A torch optimizer function may also be supplied in R; only the string form is serializable.",
+      description = "Optimizer name (e.g. \"adam\")."
+    ),
+    lr_scheduler = list(
+      oneOf = list(
+        list(type = "null"),
+        list(type = "string", enum = I(c("step", "reduce_on_plateau")))
+      ),
+      `$comment` = "A torch scheduler function may also be supplied in R; only the string form is serializable.",
+      description = "Learning-rate scheduler: \"step\" or \"reduce_on_plateau\". null = none."
+    )
+  )
+)
+
+
 # %% setup_TabNet ----
 #' Setup TabNet Hyperparameters
 #'
@@ -2235,9 +2261,11 @@ get_tabnet_config <- function(hyperparameters) {
 #' @description
 #' Hyperparameters subclass for Ranger Random Forest. `split_select_weights`
 #' (numeric vector or list of vectors), `respect_unordered_factors`
-#' (character or logical), and `inbag` (list) have union types that cannot
-#' be expressed as JSON types, so they are plain properties (non-tunable,
-#' excluded from schema generation).
+#' (character or logical), and `inbag` (list) have union / list types the
+#' `prop_*` factories do not express, so they are declared as plain S7 union
+#' properties (non-tunable) and their JSON Schema is supplied by hand via
+#' [.ranger_hyperparameters_schema_extra], merged into the generated
+#' `hyperparameters/ranger/v1` schema in `generate_schemas.R`.
 #'
 #' @author EDG
 #' @keywords internal
@@ -2428,6 +2456,71 @@ RangerHyperparameters <- new_class(
     )
   )
 ) # /rtemis::RangerHyperparameters
+
+
+# %% .ranger_hyperparameters_schema_extra ----
+# Schema fragments for RangerHyperparameters properties whose R types are union
+# / list types not expressible via the prop_* factories. They are `exclude`d
+# from generation and their JSON Schema merged in here, so the generated
+# `hyperparameters/ranger/v1` schema still describes them. See generate_schemas.R.
+.ranger_hyperparameters_schema_extra <- list(
+  properties = list(
+    split_select_weights = list(
+      oneOf = list(
+        list(type = "null"),
+        list(
+          type = "array",
+          items = list(type = "number", minimum = 0, maximum = 1),
+          minItems = 1L
+        ),
+        list(
+          type = "array",
+          items = list(
+            type = "array",
+            items = list(type = "number", minimum = 0, maximum = 1),
+            minItems = 1L
+          ),
+          minItems = 1L
+        )
+      ),
+      description = paste0(
+        "Optional per-feature split-selection probabilities in [0, 1]: a ",
+        "single vector applied to every tree, or a list of length `num_trees` ",
+        "with one weight vector per tree. null uses the ranger default."
+      )
+    ),
+    respect_unordered_factors = list(
+      oneOf = list(
+        list(type = "null"),
+        list(type = "string", enum = I(c("partition", "ignore", "order"))),
+        list(type = "boolean")
+      ),
+      description = paste0(
+        "Handling of unordered factors: \"partition\", \"ignore\", or ",
+        "\"order\"; or a logical (TRUE corresponds to \"partition\"). null ",
+        "uses the ranger default."
+      )
+    ),
+    inbag = list(
+      oneOf = list(
+        list(type = "null"),
+        list(
+          type = "array",
+          items = list(
+            type = "array",
+            items = list(type = "integer", minimum = 0L)
+          ),
+          minItems = 1L
+        )
+      ),
+      description = paste0(
+        "Optional manually-set in-bag counts: a list of length `num_trees`, ",
+        "each a per-observation vector of non-negative counts. null uses the ",
+        "ranger default (bootstrap sampling)."
+      )
+    )
+  )
+)
 
 
 # %% setup_Ranger ----
