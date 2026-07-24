@@ -179,17 +179,33 @@ auc <- function(
   if (length(unique(true_int)) == 1) {
     return(NaN)
   }
-  if (method == "lightAUC") {
-    check_dependencies("lightAUC")
-    auc. <- lightAUC::lightAUC(probs = predicted_prob, actuals = true_int)
-  } else if (method == "ROCR") {
-    check_dependencies("ROCR")
+  # Resolve backend ----
+  # AUC is one optional metric computed via an optional (Suggests) backend.
+  # If the requested backend cannot be loaded (e.g. lightAUC's compiled stack
+  # fails to load after an upstream RcppParallel ABI bump), fall back rather
+  # than abort: an unavailable metric backend must not crash model training.
+  if (method == "lightAUC" && !auc_backend_available("lightAUC")) {
+    if (verbosity > 0L) {
+      msg("lightAUC unavailable; falling back to ROCR for AUC.")
+    }
+    method <- "ROCR"
+  }
+  if (method == "ROCR" && !auc_backend_available("ROCR")) {
+    if (verbosity > 0L) {
+      msg("No AUC backend available (lightAUC, ROCR); returning NA for AUC.")
+    }
+    return(NaN)
+  }
+
+  auc. <- if (method == "lightAUC") {
+    try(lightAUC::lightAUC(probs = predicted_prob, actuals = true_int))
+  } else {
     .pred <- try(ROCR::prediction(
       predicted_prob,
       true_int,
       label.ordering = NULL
     ))
-    auc. <- try(ROCR::performance(.pred, "auc")@y.values[[1]])
+    try(ROCR::performance(.pred, "auc")@y.values[[1]])
   }
 
   if (inherits(auc., "try-error")) {
@@ -201,6 +217,24 @@ auc <- function(
   }
   auc.
 } # /rtemis::auc
+
+
+# %% auc_backend_available ----
+#' Check whether an AUC backend package can be loaded
+#'
+#' Thin wrapper around `requireNamespace()`. Kept as a standalone internal so
+#' `auc()`'s fallback path can be exercised in tests via mocked bindings.
+#'
+#' @param pkg Character: Package name.
+#'
+#' @return Logical: `TRUE` if the namespace can be loaded.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+auc_backend_available <- function(pkg) {
+  requireNamespace(pkg, quietly = TRUE)
+} # /rtemis::auc_backend_available
 
 
 #' Area under the Curve by pairwise concordance
