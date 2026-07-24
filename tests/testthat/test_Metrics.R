@@ -53,6 +53,34 @@ test_that("classification_metrics() returns correct metrics", {
   )
 })
 
+# auc() backend fallback ----
+# Regression test: an optional AUC backend that cannot be loaded (e.g. lightAUC
+# after an upstream RcppParallel ABI bump) must not abort; auc() falls back to
+# ROCR, and returns NaN only when no backend is available.
+true_int <- 2L - as.integer(true_labels)
+
+test_that("auc() falls back to ROCR when lightAUC cannot be loaded", {
+  skip_if_not_installed("ROCR")
+  expected <- auc(true_int, predicted_prob, method = "ROCR")
+  local_mocked_bindings(
+    auc_backend_available = function(pkg) pkg != "lightAUC"
+  )
+  expect_no_error(
+    fallback <- auc(true_int, predicted_prob, method = "lightAUC")
+  )
+  expect_equal(fallback, expected)
+})
+
+test_that("auc() returns NaN (no abort) when no backend is available", {
+  local_mocked_bindings(
+    auc_backend_available = function(pkg) FALSE
+  )
+  expect_no_error(
+    result <- auc(true_int, predicted_prob, method = "lightAUC")
+  )
+  expect_identical(result, NaN)
+})
+
 # RegressionMetricsRes ----
 res_metrics <- list(mod1 = reg_metrics, mod2 = reg_metrics2)
 rmcv <- RegressionMetricsRes(

@@ -419,6 +419,142 @@ prop_accepts_null <- function(prop) {
 } # /rtemis::prop_accepts_null
 
 
+# %% Property roles ----
+# Every property of a config class plays one of three roles, and the role
+# decides both what the generated JSON Schema says and what `write_config()`
+# emits. Declaring it on the property keeps that decision in one place, next to
+# the value it describes:
+#
+# - "config"   Built by a `prop_*` factory, so it carries a `PropertySpec`:
+#              schema generated from the spec, serialized. The common case;
+#              inferred, never declared.
+# - "external" A config input whose R type the factories cannot express
+#              (a matrix, a function-or-string, a list of per-tree vectors).
+#              Declared with `prop_external()`. Present in the schema, but its
+#              fragment is hand-written and merged in via `S7_to_JSONSchema`'s
+#              `extra`, which asserts one is supplied.
+# - "state"    Run state written during training or tuning (GLMNET's
+#              `lambda.min`, LightGBM's `best_iter`). Declared with
+#              `prop_state()`. Never in a schema, never serialized, re-derived
+#              on read.
+#
+# A spec-less property with no role is drift: it is neither a declared input
+# nor declared state, and schema generation aborts rather than quietly emitting
+# an incomplete contract.
+#
+# `data_dependent` is a second, orthogonal axis, meaningful on "external": the
+# value's shape is tied to a particular dataset (per-case IDs, learned scaling
+# centers), so it has no portable form. Every `config` property is
+# JSON-expressible and portable by construction.
+
+# %% prop_state ----
+#' S7 property holding run state rather than configuration
+#'
+#' Written during training / tuning, so it is excluded from generated schemas
+#' and from serialized configs, and re-derived on read. Contrast
+#' `prop_external()`, which marks a genuine config input the `prop_*` factories
+#' cannot type.
+#'
+#' @param class S7 class or union: Property class.
+#' @param default Default value.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_state <- function(class, default = NULL) {
+  p <- new_property(class, default = default)
+  p[["role"]] <- "state"
+  p
+} # /rtemis::prop_state
+
+
+# %% prop_external ----
+#' S7 property whose JSON Schema is supplied by hand
+#'
+#' A config input whose R type the `prop_*` factories cannot express. It is part
+#' of the contract — `S7_to_JSONSchema()` requires its schema fragment to arrive
+#' via `extra` — but is generated from that fragment rather than from a
+#' `PropertySpec`.
+#'
+#' @param class S7 class or union: Property class.
+#' @param default Default value.
+#' @param data_dependent Logical: If TRUE, the value's shape is tied to a
+#'   specific dataset (per-case IDs, learned scaling centers), so it has no
+#'   portable form and is never serialized.
+#' @param validator Function or NULL: Property validator, as for
+#'   `S7::new_property()`.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_external <- function(
+  class,
+  default = NULL,
+  data_dependent = FALSE,
+  validator = NULL
+) {
+  p <- new_property(class, default = default, validator = validator)
+  p[["role"]] <- "external"
+  p[["data_dependent"]] <- data_dependent
+  p
+} # /rtemis::prop_external
+
+
+# %% prop_role ----
+#' Role of an S7 property
+#'
+#' @param prop S7 property (an element of `Class@properties`).
+#'
+#' @return Character: "config", "external", "state", or `NA_character_` for a
+#'   spec-less property with no declared role (i.e. drift).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_role <- function(prop) {
+  role <- prop[["role"]]
+  if (!is.null(role)) {
+    return(role)
+  }
+  if (is.null(get_spec(prop))) NA_character_ else "config"
+} # /rtemis::prop_role
+
+
+# %% role_prop_names ----
+#' Names of an S7 class's properties with a given role
+#'
+#' @param x S7 class.
+#' @param role Character: "config", "external", or "state".
+#'
+#' @return Character vector of property names.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+role_prop_names <- function(x, role) {
+  names(Filter(function(p) identical(prop_role(p), role), x@properties))
+} # /rtemis::role_prop_names
+
+
+# %% data_dependent_prop_names ----
+#' Names of an S7 class's properties with no portable form
+#'
+#' @param x S7 class.
+#'
+#' @return Character vector of property names.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+data_dependent_prop_names <- function(x) {
+  names(Filter(function(p) isTRUE(p[["data_dependent"]]), x@properties))
+} # /rtemis::data_dependent_prop_names
+
+
 # %% spec_prop_names ----
 #' Names of factory-declared properties of an S7 class
 #'
@@ -572,14 +708,18 @@ own_prop_values <- function(self, base) {
 #'
 #' The runtime parameter list (`@hyperparameters` / `@config`) intentionally
 #' carries everything a training backend needs, including algorithm constants
-#' and run state. A *serialized config* is narrower: only the declared,
-#' user-settable parameters — i.e. properties built by a `prop_*` factory —
-#' plus nested config objects (which serialize as their own schema). Dropped
-#' here, and correspondingly absent from the generated schemas:
-#' unsettable constants (`hp_constants()`, which are not properties at all),
-#' run state written during training (e.g. GLMNET `lambda.min`, LightGBM
-#' `best_iter`), and values with no JSON form (e.g. tSNE `Y_init`, TabNet
+#' and run state. A *serialized config* is narrower: only `"config"`-role
+#' properties (see `prop_role()`) plus nested config objects, which serialize as
+#' their own schema. Dropped here: unsettable constants (`hp_constants()`, which
+#' are not properties at all), `"state"` properties written during training
+#' (GLMNET `lambda.min`, LightGBM `best_iter`), and `"external"` properties,
+#' whose R types have no JSON form the factories can emit (tSNE `Y_init`, TabNet
 #' `optimizer`). All are reconstructed or re-derived on read.
+#'
+#' Note the asymmetry on `"external"`: those properties *are* in the generated
+#' schema and `read_config()` accepts them, but nothing writes them. Closing
+#' that gap means also keeping the ones that are not `data_dependent` — a policy
+#' change deliberately left for its own discussion.
 #'
 #' @param self S7 object.
 #' @param base S7 class: the family base class.
@@ -591,10 +731,12 @@ own_prop_values <- function(self, base) {
 #' @noRd
 config_prop_values <- function(self, base) {
   values <- own_prop_values(self, base)
-  declared <- spec_prop_names(S7_class(self))
+  props <- S7_class(self)@properties
   keep <- vapply(
     names(values),
-    function(nm) nm %in% declared || S7_inherits(values[[nm]]),
+    function(nm) {
+      identical(prop_role(props[[nm]]), "config") || S7_inherits(values[[nm]])
+    },
     logical(1L)
   )
   values[keep]
@@ -741,11 +883,14 @@ spec_to_schema <- function(spec) {
 #' Convert an S7 class built with `prop_*` factories to a JSON Schema
 #'
 #' Walks the class's properties, reads each attached `PropertySpec`, and
-#' assembles a draft 2020-12 JSON Schema. Properties without a spec must be
-#' explicitly listed in `exclude` (e.g. runtime state like `tuned`,
-#' `resampled`, `n_workers`) — an unexpected spec-less property is an error,
-#' so a class that drifts from the factory vocabulary fails loudly instead of
-#' emitting a wrong schema.
+#' assembles a draft 2020-12 JSON Schema. Which properties take part is decided
+#' by their declared role (see `prop_role()`), not by a list kept here:
+#' `"config"` properties are generated from their spec, `"state"` properties are
+#' dropped, and `"external"` properties must be supplied by `extra` — asserted
+#' after the merge, so a forgotten fragment cannot silently drop a key from the
+#' published contract. A spec-less property with no role is an error, so a class
+#' that drifts from the factory vocabulary fails loudly instead of emitting a
+#' wrong schema.
 #'
 #' @param x S7 class (e.g. `LightRFHyperparameters`).
 #' @param id Character: Schema `$id` URL
@@ -753,8 +898,10 @@ spec_to_schema <- function(spec) {
 #' @param title Character: Schema title. Defaults to the class name.
 #' @param description Character: Schema description. If empty, the
 #'   "description" keyword is omitted from the schema.
-#' @param exclude Character: Names of properties to omit (runtime state,
-#'   data-dependent values).
+#' @param base S7 class or NULL: The family base class, whose inherited
+#'   properties are machinery (`tuned`, `resampled`, the computed payload list)
+#'   rather than config, and are omitted. NULL for a flat config that has no
+#'   family base.
 #' @param required Character: Names of required properties. Default NULL: all
 #'   optional, so omitted fields fall back to their `setup_*` defaults on read
 #'   (matching [write_config]'s compaction).
@@ -782,7 +929,7 @@ spec_to_schema <- function(spec) {
 #' schema <- S7_to_JSONSchema(
 #'   LightRFHyperparameters,
 #'   id = "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json",
-#'   exclude = c("algorithm", "tuned", "resampled", "n_workers")
+#'   base = Hyperparameters
 #' )
 #' }
 S7_to_JSONSchema <- function(
@@ -790,7 +937,7 @@ S7_to_JSONSchema <- function(
   id,
   title = NULL,
   description = "",
-  exclude = character(),
+  base = NULL,
   required = NULL,
   extra = NULL,
   refs = NULL,
@@ -805,12 +952,19 @@ S7_to_JSONSchema <- function(
     )
   }
   props <- x@properties
-  props <- props[!names(props) %in% exclude]
+  if (!is.null(base)) {
+    props <- props[own_prop_names(x, base)]
+  }
+  # Run state never reaches a schema; `external` properties are described by
+  # `extra` instead of by a spec, and their arrival is checked below.
+  roles <- vapply(props, prop_role, character(1L))
+  external <- names(props)[!is.na(roles) & roles == "external"]
+  props <- props[is.na(roles) | !roles %in% c("state", "external")]
   if (!is.null(refs)) {
     unknown <- setdiff(names(refs), names(props))
     if (length(unknown) > 0L) {
       rtemis.core::abort(
-        "`refs` names no such (or excluded) propert",
+        "`refs` names no such (or omitted) propert",
         if (length(unknown) == 1L) "y: " else "ies: ",
         paste(unknown, collapse = ", "),
         ".",
@@ -827,7 +981,7 @@ S7_to_JSONSchema <- function(
   )]
   if (length(specless) > 0L) {
     rtemis.core::abort(
-      "Properties without a PropertySpec (build them with the prop_* factories, `refs` them, or `exclude` them): ",
+      "Properties with no declared role (build them with the prop_* factories, `refs` them, or declare them with prop_external() / prop_state()): ",
       paste(specless, collapse = ", "),
       ".",
       class = "rtemis_input_error"
@@ -876,6 +1030,20 @@ S7_to_JSONSchema <- function(
   }
   if (!is.null(extra)) {
     schema <- utils::modifyList(schema, extra)
+  }
+  # An `external` property is part of the contract; only its JSON fragment is
+  # hand-written. Losing one is silent otherwise — the schema still validates,
+  # it just stops admitting a key the class accepts.
+  unsupplied <- setdiff(external, names(schema[["properties"]]))
+  if (length(unsupplied) > 0L) {
+    rtemis.core::abort(
+      "Propert",
+      if (length(unsupplied) == 1L) "y " else "ies ",
+      "declared with prop_external() but not supplied by `extra`: ",
+      paste(unsupplied, collapse = ", "),
+      ".",
+      class = "rtemis_input_error"
+    )
   }
   schema
 } # /rtemis::S7_to_JSONSchema

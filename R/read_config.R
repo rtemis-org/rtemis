@@ -78,6 +78,39 @@ read_config <- function(file) {
 } # /rtemis::read_config
 
 
+# %% .drop_meta_keys ----
+#' Drop JSON document metadata keys from a parsed config list
+#'
+#' Every schema.rtemis.org config declares a `$schema`, and so may a nested one:
+#' the family schemas (preprocessor, execution, decomposition, clustering, ...)
+#' all permit `$schema`, so a `preprocessor_config` lifted verbatim out of a
+#' standalone preprocessor config file carries its own. Those `$`-prefixed keys
+#' are document metadata, not `setup_*` arguments, so they are stripped before a
+#' parsed list is forwarded via `do.call()`. Anything else unknown still reaches
+#' the `setup_*` function and fails there, as it should.
+#'
+#' Exported for `rtemis.server`, which applies the same rule to the config
+#' blocks it receives over the wire.
+#'
+#' @param x Named list parsed from JSON, or `NULL`.
+#'
+#' @return `x` without its `$`-prefixed elements.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+#' @noRd
+#' @examples
+#' .drop_meta_keys(list(`$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+#'                      remove_duplicates = TRUE))
+.drop_meta_keys <- function(x) {
+  if (is.null(names(x))) {
+    return(x)
+  }
+  x[!startsWith(names(x), "$")]
+} # /rtemis::.drop_meta_keys
+
+
 # %% .validate_config_cli ----
 #' Validate a config file against its schema using the `rtemis` CLI
 #'

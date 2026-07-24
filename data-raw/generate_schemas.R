@@ -18,8 +18,11 @@ base_url <- "https://schema.rtemis.org"
 # Registry ------------------------------------------------------------------
 # Per family: the base class, the payload field name, the dispatcher's title /
 # descriptions / extra top-level properties, and the per-algorithm classes with
-# a one-line description plus any properties to exclude from the schema (the
-# non-JSON / runtime-state props that are stored but not schematized).
+# a one-line description, and an optional `extra` supplying hand-written schema
+# for properties declared `prop_external()` (whose R type the prop_* factories
+# cannot express). Which properties take part is decided by their declared role
+# (see `prop_role()`), not listed here: run state is dropped, and a missing
+# `extra` for an external property aborts.
 families <- list(
   decomposition = list(
     base_class = DecompositionConfig,
@@ -61,7 +64,7 @@ families <- list(
       list(
         cls = tSNEConfig,
         desc = "t-Distributed Stochastic Neighbor Embedding. See setup_tSNE.",
-        exclude = "Y_init"
+        extra = .tsne_schema_extra
       ),
       list(cls = IsomapConfig, desc = "Isomap. See setup_Isomap.")
     )
@@ -90,12 +93,12 @@ families <- list(
       list(
         cls = CMeansConfig,
         desc = "Fuzzy c-means clustering. See setup_CMeans.",
-        exclude = c("weights", "control")
+        extra = .cmeans_schema_extra
       ),
       list(
         cls = DBSCANConfig,
         desc = "DBSCAN density-based clustering. See setup_DBSCAN.",
-        exclude = "weights"
+        extra = .dbscan_schema_extra
       )
     )
   ),
@@ -128,22 +131,22 @@ families <- list(
       list(
         cls = KFoldConfig,
         desc = "K-fold cross-validation. See setup_Resampler.",
-        exclude = "id_strat"
+        extra = .resampler_id_strat_schema_extra
       ),
       list(
         cls = StratSubConfig,
         desc = "Stratified subsampling. See setup_Resampler.",
-        exclude = "id_strat"
+        extra = .resampler_id_strat_schema_extra
       ),
       list(
         cls = StratBootConfig,
         desc = "Stratified bootstrap. See setup_Resampler.",
-        exclude = "id_strat"
+        extra = .resampler_id_strat_schema_extra
       ),
       list(
         cls = BootstrapConfig,
         desc = "Bootstrap resampling. See setup_Resampler.",
-        exclude = "id_strat"
+        extra = .resampler_id_strat_schema_extra
       ),
       list(
         cls = LOOCVConfig,
@@ -202,8 +205,7 @@ families <- list(
       ),
       list(
         cls = GLMNETHyperparameters,
-        desc = "Elastic net (glmnet). See `setup_GLMNET`.",
-        exclude = c("lambda.min", "lambda.1se")
+        desc = "Elastic net (glmnet). See `setup_GLMNET`."
       ),
       list(
         cls = LightCARTHyperparameters,
@@ -215,8 +217,7 @@ families <- list(
       ),
       list(
         cls = LightGBMHyperparameters,
-        desc = "LightGBM gradient boosting. See `setup_LightGBM`.",
-        exclude = c("nrounds", "best_iter")
+        desc = "LightGBM gradient boosting. See `setup_LightGBM`."
       ),
       list(
         cls = LightRuleFitHyperparameters,
@@ -237,16 +238,16 @@ families <- list(
       list(
         cls = TabNetHyperparameters,
         desc = "TabNet neural network. See `setup_TabNet`.",
-        exclude = c("optimizer", "lr_scheduler")
+        # `optimizer` / `lr_scheduler` accept an R function or a string; only
+        # the serializable string form is schematized (see the extra).
+        extra = .tabnet_hyperparameters_schema_extra
       ),
       list(
         cls = RangerHyperparameters,
         desc = "Ranger random forest. See `setup_Ranger`.",
-        exclude = c(
-          "split_select_weights",
-          "respect_unordered_factors",
-          "inbag"
-        )
+        # These three have union / list R types the prop_* factories cannot
+        # express; their JSON Schema is supplied by hand and merged in.
+        extra = .ranger_hyperparameters_schema_extra
       )
     )
   )
@@ -255,7 +256,6 @@ families <- list(
 # Generation ----------------------------------------------------------------
 for (family in names(families)) {
   fam <- families[[family]]
-  base_props <- names(fam[["base_class"]]@properties)
   classes <- lapply(fam[["algorithms"]], `[[`, "cls")
   discriminator <- if (is.null(fam[["discriminator"]])) {
     "algorithm"
@@ -277,7 +277,8 @@ for (family in names(families)) {
       id = id,
       title = paste0("rtemis ", cls@name),
       description = algo[["desc"]],
-      exclude = c(base_props, algo[["exclude"]]),
+      base = fam[["base_class"]],
+      extra = algo[["extra"]],
       refs = algo[["refs"]],
       closed = !top_level
     )
@@ -346,10 +347,9 @@ for (family in names(families)) {
 }
 
 # Flat configs --------------------------------------------------------------
-# Single-object configs (no algorithm discriminator): one schema per class.
-# `exclude` lists properties whose R type is not expressible via the prop_*
-# factories; `extra` supplies their hand-written schema fragments so the
-# generated schema still describes them.
+# Single-object configs (no algorithm discriminator, so no family base class):
+# one schema per class. `extra` supplies hand-written fragments for the
+# `prop_external()` properties.
 .url <- function(family) paste0(base_url, "/", family, "/v1/schema.json")
 
 flat_configs <- list(
@@ -426,12 +426,6 @@ flat_configs <- list(
       "`PreprocessorConfig` object / `setup_Preprocessor` arguments. The same ",
       "config drives rtemis (R), rtemis-py, and rtemislive to identical output."
     ),
-    exclude = c(
-      "impute_missRanger_params",
-      "scale_centers",
-      "scale_coefficients",
-      "one_hot_levels"
-    ),
     extra = .preprocessor_schema_extra
   )
 )
@@ -444,7 +438,6 @@ for (family in names(flat_configs)) {
     id = id,
     title = cfg[["title"]],
     description = cfg[["description"]],
-    exclude = cfg[["exclude"]],
     extra = cfg[["extra"]],
     refs = cfg[["refs"]],
     instance_schema_url = id
