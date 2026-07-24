@@ -9,7 +9,7 @@ S7_to_JSONSchema(
   id,
   title = NULL,
   description = "",
-  exclude = character(),
+  base = NULL,
   required = NULL,
   extra = NULL,
   refs = NULL,
@@ -28,8 +28,10 @@ S7_to_JSONSchema(
 \item{description}{Character: Schema description. If empty, the
 "description" keyword is omitted from the schema.}
 
-\item{exclude}{Character: Names of properties to omit (runtime state,
-data-dependent values).}
+\item{base}{S7 class or NULL: The family base class, whose inherited
+properties are machinery (\code{tuned}, \code{resampled}, the computed payload list)
+rather than config, and are omitted. NULL for a flat config that has no
+family base.}
 
 \item{required}{Character: Names of required properties. Default NULL: all
 optional, so omitted fields fall back to their \verb{setup_*} defaults on read
@@ -58,18 +60,21 @@ Named list: the JSON Schema. Serialize with \link{write_JSONSchema}.
 }
 \description{
 Walks the class's properties, reads each attached \code{PropertySpec}, and
-assembles a draft 2020-12 JSON Schema. Properties without a spec must be
-explicitly listed in \code{exclude} (e.g. runtime state like \code{tuned},
-\code{resampled}, \code{n_workers}) — an unexpected spec-less property is an error,
-so a class that drifts from the factory vocabulary fails loudly instead of
-emitting a wrong schema.
+assembles a draft 2020-12 JSON Schema. Which properties take part is decided
+by their declared role (see \code{prop_role()}), not by a list kept here:
+\code{"config"} properties are generated from their spec, \code{"state"} properties are
+dropped, and \code{"external"} properties must be supplied by \code{extra} — asserted
+after the merge, so a forgotten fragment cannot silently drop a key from the
+published contract. A spec-less property with no role is an error, so a class
+that drifts from the factory vocabulary fails loudly instead of emitting a
+wrong schema.
 }
 \examples{
 \dontrun{
 schema <- S7_to_JSONSchema(
   LightRFHyperparameters,
   id = "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json",
-  exclude = c("algorithm", "tuned", "resampled", "n_workers")
+  base = Hyperparameters
 )
 }
 }

@@ -219,7 +219,7 @@ test_that("LightRFHyperparameters generates its JSON Schema", {
   schema <- S7_to_JSONSchema(
     LightRFHyperparameters,
     id = "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json",
-    exclude = names(Hyperparameters@properties)
+    base = Hyperparameters
   )
   expect_identical(
     sort(names(schema[["properties"]])),
@@ -347,4 +347,51 @@ test_that("setup_TabNet() succeeds", {
 # setup_Ranger ----
 test_that("setup_Ranger() succeeds", {
   expect_s7_class(setup_Ranger(), RangerHyperparameters)
+})
+
+
+# %% Property roles ----------------------------------------------------------
+# Run state is written onto the object during tuning but is not configuration:
+# it must stay out of both the generated schema and the serialized config, and
+# be re-derived on read. Regression guard for the boundary that `prop_state()`
+# declares.
+
+test_that("run state stays out of the serialized config", {
+  h <- setup_LightGBM()
+  expect_identical(
+    role_prop_names(LightGBMHyperparameters, "state"),
+    c("nrounds", "best_iter")
+  )
+  # The Tuner writes both.
+  h@nrounds <- 137L
+  h@best_iter <- 120
+  serialized <- serializable_props(h)[["hyperparameters"]]
+  expect_false(any(c("nrounds", "best_iter") %in% names(serialized)))
+  # ...but the training backend still reads them off the runtime list.
+  expect_identical(h@hyperparameters[["nrounds"]], 137L)
+
+  g <- setup_GLMNET()
+  g@`lambda.min` <- 0.01
+  expect_false(
+    "lambda.min" %in% names(serializable_props(g)[["hyperparameters"]])
+  )
+})
+
+
+test_that("external properties are declared, not silently dropped", {
+  # Ranger's union / list params are config inputs whose schema is hand-written.
+  expect_setequal(
+    role_prop_names(RangerHyperparameters, "external"),
+    c("split_select_weights", "respect_unordered_factors", "inbag")
+  )
+  schema <- S7_to_JSONSchema(
+    RangerHyperparameters,
+    id = "https://schema.rtemis.org/hyperparameters/ranger/v1/schema.json",
+    base = Hyperparameters,
+    extra = .ranger_hyperparameters_schema_extra
+  )
+  expect_true(all(
+    c("split_select_weights", "respect_unordered_factors", "inbag") %in%
+      names(schema[["properties"]])
+  ))
 })

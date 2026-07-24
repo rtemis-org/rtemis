@@ -162,7 +162,7 @@ KFoldConfig <- new_class(
       min = 1L,
       description = "Number of bins to stratify a continuous variable into."
     ),
-    id_strat = NULL | class_vector,
+    id_strat = prop_external(NULL | class_vector, data_dependent = TRUE),
     seed = prop_integer(
       NULL,
       min = 0L,
@@ -202,7 +202,7 @@ StratSubConfig <- new_class(
       min = 1L,
       description = "Number of bins to stratify a continuous variable into."
     ),
-    id_strat = NULL | class_vector,
+    id_strat = prop_external(NULL | class_vector, data_dependent = TRUE),
     seed = prop_integer(
       NULL,
       min = 0L,
@@ -248,7 +248,7 @@ StratBootConfig <- new_class(
       nullable = TRUE,
       description = "Target length for stratified bootstraps."
     ),
-    id_strat = NULL | class_vector,
+    id_strat = prop_external(NULL | class_vector, data_dependent = TRUE),
     seed = prop_integer(
       NULL,
       min = 0L,
@@ -272,7 +272,7 @@ BootstrapConfig <- new_class(
   parent = ResamplerConfig,
   properties = list(
     type = prop_algorithm("Bootstrap"),
-    id_strat = NULL | class_vector,
+    id_strat = prop_external(NULL | class_vector, data_dependent = TRUE),
     seed = prop_integer(
       NULL,
       min = 0L,

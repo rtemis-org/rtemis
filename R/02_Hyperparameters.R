@@ -858,9 +858,9 @@ GLMNETHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     ),
-    # Runtime state (written by the Tuner from cv.glmnet results).
-    `lambda.min` = NULL | class_double,
-    `lambda.1se` = NULL | class_double
+    # Run state, written by the Tuner from cv.glmnet results.
+    `lambda.min` = prop_state(NULL | class_double),
+    `lambda.1se` = prop_state(NULL | class_double)
   )
 ) # /rtemis::GLMNETHyperparameters
 
@@ -1372,9 +1372,9 @@ LightGBMHyperparameters <- new_class(
     ),
     # Derived: force_nrounds if set, otherwise determined by early stopping
     # during tuning.
-    nrounds = NULL | class_integer,
-    # Runtime state (best iteration, written by the Tuner).
-    best_iter = NULL | class_numeric
+    nrounds = prop_state(NULL | class_integer),
+    # Run state: best iteration, written by the Tuner.
+    best_iter = prop_state(NULL | class_numeric)
   )
 ) # /rtemis::LightGBMHyperparameters
 
@@ -1961,11 +1961,13 @@ TabNetHyperparameters <- new_class(
       tunable = TRUE,
       description = "Learning rate."
     ),
-    optimizer = new_property(
+    # Accept an R function or a name; only the name has a JSON form, supplied
+    # by `.tabnet_hyperparameters_schema_extra`.
+    optimizer = prop_external(
       class_character | class_function,
       default = "adam"
     ),
-    lr_scheduler = NULL | class_character | class_function,
+    lr_scheduler = prop_external(NULL | class_character | class_function),
     lr_decay = prop_float(
       0.1,
       min = 0,
@@ -2264,7 +2266,7 @@ get_tabnet_config <- function(hyperparameters) {
 #' (character or logical), and `inbag` (list) have union / list types the
 #' `prop_*` factories do not express, so they are declared as plain S7 union
 #' properties (non-tunable) and their JSON Schema is supplied by hand via
-#' [.ranger_hyperparameters_schema_extra], merged into the generated
+#' `.ranger_hyperparameters_schema_extra`, merged into the generated
 #' `hyperparameters/ranger/v1` schema in `generate_schemas.R`.
 #'
 #' @author EDG
@@ -2378,14 +2380,16 @@ RangerHyperparameters <- new_class(
       exclusive_min = 0,
       description = "Tau parameter (poisson splitrule)."
     ),
-    split_select_weights = NULL | class_numeric | class_list,
+    split_select_weights = prop_external(NULL | class_numeric | class_list),
     always_split_variables = prop_string(
       NULL,
       nullable = TRUE,
       vector = TRUE,
       description = "Variables always included as split candidates."
     ),
-    respect_unordered_factors = NULL | class_character | class_logical,
+    respect_unordered_factors = prop_external(
+      NULL | class_character | class_logical
+    ),
     scale_permutation_importance = prop_boolean(
       FALSE,
       description = "Scale permutation importance by its standard error."
@@ -2408,7 +2412,7 @@ RangerHyperparameters <- new_class(
       FALSE,
       description = "Record how often each observation is in-bag per tree."
     ),
-    inbag = NULL | class_list,
+    inbag = prop_external(NULL | class_list),
     holdout = prop_boolean(
       FALSE,
       description = "Hold-out mode: hold out samples with case weight 0."

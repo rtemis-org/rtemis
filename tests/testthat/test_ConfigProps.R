@@ -59,23 +59,30 @@ test_that("decomposition config setter routes and rejects unknown keys", {
 })
 
 test_that("DecompositionConfig generates its JSON Schema", {
-  base <- names(DecompositionConfig@properties)
   s <- S7_to_JSONSchema(
     PCAConfig,
     id = "https://schema.rtemis.org/decomposition/pca/v1/schema.json",
-    exclude = base
+    base = DecompositionConfig
   )
   expect_setequal(names(s[["properties"]]), c("k", "center", "scale", "tol"))
   expect_identical(s[["properties"]][["k"]][["minimum"]], 1L)
-  # tSNE Y_init (a matrix) has no spec and must be excluded.
+  # tSNE `Y_init` (a matrix) is `prop_external()`: part of the contract, but its
+  # fragment must come from `extra`.
   expect_error(
     S7_to_JSONSchema(
       tSNEConfig,
       id = "https://example.org/x.json",
-      exclude = base
+      base = DecompositionConfig
     ),
     "Y_init"
   )
+  s <- S7_to_JSONSchema(
+    tSNEConfig,
+    id = "https://example.org/x.json",
+    base = DecompositionConfig,
+    extra = .tsne_schema_extra
+  )
+  expect_true("Y_init" %in% names(s[["properties"]]))
 })
 
 
@@ -120,22 +127,23 @@ test_that("CMeans non-JSON params (weights, control) survive but stay out of sch
   cfg <- setup_CMeans(k = 3L)
   # control (list) is preserved as a config key.
   expect_true("control" %in% names(cfg@config))
-  base <- names(ClusteringConfig@properties)
-  # weights + control have no spec, so schema generation requires excluding them.
+  # weights + control are `prop_external()`: generation aborts unless `extra`
+  # supplies their fragments.
   expect_error(
     S7_to_JSONSchema(
       CMeansConfig,
       id = "https://example.org/x.json",
-      exclude = base
+      base = ClusteringConfig
     ),
     "weights"
   )
   s <- S7_to_JSONSchema(
     CMeansConfig,
     id = "https://schema.rtemis.org/clustering/cmeans/v1/schema.json",
-    exclude = c(base, "weights", "control")
+    base = ClusteringConfig,
+    extra = .cmeans_schema_extra
   )
-  expect_false(any(c("weights", "control") %in% names(s[["properties"]])))
+  expect_true(all(c("weights", "control") %in% names(s[["properties"]])))
 })
 
 
@@ -244,14 +252,12 @@ test_that("S7_to_JSONSchema emits $refs for nested config properties", {
   sup <- S7_to_JSONSchema(
     SuperConfig,
     id = "https://schema.rtemis.org/supervised/v1/schema.json",
-    exclude = c(
-      "preprocessor_config",
-      "decomposition_config",
-      "hyperparameters",
-      "tuner_config",
-      "outer_resampling_config"
-    ),
     refs = c(
+      preprocessor_config = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+      decomposition_config = "https://schema.rtemis.org/decomposition/v1/schema.json",
+      hyperparameters = "https://schema.rtemis.org/hyperparameters/v1/schema.json",
+      tuner_config = "https://schema.rtemis.org/tuner/v1/schema.json",
+      outer_resampling_config = "https://schema.rtemis.org/resampler/v1/schema.json",
       execution_config = "https://schema.rtemis.org/execution/v1/schema.json"
     )
   )
@@ -279,7 +285,8 @@ test_that("closed = FALSE omits additionalProperties for composed leaves", {
   args <- list(
     KFoldConfig,
     id = "https://schema.rtemis.org/resampler/kfold/v1/schema.json",
-    exclude = c(names(ResamplerConfig@properties), "id_strat")
+    base = ResamplerConfig,
+    extra = .resampler_id_strat_schema_extra
   )
   expect_false(do.call(S7_to_JSONSchema, args)[["additionalProperties"]])
   expect_false(

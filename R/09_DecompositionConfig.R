@@ -563,7 +563,10 @@ tSNEConfig <- new_class(
       FALSE,
       description = "Treat the input as a distance matrix."
     ),
-    Y_init = NULL | S7::new_S3_class("matrix"),
+    Y_init = prop_external(
+      NULL | S7::new_S3_class("matrix"),
+      data_dependent = TRUE
+    ),
     pca_center = prop_boolean(
       TRUE,
       description = "Center before the PCA step."

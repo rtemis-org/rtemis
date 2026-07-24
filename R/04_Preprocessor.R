@@ -48,7 +48,7 @@ PreprocessorConfig <- new_class(
     ),
     # A named parameter list; not JSON-scalar, injected into the schema via
     # `.preprocessor_schema_extra`.
-    impute_missRanger_params = new_property(class_list, default = list()),
+    impute_missRanger_params = prop_external(class_list, default = list()),
     impute_discrete = prop_string(
       "get_mode",
       description = "Function name to impute discrete features."
@@ -130,8 +130,11 @@ PreprocessorConfig <- new_class(
     center = prop_boolean(FALSE, description = "Center features."),
     # Data-dependent (learned during preprocess); injected via
     # `.preprocessor_schema_extra`.
-    scale_centers = NULL | class_numeric,
-    scale_coefficients = NULL | class_numeric,
+    scale_centers = prop_external(NULL | class_numeric, data_dependent = TRUE),
+    scale_coefficients = prop_external(
+      NULL | class_numeric,
+      data_dependent = TRUE
+    ),
     remove_constants = prop_boolean(
       FALSE,
       description = "Remove constant features."
@@ -152,7 +155,7 @@ PreprocessorConfig <- new_class(
     ),
     one_hot = prop_boolean(FALSE, description = "One-hot encode factors."),
     # Data-dependent (learned during preprocess).
-    one_hot_levels = NULL | class_list,
+    one_hot_levels = prop_external(NULL | class_list, data_dependent = TRUE),
     add_date_features = prop_boolean(
       FALSE,
       description = "Add date-derived features."
@@ -376,7 +379,7 @@ setup_Preprocessor <- function(
   remove_cases_thres = NULL,
   missingness = FALSE,
   impute = FALSE,
-  impute_type = "missRanger",
+  impute_type = c("missRanger", "micePMM", "meanMode"),
   impute_missRanger_params = list(
     pmm.k = 3,
     maxiter = 10,
@@ -417,6 +420,10 @@ setup_Preprocessor <- function(
   add_holidays = FALSE,
   exclude = NULL
 ) {
+  impute_type <- match_arg(
+    impute_type,
+    c("missRanger", "micePMM", "meanMode")
+  )
   # Integer-typed properties; clean friendly numeric input (`exclude` is
   # vector-valued, which `clean_int()` handles elementwise).
   numeric_cut_n <- clean_int(numeric_cut_n)

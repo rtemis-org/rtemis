@@ -295,8 +295,12 @@ CMeansConfig <- new_class(
       nullable = TRUE,
       description = "Learning rate for the online (ufcl) variant."
     ),
-    weights = new_property(class_numeric, default = 1.0),
-    control = new_property(class_list, default = list())
+    weights = prop_external(
+      class_numeric,
+      default = 1.0,
+      data_dependent = TRUE
+    ),
+    control = prop_external(class_list, default = list())
   )
 ) # /rtemis::CMeansConfig
 
@@ -398,7 +402,7 @@ DBSCANConfig <- new_class(
       min = 1L,
       description = "Minimum number of points in a neighborhood to form a cluster."
     ),
-    weights = NULL | class_numeric,
+    weights = prop_external(NULL | class_numeric, data_dependent = TRUE),
     border_points = prop_boolean(
       TRUE,
       description = "Assign border points to clusters."

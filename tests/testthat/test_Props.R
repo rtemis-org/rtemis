@@ -305,7 +305,7 @@ testthat::test_that("empty schema description is omitted", {
   testthat::expect_identical(s[["description"]], "A tiny config.")
 })
 
-testthat::test_that("spec-less properties must be excluded explicitly", {
+testthat::test_that("a property with no declared role is an error", {
   Mixed <- S7::new_class(
     name = "Mixed",
     package = NULL,
@@ -316,11 +316,59 @@ testthat::test_that("spec-less properties must be excluded explicitly", {
   )
   testthat::expect_error(
     S7_to_JSONSchema(Mixed, id = "https://example.org/x.json"),
-    "PropertySpec"
+    "no declared role"
   )
-  testthat::expect_no_error(
-    S7_to_JSONSchema(Mixed, id = "https://example.org/x.json", exclude = "b")
+  # `prop_state()` declares it out of the contract entirely.
+  Stated <- S7::new_class(
+    name = "Stated",
+    package = NULL,
+    properties = list(
+      a = prop_boolean(TRUE),
+      b = prop_state(S7::class_integer, default = 0L)
+    )
   )
+  s <- S7_to_JSONSchema(Stated, id = "https://example.org/x.json")
+  testthat::expect_identical(names(s[["properties"]]), "a")
+})
+
+testthat::test_that("prop_external() requires `extra` to supply its schema", {
+  Ext <- S7::new_class(
+    name = "Ext",
+    package = NULL,
+    properties = list(
+      a = prop_boolean(TRUE),
+      b = prop_external(S7::class_list, default = list())
+    )
+  )
+  testthat::expect_error(
+    S7_to_JSONSchema(Ext, id = "https://example.org/x.json"),
+    "not supplied by `extra`"
+  )
+  s <- S7_to_JSONSchema(
+    Ext,
+    id = "https://example.org/x.json",
+    extra = list(properties = list(b = list(type = "object")))
+  )
+  testthat::expect_setequal(names(s[["properties"]]), c("a", "b"))
+})
+
+testthat::test_that("prop_role classifies each declaration style", {
+  Roles <- S7::new_class(
+    name = "Roles",
+    package = NULL,
+    properties = list(
+      a = prop_boolean(TRUE),
+      b = prop_external(S7::class_list, default = list()),
+      c = prop_external(S7::class_numeric, data_dependent = TRUE),
+      d = prop_state(S7::class_integer, default = 0L),
+      e = S7::class_integer
+    )
+  )
+  testthat::expect_identical(role_prop_names(Roles, "config"), "a")
+  testthat::expect_identical(role_prop_names(Roles, "external"), c("b", "c"))
+  testthat::expect_identical(role_prop_names(Roles, "state"), "d")
+  testthat::expect_identical(data_dependent_prop_names(Roles), "c")
+  testthat::expect_true(is.na(prop_role(Roles@properties[["e"]])))
 })
 
 # %% JSON round-trip ----

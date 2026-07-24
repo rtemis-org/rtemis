@@ -10,7 +10,7 @@ setup_Preprocessor(
   remove_cases_thres = NULL,
   missingness = FALSE,
   impute = FALSE,
-  impute_type = "missRanger",
+  impute_type = c("missRanger", "micePMM", "meanMode"),
   impute_missRanger_params = list(pmm.k = 3, maxiter = 10, num.trees = 500),
   impute_discrete = "get_mode",
   impute_continuous = "mean",
