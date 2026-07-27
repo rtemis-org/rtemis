@@ -342,3 +342,76 @@ test_that("config families serialize to their canonical public shape", {
   expect_identical(sort(names(s7l)), c("algorithm", "config"))
   expect_false("eps" %in% names(s7l))
 })
+
+# %% x-rtemis annotations ----
+test_that("x-rtemis agrees with the standard keywords, for every property", {
+  # The annotation block is a second description of the same property. It is
+  # generated from the same spec, so it cannot drift by construction -- but a
+  # bug in either emitter would let the two disagree, and a consumer trusting
+  # the annotation over the keywords would then generate a wrong model.
+  for (cls in spec_classes()) {
+    for (nm in spec_prop_names(cls)) {
+      schema <- spec_to_schema(get_spec(cls@properties[[nm]]))
+      ann <- schema[["x-rtemis"]]
+      label <- paste0(cls@name, "@", nm)
+      expect_false(is.null(ann), info = label)
+      container <- if (is.null(ann[["container"]])) {
+        "none"
+      } else {
+        ann[["container"]]
+      }
+      # A container holds values; a tunable array holds search values.
+      expect_false(
+        isTRUE(ann[["tunable"]]) && isTRUE(ann[["broadcast"]]),
+        info = label
+      )
+      types <- as.character(schema[["type"]])
+      if (isTRUE(ann[["tunable"]]) || isTRUE(ann[["broadcast"]])) {
+        expect_true("oneOf" %in% names(schema), info = label)
+      } else if (container %in% c("array", "matrix")) {
+        expect_true("array" %in% types, info = label)
+      } else if (container == "map") {
+        expect_true("object" %in% types, info = label)
+        expect_true("additionalProperties" %in% names(schema), info = label)
+      } else {
+        expect_true(ann[["type"]] %in% types, info = label)
+      }
+    }
+  }
+})
+
+
+test_that("x-rtemis is what separates a tunable from a broadcast", {
+  # These two emit structurally identical standard keywords: `oneOf` over a
+  # scalar and an array of that scalar. The tunable branch carries a prose
+  # description, but prose is not a contract -- only the annotation says which
+  # is a search space and which is a value applied to every element.
+  strip <- function(branches) {
+    lapply(branches, function(b) b[setdiff(names(b), "description")])
+  }
+  tunable <- spec_to_schema(get_spec(prop_float(1, tunable = TRUE)))
+  broadcast <- spec_to_schema(
+    get_spec(prop_float(1, vector = TRUE, broadcast = TRUE))
+  )
+  expect_identical(strip(tunable[["oneOf"]]), strip(broadcast[["oneOf"]]))
+  expect_true(tunable[["x-rtemis"]][["tunable"]])
+  expect_null(tunable[["x-rtemis"]][["container"]])
+  expect_true(broadcast[["x-rtemis"]][["broadcast"]])
+  expect_identical(broadcast[["x-rtemis"]][["container"]], "array")
+})
+
+
+test_that("x-rtemis carries what the keywords cannot express", {
+  # `data_bound` exists only in prose in the standard keywords; a code
+  # generator needs it structurally.
+  mtry <- spec_to_schema(get_spec(
+    prop_integer(NULL, min = 1L, nullable = TRUE, data_bound = "n_features")
+  ))
+  expect_identical(mtry[["x-rtemis"]][["data_bound"]], "n_features")
+  # Data-dependence decides whether a value is written to a portable config.
+  centers <- spec_to_schema(get_spec(
+    prop_map(prop_float(0), nullable = TRUE, data_dependent = TRUE)
+  ))
+  expect_true(centers[["x-rtemis"]][["data_dependent"]])
+  expect_identical(centers[["x-rtemis"]][["container"]], "map")
+})

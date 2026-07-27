@@ -1388,6 +1388,25 @@ spec_to_schema <- function(spec) {
   if (nzchar(description)) {
     out[["description"]] <- description
   }
+  # The axes standard JSON Schema cannot express. Deliberately NOT the whole
+  # spec: bounds, enum, and nullability are already recoverable from the
+  # standard keywords, and duplicating them would create a second
+  # representation that can disagree with the first. What is here is what a
+  # reader cannot derive -- most importantly `tunable` vs `broadcast`, which
+  # emit identical `oneOf` shapes. Absent keys take their default (FALSE, or
+  # "none" for `container`).
+  annotations <- Filter(
+    Negate(is.null),
+    list(
+      type = spec@type,
+      container = if (spec@container != "none") spec@container else NULL,
+      tunable = if (spec@tunable) TRUE else NULL,
+      broadcast = if (spec@broadcast) TRUE else NULL,
+      data_bound = spec@data_bound,
+      data_dependent = if (spec@data_dependent) TRUE else NULL
+    )
+  )
+  out[["x-rtemis"]] <- annotations
   if (spec@data_dependent) {
     # Machine-visible in the published contract: a consumer building a form
     # skips these rather than asking a user for a value only the data can give.

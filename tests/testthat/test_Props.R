@@ -333,7 +333,7 @@ testthat::test_that("spec_to_schema maps bounds, nullability, tunability", {
   props <- LightRFProps@properties
   # Tunable numeric with exclusive bound -> oneOf [scalar, array].
   s <- spec_to_schema(get_spec(props[["feature_fraction"]]))
-  testthat::expect_named(s, c("oneOf", "description"))
+  testthat::expect_named(s, c("oneOf", "description", "x-rtemis"))
   testthat::expect_identical(s[["oneOf"]][[1L]][["type"]], "number")
   testthat::expect_identical(s[["oneOf"]][[1L]][["exclusiveMinimum"]], 0)
   testthat::expect_identical(s[["oneOf"]][[1L]][["maximum"]], 1)
