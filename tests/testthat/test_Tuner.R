@@ -53,9 +53,10 @@ test_that(".list_to_TunerConfig() falls back to setup_GridSearch() defaults", {
     config = list(resampler_config = list(type = "KFold", n_resamples = 3L))
   ))
   expect_identical(tc@resampler_config@n_resamples, 3L)
-  # The pre-2026-07 key `n` is NOT accepted: we own the whole stack and the API
-  # is unsettled, so there are no compatibility shims for our own formats. An
-  # old key simply leaves `n_resamples` unset, which the validator rejects.
+  # `n` is not a key this reconstructor accepts: we own the whole stack and the
+  # API is unsettled, so there are no compatibility shims for our own formats.
+  # An unrecognized key leaves `n_resamples` unset, which the validator
+  # rejects.
   expect_error(
     .list_to_TunerConfig(list(
       type = "GridSearch",

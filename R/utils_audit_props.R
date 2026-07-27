@@ -51,9 +51,8 @@ DOC_TYPE_NONSPEC <- c(
 #
 # Empty by design. Every entry here is a smell: the public argument name and
 # the property/schema name diverge, so a user reading `?setup_X` and a user
-# reading a config JSON see different names. The one entry this map was
-# introduced for (`n` <- `n_resamples`) was removed by renaming the property to
-# `n_resamples` instead (2026-07-26). Prefer that fix over adding an entry.
+# reading a config JSON see different names. Prefer renaming one side to match
+# the other over adding an entry.
 PROP_DOC_ALIASES <- character()
 
 # Severity ranking, most serious first. A wrong type silently accepts wrong
