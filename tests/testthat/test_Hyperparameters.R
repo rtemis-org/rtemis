@@ -452,3 +452,42 @@ test_that("prop_state requires a factory-built property", {
   expect_error(prop_state(S7::class_double), class = "rtemis_type_error")
   expect_no_error(prop_state(prop_float(NULL, nullable = TRUE)))
 })
+
+
+test_that("tune_on_null is declared on the property, not per class", {
+  # `tuned` is derived from declarations alone, so a reader of the schema can
+  # reproduce it without knowing "lambda for GLMNET, nrounds for LightGBM".
+  expect_identical(tune_on_null_spec_names(GLMNETHyperparameters), "lambda")
+  expect_identical(tune_on_null_spec_names(LightGBMHyperparameters), "nrounds")
+  # A nullable tunable is NOT automatically tune-on-null: `mtry` unset just
+  # falls back to the backend default.
+  expect_length(tune_on_null_spec_names(RangerHyperparameters), 0L)
+
+  # Unset means "needs tuning"; set means "nothing to search".
+  expect_identical(setup_GLMNET()@tuned, TUNED_STATUS_UNTUNED)
+  expect_identical(
+    setup_GLMNET(lambda = 0.1)@tuned,
+    TUNED_STATUS_NO_SEARCH_VALUES
+  )
+  expect_identical(setup_LightGBM()@tuned, TUNED_STATUS_UNTUNED)
+  expect_identical(
+    setup_LightGBM(force_nrounds = 100L)@tuned,
+    TUNED_STATUS_NO_SEARCH_VALUES
+  )
+
+  # It reaches the schema: a consumer cannot derive it from the keywords.
+  schema <- S7_to_JSONSchema(
+    GLMNETHyperparameters,
+    id = "https://schema.rtemis.org/hyperparameters/glmnet/v1/schema.json",
+    base = Hyperparameters
+  )
+  expect_true(schema[["properties"]][["lambda"]][["x-rtemis"]][[
+    "tune_on_null"
+  ]])
+})
+
+
+test_that("tune_on_null requires nullable", {
+  # NULL is the signal, so a non-nullable property cannot carry it.
+  expect_error(prop_float(1, tune_on_null = TRUE), "nullable")
+})

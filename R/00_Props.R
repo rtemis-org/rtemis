@@ -101,6 +101,8 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   this spec's own leaf type and constraints.
 #' @field broadcast Logical: If TRUE, a bare scalar is accepted in place of the
 #'   container, meaning "this value for every element".
+#' @field tune_on_null Logical: If TRUE, a NULL value means "determine by
+#'   tuning" rather than "unset". Requires `nullable`.
 #' @field constant Logical: If TRUE, the value is determined by the class and
 #'   cannot be set; `@default` holds it. Distinct from a *fixed* property,
 #'   which is settable but not tunable.
@@ -151,6 +153,11 @@ PropertySpec <- new_class(
     # settable, and `@default` holds the single permitted value. Distinct from
     # a *fixed* property, which the user does set but cannot tune.
     constant = new_property(class_logical, default = FALSE),
+    # NULL means "determine this by tuning" rather than "leave unset".
+    # `nullable + tunable` does not imply it: GLMNET's `lambda` is found by
+    # cv.glmnet and LightGBM's `nrounds` by early stopping, but a nullable
+    # tunable like `mtry` simply falls back to the backend default.
+    tune_on_null = new_property(class_logical, default = FALSE),
     data_bound = NULL | class_character,
     # Portability, orthogonal to `data_bound`: the value's shape is tied to one
     # particular dataset (per-case IDs, learned scaling centres, an initial
@@ -193,6 +200,9 @@ PropertySpec <- new_class(
     }
     if (self@broadcast && self@container == "none") {
       return("@broadcast requires a @container to broadcast into.")
+    }
+    if (self@tune_on_null && !self@nullable) {
+      return("@tune_on_null requires @nullable: NULL is the signal.")
     }
     if (self@constant) {
       if (is.null(self@default)) {
@@ -440,6 +450,8 @@ make_prop <- function(spec) {
 #' @param default Logical: Default value (NULL only if `nullable`).
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
+#' @param tune_on_null Logical: If TRUE, a NULL value means "determine by
+#'   tuning". Requires `nullable`.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -477,6 +489,8 @@ prop_boolean <- function(
 #' @param min,max Integer or NULL: Inclusive bounds.
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
+#' @param tune_on_null Logical: If TRUE, a NULL value means "determine by
+#'   tuning". Requires `nullable`.
 #' @param vector Logical: If TRUE, the value is vector-valued (JSON array);
 #'   mutually exclusive with `tunable`.
 #' @param broadcast Logical: If TRUE, a bare scalar is accepted in place of the
@@ -499,6 +513,7 @@ prop_integer <- function(
   max = NULL,
   nullable = FALSE,
   tunable = FALSE,
+  tune_on_null = FALSE,
   vector = FALSE,
   broadcast = FALSE,
   data_bound = NULL,
@@ -515,6 +530,7 @@ prop_integer <- function(
     enum = NULL,
     nullable = nullable,
     tunable = tunable,
+    tune_on_null = tune_on_null,
     container = if (vector) "array" else "none",
     broadcast = broadcast,
     data_bound = data_bound,
@@ -539,6 +555,8 @@ prop_integer <- function(
 #' @param exclusive_min,exclusive_max Numeric or NULL: Exclusive bounds.
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
+#' @param tune_on_null Logical: If TRUE, a NULL value means "determine by
+#'   tuning". Requires `nullable`.
 #' @param vector Logical: If TRUE, the value is vector-valued (JSON array);
 #'   mutually exclusive with `tunable`.
 #' @param broadcast Logical: If TRUE, a bare scalar is accepted in place of the
@@ -563,6 +581,7 @@ prop_float <- function(
   exclusive_max = NULL,
   nullable = FALSE,
   tunable = FALSE,
+  tune_on_null = FALSE,
   vector = FALSE,
   broadcast = FALSE,
   data_bound = NULL,
@@ -579,6 +598,7 @@ prop_float <- function(
     enum = NULL,
     nullable = nullable,
     tunable = tunable,
+    tune_on_null = tune_on_null,
     container = if (vector) "array" else "none",
     broadcast = broadcast,
     data_bound = data_bound,
@@ -595,6 +615,8 @@ prop_float <- function(
 #' @param enum Character or NULL: Allowed values.
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
+#' @param tune_on_null Logical: If TRUE, a NULL value means "determine by
+#'   tuning". Requires `nullable`.
 #' @param vector Logical: If TRUE, the value is vector-valued (JSON array);
 #'   mutually exclusive with `tunable`.
 #' @param broadcast Logical: If TRUE, a bare scalar is accepted in place of the
@@ -615,6 +637,7 @@ prop_string <- function(
   enum = NULL,
   nullable = FALSE,
   tunable = FALSE,
+  tune_on_null = FALSE,
   vector = FALSE,
   broadcast = FALSE,
   data_bound = NULL,
@@ -631,6 +654,7 @@ prop_string <- function(
     enum = enum,
     nullable = nullable,
     tunable = tunable,
+    tune_on_null = tune_on_null,
     container = if (vector) "array" else "none",
     broadcast = broadcast,
     data_bound = data_bound,
@@ -868,6 +892,27 @@ prop_const <- function(value, description = "") {
   p[["spec"]] <- spec
   p
 } # /rtemis::prop_const
+
+
+# %% tune_on_null_spec_names ----
+#' Names of properties whose NULL value means "determine by tuning"
+#'
+#' @param x S7 class.
+#'
+#' @return Character vector.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+tune_on_null_spec_names <- function(x) {
+  names(Filter(
+    function(p) {
+      s <- get_spec(p)
+      !is.null(s) && s@tune_on_null
+    },
+    x@properties
+  ))
+} # /rtemis::tune_on_null_spec_names
 
 
 # %% constant_spec_names ----
@@ -1533,6 +1578,7 @@ spec_to_schema <- function(spec, read_only = FALSE) {
       container = if (spec@container != "none") spec@container else NULL,
       tunable = if (spec@tunable) TRUE else NULL,
       broadcast = if (spec@broadcast) TRUE else NULL,
+      tune_on_null = if (spec@tune_on_null) TRUE else NULL,
       data_bound = spec@data_bound,
       data_dependent = if (spec@data_dependent) TRUE else NULL
     )

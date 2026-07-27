@@ -82,28 +82,6 @@ hp_prop_values <- function(self) {
 } # /rtemis::hp_prop_values
 
 
-# %% tune_on_null ----
-#' Hyperparameters that need tuning when unset
-#'
-#' Names of hyperparameters whose NULL (unset) value means "determine by
-#' tuning": GLMNET's `lambda` (cv.glmnet) and LightGBM's `nrounds` (early
-#' stopping). `nullable + tunable` alone does not imply NULL => tune, so
-#' this is declared per class.
-#'
-#' @param x `Hyperparameters` object.
-#'
-#' @return Character vector of property names.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-tune_on_null <- new_generic("tune_on_null", "x")
-
-method(tune_on_null, class_any) <- function(x) {
-  character()
-} # /rtemis::tune_on_null.default
-
-
 # %% resolve_data_bounds ----
 #' Resolve training-data dimensions referenced by `data_bound` declarations
 #'
@@ -471,8 +449,8 @@ method(is_tuned, Hyperparameters) <- function(x) {
 #' Derive tuning status from current values
 #'
 #' Spec-driven: any tunable hyperparameter with more than one value (search
-#' values), or any `tune_on_null()` hyperparameter that is unset, means
-#' "needs tuning".
+#' values), or any hyperparameter declared `tune_on_null` that is unset,
+#' means "needs tuning".
 #'
 #' @keywords internal
 #' @noRd
@@ -486,7 +464,7 @@ method(get_tuned_status, Hyperparameters) <- function(x) {
     return(TUNED_STATUS_UNTUNED)
   }
   null_tune <- vapply(
-    tune_on_null(x),
+    tune_on_null_spec_names(S7_class(x)),
     function(nm) is.null(values[[nm]]),
     logical(1L)
   )
@@ -604,8 +582,8 @@ method(needs_tuning, Hyperparameters) <- function(x) {
 # %% get_hyperparams_need_tuning.Hyperparameters ----
 #' Get hyperparameters that need tuning.
 #'
-#' Tunable hyperparameters with more than one value (search values), plus
-#' any `tune_on_null()` hyperparameter that is unset (as a NULL entry, which
+#' Tunable hyperparameters with more than one value (search values), plus any
+#' hyperparameter declared `tune_on_null` that is unset (as a NULL entry, which
 #' `expand_grid()` converts to its "null" sentinel).
 #'
 #' @keywords internal
@@ -615,7 +593,7 @@ method(get_hyperparams_need_tuning, Hyperparameters) <- function(x) {
   values <- x@hyperparameters
   tunable <- x@tunable_hyperparameters
   out <- values[tunable[lengths(values[tunable]) > 1L]]
-  for (nm in tune_on_null(x)) {
+  for (nm in tune_on_null_spec_names(S7_class(x))) {
     if (is.null(values[[nm]])) {
       out <- c(out, stats::setNames(list(NULL), nm))
     }
@@ -958,6 +936,7 @@ GLMNETHyperparameters <- new_class(
       min = 0,
       nullable = TRUE,
       vector = TRUE,
+      tune_on_null = TRUE,
       description = "Regularization strength. NULL = determined by cv.glmnet during tuning."
     ),
     penalty_factor = prop_float(
@@ -995,10 +974,6 @@ GLMNETHyperparameters <- new_class(
     ))
   )
 ) # /rtemis::GLMNETHyperparameters
-
-method(tune_on_null, GLMNETHyperparameters) <- function(x) {
-  "lambda"
-} # /rtemis::tune_on_null.GLMNETHyperparameters
 
 
 # %% setup_GLMNET ----
@@ -1512,7 +1487,8 @@ LightGBMHyperparameters <- new_class(
       NULL,
       min = 1L,
       nullable = TRUE,
-      description = "Resolved number of boosting rounds."
+      tune_on_null = TRUE,
+      description = "Resolved number of boosting rounds. NULL = determined by early stopping during tuning."
     )),
     # Run state: best iteration, written by the Tuner.
     best_iter = prop_state(prop_float(
@@ -1523,10 +1499,6 @@ LightGBMHyperparameters <- new_class(
     ))
   )
 ) # /rtemis::LightGBMHyperparameters
-
-method(tune_on_null, LightGBMHyperparameters) <- function(x) {
-  "nrounds"
-} # /rtemis::tune_on_null.LightGBMHyperparameters
 
 method(update, LightGBMHyperparameters) <- function(
   object,
