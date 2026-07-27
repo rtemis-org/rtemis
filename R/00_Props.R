@@ -14,9 +14,14 @@
 #                            "exclusiveMaximum", "enum"
 # - nullable = TRUE       -> "null" added to "type"
 # - tunable = TRUE        -> "oneOf": [scalar, array-of-scalar (search values)]
-# - vector = TRUE         -> "type": "array" (a genuinely vector-valued field,
+# - container = "array"   -> "type": "array" (a genuinely vector-valued field,
 #                            e.g. per-feature weights; NOT search values —
 #                            mutually exclusive with tunable)
+# - container = "map"     -> "type": "object" + "additionalProperties"
+# - items                 -> the element schema, for nested shapes (a matrix is
+#                            an array whose items are an array)
+# - broadcast = TRUE      -> "oneOf": [element, array] (a scalar stands in for
+#                            the whole container)
 # - default, description  -> "default", "description" (annotations)
 
 # %% DATA_BOUNDS ----
@@ -25,13 +30,21 @@
 # against the training data and checks every declared property in one pass, so
 # an out-of-range value is reported before any training work begins.
 #
-# The check that applies is determined by the property's existing `vector` flag:
-# - vector = FALSE  value must be <= the dimension (an upper bound, e.g. mtry)
-# - vector = TRUE   length(value) must equal the dimension (e.g. per-feature
-#                   costs, per-case offsets)
+# The check that applies is determined by the property's `container`:
+# - "none"   value must be <= the dimension (an upper bound, e.g. mtry)
+# - anything else  length(value) must equal the dimension (e.g. per-feature
+#                  costs, per-case offsets)
 # "feature_names" is the exception: values must be a subset of the feature
 # names, regardless of arity.
 DATA_BOUNDS <- c("n_features", "n_cases", "n_classes", "feature_names")
+
+# %% PROP_CONTAINERS ----
+# How a property's values are wrapped. See `PropertySpec@container`.
+# - "none"   a single value
+# - "array"  a JSON array (per-feature weights, an initial embedding matrix
+#            when combined with a nested `items`)
+# - "map"    a string-keyed object (per-feature scaling centres, one-hot levels)
+PROP_CONTAINERS <- c("none", "array", "map")
 
 # Nouns used to build error messages from a bound name.
 DATA_BOUND_NOUN <- c(
@@ -67,10 +80,14 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #' @field nullable Logical: If TRUE, NULL is a valid value.
 #' @field tunable Logical: If TRUE, a vector of search values (length >= 1) is
 #'   accepted; if FALSE, only a scalar.
-#' @field vector Logical: If TRUE, the value is genuinely vector-valued
-#'   (length >= 1; e.g. per-feature weights) and maps to a JSON array.
-#'   Mutually exclusive with `tunable` (a vector value is not a set of
-#'   search values).
+#' @field container Character \{"none", "array", "map"\}: How values are
+#'   wrapped. Anything but "none" is mutually exclusive with `tunable` (a
+#'   container holds values; a tunable array holds search values).
+#' @field items `PropertySpec` or NULL: Element spec, for nested shapes such as
+#'   a matrix (array of arrays) or a map of arrays. NULL means the element is
+#'   this spec's own leaf type and constraints.
+#' @field broadcast Logical: If TRUE, a bare scalar is accepted in place of the
+#'   container, meaning "this value for every element".
 #' @field data_bound Character or NULL: Name of the training-data dimension
 #'   this value is constrained by \{"n_features", "n_cases", "n_classes",
 #'   "feature_names"\}. Checked against the data by
@@ -94,7 +111,24 @@ PropertySpec <- new_class(
     enum = NULL | class_character,
     nullable = class_logical,
     tunable = class_logical,
-    vector = class_logical,
+    # Arity, as three orthogonal axes rather than one boolean:
+    # - `container` says how values are wrapped: a scalar, a JSON array, or a
+    #   string-keyed map.
+    # - `items` describes the *element* when it is not simply this spec's own
+    #   type and constraints, which is what makes nested shapes (a matrix = an
+    #   array of arrays, a map of arrays) expressible. NULL means "the element
+    #   is this spec's leaf type", the common case.
+    # - `broadcast` allows a bare scalar in place of the container, for fields
+    #   that mean "this value for every case/tree".
+    # `tunable` is deliberately NOT part of this: its array is a *search space*,
+    # not a value, which is why the two are mutually exclusive below and why a
+    # reader must never infer one from the other's shape.
+    container = class_character,
+    # `class_any`, not `NULL | PropertySpec`: the class cannot reference itself
+    # while its own `properties` list is being evaluated. The validator below
+    # enforces the type instead, and runs once the class exists.
+    items = class_any,
+    broadcast = class_logical,
     data_bound = NULL | class_character,
     description = class_character
   ),
@@ -105,10 +139,29 @@ PropertySpec <- new_class(
     if (!is.null(self@enum) && self@type != "string") {
       return("@enum is only supported for type 'string'.")
     }
-    if (self@vector && self@tunable) {
+    if (!self@container %in% PROP_CONTAINERS) {
+      return(paste0(
+        "@container must be one of ",
+        paste0("'", PROP_CONTAINERS, "'", collapse = ", "),
+        "."
+      ))
+    }
+    if (self@container != "none" && self@tunable) {
       return(
-        "@vector and @tunable are mutually exclusive (a vector value is not a set of search values)."
+        "@container and @tunable are mutually exclusive (a container holds values, a tunable array holds search values)."
       )
+    }
+    if (!is.null(self@items) && !S7_inherits(self@items, PropertySpec)) {
+      return("@items must be a PropertySpec or NULL.")
+    }
+    if (self@container == "none" && !is.null(self@items)) {
+      return("@items is only meaningful when @container is not 'none'.")
+    }
+    if (self@container == "map" && is.null(self@items)) {
+      return("@items must describe the value type when @container is 'map'.")
+    }
+    if (self@broadcast && self@container == "none") {
+      return("@broadcast requires a @container to broadcast into.")
     }
     if (!is.null(self@data_bound)) {
       if (length(self@data_bound) != 1L) {
@@ -203,7 +256,7 @@ validate_with_spec <- function(value, spec) {
       }
     )
   }
-  if (length(value) > 1L && !spec@tunable && !spec@vector) {
+  if (length(value) > 1L && !spec@tunable && spec@container == "none") {
     return("must be a single value (not tunable, no search values allowed).")
   }
   if (anyNA(value)) {
@@ -299,7 +352,8 @@ prop_boolean <- function(
     enum = NULL,
     nullable = nullable,
     tunable = tunable,
-    vector = FALSE,
+    container = "none",
+    broadcast = FALSE,
     description = description
   ))
 } # /rtemis::prop_boolean
@@ -344,7 +398,8 @@ prop_integer <- function(
     enum = NULL,
     nullable = nullable,
     tunable = tunable,
-    vector = vector,
+    container = if (vector) "array" else "none",
+    broadcast = FALSE,
     data_bound = data_bound,
     description = description
   ))
@@ -400,7 +455,8 @@ prop_float <- function(
     enum = NULL,
     nullable = nullable,
     tunable = tunable,
-    vector = vector,
+    container = if (vector) "array" else "none",
+    broadcast = FALSE,
     data_bound = data_bound,
     description = description
   ))
@@ -444,7 +500,8 @@ prop_string <- function(
     enum = enum,
     nullable = nullable,
     tunable = tunable,
-    vector = vector,
+    container = if (vector) "array" else "none",
+    broadcast = FALSE,
     data_bound = data_bound,
     description = description
   ))
@@ -962,14 +1019,35 @@ spec_to_schema <- function(spec) {
       enum = if (!is.null(spec@enum)) I(spec@enum) else NULL
     )
   )
-  out <- if (spec@vector) {
+  # The element schema: a nested `items` spec when the shape is nested (a
+  # matrix, a list of per-tree vectors), otherwise this spec's own leaf.
+  element <- if (is.null(spec@items)) scalar else spec_to_schema(spec@items)
+  out <- if (spec@container == "array") {
     # A genuinely vector-valued field (e.g. per-feature weights).
     arr <- list(
       type = if (spec@nullable) I(c("array", "null")) else "array",
-      items = scalar,
+      items = element,
       minItems = 1L
     )
-    arr
+    if (spec@broadcast) {
+      # A bare scalar stands in for the whole container ("this value for every
+      # case"). Distinct from `tunable`'s identically-shaped oneOf, which is a
+      # search space -- see the note on PropertySpec@container.
+      arr[["type"]] <- "array"
+      branches <- list(element, arr)
+      if (spec@nullable) {
+        branches <- c(list(list(type = "null")), branches)
+      }
+      list(oneOf = branches)
+    } else {
+      arr
+    }
+  } else if (spec@container == "map") {
+    # A string-keyed object of homogeneous values (per-feature centres).
+    list(
+      type = if (spec@nullable) I(c("object", "null")) else "object",
+      additionalProperties = element
+    )
   } else if (spec@tunable) {
     # Scalar, or an array of search values for the Tuner.
     array_schema <- list(
@@ -994,7 +1072,11 @@ spec_to_schema <- function(spec) {
     # A vector-valued default must stay an array even at length 1, otherwise
     # `toJSON(auto_unbox = TRUE)` emits a scalar that contradicts
     # `"type": "array"`.
-    out[["default"]] <- if (spec@vector) I(spec@default) else spec@default
+    out[["default"]] <- if (spec@container == "array") {
+      I(spec@default)
+    } else {
+      spec@default
+    }
   } else if (spec@nullable) {
     out[["default"]] <- NA # -> null (jsonlite na = "null")
   }
@@ -1005,7 +1087,7 @@ spec_to_schema <- function(spec) {
   if (!is.null(spec@data_bound)) {
     note <- if (spec@data_bound == "feature_names") {
       "Values must name training features."
-    } else if (spec@vector) {
+    } else if (spec@container != "none") {
       paste0(
         "Must have one value per ",
         DATA_BOUND_NOUN[[spec@data_bound]],

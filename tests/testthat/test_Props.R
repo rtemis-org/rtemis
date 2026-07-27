@@ -186,6 +186,91 @@ testthat::test_that("bad defaults fail at factory time, not first instantiation"
 })
 
 # %% Vector-valued props ----
+# %% Arity axes: container / items / broadcast ----
+# Hand-built specs for shapes the factories do not yet expose (nested items,
+# maps, broadcast). `default` is required whenever `nullable` is FALSE, so the
+# helper supplies one.
+mk_spec <- function(...) {
+  args <- list(
+    type = "number",
+    default = 0,
+    minimum = NULL,
+    maximum = NULL,
+    exclusive_minimum = NULL,
+    exclusive_maximum = NULL,
+    enum = NULL,
+    nullable = FALSE,
+    tunable = FALSE,
+    container = "none",
+    items = NULL,
+    broadcast = FALSE,
+    description = ""
+  )
+  do.call(PropertySpec, utils::modifyList(args, list(...)))
+}
+
+
+testthat::test_that("`vector = TRUE` is sugar for container 'array'", {
+  spec <- get_spec(prop_float(NULL, min = 0, nullable = TRUE, vector = TRUE))
+  testthat::expect_identical(spec@container, "array")
+  testthat::expect_null(spec@items)
+  testthat::expect_false(spec@broadcast)
+  testthat::expect_identical(get_spec(prop_float(1))@container, "none")
+})
+
+
+testthat::test_that("a nested `items` spec produces a nested array schema", {
+  # A matrix is an array whose items are an array -- a shape `vector = TRUE`
+  # alone cannot express.
+  s <- spec_to_schema(mk_spec(
+    container = "array",
+    items = mk_spec(container = "array")
+  ))
+  testthat::expect_identical(s[["type"]], "array")
+  testthat::expect_identical(s[["items"]][["type"]], "array")
+  testthat::expect_identical(s[["items"]][["items"]][["type"]], "number")
+})
+
+
+testthat::test_that("container 'map' produces additionalProperties", {
+  s <- spec_to_schema(mk_spec(container = "map", items = mk_spec()))
+  testthat::expect_identical(s[["type"]], "object")
+  testthat::expect_identical(s[["additionalProperties"]][["type"]], "number")
+})
+
+
+testthat::test_that("broadcast emits scalar-or-array, distinct from tunable", {
+  s <- spec_to_schema(mk_spec(container = "array", broadcast = TRUE))
+  testthat::expect_length(s[["oneOf"]], 2L)
+  testthat::expect_identical(s[["oneOf"]][[1L]][["type"]], "number")
+  testthat::expect_identical(s[["oneOf"]][[2L]][["type"]], "array")
+  # Structurally the same shape as a tunable oneOf, semantically unrelated:
+  # one broadcasts a value, the other declares a search space. Only the
+  # declaration tells them apart -- which is why `x-rtemis` must carry it.
+  tun <- spec_to_schema(get_spec(prop_float(1, tunable = TRUE)))
+  testthat::expect_length(tun[["oneOf"]], 2L)
+})
+
+
+testthat::test_that("the arity axes are validated against each other", {
+  testthat::expect_error(mk_spec(container = "bogus"), "container")
+  # A container holds values; a tunable array holds search values.
+  testthat::expect_error(
+    mk_spec(container = "array", tunable = TRUE),
+    "tunable"
+  )
+  # `items` is meaningless without a container, and required for a map.
+  testthat::expect_error(mk_spec(items = mk_spec()), "items")
+  testthat::expect_error(mk_spec(container = "map"), "items")
+  testthat::expect_error(
+    mk_spec(container = "array", items = 1),
+    "PropertySpec"
+  )
+  # Nothing to broadcast into.
+  testthat::expect_error(mk_spec(broadcast = TRUE), "broadcast")
+})
+
+
 testthat::test_that("vector props accept vectors, map to array schemas", {
   Vec <- S7::new_class(
     name = "Vec",

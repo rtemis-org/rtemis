@@ -209,7 +209,7 @@ check_data_bounds <- function(hyperparameters, x) {
       next
     }
     spec <- get_spec(specs[[nm]])
-    is_vector <- !is.null(spec) && spec@vector
+    is_vector <- !is.null(spec) && spec@container != "none"
     if (is_vector) {
       if (length(value) != dim_value) {
         rtemis.core::abort(

@@ -578,11 +578,12 @@ audit_prop_docs <- function(r_dir, classes = NULL, aliases = PROP_DOC_ALIASES) {
       if (spec@tunable) "tunable = TRUE" else "tunable = FALSE"
     )
   }
-  if (!identical(doc[["vector"]], spec@vector)) {
+  spec_is_vector <- spec@container != "none"
+  if (!identical(doc[["vector"]], spec_is_vector)) {
     add(
       "vector",
       if (doc[["vector"]]) "vector" else "scalar",
-      if (spec@vector) "vector = TRUE" else "vector = FALSE"
+      if (spec_is_vector) "container != none" else "container = none"
     )
   }
   if (!is.null(doc[["enum"]]) || !is.null(spec@enum)) {
