@@ -128,6 +128,122 @@ method(tune_on_null, class_any) <- function(x) {
 } # /rtemis::tune_on_null.default
 
 
+# %% resolve_data_bounds ----
+#' Resolve training-data dimensions referenced by `data_bound` declarations
+#'
+#' @param x tabular data: Training data.
+#'
+#' @return Named list with elements "n_features", "n_cases", "n_classes",
+#'   "feature_names". `n_classes` is NULL for regression, where the outcome has
+#'   no levels.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+resolve_data_bounds <- function(x) {
+  feats <- features(x)
+  y <- outcome(x)
+  list(
+    n_features = NCOL(feats),
+    n_cases = NROW(x),
+    n_classes = if (is.factor(y)) nlevels(y) else NULL,
+    feature_names = names(feats)
+  )
+} # /rtemis::resolve_data_bounds
+
+
+# %% check_data_bounds ----
+#' Check all `data_bound` hyperparameters against the training data
+#'
+#' Engine behind the default `validate_hyperparameters()` method. Walks the
+#' hyperparameter class's properties, and for each one declaring a `data_bound`
+#' (see `DATA_BOUNDS` in 00_Props.R) checks the current value against the
+#' resolved dimension:
+#'
+#' - scalar property: every value must be `<=` the dimension. Tunable
+#'   hyperparameters hold their whole search space here, hence `any()`.
+#' - `vector` property: `length(value)` must equal the dimension.
+#' - "feature_names": values must name training features.
+#'
+#' Unset (NULL) values are skipped, as is `n_classes` in regression.
+#'
+#' @param hyperparameters `Hyperparameters` object.
+#' @param x tabular data: Training data.
+#'
+#' @return `hyperparameters`, invisibly. Throws if any bound is violated.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_data_bounds <- function(hyperparameters, x) {
+  bounds <- data_bound_props(S7_class(hyperparameters))
+  if (length(bounds) == 0L) {
+    return(invisible(hyperparameters))
+  }
+  dims <- resolve_data_bounds(x)
+  specs <- S7_class(hyperparameters)@properties
+  for (nm in names(bounds)) {
+    value <- hyperparameters[[nm]]
+    if (is.null(value)) {
+      next
+    }
+    bound <- bounds[[nm]]
+    dim_value <- dims[[bound]]
+    # n_classes is undefined for regression: the declaration simply does not
+    # apply rather than being an error.
+    if (is.null(dim_value)) {
+      next
+    }
+    if (bound == "feature_names") {
+      unknown <- setdiff(value, dim_value)
+      if (length(unknown) > 0L) {
+        rtemis.core::abort(
+          "`",
+          nm,
+          "` must name training features; not found: ",
+          paste(unknown, collapse = ", "),
+          ".",
+          class = c("rtemis_value_error", "rtemis_input_error")
+        )
+      }
+      next
+    }
+    spec <- get_spec(specs[[nm]])
+    is_vector <- !is.null(spec) && spec@vector
+    if (is_vector) {
+      if (length(value) != dim_value) {
+        rtemis.core::abort(
+          "`",
+          nm,
+          "` must have one value per ",
+          DATA_BOUND_NOUN[[bound]],
+          ": expected length ",
+          dim_value,
+          ", got ",
+          length(value),
+          ".",
+          class = c("rtemis_length_error", "rtemis_input_error")
+        )
+      }
+    } else if (any(value > dim_value)) {
+      rtemis.core::abort(
+        "`",
+        nm,
+        "` cannot be greater than the number of ",
+        DATA_BOUND_NOUN_PLURAL[[bound]],
+        " (",
+        dim_value,
+        "); got ",
+        paste(unique(value[value > dim_value]), collapse = ", "),
+        ".",
+        class = c("rtemis_range_error", "rtemis_input_error")
+      )
+    }
+  }
+  invisible(hyperparameters)
+} # /rtemis::check_data_bounds
+
+
 # %% Hyperparameters ----
 #' Hyperparameters
 #'
@@ -207,6 +323,28 @@ Hyperparameters <- new_class(
     )
   )
 ) # /rtemis::Hyperparameters
+
+
+# %% validate_hyperparameters.Hyperparameters ----
+#' Default hyperparameter validation against training data
+#'
+#' Checks every property declaring a `data_bound`. Algorithms whose constraints
+#' the `data_bound` vocabulary covers need no method of their own.
+#'
+#' @param hyperparameters `Hyperparameters`: Hyperparameters to check.
+#' @param x tabular data: Training data.
+#'
+#' @return `hyperparameters`, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(validate_hyperparameters, Hyperparameters) <- function(
+  hyperparameters,
+  x
+) {
+  check_data_bounds(hyperparameters, x)
+} # /rtemis::validate_hyperparameters.Hyperparameters
 
 
 # %% repr.Hyperparameters ----
@@ -694,7 +832,8 @@ CARTHyperparameters <- new_class(
       exclusive_min = 0,
       nullable = TRUE,
       vector = TRUE,
-      description = "Variable costs, one per feature."
+      data_bound = "n_features",
+      description = "Variable costs."
     ),
     ifw = prop_boolean(
       FALSE,
@@ -724,7 +863,7 @@ CARTHyperparameters <- new_class(
 #' @param usesurrogate Integer \[0, 2\]: Number of surrogate splits to use.
 #' @param surrogatestyle Integer \[0, 1\]: Type of surrogate splits.
 #' @param xval Integer [0, Inf): Number of cross-validation folds.
-#' @param cost Optional Numeric (0, Inf): One for each feature.
+#' @param cost Optional Numeric (0, Inf) vector: One for each feature.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return CARTHyperparameters object.
@@ -819,7 +958,8 @@ GLMNETHyperparameters <- new_class(
       NULL,
       nullable = TRUE,
       vector = TRUE,
-      description = "Offset, one value per case."
+      data_bound = "n_cases",
+      description = "Offset."
     ),
     which_lambda_cv = prop_string(
       "lambda.1se",
@@ -1713,7 +1853,7 @@ IsotonicHyperparameters <- new_class(
 #'
 #' There are not hyperparameters for this algorithm at this moment.
 #'
-#' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return IsotonicHyperparameters object.
 #'
@@ -2288,6 +2428,7 @@ RangerHyperparameters <- new_class(
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
+      data_bound = "n_features",
       description = "Number of features considered at each split. NULL = ranger default."
     ),
     importance = prop_string(
@@ -2340,6 +2481,7 @@ RangerHyperparameters <- new_class(
       min = 0,
       nullable = TRUE,
       vector = TRUE,
+      data_bound = "n_cases",
       description = "Per-observation sampling weights."
     ),
     class_weights = prop_float(
@@ -2347,6 +2489,7 @@ RangerHyperparameters <- new_class(
       min = 0,
       nullable = TRUE,
       vector = TRUE,
+      data_bound = "n_classes",
       description = "Per-class weights (classification only)."
     ),
     splitrule = prop_string(
@@ -2385,6 +2528,7 @@ RangerHyperparameters <- new_class(
       NULL,
       nullable = TRUE,
       vector = TRUE,
+      data_bound = "feature_names",
       description = "Variables always included as split candidates."
     ),
     respect_unordered_factors = prop_external(

@@ -121,24 +121,24 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #'
 #' @param dat_training_path Character or NULL: Path to training data file. NULL
 #' leaves the recipe unbound; set it (or supply data) before [train].
-#' @param dat_validation_path Character: Path to validation data file.
-#' @param dat_test_path Character: Path to test data file.
+#' @param dat_validation_path Optional Character: Path to validation data file.
+#' @param dat_test_path Optional Character: Path to test data file.
 #' @param weights Optional Character: Column name in training data to use as observation weights.
 #' If NULL, no weights are used.
 #' @param positive_class Character or NULL: For binary classification, the
 #' outcome level to treat as positive. NULL keeps the existing factor level order.
 #' @param preprocessor_config `PreprocessorConfig` object: Configuration for data preprocessing.
 #' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
-#' @param algorithm Character: Algorithm to use for training.
+#' @param algorithm Optional Character: Algorithm to use for training.
 #' @param hyperparameters `Hyperparameters` object: Configuration for model hyperparameters.
 #' @param tuner_config `TunerConfig` object: Configuration for hyperparameter tuning.
 #' @param outer_resampling_config `ResamplerConfig` object: Configuration for outer res
 #' resampling during model training.
 #' @param execution_config `ExecutionConfig` object: Configuration for execution settings. Setup
 #' with [setup_ExecutionConfig].
-#' @param question Character: Question to answer with the supervised learning analysis.
+#' @param question Optional Character: Question to answer with the supervised learning analysis.
 #' @param outdir Character: Output directory for results.
-#' @param verbosity Integer: Verbosity level.
+#' @param verbosity Integer [0, Inf): Verbosity level.
 #'
 #' @return `SuperConfig` object.
 #'
@@ -434,16 +434,16 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 #' @param dat_training data.frame or data.table. Training data.
 #' @param dat_validation data.frame, data.table, or `NULL`.
 #' @param dat_test data.frame, data.table, or `NULL`.
-#' @param weights Character or `NULL`. Column name in `dat_training` used
+#' @param weights Optional Character: Column name in `dat_training` used
 #'   as observation weights.
-#' @param positive_class Character or `NULL`. For binary classification, the
+#' @param positive_class Optional Character: For binary classification, the
 #'   outcome level to treat as positive; forwarded to [train] which reorders
 #'   the outcome factor via [set_positive_class]. `NULL` keeps the existing
 #'   level order.
 #' @param preprocessor_config,algorithm,hyperparameters,tuner_config,outer_resampling_config,execution_config,question,verbosity
 #'   See [setup_SuperConfig].
 #' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
-#' @param outdir Character or `NULL`. Output directory; `NULL`
+#' @param outdir Optional Character: Output directory; `NULL`
 #'   means "do not write to disk" (the rtemislive case).
 #'
 #' @return `SuperConfigLive` object.

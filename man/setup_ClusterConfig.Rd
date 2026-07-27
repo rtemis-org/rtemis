@@ -25,7 +25,7 @@ the clustering itself. Setup with a clustering \verb{setup_*} function, e.g.
 
 \item{outdir}{Character: Output directory for results.}
 
-\item{verbosity}{Integer: Verbosity level.}
+\item{verbosity}{Integer [0, Inf): Verbosity level.}
 }
 \value{
 \code{ClusterConfig} object.

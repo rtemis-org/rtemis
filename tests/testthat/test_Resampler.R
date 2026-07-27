@@ -7,7 +7,7 @@
 # StratSubConfig ----
 test_that("StratSubConfig succeeds", {
   rsp <- StratSubConfig(
-    n = 10L,
+    n_resamples = 10L,
     stratify_var = NULL,
     train_p = .75,
     strat_n_bins = 4L,
@@ -20,7 +20,7 @@ test_that("StratSubConfig succeeds", {
 # KFoldConfig ----
 test_that("KFoldConfig succeeds", {
   rsp <- KFoldConfig(
-    n = 10L,
+    n_resamples = 10L,
     stratify_var = NULL,
     strat_n_bins = 4L,
     id_strat = NULL,
@@ -32,7 +32,7 @@ test_that("KFoldConfig succeeds", {
 # BootstrapConfig ----
 test_that("BootstrapConfig succeeds", {
   rsp <- BootstrapConfig(
-    n = 10L,
+    n_resamples = 10L,
     id_strat = NULL,
     seed = NULL
   )
@@ -42,7 +42,7 @@ test_that("BootstrapConfig succeeds", {
 # StratBootConfig ----
 test_that("StratBootConfig succeeds", {
   rsp <- StratBootConfig(
-    n = 10L,
+    n_resamples = 10L,
     stratify_var = NULL,
     train_p = .75,
     strat_n_bins = 4L,
@@ -56,7 +56,7 @@ test_that("StratBootConfig succeeds", {
 # LOOCVConfig ----
 test_that("LOOCVConfig succeeds", {
   rsp <- LOOCVConfig(
-    n = 10L
+    n_resamples = 10L
   )
   expect_s7_class(rsp, LOOCVConfig)
 })
@@ -64,7 +64,7 @@ test_that("LOOCVConfig succeeds", {
 # CustomConfig ----
 test_that("CustomConfig succeeds", {
   rsp <- CustomConfig(
-    n = 10L
+    n_resamples = 10L
   )
   expect_s7_class(rsp, CustomConfig)
 })

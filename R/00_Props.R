@@ -19,6 +19,33 @@
 #                            mutually exclusive with tunable)
 # - default, description  -> "default", "description" (annotations)
 
+# %% DATA_BOUNDS ----
+# Training-data dimensions a hyperparameter's valid values can be tied to.
+# A property declares one via `data_bound =`; `check_data_bounds()` resolves it
+# against the training data and checks every declared property in one pass, so
+# an out-of-range value is reported before any training work begins.
+#
+# The check that applies is determined by the property's existing `vector` flag:
+# - vector = FALSE  value must be <= the dimension (an upper bound, e.g. mtry)
+# - vector = TRUE   length(value) must equal the dimension (e.g. per-feature
+#                   costs, per-case offsets)
+# "feature_names" is the exception: values must be a subset of the feature
+# names, regardless of arity.
+DATA_BOUNDS <- c("n_features", "n_cases", "n_classes", "feature_names")
+
+# Nouns used to build error messages from a bound name.
+DATA_BOUND_NOUN <- c(
+  n_features = "feature",
+  n_cases = "case",
+  n_classes = "class"
+)
+DATA_BOUND_NOUN_PLURAL <- c(
+  n_features = "features",
+  n_cases = "cases",
+  n_classes = "classes"
+)
+
+
 # %% PropertySpec ----
 #' PropertySpec
 #'
@@ -44,6 +71,11 @@
 #'   (length >= 1; e.g. per-feature weights) and maps to a JSON array.
 #'   Mutually exclusive with `tunable` (a vector value is not a set of
 #'   search values).
+#' @field data_bound Character or NULL: Name of the training-data dimension
+#'   this value is constrained by \{"n_features", "n_cases", "n_classes",
+#'   "feature_names"\}. Checked against the data by
+#'   `validate_hyperparameters()`, not at construction time. See
+#'   `check_data_bounds()`.
 #' @field description Character: Human-readable description (schema
 #'   "description", TUI help text).
 #'
@@ -63,6 +95,7 @@ PropertySpec <- new_class(
     nullable = class_logical,
     tunable = class_logical,
     vector = class_logical,
+    data_bound = NULL | class_character,
     description = class_character
   ),
   validator = function(self) {
@@ -76,6 +109,28 @@ PropertySpec <- new_class(
       return(
         "@vector and @tunable are mutually exclusive (a vector value is not a set of search values)."
       )
+    }
+    if (!is.null(self@data_bound)) {
+      if (length(self@data_bound) != 1L) {
+        return("@data_bound must be a single value.")
+      }
+      if (!self@data_bound %in% DATA_BOUNDS) {
+        return(paste0(
+          "@data_bound must be one of ",
+          paste0("'", DATA_BOUNDS, "'", collapse = ", "),
+          "."
+        ))
+      }
+      if (self@data_bound == "feature_names" && self@type != "string") {
+        return(
+          "@data_bound 'feature_names' is only supported for type 'string'."
+        )
+      }
+      if (self@data_bound != "feature_names" && self@type == "string") {
+        return(
+          "@data_bound on a string property must be 'feature_names'."
+        )
+      }
     }
     if (
       !is.null(self@minimum) &&
@@ -259,6 +314,9 @@ prop_boolean <- function(
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
 #' @param vector Logical: If TRUE, the value is vector-valued (JSON array);
 #'   mutually exclusive with `tunable`.
+#' @param data_bound Character or NULL: Training-data dimension constraining
+#'   this value \{"n_features", "n_cases", "n_classes"\}. Scalar properties are
+#'   bounded above by it; `vector` properties must have exactly that length.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -273,6 +331,7 @@ prop_integer <- function(
   nullable = FALSE,
   tunable = FALSE,
   vector = FALSE,
+  data_bound = NULL,
   description = ""
 ) {
   make_prop(PropertySpec(
@@ -286,6 +345,7 @@ prop_integer <- function(
     nullable = nullable,
     tunable = tunable,
     vector = vector,
+    data_bound = data_bound,
     description = description
   ))
 } # /rtemis::prop_integer
@@ -308,6 +368,9 @@ prop_integer <- function(
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
 #' @param vector Logical: If TRUE, the value is vector-valued (JSON array);
 #'   mutually exclusive with `tunable`.
+#' @param data_bound Character or NULL: Training-data dimension constraining
+#'   this value \{"n_features", "n_cases", "n_classes"\}. Scalar properties are
+#'   bounded above by it; `vector` properties must have exactly that length.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -324,6 +387,7 @@ prop_float <- function(
   nullable = FALSE,
   tunable = FALSE,
   vector = FALSE,
+  data_bound = NULL,
   description = ""
 ) {
   make_prop(PropertySpec(
@@ -337,6 +401,7 @@ prop_float <- function(
     nullable = nullable,
     tunable = tunable,
     vector = vector,
+    data_bound = data_bound,
     description = description
   ))
 } # /rtemis::prop_float
@@ -351,6 +416,8 @@ prop_float <- function(
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
 #' @param vector Logical: If TRUE, the value is vector-valued (JSON array);
 #'   mutually exclusive with `tunable`.
+#' @param data_bound Character or NULL: Only "feature_names" is meaningful for
+#'   a string property: values must be a subset of the training features.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -364,6 +431,7 @@ prop_string <- function(
   nullable = FALSE,
   tunable = FALSE,
   vector = FALSE,
+  data_bound = NULL,
   description = ""
 ) {
   make_prop(PropertySpec(
@@ -377,6 +445,7 @@ prop_string <- function(
     nullable = nullable,
     tunable = tunable,
     vector = vector,
+    data_bound = data_bound,
     description = description
   ))
 } # /rtemis::prop_string
@@ -482,7 +551,12 @@ prop_state <- function(class, default = NULL) {
 #' @param default Default value.
 #' @param data_dependent Logical: If TRUE, the value's shape is tied to a
 #'   specific dataset (per-case IDs, learned scaling centers), so it has no
-#'   portable form and is never serialized.
+#'   portable form and is never serialized. Distinct from `data_bound`, which
+#'   is about *validation* against the training data rather than portability.
+#' @param data_bound Character or NULL: Training-data dimension constraining
+#'   this value; see `DATA_BOUNDS`. Only meaningful for atomic values -- a
+#'   `prop_external()` holding a list needs its own
+#'   `validate_hyperparameters()` method.
 #' @param validator Function or NULL: Property validator, as for
 #'   `S7::new_property()`.
 #'
@@ -495,11 +569,21 @@ prop_external <- function(
   class,
   default = NULL,
   data_dependent = FALSE,
+  data_bound = NULL,
   validator = NULL
 ) {
+  if (!is.null(data_bound) && !data_bound %in% DATA_BOUNDS) {
+    rtemis.core::abort(
+      "`data_bound` must be one of ",
+      paste0("'", DATA_BOUNDS, "'", collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
   p <- new_property(class, default = default, validator = validator)
   p[["role"]] <- "external"
   p[["data_dependent"]] <- data_dependent
+  p[["data_bound"]] <- data_bound
   p
 } # /rtemis::prop_external
 
@@ -553,6 +637,48 @@ role_prop_names <- function(x, role) {
 data_dependent_prop_names <- function(x) {
   names(Filter(function(p) isTRUE(p[["data_dependent"]]), x@properties))
 } # /rtemis::data_dependent_prop_names
+
+
+# %% prop_data_bound ----
+#' Training-data dimension an S7 property is constrained by, or NULL
+#'
+#' Reads `data_bound` from the property's `PropertySpec` (factory-built
+#' properties) or from the property itself (`prop_external()`).
+#'
+#' @param prop S7 property (an element of `Class@properties`).
+#'
+#' @return Character or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_data_bound <- function(prop) {
+  spec <- get_spec(prop)
+  if (!is.null(spec)) {
+    return(spec@data_bound)
+  }
+  prop[["data_bound"]]
+} # /rtemis::prop_data_bound
+
+
+# %% data_bound_props ----
+#' Properties of an S7 class that declare a `data_bound`, as a named character
+#'
+#' @param x S7 class.
+#'
+#' @return Named character vector: names are property names, values the bound.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+data_bound_props <- function(x) {
+  bounds <- lapply(x@properties, prop_data_bound)
+  bounds <- Filter(Negate(is.null), bounds)
+  if (length(bounds) == 0L) {
+    return(character())
+  }
+  vapply(bounds, identity, character(1L))
+} # /rtemis::data_bound_props
 
 
 # %% spec_prop_names ----
@@ -872,8 +998,34 @@ spec_to_schema <- function(spec) {
   } else if (spec@nullable) {
     out[["default"]] <- NA # -> null (jsonlite na = "null")
   }
-  if (nzchar(spec@description)) {
-    out[["description"]] <- spec@description
+  # A `data_bound` cannot be expressed structurally - JSON Schema has no view of
+  # the training data - so record it in the description, where a consumer
+  # building a form or a config can still surface the constraint.
+  description <- spec@description
+  if (!is.null(spec@data_bound)) {
+    note <- if (spec@data_bound == "feature_names") {
+      "Values must name training features."
+    } else if (spec@vector) {
+      paste0(
+        "Must have one value per ",
+        DATA_BOUND_NOUN[[spec@data_bound]],
+        "."
+      )
+    } else {
+      paste0(
+        "Cannot exceed the number of ",
+        DATA_BOUND_NOUN_PLURAL[[spec@data_bound]],
+        " in the training data."
+      )
+    }
+    description <- if (nzchar(description)) {
+      paste(description, note)
+    } else {
+      note
+    }
+  }
+  if (nzchar(description)) {
+    out[["description"]] <- description
   }
   out
 } # /rtemis::spec_to_schema

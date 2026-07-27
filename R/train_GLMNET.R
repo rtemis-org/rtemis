@@ -2,6 +2,67 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
+# %% glmnet_design_matrix ----
+#' Design matrix passed to glmnet
+#'
+#' glmnet takes a numeric matrix, so factors are expanded to dummy variables.
+#' `penalty_factor` needs one entry per *expanded* column, which is why its
+#' length cannot be declared as `data_bound = "n_features"` - the expanded
+#' width exceeds the feature count whenever a factor is present.
+#'
+#' @param x tabular data: Training set (outcome in the last column).
+#'
+#' @return Numeric matrix.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+glmnet_design_matrix <- function(x) {
+  as.matrix(model.matrix(~., exc(x, NCOL(x)))[, -1])
+} # /rtemis::glmnet_design_matrix
+
+
+# %% validate_hyperparameters.GLMNETHyperparameters ----
+#' Validate GLMNET Hyperparameters
+#'
+#' `penalty_factor` is bound to the design-matrix width rather than the feature
+#' count, which the `data_bound` vocabulary cannot express; everything else is
+#' declarative and handled by `check_data_bounds()`.
+#'
+#' @param hyperparameters `GLMNETHyperparameters`: Hyperparameters to check.
+#' @param x tabular data: Training data.
+#'
+#' @return `hyperparameters`, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(validate_hyperparameters, GLMNETHyperparameters) <- function(
+  hyperparameters,
+  x
+) {
+  check_data_bounds(hyperparameters, x)
+  penalty_factor <- hyperparameters[["penalty_factor"]]
+  # Only build the design matrix when there is something to check against it.
+  if (!is.null(penalty_factor)) {
+    n_design <- NCOL(glmnet_design_matrix(x))
+    if (length(penalty_factor) != n_design) {
+      rtemis.core::abort(
+        "`penalty_factor` must have one value per design-matrix column: expected length ",
+        n_design,
+        ", got ",
+        length(penalty_factor),
+        ". Factors are expanded to dummy variables, so this can exceed the number of features (",
+        NCOL(features(x)),
+        ").",
+        class = c("rtemis_length_error", "rtemis_input_error")
+      )
+    }
+  }
+  invisible(hyperparameters)
+} # /rtemis::validate_hyperparameters.GLMNETHyperparameters
+
+
 # %% train_.GLMNETHyperparameters ----
 #' Train a GLMNET model
 #'
@@ -68,25 +129,14 @@ method(train_, GLMNETHyperparameters) <- function(
   }
 
   # Train ----
-  # Create xm so that the correct NCOL is used for penalty_factor,
-  # since factors are converted to dummy variables.
-  xm <- as.matrix(
-    model.matrix(~., exc(x, NCOL(x)))[, -1]
-  )
-  # Check data-specific hyperparameter values
-  # penalty_factor must be of length = N features.
+  xm <- glmnet_design_matrix(x)
+  # penalty_factor defaults to no differential penalty. A user-supplied value
+  # has its length checked by validate_hyperparameters() before tuning begins.
   if (is.null(hyperparameters[["penalty_factor"]])) {
     hyperparameters@penalty_factor <- rep(1, NCOL(xm))
     if (verbosity > 1L) {
       info("NCOL(xm): ", NCOL(xm))
       info('Updated hyperparameters[["penalty_factor"]] to all 1s.')
-    }
-  } else {
-    if (length(hyperparameters[["penalty_factor"]]) != NCOL(xm)) {
-      rtemis.core::abort(
-        "Length of penalty_factor must be equal to the number of predictors.",
-        class = c("rtemis_length_error", "rtemis_input_error")
-      )
     }
   }
   # if lambda is NULL, use cv.glmnet to find optimal lambda

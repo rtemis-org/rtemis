@@ -7,7 +7,7 @@
 setup_Isotonic(ifw = FALSE)
 }
 \arguments{
-\item{ifw}{Logical: If TRUE, use Inverse Frequency Weighting in classification.}
+\item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 }
 \value{
 IsotonicHyperparameters object.

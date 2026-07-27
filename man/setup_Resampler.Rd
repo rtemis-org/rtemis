@@ -17,23 +17,25 @@ setup_Resampler(
 )
 }
 \arguments{
-\item{n_resamples}{Integer: Number of resamples to make.}
+\item{n_resamples}{Optional Integer [1, Inf): Number of resamples to make.
+Stored as the \code{n} property. LOOCV determines it from the data.}
 
-\item{type}{Character: Type of resampler: "KFold", "StratSub", "StratBoot", "Bootstrap", "LOOCV"}
+\item{type}{Character \{"KFold", "StratSub", "StratBoot", "Bootstrap", "LOOCV", "Custom"\}:
+Type of resampler.}
 
-\item{stratify_var}{Character: Variable to stratify by.}
+\item{stratify_var}{Optional Character: Variable to stratify by.}
 
-\item{train_p}{Float: Training set percentage.}
+\item{train_p}{Numeric (0, 1): Training set percentage.}
 
-\item{strat_n_bins}{Integer: Number of bins to stratify by.}
+\item{strat_n_bins}{Integer [1, Inf): Number of bins to stratify by.}
 
-\item{target_length}{Integer: Target length for stratified bootstraps.}
+\item{target_length}{Optional Integer [1, Inf): Target length for stratified bootstraps.}
 
 \item{id_strat}{Integer: Vector of indices to stratify by. These may be, for example, case IDs
 if your dataset contains repeated measurements. By specifying this vector, you can ensure that
 each case can only be present in the training or test set, but not both.}
 
-\item{seed}{Integer: Random seed.}
+\item{seed}{Optional Integer [0, Inf): Random seed.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }

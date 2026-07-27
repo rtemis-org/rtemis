@@ -378,6 +378,16 @@ train <- function(
   session_created <- session_start(verbosity = verbosity)
   # Safety net: on any exit (incl. error) the top-level call clears the ambient slot.
   on.exit(if (session_created) session_clear(), add = TRUE)
+  # Data provenance ----
+  # Only the top-level call fingerprints: nested (per outer-fold) calls would
+  # each hash their own fold, which is both wasteful and not what anyone wants
+  # to compare. Same rule as the session above -- the top-level object carries
+  # the identity of the data the user actually supplied.
+  training_fingerprint <- if (session_created) {
+    data_fingerprint(x)
+  } else {
+    NULL
+  }
   root_node <- if (session_created) {
     node_enter("train", label = paste(algorithm, type))
   } else {
@@ -388,6 +398,14 @@ train <- function(
   if (type == "Classification") {
     classes <- levels(outcome(x))
   }
+
+  ## Validate hyperparameters against data ----
+  # Algorithm-specific constraints that depend on the data (e.g. Ranger's mtry
+  # cannot exceed the number of features). Runs before tuning and outer
+  # resampling so an invalid search space fails here rather than as per-grid-cell
+  # failures, which `on_error = "continue"` would swallow. Tunable
+  # hyperparameters still hold their full search space at this point.
+  validate_hyperparameters(hyperparameters, x)
 
   ## Print data summary ----
   if (verbosity > 0L) {
@@ -452,7 +470,7 @@ train <- function(
       config = outer_resampling_config,
       verbosity = verbosity
     )
-    n_outer <- outer_resampler@config@n
+    n_outer <- outer_resampler@config@n_resamples
     run_outer_fold <- function(i) {
       if (is.function(progress)) {
         tryCatch(
@@ -749,6 +767,10 @@ train <- function(
       NULL
     }
 
+    # Re-check now that hyperparameters are resolved and the feature count
+    # reflects preprocessing and decomposition.
+    validate_hyperparameters(hyperparameters, x)
+
     algo_node <- node_enter(
       "train_alg",
       label = algorithm,
@@ -903,7 +925,8 @@ train <- function(
       se_test = se_test,
       xnames = names(x)[-ncols],
       varimp = varimp,
-      question = question
+      question = question,
+      data_fingerprint = training_fingerprint
     )
     node_exit(metrics_node, status = "ok")
   } else {
@@ -945,7 +968,8 @@ train <- function(
       predicted_prob_test = predicted_prob_test,
       xnames = names(x)[-ncols],
       varimp = lapply(models, \(mod) mod@varimp),
-      question = question
+      question = question,
+      data_fingerprint = training_fingerprint
     )
   }
 

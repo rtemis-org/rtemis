@@ -50,9 +50,18 @@ test_that(".list_to_TunerConfig() falls back to setup_GridSearch() defaults", {
   # A supplied resampler_config is decoded into its own config object.
   tc <- .list_to_TunerConfig(list(
     type = "GridSearch",
-    config = list(resampler_config = list(type = "KFold", n = 3L))
+    config = list(resampler_config = list(type = "KFold", n_resamples = 3L))
   ))
-  expect_identical(tc@resampler_config@n, 3L)
+  expect_identical(tc@resampler_config@n_resamples, 3L)
+  # The pre-2026-07 key `n` is NOT accepted: we own the whole stack and the API
+  # is unsettled, so there are no compatibility shims for our own formats. An
+  # old key simply leaves `n_resamples` unset, which the validator rejects.
+  expect_error(
+    .list_to_TunerConfig(list(
+      type = "GridSearch",
+      config = list(resampler_config = list(type = "KFold", n = 3L))
+    ))
+  )
   expect_error(
     .list_to_TunerConfig(list(type = "Bogus")),
     class = "rtemis_unsupported_error"

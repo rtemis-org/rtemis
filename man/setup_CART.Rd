@@ -46,7 +46,7 @@ setup_CART(
 
 \item{xval}{Integer [0, Inf): Number of cross-validation folds.}
 
-\item{cost}{Optional Numeric (0, Inf): One for each feature.}
+\item{cost}{Optional Numeric (0, Inf) vector: One for each feature.}
 
 \item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 }

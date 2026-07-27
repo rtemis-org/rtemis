@@ -133,6 +133,11 @@ Supervised <- new_class(
     varimp = NULL | VariableImportance,
     question = NULL | class_character,
     extra = class_any,
+    # Provenance. `session_info` is a full `utils::sessionInfo()` — the first
+    # thing asked for when troubleshooting — and `session` is the run timeline.
+    # `data_fingerprint` identifies the training data itself, so that comparing
+    # models trained on different inputs is detectable rather than silent.
+    data_fingerprint = NULL | DataFingerprint,
     session_info = class_any,
     session = NULL | SupervisedSession
   ),
@@ -158,7 +163,8 @@ Supervised <- new_class(
     xnames,
     varimp,
     question,
-    extra
+    extra,
+    data_fingerprint = NULL
   ) {
     new_object(
       S7_object(),
@@ -184,6 +190,7 @@ Supervised <- new_class(
       varimp = varimp,
       question = question,
       extra = extra,
+      data_fingerprint = data_fingerprint,
       session_info = utils::sessionInfo(),
       session = NULL
     )
@@ -902,6 +909,7 @@ Classification <- new_class(
     varimp = NULL,
     question = NULL,
     extra = NULL,
+    data_fingerprint = NULL,
     predicted_prob_training = NULL,
     predicted_prob_validation = NULL,
     predicted_prob_test = NULL,
@@ -956,7 +964,8 @@ Classification <- new_class(
         xnames = xnames,
         varimp = varimp,
         question = question,
-        extra = extra
+        extra = extra,
+        data_fingerprint = data_fingerprint
       ),
       predicted_prob_training = predicted_prob_training,
       predicted_prob_validation = predicted_prob_validation,
@@ -982,9 +991,9 @@ CalibratedClassification <- new_class(
   parent = Classification,
   properties = list(
     calibration_model = Supervised,
-    predicted_training_calibrated = class_vector,
-    predicted_validation_calibrated = NULL | class_vector,
-    predicted_test_calibrated = NULL | class_vector,
+    predicted_training_calibrated = class_numeric | class_factor,
+    predicted_validation_calibrated = NULL | class_numeric | class_factor,
+    predicted_test_calibrated = NULL | class_numeric | class_factor,
     predicted_prob_training_calibrated = class_double,
     predicted_prob_validation_calibrated = NULL | class_double,
     predicted_prob_test_calibrated = NULL | class_double,
@@ -1150,7 +1159,8 @@ Regression <- new_class(
     xnames = NULL,
     varimp = NULL,
     question = NULL,
-    extra = NULL
+    extra = NULL,
+    data_fingerprint = NULL
   ) {
     # Metrics ----
     metrics_training <- regression_metrics(
@@ -1199,7 +1209,8 @@ Regression <- new_class(
         xnames = xnames,
         varimp = varimp,
         question = question,
-        extra = extra
+        extra = extra,
+        data_fingerprint = data_fingerprint
       ),
       se_training = se_training,
       se_validation = se_validation,
@@ -1373,6 +1384,7 @@ make_Supervised <- function(
   varimp = NULL,
   question = character(),
   extra = NULL,
+  data_fingerprint = NULL,
   binclasspos = 2L
 ) {
   # Supervised ----
@@ -1399,6 +1411,7 @@ make_Supervised <- function(
       varimp = varimp,
       question = question,
       extra = extra,
+      data_fingerprint = data_fingerprint,
       binclasspos = binclasspos
     )
   } else {
@@ -1423,7 +1436,8 @@ make_Supervised <- function(
       xnames = xnames,
       varimp = varimp,
       question = question,
-      extra = extra
+      extra = extra,
+      data_fingerprint = data_fingerprint
     )
   }
 } # /rtemis::make_Supervised
@@ -1569,6 +1583,8 @@ SupervisedRes <- new_class(
     varimp = NULL | class_list,
     question = NULL | class_character,
     extra = class_any,
+    # See `Supervised` for the provenance rationale.
+    data_fingerprint = NULL | DataFingerprint,
     session_info = class_any,
     session = NULL | SupervisedSession
   ),
@@ -1593,7 +1609,8 @@ SupervisedRes <- new_class(
     xnames,
     varimp,
     question,
-    extra
+    extra,
+    data_fingerprint = NULL
   ) {
     new_object(
       S7::S7_object(),
@@ -1616,6 +1633,7 @@ SupervisedRes <- new_class(
       varimp = varimp,
       question = question,
       extra = extra,
+      data_fingerprint = data_fingerprint,
       session_info = utils::sessionInfo(),
       session = NULL
     )
@@ -1914,7 +1932,8 @@ ClassificationRes <- new_class(
     xnames = NULL,
     varimp = NULL,
     question = NULL,
-    extra = NULL
+    extra = NULL,
+    data_fingerprint = NULL
   ) {
     conf_mat_training <- conf_table(
       unlist(y_training),
@@ -1966,7 +1985,8 @@ ClassificationRes <- new_class(
         xnames = xnames,
         varimp = varimp,
         question = question,
-        extra = extra
+        extra = extra,
+        data_fingerprint = data_fingerprint
       ),
       predicted_prob_training = predicted_prob_training,
       predicted_prob_test = predicted_prob_test
@@ -2156,7 +2176,8 @@ RegressionRes <- new_class(
     xnames = NULL,
     varimp = NULL,
     question = NULL,
-    extra = NULL
+    extra = NULL,
+    data_fingerprint = NULL
   ) {
     metrics_training <- lapply(
       models,
@@ -2193,7 +2214,8 @@ RegressionRes <- new_class(
         xnames = xnames,
         varimp = varimp,
         question = question,
-        extra = extra
+        extra = extra,
+        data_fingerprint = data_fingerprint
       ),
       se_training = se_training,
       se_test = se_test
@@ -2654,7 +2676,8 @@ make_SupervisedRes <- function(
   xnames = character(),
   varimp = NULL,
   question = character(),
-  extra = NULL
+  extra = NULL,
+  data_fingerprint = NULL
 ) {
   if (type == "Classification") {
     ClassificationRes(
@@ -2675,7 +2698,8 @@ make_SupervisedRes <- function(
       xnames = xnames,
       varimp = varimp,
       question = question,
-      extra = extra
+      extra = extra,
+      data_fingerprint = data_fingerprint
     )
   } else {
     RegressionRes(
@@ -2696,7 +2720,8 @@ make_SupervisedRes <- function(
       xnames = xnames,
       varimp = varimp,
       question = question,
-      extra = extra
+      extra = extra,
+      data_fingerprint = data_fingerprint
     )
   }
 } # /rtemis::make_SupervisedRes
@@ -2837,7 +2862,11 @@ method(desc, class_list) <- function(
     }
     # ?replace with loop that checks all resampler params
     # Check all resamplers use same n
-    if (!all(sapply(res_params, function(p) p@n == res_params[[1]]@n))) {
+    if (
+      !all(sapply(res_params, function(p) {
+        p@n_resamples == res_params[[1]]@n_resamples
+      }))
+    ) {
       rtemis.core::warn(
         "All SupervisedRes objects must use the same number of resamples."
       )

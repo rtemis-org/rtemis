@@ -26,9 +26,9 @@ setup_SuperConfig(
 \item{dat_training_path}{Character or NULL: Path to training data file. NULL
 leaves the recipe unbound; set it (or supply data) before \link{train}.}
 
-\item{dat_validation_path}{Character: Path to validation data file.}
+\item{dat_validation_path}{Optional Character: Path to validation data file.}
 
-\item{dat_test_path}{Character: Path to test data file.}
+\item{dat_test_path}{Optional Character: Path to test data file.}
 
 \item{weights}{Optional Character: Column name in training data to use as observation weights.
 If NULL, no weights are used.}
@@ -40,7 +40,7 @@ outcome level to treat as positive. NULL keeps the existing factor level order.}
 
 \item{decomposition_config}{\code{DecompositionConfig} object: Configuration for data decomposition.}
 
-\item{algorithm}{Character: Algorithm to use for training.}
+\item{algorithm}{Optional Character: Algorithm to use for training.}
 
 \item{hyperparameters}{\code{Hyperparameters} object: Configuration for model hyperparameters.}
 
@@ -52,11 +52,11 @@ resampling during model training.}
 \item{execution_config}{\code{ExecutionConfig} object: Configuration for execution settings. Setup
 with \link{setup_ExecutionConfig}.}
 
-\item{question}{Character: Question to answer with the supervised learning analysis.}
+\item{question}{Optional Character: Question to answer with the supervised learning analysis.}
 
 \item{outdir}{Character: Output directory for results.}
 
-\item{verbosity}{Integer: Verbosity level.}
+\item{verbosity}{Integer [0, Inf): Verbosity level.}
 }
 \value{
 \code{SuperConfig} object.

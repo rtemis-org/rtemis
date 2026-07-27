@@ -22,7 +22,7 @@
 #' Superclass for resampler configuration.
 #'
 #' @field type Character: Type of resampler.
-#' @field n Integer: Number of resamples.
+#' @field n_resamples Integer: Number of resamples.
 #'
 #' @author EDG
 #' @noRd
@@ -33,8 +33,8 @@ ResamplerConfig <- new_class(
   properties = list(
     type = class_character,
     # LOOCV has no defined number of resamples until it sees the data
-    # (`resample()` fills it in), so `n` is unset by default.
-    n = prop_integer(
+    # (`resample()` fills it in), so `n_resamples` is unset by default.
+    n_resamples = prop_integer(
       NULL,
       min = 1L,
       nullable = TRUE,
@@ -42,12 +42,13 @@ ResamplerConfig <- new_class(
     )
   ),
   validator = function(self) {
-    # `n` is only unset for LOOCV, where `resample()` derives it from the data
-    # (`resample.R`: `n_resamples <- if (type == "LOOCV") length(x) else config@n`).
-    # For every other type an unset `n` would fail deep inside `resample()`, so
-    # require it here at construction instead.
-    if (self@type != "LOOCV" && is.null(self@n)) {
-      return("@n must be set for all resampler types except 'LOOCV'.")
+    # `n_resamples` is only unset for LOOCV, where `resample()` derives it from
+    # the data. For every other type an unset value would fail deep inside
+    # `resample()`, so require it here at construction instead.
+    if (self@type != "LOOCV" && is.null(self@n_resamples)) {
+      return(
+        "@n_resamples must be set for all resampler types except 'LOOCV'."
+      )
     }
     NULL
   }
@@ -60,11 +61,11 @@ ResamplerConfig <- new_class(
 # written; `id_strat` is a data-dependent grouping vector with no portable
 # form, so it is omitted (see `config_prop_values`).
 method(serializable_props, ResamplerConfig) <- function(x) {
-  # `type` and `n` live on the base class (so are not "own" properties);
-  # `n` is unset for LOOCV, where the data determine it.
+  # `type` and `n_resamples` live on the base class (so are not "own"
+  # properties); `n_resamples` is unset for LOOCV, where the data determine it.
   base <- list(
     type = x@type,
-    n = x@n
+    n_resamples = x@n_resamples
   )
   c(base, config_prop_values(x, ResamplerConfig))
 } # /rtemis::serializable_props.ResamplerConfig
@@ -128,13 +129,13 @@ method(print, ResamplerConfig) <- function(
 method(desc, ResamplerConfig) <- function(x) {
   switch(
     x@type,
-    KFold = paste0(x@n, " independent folds"),
-    StratSub = paste0(x@n, " stratified subsamples"),
-    StratBoot = paste0(x@n, " stratified bootstraps"),
-    Bootstrap = paste0(x@n, " bootstrap resamples"),
-    Custom = paste0(x@n, " custom resamples"),
-    LOOCV = paste0(x@n, " leave-one-out folds"),
-    paste0(x@n, " resamples")
+    KFold = paste0(x@n_resamples, " independent folds"),
+    StratSub = paste0(x@n_resamples, " stratified subsamples"),
+    StratBoot = paste0(x@n_resamples, " stratified bootstraps"),
+    Bootstrap = paste0(x@n_resamples, " bootstrap resamples"),
+    Custom = paste0(x@n_resamples, " custom resamples"),
+    LOOCV = paste0(x@n_resamples, " leave-one-out folds"),
+    paste0(x@n_resamples, " resamples")
   )
 } # /rtemis::desc.ResamplerConfig
 
@@ -349,16 +350,18 @@ CustomConfig <- new_class(
 # %% setup_Resampler ----
 #' Setup Resampler
 #'
-#' @param n_resamples Integer: Number of resamples to make.
-#' @param type Character: Type of resampler: "KFold", "StratSub", "StratBoot", "Bootstrap", "LOOCV"
-#' @param stratify_var Character: Variable to stratify by.
-#' @param train_p Float: Training set percentage.
-#' @param strat_n_bins Integer: Number of bins to stratify by.
-#' @param target_length Integer: Target length for stratified bootstraps.
+#' @param n_resamples Optional Integer [1, Inf): Number of resamples to make.
+#'   Stored as the `n` property. LOOCV determines it from the data.
+#' @param type Character \{"KFold", "StratSub", "StratBoot", "Bootstrap", "LOOCV", "Custom"\}:
+#'   Type of resampler.
+#' @param stratify_var Optional Character: Variable to stratify by.
+#' @param train_p Numeric (0, 1): Training set percentage.
+#' @param strat_n_bins Integer [1, Inf): Number of bins to stratify by.
+#' @param target_length Optional Integer [1, Inf): Target length for stratified bootstraps.
 #' @param id_strat Integer: Vector of indices to stratify by. These may be, for example, case IDs
 #' if your dataset contains repeated measurements. By specifying this vector, you can ensure that
 #' each case can only be present in the training or test set, but not both.
-#' @param seed Integer: Random seed.
+#' @param seed Optional Integer [0, Inf): Random seed.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return ResamplerConfig object.
@@ -399,7 +402,7 @@ setup_Resampler <- function(
 
   if (type == "KFold") {
     KFoldConfig(
-      n = n_resamples,
+      n_resamples = n_resamples,
       stratify_var = stratify_var,
       strat_n_bins = strat_n_bins,
       id_strat = id_strat,
@@ -407,7 +410,7 @@ setup_Resampler <- function(
     )
   } else if (type == "StratSub") {
     StratSubConfig(
-      n = n_resamples,
+      n_resamples = n_resamples,
       train_p = train_p,
       stratify_var = stratify_var,
       strat_n_bins = strat_n_bins,
@@ -416,7 +419,7 @@ setup_Resampler <- function(
     )
   } else if (type == "StratBoot") {
     StratBootConfig(
-      n = n_resamples,
+      n_resamples = n_resamples,
       train_p = train_p,
       stratify_var = stratify_var,
       strat_n_bins = strat_n_bins,
@@ -426,12 +429,12 @@ setup_Resampler <- function(
     )
   } else if (type == "Bootstrap") {
     BootstrapConfig(
-      n = n_resamples,
+      n_resamples = n_resamples,
       id_strat = id_strat,
       seed = seed
     )
   } else if (type == "LOOCV") {
-    # `n` is left unset: it is determined by the data in `resample()`.
+    # `n_resamples` is left unset: determined by the data in `resample()`.
     LOOCVConfig()
   } else {
     rtemis.core::abort(
@@ -557,15 +560,16 @@ method(desc, Resampler) <- function(x) {
 #' @keywords internal
 #' @export
 #' @examples
-#' .list_to_ResamplerConfig(list(type = "KFold", n = 5L))
+#' .list_to_ResamplerConfig(list(type = "KFold", n_resamples = 5L))
 .list_to_ResamplerConfig <- function(x) {
+  n_resamples <- x[["n_resamples"]]
   # Drop absent (NULL) elements so class defaults apply for non-nullable
   # properties such as `strat_n_bins` and `train_p`.
   args <- switch(
     x[["type"]],
     KFold = list(
       constructor = KFoldConfig,
-      n = x[["n"]],
+      n_resamples = n_resamples,
       stratify_var = x[["stratify_var"]],
       strat_n_bins = x[["strat_n_bins"]],
       id_strat = x[["id_strat"]],
@@ -573,7 +577,7 @@ method(desc, Resampler) <- function(x) {
     ),
     StratSub = list(
       constructor = StratSubConfig,
-      n = x[["n"]],
+      n_resamples = n_resamples,
       train_p = x[["train_p"]],
       stratify_var = x[["stratify_var"]],
       strat_n_bins = x[["strat_n_bins"]],
@@ -582,7 +586,7 @@ method(desc, Resampler) <- function(x) {
     ),
     StratBoot = list(
       constructor = StratBootConfig,
-      n = x[["n"]],
+      n_resamples = n_resamples,
       train_p = x[["train_p"]],
       stratify_var = x[["stratify_var"]],
       strat_n_bins = x[["strat_n_bins"]],
@@ -592,17 +596,17 @@ method(desc, Resampler) <- function(x) {
     ),
     Bootstrap = list(
       constructor = BootstrapConfig,
-      n = x[["n"]],
+      n_resamples = n_resamples,
       id_strat = x[["id_strat"]],
       seed = x[["seed"]]
     ),
-    # LOOCV `n` is unset until `resample()` sees the data.
+    # LOOCV `n_resamples` is unset until `resample()` sees the data.
     LOOCV = list(
       constructor = LOOCVConfig
     ),
     Custom = list(
       constructor = CustomConfig,
-      n = x[["n"]]
+      n_resamples = n_resamples
     ),
     rtemis.core::abort(
       "Unsupported resampler type:",

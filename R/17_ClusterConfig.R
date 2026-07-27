@@ -98,7 +98,7 @@ method(print, ClusterConfig) <- function(x, output_type = NULL, ...) {
 #' the clustering itself. Setup with a clustering `setup_*` function, e.g.
 #' [setup_KMeans]. If NULL, defaults for `algorithm` are used at [cluster] time.
 #' @param outdir Character: Output directory for results.
-#' @param verbosity Integer: Verbosity level.
+#' @param verbosity Integer [0, Inf): Verbosity level.
 #'
 #' @return `ClusterConfig` object.
 #'

@@ -75,6 +75,12 @@ method(present, class_list) <- function(
     )
   }
 
+  # Warn if the models were not trained on the same data ----
+  # Comparing metrics across models trained on different inputs is the silent
+  # failure this catches. A warning, not an error: it is occasionally
+  # deliberate, and the user is the one who can tell.
+  warn_fingerprint_mismatch(x)
+
   # Describe
   if (verbosity > 0L) {
     describe(x)

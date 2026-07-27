@@ -89,7 +89,7 @@ resample <- function(
     }
   }
 
-  n_resamples <- if (type == "LOOCV") length(x) else config@n
+  n_resamples <- if (type == "LOOCV") length(x) else config@n_resamples
 
   # Print config ----
   if (verbosity > 1L) {
@@ -129,7 +129,7 @@ resample <- function(
     ## LOOCV ----
     res_part <- loocv(x = x)
     # Get number of resamples
-    config@n <- length(res_part)
+    config@n_resamples <- length(res_part)
   } else if (type == "StratBoot") {
     ## StratBoot ----
     res_part <- strat_boot(

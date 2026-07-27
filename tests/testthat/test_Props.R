@@ -396,3 +396,103 @@ testthat::test_that("schema serializes to JSON and round-trips", {
     c("string", "null")
   )
 })
+
+
+# %% data_bound ----------------------------------------------------------------
+# `data_bound` declares that a value's valid range depends on the training data.
+# It is deliberately NOT enforced at construction time - there is no data yet -
+# but by check_data_bounds() via validate_hyperparameters(), which train() calls
+# before tuning. See DATA_BOUNDS in 00_Props.R.
+
+test_that("data_bound rejects names outside the vocabulary", {
+  expect_error(prop_integer(1L, data_bound = "n_bananas"))
+  expect_error(prop_external(NULL | class_numeric, data_bound = "n_bananas"))
+})
+
+test_that("data_bound on a string property must be feature_names", {
+  expect_error(prop_string("a", data_bound = "n_features"))
+  expect_error(prop_integer(1L, data_bound = "feature_names"))
+})
+
+test_that("data_bound does not constrain construction", {
+  # 100 is nonsense for any real dataset, but there is no dataset here.
+  expect_s7_class(setup_Ranger(mtry = 100L), RangerHyperparameters)
+  expect_length(setup_CART(cost = c(1, 2))[["cost"]], 2L)
+})
+
+test_that("data_bound is surfaced in the generated schema description", {
+  prop_schema <- function(cls, nm) {
+    spec_to_schema(get_spec(cls@properties[[nm]]))
+  }
+  expect_match(
+    prop_schema(RangerHyperparameters, "mtry")[["description"]],
+    "Cannot exceed the number of features"
+  )
+  expect_match(
+    prop_schema(RangerHyperparameters, "case_weights")[["description"]],
+    "Must have one value per case"
+  )
+  expect_match(
+    prop_schema(RangerHyperparameters, "always_split_variables")[[
+      "description"
+    ]],
+    "must name training features"
+  )
+})
+
+# check_data_bounds ----
+n_cd <- 40L
+datc_bounds <- data.frame(
+  a = rnorm(n_cd),
+  b = rnorm(n_cd),
+  y = factor(sample(c("x", "z"), n_cd, replace = TRUE))
+)
+datr_bounds <- data.frame(a = rnorm(n_cd), b = rnorm(n_cd), y = rnorm(n_cd))
+
+test_that("check_data_bounds() bounds a scalar above by the dimension", {
+  expect_error(
+    check_data_bounds(setup_Ranger(mtry = 100L), datr_bounds),
+    class = "rtemis_range_error"
+  )
+  # Tunable hyperparameters carry the whole search space at this point, so a
+  # single bad value anywhere in it must abort.
+  expect_error(
+    check_data_bounds(setup_Ranger(mtry = c(1L, 100L)), datr_bounds),
+    class = "rtemis_range_error"
+  )
+  expect_invisible(check_data_bounds(setup_Ranger(mtry = 2L), datr_bounds))
+})
+
+test_that("check_data_bounds() requires vector properties to match the dimension", {
+  expect_error(
+    check_data_bounds(setup_CART(cost = c(1, 2, 3)), datr_bounds),
+    class = "rtemis_length_error"
+  )
+  expect_invisible(check_data_bounds(setup_CART(cost = c(1, 2)), datr_bounds))
+})
+
+test_that("check_data_bounds() checks feature_names by membership", {
+  expect_error(
+    check_data_bounds(
+      setup_Ranger(always_split_variables = c("a", "nope")),
+      datr_bounds
+    ),
+    class = "rtemis_value_error"
+  )
+  expect_invisible(
+    check_data_bounds(setup_Ranger(always_split_variables = "a"), datr_bounds)
+  )
+})
+
+test_that("check_data_bounds() skips unset values and n_classes in regression", {
+  expect_invisible(check_data_bounds(setup_Ranger(), datr_bounds))
+  # class_weights is bound to n_classes, which is undefined for a numeric
+  # outcome: the declaration does not apply rather than erroring.
+  expect_invisible(
+    check_data_bounds(setup_Ranger(class_weights = c(1, 2, 3)), datr_bounds)
+  )
+  expect_error(
+    check_data_bounds(setup_Ranger(class_weights = c(1, 2, 3)), datc_bounds),
+    class = "rtemis_length_error"
+  )
+})

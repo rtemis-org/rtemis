@@ -29,10 +29,10 @@ setup_SuperConfigLive(
 
 \item{dat_test}{data.frame, data.table, or \code{NULL}.}
 
-\item{weights}{Character or \code{NULL}. Column name in \code{dat_training} used
+\item{weights}{Optional Character: Column name in \code{dat_training} used
 as observation weights.}
 
-\item{positive_class}{Character or \code{NULL}. For binary classification, the
+\item{positive_class}{Optional Character: For binary classification, the
 outcome level to treat as positive; forwarded to \link{train} which reorders
 the outcome factor via \link{set_positive_class}. \code{NULL} keeps the existing
 level order.}
@@ -41,7 +41,7 @@ level order.}
 
 \item{decomposition_config}{\code{DecompositionConfig} object: Configuration for data decomposition.}
 
-\item{outdir}{Character or \code{NULL}. Output directory; \code{NULL}
+\item{outdir}{Optional Character: Output directory; \code{NULL}
 means "do not write to disk" (the rtemislive case).}
 }
 \value{

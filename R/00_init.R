@@ -318,16 +318,40 @@ get_metric <- new_generic("get_metric", "x")
 # %% validate_hyperparameters ----
 #' Check hyperparameters given training data
 #'
+#' @description
+#' Internal S7 generic for algorithm-specific hyperparameter constraints that
+#' can only be checked once the data is known - e.g. Ranger's `mtry` cannot
+#' exceed the number of features. Bounds, types, and enums are enforced by the
+#' `prop_*` validators at construction; this generic covers only what depends
+#' on `x`.
+#'
+#' Called by [train] before any tuning or resampling, so an invalid search
+#' space fails fast rather than surfacing as per-grid-cell failures that
+#' `on_error = "continue"` would swallow, and again immediately before
+#' `train_()` on the resolved hyperparameters, where the feature count reflects
+#' any preprocessing and decomposition.
+#'
+#' Tunable hyperparameters hold a *vector* of search values at the first call
+#' site, so methods must validate every element (`any(...)`, not `>`).
+#'
+#' The default method (on `Hyperparameters`, in 02_Hyperparameters.R) checks
+#' every property declaring a `data_bound`, so most algorithms need no method of
+#' their own. Write one only for a constraint the `data_bound` vocabulary cannot
+#' express, and call `check_data_bounds()` from it so the declarative checks
+#' still run.
+#'
+#' @param hyperparameters `Hyperparameters`: Hyperparameters to check.
 #' @param x tabular data: Training data.
-#' @param hyperparameters `Hyperparameters` to check.
+#'
+#' @return `hyperparameters`, invisibly. Throws if a constraint is violated.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 validate_hyperparameters <- new_generic(
   "validate_hyperparameters",
-  "x",
-  function(x, hyperparameters) {
+  "hyperparameters",
+  function(hyperparameters, x) {
     S7_dispatch()
   }
 ) # /rtemis::validate_hyperparameters

@@ -118,15 +118,15 @@ families <- list(
     ),
     discriminator_description = "Resampler type.",
     extra_properties = list(
-      n = list(
+      n_resamples = list(
         type = I(c("integer", "null")),
         minimum = 1L,
         description = "Number of resamples. null for LOOCV, where it is determined by the data."
       )
     ),
-    # `n` is required for every type except LOOCV (mirrors the R
+    # `n_resamples` is required for every type except LOOCV (mirrors the R
     # `ResamplerConfig` validator), so it is conditionally required per variant.
-    required_except = list(n = "LOOCV"),
+    required_except = list(n_resamples = "LOOCV"),
     algorithms = list(
       list(
         cls = KFoldConfig,

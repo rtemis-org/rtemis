@@ -175,16 +175,18 @@ GridSearchConfig <- new_class(
 #' Create a `GridSearchConfig` object that can be passed to [train].
 #'
 #' @param resampler_config `ResamplerConfig` set by [setup_Resampler].
-#' @param search_type Character: "exhaustive" or "randomized". Type of
+#' @param search_type Character \{"exhaustive", "randomized"\}: Type of
 #' grid search to use. Exhaustive search will try all combinations of
 #' config. Randomized will try a random sample of size
 #' `randomize_p` * `N of total combinations`
-#' @param randomize_p Optional Float (0, 1): Randomly test this proportion of
+#' @param randomize_p Optional Numeric (0, 1): Randomly test this proportion of
 #' combinations. Required when `search_type` is `"randomized"`; must be left
 #' `NULL` when it is `"exhaustive"`.
 #' @param metrics_aggregate_fn Character: Name of function to use to aggregate error metrics.
-#' @param metric Character: Metric to minimize or maximize.
-#' @param maximize Logical: If TRUE, maximize `metric`, otherwise minimize it.
+#' @param metric Optional Character: Metric to minimize or maximize. NULL sets
+#' it from the outcome type.
+#' @param maximize Optional Logical: If TRUE, maximize `metric`, otherwise
+#' minimize it. NULL sets it from the metric.
 #'
 #' @return A `GridSearchConfig` object.
 #'

@@ -269,10 +269,11 @@ method(print, PreprocessorConfig) <- function(
 #' Creates a `PreprocessorConfig` object, which can be used in [preprocess].
 #'
 #' @param complete_cases Logical: If TRUE, only retain complete cases (no missing data).
-#' @param remove_cases_thres Float (0, 1): Remove cases with >= to this fraction
-#' of missing features.
-#' @param remove_features_thres Float (0, 1): Remove features with missing
-#' values in >= to this fraction of cases.
+#' @param remove_cases_thres Optional Numeric (0, 1]: Remove cases with >= to
+#' this fraction of missing features. 1 removes only fully-missing cases.
+#' @param remove_features_thres Optional Numeric (0, 1]: Remove features with
+#' missing values in >= to this fraction of cases. 1 removes only fully-missing
+#' features.
 #' @param missingness Logical: If TRUE, generate new boolean columns for each
 #' feature with missing values, indicating which cases were missing data.
 #' @param impute Logical: If TRUE, impute missing cases. See `impute_discrete` and
@@ -299,20 +300,20 @@ method(print, PreprocessorConfig) <- function(
 #'   numeric.
 #' @param numeric2factor Logical: If TRUE, convert all numeric variables to
 #'   factors.
-#' @param numeric2factor_levels Character vector: Optional - will be passed to
+#' @param numeric2factor_levels Optional Character vector: Will be passed to
 #'   `levels` arg of `factor()` if `numeric2factor = TRUE`. For advanced/
 #'   specific use cases; need to know unique values of numeric vector(s) and given all
 #'   numeric vars have same unique values.
-#' @param numeric_cut_n Integer: If > 0, convert all numeric variables to factors by
+#' @param numeric_cut_n Integer [0, Inf): If > 0, convert all numeric variables to factors by
 #'   binning using `base::cut` with `breaks` equal to this number.
 #' @param numeric_cut_labels Logical: The `labels` argument of [base::cut].
-#' @param numeric_quant_n Integer: If > 0, convert all numeric variables to factors by
+#' @param numeric_quant_n Integer [0, Inf): If > 0, convert all numeric variables to factors by
 #'   binning using `base::cut` with `breaks` equal to this number of quantiles.
 #'   produced using `stats::quantile`.
 #' @param numeric_quant_NAonly Logical: If TRUE, only bin numeric variables with
 #'   missing values.
-#' @param unique_len2factor Integer (>=2): Convert all variables with less
-#'   than or equal to this number of unique values to factors.
+#' @param unique_len2factor Integer [0, Inf): Convert all variables with less
+#'   than or equal to this number of unique values to factors. 0 disables.
 #'   For example, if binary variables are encoded with 1, 2, you could use
 #'   `unique_len2factor = 2` to convert them to factors.
 #' @param character2factor Logical: If TRUE, convert all character variables to
@@ -334,15 +335,16 @@ method(print, PreprocessorConfig) <- function(
 #' @param remove_constants Logical: If TRUE, remove constant columns.
 #' @param remove_constants_skip_missing Logical: If TRUE, skip missing values, before
 #'   checking if feature is constant.
-#' @param remove_features Character vector: Features to remove.
+#' @param remove_features Optional Character vector: Features to remove.
 #' @param remove_duplicates Logical: If TRUE, remove duplicate cases.
 #' @param one_hot Logical: If TRUE, convert all factors using one-hot encoding.
 #' @param one_hot_levels List: Named list of the form "feature_name" = "levels". Used when applying
 #'   one-hot encoding to validation or test data using `Preprocessor`.
 #' @param add_date_features Logical: If TRUE, extract date features from date columns.
-#' @param date_features Character vector: Features to extract from dates.
+#' @param date_features Character \{"weekday", "month", "year"\} vector:
+#'   Features to extract from dates.
 #' @param add_holidays Logical: If TRUE, extract holidays from date columns.
-#' @param exclude Integer, vector: Exclude these columns from preprocessing.
+#' @param exclude Optional Integer vector: Exclude these columns from preprocessing.
 #'
 #' @section Order of Operations:
 #'

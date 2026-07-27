@@ -98,7 +98,7 @@ method(print, DecomposeConfig) <- function(x, output_type = NULL, ...) {
 #' for the decomposition itself. Setup with a decomposition `setup_*` function,
 #' e.g. [setup_PCA]. If NULL, defaults for `algorithm` are used at [decomp] time.
 #' @param outdir Character: Output directory for results.
-#' @param verbosity Integer: Verbosity level.
+#' @param verbosity Integer [0, Inf): Verbosity level.
 #'
 #' @return `DecomposeConfig` object.
 #'

@@ -1050,6 +1050,33 @@ test_that("train() Ranger Multiclass Classification succeeds", {
   expect_s7_class(modt_c3_ranger, Classification)
 })
 
+## {Ranger}[train]<Regression> /\Error mtry > n features ----
+# validate_hyperparameters() runs before tuning, so an out-of-range value
+# anywhere in the search space aborts up front. Without it, the abort happens
+# inside each grid cell, where the default on_error = "continue" catches it and
+# the bad cells are silently dropped instead of reported.
+test_that("train() Ranger aborts when mtry exceeds n features", {
+  expect_error(
+    train(
+      x = datr_train,
+      dat_test = datr_test,
+      hyperparameters = setup_Ranger(num_trees = 10L, mtry = 100L)
+    ),
+    class = "rtemis_range_error"
+  )
+})
+
+test_that("train() Ranger aborts when any search value of mtry is out of range", {
+  expect_error(
+    train(
+      x = datr_train,
+      dat_test = datr_test,
+      hyperparameters = setup_Ranger(num_trees = 10L, mtry = c(3L, 100L))
+    ),
+    class = "rtemis_range_error"
+  )
+})
+
 # --- Predict SupervisedRes ------------------------------------------------------------------------
 
 ## {CART}[predict]<RegressionRes> ----

@@ -16,20 +16,22 @@ setup_GridSearch(
 \arguments{
 \item{resampler_config}{\code{ResamplerConfig} set by \link{setup_Resampler}.}
 
-\item{search_type}{Character: "exhaustive" or "randomized". Type of
+\item{search_type}{Character \{"exhaustive", "randomized"\}: Type of
 grid search to use. Exhaustive search will try all combinations of
 config. Randomized will try a random sample of size
 \code{randomize_p} * \verb{N of total combinations}}
 
-\item{randomize_p}{Optional Float (0, 1): Randomly test this proportion of
+\item{randomize_p}{Optional Numeric (0, 1): Randomly test this proportion of
 combinations. Required when \code{search_type} is \code{"randomized"}; must be left
 \code{NULL} when it is \code{"exhaustive"}.}
 
 \item{metrics_aggregate_fn}{Character: Name of function to use to aggregate error metrics.}
 
-\item{metric}{Character: Metric to minimize or maximize.}
+\item{metric}{Optional Character: Metric to minimize or maximize. NULL sets
+it from the outcome type.}
 
-\item{maximize}{Logical: If TRUE, maximize \code{metric}, otherwise minimize it.}
+\item{maximize}{Optional Logical: If TRUE, maximize \code{metric}, otherwise
+minimize it. NULL sets it from the metric.}
 }
 \value{
 A \code{GridSearchConfig} object.

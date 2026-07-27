@@ -12,12 +12,12 @@ setup_ExecutionConfig(
 )
 }
 \arguments{
-\item{backend}{Character: Execution backend: "future", "mirai", or "none".}
+\item{backend}{Character \{"future", "mirai", "none"\}: Execution backend.}
 
-\item{n_workers}{Integer: Number of workers for parallel execution. Only used if \verb{backend is "future"} or "mirai". Set this to an appropriate number depending
+\item{n_workers}{Integer [1, Inf): Number of workers for parallel execution. Only used if \verb{backend is "future"} or "mirai". Set this to an appropriate number depending
 on your system.}
 
-\item{future_plan}{Character: Future plan to use if \code{backend} is "future".}
+\item{future_plan}{Optional Character: Future plan to use if \code{backend} is "future".}
 
 \item{on_error}{Character \{"continue", "stop", "stop_outer"\}: Failure policy.
 \code{"continue"} makes grid cells and unscorable hyperparameter combinations

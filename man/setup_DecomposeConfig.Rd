@@ -25,7 +25,7 @@ e.g. \link{setup_PCA}. If NULL, defaults for \code{algorithm} are used at \link{
 
 \item{outdir}{Character: Output directory for results.}
 
-\item{verbosity}{Integer: Verbosity level.}
+\item{verbosity}{Integer [0, Inf): Verbosity level.}
 }
 \value{
 \code{DecomposeConfig} object.

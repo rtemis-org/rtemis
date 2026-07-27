@@ -49,11 +49,12 @@ setup_Preprocessor(
 \arguments{
 \item{complete_cases}{Logical: If TRUE, only retain complete cases (no missing data).}
 
-\item{remove_features_thres}{Float (0, 1): Remove features with missing
-values in >= to this fraction of cases.}
+\item{remove_features_thres}{Optional Numeric (0, 1]: Remove features with
+missing values in >= to this fraction of cases. 1 removes only fully-missing
+features.}
 
-\item{remove_cases_thres}{Float (0, 1): Remove cases with >= to this fraction
-of missing features.}
+\item{remove_cases_thres}{Optional Numeric (0, 1]: Remove cases with >= to
+this fraction of missing features. 1 removes only fully-missing cases.}
 
 \item{missingness}{Logical: If TRUE, generate new boolean columns for each
 feature with missing values, indicating which cases were missing data.}
@@ -92,25 +93,25 @@ numeric.}
 \item{numeric2factor}{Logical: If TRUE, convert all numeric variables to
 factors.}
 
-\item{numeric2factor_levels}{Character vector: Optional - will be passed to
+\item{numeric2factor_levels}{Optional Character vector: Will be passed to
 \code{levels} arg of \code{factor()} if \code{numeric2factor = TRUE}. For advanced/
 specific use cases; need to know unique values of numeric vector(s) and given all
 numeric vars have same unique values.}
 
-\item{numeric_cut_n}{Integer: If > 0, convert all numeric variables to factors by
+\item{numeric_cut_n}{Integer [0, Inf): If > 0, convert all numeric variables to factors by
 binning using \code{base::cut} with \code{breaks} equal to this number.}
 
 \item{numeric_cut_labels}{Logical: The \code{labels} argument of \link[base:cut]{base::cut}.}
 
-\item{numeric_quant_n}{Integer: If > 0, convert all numeric variables to factors by
+\item{numeric_quant_n}{Integer [0, Inf): If > 0, convert all numeric variables to factors by
 binning using \code{base::cut} with \code{breaks} equal to this number of quantiles.
 produced using \code{stats::quantile}.}
 
 \item{numeric_quant_NAonly}{Logical: If TRUE, only bin numeric variables with
 missing values.}
 
-\item{unique_len2factor}{Integer (>=2): Convert all variables with less
-than or equal to this number of unique values to factors.
+\item{unique_len2factor}{Integer [0, Inf): Convert all variables with less
+than or equal to this number of unique values to factors. 0 disables.
 For example, if binary variables are encoded with 1, 2, you could use
 \code{unique_len2factor = 2} to convert them to factors.}
 
@@ -144,7 +145,7 @@ data in categorical variables and impute numeric variables in the same
 \item{remove_constants_skip_missing}{Logical: If TRUE, skip missing values, before
 checking if feature is constant.}
 
-\item{remove_features}{Character vector: Features to remove.}
+\item{remove_features}{Optional Character vector: Features to remove.}
 
 \item{remove_duplicates}{Logical: If TRUE, remove duplicate cases.}
 
@@ -155,11 +156,12 @@ one-hot encoding to validation or test data using \code{Preprocessor}.}
 
 \item{add_date_features}{Logical: If TRUE, extract date features from date columns.}
 
-\item{date_features}{Character vector: Features to extract from dates.}
+\item{date_features}{Character \{"weekday", "month", "year"\} vector:
+Features to extract from dates.}
 
 \item{add_holidays}{Logical: If TRUE, extract holidays from date columns.}
 
-\item{exclude}{Integer, vector: Exclude these columns from preprocessing.}
+\item{exclude}{Optional Integer vector: Exclude these columns from preprocessing.}
 }
 \value{
 \code{PreprocessorConfig} object.

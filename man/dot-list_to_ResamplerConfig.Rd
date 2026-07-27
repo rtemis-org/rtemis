@@ -31,7 +31,7 @@ to reconstruct a \code{ResamplerConfig} object from a named list. Not intended
 for direct use by end users.
 }
 \examples{
-.list_to_ResamplerConfig(list(type = "KFold", n = 5L))
+.list_to_ResamplerConfig(list(type = "KFold", n_resamples = 5L))
 }
 \author{
 EDG

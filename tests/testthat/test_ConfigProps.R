@@ -189,7 +189,9 @@ test_that("dispatcher supports a custom discriminator and top-level mode", {
     id = "https://schema.rtemis.org/resampler/v1/schema.json",
     discriminator = "type",
     payload = NULL,
-    extra_properties = list(n = list(type = I(c("integer", "null"))))
+    extra_properties = list(
+      n_resamples = list(type = I(c("integer", "null")))
+    )
   )
   expect_identical(
     as.character(s[["properties"]][["type"]][["enum"]]),
@@ -307,12 +309,14 @@ test_that("serialized configs carry only declared parameters", {
   expect_false(
     "Y_init" %in% names(serializable_props(setup_tSNE())[["config"]])
   )
-  # A resampler serializes type + n + its declared settings, but not id_strat.
+  # A resampler serializes type + n_resamples + its settings, but not id_strat.
   rs <- serializable_props(setup_Resampler(n_resamples = 5L, type = "KFold"))
-  expect_true(all(c("type", "n") %in% names(rs)))
+  expect_true(all(c("type", "n_resamples") %in% names(rs)))
   expect_false("id_strat" %in% names(rs))
-  # LOOCV leaves `n` unset.
-  expect_null(serializable_props(setup_Resampler(type = "LOOCV"))[["n"]])
+  # LOOCV leaves `n_resamples` unset.
+  expect_null(
+    serializable_props(setup_Resampler(type = "LOOCV"))[["n_resamples"]]
+  )
   # A tuner keeps its nested resampler config (it serializes as its own schema).
   expect_true(
     "resampler_config" %in%
