@@ -82,7 +82,7 @@ setup_Ranger(
 
 \item{always_split_variables}{Optional Character vector: Names of variables to always include as split candidates, in addition to the \code{mtry} variables.}
 
-\item{respect_unordered_factors}{Optional Character or logical: Handling of unordered factors: "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response. TRUE corresponds to "partition".}
+\item{respect_unordered_factors}{Optional Character \{"partition", "ignore", "order"\}: Handling of unordered factors. "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response.}
 
 \item{scale_permutation_importance}{Logical: If TRUE, scale permutation importance by its standard error. Permutation importance only.}
 

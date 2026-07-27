@@ -20,11 +20,8 @@
 # - "table"   canonical logical content via Arrow IPC. Strongest and most
 #             portable, but requires the suggested `arrow` package.
 #
-# `portability` is COMPUTED from `method`, never stored: a fingerprint claiming
-# "cross_language" over an R `serialize()` hash would be a false claim about
-# reproducibility, which is the worst class of bug in a provenance system. Same
-# principle as `Hyperparameters@tuned` — derive what can be derived, so it
-# cannot lie.
+# `portability` is computed from `method` rather than stored, so it cannot
+# contradict it.
 
 # %% Constants ----
 # Hash methods, ordered weakest to strongest guarantee.

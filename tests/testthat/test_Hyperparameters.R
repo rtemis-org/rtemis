@@ -225,7 +225,7 @@ test_that("LightRFHyperparameters generates its JSON Schema", {
     sort(names(schema[["properties"]])),
     sort(spec_prop_names(LightRFHyperparameters))
   )
-  expect_identical(schema[["properties"]][["nrounds"]][["default"]], 500L)
+  expect_false("default" %in% names(schema[["properties"]][["nrounds"]]))
   # Tunable prop -> oneOf [scalar, array of search values].
   expect_length(schema[["properties"]][["linear_tree"]][["oneOf"]], 2L)
 })
@@ -379,10 +379,10 @@ test_that("run state stays out of the serialized config", {
 
 
 test_that("external properties are declared, not silently dropped", {
-  # Ranger's union / list params are config inputs whose schema is hand-written.
+  # Ranger's list-valued params are config inputs whose schema is hand-written.
   expect_setequal(
     role_prop_names(RangerHyperparameters, "external"),
-    c("split_select_weights", "respect_unordered_factors", "inbag")
+    c("split_select_weights", "inbag")
   )
   schema <- S7_to_JSONSchema(
     RangerHyperparameters,

@@ -30,13 +30,13 @@ DOC_TYPE_MAP <- c(
   Integer = "integer",
   Numeric = "number",
   Float = "number",
-  Character = "string"
+  Character = "string",
+  List = "object"
 )
 
 # Type words that are legitimate in docs but have no `PropertySpec` equivalent,
 # i.e. they describe a `prop_external()` / plain property. Not findings.
 DOC_TYPE_NONSPEC <- c(
-  "List",
   "Matrix",
   "Named vector",
   "Function",
@@ -49,10 +49,7 @@ DOC_TYPE_NONSPEC <- c(
 # property's own name always takes precedence; the alias is consulted only when
 # no `@param` of that name exists.
 #
-# Empty by design. Every entry here is a smell: the public argument name and
-# the property/schema name diverge, so a user reading `?setup_X` and a user
-# reading a config JSON see different names. Prefer renaming one side to match
-# the other over adding an entry.
+# Empty: no `setup_*()` argument currently differs from the property it sets.
 PROP_DOC_ALIASES <- character()
 
 # Severity ranking, most serious first. A wrong type silently accepts wrong

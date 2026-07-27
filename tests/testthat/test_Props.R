@@ -299,14 +299,9 @@ testthat::test_that("vector props accept vectors, map to array schemas", {
   testthat::expect_identical(as.character(s[["type"]]), c("array", "null"))
   testthat::expect_identical(s[["items"]][["type"]], "number")
   testthat::expect_identical(s[["items"]][["minimum"]], 0)
-  # A length-1 default on an array-typed property must still serialize as an
-  # array, or the emitted default contradicts the emitted type.
-  testthat::skip_if_not_installed("jsonlite")
+  # Defaults are published separately, so no schema carries the keyword.
   s1 <- spec_to_schema(get_spec(prop_string("a", vector = TRUE)))
-  testthat::expect_identical(
-    as.character(jsonlite::toJSON(s1[["default"]], auto_unbox = TRUE)),
-    "[\"a\"]"
-  )
+  testthat::expect_false("default" %in% names(s1))
 })
 
 # %% Spec introspection ----
@@ -332,7 +327,7 @@ testthat::test_that("spec_to_schema maps bounds, nullability, tunability", {
   props <- LightRFProps@properties
   # Tunable numeric with exclusive bound -> oneOf [scalar, array].
   s <- spec_to_schema(get_spec(props[["feature_fraction"]]))
-  testthat::expect_named(s, c("oneOf", "default", "description"))
+  testthat::expect_named(s, c("oneOf", "description"))
   testthat::expect_identical(s[["oneOf"]][[1L]][["type"]], "number")
   testthat::expect_identical(s[["oneOf"]][[1L]][["exclusiveMinimum"]], 0)
   testthat::expect_identical(s[["oneOf"]][[1L]][["maximum"]], 1)
@@ -368,9 +363,8 @@ testthat::test_that("S7_to_JSONSchema assembles a complete schema", {
     schema[["properties"]][["$schema"]][["const"]],
     "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json"
   )
-  testthat::expect_identical(
-    schema[["properties"]][["nrounds"]][["default"]],
-    500L
+  testthat::expect_false(
+    "default" %in% names(schema[["properties"]][["nrounds"]])
   )
 })
 

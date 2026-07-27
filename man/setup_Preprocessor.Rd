@@ -65,8 +65,8 @@ feature with missing values, indicating which cases were missing data.}
 \item{impute_type}{Character \{"missRanger", "micePMM", "meanMode"\}: Package to use for
 imputation.}
 
-\item{impute_missRanger_params}{Named list with elements "pmm.k",
-"maxiter", and "num.trees", which are passed to \code{missRanger::missRanger}. \code{pmm.k}
+\item{impute_missRanger_params}{List: Parameters passed to
+\code{missRanger::missRanger}, e.g. "pmm.k", "maxiter", "num.trees". \code{pmm.k}
 greater than 0 results in predictive mean matching. Reduce \code{num.trees} for
 faster imputation especially in large datasets. Set \code{pmm.k = 0} to
 disable predictive mean matching.}

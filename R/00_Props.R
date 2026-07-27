@@ -22,7 +22,8 @@
 #                            an array whose items are an array)
 # - broadcast = TRUE      -> "oneOf": [element, array] (a scalar stands in for
 #                            the whole container)
-# - default, description  -> "default", "description" (annotations)
+# - description           -> "description" (annotation). `default` is
+#                            deliberately NOT emitted; see spec_to_schema.
 
 # %% DATA_BOUNDS ----
 # Training-data dimensions a hyperparameter's valid values can be tied to.
@@ -45,6 +46,12 @@ DATA_BOUNDS <- c("n_features", "n_cases", "n_classes", "feature_names")
 #            when combined with a nested `items`)
 # - "map"    a string-keyed object (per-feature scaling centres, one-hot levels)
 PROP_CONTAINERS <- c("none", "array", "map")
+
+# %% PROP_TYPES ----
+# JSON Schema base types a property's leaf value may take. "object" is an
+# opaque pass-through: a named list handed to a foreign backend, with no
+# per-key contract (see `prop_bag()`).
+PROP_TYPES <- c("boolean", "integer", "number", "string", "object")
 
 # Nouns used to build error messages from a bound name.
 DATA_BOUND_NOUN <- c(
@@ -133,8 +140,12 @@ PropertySpec <- new_class(
     description = class_character
   ),
   validator = function(self) {
-    if (!self@type %in% c("boolean", "integer", "number", "string")) {
-      return("@type must be one of 'boolean', 'integer', 'number', 'string'.")
+    if (!self@type %in% PROP_TYPES) {
+      return(paste0(
+        "@type must be one of ",
+        paste0("'", PROP_TYPES, "'", collapse = ", "),
+        "."
+      ))
     }
     if (!is.null(self@enum) && self@type != "string") {
       return("@enum is only supported for type 'string'.")
@@ -207,7 +218,8 @@ PropertySpec <- new_class(
         boolean = is.logical(self@default),
         integer = is.integer(self@default),
         number = is.numeric(self@default),
-        string = is.character(self@default)
+        string = is.character(self@default),
+        object = is.list(self@default)
       )
       if (!type_ok) {
         return(paste0("@default must be of type '", self@type, "'."))
@@ -241,6 +253,11 @@ PropertySpec <- new_class(
 validate_with_spec <- function(value, spec) {
   if (is.null(value)) {
     return(if (spec@nullable) NULL else "must not be NULL.")
+  }
+  if (spec@type == "object" && spec@container == "none") {
+    # One named list is a single value however many keys it holds, and its
+    # contents are the backend's contract, not ours.
+    return(if (is.list(value)) NULL else "must be a list.")
   }
   if (length(value) == 0L) {
     # NULL is the only "unset" value: nullable properties declare their class
@@ -311,7 +328,8 @@ make_prop <- function(spec) {
     boolean = class_logical,
     integer = class_integer,
     number = class_numeric,
-    string = class_character
+    string = class_character,
+    object = class_list
   )
   p <- new_property(
     class = if (spec@nullable) NULL | base_class else base_class,
@@ -506,6 +524,46 @@ prop_string <- function(
     description = description
   ))
 } # /rtemis::prop_string
+
+
+# %% prop_bag ----
+#' Open-object S7 property with attached PropertySpec
+#'
+#' A named list handed straight to a foreign backend (`missRanger`'s
+#' parameters, a clustering backend's control list). The keys are that
+#' backend's contract, so the schema models it as an object with no per-key
+#' constraint and validation stops at "is a list".
+#'
+#' @param default List: Default value (NULL only if `nullable`).
+#' @param nullable Logical: If TRUE, NULL is a valid value.
+#' @param description Character: Human-readable description.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_bag <- function(
+  default = list(),
+  nullable = FALSE,
+  description = ""
+) {
+  make_prop(PropertySpec(
+    type = "object",
+    default = default,
+    minimum = NULL,
+    maximum = NULL,
+    exclusive_minimum = NULL,
+    exclusive_maximum = NULL,
+    enum = NULL,
+    nullable = nullable,
+    tunable = FALSE,
+    container = "none",
+    items = NULL,
+    broadcast = FALSE,
+    description = description
+  ))
+} # /rtemis::prop_bag
 
 
 # %% get_spec ----
@@ -1067,19 +1125,8 @@ spec_to_schema <- function(spec) {
   } else {
     scalar
   }
-  # Annotations last, at the top level of the property schema.
-  if (!is.null(spec@default)) {
-    # A vector-valued default must stay an array even at length 1, otherwise
-    # `toJSON(auto_unbox = TRUE)` emits a scalar that contradicts
-    # `"type": "array"`.
-    out[["default"]] <- if (spec@container == "array") {
-      I(spec@default)
-    } else {
-      spec@default
-    }
-  } else if (spec@nullable) {
-    out[["default"]] <- NA # -> null (jsonlite na = "null")
-  }
+  # No `default` keyword is emitted; defaults are published separately by
+  # `data-raw/generate_defaults.R`, keyed by schema `$id`.
   # A `data_bound` cannot be expressed structurally - JSON Schema has no view of
   # the training data - so record it in the description, where a consumer
   # building a form or a config can still surface the constraint.

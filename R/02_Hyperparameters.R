@@ -2228,7 +2228,6 @@ TabNetHyperparameters <- new_class(
   properties = list(
     optimizer = list(
       type = "string",
-      default = "adam",
       `$comment` = "A torch optimizer function may also be supplied in R; only the string form is serializable.",
       description = "Optimizer name (e.g. \"adam\")."
     ),
@@ -2531,8 +2530,11 @@ RangerHyperparameters <- new_class(
       data_bound = "feature_names",
       description = "Variables always included as split candidates."
     ),
-    respect_unordered_factors = prop_external(
-      NULL | class_character | class_logical
+    respect_unordered_factors = prop_string(
+      NULL,
+      enum = c("partition", "ignore", "order"),
+      nullable = TRUE,
+      description = "Handling of unordered factors. NULL uses the ranger default."
     ),
     scale_permutation_importance = prop_boolean(
       FALSE,
@@ -2637,18 +2639,6 @@ RangerHyperparameters <- new_class(
         "with one weight vector per tree. null uses the ranger default."
       )
     ),
-    respect_unordered_factors = list(
-      oneOf = list(
-        list(type = "null"),
-        list(type = "string", enum = I(c("partition", "ignore", "order"))),
-        list(type = "boolean")
-      ),
-      description = paste0(
-        "Handling of unordered factors: \"partition\", \"ignore\", or ",
-        "\"order\"; or a logical (TRUE corresponds to \"partition\"). null ",
-        "uses the ranger default."
-      )
-    ),
     inbag = list(
       oneOf = list(
         list(type = "null"),
@@ -2697,7 +2687,7 @@ RangerHyperparameters <- new_class(
 #' @param poisson_tau Numeric (0, Inf): Tau parameter, for the "poisson" regression splitrule.
 #' @param split_select_weights Optional Numeric \[0, 1\] vector: Per-feature probabilities of being selected for splitting. Alternatively a list of length `num_trees`, one weight vector per tree.
 #' @param always_split_variables Optional Character vector: Names of variables to always include as split candidates, in addition to the `mtry` variables.
-#' @param respect_unordered_factors Optional Character or logical: Handling of unordered factors: "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response. TRUE corresponds to "partition".
+#' @param respect_unordered_factors Optional Character \{"partition", "ignore", "order"\}: Handling of unordered factors. "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response.
 #' @param scale_permutation_importance Logical: If TRUE, scale permutation importance by its standard error. Permutation importance only.
 #' @param local_importance Logical: If TRUE, compute local (per-observation) permutation importance.
 #' @param regularization_factor (Tunable) Numeric [0, Inf): Regularization factor penalizing variables with many split points. Requires `splitrule = "variance"`.

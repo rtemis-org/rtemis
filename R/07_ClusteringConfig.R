@@ -300,7 +300,9 @@ CMeansConfig <- new_class(
       default = 1.0,
       data_dependent = TRUE
     ),
-    control = prop_external(class_list, default = list())
+    control = prop_bag(
+      description = "Control parameters passed to the clustering backend."
+    )
   )
 ) # /rtemis::CMeansConfig
 
@@ -321,13 +323,8 @@ CMeansConfig <- new_class(
           minItems = 1L
         )
       ),
-      default = 1,
       `$comment` = "Data-dependent when a vector: per-case weights, length = number of cases.",
       description = "Case weights: a single number applied to every case, or a per-case vector."
-    ),
-    control = list(
-      type = "object",
-      description = "Control parameters passed to the clustering backend."
     )
   )
 )

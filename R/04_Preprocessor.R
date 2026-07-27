@@ -46,9 +46,9 @@ PreprocessorConfig <- new_class(
       enum = c("missRanger", "micePMM", "meanMode"),
       description = "Imputation method."
     ),
-    # A named parameter list; not JSON-scalar, injected into the schema via
-    # `.preprocessor_schema_extra`.
-    impute_missRanger_params = prop_external(class_list, default = list()),
+    impute_missRanger_params = prop_bag(
+      description = "Parameters passed to missRanger (e.g. pmm.k, maxiter, num.trees)."
+    ),
     impute_discrete = prop_string(
       "get_mode",
       description = "Function name to impute discrete features."
@@ -187,10 +187,6 @@ PreprocessorConfig <- new_class(
 # matches the shape consumed by the CLI. See generate_schemas.R.
 .preprocessor_schema_extra <- list(
   properties = list(
-    impute_missRanger_params = list(
-      type = "object",
-      description = "Parameters passed to missRanger (e.g. pmm.k, maxiter, num.trees)."
-    ),
     scale_centers = list(
       type = I(c("object", "null")),
       `$comment` = "Data-dependent: learned during preprocess(); per-feature scaling centers."
@@ -280,8 +276,8 @@ method(print, PreprocessorConfig) <- function(
 #' `impute_continuous`.
 #' @param impute_type Character \{"missRanger", "micePMM", "meanMode"\}: Package to use for
 #'   imputation.
-#' @param impute_missRanger_params Named list with elements "pmm.k",
-#'   "maxiter", and "num.trees", which are passed to `missRanger::missRanger`. `pmm.k`
+#' @param impute_missRanger_params List: Parameters passed to
+#'   `missRanger::missRanger`, e.g. "pmm.k", "maxiter", "num.trees". `pmm.k`
 #'   greater than 0 results in predictive mean matching. Reduce `num.trees` for
 #'   faster imputation especially in large datasets. Set `pmm.k = 0` to
 #'   disable predictive mean matching.
