@@ -1212,11 +1212,12 @@ LightRFHyperparameters <- new_class(
       description = "Maximum tree depth. -1 = no limit."
     ),
     feature_fraction = prop_float(
-      0.7,
+      NULL,
       exclusive_min = 0,
       max = 1,
+      nullable = TRUE,
       tunable = TRUE,
-      description = "Fraction of features sampled per tree."
+      description = "Fraction of features sampled per tree. NULL = sqrt(n_features)/n_features for classification, 0.33 for regression."
     ),
     subsample = prop_float(
       0.623,
@@ -1295,7 +1296,7 @@ LightRFHyperparameters <- new_class(
 #' @param nrounds (Tunable) Integer [1, Inf): Number of boosting rounds.
 #' @param num_leaves (Tunable) Integer [1, Inf): Maximum number of leaves in one tree.
 #' @param max_depth (Tunable) Integer: Maximum depth of trees. -1 = no limit.
-#' @param feature_fraction (Tunable) Numeric (0, 1]: Fraction of features to use.
+#' @param feature_fraction (Tunable) Optional Numeric (0, 1]: Fraction of features to use. NULL derives it from the data: sqrt(n_features)/n_features for classification, 0.33 for regression.
 #' @param subsample (Tunable) Numeric (0, 1]: Fraction of data to use.
 #' @param lambda_l1 (Tunable) Numeric [0, Inf): L1 regularization.
 #' @param lambda_l2 (Tunable) Numeric [0, Inf): L2 regularization.
@@ -1319,7 +1320,7 @@ setup_LightRF <- function(
   nrounds = 500L,
   num_leaves = 4096L,
   max_depth = -1L,
-  feature_fraction = 0.7,
+  feature_fraction = NULL,
   subsample = .623, # a.k.a. bagging_fraction
   lambda_l1 = 0,
   lambda_l2 = 0,

@@ -12,7 +12,6 @@ setup_SuperConfig(
   positive_class = NULL,
   preprocessor_config = NULL,
   decomposition_config = NULL,
-  algorithm = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
@@ -39,8 +38,6 @@ outcome level to treat as positive. NULL keeps the existing factor level order.}
 \item{preprocessor_config}{\code{PreprocessorConfig} object: Configuration for data preprocessing.}
 
 \item{decomposition_config}{\code{DecompositionConfig} object: Configuration for data decomposition.}
-
-\item{algorithm}{Optional Character: Algorithm to use for training.}
 
 \item{hyperparameters}{\code{Hyperparameters} object: Configuration for model hyperparameters.}
 
@@ -71,7 +68,6 @@ CLI) before \link{train}.
 sc <- setup_SuperConfig(
   dat_training_path = "train.csv",
   preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
-  algorithm = "LightRF",
   hyperparameters = setup_LightRF(),
   tuner_config = setup_GridSearch(),
   outer_resampling_config = setup_Resampler(),

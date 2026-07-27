@@ -36,7 +36,6 @@
 #' # Create a SuperConfig object
 #' x <- setup_SuperConfig(
 #'   dat_training_path = "~/Data/iris.csv",
-#'   algorithm = "LightRF",
 #'   hyperparameters = setup_LightRF()
 #' )
 #' # Write JSON config file

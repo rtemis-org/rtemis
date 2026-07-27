@@ -110,19 +110,8 @@ get_train_fn <- function(algorithm) {
   paste0("train_", get_alg_name(algorithm))
 } # /rtemis::get_train_fn
 
-get_default_hyperparameters <- function(algorithm, type, ncols) {
-  alg_name <- get_alg_name(algorithm)
-  if (alg_name == "LightRF") {
-    setup_LightRF(
-      feature_fraction = if (type == "Classification") {
-        sqrt(ncols) / ncols
-      } else {
-        0.33
-      }
-    )
-  } else {
-    do.call(paste0("setup_", get_alg_name(algorithm)), list())
-  }
+get_default_hyperparameters <- function(algorithm) {
+  do.call(paste0("setup_", get_alg_name(algorithm)), list())
 } # /rtemis::get_default_hyperparameters
 
 

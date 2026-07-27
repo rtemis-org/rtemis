@@ -32,7 +32,6 @@
 #' x <- setup_SuperConfig(
 #'   dat_training_path = "~/Data/iris.csv",
 #'   preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
-#'   algorithm = "LightRF",
 #'   hyperparameters = setup_LightRF(),
 #'   outer_resampling_config = setup_Resampler(),
 #'   question = "Can we tell iris species apart given their measurements?",
@@ -143,10 +142,7 @@ method(write_config, SuperConfig) <- function(
 ) {
   # Write the complete object: every nested config (preprocessor, decomposition,
   # resampler, tuner, hyperparameters) is serialized in full by `S7_to_list()`,
-  # which recurses through props. The Hyperparameters object carries its own
-  # `algorithm`, so a SuperConfig built from `hyperparameters` alone (top-level
-  # `algorithm` left NULL) still round-trips: `read_config()` rebuilds it with
-  # the matching `setup_<algorithm>()`.
+  # which recurses through props.
   payload <- c(
     list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["supervised"]]),
     S7_to_list(serializable_props(x))

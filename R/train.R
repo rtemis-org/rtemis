@@ -13,8 +13,9 @@
 #' @param dat_validation Tabular data: Validation set data.
 #' @param dat_test Tabular data: Test set data.
 #' @param weights Optional vector of case weights.
-#' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
-#'   If neither is defined, defaults to "ranger".
+#' @param algorithm Optional Character: Algorithm to use. May be left NULL when
+#' `hyperparameters` is given, which identifies the algorithm itself. If neither
+#' is given, defaults to "Ranger".
 #' @param preprocessor_config Optional PreprocessorConfig object: Setup using [setup_Preprocessor].
 #' @param decomposition_config Optional DecompositionConfig object: Setup using a decomposition
 #'  `setup_*` function.
@@ -155,7 +156,6 @@ train <- function(
       weights = x@weights,
       preprocessor_config = x@preprocessor_config,
       decomposition_config = x@decomposition_config,
-      algorithm = x@algorithm,
       hyperparameters = x@hyperparameters,
       tuner_config = x@tuner_config,
       outer_resampling_config = x@outer_resampling_config,
@@ -204,7 +204,6 @@ train <- function(
       weights = x@weights,
       preprocessor_config = x@preprocessor_config,
       decomposition_config = x@decomposition_config,
-      algorithm = x@algorithm,
       hyperparameters = x@hyperparameters,
       tuner_config = x@tuner_config,
       outer_resampling_config = x@outer_resampling_config,
@@ -241,11 +240,11 @@ train <- function(
   }
 
   if (is.null(algorithm)) {
-    if (!is.null(hyperparameters)) {
-      check_is_S7(hyperparameters, Hyperparameters)
-      algorithm <- hyperparameters@algorithm
+    algorithm <- if (is.null(hyperparameters)) {
+      "Ranger"
     } else {
-      algorithm <- "ranger"
+      check_is_S7(hyperparameters, Hyperparameters)
+      hyperparameters@algorithm
     }
   }
 
@@ -262,18 +261,11 @@ train <- function(
   type <- supervised_type(x)
   ncols <- ncol(x)
 
-  if (is.null(hyperparameters) && !is.null(algorithm)) {
-    hyperparameters <- get_default_hyperparameters(
-      algorithm,
-      type = type,
-      ncols = ncols
-    )
+  if (is.null(hyperparameters)) {
+    hyperparameters <- get_default_hyperparameters(algorithm)
   }
-
-  if (
-    !is.null(algorithm) &&
-      tolower(algorithm) != tolower(hyperparameters@algorithm)
-  ) {
+  check_is_S7(hyperparameters, Hyperparameters)
+  if (tolower(algorithm) != tolower(hyperparameters@algorithm)) {
     rtemis.core::abort(
       "You defined algorithm to be '",
       algorithm,
@@ -283,8 +275,7 @@ train <- function(
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-
-  check_is_S7(hyperparameters, Hyperparameters)
+  algorithm <- hyperparameters@algorithm
 
   # Set default tuner_config if tuning is needed but none specified
   if (needs_tuning(hyperparameters) && is.null(tuner_config)) {
@@ -343,7 +334,6 @@ train <- function(
     }
   }
 
-  algorithm <- get_alg_name(algorithm)
   if (!is.null(outdir)) {
     outdir <- make_path(outdir)
     if (!dir.exists(outdir)) {

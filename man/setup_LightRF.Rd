@@ -8,7 +8,7 @@ setup_LightRF(
   nrounds = 500L,
   num_leaves = 4096L,
   max_depth = -1L,
-  feature_fraction = 0.7,
+  feature_fraction = NULL,
   subsample = 0.623,
   lambda_l1 = 0,
   lambda_l2 = 0,
@@ -29,7 +29,7 @@ setup_LightRF(
 
 \item{max_depth}{(Tunable) Integer: Maximum depth of trees. -1 = no limit.}
 
-\item{feature_fraction}{(Tunable) Numeric (0, 1]: Fraction of features to use.}
+\item{feature_fraction}{(Tunable) Optional Numeric (0, 1]: Fraction of features to use. NULL derives it from the data: sqrt(n_features)/n_features for classification, 0.33 for regression.}
 
 \item{subsample}{(Tunable) Numeric (0, 1]: Fraction of data to use.}
 

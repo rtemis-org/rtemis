@@ -9,7 +9,6 @@ test_that("SuperConfig() succeeds", {
     dat_validation_path = "validation.csv",
     dat_test_path = "test.csv",
     weights = NULL,
-    algorithm = "GLMNET",
     preprocessor_config = setup_Preprocessor(),
     hyperparameters = setup_GLMNET(),
     tuner_config = setup_GridSearch(),
@@ -30,7 +29,6 @@ test_that("setup_SuperConfig() succeeds", {
     dat_test_path = "test.csv",
     weights = NULL,
     preprocessor_config = setup_Preprocessor(),
-    algorithm = "LightGBM",
     hyperparameters = setup_LightGBM(),
     tuner_config = setup_GridSearch(),
     outer_resampling_config = setup_Resampler(),
@@ -52,7 +50,6 @@ test_that("train() works with SuperConfig", {
     dat_test_path = NULL,
     weights = NULL,
     preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
-    algorithm = "LightRF",
     hyperparameters = setup_LightRF(),
     tuner_config = setup_GridSearch(),
     outer_resampling_config = setup_Resampler(),
@@ -74,7 +71,6 @@ test_that("SuperConfig round-trips through write_config/read_config JSON", {
     dat_test_path = NULL,
     weights = NULL,
     preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
-    algorithm = "LightRF",
     hyperparameters = setup_LightRF(),
     tuner_config = setup_GridSearch(),
     outer_resampling_config = setup_Resampler(),
@@ -93,7 +89,10 @@ test_that("SuperConfig round-trips through write_config/read_config JSON", {
   )
   xtoo <- read_config(file)
   expect_s7_class(xtoo, SuperConfig)
-  expect_identical(xtoo@algorithm, x@algorithm)
+  expect_identical(
+    xtoo@hyperparameters@algorithm,
+    x@hyperparameters@algorithm
+  )
 })
 
 
@@ -107,7 +106,6 @@ test_that("read_config ignores `$schema` on nested configs", {
     list(
       `$schema` = "https://schema.rtemis.org/supervised/v1/schema.json",
       dat_training_path = "~/Data/iris.csv",
-      algorithm = "LightRF",
       preprocessor_config = list(
         `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
         remove_duplicates = TRUE

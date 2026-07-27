@@ -61,6 +61,16 @@ method(train_, LightRFHyperparameters) <- function(
       }
     }
   }
+  # Resolved here, not at setup time, because it depends on the data: the
+  # random-forest convention is sqrt(p) features per split for classification.
+  if (is.null(hyperparameters[["feature_fraction"]])) {
+    n_features <- NCOL(features(x))
+    hyperparameters@feature_fraction <- if (type == "Classification") {
+      sqrt(n_features) / n_features
+    } else {
+      0.33
+    }
+  }
 
   ## Preprocess & create lgb.Datasets ----
   lgb_data <- prepare_lgb_data(

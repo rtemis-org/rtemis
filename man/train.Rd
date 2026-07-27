@@ -32,8 +32,9 @@ train(
 
 \item{weights}{Optional vector of case weights.}
 
-\item{algorithm}{Character: Algorithm to use. Can be left NULL, if \code{hyperparameters} is defined.
-If neither is defined, defaults to "ranger".}
+\item{algorithm}{Optional Character: Algorithm to use. May be left NULL when
+\code{hyperparameters} is given, which identifies the algorithm itself. If neither
+is given, defaults to "Ranger".}
 
 \item{preprocessor_config}{Optional PreprocessorConfig object: Setup using \link{setup_Preprocessor}.}
 

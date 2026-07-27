@@ -47,11 +47,6 @@ SuperConfig <- new_class(
     ),
     preprocessor_config = NULL | PreprocessorConfig,
     decomposition_config = NULL | DecompositionConfig,
-    algorithm = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Supervised-learning algorithm name."
-    ),
     hyperparameters = NULL | Hyperparameters,
     tuner_config = NULL | TunerConfig,
     outer_resampling_config = NULL | ResamplerConfig,
@@ -129,7 +124,6 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' outcome level to treat as positive. NULL keeps the existing factor level order.
 #' @param preprocessor_config `PreprocessorConfig` object: Configuration for data preprocessing.
 #' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
-#' @param algorithm Optional Character: Algorithm to use for training.
 #' @param hyperparameters `Hyperparameters` object: Configuration for model hyperparameters.
 #' @param tuner_config `TunerConfig` object: Configuration for hyperparameter tuning.
 #' @param outer_resampling_config `ResamplerConfig` object: Configuration for outer res
@@ -148,7 +142,6 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' sc <- setup_SuperConfig(
 #'   dat_training_path = "train.csv",
 #'   preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
-#'   algorithm = "LightRF",
 #'   hyperparameters = setup_LightRF(),
 #'   tuner_config = setup_GridSearch(),
 #'   outer_resampling_config = setup_Resampler(),
@@ -164,7 +157,6 @@ setup_SuperConfig <- function(
   positive_class = NULL,
   preprocessor_config = NULL,
   decomposition_config = NULL,
-  algorithm = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
@@ -199,7 +191,6 @@ setup_SuperConfig <- function(
     positive_class = positive_class,
     preprocessor_config = preprocessor_config,
     decomposition_config = decomposition_config,
-    algorithm = algorithm,
     hyperparameters = hyperparameters,
     tuner_config = tuner_config,
     outer_resampling_config = outer_resampling_config,
@@ -258,8 +249,8 @@ setup_SuperConfig <- function(
 #' named list, such as the result of parsing a JSON config. Nested config
 #' objects are rebuilt via their respective `.list_to_*` / `setup_*` functions.
 #'
-#' @param x Named list carrying `SuperConfig` fields (e.g. `algorithm`,
-#'   `hyperparameters`, `decomposition_config`, `outer_resampling_config`).
+#' @param x Named list carrying `SuperConfig` fields (e.g. `hyperparameters`,
+#'   `decomposition_config`, `outer_resampling_config`).
 #'
 #' @return `SuperConfig` object.
 #'
@@ -283,20 +274,10 @@ setup_SuperConfig <- function(
     } else {
       .list_to_DecompositionConfig(x[["decomposition_config"]])
     },
-    algorithm = x[["algorithm"]],
-    # `.list_to_Hyperparameters` wants `{algorithm, hyperparameters}`. The JSON
-    # schema keeps `algorithm` as a top-level sibling with a flat
-    # `hyperparameters` map (as `write_config()` emits), so bundle it. A
-    # pre-nested `{algorithm, hyperparameters}` shape is also accepted.
     hyperparameters = if (is.null(x[["hyperparameters"]])) {
       NULL
-    } else if (!is.null(x[["hyperparameters"]][["hyperparameters"]])) {
-      .list_to_Hyperparameters(x[["hyperparameters"]])
     } else {
-      .list_to_Hyperparameters(list(
-        algorithm = x[["algorithm"]],
-        hyperparameters = x[["hyperparameters"]]
-      ))
+      .list_to_Hyperparameters(x[["hyperparameters"]])
     },
     tuner_config = if (is.null(x[["tuner_config"]])) {
       NULL
@@ -363,11 +344,6 @@ SuperConfigLive <- new_class(
     ),
     preprocessor_config = NULL | PreprocessorConfig,
     decomposition_config = NULL | DecompositionConfig,
-    algorithm = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Supervised-learning algorithm name."
-    ),
     hyperparameters = NULL | Hyperparameters,
     tuner_config = NULL | TunerConfig,
     outer_resampling_config = NULL | ResamplerConfig,
@@ -440,7 +416,7 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 #'   outcome level to treat as positive; forwarded to [train] which reorders
 #'   the outcome factor via [set_positive_class]. `NULL` keeps the existing
 #'   level order.
-#' @param preprocessor_config,algorithm,hyperparameters,tuner_config,outer_resampling_config,execution_config,question,verbosity
+#' @param preprocessor_config,hyperparameters,tuner_config,outer_resampling_config,execution_config,question,verbosity
 #'   See [setup_SuperConfig].
 #' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
 #' @param outdir Optional Character: Output directory; `NULL`
@@ -453,7 +429,6 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 #' @examples
 #' scl <- setup_SuperConfigLive(
 #'   dat_training = iris,
-#'   algorithm = "LightGBM",
 #'   hyperparameters = setup_LightGBM(),
 #'   outer_resampling_config = setup_Resampler(),
 #'   question = "Can we tell iris species apart given their measurements?"
@@ -466,7 +441,6 @@ setup_SuperConfigLive <- function(
   positive_class = NULL,
   preprocessor_config = NULL,
   decomposition_config = NULL,
-  algorithm = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
@@ -486,7 +460,6 @@ setup_SuperConfigLive <- function(
     positive_class = positive_class,
     preprocessor_config = preprocessor_config,
     decomposition_config = decomposition_config,
-    algorithm = algorithm,
     hyperparameters = hyperparameters,
     tuner_config = tuner_config,
     outer_resampling_config = outer_resampling_config,

@@ -40,7 +40,6 @@ clustering schema.
 x <- setup_SuperConfig(
   dat_training_path = "~/Data/iris.csv",
   preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
-  algorithm = "LightRF",
   hyperparameters = setup_LightRF(),
   outer_resampling_config = setup_Resampler(),
   question = "Can we tell iris species apart given their measurements?",

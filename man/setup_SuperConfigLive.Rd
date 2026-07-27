@@ -12,7 +12,6 @@ setup_SuperConfigLive(
   positive_class = NULL,
   preprocessor_config = NULL,
   decomposition_config = NULL,
-  algorithm = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
@@ -37,7 +36,7 @@ outcome level to treat as positive; forwarded to \link{train} which reorders
 the outcome factor via \link{set_positive_class}. \code{NULL} keeps the existing
 level order.}
 
-\item{preprocessor_config, algorithm, hyperparameters, tuner_config, outer_resampling_config, execution_config, question, verbosity}{See \link{setup_SuperConfig}.}
+\item{preprocessor_config, hyperparameters, tuner_config, outer_resampling_config, execution_config, question, verbosity}{See \link{setup_SuperConfig}.}
 
 \item{decomposition_config}{\code{DecompositionConfig} object: Configuration for data decomposition.}
 
@@ -54,7 +53,6 @@ in-memory tabular data instead of file paths.
 \examples{
 scl <- setup_SuperConfigLive(
   dat_training = iris,
-  algorithm = "LightGBM",
   hyperparameters = setup_LightGBM(),
   outer_resampling_config = setup_Resampler(),
   question = "Can we tell iris species apart given their measurements?"
