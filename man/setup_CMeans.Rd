@@ -28,7 +28,7 @@ setup_CMeans(
 
 \item{rate_par}{Optional Numeric [0, 1]: Learning rate for the online variant.}
 
-\item{weights}{Numeric vector: Case weights. One number applied to every case, or a per-case vector.}
+\item{weights}{Numeric vector: Case weights. Either a scalar, applied to every case, or a vector with one value per case.}
 
 \item{control}{List: Control config for clustering algorithm.}
 }

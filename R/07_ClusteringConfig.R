@@ -301,7 +301,7 @@ CMeansConfig <- new_class(
       broadcast = TRUE,
       data_bound = "n_cases",
       data_dependent = TRUE,
-      description = "Case weights: one number applied to every case, or a per-case vector."
+      description = "Case weights: either a scalar, applied to every case, or a vector."
     ),
     control = prop_bag(
       description = "Control parameters passed to the clustering backend."
@@ -319,7 +319,7 @@ CMeansConfig <- new_class(
 #' @param method Character \{"cmeans", "ufcl"\}: "cmeans" - fuzzy c-means clustering; "ufcl": on-line update.
 #' @param m Numeric (1, Inf): Degree of fuzzification.
 #' @param rate_par Optional Numeric \[0, 1\]: Learning rate for the online variant.
-#' @param weights Numeric vector: Case weights. One number applied to every case, or a per-case vector.
+#' @param weights Numeric vector: Case weights. Either a scalar, applied to every case, or a vector with one value per case.
 #' @param control List: Control config for clustering algorithm.
 #'
 #' @return CMeansConfig object.

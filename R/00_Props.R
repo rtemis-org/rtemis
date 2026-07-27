@@ -1353,14 +1353,25 @@ spec_to_schema <- function(spec) {
   # building a form or a config can still surface the constraint.
   description <- spec@description
   if (!is.null(spec@data_bound)) {
+    # "feature_names" is a membership rule, not a length rule, so it has no
+    # noun in the table.
+    noun <- if (spec@data_bound == "feature_names") {
+      NA_character_
+    } else {
+      DATA_BOUND_NOUN[[spec@data_bound]]
+    }
     note <- if (spec@data_bound == "feature_names") {
       "Values must name training features."
+    } else if (spec@container == "matrix") {
+      paste0("Must have one row per ", noun, ".")
+    } else if (spec@container == "map") {
+      paste0("Must have one entry per ", noun, ".")
+    } else if (spec@container != "none" && spec@broadcast) {
+      # A scalar is explicitly allowed, so the length rule binds only the
+      # vector form.
+      paste0("A vector must have one value per ", noun, ".")
     } else if (spec@container != "none") {
-      paste0(
-        "Must have one value per ",
-        DATA_BOUND_NOUN[[spec@data_bound]],
-        "."
-      )
+      paste0("Must have one value per ", noun, ".")
     } else {
       paste0(
         "Cannot exceed the number of ",
