@@ -18,11 +18,10 @@ base_url <- "https://schema.rtemis.org"
 # Registry ------------------------------------------------------------------
 # Per family: the base class, the payload field name, the dispatcher's title /
 # descriptions / extra top-level properties, and the per-algorithm classes with
-# a one-line description, and an optional `extra` supplying hand-written schema
-# for properties declared `prop_external()` (whose R type the prop_* factories
-# cannot express). Which properties take part is decided by their declared role
-# (see `prop_role()`), not listed here: run state is dropped, and a missing
-# `extra` for an external property aborts.
+# a one-line description, and an optional `extra` supplying cross-field
+# constraints that are not per-property. Which properties take part is decided
+# by their declared role (see `prop_role()`), not listed here: run state is
+# dropped, and a spec-less property aborts generation.
 source(file.path("data-raw", "schema_registry.R"))
 
 # Generation ----------------------------------------------------------------
@@ -120,8 +119,7 @@ for (family in names(families)) {
 
 # Flat configs --------------------------------------------------------------
 # Single-object configs (no algorithm discriminator, so no family base class):
-# one schema per class. `extra` supplies hand-written fragments for the
-# `prop_external()` properties.
+# one schema per class. `extra` supplies cross-field constraints.
 for (family in names(flat_configs)) {
   cfg <- flat_configs[[family]]
   id <- paste0(base_url, "/", family, "/v1/schema.json")

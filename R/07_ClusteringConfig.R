@@ -295,39 +295,19 @@ CMeansConfig <- new_class(
       nullable = TRUE,
       description = "Learning rate for the online (ufcl) variant."
     ),
-    weights = prop_external(
-      class_numeric,
-      default = 1.0,
-      data_dependent = TRUE
+    weights = prop_float(
+      1,
+      vector = TRUE,
+      broadcast = TRUE,
+      data_bound = "n_cases",
+      data_dependent = TRUE,
+      description = "Case weights: one number applied to every case, or a per-case vector."
     ),
     control = prop_bag(
       description = "Control parameters passed to the clustering backend."
     )
   )
 ) # /rtemis::CMeansConfig
-
-
-# %% .cmeans_schema_extra ----
-# Schema fragments for CMeansConfig properties whose R types the prop_*
-# factories do not express: `weights` (a per-case numeric vector) and `control`
-# (an open backend control list). Merged into the generated schema. See
-# generate_schemas.R.
-.cmeans_schema_extra <- list(
-  properties = list(
-    weights = list(
-      oneOf = list(
-        list(type = "number"),
-        list(
-          type = "array",
-          items = list(type = "number"),
-          minItems = 1L
-        )
-      ),
-      `$comment` = "Data-dependent when a vector: per-case weights, length = number of cases.",
-      description = "Case weights: a single number applied to every case, or a per-case vector."
-    )
-  )
-)
 
 
 # %% setup_CMeans ----
@@ -339,7 +319,7 @@ CMeansConfig <- new_class(
 #' @param method Character \{"cmeans", "ufcl"\}: "cmeans" - fuzzy c-means clustering; "ufcl": on-line update.
 #' @param m Numeric (1, Inf): Degree of fuzzification.
 #' @param rate_par Optional Numeric \[0, 1\]: Learning rate for the online variant.
-#' @param weights Numeric (0, Inf): Case weights.
+#' @param weights Numeric vector: Case weights. One number applied to every case, or a per-case vector.
 #' @param control List: Control config for clustering algorithm.
 #'
 #' @return CMeansConfig object.
@@ -399,7 +379,14 @@ DBSCANConfig <- new_class(
       min = 1L,
       description = "Minimum number of points in a neighborhood to form a cluster."
     ),
-    weights = prop_external(NULL | class_numeric, data_dependent = TRUE),
+    weights = prop_float(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      data_bound = "n_cases",
+      data_dependent = TRUE,
+      description = "Weights for data points. NULL = unweighted."
+    ),
     border_points = prop_boolean(
       TRUE,
       description = "Assign border points to clusters."
@@ -425,28 +412,6 @@ DBSCANConfig <- new_class(
     )
   )
 ) # /rtemis::DBSCANConfig
-
-
-# %% .dbscan_schema_extra ----
-# Schema fragment for the DBSCANConfig `weights` property (`NULL |
-# class_numeric`, a per-point vector), not expressible via the prop_* factories.
-# Merged into the generated schema. See generate_schemas.R.
-.dbscan_schema_extra <- list(
-  properties = list(
-    weights = list(
-      oneOf = list(
-        list(type = "null"),
-        list(
-          type = "array",
-          items = list(type = "number"),
-          minItems = 1L
-        )
-      ),
-      `$comment` = "Data-dependent: per-point weights, length = number of points.",
-      description = "Optional weights for data points. null = unweighted."
-    )
-  )
-)
 
 
 # %% setup_DBSCAN ----

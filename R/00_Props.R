@@ -36,7 +36,9 @@
 # - anything else  length(value) must equal the dimension (e.g. per-feature
 #                  costs, per-case offsets)
 # "feature_names" is the exception: values must be a subset of the feature
-# names, regardless of arity.
+# names, regardless of arity, and applies only to string properties. Other
+# bounds are about *length*, so they apply to any type -- a character vector of
+# per-case IDs is bound by "n_cases".
 DATA_BOUNDS <- c("n_features", "n_cases", "n_classes", "feature_names")
 
 # %% PROP_CONTAINERS ----
@@ -45,7 +47,11 @@ DATA_BOUNDS <- c("n_features", "n_cases", "n_classes", "feature_names")
 # - "array"  a JSON array (per-feature weights, an initial embedding matrix
 #            when combined with a nested `items`)
 # - "map"    a string-keyed object (per-feature scaling centres, one-hot levels)
-PROP_CONTAINERS <- c("none", "array", "map")
+# - "matrix" a 2-D numeric matrix. Same JSON shape as an array whose `items`
+#            are an array, but a distinct R class, so the two cannot share a
+#            container value: `matrix` is an R `matrix`, a nested `array` is a
+#            list of vectors (per-tree weights, per-tree in-bag counts).
+PROP_CONTAINERS <- c("none", "array", "map", "matrix")
 
 # %% PROP_TYPES ----
 # JSON Schema base types a property's leaf value may take. "object" is an
@@ -95,6 +101,8 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   this spec's own leaf type and constraints.
 #' @field broadcast Logical: If TRUE, a bare scalar is accepted in place of the
 #'   container, meaning "this value for every element".
+#' @field data_dependent Logical: If TRUE, the value is tied to one dataset and
+#'   is not written to a portable config.
 #' @field data_bound Character or NULL: Name of the training-data dimension
 #'   this value is constrained by \{"n_features", "n_cases", "n_classes",
 #'   "feature_names"\}. Checked against the data by
@@ -137,6 +145,11 @@ PropertySpec <- new_class(
     items = class_any,
     broadcast = class_logical,
     data_bound = NULL | class_character,
+    # Portability, orthogonal to `data_bound`: the value's shape is tied to one
+    # particular dataset (per-case IDs, learned scaling centres, an initial
+    # embedding), so it has no meaning in a portable config and is not
+    # serialized. `data_bound` is about *validating* against the training data.
+    data_dependent = new_property(class_logical, default = FALSE),
     description = class_character
   ),
   validator = function(self) {
@@ -190,11 +203,6 @@ PropertySpec <- new_class(
           "@data_bound 'feature_names' is only supported for type 'string'."
         )
       }
-      if (self@data_bound != "feature_names" && self@type == "string") {
-        return(
-          "@data_bound on a string property must be 'feature_names'."
-        )
-      }
     }
     if (
       !is.null(self@minimum) &&
@@ -214,12 +222,17 @@ PropertySpec <- new_class(
     # An invalid declaration fails on package load, not at first instantiation.
     if (!is.null(self@default)) {
       type_ok <- switch(
-        self@type,
-        boolean = is.logical(self@default),
-        integer = is.integer(self@default),
-        number = is.numeric(self@default),
-        string = is.character(self@default),
-        object = is.list(self@default)
+        spec_r_kind(self),
+        matrix = is.matrix(self@default),
+        list = is.list(self@default),
+        switch(
+          self@type,
+          boolean = is.logical(self@default),
+          integer = is.integer(self@default),
+          number = is.numeric(self@default),
+          string = is.character(self@default),
+          object = is.list(self@default)
+        )
       )
       if (!type_ok) {
         return(paste0("@default must be of type '", self@type, "'."))
@@ -232,6 +245,31 @@ PropertySpec <- new_class(
     NULL
   }
 ) # /rtemis::PropertySpec
+
+
+# %% spec_r_kind ----
+#' The kind of R value a spec describes: "matrix", "list", or "atomic"
+#'
+#' A container of scalars is a plain (possibly named) R vector; only a container
+#' whose elements are themselves containers needs a list. A matrix is its own
+#' kind: the same JSON shape as a nested array, a different R class.
+#'
+#' @param spec `PropertySpec` object.
+#'
+#' @return Character: "matrix", "list", or "atomic".
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+spec_r_kind <- function(spec) {
+  if (spec@container == "matrix") {
+    return("matrix")
+  }
+  nested <- spec@container != "none" &&
+    !is.null(spec@items) &&
+    spec@items@container != "none"
+  if (nested) "list" else "atomic"
+} # /rtemis::spec_r_kind
 
 
 # %% validate_with_spec ----
@@ -258,6 +296,37 @@ validate_with_spec <- function(value, spec) {
     # One named list is a single value however many keys it holds, and its
     # contents are the backend's contract, not ours.
     return(if (is.list(value)) NULL else "must be a list.")
+  }
+  if (spec@container == "matrix") {
+    if (!is.matrix(value)) {
+      return("must be a matrix.")
+    }
+    if (anyNA(value)) {
+      return("must not contain missing values.")
+    }
+    return(NULL)
+  }
+  if (spec@container == "map" && is.null(names(value))) {
+    return("must be named.")
+  }
+  if (!is.null(spec@items) && spec@items@container != "none") {
+    # Elements are themselves containers, so each is validated against `items`.
+    # A container of *scalars* is a plain (possibly named) R vector and falls
+    # through to the generic checks below.
+    if (spec@broadcast && !is.list(value)) {
+      # A bare element stands in for the whole container.
+      return(validate_with_spec(value, spec@items))
+    }
+    if (!is.list(value)) {
+      return("must be a list.")
+    }
+    for (i in seq_along(value)) {
+      msg <- validate_with_spec(value[[i]], spec@items)
+      if (!is.null(msg)) {
+        return(paste0("element ", i, " ", msg))
+      }
+    }
+    return(NULL)
   }
   if (length(value) == 0L) {
     # NULL is the only "unset" value: nullable properties declare their class
@@ -323,13 +392,22 @@ validate_with_spec <- function(value, spec) {
 #' @keywords internal
 #' @noRd
 make_prop <- function(spec) {
-  base_class <- switch(
+  atomic_class <- switch(
     spec@type,
     boolean = class_logical,
     integer = class_integer,
     number = class_numeric,
     string = class_character,
     object = class_list
+  )
+  # An R vector already holds "many of a scalar", so `array` and `map` over a
+  # scalar leaf keep the atomic class (a map is simply a *named* vector). Only
+  # a container whose elements are themselves containers needs a list.
+  base_class <- switch(
+    spec_r_kind(spec),
+    matrix = S7::new_S3_class("matrix"),
+    list = class_list,
+    atomic_class
   )
   p <- new_property(
     class = if (spec@nullable) NULL | base_class else base_class,
@@ -386,9 +464,13 @@ prop_boolean <- function(
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
 #' @param vector Logical: If TRUE, the value is vector-valued (JSON array);
 #'   mutually exclusive with `tunable`.
+#' @param broadcast Logical: If TRUE, a bare scalar is accepted in place of the
+#'   vector, meaning "this value for every element". Requires `vector`.
 #' @param data_bound Character or NULL: Training-data dimension constraining
 #'   this value \{"n_features", "n_cases", "n_classes"\}. Scalar properties are
 #'   bounded above by it; `vector` properties must have exactly that length.
+#' @param data_dependent Logical: If TRUE, the value is tied to one dataset
+#'   and is not written to a portable config.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -403,7 +485,9 @@ prop_integer <- function(
   nullable = FALSE,
   tunable = FALSE,
   vector = FALSE,
+  broadcast = FALSE,
   data_bound = NULL,
+  data_dependent = FALSE,
   description = ""
 ) {
   make_prop(PropertySpec(
@@ -417,8 +501,9 @@ prop_integer <- function(
     nullable = nullable,
     tunable = tunable,
     container = if (vector) "array" else "none",
-    broadcast = FALSE,
+    broadcast = broadcast,
     data_bound = data_bound,
+    data_dependent = data_dependent,
     description = description
   ))
 } # /rtemis::prop_integer
@@ -441,9 +526,13 @@ prop_integer <- function(
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
 #' @param vector Logical: If TRUE, the value is vector-valued (JSON array);
 #'   mutually exclusive with `tunable`.
+#' @param broadcast Logical: If TRUE, a bare scalar is accepted in place of the
+#'   vector, meaning "this value for every element". Requires `vector`.
 #' @param data_bound Character or NULL: Training-data dimension constraining
 #'   this value \{"n_features", "n_cases", "n_classes"\}. Scalar properties are
 #'   bounded above by it; `vector` properties must have exactly that length.
+#' @param data_dependent Logical: If TRUE, the value is tied to one dataset
+#'   and is not written to a portable config.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -460,7 +549,9 @@ prop_float <- function(
   nullable = FALSE,
   tunable = FALSE,
   vector = FALSE,
+  broadcast = FALSE,
   data_bound = NULL,
+  data_dependent = FALSE,
   description = ""
 ) {
   make_prop(PropertySpec(
@@ -474,8 +565,9 @@ prop_float <- function(
     nullable = nullable,
     tunable = tunable,
     container = if (vector) "array" else "none",
-    broadcast = FALSE,
+    broadcast = broadcast,
     data_bound = data_bound,
+    data_dependent = data_dependent,
     description = description
   ))
 } # /rtemis::prop_float
@@ -490,8 +582,12 @@ prop_float <- function(
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
 #' @param vector Logical: If TRUE, the value is vector-valued (JSON array);
 #'   mutually exclusive with `tunable`.
+#' @param broadcast Logical: If TRUE, a bare scalar is accepted in place of the
+#'   vector, meaning "this value for every element". Requires `vector`.
 #' @param data_bound Character or NULL: Only "feature_names" is meaningful for
 #'   a string property: values must be a subset of the training features.
+#' @param data_dependent Logical: If TRUE, the value is tied to one dataset
+#'   and is not written to a portable config.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -505,7 +601,9 @@ prop_string <- function(
   nullable = FALSE,
   tunable = FALSE,
   vector = FALSE,
+  broadcast = FALSE,
   data_bound = NULL,
+  data_dependent = FALSE,
   description = ""
 ) {
   make_prop(PropertySpec(
@@ -519,11 +617,171 @@ prop_string <- function(
     nullable = nullable,
     tunable = tunable,
     container = if (vector) "array" else "none",
-    broadcast = FALSE,
+    broadcast = broadcast,
     data_bound = data_bound,
+    data_dependent = data_dependent,
     description = description
   ))
 } # /rtemis::prop_string
+
+
+# %% prop_map ----
+#' String-keyed map S7 property with attached PropertySpec
+#'
+#' A named R vector (or named list, when `values` is itself a container) whose
+#' keys are data-dependent — per-feature scaling values, per-feature one-hot
+#' levels. Maps to a JSON object with `additionalProperties` describing the
+#' value.
+#'
+#' @param values S7 property built by a `prop_*` factory: Describes one value of
+#'   the map. Its own `default` is unused.
+#' @param nullable Logical: If TRUE, NULL is a valid value.
+#' @param data_bound Character or NULL: Training-data dimension the number of
+#'   entries is tied to; see `DATA_BOUNDS`.
+#' @param data_dependent Logical: If TRUE, the value is tied to one dataset
+#'   and is not written to a portable config.
+#' @param description Character: Human-readable description.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_map <- function(
+  values,
+  nullable = FALSE,
+  data_bound = NULL,
+  data_dependent = FALSE,
+  description = ""
+) {
+  value_spec <- get_spec(values)
+  if (is.null(value_spec)) {
+    rtemis.core::abort(
+      "`values` must be a property built by a prop_* factory.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
+  make_prop(PropertySpec(
+    type = value_spec@type,
+    default = NULL,
+    minimum = NULL,
+    maximum = NULL,
+    exclusive_minimum = NULL,
+    exclusive_maximum = NULL,
+    enum = NULL,
+    nullable = nullable,
+    tunable = FALSE,
+    container = "map",
+    items = value_spec,
+    broadcast = FALSE,
+    data_bound = data_bound,
+    data_dependent = data_dependent,
+    description = description
+  ))
+} # /rtemis::prop_map
+
+
+# %% prop_array ----
+#' Array-of-containers S7 property with attached PropertySpec
+#'
+#' An R list whose elements are themselves containers — one weight vector per
+#' tree, one in-bag count vector per tree. For a flat vector of scalars use the
+#' `vector = TRUE` argument of the scalar factories instead.
+#'
+#' @param items S7 property built by a `prop_*` factory: Describes one element.
+#'   Its own `default` is unused.
+#' @param nullable Logical: If TRUE, NULL is a valid value.
+#' @param broadcast Logical: If TRUE, a bare element is accepted in place of the
+#'   list, meaning "this element for every position".
+#' @param data_bound Character or NULL: Training-data dimension the number of
+#'   elements is tied to; see `DATA_BOUNDS`.
+#' @param data_dependent Logical: If TRUE, the value is tied to one dataset
+#'   and is not written to a portable config.
+#' @param description Character: Human-readable description.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_array <- function(
+  items,
+  nullable = FALSE,
+  broadcast = FALSE,
+  data_bound = NULL,
+  data_dependent = FALSE,
+  description = ""
+) {
+  item_spec <- get_spec(items)
+  if (is.null(item_spec)) {
+    rtemis.core::abort(
+      "`items` must be a property built by a prop_* factory.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
+  make_prop(PropertySpec(
+    type = item_spec@type,
+    default = NULL,
+    minimum = NULL,
+    maximum = NULL,
+    exclusive_minimum = NULL,
+    exclusive_maximum = NULL,
+    enum = NULL,
+    nullable = nullable,
+    tunable = FALSE,
+    container = "array",
+    items = item_spec,
+    broadcast = broadcast,
+    data_bound = data_bound,
+    data_dependent = data_dependent,
+    description = description
+  ))
+} # /rtemis::prop_array
+
+
+# %% prop_matrix ----
+#' Numeric matrix S7 property with attached PropertySpec
+#'
+#' A 2-D numeric matrix. Serializes as an array of arrays (rows), which is the
+#' same JSON shape as a nested `array` container but a distinct R class, so the
+#' two are separate containers.
+#'
+#' @param nullable Logical: If TRUE, NULL is a valid value.
+#' @param data_bound Character or NULL: Training-data dimension the row count is
+#'   tied to; see `DATA_BOUNDS`.
+#' @param data_dependent Logical: If TRUE, the value is tied to one dataset
+#'   and is not written to a portable config.
+#' @param description Character: Human-readable description.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_matrix <- function(
+  nullable = FALSE,
+  data_bound = NULL,
+  data_dependent = FALSE,
+  description = ""
+) {
+  make_prop(PropertySpec(
+    type = "number",
+    default = NULL,
+    minimum = NULL,
+    maximum = NULL,
+    exclusive_minimum = NULL,
+    exclusive_maximum = NULL,
+    enum = NULL,
+    nullable = nullable,
+    tunable = FALSE,
+    container = "matrix",
+    items = NULL,
+    broadcast = FALSE,
+    data_bound = data_bound,
+    data_dependent = data_dependent,
+    description = description
+  ))
+} # /rtemis::prop_matrix
 
 
 # %% prop_bag ----
@@ -604,19 +862,12 @@ prop_accepts_null <- function(prop) {
 
 
 # %% Property roles ----
-# Every property of a config class plays one of three roles, and the role
-# decides both what the generated JSON Schema says and what `write_config()`
-# emits. Declaring it on the property keeps that decision in one place, next to
-# the value it describes:
+# Every property of a config class plays one of two roles, and the role decides
+# both what the generated JSON Schema says and what `write_config()` emits:
 #
 # - "config"   Built by a `prop_*` factory, so it carries a `PropertySpec`:
 #              schema generated from the spec, serialized. The common case;
 #              inferred, never declared.
-# - "external" A config input whose R type the factories cannot express
-#              (a matrix, a function-or-string, a list of per-tree vectors).
-#              Declared with `prop_external()`. Present in the schema, but its
-#              fragment is hand-written and merged in via `S7_to_JSONSchema`'s
-#              `extra`, which asserts one is supplied.
 # - "state"    Run state written during training or tuning (GLMNET's
 #              `lambda.min`, LightGBM's `best_iter`). Declared with
 #              `prop_state()`. Never in a schema, never serialized, re-derived
@@ -626,18 +877,16 @@ prop_accepts_null <- function(prop) {
 # nor declared state, and schema generation aborts rather than quietly emitting
 # an incomplete contract.
 #
-# `data_dependent` is a second, orthogonal axis, meaningful on "external": the
+# `data_dependent` is a second, orthogonal axis on a "config" property: the
 # value's shape is tied to a particular dataset (per-case IDs, learned scaling
-# centers), so it has no portable form. Every `config` property is
-# JSON-expressible and portable by construction.
+# centres), so it appears in the schema but is not written to a portable
+# config.
 
 # %% prop_state ----
 #' S7 property holding run state rather than configuration
 #'
 #' Written during training / tuning, so it is excluded from generated schemas
-#' and from serialized configs, and re-derived on read. Contrast
-#' `prop_external()`, which marks a genuine config input the `prop_*` factories
-#' cannot type.
+#' and from serialized configs, and re-derived on read.
 #'
 #' @param class S7 class or union: Property class.
 #' @param default Default value.
@@ -654,62 +903,13 @@ prop_state <- function(class, default = NULL) {
 } # /rtemis::prop_state
 
 
-# %% prop_external ----
-#' S7 property whose JSON Schema is supplied by hand
-#'
-#' A config input whose R type the `prop_*` factories cannot express. It is part
-#' of the contract — `S7_to_JSONSchema()` requires its schema fragment to arrive
-#' via `extra` — but is generated from that fragment rather than from a
-#' `PropertySpec`.
-#'
-#' @param class S7 class or union: Property class.
-#' @param default Default value.
-#' @param data_dependent Logical: If TRUE, the value's shape is tied to a
-#'   specific dataset (per-case IDs, learned scaling centers), so it has no
-#'   portable form and is never serialized. Distinct from `data_bound`, which
-#'   is about *validation* against the training data rather than portability.
-#' @param data_bound Character or NULL: Training-data dimension constraining
-#'   this value; see `DATA_BOUNDS`. Only meaningful for atomic values -- a
-#'   `prop_external()` holding a list needs its own
-#'   `validate_hyperparameters()` method.
-#' @param validator Function or NULL: Property validator, as for
-#'   `S7::new_property()`.
-#'
-#' @return S7 property.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-prop_external <- function(
-  class,
-  default = NULL,
-  data_dependent = FALSE,
-  data_bound = NULL,
-  validator = NULL
-) {
-  if (!is.null(data_bound) && !data_bound %in% DATA_BOUNDS) {
-    rtemis.core::abort(
-      "`data_bound` must be one of ",
-      paste0("'", DATA_BOUNDS, "'", collapse = ", "),
-      ".",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
-  p <- new_property(class, default = default, validator = validator)
-  p[["role"]] <- "external"
-  p[["data_dependent"]] <- data_dependent
-  p[["data_bound"]] <- data_bound
-  p
-} # /rtemis::prop_external
-
-
 # %% prop_role ----
 #' Role of an S7 property
 #'
 #' @param prop S7 property (an element of `Class@properties`).
 #'
-#' @return Character: "config", "external", "state", or `NA_character_` for a
-#'   spec-less property with no declared role (i.e. drift).
+#' @return Character: "config", "state", or `NA_character_` for a spec-less
+#'   property with no declared role (i.e. drift).
 #'
 #' @author EDG
 #' @keywords internal
@@ -727,7 +927,7 @@ prop_role <- function(prop) {
 #' Names of an S7 class's properties with a given role
 #'
 #' @param x S7 class.
-#' @param role Character: "config", "external", or "state".
+#' @param role Character: "config" or "state".
 #'
 #' @return Character vector of property names.
 #'
@@ -750,15 +950,20 @@ role_prop_names <- function(x, role) {
 #' @keywords internal
 #' @noRd
 data_dependent_prop_names <- function(x) {
-  names(Filter(function(p) isTRUE(p[["data_dependent"]]), x@properties))
+  names(Filter(
+    function(p) {
+      spec <- get_spec(p)
+      !is.null(spec) && spec@data_dependent
+    },
+    x@properties
+  ))
 } # /rtemis::data_dependent_prop_names
 
 
 # %% prop_data_bound ----
 #' Training-data dimension an S7 property is constrained by, or NULL
 #'
-#' Reads `data_bound` from the property's `PropertySpec` (factory-built
-#' properties) or from the property itself (`prop_external()`).
+#' Reads `data_bound` from the property's `PropertySpec`.
 #'
 #' @param prop S7 property (an element of `Class@properties`).
 #'
@@ -976,7 +1181,16 @@ config_prop_values <- function(self, base) {
   keep <- vapply(
     names(values),
     function(nm) {
-      identical(prop_role(props[[nm]]), "config") || S7_inherits(values[[nm]])
+      if (S7_inherits(values[[nm]])) {
+        return(TRUE)
+      }
+      if (!identical(prop_role(props[[nm]]), "config")) {
+        return(FALSE)
+      }
+      # A data-dependent value has no meaning outside the dataset it was
+      # measured from, so it is not written to a portable config.
+      spec <- get_spec(props[[nm]])
+      !(!is.null(spec) && spec@data_dependent)
     },
     logical(1L)
   )
@@ -1100,6 +1314,13 @@ spec_to_schema <- function(spec) {
     } else {
       arr
     }
+  } else if (spec@container == "matrix") {
+    row <- list(type = "array", items = scalar, minItems = 1L)
+    list(
+      type = if (spec@nullable) I(c("array", "null")) else "array",
+      items = row,
+      minItems = 1L
+    )
   } else if (spec@container == "map") {
     # A string-keyed object of homogeneous values (per-feature centres).
     list(
@@ -1155,6 +1376,13 @@ spec_to_schema <- function(spec) {
   }
   if (nzchar(description)) {
     out[["description"]] <- description
+  }
+  if (spec@data_dependent) {
+    # Machine-visible in the published contract: a consumer building a form
+    # skips these rather than asking a user for a value only the data can give.
+    out[["$comment"]] <- paste(
+      "Data-dependent: measured from one dataset, so it has no portable value."
+    )
   }
   out
 } # /rtemis::spec_to_schema
@@ -1236,11 +1464,9 @@ S7_to_JSONSchema <- function(
   if (!is.null(base)) {
     props <- props[own_prop_names(x, base)]
   }
-  # Run state never reaches a schema; `external` properties are described by
-  # `extra` instead of by a spec, and their arrival is checked below.
+  # Run state never reaches a schema.
   roles <- vapply(props, prop_role, character(1L))
-  external <- names(props)[!is.na(roles) & roles == "external"]
-  props <- props[is.na(roles) | !roles %in% c("state", "external")]
+  props <- props[is.na(roles) | roles != "state"]
   if (!is.null(refs)) {
     unknown <- setdiff(names(refs), names(props))
     if (length(unknown) > 0L) {
@@ -1262,7 +1488,7 @@ S7_to_JSONSchema <- function(
   )]
   if (length(specless) > 0L) {
     rtemis.core::abort(
-      "Properties with no declared role (build them with the prop_* factories, `refs` them, or declare them with prop_external() / prop_state()): ",
+      "Properties with no declared role (build them with the prop_* factories, `refs` them, or declare them with prop_state()): ",
       paste(specless, collapse = ", "),
       ".",
       class = "rtemis_input_error"
@@ -1311,20 +1537,6 @@ S7_to_JSONSchema <- function(
   }
   if (!is.null(extra)) {
     schema <- utils::modifyList(schema, extra)
-  }
-  # An `external` property is part of the contract; only its JSON fragment is
-  # hand-written. Losing one is silent otherwise — the schema still validates,
-  # it just stops admitting a key the class accepts.
-  unsupplied <- setdiff(external, names(schema[["properties"]]))
-  if (length(unsupplied) > 0L) {
-    rtemis.core::abort(
-      "Propert",
-      if (length(unsupplied) == 1L) "y " else "ies ",
-      "declared with prop_external() but not supplied by `extra`: ",
-      paste(unsupplied, collapse = ", "),
-      ".",
-      class = "rtemis_input_error"
-    )
   }
   schema
 } # /rtemis::S7_to_JSONSchema

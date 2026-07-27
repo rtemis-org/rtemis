@@ -136,9 +136,9 @@ data in categorical variables and impute numeric variables in the same
 
 \item{center}{Logical: If TRUE, center columns of \code{x}. If unset, follows \code{scale}.}
 
-\item{scale_centers}{Named vector: Centering values for each feature.}
+\item{scale_centers}{Optional Named vector: Centering values for each feature.}
 
-\item{scale_coefficients}{Named vector: Scaling values for each feature.}
+\item{scale_coefficients}{Optional Named vector: Scaling values for each feature.}
 
 \item{remove_constants}{Logical: If TRUE, remove constant columns.}
 
@@ -151,7 +151,7 @@ checking if feature is constant.}
 
 \item{one_hot}{Logical: If TRUE, convert all factors using one-hot encoding.}
 
-\item{one_hot_levels}{List: Named list of the form "feature_name" = "levels". Used when applying
+\item{one_hot_levels}{Optional List: Named list of the form "feature_name" = "levels". Used when applying
 one-hot encoding to validation or test data using \code{Preprocessor}.}
 
 \item{add_date_features}{Logical: If TRUE, extract date features from date columns.}

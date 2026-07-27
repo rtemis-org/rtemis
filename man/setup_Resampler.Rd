@@ -31,9 +31,9 @@ Type of resampler.}
 
 \item{target_length}{Optional Integer [1, Inf): Target length for stratified bootstraps.}
 
-\item{id_strat}{Integer: Vector of indices to stratify by. These may be, for example, case IDs
-if your dataset contains repeated measurements. By specifying this vector, you can ensure that
-each case can only be present in the training or test set, but not both.}
+\item{id_strat}{Optional Character vector: Per-case grouping IDs, e.g. subject IDs when the
+dataset contains repeated measurements. Cases sharing an ID stay in the same resample, so a
+case can only be present in the training or the test set, not both.}
 
 \item{seed}{Optional Integer [0, Inf): Random seed.}
 

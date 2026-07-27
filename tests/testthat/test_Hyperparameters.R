@@ -378,20 +378,25 @@ test_that("run state stays out of the serialized config", {
 })
 
 
-test_that("external properties are declared, not silently dropped", {
-  # Ranger's list-valued params are config inputs whose schema is hand-written.
-  expect_setequal(
-    role_prop_names(RangerHyperparameters, "external"),
-    c("split_select_weights", "inbag")
-  )
+test_that("every Ranger property is generated from its own declaration", {
+  # No property needs a hand-written schema fragment.
+  expect_length(role_prop_names(RangerHyperparameters, "external"), 0L)
   schema <- S7_to_JSONSchema(
     RangerHyperparameters,
     id = "https://schema.rtemis.org/hyperparameters/ranger/v1/schema.json",
-    base = Hyperparameters,
-    extra = .ranger_hyperparameters_schema_extra
+    base = Hyperparameters
   )
-  expect_true(all(
-    c("split_select_weights", "respect_unordered_factors", "inbag") %in%
-      names(schema[["properties"]])
-  ))
+  props <- schema[["properties"]]
+  # `respect_unordered_factors` is a plain enum.
+  expect_identical(
+    as.character(props[["respect_unordered_factors"]][["enum"]]),
+    c("partition", "ignore", "order")
+  )
+  # `inbag`: one per-case count vector per tree.
+  expect_identical(props[["inbag"]][["items"]][["type"]], "array")
+  # `split_select_weights` broadcasts: one vector for all trees, or one per tree.
+  branches <- props[["split_select_weights"]][["oneOf"]]
+  expect_length(branches, 3L)
+  expect_identical(branches[[2L]][["items"]][["type"]], "number")
+  expect_identical(branches[[3L]][["items"]][["type"]], "array")
 })

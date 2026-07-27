@@ -35,10 +35,8 @@ DOC_TYPE_MAP <- c(
 )
 
 # Type words that are legitimate in docs but have no `PropertySpec` equivalent,
-# i.e. they describe a `prop_external()` / plain property. Not findings.
+# i.e. they describe a plain S7 property. Not findings.
 DOC_TYPE_NONSPEC <- c(
-  "Matrix",
-  "Named vector",
   "Function",
   "S7 class",
   "tabular data"
@@ -195,6 +193,56 @@ resolve_doc_delegation <- function(text, prop_name, docs) {
 } # /rtemis::resolve_doc_delegation
 
 
+# %% container_doc_type ----
+#' The type word a container property should be documented with, or NULL
+#'
+#' A container's *leaf* type lives on the spec (and its constraints on `items`),
+#' but the documented word describes the R value a user passes. NULL means the
+#' leaf type word applies, optionally with the ` vector` suffix.
+#'
+#' @param spec `PropertySpec` object.
+#'
+#' @return Character or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+container_doc_type <- function(spec) {
+  if (spec@container == "matrix") {
+    return("Matrix")
+  }
+  if (spec@container == "none") {
+    return(NULL)
+  }
+  nested <- !is.null(spec@items) && spec@items@container != "none"
+  if (nested) {
+    return("List")
+  }
+  if (spec@container == "map") {
+    return("Named vector")
+  }
+  NULL
+} # /rtemis::container_doc_type
+
+
+# %% leaf_spec ----
+#' The innermost spec of a container chain, whose bounds and enum the docs state
+#'
+#' @param spec `PropertySpec` object.
+#'
+#' @return `PropertySpec` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+leaf_spec <- function(spec) {
+  while (!is.null(spec@items)) {
+    spec <- spec@items
+  }
+  spec
+} # /rtemis::leaf_spec
+
+
 # %% parse_doc_type ----
 #' Parse a documented type declaration into its components
 #'
@@ -245,7 +293,8 @@ parse_doc_type <- function(text) {
     out[["nullable"]] <- TRUE
     head <- trimws(sub("\\bor NULL$", "", head))
   }
-  if (grepl("\\bvectors?$", head)) {
+  # "Named vector" is one type word, not a type plus the vector marker.
+  if (grepl("\\bvectors?$", head) && !grepl("^Named vectors?$", head)) {
     out[["vector"]] <- TRUE
     head <- trimws(sub("\\bvectors?$", "", head))
   }
@@ -542,6 +591,27 @@ audit_prop_docs <- function(r_dir, classes = NULL, aliases = PROP_DOC_ALIASES) {
     return(findings)
   }
   doc_type <- doc[["type"]]
+  # A container is documented by the R value a user passes ("Matrix", "List",
+  # "Named vector"); its bounds and enum live on the innermost element spec.
+  expected_container <- container_doc_type(spec)
+  constraint_spec <- leaf_spec(spec)
+  if (!is.null(expected_container)) {
+    if (!identical(doc_type, expected_container)) {
+      add(
+        "type",
+        if (is.na(doc_type)) "(unparsed)" else doc_type,
+        expected_container
+      )
+    }
+    if (!identical(doc[["nullable"]], spec@nullable)) {
+      add(
+        "nullable",
+        if (doc[["nullable"]]) "Optional" else "not Optional",
+        if (spec@nullable) "nullable = TRUE" else "nullable = FALSE"
+      )
+    }
+    return(findings)
+  }
   if (!is.na(doc_type) && doc_type %in% DOC_TYPE_NONSPEC) {
     # Documented as a non-schema type but declared with a factory.
     add("type", doc_type, spec@type)
@@ -582,13 +652,14 @@ audit_prop_docs <- function(r_dir, classes = NULL, aliases = PROP_DOC_ALIASES) {
       if (spec_is_vector) "container != none" else "container = none"
     )
   }
-  if (!is.null(doc[["enum"]]) || !is.null(spec@enum)) {
-    if (!setequal(doc[["enum"]] %||% character(), spec@enum %||% character())) {
-      add(
-        "enum",
-        .fmt_set(doc[["enum"]]),
-        .fmt_set(spec@enum)
+  if (!is.null(doc[["enum"]]) || !is.null(constraint_spec@enum)) {
+    if (
+      !setequal(
+        doc[["enum"]] %||% character(),
+        constraint_spec@enum %||% character()
       )
+    ) {
+      add("enum", .fmt_set(doc[["enum"]]), .fmt_set(constraint_spec@enum))
     }
   }
   for (bound in c(
@@ -598,7 +669,7 @@ audit_prop_docs <- function(r_dir, classes = NULL, aliases = PROP_DOC_ALIASES) {
     "exclusive_maximum"
   )) {
     doc_value <- doc[[bound]]
-    spec_value <- prop(spec, bound)
+    spec_value <- prop(constraint_spec, bound)
     if (!isTRUE(all.equal(doc_value %||% NA, spec_value %||% NA))) {
       add(
         "bounds",

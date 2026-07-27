@@ -2383,9 +2383,6 @@ get_tabnet_config <- function(hyperparameters) {
 #' (character or logical), and `inbag` (list) have union / list types the
 #' `prop_*` factories do not express, so they are declared as plain S7 union
 #' properties (non-tunable) and their JSON Schema is supplied by hand via
-#' `.ranger_hyperparameters_schema_extra`, merged into the generated
-#' `hyperparameters/ranger/v1` schema in `generate_schemas.R`.
-#'
 #' @author EDG
 #' @keywords internal
 #' @noRd
@@ -2500,7 +2497,12 @@ RangerHyperparameters <- new_class(
       exclusive_min = 0,
       description = "Tau parameter (poisson splitrule)."
     ),
-    split_select_weights = prop_external(NULL | class_numeric | class_list),
+    split_select_weights = prop_array(
+      prop_float(0, min = 0, max = 1, vector = TRUE, data_bound = "n_features"),
+      nullable = TRUE,
+      broadcast = TRUE,
+      description = "Per-feature split-selection probabilities: one vector applied to every tree, or one vector per tree."
+    ),
     always_split_variables = prop_string(
       NULL,
       nullable = TRUE,
@@ -2536,7 +2538,11 @@ RangerHyperparameters <- new_class(
       FALSE,
       description = "Record how often each observation is in-bag per tree."
     ),
-    inbag = prop_external(NULL | class_list),
+    inbag = prop_array(
+      prop_integer(0L, min = 0L, vector = TRUE, data_bound = "n_cases"),
+      nullable = TRUE,
+      description = "Manually set in-bag counts: one per-case count vector per tree."
+    ),
     holdout = prop_boolean(
       FALSE,
       description = "Hold-out mode: hold out samples with case weight 0."
@@ -2586,59 +2592,6 @@ RangerHyperparameters <- new_class(
 ) # /rtemis::RangerHyperparameters
 
 
-# %% .ranger_hyperparameters_schema_extra ----
-# Schema fragments for RangerHyperparameters properties whose R types are union
-# / list types not expressible via the prop_* factories. They are `exclude`d
-# from generation and their JSON Schema merged in here, so the generated
-# `hyperparameters/ranger/v1` schema still describes them. See generate_schemas.R.
-.ranger_hyperparameters_schema_extra <- list(
-  properties = list(
-    split_select_weights = list(
-      oneOf = list(
-        list(type = "null"),
-        list(
-          type = "array",
-          items = list(type = "number", minimum = 0, maximum = 1),
-          minItems = 1L
-        ),
-        list(
-          type = "array",
-          items = list(
-            type = "array",
-            items = list(type = "number", minimum = 0, maximum = 1),
-            minItems = 1L
-          ),
-          minItems = 1L
-        )
-      ),
-      description = paste0(
-        "Optional per-feature split-selection probabilities in [0, 1]: a ",
-        "single vector applied to every tree, or a list of length `num_trees` ",
-        "with one weight vector per tree. null uses the ranger default."
-      )
-    ),
-    inbag = list(
-      oneOf = list(
-        list(type = "null"),
-        list(
-          type = "array",
-          items = list(
-            type = "array",
-            items = list(type = "integer", minimum = 0L)
-          ),
-          minItems = 1L
-        )
-      ),
-      description = paste0(
-        "Optional manually-set in-bag counts: a list of length `num_trees`, ",
-        "each a per-observation vector of non-negative counts. null uses the ",
-        "ranger default (bootstrap sampling)."
-      )
-    )
-  )
-)
-
-
 # %% setup_Ranger ----
 #' Setup Ranger Hyperparameters
 #'
@@ -2663,7 +2616,7 @@ RangerHyperparameters <- new_class(
 #' @param alpha (Tunable) Numeric \[0, 1\]: Significance threshold to allow splitting, for the "maxstat" splitrule.
 #' @param minprop (Tunable) Numeric \[0, 1\]: Lower quantile of the covariate distribution considered for splitting, for the "maxstat" splitrule.
 #' @param poisson_tau Numeric (0, Inf): Tau parameter, for the "poisson" regression splitrule.
-#' @param split_select_weights Optional Numeric \[0, 1\] vector: Per-feature probabilities of being selected for splitting. Alternatively a list of length `num_trees`, one weight vector per tree.
+#' @param split_select_weights Optional List: Per-feature probabilities of being selected for splitting, in \[0, 1\]. One vector applied to every tree, or a list of length `num_trees` with one vector per tree.
 #' @param always_split_variables Optional Character vector: Names of variables to always include as split candidates, in addition to the `mtry` variables.
 #' @param respect_unordered_factors Optional Character \{"partition", "ignore", "order"\}: Handling of unordered factors. "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response.
 #' @param scale_permutation_importance Logical: If TRUE, scale permutation importance by its standard error. Permutation importance only.
@@ -2671,7 +2624,7 @@ RangerHyperparameters <- new_class(
 #' @param regularization_factor (Tunable) Numeric [0, Inf): Regularization factor penalizing variables with many split points. Requires `splitrule = "variance"`.
 #' @param regularization_usedepth Logical: If TRUE, apply the regularization factor with node depth. Requires `regularization_factor`.
 #' @param keep_inbag Logical: If TRUE, record how often each observation is in-bag per tree.
-#' @param inbag Optional List: Manually set in-bag counts per tree; list of length `num_trees`. Can be used for stratified sampling.
+#' @param inbag Optional List: Manually set in-bag counts; a list of length `num_trees`, each a per-case count vector. Can be used for stratified sampling.
 #' @param holdout Logical: If TRUE, use hold-out mode: hold out samples with case weight 0 and use them for variable importance and prediction error.
 #' @param quantreg Logical: If TRUE, prepare quantile prediction (quantile regression forests). Regression only; set `keep_inbag = TRUE` for out-of-bag quantile prediction.
 #' @param time_interest Optional Numeric vector: Time points of interest for survival prediction. Survival only. Deprecated.

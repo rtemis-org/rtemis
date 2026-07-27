@@ -54,8 +54,7 @@ families <- list(
       ),
       list(
         cls = tSNEConfig,
-        desc = "t-Distributed Stochastic Neighbor Embedding. See setup_tSNE.",
-        extra = .tsne_schema_extra
+        desc = "t-Distributed Stochastic Neighbor Embedding. See setup_tSNE."
       ),
       list(cls = IsomapConfig, desc = "Isomap. See setup_Isomap.")
     )
@@ -83,13 +82,11 @@ families <- list(
       ),
       list(
         cls = CMeansConfig,
-        desc = "Fuzzy c-means clustering. See setup_CMeans.",
-        extra = .cmeans_schema_extra
+        desc = "Fuzzy c-means clustering. See setup_CMeans."
       ),
       list(
         cls = DBSCANConfig,
-        desc = "DBSCAN density-based clustering. See setup_DBSCAN.",
-        extra = .dbscan_schema_extra
+        desc = "DBSCAN density-based clustering. See setup_DBSCAN."
       )
     )
   ),
@@ -121,23 +118,19 @@ families <- list(
     algorithms = list(
       list(
         cls = KFoldConfig,
-        desc = "K-fold cross-validation. See setup_Resampler.",
-        extra = .resampler_id_strat_schema_extra
+        desc = "K-fold cross-validation. See setup_Resampler."
       ),
       list(
         cls = StratSubConfig,
-        desc = "Stratified subsampling. See setup_Resampler.",
-        extra = .resampler_id_strat_schema_extra
+        desc = "Stratified subsampling. See setup_Resampler."
       ),
       list(
         cls = StratBootConfig,
-        desc = "Stratified bootstrap. See setup_Resampler.",
-        extra = .resampler_id_strat_schema_extra
+        desc = "Stratified bootstrap. See setup_Resampler."
       ),
       list(
         cls = BootstrapConfig,
-        desc = "Bootstrap resampling. See setup_Resampler.",
-        extra = .resampler_id_strat_schema_extra
+        desc = "Bootstrap resampling. See setup_Resampler."
       ),
       list(
         cls = LOOCVConfig,
@@ -232,10 +225,7 @@ families <- list(
       ),
       list(
         cls = RangerHyperparameters,
-        desc = "Ranger random forest. See `setup_Ranger`.",
-        # These three have union / list R types the prop_* factories cannot
-        # express; their JSON Schema is supplied by hand and merged in.
-        extra = .ranger_hyperparameters_schema_extra
+        desc = "Ranger random forest. See `setup_Ranger`."
       )
     )
   )
@@ -315,7 +305,6 @@ flat_configs <- list(
       "Language-independent config for rtemis preprocessing. Mirrors the ",
       "`PreprocessorConfig` object / `setup_Preprocessor` arguments. The same ",
       "config drives rtemis (R), rtemis-py, and rtemislive to identical output."
-    ),
-    extra = .preprocessor_schema_extra
+    )
   )
 )

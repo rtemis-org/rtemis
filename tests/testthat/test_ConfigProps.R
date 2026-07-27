@@ -66,23 +66,16 @@ test_that("DecompositionConfig generates its JSON Schema", {
   )
   expect_setequal(names(s[["properties"]]), c("k", "center", "scale", "tol"))
   expect_identical(s[["properties"]][["k"]][["minimum"]], 1L)
-  # tSNE `Y_init` (a matrix) is `prop_external()`: part of the contract, but its
-  # fragment must come from `extra`.
-  expect_error(
-    S7_to_JSONSchema(
-      tSNEConfig,
-      id = "https://example.org/x.json",
-      base = DecompositionConfig
-    ),
-    "Y_init"
-  )
+  # tSNE `Y_init` is a matrix: an array of row arrays.
   s <- S7_to_JSONSchema(
     tSNEConfig,
     id = "https://example.org/x.json",
-    base = DecompositionConfig,
-    extra = .tsne_schema_extra
+    base = DecompositionConfig
   )
-  expect_true("Y_init" %in% names(s[["properties"]]))
+  y <- s[["properties"]][["Y_init"]]
+  expect_identical(as.character(y[["type"]]), c("array", "null"))
+  expect_identical(y[["items"]][["type"]], "array")
+  expect_identical(y[["items"]][["items"]][["type"]], "number")
 })
 
 
@@ -123,27 +116,21 @@ test_that("clustering config validators enforce bounds and enums", {
   expect_error(setup_DBSCAN(search = "bogus"))
 })
 
-test_that("CMeans non-JSON params (weights, control) survive but stay out of schema", {
+test_that("CMeans weights broadcast and control is an open object", {
   cfg <- setup_CMeans(k = 3L)
-  # control (list) is preserved as a config key.
   expect_true("control" %in% names(cfg@config))
-  # weights + control are `prop_external()`: generation aborts unless `extra`
-  # supplies their fragments.
-  expect_error(
-    S7_to_JSONSchema(
-      CMeansConfig,
-      id = "https://example.org/x.json",
-      base = ClusteringConfig
-    ),
-    "weights"
-  )
   s <- S7_to_JSONSchema(
     CMeansConfig,
     id = "https://schema.rtemis.org/clustering/cmeans/v1/schema.json",
-    base = ClusteringConfig,
-    extra = .cmeans_schema_extra
+    base = ClusteringConfig
   )
-  expect_true(all(c("weights", "control") %in% names(s[["properties"]])))
+  # `weights`: one number for every case, or a per-case vector.
+  w <- s[["properties"]][["weights"]]
+  expect_length(w[["oneOf"]], 2L)
+  expect_identical(w[["oneOf"]][[1L]][["type"]], "number")
+  expect_identical(w[["oneOf"]][[2L]][["type"]], "array")
+  # `control`: an opaque pass-through to the backend.
+  expect_identical(s[["properties"]][["control"]][["type"]], "object")
 })
 
 
@@ -287,8 +274,7 @@ test_that("closed = FALSE omits additionalProperties for composed leaves", {
   args <- list(
     KFoldConfig,
     id = "https://schema.rtemis.org/resampler/kfold/v1/schema.json",
-    base = ResamplerConfig,
-    extra = .resampler_id_strat_schema_extra
+    base = ResamplerConfig
   )
   expect_false(do.call(S7_to_JSONSchema, args)[["additionalProperties"]])
   expect_false(

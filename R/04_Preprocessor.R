@@ -128,12 +128,17 @@ PreprocessorConfig <- new_class(
     ),
     scale = prop_boolean(FALSE, description = "Scale features."),
     center = prop_boolean(FALSE, description = "Center features."),
-    # Data-dependent (learned during preprocess); injected via
-    # `.preprocessor_schema_extra`.
-    scale_centers = prop_external(NULL | class_numeric, data_dependent = TRUE),
-    scale_coefficients = prop_external(
-      NULL | class_numeric,
-      data_dependent = TRUE
+    scale_centers = prop_map(
+      prop_float(0),
+      nullable = TRUE,
+      data_dependent = TRUE,
+      description = "Per-feature centering values, keyed by feature name."
+    ),
+    scale_coefficients = prop_map(
+      prop_float(0),
+      nullable = TRUE,
+      data_dependent = TRUE,
+      description = "Per-feature scaling values, keyed by feature name."
     ),
     remove_constants = prop_boolean(
       FALSE,
@@ -154,8 +159,12 @@ PreprocessorConfig <- new_class(
       description = "Names of features to remove."
     ),
     one_hot = prop_boolean(FALSE, description = "One-hot encode factors."),
-    # Data-dependent (learned during preprocess).
-    one_hot_levels = prop_external(NULL | class_list, data_dependent = TRUE),
+    one_hot_levels = prop_map(
+      prop_string("", vector = TRUE),
+      nullable = TRUE,
+      data_dependent = TRUE,
+      description = "Per-feature one-hot levels, keyed by feature name."
+    ),
     add_date_features = prop_boolean(
       FALSE,
       description = "Add date-derived features."
@@ -178,29 +187,6 @@ PreprocessorConfig <- new_class(
     )
   )
 ) # /PreprocessorConfig
-
-
-# %% .preprocessor_schema_extra ----
-# Schema fragments for PreprocessorConfig properties whose R types are not
-# expressible via the prop_* factories (a params object and the
-# data-dependent learned values). Merged into the generated schema so it
-# matches the shape consumed by the CLI. See generate_schemas.R.
-.preprocessor_schema_extra <- list(
-  properties = list(
-    scale_centers = list(
-      type = I(c("object", "null")),
-      `$comment` = "Data-dependent: learned during preprocess(); per-feature scaling centers."
-    ),
-    scale_coefficients = list(
-      type = I(c("object", "null")),
-      `$comment` = "Data-dependent: learned during preprocess(); per-feature scaling coefficients."
-    ),
-    one_hot_levels = list(
-      type = I(c("object", "null")),
-      `$comment` = "Data-dependent: learned during preprocess(); per-feature one-hot levels."
-    )
-  )
-)
 
 
 # %% names.PreprocessorConfig ----
@@ -326,15 +312,15 @@ method(print, PreprocessorConfig) <- function(
 #' @param factor2integer_startat0 Logical: If TRUE, start integer coding at 0.
 #' @param scale Logical: If TRUE, scale columns of `x`.
 #' @param center Logical: If TRUE, center columns of `x`. If unset, follows `scale`.
-#' @param scale_centers Named vector: Centering values for each feature.
-#' @param scale_coefficients Named vector: Scaling values for each feature.
+#' @param scale_centers Optional Named vector: Centering values for each feature.
+#' @param scale_coefficients Optional Named vector: Scaling values for each feature.
 #' @param remove_constants Logical: If TRUE, remove constant columns.
 #' @param remove_constants_skip_missing Logical: If TRUE, skip missing values, before
 #'   checking if feature is constant.
 #' @param remove_features Optional Character vector: Features to remove.
 #' @param remove_duplicates Logical: If TRUE, remove duplicate cases.
 #' @param one_hot Logical: If TRUE, convert all factors using one-hot encoding.
-#' @param one_hot_levels List: Named list of the form "feature_name" = "levels". Used when applying
+#' @param one_hot_levels Optional List: Named list of the form "feature_name" = "levels". Used when applying
 #'   one-hot encoding to validation or test data using `Preprocessor`.
 #' @param add_date_features Logical: If TRUE, extract date features from date columns.
 #' @param date_features Character \{"weekday", "month", "year"\} vector:

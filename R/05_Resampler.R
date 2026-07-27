@@ -163,7 +163,14 @@ KFoldConfig <- new_class(
       min = 1L,
       description = "Number of bins to stratify a continuous variable into."
     ),
-    id_strat = prop_external(NULL | class_vector, data_dependent = TRUE),
+    id_strat = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      data_bound = "n_cases",
+      data_dependent = TRUE,
+      description = "Per-case grouping IDs; cases sharing an ID stay in the same resample."
+    ),
     seed = prop_integer(
       NULL,
       min = 0L,
@@ -203,7 +210,14 @@ StratSubConfig <- new_class(
       min = 1L,
       description = "Number of bins to stratify a continuous variable into."
     ),
-    id_strat = prop_external(NULL | class_vector, data_dependent = TRUE),
+    id_strat = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      data_bound = "n_cases",
+      data_dependent = TRUE,
+      description = "Per-case grouping IDs; cases sharing an ID stay in the same resample."
+    ),
     seed = prop_integer(
       NULL,
       min = 0L,
@@ -249,7 +263,14 @@ StratBootConfig <- new_class(
       nullable = TRUE,
       description = "Target length for stratified bootstraps."
     ),
-    id_strat = prop_external(NULL | class_vector, data_dependent = TRUE),
+    id_strat = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      data_bound = "n_cases",
+      data_dependent = TRUE,
+      description = "Per-case grouping IDs; cases sharing an ID stay in the same resample."
+    ),
     seed = prop_integer(
       NULL,
       min = 0L,
@@ -273,7 +294,14 @@ BootstrapConfig <- new_class(
   parent = ResamplerConfig,
   properties = list(
     type = prop_algorithm("Bootstrap"),
-    id_strat = prop_external(NULL | class_vector, data_dependent = TRUE),
+    id_strat = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      data_bound = "n_cases",
+      data_dependent = TRUE,
+      description = "Per-case grouping IDs; cases sharing an ID stay in the same resample."
+    ),
     seed = prop_integer(
       NULL,
       min = 0L,
@@ -318,35 +346,6 @@ CustomConfig <- new_class(
 ) # /rtemis::CustomConfig
 
 
-# %% .resampler_id_strat_schema_extra ----
-# Schema fragment for the `id_strat` property (KFold / StratSub / StratBoot /
-# Bootstrap), whose R type (`NULL | class_vector`) the prop_* factories do not
-# express. `id_strat` is `exclude`d from generation and its JSON Schema merged
-# in here. See generate_schemas.R.
-.resampler_id_strat_schema_extra <- list(
-  properties = list(
-    id_strat = list(
-      oneOf = list(
-        list(type = "null"),
-        list(
-          type = "array",
-          items = list(type = I(c("integer", "string"))),
-          minItems = 1L
-        )
-      ),
-      `$comment` = paste0(
-        "Data-dependent: per-case grouping IDs, length = number of cases; ",
-        "cases sharing an ID are kept in the same resample."
-      ),
-      description = paste0(
-        "Optional vector of case IDs (e.g. subject IDs) to keep together when ",
-        "resampling. null = ordinary resampling."
-      )
-    )
-  )
-)
-
-
 # %% setup_Resampler ----
 #' Setup Resampler
 #'
@@ -358,9 +357,9 @@ CustomConfig <- new_class(
 #' @param train_p Numeric (0, 1): Training set percentage.
 #' @param strat_n_bins Integer [1, Inf): Number of bins to stratify by.
 #' @param target_length Optional Integer [1, Inf): Target length for stratified bootstraps.
-#' @param id_strat Integer: Vector of indices to stratify by. These may be, for example, case IDs
-#' if your dataset contains repeated measurements. By specifying this vector, you can ensure that
-#' each case can only be present in the training or test set, but not both.
+#' @param id_strat Optional Character vector: Per-case grouping IDs, e.g. subject IDs when the
+#' dataset contains repeated measurements. Cases sharing an ID stay in the same resample, so a
+#' case can only be present in the training or the test set, not both.
 #' @param seed Optional Integer [0, Inf): Random seed.
 #' @param verbosity Integer: Verbosity level.
 #'

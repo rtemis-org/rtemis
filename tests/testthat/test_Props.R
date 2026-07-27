@@ -204,6 +204,7 @@ mk_spec <- function(...) {
     container = "none",
     items = NULL,
     broadcast = FALSE,
+    data_dependent = FALSE,
     description = ""
   )
   do.call(PropertySpec, utils::modifyList(args, list(...)))
@@ -224,7 +225,8 @@ testthat::test_that("a nested `items` spec produces a nested array schema", {
   # alone cannot express.
   s <- spec_to_schema(mk_spec(
     container = "array",
-    items = mk_spec(container = "array")
+    items = mk_spec(container = "array", default = c(0, 1)),
+    default = list(c(0, 1))
   ))
   testthat::expect_identical(s[["type"]], "array")
   testthat::expect_identical(s[["items"]][["type"]], "array")
@@ -233,7 +235,11 @@ testthat::test_that("a nested `items` spec produces a nested array schema", {
 
 
 testthat::test_that("container 'map' produces additionalProperties", {
-  s <- spec_to_schema(mk_spec(container = "map", items = mk_spec()))
+  s <- spec_to_schema(mk_spec(
+    container = "map",
+    items = mk_spec(),
+    default = c(a = 0)
+  ))
   testthat::expect_identical(s[["type"]], "object")
   testthat::expect_identical(s[["additionalProperties"]][["type"]], "number")
 })
@@ -410,25 +416,18 @@ testthat::test_that("a property with no declared role is an error", {
   testthat::expect_identical(names(s[["properties"]]), "a")
 })
 
-testthat::test_that("prop_external() requires `extra` to supply its schema", {
-  Ext <- S7::new_class(
-    name = "Ext",
+testthat::test_that("an open-object property generates without `extra`", {
+  Bag <- S7::new_class(
+    name = "Bag",
     package = NULL,
     properties = list(
       a = prop_boolean(TRUE),
-      b = prop_external(S7::class_list, default = list())
+      b = prop_bag(description = "Backend parameters.")
     )
   )
-  testthat::expect_error(
-    S7_to_JSONSchema(Ext, id = "https://example.org/x.json"),
-    "not supplied by `extra`"
-  )
-  s <- S7_to_JSONSchema(
-    Ext,
-    id = "https://example.org/x.json",
-    extra = list(properties = list(b = list(type = "object")))
-  )
+  s <- S7_to_JSONSchema(Bag, id = "https://example.org/x.json")
   testthat::expect_setequal(names(s[["properties"]]), c("a", "b"))
+  testthat::expect_identical(s[["properties"]][["b"]][["type"]], "object")
 })
 
 testthat::test_that("prop_role classifies each declaration style", {
@@ -437,15 +436,16 @@ testthat::test_that("prop_role classifies each declaration style", {
     package = NULL,
     properties = list(
       a = prop_boolean(TRUE),
-      b = prop_external(S7::class_list, default = list()),
-      c = prop_external(S7::class_numeric, data_dependent = TRUE),
+      b = prop_bag(),
+      c = prop_float(0, vector = TRUE, data_dependent = TRUE),
       d = prop_state(S7::class_integer, default = 0L),
       e = S7::class_integer
     )
   )
-  testthat::expect_identical(role_prop_names(Roles, "config"), "a")
-  testthat::expect_identical(role_prop_names(Roles, "external"), c("b", "c"))
+  testthat::expect_identical(role_prop_names(Roles, "config"), c("a", "b", "c"))
   testthat::expect_identical(role_prop_names(Roles, "state"), "d")
+  # Data-dependence is orthogonal to role: `c` is a declared config input whose
+  # value is tied to one dataset, so it is not written to a portable config.
   testthat::expect_identical(data_dependent_prop_names(Roles), "c")
   testthat::expect_true(is.na(prop_role(Roles@properties[["e"]])))
 })
@@ -485,11 +485,13 @@ testthat::test_that("schema serializes to JSON and round-trips", {
 
 test_that("data_bound rejects names outside the vocabulary", {
   expect_error(prop_integer(1L, data_bound = "n_bananas"))
-  expect_error(prop_external(NULL | class_numeric, data_bound = "n_bananas"))
+  expect_error(prop_float(1, data_bound = "n_bananas"))
 })
 
-test_that("data_bound on a string property must be feature_names", {
-  expect_error(prop_string("a", data_bound = "n_features"))
+test_that("feature_names is restricted to string properties", {
+  # A length bound applies to any type: a character vector of per-case IDs is
+  # bound by "n_cases".
+  expect_no_error(prop_string("a", vector = TRUE, data_bound = "n_cases"))
   expect_error(prop_integer(1L, data_bound = "feature_names"))
 })
 
