@@ -70,9 +70,9 @@ setup_TabNet(
 
 \item{learn_rate}{(Tunable) Numeric (0, Inf): Learning rate.}
 
-\item{optimizer}{Character or torch function: Optimizer.}
+\item{optimizer}{Character: Optimizer name, resolved by the tabnet backend.}
 
-\item{lr_scheduler}{Optional Character or torch function: "step", "reduce_on_plateau".}
+\item{lr_scheduler}{Optional Character \{"step", "reduce_on_plateau"\}: Learning-rate scheduler.}
 
 \item{lr_decay}{(Tunable) Numeric [0, 1]: Learning rate decay.}
 

@@ -2101,13 +2101,16 @@ TabNetHyperparameters <- new_class(
       tunable = TRUE,
       description = "Learning rate."
     ),
-    # Accept an R function or a name; only the name has a JSON form, supplied
-    # by `.tabnet_hyperparameters_schema_extra`.
-    optimizer = prop_external(
-      class_character | class_function,
-      default = "adam"
+    optimizer = prop_string(
+      "adam",
+      description = "Optimizer name, resolved by the tabnet backend."
     ),
-    lr_scheduler = prop_external(NULL | class_character | class_function),
+    lr_scheduler = prop_string(
+      NULL,
+      enum = c("step", "reduce_on_plateau"),
+      nullable = TRUE,
+      description = "Learning-rate scheduler. NULL = none."
+    ),
     lr_decay = prop_float(
       0.1,
       min = 0,
@@ -2218,31 +2221,6 @@ TabNetHyperparameters <- new_class(
 ) # /rtemis::TabNetHyperparameters
 
 
-# %% .tabnet_hyperparameters_schema_extra ----
-# Schema fragments for TabNetHyperparameters `optimizer` and `lr_scheduler`.
-# Both accept a torch function in R (not JSON-serializable) or a string; only
-# the string form is schematized, so a portable config validates while the
-# function form remains an R-only runtime option. Merged into the generated
-# schema. See generate_schemas.R.
-.tabnet_hyperparameters_schema_extra <- list(
-  properties = list(
-    optimizer = list(
-      type = "string",
-      `$comment` = "A torch optimizer function may also be supplied in R; only the string form is serializable.",
-      description = "Optimizer name (e.g. \"adam\")."
-    ),
-    lr_scheduler = list(
-      oneOf = list(
-        list(type = "null"),
-        list(type = "string", enum = I(c("step", "reduce_on_plateau")))
-      ),
-      `$comment` = "A torch scheduler function may also be supplied in R; only the string form is serializable.",
-      description = "Learning-rate scheduler: \"step\" or \"reduce_on_plateau\". null = none."
-    )
-  )
-)
-
-
 # %% setup_TabNet ----
 #' Setup TabNet Hyperparameters
 #'
@@ -2264,8 +2242,8 @@ TabNetHyperparameters <- new_class(
 #' @param virtual_batch_size (Tunable) Integer [1, Inf): Virtual batch size.
 #' @param valid_split (Tunable) Numeric [0, 1): Validation split.
 #' @param learn_rate (Tunable) Numeric (0, Inf): Learning rate.
-#' @param optimizer Character or torch function: Optimizer.
-#' @param lr_scheduler Optional Character or torch function: "step", "reduce_on_plateau".
+#' @param optimizer Character: Optimizer name, resolved by the tabnet backend.
+#' @param lr_scheduler Optional Character \{"step", "reduce_on_plateau"\}: Learning-rate scheduler.
 #' @param lr_decay (Tunable) Numeric \[0, 1\]: Learning rate decay.
 #' @param step_size (Tunable) Integer [1, Inf): Step size.
 #' @param checkpoint_epochs (Tunable) Integer [1, Inf): Checkpoint epochs.

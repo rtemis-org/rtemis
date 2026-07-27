@@ -228,10 +228,7 @@ families <- list(
       ),
       list(
         cls = TabNetHyperparameters,
-        desc = "TabNet neural network. See `setup_TabNet`.",
-        # `optimizer` / `lr_scheduler` accept an R function or a string; only
-        # the serializable string form is schematized (see the extra).
-        extra = .tabnet_hyperparameters_schema_extra
+        desc = "TabNet neural network. See `setup_TabNet`."
       ),
       list(
         cls = RangerHyperparameters,
