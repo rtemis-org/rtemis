@@ -2727,12 +2727,22 @@ setup_Ranger <- function(
 #' @examples
 #' .list_to_Hyperparameters(list(algorithm = "GLMNET", hyperparameters = list(alpha = 1)))
 .list_to_Hyperparameters <- function(x) {
-  fn <- paste0("setup_", x[["algorithm"]])
+  algorithm <- x[["algorithm"]]
+  fn <- paste0("setup_", algorithm)
   if (!exists(fn, mode = "function")) {
+    # The published enum lists canonical names only, so a case mismatch is the
+    # likely error and is worth naming.
+    canonical <- supervised_algorithms[, 1][
+      tolower(algorithm) == tolower(supervised_algorithms[, 1])
+    ]
     rtemis.core::abort(
       "Invalid algorithm: ",
-      x[["algorithm"]],
-      ".",
+      algorithm,
+      if (length(canonical) == 1L) {
+        paste0(". Did you mean \"", canonical, "\"?")
+      } else {
+        "."
+      },
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }

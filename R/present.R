@@ -28,12 +28,12 @@
 #' \dontrun{
 #' iris_lightrf <- train(
 #'   iris,
-#'   algorithm = "lightrf",
+#'   hyperparameters = setup_LightRF(),
 #'   outer_resampling_config = setup_Resampler(seed = 2026)
 #' )
 #' iris_rsvm <- train(
 #'   iris,
-#'   algorithm = "radialsvm",
+#'   hyperparameters = setup_RadialSVM(),
 #'   outer_resampling_config = setup_Resampler(seed = 2026)
 #' )
 #' present(list(iris_lightrf, iris_rsvm), metric = "balanced_accuracy")

@@ -432,8 +432,7 @@ draw_scatter <- function(
     for (i in seq_len(n_groups)) {
       mod <- train(
         x = data.frame(x = x[[i]], y = y[[i]]),
-        algorithm = fit,
-        hyperparameters = fit_params,
+        hyperparameters = resolve_fit_hyperparameters(fit, fit_params),
         verbosity = verbosity - 1L
       )
       fitted[[i]] <- fitted(mod)

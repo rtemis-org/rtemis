@@ -4,20 +4,13 @@
 \alias{calibrate}
 \title{Calibrate \code{Classification} & \code{ClassificationRes} Models}
 \usage{
-calibrate(
-  x,
-  algorithm = "isotonic",
-  hyperparameters = NULL,
-  verbosity = 1L,
-  ...
-)
+calibrate(x, hyperparameters = setup_Isotonic(), verbosity = 1L, ...)
 }
 \arguments{
 \item{x}{\code{Classification} or \code{ClassificationRes} object to calibrate.}
 
-\item{algorithm}{Character: Algorithm to use to train calibration model.}
-
-\item{hyperparameters}{\code{Hyperparameters} object: Setup using one of \verb{setup_*} functions.}
+\item{hyperparameters}{\code{Hyperparameters} object: Setup using one of \verb{setup_*} functions.
+Defines the algorithm used to train the calibration model.}
 
 \item{verbosity}{Integer: Verbosity level.}
 
@@ -62,7 +55,7 @@ dat_test <- dat[-res[[1]], ]
 mod_c_glm <- train(
   x = dat_train,
   dat_test = dat_test,
-  algorithm = "glm"
+  hyperparameters = setup_GLM()
 )
 
 # Calibrate the `Classification` by defining `predicted_probabilities` and `true_labels`,
@@ -79,7 +72,7 @@ mod_c_glm_cal
 # Train GLM with cross-validation
 resmod_c_glm <- train(
   x = dat,
-  algorithm = "glm",
+  hyperparameters = setup_GLM(),
   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 

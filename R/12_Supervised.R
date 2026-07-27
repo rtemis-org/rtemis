@@ -861,7 +861,7 @@ method(desc, Supervised) <- function(x) {
 #' @noRd
 #'
 #' @examples
-#' species_lightrf <- train(iris, algorithm = "lightrf")
+#' species_lightrf <- train(iris, hyperparameters = setup_LightRF())
 #' describe(species_lightrf)
 method(describe, Supervised) <- function(x, verbosity = 1L) {
   descx <- desc(x)
@@ -2304,7 +2304,7 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
 #' @noRd
 #'
 #' @examples
-#' mod <- train(iris, algorithm = "CART", outer_resampling_config = setup_Resampler())
+#' mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_Resampler())
 #' describe(mod)
 method(describe, SupervisedRes) <- function(x, verbosity = 1L) {
   descx <- desc(x)

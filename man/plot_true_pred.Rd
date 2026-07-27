@@ -21,7 +21,7 @@ For regression, it plots a scatter plot of true vs. predicted values.
 }
 \examples{
 x <- set_outcome(iris, "Sepal.Length")
-sepallength_glm <- train(x, algorithm = "GLM")
+sepallength_glm <- train(x, hyperparameters = setup_GLM())
 plot_true_pred(sepallength_glm)
 }
 \author{

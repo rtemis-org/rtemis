@@ -37,7 +37,7 @@ class_tabnet_fit <- new_S3_class("tabnet_fit")
 #' @author EDG
 #' @export
 #' @examples
-#' mod <- train(iris, algorithm = "LightRF")
+#' mod <- train(iris, hyperparameters = setup_LightRF())
 #' get_varimp(mod)
 get_varimp <- new_generic("get_varimp", "x")
 
@@ -390,7 +390,7 @@ plot_metric <- new_generic("plot_metric", "x")
 #' @examples
 #' ir <- iris[51:150, ]
 #' ir[["Species"]] <- factor(ir[["Species"]])
-#' species_glm <- train(ir, algorithm = "GLM")
+#' species_glm <- train(ir, hyperparameters = setup_GLM())
 #' plot_roc(species_glm)
 plot_roc <- new_generic("plot_roc", "x")
 
@@ -416,7 +416,7 @@ plot_roc <- new_generic("plot_roc", "x")
 #' @export
 #' @examplesIf interactive()
 #' ir <- set_outcome(iris, "Sepal.Length")
-#' seplen_cart <- train(ir, algorithm = "CART")
+#' seplen_cart <- train(ir, hyperparameters = setup_CART())
 #' plot_varimp(seplen_cart)
 #' # Plot horizontally
 #' plot_varimp(seplen_cart, orientation = "h")
@@ -444,7 +444,7 @@ plot_varimp <- new_generic("plot_varimp", "x")
 #' @export
 #' @examples
 #' x <- set_outcome(iris, "Sepal.Length")
-#' sepallength_glm <- train(x, algorithm = "GLM")
+#' sepallength_glm <- train(x, hyperparameters = setup_GLM())
 #' plot_true_pred(sepallength_glm)
 plot_true_pred <- new_generic("plot_true_pred", "x")
 
@@ -485,11 +485,11 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' @export
 #' @examples
 #' # --- For `Supervised` objects ---
-#' species_lightrf <- train(iris, algorithm = "lightrf")
+#' species_lightrf <- train(iris, hyperparameters = setup_LightRF())
 #' describe(species_lightrf)
 #'
 #' # --- For `SupervisedRes` objects ---
-#' mod <- train(iris, algorithm = "CART", outer_resampling_config = setup_Resampler())
+#' mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_Resampler())
 #' describe(mod)
 #'
 #' # --- For factors ---
@@ -521,7 +521,7 @@ describe <- new_generic("describe", "x", function(x, verbosity = 1L, ...) {
 #' @export
 #' @examplesIf interactive()
 #' ir <- set_outcome(iris, "Sepal.Length")
-#' seplen_lightrf <- train(ir, algorithm = "lightrf")
+#' seplen_lightrf <- train(ir, hyperparameters = setup_LightRF())
 #' present(seplen_lightrf)
 present <- new_generic("present", "x")
 
@@ -942,8 +942,8 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' Generic function to calibrate binary classification models.
 #'
 #' @param x `Classification` or `ClassificationRes` object to calibrate.
-#' @param algorithm Character: Algorithm to use to train calibration model.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
+#' Defines the algorithm used to train the calibration model.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Additional arguments passed to specific methods.
 #'
@@ -978,7 +978,7 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' mod_c_glm <- train(
 #'   x = dat_train,
 #'   dat_test = dat_test,
-#'   algorithm = "glm"
+#'   hyperparameters = setup_GLM()
 #' )
 #'
 #' # Calibrate the `Classification` by defining `predicted_probabilities` and `true_labels`,
@@ -995,7 +995,7 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' # Train GLM with cross-validation
 #' resmod_c_glm <- train(
 #'   x = dat,
-#'   algorithm = "glm",
+#'   hyperparameters = setup_GLM(),
 #'   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 #' )
 #'
@@ -1007,8 +1007,7 @@ calibrate <- new_generic(
   ("x"),
   function(
     x,
-    algorithm = "isotonic",
-    hyperparameters = NULL,
+    hyperparameters = setup_Isotonic(),
     verbosity = 1L,
     ...
   ) {

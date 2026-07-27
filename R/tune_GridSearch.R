@@ -216,7 +216,6 @@ tune_GridSearch <- function(
         args = list(
           x = dat_train1,
           dat_validation = dat_valid1,
-          algorithm = hyperparams1@algorithm,
           preprocessor_config = preprocessor_config,
           decomposition_config = decomposition_config,
           hyperparameters = hyperparams1,

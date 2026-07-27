@@ -17,7 +17,6 @@
 #' @param x `Classification` object.
 #' @param predicted_probabilities Numeric vector: Predicted probabilities.
 #' @param true_labels Factor: True class labels.
-#' @param algorithm Character: Algorithm to use to train calibration model.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used
@@ -40,7 +39,7 @@
 #' mod_c_glm <- train(
 #'   x = datc2_train,
 #'   dat_test = datc2_test,
-#'   algorithm = "glm"
+#'   hyperparameters = setup_GLM()
 #' )
 #' mod_c_glm_cal <- calibrate(
 #'   mod_c_glm,
@@ -52,8 +51,7 @@ method(calibrate, Classification) <- function(
   x,
   predicted_probabilities,
   true_labels,
-  algorithm = "isotonic",
-  hyperparameters = NULL,
+  hyperparameters = setup_Isotonic(),
   verbosity = 1L,
   ...
 ) {
@@ -84,7 +82,6 @@ method(calibrate, Classification) <- function(
   cal_model <- train(
     dat,
     dat_test = dat_test,
-    algorithm = algorithm,
     hyperparameters = hyperparameters,
     verbosity = verbosity
   )
@@ -106,7 +103,6 @@ method(calibrate, Classification) <- function(
 #' Calibrate Resampled Classification Models
 #'
 #' @param x `ClassificationRes` object.
-#' @param algorithm Character: Algorithm to use to train calibration model.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param resampler_config `ResamplerConfig` object: Configuration for resampling during calibration model training.
 #' @param train_verbosity Integer: Verbosity level for training calibration models.
@@ -119,8 +115,7 @@ method(calibrate, Classification) <- function(
 #' @noRd
 method(calibrate, ClassificationRes) <- function(
   x,
-  algorithm = "isotonic",
-  hyperparameters = NULL,
+  hyperparameters = setup_Isotonic(),
   resampler_config = setup_Resampler(
     n_resamples = 5L,
     type = "KFold"
@@ -130,12 +125,12 @@ method(calibrate, ClassificationRes) <- function(
   ...
 ) {
   # Check inputs
-  check_inherits(algorithm, "character")
+  check_is_S7(hyperparameters, Hyperparameters)
   check_is_S7(resampler_config, ResamplerConfig)
   verbosity <- clean_int(verbosity)
 
   # Check IFW is FALSE
-  if (!is.null(hyperparameters) && hyperparameters[["ifw"]]) {
+  if (isTRUE(hyperparameters[["ifw"]])) {
     rtemis.core::abort(
       "IFW must be FALSE for proper calibration.",
       class = c("rtemis_value_error", "rtemis_input_error")
@@ -160,7 +155,6 @@ method(calibrate, ClassificationRes) <- function(
       )
       train(
         dat,
-        algorithm = algorithm,
         hyperparameters = hyperparameters,
         outer_resampling_config = resampler_config,
         verbosity = train_verbosity

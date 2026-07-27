@@ -20,7 +20,7 @@ This generic is used to present an rtemis object by printing to console and draw
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 ir <- set_outcome(iris, "Sepal.Length")
-seplen_lightrf <- train(ir, algorithm = "lightrf")
+seplen_lightrf <- train(ir, hyperparameters = setup_LightRF())
 present(seplen_lightrf)
 \dontshow{\}) # examplesIf}
 }

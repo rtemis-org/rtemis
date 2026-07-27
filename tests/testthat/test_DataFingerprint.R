@@ -259,7 +259,7 @@ test_that("warn_fingerprint_mismatch() skips models without a fingerprint", {
 
 # %% train() integration ----
 test_that("train() attaches a fingerprint of the training data", {
-  mod <- train(iris, algorithm = "CART", verbosity = 0L)
+  mod <- train(iris, hyperparameters = setup_CART(), verbosity = 0L)
   expect_s7_class(mod@data_fingerprint, DataFingerprint)
   expect_identical(mod@data_fingerprint@n_rows, 150L)
   expect_identical(mod@data_fingerprint@n_cols, 5L)
@@ -269,8 +269,8 @@ test_that("train() attaches a fingerprint of the training data", {
 
 
 test_that("two models on the same data share a fingerprint", {
-  m1 <- train(iris, algorithm = "CART", verbosity = 0L)
-  m2 <- train(iris, algorithm = "LightCART", verbosity = 0L)
+  m1 <- train(iris, hyperparameters = setup_CART(), verbosity = 0L)
+  m2 <- train(iris, hyperparameters = setup_LightCART(), verbosity = 0L)
   expect_true(same_data(m1@data_fingerprint, m2@data_fingerprint))
 })
 

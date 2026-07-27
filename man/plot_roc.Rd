@@ -20,7 +20,7 @@ This generic is used to plot the ROC curve for a model.
 \examples{
 ir <- iris[51:150, ]
 ir[["Species"]] <- factor(ir[["Species"]])
-species_glm <- train(ir, algorithm = "GLM")
+species_glm <- train(ir, hyperparameters = setup_GLM())
 plot_roc(species_glm)
 }
 \author{

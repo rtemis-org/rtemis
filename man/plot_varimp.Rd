@@ -26,7 +26,7 @@ fraction of top features.
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 ir <- set_outcome(iris, "Sepal.Length")
-seplen_cart <- train(ir, algorithm = "CART")
+seplen_cart <- train(ir, hyperparameters = setup_CART())
 plot_varimp(seplen_cart)
 # Plot horizontally
 plot_varimp(seplen_cart, orientation = "h")

@@ -29,11 +29,11 @@ Extra arguments for \code{factor} method:
 }
 \examples{
 # --- For `Supervised` objects ---
-species_lightrf <- train(iris, algorithm = "lightrf")
+species_lightrf <- train(iris, hyperparameters = setup_LightRF())
 describe(species_lightrf)
 
 # --- For `SupervisedRes` objects ---
-mod <- train(iris, algorithm = "CART", outer_resampling_config = setup_Resampler())
+mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_Resampler())
 describe(mod)
 
 # --- For factors ---

@@ -115,6 +115,41 @@ get_default_hyperparameters <- function(algorithm) {
 } # /rtemis::get_default_hyperparameters
 
 
+#' Resolve a `fit` name and optional hyperparameters
+#'
+#' The `draw_*(fit = )` argument names an algorithm as a string, following the
+#' plotting convention, so those functions need a name-to-`Hyperparameters`
+#' bridge that the rest of the API does not.
+#'
+#' @param fit Character: Algorithm name.
+#' @param fit_params Optional `Hyperparameters` object: Hyperparameters for
+#' `fit`.
+#'
+#' @return `Hyperparameters` object.
+#'
+#' @author EDG
+#'
+#' @keywords internal
+#' @noRd
+resolve_fit_hyperparameters <- function(fit, fit_params) {
+  if (is.null(fit_params)) {
+    return(get_default_hyperparameters(fit))
+  }
+  check_is_S7(fit_params, Hyperparameters)
+  if (tolower(fit) != tolower(fit_params@algorithm)) {
+    rtemis.core::abort(
+      "`fit` is '",
+      fit,
+      "', but `fit_params` defines hyperparameters for ",
+      fit_params@algorithm,
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  fit_params
+} # /rtemis::resolve_fit_hyperparameters
+
+
 # Clustering ----
 clust_algorithms <- data.frame(rbind(
   c("CMeans", "Fuzzy C-means Clustering"),
@@ -242,6 +277,10 @@ get_decom_predict_fn <- function(algorithm) {
 #'
 #' Print available algorithms for supervised learning, clustering, and decomposition.
 #'
+#' Each algorithm is set up with `setup_{Algorithm}()`, using the name printed
+#' here: `setup_LightGBM()`, `setup_KMeans()`, `setup_PCA()`. Pass the result to
+#' [train], [cluster], or [decomp].
+#'
 #' @rdname available_algorithms
 #' @aliases available_algorithms
 #'
@@ -252,6 +291,8 @@ get_decom_predict_fn <- function(algorithm) {
 #' @export
 #' @examples
 #' available_supervised()
+#' # Train with one of them, at its default hyperparameters:
+#' # train(iris, hyperparameters = setup_LightGBM())
 available_supervised <- function(verbosity = 1L) {
   algs <- structure(
     supervised_algorithms[, 2],

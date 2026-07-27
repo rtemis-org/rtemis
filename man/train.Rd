@@ -9,7 +9,6 @@ train(
   dat_validation = NULL,
   dat_test = NULL,
   weights = NULL,
-  algorithm = NULL,
   preprocessor_config = NULL,
   decomposition_config = NULL,
   hyperparameters = NULL,
@@ -31,10 +30,6 @@ train(
 \item{dat_test}{Tabular data: Test set data.}
 
 \item{weights}{Optional vector of case weights.}
-
-\item{algorithm}{Optional Character: Algorithm to use. May be left NULL when
-\code{hyperparameters} is given, which identifies the algorithm itself. If neither
-is given, defaults to "Ranger".}
 
 \item{preprocessor_config}{Optional PreprocessorConfig object: Setup using \link{setup_Preprocessor}.}
 
@@ -163,7 +158,7 @@ on:
 \donttest{
 iris_c_lightRF <- train(
    iris,
-   algorithm = "LightRF",
+   hyperparameters = setup_LightRF(),
    outer_resampling_config = setup_Resampler(),
 )
 }

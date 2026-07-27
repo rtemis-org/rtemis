@@ -169,7 +169,7 @@ test_that("ClusteringConfig round-trips through write_config/read_config", {
 test_that("read_config errors when $schema is missing", {
   file <- file.path(tempdir(), "rtemis_noschema.json")
   jsonlite::write_json(
-    list(algorithm = "LightRF"),
+    list(dat_training_path = "~/Data/iris.csv"),
     file,
     auto_unbox = TRUE
   )

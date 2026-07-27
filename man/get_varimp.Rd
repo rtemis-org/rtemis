@@ -18,7 +18,7 @@ get_varimp(x, ...)
 Get variable importance
 }
 \examples{
-mod <- train(iris, algorithm = "LightRF")
+mod <- train(iris, hyperparameters = setup_LightRF())
 get_varimp(mod)
 }
 \author{

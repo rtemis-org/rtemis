@@ -22,8 +22,15 @@ Named list of algorithm descriptions, invisibly.
 \description{
 Print available algorithms for supervised learning, clustering, and decomposition.
 }
+\details{
+Each algorithm is set up with \verb{setup_\{Algorithm\}()}, using the name printed
+here: \code{setup_LightGBM()}, \code{setup_KMeans()}, \code{setup_PCA()}. Pass the result to
+\link{train}, \link{cluster}, or \link{decomp}.
+}
 \examples{
 available_supervised()
+# Train with one of them, at its default hyperparameters:
+# train(iris, hyperparameters = setup_LightGBM())
 available_clustering()
 available_decomposition()
 }

@@ -13,9 +13,6 @@
 #' @param dat_validation Tabular data: Validation set data.
 #' @param dat_test Tabular data: Test set data.
 #' @param weights Optional vector of case weights.
-#' @param algorithm Optional Character: Algorithm to use. May be left NULL when
-#' `hyperparameters` is given, which identifies the algorithm itself. If neither
-#' is given, defaults to "Ranger".
 #' @param preprocessor_config Optional PreprocessorConfig object: Setup using [setup_Preprocessor].
 #' @param decomposition_config Optional DecompositionConfig object: Setup using a decomposition
 #'  `setup_*` function.
@@ -125,7 +122,7 @@
 #' \donttest{
 #' iris_c_lightRF <- train(
 #'    iris,
-#'    algorithm = "LightRF",
+#'    hyperparameters = setup_LightRF(),
 #'    outer_resampling_config = setup_Resampler(),
 #' )
 #' }
@@ -134,7 +131,6 @@ train <- function(
   dat_validation = NULL,
   dat_test = NULL,
   weights = NULL,
-  algorithm = NULL,
   preprocessor_config = NULL, # PreprocessorConfig
   decomposition_config = NULL, # DecompositionConfig
   hyperparameters = NULL, # Hyperparameters
@@ -239,14 +235,11 @@ train <- function(
     )
   }
 
-  if (is.null(algorithm)) {
-    algorithm <- if (is.null(hyperparameters)) {
-      "Ranger"
-    } else {
-      check_is_S7(hyperparameters, Hyperparameters)
-      hyperparameters@algorithm
-    }
+  if (is.null(hyperparameters)) {
+    hyperparameters <- setup_Ranger()
   }
+  check_is_S7(hyperparameters, Hyperparameters)
+  algorithm <- hyperparameters@algorithm
 
   # Initial check targetting non-numeric or factor columns
   # Will be checked again by individual learners;
@@ -260,22 +253,6 @@ train <- function(
   )
   type <- supervised_type(x)
   ncols <- ncol(x)
-
-  if (is.null(hyperparameters)) {
-    hyperparameters <- get_default_hyperparameters(algorithm)
-  }
-  check_is_S7(hyperparameters, Hyperparameters)
-  if (tolower(algorithm) != tolower(hyperparameters@algorithm)) {
-    rtemis.core::abort(
-      "You defined algorithm to be '",
-      algorithm,
-      "', but defined hyperparameters for ",
-      hyperparameters@algorithm,
-      ".",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
-  algorithm <- hyperparameters@algorithm
 
   # Set default tuner_config if tuning is needed but none specified
   if (needs_tuning(hyperparameters) && is.null(tuner_config)) {
@@ -485,7 +462,6 @@ train <- function(
         train(
           x = x[outer_resampler[[i]], ],
           dat_test = x[-outer_resampler[[i]], ],
-          algorithm = algorithm,
           preprocessor_config = preprocessor_config,
           decomposition_config = decomposition_config,
           hyperparameters = hyperparameters,
