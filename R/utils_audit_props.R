@@ -512,7 +512,12 @@ audit_prop_docs <- function(r_dir, classes = NULL, aliases = PROP_DOC_ALIASES) {
       )
       next
     }
-    for (prop_name in spec_prop_names(cls)) {
+    # Only user-settable properties have a `@param` to compare against. Run
+    # state is written by the runtime and a constant is determined by the
+    # class, so neither is documented as a parameter; their contract is the
+    # spec, which reaches the schema directly.
+    not_settable <- c(role_prop_names(cls, "state"), constant_spec_names(cls))
+    for (prop_name in setdiff(spec_prop_names(cls), not_settable)) {
       spec <- get_spec(cls@properties[[prop_name]])
       if (!nzchar(spec@description)) {
         add(class_name, prop_name, "description", "", "(empty)")

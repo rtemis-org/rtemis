@@ -284,12 +284,15 @@ test_that("closed = FALSE omits additionalProperties for composed leaves", {
 })
 
 test_that("serialized configs carry only declared parameters", {
-  # Constants, run state, and non-JSON values are reconstructed on read, so
-  # they are not written (and are correspondingly absent from the schemas).
-  hp <- serializable_props(setup_LightRF(nrounds = 100L))
+  # Constants, run state, and data-dependent values are re-derived on read, so
+  # they are not written. Constants do appear in the schema (as `const`); the
+  # others are what a portable config omits.
+  h <- setup_LightRF(nrounds = 100L)
+  hp <- serializable_props(h)
   expect_identical(names(hp), c("algorithm", "hyperparameters"))
+  expect_length(h@constant_hyperparameters, 4L)
   expect_false(any(
-    names(LightRF_constants) %in% names(hp[["hyperparameters"]])
+    h@constant_hyperparameters %in% names(hp[["hyperparameters"]])
   ))
   # tSNE's Y_init (a matrix) has no JSON form.
   expect_false(
@@ -373,6 +376,9 @@ test_that("x-rtemis agrees with the standard keywords, for every property", {
       } else if (container == "map") {
         expect_true("object" %in% types, info = label)
         expect_true("additionalProperties" %in% names(schema), info = label)
+      } else if (identical(ann[["role"]], "constant")) {
+        # A constant asserts its value; it has no `type` keyword.
+        expect_true("const" %in% names(schema), info = label)
       } else {
         expect_true(ann[["type"]] %in% types, info = label)
       }

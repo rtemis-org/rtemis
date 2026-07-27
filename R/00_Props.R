@@ -101,6 +101,9 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   this spec's own leaf type and constraints.
 #' @field broadcast Logical: If TRUE, a bare scalar is accepted in place of the
 #'   container, meaning "this value for every element".
+#' @field constant Logical: If TRUE, the value is determined by the class and
+#'   cannot be set; `@default` holds it. Distinct from a *fixed* property,
+#'   which is settable but not tunable.
 #' @field data_dependent Logical: If TRUE, the value is tied to one dataset and
 #'   is not written to a portable config.
 #' @field data_bound Character or NULL: Name of the training-data dimension
@@ -144,6 +147,10 @@ PropertySpec <- new_class(
     # enforces the type instead, and runs once the class exists.
     items = class_any,
     broadcast = class_logical,
+    # A constant is determined by the class, not chosen by the user: it is not
+    # settable, and `@default` holds the single permitted value. Distinct from
+    # a *fixed* property, which the user does set but cannot tune.
+    constant = new_property(class_logical, default = FALSE),
     data_bound = NULL | class_character,
     # Portability, orthogonal to `data_bound`: the value's shape is tied to one
     # particular dataset (per-case IDs, learned scaling centres, an initial
@@ -186,6 +193,14 @@ PropertySpec <- new_class(
     }
     if (self@broadcast && self@container == "none") {
       return("@broadcast requires a @container to broadcast into.")
+    }
+    if (self@constant) {
+      if (is.null(self@default)) {
+        return("@default must hold the value when @constant is TRUE.")
+      }
+      if (self@tunable) {
+        return("@constant and @tunable are mutually exclusive.")
+      }
     }
     if (!is.null(self@data_bound)) {
       if (length(self@data_bound) != 1L) {
@@ -784,6 +799,98 @@ prop_matrix <- function(
 } # /rtemis::prop_matrix
 
 
+# %% prop_const ----
+#' Constant S7 property with attached PropertySpec
+#'
+#' A value determined by the class rather than chosen by the user — LightRF's
+#' `boosting_type = "rf"`, LinearSVM's `kernel = "linear"`. It is what makes
+#' the class that class, so it is declared the same way as the constant
+#' `algorithm` discriminator: a computed property with no setter, hence
+#' immutable by construction.
+#'
+#' Distinct from a **fixed** property, which the user *does* set but cannot
+#' tune. Fixed is about tunability; constant is about settability.
+#'
+#' Emits `{"const": value}`, which is an assertion — a config supplying any
+#' other value fails validation.
+#'
+#' @param value Scalar: The value. Its type sets the property's type.
+#' @param description Character: Human-readable description.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_const <- function(value, description = "") {
+  type <- if (is.logical(value)) {
+    "boolean"
+  } else if (is.integer(value)) {
+    "integer"
+  } else if (is.numeric(value)) {
+    "number"
+  } else if (is.character(value)) {
+    "string"
+  } else {
+    rtemis.core::abort(
+      "`value` must be a logical, integer, numeric, or character scalar.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
+  spec <- PropertySpec(
+    type = type,
+    default = value,
+    minimum = NULL,
+    maximum = NULL,
+    exclusive_minimum = NULL,
+    exclusive_maximum = NULL,
+    enum = NULL,
+    nullable = FALSE,
+    tunable = FALSE,
+    container = "none",
+    items = NULL,
+    broadcast = FALSE,
+    constant = TRUE,
+    data_dependent = FALSE,
+    description = description
+  )
+  force(value)
+  p <- new_property(
+    class = switch(
+      type,
+      boolean = class_logical,
+      integer = class_integer,
+      number = class_numeric,
+      string = class_character
+    ),
+    getter = function(self) value
+  )
+  p[["spec"]] <- spec
+  p
+} # /rtemis::prop_const
+
+
+# %% constant_spec_names ----
+#' Names of an S7 class's constant properties
+#'
+#' @param x S7 class.
+#'
+#' @return Character vector.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+constant_spec_names <- function(x) {
+  names(Filter(
+    function(p) {
+      s <- get_spec(p)
+      !is.null(s) && s@constant
+    },
+    x@properties
+  ))
+} # /rtemis::constant_spec_names
+
+
 # %% prop_bag ----
 #' Open-object S7 property with attached PropertySpec
 #'
@@ -885,21 +992,30 @@ prop_accepts_null <- function(prop) {
 # %% prop_state ----
 #' S7 property holding run state rather than configuration
 #'
-#' Written during training / tuning, so it is excluded from generated schemas
-#' and from serialized configs, and re-derived on read.
+#' Written during training / tuning. Appears in the generated schema marked
+#' `readOnly` — a reader needs the field to reconstruct the class, and a run
+#' record carries it — but is never written to a portable config, where it
+#' would be re-derived anyway.
 #'
-#' @param class S7 class or union: Property class.
-#' @param default Default value.
+#' Wraps a property built by a `prop_*` factory, so run state is declared with
+#' the same type, bounds and description as configuration.
+#'
+#' @param property S7 property built by a `prop_*` factory.
 #'
 #' @return S7 property.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-prop_state <- function(class, default = NULL) {
-  p <- new_property(class, default = default)
-  p[["role"]] <- "state"
-  p
+prop_state <- function(property) {
+  if (is.null(get_spec(property))) {
+    rtemis.core::abort(
+      "`property` must be built by a prop_* factory.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
+  property[["role"]] <- "state"
+  property
 } # /rtemis::prop_state
 
 
@@ -1154,13 +1270,12 @@ own_prop_values <- function(self, base) {
 #'
 #' The runtime parameter list (`@hyperparameters` / `@config`) intentionally
 #' carries everything a training backend needs, including algorithm constants
-#' and run state. A *serialized config* is narrower: only `"config"`-role
-#' properties (see `prop_role()`) plus nested config objects, which serialize as
-#' their own schema. Dropped here: unsettable constants (`hp_constants()`, which
-#' are not properties at all), `"state"` properties written during training
-#' (GLMNET `lambda.min`, LightGBM `best_iter`), and `"external"` properties,
-#' whose R types have no JSON form the factories can emit (tSNE `Y_init`, TabNet
-#' `optimizer`). All are reconstructed or re-derived on read.
+#' and run state. A *serialized config* is narrower: only what a user actually
+#' chose, plus nested config objects, which serialize as their own schema.
+#' Dropped here: **constants**, which the algorithm already implies;
+#' **data-dependent** values, which mean nothing outside the dataset they were
+#' measured from; and **state** written during training (GLMNET `lambda.min`,
+#' LightGBM `best_iter`). All are reconstructed or re-derived on read.
 #'
 #' Note the asymmetry on `"external"`: those properties *are* in the generated
 #' schema and `read_config()` accepts them, but nothing writes them. Closing
@@ -1187,10 +1302,14 @@ config_prop_values <- function(self, base) {
       if (!identical(prop_role(props[[nm]]), "config")) {
         return(FALSE)
       }
-      # A data-dependent value has no meaning outside the dataset it was
-      # measured from, so it is not written to a portable config.
       spec <- get_spec(props[[nm]])
-      !(!is.null(spec) && spec@data_dependent)
+      if (is.null(spec)) {
+        return(TRUE)
+      }
+      # Not written to a portable config: a data-dependent value has no meaning
+      # outside the dataset it was measured from, and a constant is already
+      # implied by the algorithm.
+      !spec@data_dependent && !spec@constant
     },
     logical(1L)
   )
@@ -1211,7 +1330,6 @@ config_prop_values <- function(self, base) {
 #' @param self S7 object being modified.
 #' @param base S7 class: the family base class.
 #' @param value Named list of values to assign.
-#' @param constants Named list of unsettable constants (default none).
 #' @param label Character: object label for error messages (e.g. the
 #'   algorithm name).
 #' @param noun Character: what the named elements are, for error messages
@@ -1226,16 +1344,20 @@ route_config_assignment <- function(
   self,
   base,
   value,
-  constants = list(),
   label = "config",
   noun = "parameter"
 ) {
-  settable <- own_prop_names(S7_class(self), base)
+  cls <- S7_class(self)
+  # `x@config[["p"]] <- v` desugars to a whole-list round-trip, so constants
+  # come back through here even when untouched: an identical value is a no-op,
+  # a changed one is an error.
+  constants <- constant_spec_names(cls)
+  settable <- setdiff(own_prop_names(cls, base), constants)
   for (nm in names(value)) {
     if (nm %in% settable) {
       prop(self, nm) <- value[[nm]]
-    } else if (nm %in% names(constants)) {
-      if (!identical(value[[nm]], constants[[nm]])) {
+    } else if (nm %in% constants) {
+      if (!identical(value[[nm]], prop(self, nm))) {
         rtemis.core::abort(
           label,
           " ",
@@ -1273,13 +1395,15 @@ route_config_assignment <- function(
 #' unions) are wrapped in `I()` for `jsonlite::toJSON(auto_unbox = TRUE)`.
 #'
 #' @param spec `PropertySpec` object.
+#' @param read_only Logical: If TRUE, the property is run state — marked
+#'   `readOnly` and annotated `role: "state"`.
 #'
 #' @return Named list (JSON Schema property).
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-spec_to_schema <- function(spec) {
+spec_to_schema <- function(spec, read_only = FALSE) {
   scalar <- Filter(
     Negate(is.null),
     list(
@@ -1399,6 +1523,13 @@ spec_to_schema <- function(spec) {
     Negate(is.null),
     list(
       type = spec@type,
+      role = if (read_only) {
+        "state"
+      } else if (spec@constant) {
+        "constant"
+      } else {
+        NULL
+      },
       container = if (spec@container != "none") spec@container else NULL,
       tunable = if (spec@tunable) TRUE else NULL,
       broadcast = if (spec@broadcast) TRUE else NULL,
@@ -1406,6 +1537,17 @@ spec_to_schema <- function(spec) {
       data_dependent = if (spec@data_dependent) TRUE else NULL
     )
   )
+  if (spec@constant) {
+    # An assertion, not an annotation: a config supplying any other value is
+    # rejected by validation.
+    out <- list(const = spec@default)
+    if (nzchar(description)) {
+      out[["description"]] <- description
+    }
+  }
+  if (read_only) {
+    out[["readOnly"]] <- TRUE
+  }
   out[["x-rtemis"]] <- annotations
   if (spec@data_dependent) {
     # Machine-visible in the published contract: a consumer building a form
@@ -1494,9 +1636,11 @@ S7_to_JSONSchema <- function(
   if (!is.null(base)) {
     props <- props[own_prop_names(x, base)]
   }
-  # Run state never reaches a schema.
+  # Run state is part of the class, so it is part of the schema — marked
+  # `readOnly`, since a user never supplies it. `config_prop_values()` is what
+  # keeps it out of a portable config.
   roles <- vapply(props, prop_role, character(1L))
-  props <- props[is.na(roles) | roles != "state"]
+  state_names <- names(props)[!is.na(roles) & roles == "state"]
   if (!is.null(refs)) {
     unknown <- setdiff(names(refs), names(props))
     if (length(unknown) > 0L) {
@@ -1524,7 +1668,11 @@ S7_to_JSONSchema <- function(
       class = "rtemis_input_error"
     )
   }
-  properties <- lapply(props, function(p) spec_to_schema(get_spec(p)))
+  properties <- lapply(
+    names(props),
+    function(nm) spec_to_schema(get_spec(props[[nm]]), nm %in% state_names)
+  )
+  names(properties) <- names(props)
   # Nested config properties reference their own schema. A property whose S7
   # class is a union containing NULL is optional, so it also admits null.
   for (nm in names(ref_props)) {

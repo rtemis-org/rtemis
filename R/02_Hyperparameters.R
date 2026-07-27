@@ -21,9 +21,8 @@
 #
 # The abstract `Hyperparameters` superclass provides computed properties:
 # - `hyperparameters`: assembles the named list from the subclass's own
-#   properties plus `hp_constants()` (getter), and routes assignments back to
-#   the properties, where they are validated (setter). Changing a constant
-#   is an error.
+#   properties (getter), and routes assignments back to the properties, where
+#   they are validated (setter). Changing a constant is an error.
 # - `tunable_hyperparameters` / `fixed_hyperparameters`: derived from specs.
 # - `tuned`: derived from current values via `get_tuned_status()` unless the
 #   Tuner has set a status explicitly (backing store `.tuned`; NA = derive).
@@ -81,29 +80,6 @@ hp_prop_names <- function(x) {
 hp_prop_values <- function(self) {
   own_prop_values(self, Hyperparameters)
 } # /rtemis::hp_prop_values
-
-
-# %% hp_constants ----
-#' Unsettable hyperparameter constants of a Hyperparameters object
-#'
-#' Named list of algorithm parameters that are fixed by the algorithm
-#' definition itself (e.g. `boosting_type = "rf"` for LightRF,
-#' `kernel = "linear"` for LinearSVM). They are appended to the
-#' `hyperparameters` list (so training backends receive them) but are not
-#' properties, cannot be changed, and are excluded from generated schemas.
-#'
-#' @param x `Hyperparameters` object.
-#'
-#' @return Named list.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-hp_constants <- new_generic("hp_constants", "x")
-
-method(hp_constants, class_any) <- function(x) {
-  list()
-} # /rtemis::hp_constants.default
 
 
 # %% tune_on_null ----
@@ -260,12 +236,15 @@ check_data_bounds <- function(hyperparameters, x) {
 #' @field resampled Integer: Outer resampling status.
 #' @field n_workers Integer: Number of workers to use for tuning.
 #' @field hyperparameters Named list of hyperparameter values (computed from
-#'   the subclass's properties plus `hp_constants()`; assignment routes back
-#'   to the properties and validates).
+#'   the subclass's properties; assignment routes back to the properties and
+#'   validates).
 #' @field tunable_hyperparameters Character: Names of tunable hyperparameters
-#'   (derived from specs).
-#' @field fixed_hyperparameters Character: Names of fixed hyperparameters
-#'   (derived from specs, plus constants).
+#'   — a vector of values is a search space.
+#' @field fixed_hyperparameters Character: Names of fixed hyperparameters —
+#'   settable by the user but not tunable. Arity is a separate axis: a fixed
+#'   hyperparameter may itself be vector-valued.
+#' @field constant_hyperparameters Character: Names of constant
+#'   hyperparameters — determined by the class and not settable.
 #'
 #' @author EDG
 #' @keywords internal
@@ -292,14 +271,13 @@ Hyperparameters <- new_class(
     hyperparameters = new_property(
       class_list,
       getter = function(self) {
-        c(hp_prop_values(self), hp_constants(self))
+        hp_prop_values(self)
       },
       setter = function(self, value) {
         route_config_assignment(
           self,
           Hyperparameters,
           value,
-          constants = hp_constants(self),
           label = self@algorithm,
           noun = "hyperparameter"
         )
@@ -315,11 +293,15 @@ Hyperparameters <- new_class(
       class_character,
       getter = function(self) {
         cls <- S7_class(self)
-        c(
-          setdiff(hp_prop_names(cls), tunable_spec_names(cls)),
-          names(hp_constants(self))
+        setdiff(
+          hp_prop_names(cls),
+          c(tunable_spec_names(cls), constant_spec_names(cls))
         )
       }
+    ),
+    constant_hyperparameters = new_property(
+      class_character,
+      getter = function(self) constant_spec_names(S7_class(self))
     )
   )
 ) # /rtemis::Hyperparameters
@@ -999,8 +981,18 @@ GLMNETHyperparameters <- new_class(
       description = "Inverse Frequency Weighting in classification."
     ),
     # Run state, written by the Tuner from cv.glmnet results.
-    `lambda.min` = prop_state(NULL | class_double),
-    `lambda.1se` = prop_state(NULL | class_double)
+    `lambda.min` = prop_state(prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      description = "Lambda minimizing cross-validated error."
+    )),
+    `lambda.1se` = prop_state(prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      description = "Largest lambda within one standard error of the minimum."
+    ))
   )
 ) # /rtemis::GLMNETHyperparameters
 
@@ -1196,16 +1188,6 @@ setup_LightCART <- function(
 
 
 # %% LightRFHyperparameters ----
-# LightGBM parameters fixed by the RF mode: not settable and excluded from
-# the generated JSON Schema; appended to the `hyperparameters` list so
-# lgb.train receives them.
-LightRF_constants <- list(
-  boosting_type = "rf",
-  learning_rate = 1, # no effect? in boosting_type 'rf', but set for clarity
-  subsample_freq = 1L, # a.k.a. bagging_freq
-  early_stopping_rounds = -1L
-)
-
 #' @title LightRFHyperparameters
 #'
 #' @description
@@ -1219,6 +1201,24 @@ LightRFHyperparameters <- new_class(
   parent = Hyperparameters,
   properties = list(
     algorithm = prop_algorithm("LightRF"),
+    # Constants: these four are what make lightgbm train a random forest, so
+    # they belong to the class rather than to the user.
+    boosting_type = prop_const(
+      "rf",
+      description = "Boosting type. 'rf' is what makes LightGBM a random forest."
+    ),
+    learning_rate = prop_const(
+      1,
+      description = "Learning rate. No effect in 'rf' mode; set for clarity."
+    ),
+    subsample_freq = prop_const(
+      1L,
+      description = "Bagging frequency."
+    ),
+    early_stopping_rounds = prop_const(
+      -1L,
+      description = "Early stopping rounds. -1 disables early stopping."
+    ),
     nrounds = prop_integer(
       500L,
       min = 1L,
@@ -1306,20 +1306,16 @@ LightRFHyperparameters <- new_class(
   )
 ) # /rtemis::LightRFHyperparameters
 
-method(hp_constants, LightRFHyperparameters) <- function(x) {
-  LightRF_constants
-} # /rtemis::hp_constants.LightRFHyperparameters
-
-
 # %% setup_LightRF ----
 #' Setup LightRF Hyperparameters
 #'
 #' Setup hyperparameters for LightRF training.
 #'
 #' Get more information from [lightgbm::lgb.train].
-#' Note that hyperparameters subsample_freq and early_stopping_rounds are fixed,
-#' and cannot be set because they are what makes `lightgbm` train a random forest.
-#' These can all be set when training gradient boosting with LightGBM.
+#' Note that `boosting_type`, `learning_rate`, `subsample_freq` and
+#' `early_stopping_rounds` are *constants* here: they cannot be set, because
+#' they are what makes `lightgbm` train a random forest. All of them are
+#' settable when training gradient boosting with LightGBM.
 #'
 #' @param nrounds (Tunable) Integer [1, Inf): Number of boosting rounds.
 #' @param num_leaves (Tunable) Integer [1, Inf): Maximum number of leaves in one tree.
@@ -1512,9 +1508,19 @@ LightGBMHyperparameters <- new_class(
     ),
     # Derived: force_nrounds if set, otherwise determined by early stopping
     # during tuning.
-    nrounds = prop_state(NULL | class_integer),
+    nrounds = prop_state(prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      description = "Resolved number of boosting rounds."
+    )),
     # Run state: best iteration, written by the Tuner.
-    best_iter = prop_state(NULL | class_numeric)
+    best_iter = prop_state(prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      description = "Best iteration found by early stopping."
+    ))
   )
 ) # /rtemis::LightGBMHyperparameters
 
@@ -1872,7 +1878,7 @@ setup_Isotonic <- function(ifw = FALSE) {
 #'
 #' @description
 #' Hyperparameters subclass for SVM with linear kernel. The kernel is a
-#' constant (see `hp_constants`).
+#' constant: determined by the class, not settable.
 #'
 #' @author EDG
 #' @keywords internal
@@ -1882,6 +1888,10 @@ LinearSVMHyperparameters <- new_class(
   parent = Hyperparameters,
   properties = list(
     algorithm = prop_algorithm("LinearSVM"),
+    kernel = prop_const(
+      "linear",
+      description = "SVM kernel; determined by the class."
+    ),
     cost = prop_float(
       1,
       exclusive_min = 0,
@@ -1895,11 +1905,6 @@ LinearSVMHyperparameters <- new_class(
     )
   )
 ) # /rtemis::LinearSVMHyperparameters
-
-method(hp_constants, LinearSVMHyperparameters) <- function(x) {
-  list(kernel = "linear")
-} # /rtemis::hp_constants.LinearSVMHyperparameters
-
 
 # %% setup_LinearSVM ----
 #' Setup LinearSVM Hyperparameters
@@ -1934,7 +1939,7 @@ setup_LinearSVM <- function(
 #'
 #' @description
 #' Hyperparameters subclass for SVM with radial kernel. The kernel is a
-#' constant (see `hp_constants`).
+#' constant: determined by the class, not settable.
 #'
 #' @author EDG
 #' @keywords internal
@@ -1944,6 +1949,10 @@ RadialSVMHyperparameters <- new_class(
   parent = Hyperparameters,
   properties = list(
     algorithm = prop_algorithm("RadialSVM"),
+    kernel = prop_const(
+      "radial",
+      description = "SVM kernel; determined by the class."
+    ),
     cost = prop_float(
       1,
       exclusive_min = 0,
@@ -1963,11 +1972,6 @@ RadialSVMHyperparameters <- new_class(
     )
   )
 ) # /rtemis::RadialSVMHyperparameters
-
-method(hp_constants, RadialSVMHyperparameters) <- function(x) {
-  list(kernel = "radial")
-} # /rtemis::hp_constants.RadialSVMHyperparameters
-
 
 # %% setup_RadialSVM ----
 #' Setup RadialSVM Hyperparameters

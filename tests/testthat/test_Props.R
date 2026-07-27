@@ -403,17 +403,20 @@ testthat::test_that("a property with no declared role is an error", {
     S7_to_JSONSchema(Mixed, id = "https://example.org/x.json"),
     "no declared role"
   )
-  # `prop_state()` declares it out of the contract entirely.
+  # `prop_state()` keeps it in the contract, marked readOnly: the class has
+  # the field, but a user never supplies it.
   Stated <- S7::new_class(
     name = "Stated",
     package = NULL,
     properties = list(
       a = prop_boolean(TRUE),
-      b = prop_state(S7::class_integer, default = 0L)
+      b = prop_state(prop_integer(0L, min = 0L))
     )
   )
   s <- S7_to_JSONSchema(Stated, id = "https://example.org/x.json")
-  testthat::expect_identical(names(s[["properties"]]), "a")
+  testthat::expect_identical(names(s[["properties"]]), c("a", "b"))
+  testthat::expect_null(s[["properties"]][["a"]][["readOnly"]])
+  testthat::expect_true(s[["properties"]][["b"]][["readOnly"]])
 })
 
 testthat::test_that("an open-object property generates without `extra`", {
@@ -438,7 +441,7 @@ testthat::test_that("prop_role classifies each declaration style", {
       a = prop_boolean(TRUE),
       b = prop_bag(),
       c = prop_float(0, vector = TRUE, data_dependent = TRUE),
-      d = prop_state(S7::class_integer, default = 0L),
+      d = prop_state(prop_integer(0L)),
       e = S7::class_integer
     )
   )

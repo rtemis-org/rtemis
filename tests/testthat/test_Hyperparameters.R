@@ -120,13 +120,27 @@ test_that("every algorithm class exposes spec-derived views", {
       tunable_spec_names(cls),
       info = nm
     )
-    # Every hyperparameter is either tunable or fixed, and the two are disjoint.
+    # Three disjoint categories that together account for every
+    # hyperparameter: tunable (a vector is a search space), fixed (settable,
+    # not tunable), constant (not settable at all).
     expect_length(
       intersect(h@tunable_hyperparameters, h@fixed_hyperparameters),
       0L
     )
+    expect_length(
+      intersect(h@fixed_hyperparameters, h@constant_hyperparameters),
+      0L
+    )
+    expect_length(
+      intersect(h@tunable_hyperparameters, h@constant_hyperparameters),
+      0L
+    )
     expect_setequal(
-      c(h@tunable_hyperparameters, h@fixed_hyperparameters),
+      c(
+        h@tunable_hyperparameters,
+        h@fixed_hyperparameters,
+        h@constant_hyperparameters
+      ),
       names(h@hyperparameters)
     )
   }
@@ -209,10 +223,18 @@ test_that("LightRF constants cannot be changed", {
   expect_error(h@hyperparameters[["subsample_freq"]] <- 2L)
   # Round-tripping the unchanged list (constants included) is fine.
   expect_no_error(h@hyperparameters <- h@hyperparameters)
-  # Constants are reported as fixed.
-  expect_true(all(
-    names(LightRF_constants) %in% h@fixed_hyperparameters
-  ))
+  # Constants are NOT "fixed": fixed means settable but not tunable, which a
+  # constant is not. They are their own category.
+  expect_setequal(
+    h@constant_hyperparameters,
+    c(
+      "boosting_type",
+      "learning_rate",
+      "subsample_freq",
+      "early_stopping_rounds"
+    )
+  )
+  expect_false(any(h@constant_hyperparameters %in% h@fixed_hyperparameters))
 })
 
 test_that("LightRFHyperparameters generates its JSON Schema", {
@@ -399,4 +421,34 @@ test_that("every Ranger property is generated from its own declaration", {
   expect_length(branches, 3L)
   expect_identical(branches[[2L]][["items"]][["type"]], "number")
   expect_identical(branches[[3L]][["items"]][["type"]], "array")
+})
+
+
+test_that("run state is in the schema as readOnly, but never serialized", {
+  # Two independent axes. A reader needs the field to reconstruct the class,
+  # and a run record carries its value; a portable config must not, because it
+  # is re-derived on read.
+  schema <- S7_to_JSONSchema(
+    GLMNETHyperparameters,
+    id = "https://schema.rtemis.org/hyperparameters/glmnet/v1/schema.json",
+    base = Hyperparameters
+  )
+  for (nm in c("lambda.min", "lambda.1se")) {
+    prop_schema <- schema[["properties"]][[nm]]
+    expect_false(is.null(prop_schema), info = nm)
+    expect_true(prop_schema[["readOnly"]], info = nm)
+    expect_identical(prop_schema[["x-rtemis"]][["role"]], "state", info = nm)
+    # Declared with a real type, not an opaque blob.
+    expect_true("number" %in% as.character(prop_schema[["type"]]), info = nm)
+  }
+  written <- serializable_props(setup_GLMNET())[["hyperparameters"]]
+  expect_false(any(c("lambda.min", "lambda.1se") %in% names(written)))
+})
+
+
+test_that("prop_state requires a factory-built property", {
+  # Run state is declared with the same type and bounds as configuration, so
+  # its schema is generated rather than hand-written.
+  expect_error(prop_state(S7::class_double), class = "rtemis_type_error")
+  expect_no_error(prop_state(prop_float(NULL, nullable = TRUE)))
 })
