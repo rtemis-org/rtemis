@@ -13,7 +13,8 @@ path, algorithm config, and output directory.}
 
 \item{algorithm}{Character: Decomposition algorithm.}
 
-\item{config}{DecompositionConfig: Algorithm-specific config.}
+\item{config}{DecompositionConfig: Algorithm-specific config. Its \code{features}
+selects the columns of \code{x} to decompose; \code{NULL} decomposes all of them.}
 
 \item{outdir}{Character, optional: Output directory. If not NULL, the returned
 \code{Decomposition} object is saved there as an \code{.rds} file.}

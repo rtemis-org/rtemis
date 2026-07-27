@@ -619,18 +619,14 @@ train <- function(
       )
       outcome_nm <- names(x)[ncols]
       feat <- as.data.frame(features(x))
-      # An explicit selection must name numeric columns of the actual
-      # (post-preprocessing) data. Declared by `DecompositionConfig@features`
-      # as `data_bound = "numeric_feature_names"`, so both "these are features"
-      # and "these are numeric" are one check. `feat` is already features-only.
-      check_data_bounds(decomposition_config, feat, has_outcome = FALSE)
       # Resolve the columns to decompose: NULL -> all numeric features.
       decomp_features <- decomposition_config@features
       if (is.null(decomp_features)) {
         decomp_features <- names(numeric_features(x))
       }
-      # Not subsumed by the declaration: this binds the *resolved* selection,
-      # which for an unset `features` is whatever the data happen to supply.
+      # Binds the *resolved* selection, which for an unset `features` is
+      # whatever the data happen to supply, so no declaration can express it.
+      # An explicit selection is validated by `decomp()` against `feat`.
       if (length(decomp_features) < 2L) {
         rtemis.core::abort(
           "Decomposition requires at least 2 numeric feature columns.\n",
@@ -640,10 +636,11 @@ train <- function(
         )
       }
       # Persist the resolved names so apply_decomp() replays the same selection
-      # on validation/test here and on new data at predict() time.
+      # on validation/test here and on new data at predict() time. `decomp()`
+      # subsets `feat` by them, so the fit and the replay cannot disagree.
       decomposition_config@features <- decomp_features
       decomposition <- decomp(
-        x = feat[, decomp_features, drop = FALSE],
+        x = feat,
         algorithm = decomposition_config@algorithm,
         config = decomposition_config,
         verbosity = verbosity

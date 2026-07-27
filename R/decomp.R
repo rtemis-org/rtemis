@@ -14,7 +14,8 @@
 #' `DecomposeConfig` recipe (from [setup_DecomposeConfig]) carrying the data
 #' path, algorithm config, and output directory.
 #' @param algorithm Character: Decomposition algorithm.
-#' @param config DecompositionConfig: Algorithm-specific config.
+#' @param config DecompositionConfig: Algorithm-specific config. Its `features`
+#' selects the columns of `x` to decompose; `NULL` decomposes all of them.
 #' @param outdir Character, optional: Output directory. If not NULL, the returned
 #' `Decomposition` object is saved there as an `.rds` file.
 #' @param verbosity Integer: Verbosity level.
@@ -66,6 +67,16 @@ decomp <- function(
     config <- get_default_decomparams(algorithm)
   }
   check_is_S7(config, DecompositionConfig)
+
+  # Feature selection ----
+  # `apply_decomp()` subsets new data by `config@features`, so the fit must use
+  # exactly those columns or the replay transforms a different matrix.
+  # `x` is features-only here: there is no outcome column to exclude.
+  if (!is.null(config@features)) {
+    x <- as.data.frame(x)
+    check_data_bounds(config, x, has_outcome = FALSE)
+    x <- x[, config@features, drop = FALSE]
+  }
 
   # Intro ----
   start_time <- intro(verbosity = verbosity)
