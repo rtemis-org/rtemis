@@ -4,7 +4,13 @@
 \alias{setup_Isomap}
 \title{Setup Isomap config.}
 \usage{
-setup_Isomap(k = 2L, dist_method = "euclidean", nsd = 0L, path = "shortest")
+setup_Isomap(
+  k = 2L,
+  dist_method = "euclidean",
+  nsd = 0L,
+  path = "shortest",
+  features = NULL
+)
 }
 \arguments{
 \item{k}{Integer [1, Inf): Number of components.}
@@ -14,6 +20,9 @@ setup_Isomap(k = 2L, dist_method = "euclidean", nsd = 0L, path = "shortest")
 \item{nsd}{Integer [0, Inf): Number of shortest dissimilarities retained.}
 
 \item{path}{Character \{"shortest", "extended"\}: Path argument for \code{vegan::isomap}.}
+
+\item{features}{Optional Character vector: Names of at least 2 distinct
+feature columns to decompose. \code{NULL} decomposes all numeric features.}
 }
 \value{
 IsomapConfig object.

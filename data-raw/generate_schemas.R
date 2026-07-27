@@ -16,12 +16,12 @@ schema_repo <- path.expand(schema_repo)
 base_url <- "https://schema.rtemis.org"
 
 # Registry ------------------------------------------------------------------
-# Per family: the base class, the payload field name, the dispatcher's title /
-# descriptions / extra top-level properties, and the per-algorithm classes with
-# a one-line description, and an optional `extra` supplying cross-field
-# constraints that are not per-property. Which properties take part is decided
-# by their declared role (see `prop_role()`), not listed here: run state is
-# dropped, and a spec-less property aborts generation.
+# Per family: the base class, the payload field name, the dispatcher's title and
+# descriptions, and the per-algorithm classes with a one-line description, and
+# an optional `extra` supplying cross-field constraints that are not
+# per-property. Which properties take part is decided by their declared role
+# (see `prop_role()`), not listed here: run state is dropped, and a spec-less
+# property aborts generation.
 source(file.path("data-raw", "schema_registry.R"))
 
 # Generation ----------------------------------------------------------------
@@ -70,6 +70,7 @@ for (family in names(families)) {
     id = dispatcher_id,
     discriminator = discriminator,
     payload = payload,
+    base = fam[["base_class"]],
     title = fam[["title"]],
     description = fam[["description"]],
     discriminator_description = if (
@@ -78,11 +79,6 @@ for (family in names(families)) {
       fam[["algorithm_description"]]
     } else {
       fam[["discriminator_description"]]
-    },
-    extra_properties = if (is.null(fam[["extra_properties"]])) {
-      list()
-    } else {
-      fam[["extra_properties"]]
     },
     # Translate `required_except` (property -> variants to skip) into the
     # per-variant `required` form the dispatcher generator consumes.

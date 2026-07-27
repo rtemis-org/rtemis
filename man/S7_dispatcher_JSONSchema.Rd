@@ -9,10 +9,10 @@ S7_dispatcher_JSONSchema(
   id,
   discriminator = "algorithm",
   payload = "config",
+  base = NULL,
   title = NULL,
   description = "",
   discriminator_description = "Algorithm name.",
-  extra_properties = list(),
   variant_required = list(),
   instance_schema_url = NULL
 )
@@ -31,16 +31,16 @@ variant (e.g. "algorithm", "type").}
 (e.g. "config", "hyperparameters"). \code{NULL} selects top-level mode, where
 the variant's fields are siblings of the discriminator (see Details).}
 
+\item{base}{Optional S7 class: The family base class. Its own
+\verb{prop_*}-declared properties are shared by every variant, so they are
+emitted here rather than on any leaf (see Details).}
+
 \item{title}{Optional Character: Schema title.}
 
 \item{description}{Character: Schema description. If empty, omitted.}
 
 \item{discriminator_description}{Character: Description of the
 discriminator property.}
-
-\item{extra_properties}{Named list: Additional top-level properties merged
-after the discriminator and the payload (e.g. decomposition's
-\code{features}, or the shared base fields in top-level mode).}
 
 \item{variant_required}{Named list keyed by discriminator value: for each
 variant, a character vector of top-level property names to mark
@@ -85,6 +85,13 @@ for properties evaluated by the applied \verb{$ref}. Leaves for this mode
 must be generated open (\code{closed = FALSE} in \link{S7_to_JSONSchema}) so they
 compose.
 }
+
+\code{base} closes the loop with \link{S7_to_JSONSchema}'s \code{base} argument, which
+\emph{subtracts} the family base's properties from every leaf: the dispatcher
+adds them back at the top level, from the same \code{PropertySpec}, so the shared
+fields are declared once. Base properties carrying no spec are class
+machinery (the computed payload list, run state) and are skipped, as is the
+discriminator, which is generated from the variant enum.
 }
 \examples{
 \dontrun{

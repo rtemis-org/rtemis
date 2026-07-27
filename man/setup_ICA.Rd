@@ -30,8 +30,8 @@ setup_ICA(
 
 \item{tol}{Numeric [0, Inf): Tolerance.}
 
-\item{features}{Optional Character: Names of the feature columns to decompose.
-\code{NULL} decomposes all numeric features.}
+\item{features}{Optional Character vector: Names of at least 2 distinct
+feature columns to decompose. \code{NULL} decomposes all numeric features.}
 }
 \value{
 ICAConfig object.

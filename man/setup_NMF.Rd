@@ -18,8 +18,8 @@ setup_NMF(
 
 \item{nrun}{Integer [1, Inf): Number of runs to perform.}
 
-\item{features}{Optional Character: Names of the feature columns to decompose.
-\code{NULL} decomposes all numeric features.}
+\item{features}{Optional Character vector: Names of at least 2 distinct
+feature columns to decompose. \code{NULL} decomposes all numeric features.}
 }
 \value{
 NMFConfig object.

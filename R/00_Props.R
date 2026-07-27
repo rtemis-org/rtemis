@@ -35,11 +35,24 @@
 # - "none"   value must be <= the dimension (an upper bound, e.g. mtry)
 # - anything else  length(value) must equal the dimension (e.g. per-feature
 #                  costs, per-case offsets)
-# "feature_names" is the exception: values must be a subset of the feature
-# names, regardless of arity, and applies only to string properties. Other
+# The name bounds are the exception: values must be a subset of the named
+# columns, regardless of arity, and they apply only to string properties. Other
 # bounds are about *length*, so they apply to any type -- a character vector of
 # per-case IDs is bound by "n_cases".
-DATA_BOUNDS <- c("n_features", "n_cases", "n_classes", "feature_names")
+# - "feature_names"          any feature column
+# - "numeric_feature_names"  the numeric feature columns only, for a selection
+#                            that is then handed to a numeric-only backend
+#                            (decomposition)
+DATA_BOUNDS <- c(
+  "n_features",
+  "n_cases",
+  "n_classes",
+  "feature_names",
+  "numeric_feature_names"
+)
+
+# The subset of `DATA_BOUNDS` checked by membership rather than by length.
+NAME_BOUNDS <- c("feature_names", "numeric_feature_names")
 
 # %% PROP_CONTAINERS ----
 # How a property's values are wrapped. See `PropertySpec@container`.
@@ -101,6 +114,10 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   this spec's own leaf type and constraints.
 #' @field broadcast Logical: If TRUE, a bare scalar is accepted in place of the
 #'   container, meaning "this value for every element".
+#' @field min_items Integer [1, Inf): Fewest elements an `array` container may
+#'   hold.
+#' @field unique_items Logical: If TRUE, an `array` container's elements must
+#'   be distinct.
 #' @field tune_on_null Logical: If TRUE, a NULL value means "determine by
 #'   tuning" rather than "unset". Requires `nullable`.
 #' @field constant Logical: If TRUE, the value is determined by the class and
@@ -149,6 +166,12 @@ PropertySpec <- new_class(
     # enforces the type instead, and runs once the class exists.
     items = class_any,
     broadcast = class_logical,
+    # How many elements an array container holds, and whether they repeat.
+    # Only "array" carries these: a matrix's rows and a map's keys have no
+    # equivalent JSON Schema keyword pair, so widening them would publish a
+    # constraint nothing enforces.
+    min_items = new_property(class_integer, default = 1L),
+    unique_items = new_property(class_logical, default = FALSE),
     # A constant is determined by the class, not chosen by the user: it is not
     # settable, and `@default` holds the single permitted value. Distinct from
     # a *fixed* property, which the user does set but cannot tune.
@@ -201,6 +224,22 @@ PropertySpec <- new_class(
     if (self@broadcast && self@container == "none") {
       return("@broadcast requires a @container to broadcast into.")
     }
+    if (length(self@min_items) != 1L || self@min_items < 1L) {
+      return("@min_items must be a single value >= 1.")
+    }
+    if (self@container != "array") {
+      if (self@min_items != 1L) {
+        return("@min_items is only meaningful when @container is 'array'.")
+      }
+      if (self@unique_items) {
+        return("@unique_items is only meaningful when @container is 'array'.")
+      }
+    }
+    if (self@broadcast && self@min_items > 1L) {
+      return(
+        "@broadcast and @min_items > 1 are contradictory: a broadcast scalar stands in for the whole array."
+      )
+    }
     if (self@tune_on_null && !self@nullable) {
       return("@tune_on_null requires @nullable: NULL is the signal.")
     }
@@ -223,10 +262,12 @@ PropertySpec <- new_class(
           "."
         ))
       }
-      if (self@data_bound == "feature_names" && self@type != "string") {
-        return(
-          "@data_bound 'feature_names' is only supported for type 'string'."
-        )
+      if (self@data_bound %in% NAME_BOUNDS && self@type != "string") {
+        return(paste0(
+          "@data_bound '",
+          self@data_bound,
+          "' is only supported for type 'string'."
+        ))
       }
     }
     if (
@@ -297,6 +338,41 @@ spec_r_kind <- function(spec) {
 } # /rtemis::spec_r_kind
 
 
+# %% validate_array_arity ----
+#' Check an array container's length and element uniqueness
+#'
+#' The R half of the `minItems` / `uniqueItems` keywords `spec_to_schema()`
+#' publishes. A no-op for any other container, and for the default arity, so it
+#' never competes with the emptiness message raised upstream.
+#'
+#' @param value Property value being set, in container form.
+#' @param spec `PropertySpec` object.
+#'
+#' @return NULL if valid, otherwise character error message.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+validate_array_arity <- function(value, spec) {
+  if (spec@container != "array") {
+    return(NULL)
+  }
+  if (spec@min_items > 1L && length(value) < spec@min_items) {
+    return(paste0(
+      "must have at least ",
+      spec@min_items,
+      " elements, but ",
+      length(value),
+      " given."
+    ))
+  }
+  if (spec@unique_items && anyDuplicated(value) > 0L) {
+    return("must not contain duplicate values.")
+  }
+  NULL
+} # /rtemis::validate_array_arity
+
+
 # %% validate_with_spec ----
 #' Validate a property value against its PropertySpec
 #'
@@ -345,6 +421,10 @@ validate_with_spec <- function(value, spec) {
     if (!is.list(value)) {
       return("must be a list.")
     }
+    msg <- validate_array_arity(value, spec)
+    if (!is.null(msg)) {
+      return(msg)
+    }
     for (i in seq_along(value)) {
       msg <- validate_with_spec(value[[i]], spec@items)
       if (!is.null(msg)) {
@@ -369,6 +449,10 @@ validate_with_spec <- function(value, spec) {
   }
   if (length(value) > 1L && !spec@tunable && spec@container == "none") {
     return("must be a single value (not tunable, no search values allowed).")
+  }
+  msg <- validate_array_arity(value, spec)
+  if (!is.null(msg)) {
+    return(msg)
   }
   if (anyNA(value)) {
     return("must not contain missing values.")
@@ -495,6 +579,10 @@ prop_boolean <- function(
 #'   mutually exclusive with `tunable`.
 #' @param broadcast Logical: If TRUE, a bare scalar is accepted in place of the
 #'   vector, meaning "this value for every element". Requires `vector`.
+#' @param min_items Integer [1, Inf): Fewest elements a `vector` value may
+#'   hold.
+#' @param unique_items Logical: If TRUE, a `vector` value's elements must be
+#'   distinct.
 #' @param data_bound Character or NULL: Training-data dimension constraining
 #'   this value \{"n_features", "n_cases", "n_classes"\}. Scalar properties are
 #'   bounded above by it; `vector` properties must have exactly that length.
@@ -516,6 +604,8 @@ prop_integer <- function(
   tune_on_null = FALSE,
   vector = FALSE,
   broadcast = FALSE,
+  min_items = 1L,
+  unique_items = FALSE,
   data_bound = NULL,
   data_dependent = FALSE,
   description = ""
@@ -533,6 +623,8 @@ prop_integer <- function(
     tune_on_null = tune_on_null,
     container = if (vector) "array" else "none",
     broadcast = broadcast,
+    min_items = min_items,
+    unique_items = unique_items,
     data_bound = data_bound,
     data_dependent = data_dependent,
     description = description
@@ -561,6 +653,10 @@ prop_integer <- function(
 #'   mutually exclusive with `tunable`.
 #' @param broadcast Logical: If TRUE, a bare scalar is accepted in place of the
 #'   vector, meaning "this value for every element". Requires `vector`.
+#' @param min_items Integer [1, Inf): Fewest elements a `vector` value may
+#'   hold.
+#' @param unique_items Logical: If TRUE, a `vector` value's elements must be
+#'   distinct.
 #' @param data_bound Character or NULL: Training-data dimension constraining
 #'   this value \{"n_features", "n_cases", "n_classes"\}. Scalar properties are
 #'   bounded above by it; `vector` properties must have exactly that length.
@@ -584,6 +680,8 @@ prop_float <- function(
   tune_on_null = FALSE,
   vector = FALSE,
   broadcast = FALSE,
+  min_items = 1L,
+  unique_items = FALSE,
   data_bound = NULL,
   data_dependent = FALSE,
   description = ""
@@ -601,6 +699,8 @@ prop_float <- function(
     tune_on_null = tune_on_null,
     container = if (vector) "array" else "none",
     broadcast = broadcast,
+    min_items = min_items,
+    unique_items = unique_items,
     data_bound = data_bound,
     data_dependent = data_dependent,
     description = description
@@ -621,6 +721,10 @@ prop_float <- function(
 #'   mutually exclusive with `tunable`.
 #' @param broadcast Logical: If TRUE, a bare scalar is accepted in place of the
 #'   vector, meaning "this value for every element". Requires `vector`.
+#' @param min_items Integer [1, Inf): Fewest elements a `vector` value may
+#'   hold.
+#' @param unique_items Logical: If TRUE, a `vector` value's elements must be
+#'   distinct.
 #' @param data_bound Character or NULL: Only "feature_names" is meaningful for
 #'   a string property: values must be a subset of the training features.
 #' @param data_dependent Logical: If TRUE, the value is tied to one dataset
@@ -640,6 +744,8 @@ prop_string <- function(
   tune_on_null = FALSE,
   vector = FALSE,
   broadcast = FALSE,
+  min_items = 1L,
+  unique_items = FALSE,
   data_bound = NULL,
   data_dependent = FALSE,
   description = ""
@@ -657,6 +763,8 @@ prop_string <- function(
     tune_on_null = tune_on_null,
     container = if (vector) "array" else "none",
     broadcast = broadcast,
+    min_items = min_items,
+    unique_items = unique_items,
     data_bound = data_bound,
     data_dependent = data_dependent,
     description = description
@@ -732,6 +840,8 @@ prop_map <- function(
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param broadcast Logical: If TRUE, a bare element is accepted in place of the
 #'   list, meaning "this element for every position".
+#' @param min_items Integer [1, Inf): Fewest elements the list may hold.
+#' @param unique_items Logical: If TRUE, the elements must be distinct.
 #' @param data_bound Character or NULL: Training-data dimension the number of
 #'   elements is tied to; see `DATA_BOUNDS`.
 #' @param data_dependent Logical: If TRUE, the value is tied to one dataset
@@ -747,6 +857,8 @@ prop_array <- function(
   items,
   nullable = FALSE,
   broadcast = FALSE,
+  min_items = 1L,
+  unique_items = FALSE,
   data_bound = NULL,
   data_dependent = FALSE,
   description = ""
@@ -771,6 +883,8 @@ prop_array <- function(
     container = "array",
     items = item_spec,
     broadcast = broadcast,
+    min_items = min_items,
+    unique_items = unique_items,
     data_bound = data_bound,
     data_dependent = data_dependent,
     description = description
@@ -1439,8 +1553,7 @@ route_config_assignment <- function(
 #' `schema_to_spec()` strips it back off. Two copies would let the reader fail
 #' to recognize a sentence the writer had changed.
 #'
-#' @param data_bound Character \{"n_features", "n_cases", "n_classes",
-#' "feature_names"\}: The bound.
+#' @param data_bound Character: The bound; see `DATA_BOUNDS`.
 #' @param container Character \{"none", "array", "map", "matrix"\}: How values
 #' are wrapped.
 #' @param broadcast Logical: Whether a bare scalar stands in for the container.
@@ -1451,10 +1564,13 @@ route_config_assignment <- function(
 #' @keywords internal
 #' @noRd
 data_bound_note <- function(data_bound, container, broadcast) {
-  # "feature_names" is a membership rule, not a length rule, so it has no noun
-  # in the table.
+  # A name bound is a membership rule, not a length rule, so it has no noun in
+  # the table.
   if (data_bound == "feature_names") {
     return("Values must name training features.")
+  }
+  if (data_bound == "numeric_feature_names") {
+    return("Values must name numeric training features.")
   }
   noun <- DATA_BOUND_NOUN[[data_bound]]
   if (container == "matrix") {
@@ -1512,10 +1628,14 @@ spec_to_schema <- function(spec, read_only = FALSE) {
   element <- if (is.null(spec@items)) scalar else spec_to_schema(spec@items)
   out <- if (spec@container == "array") {
     # A genuinely vector-valued field (e.g. per-feature weights).
-    arr <- list(
-      type = if (spec@nullable) I(c("array", "null")) else "array",
-      items = element,
-      minItems = 1L
+    arr <- Filter(
+      Negate(is.null),
+      list(
+        type = if (spec@nullable) I(c("array", "null")) else "array",
+        items = element,
+        minItems = spec@min_items,
+        uniqueItems = if (spec@unique_items) TRUE else NULL
+      )
     )
     if (spec@broadcast) {
       # A bare scalar stands in for the whole container ("this value for every
@@ -1812,6 +1932,46 @@ discriminator_value <- function(cls, discriminator) {
 } # /rtemis::discriminator_value
 
 
+# %% base_schema_properties ----
+#' JSON Schema properties for a family base class's shared fields
+#'
+#' The properties a family base class declares with the `prop_*` factories are
+#' shared by every variant, so they are published on the dispatcher rather than
+#' repeated on each leaf — [S7_to_JSONSchema] subtracts them from the leaves via
+#' its `base` argument. Spec-less base properties are class machinery (the
+#' computed payload list, the discriminator, run state such as `tuned`) and have
+#' no schema form, so they are skipped rather than erroring: unlike a leaf, a
+#' base class is expected to carry them.
+#'
+#' @param base S7 class or NULL: The family base class. NULL yields no
+#'   properties.
+#' @param skip Character: Property names the dispatcher emits itself (the
+#'   discriminator and the payload).
+#'
+#' @return Named list of JSON Schema properties, in declaration order.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+base_schema_properties <- function(base, skip = character()) {
+  if (is.null(base)) {
+    return(list())
+  }
+  if (!inherits(base, "S7_class")) {
+    rtemis.core::abort(
+      "`base` must be an S7 class.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
+  props <- base@properties[setdiff(names(base@properties), skip)]
+  props <- Filter(function(p) !is.null(get_spec(p)), props)
+  out <- lapply(props, function(p) {
+    spec_to_schema(get_spec(p), identical(prop_role(p), "state"))
+  })
+  out
+} # /rtemis::base_schema_properties
+
+
 # %% S7_dispatcher_JSONSchema ----
 #' Generate a per-algorithm dispatcher JSON Schema
 #'
@@ -1837,13 +1997,13 @@ discriminator_value <- function(cls, discriminator) {
 #' @param payload Character or NULL: Name of the variant-specific field
 #'   (e.g. "config", "hyperparameters"). `NULL` selects top-level mode, where
 #'   the variant's fields are siblings of the discriminator (see Details).
+#' @param base Optional S7 class: The family base class. Its own
+#'   `prop_*`-declared properties are shared by every variant, so they are
+#'   emitted here rather than on any leaf (see Details).
 #' @param title Optional Character: Schema title.
 #' @param description Character: Schema description. If empty, omitted.
 #' @param discriminator_description Character: Description of the
 #'   discriminator property.
-#' @param extra_properties Named list: Additional top-level properties merged
-#'   after the discriminator and the payload (e.g. decomposition's
-#'   `features`, or the shared base fields in top-level mode).
 #' @param variant_required Named list keyed by discriminator value: for each
 #'   variant, a character vector of top-level property names to mark
 #'   `required` in that variant's `if/then` branch. Used to mirror
@@ -1868,6 +2028,13 @@ discriminator_value <- function(cls, discriminator) {
 #'   must be generated open (`closed = FALSE` in [S7_to_JSONSchema]) so they
 #'   compose.
 #'
+#' `base` closes the loop with [S7_to_JSONSchema]'s `base` argument, which
+#' *subtracts* the family base's properties from every leaf: the dispatcher
+#' adds them back at the top level, from the same `PropertySpec`, so the shared
+#' fields are declared once. Base properties carrying no spec are class
+#' machinery (the computed payload list, run state) and are skipped, as is the
+#' discriminator, which is generated from the variant enum.
+#'
 #' @return Named list: the dispatcher JSON Schema. Serialize with
 #'   [write_JSONSchema].
 #'
@@ -1886,10 +2053,10 @@ S7_dispatcher_JSONSchema <- function(
   id,
   discriminator = "algorithm",
   payload = "config",
+  base = NULL,
   title = NULL,
   description = "",
   discriminator_description = "Algorithm name.",
-  extra_properties = list(),
   variant_required = list(),
   instance_schema_url = NULL
 ) {
@@ -1945,11 +2112,15 @@ S7_dispatcher_JSONSchema <- function(
       description = "JSON Schema URI for this config instance."
     )
   }
-  properties[[discriminator]] <- list(
-    type = "string",
-    enum = I(variants),
+  # Generated from a spec like every other property, so it carries the same
+  # `x-rtemis` annotation. The default is required by the factory but never
+  # reaches the schema (no `default` keyword is emitted); the first variant is
+  # the one value guaranteed to satisfy the enum.
+  properties[[discriminator]] <- spec_to_schema(get_spec(prop_string(
+    variants[[1L]],
+    enum = variants,
     description = discriminator_description
-  )
+  )))
   if (!top_level) {
     properties[[payload]] <- list(
       type = "object",
@@ -1960,7 +2131,10 @@ S7_dispatcher_JSONSchema <- function(
       )
     )
   }
-  properties <- c(properties, extra_properties)
+  properties <- c(
+    properties,
+    base_schema_properties(base, skip = c(discriminator, payload))
+  )
   all_of <- lapply(variants, function(variant) {
     # `required` on the discriminator: a `properties`-only `if` is vacuously
     # true when the property is absent, which would apply every branch at once.

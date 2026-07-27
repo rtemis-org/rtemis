@@ -3,10 +3,14 @@
 # 2026- EDG rtemis.org
 
 # The registry both generators read: which S7 class backs each published
-# schema, plus the titles, descriptions and hand-written fragments that are not
+# schema, plus the titles, descriptions and cross-field constraints that are not
 # derivable from the class. Sourced by `generate_schemas.R` (which emits the
 # schemas) and `generate_defaults.R` (which emits their `setup_*` defaults), so
 # the two cannot disagree about what exists.
+#
+# No entry here restates a property: every one is generated from its
+# `PropertySpec`. `extra` carries only class-level `allOf` rules, which are
+# constraints between properties rather than declarations of them.
 #
 # Requires the package to be loaded first: the entries reference class objects.
 
@@ -26,15 +30,6 @@ families <- list(
       "config drives rtemis (R), rtemis-py, and rtemislive to identical output."
     ),
     algorithm_description = "Decomposition algorithm name.",
-    extra_properties = list(
-      features = list(
-        type = I(c("array", "null")),
-        items = list(type = "string"),
-        minItems = 2L,
-        uniqueItems = TRUE,
-        description = "Names of the feature columns to decompose. null = all numeric features."
-      )
-    ),
     algorithms = list(
       list(
         cls = PCAConfig,
@@ -105,13 +100,6 @@ families <- list(
       "rtemislive to identical resamples."
     ),
     discriminator_description = "Resampler type.",
-    extra_properties = list(
-      n_resamples = list(
-        type = I(c("integer", "null")),
-        minimum = 1L,
-        description = "Number of resamples. null for LOOCV, where it is determined by the data."
-      )
-    ),
     # `n_resamples` is required for every type except LOOCV (mirrors the R
     # `ResamplerConfig` validator), so it is conditionally required per variant.
     required_except = list(n_resamples = "LOOCV"),

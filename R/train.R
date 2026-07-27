@@ -619,34 +619,18 @@ train <- function(
       )
       outcome_nm <- names(x)[ncols]
       feat <- as.data.frame(features(x))
+      # An explicit selection must name numeric columns of the actual
+      # (post-preprocessing) data. Declared by `DecompositionConfig@features`
+      # as `data_bound = "numeric_feature_names"`, so both "these are features"
+      # and "these are numeric" are one check. `feat` is already features-only.
+      check_data_bounds(decomposition_config, feat, has_outcome = FALSE)
       # Resolve the columns to decompose: NULL -> all numeric features.
       decomp_features <- decomposition_config@features
       if (is.null(decomp_features)) {
         decomp_features <- names(numeric_features(x))
       }
-      # Validate the selection against the actual (post-preprocessing) data.
-      missing_cols <- setdiff(decomp_features, names(feat))
-      if (length(missing_cols) > 0L) {
-        rtemis.core::abort(
-          "`decomposition_config` selects columns that are not features.\n",
-          "Not found among features: ",
-          paste(missing_cols, collapse = ", "),
-          ".",
-          class = c("rtemis_value_error", "rtemis_input_error")
-        )
-      }
-      non_numeric <- decomp_features[
-        !vapply(feat[decomp_features], is.numeric, logical(1L))
-      ]
-      if (length(non_numeric) > 0L) {
-        rtemis.core::abort(
-          "Decomposition can only be applied to numeric features.\n",
-          "Non-numeric columns selected: ",
-          paste(non_numeric, collapse = ", "),
-          ".",
-          class = c("rtemis_type_error", "rtemis_input_error")
-        )
-      }
+      # Not subsumed by the declaration: this binds the *resolved* selection,
+      # which for an unset `features` is whatever the data happen to supply.
       if (length(decomp_features) < 2L) {
         rtemis.core::abort(
           "Decomposition requires at least 2 numeric feature columns.\n",

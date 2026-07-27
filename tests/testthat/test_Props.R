@@ -310,6 +310,74 @@ testthat::test_that("vector props accept vectors, map to array schemas", {
   testthat::expect_false("default" %in% names(s1))
 })
 
+# %% Array arity: min_items / unique_items ----
+testthat::test_that("min_items and unique_items are enforced and published", {
+  p <- prop_string(
+    NULL,
+    nullable = TRUE,
+    vector = TRUE,
+    min_items = 2L,
+    unique_items = TRUE
+  )
+  Sel <- S7::new_class("Sel", properties = list(cols = p))
+  testthat::expect_error(Sel(cols = "a"), "at least 2 elements, but 1 given")
+  testthat::expect_error(Sel(cols = c("a", "a")), "duplicate values")
+  testthat::expect_no_error(Sel(cols = c("a", "b")))
+  # NULL is still unset, not an empty selection.
+  testthat::expect_no_error(Sel())
+
+  s <- spec_to_schema(get_spec(p))
+  testthat::expect_identical(s[["minItems"]], 2L)
+  testthat::expect_true(s[["uniqueItems"]])
+  # Standard keywords carry both, so neither is duplicated into `x-rtemis`.
+  testthat::expect_false("minItems" %in% names(s[["x-rtemis"]]))
+  testthat::expect_false("uniqueItems" %in% names(s[["x-rtemis"]]))
+})
+
+
+testthat::test_that("the default arity is published as before", {
+  s <- spec_to_schema(get_spec(prop_float(
+    NULL,
+    nullable = TRUE,
+    vector = TRUE
+  )))
+  testthat::expect_identical(s[["minItems"]], 1L)
+  testthat::expect_false("uniqueItems" %in% names(s))
+})
+
+
+testthat::test_that("array arity is rejected on non-array containers", {
+  # A scalar, a map and a matrix have no `minItems`/`uniqueItems` form, so a
+  # non-default value there would publish a constraint nothing enforces.
+  testthat::expect_error(prop_float(1, min_items = 2L), "only meaningful")
+  testthat::expect_error(
+    prop_string("a", unique_items = TRUE),
+    "only meaningful"
+  )
+  testthat::expect_error(
+    mk_spec(container = "map", items = mk_spec(), min_items = 2L),
+    "only meaningful"
+  )
+  testthat::expect_error(
+    mk_spec(container = "matrix", default = matrix(0), unique_items = TRUE),
+    "only meaningful"
+  )
+  # A broadcast scalar stands in for the whole array, so it cannot also be
+  # required to hold several elements.
+  testthat::expect_error(
+    prop_float(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      broadcast = TRUE,
+      min_items = 2L
+    ),
+    "contradictory"
+  )
+  testthat::expect_error(prop_float(1, min_items = 0L), "single value >= 1")
+})
+
+
 # %% Spec introspection ----
 testthat::test_that("specs ride along on properties and derive tunability", {
   props <- LightRFProps@properties
@@ -565,6 +633,63 @@ test_that("check_data_bounds() checks feature_names by membership", {
   )
   expect_invisible(
     check_data_bounds(setup_Ranger(always_split_variables = "a"), datr_bounds)
+  )
+})
+
+test_that("numeric_feature_names excludes non-numeric features", {
+  # `features` is declared on DecompositionConfig, so this also exercises a
+  # non-Hyperparameters config and the `prop()` accessor: a family's `[[`
+  # routes into its computed payload list, which excludes base properties.
+  feat <- data.frame(a = rnorm(6L), b = rnorm(6L), f = factor(letters[1:6]))
+  expect_error(
+    check_data_bounds(
+      setup_PCA(k = 2L, features = c("a", "f")),
+      feat,
+      has_outcome = FALSE
+    ),
+    "must name numeric training features"
+  )
+  expect_error(
+    check_data_bounds(
+      setup_PCA(k = 2L, features = c("a", "nope")),
+      feat,
+      has_outcome = FALSE
+    ),
+    class = "rtemis_value_error"
+  )
+  expect_invisible(
+    check_data_bounds(
+      setup_PCA(k = 2L, features = c("a", "b")),
+      feat,
+      has_outcome = FALSE
+    )
+  )
+  # Unset is skipped: NULL means "all numeric features", resolved later.
+  expect_invisible(
+    check_data_bounds(setup_PCA(k = 2L), feat, has_outcome = FALSE)
+  )
+})
+
+test_that("has_outcome = FALSE keeps the last column as a feature", {
+  # The supervised convention would silently drop `b` from every dimension.
+  feat <- data.frame(a = rnorm(4L), b = rnorm(4L))
+  expect_identical(
+    rtemis:::resolve_data_bounds(feat, has_outcome = FALSE)[["feature_names"]],
+    c("a", "b")
+  )
+  expect_identical(
+    rtemis:::resolve_data_bounds(feat)[["feature_names"]],
+    "a"
+  )
+  expect_null(rtemis:::resolve_data_bounds(feat, has_outcome = FALSE)[[
+    "n_classes"
+  ]])
+})
+
+test_that("a name bound is restricted to string properties", {
+  expect_error(
+    prop_integer(1L, data_bound = "numeric_feature_names"),
+    "only supported for type 'string'"
   )
 })
 

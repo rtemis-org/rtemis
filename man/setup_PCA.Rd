@@ -15,8 +15,8 @@ setup_PCA(k = 3L, center = TRUE, scale = TRUE, tol = NULL, features = NULL)
 
 \item{tol}{Optional Numeric [0, Inf): Tolerance.}
 
-\item{features}{Optional Character: Names of the feature columns to decompose.
-\code{NULL} decomposes all numeric features.}
+\item{features}{Optional Character vector: Names of at least 2 distinct
+feature columns to decompose. \code{NULL} decomposes all numeric features.}
 }
 \value{
 PCAConfig object.

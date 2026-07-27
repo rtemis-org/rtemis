@@ -85,59 +85,75 @@ hp_prop_values <- function(self) {
 # %% resolve_data_bounds ----
 #' Resolve training-data dimensions referenced by `data_bound` declarations
 #'
-#' @param x tabular data: Training data.
+#' Every dimension is derived from `x` on each call; none is stored on an
+#' object, since all of them are facts about the data rather than about the
+#' config being checked.
 #'
-#' @return Named list with elements "n_features", "n_cases", "n_classes",
-#'   "feature_names". `n_classes` is NULL for regression, where the outcome has
-#'   no levels.
+#' @param x tabular data: Training data.
+#' @param has_outcome Logical: If TRUE, `x` follows the supervised convention
+#'   (the last column is the outcome, the rest are features). Pass FALSE for a
+#'   frame that is already features-only, as the decomposition path uses:
+#'   otherwise the last feature is silently treated as an outcome and excluded
+#'   from every dimension.
+#'
+#' @return Named list with one element per `DATA_BOUNDS` entry. `n_classes` is
+#'   NULL for regression, where the outcome has no levels, and also when
+#'   `has_outcome` is FALSE.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-resolve_data_bounds <- function(x) {
-  feats <- features(x)
-  y <- outcome(x)
+resolve_data_bounds <- function(x, has_outcome = TRUE) {
+  feats <- if (has_outcome) features(x) else x
+  y <- if (has_outcome) outcome(x) else NULL
   list(
     n_features = NCOL(feats),
     n_cases = NROW(x),
     n_classes = if (is.factor(y)) nlevels(y) else NULL,
-    feature_names = names(feats)
+    feature_names = names(feats),
+    numeric_feature_names = getnumericnames(feats)
   )
 } # /rtemis::resolve_data_bounds
 
 
 # %% check_data_bounds ----
-#' Check all `data_bound` hyperparameters against the training data
+#' Check all `data_bound` properties against the training data
 #'
-#' Engine behind the default `validate_hyperparameters()` method. Walks the
-#' hyperparameter class's properties, and for each one declaring a `data_bound`
-#' (see `DATA_BOUNDS` in 00_Props.R) checks the current value against the
-#' resolved dimension:
+#' Engine behind the default `validate_hyperparameters()` method, and usable
+#' with any config object whose properties carry `PropertySpec`s. Walks the
+#' class's properties, and for each one declaring a `data_bound` (see
+#' `DATA_BOUNDS` in 00_Props.R) checks the current value against the resolved
+#' dimension:
 #'
 #' - scalar property: every value must be `<=` the dimension. Tunable
 #'   hyperparameters hold their whole search space here, hence `any()`.
 #' - `vector` property: `length(value)` must equal the dimension.
-#' - "feature_names": values must name training features.
+#' - a name bound (`NAME_BOUNDS`): values must be a subset of the named columns.
 #'
 #' Unset (NULL) values are skipped, as is `n_classes` in regression.
 #'
-#' @param hyperparameters `Hyperparameters` object.
+#' @param config S7 object with `prop_*`-declared properties (a
+#'   `Hyperparameters`, a `DecompositionConfig`, ...).
 #' @param x tabular data: Training data.
+#' @param has_outcome Logical: Whether `x` carries an outcome column; see
+#'   `resolve_data_bounds()`.
 #'
-#' @return `hyperparameters`, invisibly. Throws if any bound is violated.
+#' @return `config`, invisibly. Throws if any bound is violated.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_data_bounds <- function(hyperparameters, x) {
-  bounds <- data_bound_props(S7_class(hyperparameters))
+check_data_bounds <- function(config, x, has_outcome = TRUE) {
+  bounds <- data_bound_props(S7_class(config))
   if (length(bounds) == 0L) {
-    return(invisible(hyperparameters))
+    return(invisible(config))
   }
-  dims <- resolve_data_bounds(x)
-  specs <- S7_class(hyperparameters)@properties
+  dims <- resolve_data_bounds(x, has_outcome = has_outcome)
+  specs <- S7_class(config)@properties
   for (nm in names(bounds)) {
-    value <- hyperparameters[[nm]]
+    # `prop()`, not `[[`: a config family's `[[` routes into its computed
+    # payload list, which excludes properties declared on the family base.
+    value <- prop(config, nm)
     if (is.null(value)) {
       next
     }
@@ -148,13 +164,15 @@ check_data_bounds <- function(hyperparameters, x) {
     if (is.null(dim_value)) {
       next
     }
-    if (bound == "feature_names") {
+    if (bound %in% NAME_BOUNDS) {
       unknown <- setdiff(value, dim_value)
       if (length(unknown) > 0L) {
         rtemis.core::abort(
           "`",
           nm,
-          "` must name training features; not found: ",
+          "` must name ",
+          if (bound == "numeric_feature_names") "numeric " else "",
+          "training features; not found: ",
           paste(unknown, collapse = ", "),
           ".",
           class = c("rtemis_value_error", "rtemis_input_error")
@@ -194,7 +212,7 @@ check_data_bounds <- function(hyperparameters, x) {
       )
     }
   }
-  invisible(hyperparameters)
+  invisible(config)
 } # /rtemis::check_data_bounds
 
 

@@ -122,6 +122,8 @@ test_that("every spec'd class round-trips through JSON Schema unchanged", {
       expect_equal(restored@tunable, original@tunable, label = label)
       expect_equal(restored@container, original@container, label = label)
       expect_equal(restored@broadcast, original@broadcast, label = label)
+      expect_equal(restored@min_items, original@min_items, label = label)
+      expect_equal(restored@unique_items, original@unique_items, label = label)
       expect_equal(restored@constant, original@constant, label = label)
       expect_equal(restored@tune_on_null, original@tune_on_null, label = label)
       expect_equal(restored@data_bound, original@data_bound, label = label)
@@ -189,6 +191,42 @@ test_that("JSONSchema_to_S7() names non-nullable properties with no default", {
     JSONSchema_to_S7(schema),
     class = "rtemis_value_error"
   )
+})
+
+
+# %% array arity survives the round trip ----
+# `DecompositionConfig` is the only class declaring `min_items`/`unique_items`,
+# and it is not reached by the discovery above (its own `algorithm` property
+# carries no role), so its axes are checked directly. They travel as standard
+# keywords, which for a broadcast property sit on the trailing `oneOf` branch
+# rather than at the top level.
+test_that("min_items and unique_items round-trip", {
+  original <- rtemis:::get_spec(
+    rtemis:::DecompositionConfig@properties[["features"]]
+  )
+  restored <- rtemis:::schema_to_spec(
+    rtemis:::spec_to_schema(original),
+    default = NULL
+  )
+  expect_identical(restored@min_items, 2L)
+  expect_true(restored@unique_items)
+  expect_identical(restored@container, "array")
+
+  broadcast <- rtemis:::get_spec(prop_float(
+    NULL,
+    min = 0,
+    nullable = TRUE,
+    vector = TRUE,
+    broadcast = TRUE,
+    unique_items = TRUE
+  ))
+  rt <- rtemis:::schema_to_spec(
+    rtemis:::spec_to_schema(broadcast),
+    default = NULL
+  )
+  expect_true(rt@broadcast)
+  expect_true(rt@unique_items)
+  expect_identical(rt@min_items, 1L)
 })
 
 

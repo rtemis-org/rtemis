@@ -22,7 +22,7 @@
 #' Superclass for resampler configuration.
 #'
 #' @field type Character: Type of resampler.
-#' @field n_resamples Integer: Number of resamples.
+#' @field n_resamples Optional Integer [1, Inf): Number of resamples.
 #'
 #' @author EDG
 #' @noRd
@@ -38,7 +38,10 @@ ResamplerConfig <- new_class(
       NULL,
       min = 1L,
       nullable = TRUE,
-      description = "Number of resamples."
+      description = paste(
+        "Number of resamples. null for LOOCV, where it is determined by the",
+        "data."
+      )
     )
   ),
   validator = function(self) {

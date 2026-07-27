@@ -100,6 +100,33 @@ schema_element <- function(x, container, tunable, broadcast) {
 } # /rtemis::schema_element
 
 
+# %% schema_array ----
+#' The sub-schema holding an array container's own keywords
+#'
+#' `minItems` and `uniqueItems` describe the array, not its element, so they sit
+#' one level above what `schema_element()` returns. For a broadcast property the
+#' array is the trailing `oneOf` branch (the scalar branch carries neither).
+#'
+#' @param x Named list: A JSON Schema property with `container = "array"`.
+#' @param broadcast Logical: Whether a bare scalar stands in for the container.
+#'
+#' @return Named list: The array sub-schema.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+schema_array <- function(x, broadcast) {
+  if (!broadcast) {
+    return(x)
+  }
+  branches <- Filter(
+    function(b) !identical(unname(b[["type"]]), "null"),
+    x[["oneOf"]]
+  )
+  branches[[length(branches)]]
+} # /rtemis::schema_array
+
+
 # %% coerce_to_type ----
 #' Coerce a JSON-decoded value to the R type a spec declares
 #'
@@ -273,6 +300,9 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
   } else {
     as.character(leaf[["enum"]])
   }
+  # `minItems` / `uniqueItems` sit on the array form, which for a broadcast
+  # property is the trailing `oneOf` branch rather than `x` itself.
+  arity <- if (container == "array") schema_array(x, broadcast) else list()
   PropertySpec(
     type = type,
     default = if (element) {
@@ -290,6 +320,8 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
     container = container,
     items = items,
     broadcast = broadcast,
+    min_items = as.integer(arity[["minItems"]] %||% 1L),
+    unique_items = isTRUE(arity[["uniqueItems"]]),
     tune_on_null = isTRUE(ann[["tune_on_null"]]),
     data_bound = data_bound,
     data_dependent = isTRUE(ann[["data_dependent"]]),

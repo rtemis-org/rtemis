@@ -175,10 +175,7 @@ test_that("dispatcher supports a custom discriminator and top-level mode", {
     classes = list(KFoldConfig, LOOCVConfig),
     id = "https://schema.rtemis.org/resampler/v1/schema.json",
     discriminator = "type",
-    payload = NULL,
-    extra_properties = list(
-      n_resamples = list(type = I(c("integer", "null")))
-    )
+    payload = NULL
   )
   expect_identical(
     as.character(s[["properties"]][["type"]][["enum"]]),
@@ -313,14 +310,93 @@ test_that("serialized configs carry only declared parameters", {
   )
 })
 
-test_that("S7_dispatcher_JSONSchema merges extra top-level properties", {
+test_that("dispatcher generates the discriminator from a spec", {
   s <- S7_dispatcher_JSONSchema(
-    classes = list(KMeansConfig),
-    id = "https://schema.rtemis.org/x/v1/schema.json",
+    classes = list(PCAConfig, ICAConfig),
+    id = "https://schema.rtemis.org/decomposition/v1/schema.json",
     payload = "config",
-    extra_properties = list(features = list(type = "array"))
+    discriminator_description = "Decomposition algorithm name."
   )
-  expect_true("features" %in% names(s[["properties"]]))
+  algorithm <- s[["properties"]][["algorithm"]]
+  expect_identical(algorithm[["type"]], "string")
+  expect_identical(as.character(algorithm[["enum"]]), c("PCA", "ICA"))
+  expect_identical(algorithm[["description"]], "Decomposition algorithm name.")
+  # Annotated like every other generated property, so a consumer reads one
+  # vocabulary rather than special-casing the discriminator.
+  expect_identical(algorithm[["x-rtemis"]][["type"]], "string")
+  # The factory default never reaches the schema.
+  expect_false("default" %in% names(algorithm))
+})
+
+
+test_that("dispatcher emits the family base's shared properties", {
+  s <- S7_dispatcher_JSONSchema(
+    classes = list(KFoldConfig, LOOCVConfig),
+    id = "https://schema.rtemis.org/resampler/v1/schema.json",
+    discriminator = "type",
+    payload = NULL,
+    base = ResamplerConfig
+  )
+  # Generated from the same PropertySpec the R class enforces, so the two
+  # cannot drift.
+  spec <- get_spec(ResamplerConfig@properties[["n_resamples"]])
+  expect_identical(s[["properties"]][["n_resamples"]], spec_to_schema(spec))
+  expect_identical(
+    as.character(s[["properties"]][["n_resamples"]][["type"]]),
+    c("integer", "null")
+  )
+  expect_identical(s[["properties"]][["n_resamples"]][["minimum"]], 1L)
+  # `type` is the discriminator: emitted from the variant enum, not from the
+  # base's raw `class_character` declaration.
+  expect_identical(
+    as.character(s[["properties"]][["type"]][["enum"]]),
+    c("KFold", "LOOCV")
+  )
+})
+
+
+test_that("dispatcher skips spec-less base machinery and needs no base", {
+  # Hyperparameters' base properties are all computed views or run state.
+  s <- S7_dispatcher_JSONSchema(
+    classes = list(CARTHyperparameters, GLMHyperparameters),
+    id = "https://schema.rtemis.org/hyperparameters/v1/schema.json",
+    payload = "hyperparameters",
+    base = Hyperparameters
+  )
+  expect_identical(
+    names(s[["properties"]]),
+    c("algorithm", "hyperparameters")
+  )
+  # `base` is optional.
+  bare <- S7_dispatcher_JSONSchema(
+    classes = list(KMeansConfig),
+    id = "https://schema.rtemis.org/clustering/v1/schema.json",
+    payload = "config"
+  )
+  expect_identical(names(bare[["properties"]]), c("algorithm", "config"))
+  expect_error(
+    S7_dispatcher_JSONSchema(
+      classes = list(KMeansConfig),
+      id = "https://x/c/v1/schema.json",
+      base = "ClusteringConfig"
+    ),
+    "must be an S7 class"
+  )
+})
+
+
+test_that("dispatcher orders base properties after the payload", {
+  s <- S7_dispatcher_JSONSchema(
+    classes = list(PCAConfig),
+    id = "https://schema.rtemis.org/decomposition/v1/schema.json",
+    payload = "config",
+    base = DecompositionConfig,
+    instance_schema_url = "https://schema.rtemis.org/decomposition/v1/schema.json"
+  )
+  expect_identical(
+    names(s[["properties"]]),
+    c("$schema", "algorithm", "config", "features")
+  )
 })
 
 
