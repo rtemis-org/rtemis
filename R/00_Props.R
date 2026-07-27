@@ -1430,6 +1430,53 @@ route_config_assignment <- function(
 } # /rtemis::route_config_assignment
 
 
+# %% data_bound_note ----
+#' The sentence describing a `data_bound` constraint
+#'
+#' JSON Schema has no view of the training data, so a `data_bound` cannot be
+#' expressed structurally and is carried in the property description instead.
+#' Both directions share this one definition: `spec_to_schema()` appends it,
+#' `schema_to_spec()` strips it back off. Two copies would let the reader fail
+#' to recognize a sentence the writer had changed.
+#'
+#' @param data_bound Character \{"n_features", "n_cases", "n_classes",
+#' "feature_names"\}: The bound.
+#' @param container Character \{"none", "array", "map", "matrix"\}: How values
+#' are wrapped.
+#' @param broadcast Logical: Whether a bare scalar stands in for the container.
+#'
+#' @return Character: The sentence appended to the description.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+data_bound_note <- function(data_bound, container, broadcast) {
+  # "feature_names" is a membership rule, not a length rule, so it has no noun
+  # in the table.
+  if (data_bound == "feature_names") {
+    return("Values must name training features.")
+  }
+  noun <- DATA_BOUND_NOUN[[data_bound]]
+  if (container == "matrix") {
+    paste0("Must have one row per ", noun, ".")
+  } else if (container == "map") {
+    paste0("Must have one entry per ", noun, ".")
+  } else if (container != "none" && broadcast) {
+    # A scalar is explicitly allowed, so the length rule binds only the vector
+    # form.
+    paste0("A vector must have one value per ", noun, ".")
+  } else if (container != "none") {
+    paste0("Must have one value per ", noun, ".")
+  } else {
+    paste0(
+      "Cannot exceed the number of ",
+      DATA_BOUND_NOUN_PLURAL[[data_bound]],
+      " in the training data."
+    )
+  }
+} # /rtemis::data_bound_note
+
+
 # %% spec_to_schema ----
 #' Convert a PropertySpec to a JSON Schema property (as a list)
 #'
@@ -1522,32 +1569,7 @@ spec_to_schema <- function(spec, read_only = FALSE) {
   # building a form or a config can still surface the constraint.
   description <- spec@description
   if (!is.null(spec@data_bound)) {
-    # "feature_names" is a membership rule, not a length rule, so it has no
-    # noun in the table.
-    noun <- if (spec@data_bound == "feature_names") {
-      NA_character_
-    } else {
-      DATA_BOUND_NOUN[[spec@data_bound]]
-    }
-    note <- if (spec@data_bound == "feature_names") {
-      "Values must name training features."
-    } else if (spec@container == "matrix") {
-      paste0("Must have one row per ", noun, ".")
-    } else if (spec@container == "map") {
-      paste0("Must have one entry per ", noun, ".")
-    } else if (spec@container != "none" && spec@broadcast) {
-      # A scalar is explicitly allowed, so the length rule binds only the
-      # vector form.
-      paste0("A vector must have one value per ", noun, ".")
-    } else if (spec@container != "none") {
-      paste0("Must have one value per ", noun, ".")
-    } else {
-      paste0(
-        "Cannot exceed the number of ",
-        DATA_BOUND_NOUN_PLURAL[[spec@data_bound]],
-        " in the training data."
-      )
-    }
+    note <- data_bound_note(spec@data_bound, spec@container, spec@broadcast)
     description <- if (nzchar(description)) {
       paste(description, note)
     } else {
