@@ -23,7 +23,11 @@ Decomposition <- new_class(
     algorithm = class_character,
     config = DecompositionConfig,
     decom = class_any,
-    transformed = class_any
+    transformed = class_any,
+    # The run's input. `@config` above is the *algorithm* config; this is the
+    # whole call, and only it can say what the run was asked to do. Assigned by
+    # `decomp()`.
+    decompose_config = NULL | DecomposeConfig
   )
 ) # /rtemis::Decomposition
 

@@ -25,7 +25,10 @@ Clustering <- new_class(
     clust = class_any,
     k = class_integer,
     clusters = class_integer | class_list,
-    config = ClusteringConfig
+    config = ClusteringConfig,
+    # See `Decomposition@decompose_config`: the run's input, which `@config`
+    # alone cannot supply. Assigned by `cluster()`.
+    cluster_config = NULL | ClusterConfig
   )
 ) # /Clustering
 

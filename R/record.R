@@ -200,10 +200,13 @@ record_names <- function(cls, base) {
 #' @keywords internal
 #' @noRd
 provenance_of <- function(x, outcome = "completed") {
-  session <- prop(x, "session")
+  # A pipeline result carries no observability session, so timing and
+  # environment come from the current one. A `Supervised` records its own.
+  has <- function(nm) nm %in% names(S7_class(x)@properties)
+  session <- if (has("session")) prop(x, "session")
   started <- if (is.null(session)) NULL else session@started
   finished <- if (is.null(session)) NULL else session@finished
-  info <- prop(x, "session_info")
+  info <- if (has("session_info")) prop(x, "session_info") else list()
   Provenance(
     rtemis_version = as.character(utils::packageVersion("rtemis")),
     # From the recorded session rather than the current one: a model reloaded
@@ -218,7 +221,7 @@ provenance_of <- function(x, outcome = "completed") {
       as.numeric(difftime(finished, started, units = "secs"))
     },
     outcome = outcome,
-    data_training = prop(x, "data_fingerprint")
+    data_training = if (has("data_fingerprint")) prop(x, "data_fingerprint")
   )
 } # /rtemis::provenance_of
 
@@ -453,3 +456,77 @@ family_shape <- function(x) {
     NULL
   }
 } # /rtemis::family_shape
+
+
+# %% record.Decomposition ----
+#' @author EDG
+#' @noRd
+method(record, Decomposition) <- function(x, outcome = "completed") {
+  pipeline_record(
+    x,
+    "decompose",
+    x@decompose_config,
+    "decomposition_config",
+    x@config,
+    outcome
+  )
+} # /rtemis::record.Decomposition
+
+
+# %% record.Clustering ----
+#' @author EDG
+#' @noRd
+method(record, Clustering) <- function(x, outcome = "completed") {
+  pipeline_record(
+    x,
+    "cluster",
+    x@cluster_config,
+    "clustering_config",
+    x@config,
+    outcome
+  )
+} # /rtemis::record.Clustering
+
+
+# %% pipeline_record ----
+#' Assemble a record for a single-run pipeline
+#'
+#' `decomp()` and `cluster()` fit one model, so there is no per-fold structure:
+#' the algorithm config appears once, resolved, with its origins. The supervised
+#' record's `folds` exists because outer resampling fits several models that
+#' resolve *different* values; nothing here does.
+#'
+#' @param x `Decomposition` or `Clustering` object.
+#' @param family Character: `"decompose"` or `"cluster"`.
+#' @param input S7 config object the run was given.
+#' @param block Character: the input's field holding the algorithm config.
+#' @param resolved S7 config object the run used.
+#' @param outcome Character: How the run ended; see `RUN_OUTCOMES`.
+#'
+#' @return Named list conforming to the family's `record.json`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+pipeline_record <- function(x, family, input, block, resolved, outcome) {
+  if (is.null(input)) {
+    rtemis.core::abort(
+      "This object carries no input config, so a record cannot say what was asked for.",
+      class = c("rtemis_null_input", "rtemis_input_error")
+    )
+  }
+  own <- config_record(input, input)
+  own_names <- setdiff(names(own), c(block, "origin"))
+  out <- c(
+    list(`$schema` = .RTEMIS_RECORD_SCHEMAS[[family]]),
+    own[own_names]
+  )
+  out[[block]] <- nested_record(prop(input, block), resolved)
+  c(
+    out,
+    list(
+      origin = own[["origin"]][own_names],
+      provenance = S7_to_list(provenance_of(x, outcome = outcome))
+    )
+  )
+} # /rtemis::pipeline_record

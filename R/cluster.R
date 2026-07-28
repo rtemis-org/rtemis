@@ -111,12 +111,32 @@ cluster <- function(
     config = config
   )
 
+  # See `decomp()`: the run's input, which `@config` alone cannot supply.
+  # `outdir` is omitted when unset so the config's own default applies; passing
+  # NULL is rejected, and a record reporting the default with origin `default`
+  # is the honest reading of "the caller did not choose one".
+  input_args <- list(
+    algorithm = algorithm,
+    clustering_config = config,
+    verbosity = max(0L, verbosity)
+  )
+  if (!is.null(outdir)) {
+    input_args[["outdir"]] <- outdir
+  }
+  out@cluster_config <- do.call(setup_ClusterConfig, input_args)
+
   # Write ----
   if (!is.null(outdir)) {
     rt_save(
       out,
       outdir = outdir,
       file_prefix = paste0("cluster_", algorithm),
+      verbosity = verbosity
+    )
+    write_record(
+      out,
+      file.path(outdir, paste0("cluster_", algorithm, ".record.json")),
+      overwrite = TRUE,
       verbosity = verbosity
     )
   }
