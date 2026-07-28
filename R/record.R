@@ -25,13 +25,22 @@
 #' @param input Value the run was given, or NULL if the field was unset.
 #' @param resolved Value the run used.
 #' @param spec `PropertySpec` for the field, or NULL.
+#' @param state Logical: Whether the field is run state — written by the run,
+#'   never supplied. Such a field cannot be `"user"` or `"default"`: if it holds
+#'   nothing, the run never got to it.
 #'
 #' @return Character: one of `VALUE_ORIGINS`.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-value_origin <- function(input, resolved, spec) {
+value_origin <- function(input, resolved, spec, state = FALSE) {
+  if (state && is.null(resolved)) {
+    # Only a run writes it, and it holds nothing — so the run never determined
+    # it. `default` would claim a default exists for something no default can
+    # supply.
+    return("unset")
+  }
   if (!identical(input, resolved)) {
     # NULL meaning "apply the default for this task type" is a restatement of
     # what was asked for, not something measured or searched — so resolving it
@@ -77,19 +86,53 @@ config_record <- function(input, resolved) {
   # level — for a family it returns the wire shape (`{algorithm, config}`),
   # while a leaf record declares the flat fields inside it.
   base <- if (identical(cls@parent@name, "S7_object")) NULL else cls@parent
-  values <- record_values(resolved, base)
-  input_values <- if (is.null(input)) list() else record_values(input, base)
+  names_ <- record_names(cls, base)
   props <- cls@properties
-  origin <- lapply(names(values), function(nm) {
-    value_origin(input_values[[nm]], values[[nm]], get_spec(props[[nm]]))
+  # A config-valued property is a record in its own right — a `GridSearchConfig`
+  # holds a `ResamplerConfig` — so it is built recursively and left out of this
+  # block's `origin`, which the schema does too: it carries its own.
+  nested <- Filter(function(nm) S7_inherits(prop(resolved, nm)), names_)
+  flat <- setdiff(names_, nested)
+
+  values <- lapply(flat, function(nm) {
+    S7_to_list(wire_value(prop(resolved, nm), props[[nm]]))
   })
-  names(origin) <- names(values)
-  c(values, list(origin = origin))
+  names(values) <- flat
+  input_values <- if (is.null(input)) {
+    list()
+  } else {
+    stats::setNames(
+      lapply(flat, function(nm) {
+        S7_to_list(wire_value(prop(input, nm), props[[nm]]))
+      }),
+      flat
+    )
+  }
+  origin <- lapply(flat, function(nm) {
+    value_origin(
+      input_values[[nm]],
+      values[[nm]],
+      get_spec(props[[nm]]),
+      state = identical(prop_role(props[[nm]]), "state")
+    )
+  })
+  names(origin) <- flat
+
+  sub <- lapply(nested, function(nm) {
+    nested_record(
+      if (is.null(input)) NULL else prop(input, nm),
+      prop(resolved, nm)
+    )
+  })
+  names(sub) <- nested
+  # Declaration order, so a record reads like the class it describes.
+  out <- c(values, sub)[intersect(names_, c(flat, nested))]
+  c(out, list(origin = origin))
 } # /rtemis::config_record
 
 
 # %% record_values ----
-#' The values a record carries for one config object
+#' The field names a record carries for one config class
 #'
 #' Unlike a written config, a record keeps every field: an unset one is stated
 #' as `null` rather than omitted, so nothing in it falls back to a reader's
@@ -102,17 +145,16 @@ config_record <- function(input, resolved) {
 #' the algorithm implying them, and computed views, which are functions of
 #' fields already present.
 #'
-#' @param x S7 config object.
+#' @param cls S7 class.
 #' @param base S7 class or NULL: the family base, whose properties a leaf
 #'   record does not declare.
 #'
-#' @return Named list, in declaration order, with NULLs preserved.
+#' @return Character vector, in declaration order.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-record_values <- function(x, base) {
-  cls <- S7_class(x)
+record_names <- function(cls, base) {
   names_ <- if (is.null(base)) {
     names(cls@properties)
   } else {
@@ -133,10 +175,11 @@ record_values <- function(x, base) {
     },
     names_
   )
-  values <- lapply(keep, function(nm) prop(x, nm))
-  names(values) <- keep
-  values
-} # /rtemis::record_values
+  # `S7_to_list()` because a value may itself be a config object — a
+  # `GridSearchConfig` holds a `ResamplerConfig` — and a record is JSON, not
+  # objects. Applied per value rather than to the whole list so NULLs survive.
+  keep
+} # /rtemis::record_names
 
 
 # %% provenance_of ----
@@ -359,39 +402,54 @@ nested_record <- function(input, resolved) {
     return(NULL)
   }
   leaf <- config_record(input, resolved)
-  payload <- family_payload(resolved)
-  if (is.null(payload)) {
+  shape <- family_shape(resolved)
+  if (is.null(shape)) {
     return(leaf)
   }
-  discriminator <- if (payload == "config") "algorithm" else "algorithm"
   out <- list()
-  out[[discriminator]] <- prop(resolved, discriminator)
-  out[[payload]] <- leaf
+  # The discriminator always leads: without it a dispatcher matches no branch,
+  # and its `unevaluatedProperties` then rejects the very fields the leaf
+  # declares.
+  out[[shape[["discriminator"]]]] <- prop(resolved, shape[["discriminator"]])
+  if (is.null(shape[["payload"]])) {
+    # Top-level mode: the leaf's fields are siblings of the discriminator.
+    return(c(out, leaf))
+  }
+  out[[shape[["payload"]]]] <- leaf
   out
 } # /rtemis::nested_record
 
 
-# %% family_payload ----
-#' The payload field name for a discriminated config family, or NULL
+# %% family_shape ----
+#' How a discriminated config family serializes: its discriminator and payload
 #'
-#' Mirrors `data-raw/schema_registry.R`'s `payload`: a family serializes its
-#' variant's parameters under one key, and a record nests the leaf record there.
+#' Mirrors `data-raw/schema_registry.R`. The discriminator is what a dispatcher's
+#' `if/then` keys on, so a record block missing it matches no branch — and then
+#' `unevaluatedProperties` rejects every field the leaf would have declared.
+#' `payload` is NULL for a family that serializes its variant's fields as
+#' siblings of the discriminator rather than nesting them (the resampler).
 #'
 #' @param x S7 config object.
 #'
-#' @return Character or NULL.
+#' @return Named list with `discriminator` and `payload`, or NULL when `x` is
+#'   not a discriminated family.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-family_payload <- function(x) {
+family_shape <- function(x) {
   if (S7_inherits(x, Hyperparameters)) {
-    "hyperparameters"
+    list(discriminator = "algorithm", payload = "hyperparameters")
   } else if (
     S7_inherits(x, DecompositionConfig) || S7_inherits(x, ClusteringConfig)
   ) {
-    "config"
+    list(discriminator = "algorithm", payload = "config")
+  } else if (S7_inherits(x, TunerConfig)) {
+    list(discriminator = "type", payload = "config")
+  } else if (S7_inherits(x, ResamplerConfig)) {
+    # Top-level mode: the variant's fields are siblings of `type`.
+    list(discriminator = "type", payload = NULL)
   } else {
     NULL
   }
-} # /rtemis::family_payload
+} # /rtemis::family_shape

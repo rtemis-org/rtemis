@@ -276,9 +276,36 @@ nearest_hint <- function(unknown, valid) {
     rtemis.core::warn(msg, " Falling back to `setup_*` validation.")
     return(invisible(NULL))
   }
+  # An older CLI does not know record schemas and reports the document as
+  # unrecognized. That is a missing capability, not an invalid document, and
+  # treating it as failure would make every record write abort on any machine
+  # whose CLI predates them — the same case as the CLI being absent entirely.
+  unrecognized <- any(grepl(
+    "no recognized `$schema`",
+    unlist(result[["errors"]]),
+    fixed = TRUE
+  ))
+  if (!isTRUE(result[["valid"]]) && unrecognized) {
+    msg <- paste0(
+      "The `rtemis` CLI does not recognize this document's `$schema`; it is ",
+      "probably older than the schemas this rtemis generates. Skipping ",
+      "validation of ",
+      file,
+      "."
+    )
+    if (policy == "always") {
+      rtemis.core::abort(msg, class = "rtemis_dependency_error")
+    }
+    rtemis.core::warn(msg)
+    return(invisible(NULL))
+  }
   if (!isTRUE(result[["valid"]])) {
     rtemis.core::abort(
-      "Config failed schema validation against ",
+      if (grepl("/record\\.json$", result[["schema"]] %||% "")) {
+        "Record failed schema validation against "
+      } else {
+        "Config failed schema validation against "
+      },
       result[["schema"]],
       ":\n",
       paste0("  - ", unlist(result[["errors"]]), collapse = "\n"),

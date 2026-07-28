@@ -295,5 +295,9 @@ write_record <- function(x, file, overwrite = FALSE, verbosity = 1L) {
     overwrite = overwrite,
     verbosity = verbosity
   )
+  # The same opportunistic check `write_config()` runs, and it matters more
+  # here: a record and its schema are generated from one set of declarations, so
+  # the two disagreeing means the generator and the writer have drifted.
+  .validate_config_cli(file)
   invisible(x)
 } # /rtemis::write_record
