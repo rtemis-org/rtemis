@@ -1995,6 +1995,80 @@ origin_schema <- function(props) {
 } # /rtemis::origin_schema
 
 
+# %% folds_schema ----
+#' The `folds` block of a supervised record schema
+#'
+#' A record's top level says what was *asked for*; `folds` says what *ran*, once
+#' per outer resample. They are separate because a resampled run resolves
+#' different values in each fold — early stopping picks a different `nrounds`
+#' every time — so a single resolved value at the top level would be a claim the
+#' run never made.
+#'
+#' A single fit is one fold rather than a second shape, so a position never
+#' changes meaning between records.
+#'
+#' Built here rather than declared in the registry for the same reason
+#' `origin_schema()` is: it is record *structure*, not a property of any class,
+#' and the tree carries no hand-written JSON.
+#'
+#' @param refs Named character: record-schema URLs for the per-fold blocks
+#'   (`hyperparameters`, and optionally `preprocessor_config` /
+#'   `decomposition_config`).
+#'
+#' @return Named list: the `folds` property schema.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+folds_schema <- function(refs) {
+  nullable_ref <- function(url) {
+    list(oneOf = list(list(type = "null"), list(`$ref` = url)))
+  }
+  properties <- list(
+    index = list(
+      type = "integer",
+      minimum = 1L,
+      description = "1-based outer resample this fold trained on."
+    )
+  )
+  for (nm in c("preprocessor_config", "decomposition_config")) {
+    if (!is.null(refs[[nm]])) {
+      properties[[nm]] <- nullable_ref(refs[[nm]])
+    }
+  }
+  properties[["hyperparameters"]] <- list(`$ref` = refs[["hyperparameters"]])
+  # The tuning result as `Tuner@tuning_results` holds it: the grid, the
+  # per-resample metric tables, and the winner. Left open because it is a
+  # results table rather than a config -- typing it is the metrics work in
+  # `config-artifacts.md`, not this.
+  properties[["tuning"]] <- list(
+    oneOf = list(
+      list(type = "null"),
+      list(
+        type = "object",
+        description = paste(
+          "What this fold's inner tuning searched and found: the parameter",
+          "grid, the per-resample metrics, and the winning combination."
+        )
+      )
+    )
+  )
+  list(
+    type = "array",
+    minItems = 1L,
+    description = paste(
+      "What ran, once per outer resample. A single fit is one fold."
+    ),
+    items = list(
+      type = "object",
+      properties = properties,
+      required = I(c("index", "hyperparameters")),
+      additionalProperties = FALSE
+    )
+  )
+} # /rtemis::folds_schema
+
+
 # %% prop_to_schema ----
 #' The JSON Schema for one S7 property
 #'
@@ -2040,6 +2114,9 @@ prop_to_schema <- function(prop) {
 #' @param required Character: Names of required properties. Default NULL: all
 #'   optional, so omitted fields fall back to their `setup_*` defaults on read
 #'   (matching [write_config]'s compaction). Ignored when `record` is TRUE.
+#' @param fold_refs Named character or NULL: If set (and `record` is TRUE), adds
+#'   a required `folds` array whose entries reference these record schemas. Only
+#'   a record of a run that fits models per resample carries one.
 #' @param provenance_url Character or NULL: If set (and `record` is TRUE), adds
 #'   a required `provenance` property `$ref`ing that schema. Only a top-level
 #'   record carries it; a nested one inherits its parent's.
@@ -2085,6 +2162,7 @@ S7_to_JSONSchema <- function(
   required = NULL,
   record = FALSE,
   provenance_url = NULL,
+  fold_refs = NULL,
   extra = NULL,
   refs = NULL,
   closed = TRUE,
@@ -2198,6 +2276,10 @@ S7_to_JSONSchema <- function(
     # What produced the record, `$ref`d rather than restated in all 41 of them.
     # Nested records (a `preprocessor_config` inside a supervised record) get it
     # from their parent, so only a top-level record carries the block.
+    if (!is.null(fold_refs)) {
+      properties[["folds"]] <- folds_schema(fold_refs)
+      required <- c(required, "folds")
+    }
     if (!is.null(provenance_url)) {
       properties[["provenance"]] <- list(`$ref` = provenance_url)
       required <- c(required, "provenance")

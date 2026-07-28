@@ -93,9 +93,14 @@ config_record <- function(input, resolved) {
 #'
 #' Unlike a written config, a record keeps every field: an unset one is stated
 #' as `null` rather than omitted, so nothing in it falls back to a reader's
-#' defaults. `config_prop_values()` already drops what a record must not carry
-#' (constants, run state the model holds), so what is added back here is only
-#' the fields whose value is NULL.
+#' defaults.
+#'
+#' It also keeps **run state**, which a config drops. `lambda.min` and the
+#' `nrounds` early stopping settled on are precisely what a record exists to
+#' report — a config omits them because they are re-derived on read, but a
+#' record is the statement of what a run produced. Only constants are left out,
+#' the algorithm implying them, and computed views, which are functions of
+#' fields already present.
 #'
 #' @param x S7 config object.
 #' @param base S7 class or NULL: the family base, whose properties a leaf
@@ -114,7 +119,18 @@ record_values <- function(x, base) {
     own_prop_names(cls, base)
   }
   keep <- Filter(
-    function(nm) prop_serialized(cls@properties[[nm]]),
+    function(nm) {
+      prop <- cls@properties[[nm]]
+      role <- prop_role(prop)
+      if (identical(role, "computed")) {
+        return(FALSE)
+      }
+      if (identical(role, "state")) {
+        return(TRUE)
+      }
+      spec <- get_spec(prop)
+      is.null(spec) || !spec@constant
+    },
     names_
   )
   values <- lapply(keep, function(nm) prop(x, nm))
@@ -207,45 +223,119 @@ record <- new_generic("record", "x")
 #' @author EDG
 #' @noRd
 method(record, Supervised) <- function(x, outcome = "completed") {
-  input <- x@config
+  supervised_record(x, folds = list(x), outcome = outcome)
+} # /rtemis::record.Supervised
+
+
+# %% record.SupervisedRes ----
+#' @author EDG
+#' @noRd
+method(record, SupervisedRes) <- function(x, outcome = "completed") {
+  supervised_record(x, folds = x@models, outcome = outcome)
+} # /rtemis::record.SupervisedRes
+
+
+# %% supervised_record ----
+#' Assemble a supervised run record
+#'
+#' The top level is what was *asked for*; `folds` is what *ran*, once per model
+#' fitted. They are separate because a resampled run resolves different values
+#' in each fold — early stopping picks a different `nrounds` every time — so a
+#' single resolved value at the top would be a claim the run never made. A
+#' single fit is one fold rather than a second shape.
+#'
+#' @param x `Supervised` or `SupervisedRes` object.
+#' @param folds List of `Supervised` objects: the models actually fitted.
+#' @param outcome Character: How the run ended; see `RUN_OUTCOMES`.
+#'
+#' @return Named list conforming to `supervised/v1/record.json`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+supervised_record <- function(x, folds, outcome = "completed") {
+  input <- prop(x, "config")
   if (is.null(input)) {
     rtemis.core::abort(
       "This model carries no input config, so a record cannot say what was asked for. Only a top-level `train()` call stores one.",
       class = c("rtemis_null_input", "rtemis_input_error")
     )
   }
-  # The blocks the run resolved, paired with what it was given. A block the run
-  # did not use stays NULL on both sides and is written as null.
-  resolved <- list(
-    preprocessor_config = if (!is.null(x@preprocessor)) {
-      fitted_config(x@preprocessor)
-    },
-    decomposition_config = if (!is.null(x@decomposition)) {
-      x@decomposition@config
-    },
-    hyperparameters = x@hyperparameters,
-    tuner_config = if (!is.null(x@tuner)) x@tuner@config,
-    outer_resampling_config = NULL,
-    execution_config = x@execution_config
+  # Every block as the run was *given* it: comparing an input against itself
+  # yields origins of `user` / `default`, which is what "asked for" means.
+  blocks <- c(
+    "preprocessor_config",
+    "decomposition_config",
+    "hyperparameters",
+    "tuner_config",
+    "outer_resampling_config",
+    "execution_config"
   )
-  nested <- lapply(names(resolved), function(nm) {
-    nested_record(prop(input, nm), resolved[[nm]])
+  asked <- lapply(blocks, function(nm) {
+    block <- prop(input, nm)
+    nested_record(block, block)
   })
-  names(nested) <- names(resolved)
+  names(asked) <- blocks
 
-  # The recipe's own scalar fields, which no nested block covers.
   own <- config_record(input, input)
-  own_names <- setdiff(names(own), c(names(resolved), "origin"))
+  own_names <- setdiff(names(own), c(blocks, "origin"))
   c(
     list(`$schema` = .RTEMIS_RECORD_SCHEMAS[["supervised"]]),
     own[own_names],
-    nested,
+    asked,
     list(
       origin = own[["origin"]][own_names],
+      folds = lapply(seq_along(folds), function(i) fold_record(folds[[i]], i)),
       provenance = S7_to_list(provenance_of(x, outcome = outcome))
     )
   )
-} # /rtemis::record.Supervised
+} # /rtemis::supervised_record
+
+
+# %% fold_record ----
+#' What one fitted model resolved
+#'
+#' Paired against the run's input so each value carries its origin: a search
+#' space narrowed to one value reads `tuned`, a NULL the data filled reads
+#' `derived`.
+#'
+#' @param model `Supervised` object for one fold.
+#' @param index Integer: 1-based outer resample.
+#'
+#' @return Named list: one entry of the record's `folds` array.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+fold_record <- function(model, index) {
+  input <- model@config
+  out <- list(index = as.integer(index))
+  if (!is.null(model@preprocessor)) {
+    out[["preprocessor_config"]] <- nested_record(
+      if (is.null(input)) NULL else input@preprocessor_config,
+      fitted_config(model@preprocessor)
+    )
+  }
+  if (!is.null(model@decomposition)) {
+    out[["decomposition_config"]] <- nested_record(
+      if (is.null(input)) NULL else input@decomposition_config,
+      model@decomposition@config
+    )
+  }
+  out[["hyperparameters"]] <- nested_record(
+    if (is.null(input)) NULL else input@hyperparameters,
+    model@hyperparameters
+  )
+  # The grid, the per-resample metrics and the winner, as the Tuner holds them:
+  # a tuning decision must be re-examinable from the record alone.
+  if (!is.null(model@tuner)) {
+    out[["tuning"]] <- c(
+      model@tuner@tuning_results,
+      list(best = model@tuner@best_hyperparameters)
+    )
+  }
+  out
+} # /rtemis::fold_record
 
 
 # %% nested_record ----

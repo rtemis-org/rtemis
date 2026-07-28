@@ -13,6 +13,7 @@ S7_to_JSONSchema(
   required = NULL,
   record = FALSE,
   provenance_url = NULL,
+  fold_refs = NULL,
   extra = NULL,
   refs = NULL,
   closed = TRUE,
@@ -49,6 +50,10 @@ membership is identical.}
 \item{provenance_url}{Character or NULL: If set (and \code{record} is TRUE), adds
 a required \code{provenance} property \verb{$ref}ing that schema. Only a top-level
 record carries it; a nested one inherits its parent's.}
+
+\item{fold_refs}{Named character or NULL: If set (and \code{record} is TRUE), adds
+a required \code{folds} array whose entries reference these record schemas. Only
+a record of a run that fits models per resample carries one.}
 
 \item{extra}{Named list merged into the schema after generation, for
 cross-field constraints that are not per-property (e.g. an \code{allOf} of

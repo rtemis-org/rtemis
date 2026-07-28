@@ -23,6 +23,13 @@ record_parts <- c("provenance", "datafingerprint")
 # appears nested inside a pipeline record and takes provenance from there;
 # requiring its own would demand a second copy of the same block.
 pipeline_records <- c("supervised", "decompose", "cluster")
+# `folds` is supervised-specific: only a supervised run fits a model per outer
+# resample, each resolving its own values.
+fold_refs <- c(
+  hyperparameters = paste0(base_url, "/hyperparameters/v1/record.json"),
+  preprocessor_config = paste0(base_url, "/preprocessor/v1/record.json"),
+  decomposition_config = paste0(base_url, "/decomposition/v1/record.json")
+)
 
 # Registry ------------------------------------------------------------------
 # Per family: the base class, the payload field name, the dispatcher's title and
@@ -136,6 +143,7 @@ for (family in names(flat_configs)) {
       provenance_url = if (kind == "record" && family %in% pipeline_records) {
         provenance_url
       },
+      fold_refs = if (kind == "record" && family == "supervised") fold_refs,
       extra = cfg[["extra"]],
       refs = cfg[["refs"]],
       instance_schema_url = id

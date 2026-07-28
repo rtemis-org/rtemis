@@ -973,6 +973,21 @@ train <- function(
   }
   if (!is.null(outdir)) {
     rt_save(mod, outdir = outdir, file_prefix = paste0("train_", algorithm))
+    # The record sits beside the model and shares its name, so a directory of
+    # runs pairs up by inspection. No opt-in: "all runs are auditable" does not
+    # hold if writing the record is something a caller can forget. Only a
+    # top-level call has the input a record needs.
+    # A resampled run records one entry per fold, so folds that resolved
+    # different values (early stopping settles on a different `nrounds` each
+    # time) are each stated rather than collapsed.
+    if (session_created) {
+      write_record(
+        mod,
+        file.path(outdir, paste0("train_", algorithm, ".record.json")),
+        overwrite = TRUE,
+        verbosity = verbosity
+      )
+    }
   }
   outro(
     start_time,

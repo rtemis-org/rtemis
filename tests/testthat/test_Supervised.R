@@ -1481,3 +1481,111 @@ test_that("only the top-level call carries the input", {
   expect_s7_class(mod@config, SuperConfig)
   expect_null(mod@models[[1L]]@config)
 })
+
+
+# %% Records are written and are not configs ----
+test_that("train() writes a record beside the model when outdir is set", {
+  outdir <- file.path(
+    tempdir(),
+    paste0("rec_", as.integer(runif(1L, 1e6, 9e6)))
+  )
+  dir.create(outdir, showWarnings = FALSE)
+  on.exit(unlink(outdir, recursive = TRUE), add = TRUE)
+  train(iris, hyperparameters = setup_CART(), outdir = outdir, verbosity = 0L)
+  # Paired with the model by name, so a directory of runs reads by inspection.
+  expect_true(file.exists(file.path(outdir, "train_CART.rds")))
+  expect_true(file.exists(file.path(outdir, "train_CART.record.json")))
+})
+
+test_that("a record is rejected where a config is expected", {
+  outdir <- file.path(
+    tempdir(),
+    paste0("rec_", as.integer(runif(1L, 1e6, 9e6)))
+  )
+  dir.create(outdir, showWarnings = FALSE)
+  on.exit(unlink(outdir, recursive = TRUE), add = TRUE)
+  train(iris, hyperparameters = setup_CART(), outdir = outdir, verbosity = 0L)
+  # A record reads *as* a config -- same field names, every value resolved --
+  # so silent acceptance would pin settings this call should decide, including
+  # ones derived from data it never saw.
+  err <- tryCatch(
+    read_config(file.path(outdir, "train_CART.record.json")),
+    error = function(e) e
+  )
+  expect_s3_class(err, "rtemis_value_error")
+  expect_match(conditionMessage(err), "record", fixed = TRUE)
+})
+
+test_that("a record reports what ran, not what was asked for", {
+  mod <- train(iris, hyperparameters = setup_LightRF(), verbosity = 0L)
+  rec <- record(mod)
+  # Top level is what was *asked for*: NULL, meaning "decide from the outcome".
+  expect_null(rec[["hyperparameters"]][["hyperparameters"]][["objective"]])
+  # `folds` is what *ran*. A single fit is one fold, not a second shape.
+  expect_length(rec[["folds"]], 1L)
+  hp <- rec[["folds"]][[1L]][["hyperparameters"]][["hyperparameters"]]
+  expect_identical(hp[["objective"]], "multiclass")
+  expect_identical(hp[["origin"]][["objective"]], "default")
+  expect_identical(rec[["provenance"]][["outcome"]], "completed")
+  expect_true(nzchar(rec[["provenance"]][["rtemis_version"]]))
+})
+
+test_that("record() refuses a model with no stored input", {
+  # A per-fold sub-model shares its parent's input, so it cannot say what was
+  # asked for and must not guess.
+  mod <- train(
+    iris,
+    hyperparameters = setup_CART(),
+    outer_resampling_config = setup_Resampler(n_resamples = 2L, type = "KFold"),
+    verbosity = 0L
+  )
+  expect_error(record(mod@models[[1L]]), class = "rtemis_null_input")
+})
+
+
+# %% A resampled record loses nothing ----
+test_that("each fold's resolved values are recorded separately", {
+  # Early stopping settles on a different `nrounds` per fold, so collapsing
+  # them to one value would state something no fold did.
+  mod <- train(
+    iris,
+    hyperparameters = setup_LightGBM(),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    verbosity = 0L
+  )
+  rec <- record(mod)
+  expect_length(rec[["folds"]], 3L)
+  # Asked for: nothing — "determine by early stopping".
+  expect_null(rec[["hyperparameters"]][["hyperparameters"]][["nrounds"]])
+  ran <- vapply(
+    rec[["folds"]],
+    function(f) f[["hyperparameters"]][["hyperparameters"]][["nrounds"]],
+    numeric(1L)
+  )
+  expect_length(ran, 3L)
+  expect_true(all(ran > 0))
+  # Each fold says how its value came about.
+  expect_identical(
+    rec[["folds"]][[1L]][["hyperparameters"]][["hyperparameters"]][["origin"]][[
+      "nrounds"
+    ]],
+    "tuned"
+  )
+})
+
+test_that("a tuned run records the grid and the winner per fold", {
+  mod <- train(
+    iris,
+    hyperparameters = setup_CART(maxdepth = c(2L, 4L)),
+    tuner_config = setup_GridSearch(
+      resampler_config = setup_Resampler(n_resamples = 2L, type = "KFold")
+    ),
+    verbosity = 0L
+  )
+  tuning <- record(mod)[["folds"]][[1L]][["tuning"]]
+  # The search must be re-examinable from the record alone, not just its result.
+  expect_true(all(
+    c("param_grid", "training", "validation", "best") %in% names(tuning)
+  ))
+  expect_identical(tuning[["best"]][["maxdepth"]], 2L)
+})

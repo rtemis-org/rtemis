@@ -230,6 +230,24 @@ setup_SuperConfig <- function(
   }
   kind <- names(supported)[match(schema, supported)]
   if (is.na(kind)) {
+    # A record is the same field vocabulary with every value resolved, so it
+    # would *read* as a config and quietly replace the defaults the caller
+    # expected to be live — including values a run derived from data this call
+    # has never seen. Named rather than lumped in with an unknown URL.
+    record_kind <- names(.RTEMIS_RECORD_SCHEMAS)[
+      match(schema, .RTEMIS_RECORD_SCHEMAS)
+    ]
+    if (!is.na(record_kind)) {
+      rtemis.core::abort(
+        "This is a ",
+        record_kind,
+        " run *record*, not a config.\n",
+        "A record states what one run resolved -- including values derived ",
+        "from its data -- so using it as an input would silently pin settings ",
+        "this call should decide for itself.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
     rtemis.core::abort(
       "Unsupported `$schema`: ",
       schema,
