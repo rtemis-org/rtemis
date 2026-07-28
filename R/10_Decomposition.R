@@ -223,5 +223,11 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
       unlist(params[["features"]], use.names = FALSE)
     )
   }
-  do.call(get_decom_setup_fn(algorithm), params)
+  setup_fn <- get_decom_setup_fn(algorithm)
+  check_wire_keys(
+    params,
+    names(formals(setup_fn)),
+    paste(algorithm, "decomposition")
+  )
+  do.call(setup_fn, params)
 } # /rtemis::.list_to_DecompositionConfig

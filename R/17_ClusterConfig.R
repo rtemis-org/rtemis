@@ -149,6 +149,7 @@ setup_ClusterConfig <- function(
 #' @keywords internal
 #' @noRd
 .list_to_ClusterConfig <- function(x) {
+  check_wire_keys(x, names(ClusterConfig@properties), "cluster config")
   args <- list(
     dat_path = x[["dat_path"]],
     algorithm = x[["algorithm"]],

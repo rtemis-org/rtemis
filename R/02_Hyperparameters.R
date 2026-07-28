@@ -2781,9 +2781,12 @@ setup_Ranger <- function(
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-  args <- x[["hyperparameters"]]
-  # Keep only arguments that are in the setup function
-  setup_formals <- names(formals(get(fn)))
-  args <- args[names(args) %in% setup_formals]
+  check_wire_keys(x, c("algorithm", "hyperparameters"), "hyperparameters")
+  args <- .drop_meta_keys(x[["hyperparameters"]])
+  check_wire_keys(
+    args,
+    names(formals(get(fn))),
+    paste(algorithm, "hyperparameter")
+  )
   do.call(fn, args)
 }

@@ -408,7 +408,13 @@ method(repr, GridSearch) <- function(
 #' ))
 .list_to_TunerConfig <- function(x) {
   if (x[["type"]] == "GridSearch") {
-    config <- x[["config"]]
+    check_wire_keys(x, c("type", "config"), "tuner")
+    config <- .drop_meta_keys(x[["config"]])
+    check_wire_keys(
+      config,
+      names(GridSearchConfig@properties),
+      "GridSearch tuner"
+    )
     # Drop absent (NULL) elements so that `setup_GridSearch`'s own argument
     # defaults apply to whatever the config omits (e.g. `search_type`,
     # `metrics_aggregate_fn`, `resampler_config`) instead of passing NULL.

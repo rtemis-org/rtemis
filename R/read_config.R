@@ -111,6 +111,103 @@ read_config <- function(file) {
 } # /rtemis::.drop_meta_keys
 
 
+# %% check_wire_keys ----
+#' Reject wire keys a config does not declare
+#'
+#' Every `.list_to_*()` reconstructor calls this before building its object, so
+#' a mistyped or stale key is named rather than dropped. Silence here is the
+#' worst outcome: a config that looks accepted but trains something else.
+#'
+#' Some reconstructors already errored, because `do.call(setup_*, x)` rejects an
+#' unused argument — but with R's "unused argument (bogus = 1)", which names no
+#' config and suggests nothing. Routing every family through one check makes the
+#' message uniform and lets it point at the intended key.
+#'
+#' `$`-prefixed metadata is always allowed: it identifies the document, not a
+#' field, and `.drop_meta_keys()` removes it downstream.
+#'
+#' @param x Named list parsed from the wire.
+#' @param valid Character: Keys this config declares.
+#' @param label Character: The config's name, for the error message.
+#'
+#' @return `x`, invisibly. Throws if any key is unknown.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_wire_keys <- function(x, valid, label) {
+  nms <- names(x)
+  if (is.null(nms)) {
+    return(invisible(x))
+  }
+  unknown <- setdiff(nms[nzchar(nms)], c(valid, nms[startsWith(nms, "$")]))
+  if (length(unknown) == 0L) {
+    return(invisible(x))
+  }
+  rtemis.core::abort(
+    "Unknown ",
+    label,
+    if (length(unknown) == 1L) " key: " else " keys: ",
+    paste0("`", unknown, "`", nearest_hint(unknown, valid), collapse = ", "),
+    ".",
+    class = c("rtemis_value_error", "rtemis_input_error")
+  )
+} # /rtemis::check_wire_keys
+
+
+# %% nearest_hint ----
+#' " (did you mean `x`?)" for each unknown key with a near-miss among `valid`
+#'
+#' A typo and a renamed field look identical to a reader of the error, so the
+#' suggestion is what turns "unknown key" into a fix. Two things qualify as a
+#' near miss: a small edit distance (`maxdept` -> `maxdepth`), and a prefix
+#' relation, which is what an abbreviation or a rename-by-extension looks like
+#' (`n` -> `n_resamples`, the historical resampler rename). Edit distance alone
+#' misses that one, being 10 apart on a one-character key.
+#'
+#' A wrong-but-plausible name (`train_p` on a KFold) matches neither and gets no
+#' misleading suggestion.
+#'
+#' @param unknown Character: The offending keys.
+#' @param valid Character: Keys this config declares.
+#'
+#' @return Character, same length as `unknown`; empty strings where nothing is
+#'   close enough.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+nearest_hint <- function(unknown, valid) {
+  if (length(valid) == 0L) {
+    return(rep("", length(unknown)))
+  }
+  vapply(
+    unknown,
+    function(key) {
+      prefix <- startsWith(valid, key) | startsWith(key, valid)
+      if (any(prefix)) {
+        # Shortest match: `n` should reach `n_resamples`, not a longer name that
+        # merely shares the prefix.
+        return(paste0(
+          " (did you mean `",
+          valid[prefix][[which.min(nchar(valid[prefix]))]],
+          "`?)"
+        ))
+      }
+      d <- utils::adist(key, valid, ignore.case = TRUE)[1L, ]
+      # A third of the key's length, so short names need a closer match than
+      # long ones and an unrelated name never suggests anything.
+      if (min(d) > max(1L, floor(nchar(key) / 3L))) {
+        return("")
+      }
+      paste0(" (did you mean `", valid[[which.min(d)]], "`?)")
+    },
+    character(1L),
+    USE.NAMES = FALSE
+  )
+} # /rtemis::nearest_hint
+
+
 # %% .validate_config_cli ----
 #' Validate a config file against its schema using the `rtemis` CLI
 #'

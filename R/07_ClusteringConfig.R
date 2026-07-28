@@ -493,5 +493,11 @@ setup_DBSCAN <- function(
   } else {
     .drop_meta_keys(x[names(x) != "algorithm"])
   }
-  do.call(get_clust_setup_fn(algorithm), params)
+  setup_fn <- get_clust_setup_fn(algorithm)
+  check_wire_keys(
+    params,
+    names(formals(setup_fn)),
+    paste(algorithm, "clustering")
+  )
+  do.call(setup_fn, params)
 } # /rtemis::.list_to_ClusteringConfig

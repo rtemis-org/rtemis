@@ -534,3 +534,102 @@ test_that("x-rtemis carries what the keywords cannot express", {
   expect_true(centers[["x-rtemis"]][["data_dependent"]])
   expect_identical(centers[["x-rtemis"]][["container"]], "map")
 })
+
+
+# %% Wire strictness ----
+# Principle 2 of `plan/wire-vocabulary.md`: nothing is dropped silently. A key
+# a config does not declare is a stale name, a typo, or a field from another
+# variant — every one of which trains something other than what was asked for
+# if it is quietly ignored.
+test_that("every .list_to_* rejects a key its config does not declare", {
+  reject <- function(expr) {
+    err <- tryCatch(
+      {
+        force(expr)
+        NULL
+      },
+      error = function(e) e
+    )
+    expect_s3_class(err, "rtemis_value_error")
+    conditionMessage(err)
+  }
+  reject(.list_to_PreprocessorConfig(list(scale = TRUE, bogus = 1)))
+  reject(.list_to_ResamplerConfig(list(type = "KFold", bogus = 1)))
+  reject(.list_to_Hyperparameters(list(
+    algorithm = "CART",
+    hyperparameters = list(bogus = 1)
+  )))
+  reject(.list_to_DecompositionConfig(list(algorithm = "PCA", bogus = 1)))
+  reject(.list_to_ClusteringConfig(list(algorithm = "KMeans", bogus = 1)))
+  reject(.list_to_TunerConfig(list(
+    type = "GridSearch",
+    config = list(bogus = 1)
+  )))
+  reject(.list_to_SuperConfig(list(bogus = 1)))
+  reject(.list_to_DecomposeConfig(list(bogus = 1)))
+  reject(.list_to_ClusterConfig(list(bogus = 1)))
+})
+
+test_that("a field from another variant is named, not dropped", {
+  # `train_p` is a StratSub/StratBoot field. Silently ignoring it on a KFold
+  # config is the case that motivated this: the user asked for a 75/25 split
+  # and would have got tenfold CV without a word.
+  msg <- tryCatch(
+    .list_to_ResamplerConfig(list(
+      type = "KFold",
+      n_resamples = 5L,
+      train_p = 0.75
+    )),
+    error = conditionMessage
+  )
+  expect_match(msg, "KFold resampler", fixed = TRUE)
+  expect_match(msg, "train_p", fixed = TRUE)
+  # No plausible near-miss, so no misleading suggestion.
+  expect_no_match(msg, "did you mean", fixed = TRUE)
+  # The same key on a variant that declares it is accepted.
+  expect_s7_class(
+    .list_to_ResamplerConfig(list(
+      type = "StratSub",
+      n_resamples = 5L,
+      train_p = 0.75
+    )),
+    StratSubConfig
+  )
+})
+
+test_that("a near-miss key is named with its likely intent", {
+  # A typo: small edit distance.
+  expect_match(
+    tryCatch(
+      .list_to_Hyperparameters(list(
+        algorithm = "CART",
+        hyperparameters = list(maxdept = 3L)
+      )),
+      error = conditionMessage
+    ),
+    "did you mean `maxdepth`",
+    fixed = TRUE
+  )
+  # A rename by extension: `n` is 10 edits from `n_resamples`, so the prefix
+  # rule is what catches the historical resampler rename.
+  expect_match(
+    tryCatch(
+      .list_to_ResamplerConfig(list(type = "KFold", n = 3L)),
+      error = conditionMessage
+    ),
+    "did you mean `n_resamples`",
+    fixed = TRUE
+  )
+})
+
+test_that("document metadata is allowed through the check", {
+  # `$schema` identifies the document, not a field, so a config read straight
+  # from disk must not trip the strictness.
+  expect_s7_class(
+    .list_to_PreprocessorConfig(list(
+      `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+      scale = TRUE
+    )),
+    PreprocessorConfig
+  )
+})

@@ -258,6 +258,7 @@ setup_SuperConfig <- function(
 #' @keywords internal
 #' @noRd
 .list_to_SuperConfig <- function(x) {
+  check_wire_keys(x, names(SuperConfig@properties), "supervised config")
   args <- list(
     dat_training_path = x[["dat_training_path"]],
     dat_validation_path = x[["dat_validation_path"]],

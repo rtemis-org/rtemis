@@ -632,5 +632,12 @@ method(desc, Resampler) <- function(x) {
   )
   constructor <- args[["constructor"]]
   args[["constructor"]] <- NULL
+  # The variant is chosen, so its own properties are exactly what it accepts:
+  # `train_p` on a KFold is named rather than dropped.
+  check_wire_keys(
+    x,
+    names(constructor@properties),
+    paste(x[["type"]], "resampler")
+  )
   do.call(constructor, Filter(Negate(is.null), args))
 } # /rtemis::.list_to_ResamplerConfig
