@@ -100,9 +100,6 @@ families <- list(
       "rtemislive to identical resamples."
     ),
     discriminator_description = "Resampler type.",
-    # `n_resamples` is required for every type except LOOCV (mirrors the R
-    # `ResamplerConfig` validator), so it is conditionally required per variant.
-    required_except = list(n_resamples = "LOOCV"),
     algorithms = list(
       list(
         cls = KFoldConfig,

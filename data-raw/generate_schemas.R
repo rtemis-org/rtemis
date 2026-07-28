@@ -80,24 +80,6 @@ for (family in names(families)) {
     } else {
       fam[["discriminator_description"]]
     },
-    # Translate `required_except` (property -> variants to skip) into the
-    # per-variant `required` form the dispatcher generator consumes.
-    variant_required = local({
-      # The dispatcher keys `variant_required` by the raw discriminator value.
-      values <- vapply(
-        classes,
-        function(cls) discriminator_value(cls, discriminator),
-        character(1L)
-      )
-      req <- list()
-      for (prop_name in names(fam[["required_except"]])) {
-        except <- fam[["required_except"]][[prop_name]]
-        for (v in setdiff(values, except)) {
-          req[[v]] <- c(req[[v]], prop_name)
-        }
-      }
-      req
-    }),
     instance_schema_url = dispatcher_id
   )
   write_JSONSchema(

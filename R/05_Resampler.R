@@ -22,7 +22,13 @@
 #' Superclass for resampler configuration.
 #'
 #' @field type Character: Type of resampler.
-#' @field n_resamples Optional Integer [1, Inf): Number of resamples.
+#'
+#' @details
+#' `n_resamples` is declared per subclass, not here: for every type but LOOCV it
+#' is ordinary config with a default, while LOOCV derives it from the data
+#' (`resample()` fills it in), which makes it run state. Declaring it twice over
+#' is what lets each leaf schema state its own contract instead of the
+#' dispatcher carrying a "required unless type is LOOCV" rule.
 #'
 #' @author EDG
 #' @noRd
@@ -31,30 +37,8 @@ ResamplerConfig <- new_class(
   package = "rtemis",
   abstract = TRUE,
   properties = list(
-    type = class_character,
-    # LOOCV has no defined number of resamples until it sees the data
-    # (`resample()` fills it in), so `n_resamples` is unset by default.
-    n_resamples = prop_integer(
-      NULL,
-      min = 1L,
-      nullable = TRUE,
-      description = paste(
-        "Number of resamples. null for LOOCV, where it is determined by the",
-        "data."
-      )
-    )
-  ),
-  validator = function(self) {
-    # `n_resamples` is only unset for LOOCV, where `resample()` derives it from
-    # the data. For every other type an unset value would fail deep inside
-    # `resample()`, so require it here at construction instead.
-    if (self@type != "LOOCV" && is.null(self@n_resamples)) {
-      return(
-        "@n_resamples must be set for all resampler types except 'LOOCV'."
-      )
-    }
-    NULL
-  }
+    type = class_character
+  )
 ) # /rtemis::ResamplerConfig
 
 
@@ -64,13 +48,10 @@ ResamplerConfig <- new_class(
 # written; `id_strat` is a data-dependent grouping vector with no portable
 # form, so it is omitted (see `config_prop_values`).
 method(serializable_props, ResamplerConfig) <- function(x) {
-  # `type` and `n_resamples` live on the base class (so are not "own"
-  # properties); `n_resamples` is unset for LOOCV, where the data determine it.
-  base <- list(
-    type = x@type,
-    n_resamples = x@n_resamples
-  )
-  c(base, config_prop_values(x, ResamplerConfig))
+  # `type` is the only base property; everything else, `n_resamples` included,
+  # is declared per subclass and arrives through `config_prop_values()` — which
+  # drops LOOCV's, that being state the data determine.
+  c(list(type = x@type), config_prop_values(x, ResamplerConfig))
 } # /rtemis::serializable_props.ResamplerConfig
 
 
@@ -156,6 +137,11 @@ KFoldConfig <- new_class(
   parent = ResamplerConfig,
   properties = list(
     type = prop_algorithm("KFold"),
+    n_resamples = prop_integer(
+      10L,
+      min = 1L,
+      description = "Number of resamples."
+    ),
     stratify_var = prop_string(
       NULL,
       nullable = TRUE,
@@ -197,6 +183,11 @@ StratSubConfig <- new_class(
   parent = ResamplerConfig,
   properties = list(
     type = prop_algorithm("StratSub"),
+    n_resamples = prop_integer(
+      10L,
+      min = 1L,
+      description = "Number of resamples."
+    ),
     train_p = prop_float(
       0.75,
       exclusive_min = 0,
@@ -244,6 +235,11 @@ StratBootConfig <- new_class(
   parent = ResamplerConfig,
   properties = list(
     type = prop_algorithm("StratBoot"),
+    n_resamples = prop_integer(
+      10L,
+      min = 1L,
+      description = "Number of resamples."
+    ),
     stratify_var = prop_string(
       NULL,
       nullable = TRUE,
@@ -297,6 +293,11 @@ BootstrapConfig <- new_class(
   parent = ResamplerConfig,
   properties = list(
     type = prop_algorithm("Bootstrap"),
+    n_resamples = prop_integer(
+      10L,
+      min = 1L,
+      description = "Number of resamples."
+    ),
     id_strat = prop_string(
       NULL,
       nullable = TRUE,
@@ -327,7 +328,15 @@ LOOCVConfig <- new_class(
   name = "LOOCVConfig",
   parent = ResamplerConfig,
   properties = list(
-    type = prop_algorithm("LOOCV")
+    type = prop_algorithm("LOOCV"),
+    # One resample per case, so only the data can say how many: `resample()`
+    # writes it. A user never supplies it, hence state rather than config.
+    n_resamples = prop_state(prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      description = "Number of resamples, one per case; set from the data."
+    ))
   )
 ) # /rtemis::LOOCVConfig
 
@@ -344,7 +353,12 @@ CustomConfig <- new_class(
   name = "CustomConfig",
   parent = ResamplerConfig,
   properties = list(
-    type = prop_algorithm("Custom")
+    type = prop_algorithm("Custom"),
+    n_resamples = prop_integer(
+      10L,
+      min = 1L,
+      description = "Number of resamples."
+    )
   )
 ) # /rtemis::CustomConfig
 
@@ -352,8 +366,8 @@ CustomConfig <- new_class(
 # %% setup_Resampler ----
 #' Setup Resampler
 #'
-#' @param n_resamples Optional Integer [1, Inf): Number of resamples to make.
-#'   Stored as the `n` property. LOOCV determines it from the data.
+#' @param n_resamples Integer [1, Inf): Number of resamples to make. LOOCV
+#'   determines it from the data and ignores this.
 #' @param type Character \{"KFold", "StratSub", "StratBoot", "Bootstrap", "LOOCV", "Custom"\}:
 #'   Type of resampler.
 #' @param stratify_var Optional Character: Variable to stratify by.

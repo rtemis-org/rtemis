@@ -13,7 +13,6 @@ S7_dispatcher_JSONSchema(
   title = NULL,
   description = "",
   discriminator_description = "Algorithm name.",
-  variant_required = list(),
   instance_schema_url = NULL
 )
 }
@@ -41,12 +40,6 @@ emitted here rather than on any leaf (see Details).}
 
 \item{discriminator_description}{Character: Description of the
 discriminator property.}
-
-\item{variant_required}{Named list keyed by discriminator value: for each
-variant, a character vector of top-level property names to mark
-\code{required} in that variant's \verb{if/then} branch. Used to mirror
-type-dependent R validators, e.g. \code{ResamplerConfig} requires \code{n} for every
-type except LOOCV. Variants absent from the list add no extra requirement.}
 
 \item{instance_schema_url}{Character or NULL: If set, adds a \verb{$schema}
 const property so instances can self-identify.}

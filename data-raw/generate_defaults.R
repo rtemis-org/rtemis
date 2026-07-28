@@ -95,8 +95,13 @@ source(file.path("data-raw", "schema_registry.R"))
   }
   fmls <- formals(fn)
   props <- cls@properties
+  # Run state has no user-facing default: the run writes it, so whatever the
+  # shared `setup_*()` formal says about it is not what a user gets. LOOCV is
+  # the case that shows it -- `setup_Resampler(n_resamples = 10L)` serves all
+  # six types, but LOOCV's count comes from the data.
+  state <- role_prop_names(cls, "state")
   out <- list()
-  for (nm in intersect(wanted, names(fmls))) {
+  for (nm in setdiff(intersect(wanted, names(fmls)), state)) {
     spec <- if (nm %in% names(props)) get_spec(props[[nm]]) else NULL
     value <- .formal_default(fmls[[nm]], environment(fn), spec)
     if (!is.null(value)) {
@@ -127,9 +132,9 @@ for (family in names(families)) {
       defaults[[id]] <- d
     }
   }
-  # A dispatcher's own properties are the discriminator and any shared fields
-  # (the resampler's `n_resamples`), which the variants' setup function also
-  # declares -- so read them off the first variant.
+  # A dispatcher's own properties are the discriminator plus any field declared
+  # on the family base, which the variants' setup function also declares -- so
+  # read them off the first variant.
   dispatcher_id <- paste0(base_url, "/", family, "/v1/schema.json")
   dispatcher_path <- file.path(schema_repo, family, "v1", "schema.json")
   d <- .class_defaults(fam[["algorithms"]][[1L]][["cls"]], dispatcher_path)

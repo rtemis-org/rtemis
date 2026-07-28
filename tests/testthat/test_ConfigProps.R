@@ -331,27 +331,64 @@ test_that("dispatcher generates the discriminator from a spec", {
 
 test_that("dispatcher emits the family base's shared properties", {
   s <- S7_dispatcher_JSONSchema(
+    classes = list(PCAConfig, ICAConfig),
+    id = "https://schema.rtemis.org/decomposition/v1/schema.json",
+    payload = "config",
+    base = DecompositionConfig
+  )
+  # Generated from the same PropertySpec the R class enforces, so the two
+  # cannot drift.
+  spec <- get_spec(DecompositionConfig@properties[["features"]])
+  expect_identical(s[["properties"]][["features"]], spec_to_schema(spec))
+  expect_identical(
+    as.character(s[["properties"]][["features"]][["type"]]),
+    c("array", "null")
+  )
+  expect_identical(s[["properties"]][["features"]][["minItems"]], 2L)
+  # `algorithm` is the discriminator: emitted from the variant enum, not from
+  # the base's raw `class_character` declaration.
+  expect_identical(
+    as.character(s[["properties"]][["algorithm"]][["enum"]]),
+    c("PCA", "ICA")
+  )
+})
+
+
+test_that("a resampler declares n_resamples per type, not on the base", {
+  # The five configurable types carry it as ordinary config with a default;
+  # LOOCV derives it from the data, so it is state. That is what lets each leaf
+  # state its own contract instead of the dispatcher carrying a
+  # "required unless LOOCV" rule.
+  kfold <- S7_to_JSONSchema(
+    KFoldConfig,
+    id = "https://schema.rtemis.org/resampler/kfold/v1/schema.json",
+    base = ResamplerConfig,
+    closed = FALSE
+  )
+  expect_identical(kfold[["properties"]][["n_resamples"]][["type"]], "integer")
+  expect_null(kfold[["properties"]][["n_resamples"]][["readOnly"]])
+
+  loocv <- S7_to_JSONSchema(
+    LOOCVConfig,
+    id = "https://schema.rtemis.org/resampler/loocv/v1/schema.json",
+    base = ResamplerConfig,
+    closed = FALSE
+  )
+  expect_true(loocv[["properties"]][["n_resamples"]][["readOnly"]])
+  expect_identical(
+    loocv[["properties"]][["n_resamples"]][["x-rtemis"]][["role"]],
+    "state"
+  )
+  # The dispatcher no longer carries it, and no `if/then` branch requires it.
+  disp <- S7_dispatcher_JSONSchema(
     classes = list(KFoldConfig, LOOCVConfig),
     id = "https://schema.rtemis.org/resampler/v1/schema.json",
     discriminator = "type",
     payload = NULL,
     base = ResamplerConfig
   )
-  # Generated from the same PropertySpec the R class enforces, so the two
-  # cannot drift.
-  spec <- get_spec(ResamplerConfig@properties[["n_resamples"]])
-  expect_identical(s[["properties"]][["n_resamples"]], spec_to_schema(spec))
-  expect_identical(
-    as.character(s[["properties"]][["n_resamples"]][["type"]]),
-    c("integer", "null")
-  )
-  expect_identical(s[["properties"]][["n_resamples"]][["minimum"]], 1L)
-  # `type` is the discriminator: emitted from the variant enum, not from the
-  # base's raw `class_character` declaration.
-  expect_identical(
-    as.character(s[["properties"]][["type"]][["enum"]]),
-    c("KFold", "LOOCV")
-  )
+  expect_identical(names(disp[["properties"]]), "type")
+  expect_null(disp[["allOf"]][[1L]][["then"]][["required"]])
 })
 
 

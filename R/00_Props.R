@@ -2065,11 +2065,6 @@ base_schema_properties <- function(base, skip = character()) {
 #' @param description Character: Schema description. If empty, omitted.
 #' @param discriminator_description Character: Description of the
 #'   discriminator property.
-#' @param variant_required Named list keyed by discriminator value: for each
-#'   variant, a character vector of top-level property names to mark
-#'   `required` in that variant's `if/then` branch. Used to mirror
-#'   type-dependent R validators, e.g. `ResamplerConfig` requires `n` for every
-#'   type except LOOCV. Variants absent from the list add no extra requirement.
 #' @param instance_schema_url Character or NULL: If set, adds a `$schema`
 #'   const property so instances can self-identify.
 #'
@@ -2118,7 +2113,6 @@ S7_dispatcher_JSONSchema <- function(
   title = NULL,
   description = "",
   discriminator_description = "Algorithm name.",
-  variant_required = list(),
   instance_schema_url = NULL
 ) {
   check_character(id, allow_null = FALSE)
@@ -2215,12 +2209,6 @@ S7_dispatcher_JSONSchema <- function(
           payload
         )
       )
-    }
-    # Type-dependent required properties (e.g. `n` for every resampler type
-    # except LOOCV), mirroring the R class validator.
-    req <- variant_required[[variant]]
-    if (!is.null(req)) {
-      consequence[["required"]] <- I(req)
     }
     list(`if` = condition, then = consequence)
   })

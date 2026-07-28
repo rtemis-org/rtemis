@@ -17,8 +17,8 @@ setup_Resampler(
 )
 }
 \arguments{
-\item{n_resamples}{Optional Integer [1, Inf): Number of resamples to make.
-Stored as the \code{n} property. LOOCV determines it from the data.}
+\item{n_resamples}{Integer [1, Inf): Number of resamples to make. LOOCV
+determines it from the data and ignores this.}
 
 \item{type}{Character \{"KFold", "StratSub", "StratBoot", "Bootstrap", "LOOCV", "Custom"\}:
 Type of resampler.}
