@@ -27,7 +27,11 @@
 #' using `backend = "future"`.
 #' @param question Optional character string defining the question that the model is trying to
 #' answer.
-#' @param outdir Character, optional: String defining the output directory.
+#' @param outdir Character, optional: String defining the output directory. The
+#' fitted model is saved there as `train_<algorithm>.rds`, alongside a run
+#' record, `train_<algorithm>.record.json`, stating what the run actually did:
+#' every value resolved, where each came from, and what produced it. See
+#' [write_record].
 #' @param verbosity Integer: Verbosity level.
 #' @param progress Optional function: Callback invoked at progress
 #'   checkpoints during training. When supplied, called at each outer

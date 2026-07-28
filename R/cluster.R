@@ -17,7 +17,9 @@
 #' @param algorithm Character: Clustering algorithm.
 #' @param config List: Algorithm-specific config.
 #' @param outdir Character, optional: Output directory. If not NULL, the returned
-#' `Clustering` object is saved there as an `.rds` file.
+#' `Clustering` object is saved there as an `.rds` file, alongside a run record
+#' (`cluster_<algorithm>.record.json`) stating what the run resolved. See
+#' [write_record].
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return `Clustering` object.

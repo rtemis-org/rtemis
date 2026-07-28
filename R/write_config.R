@@ -17,9 +17,17 @@
 #'   decomposition schema.
 #' - `ClusteringConfig` (from `setup_KMeans()`, `setup_DBSCAN()`, ...) ->
 #'   clustering schema.
+#' - `PreprocessorConfig` (from [setup_Preprocessor]) -> preprocessor schema.
+#'
+#' A config is an **input**: what a run is being asked to do. Fields it omits
+#' fall back to their `setup_*` defaults when read, so a config stays valid as
+#' those defaults improve. That is the opposite of a **record**, which states
+#' what one run actually did, with every value resolved — see [write_record].
+#' The two are separate functions rather than one with a flag, because a caller
+#' should have to say which artifact they want.
 #'
 #' @param x A `SuperConfig`, `DecomposeConfig`, `ClusterConfig`,
-#'   `DecompositionConfig`, or `ClusteringConfig` object.
+#'   `DecompositionConfig`, `ClusteringConfig`, or `PreprocessorConfig` object.
 #' @param file Character: Path to output JSON file.
 #' @param overwrite Logical: If TRUE, overwrite an existing file.
 #' @param verbosity Integer: Verbosity level.
@@ -260,6 +268,27 @@ method(write_config, ClusteringConfig) <- function(
 #' came from, and what produced it. Deliberately a separate function rather than
 #' an argument to [write_config] — the two artifacts answer different questions,
 #' and a caller should have to say which it wants.
+#'
+#' Three things distinguish a record from the config it came from:
+#'
+#' - **Every field is present and resolved.** A config omits what the user did
+#'   not set, so a reader applies defaults; a record leaves nothing to them, and
+#'   writes an unset field as an explicit `null`.
+#' - **Each value says where it came from**, in a parallel `origin` map:
+#'   `user`, `default`, `derived` (computed from the data), `tuned`, or `unset`
+#'   for a field a failed run never reached.
+#' - **`provenance`** records the rtemis and R versions, platform, timing,
+#'   outcome, and a fingerprint of the data.
+#'
+#' For a supervised run the top level is what was *asked for* and `folds` is
+#' what *ran*, one entry per model fitted — outer resampling resolves different
+#' values in each fold, so a single resolved value at the top level would state
+#' something no fold did.
+#'
+#' [train], [decomp] and [cluster] call this automatically when given an
+#' `outdir`. A record is not a config: feeding one to [read_config] is an error,
+#' since its resolved values would silently pin settings the new call should
+#' decide for itself.
 #'
 #' Unlike a config, a record is **not compacted**: an unset field is written as
 #' an explicit `null` rather than omitted, so nothing in it falls back to a

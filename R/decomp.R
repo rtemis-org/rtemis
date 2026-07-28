@@ -17,7 +17,9 @@
 #' @param config DecompositionConfig: Algorithm-specific config. Its `features`
 #' selects the columns of `x` to decompose; `NULL` decomposes all of them.
 #' @param outdir Character, optional: Output directory. If not NULL, the returned
-#' `Decomposition` object is saved there as an `.rds` file.
+#' `Decomposition` object is saved there as an `.rds` file, alongside a run
+#' record (`decomp_<algorithm>.record.json`) stating what the run resolved. See
+#' [write_record].
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return `Decomposition` object.

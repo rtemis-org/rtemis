@@ -17,7 +17,9 @@ path, algorithm config, and output directory.}
 selects the columns of \code{x} to decompose; \code{NULL} decomposes all of them.}
 
 \item{outdir}{Character, optional: Output directory. If not NULL, the returned
-\code{Decomposition} object is saved there as an \code{.rds} file.}
+\code{Decomposition} object is saved there as an \code{.rds} file, alongside a run
+record (\verb{decomp_<algorithm>.record.json}) stating what the run resolved. See
+\link{write_record}.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }

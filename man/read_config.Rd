@@ -25,6 +25,13 @@ path, algorithm config, and output directory (\code{SuperConfig},
 The config family is taken from the instance's \verb{$schema}, which must be one of
 the supported schemas; a missing or unrecognized \verb{$schema} is an error.
 
+A \strong{run record} is rejected, and named as such. A record declares the same
+fields as the config it came from, so it would read as one — but every value
+in it is resolved, including values a run derived from data this call has
+never seen. Accepting it would silently pin settings the new call should
+decide for itself. Records are written by \link{write_record} and identify
+themselves with a \code{record.json} schema.
+
 When the \code{rtemis} CLI is on the \code{PATH}, the file is additionally validated
 against its vendored schema.rtemis.org JSON Schema before reconstruction, so
 structural problems (unknown fields, wrong nesting, missing required values)

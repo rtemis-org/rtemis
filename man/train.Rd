@@ -52,7 +52,11 @@ using \code{backend = "future"}.}
 \item{question}{Optional character string defining the question that the model is trying to
 answer.}
 
-\item{outdir}{Character, optional: String defining the output directory.}
+\item{outdir}{Character, optional: String defining the output directory. The
+fitted model is saved there as \verb{train_<algorithm>.rds}, alongside a run
+record, \verb{train_<algorithm>.record.json}, stating what the run actually did:
+every value resolved, where each came from, and what produced it. See
+\link{write_record}.}
 
 \item{verbosity}{Integer: Verbosity level.}
 

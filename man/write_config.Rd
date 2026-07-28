@@ -8,7 +8,7 @@ write_config(x, file, overwrite = FALSE, verbosity = 1L)
 }
 \arguments{
 \item{x}{A \code{SuperConfig}, \code{DecomposeConfig}, \code{ClusterConfig},
-\code{DecompositionConfig}, or \code{ClusteringConfig} object.}
+\code{DecompositionConfig}, \code{ClusteringConfig}, or \code{PreprocessorConfig} object.}
 
 \item{file}{Character: Path to output JSON file.}
 
@@ -34,7 +34,15 @@ reader can dispatch to the right object:
 decomposition schema.
 \item \code{ClusteringConfig} (from \code{setup_KMeans()}, \code{setup_DBSCAN()}, ...) ->
 clustering schema.
+\item \code{PreprocessorConfig} (from \link{setup_Preprocessor}) -> preprocessor schema.
 }
+
+A config is an \strong{input}: what a run is being asked to do. Fields it omits
+fall back to their \verb{setup_*} defaults when read, so a config stays valid as
+those defaults improve. That is the opposite of a \strong{record}, which states
+what one run actually did, with every value resolved — see \link{write_record}.
+The two are separate functions rather than one with a flag, because a caller
+should have to say which artifact they want.
 }
 \examples{
 x <- setup_SuperConfig(

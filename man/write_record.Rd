@@ -25,6 +25,28 @@ an argument to \link{write_config} — the two artifacts answer different questi
 and a caller should have to say which it wants.
 }
 \details{
+Three things distinguish a record from the config it came from:
+\itemize{
+\item \strong{Every field is present and resolved.} A config omits what the user did
+not set, so a reader applies defaults; a record leaves nothing to them, and
+writes an unset field as an explicit \code{null}.
+\item \strong{Each value says where it came from}, in a parallel \code{origin} map:
+\code{user}, \code{default}, \code{derived} (computed from the data), \code{tuned}, or \code{unset}
+for a field a failed run never reached.
+\item \strong{\code{provenance}} records the rtemis and R versions, platform, timing,
+outcome, and a fingerprint of the data.
+}
+
+For a supervised run the top level is what was \emph{asked for} and \code{folds} is
+what \emph{ran}, one entry per model fitted — outer resampling resolves different
+values in each fold, so a single resolved value at the top level would state
+something no fold did.
+
+\link{train}, \link{decomp} and \link{cluster} call this automatically when given an
+\code{outdir}. A record is not a config: feeding one to \link{read_config} is an error,
+since its resolved values would silently pin settings the new call should
+decide for itself.
+
 Unlike a config, a record is \strong{not compacted}: an unset field is written as
 an explicit \code{null} rather than omitted, so nothing in it falls back to a
 reader's defaults. That is the whole claim a record makes.
