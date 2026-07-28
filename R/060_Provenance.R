@@ -18,9 +18,9 @@
 # and the timing that says what was run.
 
 # %% RUN_OUTCOMES ----
-# How a run ended. A cancelled or failed run still gets a record: "all runs are
+# How a run ended. A canceled or failed run still gets a record: "all runs are
 # observable" does not hold if only the successful ones are written down.
-RUN_OUTCOMES <- c("completed", "failed", "cancelled")
+RUN_OUTCOMES <- c("completed", "failed", "canceled")
 
 
 # %% Provenance ----
@@ -35,7 +35,7 @@ RUN_OUTCOMES <- c("completed", "failed", "cancelled")
 #' @field platform Character: Platform the run executed on.
 #' @field started,finished Character: ISO 8601 timestamps.
 #' @field elapsed_seconds Numeric [0, Inf): Wall-clock duration.
-#' @field outcome Character \{"completed", "failed", "cancelled"\}: How the run
+#' @field outcome Character \{"completed", "failed", "canceled"\}: How the run
 #'   ended.
 #' @field data_training,data_validation,data_test `DataFingerprint`: Identity of
 #'   each dataset used.
@@ -77,7 +77,7 @@ Provenance <- new_class(
     outcome = prop_string(
       "completed",
       enum = RUN_OUTCOMES,
-      description = "How the run ended: completed, failed, or cancelled."
+      description = "How the run ended: completed, failed, or canceled."
     ),
     # One fingerprint per dataset the run saw. A path is not identity — the file
     # at a path can change — so the record carries the hash, and `present()`

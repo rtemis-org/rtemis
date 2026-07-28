@@ -59,7 +59,7 @@ NAME_BOUNDS <- c("feature_names", "numeric_feature_names")
 # - "none"   a single value
 # - "array"  a JSON array (per-feature weights, an initial embedding matrix
 #            when combined with a nested `items`)
-# - "map"    a string-keyed object (per-feature scaling centres, one-hot levels)
+# - "map"    a string-keyed object (per-feature scaling centers, one-hot levels)
 # - "matrix" a 2-D numeric matrix. Same JSON shape as an array whose `items`
 #            are an array, but a distinct R class, so the two cannot share a
 #            container value: `matrix` is an R `matrix`, a nested `array` is a
@@ -67,8 +67,14 @@ NAME_BOUNDS <- c("feature_names", "numeric_feature_names")
 # - "table"  a data.frame: heterogeneous named columns, each with its own type
 #            and bounds. Emitted row-oriented (an array of objects), the
 #            encoding pandas, polars and DataFrames.jl all read natively.
-#            `matrix` is the homogeneous, unlabelled counterpart.
-PROP_CONTAINERS <- c("none", "array", "map", "matrix", "table")
+#            `matrix` is the homogeneous, unlabeled counterpart.
+# - "struct" a named list with *declared*, heterogeneous members, each with its
+#            own type -- a JSON object with `properties`. The counterpart of
+#            `map`, which is an object with `additionalProperties`: a map's keys
+#            are data (one per feature) and its values homogeneous, a struct's
+#            keys are part of the contract. A struct member may itself be a
+#            container; a table's may not, since a cell is a scalar.
+PROP_CONTAINERS <- c("none", "array", "map", "matrix", "table", "struct")
 
 # %% PROP_TYPES ----
 # JSON Schema base types a property's leaf value may take. "object" is an
@@ -116,11 +122,11 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #' @field items `PropertySpec` or NULL: Element spec, for nested shapes such as
 #'   a matrix (array of arrays) or a map of arrays. NULL means the element is
 #'   this spec's own leaf type and constraints.
-#' @field columns Named list of `PropertySpec` or NULL: One spec per column,
-#'   for a `table` container. Each describes a *cell*, the column being a
-#'   vector of them.
-#' @field required_columns Character or NULL: Names of the columns that are
-#'   always present. Any other declared column is optional, so its absence
+#' @field members Named list of `PropertySpec` or NULL: The declared members of
+#'   an object shape — one spec per *column* for a `table` (each describing a
+#'   cell, the column being a vector of them), one per *field* for a `struct`.
+#' @field required_members Character or NULL: Names of the members that are
+#'   always present. Any other declared member is optional, so its absence
 #'   means "not computed for this task" rather than "invalid". NULL means all
 #'   of them are required.
 #' @field broadcast Logical: If TRUE, a bare scalar is accepted in place of the
@@ -181,16 +187,19 @@ PropertySpec <- new_class(
     # while its own `properties` list is being evaluated. The validator below
     # enforces the type instead, and runs once the class exists.
     items = class_any,
-    # A `table`'s columns are heterogeneous, so one recursive `items` spec
-    # cannot describe them: each column carries its own type and bounds.
+    # The members of a declared object shape, which one recursive `items` spec
+    # cannot describe because they are heterogeneous: each carries its own type
+    # and bounds. Shared by the two containers built on that shape -- a `table`
+    # is an array of it, a `struct` is one of it -- so the emitted row object
+    # and the emitted struct object come from the same declaration.
     # `class_any` for the same reason as `items` -- the class cannot reference
     # itself while its own `properties` list is being evaluated.
-    columns = class_any,
-    # Which columns are always present. Declaring every possible column and
+    members = class_any,
+    # Which members are always present. Declaring every possible one and
     # requiring only these is what lets a conditional column (an AUC that
     # exists only for binary classification) be absent without being invalid,
     # without needing class-level if/then vocabulary.
-    required_columns = NULL | class_character,
+    required_members = NULL | class_character,
     broadcast = class_logical,
     # How many elements an array container holds, and whether they repeat.
     # Only "array" carries these: a matrix's rows and a map's keys have no
@@ -219,7 +228,7 @@ PropertySpec <- new_class(
     default_on_null = new_property(class_logical, default = FALSE),
     data_bound = NULL | class_character,
     # Shape, orthogonal to `data_bound`: the value has one entry per case
-    # (`id_strat`, an initial embedding) or per feature (scaling centres,
+    # (`id_strat`, an initial embedding) or per feature (scaling centers,
     # one-hot levels), so it cannot be filled in before the data is seen. Purely
     # an annotation for form builders -- every such property is a settable input
     # and is serialized. `data_bound` is about *validating* against the data.
@@ -258,53 +267,59 @@ PropertySpec <- new_class(
     if (self@container == "map" && is.null(self@items)) {
       return("@items must describe the value type when @container is 'map'.")
     }
-    if (self@container == "table") {
-      if (!is.list(self@columns) || length(self@columns) == 0L) {
-        return(
-          "@columns must be a non-empty named list when @container is 'table'."
-        )
+    if (self@container %in% c("table", "struct")) {
+      if (!is.list(self@members) || length(self@members) == 0L) {
+        return(paste0(
+          "@members must be a non-empty named list when @container is '",
+          self@container,
+          "'."
+        ))
       }
-      if (is.null(names(self@columns)) || any(!nzchar(names(self@columns)))) {
-        return("@columns must be fully named.")
+      if (is.null(names(self@members)) || any(!nzchar(names(self@members)))) {
+        return("@members must be fully named.")
       }
-      if (anyDuplicated(names(self@columns)) > 0L) {
-        return("@columns must have unique names.")
+      if (anyDuplicated(names(self@members)) > 0L) {
+        return("@members must have unique names.")
       }
-      for (nm in names(self@columns)) {
-        column <- self@columns[[nm]]
-        if (!S7_inherits(column, PropertySpec)) {
-          return(paste0("@columns[['", nm, "']] must be a PropertySpec."))
+      for (nm in names(self@members)) {
+        member <- self@members[[nm]]
+        if (!S7_inherits(member, PropertySpec)) {
+          return(paste0("@members[['", nm, "']] must be a PropertySpec."))
         }
-        if (column@container != "none") {
+        if (self@container == "table" && member@container != "none") {
           # A column is a vector of cells; a cell that is itself a container
           # has no row-oriented encoding a data frame reader would recognize.
+          # A struct's members carry no such restriction.
           return(paste0(
-            "@columns[['",
+            "@members[['",
             nm,
             "']] must describe a scalar cell (@container 'none')."
           ))
         }
       }
-      unknown <- setdiff(self@required_columns, names(self@columns))
+      unknown <- setdiff(self@required_members, names(self@members))
       if (length(unknown) > 0L) {
         return(paste0(
-          "@required_columns names undeclared columns: ",
+          "@required_members names undeclared members: ",
           paste0("'", unknown, "'", collapse = ", "),
           "."
         ))
       }
-    } else {
-      if (!is.null(self@columns)) {
-        return("@columns is only meaningful when @container is 'table'.")
+      if (!is.null(self@items)) {
+        return("@items and @members are mutually exclusive.")
       }
-      if (!is.null(self@required_columns)) {
+    } else {
+      if (!is.null(self@members)) {
         return(
-          "@required_columns is only meaningful when @container is 'table'."
+          "@members is only meaningful when @container is 'table' or 'struct'."
         )
       }
-    }
-    if (self@container == "table" && !is.null(self@items)) {
-      return("@items and @columns are mutually exclusive.")
+      if (!is.null(self@required_members)) {
+        return(paste0(
+          "@required_members is only meaningful when @container is 'table' ",
+          "or 'struct'."
+        ))
+      }
     }
     if (self@broadcast && self@container == "none") {
       return("@broadcast requires a @container to broadcast into.")
@@ -428,6 +443,9 @@ spec_r_kind <- function(spec) {
   if (spec@container == "table") {
     return("table")
   }
+  if (spec@container == "struct") {
+    return("list")
+  }
   nested <- spec@container != "none" &&
     !is.null(spec@items) &&
     spec@items@container != "none"
@@ -529,6 +547,90 @@ validate_table_column <- function(column, spec) {
 } # /rtemis::validate_table_column
 
 
+# %% validate_member_names ----
+#' Check the names present against a declared object shape
+#'
+#' Shared by the two containers built on `@members`. Every name present must be
+#' declared -- an undeclared one is a typo or a field nothing downstream knows
+#' how to read -- and every required one must be present. An optional declared
+#' member may be absent, which is how a conditional metric reports "not computed
+#' for this task".
+#'
+#' @param present Character: Names the value actually carries.
+#' @param spec `PropertySpec` object with `@members` set.
+#' @param noun Character: What one member is called in messages, "column" for a
+#'   table and "field" for a struct.
+#'
+#' @return NULL if valid, otherwise character error message.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+validate_member_names <- function(present, spec, noun) {
+  declared <- names(spec@members)
+  unknown <- setdiff(present, declared)
+  if (length(unknown) > 0L) {
+    return(paste0(
+      "has undeclared ",
+      noun,
+      "(s) ",
+      paste0("'", unknown, "'", collapse = ", "),
+      "; declared ",
+      noun,
+      "s are ",
+      paste0("'", declared, "'", collapse = ", "),
+      "."
+    ))
+  }
+  missing_required <- setdiff(spec@required_members %||% declared, present)
+  if (length(missing_required) > 0L) {
+    return(paste0(
+      "is missing required ",
+      noun,
+      "(s) ",
+      paste0("'", missing_required, "'", collapse = ", "),
+      "."
+    ))
+  }
+  NULL
+} # /rtemis::validate_member_names
+
+
+# %% validate_struct ----
+#' Validate a `struct` container against its member specs
+#'
+#' A struct's members may themselves be containers, so each is checked by the
+#' full `validate_with_spec()` rather than the elementwise column check.
+#'
+#' @param value Property value being set.
+#' @param spec `PropertySpec` object with `container = "struct"`.
+#'
+#' @return NULL if valid, otherwise character error message.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+validate_struct <- function(value, spec) {
+  if (!is.list(value) || is.data.frame(value)) {
+    return("must be a named list.")
+  }
+  if (length(value) > 0L && is.null(names(value))) {
+    return("must be named.")
+  }
+  msg <- validate_member_names(names(value), spec, "field")
+  if (!is.null(msg)) {
+    return(msg)
+  }
+  for (nm in names(value)) {
+    msg <- validate_with_spec(value[[nm]], spec@members[[nm]])
+    if (!is.null(msg)) {
+      return(paste0("field '", nm, "' ", msg))
+    }
+  }
+  NULL
+} # /rtemis::validate_struct
+
+
 # %% validate_table ----
 #' Validate a `table` container against its column specs
 #'
@@ -549,29 +651,13 @@ validate_table <- function(value, spec) {
   if (!is.data.frame(value)) {
     return("must be a data frame.")
   }
-  declared <- names(spec@columns)
-  required <- spec@required_columns %||% declared
+  msg <- validate_member_names(names(value), spec, "column")
+  if (!is.null(msg)) {
+    return(msg)
+  }
   present <- names(value)
-  unknown <- setdiff(present, declared)
-  if (length(unknown) > 0L) {
-    return(paste0(
-      "has undeclared column(s) ",
-      paste0("'", unknown, "'", collapse = ", "),
-      "; declared columns are ",
-      paste0("'", declared, "'", collapse = ", "),
-      "."
-    ))
-  }
-  missing_required <- setdiff(required, present)
-  if (length(missing_required) > 0L) {
-    return(paste0(
-      "is missing required column(s) ",
-      paste0("'", missing_required, "'", collapse = ", "),
-      "."
-    ))
-  }
   for (nm in present) {
-    msg <- validate_table_column(value[[nm]], spec@columns[[nm]])
+    msg <- validate_table_column(value[[nm]], spec@members[[nm]])
     if (!is.null(msg)) {
       return(paste0("column '", nm, "' ", msg))
     }
@@ -616,6 +702,9 @@ validate_with_spec <- function(value, spec) {
   }
   if (spec@container == "table") {
     return(validate_table(value, spec))
+  }
+  if (spec@container == "struct") {
+    return(validate_struct(value, spec))
   }
   if (spec@container == "map" && is.null(names(value))) {
     return("must be named.")
@@ -1205,25 +1294,7 @@ prop_table <- function(
   data_dependent = FALSE,
   description = ""
 ) {
-  if (!is.list(columns) || length(columns) == 0L || is.null(names(columns))) {
-    rtemis.core::abort(
-      "`columns` must be a non-empty named list of prop_* properties.",
-      class = c("rtemis_type_error", "rtemis_input_error")
-    )
-  }
-  column_specs <- lapply(names(columns), function(nm) {
-    spec <- get_spec(columns[[nm]])
-    if (is.null(spec)) {
-      rtemis.core::abort(
-        "`columns[['",
-        nm,
-        "']]` must be a property built by a prop_* factory.",
-        class = c("rtemis_type_error", "rtemis_input_error")
-      )
-    }
-    spec
-  })
-  names(column_specs) <- names(columns)
+  column_specs <- member_specs(columns, "columns")
   # Resolved here rather than left NULL so that the published `required` and
   # the spec read back from it name the same set.
   required <- required %||% names(column_specs)
@@ -1241,14 +1312,113 @@ prop_table <- function(
     tunable = FALSE,
     container = "table",
     items = NULL,
-    columns = column_specs,
-    required_columns = required,
+    members = column_specs,
+    required_members = required,
     broadcast = FALSE,
     data_bound = data_bound,
     data_dependent = data_dependent,
     description = description
   ))
 } # /rtemis::prop_table
+
+
+# %% member_specs ----
+#' Extract the PropertySpec of each member of a declared object shape
+#'
+#' @param members Named list of S7 properties built by `prop_*` factories.
+#' @param what Character: Name of the calling factory's argument, for errors.
+#'
+#' @return Named list of `PropertySpec` objects.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+member_specs <- function(members, what) {
+  if (!is.list(members) || length(members) == 0L || is.null(names(members))) {
+    rtemis.core::abort(
+      "`",
+      what,
+      "` must be a non-empty named list of prop_* properties.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
+  out <- lapply(names(members), function(nm) {
+    spec <- get_spec(members[[nm]])
+    if (is.null(spec)) {
+      rtemis.core::abort(
+        "`",
+        what,
+        "[['",
+        nm,
+        "']]` must be a property built by a prop_* factory.",
+        class = c("rtemis_type_error", "rtemis_input_error")
+      )
+    }
+    spec
+  })
+  names(out) <- names(members)
+  out
+} # /rtemis::member_specs
+
+
+# %% prop_struct ----
+#' Declared-object (struct) S7 property with attached PropertySpec
+#'
+#' A named list whose members are *declared* and heterogeneous — the metrics
+#' payload of a classification result, which holds an `overall` table, a
+#' per-class table, and a scalar. Maps to a JSON object with `properties`, the
+#' counterpart of `prop_map()`'s `additionalProperties`: use a map when the keys
+#' are data (one per feature) and the values homogeneous, a struct when the keys
+#' are part of the contract.
+#'
+#' Unlike a table's columns, a struct's members may themselves be containers.
+#'
+#' @param members Named list of S7 properties built by `prop_*` factories: One
+#'   per field. Their own defaults are unused.
+#' @param required Character, optional: Names of the always-present fields.
+#'   NULL means all of them.
+#' @param nullable Logical: If TRUE, NULL is a valid value.
+#' @param data_dependent Logical: If TRUE, the value's shape follows one
+#'   dataset, so a form should not prompt for it. An annotation only; it does
+#'   not affect serialization.
+#' @param description Character: Human-readable description.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_struct <- function(
+  members,
+  required = NULL,
+  nullable = FALSE,
+  data_dependent = FALSE,
+  description = ""
+) {
+  specs <- member_specs(members, "members")
+  make_prop(PropertySpec(
+    # "object" names the shape the struct emits.
+    type = "object",
+    default = NULL,
+    minimum = NULL,
+    maximum = NULL,
+    exclusive_minimum = NULL,
+    exclusive_maximum = NULL,
+    enum = NULL,
+    nullable = nullable,
+    tunable = FALSE,
+    container = "struct",
+    items = NULL,
+    members = specs,
+    # Resolved here rather than left NULL so that the published `required` and
+    # the spec read back from it name the same set.
+    required_members = required %||% names(specs),
+    broadcast = FALSE,
+    data_bound = NULL,
+    data_dependent = data_dependent,
+    description = description
+  ))
+} # /rtemis::prop_struct
 
 
 # %% prop_const ----
@@ -1455,7 +1625,7 @@ prop_accepts_null <- function(prop) {
 # - "config"   Supplied by the user. Built by a `prop_*` factory, so it carries
 #              a `PropertySpec`. The common case; inferred, never declared.
 # - "state"    Written by the run, not the user (GLMNET's `lambda.min`, the
-#              centres `preprocess()` learns). Declared with `prop_state()`,
+#              centers `preprocess()` learns). Declared with `prop_state()`,
 #              and emitted `readOnly`: a reader needs the field to reconstruct
 #              the class, but must not prompt for it.
 # - "computed" A view derived from other published fields, never stored
@@ -1463,6 +1633,17 @@ prop_accepts_null <- function(prop) {
 #              Declared with `prop_computed()`. Absent from the schema and from
 #              a written config: publishing it would be a second representation
 #              of something already there, free to disagree with the first.
+# - "r_only"   An R value with no wire form at all: a fitted backend model (an
+#              `rpart` tree, an `lgb.Booster`), a `sessionInfo()`, a free-form
+#              `extra` list. Declared with `prop_r_only()`, and likewise absent
+#              from the schema.
+#
+# The line between "computed" and "r_only" is what a consumer can do about it.
+# A computed field is *recoverable* -- everything it derives from is published,
+# so a port loses nothing by its absence. An r_only field is not: the value
+# exists only inside R, and the `.rds` is its only carrier. Declaring it opaque
+# instead would promise a field that never arrives, which is why publishing an
+# escape hatch was rejected here as it was for inputs.
 #
 # State is never written to a config: `lambda.min` and `best_iter` are copied
 # off the fitted model, which is the carrier, so the copy is re-derived on read.
@@ -1478,7 +1659,7 @@ prop_accepts_null <- function(prop) {
 # an incomplete contract.
 #
 # `data_dependent` is a third axis and a *pure annotation*: the value is shaped
-# by one dataset (per-case IDs, an initial embedding, per-feature centres), so a
+# by one dataset (per-case IDs, an initial embedding, per-feature centers), so a
 # form should not prompt for it. It does **not** gate serialization -- every
 # data-dependent property is a settable input, and dropping a value the user
 # supplied would lose it silently.
@@ -1528,7 +1709,7 @@ prop_state <- function(property) {
 #' @noRd
 prop_serialized <- function(prop) {
   role <- prop_role(prop)
-  if (identical(role, "state") || identical(role, "computed")) {
+  if (role %in% c("state", "computed", "r_only")) {
     return(FALSE)
   }
   spec <- get_spec(prop)
@@ -1538,7 +1719,7 @@ prop_serialized <- function(prop) {
     return(TRUE)
   }
   # Everything a user can set is written back, including the data-shaped values
-  # (`id_strat`, `Y_init`, learned scaling centres): dropping a value the user
+  # (`id_strat`, `Y_init`, learned scaling centers): dropping a value the user
   # supplied would lose it silently. Only a constant is omitted, being implied
   # by the algorithm.
   !spec@constant
@@ -1569,12 +1750,39 @@ prop_computed <- function(property) {
 } # /rtemis::prop_computed
 
 
+# %% prop_r_only ----
+#' S7 property that exists only in R
+#'
+#' Marks a property with no wire form at all — a fitted backend model, a
+#' `sessionInfo()`, a free-form `extra` list — so it is omitted from the
+#' generated schema and from serialization rather than aborting generation as
+#' undeclared drift.
+#'
+#' Distinct from `prop_computed()`: a computed view is recoverable from fields
+#' that *are* published, so its absence costs a consumer nothing, while an
+#' r_only value exists only inside R and the saved `.rds` is its only carrier.
+#' The marker is required rather than inferred, so that adding a property and
+#' forgetting to declare it still fails loudly.
+#'
+#' @param property S7 property.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_r_only <- function(property) {
+  property[["role"]] <- "r_only"
+  property
+} # /rtemis::prop_r_only
+
+
 # %% prop_role ----
 #' Role of an S7 property
 #'
 #' @param prop S7 property (an element of `Class@properties`).
 #'
-#' @return Character: "config", "state", "computed", or `NA_character_` for a
+#' @return Character: "config", "state", "computed", "r_only", or `NA_character_` for a
 #'   spec-less property with no declared role (i.e. drift).
 #'
 #' @author EDG
@@ -2036,6 +2244,37 @@ data_bound_note <- function(data_bound, container, broadcast) {
 } # /rtemis::data_bound_note
 
 
+# %% members_schema ----
+#' The JSON Schema object a declared shape emits
+#'
+#' Shared by the two containers built on `@members`: a `struct` emits this
+#' directly, a `table` emits an array of it. Every declared member appears in
+#' `properties`, but only the always-present ones in `required`, so an optional
+#' member simply does not appear where it was not computed.
+#' `additionalProperties: false` makes an undeclared one an error rather than
+#' something a reader silently drops.
+#'
+#' @param spec `PropertySpec` object with `@members` set.
+#'
+#' @return Named list (JSON Schema object).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+members_schema <- function(spec) {
+  out <- list(
+    type = "object",
+    properties = lapply(spec@members, spec_to_schema),
+    additionalProperties = FALSE
+  )
+  required <- spec@required_members %||% names(spec@members)
+  if (length(required) > 0L) {
+    out[["required"]] <- I(required)
+  }
+  out
+} # /rtemis::members_schema
+
+
 # %% spec_to_schema ----
 #' Convert a PropertySpec to a JSON Schema property (as a list)
 #'
@@ -2100,26 +2339,19 @@ spec_to_schema <- function(spec, read_only = FALSE) {
       minItems = 1L
     )
   } else if (spec@container == "table") {
-    # Row-oriented: an array of row objects. Every declared column appears in
-    # `properties`, but only the always-present ones in `required`, so an
-    # optional column simply does not appear in a row where it was not
-    # computed. `additionalProperties: false` makes an undeclared column an
-    # error rather than something a reader silently drops.
-    row <- list(
-      type = "object",
-      properties = lapply(spec@columns, spec_to_schema),
-      additionalProperties = FALSE
-    )
-    required <- spec@required_columns %||% names(spec@columns)
-    if (length(required) > 0L) {
-      row[["required"]] <- I(required)
-    }
+    # Row-oriented: an array of the declared object shape, one per row.
     list(
       type = if (spec@nullable) I(c("array", "null")) else "array",
-      items = row
+      items = members_schema(spec)
     )
+  } else if (spec@container == "struct") {
+    obj <- members_schema(spec)
+    if (spec@nullable) {
+      obj[["type"]] <- I(c("object", "null"))
+    }
+    obj
   } else if (spec@container == "map") {
-    # A string-keyed object of homogeneous values (per-feature centres).
+    # A string-keyed object of homogeneous values (per-feature centers).
     list(
       type = if (spec@nullable) I(c("object", "null")) else "object",
       additionalProperties = element
@@ -2221,9 +2453,9 @@ spec_to_schema <- function(spec, read_only = FALSE) {
 # - "user"     supplied in the config
 # - "default"  neither supplied nor computed: the `setup_*` default applied
 # - "derived"  computed by the run from the data (LightGBM's `objective` from
-#              the outcome type, the centres `preprocess()` learns)
+#              the outcome type, the centers `preprocess()` learns)
 # - "tuned"    selected by the Tuner from a search space
-# - "unset"    the run never determined it -- it failed or was cancelled first.
+# - "unset"    the run never determined it -- it failed or was canceled first.
 #              The value is `null`, and saying so is what lets an incomplete
 #              record still state something true about every field, instead of
 #              making completeness a conditional on `outcome`.
@@ -2495,7 +2727,11 @@ S7_to_JSONSchema <- function(
   # A derived view is not part of the contract: it is a function of fields the
   # schema already declares, so publishing it would let the two disagree.
   props <- props[
-    !vapply(props, function(p) identical(prop_role(p), "computed"), logical(1L))
+    !vapply(
+      props,
+      function(p) prop_role(p) %in% c("computed", "r_only"),
+      logical(1L)
+    )
   ]
   specless <- names(props)[vapply(
     props,

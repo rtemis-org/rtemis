@@ -392,8 +392,10 @@ classification_metrics <- function(
   }
   true_levels <- levels(true_labels)
 
-  # Levels already set so that the first level is the positive class
-  positive_class <- if (n_classes == 2) true_levels[1] else NA
+  # Levels already set so that the first level is the positive class. NULL, not
+  # NA, when there is no such thing: NULL is the only "unset" value, and a bare
+  # NA would make the field logical for multiclass and character for binary.
+  positive_class <- if (n_classes == 2L) true_levels[1L] else NULL
   if (verbosity > 0L) {
     if (n_classes == 2) {
       msg(
@@ -472,15 +474,20 @@ classification_metrics <- function(
 
   # Outro ----
   overall <- as.data.frame(do.call(cbind, overall))
-  rownames(overall) <- "overall"
-  class <- (data.frame(
+  rownames(overall) <- NULL
+  # `level` carries the outcome level each row describes. It is a column rather
+  # than a row name because row names have no row-oriented JSON form: they would
+  # be dropped on serialization, leaving unlabeled per-class metrics.
+  class <- data.frame(
+    level = rownames(tbl),
     sensitivity = class[["sensitivity"]],
     specificity = class[["specificity"]],
     balanced_accuracy = class[["balanced_accuracy"]],
     ppv = class[["ppv"]],
     npv = class[["npv"]],
-    f1 = class[["f1"]]
-  ))
+    f1 = class[["f1"]],
+    row.names = NULL
+  )
 
   ClassificationMetrics(
     sample = sample,

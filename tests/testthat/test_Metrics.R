@@ -104,3 +104,92 @@ cmcv
 test_that("ClassificationMetricsRes() succeeds", {
   expect_s7_class(cmcv, ClassificationMetricsRes)
 })
+
+
+# %% Typed metrics ----
+
+test_that("per-class metrics name their level in a column, not a row name", {
+  # Row names have no row-oriented JSON form: carried as row names, the class
+  # labels would be dropped on serialization, leaving unlabelled metrics.
+  m <- classification_metrics(iris$Species, iris$Species, sample = "Training")
+  expect_identical(m[["class"]][["level"]], levels(iris$Species))
+  expect_identical(rownames(m[["class"]]), as.character(seq_len(3L)))
+})
+
+
+test_that("positive_class is NULL, not NA, when there is no positive class", {
+  # NULL is the only "unset" value; a bare NA would also make the field logical
+  # for multiclass and character for binary.
+  multi <- classification_metrics(iris$Species, iris$Species)
+  expect_null(multi[["positive_class"]])
+  # Declared nullable and optional, so present-and-null is how it is spelled;
+  # `list(x = NULL)` keeps the element rather than dropping it.
+  expect_true("positive_class" %in% names(multi@metrics))
+  two <- factor(c("a", "b", "a", "b"))
+  binary <- classification_metrics(two, two)
+  expect_type(binary[["positive_class"]], "character")
+})
+
+
+test_that("overall carries only the columns its task defines", {
+  # Every column is declared; which are present says what was computed.
+  multi <- classification_metrics(iris$Species, iris$Species)
+  expect_identical(
+    names(multi[["overall"]]),
+    c("balanced_accuracy", "f1", "accuracy")
+  )
+  two <- factor(c("a", "b", "a", "b"))
+  binary <- classification_metrics(two, two, predicted_prob = c(.9, .1, .8, .2))
+  expect_true(all(
+    c("sensitivity", "specificity", "ppv", "npv", "auc", "brier_score") %in%
+      names(binary[["overall"]])
+  ))
+})
+
+
+test_that("the typed metrics reject a malformed table", {
+  m <- classification_metrics(iris$Species, iris$Species)
+  bad <- m@metrics
+  bad[["overall"]][["accuracy"]] <- 1.5
+  expect_error(set_props(m, metrics = bad), "must be <= 1")
+  bad <- m@metrics
+  bad[["overall"]][["oops"]] <- 1
+  expect_error(set_props(m, metrics = bad), "undeclared column")
+  bad <- m@metrics
+  bad[["overall"]][["accuracy"]] <- NULL
+  expect_error(set_props(m, metrics = bad), "missing required column")
+  r <- regression_metrics(c(1, 2, 3), c(1.1, 2.1, 2.9))
+  bad <- r@metrics
+  bad[["mae"]] <- -1
+  expect_error(set_props(r, metrics = bad), "must be >= 0")
+})
+
+
+test_that("confusion_long is the confusion matrix in row-oriented form", {
+  m <- classification_metrics(iris$Species, iris$Species)
+  long <- m[["confusion_long"]]
+  expect_identical(names(long), c("reference", "predicted", "n"))
+  expect_identical(nrow(long), 9L)
+  expect_type(long[["reference"]], "character")
+  expect_type(long[["n"]], "integer")
+  expect_identical(sum(long[["n"]]), 150L)
+  # It is a view of the matrix, so the two always agree.
+  expect_identical(
+    sum(long[["n"]][long[["reference"]] == long[["predicted"]]]),
+    sum(diag(m@confusion_matrix))
+  )
+})
+
+
+test_that("accessors reach properties as well as metrics members", {
+  # Reaching only into `@metrics` left the confusion matrix -- a property in its
+  # own right -- unreachable by the accessor that reaches everything else.
+  m <- classification_metrics(iris$Species, iris$Species, sample = "Training")
+  expect_identical(m$confusion_matrix, m@confusion_matrix)
+  expect_identical(m[["confusion_matrix"]], m@confusion_matrix)
+  expect_identical(m$sample, "Training")
+  expect_identical(m$overall, m@metrics[["overall"]])
+  expect_true(all(
+    c("confusion_matrix", "overall", "class") %in% metric_names(m)
+  ))
+})

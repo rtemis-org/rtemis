@@ -112,7 +112,10 @@ Supervised <- new_class(
   package = "rtemis",
   properties = list(
     algorithm = class_character,
-    model = class_any,
+    # The fitted backend object: an `rpart` tree, an `lgb.Booster`. It has no
+    # wire form and never will, and unlike a computed view nothing published
+    # can reconstruct it -- the saved `.rds` is its only carrier.
+    model = prop_r_only(new_property(class_any)),
     type = class_character,
     preprocessor = NULL | Preprocessor,
     preprocessor_internal = NULL | Preprocessor,
@@ -134,13 +137,16 @@ Supervised <- new_class(
     xnames = class_character,
     varimp = NULL | VariableImportance,
     question = NULL | class_character,
-    extra = class_any,
+    # Free-form, so it has no declarable shape.
+    extra = prop_r_only(new_property(class_any)),
     # Provenance. `session_info` is a full `utils::sessionInfo()` — the first
     # thing asked for when troubleshooting — and `session` is the run timeline.
     # `data_fingerprint` identifies the training data itself, so that comparing
     # models trained on different inputs is detectable rather than silent.
     data_fingerprint = NULL | DataFingerprint,
-    session_info = class_any,
+    # R-specific by construction, and what a consumer outside R would want
+    # from it -- versions, platform -- is what `Provenance` publishes.
+    session_info = prop_r_only(new_property(class_any)),
     session = NULL | SupervisedSession,
     # The run's *input*, which nothing else here carries: the hyperparameters on
     # this object are the ones that ran, resolved, and only the input says what
@@ -1597,7 +1603,9 @@ SupervisedRes <- new_class(
     # See `Supervised` for the provenance and input rationale.
     config = NULL | SuperConfig,
     data_fingerprint = NULL | DataFingerprint,
-    session_info = class_any,
+    # R-specific by construction, and what a consumer outside R would want
+    # from it -- versions, platform -- is what `Provenance` publishes.
+    session_info = prop_r_only(new_property(class_any)),
     session = NULL | SupervisedSession
   ),
   constructor = function(
@@ -1806,7 +1814,7 @@ method(repr, SupervisedRes) <- function(
 #'
 #' Convert a `SupervisedRes` (or `RegressionRes` / `ClassificationRes`)
 #' object to a JSON-serializable list. The list of per-resample fitted
-#' models (`@models`) is summarised by length only — individual model
+#' models (`@models`) is summarized by length only — individual model
 #' details remain available on the server and can be fetched via
 #' separate `job.result` requests if needed.
 #'

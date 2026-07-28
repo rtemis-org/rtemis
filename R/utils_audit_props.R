@@ -66,6 +66,15 @@ AUDIT_SEVERITY <- c(
 )
 
 
+# %% AUDIT_RESULT_CLASSES ----
+# Classes whose declared properties are *outputs* rather than settable inputs.
+# The audit compares a class's properties against the `@param` documentation of
+# its `setup_*` constructor; a results class has no such constructor and no
+# parameters, so there is nothing to compare and every property would report as
+# undocumented. Their contract is the spec, which reaches the schema directly.
+AUDIT_RESULT_CLASSES <- c("RegressionMetrics", "ClassificationMetrics")
+
+
 # %% parse_roxygen_params ----
 #' Extract `@param` entries from the roxygen blocks in a directory of R files
 #'
@@ -473,6 +482,7 @@ audit_prop_docs <- function(r_dir, classes = NULL, aliases = PROP_DOC_ALIASES) {
   }
   if (is.null(classes)) {
     classes <- spec_classes()
+    classes <- classes[setdiff(names(classes), AUDIT_RESULT_CLASSES)]
   }
   docs <- parse_roxygen_params(r_dir)
   findings <- list()

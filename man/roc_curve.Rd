@@ -12,7 +12,7 @@ roc_curve(true_labels, predicted_prob, max_points = NULL)
 \item{predicted_prob}{Numeric vector [0, 1]: Predicted probabilities for the
 positive class (second level of \code{true_labels}). Or, for multiclass, a
 matrix of predicted probabilities with exactly one column per class, in
-factor-level order (rtemis's convention); the columns are labelled with
+factor-level order (rtemis's convention); the columns are labeled with
 the factor levels regardless of any names on the input.}
 
 \item{max_points}{Optional Integer [2, Inf): Cap on the number of vertices

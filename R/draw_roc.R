@@ -19,7 +19,7 @@
 #' @param predicted_prob Numeric vector \[0, 1\]: Predicted probabilities for the
 #'   positive class (second level of `true_labels`). Or, for multiclass, a
 #'   matrix of predicted probabilities with exactly one column per class, in
-#'   factor-level order (rtemis's convention); the columns are labelled with
+#'   factor-level order (rtemis's convention); the columns are labeled with
 #'   the factor levels regardless of any names on the input.
 #' @param max_points Optional Integer \[2, Inf): Cap on the number of vertices
 #'   per curve. `NULL` keeps full resolution.

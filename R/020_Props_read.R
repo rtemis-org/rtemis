@@ -18,7 +18,7 @@
 # A schema alone is not sufficient to rebuild a class: `default` is deliberately
 # not a schema keyword (see `plan/config-artifacts.md`), so defaults arrive
 # separately, from the artifact `data-raw/generate_defaults.R` publishes. That
-# split is the contract a port has to honour too, which is why `defaults` is an
+# split is the contract a port has to honor too, which is why `defaults` is an
 # argument here rather than something inferred.
 
 # %% schema_is_nullable ----
@@ -212,6 +212,46 @@ strip_suffix <- function(x, suffix) {
 } # /rtemis::strip_suffix
 
 
+# %% members_spec ----
+#' Rebuild a `table` or `struct` PropertySpec from its declared object shape
+#'
+#' The inverse of `members_schema()`. A table's shape sits at `items`, a
+#' struct's is the property itself, so the two are passed separately: `obj` is
+#' where the members live, `x` is where nullability is declared.
+#'
+#' @param obj Named list: The JSON Schema object carrying `properties`.
+#' @param x Named list: The property schema itself.
+#' @param ann Named list: The property's `x-rtemis` annotations.
+#' @param container Character \{"table", "struct"\}: Which container to build.
+#' @param data_bound Character or NULL: The property's data bound.
+#' @param description Character: The property's description.
+#'
+#' @return `PropertySpec` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+members_spec <- function(obj, x, ann, container, data_bound, description) {
+  # Each member reads back as an element: its default is a placeholder nothing
+  # uses, since only settable properties carry defaults.
+  members <- lapply(obj[["properties"]], schema_to_spec, element = TRUE)
+  PropertySpec(
+    type = "object",
+    default = NULL,
+    nullable = schema_is_nullable(x),
+    tunable = FALSE,
+    container = container,
+    items = NULL,
+    members = members,
+    required_members = as.character(obj[["required"]] %||% names(members)),
+    broadcast = FALSE,
+    data_bound = data_bound,
+    data_dependent = isTRUE(ann[["data_dependent"]]),
+    description = description
+  )
+} # /rtemis::members_spec
+
+
 # %% schema_to_spec ----
 #' Convert a JSON Schema property to a PropertySpec
 #'
@@ -273,22 +313,11 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
   if (container == "table") {
     # The row object holds the column schemas; each column describes a cell, so
     # it reads back as an element (its default is a placeholder nothing uses).
-    row <- x[["items"]]
-    columns <- lapply(row[["properties"]], schema_to_spec, element = TRUE)
-    return(PropertySpec(
-      type = type,
-      default = NULL,
-      nullable = schema_is_nullable(x),
-      tunable = FALSE,
-      container = "table",
-      items = NULL,
-      columns = columns,
-      required_columns = as.character(row[["required"]] %||% names(columns)),
-      broadcast = FALSE,
-      data_bound = data_bound,
-      data_dependent = isTRUE(ann[["data_dependent"]]),
-      description = description
-    ))
+    return(members_spec(x[["items"]], x, ann, "table", data_bound, description))
+  }
+  if (container == "struct") {
+    # A struct emits its object shape directly rather than as an array element.
+    return(members_spec(x, x, ann, "struct", data_bound, description))
   }
 
   child <- schema_element(x, container, tunable, broadcast)

@@ -484,11 +484,16 @@ test_that("x-rtemis agrees with the standard keywords, for every property", {
       types <- as.character(schema[["type"]])
       if (isTRUE(ann[["tunable"]]) || isTRUE(ann[["broadcast"]])) {
         expect_true("oneOf" %in% names(schema), info = label)
-      } else if (container %in% c("array", "matrix")) {
+      } else if (container %in% c("array", "matrix", "table")) {
+        # A table is an array of row objects.
         expect_true("array" %in% types, info = label)
       } else if (container == "map") {
         expect_true("object" %in% types, info = label)
         expect_true("additionalProperties" %in% names(schema), info = label)
+      } else if (container == "struct") {
+        # A struct declares its members, where a map declares only their type.
+        expect_true("object" %in% types, info = label)
+        expect_true("properties" %in% names(schema), info = label)
       } else if (identical(ann[["role"]], "constant")) {
         # A constant asserts its value; it has no `type` keyword.
         expect_true("const" %in% names(schema), info = label)

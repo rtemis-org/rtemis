@@ -890,7 +890,7 @@ test_that("a table declaration is itself checked", {
   )
   expect_error(
     prop_table(columns = list(a = prop_float(0)), required = "b"),
-    "undeclared columns"
+    "undeclared members"
   )
 })
 
@@ -920,11 +920,11 @@ test_that("a table round-trips through its schema", {
   back <- schema_to_spec(spec_to_schema(orig))
   expect_identical(back@container, "table")
   expect_identical(back@nullable, orig@nullable)
-  expect_identical(back@required_columns, orig@required_columns)
-  expect_identical(names(back@columns), names(orig@columns))
-  for (nm in names(orig@columns)) {
-    a <- orig@columns[[nm]]
-    b <- back@columns[[nm]]
+  expect_identical(back@required_members, orig@required_members)
+  expect_identical(names(back@members), names(orig@members))
+  for (nm in names(orig@members)) {
+    a <- orig@members[[nm]]
+    b <- back@members[[nm]]
     expect_identical(b@type, a@type)
     expect_identical(b@minimum, a@minimum)
     expect_identical(b@maximum, a@maximum)
@@ -973,4 +973,173 @@ test_that("a table serializes row-oriented, keeping absent and null distinct", {
     na = "null"
   ))
   expect_false(grepl("auc", absent, fixed = TRUE))
+})
+
+
+# %% struct container ----
+
+demo_struct_prop <- function() {
+  prop_struct(
+    members = list(
+      overall = prop_table(
+        columns = list(
+          balanced_accuracy = prop_float(0, min = 0, max = 1),
+          auc = prop_float(0, min = 0, max = 1, nullable = TRUE)
+        ),
+        required = "balanced_accuracy",
+        nullable = TRUE
+      ),
+      positive_class = prop_string(NULL, nullable = TRUE)
+    ),
+    nullable = TRUE,
+    description = "Classification metrics payload."
+  )
+}
+
+
+demo_struct_class <- function() {
+  new_class("DemoStruct", properties = list(metrics = demo_struct_prop()))
+}
+
+
+test_that("a struct property validates its declared fields", {
+  Demo <- demo_struct_class()
+  ok <- list(
+    overall = data.frame(balanced_accuracy = 0.9, auc = 0.8),
+    positive_class = "a"
+  )
+  expect_no_error(Demo(metrics = ok))
+  expect_error(
+    Demo(metrics = list(overall = ok[["overall"]])),
+    "positive_class"
+  )
+  expect_error(
+    Demo(metrics = c(ok, list(oops = 1))),
+    "undeclared field\\(s\\) 'oops'"
+  )
+  expect_error(Demo(metrics = "not a list"), "list")
+})
+
+
+test_that("a struct's members may themselves be containers", {
+  # This is what separates a struct from a table: a field can be a whole table,
+  # and the error names the path to the offending cell.
+  Demo <- demo_struct_class()
+  expect_error(
+    Demo(
+      metrics = list(
+        overall = data.frame(balanced_accuracy = 1.5),
+        positive_class = "a"
+      )
+    ),
+    "field 'overall' column 'balanced_accuracy' must be <= 1"
+  )
+  expect_error(
+    Demo(
+      metrics = list(
+        overall = data.frame(auc = 0.5),
+        positive_class = "a"
+      )
+    ),
+    "field 'overall' is missing required column\\(s\\) 'balanced_accuracy'"
+  )
+})
+
+
+test_that("a struct declaration is itself checked", {
+  expect_error(prop_struct(members = list()), "non-empty named list")
+  expect_error(
+    prop_struct(members = list(a = "not a prop")),
+    "must be a property built by a prop_\\* factory"
+  )
+  expect_error(
+    prop_struct(members = list(a = prop_float(0)), required = "b"),
+    "undeclared members"
+  )
+})
+
+
+test_that("a struct emits an object schema and round-trips", {
+  orig <- get_spec(demo_struct_prop())
+  sch <- spec_to_schema(orig)
+  expect_identical(as.character(sch[["type"]]), c("object", "null"))
+  expect_false(sch[["additionalProperties"]])
+  expect_identical(
+    as.character(sch[["required"]]),
+    c("overall", "positive_class")
+  )
+  expect_identical(sch[["x-rtemis"]][["container"]], "struct")
+  # The nested table keeps its own container annotation.
+  expect_identical(
+    sch[["properties"]][["overall"]][["x-rtemis"]][["container"]],
+    "table"
+  )
+  back <- schema_to_spec(sch)
+  expect_identical(back@container, "struct")
+  expect_identical(back@required_members, orig@required_members)
+  expect_identical(names(back@members), names(orig@members))
+  expect_identical(back@members[["overall"]]@container, "table")
+  expect_identical(
+    back@members[["overall"]]@required_members,
+    orig@members[["overall"]]@required_members
+  )
+})
+
+
+test_that("a class rebuilt from a published schema validates structs alike", {
+  Demo <- demo_struct_class()
+  sch <- S7_to_JSONSchema(
+    Demo,
+    id = "https://schema.rtemis.org/r/demo_struct/v1/schema.json"
+  )
+  Rebuilt <- JSONSchema_to_S7(sch, name = "DemoStructRebuilt")
+  expect_no_error(Rebuilt(
+    metrics = list(
+      overall = data.frame(balanced_accuracy = 0.9),
+      positive_class = "a"
+    )
+  ))
+  expect_error(
+    Rebuilt(
+      metrics = list(
+        overall = data.frame(balanced_accuracy = 3),
+        positive_class = "a"
+      )
+    ),
+    "field 'overall' column 'balanced_accuracy' must be <= 1"
+  )
+})
+
+
+# %% r_only role ----
+
+test_that("an r_only property is neither serialized nor published", {
+  p <- prop_r_only(new_property(class_any))
+  expect_identical(prop_role(p), "r_only")
+  expect_false(prop_serialized(p))
+  # The real ones: a fitted backend model has no wire form, and unlike a
+  # computed view nothing published can reconstruct it.
+  for (nm in c("model", "extra", "session_info")) {
+    expect_identical(
+      prop_role(Supervised@properties[[nm]]),
+      "r_only",
+      info = nm
+    )
+    expect_false(prop_serialized(Supervised@properties[[nm]]), info = nm)
+  }
+})
+
+
+test_that("r_only is marked, never inferred", {
+  # A spec-less, role-less property is drift and must still fail loudly: the
+  # marker exists so that adding a property and forgetting to declare it is not
+  # silently treated as "R-only".
+  Drifty <- new_class("Drifty", properties = list(mystery = class_any))
+  expect_error(
+    S7_to_JSONSchema(
+      Drifty,
+      id = "https://schema.rtemis.org/r/drifty/v1/schema.json"
+    ),
+    "mystery"
+  )
 })

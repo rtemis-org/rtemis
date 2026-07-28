@@ -15,6 +15,38 @@ conf_table <- function(true, pred, binclasspos = 2L) {
 }
 
 
+# %% confusion_to_long() ----
+# A confusion matrix in row-oriented form: one row per cell, with the two
+# outcome levels as declared columns. `as.data.frame()` on a `table` yields
+# exactly this long form; the columns are renamed and retyped by position so a
+# `table` from any source converts cleanly.
+confusion_to_long <- function(cm) {
+  df <- as.data.frame(cm, stringsAsFactors = FALSE)
+  data.frame(
+    reference = as.character(df[[1L]]),
+    predicted = as.character(df[[2L]]),
+    n = as.integer(df[[3L]]),
+    row.names = NULL
+  )
+}
+
+
+# %% Row labels for printing ----
+# The stored tables carry no row names: `overall` has a single row and `class`
+# names its rows in a `level` column, neither of which has a row-oriented JSON
+# form. Both are restored on a copy for display only.
+overall_df_for_print <- function(df) {
+  rownames(df) <- "overall"
+  df
+}
+
+class_df_for_print <- function(df) {
+  rownames(df) <- df[["level"]]
+  df[["level"]] <- NULL
+  df
+}
+
+
 # %% label_metrics() ----
 # Prettify metric names for printing (e.g. balanced_accuracy -> "Balanced
 # Accuracy", auc -> "AUC", rsq -> "R^2"). labelify() uppercases the acronyms
@@ -31,6 +63,50 @@ label_metric_df <- function(df) {
   rownames(df) <- label_metrics(rownames(df))
   df
 }
+
+
+# %% prop_metric ----
+#' A metric cell: a number that may be missing
+#'
+#' Every metric column is nullable. A metric can be genuinely undefined for a
+#' sample — F1 when precision and recall are both zero, sensitivity for a class
+#' with no cases, AUC when its backend fails — and NA is the honest answer
+#' rather than a reason to reject the whole object. Distinct from a column being
+#' *absent*, which says the metric was not computed for this task at all.
+#'
+#' @param min Numeric, optional: Lower bound.
+#' @param max Numeric, optional: Upper bound.
+#' @param description Character: Human-readable description.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_metric <- function(min = NULL, max = NULL, description = "") {
+  prop_float(
+    NULL,
+    min = min,
+    max = max,
+    nullable = TRUE,
+    description = description
+  )
+} # /rtemis::prop_metric
+
+
+# %% prop_rate ----
+#' A metric cell bounded to [0, 1]
+#'
+#' @param description Character: Human-readable description.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_rate <- function(description = "") {
+  prop_metric(min = 0, max = 1, description = description)
+} # /rtemis::prop_rate
 
 
 # %% Metrics ----
@@ -55,25 +131,40 @@ Metrics <- new_class(
 ) # /rtemis::Metrics
 
 
-# %% `$`.Metrics ----
-# Make Metrics@metrics `$`-accessible
-method(`$`, Metrics) <- function(x, name) {
+# %% metric_names ----
+# Everything `$` and `[[` resolve: the object's own properties first, then the
+# members of `@metrics`. Reaching only into `@metrics` would leave the fields
+# that are properties in their own right -- the confusion matrix and its long
+# view -- unreachable by the accessor that reaches everything else.
+metric_names <- function(x) {
+  union(prop_names(x), names(x@metrics))
+}
+
+
+# %% metric_get ----
+metric_get <- function(x, name) {
+  if (name %in% prop_names(x)) {
+    return(prop(x, name))
+  }
   x@metrics[[name]]
+}
+
+
+# %% `$`.Metrics ----
+method(`$`, Metrics) <- function(x, name) {
+  metric_get(x, name)
 }
 
 
 # %% `.DollarNames`.Metrics ----
-# `$`-autocomplete Metrics@metrics
 method(`.DollarNames`, Metrics) <- function(x, pattern = "") {
-  all_names <- names(x@metrics)
-  grep(pattern, all_names, value = TRUE)
+  grep(pattern, metric_names(x), value = TRUE)
 }
 
 
 # %% `[[`.Metrics ----
-# Make Metrics@metrics `[[`-accessible
 method(`[[`, Metrics) <- function(x, name) {
-  x@metrics[[name]]
+  metric_get(x, name)
 }
 
 
@@ -88,12 +179,21 @@ method(`[[`, Metrics) <- function(x, name) {
 RegressionMetrics <- new_class(
   name = "RegressionMetrics",
   parent = Metrics,
-  # properties = list(
-  #   MAE = class_numeric,
-  #   MSE = class_numeric,
-  #   RMSE = class_numeric,
-  #   Rsq = class_numeric
-  # ),
+  properties = list(
+    # A one-row table. Every metric is nullable: a metric can be genuinely
+    # undefined for a sample (R-squared when the outcome has no variance), and
+    # NA is the honest answer rather than a reason to reject the object.
+    metrics = prop_table(
+      columns = list(
+        mae = prop_metric(min = 0),
+        mse = prop_metric(min = 0),
+        rmse = prop_metric(min = 0),
+        rsq = prop_metric(max = 1)
+      ),
+      nullable = TRUE,
+      description = "Regression metrics, one row."
+    )
+  ),
   constructor = function(mae, mse, rmse, rsq, sample = NULL) {
     new_object(
       Metrics(
@@ -165,7 +265,61 @@ ClassificationMetrics <- new_class(
   name = "ClassificationMetrics",
   parent = Metrics,
   properties = list(
-    confusion_matrix = class_table
+    confusion_matrix = class_table,
+    # A derived view of `confusion_matrix` in the row-oriented form a data frame
+    # reader expects. A `table`'s column names are the outcome levels, so they
+    # are data, not a declarable column set; the long form turns them into two
+    # declared columns and loses nothing.
+    confusion_long = prop_computed(new_property(
+      class = class_data.frame,
+      getter = function(self) confusion_to_long(self@confusion_matrix)
+    )),
+    metrics = prop_struct(
+      members = list(
+        # Which columns `overall` carries depends on the task: multiclass gets
+        # the three always-present ones, binary adds the positive class's rates,
+        # and the probability-based pair needs predicted probabilities. Every
+        # column is declared; only the invariant ones are required.
+        overall = prop_table(
+          columns = list(
+            balanced_accuracy = prop_rate(),
+            f1 = prop_rate(),
+            accuracy = prop_rate(),
+            sensitivity = prop_rate(),
+            specificity = prop_rate(),
+            ppv = prop_rate(),
+            npv = prop_rate(),
+            auc = prop_rate(),
+            brier_score = prop_rate()
+          ),
+          required = c("balanced_accuracy", "f1", "accuracy"),
+          nullable = TRUE,
+          description = "Overall metrics, one row."
+        ),
+        class = prop_table(
+          columns = list(
+            level = prop_string(NULL, nullable = TRUE),
+            sensitivity = prop_rate(),
+            specificity = prop_rate(),
+            balanced_accuracy = prop_rate(),
+            ppv = prop_rate(),
+            npv = prop_rate(),
+            f1 = prop_rate()
+          ),
+          nullable = TRUE,
+          description = "Per-class metrics, one row per outcome level."
+        ),
+        # Absent unless the outcome is binary, which is why it is not required.
+        positive_class = prop_string(
+          NULL,
+          nullable = TRUE,
+          description = "Outcome level treated as positive."
+        )
+      ),
+      required = c("overall", "class"),
+      nullable = TRUE,
+      description = "Classification metrics."
+    )
   ),
   constructor = function(
     confusion_matrix,
@@ -223,7 +377,7 @@ method(repr, ClassificationMetrics) <- function(
     out,
     "\n",
     show_df(
-      label_metric_df(x@metrics[["overall"]]),
+      label_metric_df(overall_df_for_print(x@metrics[["overall"]])),
       pad = pad,
       transpose = TRUE,
       ddSci_dp = decimal_places,
@@ -233,11 +387,11 @@ method(repr, ClassificationMetrics) <- function(
     )
   )
 
-  if (is.na(x@metrics[["positive_class"]])) {
+  if (is.null(x@metrics[["positive_class"]])) {
     out <- paste0(
       out,
       show_df(
-        label_metric_df(x@metrics[["class"]]),
+        label_metric_df(class_df_for_print(x@metrics[["class"]])),
         pad = pad,
         transpose = TRUE,
         ddSci_dp = decimal_places,
@@ -261,6 +415,25 @@ method(repr, ClassificationMetrics) <- function(
   }
   out
 } # /rtemis::repr.ClassificationMetrics
+
+
+# %% to_json.ClassificationMetrics ----
+#' @name to_json
+#' @keywords internal
+#' @noRd
+method(to_json, ClassificationMetrics) <- function(x, ...) {
+  # The default method walks every property, which would hand `jsonlite` the
+  # raw `confusion_matrix`: a `table` has no `asJSON` method, and its column
+  # names are outcome levels rather than a declarable set. `confusion_long`
+  # carries the same counts in row-oriented form, so the wide table is omitted
+  # here rather than converted downstream by each consumer in turn.
+  list(
+    .class = S7_class(x)@name,
+    sample = x@sample,
+    metrics = .to_json_value(x@metrics),
+    confusion_long = x@confusion_long
+  )
+} # /rtemis::to_json.ClassificationMetrics
 
 
 # %% print.ClassificationMetrics ----
@@ -407,7 +580,11 @@ ClassificationMetricsRes <- new_class(
   name = "ClassificationMetricsRes",
   parent = MetricsRes,
   properties = list(
-    confusion_matrix = class_table
+    confusion_matrix = class_table,
+    confusion_long = prop_computed(new_property(
+      class = class_data.frame,
+      getter = function(self) confusion_to_long(self@confusion_matrix)
+    ))
   ),
   constructor = function(sample, confusion_matrix, res_metrics) {
     new_object(
@@ -434,6 +611,24 @@ ClassificationMetricsRes <- new_class(
     )
   }
 ) # /rtemis::ClassificationMetricsRes
+
+
+# %% to_json.ClassificationMetricsRes ----
+#' @name to_json
+#' @keywords internal
+#' @noRd
+method(to_json, ClassificationMetricsRes) <- function(x, ...) {
+  # Same reason as the single-fit method: the aggregate confusion matrix is a
+  # `table` and travels in its long form.
+  list(
+    .class = S7_class(x)@name,
+    sample = x@sample,
+    res_metrics = .to_json_value(x@res_metrics),
+    mean_metrics = x@mean_metrics,
+    sd_metrics = x@sd_metrics,
+    confusion_long = x@confusion_long
+  )
+} # /rtemis::to_json.ClassificationMetricsRes
 
 
 # %% repr.CalibratedClassification ----
@@ -501,7 +696,7 @@ repr_CalibratedClassificationMetrics <- function(
   )
 
   # Class metrics: Pre=>Post (for multiclass) or Positive Class (for binary)
-  if (is.na(x@metrics[["positive_class"]])) {
+  if (is.null(x@metrics[["positive_class"]])) {
     out <- paste0(
       out,
       show_df(
