@@ -90,29 +90,46 @@ hp_prop_values <- function(self) {
 #' config being checked.
 #'
 #' @param x tabular data: Training data.
+#' @param needed Character: Which dimensions to resolve. Only these are
+#'   computed, so a caller declaring nothing feature-related may pass a bare
+#'   vector — `features()` requires at least two columns and would abort on one.
+#'   `resample()` relies on this: a resampler bounds only `n_cases`.
 #' @param has_outcome Logical: If TRUE, `x` follows the supervised convention
 #'   (the last column is the outcome, the rest are features). Pass FALSE for a
 #'   frame that is already features-only, as the decomposition path uses:
 #'   otherwise the last feature is silently treated as an outcome and excluded
 #'   from every dimension.
 #'
-#' @return Named list with one element per `DATA_BOUNDS` entry. `n_classes` is
-#'   NULL for regression, where the outcome has no levels, and also when
-#'   `has_outcome` is FALSE.
+#' @return Named list with one element per requested `DATA_BOUNDS` entry.
+#'   `n_classes` is NULL for regression, where the outcome has no levels, and
+#'   also when `has_outcome` is FALSE.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-resolve_data_bounds <- function(x, has_outcome = TRUE) {
-  feats <- if (has_outcome) features(x) else x
-  y <- if (has_outcome) outcome(x) else NULL
-  list(
-    n_features = NCOL(feats),
-    n_cases = NROW(x),
-    n_classes = if (is.factor(y)) nlevels(y) else NULL,
-    feature_names = names(feats),
-    numeric_feature_names = getnumericnames(feats)
-  )
+resolve_data_bounds <- function(x, needed = DATA_BOUNDS, has_outcome = TRUE) {
+  out <- list()
+  if ("n_cases" %in% needed) {
+    out[["n_cases"]] <- NROW(x)
+  }
+  if ("n_classes" %in% needed) {
+    y <- if (has_outcome) outcome(x) else NULL
+    out[["n_classes"]] <- if (is.factor(y)) nlevels(y) else NULL
+  }
+  feature_bounds <- c("n_features", "feature_names", "numeric_feature_names")
+  if (any(feature_bounds %in% needed)) {
+    feats <- if (has_outcome) features(x) else x
+    if ("n_features" %in% needed) {
+      out[["n_features"]] <- NCOL(feats)
+    }
+    if ("feature_names" %in% needed) {
+      out[["feature_names"]] <- names(feats)
+    }
+    if ("numeric_feature_names" %in% needed) {
+      out[["numeric_feature_names"]] <- getnumericnames(feats)
+    }
+  }
+  out
 } # /rtemis::resolve_data_bounds
 
 
@@ -148,7 +165,7 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
   if (length(bounds) == 0L) {
     return(invisible(config))
   }
-  dims <- resolve_data_bounds(x, has_outcome = has_outcome)
+  dims <- resolve_data_bounds(x, unique(bounds), has_outcome = has_outcome)
   specs <- S7_class(config)@properties
   for (nm in names(bounds)) {
     # `prop()`, not `[[`: a config family's `[[` routes into its computed

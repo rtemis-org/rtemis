@@ -44,6 +44,10 @@ resample <- function(
   verbosity = 1L
 ) {
   check_is_S7(config, ResamplerConfig)
+  # `id_strat` declares `data_bound = "n_cases"`, so its length is checked here
+  # rather than at each caller. A resampler bounds nothing feature-related, so
+  # `x` may be the bare outcome vector as well as a data frame.
+  check_data_bounds(config, x)
   # Input ----
   type <- config@type
   if (NCOL(x) > 1) {

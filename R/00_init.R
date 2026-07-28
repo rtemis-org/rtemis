@@ -1146,7 +1146,13 @@ method(serializable_props, S7_object) <- function(x) {
     },
     logical(1L)
   )
-  values[keep]
+  values <- values[keep]
+  for (nm in names(values)) {
+    if (!is.null(declared[[nm]])) {
+      values[[nm]] <- wire_value(values[[nm]], declared[[nm]])
+    }
+  }
+  values
 } # /rtemis::serializable_props.S7_object
 
 

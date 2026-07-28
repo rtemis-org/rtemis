@@ -764,3 +764,37 @@ test_that("check_data_bounds() skips unset values and n_classes in regression", 
     class = "rtemis_length_error"
   )
 })
+
+
+# %% Map containers on the wire ----
+test_that("a map property round-trips as a JSON object, not an array", {
+  # `jsonlite` drops names on atomic vectors, so a named numeric would emit an
+  # array and fail its own schema, which declares `type: object`.
+  cfg <- setup_Preprocessor(scale = TRUE)
+  cfg@scale_centers <- c(a = 1.5, b = 2.5)
+  wire <- S7_to_list(serializable_props(cfg))[["scale_centers"]]
+  expect_type(wire, "list")
+  expect_identical(names(wire), c("a", "b"))
+  expect_match(
+    as.character(jsonlite::toJSON(wire, auto_unbox = TRUE)),
+    "^\\{",
+    info = "must serialize as an object"
+  )
+  # And back: JSON objects parse to named lists, but the property is a named
+  # atomic vector.
+  restored <- .list_to_PreprocessorConfig(list(
+    scale = TRUE,
+    scale_centers = list(a = 1.5, b = 2.5)
+  ))
+  expect_identical(restored@scale_centers, c(a = 1.5, b = 2.5))
+})
+
+test_that("wire_value only reshapes maps, not any named vector", {
+  # Ranger's class_weights is a named numeric declaring an *array*: naming it
+  # must not change its wire type.
+  arr <- RangerHyperparameters@properties[["class_weights"]]
+  named <- c(setosa = 1, versicolor = 2)
+  expect_identical(wire_value(named, arr), named)
+  map <- PreprocessorConfig@properties[["scale_centers"]]
+  expect_type(wire_value(named, map), "list")
+})

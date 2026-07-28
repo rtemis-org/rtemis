@@ -1510,8 +1510,75 @@ config_prop_values <- function(self, base) {
     },
     logical(1L)
   )
-  values[keep]
+  values <- values[keep]
+  for (nm in names(values)) {
+    values[[nm]] <- wire_value(values[[nm]], props[[nm]])
+  }
+  values
 } # /rtemis::config_prop_values
+
+
+# %% wire_value ----
+#' A property value in the shape its JSON Schema declares
+#'
+#' One conversion, for one mismatch: a `map` container publishes
+#' `type: object`, but its R value for a scalar leaf is a *named atomic vector*,
+#' and `jsonlite::toJSON()` drops names on atomic vectors — emitting an array,
+#' which its own schema rejects. Handing it a list restores the object.
+#'
+#' Deliberately spec-driven rather than "name any named vector": Ranger's
+#' `class_weights` is a named numeric too, but declares an `array`, and naming
+#' it must not change its wire type.
+#'
+#' @param value Property value.
+#' @param prop S7 property (an element of `Class@properties`).
+#'
+#' @return The value, as a list when the spec declares a map.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+wire_value <- function(value, prop) {
+  if (is.null(value)) {
+    return(value)
+  }
+  spec <- get_spec(prop)
+  if (!is.null(spec) && spec@container == "map" && is.atomic(value)) {
+    return(as.list(value))
+  }
+  value
+} # /rtemis::wire_value
+
+
+# %% from_wire_maps ----
+#' Restore map-valued properties read back from JSON
+#'
+#' The inverse of `wire_value()`: `read_config()` parses a JSON object into a
+#' named *list*, while a map over a scalar leaf is a named atomic vector in R,
+#' so the property's class check would reject the list. Any `.list_to_*()`
+#' reconstructor for a class declaring such a property must call this.
+#'
+#' @param x Named list parsed from JSON.
+#' @param cls S7 class the list reconstructs.
+#'
+#' @return `x`, with map-valued elements coerced to named atomic vectors.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+from_wire_maps <- function(x, cls) {
+  props <- cls@properties
+  for (nm in intersect(names(x), names(props))) {
+    spec <- get_spec(props[[nm]])
+    is_scalar_map <- !is.null(spec) &&
+      spec@container == "map" &&
+      spec_r_kind(spec) == "atomic"
+    if (is_scalar_map && is.list(x[[nm]])) {
+      x[[nm]] <- unlist(x[[nm]])
+    }
+  }
+  x
+} # /rtemis::from_wire_maps
 
 
 # %% route_config_assignment ----

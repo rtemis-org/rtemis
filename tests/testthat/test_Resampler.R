@@ -163,3 +163,32 @@ test_that("resample() data.table succeeds", {
   res <- resample(as.data.table(iris), setup_Resampler())
   expect_s7_class(res, Resampler)
 })
+
+
+# %% id_strat is checked declaratively ----
+test_that("resample() enforces id_strat's data_bound", {
+  d <- data.frame(a = rnorm(6L), y = rnorm(6L))
+  ok <- setup_Resampler(
+    type = "StratSub",
+    n_resamples = 2L,
+    id_strat = c("a", "b", "a", "b", "a", "b")
+  )
+  expect_s7_class(resample(d, ok, verbosity = 0L), Resampler)
+  # `data_bound = "n_cases"` replaces the hand-written length check train() used
+  # to carry, so it now fires for every caller, not just train().
+  bad <- setup_Resampler(
+    type = "StratSub",
+    n_resamples = 2L,
+    id_strat = c("a", "b")
+  )
+  expect_error(resample(d, bad, verbosity = 0L), class = "rtemis_length_error")
+})
+
+test_that("resample() accepts a bare outcome vector", {
+  # A resampler bounds only `n_cases`, so `resolve_data_bounds()` must not
+  # reach for `features()`, which requires at least two columns.
+  expect_s7_class(
+    resample(rnorm(6L), setup_Resampler(n_resamples = 2L), verbosity = 0L),
+    Resampler
+  )
+})

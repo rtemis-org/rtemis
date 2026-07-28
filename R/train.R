@@ -306,9 +306,6 @@ train <- function(
   }
   if (!is.null(outer_resampling_config)) {
     check_is_S7(outer_resampling_config, ResamplerConfig)
-    if (!is.null(outer_resampling_config[["id_strat"]])) {
-      stopifnot(length(outer_resampling_config[["id_strat"]]) == NROW(x))
-    }
   }
 
   if (!is.null(outdir)) {

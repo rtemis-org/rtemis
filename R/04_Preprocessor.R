@@ -586,3 +586,33 @@ method(`[[`, Preprocessor) <- function(x, name) {
 method(preprocessed, Preprocessor) <- function(x) {
   x@preprocessed
 }
+
+
+# %% .list_to_PreprocessorConfig ----
+#' Convert a list to a PreprocessorConfig object
+#'
+#' Internal function used to reconstruct a `PreprocessorConfig` object from a
+#' named list, such as the result of parsing a JSON config conforming to the
+#' schema.rtemis.org preprocessor schema. Elements are passed to
+#' [setup_Preprocessor]; document metadata (`$schema`) is dropped first, since
+#' it identifies the document rather than naming a parameter.
+#'
+#' The learned values (`scale_centers`, `scale_coefficients`, `one_hot_levels`)
+#' are `readOnly` in the schema, so a user-authored config carries none and the
+#' `setup_*` defaults leave them unset. A config that does carry them — a fitted
+#' preprocessor written back out — restores them, which is why they are
+#' serialized at all (see "Property roles" in `00_Props.R`).
+#'
+#' @param x Named list of `setup_Preprocessor` parameters.
+#'
+#' @return A `PreprocessorConfig` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+#' @examples
+#' .list_to_PreprocessorConfig(list(scale = TRUE, center = TRUE))
+.list_to_PreprocessorConfig <- function(x) {
+  args <- from_wire_maps(.drop_meta_keys(x), PreprocessorConfig)
+  do.call(setup_Preprocessor, args)
+} # /rtemis::.list_to_PreprocessorConfig

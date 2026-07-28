@@ -123,9 +123,11 @@ Supervised <- new_class(
     y_training = class_any,
     y_validation = class_any,
     y_test = class_any,
-    predicted_training = class_any,
-    predicted_validation = class_any,
-    predicted_test = class_any,
+    # Regression predicts numeric, classification predicts a factor of the
+    # outcome's levels; there is no third case.
+    predicted_training = class_numeric | class_factor,
+    predicted_validation = NULL | class_numeric | class_factor,
+    predicted_test = NULL | class_numeric | class_factor,
     metrics_training = Metrics,
     metrics_validation = NULL | Metrics,
     metrics_test = NULL | Metrics,
@@ -991,9 +993,11 @@ CalibratedClassification <- new_class(
   parent = Classification,
   properties = list(
     calibration_model = Supervised,
-    predicted_training_calibrated = class_numeric | class_factor,
-    predicted_validation_calibrated = NULL | class_numeric | class_factor,
-    predicted_test_calibrated = NULL | class_numeric | class_factor,
+    # `prob2categorical()` builds these, so they are always factors: the class
+    # is calibrated *classification*, with no regression arm to widen for.
+    predicted_training_calibrated = class_factor,
+    predicted_validation_calibrated = NULL | class_factor,
+    predicted_test_calibrated = NULL | class_factor,
     predicted_prob_training_calibrated = class_double,
     predicted_prob_validation_calibrated = NULL | class_double,
     predicted_prob_test_calibrated = NULL | class_double,
@@ -1575,8 +1579,9 @@ SupervisedRes <- new_class(
     execution_config = ExecutionConfig,
     y_training = class_any,
     y_test = class_any,
-    predicted_training = class_any,
-    predicted_test = class_any,
+    # One element per resample, each a `Supervised`-shaped prediction vector.
+    predicted_training = class_list,
+    predicted_test = class_list,
     metrics_training = MetricsRes,
     metrics_test = MetricsRes,
     xnames = class_character,

@@ -68,7 +68,8 @@ write_config <- new_generic(
   decompose = "https://schema.rtemis.org/decompose/v1/schema.json",
   cluster = "https://schema.rtemis.org/cluster/v1/schema.json",
   decomposition = "https://schema.rtemis.org/decomposition/v1/schema.json",
-  clustering = "https://schema.rtemis.org/clustering/v1/schema.json"
+  clustering = "https://schema.rtemis.org/clustering/v1/schema.json",
+  preprocessor = "https://schema.rtemis.org/preprocessor/v1/schema.json"
 ) # /rtemis::.RTEMIS_SUPPORTED_CONFIGS
 
 
@@ -204,6 +205,24 @@ method(write_config, DecompositionConfig) <- function(
   .write_config_json(payload, file, overwrite, verbosity)
   invisible(x)
 } # /rtemis::write_config.DecompositionConfig
+
+
+# %% write_config.PreprocessorConfig ----
+#' @author EDG
+#' @noRd
+method(write_config, PreprocessorConfig) <- function(
+  x,
+  file,
+  overwrite = FALSE,
+  verbosity = 1L
+) {
+  payload <- c(
+    list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["preprocessor"]]),
+    S7_to_list(serializable_props(x))
+  )
+  .write_config_json(payload, file, overwrite, verbosity)
+  invisible(x)
+} # /rtemis::write_config.PreprocessorConfig
 
 
 # %% write_config.ClusteringConfig ----
