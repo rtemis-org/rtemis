@@ -802,3 +802,175 @@ test_that("wire_value only reshapes maps, not any named vector", {
   map <- PreprocessorConfig@properties[["scale_centers"]]
   expect_type(wire_value(named, map), "list")
 })
+
+
+# %% table container ----
+
+# One spec reused across the table tests: an always-present numeric column, an
+# optional one (a metric computed only for some tasks), and a label.
+demo_table_prop <- function(...) {
+  prop_table(
+    columns = list(
+      accuracy = prop_float(0, min = 0, max = 1, description = "Accuracy."),
+      auc = prop_float(0, min = 0, max = 1, nullable = TRUE),
+      label = prop_string("")
+    ),
+    required = c("accuracy", "label"),
+    nullable = TRUE,
+    description = "One row per resample.",
+    ...
+  )
+}
+
+
+demo_table_class <- function() {
+  new_class("DemoTable", properties = list(overall = demo_table_prop()))
+}
+
+
+test_that("a table property accepts a conforming data frame", {
+  Demo <- demo_table_class()
+  df <- data.frame(
+    accuracy = c(0.9, 0.8),
+    auc = c(0.81, NA),
+    label = c("f1", "f2")
+  )
+  expect_identical(Demo(overall = df)@overall, df)
+  # An optional column may be absent entirely: the metric was not computed for
+  # this task, which is not the same as being invalid.
+  expect_no_error(Demo(overall = data.frame(accuracy = 0.9, label = "f1")))
+})
+
+
+test_that("a table property rejects malformed frames", {
+  Demo <- demo_table_class()
+  expect_error(
+    Demo(overall = data.frame(accuracy = 1.4, label = "x")),
+    "must be <= 1"
+  )
+  expect_error(
+    Demo(overall = data.frame(accuracy = 0.9, label = "x", oops = 1)),
+    "undeclared column"
+  )
+  expect_error(
+    Demo(overall = data.frame(accuracy = 0.9)),
+    "missing required column"
+  )
+  expect_error(
+    Demo(overall = data.frame(accuracy = "high", label = "x")),
+    "must be of type 'number'"
+  )
+  # NA is allowed only where the cell spec says so.
+  expect_error(
+    Demo(overall = data.frame(accuracy = NA_real_, label = "x")),
+    "must not contain missing values"
+  )
+  expect_no_error(
+    Demo(overall = data.frame(accuracy = 0.9, auc = NA_real_, label = "x"))
+  )
+  # S7's own class check fires before the validator for a non-frame.
+  expect_error(Demo(overall = list(accuracy = 0.9)), "data\\.frame")
+})
+
+
+test_that("a table declaration is itself checked", {
+  expect_error(prop_table(columns = list()), "non-empty named list")
+  expect_error(
+    prop_table(columns = list(prop_float(0))),
+    "non-empty named list"
+  )
+  expect_error(
+    prop_table(columns = list(a = "not a prop")),
+    "must be a property built by a prop_\\* factory"
+  )
+  # A cell is a scalar: a column of containers has no row-oriented encoding.
+  expect_error(
+    prop_table(columns = list(a = prop_float(0, vector = TRUE))),
+    "must describe a scalar cell"
+  )
+  expect_error(
+    prop_table(columns = list(a = prop_float(0)), required = "b"),
+    "undeclared columns"
+  )
+})
+
+
+test_that("a table emits a row-oriented schema", {
+  spec <- get_spec(demo_table_prop())
+  sch <- spec_to_schema(spec)
+  expect_identical(as.character(sch[["type"]]), c("array", "null"))
+  row <- sch[["items"]]
+  expect_identical(row[["type"]], "object")
+  expect_false(row[["additionalProperties"]])
+  # Every declared column is published; only the always-present ones are
+  # required, which is what makes an absent optional column legal.
+  expect_identical(names(row[["properties"]]), c("accuracy", "auc", "label"))
+  expect_identical(as.character(row[["required"]]), c("accuracy", "label"))
+  expect_identical(row[["properties"]][["accuracy"]][["maximum"]], 1)
+  expect_identical(
+    as.character(row[["properties"]][["auc"]][["type"]]),
+    c("number", "null")
+  )
+  expect_identical(sch[["x-rtemis"]][["container"]], "table")
+})
+
+
+test_that("a table round-trips through its schema", {
+  orig <- get_spec(demo_table_prop())
+  back <- schema_to_spec(spec_to_schema(orig))
+  expect_identical(back@container, "table")
+  expect_identical(back@nullable, orig@nullable)
+  expect_identical(back@required_columns, orig@required_columns)
+  expect_identical(names(back@columns), names(orig@columns))
+  for (nm in names(orig@columns)) {
+    a <- orig@columns[[nm]]
+    b <- back@columns[[nm]]
+    expect_identical(b@type, a@type)
+    expect_identical(b@minimum, a@minimum)
+    expect_identical(b@maximum, a@maximum)
+    expect_identical(b@nullable, a@nullable)
+  }
+})
+
+
+test_that("a class rebuilt from a published schema validates tables alike", {
+  Demo <- demo_table_class()
+  sch <- S7_to_JSONSchema(
+    Demo,
+    id = "https://schema.rtemis.org/r/demo_table/v1/schema.json"
+  )
+  Rebuilt <- JSONSchema_to_S7(sch, name = "DemoTableRebuilt")
+  expect_no_error(Rebuilt(overall = data.frame(accuracy = 0.9, label = "f1")))
+  expect_error(
+    Rebuilt(overall = data.frame(accuracy = 2, label = "x")),
+    "must be <= 1"
+  )
+  expect_error(
+    Rebuilt(overall = data.frame(accuracy = 0.9)),
+    "missing required column"
+  )
+})
+
+
+test_that("a table serializes row-oriented, keeping absent and null distinct", {
+  df <- data.frame(
+    accuracy = c(0.9, 0.8),
+    auc = c(0.81, NA),
+    label = c("f1", "f2")
+  )
+  # The write path's options, which decide this: an undefined cell must reach
+  # the wire as `null`, not as a missing key, or it would be indistinguishable
+  # from a column that was never computed.
+  json <- as.character(jsonlite::toJSON(df, auto_unbox = TRUE, na = "null"))
+  expect_match(json, '^\\[\\{"accuracy":0\\.9')
+  expect_match(json, '"auc":null')
+  restored <- jsonlite::fromJSON(json)
+  expect_identical(restored, df)
+  # A column never computed is simply absent from every row.
+  absent <- as.character(jsonlite::toJSON(
+    data.frame(accuracy = 0.9, label = "f1"),
+    auto_unbox = TRUE,
+    na = "null"
+  ))
+  expect_false(grepl("auc", absent, fixed = TRUE))
+})

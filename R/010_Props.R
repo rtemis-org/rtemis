@@ -64,7 +64,11 @@ NAME_BOUNDS <- c("feature_names", "numeric_feature_names")
 #            are an array, but a distinct R class, so the two cannot share a
 #            container value: `matrix` is an R `matrix`, a nested `array` is a
 #            list of vectors (per-tree weights, per-tree in-bag counts).
-PROP_CONTAINERS <- c("none", "array", "map", "matrix")
+# - "table"  a data.frame: heterogeneous named columns, each with its own type
+#            and bounds. Emitted row-oriented (an array of objects), the
+#            encoding pandas, polars and DataFrames.jl all read natively.
+#            `matrix` is the homogeneous, unlabelled counterpart.
+PROP_CONTAINERS <- c("none", "array", "map", "matrix", "table")
 
 # %% PROP_TYPES ----
 # JSON Schema base types a property's leaf value may take. "object" is an
@@ -106,12 +110,19 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #' @field nullable Logical: If TRUE, NULL is a valid value.
 #' @field tunable Logical: If TRUE, a vector of search values (length >= 1) is
 #'   accepted; if FALSE, only a scalar.
-#' @field container Character \{"none", "array", "map"\}: How values are
-#'   wrapped. Anything but "none" is mutually exclusive with `tunable` (a
-#'   container holds values; a tunable array holds search values).
+#' @field container Character \{"none", "array", "map", "matrix", "table"\}: How
+#'   values are wrapped. Anything but "none" is mutually exclusive with
+#'   `tunable` (a container holds values; a tunable array holds search values).
 #' @field items `PropertySpec` or NULL: Element spec, for nested shapes such as
 #'   a matrix (array of arrays) or a map of arrays. NULL means the element is
 #'   this spec's own leaf type and constraints.
+#' @field columns Named list of `PropertySpec` or NULL: One spec per column,
+#'   for a `table` container. Each describes a *cell*, the column being a
+#'   vector of them.
+#' @field required_columns Character or NULL: Names of the columns that are
+#'   always present. Any other declared column is optional, so its absence
+#'   means "not computed for this task" rather than "invalid". NULL means all
+#'   of them are required.
 #' @field broadcast Logical: If TRUE, a bare scalar is accepted in place of the
 #'   container, meaning "this value for every element".
 #' @field min_items Integer [1, Inf): Fewest elements an `array` container may
@@ -170,6 +181,16 @@ PropertySpec <- new_class(
     # while its own `properties` list is being evaluated. The validator below
     # enforces the type instead, and runs once the class exists.
     items = class_any,
+    # A `table`'s columns are heterogeneous, so one recursive `items` spec
+    # cannot describe them: each column carries its own type and bounds.
+    # `class_any` for the same reason as `items` -- the class cannot reference
+    # itself while its own `properties` list is being evaluated.
+    columns = class_any,
+    # Which columns are always present. Declaring every possible column and
+    # requiring only these is what lets a conditional column (an AUC that
+    # exists only for binary classification) be absent without being invalid,
+    # without needing class-level if/then vocabulary.
+    required_columns = NULL | class_character,
     broadcast = class_logical,
     # How many elements an array container holds, and whether they repeat.
     # Only "array" carries these: a matrix's rows and a map's keys have no
@@ -236,6 +257,54 @@ PropertySpec <- new_class(
     }
     if (self@container == "map" && is.null(self@items)) {
       return("@items must describe the value type when @container is 'map'.")
+    }
+    if (self@container == "table") {
+      if (!is.list(self@columns) || length(self@columns) == 0L) {
+        return(
+          "@columns must be a non-empty named list when @container is 'table'."
+        )
+      }
+      if (is.null(names(self@columns)) || any(!nzchar(names(self@columns)))) {
+        return("@columns must be fully named.")
+      }
+      if (anyDuplicated(names(self@columns)) > 0L) {
+        return("@columns must have unique names.")
+      }
+      for (nm in names(self@columns)) {
+        column <- self@columns[[nm]]
+        if (!S7_inherits(column, PropertySpec)) {
+          return(paste0("@columns[['", nm, "']] must be a PropertySpec."))
+        }
+        if (column@container != "none") {
+          # A column is a vector of cells; a cell that is itself a container
+          # has no row-oriented encoding a data frame reader would recognize.
+          return(paste0(
+            "@columns[['",
+            nm,
+            "']] must describe a scalar cell (@container 'none')."
+          ))
+        }
+      }
+      unknown <- setdiff(self@required_columns, names(self@columns))
+      if (length(unknown) > 0L) {
+        return(paste0(
+          "@required_columns names undeclared columns: ",
+          paste0("'", unknown, "'", collapse = ", "),
+          "."
+        ))
+      }
+    } else {
+      if (!is.null(self@columns)) {
+        return("@columns is only meaningful when @container is 'table'.")
+      }
+      if (!is.null(self@required_columns)) {
+        return(
+          "@required_columns is only meaningful when @container is 'table'."
+        )
+      }
+    }
+    if (self@container == "table" && !is.null(self@items)) {
+      return("@items and @columns are mutually exclusive.")
     }
     if (self@broadcast && self@container == "none") {
       return("@broadcast requires a @container to broadcast into.")
@@ -342,11 +411,12 @@ PropertySpec <- new_class(
 #'
 #' A container of scalars is a plain (possibly named) R vector; only a container
 #' whose elements are themselves containers needs a list. A matrix is its own
-#' kind: the same JSON shape as a nested array, a different R class.
+#' kind: the same JSON shape as a nested array, a different R class. So is a
+#' table, whose columns each carry their own type.
 #'
 #' @param spec `PropertySpec` object.
 #'
-#' @return Character: "matrix", "list", or "atomic".
+#' @return Character: "matrix", "table", "list", or "atomic".
 #'
 #' @author EDG
 #' @keywords internal
@@ -354,6 +424,9 @@ PropertySpec <- new_class(
 spec_r_kind <- function(spec) {
   if (spec@container == "matrix") {
     return("matrix")
+  }
+  if (spec@container == "table") {
+    return("table")
   }
   nested <- spec@container != "none" &&
     !is.null(spec@items) &&
@@ -397,6 +470,116 @@ validate_array_arity <- function(value, spec) {
 } # /rtemis::validate_array_arity
 
 
+# %% validate_table_column ----
+#' Check one column of a `table` container against its cell spec
+#'
+#' The column is a vector of cells, so the cell spec's bounds and enum apply
+#' elementwise. A cell spec's `nullable` decides whether NA is allowed: a
+#' metric that is undefined for a row (sensitivity for a class with no cases)
+#' is a real NA, not a malformed one.
+#'
+#' @param column Vector: One column of the data frame.
+#' @param spec `PropertySpec` object describing a cell.
+#'
+#' @return NULL if valid, otherwise character error message.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+validate_table_column <- function(column, spec) {
+  ok <- switch(
+    spec@type,
+    boolean = is.logical(column),
+    integer = is.integer(column),
+    number = is.numeric(column),
+    string = is.character(column),
+    object = is.list(column)
+  )
+  if (!ok) {
+    return(paste0("must be of type '", spec@type, "'."))
+  }
+  if (!spec@nullable && anyNA(column)) {
+    return("must not contain missing values.")
+  }
+  present <- column[!is.na(column)]
+  if (!is.null(spec@minimum) && any(present < spec@minimum)) {
+    return(paste0("must be >= ", spec@minimum, "."))
+  }
+  if (!is.null(spec@maximum) && any(present > spec@maximum)) {
+    return(paste0("must be <= ", spec@maximum, "."))
+  }
+  if (
+    !is.null(spec@exclusive_minimum) && any(present <= spec@exclusive_minimum)
+  ) {
+    return(paste0("must be > ", spec@exclusive_minimum, "."))
+  }
+  if (
+    !is.null(spec@exclusive_maximum) && any(present >= spec@exclusive_maximum)
+  ) {
+    return(paste0("must be < ", spec@exclusive_maximum, "."))
+  }
+  if (!is.null(spec@enum) && !all(present %in% spec@enum)) {
+    return(paste0(
+      "must be one of ",
+      paste0("'", spec@enum, "'", collapse = ", "),
+      "."
+    ))
+  }
+  NULL
+} # /rtemis::validate_table_column
+
+
+# %% validate_table ----
+#' Validate a `table` container against its column specs
+#'
+#' Every column present must be declared -- an undeclared one is a typo or a
+#' field nothing downstream knows how to read -- and every required column must
+#' be present. An optional declared column may be absent, which is how a
+#' conditional metric reports "not computed for this task".
+#'
+#' @param value Property value being set.
+#' @param spec `PropertySpec` object with `container = "table"`.
+#'
+#' @return NULL if valid, otherwise character error message.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+validate_table <- function(value, spec) {
+  if (!is.data.frame(value)) {
+    return("must be a data frame.")
+  }
+  declared <- names(spec@columns)
+  required <- spec@required_columns %||% declared
+  present <- names(value)
+  unknown <- setdiff(present, declared)
+  if (length(unknown) > 0L) {
+    return(paste0(
+      "has undeclared column(s) ",
+      paste0("'", unknown, "'", collapse = ", "),
+      "; declared columns are ",
+      paste0("'", declared, "'", collapse = ", "),
+      "."
+    ))
+  }
+  missing_required <- setdiff(required, present)
+  if (length(missing_required) > 0L) {
+    return(paste0(
+      "is missing required column(s) ",
+      paste0("'", missing_required, "'", collapse = ", "),
+      "."
+    ))
+  }
+  for (nm in present) {
+    msg <- validate_table_column(value[[nm]], spec@columns[[nm]])
+    if (!is.null(msg)) {
+      return(paste0("column '", nm, "' ", msg))
+    }
+  }
+  NULL
+} # /rtemis::validate_table
+
+
 # %% validate_with_spec ----
 #' Validate a property value against its PropertySpec
 #'
@@ -430,6 +613,9 @@ validate_with_spec <- function(value, spec) {
       return("must not contain missing values.")
     }
     return(NULL)
+  }
+  if (spec@container == "table") {
+    return(validate_table(value, spec))
   }
   if (spec@container == "map" && is.null(names(value))) {
     return("must be named.")
@@ -539,6 +725,7 @@ make_prop <- function(spec) {
   base_class <- switch(
     spec_r_kind(spec),
     matrix = S7::new_S3_class("matrix"),
+    table = class_data.frame,
     list = class_list,
     atomic_class
   )
@@ -980,6 +1167,90 @@ prop_matrix <- function(
 } # /rtemis::prop_matrix
 
 
+# %% prop_table ----
+#' Data frame (table) S7 property with attached PropertySpec
+#'
+#' A data frame with declared, heterogeneous columns — a metrics table, one row
+#' per class or per resample. Serializes row-oriented, as an array of objects,
+#' which pandas (`orient="records"`), polars and DataFrames.jl all read
+#' natively. Use `prop_matrix()` instead for a homogeneous numeric grid with no
+#' column identities.
+#'
+#' Declare every column that can ever appear and name only the always-present
+#' ones in `required`; an optional column's absence then reads as "not computed
+#' for this task" rather than as an invalid table.
+#'
+#' @param columns Named list of S7 properties built by `prop_*` factories: One
+#'   per column, each describing a *cell*. Their own defaults are unused.
+#' @param required Character, optional: Names of the always-present columns.
+#'   NULL means all of them.
+#' @param nullable Logical: If TRUE, NULL is a valid value.
+#' @param data_bound Character or NULL: Training-data dimension the row count is
+#'   tied to; see `DATA_BOUNDS`.
+#' @param data_dependent Logical: If TRUE, the value's shape follows one
+#'   dataset, so a form should not prompt for it. An annotation only; it does
+#'   not affect serialization.
+#' @param description Character: Human-readable description.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_table <- function(
+  columns,
+  required = NULL,
+  nullable = FALSE,
+  data_bound = NULL,
+  data_dependent = FALSE,
+  description = ""
+) {
+  if (!is.list(columns) || length(columns) == 0L || is.null(names(columns))) {
+    rtemis.core::abort(
+      "`columns` must be a non-empty named list of prop_* properties.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
+  column_specs <- lapply(names(columns), function(nm) {
+    spec <- get_spec(columns[[nm]])
+    if (is.null(spec)) {
+      rtemis.core::abort(
+        "`columns[['",
+        nm,
+        "']]` must be a property built by a prop_* factory.",
+        class = c("rtemis_type_error", "rtemis_input_error")
+      )
+    }
+    spec
+  })
+  names(column_specs) <- names(columns)
+  # Resolved here rather than left NULL so that the published `required` and
+  # the spec read back from it name the same set.
+  required <- required %||% names(column_specs)
+  make_prop(PropertySpec(
+    # A table has no single leaf type; each column carries its own. "object"
+    # names the row, which is what the row-oriented encoding emits.
+    type = "object",
+    default = NULL,
+    minimum = NULL,
+    maximum = NULL,
+    exclusive_minimum = NULL,
+    exclusive_maximum = NULL,
+    enum = NULL,
+    nullable = nullable,
+    tunable = FALSE,
+    container = "table",
+    items = NULL,
+    columns = column_specs,
+    required_columns = required,
+    broadcast = FALSE,
+    data_bound = data_bound,
+    data_dependent = data_dependent,
+    description = description
+  ))
+} # /rtemis::prop_table
+
+
 # %% prop_const ----
 #' Constant S7 property with attached PropertySpec
 #'
@@ -1145,6 +1416,12 @@ prop_bag <- function(
 #' @keywords internal
 #' @noRd
 get_spec <- function(prop) {
+  # An S7 property is a named list. Anything else was not built by a factory,
+  # which the callers that accept a property as an *argument* must be able to
+  # tell without tripping over `[[` on an atomic vector.
+  if (!is.list(prop)) {
+    return(NULL)
+  }
   prop[["spec"]]
 } # /rtemis::get_spec
 
@@ -1720,8 +1997,8 @@ route_config_assignment <- function(
 #' to recognize a sentence the writer had changed.
 #'
 #' @param data_bound Character: The bound; see `DATA_BOUNDS`.
-#' @param container Character \{"none", "array", "map", "matrix"\}: How values
-#' are wrapped.
+#' @param container Character \{"none", "array", "map", "matrix", "table"\}: How
+#' values are wrapped.
 #' @param broadcast Logical: Whether a bare scalar stands in for the container.
 #'
 #' @return Character: The sentence appended to the description.
@@ -1739,7 +2016,7 @@ data_bound_note <- function(data_bound, container, broadcast) {
     return("Values must name numeric training features.")
   }
   noun <- DATA_BOUND_NOUN[[data_bound]]
-  if (container == "matrix") {
+  if (container %in% c("matrix", "table")) {
     paste0("Must have one row per ", noun, ".")
   } else if (container == "map") {
     paste0("Must have one entry per ", noun, ".")
@@ -1821,6 +2098,25 @@ spec_to_schema <- function(spec, read_only = FALSE) {
       type = if (spec@nullable) I(c("array", "null")) else "array",
       items = row,
       minItems = 1L
+    )
+  } else if (spec@container == "table") {
+    # Row-oriented: an array of row objects. Every declared column appears in
+    # `properties`, but only the always-present ones in `required`, so an
+    # optional column simply does not appear in a row where it was not
+    # computed. `additionalProperties: false` makes an undeclared column an
+    # error rather than something a reader silently drops.
+    row <- list(
+      type = "object",
+      properties = lapply(spec@columns, spec_to_schema),
+      additionalProperties = FALSE
+    )
+    required <- spec@required_columns %||% names(spec@columns)
+    if (length(required) > 0L) {
+      row[["required"]] <- I(required)
+    }
+    list(
+      type = if (spec@nullable) I(c("array", "null")) else "array",
+      items = row
     )
   } else if (spec@container == "map") {
     # A string-keyed object of homogeneous values (per-feature centres).

@@ -56,8 +56,8 @@ schema_is_nullable <- function(x) {
 #' further in.
 #'
 #' @param x Named list: A JSON Schema property.
-#' @param container Character \{"none", "array", "map", "matrix"\}: How values
-#' are wrapped.
+#' @param container Character \{"none", "array", "map", "matrix", "table"\}: How
+#' values are wrapped.
 #' @param tunable Logical: Whether the property is tunable.
 #' @param broadcast Logical: Whether a bare scalar stands in for the container.
 #'
@@ -266,6 +266,27 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
       container = "none",
       broadcast = FALSE,
       constant = TRUE,
+      description = description
+    ))
+  }
+
+  if (container == "table") {
+    # The row object holds the column schemas; each column describes a cell, so
+    # it reads back as an element (its default is a placeholder nothing uses).
+    row <- x[["items"]]
+    columns <- lapply(row[["properties"]], schema_to_spec, element = TRUE)
+    return(PropertySpec(
+      type = type,
+      default = NULL,
+      nullable = schema_is_nullable(x),
+      tunable = FALSE,
+      container = "table",
+      items = NULL,
+      columns = columns,
+      required_columns = as.character(row[["required"]] %||% names(columns)),
+      broadcast = FALSE,
+      data_bound = data_bound,
+      data_dependent = isTRUE(ann[["data_dependent"]]),
       description = description
     ))
   }
