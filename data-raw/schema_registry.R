@@ -218,6 +218,31 @@ families <- list(
 
 
 flat_configs <- list(
+  # Not a config: the provenance block of a record. It is generated here so it
+  # is published like everything else, and `$ref`d by each record rather than
+  # restated in all of them.
+  provenance = list(
+    cls = Provenance,
+    title = "rtemis Provenance",
+    description = paste0(
+      "What produced a run record: package and language versions, platform, ",
+      "timing, how the run ended, and a fingerprint of each dataset used. ",
+      "Referenced by every `<family>/v1/record.json`."
+    ),
+    refs = c(
+      data_training = .url("datafingerprint"),
+      data_validation = .url("datafingerprint"),
+      data_test = .url("datafingerprint")
+    )
+  ),
+  datafingerprint = list(
+    cls = DataFingerprint,
+    title = "rtemis DataFingerprint",
+    description = paste0(
+      "Identity of one dataset: a content hash plus the structural facts that ",
+      "make a mismatch diagnosable rather than merely detectable."
+    )
+  ),
   execution = list(
     cls = ExecutionConfig,
     title = "rtemis ExecutionConfig",

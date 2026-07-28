@@ -700,15 +700,49 @@ method(
 apply_preprocessor <- function(preprocessor, new_data, verbosity = 1L) {
   # -> data.frame or data.table
   check_is_S7(preprocessor, Preprocessor)
-  config <- preprocessor@config
-  # Overwrite scale_centers, scale_coefficients, one_hot_levels, and remove_features
-  config@scale_centers <- preprocessor@values[["scale_centers"]]
-  config@scale_coefficients <- preprocessor@values[["scale_coefficients"]]
-  config@one_hot_levels <- preprocessor@values[["one_hot_levels"]]
-  config@remove_features <- preprocessor@values[["remove_features"]]
-
-  preprocessed(preprocess(new_data, config, verbosity = verbosity))
+  preprocessed(preprocess(
+    new_data,
+    fitted_config(preprocessor),
+    verbosity = verbosity
+  ))
 } # /rtemis::apply_preprocessor
+
+
+# %% fitted_config ----
+#' A `Preprocessor`'s config with its learned values filled in
+#'
+#' `@config` holds what the user asked for and `@values` what preprocessing
+#' learned, which keeps the input intact — but re-applying to new data needs the
+#' two merged, and so does a run record, which must report the values actually
+#' used. One merge, so the two cannot disagree.
+#'
+#' The four fields are settable inputs: supplying `scale_centers` makes
+#' `preprocess()` use it instead of computing one. That is why the merge is
+#' `@values` over `@config` and not the reverse — a learned value only fills a
+#' slot the user left empty.
+#'
+#' @param preprocessor `Preprocessor` object.
+#'
+#' @return `PreprocessorConfig` with the learned values applied.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+fitted_config <- function(preprocessor) {
+  config <- preprocessor@config
+  for (nm in c(
+    "scale_centers",
+    "scale_coefficients",
+    "one_hot_levels",
+    "remove_features"
+  )) {
+    learned <- preprocessor@values[[nm]]
+    if (!is.null(learned)) {
+      prop(config, nm) <- learned
+    }
+  }
+  config
+} # /rtemis::fitted_config
 
 
 # %% one_hot ----

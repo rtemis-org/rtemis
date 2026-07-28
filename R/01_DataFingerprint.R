@@ -119,10 +119,10 @@ DataFingerprint <- new_class(
     ),
     # Computed: which contexts can recompute and compare this hash. Derived from
     # `method` so it cannot contradict it.
-    portability = new_property(
+    portability = prop_computed(new_property(
       class_character,
       getter = function(self) hash_portability(self@method)
-    )
+    ))
   ),
   validator = function(self) {
     if (!nzchar(self@hash)) {

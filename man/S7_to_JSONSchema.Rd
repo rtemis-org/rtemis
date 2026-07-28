@@ -12,6 +12,7 @@ S7_to_JSONSchema(
   base = NULL,
   required = NULL,
   record = FALSE,
+  provenance_url = NULL,
   extra = NULL,
   refs = NULL,
   closed = TRUE,
@@ -44,6 +45,10 @@ actually used, so nothing in it may fall back to a reader's defaults — an
 unset value is written as an explicit \code{null} rather than omitted. The
 difference between an input schema and a record schema is exactly this;
 membership is identical.}
+
+\item{provenance_url}{Character or NULL: If set (and \code{record} is TRUE), adds
+a required \code{provenance} property \verb{$ref}ing that schema. Only a top-level
+record carries it; a nested one inherits its parent's.}
 
 \item{extra}{Named list merged into the schema after generation, for
 cross-field constraints that are not per-property (e.g. an \code{allOf} of

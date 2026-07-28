@@ -14,6 +14,15 @@ args <- commandArgs(trailingOnly = TRUE)
 schema_repo <- if (length(args) >= 1L) args[[1L]] else "~/Schemas/schema"
 schema_repo <- path.expand(schema_repo)
 base_url <- "https://schema.rtemis.org"
+# `$ref`d by every top-level record. The two schemas that *make up* a record —
+# provenance and the fingerprints it holds — do not carry one themselves.
+provenance_url <- paste0(base_url, "/provenance/v1/schema.json")
+record_parts <- c("provenance", "datafingerprint")
+# Only a *pipeline* record represents a run, so only one carries provenance. A
+# component config (preprocessor, execution, ...) has a record form too, but it
+# appears nested inside a pipeline record and takes provenance from there;
+# requiring its own would demand a second copy of the same block.
+pipeline_records <- c("supervised", "decompose", "cluster")
 
 # Registry ------------------------------------------------------------------
 # Per family: the base class, the payload field name, the dispatcher's title and
@@ -56,6 +65,7 @@ for (family in names(families)) {
         description = algo[["desc"]],
         base = fam[["base_class"]],
         record = kind == "record",
+        # A leaf is nested under its dispatcher, which carries the block.
         extra = algo[["extra"]],
         refs = algo[["refs"]],
         closed = !top_level
@@ -112,7 +122,10 @@ for (family in names(flat_configs)) {
   cfg <- flat_configs[[family]]
   dir <- file.path(schema_repo, family, "v1")
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
-  for (kind in c("schema", "record")) {
+  # A record's own components have no record form: they *are* the record's
+  # furniture, not configs a run resolves.
+  kinds <- if (family %in% record_parts) "schema" else c("schema", "record")
+  for (kind in kinds) {
     id <- paste0(base_url, "/", family, "/v1/", kind, ".json")
     schema <- S7_to_JSONSchema(
       cfg[["cls"]],
@@ -120,6 +133,9 @@ for (family in names(flat_configs)) {
       title = cfg[["title"]],
       description = cfg[["description"]],
       record = kind == "record",
+      provenance_url = if (kind == "record" && family %in% pipeline_records) {
+        provenance_url
+      },
       extra = cfg[["extra"]],
       refs = cfg[["refs"]],
       instance_schema_url = id
@@ -131,7 +147,7 @@ for (family in names(flat_configs)) {
       verbosity = 0L
     )
   }
-  cat(sprintf("%-16s flat config schema + record\n", family))
+  cat(sprintf("%-16s %s\n", family, paste(kinds, collapse = " + ")))
 }
 
 # `supervised/v1` is now generated from `SuperConfig` (with `$ref`s to the

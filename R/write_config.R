@@ -63,6 +63,16 @@ write_config <- new_generic(
 #' @author EDG
 #' @keywords internal
 #' @noRd
+# Record counterparts, keyed the same way. A record is the same field
+# vocabulary with every value resolved, so it is a sibling document rather than
+# a different family.
+.RTEMIS_RECORD_SCHEMAS <- c(
+  supervised = "https://schema.rtemis.org/supervised/v1/record.json",
+  decompose = "https://schema.rtemis.org/decompose/v1/record.json",
+  cluster = "https://schema.rtemis.org/cluster/v1/record.json"
+) # /rtemis::.RTEMIS_RECORD_SCHEMAS
+
+
 .RTEMIS_SUPPORTED_CONFIGS <- c(
   supervised = "https://schema.rtemis.org/supervised/v1/schema.json",
   decompose = "https://schema.rtemis.org/decompose/v1/schema.json",
@@ -241,3 +251,49 @@ method(write_config, ClusteringConfig) <- function(
   .write_config_json(payload, file, overwrite, verbosity)
   invisible(x)
 } # /rtemis::write_config.ClusteringConfig
+
+
+# %% write_record ----
+#' Write a run record to a JSON file
+#'
+#' A record states what a run actually did: every value resolved, where each one
+#' came from, and what produced it. Deliberately a separate function rather than
+#' an argument to [write_config] — the two artifacts answer different questions,
+#' and a caller should have to say which it wants.
+#'
+#' Unlike a config, a record is **not compacted**: an unset field is written as
+#' an explicit `null` rather than omitted, so nothing in it falls back to a
+#' reader's defaults. That is the whole claim a record makes.
+#'
+#' @param x Fitted model object, or a record list from [record].
+#' @param file Character: Path to write to.
+#' @param overwrite Logical: If TRUE, overwrite an existing file.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return `x`, invisibly.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' \dontrun{
+#' mod <- train(iris, hyperparameters = setup_CART())
+#' write_record(mod, "train_CART.record.json")
+#' }
+write_record <- function(x, file, overwrite = FALSE, verbosity = 1L) {
+  check_dependencies("jsonlite")
+  payload <- if (is.list(x) && !S7_inherits(x)) x else record(x)
+  json_str <- as.character(jsonlite::toJSON(
+    payload,
+    auto_unbox = TRUE,
+    pretty = TRUE,
+    na = "null",
+    null = "null"
+  ))
+  write_lines(
+    json_str,
+    file = file,
+    overwrite = overwrite,
+    verbosity = verbosity
+  )
+  invisible(x)
+} # /rtemis::write_record

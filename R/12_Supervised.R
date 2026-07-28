@@ -141,7 +141,13 @@ Supervised <- new_class(
     # models trained on different inputs is detectable rather than silent.
     data_fingerprint = NULL | DataFingerprint,
     session_info = class_any,
-    session = NULL | SupervisedSession
+    session = NULL | SupervisedSession,
+    # The run's *input*, which nothing else here carries: the hyperparameters on
+    # this object are the ones that ran, resolved, and only the input says what
+    # was asked for. `record()` needs both to state where each value came from.
+    # Assigned by `train()` after construction rather than threaded through five
+    # constructors that have no use for it.
+    config = NULL | SuperConfig
   ),
   constructor = function(
     algorithm,
@@ -1588,7 +1594,8 @@ SupervisedRes <- new_class(
     varimp = NULL | class_list,
     question = NULL | class_character,
     extra = class_any,
-    # See `Supervised` for the provenance rationale.
+    # See `Supervised` for the provenance and input rationale.
+    config = NULL | SuperConfig,
     data_fingerprint = NULL | DataFingerprint,
     session_info = class_any,
     session = NULL | SupervisedSession

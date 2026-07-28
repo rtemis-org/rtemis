@@ -633,3 +633,67 @@ test_that("document metadata is allowed through the check", {
     PreprocessorConfig
   )
 })
+
+
+# %% Record origins ----
+# A record must say where each value came from. The pair that makes it
+# answerable is the run's input (`Supervised@config`) and what it resolved.
+test_that("origin distinguishes user, default, derived and tuned", {
+  mod <- train(
+    iris,
+    hyperparameters = setup_LightRF(nrounds = 100L),
+    verbosity = 0L
+  )
+  rec <- config_record(mod@config@hyperparameters, mod@hyperparameters)
+  origin <- rec[["origin"]]
+  # Supplied, and different from the declared default.
+  expect_identical(origin[["nrounds"]], "user")
+  # Untouched: the default applied and nothing changed it.
+  expect_identical(origin[["num_leaves"]], "default")
+  # NULL in, a value out — but a *task-type* default, not a measurement: the
+  # outcome being a multiclass factor is what was asked for, so `objective`
+  # restates the question rather than reporting anything about the data. That
+  # is what `default_on_null` declares.
+  expect_identical(origin[["objective"]], "default")
+  expect_identical(rec[["objective"]], "multiclass")
+  # A value the run measured from the data *is* derived.
+  expect_identical(origin[["feature_fraction"]], "derived")
+})
+
+test_that("a searched hyperparameter is `tuned`, not `derived`", {
+  mod <- train(
+    iris,
+    hyperparameters = setup_CART(maxdepth = c(2L, 4L)),
+    tuner_config = setup_GridSearch(
+      resampler_config = setup_Resampler(n_resamples = 2L, type = "KFold")
+    ),
+    verbosity = 0L
+  )
+  origin <- config_record(
+    mod@config@hyperparameters,
+    mod@hyperparameters
+  )[["origin"]]
+  # The declaration decides which: a search space narrowing to one value is
+  # tuning, and `tunable` is what says so.
+  expect_identical(origin[["maxdepth"]], "tuned")
+  expect_identical(origin[["cp"]], "default")
+})
+
+test_that("a learned preprocessor value is `derived`, a supplied one `user`", {
+  prp <- preprocess(iris[, 1:4], scale = TRUE, center = TRUE, verbosity = 0L)
+  rec <- config_record(prp@config, fitted_config(prp))
+  expect_identical(rec[["origin"]][["scale"]], "user")
+  # `preprocess()` computed these; the config alone would report NULL.
+  expect_identical(rec[["origin"]][["scale_centers"]], "derived")
+  expect_false(is.null(rec[["scale_centers"]]))
+})
+
+test_that("a record keeps unset fields rather than omitting them", {
+  # `required` in a record schema means every field, so an unset one is stated
+  # as null rather than left to a reader's defaults.
+  cfg <- setup_Resampler(type = "KFold", n_resamples = 3L)
+  rec <- config_record(cfg, cfg)
+  expect_true("seed" %in% names(rec))
+  expect_null(rec[["seed"]])
+  expect_identical(rec[["origin"]][["seed"]], "default")
+})

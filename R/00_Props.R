@@ -1181,6 +1181,11 @@ prop_accepts_null <- function(prop) {
 #              centres `preprocess()` learns). Declared with `prop_state()`,
 #              and emitted `readOnly`: a reader needs the field to reconstruct
 #              the class, but must not prompt for it.
+# - "computed" A view derived from other published fields, never stored
+#              (`DataFingerprint@portability` is a function of `@method`).
+#              Declared with `prop_computed()`. Absent from the schema and from
+#              a written config: publishing it would be a second representation
+#              of something already there, free to disagree with the first.
 #
 # State is never written to a config: `lambda.min` and `best_iter` are copied
 # off the fitted model, which is the carrier, so the copy is re-derived on read.
@@ -1245,7 +1250,8 @@ prop_state <- function(property) {
 #' @keywords internal
 #' @noRd
 prop_serialized <- function(prop) {
-  if (identical(prop_role(prop), "state")) {
+  role <- prop_role(prop)
+  if (identical(role, "state") || identical(role, "computed")) {
     return(FALSE)
   }
   spec <- get_spec(prop)
@@ -1262,13 +1268,37 @@ prop_serialized <- function(prop) {
 } # /rtemis::prop_serialized
 
 
+# %% prop_computed ----
+#' S7 property that is a derived view, not part of the contract
+#'
+#' Marks a computed property as *derivable from other published fields*, so it
+#' is omitted from the generated schema and from a written config rather than
+#' aborting generation as undeclared drift.
+#'
+#' Unlike `prop_state()` this takes a plain S7 property: a view has a getter and
+#' no `PropertySpec`, there being nothing to validate — its value is a function
+#' of fields that are themselves validated.
+#'
+#' @param property S7 property (typically one with a `getter`).
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_computed <- function(property) {
+  property[["role"]] <- "computed"
+  property
+} # /rtemis::prop_computed
+
+
 # %% prop_role ----
 #' Role of an S7 property
 #'
 #' @param prop S7 property (an element of `Class@properties`).
 #'
-#' @return Character: "config", "state", or `NA_character_` for a spec-less
-#'   property with no declared role (i.e. drift).
+#' @return Character: "config", "state", "computed", or `NA_character_` for a
+#'   spec-less property with no declared role (i.e. drift).
 #'
 #' @author EDG
 #' @keywords internal
@@ -1897,11 +1927,15 @@ spec_to_schema <- function(spec, read_only = FALSE) {
 # - "derived"  computed by the run from the data (LightGBM's `objective` from
 #              the outcome type, the centres `preprocess()` learns)
 # - "tuned"    selected by the Tuner from a search space
+# - "unset"    the run never determined it -- it failed or was cancelled first.
+#              The value is `null`, and saying so is what lets an incomplete
+#              record still state something true about every field, instead of
+#              making completeness a conditional on `outcome`.
 #
 # "default" is kept distinct from "user" because folding them would claim
 # somebody chose `strat_n_bins = 4`; "tuned" from "derived" because a value
 # cross-validation selected is a different fact from one read off the data.
-VALUE_ORIGINS <- c("user", "default", "derived", "tuned")
+VALUE_ORIGINS <- c("user", "default", "derived", "tuned", "unset")
 
 
 # %% origin_schema ----
@@ -1929,13 +1963,14 @@ VALUE_ORIGINS <- c("user", "default", "derived", "tuned")
 origin_schema <- function(props) {
   entries <- lapply(names(props), function(nm) {
     spec <- get_spec(props[[nm]])
+    # "unset" is always permitted: any field can be one the run never reached.
     allowed <- if (!is.null(spec) && spec@default_on_null) {
       # NULL applies the task-type default, which is a restatement of the
       # question rather than anything measured or searched.
-      c("user", "default")
+      c("user", "default", "unset")
     } else if (identical(prop_role(props[[nm]]), "state")) {
       # Only a run writes it, so it was computed one way or the other.
-      c("derived", "tuned")
+      c("derived", "tuned", "unset")
     } else if (!is.null(spec) && (spec@tunable || spec@tune_on_null)) {
       # `tune_on_null` is the declaration that NULL means "determine this by
       # tuning" (GLMNET's `lambda`), so such a field can be tuned without
@@ -2005,6 +2040,9 @@ prop_to_schema <- function(prop) {
 #' @param required Character: Names of required properties. Default NULL: all
 #'   optional, so omitted fields fall back to their `setup_*` defaults on read
 #'   (matching [write_config]'s compaction). Ignored when `record` is TRUE.
+#' @param provenance_url Character or NULL: If set (and `record` is TRUE), adds
+#'   a required `provenance` property `$ref`ing that schema. Only a top-level
+#'   record carries it; a nested one inherits its parent's.
 #' @param record Logical: If TRUE, emit the **record** form of the schema: the
 #'   same properties, but every one required. A record states what a run
 #'   actually used, so nothing in it may fall back to a reader's defaults — an
@@ -2046,6 +2084,7 @@ S7_to_JSONSchema <- function(
   base = NULL,
   required = NULL,
   record = FALSE,
+  provenance_url = NULL,
   extra = NULL,
   refs = NULL,
   closed = TRUE,
@@ -2079,6 +2118,11 @@ S7_to_JSONSchema <- function(
   }
   ref_props <- props[names(props) %in% names(refs)]
   props <- props[!names(props) %in% names(refs)]
+  # A derived view is not part of the contract: it is a function of fields the
+  # schema already declares, so publishing it would let the two disagree.
+  props <- props[
+    !vapply(props, function(p) identical(prop_role(p), "computed"), logical(1L))
+  ]
   specless <- names(props)[vapply(
     props,
     function(p) is.null(get_spec(p)),
@@ -2100,7 +2144,13 @@ S7_to_JSONSchema <- function(
   # Nested config properties reference their own schema. A property whose S7
   # class is a union containing NULL is optional, so it also admits null.
   for (nm in names(ref_props)) {
-    ref <- list(`$ref` = unname(refs[[nm]]))
+    target <- unname(refs[[nm]])
+    if (record) {
+      # A record nests records: the input schemas are closed and do not declare
+      # `origin`, so pointing at one would reject the very block it describes.
+      target <- sub("/schema\\.json$", "/record.json", target)
+    }
+    ref <- list(`$ref` = target)
     properties[[nm]] <- if (prop_accepts_null(ref_props[[nm]])) {
       list(oneOf = list(list(type = "null"), ref))
     } else {
@@ -2126,13 +2176,31 @@ S7_to_JSONSchema <- function(
   }
   if (record) {
     # Every emitted property, `$schema` excluded: it identifies the document
-    # rather than recording anything the run did.
-    required <- setdiff(names(properties), "$schema")
+    # rather than recording anything the run did. Constants are excluded too —
+    # the algorithm implies them, `prop_serialized()` keeps them out of a
+    # written record, and requiring what is never written would reject every
+    # record rtemis produces.
+    constants <- names(Filter(
+      function(p) {
+        spec <- get_spec(p)
+        !is.null(spec) && spec@constant
+      },
+      props
+    ))
+    required <- setdiff(names(properties), c("$schema", constants))
     # A nested config carries its own `origin`, so it is not covered here.
     origin_props <- props[intersect(required, names(props))]
+    origin_props <- origin_props[setdiff(names(origin_props), constants)]
     if (length(origin_props) > 0L) {
       properties[["origin"]] <- origin_schema(origin_props)
       required <- c(required, "origin")
+    }
+    # What produced the record, `$ref`d rather than restated in all 41 of them.
+    # Nested records (a `preprocessor_config` inside a supervised record) get it
+    # from their parent, so only a top-level record carries the block.
+    if (!is.null(provenance_url)) {
+      properties[["provenance"]] <- list(`$ref` = provenance_url)
+      required <- c(required, "provenance")
     }
   }
   schema <- list(

@@ -1438,3 +1438,46 @@ test_that("resolved values survive for every algorithm that resolves one", {
   # `lambda` is chosen by cv.glmnet during the fit.
   expect_false(is.null(glmnet_mod@hyperparameters[["lambda"]]))
 })
+
+
+# %% The run's input is stored beside what ran ----
+# A record must say where each value came from, and that needs both: the
+# resolved hyperparameters say what ran, the stored config says what was asked
+# for. Neither is derivable from the other.
+test_that("train() stores the input config alongside the resolved one", {
+  mod <- train(iris, hyperparameters = setup_LightRF(), verbosity = 0L)
+  expect_s7_class(mod@config, SuperConfig)
+  # The distinction that makes `origin` computable: NULL in, resolved out.
+  expect_null(mod@config@hyperparameters[["objective"]])
+  expect_identical(mod@hyperparameters[["objective"]], "multiclass")
+  # A value the user did supply reads back unchanged on both sides.
+  expect_identical(mod@config@hyperparameters[["nrounds"]], 500L)
+})
+
+test_that("a tuning search space survives on the input config", {
+  # After tuning, `@hyperparameters` holds the single chosen value; only the
+  # input still shows it was searched, which is what marks the origin `tuned`.
+  mod <- train(
+    iris,
+    hyperparameters = setup_CART(maxdepth = c(2L, 4L)),
+    tuner_config = setup_GridSearch(
+      resampler_config = setup_Resampler(n_resamples = 2L, type = "KFold")
+    ),
+    verbosity = 0L
+  )
+  expect_length(mod@config@hyperparameters[["maxdepth"]], 2L)
+  expect_length(mod@hyperparameters[["maxdepth"]], 1L)
+})
+
+test_that("only the top-level call carries the input", {
+  # One record per `train()` call, not one per outer resample: a sub-model
+  # shares its parent's input.
+  mod <- train(
+    iris,
+    hyperparameters = setup_CART(),
+    outer_resampling_config = setup_Resampler(n_resamples = 2L, type = "KFold"),
+    verbosity = 0L
+  )
+  expect_s7_class(mod@config, SuperConfig)
+  expect_null(mod@models[[1L]]@config)
+})

@@ -241,6 +241,28 @@ train <- function(
   check_is_S7(hyperparameters, Hyperparameters)
   algorithm <- hyperparameters@algorithm
 
+  # The run's input, captured before anything resolves it. Tuning narrows a
+  # search space and `train_()` fills in what the data decides, so by the time
+  # the model is built `hyperparameters` says what *ran*; only this says what
+  # was *asked for*. `record()` needs both to report where each value came from.
+  # `dat_training_path` stays unset for an in-memory run -- data identity is the
+  # provenance block's `DataFingerprint`, not a path.
+  input_config <- setup_SuperConfig(
+    weights = weights,
+    preprocessor_config = preprocessor_config,
+    decomposition_config = decomposition_config,
+    hyperparameters = hyperparameters,
+    tuner_config = tuner_config,
+    outer_resampling_config = outer_resampling_config,
+    execution_config = execution_config,
+    question = question,
+    # A nested call passes `verbosity - 1L`, so this can be negative -- an
+    # internal "quieter than silent" convention a config cannot express, its
+    # `verbosity` being bounded at 0. Clamped rather than propagated: it affects
+    # messages, never results.
+    verbosity = max(0L, verbosity)
+  )
+
   # Initial check targetting non-numeric or factor columns
   # Will be checked again by individual learners;
   # this stops sending to all resamples and failing, which fits our stop early design.
@@ -922,6 +944,13 @@ train <- function(
       question = question,
       data_fingerprint = training_fingerprint
     )
+  }
+
+  # Attach the run's input ----
+  # Only the top-level call: a per-outer-fold sub-model shares the same input,
+  # and one record per `train()` call is the design (see config-artifacts.md).
+  if (session_created) {
+    mod@config <- input_config
   }
 
   # Finalize observability session ----
