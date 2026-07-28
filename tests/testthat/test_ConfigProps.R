@@ -3,8 +3,8 @@
 # 2026- EDG rtemis.org
 
 # Shared invariants for the DecompositionConfig / ClusteringConfig families,
-# migrated to the prop_* factories (see 09_DecompositionConfig.R,
-# 07_ClusteringConfig.R). Mirrors the Hyperparameters drift/serialization
+# migrated to the prop_* factories (see 150_DecompositionConfig.R,
+# 120_ClusteringConfig.R). Mirrors the Hyperparameters drift/serialization
 # guards.
 
 # %% Decomposition ----

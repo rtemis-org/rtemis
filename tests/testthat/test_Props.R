@@ -8,7 +8,7 @@
 # LightRF hyperparameters declared with the prop_* factories: types, defaults,
 # bounds, tunability, and descriptions in ONE place, from which both the S7
 # validators and the JSON Schema are generated. Defined here (not in R/) until
-# the migration of 02_Hyperparameters.R.
+# the migration of 070_Hyperparameters.R.
 LightRFProps <- S7::new_class(
   name = "LightRFProps",
   package = NULL,
@@ -615,7 +615,7 @@ testthat::test_that("schema serializes to JSON and round-trips", {
 # `data_bound` declares that a value's valid range depends on the training data.
 # It is deliberately NOT enforced at construction time - there is no data yet -
 # but by check_data_bounds() via validate_hyperparameters(), which train() calls
-# before tuning. See DATA_BOUNDS in 00_Props.R.
+# before tuning. See DATA_BOUNDS in 010_Props.R.
 
 test_that("data_bound rejects names outside the vocabulary", {
   expect_error(prop_integer(1L, data_bound = "n_bananas"))

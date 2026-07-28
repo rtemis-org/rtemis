@@ -1,4 +1,4 @@
-# S7_init.R
+# 030_init.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -343,7 +343,7 @@ get_metric <- new_generic("get_metric", "x")
 #' Tunable hyperparameters hold a *vector* of search values at the first call
 #' site, so methods must validate every element (`any(...)`, not `>`).
 #'
-#' The default method (on `Hyperparameters`, in 02_Hyperparameters.R) checks
+#' The default method (on `Hyperparameters`, in 070_Hyperparameters.R) checks
 #' every property declaring a `data_bound`, so most algorithms need no method of
 #' their own. Write one only for a constraint the `data_bound` vocabulary cannot
 #' express, and call `check_data_bounds()` from it so the declarative checks

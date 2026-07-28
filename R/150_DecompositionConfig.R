@@ -1,9 +1,9 @@
-# 09_DecompositionConfig.R
+# 150_DecompositionConfig.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
 # Architecture ----
-# Mirrors 02_Hyperparameters.R: each `*Config` subclass declares its
+# Mirrors 070_Hyperparameters.R: each `*Config` subclass declares its
 # algorithm parameters with the `prop_*` factories, from which the S7
 # validators, the `config` list, and the JSON Schema (S7_to_JSONSchema) are
 # generated. The abstract `DecompositionConfig` superclass provides the

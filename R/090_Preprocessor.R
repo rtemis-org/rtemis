@@ -1,4 +1,4 @@
-# S7_Preprocessor.R
+# 090_Preprocessor.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -593,7 +593,7 @@ method(preprocessed, Preprocessor) <- function(x) {
 #' are `readOnly` in the schema, so a user-authored config carries none and the
 #' `setup_*` defaults leave them unset. A config that does carry them — a fitted
 #' preprocessor written back out — restores them, which is why they are
-#' serialized at all (see "Property roles" in `00_Props.R`).
+#' serialized at all (see "Property roles" in `010_Props.R`).
 #'
 #' @param x Named list of `setup_Preprocessor` parameters.
 #'

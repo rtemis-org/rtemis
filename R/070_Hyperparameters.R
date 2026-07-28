@@ -1,4 +1,4 @@
-# 02_Hyperparameters.R
+# 070_Hyperparameters.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -11,7 +11,7 @@
 
 # Architecture ----
 # Every `*Hyperparameters` class declares its hyperparameters with the
-# `prop_*` factories (00_Props.R): one declaration per hyperparameter carries
+# `prop_*` factories (010_Props.R): one declaration per hyperparameter carries
 # the type, default, bounds, enum, tunability, and description, from which S7
 # validators, the tunable/fixed name vectors, the `hyperparameters` list, and
 # the JSON Schema (S7_to_JSONSchema) are all generated. Parameters whose R
@@ -139,7 +139,7 @@ resolve_data_bounds <- function(x, needed = DATA_BOUNDS, has_outcome = TRUE) {
 #' Engine behind the default `validate_hyperparameters()` method, and usable
 #' with any config object whose properties carry `PropertySpec`s. Walks the
 #' class's properties, and for each one declaring a `data_bound` (see
-#' `DATA_BOUNDS` in 00_Props.R) checks the current value against the resolved
+#' `DATA_BOUNDS` in 010_Props.R) checks the current value against the resolved
 #' dimension:
 #'
 #' - scalar property: every value must be `<=` the dimension. Tunable

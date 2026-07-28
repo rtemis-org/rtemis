@@ -1,9 +1,9 @@
-# 00_Props_read.R
+# 020_Props_read.R
 # ::rtemis::
 # 2026- EDG rtemis.org
 
 # The read direction: JSON Schema -> PropertySpec -> S7 class, inverting
-# `spec_to_schema()` / `S7_to_JSONSchema()` in `00_Props.R`.
+# `spec_to_schema()` / `S7_to_JSONSchema()` in `010_Props.R`.
 #
 # What makes this possible is `x-rtemis`, which carries the axes standard JSON
 # Schema cannot express. Two of them are load-bearing here:
