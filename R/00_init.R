@@ -1116,13 +1116,14 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 # %% serializable_props ----
 #' Properties of an S7 object to serialize
 #'
-#' The default returns every property. Config-family classes
-#' (`Hyperparameters`, `DecompositionConfig`, `ClusteringConfig`) override
-#' this to return only their canonical public shape (`algorithm` + the
-#' computed parameter list + any base fields), so the per-algorithm
-#' properties they now declare — redundant with the computed list — are not
-#' duplicated into the serialized output. See methods in the respective
-#' class files.
+#' The default keeps every property `prop_serialized()` admits, so a flat config
+#' drops the same fields a config family does rather than emitting whatever it
+#' happens to hold. Config-family classes (`Hyperparameters`,
+#' `DecompositionConfig`, `ClusteringConfig`) override this to return their
+#' canonical public shape (`algorithm` + the computed parameter list + any base
+#' fields), so the per-algorithm properties they declare — redundant with the
+#' computed list — are not duplicated into the serialized output. See methods in
+#' the respective class files.
 #'
 #' @param x S7 object.
 #'
@@ -1134,7 +1135,18 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 serializable_props <- new_generic("serializable_props", "x")
 
 method(serializable_props, S7_object) <- function(x) {
-  props(x)
+  values <- props(x)
+  declared <- S7_class(x)@properties
+  keep <- vapply(
+    names(values),
+    function(nm) {
+      # A property this object holds but does not declare cannot be judged;
+      # keep it rather than silently dropping data.
+      is.null(declared[[nm]]) || prop_serialized(declared[[nm]])
+    },
+    logical(1L)
+  )
+  values[keep]
 } # /rtemis::serializable_props.S7_object
 
 

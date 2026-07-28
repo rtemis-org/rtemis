@@ -1128,54 +1128,106 @@ prop_accepts_null <- function(prop) {
 
 
 # %% Property roles ----
-# Every property of a config class plays one of two roles, and the role decides
-# both what the generated JSON Schema says and what `write_config()` emits:
+# Two orthogonal axes, deliberately not one:
 #
-# - "config"   Built by a `prop_*` factory, so it carries a `PropertySpec`:
-#              schema generated from the spec, serialized. The common case;
-#              inferred, never declared.
-# - "state"    Run state written during training or tuning (GLMNET's
-#              `lambda.min`, LightGBM's `best_iter`). Declared with
-#              `prop_state()`. Never in a schema, never serialized, re-derived
-#              on read.
+# `role` -- WHO writes the value, which decides what the schema says.
+#
+# - "config"   Supplied by the user. Built by a `prop_*` factory, so it carries
+#              a `PropertySpec`. The common case; inferred, never declared.
+# - "state"    Written by the run, not the user (GLMNET's `lambda.min`, the
+#              centres `preprocess()` learns). Declared with `prop_state()`,
+#              and emitted `readOnly`: a reader needs the field to reconstruct
+#              the class, but must not prompt for it.
+#
+# `serialize` -- whether `write_config()` emits it, which is a question about
+# CARRIERS, not about who wrote it. State is not serialized unless the config
+# is the only thing holding the value:
+#
+# - `lambda.min` / `best_iter` are copied off the fitted model, so the model is
+#   the carrier and the copy need not round-trip.
+# - `scale_centers` is read back by `preprocess()` to re-apply learned centering
+#   to new data (`preprocess.R`). Nothing else holds it, so dropping it would
+#   silently fall back to the unfitted `center` value -- wrong numbers, no
+#   error. Declared `prop_state(..., serialize = TRUE)`.
+#
+# `prop_serialized()` answers the question for both roles, and every family's
+# `serializable_props` goes through it -- a flat config must not serialize a
+# field a nested one drops just because it has no method of its own.
 #
 # A spec-less property with no role is drift: it is neither a declared input
 # nor declared state, and schema generation aborts rather than quietly emitting
 # an incomplete contract.
 #
-# `data_dependent` is a second, orthogonal axis on a "config" property: the
-# value's shape is tied to a particular dataset (per-case IDs, learned scaling
-# centres), so it appears in the schema but is not written to a portable
-# config.
+# `data_dependent` is a third axis, and for a *config* property it is also the
+# reason not to serialize: per-case grouping IDs have no portable form. For
+# state, `serialize` decides and `data_dependent` is left as the annotation a
+# form builder reads to skip the field.
 
 # %% prop_state ----
 #' S7 property holding run state rather than configuration
 #'
-#' Written during training / tuning. Appears in the generated schema marked
+#' Written by the run, not the user. Appears in the generated schema marked
 #' `readOnly` — a reader needs the field to reconstruct the class, and a run
-#' record carries it — but is never written to a portable config, where it
-#' would be re-derived anyway.
+#' record carries it — so a form builder shows it without prompting for it.
 #'
 #' Wraps a property built by a `prop_*` factory, so run state is declared with
 #' the same type, bounds and description as configuration.
 #'
 #' @param property S7 property built by a `prop_*` factory.
+#' @param serialize Logical: Whether `write_config()` emits the value. FALSE
+#'   (the default) when the fitted model already carries it, so the copy on the
+#'   config is a convenience view. TRUE when the config is the only carrier and
+#'   dropping the value would silently change behavior on re-read — the
+#'   centring and one-hot levels `preprocess()` learns. See "Property roles".
 #'
 #' @return S7 property.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-prop_state <- function(property) {
+prop_state <- function(property, serialize = FALSE) {
   if (is.null(get_spec(property))) {
     rtemis.core::abort(
       "`property` must be built by a prop_* factory.",
       class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
+  check_logical(serialize, allow_null = FALSE)
   property[["role"]] <- "state"
+  property[["serialize"]] <- serialize
   property
 } # /rtemis::prop_state
+
+
+# %% prop_serialized ----
+#' Whether `write_config()` emits a property's value
+#'
+#' Config properties are serialized unless the spec marks them otherwise; state
+#' is serialized only when the config is the value's sole carrier. Independent
+#' of `prop_role()`: the role decides what the schema says, this decides what a
+#' written config contains.
+#'
+#' @param prop S7 property (an element of `Class@properties`).
+#'
+#' @return Logical.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_serialized <- function(prop) {
+  if (identical(prop_role(prop), "state")) {
+    return(isTRUE(prop[["serialize"]]))
+  }
+  spec <- get_spec(prop)
+  if (is.null(spec)) {
+    # A spec-less, role-less property is machinery (a computed payload list, a
+    # discriminator); its family's `serializable_props` decides.
+    return(TRUE)
+  }
+  # A data-dependent config value has no portable form (per-case grouping IDs),
+  # and a constant is already implied by the algorithm.
+  !spec@data_dependent && !spec@constant
+} # /rtemis::prop_serialized
 
 
 # %% prop_role ----
@@ -1431,15 +1483,13 @@ own_prop_values <- function(self, base) {
 #' carries everything a training backend needs, including algorithm constants
 #' and run state. A *serialized config* is narrower: only what a user actually
 #' chose, plus nested config objects, which serialize as their own schema.
-#' Dropped here: **constants**, which the algorithm already implies;
-#' **data-dependent** values, which mean nothing outside the dataset they were
-#' measured from; and **state** written during training (GLMNET `lambda.min`,
-#' LightGBM `best_iter`). All are reconstructed or re-derived on read.
-#'
-#' Note the asymmetry on `"external"`: those properties *are* in the generated
-#' schema and `read_config()` accepts them, but nothing writes them. Closing
-#' that gap means also keeping the ones that are not `data_dependent` — a policy
-#' change deliberately left for its own discussion.
+#' Membership is decided by `prop_serialized()`, so this and a flat config's
+#' `serializable_props` answer the question the same way. Dropped: **constants**,
+#' which the algorithm already implies; **data-dependent** values, which mean
+#' nothing outside the dataset they were measured from; and **state** whose
+#' value the fitted model already carries (GLMNET `lambda.min`, LightGBM
+#' `best_iter`). All are reconstructed or re-derived on read. State the config
+#' alone carries is kept — see "Property roles".
 #'
 #' @param self S7 object.
 #' @param base S7 class: the family base class.
@@ -1455,20 +1505,8 @@ config_prop_values <- function(self, base) {
   keep <- vapply(
     names(values),
     function(nm) {
-      if (S7_inherits(values[[nm]])) {
-        return(TRUE)
-      }
-      if (!identical(prop_role(props[[nm]]), "config")) {
-        return(FALSE)
-      }
-      spec <- get_spec(props[[nm]])
-      if (is.null(spec)) {
-        return(TRUE)
-      }
-      # Not written to a portable config: a data-dependent value has no meaning
-      # outside the dataset it was measured from, and a constant is already
-      # implied by the algorithm.
-      !spec@data_dependent && !spec@constant
+      # A nested config serializes as its own schema, whatever its role here.
+      S7_inherits(values[[nm]]) || prop_serialized(props[[nm]])
     },
     logical(1L)
   )
@@ -1605,13 +1643,17 @@ data_bound_note <- function(data_bound, container, broadcast) {
 #' @param spec `PropertySpec` object.
 #' @param read_only Logical: If TRUE, the property is run state — marked
 #'   `readOnly` and annotated `role: "state"`.
+#' @param serialize Logical: If TRUE, the state is written to a config because
+#'   nothing else carries it. Annotated, since no standard keyword expresses it
+#'   and a reader that guessed FALSE would silently drop a learned value.
+#'   Meaningful only with `read_only`.
 #'
 #' @return Named list (JSON Schema property).
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-spec_to_schema <- function(spec, read_only = FALSE) {
+spec_to_schema <- function(spec, read_only = FALSE, serialize = FALSE) {
   scalar <- Filter(
     Negate(is.null),
     list(
@@ -1717,6 +1759,7 @@ spec_to_schema <- function(spec, read_only = FALSE) {
       } else {
         NULL
       },
+      serialize = if (read_only && serialize) TRUE else NULL,
       container = if (spec@container != "none") spec@container else NULL,
       tunable = if (spec@tunable) TRUE else NULL,
       broadcast = if (spec@broadcast) TRUE else NULL,
@@ -1746,6 +1789,26 @@ spec_to_schema <- function(spec, read_only = FALSE) {
   }
   out
 } # /rtemis::spec_to_schema
+
+
+# %% prop_to_schema ----
+#' The JSON Schema for one S7 property
+#'
+#' Reads the two role axes off the property and hands them to
+#' `spec_to_schema()`, so a leaf and a dispatcher's base field cannot annotate
+#' the same declaration differently.
+#'
+#' @param prop S7 property (an element of `Class@properties`).
+#'
+#' @return Named list (JSON Schema property).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_to_schema <- function(prop) {
+  read_only <- identical(prop_role(prop), "state")
+  spec_to_schema(get_spec(prop), read_only, read_only && prop_serialized(prop))
+} # /rtemis::prop_to_schema
 
 
 # %% S7_to_JSONSchema ----
@@ -1825,10 +1888,8 @@ S7_to_JSONSchema <- function(
     props <- props[own_prop_names(x, base)]
   }
   # Run state is part of the class, so it is part of the schema — marked
-  # `readOnly`, since a user never supplies it. `config_prop_values()` is what
-  # keeps it out of a portable config.
-  roles <- vapply(props, prop_role, character(1L))
-  state_names <- names(props)[!is.na(roles) & roles == "state"]
+  # `readOnly` by `prop_to_schema()`, since a user never supplies it. Whether it
+  # is also written to a config is the separate `serialize` axis.
   if (!is.null(refs)) {
     unknown <- setdiff(names(refs), names(props))
     if (length(unknown) > 0L) {
@@ -1858,7 +1919,7 @@ S7_to_JSONSchema <- function(
   }
   properties <- lapply(
     names(props),
-    function(nm) spec_to_schema(get_spec(props[[nm]]), nm %in% state_names)
+    function(nm) prop_to_schema(props[[nm]])
   )
   names(properties) <- names(props)
   # Nested config properties reference their own schema. A property whose S7
@@ -1966,7 +2027,7 @@ base_schema_properties <- function(base, skip = character()) {
   props <- base@properties[setdiff(names(base@properties), skip)]
   props <- Filter(function(p) !is.null(get_spec(p)), props)
   out <- lapply(props, function(p) {
-    spec_to_schema(get_spec(p), identical(prop_role(p), "state"))
+    prop_to_schema(p)
   })
   out
 } # /rtemis::base_schema_properties

@@ -128,17 +128,26 @@ PreprocessorConfig <- new_class(
     ),
     scale = prop_boolean(FALSE, description = "Scale features."),
     center = prop_boolean(FALSE, description = "Center features."),
-    scale_centers = prop_map(
-      prop_float(0),
-      nullable = TRUE,
-      data_dependent = TRUE,
-      description = "Per-feature centering values, keyed by feature name."
+    # Learned by `preprocess()` and read back by it to re-apply the same
+    # centring to new data. The config is the only carrier, so it is state that
+    # must still be serialized.
+    scale_centers = prop_state(
+      prop_map(
+        prop_float(0),
+        nullable = TRUE,
+        data_dependent = TRUE,
+        description = "Per-feature centering values, keyed by feature name."
+      ),
+      serialize = TRUE
     ),
-    scale_coefficients = prop_map(
-      prop_float(0),
-      nullable = TRUE,
-      data_dependent = TRUE,
-      description = "Per-feature scaling values, keyed by feature name."
+    scale_coefficients = prop_state(
+      prop_map(
+        prop_float(0),
+        nullable = TRUE,
+        data_dependent = TRUE,
+        description = "Per-feature scaling values, keyed by feature name."
+      ),
+      serialize = TRUE
     ),
     remove_constants = prop_boolean(
       FALSE,
@@ -159,11 +168,14 @@ PreprocessorConfig <- new_class(
       description = "Names of features to remove."
     ),
     one_hot = prop_boolean(FALSE, description = "One-hot encode factors."),
-    one_hot_levels = prop_map(
-      prop_string("", vector = TRUE),
-      nullable = TRUE,
-      data_dependent = TRUE,
-      description = "Per-feature one-hot levels, keyed by feature name."
+    one_hot_levels = prop_state(
+      prop_map(
+        prop_string("", vector = TRUE),
+        nullable = TRUE,
+        data_dependent = TRUE,
+        description = "Per-feature one-hot levels, keyed by feature name."
+      ),
+      serialize = TRUE
     ),
     add_date_features = prop_boolean(
       FALSE,

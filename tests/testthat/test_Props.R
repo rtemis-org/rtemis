@@ -521,6 +521,65 @@ testthat::test_that("prop_role classifies each declaration style", {
   testthat::expect_true(is.na(prop_role(Roles@properties[["e"]])))
 })
 
+# %% serialize axis ----
+testthat::test_that("`serialize` is orthogonal to `role`", {
+  Axes <- S7::new_class(
+    name = "Axes",
+    package = NULL,
+    properties = list(
+      # Plain config: written.
+      a = prop_boolean(TRUE),
+      # Config with no portable form: not written.
+      b = prop_float(0, vector = TRUE, data_dependent = TRUE),
+      # State the model carries: not written.
+      c = prop_state(prop_integer(0L)),
+      # State the config alone carries: written, though still readOnly.
+      d = prop_state(prop_integer(0L), serialize = TRUE)
+    )
+  )
+  p <- Axes@properties
+  testthat::expect_true(prop_serialized(p[["a"]]))
+  testthat::expect_false(prop_serialized(p[["b"]]))
+  testthat::expect_false(prop_serialized(p[["c"]]))
+  testthat::expect_true(prop_serialized(p[["d"]]))
+  # Both are state in the schema: the axis does not leak into `readOnly`.
+  s <- S7_to_JSONSchema(Axes, id = "https://example.org/x.json")
+  testthat::expect_true(s[["properties"]][["c"]][["readOnly"]])
+  testthat::expect_true(s[["properties"]][["d"]][["readOnly"]])
+  # Only the non-derivable half is annotated: absence means FALSE.
+  testthat::expect_null(s[["properties"]][["c"]][["x-rtemis"]][["serialize"]])
+  testthat::expect_true(s[["properties"]][["d"]][["x-rtemis"]][["serialize"]])
+  # A config property never carries the key; `data_dependent` already says it.
+  testthat::expect_null(s[["properties"]][["b"]][["x-rtemis"]][["serialize"]])
+})
+
+testthat::test_that("a flat config drops what a config family drops", {
+  # `PreprocessorConfig` has no `serializable_props` method, so before the
+  # axis existed it serialized every property it held.
+  cfg <- setup_Preprocessor(scale = TRUE, center = TRUE)
+  cfg@scale_centers <- c(a = 1.5, b = 2.5)
+  out <- serializable_props(cfg)
+  # The config is the only carrier of the learned centres: dropping them would
+  # silently fall back to the unfitted `center` on re-read.
+  testthat::expect_true("scale_centers" %in% names(out))
+  testthat::expect_true("center" %in% names(out))
+})
+
+testthat::test_that("state the model carries is not written to a config", {
+  h <- setup_GLMNET()
+  h@`lambda.min` <- 0.03
+  testthat::expect_false(
+    "lambda.min" %in% names(serializable_props(h)[["hyperparameters"]])
+  )
+  # A data-dependent config value has no portable form either.
+  r <- setup_Resampler(
+    type = "StratSub",
+    n_resamples = 2L,
+    id_strat = c("a", "b", "a")
+  )
+  testthat::expect_false("id_strat" %in% names(serializable_props(r)))
+})
+
 # %% JSON round-trip ----
 testthat::test_that("schema serializes to JSON and round-trips", {
   testthat::skip_if_not_installed("jsonlite")

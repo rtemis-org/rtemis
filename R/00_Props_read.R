@@ -456,8 +456,18 @@ JSONSchema_to_S7 <- function(
       return(if (schema_is_nullable(props[[nm]])) NULL | cls else cls)
     }
     prop <- make_prop(specs[[nm]])
-    # `readOnly` is how run state appears in the published contract.
-    if (isTRUE(props[[nm]][["readOnly"]])) prop_state(prop) else prop
+    # `readOnly` is how run state appears in the published contract, and
+    # `x-rtemis.serialize` says whether the config is the value's only carrier.
+    # Defaulting that to FALSE would rebuild a class that silently drops a
+    # learned value on write, so it is read rather than assumed.
+    if (isTRUE(props[[nm]][["readOnly"]])) {
+      prop_state(
+        prop,
+        serialize = isTRUE(props[[nm]][["x-rtemis"]][["serialize"]])
+      )
+    } else {
+      prop
+    }
   })
   names(properties) <- names(props)
 
