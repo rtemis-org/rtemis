@@ -201,20 +201,20 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
   }
   # Normalize casing and drop `algorithm` before forwarding to the setup fn.
   algorithm <- get_decom_name(algorithm)
-  # Params may arrive flat (UI / server: `list(algorithm, k, ..., features)`) or
-  # nested under `config` (S7_to_list serialization of a DecompositionConfig, as
-  # written by `write_config()`). In the nested shape `features` is a sibling of
-  # `config`, so it is re-attached explicitly. In the flat shape, drop
-  # `algorithm`. Either way `.drop_meta_keys()` removes document metadata
-  # (e.g. `$schema`), which is not a setup arg.
-  params <- if (is.list(x[["config"]])) {
-    c(
-      .drop_meta_keys(x[["config"]]),
-      if (!is.null(x[["features"]])) list(features = x[["features"]])
-    )
-  } else {
-    .drop_meta_keys(x[names(x) != "algorithm"])
-  }
+  # One shape: `{algorithm, config, features?}`, which is what the published
+  # schema declares — a flat `{algorithm, k, ...}` is rejected by it, so
+  # accepting one here would take input the contract does not. `features` is a
+  # sibling of `config`, so it is re-attached explicitly. `.drop_meta_keys()`
+  # removes document metadata (e.g. `$schema`), which is not a setup arg.
+  check_wire_keys(
+    x,
+    c("algorithm", "config", "features"),
+    "decomposition config"
+  )
+  params <- c(
+    .drop_meta_keys(x[["config"]]),
+    if (!is.null(x[["features"]])) list(features = x[["features"]])
+  )
   # `features` may arrive from the wire as a list of scalars (a JSON array parsed
   # without vector simplification); flatten it to a character vector so the
   # strict `setup_*` check accepts it.

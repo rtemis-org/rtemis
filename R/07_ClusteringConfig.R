@@ -484,15 +484,12 @@ setup_DBSCAN <- function(
     )
   }
   algorithm <- get_clust_name(algorithm)
-  # Params may arrive nested under `config` (JSON / S7_to_list serialization) or
-  # flat alongside `algorithm` (UI / server). In the flat shape, drop
-  # `algorithm`. Either way `.drop_meta_keys()` removes document metadata
-  # (e.g. `$schema`), which is not a setup arg.
-  params <- if (is.list(x[["config"]])) {
-    .drop_meta_keys(x[["config"]])
-  } else {
-    .drop_meta_keys(x[names(x) != "algorithm"])
-  }
+  # One shape: `{algorithm, config}`, which is what the published schema
+  # declares — a flat `{algorithm, k, ...}` is rejected by it, so accepting one
+  # here would take input the contract does not. `.drop_meta_keys()` removes
+  # document metadata (e.g. `$schema`), which is not a setup arg.
+  check_wire_keys(x, c("algorithm", "config"), "clustering config")
+  params <- .drop_meta_keys(x[["config"]])
   setup_fn <- get_clust_setup_fn(algorithm)
   check_wire_keys(
     params,
