@@ -123,8 +123,10 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #' @field constant Logical: If TRUE, the value is determined by the class and
 #'   cannot be set; `@default` holds it. Distinct from a *fixed* property,
 #'   which is settable but not tunable.
-#' @field data_dependent Logical: If TRUE, the value is tied to one dataset and
-#'   is not written to a portable config.
+#' @field data_dependent Logical: If TRUE, the value's shape follows one
+#'   dataset — one entry per case or per feature — so it cannot be supplied
+#'   without the data in hand. An annotation only: such a value is still a
+#'   settable input and is written to a config.
 #' @field data_bound Character or NULL: Name of the training-data dimension
 #'   this value is constrained by \{"n_features", "n_cases", "n_classes",
 #'   "feature_names"\}. Checked against the data by
@@ -182,10 +184,11 @@ PropertySpec <- new_class(
     # tunable like `mtry` simply falls back to the backend default.
     tune_on_null = new_property(class_logical, default = FALSE),
     data_bound = NULL | class_character,
-    # Portability, orthogonal to `data_bound`: the value's shape is tied to one
-    # particular dataset (per-case IDs, learned scaling centres, an initial
-    # embedding), so it has no meaning in a portable config and is not
-    # serialized. `data_bound` is about *validating* against the training data.
+    # Shape, orthogonal to `data_bound`: the value has one entry per case
+    # (`id_strat`, an initial embedding) or per feature (scaling centres,
+    # one-hot levels), so it cannot be filled in before the data is seen. Purely
+    # an annotation for form builders -- every such property is a settable input
+    # and is serialized. `data_bound` is about *validating* against the data.
     data_dependent = new_property(class_logical, default = FALSE),
     description = class_character
   ),
@@ -586,8 +589,9 @@ prop_boolean <- function(
 #' @param data_bound Character or NULL: Training-data dimension constraining
 #'   this value \{"n_features", "n_cases", "n_classes"\}. Scalar properties are
 #'   bounded above by it; `vector` properties must have exactly that length.
-#' @param data_dependent Logical: If TRUE, the value is tied to one dataset
-#'   and is not written to a portable config.
+#' @param data_dependent Logical: If TRUE, the value's shape follows one
+#'   dataset (one entry per case or per feature), so a form should not prompt
+#'   for it. An annotation only; it does not affect serialization.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -660,8 +664,9 @@ prop_integer <- function(
 #' @param data_bound Character or NULL: Training-data dimension constraining
 #'   this value \{"n_features", "n_cases", "n_classes"\}. Scalar properties are
 #'   bounded above by it; `vector` properties must have exactly that length.
-#' @param data_dependent Logical: If TRUE, the value is tied to one dataset
-#'   and is not written to a portable config.
+#' @param data_dependent Logical: If TRUE, the value's shape follows one
+#'   dataset (one entry per case or per feature), so a form should not prompt
+#'   for it. An annotation only; it does not affect serialization.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -727,8 +732,9 @@ prop_float <- function(
 #'   distinct.
 #' @param data_bound Character or NULL: Only "feature_names" is meaningful for
 #'   a string property: values must be a subset of the training features.
-#' @param data_dependent Logical: If TRUE, the value is tied to one dataset
-#'   and is not written to a portable config.
+#' @param data_dependent Logical: If TRUE, the value's shape follows one
+#'   dataset (one entry per case or per feature), so a form should not prompt
+#'   for it. An annotation only; it does not affect serialization.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -785,8 +791,9 @@ prop_string <- function(
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param data_bound Character or NULL: Training-data dimension the number of
 #'   entries is tied to; see `DATA_BOUNDS`.
-#' @param data_dependent Logical: If TRUE, the value is tied to one dataset
-#'   and is not written to a portable config.
+#' @param data_dependent Logical: If TRUE, the value's shape follows one
+#'   dataset (one entry per case or per feature), so a form should not prompt
+#'   for it. An annotation only; it does not affect serialization.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -844,8 +851,9 @@ prop_map <- function(
 #' @param unique_items Logical: If TRUE, the elements must be distinct.
 #' @param data_bound Character or NULL: Training-data dimension the number of
 #'   elements is tied to; see `DATA_BOUNDS`.
-#' @param data_dependent Logical: If TRUE, the value is tied to one dataset
-#'   and is not written to a portable config.
+#' @param data_dependent Logical: If TRUE, the value's shape follows one
+#'   dataset (one entry per case or per feature), so a form should not prompt
+#'   for it. An annotation only; it does not affect serialization.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -902,8 +910,9 @@ prop_array <- function(
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param data_bound Character or NULL: Training-data dimension the row count is
 #'   tied to; see `DATA_BOUNDS`.
-#' @param data_dependent Logical: If TRUE, the value is tied to one dataset
-#'   and is not written to a portable config.
+#' @param data_dependent Logical: If TRUE, the value's shape follows one
+#'   dataset (one entry per case or per feature), so a form should not prompt
+#'   for it. An annotation only; it does not affect serialization.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -1139,16 +1148,10 @@ prop_accepts_null <- function(prop) {
 #              and emitted `readOnly`: a reader needs the field to reconstruct
 #              the class, but must not prompt for it.
 #
-# `serialize` -- whether `write_config()` emits it, which is a question about
-# CARRIERS, not about who wrote it. State is not serialized unless the config
-# is the only thing holding the value:
-#
-# - `lambda.min` / `best_iter` are copied off the fitted model, so the model is
-#   the carrier and the copy need not round-trip.
-# - `scale_centers` is read back by `preprocess()` to re-apply learned centering
-#   to new data (`preprocess.R`). Nothing else holds it, so dropping it would
-#   silently fall back to the unfitted `center` value -- wrong numbers, no
-#   error. Declared `prop_state(..., serialize = TRUE)`.
+# State is never written to a config: `lambda.min` and `best_iter` are copied
+# off the fitted model, which is the carrier, so the copy is re-derived on read.
+# A *record* does carry them, but that is the record generator's business, not a
+# per-property flag.
 #
 # `prop_serialized()` answers the question for both roles, and every family's
 # `serializable_props` goes through it -- a flat config must not serialize a
@@ -1158,10 +1161,11 @@ prop_accepts_null <- function(prop) {
 # nor declared state, and schema generation aborts rather than quietly emitting
 # an incomplete contract.
 #
-# `data_dependent` is a third axis, and for a *config* property it is also the
-# reason not to serialize: per-case grouping IDs have no portable form. For
-# state, `serialize` decides and `data_dependent` is left as the annotation a
-# form builder reads to skip the field.
+# `data_dependent` is a third axis and a *pure annotation*: the value is shaped
+# by one dataset (per-case IDs, an initial embedding, per-feature centres), so a
+# form should not prompt for it. It does **not** gate serialization -- every
+# data-dependent property is a settable input, and dropping a value the user
+# supplied would lose it silently.
 
 # %% prop_state ----
 #' S7 property holding run state rather than configuration
@@ -1174,27 +1178,20 @@ prop_accepts_null <- function(prop) {
 #' the same type, bounds and description as configuration.
 #'
 #' @param property S7 property built by a `prop_*` factory.
-#' @param serialize Logical: Whether `write_config()` emits the value. FALSE
-#'   (the default) when the fitted model already carries it, so the copy on the
-#'   config is a convenience view. TRUE when the config is the only carrier and
-#'   dropping the value would silently change behavior on re-read — the
-#'   centring and one-hot levels `preprocess()` learns. See "Property roles".
 #'
 #' @return S7 property.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-prop_state <- function(property, serialize = FALSE) {
+prop_state <- function(property) {
   if (is.null(get_spec(property))) {
     rtemis.core::abort(
       "`property` must be built by a prop_* factory.",
       class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
-  check_logical(serialize, allow_null = FALSE)
   property[["role"]] <- "state"
-  property[["serialize"]] <- serialize
   property
 } # /rtemis::prop_state
 
@@ -1202,10 +1199,9 @@ prop_state <- function(property, serialize = FALSE) {
 # %% prop_serialized ----
 #' Whether `write_config()` emits a property's value
 #'
-#' Config properties are serialized unless the spec marks them otherwise; state
-#' is serialized only when the config is the value's sole carrier. Independent
-#' of `prop_role()`: the role decides what the schema says, this decides what a
-#' written config contains.
+#' Everything a user can set is written; state is not, being re-derived on read.
+#' Independent of `prop_role()` only in emphasis: the role decides what the
+#' schema says, this decides what a written config contains.
 #'
 #' @param prop S7 property (an element of `Class@properties`).
 #'
@@ -1216,7 +1212,7 @@ prop_state <- function(property, serialize = FALSE) {
 #' @noRd
 prop_serialized <- function(prop) {
   if (identical(prop_role(prop), "state")) {
-    return(isTRUE(prop[["serialize"]]))
+    return(FALSE)
   }
   spec <- get_spec(prop)
   if (is.null(spec)) {
@@ -1224,9 +1220,11 @@ prop_serialized <- function(prop) {
     # discriminator); its family's `serializable_props` decides.
     return(TRUE)
   }
-  # A data-dependent config value has no portable form (per-case grouping IDs),
-  # and a constant is already implied by the algorithm.
-  !spec@data_dependent && !spec@constant
+  # Everything a user can set is written back, including the data-shaped values
+  # (`id_strat`, `Y_init`, learned scaling centres): dropping a value the user
+  # supplied would lose it silently. Only a constant is omitted, being implied
+  # by the algorithm.
+  !spec@constant
 } # /rtemis::prop_serialized
 
 
@@ -1485,11 +1483,10 @@ own_prop_values <- function(self, base) {
 #' chose, plus nested config objects, which serialize as their own schema.
 #' Membership is decided by `prop_serialized()`, so this and a flat config's
 #' `serializable_props` answer the question the same way. Dropped: **constants**,
-#' which the algorithm already implies; **data-dependent** values, which mean
-#' nothing outside the dataset they were measured from; and **state** whose
-#' value the fitted model already carries (GLMNET `lambda.min`, LightGBM
-#' `best_iter`). All are reconstructed or re-derived on read. State the config
-#' alone carries is kept — see "Property roles".
+#' which the algorithm already implies, and **state** whose value the fitted
+#' model already carries (GLMNET `lambda.min`, LightGBM `best_iter`), which is
+#' re-derived on read. Everything a user can set is kept, data-shaped values
+#' included — see "Property roles".
 #'
 #' @param self S7 object.
 #' @param base S7 class: the family base class.
@@ -1710,17 +1707,12 @@ data_bound_note <- function(data_bound, container, broadcast) {
 #' @param spec `PropertySpec` object.
 #' @param read_only Logical: If TRUE, the property is run state — marked
 #'   `readOnly` and annotated `role: "state"`.
-#' @param serialize Logical: If TRUE, the state is written to a config because
-#'   nothing else carries it. Annotated, since no standard keyword expresses it
-#'   and a reader that guessed FALSE would silently drop a learned value.
-#'   Meaningful only with `read_only`.
-#'
 #' @return Named list (JSON Schema property).
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-spec_to_schema <- function(spec, read_only = FALSE, serialize = FALSE) {
+spec_to_schema <- function(spec, read_only = FALSE) {
   scalar <- Filter(
     Negate(is.null),
     list(
@@ -1826,7 +1818,6 @@ spec_to_schema <- function(spec, read_only = FALSE, serialize = FALSE) {
       } else {
         NULL
       },
-      serialize = if (read_only && serialize) TRUE else NULL,
       container = if (spec@container != "none") spec@container else NULL,
       tunable = if (spec@tunable) TRUE else NULL,
       broadcast = if (spec@broadcast) TRUE else NULL,
@@ -1849,9 +1840,12 @@ spec_to_schema <- function(spec, read_only = FALSE, serialize = FALSE) {
   out[["x-rtemis"]] <- annotations
   if (spec@data_dependent) {
     # Machine-visible in the published contract: a consumer building a form
-    # skips these rather than asking a user for a value only the data can give.
+    # skips these rather than asking for a value whose shape the data decides.
+    # It does not say the value is derived -- these are settable inputs, and a
+    # supplied one is used in place of computing it.
     out[["$comment"]] <- paste(
-      "Data-dependent: measured from one dataset, so it has no portable value."
+      "Data-dependent: one entry per case or per feature, so it cannot be",
+      "filled in without the data."
     )
   }
   out
@@ -1873,8 +1867,7 @@ spec_to_schema <- function(spec, read_only = FALSE, serialize = FALSE) {
 #' @keywords internal
 #' @noRd
 prop_to_schema <- function(prop) {
-  read_only <- identical(prop_role(prop), "state")
-  spec_to_schema(get_spec(prop), read_only, read_only && prop_serialized(prop))
+  spec_to_schema(get_spec(prop), identical(prop_role(prop), "state"))
 } # /rtemis::prop_to_schema
 
 

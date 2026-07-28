@@ -230,38 +230,6 @@ test_that("min_items and unique_items round-trip", {
 })
 
 
-# %% the serialize axis survives the round trip ----
-# `readOnly` alone cannot say whether the config is the value's only carrier, so
-# a reader defaulting it to FALSE would rebuild a class that silently drops a
-# learned value on write.
-test_that("state's serialize axis round-trips", {
-  schema <- S7_to_JSONSchema(
-    rtemis:::PreprocessorConfig,
-    id = "https://schema.rtemis.org/test/preprocessor/v1/schema.json"
-  )
-  schema <- jsonlite::fromJSON(
-    jsonlite::toJSON(schema, auto_unbox = TRUE, null = "null", digits = NA),
-    simplifyVector = FALSE
-  )
-  defaults <- lapply(
-    rtemis:::PreprocessorConfig@properties,
-    function(p) {
-      spec <- rtemis:::get_spec(p)
-      if (is.null(spec)) NULL else via_json(spec@default)
-    }
-  )
-  rt <- JSONSchema_to_S7(schema, defaults = defaults, name = "RTPreprocessor")
-  # Learned state: readOnly and still written.
-  expect_identical(
-    rtemis:::prop_role(rt@properties[["scale_centers"]]),
-    "state"
-  )
-  expect_true(rtemis:::prop_serialized(rt@properties[["scale_centers"]]))
-  # A plain config property is unaffected.
-  expect_identical(rtemis:::prop_role(rt@properties[["center"]]), "config")
-})
-
-
 # %% a hand-written schema without x-rtemis is rejected ----
 test_that("schema_to_spec() rejects a property with no x-rtemis", {
   expect_error(

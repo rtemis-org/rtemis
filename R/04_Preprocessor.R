@@ -128,26 +128,21 @@ PreprocessorConfig <- new_class(
     ),
     scale = prop_boolean(FALSE, description = "Scale features."),
     center = prop_boolean(FALSE, description = "Center features."),
-    # Learned by `preprocess()` and read back by it to re-apply the same
-    # centring to new data. The config is the only carrier, so it is state that
-    # must still be serialized.
-    scale_centers = prop_state(
-      prop_map(
-        prop_float(0),
-        nullable = TRUE,
-        data_dependent = TRUE,
-        description = "Per-feature centering values, keyed by feature name."
-      ),
-      serialize = TRUE
+    # Settable *and* run-written: `preprocess()` uses a supplied value in place
+    # of computing one, and stores what it computed when none was given. So it
+    # is config, not state -- `readOnly` would reject a legitimate input. A
+    # record marks it readOnly, where it genuinely was derived.
+    scale_centers = prop_map(
+      prop_float(0),
+      nullable = TRUE,
+      data_dependent = TRUE,
+      description = "Per-feature centering values, keyed by feature name."
     ),
-    scale_coefficients = prop_state(
-      prop_map(
-        prop_float(0),
-        nullable = TRUE,
-        data_dependent = TRUE,
-        description = "Per-feature scaling values, keyed by feature name."
-      ),
-      serialize = TRUE
+    scale_coefficients = prop_map(
+      prop_float(0),
+      nullable = TRUE,
+      data_dependent = TRUE,
+      description = "Per-feature scaling values, keyed by feature name."
     ),
     remove_constants = prop_boolean(
       FALSE,
@@ -168,14 +163,11 @@ PreprocessorConfig <- new_class(
       description = "Names of features to remove."
     ),
     one_hot = prop_boolean(FALSE, description = "One-hot encode factors."),
-    one_hot_levels = prop_state(
-      prop_map(
-        prop_string("", vector = TRUE),
-        nullable = TRUE,
-        data_dependent = TRUE,
-        description = "Per-feature one-hot levels, keyed by feature name."
-      ),
-      serialize = TRUE
+    one_hot_levels = prop_map(
+      prop_string("", vector = TRUE),
+      nullable = TRUE,
+      data_dependent = TRUE,
+      description = "Per-feature one-hot levels, keyed by feature name."
     ),
     add_date_features = prop_boolean(
       FALSE,

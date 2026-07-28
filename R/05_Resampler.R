@@ -44,9 +44,9 @@ ResamplerConfig <- new_class(
 
 # %% serializable_props.ResamplerConfig ----
 # A resampler serializes its type-specific settings as siblings of `type`
-# (there is no nested `config` object). Only the declared parameters are
-# written; `id_strat` is a data-dependent grouping vector with no portable
-# form, so it is omitted (see `config_prop_values`).
+# (there is no nested `config` object). `id_strat` is written like any other
+# input: it decides which cases stay together, so a config that dropped it
+# would resample differently on re-read.
 method(serializable_props, ResamplerConfig) <- function(x) {
   # `type` is the only base property; everything else, `n_resamples` included,
   # is declared per subclass and arrives through `config_prop_values()` — which
