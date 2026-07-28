@@ -120,6 +120,9 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   be distinct.
 #' @field tune_on_null Logical: If TRUE, a NULL value means "determine by
 #'   tuning" rather than "unset". Requires `nullable`.
+#' @field default_on_null Logical: If TRUE, a NULL value means "apply the
+#'   default for this task type" (LightGBM's `objective`). Requires `nullable`;
+#'   mutually exclusive with `tune_on_null`.
 #' @field constant Logical: If TRUE, the value is determined by the class and
 #'   cannot be set; `@default` holds it. Distinct from a *fixed* property,
 #'   which is settable but not tunable.
@@ -183,6 +186,16 @@ PropertySpec <- new_class(
     # cv.glmnet and LightGBM's `nrounds` by early stopping, but a nullable
     # tunable like `mtry` simply falls back to the backend default.
     tune_on_null = new_property(class_logical, default = FALSE),
+    # NULL means "apply the default for this task type" -- LightGBM's
+    # `objective` is "multiclass" or "regression" depending on the outcome.
+    # The sibling of `tune_on_null`: both say what NULL *means*, and the three
+    # possibilities are "leave unset", "determine by tuning", and this.
+    #
+    # The line against `derived`: a task-type default restates what was asked
+    # for, while a derived value is measured from the dataset -- its dimensions
+    # or its values alike. `feature_fraction`'s sqrt(n_features) is derived; it
+    # depends on the data, not on the question.
+    default_on_null = new_property(class_logical, default = FALSE),
     data_bound = NULL | class_character,
     # Shape, orthogonal to `data_bound`: the value has one entry per case
     # (`id_strat`, an initial embedding) or per feature (scaling centres,
@@ -245,6 +258,14 @@ PropertySpec <- new_class(
     }
     if (self@tune_on_null && !self@nullable) {
       return("@tune_on_null requires @nullable: NULL is the signal.")
+    }
+    if (self@default_on_null && !self@nullable) {
+      return("@default_on_null requires @nullable: NULL is the signal.")
+    }
+    if (self@default_on_null && self@tune_on_null) {
+      return(
+        "@default_on_null and @tune_on_null are mutually exclusive: NULL means one thing."
+      )
     }
     if (self@constant) {
       if (is.null(self@default)) {
@@ -537,8 +558,6 @@ make_prop <- function(spec) {
 #' @param default Logical: Default value (NULL only if `nullable`).
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
-#' @param tune_on_null Logical: If TRUE, a NULL value means "determine by
-#'   tuning". Requires `nullable`.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -578,6 +597,9 @@ prop_boolean <- function(
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
 #' @param tune_on_null Logical: If TRUE, a NULL value means "determine by
 #'   tuning". Requires `nullable`.
+#' @param default_on_null Logical: If TRUE, a NULL value means "apply the
+#'   default for this task type". Requires `nullable`; mutually exclusive with
+#'   `tune_on_null`.
 #' @param vector Logical: If TRUE, the value is vector-valued (JSON array);
 #'   mutually exclusive with `tunable`.
 #' @param broadcast Logical: If TRUE, a bare scalar is accepted in place of the
@@ -606,6 +628,7 @@ prop_integer <- function(
   nullable = FALSE,
   tunable = FALSE,
   tune_on_null = FALSE,
+  default_on_null = FALSE,
   vector = FALSE,
   broadcast = FALSE,
   min_items = 1L,
@@ -625,6 +648,7 @@ prop_integer <- function(
     nullable = nullable,
     tunable = tunable,
     tune_on_null = tune_on_null,
+    default_on_null = default_on_null,
     container = if (vector) "array" else "none",
     broadcast = broadcast,
     min_items = min_items,
@@ -653,6 +677,9 @@ prop_integer <- function(
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
 #' @param tune_on_null Logical: If TRUE, a NULL value means "determine by
 #'   tuning". Requires `nullable`.
+#' @param default_on_null Logical: If TRUE, a NULL value means "apply the
+#'   default for this task type". Requires `nullable`; mutually exclusive with
+#'   `tune_on_null`.
 #' @param vector Logical: If TRUE, the value is vector-valued (JSON array);
 #'   mutually exclusive with `tunable`.
 #' @param broadcast Logical: If TRUE, a bare scalar is accepted in place of the
@@ -683,6 +710,7 @@ prop_float <- function(
   nullable = FALSE,
   tunable = FALSE,
   tune_on_null = FALSE,
+  default_on_null = FALSE,
   vector = FALSE,
   broadcast = FALSE,
   min_items = 1L,
@@ -702,6 +730,7 @@ prop_float <- function(
     nullable = nullable,
     tunable = tunable,
     tune_on_null = tune_on_null,
+    default_on_null = default_on_null,
     container = if (vector) "array" else "none",
     broadcast = broadcast,
     min_items = min_items,
@@ -722,6 +751,9 @@ prop_float <- function(
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
 #' @param tune_on_null Logical: If TRUE, a NULL value means "determine by
 #'   tuning". Requires `nullable`.
+#' @param default_on_null Logical: If TRUE, a NULL value means "apply the
+#'   default for this task type". Requires `nullable`; mutually exclusive with
+#'   `tune_on_null`.
 #' @param vector Logical: If TRUE, the value is vector-valued (JSON array);
 #'   mutually exclusive with `tunable`.
 #' @param broadcast Logical: If TRUE, a bare scalar is accepted in place of the
@@ -748,6 +780,7 @@ prop_string <- function(
   nullable = FALSE,
   tunable = FALSE,
   tune_on_null = FALSE,
+  default_on_null = FALSE,
   vector = FALSE,
   broadcast = FALSE,
   min_items = 1L,
@@ -767,6 +800,7 @@ prop_string <- function(
     nullable = nullable,
     tunable = tunable,
     tune_on_null = tune_on_null,
+    default_on_null = default_on_null,
     container = if (vector) "array" else "none",
     broadcast = broadcast,
     min_items = min_items,
@@ -1822,6 +1856,7 @@ spec_to_schema <- function(spec, read_only = FALSE) {
       tunable = if (spec@tunable) TRUE else NULL,
       broadcast = if (spec@broadcast) TRUE else NULL,
       tune_on_null = if (spec@tune_on_null) TRUE else NULL,
+      default_on_null = if (spec@default_on_null) TRUE else NULL,
       data_bound = spec@data_bound,
       data_dependent = if (spec@data_dependent) TRUE else NULL
     )
@@ -1850,6 +1885,79 @@ spec_to_schema <- function(spec, read_only = FALSE) {
   }
   out
 } # /rtemis::spec_to_schema
+
+
+# %% VALUE_ORIGINS ----
+# Where a value in a *record* came from. A record states what a run used; this
+# states how each value got there, so reading one document answers "did I choose
+# this, or did the run?" without diffing against the input config.
+#
+# - "user"     supplied in the config
+# - "default"  neither supplied nor computed: the `setup_*` default applied
+# - "derived"  computed by the run from the data (LightGBM's `objective` from
+#              the outcome type, the centres `preprocess()` learns)
+# - "tuned"    selected by the Tuner from a search space
+#
+# "default" is kept distinct from "user" because folding them would claim
+# somebody chose `strat_n_bins = 4`; "tuned" from "derived" because a value
+# cross-validation selected is a different fact from one read off the data.
+VALUE_ORIGINS <- c("user", "default", "derived", "tuned")
+
+
+# %% origin_schema ----
+#' The `origin` block of a record schema
+#'
+#' A parallel map rather than per-field wrappers: values keep their plain shape,
+#' so a record stays diffable against a config and every reader of one can read
+#' the other. This is the same "flat + annotate" choice the property schemas
+#' make (see the governing principle in `plan/rtemis-types.md`).
+#'
+#' Each field's permitted origins are narrowed by what it is: run state can only
+#' have been computed, and a value cannot be `"tuned"` unless it is tunable. The
+#' schema therefore rejects a record claiming a user supplied `lambda.min`.
+#'
+#' Nested config properties (`$ref`) are excluded: each carries its own `origin`
+#' block, so the parent would be duplicating it.
+#'
+#' @param props Named list of S7 properties the record declares.
+#'
+#' @return Named list: the `origin` property schema.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+origin_schema <- function(props) {
+  entries <- lapply(names(props), function(nm) {
+    spec <- get_spec(props[[nm]])
+    allowed <- if (!is.null(spec) && spec@default_on_null) {
+      # NULL applies the task-type default, which is a restatement of the
+      # question rather than anything measured or searched.
+      c("user", "default")
+    } else if (identical(prop_role(props[[nm]]), "state")) {
+      # Only a run writes it, so it was computed one way or the other.
+      c("derived", "tuned")
+    } else if (!is.null(spec) && (spec@tunable || spec@tune_on_null)) {
+      # `tune_on_null` is the declaration that NULL means "determine this by
+      # tuning" (GLMNET's `lambda`), so such a field can be tuned without
+      # carrying a search space itself.
+      VALUE_ORIGINS
+    } else {
+      setdiff(VALUE_ORIGINS, "tuned")
+    }
+    list(type = "string", enum = I(allowed))
+  })
+  names(entries) <- names(props)
+  list(
+    type = "object",
+    description = paste(
+      "Where each value came from: supplied in the config, left at its",
+      "default, computed from the data, or selected by tuning."
+    ),
+    properties = entries,
+    required = I(names(props)),
+    additionalProperties = FALSE
+  )
+} # /rtemis::origin_schema
 
 
 # %% prop_to_schema ----
@@ -1896,7 +2004,13 @@ prop_to_schema <- function(prop) {
 #'   family base.
 #' @param required Character: Names of required properties. Default NULL: all
 #'   optional, so omitted fields fall back to their `setup_*` defaults on read
-#'   (matching [write_config]'s compaction).
+#'   (matching [write_config]'s compaction). Ignored when `record` is TRUE.
+#' @param record Logical: If TRUE, emit the **record** form of the schema: the
+#'   same properties, but every one required. A record states what a run
+#'   actually used, so nothing in it may fall back to a reader's defaults — an
+#'   unset value is written as an explicit `null` rather than omitted. The
+#'   difference between an input schema and a record schema is exactly this;
+#'   membership is identical.
 #' @param extra Named list merged into the schema after generation, for
 #'   cross-field constraints that are not per-property (e.g. an `allOf` of
 #'   if/then clauses for kernel-specific SVM hyperparameters).
@@ -1931,6 +2045,7 @@ S7_to_JSONSchema <- function(
   description = "",
   base = NULL,
   required = NULL,
+  record = FALSE,
   extra = NULL,
   refs = NULL,
   closed = TRUE,
@@ -2008,6 +2123,17 @@ S7_to_JSONSchema <- function(
       ),
       properties
     )
+  }
+  if (record) {
+    # Every emitted property, `$schema` excluded: it identifies the document
+    # rather than recording anything the run did.
+    required <- setdiff(names(properties), "$schema")
+    # A nested config carries its own `origin`, so it is not covered here.
+    origin_props <- props[intersect(required, names(props))]
+    if (length(origin_props) > 0L) {
+      properties[["origin"]] <- origin_schema(origin_props)
+      required <- c(required, "origin")
+    }
   }
   schema <- list(
     `$schema` = "https://json-schema.org/draft/2020-12/schema",
@@ -2125,6 +2251,10 @@ base_schema_properties <- function(base, skip = character()) {
 #' @param description Character: Schema description. If empty, omitted.
 #' @param discriminator_description Character: Description of the
 #'   discriminator property.
+#' @param record Logical: If TRUE, dispatch to the variants' **record**
+#'   schemas (`<family>/<variant>/v1/record.json`) rather than their input
+#'   schemas. The discriminator and payload are required either way; what
+#'   changes is which leaf each `if/then` branch applies.
 #' @param instance_schema_url Character or NULL: If set, adds a `$schema`
 #'   const property so instances can self-identify.
 #'
@@ -2173,6 +2303,7 @@ S7_dispatcher_JSONSchema <- function(
   title = NULL,
   description = "",
   discriminator_description = "Algorithm name.",
+  record = FALSE,
   instance_schema_url = NULL
 ) {
   check_character(id, allow_null = FALSE)
@@ -2214,9 +2345,10 @@ S7_dispatcher_JSONSchema <- function(
     )
   }
   # Leaf URLs share the dispatcher's family base; variant -> lowercase slug.
-  family_base <- sub("/v1/schema\\.json$", "", id)
+  leaf_file <- if (record) "record.json" else "schema.json"
+  family_base <- sub("/v1/(schema|record)\\.json$", "", id)
   leaf_id <- function(variant) {
-    paste0(family_base, "/", tolower(variant), "/v1/schema.json")
+    paste0(family_base, "/", tolower(variant), "/v1/", leaf_file)
   }
   top_level <- is.null(payload)
   properties <- list()

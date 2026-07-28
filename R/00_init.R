@@ -150,7 +150,16 @@ preprocess <- new_generic(
 #' @param dat_validation Optional tabular data: Validation set for algorithms that support early stopping.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return Algorithm-specific fitted model object.
+#' @return Named list:
+#'   * `model` — the algorithm-specific fitted model object.
+#'   * `preprocessor` — Optional `Preprocessor`: algorithm-level preprocessing
+#'     (e.g. factor-to-integer for LightGBM), re-applied before predicting.
+#'   * `hyperparameters` — Optional `Hyperparameters`: returned **only** by a
+#'     method that resolved values into it (LightGBM's `objective` from the
+#'     outcome type, GLMNET's `lambda` from `cv.glmnet`). R copies the object
+#'     into the method, so without returning it the caller keeps the unresolved
+#'     one and the fitted model reports NULL for settings it demonstrably used.
+#'     `train()` adopts it when present.
 #'
 #' @author EDG
 #' @keywords internal

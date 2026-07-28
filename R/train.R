@@ -731,6 +731,13 @@ train <- function(
     node_exit(algo_node, status = "ok")
 
     model <- trained[["model"]]
+    # Values the algorithm resolved at train time (LightGBM's `objective` from
+    # the outcome type, GLMNET's `lambda`): R copied `hyperparameters` into
+    # `train_()`, so without this the fitted model would report NULL for
+    # settings it demonstrably used.
+    if (!is.null(trained[["hyperparameters"]])) {
+      hyperparameters <- trained[["hyperparameters"]]
+    }
     # Algorithm-level preprocessing (e.g. factor-to-integer for LightGBM),
     # returned by train_*() if needed.
     preprocessor_internal <- trained[["preprocessor"]]

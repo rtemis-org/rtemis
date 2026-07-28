@@ -170,7 +170,10 @@ method(train_, GLMNETHyperparameters) <- function(
     )
     check_inherits(model, "glmnet")
   }
-  list(model = model, preprocessor = NULL)
+  # `hyperparameters` is returned because this method resolved values into
+  # it (R copied the caller's object, so the caller cannot see them).
+  # `train()` adopts them, and the fitted model reports what it used.
+  list(model = model, preprocessor = NULL, hyperparameters = hyperparameters)
 } # /rtemis::train_.GLMNETHyperparameters
 
 #' Predict from GLMNET model

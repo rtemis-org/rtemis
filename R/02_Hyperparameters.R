@@ -947,6 +947,7 @@ GLMNETHyperparameters <- new_class(
         "mgaussian"
       ),
       nullable = TRUE,
+      default_on_null = TRUE,
       description = "GLM family. NULL = set from outcome type."
     ),
     offset = prop_float(
@@ -1129,6 +1130,7 @@ LightCARTHyperparameters <- new_class(
     objective = prop_string(
       NULL,
       nullable = TRUE,
+      default_on_null = TRUE,
       description = "LightGBM objective. NULL = set from outcome type."
     ),
     ifw = prop_boolean(
@@ -1298,6 +1300,7 @@ LightRFHyperparameters <- new_class(
     objective = prop_string(
       NULL,
       nullable = TRUE,
+      default_on_null = TRUE,
       description = "LightGBM objective. NULL = set from outcome type."
     ),
     device_type = prop_string(
@@ -1501,6 +1504,7 @@ LightGBMHyperparameters <- new_class(
     objective = prop_string(
       NULL,
       nullable = TRUE,
+      default_on_null = TRUE,
       description = "LightGBM objective. NULL = set from outcome type."
     ),
     device_type = prop_string(
@@ -1728,6 +1732,7 @@ LightRuleFitHyperparameters <- new_class(
     objective = prop_string(
       NULL,
       nullable = TRUE,
+      default_on_null = TRUE,
       description = "LightGBM objective. NULL = set from outcome type."
     ),
     ifw_lightgbm = prop_boolean(

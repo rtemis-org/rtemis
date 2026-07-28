@@ -323,6 +323,7 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
     min_items = as.integer(arity[["minItems"]] %||% 1L),
     unique_items = isTRUE(arity[["uniqueItems"]]),
     tune_on_null = isTRUE(ann[["tune_on_null"]]),
+    default_on_null = isTRUE(ann[["default_on_null"]]),
     data_bound = data_bound,
     data_dependent = isTRUE(ann[["data_dependent"]]),
     description = description

@@ -13,6 +13,7 @@ S7_dispatcher_JSONSchema(
   title = NULL,
   description = "",
   discriminator_description = "Algorithm name.",
+  record = FALSE,
   instance_schema_url = NULL
 )
 }
@@ -40,6 +41,11 @@ emitted here rather than on any leaf (see Details).}
 
 \item{discriminator_description}{Character: Description of the
 discriminator property.}
+
+\item{record}{Logical: If TRUE, dispatch to the variants' \strong{record}
+schemas (\verb{<family>/<variant>/v1/record.json}) rather than their input
+schemas. The discriminator and payload are required either way; what
+changes is which leaf each \verb{if/then} branch applies.}
 
 \item{instance_schema_url}{Character or NULL: If set, adds a \verb{$schema}
 const property so instances can self-identify.}

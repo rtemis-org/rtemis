@@ -1410,3 +1410,31 @@ test_that("train() with preprocessor creates a model with the preprocessor", {
   expect_s7_class(mod_c_glm_pp, Classification)
   expect_true(!is.null(mod_c_glm_pp@preprocessor))
 })
+
+
+# %% Resolved hyperparameters reach the fitted model ----
+# "All runs are observable": a model that trained with an `objective` it chose
+# from the outcome type must say so. R copies `hyperparameters` into `train_()`,
+# so a method that resolves a value has to return it or the caller keeps the
+# unresolved object.
+test_that("a fitted model reports the values its algorithm resolved", {
+  mod <- train(iris, hyperparameters = setup_LightRF(), verbosity = 0L)
+  # NULL means "decide from the outcome type" in the config; on a fitted model
+  # it would mean the record cannot say what was run.
+  expect_identical(mod@hyperparameters[["objective"]], "multiclass")
+  expect_false(is.null(mod@hyperparameters[["feature_fraction"]]))
+  expect_true(mod@hyperparameters[["feature_fraction"]] > 0)
+})
+
+test_that("resolved values survive for every algorithm that resolves one", {
+  mod <- train(iris, hyperparameters = setup_LightGBM(), verbosity = 0L)
+  expect_identical(mod@hyperparameters[["objective"]], "multiclass")
+  # `nrounds` is resolved from `max_nrounds` / early stopping, so a fitted
+  # model must report the count it actually ran.
+  expect_false(is.null(mod@hyperparameters[["nrounds"]]))
+
+  dat <- data.frame(a = rnorm(40L), b = rnorm(40L), y = rnorm(40L))
+  glmnet_mod <- train(dat, hyperparameters = setup_GLMNET(), verbosity = 0L)
+  # `lambda` is chosen by cv.glmnet during the fit.
+  expect_false(is.null(glmnet_mod@hyperparameters[["lambda"]]))
+})

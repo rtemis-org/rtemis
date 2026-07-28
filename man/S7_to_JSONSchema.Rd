@@ -11,6 +11,7 @@ S7_to_JSONSchema(
   description = "",
   base = NULL,
   required = NULL,
+  record = FALSE,
   extra = NULL,
   refs = NULL,
   closed = TRUE,
@@ -35,7 +36,14 @@ family base.}
 
 \item{required}{Character: Names of required properties. Default NULL: all
 optional, so omitted fields fall back to their \verb{setup_*} defaults on read
-(matching \link{write_config}'s compaction).}
+(matching \link{write_config}'s compaction). Ignored when \code{record} is TRUE.}
+
+\item{record}{Logical: If TRUE, emit the \strong{record} form of the schema: the
+same properties, but every one required. A record states what a run
+actually used, so nothing in it may fall back to a reader's defaults — an
+unset value is written as an explicit \code{null} rather than omitted. The
+difference between an input schema and a record schema is exactly this;
+membership is identical.}
 
 \item{extra}{Named list merged into the schema after generation, for
 cross-field constraints that are not per-property (e.g. an \code{allOf} of

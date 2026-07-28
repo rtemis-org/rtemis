@@ -86,5 +86,8 @@ method(train_, LightCARTHyperparameters) <- function(
     verbose = verbosity - 2L
   )
   check_inherits(model, "lgb.Booster")
-  list(model = model, preprocessor = prp)
+  # `hyperparameters` is returned because this method resolved values into
+  # it (R copied the caller's object, so the caller cannot see them).
+  # `train()` adopts them, and the fitted model reports what it used.
+  list(model = model, preprocessor = prp, hyperparameters = hyperparameters)
 } # /rtemis::train_.LightCARTHyperparameters

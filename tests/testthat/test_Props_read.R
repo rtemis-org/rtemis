@@ -126,6 +126,11 @@ test_that("every spec'd class round-trips through JSON Schema unchanged", {
       expect_equal(restored@unique_items, original@unique_items, label = label)
       expect_equal(restored@constant, original@constant, label = label)
       expect_equal(restored@tune_on_null, original@tune_on_null, label = label)
+      expect_equal(
+        restored@default_on_null,
+        original@default_on_null,
+        label = label
+      )
       expect_equal(restored@data_bound, original@data_bound, label = label)
       expect_equal(
         restored@data_dependent,
