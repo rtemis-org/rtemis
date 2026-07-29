@@ -702,3 +702,68 @@ test_that("a record keeps unset fields rather than omitting them", {
   expect_null(rec[["seed"]])
   expect_identical(rec[["origin"]][["seed"]], "default")
 })
+
+
+# %% Record metrics ----
+# A record that states the config and the provenance but not the result cannot
+# answer the question it is opened for: was this model any good?
+
+test_that("a record reports the headline score of every sample", {
+  datc <- iris[51:150, ]
+  datc[["Species"]] <- factor(datc[["Species"]])
+  mod <- train(datc, hyperparameters = setup_CART(), verbosity = 0L)
+  rec <- record(mod)
+  expect_identical(names(rec[["metrics"]]), c("training", "validation", "test"))
+  # A flat name -> value map, so the common question is one lookup and no
+  # averaging: `.metrics.training.balanced_accuracy`.
+  training <- rec[["metrics"]][["training"]]
+  expect_true(all(vapply(training, is.numeric, logical(1L))))
+  expect_identical(
+    training[["balanced_accuracy"]],
+    mod@metrics_training[["overall"]][["balanced_accuracy"]]
+  )
+  # One fitted model has no dispersion to report, and says so rather than
+  # claiming zero.
+  expect_null(rec[["metrics_sd"]][["training"]])
+})
+
+
+test_that("a resampled record reports the mean and the spread", {
+  x <- rnormmat(200L, 4L, seed = 3L)
+  datr <- data.frame(x, y = x[, 1L] + rnorm(200L))
+  mod <- train(
+    datr,
+    hyperparameters = setup_CART(),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    verbosity = 0L
+  )
+  rec <- record(mod)
+  expect_identical(
+    rec[["metrics"]][["test"]][["rmse"]],
+    mod@metrics_test@mean_metrics[["rmse"]]
+  )
+  expect_identical(
+    rec[["metrics_sd"]][["test"]][["rmse"]],
+    mod@metrics_test@sd_metrics[["rmse"]]
+  )
+  # `SupervisedRes` has no validation sample, so the key is present and null
+  # rather than absent: a record states something true about every field.
+  expect_true("validation" %in% names(rec[["metrics"]]))
+  expect_null(rec[["metrics"]][["validation"]])
+})
+
+
+test_that("each fold carries its full metrics, not only the headline row", {
+  mod <- train(iris, hyperparameters = setup_CART(), verbosity = 0L)
+  fold <- record(mod)[["folds"]][[1L]]
+  training <- fold[["metrics"]][["training"]]
+  # The typed contract: the confusion matrix in long form and the per-class
+  # table, which the headline block deliberately omits.
+  expect_true(all(
+    c("sample", "confusion_long", "metrics") %in% names(training)
+  ))
+  expect_identical(sum(training[["confusion_long"]][["n"]]), 150L)
+  expect_identical(nrow(training[["metrics"]][["class"]]), 3L)
+  # A computed view has no wire form and must not reach the record.
+  expect_false("confusion_matrix" %in% names(training))
+})

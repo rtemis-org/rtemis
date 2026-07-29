@@ -15,7 +15,10 @@
 #' model's training data.
 #'
 #' @param x `Classification` object.
-#' @param predicted_probabilities Numeric vector: Predicted probabilities.
+#' @param predicted_probabilities Numeric vector \[0, 1\]: Predicted
+#'   probabilities of the positive class, one per case. `@predicted_prob_*`
+#'   holds them as a one-column matrix, so pass `positive_prob()` of it or
+#'   index the column.
 #' @param true_labels Factor: True class labels.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param verbosity Integer: Verbosity level.
@@ -43,7 +46,7 @@
 #' )
 #' mod_c_glm_cal <- calibrate(
 #'   mod_c_glm,
-#'   predicted_probabilities = mod_c_glm$predicted_prob_training,
+#'   predicted_probabilities = mod_c_glm$predicted_prob_training[, 1L],
 #'   true_labels = mod_c_glm$y_training
 #' )
 #' mod_c_glm_cal
@@ -56,6 +59,7 @@ method(calibrate, Classification) <- function(
   ...
 ) {
   # Check inputs
+  predicted_probabilities <- positive_prob(predicted_probabilities)
   check_float01inc(predicted_probabilities)
   check_inherits(true_labels, "factor")
 
@@ -64,7 +68,7 @@ method(calibrate, Classification) <- function(
   # Test data is taken from mod, if available
   if (!is.null(x@y_test) && !is.null(x@predicted_prob_test)) {
     dat_test <- data.table(
-      predicted_probabilities = x@predicted_prob_test,
+      predicted_probabilities = positive_prob(x@predicted_prob_test),
       true_labels = x@y_test
     )
   } else {
@@ -150,7 +154,7 @@ method(calibrate, ClassificationRes) <- function(
     x@models,
     function(mod) {
       dat <- data.table(
-        predicted_probabilities = mod@predicted_prob_test,
+        predicted_probabilities = positive_prob(mod@predicted_prob_test),
         true_labels = mod@y_test
       )
       train(

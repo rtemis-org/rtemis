@@ -288,12 +288,24 @@ predict_supervised_ <- function(object, newdata, verbosity = 1L) {
   }
 
   # Call predict_super with fully preprocessed data
-  predict_super(
+  predicted <- predict_super(
     model = object@model,
     newdata = newdata,
     type = object@type,
     verbosity = verbosity
   )
+  # Classification predictions are probabilities, and each backend reduces the
+  # binary case to a bare vector in its own way. Normalized here so that
+  # `predict()` returns what `@predicted_prob_*` holds: two names for the same
+  # quantity must not have two shapes.
+  if (object@type == "Classification") {
+    predicted <- prob_matrix(
+      predicted,
+      levels(object@y_training),
+      object@binclasspos
+    )
+  }
+  predicted
 } # /rtemis::predict_supervised_
 
 
@@ -899,9 +911,13 @@ Classification <- new_class(
   package = "rtemis",
   parent = Supervised,
   properties = list(
-    predicted_prob_training = NULL | class_double | class_data.frame,
-    predicted_prob_validation = NULL | class_double | class_data.frame,
-    predicted_prob_test = NULL | class_double | class_data.frame,
+    # One row per case, one column per class -- and one column, the positive
+    # class's probability, in the binary case, where every backend reduces to a
+    # single score. `prob_matrix()` normalizes whatever the backend returned, so
+    # the shape is the same for every algorithm and every class count.
+    predicted_prob_training = NULL | class_matrix,
+    predicted_prob_validation = NULL | class_matrix,
+    predicted_prob_test = NULL | class_matrix,
     binclasspos = class_integer
   ),
   constructor = function(
@@ -929,6 +945,22 @@ Classification <- new_class(
     predicted_prob_test = NULL,
     binclasspos = 2L
   ) {
+    classes <- levels(y_training)
+    predicted_prob_training <- prob_matrix(
+      predicted_prob_training,
+      classes,
+      binclasspos
+    )
+    predicted_prob_validation <- prob_matrix(
+      predicted_prob_validation,
+      classes,
+      binclasspos
+    )
+    predicted_prob_test <- prob_matrix(
+      predicted_prob_test,
+      classes,
+      binclasspos
+    )
     metrics_training <- classification_metrics(
       true_labels = y_training,
       predicted_labels = predicted_training,
@@ -1010,42 +1042,50 @@ CalibratedClassification <- new_class(
     predicted_training_calibrated = class_factor,
     predicted_validation_calibrated = NULL | class_factor,
     predicted_test_calibrated = NULL | class_factor,
-    predicted_prob_training_calibrated = class_double,
-    predicted_prob_validation_calibrated = NULL | class_double,
-    predicted_prob_test_calibrated = NULL | class_double,
+    predicted_prob_training_calibrated = class_matrix,
+    predicted_prob_validation_calibrated = NULL | class_matrix,
+    predicted_prob_test_calibrated = NULL | class_matrix,
     metrics_training_calibrated = Metrics,
     metrics_validation_calibrated = NULL | Metrics,
     metrics_test_calibrated = NULL | Metrics
   ),
   constructor = function(classification_model, calibration_model) {
     # Predict calibrated probabilities of classification model datasets
-    predicted_prob_training_calibrated <- predict(
+    # Calibrated probabilities are probabilities: same shape rule as the
+    # uncalibrated ones, so a consumer reads either without branching.
+    predicted_prob_training_calibrated <- prob_matrix(predict(
       calibration_model,
       data.frame(
-        predicted_probabilities = classification_model@predicted_prob_training
-      ),
-    )
+        predicted_probabilities = positive_prob(
+          classification_model@predicted_prob_training
+        )
+      )
+    ))
     predicted_prob_validation_calibrated <- if (
       !is.null(classification_model@predicted_prob_validation)
     ) {
-      predict(
+      prob_matrix(predict(
         calibration_model,
         data.frame(
-          predicted_probabilities = classification_model@predicted_prob_validation
+          predicted_probabilities = positive_prob(
+            classification_model@predicted_prob_validation
+          )
         )
-      )
+      ))
     } else {
       NULL
     }
     predicted_prob_test_calibrated <- if (
       !is.null(classification_model@predicted_prob_test)
     ) {
-      predict(
+      prob_matrix(predict(
         calibration_model,
         data.frame(
-          predicted_probabilities = classification_model@predicted_prob_test
+          predicted_probabilities = positive_prob(
+            classification_model@predicted_prob_test
+          )
         )
-      )
+      ))
     } else {
       NULL
     }
@@ -1128,7 +1168,9 @@ method(predict, CalibratedClassification) <- function(object, newdata, ...) {
   # underlying model is queried. `predict` is an S3/base generic, so the parent
   # `Supervised` method cannot be invoked via `super()`; call the shared pipeline
   # helper instead.
-  raw_prob <- predict_supervised_(object, newdata)
+  # Calibration maps one score per case, so the positive class's column is what
+  # the calibration model was fitted on.
+  raw_prob <- positive_prob(predict_supervised_(object, newdata))
   # Get the calibration model's predicted probabilities
   predict(
     object@calibration_model,
@@ -1955,21 +1997,16 @@ ClassificationRes <- new_class(
     extra = NULL,
     data_fingerprint = NULL
   ) {
+    # Dimension names are not set here: `ClassificationMetricsRes` stores the
+    # long form and derives the wide table, which labels both dimensions
+    # uniformly.
     conf_mat_training <- conf_table(
       unlist(y_training),
       unlist(predicted_training)
     )
-    names(attributes(conf_mat_training)[["dimnames"]]) <- c(
-      "Reference",
-      "Predicted"
-    )
     conf_mat_test <- conf_table(
       unlist(y_test),
       unlist(predicted_test)
-    )
-    names(attributes(conf_mat_test)[["dimnames"]]) <- c(
-      "Reference",
-      "Predicted"
     )
     metrics_training <- ClassificationMetricsRes(
       sample = "Training",
@@ -2126,11 +2163,12 @@ method(predict, CalibratedClassificationRes) <- function(
 
   predicted <- mapply(
     function(base_mod, cal_mod) {
-      # 1. Predict with base model
-      raw_prob <- predict(
+      # 1. Predict with base model. Calibration maps one score per case, so
+      #    take the positive class's column.
+      raw_prob <- positive_prob(predict(
         base_mod,
         newdata = newdata
-      )
+      ))
 
       # 2. Predict with calibration model
       predict(

@@ -32,7 +32,8 @@ class.
 
 \strong{For \code{Classification} objects:}
 \itemize{
-\item \code{predicted_probabilities}: Numeric vector of predicted probabilities
+\item \code{predicted_probabilities}: Numeric vector of the positive class's
+predicted probabilities, one per case
 \item \code{true_labels}: Factor of true class labels
 }
 
@@ -62,7 +63,7 @@ mod_c_glm <- train(
 # in this case using the training data, but it could be a separate calibration dataset.
 mod_c_glm_cal <- calibrate(
   mod_c_glm,
-  predicted_probabilities = mod_c_glm$predicted_prob_training,
+  predicted_probabilities = mod_c_glm$predicted_prob_training[, 1L],
   true_labels = mod_c_glm$y_training
 )
 mod_c_glm_cal

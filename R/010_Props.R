@@ -74,7 +74,21 @@ NAME_BOUNDS <- c("feature_names", "numeric_feature_names")
 #            are data (one per feature) and its values homogeneous, a struct's
 #            keys are part of the contract. A struct member may itself be a
 #            container; a table's may not, since a cell is a scalar.
-PROP_CONTAINERS <- c("none", "array", "map", "matrix", "table", "struct")
+# - "factor" an R factor: a classification outcome or prediction. The same JSON
+#            shape as an array of strings -- the labels -- and a distinct R
+#            class, which is why it is its own container rather than an `array`
+#            of strings: a factor assigned to a character property, or the
+#            reverse, is a type error the validator must catch. The levels are
+#            the outcome's, so they are data and are not declared.
+PROP_CONTAINERS <- c(
+  "none",
+  "array",
+  "map",
+  "matrix",
+  "table",
+  "struct",
+  "factor"
+)
 
 # %% PROP_TYPES ----
 # JSON Schema base types a property's leaf value may take. "object" is an
@@ -431,7 +445,7 @@ PropertySpec <- new_class(
 #'
 #' @param spec `PropertySpec` object.
 #'
-#' @return Character: "matrix", "table", "list", or "atomic".
+#' @return Character: "matrix", "table", "factor", "list", or "atomic".
 #'
 #' @author EDG
 #' @keywords internal
@@ -442,6 +456,9 @@ spec_r_kind <- function(spec) {
   }
   if (spec@container == "table") {
     return("table")
+  }
+  if (spec@container == "factor") {
+    return("factor")
   }
   if (spec@container == "struct") {
     return("list")
@@ -706,6 +723,11 @@ validate_with_spec <- function(value, spec) {
   if (spec@container == "struct") {
     return(validate_struct(value, spec))
   }
+  if (spec@container == "factor" && !is.factor(value)) {
+    # The generic checks below then apply to the labels: emptiness, missingness
+    # and, where declared, enum membership.
+    return("must be a factor.")
+  }
   if (spec@container == "map" && is.null(names(value))) {
     return("must be named.")
   }
@@ -815,6 +837,7 @@ make_prop <- function(spec) {
     spec_r_kind(spec),
     matrix = S7::new_S3_class("matrix"),
     table = class_data.frame,
+    factor = class_factor,
     list = class_list,
     atomic_class
   )
@@ -1254,6 +1277,57 @@ prop_matrix <- function(
     description = description
   ))
 } # /rtemis::prop_matrix
+
+
+# %% prop_factor ----
+#' Factor S7 property with attached PropertySpec
+#'
+#' An R factor — a classification outcome or a predicted class. Serializes as an
+#' array of the labels, which is the same JSON shape as an `array` of strings but
+#' a distinct R class, so the two are separate containers.
+#'
+#' The levels are the outcome's own, so they are data and are not declared;
+#' pass `enum` only where the permitted labels are fixed by the class.
+#'
+#' @param enum Character or NULL: Allowed labels.
+#' @param nullable Logical: If TRUE, NULL is a valid value.
+#' @param data_bound Character or NULL: Training-data dimension the length is
+#'   tied to; see `DATA_BOUNDS`.
+#' @param data_dependent Logical: If TRUE, the value's shape follows one
+#'   dataset (one entry per case), so a form should not prompt for it. An
+#'   annotation only; it does not affect serialization.
+#' @param description Character: Human-readable description.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_factor <- function(
+  enum = NULL,
+  nullable = FALSE,
+  data_bound = NULL,
+  data_dependent = FALSE,
+  description = ""
+) {
+  make_prop(PropertySpec(
+    type = "string",
+    default = NULL,
+    minimum = NULL,
+    maximum = NULL,
+    exclusive_minimum = NULL,
+    exclusive_maximum = NULL,
+    enum = enum,
+    nullable = nullable,
+    tunable = FALSE,
+    container = "factor",
+    items = NULL,
+    broadcast = FALSE,
+    data_bound = data_bound,
+    data_dependent = data_dependent,
+    description = description
+  ))
+} # /rtemis::prop_factor
 
 
 # %% prop_table ----
@@ -1797,6 +1871,49 @@ prop_role <- function(prop) {
 } # /rtemis::prop_role
 
 
+# %% prop_published ----
+#' Whether a property is part of the published contract
+#'
+#' True for everything the generated schema declares: configuration and run
+#' state alike. False for a computed view (recoverable from published fields)
+#' and for an r_only value (no wire form at all), which is why both are also
+#' absent from [to_json].
+#'
+#' Distinct from `prop_serialized()`, which answers the narrower question of
+#' whether `write_config()` emits the value: state is published but never
+#' written to a config, being re-derived on read.
+#'
+#' A spec-less property with no role counts as published, so a class that has
+#' not been migrated to the factories serializes as it always did; schema
+#' generation is where that drift is caught.
+#'
+#' @param prop S7 property (an element of `Class@properties`).
+#'
+#' @return Logical.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_published <- function(prop) {
+  !prop_role(prop) %in% c("computed", "r_only")
+} # /rtemis::prop_published
+
+
+# %% published_prop_names ----
+#' Names of an S7 class's published properties
+#'
+#' @param x S7 class.
+#'
+#' @return Character vector of property names.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+published_prop_names <- function(x) {
+  names(Filter(prop_published, x@properties))
+} # /rtemis::published_prop_names
+
+
 # %% role_prop_names ----
 #' Names of an S7 class's properties with a given role
 #'
@@ -2331,6 +2448,14 @@ spec_to_schema <- function(spec, read_only = FALSE) {
     } else {
       arr
     }
+  } else if (spec@container == "factor") {
+    # The labels, in case order. The levels are the outcome's, so they are data
+    # rather than a declarable enum; `x-rtemis.container` carries the R class.
+    list(
+      type = if (spec@nullable) I(c("array", "null")) else "array",
+      items = scalar,
+      minItems = 1L
+    )
   } else if (spec@container == "matrix") {
     row <- list(type = "array", items = scalar, minItems = 1L)
     list(
@@ -2542,13 +2667,15 @@ origin_schema <- function(props) {
 #' @param refs Named character: record-schema URLs for the per-fold blocks
 #'   (`hyperparameters`, and optionally `preprocessor_config` /
 #'   `decomposition_config`).
+#' @param metrics_refs Named character or NULL: schema URLs for the regression
+#'   and classification metrics classes, `$ref`d by each fold's `metrics`.
 #'
 #' @return Named list: the `folds` property schema.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-folds_schema <- function(refs) {
+folds_schema <- function(refs, metrics_refs = NULL) {
   nullable_ref <- function(url) {
     list(oneOf = list(list(type = "null"), list(`$ref` = url)))
   }
@@ -2581,6 +2708,25 @@ folds_schema <- function(refs) {
       )
     )
   )
+  if (!is.null(metrics_refs)) {
+    # Which metrics class applies follows from the outcome, not from anything
+    # the record declares, so both are admitted and the reader takes whichever
+    # validates.
+    sample_schema <- list(
+      oneOf = c(
+        list(list(type = "null")),
+        lapply(unname(metrics_refs), function(url) list(`$ref` = url))
+      )
+    )
+    entries <- lapply(SUPERVISED_SAMPLES, function(...) sample_schema)
+    names(entries) <- SUPERVISED_SAMPLES
+    properties[["metrics"]] <- list(
+      type = "object",
+      description = "What this fold scored, in full, per sample.",
+      properties = entries,
+      additionalProperties = FALSE
+    )
+  }
   list(
     type = "array",
     minItems = 1L,
@@ -2595,6 +2741,52 @@ folds_schema <- function(refs) {
     )
   )
 } # /rtemis::folds_schema
+
+
+# %% metrics_schema ----
+#' A record's headline-scores block
+#'
+#' One entry per sample, each a flat map of metric name to value: the mean
+#' across folds, and beside it the standard deviation, which is null for a
+#' single fit because one model has no dispersion.
+#'
+#' Typed loosely on purpose. The metric set differs between regression and
+#' classification, and the authoritative, per-metric-bounded declaration is the
+#' metrics schema each fold's `metrics` block `$ref`s. This block exists so that
+#' "how did this run do?" is one lookup in a file, with no averaging and no R —
+#' which is what makes a directory of records rankable.
+#'
+#' @param sd Logical: If TRUE, describe the dispersion block.
+#'
+#' @return Named list: the `metrics` (or `metrics_sd`) property schema.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+metrics_schema <- function(sd = FALSE) {
+  sample_schema <- list(
+    type = I(c("object", "null")),
+    additionalProperties = list(type = I(c("number", "null")))
+  )
+  entries <- lapply(SUPERVISED_SAMPLES, function(...) sample_schema)
+  names(entries) <- SUPERVISED_SAMPLES
+  list(
+    type = "object",
+    description = if (sd) {
+      paste(
+        "Standard deviation of each metric across outer resamples, per sample.",
+        "Null for a single fit, which has no dispersion."
+      )
+    } else {
+      paste(
+        "Headline score of each sample: the metric a run is judged on, meaned",
+        "across outer resamples. Per-fold detail is in `folds`."
+      )
+    },
+    properties = entries,
+    additionalProperties = FALSE
+  )
+} # /rtemis::metrics_schema
 
 
 # %% prop_to_schema ----
@@ -2622,12 +2814,12 @@ prop_to_schema <- function(prop) {
 #' Walks the class's properties, reads each attached `PropertySpec`, and
 #' assembles a draft 2020-12 JSON Schema. Which properties take part is decided
 #' by their declared role (see `prop_role()`), not by a list kept here:
-#' `"config"` properties are generated from their spec, `"state"` properties are
-#' dropped, and `"external"` properties must be supplied by `extra` — asserted
-#' after the merge, so a forgotten fragment cannot silently drop a key from the
-#' published contract. A spec-less property with no role is an error, so a class
-#' that drifts from the factory vocabulary fails loudly instead of emitting a
-#' wrong schema.
+#' `"config"` and `"state"` properties are generated from their spec, state
+#' being marked `readOnly`, while `"computed"` and `"r_only"` properties are
+#' omitted — the first because everything it derives from is published, the
+#' second because it has no wire form at all. A spec-less property with no role
+#' is an error, so a class that drifts from the factory vocabulary fails loudly
+#' instead of emitting a wrong schema.
 #'
 #' @param x S7 class (e.g. `LightRFHyperparameters`).
 #' @param id Character: Schema `$id` URL
@@ -2645,6 +2837,9 @@ prop_to_schema <- function(prop) {
 #' @param fold_refs Named character or NULL: If set (and `record` is TRUE), adds
 #'   a required `folds` array whose entries reference these record schemas. Only
 #'   a record of a run that fits models per resample carries one.
+#' @param metrics_refs Named character or NULL: If set (and `record` is TRUE),
+#'   adds the required `metrics` / `metrics_sd` headline blocks, and references
+#'   these metrics schemas from each fold's own `metrics`.
 #' @param provenance_url Character or NULL: If set (and `record` is TRUE), adds
 #'   a required `provenance` property `$ref`ing that schema. Only a top-level
 #'   record carries it; a nested one inherits its parent's.
@@ -2662,6 +2857,9 @@ prop_to_schema <- function(prop) {
 #'   `oneOf: [null, $ref]` when the property accepts NULL, detected from its
 #'   S7 union), instead of requiring a `PropertySpec`. Names must match
 #'   existing properties.
+#' @param array_refs Named character: As `refs`, for a property holding a *list*
+#'   of such objects — one metrics object per resample, one model per fold. Each
+#'   emits an array whose `items` are the `$ref`.
 #' @param closed Logical: If TRUE (default) the schema sets
 #'   `additionalProperties: false`. Pass FALSE for leaves composed into a
 #'   top-level-mode dispatcher, which enforces strictness with
@@ -2691,8 +2889,10 @@ S7_to_JSONSchema <- function(
   record = FALSE,
   provenance_url = NULL,
   fold_refs = NULL,
+  metrics_refs = NULL,
   extra = NULL,
   refs = NULL,
+  array_refs = NULL,
   closed = TRUE,
   instance_schema_url = NULL
 ) {
@@ -2710,11 +2910,14 @@ S7_to_JSONSchema <- function(
   # Run state is part of the class, so it is part of the schema — marked
   # `readOnly` by `prop_to_schema()`, since a user never supplies it. Whether it
   # is also written to a config is the separate `serialize` axis.
-  if (!is.null(refs)) {
-    unknown <- setdiff(names(refs), names(props))
+  for (arg in c("refs", "array_refs")) {
+    named <- if (arg == "refs") refs else array_refs
+    unknown <- setdiff(names(named), names(props))
     if (length(unknown) > 0L) {
       rtemis.core::abort(
-        "`refs` names no such (or omitted) propert",
+        "`",
+        arg,
+        "` names no such (or omitted) propert",
         if (length(unknown) == 1L) "y: " else "ies: ",
         paste(unknown, collapse = ", "),
         ".",
@@ -2722,8 +2925,9 @@ S7_to_JSONSchema <- function(
       )
     }
   }
-  ref_props <- props[names(props) %in% names(refs)]
-  props <- props[!names(props) %in% names(refs)]
+  referenced <- c(names(refs), names(array_refs))
+  ref_props <- props[names(props) %in% referenced]
+  props <- props[!names(props) %in% referenced]
   # A derived view is not part of the contract: it is a function of fields the
   # schema already declares, so publishing it would let the two disagree.
   props <- props[
@@ -2754,13 +2958,17 @@ S7_to_JSONSchema <- function(
   # Nested config properties reference their own schema. A property whose S7
   # class is a union containing NULL is optional, so it also admits null.
   for (nm in names(ref_props)) {
-    target <- unname(refs[[nm]])
+    plural <- nm %in% names(array_refs)
+    target <- unname(if (plural) array_refs[[nm]] else refs[[nm]])
     if (record) {
       # A record nests records: the input schemas are closed and do not declare
       # `origin`, so pointing at one would reject the very block it describes.
       target <- sub("/schema\\.json$", "/record.json", target)
     }
     ref <- list(`$ref` = target)
+    if (plural) {
+      ref <- list(type = "array", items = ref)
+    }
     properties[[nm]] <- if (prop_accepts_null(ref_props[[nm]])) {
       list(oneOf = list(list(type = "null"), ref))
     } else {
@@ -2809,8 +3017,15 @@ S7_to_JSONSchema <- function(
     # Nested records (a `preprocessor_config` inside a supervised record) get it
     # from their parent, so only a top-level record carries the block.
     if (!is.null(fold_refs)) {
-      properties[["folds"]] <- folds_schema(fold_refs)
+      properties[["folds"]] <- folds_schema(fold_refs, metrics_refs)
       required <- c(required, "folds")
+    }
+    # What the run scored. A record that states the config and the provenance
+    # but not the result cannot answer the question it is opened for.
+    if (!is.null(metrics_refs)) {
+      properties[["metrics"]] <- metrics_schema()
+      properties[["metrics_sd"]] <- metrics_schema(sd = TRUE)
+      required <- c(required, "metrics", "metrics_sd")
     }
     if (!is.null(provenance_url)) {
       properties[["provenance"]] <- list(`$ref` = provenance_url)

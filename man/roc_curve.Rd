@@ -9,11 +9,11 @@ roc_curve(true_labels, predicted_prob, max_points = NULL)
 \arguments{
 \item{true_labels}{Factor: True outcome labels.}
 
-\item{predicted_prob}{Numeric vector [0, 1]: Predicted probabilities for the
-positive class (second level of \code{true_labels}). Or, for multiclass, a
-matrix of predicted probabilities with exactly one column per class, in
-factor-level order (rtemis's convention); the columns are labeled with
-the factor levels regardless of any names on the input.}
+\item{predicted_prob}{Numeric vector or matrix [0, 1]: Predicted
+probabilities for the positive class (second level of \code{true_labels}), as a
+vector or a one-column matrix. For multiclass, a matrix with exactly one
+column per class, in factor-level order (rtemis's convention); the columns
+are labeled with the factor levels regardless of any names on the input.}
 
 \item{max_points}{Optional Integer [2, Inf): Cap on the number of vertices
 per curve. \code{NULL} keeps full resolution.}

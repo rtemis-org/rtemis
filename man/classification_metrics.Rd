@@ -12,7 +12,7 @@ classification_metrics(
   calc_auc = TRUE,
   calc_brier = TRUE,
   auc_method = "lightAUC",
-  sample = character(),
+  sample = NULL,
   verbosity = 0L
 )
 }
@@ -21,7 +21,11 @@ classification_metrics(
 
 \item{predicted_labels}{Factor: predicted values.}
 
-\item{predicted_prob}{Numeric vector: predicted probabilities.}
+\item{predicted_prob}{Optional Numeric vector or matrix [0, 1]: Predicted
+probabilities, one column per class. A single column is the positive
+class's probability and enables the probability-based metrics (AUC, Brier
+score); a multiclass matrix has no single score per case, so those are not
+computed.}
 
 \item{binclasspos}{Integer: Factor level position of the positive class in binary classification.}
 
@@ -31,7 +35,9 @@ classification_metrics(
 
 \item{auc_method}{Character: "lightAUC", "pROC", "ROCR".}
 
-\item{sample}{Character: Sample name.}
+\item{sample}{Optional Character \{"Training", "Validation", "Test",
+"Calibrated Training", "Calibrated Validation", "Calibrated Test"\}: Sample
+the metrics describe.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }

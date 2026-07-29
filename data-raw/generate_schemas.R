@@ -18,6 +18,14 @@ base_url <- "https://schema.rtemis.org"
 # provenance and the fingerprints it holds — do not carry one themselves.
 provenance_url <- paste0(base_url, "/provenance/v1/schema.json")
 record_parts <- c("provenance", "datafingerprint")
+# Results classes: what a run produced, not a config a run resolves. They have
+# no input form, so no `record.json` either -- the whole document is a report.
+result_classes <- c(
+  "regressionmetrics",
+  "classificationmetrics",
+  "regressionmetricsres",
+  "classificationmetricsres"
+)
 # Only a *pipeline* record represents a run, so only one carries provenance. A
 # component config (preprocessor, execution, ...) has a record form too, but it
 # appears nested inside a pipeline record and takes provenance from there;
@@ -29,6 +37,12 @@ fold_refs <- c(
   hyperparameters = paste0(base_url, "/hyperparameters/v1/record.json"),
   preprocessor_config = paste0(base_url, "/preprocessor/v1/record.json"),
   decomposition_config = paste0(base_url, "/decomposition/v1/record.json")
+)
+# What the run scored. Which of the two applies follows from the outcome, so a
+# record admits either and the reader takes whichever validates.
+metrics_refs <- c(
+  regression = paste0(base_url, "/regressionmetrics/v1/schema.json"),
+  classification = paste0(base_url, "/classificationmetrics/v1/schema.json")
 )
 
 # Registry ------------------------------------------------------------------
@@ -130,8 +144,13 @@ for (family in names(flat_configs)) {
   dir <- file.path(schema_repo, family, "v1")
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   # A record's own components have no record form: they *are* the record's
-  # furniture, not configs a run resolves.
-  kinds <- if (family %in% record_parts) "schema" else c("schema", "record")
+  # furniture, not configs a run resolves. Nor do results classes, which are
+  # outputs with no input counterpart.
+  kinds <- if (family %in% c(record_parts, result_classes)) {
+    "schema"
+  } else {
+    c("schema", "record")
+  }
   for (kind in kinds) {
     id <- paste0(base_url, "/", family, "/v1/", kind, ".json")
     schema <- S7_to_JSONSchema(
@@ -144,9 +163,16 @@ for (family in names(flat_configs)) {
         provenance_url
       },
       fold_refs = if (kind == "record" && family == "supervised") fold_refs,
+      metrics_refs = if (kind == "record" && family == "supervised") {
+        metrics_refs
+      },
       extra = cfg[["extra"]],
       refs = cfg[["refs"]],
-      instance_schema_url = id
+      array_refs = cfg[["array_refs"]],
+      # A config instance self-identifies with `$schema`; a results object does
+      # not, being produced by rtemis rather than authored against a schema, so
+      # declaring the field would put a key in the contract that nothing writes.
+      instance_schema_url = if (!(family %in% result_classes)) id
     )
     write_JSONSchema(
       schema,

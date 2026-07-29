@@ -285,6 +285,14 @@ method(write_config, ClusteringConfig) <- function(
 #' values in each fold, so a single resolved value at the top level would state
 #' something no fold did.
 #'
+#' A supervised record also states **what the run scored**. `metrics` holds each
+#' sample's headline row as a flat metric-to-value map, meaned across outer
+#' resamples, with `metrics_sd` beside it for the spread (`null` for a single
+#' fit, which has none). The full metrics — the confusion matrix, the per-class
+#' rows — are in each fold's own `metrics`. The flat block exists so that "was
+#' this model any good?" is one lookup in one file, with no averaging and no R,
+#' which is what makes a directory of records rankable.
+#'
 #' [train], [decomp] and [cluster] call this automatically when given an
 #' `outdir`. A record is not a config: feeding one to [read_config] is an error,
 #' since its resolved values would silently pin settings the new call should

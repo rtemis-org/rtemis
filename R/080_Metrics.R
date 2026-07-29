@@ -31,6 +31,52 @@ confusion_to_long <- function(cm) {
 }
 
 
+# %% long_to_confusion() ----
+# The wide `table` view of the long form, which is the stored one. Level order
+# is preserved by construction: the long form enumerates cells with `reference`
+# varying fastest, which is also the order `matrix()` fills, so taking each
+# column's distinct values in order recovers the levels as they were.
+long_to_confusion <- function(long) {
+  reference <- unique(long[["reference"]])
+  predicted <- unique(long[["predicted"]])
+  as.table(matrix(
+    long[["n"]],
+    nrow = length(reference),
+    ncol = length(predicted),
+    dimnames = list(Reference = reference, Predicted = predicted)
+  ))
+}
+
+
+# %% prop_confusion_long ----
+#' The stored confusion matrix: one row per cell
+#'
+#' A `table`'s column names are the outcome levels, so they are data rather than
+#' a declarable column set and no schema can describe them. The long form turns
+#' them into two declared columns and loses nothing, so it is what the class
+#' stores and publishes; `confusion_matrix` is the wide view derived from it.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_confusion_long <- function() {
+  prop_state(prop_table(
+    # Every cell is populated for every case pair, so unlike a metric none of
+    # these is nullable. Their defaults are unused, a column spec describing a
+    # cell rather than a value.
+    columns = list(
+      reference = prop_string("", description = "True outcome level."),
+      predicted = prop_string("", description = "Predicted outcome level."),
+      n = prop_integer(0L, min = 0L, description = "Number of cases.")
+    ),
+    nullable = TRUE,
+    description = "Confusion matrix, one row per cell."
+  ))
+} # /rtemis::prop_confusion_long
+
+
 # %% Row labels for printing ----
 # The stored tables carry no row names: `overall` has a single row and `class`
 # names its rows in a `level` column, neither of which has a row-oriented JSON
@@ -109,14 +155,85 @@ prop_rate <- function(description = "") {
 } # /rtemis::prop_rate
 
 
+# %% regression_metric_columns ----
+# The regression metric set, declared once: a sample's metrics and their mean
+# and standard deviation across resamples all carry these columns.
+regression_metric_columns <- function() {
+  list(
+    mae = prop_metric(min = 0),
+    mse = prop_metric(min = 0),
+    rmse = prop_metric(min = 0),
+    rsq = prop_metric(max = 1)
+  )
+}
+
+
+# %% classification_overall_columns ----
+# Which columns are present depends on the task: multiclass gets the three
+# always-present ones, binary adds the positive class's rates, and the
+# probability-based pair needs predicted probabilities. Every column is
+# declared; only the invariant ones are required.
+classification_overall_columns <- function() {
+  list(
+    balanced_accuracy = prop_rate(),
+    f1 = prop_rate(),
+    accuracy = prop_rate(),
+    sensitivity = prop_rate(),
+    specificity = prop_rate(),
+    ppv = prop_rate(),
+    npv = prop_rate(),
+    auc = prop_rate(),
+    brier_score = prop_rate()
+  )
+}
+
+CLASSIFICATION_OVERALL_REQUIRED <- c("balanced_accuracy", "f1", "accuracy")
+
+
+# %% METRICS_SAMPLES ----
+# Which sample a metrics object describes. A closed set: rtemis names the
+# samples itself, so a value outside it is a typo rather than a new case.
+METRICS_SAMPLES <- c(
+  "Training",
+  "Validation",
+  "Test",
+  "Calibrated Training",
+  "Calibrated Validation",
+  "Calibrated Test"
+)
+
+
+# %% prop_metrics_sample ----
+#' The sample a metrics object describes
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_metrics_sample <- function() {
+  prop_state(prop_string(
+    NULL,
+    enum = METRICS_SAMPLES,
+    nullable = TRUE,
+    description = "Sample the metrics describe."
+  ))
+} # /rtemis::prop_metrics_sample
+
+
 # %% Metrics ----
 #' Metrics
 #'
 #' @description
 #' Superclass for Metrics metrics.
 #'
+#' Holds only what every metrics class shares. `metrics` is declared by each
+#' concrete subclass, whose payload differs in both shape and columns: a
+#' regression sample is one table, a classification sample is a struct of two
+#' tables and a scalar. Declaring an untyped union here as well would put a
+#' second, weaker contract above the typed ones.
+#'
 #' @field sample Character: Sample name.
-#' @field metrics List or data.frame: Metrics.
 #'
 #' @author EDG
 #' @keywords internal
@@ -125,8 +242,7 @@ Metrics <- new_class(
   name = "Metrics",
   package = "rtemis",
   properties = list(
-    sample = NULL | class_character,
-    metrics = class_list | class_data.frame
+    sample = prop_metrics_sample()
   )
 ) # /rtemis::Metrics
 
@@ -183,27 +299,20 @@ RegressionMetrics <- new_class(
     # A one-row table. Every metric is nullable: a metric can be genuinely
     # undefined for a sample (R-squared when the outcome has no variance), and
     # NA is the honest answer rather than a reason to reject the object.
-    metrics = prop_table(
-      columns = list(
-        mae = prop_metric(min = 0),
-        mse = prop_metric(min = 0),
-        rmse = prop_metric(min = 0),
-        rsq = prop_metric(max = 1)
-      ),
+    metrics = prop_state(prop_table(
+      columns = regression_metric_columns(),
       nullable = TRUE,
       description = "Regression metrics, one row."
-    )
+    ))
   ),
   constructor = function(mae, mse, rmse, rsq, sample = NULL) {
     new_object(
-      Metrics(
-        sample = sample,
-        metrics = data.frame(
-          mae = mae,
-          mse = mse,
-          rmse = rmse,
-          rsq = rsq
-        )
+      Metrics(sample = sample),
+      metrics = data.frame(
+        mae = mae,
+        mse = mse,
+        rmse = rmse,
+        rsq = rsq
       )
     )
   }
@@ -265,34 +374,19 @@ ClassificationMetrics <- new_class(
   name = "ClassificationMetrics",
   parent = Metrics,
   properties = list(
-    confusion_matrix = class_table,
-    # A derived view of `confusion_matrix` in the row-oriented form a data frame
-    # reader expects. A `table`'s column names are the outcome levels, so they
-    # are data, not a declarable column set; the long form turns them into two
-    # declared columns and loses nothing.
-    confusion_long = prop_computed(new_property(
-      class = class_data.frame,
-      getter = function(self) confusion_to_long(self@confusion_matrix)
+    confusion_long = prop_confusion_long(),
+    # The wide `table` R users and the plotting code expect, rebuilt from the
+    # stored long form. Recoverable from a published field, so it is a view
+    # rather than a second stored representation that could disagree.
+    confusion_matrix = prop_computed(new_property(
+      class = class_table,
+      getter = function(self) long_to_confusion(self@confusion_long)
     )),
-    metrics = prop_struct(
+    metrics = prop_state(prop_struct(
       members = list(
-        # Which columns `overall` carries depends on the task: multiclass gets
-        # the three always-present ones, binary adds the positive class's rates,
-        # and the probability-based pair needs predicted probabilities. Every
-        # column is declared; only the invariant ones are required.
         overall = prop_table(
-          columns = list(
-            balanced_accuracy = prop_rate(),
-            f1 = prop_rate(),
-            accuracy = prop_rate(),
-            sensitivity = prop_rate(),
-            specificity = prop_rate(),
-            ppv = prop_rate(),
-            npv = prop_rate(),
-            auc = prop_rate(),
-            brier_score = prop_rate()
-          ),
-          required = c("balanced_accuracy", "f1", "accuracy"),
+          columns = classification_overall_columns(),
+          required = CLASSIFICATION_OVERALL_REQUIRED,
           nullable = TRUE,
           description = "Overall metrics, one row."
         ),
@@ -319,7 +413,7 @@ ClassificationMetrics <- new_class(
       required = c("overall", "class"),
       nullable = TRUE,
       description = "Classification metrics."
-    )
+    ))
   ),
   constructor = function(
     confusion_matrix,
@@ -329,14 +423,12 @@ ClassificationMetrics <- new_class(
     sample = NULL
   ) {
     new_object(
-      confusion_matrix = confusion_matrix,
-      Metrics(
-        sample = sample,
-        metrics = list(
-          overall = overall,
-          class = class,
-          positive_class = positive_class
-        )
+      Metrics(sample = sample),
+      confusion_long = confusion_to_long(confusion_matrix),
+      metrics = list(
+        overall = overall,
+        class = class,
+        positive_class = positive_class
       )
     )
   }
@@ -417,25 +509,6 @@ method(repr, ClassificationMetrics) <- function(
 } # /rtemis::repr.ClassificationMetrics
 
 
-# %% to_json.ClassificationMetrics ----
-#' @name to_json
-#' @keywords internal
-#' @noRd
-method(to_json, ClassificationMetrics) <- function(x, ...) {
-  # The default method walks every property, which would hand `jsonlite` the
-  # raw `confusion_matrix`: a `table` has no `asJSON` method, and its column
-  # names are outcome levels rather than a declarable set. `confusion_long`
-  # carries the same counts in row-oriented form, so the wide table is omitted
-  # here rather than converted downstream by each consumer in turn.
-  list(
-    .class = S7_class(x)@name,
-    sample = x@sample,
-    metrics = .to_json_value(x@metrics),
-    confusion_long = x@confusion_long
-  )
-} # /rtemis::to_json.ClassificationMetrics
-
-
 # %% print.ClassificationMetrics ----
 method(print, ClassificationMetrics) <- function(
   x,
@@ -460,6 +533,10 @@ method(print, ClassificationMetrics) <- function(
 #' @description
 #' Superclass for MetricsRes metrics.
 #'
+#' As with [Metrics], only the shared field is declared here: the per-resample
+#' metrics and their mean and standard deviation all carry the concrete task's
+#' columns, so each subclass declares its own.
+#'
 #' @field sample Character: Sample name.
 #'
 #' @author EDG
@@ -467,12 +544,74 @@ method(print, ClassificationMetrics) <- function(
 MetricsRes <- new_class(
   name = "MetricsRes",
   properties = list(
-    sample = NULL | class_character,
-    res_metrics = class_list,
-    mean_metrics = class_data.frame,
-    sd_metrics = class_data.frame
+    sample = prop_metrics_sample()
   )
 ) # /rtemis::MetricsRes
+
+
+# %% prop_res_metrics ----
+#' Per-resample metrics
+#'
+#' A list holding one metrics object per resample. Declared without a
+#' `PropertySpec`: its elements are S7 objects with schemas of their own, which
+#' the generator wires up as an array of `$ref`s.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_res_metrics <- function() {
+  new_property(class_list)
+} # /rtemis::prop_res_metrics
+
+
+# %% prop_mean_metrics ----
+#' Mean of a metric across resamples
+#'
+#' @param columns Named list of column specs: The metric columns being
+#'   averaged, so the mean carries the same bounds as the values.
+#' @param required Character, optional: Names of the always-present columns.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_mean_metrics <- function(columns, required = NULL) {
+  prop_state(prop_table(
+    columns = columns,
+    required = required,
+    nullable = TRUE,
+    description = "Mean of each metric across resamples, one row."
+  ))
+} # /rtemis::prop_mean_metrics
+
+
+# %% prop_sd_metrics ----
+#' Standard deviation of a metric across resamples
+#'
+#' The same columns as [prop_mean_metrics], bounded only below: a dispersion is
+#' non-negative but is not confined to the range of the values it summarizes —
+#' R-squared is bounded above by 1 and unbounded below, so its standard
+#' deviation across resamples can exceed 1.
+#'
+#' @param columns Named list of column specs: The metric columns summarized.
+#' @param required Character, optional: Names of the always-present columns.
+#'
+#' @return S7 property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_sd_metrics <- function(columns, required = NULL) {
+  prop_state(prop_table(
+    columns = lapply(columns, function(...) prop_metric(min = 0)),
+    required = required,
+    nullable = TRUE,
+    description = "Standard deviation of each metric across resamples, one row."
+  ))
+} # /rtemis::prop_sd_metrics
 
 
 # %% repr.MetricsRes ----
@@ -557,18 +696,18 @@ method(print, MetricsRes) <- function(
 RegressionMetricsRes <- new_class(
   name = "RegressionMetricsRes",
   parent = MetricsRes,
+  properties = list(
+    res_metrics = prop_res_metrics(),
+    mean_metrics = prop_mean_metrics(regression_metric_columns()),
+    sd_metrics = prop_sd_metrics(regression_metric_columns())
+  ),
   constructor = function(sample, res_metrics) {
+    stacked <- do.call(rbind, lapply(res_metrics, function(x) x@metrics))
     new_object(
-      MetricsRes(
-        sample = sample,
-        res_metrics = res_metrics,
-        mean_metrics = vec2df(
-          colMeans(do.call(rbind, lapply(res_metrics, function(x) x@metrics)))
-        ),
-        sd_metrics = vec2df(
-          sapply(do.call(rbind, lapply(res_metrics, function(x) x@metrics)), sd)
-        )
-      )
+      MetricsRes(sample = sample),
+      res_metrics = res_metrics,
+      mean_metrics = vec2df(colMeans(stacked)),
+      sd_metrics = vec2df(sapply(stacked, sd))
     )
   }
 ) # /rtemis::RegressionMetricsRes
@@ -580,55 +719,36 @@ ClassificationMetricsRes <- new_class(
   name = "ClassificationMetricsRes",
   parent = MetricsRes,
   properties = list(
-    confusion_matrix = class_table,
-    confusion_long = prop_computed(new_property(
-      class = class_data.frame,
-      getter = function(self) confusion_to_long(self@confusion_matrix)
-    ))
+    confusion_long = prop_confusion_long(),
+    confusion_matrix = prop_computed(new_property(
+      class = class_table,
+      getter = function(self) long_to_confusion(self@confusion_long)
+    )),
+    res_metrics = prop_res_metrics(),
+    # Aggregated from each resample's `overall` table, so those are its columns.
+    mean_metrics = prop_mean_metrics(
+      classification_overall_columns(),
+      required = CLASSIFICATION_OVERALL_REQUIRED
+    ),
+    sd_metrics = prop_sd_metrics(
+      classification_overall_columns(),
+      required = CLASSIFICATION_OVERALL_REQUIRED
+    )
   ),
   constructor = function(sample, confusion_matrix, res_metrics) {
+    stacked <- do.call(
+      rbind,
+      lapply(res_metrics, function(x) x@metrics[["overall"]])
+    )
     new_object(
-      confusion_matrix = confusion_matrix,
-      MetricsRes(
-        sample = sample,
-        res_metrics = res_metrics,
-        mean_metrics = vec2df(
-          colMeans(do.call(
-            rbind,
-            lapply(res_metrics, function(x) x@metrics[["overall"]])
-          ))
-        ),
-        sd_metrics = vec2df(
-          sapply(
-            do.call(
-              rbind,
-              lapply(res_metrics, function(x) x@metrics[["overall"]])
-            ),
-            sd
-          )
-        )
-      )
+      MetricsRes(sample = sample),
+      confusion_long = confusion_to_long(confusion_matrix),
+      res_metrics = res_metrics,
+      mean_metrics = vec2df(colMeans(stacked)),
+      sd_metrics = vec2df(sapply(stacked, sd))
     )
   }
 ) # /rtemis::ClassificationMetricsRes
-
-
-# %% to_json.ClassificationMetricsRes ----
-#' @name to_json
-#' @keywords internal
-#' @noRd
-method(to_json, ClassificationMetricsRes) <- function(x, ...) {
-  # Same reason as the single-fit method: the aggregate confusion matrix is a
-  # `table` and travels in its long form.
-  list(
-    .class = S7_class(x)@name,
-    sample = x@sample,
-    res_metrics = .to_json_value(x@res_metrics),
-    mean_metrics = x@mean_metrics,
-    sd_metrics = x@sd_metrics,
-    confusion_long = x@confusion_long
-  )
-} # /rtemis::to_json.ClassificationMetricsRes
 
 
 # %% repr.CalibratedClassification ----

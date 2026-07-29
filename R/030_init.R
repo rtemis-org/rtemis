@@ -7,6 +7,7 @@
 
 # %% --- S3 Classes for S7 ----------------------------------------------------------------------------
 class_table <- new_S3_class("table")
+class_matrix <- new_S3_class("matrix")
 class_data.table <- new_S3_class("data.table")
 class_lgb.Booster <- new_S3_class("lgb.Booster")
 # All internal methods should support data.frame, data.table, tbl_df
@@ -618,11 +619,13 @@ to_html <- new_generic("to_html", "x")
 #' S7 class name, allowing the frontend to dispatch to a class-specific
 #' renderer.
 #'
-#' The default method walks `props(x)`, recursing into S7-typed properties
-#' and passing through primitive properties as-is. Per-class methods
-#' override where the default isn't appropriate (e.g. classes whose props
-#' include a `data.table`, an opaque model fit, or where some props should
-#' be excluded for size or relevance reasons).
+#' The default method walks the class's *published* properties (see
+#' `prop_published()`), recursing into S7-typed properties and passing through
+#' primitive properties as-is. A computed view or an R-only value is omitted:
+#' the first is recoverable from what is published, and the second has no wire
+#' form at all, so emitting either would put a value on the wire that no schema
+#' declares. Per-class methods override where the default isn't appropriate
+#' (e.g. where some props should be excluded for size or relevance reasons).
 #'
 #' @param x rtemis S7 object.
 #' @param ... Additional arguments passed to method.
@@ -643,8 +646,11 @@ to_json <- new_generic("to_json", "x")
 #' @keywords internal
 #' @noRd
 method(to_json, S7_object) <- function(x, ...) {
-  ps <- props(x)
-  body <- lapply(ps, .to_json_value)
+  # Read one property at a time rather than `props(x)`, so an omitted computed
+  # property's getter is not evaluated only to be discarded.
+  nms <- published_prop_names(S7_class(x))
+  body <- lapply(nms, function(nm) .to_json_value(prop(x, nm)))
+  names(body) <- nms
   c(list(.class = S7_class(x)@name), body)
 } # /rtemis::to_json.S7_object
 
@@ -959,7 +965,8 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' @section Method-specific parameters:
 #'
 #' **For `Classification` objects:**
-#' * `predicted_probabilities`: Numeric vector of predicted probabilities
+#' * `predicted_probabilities`: Numeric vector of the positive class's
+#'   predicted probabilities, one per case
 #' * `true_labels`: Factor of true class labels
 #'
 #' **For `ClassificationRes` objects:**
@@ -994,7 +1001,7 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' # in this case using the training data, but it could be a separate calibration dataset.
 #' mod_c_glm_cal <- calibrate(
 #'   mod_c_glm,
-#'   predicted_probabilities = mod_c_glm$predicted_prob_training,
+#'   predicted_probabilities = mod_c_glm$predicted_prob_training[, 1L],
 #'   true_labels = mod_c_glm$y_training
 #' )
 #' mod_c_glm_cal

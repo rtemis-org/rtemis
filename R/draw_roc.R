@@ -16,11 +16,11 @@
 #' to a compact, smooth line.
 #'
 #' @param true_labels Factor: True outcome labels.
-#' @param predicted_prob Numeric vector \[0, 1\]: Predicted probabilities for the
-#'   positive class (second level of `true_labels`). Or, for multiclass, a
-#'   matrix of predicted probabilities with exactly one column per class, in
-#'   factor-level order (rtemis's convention); the columns are labeled with
-#'   the factor levels regardless of any names on the input.
+#' @param predicted_prob Numeric vector or matrix \[0, 1\]: Predicted
+#'   probabilities for the positive class (second level of `true_labels`), as a
+#'   vector or a one-column matrix. For multiclass, a matrix with exactly one
+#'   column per class, in factor-level order (rtemis's convention); the columns
+#'   are labeled with the factor levels regardless of any names on the input.
 #' @param max_points Optional Integer \[2, Inf): Cap on the number of vertices
 #'   per curve. `NULL` keeps full resolution.
 #'
@@ -86,14 +86,15 @@ roc_curve <- function(
   }
 
   if (n_classes == 2L) {
-    # Positive class is the second level; `predicted_prob` is its score (a
-    # vector), or a column-per-class matrix whose second column is that score.
-    score <- if (is.null(dim(predicted_prob))) {
+    # Positive class is the second level. Its score arrives three ways: a bare
+    # vector, the one-column matrix `Classification@predicted_prob_*` holds, or
+    # a column-per-class matrix whose second column is that score.
+    score <- if (is.null(dim(predicted_prob)) || NCOL(predicted_prob) == 1L) {
       predicted_prob
     } else {
       if (NCOL(predicted_prob) != n_classes) {
         rtemis.core::abort(
-          "Binary `predicted_prob` matrix must have one column per class (in factor-level order).",
+          "Binary `predicted_prob` matrix must have one column (the positive class) or one column per class, in factor-level order.",
           class = c("rtemis_value_error", "rtemis_input_error")
         )
       }

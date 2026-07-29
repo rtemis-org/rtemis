@@ -14,8 +14,10 @@ S7_to_JSONSchema(
   record = FALSE,
   provenance_url = NULL,
   fold_refs = NULL,
+  metrics_refs = NULL,
   extra = NULL,
   refs = NULL,
+  array_refs = NULL,
   closed = TRUE,
   instance_schema_url = NULL
 )
@@ -55,6 +57,10 @@ record carries it; a nested one inherits its parent's.}
 a required \code{folds} array whose entries reference these record schemas. Only
 a record of a run that fits models per resample carries one.}
 
+\item{metrics_refs}{Named character or NULL: If set (and \code{record} is TRUE),
+adds the required \code{metrics} / \code{metrics_sd} headline blocks, and references
+these metrics schemas from each fold's own \code{metrics}.}
+
 \item{extra}{Named list merged into the schema after generation, for
 cross-field constraints that are not per-property (e.g. an \code{allOf} of
 if/then clauses for kernel-specific SVM hyperparameters).}
@@ -64,6 +70,10 @@ mapped to the \verb{$id} of the schema for that config. Each emits a \verb{$ref}
 \verb{oneOf: [null, $ref]} when the property accepts NULL, detected from its
 S7 union), instead of requiring a \code{PropertySpec}. Names must match
 existing properties.}
+
+\item{array_refs}{Named character: As \code{refs}, for a property holding a \emph{list}
+of such objects — one metrics object per resample, one model per fold. Each
+emits an array whose \code{items} are the \verb{$ref}.}
 
 \item{closed}{Logical: If TRUE (default) the schema sets
 \code{additionalProperties: false}. Pass FALSE for leaves composed into a
@@ -80,12 +90,12 @@ Named list: the JSON Schema. Serialize with \link{write_JSONSchema}.
 Walks the class's properties, reads each attached \code{PropertySpec}, and
 assembles a draft 2020-12 JSON Schema. Which properties take part is decided
 by their declared role (see \code{prop_role()}), not by a list kept here:
-\code{"config"} properties are generated from their spec, \code{"state"} properties are
-dropped, and \code{"external"} properties must be supplied by \code{extra} — asserted
-after the merge, so a forgotten fragment cannot silently drop a key from the
-published contract. A spec-less property with no role is an error, so a class
-that drifts from the factory vocabulary fails loudly instead of emitting a
-wrong schema.
+\code{"config"} and \code{"state"} properties are generated from their spec, state
+being marked \code{readOnly}, while \code{"computed"} and \code{"r_only"} properties are
+omitted — the first because everything it derives from is published, the
+second because it has no wire form at all. A spec-less property with no role
+is an error, so a class that drifts from the factory vocabulary fails loudly
+instead of emitting a wrong schema.
 }
 \examples{
 \dontrun{

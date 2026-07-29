@@ -789,7 +789,10 @@ train <- function(
     )
 
     if (type == "Classification") {
-      predicted_prob_training <- predicted_training
+      # `predict_super()` returns probabilities for a classification model;
+      # normalized to a matrix so the property has one shape whatever the
+      # backend and the class count (see `prob_matrix()`).
+      predicted_prob_training <- prob_matrix(predicted_training, classes)
       predicted_training <- prob2categorical(
         predicted_prob_training,
         levels = classes
@@ -814,7 +817,7 @@ train <- function(
       )
 
       if (type == "Classification") {
-        predicted_prob_validation <- predicted_validation
+        predicted_prob_validation <- prob_matrix(predicted_validation, classes)
         predicted_validation <- prob2categorical(
           predicted_prob_validation,
           levels = classes
@@ -839,7 +842,7 @@ train <- function(
       )
 
       if (type == "Classification") {
-        predicted_prob_test <- predicted_test
+        predicted_prob_test <- prob_matrix(predicted_test, classes)
         predicted_test <- prob2categorical(
           predicted_prob_test,
           levels = classes

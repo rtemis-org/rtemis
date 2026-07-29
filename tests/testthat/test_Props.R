@@ -1143,3 +1143,101 @@ test_that("r_only is marked, never inferred", {
     "mystery"
   )
 })
+
+
+# %% Published properties ----
+
+test_that("prop_published() is true for config and state, false for the rest", {
+  expect_true(prop_published(prop_float(0)))
+  expect_true(prop_published(prop_state(prop_float(0))))
+  expect_false(prop_published(prop_computed(new_property(class_any))))
+  expect_false(prop_published(prop_r_only(new_property(class_any))))
+  # A property that has not been migrated to the factories keeps serializing as
+  # it always did; schema generation is where that drift is caught.
+  expect_true(prop_published(new_property(class_any)))
+})
+
+
+test_that("the default to_json omits computed and r_only properties", {
+  keys <- names(to_json(data_fingerprint(iris)))
+  expect_true("method" %in% keys)
+  # `portability` is a function of `method`, so a consumer loses nothing.
+  expect_false("portability" %in% keys)
+})
+
+
+# %% factor container ----
+
+demo_factor_class <- function(...) {
+  new_class(
+    "DemoFactor",
+    properties = list(y = prop_factor(nullable = TRUE, ...))
+  )
+}
+
+
+test_that("a factor property accepts a factor and rejects its labels", {
+  Demo <- demo_factor_class()
+  y <- factor(c("a", "b", "a"))
+  expect_identical(Demo(y = y)@y, y)
+  # A character vector is not a factor: the two carry different information
+  # (the level set), so accepting one for the other would lose it silently.
+  expect_error(Demo(y = c("a", "b")), "factor")
+  expect_error(Demo(y = factor(c("a", NA))), "missing values")
+  expect_null(Demo()@y)
+})
+
+
+test_that("a factor property honors a declared level set", {
+  Demo <- demo_factor_class(enum = c("no", "yes"))
+  expect_no_error(Demo(y = factor(c("yes", "no"))))
+  expect_error(Demo(y = factor(c("maybe"))), "must be one of")
+})
+
+
+test_that("a factor emits an array of strings and round-trips", {
+  spec <- get_spec(prop_factor(nullable = TRUE, description = "Outcome."))
+  sch <- spec_to_schema(spec)
+  expect_identical(as.character(sch[["type"]]), c("array", "null"))
+  expect_identical(sch[["items"]][["type"]], "string")
+  expect_identical(sch[["x-rtemis"]][["container"]], "factor")
+  back <- schema_to_spec(sch)
+  expect_identical(back@container, "factor")
+  expect_identical(back@type, "string")
+  expect_true(back@nullable)
+})
+
+
+# %% array_refs ----
+
+test_that("array_refs emits an array of $ref", {
+  Demo <- new_class(
+    "DemoArrayRefs",
+    properties = list(parts = new_property(class_list))
+  )
+  target <- "https://schema.rtemis.org/regressionmetrics/v1/schema.json"
+  sch <- S7_to_JSONSchema(
+    Demo,
+    id = "https://schema.rtemis.org/r/demoarrayrefs/v1/schema.json",
+    array_refs = c(parts = target)
+  )
+  parts <- sch[["properties"]][["parts"]]
+  expect_identical(parts[["type"]], "array")
+  expect_identical(parts[["items"]][["$ref"]], target)
+})
+
+
+test_that("array_refs must name existing properties", {
+  Demo <- new_class(
+    "DemoArrayRefs2",
+    properties = list(parts = new_property(class_list))
+  )
+  expect_error(
+    S7_to_JSONSchema(
+      Demo,
+      id = "https://schema.rtemis.org/r/demoarrayrefs2/v1/schema.json",
+      array_refs = c(nope = "https://example.org/x.json")
+    ),
+    "array_refs"
+  )
+})

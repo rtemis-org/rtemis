@@ -332,6 +332,11 @@ supervised_record <- function(x, folds, outcome = "completed") {
     list(
       origin = own[["origin"]][own_names],
       folds = lapply(seq_along(folds), function(i) fold_record(folds[[i]], i)),
+      # The headline scores, so "was this model any good?" is one lookup rather
+      # than an average over `folds`. Each fold's full metrics are there too;
+      # this block is the reason to open the file.
+      metrics = sample_metrics(x, metric_row),
+      metrics_sd = sample_metrics(x, metric_sd_row),
       provenance = S7_to_list(provenance_of(x, outcome = outcome))
     )
   )
@@ -380,8 +385,124 @@ fold_record <- function(model, index) {
       list(best = model@tuner@best_hyperparameters)
     )
   }
+  # What this fold scored, in full: the confusion matrix and per-class rows as
+  # well as the headline row. The record already said how every tuning
+  # *candidate* scored; without this it was silent on the model that was kept.
+  out[["metrics"]] <- sample_metrics(model, record_object)
   out
 } # /rtemis::fold_record
+
+
+# %% SUPERVISED_SAMPLES ----
+# The samples a supervised run scores, in the order a reader expects them.
+# `SupervisedRes` has no validation sample, so each lookup is guarded.
+SUPERVISED_SAMPLES <- c("training", "validation", "test")
+
+
+# %% record_object ----
+#' An S7 object as a record block
+#'
+#' Every **published** property, run state included. `serializable_props()` is
+#' the wrong filter here for the same reason it was wrong for hyperparameters:
+#' it answers what a *config* carries, and a config drops state because it is
+#' re-derived on read. A record exists to report exactly what the run wrote.
+#'
+#' @param x S7 object, or NULL.
+#'
+#' @return Named list, or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+record_object <- function(x) {
+  if (is.null(x)) {
+    return(NULL)
+  }
+  declared <- S7_class(x)@properties
+  nms <- published_prop_names(S7_class(x))
+  out <- lapply(nms, function(nm) {
+    value <- wire_value(prop(x, nm), declared[[nm]])
+    if (S7_inherits(value)) record_object(value) else value
+  })
+  names(out) <- nms
+  out
+} # /rtemis::record_object
+
+
+# %% metric_row ----
+#' One sample's headline scores, as a flat name-to-value map
+#'
+#' The row a reader compares runs on: a regression sample's four metrics, or a
+#' classification sample's `overall` row. Per-class metrics and the confusion
+#' matrix are deliberately not here — they are in the fold's full metrics block,
+#' which is the typed contract. This block exists to be read without computing
+#' anything, which is what makes an `outdir` of records rankable.
+#'
+#' @param x `Metrics` or `MetricsRes` object, or NULL.
+#'
+#' @return Named list of scalars, or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+metric_row <- function(x) {
+  if (is.null(x)) {
+    return(NULL)
+  }
+  row <- if (S7_inherits(x, MetricsRes)) {
+    # Resampled: the mean across folds, which is the comparable summary.
+    x@mean_metrics
+  } else if (S7_inherits(x, ClassificationMetrics)) {
+    x@metrics[["overall"]]
+  } else {
+    x@metrics
+  }
+  if (is.null(row)) NULL else as.list(row)
+} # /rtemis::metric_row
+
+
+# %% metric_sd_row ----
+#' One sample's dispersion across folds, or NULL for a single fit
+#'
+#' @param x `Metrics` or `MetricsRes` object, or NULL.
+#'
+#' @return Named list of scalars, or NULL when the run fitted one model and
+#'   there is no dispersion to report.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+metric_sd_row <- function(x) {
+  if (is.null(x) || !S7_inherits(x, MetricsRes)) {
+    return(NULL)
+  }
+  if (is.null(x@sd_metrics)) NULL else as.list(x@sd_metrics)
+} # /rtemis::metric_sd_row
+
+
+# %% sample_metrics ----
+#' Per-sample metrics of one model, under a given reader
+#'
+#' @param x `Supervised` or `SupervisedRes` object.
+#' @param reader Function applied to each sample's metrics object.
+#'
+#' @return Named list keyed by `SUPERVISED_SAMPLES`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+sample_metrics <- function(x, reader) {
+  out <- lapply(SUPERVISED_SAMPLES, function(sample) {
+    nm <- paste0("metrics_", sample)
+    # `SupervisedRes` declares no validation sample.
+    if (!prop_exists(x, nm)) {
+      return(NULL)
+    }
+    reader(prop(x, nm))
+  })
+  names(out) <- SUPERVISED_SAMPLES
+  out
+} # /rtemis::sample_metrics
 
 
 # %% nested_record ----

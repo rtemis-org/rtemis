@@ -308,6 +308,46 @@ flat_configs <- list(
     ),
     refs = c(clustering_config = .url("clustering"))
   ),
+  # Results classes. Not configs: they describe what a run produced, so every
+  # property is `readOnly` and none has an input form.
+  regressionmetrics = list(
+    cls = RegressionMetrics,
+    title = "rtemis RegressionMetrics",
+    description = paste0(
+      "Regression metrics for one sample: a single-row table of mean absolute ",
+      "error, mean squared error, root mean squared error and R-squared. Every ",
+      "cell is nullable, a metric being genuinely undefined for some samples."
+    )
+  ),
+  classificationmetrics = list(
+    cls = ClassificationMetrics,
+    title = "rtemis ClassificationMetrics",
+    description = paste0(
+      "Classification metrics for one sample: the confusion matrix in long ",
+      "form (one row per cell), overall metrics, and per-class metrics. Which ",
+      "overall columns are present depends on the task, so only the invariant ",
+      "ones are required."
+    )
+  ),
+  regressionmetricsres = list(
+    cls = RegressionMetricsRes,
+    title = "rtemis RegressionMetricsRes",
+    description = paste0(
+      "Regression metrics aggregated across resamples: each resample's ",
+      "metrics, plus their mean and standard deviation."
+    ),
+    array_refs = c(res_metrics = .url("regressionmetrics"))
+  ),
+  classificationmetricsres = list(
+    cls = ClassificationMetricsRes,
+    title = "rtemis ClassificationMetricsRes",
+    description = paste0(
+      "Classification metrics aggregated across resamples: each resample's ",
+      "metrics, the aggregate confusion matrix in long form, and the mean and ",
+      "standard deviation of the overall metrics."
+    ),
+    array_refs = c(res_metrics = .url("classificationmetrics"))
+  ),
   preprocessor = list(
     cls = PreprocessorConfig,
     title = "rtemis PreprocessorConfig",

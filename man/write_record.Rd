@@ -42,6 +42,14 @@ what \emph{ran}, one entry per model fitted — outer resampling resolves differ
 values in each fold, so a single resolved value at the top level would state
 something no fold did.
 
+A supervised record also states \strong{what the run scored}. \code{metrics} holds each
+sample's headline row as a flat metric-to-value map, meaned across outer
+resamples, with \code{metrics_sd} beside it for the spread (\code{null} for a single
+fit, which has none). The full metrics — the confusion matrix, the per-class
+rows — are in each fold's own \code{metrics}. The flat block exists so that "was
+this model any good?" is one lookup in one file, with no averaging and no R,
+which is what makes a directory of records rankable.
+
 \link{train}, \link{decomp} and \link{cluster} call this automatically when given an
 \code{outdir}. A record is not a config: feeding one to \link{read_config} is an error,
 since its resolved values would silently pin settings the new call should

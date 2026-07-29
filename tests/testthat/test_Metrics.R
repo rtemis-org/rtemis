@@ -165,7 +165,7 @@ test_that("the typed metrics reject a malformed table", {
 })
 
 
-test_that("confusion_long is the confusion matrix in row-oriented form", {
+test_that("confusion_long is the stored, row-oriented confusion matrix", {
   m <- classification_metrics(iris$Species, iris$Species)
   long <- m[["confusion_long"]]
   expect_identical(names(long), c("reference", "predicted", "n"))
@@ -173,11 +173,46 @@ test_that("confusion_long is the confusion matrix in row-oriented form", {
   expect_type(long[["reference"]], "character")
   expect_type(long[["n"]], "integer")
   expect_identical(sum(long[["n"]]), 150L)
-  # It is a view of the matrix, so the two always agree.
+  # The long form is what the class stores and publishes: a `table`'s column
+  # names are the outcome levels, so no schema can declare them.
+  expect_identical(
+    prop_role(ClassificationMetrics@properties$confusion_long),
+    "state"
+  )
   expect_identical(
     sum(long[["n"]][long[["reference"]] == long[["predicted"]]]),
     sum(diag(m@confusion_matrix))
   )
+})
+
+
+test_that("confusion_matrix is derived from the long form, labels and all", {
+  true <- iris$Species
+  set.seed(2026L)
+  predicted <- factor(sample(levels(true), 150L, replace = TRUE))
+  m <- classification_metrics(true, predicted)
+  expected <- table(true, predicted)
+  names(dimnames(expected)) <- c("Reference", "Predicted")
+  # Level order, counts and both dimension names survive the round trip, so the
+  # wide view is indistinguishable from the table that was handed in.
+  expect_identical(m@confusion_matrix, expected)
+  expect_identical(
+    prop_role(ClassificationMetrics@properties$confusion_matrix),
+    "computed"
+  )
+})
+
+
+test_that("a metrics object serializes without the wide confusion matrix", {
+  m <- classification_metrics(iris$Species, iris$Species, sample = "Training")
+  j <- to_json(m)
+  # A `table` has no `asJSON` method; the long form is what travels, and it is
+  # the declared property rather than a conversion each consumer repeats.
+  expect_false("confusion_matrix" %in% names(j))
+  expect_identical(j[["confusion_long"]], m@confusion_long)
+  expect_true(jsonlite::validate(
+    jsonlite::toJSON(j, auto_unbox = TRUE, na = "null", null = "null")
+  ))
 })
 
 

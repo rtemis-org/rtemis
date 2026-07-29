@@ -740,6 +740,41 @@ test_that("predict() LightRF Classification succeeds", {
   expect_identical(mod_c_lightrf@predicted_prob_test, predicted_prob_test)
 })
 
+
+# %% Predicted probabilities have one shape ----
+
+test_that("predicted probabilities are a matrix whatever the class count", {
+  # Binary is one column -- the positive class's probability, which is all any
+  # backend produces -- and multiclass is one column per class. A property that
+  # was a vector for one task and a matrix for the other could not be declared,
+  # and made every consumer branch on the class count to read it.
+  expect_true(is.matrix(mod_c_lightrf@predicted_prob_training))
+  expect_identical(ncol(mod_c_lightrf@predicted_prob_training), 1L)
+  expect_identical(
+    colnames(mod_c_lightrf@predicted_prob_training),
+    levels(mod_c_lightrf@y_training)[mod_c_lightrf@binclasspos]
+  )
+  multi <- train(iris, hyperparameters = setup_CART(), verbosity = 0L)
+  expect_true(is.matrix(multi@predicted_prob_training))
+  expect_identical(
+    colnames(multi@predicted_prob_training),
+    levels(iris$Species)
+  )
+})
+
+
+test_that("the probability-based metrics survive the binary matrix", {
+  # `positive_prob()` is what feeds AUC and the Brier score; a one-column
+  # matrix must reach them as the score vector they take.
+  overall <- mod_c_lightrf@metrics_training[["overall"]]
+  expect_false(is.null(overall[["auc"]]))
+  expect_false(is.null(overall[["brier_score"]]))
+  # Multiclass has no single score per case, so those columns are absent
+  # rather than wrong.
+  multi <- train(iris, hyperparameters = setup_CART(), verbosity = 0L)
+  expect_false("auc" %in% names(multi@metrics_training[["overall"]]))
+})
+
 ## {LightRF}[train]<Classification> Tuned ----
 modt_c_lightrf <- train(
   x = datc2_train,

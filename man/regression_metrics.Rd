@@ -13,7 +13,9 @@ regression_metrics(true, predicted, na.rm = TRUE, sample = NULL)
 
 \item{na.rm}{Logical: If TRUE, remove NA values before computation.}
 
-\item{sample}{Character: Sample name (e.g. "training", "test").}
+\item{sample}{Optional Character \{"Training", "Validation", "Test",
+"Calibrated Training", "Calibrated Validation", "Calibrated Test"\}: Sample
+the metrics describe.}
 }
 \value{
 \code{RegressionMetrics} object.

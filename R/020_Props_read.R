@@ -85,6 +85,9 @@ schema_element <- function(x, container, tunable, broadcast) {
     b <- branches()
     return(b[[length(b)]][["items"]])
   }
+  if (container == "factor") {
+    return(x[["items"]])
+  }
   if (container == "matrix") {
     return(x[["items"]][["items"]])
   }

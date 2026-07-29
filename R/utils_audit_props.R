@@ -72,7 +72,22 @@ AUDIT_SEVERITY <- c(
 # its `setup_*` constructor; a results class has no such constructor and no
 # parameters, so there is nothing to compare and every property would report as
 # undocumented. Their contract is the spec, which reaches the schema directly.
-AUDIT_RESULT_CLASSES <- c("RegressionMetrics", "ClassificationMetrics")
+AUDIT_RESULT_CLASSES <- c(
+  "Metrics",
+  "RegressionMetrics",
+  "ClassificationMetrics",
+  "MetricsRes",
+  "RegressionMetricsRes",
+  "ClassificationMetricsRes",
+  "Supervised",
+  "Regression",
+  "Classification",
+  "SupervisedRes",
+  "RegressionRes",
+  "ClassificationRes",
+  "VariableImportance",
+  "SupervisedSession"
+)
 
 
 # %% parse_roxygen_params ----

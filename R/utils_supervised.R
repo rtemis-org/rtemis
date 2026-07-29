@@ -10,6 +10,84 @@ supervised_type <- function(dat) {
   }
 } # /rtemis::supervised_type
 
+#' Per-case class probabilities in their stored shape
+#'
+#' One row per case and one column per class — except in the binary case, where
+#' every backend reduces to a single score per case (the positive class's
+#' probability) and the matrix therefore has one column.
+#'
+#' Applied wherever probabilities leave a backend, so that
+#' `Classification@predicted_prob_*` and `predict()` are the same shape whatever
+#' produced them and whatever the class count. A property that is a vector for
+#' one task and a matrix for another cannot be declared in a schema, and makes
+#' every consumer branch on the class count to read it.
+#'
+#' Columns are labeled with the classes they hold whenever the outcome levels
+#' are at hand and the backend supplied no names of its own, so that a consumer
+#' reading the matrix — the long predictions table rtemislive plots, above all —
+#' does not have to know rtemis's column order to interpret it.
+#'
+#' @param x Numeric vector, matrix or data frame: Backend probabilities.
+#' @param levels Optional Character: Outcome levels, in factor order.
+#' @param binclasspos Integer \{1, 2\}: Which level is the positive class, used
+#'   to name the single column of a binary matrix.
+#'
+#' @return Numeric matrix, or NULL if `x` is NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prob_matrix <- function(x, levels = NULL, binclasspos = 2L) {
+  if (is.null(x)) {
+    return(NULL)
+  }
+  # glmnet's multinomial `predict()` returns cases x classes x lambdas, and
+  # rtemis asks for one lambda. Drop the degenerate dimension explicitly:
+  # `as.matrix()` on a 3-D array flattens it to a single column instead.
+  if (!is.null(dim(x)) && length(dim(x)) > 2L) {
+    if (any(dim(x)[-(1:2)] != 1L)) {
+      rtemis.core::abort(
+        "Predicted probabilities must hold one value per case per class.",
+        class = c("rtemis_dim_error", "rtemis_data_error")
+      )
+    }
+    x <- array(x, dim(x)[1:2], dimnames = dimnames(x)[1:2])
+  }
+  out <- if (is.null(dim(x))) matrix(x, ncol = 1L) else as.matrix(x)
+  if (!is.null(levels) && is.null(colnames(out))) {
+    if (ncol(out) == 1L) {
+      colnames(out) <- levels[[binclasspos]]
+    } else if (length(levels) == ncol(out)) {
+      colnames(out) <- levels
+    }
+  }
+  out
+} # /rtemis::prob_matrix
+
+
+#' The positive class's probability, one score per case
+#'
+#' The inverse of [prob_matrix] for the consumers that take a single score per
+#' case: AUC, the Brier score, calibration. Returns NULL for a multiclass
+#' matrix, which has no single score, so a caller guarding on NULL needs no
+#' separate check of the class count. A bare vector passes through, since
+#' `classification_metrics()` is called directly with one.
+#'
+#' @param x Numeric vector or matrix: Class probabilities.
+#'
+#' @return Numeric vector, or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+positive_prob <- function(x) {
+  if (is.null(x) || NCOL(x) != 1L) {
+    return(NULL)
+  }
+  as.numeric(x)
+} # /rtemis::positive_prob
+
+
 #' Convert probabilities to categorical (factor)
 #'
 #' @param x Numeric vector: Probabilities
@@ -33,13 +111,14 @@ supervised_type <- function(dat) {
 prob2categorical <- function(x, levels, binclasspos = 2L) {
   n_classes <- length(levels)
   if (n_classes == 2) {
-    # Binary classification
+    # Binary classification: one score per case, whether it arrives as a bare
+    # vector or as the one-column matrix `prob_matrix()` stores.
     stopifnot(binclasspos %in% c(1, 2))
     if (binclasspos == 1L) {
       levels <- rev(levels)
     }
     fitted <- factor(
-      ifelse(x >= .5, 1, 0),
+      ifelse(as.numeric(x) >= .5, 1, 0),
       levels = c(0, 1),
       labels = levels
     )
