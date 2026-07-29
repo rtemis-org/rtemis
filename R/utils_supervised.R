@@ -10,6 +10,34 @@ supervised_type <- function(dat) {
   }
 } # /rtemis::supervised_type
 
+#' Re-attach an outcome column to transformed features
+#'
+#' Features and outcome are separated for preprocessing and decomposition, then
+#' put back in rtemis's layout: outcome last. Row count is unchanged by either
+#' transformation, which is what makes re-attaching by position safe.
+#'
+#' @param features_df data.frame: Transformed features.
+#' @param outcome_value Vector: The outcome, in the original row order.
+#' @param outcome_nm Character: Name to give the outcome column.
+#'
+#' @return data.frame with the outcome as its last column.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+attach_outcome <- function(features_df, outcome_value, outcome_nm) {
+  out <- as.data.frame(features_df)
+  if (NROW(out) != length(outcome_value)) {
+    rtemis.core::abort(
+      "Transformation changed the case count, so the outcome can no longer be aligned to it.",
+      class = c("rtemis_dim_error", "rtemis_data_error")
+    )
+  }
+  out[[outcome_nm]] <- outcome_value
+  out
+} # /rtemis::attach_outcome
+
+
 #' Per-case class probabilities in their stored shape
 #'
 #' One row per case and one column per class — except in the binary case, where
@@ -67,7 +95,7 @@ prob_matrix <- function(x, levels = NULL, binclasspos = 2L) {
 
 #' The positive class's probability, one score per case
 #'
-#' The inverse of [prob_matrix] for the consumers that take a single score per
+#' The inverse of `prob_matrix()` for the consumers that take a single score per
 #' case: AUC, the Brier score, calibration. Returns NULL for a multiclass
 #' matrix, which has no single score, so a caller guarding on NULL needs no
 #' separate check of the class count. A bare vector passes through, since

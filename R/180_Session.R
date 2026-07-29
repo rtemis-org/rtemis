@@ -589,10 +589,9 @@ session_add_node <- function(
 #' milliseconds from session start.
 #'
 #' This is the single source of the tree-walk, labeling, and status logic for
-#' timeline renderers: `rtemis.draw`'s `plot()` method for `SupervisedSession`
-#' (htmlwidget) and `rtemis.server`'s `job.result` `session` slice (rtemislive
-#' web UI) both consume its output. Pair with [session_kind_colors()] to color
-#' bars by node kind.
+#' timeline renderers. `rtemis.server` consumes it for the `job.result`
+#' `session` slice, which the rtemislive web UI draws; pair it with
+#' `session_kind_colors()` to color bars by node kind.
 #'
 #' Nodes that never closed (status `"running"` or `"aborted"` with no end time)
 #' are drawn up to the session finish time when known, else to the latest
@@ -612,6 +611,10 @@ session_add_node <- function(
 #'
 #' @author EDG
 #' @export
+#' @examples
+#' mod <- train(iris, hyperparameters = setup_CART())
+#' # One row per recorded node, depth-first: the run, then the steps under it.
+#' session_timeline(mod@session)
 session_timeline <- function(session) {
   if (!S7_inherits(session, SupervisedSession)) {
     rtemis.core::abort(
@@ -767,14 +770,17 @@ session_timeline <- function(session) {
 # %% session_kind_colors ----
 #' Session Node Kind Colors
 #'
-#' Fixed color map for session node kinds, so timeline bars are colored
-#' consistently across renderers (`rtemis.draw` htmlwidget, rtemislive web UI).
-#' The fill is identical for like kinds, making same-color overlap read as a
-#' parallel process (only grid cells run concurrently; containers and
-#' sequential steps never share a fill *and* a time span). Kinds outside the
-#' fixed map fall back to `rtemis_colors`, recycled as needed.
+#' Fixed color map for session node kinds, so timeline bars are colored the
+#' same wherever they are drawn. The fill is identical for like kinds, making
+#' same-color overlap read as a parallel process (only grid cells run
+#' concurrently; containers and sequential steps never share a fill *and* a
+#' time span). Kinds outside the fixed map fall back to `rtemis_colors`,
+#' recycled as needed.
 #'
-#' Exported for use by `rtemis.draw` and `rtemis.server`; not user-facing API.
+#' Exported so `rtemis.server` can attach the map to its `job.result` `session`
+#' slice, which is what lets the rtemislive web UI fill its bars without a
+#' hard-coded palette of its own. Not user-facing API: `@keywords internal`
+#' marks it exported for mechanism rather than for use.
 #'
 #' @param kinds Character vector: Node kinds to color, in display order, e.g.
 #'   `unique(session_timeline(session)[["kind"]])`.

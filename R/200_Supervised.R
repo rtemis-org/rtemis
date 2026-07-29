@@ -308,7 +308,7 @@ supervised_features <- function(object, newdata, verbosity = 1L) {
 # %% predict_supervised_ ----
 #' Run the `Supervised` prediction pipeline
 #'
-#' Transforms `newdata` with [supervised_features], then calls
+#' Transforms `newdata` with `supervised_features()`, then calls
 #' `predict_super()`. Shared by `predict.Supervised` and
 #' `predict.CalibratedClassification` (the latter cannot call its parent method
 #' directly because `predict` is an S3/base generic, not an S7 generic).

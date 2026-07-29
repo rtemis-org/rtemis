@@ -141,7 +141,7 @@ prop_metric <- function(min = NULL, max = NULL, description = "") {
 
 
 # %% prop_rate ----
-#' A metric cell bounded to [0, 1]
+#' A metric cell bounded to \[0, 1\]
 #'
 #' @param description Character: Human-readable description.
 #'
@@ -533,7 +533,7 @@ method(print, ClassificationMetrics) <- function(
 #' @description
 #' Superclass for MetricsRes metrics.
 #'
-#' As with [Metrics], only the shared field is declared here: the per-resample
+#' As with `Metrics`, only the shared field is declared here: the per-resample
 #' metrics and their mean and standard deviation all carry the concrete task's
 #' columns, so each subclass declares its own.
 #'
@@ -591,7 +591,7 @@ prop_mean_metrics <- function(columns, required = NULL) {
 # %% prop_sd_metrics ----
 #' Standard deviation of a metric across resamples
 #'
-#' The same columns as [prop_mean_metrics], bounded only below: a dispersion is
+#' The same columns as `prop_mean_metrics()`, bounded only below: a dispersion is
 #' non-negative but is not confined to the range of the values it summarizes —
 #' R-squared is bounded above by 1 and unbounded below, so its standard
 #' deviation across resamples can exceed 1.

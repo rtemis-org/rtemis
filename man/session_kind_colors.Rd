@@ -14,15 +14,18 @@ session_kind_colors(kinds)
 Named character vector of hex colors, one per element of \code{kinds}.
 }
 \description{
-Fixed color map for session node kinds, so timeline bars are colored
-consistently across renderers (\code{rtemis.draw} htmlwidget, rtemislive web UI).
-The fill is identical for like kinds, making same-color overlap read as a
-parallel process (only grid cells run concurrently; containers and
-sequential steps never share a fill \emph{and} a time span). Kinds outside the
-fixed map fall back to \code{rtemis_colors}, recycled as needed.
+Fixed color map for session node kinds, so timeline bars are colored the
+same wherever they are drawn. The fill is identical for like kinds, making
+same-color overlap read as a parallel process (only grid cells run
+concurrently; containers and sequential steps never share a fill \emph{and} a
+time span). Kinds outside the fixed map fall back to \code{rtemis_colors},
+recycled as needed.
 }
 \details{
-Exported for use by \code{rtemis.draw} and \code{rtemis.server}; not user-facing API.
+Exported so \code{rtemis.server} can attach the map to its \code{job.result} \code{session}
+slice, which is what lets the rtemislive web UI fill its bars without a
+hard-coded palette of its own. Not user-facing API: \verb{@keywords internal}
+marks it exported for mechanism rather than for use.
 }
 \author{
 EDG

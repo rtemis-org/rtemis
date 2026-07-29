@@ -113,3 +113,72 @@ datr_onehot <- preprocess(
 test_that("one_hot.data.frame works", {
   expect_s3_class(datr_onehot, "data.frame")
 })
+
+
+# %% Preprocessing inside train() ----
+
+test_that("train() preprocesses features, never the outcome", {
+  x <- rnormmat(120L, 3L, seed = 3L)
+  datr <- data.frame(x, y = 10 * x[, 1L] + 50 + rnorm(120L))
+  plain <- train(datr, hyperparameters = setup_GLM(), verbosity = 0L)
+  scaled <- train(
+    datr,
+    preprocessor_config = setup_Preprocessor(scale = TRUE, center = TRUE),
+    hyperparameters = setup_GLM(),
+    verbosity = 0L
+  )
+  # Scaling the outcome would silently report error metrics in scaled units --
+  # and R-squared, being scale-invariant, would look identical either way.
+  expect_identical(scaled@y_training, plain@y_training)
+  expect_equal(
+    scaled@metrics_training[["rmse"]],
+    plain@metrics_training[["rmse"]],
+    tolerance = 1e-8
+  )
+  # Predictions therefore stay in the outcome's units.
+  expect_equal(
+    mean(predict(scaled, features(datr))),
+    mean(datr[["y"]]),
+    tolerance = 1
+  )
+})
+
+
+test_that("train() rejects a preprocessor that removes cases", {
+  datr <- data.frame(a = rnorm(40L), b = rnorm(40L), y = rnorm(40L))
+  for (op in PREPROCESSOR_CASE_OPS) {
+    config <- do.call(
+      setup_Preprocessor,
+      stats::setNames(
+        list(if (op == "remove_cases_thres") 0.5 else TRUE),
+        op
+      )
+    )
+    expect_error(
+      train(
+        x = datr,
+        preprocessor_config = config,
+        hyperparameters = setup_GLM(),
+        verbosity = 0L
+      ),
+      "cannot replay",
+      info = op
+    )
+  }
+})
+
+
+test_that("a fitted preprocessor returns one prediction per row", {
+  # A case-removing step could not be replayed on new data: asked for n rows,
+  # `predict()` must return n predictions.
+  datr <- data.frame(a = rnorm(60L), b = rnorm(60L))
+  datr[["y"]] <- datr[["a"]] + rnorm(60L)
+  mod <- train(
+    datr,
+    preprocessor_config = setup_Preprocessor(scale = TRUE, center = TRUE),
+    hyperparameters = setup_GLM(),
+    verbosity = 0L
+  )
+  newdata <- features(datr)
+  expect_length(predict(mod, newdata), nrow(newdata))
+})
