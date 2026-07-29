@@ -2,6 +2,61 @@
 # ::rtemis::
 # 2017- EDG rtemis.org
 
+# %% PREPROCESSOR_CASE_OPS ----
+# Preprocessing steps that drop *cases* rather than transform values. They have
+# no place in a preprocessor fitted by `train()`: that one is replayed on new
+# data at predict time, and there is nothing a prediction call may drop --
+# asked for n rows it must return n predictions.
+PREPROCESSOR_CASE_OPS <- c(
+  "complete_cases",
+  "remove_duplicates",
+  "remove_cases_thres"
+)
+
+
+# %% check_preprocessor_replayable ----
+#' Reject a training preprocessor that would drop cases
+#'
+#' A preprocessor fitted by `train()` is re-applied to every later dataset:
+#' validation, test, and whatever `predict()` is handed. A step that removes
+#' rows cannot be replayed -- it returns fewer predictions than rows, with no
+#' way for the caller to tell which are missing -- so it is rejected here
+#' rather than producing a model whose `predict()` silently loses cases.
+#'
+#' Case removal is data preparation, not part of the model: do it before
+#' `train()`, where the outcome is still attached and the dropped rows are
+#' visible.
+#'
+#' @param config `PreprocessorConfig` object.
+#'
+#' @return Invisible NULL. Called for the check.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_preprocessor_replayable <- function(config) {
+  set <- Filter(
+    function(nm) {
+      value <- prop(config, nm)
+      !is.null(value) && !identical(value, FALSE)
+    },
+    PREPROCESSOR_CASE_OPS
+  )
+  if (length(set) > 0L) {
+    rtemis.core::abort(
+      "`preprocessor_config` removes cases, which a fitted preprocessor cannot replay: ",
+      paste(set, collapse = ", "),
+      ".\n",
+      "A preprocessor learned by train() is re-applied to new data at predict() time, ",
+      "where dropping rows would return fewer predictions than rows.\n",
+      "Remove cases before calling train(), with preprocess() on the full dataset.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  invisible(NULL)
+} # /rtemis::check_preprocessor_replayable
+
+
 # %% preprocess(x, PreprocessorConfig, ...) ----
 method(
   preprocess,

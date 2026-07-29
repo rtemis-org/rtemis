@@ -600,29 +600,50 @@ train <- function(
     } # /Tune
 
     # User-level preprocessing ----
+    # Features only, and no step that drops cases. The outcome is the quantity
+    # the model learns: scaling, one-hot encoding or imputing it would change
+    # what is being predicted and leave `predict()` returning values in
+    # transformed units, while a case-removing step cannot be replayed on new
+    # data at all. Same layout as the decomposition block below -- transform
+    # the features, re-attach the outcome last.
     if (!is.null(preprocessor_config)) {
+      check_preprocessor_replayable(preprocessor_config)
       prep_node <- node_enter("preprocess")
       if (verbosity == 1L) {
         msg("Preprocessing...")
       }
+      prep_outcome_nm <- names(x)[ncols]
       preprocessor <- preprocess(
-        x = x,
+        x = as.data.frame(features(x)),
         config = preprocessor_config,
-        dat_validation = dat_validation,
-        dat_test = dat_test,
+        dat_validation = if (!is.null(dat_validation)) {
+          as.data.frame(features(dat_validation))
+        },
+        dat_test = if (!is.null(dat_test)) as.data.frame(features(dat_test)),
         verbosity = verbosity - 1L
       )
-      x <- if (is.null(dat_validation) && is.null(dat_test)) {
+      prep_training <- if (is.null(dat_validation) && is.null(dat_test)) {
         preprocessor@preprocessed
       } else {
         preprocessor@preprocessed[["training"]]
       }
+      x <- attach_outcome(prep_training, x[[ncols]], prep_outcome_nm)
       if (!is.null(dat_validation)) {
-        dat_validation <- preprocessor@preprocessed[["validation"]]
+        dat_validation <- attach_outcome(
+          preprocessor@preprocessed[["validation"]],
+          dat_validation[[NCOL(dat_validation)]],
+          prep_outcome_nm
+        )
       }
       if (!is.null(dat_test)) {
-        dat_test <- preprocessor@preprocessed[["test"]]
+        dat_test <- attach_outcome(
+          preprocessor@preprocessed[["test"]],
+          dat_test[[NCOL(dat_test)]],
+          prep_outcome_nm
+        )
       }
+      # Preprocessing may add columns (one-hot) or drop them (constants).
+      ncols <- ncol(x)
       node_exit(prep_node, status = "ok")
     } else {
       preprocessor <- NULL
