@@ -55,7 +55,6 @@ test_that("to_json(Regression) excludes model, raw vectors, session_info", {
   expect_false("y_training" %in% names(j))
   expect_false("predicted_training" %in% names(j))
   expect_false("session_info" %in% names(j))
-  expect_false("extra" %in% names(j))
 })
 
 test_that("to_json(Regression) drops NULL fields cleanly", {

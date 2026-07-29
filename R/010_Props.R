@@ -74,12 +74,12 @@ NAME_BOUNDS <- c("feature_names", "numeric_feature_names")
 #            are data (one per feature) and its values homogeneous, a struct's
 #            keys are part of the contract. A struct member may itself be a
 #            container; a table's may not, since a cell is a scalar.
-# - "factor" an R factor: a classification outcome or prediction. The same JSON
-#            shape as an array of strings -- the labels -- and a distinct R
-#            class, which is why it is its own container rather than an `array`
-#            of strings: a factor assigned to a character property, or the
-#            reverse, is a type error the validator must catch. The levels are
-#            the outcome's, so they are data and are not declared.
+# - "factor" an R factor: a classification outcome or prediction. Emitted as
+#            `{levels, codes}` -- the levels in order, and a 1-based index into
+#            them per case -- which is what every categorical type stores (an R
+#            factor, an Arrow dictionary, a pandas Categorical). An array of
+#            labels would lose both the order, which decides which class is
+#            positive, and any level with no cases.
 PROP_CONTAINERS <- c(
   "none",
   "array",
@@ -1282,15 +1282,21 @@ prop_matrix <- function(
 # %% prop_factor ----
 #' Factor S7 property with attached PropertySpec
 #'
-#' An R factor — a classification outcome or a predicted class. Serializes as an
-#' array of the labels, which is the same JSON shape as an `array` of strings but
-#' a distinct R class, so the two are separate containers.
+#' An R factor — a classification outcome or a predicted class. Serializes as
+#' `{levels, codes}`: the levels in order, and a 1-based index into them per
+#' case. That is what every categorical type stores — an R factor, an Arrow
+#' dictionary, a pandas Categorical — and an array of labels is not a
+#' substitute: it loses the level *order*, which is what decides the positive
+#' class in binary classification, and any level with no cases.
 #'
-#' The levels are the outcome's own, so they are data and are not declared;
-#' pass `enum` only where the permitted labels are fixed by the class.
+#' The levels are the outcome's own, so they travel with the value rather than
+#' being declared; pass `enum` only where the permitted labels are fixed by the
+#' class, which then constrains them.
 #'
 #' @param enum Character or NULL: Allowed labels.
-#' @param nullable Logical: If TRUE, NULL is a valid value.
+#' @param nullable Logical: If TRUE, NULL is a valid value. Must be TRUE: a
+#'   spec's default has to validate, and there is no factor a class could
+#'   default to — the same constraint `prop_matrix()` and `prop_table()` carry.
 #' @param data_bound Character or NULL: Training-data dimension the length is
 #'   tied to; see `DATA_BOUNDS`.
 #' @param data_dependent Logical: If TRUE, the value's shape follows one
@@ -1708,9 +1714,8 @@ prop_accepts_null <- function(prop) {
 #              a written config: publishing it would be a second representation
 #              of something already there, free to disagree with the first.
 # - "r_only"   An R value with no wire form at all: a fitted backend model (an
-#              `rpart` tree, an `lgb.Booster`), a `sessionInfo()`, a free-form
-#              `extra` list. Declared with `prop_r_only()`, and likewise absent
-#              from the schema.
+#              `rpart` tree, an `lgb.Booster`), or a `sessionInfo()`. Declared
+#              with `prop_r_only()`, and likewise absent from the schema.
 #
 # The line between "computed" and "r_only" is what a consumer can do about it.
 # A computed field is *recoverable* -- everything it derives from is published,
@@ -1828,9 +1833,13 @@ prop_computed <- function(property) {
 #' S7 property that exists only in R
 #'
 #' Marks a property with no wire form at all — a fitted backend model, a
-#' `sessionInfo()`, a free-form `extra` list — so it is omitted from the
-#' generated schema and from serialization rather than aborting generation as
-#' undeclared drift.
+#' `sessionInfo()` — so it is omitted from the generated schema and from
+#' serialization rather than aborting generation as undeclared drift.
+#'
+#' Reach for it only when the value genuinely exists and cannot travel. A slot
+#' that holds nothing wants deleting, not declaring: the marker exists so that
+#' forgetting to declare a property fails loudly, and it cannot tell you that a
+#' property should not be there at all.
 #'
 #' Distinct from `prop_computed()`: a computed view is recoverable from fields
 #' that *are* published, so its absence costs a consumer nothing, while an
@@ -2206,8 +2215,17 @@ wire_value <- function(value, prop) {
     return(value)
   }
   spec <- get_spec(prop)
-  if (!is.null(spec) && spec@container == "map" && is.atomic(value)) {
+  if (is.null(spec)) {
+    return(value)
+  }
+  if (spec@container == "map" && is.atomic(value)) {
     return(as.list(value))
+  }
+  if (spec@container == "factor" && is.factor(value)) {
+    # `toJSON()` on a factor emits its labels and drops the levels attribute,
+    # losing both their order -- which is what decides the positive class --
+    # and any level with no cases.
+    return(list(levels = levels(value), codes = as.integer(value)))
   }
   value
 } # /rtemis::wire_value
@@ -2221,10 +2239,14 @@ wire_value <- function(value, prop) {
 #' so the property's class check would reject the list. Any `.list_to_*()`
 #' reconstructor for a class declaring such a property must call this.
 #'
+#' A factor is the second such mismatch: it travels as `{levels, codes}` and
+#' must be rebuilt, levels and their order included.
+#'
 #' @param x Named list parsed from JSON.
 #' @param cls S7 class the list reconstructs.
 #'
-#' @return `x`, with map-valued elements coerced to named atomic vectors.
+#' @return `x`, with map-valued elements coerced to named atomic vectors and
+#'   factor-valued ones rebuilt.
 #'
 #' @author EDG
 #' @keywords internal
@@ -2233,15 +2255,42 @@ from_wire_maps <- function(x, cls) {
   props <- cls@properties
   for (nm in intersect(names(x), names(props))) {
     spec <- get_spec(props[[nm]])
-    is_scalar_map <- !is.null(spec) &&
-      spec@container == "map" &&
-      spec_r_kind(spec) == "atomic"
+    if (is.null(spec)) {
+      next
+    }
+    is_scalar_map <- spec@container == "map" && spec_r_kind(spec) == "atomic"
     if (is_scalar_map && is.list(x[[nm]])) {
       x[[nm]] <- unlist(x[[nm]])
+    }
+    if (spec@container == "factor" && is.list(x[[nm]])) {
+      x[[nm]] <- from_wire_factor(x[[nm]])
     }
   }
   x
 } # /rtemis::from_wire_maps
+
+
+# %% from_wire_factor ----
+#' Rebuild a factor from its `{levels, codes}` wire form
+#'
+#' @param x Named list with `levels` and `codes`, as parsed from JSON.
+#'
+#' @return Factor.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+from_wire_factor <- function(x) {
+  levels <- as.character(x[["levels"]])
+  codes <- as.integer(x[["codes"]])
+  if (length(codes) > 0L && max(codes) > length(levels)) {
+    rtemis.core::abort(
+      "Factor codes index past the declared levels: `codes` are 1-based positions in `levels`.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  factor(levels[codes], levels = levels)
+} # /rtemis::from_wire_factor
 
 
 # %% route_config_assignment ----
@@ -2455,12 +2504,31 @@ spec_to_schema <- function(spec, read_only = FALSE) {
       arr
     }
   } else if (spec@container == "factor") {
-    # The labels, in case order. The levels are the outcome's, so they are data
-    # rather than a declarable enum; `x-rtemis.container` carries the R class.
+    # Levels and per-case codes, the representation every categorical type
+    # uses. The levels are the outcome's own, so they travel with the value
+    # rather than being declared -- except where `enum` fixes the vocabulary,
+    # which constrains them here.
     list(
-      type = if (spec@nullable) I(c("array", "null")) else "array",
-      items = scalar,
-      minItems = 1L
+      type = if (spec@nullable) I(c("object", "null")) else "object",
+      properties = list(
+        levels = list(
+          type = "array",
+          items = Filter(
+            Negate(is.null),
+            list(type = "string", enum = if (!is.null(spec@enum)) I(spec@enum))
+          ),
+          minItems = 1L,
+          uniqueItems = TRUE,
+          description = "Levels, in order."
+        ),
+        codes = list(
+          type = "array",
+          items = list(type = "integer", minimum = 1L),
+          description = "One 1-based index into `levels` per case."
+        )
+      ),
+      required = I(c("levels", "codes")),
+      additionalProperties = FALSE
     )
   } else if (spec@container == "matrix") {
     row <- list(type = "array", items = scalar, minItems = 1L)

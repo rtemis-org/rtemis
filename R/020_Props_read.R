@@ -86,7 +86,8 @@ schema_element <- function(x, container, tunable, broadcast) {
     return(b[[length(b)]][["items"]])
   }
   if (container == "factor") {
-    return(x[["items"]])
+    # A factor emits `{levels, codes}`; the leaf is the level label.
+    return(x[["properties"]][["levels"]][["items"]])
   }
   if (container == "matrix") {
     return(x[["items"]][["items"]])

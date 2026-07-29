@@ -82,9 +82,11 @@ AUDIT_RESULT_CLASSES <- c(
   "Supervised",
   "Regression",
   "Classification",
+  "CalibratedClassification",
   "SupervisedRes",
   "RegressionRes",
   "ClassificationRes",
+  "CalibratedClassificationRes",
   "VariableImportance",
   "SupervisedSession"
 )

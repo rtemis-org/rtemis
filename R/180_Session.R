@@ -26,8 +26,11 @@ SupervisedSession <- new_class(
   properties = list(
     id = class_character,
     events = class_list,
-    started = class_any,
-    finished = class_any
+    # Wall-clock bounds of the run. `finished` is unset while a session is
+    # still open, which `session_timeline()` treats as "draw up to the latest
+    # recorded start".
+    started = NULL | class_POSIXct,
+    finished = NULL | class_POSIXct
   ),
   constructor = function(id, events = list(), started = NULL, finished = NULL) {
     new_object(

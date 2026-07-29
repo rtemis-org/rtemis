@@ -437,7 +437,9 @@ draw_scatter <- function(
       )
       fitted[[i]] <- fitted(mod)
       if (se_fit) {
-        se[[i]] <- se(mod)
+        # Computed from the model rather than read off it: standard errors are
+        # a property of a fit and its data, not something every result carries.
+        se[[i]] <- se(mod, data.frame(x = x[[i]]))
       }
       if (include_fit_name) {
         # fitted_text[i] <- switch(fit,

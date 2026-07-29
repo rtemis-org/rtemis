@@ -1119,7 +1119,7 @@ test_that("an r_only property is neither serialized nor published", {
   expect_false(prop_serialized(p))
   # The real ones: a fitted backend model has no wire form, and unlike a
   # computed view nothing published can reconstruct it.
-  for (nm in c("model", "extra", "session_info")) {
+  for (nm in c("model", "session_info")) {
     expect_identical(
       prop_role(Supervised@properties[[nm]]),
       "r_only",
@@ -1195,16 +1195,73 @@ test_that("a factor property honors a declared level set", {
 })
 
 
-test_that("a factor emits an array of strings and round-trips", {
+test_that("a factor emits its levels and codes, and the spec round-trips", {
   spec <- get_spec(prop_factor(nullable = TRUE, description = "Outcome."))
   sch <- spec_to_schema(spec)
-  expect_identical(as.character(sch[["type"]]), c("array", "null"))
-  expect_identical(sch[["items"]][["type"]], "string")
+  expect_identical(as.character(sch[["type"]]), c("object", "null"))
+  expect_identical(as.character(sch[["required"]]), c("levels", "codes"))
+  expect_true(sch[["properties"]][["levels"]][["uniqueItems"]])
+  # Codes are 1-based positions, which the schema asserts rather than leaving
+  # to prose: a 0-based reader would shift every label by one.
+  expect_identical(sch[["properties"]][["codes"]][["items"]][["minimum"]], 1L)
   expect_identical(sch[["x-rtemis"]][["container"]], "factor")
   back <- schema_to_spec(sch)
   expect_identical(back@container, "factor")
   expect_identical(back@type, "string")
   expect_true(back@nullable)
+})
+
+
+test_that("a declared level set constrains the levels in the schema", {
+  spec <- get_spec(prop_factor(enum = c("no", "yes"), nullable = TRUE))
+  sch <- spec_to_schema(spec)
+  expect_identical(
+    as.character(sch[["properties"]][["levels"]][["items"]][["enum"]]),
+    c("no", "yes")
+  )
+})
+
+
+test_that("a factor property must be nullable, having no prototype value", {
+  # The same constraint `prop_matrix()` and `prop_table()` carry: a spec's
+  # default must validate, and there is no factor a class could default to.
+  expect_error(prop_factor(), "default")
+})
+
+
+test_that("a factor survives the wire with its level order and empty levels", {
+  prop <- prop_factor(nullable = TRUE)
+  # Level order is not cosmetic: `binclasspos = 2L` means the positive class is
+  # the *second* level, so a realphabetised factor has swapped which class is
+  # positive.
+  reordered <- factor(c("b", "a", "b"), levels = c("b", "a"))
+  wire <- wire_value(reordered, prop)
+  expect_identical(wire[["levels"]], c("b", "a"))
+  expect_identical(wire[["codes"]], c(1L, 2L, 1L))
+  expect_identical(from_wire_factor(wire), reordered)
+  # A level with no cases disappears entirely from an array of labels.
+  unobserved <- factor(c("a", "a"), levels = c("a", "b", "c"))
+  expect_identical(
+    from_wire_factor(wire_value(unobserved, prop)),
+    unobserved
+  )
+})
+
+
+test_that("factor codes that index past the levels are rejected", {
+  expect_error(
+    from_wire_factor(list(levels = c("a", "b"), codes = c(1L, 3L))),
+    "1-based"
+  )
+})
+
+
+test_that("from_wire_maps rebuilds a factor property", {
+  Demo <- demo_factor_class()
+  parsed <- list(y = list(levels = c("b", "a"), codes = c(2L, 1L)))
+  restored <- from_wire_maps(parsed, Demo)
+  expect_identical(restored[["y"]], factor(c("a", "b"), levels = c("b", "a")))
+  expect_no_error(Demo(y = restored[["y"]]))
 })
 
 

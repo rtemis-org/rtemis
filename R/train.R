@@ -850,21 +850,6 @@ train <- function(
       }
     }
 
-    # Standard Errors ----
-    # Use the same (algorithm-level preprocessed) features as predictions.
-    se_training <- se_validation <- se_test <- NULL
-    if (type == "Regression" && algorithm %in% se_compat_algorithms) {
-      se_training <- se_super(model = model, newdata = x_features)
-      if (!is.null(dat_validation)) {
-        se_validation <- se_super(
-          model = model,
-          newdata = dat_validation_features
-        )
-      }
-      if (!is.null(dat_test)) {
-        se_test <- se_super(model = model, newdata = dat_test_features)
-      }
-    }
     node_exit(predict_node, status = "ok")
 
     # Variable importance ----
@@ -900,9 +885,6 @@ train <- function(
       predicted_prob_training = predicted_prob_training,
       predicted_prob_validation = predicted_prob_validation,
       predicted_prob_test = predicted_prob_test,
-      se_training = se_training,
-      se_validation = se_validation,
-      se_test = se_test,
       xnames = names(x)[-ncols],
       varimp = varimp,
       question = question,

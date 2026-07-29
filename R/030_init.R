@@ -8,6 +8,7 @@
 # %% --- S3 Classes for S7 ----------------------------------------------------------------------------
 class_table <- new_S3_class("table")
 class_matrix <- new_S3_class("matrix")
+class_POSIXct <- new_S3_class("POSIXct")
 class_data.table <- new_S3_class("data.table")
 class_lgb.Booster <- new_S3_class("lgb.Booster")
 # All internal methods should support data.frame, data.table, tbl_df
@@ -254,8 +255,26 @@ se_super <- new_generic(
 
 
 # %% se ----
-# Standard error of the fit.
-se <- new_generic("se", "x")
+#' Standard error of the fit
+#'
+#' Computed on demand from the fitted model rather than stored: only linear and
+#' additive models produce standard errors at all, so storing three per-case
+#' vectors on every regression result carried a value that two of thirteen
+#' algorithms populate.
+#'
+#' @param x `Supervised` object.
+#' @param newdata tabular data: Data to compute standard errors for.
+#' @param ... Additional arguments passed to methods.
+#'
+#' @return Numeric vector of standard errors, or NULL when the algorithm has
+#'   none.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+se <- new_generic("se", "x", function(x, newdata, ...) {
+  S7_dispatch()
+})
 
 
 # %% decomp_ ----

@@ -72,9 +72,22 @@ mod_r_glm <- train(
 test_that("train() GLM Regression succeeds", {
   expect_s7_class(mod_r_glm, Regression)
 })
-test_that("train() GLM standard errors are available", {
-  expect_type(mod_r_glm@se_training, "double")
-  expect_type(mod_r_glm@se_test, "double")
+test_that("se() computes standard errors on demand, for the models that have them", {
+  # Not stored: only linear and additive models produce them, so every
+  # regression result carrying three per-case vectors was paying for two
+  # algorithms out of thirteen.
+  se_training <- se(mod_r_glm, features(datr_train))
+  expect_type(se_training, "double")
+  expect_length(se_training, nrow(datr_train))
+  expect_type(se(mod_r_glm, features(datr_test)), "double")
+  # An algorithm with no `se_super()` method has no standard error, which is an
+  # answer rather than a failure.
+  mod_r_cart <- train(
+    x = datr_train,
+    hyperparameters = setup_CART(),
+    verbosity = 0L
+  )
+  expect_null(se(mod_r_cart, features(datr_test)))
 })
 
 ## {GLM}[train]<Regression> Throw error with missing data ----
