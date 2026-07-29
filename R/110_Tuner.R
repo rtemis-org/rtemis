@@ -402,7 +402,7 @@ method(repr, GridSearch) <- function(
 #' .list_to_TunerConfig(list(
 #'   type = "GridSearch",
 #'   config = list(
-#'     resampler_config = list(type = "KFold", n = 5L),
+#'     resampler_config = list(type = "KFold", n_resamples = 5L),
 #'     search_type = "exhaustive"
 #'   )
 #' ))
