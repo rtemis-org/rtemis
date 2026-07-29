@@ -2371,20 +2371,26 @@ data_bound_note <- function(data_bound, container, broadcast) {
 #' `additionalProperties: false` makes an undeclared one an error rather than
 #' something a reader silently drops.
 #'
-#' @param spec `PropertySpec` object with `@members` set.
+#' Takes the members directly rather than the owning spec, so that record
+#' *structure* — a tuning table's rows, which belong to no class — can be built
+#' from the same declarations as a class property's.
+#'
+#' @param members Named list of `PropertySpec` objects, one per member.
+#' @param required Character or NULL: The always-present members. NULL means
+#'   all of them.
 #'
 #' @return Named list (JSON Schema object).
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-members_schema <- function(spec) {
+members_schema <- function(members, required = NULL) {
   out <- list(
     type = "object",
-    properties = lapply(spec@members, spec_to_schema),
+    properties = lapply(members, spec_to_schema),
     additionalProperties = FALSE
   )
-  required <- spec@required_members %||% names(spec@members)
+  required <- required %||% names(members)
   if (length(required) > 0L) {
     out[["required"]] <- I(required)
   }
@@ -2467,10 +2473,10 @@ spec_to_schema <- function(spec, read_only = FALSE) {
     # Row-oriented: an array of the declared object shape, one per row.
     list(
       type = if (spec@nullable) I(c("array", "null")) else "array",
-      items = members_schema(spec)
+      items = members_schema(spec@members, spec@required_members)
     )
   } else if (spec@container == "struct") {
-    obj <- members_schema(spec)
+    obj <- members_schema(spec@members, spec@required_members)
     if (spec@nullable) {
       obj[["type"]] <- I(c("object", "null"))
     }
@@ -2692,21 +2698,9 @@ folds_schema <- function(refs, metrics_refs = NULL) {
     }
   }
   properties[["hyperparameters"]] <- list(`$ref` = refs[["hyperparameters"]])
-  # The tuning result as `Tuner@tuning_results` holds it: the grid, the
-  # per-resample metric tables, and the winner. Left open because it is a
-  # results table rather than a config -- typing it is the metrics work in
-  # `config-artifacts.md`, not this.
+  # Null when the fold ran no tuning; otherwise the search, fully declared.
   properties[["tuning"]] <- list(
-    oneOf = list(
-      list(type = "null"),
-      list(
-        type = "object",
-        description = paste(
-          "What this fold's inner tuning searched and found: the parameter",
-          "grid, the per-resample metrics, and the winning combination."
-        )
-      )
-    )
+    oneOf = list(list(type = "null"), tuning_schema())
   )
   if (!is.null(metrics_refs)) {
     # Which metrics class applies follows from the outcome, not from anything
@@ -2741,6 +2735,102 @@ folds_schema <- function(refs, metrics_refs = NULL) {
     )
   )
 } # /rtemis::folds_schema
+
+
+# %% tuning_schema ----
+#' The `tuning` block of one fold in a supervised record schema
+#'
+#' What a fold's inner tuning searched and found, as `Tuner@tuning_results`
+#' holds it: the candidate grid, each candidate's training and validation
+#' scores, and the winner. The three tables join on `param_combo_id`.
+#'
+#' Two of the shapes here have **data-dependent keys** and say so rather than
+#' pretending otherwise: a `param_grid` row carries one column per
+#' *hyperparameter being tuned*, and `best` is keyed the same way, so neither
+#' set can be declared without a schema per algorithm. They are declared as far
+#' as they can be — the joining id, and the fact that every other value is a
+#' scalar — which is the same treatment `prop_map()` gives per-feature values.
+#'
+#' The score tables are fully declared, reusing the metric columns the metrics
+#' classes carry, so a candidate's score is bounded exactly as the final score
+#' is. Which of the two applies follows from the outcome, as it does for
+#' `folds[i].metrics`.
+#'
+#' @return Named list: the `tuning` property schema.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+tuning_schema <- function() {
+  combo_id <- prop_integer(
+    1L,
+    min = 1L,
+    description = "Candidate this row belongs to; joins the three tables."
+  )
+  # Anything a hyperparameter can be, once tuning has narrowed it to one value.
+  scalar <- list(type = I(c("number", "string", "boolean", "null")))
+  scores <- function(sample) {
+    rows <- function(columns, required) {
+      list(
+        type = "array",
+        minItems = 1L,
+        items = members_schema(
+          member_specs(c(list(param_combo_id = combo_id), columns), "columns"),
+          c("param_combo_id", required)
+        )
+      )
+    }
+    list(
+      description = paste0(
+        "Each candidate's ",
+        sample,
+        " metrics, one row per candidate per inner resample."
+      ),
+      oneOf = list(
+        rows(
+          regression_metric_columns(),
+          names(regression_metric_columns())
+        ),
+        rows(
+          classification_overall_columns(),
+          CLASSIFICATION_OVERALL_REQUIRED
+        )
+      )
+    )
+  }
+  list(
+    type = "object",
+    description = paste(
+      "What this fold's inner tuning searched and found: the candidate grid,",
+      "the per-candidate metrics, and the winning combination."
+    ),
+    properties = list(
+      param_grid = list(
+        type = "array",
+        minItems = 1L,
+        description = paste(
+          "The candidates searched, one row each. Columns beyond the id are",
+          "the hyperparameters being tuned, so their names are data."
+        ),
+        items = list(
+          type = "object",
+          properties = list(param_combo_id = prop_to_schema(combo_id)),
+          required = I("param_combo_id"),
+          additionalProperties = scalar
+        )
+      ),
+      training = scores("training"),
+      validation = scores("validation"),
+      best = list(
+        type = "object",
+        description = "The winning combination, keyed by hyperparameter.",
+        additionalProperties = scalar
+      )
+    ),
+    required = I(c("param_grid", "training", "validation", "best")),
+    additionalProperties = FALSE
+  )
+} # /rtemis::tuning_schema
 
 
 # %% metrics_schema ----

@@ -767,3 +767,52 @@ test_that("each fold carries its full metrics, not only the headline row", {
   # A computed view has no wire form and must not reach the record.
   expect_false("confusion_matrix" %in% names(training))
 })
+
+
+test_that("a fold's tuning block is declared, not an open object", {
+  datc <- iris[51:150, ]
+  datc[["Species"]] <- factor(datc[["Species"]])
+  mod <- train(
+    datc,
+    hyperparameters = setup_CART(maxdepth = c(2L, 4L)),
+    verbosity = 0L
+  )
+  tuning <- record(mod)[["folds"]][[1L]][["tuning"]]
+  expect_identical(
+    sort(names(tuning)),
+    c("best", "param_grid", "training", "validation")
+  )
+  # The three tables join on `param_combo_id`.
+  expect_true("param_combo_id" %in% names(tuning[["param_grid"]]))
+  expect_true("param_combo_id" %in% names(tuning[["training"]]))
+  # The scores carry the same metric columns the metrics classes declare, so a
+  # candidate's score is bounded exactly as the final score is.
+  expect_true(all(
+    CLASSIFICATION_OVERALL_REQUIRED %in% names(tuning[["training"]])
+  ))
+  # The winner is keyed by hyperparameter, which is why those keys are data.
+  expect_identical(names(tuning[["best"]]), "maxdepth")
+})
+
+
+test_that("the tuning schema declares the score tables it emits", {
+  sch <- tuning_schema()
+  expect_identical(
+    sort(names(sch[["properties"]])),
+    c("best", "param_grid", "training", "validation")
+  )
+  # A candidate row is closed, so an undeclared metric is an error rather than
+  # something a reader silently drops.
+  branches <- sch[["properties"]][["training"]][["oneOf"]]
+  expect_length(branches, 2L)
+  for (branch in branches) {
+    expect_false(branch[["items"]][["additionalProperties"]])
+    expect_true("param_combo_id" %in% names(branch[["items"]][["properties"]]))
+  }
+  # `param_grid`'s and `best`'s keys are the hyperparameters being tuned, so
+  # only the joining id can be declared; the rest are typed as scalars.
+  expect_true(is.list(
+    sch[["properties"]][["param_grid"]][["items"]][["additionalProperties"]]
+  ))
+  expect_true(is.list(sch[["properties"]][["best"]][["additionalProperties"]]))
+})
