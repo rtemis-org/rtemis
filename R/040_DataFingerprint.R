@@ -4,9 +4,9 @@
 
 # Dataset identity for provenance records: what data a run actually used, so
 # that across a batch of experiments a user can tell whether runs shared an
-# input or drifted undocumented. A path alone does not establish this — the file
-# at that path can change — so a `DataFingerprint` pairs a content hash with the
-# cheap structural facts (dimensions, column names) that make a mismatch
+# input or drifted undocumented. A path alone does not establish this -- the
+# file at that path can change -- so a `DataFingerprint` pairs a content hash
+# with the cheap structural facts (dimensions, column names) that make a mismatch
 # *diagnosable* rather than merely detectable.
 #
 # Three hash methods, answering three different questions:
@@ -336,7 +336,7 @@ data_fingerprint <- function(
 #' Do two fingerprints identify the same dataset?
 #'
 #' Two fingerprints are comparable only if they were produced the same way, so
-#' this is FALSE when `method` or `algorithm` differ — an unequal comparison of
+#' this is FALSE when `method` or `algorithm` differ -- an unequal comparison of
 #' incomparable values would be worse than no answer.
 #'
 #' @param x,y `DataFingerprint` objects.
@@ -420,14 +420,14 @@ fingerprint_diff <- function(x, y) {
 #' Notify when a set of models was not trained on the same data
 #'
 #' Comparing metrics across models trained on different inputs can be a silent
-#' failure — the numbers look comparable and may not be. Every model that
+#' failure -- the numbers look comparable and may not be. Every model that
 #' carries a fingerprint is compared against the first; models without one
 #' (trained before fingerprinting, or as a nested sub-model) are skipped rather
 #' than reported, so the check degrades quietly instead of crying wolf.
 #'
 #' Printed rather than a real R warning, and never an error: comparing models
-#' across different data is frequently deliberate — feature selection,
-#' ablations, differing preprocessing — so it must not be escalatable to a
+#' across different data is frequently deliberate -- feature selection,
+#' ablations, differing preprocessing -- so it must not be escalatable to a
 #' failure in a legitimate workflow. It reports a fact; the user judges it.
 #'
 #' @param models List of `Supervised` / `SupervisedRes` objects.
@@ -489,7 +489,7 @@ method(repr, DataFingerprint) <- function(x, pad = 0L, output_type = NULL) {
       list(
         hash = paste0(
           substr(x@hash, 1L, DATA_HASH_DISPLAY_CHARS),
-          "… (",
+          "\u2026 (",
           x@algorithm,
           ", ",
           x@method,

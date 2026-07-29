@@ -3,7 +3,7 @@
 # 2026- EDG rtemis.org
 
 # S7 property factories: each factory returns an S7 property whose type,
-# default, and validation logic are generated from a `PropertySpec` — a nested
+# default, and validation logic are generated from a `PropertySpec` -- a nested
 # S7 object that rides along on the property. Because the constraints are data
 # (not closures), `S7_to_JSONSchema()` can convert any class built from these
 # factories to a JSON Schema mechanically: one declaration produces the R
@@ -15,7 +15,7 @@
 # - nullable = TRUE       -> "null" added to "type"
 # - tunable = TRUE        -> "oneOf": [scalar, array-of-scalar (search values)]
 # - container = "array"   -> "type": "array" (a genuinely vector-valued field,
-#                            e.g. per-feature weights; NOT search values —
+#                            e.g. per-feature weights; NOT search values --
 #                            mutually exclusive with tunable)
 # - container = "map"     -> "type": "object" + "additionalProperties"
 # - items                 -> the element schema, for nested shapes (a matrix is
@@ -118,7 +118,7 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #' the generated validators and by [S7_to_JSONSchema]. The validator also
 #' checks that the default itself conforms to the spec, so a bad declaration
 #' (e.g. a default outside its own bounds, or a double default for an integer
-#' property) fails at factory time — i.e. at package load — rather than at
+#' property) fails at factory time -- i.e. at package load -- rather than at
 #' first instantiation.
 #'
 #' @field type Character: JSON Schema base type
@@ -137,7 +137,7 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   a matrix (array of arrays) or a map of arrays. NULL means the element is
 #'   this spec's own leaf type and constraints.
 #' @field members Named list of `PropertySpec` or NULL: The declared members of
-#'   an object shape — one spec per *column* for a `table` (each describing a
+#'   an object shape -- one spec per *column* for a `table` (each describing a
 #'   cell, the column being a vector of them), one per *field* for a `struct`.
 #' @field required_members Character or NULL: Names of the members that are
 #'   always present. Any other declared member is optional, so its absence
@@ -158,7 +158,7 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   cannot be set; `@default` holds it. Distinct from a *fixed* property,
 #'   which is settable but not tunable.
 #' @field data_dependent Logical: If TRUE, the value's shape follows one
-#'   dataset — one entry per case or per feature — so it cannot be supplied
+#'   dataset -- one entry per case or per feature -- so it cannot be supplied
 #'   without the data in hand. An annotation only: such a value is still a
 #'   settable input and is written to a config.
 #' @field data_bound Character or NULL: Name of the training-data dimension
@@ -964,7 +964,7 @@ prop_integer <- function(
 #'
 #' The only factory whose name differs from its JSON Schema type: it emits
 #' type "number" (which in JSON Schema includes integers), but is named
-#' `prop_float` because declarers think in the integer/float pairing —
+#' `prop_float` because declarers think in the integer/float pairing --
 #' "number" next to `prop_integer` invites the same ambiguity as R's
 #' "numeric". Accepts R integer values too (`class_numeric`): JSON numbers
 #' parse to double anyway, and floats are a superset of integers.
@@ -1115,7 +1115,7 @@ prop_string <- function(
 #' String-keyed map S7 property with attached PropertySpec
 #'
 #' A named R vector (or named list, when `values` is itself a container) whose
-#' keys are data-dependent — per-feature scaling values, per-feature one-hot
+#' keys are data-dependent -- per-feature scaling values, per-feature one-hot
 #' levels. Maps to a JSON object with `additionalProperties` describing the
 #' value.
 #'
@@ -1171,7 +1171,7 @@ prop_map <- function(
 # %% prop_array ----
 #' Array-of-containers S7 property with attached PropertySpec
 #'
-#' An R list whose elements are themselves containers — one weight vector per
+#' An R list whose elements are themselves containers -- one weight vector per
 #' tree, one in-bag count vector per tree. For a flat vector of scalars use the
 #' `vector = TRUE` argument of the scalar factories instead.
 #'
@@ -1282,10 +1282,10 @@ prop_matrix <- function(
 # %% prop_factor ----
 #' Factor S7 property with attached PropertySpec
 #'
-#' An R factor — a classification outcome or a predicted class. Serializes as
+#' An R factor -- a classification outcome or a predicted class. Serializes as
 #' `{levels, codes}`: the levels in order, and a 1-based index into them per
-#' case. That is what every categorical type stores — an R factor, an Arrow
-#' dictionary, a pandas Categorical — and an array of labels is not a
+#' case. That is what every categorical type stores -- an R factor, an Arrow
+#' dictionary, a pandas Categorical -- and an array of labels is not a
 #' substitute: it loses the level *order*, which is what decides the positive
 #' class in binary classification, and any level with no cases.
 #'
@@ -1296,7 +1296,7 @@ prop_matrix <- function(
 #' @param enum Character or NULL: Allowed labels.
 #' @param nullable Logical: If TRUE, NULL is a valid value. Must be TRUE: a
 #'   spec's default has to validate, and there is no factor a class could
-#'   default to — the same constraint `prop_matrix()` and `prop_table()` carry.
+#'   default to -- the same constraint `prop_matrix()` and `prop_table()` carry.
 #' @param data_bound Character or NULL: Training-data dimension the length is
 #'   tied to; see `DATA_BOUNDS`.
 #' @param data_dependent Logical: If TRUE, the value's shape follows one
@@ -1339,7 +1339,7 @@ prop_factor <- function(
 # %% prop_table ----
 #' Data frame (table) S7 property with attached PropertySpec
 #'
-#' A data frame with declared, heterogeneous columns — a metrics table, one row
+#' A data frame with declared, heterogeneous columns -- a metrics table, one row
 #' per class or per resample. Serializes row-oriented, as an array of objects,
 #' which pandas (`orient="records"`), polars and DataFrames.jl all read
 #' natively. Use `prop_matrix()` instead for a homogeneous numeric grid with no
@@ -1444,7 +1444,7 @@ member_specs <- function(members, what) {
 # %% prop_struct ----
 #' Declared-object (struct) S7 property with attached PropertySpec
 #'
-#' A named list whose members are *declared* and heterogeneous — the metrics
+#' A named list whose members are *declared* and heterogeneous -- the metrics
 #' payload of a classification result, which holds an `overall` table, a
 #' per-class table, and a scalar. Maps to a JSON object with `properties`, the
 #' counterpart of `prop_map()`'s `additionalProperties`: use a map when the keys
@@ -1504,7 +1504,7 @@ prop_struct <- function(
 # %% prop_const ----
 #' Constant S7 property with attached PropertySpec
 #'
-#' A value determined by the class rather than chosen by the user — LightRF's
+#' A value determined by the class rather than chosen by the user -- LightRF's
 #' `boosting_type = "rf"`, LinearSVM's `kernel = "linear"`. It is what makes
 #' the class that class, so it is declared the same way as the constant
 #' `algorithm` discriminator: a computed property with no setter, hence
@@ -1513,7 +1513,7 @@ prop_struct <- function(
 #' Distinct from a **fixed** property, which the user *does* set but cannot
 #' tune. Fixed is about tunability; constant is about settability.
 #'
-#' Emits `{"const": value}`, which is an assertion — a config supplying any
+#' Emits `{"const": value}`, which is an assertion -- a config supplying any
 #' other value fails validation.
 #'
 #' @param value Scalar: The value. Its type sets the property's type.
@@ -1747,8 +1747,8 @@ prop_accepts_null <- function(prop) {
 #' S7 property holding run state rather than configuration
 #'
 #' Written by the run, not the user. Appears in the generated schema marked
-#' `readOnly` — a reader needs the field to reconstruct the class, and a run
-#' record carries it — so a form builder shows it without prompting for it.
+#' `readOnly` -- a reader needs the field to reconstruct the class, and a run
+#' record carries it -- so a form builder shows it without prompting for it.
 #'
 #' Wraps a property built by a `prop_*` factory, so run state is declared with
 #' the same type, bounds and description as configuration.
@@ -1813,7 +1813,7 @@ prop_serialized <- function(prop) {
 #' aborting generation as undeclared drift.
 #'
 #' Unlike `prop_state()` this takes a plain S7 property: a view has a getter and
-#' no `PropertySpec`, there being nothing to validate — its value is a function
+#' no `PropertySpec`, there being nothing to validate -- its value is a function
 #' of fields that are themselves validated.
 #'
 #' @param property S7 property (typically one with a `getter`).
@@ -1832,8 +1832,8 @@ prop_computed <- function(property) {
 # %% prop_r_only ----
 #' S7 property that exists only in R
 #'
-#' Marks a property with no wire form at all — a fitted backend model, a
-#' `sessionInfo()` — so it is omitted from the generated schema and from
+#' Marks a property with no wire form at all -- a fitted backend model, a
+#' `sessionInfo()` -- so it is omitted from the generated schema and from
 #' serialization rather than aborting generation as undeclared drift.
 #'
 #' Reach for it only when the value genuinely exists and cannot travel. A slot
@@ -2161,7 +2161,7 @@ own_prop_values <- function(self, base) {
 #' which the algorithm already implies, and **state** whose value the fitted
 #' model already carries (GLMNET `lambda.min`, LightGBM `best_iter`), which is
 #' re-derived on read. Everything a user can set is kept, data-shaped values
-#' included — see "Property roles".
+#' included -- see "Property roles".
 #'
 #' @param self S7 object.
 #' @param base S7 class: the family base class.
@@ -2195,7 +2195,7 @@ config_prop_values <- function(self, base) {
 #'
 #' One conversion, for one mismatch: a `map` container publishes
 #' `type: object`, but its R value for a scalar leaf is a *named atomic vector*,
-#' and `jsonlite::toJSON()` drops names on atomic vectors — emitting an array,
+#' and `jsonlite::toJSON()` drops names on atomic vectors -- emitting an array,
 #' which its own schema rejects. Handing it a list restores the object.
 #'
 #' Deliberately spec-driven rather than "name any named vector": Ranger's
@@ -2421,8 +2421,8 @@ data_bound_note <- function(data_bound, container, broadcast) {
 #' something a reader silently drops.
 #'
 #' Takes the members directly rather than the owning spec, so that record
-#' *structure* — a tuning table's rows, which belong to no class — can be built
-#' from the same declarations as a class property's.
+#' *structure* -- a tuning table's rows, which belong to no class -- can be
+#' built from the same declarations as a class property's.
 #'
 #' @param members Named list of `PropertySpec` objects, one per member.
 #' @param required Character or NULL: The always-present members. NULL means
@@ -2457,7 +2457,7 @@ members_schema <- function(members, required = NULL) {
 #' unions) are wrapped in `I()` for `jsonlite::toJSON(auto_unbox = TRUE)`.
 #'
 #' @param spec `PropertySpec` object.
-#' @param read_only Logical: If TRUE, the property is run state — marked
+#' @param read_only Logical: If TRUE, the property is run state -- marked
 #'   `readOnly` and annotated `role: "state"`.
 #' @return Named list (JSON Schema property).
 #'
@@ -2727,9 +2727,9 @@ origin_schema <- function(props) {
 #'
 #' A record's top level says what was *asked for*; `folds` says what *ran*, once
 #' per outer resample. They are separate because a resampled run resolves
-#' different values in each fold — early stopping picks a different `nrounds`
-#' every time — so a single resolved value at the top level would be a claim the
-#' run never made.
+#' different values in each fold -- early stopping picks a different `nrounds`
+#' every time -- so a single resolved value at the top level would be a claim
+#' the run never made.
 #'
 #' A single fit is one fold rather than a second shape, so a position never
 #' changes meaning between records.
@@ -2816,8 +2816,8 @@ folds_schema <- function(refs, metrics_refs = NULL) {
 #' pretending otherwise: a `param_grid` row carries one column per
 #' *hyperparameter being tuned*, and `best` is keyed the same way, so neither
 #' set can be declared without a schema per algorithm. They are declared as far
-#' as they can be — the joining id, and the fact that every other value is a
-#' scalar — which is the same treatment `prop_map()` gives per-feature values.
+#' as they can be -- the joining id, and the fact that every other value is a
+#' scalar -- which is the same treatment `prop_map()` gives per-feature values.
 #'
 #' The score tables are fully declared, reusing the metric columns the metrics
 #' classes carry, so a candidate's score is bounded exactly as the final score
@@ -2911,7 +2911,7 @@ tuning_schema <- function() {
 #' Typed loosely on purpose. The metric set differs between regression and
 #' classification, and the authoritative, per-metric-bounded declaration is the
 #' metrics schema each fold's `metrics` block `$ref`s. This block exists so that
-#' "how did this run do?" is one lookup in a file, with no averaging and no R —
+#' "how did this run do?" is one lookup in a file, with no averaging and no R --
 #' which is what makes a directory of records rankable.
 #'
 #' @param sd Logical: If TRUE, describe the dispersion block.
@@ -2974,7 +2974,7 @@ prop_to_schema <- function(prop) {
 #' by their declared role (see `prop_role()`), not by a list kept here:
 #' `"config"` and `"state"` properties are generated from their spec, state
 #' being marked `readOnly`, while `"computed"` and `"r_only"` properties are
-#' omitted — the first because everything it derives from is published, the
+#' omitted -- the first because everything it derives from is published, the
 #' second because it has no wire form at all. A spec-less property with no role
 #' is an error, so a class that drifts from the factory vocabulary fails loudly
 #' instead of emitting a wrong schema.
@@ -3003,7 +3003,7 @@ prop_to_schema <- function(prop) {
 #'   record carries it; a nested one inherits its parent's.
 #' @param record Logical: If TRUE, emit the **record** form of the schema: the
 #'   same properties, but every one required. A record states what a run
-#'   actually used, so nothing in it may fall back to a reader's defaults — an
+#'   actually used, so nothing in it may fall back to a reader's defaults -- an
 #'   unset value is written as an explicit `null` rather than omitted. The
 #'   difference between an input schema and a record schema is exactly this;
 #'   membership is identical.
@@ -3016,8 +3016,8 @@ prop_to_schema <- function(prop) {
 #'   S7 union), instead of requiring a `PropertySpec`. Names must match
 #'   existing properties.
 #' @param array_refs Named character: As `refs`, for a property holding a *list*
-#'   of such objects — one metrics object per resample, one model per fold. Each
-#'   emits an array whose `items` are the `$ref`.
+#'   of such objects -- one metrics object per resample, one model per fold.
+#'   Each emits an array whose `items` are the `$ref`.
 #' @param closed Logical: If TRUE (default) the schema sets
 #'   `additionalProperties: false`. Pass FALSE for leaves composed into a
 #'   top-level-mode dispatcher, which enforces strictness with
@@ -3065,7 +3065,7 @@ S7_to_JSONSchema <- function(
   if (!is.null(base)) {
     props <- props[own_prop_names(x, base)]
   }
-  # Run state is part of the class, so it is part of the schema — marked
+  # Run state is part of the class, so it is part of the schema -- marked
   # `readOnly` by `prop_to_schema()`, since a user never supplies it. Whether it
   # is also written to a config is the separate `serialize` axis.
   for (arg in c("refs", "array_refs")) {
@@ -3152,7 +3152,7 @@ S7_to_JSONSchema <- function(
   }
   if (record) {
     # Every emitted property, `$schema` excluded: it identifies the document
-    # rather than recording anything the run did. Constants are excluded too —
+    # rather than recording anything the run did. Constants are excluded too --
     # the algorithm implies them, `prop_serialized()` keeps them out of a
     # written record, and requiring what is never written would reject every
     # record rtemis produces.
@@ -3239,8 +3239,8 @@ discriminator_value <- function(cls, discriminator) {
 #'
 #' The properties a family base class declares with the `prop_*` factories are
 #' shared by every variant, so they are published on the dispatcher rather than
-#' repeated on each leaf — [S7_to_JSONSchema] subtracts them from the leaves via
-#' its `base` argument. Spec-less base properties are class machinery (the
+#' repeated on each leaf -- [S7_to_JSONSchema] subtracts them from the leaves
+#' via its `base` argument. Spec-less base properties are class machinery (the
 #' computed payload list, the discriminator, run state such as `tuned`) and have
 #' no schema form, so they are skipped rather than erroring: unlike a leaf, a
 #' base class is expected to carry them.
@@ -3287,7 +3287,7 @@ base_schema_properties <- function(base, skip = character()) {
 #'
 #' The leaf URLs are derived from `id`: for a dispatcher
 #' `.../<family>/v1/schema.json`, algorithm `A` maps to
-#' `.../<family>/<tolower(A)>/v1/schema.json` — matching [S7_to_JSONSchema]'s
+#' `.../<family>/<tolower(A)>/v1/schema.json` -- matching [S7_to_JSONSchema]'s
 #' `id` convention for the leaves.
 #'
 #' @param classes List of S7 classes: the family's per-variant subclasses

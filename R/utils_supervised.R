@@ -40,7 +40,7 @@ attach_outcome <- function(features_df, outcome_value, outcome_nm) {
 
 #' Per-case class probabilities in their stored shape
 #'
-#' One row per case and one column per class — except in the binary case, where
+#' One row per case and one column per class -- except in the binary case, where
 #' every backend reduces to a single score per case (the positive class's
 #' probability) and the matrix therefore has one column.
 #'
@@ -52,8 +52,8 @@ attach_outcome <- function(features_df, outcome_value, outcome_nm) {
 #'
 #' Columns are labeled with the classes they hold whenever the outcome levels
 #' are at hand and the backend supplied no names of its own, so that a consumer
-#' reading the matrix — the long predictions table rtemislive plots, above all —
-#' does not have to know rtemis's column order to interpret it.
+#' reading the matrix -- the long predictions table rtemislive plots, above
+#' all -- does not have to know rtemis's column order to interpret it.
 #'
 #' @param x Numeric vector, matrix or data frame: Backend probabilities.
 #' @param levels Optional Character: Outcome levels, in factor order.

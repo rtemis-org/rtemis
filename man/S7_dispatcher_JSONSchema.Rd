@@ -66,7 +66,7 @@ classes, so the dispatcher cannot drift from the leaves it dispatches to.
 \details{
 The leaf URLs are derived from \code{id}: for a dispatcher
 \verb{.../<family>/v1/schema.json}, algorithm \code{A} maps to
-\verb{.../<family>/<tolower(A)>/v1/schema.json} — matching \link{S7_to_JSONSchema}'s
+\verb{.../<family>/<tolower(A)>/v1/schema.json} -- matching \link{S7_to_JSONSchema}'s
 \code{id} convention for the leaves.
 
 Two shapes, matching how the R classes serialize:

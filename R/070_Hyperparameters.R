@@ -49,7 +49,7 @@ TUNED_STATUS_TUNED <- 1L
 # %% hp_prop_names ----
 #' Names of a Hyperparameters subclass's own (hyperparameter) properties
 #'
-#' All properties declared by the subclass itself — factory-built or plain —
+#' All properties declared by the subclass itself -- factory-built or plain --
 #' excluding the properties inherited from `Hyperparameters`.
 #'
 #' @param x S7 class (a `Hyperparameters` subclass).
@@ -92,8 +92,8 @@ hp_prop_values <- function(self) {
 #' @param x tabular data: Training data.
 #' @param needed Character: Which dimensions to resolve. Only these are
 #'   computed, so a caller declaring nothing feature-related may pass a bare
-#'   vector — `features()` requires at least two columns and would abort on one.
-#'   `resample()` relies on this: a resampler bounds only `n_cases`.
+#'   vector -- `features()` requires at least two columns and would abort on
+#'   one. `resample()` relies on this: a resampler bounds only `n_cases`.
 #' @param has_outcome Logical: If TRUE, `x` follows the supervised convention
 #'   (the last column is the outcome, the rest are features). Pass FALSE for a
 #'   frame that is already features-only, as the decomposition path uses:
@@ -252,12 +252,12 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
 #'   the subclass's properties; assignment routes back to the properties and
 #'   validates).
 #' @field tunable_hyperparameters Character: Names of tunable hyperparameters
-#'   — a vector of values is a search space.
-#' @field fixed_hyperparameters Character: Names of fixed hyperparameters —
+#'   -- a vector of values is a search space.
+#' @field fixed_hyperparameters Character: Names of fixed hyperparameters --
 #'   settable by the user but not tunable. Arity is a separate axis: a fixed
 #'   hyperparameter may itself be vector-valued.
 #' @field constant_hyperparameters Character: Names of constant
-#'   hyperparameters — determined by the class and not settable.
+#'   hyperparameters -- determined by the class and not settable.
 #'
 #' @author EDG
 #' @keywords internal
@@ -460,7 +460,7 @@ method(print, Hyperparameters) <- function(x, output_type = NULL, ...) {
 
 
 # %% serializable_props.Hyperparameters ----
-# A serialized config is `{algorithm, hyperparameters}` — exactly what
+# A serialized config is `{algorithm, hyperparameters}` -- exactly what
 # `.list_to_Hyperparameters()` consumes and what the hyperparameters schema
 # describes. Everything else on the object is either derived from the specs
 # (`tunable_`/`fixed_hyperparameters`) or run state set during training
@@ -919,7 +919,7 @@ setup_CART <- function(
 #' @description
 #' Hyperparameters subclass for GLMNET. `lambda.min` and `lambda.1se` are
 #' runtime state written by the Tuner (from cv.glmnet), not settable
-#' hyperparameters — exclude them from schema generation.
+#' hyperparameters -- exclude them from schema generation.
 #'
 #' @author EDG
 #' @keywords internal
@@ -1403,7 +1403,7 @@ setup_LightRF <- function(
 #' @description
 #' Hyperparameters subclass for LightGBM. `nrounds` is derived (from
 #' `force_nrounds`, or by early-stopping during tuning) and `best_iter` is
-#' runtime state written by the Tuner — exclude both from schema generation.
+#' runtime state written by the Tuner -- exclude both from schema generation.
 #'
 #' @author EDG
 #' @keywords internal

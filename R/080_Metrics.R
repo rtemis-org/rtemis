@@ -115,8 +115,8 @@ label_metric_df <- function(df) {
 #' A metric cell: a number that may be missing
 #'
 #' Every metric column is nullable. A metric can be genuinely undefined for a
-#' sample — F1 when precision and recall are both zero, sensitivity for a class
-#' with no cases, AUC when its backend fails — and NA is the honest answer
+#' sample -- F1 when precision and recall are both zero, sensitivity for a class
+#' with no cases, AUC when its backend fails -- and NA is the honest answer
 #' rather than a reason to reject the whole object. Distinct from a column being
 #' *absent*, which says the metric was not computed for this task at all.
 #'
@@ -592,7 +592,7 @@ prop_mean_metrics <- function(columns, required = NULL) {
 #' Standard deviation of a metric across resamples
 #'
 #' The same columns as `prop_mean_metrics()`, bounded only below: a dispersion is
-#' non-negative but is not confined to the range of the values it summarizes —
+#' non-negative but is not confined to the range of the values it summarizes --
 #' R-squared is bounded above by 1 and unbounded below, so its standard
 #' deviation across resamples can exceed 1.
 #'

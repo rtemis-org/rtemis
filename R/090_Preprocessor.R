@@ -591,8 +591,8 @@ method(preprocessed, Preprocessor) <- function(x) {
 #'
 #' The learned values (`scale_centers`, `scale_coefficients`, `one_hot_levels`)
 #' are `readOnly` in the schema, so a user-authored config carries none and the
-#' `setup_*` defaults leave them unset. A config that does carry them — a fitted
-#' preprocessor written back out — restores them, which is why they are
+#' `setup_*` defaults leave them unset. A config that does carry them -- a
+#' fitted preprocessor written back out -- restores them, which is why they are
 #' serialized at all (see "Property roles" in `010_Props.R`).
 #'
 #' @param x Named list of `setup_Preprocessor` parameters.

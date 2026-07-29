@@ -44,7 +44,7 @@ optional, so omitted fields fall back to their \verb{setup_*} defaults on read
 
 \item{record}{Logical: If TRUE, emit the \strong{record} form of the schema: the
 same properties, but every one required. A record states what a run
-actually used, so nothing in it may fall back to a reader's defaults — an
+actually used, so nothing in it may fall back to a reader's defaults -- an
 unset value is written as an explicit \code{null} rather than omitted. The
 difference between an input schema and a record schema is exactly this;
 membership is identical.}
@@ -72,8 +72,8 @@ S7 union), instead of requiring a \code{PropertySpec}. Names must match
 existing properties.}
 
 \item{array_refs}{Named character: As \code{refs}, for a property holding a \emph{list}
-of such objects — one metrics object per resample, one model per fold. Each
-emits an array whose \code{items} are the \verb{$ref}.}
+of such objects -- one metrics object per resample, one model per fold.
+Each emits an array whose \code{items} are the \verb{$ref}.}
 
 \item{closed}{Logical: If TRUE (default) the schema sets
 \code{additionalProperties: false}. Pass FALSE for leaves composed into a
@@ -92,7 +92,7 @@ assembles a draft 2020-12 JSON Schema. Which properties take part is decided
 by their declared role (see \code{prop_role()}), not by a list kept here:
 \code{"config"} and \code{"state"} properties are generated from their spec, state
 being marked \code{readOnly}, while \code{"computed"} and \code{"r_only"} properties are
-omitted — the first because everything it derives from is published, the
+omitted -- the first because everything it derives from is published, the
 second because it has no wire form at all. A spec-less property with no role
 is an error, so a class that drifts from the factory vocabulary fails loudly
 instead of emitting a wrong schema.

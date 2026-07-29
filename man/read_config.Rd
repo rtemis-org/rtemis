@@ -26,7 +26,7 @@ The config family is taken from the instance's \verb{$schema}, which must be one
 the supported schemas; a missing or unrecognized \verb{$schema} is an error.
 
 A \strong{run record} is rejected, and named as such. A record declares the same
-fields as the config it came from, so it would read as one — but every value
+fields as the config it came from, so it would read as one -- but every value
 in it is resolved, including values a run derived from data this call has
 never seen. Accepting it would silently pin settings the new call should
 decide for itself. Records are written by \link{write_record} and identify

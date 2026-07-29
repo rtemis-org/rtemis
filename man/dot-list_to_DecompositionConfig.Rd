@@ -7,8 +7,9 @@
 .list_to_DecompositionConfig(x)
 }
 \arguments{
-\item{x}{Named list with an \code{algorithm} element plus algorithm-specific
-parameters, e.g. \code{list(algorithm = "PCA", k = 3L)}.}
+\item{x}{Named list with an \code{algorithm} element, algorithm-specific
+parameters nested under \code{config}, and optionally \code{features}, e.g.
+\code{list(algorithm = "PCA", config = list(k = 3L))}.}
 }
 \value{
 A \code{DecompositionConfig} object (an algorithm-specific subclass).
@@ -17,11 +18,12 @@ A \code{DecompositionConfig} object (an algorithm-specific subclass).
 Internal function used by \code{rtemis.server} and \code{SuperConfig} deserialization
 to reconstruct a \code{DecompositionConfig} object from a named list. The list
 must carry an \code{algorithm} element naming a decomposition algorithm that can
-be applied on new data (see \code{decom_algorithms_applicable}); the remaining
-elements are passed to that algorithm's \verb{setup_*} function.
+be applied on new data (see \code{decom_algorithms_applicable}); the elements of
+\code{config}, along with \code{features}, are passed to that algorithm's \verb{setup_*}
+function.
 }
 \examples{
-.list_to_DecompositionConfig(list(algorithm = "PCA", k = 3L))
+.list_to_DecompositionConfig(list(algorithm = "PCA", config = list(k = 3L)))
 }
 \author{
 EDG

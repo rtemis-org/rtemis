@@ -485,7 +485,7 @@ setup_DBSCAN <- function(
   }
   algorithm <- get_clust_name(algorithm)
   # One shape: `{algorithm, config}`, which is what the published schema
-  # declares — a flat `{algorithm, k, ...}` is rejected by it, so accepting one
+  # declares -- a flat `{algorithm, k, ...}` is rejected by it, so accepting one
   # here would take input the contract does not. `.drop_meta_keys()` removes
   # document metadata (e.g. `$schema`), which is not a setup arg.
   check_wire_keys(x, c("algorithm", "config"), "clustering config")

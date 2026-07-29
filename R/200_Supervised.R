@@ -154,8 +154,8 @@ Supervised <- new_class(
     xnames = class_character,
     varimp = NULL | VariableImportance,
     question = NULL | class_character,
-    # Provenance. `session_info` is a full `utils::sessionInfo()` — the first
-    # thing asked for when troubleshooting — and `session` is the run timeline.
+    # Provenance. `session_info` is a full `utils::sessionInfo()` -- the first
+    # thing asked for when troubleshooting -- and `session` is the run timeline.
     # `data_fingerprint` identifies the training data itself, so that comparing
     # models trained on different inputs is detectable rather than silent.
     data_fingerprint = NULL | DataFingerprint,
@@ -376,7 +376,7 @@ method(fitted, Supervised) <- function(object, ...) {
 #' Standard Error `Supervised`
 #'
 #' Standard errors of the fit for `newdata`, or NULL when the algorithm
-#' produces none — only linear and additive models do, which is why this is
+#' produces none -- only linear and additive models do, which is why this is
 #' computed here rather than stored on every regression result.
 #'
 #' Routed through the same pipeline as [predict], so a stored preprocessor,
@@ -644,7 +644,7 @@ method(repr, Supervised) <- function(
 #' Convert a `Supervised` (or `Regression` / `Classification` /
 #' `CalibratedClassification`) object to a JSON-serializable list. Excludes
 #' the model object, the full prediction and outcome vectors, and the R
-#' session_info — all of which are either not JSON-friendly, too large for the
+#' session_info -- all of which are either not JSON-friendly, too large for the
 #' control-plane response, or fetched separately as Arrow IPC bulk data.
 #'
 #' @param x `Supervised` object.
@@ -655,7 +655,7 @@ method(repr, Supervised) <- function(
 #' @keywords internal
 #' @noRd
 method(to_json, Supervised) <- function(x, ...) {
-  # Use `.to_json_value()` for every prop — it handles nested S7 objects,
+  # Use `.to_json_value()` for every prop -- it handles nested S7 objects,
   # nested lists containing S7 objects, and primitive types uniformly,
   # including props that may be NULL (e.g. `varimp` is either a
   # `VariableImportance` object or NULL).
@@ -1879,7 +1879,7 @@ method(repr, SupervisedRes) <- function(
 #'
 #' Convert a `SupervisedRes` (or `RegressionRes` / `ClassificationRes`)
 #' object to a JSON-serializable list. The list of per-resample fitted
-#' models (`@models`) is summarized by length only — individual model
+#' models (`@models`) is summarized by length only -- individual model
 #' details remain available on the server and can be fetched via
 #' separate `job.result` requests if needed.
 #'

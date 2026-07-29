@@ -20,7 +20,7 @@ format:
     @if command -v air >/dev/null 2>&1; then \
         air format .; \
     else \
-        echo "   Note: 'air' CLI not found — skipping R code formatting."; \
+        echo "   Note: 'air' CLI not found -- skipping R code formatting."; \
     fi
     @just _msg "Done"
 

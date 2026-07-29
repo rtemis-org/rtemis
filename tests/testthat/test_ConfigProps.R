@@ -544,7 +544,7 @@ test_that("x-rtemis carries what the keywords cannot express", {
 # %% Wire strictness ----
 # Principle 2 of `plan/wire-vocabulary.md`: nothing is dropped silently. A key
 # a config does not declare is a stale name, a typo, or a field from another
-# variant — every one of which trains something other than what was asked for
+# variant -- every one of which trains something other than what was asked for
 # if it is quietly ignored.
 test_that("every .list_to_* rejects a key its config does not declare", {
   reject <- function(expr) {
@@ -655,7 +655,7 @@ test_that("origin distinguishes user, default, derived and tuned", {
   expect_identical(origin[["nrounds"]], "user")
   # Untouched: the default applied and nothing changed it.
   expect_identical(origin[["num_leaves"]], "default")
-  # NULL in, a value out — but a *task-type* default, not a measurement: the
+  # NULL in, a value out -- but a *task-type* default, not a measurement: the
   # outcome being a multiclass factor is what was asked for, so `objective`
   # restates the question rather than reporting anything about the data. That
   # is what `default_on_null` declares.

@@ -137,7 +137,7 @@ testthat::test_that("spec-generated validators enforce bounds, enum, arity", {
 testthat::test_that("NULL is the only unset value; zero-length is rejected", {
   # A nullable prop is NULL whether it was defaulted or set explicitly, and an
   # empty vector is a real (invalid) value rather than a second spelling of
-  # "unset" — this is what keeps `!is.null()` guards meaningful downstream.
+  # "unset" -- this is what keeps `!is.null()` guards meaningful downstream.
   testthat::expect_null(LightRFProps()@objective)
   testthat::expect_null(LightRFProps(objective = NULL)@objective)
   testthat::expect_error(
@@ -386,7 +386,7 @@ testthat::test_that("specs ride along on properties and derive tunability", {
   testthat::expect_identical(spec@type, "integer")
   testthat::expect_identical(spec@minimum, 1L)
   testthat::expect_true(spec@tunable)
-  # tunable/fixed vectors are now derivable — no hand-maintained constants.
+  # tunable/fixed vectors are now derivable -- no hand-maintained constants.
   tunable <- names(Filter(function(p) get_spec(p)@tunable, props))
   testthat::expect_true(all(
     c("nrounds", "num_leaves", "feature_fraction", "ifw") %in% tunable

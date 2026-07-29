@@ -14,7 +14,7 @@ Logical.
 }
 \description{
 Two fingerprints are comparable only if they were produced the same way, so
-this is FALSE when \code{method} or \code{algorithm} differ — an unequal comparison of
+this is FALSE when \code{method} or \code{algorithm} differ -- an unequal comparison of
 incomparable values would be worse than no answer.
 }
 \examples{

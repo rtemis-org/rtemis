@@ -16,7 +16,7 @@
 #' the supported schemas; a missing or unrecognized `$schema` is an error.
 #'
 #' A **run record** is rejected, and named as such. A record declares the same
-#' fields as the config it came from, so it would read as one — but every value
+#' fields as the config it came from, so it would read as one -- but every value
 #' in it is resolved, including values a run derived from data this call has
 #' never seen. Accepting it would silently pin settings the new call should
 #' decide for itself. Records are written by [write_record] and identify
@@ -126,7 +126,7 @@ read_config <- function(file) {
 #' worst outcome: a config that looks accepted but trains something else.
 #'
 #' Some reconstructors already errored, because `do.call(setup_*, x)` rejects an
-#' unused argument — but with R's "unused argument (bogus = 1)", which names no
+#' unused argument -- but with R's "unused argument (bogus = 1)", which names no
 #' config and suggests nothing. Routing every family through one check makes the
 #' message uniform and lets it point at the intended key.
 #'
@@ -286,7 +286,7 @@ nearest_hint <- function(unknown, valid) {
   # An older CLI does not know record schemas and reports the document as
   # unrecognized. That is a missing capability, not an invalid document, and
   # treating it as failure would make every record write abort on any machine
-  # whose CLI predates them — the same case as the CLI being absent entirely.
+  # whose CLI predates them -- the same case as the CLI being absent entirely.
   unrecognized <- any(grepl(
     "no recognized `$schema`",
     unlist(result[["errors"]]),

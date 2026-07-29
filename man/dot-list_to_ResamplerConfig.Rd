@@ -9,7 +9,7 @@
 \arguments{
 \item{x}{Named list with the following elements:
 \describe{
-\item{\code{type}}{Character: resampler type — one of \code{"KFold"},
+\item{\code{type}}{Character: resampler type -- one of \code{"KFold"},
 \code{"StratSub"}, \code{"StratBoot"}, \code{"Bootstrap"}, \code{"LOOCV"}, \code{"Custom"}.}
 \item{\code{n}}{Integer: number of resamples (not used for \code{"LOOCV"}).}
 \item{\code{train_p}}{Numeric: training proportion (used by \code{"StratSub"} and

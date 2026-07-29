@@ -232,7 +232,7 @@ setup_SuperConfig <- function(
   if (is.na(kind)) {
     # A record is the same field vocabulary with every value resolved, so it
     # would *read* as a config and quietly replace the defaults the caller
-    # expected to be live — including values a run derived from data this call
+    # expected to be live -- including values a run derived from data this call
     # has never seen. Named rather than lumped in with an unknown URL.
     record_kind <- names(.RTEMIS_RECORD_SCHEMAS)[
       match(schema, .RTEMIS_RECORD_SCHEMAS)
@@ -337,7 +337,7 @@ setup_SuperConfig <- function(
 #' instead of file paths. Used by `rtemislive` (uploads arrive over a WS
 #' frame, not as a file) and by future HPC submission paths that hand the
 #' data directly to a worker.
-#' Not serializable to a config file — in-memory data does not round-trip
+#' Not serializable to a config file -- in-memory data does not round-trip
 #' cleanly. Use `SuperConfig` when you need on-disk reproducibility.
 #'
 #' @author EDG
@@ -423,7 +423,7 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 # %% setup_SuperConfigLive ----
 #' Setup SuperConfigLive
 #'
-#' Build a `SuperConfigLive` — same shape as [setup_SuperConfig] but with
+#' Build a `SuperConfigLive` -- same shape as [setup_SuperConfig] but with
 #' in-memory tabular data instead of file paths.
 #'
 #' @param dat_training data.frame or data.table. Training data.

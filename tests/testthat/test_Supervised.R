@@ -1603,7 +1603,7 @@ test_that("each fold's resolved values are recorded separately", {
   )
   rec <- record(mod)
   expect_length(rec[["folds"]], 3L)
-  # Asked for: nothing — "determine by early stopping".
+  # Asked for: nothing -- "determine by early stopping".
   expect_null(rec[["hyperparameters"]][["hyperparameters"]][["nrounds"]])
   ran <- vapply(
     rec[["folds"]],

@@ -153,10 +153,10 @@ preprocess <- new_generic(
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Named list:
-#'   * `model` — the algorithm-specific fitted model object.
-#'   * `preprocessor` — Optional `Preprocessor`: algorithm-level preprocessing
+#'   * `model` -- the algorithm-specific fitted model object.
+#'   * `preprocessor` -- Optional `Preprocessor`: algorithm-level preprocessing
 #'     (e.g. factor-to-integer for LightGBM), re-applied before predicting.
-#'   * `hyperparameters` — Optional `Hyperparameters`: returned **only** by a
+#'   * `hyperparameters` -- Optional `Hyperparameters`: returned **only** by a
 #'     method that resolved values into it (LightGBM's `objective` from the
 #'     outcome type, GLMNET's `lambda` from `cv.glmnet`). R copies the object
 #'     into the method, so without returning it the caller keeps the unresolved
@@ -679,7 +679,7 @@ method(to_json, S7_object) <- function(x, ...) {
 #' Handles the common composite shapes encountered when walking S7 props:
 #' nested S7 objects (recurse via the generic), lists that may *contain*
 #' S7 objects (recurse element-wise), and primitives / data.frames
-#' (pass through — jsonlite supports them natively).
+#' (pass through -- jsonlite supports them natively).
 #'
 #' @param v Value from an S7 property.
 #'
@@ -1156,9 +1156,9 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 #' happens to hold. Config-family classes (`Hyperparameters`,
 #' `DecompositionConfig`, `ClusteringConfig`) override this to return their
 #' canonical public shape (`algorithm` + the computed parameter list + any base
-#' fields), so the per-algorithm properties they declare — redundant with the
-#' computed list — are not duplicated into the serialized output. See methods in
-#' the respective class files.
+#' fields), so the per-algorithm properties they declare -- redundant with the
+#' computed list -- are not duplicated into the serialized output. See methods
+#' in the respective class files.
 #'
 #' @param x S7 object.
 #'

@@ -22,7 +22,7 @@
 #' A config is an **input**: what a run is being asked to do. Fields it omits
 #' fall back to their `setup_*` defaults when read, so a config stays valid as
 #' those defaults improve. That is the opposite of a **record**, which states
-#' what one run actually did, with every value resolved — see [write_record].
+#' what one run actually did, with every value resolved -- see [write_record].
 #' The two are separate functions rather than one with a flag, because a caller
 #' should have to say which artifact they want.
 #'
@@ -266,8 +266,8 @@ method(write_config, ClusteringConfig) <- function(
 #'
 #' A record states what a run actually did: every value resolved, where each one
 #' came from, and what produced it. Deliberately a separate function rather than
-#' an argument to [write_config] — the two artifacts answer different questions,
-#' and a caller should have to say which it wants.
+#' an argument to [write_config] -- the two artifacts answer different
+#' questions, and a caller should have to say which it wants.
 #'
 #' Three things distinguish a record from the config it came from:
 #'
@@ -281,15 +281,15 @@ method(write_config, ClusteringConfig) <- function(
 #'   outcome, and a fingerprint of the data.
 #'
 #' For a supervised run the top level is what was *asked for* and `folds` is
-#' what *ran*, one entry per model fitted — outer resampling resolves different
+#' what *ran*, one entry per model fitted -- outer resampling resolves different
 #' values in each fold, so a single resolved value at the top level would state
 #' something no fold did.
 #'
 #' A supervised record also states **what the run scored**. `metrics` holds each
 #' sample's headline row as a flat metric-to-value map, meaned across outer
 #' resamples, with `metrics_sd` beside it for the spread (`null` for a single
-#' fit, which has none). The full metrics — the confusion matrix, the per-class
-#' rows — are in each fold's own `metrics`. The flat block exists so that "was
+#' fit, which has none). The full metrics -- the confusion matrix, the per-class
+#' rows -- are in each fold's own `metrics`. The flat block exists so that "was
 #' this model any good?" is one lookup in one file, with no averaging and no R,
 #' which is what makes a directory of records rankable.
 #'

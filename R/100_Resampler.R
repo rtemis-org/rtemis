@@ -49,7 +49,7 @@ ResamplerConfig <- new_class(
 # would resample differently on re-read.
 method(serializable_props, ResamplerConfig) <- function(x) {
   # `type` is the only base property; everything else, `n_resamples` included,
-  # is declared per subclass and arrives through `config_prop_values()` — which
+  # is declared per subclass and arrives through `config_prop_values()` -- which
   # drops LOOCV's, that being state the data determine.
   c(list(type = x@type), config_prop_values(x, ResamplerConfig))
 } # /rtemis::serializable_props.ResamplerConfig
@@ -557,7 +557,7 @@ method(desc, Resampler) <- function(x) {
 #'
 #' @param x Named list with the following elements:
 #'   \describe{
-#'     \item{`type`}{Character: resampler type — one of `"KFold"`,
+#'     \item{`type`}{Character: resampler type -- one of `"KFold"`,
 #'       `"StratSub"`, `"StratBoot"`, `"Bootstrap"`, `"LOOCV"`, `"Custom"`.}
 #'     \item{`n`}{Integer: number of resamples (not used for `"LOOCV"`).}
 #'     \item{`train_p`}{Numeric: training proportion (used by `"StratSub"` and

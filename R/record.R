@@ -6,7 +6,7 @@
 # from, and what produced it. See `plan/config-artifacts.md`.
 #
 # The hard part is `origin`, and what makes it answerable is that a model
-# carries *both* configs — the input it was given (`@config`) and the resolved
+# carries *both* configs -- the input it was given (`@config`) and the resolved
 # one it ran (`@hyperparameters` and friends). Comparing them is observation:
 # a field that changed was changed by the run, and whether it was tuned or
 # derived is decided by the declarations (`tunable`, `tune_on_null`), not by a
@@ -25,7 +25,7 @@
 #' @param input Value the run was given, or NULL if the field was unset.
 #' @param resolved Value the run used.
 #' @param spec `PropertySpec` for the field, or NULL.
-#' @param state Logical: Whether the field is run state — written by the run,
+#' @param state Logical: Whether the field is run state -- written by the run,
 #'   never supplied. Such a field cannot be `"user"` or `"default"`: if it holds
 #'   nothing, the run never got to it.
 #'
@@ -36,14 +36,14 @@
 #' @noRd
 value_origin <- function(input, resolved, spec, state = FALSE) {
   if (state && is.null(resolved)) {
-    # Only a run writes it, and it holds nothing — so the run never determined
+    # Only a run writes it, and it holds nothing -- so the run never determined
     # it. `default` would claim a default exists for something no default can
     # supply.
     return("unset")
   }
   if (!identical(input, resolved)) {
     # NULL meaning "apply the default for this task type" is a restatement of
-    # what was asked for, not something measured or searched — so resolving it
+    # what was asked for, not something measured or searched -- so resolving it
     # is a `default`, however much the value changed.
     if (!is.null(spec) && spec@default_on_null && is.null(input)) {
       return("default")
@@ -57,7 +57,7 @@ value_origin <- function(input, resolved, spec, state = FALSE) {
     return(if (searched) "tuned" else "derived")
   }
   # Unchanged: the run used what it was given. Whether that was chosen or
-  # merely inherited is the one inference here — see the file header.
+  # merely inherited is the one inference here -- see the file header.
   if (!is.null(spec) && identical(input, spec@default)) "default" else "user"
 } # /rtemis::value_origin
 
@@ -83,14 +83,15 @@ config_record <- function(input, resolved) {
   # The fields the *record schema* declares, which is what `origin` must cover:
   # a family leaf's inherited machinery is subtracted by `S7_to_JSONSchema()`'s
   # `base`, so it is subtracted here too. `serializable_props()` is the wrong
-  # level — for a family it returns the wire shape (`{algorithm, config}`),
+  # level -- for a family it returns the wire shape (`{algorithm, config}`),
   # while a leaf record declares the flat fields inside it.
   base <- if (identical(cls@parent@name, "S7_object")) NULL else cls@parent
   names_ <- record_names(cls, base)
   props <- cls@properties
-  # A config-valued property is a record in its own right — a `GridSearchConfig`
-  # holds a `ResamplerConfig` — so it is built recursively and left out of this
-  # block's `origin`, which the schema does too: it carries its own.
+  # A config-valued property is a record in its own right -- a
+  # `GridSearchConfig` holds a `ResamplerConfig` -- so it is built recursively
+  # and left out of this block's `origin`, which the schema does too: it
+  # carries its own.
   nested <- Filter(function(nm) S7_inherits(prop(resolved, nm)), names_)
   flat <- setdiff(names_, nested)
 
@@ -140,7 +141,7 @@ config_record <- function(input, resolved) {
 #'
 #' It also keeps **run state**, which a config drops. `lambda.min` and the
 #' `nrounds` early stopping settled on are precisely what a record exists to
-#' report — a config omits them because they are re-derived on read, but a
+#' report -- a config omits them because they are re-derived on read, but a
 #' record is the statement of what a run produced. Only constants are left out,
 #' the algorithm implying them, and computed views, which are functions of
 #' fields already present.
@@ -175,8 +176,8 @@ record_names <- function(cls, base) {
     },
     names_
   )
-  # `S7_to_list()` because a value may itself be a config object — a
-  # `GridSearchConfig` holds a `ResamplerConfig` — and a record is JSON, not
+  # `S7_to_list()` because a value may itself be a config object -- a
+  # `GridSearchConfig` holds a `ResamplerConfig` -- and a record is JSON, not
   # objects. Applied per value rather than to the whole list so NULLs survive.
   keep
 } # /rtemis::record_names
@@ -185,8 +186,8 @@ record_names <- function(cls, base) {
 # %% provenance_of ----
 #' The provenance block for a fitted model
 #'
-#' Drawn from what the model already carries — `@session` for timing,
-#' `@session_info` for the environment, `@data_fingerprint` for data identity —
+#' Drawn from what the model already carries -- `@session` for timing,
+#' `@session_info` for the environment, `@data_fingerprint` for data identity --
 #' rather than recomputed, so a record cannot disagree with the object it came
 #' from. Only what a record needs to be read on its own is promoted; the full
 #' `sessionInfo()` stays where it is.
@@ -248,7 +249,7 @@ iso8601 <- function(x) {
 #' Derive a run record from a fitted model
 #'
 #' The record of what ran: every config value resolved, an `origin` saying where
-#' each came from, and a provenance block. Derived rather than stored — the
+#' each came from, and a provenance block. Derived rather than stored -- the
 #' object already holds both configs, and keeping a second representation on it
 #' would let the two drift.
 #'
@@ -286,7 +287,7 @@ method(record, SupervisedRes) <- function(x, outcome = "completed") {
 #'
 #' The top level is what was *asked for*; `folds` is what *ran*, once per model
 #' fitted. They are separate because a resampled run resolves different values
-#' in each fold — early stopping picks a different `nrounds` every time — so a
+#' in each fold -- early stopping picks a different `nrounds` every time -- so a
 #' single resolved value at the top would be a claim the run never made. A
 #' single fit is one fold rather than a second shape.
 #'
@@ -434,9 +435,9 @@ record_object <- function(x) {
 #'
 #' The row a reader compares runs on: a regression sample's four metrics, or a
 #' classification sample's `overall` row. Per-class metrics and the confusion
-#' matrix are deliberately not here — they are in the fold's full metrics block,
-#' which is the typed contract. This block exists to be read without computing
-#' anything, which is what makes an `outdir` of records rankable.
+#' matrix are deliberately not here -- they are in the fold's full metrics
+#' block, which is the typed contract. This block exists to be read without
+#' computing anything, which is what makes an `outdir` of records rankable.
 #'
 #' @param x `Metrics` or `MetricsRes` object, or NULL.
 #'
@@ -548,7 +549,7 @@ nested_record <- function(input, resolved) {
 #' How a discriminated config family serializes: its discriminator and payload
 #'
 #' Mirrors `data-raw/schema_registry.R`. The discriminator is what a dispatcher's
-#' `if/then` keys on, so a record block missing it matches no branch — and then
+#' `if/then` keys on, so a record block missing it matches no branch -- and then
 #' `unevaluatedProperties` rejects every field the leaf would have declared.
 #' `payload` is NULL for a family that serializes its variant's fields as
 #' siblings of the discriminator rather than nesting them (the resampler).

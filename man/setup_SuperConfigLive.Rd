@@ -47,7 +47,7 @@ means "do not write to disk" (the rtemislive case).}
 \code{SuperConfigLive} object.
 }
 \description{
-Build a \code{SuperConfigLive} — same shape as \link{setup_SuperConfig} but with
+Build a \code{SuperConfigLive} -- same shape as \link{setup_SuperConfig} but with
 in-memory tabular data instead of file paths.
 }
 \examples{

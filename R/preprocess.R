@@ -767,13 +767,13 @@ apply_preprocessor <- function(preprocessor, new_data, verbosity = 1L) {
 #' A `Preprocessor`'s config with its learned values filled in
 #'
 #' `@config` holds what the user asked for and `@values` what preprocessing
-#' learned, which keeps the input intact — but re-applying to new data needs the
-#' two merged, and so does a run record, which must report the values actually
-#' used. One merge, so the two cannot disagree.
+#' learned, which keeps the input intact -- but re-applying to new data needs
+#' the two merged, and so does a run record, which must report the values
+#' actually used. One merge, so the two cannot disagree.
 #'
 #' The four fields are settable inputs: supplying `scale_centers` makes
 #' `preprocess()` use it instead of computing one. That is why the merge is
-#' `@values` over `@config` and not the reverse — a learned value only fills a
+#' `@values` over `@config` and not the reverse -- a learned value only fills a
 #' slot the user left empty.
 #'
 #' @param preprocessor `Preprocessor` object.

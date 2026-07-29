@@ -14,8 +14,8 @@ args <- commandArgs(trailingOnly = TRUE)
 schema_repo <- if (length(args) >= 1L) args[[1L]] else "~/Schemas/schema"
 schema_repo <- path.expand(schema_repo)
 base_url <- "https://schema.rtemis.org"
-# `$ref`d by every top-level record. The two schemas that *make up* a record —
-# provenance and the fingerprints it holds — do not carry one themselves.
+# `$ref`d by every top-level record. The two schemas that *make up* a record --
+# provenance and the fingerprints it holds -- do not carry one themselves.
 provenance_url <- paste0(base_url, "/provenance/v1/schema.json")
 record_parts <- c("provenance", "datafingerprint")
 # Results classes: what a run produced, not a config a run resolves. They have

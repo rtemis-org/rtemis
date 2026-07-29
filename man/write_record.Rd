@@ -21,8 +21,8 @@ write_record(x, file, overwrite = FALSE, verbosity = 1L)
 \description{
 A record states what a run actually did: every value resolved, where each one
 came from, and what produced it. Deliberately a separate function rather than
-an argument to \link{write_config} — the two artifacts answer different questions,
-and a caller should have to say which it wants.
+an argument to \link{write_config} -- the two artifacts answer different
+questions, and a caller should have to say which it wants.
 }
 \details{
 Three things distinguish a record from the config it came from:
@@ -38,15 +38,15 @@ outcome, and a fingerprint of the data.
 }
 
 For a supervised run the top level is what was \emph{asked for} and \code{folds} is
-what \emph{ran}, one entry per model fitted — outer resampling resolves different
+what \emph{ran}, one entry per model fitted -- outer resampling resolves different
 values in each fold, so a single resolved value at the top level would state
 something no fold did.
 
 A supervised record also states \strong{what the run scored}. \code{metrics} holds each
 sample's headline row as a flat metric-to-value map, meaned across outer
 resamples, with \code{metrics_sd} beside it for the spread (\code{null} for a single
-fit, which has none). The full metrics — the confusion matrix, the per-class
-rows — are in each fold's own \code{metrics}. The flat block exists so that "was
+fit, which has none). The full metrics -- the confusion matrix, the per-class
+rows -- are in each fold's own \code{metrics}. The flat block exists so that "was
 this model any good?" is one lookup in one file, with no averaging and no R,
 which is what makes a directory of records rankable.
 

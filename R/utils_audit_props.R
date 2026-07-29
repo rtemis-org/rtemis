@@ -189,7 +189,7 @@ parse_roxygen_params <- function(r_dir) {
 #'
 #' Several wrapper classes document shared parameters by cross-reference rather
 #' than repeating the declaration (`SuperConfigLive` defers to
-#' `setup_SuperConfig`) — the hand-written equivalent of roxygen's
+#' `setup_SuperConfig`) -- the hand-written equivalent of roxygen's
 #' `@inheritParams`. The audit follows the reference so that delegating is not
 #' reported as a missing type declaration.
 #'

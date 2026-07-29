@@ -14,7 +14,7 @@
 # Environment detail is *drawn from* `Supervised@session_info` and `@session`,
 # not duplicated: those hold the full `sessionInfo()` and the run timeline, and
 # stay on the saved object. Promoted here is only what a record needs to be
-# read on its own — the versions that decide whether a result is reproducible,
+# read on its own -- the versions that decide whether a result is reproducible,
 # and the timing that says what was run.
 
 # %% RUN_OUTCOMES ----
@@ -79,9 +79,10 @@ Provenance <- new_class(
       enum = RUN_OUTCOMES,
       description = "How the run ended: completed, failed, or canceled."
     ),
-    # One fingerprint per dataset the run saw. A path is not identity — the file
-    # at a path can change — so the record carries the hash, and `present()`
-    # can tell a rerun on the same data from a rerun on different data.
+    # One fingerprint per dataset the run saw. A path is not identity -- the
+    # file at a path can change -- so the record carries the hash, and
+    # `present()` can tell a rerun on the same data from a rerun on different
+    # data.
     data_training = NULL | DataFingerprint,
     data_validation = NULL | DataFingerprint,
     data_test = NULL | DataFingerprint

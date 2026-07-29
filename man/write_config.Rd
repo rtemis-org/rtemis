@@ -40,7 +40,7 @@ clustering schema.
 A config is an \strong{input}: what a run is being asked to do. Fields it omits
 fall back to their \verb{setup_*} defaults when read, so a config stays valid as
 those defaults improve. That is the opposite of a \strong{record}, which states
-what one run actually did, with every value resolved — see \link{write_record}.
+what one run actually did, with every value resolved -- see \link{write_record}.
 The two are separate functions rather than one with a flag, because a caller
 should have to say which artifact they want.
 }
