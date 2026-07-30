@@ -17,7 +17,9 @@ directory.}
 \item{config}{List: Algorithm-specific config.}
 
 \item{outdir}{Character, optional: Output directory. If not NULL, the returned
-\code{Clustering} object is saved there as an \code{.rds} file.}
+\code{Clustering} object is saved there as an \code{.rds} file, alongside a run record
+(\verb{cluster_<algorithm>.record.json}) stating what the run resolved. See
+\link{write_record}.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }

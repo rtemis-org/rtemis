@@ -50,9 +50,19 @@ test_that(".list_to_TunerConfig() falls back to setup_GridSearch() defaults", {
   # A supplied resampler_config is decoded into its own config object.
   tc <- .list_to_TunerConfig(list(
     type = "GridSearch",
-    config = list(resampler_config = list(type = "KFold", n = 3L))
+    config = list(resampler_config = list(type = "KFold", n_resamples = 3L))
   ))
-  expect_identical(tc@resampler_config@n, 3L)
+  expect_identical(tc@resampler_config@n_resamples, 3L)
+  # An unrecognized key is now named rather than dropped, and the nested
+  # resampler is checked as strictly as the top level.
+  expect_error(
+    .list_to_TunerConfig(list(
+      type = "GridSearch",
+      config = list(resampler_config = list(type = "KFold", n = 3L))
+    )),
+    "did you mean `n_resamples`",
+    fixed = TRUE
+  )
   expect_error(
     .list_to_TunerConfig(list(type = "Bogus")),
     class = "rtemis_unsupported_error"

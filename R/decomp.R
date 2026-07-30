@@ -14,9 +14,12 @@
 #' `DecomposeConfig` recipe (from [setup_DecomposeConfig]) carrying the data
 #' path, algorithm config, and output directory.
 #' @param algorithm Character: Decomposition algorithm.
-#' @param config DecompositionConfig: Algorithm-specific config.
+#' @param config DecompositionConfig: Algorithm-specific config. Its `features`
+#' selects the columns of `x` to decompose; `NULL` decomposes all of them.
 #' @param outdir Character, optional: Output directory. If not NULL, the returned
-#' `Decomposition` object is saved there as an `.rds` file.
+#' `Decomposition` object is saved there as an `.rds` file, alongside a run
+#' record (`decomp_<algorithm>.record.json`) stating what the run resolved. See
+#' [write_record].
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return `Decomposition` object.
@@ -67,6 +70,16 @@ decomp <- function(
   }
   check_is_S7(config, DecompositionConfig)
 
+  # Feature selection ----
+  # `apply_decomp()` subsets new data by `config@features`, so the fit must use
+  # exactly those columns or the replay transforms a different matrix.
+  # `x` is features-only here: there is no outcome column to exclude.
+  if (!is.null(config@features)) {
+    x <- as.data.frame(x)
+    check_data_bounds(config, x, has_outcome = FALSE)
+    x <- x[, config@features, drop = FALSE]
+  }
+
   # Intro ----
   start_time <- intro(verbosity = verbosity)
 
@@ -91,12 +104,33 @@ decomp <- function(
     transformed = decom[["transformed"]]
   )
 
+  # The run's input recipe, so a record can say what was asked for. `dat_path`
+  # stays unset for an in-memory call -- data identity is provenance's job.
+  # `outdir` is omitted when unset so the config's own default applies; passing
+  # NULL is rejected, and a record reporting the default with origin `default`
+  # is the honest reading of "the caller did not choose one".
+  input_args <- list(
+    algorithm = algorithm,
+    decomposition_config = config,
+    verbosity = max(0L, verbosity)
+  )
+  if (!is.null(outdir)) {
+    input_args[["outdir"]] <- outdir
+  }
+  out@decompose_config <- do.call(setup_DecomposeConfig, input_args)
+
   # Write ----
   if (!is.null(outdir)) {
     rt_save(
       out,
       outdir = outdir,
       file_prefix = paste0("decomp_", algorithm),
+      verbosity = verbosity
+    )
+    write_record(
+      out,
+      file.path(outdir, paste0("decomp_", algorithm, ".record.json")),
+      overwrite = TRUE,
       verbosity = verbosity
     )
   }

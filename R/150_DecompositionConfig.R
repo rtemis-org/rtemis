@@ -1,9 +1,9 @@
-# 09_DecompositionConfig.R
+# 150_DecompositionConfig.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
 # Architecture ----
-# Mirrors 02_Hyperparameters.R: each `*Config` subclass declares its
+# Mirrors 070_Hyperparameters.R: each `*Config` subclass declares its
 # algorithm parameters with the `prop_*` factories, from which the S7
 # validators, the `config` list, and the JSON Schema (S7_to_JSONSchema) are
 # generated. The abstract `DecompositionConfig` superclass provides the
@@ -24,8 +24,8 @@
 #'
 #' @field algorithm Character: Algorithm name (computed constant, overridden
 #'   per subclass).
-#' @field features Optional Character: Names of the feature columns to
-#'   decompose. `NULL` means all numeric features.
+#' @field features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to decompose. `NULL` means all numeric features.
 #' @field config List: Algorithm-specific parameters (computed from the
 #'   subclass's properties; assignment routes back and validates).
 #'
@@ -38,7 +38,21 @@ DecompositionConfig <- new_class(
   abstract = TRUE,
   properties = list(
     algorithm = class_character,
-    features = NULL | class_character,
+    # A subset is only a subset if it names at least two distinct columns:
+    # decomposing one feature is degenerate, and a repeat would duplicate a
+    # column in the input matrix.
+    features = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      min_items = 2L,
+      unique_items = TRUE,
+      data_bound = "numeric_feature_names",
+      description = paste(
+        "Names of the feature columns to decompose. null = all numeric",
+        "features."
+      )
+    ),
     config = new_property(
       class_list,
       getter = function(self) {
@@ -150,49 +164,6 @@ method(print, DecompositionConfig) <- function(
 }
 
 
-# %% validate_decom_features ----
-#' Validate a decomposition `features` selection
-#'
-#' Light validation performed at `setup_*` time, where the data are not yet
-#' available: confirms the selection is a character vector of unique names with at
-#' least two entries. The "columns exist and are numeric" check is deferred to
-#' [train()], which has the data.
-#'
-#' @param features Optional Character: Feature column names to decompose, or `NULL`.
-#'
-#' @return `features`, invisibly.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-validate_decom_features <- function(features) {
-  if (is.null(features)) {
-    return(invisible(NULL))
-  }
-  if (!is.character(features)) {
-    rtemis.core::abort(
-      "`features` must be a character vector of column names or `NULL`.",
-      class = c("rtemis_type_error", "rtemis_input_error")
-    )
-  }
-  if (anyDuplicated(features)) {
-    rtemis.core::abort(
-      "`features` must not contain duplicate names.",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
-  if (length(features) < 2L) {
-    rtemis.core::abort(
-      "`features` must name at least 2 columns to decompose, but ",
-      length(features),
-      " given.",
-      class = c("rtemis_length_error", "rtemis_input_error")
-    )
-  }
-  invisible(features)
-} # /rtemis::validate_decom_features
-
-
 # %% PCAConfig ----
 #' @title PCAConfig
 #'
@@ -230,8 +201,8 @@ PCAConfig <- new_class(
 #' @param center Logical: If TRUE, center the data.
 #' @param scale Logical: If TRUE, scale the data.
 #' @param tol Optional Numeric [0, Inf): Tolerance.
-#' @param features Optional Character: Names of the feature columns to decompose.
-#' `NULL` decomposes all numeric features.
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to decompose. `NULL` decomposes all numeric features.
 #'
 #' @return PCAConfig object.
 #'
@@ -248,7 +219,6 @@ setup_PCA <- function(
   features = NULL
 ) {
   k <- clean_posint(k)
-  validate_decom_features(features)
   PCAConfig(
     k = k,
     center = center,
@@ -320,8 +290,8 @@ ICAConfig <- new_class(
 #' @param row_norm Logical: If TRUE, normalize rows of `x` before ICA.
 #' @param maxit Integer [1, Inf): Maximum number of iterations.
 #' @param tol Numeric [0, Inf): Tolerance.
-#' @param features Optional Character: Names of the feature columns to decompose.
-#' `NULL` decomposes all numeric features.
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to decompose. `NULL` decomposes all numeric features.
 #'
 #' @return ICAConfig object.
 #'
@@ -342,7 +312,6 @@ setup_ICA <- function(
 ) {
   k <- clean_posint(k)
   maxit <- clean_posint(maxit)
-  validate_decom_features(features)
   ICAConfig(
     k = k,
     type = type,
@@ -393,8 +362,8 @@ NMFConfig <- new_class(
 #' @param k Integer [1, Inf): Number of components.
 #' @param method Character: NMF method. See `NMF::nmf`.
 #' @param nrun Integer [1, Inf): Number of runs to perform.
-#' @param features Optional Character: Names of the feature columns to decompose.
-#' `NULL` decomposes all numeric features.
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to decompose. `NULL` decomposes all numeric features.
 #'
 #' @return NMFConfig object.
 #'
@@ -411,7 +380,6 @@ setup_NMF <- function(
 ) {
   k <- clean_posint(k)
   nrun <- clean_posint(nrun)
-  validate_decom_features(features)
   NMFConfig(k = k, method = method, nrun = nrun, features = features)
 } # /rtemis::setup_NMF
 
@@ -475,8 +443,8 @@ UMAPConfig <- new_class(
 #' @param n_epochs Optional Integer [1, Inf): Number of epochs.
 #' @param learning_rate Numeric [0, Inf): Learning rate.
 #' @param scale Logical: If TRUE, scale input data before doing UMAP.
-#' @param features Optional Character: Names of the feature columns to decompose.
-#' `NULL` decomposes all numeric features.
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to decompose. `NULL` decomposes all numeric features.
 #'
 #' @return UMAPConfig object.
 #'
@@ -498,7 +466,6 @@ setup_UMAP <- function(
   k <- clean_posint(k)
   n_neighbors <- clean_posint(n_neighbors)
   n_epochs <- clean_posint(n_epochs)
-  validate_decom_features(features)
   UMAPConfig(
     k = k,
     n_neighbors = n_neighbors,
@@ -563,9 +530,11 @@ tSNEConfig <- new_class(
       FALSE,
       description = "Treat the input as a distance matrix."
     ),
-    Y_init = prop_external(
-      NULL | S7::new_S3_class("matrix"),
-      data_dependent = TRUE
+    Y_init = prop_matrix(
+      nullable = TRUE,
+      data_bound = "n_cases",
+      data_dependent = TRUE,
+      description = "Initial Y (embedding) matrix. NULL = random initialization."
     ),
     pca_center = prop_boolean(
       TRUE,
@@ -602,32 +571,6 @@ tSNEConfig <- new_class(
 ) # /rtemis::tSNEConfig
 
 
-# %% .tsne_schema_extra ----
-# Schema fragment for the tSNEConfig `Y_init` property (`NULL | matrix`), whose
-# R type the prop_* factories do not express. Merged into the generated schema.
-# See generate_schemas.R.
-.tsne_schema_extra <- list(
-  properties = list(
-    Y_init = list(
-      oneOf = list(
-        list(type = "null"),
-        list(
-          type = "array",
-          items = list(
-            type = "array",
-            items = list(type = "number"),
-            minItems = 1L
-          ),
-          minItems = 1L
-        )
-      ),
-      `$comment` = "Data-dependent: initial embedding matrix, rows = cases, columns = output dimensions.",
-      description = "Optional initial Y (embedding) matrix. null = random initialization."
-    )
-  )
-)
-
-
 # %% setup_tSNE ----
 #' Setup tSNE config.
 #'
@@ -655,6 +598,8 @@ tSNEConfig <- new_class(
 #' @param eta Numeric: Eta.
 #' @param exaggeration_factor Numeric: Exaggeration factor.
 #' @param num_threads Integer [0, Inf): Number of threads.
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to decompose. `NULL` decomposes all numeric features.
 #'
 #' @return tSNEConfig object.
 #'
@@ -684,7 +629,8 @@ setup_tSNE <- function(
   final_momentum = 0.8,
   eta = 200,
   exaggeration_factor = 12,
-  num_threads = 1L
+  num_threads = 1L,
+  features = NULL
 ) {
   k <- clean_posint(k)
   initial_dims <- clean_posint(initial_dims)
@@ -713,7 +659,8 @@ setup_tSNE <- function(
     final_momentum = final_momentum,
     eta = eta,
     exaggeration_factor = exaggeration_factor,
-    num_threads = num_threads
+    num_threads = num_threads,
+    features = features
   )
 } # /rtemis::setup_tSNE
 
@@ -762,6 +709,8 @@ IsomapConfig <- new_class(
 #' @param dist_method Character \{"euclidean", "manhattan"\}: Distance method.
 #' @param nsd Integer [0, Inf): Number of shortest dissimilarities retained.
 #' @param path Character \{"shortest", "extended"\}: Path argument for `vegan::isomap`.
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to decompose. `NULL` decomposes all numeric features.
 #'
 #' @return IsomapConfig object.
 #'
@@ -774,11 +723,18 @@ setup_Isomap <- function(
   k = 2L,
   dist_method = "euclidean",
   nsd = 0L,
-  path = "shortest"
+  path = "shortest",
+  features = NULL
 ) {
   k <- clean_posint(k)
   nsd <- clean_int(nsd)
-  IsomapConfig(k = k, dist_method = dist_method, nsd = nsd, path = path)
+  IsomapConfig(
+    k = k,
+    dist_method = dist_method,
+    nsd = nsd,
+    path = path,
+    features = features
+  )
 } # /rtemis::setup_Isomap
 
 

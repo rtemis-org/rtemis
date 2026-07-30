@@ -1,9 +1,9 @@
-# 07_ClusteringConfig.R
+# 120_ClusteringConfig.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
 # Architecture ----
-# Mirrors 02_Hyperparameters.R / 09_DecompositionConfig.R: each `*Config`
+# Mirrors 070_Hyperparameters.R / 150_DecompositionConfig.R: each `*Config`
 # subclass declares its algorithm parameters with the `prop_*` factories,
 # from which the S7 validators, the `config` list, and the JSON Schema
 # (S7_to_JSONSchema) are generated. The abstract `ClusteringConfig`
@@ -295,42 +295,19 @@ CMeansConfig <- new_class(
       nullable = TRUE,
       description = "Learning rate for the online (ufcl) variant."
     ),
-    weights = prop_external(
-      class_numeric,
-      default = 1.0,
-      data_dependent = TRUE
+    weights = prop_float(
+      1,
+      vector = TRUE,
+      broadcast = TRUE,
+      data_bound = "n_cases",
+      data_dependent = TRUE,
+      description = "Case weights: either a scalar, applied to every case, or a vector."
     ),
-    control = prop_external(class_list, default = list())
-  )
-) # /rtemis::CMeansConfig
-
-
-# %% .cmeans_schema_extra ----
-# Schema fragments for CMeansConfig properties whose R types the prop_*
-# factories do not express: `weights` (a per-case numeric vector) and `control`
-# (an open backend control list). Merged into the generated schema. See
-# generate_schemas.R.
-.cmeans_schema_extra <- list(
-  properties = list(
-    weights = list(
-      oneOf = list(
-        list(type = "number"),
-        list(
-          type = "array",
-          items = list(type = "number"),
-          minItems = 1L
-        )
-      ),
-      default = 1,
-      `$comment` = "Data-dependent when a vector: per-case weights, length = number of cases.",
-      description = "Case weights: a single number applied to every case, or a per-case vector."
-    ),
-    control = list(
-      type = "object",
+    control = prop_bag(
       description = "Control parameters passed to the clustering backend."
     )
   )
-)
+) # /rtemis::CMeansConfig
 
 
 # %% setup_CMeans ----
@@ -342,7 +319,7 @@ CMeansConfig <- new_class(
 #' @param method Character \{"cmeans", "ufcl"\}: "cmeans" - fuzzy c-means clustering; "ufcl": on-line update.
 #' @param m Numeric (1, Inf): Degree of fuzzification.
 #' @param rate_par Optional Numeric \[0, 1\]: Learning rate for the online variant.
-#' @param weights Numeric (0, Inf): Case weights.
+#' @param weights Numeric vector: Case weights. Either a scalar, applied to every case, or a vector with one value per case.
 #' @param control List: Control config for clustering algorithm.
 #'
 #' @return CMeansConfig object.
@@ -402,7 +379,14 @@ DBSCANConfig <- new_class(
       min = 1L,
       description = "Minimum number of points in a neighborhood to form a cluster."
     ),
-    weights = prop_external(NULL | class_numeric, data_dependent = TRUE),
+    weights = prop_float(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      data_bound = "n_cases",
+      data_dependent = TRUE,
+      description = "Weights for data points. NULL = unweighted."
+    ),
     border_points = prop_boolean(
       TRUE,
       description = "Assign border points to clusters."
@@ -428,28 +412,6 @@ DBSCANConfig <- new_class(
     )
   )
 ) # /rtemis::DBSCANConfig
-
-
-# %% .dbscan_schema_extra ----
-# Schema fragment for the DBSCANConfig `weights` property (`NULL |
-# class_numeric`, a per-point vector), not expressible via the prop_* factories.
-# Merged into the generated schema. See generate_schemas.R.
-.dbscan_schema_extra <- list(
-  properties = list(
-    weights = list(
-      oneOf = list(
-        list(type = "null"),
-        list(
-          type = "array",
-          items = list(type = "number"),
-          minItems = 1L
-        )
-      ),
-      `$comment` = "Data-dependent: per-point weights, length = number of points.",
-      description = "Optional weights for data points. null = unweighted."
-    )
-  )
-)
 
 
 # %% setup_DBSCAN ----
@@ -522,14 +484,17 @@ setup_DBSCAN <- function(
     )
   }
   algorithm <- get_clust_name(algorithm)
-  # Params may arrive nested under `config` (JSON / S7_to_list serialization) or
-  # flat alongside `algorithm` (UI / server). In the flat shape, drop
-  # `algorithm`. Either way `.drop_meta_keys()` removes document metadata
-  # (e.g. `$schema`), which is not a setup arg.
-  params <- if (is.list(x[["config"]])) {
-    .drop_meta_keys(x[["config"]])
-  } else {
-    .drop_meta_keys(x[names(x) != "algorithm"])
-  }
-  do.call(get_clust_setup_fn(algorithm), params)
+  # One shape: `{algorithm, config}`, which is what the published schema
+  # declares -- a flat `{algorithm, k, ...}` is rejected by it, so accepting one
+  # here would take input the contract does not. `.drop_meta_keys()` removes
+  # document metadata (e.g. `$schema`), which is not a setup arg.
+  check_wire_keys(x, c("algorithm", "config"), "clustering config")
+  params <- .drop_meta_keys(x[["config"]])
+  setup_fn <- get_clust_setup_fn(algorithm)
+  check_wire_keys(
+    params,
+    names(formals(setup_fn)),
+    paste(algorithm, "clustering")
+  )
+  do.call(setup_fn, params)
 } # /rtemis::.list_to_ClusteringConfig

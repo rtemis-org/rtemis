@@ -1,4 +1,4 @@
-# ExecutionConfig.R
+# 050_ExecutionConfig.R
 # ::rtemis::
 # 2026- EDG rtemis.org
 
@@ -97,11 +97,11 @@ default_n_workers <- function(omit = 3L) {
 # %% setup_ExecutionConfig ----
 #' Setup Execution Configuration
 #'
-#' @param backend Character: Execution backend: "future", "mirai", or "none".
-#' @param n_workers Integer: Number of workers for parallel execution. Only used if `backend is
+#' @param backend Character \{"future", "mirai", "none"\}: Execution backend.
+#' @param n_workers Integer [1, Inf): Number of workers for parallel execution. Only used if `backend is
 #'  "future"` or "mirai". Set this to an appropriate number depending
 #' on your system.
-#' @param future_plan Character: Future plan to use if `backend` is "future".
+#' @param future_plan Optional Character: Future plan to use if `backend` is "future".
 #' @param on_error Character \{"continue", "stop", "stop_outer"\}: Failure policy.
 #' `"continue"` makes grid cells and unscorable hyperparameter combinations
 #' non-fatal (recorded, warned, and excluded), failing only when nothing is scorable or

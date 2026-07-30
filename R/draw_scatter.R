@@ -432,13 +432,14 @@ draw_scatter <- function(
     for (i in seq_len(n_groups)) {
       mod <- train(
         x = data.frame(x = x[[i]], y = y[[i]]),
-        algorithm = fit,
-        hyperparameters = fit_params,
+        hyperparameters = resolve_fit_hyperparameters(fit, fit_params),
         verbosity = verbosity - 1L
       )
       fitted[[i]] <- fitted(mod)
       if (se_fit) {
-        se[[i]] <- se(mod)
+        # Computed from the model rather than read off it: standard errors are
+        # a property of a fit and its data, not something every result carries.
+        se[[i]] <- se(mod, data.frame(x = x[[i]]))
       }
       if (include_fit_name) {
         # fitted_text[i] <- switch(fit,

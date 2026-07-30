@@ -21,7 +21,7 @@ test_that("to_json() is a registered S7 generic", {
 
 
 # Supervised (Regression) ----
-mod_r_glm <- train(x = datr, algorithm = "glm")
+mod_r_glm <- train(x = datr, hyperparameters = setup_GLM())
 
 test_that("to_json(Regression) returns a list with .class and core fields", {
   j <- to_json(mod_r_glm)
@@ -55,7 +55,6 @@ test_that("to_json(Regression) excludes model, raw vectors, session_info", {
   expect_false("y_training" %in% names(j))
   expect_false("predicted_training" %in% names(j))
   expect_false("session_info" %in% names(j))
-  expect_false("extra" %in% names(j))
 })
 
 test_that("to_json(Regression) drops NULL fields cleanly", {
@@ -67,7 +66,7 @@ test_that("to_json(Regression) drops NULL fields cleanly", {
 # Supervised (Classification) ----
 datc <- data.frame(iris[51:150, ])
 datc$Species <- factor(datc$Species)
-mod_c_glm <- train(x = datc, algorithm = "glm")
+mod_c_glm <- train(x = datc, hyperparameters = setup_GLM())
 
 test_that("to_json(Classification) tags class and includes binclasspos", {
   j <- to_json(mod_c_glm)
@@ -80,7 +79,7 @@ test_that("to_json(Classification) tags class and includes binclasspos", {
 # SupervisedRes ----
 resmod <- train(
   x = datr,
-  algorithm = "glm",
+  hyperparameters = setup_GLM(),
   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 )
 

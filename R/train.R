@@ -13,8 +13,6 @@
 #' @param dat_validation Tabular data: Validation set data.
 #' @param dat_test Tabular data: Test set data.
 #' @param weights Optional vector of case weights.
-#' @param algorithm Character: Algorithm to use. Can be left NULL, if `hyperparameters` is defined.
-#'   If neither is defined, defaults to "ranger".
 #' @param preprocessor_config Optional PreprocessorConfig object: Setup using [setup_Preprocessor].
 #' @param decomposition_config Optional DecompositionConfig object: Setup using a decomposition
 #'  `setup_*` function.
@@ -29,7 +27,11 @@
 #' using `backend = "future"`.
 #' @param question Optional character string defining the question that the model is trying to
 #' answer.
-#' @param outdir Character, optional: String defining the output directory.
+#' @param outdir Character, optional: String defining the output directory. The
+#' fitted model is saved there as `train_<algorithm>.rds`, alongside a run
+#' record, `train_<algorithm>.record.json`, stating what the run actually did:
+#' every value resolved, where each came from, and what produced it. See
+#' [write_record].
 #' @param verbosity Integer: Verbosity level.
 #' @param progress Optional function: Callback invoked at progress
 #'   checkpoints during training. When supplied, called at each outer
@@ -124,7 +126,7 @@
 #' \donttest{
 #' iris_c_lightRF <- train(
 #'    iris,
-#'    algorithm = "LightRF",
+#'    hyperparameters = setup_LightRF(),
 #'    outer_resampling_config = setup_Resampler(),
 #' )
 #' }
@@ -133,7 +135,6 @@ train <- function(
   dat_validation = NULL,
   dat_test = NULL,
   weights = NULL,
-  algorithm = NULL,
   preprocessor_config = NULL, # PreprocessorConfig
   decomposition_config = NULL, # DecompositionConfig
   hyperparameters = NULL, # Hyperparameters
@@ -155,7 +156,6 @@ train <- function(
       weights = x@weights,
       preprocessor_config = x@preprocessor_config,
       decomposition_config = x@decomposition_config,
-      algorithm = x@algorithm,
       hyperparameters = x@hyperparameters,
       tuner_config = x@tuner_config,
       outer_resampling_config = x@outer_resampling_config,
@@ -204,7 +204,6 @@ train <- function(
       weights = x@weights,
       preprocessor_config = x@preprocessor_config,
       decomposition_config = x@decomposition_config,
-      algorithm = x@algorithm,
       hyperparameters = x@hyperparameters,
       tuner_config = x@tuner_config,
       outer_resampling_config = x@outer_resampling_config,
@@ -240,14 +239,33 @@ train <- function(
     )
   }
 
-  if (is.null(algorithm)) {
-    if (!is.null(hyperparameters)) {
-      check_is_S7(hyperparameters, Hyperparameters)
-      algorithm <- hyperparameters@algorithm
-    } else {
-      algorithm <- "ranger"
-    }
+  if (is.null(hyperparameters)) {
+    hyperparameters <- setup_Ranger()
   }
+  check_is_S7(hyperparameters, Hyperparameters)
+  algorithm <- hyperparameters@algorithm
+
+  # The run's input, captured before anything resolves it. Tuning narrows a
+  # search space and `train_()` fills in what the data decides, so by the time
+  # the model is built `hyperparameters` says what *ran*; only this says what
+  # was *asked for*. `record()` needs both to report where each value came from.
+  # `dat_training_path` stays unset for an in-memory run -- data identity is the
+  # provenance block's `DataFingerprint`, not a path.
+  input_config <- setup_SuperConfig(
+    weights = weights,
+    preprocessor_config = preprocessor_config,
+    decomposition_config = decomposition_config,
+    hyperparameters = hyperparameters,
+    tuner_config = tuner_config,
+    outer_resampling_config = outer_resampling_config,
+    execution_config = execution_config,
+    question = question,
+    # A nested call passes `verbosity - 1L`, so this can be negative -- an
+    # internal "quieter than silent" convention a config cannot express, its
+    # `verbosity` being bounded at 0. Clamped rather than propagated: it affects
+    # messages, never results.
+    verbosity = max(0L, verbosity)
+  )
 
   # Initial check targetting non-numeric or factor columns
   # Will be checked again by individual learners;
@@ -261,30 +279,6 @@ train <- function(
   )
   type <- supervised_type(x)
   ncols <- ncol(x)
-
-  if (is.null(hyperparameters) && !is.null(algorithm)) {
-    hyperparameters <- get_default_hyperparameters(
-      algorithm,
-      type = type,
-      ncols = ncols
-    )
-  }
-
-  if (
-    !is.null(algorithm) &&
-      tolower(algorithm) != tolower(hyperparameters@algorithm)
-  ) {
-    rtemis.core::abort(
-      "You defined algorithm to be '",
-      algorithm,
-      "', but defined hyperparameters for ",
-      hyperparameters@algorithm,
-      ".",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
-
-  check_is_S7(hyperparameters, Hyperparameters)
 
   # Set default tuner_config if tuning is needed but none specified
   if (needs_tuning(hyperparameters) && is.null(tuner_config)) {
@@ -338,12 +332,8 @@ train <- function(
   }
   if (!is.null(outer_resampling_config)) {
     check_is_S7(outer_resampling_config, ResamplerConfig)
-    if (!is.null(outer_resampling_config[["id_strat"]])) {
-      stopifnot(length(outer_resampling_config[["id_strat"]]) == NROW(x))
-    }
   }
 
-  algorithm <- get_alg_name(algorithm)
   if (!is.null(outdir)) {
     outdir <- make_path(outdir)
     if (!dir.exists(outdir)) {
@@ -378,6 +368,16 @@ train <- function(
   session_created <- session_start(verbosity = verbosity)
   # Safety net: on any exit (incl. error) the top-level call clears the ambient slot.
   on.exit(if (session_created) session_clear(), add = TRUE)
+  # Data provenance ----
+  # Only the top-level call fingerprints: nested (per outer-fold) calls would
+  # each hash their own fold, which is both wasteful and not what anyone wants
+  # to compare. Same rule as the session above -- the top-level object carries
+  # the identity of the data the user actually supplied.
+  training_fingerprint <- if (session_created) {
+    data_fingerprint(x)
+  } else {
+    NULL
+  }
   root_node <- if (session_created) {
     node_enter("train", label = paste(algorithm, type))
   } else {
@@ -388,6 +388,14 @@ train <- function(
   if (type == "Classification") {
     classes <- levels(outcome(x))
   }
+
+  ## Validate hyperparameters against data ----
+  # Algorithm-specific constraints that depend on the data (e.g. Ranger's mtry
+  # cannot exceed the number of features). Runs before tuning and outer
+  # resampling so an invalid search space fails here rather than as per-grid-cell
+  # failures, which `on_error = "continue"` would swallow. Tunable
+  # hyperparameters still hold their full search space at this point.
+  validate_hyperparameters(hyperparameters, x)
 
   ## Print data summary ----
   if (verbosity > 0L) {
@@ -452,7 +460,7 @@ train <- function(
       config = outer_resampling_config,
       verbosity = verbosity
     )
-    n_outer <- outer_resampler@config@n
+    n_outer <- outer_resampler@config@n_resamples
     run_outer_fold <- function(i) {
       if (is.function(progress)) {
         tryCatch(
@@ -477,7 +485,6 @@ train <- function(
         train(
           x = x[outer_resampler[[i]], ],
           dat_test = x[-outer_resampler[[i]], ],
-          algorithm = algorithm,
           preprocessor_config = preprocessor_config,
           decomposition_config = decomposition_config,
           hyperparameters = hyperparameters,
@@ -593,29 +600,50 @@ train <- function(
     } # /Tune
 
     # User-level preprocessing ----
+    # Features only, and no step that drops cases. The outcome is the quantity
+    # the model learns: scaling, one-hot encoding or imputing it would change
+    # what is being predicted and leave `predict()` returning values in
+    # transformed units, while a case-removing step cannot be replayed on new
+    # data at all. Same layout as the decomposition block below -- transform
+    # the features, re-attach the outcome last.
     if (!is.null(preprocessor_config)) {
+      check_preprocessor_replayable(preprocessor_config)
       prep_node <- node_enter("preprocess")
       if (verbosity == 1L) {
         msg("Preprocessing...")
       }
+      prep_outcome_nm <- names(x)[ncols]
       preprocessor <- preprocess(
-        x = x,
+        x = as.data.frame(features(x)),
         config = preprocessor_config,
-        dat_validation = dat_validation,
-        dat_test = dat_test,
+        dat_validation = if (!is.null(dat_validation)) {
+          as.data.frame(features(dat_validation))
+        },
+        dat_test = if (!is.null(dat_test)) as.data.frame(features(dat_test)),
         verbosity = verbosity - 1L
       )
-      x <- if (is.null(dat_validation) && is.null(dat_test)) {
+      prep_training <- if (is.null(dat_validation) && is.null(dat_test)) {
         preprocessor@preprocessed
       } else {
         preprocessor@preprocessed[["training"]]
       }
+      x <- attach_outcome(prep_training, x[[ncols]], prep_outcome_nm)
       if (!is.null(dat_validation)) {
-        dat_validation <- preprocessor@preprocessed[["validation"]]
+        dat_validation <- attach_outcome(
+          preprocessor@preprocessed[["validation"]],
+          dat_validation[[NCOL(dat_validation)]],
+          prep_outcome_nm
+        )
       }
       if (!is.null(dat_test)) {
-        dat_test <- preprocessor@preprocessed[["test"]]
+        dat_test <- attach_outcome(
+          preprocessor@preprocessed[["test"]],
+          dat_test[[NCOL(dat_test)]],
+          prep_outcome_nm
+        )
       }
+      # Preprocessing may add columns (one-hot) or drop them (constants).
+      ncols <- ncol(x)
       node_exit(prep_node, status = "ok")
     } else {
       preprocessor <- NULL
@@ -640,29 +668,9 @@ train <- function(
       if (is.null(decomp_features)) {
         decomp_features <- names(numeric_features(x))
       }
-      # Validate the selection against the actual (post-preprocessing) data.
-      missing_cols <- setdiff(decomp_features, names(feat))
-      if (length(missing_cols) > 0L) {
-        rtemis.core::abort(
-          "`decomposition_config` selects columns that are not features.\n",
-          "Not found among features: ",
-          paste(missing_cols, collapse = ", "),
-          ".",
-          class = c("rtemis_value_error", "rtemis_input_error")
-        )
-      }
-      non_numeric <- decomp_features[
-        !vapply(feat[decomp_features], is.numeric, logical(1L))
-      ]
-      if (length(non_numeric) > 0L) {
-        rtemis.core::abort(
-          "Decomposition can only be applied to numeric features.\n",
-          "Non-numeric columns selected: ",
-          paste(non_numeric, collapse = ", "),
-          ".",
-          class = c("rtemis_type_error", "rtemis_input_error")
-        )
-      }
+      # Binds the *resolved* selection, which for an unset `features` is
+      # whatever the data happen to supply, so no declaration can express it.
+      # An explicit selection is validated by `decomp()` against `feat`.
       if (length(decomp_features) < 2L) {
         rtemis.core::abort(
           "Decomposition requires at least 2 numeric feature columns.\n",
@@ -672,10 +680,11 @@ train <- function(
         )
       }
       # Persist the resolved names so apply_decomp() replays the same selection
-      # on validation/test here and on new data at predict() time.
+      # on validation/test here and on new data at predict() time. `decomp()`
+      # subsets `feat` by them, so the fit and the replay cannot disagree.
       decomposition_config@features <- decomp_features
       decomposition <- decomp(
-        x = feat[, decomp_features, drop = FALSE],
+        x = feat,
         algorithm = decomposition_config@algorithm,
         config = decomposition_config,
         verbosity = verbosity
@@ -749,6 +758,10 @@ train <- function(
       NULL
     }
 
+    # Re-check now that hyperparameters are resolved and the feature count
+    # reflects preprocessing and decomposition.
+    validate_hyperparameters(hyperparameters, x)
+
     algo_node <- node_enter(
       "train_alg",
       label = algorithm,
@@ -765,6 +778,13 @@ train <- function(
     node_exit(algo_node, status = "ok")
 
     model <- trained[["model"]]
+    # Values the algorithm resolved at train time (LightGBM's `objective` from
+    # the outcome type, GLMNET's `lambda`): R copied `hyperparameters` into
+    # `train_()`, so without this the fitted model would report NULL for
+    # settings it demonstrably used.
+    if (!is.null(trained[["hyperparameters"]])) {
+      hyperparameters <- trained[["hyperparameters"]]
+    }
     # Algorithm-level preprocessing (e.g. factor-to-integer for LightGBM),
     # returned by train_*() if needed.
     preprocessor_internal <- trained[["preprocessor"]]
@@ -790,7 +810,10 @@ train <- function(
     )
 
     if (type == "Classification") {
-      predicted_prob_training <- predicted_training
+      # `predict_super()` returns probabilities for a classification model;
+      # normalized to a matrix so the property has one shape whatever the
+      # backend and the class count (see `prob_matrix()`).
+      predicted_prob_training <- prob_matrix(predicted_training, classes)
       predicted_training <- prob2categorical(
         predicted_prob_training,
         levels = classes
@@ -815,7 +838,7 @@ train <- function(
       )
 
       if (type == "Classification") {
-        predicted_prob_validation <- predicted_validation
+        predicted_prob_validation <- prob_matrix(predicted_validation, classes)
         predicted_validation <- prob2categorical(
           predicted_prob_validation,
           levels = classes
@@ -840,7 +863,7 @@ train <- function(
       )
 
       if (type == "Classification") {
-        predicted_prob_test <- predicted_test
+        predicted_prob_test <- prob_matrix(predicted_test, classes)
         predicted_test <- prob2categorical(
           predicted_prob_test,
           levels = classes
@@ -848,21 +871,6 @@ train <- function(
       }
     }
 
-    # Standard Errors ----
-    # Use the same (algorithm-level preprocessed) features as predictions.
-    se_training <- se_validation <- se_test <- NULL
-    if (type == "Regression" && algorithm %in% se_compat_algorithms) {
-      se_training <- se_super(model = model, newdata = x_features)
-      if (!is.null(dat_validation)) {
-        se_validation <- se_super(
-          model = model,
-          newdata = dat_validation_features
-        )
-      }
-      if (!is.null(dat_test)) {
-        se_test <- se_super(model = model, newdata = dat_test_features)
-      }
-    }
     node_exit(predict_node, status = "ok")
 
     # Variable importance ----
@@ -898,12 +906,10 @@ train <- function(
       predicted_prob_training = predicted_prob_training,
       predicted_prob_validation = predicted_prob_validation,
       predicted_prob_test = predicted_prob_test,
-      se_training = se_training,
-      se_validation = se_validation,
-      se_test = se_test,
       xnames = names(x)[-ncols],
       varimp = varimp,
-      question = question
+      question = question,
+      data_fingerprint = training_fingerprint
     )
     node_exit(metrics_node, status = "ok")
   } else {
@@ -945,8 +951,16 @@ train <- function(
       predicted_prob_test = predicted_prob_test,
       xnames = names(x)[-ncols],
       varimp = lapply(models, \(mod) mod@varimp),
-      question = question
+      question = question,
+      data_fingerprint = training_fingerprint
     )
+  }
+
+  # Attach the run's input ----
+  # Only the top-level call: a per-outer-fold sub-model shares the same input,
+  # and one record per `train()` call is the design (see config-artifacts.md).
+  if (session_created) {
+    mod@config <- input_config
   }
 
   # Finalize observability session ----
@@ -969,6 +983,21 @@ train <- function(
   }
   if (!is.null(outdir)) {
     rt_save(mod, outdir = outdir, file_prefix = paste0("train_", algorithm))
+    # The record sits beside the model and shares its name, so a directory of
+    # runs pairs up by inspection. No opt-in: "all runs are auditable" does not
+    # hold if writing the record is something a caller can forget. Only a
+    # top-level call has the input a record needs.
+    # A resampled run records one entry per fold, so folds that resolved
+    # different values (early stopping settles on a different `nrounds` each
+    # time) are each stated rather than collapsed.
+    if (session_created) {
+      write_record(
+        mod,
+        file.path(outdir, paste0("train_", algorithm, ".record.json")),
+        overwrite = TRUE,
+        verbosity = verbosity
+      )
+    }
   }
   outro(
     start_time,

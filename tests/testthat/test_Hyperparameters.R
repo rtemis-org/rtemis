@@ -120,13 +120,27 @@ test_that("every algorithm class exposes spec-derived views", {
       tunable_spec_names(cls),
       info = nm
     )
-    # Every hyperparameter is either tunable or fixed, and the two are disjoint.
+    # Three disjoint categories that together account for every
+    # hyperparameter: tunable (a vector is a search space), fixed (settable,
+    # not tunable), constant (not settable at all).
     expect_length(
       intersect(h@tunable_hyperparameters, h@fixed_hyperparameters),
       0L
     )
+    expect_length(
+      intersect(h@fixed_hyperparameters, h@constant_hyperparameters),
+      0L
+    )
+    expect_length(
+      intersect(h@tunable_hyperparameters, h@constant_hyperparameters),
+      0L
+    )
     expect_setequal(
-      c(h@tunable_hyperparameters, h@fixed_hyperparameters),
+      c(
+        h@tunable_hyperparameters,
+        h@fixed_hyperparameters,
+        h@constant_hyperparameters
+      ),
       names(h@hyperparameters)
     )
   }
@@ -209,10 +223,18 @@ test_that("LightRF constants cannot be changed", {
   expect_error(h@hyperparameters[["subsample_freq"]] <- 2L)
   # Round-tripping the unchanged list (constants included) is fine.
   expect_no_error(h@hyperparameters <- h@hyperparameters)
-  # Constants are reported as fixed.
-  expect_true(all(
-    names(LightRF_constants) %in% h@fixed_hyperparameters
-  ))
+  # Constants are NOT "fixed": fixed means settable but not tunable, which a
+  # constant is not. They are their own category.
+  expect_setequal(
+    h@constant_hyperparameters,
+    c(
+      "boosting_type",
+      "learning_rate",
+      "subsample_freq",
+      "early_stopping_rounds"
+    )
+  )
+  expect_false(any(h@constant_hyperparameters %in% h@fixed_hyperparameters))
 })
 
 test_that("LightRFHyperparameters generates its JSON Schema", {
@@ -225,7 +247,7 @@ test_that("LightRFHyperparameters generates its JSON Schema", {
     sort(names(schema[["properties"]])),
     sort(spec_prop_names(LightRFHyperparameters))
   )
-  expect_identical(schema[["properties"]][["nrounds"]][["default"]], 500L)
+  expect_false("default" %in% names(schema[["properties"]][["nrounds"]]))
   # Tunable prop -> oneOf [scalar, array of search values].
   expect_length(schema[["properties"]][["linear_tree"]][["oneOf"]], 2L)
 })
@@ -378,20 +400,94 @@ test_that("run state stays out of the serialized config", {
 })
 
 
-test_that("external properties are declared, not silently dropped", {
-  # Ranger's union / list params are config inputs whose schema is hand-written.
-  expect_setequal(
-    role_prop_names(RangerHyperparameters, "external"),
-    c("split_select_weights", "respect_unordered_factors", "inbag")
-  )
+test_that("every Ranger property is generated from its own declaration", {
+  # No property needs a hand-written schema fragment.
+  expect_length(role_prop_names(RangerHyperparameters, "external"), 0L)
   schema <- S7_to_JSONSchema(
     RangerHyperparameters,
     id = "https://schema.rtemis.org/hyperparameters/ranger/v1/schema.json",
-    base = Hyperparameters,
-    extra = .ranger_hyperparameters_schema_extra
+    base = Hyperparameters
   )
-  expect_true(all(
-    c("split_select_weights", "respect_unordered_factors", "inbag") %in%
-      names(schema[["properties"]])
-  ))
+  props <- schema[["properties"]]
+  # `respect_unordered_factors` is a plain enum.
+  expect_identical(
+    as.character(props[["respect_unordered_factors"]][["enum"]]),
+    c("partition", "ignore", "order")
+  )
+  # `inbag`: one per-case count vector per tree.
+  expect_identical(props[["inbag"]][["items"]][["type"]], "array")
+  # `split_select_weights` broadcasts: one vector for all trees, or one per tree.
+  branches <- props[["split_select_weights"]][["oneOf"]]
+  expect_length(branches, 3L)
+  expect_identical(branches[[2L]][["items"]][["type"]], "number")
+  expect_identical(branches[[3L]][["items"]][["type"]], "array")
+})
+
+
+test_that("run state is in the schema as readOnly, but never serialized", {
+  # Two independent axes. A reader needs the field to reconstruct the class,
+  # and a run record carries its value; a portable config must not, because it
+  # is re-derived on read.
+  schema <- S7_to_JSONSchema(
+    GLMNETHyperparameters,
+    id = "https://schema.rtemis.org/hyperparameters/glmnet/v1/schema.json",
+    base = Hyperparameters
+  )
+  for (nm in c("lambda.min", "lambda.1se")) {
+    prop_schema <- schema[["properties"]][[nm]]
+    expect_false(is.null(prop_schema), info = nm)
+    expect_true(prop_schema[["readOnly"]], info = nm)
+    expect_identical(prop_schema[["x-rtemis"]][["role"]], "state", info = nm)
+    # Declared with a real type, not an opaque blob.
+    expect_true("number" %in% as.character(prop_schema[["type"]]), info = nm)
+  }
+  written <- serializable_props(setup_GLMNET())[["hyperparameters"]]
+  expect_false(any(c("lambda.min", "lambda.1se") %in% names(written)))
+})
+
+
+test_that("prop_state requires a factory-built property", {
+  # Run state is declared with the same type and bounds as configuration, so
+  # its schema is generated rather than hand-written.
+  expect_error(prop_state(S7::class_double), class = "rtemis_type_error")
+  expect_no_error(prop_state(prop_float(NULL, nullable = TRUE)))
+})
+
+
+test_that("tune_on_null is declared on the property, not per class", {
+  # `tuned` is derived from declarations alone, so a reader of the schema can
+  # reproduce it without knowing "lambda for GLMNET, nrounds for LightGBM".
+  expect_identical(tune_on_null_spec_names(GLMNETHyperparameters), "lambda")
+  expect_identical(tune_on_null_spec_names(LightGBMHyperparameters), "nrounds")
+  # A nullable tunable is NOT automatically tune-on-null: `mtry` unset just
+  # falls back to the backend default.
+  expect_length(tune_on_null_spec_names(RangerHyperparameters), 0L)
+
+  # Unset means "needs tuning"; set means "nothing to search".
+  expect_identical(setup_GLMNET()@tuned, TUNED_STATUS_UNTUNED)
+  expect_identical(
+    setup_GLMNET(lambda = 0.1)@tuned,
+    TUNED_STATUS_NO_SEARCH_VALUES
+  )
+  expect_identical(setup_LightGBM()@tuned, TUNED_STATUS_UNTUNED)
+  expect_identical(
+    setup_LightGBM(force_nrounds = 100L)@tuned,
+    TUNED_STATUS_NO_SEARCH_VALUES
+  )
+
+  # It reaches the schema: a consumer cannot derive it from the keywords.
+  schema <- S7_to_JSONSchema(
+    GLMNETHyperparameters,
+    id = "https://schema.rtemis.org/hyperparameters/glmnet/v1/schema.json",
+    base = Hyperparameters
+  )
+  expect_true(schema[["properties"]][["lambda"]][["x-rtemis"]][[
+    "tune_on_null"
+  ]])
+})
+
+
+test_that("tune_on_null requires nullable", {
+  # NULL is the signal, so a non-nullable property cannot carry it.
+  expect_error(prop_float(1, tune_on_null = TRUE), "nullable")
 })

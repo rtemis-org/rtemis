@@ -328,8 +328,7 @@ draw_3Dscatter <- function(
       df1 <- data.frame(x[[i]], y[[i]], z[[i]])
       mod <- train(
         df1,
-        algorithm = fit,
-        hyperparameters = fit_params,
+        hyperparameters = resolve_fit_hyperparameters(fit, fit_params),
         verbosity = verbosity
       )
       fitted[[i]] <- fitted(mod)

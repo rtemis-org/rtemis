@@ -61,6 +61,16 @@ method(train_, LightRFHyperparameters) <- function(
       }
     }
   }
+  # Resolved here, not at setup time, because it depends on the data: the
+  # random-forest convention is sqrt(p) features per split for classification.
+  if (is.null(hyperparameters[["feature_fraction"]])) {
+    n_features <- NCOL(features(x))
+    hyperparameters@feature_fraction <- if (type == "Classification") {
+      sqrt(n_features) / n_features
+    } else {
+      0.33
+    }
+  }
 
   ## Preprocess & create lgb.Datasets ----
   lgb_data <- prepare_lgb_data(
@@ -99,5 +109,8 @@ method(train_, LightRFHyperparameters) <- function(
     verbose = verbosity - 2L
   )
   check_inherits(model, "lgb.Booster")
-  list(model = model, preprocessor = prp)
+  # `hyperparameters` is returned because this method resolved values into
+  # it (R copied the caller's object, so the caller cannot see them).
+  # `train()` adopts them, and the fitted model reports what it used.
+  list(model = model, preprocessor = prp, hyperparameters = hyperparameters)
 } # /rtemis::train_.LightRFHyperparameters

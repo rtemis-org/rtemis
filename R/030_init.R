@@ -1,4 +1,4 @@
-# S7_init.R
+# 030_init.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -7,6 +7,8 @@
 
 # %% --- S3 Classes for S7 ----------------------------------------------------------------------------
 class_table <- new_S3_class("table")
+class_matrix <- new_S3_class("matrix")
+class_POSIXct <- new_S3_class("POSIXct")
 class_data.table <- new_S3_class("data.table")
 class_lgb.Booster <- new_S3_class("lgb.Booster")
 # All internal methods should support data.frame, data.table, tbl_df
@@ -37,7 +39,7 @@ class_tabnet_fit <- new_S3_class("tabnet_fit")
 #' @author EDG
 #' @export
 #' @examples
-#' mod <- train(iris, algorithm = "LightRF")
+#' mod <- train(iris, hyperparameters = setup_LightRF())
 #' get_varimp(mod)
 get_varimp <- new_generic("get_varimp", "x")
 
@@ -150,7 +152,16 @@ preprocess <- new_generic(
 #' @param dat_validation Optional tabular data: Validation set for algorithms that support early stopping.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return Algorithm-specific fitted model object.
+#' @return Named list:
+#'   * `model` -- the algorithm-specific fitted model object.
+#'   * `preprocessor` -- Optional `Preprocessor`: algorithm-level preprocessing
+#'     (e.g. factor-to-integer for LightGBM), re-applied before predicting.
+#'   * `hyperparameters` -- Optional `Hyperparameters`: returned **only** by a
+#'     method that resolved values into it (LightGBM's `objective` from the
+#'     outcome type, GLMNET's `lambda` from `cv.glmnet`). R copies the object
+#'     into the method, so without returning it the caller keeps the unresolved
+#'     one and the fitted model reports NULL for settings it demonstrably used.
+#'     `train()` adopts it when present.
 #'
 #' @author EDG
 #' @keywords internal
@@ -244,8 +255,26 @@ se_super <- new_generic(
 
 
 # %% se ----
-# Standard error of the fit.
-se <- new_generic("se", "x")
+#' Standard error of the fit
+#'
+#' Computed on demand from the fitted model rather than stored: only linear and
+#' additive models produce standard errors at all, so storing three per-case
+#' vectors on every regression result carried a value that two of thirteen
+#' algorithms populate.
+#'
+#' @param x `Supervised` object.
+#' @param newdata tabular data: Data to compute standard errors for.
+#' @param ... Additional arguments passed to methods.
+#'
+#' @return Numeric vector of standard errors, or NULL when the algorithm has
+#'   none.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+se <- new_generic("se", "x", function(x, newdata, ...) {
+  S7_dispatch()
+})
 
 
 # %% decomp_ ----
@@ -318,16 +347,40 @@ get_metric <- new_generic("get_metric", "x")
 # %% validate_hyperparameters ----
 #' Check hyperparameters given training data
 #'
+#' @description
+#' Internal S7 generic for algorithm-specific hyperparameter constraints that
+#' can only be checked once the data is known - e.g. Ranger's `mtry` cannot
+#' exceed the number of features. Bounds, types, and enums are enforced by the
+#' `prop_*` validators at construction; this generic covers only what depends
+#' on `x`.
+#'
+#' Called by [train] before any tuning or resampling, so an invalid search
+#' space fails fast rather than surfacing as per-grid-cell failures that
+#' `on_error = "continue"` would swallow, and again immediately before
+#' `train_()` on the resolved hyperparameters, where the feature count reflects
+#' any preprocessing and decomposition.
+#'
+#' Tunable hyperparameters hold a *vector* of search values at the first call
+#' site, so methods must validate every element (`any(...)`, not `>`).
+#'
+#' The default method (on `Hyperparameters`, in 070_Hyperparameters.R) checks
+#' every property declaring a `data_bound`, so most algorithms need no method of
+#' their own. Write one only for a constraint the `data_bound` vocabulary cannot
+#' express, and call `check_data_bounds()` from it so the declarative checks
+#' still run.
+#'
+#' @param hyperparameters `Hyperparameters`: Hyperparameters to check.
 #' @param x tabular data: Training data.
-#' @param hyperparameters `Hyperparameters` to check.
+#'
+#' @return `hyperparameters`, invisibly. Throws if a constraint is violated.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 validate_hyperparameters <- new_generic(
   "validate_hyperparameters",
-  "x",
-  function(x, hyperparameters) {
+  "hyperparameters",
+  function(hyperparameters, x) {
     S7_dispatch()
   }
 ) # /rtemis::validate_hyperparameters
@@ -366,7 +419,7 @@ plot_metric <- new_generic("plot_metric", "x")
 #' @examples
 #' ir <- iris[51:150, ]
 #' ir[["Species"]] <- factor(ir[["Species"]])
-#' species_glm <- train(ir, algorithm = "GLM")
+#' species_glm <- train(ir, hyperparameters = setup_GLM())
 #' plot_roc(species_glm)
 plot_roc <- new_generic("plot_roc", "x")
 
@@ -392,7 +445,7 @@ plot_roc <- new_generic("plot_roc", "x")
 #' @export
 #' @examplesIf interactive()
 #' ir <- set_outcome(iris, "Sepal.Length")
-#' seplen_cart <- train(ir, algorithm = "CART")
+#' seplen_cart <- train(ir, hyperparameters = setup_CART())
 #' plot_varimp(seplen_cart)
 #' # Plot horizontally
 #' plot_varimp(seplen_cart, orientation = "h")
@@ -420,7 +473,7 @@ plot_varimp <- new_generic("plot_varimp", "x")
 #' @export
 #' @examples
 #' x <- set_outcome(iris, "Sepal.Length")
-#' sepallength_glm <- train(x, algorithm = "GLM")
+#' sepallength_glm <- train(x, hyperparameters = setup_GLM())
 #' plot_true_pred(sepallength_glm)
 plot_true_pred <- new_generic("plot_true_pred", "x")
 
@@ -461,11 +514,11 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' @export
 #' @examples
 #' # --- For `Supervised` objects ---
-#' species_lightrf <- train(iris, algorithm = "lightrf")
+#' species_lightrf <- train(iris, hyperparameters = setup_LightRF())
 #' describe(species_lightrf)
 #'
 #' # --- For `SupervisedRes` objects ---
-#' mod <- train(iris, algorithm = "CART", outer_resampling_config = setup_Resampler())
+#' mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_Resampler())
 #' describe(mod)
 #'
 #' # --- For factors ---
@@ -497,7 +550,7 @@ describe <- new_generic("describe", "x", function(x, verbosity = 1L, ...) {
 #' @export
 #' @examplesIf interactive()
 #' ir <- set_outcome(iris, "Sepal.Length")
-#' seplen_lightrf <- train(ir, algorithm = "lightrf")
+#' seplen_lightrf <- train(ir, hyperparameters = setup_LightRF())
 #' present(seplen_lightrf)
 present <- new_generic("present", "x")
 
@@ -585,11 +638,13 @@ to_html <- new_generic("to_html", "x")
 #' S7 class name, allowing the frontend to dispatch to a class-specific
 #' renderer.
 #'
-#' The default method walks `props(x)`, recursing into S7-typed properties
-#' and passing through primitive properties as-is. Per-class methods
-#' override where the default isn't appropriate (e.g. classes whose props
-#' include a `data.table`, an opaque model fit, or where some props should
-#' be excluded for size or relevance reasons).
+#' The default method walks the class's *published* properties (see
+#' `prop_published()`), recursing into S7-typed properties and passing through
+#' primitive properties as-is. A computed view or an R-only value is omitted:
+#' the first is recoverable from what is published, and the second has no wire
+#' form at all, so emitting either would put a value on the wire that no schema
+#' declares. Per-class methods override where the default isn't appropriate
+#' (e.g. where some props should be excluded for size or relevance reasons).
 #'
 #' @param x rtemis S7 object.
 #' @param ... Additional arguments passed to method.
@@ -610,8 +665,11 @@ to_json <- new_generic("to_json", "x")
 #' @keywords internal
 #' @noRd
 method(to_json, S7_object) <- function(x, ...) {
-  ps <- props(x)
-  body <- lapply(ps, .to_json_value)
+  # Read one property at a time rather than `props(x)`, so an omitted computed
+  # property's getter is not evaluated only to be discarded.
+  nms <- published_prop_names(S7_class(x))
+  body <- lapply(nms, function(nm) .to_json_value(prop(x, nm)))
+  names(body) <- nms
   c(list(.class = S7_class(x)@name), body)
 } # /rtemis::to_json.S7_object
 
@@ -621,7 +679,7 @@ method(to_json, S7_object) <- function(x, ...) {
 #' Handles the common composite shapes encountered when walking S7 props:
 #' nested S7 objects (recurse via the generic), lists that may *contain*
 #' S7 objects (recurse element-wise), and primitives / data.frames
-#' (pass through — jsonlite supports them natively).
+#' (pass through -- jsonlite supports them natively).
 #'
 #' @param v Value from an S7 property.
 #'
@@ -918,15 +976,16 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' Generic function to calibrate binary classification models.
 #'
 #' @param x `Classification` or `ClassificationRes` object to calibrate.
-#' @param algorithm Character: Algorithm to use to train calibration model.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
+#' Defines the algorithm used to train the calibration model.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Additional arguments passed to specific methods.
 #'
 #' @section Method-specific parameters:
 #'
 #' **For `Classification` objects:**
-#' * `predicted_probabilities`: Numeric vector of predicted probabilities
+#' * `predicted_probabilities`: Numeric vector of the positive class's
+#'   predicted probabilities, one per case
 #' * `true_labels`: Factor of true class labels
 #'
 #' **For `ClassificationRes` objects:**
@@ -954,14 +1013,14 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' mod_c_glm <- train(
 #'   x = dat_train,
 #'   dat_test = dat_test,
-#'   algorithm = "glm"
+#'   hyperparameters = setup_GLM()
 #' )
 #'
 #' # Calibrate the `Classification` by defining `predicted_probabilities` and `true_labels`,
 #' # in this case using the training data, but it could be a separate calibration dataset.
 #' mod_c_glm_cal <- calibrate(
 #'   mod_c_glm,
-#'   predicted_probabilities = mod_c_glm$predicted_prob_training,
+#'   predicted_probabilities = mod_c_glm$predicted_prob_training[, 1L],
 #'   true_labels = mod_c_glm$y_training
 #' )
 #' mod_c_glm_cal
@@ -971,7 +1030,7 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' # Train GLM with cross-validation
 #' resmod_c_glm <- train(
 #'   x = dat,
-#'   algorithm = "glm",
+#'   hyperparameters = setup_GLM(),
 #'   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
 #' )
 #'
@@ -983,8 +1042,7 @@ calibrate <- new_generic(
   ("x"),
   function(
     x,
-    algorithm = "isotonic",
-    hyperparameters = NULL,
+    hyperparameters = setup_Isotonic(),
     verbosity = 1L,
     ...
   ) {
@@ -1093,13 +1151,14 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 # %% serializable_props ----
 #' Properties of an S7 object to serialize
 #'
-#' The default returns every property. Config-family classes
-#' (`Hyperparameters`, `DecompositionConfig`, `ClusteringConfig`) override
-#' this to return only their canonical public shape (`algorithm` + the
-#' computed parameter list + any base fields), so the per-algorithm
-#' properties they now declare — redundant with the computed list — are not
-#' duplicated into the serialized output. See methods in the respective
-#' class files.
+#' The default keeps every property `prop_serialized()` admits, so a flat config
+#' drops the same fields a config family does rather than emitting whatever it
+#' happens to hold. Config-family classes (`Hyperparameters`,
+#' `DecompositionConfig`, `ClusteringConfig`) override this to return their
+#' canonical public shape (`algorithm` + the computed parameter list + any base
+#' fields), so the per-algorithm properties they declare -- redundant with the
+#' computed list -- are not duplicated into the serialized output. See methods
+#' in the respective class files.
 #'
 #' @param x S7 object.
 #'
@@ -1111,7 +1170,24 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 serializable_props <- new_generic("serializable_props", "x")
 
 method(serializable_props, S7_object) <- function(x) {
-  props(x)
+  values <- props(x)
+  declared <- S7_class(x)@properties
+  keep <- vapply(
+    names(values),
+    function(nm) {
+      # A property this object holds but does not declare cannot be judged;
+      # keep it rather than silently dropping data.
+      is.null(declared[[nm]]) || prop_serialized(declared[[nm]])
+    },
+    logical(1L)
+  )
+  values <- values[keep]
+  for (nm in names(values)) {
+    if (!is.null(declared[[nm]])) {
+      values[[nm]] <- wire_value(values[[nm]], declared[[nm]])
+    }
+  }
+  values
 } # /rtemis::serializable_props.S7_object
 
 

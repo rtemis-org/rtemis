@@ -1,4 +1,4 @@
-# 16_DecomposeConfig.R
+# 160_DecomposeConfig.R
 # ::rtemis::
 # 2026- EDG rtemis.org
 
@@ -98,7 +98,7 @@ method(print, DecomposeConfig) <- function(x, output_type = NULL, ...) {
 #' for the decomposition itself. Setup with a decomposition `setup_*` function,
 #' e.g. [setup_PCA]. If NULL, defaults for `algorithm` are used at [decomp] time.
 #' @param outdir Character: Output directory for results.
-#' @param verbosity Integer: Verbosity level.
+#' @param verbosity Integer [0, Inf): Verbosity level.
 #'
 #' @return `DecomposeConfig` object.
 #'
@@ -149,6 +149,7 @@ setup_DecomposeConfig <- function(
 #' @keywords internal
 #' @noRd
 .list_to_DecomposeConfig <- function(x) {
+  check_wire_keys(x, names(DecomposeConfig@properties), "decompose config")
   args <- list(
     dat_path = x[["dat_path"]],
     algorithm = x[["algorithm"]],

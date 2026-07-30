@@ -1,4 +1,4 @@
-# S7_SuperConfig.R
+# 190_SuperConfig.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -47,11 +47,6 @@ SuperConfig <- new_class(
     ),
     preprocessor_config = NULL | PreprocessorConfig,
     decomposition_config = NULL | DecompositionConfig,
-    algorithm = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Supervised-learning algorithm name."
-    ),
     hyperparameters = NULL | Hyperparameters,
     tuner_config = NULL | TunerConfig,
     outer_resampling_config = NULL | ResamplerConfig,
@@ -121,24 +116,23 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #'
 #' @param dat_training_path Character or NULL: Path to training data file. NULL
 #' leaves the recipe unbound; set it (or supply data) before [train].
-#' @param dat_validation_path Character: Path to validation data file.
-#' @param dat_test_path Character: Path to test data file.
+#' @param dat_validation_path Optional Character: Path to validation data file.
+#' @param dat_test_path Optional Character: Path to test data file.
 #' @param weights Optional Character: Column name in training data to use as observation weights.
 #' If NULL, no weights are used.
 #' @param positive_class Character or NULL: For binary classification, the
 #' outcome level to treat as positive. NULL keeps the existing factor level order.
 #' @param preprocessor_config `PreprocessorConfig` object: Configuration for data preprocessing.
 #' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
-#' @param algorithm Character: Algorithm to use for training.
 #' @param hyperparameters `Hyperparameters` object: Configuration for model hyperparameters.
 #' @param tuner_config `TunerConfig` object: Configuration for hyperparameter tuning.
 #' @param outer_resampling_config `ResamplerConfig` object: Configuration for outer res
 #' resampling during model training.
 #' @param execution_config `ExecutionConfig` object: Configuration for execution settings. Setup
 #' with [setup_ExecutionConfig].
-#' @param question Character: Question to answer with the supervised learning analysis.
+#' @param question Optional Character: Question to answer with the supervised learning analysis.
 #' @param outdir Character: Output directory for results.
-#' @param verbosity Integer: Verbosity level.
+#' @param verbosity Integer [0, Inf): Verbosity level.
 #'
 #' @return `SuperConfig` object.
 #'
@@ -148,7 +142,6 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' sc <- setup_SuperConfig(
 #'   dat_training_path = "train.csv",
 #'   preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
-#'   algorithm = "LightRF",
 #'   hyperparameters = setup_LightRF(),
 #'   tuner_config = setup_GridSearch(),
 #'   outer_resampling_config = setup_Resampler(),
@@ -164,7 +157,6 @@ setup_SuperConfig <- function(
   positive_class = NULL,
   preprocessor_config = NULL,
   decomposition_config = NULL,
-  algorithm = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
@@ -199,7 +191,6 @@ setup_SuperConfig <- function(
     positive_class = positive_class,
     preprocessor_config = preprocessor_config,
     decomposition_config = decomposition_config,
-    algorithm = algorithm,
     hyperparameters = hyperparameters,
     tuner_config = tuner_config,
     outer_resampling_config = outer_resampling_config,
@@ -239,6 +230,24 @@ setup_SuperConfig <- function(
   }
   kind <- names(supported)[match(schema, supported)]
   if (is.na(kind)) {
+    # A record is the same field vocabulary with every value resolved, so it
+    # would *read* as a config and quietly replace the defaults the caller
+    # expected to be live -- including values a run derived from data this call
+    # has never seen. Named rather than lumped in with an unknown URL.
+    record_kind <- names(.RTEMIS_RECORD_SCHEMAS)[
+      match(schema, .RTEMIS_RECORD_SCHEMAS)
+    ]
+    if (!is.na(record_kind)) {
+      rtemis.core::abort(
+        "This is a ",
+        record_kind,
+        " run *record*, not a config.\n",
+        "A record states what one run resolved -- including values derived ",
+        "from its data -- so using it as an input would silently pin settings ",
+        "this call should decide for itself.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
     rtemis.core::abort(
       "Unsupported `$schema`: ",
       schema,
@@ -258,8 +267,8 @@ setup_SuperConfig <- function(
 #' named list, such as the result of parsing a JSON config. Nested config
 #' objects are rebuilt via their respective `.list_to_*` / `setup_*` functions.
 #'
-#' @param x Named list carrying `SuperConfig` fields (e.g. `algorithm`,
-#'   `hyperparameters`, `decomposition_config`, `outer_resampling_config`).
+#' @param x Named list carrying `SuperConfig` fields (e.g. `hyperparameters`,
+#'   `decomposition_config`, `outer_resampling_config`).
 #'
 #' @return `SuperConfig` object.
 #'
@@ -267,6 +276,7 @@ setup_SuperConfig <- function(
 #' @keywords internal
 #' @noRd
 .list_to_SuperConfig <- function(x) {
+  check_wire_keys(x, names(SuperConfig@properties), "supervised config")
   args <- list(
     dat_training_path = x[["dat_training_path"]],
     dat_validation_path = x[["dat_validation_path"]],
@@ -283,20 +293,10 @@ setup_SuperConfig <- function(
     } else {
       .list_to_DecompositionConfig(x[["decomposition_config"]])
     },
-    algorithm = x[["algorithm"]],
-    # `.list_to_Hyperparameters` wants `{algorithm, hyperparameters}`. The JSON
-    # schema keeps `algorithm` as a top-level sibling with a flat
-    # `hyperparameters` map (as `write_config()` emits), so bundle it. A
-    # pre-nested `{algorithm, hyperparameters}` shape is also accepted.
     hyperparameters = if (is.null(x[["hyperparameters"]])) {
       NULL
-    } else if (!is.null(x[["hyperparameters"]][["hyperparameters"]])) {
-      .list_to_Hyperparameters(x[["hyperparameters"]])
     } else {
-      .list_to_Hyperparameters(list(
-        algorithm = x[["algorithm"]],
-        hyperparameters = x[["hyperparameters"]]
-      ))
+      .list_to_Hyperparameters(x[["hyperparameters"]])
     },
     tuner_config = if (is.null(x[["tuner_config"]])) {
       NULL
@@ -337,7 +337,7 @@ setup_SuperConfig <- function(
 #' instead of file paths. Used by `rtemislive` (uploads arrive over a WS
 #' frame, not as a file) and by future HPC submission paths that hand the
 #' data directly to a worker.
-#' Not serializable to a config file — in-memory data does not round-trip
+#' Not serializable to a config file -- in-memory data does not round-trip
 #' cleanly. Use `SuperConfig` when you need on-disk reproducibility.
 #'
 #' @author EDG
@@ -363,11 +363,6 @@ SuperConfigLive <- new_class(
     ),
     preprocessor_config = NULL | PreprocessorConfig,
     decomposition_config = NULL | DecompositionConfig,
-    algorithm = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Supervised-learning algorithm name."
-    ),
     hyperparameters = NULL | Hyperparameters,
     tuner_config = NULL | TunerConfig,
     outer_resampling_config = NULL | ResamplerConfig,
@@ -428,22 +423,22 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 # %% setup_SuperConfigLive ----
 #' Setup SuperConfigLive
 #'
-#' Build a `SuperConfigLive` — same shape as [setup_SuperConfig] but with
+#' Build a `SuperConfigLive` -- same shape as [setup_SuperConfig] but with
 #' in-memory tabular data instead of file paths.
 #'
 #' @param dat_training data.frame or data.table. Training data.
 #' @param dat_validation data.frame, data.table, or `NULL`.
 #' @param dat_test data.frame, data.table, or `NULL`.
-#' @param weights Character or `NULL`. Column name in `dat_training` used
+#' @param weights Optional Character: Column name in `dat_training` used
 #'   as observation weights.
-#' @param positive_class Character or `NULL`. For binary classification, the
+#' @param positive_class Optional Character: For binary classification, the
 #'   outcome level to treat as positive; forwarded to [train] which reorders
 #'   the outcome factor via [set_positive_class]. `NULL` keeps the existing
 #'   level order.
-#' @param preprocessor_config,algorithm,hyperparameters,tuner_config,outer_resampling_config,execution_config,question,verbosity
+#' @param preprocessor_config,hyperparameters,tuner_config,outer_resampling_config,execution_config,question,verbosity
 #'   See [setup_SuperConfig].
 #' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
-#' @param outdir Character or `NULL`. Output directory; `NULL`
+#' @param outdir Optional Character: Output directory; `NULL`
 #'   means "do not write to disk" (the rtemislive case).
 #'
 #' @return `SuperConfigLive` object.
@@ -453,7 +448,6 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 #' @examples
 #' scl <- setup_SuperConfigLive(
 #'   dat_training = iris,
-#'   algorithm = "LightGBM",
 #'   hyperparameters = setup_LightGBM(),
 #'   outer_resampling_config = setup_Resampler(),
 #'   question = "Can we tell iris species apart given their measurements?"
@@ -466,7 +460,6 @@ setup_SuperConfigLive <- function(
   positive_class = NULL,
   preprocessor_config = NULL,
   decomposition_config = NULL,
-  algorithm = NULL,
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
@@ -486,7 +479,6 @@ setup_SuperConfigLive <- function(
     positive_class = positive_class,
     preprocessor_config = preprocessor_config,
     decomposition_config = decomposition_config,
-    algorithm = algorithm,
     hyperparameters = hyperparameters,
     tuner_config = tuner_config,
     outer_resampling_config = outer_resampling_config,

@@ -1,4 +1,4 @@
-# S7_Preprocessor.R
+# 090_Preprocessor.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -46,9 +46,9 @@ PreprocessorConfig <- new_class(
       enum = c("missRanger", "micePMM", "meanMode"),
       description = "Imputation method."
     ),
-    # A named parameter list; not JSON-scalar, injected into the schema via
-    # `.preprocessor_schema_extra`.
-    impute_missRanger_params = prop_external(class_list, default = list()),
+    impute_missRanger_params = prop_bag(
+      description = "Parameters passed to missRanger (e.g. pmm.k, maxiter, num.trees)."
+    ),
     impute_discrete = prop_string(
       "get_mode",
       description = "Function name to impute discrete features."
@@ -128,12 +128,21 @@ PreprocessorConfig <- new_class(
     ),
     scale = prop_boolean(FALSE, description = "Scale features."),
     center = prop_boolean(FALSE, description = "Center features."),
-    # Data-dependent (learned during preprocess); injected via
-    # `.preprocessor_schema_extra`.
-    scale_centers = prop_external(NULL | class_numeric, data_dependent = TRUE),
-    scale_coefficients = prop_external(
-      NULL | class_numeric,
-      data_dependent = TRUE
+    # Settable *and* run-written: `preprocess()` uses a supplied value in place
+    # of computing one, and stores what it computed when none was given. So it
+    # is config, not state -- `readOnly` would reject a legitimate input. A
+    # record marks it readOnly, where it genuinely was derived.
+    scale_centers = prop_map(
+      prop_float(0),
+      nullable = TRUE,
+      data_dependent = TRUE,
+      description = "Per-feature centering values, keyed by feature name."
+    ),
+    scale_coefficients = prop_map(
+      prop_float(0),
+      nullable = TRUE,
+      data_dependent = TRUE,
+      description = "Per-feature scaling values, keyed by feature name."
     ),
     remove_constants = prop_boolean(
       FALSE,
@@ -154,8 +163,12 @@ PreprocessorConfig <- new_class(
       description = "Names of features to remove."
     ),
     one_hot = prop_boolean(FALSE, description = "One-hot encode factors."),
-    # Data-dependent (learned during preprocess).
-    one_hot_levels = prop_external(NULL | class_list, data_dependent = TRUE),
+    one_hot_levels = prop_map(
+      prop_string("", vector = TRUE),
+      nullable = TRUE,
+      data_dependent = TRUE,
+      description = "Per-feature one-hot levels, keyed by feature name."
+    ),
     add_date_features = prop_boolean(
       FALSE,
       description = "Add date-derived features."
@@ -178,33 +191,6 @@ PreprocessorConfig <- new_class(
     )
   )
 ) # /PreprocessorConfig
-
-
-# %% .preprocessor_schema_extra ----
-# Schema fragments for PreprocessorConfig properties whose R types are not
-# expressible via the prop_* factories (a params object and the
-# data-dependent learned values). Merged into the generated schema so it
-# matches the shape consumed by the CLI. See generate_schemas.R.
-.preprocessor_schema_extra <- list(
-  properties = list(
-    impute_missRanger_params = list(
-      type = "object",
-      description = "Parameters passed to missRanger (e.g. pmm.k, maxiter, num.trees)."
-    ),
-    scale_centers = list(
-      type = I(c("object", "null")),
-      `$comment` = "Data-dependent: learned during preprocess(); per-feature scaling centers."
-    ),
-    scale_coefficients = list(
-      type = I(c("object", "null")),
-      `$comment` = "Data-dependent: learned during preprocess(); per-feature scaling coefficients."
-    ),
-    one_hot_levels = list(
-      type = I(c("object", "null")),
-      `$comment` = "Data-dependent: learned during preprocess(); per-feature one-hot levels."
-    )
-  )
-)
 
 
 # %% names.PreprocessorConfig ----
@@ -269,18 +255,19 @@ method(print, PreprocessorConfig) <- function(
 #' Creates a `PreprocessorConfig` object, which can be used in [preprocess].
 #'
 #' @param complete_cases Logical: If TRUE, only retain complete cases (no missing data).
-#' @param remove_cases_thres Float (0, 1): Remove cases with >= to this fraction
-#' of missing features.
-#' @param remove_features_thres Float (0, 1): Remove features with missing
-#' values in >= to this fraction of cases.
+#' @param remove_cases_thres Optional Numeric (0, 1]: Remove cases with >= to
+#' this fraction of missing features. 1 removes only fully-missing cases.
+#' @param remove_features_thres Optional Numeric (0, 1]: Remove features with
+#' missing values in >= to this fraction of cases. 1 removes only fully-missing
+#' features.
 #' @param missingness Logical: If TRUE, generate new boolean columns for each
 #' feature with missing values, indicating which cases were missing data.
 #' @param impute Logical: If TRUE, impute missing cases. See `impute_discrete` and
 #' `impute_continuous`.
 #' @param impute_type Character \{"missRanger", "micePMM", "meanMode"\}: Package to use for
 #'   imputation.
-#' @param impute_missRanger_params Named list with elements "pmm.k",
-#'   "maxiter", and "num.trees", which are passed to `missRanger::missRanger`. `pmm.k`
+#' @param impute_missRanger_params List: Parameters passed to
+#'   `missRanger::missRanger`, e.g. "pmm.k", "maxiter", "num.trees". `pmm.k`
 #'   greater than 0 results in predictive mean matching. Reduce `num.trees` for
 #'   faster imputation especially in large datasets. Set `pmm.k = 0` to
 #'   disable predictive mean matching.
@@ -299,20 +286,20 @@ method(print, PreprocessorConfig) <- function(
 #'   numeric.
 #' @param numeric2factor Logical: If TRUE, convert all numeric variables to
 #'   factors.
-#' @param numeric2factor_levels Character vector: Optional - will be passed to
+#' @param numeric2factor_levels Optional Character vector: Will be passed to
 #'   `levels` arg of `factor()` if `numeric2factor = TRUE`. For advanced/
 #'   specific use cases; need to know unique values of numeric vector(s) and given all
 #'   numeric vars have same unique values.
-#' @param numeric_cut_n Integer: If > 0, convert all numeric variables to factors by
+#' @param numeric_cut_n Integer [0, Inf): If > 0, convert all numeric variables to factors by
 #'   binning using `base::cut` with `breaks` equal to this number.
 #' @param numeric_cut_labels Logical: The `labels` argument of [base::cut].
-#' @param numeric_quant_n Integer: If > 0, convert all numeric variables to factors by
+#' @param numeric_quant_n Integer [0, Inf): If > 0, convert all numeric variables to factors by
 #'   binning using `base::cut` with `breaks` equal to this number of quantiles.
 #'   produced using `stats::quantile`.
 #' @param numeric_quant_NAonly Logical: If TRUE, only bin numeric variables with
 #'   missing values.
-#' @param unique_len2factor Integer (>=2): Convert all variables with less
-#'   than or equal to this number of unique values to factors.
+#' @param unique_len2factor Integer [0, Inf): Convert all variables with less
+#'   than or equal to this number of unique values to factors. 0 disables.
 #'   For example, if binary variables are encoded with 1, 2, you could use
 #'   `unique_len2factor = 2` to convert them to factors.
 #' @param character2factor Logical: If TRUE, convert all character variables to
@@ -329,20 +316,21 @@ method(print, PreprocessorConfig) <- function(
 #' @param factor2integer_startat0 Logical: If TRUE, start integer coding at 0.
 #' @param scale Logical: If TRUE, scale columns of `x`.
 #' @param center Logical: If TRUE, center columns of `x`. If unset, follows `scale`.
-#' @param scale_centers Named vector: Centering values for each feature.
-#' @param scale_coefficients Named vector: Scaling values for each feature.
+#' @param scale_centers Optional Named vector: Centering values for each feature.
+#' @param scale_coefficients Optional Named vector: Scaling values for each feature.
 #' @param remove_constants Logical: If TRUE, remove constant columns.
 #' @param remove_constants_skip_missing Logical: If TRUE, skip missing values, before
 #'   checking if feature is constant.
-#' @param remove_features Character vector: Features to remove.
+#' @param remove_features Optional Character vector: Features to remove.
 #' @param remove_duplicates Logical: If TRUE, remove duplicate cases.
 #' @param one_hot Logical: If TRUE, convert all factors using one-hot encoding.
-#' @param one_hot_levels List: Named list of the form "feature_name" = "levels". Used when applying
+#' @param one_hot_levels Optional List: Named list of the form "feature_name" = "levels". Used when applying
 #'   one-hot encoding to validation or test data using `Preprocessor`.
 #' @param add_date_features Logical: If TRUE, extract date features from date columns.
-#' @param date_features Character vector: Features to extract from dates.
+#' @param date_features Character \{"weekday", "month", "year"\} vector:
+#'   Features to extract from dates.
 #' @param add_holidays Logical: If TRUE, extract holidays from date columns.
-#' @param exclude Integer, vector: Exclude these columns from preprocessing.
+#' @param exclude Optional Integer vector: Exclude these columns from preprocessing.
 #'
 #' @section Order of Operations:
 #'
@@ -590,3 +578,34 @@ method(`[[`, Preprocessor) <- function(x, name) {
 method(preprocessed, Preprocessor) <- function(x) {
   x@preprocessed
 }
+
+
+# %% .list_to_PreprocessorConfig ----
+#' Convert a list to a PreprocessorConfig object
+#'
+#' Internal function used to reconstruct a `PreprocessorConfig` object from a
+#' named list, such as the result of parsing a JSON config conforming to the
+#' schema.rtemis.org preprocessor schema. Elements are passed to
+#' [setup_Preprocessor]; document metadata (`$schema`) is dropped first, since
+#' it identifies the document rather than naming a parameter.
+#'
+#' The learned values (`scale_centers`, `scale_coefficients`, `one_hot_levels`)
+#' are `readOnly` in the schema, so a user-authored config carries none and the
+#' `setup_*` defaults leave them unset. A config that does carry them -- a
+#' fitted preprocessor written back out -- restores them, which is why they are
+#' serialized at all (see "Property roles" in `010_Props.R`).
+#'
+#' @param x Named list of `setup_Preprocessor` parameters.
+#'
+#' @return A `PreprocessorConfig` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+#' @examples
+#' .list_to_PreprocessorConfig(list(scale = TRUE, center = TRUE))
+.list_to_PreprocessorConfig <- function(x) {
+  args <- from_wire_maps(.drop_meta_keys(x), PreprocessorConfig)
+  check_wire_keys(args, names(formals(setup_Preprocessor)), "preprocessor")
+  do.call(setup_Preprocessor, args)
+} # /rtemis::.list_to_PreprocessorConfig

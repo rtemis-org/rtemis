@@ -38,15 +38,10 @@ method(train_, RangerHyperparameters) <- function(
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-  # mtry cannot be larger than number of features
-  if (any(hyperparameters@hyperparameters[["mtry"]] > NCOL(features(x)))) {
-    rtemis.core::abort(
-      "mtry cannot be greater than number of features: ",
-      ncol(features(x)),
-      ".",
-      class = c("rtemis_range_error", "rtemis_input_error")
-    )
-  }
+  # Data-dependent constraints (mtry, case_weights, class_weights,
+  # always_split_variables) are declared via `data_bound` on the properties and
+  # checked by train() via validate_hyperparameters(), before tuning and again
+  # before this call.
 
   # Data ----
   check_supervised(
@@ -166,36 +161,3 @@ method(varimp_super, class_ranger) <- function(model) {
     )
   )
 } # /rtemis::varimp_super.class_ranger
-
-
-# %% validate_hyperparameters.RangerHyperparameters ----
-#' Validate Ranger Hyperparameters
-#'
-#' Validate Ranger Hyperparameters given training data.
-#'
-#' @param x tabular data: Training data.
-#' @param hyperparameters `RangerHyperparameters`: Hyperparameters to check.
-#'
-#' @return NULL. Will throw error if hyperparameters are invalid.
-#'
-#' @keywords internal
-#' @noRd
-method(validate_hyperparameters, RangerHyperparameters) <- function(
-  x,
-  hyperparameters
-) {
-  check_is_S7(x, class_data.frame)
-  check_is_S7(hyperparameters, RangerHyperparameters)
-
-  # Check mtry
-  if (any(hyperparameters@hyperparameters[["mtry"]] > NCOL(features(x)))) {
-    rtemis.core::abort(
-      "mtry cannot be greater than number of features: ",
-      ncol(features(x)),
-      ".",
-      class = c("rtemis_range_error", "rtemis_input_error")
-    )
-  }
-
-  hyperparameters
-} # /rtemis::validate_hyperparameters.RangerHyperparameters

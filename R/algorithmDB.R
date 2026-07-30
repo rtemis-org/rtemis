@@ -110,20 +110,44 @@ get_train_fn <- function(algorithm) {
   paste0("train_", get_alg_name(algorithm))
 } # /rtemis::get_train_fn
 
-get_default_hyperparameters <- function(algorithm, type, ncols) {
-  alg_name <- get_alg_name(algorithm)
-  if (alg_name == "LightRF") {
-    setup_LightRF(
-      feature_fraction = if (type == "Classification") {
-        sqrt(ncols) / ncols
-      } else {
-        0.33
-      }
-    )
-  } else {
-    do.call(paste0("setup_", get_alg_name(algorithm)), list())
-  }
+get_default_hyperparameters <- function(algorithm) {
+  do.call(paste0("setup_", get_alg_name(algorithm)), list())
 } # /rtemis::get_default_hyperparameters
+
+
+#' Resolve a `fit` name and optional hyperparameters
+#'
+#' The `draw_*(fit = )` argument names an algorithm as a string, following the
+#' plotting convention, so those functions need a name-to-`Hyperparameters`
+#' bridge that the rest of the API does not.
+#'
+#' @param fit Character: Algorithm name.
+#' @param fit_params Optional `Hyperparameters` object: Hyperparameters for
+#' `fit`.
+#'
+#' @return `Hyperparameters` object.
+#'
+#' @author EDG
+#'
+#' @keywords internal
+#' @noRd
+resolve_fit_hyperparameters <- function(fit, fit_params) {
+  if (is.null(fit_params)) {
+    return(get_default_hyperparameters(fit))
+  }
+  check_is_S7(fit_params, Hyperparameters)
+  if (tolower(fit) != tolower(fit_params@algorithm)) {
+    rtemis.core::abort(
+      "`fit` is '",
+      fit,
+      "', but `fit_params` defines hyperparameters for ",
+      fit_params@algorithm,
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  fit_params
+} # /rtemis::resolve_fit_hyperparameters
 
 
 # Clustering ----
@@ -253,6 +277,10 @@ get_decom_predict_fn <- function(algorithm) {
 #'
 #' Print available algorithms for supervised learning, clustering, and decomposition.
 #'
+#' Each algorithm is set up with `setup_{Algorithm}()`, using the name printed
+#' here: `setup_LightGBM()`, `setup_KMeans()`, `setup_PCA()`. Pass the result to
+#' [train], [cluster], or [decomp].
+#'
 #' @rdname available_algorithms
 #' @aliases available_algorithms
 #'
@@ -263,6 +291,8 @@ get_decom_predict_fn <- function(algorithm) {
 #' @export
 #' @examples
 #' available_supervised()
+#' # Train with one of them, at its default hyperparameters:
+#' # train(iris, hyperparameters = setup_LightGBM())
 available_supervised <- function(verbosity = 1L) {
   algs <- structure(
     supervised_algorithms[, 2],

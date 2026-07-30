@@ -29,13 +29,13 @@ test_that("setup_SuperConfigLive returns a SuperConfigLive with expected props",
   dt <- small_regression_dt()
   cfg <- setup_SuperConfigLive(
     dat_training = dt,
-    algorithm = "glm"
+    hyperparameters = setup_GLM()
   )
   expect_true(S7_inherits(cfg, SuperConfigLive))
   expect_identical(cfg@dat_training, dt)
   expect_null(cfg@dat_validation)
   expect_null(cfg@dat_test)
-  expect_equal(cfg@algorithm, "glm")
+  expect_equal(cfg@hyperparameters@algorithm, "GLM")
   expect_null(cfg@outdir)
 })
 
@@ -48,7 +48,7 @@ test_that("setup_SuperConfigLive enforces tabular type on dat_training", {
 
 test_that("setup_SuperConfigLive accepts a data.frame (not just data.table)", {
   df <- data.frame(x = 1:5, y = rnorm(5))
-  cfg <- setup_SuperConfigLive(dat_training = df, algorithm = "glm")
+  cfg <- setup_SuperConfigLive(dat_training = df, hyperparameters = setup_GLM())
   expect_s3_class(cfg@dat_training, "data.frame")
 })
 
@@ -59,7 +59,7 @@ test_that("train(SuperConfigLive) runs end-to-end for a simple GLM regression", 
   dt <- small_regression_dt(seed = 2031L)
   cfg <- setup_SuperConfigLive(
     dat_training = dt,
-    algorithm = "glm",
+    hyperparameters = setup_GLM(),
     verbosity = 0L
   )
   mod <- train(cfg)
@@ -74,7 +74,7 @@ test_that("train(SuperConfigLive) accepts an in-memory validation split", {
   cfg <- setup_SuperConfigLive(
     dat_training = dt,
     dat_validation = val,
-    algorithm = "glm",
+    hyperparameters = setup_GLM(),
     verbosity = 0L
   )
   mod <- train(cfg)

@@ -44,6 +44,10 @@ resample <- function(
   verbosity = 1L
 ) {
   check_is_S7(config, ResamplerConfig)
+  # `id_strat` declares `data_bound = "n_cases"`, so its length is checked here
+  # rather than at each caller. A resampler bounds nothing feature-related, so
+  # `x` may be the bare outcome vector as well as a data frame.
+  check_data_bounds(config, x)
   # Input ----
   type <- config@type
   if (NCOL(x) > 1) {
@@ -89,7 +93,7 @@ resample <- function(
     }
   }
 
-  n_resamples <- if (type == "LOOCV") length(x) else config@n
+  n_resamples <- if (type == "LOOCV") length(x) else config@n_resamples
 
   # Print config ----
   if (verbosity > 1L) {
@@ -129,7 +133,7 @@ resample <- function(
     ## LOOCV ----
     res_part <- loocv(x = x)
     # Get number of resamples
-    config@n <- length(res_part)
+    config@n_resamples <- length(res_part)
   } else if (type == "StratBoot") {
     ## StratBoot ----
     res_part <- strat_boot(

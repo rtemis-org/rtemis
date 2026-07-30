@@ -93,3 +93,51 @@ test_that("decomp() Isomap succeeds", {
   iris_isomap <- decomp(x, algorithm = "isomap", config = setup_Isomap())
   expect_s7_class(iris_isomap, Decomposition)
 })
+
+
+# features selection ----
+test_that("decomp() fits on config@features, so apply_decomp() replays it", {
+  config <- setup_PCA(k = 2L, features = c("Sepal.Length", "Sepal.Width"))
+  fit <- decomp(x, algorithm = "PCA", config = config, verbosity = 0L)
+  # Fitted on the two selected columns only: applying to the same data must
+  # work, and the undecomposed columns come back alongside the components.
+  applied <- apply_decomp(fit, x, verbosity = 0L)
+  expect_identical(
+    names(applied),
+    c("Petal.Length", "Petal.Width", "PC1", "PC2")
+  )
+  # A fit that used all four columns could not be replayed against two.
+  expect_identical(ncol(fit@transformed), 2L)
+})
+
+test_that("decomp() validates config@features against the data", {
+  expect_error(
+    decomp(
+      iris,
+      algorithm = "PCA",
+      config = setup_PCA(k = 2L, features = c("Sepal.Length", "Species")),
+      verbosity = 0L
+    ),
+    "must name numeric training features"
+  )
+  expect_error(
+    decomp(
+      x,
+      algorithm = "PCA",
+      config = setup_PCA(k = 2L, features = c("Sepal.Length", "nope")),
+      verbosity = 0L
+    ),
+    class = "rtemis_value_error"
+  )
+})
+
+test_that("an unset features decomposes every column", {
+  fit <- decomp(
+    x,
+    algorithm = "PCA",
+    config = setup_PCA(k = 2L),
+    verbosity = 0L
+  )
+  expect_null(fit@config@features)
+  expect_identical(names(apply_decomp(fit, x, verbosity = 0L)), c("PC1", "PC2"))
+})

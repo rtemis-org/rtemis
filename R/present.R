@@ -28,12 +28,12 @@
 #' \dontrun{
 #' iris_lightrf <- train(
 #'   iris,
-#'   algorithm = "lightrf",
+#'   hyperparameters = setup_LightRF(),
 #'   outer_resampling_config = setup_Resampler(seed = 2026)
 #' )
 #' iris_rsvm <- train(
 #'   iris,
-#'   algorithm = "radialsvm",
+#'   hyperparameters = setup_RadialSVM(),
 #'   outer_resampling_config = setup_Resampler(seed = 2026)
 #' )
 #' present(list(iris_lightrf, iris_rsvm), metric = "balanced_accuracy")
@@ -74,6 +74,12 @@ method(present, class_list) <- function(
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
+
+  # Warn if the models were not trained on the same data ----
+  # Comparing metrics across models trained on different inputs is the silent
+  # failure this catches. A warning, not an error: it is occasionally
+  # deliberate, and the user is the one who can tell.
+  warn_fingerprint_mismatch(x)
 
   # Describe
   if (verbosity > 0L) {

@@ -15,9 +15,11 @@
 #' model's training data.
 #'
 #' @param x `Classification` object.
-#' @param predicted_probabilities Numeric vector: Predicted probabilities.
+#' @param predicted_probabilities Numeric vector \[0, 1\]: Predicted
+#'   probabilities of the positive class, one per case. `@predicted_prob_*`
+#'   holds them as a one-column matrix, so pass `positive_prob()` of it or
+#'   index the column.
 #' @param true_labels Factor: True class labels.
-#' @param algorithm Character: Algorithm to use to train calibration model.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used
@@ -40,11 +42,11 @@
 #' mod_c_glm <- train(
 #'   x = datc2_train,
 #'   dat_test = datc2_test,
-#'   algorithm = "glm"
+#'   hyperparameters = setup_GLM()
 #' )
 #' mod_c_glm_cal <- calibrate(
 #'   mod_c_glm,
-#'   predicted_probabilities = mod_c_glm$predicted_prob_training,
+#'   predicted_probabilities = mod_c_glm$predicted_prob_training[, 1L],
 #'   true_labels = mod_c_glm$y_training
 #' )
 #' mod_c_glm_cal
@@ -52,12 +54,12 @@ method(calibrate, Classification) <- function(
   x,
   predicted_probabilities,
   true_labels,
-  algorithm = "isotonic",
-  hyperparameters = NULL,
+  hyperparameters = setup_Isotonic(),
   verbosity = 1L,
   ...
 ) {
   # Check inputs
+  predicted_probabilities <- positive_prob(predicted_probabilities)
   check_float01inc(predicted_probabilities)
   check_inherits(true_labels, "factor")
 
@@ -66,7 +68,7 @@ method(calibrate, Classification) <- function(
   # Test data is taken from mod, if available
   if (!is.null(x@y_test) && !is.null(x@predicted_prob_test)) {
     dat_test <- data.table(
-      predicted_probabilities = x@predicted_prob_test,
+      predicted_probabilities = positive_prob(x@predicted_prob_test),
       true_labels = x@y_test
     )
   } else {
@@ -84,7 +86,6 @@ method(calibrate, Classification) <- function(
   cal_model <- train(
     dat,
     dat_test = dat_test,
-    algorithm = algorithm,
     hyperparameters = hyperparameters,
     verbosity = verbosity
   )
@@ -106,7 +107,6 @@ method(calibrate, Classification) <- function(
 #' Calibrate Resampled Classification Models
 #'
 #' @param x `ClassificationRes` object.
-#' @param algorithm Character: Algorithm to use to train calibration model.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param resampler_config `ResamplerConfig` object: Configuration for resampling during calibration model training.
 #' @param train_verbosity Integer: Verbosity level for training calibration models.
@@ -119,8 +119,7 @@ method(calibrate, Classification) <- function(
 #' @noRd
 method(calibrate, ClassificationRes) <- function(
   x,
-  algorithm = "isotonic",
-  hyperparameters = NULL,
+  hyperparameters = setup_Isotonic(),
   resampler_config = setup_Resampler(
     n_resamples = 5L,
     type = "KFold"
@@ -130,12 +129,12 @@ method(calibrate, ClassificationRes) <- function(
   ...
 ) {
   # Check inputs
-  check_inherits(algorithm, "character")
+  check_is_S7(hyperparameters, Hyperparameters)
   check_is_S7(resampler_config, ResamplerConfig)
   verbosity <- clean_int(verbosity)
 
   # Check IFW is FALSE
-  if (!is.null(hyperparameters) && hyperparameters[["ifw"]]) {
+  if (isTRUE(hyperparameters[["ifw"]])) {
     rtemis.core::abort(
       "IFW must be FALSE for proper calibration.",
       class = c("rtemis_value_error", "rtemis_input_error")
@@ -155,12 +154,11 @@ method(calibrate, ClassificationRes) <- function(
     x@models,
     function(mod) {
       dat <- data.table(
-        predicted_probabilities = mod@predicted_prob_test,
+        predicted_probabilities = positive_prob(mod@predicted_prob_test),
         true_labels = mod@y_test
       )
       train(
         dat,
-        algorithm = algorithm,
         hyperparameters = hyperparameters,
         outer_resampling_config = resampler_config,
         verbosity = train_verbosity

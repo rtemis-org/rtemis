@@ -1029,7 +1029,7 @@ poly_xys <- function(xs, ys, d, pad = 1, bpadcx = .5, bpadcy = .5) {
     }) |>
     unlist()
 
-  # centre ----
+  # center ----
   dr <- rev(d)
   dkr <- rev(dk)
   xsr <- rev(xs)

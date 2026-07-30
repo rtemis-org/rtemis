@@ -1,4 +1,4 @@
-# S7_Decomposition.R
+# 170_Decomposition.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -23,7 +23,11 @@ Decomposition <- new_class(
     algorithm = class_character,
     config = DecompositionConfig,
     decom = class_any,
-    transformed = class_any
+    transformed = class_any,
+    # The run's input. `@config` above is the *algorithm* config; this is the
+    # whole call, and only it can say what the run was asked to do. Assigned by
+    # `decomp()`.
+    decompose_config = NULL | DecomposeConfig
   )
 ) # /rtemis::Decomposition
 
@@ -167,11 +171,13 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
 #' Internal function used by `rtemis.server` and `SuperConfig` deserialization
 #' to reconstruct a `DecompositionConfig` object from a named list. The list
 #' must carry an `algorithm` element naming a decomposition algorithm that can
-#' be applied on new data (see `decom_algorithms_applicable`); the remaining
-#' elements are passed to that algorithm's `setup_*` function.
+#' be applied on new data (see `decom_algorithms_applicable`); the elements of
+#' `config`, along with `features`, are passed to that algorithm's `setup_*`
+#' function.
 #'
-#' @param x Named list with an `algorithm` element plus algorithm-specific
-#'   parameters, e.g. `list(algorithm = "PCA", k = 3L)`.
+#' @param x Named list with an `algorithm` element, algorithm-specific
+#'   parameters nested under `config`, and optionally `features`, e.g.
+#'   `list(algorithm = "PCA", config = list(k = 3L))`.
 #'
 #' @return A `DecompositionConfig` object (an algorithm-specific subclass).
 #'
@@ -179,7 +185,7 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
 #' @keywords internal
 #' @export
 #' @examples
-#' .list_to_DecompositionConfig(list(algorithm = "PCA", k = 3L))
+#' .list_to_DecompositionConfig(list(algorithm = "PCA", config = list(k = 3L)))
 .list_to_DecompositionConfig <- function(x) {
   algorithm <- x[["algorithm"]]
   if (is.null(algorithm)) {
@@ -201,20 +207,20 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
   }
   # Normalize casing and drop `algorithm` before forwarding to the setup fn.
   algorithm <- get_decom_name(algorithm)
-  # Params may arrive flat (UI / server: `list(algorithm, k, ..., features)`) or
-  # nested under `config` (S7_to_list serialization of a DecompositionConfig, as
-  # written by `write_config()`). In the nested shape `features` is a sibling of
-  # `config`, so it is re-attached explicitly. In the flat shape, drop
-  # `algorithm`. Either way `.drop_meta_keys()` removes document metadata
-  # (e.g. `$schema`), which is not a setup arg.
-  params <- if (is.list(x[["config"]])) {
-    c(
-      .drop_meta_keys(x[["config"]]),
-      if (!is.null(x[["features"]])) list(features = x[["features"]])
-    )
-  } else {
-    .drop_meta_keys(x[names(x) != "algorithm"])
-  }
+  # One shape: `{algorithm, config, features?}`, which is what the published
+  # schema declares -- a flat `{algorithm, k, ...}` is rejected by it, so
+  # accepting one here would take input the contract does not. `features` is a
+  # sibling of `config`, so it is re-attached explicitly. `.drop_meta_keys()`
+  # removes document metadata (e.g. `$schema`), which is not a setup arg.
+  check_wire_keys(
+    x,
+    c("algorithm", "config", "features"),
+    "decomposition config"
+  )
+  params <- c(
+    .drop_meta_keys(x[["config"]]),
+    if (!is.null(x[["features"]])) list(features = x[["features"]])
+  )
   # `features` may arrive from the wire as a list of scalars (a JSON array parsed
   # without vector simplification); flatten it to a character vector so the
   # strict `setup_*` check accepts it.
@@ -223,5 +229,11 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
       unlist(params[["features"]], use.names = FALSE)
     )
   }
-  do.call(get_decom_setup_fn(algorithm), params)
+  setup_fn <- get_decom_setup_fn(algorithm)
+  check_wire_keys(
+    params,
+    names(formals(setup_fn)),
+    paste(algorithm, "decomposition")
+  )
+  do.call(setup_fn, params)
 } # /rtemis::.list_to_DecompositionConfig

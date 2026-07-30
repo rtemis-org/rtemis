@@ -1,4 +1,4 @@
-# 17_ClusterConfig.R
+# 130_ClusterConfig.R
 # ::rtemis::
 # 2026- EDG rtemis.org
 
@@ -98,7 +98,7 @@ method(print, ClusterConfig) <- function(x, output_type = NULL, ...) {
 #' the clustering itself. Setup with a clustering `setup_*` function, e.g.
 #' [setup_KMeans]. If NULL, defaults for `algorithm` are used at [cluster] time.
 #' @param outdir Character: Output directory for results.
-#' @param verbosity Integer: Verbosity level.
+#' @param verbosity Integer [0, Inf): Verbosity level.
 #'
 #' @return `ClusterConfig` object.
 #'
@@ -149,6 +149,7 @@ setup_ClusterConfig <- function(
 #' @keywords internal
 #' @noRd
 .list_to_ClusterConfig <- function(x) {
+  check_wire_keys(x, names(ClusterConfig@properties), "cluster config")
   args <- list(
     dat_path = x[["dat_path"]],
     algorithm = x[["algorithm"]],

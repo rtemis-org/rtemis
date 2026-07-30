@@ -1,4 +1,4 @@
-# S7_Supervised.R
+# 200_Supervised.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -99,6 +99,12 @@ method(print, VariableImportance) <- function(x, output_type = NULL, ...) {
 # RegressionRes: plot_metric, plot_true_pred,
 # ClassificationRes: plot_metric, plot_true_pred, plot_roc
 
+# %% SUPERVISED_TYPES ----
+# The two kinds of supervised learning rtemis performs, decided by the outcome:
+# a factor gives Classification, anything numeric gives Regression.
+SUPERVISED_TYPES <- c("Regression", "Classification")
+
+
 # %% Supervised ----
 #' Supervised
 #'
@@ -112,29 +118,57 @@ Supervised <- new_class(
   package = "rtemis",
   properties = list(
     algorithm = class_character,
-    model = class_any,
-    type = class_character,
+    # The fitted backend object: an `rpart` tree, an `lgb.Booster`. It has no
+    # wire form and never will, and unlike a computed view nothing published
+    # can reconstruct it -- the saved `.rds` is its only carrier.
+    model = prop_r_only(new_property(class_any)),
+    # No default: the kind of learning follows from the outcome, so there is no
+    # value a class definition could honestly supply. NULL is the unset value,
+    # and a constructor that failed to set it fails at first use rather than
+    # claiming to be one of the two.
+    type = prop_string(
+      NULL,
+      enum = SUPERVISED_TYPES,
+      nullable = TRUE,
+      description = "Kind of supervised learning the model performs."
+    ),
     preprocessor = NULL | Preprocessor,
     preprocessor_internal = NULL | Preprocessor,
     decomposition = NULL | Decomposition,
     hyperparameters = NULL | Hyperparameters,
     tuner = NULL | Tuner,
     execution_config = ExecutionConfig,
-    y_training = class_any,
-    y_validation = class_any,
-    y_test = class_any,
-    predicted_training = class_any,
-    predicted_validation = class_any,
-    predicted_test = class_any,
+    # The outcome, in the same shape as the predictions it is compared against:
+    # numeric for regression, a factor of its levels for classification.
+    y_training = class_numeric | class_factor,
+    y_validation = NULL | class_numeric | class_factor,
+    y_test = NULL | class_numeric | class_factor,
+    # Regression predicts numeric, classification predicts a factor of the
+    # outcome's levels; there is no third case.
+    predicted_training = class_numeric | class_factor,
+    predicted_validation = NULL | class_numeric | class_factor,
+    predicted_test = NULL | class_numeric | class_factor,
     metrics_training = Metrics,
     metrics_validation = NULL | Metrics,
     metrics_test = NULL | Metrics,
     xnames = class_character,
     varimp = NULL | VariableImportance,
     question = NULL | class_character,
-    extra = class_any,
-    session_info = class_any,
-    session = NULL | SupervisedSession
+    # Provenance. `session_info` is a full `utils::sessionInfo()` -- the first
+    # thing asked for when troubleshooting -- and `session` is the run timeline.
+    # `data_fingerprint` identifies the training data itself, so that comparing
+    # models trained on different inputs is detectable rather than silent.
+    data_fingerprint = NULL | DataFingerprint,
+    # R-specific by construction, and what a consumer outside R would want
+    # from it -- versions, platform -- is what `Provenance` publishes.
+    session_info = prop_r_only(new_property(class_any)),
+    session = NULL | SupervisedSession,
+    # The run's *input*, which nothing else here carries: the hyperparameters on
+    # this object are the ones that ran, resolved, and only the input says what
+    # was asked for. `record()` needs both to state where each value came from.
+    # Assigned by `train()` after construction rather than threaded through five
+    # constructors that have no use for it.
+    config = NULL | SuperConfig
   ),
   constructor = function(
     algorithm,
@@ -158,7 +192,7 @@ Supervised <- new_class(
     xnames,
     varimp,
     question,
-    extra
+    data_fingerprint = NULL
   ) {
     new_object(
       S7_object(),
@@ -183,7 +217,7 @@ Supervised <- new_class(
       xnames = xnames,
       varimp = varimp,
       question = question,
-      extra = extra,
+      data_fingerprint = data_fingerprint,
       session_info = utils::sessionInfo(),
       session = NULL
     )
@@ -191,25 +225,26 @@ Supervised <- new_class(
 ) # /rtemis::Supervised
 
 
-# %% predict_supervised_ ----
-#' Run the `Supervised` prediction pipeline
+# %% supervised_features ----
+#' Put `newdata` in the shape the fitted backend was trained on
 #'
 #' Re-applies, in order, the stored user preprocessor, decomposition, and
-#' algorithm-internal preprocessor to `newdata`, enforces predictor names/order,
-#' then calls `predict_super()`. Shared by `predict.Supervised` and
-#' `predict.CalibratedClassification` (the latter cannot call its parent method
-#' directly because `predict` is an S3/base generic, not an S7 generic).
+#' algorithm-internal preprocessor, then enforces predictor names and order.
+#'
+#' Extracted so that everything querying the backend goes through one
+#' definition: predictions and standard errors computed from differently
+#' transformed features would be silently mismatched.
 #'
 #' @param object `Supervised` object.
-#' @param newdata tabular data: New data to predict.
+#' @param newdata tabular data: New data.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return Output of `predict_super()` (raw predictions / probabilities).
+#' @return `newdata`, transformed.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-predict_supervised_ <- function(object, newdata, verbosity = 1L) {
+supervised_features <- function(object, newdata, verbosity = 1L) {
   check_inherits(newdata, "data.frame")
 
   # Apply user-specified preprocessor if available
@@ -266,13 +301,46 @@ predict_supervised_ <- function(object, newdata, verbosity = 1L) {
     )
   }
 
-  # Call predict_super with fully preprocessed data
-  predict_super(
+  newdata
+} # /rtemis::supervised_features
+
+
+# %% predict_supervised_ ----
+#' Run the `Supervised` prediction pipeline
+#'
+#' Transforms `newdata` with `supervised_features()`, then calls
+#' `predict_super()`. Shared by `predict.Supervised` and
+#' `predict.CalibratedClassification` (the latter cannot call its parent method
+#' directly because `predict` is an S3/base generic, not an S7 generic).
+#'
+#' @param object `Supervised` object.
+#' @param newdata tabular data: New data to predict.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Output of `predict_super()` (raw predictions / probabilities).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+predict_supervised_ <- function(object, newdata, verbosity = 1L) {
+  predicted <- predict_super(
     model = object@model,
-    newdata = newdata,
+    newdata = supervised_features(object, newdata, verbosity = verbosity),
     type = object@type,
     verbosity = verbosity
   )
+  # Classification predictions are probabilities, and each backend reduces the
+  # binary case to a bare vector in its own way. Normalized here so that
+  # `predict()` returns what `@predicted_prob_*` holds: two names for the same
+  # quantity must not have two shapes.
+  if (object@type == "Classification") {
+    predicted <- prob_matrix(
+      predicted,
+      levels(object@y_training),
+      object@binclasspos
+    )
+  }
+  predicted
 } # /rtemis::predict_supervised_
 
 
@@ -307,14 +375,30 @@ method(fitted, Supervised) <- function(object, ...) {
 # %% se.Supervised ----
 #' Standard Error `Supervised`
 #'
-#' Standard Error Method for `Supervised` objects
+#' Standard errors of the fit for `newdata`, or NULL when the algorithm
+#' produces none -- only linear and additive models do, which is why this is
+#' computed here rather than stored on every regression result.
 #'
-#' @param object `Supervised` object.
+#' Routed through the same pipeline as [predict], so a stored preprocessor,
+#' decomposition and algorithm-internal preprocessor are re-applied before the
+#' backend is queried. Computing standard errors on raw `newdata` while
+#' predictions come from transformed features would silently pair the two.
+#'
+#' @param x `Supervised` object.
+#' @param newdata tabular data: Data to compute standard errors for.
+#' @param verbosity Integer: Verbosity level.
 #'
 #' @keywords internal
 #' @noRd
-method(se, Supervised) <- function(x, ...) {
-  x@se_training
+method(se, Supervised) <- function(x, newdata, verbosity = 0L) {
+  features <- supervised_features(x, newdata, verbosity = verbosity)
+  # Only linear and additive models define `se_super()`. Anything else has no
+  # standard error, which is an answer rather than a failure -- so a missing
+  # method reads as NULL instead of propagating S7's dispatch error.
+  tryCatch(
+    se_super(model = x@model, newdata = features),
+    S7_error_method_not_found = function(e) NULL
+  )
 }
 
 
@@ -559,10 +643,9 @@ method(repr, Supervised) <- function(
 #'
 #' Convert a `Supervised` (or `Regression` / `Classification` /
 #' `CalibratedClassification`) object to a JSON-serializable list. Excludes
-#' the model object, full prediction vectors, full outcome vectors, the
-#' R session_info, and `extra` — all of which are either not JSON-friendly,
-#' too large for the control-plane response, or fetched separately as
-#' Arrow IPC bulk data.
+#' the model object, the full prediction and outcome vectors, and the R
+#' session_info -- all of which are either not JSON-friendly, too large for the
+#' control-plane response, or fetched separately as Arrow IPC bulk data.
 #'
 #' @param x `Supervised` object.
 #'
@@ -572,7 +655,7 @@ method(repr, Supervised) <- function(
 #' @keywords internal
 #' @noRd
 method(to_json, Supervised) <- function(x, ...) {
-  # Use `.to_json_value()` for every prop — it handles nested S7 objects,
+  # Use `.to_json_value()` for every prop -- it handles nested S7 objects,
   # nested lists containing S7 objects, and primitive types uniformly,
   # including props that may be NULL (e.g. `varimp` is either a
   # `VariableImportance` object or NULL).
@@ -603,10 +686,6 @@ method(to_json, Supervised) <- function(x, ...) {
   # Subclass-specific extras
   if (prop_exists(x, "binclasspos")) {
     out[["binclasspos"]] <- x@binclasspos
-  }
-  if (prop_exists(x, "se_training")) {
-    # Regression: don't serialize full SE vectors (large); flag presence only
-    out[["has_se"]] <- !is.null(x@se_training)
   }
   if (prop_exists(x, "calibration_model")) {
     out[["calibration_model"]] <- .to_json_value(x@calibration_model)
@@ -854,7 +933,7 @@ method(desc, Supervised) <- function(x) {
 #' @noRd
 #'
 #' @examples
-#' species_lightrf <- train(iris, algorithm = "lightrf")
+#' species_lightrf <- train(iris, hyperparameters = setup_LightRF())
 #' describe(species_lightrf)
 method(describe, Supervised) <- function(x, verbosity = 1L) {
   descx <- desc(x)
@@ -878,9 +957,13 @@ Classification <- new_class(
   package = "rtemis",
   parent = Supervised,
   properties = list(
-    predicted_prob_training = NULL | class_double | class_data.frame,
-    predicted_prob_validation = NULL | class_double | class_data.frame,
-    predicted_prob_test = NULL | class_double | class_data.frame,
+    # One row per case, one column per class -- and one column, the positive
+    # class's probability, in the binary case, where every backend reduces to a
+    # single score. `prob_matrix()` normalizes whatever the backend returned, so
+    # the shape is the same for every algorithm and every class count.
+    predicted_prob_training = NULL | class_matrix,
+    predicted_prob_validation = NULL | class_matrix,
+    predicted_prob_test = NULL | class_matrix,
     binclasspos = class_integer
   ),
   constructor = function(
@@ -901,12 +984,28 @@ Classification <- new_class(
     xnames = NULL,
     varimp = NULL,
     question = NULL,
-    extra = NULL,
+    data_fingerprint = NULL,
     predicted_prob_training = NULL,
     predicted_prob_validation = NULL,
     predicted_prob_test = NULL,
     binclasspos = 2L
   ) {
+    classes <- levels(y_training)
+    predicted_prob_training <- prob_matrix(
+      predicted_prob_training,
+      classes,
+      binclasspos
+    )
+    predicted_prob_validation <- prob_matrix(
+      predicted_prob_validation,
+      classes,
+      binclasspos
+    )
+    predicted_prob_test <- prob_matrix(
+      predicted_prob_test,
+      classes,
+      binclasspos
+    )
     metrics_training <- classification_metrics(
       true_labels = y_training,
       predicted_labels = predicted_training,
@@ -956,7 +1055,7 @@ Classification <- new_class(
         xnames = xnames,
         varimp = varimp,
         question = question,
-        extra = extra
+        data_fingerprint = data_fingerprint
       ),
       predicted_prob_training = predicted_prob_training,
       predicted_prob_validation = predicted_prob_validation,
@@ -982,45 +1081,55 @@ CalibratedClassification <- new_class(
   parent = Classification,
   properties = list(
     calibration_model = Supervised,
-    predicted_training_calibrated = class_vector,
-    predicted_validation_calibrated = NULL | class_vector,
-    predicted_test_calibrated = NULL | class_vector,
-    predicted_prob_training_calibrated = class_double,
-    predicted_prob_validation_calibrated = NULL | class_double,
-    predicted_prob_test_calibrated = NULL | class_double,
+    # `prob2categorical()` builds these, so they are always factors: the class
+    # is calibrated *classification*, with no regression arm to widen for.
+    predicted_training_calibrated = class_factor,
+    predicted_validation_calibrated = NULL | class_factor,
+    predicted_test_calibrated = NULL | class_factor,
+    predicted_prob_training_calibrated = class_matrix,
+    predicted_prob_validation_calibrated = NULL | class_matrix,
+    predicted_prob_test_calibrated = NULL | class_matrix,
     metrics_training_calibrated = Metrics,
     metrics_validation_calibrated = NULL | Metrics,
     metrics_test_calibrated = NULL | Metrics
   ),
   constructor = function(classification_model, calibration_model) {
     # Predict calibrated probabilities of classification model datasets
-    predicted_prob_training_calibrated <- predict(
+    # Calibrated probabilities are probabilities: same shape rule as the
+    # uncalibrated ones, so a consumer reads either without branching.
+    predicted_prob_training_calibrated <- prob_matrix(predict(
       calibration_model,
       data.frame(
-        predicted_probabilities = classification_model@predicted_prob_training
-      ),
-    )
+        predicted_probabilities = positive_prob(
+          classification_model@predicted_prob_training
+        )
+      )
+    ))
     predicted_prob_validation_calibrated <- if (
       !is.null(classification_model@predicted_prob_validation)
     ) {
-      predict(
+      prob_matrix(predict(
         calibration_model,
         data.frame(
-          predicted_probabilities = classification_model@predicted_prob_validation
+          predicted_probabilities = positive_prob(
+            classification_model@predicted_prob_validation
+          )
         )
-      )
+      ))
     } else {
       NULL
     }
     predicted_prob_test_calibrated <- if (
       !is.null(classification_model@predicted_prob_test)
     ) {
-      predict(
+      prob_matrix(predict(
         calibration_model,
         data.frame(
-          predicted_probabilities = classification_model@predicted_prob_test
+          predicted_probabilities = positive_prob(
+            classification_model@predicted_prob_test
+          )
         )
-      )
+      ))
     } else {
       NULL
     }
@@ -1103,15 +1212,15 @@ method(predict, CalibratedClassification) <- function(object, newdata, ...) {
   # underlying model is queried. `predict` is an S3/base generic, so the parent
   # `Supervised` method cannot be invoked via `super()`; call the shared pipeline
   # helper instead.
-  raw_prob <- predict_supervised_(object, newdata)
+  # Calibration maps one score per case, so the positive class's column is what
+  # the calibration model was fitted on.
+  raw_prob <- positive_prob(predict_supervised_(object, newdata))
   # Get the calibration model's predicted probabilities
   predict(
     object@calibration_model,
     newdata = data.frame(predicted_probabilities = raw_prob)
   )
 } # /rtemis::predict.CalibratedClassification
-
-se_compat_algorithms <- c("GLM", "GAM")
 
 
 # %% Regression ----
@@ -1124,11 +1233,6 @@ se_compat_algorithms <- c("GLM", "GAM")
 Regression <- new_class(
   name = "Regression",
   parent = Supervised,
-  properties = list(
-    se_training = NULL | class_double,
-    se_validation = NULL | class_double,
-    se_test = NULL | class_double
-  ),
   constructor = function(
     algorithm = NULL,
     model = NULL,
@@ -1144,13 +1248,10 @@ Regression <- new_class(
     predicted_training = NULL,
     predicted_validation = NULL,
     predicted_test = NULL,
-    se_training = NULL,
-    se_validation = NULL,
-    se_test = NULL,
     xnames = NULL,
     varimp = NULL,
     question = NULL,
-    extra = NULL
+    data_fingerprint = NULL
   ) {
     # Metrics ----
     metrics_training <- regression_metrics(
@@ -1199,11 +1300,8 @@ Regression <- new_class(
         xnames = xnames,
         varimp = varimp,
         question = question,
-        extra = extra
-      ),
-      se_training = se_training,
-      se_validation = se_validation,
-      se_test = se_test
+        data_fingerprint = data_fingerprint
+      )
     )
   }
 ) # /rtemis::Regression
@@ -1366,13 +1464,10 @@ make_Supervised <- function(
   predicted_prob_training = NULL,
   predicted_prob_validation = NULL,
   predicted_prob_test = NULL,
-  se_training = NULL,
-  se_validation = NULL,
-  se_test = NULL,
   xnames = character(),
   varimp = NULL,
   question = character(),
-  extra = NULL,
+  data_fingerprint = NULL,
   binclasspos = 2L
 ) {
   # Supervised ----
@@ -1398,7 +1493,7 @@ make_Supervised <- function(
       xnames = xnames,
       varimp = varimp,
       question = question,
-      extra = extra,
+      data_fingerprint = data_fingerprint,
       binclasspos = binclasspos
     )
   } else {
@@ -1417,13 +1512,10 @@ make_Supervised <- function(
       predicted_training = predicted_training,
       predicted_validation = predicted_validation,
       predicted_test = predicted_test,
-      se_training = se_training,
-      se_validation = se_validation,
-      se_test = se_test,
       xnames = xnames,
       varimp = varimp,
       question = question,
-      extra = extra
+      data_fingerprint = data_fingerprint
     )
   }
 } # /rtemis::make_Supervised
@@ -1552,24 +1644,35 @@ SupervisedRes <- new_class(
   properties = list(
     algorithm = class_character,
     models = class_list,
-    type = class_character,
+    type = prop_string(
+      NULL,
+      enum = SUPERVISED_TYPES,
+      nullable = TRUE,
+      description = "Kind of supervised learning the models perform."
+    ),
     preprocessor_config = NULL | PreprocessorConfig,
     decomposition_config = NULL | DecompositionConfig,
     hyperparameters = NULL | Hyperparameters,
     tuner_config = NULL | TunerConfig,
     outer_resampler = Resampler,
     execution_config = ExecutionConfig,
-    y_training = class_any,
-    y_test = class_any,
-    predicted_training = class_any,
-    predicted_test = class_any,
+    # One element per resample, each a `Supervised`-shaped outcome vector.
+    y_training = class_list,
+    y_test = class_list,
+    # One element per resample, each a `Supervised`-shaped prediction vector.
+    predicted_training = class_list,
+    predicted_test = class_list,
     metrics_training = MetricsRes,
     metrics_test = MetricsRes,
     xnames = class_character,
     varimp = NULL | class_list,
     question = NULL | class_character,
-    extra = class_any,
-    session_info = class_any,
+    # See `Supervised` for the provenance and input rationale.
+    config = NULL | SuperConfig,
+    data_fingerprint = NULL | DataFingerprint,
+    # R-specific by construction, and what a consumer outside R would want
+    # from it -- versions, platform -- is what `Provenance` publishes.
+    session_info = prop_r_only(new_property(class_any)),
     session = NULL | SupervisedSession
   ),
   constructor = function(
@@ -1593,7 +1696,7 @@ SupervisedRes <- new_class(
     xnames,
     varimp,
     question,
-    extra
+    data_fingerprint = NULL
   ) {
     new_object(
       S7::S7_object(),
@@ -1615,7 +1718,7 @@ SupervisedRes <- new_class(
       xnames = xnames,
       varimp = varimp,
       question = question,
-      extra = extra,
+      data_fingerprint = data_fingerprint,
       session_info = utils::sessionInfo(),
       session = NULL
     )
@@ -1776,7 +1879,7 @@ method(repr, SupervisedRes) <- function(
 #'
 #' Convert a `SupervisedRes` (or `RegressionRes` / `ClassificationRes`)
 #' object to a JSON-serializable list. The list of per-resample fitted
-#' models (`@models`) is summarised by length only — individual model
+#' models (`@models`) is summarized by length only -- individual model
 #' details remain available on the server and can be fetched via
 #' separate `job.result` requests if needed.
 #'
@@ -1914,23 +2017,18 @@ ClassificationRes <- new_class(
     xnames = NULL,
     varimp = NULL,
     question = NULL,
-    extra = NULL
+    data_fingerprint = NULL
   ) {
+    # Dimension names are not set here: `ClassificationMetricsRes` stores the
+    # long form and derives the wide table, which labels both dimensions
+    # uniformly.
     conf_mat_training <- conf_table(
       unlist(y_training),
       unlist(predicted_training)
     )
-    names(attributes(conf_mat_training)[["dimnames"]]) <- c(
-      "Reference",
-      "Predicted"
-    )
     conf_mat_test <- conf_table(
       unlist(y_test),
       unlist(predicted_test)
-    )
-    names(attributes(conf_mat_test)[["dimnames"]]) <- c(
-      "Reference",
-      "Predicted"
     )
     metrics_training <- ClassificationMetricsRes(
       sample = "Training",
@@ -1966,7 +2064,7 @@ ClassificationRes <- new_class(
         xnames = xnames,
         varimp = varimp,
         question = question,
-        extra = extra
+        data_fingerprint = data_fingerprint
       ),
       predicted_prob_training = predicted_prob_training,
       predicted_prob_test = predicted_prob_test
@@ -2086,11 +2184,12 @@ method(predict, CalibratedClassificationRes) <- function(
 
   predicted <- mapply(
     function(base_mod, cal_mod) {
-      # 1. Predict with base model
-      raw_prob <- predict(
+      # 1. Predict with base model. Calibration maps one score per case, so
+      #    take the positive class's column.
+      raw_prob <- positive_prob(predict(
         base_mod,
         newdata = newdata
-      )
+      ))
 
       # 2. Predict with calibration model
       predict(
@@ -2132,11 +2231,6 @@ method(predict, CalibratedClassificationRes) <- function(
 RegressionRes <- new_class(
   name = "RegressionRes",
   parent = SupervisedRes,
-  properties = list(
-    se_training = class_any,
-    se_validation = class_any,
-    se_test = class_any
-  ),
   constructor = function(
     algorithm,
     models,
@@ -2151,12 +2245,10 @@ RegressionRes <- new_class(
     y_test = NULL,
     predicted_training = NULL,
     predicted_test = NULL,
-    se_training = NULL,
-    se_test = NULL,
     xnames = NULL,
     varimp = NULL,
     question = NULL,
-    extra = NULL
+    data_fingerprint = NULL
   ) {
     metrics_training <- lapply(
       models,
@@ -2193,10 +2285,8 @@ RegressionRes <- new_class(
         xnames = xnames,
         varimp = varimp,
         question = question,
-        extra = extra
-      ),
-      se_training = se_training,
-      se_test = se_test
+        data_fingerprint = data_fingerprint
+      )
     )
   }
 ) # /rtemis::RegressionRes
@@ -2282,7 +2372,7 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
 #' @noRd
 #'
 #' @examples
-#' mod <- train(iris, algorithm = "CART", outer_resampling_config = setup_Resampler())
+#' mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_Resampler())
 #' describe(mod)
 method(describe, SupervisedRes) <- function(x, verbosity = 1L) {
   descx <- desc(x)
@@ -2649,12 +2739,10 @@ make_SupervisedRes <- function(
   predicted_test,
   predicted_prob_training,
   predicted_prob_test,
-  se_training = NULL,
-  se_test = NULL,
   xnames = character(),
   varimp = NULL,
   question = character(),
-  extra = NULL
+  data_fingerprint = NULL
 ) {
   if (type == "Classification") {
     ClassificationRes(
@@ -2675,7 +2763,7 @@ make_SupervisedRes <- function(
       xnames = xnames,
       varimp = varimp,
       question = question,
-      extra = extra
+      data_fingerprint = data_fingerprint
     )
   } else {
     RegressionRes(
@@ -2691,12 +2779,10 @@ make_SupervisedRes <- function(
       y_test = y_test,
       predicted_training = predicted_training,
       predicted_test = predicted_test,
-      se_training = se_training,
-      se_test = se_test,
       xnames = xnames,
       varimp = varimp,
       question = question,
-      extra = extra
+      data_fingerprint = data_fingerprint
     )
   }
 } # /rtemis::make_SupervisedRes
@@ -2837,7 +2923,11 @@ method(desc, class_list) <- function(
     }
     # ?replace with loop that checks all resampler params
     # Check all resamplers use same n
-    if (!all(sapply(res_params, function(p) p@n == res_params[[1]]@n))) {
+    if (
+      !all(sapply(res_params, function(p) {
+        p@n_resamples == res_params[[1]]@n_resamples
+      }))
+    ) {
       rtemis.core::warn(
         "All SupervisedRes objects must use the same number of resamples."
       )

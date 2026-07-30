@@ -9,7 +9,6 @@ train(
   dat_validation = NULL,
   dat_test = NULL,
   weights = NULL,
-  algorithm = NULL,
   preprocessor_config = NULL,
   decomposition_config = NULL,
   hyperparameters = NULL,
@@ -32,9 +31,6 @@ train(
 
 \item{weights}{Optional vector of case weights.}
 
-\item{algorithm}{Character: Algorithm to use. Can be left NULL, if \code{hyperparameters} is defined.
-If neither is defined, defaults to "ranger".}
-
 \item{preprocessor_config}{Optional PreprocessorConfig object: Setup using \link{setup_Preprocessor}.}
 
 \item{decomposition_config}{Optional DecompositionConfig object: Setup using a decomposition
@@ -56,7 +52,11 @@ using \code{backend = "future"}.}
 \item{question}{Optional character string defining the question that the model is trying to
 answer.}
 
-\item{outdir}{Character, optional: String defining the output directory.}
+\item{outdir}{Character, optional: String defining the output directory. The
+fitted model is saved there as \verb{train_<algorithm>.rds}, alongside a run
+record, \verb{train_<algorithm>.record.json}, stating what the run actually did:
+every value resolved, where each came from, and what produced it. See
+\link{write_record}.}
 
 \item{verbosity}{Integer: Verbosity level.}
 
@@ -162,7 +162,7 @@ on:
 \donttest{
 iris_c_lightRF <- train(
    iris,
-   algorithm = "LightRF",
+   hyperparameters = setup_LightRF(),
    outer_resampling_config = setup_Resampler(),
 )
 }

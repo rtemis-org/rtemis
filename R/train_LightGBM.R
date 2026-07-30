@@ -108,7 +108,10 @@ method(train_, LightGBMHyperparameters) <- function(
     verbose = verbosity - 1L
   )
   check_inherits(model, "lgb.Booster")
-  list(model = model, preprocessor = prp)
+  # `hyperparameters` is returned because this method resolved values into
+  # it (R copied the caller's object, so the caller cannot see them).
+  # `train()` adopts them, and the fitted model reports what it used.
+  list(model = model, preprocessor = prp, hyperparameters = hyperparameters)
 } # /rtemis::train_.LightGBMHyperparameters
 
 
@@ -132,7 +135,7 @@ method(predict_super, class_lgb.Booster) <- function(
   check_inherits(newdata, "data.frame")
 
   # Algorithm-specific preprocessing (factor2integer) is applied by
-  # predict.Supervised before calling this method. See R/train.R and R/07_Supervised.R
+  # predict.Supervised before calling this method. See R/train.R and R/200_Supervised.R
 
   # Predict ----
   predict(model, newdata = as.matrix(newdata))

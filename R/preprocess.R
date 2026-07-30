@@ -2,6 +2,61 @@
 # ::rtemis::
 # 2017- EDG rtemis.org
 
+# %% PREPROCESSOR_CASE_OPS ----
+# Preprocessing steps that drop *cases* rather than transform values. They have
+# no place in a preprocessor fitted by `train()`: that one is replayed on new
+# data at predict time, and there is nothing a prediction call may drop --
+# asked for n rows it must return n predictions.
+PREPROCESSOR_CASE_OPS <- c(
+  "complete_cases",
+  "remove_duplicates",
+  "remove_cases_thres"
+)
+
+
+# %% check_preprocessor_replayable ----
+#' Reject a training preprocessor that would drop cases
+#'
+#' A preprocessor fitted by `train()` is re-applied to every later dataset:
+#' validation, test, and whatever `predict()` is handed. A step that removes
+#' rows cannot be replayed -- it returns fewer predictions than rows, with no
+#' way for the caller to tell which are missing -- so it is rejected here
+#' rather than producing a model whose `predict()` silently loses cases.
+#'
+#' Case removal is data preparation, not part of the model: do it before
+#' `train()`, where the outcome is still attached and the dropped rows are
+#' visible.
+#'
+#' @param config `PreprocessorConfig` object.
+#'
+#' @return Invisible NULL. Called for the check.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_preprocessor_replayable <- function(config) {
+  set <- Filter(
+    function(nm) {
+      value <- prop(config, nm)
+      !is.null(value) && !identical(value, FALSE)
+    },
+    PREPROCESSOR_CASE_OPS
+  )
+  if (length(set) > 0L) {
+    rtemis.core::abort(
+      "`preprocessor_config` removes cases, which a fitted preprocessor cannot replay: ",
+      paste(set, collapse = ", "),
+      ".\n",
+      "A preprocessor learned by train() is re-applied to new data at predict() time, ",
+      "where dropping rows would return fewer predictions than rows.\n",
+      "Remove cases before calling train(), with preprocess() on the full dataset.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  invisible(NULL)
+} # /rtemis::check_preprocessor_replayable
+
+
 # %% preprocess(x, PreprocessorConfig, ...) ----
 method(
   preprocess,
@@ -700,15 +755,49 @@ method(
 apply_preprocessor <- function(preprocessor, new_data, verbosity = 1L) {
   # -> data.frame or data.table
   check_is_S7(preprocessor, Preprocessor)
-  config <- preprocessor@config
-  # Overwrite scale_centers, scale_coefficients, one_hot_levels, and remove_features
-  config@scale_centers <- preprocessor@values[["scale_centers"]]
-  config@scale_coefficients <- preprocessor@values[["scale_coefficients"]]
-  config@one_hot_levels <- preprocessor@values[["one_hot_levels"]]
-  config@remove_features <- preprocessor@values[["remove_features"]]
-
-  preprocessed(preprocess(new_data, config, verbosity = verbosity))
+  preprocessed(preprocess(
+    new_data,
+    fitted_config(preprocessor),
+    verbosity = verbosity
+  ))
 } # /rtemis::apply_preprocessor
+
+
+# %% fitted_config ----
+#' A `Preprocessor`'s config with its learned values filled in
+#'
+#' `@config` holds what the user asked for and `@values` what preprocessing
+#' learned, which keeps the input intact -- but re-applying to new data needs
+#' the two merged, and so does a run record, which must report the values
+#' actually used. One merge, so the two cannot disagree.
+#'
+#' The four fields are settable inputs: supplying `scale_centers` makes
+#' `preprocess()` use it instead of computing one. That is why the merge is
+#' `@values` over `@config` and not the reverse -- a learned value only fills a
+#' slot the user left empty.
+#'
+#' @param preprocessor `Preprocessor` object.
+#'
+#' @return `PreprocessorConfig` with the learned values applied.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+fitted_config <- function(preprocessor) {
+  config <- preprocessor@config
+  for (nm in c(
+    "scale_centers",
+    "scale_coefficients",
+    "one_hot_levels",
+    "remove_features"
+  )) {
+    learned <- preprocessor@values[[nm]]
+    if (!is.null(learned)) {
+      prop(config, nm) <- learned
+    }
+  }
+  config
+} # /rtemis::fitted_config
 
 
 # %% one_hot ----

@@ -14,244 +14,45 @@ args <- commandArgs(trailingOnly = TRUE)
 schema_repo <- if (length(args) >= 1L) args[[1L]] else "~/Schemas/schema"
 schema_repo <- path.expand(schema_repo)
 base_url <- "https://schema.rtemis.org"
+# `$ref`d by every top-level record. The two schemas that *make up* a record --
+# provenance and the fingerprints it holds -- do not carry one themselves.
+provenance_url <- paste0(base_url, "/provenance/v1/schema.json")
+record_parts <- c("provenance", "datafingerprint")
+# Results classes: what a run produced, not a config a run resolves. They have
+# no input form, so no `record.json` either -- the whole document is a report.
+result_classes <- c(
+  "regressionmetrics",
+  "classificationmetrics",
+  "regressionmetricsres",
+  "classificationmetricsres"
+)
+# Only a *pipeline* record represents a run, so only one carries provenance. A
+# component config (preprocessor, execution, ...) has a record form too, but it
+# appears nested inside a pipeline record and takes provenance from there;
+# requiring its own would demand a second copy of the same block.
+pipeline_records <- c("supervised", "decompose", "cluster")
+# `folds` is supervised-specific: only a supervised run fits a model per outer
+# resample, each resolving its own values.
+fold_refs <- c(
+  hyperparameters = paste0(base_url, "/hyperparameters/v1/record.json"),
+  preprocessor_config = paste0(base_url, "/preprocessor/v1/record.json"),
+  decomposition_config = paste0(base_url, "/decomposition/v1/record.json")
+)
+# What the run scored. Which of the two applies follows from the outcome, so a
+# record admits either and the reader takes whichever validates.
+metrics_refs <- c(
+  regression = paste0(base_url, "/regressionmetrics/v1/schema.json"),
+  classification = paste0(base_url, "/classificationmetrics/v1/schema.json")
+)
 
 # Registry ------------------------------------------------------------------
-# Per family: the base class, the payload field name, the dispatcher's title /
-# descriptions / extra top-level properties, and the per-algorithm classes with
-# a one-line description, and an optional `extra` supplying hand-written schema
-# for properties declared `prop_external()` (whose R type the prop_* factories
-# cannot express). Which properties take part is decided by their declared role
-# (see `prop_role()`), not listed here: run state is dropped, and a missing
-# `extra` for an external property aborts.
-families <- list(
-  decomposition = list(
-    base_class = DecompositionConfig,
-    payload = "config",
-    title = "rtemis DecompositionConfig",
-    description = paste0(
-      "Language-independent config for an rtemis decomposition (dimensionality ",
-      "reduction). Mirrors the `DecompositionConfig` object: an algorithm name, ",
-      "an algorithm-specific `config`, and an optional feature subset. The same ",
-      "config drives rtemis (R), rtemis-py, and rtemislive to identical output."
-    ),
-    algorithm_description = "Decomposition algorithm name.",
-    extra_properties = list(
-      features = list(
-        type = I(c("array", "null")),
-        items = list(type = "string"),
-        minItems = 2L,
-        uniqueItems = TRUE,
-        description = "Names of the feature columns to decompose. null = all numeric features."
-      )
-    ),
-    algorithms = list(
-      list(
-        cls = PCAConfig,
-        desc = "Principal Component Analysis. See setup_PCA."
-      ),
-      list(
-        cls = ICAConfig,
-        desc = "Independent Component Analysis. See setup_ICA."
-      ),
-      list(
-        cls = NMFConfig,
-        desc = "Non-negative Matrix Factorization. See setup_NMF."
-      ),
-      list(
-        cls = UMAPConfig,
-        desc = "Uniform Manifold Approximation and Projection. See setup_UMAP."
-      ),
-      list(
-        cls = tSNEConfig,
-        desc = "t-Distributed Stochastic Neighbor Embedding. See setup_tSNE.",
-        extra = .tsne_schema_extra
-      ),
-      list(cls = IsomapConfig, desc = "Isomap. See setup_Isomap.")
-    )
-  ),
-  clustering = list(
-    base_class = ClusteringConfig,
-    payload = "config",
-    title = "rtemis ClusteringConfig",
-    description = paste0(
-      "Language-independent config for an rtemis clustering run. Mirrors the ",
-      "`ClusteringConfig` object: an algorithm name and an algorithm-specific ",
-      "`config`. The same config drives rtemis (R), rtemis-py, and rtemislive ",
-      "to identical output."
-    ),
-    algorithm_description = "Clustering algorithm name.",
-    algorithms = list(
-      list(cls = KMeansConfig, desc = "K-means clustering. See setup_KMeans."),
-      list(
-        cls = HardCLConfig,
-        desc = "Hard competitive learning. See setup_HardCL."
-      ),
-      list(
-        cls = NeuralGasConfig,
-        desc = "Neural Gas clustering. See setup_NeuralGas."
-      ),
-      list(
-        cls = CMeansConfig,
-        desc = "Fuzzy c-means clustering. See setup_CMeans.",
-        extra = .cmeans_schema_extra
-      ),
-      list(
-        cls = DBSCANConfig,
-        desc = "DBSCAN density-based clustering. See setup_DBSCAN.",
-        extra = .dbscan_schema_extra
-      )
-    )
-  ),
-  # Top-level mode: a ResamplerConfig serializes its per-type fields as
-  # siblings of `type` (not nested), so the leaves are open and the
-  # dispatcher enforces strictness with `unevaluatedProperties`.
-  resampler = list(
-    base_class = ResamplerConfig,
-    discriminator = "type",
-    payload = NULL,
-    title = "rtemis ResamplerConfig",
-    description = paste0(
-      "Language-independent config for an rtemis resampler. Mirrors the ",
-      "`ResamplerConfig` object: a resampler type plus its type-specific ",
-      "settings. The same config drives rtemis (R), rtemis-py, and ",
-      "rtemislive to identical resamples."
-    ),
-    discriminator_description = "Resampler type.",
-    extra_properties = list(
-      n = list(
-        type = I(c("integer", "null")),
-        minimum = 1L,
-        description = "Number of resamples. null for LOOCV, where it is determined by the data."
-      )
-    ),
-    # `n` is required for every type except LOOCV (mirrors the R
-    # `ResamplerConfig` validator), so it is conditionally required per variant.
-    required_except = list(n = "LOOCV"),
-    algorithms = list(
-      list(
-        cls = KFoldConfig,
-        desc = "K-fold cross-validation. See setup_Resampler.",
-        extra = .resampler_id_strat_schema_extra
-      ),
-      list(
-        cls = StratSubConfig,
-        desc = "Stratified subsampling. See setup_Resampler.",
-        extra = .resampler_id_strat_schema_extra
-      ),
-      list(
-        cls = StratBootConfig,
-        desc = "Stratified bootstrap. See setup_Resampler.",
-        extra = .resampler_id_strat_schema_extra
-      ),
-      list(
-        cls = BootstrapConfig,
-        desc = "Bootstrap resampling. See setup_Resampler.",
-        extra = .resampler_id_strat_schema_extra
-      ),
-      list(
-        cls = LOOCVConfig,
-        desc = "Leave-one-out cross-validation. See setup_Resampler."
-      ),
-      list(
-        cls = CustomConfig,
-        desc = "Custom, user-supplied resamples. See setup_Resampler."
-      )
-    )
-  ),
-  tuner = list(
-    base_class = TunerConfig,
-    discriminator = "type",
-    payload = "config",
-    title = "rtemis TunerConfig",
-    description = paste0(
-      "Language-independent config for rtemis hyperparameter tuning. Mirrors ",
-      "the `TunerConfig` object: a tuner type and a type-specific `config`."
-    ),
-    discriminator_description = "Tuner type.",
-    algorithms = list(
-      list(
-        cls = GridSearchConfig,
-        desc = "Grid search over hyperparameter combinations. See setup_GridSearch.",
-        refs = c(
-          resampler_config = "https://schema.rtemis.org/resampler/v1/schema.json"
-        )
-      )
-    )
-  ),
-  hyperparameters = list(
-    base_class = Hyperparameters,
-    payload = "hyperparameters",
-    title = "rtemis Hyperparameters",
-    description = paste0(
-      "Language-independent algorithm hyperparameters: an algorithm name and an ",
-      "algorithm-specific `hyperparameters` object, validated per-algorithm ",
-      "against schema.rtemis.org/hyperparameters/<algorithm>/v1. Mirrors the ",
-      "`{algorithm, hyperparameters}` wire format consumed by ",
-      "`.list_to_Hyperparameters`."
-    ),
-    algorithm_description = "Supervised-learning algorithm name (matches `setup_<algorithm>`).",
-    algorithms = list(
-      list(
-        cls = GLMHyperparameters,
-        desc = "GLM (generalized linear model). See `setup_GLM`."
-      ),
-      list(
-        cls = GAMHyperparameters,
-        desc = "GAM (generalized additive model). See `setup_GAM`."
-      ),
-      list(
-        cls = CARTHyperparameters,
-        desc = "CART decision tree (rpart). See `setup_CART`."
-      ),
-      list(
-        cls = GLMNETHyperparameters,
-        desc = "Elastic net (glmnet). See `setup_GLMNET`."
-      ),
-      list(
-        cls = LightCARTHyperparameters,
-        desc = "Single LightGBM tree (CART mode). See `setup_LightCART`."
-      ),
-      list(
-        cls = LightRFHyperparameters,
-        desc = "LightGBM random forest. See `setup_LightRF`."
-      ),
-      list(
-        cls = LightGBMHyperparameters,
-        desc = "LightGBM gradient boosting. See `setup_LightGBM`."
-      ),
-      list(
-        cls = LightRuleFitHyperparameters,
-        desc = "LightRuleFit (LightGBM rules + GLMNET). See `setup_LightRuleFit`."
-      ),
-      list(
-        cls = IsotonicHyperparameters,
-        desc = "Isotonic regression. See `setup_Isotonic`."
-      ),
-      list(
-        cls = LinearSVMHyperparameters,
-        desc = "SVM with linear kernel (e1071). See `setup_LinearSVM`."
-      ),
-      list(
-        cls = RadialSVMHyperparameters,
-        desc = "SVM with radial kernel (e1071). See `setup_RadialSVM`."
-      ),
-      list(
-        cls = TabNetHyperparameters,
-        desc = "TabNet neural network. See `setup_TabNet`.",
-        # `optimizer` / `lr_scheduler` accept an R function or a string; only
-        # the serializable string form is schematized (see the extra).
-        extra = .tabnet_hyperparameters_schema_extra
-      ),
-      list(
-        cls = RangerHyperparameters,
-        desc = "Ranger random forest. See `setup_Ranger`.",
-        # These three have union / list R types the prop_* factories cannot
-        # express; their JSON Schema is supplied by hand and merged in.
-        extra = .ranger_hyperparameters_schema_extra
-      )
-    )
-  )
-)
+# Per family: the base class, the payload field name, the dispatcher's title and
+# descriptions, and the per-algorithm classes with a one-line description, and
+# an optional `extra` supplying cross-field constraints that are not
+# per-property. Which properties take part is decided by their declared role
+# (see `prop_role()`), not listed here: run state is dropped, and a spec-less
+# property aborts generation.
+source(file.path("data-raw", "schema_registry.R"))
 
 # Generation ----------------------------------------------------------------
 for (family in names(families)) {
@@ -267,80 +68,69 @@ for (family in names(families)) {
   top_level <- !("payload" %in% names(fam)) || is.null(fam[["payload"]])
   payload <- if (top_level) NULL else fam[["payload"]]
 
-  # Leaves.
+  # Leaves. Each is written twice: the input schema, and its `record.json`
+  # sibling, which declares the same properties with every one required. A
+  # record states what a run used, so nothing in it falls back to a reader's
+  # defaults.
   for (algo in fam[["algorithms"]]) {
     cls <- algo[["cls"]]
     slug <- tolower(discriminator_value(cls, discriminator))
-    id <- paste0(base_url, "/", family, "/", slug, "/v1/schema.json")
-    schema <- S7_to_JSONSchema(
-      cls,
-      id = id,
-      title = paste0("rtemis ", cls@name),
-      description = algo[["desc"]],
-      base = fam[["base_class"]],
-      extra = algo[["extra"]],
-      refs = algo[["refs"]],
-      closed = !top_level
-    )
     dir <- file.path(schema_repo, family, slug, "v1")
     dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+    for (kind in c("schema", "record")) {
+      id <- paste0(base_url, "/", family, "/", slug, "/v1/", kind, ".json")
+      schema <- S7_to_JSONSchema(
+        cls,
+        id = id,
+        title = paste0("rtemis ", cls@name),
+        description = algo[["desc"]],
+        base = fam[["base_class"]],
+        record = kind == "record",
+        # A leaf is nested under its dispatcher, which carries the block.
+        extra = algo[["extra"]],
+        refs = algo[["refs"]],
+        closed = !top_level
+      )
+      write_JSONSchema(
+        schema,
+        file.path(dir, paste0(kind, ".json")),
+        overwrite = TRUE,
+        verbosity = 0L
+      )
+    }
+  }
+
+  # Dispatcher, likewise in both kinds: the record dispatcher routes each
+  # variant to its `record.json` rather than its `schema.json`.
+  for (kind in c("schema", "record")) {
+    dispatcher_id <- paste0(base_url, "/", family, "/v1/", kind, ".json")
+    dispatcher <- S7_dispatcher_JSONSchema(
+      classes = classes,
+      id = dispatcher_id,
+      discriminator = discriminator,
+      payload = payload,
+      base = fam[["base_class"]],
+      record = kind == "record",
+      title = fam[["title"]],
+      description = fam[["description"]],
+      discriminator_description = if (
+        is.null(fam[["discriminator_description"]])
+      ) {
+        fam[["algorithm_description"]]
+      } else {
+        fam[["discriminator_description"]]
+      },
+      instance_schema_url = dispatcher_id
+    )
     write_JSONSchema(
-      schema,
-      file.path(dir, "schema.json"),
+      dispatcher,
+      file.path(schema_repo, family, "v1", paste0(kind, ".json")),
       overwrite = TRUE,
       verbosity = 0L
     )
   }
-
-  # Dispatcher.
-  dispatcher_id <- paste0(base_url, "/", family, "/v1/schema.json")
-  dispatcher <- S7_dispatcher_JSONSchema(
-    classes = classes,
-    id = dispatcher_id,
-    discriminator = discriminator,
-    payload = payload,
-    title = fam[["title"]],
-    description = fam[["description"]],
-    discriminator_description = if (
-      is.null(fam[["discriminator_description"]])
-    ) {
-      fam[["algorithm_description"]]
-    } else {
-      fam[["discriminator_description"]]
-    },
-    extra_properties = if (is.null(fam[["extra_properties"]])) {
-      list()
-    } else {
-      fam[["extra_properties"]]
-    },
-    # Translate `required_except` (property -> variants to skip) into the
-    # per-variant `required` form the dispatcher generator consumes.
-    variant_required = local({
-      # The dispatcher keys `variant_required` by the raw discriminator value.
-      values <- vapply(
-        classes,
-        function(cls) discriminator_value(cls, discriminator),
-        character(1L)
-      )
-      req <- list()
-      for (prop_name in names(fam[["required_except"]])) {
-        except <- fam[["required_except"]][[prop_name]]
-        for (v in setdiff(values, except)) {
-          req[[v]] <- c(req[[v]], prop_name)
-        }
-      }
-      req
-    }),
-    instance_schema_url = dispatcher_id
-  )
-  write_JSONSchema(
-    dispatcher,
-    file.path(schema_repo, family, "v1", "schema.json"),
-    overwrite = TRUE,
-    verbosity = 0L
-  )
   cat(sprintf(
-    "%-16s %d leaves + dispatcher\n",
+    "%-16s %d leaves + dispatcher (schema + record)\n",
     family,
     length(fam[["algorithms"]])
   ))
@@ -348,109 +138,50 @@ for (family in names(families)) {
 
 # Flat configs --------------------------------------------------------------
 # Single-object configs (no algorithm discriminator, so no family base class):
-# one schema per class. `extra` supplies hand-written fragments for the
-# `prop_external()` properties.
-.url <- function(family) paste0(base_url, "/", family, "/v1/schema.json")
-
-flat_configs <- list(
-  execution = list(
-    cls = ExecutionConfig,
-    title = "rtemis ExecutionConfig",
-    description = paste0(
-      "Language-independent config for rtemis execution: sequential, ",
-      "parallel, or distributed. Mirrors the `ExecutionConfig` object / ",
-      "`setup_ExecutionConfig` arguments."
-    ),
-    # Cross-field rules enforced by the R class validator, mirrored here.
-    extra = list(
-      allOf = list(
-        list(
-          `if` = list(
-            properties = list(backend = list(const = "future")),
-            required = I("backend")
-          ),
-          then = list(required = I("future_plan"))
-        ),
-        list(
-          `if` = list(
-            properties = list(backend = list(const = "none")),
-            required = I("backend")
-          ),
-          then = list(properties = list(n_workers = list(const = 1L)))
-        )
-      )
-    )
-  ),
-  supervised = list(
-    cls = SuperConfig,
-    title = "rtemis SuperConfig",
-    description = paste0(
-      "Language-independent config for an rtemis supervised-learning run. ",
-      "Mirrors the `SuperConfig` object: data references, optional ",
-      "preprocessing / decomposition, an algorithm with hyperparameters, ",
-      "optional tuning and outer resampling, and execution settings. The ",
-      "same config drives rtemis (R), rtemis-py, and rtemislive."
-    ),
-    refs = c(
-      preprocessor_config = .url("preprocessor"),
-      decomposition_config = .url("decomposition"),
-      hyperparameters = .url("hyperparameters"),
-      tuner_config = .url("tuner"),
-      outer_resampling_config = .url("resampler"),
-      execution_config = .url("execution")
-    )
-  ),
-  decompose = list(
-    cls = DecomposeConfig,
-    title = "rtemis DecomposeConfig",
-    description = paste0(
-      "Language-independent config for an rtemis decomposition pipeline: a ",
-      "data reference, a `DecompositionConfig`, and an output directory."
-    ),
-    refs = c(decomposition_config = .url("decomposition"))
-  ),
-  cluster = list(
-    cls = ClusterConfig,
-    title = "rtemis ClusterConfig",
-    description = paste0(
-      "Language-independent config for an rtemis clustering pipeline: a ",
-      "data reference, a `ClusteringConfig`, and an output directory."
-    ),
-    refs = c(clustering_config = .url("clustering"))
-  ),
-  preprocessor = list(
-    cls = PreprocessorConfig,
-    title = "rtemis PreprocessorConfig",
-    description = paste0(
-      "Language-independent config for rtemis preprocessing. Mirrors the ",
-      "`PreprocessorConfig` object / `setup_Preprocessor` arguments. The same ",
-      "config drives rtemis (R), rtemis-py, and rtemislive to identical output."
-    ),
-    extra = .preprocessor_schema_extra
-  )
-)
-
+# one schema per class. `extra` supplies cross-field constraints.
 for (family in names(flat_configs)) {
   cfg <- flat_configs[[family]]
-  id <- paste0(base_url, "/", family, "/v1/schema.json")
-  schema <- S7_to_JSONSchema(
-    cfg[["cls"]],
-    id = id,
-    title = cfg[["title"]],
-    description = cfg[["description"]],
-    extra = cfg[["extra"]],
-    refs = cfg[["refs"]],
-    instance_schema_url = id
-  )
   dir <- file.path(schema_repo, family, "v1")
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
-  write_JSONSchema(
-    schema,
-    file.path(dir, "schema.json"),
-    overwrite = TRUE,
-    verbosity = 0L
-  )
-  cat(sprintf("%-16s flat config schema\n", family))
+  # A record's own components have no record form: they *are* the record's
+  # furniture, not configs a run resolves. Nor do results classes, which are
+  # outputs with no input counterpart.
+  kinds <- if (family %in% c(record_parts, result_classes)) {
+    "schema"
+  } else {
+    c("schema", "record")
+  }
+  for (kind in kinds) {
+    id <- paste0(base_url, "/", family, "/v1/", kind, ".json")
+    schema <- S7_to_JSONSchema(
+      cfg[["cls"]],
+      id = id,
+      title = cfg[["title"]],
+      description = cfg[["description"]],
+      record = kind == "record",
+      provenance_url = if (kind == "record" && family %in% pipeline_records) {
+        provenance_url
+      },
+      fold_refs = if (kind == "record" && family == "supervised") fold_refs,
+      metrics_refs = if (kind == "record" && family == "supervised") {
+        metrics_refs
+      },
+      extra = cfg[["extra"]],
+      refs = cfg[["refs"]],
+      array_refs = cfg[["array_refs"]],
+      # A config instance self-identifies with `$schema`; a results object does
+      # not, being produced by rtemis rather than authored against a schema, so
+      # declaring the field would put a key in the contract that nothing writes.
+      instance_schema_url = if (!(family %in% result_classes)) id
+    )
+    write_JSONSchema(
+      schema,
+      file.path(dir, paste0(kind, ".json")),
+      overwrite = TRUE,
+      verbosity = 0L
+    )
+  }
+  cat(sprintf("%-16s %s\n", family, paste(kinds, collapse = " + ")))
 }
 
 # `supervised/v1` is now generated from `SuperConfig` (with `$ref`s to the

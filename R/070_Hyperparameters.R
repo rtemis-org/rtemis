@@ -1,4 +1,4 @@
-# 02_Hyperparameters.R
+# 070_Hyperparameters.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -11,7 +11,7 @@
 
 # Architecture ----
 # Every `*Hyperparameters` class declares its hyperparameters with the
-# `prop_*` factories (00_Props.R): one declaration per hyperparameter carries
+# `prop_*` factories (010_Props.R): one declaration per hyperparameter carries
 # the type, default, bounds, enum, tunability, and description, from which S7
 # validators, the tunable/fixed name vectors, the `hyperparameters` list, and
 # the JSON Schema (S7_to_JSONSchema) are all generated. Parameters whose R
@@ -21,9 +21,8 @@
 #
 # The abstract `Hyperparameters` superclass provides computed properties:
 # - `hyperparameters`: assembles the named list from the subclass's own
-#   properties plus `hp_constants()` (getter), and routes assignments back to
-#   the properties, where they are validated (setter). Changing a constant
-#   is an error.
+#   properties (getter), and routes assignments back to the properties, where
+#   they are validated (setter). Changing a constant is an error.
 # - `tunable_hyperparameters` / `fixed_hyperparameters`: derived from specs.
 # - `tuned`: derived from current values via `get_tuned_status()` unless the
 #   Tuner has set a status explicitly (backing store `.tuned`; NA = derive).
@@ -50,7 +49,7 @@ TUNED_STATUS_TUNED <- 1L
 # %% hp_prop_names ----
 #' Names of a Hyperparameters subclass's own (hyperparameter) properties
 #'
-#' All properties declared by the subclass itself — factory-built or plain —
+#' All properties declared by the subclass itself -- factory-built or plain --
 #' excluding the properties inherited from `Hyperparameters`.
 #'
 #' @param x S7 class (a `Hyperparameters` subclass).
@@ -83,49 +82,155 @@ hp_prop_values <- function(self) {
 } # /rtemis::hp_prop_values
 
 
-# %% hp_constants ----
-#' Unsettable hyperparameter constants of a Hyperparameters object
+# %% resolve_data_bounds ----
+#' Resolve training-data dimensions referenced by `data_bound` declarations
 #'
-#' Named list of algorithm parameters that are fixed by the algorithm
-#' definition itself (e.g. `boosting_type = "rf"` for LightRF,
-#' `kernel = "linear"` for LinearSVM). They are appended to the
-#' `hyperparameters` list (so training backends receive them) but are not
-#' properties, cannot be changed, and are excluded from generated schemas.
+#' Every dimension is derived from `x` on each call; none is stored on an
+#' object, since all of them are facts about the data rather than about the
+#' config being checked.
 #'
-#' @param x `Hyperparameters` object.
+#' @param x tabular data: Training data.
+#' @param needed Character: Which dimensions to resolve. Only these are
+#'   computed, so a caller declaring nothing feature-related may pass a bare
+#'   vector -- `features()` requires at least two columns and would abort on
+#'   one. `resample()` relies on this: a resampler bounds only `n_cases`.
+#' @param has_outcome Logical: If TRUE, `x` follows the supervised convention
+#'   (the last column is the outcome, the rest are features). Pass FALSE for a
+#'   frame that is already features-only, as the decomposition path uses:
+#'   otherwise the last feature is silently treated as an outcome and excluded
+#'   from every dimension.
 #'
-#' @return Named list.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-hp_constants <- new_generic("hp_constants", "x")
-
-method(hp_constants, class_any) <- function(x) {
-  list()
-} # /rtemis::hp_constants.default
-
-
-# %% tune_on_null ----
-#' Hyperparameters that need tuning when unset
-#'
-#' Names of hyperparameters whose NULL (unset) value means "determine by
-#' tuning": GLMNET's `lambda` (cv.glmnet) and LightGBM's `nrounds` (early
-#' stopping). `nullable + tunable` alone does not imply NULL => tune, so
-#' this is declared per class.
-#'
-#' @param x `Hyperparameters` object.
-#'
-#' @return Character vector of property names.
+#' @return Named list with one element per requested `DATA_BOUNDS` entry.
+#'   `n_classes` is NULL for regression, where the outcome has no levels, and
+#'   also when `has_outcome` is FALSE.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-tune_on_null <- new_generic("tune_on_null", "x")
+resolve_data_bounds <- function(x, needed = DATA_BOUNDS, has_outcome = TRUE) {
+  out <- list()
+  if ("n_cases" %in% needed) {
+    out[["n_cases"]] <- NROW(x)
+  }
+  if ("n_classes" %in% needed) {
+    y <- if (has_outcome) outcome(x) else NULL
+    out[["n_classes"]] <- if (is.factor(y)) nlevels(y) else NULL
+  }
+  feature_bounds <- c("n_features", "feature_names", "numeric_feature_names")
+  if (any(feature_bounds %in% needed)) {
+    feats <- if (has_outcome) features(x) else x
+    if ("n_features" %in% needed) {
+      out[["n_features"]] <- NCOL(feats)
+    }
+    if ("feature_names" %in% needed) {
+      out[["feature_names"]] <- names(feats)
+    }
+    if ("numeric_feature_names" %in% needed) {
+      out[["numeric_feature_names"]] <- getnumericnames(feats)
+    }
+  }
+  out
+} # /rtemis::resolve_data_bounds
 
-method(tune_on_null, class_any) <- function(x) {
-  character()
-} # /rtemis::tune_on_null.default
+
+# %% check_data_bounds ----
+#' Check all `data_bound` properties against the training data
+#'
+#' Engine behind the default `validate_hyperparameters()` method, and usable
+#' with any config object whose properties carry `PropertySpec`s. Walks the
+#' class's properties, and for each one declaring a `data_bound` (see
+#' `DATA_BOUNDS` in 010_Props.R) checks the current value against the resolved
+#' dimension:
+#'
+#' - scalar property: every value must be `<=` the dimension. Tunable
+#'   hyperparameters hold their whole search space here, hence `any()`.
+#' - `vector` property: `length(value)` must equal the dimension.
+#' - a name bound (`NAME_BOUNDS`): values must be a subset of the named columns.
+#'
+#' Unset (NULL) values are skipped, as is `n_classes` in regression.
+#'
+#' @param config S7 object with `prop_*`-declared properties (a
+#'   `Hyperparameters`, a `DecompositionConfig`, ...).
+#' @param x tabular data: Training data.
+#' @param has_outcome Logical: Whether `x` carries an outcome column; see
+#'   `resolve_data_bounds()`.
+#'
+#' @return `config`, invisibly. Throws if any bound is violated.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_data_bounds <- function(config, x, has_outcome = TRUE) {
+  bounds <- data_bound_props(S7_class(config))
+  if (length(bounds) == 0L) {
+    return(invisible(config))
+  }
+  dims <- resolve_data_bounds(x, unique(bounds), has_outcome = has_outcome)
+  specs <- S7_class(config)@properties
+  for (nm in names(bounds)) {
+    # `prop()`, not `[[`: a config family's `[[` routes into its computed
+    # payload list, which excludes properties declared on the family base.
+    value <- prop(config, nm)
+    if (is.null(value)) {
+      next
+    }
+    bound <- bounds[[nm]]
+    dim_value <- dims[[bound]]
+    # n_classes is undefined for regression: the declaration simply does not
+    # apply rather than being an error.
+    if (is.null(dim_value)) {
+      next
+    }
+    if (bound %in% NAME_BOUNDS) {
+      unknown <- setdiff(value, dim_value)
+      if (length(unknown) > 0L) {
+        rtemis.core::abort(
+          "`",
+          nm,
+          "` must name ",
+          if (bound == "numeric_feature_names") "numeric " else "",
+          "training features; not found: ",
+          paste(unknown, collapse = ", "),
+          ".",
+          class = c("rtemis_value_error", "rtemis_input_error")
+        )
+      }
+      next
+    }
+    spec <- get_spec(specs[[nm]])
+    is_vector <- !is.null(spec) && spec@container != "none"
+    if (is_vector) {
+      if (length(value) != dim_value) {
+        rtemis.core::abort(
+          "`",
+          nm,
+          "` must have one value per ",
+          DATA_BOUND_NOUN[[bound]],
+          ": expected length ",
+          dim_value,
+          ", got ",
+          length(value),
+          ".",
+          class = c("rtemis_length_error", "rtemis_input_error")
+        )
+      }
+    } else if (any(value > dim_value)) {
+      rtemis.core::abort(
+        "`",
+        nm,
+        "` cannot be greater than the number of ",
+        DATA_BOUND_NOUN_PLURAL[[bound]],
+        " (",
+        dim_value,
+        "); got ",
+        paste(unique(value[value > dim_value]), collapse = ", "),
+        ".",
+        class = c("rtemis_range_error", "rtemis_input_error")
+      )
+    }
+  }
+  invisible(config)
+} # /rtemis::check_data_bounds
 
 
 # %% Hyperparameters ----
@@ -144,12 +249,15 @@ method(tune_on_null, class_any) <- function(x) {
 #' @field resampled Integer: Outer resampling status.
 #' @field n_workers Integer: Number of workers to use for tuning.
 #' @field hyperparameters Named list of hyperparameter values (computed from
-#'   the subclass's properties plus `hp_constants()`; assignment routes back
-#'   to the properties and validates).
+#'   the subclass's properties; assignment routes back to the properties and
+#'   validates).
 #' @field tunable_hyperparameters Character: Names of tunable hyperparameters
-#'   (derived from specs).
-#' @field fixed_hyperparameters Character: Names of fixed hyperparameters
-#'   (derived from specs, plus constants).
+#'   -- a vector of values is a search space.
+#' @field fixed_hyperparameters Character: Names of fixed hyperparameters --
+#'   settable by the user but not tunable. Arity is a separate axis: a fixed
+#'   hyperparameter may itself be vector-valued.
+#' @field constant_hyperparameters Character: Names of constant
+#'   hyperparameters -- determined by the class and not settable.
 #'
 #' @author EDG
 #' @keywords internal
@@ -176,14 +284,13 @@ Hyperparameters <- new_class(
     hyperparameters = new_property(
       class_list,
       getter = function(self) {
-        c(hp_prop_values(self), hp_constants(self))
+        hp_prop_values(self)
       },
       setter = function(self, value) {
         route_config_assignment(
           self,
           Hyperparameters,
           value,
-          constants = hp_constants(self),
           label = self@algorithm,
           noun = "hyperparameter"
         )
@@ -199,14 +306,40 @@ Hyperparameters <- new_class(
       class_character,
       getter = function(self) {
         cls <- S7_class(self)
-        c(
-          setdiff(hp_prop_names(cls), tunable_spec_names(cls)),
-          names(hp_constants(self))
+        setdiff(
+          hp_prop_names(cls),
+          c(tunable_spec_names(cls), constant_spec_names(cls))
         )
       }
+    ),
+    constant_hyperparameters = new_property(
+      class_character,
+      getter = function(self) constant_spec_names(S7_class(self))
     )
   )
 ) # /rtemis::Hyperparameters
+
+
+# %% validate_hyperparameters.Hyperparameters ----
+#' Default hyperparameter validation against training data
+#'
+#' Checks every property declaring a `data_bound`. Algorithms whose constraints
+#' the `data_bound` vocabulary covers need no method of their own.
+#'
+#' @param hyperparameters `Hyperparameters`: Hyperparameters to check.
+#' @param x tabular data: Training data.
+#'
+#' @return `hyperparameters`, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(validate_hyperparameters, Hyperparameters) <- function(
+  hyperparameters,
+  x
+) {
+  check_data_bounds(hyperparameters, x)
+} # /rtemis::validate_hyperparameters.Hyperparameters
 
 
 # %% repr.Hyperparameters ----
@@ -327,7 +460,7 @@ method(print, Hyperparameters) <- function(x, output_type = NULL, ...) {
 
 
 # %% serializable_props.Hyperparameters ----
-# A serialized config is `{algorithm, hyperparameters}` — exactly what
+# A serialized config is `{algorithm, hyperparameters}` -- exactly what
 # `.list_to_Hyperparameters()` consumes and what the hyperparameters schema
 # describes. Everything else on the object is either derived from the specs
 # (`tunable_`/`fixed_hyperparameters`) or run state set during training
@@ -351,8 +484,8 @@ method(is_tuned, Hyperparameters) <- function(x) {
 #' Derive tuning status from current values
 #'
 #' Spec-driven: any tunable hyperparameter with more than one value (search
-#' values), or any `tune_on_null()` hyperparameter that is unset, means
-#' "needs tuning".
+#' values), or any hyperparameter declared `tune_on_null` that is unset,
+#' means "needs tuning".
 #'
 #' @keywords internal
 #' @noRd
@@ -366,7 +499,7 @@ method(get_tuned_status, Hyperparameters) <- function(x) {
     return(TUNED_STATUS_UNTUNED)
   }
   null_tune <- vapply(
-    tune_on_null(x),
+    tune_on_null_spec_names(S7_class(x)),
     function(nm) is.null(values[[nm]]),
     logical(1L)
   )
@@ -484,8 +617,8 @@ method(needs_tuning, Hyperparameters) <- function(x) {
 # %% get_hyperparams_need_tuning.Hyperparameters ----
 #' Get hyperparameters that need tuning.
 #'
-#' Tunable hyperparameters with more than one value (search values), plus
-#' any `tune_on_null()` hyperparameter that is unset (as a NULL entry, which
+#' Tunable hyperparameters with more than one value (search values), plus any
+#' hyperparameter declared `tune_on_null` that is unset (as a NULL entry, which
 #' `expand_grid()` converts to its "null" sentinel).
 #'
 #' @keywords internal
@@ -495,7 +628,7 @@ method(get_hyperparams_need_tuning, Hyperparameters) <- function(x) {
   values <- x@hyperparameters
   tunable <- x@tunable_hyperparameters
   out <- values[tunable[lengths(values[tunable]) > 1L]]
-  for (nm in tune_on_null(x)) {
+  for (nm in tune_on_null_spec_names(S7_class(x))) {
     if (is.null(values[[nm]])) {
       out <- c(out, stats::setNames(list(NULL), nm))
     }
@@ -694,7 +827,8 @@ CARTHyperparameters <- new_class(
       exclusive_min = 0,
       nullable = TRUE,
       vector = TRUE,
-      description = "Variable costs, one per feature."
+      data_bound = "n_features",
+      description = "Variable costs."
     ),
     ifw = prop_boolean(
       FALSE,
@@ -724,7 +858,7 @@ CARTHyperparameters <- new_class(
 #' @param usesurrogate Integer \[0, 2\]: Number of surrogate splits to use.
 #' @param surrogatestyle Integer \[0, 1\]: Type of surrogate splits.
 #' @param xval Integer [0, Inf): Number of cross-validation folds.
-#' @param cost Optional Numeric (0, Inf): One for each feature.
+#' @param cost Optional Numeric (0, Inf) vector: One for each feature.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return CARTHyperparameters object.
@@ -785,7 +919,7 @@ setup_CART <- function(
 #' @description
 #' Hyperparameters subclass for GLMNET. `lambda.min` and `lambda.1se` are
 #' runtime state written by the Tuner (from cv.glmnet), not settable
-#' hyperparameters — exclude them from schema generation.
+#' hyperparameters -- exclude them from schema generation.
 #'
 #' @author EDG
 #' @keywords internal
@@ -813,13 +947,15 @@ GLMNETHyperparameters <- new_class(
         "mgaussian"
       ),
       nullable = TRUE,
+      default_on_null = TRUE,
       description = "GLM family. NULL = set from outcome type."
     ),
     offset = prop_float(
       NULL,
       nullable = TRUE,
       vector = TRUE,
-      description = "Offset, one value per case."
+      data_bound = "n_cases",
+      description = "Offset."
     ),
     which_lambda_cv = prop_string(
       "lambda.1se",
@@ -836,6 +972,7 @@ GLMNETHyperparameters <- new_class(
       min = 0,
       nullable = TRUE,
       vector = TRUE,
+      tune_on_null = TRUE,
       description = "Regularization strength. NULL = determined by cv.glmnet during tuning."
     ),
     penalty_factor = prop_float(
@@ -859,14 +996,20 @@ GLMNETHyperparameters <- new_class(
       description = "Inverse Frequency Weighting in classification."
     ),
     # Run state, written by the Tuner from cv.glmnet results.
-    `lambda.min` = prop_state(NULL | class_double),
-    `lambda.1se` = prop_state(NULL | class_double)
+    `lambda.min` = prop_state(prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      description = "Lambda minimizing cross-validated error."
+    )),
+    `lambda.1se` = prop_state(prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      description = "Largest lambda within one standard error of the minimum."
+    ))
   )
 ) # /rtemis::GLMNETHyperparameters
-
-method(tune_on_null, GLMNETHyperparameters) <- function(x) {
-  "lambda"
-} # /rtemis::tune_on_null.GLMNETHyperparameters
 
 
 # %% setup_GLMNET ----
@@ -987,6 +1130,7 @@ LightCARTHyperparameters <- new_class(
     objective = prop_string(
       NULL,
       nullable = TRUE,
+      default_on_null = TRUE,
       description = "LightGBM objective. NULL = set from outcome type."
     ),
     ifw = prop_boolean(
@@ -1056,16 +1200,6 @@ setup_LightCART <- function(
 
 
 # %% LightRFHyperparameters ----
-# LightGBM parameters fixed by the RF mode: not settable and excluded from
-# the generated JSON Schema; appended to the `hyperparameters` list so
-# lgb.train receives them.
-LightRF_constants <- list(
-  boosting_type = "rf",
-  learning_rate = 1, # no effect? in boosting_type 'rf', but set for clarity
-  subsample_freq = 1L, # a.k.a. bagging_freq
-  early_stopping_rounds = -1L
-)
-
 #' @title LightRFHyperparameters
 #'
 #' @description
@@ -1079,6 +1213,24 @@ LightRFHyperparameters <- new_class(
   parent = Hyperparameters,
   properties = list(
     algorithm = prop_algorithm("LightRF"),
+    # Constants: these four are what make lightgbm train a random forest, so
+    # they belong to the class rather than to the user.
+    boosting_type = prop_const(
+      "rf",
+      description = "Boosting type. 'rf' is what makes LightGBM a random forest."
+    ),
+    learning_rate = prop_const(
+      1,
+      description = "Learning rate. No effect in 'rf' mode; set for clarity."
+    ),
+    subsample_freq = prop_const(
+      1L,
+      description = "Bagging frequency."
+    ),
+    early_stopping_rounds = prop_const(
+      -1L,
+      description = "Early stopping rounds. -1 disables early stopping."
+    ),
     nrounds = prop_integer(
       500L,
       min = 1L,
@@ -1097,11 +1249,12 @@ LightRFHyperparameters <- new_class(
       description = "Maximum tree depth. -1 = no limit."
     ),
     feature_fraction = prop_float(
-      0.7,
+      NULL,
       exclusive_min = 0,
       max = 1,
+      nullable = TRUE,
       tunable = TRUE,
-      description = "Fraction of features sampled per tree."
+      description = "Fraction of features sampled per tree. NULL = sqrt(n_features)/n_features for classification, 0.33 for regression."
     ),
     subsample = prop_float(
       0.623,
@@ -1147,6 +1300,7 @@ LightRFHyperparameters <- new_class(
     objective = prop_string(
       NULL,
       nullable = TRUE,
+      default_on_null = TRUE,
       description = "LightGBM objective. NULL = set from outcome type."
     ),
     device_type = prop_string(
@@ -1166,25 +1320,21 @@ LightRFHyperparameters <- new_class(
   )
 ) # /rtemis::LightRFHyperparameters
 
-method(hp_constants, LightRFHyperparameters) <- function(x) {
-  LightRF_constants
-} # /rtemis::hp_constants.LightRFHyperparameters
-
-
 # %% setup_LightRF ----
 #' Setup LightRF Hyperparameters
 #'
 #' Setup hyperparameters for LightRF training.
 #'
 #' Get more information from [lightgbm::lgb.train].
-#' Note that hyperparameters subsample_freq and early_stopping_rounds are fixed,
-#' and cannot be set because they are what makes `lightgbm` train a random forest.
-#' These can all be set when training gradient boosting with LightGBM.
+#' Note that `boosting_type`, `learning_rate`, `subsample_freq` and
+#' `early_stopping_rounds` are *constants* here: they cannot be set, because
+#' they are what makes `lightgbm` train a random forest. All of them are
+#' settable when training gradient boosting with LightGBM.
 #'
 #' @param nrounds (Tunable) Integer [1, Inf): Number of boosting rounds.
 #' @param num_leaves (Tunable) Integer [1, Inf): Maximum number of leaves in one tree.
 #' @param max_depth (Tunable) Integer: Maximum depth of trees. -1 = no limit.
-#' @param feature_fraction (Tunable) Numeric (0, 1]: Fraction of features to use.
+#' @param feature_fraction (Tunable) Optional Numeric (0, 1]: Fraction of features to use. NULL derives it from the data: sqrt(n_features)/n_features for classification, 0.33 for regression.
 #' @param subsample (Tunable) Numeric (0, 1]: Fraction of data to use.
 #' @param lambda_l1 (Tunable) Numeric [0, Inf): L1 regularization.
 #' @param lambda_l2 (Tunable) Numeric [0, Inf): L2 regularization.
@@ -1208,7 +1358,7 @@ setup_LightRF <- function(
   nrounds = 500L,
   num_leaves = 4096L,
   max_depth = -1L,
-  feature_fraction = 0.7,
+  feature_fraction = NULL,
   subsample = .623, # a.k.a. bagging_fraction
   lambda_l1 = 0,
   lambda_l2 = 0,
@@ -1253,7 +1403,7 @@ setup_LightRF <- function(
 #' @description
 #' Hyperparameters subclass for LightGBM. `nrounds` is derived (from
 #' `force_nrounds`, or by early-stopping during tuning) and `best_iter` is
-#' runtime state written by the Tuner — exclude both from schema generation.
+#' runtime state written by the Tuner -- exclude both from schema generation.
 #'
 #' @author EDG
 #' @keywords internal
@@ -1354,6 +1504,7 @@ LightGBMHyperparameters <- new_class(
     objective = prop_string(
       NULL,
       nullable = TRUE,
+      default_on_null = TRUE,
       description = "LightGBM objective. NULL = set from outcome type."
     ),
     device_type = prop_string(
@@ -1372,15 +1523,22 @@ LightGBMHyperparameters <- new_class(
     ),
     # Derived: force_nrounds if set, otherwise determined by early stopping
     # during tuning.
-    nrounds = prop_state(NULL | class_integer),
+    nrounds = prop_state(prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tune_on_null = TRUE,
+      description = "Resolved number of boosting rounds. NULL = determined by early stopping during tuning."
+    )),
     # Run state: best iteration, written by the Tuner.
-    best_iter = prop_state(NULL | class_numeric)
+    best_iter = prop_state(prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      description = "Best iteration found by early stopping."
+    ))
   )
 ) # /rtemis::LightGBMHyperparameters
-
-method(tune_on_null, LightGBMHyperparameters) <- function(x) {
-  "nrounds"
-} # /rtemis::tune_on_null.LightGBMHyperparameters
 
 method(update, LightGBMHyperparameters) <- function(
   object,
@@ -1574,6 +1732,7 @@ LightRuleFitHyperparameters <- new_class(
     objective = prop_string(
       NULL,
       nullable = TRUE,
+      default_on_null = TRUE,
       description = "LightGBM objective. NULL = set from outcome type."
     ),
     ifw_lightgbm = prop_boolean(
@@ -1713,7 +1872,7 @@ IsotonicHyperparameters <- new_class(
 #'
 #' There are not hyperparameters for this algorithm at this moment.
 #'
-#' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return IsotonicHyperparameters object.
 #'
@@ -1732,7 +1891,7 @@ setup_Isotonic <- function(ifw = FALSE) {
 #'
 #' @description
 #' Hyperparameters subclass for SVM with linear kernel. The kernel is a
-#' constant (see `hp_constants`).
+#' constant: determined by the class, not settable.
 #'
 #' @author EDG
 #' @keywords internal
@@ -1742,6 +1901,10 @@ LinearSVMHyperparameters <- new_class(
   parent = Hyperparameters,
   properties = list(
     algorithm = prop_algorithm("LinearSVM"),
+    kernel = prop_const(
+      "linear",
+      description = "SVM kernel; determined by the class."
+    ),
     cost = prop_float(
       1,
       exclusive_min = 0,
@@ -1755,11 +1918,6 @@ LinearSVMHyperparameters <- new_class(
     )
   )
 ) # /rtemis::LinearSVMHyperparameters
-
-method(hp_constants, LinearSVMHyperparameters) <- function(x) {
-  list(kernel = "linear")
-} # /rtemis::hp_constants.LinearSVMHyperparameters
-
 
 # %% setup_LinearSVM ----
 #' Setup LinearSVM Hyperparameters
@@ -1794,7 +1952,7 @@ setup_LinearSVM <- function(
 #'
 #' @description
 #' Hyperparameters subclass for SVM with radial kernel. The kernel is a
-#' constant (see `hp_constants`).
+#' constant: determined by the class, not settable.
 #'
 #' @author EDG
 #' @keywords internal
@@ -1804,6 +1962,10 @@ RadialSVMHyperparameters <- new_class(
   parent = Hyperparameters,
   properties = list(
     algorithm = prop_algorithm("RadialSVM"),
+    kernel = prop_const(
+      "radial",
+      description = "SVM kernel; determined by the class."
+    ),
     cost = prop_float(
       1,
       exclusive_min = 0,
@@ -1823,11 +1985,6 @@ RadialSVMHyperparameters <- new_class(
     )
   )
 ) # /rtemis::RadialSVMHyperparameters
-
-method(hp_constants, RadialSVMHyperparameters) <- function(x) {
-  list(kernel = "radial")
-} # /rtemis::hp_constants.RadialSVMHyperparameters
-
 
 # %% setup_RadialSVM ----
 #' Setup RadialSVM Hyperparameters
@@ -1961,13 +2118,16 @@ TabNetHyperparameters <- new_class(
       tunable = TRUE,
       description = "Learning rate."
     ),
-    # Accept an R function or a name; only the name has a JSON form, supplied
-    # by `.tabnet_hyperparameters_schema_extra`.
-    optimizer = prop_external(
-      class_character | class_function,
-      default = "adam"
+    optimizer = prop_string(
+      "adam",
+      description = "Optimizer name, resolved by the tabnet backend."
     ),
-    lr_scheduler = prop_external(NULL | class_character | class_function),
+    lr_scheduler = prop_string(
+      NULL,
+      enum = c("step", "reduce_on_plateau"),
+      nullable = TRUE,
+      description = "Learning-rate scheduler. NULL = none."
+    ),
     lr_decay = prop_float(
       0.1,
       min = 0,
@@ -2078,32 +2238,6 @@ TabNetHyperparameters <- new_class(
 ) # /rtemis::TabNetHyperparameters
 
 
-# %% .tabnet_hyperparameters_schema_extra ----
-# Schema fragments for TabNetHyperparameters `optimizer` and `lr_scheduler`.
-# Both accept a torch function in R (not JSON-serializable) or a string; only
-# the string form is schematized, so a portable config validates while the
-# function form remains an R-only runtime option. Merged into the generated
-# schema. See generate_schemas.R.
-.tabnet_hyperparameters_schema_extra <- list(
-  properties = list(
-    optimizer = list(
-      type = "string",
-      default = "adam",
-      `$comment` = "A torch optimizer function may also be supplied in R; only the string form is serializable.",
-      description = "Optimizer name (e.g. \"adam\")."
-    ),
-    lr_scheduler = list(
-      oneOf = list(
-        list(type = "null"),
-        list(type = "string", enum = I(c("step", "reduce_on_plateau")))
-      ),
-      `$comment` = "A torch scheduler function may also be supplied in R; only the string form is serializable.",
-      description = "Learning-rate scheduler: \"step\" or \"reduce_on_plateau\". null = none."
-    )
-  )
-)
-
-
 # %% setup_TabNet ----
 #' Setup TabNet Hyperparameters
 #'
@@ -2125,8 +2259,8 @@ TabNetHyperparameters <- new_class(
 #' @param virtual_batch_size (Tunable) Integer [1, Inf): Virtual batch size.
 #' @param valid_split (Tunable) Numeric [0, 1): Validation split.
 #' @param learn_rate (Tunable) Numeric (0, Inf): Learning rate.
-#' @param optimizer Character or torch function: Optimizer.
-#' @param lr_scheduler Optional Character or torch function: "step", "reduce_on_plateau".
+#' @param optimizer Character: Optimizer name, resolved by the tabnet backend.
+#' @param lr_scheduler Optional Character \{"step", "reduce_on_plateau"\}: Learning-rate scheduler.
 #' @param lr_decay (Tunable) Numeric \[0, 1\]: Learning rate decay.
 #' @param step_size (Tunable) Integer [1, Inf): Step size.
 #' @param checkpoint_epochs (Tunable) Integer [1, Inf): Checkpoint epochs.
@@ -2266,9 +2400,6 @@ get_tabnet_config <- function(hyperparameters) {
 #' (character or logical), and `inbag` (list) have union / list types the
 #' `prop_*` factories do not express, so they are declared as plain S7 union
 #' properties (non-tunable) and their JSON Schema is supplied by hand via
-#' `.ranger_hyperparameters_schema_extra`, merged into the generated
-#' `hyperparameters/ranger/v1` schema in `generate_schemas.R`.
-#'
 #' @author EDG
 #' @keywords internal
 #' @noRd
@@ -2288,6 +2419,7 @@ RangerHyperparameters <- new_class(
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
+      data_bound = "n_features",
       description = "Number of features considered at each split. NULL = ranger default."
     ),
     importance = prop_string(
@@ -2340,6 +2472,7 @@ RangerHyperparameters <- new_class(
       min = 0,
       nullable = TRUE,
       vector = TRUE,
+      data_bound = "n_cases",
       description = "Per-observation sampling weights."
     ),
     class_weights = prop_float(
@@ -2347,6 +2480,7 @@ RangerHyperparameters <- new_class(
       min = 0,
       nullable = TRUE,
       vector = TRUE,
+      data_bound = "n_classes",
       description = "Per-class weights (classification only)."
     ),
     splitrule = prop_string(
@@ -2380,15 +2514,24 @@ RangerHyperparameters <- new_class(
       exclusive_min = 0,
       description = "Tau parameter (poisson splitrule)."
     ),
-    split_select_weights = prop_external(NULL | class_numeric | class_list),
+    split_select_weights = prop_array(
+      prop_float(0, min = 0, max = 1, vector = TRUE, data_bound = "n_features"),
+      nullable = TRUE,
+      broadcast = TRUE,
+      description = "Per-feature split-selection probabilities: one vector applied to every tree, or one vector per tree."
+    ),
     always_split_variables = prop_string(
       NULL,
       nullable = TRUE,
       vector = TRUE,
+      data_bound = "feature_names",
       description = "Variables always included as split candidates."
     ),
-    respect_unordered_factors = prop_external(
-      NULL | class_character | class_logical
+    respect_unordered_factors = prop_string(
+      NULL,
+      enum = c("partition", "ignore", "order"),
+      nullable = TRUE,
+      description = "Handling of unordered factors. NULL uses the ranger default."
     ),
     scale_permutation_importance = prop_boolean(
       FALSE,
@@ -2412,7 +2555,11 @@ RangerHyperparameters <- new_class(
       FALSE,
       description = "Record how often each observation is in-bag per tree."
     ),
-    inbag = prop_external(NULL | class_list),
+    inbag = prop_array(
+      prop_integer(0L, min = 0L, vector = TRUE, data_bound = "n_cases"),
+      nullable = TRUE,
+      description = "Manually set in-bag counts: one per-case count vector per tree."
+    ),
     holdout = prop_boolean(
       FALSE,
       description = "Hold-out mode: hold out samples with case weight 0."
@@ -2462,71 +2609,6 @@ RangerHyperparameters <- new_class(
 ) # /rtemis::RangerHyperparameters
 
 
-# %% .ranger_hyperparameters_schema_extra ----
-# Schema fragments for RangerHyperparameters properties whose R types are union
-# / list types not expressible via the prop_* factories. They are `exclude`d
-# from generation and their JSON Schema merged in here, so the generated
-# `hyperparameters/ranger/v1` schema still describes them. See generate_schemas.R.
-.ranger_hyperparameters_schema_extra <- list(
-  properties = list(
-    split_select_weights = list(
-      oneOf = list(
-        list(type = "null"),
-        list(
-          type = "array",
-          items = list(type = "number", minimum = 0, maximum = 1),
-          minItems = 1L
-        ),
-        list(
-          type = "array",
-          items = list(
-            type = "array",
-            items = list(type = "number", minimum = 0, maximum = 1),
-            minItems = 1L
-          ),
-          minItems = 1L
-        )
-      ),
-      description = paste0(
-        "Optional per-feature split-selection probabilities in [0, 1]: a ",
-        "single vector applied to every tree, or a list of length `num_trees` ",
-        "with one weight vector per tree. null uses the ranger default."
-      )
-    ),
-    respect_unordered_factors = list(
-      oneOf = list(
-        list(type = "null"),
-        list(type = "string", enum = I(c("partition", "ignore", "order"))),
-        list(type = "boolean")
-      ),
-      description = paste0(
-        "Handling of unordered factors: \"partition\", \"ignore\", or ",
-        "\"order\"; or a logical (TRUE corresponds to \"partition\"). null ",
-        "uses the ranger default."
-      )
-    ),
-    inbag = list(
-      oneOf = list(
-        list(type = "null"),
-        list(
-          type = "array",
-          items = list(
-            type = "array",
-            items = list(type = "integer", minimum = 0L)
-          ),
-          minItems = 1L
-        )
-      ),
-      description = paste0(
-        "Optional manually-set in-bag counts: a list of length `num_trees`, ",
-        "each a per-observation vector of non-negative counts. null uses the ",
-        "ranger default (bootstrap sampling)."
-      )
-    )
-  )
-)
-
-
 # %% setup_Ranger ----
 #' Setup Ranger Hyperparameters
 #'
@@ -2551,15 +2633,15 @@ RangerHyperparameters <- new_class(
 #' @param alpha (Tunable) Numeric \[0, 1\]: Significance threshold to allow splitting, for the "maxstat" splitrule.
 #' @param minprop (Tunable) Numeric \[0, 1\]: Lower quantile of the covariate distribution considered for splitting, for the "maxstat" splitrule.
 #' @param poisson_tau Numeric (0, Inf): Tau parameter, for the "poisson" regression splitrule.
-#' @param split_select_weights Optional Numeric \[0, 1\] vector: Per-feature probabilities of being selected for splitting. Alternatively a list of length `num_trees`, one weight vector per tree.
+#' @param split_select_weights Optional List: Per-feature probabilities of being selected for splitting, in \[0, 1\]. One vector applied to every tree, or a list of length `num_trees` with one vector per tree.
 #' @param always_split_variables Optional Character vector: Names of variables to always include as split candidates, in addition to the `mtry` variables.
-#' @param respect_unordered_factors Optional Character or logical: Handling of unordered factors: "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response. TRUE corresponds to "partition".
+#' @param respect_unordered_factors Optional Character \{"partition", "ignore", "order"\}: Handling of unordered factors. "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response.
 #' @param scale_permutation_importance Logical: If TRUE, scale permutation importance by its standard error. Permutation importance only.
 #' @param local_importance Logical: If TRUE, compute local (per-observation) permutation importance.
 #' @param regularization_factor (Tunable) Numeric [0, Inf): Regularization factor penalizing variables with many split points. Requires `splitrule = "variance"`.
 #' @param regularization_usedepth Logical: If TRUE, apply the regularization factor with node depth. Requires `regularization_factor`.
 #' @param keep_inbag Logical: If TRUE, record how often each observation is in-bag per tree.
-#' @param inbag Optional List: Manually set in-bag counts per tree; list of length `num_trees`. Can be used for stratified sampling.
+#' @param inbag Optional List: Manually set in-bag counts; a list of length `num_trees`, each a per-case count vector. Can be used for stratified sampling.
 #' @param holdout Logical: If TRUE, use hold-out mode: hold out samples with case weight 0 and use them for variable importance and prediction error.
 #' @param quantreg Logical: If TRUE, prepare quantile prediction (quantile regression forests). Regression only; set `keep_inbag = TRUE` for out-of-bag quantile prediction.
 #' @param time_interest Optional Numeric vector: Time points of interest for survival prediction. Survival only. Deprecated.
@@ -2685,18 +2767,31 @@ setup_Ranger <- function(
 #' @examples
 #' .list_to_Hyperparameters(list(algorithm = "GLMNET", hyperparameters = list(alpha = 1)))
 .list_to_Hyperparameters <- function(x) {
-  fn <- paste0("setup_", x[["algorithm"]])
+  algorithm <- x[["algorithm"]]
+  fn <- paste0("setup_", algorithm)
   if (!exists(fn, mode = "function")) {
+    # The published enum lists canonical names only, so a case mismatch is the
+    # likely error and is worth naming.
+    canonical <- supervised_algorithms[, 1][
+      tolower(algorithm) == tolower(supervised_algorithms[, 1])
+    ]
     rtemis.core::abort(
       "Invalid algorithm: ",
-      x[["algorithm"]],
-      ".",
+      algorithm,
+      if (length(canonical) == 1L) {
+        paste0(". Did you mean \"", canonical, "\"?")
+      } else {
+        "."
+      },
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-  args <- x[["hyperparameters"]]
-  # Keep only arguments that are in the setup function
-  setup_formals <- names(formals(get(fn)))
-  args <- args[names(args) %in% setup_formals]
+  check_wire_keys(x, c("algorithm", "hyperparameters"), "hyperparameters")
+  args <- .drop_meta_keys(x[["hyperparameters"]])
+  check_wire_keys(
+    args,
+    names(formals(get(fn))),
+    paste(algorithm, "hyperparameter")
+  )
   do.call(fn, args)
 }
