@@ -408,9 +408,10 @@ PropertySpec <- new_class(
     }
     # The default must itself conform to the spec.
     # An invalid declaration fails on package load, not at first instantiation.
+    fields <- spec_fields(self)
     if (!is.null(self@default)) {
       type_ok <- switch(
-        spec_r_kind(self),
+        spec_r_kind(fields),
         matrix = is.matrix(self@default),
         list = is.list(self@default),
         switch(
@@ -426,13 +427,71 @@ PropertySpec <- new_class(
         return(paste0("@default must be of type '", self@type, "'."))
       }
     }
-    default_msg <- validate_with_spec(self@default, self)
+    default_msg <- validate_with_spec(self@default, fields)
     if (!is.null(default_msg)) {
       return(paste0("@default ", default_msg))
     }
     NULL
   }
 ) # /rtemis::PropertySpec
+
+
+# %% spec_fields ----
+#' A PropertySpec's fields as a plain nested list
+#'
+#' The form a spec is *stored* in, on the property and in the property's
+#' validator closure. An S7 object carries its class definition by value in its
+#' `S7_class` attribute, so storing the `PropertySpec` itself would write a copy
+#' of the whole class object -- tens of KB -- into the package's lazy-load
+#' database once per property, and S7 composes class objects by value, which
+#' multiplies that cost through every class that declares or inherits such a
+#' property. The fields alone are three orders of magnitude smaller.
+#'
+#' Nested `items` and `members` specs are converted too: the validators reach
+#' them recursively and must find the same representation at every level.
+#'
+#' @param spec `PropertySpec` object.
+#'
+#' @return Named list of spec fields, with any nested specs likewise converted.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+spec_fields <- function(spec) {
+  fields <- props(spec)
+  if (!is.null(fields[["items"]])) {
+    fields[["items"]] <- spec_fields(fields[["items"]])
+  }
+  if (!is.null(fields[["members"]])) {
+    fields[["members"]] <- lapply(fields[["members"]], spec_fields)
+  }
+  fields
+} # /rtemis::spec_fields
+
+
+# %% spec_object ----
+#' Rebuild a PropertySpec from its stored fields
+#'
+#' Inverse of `spec_fields()`. The schema emitters and prop audits read spec
+#' fields with `@`, so they are handed an object; only the validators, which run
+#' on every property set, read the stored list directly.
+#'
+#' @param fields Named list produced by `spec_fields()`.
+#'
+#' @return `PropertySpec` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+spec_object <- function(fields) {
+  if (!is.null(fields[["items"]])) {
+    fields[["items"]] <- spec_object(fields[["items"]])
+  }
+  if (!is.null(fields[["members"]])) {
+    fields[["members"]] <- lapply(fields[["members"]], spec_object)
+  }
+  do.call(PropertySpec, fields)
+} # /rtemis::spec_object
 
 
 # %% spec_r_kind ----
@@ -443,29 +502,30 @@ PropertySpec <- new_class(
 #' kind: the same JSON shape as a nested array, a different R class. So is a
 #' table, whose columns each carry their own type.
 #'
-#' @param spec `PropertySpec` object.
+#' @param fields Named list of spec fields, from `spec_fields()`.
 #'
 #' @return Character: "matrix", "table", "factor", "list", or "atomic".
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-spec_r_kind <- function(spec) {
-  if (spec@container == "matrix") {
+spec_r_kind <- function(fields) {
+  container <- fields[["container"]]
+  if (container == "matrix") {
     return("matrix")
   }
-  if (spec@container == "table") {
+  if (container == "table") {
     return("table")
   }
-  if (spec@container == "factor") {
+  if (container == "factor") {
     return("factor")
   }
-  if (spec@container == "struct") {
+  if (container == "struct") {
     return("list")
   }
-  nested <- spec@container != "none" &&
-    !is.null(spec@items) &&
-    spec@items@container != "none"
+  nested <- container != "none" &&
+    !is.null(fields[["items"]]) &&
+    fields[["items"]][["container"]] != "none"
   if (nested) "list" else "atomic"
 } # /rtemis::spec_r_kind
 
@@ -478,27 +538,28 @@ spec_r_kind <- function(spec) {
 #' never competes with the emptiness message raised upstream.
 #'
 #' @param value Property value being set, in container form.
-#' @param spec `PropertySpec` object.
+#' @param fields Named list of spec fields, from `spec_fields()`.
 #'
 #' @return NULL if valid, otherwise character error message.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-validate_array_arity <- function(value, spec) {
-  if (spec@container != "array") {
+validate_array_arity <- function(value, fields) {
+  if (fields[["container"]] != "array") {
     return(NULL)
   }
-  if (spec@min_items > 1L && length(value) < spec@min_items) {
+  min_items <- fields[["min_items"]]
+  if (min_items > 1L && length(value) < min_items) {
     return(paste0(
       "must have at least ",
-      spec@min_items,
+      min_items,
       " elements, but ",
       length(value),
       " given."
     ))
   }
-  if (spec@unique_items && anyDuplicated(value) > 0L) {
+  if (fields[["unique_items"]] && anyDuplicated(value) > 0L) {
     return("must not contain duplicate values.")
   }
   NULL
@@ -514,16 +575,17 @@ validate_array_arity <- function(value, spec) {
 #' is a real NA, not a malformed one.
 #'
 #' @param column Vector: One column of the data frame.
-#' @param spec `PropertySpec` object describing a cell.
+#' @param fields Named list of the cell spec's fields, from `spec_fields()`.
 #'
 #' @return NULL if valid, otherwise character error message.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-validate_table_column <- function(column, spec) {
+validate_table_column <- function(column, fields) {
+  type <- fields[["type"]]
   ok <- switch(
-    spec@type,
+    type,
     boolean = is.logical(column),
     integer = is.integer(column),
     number = is.numeric(column),
@@ -531,32 +593,33 @@ validate_table_column <- function(column, spec) {
     object = is.list(column)
   )
   if (!ok) {
-    return(paste0("must be of type '", spec@type, "'."))
+    return(paste0("must be of type '", type, "'."))
   }
-  if (!spec@nullable && anyNA(column)) {
+  if (!fields[["nullable"]] && anyNA(column)) {
     return("must not contain missing values.")
   }
   present <- column[!is.na(column)]
-  if (!is.null(spec@minimum) && any(present < spec@minimum)) {
-    return(paste0("must be >= ", spec@minimum, "."))
+  minimum <- fields[["minimum"]]
+  maximum <- fields[["maximum"]]
+  exclusive_minimum <- fields[["exclusive_minimum"]]
+  exclusive_maximum <- fields[["exclusive_maximum"]]
+  enum <- fields[["enum"]]
+  if (!is.null(minimum) && any(present < minimum)) {
+    return(paste0("must be >= ", minimum, "."))
   }
-  if (!is.null(spec@maximum) && any(present > spec@maximum)) {
-    return(paste0("must be <= ", spec@maximum, "."))
+  if (!is.null(maximum) && any(present > maximum)) {
+    return(paste0("must be <= ", maximum, "."))
   }
-  if (
-    !is.null(spec@exclusive_minimum) && any(present <= spec@exclusive_minimum)
-  ) {
-    return(paste0("must be > ", spec@exclusive_minimum, "."))
+  if (!is.null(exclusive_minimum) && any(present <= exclusive_minimum)) {
+    return(paste0("must be > ", exclusive_minimum, "."))
   }
-  if (
-    !is.null(spec@exclusive_maximum) && any(present >= spec@exclusive_maximum)
-  ) {
-    return(paste0("must be < ", spec@exclusive_maximum, "."))
+  if (!is.null(exclusive_maximum) && any(present >= exclusive_maximum)) {
+    return(paste0("must be < ", exclusive_maximum, "."))
   }
-  if (!is.null(spec@enum) && !all(present %in% spec@enum)) {
+  if (!is.null(enum) && !all(present %in% enum)) {
     return(paste0(
       "must be one of ",
-      paste0("'", spec@enum, "'", collapse = ", "),
+      paste0("'", enum, "'", collapse = ", "),
       "."
     ))
   }
@@ -574,7 +637,8 @@ validate_table_column <- function(column, spec) {
 #' for this task".
 #'
 #' @param present Character: Names the value actually carries.
-#' @param spec `PropertySpec` object with `@members` set.
+#' @param fields Named list of spec fields with `members` set, from
+#'   `spec_fields()`.
 #' @param noun Character: What one member is called in messages, "column" for a
 #'   table and "field" for a struct.
 #'
@@ -583,8 +647,8 @@ validate_table_column <- function(column, spec) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-validate_member_names <- function(present, spec, noun) {
-  declared <- names(spec@members)
+validate_member_names <- function(present, fields, noun) {
+  declared <- names(fields[["members"]])
   unknown <- setdiff(present, declared)
   if (length(unknown) > 0L) {
     return(paste0(
@@ -599,7 +663,10 @@ validate_member_names <- function(present, spec, noun) {
       "."
     ))
   }
-  missing_required <- setdiff(spec@required_members %||% declared, present)
+  missing_required <- setdiff(
+    fields[["required_members"]] %||% declared,
+    present
+  )
   if (length(missing_required) > 0L) {
     return(paste0(
       "is missing required ",
@@ -620,26 +687,27 @@ validate_member_names <- function(present, spec, noun) {
 #' full `validate_with_spec()` rather than the elementwise column check.
 #'
 #' @param value Property value being set.
-#' @param spec `PropertySpec` object with `container = "struct"`.
+#' @param fields Named list of spec fields with `container = "struct"`, from
+#'   `spec_fields()`.
 #'
 #' @return NULL if valid, otherwise character error message.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-validate_struct <- function(value, spec) {
+validate_struct <- function(value, fields) {
   if (!is.list(value) || is.data.frame(value)) {
     return("must be a named list.")
   }
   if (length(value) > 0L && is.null(names(value))) {
     return("must be named.")
   }
-  msg <- validate_member_names(names(value), spec, "field")
+  msg <- validate_member_names(names(value), fields, "field")
   if (!is.null(msg)) {
     return(msg)
   }
   for (nm in names(value)) {
-    msg <- validate_with_spec(value[[nm]], spec@members[[nm]])
+    msg <- validate_with_spec(value[[nm]], fields[["members"]][[nm]])
     if (!is.null(msg)) {
       return(paste0("field '", nm, "' ", msg))
     }
@@ -657,24 +725,25 @@ validate_struct <- function(value, spec) {
 #' conditional metric reports "not computed for this task".
 #'
 #' @param value Property value being set.
-#' @param spec `PropertySpec` object with `container = "table"`.
+#' @param fields Named list of spec fields with `container = "table"`, from
+#'   `spec_fields()`.
 #'
 #' @return NULL if valid, otherwise character error message.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-validate_table <- function(value, spec) {
+validate_table <- function(value, fields) {
   if (!is.data.frame(value)) {
     return("must be a data frame.")
   }
-  msg <- validate_member_names(names(value), spec, "column")
+  msg <- validate_member_names(names(value), fields, "column")
   if (!is.null(msg)) {
     return(msg)
   }
   present <- names(value)
   for (nm in present) {
-    msg <- validate_table_column(value[[nm]], spec@members[[nm]])
+    msg <- validate_table_column(value[[nm]], fields[["members"]][[nm]])
     if (!is.null(msg)) {
       return(paste0("column '", nm, "' ", msg))
     }
@@ -692,23 +761,25 @@ validate_table <- function(value, spec) {
 #' this checks arity, missingness, bounds, and enum membership.
 #'
 #' @param value Property value being set.
-#' @param spec `PropertySpec` object.
+#' @param fields Named list of spec fields, from `spec_fields()`.
 #'
 #' @return NULL if valid, otherwise character error message.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-validate_with_spec <- function(value, spec) {
+validate_with_spec <- function(value, fields) {
+  nullable <- fields[["nullable"]]
+  container <- fields[["container"]]
   if (is.null(value)) {
-    return(if (spec@nullable) NULL else "must not be NULL.")
+    return(if (nullable) NULL else "must not be NULL.")
   }
-  if (spec@type == "object" && spec@container == "none") {
+  if (fields[["type"]] == "object" && container == "none") {
     # One named list is a single value however many keys it holds, and its
     # contents are the backend's contract, not ours.
     return(if (is.list(value)) NULL else "must be a list.")
   }
-  if (spec@container == "matrix") {
+  if (container == "matrix") {
     if (!is.matrix(value)) {
       return("must be a matrix.")
     }
@@ -717,37 +788,38 @@ validate_with_spec <- function(value, spec) {
     }
     return(NULL)
   }
-  if (spec@container == "table") {
-    return(validate_table(value, spec))
+  if (container == "table") {
+    return(validate_table(value, fields))
   }
-  if (spec@container == "struct") {
-    return(validate_struct(value, spec))
+  if (container == "struct") {
+    return(validate_struct(value, fields))
   }
-  if (spec@container == "factor" && !is.factor(value)) {
+  if (container == "factor" && !is.factor(value)) {
     # The generic checks below then apply to the labels: emptiness, missingness
     # and, where declared, enum membership.
     return("must be a factor.")
   }
-  if (spec@container == "map" && is.null(names(value))) {
+  if (container == "map" && is.null(names(value))) {
     return("must be named.")
   }
-  if (!is.null(spec@items) && spec@items@container != "none") {
+  items <- fields[["items"]]
+  if (!is.null(items) && items[["container"]] != "none") {
     # Elements are themselves containers, so each is validated against `items`.
     # A container of *scalars* is a plain (possibly named) R vector and falls
     # through to the generic checks below.
-    if (spec@broadcast && !is.list(value)) {
+    if (fields[["broadcast"]] && !is.list(value)) {
       # A bare element stands in for the whole container.
-      return(validate_with_spec(value, spec@items))
+      return(validate_with_spec(value, items))
     }
     if (!is.list(value)) {
       return("must be a list.")
     }
-    msg <- validate_array_arity(value, spec)
+    msg <- validate_array_arity(value, fields)
     if (!is.null(msg)) {
       return(msg)
     }
     for (i in seq_along(value)) {
-      msg <- validate_with_spec(value[[i]], spec@items)
+      msg <- validate_with_spec(value[[i]], items)
       if (!is.null(msg)) {
         return(paste0("element ", i, " ", msg))
       }
@@ -761,43 +833,44 @@ validate_with_spec <- function(value, spec) {
     # and is rejected, so that `!is.null()` guards downstream stay meaningful.
     # Only point at NULL when NULL is actually accepted.
     return(
-      if (spec@nullable) {
+      if (nullable) {
         "must not be empty (use NULL to leave it unset)."
       } else {
         "must not be empty."
       }
     )
   }
-  if (length(value) > 1L && !spec@tunable && spec@container == "none") {
+  if (length(value) > 1L && !fields[["tunable"]] && container == "none") {
     return("must be a single value (not tunable, no search values allowed).")
   }
-  msg <- validate_array_arity(value, spec)
+  msg <- validate_array_arity(value, fields)
   if (!is.null(msg)) {
     return(msg)
   }
   if (anyNA(value)) {
     return("must not contain missing values.")
   }
-  if (!is.null(spec@minimum) && any(value < spec@minimum)) {
-    return(paste0("must be >= ", spec@minimum, "."))
+  minimum <- fields[["minimum"]]
+  maximum <- fields[["maximum"]]
+  exclusive_minimum <- fields[["exclusive_minimum"]]
+  exclusive_maximum <- fields[["exclusive_maximum"]]
+  enum <- fields[["enum"]]
+  if (!is.null(minimum) && any(value < minimum)) {
+    return(paste0("must be >= ", minimum, "."))
   }
-  if (!is.null(spec@maximum) && any(value > spec@maximum)) {
-    return(paste0("must be <= ", spec@maximum, "."))
+  if (!is.null(maximum) && any(value > maximum)) {
+    return(paste0("must be <= ", maximum, "."))
   }
-  if (
-    !is.null(spec@exclusive_minimum) && any(value <= spec@exclusive_minimum)
-  ) {
-    return(paste0("must be > ", spec@exclusive_minimum, "."))
+  if (!is.null(exclusive_minimum) && any(value <= exclusive_minimum)) {
+    return(paste0("must be > ", exclusive_minimum, "."))
   }
-  if (
-    !is.null(spec@exclusive_maximum) && any(value >= spec@exclusive_maximum)
-  ) {
-    return(paste0("must be < ", spec@exclusive_maximum, "."))
+  if (!is.null(exclusive_maximum) && any(value >= exclusive_maximum)) {
+    return(paste0("must be < ", exclusive_maximum, "."))
   }
-  if (!is.null(spec@enum) && !all(value %in% spec@enum)) {
+  if (!is.null(enum) && !all(value %in% enum)) {
     return(paste0(
       "must be one of ",
-      paste0("'", spec@enum, "'", collapse = ", "),
+      paste0("'", enum, "'", collapse = ", "),
       "."
     ))
   }
@@ -822,6 +895,7 @@ validate_with_spec <- function(value, spec) {
 #' @keywords internal
 #' @noRd
 make_prop <- function(spec) {
+  fields <- spec_fields(spec)
   atomic_class <- switch(
     spec@type,
     boolean = class_logical,
@@ -834,7 +908,7 @@ make_prop <- function(spec) {
   # scalar leaf keep the atomic class (a map is simply a *named* vector). Only
   # a container whose elements are themselves containers needs a list.
   base_class <- switch(
-    spec_r_kind(spec),
+    spec_r_kind(fields),
     matrix = S7::new_S3_class("matrix"),
     table = class_data.frame,
     factor = class_factor,
@@ -844,11 +918,32 @@ make_prop <- function(spec) {
   p <- new_property(
     class = if (spec@nullable) NULL | base_class else base_class,
     default = spec@default,
-    validator = function(value) validate_with_spec(value, spec)
+    validator = spec_validator(fields)
   )
-  p[["spec"]] <- spec
+  p[["spec"]] <- fields
   p
 } # /rtemis::make_prop
+
+
+# %% spec_validator ----
+#' Build a property's validator over its spec fields
+#'
+#' A factory rather than an inline closure so that the validator's environment
+#' holds the fields and nothing else. An inline closure would capture the whole
+#' calling frame, and anything reachable from it is written to the lazy-load
+#' database alongside the validator.
+#'
+#' @param fields Named list of spec fields, from `spec_fields()`.
+#'
+#' @return Function of one argument, suitable as an S7 property validator.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+spec_validator <- function(fields) {
+  force(fields)
+  function(value) validate_with_spec(value, fields)
+} # /rtemis::spec_validator
 
 
 # %% prop_boolean ----
@@ -1567,7 +1662,7 @@ prop_const <- function(value, description = "") {
     ),
     getter = function(self) value
   )
-  p[["spec"]] <- spec
+  p[["spec"]] <- spec_fields(spec)
   p
 } # /rtemis::prop_const
 
@@ -1666,6 +1761,30 @@ prop_bag <- function(
 #' @keywords internal
 #' @noRd
 get_spec <- function(prop) {
+  fields <- get_spec_fields(prop)
+  if (is.null(fields)) {
+    return(NULL)
+  }
+  spec_object(fields)
+} # /rtemis::get_spec
+
+
+# %% get_spec_fields ----
+#' Get the stored spec fields of an S7 property, or NULL
+#'
+#' The stored form, without rebuilding a `PropertySpec`. Use this where only a
+#' field or two is needed; use `get_spec()` where the caller reads fields with
+#' `@`.
+#'
+#' @param prop S7 property (an element of `Class@properties`).
+#'
+#' @return Named list of spec fields, or NULL if the property was not built by a
+#'   `prop_*` factory.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+get_spec_fields <- function(prop) {
   # An S7 property is a named list. Anything else was not built by a factory,
   # which the callers that accept a property as an *argument* must be able to
   # tell without tripping over `[[` on an atomic vector.
@@ -1673,7 +1792,7 @@ get_spec <- function(prop) {
     return(NULL)
   }
   prop[["spec"]]
-} # /rtemis::get_spec
+} # /rtemis::get_spec_fields
 
 
 # %% prop_accepts_null ----
@@ -2254,15 +2373,16 @@ wire_value <- function(value, prop) {
 from_wire_maps <- function(x, cls) {
   props <- cls@properties
   for (nm in intersect(names(x), names(props))) {
-    spec <- get_spec(props[[nm]])
-    if (is.null(spec)) {
+    fields <- get_spec_fields(props[[nm]])
+    if (is.null(fields)) {
       next
     }
-    is_scalar_map <- spec@container == "map" && spec_r_kind(spec) == "atomic"
+    container <- fields[["container"]]
+    is_scalar_map <- container == "map" && spec_r_kind(fields) == "atomic"
     if (is_scalar_map && is.list(x[[nm]])) {
       x[[nm]] <- unlist(x[[nm]])
     }
-    if (spec@container == "factor" && is.list(x[[nm]])) {
+    if (container == "factor" && is.list(x[[nm]])) {
       x[[nm]] <- from_wire_factor(x[[nm]])
     }
   }
