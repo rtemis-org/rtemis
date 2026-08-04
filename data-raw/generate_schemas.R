@@ -54,6 +54,12 @@ metrics_refs <- c(
 # property aborts generation.
 source(file.path("data-raw", "schema_registry.R"))
 
+# The input-schema contract, asserted on every config schema before it is
+# written: no required beyond the keys carrying the document's shape, no
+# conditional branch demanding a key, no emitted defaults. See
+# `schema_contract.R` for what each rule prevents.
+source(file.path("data-raw", "schema_contract.R"))
+
 # Generation ----------------------------------------------------------------
 for (family in names(families)) {
   fam <- families[[family]]
@@ -91,6 +97,11 @@ for (family in names(families)) {
         refs = algo[["refs"]],
         closed = !top_level
       )
+      if (kind == "schema") {
+        # A leaf carries neither: the dispatcher declares the discriminator
+        # and, in nested-payload mode, holds the leaf under the payload key.
+        assert_config_contract(schema, id)
+      }
       write_JSONSchema(
         schema,
         file.path(dir, paste0(kind, ".json")),
@@ -122,6 +133,17 @@ for (family in names(families)) {
       },
       instance_schema_url = dispatcher_id
     )
+    if (kind == "schema") {
+      # `{discriminator, payload}` is the shape of a dispatched document, not a
+      # value a user supplies: without the payload key there is nothing for the
+      # selected variant's schema to apply to, and `.list_to_*` rejects the
+      # document. Top-level mode has no payload, so the discriminator alone.
+      assert_config_contract(
+        dispatcher,
+        dispatcher_id,
+        structural = c(discriminator, payload)
+      )
+    }
     write_JSONSchema(
       dispatcher,
       file.path(schema_repo, family, "v1", paste0(kind, ".json")),
@@ -174,6 +196,9 @@ for (family in names(flat_configs)) {
       # declaring the field would put a key in the contract that nothing writes.
       instance_schema_url = if (!(family %in% result_classes)) id
     )
+    if (kind == "schema") {
+      assert_config_contract(schema, id)
+    }
     write_JSONSchema(
       schema,
       file.path(dir, paste0(kind, ".json")),
