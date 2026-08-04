@@ -5,6 +5,7 @@ dev/
 __out/
 specs/
 plan/
+design/
 
 # Mac OS
 .DS_Store
