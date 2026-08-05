@@ -26,6 +26,20 @@ class_tabnet_fit <- new_S3_class("tabnet_fit")
 
 
 # %% --- Generics -------------------------------------------------------------------------------------
+#
+# A generic declared with explicit formals (rather than `...`) forces each
+# supplied argument before `S7_dispatch()`. Explicit formals are what make a
+# misspelled argument an error instead of something `...` swallows; the cost is
+# that S7 inlines every named formal into the method call as a promise. An
+# argument first forced inside the method, raising there, leaves that promise
+# flagged under evaluation, and anything that later walks the stack and touches
+# it -- `rlang::trace_back()` does, so every testthat failure does -- reports
+# "promise already under evaluation" instead of the real error.
+#
+# `if (!missing(x))` rather than a bare `force(x)`: only a caller-supplied
+# expression can fail, and forcing a missing formal would evaluate the
+# generic's default and so override the method's own.
+#
 # %% repr ----
 
 # %% get_varimp ----
@@ -134,6 +148,15 @@ preprocess <- new_generic(
     verbosity = 1L,
     ...
   ) {
+    if (!missing(dat_validation)) {
+      force(dat_validation)
+    }
+    if (!missing(dat_test)) {
+      force(dat_test)
+    }
+    if (!missing(verbosity)) {
+      force(verbosity)
+    }
     S7_dispatch()
   }
 )
@@ -177,6 +200,21 @@ train_ <- new_generic(
     execution_config = setup_ExecutionConfig(),
     verbosity = 1L
   ) {
+    if (!missing(x)) {
+      force(x)
+    }
+    if (!missing(weights)) {
+      force(weights)
+    }
+    if (!missing(dat_validation)) {
+      force(dat_validation)
+    }
+    if (!missing(execution_config)) {
+      force(execution_config)
+    }
+    if (!missing(verbosity)) {
+      force(verbosity)
+    }
     S7_dispatch()
   }
 ) # /rtemis::train_
@@ -203,6 +241,15 @@ predict_super <- new_generic(
   "predict_super",
   "model",
   function(model, newdata, type = NULL, verbosity = 0L) {
+    if (!missing(newdata)) {
+      force(newdata)
+    }
+    if (!missing(type)) {
+      force(type)
+    }
+    if (!missing(verbosity)) {
+      force(verbosity)
+    }
     S7_dispatch()
   }
 ) # /rtemis::predict_super
@@ -249,6 +296,9 @@ se_super <- new_generic(
   "se_super",
   "model",
   function(model, newdata) {
+    if (!missing(newdata)) {
+      force(newdata)
+    }
     S7_dispatch()
   }
 )
@@ -273,6 +323,9 @@ se_super <- new_generic(
 #' @keywords internal
 #' @noRd
 se <- new_generic("se", "x", function(x, newdata, ...) {
+  if (!missing(newdata)) {
+    force(newdata)
+  }
   S7_dispatch()
 })
 
@@ -287,6 +340,12 @@ decomp_ <- new_generic(
   "decomp_",
   "config",
   function(config, x, verbosity = 1L) {
+    if (!missing(x)) {
+      force(x)
+    }
+    if (!missing(verbosity)) {
+      force(verbosity)
+    }
     S7_dispatch()
   }
 ) # /rtemis::decomp_
@@ -305,6 +364,15 @@ apply_decomp_ <- new_generic(
   "apply_decomp_",
   "config",
   function(config, decom, new_data, verbosity = 1L) {
+    if (!missing(decom)) {
+      force(decom)
+    }
+    if (!missing(new_data)) {
+      force(new_data)
+    }
+    if (!missing(verbosity)) {
+      force(verbosity)
+    }
     S7_dispatch()
   }
 ) # /rtemis::apply_decomp_
@@ -320,6 +388,12 @@ cluster_ <- new_generic(
   "cluster_",
   "config",
   function(config, x, verbosity = 1L) {
+    if (!missing(x)) {
+      force(x)
+    }
+    if (!missing(verbosity)) {
+      force(verbosity)
+    }
     S7_dispatch()
   }
 ) # /rtemis::cluster_
@@ -381,6 +455,9 @@ validate_hyperparameters <- new_generic(
   "validate_hyperparameters",
   "hyperparameters",
   function(hyperparameters, x) {
+    if (!missing(x)) {
+      force(x)
+    }
     S7_dispatch()
   }
 ) # /rtemis::validate_hyperparameters
@@ -531,6 +608,9 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' describe(x, 3)
 #' describe(x, 3, return_ordered = FALSE)
 describe <- new_generic("describe", "x", function(x, verbosity = 1L, ...) {
+  if (!missing(verbosity)) {
+    force(verbosity)
+  }
   S7_dispatch()
 })
 
@@ -717,6 +797,9 @@ method(to_json, S7_object) <- function(x, ...) {
 #' inc(iris, c(3, 4)) |> head()
 #' inc(iris, c("Sepal.Length", "Species")) |> head()
 inc <- new_generic("inc", "x", function(x, idx) {
+  if (!missing(idx)) {
+    force(idx)
+  }
   S7_dispatch()
 })
 
@@ -1046,6 +1129,12 @@ calibrate <- new_generic(
     verbosity = 1L,
     ...
   ) {
+    if (!missing(hyperparameters)) {
+      force(hyperparameters)
+    }
+    if (!missing(verbosity)) {
+      force(verbosity)
+    }
     S7_dispatch()
   }
 ) # /rtemis::calibrate

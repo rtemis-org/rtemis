@@ -51,6 +51,16 @@ write_config <- new_generic(
   "write_config",
   "x",
   function(x, file, overwrite = FALSE, verbosity = 1L) {
+    # See the generics note in `030_init.R`.
+    if (!missing(file)) {
+      force(file)
+    }
+    if (!missing(overwrite)) {
+      force(overwrite)
+    }
+    if (!missing(verbosity)) {
+      force(verbosity)
+    }
     S7_dispatch()
   }
 ) # /rtemis::write_config
