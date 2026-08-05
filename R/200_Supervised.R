@@ -323,9 +323,16 @@ supervised_features <- function(object, newdata, verbosity = 1L) {
 #' @keywords internal
 #' @noRd
 predict_supervised_ <- function(object, newdata, verbosity = 1L) {
+  # Resolved before the call, not inside it. `predict_super()` is an S7 generic
+  # with explicit formals, so its dispatch frame holds each argument as a
+  # promise; an error raised while one is being forced leaves that promise
+  # under evaluation, and any later walk of the stack that touches it (rlang's
+  # `trace_back()` does) fails with "promise already under evaluation" instead
+  # of reporting the original error.
+  features <- supervised_features(object, newdata, verbosity = verbosity)
   predicted <- predict_super(
     model = object@model,
-    newdata = supervised_features(object, newdata, verbosity = verbosity),
+    newdata = features,
     type = object@type,
     verbosity = verbosity
   )

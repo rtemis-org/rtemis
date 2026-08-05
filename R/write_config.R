@@ -51,6 +51,8 @@ write_config <- new_generic(
   "write_config",
   "x",
   function(x, file, overwrite = FALSE, verbosity = 1L) {
+    # See the generics note in `030_init.R`.
+    force_supplied()
     S7_dispatch()
   }
 ) # /rtemis::write_config

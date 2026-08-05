@@ -251,16 +251,17 @@ flat_configs <- list(
       "parallel, or distributed. Mirrors the `ExecutionConfig` object / ",
       "`setup_ExecutionConfig` arguments."
     ),
-    # Cross-field rules enforced by the R class validator, mirrored here.
+    # Cross-field rules `setup_ExecutionConfig()` *rejects*, mirrored here. A
+    # rule the class validator enforces but `setup_*` resolves does not belong:
+    # the validator only ever sees post-`setup_*` values, while the schema sees
+    # the document as authored. `@future_plan` is the case in point -- the class
+    # requires it when `backend` is "future", but `setup_ExecutionConfig()`
+    # fills a NULL one in from `getOption("future.plan", "mirai_multisession")`,
+    # so requiring it here would reject configs that read and run fine (and
+    # leave the CLI's form with an unsatisfiable field, since the default is
+    # resolved at read time and so absent from the defaults artifact).
     extra = list(
       allOf = list(
-        list(
-          `if` = list(
-            properties = list(backend = list(const = "future")),
-            required = I("backend")
-          ),
-          then = list(required = I("future_plan"))
-        ),
         list(
           `if` = list(
             properties = list(backend = list(const = "none")),

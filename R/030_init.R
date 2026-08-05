@@ -26,6 +26,53 @@ class_tabnet_fit <- new_S3_class("tabnet_fit")
 
 
 # %% --- Generics -------------------------------------------------------------------------------------
+# A generic declaring formals beyond its dispatch argument(s) calls
+# `force_supplied()` before `S7_dispatch()`. See there for why.
+
+# %% force_supplied ----
+#' Force the arguments the caller supplied
+#'
+#' Called from an S7 generic's body, immediately before `S7_dispatch()`.
+#'
+#' @details
+#' S7 inlines every named formal of a generic into the method call as a
+#' promise. An argument whose first force happens inside the method, and which
+#' raises there, leaves that promise flagged under evaluation -- and anything
+#' that later walks the stack and touches it reports "promise already under
+#' evaluation" instead of the real error. Capturing a backtrace does exactly
+#' that, so every caught error in a testthat run reaches it.
+#'
+#' Forcing here raises in the generic's frame instead, where the error names
+#' the argument that failed.
+#'
+#' Only the arguments named in the call are forced, read off `match.call()`.
+#' Forcing the rest would evaluate defaults nothing asked for
+#' (`setup_ExecutionConfig()` for a `train_` method that ignores it) and would
+#' turn an omitted required formal into "argument "x" is missing, with no
+#' default" before the method can say anything better. It is not about
+#' preserving method defaults: S7 requires a method's defaults to match its
+#' generic's and warns when they differ.
+#'
+#' This reads the calling frame, so it is only meaningful called directly from
+#' the generic.
+#'
+#' @return NULL, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+force_supplied <- function() {
+  frame <- sys.parent()
+  fn <- sys.function(frame)
+  supplied <- setdiff(names(match.call(fn, sys.call(frame))), "")
+  env <- sys.frame(frame)
+  for (nm in intersect(supplied, names(formals(fn)))) {
+    get(nm, envir = env, inherits = FALSE)
+  }
+  invisible(NULL)
+} # /rtemis::force_supplied
+
+
 # %% repr ----
 
 # %% get_varimp ----
@@ -134,6 +181,7 @@ preprocess <- new_generic(
     verbosity = 1L,
     ...
   ) {
+    force_supplied()
     S7_dispatch()
   }
 )
@@ -177,6 +225,7 @@ train_ <- new_generic(
     execution_config = setup_ExecutionConfig(),
     verbosity = 1L
   ) {
+    force_supplied()
     S7_dispatch()
   }
 ) # /rtemis::train_
@@ -203,6 +252,7 @@ predict_super <- new_generic(
   "predict_super",
   "model",
   function(model, newdata, type = NULL, verbosity = 0L) {
+    force_supplied()
     S7_dispatch()
   }
 ) # /rtemis::predict_super
@@ -249,6 +299,7 @@ se_super <- new_generic(
   "se_super",
   "model",
   function(model, newdata) {
+    force_supplied()
     S7_dispatch()
   }
 )
@@ -273,6 +324,7 @@ se_super <- new_generic(
 #' @keywords internal
 #' @noRd
 se <- new_generic("se", "x", function(x, newdata, ...) {
+  force_supplied()
   S7_dispatch()
 })
 
@@ -287,6 +339,7 @@ decomp_ <- new_generic(
   "decomp_",
   "config",
   function(config, x, verbosity = 1L) {
+    force_supplied()
     S7_dispatch()
   }
 ) # /rtemis::decomp_
@@ -305,6 +358,7 @@ apply_decomp_ <- new_generic(
   "apply_decomp_",
   "config",
   function(config, decom, new_data, verbosity = 1L) {
+    force_supplied()
     S7_dispatch()
   }
 ) # /rtemis::apply_decomp_
@@ -320,6 +374,7 @@ cluster_ <- new_generic(
   "cluster_",
   "config",
   function(config, x, verbosity = 1L) {
+    force_supplied()
     S7_dispatch()
   }
 ) # /rtemis::cluster_
@@ -381,6 +436,7 @@ validate_hyperparameters <- new_generic(
   "validate_hyperparameters",
   "hyperparameters",
   function(hyperparameters, x) {
+    force_supplied()
     S7_dispatch()
   }
 ) # /rtemis::validate_hyperparameters
@@ -531,6 +587,7 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' describe(x, 3)
 #' describe(x, 3, return_ordered = FALSE)
 describe <- new_generic("describe", "x", function(x, verbosity = 1L, ...) {
+  force_supplied()
   S7_dispatch()
 })
 
@@ -717,6 +774,7 @@ method(to_json, S7_object) <- function(x, ...) {
 #' inc(iris, c(3, 4)) |> head()
 #' inc(iris, c("Sepal.Length", "Species")) |> head()
 inc <- new_generic("inc", "x", function(x, idx) {
+  force_supplied()
   S7_dispatch()
 })
 
@@ -1046,6 +1104,7 @@ calibrate <- new_generic(
     verbosity = 1L,
     ...
   ) {
+    force_supplied()
     S7_dispatch()
   }
 ) # /rtemis::calibrate
