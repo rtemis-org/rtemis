@@ -37,20 +37,16 @@
 }
 
 
-# %% .forced_names ----
-# Names appearing as `force(<name>)` anywhere in a function body.
-.forced_names <- function(fn) {
-  found <- character()
+# %% .calls_force_supplied ----
+# Whether a function body contains a `force_supplied()` call.
+.calls_force_supplied <- function(fn) {
+  found <- FALSE
   walk <- function(e) {
     if (!is.call(e)) {
       return(invisible(NULL))
     }
-    if (
-      identical(e[[1L]], quote(force)) &&
-        length(e) >= 2L &&
-        is.symbol(e[[2L]])
-    ) {
-      found <<- c(found, as.character(e[[2L]]))
+    if (identical(e[[1L]], quote(force_supplied))) {
+      found <<- TRUE
     }
     lst <- as.list(e)
     for (i in seq_along(lst)) {
@@ -63,7 +59,7 @@
     }
   }
   walk(body(fn))
-  unique(found)
+  found
 }
 
 
@@ -74,20 +70,40 @@ test_that("every explicit-formals generic forces its supplied arguments", {
   generics <- .explicit_generics()
   expect_gt(length(generics), 0L)
   for (nm in names(generics)) {
-    unforced <- setdiff(
-      generics[[nm]],
-      .forced_names(get(nm, envir = asNamespace("rtemis")))
-    )
-    expect_identical(
-      unforced,
-      character(),
+    expect_true(
+      .calls_force_supplied(get(nm, envir = asNamespace("rtemis"))),
       info = paste0(
         nm,
-        "(): add `if (!missing(x)) force(x)` before S7_dispatch() for: ",
-        paste(unforced, collapse = ", ")
+        "(): declares formals beyond its dispatch argument(s) (",
+        paste(generics[[nm]], collapse = ", "),
+        ") and must call force_supplied() before S7_dispatch()."
       )
     )
   }
+})
+
+
+test_that("force_supplied forces exactly what the caller named", {
+  # An unsupplied default must stay unevaluated: forcing it would do work
+  # nothing asked for, and would turn an omitted required formal into
+  # "argument is missing, with no default" before a method can say better.
+  built <- 0L
+  f <- function(
+    a,
+    b = {
+      built <<- built + 1L
+      "default"
+    },
+    c
+  ) {
+    force_supplied()
+    "returned"
+  }
+  expect_identical(f(a = stop_on_force <- 1L), "returned")
+  expect_identical(built, 0L)
+  # A supplied argument is forced, so its failure surfaces here.
+  expect_error(f(a = stop("supplied and fallible")), "supplied and fallible")
+  expect_identical(built, 0L)
 })
 
 
