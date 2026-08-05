@@ -39,8 +39,8 @@ class_tabnet_fit <- new_S3_class("tabnet_fit")
 #' promise. An argument whose first force happens inside the method, and which
 #' raises there, leaves that promise flagged under evaluation -- and anything
 #' that later walks the stack and touches it reports "promise already under
-#' evaluation" instead of the real error. `rlang::trace_back()` does exactly
-#' that, via `call_zap_inline()`, so every testthat failure reaches it.
+#' evaluation" instead of the real error. Capturing a backtrace does exactly
+#' that, so every caught error in a testthat run reaches it.
 #'
 #' Forcing here raises in the generic's frame instead, where the error names
 #' the argument that failed.

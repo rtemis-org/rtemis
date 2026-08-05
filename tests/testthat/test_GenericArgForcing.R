@@ -9,8 +9,8 @@
 # whose first force happens inside the method, and which raises there, leaves
 # that promise flagged under evaluation -- and anything that later walks the
 # stack and touches it reports "promise already under evaluation" instead of
-# the real error. `rlang::trace_back()` does exactly that, via
-# `call_zap_inline()`, so every testthat failure would hit it.
+# the real error. Capturing a backtrace does exactly that, so every testthat
+# failure would hit it.
 #
 # The check is generic over the namespace rather than a maintained list, so a
 # generic written later is covered the day it is added.
@@ -111,6 +111,14 @@ test_that("a failing argument reports its own error, not a promise error", {
   # The behavior the forcing exists for, end to end on the case that exposed
   # it: `newdata` still carries the outcome column, so it has one column too
   # many, and that rejection must be what surfaces.
+  #
+  # `expect_error()` is the whole apparatus this needs. Catching a condition
+  # makes testthat capture a backtrace for it, and capturing a backtrace forces
+  # any promise inlined into a dispatch frame -- so reaching the message at all
+  # requires the stack to be walkable. With the forcing removed, this line does
+  # not fail on the regexp; it errors with "promise already under evaluation".
+  # Asserting that separately, by walking the stack directly, would only be
+  # re-testing the backtrace library.
   x <- data.table::data.table(a = rnorm(60L), b = rnorm(60L))
   x[, y := a + b + rnorm(60L)]
   mod <- train(x = x, hyperparameters = setup_GLM(), verbosity = 0L)
@@ -118,32 +126,4 @@ test_that("a failing argument reports its own error, not a promise error", {
     predict(mod, x),
     "Predictor names and order in newdata must exactly match"
   )
-})
-
-
-test_that("the stack stays walkable while such an error propagates", {
-  # The direct statement of the invariant. `rlang::trace_back()` runs on every
-  # testthat failure and forces any promise inlined into a dispatch frame, so a
-  # half-forced argument shows up here.
-  skip_if_not_installed("rlang")
-  x <- data.table::data.table(a = rnorm(60L), b = rnorm(60L))
-  x[, y := a + b + rnorm(60L)]
-  mod <- train(x = x, hyperparameters = setup_GLM(), verbosity = 0L)
-  walk_error <- NULL
-  tryCatch(
-    withCallingHandlers(
-      predict(mod, x),
-      error = function(e) {
-        walk_error <<- tryCatch(
-          {
-            rlang::trace_back()
-            NULL
-          },
-          error = function(inner) conditionMessage(inner)
-        )
-      }
-    ),
-    error = function(e) NULL
-  )
-  expect_null(walk_error)
 })
