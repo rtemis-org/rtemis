@@ -392,7 +392,7 @@ method(fitted, Supervised) <- function(object, ...) {
 #' produces none -- only linear and additive models do, which is why this is
 #' computed here rather than stored on every regression result.
 #'
-#' Routed through the same pipeline as [predict], so a stored preprocessor,
+#' Routed through the same pipeline as `predict`, so a stored preprocessor,
 #' decomposition and algorithm-internal preprocessor are re-applied before the
 #' backend is queried. Computing standard errors on raw `newdata` while
 #' predictions come from transformed features would silently pair the two.
