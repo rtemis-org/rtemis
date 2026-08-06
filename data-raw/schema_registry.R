@@ -215,6 +215,10 @@ families <- list(
       list(
         cls = SPLSHyperparameters,
         desc = "Sparse Partial Least Squares. See `setup_SPLS`."
+      ),
+      list(
+        cls = KNNHyperparameters,
+        desc = "k-Nearest Neighbors (kknn). See `setup_KNN`."
       )
     )
   )

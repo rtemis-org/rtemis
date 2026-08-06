@@ -9,6 +9,7 @@ supervised_algorithms <- data.frame(rbind(
   c("GLM", "Generalized Linear Model", TRUE, TRUE, FALSE),
   c("GLMNET", "Elastic Net", TRUE, TRUE, TRUE),
   c("Isotonic", "Isotonic Regression", TRUE, TRUE, FALSE),
+  c("KNN", "k-Nearest Neighbors", TRUE, TRUE, FALSE),
   c("LightCART", "Decision Tree", TRUE, TRUE, FALSE),
   c("LightGBM", "Gradient Boosting", TRUE, TRUE, FALSE),
   c("LightRF", "LightGBM Random Forest", TRUE, TRUE, FALSE),
@@ -42,6 +43,7 @@ colnames(supervised_algorithms) <- c(
 supervised_multiclass <- c(
   "GLMNET",
   "CART",
+  "KNN",
   "LightCART",
   "LightRF",
   "LightGBM",

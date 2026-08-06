@@ -95,7 +95,8 @@ test_that("setup_LightRF() succeeds", {
   RadialSVM = RadialSVMHyperparameters,
   TabNet = TabNetHyperparameters,
   Ranger = RangerHyperparameters,
-  SPLS = SPLSHyperparameters
+  SPLS = SPLSHyperparameters,
+  KNN = KNNHyperparameters
 )
 
 test_that("setup_* defaults do not drift from the property defaults", {
@@ -388,6 +389,24 @@ test_that("setup_SPLS() with search values needs tuning", {
   expect_s7_class(spls_hpr, SPLSHyperparameters)
   expect_identical(spls_hpr@tuned, TUNED_STATUS_UNTUNED)
   expect_true(needs_tuning(spls_hpr))
+})
+
+# KNNHyperparameters ----
+test_that("KNNHyperparameters() constructs from its property defaults", {
+  # Defaults come from the PropertySpecs, so no argument is required.
+  expect_s7_class(KNNHyperparameters(), KNNHyperparameters)
+})
+
+# setup_KNN ----
+test_that("setup_KNN() succeeds", {
+  expect_s7_class(setup_KNN(), KNNHyperparameters)
+})
+
+test_that("setup_KNN() with search values needs tuning", {
+  knn_hpr <- setup_KNN(k = c(3L, 7L), kernel = c("rectangular", "optimal"))
+  expect_s7_class(knn_hpr, KNNHyperparameters)
+  expect_identical(knn_hpr@tuned, TUNED_STATUS_UNTUNED)
+  expect_true(needs_tuning(knn_hpr))
 })
 
 

@@ -1296,6 +1296,194 @@ test_that("train() SPLS Regression with missing data throws error", {
   )
 })
 
+# --- KNN ------------------------------------------------------------------------------------------
+## {KNN}[train]<Regression> ----
+mod_r_knn <- train(
+  x = datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_KNN(k = 5L)
+)
+test_that("train() KNN Regression succeeds", {
+  expect_s7_class(mod_r_knn, Regression)
+})
+
+## {KNN}[train]<Regression> Grid search ----
+modt_r_knn <- train(
+  x = datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_KNN(
+    k = c(3L, 9L),
+    kernel = c("rectangular", "optimal")
+  ),
+  execution_config = setup_ExecutionConfig(backend = "none")
+)
+test_that("train() KNN Regression with grid search succeeds", {
+  expect_s7_class(modt_r_knn, Regression)
+})
+
+## {KNN}[train]<RegressionRes> ----
+resmod_r_knn <- train(
+  x = datr,
+  hyperparameters = setup_KNN(k = 5L),
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+)
+test_that("train() Res KNN Regression succeeds", {
+  expect_s7_class(resmod_r_knn, RegressionRes)
+})
+
+## {KNN}[train]<Regression> Unscaled ----
+# `train.kknn` does not record `scale` and `predict.train.kknn` would re-fit
+# with its own default of TRUE, so predict must go through `kknn::kknn()` with
+# the stashed value: an unscaled fit has to differ from the scaled one.
+mod_r_knn_unscaled <- train(
+  x = datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_KNN(k = 5L, scale = FALSE)
+)
+test_that("train() KNN Regression honors scale = FALSE at predict time", {
+  expect_s7_class(mod_r_knn_unscaled, Regression)
+  expect_false(identical(
+    mod_r_knn_unscaled@predicted_test,
+    mod_r_knn@predicted_test
+  ))
+})
+
+## {KNN}[train]<Classification> ----
+mod_c_knn <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_KNN(k = 5L)
+)
+test_that("train() KNN Classification succeeds", {
+  expect_s7_class(mod_c_knn, Classification)
+})
+
+## {KNN}[train]<Classification> Grid search ----
+modt_c_knn <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_KNN(k = c(3L, 9L)),
+  execution_config = setup_ExecutionConfig(backend = "none")
+)
+test_that("train() KNN Classification with grid search succeeds", {
+  expect_s7_class(modt_c_knn, Classification)
+})
+
+## {KNN}[train]<ClassificationRes> ----
+resmod_c_knn <- train(
+  x = datc2,
+  hyperparameters = setup_KNN(k = 5L),
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+  execution_config = setup_ExecutionConfig(backend = "none")
+)
+test_that("train() Res KNN Classification succeeds", {
+  expect_s7_class(resmod_c_knn, ClassificationRes)
+})
+
+## {KNN}[train]<Classification> Multiclass ----
+modt_c3_knn <- train(
+  x = datc3_train,
+  dat_test = datc3_test,
+  hyperparameters = setup_KNN(k = 5L)
+)
+test_that("train() KNN Multiclass Classification succeeds", {
+  expect_s7_class(modt_c3_knn, Classification)
+})
+
+## {KNN}[predict]<Regression> ----
+predicted_knn <- predict(mod_r_knn, features(datr_test))
+test_that("predict() KNN Regression succeeds", {
+  expect_identical(mod_r_knn@predicted_test, predicted_knn)
+  expect_null(dim(predicted_knn))
+})
+
+## {KNN}[predict]<Classification> ----
+test_that("predict() KNN Classification returns second-level probabilities", {
+  predicted_prob <- predict(mod_c_knn, features(datc2_test))
+  expect_identical(NCOL(predicted_prob), 1L)
+  expect_true(all(predicted_prob >= 0 & predicted_prob <= 1))
+  expect_identical(mod_c_knn@predicted_prob_test, predicted_prob)
+  # A flipped column would still be a valid probability, so check it tracks the
+  # outcome rather than its complement.
+  expect_gt(
+    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
+    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+  )
+})
+
+test_that("predict() KNN Multiclass returns one column per class", {
+  predicted_prob <- predict(modt_c3_knn, features(datc3_test))
+  expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
+  expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
+})
+
+## {KNN}[varimp]<Regression> ----
+# kknn provides no measure of variable importance.
+test_that("get_varimp() KNN Regression returns NULL", {
+  expect_null(get_varimp(mod_r_knn))
+})
+
+## {KNN}[train]<Regression> Algorithm name dispatch ----
+# The algorithmDB row is what makes the name resolvable; without it this
+# aborts with "Incorrect algorithm specified".
+mod_r_knn_byname <- train(
+  x = datr_train,
+  hyperparameters = get_default_hyperparameters("knn")
+)
+test_that("train() KNN from its algorithm name succeeds", {
+  expect_s7_class(mod_r_knn_byname, Regression)
+  expect_identical(get_alg_name("knn"), "KNN")
+})
+
+## {KNN}[train]<Regression> /\Error k >= n cases ----
+# `train.kknn` picks `k` by leave-one-out CV, so `k` must be strictly less than
+# the number of training cases.
+test_that("train() KNN aborts when k is not less than n cases", {
+  expect_error(
+    train(
+      x = datr_train,
+      dat_test = datr_test,
+      hyperparameters = setup_KNN(k = nrow(datr_train))
+    ),
+    class = "rtemis_range_error"
+  )
+})
+
+test_that("train() KNN aborts when any search value of k is out of range", {
+  expect_error(
+    train(
+      x = datr_train,
+      dat_test = datr_test,
+      hyperparameters = setup_KNN(k = c(5L, nrow(datr_train)))
+    ),
+    class = "rtemis_range_error"
+  )
+})
+
+## {KNN}[train]<Classification> /\Error ifw unsupported ----
+# kknn takes no case weights, so IFW cannot be honored and must fail loudly
+# rather than fit an unweighted model.
+test_that("train() KNN aborts when ifw is enabled", {
+  expect_error(
+    train(
+      x = datc2_train,
+      hyperparameters = setup_KNN(k = 5L, ifw = TRUE)
+    ),
+    class = "rtemis_unsupported_error"
+  )
+})
+
+## {KNN}[train]<Regression> Throw error with missing data ----
+test_that("train() KNN Regression with missing data throws error", {
+  expect_error(
+    train(
+      x = datr_train_na,
+      dat_test = datr_test,
+      hyperparameters = setup_KNN(k = 5L)
+    )
+  )
+})
+
 
 # --- Predict SupervisedRes ------------------------------------------------------------------------
 
@@ -1812,7 +2000,14 @@ test_that("a tuned run records the grid and the winner per fold", {
     iris,
     hyperparameters = setup_CART(maxdepth = c(2L, 4L)),
     tuner_config = setup_GridSearch(
-      resampler_config = setup_Resampler(n_resamples = 2L, type = "KFold")
+      # Seeded: which depth wins follows from the fold split, so an unseeded
+      # resampler makes this assertion depend on the global RNG position and
+      # therefore on every test that ran before it.
+      resampler_config = setup_Resampler(
+        n_resamples = 2L,
+        type = "KFold",
+        seed = 2026L
+      )
     ),
     verbosity = 0L
   )
@@ -1821,5 +2016,11 @@ test_that("a tuned run records the grid and the winner per fold", {
   expect_true(all(
     c("param_grid", "training", "validation", "best") %in% names(tuning)
   ))
-  expect_identical(tuning[["best"]][["maxdepth"]], 2L)
+  # `best` reaches the record from the tuner's results and `@hyperparameters`
+  # from what `train()` adopted, so agreeing proves the record names the value
+  # the kept model was actually trained with.
+  expect_identical(
+    tuning[["best"]][["maxdepth"]],
+    mod@hyperparameters[["maxdepth"]]
+  )
 })

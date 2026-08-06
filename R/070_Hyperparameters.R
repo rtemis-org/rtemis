@@ -2894,6 +2894,111 @@ setup_SPLS <- function(
 } # /rtemis::setup_SPLS
 
 
+# %% KNNHyperparameters ----
+#' @title KNNHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for KNN.
+#'
+#' One class covers both outcome types: `kknn::train.kknn` fits a regression or
+#' a classification model depending on the outcome, and every property reaches
+#' it in either case.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+KNNHyperparameters <- new_class(
+  name = "KNNHyperparameters",
+  parent = Hyperparameters,
+  properties = list(
+    algorithm = prop_algorithm("KNN"),
+    k = prop_integer(
+      7L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of neighbors. Must be less than the number of training cases."
+    ),
+    kernel = prop_string(
+      "optimal",
+      enum = c(
+        "rectangular",
+        "triangular",
+        "epanechnikov",
+        "biweight",
+        "triweight",
+        "cos",
+        "inv",
+        "gaussian",
+        "rank",
+        "optimal"
+      ),
+      tunable = TRUE,
+      description = "Kernel used to weight neighbors by distance; \"rectangular\" gives unweighted KNN."
+    ),
+    distance = prop_float(
+      2,
+      exclusive_min = 0,
+      tunable = TRUE,
+      description = "Parameter of the Minkowski distance: 1 is Manhattan, 2 is Euclidean."
+    ),
+    scale = prop_boolean(
+      TRUE,
+      description = "Scale features to unit variance before computing distances."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    )
+  )
+) # /rtemis::KNNHyperparameters
+
+
+# %% setup_KNN ----
+#' Setup KNN Hyperparameters
+#'
+#' Setup hyperparameters for k-Nearest Neighbors training.
+#'
+#' Both outcome types are fit with [kknn::train.kknn], which selects between
+#' regression and classification from the outcome. Factors are expanded to
+#' dummy variables by the backend, so no encoding is needed beforehand.
+#'
+#' `kknn` provides no case weights, so `ifw` cannot be honored: enabling it
+#' makes training abort rather than silently fit an unweighted model.
+#'
+#' @param k (Tunable) Integer [1, Inf): Number of neighbors. Must be less than the number of training cases.
+#' @param kernel (Tunable) Character \{"rectangular", "triangular", "epanechnikov", "biweight", "triweight", "cos", "inv", "gaussian", "rank", "optimal"\}: Kernel used to weight neighbors by distance.
+#' @param distance (Tunable) Numeric (0, Inf): Parameter of the Minkowski distance.
+#' @param scale Logical: If TRUE, scale features to unit variance before computing distances.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @return KNNHyperparameters object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' knn_hyperparams <- setup_KNN(k = 11L, kernel = "rectangular")
+#' knn_hyperparams
+setup_KNN <- function(
+  # tunable
+  k = 7L,
+  kernel = "optimal",
+  distance = 2,
+  # fixed
+  scale = TRUE,
+  ifw = FALSE
+) {
+  k <- clean_posint(k)
+  KNNHyperparameters(
+    k = k,
+    kernel = kernel,
+    distance = distance,
+    scale = scale,
+    ifw = ifw
+  )
+} # /rtemis::setup_KNN
+
+
 # %% .list_to_Hyperparameters ----
 #' Convert a list to a Hyperparameters object
 #'
