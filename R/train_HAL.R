@@ -203,7 +203,8 @@ hal_check_basis_size <- function(
 #' @param execution_config `ExecutionConfig` object: Not used for HAL.
 #' @param verbosity Integer: If > 0, print messages.
 #'
-#' @return Object of class `hal9001`.
+#' @return Named list with `model` (object of class `hal9001`) and
+#' `preprocessor` (the one-hot encoder, re-applied at predict time).
 #'
 #' @author EDG
 #' @keywords internal
@@ -284,10 +285,14 @@ method(train_, HALHyperparameters) <- function(
     use_min = hyperparameters[["use_min"]],
     nfolds = nfolds
   )
+  # The seed is scoped to the fold draw: seeding is an implementation detail of
+  # this fit, so it must not change the RNG the caller sees afterwards.
   seed <- hyperparameters[["seed"]]
   if (!is.null(seed)) {
-    set.seed(seed)
-    fit_control[["foldid"]] <- sample(rep_len(seq_len(nfolds), NROW(xm)))
+    fit_control[["foldid"]] <- with_seed(
+      seed,
+      sample(rep_len(seq_len(nfolds), NROW(xm)))
+    )
   }
 
   # Train ----

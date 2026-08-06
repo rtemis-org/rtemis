@@ -98,7 +98,8 @@ method(validate_hyperparameters, KNNHyperparameters) <- function(
 #' @param execution_config `ExecutionConfig` object: Not used for KNN.
 #' @param verbosity Integer: If > 0, print messages.
 #'
-#' @return Object of class `train.kknn`.
+#' @return Named list with `model` (object of class `train.kknn`) and
+#' `preprocessor` (the one-hot encoder, re-applied at predict time).
 #'
 #' @author EDG
 #' @keywords internal
@@ -115,6 +116,17 @@ method(train_, KNNHyperparameters) <- function(
   check_dependencies("kknn")
 
   # Checks ----
+  # Both routes to a weighted fit are rejected. `ifw` is checked in its own
+  # right rather than only through the `weights` it produces: a caller that
+  # reaches `train_()` directly, or a future path that resolves weights
+  # elsewhere, would otherwise fit an unweighted model while reporting
+  # `ifw = TRUE`.
+  if (isTRUE(hyperparameters[["ifw"]])) {
+    rtemis.core::abort(
+      "Inverse Frequency Weighting is not supported by kknn, which takes no case weights. Set `ifw = FALSE` in the hyperparameters.",
+      class = "rtemis_unsupported_error"
+    )
+  }
   if (!is.null(weights)) {
     rtemis.core::abort(
       "Case weights are not supported by kknn. Set `ifw = FALSE` in the hyperparameters and do not pass `weights`.",

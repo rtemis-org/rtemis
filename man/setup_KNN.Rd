@@ -25,8 +25,11 @@ Setup hyperparameters for k-Nearest Neighbors training.
 }
 \details{
 Both outcome types are fit with \link[kknn:train.kknn]{kknn::train.kknn}, which selects between
-regression and classification from the outcome. Factors are expanded to
-dummy variables by the backend, so no encoding is needed beforehand.
+regression and classification from the outcome. Factors are one-hot encoded
+by rtemis first, as an algorithm-internal preprocessor that is re-applied at
+predict time: the backend's own factor handling resolves a contrast function
+off the search path, which is not reachable when \code{kknn} is loaded but not
+attached, as a suggested package is.
 
 \code{kknn} provides no case weights, so \code{ifw} cannot be honored: enabling it
 makes training abort rather than silently fit an unweighted model.

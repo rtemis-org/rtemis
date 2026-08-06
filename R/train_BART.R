@@ -73,7 +73,8 @@ bart_posterior <- function(model, newdata) {
 #' threads internally using `n_workers`.
 #' @param verbosity Integer: If > 0, print messages.
 #'
-#' @return Object of class `bartmodel`.
+#' @return Named list with `model` (object of class `bartmodel`) and
+#' `preprocessor`.
 #'
 #' @author EDG
 #' @keywords internal
@@ -226,13 +227,21 @@ method(predict_super, class_bartmodel) <- function(
 #' The posterior standard deviation of the mean function at each case: the
 #' spread of the retained MCMC draws that `predict_super()` averages.
 #'
+#' A sampler configured to retain a single draw has no spread to report.
+#' `sd()` of one value is `NA`, which would present a degenerate configuration
+#' as a failed computation, so the zero spread is returned directly.
+#'
 #' @param model `bartmodel` model.
 #' @param newdata tabular data: Data to compute standard errors for.
 #'
 #' @keywords internal
 #' @noRd
 method(se_super, class_bartmodel) <- function(model, newdata) {
-  apply(bart_posterior(model, newdata), 1L, sd)
+  posterior <- bart_posterior(model, newdata)
+  if (NCOL(posterior) < 2L) {
+    return(rep(0, NROW(posterior)))
+  }
+  apply(posterior, 1L, sd)
 } # /rtemis::se_super.class_bartmodel
 
 

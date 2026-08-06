@@ -128,19 +128,27 @@ publish-schemas: schemas
 publish-status alg:
     @just _msg "─── Publish status for {{ alg }} ───"
     @alg=$(printf '%s' "{{ alg }}" | tr '[:upper:]' '[:lower:]'); \
-    state() { if [ -n "$2" ] && eval "$3" >/dev/null 2>&1; then echo "$4"; else echo "$5"; fi; }; \
-    printf '  %-18s %s\n' "schema repo" \
-        "$(state x "{{ schema_repo }}" '[ -d "{{ schema_repo }}/hyperparameters/'"$alg"'" ]' 'written' 'missing - run: just schemas')"; \
-    printf '  %-18s %s\n' "local index" \
-        "$(state x "{{ schema_repo }}" 'grep -q "hyperparameters/'"$alg"'/" "{{ schema_repo }}/index.json"' 'listed' 'NOT LISTED - run: just publish-schemas')"; \
-    printf '  %-18s %s\n' "deployed" \
-        "$(state x present 'curl -fsSL https://schema.rtemis.org/index.json | grep -q "hyperparameters/'"$alg"'/"' 'live' 'NOT DEPLOYED - commit + push in the schema repo')"; \
-    printf '  %-18s %s\n' "cli schemas" \
-        "$(state x "{{ cli_repo }}" '[ -d "{{ cli_repo }}/rtemis-cli/schemas/hyperparameters/'"$alg"'" ]' 'vendored' 'missing - run: just publish-downstream')"; \
-    printf '  %-18s %s\n' "cli defaults" \
-        "$(state x "{{ cli_repo }}" 'grep -q "hyperparameters/'"$alg"'/" "{{ cli_repo }}/rtemis-cli/defaults/defaults.json"' 'current' 'STALE - defaults are not refreshed by sync-schemas')"; \
-    printf '  %-18s %s\n' "live schemas" \
-        "$(state x "{{ live_repo }}" '[ -d "{{ live_repo }}/src/lib/rtemislive/schemas/hyperparameters/'"$alg"'" ]' 'vendored' 'missing - run: just publish-downstream')"
+    case "$alg" in \
+        *[!a-z0-9_-]*|'') \
+            echo "  Algorithm name must be alphanumeric, '_' or '-': got '{{ alg }}'" >&2; \
+            exit 1;; \
+    esac; \
+    report() { printf '  %-18s %s\n' "$1" "$2"; }; \
+    verdict() { if [ "$1" -eq 0 ]; then echo "$2"; else echo "$3"; fi; }; \
+    dir_state() { if [ -n "$1" ] && [ -d "$2" ]; then return 0; else return 1; fi; }; \
+    grep_state() { if [ -n "$1" ] && grep -qF "$2" "$3" 2>/dev/null; then return 0; else return 1; fi; }; \
+    dir_state "{{ schema_repo }}" "{{ schema_repo }}/hyperparameters/$alg"; \
+    report "schema repo" "$(verdict $? 'written' 'missing - run: just schemas')"; \
+    grep_state "{{ schema_repo }}" "hyperparameters/$alg/" "{{ schema_repo }}/index.json"; \
+    report "local index" "$(verdict $? 'listed' 'NOT LISTED - run: just publish-schemas')"; \
+    curl -fsSL https://schema.rtemis.org/index.json 2>/dev/null | grep -qF "hyperparameters/$alg/"; \
+    report "deployed" "$(verdict $? 'live' 'NOT DEPLOYED - commit + push in the schema repo')"; \
+    dir_state "{{ cli_repo }}" "{{ cli_repo }}/rtemis-cli/schemas/hyperparameters/$alg"; \
+    report "cli schemas" "$(verdict $? 'vendored' 'missing - run: just publish-downstream')"; \
+    grep_state "{{ cli_repo }}" "hyperparameters/$alg/" "{{ cli_repo }}/rtemis-cli/defaults/defaults.json"; \
+    report "cli defaults" "$(verdict $? 'current' 'STALE - defaults are not refreshed by sync-schemas')"; \
+    dir_state "{{ live_repo }}" "{{ live_repo }}/src/lib/rtemislive/schemas/hyperparameters/$alg"; \
+    report "live schemas" "$(verdict $? 'vendored' 'missing - run: just publish-downstream')"
     @echo "   A running rtemis.server holds the rtemis it loaded at startup; restart it to pick this up."
 
 # Vendor the deployed schemas into the CLI and live, and rebuild

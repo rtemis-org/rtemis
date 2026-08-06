@@ -16,6 +16,19 @@
 # %% Packages ----
 library(data.table)
 
+# %% Suggests-gated fits ----
+# Several backends are in Suggests, so a developer without them installed must
+# still be able to run this file. Their fits happen at the top level, before
+# any `test_that()` runs, so a missing package would fail the whole file rather
+# than skip a section. Gating the fit leaves NULL behind, and every test in
+# that section calls `skip_if_not_installed()` and so skips before touching it.
+fit_if_installed <- function(pkg, expr) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    return(NULL)
+  }
+  expr
+}
+
 # Data ----
 ## Regression Data ----
 n <- 400
@@ -1114,91 +1127,127 @@ test_that("train() Ranger aborts when any search value of mtry is out of range",
 
 # --- SPLS -----------------------------------------------------------------------------------------
 ## {SPLS}[train]<Regression> ----
-mod_r_spls <- train(
-  x = datr_train,
-  dat_test = datr_test,
-  hyperparameters = setup_SPLS(k = 2L, eta = 0.3)
+mod_r_spls <- fit_if_installed(
+  "spls",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_SPLS(k = 2L, eta = 0.3)
+  )
 )
 test_that("train() SPLS Regression succeeds", {
+  skip_if_not_installed("spls")
   expect_s7_class(mod_r_spls, Regression)
 })
 
 ## {SPLS}[train]<Regression> Grid search ----
-modt_r_spls <- train(
-  x = datr_train,
-  dat_test = datr_test,
-  hyperparameters = setup_SPLS(k = c(1L, 2L), eta = c(0.3, 0.6)),
-  execution_config = setup_ExecutionConfig(backend = "none")
+modt_r_spls <- fit_if_installed(
+  "spls",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_SPLS(k = c(1L, 2L), eta = c(0.3, 0.6)),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
 )
 test_that("train() SPLS Regression with grid search succeeds", {
+  skip_if_not_installed("spls")
   expect_s7_class(modt_r_spls, Regression)
 })
 
 ## {SPLS}[train]<RegressionRes> ----
-resmod_r_spls <- train(
-  x = datr,
-  hyperparameters = setup_SPLS(k = 2L, eta = 0.3),
-  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+resmod_r_spls <- fit_if_installed(
+  "spls",
+  train(
+    x = datr,
+    hyperparameters = setup_SPLS(k = 2L, eta = 0.3),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+  )
 )
 test_that("train() Res SPLS Regression succeeds", {
+  skip_if_not_installed("spls")
   expect_s7_class(resmod_r_spls, RegressionRes)
 })
 
 ## {SPLS}[train]<Classification> ----
-mod_c_spls <- train(
-  x = datc2_train,
-  dat_test = datc2_test,
-  hyperparameters = setup_SPLS(k = 2L, eta = 0.3)
+mod_c_spls <- fit_if_installed(
+  "spls",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_SPLS(k = 2L, eta = 0.3)
+  )
 )
 test_that("train() SPLS Classification succeeds", {
+  skip_if_not_installed("spls")
   expect_s7_class(mod_c_spls, Classification)
 })
 
 ## {SPLS}[train]<Classification> logistic classifier ----
-mod_c_spls_logistic <- train(
-  x = datc2_train,
-  dat_test = datc2_test,
-  hyperparameters = setup_SPLS(k = 2L, eta = 0.3, classifier = "logistic")
+mod_c_spls_logistic <- fit_if_installed(
+  "spls",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_SPLS(k = 2L, eta = 0.3, classifier = "logistic")
+  )
 )
 test_that("train() SPLS Classification with logistic classifier succeeds", {
+  skip_if_not_installed("spls")
   expect_s7_class(mod_c_spls_logistic, Classification)
 })
 
 ## {SPLS}[train]<Classification> Grid search ----
-modt_c_spls <- train(
-  x = datc2_train,
-  dat_test = datc2_test,
-  hyperparameters = setup_SPLS(k = c(1L, 2L), eta = 0.3),
-  execution_config = setup_ExecutionConfig(backend = "none")
+modt_c_spls <- fit_if_installed(
+  "spls",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_SPLS(k = c(1L, 2L), eta = 0.3),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
 )
 test_that("train() SPLS Classification with grid search succeeds", {
+  skip_if_not_installed("spls")
   expect_s7_class(modt_c_spls, Classification)
 })
 
 ## {SPLS}[train]<ClassificationRes> ----
-resmod_c_spls <- train(
-  x = datc2,
-  hyperparameters = setup_SPLS(k = 2L, eta = 0.3),
-  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  execution_config = setup_ExecutionConfig(backend = "none")
+resmod_c_spls <- fit_if_installed(
+  "spls",
+  train(
+    x = datc2,
+    hyperparameters = setup_SPLS(k = 2L, eta = 0.3),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
 )
 test_that("train() Res SPLS Classification succeeds", {
+  skip_if_not_installed("spls")
   expect_s7_class(resmod_c_spls, ClassificationRes)
 })
 
 ## {SPLS}[train]<Classification> Multiclass ----
-modt_c3_spls <- train(
-  x = datc3_train,
-  dat_test = datc3_test,
-  hyperparameters = setup_SPLS(k = 2L, eta = 0.3)
+modt_c3_spls <- fit_if_installed(
+  "spls",
+  train(
+    x = datc3_train,
+    dat_test = datc3_test,
+    hyperparameters = setup_SPLS(k = 2L, eta = 0.3)
+  )
 )
 test_that("train() SPLS Multiclass Classification succeeds", {
+  skip_if_not_installed("spls")
   expect_s7_class(modt_c3_spls, Classification)
 })
 
 ## {SPLS}[predict]<Regression> ----
-predicted_spls <- predict(mod_r_spls, features(datr_test))
+predicted_spls <- fit_if_installed(
+  "spls",
+  predict(mod_r_spls, features(datr_test))
+)
 test_that("predict() SPLS Regression succeeds", {
+  skip_if_not_installed("spls")
   expect_identical(mod_r_spls@predicted_test, predicted_spls)
   expect_null(dim(predicted_spls))
 })
@@ -1209,6 +1258,7 @@ test_that("predict() SPLS Regression succeeds", {
 # classifier. Binary must come back as the second level's probability;
 # multiclass as one column per class.
 test_that("predict() SPLS Classification returns second-level probabilities", {
+  skip_if_not_installed("spls")
   predicted_prob <- predict(mod_c_spls, features(datc2_test))
   expect_identical(NCOL(predicted_prob), 1L)
   expect_true(all(predicted_prob >= 0 & predicted_prob <= 1))
@@ -1222,6 +1272,7 @@ test_that("predict() SPLS Classification returns second-level probabilities", {
 })
 
 test_that("predict() SPLS Multiclass returns one column per class", {
+  skip_if_not_installed("spls")
   predicted_prob <- predict(modt_c3_spls, features(datc3_test))
   expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
   expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
@@ -1229,6 +1280,7 @@ test_that("predict() SPLS Multiclass returns one column per class", {
 
 ## {SPLS}[varimp]<Regression> ----
 test_that("get_varimp() SPLS Regression succeeds", {
+  skip_if_not_installed("spls")
   vi <- get_varimp(mod_r_spls)
   expect_s7_class(vi, VariableImportance)
   # One coefficient per design-matrix column: the factor `g` is one-hot encoded
@@ -1239,17 +1291,22 @@ test_that("get_varimp() SPLS Regression succeeds", {
 ## {SPLS}[train]<Regression> Algorithm name dispatch ----
 # The algorithmDB row is what makes the name resolvable; without it this
 # aborts with "Incorrect algorithm specified".
-mod_r_spls_byname <- train(
-  x = datr_train,
-  hyperparameters = get_default_hyperparameters("spls")
+mod_r_spls_byname <- fit_if_installed(
+  "spls",
+  train(
+    x = datr_train,
+    hyperparameters = get_default_hyperparameters("spls")
+  )
 )
 test_that("train() SPLS from its algorithm name succeeds", {
+  skip_if_not_installed("spls")
   expect_s7_class(mod_r_spls_byname, Regression)
   expect_identical(get_alg_name("spls"), "SPLS")
 })
 
 ## {SPLS}[train]<Regression> /\Error k > n features ----
 test_that("train() SPLS aborts when k exceeds n features", {
+  skip_if_not_installed("spls")
   expect_error(
     train(
       x = datr_train,
@@ -1261,6 +1318,7 @@ test_that("train() SPLS aborts when k exceeds n features", {
 })
 
 test_that("train() SPLS aborts when any search value of k is out of range", {
+  skip_if_not_installed("spls")
   expect_error(
     train(
       x = datr_train,
@@ -1275,6 +1333,7 @@ test_that("train() SPLS aborts when any search value of k is out of range", {
 # spls takes no case weights, so IFW cannot be honored and must fail loudly
 # rather than fit an unweighted model.
 test_that("train() SPLS aborts when ifw is enabled", {
+  skip_if_not_installed("spls")
   expect_error(
     train(
       x = datc2_train,
@@ -1286,6 +1345,7 @@ test_that("train() SPLS aborts when ifw is enabled", {
 
 ## {SPLS}[train]<Regression> Throw error with missing data ----
 test_that("train() SPLS Regression with missing data throws error", {
+  skip_if_not_installed("spls")
   expect_error(
     train(
       x = datr_train_na,
@@ -1297,36 +1357,48 @@ test_that("train() SPLS Regression with missing data throws error", {
 
 # --- KNN ------------------------------------------------------------------------------------------
 ## {KNN}[train]<Regression> ----
-mod_r_knn <- train(
-  x = datr_train,
-  dat_test = datr_test,
-  hyperparameters = setup_KNN(k = 5L)
+mod_r_knn <- fit_if_installed(
+  "kknn",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_KNN(k = 5L)
+  )
 )
 test_that("train() KNN Regression succeeds", {
+  skip_if_not_installed("kknn")
   expect_s7_class(mod_r_knn, Regression)
 })
 
 ## {KNN}[train]<Regression> Grid search ----
-modt_r_knn <- train(
-  x = datr_train,
-  dat_test = datr_test,
-  hyperparameters = setup_KNN(
-    k = c(3L, 9L),
-    kernel = c("rectangular", "optimal")
-  ),
-  execution_config = setup_ExecutionConfig(backend = "none")
+modt_r_knn <- fit_if_installed(
+  "kknn",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_KNN(
+      k = c(3L, 9L),
+      kernel = c("rectangular", "optimal")
+    ),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
 )
 test_that("train() KNN Regression with grid search succeeds", {
+  skip_if_not_installed("kknn")
   expect_s7_class(modt_r_knn, Regression)
 })
 
 ## {KNN}[train]<RegressionRes> ----
-resmod_r_knn <- train(
-  x = datr,
-  hyperparameters = setup_KNN(k = 5L),
-  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+resmod_r_knn <- fit_if_installed(
+  "kknn",
+  train(
+    x = datr,
+    hyperparameters = setup_KNN(k = 5L),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+  )
 )
 test_that("train() Res KNN Regression succeeds", {
+  skip_if_not_installed("kknn")
   expect_s7_class(resmod_r_knn, RegressionRes)
 })
 
@@ -1334,12 +1406,16 @@ test_that("train() Res KNN Regression succeeds", {
 # `train.kknn` does not record `scale` and `predict.train.kknn` would re-fit
 # with its own default of TRUE, so predict must go through `kknn::kknn()` with
 # the stashed value: an unscaled fit has to differ from the scaled one.
-mod_r_knn_unscaled <- train(
-  x = datr_train,
-  dat_test = datr_test,
-  hyperparameters = setup_KNN(k = 5L, scale = FALSE)
+mod_r_knn_unscaled <- fit_if_installed(
+  "kknn",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_KNN(k = 5L, scale = FALSE)
+  )
 )
 test_that("train() KNN Regression honors scale = FALSE at predict time", {
+  skip_if_not_installed("kknn")
   expect_s7_class(mod_r_knn_unscaled, Regression)
   expect_false(identical(
     mod_r_knn_unscaled@predicted_test,
@@ -1348,56 +1424,77 @@ test_that("train() KNN Regression honors scale = FALSE at predict time", {
 })
 
 ## {KNN}[train]<Classification> ----
-mod_c_knn <- train(
-  x = datc2_train,
-  dat_test = datc2_test,
-  hyperparameters = setup_KNN(k = 5L)
+mod_c_knn <- fit_if_installed(
+  "kknn",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_KNN(k = 5L)
+  )
 )
 test_that("train() KNN Classification succeeds", {
+  skip_if_not_installed("kknn")
   expect_s7_class(mod_c_knn, Classification)
 })
 
 ## {KNN}[train]<Classification> Grid search ----
-modt_c_knn <- train(
-  x = datc2_train,
-  dat_test = datc2_test,
-  hyperparameters = setup_KNN(k = c(3L, 9L)),
-  execution_config = setup_ExecutionConfig(backend = "none")
+modt_c_knn <- fit_if_installed(
+  "kknn",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_KNN(k = c(3L, 9L)),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
 )
 test_that("train() KNN Classification with grid search succeeds", {
+  skip_if_not_installed("kknn")
   expect_s7_class(modt_c_knn, Classification)
 })
 
 ## {KNN}[train]<ClassificationRes> ----
-resmod_c_knn <- train(
-  x = datc2,
-  hyperparameters = setup_KNN(k = 5L),
-  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  execution_config = setup_ExecutionConfig(backend = "none")
+resmod_c_knn <- fit_if_installed(
+  "kknn",
+  train(
+    x = datc2,
+    hyperparameters = setup_KNN(k = 5L),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
 )
 test_that("train() Res KNN Classification succeeds", {
+  skip_if_not_installed("kknn")
   expect_s7_class(resmod_c_knn, ClassificationRes)
 })
 
 ## {KNN}[train]<Classification> Multiclass ----
-modt_c3_knn <- train(
-  x = datc3_train,
-  dat_test = datc3_test,
-  hyperparameters = setup_KNN(k = 5L)
+modt_c3_knn <- fit_if_installed(
+  "kknn",
+  train(
+    x = datc3_train,
+    dat_test = datc3_test,
+    hyperparameters = setup_KNN(k = 5L)
+  )
 )
 test_that("train() KNN Multiclass Classification succeeds", {
+  skip_if_not_installed("kknn")
   expect_s7_class(modt_c3_knn, Classification)
 })
 
 ## {KNN}[predict]<Regression> ----
-predicted_knn <- predict(mod_r_knn, features(datr_test))
+predicted_knn <- fit_if_installed(
+  "kknn",
+  predict(mod_r_knn, features(datr_test))
+)
 test_that("predict() KNN Regression succeeds", {
+  skip_if_not_installed("kknn")
   expect_identical(mod_r_knn@predicted_test, predicted_knn)
   expect_null(dim(predicted_knn))
 })
 
 ## {KNN}[predict]<Classification> ----
 test_that("predict() KNN Classification returns second-level probabilities", {
+  skip_if_not_installed("kknn")
   predicted_prob <- predict(mod_c_knn, features(datc2_test))
   expect_identical(NCOL(predicted_prob), 1L)
   expect_true(all(predicted_prob >= 0 & predicted_prob <= 1))
@@ -1411,6 +1508,7 @@ test_that("predict() KNN Classification returns second-level probabilities", {
 })
 
 test_that("predict() KNN Multiclass returns one column per class", {
+  skip_if_not_installed("kknn")
   predicted_prob <- predict(modt_c3_knn, features(datc3_test))
   expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
   expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
@@ -1419,17 +1517,22 @@ test_that("predict() KNN Multiclass returns one column per class", {
 ## {KNN}[varimp]<Regression> ----
 # kknn provides no measure of variable importance.
 test_that("get_varimp() KNN Regression returns NULL", {
+  skip_if_not_installed("kknn")
   expect_null(get_varimp(mod_r_knn))
 })
 
 ## {KNN}[train]<Regression> Algorithm name dispatch ----
 # The algorithmDB row is what makes the name resolvable; without it this
 # aborts with "Incorrect algorithm specified".
-mod_r_knn_byname <- train(
-  x = datr_train,
-  hyperparameters = get_default_hyperparameters("knn")
+mod_r_knn_byname <- fit_if_installed(
+  "kknn",
+  train(
+    x = datr_train,
+    hyperparameters = get_default_hyperparameters("knn")
+  )
 )
 test_that("train() KNN from its algorithm name succeeds", {
+  skip_if_not_installed("kknn")
   expect_s7_class(mod_r_knn_byname, Regression)
   expect_identical(get_alg_name("knn"), "KNN")
 })
@@ -1438,6 +1541,7 @@ test_that("train() KNN from its algorithm name succeeds", {
 # `train.kknn` picks `k` by leave-one-out CV, so `k` must be strictly less than
 # the number of training cases.
 test_that("train() KNN aborts when k is not less than n cases", {
+  skip_if_not_installed("kknn")
   expect_error(
     train(
       x = datr_train,
@@ -1449,6 +1553,7 @@ test_that("train() KNN aborts when k is not less than n cases", {
 })
 
 test_that("train() KNN aborts when any search value of k is out of range", {
+  skip_if_not_installed("kknn")
   expect_error(
     train(
       x = datr_train,
@@ -1463,6 +1568,7 @@ test_that("train() KNN aborts when any search value of k is out of range", {
 # kknn takes no case weights, so IFW cannot be honored and must fail loudly
 # rather than fit an unweighted model.
 test_that("train() KNN aborts when ifw is enabled", {
+  skip_if_not_installed("kknn")
   expect_error(
     train(
       x = datc2_train,
@@ -1474,6 +1580,7 @@ test_that("train() KNN aborts when ifw is enabled", {
 
 ## {KNN}[train]<Regression> Throw error with missing data ----
 test_that("train() KNN Regression with missing data throws error", {
+  skip_if_not_installed("kknn")
   expect_error(
     train(
       x = datr_train_na,
@@ -1487,65 +1594,81 @@ test_that("train() KNN Regression with missing data throws error", {
 # --- BART -----------------------------------------------------------------------------------------
 # The sampler is stochastic, so every fit below fixes `seed`.
 ## {BART}[train]<Regression> ----
-mod_r_bart <- train(
-  x = datr_train,
-  dat_test = datr_test,
-  hyperparameters = setup_BART(
-    num_trees = 10L,
-    num_gfr = 2L,
-    num_mcmc = 10L,
-    seed = 2026L
+mod_r_bart <- fit_if_installed(
+  "stochtree",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_BART(
+      num_trees = 10L,
+      num_gfr = 2L,
+      num_mcmc = 10L,
+      seed = 2026L
+    )
   )
 )
 test_that("train() BART Regression succeeds", {
+  skip_if_not_installed("stochtree")
   expect_s7_class(mod_r_bart, Regression)
 })
 
 ## {BART}[train]<Regression> Grid search ----
-modt_r_bart <- train(
-  x = datr_train,
-  dat_test = datr_test,
-  hyperparameters = setup_BART(
-    num_trees = c(5L, 10L),
-    num_gfr = 2L,
-    num_mcmc = 10L,
-    seed = 2026L
-  ),
-  execution_config = setup_ExecutionConfig(backend = "none")
+modt_r_bart <- fit_if_installed(
+  "stochtree",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_BART(
+      num_trees = c(5L, 10L),
+      num_gfr = 2L,
+      num_mcmc = 10L,
+      seed = 2026L
+    ),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
 )
 test_that("train() BART Regression with grid search succeeds", {
+  skip_if_not_installed("stochtree")
   expect_s7_class(modt_r_bart, Regression)
 })
 
 ## {BART}[train]<RegressionRes> ----
-resmod_r_bart <- train(
-  x = datr,
-  hyperparameters = setup_BART(
-    num_trees = 10L,
-    num_gfr = 2L,
-    num_mcmc = 10L,
-    seed = 2026L
-  ),
-  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+resmod_r_bart <- fit_if_installed(
+  "stochtree",
+  train(
+    x = datr,
+    hyperparameters = setup_BART(
+      num_trees = 10L,
+      num_gfr = 2L,
+      num_mcmc = 10L,
+      seed = 2026L
+    ),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+  )
 )
 test_that("train() Res BART Regression succeeds", {
+  skip_if_not_installed("stochtree")
   expect_s7_class(resmod_r_bart, RegressionRes)
 })
 
 ## {BART}[train]<Regression> Heteroskedastic ----
 # A variance forest changes the fit and adds a second forest to the samples.
-mod_r_bart_het <- train(
-  x = datr_train,
-  dat_test = datr_test,
-  hyperparameters = setup_BART(
-    num_trees = 10L,
-    variance_forest_num_trees = 5L,
-    num_gfr = 2L,
-    num_mcmc = 10L,
-    seed = 2026L
+mod_r_bart_het <- fit_if_installed(
+  "stochtree",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_BART(
+      num_trees = 10L,
+      variance_forest_num_trees = 5L,
+      num_gfr = 2L,
+      num_mcmc = 10L,
+      seed = 2026L
+    )
   )
 )
 test_that("train() BART Regression with a variance forest succeeds", {
+  skip_if_not_installed("stochtree")
   expect_s7_class(mod_r_bart_het, Regression)
   expect_true(mod_r_bart_het@model[["model_params"]][[
     "include_variance_forest"
@@ -1556,6 +1679,7 @@ test_that("train() BART Regression with a variance forest succeeds", {
 # `link` names the binary outcome model's link, so a continuous outcome must
 # be sampled identically whatever it is set to.
 test_that("train() BART Regression ignores link", {
+  skip_if_not_installed("stochtree")
   mod_r_bart_cloglog <- train(
     x = datr_train,
     dat_test = datr_test,
@@ -1574,95 +1698,120 @@ test_that("train() BART Regression ignores link", {
 })
 
 ## {BART}[train]<Classification> ----
-mod_c_bart <- train(
-  x = datc2_train,
-  dat_test = datc2_test,
-  hyperparameters = setup_BART(
-    num_trees = 10L,
-    num_gfr = 2L,
-    num_mcmc = 10L,
-    seed = 2026L
+mod_c_bart <- fit_if_installed(
+  "stochtree",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_BART(
+      num_trees = 10L,
+      num_gfr = 2L,
+      num_mcmc = 10L,
+      seed = 2026L
+    )
   )
 )
 test_that("train() BART Classification succeeds", {
+  skip_if_not_installed("stochtree")
   expect_s7_class(mod_c_bart, Classification)
 })
 
 ## {BART}[train]<Classification> Grid search ----
-modt_c_bart <- train(
-  x = datc2_train,
-  dat_test = datc2_test,
-  hyperparameters = setup_BART(
-    num_trees = c(5L, 10L),
-    num_gfr = 2L,
-    num_mcmc = 10L,
-    seed = 2026L
-  ),
-  execution_config = setup_ExecutionConfig(backend = "none")
+modt_c_bart <- fit_if_installed(
+  "stochtree",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_BART(
+      num_trees = c(5L, 10L),
+      num_gfr = 2L,
+      num_mcmc = 10L,
+      seed = 2026L
+    ),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
 )
 test_that("train() BART Classification with grid search succeeds", {
+  skip_if_not_installed("stochtree")
   expect_s7_class(modt_c_bart, Classification)
 })
 
 ## {BART}[train]<ClassificationRes> ----
-resmod_c_bart <- train(
-  x = datc2,
-  hyperparameters = setup_BART(
-    num_trees = 10L,
-    num_gfr = 2L,
-    num_mcmc = 10L,
-    seed = 2026L
-  ),
-  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  execution_config = setup_ExecutionConfig(backend = "none")
+resmod_c_bart <- fit_if_installed(
+  "stochtree",
+  train(
+    x = datc2,
+    hyperparameters = setup_BART(
+      num_trees = 10L,
+      num_gfr = 2L,
+      num_mcmc = 10L,
+      seed = 2026L
+    ),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
 )
 test_that("train() Res BART Classification succeeds", {
+  skip_if_not_installed("stochtree")
   expect_s7_class(resmod_c_bart, ClassificationRes)
 })
 
 ## {BART}[train]<Classification> IFW ----
 # stochtree applies case weights to the residual variance under the default
 # probit link, so IFW is honored rather than rejected.
-mod_c_bart_ifw <- train(
-  x = datc2_train,
-  dat_test = datc2_test,
-  hyperparameters = setup_BART(
-    num_trees = 10L,
-    num_gfr = 2L,
-    num_mcmc = 10L,
-    ifw = TRUE,
-    seed = 2026L
+mod_c_bart_ifw <- fit_if_installed(
+  "stochtree",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_BART(
+      num_trees = 10L,
+      num_gfr = 2L,
+      num_mcmc = 10L,
+      ifw = TRUE,
+      seed = 2026L
+    )
   )
 )
 test_that("train() BART Classification with IFW succeeds", {
+  skip_if_not_installed("stochtree")
   expect_s7_class(mod_c_bart_ifw, Classification)
 })
 
 ## {BART}[train]<Classification> cloglog link ----
-mod_c_bart_cloglog <- train(
-  x = datc2_train,
-  dat_test = datc2_test,
-  hyperparameters = setup_BART(
-    num_trees = 10L,
-    num_gfr = 2L,
-    num_mcmc = 10L,
-    link = "cloglog",
-    seed = 2026L
+mod_c_bart_cloglog <- fit_if_installed(
+  "stochtree",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_BART(
+      num_trees = 10L,
+      num_gfr = 2L,
+      num_mcmc = 10L,
+      link = "cloglog",
+      seed = 2026L
+    )
   )
 )
 test_that("train() BART Classification with the cloglog link succeeds", {
+  skip_if_not_installed("stochtree")
   expect_s7_class(mod_c_bart_cloglog, Classification)
 })
 
 ## {BART}[predict]<Regression> ----
-predicted_bart <- predict(mod_r_bart, features(datr_test))
+predicted_bart <- fit_if_installed(
+  "stochtree",
+  predict(mod_r_bart, features(datr_test))
+)
 test_that("predict() BART Regression succeeds", {
+  skip_if_not_installed("stochtree")
   expect_identical(mod_r_bart@predicted_test, predicted_bart)
   expect_null(dim(predicted_bart))
 })
 
 ## {BART}[predict]<Classification> ----
 test_that("predict() BART Classification returns second-level probabilities", {
+  skip_if_not_installed("stochtree")
   predicted_prob <- predict(mod_c_bart, features(datc2_test))
   expect_identical(NCOL(predicted_prob), 1L)
   expect_true(all(predicted_prob >= 0 & predicted_prob <= 1))
@@ -1678,6 +1827,7 @@ test_that("predict() BART Classification returns second-level probabilities", {
 ## {BART}[se]<Regression> ----
 # The posterior spread of the retained MCMC draws.
 test_that("se() BART Regression returns one standard error per case", {
+  skip_if_not_installed("stochtree")
   se_bart <- se(mod_r_bart, features(datr_test))
   expect_type(se_bart, "double")
   expect_length(se_bart, nrow(datr_test))
@@ -1689,6 +1839,7 @@ test_that("se() BART Regression returns one standard error per case", {
 # so a factor expanded across several design columns still contributes exactly
 # one row, and the inclusion proportions sum to 1.
 test_that("get_varimp() BART Regression returns inclusion proportions", {
+  skip_if_not_installed("stochtree")
   varimp_bart <- get_varimp(mod_r_bart)
   expect_s7_class(varimp_bart, VariableImportance)
   expect_identical(varimp_bart@data[["variable"]], mod_r_bart@xnames)
@@ -1696,6 +1847,7 @@ test_that("get_varimp() BART Regression returns inclusion proportions", {
 })
 
 test_that("get_varimp() BART reports inclusion spread beside the mean", {
+  skip_if_not_installed("stochtree")
   varimp_bart <- get_varimp(mod_r_bart)
   # Two measures, so `plot_varimp(measure = )` has something to select.
   expect_identical(
@@ -1717,6 +1869,7 @@ test_that("get_varimp() BART reports inclusion spread beside the mean", {
 })
 
 test_that("get_varimp() BART is invariant to sampler budget", {
+  skip_if_not_installed("stochtree")
   # A raw split count scales with the number of retained samples; a proportion
   # does not, which is the whole reason for normalizing.
   varimp_long <- get_varimp(train(
@@ -1739,11 +1892,15 @@ test_that("get_varimp() BART is invariant to sampler budget", {
 ## {BART}[train]<Regression> Algorithm name dispatch ----
 # The algorithmDB row is what makes the name resolvable; without it this
 # aborts with "Incorrect algorithm specified".
-mod_r_bart_byname <- train(
-  x = datr_train,
-  hyperparameters = get_default_hyperparameters("bart")
+mod_r_bart_byname <- fit_if_installed(
+  "stochtree",
+  train(
+    x = datr_train,
+    hyperparameters = get_default_hyperparameters("bart")
+  )
 )
 test_that("train() BART from its algorithm name succeeds", {
+  skip_if_not_installed("stochtree")
   expect_s7_class(mod_r_bart_byname, Regression)
   expect_identical(get_alg_name("bart"), "BART")
 })
@@ -1752,6 +1909,7 @@ test_that("train() BART from its algorithm name succeeds", {
 # stochtree models a discrete outcome as binary or ordinal; rtemis outcomes are
 # unordered, so more than two classes has no mapping.
 test_that("train() BART aborts on multiclass classification", {
+  skip_if_not_installed("stochtree")
   expect_error(
     train(
       x = datc3_train,
@@ -1765,6 +1923,7 @@ test_that("train() BART aborts on multiclass classification", {
 # stochtree rejects observation weights under a cloglog link, so IFW cannot be
 # honored there and must fail loudly rather than fit an unweighted model.
 test_that("train() BART aborts when ifw is combined with the cloglog link", {
+  skip_if_not_installed("stochtree")
   expect_error(
     train(
       x = datc2_train,
@@ -1782,6 +1941,7 @@ test_that("train() BART aborts when ifw is combined with the cloglog link", {
 
 ## {BART}[train]<Regression> /\Error num_features_subsample > n features ----
 test_that("train() BART aborts when num_features_subsample exceeds n features", {
+  skip_if_not_installed("stochtree")
   expect_error(
     train(
       x = datr_train,
@@ -1797,6 +1957,7 @@ test_that("train() BART aborts when num_features_subsample exceeds n features", 
 })
 
 test_that("train() BART aborts when any search value of num_features_subsample is out of range", {
+  skip_if_not_installed("stochtree")
   expect_error(
     train(
       x = datr_train,
@@ -1813,6 +1974,7 @@ test_that("train() BART aborts when any search value of num_features_subsample i
 
 ## {BART}[train]<Regression> Throw error with missing data ----
 test_that("train() BART Regression with missing data throws error", {
+  skip_if_not_installed("stochtree")
   expect_error(
     train(
       x = datr_train_na,
@@ -1828,84 +1990,112 @@ test_that("train() BART Regression with missing data throws error", {
 # max_degree = 1 to keep runtime down. The internal cross-validation that
 # selects lambda draws folds at random, so every fit fixes `seed`.
 ## {HAL}[train]<Regression> ----
-mod_r_hal <- train(
-  x = datr_train,
-  dat_test = datr_test,
-  hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L)
+mod_r_hal <- fit_if_installed(
+  "hal9001",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L)
+  )
 )
 test_that("train() HAL Regression succeeds", {
+  skip_if_not_installed("hal9001")
   expect_s7_class(mod_r_hal, Regression)
 })
 
 ## {HAL}[train]<Regression> Grid search ----
-modt_r_hal <- train(
-  x = datr_train,
-  dat_test = datr_test,
-  hyperparameters = setup_HAL(
-    max_degree = 1L,
-    smoothness_orders = c(0L, 1L),
-    seed = 2026L
-  ),
-  execution_config = setup_ExecutionConfig(backend = "none")
+modt_r_hal <- fit_if_installed(
+  "hal9001",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_HAL(
+      max_degree = 1L,
+      smoothness_orders = c(0L, 1L),
+      seed = 2026L
+    ),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
 )
 test_that("train() HAL Regression with grid search succeeds", {
+  skip_if_not_installed("hal9001")
   expect_s7_class(modt_r_hal, Regression)
 })
 
 ## {HAL}[train]<RegressionRes> ----
-resmod_r_hal <- train(
-  x = datr,
-  hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L),
-  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+resmod_r_hal <- fit_if_installed(
+  "hal9001",
+  train(
+    x = datr,
+    hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+  )
 )
 test_that("train() Res HAL Regression succeeds", {
+  skip_if_not_installed("hal9001")
   expect_s7_class(resmod_r_hal, RegressionRes)
 })
 
 ## {HAL}[train]<Classification> ----
-mod_c_hal <- train(
-  x = datc2_train,
-  dat_test = datc2_test,
-  hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L)
+mod_c_hal <- fit_if_installed(
+  "hal9001",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L)
+  )
 )
 test_that("train() HAL Classification succeeds", {
+  skip_if_not_installed("hal9001")
   expect_s7_class(mod_c_hal, Classification)
 })
 
 ## {HAL}[train]<Classification> Grid search ----
-modt_c_hal <- train(
-  x = datc2_train,
-  dat_test = datc2_test,
-  hyperparameters = setup_HAL(
-    max_degree = 1L,
-    smoothness_orders = c(0L, 1L),
-    seed = 2026L
-  ),
-  execution_config = setup_ExecutionConfig(backend = "none")
+modt_c_hal <- fit_if_installed(
+  "hal9001",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_HAL(
+      max_degree = 1L,
+      smoothness_orders = c(0L, 1L),
+      seed = 2026L
+    ),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
 )
 test_that("train() HAL Classification with grid search succeeds", {
+  skip_if_not_installed("hal9001")
   expect_s7_class(modt_c_hal, Classification)
 })
 
 ## {HAL}[train]<ClassificationRes> ----
-resmod_c_hal <- train(
-  x = datc2,
-  hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L),
-  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
-  execution_config = setup_ExecutionConfig(backend = "none")
+resmod_c_hal <- fit_if_installed(
+  "hal9001",
+  train(
+    x = datc2,
+    hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
 )
 test_that("train() Res HAL Classification succeeds", {
+  skip_if_not_installed("hal9001")
   expect_s7_class(resmod_c_hal, ClassificationRes)
 })
 
 ## {HAL}[train]<Classification> IFW ----
 # The backend forwards case weights to the lasso, so IFW is honored.
-mod_c_hal_ifw <- train(
-  x = datc2_train,
-  dat_test = datc2_test,
-  hyperparameters = setup_HAL(max_degree = 1L, ifw = TRUE, seed = 2026L)
+mod_c_hal_ifw <- fit_if_installed(
+  "hal9001",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_HAL(max_degree = 1L, ifw = TRUE, seed = 2026L)
+  )
 )
 test_that("train() HAL Classification with IFW succeeds", {
+  skip_if_not_installed("hal9001")
   expect_s7_class(mod_c_hal_ifw, Classification)
 })
 
@@ -1913,6 +2103,7 @@ test_that("train() HAL Classification with IFW succeeds", {
 # `seed` reaches the internal cross-validation as a fold vector, so the lambda
 # it selects must not depend on the ambient RNG.
 test_that("train() HAL seeds the internal cross-validation reproducibly", {
+  skip_if_not_installed("hal9001")
   set.seed(1L)
   first <- train(
     x = datr_train,
@@ -1930,14 +2121,19 @@ test_that("train() HAL seeds the internal cross-validation reproducibly", {
 })
 
 ## {HAL}[predict]<Regression> ----
-predicted_hal <- predict(mod_r_hal, features(datr_test))
+predicted_hal <- fit_if_installed(
+  "hal9001",
+  predict(mod_r_hal, features(datr_test))
+)
 test_that("predict() HAL Regression succeeds", {
+  skip_if_not_installed("hal9001")
   expect_identical(mod_r_hal@predicted_test, predicted_hal)
   expect_null(dim(predicted_hal))
 })
 
 ## {HAL}[predict]<Classification> ----
 test_that("predict() HAL Classification returns second-level probabilities", {
+  skip_if_not_installed("hal9001")
   predicted_prob <- predict(mod_c_hal, features(datc2_test))
   expect_identical(NCOL(predicted_prob), 1L)
   expect_true(all(predicted_prob >= 0 & predicted_prob <= 1))
@@ -1955,6 +2151,7 @@ test_that("predict() HAL Classification returns second-level probabilities", {
 # and the basis is built over the one-hot encoded design matrix, so a factor
 # contributes one row per level rather than one row per feature.
 test_that("get_varimp() HAL Regression aggregates coefficients per feature", {
+  skip_if_not_installed("hal9001")
   varimp_hal <- get_varimp(mod_r_hal)
   expect_s7_class(varimp_hal, VariableImportance)
   expect_gt(nrow(varimp_hal@data), length(mod_r_hal@xnames))
@@ -1962,6 +2159,7 @@ test_that("get_varimp() HAL Regression aggregates coefficients per feature", {
 })
 
 test_that("get_varimp() HAL reports the peak coefficient beside the sum", {
+  skip_if_not_installed("hal9001")
   varimp_hal <- get_varimp(mod_r_hal)
   # Two measures, so `plot_varimp(measure = )` has something to select.
   expect_identical(
@@ -1975,6 +2173,7 @@ test_that("get_varimp() HAL reports the peak coefficient beside the sum", {
 })
 
 test_that("get_varimp() HAL recovers the features the outcome was built from", {
+  skip_if_not_installed("hal9001")
   # datr's y is x[, 3] + x[, 5] + a factor effect. At smoothness_orders = 0 the
   # basis is made of indicators, so the coefficients are unit-free and the two
   # signal columns must outrank the three noise ones.
@@ -1999,11 +2198,15 @@ test_that("get_varimp() HAL recovers the features the outcome was built from", {
 ## {HAL}[train]<Regression> Algorithm name dispatch ----
 # The algorithmDB row is what makes the name resolvable; without it this
 # aborts with "Incorrect algorithm specified".
-mod_r_hal_byname <- train(
-  x = datr_train,
-  hyperparameters = get_default_hyperparameters("hal")
+mod_r_hal_byname <- fit_if_installed(
+  "hal9001",
+  train(
+    x = datr_train,
+    hyperparameters = get_default_hyperparameters("hal")
+  )
 )
 test_that("train() HAL from its algorithm name succeeds", {
+  skip_if_not_installed("hal9001")
   expect_s7_class(mod_r_hal_byname, Regression)
   expect_identical(get_alg_name("hal"), "HAL")
 })
@@ -2011,6 +2214,7 @@ test_that("train() HAL from its algorithm name succeeds", {
 ## {HAL}[train]<Classification> /\Error multiclass unsupported ----
 # hal9001 has no multinomial family.
 test_that("train() HAL aborts on multiclass classification", {
+  skip_if_not_installed("hal9001")
   expect_error(
     train(x = datc3_train, hyperparameters = setup_HAL(max_degree = 1L)),
     class = "rtemis_unsupported_error"
@@ -2019,6 +2223,7 @@ test_that("train() HAL aborts on multiclass classification", {
 
 ## {HAL}[train]<Regression> /\Error max_degree > n features ----
 test_that("train() HAL aborts when max_degree exceeds n features", {
+  skip_if_not_installed("hal9001")
   expect_error(
     train(x = datr_train, hyperparameters = setup_HAL(max_degree = 100L)),
     class = "rtemis_range_error"
@@ -2026,6 +2231,7 @@ test_that("train() HAL aborts when max_degree exceeds n features", {
 })
 
 test_that("train() HAL aborts when any search value of max_degree is out of range", {
+  skip_if_not_installed("hal9001")
   expect_error(
     train(
       x = datr_train,
@@ -2039,6 +2245,7 @@ test_that("train() HAL aborts when any search value of max_degree is out of rang
 # The basis is enumerated before anything is fit, so an over-large one has to
 # be caught by projection rather than by failing.
 test_that("train() HAL aborts when the projected basis exceeds max_basis", {
+  skip_if_not_installed("hal9001")
   expect_error(
     train(
       x = datr_train,
@@ -2062,6 +2269,7 @@ test_that("train() HAL aborts when the projected basis exceeds max_basis", {
 
 ## {HAL}[train]<Regression> Throw error with missing data ----
 test_that("train() HAL Regression with missing data throws error", {
+  skip_if_not_installed("hal9001")
   expect_error(
     train(
       x = datr_train_na,

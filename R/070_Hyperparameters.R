@@ -3166,8 +3166,11 @@ KNNHyperparameters <- new_class(
 #' Setup hyperparameters for k-Nearest Neighbors training.
 #'
 #' Both outcome types are fit with [kknn::train.kknn], which selects between
-#' regression and classification from the outcome. Factors are expanded to
-#' dummy variables by the backend, so no encoding is needed beforehand.
+#' regression and classification from the outcome. Factors are one-hot encoded
+#' by rtemis first, as an algorithm-internal preprocessor that is re-applied at
+#' predict time: the backend's own factor handling resolves a contrast function
+#' off the search path, which is not reachable when `kknn` is loaded but not
+#' attached, as a suggested package is.
 #'
 #' `kknn` provides no case weights, so `ifw` cannot be honored: enabling it
 #' makes training abort rather than silently fit an unweighted model.
