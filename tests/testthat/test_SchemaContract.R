@@ -75,7 +75,8 @@
     list(LinearSVMHyperparameters, "setup_LinearSVM"),
     list(RadialSVMHyperparameters, "setup_RadialSVM"),
     list(TabNetHyperparameters, "setup_TabNet"),
-    list(RangerHyperparameters, "setup_Ranger")
+    list(RangerHyperparameters, "setup_Ranger"),
+    list(SPLSHyperparameters, "setup_SPLS")
   ),
   .contract_family(
     NULL,

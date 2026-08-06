@@ -28,6 +28,7 @@ supervised_algorithms <- data.frame(rbind(
     TRUE,
     FALSE
   ),
+  c("SPLS", "Sparse Partial Least Squares", TRUE, TRUE, FALSE),
   c("TabNet", "Attentive Interpretable Tabular Learning", TRUE, TRUE, FALSE)
 ))
 colnames(supervised_algorithms) <- c(
@@ -46,7 +47,8 @@ supervised_multiclass <- c(
   "LightGBM",
   "LinearSVM",
   "RadialSVM",
-  "Ranger"
+  "Ranger",
+  "SPLS"
 )
 
 get_alg_name <- function(algorithm) {

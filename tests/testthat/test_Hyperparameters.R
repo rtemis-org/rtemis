@@ -94,7 +94,8 @@ test_that("setup_LightRF() succeeds", {
   LinearSVM = LinearSVMHyperparameters,
   RadialSVM = RadialSVMHyperparameters,
   TabNet = TabNetHyperparameters,
-  Ranger = RangerHyperparameters
+  Ranger = RangerHyperparameters,
+  SPLS = SPLSHyperparameters
 )
 
 test_that("setup_* defaults do not drift from the property defaults", {
@@ -369,6 +370,24 @@ test_that("setup_TabNet() succeeds", {
 # setup_Ranger ----
 test_that("setup_Ranger() succeeds", {
   expect_s7_class(setup_Ranger(), RangerHyperparameters)
+})
+
+# SPLSHyperparameters ----
+test_that("SPLSHyperparameters() constructs from its property defaults", {
+  # Defaults come from the PropertySpecs, so no argument is required.
+  expect_s7_class(SPLSHyperparameters(), SPLSHyperparameters)
+})
+
+# setup_SPLS ----
+test_that("setup_SPLS() succeeds", {
+  expect_s7_class(setup_SPLS(), SPLSHyperparameters)
+})
+
+test_that("setup_SPLS() with search values needs tuning", {
+  spls_hpr <- setup_SPLS(k = c(1L, 2L), eta = c(0.3, 0.6))
+  expect_s7_class(spls_hpr, SPLSHyperparameters)
+  expect_identical(spls_hpr@tuned, TUNED_STATUS_UNTUNED)
+  expect_true(needs_tuning(spls_hpr))
 })
 
 
