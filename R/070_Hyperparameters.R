@@ -2746,6 +2746,154 @@ setup_Ranger <- function(
 } # /setup_Ranger
 
 
+# %% SPLSHyperparameters ----
+#' @title SPLSHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for SPLS.
+#'
+#' One class covers both backends: `spls::spls` for regression and
+#' `spls::splsda` for classification. `select`, `fit`, `scale_y`, `eps` and
+#' `maxstep` reach the regression backend only; `classifier` reaches the
+#' classification backend only. `splsda` fixes the others internally and does
+#' not forward them.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+SPLSHyperparameters <- new_class(
+  name = "SPLSHyperparameters",
+  parent = Hyperparameters,
+  properties = list(
+    algorithm = prop_algorithm("SPLS"),
+    k = prop_integer(
+      2L,
+      min = 1L,
+      tunable = TRUE,
+      data_bound = "n_features",
+      description = "Number of latent components."
+    ),
+    eta = prop_float(
+      0.5,
+      min = 0,
+      exclusive_max = 1,
+      tunable = TRUE,
+      description = "Sparsity threshold: higher values select fewer features."
+    ),
+    kappa = prop_float(
+      0.5,
+      min = 0,
+      max = 0.5,
+      tunable = TRUE,
+      description = "Concavity of the surrogate direction vector problem. Used with a multivariate coded outcome, i.e. multiclass classification."
+    ),
+    select = prop_string(
+      "pls2",
+      enum = c("pls2", "simpls"),
+      description = "Feature selection algorithm (regression only)."
+    ),
+    fit = prop_string(
+      "simpls",
+      enum = c("kernelpls", "widekernelpls", "simpls", "oscorespls"),
+      description = "PLS algorithm used for model fitting (regression only)."
+    ),
+    classifier = prop_string(
+      "lda",
+      enum = c("lda", "logistic"),
+      description = "Classifier fit on the latent components (classification only)."
+    ),
+    scale_x = prop_boolean(
+      TRUE,
+      description = "Scale features to unit variance."
+    ),
+    scale_y = prop_boolean(
+      FALSE,
+      description = "Scale the outcome to unit variance (regression only)."
+    ),
+    eps = prop_float(
+      1e-4,
+      exclusive_min = 0,
+      description = "Convergence tolerance (regression only)."
+    ),
+    maxstep = prop_integer(
+      100L,
+      min = 1L,
+      description = "Maximum number of iterations per component (regression only)."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    )
+  )
+) # /rtemis::SPLSHyperparameters
+
+
+# %% setup_SPLS ----
+#' Setup SPLS Hyperparameters
+#'
+#' Setup hyperparameters for Sparse Partial Least Squares training.
+#'
+#' Regression is fit with [spls::spls] and classification with
+#' [spls::splsda], chosen from the outcome type. Parameters marked
+#' "regression only" or "classification only" are passed to the backend that
+#' accepts them and ignored by the other.
+#'
+#' `spls` provides no case weights, so `ifw` cannot be honored: enabling it
+#' makes training abort rather than silently fit an unweighted model.
+#'
+#' @param k (Tunable) Integer [1, Inf): Number of latent components.
+#' @param eta (Tunable) Numeric [0, 1): Sparsity threshold. Higher values select fewer features.
+#' @param kappa (Tunable) Numeric \[0, 0.5\]: Concavity of the surrogate direction vector problem.
+#' @param select Character \{"pls2", "simpls"\}: Feature selection algorithm (regression only).
+#' @param fit Character \{"kernelpls", "widekernelpls", "simpls", "oscorespls"\}: PLS algorithm used for model fitting (regression only).
+#' @param classifier Character \{"lda", "logistic"\}: Classifier fit on the latent components (classification only).
+#' @param scale_x Logical: If TRUE, scale features to unit variance.
+#' @param scale_y Logical: If TRUE, scale the outcome to unit variance (regression only).
+#' @param eps Numeric (0, Inf): Convergence tolerance (regression only).
+#' @param maxstep Integer [1, Inf): Maximum number of iterations per component (regression only).
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @return SPLSHyperparameters object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' spls_hyperparams <- setup_SPLS(k = 3L, eta = 0.7)
+#' spls_hyperparams
+setup_SPLS <- function(
+  # tunable
+  k = 2L,
+  eta = 0.5,
+  kappa = 0.5,
+  # fixed
+  select = "pls2",
+  fit = "simpls",
+  classifier = "lda",
+  scale_x = TRUE,
+  scale_y = FALSE,
+  eps = 1e-4,
+  maxstep = 100L,
+  ifw = FALSE
+) {
+  k <- clean_posint(k)
+  maxstep <- clean_posint(maxstep)
+  SPLSHyperparameters(
+    k = k,
+    eta = eta,
+    kappa = kappa,
+    select = select,
+    fit = fit,
+    classifier = classifier,
+    scale_x = scale_x,
+    scale_y = scale_y,
+    eps = eps,
+    maxstep = maxstep,
+    ifw = ifw
+  )
+} # /rtemis::setup_SPLS
+
+
 # %% .list_to_Hyperparameters ----
 #' Convert a list to a Hyperparameters object
 #'

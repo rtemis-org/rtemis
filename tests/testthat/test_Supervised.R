@@ -10,6 +10,8 @@
 # GLM models are expected to give warnings, including:
 #   - "glm.fit: fitted probabilities numerically 0 or 1 occurred"
 #   - "glm.fit: algorithm did not converge"
+# SPLS with classifier = "logistic" fits a glm on the latent components, so it
+# gives the same warnings on the near-separable binary iris fixture.
 
 # %% Packages ----
 library(data.table)
@@ -1110,6 +1112,190 @@ test_that("train() Ranger aborts when any search value of mtry is out of range",
     class = "rtemis_range_error"
   )
 })
+
+# --- SPLS -----------------------------------------------------------------------------------------
+## {SPLS}[train]<Regression> ----
+mod_r_spls <- train(
+  x = datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_SPLS(k = 2L, eta = 0.3)
+)
+test_that("train() SPLS Regression succeeds", {
+  expect_s7_class(mod_r_spls, Regression)
+})
+
+## {SPLS}[train]<Regression> Grid search ----
+modt_r_spls <- train(
+  x = datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_SPLS(k = c(1L, 2L), eta = c(0.3, 0.6)),
+  execution_config = setup_ExecutionConfig(backend = "none")
+)
+test_that("train() SPLS Regression with grid search succeeds", {
+  expect_s7_class(modt_r_spls, Regression)
+})
+
+## {SPLS}[train]<RegressionRes> ----
+resmod_r_spls <- train(
+  x = datr,
+  hyperparameters = setup_SPLS(k = 2L, eta = 0.3),
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+)
+test_that("train() Res SPLS Regression succeeds", {
+  expect_s7_class(resmod_r_spls, RegressionRes)
+})
+
+## {SPLS}[train]<Classification> ----
+mod_c_spls <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_SPLS(k = 2L, eta = 0.3)
+)
+test_that("train() SPLS Classification succeeds", {
+  expect_s7_class(mod_c_spls, Classification)
+})
+
+## {SPLS}[train]<Classification> logistic classifier ----
+mod_c_spls_logistic <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_SPLS(k = 2L, eta = 0.3, classifier = "logistic")
+)
+test_that("train() SPLS Classification with logistic classifier succeeds", {
+  expect_s7_class(mod_c_spls_logistic, Classification)
+})
+
+## {SPLS}[train]<Classification> Grid search ----
+modt_c_spls <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_SPLS(k = c(1L, 2L), eta = 0.3),
+  execution_config = setup_ExecutionConfig(backend = "none")
+)
+test_that("train() SPLS Classification with grid search succeeds", {
+  expect_s7_class(modt_c_spls, Classification)
+})
+
+## {SPLS}[train]<ClassificationRes> ----
+resmod_c_spls <- train(
+  x = datc2,
+  hyperparameters = setup_SPLS(k = 2L, eta = 0.3),
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+  execution_config = setup_ExecutionConfig(backend = "none")
+)
+test_that("train() Res SPLS Classification succeeds", {
+  expect_s7_class(resmod_c_spls, ClassificationRes)
+})
+
+## {SPLS}[train]<Classification> Multiclass ----
+modt_c3_spls <- train(
+  x = datc3_train,
+  dat_test = datc3_test,
+  hyperparameters = setup_SPLS(k = 2L, eta = 0.3)
+)
+test_that("train() SPLS Multiclass Classification succeeds", {
+  expect_s7_class(modt_c3_spls, Classification)
+})
+
+## {SPLS}[predict]<Regression> ----
+predicted_spls <- predict(mod_r_spls, features(datr_test))
+test_that("predict() SPLS Regression succeeds", {
+  expect_identical(mod_r_spls@predicted_test, predicted_spls)
+  expect_null(dim(predicted_spls))
+})
+
+## {SPLS}[predict]<Classification> ----
+# splsda only returns probabilities for the binary logistic case, so
+# predict_super() projects onto the latent components itself and asks the inner
+# classifier. Binary must come back as the second level's probability;
+# multiclass as one column per class.
+test_that("predict() SPLS Classification returns second-level probabilities", {
+  predicted_prob <- predict(mod_c_spls, features(datc2_test))
+  expect_identical(NCOL(predicted_prob), 1L)
+  expect_true(all(predicted_prob >= 0 & predicted_prob <= 1))
+  expect_identical(mod_c_spls@predicted_prob_test, predicted_prob)
+  # A flipped column would still be a valid probability, so check it tracks the
+  # outcome rather than its complement.
+  expect_gt(
+    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
+    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+  )
+})
+
+test_that("predict() SPLS Multiclass returns one column per class", {
+  predicted_prob <- predict(modt_c3_spls, features(datc3_test))
+  expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
+  expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
+})
+
+## {SPLS}[varimp]<Regression> ----
+test_that("get_varimp() SPLS Regression succeeds", {
+  vi <- get_varimp(mod_r_spls)
+  expect_s7_class(vi, VariableImportance)
+  # One coefficient per design-matrix column: the factor `g` is one-hot encoded
+  # before spls sees it.
+  expect_gte(nrow(vi@data), length(mod_r_spls@xnames))
+})
+
+## {SPLS}[train]<Regression> Algorithm name dispatch ----
+# The algorithmDB row is what makes the name resolvable; without it this
+# aborts with "Incorrect algorithm specified".
+mod_r_spls_byname <- train(
+  x = datr_train,
+  hyperparameters = get_default_hyperparameters("spls")
+)
+test_that("train() SPLS from its algorithm name succeeds", {
+  expect_s7_class(mod_r_spls_byname, Regression)
+  expect_identical(get_alg_name("spls"), "SPLS")
+})
+
+## {SPLS}[train]<Regression> /\Error k > n features ----
+test_that("train() SPLS aborts when k exceeds n features", {
+  expect_error(
+    train(
+      x = datr_train,
+      dat_test = datr_test,
+      hyperparameters = setup_SPLS(k = 100L)
+    ),
+    class = "rtemis_range_error"
+  )
+})
+
+test_that("train() SPLS aborts when any search value of k is out of range", {
+  expect_error(
+    train(
+      x = datr_train,
+      dat_test = datr_test,
+      hyperparameters = setup_SPLS(k = c(2L, 100L))
+    ),
+    class = "rtemis_range_error"
+  )
+})
+
+## {SPLS}[train]<Classification> /\Error ifw unsupported ----
+# spls takes no case weights, so IFW cannot be honored and must fail loudly
+# rather than fit an unweighted model.
+test_that("train() SPLS aborts when ifw is enabled", {
+  expect_error(
+    train(
+      x = datc2_train,
+      hyperparameters = setup_SPLS(k = 2L, eta = 0.3, ifw = TRUE)
+    ),
+    class = "rtemis_unsupported_error"
+  )
+})
+
+## {SPLS}[train]<Regression> Throw error with missing data ----
+test_that("train() SPLS Regression with missing data throws error", {
+  expect_error(
+    train(
+      x = datr_train_na,
+      dat_test = datr_test,
+      hyperparameters = setup_SPLS(k = 2L, eta = 0.3)
+    )
+  )
+})
+
 
 # --- Predict SupervisedRes ------------------------------------------------------------------------
 

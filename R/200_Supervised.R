@@ -228,8 +228,9 @@ Supervised <- new_class(
 # %% supervised_features ----
 #' Put `newdata` in the shape the fitted backend was trained on
 #'
-#' Re-applies, in order, the stored user preprocessor, decomposition, and
-#' algorithm-internal preprocessor, then enforces predictor names and order.
+#' Re-applies, in order, the stored user preprocessor and decomposition,
+#' enforces predictor names and order, then applies the algorithm-internal
+#' preprocessor.
 #'
 #' Extracted so that everything querying the backend goes through one
 #' definition: predictions and standard errors computed from differently
@@ -266,16 +267,12 @@ supervised_features <- function(object, newdata, verbosity = 1L) {
     )
   }
 
-  # Apply algorithm-specific preprocessor if available
-  if (!is.null(object@preprocessor_internal)) {
-    newdata <- apply_preprocessor(
-      object@preprocessor_internal,
-      newdata,
-      verbosity = verbosity
-    )
-  }
-
-  # After preprocessing, enforce strict predictor names and order
+  # Enforce strict predictor names and order.
+  # `xnames` records the features as they stood after user preprocessing and
+  # decomposition but before the algorithm-internal preprocessor, so the check
+  # runs at that same point. An internal preprocessor that widens the frame
+  # (one-hot encoding a factor) would otherwise be compared against names that
+  # predate the encoding and fail on data that is in fact correct.
   if (!identical(names(newdata), object@xnames)) {
     extra_cols <- setdiff(names(newdata), object@xnames)
     missing_cols <- setdiff(object@xnames, names(newdata))
@@ -298,6 +295,15 @@ supervised_features <- function(object, newdata, verbosity = 1L) {
         "Missing columns: none."
       },
       class = c("rtemis_dim_error", "rtemis_data_error")
+    )
+  }
+
+  # Apply algorithm-specific preprocessor if available
+  if (!is.null(object@preprocessor_internal)) {
+    newdata <- apply_preprocessor(
+      object@preprocessor_internal,
+      newdata,
+      verbosity = verbosity
     )
   }
 
@@ -386,7 +392,7 @@ method(fitted, Supervised) <- function(object, ...) {
 #' produces none -- only linear and additive models do, which is why this is
 #' computed here rather than stored on every regression result.
 #'
-#' Routed through the same pipeline as [predict], so a stored preprocessor,
+#' Routed through the same pipeline as `predict`, so a stored preprocessor,
 #' decomposition and algorithm-internal preprocessor are re-applied before the
 #' backend is queried. Computing standard errors on raw `newdata` while
 #' predictions come from transformed features would silently pair the two.

@@ -6,6 +6,8 @@ pkg := `awk '/^Package:/{print $2; exit}' DESCRIPTION`
 r := env("R", "R")
 rscript := env("RSCRIPT", "Rscript")
 tarball_glob := pkg + "_*.tar.gz"
+# Working copy of the repo behind schema.rtemis.org, written by `just schemas`
+schema_repo := env("SCHEMA_REPO", "~/Schemas/schema")
 
 # List available recipes
 default:
@@ -81,6 +83,21 @@ install: document
 test:
     @just _msg "─── Running testthat tests for {{ pkg }}... ───"
     {{ rscript }} -e "testthat::test_local(stop_on_failure = TRUE)"
+    @just _msg "Done"
+
+# Generate schemas + defaults into a throwaway directory to assert the config contract
+schemas-check:
+    @just _msg "─── Checking schema generation for {{ pkg }}... ───"
+    @dir=$(mktemp -d); trap 'rm -rf "$dir"' EXIT; \
+        {{ rscript }} data-raw/generate_schemas.R "$dir" && \
+        {{ rscript }} data-raw/generate_defaults.R "$dir"
+    @just _msg "Done"
+
+# Write schemas + defaults to the schema repo (publishing step; commit there separately)
+schemas repo=schema_repo:
+    @just _msg "─── Generating schemas for {{ pkg }} into {{ repo }}... ───"
+    {{ rscript }} data-raw/generate_schemas.R {{ repo }}
+    {{ rscript }} data-raw/generate_defaults.R {{ repo }}
     @just _msg "Done"
 
 # Build the source tarball

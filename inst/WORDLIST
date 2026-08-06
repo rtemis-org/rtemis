@@ -71,6 +71,8 @@ Resampler
 ResamplerConfig
 Rprofile
 SL
+SPLS
+SPLSHyperparameters
 Spectrogram
 Stata
 StratBoot
@@ -152,9 +154,11 @@ jpeg
 json
 justfile
 kdtree
+kernelpls
 kk
 labelify
 labelled
+lda
 lgl
 lightAUC
 lightrf
@@ -185,10 +189,12 @@ nd
 nrounds
 num
 nv
+oscorespls
 pROC
 parallelization
 plotly
 plotly's
+pls
 pmm
 png
 poisson
@@ -215,6 +221,7 @@ sd
 se
 serializable
 signalled
+simpls
 sparsemax
 spectrograms
 spikelines
@@ -248,6 +255,7 @@ walkthroughs
 walktrap
 webp
 whiteigrid
+widekernelpls
 wilcox
 xanchor
 yanchor
