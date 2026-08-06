@@ -75,6 +75,26 @@ Factors are expanded by the backend, so no encoding is needed beforehand.
 Case weights scale the residual variance and are honored under the default
 \code{link = "probit"}, but \code{stochtree} rejects them under \code{"cloglog"}, so that
 combination makes training abort rather than silently fit an unweighted model.
+
+Because the fit is a posterior rather than a point estimate, \code{se()} returns
+the standard deviation of the retained draws, and \code{get_varimp()} reports two
+measures rather than one:
+\itemize{
+\item \code{importance}: the variable inclusion proportion, the share of splitting
+rules that use the feature, averaged across draws.
+\item \code{inclusion_sd}: its standard deviation across draws, separating a feature
+the sampler uses consistently from one whose importance rests on a few
+draws.
+}
+
+\code{plot_varimp(mod, measure = "inclusion_sd")} plots the second; the first is
+the default.
+
+Inclusion proportions only discriminate when trees compete for splits. At
+the default \code{num_trees} each tree is a weak learner and uninformative
+features still get used, so the proportions flatten towards \code{1/n_features};
+refit with a small ensemble (\code{num_trees = 10L} to \code{20L}) when the goal is
+variable selection rather than prediction.
 }
 \examples{
 bart_hyperparams <- setup_BART(num_trees = 50L, num_mcmc = 200L)

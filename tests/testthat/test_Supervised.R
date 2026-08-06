@@ -1686,11 +1686,54 @@ test_that("se() BART Regression returns one standard error per case", {
 
 ## {BART}[varimp]<Regression> ----
 # Split counts are summed back onto the feature each design column came from,
-# so a one-hot expanded factor still contributes exactly one row.
-test_that("get_varimp() BART Regression succeeds", {
+# so a factor expanded across several design columns still contributes exactly
+# one row, and the inclusion proportions sum to 1.
+test_that("get_varimp() BART Regression returns inclusion proportions", {
   varimp_bart <- get_varimp(mod_r_bart)
   expect_s7_class(varimp_bart, VariableImportance)
   expect_identical(varimp_bart@data[["variable"]], mod_r_bart@xnames)
+  expect_equal(sum(varimp_bart@data[["importance"]]), 1)
+})
+
+test_that("get_varimp() BART reports inclusion spread beside the mean", {
+  varimp_bart <- get_varimp(mod_r_bart)
+  # Two measures, so `plot_varimp(measure = )` has something to select.
+  expect_identical(
+    names(varimp_bart@data),
+    c("variable", "importance", "inclusion_sd")
+  )
+  expect_true(all(varimp_bart@data[["inclusion_sd"]] >= 0))
+  # The spread is across draws, so it must vanish when there is only one.
+  varimp_one_draw <- get_varimp(train(
+    x = datr_train,
+    hyperparameters = setup_BART(
+      num_trees = 10L,
+      num_gfr = 2L,
+      num_mcmc = 1L,
+      seed = 2026L
+    )
+  ))
+  expect_true(all(varimp_one_draw@data[["inclusion_sd"]] == 0))
+})
+
+test_that("get_varimp() BART is invariant to sampler budget", {
+  # A raw split count scales with the number of retained samples; a proportion
+  # does not, which is the whole reason for normalizing.
+  varimp_long <- get_varimp(train(
+    x = datr_train,
+    hyperparameters = setup_BART(
+      num_trees = 10L,
+      num_gfr = 2L,
+      num_mcmc = 40L,
+      seed = 2026L
+    )
+  ))
+  expect_equal(sum(varimp_long@data[["importance"]]), 1)
+  # Same data and prior, four times the draws: the ranking must not move.
+  expect_identical(
+    order(varimp_long@data[["importance"]]),
+    order(get_varimp(mod_r_bart)@data[["importance"]])
+  )
 })
 
 ## {BART}[train]<Regression> Algorithm name dispatch ----

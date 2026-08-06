@@ -239,10 +239,26 @@ method(se_super, class_bartmodel) <- function(model, newdata) {
 # %% varimp_super.class_bartmodel ----
 #' Get variable importance from BART model
 #'
-#' The number of splits made on each feature, summed over every tree of every
-#' retained mean-forest sample. Unordered factors occupy several columns of the
-#' backend's internal design matrix, so counts are summed back onto the feature
-#' each column came from.
+#' Two measures, both derived from the one quantity `stochtree` records:
+#' how many splitting rules use each feature. The backend exposes it per tree,
+#' per posterior draw, and aggregated; the per-draw form is read here because
+#' it supports both measures.
+#'
+#' - `importance`: the **variable inclusion proportion**, the standard BART
+#'   importance measure. Within each retained draw, the share of that draw's
+#'   splitting rules that use the feature; reported as the mean across draws.
+#'   A proportion rather than the raw count `stochtree` returns, because a
+#'   count scales with `num_mcmc` and `keep_every`, so two runs differing only
+#'   in sampler budget would report importances differing by that factor.
+#' - `inclusion_sd`: the standard deviation of that proportion across draws.
+#'   BART's importance is a posterior quantity, so it has a spread as well as
+#'   a center: a feature the sampler uses consistently is separable from one
+#'   whose apparent importance rests on a handful of draws, and the two are
+#'   indistinguishable from the mean alone.
+#'
+#' The backend counts splits per column of its internal design matrix, so a
+#' factor -- which occupies several columns -- is summed back onto the feature
+#' those columns came from before proportions are taken.
 #'
 #' @param model `bartmodel` model.
 #'
@@ -250,21 +266,53 @@ method(se_super, class_bartmodel) <- function(model, newdata) {
 #' @noRd
 method(varimp_super, class_bartmodel) <- function(model) {
   var_indices <- model[["train_set_metadata"]][["original_var_indices"]]
+  xnames <- model[["rtemis_xnames"]]
   # The forest container is an R6 object, so its methods are bindings in an
   # environment: reaching one with `[[` gets the same function `$` would.
-  aggregate_split_counts <- model[["mean_forests"]][[
-    "get_aggregate_split_counts"
-  ]]
-  split_counts <- aggregate_split_counts(num_features = length(var_indices))
-  xnames <- model[["rtemis_xnames"]]
+  mean_forests <- model[["mean_forests"]]
+  forest_split_counts <- mean_forests[["get_forest_split_counts"]]
+  num_samples <- mean_forests[["num_samples"]]
+  n_features <- length(var_indices)
+  # One column per retained draw. `forest_num` is 0-indexed.
+  per_draw <- vapply(
+    seq_len(num_samples()) - 1L,
+    function(i) forest_split_counts(forest_num = i, num_features = n_features),
+    numeric(n_features)
+  )
+  # Design columns -> features. Every feature contributes at least one design
+  # column, so the grouping covers `seq_along(xnames)`; sort to be sure the
+  # rows come back in feature order rather than in `rowsum()`'s label order.
+  by_feature <- rowsum(per_draw, group = var_indices)
+  by_feature <- by_feature[
+    order(as.integer(rownames(by_feature))),
+    ,
+    drop = FALSE
+  ]
+  draw_totals <- colSums(by_feature)
+  # A draw whose forest is all root splits on nothing and has no proportions
+  # to contribute; dropping it keeps the others' mean well defined.
+  by_feature <- by_feature[, draw_totals > 0, drop = FALSE]
+  draw_totals <- draw_totals[draw_totals > 0]
+  if (length(draw_totals) == 0L) {
+    return(VariableImportance(
+      data.table(
+        variable = xnames,
+        importance = rep(0, length(xnames)),
+        inclusion_sd = rep(0, length(xnames))
+      )
+    ))
+  }
+  proportions <- sweep(by_feature, 2L, draw_totals, "/")
   VariableImportance(
     data.table(
       variable = xnames,
-      importance = vapply(
-        seq_along(xnames),
-        function(i) sum(split_counts[var_indices == i]),
-        numeric(1L)
-      )
+      importance = unname(rowMeans(proportions)),
+      # A single draw has a mean but no spread.
+      inclusion_sd = if (NCOL(proportions) > 1L) {
+        unname(apply(proportions, 1L, sd))
+      } else {
+        rep(0, length(xnames))
+      }
     )
   )
 } # /rtemis::varimp_super.class_bartmodel

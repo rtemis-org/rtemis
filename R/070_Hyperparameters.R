@@ -3140,6 +3140,24 @@ BARTHyperparameters <- new_class(
 #' `link = "probit"`, but `stochtree` rejects them under `"cloglog"`, so that
 #' combination makes training abort rather than silently fit an unweighted model.
 #'
+#' Because the fit is a posterior rather than a point estimate, `se()` returns
+#' the standard deviation of the retained draws, and `get_varimp()` reports two
+#' measures rather than one:
+#' - `importance`: the variable inclusion proportion, the share of splitting
+#'   rules that use the feature, averaged across draws.
+#' - `inclusion_sd`: its standard deviation across draws, separating a feature
+#'   the sampler uses consistently from one whose importance rests on a few
+#'   draws.
+#'
+#' `plot_varimp(mod, measure = "inclusion_sd")` plots the second; the first is
+#' the default.
+#'
+#' Inclusion proportions only discriminate when trees compete for splits. At
+#' the default `num_trees` each tree is a weak learner and uninformative
+#' features still get used, so the proportions flatten towards `1/n_features`;
+#' refit with a small ensemble (`num_trees = 10L` to `20L`) when the goal is
+#' variable selection rather than prediction.
+#'
 #' @param num_trees (Tunable) Integer [1, Inf): Number of trees in the mean forest.
 #' @param alpha (Tunable) Numeric (0, 1): Base of the tree split prior `alpha * (1 + depth)^-beta`.
 #' @param beta (Tunable) Numeric [0, Inf): Depth penalty exponent of the tree split prior `alpha * (1 + depth)^-beta`.
