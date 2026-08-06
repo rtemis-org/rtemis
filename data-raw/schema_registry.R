@@ -211,6 +211,10 @@ families <- list(
       list(
         cls = RangerHyperparameters,
         desc = "Ranger random forest. See `setup_Ranger`."
+      ),
+      list(
+        cls = SPLSHyperparameters,
+        desc = "Sparse Partial Least Squares. See `setup_SPLS`."
       )
     )
   )

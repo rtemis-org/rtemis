@@ -23,6 +23,8 @@ class_rpart <- new_S3_class("rpart")
 class_ranger <- new_S3_class("ranger")
 class_svm <- new_S3_class("svm")
 class_tabnet_fit <- new_S3_class("tabnet_fit")
+class_spls <- new_S3_class("spls")
+class_splsda <- new_S3_class("splsda")
 
 
 # %% --- Generics -------------------------------------------------------------------------------------

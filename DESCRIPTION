@@ -91,6 +91,7 @@ Suggests:
     seqinr,
     sf,
     shapr,
+    spls,
     survival,
     tabnet,
     threejs,
