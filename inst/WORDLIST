@@ -51,6 +51,8 @@ Makefile
 MassGLM
 MathJax
 Minkowski
+MonotoneHAL
+MonotoneHALHyperparameters
 NCOL
 NMF
 NMFConfig
@@ -159,6 +161,7 @@ hvh
 infomap
 inv
 irlba
+isotonic
 iters
 jpeg
 json

@@ -4,12 +4,15 @@
 \alias{available_supervised}
 \alias{available_algorithms}
 \alias{available_clustering}
+\alias{available_calibration}
 \alias{available_decomposition}
 \title{Available Algorithms}
 \usage{
 available_supervised(verbosity = 1L)
 
 available_clustering(verbosity = 1L)
+
+available_calibration(verbosity = 1L)
 
 available_decomposition(verbosity = 1L)
 }
@@ -32,6 +35,9 @@ available_supervised()
 # Train with one of them, at its default hyperparameters:
 # train(iris, hyperparameters = setup_LightGBM())
 available_clustering()
+available_calibration()
+# Calibrate with one of them:
+# calibrate(mod, hyperparameters = setup_Isotonic())
 available_decomposition()
 }
 \author{

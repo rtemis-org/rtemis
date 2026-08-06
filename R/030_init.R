@@ -1039,8 +1039,9 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' Generic function to calibrate binary classification models.
 #'
 #' @param x `Classification` or `ClassificationRes` object to calibrate.
-#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
-#' Defines the algorithm used to train the calibration model.
+#' @param hyperparameters Optional `Hyperparameters` object: Setup using one of
+#' `setup_*` functions. Defines the algorithm used to train the calibration
+#' model. NULL uses [setup_Isotonic].
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Additional arguments passed to specific methods.
 #'
@@ -1059,6 +1060,34 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' The goal of calibration is to adjust the predicted probabilities of a binary classification
 #' model so that they better reflect the true probabilities (i.e. empirical risk) of the positive
 #' class.
+#'
+#' @section Choosing a calibrator:
+#'
+#' A calibration map must be monotone non-decreasing. A map that reorders
+#' scores changes the ranking of the predictions, and so changes AUC; a
+#' non-decreasing one cannot. [available_calibration] lists the algorithms
+#' that carry that guarantee. Any other `Hyperparameters` object is accepted
+#' and trained like any other model, but nothing then constrains the map.
+#'
+#' * [setup_Isotonic] (the default) fits isotonic regression. The map is a step
+#'   function, so it merges nearby scores into ties, which moves AUC slightly
+#'   in either direction. Fitted probabilities are held at least `1 / (2 * n)`
+#'   away from 0 and 1, `n` being the number of calibration cases, so a block
+#'   of uniformly labelled cases does not assert certainty.
+#' * [setup_MonotoneHAL] fits a monotone Highly Adaptive Lasso on the logit
+#'   scale. At its default `smoothness_orders = 1` the map is continuous and
+#'   strictly increasing, so it preserves AUC exactly -- but the constraint
+#'   that achieves this also makes the map convex on the logit scale, which
+#'   costs accuracy whenever the correction needed is concave.
+#'   `smoothness_orders = 0` with `penalized = FALSE` lifts that restriction,
+#'   at the cost of ties and a markedly slower fit.
+#'
+#' Isotonic is the default because no monotone lasso configuration is
+#' uniformly better and every one of them is several times slower.
+#' `data-raw/benchmark_calibrators.R` reproduces the comparison.
+#'
+#' The calibrator that ran is recorded on the returned object's `@calibrator`
+#' property, is shown by `print()`, and is serialized by `to_json()`.
 #'
 #' @return Calibrated model object.
 #'
@@ -1105,7 +1134,7 @@ calibrate <- new_generic(
   ("x"),
   function(
     x,
-    hyperparameters = setup_Isotonic(),
+    hyperparameters = NULL,
     verbosity = 1L,
     ...
   ) {

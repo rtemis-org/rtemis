@@ -2280,6 +2280,127 @@ test_that("train() HAL Regression with missing data throws error", {
 })
 
 
+# --- MonotoneHAL --------------------------------------------------------------------------------
+# Interaction degree is fixed at 1 by the algorithm, so the basis stays small.
+# The internal cross-validation that selects lambda draws folds at random, so
+# every fit fixes `seed`.
+## {MonotoneHAL}[train]<Regression> ----
+mod_r_monotonehal <- fit_if_installed(
+  "hal9001",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_MonotoneHAL(seed = 2026L)
+  )
+)
+test_that("train() MonotoneHAL Regression succeeds", {
+  skip_if_not_installed("hal9001")
+  expect_s7_class(mod_r_monotonehal, Regression)
+})
+
+## {MonotoneHAL}[train]<RegressionRes> ----
+resmod_r_monotonehal <- fit_if_installed(
+  "hal9001",
+  train(
+    x = datr,
+    hyperparameters = setup_MonotoneHAL(seed = 2026L),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+  )
+)
+test_that("train() Res MonotoneHAL Regression succeeds", {
+  skip_if_not_installed("hal9001")
+  expect_s7_class(resmod_r_monotonehal, RegressionRes)
+})
+
+## {MonotoneHAL}[train]<Classification> ----
+mod_c_monotonehal <- fit_if_installed(
+  "hal9001",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_MonotoneHAL(seed = 2026L)
+  )
+)
+test_that("train() MonotoneHAL Classification succeeds", {
+  skip_if_not_installed("hal9001")
+  expect_s7_class(mod_c_monotonehal, Classification)
+})
+
+## {MonotoneHAL}[train]<Classification> Grid search ----
+modt_c_monotonehal <- fit_if_installed(
+  "hal9001",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_MonotoneHAL(
+      smoothness_orders = c(0L, 1L),
+      seed = 2026L
+    ),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
+)
+test_that("train() MonotoneHAL Classification with grid search succeeds", {
+  skip_if_not_installed("hal9001")
+  expect_s7_class(modt_c_monotonehal, Classification)
+})
+
+## {MonotoneHAL}[train]<ClassificationRes> ----
+resmod_c_monotonehal <- fit_if_installed(
+  "hal9001",
+  train(
+    x = datc2,
+    hyperparameters = setup_MonotoneHAL(seed = 2026L),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
+)
+test_that("train() Res MonotoneHAL Classification succeeds", {
+  skip_if_not_installed("hal9001")
+  expect_s7_class(resmod_c_monotonehal, ClassificationRes)
+})
+
+## {MonotoneHAL}[train]<Classification> Multiclass ----
+test_that("train() MonotoneHAL rejects multiclass classification", {
+  skip_if_not_installed("hal9001")
+  # hal9001 has no multinomial family.
+  expect_error(
+    train(
+      x = datc3_train,
+      hyperparameters = setup_MonotoneHAL(seed = 2026L),
+      verbosity = 0L
+    ),
+    "multiclass"
+  )
+})
+
+## {MonotoneHAL}[predict]<Classification> Monotonicity ----
+test_that("MonotoneHAL predictions are non-decreasing in the feature", {
+  skip_if_not_installed("hal9001")
+  # The constraint is the reason the algorithm exists; assert it directly on a
+  # single-feature fit, where "non-decreasing in the feature" is unambiguous.
+  set.seed(2026)
+  n <- 300L
+  score <- runif(n)
+  labels <- factor(
+    ifelse(rbinom(n, 1L, plogis(4 * (score - 0.5))) == 1L, "pos", "neg"),
+    levels = c("neg", "pos")
+  )
+  mod <- train(
+    data.table(score = score, labels = labels),
+    hyperparameters = setup_MonotoneHAL(seed = 2026L),
+    verbosity = 0L
+  )
+  predicted <- predict(mod, data.frame(score = seq(0, 1, length.out = 200L)))
+  expect_true(all(diff(as.numeric(predicted)) >= -1e-10))
+})
+
+## {MonotoneHAL}[varimp]<Classification> ----
+test_that("get_varimp() MonotoneHAL returns a VariableImportance", {
+  skip_if_not_installed("hal9001")
+  # Dispatch is shared with HAL: both fit the `hal9001` class.
+  expect_s7_class(get_varimp(mod_c_monotonehal), VariableImportance)
+})
+
 # --- Predict SupervisedRes ------------------------------------------------------------------------
 
 ## {CART}[predict]<RegressionRes> ----

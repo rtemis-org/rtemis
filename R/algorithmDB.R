@@ -11,6 +11,7 @@ supervised_algorithms <- data.frame(rbind(
   c("GLMNET", "Elastic Net", TRUE, TRUE, TRUE),
   c("HAL", "Highly Adaptive Lasso", TRUE, TRUE, FALSE),
   c("Isotonic", "Isotonic Regression", TRUE, TRUE, FALSE),
+  c("MonotoneHAL", "Monotone Highly Adaptive Lasso", TRUE, TRUE, FALSE),
   c("KNN", "k-Nearest Neighbors", TRUE, TRUE, FALSE),
   c("LightCART", "Decision Tree", TRUE, TRUE, FALSE),
   c("LightGBM", "Gradient Boosting", TRUE, TRUE, FALSE),
@@ -53,6 +54,16 @@ supervised_multiclass <- c(
   "RadialSVM",
   "Ranger",
   "SPLS"
+)
+
+# Algorithms whose fit is constrained monotone non-decreasing, which is what
+# makes an algorithm usable as a calibration map: a map that reorders scores
+# changes the ranking of the predictions and so changes AUC. `calibrate()`
+# accepts any `Hyperparameters` object, because it trains one like any other
+# model, but only these carry that guarantee. The first is the default.
+calibration_algorithms <- c(
+  "Isotonic",
+  "MonotoneHAL"
 )
 
 get_alg_name <- function(algorithm) {
@@ -319,6 +330,28 @@ available_clustering <- function(verbosity = 1L) {
   algs <- structure(
     clust_algorithms[, 2],
     names = clust_algorithms[, 1],
+    class = "list"
+  )
+  if (verbosity > 0L) {
+    printls(algs, print_class = FALSE, limit = -1L)
+  }
+  invisible(algs)
+}
+
+
+#' @rdname available_algorithms
+#' @export
+#' @examples
+#' available_calibration()
+#' # Calibrate with one of them:
+#' # calibrate(mod, hyperparameters = setup_Isotonic())
+available_calibration <- function(verbosity = 1L) {
+  # Read the descriptions from the supervised table rather than restating
+  # them, so a calibrator is described the same way wherever it is listed.
+  idx <- match(calibration_algorithms, supervised_algorithms[, 1])
+  algs <- structure(
+    supervised_algorithms[idx, 2],
+    names = supervised_algorithms[idx, 1],
     class = "list"
   )
   if (verbosity > 0L) {

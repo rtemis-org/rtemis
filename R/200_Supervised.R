@@ -572,7 +572,7 @@ method(repr, Supervised) <- function(
         output_type = output_type
       ),
       " Calibrated using ",
-      desc_alg(x@calibration_model@algorithm),
+      desc_alg(x@calibrator),
       ".\n"
     )
   }
@@ -701,6 +701,7 @@ method(to_json, Supervised) <- function(x, ...) {
     out[["binclasspos"]] <- x@binclasspos
   }
   if (prop_exists(x, "calibration_model")) {
+    out[["calibrator"]] <- x@calibrator
     out[["calibration_model"]] <- .to_json_value(x@calibration_model)
     if (prop_exists(x, "metrics_training_calibrated")) {
       out[["metrics_training_calibrated"]] <-
@@ -1094,6 +1095,15 @@ CalibratedClassification <- new_class(
   parent = Classification,
   properties = list(
     calibration_model = Supervised,
+    # The algorithm that produced the calibration map. `calibrate()` may
+    # substitute one calibrator for another, so this is read from the fitted
+    # model rather than from the requested hyperparameters -- it names what
+    # actually ran, which is what makes the run reproducible from its output.
+    calibrator = new_property(
+      getter = function(self) {
+        self@calibration_model@algorithm
+      }
+    ),
     # `prob2categorical()` builds these, so they are always factors: the class
     # is calibrated *classification*, with no regression arm to widen for.
     predicted_training_calibrated = class_factor,
@@ -1836,7 +1846,7 @@ method(repr, SupervisedRes) <- function(
         output_type = output_type
       ),
       " Calibrated using ",
-      desc_alg(x@calibration_models[[1]]@algorithm),
+      desc_alg(x@calibrator),
       " with ",
       desc(x@calibration_models[[1]]@outer_resampler@config),
       ".\n"
@@ -1932,6 +1942,15 @@ method(to_json, SupervisedRes) <- function(x, ...) {
     # S7 elements and passing through anything else.
     varimp_per_resample = .to_json_value(x@varimp)
   )
+
+  # Subclass-specific extras
+  if (prop_exists(x, "calibration_models")) {
+    out[["calibrator"]] <- x@calibrator
+    out[["metrics_training_calibrated"]] <-
+      .to_json_value(x@metrics_training_calibrated)
+    out[["metrics_test_calibrated"]] <-
+      .to_json_value(x@metrics_test_calibrated)
+  }
 
   Filter(Negate(is.null), out)
 } # /rtemis::to_json.SupervisedRes
@@ -2101,6 +2120,13 @@ CalibratedClassificationRes <- new_class(
   parent = ClassificationRes,
   properties = list(
     calibration_models = class_list,
+    # See `CalibratedClassification@calibrator`. Every resample is calibrated
+    # with the same algorithm, so the first model names it for all of them.
+    calibrator = new_property(
+      getter = function(self) {
+        self@calibration_models[[1L]]@algorithm
+      }
+    ),
     predicted_training_calibrated = new_property(
       getter = function(self) {
         lapply(self@calibration_models, function(mod) {
