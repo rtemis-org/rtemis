@@ -22,7 +22,6 @@
 ^ARCHITECTURE\.md$
 ^AGENTS\.md$
 ^CLAUDE\.md$
-^NEWS\.md$
 ^pkgdown$
 ^justfile$
 ^tools$
