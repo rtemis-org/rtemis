@@ -97,7 +97,8 @@ test_that("setup_LightRF() succeeds", {
   Ranger = RangerHyperparameters,
   SPLS = SPLSHyperparameters,
   KNN = KNNHyperparameters,
-  BART = BARTHyperparameters
+  BART = BARTHyperparameters,
+  HAL = HALHyperparameters
 )
 
 test_that("setup_* defaults do not drift from the property defaults", {
@@ -439,6 +440,64 @@ test_that("setup_BART() with search values needs tuning", {
   expect_s7_class(bart_hpr, BARTHyperparameters)
   expect_identical(bart_hpr@tuned, TUNED_STATUS_UNTUNED)
   expect_true(needs_tuning(bart_hpr))
+})
+
+# HALHyperparameters ----
+test_that("HALHyperparameters() constructs from its property defaults", {
+  # Defaults come from the PropertySpecs, so no argument is required.
+  expect_s7_class(HALHyperparameters(), HALHyperparameters)
+})
+
+test_that("HALHyperparameters() pairs num_knots with max_degree", {
+  # One knot count per interaction degree, non-increasing across degrees.
+  expect_error(
+    HALHyperparameters(max_degree = 2L, num_knots = 10L),
+    "num_knots"
+  )
+  expect_error(
+    HALHyperparameters(max_degree = 2L, num_knots = c(10L, 20L)),
+    "non-increasing"
+  )
+  # A search over max_degree leaves no single degree count to pair against.
+  expect_error(
+    HALHyperparameters(max_degree = c(1L, 2L), num_knots = c(20L, 10L)),
+    "num_knots"
+  )
+  expect_s7_class(
+    HALHyperparameters(max_degree = 2L, num_knots = c(20L, 10L)),
+    HALHyperparameters
+  )
+})
+
+test_that("HALHyperparameters() rejects reduce_basis above smoothness order 0", {
+  # The backend applies the reduction only to the zero-order basis.
+  expect_error(
+    HALHyperparameters(smoothness_orders = 1L, reduce_basis = 0.1),
+    "reduce_basis"
+  )
+  expect_s7_class(
+    HALHyperparameters(smoothness_orders = 0L, reduce_basis = 0.1),
+    HALHyperparameters
+  )
+})
+
+# setup_HAL ----
+test_that("setup_HAL() succeeds", {
+  expect_s7_class(setup_HAL(), HALHyperparameters)
+})
+
+test_that("setup_HAL() with search values needs tuning", {
+  hal_hpr <- setup_HAL(max_degree = c(1L, 2L), smoothness_orders = c(0L, 1L))
+  expect_s7_class(hal_hpr, HALHyperparameters)
+  expect_identical(hal_hpr@tuned, TUNED_STATUS_UNTUNED)
+  expect_true(needs_tuning(hal_hpr))
+})
+
+test_that("setup_HAL() keeps the length of num_knots", {
+  expect_length(
+    setup_HAL(max_degree = 3L, num_knots = c(30L, 20L, 10L))$num_knots,
+    3L
+  )
 })
 
 

@@ -223,6 +223,10 @@ families <- list(
       list(
         cls = BARTHyperparameters,
         desc = "Bayesian Additive Regression Trees (stochtree). See `setup_BART`."
+      ),
+      list(
+        cls = HALHyperparameters,
+        desc = "Highly Adaptive Lasso (hal9001). See `setup_HAL`."
       )
     )
   )

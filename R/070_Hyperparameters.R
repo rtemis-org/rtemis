@@ -1067,6 +1067,212 @@ setup_GLMNET <- function(
 } # /rtemis::setup_GLMNET
 
 
+# %% HALHyperparameters ----
+#' @title HALHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for the Highly Adaptive Lasso.
+#'
+#' `lambda` is not a hyperparameter here: `hal9001` selects it by
+#' cross-validation inside the fit, so `cv_select` is a constant. Exposing it
+#' as a search dimension would nest that cross-validation inside rtemis' own
+#' resampling for no gain.
+#'
+#' `num_knots` and `reduce_basis` are each constrained by another property, in
+#' ways JSON Schema cannot express, so both are checked by the validator.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+HALHyperparameters <- new_class(
+  name = "HALHyperparameters",
+  parent = Hyperparameters,
+  properties = list(
+    algorithm = prop_algorithm("HAL"),
+    max_degree = prop_integer(
+      2L,
+      min = 1L,
+      tunable = TRUE,
+      data_bound = "n_features",
+      description = "Highest order of interaction among features that a basis function may represent."
+    ),
+    smoothness_orders = prop_integer(
+      1L,
+      min = 0L,
+      max = 9L,
+      tunable = TRUE,
+      description = "Smoothness of the basis functions: 0 fits zero-order indicators, 1 piecewise linear splines, higher values higher-order splines."
+    ),
+    num_knots = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Number of knots per interaction degree, one value per degree, non-increasing. NULL generates them from max_degree and smoothness_orders."
+    ),
+    reduce_basis = prop_float(
+      NULL,
+      exclusive_min = 0,
+      max = 1,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when smoothness_orders is 0; NULL uses the backend default of 1/sqrt(n)."
+    ),
+    max_basis = prop_integer(
+      5000000L,
+      min = 1L,
+      description = "Largest projected basis-function count that will be fit. Training aborts above it rather than enumerating a basis that will not finish."
+    ),
+    cv_select = prop_const(
+      TRUE,
+      description = "Select lambda by cross-validation inside the fit; determined by the class."
+    ),
+    use_min = prop_boolean(
+      TRUE,
+      description = "Select lambda.min from the internal cross-validation. FALSE selects the more heavily penalized lambda.1se."
+    ),
+    nfolds = prop_integer(
+      10L,
+      min = 3L,
+      description = "Number of folds of the internal cross-validation that selects lambda."
+    ),
+    seed = prop_integer(
+      NULL,
+      nullable = TRUE,
+      description = "Random seed for the internal cross-validation's fold assignment. NULL leaves it drawn from the ambient RNG."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    )
+  ),
+  validator = function(self) {
+    # The knot vector is indexed by interaction degree, so its length is tied
+    # to `max_degree` -- which means `max_degree` must be a single value for
+    # the pairing to be well defined.
+    if (!is.null(self@num_knots)) {
+      if (length(self@max_degree) > 1L) {
+        return(
+          "@num_knots cannot be combined with a search over @max_degree: it needs one value per degree, so leave it NULL while tuning @max_degree."
+        )
+      }
+      if (length(self@num_knots) != self@max_degree) {
+        return(paste0(
+          "@num_knots must have one value per interaction degree: expected length ",
+          self@max_degree,
+          ", got ",
+          length(self@num_knots),
+          "."
+        ))
+      }
+      if (is.unsorted(rev(self@num_knots))) {
+        return(
+          "@num_knots must be non-increasing across degrees: higher-order interactions cannot use more knots than lower-order ones."
+        )
+      }
+    }
+    # The backend applies the basis reduction only to the zero-order basis and
+    # warns that it dropped the request otherwise, so an order it cannot reach
+    # is rejected here instead of silently ignored.
+    if (!is.null(self@reduce_basis) && any(self@smoothness_orders != 0L)) {
+      "@reduce_basis applies only when @smoothness_orders is 0. Set @smoothness_orders to 0, or leave @reduce_basis NULL."
+    }
+  }
+) # /rtemis::HALHyperparameters
+
+
+# %% setup_HAL ----
+#' Setup HAL Hyperparameters
+#'
+#' Setup hyperparameters for Highly Adaptive Lasso training.
+#'
+#' Both outcome types are fit with [hal9001::fit_hal], which spans the outcome
+#' with a basis of indicator or spline terms over every interaction of the
+#' features up to `max_degree`, then fits a lasso over that basis.
+#' Regression uses the gaussian family, binary classification the binomial one;
+#' `hal9001` has no multinomial family, so multiclass classification is not
+#' supported.
+#'
+#' `lambda` is selected by cross-validation inside the fit and is not a search
+#' dimension. `seed` fixes that cross-validation's fold assignment; `nfolds`
+#' and `use_min` control it.
+#'
+#' `hal9001` takes a numeric matrix, so factors are one-hot encoded first and
+#' the encoder is re-applied at predict time.
+#'
+#' Scaling: the basis has one function per knot per feature subset, so its size
+#' grows as `C(n_features, max_degree)` and, through the knots, with the number
+#' of cases -- making the lasso that follows quadratic in the number of cases.
+#' Training projects the basis size up front, reports it at `verbosity >= 1`,
+#' warns past a million, and aborts past `max_basis`. `max_degree` is the
+#' strongest lever on that count, `num_knots` the next.
+#'
+#' `get_varimp()` reports two measures, both aggregated over the basis
+#' functions that involve each feature:
+#' - `importance`: the sum of the absolute values of their non-zero
+#'   coefficients.
+#' - `max_coefficient`: the largest single such absolute coefficient,
+#'   separating a feature carried by one strong term from one carried by many
+#'   weak ones.
+#'
+#' `plot_varimp(mod, measure = "max_coefficient")` plots the second; the first
+#' is the default. Both read coefficients on the scale of the basis functions.
+#' At `smoothness_orders = 0` the basis is made of indicators, so the
+#' coefficients are unit-free and directly comparable across features; at
+#' higher orders each basis function carries the units of its feature, so scale
+#' the features first if they are not already comparable.
+#'
+#' @param max_degree (Tunable) Integer [1, Inf): Highest order of interaction among features that a basis function may represent.
+#' @param smoothness_orders (Tunable) Integer \[0, 9\]: Smoothness of the basis functions: 0 fits zero-order indicators, 1 piecewise linear splines, higher values higher-order splines.
+#' @param reduce_basis (Tunable) Optional Numeric (0, 1]: Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when `smoothness_orders` is 0.
+#' @param num_knots Optional Integer [1, Inf) vector: Number of knots per interaction degree, one value per degree, non-increasing. NULL generates them from max_degree and smoothness_orders.
+#' @param use_min Logical: If TRUE, select `lambda.min` from the internal cross-validation; if FALSE, the more heavily penalized `lambda.1se`.
+#' @param nfolds Integer [3, Inf): Number of folds of the internal cross-validation that selects lambda.
+#' @param max_basis Integer [1, Inf): Largest projected basis-function count that will be fit.
+#' @param seed Optional Integer: Random seed for the internal cross-validation's fold assignment. NULL leaves it drawn from the ambient RNG.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @return HALHyperparameters object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' hal_hyperparams <- setup_HAL(max_degree = 1L)
+#' hal_hyperparams
+setup_HAL <- function(
+  # tunable
+  max_degree = 2L,
+  smoothness_orders = 1L,
+  reduce_basis = NULL,
+  # fixed
+  num_knots = NULL,
+  use_min = TRUE,
+  nfolds = 10L,
+  max_basis = 5000000L,
+  seed = NULL,
+  ifw = FALSE
+) {
+  max_degree <- clean_posint(max_degree)
+  smoothness_orders <- clean_int(smoothness_orders)
+  num_knots <- clean_posint(num_knots)
+  nfolds <- clean_posint(nfolds)
+  max_basis <- clean_posint(max_basis)
+  seed <- clean_int(seed)
+  HALHyperparameters(
+    max_degree = max_degree,
+    smoothness_orders = smoothness_orders,
+    num_knots = num_knots,
+    reduce_basis = reduce_basis,
+    max_basis = max_basis,
+    use_min = use_min,
+    nfolds = nfolds,
+    seed = seed,
+    ifw = ifw
+  )
+} # /rtemis::setup_HAL
+
+
 # %% LightCARTHyperparameters ----
 #' @title LightCARTHyperparameters
 #'

@@ -9,6 +9,7 @@ supervised_algorithms <- data.frame(rbind(
   c("GAM", "Generalized Additive Model", TRUE, TRUE, FALSE),
   c("GLM", "Generalized Linear Model", TRUE, TRUE, FALSE),
   c("GLMNET", "Elastic Net", TRUE, TRUE, TRUE),
+  c("HAL", "Highly Adaptive Lasso", TRUE, TRUE, FALSE),
   c("Isotonic", "Isotonic Regression", TRUE, TRUE, FALSE),
   c("KNN", "k-Nearest Neighbors", TRUE, TRUE, FALSE),
   c("LightCART", "Decision Tree", TRUE, TRUE, FALSE),

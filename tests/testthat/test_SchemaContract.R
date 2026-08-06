@@ -78,7 +78,8 @@
     list(RangerHyperparameters, "setup_Ranger"),
     list(SPLSHyperparameters, "setup_SPLS"),
     list(KNNHyperparameters, "setup_KNN"),
-    list(BARTHyperparameters, "setup_BART")
+    list(BARTHyperparameters, "setup_BART"),
+    list(HALHyperparameters, "setup_HAL")
   ),
   .contract_family(
     NULL,

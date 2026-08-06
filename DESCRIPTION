@@ -54,6 +54,7 @@ Suggests:
     glue,
     grid,
     gsubfn,
+    hal9001,
     haven,
     heatmaply,
     htmlwidgets,

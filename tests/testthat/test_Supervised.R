@@ -1823,6 +1823,255 @@ test_that("train() BART Regression with missing data throws error", {
 })
 
 
+# --- HAL ------------------------------------------------------------------------------------------
+# The basis grows as C(n_features, max_degree), so every fit below stays at
+# max_degree = 1 to keep runtime down. The internal cross-validation that
+# selects lambda draws folds at random, so every fit fixes `seed`.
+## {HAL}[train]<Regression> ----
+mod_r_hal <- train(
+  x = datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L)
+)
+test_that("train() HAL Regression succeeds", {
+  expect_s7_class(mod_r_hal, Regression)
+})
+
+## {HAL}[train]<Regression> Grid search ----
+modt_r_hal <- train(
+  x = datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_HAL(
+    max_degree = 1L,
+    smoothness_orders = c(0L, 1L),
+    seed = 2026L
+  ),
+  execution_config = setup_ExecutionConfig(backend = "none")
+)
+test_that("train() HAL Regression with grid search succeeds", {
+  expect_s7_class(modt_r_hal, Regression)
+})
+
+## {HAL}[train]<RegressionRes> ----
+resmod_r_hal <- train(
+  x = datr,
+  hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L),
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+)
+test_that("train() Res HAL Regression succeeds", {
+  expect_s7_class(resmod_r_hal, RegressionRes)
+})
+
+## {HAL}[train]<Classification> ----
+mod_c_hal <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L)
+)
+test_that("train() HAL Classification succeeds", {
+  expect_s7_class(mod_c_hal, Classification)
+})
+
+## {HAL}[train]<Classification> Grid search ----
+modt_c_hal <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_HAL(
+    max_degree = 1L,
+    smoothness_orders = c(0L, 1L),
+    seed = 2026L
+  ),
+  execution_config = setup_ExecutionConfig(backend = "none")
+)
+test_that("train() HAL Classification with grid search succeeds", {
+  expect_s7_class(modt_c_hal, Classification)
+})
+
+## {HAL}[train]<ClassificationRes> ----
+resmod_c_hal <- train(
+  x = datc2,
+  hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L),
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+  execution_config = setup_ExecutionConfig(backend = "none")
+)
+test_that("train() Res HAL Classification succeeds", {
+  expect_s7_class(resmod_c_hal, ClassificationRes)
+})
+
+## {HAL}[train]<Classification> IFW ----
+# The backend forwards case weights to the lasso, so IFW is honored.
+mod_c_hal_ifw <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_HAL(max_degree = 1L, ifw = TRUE, seed = 2026L)
+)
+test_that("train() HAL Classification with IFW succeeds", {
+  expect_s7_class(mod_c_hal_ifw, Classification)
+})
+
+## {HAL}[train]<Regression> Reproducible fold assignment ----
+# `seed` reaches the internal cross-validation as a fold vector, so the lambda
+# it selects must not depend on the ambient RNG.
+test_that("train() HAL seeds the internal cross-validation reproducibly", {
+  set.seed(1L)
+  first <- train(
+    x = datr_train,
+    hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L)
+  )
+  set.seed(99L)
+  second <- train(
+    x = datr_train,
+    hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L)
+  )
+  expect_identical(
+    first@model[["lambda_star"]],
+    second@model[["lambda_star"]]
+  )
+})
+
+## {HAL}[predict]<Regression> ----
+predicted_hal <- predict(mod_r_hal, features(datr_test))
+test_that("predict() HAL Regression succeeds", {
+  expect_identical(mod_r_hal@predicted_test, predicted_hal)
+  expect_null(dim(predicted_hal))
+})
+
+## {HAL}[predict]<Classification> ----
+test_that("predict() HAL Classification returns second-level probabilities", {
+  predicted_prob <- predict(mod_c_hal, features(datc2_test))
+  expect_identical(NCOL(predicted_prob), 1L)
+  expect_true(all(predicted_prob >= 0 & predicted_prob <= 1))
+  expect_identical(mod_c_hal@predicted_prob_test, predicted_prob)
+  # A flipped column would still be a valid probability, so check it tracks the
+  # outcome rather than its complement.
+  expect_gt(
+    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
+    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+  )
+})
+
+## {HAL}[varimp]<Regression> ----
+# Coefficients are aggregated over the basis functions each feature appears in,
+# and the basis is built over the one-hot encoded design matrix, so a factor
+# contributes one row per level rather than one row per feature.
+test_that("get_varimp() HAL Regression aggregates coefficients per feature", {
+  varimp_hal <- get_varimp(mod_r_hal)
+  expect_s7_class(varimp_hal, VariableImportance)
+  expect_gt(nrow(varimp_hal@data), length(mod_r_hal@xnames))
+  expect_true(all(varimp_hal@data[["importance"]] >= 0))
+})
+
+test_that("get_varimp() HAL reports the peak coefficient beside the sum", {
+  varimp_hal <- get_varimp(mod_r_hal)
+  # Two measures, so `plot_varimp(measure = )` has something to select.
+  expect_identical(
+    names(varimp_hal@data),
+    c("variable", "importance", "max_coefficient")
+  )
+  # A sum over the same terms the maximum is taken over cannot be smaller.
+  expect_true(all(
+    varimp_hal@data[["importance"]] >= varimp_hal@data[["max_coefficient"]]
+  ))
+})
+
+test_that("get_varimp() HAL recovers the features the outcome was built from", {
+  # datr's y is x[, 3] + x[, 5] + a factor effect. At smoothness_orders = 0 the
+  # basis is made of indicators, so the coefficients are unit-free and the two
+  # signal columns must outrank the three noise ones.
+  varimp_hal <- get_varimp(train(
+    x = datr_train,
+    hyperparameters = setup_HAL(
+      max_degree = 1L,
+      smoothness_orders = 0L,
+      seed = 2026L
+    )
+  ))
+  importance <- setNames(
+    varimp_hal@data[["importance"]],
+    varimp_hal@data[["variable"]]
+  )
+  expect_gt(
+    min(importance[c("V3", "V5")]),
+    max(importance[c("V1", "V2", "V4")])
+  )
+})
+
+## {HAL}[train]<Regression> Algorithm name dispatch ----
+# The algorithmDB row is what makes the name resolvable; without it this
+# aborts with "Incorrect algorithm specified".
+mod_r_hal_byname <- train(
+  x = datr_train,
+  hyperparameters = get_default_hyperparameters("hal")
+)
+test_that("train() HAL from its algorithm name succeeds", {
+  expect_s7_class(mod_r_hal_byname, Regression)
+  expect_identical(get_alg_name("hal"), "HAL")
+})
+
+## {HAL}[train]<Classification> /\Error multiclass unsupported ----
+# hal9001 has no multinomial family.
+test_that("train() HAL aborts on multiclass classification", {
+  expect_error(
+    train(x = datc3_train, hyperparameters = setup_HAL(max_degree = 1L)),
+    class = "rtemis_unsupported_error"
+  )
+})
+
+## {HAL}[train]<Regression> /\Error max_degree > n features ----
+test_that("train() HAL aborts when max_degree exceeds n features", {
+  expect_error(
+    train(x = datr_train, hyperparameters = setup_HAL(max_degree = 100L)),
+    class = "rtemis_range_error"
+  )
+})
+
+test_that("train() HAL aborts when any search value of max_degree is out of range", {
+  expect_error(
+    train(
+      x = datr_train,
+      hyperparameters = setup_HAL(max_degree = c(1L, 100L))
+    ),
+    class = "rtemis_range_error"
+  )
+})
+
+## {HAL}[train]<Regression> /\Error projected basis over max_basis ----
+# The basis is enumerated before anything is fit, so an over-large one has to
+# be caught by projection rather than by failing.
+test_that("train() HAL aborts when the projected basis exceeds max_basis", {
+  expect_error(
+    train(
+      x = datr_train,
+      hyperparameters = setup_HAL(max_degree = 2L, max_basis = 100L)
+    ),
+    class = "rtemis_range_error"
+  )
+  # The same fit goes ahead once the ceiling is raised past the projection.
+  expect_s7_class(
+    train(
+      x = datr_train,
+      hyperparameters = setup_HAL(
+        max_degree = 2L,
+        num_knots = c(4L, 2L),
+        seed = 2026L
+      )
+    ),
+    Regression
+  )
+})
+
+## {HAL}[train]<Regression> Throw error with missing data ----
+test_that("train() HAL Regression with missing data throws error", {
+  expect_error(
+    train(
+      x = datr_train_na,
+      dat_test = datr_test,
+      hyperparameters = setup_HAL(max_degree = 1L)
+    )
+  )
+})
+
+
 # --- Predict SupervisedRes ------------------------------------------------------------------------
 
 ## {CART}[predict]<RegressionRes> ----
