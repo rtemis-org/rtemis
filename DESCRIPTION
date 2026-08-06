@@ -93,6 +93,7 @@ Suggests:
     sf,
     shapr,
     spls,
+    stochtree,
     survival,
     tabnet,
     threejs,

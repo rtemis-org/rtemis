@@ -2999,6 +2999,227 @@ setup_KNN <- function(
 } # /rtemis::setup_KNN
 
 
+# %% BARTHyperparameters ----
+#' @title BARTHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for Bayesian Additive Regression Trees.
+#'
+#' One class covers both outcome types: a continuous outcome is sampled with an
+#' identity link and a binary outcome with the link named by `link`, which is
+#' therefore the only classification-only property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+BARTHyperparameters <- new_class(
+  name = "BARTHyperparameters",
+  parent = Hyperparameters,
+  properties = list(
+    algorithm = prop_algorithm("BART"),
+    num_trees = prop_integer(
+      200L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of trees in the mean forest."
+    ),
+    alpha = prop_float(
+      0.95,
+      exclusive_min = 0,
+      exclusive_max = 1,
+      tunable = TRUE,
+      description = "Base of the tree split prior alpha * (1 + depth)^-beta."
+    ),
+    beta = prop_float(
+      2,
+      min = 0,
+      tunable = TRUE,
+      description = "Depth penalty exponent of the tree split prior alpha * (1 + depth)^-beta."
+    ),
+    min_samples_leaf = prop_integer(
+      5L,
+      min = 1L,
+      tunable = TRUE,
+      data_bound = "n_cases",
+      description = "Minimum number of training cases in a leaf."
+    ),
+    max_depth = prop_integer(
+      10L,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Maximum depth of any tree. NULL imposes no limit."
+    ),
+    num_features_subsample = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      data_bound = "n_features",
+      description = "Number of features subsampled when growing each tree. NULL uses every feature."
+    ),
+    variance_forest_num_trees = prop_integer(
+      0L,
+      min = 0L,
+      tunable = TRUE,
+      description = "Number of trees in the conditional variance forest. 0 fits a homoskedastic model."
+    ),
+    num_gfr = prop_integer(
+      5L,
+      min = 0L,
+      description = "Number of grow-from-root warm-start iterations."
+    ),
+    num_burnin = prop_integer(
+      0L,
+      min = 0L,
+      description = "Number of burn-in MCMC iterations."
+    ),
+    num_mcmc = prop_integer(
+      100L,
+      min = 1L,
+      description = "Number of retained MCMC iterations per chain."
+    ),
+    num_chains = prop_integer(
+      1L,
+      min = 1L,
+      description = "Number of independent MCMC chains. Cannot exceed num_gfr unless num_gfr is 0."
+    ),
+    keep_every = prop_integer(
+      1L,
+      min = 1L,
+      description = "Thinning interval: retain one MCMC sample in every keep_every."
+    ),
+    cutpoint_grid_size = prop_integer(
+      100L,
+      min = 1L,
+      description = "Maximum number of candidate cutpoints considered by the grow-from-root algorithm."
+    ),
+    standardize = prop_boolean(
+      TRUE,
+      description = "Center and scale the outcome before sampling."
+    ),
+    link = prop_string(
+      "probit",
+      enum = c("probit", "cloglog"),
+      description = "Link function of the binary outcome model (classification only). \"cloglog\" cannot be combined with case weights."
+    ),
+    seed = prop_integer(
+      NULL,
+      nullable = TRUE,
+      description = "Random seed for the sampler. NULL leaves the sampler seeded by the system."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    )
+  ),
+  validator = function(self) {
+    # Each MCMC chain is seeded from its own grow-from-root ensemble, so there
+    # must be at least as many of those as there are chains. num_gfr = 0 runs
+    # every chain from root instead and lifts the requirement.
+    if (any(self@num_gfr > 0L) && any(self@num_chains > self@num_gfr)) {
+      "@num_chains cannot exceed @num_gfr when @num_gfr is greater than 0."
+    }
+  }
+) # /rtemis::BARTHyperparameters
+
+
+# %% setup_BART ----
+#' Setup BART Hyperparameters
+#'
+#' Setup hyperparameters for Bayesian Additive Regression Trees training.
+#'
+#' Both outcome types are fit with [stochtree::bart], which samples a sum-of-trees
+#' model by MCMC, optionally warm-started by the grow-from-root algorithm.
+#' Regression uses a continuous outcome model, binary classification a discrete
+#' one with the link named by `link`. Multiclass classification is not supported.
+#'
+#' Factors are expanded by the backend, so no encoding is needed beforehand.
+#' Case weights scale the residual variance and are honored under the default
+#' `link = "probit"`, but `stochtree` rejects them under `"cloglog"`, so that
+#' combination makes training abort rather than silently fit an unweighted model.
+#'
+#' @param num_trees (Tunable) Integer [1, Inf): Number of trees in the mean forest.
+#' @param alpha (Tunable) Numeric (0, 1): Base of the tree split prior `alpha * (1 + depth)^-beta`.
+#' @param beta (Tunable) Numeric [0, Inf): Depth penalty exponent of the tree split prior `alpha * (1 + depth)^-beta`.
+#' @param min_samples_leaf (Tunable) Integer [1, Inf): Minimum number of training cases in a leaf.
+#' @param max_depth (Tunable) Optional Integer [1, Inf): Maximum depth of any tree. NULL imposes no limit.
+#' @param num_features_subsample (Tunable) Optional Integer [1, Inf): Number of features subsampled when growing each tree. NULL uses every feature.
+#' @param variance_forest_num_trees (Tunable) Integer [0, Inf): Number of trees in the conditional variance forest. 0 fits a homoskedastic model, any larger value a heteroskedastic one.
+#' @param num_gfr Integer [0, Inf): Number of grow-from-root warm-start iterations.
+#' @param num_burnin Integer [0, Inf): Number of burn-in MCMC iterations.
+#' @param num_mcmc Integer [1, Inf): Number of retained MCMC iterations per chain.
+#' @param num_chains Integer [1, Inf): Number of independent MCMC chains. Cannot exceed `num_gfr` unless `num_gfr` is 0.
+#' @param keep_every Integer [1, Inf): Thinning interval: retain one MCMC sample in every `keep_every`.
+#' @param cutpoint_grid_size Integer [1, Inf): Maximum number of candidate cutpoints considered by the grow-from-root algorithm.
+#' @param standardize Logical: If TRUE, center and scale the outcome before sampling.
+#' @param link Character \{"probit", "cloglog"\}: Link function of the binary outcome model. Classification only.
+#' @param seed Optional Integer: Random seed for the sampler. NULL leaves the sampler seeded by the system.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @return BARTHyperparameters object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' bart_hyperparams <- setup_BART(num_trees = 50L, num_mcmc = 200L)
+#' bart_hyperparams
+setup_BART <- function(
+  # tunable
+  num_trees = 200L,
+  alpha = 0.95,
+  beta = 2,
+  min_samples_leaf = 5L,
+  max_depth = 10L,
+  num_features_subsample = NULL,
+  variance_forest_num_trees = 0L,
+  # fixed
+  num_gfr = 5L,
+  num_burnin = 0L,
+  num_mcmc = 100L,
+  num_chains = 1L,
+  keep_every = 1L,
+  cutpoint_grid_size = 100L,
+  standardize = TRUE,
+  link = "probit",
+  seed = NULL,
+  ifw = FALSE
+) {
+  num_trees <- clean_posint(num_trees)
+  min_samples_leaf <- clean_posint(min_samples_leaf)
+  max_depth <- clean_posint(max_depth)
+  num_features_subsample <- clean_posint(num_features_subsample)
+  variance_forest_num_trees <- clean_int(variance_forest_num_trees)
+  num_gfr <- clean_int(num_gfr)
+  num_burnin <- clean_int(num_burnin)
+  num_mcmc <- clean_posint(num_mcmc)
+  num_chains <- clean_posint(num_chains)
+  keep_every <- clean_posint(keep_every)
+  cutpoint_grid_size <- clean_posint(cutpoint_grid_size)
+  seed <- clean_int(seed)
+  BARTHyperparameters(
+    num_trees = num_trees,
+    alpha = alpha,
+    beta = beta,
+    min_samples_leaf = min_samples_leaf,
+    max_depth = max_depth,
+    num_features_subsample = num_features_subsample,
+    variance_forest_num_trees = variance_forest_num_trees,
+    num_gfr = num_gfr,
+    num_burnin = num_burnin,
+    num_mcmc = num_mcmc,
+    num_chains = num_chains,
+    keep_every = keep_every,
+    cutpoint_grid_size = cutpoint_grid_size,
+    standardize = standardize,
+    link = link,
+    seed = seed,
+    ifw = ifw
+  )
+} # /rtemis::setup_BART
+
+
 # %% .list_to_Hyperparameters ----
 #' Convert a list to a Hyperparameters object
 #'

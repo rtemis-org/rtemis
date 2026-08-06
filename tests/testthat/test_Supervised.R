@@ -75,9 +75,8 @@ test_that("train() GLM Regression succeeds", {
   expect_s7_class(mod_r_glm, Regression)
 })
 test_that("se() computes standard errors on demand, for the models that have them", {
-  # Not stored: only linear and additive models produce them, so every
-  # regression result carrying three per-case vectors was paying for two
-  # algorithms out of thirteen.
+  # Not stored: only a few algorithms produce them, so storing per-case
+  # vectors on every regression result would serve almost none of them.
   se_training <- se(mod_r_glm, features(datr_train))
   expect_type(se_training, "double")
   expect_length(se_training, nrow(datr_train))
@@ -1480,6 +1479,302 @@ test_that("train() KNN Regression with missing data throws error", {
       x = datr_train_na,
       dat_test = datr_test,
       hyperparameters = setup_KNN(k = 5L)
+    )
+  )
+})
+
+
+# --- BART -----------------------------------------------------------------------------------------
+# The sampler is stochastic, so every fit below fixes `seed`.
+## {BART}[train]<Regression> ----
+mod_r_bart <- train(
+  x = datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_BART(
+    num_trees = 10L,
+    num_gfr = 2L,
+    num_mcmc = 10L,
+    seed = 2026L
+  )
+)
+test_that("train() BART Regression succeeds", {
+  expect_s7_class(mod_r_bart, Regression)
+})
+
+## {BART}[train]<Regression> Grid search ----
+modt_r_bart <- train(
+  x = datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_BART(
+    num_trees = c(5L, 10L),
+    num_gfr = 2L,
+    num_mcmc = 10L,
+    seed = 2026L
+  ),
+  execution_config = setup_ExecutionConfig(backend = "none")
+)
+test_that("train() BART Regression with grid search succeeds", {
+  expect_s7_class(modt_r_bart, Regression)
+})
+
+## {BART}[train]<RegressionRes> ----
+resmod_r_bart <- train(
+  x = datr,
+  hyperparameters = setup_BART(
+    num_trees = 10L,
+    num_gfr = 2L,
+    num_mcmc = 10L,
+    seed = 2026L
+  ),
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+)
+test_that("train() Res BART Regression succeeds", {
+  expect_s7_class(resmod_r_bart, RegressionRes)
+})
+
+## {BART}[train]<Regression> Heteroskedastic ----
+# A variance forest changes the fit and adds a second forest to the samples.
+mod_r_bart_het <- train(
+  x = datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_BART(
+    num_trees = 10L,
+    variance_forest_num_trees = 5L,
+    num_gfr = 2L,
+    num_mcmc = 10L,
+    seed = 2026L
+  )
+)
+test_that("train() BART Regression with a variance forest succeeds", {
+  expect_s7_class(mod_r_bart_het, Regression)
+  expect_true(mod_r_bart_het@model[["model_params"]][[
+    "include_variance_forest"
+  ]])
+})
+
+## {BART}[train]<Regression> link is classification-only ----
+# `link` names the binary outcome model's link, so a continuous outcome must
+# be sampled identically whatever it is set to.
+test_that("train() BART Regression ignores link", {
+  mod_r_bart_cloglog <- train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_BART(
+      num_trees = 10L,
+      num_gfr = 2L,
+      num_mcmc = 10L,
+      link = "cloglog",
+      seed = 2026L
+    )
+  )
+  expect_identical(
+    mod_r_bart_cloglog@predicted_test,
+    mod_r_bart@predicted_test
+  )
+})
+
+## {BART}[train]<Classification> ----
+mod_c_bart <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_BART(
+    num_trees = 10L,
+    num_gfr = 2L,
+    num_mcmc = 10L,
+    seed = 2026L
+  )
+)
+test_that("train() BART Classification succeeds", {
+  expect_s7_class(mod_c_bart, Classification)
+})
+
+## {BART}[train]<Classification> Grid search ----
+modt_c_bart <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_BART(
+    num_trees = c(5L, 10L),
+    num_gfr = 2L,
+    num_mcmc = 10L,
+    seed = 2026L
+  ),
+  execution_config = setup_ExecutionConfig(backend = "none")
+)
+test_that("train() BART Classification with grid search succeeds", {
+  expect_s7_class(modt_c_bart, Classification)
+})
+
+## {BART}[train]<ClassificationRes> ----
+resmod_c_bart <- train(
+  x = datc2,
+  hyperparameters = setup_BART(
+    num_trees = 10L,
+    num_gfr = 2L,
+    num_mcmc = 10L,
+    seed = 2026L
+  ),
+  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+  execution_config = setup_ExecutionConfig(backend = "none")
+)
+test_that("train() Res BART Classification succeeds", {
+  expect_s7_class(resmod_c_bart, ClassificationRes)
+})
+
+## {BART}[train]<Classification> IFW ----
+# stochtree applies case weights to the residual variance under the default
+# probit link, so IFW is honored rather than rejected.
+mod_c_bart_ifw <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_BART(
+    num_trees = 10L,
+    num_gfr = 2L,
+    num_mcmc = 10L,
+    ifw = TRUE,
+    seed = 2026L
+  )
+)
+test_that("train() BART Classification with IFW succeeds", {
+  expect_s7_class(mod_c_bart_ifw, Classification)
+})
+
+## {BART}[train]<Classification> cloglog link ----
+mod_c_bart_cloglog <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_BART(
+    num_trees = 10L,
+    num_gfr = 2L,
+    num_mcmc = 10L,
+    link = "cloglog",
+    seed = 2026L
+  )
+)
+test_that("train() BART Classification with the cloglog link succeeds", {
+  expect_s7_class(mod_c_bart_cloglog, Classification)
+})
+
+## {BART}[predict]<Regression> ----
+predicted_bart <- predict(mod_r_bart, features(datr_test))
+test_that("predict() BART Regression succeeds", {
+  expect_identical(mod_r_bart@predicted_test, predicted_bart)
+  expect_null(dim(predicted_bart))
+})
+
+## {BART}[predict]<Classification> ----
+test_that("predict() BART Classification returns second-level probabilities", {
+  predicted_prob <- predict(mod_c_bart, features(datc2_test))
+  expect_identical(NCOL(predicted_prob), 1L)
+  expect_true(all(predicted_prob >= 0 & predicted_prob <= 1))
+  expect_identical(mod_c_bart@predicted_prob_test, predicted_prob)
+  # A flipped column would still be a valid probability, so check it tracks the
+  # outcome rather than its complement.
+  expect_gt(
+    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
+    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+  )
+})
+
+## {BART}[se]<Regression> ----
+# The posterior spread of the retained MCMC draws.
+test_that("se() BART Regression returns one standard error per case", {
+  se_bart <- se(mod_r_bart, features(datr_test))
+  expect_type(se_bart, "double")
+  expect_length(se_bart, nrow(datr_test))
+  expect_true(all(se_bart > 0))
+})
+
+## {BART}[varimp]<Regression> ----
+# Split counts are summed back onto the feature each design column came from,
+# so a one-hot expanded factor still contributes exactly one row.
+test_that("get_varimp() BART Regression succeeds", {
+  varimp_bart <- get_varimp(mod_r_bart)
+  expect_s7_class(varimp_bart, VariableImportance)
+  expect_identical(varimp_bart@data[["variable"]], mod_r_bart@xnames)
+})
+
+## {BART}[train]<Regression> Algorithm name dispatch ----
+# The algorithmDB row is what makes the name resolvable; without it this
+# aborts with "Incorrect algorithm specified".
+mod_r_bart_byname <- train(
+  x = datr_train,
+  hyperparameters = get_default_hyperparameters("bart")
+)
+test_that("train() BART from its algorithm name succeeds", {
+  expect_s7_class(mod_r_bart_byname, Regression)
+  expect_identical(get_alg_name("bart"), "BART")
+})
+
+## {BART}[train]<Classification> /\Error multiclass unsupported ----
+# stochtree models a discrete outcome as binary or ordinal; rtemis outcomes are
+# unordered, so more than two classes has no mapping.
+test_that("train() BART aborts on multiclass classification", {
+  expect_error(
+    train(
+      x = datc3_train,
+      hyperparameters = setup_BART(num_trees = 10L, num_gfr = 2L, num_mcmc = 5L)
+    ),
+    class = "rtemis_unsupported_error"
+  )
+})
+
+## {BART}[train]<Classification> /\Error weights under cloglog ----
+# stochtree rejects observation weights under a cloglog link, so IFW cannot be
+# honored there and must fail loudly rather than fit an unweighted model.
+test_that("train() BART aborts when ifw is combined with the cloglog link", {
+  expect_error(
+    train(
+      x = datc2_train,
+      hyperparameters = setup_BART(
+        num_trees = 10L,
+        num_gfr = 2L,
+        num_mcmc = 5L,
+        link = "cloglog",
+        ifw = TRUE
+      )
+    ),
+    class = "rtemis_unsupported_error"
+  )
+})
+
+## {BART}[train]<Regression> /\Error num_features_subsample > n features ----
+test_that("train() BART aborts when num_features_subsample exceeds n features", {
+  expect_error(
+    train(
+      x = datr_train,
+      hyperparameters = setup_BART(
+        num_trees = 10L,
+        num_gfr = 2L,
+        num_mcmc = 5L,
+        num_features_subsample = 100L
+      )
+    ),
+    class = "rtemis_range_error"
+  )
+})
+
+test_that("train() BART aborts when any search value of num_features_subsample is out of range", {
+  expect_error(
+    train(
+      x = datr_train,
+      hyperparameters = setup_BART(
+        num_trees = 10L,
+        num_gfr = 2L,
+        num_mcmc = 5L,
+        num_features_subsample = c(3L, 100L)
+      )
+    ),
+    class = "rtemis_range_error"
+  )
+})
+
+## {BART}[train]<Regression> Throw error with missing data ----
+test_that("train() BART Regression with missing data throws error", {
+  expect_error(
+    train(
+      x = datr_train_na,
+      dat_test = datr_test,
+      hyperparameters = setup_BART(num_trees = 10L, num_gfr = 2L, num_mcmc = 5L)
     )
   )
 })

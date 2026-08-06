@@ -96,7 +96,8 @@ test_that("setup_LightRF() succeeds", {
   TabNet = TabNetHyperparameters,
   Ranger = RangerHyperparameters,
   SPLS = SPLSHyperparameters,
-  KNN = KNNHyperparameters
+  KNN = KNNHyperparameters,
+  BART = BARTHyperparameters
 )
 
 test_that("setup_* defaults do not drift from the property defaults", {
@@ -407,6 +408,37 @@ test_that("setup_KNN() with search values needs tuning", {
   expect_s7_class(knn_hpr, KNNHyperparameters)
   expect_identical(knn_hpr@tuned, TUNED_STATUS_UNTUNED)
   expect_true(needs_tuning(knn_hpr))
+})
+
+# BARTHyperparameters ----
+test_that("BARTHyperparameters() constructs from its property defaults", {
+  # Defaults come from the PropertySpecs, so no argument is required.
+  expect_s7_class(BARTHyperparameters(), BARTHyperparameters)
+})
+
+test_that("BARTHyperparameters() rejects more chains than warm-start draws", {
+  # Each chain is seeded from its own grow-from-root ensemble.
+  expect_error(
+    BARTHyperparameters(num_gfr = 2L, num_chains = 4L),
+    "num_chains"
+  )
+  # num_gfr = 0 runs every chain from root, which lifts the requirement.
+  expect_s7_class(
+    BARTHyperparameters(num_gfr = 0L, num_chains = 4L),
+    BARTHyperparameters
+  )
+})
+
+# setup_BART ----
+test_that("setup_BART() succeeds", {
+  expect_s7_class(setup_BART(), BARTHyperparameters)
+})
+
+test_that("setup_BART() with search values needs tuning", {
+  bart_hpr <- setup_BART(num_trees = c(10L, 20L), alpha = c(0.5, 0.95))
+  expect_s7_class(bart_hpr, BARTHyperparameters)
+  expect_identical(bart_hpr@tuned, TUNED_STATUS_UNTUNED)
+  expect_true(needs_tuning(bart_hpr))
 })
 
 

@@ -1,4 +1,5 @@
 ARFF
+BARTHyperparameters
 BH
 Barmode
 CARTHyperparameters
@@ -105,6 +106,7 @@ bottomleft
 bottomright
 cdn
 cholmod
+cloglog
 choropleth
 cli
 cmeans
@@ -143,9 +145,11 @@ grDevices
 graphopt
 heatmaply
 hellinger
+heteroskedastic
 hochberg
 holm
 hommel
+homoskedastic
 htest
 htmlwidget
 https

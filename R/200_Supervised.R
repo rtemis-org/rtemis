@@ -389,8 +389,8 @@ method(fitted, Supervised) <- function(object, ...) {
 #' Standard Error `Supervised`
 #'
 #' Standard errors of the fit for `newdata`, or NULL when the algorithm
-#' produces none -- only linear and additive models do, which is why this is
-#' computed here rather than stored on every regression result.
+#' produces none -- only a few do, which is why this is computed here rather
+#' than stored on every regression result.
 #'
 #' Routed through the same pipeline as `predict`, so a stored preprocessor,
 #' decomposition and algorithm-internal preprocessor are re-applied before the
@@ -405,9 +405,9 @@ method(fitted, Supervised) <- function(object, ...) {
 #' @noRd
 method(se, Supervised) <- function(x, newdata, verbosity = 0L) {
   features <- supervised_features(x, newdata, verbosity = verbosity)
-  # Only linear and additive models define `se_super()`. Anything else has no
-  # standard error, which is an answer rather than a failure -- so a missing
-  # method reads as NULL instead of propagating S7's dispatch error.
+  # Only a few algorithms define `se_super()`. Anything else has no standard
+  # error, which is an answer rather than a failure -- so a missing method
+  # reads as NULL instead of propagating S7's dispatch error.
   tryCatch(
     se_super(model = x@model, newdata = features),
     S7_error_method_not_found = function(e) NULL

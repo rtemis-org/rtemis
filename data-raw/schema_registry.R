@@ -219,6 +219,10 @@ families <- list(
       list(
         cls = KNNHyperparameters,
         desc = "k-Nearest Neighbors (kknn). See `setup_KNN`."
+      ),
+      list(
+        cls = BARTHyperparameters,
+        desc = "Bayesian Additive Regression Trees (stochtree). See `setup_BART`."
       )
     )
   )

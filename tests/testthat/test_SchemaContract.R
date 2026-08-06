@@ -77,7 +77,8 @@
     list(TabNetHyperparameters, "setup_TabNet"),
     list(RangerHyperparameters, "setup_Ranger"),
     list(SPLSHyperparameters, "setup_SPLS"),
-    list(KNNHyperparameters, "setup_KNN")
+    list(KNNHyperparameters, "setup_KNN"),
+    list(BARTHyperparameters, "setup_BART")
   ),
   .contract_family(
     NULL,

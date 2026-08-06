@@ -4,6 +4,7 @@
 
 # Supervised Learning ----
 supervised_algorithms <- data.frame(rbind(
+  c("BART", "Bayesian Additive Regression Trees", TRUE, TRUE, FALSE),
   c("CART", "Classification and Regression Trees", TRUE, TRUE, TRUE),
   c("GAM", "Generalized Additive Model", TRUE, TRUE, FALSE),
   c("GLM", "Generalized Linear Model", TRUE, TRUE, FALSE),
