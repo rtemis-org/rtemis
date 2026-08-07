@@ -1298,3 +1298,72 @@ test_that("array_refs must name existing properties", {
     "array_refs"
   )
 })
+
+
+# %% applies_when ----
+test_that("applies_when requires nullable", {
+  # NULL is how a property that does not apply is expressed, so a property that
+  # cannot hold NULL has no way to be inapplicable.
+  expect_error(
+    prop_float(1, applies_when = list(kernel = "radial")),
+    "nullable"
+  )
+})
+
+
+test_that("applies_when rejects a malformed gate", {
+  expect_error(
+    prop_float(NULL, nullable = TRUE, applies_when = list()),
+    "at least one"
+  )
+  expect_error(
+    prop_float(NULL, nullable = TRUE, applies_when = list("radial")),
+    "fully named"
+  )
+  # NA marks a gated-off grid cell, so it can never be a value that opens a gate.
+  expect_error(
+    prop_float(NULL, nullable = TRUE, applies_when = list(kernel = NA)),
+    "without NA"
+  )
+  expect_error(
+    prop_float(
+      NULL,
+      nullable = TRUE,
+      applies_when = list(kernel = character())
+    ),
+    "non-empty"
+  )
+})
+
+
+test_that("applies_when reaches the schema and the description", {
+  spec <- get_spec(rtemis:::HALHyperparameters@properties[["reduce_basis"]])
+  schema <- rtemis:::spec_to_schema(spec)
+  expect_identical(
+    schema[["x-rtemis"]][["applies_when"]],
+    list(smoothness_orders = 0L)
+  )
+  # A reader that renders only descriptions still learns the value is
+  # conditional.
+  expect_match(
+    schema[["description"]],
+    "Applies only when smoothness_orders is 0\\.$"
+  )
+})
+
+
+test_that("every applies_when gate names a real, ungated sibling", {
+  # A gate naming a missing property would fail only when that class is
+  # constructed; a chain of gates would need a topological sort in every form
+  # builder that reads the schema.
+  for (cls in spec_classes()) {
+    gated <- rtemis:::applies_when_spec_names(cls)
+    for (nm in gated) {
+      gate <- rtemis:::get_spec_fields(cls@properties[[nm]])[["applies_when"]]
+      label <- paste0(cls@name, "@", nm)
+      expect_false(nm %in% names(gate), info = label)
+      expect_true(all(names(gate) %in% names(cls@properties)), info = label)
+      expect_length(intersect(names(gate), gated), 0L)
+    }
+  }
+})

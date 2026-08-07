@@ -21,7 +21,7 @@ setup_HAL(
 
 \item{smoothness_orders}{(Tunable) Integer [0, 9]: Smoothness of the basis functions: 0 fits zero-order indicators, 1 piecewise linear splines, higher values higher-order splines.}
 
-\item{reduce_basis}{(Tunable) Optional Numeric (0, 1]: Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when \code{smoothness_orders} is 0.}
+\item{reduce_basis}{(Tunable) Optional Numeric (0, 1]: Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when \code{smoothness_orders} is 0; a search that also covers higher orders drops it from those grid cells.}
 
 \item{num_knots}{Optional Integer [1, Inf) vector: Number of knots per interaction degree, one value per degree, non-increasing. NULL generates them from max_degree and smoothness_orders.}
 

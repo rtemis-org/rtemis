@@ -48,7 +48,7 @@ predicted probabilities, one per case
 \section{Choosing a calibrator}{
 
 
-A calibration map must be monotone non-decreasing. A map that reorders
+A calibration map must be monotonic non-decreasing. A map that reorders
 scores changes the ranking of the predictions, and so changes AUC; a
 non-decreasing one cannot. \link{available_calibration} lists the algorithms
 that carry that guarantee. Any other \code{Hyperparameters} object is accepted
@@ -59,7 +59,7 @@ function, so it merges nearby scores into ties, which moves AUC slightly
 in either direction. Fitted probabilities are held at least \code{1 / (2 * n)}
 away from 0 and 1, \code{n} being the number of calibration cases, so a block
 of uniformly labelled cases does not assert certainty.
-\item \link{setup_MonotoneHAL} fits a monotone Highly Adaptive Lasso on the logit
+\item \link{setup_MonotonicHAL} fits a monotonic Highly Adaptive Lasso on the logit
 scale. At its default \code{smoothness_orders = 1} the map is continuous and
 strictly increasing, so it preserves AUC exactly -- but the constraint
 that achieves this also makes the map convex on the logit scale, which
@@ -68,7 +68,7 @@ costs accuracy whenever the correction needed is concave.
 at the cost of ties and a markedly slower fit.
 }
 
-Isotonic is the default because no monotone lasso configuration is
+Isotonic is the default because no monotonic lasso configuration is
 uniformly better and every one of them is several times slower.
 \code{data-raw/benchmark_calibrators.R} reproduces the comparison.
 

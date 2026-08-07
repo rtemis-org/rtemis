@@ -190,7 +190,7 @@ hal_check_basis_size <- function(
 #' Fit a model with the hal9001 backend
 #'
 #' The single call site for `hal9001::fit_hal`, shared by `HAL` and
-#' `MonotoneHAL`. Everything the two algorithms disagree on -- the interaction
+#' `MonotonicHAL`. Everything the two algorithms disagree on -- the interaction
 #' degree, the family, and whether a shape constraint is imposed through
 #' `formula` -- arrives as an argument, so neither carries its own copy of the
 #' backend's argument handling.

@@ -290,6 +290,14 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
   tunable <- isTRUE(ann[["tunable"]])
   constant <- identical(ann[["role"]], "constant")
   data_bound <- ann[["data_bound"]]
+  # JSON has no vectors of length 1: `auto_unbox` writes a single allowed value
+  # as a scalar and a set as an array, and a reader with `simplifyVector =
+  # FALSE` hands both back as lists. Flatten to the atomic vector the spec
+  # declares.
+  applies_when <- ann[["applies_when"]]
+  if (!is.null(applies_when)) {
+    applies_when <- lapply(applies_when, unlist, use.names = FALSE)
+  }
 
   description <- x[["description"]] %||% ""
   if (!is.null(data_bound)) {
@@ -297,6 +305,9 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
       description,
       data_bound_note(data_bound, container, broadcast)
     )
+  }
+  if (!is.null(applies_when)) {
+    description <- strip_suffix(description, applies_when_note(applies_when))
   }
 
   if (constant) {
@@ -380,6 +391,7 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
     default_on_null = isTRUE(ann[["default_on_null"]]),
     data_bound = data_bound,
     data_dependent = isTRUE(ann[["data_dependent"]]),
+    applies_when = applies_when,
     description = description
   )
 } # /rtemis::schema_to_spec

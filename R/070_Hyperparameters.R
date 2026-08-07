@@ -513,10 +513,16 @@ method(get_tuned_status, Hyperparameters) <- function(x) {
 # %% .update_hyperparameters ----
 #' Set hyperparameter values on a Hyperparameters object
 #'
-#' Shared engine for the `update()` methods. Values are assigned to the
-#' corresponding properties (validated). The literal string "null" is the
-#' grid sentinel produced by `expand_grid()` for NULL search entries and is
-#' converted back to NULL.
+#' Shared engine for the `update()` methods. The literal string "null" is the
+#' grid sentinel produced by `expand_grid()` for NULL search entries, and NA the
+#' marker `gate_tuning_grid()` writes into a combination an `applies_when` gate
+#' excludes a hyperparameter from; both are set as NULL.
+#'
+#' The values are applied as one transaction, so the class validator sees the
+#' finished object. A combination from a conditional grid passes through
+#' intermediate states that are invalid on their own: raising
+#' `smoothness_orders` above 0 while `reduce_basis` still holds its search value
+#' is one.
 #'
 #' @param object `Hyperparameters` object.
 #' @param hyperparameters Named list of values to set.
@@ -530,6 +536,7 @@ method(get_tuned_status, Hyperparameters) <- function(x) {
 #' @noRd
 .update_hyperparameters <- function(object, hyperparameters, tuned) {
   settable <- hp_prop_names(S7_class(object))
+  values <- list()
   for (hp in names(hyperparameters)) {
     if (!hp %in% settable) {
       rtemis.core::abort(
@@ -542,10 +549,15 @@ method(get_tuned_status, Hyperparameters) <- function(x) {
       )
     }
     value <- hyperparameters[[hp]]
-    if (identical(value, "null")) {
+    if (identical(value, "null") || (length(value) == 1L && is.na(value))) {
       value <- NULL
     }
-    prop(object, hp) <- value
+    # Single-bracket assignment keeps a NULL as an element of the list, which
+    # is the value a closed gate sets.
+    values[hp] <- list(value)
+  }
+  if (length(values) > 0L) {
+    props(object) <- values
   }
   object@.tuned <- if (is.null(tuned)) NA_integer_ else tuned
   object
@@ -635,6 +647,76 @@ method(get_hyperparams_need_tuning, Hyperparameters) <- function(x) {
   }
   out
 } # /get_hyperparams_need_tuning.Hyperparameters
+
+
+# %% gate_tuning_grid ----
+#' Apply `applies_when` gates to an expanded tuning grid
+#'
+#' Sets a gated hyperparameter to NA -- which `.update_hyperparameters()` reads
+#' back as NULL -- in the rows whose gating values do not put it in effect, then
+#' collapses the rows that this makes identical.
+#'
+#' A gated hyperparameter held at a single value is absent from the expansion
+#' and is added as a column here, so that it too can be dropped from the rows
+#' that cannot use it. A gate whose gating hyperparameters are all held at
+#' single values is constant across the grid and `check_applies_when()` has
+#' already settled it at construction.
+#'
+#' NA is the marker, distinct from `expand_grid()`'s "null" sentinel: the two
+#' mean different things -- "determine by tuning" against "does not apply here"
+#' -- and NA keeps a numeric column numeric.
+#'
+#' @param grid data.frame: The expanded cross product of the search values.
+#' @param object `Hyperparameters` object the grid was expanded from.
+#'
+#' @return data.frame: The gated, deduplicated grid.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+gate_tuning_grid <- function(grid, object) {
+  cls <- S7_class(object)
+  for (nm in applies_when_spec_names(cls)) {
+    value <- prop(object, nm)
+    if (is.null(value)) {
+      next
+    }
+    gate <- get_spec_fields(cls@properties[[nm]])[["applies_when"]]
+    if (!any(names(gate) %in% names(grid))) {
+      next
+    }
+    if (!nm %in% names(grid)) {
+      grid[[nm]] <- value
+    }
+    closed <- logical(NROW(grid))
+    for (gate_name in names(gate)) {
+      gate_values <- if (gate_name %in% names(grid)) {
+        grid[[gate_name]]
+      } else {
+        prop(object, gate_name)
+      }
+      closed <- closed | !(gate_values %in% gate[[gate_name]])
+    }
+    grid[[nm]][closed] <- NA
+  }
+  grid <- unique(grid)
+  rownames(grid) <- NULL
+  grid
+} # /rtemis::gate_tuning_grid
+
+
+# %% tuning_grid.Hyperparameters ----
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(tuning_grid, Hyperparameters) <- function(x) {
+  grid_params <- get_hyperparams_need_tuning(x)
+  if (length(grid_params) == 0L) {
+    return(NULL)
+  }
+  # expand_grid converts a NULL search entry to its "null" sentinel.
+  gate_tuning_grid(expand_grid(grid_params, stringsAsFactors = FALSE), x)
+} # /rtemis::tuning_grid.Hyperparameters
 
 
 # %% get_hyperparams.(Hyperparameters, class_character) ----
@@ -1078,8 +1160,10 @@ setup_GLMNET <- function(
 #' as a search dimension would nest that cross-validation inside rtemis' own
 #' resampling for no gain.
 #'
-#' `num_knots` and `reduce_basis` are each constrained by another property, in
-#' ways JSON Schema cannot express, so both are checked by the validator.
+#' `num_knots` is paired with `max_degree` in a way no property declaration
+#' expresses, so the validator checks it. `reduce_basis` declares its dependence
+#' on `smoothness_orders` as an `applies_when` gate, which the validator, the
+#' tuning grid, and the published schema all read.
 #'
 #' @author EDG
 #' @keywords internal
@@ -1116,7 +1200,8 @@ HALHyperparameters <- new_class(
       max = 1,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when smoothness_orders is 0; NULL uses the backend default of 1/sqrt(n)."
+      applies_when = list(smoothness_orders = 0L),
+      description = "Minimum proportion of cases a basis function must be non-zero in to be kept. NULL uses the backend default of 1/sqrt(n)."
     ),
     max_basis = prop_integer(
       5000000L,
@@ -1173,11 +1258,9 @@ HALHyperparameters <- new_class(
       }
     }
     # The backend applies the basis reduction only to the zero-order basis and
-    # warns that it dropped the request otherwise, so an order it cannot reach
-    # is rejected here instead of silently ignored.
-    if (!is.null(self@reduce_basis) && any(self@smoothness_orders != 0L)) {
-      "@reduce_basis applies only when @smoothness_orders is 0. Set @smoothness_orders to 0, or leave @reduce_basis NULL."
-    }
+    # warns that it dropped the request otherwise, which @reduce_basis declares
+    # as an `applies_when` gate.
+    check_applies_when(self)
   }
 ) # /rtemis::HALHyperparameters
 
@@ -1225,7 +1308,7 @@ HALHyperparameters <- new_class(
 #'
 #' @param max_degree (Tunable) Integer [1, Inf): Highest order of interaction among features that a basis function may represent.
 #' @param smoothness_orders (Tunable) Integer \[0, 9\]: Smoothness of the basis functions: 0 fits zero-order indicators, 1 piecewise linear splines, higher values higher-order splines.
-#' @param reduce_basis (Tunable) Optional Numeric (0, 1]: Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when `smoothness_orders` is 0.
+#' @param reduce_basis (Tunable) Optional Numeric (0, 1]: Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when `smoothness_orders` is 0; a search that also covers higher orders drops it from those grid cells.
 #' @param num_knots Optional Integer [1, Inf) vector: Number of knots per interaction degree, one value per degree, non-increasing. NULL generates them from max_degree and smoothness_orders.
 #' @param use_min Logical: If TRUE, select `lambda.min` from the internal cross-validation; if FALSE, the more heavily penalized `lambda.1se`.
 #' @param nfolds Integer [3, Inf): Number of folds of the internal cross-validation that selects lambda.
@@ -1273,8 +1356,8 @@ setup_HAL <- function(
 } # /rtemis::setup_HAL
 
 
-# %% MonotoneHALHyperparameters ----
-#' @title MonotoneHALHyperparameters
+# %% MonotonicHALHyperparameters ----
+#' @title MonotonicHALHyperparameters
 #'
 #' @description
 #' Hyperparameters subclass for the shape-constrained Highly Adaptive Lasso.
@@ -1282,25 +1365,26 @@ setup_HAL <- function(
 #' This is a separate class from `HALHyperparameters` rather than a set of
 #' defaults over it, because the three values that distinguish it are
 #' invariants and not choices: the interaction degree is 1, the fit is
-#' constrained monotone non-decreasing in every feature, and no basis-size
+#' constrained monotonic non-decreasing in every feature, and no basis-size
 #' guardrail is needed at degree 1. None of the three is representable as a
 #' property, so no combination of this class's properties can produce a
-#' non-monotone or higher-degree fit.
+#' non-monotonic or higher-degree fit.
 #'
 #' `lambda` is not a hyperparameter here: `hal9001` selects it by
 #' cross-validation inside the fit, so `cv_select` is a constant.
 #'
-#' `reduce_basis` is constrained by `smoothness_orders` in a way JSON Schema
-#' cannot express, so it is checked by the validator.
+#' `reduce_basis` declares its dependence on `smoothness_orders` as an
+#' `applies_when` gate, which the validator, the tuning grid, and the published
+#' schema all read.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-MonotoneHALHyperparameters <- new_class(
-  name = "MonotoneHALHyperparameters",
+MonotonicHALHyperparameters <- new_class(
+  name = "MonotonicHALHyperparameters",
   parent = Hyperparameters,
   properties = list(
-    algorithm = prop_algorithm("MonotoneHAL"),
+    algorithm = prop_algorithm("MonotonicHAL"),
     smoothness_orders = prop_integer(
       1L,
       min = 0L,
@@ -1320,11 +1404,12 @@ MonotoneHALHyperparameters <- new_class(
       max = 1,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when smoothness_orders is 0; NULL uses the backend default of 1/sqrt(n)."
+      applies_when = list(smoothness_orders = 0L),
+      description = "Minimum proportion of cases a basis function must be non-zero in to be kept. NULL uses the backend default of 1/sqrt(n)."
     ),
     penalized = prop_boolean(
       TRUE,
-      description = "Apply the lasso penalty to the basis functions. FALSE removes it, making the fit the non-parametric maximum likelihood estimate over the monotone class."
+      description = "Apply the lasso penalty to the basis functions. FALSE removes it, making the fit the non-parametric maximum likelihood estimate over the monotonic class."
     ),
     cv_select = prop_const(
       TRUE,
@@ -1352,21 +1437,19 @@ MonotoneHALHyperparameters <- new_class(
   ),
   validator = function(self) {
     # The backend applies the basis reduction only to the zero-order basis and
-    # warns that it dropped the request otherwise, so an order it cannot reach
-    # is rejected here instead of silently ignored.
-    if (!is.null(self@reduce_basis) && any(self@smoothness_orders != 0L)) {
-      "@reduce_basis applies only when @smoothness_orders is 0. Set @smoothness_orders to 0, or leave @reduce_basis NULL."
-    }
+    # warns that it dropped the request otherwise, which @reduce_basis declares
+    # as an `applies_when` gate.
+    check_applies_when(self)
   }
-) # /rtemis::MonotoneHALHyperparameters
+) # /rtemis::MonotonicHALHyperparameters
 
 
-# %% setup_MonotoneHAL ----
-#' Setup MonotoneHAL Hyperparameters
+# %% setup_MonotonicHAL ----
+#' Setup MonotonicHAL Hyperparameters
 #'
-#' Setup hyperparameters for monotone Highly Adaptive Lasso training.
+#' Setup hyperparameters for monotonic Highly Adaptive Lasso training.
 #'
-#' A Highly Adaptive Lasso restricted to additive, monotone non-decreasing
+#' A Highly Adaptive Lasso restricted to additive, monotonic non-decreasing
 #' fits. [hal9001::fit_hal] is given a formula that constrains every basis
 #' function's coefficient to be non-negative, and the interaction degree is
 #' fixed at 1. Regression uses the gaussian family, binary classification the
@@ -1379,7 +1462,7 @@ MonotoneHALHyperparameters <- new_class(
 #' non-decreasing map cannot. Pass it to [calibrate] to use it instead of the
 #' default calibrator, [setup_Isotonic].
 #'
-#' Relative to `Isotonic`, which is the other monotone calibrator, this fits on
+#' Relative to `Isotonic`, which is the other monotonic calibrator, this fits on
 #' the logit scale, so it does not saturate at 0 and 1 the way the boundary
 #' bins of isotonic regression do -- it can still round to an endpoint in
 #' double precision
@@ -1392,7 +1475,7 @@ MonotoneHALHyperparameters <- new_class(
 #' yields a continuous map.
 #'
 #' `penalized = FALSE` removes the lasso penalty, giving the non-parametric
-#' maximum likelihood estimate over the monotone class. Combined with
+#' maximum likelihood estimate over the monotonic class. Combined with
 #' `smoothness_orders = 0` that is isotonic regression, up to the logit-scale
 #' parameterization.
 #'
@@ -1406,7 +1489,7 @@ MonotoneHALHyperparameters <- new_class(
 #' and `max_coefficient`. Both are of limited use at a single feature.
 #'
 #' @param smoothness_orders (Tunable) Integer \[0, 1\]: Smoothness of the basis functions: 0 fits zero-order indicators and yields a step function, 1 fits piecewise linear splines and yields a continuous one.
-#' @param reduce_basis (Tunable) Optional Numeric (0, 1]: Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when `smoothness_orders` is 0.
+#' @param reduce_basis (Tunable) Optional Numeric (0, 1]: Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when `smoothness_orders` is 0; a search that also covers higher orders drops it from those grid cells.
 #' @param num_knots Optional Integer [1, Inf): Number of knots spanning each feature. NULL generates them from smoothness_orders.
 #' @param penalized Logical: If TRUE, apply the lasso penalty to the basis functions; if FALSE, remove it.
 #' @param use_min Logical: If TRUE, select `lambda.min` from the internal cross-validation; if FALSE, the more heavily penalized `lambda.1se`.
@@ -1414,14 +1497,14 @@ MonotoneHALHyperparameters <- new_class(
 #' @param seed Optional Integer: Random seed for the internal cross-validation's fold assignment. NULL leaves it drawn from the ambient RNG.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
-#' @return MonotoneHALHyperparameters object.
+#' @return MonotonicHALHyperparameters object.
 #'
 #' @author EDG
 #' @export
 #' @examples
-#' monotonehal_hyperparams <- setup_MonotoneHAL(smoothness_orders = 0L)
-#' monotonehal_hyperparams
-setup_MonotoneHAL <- function(
+#' monotonichal_hyperparams <- setup_MonotonicHAL(smoothness_orders = 0L)
+#' monotonichal_hyperparams
+setup_MonotonicHAL <- function(
   # tunable
   smoothness_orders = 1L,
   reduce_basis = NULL,
@@ -1437,7 +1520,7 @@ setup_MonotoneHAL <- function(
   num_knots <- clean_posint(num_knots)
   nfolds <- clean_posint(nfolds)
   seed <- clean_int(seed)
-  MonotoneHALHyperparameters(
+  MonotonicHALHyperparameters(
     smoothness_orders = smoothness_orders,
     num_knots = num_knots,
     reduce_basis = reduce_basis,
@@ -1447,7 +1530,7 @@ setup_MonotoneHAL <- function(
     seed = seed,
     ifw = ifw
   )
-} # /rtemis::setup_MonotoneHAL
+} # /rtemis::setup_MonotonicHAL
 
 
 # %% LightCARTHyperparameters ----

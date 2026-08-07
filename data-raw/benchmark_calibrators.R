@@ -3,7 +3,7 @@
 # 2026- EDG rtemis.org
 
 # Compares the calibrators `calibrate()` accepts: Isotonic, which is the
-# default, against MonotoneHAL. This is the evidence for that choice, so rerun
+# default, against MonotonicHAL. This is the evidence for that choice, so rerun
 # it before changing the default.
 #
 # The comparison is made at the score level: each problem yields a vector of
@@ -154,7 +154,7 @@ PROBLEMS <- list(
 
 
 CALIBRATORS <- list(
-  MonotoneHAL = function() setup_MonotoneHAL(),
+  MonotonicHAL = function() setup_MonotonicHAL(),
   Isotonic = function() setup_Isotonic()
 )
 
@@ -250,7 +250,7 @@ summary_table <- results[,
 summary_table[,
   calibrator := factor(
     calibrator,
-    levels = c("Uncalibrated", "Isotonic", "MonotoneHAL")
+    levels = c("Uncalibrated", "Isotonic", "MonotonicHAL")
   )
 ]
 setorder(summary_table, problem, n_cal, calibrator)
