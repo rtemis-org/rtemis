@@ -4,7 +4,7 @@
 \alias{tuning_grid}
 \title{Tuning grid of a Hyperparameters object}
 \usage{
-tuning_grid(x, ...)
+tuning_grid(x)
 }
 \arguments{
 \item{x}{\code{Hyperparameters} object.}
