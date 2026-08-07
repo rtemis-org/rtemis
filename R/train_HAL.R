@@ -186,6 +186,93 @@ hal_check_basis_size <- function(
 } # /rtemis::hal_check_basis_size
 
 
+# %% hal_fit ----
+#' Fit a model with the hal9001 backend
+#'
+#' The single call site for `hal9001::fit_hal`, shared by `HAL` and
+#' `MonotoneHAL`. Everything the two algorithms disagree on -- the interaction
+#' degree, the family, and whether a shape constraint is imposed through
+#' `formula` -- arrives as an argument, so neither carries its own copy of the
+#' backend's argument handling.
+#'
+#' `fit_control` is forwarded to glmnet, which takes a fold assignment but no
+#' seed, so the seed reaches the internal cross-validation as `foldid`. The
+#' backend generates its own from the ambient RNG when none is supplied.
+#'
+#' @param x Numeric matrix: Design matrix.
+#' @param y Numeric vector: Outcome, coded 0/1 for the binomial family.
+#' @param family Character: glmnet family.
+#' @param max_degree Integer: Highest interaction degree.
+#' @param smoothness_orders Integer: Smoothness of the basis functions.
+#' @param num_knots Optional integer vector: Knots per degree.
+#' @param reduce_basis Optional numeric: Minimum non-zero proportion of a kept
+#' basis function.
+#' @param formula Optional character: HAL formula, used to impose shape
+#' constraints. NULL fits the unconstrained basis.
+#' @param weights Optional numeric vector: Case weights.
+#' @param cv_select Logical: Select lambda by the backend's internal
+#' cross-validation. FALSE returns the whole lambda path, which
+#' `predict_super()` cannot use, so it is never passed FALSE.
+#' @param use_min Logical: Select `lambda.min` rather than `lambda.1se`.
+#' @param nfolds Integer: Folds of the internal cross-validation.
+#' @param seed Optional integer: Seed for the fold assignment.
+#'
+#' @return Object of class `hal9001`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+hal_fit <- function(
+  x,
+  y,
+  family,
+  max_degree,
+  smoothness_orders,
+  num_knots = NULL,
+  reduce_basis = NULL,
+  formula = NULL,
+  weights = NULL,
+  cv_select = TRUE,
+  use_min = TRUE,
+  nfolds = 10L,
+  seed = NULL
+) {
+  fit_control <- list(
+    cv_select = cv_select,
+    use_min = use_min,
+    nfolds = nfolds
+  )
+  # The seed is scoped to the fold draw: seeding is an implementation detail of
+  # this fit, so it must not change the RNG the caller sees afterwards.
+  if (!is.null(seed)) {
+    fit_control[["foldid"]] <- with_seed(
+      seed,
+      sample(rep_len(seq_len(nfolds), NROW(x)))
+    )
+  }
+  args <- list(
+    X = x,
+    Y = y,
+    formula = formula,
+    max_degree = max_degree,
+    smoothness_orders = smoothness_orders,
+    num_knots = num_knots,
+    reduce_basis = reduce_basis,
+    family = family,
+    weights = weights,
+    fit_control = fit_control
+  )
+  # `num_knots` is the one argument whose backend default is not NULL: unset,
+  # it is filled by the backend's knot generator, which only runs when the
+  # argument is absent. Passing NULL through would instead place a knot at
+  # every observed value and enumerate the largest basis available.
+  args <- args[!vapply(args, is.null, logical(1L))]
+  model <- do.call(hal9001::fit_hal, args)
+  check_inherits(model, "hal9001")
+  model
+} # /rtemis::hal_fit
+
+
 # %% train_.HALHyperparameters ----
 #' Train a Highly Adaptive Lasso model
 #'
@@ -275,45 +362,21 @@ method(train_, HALHyperparameters) <- function(
     verbosity = verbosity
   )
 
-  # Lambda selection ----
-  # `fit_control` is forwarded to glmnet, which takes a fold assignment but no
-  # seed, so the seed reaches the internal cross-validation as `foldid`. The
-  # backend generates its own from the ambient RNG when none is supplied.
-  nfolds <- hyperparameters[["nfolds"]]
-  fit_control <- list(
-    cv_select = hyperparameters[["cv_select"]],
-    use_min = hyperparameters[["use_min"]],
-    nfolds = nfolds
-  )
-  # The seed is scoped to the fold draw: seeding is an implementation detail of
-  # this fit, so it must not change the RNG the caller sees afterwards.
-  seed <- hyperparameters[["seed"]]
-  if (!is.null(seed)) {
-    fit_control[["foldid"]] <- with_seed(
-      seed,
-      sample(rep_len(seq_len(nfolds), NROW(xm)))
-    )
-  }
-
   # Train ----
-  args <- list(
-    X = xm,
-    Y = y_train,
+  model <- hal_fit(
+    x = xm,
+    y = y_train,
+    family = family,
     max_degree = hyperparameters[["max_degree"]],
     smoothness_orders = hyperparameters[["smoothness_orders"]],
     num_knots = hyperparameters[["num_knots"]],
     reduce_basis = hyperparameters[["reduce_basis"]],
-    family = family,
     weights = weights,
-    fit_control = fit_control
+    cv_select = hyperparameters[["cv_select"]],
+    use_min = hyperparameters[["use_min"]],
+    nfolds = hyperparameters[["nfolds"]],
+    seed = hyperparameters[["seed"]]
   )
-  # `num_knots` is the one argument whose backend default is not NULL: unset,
-  # it is filled by the backend's knot generator, which only runs when the
-  # argument is absent. Passing NULL through would instead place a knot at
-  # every observed value and enumerate the largest basis available.
-  args <- args[!vapply(args, is.null, logical(1L))]
-  model <- do.call(hal9001::fit_hal, args)
-  check_inherits(model, "hal9001")
   list(model = model, preprocessor = design[["preprocessor"]])
 } # /rtemis::train_.HALHyperparameters
 

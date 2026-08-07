@@ -4,13 +4,14 @@
 \alias{calibrate}
 \title{Calibrate \code{Classification} & \code{ClassificationRes} Models}
 \usage{
-calibrate(x, hyperparameters = setup_Isotonic(), verbosity = 1L, ...)
+calibrate(x, hyperparameters = NULL, verbosity = 1L, ...)
 }
 \arguments{
 \item{x}{\code{Classification} or \code{ClassificationRes} object to calibrate.}
 
-\item{hyperparameters}{\code{Hyperparameters} object: Setup using one of \verb{setup_*} functions.
-Defines the algorithm used to train the calibration model.}
+\item{hyperparameters}{Optional \code{Hyperparameters} object: Setup using one of
+\verb{setup_*} functions. Defines the algorithm used to train the calibration
+model. NULL uses \link{setup_Isotonic}.}
 
 \item{verbosity}{Integer: Verbosity level.}
 
@@ -42,6 +43,37 @@ predicted probabilities, one per case
 \item \code{resampler_config}: \code{ResamplerConfig} object for calibration training
 \item \code{train_verbosity}: Integer controlling calibration model training output
 }
+}
+
+\section{Choosing a calibrator}{
+
+
+A calibration map must be monotone non-decreasing. A map that reorders
+scores changes the ranking of the predictions, and so changes AUC; a
+non-decreasing one cannot. \link{available_calibration} lists the algorithms
+that carry that guarantee. Any other \code{Hyperparameters} object is accepted
+and trained like any other model, but nothing then constrains the map.
+\itemize{
+\item \link{setup_Isotonic} (the default) fits isotonic regression. The map is a step
+function, so it merges nearby scores into ties, which moves AUC slightly
+in either direction. Fitted probabilities are held at least \code{1 / (2 * n)}
+away from 0 and 1, \code{n} being the number of calibration cases, so a block
+of uniformly labelled cases does not assert certainty.
+\item \link{setup_MonotoneHAL} fits a monotone Highly Adaptive Lasso on the logit
+scale. At its default \code{smoothness_orders = 1} the map is continuous and
+strictly increasing, so it preserves AUC exactly -- but the constraint
+that achieves this also makes the map convex on the logit scale, which
+costs accuracy whenever the correction needed is concave.
+\code{smoothness_orders = 0} with \code{penalized = FALSE} lifts that restriction,
+at the cost of ties and a markedly slower fit.
+}
+
+Isotonic is the default because no monotone lasso configuration is
+uniformly better and every one of them is several times slower.
+\code{data-raw/benchmark_calibrators.R} reproduces the comparison.
+
+The calibrator that ran is recorded on the returned object's \verb{@calibrator}
+property, is shown by \code{print()}, and is serialized by \code{to_json()}.
 }
 
 \examples{

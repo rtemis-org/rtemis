@@ -98,7 +98,8 @@ test_that("setup_LightRF() succeeds", {
   SPLS = SPLSHyperparameters,
   KNN = KNNHyperparameters,
   BART = BARTHyperparameters,
-  HAL = HALHyperparameters
+  HAL = HALHyperparameters,
+  MonotoneHAL = MonotoneHALHyperparameters
 )
 
 test_that("setup_* defaults do not drift from the property defaults", {
@@ -491,6 +492,51 @@ test_that("setup_HAL() with search values needs tuning", {
   expect_s7_class(hal_hpr, HALHyperparameters)
   expect_identical(hal_hpr@tuned, TUNED_STATUS_UNTUNED)
   expect_true(needs_tuning(hal_hpr))
+})
+
+# MonotoneHALHyperparameters ----
+test_that("MonotoneHALHyperparameters() constructs from its property defaults", {
+  # Defaults come from the PropertySpecs, so no argument is required.
+  expect_s7_class(MonotoneHALHyperparameters(), MonotoneHALHyperparameters)
+})
+
+test_that("MonotoneHALHyperparameters() rejects reduce_basis above order 0", {
+  # The backend applies the reduction only to the zero-order basis.
+  expect_error(
+    MonotoneHALHyperparameters(smoothness_orders = 1L, reduce_basis = 0.1),
+    "reduce_basis"
+  )
+  expect_s7_class(
+    MonotoneHALHyperparameters(smoothness_orders = 0L, reduce_basis = 0.1),
+    MonotoneHALHyperparameters
+  )
+})
+
+test_that("MonotoneHALHyperparameters() bounds smoothness_orders to 0 or 1", {
+  # Above 1 the basis functions are no longer monotone in their feature, so a
+  # non-negative coefficient would stop implying a non-decreasing fit.
+  expect_error(MonotoneHALHyperparameters(smoothness_orders = 2L))
+  expect_error(MonotoneHALHyperparameters(smoothness_orders = -1L))
+})
+
+test_that("MonotoneHALHyperparameters() has no way to express a bad map", {
+  # max_degree, the monotonicity constraint, and the family are invariants of
+  # the algorithm, not properties, so no argument can turn them off.
+  expect_error(MonotoneHALHyperparameters(max_degree = 2L))
+  expect_error(MonotoneHALHyperparameters(monotone = FALSE))
+  expect_error(MonotoneHALHyperparameters(family = "gaussian"))
+})
+
+# setup_MonotoneHAL ----
+test_that("setup_MonotoneHAL() succeeds", {
+  expect_s7_class(setup_MonotoneHAL(), MonotoneHALHyperparameters)
+})
+
+test_that("setup_MonotoneHAL() with search values needs tuning", {
+  mhal_hpr <- setup_MonotoneHAL(smoothness_orders = c(0L, 1L))
+  expect_s7_class(mhal_hpr, MonotoneHALHyperparameters)
+  expect_identical(mhal_hpr@tuned, TUNED_STATUS_UNTUNED)
+  expect_true(needs_tuning(mhal_hpr))
 })
 
 test_that("setup_HAL() keeps the length of num_knots", {

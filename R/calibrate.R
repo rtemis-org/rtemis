@@ -2,6 +2,29 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
+# %% calibration_hyperparameters ----
+#' Resolve the requested calibrator
+#'
+#' NULL means the caller expressed no preference and gets the default
+#' calibrator. Any `Hyperparameters` object is accepted, but only a monotone
+#' algorithm is a safe calibration map -- see `calibration_algorithms`.
+#'
+#' @param hyperparameters Optional `Hyperparameters` object.
+#'
+#' @return `Hyperparameters` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+calibration_hyperparameters <- function(hyperparameters) {
+  if (is.null(hyperparameters)) {
+    return(setup_Isotonic())
+  }
+  check_is_S7(hyperparameters, Hyperparameters)
+  hyperparameters
+} # /rtemis::calibration_hyperparameters
+
+
 # %% calibrate.Classification ----
 #' Calibrate Binary Classification Models
 #'
@@ -20,7 +43,8 @@
 #'   holds them as a one-column matrix, so pass `positive_prob()` of it or
 #'   index the column.
 #' @param true_labels Factor: True class labels.
-#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
+#' @param hyperparameters Optional `Hyperparameters` object: Setup using one of
+#' `setup_*` functions. NULL uses [setup_Isotonic].
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used
 #'
@@ -54,11 +78,12 @@ method(calibrate, Classification) <- function(
   x,
   predicted_probabilities,
   true_labels,
-  hyperparameters = setup_Isotonic(),
+  hyperparameters = NULL,
   verbosity = 1L,
   ...
 ) {
   # Check inputs
+  hyperparameters <- calibration_hyperparameters(hyperparameters)
   predicted_probabilities <- positive_prob(predicted_probabilities)
   check_float01inc(predicted_probabilities)
   check_inherits(true_labels, "factor")
@@ -107,7 +132,8 @@ method(calibrate, Classification) <- function(
 #' Calibrate Resampled Classification Models
 #'
 #' @param x `ClassificationRes` object.
-#' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
+#' @param hyperparameters Optional `Hyperparameters` object: Setup using one of
+#' `setup_*` functions. NULL uses [setup_Isotonic].
 #' @param resampler_config `ResamplerConfig` object: Configuration for resampling during calibration model training.
 #' @param train_verbosity Integer: Verbosity level for training calibration models.
 #' @param verbosity Integer: Verbosity level.
@@ -119,7 +145,7 @@ method(calibrate, Classification) <- function(
 #' @noRd
 method(calibrate, ClassificationRes) <- function(
   x,
-  hyperparameters = setup_Isotonic(),
+  hyperparameters = NULL,
   resampler_config = setup_Resampler(
     n_resamples = 5L,
     type = "KFold"
@@ -129,7 +155,7 @@ method(calibrate, ClassificationRes) <- function(
   ...
 ) {
   # Check inputs
-  check_is_S7(hyperparameters, Hyperparameters)
+  hyperparameters <- calibration_hyperparameters(hyperparameters)
   check_is_S7(resampler_config, ResamplerConfig)
   verbosity <- clean_int(verbosity)
 

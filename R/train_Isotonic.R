@@ -2,6 +2,37 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
+# %% isotonic_bound_probabilities ----
+#' Keep isotonic block means away from 0 and 1
+#'
+#' Isotonic regression on a 0/1 outcome returns the mean of each level block,
+#' so a block whose cases share a label is fitted at exactly 0 or 1. As a
+#' calibrated probability that is an assertion of certainty, and it makes log
+#' loss infinite for a single case there whose label disagrees.
+#'
+#' The bound is `1 / (2 * n)`: a calibration set of `n` cases cannot resolve a
+#' probability finer than one case in `n`, so half a case is the smallest
+#' defensible distance from the boundary. It shrinks as the calibration set
+#' grows, so the bound never dominates a genuinely confident block.
+#'
+#' Only the fitted values move, and they move by less than the spacing between
+#' adjacent block means, so the fit stays non-decreasing and the ordering --
+#' and therefore AUC -- is untouched.
+#'
+#' @param yf Numeric vector: Fitted block means from `isoreg`.
+#' @param n_cases Integer: Number of calibration cases.
+#'
+#' @return Numeric vector.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+isotonic_bound_probabilities <- function(yf, n_cases) {
+  eps <- 1 / (2 * n_cases)
+  pmin(pmax(yf, eps), 1 - eps)
+} # /rtemis::isotonic_bound_probabilities
+
+
 # %% train_.IsotonicHyperparameters ----
 #' Train an Isotonic model
 #'
@@ -68,6 +99,11 @@ method(train_, IsotonicHyperparameters) <- function(
 
   # Model ----
   ir <- isoreg(cbind(x[[1]], y))
+  # A regression outcome is on its own scale, so only a classification fit --
+  # whose fitted values are probabilities -- is bounded.
+  if (type == "Classification") {
+    ir[["yf"]] <- isotonic_bound_probabilities(ir[["yf"]], NROW(x))
+  }
   model <- as.stepfun(ir)
   check_inherits(model, "stepfun")
   list(model = model, preprocessor = NULL)

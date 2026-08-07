@@ -1273,6 +1273,183 @@ setup_HAL <- function(
 } # /rtemis::setup_HAL
 
 
+# %% MonotoneHALHyperparameters ----
+#' @title MonotoneHALHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for the shape-constrained Highly Adaptive Lasso.
+#'
+#' This is a separate class from `HALHyperparameters` rather than a set of
+#' defaults over it, because the three values that distinguish it are
+#' invariants and not choices: the interaction degree is 1, the fit is
+#' constrained monotone non-decreasing in every feature, and no basis-size
+#' guardrail is needed at degree 1. None of the three is representable as a
+#' property, so no combination of this class's properties can produce a
+#' non-monotone or higher-degree fit.
+#'
+#' `lambda` is not a hyperparameter here: `hal9001` selects it by
+#' cross-validation inside the fit, so `cv_select` is a constant.
+#'
+#' `reduce_basis` is constrained by `smoothness_orders` in a way JSON Schema
+#' cannot express, so it is checked by the validator.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+MonotoneHALHyperparameters <- new_class(
+  name = "MonotoneHALHyperparameters",
+  parent = Hyperparameters,
+  properties = list(
+    algorithm = prop_algorithm("MonotoneHAL"),
+    smoothness_orders = prop_integer(
+      1L,
+      min = 0L,
+      max = 1L,
+      tunable = TRUE,
+      description = "Smoothness of the basis functions: 0 fits zero-order indicators and yields a step function, 1 fits piecewise linear splines and yields a continuous one."
+    ),
+    num_knots = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      description = "Number of knots spanning each feature. NULL generates them from smoothness_orders."
+    ),
+    reduce_basis = prop_float(
+      NULL,
+      exclusive_min = 0,
+      max = 1,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when smoothness_orders is 0; NULL uses the backend default of 1/sqrt(n)."
+    ),
+    penalized = prop_boolean(
+      TRUE,
+      description = "Apply the lasso penalty to the basis functions. FALSE removes it, making the fit the non-parametric maximum likelihood estimate over the monotone class."
+    ),
+    cv_select = prop_const(
+      TRUE,
+      description = "Select lambda by cross-validation inside the fit; determined by the class."
+    ),
+    use_min = prop_boolean(
+      TRUE,
+      description = "Select lambda.min from the internal cross-validation. FALSE selects the more heavily penalized lambda.1se."
+    ),
+    nfolds = prop_integer(
+      10L,
+      min = 3L,
+      description = "Number of folds of the internal cross-validation that selects lambda."
+    ),
+    seed = prop_integer(
+      NULL,
+      nullable = TRUE,
+      description = "Random seed for the internal cross-validation's fold assignment. NULL leaves it drawn from the ambient RNG."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    )
+  ),
+  validator = function(self) {
+    # The backend applies the basis reduction only to the zero-order basis and
+    # warns that it dropped the request otherwise, so an order it cannot reach
+    # is rejected here instead of silently ignored.
+    if (!is.null(self@reduce_basis) && any(self@smoothness_orders != 0L)) {
+      "@reduce_basis applies only when @smoothness_orders is 0. Set @smoothness_orders to 0, or leave @reduce_basis NULL."
+    }
+  }
+) # /rtemis::MonotoneHALHyperparameters
+
+
+# %% setup_MonotoneHAL ----
+#' Setup MonotoneHAL Hyperparameters
+#'
+#' Setup hyperparameters for monotone Highly Adaptive Lasso training.
+#'
+#' A Highly Adaptive Lasso restricted to additive, monotone non-decreasing
+#' fits. [hal9001::fit_hal] is given a formula that constrains every basis
+#' function's coefficient to be non-negative, and the interaction degree is
+#' fixed at 1. Regression uses the gaussian family, binary classification the
+#' binomial one; `hal9001` has no multinomial family, so multiclass
+#' classification is not supported.
+#'
+#' The intended use is probability calibration, where the single feature is a
+#' classifier's score. Monotonicity is what makes that safe: a calibration map
+#' that reorders scores changes the ranking and so changes AUC, and a
+#' non-decreasing map cannot. Pass it to [calibrate] to use it instead of the
+#' default calibrator, [setup_Isotonic].
+#'
+#' Relative to `Isotonic`, which is the other monotone calibrator, this fits on
+#' the logit scale, so it does not saturate at 0 and 1 the way the boundary
+#' bins of isotonic regression do -- it can still round to an endpoint in
+#' double precision
+#' when the input scores are themselves extreme. At `smoothness_orders = 1` it
+#' is strictly increasing rather than a step function, so it introduces no ties
+#' and leaves AUC unchanged.
+#'
+#' `smoothness_orders` is the one substantive choice. 0 fits indicator basis
+#' functions and recovers a step function; 1 fits piecewise linear splines and
+#' yields a continuous map.
+#'
+#' `penalized = FALSE` removes the lasso penalty, giving the non-parametric
+#' maximum likelihood estimate over the monotone class. Combined with
+#' `smoothness_orders = 0` that is isotonic regression, up to the logit-scale
+#' parameterization.
+#'
+#' `lambda` is selected by cross-validation inside the fit and is not a search
+#' dimension. `seed` fixes that cross-validation's fold assignment; `nfolds`
+#' and `use_min` control it. Calibration sets are often small, so `nfolds` is
+#' an upper bound: training backs off to as many folds as the data supports at
+#' three cases each, and says so at `verbosity >= 1`.
+#'
+#' `get_varimp()` reports the same two measures as `setup_HAL`, `importance`
+#' and `max_coefficient`. Both are of limited use at a single feature.
+#'
+#' @param smoothness_orders (Tunable) Integer \[0, 1\]: Smoothness of the basis functions: 0 fits zero-order indicators and yields a step function, 1 fits piecewise linear splines and yields a continuous one.
+#' @param reduce_basis (Tunable) Optional Numeric (0, 1]: Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when `smoothness_orders` is 0.
+#' @param num_knots Optional Integer [1, Inf): Number of knots spanning each feature. NULL generates them from smoothness_orders.
+#' @param penalized Logical: If TRUE, apply the lasso penalty to the basis functions; if FALSE, remove it.
+#' @param use_min Logical: If TRUE, select `lambda.min` from the internal cross-validation; if FALSE, the more heavily penalized `lambda.1se`.
+#' @param nfolds Integer [3, Inf): Largest number of folds of the internal cross-validation that selects lambda.
+#' @param seed Optional Integer: Random seed for the internal cross-validation's fold assignment. NULL leaves it drawn from the ambient RNG.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @return MonotoneHALHyperparameters object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' monotonehal_hyperparams <- setup_MonotoneHAL(smoothness_orders = 0L)
+#' monotonehal_hyperparams
+setup_MonotoneHAL <- function(
+  # tunable
+  smoothness_orders = 1L,
+  reduce_basis = NULL,
+  # fixed
+  num_knots = NULL,
+  penalized = TRUE,
+  use_min = TRUE,
+  nfolds = 10L,
+  seed = NULL,
+  ifw = FALSE
+) {
+  smoothness_orders <- clean_int(smoothness_orders)
+  num_knots <- clean_posint(num_knots)
+  nfolds <- clean_posint(nfolds)
+  seed <- clean_int(seed)
+  MonotoneHALHyperparameters(
+    smoothness_orders = smoothness_orders,
+    num_knots = num_knots,
+    reduce_basis = reduce_basis,
+    penalized = penalized,
+    use_min = use_min,
+    nfolds = nfolds,
+    seed = seed,
+    ifw = ifw
+  )
+} # /rtemis::setup_MonotoneHAL
+
+
 # %% LightCARTHyperparameters ----
 #' @title LightCARTHyperparameters
 #'
