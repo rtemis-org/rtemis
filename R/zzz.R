@@ -11,6 +11,7 @@
 # rtemis internal environment
 live <- new.env()
 live[["parallelized_learners"]] <- c(
+  "BART",
   "LightGBM",
   "LightRF",
   "LightRuleFit",

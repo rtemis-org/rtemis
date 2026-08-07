@@ -1067,6 +1067,212 @@ setup_GLMNET <- function(
 } # /rtemis::setup_GLMNET
 
 
+# %% HALHyperparameters ----
+#' @title HALHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for the Highly Adaptive Lasso.
+#'
+#' `lambda` is not a hyperparameter here: `hal9001` selects it by
+#' cross-validation inside the fit, so `cv_select` is a constant. Exposing it
+#' as a search dimension would nest that cross-validation inside rtemis' own
+#' resampling for no gain.
+#'
+#' `num_knots` and `reduce_basis` are each constrained by another property, in
+#' ways JSON Schema cannot express, so both are checked by the validator.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+HALHyperparameters <- new_class(
+  name = "HALHyperparameters",
+  parent = Hyperparameters,
+  properties = list(
+    algorithm = prop_algorithm("HAL"),
+    max_degree = prop_integer(
+      2L,
+      min = 1L,
+      tunable = TRUE,
+      data_bound = "n_features",
+      description = "Highest order of interaction among features that a basis function may represent."
+    ),
+    smoothness_orders = prop_integer(
+      1L,
+      min = 0L,
+      max = 9L,
+      tunable = TRUE,
+      description = "Smoothness of the basis functions: 0 fits zero-order indicators, 1 piecewise linear splines, higher values higher-order splines."
+    ),
+    num_knots = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      vector = TRUE,
+      description = "Number of knots per interaction degree, one value per degree, non-increasing. NULL generates them from max_degree and smoothness_orders."
+    ),
+    reduce_basis = prop_float(
+      NULL,
+      exclusive_min = 0,
+      max = 1,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when smoothness_orders is 0; NULL uses the backend default of 1/sqrt(n)."
+    ),
+    max_basis = prop_integer(
+      5000000L,
+      min = 1L,
+      description = "Largest projected basis-function count that will be fit. Training aborts above it rather than enumerating a basis that will not finish."
+    ),
+    cv_select = prop_const(
+      TRUE,
+      description = "Select lambda by cross-validation inside the fit; determined by the class."
+    ),
+    use_min = prop_boolean(
+      TRUE,
+      description = "Select lambda.min from the internal cross-validation. FALSE selects the more heavily penalized lambda.1se."
+    ),
+    nfolds = prop_integer(
+      10L,
+      min = 3L,
+      description = "Number of folds of the internal cross-validation that selects lambda."
+    ),
+    seed = prop_integer(
+      NULL,
+      nullable = TRUE,
+      description = "Random seed for the internal cross-validation's fold assignment. NULL leaves it drawn from the ambient RNG."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    )
+  ),
+  validator = function(self) {
+    # The knot vector is indexed by interaction degree, so its length is tied
+    # to `max_degree` -- which means `max_degree` must be a single value for
+    # the pairing to be well defined.
+    if (!is.null(self@num_knots)) {
+      if (length(self@max_degree) > 1L) {
+        return(
+          "@num_knots cannot be combined with a search over @max_degree: it needs one value per degree, so leave it NULL while tuning @max_degree."
+        )
+      }
+      if (length(self@num_knots) != self@max_degree) {
+        return(paste0(
+          "@num_knots must have one value per interaction degree: expected length ",
+          self@max_degree,
+          ", got ",
+          length(self@num_knots),
+          "."
+        ))
+      }
+      if (is.unsorted(rev(self@num_knots))) {
+        return(
+          "@num_knots must be non-increasing across degrees: higher-order interactions cannot use more knots than lower-order ones."
+        )
+      }
+    }
+    # The backend applies the basis reduction only to the zero-order basis and
+    # warns that it dropped the request otherwise, so an order it cannot reach
+    # is rejected here instead of silently ignored.
+    if (!is.null(self@reduce_basis) && any(self@smoothness_orders != 0L)) {
+      "@reduce_basis applies only when @smoothness_orders is 0. Set @smoothness_orders to 0, or leave @reduce_basis NULL."
+    }
+  }
+) # /rtemis::HALHyperparameters
+
+
+# %% setup_HAL ----
+#' Setup HAL Hyperparameters
+#'
+#' Setup hyperparameters for Highly Adaptive Lasso training.
+#'
+#' Both outcome types are fit with [hal9001::fit_hal], which spans the outcome
+#' with a basis of indicator or spline terms over every interaction of the
+#' features up to `max_degree`, then fits a lasso over that basis.
+#' Regression uses the gaussian family, binary classification the binomial one;
+#' `hal9001` has no multinomial family, so multiclass classification is not
+#' supported.
+#'
+#' `lambda` is selected by cross-validation inside the fit and is not a search
+#' dimension. `seed` fixes that cross-validation's fold assignment; `nfolds`
+#' and `use_min` control it.
+#'
+#' `hal9001` takes a numeric matrix, so factors are one-hot encoded first and
+#' the encoder is re-applied at predict time.
+#'
+#' Scaling: the basis has one function per knot per feature subset, so its size
+#' grows as `C(n_features, max_degree)` and, through the knots, with the number
+#' of cases -- making the lasso that follows quadratic in the number of cases.
+#' Training projects the basis size up front, reports it at `verbosity >= 1`,
+#' warns past a million, and aborts past `max_basis`. `max_degree` is the
+#' strongest lever on that count, `num_knots` the next.
+#'
+#' `get_varimp()` reports two measures, both aggregated over the basis
+#' functions that involve each feature:
+#' - `importance`: the sum of the absolute values of their non-zero
+#'   coefficients.
+#' - `max_coefficient`: the largest single such absolute coefficient,
+#'   separating a feature carried by one strong term from one carried by many
+#'   weak ones.
+#'
+#' `plot_varimp(mod, measure = "max_coefficient")` plots the second; the first
+#' is the default. Both read coefficients on the scale of the basis functions.
+#' At `smoothness_orders = 0` the basis is made of indicators, so the
+#' coefficients are unit-free and directly comparable across features; at
+#' higher orders each basis function carries the units of its feature, so scale
+#' the features first if they are not already comparable.
+#'
+#' @param max_degree (Tunable) Integer [1, Inf): Highest order of interaction among features that a basis function may represent.
+#' @param smoothness_orders (Tunable) Integer \[0, 9\]: Smoothness of the basis functions: 0 fits zero-order indicators, 1 piecewise linear splines, higher values higher-order splines.
+#' @param reduce_basis (Tunable) Optional Numeric (0, 1]: Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when `smoothness_orders` is 0.
+#' @param num_knots Optional Integer [1, Inf) vector: Number of knots per interaction degree, one value per degree, non-increasing. NULL generates them from max_degree and smoothness_orders.
+#' @param use_min Logical: If TRUE, select `lambda.min` from the internal cross-validation; if FALSE, the more heavily penalized `lambda.1se`.
+#' @param nfolds Integer [3, Inf): Number of folds of the internal cross-validation that selects lambda.
+#' @param max_basis Integer [1, Inf): Largest projected basis-function count that will be fit.
+#' @param seed Optional Integer: Random seed for the internal cross-validation's fold assignment. NULL leaves it drawn from the ambient RNG.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @return HALHyperparameters object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' hal_hyperparams <- setup_HAL(max_degree = 1L)
+#' hal_hyperparams
+setup_HAL <- function(
+  # tunable
+  max_degree = 2L,
+  smoothness_orders = 1L,
+  reduce_basis = NULL,
+  # fixed
+  num_knots = NULL,
+  use_min = TRUE,
+  nfolds = 10L,
+  max_basis = 5000000L,
+  seed = NULL,
+  ifw = FALSE
+) {
+  max_degree <- clean_posint(max_degree)
+  smoothness_orders <- clean_int(smoothness_orders)
+  num_knots <- clean_posint(num_knots)
+  nfolds <- clean_posint(nfolds)
+  max_basis <- clean_posint(max_basis)
+  seed <- clean_int(seed)
+  HALHyperparameters(
+    max_degree = max_degree,
+    smoothness_orders = smoothness_orders,
+    num_knots = num_knots,
+    reduce_basis = reduce_basis,
+    max_basis = max_basis,
+    use_min = use_min,
+    nfolds = nfolds,
+    seed = seed,
+    ifw = ifw
+  )
+} # /rtemis::setup_HAL
+
+
 # %% LightCARTHyperparameters ----
 #' @title LightCARTHyperparameters
 #'
@@ -2892,6 +3098,353 @@ setup_SPLS <- function(
     ifw = ifw
   )
 } # /rtemis::setup_SPLS
+
+
+# %% KNNHyperparameters ----
+#' @title KNNHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for KNN.
+#'
+#' One class covers both outcome types: `kknn::train.kknn` fits a regression or
+#' a classification model depending on the outcome, and every property reaches
+#' it in either case.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+KNNHyperparameters <- new_class(
+  name = "KNNHyperparameters",
+  parent = Hyperparameters,
+  properties = list(
+    algorithm = prop_algorithm("KNN"),
+    k = prop_integer(
+      7L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of neighbors. Must be less than the number of training cases."
+    ),
+    kernel = prop_string(
+      "optimal",
+      enum = c(
+        "rectangular",
+        "triangular",
+        "epanechnikov",
+        "biweight",
+        "triweight",
+        "cos",
+        "inv",
+        "gaussian",
+        "rank",
+        "optimal"
+      ),
+      tunable = TRUE,
+      description = "Kernel used to weight neighbors by distance; \"rectangular\" gives unweighted KNN."
+    ),
+    distance = prop_float(
+      2,
+      exclusive_min = 0,
+      tunable = TRUE,
+      description = "Parameter of the Minkowski distance: 1 is Manhattan, 2 is Euclidean."
+    ),
+    scale = prop_boolean(
+      TRUE,
+      description = "Scale features to unit variance before computing distances."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    )
+  )
+) # /rtemis::KNNHyperparameters
+
+
+# %% setup_KNN ----
+#' Setup KNN Hyperparameters
+#'
+#' Setup hyperparameters for k-Nearest Neighbors training.
+#'
+#' Both outcome types are fit with [kknn::train.kknn], which selects between
+#' regression and classification from the outcome. Factors are one-hot encoded
+#' by rtemis first, as an algorithm-internal preprocessor that is re-applied at
+#' predict time: the backend's own factor handling resolves a contrast function
+#' off the search path, which is not reachable when `kknn` is loaded but not
+#' attached, as a suggested package is.
+#'
+#' `kknn` provides no case weights, so `ifw` cannot be honored: enabling it
+#' makes training abort rather than silently fit an unweighted model.
+#'
+#' @param k (Tunable) Integer [1, Inf): Number of neighbors. Must be less than the number of training cases.
+#' @param kernel (Tunable) Character \{"rectangular", "triangular", "epanechnikov", "biweight", "triweight", "cos", "inv", "gaussian", "rank", "optimal"\}: Kernel used to weight neighbors by distance.
+#' @param distance (Tunable) Numeric (0, Inf): Parameter of the Minkowski distance.
+#' @param scale Logical: If TRUE, scale features to unit variance before computing distances.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @return KNNHyperparameters object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' knn_hyperparams <- setup_KNN(k = 11L, kernel = "rectangular")
+#' knn_hyperparams
+setup_KNN <- function(
+  # tunable
+  k = 7L,
+  kernel = "optimal",
+  distance = 2,
+  # fixed
+  scale = TRUE,
+  ifw = FALSE
+) {
+  k <- clean_posint(k)
+  KNNHyperparameters(
+    k = k,
+    kernel = kernel,
+    distance = distance,
+    scale = scale,
+    ifw = ifw
+  )
+} # /rtemis::setup_KNN
+
+
+# %% BARTHyperparameters ----
+#' @title BARTHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for Bayesian Additive Regression Trees.
+#'
+#' One class covers both outcome types: a continuous outcome is sampled with an
+#' identity link and a binary outcome with the link named by `link`, which is
+#' therefore the only classification-only property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+BARTHyperparameters <- new_class(
+  name = "BARTHyperparameters",
+  parent = Hyperparameters,
+  properties = list(
+    algorithm = prop_algorithm("BART"),
+    num_trees = prop_integer(
+      200L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Number of trees in the mean forest."
+    ),
+    alpha = prop_float(
+      0.95,
+      exclusive_min = 0,
+      exclusive_max = 1,
+      tunable = TRUE,
+      description = "Base of the tree split prior alpha * (1 + depth)^-beta."
+    ),
+    beta = prop_float(
+      2,
+      min = 0,
+      tunable = TRUE,
+      description = "Depth penalty exponent of the tree split prior alpha * (1 + depth)^-beta."
+    ),
+    min_samples_leaf = prop_integer(
+      5L,
+      min = 1L,
+      tunable = TRUE,
+      data_bound = "n_cases",
+      description = "Minimum number of training cases in a leaf."
+    ),
+    max_depth = prop_integer(
+      10L,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Maximum depth of any tree. NULL imposes no limit."
+    ),
+    num_features_subsample = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      data_bound = "n_features",
+      description = "Number of features subsampled when growing each tree. NULL uses every feature."
+    ),
+    variance_forest_num_trees = prop_integer(
+      0L,
+      min = 0L,
+      tunable = TRUE,
+      description = "Number of trees in the conditional variance forest. 0 fits a homoskedastic model."
+    ),
+    num_gfr = prop_integer(
+      5L,
+      min = 0L,
+      description = "Number of grow-from-root warm-start iterations."
+    ),
+    num_burnin = prop_integer(
+      0L,
+      min = 0L,
+      description = "Number of burn-in MCMC iterations."
+    ),
+    num_mcmc = prop_integer(
+      100L,
+      min = 1L,
+      description = "Number of retained MCMC iterations per chain."
+    ),
+    num_chains = prop_integer(
+      1L,
+      min = 1L,
+      description = "Number of independent MCMC chains. Cannot exceed num_gfr unless num_gfr is 0."
+    ),
+    keep_every = prop_integer(
+      1L,
+      min = 1L,
+      description = "Thinning interval: retain one MCMC sample in every keep_every."
+    ),
+    cutpoint_grid_size = prop_integer(
+      100L,
+      min = 1L,
+      description = "Maximum number of candidate cutpoints considered by the grow-from-root algorithm."
+    ),
+    standardize = prop_boolean(
+      TRUE,
+      description = "Center and scale the outcome before sampling."
+    ),
+    link = prop_string(
+      "probit",
+      enum = c("probit", "cloglog"),
+      description = "Link function of the binary outcome model (classification only). \"cloglog\" cannot be combined with case weights."
+    ),
+    seed = prop_integer(
+      NULL,
+      nullable = TRUE,
+      description = "Random seed for the sampler. NULL leaves the sampler seeded by the system."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    )
+  ),
+  validator = function(self) {
+    # Each MCMC chain is seeded from its own grow-from-root ensemble, so there
+    # must be at least as many of those as there are chains. num_gfr = 0 runs
+    # every chain from root instead and lifts the requirement.
+    if (any(self@num_gfr > 0L) && any(self@num_chains > self@num_gfr)) {
+      "@num_chains cannot exceed @num_gfr when @num_gfr is greater than 0."
+    }
+  }
+) # /rtemis::BARTHyperparameters
+
+
+# %% setup_BART ----
+#' Setup BART Hyperparameters
+#'
+#' Setup hyperparameters for Bayesian Additive Regression Trees training.
+#'
+#' Both outcome types are fit with [stochtree::bart], which samples a sum-of-trees
+#' model by MCMC, optionally warm-started by the grow-from-root algorithm.
+#' Regression uses a continuous outcome model, binary classification a discrete
+#' one with the link named by `link`. Multiclass classification is not supported.
+#'
+#' Factors are expanded by the backend, so no encoding is needed beforehand.
+#' Case weights scale the residual variance and are honored under the default
+#' `link = "probit"`, but `stochtree` rejects them under `"cloglog"`, so that
+#' combination makes training abort rather than silently fit an unweighted model.
+#'
+#' Because the fit is a posterior rather than a point estimate, `se()` returns
+#' the standard deviation of the retained draws, and `get_varimp()` reports two
+#' measures rather than one:
+#' - `importance`: the variable inclusion proportion, the share of splitting
+#'   rules that use the feature, averaged across draws.
+#' - `inclusion_sd`: its standard deviation across draws, separating a feature
+#'   the sampler uses consistently from one whose importance rests on a few
+#'   draws.
+#'
+#' `plot_varimp(mod, measure = "inclusion_sd")` plots the second; the first is
+#' the default.
+#'
+#' Inclusion proportions only discriminate when trees compete for splits. At
+#' the default `num_trees` each tree is a weak learner and uninformative
+#' features still get used, so the proportions flatten towards `1/n_features`;
+#' refit with a small ensemble (`num_trees = 10L` to `20L`) when the goal is
+#' variable selection rather than prediction.
+#'
+#' @param num_trees (Tunable) Integer [1, Inf): Number of trees in the mean forest.
+#' @param alpha (Tunable) Numeric (0, 1): Base of the tree split prior `alpha * (1 + depth)^-beta`.
+#' @param beta (Tunable) Numeric [0, Inf): Depth penalty exponent of the tree split prior `alpha * (1 + depth)^-beta`.
+#' @param min_samples_leaf (Tunable) Integer [1, Inf): Minimum number of training cases in a leaf.
+#' @param max_depth (Tunable) Optional Integer [1, Inf): Maximum depth of any tree. NULL imposes no limit.
+#' @param num_features_subsample (Tunable) Optional Integer [1, Inf): Number of features subsampled when growing each tree. NULL uses every feature.
+#' @param variance_forest_num_trees (Tunable) Integer [0, Inf): Number of trees in the conditional variance forest. 0 fits a homoskedastic model, any larger value a heteroskedastic one.
+#' @param num_gfr Integer [0, Inf): Number of grow-from-root warm-start iterations.
+#' @param num_burnin Integer [0, Inf): Number of burn-in MCMC iterations.
+#' @param num_mcmc Integer [1, Inf): Number of retained MCMC iterations per chain.
+#' @param num_chains Integer [1, Inf): Number of independent MCMC chains. Cannot exceed `num_gfr` unless `num_gfr` is 0.
+#' @param keep_every Integer [1, Inf): Thinning interval: retain one MCMC sample in every `keep_every`.
+#' @param cutpoint_grid_size Integer [1, Inf): Maximum number of candidate cutpoints considered by the grow-from-root algorithm.
+#' @param standardize Logical: If TRUE, center and scale the outcome before sampling.
+#' @param link Character \{"probit", "cloglog"\}: Link function of the binary outcome model. Classification only.
+#' @param seed Optional Integer: Random seed for the sampler. NULL leaves the sampler seeded by the system.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @return BARTHyperparameters object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' bart_hyperparams <- setup_BART(num_trees = 50L, num_mcmc = 200L)
+#' bart_hyperparams
+setup_BART <- function(
+  # tunable
+  num_trees = 200L,
+  alpha = 0.95,
+  beta = 2,
+  min_samples_leaf = 5L,
+  max_depth = 10L,
+  num_features_subsample = NULL,
+  variance_forest_num_trees = 0L,
+  # fixed
+  num_gfr = 5L,
+  num_burnin = 0L,
+  num_mcmc = 100L,
+  num_chains = 1L,
+  keep_every = 1L,
+  cutpoint_grid_size = 100L,
+  standardize = TRUE,
+  link = "probit",
+  seed = NULL,
+  ifw = FALSE
+) {
+  num_trees <- clean_posint(num_trees)
+  min_samples_leaf <- clean_posint(min_samples_leaf)
+  max_depth <- clean_posint(max_depth)
+  num_features_subsample <- clean_posint(num_features_subsample)
+  variance_forest_num_trees <- clean_int(variance_forest_num_trees)
+  num_gfr <- clean_int(num_gfr)
+  num_burnin <- clean_int(num_burnin)
+  num_mcmc <- clean_posint(num_mcmc)
+  num_chains <- clean_posint(num_chains)
+  keep_every <- clean_posint(keep_every)
+  cutpoint_grid_size <- clean_posint(cutpoint_grid_size)
+  seed <- clean_int(seed)
+  BARTHyperparameters(
+    num_trees = num_trees,
+    alpha = alpha,
+    beta = beta,
+    min_samples_leaf = min_samples_leaf,
+    max_depth = max_depth,
+    num_features_subsample = num_features_subsample,
+    variance_forest_num_trees = variance_forest_num_trees,
+    num_gfr = num_gfr,
+    num_burnin = num_burnin,
+    num_mcmc = num_mcmc,
+    num_chains = num_chains,
+    keep_every = keep_every,
+    cutpoint_grid_size = cutpoint_grid_size,
+    standardize = standardize,
+    link = link,
+    seed = seed,
+    ifw = ifw
+  )
+} # /rtemis::setup_BART
 
 
 # %% .list_to_Hyperparameters ----

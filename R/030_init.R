@@ -25,6 +25,9 @@ class_svm <- new_S3_class("svm")
 class_tabnet_fit <- new_S3_class("tabnet_fit")
 class_spls <- new_S3_class("spls")
 class_splsda <- new_S3_class("splsda")
+class_train.kknn <- new_S3_class("train.kknn")
+class_bartmodel <- new_S3_class("bartmodel")
+class_hal9001 <- new_S3_class("hal9001")
 
 
 # %% --- Generics -------------------------------------------------------------------------------------

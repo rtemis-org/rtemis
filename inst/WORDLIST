@@ -1,4 +1,5 @@
 ARFF
+BARTHyperparameters
 BH
 Barmode
 CARTHyperparameters
@@ -21,6 +22,7 @@ GLMNETHyperparameters
 GLU
 Gantt
 Gini
+HALHyperparameters
 HardCLConfig
 ICA
 ICAConfig
@@ -31,6 +33,8 @@ Isotonic
 IsotonicHyperparameters
 KFold
 KMeansConfig
+KNN
+KNNHyperparameters
 LOOCV
 LightCART
 LightCARTHyperparameters
@@ -46,6 +50,7 @@ MIDPT
 Makefile
 MassGLM
 MathJax
+Minkowski
 NCOL
 NMF
 NMFConfig
@@ -102,6 +107,7 @@ bottomleft
 bottomright
 cdn
 cholmod
+cloglog
 choropleth
 cli
 cmeans
@@ -127,6 +133,7 @@ eg
 eigen
 entmax
 enum
+epanechnikov
 extratrees
 fdr
 filesystem
@@ -139,15 +146,18 @@ grDevices
 graphopt
 heatmaply
 hellinger
+heteroskedastic
 hochberg
 holm
 hommel
+homoskedastic
 htest
 htmlwidget
 https
 hv
 hvh
 infomap
+inv
 irlba
 iters
 jpeg
@@ -246,6 +256,7 @@ topleft
 topright
 tozeroy
 translational
+triweight
 ufcl
 unscorable
 vendored

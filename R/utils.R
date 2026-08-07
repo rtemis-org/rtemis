@@ -2,6 +2,47 @@
 # ::rtemis::
 # 2016- EDG rtemis.org
 
+#' Evaluate an expression under a fixed seed, leaving the RNG as it was
+#'
+#' `set.seed()` mutates the global RNG state, so seeding an internal
+#' computation would otherwise change every random draw a caller makes
+#' afterwards -- a reproducible fold assignment inside one algorithm should not
+#' reach into the user's session or the next model in a pipeline.
+#'
+#' `.Random.seed` is restored on exit, and removed again if the expression
+#' created it in a session that had not yet drawn a random number.
+#'
+#' @param seed Optional Integer: Seed to set. NULL evaluates `expr` under the
+#' ambient RNG and restores nothing.
+#' @param expr Expression: Evaluated after the seed is set. Lazily evaluated,
+#' so it must not be forced before this call.
+#'
+#' @return The value of `expr`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+with_seed <- function(seed, expr) {
+  if (is.null(seed)) {
+    return(expr)
+  }
+  if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+    old_seed <- get(".Random.seed", envir = globalenv(), inherits = FALSE)
+    on.exit(
+      assign(".Random.seed", old_seed, envir = globalenv()),
+      add = TRUE
+    )
+  } else {
+    on.exit(
+      suppressWarnings(rm(".Random.seed", envir = globalenv())),
+      add = TRUE
+    )
+  }
+  set.seed(seed)
+  expr
+} # /rtemis::with_seed
+
+
 #' Print range of continuous variable
 #'
 #' @param x Numeric vector

@@ -215,6 +215,18 @@ families <- list(
       list(
         cls = SPLSHyperparameters,
         desc = "Sparse Partial Least Squares. See `setup_SPLS`."
+      ),
+      list(
+        cls = KNNHyperparameters,
+        desc = "k-Nearest Neighbors (kknn). See `setup_KNN`."
+      ),
+      list(
+        cls = BARTHyperparameters,
+        desc = "Bayesian Additive Regression Trees (stochtree). See `setup_BART`."
+      ),
+      list(
+        cls = HALHyperparameters,
+        desc = "Highly Adaptive Lasso (hal9001). See `setup_HAL`."
       )
     )
   )

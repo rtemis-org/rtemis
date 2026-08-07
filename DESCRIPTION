@@ -1,7 +1,7 @@
 Package: rtemis
-Version: 1.3.1
+Version: 1.3.2
 Title: Machine Learning and Visualization
-Date: 2026-08-03
+Date: 2026-08-06
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
     email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
 Description: Schema-driven machine learning and visualization package with an 'S7' backend 
@@ -54,11 +54,13 @@ Suggests:
     glue,
     grid,
     gsubfn,
+    hal9001,
     haven,
     heatmaply,
     htmlwidgets,
     igraph,
     jsonlite,
+    kknn,
     later,
     leaflet,
     leaps,
@@ -92,6 +94,7 @@ Suggests:
     sf,
     shapr,
     spls,
+    stochtree,
     survival,
     tabnet,
     threejs,

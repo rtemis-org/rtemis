@@ -4,11 +4,14 @@
 
 # Supervised Learning ----
 supervised_algorithms <- data.frame(rbind(
+  c("BART", "Bayesian Additive Regression Trees", TRUE, TRUE, FALSE),
   c("CART", "Classification and Regression Trees", TRUE, TRUE, TRUE),
   c("GAM", "Generalized Additive Model", TRUE, TRUE, FALSE),
   c("GLM", "Generalized Linear Model", TRUE, TRUE, FALSE),
   c("GLMNET", "Elastic Net", TRUE, TRUE, TRUE),
+  c("HAL", "Highly Adaptive Lasso", TRUE, TRUE, FALSE),
   c("Isotonic", "Isotonic Regression", TRUE, TRUE, FALSE),
+  c("KNN", "k-Nearest Neighbors", TRUE, TRUE, FALSE),
   c("LightCART", "Decision Tree", TRUE, TRUE, FALSE),
   c("LightGBM", "Gradient Boosting", TRUE, TRUE, FALSE),
   c("LightRF", "LightGBM Random Forest", TRUE, TRUE, FALSE),
@@ -42,6 +45,7 @@ colnames(supervised_algorithms) <- c(
 supervised_multiclass <- c(
   "GLMNET",
   "CART",
+  "KNN",
   "LightCART",
   "LightRF",
   "LightGBM",

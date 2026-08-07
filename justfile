@@ -6,8 +6,12 @@ pkg := `awk '/^Package:/{print $2; exit}' DESCRIPTION`
 r := env("R", "R")
 rscript := env("RSCRIPT", "Rscript")
 tarball_glob := pkg + "_*.tar.gz"
-# Working copy of the repo behind schema.rtemis.org, written by `just schemas`
-schema_repo := env("SCHEMA_REPO", "~/Schemas/schema")
+# Repos this package publishes into. No defaults: each is a working copy whose
+# location is a property of the machine, not of the package, so set them in the
+# environment (see __dev/ops.md). Recipes needing one fail naming it.
+schema_repo := env("SCHEMA_REPO", "")
+cli_repo := env("CLI_REPO", "")
+live_repo := env("LIVE_REPO", "")
 
 # List available recipes
 default:
@@ -15,6 +19,16 @@ default:
 
 _msg msg:
     @printf '\033[38;2;108;163;160m[%s] %s\033[0m\n' "$(date '+%Y-%m-%d %H:%M:%S')" "{{ msg }}"
+
+# Fail unless `path` names an existing directory, blaming the variable by name
+_need var path:
+    @if [ -z "{{ path }}" ]; then \
+        echo "   Error: {{ var }} is not set. Point it at your local checkout (see __dev/ops.md)."; \
+        exit 1; \
+    elif [ ! -d "{{ path }}" ]; then \
+        echo "   Error: {{ var }} is set to '{{ path }}', which is not a directory."; \
+        exit 1; \
+    fi
 
 # Format R code with air CLI (if available)
 format:
@@ -95,9 +109,67 @@ schemas-check:
 
 # Write schemas + defaults to the schema repo (publishing step; commit there separately)
 schemas repo=schema_repo:
+    @just _need SCHEMA_REPO "{{ repo }}"
     @just _msg "─── Generating schemas for {{ pkg }} into {{ repo }}... ───"
     {{ rscript }} data-raw/generate_schemas.R {{ repo }}
     {{ rscript }} data-raw/generate_defaults.R {{ repo }}
+    @just _msg "Done"
+
+# Generate schemas and refresh the registry index; stops before the commit
+publish-schemas: schemas
+    @just _msg "─── Indexing {{ schema_repo }}... ───"
+    cd "{{ schema_repo }}" && just index && just check
+    @git -C "{{ schema_repo }}" status --short
+    @just _msg "Review the diff above, then commit and push - the push is the deploy:"
+    @echo "   git -C '{{ schema_repo }}' add -A && git -C '{{ schema_repo }}' commit -m 'add <Alg>' && git -C '{{ schema_repo }}' push"
+    @echo "   just publish-status <alg>    # confirm it is live, then: just publish-downstream"
+
+# Report where an algorithm stands in the publish chain (read-only)
+publish-status alg:
+    @just _msg "─── Publish status for {{ alg }} ───"
+    @alg=$(printf '%s' "{{ alg }}" | tr '[:upper:]' '[:lower:]'); \
+    case "$alg" in \
+        *[!a-z0-9_-]*|'') \
+            echo "  Algorithm name must be alphanumeric, '_' or '-': got '{{ alg }}'" >&2; \
+            exit 1;; \
+    esac; \
+    report() { printf '  %-18s %s\n' "$1" "$2"; }; \
+    verdict() { if [ "$1" -eq 0 ]; then echo "$2"; else echo "$3"; fi; }; \
+    dir_state() { if [ -n "$1" ] && [ -d "$2" ]; then return 0; else return 1; fi; }; \
+    grep_state() { if [ -n "$1" ] && grep -qF "$2" "$3" 2>/dev/null; then return 0; else return 1; fi; }; \
+    dir_state "{{ schema_repo }}" "{{ schema_repo }}/hyperparameters/$alg"; \
+    report "schema repo" "$(verdict $? 'written' 'missing - run: just schemas')"; \
+    grep_state "{{ schema_repo }}" "hyperparameters/$alg/" "{{ schema_repo }}/index.json"; \
+    report "local index" "$(verdict $? 'listed' 'NOT LISTED - run: just publish-schemas')"; \
+    curl -fsSL https://schema.rtemis.org/index.json 2>/dev/null | grep -qF "hyperparameters/$alg/"; \
+    report "deployed" "$(verdict $? 'live' 'NOT DEPLOYED - commit + push in the schema repo')"; \
+    dir_state "{{ cli_repo }}" "{{ cli_repo }}/rtemis-cli/schemas/hyperparameters/$alg"; \
+    report "cli schemas" "$(verdict $? 'vendored' 'missing - run: just publish-downstream')"; \
+    grep_state "{{ cli_repo }}" "hyperparameters/$alg/" "{{ cli_repo }}/rtemis-cli/defaults/defaults.json"; \
+    report "cli defaults" "$(verdict $? 'current' 'STALE - defaults are not refreshed by sync-schemas')"; \
+    dir_state "{{ live_repo }}" "{{ live_repo }}/src/lib/rtemislive/schemas/hyperparameters/$alg"; \
+    report "live schemas" "$(verdict $? 'vendored' 'missing - run: just publish-downstream')"
+    @echo "   A running rtemis.server holds the rtemis it loaded at startup; restart it to pick this up."
+
+# Vendor the deployed schemas into the CLI and live, and rebuild
+publish-downstream:
+    @just _need SCHEMA_REPO "{{ schema_repo }}"
+    @just _need CLI_REPO "{{ cli_repo }}"
+    @just _need LIVE_REPO "{{ live_repo }}"
+    @just _msg "─── Vendoring into {{ live_repo }}... ───"
+    cd "{{ live_repo }}" && pnpm sync:schemas && pnpm check:schemas && pnpm test
+    @just _msg "─── Vendoring into {{ cli_repo }}... ───"
+    cd "{{ cli_repo }}" && just sync-schemas
+    cp "{{ schema_repo }}/defaults/v1/defaults.json" "{{ cli_repo }}/rtemis-cli/defaults/defaults.json"
+    cd "{{ cli_repo }}" && just fbi
+    @just _msg "─── Checking {{ cli_repo }} ───"
+    @cd "{{ cli_repo }}" && just check || { \
+        echo ""; \
+        echo "   If the embedded-schema count assert failed, that is the tripwire working:"; \
+        echo "   a new algorithm adds one input and one record schema, so raise both counts"; \
+        echo "   in rtemis-cli/src/lib.rs by 1 and re-run. Do not loosen the assert."; \
+        exit 1; \
+    }
     @just _msg "Done"
 
 # Build the source tarball
