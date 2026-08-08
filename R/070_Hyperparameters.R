@@ -2764,7 +2764,7 @@ TabNetHyperparameters <- new_class(
 #' tabnet_hyperparams <- setup_TabNet(epochs = 100L, learn_rate = 0.01)
 #' tabnet_hyperparams
 setup_TabNet <- function(
-  batch_size = 1048576L, # 1024^2
+  batch_size = 500L,
   penalty = 0.001,
   clip_value = NULL,
   loss = "auto",
