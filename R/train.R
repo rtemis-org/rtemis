@@ -60,7 +60,7 @@ resolve_weights_column <- function(datasets, column) {
     if (is.null(dataset) || !column %in% names(dataset)) {
       return(dataset)
     }
-    dataset[, setdiff(names(dataset), column), drop = FALSE]
+    exc(dataset, column)
   })
   list(datasets = datasets, weights = as.numeric(weights))
 } # /rtemis::resolve_weights_column
