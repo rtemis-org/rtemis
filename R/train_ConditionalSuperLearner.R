@@ -76,11 +76,12 @@ csl_extended_weights <- function(loss) {
 # %% csl_extended_data ----
 #' The extended dataset: each case once per expert, labelled by expert
 #'
-#' @param feat data.frame: Features.
+#' @param feat Tabular data: Features.
 #' @param experts Character: Expert names, in the column order of the weights.
 #' @param label Character: Name for the outcome column.
 #'
-#' @return data.frame with `feat` stacked K times and the expert label last.
+#' @return Tabular data of the same class as `feat`, stacked K times with the
+#'   expert label last.
 #'
 #' @author EDG
 #' @keywords internal
@@ -195,9 +196,6 @@ method(train_, ConditionalSuperLearnerHyperparameters) <- function(
 
   # Data ----
   check_supervised(x = x, allow_missing = TRUE, verbosity = verbosity)
-  # Indexing below is by row number and column name throughout, which a
-  # data.table's `[` reads differently.
-  x <- as.data.frame(x)
   outcome_info <- meta_outcome(x, hyperparameters@algorithm)
   type <- outcome_info[["type"]]
   y_numeric <- outcome_info[["y_numeric"]]
@@ -252,7 +250,6 @@ method(train_, ConditionalSuperLearnerHyperparameters) <- function(
   # same way at every iteration.
   cv_predict <- function(regions, previous) {
     predictions <- previous
-    kept <- previous
     fold_models <- vector("list", n_folds)
     for (v in seq_len(n_folds)) {
       test_rows <- holdout[[v]]
@@ -345,7 +342,7 @@ method(train_, ConditionalSuperLearnerHyperparameters) <- function(
     oracle <- meta_fit(
       hyperparameters@meta_learner,
       csl_extended_data(
-        x[, feature_names, drop = FALSE],
+        inc(x, feature_names),
         experts,
         oracle_label
       ),
@@ -355,7 +352,7 @@ method(train_, ConditionalSuperLearnerHyperparameters) <- function(
     )
     assignments <- csl_oracle_assign(
       oracle,
-      x[, feature_names, drop = FALSE],
+      inc(x, feature_names),
       verbosity = verbosity - 2L
     )
     # The paper's objective, read off the cross-validated losses the oracle was
@@ -484,10 +481,9 @@ method(predict_super, ConditionalSuperLearner) <- function(
   verbosity = 0L
 ) {
   check_inherits(newdata, "data.frame")
-  newdata <- as.data.frame(newdata)
   assignments <- csl_oracle_assign(
     model@oracle,
-    newdata[, model@xnames, drop = FALSE],
+    inc(newdata, model@xnames),
     verbosity = verbosity - 1L
   )
   predicted <- numeric(NROW(newdata))

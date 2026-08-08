@@ -120,9 +120,6 @@ method(train_, StackedLearnerHyperparameters) <- function(
 
   # Data ----
   check_supervised(x = x, allow_missing = TRUE, verbosity = verbosity)
-  # Indexing below is by row number and column name throughout, which a
-  # data.table's `[` reads differently.
-  x <- as.data.frame(x)
   outcome_info <- meta_outcome(x, hyperparameters@algorithm)
   n_cases <- NROW(x)
 
@@ -220,8 +217,8 @@ method(train_, StackedLearnerHyperparameters) <- function(
       verbosity = verbosity
     )
   } else {
-    dat_meta <- as.data.frame(level_one)
-    dat_meta[[names(x)[NCOL(x)]]] <- outcome_info[["y"]]
+    dat_meta <- as.data.table(level_one)
+    set(dat_meta, j = outcome_name(x), value = outcome_info[["y"]])
     meta_node <- node_enter(
       "meta_learner",
       label = hyperparameters@meta_learner@algorithm
@@ -293,7 +290,7 @@ method(predict_super, StackedLearner) <- function(
   level_one <- level_one_matrix(
     model@base_models,
     model@entry_features,
-    as.data.frame(newdata),
+    newdata,
     verbosity = verbosity - 1L
   )
   if (!is.null(model@discrete_winner)) {
@@ -301,7 +298,7 @@ method(predict_super, StackedLearner) <- function(
   }
   meta_predict(
     model@meta_model,
-    as.data.frame(level_one),
+    as.data.table(level_one),
     verbosity = verbosity - 1L
   )
 } # /rtemis::predict_super.StackedLearner

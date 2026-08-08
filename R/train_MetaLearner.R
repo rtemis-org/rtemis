@@ -142,18 +142,20 @@ meta_outcome <- function(x, algorithm) {
 #' Rows for a resample, columns for a feature group, and the outcome last, which
 #' is the layout every rtemis learner expects.
 #'
-#' @param x data.frame: Training set, outcome last.
+#' @param x Tabular data: Training set, outcome last.
 #' @param rows Integer vector: Rows to keep.
 #' @param columns Character: Features to keep.
 #'
-#' @return data.frame.
+#' @return Tabular data of the same class as `x`.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 meta_subset <- function(x, rows, columns) {
-  outcome_nm <- names(x)[NCOL(x)]
-  x[rows, c(columns, outcome_nm), drop = FALSE]
+  # `inc()` selects columns for whichever tabular class `x` is; row selection
+  # then leaves `j` empty, which every class reads the same way. `drop = FALSE`
+  # keeps a single-feature group a frame rather than a bare vector.
+  inc(x, c(columns, outcome_name(x)))[rows, , drop = FALSE]
 } # /rtemis::meta_subset
 
 
@@ -163,17 +165,17 @@ meta_subset <- function(x, rows, columns) {
 #' `columns` is always explicit, so this reads the same whether `x` carries an
 #' outcome column (training) or not (prediction).
 #'
-#' @param x data.frame: Data holding at least `columns`.
+#' @param x Tabular data: Data holding at least `columns`.
 #' @param rows Integer vector: Rows to keep.
 #' @param columns Character: Features to keep.
 #'
-#' @return data.frame.
+#' @return Tabular data of the same class as `x`.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 meta_features <- function(x, rows, columns) {
-  x[rows, columns, drop = FALSE]
+  inc(x, columns)[rows, , drop = FALSE]
 } # /rtemis::meta_features
 
 
