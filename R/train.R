@@ -2,6 +2,94 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
+# %% resolve_weights_column ----
+#' Split a config's named weights column out of the data
+#'
+#' A config is a recipe over a data *path*, so it names the column holding the
+#' case weights rather than carrying their values. Training takes the values as a
+#' vector and expects the frame to hold features and the outcome only, so the
+#' column is read out here and dropped -- from the validation and test sets too,
+#' whose columns have to match the training features. Only the training set's
+#' values are returned: weights apply to fitting.
+#'
+#' @param datasets Named list of tabular data or NULL: the training, validation
+#'   and test sets, training first.
+#' @param column Character or NULL: Name of the weights column.
+#'
+#' @return Named list with `datasets` (the same list, column removed) and
+#'   `weights` (numeric vector, or NULL when `column` is NULL).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+resolve_weights_column <- function(datasets, column) {
+  if (is.null(column)) {
+    return(list(datasets = datasets, weights = NULL))
+  }
+  training <- datasets[[1L]]
+  if (!column %in% names(training)) {
+    rtemis.core::abort(
+      "`weights` names column '",
+      column,
+      "', which the training data does not have. Columns: ",
+      paste(names(training), collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  if (identical(column, names(training)[[NCOL(training)]])) {
+    rtemis.core::abort(
+      "`weights` names column '",
+      column,
+      "', which is the outcome (the last column).",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  weights <- training[[column]]
+  if (!is.numeric(weights)) {
+    rtemis.core::abort(
+      "Weights column '",
+      column,
+      "' must be numeric, not ",
+      class(weights)[[1L]],
+      ".",
+      class = c("rtemis_type_error", "rtemis_data_error")
+    )
+  }
+  datasets <- lapply(datasets, function(dataset) {
+    if (is.null(dataset) || !column %in% names(dataset)) {
+      return(dataset)
+    }
+    dataset[, setdiff(names(dataset), column), drop = FALSE]
+  })
+  list(datasets = datasets, weights = as.numeric(weights))
+} # /rtemis::resolve_weights_column
+
+
+# %% restore_weights_column ----
+#' Put a config's weights column name back on a fitted model's input config
+#'
+#' A config dispatch resolves the named column to a vector before recursing, and
+#' the recursive call records what it was given -- a vector, which no config can
+#' express, so it records nothing. This restores the name, so the model's input
+#' config says what the user actually asked for.
+#'
+#' @param model `Supervised` or `SupervisedRes` object.
+#' @param column Character or NULL: Name of the weights column.
+#'
+#' @return `model`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+restore_weights_column <- function(model, column) {
+  if (!is.null(column) && !is.null(model@config)) {
+    model@config@weights <- column
+  }
+  model
+} # /rtemis::restore_weights_column
+
+
 # %% train ----
 #' Train Supervised Learning Models
 #'
@@ -149,11 +237,15 @@ train <- function(
 ) {
   # SuperConfigLive dispatch ----
   if (S7_inherits(x, SuperConfigLive)) {
+    resolved <- resolve_weights_column(
+      list(x@dat_training, x@dat_validation, x@dat_test),
+      x@weights
+    )
     train_args <- list(
-      x = x@dat_training,
-      dat_validation = x@dat_validation,
-      dat_test = x@dat_test,
-      weights = x@weights,
+      x = resolved[["datasets"]][[1L]],
+      dat_validation = resolved[["datasets"]][[2L]],
+      dat_test = resolved[["datasets"]][[3L]],
+      weights = resolved[["weights"]],
       preprocessor_config = x@preprocessor_config,
       decomposition_config = x@decomposition_config,
       hyperparameters = x@hyperparameters,
@@ -170,7 +262,7 @@ train <- function(
     if (!is.null(x@positive_class)) {
       train_args[["positive_class"]] <- x@positive_class
     }
-    return(do.call(train, train_args))
+    return(restore_weights_column(do.call(train, train_args), x@weights))
   } # / train.SuperConfigLive
 
   # SuperConfig dispatch ----
@@ -197,11 +289,15 @@ train <- function(
       NULL
     }
     # Call train() with data and other parameters from config
+    resolved <- resolve_weights_column(
+      list(dat_training, dat_validation, dat_test),
+      x@weights
+    )
     train_args <- list(
-      x = dat_training,
-      dat_validation = dat_validation,
-      dat_test = dat_test,
-      weights = x@weights,
+      x = resolved[["datasets"]][[1L]],
+      dat_validation = resolved[["datasets"]][[2L]],
+      dat_test = resolved[["datasets"]][[3L]],
+      weights = resolved[["weights"]],
       preprocessor_config = x@preprocessor_config,
       decomposition_config = x@decomposition_config,
       hyperparameters = x@hyperparameters,
@@ -218,7 +314,7 @@ train <- function(
     if (!is.null(x@positive_class)) {
       train_args[["positive_class"]] <- x@positive_class
     }
-    return(do.call(train, train_args))
+    return(restore_weights_column(do.call(train, train_args), x@weights))
   } # / train.SuperConfig
 
   # Checks ----
@@ -252,7 +348,12 @@ train <- function(
   # `dat_training_path` stays unset for an in-memory run -- data identity is the
   # provenance block's `DataFingerprint`, not a path.
   input_config <- setup_SuperConfig(
-    weights = weights,
+    # `SuperConfig` is a portable recipe over a data *path*, so it names a
+    # weights column rather than carrying the values; `weights` here is the
+    # vector itself, which has no place in such a document. The field is
+    # therefore left unset, and a weighted run is identifiable from its
+    # `DataFingerprint` rather than from this block.
+    weights = NULL,
     preprocessor_config = preprocessor_config,
     decomposition_config = decomposition_config,
     hyperparameters = hyperparameters,

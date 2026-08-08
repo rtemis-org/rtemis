@@ -32,15 +32,12 @@ never seen. Accepting it would silently pin settings the new call should
 decide for itself. Records are written by \link{write_record} and identify
 themselves with a \code{record.json} schema.
 
-When the \code{rtemis} CLI is on the \code{PATH}, the file is additionally validated
-against its vendored schema.rtemis.org JSON Schema before reconstruction, so
-structural problems (unknown fields, wrong nesting, missing required values)
-are caught up front with schema-path errors. Without the CLI, the \verb{setup_*}
-functions remain the backstop, validating field values during reconstruction.
-Control this with \code{options(rtemis.validate = )}: \code{"auto"} (default) uses the
-CLI when present and skips it otherwise, \code{"always"} errors if the CLI is
-missing, \code{"never"} skips the gate. The CLI binary can be overridden with
-\code{options(rtemis.cli = )}.
+Validation is entirely rtemis's own: \code{check_wire_keys()} rejects an unknown
+key at every level of the document, and each \verb{setup_*} then constructs an S7
+object whose properties enforce their declared types, bounds, enums and
+arities. Those properties are the same \code{PropertySpec}s the published JSON
+Schemas are generated from, so reading a config in R applies the published
+contract by construction -- there is nothing an external validator could add.
 }
 \examples{
 # Create a SuperConfig object

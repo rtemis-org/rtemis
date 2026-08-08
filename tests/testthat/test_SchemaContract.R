@@ -80,7 +80,14 @@
     list(KNNHyperparameters, "setup_KNN"),
     list(BARTHyperparameters, "setup_BART"),
     list(HALHyperparameters, "setup_HAL"),
-    list(MonotonicHALHyperparameters, "setup_MonotonicHAL")
+    list(MonotonicHALHyperparameters, "setup_MonotonicHAL"),
+    list(NNLSHyperparameters, "setup_NNLS"),
+    list(SuperLearnerHyperparameters, "setup_SuperLearner"),
+    list(ModalityStackingHyperparameters, "setup_ModalityStacking"),
+    list(
+      ConditionalSuperLearnerHyperparameters,
+      "setup_ConditionalSuperLearner"
+    )
   ),
   .contract_family(
     NULL,
@@ -424,5 +431,52 @@ test_that("the registry declares no conditional demand for a key", {
         ": a `then` may constrain a value but may not demand a key."
       )
     )
+  }
+})
+
+
+# %% Records satisfy the schemas generated from the same classes ------------
+# This is the check the `rtemis` CLI used to run at write time, moved to where
+# it belongs. A record and its schema are generated from one set of property
+# declarations, so the two disagreeing is a bug in rtemis -- and a bug in rtemis
+# is a test failure, not something to discover on a user's machine via whatever
+# binary happens to be on their PATH. Run against freshly generated schemas, it
+# also cannot go stale.
+#
+# It is `config_record()` that drifts: it decides which properties a record
+# carries and must subtract the same family base the generator does. A class
+# with an intermediate ancestor is where that goes wrong.
+test_that("a record carries exactly the keys its record schema requires", {
+  for (entry in .contract_classes) {
+    cls <- entry[["cls"]]
+    setup <- get(entry[["setup"]], envir = asNamespace("rtemis"))
+    object <- setup()
+    # A shared `setup_*` builds one variant of its family (`setup_Resampler()`
+    # returns a KFoldConfig), so only the variant it actually builds is checked
+    # here; the others are covered by the schema-shape tests above.
+    if (!S7_inherits(object, cls)) {
+      next
+    }
+    required <- as.character(.contract_schema(entry, record = TRUE)[[
+      "required"
+    ]])
+    expect_setequal(names(config_record(object, object)), required)
+  }
+})
+
+
+test_that("a meta learner's record nests one block per library entry", {
+  # `base_learners` is a list of S7 objects, which `config_record()` has to
+  # recognize as a third kind of property: not flat, not a single nested config.
+  # Serialized flat it would carry no per-entry `origin`, which every `$ref`d
+  # block requires.
+  hyperparameters <- setup_SuperLearner(
+    base_learners = list(setup_GLM(), setup_CART())
+  )
+  entries <- config_record(hyperparameters, hyperparameters)[["base_learners"]]
+  expect_named(entries, c("GLM", "CART"))
+  for (entry in entries) {
+    expect_named(entry, c("algorithm", "hyperparameters"))
+    expect_true("origin" %in% names(entry[["hyperparameters"]]))
   }
 })

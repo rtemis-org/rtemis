@@ -95,6 +95,7 @@ for (family in names(families)) {
         # A leaf is nested under its dispatcher, which carries the block.
         extra = algo[["extra"]],
         refs = algo[["refs"]],
+        array_refs = algo[["array_refs"]],
         closed = !top_level
       )
       if (kind == "schema") {

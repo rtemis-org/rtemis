@@ -99,7 +99,11 @@ test_that("setup_LightRF() succeeds", {
   KNN = KNNHyperparameters,
   BART = BARTHyperparameters,
   HAL = HALHyperparameters,
-  MonotonicHAL = MonotonicHALHyperparameters
+  MonotonicHAL = MonotonicHALHyperparameters,
+  NNLS = NNLSHyperparameters,
+  SuperLearner = SuperLearnerHyperparameters,
+  ModalityStacking = ModalityStackingHyperparameters,
+  ConditionalSuperLearner = ConditionalSuperLearnerHyperparameters
 )
 
 test_that("setup_* defaults do not drift from the property defaults", {
@@ -773,4 +777,230 @@ test_that("a gated grid combination updates the search object to NULL", {
 
   open <- grid[grid[["smoothness_orders"]] == 0L, , drop = FALSE]
   expect_identical(update(hyperparameters, as.list(open))@reduce_basis, 0.1)
+})
+
+
+# Meta learners ----
+test_that("the meta learner superclasses are abstract", {
+  # They hold what their subclasses share and anchor `train_()`; neither names
+  # an algorithm, so neither is a thing a user can train.
+  expect_error(MetaLearnerHyperparameters())
+  expect_error(StackedLearnerHyperparameters())
+})
+
+
+test_that("a leaf's schema declares every property it inherits", {
+  # `S7_to_JSONSchema()` subtracts the *family* base, so a class three levels
+  # down must still publish what the intermediate classes gave it. Anything that
+  # subtracts `cls@parent` instead would silently drop these.
+  schema <- S7_to_JSONSchema(
+    SuperLearnerHyperparameters,
+    id = "https://example.org/superlearner/v1/schema.json",
+    base = Hyperparameters,
+    # The config-valued properties carry no spec: each publishes its own schema,
+    # as `data-raw/schema_registry.R` declares.
+    refs = c(
+      meta_learner = "https://example.org/hyperparameters/v1/schema.json",
+      inner_resampling_config = "https://example.org/resampler/v1/schema.json"
+    ),
+    array_refs = c(
+      base_learners = "https://example.org/hyperparameters/v1/schema.json"
+    )
+  )
+  expect_named(
+    schema[["properties"]],
+    c(
+      "base_learners",
+      "meta_learner",
+      "inner_resampling_config",
+      "expand_search_spaces",
+      "ifw",
+      "discrete"
+    ),
+    ignore.order = TRUE
+  )
+})
+
+
+test_that("SuperLearner declares no feature_groups at all", {
+  # It is meaningless for van der Laan's method, so rather than being declared
+  # and forbidden it is simply absent -- and so absent from the schema too.
+  expect_false(
+    "feature_groups" %in% names(SuperLearnerHyperparameters@properties)
+  )
+  expect_true(
+    "feature_groups" %in% names(ModalityStackingHyperparameters@properties)
+  )
+})
+
+
+test_that("a library needs at least two uniquely, syntactically named learners", {
+  expect_error(setup_SuperLearner(base_learners = list(setup_GLM())))
+  expect_error(setup_SuperLearner(
+    base_learners = list(a = setup_GLM(), a = setup_CART())
+  ))
+  # Names become column names of the level-one data.
+  expect_error(setup_SuperLearner(
+    base_learners = list(`my learner` = setup_GLM(), b = setup_CART())
+  ))
+  # Not `Hyperparameters` objects.
+  expect_error(setup_SuperLearner(base_learners = list(a = "GLM", b = "CART")))
+})
+
+
+test_that("unnamed base learners are named after their algorithm", {
+  hyperparameters <- setup_SuperLearner(
+    base_learners = list(setup_GLM(), setup_CART(), setup_GLM())
+  )
+  expect_identical(
+    names(hyperparameters@base_learners),
+    c("GLM", "CART", "GLM_2")
+  )
+})
+
+
+test_that("ModalityStacking broadcasts one learner across the groups", {
+  hyperparameters <- setup_ModalityStacking(
+    feature_groups = list(a = "x", b = "y"),
+    base_learners = setup_GLM()
+  )
+  expect_identical(names(hyperparameters@base_learners), c("a", "b"))
+  expect_identical(hyperparameters@base_learners[["a"]]@algorithm, "GLM")
+})
+
+
+test_that("a meta learner rejects a resampler that does not partition", {
+  dat <- data.frame(a = rnorm(30), b = rnorm(30), y = rnorm(30))
+  # Bootstrap leaves some cases in no held-out set, so they would have no
+  # cross-validated prediction at all.
+  expect_error(
+    validate_hyperparameters(
+      setup_SuperLearner(
+        inner_resampling_config = setup_Resampler(type = "Bootstrap")
+      ),
+      dat
+    ),
+    class = "rtemis_value_error"
+  )
+  expect_silent(validate_hyperparameters(setup_SuperLearner(), dat))
+})
+
+
+test_that("ModalityStacking checks its groups against the data", {
+  dat <- data.frame(a = rnorm(30), b = rnorm(30), y = rnorm(30))
+  learners <- list(g1 = setup_GLM(), g2 = setup_CART())
+  # Required, but only once there is data to name columns in: a config is a
+  # partial expression of intent until then.
+  expect_s7_class(setup_ModalityStacking(), ModalityStackingHyperparameters)
+  expect_error(
+    validate_hyperparameters(
+      setup_ModalityStacking(base_learners = learners),
+      dat
+    ),
+    class = "rtemis_null_input"
+  )
+  expect_error(
+    validate_hyperparameters(
+      setup_ModalityStacking(
+        feature_groups = list(g1 = "a", g2 = "nope"),
+        base_learners = learners
+      ),
+      dat
+    ),
+    class = "rtemis_value_error"
+  )
+  # Groups must name the same learners as the library.
+  expect_error(
+    validate_hyperparameters(
+      setup_ModalityStacking(
+        feature_groups = list(g1 = "a", other = "b"),
+        base_learners = learners
+      ),
+      dat
+    ),
+    class = "rtemis_value_error"
+  )
+  expect_silent(validate_hyperparameters(
+    setup_ModalityStacking(
+      feature_groups = list(g1 = "a", g2 = "b"),
+      base_learners = learners
+    ),
+    dat
+  ))
+})
+
+
+test_that("the Conditional SuperLearner needs a multiclass-capable oracle", {
+  dat <- data.frame(a = rnorm(30), b = rnorm(30), y = rnorm(30))
+  three <- list(setup_GLM(), setup_CART(), setup_Ranger())
+  # GLM is binary-only, and with 3 experts the oracle has 3 classes.
+  expect_error(
+    validate_hyperparameters(
+      setup_ConditionalSuperLearner(
+        base_learners = three,
+        meta_learner = setup_GLM()
+      ),
+      dat
+    ),
+    class = "rtemis_unsupported_error"
+  )
+  expect_silent(validate_hyperparameters(
+    setup_ConditionalSuperLearner(base_learners = three),
+    dat
+  ))
+  # Two experts make it a binary problem, which GLM can do.
+  expect_silent(validate_hyperparameters(
+    setup_ConditionalSuperLearner(
+      base_learners = list(setup_GLM(), setup_CART()),
+      meta_learner = setup_GLM()
+    ),
+    dat
+  ))
+})
+
+
+test_that("a search space becomes one library entry per combination", {
+  # van der Laan's `create.Learner()`: the candidates are separate library
+  # members and the ensemble's own cross-validation chooses between them.
+  hyperparameters <- setup_SuperLearner(
+    base_learners = list(
+      setup_GLM(),
+      setup_CART(maxdepth = c(2L, 4L, 6L))
+    )
+  )
+  expanded <- expand_library(hyperparameters)
+  expect_identical(
+    names(expanded[["learners"]]),
+    c("GLM", "CART_1", "CART_2", "CART_3")
+  )
+  expect_identical(
+    vapply(
+      expanded[["learners"]][-1L],
+      function(h) h[["maxdepth"]],
+      integer(1L)
+    ),
+    c(CART_1 = 2L, CART_2 = 4L, CART_3 = 6L)
+  )
+  # Every entry maps back to the learner it came from, so a feature group
+  # follows its learner through expansion.
+  expect_identical(
+    unname(expanded[["origin"]]),
+    c("GLM", "CART", "CART", "CART")
+  )
+  # Off, the learner is left whole and `train()` tunes it by inner resampling.
+  hyperparameters@expand_search_spaces <- FALSE
+  expect_identical(
+    names(expand_library(hyperparameters)[["learners"]]),
+    c("GLM", "CART")
+  )
+})
+
+
+test_that("a learner that tunes itself is not expanded", {
+  # GLMNET with `lambda` unset has no search space: `cv.glmnet` resolves it
+  # internally, which is a library member's own business.
+  expanded <- expand_library(setup_SuperLearner(
+    base_learners = list(setup_GLM(), setup_GLMNET())
+  ))
+  expect_identical(names(expanded[["learners"]]), c("GLM", "GLMNET"))
 })

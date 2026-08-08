@@ -8,6 +8,8 @@ CLI
 CMD
 CMeansConfig
 ClusterConfig
+ConditionalSuperLearner
+ConditionalSuperLearnerHyperparameters
 DBSCANConfig
 DTA
 DecomposeConfig
@@ -27,6 +29,7 @@ HardCLConfig
 ICA
 ICAConfig
 IFW
+Interian
 Isomap
 IsomapConfig
 Isotonic
@@ -36,6 +39,7 @@ KMeansConfig
 KNN
 KNNHyperparameters
 LOOCV
+Laan
 LightCART
 LightCARTHyperparameters
 LightGBM
@@ -50,12 +54,17 @@ MIDPT
 Makefile
 MassGLM
 MathJax
+MetaLearner
 Minkowski
+ModalityStacking
+ModalityStackingHyperparameters
 MonotonicHAL
 MonotonicHALHyperparameters
 NCOL
 NMF
 NMFConfig
+NNLS
+NNLSHyperparameters
 NROW
 NTSC
 NeuralGasConfig
@@ -65,6 +74,7 @@ PCAConfig
 PTM
 PTMs
 Parallelization
+Polley
 Preformatted
 Preprocess
 Preprocessor
@@ -86,6 +96,8 @@ StratBoot
 StratSub
 SuperConfig
 SuperConfigLive
+SuperLearner
+SuperLearnerHyperparameters
 SupervisedRes
 TabNet
 TabNetHyperparameters
@@ -96,12 +108,15 @@ UMAP
 UMAPConfig
 UMX
 UniProt
+Valdes
 WASM
 XLSX
 Zeitgeber
 Zerolines
 anova
 arg
+arities
+arity
 auc
 betweenness
 bonferroni
@@ -109,9 +124,9 @@ bottomleft
 bottomright
 cdn
 cholmod
-cloglog
 choropleth
 cli
+cloglog
 cmeans
 colorbar
 colorscale
@@ -125,6 +140,7 @@ darkgraygrid
 dashdot
 decomp
 delim
+der
 deserialization
 df
 dh
@@ -199,6 +215,7 @@ multiclass
 na
 nanoparquet
 nd
+nnls
 nrounds
 num
 nv
@@ -262,6 +279,8 @@ translational
 triweight
 ufcl
 unscorable
+validator
+validators
 vendored
 vh
 vhv

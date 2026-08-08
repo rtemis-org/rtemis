@@ -17,6 +17,14 @@
 # Schema `$id` for a family's top-level schema, used by `refs` entries below.
 .url <- function(family) paste0(base_url, "/", family, "/v1/schema.json")
 
+# Every meta learner holds a library of other learners and one learner to combine
+# them, so its leaf references the hyperparameters family it is itself part of.
+.meta_learner_refs <- c(
+  meta_learner = .url("hyperparameters"),
+  inner_resampling_config = .url("resampler")
+)
+.meta_learner_array_refs <- c(base_learners = .url("hyperparameters"))
+
 
 families <- list(
   decomposition = list(
@@ -231,6 +239,31 @@ families <- list(
       list(
         cls = MonotonicHALHyperparameters,
         desc = "Monotonic Highly Adaptive Lasso (hal9001). See `setup_MonotonicHAL`."
+      ),
+      list(
+        cls = NNLSHyperparameters,
+        desc = "Non-negative least squares (nnls). See `setup_NNLS`."
+      ),
+      # The meta learners hold other hyperparameters, so their leaves reference
+      # this same family -- a recursive schema, which is valid but which a form
+      # builder must bound. See plan/superlearner.md gap 5.
+      list(
+        cls = SuperLearnerHyperparameters,
+        desc = "SuperLearner: cross-validated stacked ensemble. See `setup_SuperLearner`.",
+        refs = .meta_learner_refs,
+        array_refs = .meta_learner_array_refs
+      ),
+      list(
+        cls = ModalityStackingHyperparameters,
+        desc = "ModalityStacking: stacked ensemble with one learner per feature group. See `setup_ModalityStacking`.",
+        refs = .meta_learner_refs,
+        array_refs = .meta_learner_array_refs
+      ),
+      list(
+        cls = ConditionalSuperLearnerHyperparameters,
+        desc = "Conditional SuperLearner: an oracle routes each case to one of a library of experts. See `setup_ConditionalSuperLearner`.",
+        refs = .meta_learner_refs,
+        array_refs = .meta_learner_array_refs
       )
     )
   )

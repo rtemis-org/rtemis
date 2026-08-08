@@ -85,15 +85,21 @@ config_record <- function(input, resolved) {
   # `base`, so it is subtracted here too. `serializable_props()` is the wrong
   # level -- for a family it returns the wire shape (`{algorithm, config}`),
   # while a leaf record declares the flat fields inside it.
-  base <- if (identical(cls@parent@name, "S7_object")) NULL else cls@parent
+  base <- family_base(cls)
   names_ <- record_names(cls, base)
   props <- cls@properties
   # A config-valued property is a record in its own right -- a
   # `GridSearchConfig` holds a `ResamplerConfig` -- so it is built recursively
   # and left out of this block's `origin`, which the schema does too: it
-  # carries its own.
+  # carries its own. A *list* of them (a meta learner's `base_learners`) is
+  # published as an array of `$ref`s and gets one record per element, for the
+  # same reason.
   nested <- Filter(function(nm) S7_inherits(prop(resolved, nm)), names_)
-  flat <- setdiff(names_, nested)
+  nested_list <- Filter(
+    function(nm) is_S7_list(prop(resolved, nm)),
+    setdiff(names_, nested)
+  )
+  flat <- setdiff(names_, c(nested, nested_list))
 
   values <- lapply(flat, function(nm) {
     S7_to_list(wire_value(prop(resolved, nm), props[[nm]]))
@@ -126,10 +132,78 @@ config_record <- function(input, resolved) {
     )
   })
   names(sub) <- nested
+
+  # Each element paired with the element the input held under the same name, so
+  # a library entry the user supplied and one the run added read differently.
+  # Positional pairing would misattribute after an insertion; names are what the
+  # library is keyed by.
+  sub_lists <- lapply(nested_list, function(nm) {
+    given <- if (is.null(input)) NULL else prop(input, nm)
+    resolved_list <- prop(resolved, nm)
+    out <- lapply(names(resolved_list), function(entry) {
+      nested_record(given[[entry]], resolved_list[[entry]])
+    })
+    names(out) <- names(resolved_list)
+    out
+  })
+  names(sub_lists) <- nested_list
+
   # Declaration order, so a record reads like the class it describes.
-  out <- c(values, sub)[intersect(names_, c(flat, nested))]
+  out <- c(values, sub, sub_lists)[names_]
   c(out, list(origin = origin))
 } # /rtemis::config_record
+
+
+# %% is_S7_list ----
+#' Is this a non-empty list whose every element is an S7 object?
+#'
+#' The test for a property published as an array of `$ref`s. Requires *every*
+#' element to be S7: a mixed list is not a shape any schema declares, and
+#' treating it as one would silently drop the non-S7 elements from the record.
+#'
+#' @param x Any value.
+#'
+#' @return Logical.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+is_S7_list <- function(x) {
+  is.list(x) && length(x) > 0L && all(vapply(x, S7_inherits, logical(1L)))
+} # /rtemis::is_S7_list
+
+
+# %% family_base ----
+#' The base class of a config object's family
+#'
+#' The topmost ancestor below `S7_object`: `Hyperparameters` for
+#' `SuperLearnerHyperparameters`, `ResamplerConfig` for `KFoldConfig`, NULL for a
+#' flat config that has no family.
+#'
+#' Must be the *family* base, not `cls@parent`: `S7_to_JSONSchema()` subtracts
+#' the family base from every leaf, so a class with an intermediate ancestor
+#' (`SuperLearnerHyperparameters` sits under `StackedLearnerHyperparameters`
+#' under `MetaLearnerHyperparameters`) would otherwise have the intermediate's
+#' properties in its schema but not in its record, and the record would fail
+#' validation against the schema generated from the same class.
+#'
+#' @param cls S7 class.
+#'
+#' @return S7 class, or NULL when `cls` has no parent but `S7_object`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+family_base <- function(cls) {
+  base <- cls@parent
+  if (is.null(base) || identical(base@name, "S7_object")) {
+    return(NULL)
+  }
+  while (!is.null(base@parent) && !identical(base@parent@name, "S7_object")) {
+    base <- base@parent
+  }
+  base
+} # /rtemis::family_base
 
 
 # %% record_values ----
