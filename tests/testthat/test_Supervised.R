@@ -3216,6 +3216,85 @@ test_that("ModalityStacking predicts on new data", {
 })
 
 
+## {ModalityStacking}[train]<Regression> Single-feature group ----
+test_that("ModalityStacking accepts a group holding a single feature", {
+  mod <- train(
+    x = datr_train,
+    hyperparameters = setup_ModalityStacking(
+      feature_groups = list(m1 = "V1", m2 = c("V4", "V5")),
+      base_learners = list(m1 = setup_GLM(), m2 = setup_CART()),
+      inner_resampling_config = meta_res
+    ),
+    verbosity = 0L
+  )
+  expect_s7_class(mod, Regression)
+  expect_identical(mod@model@base_models[["m1"]]@xnames, "V1")
+  predicted <- predict(mod, datr_test[, -NCOL(datr_test), with = FALSE])
+  expect_length(predicted, NROW(datr_test))
+  expect_false(anyNA(predicted))
+})
+
+
+## {MetaLearners}[train]<Regression> Tabular class independence ----
+# The meta learners index their training data by row and column throughout, and
+# each tabular class reads `[` differently. The rest of this file trains them on
+# a data.table, so this pins the other two classes to the same predictions.
+test_that("meta learners give identical predictions for every tabular class", {
+  skip_if_not_installed("tibble")
+  newdata <- datr_test[, -NCOL(datr_test), with = FALSE]
+  as_class <- list(
+    data.table = function(d) data.table::as.data.table(d),
+    data.frame = as.data.frame,
+    tibble = function(d) tibble::as_tibble(d)
+  )
+  specs <- list(
+    SuperLearner = function() {
+      setup_SuperLearner(
+        base_learners = list(setup_GLM(), setup_CART()),
+        inner_resampling_config = meta_res
+      )
+    },
+    ModalityStacking = function() {
+      setup_ModalityStacking(
+        feature_groups = list(
+          m1 = c("V1", "V2", "V3"),
+          m2 = c("V4", "V5", "g")
+        ),
+        base_learners = list(m1 = setup_GLM(), m2 = setup_CART()),
+        inner_resampling_config = meta_res
+      )
+    },
+    ConditionalSuperLearner = function() {
+      setup_ConditionalSuperLearner(
+        base_learners = list(setup_GLM(), setup_CART(maxdepth = 1L)),
+        inner_resampling_config = meta_res,
+        n_iterations = 2L
+      )
+    }
+  )
+  for (spec_name in names(specs)) {
+    predicted <- lapply(as_class, function(convert) {
+      mod <- train(
+        x = convert(datr_train),
+        hyperparameters = specs[[spec_name]](),
+        verbosity = 0L
+      )
+      as.numeric(predict(mod, convert(newdata)))
+    })
+    expect_equal(
+      predicted[["data.frame"]],
+      predicted[["data.table"]],
+      info = spec_name
+    )
+    expect_equal(
+      predicted[["tibble"]],
+      predicted[["data.table"]],
+      info = spec_name
+    )
+  }
+})
+
+
 ## {ConditionalSuperLearner}[train]<Regression> ----
 # Two regions, and an expert that can serve one and not the other: a line in V1
 # where V5 is negative, a clean step in V2 where it is not. The library is a GLM
