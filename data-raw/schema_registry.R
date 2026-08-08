@@ -229,6 +229,10 @@ families <- list(
         desc = "k-Nearest Neighbors (kknn). See `setup_KNN`."
       ),
       list(
+        cls = MARSHyperparameters,
+        desc = "Multivariate Adaptive Regression Splines (earth). See `setup_MARS`."
+      ),
+      list(
         cls = BARTHyperparameters,
         desc = "Bayesian Additive Regression Trees (stochtree). See `setup_BART`."
       ),

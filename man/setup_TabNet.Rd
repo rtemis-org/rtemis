@@ -5,7 +5,7 @@
 \title{Setup TabNet Hyperparameters}
 \usage{
 setup_TabNet(
-  batch_size = 1048576L,
+  batch_size = 500L,
   penalty = 0.001,
   clip_value = NULL,
   loss = "auto",

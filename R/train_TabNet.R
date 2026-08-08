@@ -51,7 +51,8 @@ method(train_, TabNetHyperparameters) <- function(
   y <- outcome(x)
   prp <- preprocess(
     features(x),
-    config = setup_Preprocessor(scale = TRUE, center = TRUE)
+    config = setup_Preprocessor(scale = TRUE, center = TRUE),
+    verbosity = verbosity - 1L
   )
   x <- prp@preprocessed
 

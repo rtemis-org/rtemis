@@ -28,6 +28,7 @@ class_splsda <- new_S3_class("splsda")
 class_train.kknn <- new_S3_class("train.kknn")
 class_bartmodel <- new_S3_class("bartmodel")
 class_hal9001 <- new_S3_class("hal9001")
+class_earth <- new_S3_class("earth")
 
 
 # %% --- Generics -------------------------------------------------------------------------------------
