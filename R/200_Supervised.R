@@ -2854,6 +2854,171 @@ LightRuleFit <- new_class(
   )
 ) # /rtemis::LightRuleFit
 
+# ConditionalSuperLearner ----
+#' ConditionalSuperLearner
+#'
+#' @description
+#' Class for Conditional SuperLearner models: an oracle that routes each case to
+#' one of K experts, and the experts it routes to.
+#'
+#' @author EDG
+#' @noRd
+ConditionalSuperLearner <- new_class(
+  name = "ConditionalSuperLearner",
+  package = "rtemis",
+  properties = list(
+    # The experts, each refitted on the region the final oracle gave it.
+    experts = class_list,
+    # The K-class classifier over the covariates.
+    oracle = Supervised,
+    resampler = Resampler,
+    # Which expert the final oracle routes each training case to.
+    assignments = class_factor,
+    # Cases x experts: each expert's loss on each case, from a fit that did not
+    # see it. What the last oracle was fitted on.
+    cv_loss = class_matrix,
+    # The objective at each iteration; the paper's convergence claim is that
+    # this does not increase.
+    iteration_loss = class_numeric,
+    # Iterations x experts: how the partition moved.
+    region_sizes = class_matrix,
+    entry_features = class_list,
+    loss = class_character,
+    y_levels = NULL | class_character,
+    xnames = class_character,
+    type = class_character
+  )
+) # /rtemis::ConditionalSuperLearner
+
+
+# Print ConditionalSuperLearner ----
+method(print, ConditionalSuperLearner) <- function(x, ...) {
+  objcat("rtemis ConditionalSuperLearner Model")
+  cat(
+    highlight(length(x@experts)),
+    ngettext(length(x@experts), " expert", " experts"),
+    " routed by a ",
+    highlight(x@oracle@algorithm),
+    " oracle, over ",
+    length(x@iteration_loss),
+    ngettext(length(x@iteration_loss), " iteration", " iterations"),
+    ".\n",
+    sep = ""
+  )
+  cat(
+    "Final loss (",
+    x@loss,
+    "): ",
+    highlight(format(utils::tail(x@iteration_loss, 1L), digits = 4L)),
+    ".\n",
+    sep = ""
+  )
+  print(table(x@assignments, dnn = "Region sizes"))
+  invisible(x)
+} # /rtemis::print.ConditionalSuperLearner
+
+
+# StackedLearner ----
+#' StackedLearner
+#'
+#' @description
+#' Class for stacked meta learner models: SuperLearner and ModalityStacking.
+#'
+#' `level_one_training` and `resampler` are kept because they are what a
+#' cross-fitting estimator needs from a fitted ensemble: the out-of-fold
+#' predictions themselves, and the fold assignment that produced them, so a
+#' second nuisance model can be made to share it.
+#'
+#' @author EDG
+#' @noRd
+StackedLearner <- new_class(
+  name = "StackedLearner",
+  package = "rtemis",
+  properties = list(
+    # The library, refitted on the whole training set.
+    base_models = class_list,
+    # NULL for a discrete ensemble, which keeps one entry instead of combining.
+    meta_model = NULL | Supervised,
+    # Cases x entries: each entry's prediction of each case, from a fit that did
+    # not see it.
+    level_one_training = class_matrix,
+    resampler = Resampler,
+    # One row per entry: `learner`, `cv_risk`, `weight`.
+    cv_risk = class_data.table,
+    discrete_winner = NULL | class_character,
+    # One character vector per entry, fully resolved: for everything but modality
+    # stacking each is simply `xnames`.
+    entry_features = class_list,
+    y_levels = NULL | class_character,
+    xnames = class_character,
+    type = class_character
+  )
+) # /rtemis::StackedLearner
+
+
+# Print StackedLearner ----
+method(print, StackedLearner) <- function(x, ...) {
+  objcat("rtemis StackedLearner Model")
+  cat(
+    "Library of ",
+    highlight(length(x@base_models)),
+    ngettext(length(x@base_models), " entry", " entries"),
+    ", cross-fitted using ",
+    desc(x@resampler@config),
+    ".\n",
+    sep = ""
+  )
+  if (is.null(x@discrete_winner)) {
+    cat("Combined by ", highlight(x@meta_model@algorithm), ".\n", sep = "")
+  } else {
+    cat("Discrete: kept ", highlight(x@discrete_winner), ".\n", sep = "")
+  }
+  print(x@cv_risk)
+  invisible(x)
+} # /rtemis::print.StackedLearner
+
+
+# NNLS ----
+#' NNLS
+#'
+#' @description
+#' Class for non-negative least squares models.
+#'
+#' `nnls::nnls()` returns coefficients and nothing else -- no column names, no
+#' record of the outcome -- so everything `predict_super()` needs is carried
+#' here instead.
+#'
+#' @author EDG
+#' @noRd
+NNLS <- new_class(
+  name = "NNLS",
+  package = "rtemis",
+  properties = list(
+    # Named by `xnames`, non-negative, and summing to 1 when `normalize`.
+    coefficients = class_numeric,
+    xnames = class_character,
+    normalize = class_logical,
+    y_levels = NULL | class_character,
+    type = class_character
+  )
+) # /rtemis::NNLS
+
+
+# Print NNLS ----
+method(print, NNLS) <- function(x, ...) {
+  objcat("rtemis NNLS Model")
+  cat(
+    "Non-negative least squares over ",
+    highlight(length(x@xnames)),
+    ngettext(length(x@xnames), " predictor", " predictors"),
+    if (x@normalize) ", normalized to sum to 1" else "",
+    ".\n",
+    sep = ""
+  )
+  invisible(x)
+} # /rtemis::print.NNLS
+
+
 # Print LightRuleFit ----
 method(print, LightRuleFit) <- function(x, ...) {
   objcat("rtemis LightRuleFit Model")

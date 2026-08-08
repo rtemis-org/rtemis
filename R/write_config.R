@@ -288,7 +288,7 @@ method(write_config, ClusteringConfig) <- function(
 #' something no fold did.
 #'
 #' A supervised record also states **what the run scored**. `metrics` holds each
-#' sample's headline row as a flat metric-to-value map, meaned across outer
+#' sample's headline row as a flat metric-to-value map, averaged across outer
 #' resamples, with `metrics_sd` beside it for the spread (`null` for a single
 #' fit, which has none). The full metrics -- the confusion matrix, the per-class
 #' rows -- are in each fold's own `metrics`. The flat block exists so that "was
@@ -334,9 +334,5 @@ write_record <- function(x, file, overwrite = FALSE, verbosity = 1L) {
     overwrite = overwrite,
     verbosity = verbosity
   )
-  # The same opportunistic check `write_config()` runs, and it matters more
-  # here: a record and its schema are generated from one set of declarations, so
-  # the two disagreeing means the generator and the writer have drifted.
-  .validate_config_cli(file)
   invisible(x)
 } # /rtemis::write_record

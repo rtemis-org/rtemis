@@ -1,5 +1,18 @@
 # rtemis news
 
+## 1.3.3
+
+- New algorithm: **SuperLearner**, the cross-validated stacked ensemble of van der Laan, Polley & Hubbard, for regression and binary classification. `setup_SuperLearner()`; each base learner predicts every case from a fit that did not see it, and the meta learner is fitted on those predictions. A base learner holding a search space becomes one library entry per combination, so the ensemble's own cross-validation does the model selection and no inner tuning is needed. `discrete = TRUE` keeps the single lowest-risk entry. The cross-validated predictions and the resampler are kept on the fitted model, for a cross-fitting estimator to reuse.
+- New algorithm: **ModalityStacking**, the same machinery with each base learner bound to one group of features, for a wide `x` built by concatenating modalities. `setup_ModalityStacking(feature_groups = )` makes "one wide model or one model per modality" a one-argument comparison.
+- New algorithm: **ConditionalSuperLearner**, Valdes, Interian, Gennatas & van der Laan (2022), which selects a model from a library *conditional on the covariates* rather than combining them: an oracle routes each case to one of K experts. `setup_ConditionalSuperLearner()`; `n_iterations` tunable. `get_varimp()` returns the oracle's importance - which covariates decide *which model applies*. Multiclass aborts.
+- New algorithm: **NNLS**, non-negative least squares via `nnls`, for regression and binary classification. `setup_NNLS()`; `normalize = TRUE` scales the coefficients to sum to 1, making the fit a convex combination. It is the default stacking meta learner, and a poor general-purpose learner - no intercept, and a sign constraint.
+- A meta learner is a `Hyperparameters` subclass like any other algorithm, so it works wherever a supervised learner does: `train()`, outer resampling, `calibrate()`, `SuperConfig`, run records.
+- `schema.rtemis.org` publishes all four leaf pairs - `hyperparameters/{nnls,superlearner,modalitystacking,conditionalsuperlearner}/v1` with their `record.json`. A meta learner's leaf references the `hyperparameters` union it is itself part of, so a config nests its library.
+- `train(x, weights = )` accepts the numeric vector its documentation describes; it previously aborted.
+- A `SuperConfig` or `SuperConfigLive` naming a `weights` column now resolves it: the values become the case weights and the column is dropped from the training, validation and test sets. It was previously passed on as a literal string.
+- A run record carries every property of the algorithm that produced it, including those inherited from an intermediate class, and records a list of configs as one block per element.
+- Reading a config no longer calls out to the `rtemis` CLI, and `options(rtemis.validate = )` / `options(rtemis.cli = )` are gone. `check_wire_keys()` and the `setup_*` functions enforce the same `PropertySpec`s the published schemas are generated from, so rtemis validates its own contract with no external tool and `train(outdir = )` never depends on what is on the `PATH`.
+
 ## 1.3.2
 
 **Breaking changes**

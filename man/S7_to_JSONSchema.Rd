@@ -50,7 +50,7 @@ difference between an input schema and a record schema is exactly this;
 membership is identical.}
 
 \item{provenance_url}{Character or NULL: If set (and \code{record} is TRUE), adds
-a required \code{provenance} property \verb{$ref}ing that schema. Only a top-level
+a required \code{provenance} property referencing that schema. Only a top-level
 record carries it; a nested one inherits its parent's.}
 
 \item{fold_refs}{Named character or NULL: If set (and \code{record} is TRUE), adds

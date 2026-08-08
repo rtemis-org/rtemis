@@ -2940,3 +2940,457 @@ test_that("a tuned run records the grid and the winner per fold", {
     mod@hyperparameters[["maxdepth"]]
   )
 })
+
+
+# %% Meta learners ---------------------------------------------------------------------------------
+# The library is deliberately GLM + CART: both are always available, and on the
+# fixtures below they are good at visibly different things, which is what makes
+# the weights and the regions interpretable rather than arbitrary.
+meta_res <- setup_Resampler(n_resamples = 3L, type = "KFold", seed = 2026L)
+
+
+## {NNLS}[train]<Regression> ----
+# NNLS exists as the stacking meta learner, so it is exercised on the shape it
+# will see there: non-negative predictors that already span the outcome.
+nnls_dat <- data.frame(
+  p1 = seq(0, 1, length.out = 100L),
+  p2 = rev(seq(0, 1, length.out = 100L))
+)
+nnls_dat[["y"]] <- 0.75 * nnls_dat[["p1"]] + 0.25 * nnls_dat[["p2"]]
+mod_r_nnls <- train(nnls_dat, hyperparameters = setup_NNLS(), verbosity = 0L)
+
+test_that("train() NNLS recovers a non-negative convex combination", {
+  expect_s7_class(mod_r_nnls, Regression)
+  coefficients <- mod_r_nnls@model@coefficients
+  expect_true(all(coefficients >= 0))
+  expect_equal(sum(coefficients), 1, tolerance = 1e-8)
+  expect_equal(unname(coefficients), c(0.75, 0.25), tolerance = 1e-6)
+  # The coefficients are the model, so they are what varimp reports.
+  expect_identical(get_varimp(mod_r_nnls)@data[["variable"]], c("p1", "p2"))
+})
+
+
+test_that("NNLS without normalize leaves the coefficients unscaled", {
+  unnormalized <- train(
+    nnls_dat,
+    hyperparameters = setup_NNLS(normalize = FALSE),
+    verbosity = 0L
+  )
+  expect_false(unnormalized@model@normalize)
+  expect_true(all(unnormalized@model@coefficients >= 0))
+})
+
+
+test_that("NNLS applies case weights as sqrt(w) on both sides", {
+  # Weighted least squares by scaling the system, which is what the
+  # SuperLearner literature's method.NNLS does. Checked against `nnls` called
+  # directly on the scaled system.
+  skip_if_not_installed("nnls")
+  set.seed(2026)
+  weights <- runif(NROW(nnls_dat), 0.5, 2)
+  weighted <- train(
+    nnls_dat,
+    hyperparameters = setup_NNLS(normalize = FALSE),
+    weights = weights,
+    verbosity = 0L
+  )
+  root_w <- sqrt(weights)
+  expected <- nnls::nnls(
+    as.matrix(nnls_dat[, c("p1", "p2")]) * root_w,
+    nnls_dat[["y"]] * root_w
+  )
+  expect_equal(
+    unname(weighted@model@coefficients),
+    unname(stats::coef(expected)),
+    tolerance = 1e-8
+  )
+})
+
+
+test_that("train() NNLS aborts on multiclass and on non-numeric predictors", {
+  expect_error(
+    train(x = datc3_train, hyperparameters = setup_NNLS(), verbosity = 0L),
+    class = "rtemis_unsupported_error"
+  )
+  # `g` is a factor; NNLS builds a design matrix and has nowhere to put it.
+  expect_error(
+    train(x = datr_train, hyperparameters = setup_NNLS(), verbosity = 0L),
+    class = "rtemis_type_error"
+  )
+})
+
+
+## {SuperLearner}[train]<Regression> ----
+mod_r_sl <- train(
+  x = datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_SuperLearner(
+    base_learners = list(setup_GLM(), setup_CART()),
+    inner_resampling_config = meta_res
+  ),
+  verbosity = 0L
+)
+
+test_that("train() SuperLearner Regression succeeds", {
+  expect_s7_class(mod_r_sl, Regression)
+  expect_s7_class(mod_r_sl@model, StackedLearner)
+  expect_identical(names(mod_r_sl@model@base_models), c("GLM", "CART"))
+  expect_identical(mod_r_sl@model@meta_model@algorithm, "NNLS")
+})
+
+
+test_that("the level-one matrix is one cross-validated column per entry", {
+  level_one <- mod_r_sl@model@level_one_training
+  expect_identical(dim(level_one), c(NROW(datr_train), 2L))
+  expect_identical(colnames(level_one), c("GLM", "CART"))
+  # Every case is predicted by a fit that did not see it, so none is left unset.
+  expect_false(anyNA(level_one))
+})
+
+
+test_that("SuperLearner weights sum to 1 and favor the better learner", {
+  cv_risk <- mod_r_sl@model@cv_risk
+  expect_equal(sum(cv_risk[["weight"]]), 1, tolerance = 1e-8)
+  expect_true(all(cv_risk[["weight"]] >= 0))
+  # `datr`'s outcome is linear in its features, so GLM should carry the ensemble.
+  best <- cv_risk[["learner"]][which.min(cv_risk[["cv_risk"]])]
+  expect_identical(best, "GLM")
+  expect_gt(
+    cv_risk[["weight"]][cv_risk[["learner"]] == "GLM"],
+    cv_risk[["weight"]][cv_risk[["learner"]] == "CART"]
+  )
+})
+
+
+test_that("SuperLearner matches or beats its worst library entry", {
+  # The point of the ensemble: the weights cannot do worse than putting
+  # everything on the entry that happens to be worst.
+  worst <- max(mod_r_sl@model@cv_risk[["cv_risk"]])
+  ensemble <- mean((mod_r_sl@predicted_test - mod_r_sl@y_test)^2)
+  expect_lt(ensemble, worst)
+})
+
+
+test_that("SuperLearner varimp names library entries, not features", {
+  vi <- get_varimp(mod_r_sl)@data
+  expect_identical(vi[["variable"]], c("GLM", "CART"))
+  # Column 2 is what `plot_varimp()` shows by default.
+  expect_identical(names(vi)[[2L]], "weight")
+})
+
+
+## {SuperLearner}[train]<Classification> Binary ----
+mod_c_sl <- train(
+  x = datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_SuperLearner(
+    base_learners = list(setup_GLM(), setup_CART()),
+    inner_resampling_config = meta_res
+  ),
+  verbosity = 0L
+)
+
+test_that("train() SuperLearner Classification succeeds", {
+  expect_s7_class(mod_c_sl, Classification)
+  expect_identical(mod_c_sl@model@y_levels, levels(datc2_train[["Species"]]))
+})
+
+
+test_that("SuperLearner predicts the probability of the second level", {
+  # A flipped column is still a valid probability, so nothing but this catches
+  # it -- the metrics would simply be bad.
+  predicted <- predict(mod_c_sl, datc2_test[, -NCOL(datc2_test)])
+  outcome <- datc2_test[["Species"]]
+  positive <- levels(outcome)[[2L]]
+  expect_gt(
+    mean(predicted[outcome == positive]),
+    mean(predicted[outcome != positive])
+  )
+  expect_true(all(predicted >= 0 & predicted <= 1))
+})
+
+
+## {SuperLearner}[train]<Regression> Discrete ----
+test_that("a discrete SuperLearner keeps one entry and weights it 1", {
+  mod <- train(
+    x = datr_train,
+    hyperparameters = setup_SuperLearner(
+      base_learners = list(setup_GLM(), setup_CART()),
+      inner_resampling_config = meta_res,
+      discrete = TRUE
+    ),
+    verbosity = 0L
+  )
+  expect_identical(mod@model@discrete_winner, "GLM")
+  # No combination to fit, so no meta model.
+  expect_null(mod@model@meta_model)
+  expect_identical(sort(mod@model@cv_risk[["weight"]]), c(0, 1))
+})
+
+
+## {SuperLearner}[train]<Regression> Search space expansion ----
+test_that("a base learner's search space becomes library entries, untuned", {
+  mod <- train(
+    x = datr_train,
+    hyperparameters = setup_SuperLearner(
+      base_learners = list(setup_GLM(), setup_CART(maxdepth = c(2L, 20L))),
+      inner_resampling_config = meta_res
+    ),
+    verbosity = 0L
+  )
+  expect_identical(
+    names(mod@model@base_models),
+    c("GLM", "CART_1", "CART_2")
+  )
+  # Each entry is trained at one setting, not tuned: the ensemble's own
+  # cross-validation is what chooses between them.
+  expect_identical(
+    mod@model@base_models[["CART_1"]]@hyperparameters$maxdepth,
+    2L
+  )
+  expect_identical(
+    mod@model@base_models[["CART_2"]]@hyperparameters$maxdepth,
+    20L
+  )
+  expect_null(mod@model@base_models[["CART_1"]]@tuner)
+})
+
+
+## {SuperLearner}[train]<Regression> Algorithm name dispatch ----
+test_that("train() SuperLearner from its algorithm name succeeds", {
+  expect_identical(get_alg_name("superlearner"), "SuperLearner")
+  expect_s7_class(
+    get_default_hyperparameters("superlearner"),
+    SuperLearnerHyperparameters
+  )
+})
+
+
+## {SuperLearner}[train]<Classification> /\Error multiclass unsupported ----
+test_that("train() SuperLearner aborts on multiclass classification", {
+  expect_error(
+    train(
+      x = datc3_train,
+      hyperparameters = setup_SuperLearner(
+        base_learners = list(setup_GLM(), setup_CART()),
+        inner_resampling_config = meta_res
+      ),
+      verbosity = 0L
+    ),
+    class = "rtemis_unsupported_error"
+  )
+})
+
+
+## {ModalityStacking}[train]<Regression> ----
+mod_r_ms <- train(
+  x = datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_ModalityStacking(
+    feature_groups = list(m1 = c("V1", "V2", "V3"), m2 = c("V4", "V5", "g")),
+    base_learners = list(m1 = setup_GLM(), m2 = setup_CART()),
+    inner_resampling_config = meta_res
+  ),
+  verbosity = 0L
+)
+
+test_that("train() ModalityStacking gives each entry only its own features", {
+  expect_s7_class(mod_r_ms, Regression)
+  expect_identical(
+    mod_r_ms@model@base_models[["m1"]]@xnames,
+    c("V1", "V2", "V3")
+  )
+  expect_identical(
+    mod_r_ms@model@base_models[["m2"]]@xnames,
+    c("V4", "V5", "g")
+  )
+  # The whole feature set still reaches the stacked model, via the two groups.
+  expect_identical(mod_r_ms@xnames, names(datr_train)[-NCOL(datr_train)])
+})
+
+
+test_that("ModalityStacking predicts on new data", {
+  predicted <- predict(mod_r_ms, datr_test[, -NCOL(datr_test), with = FALSE])
+  expect_length(predicted, NROW(datr_test))
+  expect_false(anyNA(predicted))
+})
+
+
+## {ConditionalSuperLearner}[train]<Regression> ----
+# Two regions, and an expert that can serve one and not the other: a line in V1
+# where V5 is negative, a clean step in V2 where it is not. The library is a GLM
+# (a line, so hopeless on the step) and a depth-1 tree (one split, so hopeless on
+# the line). Each is structurally the best available model in exactly one region,
+# which is what makes recovering the partition a real test.
+#
+# A *default* CART would fit both regions on its own, leaving no region structure
+# in the per-case losses for the oracle to find; the stump is what avoids that.
+set.seed(2026)
+n_csl <- 300L
+datcsl <- data.frame(
+  V1 = rnorm(n_csl),
+  V2 = rnorm(n_csl),
+  V5 = rnorm(n_csl)
+)
+csl_region <- ifelse(datcsl[["V5"]] < 0, "linear", "step")
+datcsl[["y"]] <- ifelse(
+  csl_region == "linear",
+  4 * datcsl[["V1"]],
+  6 * (datcsl[["V2"]] > 0)
+) +
+  rnorm(n_csl, sd = 0.3)
+csl_experts <- list(GLM = setup_GLM(), Stump = setup_CART(maxdepth = 1L))
+
+mod_r_csl <- train(
+  x = datcsl,
+  hyperparameters = setup_ConditionalSuperLearner(
+    base_learners = csl_experts,
+    meta_learner = setup_CART(),
+    n_iterations = 5L,
+    inner_resampling_config = meta_res
+  ),
+  verbosity = 0L
+)
+
+test_that("train() ConditionalSuperLearner Regression succeeds", {
+  expect_s7_class(mod_r_csl, Regression)
+  expect_s7_class(mod_r_csl@model, ConditionalSuperLearner)
+  expect_identical(names(mod_r_csl@model@experts), c("GLM", "Stump"))
+  expect_identical(mod_r_csl@model@oracle@algorithm, "CART")
+})
+
+
+test_that("the Conditional SuperLearner recovers the planted regions", {
+  # The oracle's job is to find where each expert wins; here that is exactly the
+  # sign of V5.
+  agreement <- mean(
+    (mod_r_csl@model@assignments == "GLM") == (csl_region == "linear")
+  )
+  expect_gt(agreement, 0.9)
+})
+
+
+test_that("the Conditional SuperLearner beats every single expert", {
+  # If routing bought nothing, the best single expert would match it.
+  conditional <- get_metric(mod_r_csl, "training", "rsq")
+  for (hyperparameters in csl_experts) {
+    alone <- train(datcsl, hyperparameters = hyperparameters, verbosity = 0L)
+    expect_gt(conditional, get_metric(alone, "training", "rsq"))
+  }
+})
+
+
+test_that("the Conditional SuperLearner records its iterations", {
+  expect_length(mod_r_csl@model@iteration_loss, 5L)
+  # Not asserted to be monotone: the paper's decrease guarantee is for training
+  # losses, and these are cross-validated (section 2.4).
+  expect_lt(
+    utils::tail(mod_r_csl@model@iteration_loss, 1L),
+    mod_r_csl@model@iteration_loss[[1L]]
+  )
+  expect_identical(dim(mod_r_csl@model@region_sizes), c(5L, 2L))
+  # Every case is routed somewhere at every iteration.
+  expect_equal(
+    rowSums(mod_r_csl@model@region_sizes),
+    rep(as.numeric(n_csl), 5L)
+  )
+  # Cases x experts, from fits that did not see them.
+  expect_identical(dim(mod_r_csl@model@cv_loss), c(n_csl, 2L))
+})
+
+
+test_that("the Conditional SuperLearner reports the oracle's varimp", {
+  # Which covariates decide *which model applies*: V5, by construction.
+  vi <- get_varimp(mod_r_csl)@data
+  expect_identical(vi[["variable"]][[which.max(vi[[2L]])]], "V5")
+})
+
+
+test_that("the extended weight transform is [ONE_K - DIAG_K]^-1, clamped", {
+  set.seed(2026)
+  for (n_experts in 2:4) {
+    ones_minus_diag <- matrix(1, n_experts, n_experts)
+    diag(ones_minus_diag) <- 0
+    case_loss <- matrix(runif(5L * n_experts), 5L, n_experts)
+    reference <- t(solve(ones_minus_diag) %*% t(case_loss))
+    weights <- csl_extended_weights(case_loss)
+    expect_equal(
+      unname(weights),
+      unname(pmax(reference, 0)),
+      tolerance = 1e-12
+    )
+    # The clamp cannot silence the expert that matters: the best one for a case
+    # always keeps a positive weight.
+    best <- max.col(-case_loss)
+    expect_true(all(weights[cbind(seq_len(5L), best)] > 0))
+  }
+  # K = 2 is a swap and never goes negative.
+  expect_identical(
+    unname(csl_extended_weights(matrix(c(1, 2, 3, 4), 2, 2))),
+    matrix(c(3, 4, 1, 2), 2, 2)
+  )
+})
+
+
+test_that("the extended dataset stacks each case once per expert", {
+  feat <- data.frame(a = 1:3, b = 4:6)
+  extended <- csl_extended_data(feat, c("one", "two"), "expert")
+  expect_identical(NROW(extended), 6L)
+  expect_identical(names(extended), c("a", "b", "expert"))
+  # Blocked by expert, matching `as.vector()` of a cases x experts weight matrix.
+  expect_identical(
+    as.character(extended[["expert"]]),
+    rep(c("one", "two"), each = 3L)
+  )
+  expect_identical(extended[["a"]], rep(1:3, times = 2L))
+})
+
+
+## {ConditionalSuperLearner}[train]<Classification> /\Error multiclass ----
+test_that("train() ConditionalSuperLearner aborts on multiclass", {
+  expect_error(
+    train(
+      x = datc3_train,
+      hyperparameters = setup_ConditionalSuperLearner(
+        base_learners = list(setup_GLM(), setup_CART()),
+        inner_resampling_config = meta_res
+      ),
+      verbosity = 0L
+    ),
+    class = "rtemis_unsupported_error"
+  )
+})
+
+
+## Meta learner records ----
+test_that("a meta learner's record carries one block per library entry", {
+  # `base_learners` is published as an array of `$ref`s, so each element is a
+  # record in its own right -- with its own `origin`, which the generated
+  # `record.json` requires of every referenced block.
+  #
+  # `record()` rather than `outdir`: writing a record validates it against the
+  # *published* schemas, which will not know these algorithms until they are
+  # published (plan/superlearner.md, step 9).
+  payload <- record(mod_r_sl)[["hyperparameters"]][["hyperparameters"]]
+  # Every property the leaf schema declares, inherited ones included: these come
+  # from three different levels of the class hierarchy.
+  expect_true(all(
+    c(
+      "base_learners",
+      "meta_learner",
+      "inner_resampling_config",
+      "expand_search_spaces",
+      "ifw",
+      "discrete",
+      "origin"
+    ) %in%
+      names(payload)
+  ))
+  entries <- payload[["base_learners"]]
+  expect_identical(names(entries), c("GLM", "CART"))
+  for (entry in entries) {
+    expect_identical(names(entry), c("algorithm", "hyperparameters"))
+    expect_true("origin" %in% names(entry[["hyperparameters"]]))
+  }
+  expect_identical(payload[["meta_learner"]][["algorithm"]], "NNLS")
+})

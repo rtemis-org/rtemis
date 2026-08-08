@@ -81,3 +81,52 @@ test_that("train(SuperConfigLive) accepts an in-memory validation split", {
   expect_true(S7_inherits(mod, Supervised))
   expect_length(mod@predicted_validation, nrow(val))
 })
+
+
+# Weights column resolution --------------------------------------------------
+
+# The datasets a config carries are `data.table`s whenever they come off disk
+# via `read()`, so the weights column has to be dropped in a way that respects
+# the frame's class and leaves the caller's copy alone.
+
+weighted_regression_dt <- function(seed = 2040L, n = 60L) {
+  dt <- small_regression_dt(seed = seed, n = n)
+  dt[, w := runif(n, 0.5, 1.5)]
+  setcolorder(dt, c("a", "b", "c", "w", "y"))
+  dt[]
+}
+
+test_that("train(SuperConfigLive) resolves a named weights column on data.table", {
+  dt <- weighted_regression_dt()
+  val <- weighted_regression_dt(seed = 2041L, n = 20L)
+  cfg <- setup_SuperConfigLive(
+    dat_training = dt,
+    dat_validation = val,
+    weights = "w",
+    hyperparameters = setup_GLM(),
+    verbosity = 0L
+  )
+  mod <- train(cfg)
+  expect_true(S7_inherits(mod, Supervised))
+  # The weights column trains the model, it is not one of its features.
+  expect_identical(mod@xnames, c("a", "b", "c"))
+  expect_length(mod@predicted_validation, nrow(val))
+  # The model's input config reports the column the user asked for.
+  expect_identical(mod@config@weights, "w")
+  # Dropping the column must not touch the caller's tables.
+  expect_identical(names(dt), c("a", "b", "c", "w", "y"))
+  expect_identical(names(val), c("a", "b", "c", "w", "y"))
+})
+
+test_that("train(SuperConfigLive) resolves a named weights column on data.frame", {
+  dt <- as.data.frame(weighted_regression_dt(seed = 2042L))
+  cfg <- setup_SuperConfigLive(
+    dat_training = dt,
+    weights = "w",
+    hyperparameters = setup_GLM(),
+    verbosity = 0L
+  )
+  mod <- train(cfg)
+  expect_identical(mod@xnames, c("a", "b", "c"))
+  expect_identical(names(dt), c("a", "b", "c", "w", "y"))
+})

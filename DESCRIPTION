@@ -1,15 +1,16 @@
 Package: rtemis
-Version: 1.3.2
+Version: 1.3.3
 Title: Machine Learning and Visualization
-Date: 2026-08-06
+Date: 2026-08-08
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
     email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
 Description: Schema-driven machine learning and visualization package with an 'S7' backend 
     featuring comprehensive type checking and validation, observable runs, auditable outputs.
     Designed with an efficient, functional user-facing API, train(), cluster(), and decomp() 
     provide one-call access to supervised and unsupervised learning. All configuration steps are 
-    performed using setup functions and validated. A single call to train() can handle 
-    preprocessing, decomposition, hyperparameter tuning, and testing with nested resampling. 
+    performed using setup functions and validated. A single call to train() can handle
+    preprocessing, decomposition, hyperparameter tuning, model stacking, and testing with
+    nested resampling.
     Supports 'data.frame', 'data.table', and 'tibble' inputs, parallel execution, and interactive 
     visualizations. The package first appeared in E.D. Gennatas (2017)
     <https://repository.upenn.edu/entities/publication/d81892ea-3087-4b71-a6f5-739c58626d64>.
@@ -75,6 +76,7 @@ Suggests:
     nanoparquet,
     networkD3,
     NMF,
+    nnls,
     openxlsx,
     parallelly,
     partykit,

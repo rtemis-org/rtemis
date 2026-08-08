@@ -182,7 +182,11 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
       next
     }
     if (bound %in% NAME_BOUNDS) {
-      unknown <- setdiff(value, dim_value)
+      # `unlist()` because a name bound may sit on a container of *vectors* -- a
+      # map from group name to feature names. `setdiff()` on the list would
+      # compare each element's deparsed form against the column names and report
+      # every group as unknown.
+      unknown <- setdiff(unlist(value, use.names = FALSE), dim_value)
       if (length(unknown) > 0L) {
         rtemis.core::abort(
           "`",
@@ -3705,6 +3709,72 @@ setup_BART <- function(
     ifw = ifw
   )
 } # /rtemis::setup_BART
+
+
+# %% NNLSHyperparameters ----
+#' @title NNLSHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for non-negative least squares.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+NNLSHyperparameters <- new_class(
+  name = "NNLSHyperparameters",
+  parent = Hyperparameters,
+  properties = list(
+    algorithm = prop_algorithm("NNLS"),
+    normalize = prop_boolean(
+      TRUE,
+      tunable = TRUE,
+      description = "Scale the coefficients to sum to 1, making the fit a convex combination of the predictors."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    )
+  )
+) # /rtemis::NNLSHyperparameters
+
+
+# %% setup_NNLS ----
+#' Setup NNLS Hyperparameters
+#'
+#' Setup hyperparameters for non-negative least squares.
+#'
+#' NNLS fits `y ~ Xb` subject to `b >= 0`, with no intercept. It exists as the
+#' default meta learner of the stacked meta learners ([setup_SuperLearner],
+#' [setup_ModalityStacking]), where the predictors are the base learners'
+#' cross-validated predictions and a non-negative, sum-to-one coefficient vector
+#' is the ensemble weighting. It is a poor general-purpose learner: with no
+#' intercept and a sign constraint it can only fit outcomes that the predictors
+#' already span.
+#'
+#' With `normalize = TRUE` the coefficients are scaled to sum to 1, so the fit is
+#' a convex combination of the predictors. For classification the outcome is
+#' coded 0/1 on the second factor level and the fitted values are read as
+#' probabilities of that level; unnormalized coefficients do not guarantee a
+#' value in \[0, 1\], so predictions are clamped.
+#'
+#' Get more information from `nnls::nnls`.
+#'
+#' @param normalize (Tunable) Logical: If TRUE, scale the coefficients to sum to
+#' 1.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in
+#' classification.
+#'
+#' @return NNLSHyperparameters object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' nnls_hyperparams <- setup_NNLS(normalize = FALSE)
+#' nnls_hyperparams
+setup_NNLS <- function(normalize = TRUE, ifw = FALSE) {
+  NNLSHyperparameters(normalize = normalize, ifw = ifw)
+} # /rtemis::setup_NNLS
 
 
 # %% .list_to_Hyperparameters ----

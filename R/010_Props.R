@@ -3257,7 +3257,7 @@ metrics_schema <- function(sd = FALSE) {
       )
     } else {
       paste(
-        "Headline score of each sample: the metric a run is judged on, meaned",
+        "Headline score of each sample: the metric a run is judged on, averaged",
         "across outer resamples. Per-fold detail is in `folds`."
       )
     },
@@ -3319,7 +3319,7 @@ prop_to_schema <- function(prop) {
 #'   adds the required `metrics` / `metrics_sd` headline blocks, and references
 #'   these metrics schemas from each fold's own `metrics`.
 #' @param provenance_url Character or NULL: If set (and `record` is TRUE), adds
-#'   a required `provenance` property `$ref`ing that schema. Only a top-level
+#'   a required `provenance` property referencing that schema. Only a top-level
 #'   record carries it; a nested one inherits its parent's.
 #' @param record Logical: If TRUE, emit the **record** form of the schema: the
 #'   same properties, but every one required. A record states what a run

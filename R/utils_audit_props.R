@@ -516,6 +516,13 @@ audit_prop_docs <- function(r_dir, classes = NULL, aliases = PROP_DOC_ALIASES) {
   }
   for (class_name in names(classes)) {
     cls <- classes[[class_name]]
+    # An abstract class has no `setup_*` and cannot be constructed, so there is
+    # no user-facing contract to audit: its properties are documented against
+    # the concrete subclasses that inherit them, which are audited in their own
+    # right.
+    if (isTRUE(cls@abstract)) {
+      next
+    }
     sources <- doc_source_for_class(class_name)
     params <- character()
     for (src in sources) {

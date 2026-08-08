@@ -6,6 +6,13 @@
 supervised_algorithms <- data.frame(rbind(
   c("BART", "Bayesian Additive Regression Trees", TRUE, TRUE, FALSE),
   c("CART", "Classification and Regression Trees", TRUE, TRUE, TRUE),
+  c(
+    "ConditionalSuperLearner",
+    "Conditional SuperLearner",
+    TRUE,
+    TRUE,
+    FALSE
+  ),
   c("GAM", "Generalized Additive Model", TRUE, TRUE, FALSE),
   c("GLM", "Generalized Linear Model", TRUE, TRUE, FALSE),
   c("GLMNET", "Elastic Net", TRUE, TRUE, TRUE),
@@ -17,7 +24,10 @@ supervised_algorithms <- data.frame(rbind(
   c("LightGBM", "Gradient Boosting", TRUE, TRUE, FALSE),
   c("LightRF", "LightGBM Random Forest", TRUE, TRUE, FALSE),
   c("LightRuleFit", "LightGBM RuleFit", TRUE, TRUE, FALSE),
+  c("ModalityStacking", "Per-Modality Stacked Ensemble", TRUE, TRUE, FALSE),
+  c("NNLS", "Non-negative Least Squares", TRUE, TRUE, FALSE),
   c("Ranger", "Random Forest", TRUE, TRUE, FALSE),
+  c("SuperLearner", "Cross-validated Stacked Ensemble", TRUE, TRUE, FALSE),
   c(
     "LinearSVM",
     "Support Vector Machine with Linear Kernel",

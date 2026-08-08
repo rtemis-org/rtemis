@@ -28,4 +28,4 @@
 ^SKILL\.md$
 ^.*\.pdf$
 ^CRAN-SUBMISSION$
-^WORDLIST$
+^inst/WORDLIST$
