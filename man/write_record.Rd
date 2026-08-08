@@ -43,7 +43,7 @@ values in each fold, so a single resolved value at the top level would state
 something no fold did.
 
 A supervised record also states \strong{what the run scored}. \code{metrics} holds each
-sample's headline row as a flat metric-to-value map, meaned across outer
+sample's headline row as a flat metric-to-value map, averaged across outer
 resamples, with \code{metrics_sd} beside it for the spread (\code{null} for a single
 fit, which has none). The full metrics -- the confusion matrix, the per-class
 rows -- are in each fold's own \code{metrics}. The flat block exists so that "was

@@ -10,6 +10,7 @@ CMeansConfig
 ClusterConfig
 ConditionalSuperLearner
 ConditionalSuperLearnerHyperparameters
+DBSCAN's
 DBSCANConfig
 DTA
 DecomposeConfig
@@ -20,6 +21,7 @@ FASTA
 GAMHyperparameters
 GLMHyperparameters
 GLMNET
+GLMNET's
 GLMNETHyperparameters
 GLU
 Gantt
@@ -29,6 +31,7 @@ HardCLConfig
 ICA
 ICAConfig
 IFW
+IPC
 Interian
 Isomap
 IsomapConfig
@@ -43,8 +46,10 @@ Laan
 LightCART
 LightCARTHyperparameters
 LightGBM
+LightGBM's
 LightGBMHyperparameters
 LightRF
+LightRF's
 LightRFHyperparameters
 LightRuleFit
 LightRuleFitHyperparameters
@@ -84,6 +89,7 @@ ROCR
 RadialSVM
 RadialSVMHyperparameters
 RangerHyperparameters
+Relatedly
 Resampler
 ResamplerConfig
 Rprofile
@@ -100,6 +106,7 @@ SuperLearner
 SuperLearnerHyperparameters
 SupervisedRes
 TabNet
+TabNet's
 TabNetHyperparameters
 Tunable
 TunerConfig
@@ -118,6 +125,8 @@ arg
 arities
 arity
 auc
+auditable
+backend's
 betweenness
 bonferroni
 bottomleft
@@ -131,6 +140,7 @@ cmeans
 colorbar
 colorscale
 colorspace
+config's
 const
 coord
 cpu
@@ -144,6 +154,7 @@ der
 deserialization
 df
 dh
+diagnosable
 disambiguated
 drl
 duckdb
@@ -176,6 +187,7 @@ hv
 hvh
 infomap
 inv
+invariants
 irlba
 isotonic
 iters
@@ -217,6 +229,8 @@ nanoparquet
 nd
 nnls
 nrounds
+nullability
+nullable
 num
 nv
 oscorespls
@@ -231,20 +245,26 @@ poisson
 preprocess
 preprocesses
 preprocessor
+preprocessor's
 pretraining
 progressr
 px
+rankable
+reconstructors
 recursing
 renderer
 renderers
+representable
 resampler
 reusage
 rgb
 rhombi
+rollout
 roxygen
 rtemis's
 rtemisalpha
 rtemislive
+schema's
 schemas
 scorable
 sd
@@ -265,7 +285,9 @@ survfit
 suspectedoutliers
 svg
 tSNE
+tSNE's
 tSNEConfig
+tabnet
 tbl
 tck
 tcl
@@ -277,6 +299,7 @@ topright
 tozeroy
 translational
 triweight
+tunable
 ufcl
 unscorable
 validator

@@ -288,7 +288,7 @@ method(write_config, ClusteringConfig) <- function(
 #' something no fold did.
 #'
 #' A supervised record also states **what the run scored**. `metrics` holds each
-#' sample's headline row as a flat metric-to-value map, meaned across outer
+#' sample's headline row as a flat metric-to-value map, averaged across outer
 #' resamples, with `metrics_sd` beside it for the spread (`null` for a single
 #' fit, which has none). The full metrics -- the confusion matrix, the per-class
 #' rows -- are in each fold's own `metrics`. The flat block exists so that "was
