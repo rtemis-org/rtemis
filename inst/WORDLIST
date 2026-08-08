@@ -51,8 +51,8 @@ Makefile
 MassGLM
 MathJax
 Minkowski
-MonotoneHAL
-MonotoneHALHyperparameters
+MonotonicHAL
+MonotonicHALHyperparameters
 NCOL
 NMF
 NMFConfig

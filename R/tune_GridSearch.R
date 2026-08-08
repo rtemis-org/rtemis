@@ -110,22 +110,46 @@ tune_GridSearch <- function(
   grid_params <- get_hyperparams_need_tuning(hyperparameters)
   n_resamples <- tuner_config[["resampler_config"]][["n_resamples"]]
   search_type <- tuner_config[["search_type"]]
-  # expand_grid converts NULL to "null" for expansion to work.
-  param_grid <- expand_grid(grid_params, stringsAsFactors = FALSE)
-  param_grid <- cbind(param_combo_id = seq_len(NROW(param_grid)), param_grid)
+  # The single source of the combinations to fit, gated and deduplicated, and
+  # what `tuning_grid()` previews.
+  n_combinations_expanded <- prod(pmax(lengths(grid_params), 1L))
+  param_grid <- tuning_grid(hyperparameters)
+  n_combinations_gated <- NROW(param_grid)
+  if (search_type == "randomized") {
+    # Sampled here, before anything is derived from the grid, so that each
+    # selected combination is still run on every resample. Rounding can reach 0
+    # on a small grid.
+    n_sampled <- max(
+      1L,
+      round(tuner_config[["randomize_p"]] * n_combinations_gated)
+    )
+    param_grid <- param_grid[
+      sort(sample.int(n_combinations_gated, n_sampled)),
+      ,
+      drop = FALSE
+    ]
+    rownames(param_grid) <- NULL
+  }
   n_param_combinations <- NROW(param_grid)
-  res_param_grid <- expand_grid(
-    c(list(resample_id = seq_len(n_resamples)), grid_params),
-    stringsAsFactors = FALSE
+  # Resample varies fastest within a combination, which is the order the
+  # per-combination aggregation below indexes with `each = n_resamples`.
+  res_param_grid <- cbind(
+    resample_id = rep(seq_len(n_resamples), times = n_param_combinations),
+    param_grid[
+      rep(seq_len(n_param_combinations), each = n_resamples),
+      ,
+      drop = FALSE
+    ]
+  )
+  rownames(res_param_grid) <- NULL
+  # NA marks a combination a gate excluded the hyperparameter from, so the
+  # columns holding one are exactly those the grid made conditional.
+  gated_params <- names(param_grid)[vapply(param_grid, anyNA, logical(1L))]
+  param_grid <- cbind(
+    param_combo_id = seq_len(n_param_combinations),
+    param_grid
   )
   n_res_x_comb <- NROW(res_param_grid)
-  if (search_type == "randomized") {
-    index_per_resample <- sample(
-      n_param_combinations,
-      round(tuner_config[["randomize_p"]] * n_param_combinations)
-    )
-    res_param_grid <- res_param_grid[rep(index_per_resample, n_resamples), ]
-  }
 
   # Intro pt. 2 ----
   if (verbosity > 0L) {
@@ -154,6 +178,23 @@ tune_GridSearch <- function(
       Sys.getenv("R_PLATFORM"),
       ")."
     )
+    # Reported against the gated count, which isolates the gate's reduction from
+    # a randomized search's sampling.
+    if (n_combinations_gated < n_combinations_expanded) {
+      msg0(
+        "Conditional grid: ",
+        fmt(n_combinations_expanded, col = col_tuner, bold = TRUE),
+        " combinations reduced to ",
+        fmt(n_combinations_gated, col = col_tuner, bold = TRUE),
+        "; ",
+        oxfordcomma(gated_params),
+        ngettext(
+          length(gated_params),
+          " does not apply to every combination.",
+          " do not apply to every combination."
+        )
+      )
+    }
   }
 
   # Resamples ----
@@ -720,7 +761,7 @@ tune_GridSearch <- function(
     msg(
       paste0("Best config to ", paste(verb, metric), ":")
     )
-    print_tune_finding(grid_params, best_param_combo)
+    print_tune_finding(param_grid[, -1, drop = FALSE], best_param_combo)
   }
 
   # Outro ----
@@ -755,21 +796,38 @@ tune_GridSearch <- function(
 #' Prints set of search values and best value in the form {1, 3, 5} => 3
 #' for each hyperparameter that was tuned.
 #'
+#' Reads the searched values off the grid, so that a hyperparameter a gate added
+#' to it -- one held at a single value, but dropped from the combinations that
+#' cannot use it -- is reported too. Both grid markers for an unset value print
+#' as the NULL they become: NA from a closed gate, and `expand_grid()`'s "null"
+#' sentinel from a hyperparameter left to be determined by tuning.
+#'
+#' @param param_grid data.frame: The tuning grid, without its `param_combo_id`
+#'   column.
+#' @param best_param_combo Named list: The winning combination.
+#' @param pad Integer: Label column width.
+#'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-print_tune_finding <- function(grid_params, best_param_combo, pad = 22L) {
+print_tune_finding <- function(param_grid, best_param_combo, pad = 22L) {
+  show <- function(x) {
+    if (is.na(x) || identical(x, "null")) "NULL" else as.character(x)
+  }
   # Make list of search values and best value
-  tfl <- lapply(seq_along(grid_params), function(i) {
+  tfl <- lapply(names(param_grid), function(nm) {
     paste0(
       "{",
-      paste(grid_params[[i]], collapse = ", "),
+      paste(
+        vapply(unique(param_grid[[nm]]), show, character(1L)),
+        collapse = ", "
+      ),
       "}",
       " => ",
-      bold(best_param_combo[[names(grid_params)[i]]])
+      bold(show(best_param_combo[[nm]]))
     )
   })
-  names(tfl) <- names(grid_params)
+  names(tfl) <- names(param_grid)
   # Capture output to sync with msg stream (stderr)
   out <- utils::capture.output(printls(tfl, print_class = FALSE, pad = pad))
   message(paste(out, collapse = "\n"))

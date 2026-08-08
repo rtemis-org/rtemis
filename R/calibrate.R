@@ -6,7 +6,7 @@
 #' Resolve the requested calibrator
 #'
 #' NULL means the caller expressed no preference and gets the default
-#' calibrator. Any `Hyperparameters` object is accepted, but only a monotone
+#' calibrator. Any `Hyperparameters` object is accepted, but only a monotonic
 #' algorithm is a safe calibration map -- see `calibration_algorithms`.
 #'
 #' @param hyperparameters Optional `Hyperparameters` object.

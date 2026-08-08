@@ -229,8 +229,8 @@ families <- list(
         desc = "Highly Adaptive Lasso (hal9001). See `setup_HAL`."
       ),
       list(
-        cls = MonotoneHALHyperparameters,
-        desc = "Monotone Highly Adaptive Lasso (hal9001). See `setup_MonotoneHAL`."
+        cls = MonotonicHALHyperparameters,
+        desc = "Monotonic Highly Adaptive Lasso (hal9001). See `setup_MonotonicHAL`."
       )
     )
   )

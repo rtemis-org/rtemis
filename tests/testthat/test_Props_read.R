@@ -137,6 +137,11 @@ test_that("every spec'd class round-trips through JSON Schema unchanged", {
         original@data_dependent,
         label = label
       )
+      expect_equal(
+        restored@applies_when,
+        original@applies_when,
+        label = label
+      )
       expect_equal(restored@description, original@description, label = label)
       # `@items` is a nested spec; compare the axes that make it one.
       if (is.null(original@items)) {

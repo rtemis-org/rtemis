@@ -99,7 +99,7 @@ test_that("setup_LightRF() succeeds", {
   KNN = KNNHyperparameters,
   BART = BARTHyperparameters,
   HAL = HALHyperparameters,
-  MonotoneHAL = MonotoneHALHyperparameters
+  MonotonicHAL = MonotonicHALHyperparameters
 )
 
 test_that("setup_* defaults do not drift from the property defaults", {
@@ -470,14 +470,31 @@ test_that("HALHyperparameters() pairs num_knots with max_degree", {
   )
 })
 
-test_that("HALHyperparameters() rejects reduce_basis above smoothness order 0", {
-  # The backend applies the reduction only to the zero-order basis.
+test_that("HALHyperparameters() rejects reduce_basis when no order reaches 0", {
+  # The backend applies the reduction only to the zero-order basis, so a search
+  # that never reaches order 0 would ignore reduce_basis in every cell.
   expect_error(
     HALHyperparameters(smoothness_orders = 1L, reduce_basis = 0.1),
     "reduce_basis"
   )
+  expect_error(
+    HALHyperparameters(smoothness_orders = c(1L, 2L), reduce_basis = 0.1),
+    "reduce_basis"
+  )
   expect_s7_class(
     HALHyperparameters(smoothness_orders = 0L, reduce_basis = 0.1),
+    HALHyperparameters
+  )
+})
+
+test_that("HALHyperparameters() accepts reduce_basis in a search reaching 0", {
+  # The tuning grid drops reduce_basis from the cells above order 0, so the
+  # combination is a conditional search rather than an invalid one.
+  expect_s7_class(
+    HALHyperparameters(
+      smoothness_orders = c(0L, 1L, 2L),
+      reduce_basis = c(0.1, 0.5)
+    ),
     HALHyperparameters
   )
 })
@@ -494,47 +511,59 @@ test_that("setup_HAL() with search values needs tuning", {
   expect_true(needs_tuning(hal_hpr))
 })
 
-# MonotoneHALHyperparameters ----
-test_that("MonotoneHALHyperparameters() constructs from its property defaults", {
+# MonotonicHALHyperparameters ----
+test_that("MonotonicHALHyperparameters() constructs from its property defaults", {
   # Defaults come from the PropertySpecs, so no argument is required.
-  expect_s7_class(MonotoneHALHyperparameters(), MonotoneHALHyperparameters)
+  expect_s7_class(MonotonicHALHyperparameters(), MonotonicHALHyperparameters)
 })
 
-test_that("MonotoneHALHyperparameters() rejects reduce_basis above order 0", {
-  # The backend applies the reduction only to the zero-order basis.
+test_that("MonotonicHALHyperparameters() rejects reduce_basis without order 0", {
+  # The backend applies the reduction only to the zero-order basis, so a search
+  # that never reaches order 0 would ignore reduce_basis in every cell.
   expect_error(
-    MonotoneHALHyperparameters(smoothness_orders = 1L, reduce_basis = 0.1),
+    MonotonicHALHyperparameters(smoothness_orders = 1L, reduce_basis = 0.1),
     "reduce_basis"
   )
   expect_s7_class(
-    MonotoneHALHyperparameters(smoothness_orders = 0L, reduce_basis = 0.1),
-    MonotoneHALHyperparameters
+    MonotonicHALHyperparameters(smoothness_orders = 0L, reduce_basis = 0.1),
+    MonotonicHALHyperparameters
   )
 })
 
-test_that("MonotoneHALHyperparameters() bounds smoothness_orders to 0 or 1", {
-  # Above 1 the basis functions are no longer monotone in their feature, so a
-  # non-negative coefficient would stop implying a non-decreasing fit.
-  expect_error(MonotoneHALHyperparameters(smoothness_orders = 2L))
-  expect_error(MonotoneHALHyperparameters(smoothness_orders = -1L))
+test_that("MonotonicHALHyperparameters() accepts a search reaching order 0", {
+  # The tuning grid drops reduce_basis from the order-1 cells.
+  expect_s7_class(
+    MonotonicHALHyperparameters(
+      smoothness_orders = c(0L, 1L),
+      reduce_basis = c(0.1, 0.5)
+    ),
+    MonotonicHALHyperparameters
+  )
 })
 
-test_that("MonotoneHALHyperparameters() has no way to express a bad map", {
+test_that("MonotonicHALHyperparameters() bounds smoothness_orders to 0 or 1", {
+  # Above 1 the basis functions are no longer monotonic in their feature, so a
+  # non-negative coefficient would stop implying a non-decreasing fit.
+  expect_error(MonotonicHALHyperparameters(smoothness_orders = 2L))
+  expect_error(MonotonicHALHyperparameters(smoothness_orders = -1L))
+})
+
+test_that("MonotonicHALHyperparameters() has no way to express a bad map", {
   # max_degree, the monotonicity constraint, and the family are invariants of
   # the algorithm, not properties, so no argument can turn them off.
-  expect_error(MonotoneHALHyperparameters(max_degree = 2L))
-  expect_error(MonotoneHALHyperparameters(monotone = FALSE))
-  expect_error(MonotoneHALHyperparameters(family = "gaussian"))
+  expect_error(MonotonicHALHyperparameters(max_degree = 2L))
+  expect_error(MonotonicHALHyperparameters(monotonic = FALSE))
+  expect_error(MonotonicHALHyperparameters(family = "gaussian"))
 })
 
-# setup_MonotoneHAL ----
-test_that("setup_MonotoneHAL() succeeds", {
-  expect_s7_class(setup_MonotoneHAL(), MonotoneHALHyperparameters)
+# setup_MonotonicHAL ----
+test_that("setup_MonotonicHAL() succeeds", {
+  expect_s7_class(setup_MonotonicHAL(), MonotonicHALHyperparameters)
 })
 
-test_that("setup_MonotoneHAL() with search values needs tuning", {
-  mhal_hpr <- setup_MonotoneHAL(smoothness_orders = c(0L, 1L))
-  expect_s7_class(mhal_hpr, MonotoneHALHyperparameters)
+test_that("setup_MonotonicHAL() with search values needs tuning", {
+  mhal_hpr <- setup_MonotonicHAL(smoothness_orders = c(0L, 1L))
+  expect_s7_class(mhal_hpr, MonotonicHALHyperparameters)
   expect_identical(mhal_hpr@tuned, TUNED_STATUS_UNTUNED)
   expect_true(needs_tuning(mhal_hpr))
 })
@@ -665,4 +694,83 @@ test_that("tune_on_null is declared on the property, not per class", {
 test_that("tune_on_null requires nullable", {
   # NULL is the signal, so a non-nullable property cannot carry it.
   expect_error(prop_float(1, tune_on_null = TRUE), "nullable")
+})
+
+
+# %% applies_when / tuning_grid ----
+test_that("tuning_grid() gates a searched hyperparameter and deduplicates", {
+  # reduce_basis applies only at smoothness order 0, so the cross product's six
+  # combinations reduce to the two order-0 ones plus one per higher order.
+  grid <- tuning_grid(
+    setup_HAL(smoothness_orders = c(0L, 1L, 2L), reduce_basis = c(0.1, 0.5))
+  )
+  expect_identical(NROW(grid), 4L)
+  expect_setequal(names(grid), c("smoothness_orders", "reduce_basis"))
+  expect_identical(
+    sort(grid[["reduce_basis"]][grid[["smoothness_orders"]] == 0L]),
+    c(0.1, 0.5)
+  )
+  expect_true(all(is.na(grid[["reduce_basis"]][
+    grid[["smoothness_orders"]] > 0L
+  ])))
+})
+
+
+test_that("tuning_grid() gates a hyperparameter held at a single value", {
+  # reduce_basis does not vary, so it is absent from the expansion, but it still
+  # has to be dropped from the combinations that cannot use it.
+  grid <- tuning_grid(setup_HAL(
+    smoothness_orders = c(0L, 1L),
+    reduce_basis = 0.1
+  ))
+  expect_identical(NROW(grid), 2L)
+  expect_identical(grid[["reduce_basis"]], c(0.1, NA_real_))
+})
+
+
+test_that("tuning_grid() leaves an ungated search as the full cross product", {
+  grid <- tuning_grid(
+    setup_HAL(max_degree = c(1L, 2L), smoothness_orders = c(0L, 1L))
+  )
+  expect_identical(NROW(grid), 4L)
+  expect_false(anyNA(grid))
+})
+
+
+test_that("tuning_grid() does not gate when the gating value is fixed", {
+  # smoothness_orders is 0 for every combination, so the gate is open
+  # throughout and was already checked at construction.
+  grid <- tuning_grid(setup_HAL(
+    smoothness_orders = 0L,
+    reduce_basis = c(0.1, 0.5)
+  ))
+  expect_identical(NROW(grid), 2L)
+  expect_false(anyNA(grid))
+})
+
+
+test_that("tuning_grid() returns NULL when nothing needs tuning", {
+  expect_null(tuning_grid(setup_HAL()))
+})
+
+
+test_that("a gated grid combination updates the search object to NULL", {
+  # NA is the grid's marker; NULL is the property's spelling of it, since the
+  # specs reject NA and it has no JSON form.
+  #
+  # Updating starts from the search object, as the tuner does: raising
+  # smoothness_orders while reduce_basis still holds its search value is an
+  # invalid intermediate state, so the values are applied as one transaction.
+  hyperparameters <- setup_HAL(
+    smoothness_orders = c(0L, 1L),
+    reduce_basis = 0.1
+  )
+  grid <- tuning_grid(hyperparameters)
+  gated <- grid[grid[["smoothness_orders"]] == 1L, , drop = FALSE]
+  updated <- update(hyperparameters, as.list(gated))
+  expect_null(updated@reduce_basis)
+  expect_identical(updated@smoothness_orders, 1L)
+
+  open <- grid[grid[["smoothness_orders"]] == 0L, , drop = FALSE]
+  expect_identical(update(hyperparameters, as.list(open))@reduce_basis, 0.1)
 })

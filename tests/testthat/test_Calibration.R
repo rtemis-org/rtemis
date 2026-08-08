@@ -42,7 +42,7 @@ datc3_test <- datc3[-resc3$Fold_1, ]
 # A well-ranked but badly scaled score: cubing a calibrated probability leaves
 # the ordering untouched and the magnitudes wrong, which is exactly the input
 # calibration exists for. Ranking is preserved, so AUC of the raw score is the
-# ceiling any monotone calibrator can reach and the floor it must not fall
+# ceiling any monotonic calibrator can reach and the floor it must not fall
 # below.
 miscalibrated_scores <- function(n = 600L, seed = 2026L) {
   set.seed(seed)
@@ -91,9 +91,9 @@ calibrated_probs <- function(hyperparameters, dat, newscore = NULL) {
 }
 
 
-# MonotoneHAL calibration properties ----
+# MonotonicHAL calibration properties ----
 ## Monotonicity ----
-test_that("MonotoneHAL calibration is monotone on a dense grid", {
+test_that("MonotonicHAL calibration is monotonic on a dense grid", {
   skip_if_not_installed("hal9001")
   # The invariant the algorithm exists for, tested directly rather than
   # through a proxy. The grid extends past the observed score range on both
@@ -101,7 +101,7 @@ test_that("MonotoneHAL calibration is monotone on a dense grid", {
   # basis functions are constant out there, and a constant tail is still
   # non-decreasing. Both smoothness orders are checked, since they build
   # different bases -- indicators at 0, hinges at 1 -- and only the
-  # non-negative coefficients make either of them monotone.
+  # non-negative coefficients make either of them monotonic.
   dat <- miscalibrated_scores()
   lo <- min(dat[["score"]])
   hi <- max(dat[["score"]])
@@ -109,7 +109,7 @@ test_that("MonotoneHAL calibration is monotone on a dense grid", {
   grid <- seq(lo - pad, hi + pad, length.out = 1000L)
   for (order in c(0L, 1L)) {
     calibrated <- calibrated_probs(
-      setup_MonotoneHAL(smoothness_orders = order, seed = 2026L),
+      setup_MonotonicHAL(smoothness_orders = order, seed = 2026L),
       dat,
       grid
     )
@@ -117,7 +117,7 @@ test_that("MonotoneHAL calibration is monotone on a dense grid", {
   }
 })
 
-test_that("MonotoneHAL calibration inverts no ranks on observed scores", {
+test_that("MonotonicHAL calibration inverts no ranks on observed scores", {
   skip_if_not_installed("hal9001")
   # Same guarantee read on the actual calibration scores rather than a grid.
   # Ties are expected -- at smoothness_orders = 0 the map is a step function
@@ -125,7 +125,7 @@ test_that("MonotoneHAL calibration inverts no ranks on observed scores", {
   dat <- miscalibrated_scores()
   for (order in c(0L, 1L)) {
     calibrated <- calibrated_probs(
-      setup_MonotoneHAL(smoothness_orders = order, seed = 2026L),
+      setup_MonotonicHAL(smoothness_orders = order, seed = 2026L),
       dat
     )
     ordered <- calibrated[order(dat[["score"]])]
@@ -133,9 +133,9 @@ test_that("MonotoneHAL calibration inverts no ranks on observed scores", {
   }
 })
 
-test_that("MonotoneHAL calibration does not degrade AUC", {
+test_that("MonotonicHAL calibration does not degrade AUC", {
   skip_if_not_installed("hal9001")
-  # A monotone map cannot reorder, but a piecewise-constant one merges
+  # A monotonic map cannot reorder, but a piecewise-constant one merges
   # distinct scores into ties, and ties legitimately cost trapezoidal AUC.
   # The assertion is therefore one-sided: calibration may raise AUC, and must
   # not lower it by more than tie-breaking accounts for. A large drop would
@@ -144,22 +144,22 @@ test_that("MonotoneHAL calibration does not degrade AUC", {
   baseline <- auc_of(dat[["score"]], dat[["y"]])
   for (order in c(0L, 1L)) {
     calibrated <- calibrated_probs(
-      setup_MonotoneHAL(smoothness_orders = order, seed = 2026L),
+      setup_MonotonicHAL(smoothness_orders = order, seed = 2026L),
       dat
     )
     expect_gte(auc_of(calibrated, dat[["y"]]), baseline - 0.01)
   }
   # At the default order the map is strictly increasing, so ranks survive
   # intact and AUC is carried through exactly.
-  default_cal <- calibrated_probs(setup_MonotoneHAL(seed = 2026L), dat)
+  default_cal <- calibrated_probs(setup_MonotonicHAL(seed = 2026L), dat)
   expect_equal(auc_of(default_cal, dat[["y"]]), baseline, tolerance = 1e-8)
 })
 
 ## Calibration improves ----
-test_that("MonotoneHAL calibration improves Brier score and log loss", {
+test_that("MonotonicHAL calibration improves Brier score and log loss", {
   skip_if_not_installed("hal9001")
   dat <- miscalibrated_scores()
-  calibrated <- calibrated_probs(setup_MonotoneHAL(seed = 2026L), dat)
+  calibrated <- calibrated_probs(setup_MonotonicHAL(seed = 2026L), dat)
   expect_lt(
     brier_of(calibrated, dat[["y"]]),
     brier_of(dat[["score"]], dat[["y"]])
@@ -174,12 +174,12 @@ test_that("MonotoneHAL calibration improves Brier score and log loss", {
 test_that("Neither calibrator returns an exact 0 or 1", {
   skip_if_not_installed("hal9001")
   # A calibrated probability of exactly 0 or 1 asserts certainty and makes log
-  # loss infinite for a single case there whose label disagrees. MonotoneHAL
+  # loss infinite for a single case there whose label disagrees. MonotonicHAL
   # fits on the logit scale and cannot reach either endpoint; Isotonic would
   # otherwise fit a uniformly-labelled block at exactly 0 or 1 and is bounded
   # away from both. This is a regression test for that failure mode.
   dat <- miscalibrated_scores()
-  for (hp in list(setup_MonotoneHAL(seed = 2026L), setup_Isotonic())) {
+  for (hp in list(setup_MonotonicHAL(seed = 2026L), setup_Isotonic())) {
     calibrated <- calibrated_probs(hp, dat)
     expect_true(all(calibrated > 0))
     expect_true(all(calibrated < 1))
@@ -222,16 +222,16 @@ test_that("Isotonic regression fits are not bounded", {
 })
 
 ## Isotonic equivalence ----
-test_that("Unpenalized MonotoneHAL at order 0 approximates Isotonic", {
+test_that("Unpenalized MonotonicHAL at order 0 approximates Isotonic", {
   skip_if_not_installed("hal9001")
-  # hal9001 documents that a monotone HAL with smoothness_orders = 0 and the
-  # lasso penalty removed is the NPMLE over the monotone class, which is what
+  # hal9001 documents that a monotonic HAL with smoothness_orders = 0 and the
+  # lasso penalty removed is the NPMLE over the monotonic class, which is what
   # isotonic regression computes. The two agree in the interior but cannot
   # agree at the boundary: isotonic reaches exactly 0 and 1, and a logit-scale
   # fit never does. The tolerance is therefore loose and on the mean.
   dat <- miscalibrated_scores()
   hal0 <- calibrated_probs(
-    setup_MonotoneHAL(smoothness_orders = 0L, penalized = FALSE, seed = 2026L),
+    setup_MonotonicHAL(smoothness_orders = 0L, penalized = FALSE, seed = 2026L),
     dat
   )
   isotonic <- calibrated_probs(setup_Isotonic(), dat)
@@ -240,14 +240,14 @@ test_that("Unpenalized MonotoneHAL at order 0 approximates Isotonic", {
 })
 
 ## Degenerate inputs ----
-test_that("MonotoneHAL calibration survives degenerate inputs", {
+test_that("MonotonicHAL calibration survives degenerate inputs", {
   skip_if_not_installed("hal9001")
   # None of these may hang or return NaN. They are the inputs a calibration
   # set can genuinely take when a resample is small or a fold is unlucky.
   fit_ok <- function(score, labels) {
     p <- tryCatch(
       calibrated_probs(
-        setup_MonotoneHAL(seed = 2026L),
+        setup_MonotonicHAL(seed = 2026L),
         list(score = score, labels = labels)
       ),
       error = function(e) NULL
@@ -318,7 +318,7 @@ test_that("calibrate() defaults to Isotonic on ClassificationRes", {
 })
 
 ## Explicit requests are honored ----
-test_that("calibrate() honors an explicit MonotoneHAL request", {
+test_that("calibrate() honors an explicit MonotonicHAL request", {
   skip_if_not_installed("hal9001")
   # No substitution in either direction: the caller named an algorithm and the
   # object must report the one that actually ran.
@@ -332,11 +332,11 @@ test_that("calibrate() honors an explicit MonotoneHAL request", {
     mod,
     predicted_probabilities = mod@predicted_prob_training,
     true_labels = mod@y_training,
-    hyperparameters = setup_MonotoneHAL(seed = 2026L),
+    hyperparameters = setup_MonotonicHAL(seed = 2026L),
     verbosity = 0L
   )
-  expect_identical(cal@calibrator, "MonotoneHAL")
-  expect_identical(to_json(cal)[["calibrator"]], "MonotoneHAL")
+  expect_identical(cal@calibrator, "MonotonicHAL")
+  expect_identical(to_json(cal)[["calibrator"]], "MonotonicHAL")
 })
 
 test_that("calibrate() propagates a calibration fit failure", {
@@ -357,7 +357,7 @@ test_that("calibrate() propagates a calibration fit failure", {
       mod,
       predicted_probabilities = mod@predicted_prob_training,
       true_labels = mod@y_training,
-      hyperparameters = setup_MonotoneHAL(),
+      hyperparameters = setup_MonotonicHAL(),
       verbosity = 0L
     ),
     "synthetic backend failure"
@@ -393,7 +393,7 @@ test_that("calibrate() rejects IFW on ClassificationRes", {
   expect_error(
     calibrate(
       resmod,
-      hyperparameters = setup_MonotoneHAL(ifw = TRUE),
+      hyperparameters = setup_MonotonicHAL(ifw = TRUE),
       verbosity = 0L
     ),
     "IFW"
@@ -402,17 +402,17 @@ test_that("calibrate() rejects IFW on ClassificationRes", {
 
 
 # available_calibration() ----
-test_that("available_calibration() lists the monotone calibrators", {
+test_that("available_calibration() lists the monotonic calibrators", {
   algs <- available_calibration(verbosity = 0L)
   # The other available_* functions return a named character vector carrying
   # class "list" so `printls()` renders it; match that, not typeof().
   expect_identical(class(algs), "list")
-  expect_named(algs, c("Isotonic", "MonotoneHAL"))
+  expect_named(algs, c("Isotonic", "MonotonicHAL"))
   # Descriptions are read from the supervised table, not restated, so they
   # cannot drift from what available_supervised() prints.
   supervised <- available_supervised(verbosity = 0L)
   expect_identical(algs[["Isotonic"]], supervised[["Isotonic"]])
-  expect_identical(algs[["MonotoneHAL"]], supervised[["MonotoneHAL"]])
+  expect_identical(algs[["MonotonicHAL"]], supervised[["MonotonicHAL"]])
 })
 
 test_that("every calibration algorithm is a registered supervised algorithm", {

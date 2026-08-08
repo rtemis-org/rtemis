@@ -11,7 +11,7 @@ supervised_algorithms <- data.frame(rbind(
   c("GLMNET", "Elastic Net", TRUE, TRUE, TRUE),
   c("HAL", "Highly Adaptive Lasso", TRUE, TRUE, FALSE),
   c("Isotonic", "Isotonic Regression", TRUE, TRUE, FALSE),
-  c("MonotoneHAL", "Monotone Highly Adaptive Lasso", TRUE, TRUE, FALSE),
+  c("MonotonicHAL", "Monotonic Highly Adaptive Lasso", TRUE, TRUE, FALSE),
   c("KNN", "k-Nearest Neighbors", TRUE, TRUE, FALSE),
   c("LightCART", "Decision Tree", TRUE, TRUE, FALSE),
   c("LightGBM", "Gradient Boosting", TRUE, TRUE, FALSE),
@@ -56,14 +56,14 @@ supervised_multiclass <- c(
   "SPLS"
 )
 
-# Algorithms whose fit is constrained monotone non-decreasing, which is what
+# Algorithms whose fit is constrained monotonic non-decreasing, which is what
 # makes an algorithm usable as a calibration map: a map that reorders scores
 # changes the ranking of the predictions and so changes AUC. `calibrate()`
 # accepts any `Hyperparameters` object, because it trains one like any other
 # model, but only these carry that guarantee. The first is the default.
 calibration_algorithms <- c(
   "Isotonic",
-  "MonotoneHAL"
+  "MonotonicHAL"
 )
 
 get_alg_name <- function(algorithm) {

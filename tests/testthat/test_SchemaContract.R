@@ -80,7 +80,7 @@
     list(KNNHyperparameters, "setup_KNN"),
     list(BARTHyperparameters, "setup_BART"),
     list(HALHyperparameters, "setup_HAL"),
-    list(MonotoneHALHyperparameters, "setup_MonotoneHAL")
+    list(MonotonicHALHyperparameters, "setup_MonotonicHAL")
   ),
   .contract_family(
     NULL,

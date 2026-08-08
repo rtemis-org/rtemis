@@ -628,6 +628,44 @@ present <- new_generic("present", "x")
 get_hyperparams_need_tuning <- new_generic("get_hyperparams_need_tuning", "x")
 
 
+# %% tuning_grid ----
+#' Tuning grid of a Hyperparameters object
+#'
+#' @description
+#' The set of hyperparameter combinations a grid search would fit, one per row.
+#' Derived from the object, so it can be inspected before `train()` is called.
+#'
+#' @details
+#' The grid is the cross product of the search values, reduced by two rules:
+#'
+#' * A hyperparameter that declares it applies only under certain values of
+#'   another is set to `NA` -- meaning "left unset for this fit" -- in the rows
+#'   that do not meet them. `reduce_basis` applies only at `smoothness_orders`
+#'   of 0, so a search over both drops it from the higher-order rows.
+#' * Rows that become identical once that is done are collapsed, so a
+#'   combination is never fit, scored, and ranked twice.
+#'
+#' `tune_GridSearch()` fits exactly these rows, so what this prints is what will
+#' run.
+#'
+#' @param x `Hyperparameters` object.
+#'
+#' @return data.frame with one row per combination and one column per searched
+#'   hyperparameter, or NULL if nothing needs tuning.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' # reduce_basis applies only at smoothness order 0, so the six combinations
+#' # of the cross product reduce to four.
+#' tuning_grid(
+#'   setup_HAL(smoothness_orders = c(0L, 1L, 2L), reduce_basis = c(0.1, 0.5))
+#' )
+tuning_grid <- new_generic("tuning_grid", "x", function(x) {
+  S7_dispatch()
+})
+
+
 # %% get_hyperparams ----
 #' Get hyperparameters.
 #'
@@ -1063,7 +1101,7 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #'
 #' @section Choosing a calibrator:
 #'
-#' A calibration map must be monotone non-decreasing. A map that reorders
+#' A calibration map must be monotonic non-decreasing. A map that reorders
 #' scores changes the ranking of the predictions, and so changes AUC; a
 #' non-decreasing one cannot. [available_calibration] lists the algorithms
 #' that carry that guarantee. Any other `Hyperparameters` object is accepted
@@ -1074,7 +1112,7 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #'   in either direction. Fitted probabilities are held at least `1 / (2 * n)`
 #'   away from 0 and 1, `n` being the number of calibration cases, so a block
 #'   of uniformly labelled cases does not assert certainty.
-#' * [setup_MonotoneHAL] fits a monotone Highly Adaptive Lasso on the logit
+#' * [setup_MonotonicHAL] fits a monotonic Highly Adaptive Lasso on the logit
 #'   scale. At its default `smoothness_orders = 1` the map is continuous and
 #'   strictly increasing, so it preserves AUC exactly -- but the constraint
 #'   that achieves this also makes the map convex on the logit scale, which
@@ -1082,7 +1120,7 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #'   `smoothness_orders = 0` with `penalized = FALSE` lifts that restriction,
 #'   at the cost of ties and a markedly slower fit.
 #'
-#' Isotonic is the default because no monotone lasso configuration is
+#' Isotonic is the default because no monotonic lasso configuration is
 #' uniformly better and every one of them is several times slower.
 #' `data-raw/benchmark_calibrators.R` reproduces the comparison.
 #'

@@ -166,6 +166,11 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   "feature_names"\}. Checked against the data by
 #'   `validate_hyperparameters()`, not at construction time. See
 #'   `check_data_bounds()`.
+#' @field applies_when Named list or NULL: Sibling properties this one is only
+#'   in effect for, mapped to the values that put it in effect. Entries are
+#'   conjunctive: every named sibling must hold one of its listed values.
+#'   Requires `nullable`, since NULL is how "does not apply" is expressed. See
+#'   `check_applies_when()`.
 #' @field description Character: Human-readable description (schema
 #'   "description", TUI help text).
 #'
@@ -247,6 +252,12 @@ PropertySpec <- new_class(
     # an annotation for form builders -- every such property is a settable input
     # and is serialized. `data_bound` is about *validating* against the data.
     data_dependent = new_property(class_logical, default = FALSE),
+    # Applicability, orthogonal to validity: the value is well-formed but inert
+    # unless a sibling holds one of the listed values. The shape is "sibling is
+    # one of a set", conjoined across entries; three consumers evaluate it --
+    # the class validator, the tuning grid, and the form builders vendored into
+    # the CLI and live.
+    applies_when = NULL | class_list,
     description = class_character
   ),
   validator = function(self) {
@@ -371,6 +382,39 @@ PropertySpec <- new_class(
       }
       if (self@tunable) {
         return("@constant and @tunable are mutually exclusive.")
+      }
+    }
+    if (!is.null(self@applies_when)) {
+      if (!self@nullable) {
+        return(
+          "@applies_when requires @nullable: NULL is how a property that does not apply is expressed."
+        )
+      }
+      if (self@constant) {
+        return(
+          "@applies_when and @constant are mutually exclusive: a constant is not settable, so gating it has no effect."
+        )
+      }
+      if (length(self@applies_when) == 0L) {
+        return("@applies_when must name at least one sibling property.")
+      }
+      nms <- names(self@applies_when)
+      if (is.null(nms) || any(!nzchar(nms))) {
+        return("@applies_when must be fully named.")
+      }
+      if (anyDuplicated(nms) > 0L) {
+        return("@applies_when must have unique names.")
+      }
+      for (nm in nms) {
+        allowed <- self@applies_when[[nm]]
+        # NA marks a gated-off cell in the tuning grid, so it is reserved.
+        if (!is.atomic(allowed) || length(allowed) == 0L || anyNA(allowed)) {
+          return(paste0(
+            "@applies_when[['",
+            nm,
+            "']] must be a non-empty atomic vector of allowed values, without NA."
+          ))
+        }
       }
     }
     if (!is.null(self@data_bound)) {
@@ -952,6 +996,9 @@ spec_validator <- function(fields) {
 #' @param default Logical: Default value (NULL only if `nullable`).
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
+#' @param applies_when Optional named list: Sibling properties this one is only
+#'   in effect for, mapped to the values that put it in effect. Requires
+#'   `nullable`.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -963,6 +1010,7 @@ prop_boolean <- function(
   default = FALSE,
   nullable = FALSE,
   tunable = FALSE,
+  applies_when = NULL,
   description = ""
 ) {
   make_prop(PropertySpec(
@@ -977,6 +1025,7 @@ prop_boolean <- function(
     tunable = tunable,
     container = "none",
     broadcast = FALSE,
+    applies_when = applies_when,
     description = description
   ))
 } # /rtemis::prop_boolean
@@ -1008,6 +1057,9 @@ prop_boolean <- function(
 #' @param data_dependent Logical: If TRUE, the value's shape follows one
 #'   dataset (one entry per case or per feature), so a form should not prompt
 #'   for it. An annotation only; it does not affect serialization.
+#' @param applies_when Optional named list: Sibling properties this one is only
+#'   in effect for, mapped to the values that put it in effect. Requires
+#'   `nullable`.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -1029,6 +1081,7 @@ prop_integer <- function(
   unique_items = FALSE,
   data_bound = NULL,
   data_dependent = FALSE,
+  applies_when = NULL,
   description = ""
 ) {
   make_prop(PropertySpec(
@@ -1049,6 +1102,7 @@ prop_integer <- function(
     unique_items = unique_items,
     data_bound = data_bound,
     data_dependent = data_dependent,
+    applies_when = applies_when,
     description = description
   ))
 } # /rtemis::prop_integer
@@ -1088,6 +1142,9 @@ prop_integer <- function(
 #' @param data_dependent Logical: If TRUE, the value's shape follows one
 #'   dataset (one entry per case or per feature), so a form should not prompt
 #'   for it. An annotation only; it does not affect serialization.
+#' @param applies_when Optional named list: Sibling properties this one is only
+#'   in effect for, mapped to the values that put it in effect. Requires
+#'   `nullable`.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -1111,6 +1168,7 @@ prop_float <- function(
   unique_items = FALSE,
   data_bound = NULL,
   data_dependent = FALSE,
+  applies_when = NULL,
   description = ""
 ) {
   make_prop(PropertySpec(
@@ -1131,6 +1189,7 @@ prop_float <- function(
     unique_items = unique_items,
     data_bound = data_bound,
     data_dependent = data_dependent,
+    applies_when = applies_when,
     description = description
   ))
 } # /rtemis::prop_float
@@ -1161,6 +1220,9 @@ prop_float <- function(
 #' @param data_dependent Logical: If TRUE, the value's shape follows one
 #'   dataset (one entry per case or per feature), so a form should not prompt
 #'   for it. An annotation only; it does not affect serialization.
+#' @param applies_when Optional named list: Sibling properties this one is only
+#'   in effect for, mapped to the values that put it in effect. Requires
+#'   `nullable`.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -1181,6 +1243,7 @@ prop_string <- function(
   unique_items = FALSE,
   data_bound = NULL,
   data_dependent = FALSE,
+  applies_when = NULL,
   description = ""
 ) {
   make_prop(PropertySpec(
@@ -1201,6 +1264,7 @@ prop_string <- function(
     unique_items = unique_items,
     data_bound = data_bound,
     data_dependent = data_dependent,
+    applies_when = applies_when,
     description = description
   ))
 } # /rtemis::prop_string
@@ -1707,6 +1771,103 @@ constant_spec_names <- function(x) {
     x@properties
   ))
 } # /rtemis::constant_spec_names
+
+
+# %% applies_when_spec_names ----
+#' Names of an S7 class's properties whose applicability a sibling gates
+#'
+#' @param x S7 class.
+#'
+#' @return Character vector: Names of properties whose `PropertySpec` carries an
+#'   `applies_when`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+applies_when_spec_names <- function(x) {
+  names(Filter(
+    function(p) {
+      fields <- get_spec_fields(p)
+      !is.null(fields) && !is.null(fields[["applies_when"]])
+    },
+    x@properties
+  ))
+} # /rtemis::applies_when_spec_names
+
+
+# %% format_allowed ----
+#' Format a gate's allowed values for an error message
+#'
+#' @param values Atomic vector.
+#'
+#' @return Character scalar.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+format_allowed <- function(values) {
+  values <- format(values, trim = TRUE)
+  if (length(values) == 1L) {
+    return(values)
+  }
+  paste0(
+    paste(values[-length(values)], collapse = ", "),
+    " or ",
+    values[length(values)]
+  )
+} # /rtemis::format_allowed
+
+
+# %% check_applies_when ----
+#' Check an object's gated properties against the siblings that gate them
+#'
+#' A gated property is set only where it has an effect. Because a tunable
+#' property holds *search values*, the gate passes when **any** of the gating
+#' property's values opens it: the combination is then a conditional search, and
+#' `tuning_grid()` drops the gated property from the cells that cannot use it.
+#' Only a search no value of which opens the gate is rejected, since there the
+#' gated value would be silently ignored in every cell.
+#'
+#' Call from a class validator. The declaration itself (gates naming real,
+#' ungated siblings) is audited in the test suite, not here.
+#'
+#' @param object S7 object whose class declares the properties.
+#'
+#' @return Character scalar (the validator message) or NULL if every gate holds.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_applies_when <- function(object) {
+  cls <- S7_class(object)
+  for (nm in applies_when_spec_names(cls)) {
+    if (is.null(prop(object, nm))) {
+      next
+    }
+    gate <- get_spec_fields(cls@properties[[nm]])[["applies_when"]]
+    for (gate_name in names(gate)) {
+      allowed <- gate[[gate_name]]
+      if (!any(prop(object, gate_name) %in% allowed)) {
+        return(paste0(
+          "@",
+          nm,
+          " applies only when @",
+          gate_name,
+          " is ",
+          format_allowed(allowed),
+          ", and no value of @",
+          gate_name,
+          " is. Set @",
+          gate_name,
+          " accordingly, or leave @",
+          nm,
+          " NULL."
+        ))
+      }
+    }
+  }
+  NULL
+} # /rtemis::check_applies_when
 
 
 # %% prop_bag ----
@@ -2530,6 +2691,32 @@ data_bound_note <- function(data_bound, container, broadcast) {
 } # /rtemis::data_bound_note
 
 
+# %% applies_when_note ----
+#' The sentence describing an `applies_when` gate
+#'
+#' The gate is emitted structurally in `x-rtemis`, but a reader that renders
+#' only descriptions would otherwise show a conditional value as an
+#' unconditional one. Both directions share this one definition:
+#' `spec_to_schema()` appends it, `schema_to_spec()` strips it back off. Two
+#' copies would let the reader fail to recognize a sentence the writer changed.
+#'
+#' @param applies_when Named list: The gate; see `PropertySpec`.
+#'
+#' @return Character: The sentence appended to the description.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+applies_when_note <- function(applies_when) {
+  clauses <- vapply(
+    names(applies_when),
+    function(nm) paste0(nm, " is ", format_allowed(applies_when[[nm]])),
+    character(1L)
+  )
+  paste0("Applies only when ", paste(clauses, collapse = " and "), ".")
+} # /rtemis::applies_when_note
+
+
 # %% members_schema ----
 #' The JSON Schema object a declared shape emits
 #'
@@ -2708,6 +2895,16 @@ spec_to_schema <- function(spec, read_only = FALSE) {
       note
     }
   }
+  # Carries the gate to a reader that renders only descriptions; it is also
+  # emitted structurally below.
+  if (!is.null(spec@applies_when)) {
+    note <- applies_when_note(spec@applies_when)
+    description <- if (nzchar(description)) {
+      paste(description, note)
+    } else {
+      note
+    }
+  }
   if (nzchar(description)) {
     out[["description"]] <- description
   }
@@ -2735,7 +2932,10 @@ spec_to_schema <- function(spec, read_only = FALSE) {
       tune_on_null = if (spec@tune_on_null) TRUE else NULL,
       default_on_null = if (spec@default_on_null) TRUE else NULL,
       data_bound = spec@data_bound,
-      data_dependent = if (spec@data_dependent) TRUE else NULL
+      data_dependent = if (spec@data_dependent) TRUE else NULL,
+      # A gate over *search values*: it opens when any one of them is listed,
+      # and the tuning grid drops the property from the cells where it is not.
+      applies_when = spec@applies_when
     )
   )
   if (spec@constant) {

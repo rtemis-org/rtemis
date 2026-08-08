@@ -1,4 +1,4 @@
-# train_MonotoneHAL.R
+# train_MonotonicHAL.R
 # ::rtemis::
 # 2026- EDG rtemis.org
 
@@ -9,15 +9,15 @@
 # %% Constants ----
 # The interaction degree is fixed: the algorithm is additive by definition, and
 # the calibration case it exists for has a single feature.
-MONOTONE_HAL_MAX_DEGREE <- 1L
+MONOTONIC_HAL_MAX_DEGREE <- 1L
 
 # Fewest cases glmnet wants in a cross-validation fold before it stops grouping
 # them, and the fewest folds worth running.
-MONOTONE_HAL_MIN_FOLD_SIZE <- 3L
-MONOTONE_HAL_MIN_FOLDS <- 3L
+MONOTONIC_HAL_MIN_FOLD_SIZE <- 3L
+MONOTONIC_HAL_MIN_FOLDS <- 3L
 
 
-# %% monotone_hal_nfolds ----
+# %% monotonic_hal_nfolds ----
 #' Folds the internal cross-validation can actually support
 #'
 #' The calibration sets this algorithm is built for are often small -- a single
@@ -34,14 +34,14 @@ MONOTONE_HAL_MIN_FOLDS <- 3L
 #' @author EDG
 #' @keywords internal
 #' @noRd
-monotone_hal_nfolds <- function(nfolds, n_cases) {
-  supported <- n_cases %/% MONOTONE_HAL_MIN_FOLD_SIZE
-  max(MONOTONE_HAL_MIN_FOLDS, min(nfolds, supported))
-} # /rtemis::monotone_hal_nfolds
+monotonic_hal_nfolds <- function(nfolds, n_cases) {
+  supported <- n_cases %/% MONOTONIC_HAL_MIN_FOLD_SIZE
+  max(MONOTONIC_HAL_MIN_FOLDS, min(nfolds, supported))
+} # /rtemis::monotonic_hal_nfolds
 
 
-# %% monotone_hal_formula ----
-#' HAL formula imposing a monotone non-decreasing fit
+# %% monotonic_hal_formula ----
+#' HAL formula imposing a monotonic non-decreasing fit
 #'
 #' `hal9001` takes shape constraints through its formula interface rather than
 #' through an argument of `fit_hal`. `h(., monotone = "i")` expands to one term
@@ -59,7 +59,7 @@ monotone_hal_nfolds <- function(nfolds, n_cases) {
 #'
 #' `pf` is glmnet's penalty factor for the generated terms. `pf = 0` removes
 #' the lasso penalty, leaving the non-parametric maximum likelihood estimate
-#' over the monotone class.
+#' over the monotonic class.
 #'
 #' @param penalized Logical: If FALSE, set `pf = 0` to drop the lasso penalty.
 #'
@@ -68,21 +68,21 @@ monotone_hal_nfolds <- function(nfolds, n_cases) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-monotone_hal_formula <- function(penalized = TRUE) {
+monotonic_hal_formula <- function(penalized = TRUE) {
   if (penalized) {
     "~ h(., monotone = 'i')"
   } else {
     "~ h(., monotone = 'i', pf = 0)"
   }
-} # /rtemis::monotone_hal_formula
+} # /rtemis::monotonic_hal_formula
 
 
-# %% train_.MonotoneHALHyperparameters ----
-#' Train a monotone Highly Adaptive Lasso model
+# %% train_.MonotonicHALHyperparameters ----
+#' Train a monotonic Highly Adaptive Lasso model
 #'
 #' Train a shape-constrained HAL model using `hal9001::fit_hal` for regression
 #' (gaussian family) and binary classification (binomial family). The fit is
-#' additive and monotone non-decreasing in every feature.
+#' additive and monotonic non-decreasing in every feature.
 #'
 #' HAL does not work in the presence of missing values, and takes a numeric
 #' matrix, so factors are one-hot encoded first. `hal9001` has no multinomial
@@ -92,12 +92,12 @@ monotone_hal_formula <- function(penalized = TRUE) {
 #' interaction degree 1 the basis grows linearly in the number of features
 #' rather than combinatorially.
 #'
-#' @param hyperparameters `MonotoneHALHyperparameters` object: make using
-#' [setup_MonotoneHAL].
+#' @param hyperparameters `MonotonicHALHyperparameters` object: make using
+#' [setup_MonotonicHAL].
 #' @param x tabular data: Training set.
 #' @param weights Numeric vector: Case weights, passed to the lasso.
-#' @param dat_validation Optional tabular data: Not used for MonotoneHAL.
-#' @param execution_config `ExecutionConfig` object: Not used for MonotoneHAL.
+#' @param dat_validation Optional tabular data: Not used for MonotonicHAL.
+#' @param execution_config `ExecutionConfig` object: Not used for MonotonicHAL.
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @return Object of class `hal9001`.
@@ -105,7 +105,7 @@ monotone_hal_formula <- function(penalized = TRUE) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(train_, MonotoneHALHyperparameters) <- function(
+method(train_, MonotonicHALHyperparameters) <- function(
   hyperparameters,
   x,
   weights = NULL,
@@ -137,13 +137,13 @@ method(train_, MonotoneHALHyperparameters) <- function(
   # The binomial family needs the outcome coded 0/1, and coding the second
   # factor level as 1 makes the backend's P(y == 1) the second-level
   # probability rtemis expects back from `predict_super()`. It also fixes the
-  # direction of the monotone constraint: the fitted probability increases
+  # direction of the monotonic constraint: the fitted probability increases
   # with the feature, which for calibration is the required direction.
   if (type == "Classification") {
     y <- outcome(x)
     if (nlevels(y) > 2L) {
       rtemis.core::abort(
-        "MonotoneHAL does not support multiclass classification.",
+        "MonotonicHAL does not support multiclass classification.",
         class = "rtemis_unsupported_error"
       )
     }
@@ -159,19 +159,19 @@ method(train_, MonotoneHALHyperparameters) <- function(
   xm <- design[["xm"]]
   if (!is.numeric(xm)) {
     rtemis.core::abort(
-      "MonotoneHAL needs an all-numeric design matrix. Convert non-numeric features to factors so they can be one-hot encoded, or drop them.",
+      "MonotonicHAL needs an all-numeric design matrix. Convert non-numeric features to factors so they can be one-hot encoded, or drop them.",
       class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
 
   # Lambda selection ----
-  nfolds <- monotone_hal_nfolds(
+  nfolds <- monotonic_hal_nfolds(
     hyperparameters[["nfolds"]],
     n_cases = NROW(xm)
   )
   if (nfolds != hyperparameters[["nfolds"]] && verbosity > 0L) {
     info(
-      "MonotoneHAL: selecting lambda over ",
+      "MonotonicHAL: selecting lambda over ",
       nfolds,
       " folds rather than ",
       hyperparameters[["nfolds"]],
@@ -184,7 +184,7 @@ method(train_, MonotoneHALHyperparameters) <- function(
   # Train ----
   if (verbosity > 0L) {
     info(
-      "MonotoneHAL: additive monotone non-decreasing fit over ",
+      "MonotonicHAL: additive monotonic non-decreasing fit over ",
       NCOL(xm),
       " design-matrix column",
       if (NCOL(xm) == 1L) "" else "s",
@@ -197,11 +197,11 @@ method(train_, MonotoneHALHyperparameters) <- function(
     x = xm,
     y = y_train,
     family = family,
-    max_degree = MONOTONE_HAL_MAX_DEGREE,
+    max_degree = MONOTONIC_HAL_MAX_DEGREE,
     smoothness_orders = hyperparameters[["smoothness_orders"]],
     num_knots = hyperparameters[["num_knots"]],
     reduce_basis = hyperparameters[["reduce_basis"]],
-    formula = monotone_hal_formula(hyperparameters[["penalized"]]),
+    formula = monotonic_hal_formula(hyperparameters[["penalized"]]),
     weights = weights,
     cv_select = hyperparameters[["cv_select"]],
     use_min = hyperparameters[["use_min"]],
@@ -211,4 +211,4 @@ method(train_, MonotoneHALHyperparameters) <- function(
   # `predict_super` and `varimp_super` dispatch on `class_hal9001`, which
   # `train_HAL.R` registers; the fitted class is the same.
   list(model = model, preprocessor = design[["preprocessor"]])
-} # /rtemis::train_.MonotoneHALHyperparameters
+} # /rtemis::train_.MonotonicHALHyperparameters
