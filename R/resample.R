@@ -55,9 +55,11 @@ resample <- function(
       msg("Survival object will be stratified on time.", verbosity = verbosity)
       x <- x[, 1]
     } else {
+      # Stratifying on last column, i.e. outcome, is almost universal;
+      # no need to print every single time
       msg(
         "Input contains more than one column; stratifying on last.",
-        verbosity = verbosity
+        verbosity = verbosity - 1L
       )
       x <- x[[NCOL(x)]]
     }
