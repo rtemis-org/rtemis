@@ -798,8 +798,9 @@ tune_GridSearch <- function(
 #'
 #' Reads the searched values off the grid, so that a hyperparameter a gate added
 #' to it -- one held at a single value, but dropped from the combinations that
-#' cannot use it -- is reported too. NA is such a combination, shown as the NULL
-#' it becomes.
+#' cannot use it -- is reported too. Both grid markers for an unset value print
+#' as the NULL they become: NA from a closed gate, and `expand_grid()`'s "null"
+#' sentinel from a hyperparameter left to be determined by tuning.
 #'
 #' @param param_grid data.frame: The tuning grid, without its `param_combo_id`
 #'   column.
@@ -810,7 +811,9 @@ tune_GridSearch <- function(
 #' @keywords internal
 #' @noRd
 print_tune_finding <- function(param_grid, best_param_combo, pad = 22L) {
-  show <- function(x) if (is.na(x)) "NULL" else as.character(x)
+  show <- function(x) {
+    if (is.na(x) || identical(x, "null")) "NULL" else as.character(x)
+  }
   # Make list of search values and best value
   tfl <- lapply(names(param_grid), function(nm) {
     paste0(
