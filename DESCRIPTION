@@ -42,6 +42,7 @@ Suggests:
     dendextend (>= 0.18.0),
     duckdb,
     e1071,
+    earth,
     farff,
     fastICA,
     flexclust,

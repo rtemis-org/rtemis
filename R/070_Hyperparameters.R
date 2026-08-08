@@ -826,6 +826,207 @@ setup_GAM <- function(k = 5L, ifw = FALSE) {
 } # /rtemis::setup_GAM
 
 
+# %% MARSHyperparameters ----
+#' @title MARSHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for MARS.
+#'
+#' `degree` and `nprune` are the two parameters worth tuning first: the former
+#' sets how many features may interact in a term, the latter how many terms
+#' survive pruning.
+#'
+#' `earth` cross-validates internally when `nfold` is greater than 1, which is
+#' what `pmethod = "cv"` selects the number of terms with. That is separate
+#' from, and can be used instead of, tuning `nprune` through `train()`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+MARSHyperparameters <- new_class(
+  name = "MARSHyperparameters",
+  parent = Hyperparameters,
+  properties = list(
+    algorithm = prop_algorithm("MARS"),
+    degree = prop_integer(
+      1L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Maximum degree of interaction. 1 builds an additive model with no interaction terms."
+    ),
+    penalty = prop_float(
+      NULL,
+      min = -1,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Generalized Cross Validation penalty per knot. NULL uses 3 when @degree is greater than 1 and 2 otherwise. 0 penalizes terms but not knots, and -1 removes the penalty."
+    ),
+    nk = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Maximum number of terms, including the intercept, created by the forward pass. NULL lets earth derive it from the number of features."
+    ),
+    nprune = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Maximum number of terms, including the intercept, retained after pruning. NULL keeps every term the forward pass created."
+    ),
+    thresh = prop_float(
+      0.001,
+      min = 0,
+      exclusive_max = 1,
+      tunable = TRUE,
+      description = "Forward pass stopping threshold: stop once adding a term changes R-squared by less than this."
+    ),
+    minspan = prop_integer(
+      0L,
+      tunable = TRUE,
+      description = "Minimum number of observations between knots. 0 derives the value internally, and a negative value instead sets the maximum number of equally spaced knots per feature."
+    ),
+    endspan = prop_integer(
+      0L,
+      min = 0L,
+      tunable = TRUE,
+      description = "Minimum number of observations before the first and after the final knot. 0 derives the value internally."
+    ),
+    newvar_penalty = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "Penalty for adding a feature not already in the model during the forward pass. 0 applies no penalty; useful values typically range from 0.01 to 0.2."
+    ),
+    fast_k = prop_integer(
+      20L,
+      min = 0L,
+      tunable = TRUE,
+      description = "Maximum number of parent terms considered at each step of the forward pass. 0 disables Fast MARS, which is slower but builds a better model."
+    ),
+    pmethod = prop_string(
+      "backward",
+      enum = c("backward", "none", "exhaustive", "forward", "seqrep", "cv"),
+      description = "Pruning method. \"cv\" selects the number of terms by cross-validation and requires @nfold. Multiclass classification allows only \"backward\" and \"none\"."
+    ),
+    nfold = prop_integer(
+      0L,
+      min = 0L,
+      data_bound = "n_cases",
+      description = "Number of cross-validation folds used to estimate out-of-fold R-squared. 0 disables cross-validation."
+    ),
+    ncross = prop_integer(
+      1L,
+      min = 1L,
+      description = "Number of times the @nfold cross-validation is repeated. Applies only when @nfold is greater than 1."
+    ),
+    stratify = prop_boolean(
+      TRUE,
+      description = "Stratify the cross-validation folds on the outcome. Applies only when @nfold is greater than 1."
+    ),
+    fast_beta = prop_float(
+      1,
+      min = 0,
+      max = 1,
+      description = "Fast MARS aging coefficient. 0 sometimes gives better results."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    )
+  ),
+  validator = function(self) {
+    if (identical(self@pmethod, "cv") && self@nfold < 2L) {
+      "@pmethod \"cv\" selects the number of terms by cross-validation, so @nfold must be at least 2."
+    }
+  }
+) # /rtemis::MARSHyperparameters
+
+
+# %% setup_MARS ----
+#' Setup MARS Hyperparameters
+#'
+#' Setup hyperparameters for Multivariate Adaptive Regression Splines training.
+#'
+#' Get more information from [earth::earth].
+#'
+#' `get_varimp()` returns earth's three importance criteria, in this order:
+#' `importance` (the GCV criterion), `rss` (the RSS criterion), and
+#' `subset_proportion` (the fraction of pruning subsets that retain the
+#' feature). See `varimp_super` in `train_MARS.R` for how each is derived.
+#'
+#' @param degree (Tunable) Integer [1, Inf): Maximum degree of interaction. 1 builds an additive model with no interaction terms.
+#' @param penalty (Tunable) Optional Numeric [-1, Inf): Generalized Cross Validation penalty per knot. NULL uses 3 when `degree` is greater than 1 and 2 otherwise.
+#' @param nk (Tunable) Optional Integer [1, Inf): Maximum number of terms, including the intercept, created by the forward pass. NULL lets earth derive it from the number of features.
+#' @param nprune (Tunable) Optional Integer [1, Inf): Maximum number of terms, including the intercept, retained after pruning. NULL keeps every term the forward pass created.
+#' @param thresh (Tunable) Numeric [0, 1): Forward pass stopping threshold: stop once adding a term changes R-squared by less than this.
+#' @param minspan (Tunable) Integer (-Inf, Inf): Minimum number of observations between knots. 0 derives the value internally, and a negative value instead sets the maximum number of equally spaced knots per feature.
+#' @param endspan (Tunable) Integer [0, Inf): Minimum number of observations before the first and after the final knot. 0 derives the value internally.
+#' @param newvar_penalty (Tunable) Numeric [0, Inf): Penalty for adding a feature not already in the model during the forward pass.
+#' @param fast_k (Tunable) Integer [0, Inf): Maximum number of parent terms considered at each step of the forward pass. 0 disables Fast MARS.
+#' @param pmethod Character \{"backward", "none", "exhaustive", "forward", "seqrep", "cv"\}: Pruning method. "cv" requires `nfold`. Multiclass classification allows only "backward" and "none".
+#' @param nfold Integer [0, Inf): Number of cross-validation folds used to estimate out-of-fold R-squared. 0 disables cross-validation.
+#' @param ncross Integer [1, Inf): Number of times the `nfold` cross-validation is repeated.
+#' @param stratify Logical: If TRUE, stratify the cross-validation folds on the outcome.
+#' @param fast_beta Numeric \[0, 1\]: Fast MARS aging coefficient.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @return MARSHyperparameters object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' mars_hyperparams <- setup_MARS(degree = 2L, nprune = 10L)
+#' mars_hyperparams
+setup_MARS <- function(
+  # tunable
+  degree = 1L,
+  penalty = NULL,
+  nk = NULL,
+  nprune = NULL,
+  thresh = 0.001,
+  minspan = 0L,
+  endspan = 0L,
+  newvar_penalty = 0,
+  fast_k = 20L,
+  # fixed
+  pmethod = "backward",
+  nfold = 0L,
+  ncross = 1L,
+  stratify = TRUE,
+  fast_beta = 1,
+  ifw = FALSE
+) {
+  degree <- clean_posint(degree)
+  nk <- clean_posint(nk)
+  nprune <- clean_posint(nprune)
+  minspan <- clean_int(minspan)
+  endspan <- clean_int(endspan)
+  fast_k <- clean_int(fast_k)
+  nfold <- clean_int(nfold)
+  ncross <- clean_posint(ncross)
+  MARSHyperparameters(
+    degree = degree,
+    penalty = penalty,
+    nk = nk,
+    nprune = nprune,
+    thresh = thresh,
+    minspan = minspan,
+    endspan = endspan,
+    newvar_penalty = newvar_penalty,
+    fast_k = fast_k,
+    pmethod = pmethod,
+    nfold = nfold,
+    ncross = ncross,
+    stratify = stratify,
+    fast_beta = fast_beta,
+    ifw = ifw
+  )
+} # /rtemis::setup_MARS
+
+
 # %% CARTHyperparameters ----
 #' @title CARTHyperparameters
 #'
@@ -2504,7 +2705,7 @@ TabNetHyperparameters <- new_class(
   properties = list(
     algorithm = prop_algorithm("TabNet"),
     batch_size = prop_integer(
-      1048576L,
+      500L,
       min = 1L,
       tunable = TRUE,
       description = "Batch size."

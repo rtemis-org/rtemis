@@ -97,6 +97,7 @@ test_that("setup_LightRF() succeeds", {
   Ranger = RangerHyperparameters,
   SPLS = SPLSHyperparameters,
   KNN = KNNHyperparameters,
+  MARS = MARSHyperparameters,
   BART = BARTHyperparameters,
   HAL = HALHyperparameters,
   MonotonicHAL = MonotonicHALHyperparameters,
@@ -414,6 +415,46 @@ test_that("setup_KNN() with search values needs tuning", {
   expect_s7_class(knn_hpr, KNNHyperparameters)
   expect_identical(knn_hpr@tuned, TUNED_STATUS_UNTUNED)
   expect_true(needs_tuning(knn_hpr))
+})
+
+# MARSHyperparameters ----
+test_that("MARSHyperparameters() constructs from its property defaults", {
+  # Defaults come from the PropertySpecs, so no argument is required.
+  expect_s7_class(MARSHyperparameters(), MARSHyperparameters)
+})
+
+test_that("MARSHyperparameters() rejects pmethod 'cv' without folds", {
+  # "cv" picks the number of terms from out-of-fold error, so it needs folds.
+  expect_error(
+    MARSHyperparameters(pmethod = "cv"),
+    "nfold"
+  )
+  expect_s7_class(
+    MARSHyperparameters(pmethod = "cv", nfold = 3L),
+    MARSHyperparameters
+  )
+})
+
+# setup_MARS ----
+test_that("setup_MARS() succeeds", {
+  expect_s7_class(setup_MARS(), MARSHyperparameters)
+})
+
+test_that("setup_MARS() with search values needs tuning", {
+  mars_hpr <- setup_MARS(degree = c(1L, 2L), nprune = c(5L, 10L))
+  expect_s7_class(mars_hpr, MARSHyperparameters)
+  expect_identical(mars_hpr@tuned, TUNED_STATUS_UNTUNED)
+  expect_true(needs_tuning(mars_hpr))
+})
+
+test_that("setup_MARS() leaves backend-derived defaults NULL", {
+  # NULL means "let earth derive it", not "tune it": these must not read as
+  # search values, or every default MARS fit would need tuning.
+  mars_hpr <- setup_MARS()
+  expect_null(mars_hpr[["penalty"]])
+  expect_null(mars_hpr[["nk"]])
+  expect_null(mars_hpr[["nprune"]])
+  expect_false(needs_tuning(mars_hpr))
 })
 
 # BARTHyperparameters ----

@@ -78,6 +78,7 @@
     list(RangerHyperparameters, "setup_Ranger"),
     list(SPLSHyperparameters, "setup_SPLS"),
     list(KNNHyperparameters, "setup_KNN"),
+    list(MARSHyperparameters, "setup_MARS"),
     list(BARTHyperparameters, "setup_BART"),
     list(HALHyperparameters, "setup_HAL"),
     list(MonotonicHALHyperparameters, "setup_MonotonicHAL"),

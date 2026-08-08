@@ -55,6 +55,7 @@ LightRuleFit
 LightRuleFitHyperparameters
 LinearSVM
 LinearSVMHyperparameters
+MARSHyperparameters
 MIDPT
 Makefile
 MassGLM
@@ -269,6 +270,7 @@ schemas
 scorable
 sd
 se
+seqrep
 serializable
 signalled
 simpls

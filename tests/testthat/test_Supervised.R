@@ -12,6 +12,8 @@
 #   - "glm.fit: algorithm did not converge"
 # SPLS with classifier = "logistic" fits a glm on the latent components, so it
 # gives the same warnings on the near-separable binary iris fixture.
+# MARS classification fits a binomial glm on the MARS basis, one per response
+# column, so it gives the same warnings on both iris fixtures.
 
 # %% Packages ----
 library(data.table)
@@ -1351,6 +1353,285 @@ test_that("train() SPLS Regression with missing data throws error", {
       x = datr_train_na,
       dat_test = datr_test,
       hyperparameters = setup_SPLS(k = 2L, eta = 0.3)
+    )
+  )
+})
+
+# --- MARS -----------------------------------------------------------------------------------------
+## {MARS}[train]<Regression> ----
+mod_r_mars <- fit_if_installed(
+  "earth",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_MARS(degree = 1L, nprune = 8L)
+  )
+)
+test_that("train() MARS Regression succeeds", {
+  skip_if_not_installed("earth")
+  expect_s7_class(mod_r_mars, Regression)
+})
+
+## {MARS}[train]<Regression> Grid search ----
+modt_r_mars <- fit_if_installed(
+  "earth",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_MARS(degree = c(1L, 2L), nprune = 8L),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
+)
+test_that("train() MARS Regression with grid search succeeds", {
+  skip_if_not_installed("earth")
+  expect_s7_class(modt_r_mars, Regression)
+})
+
+## {MARS}[train]<Regression> Internal cross-validated pruning ----
+# `pmethod = "cv"` picks the number of terms from out-of-fold error inside
+# earth, which is the one path that reads `nfold`, `ncross` and `stratify`.
+mod_r_mars_cv <- fit_if_installed(
+  "earth",
+  train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_MARS(degree = 1L, pmethod = "cv", nfold = 3L)
+  )
+)
+test_that("train() MARS Regression with cross-validated pruning succeeds", {
+  skip_if_not_installed("earth")
+  expect_s7_class(mod_r_mars_cv, Regression)
+})
+
+## {MARS}[train]<RegressionRes> ----
+resmod_r_mars <- fit_if_installed(
+  "earth",
+  train(
+    x = datr,
+    hyperparameters = setup_MARS(degree = 1L, nprune = 8L),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+  )
+)
+test_that("train() Res MARS Regression succeeds", {
+  skip_if_not_installed("earth")
+  expect_s7_class(resmod_r_mars, RegressionRes)
+})
+
+## {MARS}[train]<Classification> ----
+mod_c_mars <- fit_if_installed(
+  "earth",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_MARS(degree = 1L, nprune = 6L)
+  )
+)
+test_that("train() MARS Classification succeeds", {
+  skip_if_not_installed("earth")
+  expect_s7_class(mod_c_mars, Classification)
+})
+
+## {MARS}[train]<Classification> IFW ----
+mod_c_mars_ifw <- fit_if_installed(
+  "earth",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_MARS(degree = 1L, nprune = 6L, ifw = TRUE)
+  )
+)
+test_that("train() MARS Classification with IFW succeeds", {
+  skip_if_not_installed("earth")
+  expect_s7_class(mod_c_mars_ifw, Classification)
+})
+
+## {MARS}[train]<Classification> Grid search ----
+modt_c_mars <- fit_if_installed(
+  "earth",
+  train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_MARS(degree = 1L, nprune = c(4L, 6L)),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
+)
+test_that("train() MARS Classification with grid search succeeds", {
+  skip_if_not_installed("earth")
+  expect_s7_class(modt_c_mars, Classification)
+})
+
+## {MARS}[train]<ClassificationRes> ----
+resmod_c_mars <- fit_if_installed(
+  "earth",
+  train(
+    x = datc2,
+    hyperparameters = setup_MARS(degree = 1L, nprune = 6L),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
+)
+test_that("train() Res MARS Classification succeeds", {
+  skip_if_not_installed("earth")
+  expect_s7_class(resmod_c_mars, ClassificationRes)
+})
+
+## {MARS}[train]<Classification> Multiclass ----
+modt_c3_mars <- fit_if_installed(
+  "earth",
+  train(
+    x = datc3_train,
+    dat_test = datc3_test,
+    hyperparameters = setup_MARS(degree = 1L, nprune = 6L)
+  )
+)
+test_that("train() MARS Multiclass Classification succeeds", {
+  skip_if_not_installed("earth")
+  expect_s7_class(modt_c3_mars, Classification)
+})
+
+## {MARS}[predict]<Regression> ----
+predicted_mars <- fit_if_installed(
+  "earth",
+  predict(mod_r_mars, features(datr_test))
+)
+test_that("predict() MARS Regression succeeds", {
+  skip_if_not_installed("earth")
+  expect_identical(mod_r_mars@predicted_test, predicted_mars)
+  expect_null(dim(predicted_mars))
+})
+
+## {MARS}[predict]<Classification> ----
+# Classification fits a binomial GLM per response column. Binary codes the
+# second level as 1, so its single column is already that level's probability.
+test_that("predict() MARS Classification returns second-level probabilities", {
+  skip_if_not_installed("earth")
+  predicted_prob <- predict(mod_c_mars, features(datc2_test))
+  expect_identical(NCOL(predicted_prob), 1L)
+  expect_true(all(predicted_prob >= 0 & predicted_prob <= 1))
+  expect_identical(mod_c_mars@predicted_prob_test, predicted_prob)
+  # A flipped column would still be a valid probability, so check it tracks the
+  # outcome rather than its complement.
+  expect_gt(
+    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
+    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+  )
+})
+
+test_that("predict() MARS Multiclass returns one column per class", {
+  skip_if_not_installed("earth")
+  predicted_prob <- predict(modt_c3_mars, features(datc3_test))
+  expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
+  # The per-class GLMs are independent, so predict_super() normalizes them.
+  expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
+})
+
+## {MARS}[varimp]<Regression> ----
+test_that("get_varimp() MARS Regression reports earth's three criteria", {
+  skip_if_not_installed("earth")
+  vi <- get_varimp(mod_r_mars)
+  expect_s7_class(vi, VariableImportance)
+  # Column 2 is what plot_varimp() shows by default, so the order is contract.
+  expect_identical(
+    names(vi@data),
+    c("variable", "importance", "rss", "subset_proportion")
+  )
+  # One row per design-matrix column: the factor `g` is one-hot encoded before
+  # earth sees it, so this exceeds the feature count.
+  expect_gte(nrow(vi@data), length(mod_r_mars@xnames))
+  expect_true(all(vi@data[["subset_proportion"]] >= 0))
+  expect_true(all(vi@data[["subset_proportion"]] <= 1))
+})
+
+test_that("get_varimp() MARS recovers the features that drive the outcome", {
+  skip_if_not_installed("earth")
+  # datr is y = V3 + V5 + a `g` effect, so those must outrank the pure noise.
+  vi <- get_varimp(mod_r_mars)@data
+  top <- vi[["variable"]][order(vi[["importance"]], decreasing = TRUE)][1:3]
+  expect_true(all(c("V3", "V5") %in% top))
+})
+
+test_that("get_varimp() MARS subset_proportion is comparable across model sizes", {
+  skip_if_not_installed("earth")
+  # earth's own count scales with the number of terms, so a grid search over
+  # `nprune` would report two incomparable scales. The proportion does not.
+  small <- get_varimp(
+    train(x = datr_train, hyperparameters = setup_MARS(nprune = 4L))
+  )@data
+  large <- get_varimp(
+    train(x = datr_train, hyperparameters = setup_MARS(nprune = 12L))
+  )@data
+  expect_true(all(small[["subset_proportion"]] <= 1))
+  expect_true(all(large[["subset_proportion"]] <= 1))
+  expect_identical(
+    small[["variable"]][which.max(small[["subset_proportion"]])],
+    large[["variable"]][which.max(large[["subset_proportion"]])]
+  )
+})
+
+## {MARS}[train]<Regression> Algorithm name dispatch ----
+# The algorithmDB row is what makes the name resolvable; without it this
+# aborts with "Incorrect algorithm specified".
+mod_r_mars_byname <- fit_if_installed(
+  "earth",
+  train(
+    x = datr_train,
+    hyperparameters = get_default_hyperparameters("mars")
+  )
+)
+test_that("train() MARS from its algorithm name succeeds", {
+  skip_if_not_installed("earth")
+  expect_s7_class(mod_r_mars_byname, Regression)
+  expect_identical(get_alg_name("mars"), "MARS")
+})
+
+## {MARS}[train]<Classification> /\Error multiclass pmethod ----
+# earth prunes a multi-column response with "backward" or "none" only. The
+# check belongs to validate_hyperparameters(), so it must fire before tuning
+# rather than being swallowed per grid cell.
+test_that("train() MARS aborts on multiclass with an unsupported pmethod", {
+  skip_if_not_installed("earth")
+  expect_error(
+    train(
+      x = datc3_train,
+      hyperparameters = setup_MARS(nprune = 6L, pmethod = "forward")
+    ),
+    class = "rtemis_value_error"
+  )
+})
+
+test_that("train() MARS allows an unsupported pmethod on binary outcomes", {
+  skip_if_not_installed("earth")
+  # A binary outcome is a single response column, so the restriction does not
+  # apply and the same setting must go through.
+  expect_s7_class(
+    train(
+      x = datc2_train,
+      hyperparameters = setup_MARS(nprune = 6L, pmethod = "forward")
+    ),
+    Classification
+  )
+})
+
+## {MARS}[train]<Regression> /\Error nfold > n cases ----
+test_that("train() MARS aborts when nfold exceeds n cases", {
+  skip_if_not_installed("earth")
+  expect_error(
+    train(
+      x = datr_train,
+      hyperparameters = setup_MARS(pmethod = "cv", nfold = 10000L)
+    ),
+    class = "rtemis_range_error"
+  )
+})
+
+## {MARS}[train]<Regression> Throw error with missing data ----
+test_that("train() MARS Regression with missing data throws error", {
+  skip_if_not_installed("earth")
+  expect_error(
+    train(
+      x = datr_train_na,
+      dat_test = datr_test,
+      hyperparameters = setup_MARS(degree = 1L, nprune = 8L)
     )
   )
 })
