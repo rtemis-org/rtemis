@@ -31,6 +31,7 @@ supervised_algorithms <- data.frame(rbind(
     TRUE,
     FALSE
   ),
+  c("MLP", "Multilayer Perceptron", TRUE, TRUE, FALSE),
   c("ModalityStacking", "Per-Modality Stacked Ensemble", TRUE, TRUE, FALSE),
   c("NNLS", "Non-negative Least Squares", TRUE, TRUE, FALSE),
   c("Ranger", "Random Forest", TRUE, TRUE, FALSE),
@@ -69,6 +70,7 @@ supervised_multiclass <- c(
   "LightGBM",
   "LinearSVM",
   "MARS",
+  "MLP",
   "RadialSVM",
   "Ranger",
   "SPLS"

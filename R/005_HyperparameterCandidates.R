@@ -251,6 +251,11 @@ is_wire_candidates <- function(x) {
 #' candidate that is itself a vector is shown parenthesized, so a list of
 #' architectures stays legible as a list of architectures.
 #'
+#' One line, so that `repr_ls()` prints it on the hyperparameter's own line
+#' alongside the values, and short, so that it fits there. The `<tune>` tag
+#' occupies the slot the type tag does for a value, in the tuner color: the
+#' hyperparameter holds a search space rather than a number.
+#'
 #' @param x `HyperparameterCandidates` object.
 #' @param limit Integer: Most candidates to show before eliding; -1 shows all.
 #' @param output_type Character: Passed to `fmt()`.
@@ -281,11 +286,11 @@ method(repr, HyperparameterCandidates) <- function(
   }
   fmt(
     paste0(
-      "tuning over ",
-      length(x@candidates),
-      " values: ",
+      "<tune> ",
       paste(shown, collapse = ", "),
-      if (elided) ", ..." else ""
+      # The count only tells the reader something the list does not when the
+      # list is cut short.
+      if (elided) paste0(", ... (", length(x@candidates), " values)") else ""
     ),
     col = col_tuner,
     output_type = output_type

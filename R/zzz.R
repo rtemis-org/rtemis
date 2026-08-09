@@ -21,6 +21,10 @@ live[["parallelized_learners"]] <- c(
 # vars
 rtemis_version <- utils::packageVersion("rtemis")
 
+# `self` is injected by `torch::nn_module()` into the `initialize` and `forward`
+# it builds a module from, so static analysis sees it as a free variable.
+utils::globalVariables("self")
+
 # References
 # Unicode emojis: https://www.unicode.org/emoji/charts/full-emoji-list.html
 

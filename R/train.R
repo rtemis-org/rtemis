@@ -541,7 +541,7 @@ train <- function(
   # at predict() time. Stored on the returned model. NULL when no decomposition.
   decomposition <- NULL
 
-  # === Outer Resampling ===
+  # === Outer Resampling === ----
   # Splits data into multiple training-test folds and calls train() recursively
   # on each. Each recursive call enters the Single Model path below (which may
   # itself tune via inner resampling). After all folds complete, execution falls
@@ -667,7 +667,7 @@ train <- function(
   } # /Outer Resampling
 
   if (hyperparameters@resampled == 0L) {
-    # === Inner path ===
+    # === Inner path === ----
     # Trains one model: optionally tune (inner resampling) → preprocess →
     # train algorithm → predict → returns Supervised.
     # Skipped when outer resampling was performed (resampled == 1L).
@@ -836,17 +836,24 @@ train <- function(
     } # /IFW
 
     # Train algorithm ----
+    # A torch-backed algorithm names the device it resolved, because "which
+    # device did that actually run on" is otherwise unanswerable from the log
+    # and the answer depends on the machine.
+    device <- training_device(hyperparameters)
+    on_device <- if (is.null(device)) "" else paste0(" on ", toupper(device))
     if (is_tuned(hyperparameters)) {
-      msg(
-        "Training",
+      msg0(
+        "Training ",
         highlight(paste(algorithm, type)),
-        "with tuned hyperparameters...",
+        on_device,
+        " with tuned hyperparameters...",
         verbosity = verbosity
       )
     } else {
       msg0(
         "Training ",
         highlight(paste(algorithm, type)),
+        on_device,
         "...",
         verbosity = verbosity
       )
@@ -1014,7 +1021,7 @@ train <- function(
     )
     node_exit(metrics_node, status = "ok")
   } else {
-    # === Outer Aggregation path ===
+    # === Outer Aggregation path === ----
     # Reached after outer resampling. Each sub-model (Supervised) in `models`
     # carries its own preprocessor pair. Aggregate results → SupervisedRes.
     y_training <- lapply(models, function(mod) mod@y_training)

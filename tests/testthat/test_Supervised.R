@@ -1645,6 +1645,415 @@ test_that("train() MARS Regression with missing data throws error", {
   )
 })
 
+# --- MLP ------------------------------------------------------------------------------------------
+# Every fit is gated on libtorch being present, which `requireNamespace()`
+# cannot tell: the R package installs without the runtime it downloads on first
+# use. Kept tiny -- a handful of epochs on a narrow network -- and pinned to the
+# cpu device, since mps does not honor a seed.
+mlp_installed <- torch::torch_is_installed()
+
+## {MLP}[train]<Regression> ----
+if (mlp_installed) {
+  mod_r_mlp <- train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_MLP(
+      hidden_units = c(16L, 8L),
+      max_epochs = 5L,
+      batch_size = 64L,
+      device = "cpu",
+      seed = 2025L
+    )
+  )
+  test_that("train() MLP Regression succeeds", {
+    expect_s7_class(mod_r_mlp, Regression)
+  })
+
+  ## {MLP}[train]<Regression> Generated architecture ----
+  # The path a user who types nothing takes: the widths come from the shape and
+  # the encoded input width, and the fit reports what it used.
+  mod_r_mlp_shape <- train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_MLP(
+      shape = "funnel",
+      shape_layers = 2L,
+      shape_max_units = 16L,
+      max_epochs = 5L,
+      batch_size = 64L,
+      device = "cpu",
+      seed = 2025L
+    )
+  )
+  test_that("train() MLP records the architecture it generated", {
+    expect_s7_class(mod_r_mlp_shape, Regression)
+    # The widths land in `hidden_units` itself, beside the shape settings that
+    # produced them, so the record reads them as derived rather than needing a
+    # second property.
+    expect_identical(
+      mod_r_mlp_shape@hyperparameters[["hidden_units"]],
+      c(16L, 8L)
+    )
+    expect_identical(mod_r_mlp_shape@hyperparameters[["shape"]], "funnel")
+    expect_identical(mod_r_mlp_shape@model@hidden_units, c(16L, 8L))
+  })
+
+  ## {MLP}[train]<Regression> Grid search ----
+  # One grid cell is one whole architecture: this is the first shipped
+  # hyperparameter that is both vector-valued and tunable.
+  modt_r_mlp <- train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_MLP(
+      hidden_units = tune_over(c(8L), c(16L, 8L)),
+      max_epochs = 5L,
+      batch_size = 64L,
+      device = "cpu",
+      seed = 2025L
+    ),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
+  test_that("train() MLP Regression with grid search succeeds", {
+    expect_s7_class(modt_r_mlp, Regression)
+    # The winner is whichever architecture scored best, so pin that one of the
+    # two was chosen and that it came back as a value rather than the search.
+    chosen <- modt_r_mlp@hyperparameters[["hidden_units"]]
+    expect_type(chosen, "integer")
+    expect_true(identical(chosen, 8L) || identical(chosen, c(16L, 8L)))
+    expect_identical(modt_r_mlp@model@hidden_units, chosen)
+  })
+
+  ## {MLP}[train]<RegressionRes> ----
+  resmod_r_mlp <- train(
+    x = datr,
+    hyperparameters = setup_MLP(
+      hidden_units = c(16L, 8L),
+      max_epochs = 5L,
+      batch_size = 64L,
+      device = "cpu",
+      seed = 2025L
+    ),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+  )
+  test_that("train() Res MLP Regression succeeds", {
+    expect_s7_class(resmod_r_mlp, RegressionRes)
+  })
+
+  ## {MLP}[train]<Classification> ----
+  mod_c_mlp <- train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_MLP(
+      hidden_units = c(16L, 8L),
+      max_epochs = 30L,
+      batch_size = 32L,
+      device = "cpu",
+      seed = 2025L
+    )
+  )
+  test_that("train() MLP Classification succeeds", {
+    expect_s7_class(mod_c_mlp, Classification)
+  })
+
+  ## {MLP}[train]<Classification> IFW ----
+  mod_c_mlp_ifw <- train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_MLP(
+      hidden_units = c(16L, 8L),
+      max_epochs = 5L,
+      batch_size = 32L,
+      device = "cpu",
+      seed = 2025L,
+      ifw = TRUE
+    )
+  )
+  test_that("train() MLP Classification with IFW succeeds", {
+    expect_s7_class(mod_c_mlp_ifw, Classification)
+  })
+
+  ## {MLP}[train]<Classification> Grid search ----
+  modt_c_mlp <- train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_MLP(
+      hidden_units = c(16L, 8L),
+      lr = tune_over(1e-3, 1e-2),
+      max_epochs = 5L,
+      batch_size = 32L,
+      device = "cpu",
+      seed = 2025L
+    ),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
+  test_that("train() MLP Classification with grid search succeeds", {
+    expect_s7_class(modt_c_mlp, Classification)
+  })
+
+  ## {MLP}[train]<ClassificationRes> ----
+  resmod_c_mlp <- train(
+    x = datc2,
+    hyperparameters = setup_MLP(
+      hidden_units = c(16L, 8L),
+      max_epochs = 5L,
+      batch_size = 32L,
+      device = "cpu",
+      seed = 2025L
+    ),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    execution_config = setup_ExecutionConfig(backend = "none")
+  )
+  test_that("train() Res MLP Classification succeeds", {
+    expect_s7_class(resmod_c_mlp, ClassificationRes)
+  })
+
+  ## {MLP}[train]<Classification> Multiclass ----
+  modt_c3_mlp <- train(
+    x = datc3_train,
+    dat_test = datc3_test,
+    hyperparameters = setup_MLP(
+      hidden_units = c(16L, 8L),
+      max_epochs = 30L,
+      batch_size = 32L,
+      device = "cpu",
+      seed = 2025L
+    )
+  )
+  test_that("train() MLP Multiclass Classification succeeds", {
+    expect_s7_class(modt_c3_mlp, Classification)
+  })
+
+  ## {MLP}[train]<Regression> Early stopping ----
+  # `patience` only bites against a validation set, and the weights kept are
+  # the best epoch's rather than the last.
+  mod_r_mlp_es <- train(
+    x = datr_train,
+    dat_validation = datr_test,
+    dat_test = datr_test,
+    hyperparameters = setup_MLP(
+      hidden_units = c(16L, 8L),
+      max_epochs = 100L,
+      patience = 2L,
+      batch_size = 64L,
+      device = "cpu",
+      seed = 2025L
+    )
+  )
+  test_that("train() MLP stops early against a validation set", {
+    expect_s7_class(mod_r_mlp_es, Regression)
+    expect_lt(mod_r_mlp_es@model@epochs_trained, 100L)
+    expect_lte(mod_r_mlp_es@model@best_epoch, mod_r_mlp_es@model@epochs_trained)
+  })
+
+  ## {MLP}[train]<Regression> Reproducibility ----
+  test_that("train() MLP is reproducible under a fixed seed", {
+    refit <- train(
+      x = datr_train,
+      dat_test = datr_test,
+      hyperparameters = setup_MLP(
+        hidden_units = c(16L, 8L),
+        max_epochs = 5L,
+        batch_size = 64L,
+        device = "cpu",
+        seed = 2025L
+      ),
+      verbosity = 0L
+    )
+    expect_equal(refit@predicted_test, mod_r_mlp@predicted_test)
+  })
+
+  ## {MLP}[predict]<Regression> ----
+  predicted_mlp <- predict(mod_r_mlp, features(datr_test))
+  test_that("predict() MLP Regression succeeds", {
+    expect_identical(mod_r_mlp@predicted_test, predicted_mlp)
+    expect_null(dim(predicted_mlp))
+  })
+
+  ## {MLP}[predict]<Regression> Survives a save/load round trip ----
+  test_that("predict() MLP works on a model written to disk and read back", {
+    # A torch module holds external pointers and does not survive saveRDS, so
+    # the model carries its parameters serialized and rebuilds the module.
+    path <- tempfile(fileext = ".rds")
+    on.exit(unlink(path), add = TRUE)
+    saveRDS(mod_r_mlp, path)
+    expect_identical(
+      predict(readRDS(path), features(datr_test)),
+      predicted_mlp
+    )
+  })
+
+  ## {MLP}[predict]<Classification> ----
+  test_that("predict() MLP Classification returns second-level probabilities", {
+    predicted_prob <- predict(mod_c_mlp, features(datc2_test))
+    expect_identical(NCOL(predicted_prob), 1L)
+    expect_true(all(predicted_prob >= 0 & predicted_prob <= 1))
+    expect_identical(mod_c_mlp@predicted_prob_test, predicted_prob)
+    # A flipped column would still be a valid probability, so check it tracks
+    # the outcome rather than its complement.
+    expect_gt(
+      mean(predicted_prob[
+        datc2_test$Species == levels(datc2_test$Species)[2L]
+      ]),
+      mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+    )
+  })
+
+  test_that("predict() MLP Multiclass returns one column per class", {
+    predicted_prob <- predict(modt_c3_mlp, features(datc3_test))
+    expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
+    expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
+  })
+
+  ## {MLP}[varimp]<Regression> ----
+  test_that("get_varimp() MLP returns NULL", {
+    # A torch network has no native importance measure; the method exists so
+    # that train() gets NULL rather than a dispatch error.
+    expect_null(get_varimp(mod_r_mlp))
+  })
+
+  ## {MLP}[train]<Regression> One-hot encoding instead of embeddings ----
+  test_that("train() MLP one-hot encodes when embeddings are off", {
+    mod <- train(
+      x = datr_train,
+      dat_test = datr_test,
+      hyperparameters = setup_MLP(
+        hidden_units = c(8L),
+        embeddings = FALSE,
+        max_epochs = 5L,
+        batch_size = 64L,
+        device = "cpu",
+        seed = 2025L
+      )
+    )
+    expect_s7_class(mod, Regression)
+    expect_length(mod@model@categorical_features, 0L)
+    # `g` becomes one indicator column per level, so the design is wider than
+    # the feature count.
+    expect_gt(length(mod@model@numeric_features), length(mod@xnames))
+  })
+
+  ## {MLP}[train]<Regression> Residual blocks over a tapering shape ----
+  test_that("train() MLP fits residual blocks across changing widths", {
+    # A shortcut needs matching widths, so a taper needs a projection; without
+    # one this is a run-time shape error rather than a slower fit.
+    mod <- train(
+      x = datr_train,
+      dat_test = datr_test,
+      hyperparameters = setup_MLP(
+        hidden_units = c(16L, 8L),
+        residual = TRUE,
+        norm = "layer_norm",
+        max_epochs = 5L,
+        batch_size = 64L,
+        device = "cpu",
+        seed = 2025L
+      )
+    )
+    expect_s7_class(mod, Regression)
+  })
+
+  ## {MLP} Device reporting ----
+  test_that("training_device() names the device only for a torch algorithm", {
+    # train() prints this in the line it already emits, so it has to be exact
+    # and side-effect-free: the algorithm resolves the device again for real.
+    expect_identical(training_device(setup_MLP(device = "cpu")), "cpu")
+    expect_identical(mod_r_mlp@model@device, "cpu")
+    expect_null(training_device(setup_CART()))
+  })
+
+  ## {MLP}[predict]<Regression> /\\Error missing values ----
+  test_that("predict() MLP names the features holding missing values", {
+    # Both kinds, and the categorical one is why this is tested: the
+    # preprocessor codes NA as NA by design, so an unchecked NA index reaches
+    # nn_embedding as an out-of-range lookup and libtorch reports it with a
+    # C++ trace naming no column.
+    newdata_numeric <- features(datr_test)
+    newdata_numeric[["V1"]][1L] <- NA
+    expect_error(
+      predict(mod_r_mlp, newdata_numeric),
+      "'V1'",
+      class = "rtemis_value_error"
+    )
+    newdata_factor <- features(datr_test)
+    newdata_factor[["g"]][1L] <- NA
+    expect_error(
+      predict(mod_r_mlp, newdata_factor),
+      "'g'",
+      class = "rtemis_value_error"
+    )
+  })
+
+  ## {MLP}[train]<Regression> All features categorical ----
+  test_that("train() MLP fits when every feature is categorical", {
+    # The numeric side of the design is then a zero-column tensor, which is the
+    # one shape that silently becomes 0 x 0 if it is built by subsetting.
+    datr_cat <- data.frame(
+      g = datr_train[["g"]],
+      h = factor(rep_len(c("p", "q", "r"), nrow(datr_train))),
+      y = datr_train[["y"]]
+    )
+    mod <- train(
+      x = datr_cat,
+      hyperparameters = setup_MLP(
+        hidden_units = c(8L),
+        max_epochs = 5L,
+        batch_size = 64L,
+        device = "cpu",
+        seed = 2025L
+      ),
+      verbosity = 0L
+    )
+    expect_s7_class(mod, Regression)
+    expect_length(mod@model@numeric_features, 0L)
+    expect_length(mod@model@categorical_features, 2L)
+  })
+
+  ## {MLP}[train]<Regression> /\\Error loss does not fit the outcome ----
+  test_that("train() MLP aborts on a loss that does not fit the outcome", {
+    expect_error(
+      train(
+        x = datr_train,
+        hyperparameters = setup_MLP(
+          hidden_units = c(8L),
+          loss = "cross_entropy",
+          max_epochs = 2L,
+          device = "cpu"
+        )
+      ),
+      class = "rtemis_value_error"
+    )
+  })
+
+  ## {MLP}[train]<Regression> Throw error with missing data ----
+  test_that("train() MLP Regression with missing data throws error", {
+    expect_error(
+      train(
+        x = datr_train_na,
+        dat_test = datr_test,
+        hyperparameters = setup_MLP(hidden_units = c(8L), max_epochs = 2L)
+      )
+    )
+  })
+
+  ## {MLP}[train]<Regression> From its algorithm name ----
+  mod_r_mlp_byname <- train(
+    x = datr_train,
+    hyperparameters = update(
+      get_default_hyperparameters("mlp"),
+      list(
+        hidden_units = c(8L),
+        max_epochs = 3L,
+        batch_size = 64L,
+        device = "cpu"
+      )
+    )
+  )
+  test_that("train() MLP from its algorithm name succeeds", {
+    expect_s7_class(mod_r_mlp_byname, Regression)
+    expect_identical(get_alg_name("mlp"), "MLP")
+  })
+}
+
 # --- KNN ------------------------------------------------------------------------------------------
 ## {KNN}[train]<Regression> ----
 mod_r_knn <- fit_if_installed(

@@ -241,7 +241,7 @@ tune_GridSearch <- function(
     hyperparams1 <- hyperparameters
     hyperparams1 <- update(
       hyperparams1,
-      as.list(res_param_grid[index, 2:NCOL(res_param_grid), drop = FALSE]),
+      grid_row_values(res_param_grid, index, 2:NCOL(res_param_grid)),
       tuned = TUNED_STATUS_TUNING # Hyperparameters are being tuned
     )
 
@@ -756,7 +756,7 @@ tune_GridSearch <- function(
       1
     ]
   )
-  best_param_combo <- as.list(param_grid[best_param_combo_id, -1, drop = FALSE])
+  best_param_combo <- grid_row_values(param_grid, best_param_combo_id, -1)
   if (verbosity > 0L) {
     msg(
       paste0("Best config to ", paste(verb, metric), ":")
@@ -812,6 +812,15 @@ tune_GridSearch <- function(
 #' @noRd
 print_tune_finding <- function(param_grid, best_param_combo, pad = 22L) {
   show <- function(x) {
+    # A container tunable's candidate is a whole vector -- one architecture, one
+    # per grid cell -- so it is parenthesized to stay legible beside the scalar
+    # hyperparameters printed on the same line.
+    if (length(x) == 0L) {
+      return("NULL")
+    }
+    if (length(x) > 1L) {
+      return(paste0("(", paste(x, collapse = ", "), ")"))
+    }
     if (is.na(x) || identical(x, "null")) "NULL" else as.character(x)
   }
   # Make list of search values and best value

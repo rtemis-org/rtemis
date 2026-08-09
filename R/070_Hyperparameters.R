@@ -637,6 +637,16 @@ method(needs_tuning, Hyperparameters) <- function(x) {
 } # /rtemis::needs_tuning.Hyperparameters
 
 
+# %% training_device.Hyperparameters ----
+#' Most algorithms run on the CPU by definition and have nothing to report.
+#'
+#' @keywords internal
+#' @noRd
+method(training_device, Hyperparameters) <- function(x) {
+  NULL
+} # /rtemis::training_device.Hyperparameters
+
+
 # %% get_hyperparams_need_tuning.Hyperparameters ----
 #' Get hyperparameters that need tuning.
 #'
@@ -749,6 +759,33 @@ method(tuning_grid, Hyperparameters) <- function(x) {
   # expand_grid converts a NULL search entry to its "null" sentinel.
   gate_tuning_grid(expand_grid(grid_params, stringsAsFactors = FALSE), x)
 } # /rtemis::tuning_grid.Hyperparameters
+
+
+# %% grid_row_values ----
+#' One tuning-grid row as hyperparameter values
+#'
+#' A container tunable's candidates are a **list column** -- one grid cell holds
+#' one whole value, such as an entire architecture -- so `as.list()` over the row
+#' leaves that value inside a one-element list. Every other column is atomic and
+#' `as.list()` is already right. Unwrapping here rather than at each call site
+#' keeps the two readers of a grid row (the cell that is fitted, and the winning
+#' combination that is reported) reading it the same way.
+#'
+#' @param grid data.frame: The tuning grid.
+#' @param index Integer: Row to read.
+#' @param columns Columns to read, as any `[` subscript.
+#'
+#' @return Named list of hyperparameter values.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+grid_row_values <- function(grid, index, columns = TRUE) {
+  values <- as.list(grid[index, columns, drop = FALSE])
+  lapply(values, function(value) {
+    if (is.list(value) && length(value) == 1L) value[[1L]] else value
+  })
+} # /rtemis::grid_row_values
 
 
 # %% get_hyperparams.(Hyperparameters, class_character) ----
@@ -2714,6 +2751,473 @@ setup_RadialSVM <- function(
     ifw = ifw
   )
 } # /setup_RadialSVM
+
+
+# %% MLP_SHAPES ----
+# Profiles the hidden-layer widths can be generated in. The vocabulary is
+# Talos's (<https://mikkokotila.github.io/slate/#shapes>), by way of
+# AutoPyTorch's `get_shaped_neuron_counts()`. One rename: the literature's
+# "brick" is `constant` here, which is what the tabular deep-learning benchmarks
+# call the same thing and is self-describing beside the other six.
+MLP_SHAPES <- c(
+  "funnel",
+  "constant",
+  "triangle",
+  "long_funnel",
+  "diamond",
+  "hexagon",
+  "stairs"
+)
+
+
+# %% MLPHyperparameters ----
+#' @title MLPHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for MLP, a multilayer perceptron built and trained
+#' with `torch`.
+#'
+#' The hidden architecture is given in one of two mutually exclusive ways:
+#' `hidden_units` states the widths directly, or the `shape_*` trio generates
+#' them. Supplying both is rejected by `setup_MLP()` rather than silently
+#' resolved -- and by `setup_MLP()` rather than by this class's validator,
+#' because training resolves the widths *into* `hidden_units`, so a fitted
+#' object legitimately carries both and a class-level rule would reject the
+#' result of a valid run. Every path that builds one of these from user input
+#' goes through `setup_MLP()`, including `.list_to_Hyperparameters()`, so
+#' nothing escapes the check.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+MLPHyperparameters <- new_class(
+  name = "MLPHyperparameters",
+  parent = Hyperparameters,
+  properties = list(
+    algorithm = prop_algorithm("MLP"),
+    # Architecture ----
+    hidden_units = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      vector = TRUE,
+      description = "Units in each hidden layer, one value per layer, so the length is the depth. NULL generates the widths from the shape settings."
+    ),
+    shape = prop_string(
+      NULL,
+      enum = MLP_SHAPES,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Profile of the generated hidden layer widths. Ignored when hidden_units is set."
+    ),
+    shape_layers = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Number of hidden layers to generate. Ignored when hidden_units is set."
+    ),
+    shape_max_units = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Widest generated hidden layer. NULL derives it from the encoded input width. Ignored when hidden_units is set."
+    ),
+    activation = prop_string(
+      "relu",
+      enum = TORCH_ACTIVATIONS,
+      tunable = TRUE,
+      description = "Activation applied after every hidden layer."
+    ),
+    norm = prop_string(
+      NULL,
+      enum = TORCH_NORMS,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Normalization applied in every hidden layer. NULL applies none."
+    ),
+    norm_first = prop_boolean(
+      FALSE,
+      description = "Normalize before the activation rather than after it."
+    ),
+    bias = prop_boolean(
+      TRUE,
+      description = "Give every hidden layer and the output layer a bias term."
+    ),
+    residual = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Add a residual connection around every hidden layer, projected when the layer changes width."
+    ),
+    # Regularization ----
+    dropout = prop_float(
+      0,
+      min = 0,
+      exclusive_max = 1,
+      tunable = TRUE,
+      description = "Dropout probability applied after every hidden layer."
+    ),
+    input_dropout = prop_float(
+      0,
+      min = 0,
+      exclusive_max = 1,
+      tunable = TRUE,
+      description = "Dropout probability applied to the encoded input."
+    ),
+    weight_decay = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "L2 penalty, decoupled from the gradient under the adamw optimizer."
+    ),
+    l1_penalty = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "L1 penalty on the linear weights, added to the loss. Not interchangeable with weight_decay, which is L2."
+    ),
+    # Categorical embeddings ----
+    embeddings = prop_boolean(
+      TRUE,
+      description = "Represent each categorical feature by a learned embedding. FALSE one-hot encodes them instead."
+    ),
+    embedding_dim = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Width of every embedding. NULL sizes each from its feature's cardinality."
+    ),
+    embedding_dropout = prop_float(
+      0,
+      min = 0,
+      exclusive_max = 1,
+      tunable = TRUE,
+      description = "Dropout probability applied to the concatenated embeddings."
+    ),
+    # Optimization ----
+    optimizer = prop_string(
+      "adamw",
+      enum = TORCH_OPTIMIZERS,
+      tunable = TRUE,
+      description = "Optimization algorithm."
+    ),
+    lr = prop_float(
+      1e-3,
+      exclusive_min = 0,
+      tunable = TRUE,
+      description = "Learning rate."
+    ),
+    beta1 = prop_float(
+      NULL,
+      min = 0,
+      exclusive_max = 1,
+      nullable = TRUE,
+      applies_when = list(optimizer = c("adamw", "adam")),
+      description = "Exponential decay rate of the first moment estimate. NULL leaves the torch default."
+    ),
+    beta2 = prop_float(
+      NULL,
+      min = 0,
+      exclusive_max = 1,
+      nullable = TRUE,
+      applies_when = list(optimizer = c("adamw", "adam")),
+      description = "Exponential decay rate of the second moment estimate. NULL leaves the torch default."
+    ),
+    eps = prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      applies_when = list(optimizer = c("adamw", "adam", "rmsprop")),
+      description = "Term added to the denominator for numerical stability. NULL leaves the torch default."
+    ),
+    momentum = prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      applies_when = list(optimizer = c("sgd", "rmsprop")),
+      description = "Momentum factor. NULL leaves the torch default."
+    ),
+    lr_scheduler = prop_string(
+      NULL,
+      enum = TORCH_SCHEDULERS,
+      nullable = TRUE,
+      description = "Learning-rate schedule, configured from the epoch budget. NULL holds the learning rate fixed."
+    ),
+    batch_size = prop_integer(
+      256L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Cases per optimization step."
+    ),
+    max_epochs = prop_integer(
+      100L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Largest number of passes over the training set."
+    ),
+    patience = prop_integer(
+      10L,
+      min = 1L,
+      description = "Epochs without validation improvement before stopping early. Requires validation data; without it the fit runs the full epoch budget."
+    ),
+    max_grad_norm = prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Clip the gradient norm to this value before each step. NULL does not clip."
+    ),
+    loss = prop_string(
+      NULL,
+      enum = TORCH_LOSSES,
+      nullable = TRUE,
+      default_on_null = TRUE,
+      description = "Training objective. NULL = set from outcome type."
+    ),
+    # Execution ----
+    device = prop_string(
+      NULL,
+      enum = TORCH_DEVICES,
+      nullable = TRUE,
+      description = "Compute device. On mps a seed does not reach dropout, so a fit using it is not reproducible; the run says so."
+    ),
+    seed = prop_integer(
+      NULL,
+      nullable = TRUE,
+      description = "Random seed for weight initialization, dropout and batch shuffling. NULL leaves them drawn from the ambient RNG."
+    ),
+    num_workers = prop_integer(
+      0L,
+      min = 0L,
+      description = "Subprocesses used to load batches. 0 loads them in the main process."
+    ),
+    drop_last = prop_boolean(
+      FALSE,
+      description = "Drop the last incomplete batch of each training epoch."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    )
+  ),
+  validator = function(self) {
+    check_applies_when(self)
+  }
+) # /rtemis::MLPHyperparameters
+
+
+# %% setup_MLP ----
+#' Setup MLP Hyperparameters
+#'
+#' Setup hyperparameters for MLP (Multilayer Perceptron) training.
+#'
+#' A fully connected feedforward network built and trained with `torch`, for
+#' regression, binary and multiclass classification.
+#'
+#' **Architecture.** Give the hidden layers directly with `hidden_units` --
+#' `c(256L, 128L, 64L)` is three layers of those widths -- or leave it NULL and
+#' let `shape`, `shape_layers` and `shape_max_units` generate them. Setting both
+#' is an error rather than a silent override. The generated profiles are
+#' `funnel` (a linear taper from the widest layer down to a third of it),
+#' `constant`, `triangle` (a linear rise from the input width), `long_funnel`,
+#' `diamond`, `hexagon` and `stairs`; the vocabulary is Talos's, by way of
+#' AutoPyTorch. `shape_max_units` defaults to four times the encoded input
+#' width, clamped to \[64, 512\] and never below that width.
+#'
+#' The tabular deep-learning benchmarks tune and publish *constant*-width MLPs,
+#' so `shape = "constant"` is what to compare against even though `funnel` is
+#' the better default before tuning on the small-n, wide-p data rtemis is usually
+#' pointed at.
+#'
+#' **Tuning.** `hidden_units` is tunable like any other hyperparameter, with one
+#' architecture per candidate:
+#' `setup_MLP(hidden_units = tune_over(c(64L, 32L), c(128L, 64L, 32L)))`. A
+#' single bare vector there is one architecture, not a set of candidates, and is
+#' rejected as such.
+#'
+#' **Categorical features** are represented by learned embeddings, each sized
+#' `min(600, round(1.6 * cardinality^0.56))` unless `embedding_dim` fixes them
+#' all. `embeddings = FALSE` one-hot encodes instead. Numeric features are
+#' always centered and scaled -- an unscaled network fails quietly rather than
+#' loudly -- and the fitted encoder is re-applied at predict time.
+#'
+#' **Device and reproducibility.** `device = NULL` picks `cuda` where available
+#' and `cpu` otherwise, and [train] names the one it resolved. `"mps"` is
+#' supported but never chosen automatically: on Apple silicon it is slower than
+#' the CPU for networks of the size tabular data calls for -- the matrices are
+#' small enough that dispatch dominates -- and a `seed` governs weight
+#' initialization and batch shuffling there but **not dropout**, so a seeded
+#' `mps` fit reproduces exactly until a dropout rate is non-zero. That
+#' combination warns.
+#'
+#' **Early stopping** needs a validation set: pass `dat_validation` to [train],
+#' and the fit keeps the weights of the best validation epoch rather than the
+#' last. Without one it runs the full `max_epochs` and `patience` has no effect.
+#'
+#' **`l1_penalty` is not `weight_decay`.** `weight_decay` is the L2 term the
+#' torch optimizer applies, decoupled from the gradient under `adamw`;
+#' `l1_penalty` has no torch equivalent and is accumulated over the linear
+#' weights and added to the loss.
+#'
+#' **Batch normalization and dropout interact badly** when combined; both are
+#' off by default.
+#'
+#' **The scheduler takes no settings of its own** -- each configures itself from
+#' the run's budget: `step` decays by 0.1 every `max_epochs / 3` epochs,
+#' `cosine_annealing` anneals over `max_epochs`, `one_cycle` peaks at `lr` over
+#' the run's real step count, and `reduce_on_plateau` decays by 0.1 after half
+#' the early-stopping patience.
+#'
+#' `get_varimp()` returns NULL: a torch MLP has no native importance measure.
+#'
+#' @param hidden_units (Tunable) Optional Integer [1, Inf) vector: Units in each hidden layer, one value per layer. NULL generates the widths from the shape settings.
+#' @param shape (Tunable) Optional Character \{"funnel", "constant", "triangle", "long_funnel", "diamond", "hexagon", "stairs"\}: Profile of the generated hidden layer widths. Ignored when hidden_units is set.
+#' @param shape_layers (Tunable) Optional Integer [1, Inf): Number of hidden layers to generate. Ignored when hidden_units is set.
+#' @param shape_max_units (Tunable) Optional Integer [1, Inf): Widest generated hidden layer. NULL derives it from the encoded input width.
+#' @param activation (Tunable) Character \{"relu", "gelu", "silu", "elu", "selu", "leaky_relu", "tanh"\}: Activation applied after every hidden layer.
+#' @param norm (Tunable) Optional Character \{"batch_norm", "layer_norm"\}: Normalization applied in every hidden layer. NULL applies none.
+#' @param norm_first Logical: If TRUE, normalize before the activation rather than after it.
+#' @param bias Logical: If TRUE, give every hidden layer and the output layer a bias term.
+#' @param residual (Tunable) Logical: If TRUE, add a residual connection around every hidden layer, projected when the layer changes width.
+#' @param dropout (Tunable) Numeric [0, 1): Dropout probability applied after every hidden layer.
+#' @param input_dropout (Tunable) Numeric [0, 1): Dropout probability applied to the encoded input.
+#' @param weight_decay (Tunable) Numeric [0, Inf): L2 penalty, decoupled from the gradient under the adamw optimizer.
+#' @param l1_penalty (Tunable) Numeric [0, Inf): L1 penalty on the linear weights, added to the loss.
+#' @param embeddings Logical: If TRUE, represent each categorical feature by a learned embedding; if FALSE, one-hot encode them.
+#' @param embedding_dim (Tunable) Optional Integer [1, Inf): Width of every embedding. NULL sizes each from its feature's cardinality.
+#' @param embedding_dropout (Tunable) Numeric [0, 1): Dropout probability applied to the concatenated embeddings.
+#' @param optimizer (Tunable) Character \{"adamw", "adam", "sgd", "rmsprop"\}: Optimization algorithm.
+#' @param lr (Tunable) Numeric (0, Inf): Learning rate.
+#' @param beta1 Optional Numeric [0, 1): Exponential decay rate of the first moment estimate. Applies to the adam and adamw optimizers.
+#' @param beta2 Optional Numeric [0, 1): Exponential decay rate of the second moment estimate. Applies to the adam and adamw optimizers.
+#' @param eps Optional Numeric (0, Inf): Term added to the denominator for numerical stability. Applies to the adam, adamw and rmsprop optimizers.
+#' @param momentum Optional Numeric [0, Inf): Momentum factor. Applies to the sgd and rmsprop optimizers.
+#' @param lr_scheduler Optional Character \{"step", "cosine_annealing", "one_cycle", "reduce_on_plateau"\}: Learning-rate schedule. NULL holds the learning rate fixed.
+#' @param batch_size (Tunable) Integer [1, Inf): Cases per optimization step.
+#' @param max_epochs (Tunable) Integer [1, Inf): Largest number of passes over the training set.
+#' @param patience Integer [1, Inf): Epochs without validation improvement before stopping early.
+#' @param max_grad_norm (Tunable) Optional Numeric (0, Inf): Clip the gradient norm to this value before each step. NULL does not clip.
+#' @param loss Optional Character \{"mse", "l1", "smooth_l1", "cross_entropy"\}: Training objective. NULL sets it from the outcome type.
+#' @param device Optional Character \{"cpu", "cuda", "mps"\}: Compute device.
+#' @param seed Optional Integer: Random seed for weight initialization, dropout and batch shuffling.
+#' @param num_workers Integer [0, Inf): Subprocesses used to load batches.
+#' @param drop_last Logical: If TRUE, drop the last incomplete batch of each training epoch.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @return MLPHyperparameters object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' mlp_hyperparams <- setup_MLP(hidden_units = c(64L, 32L), max_epochs = 20L)
+#' mlp_hyperparams
+setup_MLP <- function(
+  # tunable
+  hidden_units = NULL,
+  shape = NULL,
+  shape_layers = NULL,
+  shape_max_units = NULL,
+  activation = "relu",
+  norm = NULL,
+  residual = FALSE,
+  dropout = 0,
+  input_dropout = 0,
+  weight_decay = 0,
+  l1_penalty = 0,
+  embedding_dim = NULL,
+  embedding_dropout = 0,
+  optimizer = "adamw",
+  lr = 1e-3,
+  batch_size = 256L,
+  max_epochs = 100L,
+  max_grad_norm = NULL,
+  ifw = FALSE,
+  # fixed
+  norm_first = FALSE,
+  bias = TRUE,
+  embeddings = TRUE,
+  beta1 = NULL,
+  beta2 = NULL,
+  eps = NULL,
+  momentum = NULL,
+  lr_scheduler = NULL,
+  patience = 10L,
+  loss = NULL,
+  device = NULL,
+  seed = NULL,
+  num_workers = 0L,
+  drop_last = FALSE
+) {
+  hidden_units <- clean_posint(hidden_units)
+  shape_layers <- clean_posint(shape_layers)
+  shape_max_units <- clean_posint(shape_max_units)
+  embedding_dim <- clean_posint(embedding_dim)
+  batch_size <- clean_posint(batch_size)
+  max_epochs <- clean_posint(max_epochs)
+  patience <- clean_posint(patience)
+  seed <- clean_int(seed)
+  num_workers <- clean_int(num_workers)
+  # The two architecture paths are alternatives, and silently overriding one
+  # with the other is what makes a two-path API confusing. Checked here rather
+  # than in the class validator because training writes the widths it resolved
+  # back into `hidden_units` -- so a fitted object legitimately holds both, and
+  # a class-level rule would reject the result of a valid run. Every path that
+  # builds these from user input arrives here, `.list_to_Hyperparameters()`
+  # included.
+  shape_given <- c(
+    shape = !is.null(shape),
+    shape_layers = !is.null(shape_layers),
+    shape_max_units = !is.null(shape_max_units)
+  )
+  if (!is.null(hidden_units) && any(shape_given)) {
+    rtemis.core::abort(
+      "`hidden_units` and ",
+      paste0("`", names(shape_given)[shape_given], "`", collapse = ", "),
+      " are two ways to give the same thing.\n",
+      "Set `hidden_units` for the widths themselves, or leave it NULL and set `shape` / `shape_layers` / `shape_max_units` to generate them.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  MLPHyperparameters(
+    hidden_units = hidden_units,
+    shape = shape,
+    shape_layers = shape_layers,
+    shape_max_units = shape_max_units,
+    activation = activation,
+    norm = norm,
+    norm_first = norm_first,
+    bias = bias,
+    residual = residual,
+    dropout = dropout,
+    input_dropout = input_dropout,
+    weight_decay = weight_decay,
+    l1_penalty = l1_penalty,
+    embeddings = embeddings,
+    embedding_dim = embedding_dim,
+    embedding_dropout = embedding_dropout,
+    optimizer = optimizer,
+    lr = lr,
+    beta1 = beta1,
+    beta2 = beta2,
+    eps = eps,
+    momentum = momentum,
+    lr_scheduler = lr_scheduler,
+    batch_size = batch_size,
+    max_epochs = max_epochs,
+    patience = patience,
+    max_grad_norm = max_grad_norm,
+    loss = loss,
+    device = device,
+    seed = seed,
+    num_workers = num_workers,
+    drop_last = drop_last,
+    ifw = ifw
+  )
+} # /setup_MLP
 
 
 # %% TabNetHyperparameters ----

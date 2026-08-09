@@ -229,6 +229,10 @@ families <- list(
         desc = "Isotonic regression. See `setup_Isotonic`."
       ),
       list(
+        cls = MLPHyperparameters,
+        desc = "Multilayer perceptron (torch). See `setup_MLP`."
+      ),
+      list(
         cls = TabNetHyperparameters,
         desc = "TabNet neural network. See `setup_TabNet`."
       ),
