@@ -8,9 +8,11 @@
 # What makes this possible is `x-rtemis`, which carries the axes standard JSON
 # Schema cannot express. Two of them are load-bearing here:
 #
-#   - `tunable` and `broadcast` emit *identical* `oneOf` shapes. Nothing in the
-#     standard keywords distinguishes "a search space" from "a value that may be
-#     broadcast", so a reader without the annotation must guess.
+#   - `tunable` says whether a hyperparameter may be tuned *at all*, which no
+#     document shape can state: a document says what one config does, not what
+#     the algorithm permits. It no longer disambiguates shapes -- a search space
+#     is tagged `{"candidates": [...]}` and a broadcast value is an array, so
+#     the standard keywords tell those apart on their own.
 #   - `type` names the leaf type. JSON has one number type, so an integer
 #     property and a float property are otherwise indistinguishable once a
 #     default has been through a JSON encoder.

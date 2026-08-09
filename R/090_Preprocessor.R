@@ -623,7 +623,7 @@ method(preprocessed, Preprocessor) <- function(x) {
 #' @examples
 #' .list_to_PreprocessorConfig(list(scale = TRUE, center = TRUE))
 .list_to_PreprocessorConfig <- function(x) {
-  args <- from_wire_maps(.drop_meta_keys(x), PreprocessorConfig)
+  args <- from_wire(.drop_meta_keys(x), PreprocessorConfig)
   check_wire_keys(args, names(formals(setup_Preprocessor)), "preprocessor")
   do.call(setup_Preprocessor, args)
 } # /rtemis::.list_to_PreprocessorConfig

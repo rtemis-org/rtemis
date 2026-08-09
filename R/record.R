@@ -51,8 +51,11 @@ value_origin <- function(input, resolved, spec, state = FALSE) {
     # The run changed it. Which way is a declaration, not a guess: a search
     # space narrowing to one value, or a NULL that means "determine by tuning",
     # is tuning; anything else the run worked out from the data.
+    # `input` is a wire value: `config_record()` runs it through `wire_value()`
+    # before comparing, so a search space arrives tagged rather than as the R
+    # object.
     searched <- !is.null(spec) &&
-      ((spec@tunable && length(input) > 1L) ||
+      (is_wire_candidates(input) ||
         (spec@tune_on_null && is.null(input)))
     return(if (searched) "tuned" else "derived")
   }

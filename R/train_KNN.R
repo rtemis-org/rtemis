@@ -65,7 +65,7 @@ method(validate_hyperparameters, KNNHyperparameters) <- function(
   check_data_bounds(hyperparameters, x)
   # At the first call site `k` may still hold the whole search space, so every
   # value the tuner could pick is checked, not just a scalar.
-  k <- domain_values(hyperparameters[["k"]])
+  k <- candidate_values(hyperparameters[["k"]])
   n_cases <- NROW(x)
   if (any(k >= n_cases)) {
     rtemis.core::abort(

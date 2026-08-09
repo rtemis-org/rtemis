@@ -184,7 +184,7 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
     # A domain holds one value per candidate, and the tuner may fit any of
     # them, so every candidate has to be in bounds -- an out-of-range one
     # would otherwise surface as a failed grid cell partway through tuning.
-    for (value in if (is_domain(value)) value@candidates else list(value)) {
+    for (value in if (is_candidates(value)) value@candidates else list(value)) {
       if (bound %in% NAME_BOUNDS) {
         # `unlist()` because a name bound may sit on a container of *vectors* -- a
         # map from group name to feature names. `setdiff()` on the list would
@@ -504,9 +504,9 @@ method(get_tuned_status, Hyperparameters) <- function(x) {
     return(TUNED_STATUS_NOT_TUNABLE)
   }
   values <- x@hyperparameters
-  # A search space is a `HyperparameterDomain`, never a value that happens to
+  # A search space is a `HyperparameterCandidates`, never a value that happens to
   # have several elements: `hidden_units = c(12L, 6L, 2L)` is one architecture.
-  if (any(vapply(values[tunable], is_domain, logical(1L)))) {
+  if (any(vapply(values[tunable], is_candidates, logical(1L)))) {
     return(TUNED_STATUS_UNTUNED)
   }
   null_tune <- vapply(
@@ -650,7 +650,7 @@ method(get_hyperparams_need_tuning, Hyperparameters) <- function(x) {
   # -> list
   values <- x@hyperparameters
   tunable <- x@tunable_hyperparameters
-  out <- values[tunable[vapply(values[tunable], is_domain, logical(1L))]]
+  out <- values[tunable[vapply(values[tunable], is_candidates, logical(1L))]]
   for (nm in tune_on_null_spec_names(S7_class(x))) {
     if (is.null(values[[nm]])) {
       out <- c(out, stats::setNames(list(NULL), nm))
@@ -734,7 +734,7 @@ method(tuning_grid, Hyperparameters) <- function(x) {
   grid_params <- stats::setNames(
     lapply(names(grid_params), function(nm) {
       value <- grid_params[[nm]]
-      if (!is_domain(value)) {
+      if (!is_candidates(value)) {
         return(value)
       }
       spec <- get_spec(specs[[nm]])
@@ -1470,7 +1470,7 @@ HALHyperparameters <- new_class(
     # to `max_degree` -- which means `max_degree` must be a single value for
     # the pairing to be well defined.
     if (!is.null(self@num_knots)) {
-      if (is_domain(self@max_degree)) {
+      if (is_candidates(self@max_degree)) {
         return(
           "@num_knots cannot be combined with a search over @max_degree: it needs one value per degree, so leave it NULL while tuning @max_degree."
         )
@@ -4047,7 +4047,10 @@ setup_NNLS <- function(normalize = TRUE, ifw = FALSE) {
     )
   }
   check_wire_keys(x, c("algorithm", "hyperparameters"), "hyperparameters")
-  args <- .drop_meta_keys(x[["hyperparameters"]])
+  args <- from_wire(
+    .drop_meta_keys(x[["hyperparameters"]]),
+    get(paste0(algorithm, "Hyperparameters"))
+  )
   check_wire_keys(
     args,
     names(formals(get(fn))),

@@ -175,7 +175,7 @@ test_that("a randomized search always keeps at least one combination", {
 # %% tune_over ----
 test_that("tune_over takes candidates as arguments or as one vector", {
   d <- setup_LightRF(max_depth = tune_over(3L, 4L, 5L))@max_depth
-  expect_s7_class(d, HyperparameterDomain)
+  expect_s7_class(d, HyperparameterCandidates)
   expect_identical(d@candidates, list(3L, 4L, 5L))
 
   # A computed grid goes straight in, with no splicing incantation: this is the
@@ -197,7 +197,7 @@ test_that("a domain is rejected by a hyperparameter that is not tunable", {
   # `device_type` declares no search space, so its type does not admit one.
   err <- expect_error(setup_LightRF(device_type = tune_over("cpu", "gpu")))
   expect_match(conditionMessage(err), "device_type", fixed = TRUE)
-  expect_match(conditionMessage(err), "HyperparameterDomain", fixed = TRUE)
+  expect_match(conditionMessage(err), "HyperparameterCandidates", fixed = TRUE)
 })
 
 
@@ -248,4 +248,24 @@ test_that("every candidate is validated against the hyperparameter", {
   expect_match(conditionMessage(err), "candidate 2", fixed = TRUE)
   # A cleaner runs ahead of the class and rejects its own candidate directly.
   expect_error(setup_LightRF(num_leaves = tune_over(1024L, 0L)))
+})
+
+
+test_that("candidates print in plain language, not R syntax", {
+  # The reader wants the values being tried; `3L` and `c(48, 24)` put literal
+  # spelling in the way.
+  expect_identical(
+    repr(tune_over(3L, 4L, 5L), output_type = "plain"),
+    "tuning over 3 values: 3, 4, 5"
+  )
+  # A candidate that is itself a vector stays legible as one.
+  expect_identical(
+    repr(tune_over(c(48L, 24L), c(96L, 48L)), output_type = "plain"),
+    "tuning over 2 values: (48, 24), (96, 48)"
+  )
+  # Long searches elide rather than flood the console.
+  expect_match(
+    repr(do.call(tune_over, as.list(1:20)), output_type = "plain"),
+    "tuning over 20 values: 1, 2, 3, 4, 5, 6, \\.\\.\\."
+  )
 })

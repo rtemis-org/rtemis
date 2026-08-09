@@ -187,3 +187,36 @@ test_that("read_config errors on an unrecognized $schema", {
   )
   expect_error(read_config(file), class = "rtemis_value_error")
 })
+
+
+# %% Tuned hyperparameters round-trip ----
+test_that("a search space survives write_config/read_config", {
+  x <- setup_SuperConfig(
+    dat_training_path = "~/Data/iris.csv",
+    hyperparameters = setup_LightRF(
+      max_depth = tune_over(3L, 4L, 5L),
+      num_leaves = 32L
+    ),
+    tuner_config = setup_GridSearch()
+  )
+  file <- file.path(tempdir(), "rtemis_super_tuned.json")
+  write_config(x, file, overwrite = TRUE)
+
+  # The wire form is tagged, so a reader tells a search space from a value
+  # without consulting the schema.
+  xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
+  hp <- xl[["hyperparameters"]][["hyperparameters"]]
+  expect_identical(names(hp[["max_depth"]]), "candidates")
+  expect_identical(unlist(hp[["max_depth"]][["candidates"]]), c(3L, 4L, 5L))
+  # A value is written plainly, with no tag to strip.
+  expect_identical(hp[["num_leaves"]], 32L)
+
+  # And it comes back as the domain it went out as.
+  xtoo <- read_config(file)
+  restored <- xtoo@hyperparameters@max_depth
+  expect_s7_class(restored, HyperparameterCandidates)
+  expect_identical(restored@candidates, list(3L, 4L, 5L))
+  expect_identical(xtoo@hyperparameters@num_leaves, 32L)
+  # The reconstructed config still knows it needs tuning.
+  expect_true(needs_tuning(xtoo@hyperparameters))
+})
