@@ -452,7 +452,7 @@ method(
       learned_levels[[feature]] <- feature_levels
       x[, i] <- factor2integer_code(
         x[[i]],
-        levels = feature_levels,
+        factor_levels = feature_levels,
         startat0 = config@factor2integer_startat0,
         xname = feature,
         verbosity = verbosity
@@ -862,33 +862,34 @@ fitted_config <- function(preprocessor) {
 #' does this in a single pass, with no character conversion.
 #'
 #' @param x Factor: Feature to index.
-#' @param levels Character vector: Levels to index into, in order.
+#' @param factor_levels Character vector: Levels to index into, in order.
 #'
-#' @return Integer vector of positions in `levels`, `NA` where the case is `NA`
-#' or its level is absent from `levels`. Callers decide what an absent level
-#' means.
+#' @return Integer vector of positions in `factor_levels`, `NA` where the case
+#' is `NA` or its level is absent from `factor_levels`. Callers decide what an
+#' absent level means.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-pinned_level_index <- function(x, levels) {
-  match(levels(x), levels)[as.integer(x)]
+pinned_level_index <- function(x, factor_levels) {
+  match(levels(x), factor_levels)[as.integer(x)]
 } # /rtemis::pinned_level_index
 
 
 # %% factor2integer_code ----
 #' Integer-code a factor against a fixed set of levels
 #'
-#' A value whose level is absent from `levels` is out of vocabulary and takes
-#' the single index above the known levels: `length(levels)` when `startat0` is
-#' TRUE, `length(levels) + 1L` otherwise. A model consuming the codes therefore
-#' sizes the feature at `length(levels) + 1L` categories. `NA` stays `NA`.
+#' A value whose level is absent from `factor_levels` is out of vocabulary and
+#' takes the single index above the known levels: `length(factor_levels)` when
+#' `startat0` is TRUE, `length(factor_levels) + 1L` otherwise. A model consuming
+#' the codes therefore sizes the feature at `length(factor_levels) + 1L`
+#' categories. `NA` stays `NA`.
 #'
 #' Both `startat0` branches return integer. A category code indexes something --
 #' an embedding table, a LightGBM category -- and a double cannot.
 #'
 #' @param x Factor: Feature to code.
-#' @param levels Character vector: Levels to code against, in order.
+#' @param factor_levels Character vector: Levels to code against, in order.
 #' @param startat0 Logical: If TRUE, code the first level as 0 instead of 1.
 #' @param xname Character: Feature name, used in messages.
 #' @param verbosity Integer: Verbosity level.
@@ -900,13 +901,13 @@ pinned_level_index <- function(x, levels) {
 #' @noRd
 factor2integer_code <- function(
   x,
-  levels,
+  factor_levels,
   startat0,
   xname,
   verbosity = 1L
 ) {
-  oov <- length(levels) + 1L
-  code <- pinned_level_index(x, levels)
+  oov <- length(factor_levels) + 1L
+  code <- pinned_level_index(x, factor_levels)
   unseen <- is.na(code) & !is.na(x)
   code[unseen] <- oov
   n_oov <- sum(unseen)
