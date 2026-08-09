@@ -97,7 +97,21 @@ config_record <- function(input, resolved) {
   # carries its own. A *list* of them (a meta learner's `base_learners`) is
   # published as an array of `$ref`s and gets one record per element, for the
   # same reason.
-  nested <- Filter(function(nm) S7_inherits(prop(resolved, nm)), names_)
+  # A `HyperparameterCandidates` is S7 too, and is none of that: it is the
+  # *value* a tunable property holds, and it travels as the tag `wire_value()`
+  # writes. Recording it as a nested config would publish its R-side field
+  # (`from_vector`) and an `origin` of its own, which the schema's
+  # `{"candidates": [...]}` branch does not admit; drop the property from this
+  # block's `origin`, the one place that reports it was tuned; and defeat
+  # `is_wire_candidates()`, whose exact-names test is what lets `from_wire()`
+  # read the value back.
+  nested <- Filter(
+    function(nm) {
+      value <- prop(resolved, nm)
+      S7_inherits(value) && !is_candidates(value)
+    },
+    names_
+  )
   nested_list <- Filter(
     function(nm) is_S7_list(prop(resolved, nm)),
     setdiff(names_, nested)

@@ -3233,6 +3233,28 @@ test_that("a tuned run records the grid and the winner per fold", {
   )
 })
 
+test_that("a record publishes a search space as the bare tag it reads back", {
+  # A `HyperparameterCandidates` is an S7 object, and the record writer builds
+  # a nested record out of a config-valued property. It is not one: it is the
+  # *value* the property holds, and it travels as the tag `wire_value()`
+  # writes. Publishing it as a nested record put its R-side `from_vector` and
+  # an `origin` of its own on the wire -- neither admitted by the schema's
+  # `{"candidates": [...]}` branch -- dropped the property from the block's own
+  # `origin`, the one place that reports the run searched it, and defeated
+  # `is_wire_candidates()`, so nothing could read the value back.
+  mod <- train(
+    iris,
+    hyperparameters = setup_CART(maxdepth = tune_over(2L, 4L)),
+    verbosity = 0L
+  )
+  hp <- record(mod)[["hyperparameters"]][["hyperparameters"]]
+  expect_true(is_wire_candidates(hp[["maxdepth"]]))
+  expect_identical(hp[["maxdepth"]][["candidates"]], c(2L, 4L))
+  # The user supplied the search, so that is what `origin` reports here; the
+  # fold that settled on one value reports `tuned`.
+  expect_identical(hp[["origin"]][["maxdepth"]], "user")
+})
+
 
 # %% Meta learners ---------------------------------------------------------------------------------
 # The library is deliberately GLM + CART: both are always available, and on the
