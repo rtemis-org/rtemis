@@ -256,16 +256,28 @@ test_that("candidates print in plain language, not R syntax", {
   # spelling in the way.
   expect_identical(
     repr(tune_over(3L, 4L, 5L), output_type = "plain"),
-    "tuning over 3 values: 3, 4, 5"
+    "<tune> 3, 4, 5"
   )
   # A candidate that is itself a vector stays legible as one.
   expect_identical(
     repr(tune_over(c(48L, 24L), c(96L, 48L)), output_type = "plain"),
-    "tuning over 2 values: (48, 24), (96, 48)"
+    "<tune> (48, 24), (96, 48)"
   )
-  # Long searches elide rather than flood the console.
-  expect_match(
+  # Long searches elide rather than flood the console, and say how many were
+  # left out by saying how many there are.
+  expect_identical(
     repr(do.call(tune_over, as.list(1:20)), output_type = "plain"),
-    "tuning over 20 values: 1, 2, 3, 4, 5, 6, \\.\\.\\."
+    "<tune> 1, 2, 3, 4, 5, 6, ... (20 values)"
   )
+})
+
+
+test_that("candidates print on the hyperparameter's own line", {
+  # One line, so `repr_ls()` shows it beside the values rather than breaking the
+  # list open the way a nested object does.
+  out <- repr(
+    setup_LightRF(max_depth = tune_over(3L, 4L, 5L)),
+    output_type = "plain"
+  )
+  expect_match(out, "max_depth: <tune> 3, 4, 5\n", fixed = TRUE)
 })

@@ -74,6 +74,7 @@
     list(IsotonicHyperparameters, "setup_Isotonic"),
     list(LinearSVMHyperparameters, "setup_LinearSVM"),
     list(RadialSVMHyperparameters, "setup_RadialSVM"),
+    list(MLPHyperparameters, "setup_MLP"),
     list(TabNetHyperparameters, "setup_TabNet"),
     list(RangerHyperparameters, "setup_Ranger"),
     list(SPLSHyperparameters, "setup_SPLS"),

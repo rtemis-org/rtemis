@@ -2826,7 +2826,55 @@ make_SupervisedRes <- function(
   }
 } # /rtemis::make_SupervisedRes
 
-early_stopping_algs <- c("LightGBM", "LightRF", "LightRuleFit")
+early_stopping_algs <- c("LightGBM", "LightRF", "LightRuleFit", "MLP")
+
+
+# MLPModel ----
+#' MLPModel
+#'
+#' @description
+#' Class for MLP models: the fitted network's parameters plus everything needed
+#' to rebuild the architecture they belong to.
+#'
+#' A `torch` module holds external pointers, so it cannot be saved: an `.rds`
+#' written from one reloads as "external pointer is not valid" and fails at the
+#' first prediction rather than at read. The parameters are therefore stored
+#' serialized, as an ordinary raw vector, and `predict_super()` rebuilds the
+#' module from the recorded architecture and loads them back in. That is why
+#' every architectural setting appears here rather than being read off the
+#' hyperparameters: the model must be readable on its own.
+#'
+#' @author EDG
+#' @noRd
+MLPModel <- new_class(
+  name = "MLPModel",
+  package = "rtemis",
+  properties = list(
+    state = class_raw,
+    hidden_units = class_integer,
+    activation = class_character,
+    norm = NULL | class_character,
+    norm_first = class_logical,
+    bias = class_logical,
+    residual = class_logical,
+    dropout = class_numeric,
+    input_dropout = class_numeric,
+    embedding_dropout = class_numeric,
+    # The design frame's columns, split by how the module consumes them. Their
+    # order is the order the tensors are built in, so it is part of the fit.
+    numeric_features = class_character,
+    categorical_features = class_character,
+    embedding_sizes = class_integer,
+    embedding_dims = class_integer,
+    out_features = class_integer,
+    type = class_character,
+    y_levels = NULL | class_character,
+    device = class_character,
+    epochs_trained = class_integer,
+    best_epoch = class_integer,
+    history = class_data.frame
+  )
+) # /rtemis::MLPModel
 
 
 # LightRuleFit ----

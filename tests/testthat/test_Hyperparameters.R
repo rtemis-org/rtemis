@@ -98,6 +98,7 @@ test_that("setup_LightRF() succeeds", {
   SPLS = SPLSHyperparameters,
   KNN = KNNHyperparameters,
   MARS = MARSHyperparameters,
+  MLP = MLPHyperparameters,
   BART = BARTHyperparameters,
   HAL = HALHyperparameters,
   MonotonicHAL = MonotonicHALHyperparameters,
@@ -462,6 +463,172 @@ test_that("setup_MARS() leaves backend-derived defaults NULL", {
   expect_null(mars_hpr[["nk"]])
   expect_null(mars_hpr[["nprune"]])
   expect_false(needs_tuning(mars_hpr))
+})
+
+# MLPHyperparameters ----
+test_that("MLPHyperparameters() constructs from its property defaults", {
+  # Defaults come from the PropertySpecs, so no argument is required.
+  expect_s7_class(MLPHyperparameters(), MLPHyperparameters)
+})
+
+test_that("MLPHyperparameters() accepts a resolved architecture beside its shape", {
+  # Training writes the widths it resolved into `hidden_units` and leaves the
+  # shape settings that produced them, so the class must accept the pair. The
+  # conflict is a rule about *input*, and lives in setup_MLP().
+  expect_s7_class(
+    MLPHyperparameters(hidden_units = c(64L, 32L), shape_layers = 2L),
+    MLPHyperparameters
+  )
+})
+
+test_that("MLPHyperparameters() gates the optimizer-specific settings", {
+  expect_error(
+    MLPHyperparameters(optimizer = "sgd", beta1 = 0.8),
+    "@beta1 applies only when @optimizer"
+  )
+  expect_error(
+    MLPHyperparameters(optimizer = "adamw", momentum = 0.9),
+    "@momentum applies only when @optimizer"
+  )
+  expect_s7_class(
+    MLPHyperparameters(optimizer = "sgd", momentum = 0.9),
+    MLPHyperparameters
+  )
+})
+
+# setup_MLP ----
+test_that("setup_MLP() succeeds", {
+  expect_s7_class(setup_MLP(), MLPHyperparameters)
+})
+
+test_that("setup_MLP() rejects both architecture paths at once", {
+  # The two are alternatives; silently overriding one with the other is what
+  # makes a two-path API confusing. Every path that builds these from user
+  # input arrives here, `.list_to_Hyperparameters()` included.
+  expect_error(
+    setup_MLP(hidden_units = c(64L, 32L), shape_layers = 5L),
+    "shape_layers",
+    class = "rtemis_value_error"
+  )
+  expect_error(
+    .list_to_Hyperparameters(list(
+      algorithm = "MLP",
+      hyperparameters = list(hidden_units = c(64L, 32L), shape = "funnel")
+    )),
+    class = "rtemis_value_error"
+  )
+  expect_s7_class(setup_MLP(hidden_units = c(64L, 32L)), MLPHyperparameters)
+  expect_s7_class(
+    setup_MLP(shape = "constant", shape_layers = 5L),
+    MLPHyperparameters
+  )
+})
+
+test_that("setup_MLP() leaves the architecture unset by default", {
+  # NULL on all four is what lets the conflict be detected at all, and what
+  # sends a bare setup_MLP() down the generated path.
+  mlp_hpr <- setup_MLP()
+  expect_null(mlp_hpr[["hidden_units"]])
+  expect_null(mlp_hpr[["shape"]])
+  expect_null(mlp_hpr[["shape_layers"]])
+  expect_null(mlp_hpr[["shape_max_units"]])
+  expect_false(needs_tuning(mlp_hpr))
+})
+
+test_that("setup_MLP() takes hidden_units as one architecture", {
+  # A bare vector is a value: three widths are one three-layer network, not
+  # three candidates.
+  mlp_hpr <- setup_MLP(hidden_units = c(64, 32, 16))
+  expect_identical(mlp_hpr[["hidden_units"]], c(64L, 32L, 16L))
+  expect_false(needs_tuning(mlp_hpr))
+})
+
+test_that("setup_MLP() searches over whole architectures", {
+  mlp_hpr <- setup_MLP(hidden_units = tune_over(c(64L, 32L), c(128L, 64L, 32L)))
+  expect_s7_class(mlp_hpr, MLPHyperparameters)
+  expect_identical(mlp_hpr@tuned, TUNED_STATUS_UNTUNED)
+  expect_true(needs_tuning(mlp_hpr))
+  # One grid cell holds one whole architecture, not one layer width.
+  grid <- tuning_grid(mlp_hpr)
+  expect_identical(NROW(grid), 2L)
+  expect_identical(grid[["hidden_units"]][[2L]], c(128L, 64L, 32L))
+})
+
+test_that("setup_MLP() rejects a single vector of candidates", {
+  # A bare vector there is one architecture, so reading it as a set of
+  # candidates cannot be inferred and is corrected instead.
+  expect_error(
+    setup_MLP(hidden_units = tune_over(c(64L, 32L))),
+    "single value for this hyperparameter"
+  )
+})
+
+test_that("setup_MLP() with scalar search values needs tuning", {
+  mlp_hpr <- setup_MLP(
+    shape = tune_over("funnel", "constant"),
+    shape_layers = tune_over(2L, 3L)
+  )
+  expect_identical(mlp_hpr@tuned, TUNED_STATUS_UNTUNED)
+  expect_identical(NROW(tuning_grid(mlp_hpr)), 4L)
+})
+
+# MLP architecture resolver ----
+test_that("mlp_hidden_units() takes explicit widths verbatim", {
+  expect_identical(
+    mlp_hidden_units(
+      c(64L, 32L),
+      NULL,
+      NULL,
+      NULL,
+      in_feat = 10L,
+      verbosity = 0L
+    ),
+    c(64L, 32L)
+  )
+})
+
+test_that("mlp_hidden_units() derives the width from the encoded input", {
+  # Four times the input width, held between 64 and 512 and never below the
+  # input width itself.
+  expect_identical(
+    mlp_hidden_units(NULL, "constant", 2L, NULL, in_feat = 4L, verbosity = 0L),
+    c(64L, 64L)
+  )
+  expect_identical(
+    mlp_hidden_units(NULL, "constant", 1L, NULL, in_feat = 40L, verbosity = 0L),
+    160L
+  )
+  expect_identical(
+    mlp_hidden_units(
+      NULL,
+      "constant",
+      1L,
+      NULL,
+      in_feat = 900L,
+      verbosity = 0L
+    ),
+    900L
+  )
+})
+
+test_that("mlp_hidden_units() defaults to a three-layer funnel", {
+  expect_identical(
+    mlp_hidden_units(NULL, NULL, NULL, 300L, in_feat = 10L, verbosity = 0L),
+    c(300L, 200L, 100L)
+  )
+})
+
+test_that("every shape returns exactly the layers asked for", {
+  # This is where the reference implementation is known to be wrong: it
+  # composes its segments and then warns that the layer count does not match.
+  for (shape in MLP_SHAPES) {
+    for (layers in 1:8) {
+      units <- mlp_shape_units(shape, layers, max_units = 256L, in_feat = 12L)
+      expect_length(units, layers)
+      expect_type(units, "integer")
+      expect_true(all(units >= 1L), info = paste(shape, layers))
+    }
+  }
 })
 
 # BARTHyperparameters ----
