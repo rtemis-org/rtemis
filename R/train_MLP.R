@@ -234,6 +234,10 @@ mlp_matrix <- function(dat, columns, mode) {
 #' categorical features, so the module's `forward` is called with one argument
 #' and the dataloader carries one tensor fewer.
 #'
+#' Missing values are rejected here, naming the features that carry them,
+#' because this is the only point on the predict path that sees the design
+#' frame before torch does.
+#'
 #' @param dat data.frame: Design frame, already preprocessed.
 #' @param numeric_features,categorical_features Character vectors: Column names,
 #' in the order the fit used.
@@ -260,18 +264,31 @@ mlp_inputs <- function(dat, numeric_features, categorical_features) {
     )
   }
   x_numeric <- mlp_matrix(dat, numeric_features, "double")
+  x_categorical <- mlp_matrix(dat, categorical_features, "integer")
+  # Both matrices, and before either becomes a tensor. A missing category code
+  # is the worse of the two: `factor2integer` codes NA as NA by design, and an
+  # NA index reaches `nn_embedding` as an out-of-range lookup that libtorch
+  # reports with a sixty-frame C++ trace naming no column. Training rejects
+  # missing values outright, so this is the predict-time path.
+  incomplete <- c(
+    numeric_features[colSums(is.na(x_numeric)) > 0L],
+    categorical_features[colSums(is.na(x_categorical)) > 0L]
+  )
+  if (length(incomplete) > 0L) {
+    rtemis.core::abort(
+      "MLP cannot predict from missing values; ",
+      length(incomplete),
+      " feature(s) have them: ",
+      paste0("'", incomplete, "'", collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
   inputs <- list(torch::torch_tensor(x_numeric, dtype = torch::torch_float()))
   if (length(categorical_features) > 0L) {
-    x_categorical <- mlp_matrix(dat, categorical_features, "integer")
     inputs <- c(
       inputs,
       list(torch::torch_tensor(x_categorical, dtype = torch::torch_long()))
-    )
-  }
-  if (anyNA(x_numeric)) {
-    rtemis.core::abort(
-      "MLP cannot predict from missing values.",
-      class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
   inputs
@@ -681,8 +698,16 @@ method(train_, MLPHyperparameters) <- function(
   # Train ----
   device <- resolve_torch_device(
     hyperparameters[["device"]],
-    seed = hyperparameters[["seed"]],
     verbosity = verbosity
+  )
+  check_mps_reproducible(
+    device,
+    seed = hyperparameters[["seed"]],
+    dropout = c(
+      hyperparameters[["dropout"]],
+      hyperparameters[["input_dropout"]],
+      hyperparameters[["embedding_dropout"]]
+    )
   )
   if (!is.null(hyperparameters[["seed"]])) {
     torch::torch_manual_seed(hyperparameters[["seed"]])
@@ -888,3 +913,28 @@ method(predict_super, MLPModel) <- function(
 method(varimp_super, MLPModel) <- function(model) {
   NULL
 } # /rtemis::varimp_super.MLPModel
+
+
+# %% training_device.MLPHyperparameters ----
+#' The device an MLP fit will run on
+#'
+#' Resolved twice: once here so `train()` can name it in the line it prints
+#' before training starts, and once in `train_()` for real. Resolution is
+#' deterministic and free of side effects, so the two agree.
+#'
+#' NULL when `torch` is absent -- `train_()` is about to abort on the missing
+#' dependency, and a message has no business raising a different error first.
+#'
+#' @param x `MLPHyperparameters` object.
+#'
+#' @return Character or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(training_device, MLPHyperparameters) <- function(x) {
+  if (!requireNamespace("torch", quietly = TRUE)) {
+    return(NULL)
+  }
+  resolve_torch_device(x[["device"]], verbosity = 0L)
+} # /rtemis::training_device.MLPHyperparameters

@@ -1952,6 +1952,37 @@ if (mlp_installed) {
     expect_s7_class(mod, Regression)
   })
 
+  ## {MLP} Device reporting ----
+  test_that("training_device() names the device only for a torch algorithm", {
+    # train() prints this in the line it already emits, so it has to be exact
+    # and side-effect-free: the algorithm resolves the device again for real.
+    expect_identical(training_device(setup_MLP(device = "cpu")), "cpu")
+    expect_identical(mod_r_mlp@model@device, "cpu")
+    expect_null(training_device(setup_CART()))
+  })
+
+  ## {MLP}[predict]<Regression> /\\Error missing values ----
+  test_that("predict() MLP names the features holding missing values", {
+    # Both kinds, and the categorical one is why this is tested: the
+    # preprocessor codes NA as NA by design, so an unchecked NA index reaches
+    # nn_embedding as an out-of-range lookup and libtorch reports it with a
+    # C++ trace naming no column.
+    newdata_numeric <- features(datr_test)
+    newdata_numeric[["V1"]][1L] <- NA
+    expect_error(
+      predict(mod_r_mlp, newdata_numeric),
+      "'V1'",
+      class = "rtemis_value_error"
+    )
+    newdata_factor <- features(datr_test)
+    newdata_factor[["g"]][1L] <- NA
+    expect_error(
+      predict(mod_r_mlp, newdata_factor),
+      "'g'",
+      class = "rtemis_value_error"
+    )
+  })
+
   ## {MLP}[train]<Regression> All features categorical ----
   test_that("train() MLP fits when every feature is categorical", {
     # The numeric side of the design is then a zero-column tensor, which is the

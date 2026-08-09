@@ -1216,6 +1216,22 @@ lock <- new_generic("lock", "x")
 needs_tuning <- new_generic("needs_tuning", "x")
 
 
+# %% training_device ----
+#' The compute device an algorithm will train on, or NULL
+#'
+#' Answered before training starts so that `train()` can name it in the line it
+#' already prints, rather than the algorithm printing a second line about it.
+#' Must be free of side effects: it runs purely to build a message, and the
+#' algorithm resolves the device again for real.
+#'
+#' NULL for everything that runs on the CPU by definition, which is every
+#' algorithm but the torch-backed ones.
+#'
+#' @keywords internal
+#' @noRd
+training_device <- new_generic("training_device", "x")
+
+
 # %% get_factor_levels ----
 #' @name get_factor_levels
 #'

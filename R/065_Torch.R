@@ -22,13 +22,18 @@
 # unbound global. Keep the convention: a `$` call here fails `just lint`.
 
 # %% TORCH_DEVICES ----
-# Compute devices, in the order `resolve_torch_device()` prefers them when no
-# device is named. `mps` is deliberately absent: a caller may ask for it, but
-# nothing here picks it, because it does not honor `torch_manual_seed()` -- two
-# runs of one fit under one seed differ -- and silently losing reproducibility
-# is worse than losing the acceleration.
+# Compute devices, and the order `resolve_torch_device()` prefers them in when
+# no device is named.
+#
+# `mps` is last, so nothing selects it automatically -- `cpu` is always
+# available. Two measured reasons, both on an M5: it is 1.1-3x *slower* than the
+# CPU at every tabular size tried, the matrices being small enough that dispatch
+# dominates; and `torch_manual_seed()` does not reach its dropout, so a seeded
+# fit stops being reproducible the moment a dropout rate is non-zero. Asking for
+# it by name is supported, and `check_mps_reproducible()` reports the second
+# caveat when it bites.
 TORCH_DEVICES <- c("cpu", "cuda", "mps")
-TORCH_DEVICE_PREFERENCE <- c("cuda", "cpu")
+TORCH_DEVICE_PREFERENCE <- c("cuda", "cpu", "mps")
 
 # %% TORCH_ACTIVATIONS ----
 TORCH_ACTIVATIONS <- c(
@@ -66,10 +71,11 @@ TORCH_LOSSES <- c(TORCH_REGRESSION_LOSSES, TORCH_CLASSIFICATION_LOSSES)
 # %% resolve_torch_device ----
 #' Resolve the compute device to train on
 #'
+#' Free of side effects beyond a message, so that `training_device()` can call
+#' it purely to name the device in a log line.
+#'
 #' @param device Character or NULL: Device to use. NULL picks the first
 #' available of `TORCH_DEVICE_PREFERENCE`.
-#' @param seed Integer or NULL: The seed the caller asked for, used only to warn
-#' that `mps` will not honor it.
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @return Character: The resolved device name.
@@ -77,7 +83,7 @@ TORCH_LOSSES <- c(TORCH_REGRESSION_LOSSES, TORCH_CLASSIFICATION_LOSSES)
 #' @author EDG
 #' @keywords internal
 #' @noRd
-resolve_torch_device <- function(device = NULL, seed = NULL, verbosity = 1L) {
+resolve_torch_device <- function(device = NULL, verbosity = 1L) {
   available <- function(name) {
     switch(
       name,
@@ -91,9 +97,7 @@ resolve_torch_device <- function(device = NULL, seed = NULL, verbosity = 1L) {
       vapply(TORCH_DEVICE_PREFERENCE, available, logical(1L))
     ][[1L]]
     msg0("Using ", device, " device...", verbosity = verbosity - 1L)
-    return(device)
-  }
-  if (!available(device)) {
+  } else if (!available(device)) {
     rtemis.core::abort(
       "Device '",
       device,
@@ -101,13 +105,37 @@ resolve_torch_device <- function(device = NULL, seed = NULL, verbosity = 1L) {
       class = c("rtemis_unsupported_error", "rtemis_input_error")
     )
   }
-  if (identical(device, "mps") && !is.null(seed)) {
-    warn(
-      "The mps device does not honor `seed`: this fit is not reproducible. Set device = \"cpu\" to reproduce it."
-    )
-  }
   device
 } # /rtemis::resolve_torch_device
+
+
+# %% check_mps_reproducible ----
+#' Report a seeded mps fit that dropout makes irreproducible
+#'
+#' On mps, weight initialization and batch shuffling follow
+#' `torch_manual_seed()`; dropout does not. So a seeded mps fit reproduces
+#' exactly until a dropout probability is non-zero, and then it does not, with
+#' nothing to say so. Checked against the **resolved** device rather than the
+#' requested one, so that it still holds if the preference order ever puts mps
+#' where a caller gets it without naming it.
+#'
+#' @param device Character: The resolved device.
+#' @param seed Integer or NULL: The seed the caller asked for.
+#' @param dropout Numeric: Every dropout probability the run uses.
+#'
+#' @return NULL, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_mps_reproducible <- function(device, seed, dropout) {
+  if (identical(device, "mps") && !is.null(seed) && any(dropout > 0)) {
+    warn(
+      "`seed` does not reach dropout on the mps device, so this fit is not reproducible. Set device = \"cpu\" to reproduce it, or leave the dropout rates at 0."
+    )
+  }
+  invisible(NULL)
+} # /rtemis::check_mps_reproducible
 
 
 # %% torch_activation_module ----

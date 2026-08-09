@@ -598,6 +598,7 @@ method(repr, Supervised) <- function(
     if (!is.null(x@metrics_validation)) {
       out <- paste0(
         out,
+        "\n",
         repr_CalibratedClassificationMetrics(
           x@metrics_validation,
           x@metrics_validation_calibrated,
@@ -633,6 +634,7 @@ method(repr, Supervised) <- function(
     if (!is.null(x@metrics_validation)) {
       out <- paste0(
         out,
+        "\n",
         repr(x@metrics_validation, pad = pad + 2L, output_type = output_type)
       )
     }

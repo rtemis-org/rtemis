@@ -43,9 +43,9 @@ setup_MLP(
 \arguments{
 \item{hidden_units}{(Tunable) Optional Integer [1, Inf) vector: Units in each hidden layer, one value per layer. NULL generates the widths from the shape settings.}
 
-\item{shape}{(Tunable) Optional Character \{"funnel", "constant", "triangle", "long_funnel", "diamond", "hexagon", "stairs"\}: Profile of the generated hidden layer widths. NULL uses "funnel".}
+\item{shape}{(Tunable) Optional Character \{"funnel", "constant", "triangle", "long_funnel", "diamond", "hexagon", "stairs"\}: Profile of the generated hidden layer widths. Ignored when hidden_units is set.}
 
-\item{shape_layers}{(Tunable) Optional Integer [1, Inf): Number of hidden layers to generate. NULL uses 3.}
+\item{shape_layers}{(Tunable) Optional Integer [1, Inf): Number of hidden layers to generate. Ignored when hidden_units is set.}
 
 \item{shape_max_units}{(Tunable) Optional Integer [1, Inf): Widest generated hidden layer. NULL derives it from the encoded input width.}
 
@@ -99,7 +99,7 @@ setup_MLP(
 
 \item{loss}{Optional Character \{"mse", "l1", "smooth_l1", "cross_entropy"\}: Training objective. NULL sets it from the outcome type.}
 
-\item{device}{Optional Character \{"cpu", "cuda", "mps"\}: Compute device. NULL picks cuda when available and cpu otherwise.}
+\item{device}{Optional Character \{"cpu", "cuda", "mps"\}: Compute device.}
 
 \item{seed}{Optional Integer: Random seed for weight initialization, dropout and batch shuffling.}
 
@@ -143,6 +143,15 @@ rejected as such.
 all. \code{embeddings = FALSE} one-hot encodes instead. Numeric features are
 always centered and scaled -- an unscaled network fails quietly rather than
 loudly -- and the fitted encoder is re-applied at predict time.
+
+\strong{Device and reproducibility.} \code{device = NULL} picks \code{cuda} where available
+and \code{cpu} otherwise, and \link{train} names the one it resolved. \code{"mps"} is
+supported but never chosen automatically: on Apple silicon it is slower than
+the CPU for networks of the size tabular data calls for -- the matrices are
+small enough that dispatch dominates -- and a \code{seed} governs weight
+initialization and batch shuffling there but \strong{not dropout}, so a seeded
+\code{mps} fit reproduces exactly until a dropout rate is non-zero. That
+combination warns.
 
 \strong{Early stopping} needs a validation set: pass \code{dat_validation} to \link{train},
 and the fit keeps the weights of the best validation epoch rather than the

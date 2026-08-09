@@ -637,6 +637,16 @@ method(needs_tuning, Hyperparameters) <- function(x) {
 } # /rtemis::needs_tuning.Hyperparameters
 
 
+# %% training_device.Hyperparameters ----
+#' Most algorithms run on the CPU by definition and have nothing to report.
+#'
+#' @keywords internal
+#' @noRd
+method(training_device, Hyperparameters) <- function(x) {
+  NULL
+} # /rtemis::training_device.Hyperparameters
+
+
 # %% get_hyperparams_need_tuning.Hyperparameters ----
 #' Get hyperparameters that need tuning.
 #'
@@ -2799,14 +2809,14 @@ MLPHyperparameters <- new_class(
       enum = MLP_SHAPES,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Profile of the generated hidden layer widths. NULL uses 'funnel'. Ignored when hidden_units is set."
+      description = "Profile of the generated hidden layer widths. Ignored when hidden_units is set."
     ),
     shape_layers = prop_integer(
       NULL,
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Number of hidden layers to generate. NULL uses 3. Ignored when hidden_units is set."
+      description = "Number of hidden layers to generate. Ignored when hidden_units is set."
     ),
     shape_max_units = prop_integer(
       NULL,
@@ -2906,7 +2916,7 @@ MLPHyperparameters <- new_class(
       exclusive_max = 1,
       nullable = TRUE,
       applies_when = list(optimizer = c("adamw", "adam")),
-      description = "Exponential decay rate of the first moment estimate. NULL leaves the torch default of 0.9."
+      description = "Exponential decay rate of the first moment estimate. NULL leaves the torch default."
     ),
     beta2 = prop_float(
       NULL,
@@ -2914,7 +2924,7 @@ MLPHyperparameters <- new_class(
       exclusive_max = 1,
       nullable = TRUE,
       applies_when = list(optimizer = c("adamw", "adam")),
-      description = "Exponential decay rate of the second moment estimate. NULL leaves the torch default of 0.999."
+      description = "Exponential decay rate of the second moment estimate. NULL leaves the torch default."
     ),
     eps = prop_float(
       NULL,
@@ -2972,7 +2982,7 @@ MLPHyperparameters <- new_class(
       NULL,
       enum = TORCH_DEVICES,
       nullable = TRUE,
-      description = "Compute device. NULL picks cuda when available and cpu otherwise; mps is never chosen automatically because it does not honor seed."
+      description = "Compute device. On mps a seed does not reach dropout, so a fit using it is not reproducible; the run says so."
     ),
     seed = prop_integer(
       NULL,
@@ -3035,6 +3045,15 @@ MLPHyperparameters <- new_class(
 #' always centered and scaled -- an unscaled network fails quietly rather than
 #' loudly -- and the fitted encoder is re-applied at predict time.
 #'
+#' **Device and reproducibility.** `device = NULL` picks `cuda` where available
+#' and `cpu` otherwise, and [train] names the one it resolved. `"mps"` is
+#' supported but never chosen automatically: on Apple silicon it is slower than
+#' the CPU for networks of the size tabular data calls for -- the matrices are
+#' small enough that dispatch dominates -- and a `seed` governs weight
+#' initialization and batch shuffling there but **not dropout**, so a seeded
+#' `mps` fit reproduces exactly until a dropout rate is non-zero. That
+#' combination warns.
+#'
 #' **Early stopping** needs a validation set: pass `dat_validation` to [train],
 #' and the fit keeps the weights of the best validation epoch rather than the
 #' last. Without one it runs the full `max_epochs` and `patience` has no effect.
@@ -3056,8 +3075,8 @@ MLPHyperparameters <- new_class(
 #' `get_varimp()` returns NULL: a torch MLP has no native importance measure.
 #'
 #' @param hidden_units (Tunable) Optional Integer [1, Inf) vector: Units in each hidden layer, one value per layer. NULL generates the widths from the shape settings.
-#' @param shape (Tunable) Optional Character \{"funnel", "constant", "triangle", "long_funnel", "diamond", "hexagon", "stairs"\}: Profile of the generated hidden layer widths. NULL uses "funnel".
-#' @param shape_layers (Tunable) Optional Integer [1, Inf): Number of hidden layers to generate. NULL uses 3.
+#' @param shape (Tunable) Optional Character \{"funnel", "constant", "triangle", "long_funnel", "diamond", "hexagon", "stairs"\}: Profile of the generated hidden layer widths. Ignored when hidden_units is set.
+#' @param shape_layers (Tunable) Optional Integer [1, Inf): Number of hidden layers to generate. Ignored when hidden_units is set.
 #' @param shape_max_units (Tunable) Optional Integer [1, Inf): Widest generated hidden layer. NULL derives it from the encoded input width.
 #' @param activation (Tunable) Character \{"relu", "gelu", "silu", "elu", "selu", "leaky_relu", "tanh"\}: Activation applied after every hidden layer.
 #' @param norm (Tunable) Optional Character \{"batch_norm", "layer_norm"\}: Normalization applied in every hidden layer. NULL applies none.
@@ -3083,7 +3102,7 @@ MLPHyperparameters <- new_class(
 #' @param patience Integer [1, Inf): Epochs without validation improvement before stopping early.
 #' @param max_grad_norm (Tunable) Optional Numeric (0, Inf): Clip the gradient norm to this value before each step. NULL does not clip.
 #' @param loss Optional Character \{"mse", "l1", "smooth_l1", "cross_entropy"\}: Training objective. NULL sets it from the outcome type.
-#' @param device Optional Character \{"cpu", "cuda", "mps"\}: Compute device. NULL picks cuda when available and cpu otherwise.
+#' @param device Optional Character \{"cpu", "cuda", "mps"\}: Compute device.
 #' @param seed Optional Integer: Random seed for weight initialization, dropout and batch shuffling.
 #' @param num_workers Integer [0, Inf): Subprocesses used to load batches.
 #' @param drop_last Logical: If TRUE, drop the last incomplete batch of each training epoch.
