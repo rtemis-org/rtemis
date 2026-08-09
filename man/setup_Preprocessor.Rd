@@ -30,6 +30,7 @@ setup_Preprocessor(
   factorNA2missing_level = "missing",
   factor2integer = FALSE,
   factor2integer_startat0 = TRUE,
+  factor2integer_levels = NULL,
   scale = FALSE,
   center = scale,
   scale_centers = NULL,
@@ -132,6 +133,12 @@ data in categorical variables and impute numeric variables in the same
 
 \item{factor2integer_startat0}{Logical: If TRUE, start integer coding at 0.}
 
+\item{factor2integer_levels}{Optional List: Named list of the form
+"feature_name" = "levels". Used to code factors identically to the training
+data when applying \code{factor2integer} to validation or test data using
+\code{Preprocessor}. Values whose level is absent take the single index above the
+known levels.}
+
 \item{scale}{Logical: If TRUE, scale columns of \code{x}.}
 
 \item{center}{Logical: If TRUE, center columns of \code{x}. If unset, follows \code{scale}.}
@@ -187,6 +194,7 @@ Creates a \code{PreprocessorConfig} object, which can be used in \link{preproces
 \item numeric with less than N unique values to factor
 \item character to factor
 \item factor NA to named level
+\item factor to integer
 \item add missingness column
 \item impute
 \item scale and/or center
