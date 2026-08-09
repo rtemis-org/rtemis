@@ -668,7 +668,7 @@ test_that("origin distinguishes user, default, derived and tuned", {
 test_that("a searched hyperparameter is `tuned`, not `derived`", {
   mod <- train(
     iris,
-    hyperparameters = setup_CART(maxdepth = c(2L, 4L)),
+    hyperparameters = setup_CART(maxdepth = tune_over(2L, 4L)),
     tuner_config = setup_GridSearch(
       resampler_config = setup_Resampler(n_resamples = 2L, type = "KFold")
     ),
@@ -774,7 +774,7 @@ test_that("a fold's tuning block is declared, not an open object", {
   datc[["Species"]] <- factor(datc[["Species"]])
   mod <- train(
     datc,
-    hyperparameters = setup_CART(maxdepth = c(2L, 4L)),
+    hyperparameters = setup_CART(maxdepth = tune_over(2L, 4L)),
     verbosity = 0L
   )
   tuning <- record(mod)[["folds"]][[1L]][["tuning"]]

@@ -161,10 +161,10 @@ testthat::test_that("NULL is the only unset value; zero-length is rejected", {
 })
 
 testthat::test_that("tunable properties accept search vectors; fixed do not", {
-  x <- LightRFProps(num_leaves = c(1024L, 4096L, 16384L))
-  testthat::expect_length(x@num_leaves, 3L)
+  x <- LightRFProps(num_leaves = tune_over(1024L, 4096L, 16384L))
+  testthat::expect_length(x@num_leaves@candidates, 3L)
   # Every search value is bounds-checked.
-  testthat::expect_error(LightRFProps(num_leaves = c(1024L, 0L)))
+  testthat::expect_error(LightRFProps(num_leaves = tune_over(1024L, 0L)))
   # Fixed hyperparameters reject vectors.
   testthat::expect_error(LightRFProps(device_type = c("cpu", "gpu")))
   testthat::expect_error(LightRFProps(force_col_wise = c(TRUE, FALSE)))
@@ -260,10 +260,28 @@ testthat::test_that("broadcast emits scalar-or-array, distinct from tunable", {
 
 testthat::test_that("the arity axes are validated against each other", {
   testthat::expect_error(mk_spec(container = "bogus"), "container")
-  # A container holds values; a tunable array holds search values.
+  # An array container may be tunable: its search space sits one level of
+  # nesting above its value, so the two are distinguishable.
+  testthat::expect_no_error(mk_spec(container = "array", tunable = TRUE))
+  # Nesting is only defined for arrays, so no other container may be tunable.
   testthat::expect_error(
-    mk_spec(container = "array", tunable = TRUE),
+    mk_spec(container = "map", items = mk_spec(), tunable = TRUE),
     "tunable"
+  )
+  # `broadcast` makes a bare element a value too, so the array level would mean
+  # both "one explicit value" and "a search over broadcast elements".
+  testthat::expect_error(
+    mk_spec(container = "array", broadcast = TRUE, tunable = TRUE),
+    "broadcast"
+  )
+  # A search space over a container of containers would need a third level.
+  testthat::expect_error(
+    mk_spec(
+      container = "array",
+      items = mk_spec(container = "array"),
+      tunable = TRUE
+    ),
+    "scalar elements"
   )
   # `items` is meaningless without a container, and required for a map.
   testthat::expect_error(mk_spec(items = mk_spec()), "items")
@@ -298,8 +316,8 @@ testthat::test_that("vector props accept vectors, map to array schemas", {
   testthat::expect_error(Vec(w = c(1, -1)))
   # NULL allowed when nullable.
   testthat::expect_no_error(Vec())
-  # vector and tunable are mutually exclusive at factory time.
-  testthat::expect_error(prop_float(1, vector = TRUE, tunable = TRUE))
+  # A vector property may be tunable; see the container-tunable tests below.
+  testthat::expect_no_error(prop_float(1, vector = TRUE, tunable = TRUE))
   # Schema: array type (with null), items carry the scalar constraints.
   s <- spec_to_schema(get_spec(Vec@properties[["w"]]))
   testthat::expect_identical(as.character(s[["type"]]), c("array", "null"))
@@ -308,6 +326,77 @@ testthat::test_that("vector props accept vectors, map to array schemas", {
   # Defaults are published separately, so no schema carries the keyword.
   s1 <- spec_to_schema(get_spec(prop_string("a", vector = TRUE)))
   testthat::expect_false("default" %in% names(s1))
+})
+
+
+# %% Container tunables ----
+testthat::test_that("a tunable array separates its value from its search space", {
+  Arch <- S7::new_class(
+    name = "Arch",
+    package = NULL,
+    properties = list(
+      hidden_units = prop_integer(
+        c(64L, 32L),
+        min = 1L,
+        vector = TRUE,
+        tunable = TRUE,
+        description = "Units per hidden layer."
+      )
+    )
+  )
+  # A bare vector is one value, of any length -- never a search space.
+  testthat::expect_identical(
+    Arch(hidden_units = c(12L, 6L, 2L))@hidden_units,
+    c(12L, 6L, 2L)
+  )
+  testthat::expect_identical(Arch(hidden_units = 8L)@hidden_units, 8L)
+  # A domain holds the candidates, one per argument.
+  testthat::expect_identical(
+    Arch(
+      hidden_units = tune_over(c(12L, 6L), c(14L, 12L, 6L))
+    )@hidden_units@candidates,
+    list(c(12L, 6L), c(14L, 12L, 6L))
+  )
+  # Element bounds reach inside each candidate, and the candidate is named in
+  # the message so the user knows which one failed.
+  testthat::expect_error(
+    Arch(hidden_units = tune_over(c(12L, 6L), c(4L, 0L))),
+    "candidate 2"
+  )
+  # A domain needs something to search.
+  testthat::expect_error(tune_over(8L), "at least two candidates")
+  # One bare vector is a single value of this hyperparameter, not a set of
+  # candidates, so it is corrected rather than read as two one-layer networks.
+  testthat::expect_error(
+    Arch(hidden_units = tune_over(c(48L, 24L))),
+    "single value"
+  )
+})
+
+
+testthat::test_that("a tunable array's schema nests the search space one level", {
+  spec <- get_spec(prop_integer(1L, min = 1L, vector = TRUE, tunable = TRUE))
+  s <- spec_to_schema(spec)
+  testthat::expect_length(s[["oneOf"]], 2L)
+  value <- s[["oneOf"]][[1L]]
+  search <- s[["oneOf"]][[2L]]
+  # The value is the array; the search space is an array of them.
+  testthat::expect_identical(value[["type"]], "array")
+  testthat::expect_identical(value[["items"]][["type"]], "integer")
+  testthat::expect_identical(search[["type"]], "array")
+  testthat::expect_identical(search[["items"]][["type"]], "array")
+  testthat::expect_identical(search[["items"]][["items"]][["type"]], "integer")
+  # The annotation is what separates this from a broadcast property emitting
+  # the identical shape (Ranger's `split_select_weights`).
+  testthat::expect_true(s[["x-rtemis"]][["tunable"]])
+  testthat::expect_null(s[["x-rtemis"]][["broadcast"]])
+  # Round trip: the reader must key on that annotation, not on branch position.
+  back <- schema_to_spec(s, default = 1L)
+  testthat::expect_identical(back@container, "array")
+  testthat::expect_true(back@tunable)
+  testthat::expect_false(back@broadcast)
+  testthat::expect_identical(back@type, "integer")
+  testthat::expect_identical(back@minimum, 1L)
 })
 
 # %% Array arity: min_items / unique_items ----
@@ -672,7 +761,7 @@ test_that("check_data_bounds() bounds a scalar above by the dimension", {
   # Tunable hyperparameters carry the whole search space at this point, so a
   # single bad value anywhere in it must abort.
   expect_error(
-    check_data_bounds(setup_Ranger(mtry = c(1L, 100L)), datr_bounds),
+    check_data_bounds(setup_Ranger(mtry = tune_over(1L, 100L)), datr_bounds),
     class = "rtemis_range_error"
   )
   expect_invisible(check_data_bounds(setup_Ranger(mtry = 2L), datr_bounds))

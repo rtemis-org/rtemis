@@ -9,7 +9,7 @@ test_that("Hyperparameters superclass is abstract", {
 })
 
 # A subclass with search values on a tunable hyperparameter needs tuning.
-hpr <- setup_GLMNET(alpha = c(0, 1))
+hpr <- setup_GLMNET(alpha = tune_over(0, 1))
 test_that("Hyperparameters succeeds", {
   expect_s7_class(hpr, Hyperparameters)
   # test that tuned is set correctly
@@ -31,9 +31,9 @@ test_that("get_hyperparams_need_tuning() succeeds", {
 # CARTHyperparameters ----
 # setup_CART ----
 cart_hpr <- setup_CART(
-  prune_cp = c(.001, .01, .1),
-  minsplit = c(2L, 10L),
-  minbucket = c(1L, 10L)
+  prune_cp = tune_over(.001, .01, .1),
+  minsplit = tune_over(2L, 10L),
+  minbucket = tune_over(1L, 10L)
 )
 test_that("setup_CART() succeeds", {
   expect_s7_class(cart_hpr, CARTHyperparameters)
@@ -190,19 +190,20 @@ test_that("LightRF spec validators enforce bounds, enum, arity", {
   expect_error(setup_LightRF(device_type = "tpu"))
   expect_no_error(setup_LightRF(device_type = "gpu"))
   # Tunable props accept search vectors; every value is checked.
-  expect_no_error(setup_LightRF(num_leaves = c(1024L, 4096L)))
-  expect_error(setup_LightRF(num_leaves = c(1024L, 0L)))
+  expect_no_error(setup_LightRF(num_leaves = tune_over(1024L, 4096L)))
+  expect_error(setup_LightRF(num_leaves = tune_over(1024L, 0L)))
   # Fixed props reject vectors.
   expect_error(setup_LightRF(device_type = c("cpu", "gpu")))
 })
 
 test_that("LightRF tuned status derives from search values", {
   expect_identical(setup_LightRF()@tuned, -1L)
-  expect_identical(setup_LightRF(nrounds = c(500L, 1000L))@tuned, 0L)
-  # clean_posint upgrades doubles, including search vectors.
+  expect_identical(setup_LightRF(nrounds = tune_over(500L, 1000L))@tuned, 0L)
+  # clean_posint reaches inside a domain, so every candidate is upgraded from
+  # double to integer exactly as a single value would be.
   expect_identical(
-    setup_LightRF(nrounds = c(500, 1000))$nrounds,
-    c(500L, 1000L)
+    setup_LightRF(nrounds = tune_over(500, 1000))$nrounds@candidates,
+    list(500L, 1000L)
   )
 })
 
@@ -215,7 +216,7 @@ test_that("LightRF hyperparameters setter writes through to props", {
   expect_error(h@hyperparameters[["nrounds"]] <- -5L)
   # update() (the Tuner path) works and locks the tuned status.
   h2 <- update(
-    setup_LightRF(nrounds = c(500L, 1000L)),
+    setup_LightRF(nrounds = tune_over(500L, 1000L)),
     list(nrounds = 750L),
     tuned = 1L
   )
@@ -321,8 +322,8 @@ test_that("LightGBMHyperparameters() constructs from its property defaults", {
 # setup_LightGBM ----
 test_that("setup_LightGBM() succeeds", {
   lgbm_hpr <- setup_LightGBM(
-    num_leaves = c(4, 8, 16),
-    learning_rate = c(.001, .01, .1)
+    num_leaves = tune_over(4, 8, 16),
+    learning_rate = tune_over(.001, .01, .1)
   )
   expect_s7_class(setup_LightGBM(), LightGBMHyperparameters)
 })
@@ -393,7 +394,7 @@ test_that("setup_SPLS() succeeds", {
 })
 
 test_that("setup_SPLS() with search values needs tuning", {
-  spls_hpr <- setup_SPLS(k = c(1L, 2L), eta = c(0.3, 0.6))
+  spls_hpr <- setup_SPLS(k = tune_over(1L, 2L), eta = tune_over(0.3, 0.6))
   expect_s7_class(spls_hpr, SPLSHyperparameters)
   expect_identical(spls_hpr@tuned, TUNED_STATUS_UNTUNED)
   expect_true(needs_tuning(spls_hpr))
@@ -411,7 +412,10 @@ test_that("setup_KNN() succeeds", {
 })
 
 test_that("setup_KNN() with search values needs tuning", {
-  knn_hpr <- setup_KNN(k = c(3L, 7L), kernel = c("rectangular", "optimal"))
+  knn_hpr <- setup_KNN(
+    k = tune_over(3L, 7L),
+    kernel = tune_over("rectangular", "optimal")
+  )
   expect_s7_class(knn_hpr, KNNHyperparameters)
   expect_identical(knn_hpr@tuned, TUNED_STATUS_UNTUNED)
   expect_true(needs_tuning(knn_hpr))
@@ -441,7 +445,10 @@ test_that("setup_MARS() succeeds", {
 })
 
 test_that("setup_MARS() with search values needs tuning", {
-  mars_hpr <- setup_MARS(degree = c(1L, 2L), nprune = c(5L, 10L))
+  mars_hpr <- setup_MARS(
+    degree = tune_over(1L, 2L),
+    nprune = tune_over(5L, 10L)
+  )
   expect_s7_class(mars_hpr, MARSHyperparameters)
   expect_identical(mars_hpr@tuned, TUNED_STATUS_UNTUNED)
   expect_true(needs_tuning(mars_hpr))
@@ -482,7 +489,10 @@ test_that("setup_BART() succeeds", {
 })
 
 test_that("setup_BART() with search values needs tuning", {
-  bart_hpr <- setup_BART(num_trees = c(10L, 20L), alpha = c(0.5, 0.95))
+  bart_hpr <- setup_BART(
+    num_trees = tune_over(10L, 20L),
+    alpha = tune_over(0.5, 0.95)
+  )
   expect_s7_class(bart_hpr, BARTHyperparameters)
   expect_identical(bart_hpr@tuned, TUNED_STATUS_UNTUNED)
   expect_true(needs_tuning(bart_hpr))
@@ -506,7 +516,7 @@ test_that("HALHyperparameters() pairs num_knots with max_degree", {
   )
   # A search over max_degree leaves no single degree count to pair against.
   expect_error(
-    HALHyperparameters(max_degree = c(1L, 2L), num_knots = c(20L, 10L)),
+    HALHyperparameters(max_degree = tune_over(1L, 2L), num_knots = c(20L, 10L)),
     "num_knots"
   )
   expect_s7_class(
@@ -523,7 +533,10 @@ test_that("HALHyperparameters() rejects reduce_basis when no order reaches 0", {
     "reduce_basis"
   )
   expect_error(
-    HALHyperparameters(smoothness_orders = c(1L, 2L), reduce_basis = 0.1),
+    HALHyperparameters(
+      smoothness_orders = tune_over(1L, 2L),
+      reduce_basis = 0.1
+    ),
     "reduce_basis"
   )
   expect_s7_class(
@@ -537,8 +550,8 @@ test_that("HALHyperparameters() accepts reduce_basis in a search reaching 0", {
   # combination is a conditional search rather than an invalid one.
   expect_s7_class(
     HALHyperparameters(
-      smoothness_orders = c(0L, 1L, 2L),
-      reduce_basis = c(0.1, 0.5)
+      smoothness_orders = tune_over(0L, 1L, 2L),
+      reduce_basis = tune_over(0.1, 0.5)
     ),
     HALHyperparameters
   )
@@ -550,7 +563,10 @@ test_that("setup_HAL() succeeds", {
 })
 
 test_that("setup_HAL() with search values needs tuning", {
-  hal_hpr <- setup_HAL(max_degree = c(1L, 2L), smoothness_orders = c(0L, 1L))
+  hal_hpr <- setup_HAL(
+    max_degree = tune_over(1L, 2L),
+    smoothness_orders = tune_over(0L, 1L)
+  )
   expect_s7_class(hal_hpr, HALHyperparameters)
   expect_identical(hal_hpr@tuned, TUNED_STATUS_UNTUNED)
   expect_true(needs_tuning(hal_hpr))
@@ -579,8 +595,8 @@ test_that("MonotonicHALHyperparameters() accepts a search reaching order 0", {
   # The tuning grid drops reduce_basis from the order-1 cells.
   expect_s7_class(
     MonotonicHALHyperparameters(
-      smoothness_orders = c(0L, 1L),
-      reduce_basis = c(0.1, 0.5)
+      smoothness_orders = tune_over(0L, 1L),
+      reduce_basis = tune_over(0.1, 0.5)
     ),
     MonotonicHALHyperparameters
   )
@@ -607,7 +623,7 @@ test_that("setup_MonotonicHAL() succeeds", {
 })
 
 test_that("setup_MonotonicHAL() with search values needs tuning", {
-  mhal_hpr <- setup_MonotonicHAL(smoothness_orders = c(0L, 1L))
+  mhal_hpr <- setup_MonotonicHAL(smoothness_orders = tune_over(0L, 1L))
   expect_s7_class(mhal_hpr, MonotonicHALHyperparameters)
   expect_identical(mhal_hpr@tuned, TUNED_STATUS_UNTUNED)
   expect_true(needs_tuning(mhal_hpr))
@@ -747,7 +763,10 @@ test_that("tuning_grid() gates a searched hyperparameter and deduplicates", {
   # reduce_basis applies only at smoothness order 0, so the cross product's six
   # combinations reduce to the two order-0 ones plus one per higher order.
   grid <- tuning_grid(
-    setup_HAL(smoothness_orders = c(0L, 1L, 2L), reduce_basis = c(0.1, 0.5))
+    setup_HAL(
+      smoothness_orders = tune_over(0L, 1L, 2L),
+      reduce_basis = tune_over(0.1, 0.5)
+    )
   )
   expect_identical(NROW(grid), 4L)
   expect_setequal(names(grid), c("smoothness_orders", "reduce_basis"))
@@ -765,7 +784,7 @@ test_that("tuning_grid() gates a hyperparameter held at a single value", {
   # reduce_basis does not vary, so it is absent from the expansion, but it still
   # has to be dropped from the combinations that cannot use it.
   grid <- tuning_grid(setup_HAL(
-    smoothness_orders = c(0L, 1L),
+    smoothness_orders = tune_over(0L, 1L),
     reduce_basis = 0.1
   ))
   expect_identical(NROW(grid), 2L)
@@ -775,7 +794,10 @@ test_that("tuning_grid() gates a hyperparameter held at a single value", {
 
 test_that("tuning_grid() leaves an ungated search as the full cross product", {
   grid <- tuning_grid(
-    setup_HAL(max_degree = c(1L, 2L), smoothness_orders = c(0L, 1L))
+    setup_HAL(
+      max_degree = tune_over(1L, 2L),
+      smoothness_orders = tune_over(0L, 1L)
+    )
   )
   expect_identical(NROW(grid), 4L)
   expect_false(anyNA(grid))
@@ -787,7 +809,7 @@ test_that("tuning_grid() does not gate when the gating value is fixed", {
   # throughout and was already checked at construction.
   grid <- tuning_grid(setup_HAL(
     smoothness_orders = 0L,
-    reduce_basis = c(0.1, 0.5)
+    reduce_basis = tune_over(0.1, 0.5)
   ))
   expect_identical(NROW(grid), 2L)
   expect_false(anyNA(grid))
@@ -807,7 +829,7 @@ test_that("a gated grid combination updates the search object to NULL", {
   # smoothness_orders while reduce_basis still holds its search value is an
   # invalid intermediate state, so the values are applied as one transaction.
   hyperparameters <- setup_HAL(
-    smoothness_orders = c(0L, 1L),
+    smoothness_orders = tune_over(0L, 1L),
     reduce_basis = 0.1
   )
   grid <- tuning_grid(hyperparameters)
@@ -1006,7 +1028,7 @@ test_that("a search space becomes one library entry per combination", {
   hyperparameters <- setup_SuperLearner(
     base_learners = list(
       setup_GLM(),
-      setup_CART(maxdepth = c(2L, 4L, 6L))
+      setup_CART(maxdepth = tune_over(2L, 4L, 6L))
     )
   )
   expanded <- expand_library(hyperparameters)
