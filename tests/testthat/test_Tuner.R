@@ -82,8 +82,8 @@ test_that("a conditional grid search fits exactly the previewed combinations", {
   dat <- set_outcome(dat, "y")
 
   hyperparameters <- setup_HAL(
-    smoothness_orders = c(0L, 1L),
-    reduce_basis = c(0.1, 0.5)
+    smoothness_orders = tune_over(0L, 1L),
+    reduce_basis = tune_over(0.1, 0.5)
   )
   previewed <- tuning_grid(hyperparameters)
   expect_identical(NROW(previewed), 3L)
@@ -123,7 +123,7 @@ test_that("a randomized search samples combinations, not grid rows", {
   )
   mod <- train(
     dat,
-    hyperparameters = setup_CART(maxdepth = c(2L, 3L, 4L, 5L, 6L, 7L)),
+    hyperparameters = setup_CART(maxdepth = tune_over(2L, 3L, 4L, 5L, 6L, 7L)),
     tuner_config = setup_GridSearch(
       search_type = "randomized",
       randomize_p = 0.5,
@@ -161,7 +161,7 @@ test_that("a randomized search always keeps at least one combination", {
   )
   mod <- train(
     dat,
-    hyperparameters = setup_CART(maxdepth = c(2L, 3L)),
+    hyperparameters = setup_CART(maxdepth = tune_over(2L, 3L)),
     tuner_config = setup_GridSearch(
       search_type = "randomized",
       randomize_p = 0.1,
@@ -170,4 +170,102 @@ test_that("a randomized search always keeps at least one combination", {
     verbosity = 0L
   )
   expect_identical(NROW(mod@tuner@tuning_results[["param_grid"]]), 1L)
+})
+
+# %% tune_over ----
+test_that("tune_over takes candidates as arguments or as one vector", {
+  d <- setup_LightRF(max_depth = tune_over(3L, 4L, 5L))@max_depth
+  expect_s7_class(d, HyperparameterCandidates)
+  expect_identical(d@candidates, list(3L, 4L, 5L))
+
+  # A computed grid goes straight in, with no splicing incantation: this is the
+  # form a user with a log-spaced grid actually writes.
+  lambdas <- 10^seq(-4, 0, length.out = 5)
+  d_vec <- setup_LightRF(lambda_l2 = tune_over(lambdas))@lambda_l2
+  expect_identical(d_vec@candidates, as.list(lambdas))
+
+  # A list argument is the same thing, and is what a vector-valued
+  # hyperparameter needs.
+  expect_identical(
+    setup_LightRF(max_depth = tune_over(list(3L, 4L)))@max_depth@candidates,
+    list(3L, 4L)
+  )
+})
+
+
+test_that("a domain is rejected by a hyperparameter that is not tunable", {
+  # `device_type` declares no search space, so its type does not admit one.
+  err <- expect_error(setup_LightRF(device_type = tune_over("cpu", "gpu")))
+  expect_match(conditionMessage(err), "device_type", fixed = TRUE)
+  expect_match(conditionMessage(err), "HyperparameterCandidates", fixed = TRUE)
+})
+
+
+test_that("a domain needs something to search", {
+  expect_error(tune_over(3L), "at least two candidates")
+  expect_error(tune_over(), class = "rtemis_input_error")
+})
+
+
+test_that("a bare vector on a vector-valued hyperparameter is corrected", {
+  # The one reading that cannot be inferred: this vector is a single value of
+  # `split_select_weights`, not a set of candidates for it.
+  Arch <- S7::new_class(
+    name = "Arch",
+    package = NULL,
+    properties = list(
+      hidden_units = prop_integer(
+        c(64L, 32L),
+        min = 1L,
+        vector = TRUE,
+        tunable = TRUE,
+        description = "Units per hidden layer."
+      )
+    )
+  )
+  err <- expect_error(Arch(hidden_units = tune_over(c(12L, 6L, 2L))))
+  expect_match(conditionMessage(err), "single value", fixed = TRUE)
+  # Written either unambiguous way, it works.
+  expect_length(
+    Arch(
+      hidden_units = tune_over(c(12L, 6L), c(24L, 12L))
+    )@hidden_units@candidates,
+    2L
+  )
+  expect_length(
+    Arch(
+      hidden_units = tune_over(list(c(12L, 6L), c(24L, 12L)))
+    )@hidden_units@candidates,
+    2L
+  )
+})
+
+
+test_that("every candidate is validated against the hyperparameter", {
+  # Bounds declared on the spec are checked per candidate, and the failing one
+  # is named.
+  err <- expect_error(setup_LightRF(feature_fraction = tune_over(0.5, 1.5)))
+  expect_match(conditionMessage(err), "candidate 2", fixed = TRUE)
+  # A cleaner runs ahead of the class and rejects its own candidate directly.
+  expect_error(setup_LightRF(num_leaves = tune_over(1024L, 0L)))
+})
+
+
+test_that("candidates print in plain language, not R syntax", {
+  # The reader wants the values being tried; `3L` and `c(48, 24)` put literal
+  # spelling in the way.
+  expect_identical(
+    repr(tune_over(3L, 4L, 5L), output_type = "plain"),
+    "tuning over 3 values: 3, 4, 5"
+  )
+  # A candidate that is itself a vector stays legible as one.
+  expect_identical(
+    repr(tune_over(c(48L, 24L), c(96L, 48L)), output_type = "plain"),
+    "tuning over 2 values: (48, 24), (96, 48)"
+  )
+  # Long searches elide rather than flood the console.
+  expect_match(
+    repr(do.call(tune_over, as.list(1:20)), output_type = "plain"),
+    "tuning over 20 values: 1, 2, 3, 4, 5, 6, \\.\\.\\."
+  )
 })

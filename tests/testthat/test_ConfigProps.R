@@ -505,19 +505,24 @@ test_that("x-rtemis agrees with the standard keywords, for every property", {
 })
 
 
-test_that("x-rtemis is what separates a tunable from a broadcast", {
-  # These two emit structurally identical standard keywords: `oneOf` over a
-  # scalar and an array of that scalar. The tunable branch carries a prose
-  # description, but prose is not a contract -- only the annotation says which
-  # is a search space and which is a value applied to every element.
-  strip <- function(branches) {
-    lapply(branches, function(b) b[setdiff(names(b), "description")])
-  }
+test_that("a tunable and a broadcast are told apart by standard keywords", {
+  # These once emitted structurally identical `oneOf` branches -- a scalar and
+  # an array of that scalar -- so only `x-rtemis` said which was a search space
+  # and which a value applied to every element. Tagging the search space makes
+  # them distinct without the annotation, which is what a reader that knows only
+  # JSON Schema has to go on.
   tunable <- spec_to_schema(get_spec(prop_float(1, tunable = TRUE)))
   broadcast <- spec_to_schema(
     get_spec(prop_float(1, vector = TRUE, broadcast = TRUE))
   )
-  expect_identical(strip(tunable[["oneOf"]]), strip(broadcast[["oneOf"]]))
+  expect_identical(tunable[["oneOf"]][[2L]][["type"]], "object")
+  expect_identical(
+    names(tunable[["oneOf"]][[2L]][["properties"]]),
+    "candidates"
+  )
+  expect_identical(broadcast[["oneOf"]][[2L]][["type"]], "array")
+  # The annotation still declares intent -- whether tuning is permitted at all,
+  # which no document shape can say.
   expect_true(tunable[["x-rtemis"]][["tunable"]])
   expect_null(tunable[["x-rtemis"]][["container"]])
   expect_true(broadcast[["x-rtemis"]][["broadcast"]])
@@ -668,7 +673,7 @@ test_that("origin distinguishes user, default, derived and tuned", {
 test_that("a searched hyperparameter is `tuned`, not `derived`", {
   mod <- train(
     iris,
-    hyperparameters = setup_CART(maxdepth = c(2L, 4L)),
+    hyperparameters = setup_CART(maxdepth = tune_over(2L, 4L)),
     tuner_config = setup_GridSearch(
       resampler_config = setup_Resampler(n_resamples = 2L, type = "KFold")
     ),
@@ -774,7 +779,7 @@ test_that("a fold's tuning block is declared, not an open object", {
   datc[["Species"]] <- factor(datc[["Species"]])
   mod <- train(
     datc,
-    hyperparameters = setup_CART(maxdepth = c(2L, 4L)),
+    hyperparameters = setup_CART(maxdepth = tune_over(2L, 4L)),
     verbosity = 0L
   )
   tuning <- record(mod)[["folds"]][[1L]][["tuning"]]

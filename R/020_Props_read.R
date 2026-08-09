@@ -8,9 +8,11 @@
 # What makes this possible is `x-rtemis`, which carries the axes standard JSON
 # Schema cannot express. Two of them are load-bearing here:
 #
-#   - `tunable` and `broadcast` emit *identical* `oneOf` shapes. Nothing in the
-#     standard keywords distinguishes "a search space" from "a value that may be
-#     broadcast", so a reader without the annotation must guess.
+#   - `tunable` says whether a hyperparameter may be tuned *at all*, which no
+#     document shape can state: a document says what one config does, not what
+#     the algorithm permits. It no longer disambiguates shapes -- a search space
+#     is tagged `{"candidates": [...]}` and a broadcast value is an array, so
+#     the standard keywords tell those apart on their own.
 #   - `type` names the leaf type. JSON has one number type, so an integer
 #     property and a float property are otherwise indistinguishable once a
 #     default has been through a JSON encoder.
@@ -79,6 +81,12 @@ schema_element <- function(x, container, tunable, broadcast) {
     )
   }
   if (container == "array") {
+    if (tunable) {
+      # `oneOf: [value-array, search-array-of-array]`. The value array leads,
+      # where a broadcast property's array trails, so the two cannot be told
+      # apart by position -- only by which annotation is set.
+      return(branches()[[1L]][["items"]])
+    }
     if (!broadcast) {
       return(x[["items"]])
     }
@@ -108,25 +116,32 @@ schema_element <- function(x, container, tunable, broadcast) {
 #' The sub-schema holding an array container's own keywords
 #'
 #' `minItems` and `uniqueItems` describe the array, not its element, so they sit
-#' one level above what `schema_element()` returns. For a broadcast property the
-#' array is the trailing `oneOf` branch (the scalar branch carries neither).
+#' one level above what `schema_element()` returns. Both `oneOf` forms put the
+#' array in a different place: a broadcast property's is the trailing branch
+#' (the scalar branch carries neither), a tunable one's is the leading branch
+#' (the trailing branch is the search space, whose own `minItems` counts
+#' candidates rather than elements).
 #'
 #' @param x Named list: A JSON Schema property with `container = "array"`.
 #' @param broadcast Logical: Whether a bare scalar stands in for the container.
+#' @param tunable Logical: Whether the property is tunable.
 #'
 #' @return Named list: The array sub-schema.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-schema_array <- function(x, broadcast) {
-  if (!broadcast) {
+schema_array <- function(x, broadcast, tunable = FALSE) {
+  if (!broadcast && !tunable) {
     return(x)
   }
   branches <- Filter(
     function(b) !identical(unname(b[["type"]]), "null"),
     x[["oneOf"]]
   )
+  if (tunable) {
+    return(branches[[1L]])
+  }
   branches[[length(branches)]]
 } # /rtemis::schema_array
 
@@ -367,7 +382,11 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
   }
   # `minItems` / `uniqueItems` sit on the array form, which for a broadcast
   # property is the trailing `oneOf` branch rather than `x` itself.
-  arity <- if (container == "array") schema_array(x, broadcast) else list()
+  arity <- if (container == "array") {
+    schema_array(x, broadcast, tunable)
+  } else {
+    list()
+  }
   PropertySpec(
     type = type,
     default = if (element) {

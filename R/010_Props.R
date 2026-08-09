@@ -13,10 +13,14 @@
 # - type/bounds/enum      -> "type", "minimum"/"maximum"/"exclusiveMinimum"/
 #                            "exclusiveMaximum", "enum"
 # - nullable = TRUE       -> "null" added to "type"
-# - tunable = TRUE        -> "oneOf": [scalar, array-of-scalar (search values)]
+# - tunable = TRUE        -> "oneOf": [value, array-of-value (search values)].
+#                            A search space sits one level above the property's
+#                            own type, so a scalar's is an array and an
+#                            "array" container's is an array of arrays.
 # - container = "array"   -> "type": "array" (a genuinely vector-valued field,
-#                            e.g. per-feature weights; NOT search values --
-#                            mutually exclusive with tunable)
+#                            e.g. per-feature weights). With tunable it takes
+#                            the oneOf form above; mutually exclusive with
+#                            broadcast, which would collide at the array level.
 # - container = "map"     -> "type": "object" + "additionalProperties"
 # - items                 -> the element schema, for nested shapes (a matrix is
 #                            an array whose items are an array)
@@ -128,11 +132,13 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #' @field exclusive_minimum,exclusive_maximum Numeric or NULL: Exclusive bounds.
 #' @field enum Character or NULL: Allowed values (string type only).
 #' @field nullable Logical: If TRUE, NULL is a valid value.
-#' @field tunable Logical: If TRUE, a vector of search values (length >= 1) is
-#'   accepted; if FALSE, only a scalar.
+#' @field tunable Logical: If TRUE, a search space is accepted alongside a
+#'   value. A search space sits one level of nesting above the property's own
+#'   type: a vector of search values for a scalar, a list of vectors for an
+#'   `array` container. Only "none" and "array" containers may be tunable, and
+#'   an `array` one must have scalar elements.
 #' @field container Character \{"none", "array", "map", "matrix", "table"\}: How
-#'   values are wrapped. Anything but "none" is mutually exclusive with
-#'   `tunable` (a container holds values; a tunable array holds search values).
+#'   values are wrapped.
 #' @field items `PropertySpec` or NULL: Element spec, for nested shapes such as
 #'   a matrix (array of arrays) or a map of arrays. NULL means the element is
 #'   this spec's own leaf type and constraints.
@@ -144,7 +150,9 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   means "not computed for this task" rather than "invalid". NULL means all
 #'   of them are required.
 #' @field broadcast Logical: If TRUE, a bare scalar is accepted in place of the
-#'   container, meaning "this value for every element".
+#'   container, meaning "this value for every element". Mutually exclusive with
+#'   `tunable`: a broadcast element and a one-element search space are the same
+#'   shape.
 #' @field min_items Integer [1, Inf): Fewest elements an `array` container may
 #'   hold.
 #' @field unique_items Logical: If TRUE, an `array` container's elements must
@@ -278,9 +286,31 @@ PropertySpec <- new_class(
         "."
       ))
     }
-    if (self@container != "none" && self@tunable) {
+    if (self@tunable && !self@container %in% c("none", "array")) {
+      return(paste0(
+        "@tunable is only meaningful for a scalar or an 'array' container, not '",
+        self@container,
+        "'."
+      ))
+    }
+    # A search space sits one level above the property's own type, so a
+    # container's is an array of arrays. `broadcast` breaks that: it makes a
+    # bare element a value too, so the array level means both "one explicit
+    # value" and "a search over broadcast elements" with nothing to separate
+    # them. The two markers are therefore exclusive, not merely awkward.
+    if (self@broadcast && self@tunable) {
       return(
-        "@container and @tunable are mutually exclusive (a container holds values, a tunable array holds search values)."
+        "@broadcast and @tunable are mutually exclusive: a broadcast element and a one-element search space are the same shape."
+      )
+    }
+    if (
+      self@tunable &&
+        self@container == "array" &&
+        !is.null(self@items) &&
+        self@items@container != "none"
+    ) {
+      return(
+        "@tunable on an 'array' container requires scalar elements: a search space over a container of containers would need a third level of nesting."
       )
     }
     if (!is.null(self@items) && !S7_inherits(self@items, PropertySpec)) {
@@ -796,6 +826,53 @@ validate_table <- function(value, fields) {
 } # /rtemis::validate_table
 
 
+# %% validate_candidates ----
+#' Check a hyperparameter domain against the spec it was assigned to
+#'
+#' Every candidate must be a valid *value* of the property, so each is checked
+#' against the same spec with `tunable` cleared -- a domain of domains is not a
+#' thing.
+#'
+#' One combination cannot be inferred at the call site and is caught here: a
+#' single bare vector on a vector-valued hyperparameter, which is how one value
+#' of it is written. `tune_over()` records that reading so it can be corrected
+#' rather than silently taken as one candidate per element.
+#'
+#' @param value `HyperparameterCandidates` object.
+#' @param fields Named list of spec fields, from `spec_fields()`.
+#'
+#' @return Character message, or NULL when valid.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+validate_candidates <- function(value, fields) {
+  if (!fields[["tunable"]]) {
+    return("is not tunable, so it accepts a value rather than `tune_over()`.")
+  }
+  candidates <- value@candidates
+  if (value@from_vector && fields[["container"]] != "none") {
+    # A bare vector is how one value of this hyperparameter is written, so it
+    # cannot also be read as a list of candidates.
+    return(paste0(
+      "was given one vector, which is a single value for this hyperparameter ",
+      "rather than a set of candidates.\n",
+      "Pass each candidate as its own argument -- ",
+      "`tune_over(c(12L, 6L), c(24L, 12L))` -- or as a list."
+    ))
+  }
+  candidate <- fields
+  candidate[["tunable"]] <- FALSE
+  for (i in seq_along(candidates)) {
+    msg <- validate_with_spec(candidates[[i]], candidate)
+    if (!is.null(msg)) {
+      return(paste0("candidate ", i, " ", msg))
+    }
+  }
+  NULL
+} # /rtemis::validate_candidates
+
+
 # %% validate_with_spec ----
 #' Validate a property value against its PropertySpec
 #'
@@ -817,6 +894,30 @@ validate_with_spec <- function(value, fields) {
   container <- fields[["container"]]
   if (is.null(value)) {
     return(if (nullable) NULL else "must not be NULL.")
+  }
+  if (is_candidates(value)) {
+    return(validate_candidates(value, fields))
+  }
+  if (fields[["tunable"]] && container == "none" && length(value) > 1L) {
+    # A hyperparameter takes one value, so say what to write instead of only
+    # what is wrong. `deparse()` rather than `format()`: the suggestion is meant
+    # to be pasted back into source, and an integer written `3` instead of `3L`
+    # would not reproduce the value it came from.
+    shown <- vapply(
+      utils::head(value, 3L),
+      function(v) paste(deparse(v), collapse = ""),
+      character(1L)
+    )
+    return(paste0(
+      "was given ",
+      length(value),
+      " values, but a hyperparameter takes one.\n",
+      "To search over them, mark them: `tune_over(",
+      paste(shown, collapse = ", "),
+      if (length(value) > 3L) ", ..." else "",
+      ")`.\n",
+      "A bare vector is a value, so it does not mean a search space."
+    ))
   }
   if (fields[["type"]] == "object" && container == "none") {
     # One named list is a single value however many keys it holds, and its
@@ -959,6 +1060,13 @@ make_prop <- function(spec) {
     list = class_list,
     atomic_class
   )
+  if (spec@tunable) {
+    # A tunable hyperparameter holds either a value or the domain a tuner
+    # chooses from. `spec_r_kind()` names the value's shape, so the union is
+    # added here rather than there; the schema emits the same two shapes from
+    # the same spec, as the nesting rule (see `spec_to_schema()`).
+    base_class <- base_class | HyperparameterCandidates
+  }
   p <- new_property(
     class = if (spec@nullable) NULL | base_class else base_class,
     default = spec@default,
@@ -1847,7 +1955,13 @@ check_applies_when <- function(object) {
     gate <- get_spec_fields(cls@properties[[nm]])[["applies_when"]]
     for (gate_name in names(gate)) {
       allowed <- gate[[gate_name]]
-      if (!any(prop(object, gate_name) %in% allowed)) {
+      # The gate opens when any value the gating hyperparameter can take is
+      # listed, so a domain contributes all of its candidates.
+      gate_values <- prop(object, gate_name)
+      if (is_candidates(gate_values)) {
+        gate_values <- unlist(gate_values@candidates, use.names = FALSE)
+      }
+      if (!any(gate_values %in% allowed)) {
         return(paste0(
           "@",
           nm,
@@ -2498,6 +2612,19 @@ wire_value <- function(value, prop) {
   if (is.null(spec)) {
     return(value)
   }
+  if (is_candidates(value)) {
+    # Tagged, so a reader tells a search space from a value without knowing the
+    # property's declared type. A scalar hyperparameter's candidates flatten to
+    # an array; a vector-valued one's stay a list, so each candidate keeps its
+    # own array.
+    return(list(
+      candidates = if (spec@container == "none") {
+        unlist(value@candidates, use.names = FALSE)
+      } else {
+        value@candidates
+      }
+    ))
+  }
   if (spec@container == "map" && is.atomic(value)) {
     return(as.list(value))
   }
@@ -2511,27 +2638,31 @@ wire_value <- function(value, prop) {
 } # /rtemis::wire_value
 
 
-# %% from_wire_maps ----
-#' Restore map-valued properties read back from JSON
+# %% from_wire ----
+#' Restore R-side shapes from values read back from JSON
 #'
-#' The inverse of `wire_value()`: `read_config()` parses a JSON object into a
-#' named *list*, while a map over a scalar leaf is a named atomic vector in R,
-#' so the property's class check would reject the list. Any `.list_to_*()`
-#' reconstructor for a class declaring such a property must call this.
+#' The inverse of `wire_value()`, and the single wire -> R translation: every
+#' `.list_to_*()` reconstructor calls it, so a shape that needs rebuilding is
+#' handled once rather than per config kind. Three shapes differ between the
+#' wire and R, each decided by the property's own spec:
 #'
-#' A factor is the second such mismatch: it travels as `{levels, codes}` and
-#' must be rebuilt, levels and their order included.
+#' - A **map** over a scalar leaf is a named atomic vector in R and a JSON
+#'   object, which parses to a named list the property's class check rejects.
+#' - A **factor** travels as `{levels, codes}` and must be rebuilt, levels and
+#'   their order included.
+#' - A **domain** is tagged, since JSON has no function calls and so no
+#'   `tune_over()`. `{"candidates": [...]}` is a search space and anything else
+#'   is a value, which takes no reference to the declared type at all.
 #'
 #' @param x Named list parsed from JSON.
 #' @param cls S7 class the list reconstructs.
 #'
-#' @return `x`, with map-valued elements coerced to named atomic vectors and
-#'   factor-valued ones rebuilt.
+#' @return `x`, with each of those shapes restored to its R form.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-from_wire_maps <- function(x, cls) {
+from_wire <- function(x, cls) {
   props <- cls@properties
   for (nm in intersect(names(x), names(props))) {
     fields <- get_spec_fields(props[[nm]])
@@ -2546,9 +2677,14 @@ from_wire_maps <- function(x, cls) {
     if (container == "factor" && is.list(x[[nm]])) {
       x[[nm]] <- from_wire_factor(x[[nm]])
     }
+    if (is_wire_candidates(x[[nm]])) {
+      x[[nm]] <- HyperparameterCandidates(
+        candidates = as.list(x[[nm]][["candidates"]])
+      )
+    }
   }
   x
-} # /rtemis::from_wire_maps
+} # /rtemis::from_wire
 
 
 # %% from_wire_factor ----
@@ -2691,6 +2827,44 @@ data_bound_note <- function(data_bound, container, broadcast) {
 } # /rtemis::data_bound_note
 
 
+# %% candidates_schema ----
+#' The JSON Schema object a hyperparameter domain emits
+#'
+#' A search space is tagged rather than distinguished by nesting depth, so a
+#' reader can tell it from a value without consulting the property's declared
+#' type. That matters because depth alone is not decisive: a broadcast array of
+#' arrays and a container tunable's search space are the same shape, and only
+#' the annotation separated them.
+#'
+#' The tag also leaves room to grow. A domain that is not enumerable -- a range
+#' a random or Bayesian tuner samples -- is a sibling key here, where a bare
+#' nested array has nowhere to put one.
+#'
+#' @param value_schema Named list: The schema of one value of the property,
+#' which is what one candidate is.
+#'
+#' @return Named list (JSON Schema object).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+candidates_schema <- function(value_schema) {
+  list(
+    type = "object",
+    properties = list(
+      candidates = list(
+        type = "array",
+        items = value_schema,
+        minItems = 2L,
+        description = "Values to tune over; the tuner selects one."
+      )
+    ),
+    required = I("candidates"),
+    additionalProperties = FALSE
+  )
+} # /rtemis::candidates_schema
+
+
 # %% applies_when_note ----
 #' The sentence describing an `applies_when` gate
 #'
@@ -2807,6 +2981,15 @@ spec_to_schema <- function(spec, read_only = FALSE) {
         branches <- c(list(list(type = "null")), branches)
       }
       list(oneOf = branches)
+    } else if (spec@tunable) {
+      # The value is the array; a search space is the tagged object, whose
+      # candidates are each one whole array.
+      arr[["type"]] <- "array"
+      branches <- list(arr, candidates_schema(arr))
+      if (spec@nullable) {
+        branches <- c(list(list(type = "null")), branches)
+      }
+      list(oneOf = branches)
     } else {
       arr
     }
@@ -2863,14 +3046,8 @@ spec_to_schema <- function(spec, read_only = FALSE) {
       additionalProperties = element
     )
   } else if (spec@tunable) {
-    # Scalar, or an array of search values for the Tuner.
-    array_schema <- list(
-      type = "array",
-      items = scalar,
-      minItems = 1L,
-      description = "Tuning search values."
-    )
-    branches <- list(scalar, array_schema)
+    # The value, or the tagged domain the Tuner chooses from.
+    branches <- list(scalar, candidates_schema(scalar))
     if (spec@nullable) {
       branches <- c(list(list(type = "null")), branches)
     }

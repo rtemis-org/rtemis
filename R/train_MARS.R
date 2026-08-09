@@ -119,7 +119,7 @@ method(validate_hyperparameters, MARSHyperparameters) <- function(
   x
 ) {
   check_data_bounds(hyperparameters, x)
-  pmethod <- hyperparameters[["pmethod"]]
+  pmethod <- candidate_values(hyperparameters[["pmethod"]])
   if (
     supervised_type(x) == "Classification" &&
       nlevels(outcome(x)) > 2L &&

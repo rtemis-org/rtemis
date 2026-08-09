@@ -660,7 +660,10 @@ get_hyperparams_need_tuning <- new_generic("get_hyperparams_need_tuning", "x")
 #' # reduce_basis applies only at smoothness order 0, so the six combinations
 #' # of the cross product reduce to four.
 #' tuning_grid(
-#'   setup_HAL(smoothness_orders = c(0L, 1L, 2L), reduce_basis = c(0.1, 0.5))
+#'   setup_HAL(
+#'     smoothness_orders = tune_over(0L, 1L, 2L),
+#'     reduce_basis = tune_over(0.1, 0.5)
+#'   )
 #' )
 tuning_grid <- new_generic("tuning_grid", "x", function(x) {
   S7_dispatch()

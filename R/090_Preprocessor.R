@@ -126,6 +126,12 @@ PreprocessorConfig <- new_class(
       TRUE,
       description = "factor2integer starts at 0."
     ),
+    factor2integer_levels = prop_map(
+      prop_string("", vector = TRUE),
+      nullable = TRUE,
+      data_dependent = TRUE,
+      description = "Per-feature factor2integer levels, keyed by feature name."
+    ),
     scale = prop_boolean(FALSE, description = "Scale features."),
     center = prop_boolean(FALSE, description = "Center features."),
     # Settable *and* run-written: `preprocess()` uses a supplied value in place
@@ -314,6 +320,11 @@ method(print, PreprocessorConfig) <- function(
 #'   `factorNA2missing = TRUE`.
 #' @param factor2integer Logical: If TRUE, convert all factors to integers.
 #' @param factor2integer_startat0 Logical: If TRUE, start integer coding at 0.
+#' @param factor2integer_levels Optional List: Named list of the form
+#'   "feature_name" = "levels". Used to code factors identically to the training
+#'   data when applying `factor2integer` to validation or test data using
+#'   `Preprocessor`. Values whose level is absent take the single index above the
+#'   known levels.
 #' @param scale Logical: If TRUE, scale columns of `x`.
 #' @param center Logical: If TRUE, center columns of `x`. If unset, follows `scale`.
 #' @param scale_centers Optional Named vector: Centering values for each feature.
@@ -349,6 +360,7 @@ method(print, PreprocessorConfig) <- function(
 #'   * numeric with less than N unique values to factor
 #'   * character to factor
 #'   * factor NA to named level
+#'   * factor to integer
 #'   * add missingness column
 #'   * impute
 #'   * scale and/or center
@@ -392,6 +404,7 @@ setup_Preprocessor <- function(
   #    nonzeroFactors = FALSE,
   factor2integer = FALSE,
   factor2integer_startat0 = TRUE,
+  factor2integer_levels = NULL,
   scale = FALSE,
   center = scale,
   scale_centers = NULL,
@@ -445,6 +458,7 @@ setup_Preprocessor <- function(
     factorNA2missing_level = factorNA2missing_level,
     factor2integer = factor2integer,
     factor2integer_startat0 = factor2integer_startat0,
+    factor2integer_levels = factor2integer_levels,
     scale = scale,
     center = center,
     scale_centers = scale_centers,
@@ -467,6 +481,7 @@ setup_Preprocessor <- function(
 #   "scale_centers", # Named vector with feature scaling centers.
 #   "scale_coefficients", # Named vector with feature scaling coefficients.
 #   "one_hot_levels", # Named list of the form "feature_name" = "levels".
+#   "factor2integer_levels", # Named list of the form "feature_name" = "levels".
 #   "remove_features" # Character vector of feature names to remove.
 # )
 
@@ -501,6 +516,7 @@ Preprocessor <- new_class(
     scale_centers = NULL,
     scale_coefficients = NULL,
     one_hot_levels = NULL,
+    factor2integer_levels = NULL,
     remove_features = NULL
   ) {
     new_object(
@@ -511,6 +527,7 @@ Preprocessor <- new_class(
         scale_centers = scale_centers,
         scale_coefficients = scale_coefficients,
         one_hot_levels = one_hot_levels,
+        factor2integer_levels = factor2integer_levels,
         remove_features = remove_features
       )
     )
@@ -589,11 +606,12 @@ method(preprocessed, Preprocessor) <- function(x) {
 #' [setup_Preprocessor]; document metadata (`$schema`) is dropped first, since
 #' it identifies the document rather than naming a parameter.
 #'
-#' The learned values (`scale_centers`, `scale_coefficients`, `one_hot_levels`)
-#' are `readOnly` in the schema, so a user-authored config carries none and the
-#' `setup_*` defaults leave them unset. A config that does carry them -- a
-#' fitted preprocessor written back out -- restores them, which is why they are
-#' serialized at all (see "Property roles" in `010_Props.R`).
+#' The learned values (`scale_centers`, `scale_coefficients`, `one_hot_levels`,
+#' `factor2integer_levels`) are `data_dependent` settable inputs: a
+#' user-authored config typically carries none, and the `setup_*` defaults leave
+#' them unset. A config that does carry them -- a fitted preprocessor written
+#' back out -- restores them, which is why they are serialized at all (see
+#' "Property roles" in `010_Props.R`).
 #'
 #' @param x Named list of `setup_Preprocessor` parameters.
 #'
@@ -605,7 +623,7 @@ method(preprocessed, Preprocessor) <- function(x) {
 #' @examples
 #' .list_to_PreprocessorConfig(list(scale = TRUE, center = TRUE))
 .list_to_PreprocessorConfig <- function(x) {
-  args <- from_wire_maps(.drop_meta_keys(x), PreprocessorConfig)
+  args <- from_wire(.drop_meta_keys(x), PreprocessorConfig)
   check_wire_keys(args, names(formals(setup_Preprocessor)), "preprocessor")
   do.call(setup_Preprocessor, args)
 } # /rtemis::.list_to_PreprocessorConfig

@@ -161,10 +161,10 @@ testthat::test_that("NULL is the only unset value; zero-length is rejected", {
 })
 
 testthat::test_that("tunable properties accept search vectors; fixed do not", {
-  x <- LightRFProps(num_leaves = c(1024L, 4096L, 16384L))
-  testthat::expect_length(x@num_leaves, 3L)
+  x <- LightRFProps(num_leaves = tune_over(1024L, 4096L, 16384L))
+  testthat::expect_length(x@num_leaves@candidates, 3L)
   # Every search value is bounds-checked.
-  testthat::expect_error(LightRFProps(num_leaves = c(1024L, 0L)))
+  testthat::expect_error(LightRFProps(num_leaves = tune_over(1024L, 0L)))
   # Fixed hyperparameters reject vectors.
   testthat::expect_error(LightRFProps(device_type = c("cpu", "gpu")))
   testthat::expect_error(LightRFProps(force_col_wise = c(TRUE, FALSE)))
@@ -260,10 +260,28 @@ testthat::test_that("broadcast emits scalar-or-array, distinct from tunable", {
 
 testthat::test_that("the arity axes are validated against each other", {
   testthat::expect_error(mk_spec(container = "bogus"), "container")
-  # A container holds values; a tunable array holds search values.
+  # An array container may be tunable: its search space sits one level of
+  # nesting above its value, so the two are distinguishable.
+  testthat::expect_no_error(mk_spec(container = "array", tunable = TRUE))
+  # Nesting is only defined for arrays, so no other container may be tunable.
   testthat::expect_error(
-    mk_spec(container = "array", tunable = TRUE),
+    mk_spec(container = "map", items = mk_spec(), tunable = TRUE),
     "tunable"
+  )
+  # `broadcast` makes a bare element a value too, so the array level would mean
+  # both "one explicit value" and "a search over broadcast elements".
+  testthat::expect_error(
+    mk_spec(container = "array", broadcast = TRUE, tunable = TRUE),
+    "broadcast"
+  )
+  # A search space over a container of containers would need a third level.
+  testthat::expect_error(
+    mk_spec(
+      container = "array",
+      items = mk_spec(container = "array"),
+      tunable = TRUE
+    ),
+    "scalar elements"
   )
   # `items` is meaningless without a container, and required for a map.
   testthat::expect_error(mk_spec(items = mk_spec()), "items")
@@ -298,8 +316,8 @@ testthat::test_that("vector props accept vectors, map to array schemas", {
   testthat::expect_error(Vec(w = c(1, -1)))
   # NULL allowed when nullable.
   testthat::expect_no_error(Vec())
-  # vector and tunable are mutually exclusive at factory time.
-  testthat::expect_error(prop_float(1, vector = TRUE, tunable = TRUE))
+  # A vector property may be tunable; see the container-tunable tests below.
+  testthat::expect_no_error(prop_float(1, vector = TRUE, tunable = TRUE))
   # Schema: array type (with null), items carry the scalar constraints.
   s <- spec_to_schema(get_spec(Vec@properties[["w"]]))
   testthat::expect_identical(as.character(s[["type"]]), c("array", "null"))
@@ -308,6 +326,93 @@ testthat::test_that("vector props accept vectors, map to array schemas", {
   # Defaults are published separately, so no schema carries the keyword.
   s1 <- spec_to_schema(get_spec(prop_string("a", vector = TRUE)))
   testthat::expect_false("default" %in% names(s1))
+})
+
+
+# %% Container tunables ----
+testthat::test_that("a tunable array separates its value from its search space", {
+  Arch <- S7::new_class(
+    name = "Arch",
+    package = NULL,
+    properties = list(
+      hidden_units = prop_integer(
+        c(64L, 32L),
+        min = 1L,
+        vector = TRUE,
+        tunable = TRUE,
+        description = "Units per hidden layer."
+      )
+    )
+  )
+  # A bare vector is one value, of any length -- never a search space.
+  testthat::expect_identical(
+    Arch(hidden_units = c(12L, 6L, 2L))@hidden_units,
+    c(12L, 6L, 2L)
+  )
+  testthat::expect_identical(Arch(hidden_units = 8L)@hidden_units, 8L)
+  # A domain holds the candidates, one per argument.
+  testthat::expect_identical(
+    Arch(
+      hidden_units = tune_over(c(12L, 6L), c(14L, 12L, 6L))
+    )@hidden_units@candidates,
+    list(c(12L, 6L), c(14L, 12L, 6L))
+  )
+  # Element bounds reach inside each candidate, and the candidate is named in
+  # the message so the user knows which one failed.
+  testthat::expect_error(
+    Arch(hidden_units = tune_over(c(12L, 6L), c(4L, 0L))),
+    "candidate 2"
+  )
+  # A domain needs something to search.
+  testthat::expect_error(tune_over(8L), "at least two candidates")
+  # One bare vector is a single value of this hyperparameter, not a set of
+  # candidates, so it is corrected rather than read as two one-layer networks.
+  testthat::expect_error(
+    Arch(hidden_units = tune_over(c(48L, 24L))),
+    "single value"
+  )
+})
+
+
+testthat::test_that("a tunable property tags its search space", {
+  # Scalar: the value, or the tagged domain.
+  s0 <- spec_to_schema(get_spec(prop_integer(1L, min = 1L, tunable = TRUE)))
+  testthat::expect_identical(s0[["oneOf"]][[1L]][["type"]], "integer")
+  dom0 <- s0[["oneOf"]][[2L]]
+  testthat::expect_identical(dom0[["type"]], "object")
+  testthat::expect_identical(names(dom0[["properties"]]), "candidates")
+  testthat::expect_identical(
+    dom0[["properties"]][["candidates"]][["items"]][["type"]],
+    "integer"
+  )
+  # A domain of one is not a search, and the schema says so.
+  testthat::expect_identical(
+    dom0[["properties"]][["candidates"]][["minItems"]],
+    2L
+  )
+  testthat::expect_false(dom0[["additionalProperties"]])
+
+  # Vector-valued: one candidate is a whole array.
+  spec <- get_spec(prop_integer(1L, min = 1L, vector = TRUE, tunable = TRUE))
+  s <- spec_to_schema(spec)
+  testthat::expect_identical(s[["oneOf"]][[1L]][["type"]], "array")
+  dom <- s[["oneOf"]][[2L]]
+  testthat::expect_identical(dom[["type"]], "object")
+  testthat::expect_identical(
+    dom[["properties"]][["candidates"]][["items"]][["type"]],
+    "array"
+  )
+  # The tag makes this structurally distinct from a broadcast property, which
+  # emits arrays at both depths and was previously the identical shape.
+  testthat::expect_true(s[["x-rtemis"]][["tunable"]])
+  testthat::expect_null(s[["x-rtemis"]][["broadcast"]])
+  # Round trip: the value branch still leads, so the reader is unchanged.
+  back <- schema_to_spec(s, default = 1L)
+  testthat::expect_identical(back@container, "array")
+  testthat::expect_true(back@tunable)
+  testthat::expect_false(back@broadcast)
+  testthat::expect_identical(back@type, "integer")
+  testthat::expect_identical(back@minimum, 1L)
 })
 
 # %% Array arity: min_items / unique_items ----
@@ -405,8 +510,11 @@ testthat::test_that("spec_to_schema maps bounds, nullability, tunability", {
   testthat::expect_identical(s[["oneOf"]][[1L]][["type"]], "number")
   testthat::expect_identical(s[["oneOf"]][[1L]][["exclusiveMinimum"]], 0)
   testthat::expect_identical(s[["oneOf"]][[1L]][["maximum"]], 1)
-  testthat::expect_identical(s[["oneOf"]][[2L]][["type"]], "array")
-  testthat::expect_identical(s[["oneOf"]][[2L]][["minItems"]], 1L)
+  testthat::expect_identical(s[["oneOf"]][[2L]][["type"]], "object")
+  testthat::expect_identical(
+    s[["oneOf"]][[2L]][["properties"]][["candidates"]][["minItems"]],
+    2L
+  )
   # Fixed enum string -> flat schema with enum.
   s <- spec_to_schema(get_spec(props[["device_type"]]))
   testthat::expect_identical(s[["type"]], "string")
@@ -599,10 +707,14 @@ testthat::test_that("schema serializes to JSON and round-trips", {
     unlist(parsed[["properties"]][["device_type"]][["enum"]]),
     c("cpu", "gpu", "cuda")
   )
-  # tunable property round-trips as oneOf with an array branch.
+  # tunable property round-trips as oneOf with a tagged candidates branch.
   ff <- parsed[["properties"]][["feature_fraction"]]
   testthat::expect_length(ff[["oneOf"]], 2L)
-  testthat::expect_identical(ff[["oneOf"]][[2L]][["type"]], "array")
+  testthat::expect_identical(ff[["oneOf"]][[2L]][["type"]], "object")
+  testthat::expect_identical(
+    names(ff[["oneOf"]][[2L]][["properties"]]),
+    "candidates"
+  )
   # nullable objective: type union survives.
   testthat::expect_identical(
     unlist(parsed[["properties"]][["objective"]][["type"]]),
@@ -672,7 +784,7 @@ test_that("check_data_bounds() bounds a scalar above by the dimension", {
   # Tunable hyperparameters carry the whole search space at this point, so a
   # single bad value anywhere in it must abort.
   expect_error(
-    check_data_bounds(setup_Ranger(mtry = c(1L, 100L)), datr_bounds),
+    check_data_bounds(setup_Ranger(mtry = tune_over(1L, 100L)), datr_bounds),
     class = "rtemis_range_error"
   )
   expect_invisible(check_data_bounds(setup_Ranger(mtry = 2L), datr_bounds))
@@ -1256,10 +1368,10 @@ test_that("factor codes that index past the levels are rejected", {
 })
 
 
-test_that("from_wire_maps rebuilds a factor property", {
+test_that("from_wire rebuilds a factor property", {
   Demo <- demo_factor_class()
   parsed <- list(y = list(levels = c("b", "a"), codes = c(2L, 1L)))
-  restored <- from_wire_maps(parsed, Demo)
+  restored <- from_wire(parsed, Demo)
   expect_identical(restored[["y"]], factor(c("a", "b"), levels = c("b", "a")))
   expect_no_error(Demo(y = restored[["y"]]))
 })

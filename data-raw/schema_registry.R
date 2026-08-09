@@ -177,12 +177,32 @@ families <- list(
         desc = "GAM (generalized additive model). See `setup_GAM`."
       ),
       list(
+        cls = GLMNETHyperparameters,
+        desc = "Elastic net (glmnet). See `setup_GLMNET`."
+      ),
+      list(
+        cls = SPLSHyperparameters,
+        desc = "Sparse Partial Least Squares. See `setup_SPLS`."
+      ),
+      list(
+        cls = MARSHyperparameters,
+        desc = "Multivariate Adaptive Regression Splines (earth). See `setup_MARS`."
+      ),
+      list(
+        cls = LinearSVMHyperparameters,
+        desc = "SVM with linear kernel (e1071). See `setup_LinearSVM`."
+      ),
+      list(
+        cls = RadialSVMHyperparameters,
+        desc = "SVM with radial kernel (e1071). See `setup_RadialSVM`."
+      ),
+      list(
         cls = CARTHyperparameters,
         desc = "CART decision tree (rpart). See `setup_CART`."
       ),
       list(
-        cls = GLMNETHyperparameters,
-        desc = "Elastic net (glmnet). See `setup_GLMNET`."
+        cls = RangerHyperparameters,
+        desc = "Ranger random forest. See `setup_Ranger`."
       ),
       list(
         cls = LightCARTHyperparameters,
@@ -201,40 +221,20 @@ families <- list(
         desc = "LightRuleFit (LightGBM rules + GLMNET). See `setup_LightRuleFit`."
       ),
       list(
+        cls = BARTHyperparameters,
+        desc = "Bayesian Additive Regression Trees (stochtree). See `setup_BART`."
+      ),
+      list(
         cls = IsotonicHyperparameters,
         desc = "Isotonic regression. See `setup_Isotonic`."
-      ),
-      list(
-        cls = LinearSVMHyperparameters,
-        desc = "SVM with linear kernel (e1071). See `setup_LinearSVM`."
-      ),
-      list(
-        cls = RadialSVMHyperparameters,
-        desc = "SVM with radial kernel (e1071). See `setup_RadialSVM`."
       ),
       list(
         cls = TabNetHyperparameters,
         desc = "TabNet neural network. See `setup_TabNet`."
       ),
       list(
-        cls = RangerHyperparameters,
-        desc = "Ranger random forest. See `setup_Ranger`."
-      ),
-      list(
-        cls = SPLSHyperparameters,
-        desc = "Sparse Partial Least Squares. See `setup_SPLS`."
-      ),
-      list(
         cls = KNNHyperparameters,
         desc = "k-Nearest Neighbors (kknn). See `setup_KNN`."
-      ),
-      list(
-        cls = MARSHyperparameters,
-        desc = "Multivariate Adaptive Regression Splines (earth). See `setup_MARS`."
-      ),
-      list(
-        cls = BARTHyperparameters,
-        desc = "Bayesian Additive Regression Trees (stochtree). See `setup_BART`."
       ),
       list(
         cls = HALHyperparameters,

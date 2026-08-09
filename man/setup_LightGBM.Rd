@@ -79,7 +79,7 @@ Get more information from \link[lightgbm:lgb.train]{lightgbm::lgb.train}.
 \examples{
 lightgbm_hyperparams <- setup_LightGBM(
   max_nrounds = 500L,
-  learning_rate = c(0.001, 0.01, 0.05), ifw = TRUE
+  learning_rate = tune_over(0.001, 0.01, 0.05), ifw = TRUE
 )
 lightgbm_hyperparams
 }

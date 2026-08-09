@@ -20,11 +20,12 @@ schema.rtemis.org preprocessor schema. Elements are passed to
 it identifies the document rather than naming a parameter.
 }
 \details{
-The learned values (\code{scale_centers}, \code{scale_coefficients}, \code{one_hot_levels})
-are \code{readOnly} in the schema, so a user-authored config carries none and the
-\verb{setup_*} defaults leave them unset. A config that does carry them -- a
-fitted preprocessor written back out -- restores them, which is why they are
-serialized at all (see "Property roles" in \verb{010_Props.R}).
+The learned values (\code{scale_centers}, \code{scale_coefficients}, \code{one_hot_levels},
+\code{factor2integer_levels}) are \code{data_dependent} settable inputs: a
+user-authored config typically carries none, and the \verb{setup_*} defaults leave
+them unset. A config that does carry them -- a fitted preprocessor written
+back out -- restores them, which is why they are serialized at all (see
+"Property roles" in \verb{010_Props.R}).
 }
 \examples{
 .list_to_PreprocessorConfig(list(scale = TRUE, center = TRUE))

@@ -76,6 +76,7 @@ method(
     scale_centers = NULL,
     scale_coefficients = NULL,
     one_hot_levels = NULL,
+    factor2integer_levels = NULL,
     remove_features = NULL
   )
 
@@ -437,14 +438,28 @@ method(
         msg("No factors found to convert to integer...")
       }
     }
-    if (config@factor2integer_startat0) {
-      for (i in index_factor) {
-        x[, i] <- as.integer(x[, i]) - 1
+    # Each feature is coded against a fixed set of levels, taken from
+    # `factor2integer_levels` when it carries the feature and learned from the
+    # data otherwise. Learned levels are published in `values` so that
+    # `apply_preprocessor()` codes new data the way the training data was coded.
+    learned_levels <- list()
+    for (i in index_factor) {
+      feature <- names(x)[i]
+      feature_levels <- config@factor2integer_levels[[feature]]
+      if (is.null(feature_levels)) {
+        feature_levels <- levels(x[[i]])
       }
-    } else {
-      for (i in index_factor) {
-        x[, i] <- as.integer(x[, i])
-      }
+      learned_levels[[feature]] <- feature_levels
+      x[, i] <- factor2integer_code(
+        x[[i]],
+        factor_levels = feature_levels,
+        startat0 = config@factor2integer_startat0,
+        xname = feature,
+        verbosity = verbosity
+      )
+    }
+    if (length(learned_levels) > 0L) {
+      values$factor2integer_levels <- learned_levels
     }
   }
 
@@ -527,6 +542,17 @@ method(
   if (config@scale || config@center) {
     # Get index of numeric features
     numeric_index <- which(sapply(x, is.numeric))
+    # `factor2integer` runs above and emits codes that are `is.numeric()`, but a
+    # category code is not a numeric feature: standardizing it yields a fraction
+    # of an index, which no consumer can read back -- an embedding indexes with
+    # it, LightGBM reads it as a category. The coded columns are exactly those
+    # just recorded, so they are dropped here by name.
+    coded_features <- names(values[["factor2integer_levels"]])
+    if (length(coded_features) > 0L) {
+      numeric_index <- numeric_index[
+        !names(numeric_index) %in% coded_features
+      ]
+    }
     sc <- if (config@scale) "Scaling" else NULL
     ce <- if (config@center) "centering" else NULL
     if (length(numeric_index) > 0) {
@@ -541,7 +567,7 @@ method(
         # Check names match
         stopifnot(identical(
           names(config@scale_coefficients),
-          names(x[, numeric_index])
+          names(x)[numeric_index]
         ))
         config@scale_coefficients
       } else {
@@ -551,7 +577,7 @@ method(
         # Check names match
         stopifnot(identical(
           names(config@scale_centers),
-          names(x[, numeric_index])
+          names(x)[numeric_index]
         ))
         config@scale_centers
       } else {
@@ -587,10 +613,28 @@ method(
 
   # One Hot Encoding ----
   if (config@one_hot) {
+    # Each feature is encoded against a fixed set of levels, taken from
+    # `one_hot_levels` when it carries the feature and learned from the data
+    # otherwise. Learned levels are published in `values` so that
+    # `apply_preprocessor()` gives new data the same columns, in the same order,
+    # holding the same values.
+    factor_index <- which(sapply(x, is.factor))
+    learned_levels <- list()
+    for (i in factor_index) {
+      feature <- names(x)[i]
+      feature_levels <- config@one_hot_levels[[feature]]
+      if (is.null(feature_levels)) {
+        feature_levels <- levels(x[[i]])
+      }
+      learned_levels[[feature]] <- feature_levels
+    }
+    if (length(learned_levels) > 0L) {
+      values$one_hot_levels <- learned_levels
+    }
     x <- one_hot(
       x,
       verbosity = verbosity,
-      factor_levels = config@one_hot_levels
+      factor_levels = learned_levels
     )
   }
 
@@ -658,6 +702,7 @@ method(
         scale_centers = values[["scale_centers"]],
         scale_coefficients = values[["scale_coefficients"]],
         one_hot_levels = values[["one_hot_levels"]],
+        factor2integer_levels = values[["factor2integer_levels"]],
         remove_features = values[["remove_features"]]
       ),
       new_data = dat_validation,
@@ -673,6 +718,7 @@ method(
         scale_centers = values[["scale_centers"]],
         scale_coefficients = values[["scale_coefficients"]],
         one_hot_levels = values[["one_hot_levels"]],
+        factor2integer_levels = values[["factor2integer_levels"]],
         remove_features = values[["remove_features"]]
       ),
       new_data = dat_test,
@@ -690,6 +736,7 @@ method(
     scale_centers = values[["scale_centers"]],
     scale_coefficients = values[["scale_coefficients"]],
     one_hot_levels = values[["one_hot_levels"]],
+    factor2integer_levels = values[["factor2integer_levels"]],
     remove_features = values[["remove_features"]]
   )
 } # /rtemis::preprocess(PreprocessorConfig, ...)
@@ -771,7 +818,7 @@ apply_preprocessor <- function(preprocessor, new_data, verbosity = 1L) {
 #' the two merged, and so does a run record, which must report the values
 #' actually used. One merge, so the two cannot disagree.
 #'
-#' The four fields are settable inputs: supplying `scale_centers` makes
+#' The merged fields are settable inputs: supplying `scale_centers` makes
 #' `preprocess()` use it instead of computing one. That is why the merge is
 #' `@values` over `@config` and not the reverse -- a learned value only fills a
 #' slot the user left empty.
@@ -789,6 +836,7 @@ fitted_config <- function(preprocessor) {
     "scale_centers",
     "scale_coefficients",
     "one_hot_levels",
+    "factor2integer_levels",
     "remove_features"
   )) {
     learned <- preprocessor@values[[nm]]
@@ -798,6 +846,84 @@ fitted_config <- function(preprocessor) {
   }
   config
 } # /rtemis::fitted_config
+
+
+# %% pinned_level_index ----
+#' Index a factor's values into a fixed set of levels
+#'
+#' `as.integer()` reads whatever levels the factor itself carries, so the same
+#' value lands at a different position in data whose levels are fewer or
+#' differently ordered. Indexing into a fixed set instead is what lets
+#' `preprocess()` learn a coding on the training data and `apply_preprocessor()`
+#' reproduce it, and it is shared by both encoders so that "unseen" means the
+#' same thing to each.
+#'
+#' Mapping level positions once and then indexing by the factor's existing codes
+#' does this in a single pass, with no character conversion.
+#'
+#' @param x Factor: Feature to index.
+#' @param factor_levels Character vector: Levels to index into, in order.
+#'
+#' @return Integer vector of positions in `factor_levels`, `NA` where the case
+#' is `NA` or its level is absent from `factor_levels`. Callers decide what an
+#' absent level means.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+pinned_level_index <- function(x, factor_levels) {
+  match(levels(x), factor_levels)[as.integer(x)]
+} # /rtemis::pinned_level_index
+
+
+# %% factor2integer_code ----
+#' Integer-code a factor against a fixed set of levels
+#'
+#' A value whose level is absent from `factor_levels` is out of vocabulary and
+#' takes the single index above the known levels: `length(factor_levels)` when
+#' `startat0` is TRUE, `length(factor_levels) + 1L` otherwise. A model consuming
+#' the codes therefore sizes the feature at `length(factor_levels) + 1L`
+#' categories. `NA` stays `NA`.
+#'
+#' Both `startat0` branches return integer. A category code indexes something --
+#' an embedding table, a LightGBM category -- and a double cannot.
+#'
+#' @param x Factor: Feature to code.
+#' @param factor_levels Character vector: Levels to code against, in order.
+#' @param startat0 Logical: If TRUE, code the first level as 0 instead of 1.
+#' @param xname Character: Feature name, used in messages.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Integer vector of codes.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+factor2integer_code <- function(
+  x,
+  factor_levels,
+  startat0,
+  xname,
+  verbosity = 1L
+) {
+  oov <- length(factor_levels) + 1L
+  code <- pinned_level_index(x, factor_levels)
+  unseen <- is.na(code) & !is.na(x)
+  code[unseen] <- oov
+  n_oov <- sum(unseen)
+  if (n_oov > 0L && verbosity > 0L) {
+    msg0(
+      "Feature '",
+      xname,
+      "': coding ",
+      singorplu(n_oov, "case"),
+      " with unseen levels as ",
+      if (startat0) oov - 1L else oov,
+      "..."
+    )
+  }
+  if (startat0) code - 1L else code
+} # /rtemis::factor2integer_code
 
 
 # %% one_hot ----
@@ -816,8 +942,20 @@ fitted_config <- function(preprocessor) {
 #' `one_hot.data.table` operates on a copy of its input.
 #' `one_hot_` performs one-hot encoding ***in-place***.
 #'
+#' `one_hot.data.frame` encodes each feature against `factor_levels` when it
+#' carries an entry for it, and against the feature's own levels otherwise. The
+#' pinned set fixes both the columns and which column each value takes, so new
+#' data whose factor has fewer or differently ordered levels is encoded exactly
+#' as the training data was. A case whose level is absent from the pinned set --
+#' or which is `NA` -- has no column to take and stays all-zero, which is the
+#' width-preserving degradation; `factor2integer` instead reserves an index,
+#' because an embedding must index something.
+#'
 #' @param x Vector or data.frame
 #' @param xname Character: Variable name
+#' @param factor_levels Optional Named list of the form "feature_name" =
+#' "levels": Levels to encode each feature against. Lookup is by name and
+#' tolerant of entries with no matching column.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return For vector input, a one-hot-encoded matrix, for data.frame frame
@@ -895,34 +1033,41 @@ method(one_hot, class_data.frame) <- function(
 ) {
   ncases <- NROW(x)
   factor_index <- which(sapply(x, is.factor))
-  # If factor_levels list is provided, check column names match
-  if (!is.null(factor_levels)) {
-    stopifnot(identical(names(factor_levels), colnames(x[, factor_index])))
-  }
+  .names <- colnames(x)
+  n_unseen <- integer()
   one.hot <- as.list(x)
-  if (verbosity > 0L) {
-    .names <- colnames(x)
-  }
   for (i in factor_index) {
     if (verbosity > 0L) {
       msgstart("One hot encoding ", .names[i], "...")
     }
-    .levels <- if (!is.null(factor_levels)) {
-      factor_levels[[i]]
-    } else {
-      levels(x[[i]])
+    # Lookup is by feature name and tolerant of map entries with no matching
+    # column: `train()` learns a map on data that includes the outcome and
+    # applies it to features alone.
+    .levels <- factor_levels[[.names[i]]]
+    if (is.null(.levels)) {
+      .levels <- levels(x[[i]])
     }
-    index <- as.integer(x[, i])
+    index <- pinned_level_index(x[[i]], .levels)
     oh <- matrix(0, ncases, length(.levels))
-    colnames(oh) <- paste0(names(x)[i], "_", .levels)
-    for (j in seq(ncases)) {
-      oh[j, index[j]] <- 1
-    }
+    colnames(oh) <- paste0(.names[i], "_", .levels)
+    # A case with no column to take -- an unseen level, or NA -- stays all-zero.
+    present <- which(!is.na(index))
+    oh[cbind(present, index[present])] <- 1
+    n_unseen[[.names[i]]] <- sum(is.na(index) & !is.na(x[[i]]))
     # Replace list element that was a factor with one-hot encoded matrix
     one.hot[[i]] <- oh
   }
   if (verbosity > 0L) {
     msgdone()
+    for (feature in names(n_unseen)[n_unseen > 0L]) {
+      msg0(
+        "Feature '",
+        feature,
+        "': encoding ",
+        singorplu(n_unseen[[feature]], "case"),
+        " with unseen levels as all-zero..."
+      )
+    }
   }
   # do.call below creates a matrix, maintaining column names in one.hot matrix.
   # as.data.frame on one.hot would have added {name_of_oh_element}.{column_names}

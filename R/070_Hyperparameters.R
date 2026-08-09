@@ -181,56 +181,61 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
     if (is.null(dim_value)) {
       next
     }
-    if (bound %in% NAME_BOUNDS) {
-      # `unlist()` because a name bound may sit on a container of *vectors* -- a
-      # map from group name to feature names. `setdiff()` on the list would
-      # compare each element's deparsed form against the column names and report
-      # every group as unknown.
-      unknown <- setdiff(unlist(value, use.names = FALSE), dim_value)
-      if (length(unknown) > 0L) {
-        rtemis.core::abort(
-          "`",
-          nm,
-          "` must name ",
-          if (bound == "numeric_feature_names") "numeric " else "",
-          "training features; not found: ",
-          paste(unknown, collapse = ", "),
-          ".",
-          class = c("rtemis_value_error", "rtemis_input_error")
-        )
+    # A domain holds one value per candidate, and the tuner may fit any of
+    # them, so every candidate has to be in bounds -- an out-of-range one
+    # would otherwise surface as a failed grid cell partway through tuning.
+    for (value in if (is_candidates(value)) value@candidates else list(value)) {
+      if (bound %in% NAME_BOUNDS) {
+        # `unlist()` because a name bound may sit on a container of *vectors* -- a
+        # map from group name to feature names. `setdiff()` on the list would
+        # compare each element's deparsed form against the column names and report
+        # every group as unknown.
+        unknown <- setdiff(unlist(value, use.names = FALSE), dim_value)
+        if (length(unknown) > 0L) {
+          rtemis.core::abort(
+            "`",
+            nm,
+            "` must name ",
+            if (bound == "numeric_feature_names") "numeric " else "",
+            "training features; not found: ",
+            paste(unknown, collapse = ", "),
+            ".",
+            class = c("rtemis_value_error", "rtemis_input_error")
+          )
+        }
+        next
       }
-      next
-    }
-    spec <- get_spec(specs[[nm]])
-    is_vector <- !is.null(spec) && spec@container != "none"
-    if (is_vector) {
-      if (length(value) != dim_value) {
+      spec <- get_spec(specs[[nm]])
+      is_vector <- !is.null(spec) && spec@container != "none"
+      if (is_vector) {
+        if (length(value) != dim_value) {
+          rtemis.core::abort(
+            "`",
+            nm,
+            "` must have one value per ",
+            DATA_BOUND_NOUN[[bound]],
+            ": expected length ",
+            dim_value,
+            ", got ",
+            length(value),
+            ".",
+            class = c("rtemis_length_error", "rtemis_input_error")
+          )
+        }
+      } else if (any(value > dim_value)) {
         rtemis.core::abort(
           "`",
           nm,
-          "` must have one value per ",
-          DATA_BOUND_NOUN[[bound]],
-          ": expected length ",
+          "` cannot be greater than the number of ",
+          DATA_BOUND_NOUN_PLURAL[[bound]],
+          " (",
           dim_value,
-          ", got ",
-          length(value),
+          "); got ",
+          paste(unique(value[value > dim_value]), collapse = ", "),
           ".",
-          class = c("rtemis_length_error", "rtemis_input_error")
+          class = c("rtemis_range_error", "rtemis_input_error")
         )
       }
-    } else if (any(value > dim_value)) {
-      rtemis.core::abort(
-        "`",
-        nm,
-        "` cannot be greater than the number of ",
-        DATA_BOUND_NOUN_PLURAL[[bound]],
-        " (",
-        dim_value,
-        "); got ",
-        paste(unique(value[value > dim_value]), collapse = ", "),
-        ".",
-        class = c("rtemis_range_error", "rtemis_input_error")
-      )
     }
   }
   invisible(config)
@@ -499,7 +504,9 @@ method(get_tuned_status, Hyperparameters) <- function(x) {
     return(TUNED_STATUS_NOT_TUNABLE)
   }
   values <- x@hyperparameters
-  if (any(lengths(values[tunable]) > 1L)) {
+  # A search space is a `HyperparameterCandidates`, never a value that happens to
+  # have several elements: `hidden_units = c(12L, 6L, 2L)` is one architecture.
+  if (any(vapply(values[tunable], is_candidates, logical(1L)))) {
     return(TUNED_STATUS_UNTUNED)
   }
   null_tune <- vapply(
@@ -643,7 +650,7 @@ method(get_hyperparams_need_tuning, Hyperparameters) <- function(x) {
   # -> list
   values <- x@hyperparameters
   tunable <- x@tunable_hyperparameters
-  out <- values[tunable[lengths(values[tunable]) > 1L]]
+  out <- values[tunable[vapply(values[tunable], is_candidates, logical(1L))]]
   for (nm in tune_on_null_spec_names(S7_class(x))) {
     if (is.null(values[[nm]])) {
       out <- c(out, stats::setNames(list(NULL), nm))
@@ -718,6 +725,27 @@ method(tuning_grid, Hyperparameters) <- function(x) {
   if (length(grid_params) == 0L) {
     return(NULL)
   }
+  # A domain is unwrapped into the candidates themselves: a scalar
+  # hyperparameter's back into a vector, which is the shape `expand.grid()` and
+  # every downstream reader already handle, and a vector-valued one's into a
+  # list, so that one grid cell holds one whole value rather than one element
+  # of it. The declaration decides which, never the shape of the candidates.
+  specs <- S7_class(x)@properties
+  grid_params <- stats::setNames(
+    lapply(names(grid_params), function(nm) {
+      value <- grid_params[[nm]]
+      if (!is_candidates(value)) {
+        return(value)
+      }
+      spec <- get_spec(specs[[nm]])
+      if (!is.null(spec) && spec@container != "none") {
+        value@candidates
+      } else {
+        unlist(value@candidates, use.names = FALSE)
+      }
+    }),
+    names(grid_params)
+  )
   # expand_grid converts a NULL search entry to its "null" sentinel.
   gate_tuning_grid(expand_grid(grid_params, stringsAsFactors = FALSE), x)
 } # /rtemis::tuning_grid.Hyperparameters
@@ -1442,7 +1470,7 @@ HALHyperparameters <- new_class(
     # to `max_degree` -- which means `max_degree` must be a single value for
     # the pairing to be well defined.
     if (!is.null(self@num_knots)) {
-      if (length(self@max_degree) > 1L) {
+      if (is_candidates(self@max_degree)) {
         return(
           "@num_knots cannot be combined with a search over @max_degree: it needs one value per degree, so leave it NULL while tuning @max_degree."
         )
@@ -2262,7 +2290,7 @@ method(update, LightGBMHyperparameters) <- function(
 #' @examples
 #' lightgbm_hyperparams <- setup_LightGBM(
 #'   max_nrounds = 500L,
-#'   learning_rate = c(0.001, 0.01, 0.05), ifw = TRUE
+#'   learning_rate = tune_over(0.001, 0.01, 0.05), ifw = TRUE
 #' )
 #' lightgbm_hyperparams
 setup_LightGBM <- function(
@@ -4019,7 +4047,10 @@ setup_NNLS <- function(normalize = TRUE, ifw = FALSE) {
     )
   }
   check_wire_keys(x, c("algorithm", "hyperparameters"), "hyperparameters")
-  args <- .drop_meta_keys(x[["hyperparameters"]])
+  args <- from_wire(
+    .drop_meta_keys(x[["hyperparameters"]]),
+    get(paste0(algorithm, "Hyperparameters"))
+  )
   check_wire_keys(
     args,
     names(formals(get(fn))),
