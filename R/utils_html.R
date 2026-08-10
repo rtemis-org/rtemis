@@ -6,9 +6,9 @@
 #' @noRd
 html_highlight <- function(..., bold = TRUE) {
   if (bold) {
-    span(..., style = "color: #16A0AC; font-weight: 700;")
+    html_span(..., style = "color: #16A0AC; font-weight: 700;")
   } else {
-    span(..., style = "color: #16A0AC;")
+    html_span(..., style = "color: #16A0AC;")
   }
 }
 
@@ -17,9 +17,9 @@ html_highlight <- function(..., bold = TRUE) {
 #' @noRd
 html_orange <- function(..., bold = TRUE) {
   if (bold) {
-    span(..., style = "color: #FA6E1E; font-weight: 700;")
+    html_span(..., style = "color: #FA6E1E; font-weight: 700;")
   } else {
-    span(..., style = "color: #FA6E1E;")
+    html_span(..., style = "color: #FA6E1E;")
   }
 }
 
@@ -28,9 +28,9 @@ html_orange <- function(..., bold = TRUE) {
 #' @noRd
 html_red <- function(..., bold = TRUE) {
   if (bold) {
-    span(..., style = "color: #E61048; font-weight: 700;")
+    html_span(..., style = "color: #E61048; font-weight: 700;")
   } else {
-    span(..., style = "color: #E61048;")
+    html_span(..., style = "color: #E61048;")
   }
 }
 
@@ -39,8 +39,8 @@ html_red <- function(..., bold = TRUE) {
 #' @noRd
 html_success <- function(..., bold = TRUE) {
   if (bold) {
-    span(..., style = "color: #32A03E; font-weight: 700;")
+    html_span(..., style = "color: #32A03E; font-weight: 700;")
   } else {
-    span(..., style = "color: #32A03E;")
+    html_span(..., style = "color: #32A03E;")
   }
 }

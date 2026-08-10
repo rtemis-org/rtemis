@@ -63,7 +63,7 @@
 #' [tryCatch()]. See [rtemis_conditions] for the class hierarchy.
 #'
 #' @name rtemis-package
-#' @import stats methods graphics S7 data.table htmltools rtemis.core
+#' @import stats methods graphics S7 data.table rtemis.core
 # rtemis.core exports `gray()` (colored text); exclude grDevices::gray() to
 # avoid masking it, matching the previous local definition. Use
 # `grDevices::gray()` explicitly where the grayscale palette is needed.
