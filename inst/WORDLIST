@@ -138,6 +138,7 @@ auc
 auditable
 backend's
 betweenness
+blake
 bonferroni
 bottomleft
 bottomright
@@ -148,6 +149,7 @@ cli
 cloglog
 cmeans
 colorbar
+cryptographic
 colorscale
 colorspace
 config's
@@ -225,6 +227,7 @@ louvain
 maxit
 maxiter
 maxstat
+md
 mds
 meanMode
 mgaussian
@@ -293,6 +296,7 @@ selu
 seqrep
 serializable
 sgd
+sha
 signalled
 silu
 simpls

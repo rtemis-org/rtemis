@@ -110,7 +110,12 @@ test_that("'file' requires a source and hashes its bytes", {
   utils::write.csv(iris, f, row.names = FALSE)
   fp <- data_fingerprint(iris, method = "file", source = f)
   expect_identical(fp@source, f)
-  expect_identical(fp@hash, digest::digest(file = f, algo = "sha256"))
+  # Computed independently, from the whole file read into memory: the streaming
+  # connection `.hash_file()` uses must reach the same hash.
+  expect_identical(
+    fp@hash,
+    as.vector(as.character(openssl::sha256(readBin(f, "raw", file.size(f)))))
+  )
 })
 
 
@@ -146,9 +151,37 @@ test_that("'table' still detects a changed value", {
 
 # %% algorithm ----
 test_that("algorithm is settable and recorded", {
-  fp <- data_fingerprint(iris, algorithm = "xxh3_64")
-  expect_identical(fp@algorithm, "xxh3_64")
+  fp <- data_fingerprint(iris, algorithm = "blake2b")
+  expect_identical(fp@algorithm, "blake2b")
   expect_false(identical(fp@hash, data_fingerprint(iris)@hash))
+})
+
+
+test_that("every accepted algorithm produces a hash", {
+  # Guards the enum against `.hash_bytes()`: a name accepted by the validator
+  # but missing a dispatch branch would only fail at hashing time.
+  for (algorithm in DATA_HASH_ALGORITHMS) {
+    fp <- data_fingerprint(iris, algorithm = algorithm)
+    expect_identical(fp@algorithm, algorithm)
+    expect_match(fp@hash, "^[0-9a-f]+$")
+    # A bare character, carrying no attributes. The hash backend returns a
+    # classed one, `prop_string` accepts it because it is still a character,
+    # and the class then breaks `write_record()` at `jsonlite::toJSON()`.
+    expect_null(attributes(fp@hash))
+  }
+})
+
+
+test_that("'object' hashes exclude the serialization header", {
+  # The header names the R that wrote the stream, so a fingerprint that
+  # included it would differ across R builds and locales for identical data.
+  payload <- .serialized_payload(iris)
+  full <- serialize(iris, connection = NULL, version = 3L)
+  expect_lt(length(payload), length(full))
+  expect_identical(
+    data_fingerprint(iris)@hash,
+    as.vector(as.character(openssl::sha256(payload)))
+  )
 })
 
 

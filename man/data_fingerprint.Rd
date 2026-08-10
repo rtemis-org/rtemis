@@ -16,8 +16,10 @@ hashes the serialized R object (cheap, R-only). "file" hashes the raw bytes
 of \code{source}. "table" hashes the canonical Arrow IPC representation
 (cross-language; requires the \code{arrow} package).}
 
-\item{algorithm}{Character: Hash algorithm passed to \link[digest:digest]{digest::digest}. See
-\code{DATA_HASH_ALGORITHMS}.}
+\item{algorithm}{Character \{"sha256", "sha512", "sha384", "sha224",
+"sha3-256", "sha3-512", "blake2b", "blake2s", "sha1", "md5"\}: Hash
+algorithm. "blake2b" and "blake2s" are the fast options; "sha1" and "md5"
+are for interoperability with systems that record those.}
 
 \item{source}{Optional Character: Path \code{x} was read from. Required when
 \code{method} is "file".}

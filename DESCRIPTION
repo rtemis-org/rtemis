@@ -22,12 +22,12 @@ Depends:
     R (>= 4.1.0)
 Imports:
     data.table,
-    digest,
     future,
     grDevices,
     graphics,
     htmltools,
     methods,
+    openssl,
     rtemis.core (>= 0.4.1),
     stats,
     S7,

@@ -27,28 +27,26 @@
 # Hash methods, ordered weakest to strongest guarantee.
 DATA_HASH_METHODS <- c("file", "object", "table")
 
-# `digest` algorithms accepted for `DataFingerprint@algorithm`.
+# Hash algorithms accepted for `DataFingerprint@algorithm`, each dispatched to
+# its `openssl` implementation by `.hash_bytes()`. Adding a name here without
+# adding its branch there is caught by the switch's own error.
 DATA_HASH_ALGORITHMS <- c(
   "sha256",
   "sha512",
+  "sha384",
+  "sha224",
+  "sha3-256",
+  "sha3-512",
+  "blake2b",
+  "blake2s",
   "sha1",
-  "md5",
-  "xxhash64",
-  "xxhash32",
-  "xxh3_64",
-  "xxh3_128",
-  "blake3",
-  "spookyhash",
-  "murmur32",
-  "crc32",
-  "crc32c"
+  "md5"
 )
 
-# Pinned so that "object" hashes are reproducible. `digest()` hashes
-# `serialize()` output, whose bytes depend on the serialization format version,
-# so leaving this to the default would make those hashes irreproducible across R
-# versions that change it. Changing this value is a BREAKING change to
-# fingerprint comparability.
+# Pinned so that "object" hashes are reproducible: the bytes `serialize()`
+# produces depend on the serialization format version, so leaving this to the
+# default would make those hashes irreproducible across R versions that change
+# it. Changing this value is a BREAKING change to fingerprint comparability.
 DATA_HASH_SERIALIZE_VERSION <- 3L
 
 # Characters of the hash shown in `repr()`. Enough to compare at a glance.
@@ -67,7 +65,7 @@ DATA_HASH_DISPLAY_CHARS <- 12L
 #' rather than through a `setup_*` function.
 #'
 #' @field method Character \{"file", "object", "table"\}: What was hashed.
-#' @field algorithm Character \{"sha256", "sha512", "sha1", "md5", "xxhash64", "xxhash32", "xxh3_64", "xxh3_128", "blake3", "spookyhash", "murmur32", "crc32", "crc32c"\}: Hash algorithm.
+#' @field algorithm Character \{"sha256", "sha512", "sha384", "sha224", "sha3-256", "sha3-512", "blake2b", "blake2s", "sha1", "md5"\}: Hash algorithm.
 #' @field hash Character: Hash digest, as hex.
 #' @field n_rows Integer [0, Inf): Number of rows (cases).
 #' @field n_cols Integer [0, Inf): Number of columns.
@@ -185,8 +183,10 @@ hash_portability <- function(method) {
 #'   hashes the serialized R object (cheap, R-only). "file" hashes the raw bytes
 #'   of `source`. "table" hashes the canonical Arrow IPC representation
 #'   (cross-language; requires the `arrow` package).
-#' @param algorithm Character: Hash algorithm passed to [digest::digest]. See
-#'   `DATA_HASH_ALGORITHMS`.
+#' @param algorithm Character \{"sha256", "sha512", "sha384", "sha224",
+#'   "sha3-256", "sha3-512", "blake2b", "blake2s", "sha1", "md5"\}: Hash
+#'   algorithm. "blake2b" and "blake2s" are the fast options; "sha1" and "md5"
+#'   are for interoperability with systems that record those.
 #' @param source Optional Character: Path `x` was read from. Required when
 #'   `method` is "file".
 #'
@@ -242,8 +242,54 @@ data_fingerprint <- function(
 } # /rtemis::data_fingerprint
 
 
+# %% .hash_bytes ----
+#' Hash a raw vector or a connection with the named algorithm
+#'
+#' The single point where an algorithm name becomes an implementation, so the
+#' three hash methods cannot drift apart in which algorithms they accept.
+#'
+#' @param x Raw vector, or a connection to be streamed.
+#' @param algorithm Character: One of `DATA_HASH_ALGORITHMS`.
+#'
+#' @return Character: Hash digest, as hex.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+.hash_bytes <- function(x, algorithm) {
+  hasher <- switch(
+    algorithm,
+    sha256 = openssl::sha256,
+    sha512 = openssl::sha512,
+    sha384 = openssl::sha384,
+    sha224 = openssl::sha224,
+    `sha3-256` = function(x) openssl::sha3(x, size = 256L),
+    `sha3-512` = function(x) openssl::sha3(x, size = 512L),
+    blake2b = openssl::blake2b,
+    blake2s = openssl::blake2s,
+    sha1 = openssl::sha1,
+    md5 = openssl::md5,
+    rtemis.core::abort(
+      "Unknown hash algorithm: ",
+      algorithm,
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  )
+  # `as.character()` on an `openssl` hash keeps its c("hash", "<algorithm>")
+  # class. That class rides into `@hash` unnoticed -- `prop_string` checks the
+  # type and a classed character is still a character -- and surfaces much later
+  # as "No method asJSON S3 class: sha256" when a run record is written.
+  # `as.vector()` drops it.
+  as.vector(as.character(hasher(x)))
+} # /rtemis::.hash_bytes
+
+
 # %% .hash_file ----
 #' Hash the raw bytes of a file
+#'
+#' Hashes a connection rather than the file's contents: `openssl` streams it in
+#' chunks, so a file larger than memory is fingerprintable.
 #'
 #' @param path Character: File path.
 #' @param algorithm Character: Hash algorithm.
@@ -268,16 +314,52 @@ data_fingerprint <- function(
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-  digest::digest(file = path, algo = algorithm)
+  con <- file(path, open = "rb")
+  on.exit(close(con), add = TRUE)
+  .hash_bytes(con, algorithm)
 } # /rtemis::.hash_file
+
+
+# %% .serialized_payload ----
+#' Serialize an object, without the bytes that describe the writer
+#'
+#' A serialization stream opens with a header describing the R that wrote it,
+#' not the object: hashing it would make identical data fingerprint differently
+#' on another R build or in another locale. A version-3 header is "X\\n", then
+#' three 4-byte big-endian integers (format version, writing R version, minimum
+#' reading R version), then a 4-byte length and that many bytes naming the
+#' native encoding. Everything after that is the object.
+#'
+#' @param x R object.
+#'
+#' @return Raw vector.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+.serialized_payload <- function(x) {
+  bytes <- serialize(
+    x,
+    connection = NULL,
+    version = DATA_HASH_SERIALIZE_VERSION
+  )
+  encoding_nchar <- readBin(
+    bytes[15L:18L],
+    what = "integer",
+    n = 1L,
+    size = 4L,
+    endian = "big"
+  )
+  bytes[-seq_len(18L + encoding_nchar)]
+} # /rtemis::.serialized_payload
 
 
 # %% .hash_object ----
 #' Hash the serialized R object
 #'
-#' `serializeVersion` is pinned (see `DATA_HASH_SERIALIZE_VERSION`) so the
-#' digest is reproducible across R versions that change the serialization
-#' default.
+#' The serialization version is pinned (see `DATA_HASH_SERIALIZE_VERSION`) and
+#' the header dropped (see `.serialized_payload()`), so the hash depends on the
+#' object alone rather than on the R that hashed it.
 #'
 #' @param x R object.
 #' @param algorithm Character: Hash algorithm.
@@ -288,11 +370,7 @@ data_fingerprint <- function(
 #' @keywords internal
 #' @noRd
 .hash_object <- function(x, algorithm) {
-  digest::digest(
-    x,
-    algo = algorithm,
-    serializeVersion = DATA_HASH_SERIALIZE_VERSION
-  )
+  .hash_bytes(.serialized_payload(x), algorithm)
 } # /rtemis::.hash_object
 
 
@@ -324,11 +402,7 @@ data_fingerprint <- function(
   # active binding; `[[<-` would try to drop a *column* of that name.)
   tbl$metadata <- NULL
   buffer <- arrow::write_to_raw(tbl, format = "stream")
-  digest::digest(
-    buffer,
-    algo = algorithm,
-    serialize = FALSE
-  )
+  .hash_bytes(buffer, algorithm)
 } # /rtemis::.hash_table
 
 
