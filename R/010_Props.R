@@ -166,9 +166,11 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   cannot be set; `@default` holds it. Distinct from a *fixed* property,
 #'   which is settable but not tunable.
 #' @field data_dependent Logical: If TRUE, the value's shape follows one
-#'   dataset -- one entry per case or per feature -- so it cannot be supplied
-#'   without the data in hand. An annotation only: such a value is still a
-#'   settable input and is written to a config.
+#'   dataset, so it cannot be supplied without the data in hand. Which
+#'   dimension it follows is `data_bound` where one is declared, and the
+#'   container's own where not; `data_dependent_comment()` states it. An
+#'   annotation only: such a value is still a settable input and is written to
+#'   a config.
 #' @field data_bound Character or NULL: Name of the training-data dimension
 #'   this value is constrained by \{"n_features", "n_cases", "n_classes",
 #'   "feature_names"\}. Checked against the data by
@@ -1163,7 +1165,7 @@ prop_boolean <- function(
 #'   this value \{"n_features", "n_cases", "n_classes"\}. Scalar properties are
 #'   bounded above by it; `vector` properties must have exactly that length.
 #' @param data_dependent Logical: If TRUE, the value's shape follows one
-#'   dataset (one entry per case or per feature), so a form should not prompt
+#'   dataset -- `data_bound` names the dimension -- so a form should not prompt
 #'   for it. An annotation only; it does not affect serialization.
 #' @param applies_when Optional named list: Sibling properties this one is only
 #'   in effect for, mapped to the values that put it in effect. Requires
@@ -1248,7 +1250,7 @@ prop_integer <- function(
 #'   this value \{"n_features", "n_cases", "n_classes"\}. Scalar properties are
 #'   bounded above by it; `vector` properties must have exactly that length.
 #' @param data_dependent Logical: If TRUE, the value's shape follows one
-#'   dataset (one entry per case or per feature), so a form should not prompt
+#'   dataset -- `data_bound` names the dimension -- so a form should not prompt
 #'   for it. An annotation only; it does not affect serialization.
 #' @param applies_when Optional named list: Sibling properties this one is only
 #'   in effect for, mapped to the values that put it in effect. Requires
@@ -1326,7 +1328,7 @@ prop_float <- function(
 #' @param data_bound Character or NULL: Only "feature_names" is meaningful for
 #'   a string property: values must be a subset of the training features.
 #' @param data_dependent Logical: If TRUE, the value's shape follows one
-#'   dataset (one entry per case or per feature), so a form should not prompt
+#'   dataset -- `data_bound` names the dimension -- so a form should not prompt
 #'   for it. An annotation only; it does not affect serialization.
 #' @param applies_when Optional named list: Sibling properties this one is only
 #'   in effect for, mapped to the values that put it in effect. Requires
@@ -1391,9 +1393,10 @@ prop_string <- function(
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param data_bound Character or NULL: Training-data dimension the number of
 #'   entries is tied to; see `DATA_BOUNDS`.
-#' @param data_dependent Logical: If TRUE, the value's shape follows one
-#'   dataset (one entry per case or per feature), so a form should not prompt
-#'   for it. An annotation only; it does not affect serialization.
+#' @param data_dependent Logical: If TRUE, the keys come from one dataset --
+#'   feature names, unless `data_bound` names another dimension -- so a form
+#'   should not prompt for it. An annotation only; it does not affect
+#'   serialization.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -1452,7 +1455,7 @@ prop_map <- function(
 #' @param data_bound Character or NULL: Training-data dimension the number of
 #'   elements is tied to; see `DATA_BOUNDS`.
 #' @param data_dependent Logical: If TRUE, the value's shape follows one
-#'   dataset (one entry per case or per feature), so a form should not prompt
+#'   dataset -- `data_bound` names the dimension -- so a form should not prompt
 #'   for it. An annotation only; it does not affect serialization.
 #' @param description Character: Human-readable description.
 #'
@@ -1511,8 +1514,9 @@ prop_array <- function(
 #' @param data_bound Character or NULL: Training-data dimension the row count is
 #'   tied to; see `DATA_BOUNDS`.
 #' @param data_dependent Logical: If TRUE, the value's shape follows one
-#'   dataset (one entry per case or per feature), so a form should not prompt
-#'   for it. An annotation only; it does not affect serialization.
+#'   dataset -- `data_bound` names the dimension its rows follow -- so a form
+#'   should not prompt for it. An annotation only; it does not affect
+#'   serialization.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -2827,6 +2831,56 @@ data_bound_note <- function(data_bound, container, broadcast) {
 } # /rtemis::data_bound_note
 
 
+# %% data_dependent_comment ----
+#' The `$comment` describing a data-dependent property
+#'
+#' Names the dimension *this* property follows, so a reader is told which of
+#' cases, features or classes decides its shape rather than being handed the
+#' union of them. The dimension comes from `data_bound` where one is declared;
+#' a `map` with none is keyed by feature name (see `prop_map()`), the one shape
+#' whose dependence the container states on its own. Anything else falls back to
+#' the bare fact, since nothing in the declaration says more.
+#'
+#' @param spec `PropertySpec`.
+#'
+#' @return Character: The sentence emitted as the schema's `$comment`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+data_dependent_comment <- function(spec) {
+  bound <- spec@data_bound
+  container <- spec@container
+  shape <- if (identical(bound, "feature_names")) {
+    "its values name training features"
+  } else if (identical(bound, "numeric_feature_names")) {
+    "its values name numeric training features"
+  } else if (!is.null(bound) && container != "none") {
+    noun <- DATA_BOUND_NOUN[[bound]]
+    if (container %in% c("matrix", "table")) {
+      paste0("one row per ", noun)
+    } else if (container == "map") {
+      paste0("one entry per ", noun)
+    } else if (spec@broadcast) {
+      # A scalar stands in for the container, so the arity rule binds only the
+      # vector form.
+      paste0("one value per ", noun, " when given as a vector")
+    } else {
+      paste0("one value per ", noun)
+    }
+  } else if (container == "map") {
+    "one entry per feature, keyed by feature name"
+  } else {
+    "its shape is decided by the training data"
+  }
+  paste0(
+    "Data-dependent: ",
+    shape,
+    ", so it cannot be filled in without the data."
+  )
+} # /rtemis::data_dependent_comment
+
+
 # %% candidates_schema ----
 #' The JSON Schema object a hyperparameter domain emits
 #'
@@ -3132,10 +3186,7 @@ spec_to_schema <- function(spec, read_only = FALSE) {
     # skips these rather than asking for a value whose shape the data decides.
     # It does not say the value is derived -- these are settable inputs, and a
     # supplied one is used in place of computing it.
-    out[["$comment"]] <- paste(
-      "Data-dependent: one entry per case or per feature, so it cannot be",
-      "filled in without the data."
-    )
+    out[["$comment"]] <- data_dependent_comment(spec)
   }
   out
 } # /rtemis::spec_to_schema
