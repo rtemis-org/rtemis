@@ -546,6 +546,66 @@ test_that("x-rtemis carries what the keywords cannot express", {
 })
 
 
+test_that("the data-dependent $comment names the dimension the value follows", {
+  comment_of <- function(prop) spec_to_schema(get_spec(prop))[["$comment"]]
+  # A length bound names its own noun, so a per-case value never reads as if it
+  # might be per-feature.
+  expect_match(
+    comment_of(prop_float(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      data_bound = "n_cases",
+      data_dependent = TRUE
+    )),
+    "one value per case",
+    fixed = TRUE
+  )
+  expect_match(
+    comment_of(prop_matrix(
+      nullable = TRUE,
+      data_bound = "n_cases",
+      data_dependent = TRUE
+    )),
+    "one row per case",
+    fixed = TRUE
+  )
+  # A broadcast value is only bound in its vector form.
+  expect_match(
+    comment_of(prop_float(
+      1,
+      vector = TRUE,
+      broadcast = TRUE,
+      data_bound = "n_cases",
+      data_dependent = TRUE
+    )),
+    "one value per case when given as a vector",
+    fixed = TRUE
+  )
+  # A name bound is a membership rule: the values name features, and the number
+  # of them is free.
+  expect_match(
+    comment_of(prop_map(
+      prop_string(NULL, vector = TRUE, nullable = TRUE),
+      nullable = TRUE,
+      data_bound = "feature_names",
+      data_dependent = TRUE
+    )),
+    "its values name training features",
+    fixed = TRUE
+  )
+  # An unbound map is keyed by feature name -- what `prop_map()` declares a map
+  # to be.
+  expect_match(
+    comment_of(prop_map(prop_float(0), nullable = TRUE, data_dependent = TRUE)),
+    "one entry per feature, keyed by feature name",
+    fixed = TRUE
+  )
+  # Not data-dependent: no note at all.
+  expect_null(comment_of(prop_integer(1L, min = 1L)))
+})
+
+
 # %% Wire strictness ----
 # Principle 2 of `plan/wire-vocabulary.md`: nothing is dropped silently. A key
 # a config does not declare is a stale name, a typo, or a field from another

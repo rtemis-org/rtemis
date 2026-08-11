@@ -1,3 +1,4 @@
+ALTREP
 ARFF
 AutoPyTorch
 BARTHyperparameters
@@ -76,6 +77,7 @@ NMF
 NMFConfig
 NNLS
 NNLSHyperparameters
+Nystrom
 NROW
 NTSC
 NeuralGasConfig
@@ -101,6 +103,7 @@ Resampler
 ResamplerConfig
 Rprofile
 SL
+SNE
 SPLS
 SPLSHyperparameters
 Spectrogram
@@ -138,6 +141,7 @@ auc
 auditable
 backend's
 betweenness
+blake
 bonferroni
 bottomleft
 bottomright
@@ -148,6 +152,7 @@ cli
 cloglog
 cmeans
 colorbar
+cryptographic
 colorscale
 colorspace
 config's
@@ -160,6 +165,8 @@ darkgraygrid
 dashdot
 decomp
 delim
+denoised
+denoising
 der
 deserialization
 df
@@ -225,6 +232,7 @@ louvain
 maxit
 maxiter
 maxstat
+md
 mds
 meanMode
 mgaussian
@@ -293,6 +301,7 @@ selu
 seqrep
 serializable
 sgd
+sha
 signalled
 silu
 simpls
@@ -326,6 +335,7 @@ translational
 triweight
 tunable
 ufcl
+unprefixed
 unscorable
 validator
 validators

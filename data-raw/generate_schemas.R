@@ -23,6 +23,7 @@ record_parts <- c("provenance", "datafingerprint")
 result_classes <- c(
   "regressionmetrics",
   "classificationmetrics",
+  "decompositionmetrics",
   "regressionmetricsres",
   "classificationmetricsres"
 )
@@ -43,6 +44,12 @@ fold_refs <- c(
 metrics_refs <- c(
   regression = paste0(base_url, "/regressionmetrics/v1/schema.json"),
   classification = paste0(base_url, "/classificationmetrics/v1/schema.json")
+)
+# A decomposition run scores one metrics object, not a per-sample map with
+# dispersion across resamples, so its record references that object directly.
+decomposition_metrics_ref <- paste0(
+  base_url,
+  "/decompositionmetrics/v1/schema.json"
 )
 
 # Registry ------------------------------------------------------------------
@@ -188,6 +195,9 @@ for (family in names(flat_configs)) {
       fold_refs = if (kind == "record" && family == "supervised") fold_refs,
       metrics_refs = if (kind == "record" && family == "supervised") {
         metrics_refs
+      },
+      metrics_ref = if (kind == "record" && family == "decompose") {
+        decomposition_metrics_ref
       },
       extra = cfg[["extra"]],
       refs = cfg[["refs"]],

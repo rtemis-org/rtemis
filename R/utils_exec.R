@@ -1,4 +1,4 @@
-# utils_exec.Ranger
+# utils_exec.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -21,6 +21,10 @@ do_call <- function(
   error_pattern_suggestion = NULL,
   warning_pattern_suggestion = NULL
 ) {
+  # Callers pass the function itself (`do_call(Rtsne::Rtsne, args)`), which has
+  # no character form, so the name for the error message comes from the
+  # unevaluated argument. `theme.R` passes a string instead; both must label.
+  fn_label <- if (is.character(fn)) fn else deparse1(substitute(fn))
   common_errors <- list(
     "object '(.*)' not found" = "Check that the object exists and is spelled correctly.",
     "object of type 'closure' is not subsettable" = "Check that the object is a list or data.frame."
@@ -70,7 +74,12 @@ do_call <- function(
     },
     error = function(e) {
       fnerr <- e[["message"]]
-      errmsg <- paste0(highlight(fn), " failed with error:\n", fnerr, "\n")
+      errmsg <- paste0(
+        highlight(fn_label),
+        " failed with error:\n",
+        fnerr,
+        "\n"
+      )
       idi <- which(sapply(names(err_pat_sug), function(i) grepl(i, fnerr)))
       if (length(idi) > 0) {
         suggestions <- sapply(idi, function(i) err_pat_sug[[i]])

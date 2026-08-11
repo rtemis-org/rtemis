@@ -46,6 +46,33 @@ introduce a bare `class_list` / `class_any` property: if a value has no wire
 form it is marked `prop_r_only()` (as `Supervised@model` is, holding a fitted
 backend object), and otherwise it gets a declared container and element type.
 
+## `data.table` for data in flight, `data.frame` for tables the package declares
+
+"Prefer `data.table` internally for efficiency" is about the user's data as it
+moves through a run — `preprocess.R`, `read.R`, `ddb.R`, `train_StackedLearner.R`
+and the draw functions. It is not about the package's own lookup tables and
+declared result tables, which are `data.frame`.
+
+A constant registry like `supervised_algorithms` or `decom_algorithms` gains no
+efficiency from `data.table` and takes three costs: one assigned at package top
+level comes back from the lazy-load database with an invalid
+`.internal.selfref`, so the first `:=` warns unless `.onLoad` calls
+`setalloccol()`; reference semantics mean a user's `traits[, note := "mine"]`
+mutates the package's own copy for the session, so every accessor would need
+`copy()`; and `[` semantics leak into the public API of a table people subset
+with `traits[traits$name == "PCA", ]`. Declared tables are not a choice at all:
+`prop_table()` sets `container = "table"`, which the container-to-class map in
+`R/010_Props.R` resolves to `class_data.frame`.
+
+## Decomposition is for symmetric methods
+
+`decomp()` takes methods that model the joint structure of one or more variables
+without designating any variable or variable set as the outcome. An algorithm
+that designates an outcome is a supervised algorithm and belongs with `train()`
+— PLS, for instance. A two-block method with no outcome, such as CCA, is
+cross-decomposition: it has neither shape and belongs in neither table. That
+criterion decides where a new algorithm goes.
+
 ## Published artifacts
 
 rtemis generates machine-readable contracts to `schema.rtemis.org` from the S7

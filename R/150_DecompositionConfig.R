@@ -265,7 +265,7 @@ ICAConfig <- new_class(
     ),
     row_norm = prop_boolean(
       TRUE,
-      description = "Normalize rows of the input before ICA."
+      description = "Standardize each case across features before ICA."
     ),
     maxit = prop_integer(
       100L,
@@ -287,7 +287,16 @@ ICAConfig <- new_class(
 #' @param type Character \{"parallel", "deflation"\}: Type of ICA.
 #' @param fun Character \{"logcosh", "exp"\}: ICA function.
 #' @param alpha Numeric \[1, 2\]: Used in approximation to neg-entropy with `fun = "logcosh"`.
-#' @param row_norm Logical: If TRUE, normalize rows of `x` before ICA.
+#' @param row_norm Logical: If TRUE, standardize each case across features
+#' before ICA, i.e. subtract each case's mean and divide by its standard
+#' deviation. Appropriate when the features share units and each case's overall
+#' level and scale are a nuisance rather than signal, as for spectra or assays
+#' whose total intensity varies by sample -- the usual situation for the wide,
+#' single-instrument matrices decomposition is run on, which is why it is the
+#' default. It spends two degrees of freedom per case, so its cost is roughly
+#' `2 / ncol(x)`: negligible for hundreds of features, but substantial for a
+#' handful, where each case's level and scale are more likely to be signal.
+#' Set FALSE for narrow or mixed-unit data.
 #' @param maxit Integer [1, Inf): Maximum number of iterations.
 #' @param tol Numeric [0, Inf): Tolerance.
 #' @param features Optional Character vector: Names of at least 2 distinct
@@ -737,13 +746,6 @@ setup_Isomap <- function(
   )
 } # /rtemis::setup_Isomap
 
-
-# %% List of Decomposition Algorithms that can be applied on new data ----
-# These algorithms learn a transformation on the training data that can later be
-# applied to new (validation / test / unseen) data via `apply_decomp()`.
-# Non-parametric embeddings (tSNE, Isomap) have no out-of-sample extension and
-# are therefore excluded.
-decom_algorithms_applicable <- c("PCA", "ICA", "NMF", "UMAP")
 
 # %% decom_can_apply ----
 #' Check whether a decomposition algorithm can be applied on new data

@@ -8,6 +8,18 @@
 
 #' List to HTML
 #'
+#' Renders a named list as `name: value` lines of markup, for embedding in a
+#' plot tooltip.
+#'
+#' @param x Named list: Values to render.
+#' @param sep Character: Separator between each name and its value.
+#' @param col Character: Color of the values, as CSS.
+#' @param key_weight Integer: `font-weight` of the names.
+#' @param value_weight Integer: `font-weight` of the values.
+#' @param line Character: Markup ending each line.
+#'
+#' @return Character of class `rtemis_html`: HTML markup.
+#'
 #' @author EDG
 #' @keywords internal
 #' @noRd
@@ -22,9 +34,9 @@ list2html <- function(
   .names <- names(x)
   sapply(seq_along(x), \(i) {
     paste0(
-      span(.names[i], style = paste0("font-weight:", key_weight, ";")),
+      html_span(.names[i], style = paste0("font-weight:", key_weight, ";")),
       sep,
-      span(
+      html_span(
         x[[i]],
         style = paste0("color:", col, "; font-weight:", value_weight, ";")
       ),
@@ -32,7 +44,7 @@ list2html <- function(
     )
   }) |>
     paste0(collapse = "") |>
-    htmltools::HTML()
+    html_raw()
 } # /rtemis::list2html
 
 

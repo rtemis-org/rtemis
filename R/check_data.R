@@ -191,7 +191,7 @@ max0 <- function(x) max(x, 0, na.rm = TRUE)
 #' @param name Character: Name of the data set
 #' @param css List: CSS styles
 #'
-#' @return `shiny.tag` object.
+#' @return Character of class `rtemis_html_element`: HTML markup.
 #'
 #' @author EDG
 #' @keywords internal
@@ -220,60 +220,60 @@ method(to_html, CheckData) <- function(
   classes_na <- x[["classes_na"]]
 
   ## Data Types ----
-  numeric <- HTML(paste(
-    strong(n_numeric),
+  numeric <- html_raw(paste(
+    html_strong(n_numeric),
     "numeric",
     ngettext(n_numeric, "feature", "features")
   ))
-  integer <- HTML(paste(
-    strong(n_integer),
+  integer <- html_raw(paste(
+    html_strong(n_integer),
     "integer",
     ngettext(n_integer, "feature", "features")
   ))
-  categorical <- HTML(paste0(
-    strong(n_factor),
+  categorical <- html_raw(paste0(
+    html_strong(n_factor),
     ngettext(n_factor, " factor", " factors"),
     if (n_factor == 1) {
       paste(", which", ngettext(n_ordered, "is", "is not"), "ordered")
     } else if (n_factor > 1) {
       paste(
         ", of which",
-        strong(n_ordered),
+        html_strong(n_ordered),
         ngettext(n_ordered, "is", "are"),
         "ordered"
       )
     }
   ))
-  # .col <- if (n_character > 0) html_orange else strong
-  .col <- strong
-  characters <- HTML(paste(
+  # .col <- if (n_character > 0) html_orange else html_strong
+  .col <- html_strong
+  characters <- html_raw(paste(
     .col(n_character),
     "character",
     ngettext(n_character, "feature", "features")
   ))
-  dates <- HTML(paste(
-    strong(n_date),
+  dates <- html_raw(paste(
+    html_strong(n_date),
     "date",
     ngettext(n_date, "feature", "features")
   ))
 
   ## Issues ----
-  .col <- if (n_constant > 0) html_red else strong
-  constants <- HTML(paste(
+  .col <- if (n_constant > 0) html_red else html_strong
+  constants <- html_raw(paste(
     .col(n_constant),
     "constant",
     ngettext(n_constant, "feature", "features")
   ))
-  .col <- if (n_duplicates > 0) html_orange else strong
-  duplicates <- HTML(paste(
+  .col <- if (n_duplicates > 0) html_orange else html_strong
+  duplicates <- html_raw(paste(
     .col(n_duplicates),
     "duplicate",
     ngettext(n_duplicates, "case", "cases")
   ))
 
-  .col <- if (n_cols_anyna > 0) html_orange else strong
+  .col <- if (n_cols_anyna > 0) html_orange else html_strong
   nas <- if (n_cols_anyna > 0) {
-    HTML(paste(
+    html_raw(paste(
       .col(n_cols_anyna),
       ngettext(n_cols_anyna, "feature includes", "features include"),
       "'NA' values; ",
@@ -281,9 +281,9 @@ method(to_html, CheckData) <- function(
       "'NA'",
       ngettext(n_na, "value", "values"),
       "total",
-      tags[["ul"]](
+      html_ul(
         lapply(seq_along(classes_na), \(i) {
-          tags[["li"]](HTML(paste(
+          html_li(html_raw(paste(
             .col(classes_na[i]),
             tolower(names(classes_na)[i])
             # ngettext(classes_na[i], "feature", "features")
@@ -292,12 +292,12 @@ method(to_html, CheckData) <- function(
       )
     ))
   } else {
-    HTML(paste(strong("0"), "missing values"))
+    html_raw(paste(html_strong("0"), "missing values"))
   }
 
   ## Recs ----
   rec_constant <- if (n_constant > 0) {
-    tags[["li"]](HTML(paste(html_orange(
+    html_li(html_raw(paste(html_orange(
       "Remove the constant",
       ngettext(n_constant, "feature", "features")
     ))))
@@ -306,7 +306,7 @@ method(to_html, CheckData) <- function(
   }
 
   rec_dups <- if (n_duplicates > 0) {
-    tags[["li"]](HTML(paste(html_orange(
+    html_li(html_raw(paste(html_orange(
       "Consider removing the duplicate",
       ngettext(n_duplicates, "case", "cases")
     ))))
@@ -317,11 +317,11 @@ method(to_html, CheckData) <- function(
   rec_na <- if (n_cols_anyna > 0) {
     list(
       if (isTRUE(classes_na["factor"] > 0)) {
-        tags[["li"]](HTML(paste(html_orange(
+        html_li(html_raw(paste(html_orange(
           "Consider assigning factor 'NA' values to new 'missing' level"
         ))))
       },
-      tags[["li"]](HTML(paste(html_orange(
+      html_li(html_raw(paste(html_orange(
         "Consider imputing missing values or using algorithms that can handle missing values"
       ))))
     )
@@ -330,7 +330,7 @@ method(to_html, CheckData) <- function(
   }
 
   recs <- if (sum(n_constant, n_duplicates, n_cols_anyna) == 0) {
-    tags[["li"]](html_success("Everything looks good"))
+    html_li(html_success("Everything looks good"))
   } else {
     list(
       rec_constant,
@@ -339,12 +339,12 @@ method(to_html, CheckData) <- function(
     )
   }
   ## out ----
-  div(
-    p(
-      div(
+  html_div(
+    html_p(
+      html_div(
         html_highlight(name),
         ": A",
-        x[["class"]],
+        x[["object_class"]],
         "with",
         html_highlight(n_rows),
         ngettext(n_rows, "row", "rows"),
@@ -354,27 +354,27 @@ method(to_html, CheckData) <- function(
         class = "checkdata-header"
       )
     ),
-    p(
-      span(strong("Data types"), class = "sidelined"),
-      tags[["ul"]](
-        tags[["li"]](numeric),
-        tags[["li"]](integer),
-        tags[["li"]](categorical),
-        tags[["li"]](characters),
-        tags[["li"]](dates)
+    html_p(
+      html_span(html_strong("Data types"), class = "sidelined"),
+      html_ul(
+        html_li(numeric),
+        html_li(integer),
+        html_li(categorical),
+        html_li(characters),
+        html_li(dates)
       )
     ), # p Data Types
-    p(
-      span(strong("Issues"), class = "sidelined"),
-      tags[["ul"]](
-        tags[["li"]](constants),
-        tags[["li"]](duplicates),
-        tags[["li"]](nas)
+    html_p(
+      html_span(html_strong("Issues"), class = "sidelined"),
+      html_ul(
+        html_li(constants),
+        html_li(duplicates),
+        html_li(nas)
       )
     ), # p Issues
-    p(
-      span(strong("Recommendations"), class = "sidelined"),
-      tags[["ul"]](
+    html_p(
+      html_span(html_strong("Recommendations"), class = "sidelined"),
+      html_ul(
         recs
       )
     ), # p Recommendations

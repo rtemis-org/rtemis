@@ -681,7 +681,9 @@ method(record, Decomposition) <- function(x, outcome = "completed") {
     x@decompose_config,
     "decomposition_config",
     x@config,
-    outcome
+    outcome,
+    metrics_block = TRUE,
+    metrics = x@metrics
   )
 } # /rtemis::record.Decomposition
 
@@ -721,7 +723,16 @@ method(record, Clustering) <- function(x, outcome = "completed") {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-pipeline_record <- function(x, family, input, block, resolved, outcome) {
+pipeline_record <- function(
+  x,
+  family,
+  input,
+  block,
+  resolved,
+  outcome,
+  metrics_block = FALSE,
+  metrics = NULL
+) {
   if (is.null(input)) {
     rtemis.core::abort(
       "This object carries no input config, so a record cannot say what was asked for.",
@@ -735,6 +746,15 @@ pipeline_record <- function(x, family, input, block, resolved, outcome) {
     own[own_names]
   )
   out[[block]] <- nested_record(prop(input, block), resolved)
+  # Only families whose record schema declares a `metrics` block get the key,
+  # and those declare it *required*: a run that failed before scoring writes an
+  # explicit null rather than omitting it. `out[["metrics"]] <- NULL` would
+  # delete the element, so the single-bracket form is what stores the null.
+  # `record_object()` rather than `S7_to_list()`, because a metrics class
+  # declares everything it holds as run state and the latter drops exactly that.
+  if (metrics_block) {
+    out["metrics"] <- list(record_object(metrics))
+  }
   c(
     out,
     list(

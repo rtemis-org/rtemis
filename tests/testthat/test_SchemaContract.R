@@ -111,6 +111,7 @@
   "DataFingerprint",
   "RegressionMetrics",
   "ClassificationMetrics",
+  "DecompositionMetrics",
   "RegressionMetricsRes",
   "ClassificationMetricsRes"
 )

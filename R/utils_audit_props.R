@@ -76,6 +76,7 @@ AUDIT_RESULT_CLASSES <- c(
   "Metrics",
   "RegressionMetrics",
   "ClassificationMetrics",
+  "DecompositionMetrics",
   "MetricsRes",
   "RegressionMetricsRes",
   "ClassificationMetricsRes",

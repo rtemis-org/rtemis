@@ -13,6 +13,9 @@
 #' @field k Integer: Number of clusters.
 #' @field clusters List: Cluster assignment.
 #' @field config ClusteringConfig: Algorithm-specific config.
+#' @field cluster_config Optional ClusterConfig: The run's input.
+#' @field data_fingerprint Optional DataFingerprint: Identity of the data the
+#' clustering was fitted on.
 #'
 #' @author EDG
 #' @keywords internal
@@ -28,7 +31,9 @@ Clustering <- new_class(
     config = ClusteringConfig,
     # See `Decomposition@decompose_config`: the run's input, which `@config`
     # alone cannot supply. Assigned by `cluster()`.
-    cluster_config = NULL | ClusterConfig
+    cluster_config = NULL | ClusterConfig,
+    # See `Decomposition@data_fingerprint`. Assigned by `cluster()`.
+    data_fingerprint = NULL | DataFingerprint
   )
 ) # /Clustering
 

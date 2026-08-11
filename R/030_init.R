@@ -370,6 +370,39 @@ apply_decomp_ <- new_generic(
 ) # /rtemis::apply_decomp_
 
 
+# %% reconstruct_ ----
+#' Generic for mapping components back to input space
+#'
+#' Dispatches on the `DecompositionConfig` subclass. Implemented only for
+#' algorithms whose `invertible` trait is TRUE in `decom_algorithms`.
+#'
+#' @details
+#' The reconstruction must be in the units of the data as it was handed to
+#' `decomp()`, so each method undoes whatever centering, scaling or
+#' normalization its backend applied internally. Reconstruction error measured
+#' in a backend's internal space is not comparable between two configurations
+#' of the same algorithm, let alone between algorithms.
+#'
+#' `x` is the data being reconstructed, in input units. Methods need it only
+#' when the backend's preprocessing is per-case and therefore not recoverable
+#' from the components -- ICA's `row_norm`. It is a required argument rather
+#' than an optional one because a caller computing reconstruction error holds
+#' `x` already, and a method that silently reconstructed against the wrong
+#' cases would be wrong in a way nothing downstream could detect.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+reconstruct_ <- new_generic(
+  "reconstruct_",
+  "config",
+  function(config, decom, transformed, x, verbosity = 1L) {
+    force_supplied()
+    S7_dispatch()
+  }
+) # /rtemis::reconstruct_
+
+
 # %% cluster_ ----
 #' Generic for clustering
 #'

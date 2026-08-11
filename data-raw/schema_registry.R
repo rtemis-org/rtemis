@@ -391,6 +391,19 @@ flat_configs <- list(
       "ones are required."
     )
   ),
+  decompositionmetrics = list(
+    cls = DecompositionMetrics,
+    title = "rtemis DecompositionMetrics",
+    description = paste0(
+      "Decomposition metrics: a single-row table of reconstruction quality, ",
+      "component redundancy and effective dimensionality. Which cells are ",
+      "populated follows from the algorithm's traits -- a metric its algorithm ",
+      "cannot support is null -- so every column is declared for every ",
+      "algorithm and every cell is nullable. Unprefixed columns describe the ",
+      "data the decomposition was fitted on; `oos_` columns describe data the ",
+      "fit never saw."
+    )
+  ),
   regressionmetricsres = list(
     cls = RegressionMetricsRes,
     title = "rtemis RegressionMetricsRes",

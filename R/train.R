@@ -1133,8 +1133,8 @@ train <- function(
 #' Get Number of Workers
 #'
 #' Distribute workers across different parallelization levels: algorithm training,
-#' tuning (inner resampling), and outer resampling. Assigns workers to the innermost
-#' available parallelization level to avoid over-subscription.
+#' tuning (hyperparameter combinations x inner resamples), and outer resampling. Assigns workers
+#' to the innermost available parallelization level to avoid over-subscription.
 #'
 #' @param algorithm Character: Algorithm name.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.

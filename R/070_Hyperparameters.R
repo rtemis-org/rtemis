@@ -4536,8 +4536,8 @@ setup_NNLS <- function(normalize = TRUE, ifw = FALSE) {
   if (!exists(fn, mode = "function")) {
     # The published enum lists canonical names only, so a case mismatch is the
     # likely error and is worth naming.
-    canonical <- supervised_algorithms[, 1][
-      tolower(algorithm) == tolower(supervised_algorithms[, 1])
+    canonical <- supervised_algorithms[["name"]][
+      tolower(algorithm) == tolower(supervised_algorithms[["name"]])
     ]
     rtemis.core::abort(
       "Invalid algorithm: ",
