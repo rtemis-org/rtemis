@@ -39,7 +39,7 @@ experiments is visible.
 fp <- data_fingerprint(iris)
 fp
 # A logically identical table in a different R container hashes differently
-# under "object", which is why its portability is "R". FALSE:
+# under "object", which is what `@data_structure` records. FALSE:
 data_fingerprint(iris)@hash ==
   data_fingerprint(data.table::as.data.table(iris))@hash
 }

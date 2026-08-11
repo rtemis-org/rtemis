@@ -161,5 +161,5 @@ The original, unmaintained version of rtemis remains available as `rtemisalpha` 
 
 ---
 
-© 2016–2026 E.D. Gennatas. Licensed under [GPL (>= 3)](https://www.gnu.org/licenses/gpl-3.0.html).
+© 2016–2026 E.D. Gennatas. Licensed under [BSD 3-Clause](https://opensource.org/license/bsd-3-clause).
 
