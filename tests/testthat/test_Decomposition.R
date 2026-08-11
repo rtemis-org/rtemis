@@ -41,6 +41,64 @@ test_that("decomp() NMF succeeds", {
   expect_s7_class(iris_nmf, Decomposition)
 })
 
+test_that("NMF scores are non-negative and reproduce on their own data", {
+  skip_if_not_installed("NMF")
+  iris_nmf <- decomp(x, algorithm = "nmf", config = setup_NMF(k = 3L))
+  transformed <- iris_nmf@transformed
+  expect_true(all(transformed >= 0))
+  expect_identical(dim(transformed), c(nrow(x), 3L))
+  # Applying a fit to its own training data must return what the fit returned:
+  # both go through the same non-negative least squares solve on the basis.
+  expect_equal(
+    as.matrix(apply_decomp(iris_nmf, x, verbosity = 0L)),
+    transformed,
+    tolerance = 1e-8
+  )
+})
+
+test_that("NMF scores reconstruct the data through the basis", {
+  skip_if_not_installed("NMF")
+  iris_nmf <- decomp(x, algorithm = "nmf", config = setup_NMF(k = 3L))
+  basis <- NMF::basis(iris_nmf@decom)
+  reconstructed <- iris_nmf@transformed %*% t(basis)
+  # The scores solve the least squares problem on this basis, so the
+  # reconstruction cannot be worse than the one the raw projection gives.
+  relative_error <- function(fitted) {
+    norm(as.matrix(x) - fitted, "F") / norm(as.matrix(x), "F")
+  }
+  expect_lt(relative_error(reconstructed), 0.1)
+  expect_lte(
+    relative_error(reconstructed),
+    relative_error(as.matrix(x) %*% basis %*% t(basis))
+  )
+})
+
+test_that("setup_NMF(method=) reaches NMF::nmf()", {
+  skip_if_not_installed("NMF")
+  iris_nmf <- decomp(
+    x,
+    algorithm = "nmf",
+    config = setup_NMF(k = 2L, method = "lee"),
+    verbosity = 0L
+  )
+  expect_identical(NMF::algorithm(iris_nmf@decom), "lee")
+})
+
+test_that("NMF rejects more components than the basis can identify", {
+  skip_if_not_installed("NMF")
+  # A basis with more columns than the data has features cannot have full
+  # column rank, so the non-negative coefficients are not identified.
+  expect_error(
+    decomp(
+      x,
+      algorithm = "nmf",
+      config = setup_NMF(k = ncol(x) + 2L),
+      verbosity = 0L
+    ),
+    class = "rtemis_value_error"
+  )
+})
+
 # UMAP ----
 test_that("setup_UMAP() succeeds", {
   config <- setup_UMAP()
