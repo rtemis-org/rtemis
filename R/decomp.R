@@ -104,6 +104,12 @@ decomp <- function(
     transformed = decom[["transformed"]]
   )
 
+  # Data identity ----
+  # Fingerprinted through `decomp_matrix()` rather than from `x` directly, so
+  # that a later `decomp_metrics()` call reducing the caller's frame the same way
+  # arrives at the same hash. Feeds the record's provenance block.
+  out@data_fingerprint <- data_fingerprint(decomp_matrix(out, x))
+
   # Metrics ----
   # The set an algorithm's traits support, on the data just fitted. Bounded by
   # the cost of one reconstruction, O(n * p * k), so it does not change this

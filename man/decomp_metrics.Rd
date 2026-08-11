@@ -29,6 +29,12 @@ whether it generalizes.
 Which metrics are computed follows from the algorithm's traits; see
 \link{applicable_metrics}. A metric its algorithm cannot support is \code{NA}.
 
+The unprefixed metrics describe the fitted data, so \code{x} must be that data:
+they are computed against the components \code{decom} already holds. A different
+number of cases is an error, and \code{x} failing to match
+\code{decom@data_fingerprint} is reported without raising, since scoring a fit
+against an altered copy of its training data is a legitimate thing to do.
+
 \code{decomp()} already stores this on its result for the data it was fitted on,
 so calling this without \code{new_data} recomputes what \code{decom@metrics} holds. The
 reason to call it is \code{new_data}: \code{reconstruction_gap} is the difference

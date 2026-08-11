@@ -14,14 +14,21 @@
 #             sensitive to changes that do not affect the data (line endings,
 #             trailing whitespace).
 # - "object"  the serialized R object. The default: cheap, always available,
-#             but sensitive to R-internal representation (data.frame vs
-#             data.table, factor level order, integer vs double storage), so
-#             two logically identical tables can differ.
+#             but sensitive to R-internal representation: the container, the
+#             order attributes are stored in, factor level order, integer vs
+#             double storage, and whether a column is still an ALTREP compact
+#             sequence or has been materialized. Two tables that are
+#             `identical()` can differ.
 # - "table"   canonical logical content via Arrow IPC. Strongest and most
 #             portable, but requires the suggested `arrow` package.
 #
-# `portability` is computed from `method` rather than stored, so it cannot
-# contradict it.
+# `method` is the question asked; `encoding` is the answer's byte recipe, and
+# the only field that makes two digests comparable. See `DATA_HASH_ENCODINGS`.
+#
+# `portability` names the language runtime that can recompute a digest -- "any"
+# where the hashed form is defined outside any runtime, "R" for R's own
+# serialization, "unknown" for a token written elsewhere. It is computed from
+# `encoding` rather than stored, so it cannot contradict it.
 
 # %% Constants ----
 # Hash methods, ordered weakest to strongest guarantee.
@@ -49,6 +56,34 @@ DATA_HASH_ALGORITHMS <- c(
 # it. Changing this value is a BREAKING change to fingerprint comparability.
 DATA_HASH_SERIALIZE_VERSION <- 3L
 
+# One row per method, carrying both facts derived from it, so a method cannot
+# acquire an encoding without also declaring who can reproduce it.
+#
+# `method` says what kind of identity was asked for -- the same file, the same
+# object, the same logical table -- and means that in any implementation.
+# `encoding` names the exact byte recipe, which is what two digests must share
+# to be comparable at all: "object" is a family, not a definition, so an R
+# fingerprint and a Python one would both say "object" while hashing entirely
+# different bytes. Comparing encodings makes that "not comparable" instead of a
+# confident "different data".
+#
+# A token carries its format version where the format has one, so bumping
+# `DATA_HASH_SERIALIZE_VERSION` renames the encoding and the fingerprints it
+# affects report as not comparable rather than as different data. Which ones it
+# affects is not obvious: v2 and v3 payloads coincide for a plain data.frame
+# and diverge for any ALTREP column, which v3 writes compactly -- exactly the
+# kind of silent, input-dependent change the token exists to make visible.
+DATA_HASH_ENCODINGS <- data.frame(
+  method = c("file", "object", "table"),
+  encoding = c(
+    "file-bytes",
+    paste0("r-serialize-v", DATA_HASH_SERIALIZE_VERSION),
+    "arrow-ipc"
+  ),
+  portability = c("any", "R", "any"),
+  stringsAsFactors = FALSE
+)
+
 # Characters of the hash shown in `repr()`. Enough to compare at a glance.
 DATA_HASH_DISPLAY_CHARS <- 12L
 
@@ -66,13 +101,19 @@ DATA_HASH_DISPLAY_CHARS <- 12L
 #'
 #' @field method Character \{"file", "object", "table"\}: What was hashed.
 #' @field algorithm Character \{"sha256", "sha512", "sha384", "sha224", "sha3-256", "sha3-512", "blake2b", "blake2s", "sha1", "md5"\}: Hash algorithm.
+#' @field encoding Character: The exact byte recipe hashed, named so that it
+#'   identifies itself outside R. Two digests are comparable only if they share
+#'   one.
 #' @field hash Character: Hash digest, as hex.
 #' @field n_rows Integer [0, Inf): Number of rows (cases).
 #' @field n_cols Integer [0, Inf): Number of columns.
 #' @field column_names Optional Character vector: Column names, in order.
 #' @field source Optional Character: Path the data was read from.
-#' @field portability Character: Computed from `method`; which contexts can
-#'   recompute and compare this hash.
+#' @field portability Character: Computed from `encoding`; which language
+#'   runtime can recompute and compare this hash. "any" when the hashed form is
+#'   defined outside any runtime, the language that defines it otherwise, and
+#'   "unknown" for an encoding written by an implementation this build does not
+#'   know.
 #'
 #' @author EDG
 #' @noRd
@@ -89,6 +130,16 @@ DataFingerprint <- new_class(
       "sha256",
       enum = DATA_HASH_ALGORITHMS,
       description = "Hash algorithm, recorded so a hash is verifiable rather than merely comparable."
+    ),
+    # Stored rather than computed, because a computed property is absent from
+    # the wire and this is the one field a foreign reader cannot do without: it
+    # is recoverable from `method` only by an implementation that already knows
+    # which language wrote the record. Left free-form for the same reason -- a
+    # token from another implementation must be readable here, not rejected,
+    # and an unrecognized one correctly means "not comparable".
+    encoding = prop_string(
+      "",
+      description = "The exact byte recipe hashed. Two digests are comparable only if they share one."
     ),
     # No meaningful default: a fingerprint without a hash is not a fingerprint,
     # so the class validator rejects the empty default and bare construction
@@ -115,16 +166,21 @@ DataFingerprint <- new_class(
       nullable = TRUE,
       description = "Path the data was read from. NULL for in-memory input."
     ),
-    # Computed: which contexts can recompute and compare this hash. Derived from
-    # `method` so it cannot contradict it.
+    # Computed: which runtime can recompute and compare this hash. Derived from
+    # `encoding` rather than `method` so that a foreign record is described by
+    # what it actually hashed -- a Python fingerprint says `method = "object"`
+    # too, and deriving from that would claim R could reproduce it.
     portability = prop_computed(new_property(
       class_character,
-      getter = function(self) hash_portability(self@method)
+      getter = function(self) hash_portability(self@encoding)
     ))
   ),
   validator = function(self) {
     if (!nzchar(self@hash)) {
       return("@hash must not be empty.")
+    }
+    if (!nzchar(self@encoding)) {
+      return("@encoding must not be empty.")
     }
     if (self@method == "file" && is.null(self@source)) {
       return("@source must be set when @method is 'file'.")
@@ -139,32 +195,51 @@ DataFingerprint <- new_class(
 ) # /rtemis::DataFingerprint
 
 
-# %% hash_portability ----
-#' Contexts in which a hash method can be recomputed and compared
+# %% hash_encoding ----
+#' The byte recipe a hash method produces
 #'
 #' @param method Character: One of `DATA_HASH_METHODS`.
 #'
-#' @return Character: "cross_language" or "single_language".
+#' @return Character: Encoding token.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-hash_portability <- function(method) {
-  switch(
-    method,
-    file = "cross_language",
-    table = "cross_language",
-    # R `serialize()` output, so R-only, and additionally sensitive to the
-    # pinned serialization version and to the package defining the object's
-    # class (data.table vs data.frame vs tibble).
-    object = "single_language",
+hash_encoding <- function(method) {
+  i <- match(method, DATA_HASH_ENCODINGS[["method"]])
+  if (is.na(i)) {
     rtemis.core::abort(
       "Unknown hash method: ",
       method,
       ".",
       class = c("rtemis_value_error", "rtemis_input_error")
     )
-  )
+  }
+  DATA_HASH_ENCODINGS[["encoding"]][[i]]
+} # /rtemis::hash_encoding
+
+
+# %% hash_portability ----
+#' Which runtime can recompute and compare a digest
+#'
+#' @param encoding Character: Encoding token.
+#'
+#' @return Character: "any" where the hashed form is defined outside any
+#' runtime, the language that defines it otherwise, and "unknown" for a token
+#' this build does not know.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+hash_portability <- function(encoding) {
+  i <- match(encoding, DATA_HASH_ENCODINGS[["encoding"]])
+  # A token written by another implementation, or by a build with a different
+  # pinned serialization version. Refusing to guess is the whole point: this
+  # build cannot say who reproduces bytes it has never produced.
+  if (is.na(i)) {
+    return("unknown")
+  }
+  DATA_HASH_ENCODINGS[["portability"]][[i]]
 } # /rtemis::hash_portability
 
 
@@ -182,7 +257,9 @@ hash_portability <- function(method) {
 #' @param method Character \{"file", "object", "table"\}: What to hash. "object"
 #'   hashes the serialized R object (cheap, R-only). "file" hashes the raw bytes
 #'   of `source`. "table" hashes the canonical Arrow IPC representation
-#'   (cross-language; requires the `arrow` package).
+#'   (cross-language; requires the `arrow` package), and is the only method
+#'   under which one table held as a data.frame, a data.table, a tibble or a
+#'   matrix gives one hash.
 #' @param algorithm Character \{"sha256", "sha512", "sha384", "sha224",
 #'   "sha3-256", "sha3-512", "blake2b", "blake2s", "sha1", "md5"\}: Hash
 #'   algorithm. "blake2b" and "blake2s" are the fast options; "sha1" and "md5"
@@ -197,9 +274,10 @@ hash_portability <- function(method) {
 #' @examples
 #' fp <- data_fingerprint(iris)
 #' fp
-#' # A logically identical table with a different R representation hashes
-#' # differently under "object", which is why it is "single_language":
-#' data_fingerprint(iris)@hash == data_fingerprint(as.data.frame(iris))@hash
+#' # A logically identical table in a different R container hashes differently
+#' # under "object", which is why its portability is "R". FALSE:
+#' data_fingerprint(iris)@hash ==
+#'   data_fingerprint(data.table::as.data.table(iris))@hash
 data_fingerprint <- function(
   x,
   method = "object",
@@ -232,6 +310,7 @@ data_fingerprint <- function(
   )
   DataFingerprint(
     method = method,
+    encoding = hash_encoding(method),
     algorithm = algorithm,
     hash = hash,
     n_rows = as.integer(NROW(x)),
@@ -320,8 +399,8 @@ data_fingerprint <- function(
 } # /rtemis::.hash_file
 
 
-# %% .serialized_payload ----
-#' Serialize an object, without the bytes that describe the writer
+# %% .serialization_offset ----
+#' Where the object starts in a serialization stream
 #'
 #' A serialization stream opens with a header describing the R that wrote it,
 #' not the object: hashing it would make identical data fingerprint differently
@@ -330,19 +409,14 @@ data_fingerprint <- function(
 #' reading R version), then a 4-byte length and that many bytes naming the
 #' native encoding. Everything after that is the object.
 #'
-#' @param x R object.
+#' @param bytes Raw vector: A version-3 serialization stream.
 #'
-#' @return Raw vector.
+#' @return Integer: Number of leading bytes that describe the writer.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-.serialized_payload <- function(x) {
-  bytes <- serialize(
-    x,
-    connection = NULL,
-    version = DATA_HASH_SERIALIZE_VERSION
-  )
+.serialization_offset <- function(bytes) {
   encoding_nchar <- readBin(
     bytes[15L:18L],
     what = "integer",
@@ -350,16 +424,24 @@ data_fingerprint <- function(
     size = 4L,
     endian = "big"
   )
-  bytes[-seq_len(18L + encoding_nchar)]
-} # /rtemis::.serialized_payload
+  18L + encoding_nchar
+} # /rtemis::.serialization_offset
 
 
 # %% .hash_object ----
 #' Hash the serialized R object
 #'
 #' The serialization version is pinned (see `DATA_HASH_SERIALIZE_VERSION`) and
-#' the header dropped (see `.serialized_payload()`), so the hash depends on the
-#' object alone rather than on the R that hashed it.
+#' the header skipped (see `.serialization_offset()`), so the hash depends on
+#' the object alone rather than on the R that hashed it.
+#'
+#' The header is skipped by seeking a connection over the stream rather than by
+#' dropping the bytes from it. Both give the same digest, but `bytes[-seq_len()]`
+#' allocates a second copy of the whole stream, and negative indexing pays for
+#' the complement of the index it was given: on an 80 MB frame that is around
+#' 0.36 s and 80 MB to remove 23 bytes, which is most of the cost of
+#' fingerprinting. `openssl` reads a connection from its current position, so
+#' seeking costs neither.
 #'
 #' @param x R object.
 #' @param algorithm Character: Hash algorithm.
@@ -370,7 +452,15 @@ data_fingerprint <- function(
 #' @keywords internal
 #' @noRd
 .hash_object <- function(x, algorithm) {
-  .hash_bytes(.serialized_payload(x), algorithm)
+  bytes <- serialize(
+    x,
+    connection = NULL,
+    version = DATA_HASH_SERIALIZE_VERSION
+  )
+  con <- rawConnection(bytes, open = "rb")
+  on.exit(close(con), add = TRUE)
+  seek(con, .serialization_offset(bytes))
+  .hash_bytes(con, algorithm)
 } # /rtemis::.hash_object
 
 
@@ -379,7 +469,7 @@ data_fingerprint <- function(
 #'
 #' Arrow's IPC stream is a language-neutral binary form whose normalization the
 #' Arrow spec fixes, so a Python implementation reading the same table produces
-#' the same digest. That is what makes this method "cross_language" where
+#' the same digest. That is what gives this method portability "any" where
 #' `.hash_object()` is not.
 #'
 #' @param x tabular data.
@@ -392,12 +482,20 @@ data_fingerprint <- function(
 #' @noRd
 .hash_table <- function(x, algorithm) {
   check_dependencies("arrow")
+  # `as_arrow_table()` has no method for a matrix, which the other two methods
+  # take without complaint -- and `decomp()` fingerprints one. The conversion is
+  # exact: a matrix and the data.frame of it produce the same Arrow table and so
+  # the same digest, so this keeps the three methods interchangeable for a given
+  # input rather than rejecting it with arrow's own error.
+  if (!is.data.frame(x)) {
+    x <- as.data.frame(x)
+  }
   tbl <- arrow::as_arrow_table(x)
   # arrow stores R attributes and class under the schema metadata key "r" so it
   # can round-trip data.table/tibble-ness. That metadata differs between a
   # data.frame and a data.table holding identical data, which would make this
   # method hash them differently -- defeating its whole purpose and making the
-  # "cross_language" claim false. Strip it, so only the logical table is hashed.
+  # portability "any" claim false. Strip it, so only the logical table is hashed.
   # (`$` and not `[[`: an arrow Table is an R6 object whose `metadata` is an
   # active binding; `[[<-` would try to drop a *column* of that name.)
   tbl$metadata <- NULL
@@ -428,7 +526,10 @@ same_data <- function(x, y) {
       class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
-  identical(x@method, y@method) &&
+  # `encoding` rather than `method`: two implementations both call R's
+  # `serialize()` and Python's `pickle` "object", so matching methods do not
+  # make matching digests, while matching encodings do.
+  identical(x@encoding, y@encoding) &&
     identical(x@algorithm, y@algorithm) &&
     identical(x@hash, y@hash)
 } # /rtemis::same_data
@@ -452,14 +553,16 @@ fingerprint_diff <- function(x, y) {
   if (same_data(x, y)) {
     return(NULL)
   }
-  if (!identical(x@method, y@method) || !identical(x@algorithm, y@algorithm)) {
+  if (
+    !identical(x@encoding, y@encoding) || !identical(x@algorithm, y@algorithm)
+  ) {
     return(paste0(
       "not comparable (",
-      x@method,
+      x@encoding,
       "/",
       x@algorithm,
       " vs ",
-      y@method,
+      y@encoding,
       "/",
       y@algorithm,
       ")"
@@ -486,7 +589,18 @@ fingerprint_diff <- function(x, y) {
   if (!identical(x@column_names, y@column_names)) {
     return("same shape, different column names")
   }
-  "same shape and column names, different values"
+  # Reached by elimination: comparable fingerprints, same shape, same column
+  # names, different hash. Only "table" hashes a canonical form, so only there
+  # does that isolate the contents. "object" and "file" hash a representation
+  # too -- integer against double storage, factor level order, row order,
+  # attribute order, line endings -- and each of those differs while the data
+  # does not, so naming the values alone would send a reader hunting for a
+  # change that never happened.
+  if (identical(x@encoding, "arrow-ipc")) {
+    "same shape and column names, different values"
+  } else {
+    "same shape and column names, different values or representation"
+  }
 } # /rtemis::fingerprint_diff
 
 

@@ -1,3 +1,4 @@
+ALTREP
 ARFF
 AutoPyTorch
 BARTHyperparameters
@@ -334,6 +335,7 @@ translational
 triweight
 tunable
 ufcl
+unprefixed
 unscorable
 validator
 validators

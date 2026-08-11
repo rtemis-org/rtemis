@@ -14,7 +14,9 @@ bytes.}
 \item{method}{Character \{"file", "object", "table"\}: What to hash. "object"
 hashes the serialized R object (cheap, R-only). "file" hashes the raw bytes
 of \code{source}. "table" hashes the canonical Arrow IPC representation
-(cross-language; requires the \code{arrow} package).}
+(cross-language; requires the \code{arrow} package), and is the only method
+under which one table held as a data.frame, a data.table, a tibble or a
+matrix gives one hash.}
 
 \item{algorithm}{Character \{"sha256", "sha512", "sha384", "sha224",
 "sha3-256", "sha3-512", "blake2b", "blake2s", "sha1", "md5"\}: Hash
@@ -36,9 +38,10 @@ experiments is visible.
 \examples{
 fp <- data_fingerprint(iris)
 fp
-# A logically identical table with a different R representation hashes
-# differently under "object", which is why it is "single_language":
-data_fingerprint(iris)@hash == data_fingerprint(as.data.frame(iris))@hash
+# A logically identical table in a different R container hashes differently
+# under "object", which is why its portability is "R". FALSE:
+data_fingerprint(iris)@hash ==
+  data_fingerprint(data.table::as.data.table(iris))@hash
 }
 \author{
 EDG

@@ -9,11 +9,15 @@
 #' Decomposition class.
 #'
 #' @field algorithm Character: Algorithm name.
-#' @field decom Any: Decomposition object.
-#' @field config List: Algorithm-specific config.
-#' @field decom: Decomposition model.
-#' @field transformed: transformedransformed data, i.e. either a projection or an embedding of the input data.
-#' @field metrics: Metrics for the data the decomposition was fitted on.
+#' @field config DecompositionConfig: Algorithm-specific config.
+#' @field decom Any: Fitted decomposition model.
+#' @field transformed Any: Transformed data, i.e. either a projection or an
+#' embedding of the input data.
+#' @field decompose_config Optional DecomposeConfig: The run's input.
+#' @field data_fingerprint Optional DataFingerprint: Identity of the data the
+#' decomposition was fitted on.
+#' @field metrics Optional DecompositionMetrics: Metrics for the data the
+#' decomposition was fitted on.
 #'
 #' @author EDG
 #' @noRd
@@ -29,6 +33,10 @@ Decomposition <- new_class(
     # whole call, and only it can say what the run was asked to do. Assigned by
     # `decomp()`.
     decompose_config = NULL | DecomposeConfig,
+    # Identity of the data fitted, assigned by `decomp()`. Read by
+    # `provenance_of()` for the run record, and by `decomp_metrics()` to tell
+    # whether the `x` it was handed is that data.
+    data_fingerprint = NULL | DataFingerprint,
     # Metrics for the training data, assigned by `decomp()`. Out-of-sample
     # metrics need a second data matrix and so belong to `decomp_metrics()`.
     metrics = NULL | DecompositionMetrics
@@ -135,6 +143,34 @@ split_decomp_features <- function(decom, new_data) {
     kept = new_data[, setdiff(names(new_data), features), drop = FALSE]
   )
 } # /rtemis::split_decomp_features
+
+
+# %% decomp_matrix ----
+#' The numeric matrix a decomposition operates on
+#'
+#' `config@features` selects the columns and `as.matrix()` puts them in the form
+#' every `decomp_` method works in, so this is the data a fit actually sees.
+#'
+#' Everything that has to agree about "the data this decomposition saw" goes
+#' through here -- the fingerprint `decomp()` stores, the fingerprint
+#' `decomp_metrics()` compares against it, and the matrix the metrics are
+#' computed from. The matrix form is what makes the two fingerprints comparable:
+#' an "object" hash is taken over serialized bytes, and a data.frame and the
+#' data.table it came from carry their attributes in a different order, so they
+#' hash differently while being `identical()`. Reducing to a matrix drops that
+#' difference along with the row names.
+#'
+#' @param decom `Decomposition` object.
+#' @param data Tabular data.
+#'
+#' @return Numeric matrix, cases by the features `decom` operates on.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+decomp_matrix <- function(decom, data) {
+  as.matrix(split_decomp_features(decom, data)[["selected"]])
+} # /rtemis::decomp_matrix
 
 
 # %% apply_decomp.Decomposition ----

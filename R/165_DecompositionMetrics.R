@@ -43,7 +43,7 @@ decomposition_metric_columns <- function() {
       )
     ),
     effective_dimensionality = prop_metric(
-      min = 0,
+      min = 1,
       description = paste0(
         "Participation ratio of the component variances, ",
         "sum(v)^2 / sum(v^2). Lies in [1, k]; a value well below k means some ",

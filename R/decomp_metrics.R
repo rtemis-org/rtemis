@@ -233,8 +233,27 @@ compute_decomposition_metrics <- function(
   traits <- decomposition_traits(decom@algorithm)
   applicable <- decom_metrics[["name"]][metric_applies(traits)]
   scores <- list()
-  xm <- as.matrix(x)
+  # The fit learned on `config@features` only, so the reconstruction it produces
+  # spans those columns. Comparing it against anything wider is a dimension
+  # mismatch; reducing here is what `apply_decomp()` and `reconstruct()` do.
+  xm <- decomp_matrix(decom, x)
   transformed <- as.matrix(decom@transformed)
+  # Every metric below reads the fit's own component matrix as `x`'s components,
+  # which only the data the fit saw satisfies. The case count is the part of
+  # that contract this can check, and checking it is what turns a mismatch into
+  # a corrective error rather than a non-conformable subtraction two calls down.
+  if (nrow(xm) != nrow(transformed)) {
+    rtemis.core::abort(
+      "`x` has ",
+      nrow(xm),
+      " case(s) but the decomposition was fitted on ",
+      nrow(transformed),
+      ".\n",
+      "`x` must be the data `decom` was fitted on; data the fit never saw ",
+      "goes to `new_data`.",
+      class = c("rtemis_dim_error", "rtemis_data_error")
+    )
+  }
 
   if (traits[["invertible"]]) {
     scores <- c(
@@ -254,7 +273,8 @@ compute_decomposition_metrics <- function(
   scores <- c(scores, component_scores(transformed))
 
   if (!is.null(new_data)) {
-    if (!all(c("oos_explained_variance_ratio") %in% applicable)) {
+    oos_metrics <- decom_metrics[["name"]][decom_metrics[["needs_new_data"]]]
+    if (!all(oos_metrics %in% applicable)) {
       rtemis.core::abort(
         "'",
         decom@algorithm,
@@ -263,7 +283,7 @@ compute_decomposition_metrics <- function(
         class = "rtemis_unsupported_error"
       )
     }
-    new_xm <- as.matrix(as.data.frame(new_data))
+    new_xm <- decomp_matrix(decom, new_data)
     new_transformed <- as.matrix(apply_decomp_(
       config = decom@config,
       decom = decom@decom,
@@ -298,6 +318,69 @@ compute_decomposition_metrics <- function(
 } # /rtemis::compute_decomposition_metrics
 
 
+# %% warn_data_mismatch ----
+#' Report when `x` is not the data a decomposition was fitted on
+#'
+#' The stored components belong to the fitted cases, so every in-sample metric
+#' reads `x` as those cases. Shape and column names are already enforced -- by
+#' the case-count guard in `compute_decomposition_metrics()` and by
+#' `split_decomp_features()`, which requires every fitted feature to be present
+#' -- so what the fingerprint adds is the values: the frame of the right shape,
+#' with the right column names, holding different data. Two halves of one split
+#' have the same shape and the same names.
+#'
+#' Reported, never raised, following `warn_fingerprint_mismatch()`: scoring a
+#' fit against a deliberately altered copy of its training data is a legitimate
+#' thing to do, so this must not be escalatable to an error in a valid workflow.
+#' The hard preconditions stay errors.
+#'
+#' @param decom `Decomposition` object.
+#' @param x Tabular data: What the caller supplied as the fitted data.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return `TRUE` if a mismatch was reported, otherwise `FALSE`, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+warn_data_mismatch <- function(decom, x, verbosity = 1L) {
+  reference <- decom@data_fingerprint
+  # "file" hashes bytes on disk, which an in-memory frame cannot reproduce.
+  if (is.null(reference) || verbosity < 1L || reference@method == "file") {
+    return(invisible(FALSE))
+  }
+  xm <- decomp_matrix(decom, x)
+  # The case count settles it for free whenever it differs, and that case is
+  # about to abort in `compute_decomposition_metrics()` with a more specific
+  # message. Hashing first would serialize the whole frame only to report what
+  # the dimensions already said, ahead of an error that says it better.
+  if (!identical(reference@n_rows, NROW(xm))) {
+    return(invisible(FALSE))
+  }
+  # Recomputed the way the reference was made: two fingerprints taken by
+  # different methods are incomparable, and would report every call as a
+  # mismatch.
+  difference <- fingerprint_diff(
+    reference,
+    data_fingerprint(
+      xm,
+      method = reference@method,
+      algorithm = reference@algorithm
+    )
+  )
+  if (is.null(difference)) {
+    return(invisible(FALSE))
+  }
+  rtemis.core::warn(
+    "`x` is not the data this decomposition was fitted on: ",
+    difference,
+    ".\nThe in-sample metrics describe the fitted data, so they do not ",
+    "describe `x`. Data the fit never saw goes to `new_data`."
+  )
+  invisible(TRUE)
+} # /rtemis::warn_data_mismatch
+
+
 # %% decomp_metrics ----
 #' Decomposition Metrics
 #'
@@ -308,6 +391,12 @@ compute_decomposition_metrics <- function(
 #' @details
 #' Which metrics are computed follows from the algorithm's traits; see
 #' [applicable_metrics]. A metric its algorithm cannot support is `NA`.
+#'
+#' The unprefixed metrics describe the fitted data, so `x` must be that data:
+#' they are computed against the components `decom` already holds. A different
+#' number of cases is an error, and `x` failing to match
+#' `decom@data_fingerprint` is reported without raising, since scoring a fit
+#' against an altered copy of its training data is a legitimate thing to do.
 #'
 #' `decomp()` already stores this on its result for the data it was fitted on,
 #' so calling this without `new_data` recomputes what `decom@metrics` holds. The
@@ -342,6 +431,11 @@ compute_decomposition_metrics <- function(
 #' decomp_metrics(iris_pca, x, verbosity = 0L)
 decomp_metrics <- function(decom, x, new_data = NULL, verbosity = 1L) {
   check_is_S7(decom, Decomposition)
+  # Here rather than in `compute_decomposition_metrics()`: this is the boundary
+  # a caller's data crosses. `decomp()` reaches that function with the data it
+  # just fitted, so the comparison there could only ever hold, at the cost of
+  # hashing every fit's input a second time.
+  warn_data_mismatch(decom, x, verbosity = verbosity)
   compute_decomposition_metrics(
     decom = decom,
     x = x,

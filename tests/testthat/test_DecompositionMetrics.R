@@ -211,6 +211,167 @@ test_that("decomp_metrics() refuses new_data for an algorithm that cannot use it
 })
 
 
+# Feature subsets ----
+test_that("metrics read only the features the decomposition was fitted on", {
+  # A fit made with `features` spans those columns only, so its reconstruction
+  # is narrower than the frame it was fitted from. Passing that whole frame is
+  # the documented call, and it has to agree with passing the subset.
+  features <- c("Sepal.Length", "Sepal.Width")
+  decom <- decomp(
+    x,
+    algorithm = "PCA",
+    config = setup_PCA(k = 1L, features = features),
+    verbosity = 0L
+  )
+  full <- decomp_metrics(decom, x, verbosity = 0L)
+  subset_only <- decomp_metrics(decom, x[, features], verbosity = 0L)
+  expect_equal(
+    full[["relative_reconstruction_error"]],
+    subset_only[["relative_reconstruction_error"]]
+  )
+  expect_equal(
+    full[["relative_reconstruction_error"]],
+    decom@metrics[["relative_reconstruction_error"]]
+  )
+  # `new_data` carries the extra columns too and is subset the same way.
+  oos <- decomp_metrics(decom, x, new_data = x[101:150, ], verbosity = 0L)
+  expect_false(is.na(oos[["oos_relative_reconstruction_error"]]))
+})
+
+
+test_that("decomp_metrics() rejects an `x` that is not the fitted data", {
+  # The stored components are the fit's own, so they describe the fitted cases
+  # and nothing else. A case count that cannot be theirs says so.
+  decom <- decomp(
+    x[1:100, ],
+    algorithm = "PCA",
+    config = setup_PCA(k = 2L),
+    verbosity = 0L
+  )
+  expect_error(
+    decomp_metrics(decom, x, verbosity = 0L),
+    class = "rtemis_dim_error"
+  )
+  # And it aborts without first hashing to say the same thing less precisely.
+  expect_error(
+    expect_no_message(decomp_metrics(decom, x, verbosity = 1L)),
+    class = "rtemis_dim_error"
+  )
+})
+
+
+test_that("a same-shape, same-names, different-values `x` is caught", {
+  # What shape and column names cannot see, and the reason the check is a
+  # fingerprint: two halves of one split agree on both.
+  first <- x[1:75, ]
+  second <- x[76:150, ]
+  decom <- decomp(
+    first,
+    algorithm = "PCA",
+    config = setup_PCA(k = 2L),
+    verbosity = 0L
+  )
+  expect_identical(dim(first), dim(second))
+  expect_identical(names(first), names(second))
+  expect_message(
+    decomp_metrics(decom, second, verbosity = 1L),
+    "same shape and column names, different values"
+  )
+})
+
+
+# Data identity ----
+test_that("decomp() fingerprints the features it decomposed", {
+  features <- c("Sepal.Length", "Sepal.Width")
+  decom <- decomp(
+    x,
+    algorithm = "PCA",
+    config = setup_PCA(k = 1L, features = features),
+    verbosity = 0L
+  )
+  expect_s7_class(decom@data_fingerprint, DataFingerprint)
+  # The columns it did not decompose are not data it used.
+  expect_identical(decom@data_fingerprint@column_names, features)
+  expect_true(same_data(
+    decom@data_fingerprint,
+    data_fingerprint(as.matrix(as.data.frame(x)[, features, drop = FALSE]))
+  ))
+})
+
+
+test_that("the fingerprint survives the container the data arrived in", {
+  # An "object" hash is taken over serialized bytes, and a data.frame and the
+  # data.table it came from order their attributes differently -- so they hash
+  # differently while being `identical()`. Reducing to a matrix drops that.
+  from_df <- decomp(as.data.frame(x), algorithm = "PCA", verbosity = 0L)
+  from_dt <- decomp(
+    data.table::as.data.table(x),
+    algorithm = "PCA",
+    verbosity = 0L
+  )
+  expect_true(same_data(from_df@data_fingerprint, from_dt@data_fingerprint))
+})
+
+
+test_that("decomp_metrics() reports an `x` of the right shape and wrong data", {
+  decom <- decomp(
+    x,
+    algorithm = "PCA",
+    config = setup_PCA(k = 2L),
+    verbosity = 0L
+  )
+  altered <- x
+  altered[1L, 1L] <- altered[1L, 1L] + 1
+  # A notice, not a condition to catch: the metrics are still returned, because
+  # scoring a fit against an altered copy of its input is a legitimate thing.
+  expect_message(
+    metrics <- decomp_metrics(decom, altered, verbosity = 1L),
+    "same shape and column names, different values"
+  )
+  expect_s7_class(metrics, DecompositionMetrics)
+  # The fitted data itself is silent, and `verbosity = 0L` silences the notice.
+  expect_silent(decomp_metrics(decom, x, verbosity = 1L))
+  expect_silent(decomp_metrics(decom, altered, verbosity = 0L))
+})
+
+
+test_that("decomp() records the data it used in the run record", {
+  decom <- decomp(x, algorithm = "PCA", verbosity = 0L)
+  provenance <- record(decom)[["provenance"]]
+  expect_false(is.null(provenance[["data_training"]]))
+  expect_identical(
+    provenance[["data_training"]][["hash"]],
+    decom@data_fingerprint@hash
+  )
+})
+
+
+test_that("decomp() and cluster() fingerprint one dataset identically", {
+  skip_if_not_installed("flexclust")
+  # Comparing runs across a batch is what a fingerprint is for, so two families
+  # given one dataset must record one hash for it -- including when they were
+  # handed different containers.
+  decom <- decomp(x, algorithm = "PCA", verbosity = 0L)
+  clust <- cluster(
+    data.table::as.data.table(x),
+    algorithm = "KMeans",
+    verbosity = 0L
+  )
+  expect_true(same_data(decom@data_fingerprint, clust@data_fingerprint))
+})
+
+
+test_that("cluster() records the data it used in the run record", {
+  skip_if_not_installed("flexclust")
+  clust <- cluster(x, algorithm = "KMeans", verbosity = 0L)
+  expect_s7_class(clust@data_fingerprint, DataFingerprint)
+  expect_identical(
+    record(clust)[["provenance"]][["data_training"]][["hash"]],
+    clust@data_fingerprint@hash
+  )
+})
+
+
 test_that("decomp() stores metrics on its result", {
   decom <- decomp(x, algorithm = "PCA", verbosity = 0L)
   expect_s7_class(decom@metrics, DecompositionMetrics)
