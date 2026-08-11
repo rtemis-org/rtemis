@@ -15,6 +15,7 @@ S7_to_JSONSchema(
   provenance_url = NULL,
   fold_refs = NULL,
   metrics_refs = NULL,
+  metrics_ref = NULL,
   extra = NULL,
   refs = NULL,
   array_refs = NULL,
@@ -60,6 +61,11 @@ a record of a run that fits models per resample carries one.}
 \item{metrics_refs}{Named character or NULL: If set (and \code{record} is TRUE),
 adds the required \code{metrics} / \code{metrics_sd} headline blocks, and references
 these metrics schemas from each fold's own \code{metrics}.}
+
+\item{metrics_ref}{Character or NULL: If set (and \code{record} is TRUE), adds a
+required, nullable \code{metrics} property referencing that one schema. For a
+run whose result is a single metrics object rather than a per-sample map;
+mutually exclusive with \code{metrics_refs}.}
 
 \item{extra}{Named list merged into the schema after generation, for
 cross-field constraints that are not per-property (e.g. an \code{allOf} of

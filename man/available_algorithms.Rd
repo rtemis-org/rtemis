@@ -14,10 +14,14 @@ available_clustering(verbosity = 1L)
 
 available_calibration(verbosity = 1L)
 
-available_decomposition(verbosity = 1L)
+available_decomposition(verbosity = 1L, traits = FALSE)
 }
 \arguments{
 \item{verbosity}{Integer: Verbosity level.}
+
+\item{traits}{Logical: If TRUE, \code{available_decomposition()} prints and
+returns the full trait table from \link{decomposition_traits} instead of the
+named list of descriptions.}
 }
 \value{
 Named list of algorithm descriptions, invisibly.
@@ -39,6 +43,7 @@ available_calibration()
 # Calibrate with one of them:
 # calibrate(mod, hyperparameters = setup_Isotonic())
 available_decomposition()
+available_decomposition(traits = TRUE)
 }
 \author{
 EDG

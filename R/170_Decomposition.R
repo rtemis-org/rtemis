@@ -13,6 +13,7 @@
 #' @field config List: Algorithm-specific config.
 #' @field decom: Decomposition model.
 #' @field transformed: transformedransformed data, i.e. either a projection or an embedding of the input data.
+#' @field metrics: Metrics for the data the decomposition was fitted on.
 #'
 #' @author EDG
 #' @noRd
@@ -27,7 +28,10 @@ Decomposition <- new_class(
     # The run's input. `@config` above is the *algorithm* config; this is the
     # whole call, and only it can say what the run was asked to do. Assigned by
     # `decomp()`.
-    decompose_config = NULL | DecomposeConfig
+    decompose_config = NULL | DecomposeConfig,
+    # Metrics for the training data, assigned by `decomp()`. Out-of-sample
+    # metrics need a second data matrix and so belong to `decomp_metrics()`.
+    metrics = NULL | DecompositionMetrics
   )
 ) # /rtemis::Decomposition
 
@@ -92,6 +96,47 @@ method(print, Decomposition) <- function(
 } # /rtemis::print.Decomposition
 
 
+# %% split_decomp_features ----
+#' Split data into the columns a decomposition was fitted on and the rest
+#'
+#' A fit made with `config@features` learned on those columns only, so anything
+#' replaying it has to transform exactly them: transforming a different matrix
+#' would silently produce components that are not the fitted ones.
+#'
+#' @param decom `Decomposition` object.
+#' @param new_data Tabular data.
+#'
+#' @return List with `selected`, the columns to transform, and `kept`, the
+#' columns to pass through (`NULL` when the fit used every column).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+split_decomp_features <- function(decom, new_data) {
+  new_data <- as.data.frame(new_data)
+  features <- decom@config@features
+  if (is.null(features)) {
+    return(list(selected = new_data, kept = NULL))
+  }
+  missing_cols <- setdiff(features, names(new_data))
+  if (length(missing_cols) > 0L) {
+    rtemis.core::abort(
+      "New data is missing ",
+      length(missing_cols),
+      " column(s) required by the decomposition.\n",
+      "Missing: ",
+      paste(missing_cols, collapse = ", "),
+      ".",
+      class = c("rtemis_dim_error", "rtemis_data_error")
+    )
+  }
+  list(
+    selected = new_data[, features, drop = FALSE],
+    kept = new_data[, setdiff(names(new_data), features), drop = FALSE]
+  )
+} # /rtemis::split_decomp_features
+
+
 # %% apply_decomp.Decomposition ----
 #' Apply Decomposition to New Data
 #'
@@ -130,27 +175,9 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
       class = "rtemis_unsupported_error"
     )
   }
-  new_data <- as.data.frame(new_data)
-  features <- decom@config@features
-  if (is.null(features)) {
-    selected <- new_data
-    kept <- NULL
-  } else {
-    missing_cols <- setdiff(features, names(new_data))
-    if (length(missing_cols) > 0L) {
-      rtemis.core::abort(
-        "New data is missing ",
-        length(missing_cols),
-        " column(s) required by the decomposition.\n",
-        "Missing: ",
-        paste(missing_cols, collapse = ", "),
-        ".",
-        class = c("rtemis_dim_error", "rtemis_data_error")
-      )
-    }
-    selected <- new_data[, features, drop = FALSE]
-    kept <- new_data[, setdiff(names(new_data), features), drop = FALSE]
-  }
+  split <- split_decomp_features(decom, new_data)
+  selected <- split[["selected"]]
+  kept <- split[["kept"]]
   transformed <- as.data.frame(apply_decomp_(
     config = decom@config,
     decom = decom@decom,
@@ -163,6 +190,94 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
     cbind(kept, transformed)
   }
 } # /rtemis::apply_decomp
+
+
+# %% reconstruct.Decomposition ----
+#' Reconstruct Data from a Decomposition
+#'
+#' Encode data with a fitted decomposition and decode it back, giving the
+#' rank-`k` approximation of the input in its original units and column layout.
+#'
+#' @details
+#' The round trip [apply_decomp] leaves half-done. The reconstruction is `x`
+#' with everything outside the first `k` components removed, i.e. a denoised
+#' `x`. The residual, `x - reconstruct(decom, x)`, is what the decomposition
+#' could not represent: `rowMeans(residual^2)` scores how anomalous each case
+#' is, and `colMeans(residual^2)` shows which variables the decomposition fails
+#' to capture.
+#'
+#' Available for algorithms whose `invertible` trait is TRUE; see
+#' [decomposition_traits]. tSNE, UMAP and Isomap embed without an inverse, so
+#' there is no map back for them at all.
+#'
+#' The reconstruction is in the units of the data as it was passed to [decomp],
+#' with any centering or scaling the backend applied internally undone, so it
+#' can be compared with `x` directly. Columns the fit did not decompose (when
+#' `decom@config@features` is set) pass through unchanged and column order is
+#' preserved, so the result lines up cell for cell with `x`.
+#'
+#' @param decom `Decomposition` object.
+#' @param x Tabular data (data.frame, data.table, or tibble): Data to
+#' reconstruct. Its columns must match those `decom` was fitted on.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return A data.frame with the same columns as `x`, holding the
+#' reconstruction of the decomposed features.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' x <- exc(iris, "Species")
+#' iris_pca <- decomp(x, algorithm = "PCA", config = setup_PCA(k = 2L))
+#' reconstructed <- reconstruct(iris_pca, x)
+#' # What the two components could not represent, per case:
+#' head(rowMeans((as.matrix(x) - as.matrix(reconstructed))^2))
+reconstruct <- function(decom, x, verbosity = 1L) {
+  check_is_S7(decom, Decomposition)
+  traits <- decomposition_traits(decom@algorithm)
+  if (!traits[["invertible"]]) {
+    rtemis.core::abort(
+      "'",
+      decom@algorithm,
+      "' has no inverse map, so its components cannot be reconstructed.\n",
+      "Algorithms that support reconstruction: ",
+      paste(decom_algorithms_invertible, collapse = ", "),
+      ".",
+      class = "rtemis_unsupported_error"
+    )
+  }
+  # Reconstructing means encoding `x` first, so an algorithm that inverts but
+  # cannot project new data could only reconstruct what it was fitted on. No
+  # registered algorithm is in that quadrant; the check is here because one
+  # would otherwise fail inside `apply_decomp_` with no explanation.
+  if (!traits[["can_apply"]]) {
+    rtemis.core::abort(
+      "'",
+      decom@algorithm,
+      "' cannot be applied to data, so there is nothing to reconstruct from.",
+      class = "rtemis_unsupported_error"
+    )
+  }
+  split <- split_decomp_features(decom, x)
+  selected <- split[["selected"]]
+  transformed <- apply_decomp_(
+    config = decom@config,
+    decom = decom@decom,
+    new_data = selected,
+    verbosity = verbosity
+  )
+  reconstructed <- as.data.frame(reconstruct_(
+    config = decom@config,
+    decom = decom@decom,
+    transformed = as.matrix(transformed),
+    x = selected,
+    verbosity = verbosity
+  ))
+  names(reconstructed) <- names(selected)
+  out <- as.data.frame(x)
+  out[, names(reconstructed)] <- reconstructed
+  out
+} # /rtemis::reconstruct
 
 
 # %% .list_to_DecompositionConfig ----

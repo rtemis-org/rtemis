@@ -156,3 +156,35 @@ method(apply_decomp_, NMFConfig) <- function(
   check_dependencies("NMF")
   nmf_scores(nmf_basis(decom), as.matrix(new_data))
 } # /rtemis::apply_decomp_.NMFConfig
+
+
+# %% reconstruct_.NMFConfig ----
+#' Map NMF components back to input space
+#'
+#' @details
+#' NMF fits no centering or scaling, so the factorization is already in input
+#' units and the reconstruction is the product of the scores with the transposed
+#' basis. This is a true NMF reconstruction only because the scores are the
+#' non-negative coefficients on that basis; against a `x %*% basis` projection
+#' the same product would be off by the basis Gram matrix.
+#'
+#' @param config `NMFConfig` object.
+#' @param decom Fitted NMF object.
+#' @param transformed Numeric matrix: Component scores, cases by components.
+#' @param x Tabular data: Unused; NMF applies no invertible preprocessing.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Numeric matrix: Reconstruction in input units, cases by features.
+#'
+#' @keywords internal
+#' @noRd
+method(reconstruct_, NMFConfig) <- function(
+  config,
+  decom,
+  transformed,
+  x,
+  verbosity = 1L
+) {
+  check_dependencies("NMF")
+  as.matrix(transformed) %*% t(nmf_basis(decom))
+} # /rtemis::reconstruct_.NMFConfig

@@ -54,11 +54,11 @@ supervised_algorithms <- data.frame(rbind(
   c("TabNet", "Attentive Interpretable Tabular Learning", TRUE, TRUE, FALSE)
 ))
 colnames(supervised_algorithms) <- c(
-  "Name",
-  "Description",
-  "Class",
-  "Reg",
-  "Surv"
+  "name",
+  "description",
+  "class",
+  "reg",
+  "surv"
 )
 
 supervised_multiclass <- c(
@@ -87,8 +87,8 @@ calibration_algorithms <- c(
 )
 
 get_alg_name <- function(algorithm) {
-  algname <- supervised_algorithms[, 1][
-    tolower(algorithm) == tolower(supervised_algorithms[, 1])
+  algname <- supervised_algorithms[["name"]][
+    tolower(algorithm) == tolower(supervised_algorithms[["name"]])
   ]
   if (length(algname) == 0) {
     rtemis.core::abort(
@@ -111,8 +111,8 @@ get_alg_name <- function(algorithm) {
 #' @keywords internal
 #' @noRd
 desc_alg <- function(algorithm) {
-  algdesc <- supervised_algorithms[, 2][
-    tolower(algorithm) == tolower(supervised_algorithms[, 1])
+  algdesc <- supervised_algorithms[["description"]][
+    tolower(algorithm) == tolower(supervised_algorithms[["name"]])
   ]
   if (length(algdesc) == 0) {
     rtemis.core::abort(
@@ -249,25 +249,66 @@ get_clust_setup_fn <- function(algorithm) {
 
 
 # Decomposition ----
-decom_algorithms <- data.frame(rbind(
-  # c("H2OAE", "H2O Autoencoder"),
-  # c("H2OGLRM", "H2O Generalized Low-Rank Model"),
-  c("ICA", "Independent Component Analysis"),
-  c("Isomap", "Isomap"),
-  # c("KPCA", "Kernel Principal Component Analysis"),
-  # c("LLE", "Locally Linear Embedding"),
-  # c("MDS", "Multidimensional Scaling"),
-  c("NMF", "Non-negative Matrix Factorization"),
-  c("PCA", "Principal Component Analysis"),
-  # c("SPCA", "Sparse Principal Component Analysis"),
-  # c("SVD", "Singular Value Decomposition"),
-  c("tSNE", "t-distributed Stochastic Neighbor Embedding"),
-  c("UMAP", "Uniform Manifold Approximation and Projection")
-))
+# Admission criterion for this table: a symmetric decomposition method models
+# the joint structure of one or more variables without designating any variable
+# or variable set as the outcome. An algorithm that designates an outcome is a
+# supervised algorithm and belongs in `supervised_algorithms` -- PLS, for
+# instance. A two-block method with no outcome, such as CCA, is
+# cross-decomposition and belongs in neither table, because it has neither
+# `decomp()`'s shape nor `train()`'s. That criterion, not a column, is what
+# decides where a new algorithm goes.
+#
+# Built column-wise so the logical columns are `logical`. `rbind(c(...))`
+# coerces every cell to character, which is why `supervised_algorithms` carries
+# "TRUE"/"FALSE" strings.
+decom_algorithms <- data.frame(
+  name = c("ICA", "Isomap", "NMF", "PCA", "tSNE", "UMAP"),
+  description = c(
+    "Independent Component Analysis",
+    "Isomap",
+    "Non-negative Matrix Factorization",
+    "Principal Component Analysis",
+    "t-distributed Stochastic Neighbor Embedding",
+    "Uniform Manifold Approximation and Projection"
+  ),
+  linear = c(TRUE, FALSE, TRUE, TRUE, FALSE, FALSE),
+  can_apply = c(TRUE, FALSE, TRUE, TRUE, FALSE, TRUE),
+  invertible = c(TRUE, FALSE, TRUE, TRUE, FALSE, FALSE),
+  orthogonal = c(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE),
+  ordered = c(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE),
+  deterministic = c(FALSE, TRUE, FALSE, TRUE, FALSE, FALSE),
+  preserves = c(
+    "variance",
+    "global",
+    "reconstruction",
+    "variance",
+    "local",
+    "local"
+  ),
+  nonneg = c(FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
+  package = c("fastICA", "vegan", "NMF", "stats", "Rtsne", "uwot"),
+  stringsAsFactors = FALSE
+)
+
+# %% decom_algorithms_applicable ----
+# The algorithms whose fitted result can be applied to new data, derived so it
+# cannot disagree with the table. Tests assert that `can_apply` is TRUE exactly
+# when `method(apply_decomp_, <Alg>Config)` exists.
+decom_algorithms_applicable <- decom_algorithms[["name"]][
+  decom_algorithms[["can_apply"]]
+]
+
+# %% decom_algorithms_invertible ----
+# The algorithms whose components map back to input space, derived for the same
+# reason: tests assert that `invertible` is TRUE exactly when
+# `method(reconstruct_, <Alg>Config)` exists.
+decom_algorithms_invertible <- decom_algorithms[["name"]][
+  decom_algorithms[["invertible"]]
+]
 
 get_decom_name <- function(algorithm) {
-  decomname <- decom_algorithms[, 1][
-    tolower(algorithm) == tolower(decom_algorithms[, 1])
+  decomname <- decom_algorithms[["name"]][
+    tolower(algorithm) == tolower(decom_algorithms[["name"]])
   ]
   if (length(decomname) == 0) {
     rtemis.core::abort(
@@ -280,8 +321,8 @@ get_decom_name <- function(algorithm) {
 } # /rtemis::get_decom_name
 
 get_decom_desc <- function(algorithm) {
-  decomdesc <- decom_algorithms[, 2][
-    tolower(algorithm) == tolower(decom_algorithms[, 1])
+  decomdesc <- decom_algorithms[["description"]][
+    tolower(algorithm) == tolower(decom_algorithms[["name"]])
   ]
   if (length(decomdesc) == 0) {
     rtemis.core::abort(
@@ -310,6 +351,68 @@ get_decom_predict_fn <- function(algorithm) {
 } # /rtemis::get_decom_predict_fn
 
 
+# %% decomposition_traits ----
+#' Decomposition Algorithm Traits
+#'
+#' Machine-readable properties of each decomposition algorithm available to
+#' [decomp]: whether the map is linear, whether it can be applied to new data,
+#' whether it inverts, and what its objective preserves.
+#'
+#' @details
+#' The columns:
+#'
+#' \describe{
+#'   \item{`name`}{The name used by `setup_<name>()` and `decomp(algorithm =)`.}
+#'   \item{`description`}{Full name of the algorithm.}
+#'   \item{`linear`}{The map from input space to component space is linear.}
+#'   \item{`can_apply`}{A fitted result can be applied to new data with
+#'     [apply_decomp].}
+#'   \item{`invertible`}{There is an inverse map from component space back to
+#'     input space, so reconstruction error is defined.}
+#'   \item{`orthogonal`}{Components are mutually orthogonal.}
+#'   \item{`ordered`}{Components come in a meaningful order, so "the first j"
+#'     is well-defined.}
+#'   \item{`deterministic`}{The same input and configuration give the same
+#'     result without setting a seed.}
+#'   \item{`preserves`}{What the objective preserves: `"variance"`,
+#'     `"global"`, `"local"`, or `"reconstruction"`.}
+#'   \item{`nonneg`}{Requires non-negative input and produces non-negative
+#'     factors.}
+#'   \item{`package`}{Package supplying the backend implementation.}
+#' }
+#'
+#' `can_apply` states what rtemis implements, not what is mathematically
+#' possible. Parametric tSNE exists and Isomap admits a Nystrom-style
+#' out-of-sample extension; neither is implemented here, so both are `FALSE`.
+#' The column's contract is that [apply_decomp] on a fitted result of this
+#' algorithm returns components rather than an error.
+#'
+#' @param algorithm Optional Character: Name of a decomposition algorithm,
+#' matched case-insensitively. `NULL` returns every algorithm.
+#'
+#' @return data.frame: One row per algorithm, one column per trait.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' decomposition_traits()
+#' decomposition_traits("PCA")
+#' # Which algorithms support out-of-sample projection?
+#' decomposition_traits()[["name"]][decomposition_traits()[["can_apply"]]]
+decomposition_traits <- function(algorithm = NULL) {
+  if (is.null(algorithm)) {
+    return(decom_algorithms)
+  }
+  traits <- decom_algorithms[
+    decom_algorithms[["name"]] == get_decom_name(algorithm),
+    ,
+    drop = FALSE
+  ]
+  rownames(traits) <- NULL
+  traits
+} # /rtemis::decomposition_traits
+
+
 #' Available Algorithms
 #'
 #' Print available algorithms for supervised learning, clustering, and decomposition.
@@ -332,8 +435,8 @@ get_decom_predict_fn <- function(algorithm) {
 #' # train(iris, hyperparameters = setup_LightGBM())
 available_supervised <- function(verbosity = 1L) {
   algs <- structure(
-    supervised_algorithms[, 2],
-    names = supervised_algorithms[, 1],
+    supervised_algorithms[["description"]],
+    names = supervised_algorithms[["name"]],
     class = "list"
   )
   if (verbosity > 0L) {
@@ -368,10 +471,10 @@ available_clustering <- function(verbosity = 1L) {
 available_calibration <- function(verbosity = 1L) {
   # Read the descriptions from the supervised table rather than restating
   # them, so a calibrator is described the same way wherever it is listed.
-  idx <- match(calibration_algorithms, supervised_algorithms[, 1])
+  idx <- match(calibration_algorithms, supervised_algorithms[["name"]])
   algs <- structure(
-    supervised_algorithms[idx, 2],
-    names = supervised_algorithms[idx, 1],
+    supervised_algorithms[["description"]][idx],
+    names = supervised_algorithms[["name"]][idx],
     class = "list"
   )
   if (verbosity > 0L) {
@@ -382,13 +485,26 @@ available_calibration <- function(verbosity = 1L) {
 
 
 #' @rdname available_algorithms
+#'
+#' @param traits Logical: If TRUE, `available_decomposition()` prints and
+#' returns the full trait table from [decomposition_traits] instead of the
+#' named list of descriptions.
+#'
 #' @export
 #' @examples
 #' available_decomposition()
-available_decomposition <- function(verbosity = 1L) {
+#' available_decomposition(traits = TRUE)
+available_decomposition <- function(verbosity = 1L, traits = FALSE) {
+  if (traits) {
+    algs <- decomposition_traits()
+    if (verbosity > 0L) {
+      print(algs)
+    }
+    return(invisible(algs))
+  }
   algs <- structure(
-    decom_algorithms[, 2],
-    names = decom_algorithms[, 1],
+    decom_algorithms[["description"]],
+    names = decom_algorithms[["name"]],
     class = "list"
   )
   if (verbosity > 0L) {

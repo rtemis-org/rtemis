@@ -104,6 +104,17 @@ decomp <- function(
     transformed = decom[["transformed"]]
   )
 
+  # Metrics ----
+  # The set an algorithm's traits support, on the data just fitted. Bounded by
+  # the cost of one reconstruction, O(n * p * k), so it does not change this
+  # function's complexity. Out-of-sample metrics need a second data matrix and
+  # are `decomp_metrics()`'s job.
+  out@metrics <- compute_decomposition_metrics(
+    decom = out,
+    x = x,
+    verbosity = verbosity
+  )
+
   # The run's input recipe, so a record can say what was asked for. `dat_path`
   # stays unset for an in-memory call -- data identity is provenance's job.
   # `outdir` is omitted when unset so the config's own default applies; passing

@@ -76,6 +76,7 @@ NMF
 NMFConfig
 NNLS
 NNLSHyperparameters
+Nystrom
 NROW
 NTSC
 NeuralGasConfig
@@ -101,6 +102,7 @@ Resampler
 ResamplerConfig
 Rprofile
 SL
+SNE
 SPLS
 SPLSHyperparameters
 Spectrogram
@@ -162,6 +164,8 @@ darkgraygrid
 dashdot
 decomp
 delim
+denoised
+denoising
 der
 deserialization
 df

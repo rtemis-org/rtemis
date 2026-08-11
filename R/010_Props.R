@@ -3546,6 +3546,10 @@ prop_to_schema <- function(prop) {
 #' @param metrics_refs Named character or NULL: If set (and `record` is TRUE),
 #'   adds the required `metrics` / `metrics_sd` headline blocks, and references
 #'   these metrics schemas from each fold's own `metrics`.
+#' @param metrics_ref Character or NULL: If set (and `record` is TRUE), adds a
+#'   required, nullable `metrics` property referencing that one schema. For a
+#'   run whose result is a single metrics object rather than a per-sample map;
+#'   mutually exclusive with `metrics_refs`.
 #' @param provenance_url Character or NULL: If set (and `record` is TRUE), adds
 #'   a required `provenance` property referencing that schema. Only a top-level
 #'   record carries it; a nested one inherits its parent's.
@@ -3596,6 +3600,7 @@ S7_to_JSONSchema <- function(
   provenance_url = NULL,
   fold_refs = NULL,
   metrics_refs = NULL,
+  metrics_ref = NULL,
   extra = NULL,
   refs = NULL,
   array_refs = NULL,
@@ -3732,6 +3737,15 @@ S7_to_JSONSchema <- function(
       properties[["metrics"]] <- metrics_schema()
       properties[["metrics_sd"]] <- metrics_schema(sd = TRUE)
       required <- c(required, "metrics", "metrics_sd")
+    }
+    # A run that scores one metrics object rather than a map of samples: the
+    # block is that object. Nullable, because a run can fail before scoring.
+    if (!is.null(metrics_ref)) {
+      properties[["metrics"]] <- list(
+        description = "What the run scored.",
+        oneOf = list(list(type = "null"), list(`$ref` = metrics_ref))
+      )
+      required <- c(required, "metrics")
     }
     if (!is.null(provenance_url)) {
       properties[["provenance"]] <- list(`$ref` = provenance_url)
