@@ -2,6 +2,8 @@
 
 ## 1.3.5
 
+- **License: BSD 3-clause**, replacing GPL (>= 3). This is what the dependency work of this release was for: with `digest` replaced by `openssl` and `htmltools` moved to Suggests, no part of rtemis's own code calls into a copyleft package, and `rtemis.core` (relicensed to BSD 3-clause in 0.4.3) was the last GPL entry in `Imports`. What remains there is `data.table` (MPL-2.0), `future` (LGPL >= 2.1, which permits use under any license), `openssl` and `S7` (MIT). The GPL packages in `Suggests` - `glmnet`, `ranger`, `rpart`, `mgcv`, `earth`, `e1071`, `hal9001` and the rest - are loaded conditionally by the algorithms that need them and impose no obligation on this package or on code that uses it. Users who could not adopt a copyleft dependency can now use rtemis; users who could are unaffected.
+
 - New `reconstruct(decom, x)`: `Xhat = decode(encode(X))`, in input units and column order. `X - Xhat` is what the decomposition could not represent; `rowMeans()` of its square scores anomalous cases, `colMeans()` poorly captured features. Needs `invertible`: PCA, ICA, NMF.
 - New: `decomp()` scores what it fitted into `Decomposition@metrics`, and the run record gains a `metrics` block. `explained_variance_ratio = 1 - ||X - Xhat||^2 / ||X - colMeans(X)||^2`, `relative_reconstruction_error = ||X - Xhat|| / ||X||`, `reconstruction_rmse`, `max_abs_component_correlation`, and `effective_dimensionality = sum(v)^2 / sum(v^2)` over the component variances `v`. All reconstruction is in input units, so the numbers compare across algorithms and across configurations of one algorithm.
 - New `decomp_metrics(decom, x, new_data)`: the `oos_` versions, plus `reconstruction_gap = oos_relative_reconstruction_error - relative_reconstruction_error`.
