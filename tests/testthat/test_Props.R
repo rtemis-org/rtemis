@@ -1273,8 +1273,17 @@ test_that("prop_published() is true for config and state, false for the rest", {
 test_that("the default to_json omits computed and r_only properties", {
   keys <- names(to_json(data_fingerprint(iris)))
   expect_true("method" %in% keys)
-  # `portability` is a function of `method`, so a consumer loses nothing.
-  expect_false("portability" %in% keys)
+  # Stored, not computed: what produced a digest is not recoverable from the
+  # other fields, so a consumer would lose it if these were views.
+  expect_true(all(c("encoding", "language", "data_structure") %in% keys))
+  # `confusion_matrix` is a function of `confusion_long`, so a consumer loses
+  # nothing by its absence.
+  computed <- classification_metrics(
+    factor(c("a", "a", "b", "b")),
+    factor(c("a", "b", "b", "b")),
+    c(0.3, 0.6, 0.75, 0.8)
+  )
+  expect_false("confusion_matrix" %in% names(to_json(computed)))
 })
 
 

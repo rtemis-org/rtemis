@@ -2107,8 +2107,9 @@ prop_accepts_null <- function(prop) {
 #              and emitted `readOnly`: a reader needs the field to reconstruct
 #              the class, but must not prompt for it.
 # - "computed" A view derived from other published fields, never stored
-#              (`DataFingerprint@portability` is a function of `@method`).
-#              Declared with `prop_computed()`. Absent from the schema and from
+#              (`ClassificationMetrics@confusion_matrix` is a function of the
+#              per-class counts). Declared with `prop_computed()`. Absent from
+#              the schema and from
 #              a written config: publishing it would be a second representation
 #              of something already there, free to disagree with the first.
 # - "r_only"   An R value with no wire form at all: a fitted backend model (an

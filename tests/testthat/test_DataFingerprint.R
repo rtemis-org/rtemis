@@ -103,7 +103,9 @@ test_that("two implementations' 'object' hashes are not comparable", {
     hash = r_fp@hash,
     n_rows = r_fp@n_rows,
     n_cols = r_fp@n_cols,
-    column_names = r_fp@column_names
+    column_names = r_fp@column_names,
+    language = "Python",
+    data_structure = "DataFrame"
   )
   expect_identical(foreign@method, r_fp@method)
   expect_false(same_data(r_fp, foreign))
@@ -112,43 +114,103 @@ test_that("two implementations' 'object' hashes are not comparable", {
 })
 
 
-# %% portability ----
-test_that("portability is computed from encoding and cannot be set", {
-  # The language that defines the hashed form, or "any" where no language does.
-  expect_identical(
-    data_fingerprint(iris, method = "object")@portability,
-    "R"
-  )
+# %% language and data_structure ----
+test_that("a fingerprint records what produced it", {
+  # Recorded facts, not a claim about who else could reproduce the digest.
+  # Whether a second implementation can is a question a specification answers,
+  # and none exists; see `plan/fingerprint-portability.md`.
+  fp <- data_fingerprint(iris, method = "object")
+  expect_identical(fp@language, "R")
+  expect_identical(fp@data_structure, "data.frame")
   f <- withr::local_tempfile(fileext = ".csv")
   utils::write.csv(iris, f, row.names = FALSE)
-  expect_identical(
-    data_fingerprint(iris, method = "file", source = f)@portability,
-    "any"
-  )
-  # A computed property has no setter: a fingerprint cannot make a false claim
-  # about its own reproducibility.
-  fp <- data_fingerprint(iris)
-  expect_error(fp@portability <- "any")
+  from_file <- data_fingerprint(iris, method = "file", source = f)
+  expect_identical(from_file@language, "R")
+  expect_identical(from_file@data_structure, "data.frame")
 })
 
 
-test_that("portability refuses to guess for an encoding it does not know", {
-  # Derived from `encoding`, not `method`: a foreign record also says
-  # `method = "object"`, and answering "R" for it would claim this build can
-  # reproduce bytes it has never produced.
+test_that("'table' records the container even though it normalizes it away", {
+  skip_if_not_installed("arrow")
+  # Recorded because it is a fact about the input, but under this encoding it
+  # cannot be the cause of a mismatch: one canonical form is hashed whatever
+  # the container, which is what the container test below pins.
+  expect_identical(
+    data_fingerprint(iris, method = "table")@data_structure,
+    "data.frame"
+  )
+  expect_identical(
+    data_fingerprint(
+      data.table::as.data.table(iris),
+      method = "table"
+    )@data_structure,
+    "data.table"
+  )
+})
+
+
+test_that("data_structure names the container, not the classes it inherits", {
+  # A tibble is c("tbl_df", "tbl", "data.frame") and a matrix is
+  # c("matrix", "array"); the form it was held in is the first, and it is the
+  # first thing to look at when two "object" digests over one dataset disagree.
+  expect_identical(
+    data_fingerprint(data.table::as.data.table(iris))@data_structure,
+    "data.table"
+  )
+  expect_identical(
+    data_fingerprint(tibble::as_tibble(iris))@data_structure,
+    "tbl_df"
+  )
+  expect_identical(
+    data_fingerprint(as.matrix(iris[, 1:4]))@data_structure,
+    "matrix"
+  )
+})
+
+
+test_that("a foreign fingerprint keeps the values its writer recorded", {
+  # Stored, so a record written elsewhere reads back as what it is rather than
+  # being described by this build's assumptions.
   foreign <- DataFingerprint(
     method = "object",
     encoding = "julia-serialize-v1",
-    hash = "abc"
+    hash = "abc",
+    language = "Julia",
+    data_structure = "DataFrame"
   )
-  expect_identical(foreign@portability, "unknown")
+  expect_identical(foreign@language, "Julia")
+  expect_identical(foreign@data_structure, "DataFrame")
+  # And it is still not comparable with anything this build writes.
+  expect_false(same_data(foreign, data_fingerprint(iris)))
+})
+
+
+test_that("a fingerprint cannot omit what produced it", {
+  expect_error(
+    DataFingerprint(
+      method = "object",
+      encoding = "r-serialize-v3",
+      hash = "abc",
+      data_structure = "data.frame"
+    ),
+    "language"
+  )
+  expect_error(
+    DataFingerprint(
+      method = "object",
+      encoding = "r-serialize-v3",
+      hash = "abc",
+      language = "R"
+    ),
+    "data_structure"
+  )
 })
 
 
 # %% method "object" ----
 test_that("'object' hashes R representation, not just logical content", {
-  # This is exactly why its portability is "R": the same logical table in a
-  # different container differs.
+  # This is exactly what `@data_structure` is recorded for: the same logical
+  # table in a different container differs.
   dt <- data.table::as.data.table(iris)
   expect_false(
     same_data(data_fingerprint(iris), data_fingerprint(dt))
@@ -196,9 +258,9 @@ test_that("'table' hashes logical content across R containers", {
   # class/attributes under the schema metadata key "r", which differs between
   # them and `.hash_table()` strips; `as_arrow_table()` has no matrix method, so
   # that conversion happens there too.
-  # This is an R-side property and is not on its own evidence for the encoding's
-  # portability, which turns on what a second implementation writes; see
-  # `.hash_table()`.
+  # This is an R-side property and says nothing about whether a second
+  # implementation reproduces the digest, which turns on what that
+  # implementation writes; see `.hash_table()`.
   one_table <- iris[, 1:4]
   containers <- list(
     as.data.frame(one_table),
@@ -380,6 +442,19 @@ test_that("fingerprint_diff() claims changed values only where it can know", {
 })
 
 
+test_that("fingerprint_diff() names the container when that is what differs", {
+  # The recorded fact earning its keep: the same data in two containers is the
+  # most common reason two "object" digests disagree, and the message says so
+  # rather than leaving a reader to hunt for a change to the values.
+  message <- fingerprint_diff(
+    data_fingerprint(iris),
+    data_fingerprint(data.table::as.data.table(iris))
+  )
+  expect_match(message, "data.frame vs data.table", fixed = TRUE)
+  expect_match(message, "r-serialize-v3", fixed = TRUE)
+})
+
+
 test_that("fingerprint_diff() flags incomparable fingerprints as such", {
   expect_match(
     fingerprint_diff(
@@ -449,11 +524,11 @@ test_that("two models on the same data share a fingerprint", {
 
 
 # %% repr ----
-test_that("repr shows a short hash, dimensions and portability", {
+test_that("repr shows a short hash, dimensions and what computed it", {
   out <- repr(data_fingerprint(iris), output_type = "plain")
   expect_match(out, "DataFingerprint")
   expect_match(out, "150 x 5")
-  expect_match(out, "portability")
+  expect_match(out, "R / data.frame", fixed = TRUE)
   # Abbreviated, not the full 64-character digest.
   expect_false(grepl(data_fingerprint(iris)@hash, out, fixed = TRUE))
 })

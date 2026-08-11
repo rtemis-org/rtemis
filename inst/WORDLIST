@@ -271,6 +271,7 @@ poisson
 preprocess
 preprocesses
 preprocessor
+pyarrow
 preprocessor's
 pretraining
 progressr
