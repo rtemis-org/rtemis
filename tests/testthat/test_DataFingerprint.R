@@ -192,11 +192,13 @@ test_that("'file' requires a source and hashes its bytes", {
 test_that("'table' hashes logical content across R containers", {
   skip_if_not_installed("arrow")
   # The whole point of this method: every container the package accepts, plus
-  # the matrix `decomp()` reduces to, must give one hash, or the portability
-  # "any" claim is false. arrow stores R class/attributes under the schema
-  # metadata key "r", which differs between them and `.hash_table()` strips;
-  # `as_arrow_table()` has no matrix method, so that conversion happens there
-  # too.
+  # the matrix `decomp()` reduces to, must give one hash. arrow stores R
+  # class/attributes under the schema metadata key "r", which differs between
+  # them and `.hash_table()` strips; `as_arrow_table()` has no matrix method, so
+  # that conversion happens there too.
+  # This is an R-side property and is not on its own evidence for the encoding's
+  # portability, which turns on what a second implementation writes; see
+  # `.hash_table()`.
   one_table <- iris[, 1:4]
   containers <- list(
     as.data.frame(one_table),

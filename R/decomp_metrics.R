@@ -202,7 +202,11 @@ component_scores <- function(transformed) {
       # answer; 0 would claim the components are uncorrelated.
       NA_real_
     },
-    effective_dimensionality = if (sum(variances^2) > 0) {
+    # `isTRUE()` and not a bare `>`: a component whose variance is not finite
+    # -- a single case, so `var()` is NA, or values large enough to overflow --
+    # makes the sum NA, and `if (NA)` is an error rather than the NA the
+    # undefined case already returns.
+    effective_dimensionality = if (isTRUE(sum(variances^2) > 0)) {
       sum(variances)^2 / sum(variances^2)
     } else {
       NA_real_

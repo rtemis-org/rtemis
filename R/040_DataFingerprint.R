@@ -467,10 +467,35 @@ data_fingerprint <- function(
 # %% .hash_table ----
 #' Hash the canonical Arrow IPC representation of a table
 #'
-#' Arrow's IPC stream is a language-neutral binary form whose normalization the
-#' Arrow spec fixes, so a Python implementation reading the same table produces
-#' the same digest. That is what gives this method portability "any" where
-#' `.hash_object()` is not.
+#' Arrow's IPC stream is a language-neutral binary form, and the spec fixes how
+#' the *data* is encoded: for one table, every record-batch message another
+#' implementation writes is byte-identical to the one written here, across
+#' double, int32, string, bool and dictionary columns, nulls included. That is
+#' what makes a digest over this form reproducible outside R at all, and it is
+#' what `.hash_object()` has no counterpart to.
+#'
+#' What the spec does not fix is the flatbuffer layout of the *schema* message,
+#' and two implementations of it can differ while describing the same schema.
+#' They do: `metadata <- NULL` here leaves `custom_metadata` present and empty,
+#' while pyarrow's `replace_schema_metadata(None)` omits the field, which is 8
+#' to 16 bytes of vtable and padding and so a different digest for the same
+#' table. pyarrow reproduces these digests exactly when it writes an empty
+#' metadata map (`replace_schema_metadata({})`) instead of dropping the field.
+#'
+#' So the portability of this encoding is conditional on a second implementation
+#' matching three things, none of which follows from reading the Arrow spec
+#' alone:
+#'
+#' - schema metadata is an *empty map*, not an absent field;
+#' - one record batch, since chunk boundaries are message boundaries and a
+#'   table split in two hashes differently from the same table held whole;
+#' - the type mapping used here -- R integer to `int32`, character to `string`
+#'   rather than `large_string`, factor to a dictionary of `string` with `int8`
+#'   indices.
+#'
+#' A pyarrow reader coming from pandas matches none of the three by default:
+#' `Table.from_pandas()` attaches a `pandas` metadata key, and infers `int64`
+#' and `large_string` where this produces `int32` and `string`.
 #'
 #' @param x tabular data.
 #' @param algorithm Character: Hash algorithm.
@@ -494,10 +519,13 @@ data_fingerprint <- function(
   # arrow stores R attributes and class under the schema metadata key "r" so it
   # can round-trip data.table/tibble-ness. That metadata differs between a
   # data.frame and a data.table holding identical data, which would make this
-  # method hash them differently -- defeating its whole purpose and making the
-  # portability "any" claim false. Strip it, so only the logical table is hashed.
+  # method hash them differently -- defeating its whole purpose. Strip it, so
+  # only the logical table is hashed.
   # (`$` and not `[[`: an arrow Table is an R6 object whose `metadata` is an
   # active binding; `[[<-` would try to drop a *column* of that name.)
+  # This leaves an empty `custom_metadata` map rather than removing the field,
+  # which is part of the byte recipe another implementation has to match; see
+  # the details above before changing how the metadata is cleared.
   tbl$metadata <- NULL
   buffer <- arrow::write_to_raw(tbl, format = "stream")
   .hash_bytes(buffer, algorithm)

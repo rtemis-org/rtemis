@@ -143,6 +143,63 @@ test_that("PCA components are uncorrelated and NMF's are not required to be", {
 })
 
 
+test_that("effective_dimensionality is NA, not an error, for a variance that is not finite", {
+  # `sum(variances^2)` is NA when any component's variance is -- a single case,
+  # or values large enough that `var()` overflows -- and the undefined case
+  # returns NA rather than raising.
+  expect_true(is.na(component_scores(
+    matrix(c(1, 2), nrow = 1L)
+  )[["effective_dimensionality"]]))
+  expect_true(is.na(component_scores(
+    cbind(c(Inf, Inf, Inf), c(1, 2, 3))
+  )[["effective_dimensionality"]]))
+  expect_true(is.na(component_scores(
+    cbind(c(NA_real_, 1, 2), c(1, 2, 3))
+  )[["effective_dimensionality"]]))
+})
+
+
+test_that("effective_dimensionality never lands below its declared minimum of 1", {
+  # `sum(v)^2 >= sum(v^2)` for non-negative `v` by Cauchy-Schwarz, and the
+  # column is declared `min = 1`, which is a hard validator: a value below it
+  # aborts construction rather than being recorded. The bound has to hold in
+  # floating point over the whole range of variance vectors a fit can produce.
+  set.seed(2026)
+  generators <- list(
+    single = function() abs(rnorm(1L)) * 10^runif(1L, -300, 300),
+    dominant = function() c(10^runif(1L, 0, 300), 10^runif(5L, -320, -1)),
+    wide_range = function() 10^runif(sample(2:50, 1L), -300, 300),
+    near_equal = function() {
+      rep(10^runif(1L, -150, 150), 20L) *
+        (1 + rnorm(20L) * 1e-16)
+    },
+    with_zeros = function() {
+      v <- 10^runif(20L, -300, 300)
+      v[sample(20L, 10L)] <- 0
+      v
+    }
+  )
+  # A ratio that is not finite is the case the metric already returns NA for --
+  # both sums overflowing gives Inf/Inf -- and the column's validator drops NA.
+  # The bound is a claim about the values that do get recorded.
+  observed <- vapply(
+    rep(generators, each = 2000L),
+    function(generate) {
+      v <- generate()
+      v <- v[is.finite(v)]
+      if (length(v) == 0L) {
+        return(NA_real_)
+      }
+      sum(v)^2 / sum(v^2)
+    },
+    numeric(1L)
+  )
+  observed <- observed[is.finite(observed)]
+  expect_gt(length(observed), 2000L)
+  expect_gte(min(observed), 1)
+})
+
+
 test_that("component metrics are defined for a non-invertible embedding", {
   skip_if_not_installed("uwot")
   decom <- decomp(

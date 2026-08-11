@@ -118,8 +118,9 @@ cluster <- function(
   # and one more: an "object" hash sees the container, so without it the same
   # data clustered as a data.table and decomposed as a data.frame would record
   # two different `data_training` hashes, and comparing runs across a batch is
-  # what a fingerprint is for. `check_unsupervised_data()` has already rejected
-  # any non-numeric column, so the conversion is lossless.
+  # what a fingerprint is for. Lossless because every `cluster_` method has
+  # already run `check_unsupervised_data()`, which rejects a non-numeric column;
+  # a method that skipped it would let one through to be coerced silently here.
   out@data_fingerprint <- data_fingerprint(as.matrix(x))
 
   # See `decomp()`: the run's input, which `@config` alone cannot supply.
