@@ -1514,6 +1514,7 @@ test_that("a multiclass explanation gives one importance measure per class", {
 
 
 test_that("SHAP gives an importance to an algorithm that has none of its own", {
+  skip_if_no_torch()
   # The gap this closes: a torch network has no native measure, so
   # `get_varimp()` on the fitted model is NULL -- and no torch-specific code was
   # written to fix it.

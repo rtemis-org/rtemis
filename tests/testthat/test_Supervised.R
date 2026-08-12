@@ -973,8 +973,7 @@ test_that("train() LightRuleFit Multiclass Classification succeeds", {
 })
 
 ## {TabNet}[train]<Regression> ----
-# Test if lantern is installed
-if (torch::torch_is_installed()) {
+if (torch_available()) {
   mod_r_tabnet <- train(
     x = datr_train,
     dat_test = datr_test,
@@ -986,7 +985,7 @@ if (torch::torch_is_installed()) {
 }
 
 ## {TabNet}[train]<Classification> ----
-if (torch::torch_is_installed()) {
+if (torch_available()) {
   mod_c_tabnet <- train(
     x = datc2_train,
     dat_test = datc2_test,
@@ -998,7 +997,7 @@ if (torch::torch_is_installed()) {
 }
 
 ## {TabNet}[train]<Classification> Multiclass ----
-if (torch::torch_is_installed()) {
+if (torch_available()) {
   modt_c3_tabnet <- train(
     x = datc3_train,
     dat_test = datc3_test,
@@ -1646,11 +1645,10 @@ test_that("train() MARS Regression with missing data throws error", {
 })
 
 # --- MLP ------------------------------------------------------------------------------------------
-# Every fit is gated on libtorch being present, which `requireNamespace()`
-# cannot tell: the R package installs without the runtime it downloads on first
-# use. Kept tiny -- a handful of epochs on a narrow network -- and pinned to the
-# cpu device, since mps does not honor a seed.
-mlp_installed <- torch::torch_is_installed()
+# Every fit is gated on `torch_available()`. Kept tiny -- a handful of epochs on
+# a narrow network -- and pinned to the cpu device, since mps does not honor a
+# seed.
+mlp_installed <- torch_available()
 
 ## {MLP}[train]<Regression> ----
 if (mlp_installed) {
