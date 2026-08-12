@@ -22,8 +22,10 @@
 # - "table"   canonical logical content via Arrow IPC. Strongest and most
 #             portable, but requires the suggested `arrow` package.
 #
-# `method` is the question asked; `encoding` is the answer's byte recipe, and
-# the only field that makes two digests comparable. See `DATA_HASH_ENCODINGS`.
+# `method` is the question asked; `encoding` is the answer's byte recipe. Two
+# digests are comparable only when both `encoding` and `algorithm` match: the
+# recipe must be the same, and so must the function applied to it. See
+# `DATA_HASH_ENCODINGS`.
 #
 # `language` and `data_structure` record what produced the digest rather than
 # claiming who could reproduce it. Every other property here is measured from
@@ -551,8 +553,8 @@ data_fingerprint <- function(
 #' Do two fingerprints identify the same dataset?
 #'
 #' Two fingerprints are comparable only if they were produced the same way, so
-#' this is FALSE when `method` or `algorithm` differ -- an unequal comparison of
-#' incomparable values would be worse than no answer.
+#' this is FALSE when `encoding` or `algorithm` differ -- an unequal comparison
+#' of incomparable values would be worse than no answer.
 #'
 #' @param x,y `DataFingerprint` objects.
 #'

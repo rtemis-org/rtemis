@@ -43,6 +43,7 @@ KFold
 KMeansConfig
 KNN
 KNNHyperparameters
+KernelSHAP
 LOOCV
 Laan
 LightCART
@@ -60,6 +61,7 @@ LinearSVMHyperparameters
 MARSHyperparameters
 MIDPT
 MLP
+MPL
 MLPHyperparameters
 MLPs
 Makefile
@@ -103,9 +105,11 @@ Resampler
 ResamplerConfig
 Rprofile
 SL
+SHAP
 SNE
 SPLS
 SPLSHyperparameters
+Shapley
 Spectrogram
 Stata
 StratBoot
@@ -118,6 +122,7 @@ SupervisedRes
 TabNet
 TabNet's
 TabNetHyperparameters
+TreeSHAP
 Talos's
 Tunable
 TunerConfig
@@ -140,6 +145,7 @@ arity
 auc
 auditable
 backend's
+beeswarm
 betweenness
 blake
 bonferroni
@@ -153,6 +159,7 @@ cloglog
 cmeans
 colorbar
 cryptographic
+ctree
 colorscale
 colorspace
 config's
@@ -207,6 +214,7 @@ https
 hv
 hvh
 infomap
+interventional
 inv
 invariants
 irlba
@@ -279,6 +287,7 @@ px
 rankable
 reconstructors
 recursing
+relicensed
 relu
 renderer
 renderers
@@ -340,6 +349,7 @@ unprefixed
 unscorable
 validator
 validators
+vaeac
 vendored
 vh
 vhv

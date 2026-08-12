@@ -167,3 +167,66 @@ method(varimp_super, NNLS) <- function(model) {
     )
   )
 } # /rtemis::varimp_super.NNLS
+
+
+# %% explain_super.NNLS ----
+#' LinearSHAP contributions from an NNLS model
+#'
+#' The coefficients are the model, so `phi_j = beta_j * (x_j - E[x_j])` is exact
+#' with nothing to extract. There is no intercept, which makes the baseline the
+#' fit at the background's mean.
+#'
+#' For classification this is a linear probability model: its own scale *is* the
+#' probability scale, unlike every other classifier here, and `predict_super()`
+#' clamps the result to \[0, 1\]. The contributions decompose the unclamped fit,
+#' as the logit does for a GLM -- the clamp is a transform applied after the
+#' additive part, and is where a clamped case's contributions will not sum to
+#' the reported probability.
+#'
+#' @param model `NNLS` object.
+#' @param newdata tabular data: Cases to explain.
+#' @param background tabular data: Reference cases.
+#' @param estimator Character: Resolved estimator.
+#' @param perturbation Character: Resolved value function.
+#' @param scale Character: Scale the contributions are additive on.
+#' @param type Character: "Regression" or "Classification".
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `phi`, `baseline`, `predicted` and `exact`.
+#'
+#' @keywords internal
+#' @noRd
+method(explain_super, NNLS) <- function(
+  model,
+  newdata,
+  background,
+  estimator,
+  perturbation,
+  scale,
+  type,
+  verbosity = 0L
+) {
+  check_shap_linear(estimator, perturbation, "NNLS")
+  shap_require_background(background, "LinearSHAP")
+  design <- function(x) {
+    as.matrix(as.data.frame(x)[, model@xnames, drop = FALSE])
+  }
+  linear_shap(
+    design = design(newdata),
+    background = design(background),
+    coefficients = matrix(model@coefficients, ncol = 1L),
+    intercept = 0,
+    # Checked against the model's own predictions only where they are the
+    # unclamped fit; for classification the clamp legitimately makes them
+    # differ, and there is no second source to check against.
+    margin = if (identical(type, "Regression")) {
+      matrix(
+        predict_super(model = model, newdata = newdata, type = type),
+        ncol = 1L
+      )
+    } else {
+      NULL
+    },
+    label = "LinearSHAP"
+  )
+} # /rtemis::explain_super.NNLS

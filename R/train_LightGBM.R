@@ -155,3 +155,109 @@ method(varimp_super, class_lgb.Booster) <- function(model) {
   names(vi)[1] <- "variable"
   VariableImportance(vi)
 } # /rtemis::varimp_super.lgb.Booster
+
+
+# %% explain_super.class_lgb.Booster ----
+#' TreeSHAP contributions from a LightGBM booster
+#'
+#' `predict(type = "contrib")` returns `n x (p + 1)` per class, the trailing
+#' column being the baseline. The contributions sum to the **raw margin**, not
+#' to what `predict()` returns: for binary and multiclass objectives `predict()`
+#' applies the link, and comparing contributions against a probability is the
+#' error the additivity test exists to catch.
+#'
+#' Multiclass is laid out as class-major blocks of `p + 1` columns, so class `k`
+#' occupies `(k - 1) * (p + 1) + 1` through `k * (p + 1)`.
+#'
+#' The booster's own contributions are path-dependent -- coalitions are weighted
+#' by the training coverage recorded in the trees -- which is a conditional
+#' value function, and it takes no background. An interventional answer needs
+#' one and is not what this returns, so it is refused rather than silently
+#' relabeled.
+#'
+#' @param model `lgb.Booster` object.
+#' @param newdata tabular data: Cases to explain, already transformed.
+#' @param background Optional tabular data: Unused by the path-dependent
+#' estimator.
+#' @param estimator Character: Resolved estimator.
+#' @param perturbation Character: Resolved value function.
+#' @param scale Character: Scale the contributions are additive on.
+#' @param type Character: "Regression" or "Classification".
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `phi`, `baseline`, `predicted` and `exact`.
+#'
+#' @keywords internal
+#' @noRd
+method(explain_super, class_lgb.Booster) <- function(
+  model,
+  newdata,
+  background,
+  estimator,
+  perturbation,
+  scale,
+  type,
+  verbosity = 0L
+) {
+  check_inherits(model, "lgb.Booster")
+  check_inherits(newdata, "data.frame")
+  if (!identical(estimator, "TreeSHAP")) {
+    rtemis.core::abort(
+      "LightGBM's explain_super() computes TreeSHAP, not ",
+      estimator,
+      ".",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  if (!identical(perturbation, "conditional")) {
+    rtemis.core::abort(
+      "Interventional TreeSHAP is not implemented for LightGBM: the booster's ",
+      "own contributions are path-dependent, which is a conditional value ",
+      "function.\n",
+      "Use `setup_SHAP(perturbation = \"conditional\")`, or ",
+      "`setup_SHAP(estimator = \"kernel\", perturbation = \"interventional\")`.",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  features <- as.matrix(newdata)
+  contrib <- predict(model, newdata = features, type = "contrib")
+  # The margin, which is what the contributions decompose.
+  margin <- predict(model, newdata = features, type = "raw")
+
+  n_features <- NCOL(features)
+  block <- n_features + 1L
+  n_classes <- NCOL(contrib) / block
+  if (n_classes != round(n_classes)) {
+    rtemis.core::abort(
+      "LightGBM returned ",
+      NCOL(contrib),
+      " contribution columns, which is not a multiple of ",
+      block,
+      ".",
+      class = c("rtemis_dim_error", "rtemis_data_error")
+    )
+  }
+  n_classes <- as.integer(n_classes)
+  # `predict(type = "raw")` is a bare vector for one output and a matrix for
+  # several; the object stores one column per class either way.
+  margin <- matrix(margin, ncol = n_classes)
+
+  phi <- vector("list", n_classes)
+  baseline <- numeric(n_classes)
+  for (k in seq_len(n_classes)) {
+    columns <- ((k - 1L) * block + 1L):(k * block)
+    values <- contrib[, columns, drop = FALSE]
+    contributions <- values[, seq_len(n_features), drop = FALSE]
+    colnames(contributions) <- colnames(features)
+    phi[[k]] <- contributions
+    # Constant across cases by construction: it is the model's own expected
+    # value, so the first row carries it.
+    baseline[[k]] <- values[1L, block]
+  }
+  list(
+    phi = phi,
+    baseline = baseline,
+    predicted = margin,
+    exact = TRUE
+  )
+} # /rtemis::explain_super.lgb.Booster

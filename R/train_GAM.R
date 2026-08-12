@@ -181,3 +181,78 @@ method(varimp_super, class_gam) <- function(
 method(se_super, class_gam) <- function(model, newdata) {
   predict(model, newdata = newdata, se.fit = TRUE)[["se.fit"]]
 } # /rtemis::se_super.gam
+
+
+# %% explain_super.class_gam ----
+#' Native term contributions from a GAM
+#'
+#' A GAM *is* an additive decomposition -- `train_GAM()` builds one smooth or
+#' parametric term per feature -- so `predict(type = "terms")` returns the
+#' quantity a Shapley value is defined as, and no coalition needs enumerating.
+#' The terms are re-centered on the supplied background so the baseline means
+#' what it does everywhere else, rather than being whatever mgcv centered on
+#' when the model was fitted.
+#'
+#' Exact and already computed, which is why this beats the kernel estimator here
+#' on both counts.
+#'
+#' @param model `gam` object.
+#' @param newdata tabular data: Cases to explain.
+#' @param background tabular data: Reference cases.
+#' @param estimator Character: Resolved estimator.
+#' @param perturbation Character: Resolved value function.
+#' @param scale Character: Scale the contributions are additive on.
+#' @param type Character: "Regression" or "Classification".
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `phi`, `baseline`, `predicted` and `exact`.
+#'
+#' @keywords internal
+#' @noRd
+method(explain_super, class_gam) <- function(
+  model,
+  newdata,
+  background,
+  estimator,
+  perturbation,
+  scale,
+  type,
+  verbosity = 0L
+) {
+  if (!identical(estimator, "GAMTerms")) {
+    rtemis.core::abort(
+      "GAM's explain_super() computes GAMTerms, not ",
+      estimator,
+      ".",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  if (!identical(perturbation, "interventional")) {
+    rtemis.core::abort(
+      "Conditional GAMTerms is not implemented: a term is evaluated at the ",
+      "case's own value against the background's marginal mean, which is the ",
+      "interventional answer.\n",
+      "Use `setup_SHAP(perturbation = \"interventional\")`, or ",
+      "`setup_SHAP(estimator = \"kernel\", perturbation = \"conditional\")`.",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  shap_require_background(background, "GAMTerms")
+  newdata <- as.data.frame(newdata)
+  background <- as.data.frame(background)
+  terms_new <- predict(model, newdata = newdata, type = "terms")
+  terms_background <- predict(model, newdata = background, type = "terms")
+  additive_terms_shap(
+    terms_new = terms_new,
+    terms_background = terms_background,
+    feature_of_term = terms_feature_map(
+      colnames(terms_new),
+      names(newdata),
+      "GAMTerms"
+    ),
+    feature_names = names(newdata),
+    margin_new = predict(model, newdata = newdata, type = "link"),
+    margin_background = predict(model, newdata = background, type = "link"),
+    label = "GAMTerms"
+  )
+} # /rtemis::explain_super.gam

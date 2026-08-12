@@ -155,6 +155,26 @@ families <- list(
       )
     )
   ),
+  explanation = list(
+    base_class = ExplanationConfig,
+    discriminator = "type",
+    payload = NULL,
+    title = "rtemis ExplanationConfig",
+    description = paste0(
+      "Language-independent config for a per-case rtemis explanation. Mirrors ",
+      "the `ExplanationConfig` object: a kind of explanation plus its ",
+      "kind-specific settings. The kind is tagged rather than inferred, so a ",
+      "second kind of explanation can be added without changing how the first ",
+      "is read."
+    ),
+    discriminator_description = "Kind of explanation.",
+    algorithms = list(
+      list(
+        cls = SHAPConfig,
+        desc = "Shapley additive contributions. See setup_SHAP."
+      )
+    )
+  ),
   hyperparameters = list(
     base_class = Hyperparameters,
     payload = "hyperparameters",

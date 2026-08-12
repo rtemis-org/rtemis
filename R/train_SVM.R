@@ -251,6 +251,101 @@ method(predict_super, class_svm) <- function(
 } # /rtemis::predict_super.svm
 
 
+# %% svm_margin ----
+#' Decision values of a binary SVM, oriented to the positive class
+#'
+#' `e1071` names the decision-value column `"A/B"`, where a positive value
+#' favors `A` -- and which class that is follows from the order the classes were
+#' encountered in the training data, **not** from the level order. So it is read
+#' from the name rather than assumed: a fitted model whose column reads
+#' `"neg/pos"` has the opposite sign to one reading `"pos/neg"`, and taking
+#' either as given would invert every contribution for roughly half of all
+#' fitted models, silently.
+#'
+#' @param model `svm` object.
+#' @param newdata tabular data.
+#'
+#' @return Numeric matrix, one column, positive toward the second level.
+#'
+#' @keywords internal
+#' @noRd
+svm_margin <- function(model, newdata) {
+  predicted <- predict(model, newdata = newdata, decision.values = TRUE)
+  values <- attr(predicted, "decision.values")
+  favored <- strsplit(colnames(values)[[1L]], "/", fixed = TRUE)[[1L]][[1L]]
+  # rtemis reports the second level as the positive class, which is what
+  # `predict_super.class_svm` returns for a binary outcome.
+  sign <- if (identical(favored, model[["levels"]][[2L]])) 1 else -1
+  matrix(sign * as.numeric(values), ncol = 1L)
+} # /rtemis::svm_margin
+
+
+# %% explain_super.class_svm ----
+#' LinearSHAP contributions from a linear-kernel SVM
+#'
+#' The decision function of a linear-kernel SVM is affine in the features, so
+#' `phi_j = beta_j * (x_j - E[x_j])` is exact. The map is recovered by probing
+#' rather than from `coef()`, which reports it in the space `svm()` scaled
+#' internally.
+#'
+#' Only a binary or regression fit has one such function. Multiclass `e1071` is
+#' one-vs-one voting, which is not a linear decision function per class, and a
+#' non-linear kernel has none at all -- both are refused rather than described
+#' by a tangent plane.
+#'
+#' This method is never reached for a RadialSVM, even though it shares the
+#' backend class: the kernel estimator is model-agnostic and is handled in
+#' `explain()` before dispatch, so only an exact estimator arrives here.
+#'
+#' @param model `svm` object.
+#' @param newdata tabular data: Cases to explain.
+#' @param background tabular data: Reference cases.
+#' @param estimator Character: Resolved estimator.
+#' @param perturbation Character: Resolved value function.
+#' @param scale Character: Scale the contributions are additive on.
+#' @param type Character: "Regression" or "Classification".
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `phi`, `baseline`, `predicted` and `exact`.
+#'
+#' @keywords internal
+#' @noRd
+method(explain_super, class_svm) <- function(
+  model,
+  newdata,
+  background,
+  estimator,
+  perturbation,
+  scale,
+  type,
+  verbosity = 0L
+) {
+  check_shap_linear(estimator, perturbation, "LinearSVM")
+  # `kernel` is 0 for linear; anything else has no linear decision function.
+  if (!identical(as.integer(model[["kernel"]]), 0L)) {
+    rtemis.core::abort(
+      "LinearSHAP applies only to a linear-kernel SVM.\n",
+      "Use `setup_SHAP(estimator = \"kernel\")`.",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  check_shap_binary(type, model[["nclasses"]], "LinearSVM")
+  shap_require_background(background, "LinearSHAP")
+  probed_linear_shap(
+    design = newdata,
+    background = background,
+    margin_fn = function(x) {
+      if (identical(type, "Classification")) {
+        svm_margin(model, x)
+      } else {
+        matrix(predict(model, newdata = x), ncol = 1L)
+      }
+    },
+    label = "LinearSHAP"
+  )
+} # /rtemis::explain_super.class_svm
+
+
 # %% varimp_super.class_svm ----
 #' Get coefficients from SVM model
 #'

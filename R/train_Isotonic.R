@@ -140,3 +140,79 @@ method(predict_super, class_stepfun) <- function(
 method(varimp_super, class_stepfun) <- function(model) {
   NULL
 } # /rtemis::varimp_super.class_stepfun
+
+
+# %% explain_super.class_stepfun ----
+#' The whole deviation from the baseline, for a one-predictor model
+#'
+#' Isotonic regression takes a single predictor, so there is one player and the
+#' Shapley value is the entire deviation from the baseline: `phi = f(x) - E[f]`.
+#' No coalition exists to enumerate, and additivity is the definition rather
+#' than a check.
+#'
+#' A step function has no link, so for a classification the contributions
+#' decompose the predicted **probability** directly -- as they do for CART and
+#' NNLS.
+#'
+#' @param model `stepfun` object.
+#' @param newdata tabular data: Cases to explain; one column.
+#' @param background tabular data: Reference cases.
+#' @param estimator Character: Resolved estimator.
+#' @param perturbation Character: Resolved value function.
+#' @param scale Character: Scale the contributions are additive on.
+#' @param type Character: "Regression" or "Classification".
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `phi`, `baseline`, `predicted` and `exact`.
+#'
+#' @keywords internal
+#' @noRd
+method(explain_super, class_stepfun) <- function(
+  model,
+  newdata,
+  background,
+  estimator,
+  perturbation,
+  scale,
+  type,
+  verbosity = 0L
+) {
+  if (!identical(estimator, "Isotonic")) {
+    rtemis.core::abort(
+      "Isotonic's explain_super() computes Isotonic, not ",
+      estimator,
+      ".",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  shap_require_background(background, "Isotonic")
+  newdata <- as.data.frame(newdata)
+  if (ncol(newdata) != 1L) {
+    rtemis.core::abort(
+      "Isotonic explains a single predictor; got ",
+      ncol(newdata),
+      ".",
+      class = c("rtemis_dim_error", "rtemis_data_error")
+    )
+  }
+  predicted <- as.numeric(predict_super(
+    model = model,
+    newdata = newdata,
+    type = type
+  ))
+  baseline <- mean(as.numeric(predict_super(
+    model = model,
+    newdata = as.data.frame(background),
+    type = type
+  )))
+  list(
+    phi = list(matrix(
+      predicted - baseline,
+      ncol = 1L,
+      dimnames = list(NULL, names(newdata))
+    )),
+    baseline = baseline,
+    predicted = matrix(predicted, ncol = 1L),
+    exact = TRUE
+  )
+} # /rtemis::explain_super.class_stepfun

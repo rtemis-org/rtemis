@@ -335,6 +335,178 @@ se <- new_generic("se", "x", function(x, newdata, ...) {
 })
 
 
+# %% explain_super ----
+#' Compute per-case contributions (internal)
+#'
+#' Internal S7 generic dispatching on the fitted backend's class.
+#'
+#' Unlike `varimp_super()`, the method does **not** choose what to compute: the
+#' estimator is resolved from the algorithm's row in `explanation_methods()` and
+#' passed in. One backend class can back two algorithms warranting different
+#' estimators -- LinearSVM and RadialSVM are both `e1071::svm` -- so the fitted
+#' object cannot decide.
+#'
+#' The contract. Contributions are indexed by the columns of `newdata` **as
+#' passed in**, so a method that builds its own design matrix -- `glm()` and
+#' `glmnet()` expand factors through `model.matrix()` rather than through a
+#' `Preprocessor` -- undoes that expansion itself. Where the expansion happened
+#' upstream in a `Preprocessor`, `newdata` arrives already encoded and
+#' `shap_aggregate()` undoes it.
+#'
+#' \describe{
+#'   \item{`phi`}{Unnamed list of `n x p` numeric matrices, one per output;
+#'     `explain()` labels them by class. One entry for regression and for
+#'     binary classification.}
+#'   \item{`baseline`}{Named numeric, parallel to `phi`: `E[f(x)]`.}
+#'   \item{`predicted`}{`n x k` matrix on `scale`, which `phi` and `baseline`
+#'     must reconstruct.}
+#'   \item{`exact`}{TRUE if these are Shapley values rather than an estimate.}
+#' }
+#'
+#' @param model Fitted model object.
+#' @param newdata tabular data: Cases to explain, already transformed.
+#' @param background Optional tabular data: Reference cases, already
+#' transformed. A method needing one aborts when it is NULL.
+#' @param estimator Character: Resolved estimator to compute.
+#' @param perturbation Character: Resolved value function.
+#' @param scale Character: Scale the contributions are additive on.
+#' @param type Character: "Regression" or "Classification".
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `phi`, `baseline`, `predicted` and `exact`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+explain_super <- new_generic(
+  "explain_super",
+  "model",
+  function(
+    model,
+    newdata,
+    background,
+    estimator,
+    perturbation,
+    scale,
+    type,
+    verbosity = 0L
+  ) {
+    force_supplied()
+    S7_dispatch()
+  }
+) # /rtemis::explain_super
+
+
+# %% explain ----
+#' Explain a prediction
+#'
+#' Per-case explanation of a fitted model: why it predicted what it did, for
+#' each case in `newdata`. Where `get_varimp()` ranks features across a whole
+#' model, this attributes one prediction -- a feature can rank third overall and
+#' be the entire reason for one case.
+#'
+#' @details
+#' **`background` is what the contributions are measured against**, and most
+#' estimators cannot work without one. A contribution says how far a feature
+#' moved this case's prediction away from `E[f(x)]`, and that expectation is a
+#' property of the background data rather than of the model -- which does not
+#' store the data it was trained on. Pass the training features, or a
+#' representative sample of them. The exceptions are the estimators that take
+#' their baseline from the model itself, such as the LightGBM family's; those
+#' ignore it, and everything else aborts without it.
+#'
+#' Two explanations of one model against different backgrounds are not
+#' comparable, and nothing in the returned numbers says so -- which is why the
+#' result carries a fingerprint of the background it used.
+#'
+#' **`config` chooses the method**, built by [setup_SHAP]:
+#' `setup_SHAP(perturbation = "conditional")` picks the value function,
+#' `setup_SHAP(estimator = "kernel")` overrides the estimator the algorithm
+#' would otherwise get. [explanation_methods] reports which estimator applies to
+#' which algorithm, whether it is exact, and why.
+#'
+#' A `SupervisedRes` additionally takes `type`: `"avg"` (the default) averages
+#' the resamples' explanations, which decomposes the averaged prediction
+#' exactly, and `"all"` returns one explanation per resample.
+#'
+#' The contributions plus the baseline reconstruct the prediction exactly, on
+#' the scale they were computed on. For classification that scale is the
+#' model's margin, **not** the probability [stats::predict()] returns:
+#' probability is a nonlinear transform of the margin, so contributions do not
+#' sum to it.
+#'
+#' Read the result with [shap_case] for one case, [shap_long] across cases,
+#' [shap_by_level] for the levels of a categorical, and `get_varimp()` for
+#' `mean(|phi|)` per feature.
+#'
+#' A SHAP value is not a causal effect. It attributes a *prediction* under the
+#' model's own logic; intervening on a feature in the world does not move the
+#' outcome by its attribution. Correlated features split credit between
+#' themselves, and how they split it depends on the value function -- so a small
+#' attribution does not show a feature to be unimportant, and this is not a
+#' feature-selection criterion.
+#'
+#' @param x `Supervised` or `SupervisedRes` object.
+#' @param newdata tabular data: Cases to explain. Predictors only, in training
+#' order, as [stats::predict()] requires.
+#' @param background Optional tabular data: Cases the contributions are measured
+#' against, in the same shape as `newdata`. Required by every estimator that
+#' needs `E[x]` or a reference set, which is most of them; those abort with a
+#' message naming it when it is missing.
+#' @param config Optional `ExplanationConfig` object: Built by [setup_SHAP].
+#' NULL uses `setup_SHAP()`, which resolves the estimator per algorithm.
+#' @param verbosity Integer: Verbosity level.
+#' @param ... Additional arguments passed to methods, such as `type` for a
+#' `SupervisedRes`.
+#'
+#' @return `SHAP` object, or a named list of them for a `SupervisedRes` with
+#' `type = "all"`.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' x <- data.frame(age = rnorm(100), bmi = rnorm(100))
+#' x[["y"]] <- x[["age"]] * 2 + rnorm(100, sd = 0.3)
+#' features <- x[, c("age", "bmi")]
+#' mod <- train(x, hyperparameters = setup_GLM(), verbosity = 0L)
+#'
+#' # `background` is what the contributions are measured against.
+#' contributions <- explain(
+#'   mod,
+#'   features[1:5, ],
+#'   background = features,
+#'   verbosity = 0L
+#' )
+#' contributions
+#'
+#' # Contributions plus the baseline reconstruct the prediction, exactly:
+#' rowSums(contributions@phi[["outcome"]]) + contributions@baseline[, 1L]
+#' predict(mod, features[1:5, ], verbosity = 0L)
+#'
+#' # One case, ordered the way a waterfall reads:
+#' shap_case(contributions, features[1:5, ], case = 1L)
+#'
+#' # Which features mattered across these cases:
+#' get_varimp(contributions)
+#'
+#' # `config` chooses the method; here, a subsampled background.
+#' explain(
+#'   mod,
+#'   features[1:5, ],
+#'   background = features,
+#'   config = setup_SHAP(background_n = 50L),
+#'   verbosity = 0L
+#' )
+explain <- new_generic(
+  "explain",
+  "x",
+  function(x, newdata, background = NULL, config = NULL, verbosity = 1L, ...) {
+    force_supplied()
+    S7_dispatch()
+  }
+) # /rtemis::explain
+
+
 # %% decomp_ ----
 #' Generic for decomposition
 #'

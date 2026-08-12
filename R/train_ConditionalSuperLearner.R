@@ -518,3 +518,122 @@ method(predict_super, ConditionalSuperLearner) <- function(
 method(varimp_super, ConditionalSuperLearner) <- function(model) {
   model@oracle@varimp
 } # /rtemis::varimp_super.ConditionalSuperLearner
+
+
+# %% explain_super.ConditionalSuperLearner ----
+#' Explain each case with the expert that predicted it
+#'
+#' The oracle routes a case to one expert, which predicts it alone, so the
+#' prediction to explain *is* that expert's -- and explaining the expert is
+#' exact for it: `sum(phi) + E[f_k] = f_k(x) = f(x)`.
+#'
+#' This is what the algorithm is for. A conditional SuperLearner exists to hand
+#' each region of the covariate space to a model simple enough to suit it, so
+#' the per-case explanation is the simple model's, computed by whichever exact
+#' estimator that model has, rather than one expensive model-agnostic pass over
+#' the whole ensemble.
+#'
+#' **The baseline is per case**, being the expected prediction of the expert
+#' that handled it. Cases routed to different experts are each exact against
+#' their own baseline, and are for that reason not on a common footing with each
+#' other. The oracle's own contribution -- what being routed *there* was worth
+#' -- is not attributed here; `varimp_super()` reports which covariates drive
+#' the routing, and `setup_SHAP(estimator = "kernel")` explains the ensemble as
+#' a whole where that question is the one being asked.
+#'
+#' The value function is forced on every expert rather than left to each one's
+#' default, so a single `@perturbation` describes the whole result. An expert
+#' whose estimator cannot honor it aborts, naming the ensemble-level fallback.
+#'
+#' @param model `ConditionalSuperLearner` object.
+#' @param newdata tabular data: Cases to explain.
+#' @param background tabular data: Reference cases.
+#' @param estimator Character: Resolved estimator.
+#' @param perturbation Character: Resolved value function, forced on the experts.
+#' @param scale Character: Scale the contributions are additive on.
+#' @param type Character: "Regression" or "Classification".
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `phi`, `baseline`, `predicted` and `exact`.
+#'
+#' @keywords internal
+#' @noRd
+method(explain_super, ConditionalSuperLearner) <- function(
+  model,
+  newdata,
+  background,
+  estimator,
+  perturbation,
+  scale,
+  type,
+  verbosity = 0L
+) {
+  if (!identical(estimator, "ExpertSHAP")) {
+    rtemis.core::abort(
+      "ConditionalSuperLearner's explain_super() computes ExpertSHAP, not ",
+      estimator,
+      ".",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  newdata <- as.data.frame(newdata)
+  background <- as.data.frame(background)
+  assignments <- csl_oracle_assign(
+    model@oracle,
+    inc(newdata, model@xnames),
+    verbosity = verbosity - 1L
+  )
+  n_cases <- NROW(newdata)
+  phi <- matrix(
+    0,
+    nrow = n_cases,
+    ncol = ncol(newdata),
+    dimnames = list(NULL, names(newdata))
+  )
+  baseline <- matrix(0, nrow = n_cases, ncol = 1L)
+  predicted <- matrix(0, nrow = n_cases, ncol = 1L)
+  exact <- TRUE
+  # Every expert answers the same question, so one `@perturbation` describes
+  # the result; the estimator is still resolved per expert, since they are
+  # different algorithms.
+  expert_config <- setup_SHAP(perturbation = perturbation)
+
+  for (expert in unique(assignments)) {
+    rows <- which(assignments == expert)
+    features <- model@entry_features[[expert]]
+    explained <- tryCatch(
+      explain(
+        model@experts[[expert]],
+        newdata = newdata[rows, features, drop = FALSE],
+        background = background[, features, drop = FALSE],
+        config = expert_config,
+        verbosity = 0L
+      ),
+      rtemis_unsupported_error = function(e) {
+        rtemis.core::abort(
+          "Expert '",
+          expert,
+          "' cannot be explained under the ",
+          perturbation,
+          " value function, which every expert must share for one explanation ",
+          "to describe them all:\n  ",
+          conditionMessage(e),
+          "\nUse `setup_SHAP(estimator = \"kernel\")` to explain the ensemble ",
+          "as a whole instead.",
+          class = c("rtemis_unsupported_error", "rtemis_input_error")
+        )
+      }
+    )
+    phi[rows, explained@feature_names] <- explained@phi[[1L]]
+    baseline[rows, 1L] <- explained@baseline[, 1L]
+    predicted[rows, 1L] <- explained@predicted[, 1L]
+    exact <- exact && explained@exact
+  }
+
+  list(
+    phi = list(phi),
+    baseline = baseline,
+    predicted = predicted,
+    exact = exact
+  )
+} # /rtemis::explain_super.ConditionalSuperLearner

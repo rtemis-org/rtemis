@@ -76,6 +76,209 @@ supervised_multiclass <- c(
   "SPLS"
 )
 
+# %% explanation_algorithms ----
+# What `explain()` does to each algorithm, and whether the answer is exact.
+#
+# Applicability is data, not dispatch: the estimator cannot be chosen from the
+# fitted object's class, because one backend class can back two algorithms that
+# warrant different estimators -- LinearSVM and RadialSVM are both `e1071::svm`.
+# So `explain()` reads the estimator from here and tells `explain_super()` what
+# to compute, which is the opposite of `varimp_super()`'s arrangement.
+#
+# `exact` is NA where exactness is a property of the *fitted* model rather than
+# of the algorithm: SPLS and LinearSVM have a single linear map only for a
+# regression or binary fit -- a multiclass one is scores identified up to a
+# constant, and one-vs-one voting, respectively; and MARS and HAL are additive
+# in their features only when the fit selected no term reading two of them,
+# which for both is a search setting rather than a property of the algorithm.
+# Each is checked at explain time and refused with the reason, rather than
+# approximated.
+#
+# The three ensembles take the kernel estimator rather than a weighted sum of
+# their bases' explanations. The sum is exact for a linear meta-learner, but it
+# needs every base to answer the *same* question, and rtemis's exact estimators
+# are each locked to one value function -- LinearSHAP is interventional-only,
+# LightGBM's TreeSHAP conditional-only -- so a mixed library has none in common.
+# See `plan/explain.md`.
+#
+# Only seven algorithms are unconditionally exact. That is the honest shape of
+# this: exactness is usually a property of the fitted model, and this column's
+# job is to say which rather than to promise.
+#
+# Built column-wise so `exact` is `logical`, for the reason `decom_algorithms`
+# gives.
+explanation_algorithms <- data.frame(
+  name = c(
+    "BART",
+    "CART",
+    "ConditionalSuperLearner",
+    "GAM",
+    "GLM",
+    "GLMNET",
+    "HAL",
+    "Isotonic",
+    "MonotonicHAL",
+    "KNN",
+    "LightCART",
+    "LightGBM",
+    "LightRF",
+    "LightRuleFit",
+    "MARS",
+    "MLP",
+    "ModalityStacking",
+    "NNLS",
+    "Ranger",
+    "SuperLearner",
+    "LinearSVM",
+    "RadialSVM",
+    "SPLS",
+    "TabNet"
+  ),
+  estimator = c(
+    "KernelSHAP",
+    "TreeSHAP",
+    "ExpertSHAP",
+    "GAMTerms",
+    "LinearSHAP",
+    "LinearSHAP",
+    "HALBasis",
+    "Isotonic",
+    "HALBasis",
+    "KernelSHAP",
+    "TreeSHAP",
+    "TreeSHAP",
+    "TreeSHAP",
+    "KernelSHAP",
+    "MARSBasis",
+    "KernelSHAP",
+    "KernelSHAP",
+    "LinearSHAP",
+    "KernelSHAP",
+    "KernelSHAP",
+    "LinearSHAP",
+    "KernelSHAP",
+    "LinearSHAP",
+    "KernelSHAP"
+  ),
+  exact = c(
+    FALSE,
+    TRUE,
+    NA,
+    TRUE,
+    TRUE,
+    TRUE,
+    NA,
+    TRUE,
+    NA,
+    FALSE,
+    TRUE,
+    TRUE,
+    TRUE,
+    FALSE,
+    NA,
+    FALSE,
+    FALSE,
+    TRUE,
+    FALSE,
+    FALSE,
+    NA,
+    FALSE,
+    NA,
+    FALSE
+  ),
+  rationale = c(
+    "No additive structure to read; the posterior gives a better uncertainty story than SHAP does.",
+    "TreeSHAP over a single tree is a short traversal and is exact.",
+    "An oracle routes each case to one expert, which predicts it alone -- so the expert explains it, exactly, with its own estimator.",
+    "predict(type = 'terms') already returns the additive decomposition.",
+    "Coefficients give phi_j = beta_j * (x_j - E[x_j]) in closed form.",
+    "Coefficients give phi_j = beta_j * (x_j - E[x_j]) in closed form.",
+    "A lasso over basis functions, exact where every selected basis reads one feature -- which needs max_degree = 1.",
+    "One feature carries the whole deviation from the baseline.",
+    "A lasso over basis functions, exact where every selected basis reads one feature -- which needs max_degree = 1.",
+    "No parametric structure to read; distances are not additive in the features.",
+    "TreeSHAP over a single tree is a short traversal and is exact.",
+    "predict(type = 'contrib') returns contributions from the booster itself.",
+    "predict(type = 'contrib') returns contributions from the booster itself.",
+    "A sparse linear model over rules, not a booster; a rule is a conjunction of conditions, so it is not additive in single features.",
+    "Additive in its basis functions for a regression fit; classification adds a GLM over them, and an interaction term reads two features.",
+    "A network has no additive structure to read; Expected Gradients would be cheaper but is deferred.",
+    "A weighted sum of base explanations would be exact for a linear meta-learner, but needs every base to answer the same question; see the plan.",
+    "Coefficients give phi_j = beta_j * (x_j - E[x_j]) in closed form.",
+    "TreeSHAP over ranger's forest is possible but unimplemented; see the plan's open question 2.",
+    "A weighted sum of base explanations would be exact for a linear meta-learner, but needs every base to answer the same question; see the plan.",
+    "The decision function is linear for a regression or binary fit; multiclass is one-vs-one voting.",
+    "The kernel makes the decision function nonlinear in the features.",
+    "Linear in the features for regression and binary; multiclass scores are identified only up to a constant.",
+    "Attention masks are native and free but are not Shapley values."
+  ),
+  stringsAsFactors = FALSE
+)
+
+# The value function each algorithm's default estimator computes, derived rather
+# than restated so the two cannot disagree.
+explanation_algorithms[["perturbation"]] <- unname(
+  SHAP_ESTIMATOR_PERTURBATION[explanation_algorithms[["estimator"]]]
+)
+
+
+# %% explanation_methods ----
+#' Explanation Methods per Algorithm
+#'
+#' What [explain] does to a model fitted by each supervised algorithm: which
+#' estimator `setup_SHAP(estimator = "auto")` resolves to, whether that answer
+#' is exact, which value function it computes, and why.
+#'
+#' @details
+#' The columns:
+#'
+#' \describe{
+#'   \item{`name`}{The algorithm, as named by `setup_<name>()`.}
+#'   \item{`estimator`}{The estimator `"auto"` resolves to. `"KernelSHAP"` is
+#'     the model-agnostic fallback and applies to every algorithm; the others
+#'     are exact and algorithm-specific.}
+#'   \item{`exact`}{TRUE if the estimator returns Shapley values rather than an
+#'     estimate of them, NA where that depends on the fitted model rather than
+#'     on the algorithm -- an ensemble whose meta-learner turned out to be
+#'     linear, or a model that has one linear map for a regression or binary
+#'     outcome but not for a multiclass one. An NA row explains what it did
+#'     when asked, and refuses with a message naming the reason when it cannot.}
+#'   \item{`perturbation`}{The value function computed when
+#'     `setup_SHAP(perturbation = )` is left NULL.}
+#'   \item{`rationale`}{Why this estimator, in one line.}
+#' }
+#'
+#' `estimator = "kernel"` is always available, so a row whose `exact` is FALSE
+#' is saying that `estimator = "exact"` has nothing to offer for it -- not that
+#' the algorithm cannot be explained.
+#'
+#' @param algorithm Optional Character: Name of a supervised algorithm, matched
+#' case-insensitively. NULL returns every algorithm.
+#'
+#' @return data.frame: One row per algorithm.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' explanation_methods()
+#' explanation_methods("Ranger")
+#' # Which algorithms have an exact estimator?
+#' em <- explanation_methods()
+#' em[["name"]][!is.na(em[["exact"]]) & em[["exact"]]]
+explanation_methods <- function(algorithm = NULL) {
+  if (is.null(algorithm)) {
+    return(explanation_algorithms)
+  }
+  methods <- explanation_algorithms[
+    explanation_algorithms[["name"]] == get_alg_name(algorithm),
+    ,
+    drop = FALSE
+  ]
+  rownames(methods) <- NULL
+  methods
+} # /rtemis::explanation_methods
+
+
 # Algorithms whose fit is constrained monotonic non-decreasing, which is what
 # makes an algorithm usable as a calibration map: a map that reorders scores
 # changes the ranking of the predictions and so changes AUC. `calibrate()`
