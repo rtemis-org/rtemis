@@ -135,3 +135,51 @@ method(varimp_super, class_glm) <- function(
 method(se_super, class_glm) <- function(model, newdata) {
   predict(model, newdata = newdata, se.fit = TRUE)[["se.fit"]]
 } # /rtemis::se_super.glm
+
+
+# %% explain_super.class_glm ----
+#' LinearSHAP contributions from a GLM
+#'
+#' Exact and closed-form: the model is linear on its link scale, so
+#' `phi_j = beta_j * (x_j - E[x_j])`. For a binomial family that scale is the
+#' logit, which is why the contributions do not sum to the fitted probability.
+#'
+#' @param model `glm` object.
+#' @param newdata tabular data: Cases to explain.
+#' @param background tabular data: Reference cases.
+#' @param estimator Character: Resolved estimator.
+#' @param perturbation Character: Resolved value function.
+#' @param scale Character: Scale the contributions are additive on.
+#' @param type Character: "Regression" or "Classification".
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `phi`, `baseline`, `predicted` and `exact`.
+#'
+#' @keywords internal
+#' @noRd
+method(explain_super, class_glm) <- function(
+  model,
+  newdata,
+  background,
+  estimator,
+  perturbation,
+  scale,
+  type,
+  verbosity = 0L
+) {
+  check_shap_linear(estimator, perturbation, "GLM")
+  shap_require_background(background, "LinearSHAP")
+  model_matrix_shap(
+    newdata = newdata,
+    background = background,
+    formula_terms = stats::delete.response(stats::terms(model)),
+    coefficients = matrix(stats::coef(model), ncol = 1L),
+    margin_fn = function(design) {
+      matrix(
+        predict(model, newdata = as.data.frame(newdata), type = "link"),
+        ncol = 1L
+      )
+    },
+    label = "LinearSHAP"
+  )
+} # /rtemis::explain_super.glm

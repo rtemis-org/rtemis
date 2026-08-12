@@ -302,3 +302,101 @@ method(varimp_super, class_cv.glmnet) <- function(model) {
     )
   )
 } # /rtemis::varimp_super.class_cv.glmnet
+
+
+# %% glmnet_coefficients ----
+#' Coefficients of a fitted glmnet, as a design-matrix-aligned matrix
+#'
+#' `coef()` returns a `(p + 1) x nlambda` sparse matrix, or a list of them --
+#' one per class -- for a multinomial fit. The first column is taken because
+#' that is the one `predict_super()` predicts from: a `cv.glmnet` resolves it to
+#' its chosen lambda, and a `glmnet` fitted over a path leaves the first. The
+#' choice is not trusted -- `linear_shap()` checks the reconstruction against
+#' the model's own linear predictor.
+#'
+#' @param model `glmnet` or `cv.glmnet` object.
+#'
+#' @return Numeric matrix, `(p + 1) x n_outputs`, intercept first.
+#'
+#' @keywords internal
+#' @noRd
+glmnet_coefficients <- function(model) {
+  coefs <- coef(model)
+  if (is.list(coefs)) {
+    return(do.call(
+      cbind,
+      lapply(coefs, function(x) as.matrix(x)[, 1L, drop = FALSE])
+    ))
+  }
+  as.matrix(coefs)[, 1L, drop = FALSE]
+} # /rtemis::glmnet_coefficients
+
+
+# %% explain_super_glmnet ----
+#' LinearSHAP contributions from a glmnet
+#'
+#' The elastic net is linear on its link scale, so `phi_j = beta_j * (x_j -
+#' E[x_j])` is exact and closed-form. Regularization shrinks the coefficients
+#' and so shrinks the contributions with them, which is the intended reading: a
+#' feature the penalty zeroed contributed nothing to this prediction.
+#'
+#' `glmnet` builds its design with `model.matrix(~., newdata)`, as
+#' `predict_super()` does, so that expansion is undone here.
+#'
+#' Shared by the `glmnet` and `cv.glmnet` methods, which differ only in how
+#' `coef()` resolves its lambda.
+#'
+#' @param model `glmnet` or `cv.glmnet` object.
+#' @param newdata tabular data: Cases to explain.
+#' @param background tabular data: Reference cases.
+#' @param estimator Character: Resolved estimator.
+#' @param perturbation Character: Resolved value function.
+#' @param scale Character: Scale the contributions are additive on.
+#' @param type Character: "Regression" or "Classification".
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `phi`, `baseline`, `predicted` and `exact`.
+#'
+#' @keywords internal
+#' @noRd
+explain_super_glmnet <- function(
+  model,
+  newdata,
+  background,
+  estimator,
+  perturbation,
+  scale,
+  type,
+  verbosity = 0L
+) {
+  check_shap_linear(estimator, perturbation, "GLMNET")
+  shap_require_background(background, "LinearSHAP")
+  model_matrix_shap(
+    newdata = newdata,
+    background = background,
+    formula_terms = stats::terms(~., data = as.data.frame(newdata)),
+    coefficients = glmnet_coefficients(model),
+    margin_fn = function(design) {
+      link <- predict(model, newx = design, type = "link")
+      # A multinomial fit returns cases x classes x lambdas; the first lambda is
+      # the one the coefficients were read at.
+      if (length(dim(link)) > 2L) {
+        link <- link[,, 1L, drop = TRUE]
+      }
+      matrix(link, nrow = NROW(design))
+    },
+    label = "LinearSHAP"
+  )
+} # /rtemis::explain_super_glmnet
+
+
+# %% explain_super.class_glmnet ----
+#' @keywords internal
+#' @noRd
+method(explain_super, class_glmnet) <- explain_super_glmnet
+
+
+# %% explain_super.class_cv.glmnet ----
+#' @keywords internal
+#' @noRd
+method(explain_super, class_cv.glmnet) <- explain_super_glmnet

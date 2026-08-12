@@ -61,6 +61,7 @@
     list(CustomConfig, "setup_Resampler")
   ),
   .contract_family(TunerConfig, list(GridSearchConfig, "setup_GridSearch")),
+  .contract_family(ExplanationConfig, list(SHAPConfig, "setup_SHAP")),
   .contract_family(
     Hyperparameters,
     list(GLMHyperparameters, "setup_GLM"),

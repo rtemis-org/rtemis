@@ -264,3 +264,104 @@ method(varimp_super, class_splsda) <- function(model) {
     )
   )
 } # /rtemis::varimp_super.class_splsda
+
+
+# %% explain_super.class_spls ----
+#' LinearSHAP contributions from an SPLS regression
+#'
+#' Sparse PLS is linear in the features, so `phi_j = beta_j * (x_j - E[x_j])` is
+#' exact. The map is recovered by probing rather than from `coef()`: the two
+#' disagree by about 1% because the fit scales internally, and it is the map
+#' `predict()` implements that the contributions must decompose.
+#'
+#' @param model `spls` object.
+#' @param newdata tabular data: Cases to explain.
+#' @param background tabular data: Reference cases.
+#' @param estimator Character: Resolved estimator.
+#' @param perturbation Character: Resolved value function.
+#' @param scale Character: Scale the contributions are additive on.
+#' @param type Character: "Regression".
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `phi`, `baseline`, `predicted` and `exact`.
+#'
+#' @keywords internal
+#' @noRd
+method(explain_super, class_spls) <- function(
+  model,
+  newdata,
+  background,
+  estimator,
+  perturbation,
+  scale,
+  type,
+  verbosity = 0L
+) {
+  check_shap_linear(estimator, perturbation, "SPLS")
+  shap_require_background(background, "LinearSHAP")
+  probed_linear_shap(
+    design = newdata,
+    background = background,
+    margin_fn = function(x) {
+      matrix(
+        predict_super(model = model, newdata = x, type = "Regression"),
+        ncol = 1L
+      )
+    },
+    label = "LinearSHAP"
+  )
+} # /rtemis::explain_super.class_spls
+
+
+# %% explain_super.class_splsda ----
+#' LinearSHAP contributions from an SPLSDA classification
+#'
+#' The components are linear in the features and the classifier fitted on them
+#' is linear on the logit, so the composition is too -- for a binary outcome.
+#' Multiclass is refused: its per-class scores are identified only up to a
+#' constant, so there is no single margin per class to decompose.
+#'
+#' The margin is `qlogis()` of what `predict_super()` returns, so the
+#' contributions decompose the probability this package actually reports rather
+#' than a quantity read out of the fit's internals.
+#'
+#' @param model `splsda` object.
+#' @param newdata tabular data: Cases to explain.
+#' @param background tabular data: Reference cases.
+#' @param estimator Character: Resolved estimator.
+#' @param perturbation Character: Resolved value function.
+#' @param scale Character: Scale the contributions are additive on.
+#' @param type Character: "Classification".
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `phi`, `baseline`, `predicted` and `exact`.
+#'
+#' @keywords internal
+#' @noRd
+method(explain_super, class_splsda) <- function(
+  model,
+  newdata,
+  background,
+  estimator,
+  perturbation,
+  scale,
+  type,
+  verbosity = 0L
+) {
+  check_shap_linear(estimator, perturbation, "SPLS")
+  check_shap_binary(type, model[["ngroups"]], "SPLS")
+  shap_require_background(background, "LinearSHAP")
+  probed_linear_shap(
+    design = newdata,
+    background = background,
+    margin_fn = function(x) {
+      matrix(
+        stats::qlogis(as.numeric(
+          predict_super(model = model, newdata = x, type = "Classification")
+        )),
+        ncol = 1L
+      )
+    },
+    label = "LinearSHAP"
+  )
+} # /rtemis::explain_super.class_splsda

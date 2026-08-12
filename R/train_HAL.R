@@ -451,3 +451,126 @@ method(varimp_super, class_hal9001) <- function(model) {
     )
   )
 } # /rtemis::varimp_super.class_hal9001
+
+
+# %% explain_super.class_hal9001 ----
+#' Native basis contributions from a HAL model
+#'
+#' HAL is a lasso over basis functions, so it is already a linear model in a
+#' known basis: the prediction is the intercept plus the fired bases' weighted
+#' values, and each basis reading one feature makes its contribution that
+#' feature's exactly. `basis_list` records which design columns each basis is
+#' built from, and the coefficients align with it one-to-one after the
+#' intercept -- the same structure `varimp_super()` walks.
+#'
+#' **A basis reading more than one feature is refused.** Splitting its value
+#' between those features is a within-term Shapley problem rather than a sum,
+#' and `setup_HAL()` defaults to `max_degree = 2L`, so this is the common case
+#' rather than an edge one. Only the *selected* bases are checked: a
+#' higher-degree basis the lasso zeroed contributes nothing and cannot make the
+#' fit non-additive.
+#'
+#' @param model `hal9001` object.
+#' @param newdata tabular data: Cases to explain, already encoded.
+#' @param background tabular data: Reference cases.
+#' @param estimator Character: Resolved estimator.
+#' @param perturbation Character: Resolved value function.
+#' @param scale Character: Scale the contributions are additive on.
+#' @param type Character: "Regression" or "Classification".
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `phi`, `baseline`, `predicted` and `exact`.
+#'
+#' @keywords internal
+#' @noRd
+method(explain_super, class_hal9001) <- function(
+  model,
+  newdata,
+  background,
+  estimator,
+  perturbation,
+  scale,
+  type,
+  verbosity = 0L
+) {
+  if (!identical(estimator, "HALBasis")) {
+    rtemis.core::abort(
+      "HAL's explain_super() computes HALBasis, not ",
+      estimator,
+      ".",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  if (!identical(perturbation, "interventional")) {
+    rtemis.core::abort(
+      "Conditional HALBasis is not implemented: a basis is evaluated at the ",
+      "case's own value against the background's marginal mean, which is the ",
+      "interventional answer.\n",
+      "Use `setup_SHAP(perturbation = \"interventional\")`, or ",
+      "`setup_SHAP(estimator = \"kernel\", perturbation = \"conditional\")`.",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  shap_require_background(background, "HALBasis")
+  newdata <- as.data.frame(newdata)
+  background <- as.data.frame(background)
+
+  basis_list <- model[["basis_list"]]
+  # Row 1 is the intercept and the basis coefficients follow, one per basis --
+  # the alignment `varimp_super()` relies on.
+  coefficients <- as.numeric(model[["coefs"]])[-1L][seq_along(basis_list)]
+  selected <- which(coefficients != 0)
+  features <- lapply(basis_list[selected], function(basis) {
+    unique(basis[["cols"]])
+  })
+  degree <- lengths(features)
+  if (any(degree > 1L)) {
+    rtemis.core::abort(
+      "HALBasis is not available for this fit: ",
+      sum(degree > 1L),
+      " of its ",
+      length(selected),
+      " selected basis functions read more than one feature, and splitting ",
+      "one between them is not a sum.\n",
+      "Fit with `setup_HAL(max_degree = 1L)` for an additive model, or use ",
+      "`setup_SHAP(estimator = \"kernel\")`.",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+
+  basis_values <- function(x) {
+    design <- hal9001::make_design_matrix(as.matrix(x), basis_list)
+    # Dense, because the per-basis contributions are scaled and summed below and
+    # a sparse matrix does not survive `sweep()`.
+    sweep(
+      as.matrix(design[, selected, drop = FALSE]),
+      2L,
+      coefficients[selected],
+      "*"
+    )
+  }
+  margin <- function(x) {
+    predicted <- as.numeric(predict_super(
+      model = model,
+      newdata = x,
+      type = type
+    ))
+    # A binomial fit predicts a probability; the bases are additive on the
+    # logit, which is the scale the contributions decompose.
+    if (identical(type, "Classification")) {
+      stats::qlogis(predicted)
+    } else {
+      predicted
+    }
+  }
+
+  additive_terms_shap(
+    terms_new = basis_values(newdata),
+    terms_background = basis_values(background),
+    feature_of_term = names(newdata)[unlist(features)],
+    feature_names = names(newdata),
+    margin_new = margin(newdata),
+    margin_background = margin(background),
+    label = "HALBasis"
+  )
+} # /rtemis::explain_super.class_hal9001

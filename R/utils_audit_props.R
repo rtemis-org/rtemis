@@ -89,7 +89,12 @@ AUDIT_RESULT_CLASSES <- c(
   "ClassificationRes",
   "CalibratedClassificationRes",
   "VariableImportance",
-  "SupervisedSession"
+  "SupervisedSession",
+  # `SHAP@estimator` is the estimator that *ran*; `setup_SHAP`'s `estimator` is
+  # the one asked for, and their vocabularies do not overlap. Pairing them by
+  # name is the false match this list exists to prevent.
+  "Explanation",
+  "SHAP"
 )
 
 

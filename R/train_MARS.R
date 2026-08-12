@@ -321,3 +321,101 @@ method(varimp_super, class_earth) <- function(model) {
     )
   )
 } # /rtemis::varimp_super.class_earth
+
+
+# %% explain_super.class_earth ----
+#' Native basis contributions from a MARS model
+#'
+#' An additive MARS fit is a sum of hinge functions each reading one feature, so
+#' `predict(type = "terms")` returns per-feature contributions and their
+#' re-centering on the background is the exact Shapley value.
+#'
+#' Two fits do not qualify, and both are refused rather than approximated:
+#'
+#' - **Classification.** `earth` fits a GLM over the basis, and
+#'   `predict(type = "terms")` returns the *earth* terms rather than the GLM's,
+#'   which do not reconstruct the link. The decomposition exists -- the link is
+#'   linear in the basis functions -- but it has to be built from the basis
+#'   matrix rather than read off, which is not done yet.
+#' - **`degree > 1`.** An interaction term reads two features, and splitting its
+#'   value between them is a within-term Shapley problem rather than a sum.
+#'   Caught by the reconstruction check in `additive_terms_shap()`.
+#'
+#' @param model `earth` object.
+#' @param newdata tabular data: Cases to explain, already encoded.
+#' @param background tabular data: Reference cases.
+#' @param estimator Character: Resolved estimator.
+#' @param perturbation Character: Resolved value function.
+#' @param scale Character: Scale the contributions are additive on.
+#' @param type Character: "Regression" or "Classification".
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `phi`, `baseline`, `predicted` and `exact`.
+#'
+#' @keywords internal
+#' @noRd
+method(explain_super, class_earth) <- function(
+  model,
+  newdata,
+  background,
+  estimator,
+  perturbation,
+  scale,
+  type,
+  verbosity = 0L
+) {
+  if (!identical(estimator, "MARSBasis")) {
+    rtemis.core::abort(
+      "MARS's explain_super() computes MARSBasis, not ",
+      estimator,
+      ".",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  if (!identical(perturbation, "interventional")) {
+    rtemis.core::abort(
+      "Conditional MARSBasis is not implemented: a basis function is evaluated ",
+      "at the case's own value against the background's marginal mean, which ",
+      "is the interventional answer.\n",
+      "Use `setup_SHAP(perturbation = \"interventional\")`, or ",
+      "`setup_SHAP(estimator = \"kernel\", perturbation = \"conditional\")`.",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  if (!is.null(model[["glm.list"]])) {
+    rtemis.core::abort(
+      "MARSBasis is not available for a MARS classification: `earth` fits a ",
+      "GLM over the basis, and its terms are on the basis scale rather than ",
+      "the link's, so they do not decompose the prediction.\n",
+      "Use `setup_SHAP(estimator = \"kernel\")`.",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  shap_require_background(background, "MARSBasis")
+  design <- function(x) mars_matrix(as.data.frame(x))
+  margin <- function(x) {
+    as.numeric(predict(model, newdata = design(x), type = "response")[, 1L])
+  }
+  terms_new <- predict(model, newdata = design(newdata), type = "terms")
+  terms_background <- predict(
+    model,
+    newdata = design(background),
+    type = "terms"
+  )
+  additive_terms_shap(
+    terms_new = terms_new,
+    terms_background = terms_background,
+    # `earth` drops a column it did not select -- a redundant one-hot level, for
+    # instance -- so a feature with no term contributes exactly nothing, which
+    # is what a zero column says.
+    feature_of_term = terms_feature_map(
+      colnames(terms_new),
+      names(as.data.frame(newdata)),
+      "MARSBasis"
+    ),
+    feature_names = names(as.data.frame(newdata)),
+    margin_new = margin(newdata),
+    margin_background = margin(background),
+    label = "MARSBasis"
+  )
+} # /rtemis::explain_super.class_earth
