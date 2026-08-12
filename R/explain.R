@@ -633,6 +633,10 @@ check_shap_binary <- function(type, n_classes, algorithm) {
 #' (intercept column dropped), returns the model's own linear predictor. Taken
 #' as a callback because the design is built here, and a backend that predicts
 #' from a matrix needs the same one.
+#' @param xlev Optional list: Factor levels the model was fitted with, as
+#' `model[["xlevels"]]`.
+#' @param contrasts.arg Optional list: Contrasts the model was fitted with, as
+#' `model[["contrasts"]]`.
 #' @param label Character: Estimator name, for error messages.
 #'
 #' @return List with `phi`, `baseline`, `predicted` and `exact`.
@@ -646,12 +650,23 @@ model_matrix_shap <- function(
   formula_terms,
   coefficients,
   margin_fn = NULL,
+  xlev = NULL,
+  contrasts.arg = NULL,
   label = "LinearSHAP"
 ) {
   # Built from the two frames stacked, so a factor level present in one and not
-  # the other cannot produce two different column sets.
+  # the other cannot produce two different column sets. `xlev` pins those sets
+  # to the levels the model was fitted with, which is what makes the design line
+  # up with `coefficients`: a factor whose levels were dropped after fitting
+  # otherwise expands to fewer columns here than there are coefficients, and the
+  # explanation fails on data `predict()` accepts.
   combined <- rbind(as.data.frame(newdata), as.data.frame(background))
-  design_all <- stats::model.matrix(formula_terms, combined)
+  design_all <- stats::model.matrix(
+    formula_terms,
+    combined,
+    contrasts.arg = contrasts.arg,
+    xlev = xlev
+  )
   assign <- attr(design_all, "assign")
   labels <- colnames(newdata)
   n <- NROW(newdata)
@@ -837,27 +852,39 @@ method(explain, Supervised) <- function(
   )
   space <- aggregated[[1L]][["space"]]
   phi <- lapply(aggregated, `[[`, "phi")
+  # The finest-grained view available, carried only where it says something the
+  # reported matrices do not. A backend that expanded the features itself hands
+  # its own; otherwise it is what the aggregation collapsed, and if nothing
+  # expanded then the two are the same numbers and it is dropped. Compared with
+  # the case labels off both sides, which are stamped on below: whether a given
+  # estimator's output arrived already carrying them says nothing about whether
+  # an encoding intervened.
+  unlabeled <- function(contributions) {
+    lapply(contributions, function(block) {
+      rownames(block) <- NULL
+      block
+    })
+  }
+  encoded <- computed[["phi_encoded"]] %||% computed[["phi"]]
+  phi_encoded <- if (identical(unlabeled(phi), unlabeled(encoded))) {
+    NULL
+  } else {
+    encoded
+  }
   # Labeled here rather than per estimator, so a case is identified the same way
   # whichever one ran -- one of them builds its matrices from a design matrix
   # that carries the labels and another from a backend's output that does not.
   case_labels <- rownames(as.data.frame(newdata))
-  phi <- lapply(phi, function(contributions) {
+  label_cases <- function(contributions) {
     rownames(contributions) <- case_labels
     contributions
-  })
+  }
+  phi <- lapply(phi, label_cases)
+  if (!is.null(phi_encoded)) {
+    phi_encoded <- lapply(phi_encoded, label_cases)
+  }
   rownames(computed[["predicted"]]) <- case_labels
   rownames(computed[["baseline"]]) <- case_labels
-  # The finest-grained view available, carried only where it says something the
-  # reported matrices do not. A backend that expanded the features itself hands
-  # its own; otherwise it is what the aggregation collapsed, and if nothing
-  # expanded then the two are the same numbers.
-  phi_encoded <- if (!is.null(computed[["phi_encoded"]])) {
-    computed[["phi_encoded"]]
-  } else if (identical(phi, computed[["phi"]])) {
-    NULL
-  } else {
-    computed[["phi"]]
-  }
 
   SHAP(
     algorithm = x@algorithm,
@@ -893,7 +920,8 @@ method(explain, Supervised) <- function(
 #' @param computed List: `explain_super()` result.
 #' @param x `Supervised` object.
 #'
-#' @return `computed`, with `phi`, `baseline` and `predicted` named.
+#' @return `computed`, with `phi`, `phi_encoded`, `baseline` and `predicted`
+#' named.
 #'
 #' @author EDG
 #' @keywords internal
@@ -925,6 +953,9 @@ name_shap_outputs <- function(computed, x) {
     }
   }
   names(computed[["phi"]]) <- labels
+  if (!is.null(computed[["phi_encoded"]])) {
+    names(computed[["phi_encoded"]]) <- labels
+  }
   colnames(computed[["baseline"]]) <- labels
   colnames(computed[["predicted"]]) <- labels
   computed

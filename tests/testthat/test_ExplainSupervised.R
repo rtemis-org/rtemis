@@ -955,6 +955,17 @@ test_that("CART TreeSHAP is exact for every outcome type", {
 })
 
 
+test_that("a CART that expanded nothing reports no encoded view", {
+  mod <- train(.cart_dat, hyperparameters = setup_CART(), verbosity = 0L)
+  x <- explain(mod, .cart_dat[1:3, .cart_feats], verbosity = 0L)
+  expect_identical(x@space, "input")
+  # `rpart` splits on the factor itself, so nothing was expanded and the encoded
+  # values would be the same numbers. This estimator returns them unlabeled,
+  # which must not read as an encoding having intervened.
+  expect_null(x@phi_encoded)
+})
+
+
 test_that("a CART baseline is the tree's own expected prediction", {
   mod <- train(.cart_dat, hyperparameters = setup_CART(), verbosity = 0L)
   x <- explain(mod, .cart_dat[1:3, .cart_feats], verbosity = 0L)
@@ -1767,6 +1778,29 @@ test_that("per-level contributions stay reachable, without being reported", {
     rowSums(x@phi[["outcome"]]),
     tolerance = 1e-10
   )
+})
+
+
+test_that("a GLM explains the data its own predict() accepts", {
+  mod <- train(.dx_dat, hyperparameters = setup_GLM(), verbosity = 0L)
+  # A subset that no longer carries every level, and whose reference level is
+  # the one dropped. `predict.glm()` rebuilds the design from the levels the
+  # model was fitted with; the design built here has to agree with it, or the
+  # coefficients line up against the wrong columns.
+  thin <- droplevels(.dx_dat[.dx_dat[["dx"]] != "asthma", ])
+  x <- explain(
+    mod,
+    thin[1:3, .dx_feats],
+    background = thin[, .dx_feats],
+    verbosity = 0L
+  )
+  expect_identical(colnames(x@phi[["outcome"]]), .dx_feats)
+  expect_additive(x)
+  # The dropped level still has no column of its own -- it is the reference --
+  # but the two that remain are the ones the model was fitted with.
+  expect_true(all(
+    c("dxdiabetes", "dxnone") %in% colnames(x@phi_encoded[[1L]])
+  ))
 })
 
 

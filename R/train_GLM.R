@@ -180,6 +180,8 @@ method(explain_super, class_glm) <- function(
         ncol = 1L
       )
     },
+    xlev = model[["xlevels"]],
+    contrasts.arg = model[["contrasts"]],
     label = "LinearSHAP"
   )
 } # /rtemis::explain_super.glm
