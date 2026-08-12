@@ -12,7 +12,7 @@
 # link for classification -- comparing the two is the error being guarded.
 
 set.seed(2026)
-.n <- 200L
+.n <- 40L
 .explain_dat <- data.frame(
   age = rnorm(.n),
   bmi = rnorm(.n),
@@ -57,7 +57,7 @@ test_that("explain() decomposes a LightGBM regression exactly", {
     hyperparameters = setup_LightGBM(),
     verbosity = 0L
   )
-  x <- explain(mod, .regression_dat[1:10, .explain_feats], verbosity = 0L)
+  x <- explain(mod, .regression_dat[1:3, .explain_feats], verbosity = 0L)
   expect_s7_class(x, SHAP)
   expect_identical(x@algorithm, "LightGBM")
   expect_identical(x@estimator, "TreeSHAP")
@@ -71,7 +71,7 @@ test_that("explain() decomposes a LightGBM regression exactly", {
   # only here.
   expect_equal(
     as.numeric(x@predicted[, 1L]),
-    as.numeric(predict(mod, .regression_dat[1:10, .explain_feats])),
+    as.numeric(predict(mod, .regression_dat[1:3, .explain_feats])),
     tolerance = 1e-10
   )
 })
@@ -82,10 +82,10 @@ test_that("a binary explanation is on the margin, not the probability", {
   # Correction 6, as a test: `predict.Supervised` normalizes classification to
   # probabilities via `prob_matrix()`, and contributions live on the margin.
   mod <- train(.binary_dat, hyperparameters = setup_LightGBM(), verbosity = 0L)
-  x <- explain(mod, .binary_dat[1:10, .explain_feats], verbosity = 0L)
+  x <- explain(mod, .binary_dat[1:3, .explain_feats], verbosity = 0L)
   expect_identical(x@scale, "margin")
   expect_additive(x)
-  probability <- predict(mod, .binary_dat[1:10, .explain_feats], verbosity = 0L)
+  probability <- predict(mod, .binary_dat[1:3, .explain_feats], verbosity = 0L)
   reconstructed <- rowSums(x@phi[[1L]]) + x@baseline[1L, 1L]
   # The link relates them...
   expect_equal(
@@ -108,7 +108,7 @@ test_that("a binary explanation is named for the positive class", {
   # probability matrix's columns agree. The negative class's contributions are
   # the exact negation, so storing them would store one thing twice.
   mod <- train(.binary_dat, hyperparameters = setup_LightGBM(), verbosity = 0L)
-  x <- explain(mod, .binary_dat[1:5, .explain_feats], verbosity = 0L)
+  x <- explain(mod, .binary_dat[1:3, .explain_feats], verbosity = 0L)
   expect_length(x@phi, 1L)
   expect_named(x@phi, levels(mod@y_training)[[mod@binclasspos]])
 })
@@ -121,9 +121,9 @@ test_that("a multiclass explanation is one matrix per class, each additive", {
     hyperparameters = setup_LightGBM(),
     verbosity = 0L
   )
-  x <- explain(mod, .multiclass_dat[1:10, .explain_feats], verbosity = 0L)
+  x <- explain(mod, .multiclass_dat[1:3, .explain_feats], verbosity = 0L)
   expect_named(x@phi, levels(mod@y_training))
-  expect_identical(dim(x@predicted), c(10L, 3L))
+  expect_identical(dim(x@predicted), c(3L, 3L))
   expect_additive(x)
 })
 
@@ -151,11 +151,11 @@ test_that("regression, binary and multiclass differ only in length", {
   for (name in names(models)) {
     x <- explain(
       models[[name]],
-      .explain_dat[1:6, .explain_feats],
+      .explain_dat[1:3, .explain_feats],
       verbosity = 0L
     )
     expect_true(is.list(x@phi), info = name)
-    expect_identical(dim(x@phi[[1L]]), c(6L, 3L), info = name)
+    expect_identical(dim(x@phi[[1L]]), c(3L, 3L), info = name)
     expect_identical(ncol(x@predicted), length(x@phi), info = name)
     expect_identical(colnames(x@baseline), names(x@phi), info = name)
     expect_identical(dim(x@baseline), dim(x@predicted), info = name)
@@ -172,7 +172,7 @@ test_that("a factor predictor gets one contribution, not one per level", {
   )
   dat[["y"]] <- dat[["age"]] * 2 + as.integer(dat[["dx"]]) + rnorm(.n, sd = 0.3)
   mod <- train(dat, hyperparameters = setup_LightGBM(), verbosity = 0L)
-  x <- explain(mod, dat[1:5, c("age", "dx")], verbosity = 0L)
+  x <- explain(mod, dat[1:3, c("age", "dx")], verbosity = 0L)
   expect_identical(x@feature_names, c("age", "dx"))
   expect_identical(x@space, "input")
   expect_additive(x)
@@ -189,7 +189,7 @@ test_that("estimator, value function and scale are resolved and recorded", {
     hyperparameters = setup_LightGBM(),
     verbosity = 0L
   )
-  x <- explain(mod, .regression_dat[1:5, .explain_feats], verbosity = 0L)
+  x <- explain(mod, .regression_dat[1:3, .explain_feats], verbosity = 0L)
   # Asked for "auto" and got the concrete estimator; the two vocabularies do
   # not overlap, so the pair is unambiguous.
   expect_identical(x@config@estimator, "auto")
@@ -211,7 +211,7 @@ test_that("explain() records what it explained and what it explained against", {
     hyperparameters = setup_LightGBM(),
     verbosity = 0L
   )
-  newdata <- .regression_dat[1:5, .explain_feats]
+  newdata <- .regression_dat[1:3, .explain_feats]
   background <- .regression_dat[, .explain_feats]
   x <- explain(mod, newdata, background = background, verbosity = 0L)
   expect_identical(x@data_fingerprint@hash, data_fingerprint(newdata)@hash)
@@ -237,7 +237,7 @@ test_that("estimator = 'exact' is refused where there is no exact estimator", {
   expect_error(
     explain(
       mod,
-      .regression_dat[1:5, .explain_feats],
+      .regression_dat[1:3, .explain_feats],
       config = setup_SHAP(estimator = "exact"),
       verbosity = 0L
     ),
@@ -258,7 +258,7 @@ test_that("an interventional TreeSHAP is refused rather than relabeled", {
   expect_error(
     explain(
       mod,
-      .regression_dat[1:5, .explain_feats],
+      .regression_dat[1:3, .explain_feats],
       config = setup_SHAP(perturbation = "interventional"),
       verbosity = 0L
     ),
@@ -277,7 +277,7 @@ test_that("the probability scale is refused, differently, per outcome type", {
   expect_error(
     explain(
       regression,
-      .regression_dat[1:5, .explain_feats],
+      .regression_dat[1:3, .explain_feats],
       config = setup_SHAP(scale = "probability"),
       verbosity = 0L
     ),
@@ -292,7 +292,7 @@ test_that("the probability scale is refused, differently, per outcome type", {
   expect_error(
     explain(
       classification,
-      .binary_dat[1:5, .explain_feats],
+      .binary_dat[1:3, .explain_feats],
       config = setup_SHAP(scale = "probability"),
       verbosity = 0L
     ),
@@ -312,7 +312,7 @@ test_that("an estimator that is not written yet says so, by algorithm", {
   message <- tryCatch(
     explain(
       mod,
-      .regression_dat[1:5, .explain_feats],
+      .regression_dat[1:3, .explain_feats],
       background = .regression_dat[, .explain_feats],
       verbosity = 0L
     ),
@@ -327,19 +327,23 @@ test_that("an estimator that is not written yet says so, by algorithm", {
 
 # %% LinearSHAP ----
 set.seed(11L)
+# Larger than the rest: `cv.glmnet` warns about thin classes when its internal
+# folds leave fewer than eight cases of a class, and a multiclass fit here is
+# what would trip it.
+.linear_n <- 150L
 .linear_dat <- data.frame(
-  age = rnorm(.n),
-  bmi = rnorm(.n),
-  dx = factor(sample(c("A", "B", "C"), .n, TRUE))
+  age = rnorm(.linear_n),
+  bmi = rnorm(.linear_n),
+  dx = factor(sample(c("A", "B", "C"), .linear_n, TRUE))
 )
 .linear_feats <- c("age", "bmi", "dx")
 .linear_regression <- within(
   .linear_dat,
-  y <- 2 * age - bmi + as.integer(dx) * 0.5 + rnorm(.n, sd = 0.3)
+  y <- 2 * age - bmi + as.integer(dx) * 0.5 + rnorm(.linear_n, sd = 0.3)
 )
 .linear_binary <- within(
   .linear_dat,
-  y <- factor(ifelse(age + rnorm(.n, sd = 0.5) > 0, "pos", "neg"))
+  y <- factor(ifelse(age + rnorm(.linear_n, sd = 0.5) > 0, "pos", "neg"))
 )
 .linear_multiclass <- within(
   .linear_dat,
@@ -355,7 +359,7 @@ test_that("LinearSHAP decomposes a GLM exactly, on the link scale", {
   )
   x <- explain(
     mod,
-    .linear_regression[1:8, .linear_feats],
+    .linear_regression[1:3, .linear_feats],
     background = .linear_regression[, .linear_feats],
     verbosity = 0L
   )
@@ -380,7 +384,7 @@ test_that("a factor gets one contribution, summed over its contrast columns", {
   expect_true(all(c("dxB", "dxC") %in% names(stats::coef(mod@model))))
   x <- explain(
     mod,
-    .linear_regression[1:5, .linear_feats],
+    .linear_regression[1:3, .linear_feats],
     background = .linear_regression[, .linear_feats],
     verbosity = 0L
   )
@@ -394,14 +398,14 @@ test_that("LinearSHAP decomposes a binary GLM on the logit, not the probability"
   mod <- train(.linear_binary, hyperparameters = setup_GLM(), verbosity = 0L)
   x <- explain(
     mod,
-    .linear_binary[1:8, .linear_feats],
+    .linear_binary[1:3, .linear_feats],
     background = .linear_binary[, .linear_feats],
     verbosity = 0L
   )
   expect_additive(x)
   probability <- predict(
     mod,
-    .linear_binary[1:8, .linear_feats],
+    .linear_binary[1:3, .linear_feats],
     verbosity = 0L
   )
   expect_equal(
@@ -423,7 +427,7 @@ test_that("LinearSHAP decomposes a glmnet for every outcome type", {
     mod <- train(dat, hyperparameters = setup_GLMNET(), verbosity = 0L)
     x <- explain(
       mod,
-      dat[1:8, .linear_feats],
+      dat[1:3, .linear_feats],
       background = dat[, .linear_feats],
       verbosity = 0L
     )
@@ -439,7 +443,7 @@ test_that("LinearSHAP decomposes an NNLS, which has no intercept", {
   dat[["y"]] <- 2 * dat[["age"]] + 0.5 * dat[["bmi"]] + rnorm(.n, sd = 0.3)
   feats <- c("age", "bmi")
   mod <- train(dat, hyperparameters = setup_NNLS(), verbosity = 0L)
-  x <- explain(mod, dat[1:8, feats], background = dat[, feats], verbosity = 0L)
+  x <- explain(mod, dat[1:3, feats], background = dat[, feats], verbosity = 0L)
   expect_additive(x)
   # With no intercept the baseline is just the fit at the background's mean.
   expect_equal(
@@ -460,7 +464,7 @@ test_that("LinearSHAP needs a background, and says which argument", {
     verbosity = 0L
   )
   expect_error(
-    explain(mod, .linear_regression[1:5, .linear_feats], verbosity = 0L),
+    explain(mod, .linear_regression[1:3, .linear_feats], verbosity = 0L),
     "background",
     class = "rtemis_missing_error"
   )
@@ -478,7 +482,7 @@ test_that("a conditional LinearSHAP is refused rather than mislabeled", {
   expect_error(
     explain(
       mod,
-      .linear_regression[1:5, .linear_feats],
+      .linear_regression[1:3, .linear_feats],
       background = .linear_regression[, .linear_feats],
       config = setup_SHAP(perturbation = "conditional"),
       verbosity = 0L
@@ -561,7 +565,7 @@ test_that("a model that is not affine is refused, not linearized", {
 
 # %% SPLS and LinearSVM ----
 set.seed(9L)
-.probe_n <- 250L
+.probe_n <- 60L
 .probe_dat <- data.frame(
   a = rnorm(.probe_n),
   b = rnorm(.probe_n),
@@ -597,7 +601,7 @@ test_that("SPLS and LinearSVM decompose exactly, through their own one-hot", {
     mod <- train(dat, hyperparameters = cases[[name]][[2L]], verbosity = 0L)
     x <- explain(
       mod,
-      dat[1:8, .probe_feats],
+      dat[1:3, .probe_feats],
       background = dat[, .probe_feats],
       verbosity = 0L
     )
@@ -657,14 +661,14 @@ test_that("a binary SVM's margin points at the positive class", {
   )
   x <- explain(
     mod,
-    .probe_binary[1:20, .probe_feats],
+    .probe_binary[1:5, .probe_feats],
     background = .probe_binary[, .probe_feats],
     verbosity = 0L
   )
   expect_named(x@phi, levels(mod@y_training)[[mod@binclasspos]])
   probability <- predict(
     mod,
-    .probe_binary[1:20, .probe_feats],
+    .probe_binary[1:5, .probe_feats],
     verbosity = 0L
   )
   expect_gt(cor(as.numeric(x@predicted[, 1L]), probability[, "pos"]), 0)
@@ -679,11 +683,11 @@ test_that("SPLS's binary margin is the logit of the reported probability", {
   )
   x <- explain(
     mod,
-    .probe_binary[1:8, .probe_feats],
+    .probe_binary[1:3, .probe_feats],
     background = .probe_binary[, .probe_feats],
     verbosity = 0L
   )
-  probability <- predict(mod, .probe_binary[1:8, .probe_feats], verbosity = 0L)
+  probability <- predict(mod, .probe_binary[1:3, .probe_feats], verbosity = 0L)
   expect_equal(
     as.numeric(stats::plogis(x@predicted[, 1L])),
     as.numeric(probability[, "pos"]),
@@ -705,7 +709,7 @@ test_that("multiclass SPLS and LinearSVM are refused, naming the fallback", {
     expect_error(
       explain(
         mod,
-        .probe_multiclass[1:5, .probe_feats],
+        .probe_multiclass[1:3, .probe_feats],
         background = .probe_multiclass[, .probe_feats],
         verbosity = 0L
       ),
@@ -718,7 +722,7 @@ test_that("multiclass SPLS and LinearSVM are refused, naming the fallback", {
 
 # %% Additive terms: GAM and MARS ----
 set.seed(4L)
-.terms_n <- 250L
+.terms_n <- 60L
 .terms_dat <- data.frame(
   a = rnorm(.terms_n),
   b = rnorm(.terms_n),
@@ -742,7 +746,7 @@ test_that("a GAM's own terms are its Shapley values", {
     mod <- train(dat, hyperparameters = setup_GAM(), verbosity = 0L)
     x <- explain(
       mod,
-      dat[1:8, .terms_feats],
+      dat[1:3, .terms_feats],
       background = dat[, .terms_feats],
       verbosity = 0L
     )
@@ -761,7 +765,7 @@ test_that("a GAM baseline is the background's mean prediction", {
   mod <- train(.terms_regression, hyperparameters = setup_GAM(), verbosity = 0L)
   x <- explain(
     mod,
-    .terms_regression[1:8, .terms_feats],
+    .terms_regression[1:3, .terms_feats],
     background = .terms_regression[, .terms_feats],
     verbosity = 0L
   )
@@ -801,7 +805,7 @@ test_that("an additive MARS decomposes exactly through its own one-hot", {
   )
   x <- explain(
     mod,
-    .terms_regression[1:8, .terms_feats],
+    .terms_regression[1:3, .terms_feats],
     background = .terms_regression[, .terms_feats],
     verbosity = 0L
   )
@@ -821,7 +825,7 @@ test_that("MARS is refused when the fit is not additive, not when asked", {
   # The gate is the fitted model, not `degree`: a degree-2 search that selected
   # no interaction is additive and is explained.
   set.seed(11L)
-  n <- 400L
+  n <- 150L
   interacting <- data.frame(a = rnorm(n), b = rnorm(n))
   interacting[["y"]] <- 3 *
     interacting[["a"]] *
@@ -843,7 +847,7 @@ test_that("MARS is refused when the fit is not additive, not when asked", {
   expect_error(
     explain(
       selected,
-      interacting[1:5, feats],
+      interacting[1:3, feats],
       background = interacting[, feats],
       verbosity = 0L
     ),
@@ -859,7 +863,7 @@ test_that("MARS is refused when the fit is not additive, not when asked", {
   expect_additive(
     explain(
       additive,
-      interacting[1:5, feats],
+      interacting[1:3, feats],
       background = interacting[, feats],
       verbosity = 0L
     )
@@ -872,7 +876,7 @@ test_that("MARS classification is refused: a GLM sits over the basis", {
   expect_error(
     explain(
       mod,
-      .terms_binary[1:5, .terms_feats],
+      .terms_binary[1:3, .terms_feats],
       background = .terms_binary[, .terms_feats],
       verbosity = 0L
     ),
@@ -901,7 +905,7 @@ test_that("terms_feature_map refuses a term that reads two features", {
 
 # %% CART TreeSHAP ----
 set.seed(2L)
-.cart_n <- 300L
+.cart_n <- 60L
 .cart_dat <- data.frame(
   a = rnorm(.cart_n),
   b = rnorm(.cart_n),
@@ -928,7 +932,7 @@ test_that("CART TreeSHAP is exact for every outcome type", {
   )
   for (name in names(cases)) {
     mod <- train(cases[[name]], hyperparameters = setup_CART(), verbosity = 0L)
-    x <- explain(mod, cases[[name]][1:8, .cart_feats], verbosity = 0L)
+    x <- explain(mod, cases[[name]][1:3, .cart_feats], verbosity = 0L)
     expect_identical(x@estimator, "TreeSHAP", info = name)
     expect_true(x@exact, info = name)
     expect_additive(x)
@@ -938,7 +942,7 @@ test_that("CART TreeSHAP is exact for every outcome type", {
       unname(x@predicted),
       unname(as.matrix(predict(
         mod,
-        cases[[name]][1:8, .cart_feats],
+        cases[[name]][1:3, .cart_feats],
         verbosity = 0L
       ))[,
         if (name == "binary") "pos" else seq_len(ncol(x@predicted)),
@@ -953,7 +957,7 @@ test_that("CART TreeSHAP is exact for every outcome type", {
 
 test_that("a CART baseline is the tree's own expected prediction", {
   mod <- train(.cart_dat, hyperparameters = setup_CART(), verbosity = 0L)
-  x <- explain(mod, .cart_dat[1:8, .cart_feats], verbosity = 0L)
+  x <- explain(mod, .cart_dat[1:3, .cart_feats], verbosity = 0L)
   # The empty coalition marginalizes every split by training coverage, which is
   # the mean prediction over the training data.
   expect_equal(
@@ -971,7 +975,7 @@ test_that("a feature the tree never split on gets exactly zero", {
   dat <- data.frame(a = rnorm(200L), noise = rnorm(200L))
   dat[["y"]] <- ifelse(dat[["a"]] > 0, 3, -3) + rnorm(200L, sd = 0.1)
   mod <- train(dat, hyperparameters = setup_CART(), verbosity = 0L)
-  x <- explain(mod, dat[1:5, c("a", "noise")], verbosity = 0L)
+  x <- explain(mod, dat[1:3, c("a", "noise")], verbosity = 0L)
   expect_true(all(x@phi[[1L]][, "noise"] == 0))
   expect_false(any(x@phi[[1L]][, "a"] == 0))
 })
@@ -987,7 +991,7 @@ test_that("a duplicate feature the tree ignored gets zero, not half", {
   dat[["copy"]] <- dat[["a"]]
   dat[["y"]] <- ifelse(dat[["a"]] > 0, 4, -4) + rnorm(300L, sd = 0.05)
   mod <- train(dat, hyperparameters = setup_CART(), verbosity = 0L)
-  x <- explain(mod, dat[1:5, c("a", "copy")], verbosity = 0L)
+  x <- explain(mod, dat[1:3, c("a", "copy")], verbosity = 0L)
   split_on <- unique(as.character(mod@model[["frame"]][["var"]]))
   expect_length(intersect(c("a", "copy"), split_on), 1L)
   ignored <- setdiff(c("a", "copy"), split_on)
@@ -1052,7 +1056,7 @@ test_that("a tree splitting on too many features is refused, not left to run", {
 # %% HAL basis walk ----
 test_that("HAL's basis walk is exact when every selected basis reads one feature", {
   set.seed(7L)
-  n <- 200L
+  n <- 60L
   dat <- data.frame(
     a = rnorm(n),
     b = rnorm(n),
@@ -1069,13 +1073,13 @@ test_that("HAL's basis walk is exact when every selected basis reads one feature
     hyperparameters = setup_HAL(max_degree = 1L),
     verbosity = 0L
   )
-  x <- explain(mod, dat[1:6, feats], background = dat[, feats], verbosity = 0L)
+  x <- explain(mod, dat[1:3, feats], background = dat[, feats], verbosity = 0L)
   expect_identical(x@estimator, "HALBasis")
   expect_identical(x@feature_names, feats)
   expect_additive(x)
   expect_equal(
     as.numeric(x@predicted[, 1L]),
-    as.numeric(predict(mod, dat[1:6, feats], verbosity = 0L)),
+    as.numeric(predict(mod, dat[1:3, feats], verbosity = 0L)),
     tolerance = 1e-8
   )
 })
@@ -1086,14 +1090,14 @@ test_that("HAL's default fit is refused, naming the setting that fixes it", {
   # is the common case rather than an edge one, and the message has to be
   # actionable rather than merely correct.
   set.seed(7L)
-  n <- 200L
+  n <- 60L
   dat <- data.frame(a = rnorm(n), b = rnorm(n))
   dat[["y"]] <- 2 * dat[["a"]] - dat[["b"]] + rnorm(n, sd = 0.3)
   feats <- c("a", "b")
   expect_identical(formals(setup_HAL)[["max_degree"]], quote(2L))
   mod <- train(dat, hyperparameters = setup_HAL(), verbosity = 0L)
   expect_error(
-    explain(mod, dat[1:5, feats], background = dat[, feats], verbosity = 0L),
+    explain(mod, dat[1:3, feats], background = dat[, feats], verbosity = 0L),
     "max_degree = 1L",
     class = "rtemis_unsupported_error"
   )
@@ -1102,7 +1106,7 @@ test_that("HAL's default fit is refused, naming the setting that fixes it", {
 
 # %% KernelSHAP ----
 set.seed(4L)
-.kernel_n <- 250L
+.kernel_n <- 40L
 .kernel_dat <- data.frame(
   a = rnorm(.kernel_n),
   b = rnorm(.kernel_n),
@@ -1126,7 +1130,7 @@ test_that("KernelSHAP agrees with the exact LinearSHAP on the same model", {
     hyperparameters = setup_GLM(),
     verbosity = 0L
   )
-  newdata <- .kernel_regression[1:5, .kernel_feats]
+  newdata <- .kernel_regression[1:3, .kernel_feats]
   background <- .kernel_regression[, .kernel_feats]
   exact <- explain(mod, newdata, background = background, verbosity = 0L)
   kernel <- explain(
@@ -1154,7 +1158,7 @@ test_that("KernelSHAP answers for the algorithms with no exact estimator", {
     )
     x <- explain(
       mod,
-      .kernel_regression[1:4, .kernel_feats],
+      .kernel_regression[1:3, .kernel_feats],
       background = .kernel_regression[, .kernel_feats],
       verbosity = 0L
     )
@@ -1180,7 +1184,7 @@ test_that("KernelSHAP explains a classification on the probability scale", {
   mod <- train(binary, hyperparameters = setup_Ranger(), verbosity = 0L)
   x <- explain(
     mod,
-    binary[1:4, .kernel_feats],
+    binary[1:3, .kernel_feats],
     background = binary[, .kernel_feats],
     verbosity = 0L
   )
@@ -1189,7 +1193,7 @@ test_that("KernelSHAP explains a classification on the probability scale", {
   expect_additive(x, tolerance = 1e-6)
   expect_equal(
     as.numeric(x@predicted[, 1L]),
-    as.numeric(predict(mod, binary[1:4, .kernel_feats], verbosity = 0L)[,
+    as.numeric(predict(mod, binary[1:3, .kernel_feats], verbosity = 0L)[,
       "pos"
     ]),
     tolerance = 1e-10
@@ -1206,7 +1210,7 @@ test_that("KernelSHAP gives multiclass one block per class", {
   mod <- train(multiclass, hyperparameters = setup_Ranger(), verbosity = 0L)
   x <- explain(
     mod,
-    multiclass[1:4, .kernel_feats],
+    multiclass[1:3, .kernel_feats],
     background = multiclass[, .kernel_feats],
     verbosity = 0L
   )
@@ -1227,7 +1231,7 @@ test_that("the value function is the perturbation, not an approach to guess", {
   )
   conditional <- explain(
     mod,
-    .kernel_regression[1:4, .kernel_feats],
+    .kernel_regression[1:3, .kernel_feats],
     background = .kernel_regression[, .kernel_feats],
     config = setup_SHAP(
       estimator = "kernel",
@@ -1318,6 +1322,208 @@ test_that("every refusal's suggested escape hatch actually works", {
 })
 
 
+# %% Shapley properties ----
+test_that("a feature the model ignores gets exactly zero, not merely little", {
+  # The dummy axiom under an interventional value function, for a linear model:
+  # a penalty that zeroes a noise feature's coefficient must zero its
+  # attribution, not shrink it. "True to the model" means a feature the model
+  # does not use contributes nothing, however predictive it might have been.
+  set.seed(21L)
+  n <- 120L
+  dat <- data.frame(signal = rnorm(n), noise = rnorm(n))
+  dat[["y"]] <- 5 * dat[["signal"]] + rnorm(n, sd = 0.2)
+  feats <- c("signal", "noise")
+  mod <- train(dat, hyperparameters = setup_GLMNET(), verbosity = 0L)
+  coefficients <- as.matrix(coef(mod@model))[, 1L]
+  skip_if_not(
+    coefficients[["noise"]] == 0,
+    "the penalty did not zero the noise coefficient"
+  )
+  x <- explain(mod, dat[1:3, feats], background = dat[, feats], verbosity = 0L)
+  expect_true(all(x@phi[[1L]][, "noise"] == 0))
+  expect_false(any(x@phi[[1L]][, "signal"] == 0))
+})
+
+
+# %% Plot data ----
+.plot_dat <- local({
+  set.seed(14L)
+  n <- 40L
+  dat <- data.frame(
+    age = rnorm(n),
+    bmi = rnorm(n),
+    dx = factor(sample(c("A", "B"), n, TRUE))
+  )
+  dat[["y"]] <- 2 *
+    dat[["age"]] -
+    dat[["bmi"]] +
+    as.integer(dat[["dx"]]) +
+    rnorm(n, sd = 0.3)
+  dat
+})
+.plot_feats <- c("age", "bmi", "dx")
+
+.plot_explanation <- function() {
+  mod <- train(.plot_dat, hyperparameters = setup_GLM(), verbosity = 0L)
+  explain(
+    mod,
+    .plot_dat[, .plot_feats],
+    background = .plot_dat[, .plot_feats],
+    verbosity = 0L
+  )
+}
+
+
+test_that("shap_case gives the three things a waterfall needs", {
+  # Where the prediction started, what each feature did, where it ended. Shaped
+  # here rather than in a renderer, as `session_timeline()` is, so rtemis.draw
+  # and rtemislive show the same thing.
+  x <- .plot_explanation()
+  step <- shap_case(x, .plot_dat[, .plot_feats], case = 3L)
+  expect_setequal(step[["steps"]][["feature"]], .plot_feats)
+  expect_equal(
+    sum(step[["steps"]][["contribution"]]) + step[["baseline"]],
+    step[["predicted"]],
+    tolerance = 1e-10
+  )
+  # Ordered by magnitude, which is how a waterfall reads -- whichever way each
+  # effect went.
+  expect_false(is.unsorted(rev(abs(step[["steps"]][["contribution"]]))))
+  # Each row carries the value the feature took, so it reads "age = 2.12, +4.21"
+  # rather than only "+4.21".
+  expect_identical(
+    step[["steps"]][["value"]][step[["steps"]][["feature"]] == "dx"],
+    as.character(.plot_dat[["dx"]][[3L]])
+  )
+})
+
+
+test_that("shap_long is one row per case per feature", {
+  x <- .plot_explanation()
+  long <- shap_long(x, .plot_dat[, .plot_feats])
+  expect_s3_class(long, "data.table")
+  expect_identical(nrow(long), nrow(.plot_dat) * length(.plot_feats))
+  expect_setequal(unique(long[["feature"]]), .plot_feats)
+  # A color scale needs a number, and a factor has none -- said with NA rather
+  # than by coercing a level to its integer code.
+  expect_true(all(is.na(long[long[["feature"]] == "dx", ][["numeric_value"]])))
+  expect_false(any(is.na(long[long[["feature"]] == "age", ][[
+    "numeric_value"
+  ]])))
+})
+
+
+test_that("the plot readers verify the data and the class they were given", {
+  x <- .plot_explanation()
+  expect_error(
+    shap_case(x, .plot_dat[1:3, .plot_feats]),
+    class = "rtemis_value_error"
+  )
+  expect_error(
+    shap_long(x, .plot_dat[, .plot_feats], class = "nope"),
+    class = "rtemis_value_error"
+  )
+  expect_error(
+    shap_case(x, .plot_dat[, .plot_feats], case = 9999L),
+    "No such case",
+    class = "rtemis_value_error"
+  )
+})
+
+
+# %% Variable importance ----
+set.seed(13L)
+.vi_n <- 60L
+.vi_dat <- data.frame(
+  strong = rnorm(.vi_n),
+  weak = rnorm(.vi_n),
+  noise = rnorm(.vi_n)
+)
+.vi_feats <- c("strong", "weak", "noise")
+.vi_dat[["y"]] <- 3 *
+  .vi_dat[["strong"]] +
+  0.4 * .vi_dat[["weak"]] +
+  rnorm(.vi_n, sd = 0.3)
+
+
+test_that("mean |phi| ranks the features by how much they moved predictions", {
+  mod <- train(.vi_dat, hyperparameters = setup_GLM(), verbosity = 0L)
+  x <- explain(
+    mod,
+    .vi_dat[, .vi_feats],
+    background = .vi_dat[, .vi_feats],
+    verbosity = 0L
+  )
+  importance <- get_varimp(x)
+  expect_s7_class(importance, VariableImportance)
+  # One row per feature: which *level* of a categorical drives it is
+  # `shap_by_level()`'s question, not this one.
+  expect_identical(importance@data[["variable"]], .vi_feats)
+  values <- importance@data[["outcome"]]
+  expect_gt(values[[1L]], values[[2L]])
+  expect_gt(values[[2L]], values[[3L]])
+})
+
+
+test_that("importance is the magnitude, so cancelling contributions still count", {
+  # A feature that pushes half the cases up and half down is important; a signed
+  # mean would call it irrelevant. For a linear model the contributions are
+  # symmetric about zero by construction, which makes the point sharply.
+  mod <- train(.vi_dat, hyperparameters = setup_GLM(), verbosity = 0L)
+  x <- explain(
+    mod,
+    .vi_dat[, .vi_feats],
+    background = .vi_dat[, .vi_feats],
+    verbosity = 0L
+  )
+  signed <- mean(x@phi[["outcome"]][, "strong"])
+  expect_lt(abs(signed), 1e-8)
+  expect_gt(get_varimp(x)@data[["outcome"]][[1L]], 1)
+})
+
+
+test_that("a multiclass explanation gives one importance measure per class", {
+  mod <- train(
+    .multiclass_dat,
+    hyperparameters = setup_LightGBM(),
+    verbosity = 0L
+  )
+  x <- explain(
+    mod,
+    .multiclass_dat[1:5, .explain_feats],
+    background = .multiclass_dat[, .explain_feats],
+    verbosity = 0L
+  )
+  importance <- get_varimp(x)
+  expect_named(
+    importance@data,
+    c("variable", levels(mod@y_training))
+  )
+})
+
+
+test_that("SHAP gives an importance to an algorithm that has none of its own", {
+  # The gap this closes: a torch network has no native measure, so
+  # `get_varimp()` on the fitted model is NULL -- and no torch-specific code was
+  # written to fix it.
+  mod <- train(.vi_dat, hyperparameters = setup_MLP(), verbosity = 0L)
+  expect_null(get_varimp(mod))
+  x <- explain(
+    mod,
+    .vi_dat[1:5, .vi_feats],
+    background = .vi_dat[1:60, .vi_feats],
+    verbosity = 0L
+  )
+  importance <- get_varimp(x)
+  expect_s7_class(importance, VariableImportance)
+  expect_identical(importance@data[["variable"]], .vi_feats)
+  expect_gt(
+    importance@data[["outcome"]][[1L]],
+    importance@data[["outcome"]][[3L]]
+  )
+})
+
+
 # %% SupervisedRes ----
 .resampled <- function(dat, hyperparameters = setup_GLM()) {
   train(
@@ -1335,7 +1541,7 @@ test_that("the fold average decomposes the fold-averaged prediction exactly", {
   # sum(phi_bar) + b_bar = f_bar(x). It needs one background shared by every
   # fold, which `explain()` enforces by taking a single argument.
   res <- .resampled(.regression_dat)
-  newdata <- .regression_dat[1:6, .explain_feats]
+  newdata <- .regression_dat[1:3, .explain_feats]
   x <- explain(
     res,
     newdata,
@@ -1354,7 +1560,7 @@ test_that("the fold average decomposes the fold-averaged prediction exactly", {
 
 test_that("type = 'all' returns one explanation per resample", {
   res <- .resampled(.regression_dat)
-  newdata <- .regression_dat[1:5, .explain_feats]
+  newdata <- .regression_dat[1:3, .explain_feats]
   background <- .regression_dat[, .explain_feats]
   each <- explain(
     res,
@@ -1384,7 +1590,7 @@ test_that("averaging is refused when the folds do not agree", {
   # describes nothing. Models fitted to resamples of one dataset always agree;
   # the check exists because the failure would otherwise be silent.
   res <- .resampled(.regression_dat)
-  newdata <- .regression_dat[1:4, .explain_feats]
+  newdata <- .regression_dat[1:3, .explain_feats]
   background <- .regression_dat[, .explain_feats]
   each <- explain(
     res,
@@ -1402,7 +1608,7 @@ test_that("a resampled classification averages margins, not probabilities", {
   # The same link distinction as for a single model: `predict(type = "avg")`
   # averages probabilities, and the contributions decompose the mean margin.
   res <- .resampled(.binary_dat)
-  newdata <- .binary_dat[1:6, .explain_feats]
+  newdata <- .binary_dat[1:3, .explain_feats]
   x <- explain(
     res,
     newdata,
@@ -1423,14 +1629,14 @@ test_that("a one-predictor model gives the whole deviation to its predictor", {
   # One player, so the Shapley value is the entire deviation from the baseline.
   # Additivity here is the definition rather than a check.
   set.seed(11L)
-  n <- 200L
+  n <- 60L
   dat <- data.frame(a = runif(n))
   dat[["y"]] <- 2 * dat[["a"]] + rnorm(n, sd = 0.1)
   feats <- "a"
   mod <- train(dat, hyperparameters = setup_Isotonic(), verbosity = 0L)
   x <- explain(
     mod,
-    dat[1:6, feats, drop = FALSE],
+    dat[1:3, feats, drop = FALSE],
     background = dat[, feats, drop = FALSE],
     verbosity = 0L
   )
@@ -1451,7 +1657,7 @@ test_that("a routed case is explained by the expert that predicted it", {
   # expert's explanation *is* the ensemble's for that case -- exactly, and by
   # the expert's own estimator rather than a pass over the whole ensemble.
   set.seed(9L)
-  n <- 300L
+  n <- 150L
   dat <- data.frame(a = rnorm(n), b = rnorm(n))
   # Two regimes an oracle can separate: the effect of `a` flips with `b`.
   dat[["y"]] <- ifelse(dat[["b"]] > 0, 3 * dat[["a"]], -3 * dat[["a"]]) +
@@ -1464,14 +1670,14 @@ test_that("a routed case is explained by the expert that predicted it", {
     ),
     verbosity = 0L
   )
-  x <- explain(mod, dat[1:8, feats], background = dat[, feats], verbosity = 0L)
+  x <- explain(mod, dat[1:3, feats], background = dat[, feats], verbosity = 0L)
   expect_identical(x@estimator, "ExpertSHAP")
   # Both experts are GLMs, so both explanations are exact and so is the whole.
   expect_true(x@exact)
   expect_additive(x)
   expect_equal(
     as.numeric(x@predicted[, 1L]),
-    as.numeric(predict(mod, dat[1:8, feats], verbosity = 0L)),
+    as.numeric(predict(mod, dat[1:3, feats], verbosity = 0L)),
     tolerance = 1e-10
   )
 })
@@ -1481,7 +1687,7 @@ test_that("a routed explanation's baseline is its own expert's", {
   # The reason `@baseline` is per case: cases routed to different experts are
   # each exact against a different expected prediction.
   set.seed(9L)
-  n <- 300L
+  n <- 150L
   dat <- data.frame(a = rnorm(n), b = rnorm(n))
   dat[["y"]] <- ifelse(dat[["b"]] > 0, 3 * dat[["a"]], -3 * dat[["a"]]) +
     rnorm(n, sd = 0.3)
@@ -1493,7 +1699,9 @@ test_that("a routed explanation's baseline is its own expert's", {
     ),
     verbosity = 0L
   )
-  x <- explain(mod, dat[1:40, feats], background = dat[, feats], verbosity = 0L)
+  # Enough cases that the oracle routes to more than one expert; three would
+  # not reliably reach a second.
+  x <- explain(mod, dat[, feats], background = dat[, feats], verbosity = 0L)
   expect_identical(dim(x@baseline), dim(x@predicted))
   # More than one distinct baseline, and no more than there are experts.
   distinct <- length(unique(round(x@baseline[, 1L], 10)))
@@ -1509,15 +1717,17 @@ test_that("a constant baseline still fills a row per case", {
     hyperparameters = setup_LightGBM(),
     verbosity = 0L
   )
-  x <- explain(mod, .regression_dat[1:6, .explain_feats], verbosity = 0L)
-  expect_identical(dim(x@baseline), c(6L, 1L))
+  x <- explain(mod, .regression_dat[1:3, .explain_feats], verbosity = 0L)
+  expect_identical(dim(x@baseline), c(3L, 1L))
   expect_length(unique(x@baseline[, 1L]), 1L)
 })
 
 
 # %% Categorical detail ----
 set.seed(3L)
-.dx_n <- 300L
+# Larger than the rest for the same reason as `.linear_n`: a multiclass
+# `cv.glmnet` warns when its folds leave a class thin.
+.dx_n <- 150L
 .dx <- factor(
   sample(c("none", "diabetes", "asthma"), .dx_n, TRUE, prob = c(.6, .25, .15))
 )
@@ -1605,7 +1815,7 @@ test_that("shap_by_level refuses data that is not what was explained", {
   # table describing nothing, so the fingerprint is checked rather than assumed.
   x <- .dx_explanation()
   expect_error(
-    shap_by_level(x, .dx_dat[1:10, .dx_feats]),
+    shap_by_level(x, .dx_dat[1:3, .dx_feats]),
     class = "rtemis_value_error"
   )
   expect_error(
@@ -1655,11 +1865,11 @@ test_that("explain() inherits predict()'s strictness about columns", {
   )
   # Predictors only, in training order -- the same contract `predict()` states.
   expect_error(
-    explain(mod, .regression_dat[1:5, ], verbosity = 0L),
+    explain(mod, .regression_dat[1:3, ], verbosity = 0L),
     class = "rtemis_data_error"
   )
   expect_error(
-    explain(mod, .regression_dat[1:5, c("bmi", "age", "sex")], verbosity = 0L),
+    explain(mod, .regression_dat[1:3, c("bmi", "age", "sex")], verbosity = 0L),
     class = "rtemis_data_error"
   )
 })

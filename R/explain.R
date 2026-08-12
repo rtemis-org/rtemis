@@ -972,8 +972,8 @@ method(explain, SupervisedRes) <- function(
   newdata,
   background = NULL,
   config = NULL,
-  type = c("avg", "all"),
   verbosity = 1L,
+  type = c("avg", "all"),
   ...
 ) {
   type <- match_arg(type, c("avg", "all"))
@@ -1279,6 +1279,245 @@ kernel_shap <- function(
 } # /rtemis::kernel_shap
 
 
+# %% get_varimp.SHAP ----
+#' Variable importance from per-case contributions
+#'
+#' `mean(|phi|)` per feature: how much that feature moved the prediction on
+#' average, in the outcome's own units.
+#'
+#' @details
+#' A better global measure than most native ones, for three reasons. It is on
+#' the scale of the outcome rather than of a splitting criterion, so the numbers
+#' mean something. It is comparable across algorithms, because every estimator
+#' here decomposes the same quantity. And it does not inherit the bias of
+#' impurity-based importance toward high-cardinality features.
+#'
+#' It also gives an importance to algorithms that have none of their own -- a
+#' torch network has no native measure, so `get_varimp()` on a fitted MLP
+#' returns NULL, while `get_varimp(explain(model, newdata, background))` does
+#' not. No torch-specific code was needed for that.
+#'
+#' One row per feature. Which *level* of a categorical drives its importance is
+#' a different question, and [shap_by_level] answers it.
+#'
+#' The magnitude is what is averaged, so contributions that cancel across cases
+#' do not vanish: a feature that pushes half the cases up and half down is
+#' important, and a signed mean would call it irrelevant.
+#'
+#' @param x `SHAP` object.
+#'
+#' @return `VariableImportance` object with one measure per class.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(get_varimp, SHAP) <- function(x) {
+  measures <- lapply(x@phi, function(contributions) {
+    colMeans(abs(contributions))
+  })
+  # One measure column per class, named for it; a regression or binary outcome
+  # has one, whose name is the outcome's or the positive class's.
+  importance <- data.table(variable = x@feature_names)
+  for (label in names(measures)) {
+    importance[, (label) := unname(measures[[label]])]
+  }
+  VariableImportance(importance)
+} # /rtemis::get_varimp.SHAP
+
+
+# %% shap_case ----
+#' One case's contributions, ordered by how much they moved the prediction
+#'
+#' The three things a per-case explanation is: where the prediction would have
+#' started, what each feature did to it, and where it ended.
+#'
+#' @details
+#' Shaped here rather than in a renderer, following `session_timeline()`: the
+#' table is the shared input for rtemis.draw's chart and for rtemislive, so both
+#' show the same thing, and it is useful on its own without either.
+#'
+#' Features are ordered by the magnitude of their contribution, which is the
+#' order a waterfall reads in, and each carries the value it took for this case
+#' so the row says "age = 62, +0.4" rather than only "+0.4".
+#'
+#' @param x `SHAP` object.
+#' @param newdata tabular data: The cases `x` explains.
+#' @param case Integer or Character: Which case, by position or row name.
+#' @param class Optional Character: Which class's contributions. NULL takes the
+#' first, which is the only one for a regression or binary outcome.
+#'
+#' @return List with `steps` (a data.table of `feature`, `value` and
+#' `contribution`), `baseline`, `predicted`, `case` and `class`.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' x <- data.frame(age = rnorm(100), bmi = rnorm(100))
+#' x[["y"]] <- x[["age"]] * 2 + rnorm(100, sd = 0.3)
+#' mod <- train(x, hyperparameters = setup_GLM(), verbosity = 0L)
+#' contributions <- explain(
+#'   mod,
+#'   x[, c("age", "bmi")],
+#'   background = x[, c("age", "bmi")],
+#'   verbosity = 0L
+#' )
+#' shap_case(contributions, x[, c("age", "bmi")], case = 1L)
+shap_case <- function(x, newdata, case = 1L, class = NULL) {
+  check_is_S7(x, SHAP)
+  newdata <- shap_check_newdata(x, newdata)
+  label <- shap_check_class(x, class)
+  index <- if (is.character(case)) {
+    match(case, rownames(newdata))
+  } else {
+    as.integer(case)
+  }
+  if (is.na(index) || index < 1L || index > NROW(newdata)) {
+    rtemis.core::abort(
+      "No such case: ",
+      case,
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  contributions <- x@phi[[label]][index, ]
+  steps <- data.table(
+    feature = x@feature_names,
+    # As character, because a waterfall labels a factor's level and a numeric's
+    # value in the same place.
+    value = vapply(
+      x@feature_names,
+      function(feature) as.character(newdata[[feature]][[index]]),
+      character(1L),
+      USE.NAMES = FALSE
+    ),
+    contribution = unname(contributions)
+  )
+  # By magnitude: a waterfall reads largest-effect-first, whichever way the
+  # effect went.
+  steps <- steps[order(-abs(steps[["contribution"]]))]
+  list(
+    steps = steps,
+    baseline = x@baseline[index, label],
+    predicted = x@predicted[index, label],
+    case = rownames(newdata)[[index]],
+    class = label
+  )
+} # /rtemis::shap_case
+
+
+# %% shap_long ----
+#' Every contribution, one row per case per feature
+#'
+#' The long form a beeswarm reads: a point per case per feature, positioned by
+#' its contribution and colored by the value the feature took.
+#'
+#' Shaped here rather than in a renderer, for the reason `shap_case()` gives.
+#'
+#' @param x `SHAP` object.
+#' @param newdata tabular data: The cases `x` explains.
+#' @param class Optional Character: Which class's contributions. NULL takes the
+#' first.
+#'
+#' @return data.table with columns `case`, `feature`, `value`, `numeric_value`
+#' and `contribution`. `numeric_value` is NA for a feature that is not numeric,
+#' which is what a color scale needs to skip it.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' x <- data.frame(age = rnorm(100), bmi = rnorm(100))
+#' x[["y"]] <- x[["age"]] * 2 + rnorm(100, sd = 0.3)
+#' mod <- train(x, hyperparameters = setup_GLM(), verbosity = 0L)
+#' contributions <- explain(
+#'   mod,
+#'   x[, c("age", "bmi")],
+#'   background = x[, c("age", "bmi")],
+#'   verbosity = 0L
+#' )
+#' head(shap_long(contributions, x[, c("age", "bmi")]))
+shap_long <- function(x, newdata, class = NULL) {
+  check_is_S7(x, SHAP)
+  newdata <- shap_check_newdata(x, newdata)
+  label <- shap_check_class(x, class)
+  contributions <- x@phi[[label]]
+  rows <- lapply(x@feature_names, function(feature) {
+    values <- newdata[[feature]]
+    data.table(
+      case = rownames(newdata),
+      feature = feature,
+      value = as.character(values),
+      numeric_value = if (is.numeric(values)) {
+        as.numeric(values)
+      } else {
+        NA_real_
+      },
+      contribution = unname(contributions[, feature])
+    )
+  })
+  data.table::rbindlist(rows)
+} # /rtemis::shap_long
+
+
+# %% shap_check_newdata ----
+#' Verify the data handed in is the data explained
+#'
+#' Contributions lined up against the wrong rows produce a plausible table
+#' describing nothing, so the fingerprint on the object is checked rather than
+#' the caller trusted.
+#'
+#' @param x `SHAP` object.
+#' @param newdata tabular data.
+#'
+#' @return `newdata` as a data.frame.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+shap_check_newdata <- function(x, newdata) {
+  check_inherits(newdata, "data.frame")
+  if (
+    !is.null(x@data_fingerprint) &&
+      !identical(data_fingerprint(newdata)@hash, x@data_fingerprint@hash)
+  ) {
+    rtemis.core::abort(
+      "`newdata` is not the data this explanation was computed on.\n",
+      "Pass the same cases given to `explain()`, in the same order.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  as.data.frame(newdata)
+} # /rtemis::shap_check_newdata
+
+
+# %% shap_check_class ----
+#' Resolve which class's contributions were asked for
+#'
+#' @param x `SHAP` object.
+#' @param class Optional Character.
+#'
+#' @return Character: One name of `x@phi`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+shap_check_class <- function(x, class) {
+  if (is.null(class)) {
+    return(names(x@phi)[[1L]])
+  }
+  if (!class %in% names(x@phi)) {
+    rtemis.core::abort(
+      "No contributions for class '",
+      class,
+      "'. This explanation holds: ",
+      paste(names(x@phi), collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  class
+} # /rtemis::shap_check_class
+
+
 # %% shap_by_level ----
 #' Contributions of a categorical feature, by the level each case has
 #'
@@ -1329,18 +1568,7 @@ kernel_shap <- function(
 #' shap_by_level(contributions, x[, c("age", "dx")])
 shap_by_level <- function(x, newdata, features = NULL) {
   check_is_S7(x, SHAP)
-  check_inherits(newdata, "data.frame")
-  if (
-    !is.null(x@data_fingerprint) &&
-      !identical(data_fingerprint(newdata)@hash, x@data_fingerprint@hash)
-  ) {
-    rtemis.core::abort(
-      "`newdata` is not the data this explanation was computed on.\n",
-      "Pass the same cases given to `explain()`, in the same order.",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
-  newdata <- as.data.frame(newdata)
+  newdata <- shap_check_newdata(x, newdata)
   categorical <- names(newdata)[
     vapply(
       newdata,

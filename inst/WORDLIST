@@ -43,6 +43,7 @@ KFold
 KMeansConfig
 KNN
 KNNHyperparameters
+KernelSHAP
 LOOCV
 Laan
 LightCART
@@ -121,6 +122,7 @@ SupervisedRes
 TabNet
 TabNet's
 TabNetHyperparameters
+TreeSHAP
 Talos's
 Tunable
 TunerConfig
@@ -143,6 +145,7 @@ arity
 auc
 auditable
 backend's
+beeswarm
 betweenness
 blake
 bonferroni

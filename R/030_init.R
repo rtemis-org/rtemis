@@ -406,15 +406,38 @@ explain_super <- new_generic(
 #' be the entire reason for one case.
 #'
 #' @details
-#' Contributions are Shapley values by default; configure them with
-#' [setup_SHAP]. Which estimator applies to which algorithm, and whether it is
-#' exact, is reported by [explanation_methods].
+#' **`background` is what the contributions are measured against**, and most
+#' estimators cannot work without one. A contribution says how far a feature
+#' moved this case's prediction away from `E[f(x)]`, and that expectation is a
+#' property of the background data rather than of the model -- which does not
+#' store the data it was trained on. Pass the training features, or a
+#' representative sample of them. The exceptions are the estimators that take
+#' their baseline from the model itself, such as the LightGBM family's; those
+#' ignore it, and everything else aborts without it.
+#'
+#' Two explanations of one model against different backgrounds are not
+#' comparable, and nothing in the returned numbers says so -- which is why the
+#' result carries a fingerprint of the background it used.
+#'
+#' **`config` chooses the method**, built by [setup_SHAP]:
+#' `setup_SHAP(perturbation = "conditional")` picks the value function,
+#' `setup_SHAP(estimator = "kernel")` overrides the estimator the algorithm
+#' would otherwise get. [explanation_methods] reports which estimator applies to
+#' which algorithm, whether it is exact, and why.
+#'
+#' A `SupervisedRes` additionally takes `type`: `"avg"` (the default) averages
+#' the resamples' explanations, which decomposes the averaged prediction
+#' exactly, and `"all"` returns one explanation per resample.
 #'
 #' The contributions plus the baseline reconstruct the prediction exactly, on
 #' the scale they were computed on. For classification that scale is the
 #' model's margin, **not** the probability [stats::predict()] returns:
 #' probability is a nonlinear transform of the margin, so contributions do not
 #' sum to it.
+#'
+#' Read the result with [shap_case] for one case, [shap_long] across cases,
+#' [shap_by_level] for the levels of a categorical, and `get_varimp()` for
+#' `mean(|phi|)` per feature.
 #'
 #' A SHAP value is not a causal effect. It attributes a *prediction* under the
 #' model's own logic; intervening on a feature in the world does not move the
@@ -423,28 +446,65 @@ explain_super <- new_generic(
 #' attribution does not show a feature to be unimportant, and this is not a
 #' feature-selection criterion.
 #'
-#' @param x `Supervised` object.
+#' @param x `Supervised` or `SupervisedRes` object.
 #' @param newdata tabular data: Cases to explain. Predictors only, in training
 #' order, as [stats::predict()] requires.
-#' @param ... Additional arguments passed to methods.
+#' @param background Optional tabular data: Cases the contributions are measured
+#' against, in the same shape as `newdata`. Required by every estimator that
+#' needs `E[x]` or a reference set, which is most of them; those abort with a
+#' message naming it when it is missing.
+#' @param config Optional `ExplanationConfig` object: Built by [setup_SHAP].
+#' NULL uses `setup_SHAP()`, which resolves the estimator per algorithm.
+#' @param verbosity Integer: Verbosity level.
+#' @param ... Additional arguments passed to methods, such as `type` for a
+#' `SupervisedRes`.
 #'
-#' @return `SHAP` object.
+#' @return `SHAP` object, or a named list of them for a `SupervisedRes` with
+#' `type = "all"`.
 #'
 #' @author EDG
 #' @export
 #' @examples
-#' x <- data.frame(a = rnorm(100), b = rnorm(100))
-#' x[["y"]] <- x[["a"]] * 2 + rnorm(100, sd = 0.3)
-#' mod <- train(x, hyperparameters = setup_LightGBM(), verbosity = 0L)
-#' contributions <- explain(mod, x[1:5, c("a", "b")], verbosity = 0L)
+#' x <- data.frame(age = rnorm(100), bmi = rnorm(100))
+#' x[["y"]] <- x[["age"]] * 2 + rnorm(100, sd = 0.3)
+#' features <- x[, c("age", "bmi")]
+#' mod <- train(x, hyperparameters = setup_GLM(), verbosity = 0L)
+#'
+#' # `background` is what the contributions are measured against.
+#' contributions <- explain(
+#'   mod,
+#'   features[1:5, ],
+#'   background = features,
+#'   verbosity = 0L
+#' )
 #' contributions
+#'
 #' # Contributions plus the baseline reconstruct the prediction, exactly:
-#' rowSums(contributions@phi[["outcome"]]) + contributions@baseline
-#' predict(mod, x[1:5, c("a", "b")], verbosity = 0L)
-explain <- new_generic("explain", "x", function(x, newdata, ...) {
-  force_supplied()
-  S7_dispatch()
-}) # /rtemis::explain
+#' rowSums(contributions@phi[["outcome"]]) + contributions@baseline[, 1L]
+#' predict(mod, features[1:5, ], verbosity = 0L)
+#'
+#' # One case, ordered the way a waterfall reads:
+#' shap_case(contributions, features[1:5, ], case = 1L)
+#'
+#' # Which features mattered across these cases:
+#' get_varimp(contributions)
+#'
+#' # `config` chooses the method; here, a subsampled background.
+#' explain(
+#'   mod,
+#'   features[1:5, ],
+#'   background = features,
+#'   config = setup_SHAP(background_n = 50L),
+#'   verbosity = 0L
+#' )
+explain <- new_generic(
+  "explain",
+  "x",
+  function(x, newdata, background = NULL, config = NULL, verbosity = 1L, ...) {
+    force_supplied()
+    S7_dispatch()
+  }
+) # /rtemis::explain
 
 
 # %% decomp_ ----
