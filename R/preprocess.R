@@ -828,8 +828,7 @@ apply_preprocessor <- function(preprocessor, new_data, verbosity = 1L) {
 #' @return `PreprocessorConfig` with the learned values applied.
 #'
 #' @author EDG
-#' @keywords internal
-#' @noRd
+#' @export
 fitted_config <- function(preprocessor) {
   config <- preprocessor@config
   for (nm in c(
