@@ -476,10 +476,10 @@ train <- function(
   start_time <- intro(verbosity = verbosity, logfile = logfile)
 
   # Observability session ----
-  # An in-process outer fold reuses the ambient session, so its step nodes nest under the
-  # fold node. A fold dispatched to a daemon finds no session there and creates one; that
-  # session is the sub-log the host grafts back under the fold node, which is what keeps
-  # the graph of a parallel run identical to a sequential one.
+  # A sequential outer fold reuses the ambient session, so its step nodes nest under the
+  # fold node. A fold dispatched in parallel runs with no session attached and creates one;
+  # that session is the sub-log the host grafts back under the fold node, which is what
+  # keeps the graph of a parallel run identical to a sequential one.
   # See specs/observability.md sections 3 and 4.
   on_error <- execution_config@on_error
   session_created <- session_start(verbosity = verbosity)
@@ -599,6 +599,10 @@ train <- function(
       on_error = on_error,
       seed = execution_config@seed
     )
+    outer_workers <- workers[["outer_resampling"]]
+    # `execution_config@backend`, not `tuning_backend`: the latter has already been
+    # narrowed to "none" for the very case that reaches outer parallelization.
+    parallel_folds <- outer_workers > 1L && execution_config@backend != "none"
     # `outer_resampler@resamples` rather than the `Resampler`: the fold only ever indexes
     # the list, an S7 object cannot be placed in shared memory, and the index list is
     # itself a meaningful share of the payload (1.7 MB at n = 50,000, k = 10).
@@ -607,7 +611,7 @@ train <- function(
       mode = execution_config@shared_memory,
       backend = execution_config@backend,
       future_plan = future_plan,
-      n_workers = workers[["outer_resampling"]],
+      n_workers = outer_workers,
       label = "resample indices",
       verbosity = verbosity
     )
@@ -616,7 +620,7 @@ train <- function(
       mode = execution_config@shared_memory,
       backend = execution_config@backend,
       future_plan = future_plan,
-      n_workers = workers[["outer_resampling"]],
+      n_workers = outer_workers,
       label = "training data",
       verbosity = verbosity
     )
@@ -625,7 +629,7 @@ train <- function(
       mode = execution_config@shared_memory,
       backend = execution_config@backend,
       future_plan = future_plan,
-      n_workers = workers[["outer_resampling"]],
+      n_workers = outer_workers,
       label = "case weights",
       verbosity = verbosity
     )
@@ -644,12 +648,9 @@ train <- function(
       # outer fold failure is fatal, so the fold re-raises and the dispatcher stops the
       # run instead of finishing folds whose results are about to be discarded.
       fatal = !identical(on_error, "continue"),
+      parallel = parallel_folds,
       verbosity = verbosity - 1L
     )
-    outer_workers <- workers[["outer_resampling"]]
-    # `execution_config@backend`, not `tuning_backend`: the latter has already been
-    # narrowed to "none" for the very case that reaches outer parallelization.
-    parallel_folds <- outer_workers > 1L && execution_config@backend != "none"
     fold_results <- progress_plapply(
       seq_len(n_outer),
       run_outer_fold,
@@ -672,10 +673,10 @@ train <- function(
     models <- vector("list", n_outer)
     for (i in seq_len(n_outer)) {
       res <- normalize_fold_result(fold_results[[i]])
-      # A fold that ran in a daemon found no session there, so its `node_enter()` was
-      # inert and the host synthesizes the fold node now, grafting the sub-log the worker
-      # brought home beneath it. An in-process fold already recorded its own node and
-      # carries no session. See specs/observability.md section 4.
+      # A fold dispatched in parallel ran with no session attached, so its `node_enter()`
+      # was inert and the host synthesizes the fold node now, grafting the sub-log the
+      # worker brought home beneath it. A sequential fold already recorded its own node
+      # and carries no session. See specs/observability.md section 4.
       if (parallel_folds) {
         fold_node <- session_add_node(
           "outer_fold",
@@ -1206,10 +1207,10 @@ train <- function(
 #' Build the per-outer-fold body
 #'
 #' Returns the closure `progress_plapply()` dispatches once per outer resample. One body
-#' serves every backend: in-process it records its fold node in the ambient session and
-#' the nested `train()` nests beneath it; in a daemon there is no session yet, so
-#' `node_enter()` is inert and the nested `train()` builds the session that travels home
-#' as the fold's sub-log.
+#' serves every backend, switching on `parallel`: under sequential dispatch it records its
+#' fold node in the ambient session and the nested `train()` nests beneath it; under
+#' parallel dispatch it detaches the ambient session, so `node_enter()` is inert and the
+#' nested `train()` builds the session that travels home as the fold's sub-log.
 #'
 #' @details
 #' Built by a factory rather than inline in `train()` because serializing a closure walks
@@ -1220,6 +1221,14 @@ train <- function(
 #' `live[["fold"]]` marks the call as a fold for the `train()` that runs inside it, which
 #' is how a fold in a daemon knows not to fingerprint its slice of the data, attach an
 #' input config, or report a graph of its own.
+#'
+#' The session is detached explicitly rather than left to be absent, because "dispatched
+#' in parallel" does not imply "no session here": a forked worker
+#' (`future_plan = "multicore"`) inherits the host's `live` env wholesale, and a
+#' `multicore` plan on a host where forking is unavailable runs the body in process. In
+#' both cases the fold would nest into the host's session, return no sub-log to graft, and
+#' -- in the second -- leave a fold node the host then duplicates when it synthesizes its
+#' own. Detaching makes every parallel worker build the per-fold session the host expects.
 #'
 #' Under a tolerant failure policy a failure is captured and returned, so the host can
 #' warn about it and aggregate over the folds that survived. Under a fatal one it is
@@ -1237,6 +1246,8 @@ train <- function(
 #' @param weights Optional vector of case weights.
 #' @param question Optional Character: The question the model answers.
 #' @param fatal Logical: If TRUE, a fold failure is re-raised rather than returned.
+#' @param parallel Logical: If TRUE, folds are dispatched in parallel and each fold builds
+#' its own session for the host to graft.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Function of `(i)` returning a list with `model`, `failed`, `error`, `t_start`,
@@ -1257,6 +1268,7 @@ make_outer_fold_runner <- function(
   weights,
   question,
   fatal,
+  parallel,
   verbosity
 ) {
   force(x)
@@ -1270,8 +1282,14 @@ make_outer_fold_runner <- function(
   force(weights)
   force(question)
   force(fatal)
+  force(parallel)
   force(verbosity)
   function(i) {
+    if (parallel) {
+      saved_session <- live[["session"]]
+      live[["session"]] <- NULL
+      on.exit(live[["session"]] <- saved_session, add = TRUE)
+    }
     live[["fold"]] <- i
     on.exit(live[["fold"]] <- NULL, add = TRUE)
     fold_node <- node_enter(

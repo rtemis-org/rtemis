@@ -242,6 +242,10 @@ fold_trees <- function(mod) {
   lapply(mod@models, function(m) as.numeric(m@model[["cptable"]]))
 }
 
+node_kinds <- function(mod) {
+  table(vapply(mod@session@events, function(e) e[["kind"]], character(1L)))
+}
+
 testthat::test_that("parallel outer folds reproduce the sequential run", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
@@ -279,12 +283,38 @@ testthat::test_that("the future backend agrees with the others", {
 testthat::test_that("a parallel run yields the same execution graph", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
-  node_kinds <- function(mod) {
-    table(vapply(mod@session@events, function(e) e[["kind"]], character(1L)))
-  }
   expect_identical(
     node_kinds(fit_folds("none", 1L)),
     node_kinds(fit_folds("mirai", 2L))
+  )
+})
+
+# A forked worker inherits the host's `live` env, ambient session included, so "dispatched
+# in parallel" does not imply "no session in this process" the way it does for a socket
+# daemon. A fold body that relies on that implication nests into the inherited session and
+# brings home no sub-log, leaving fold nodes with nothing under them.
+testthat::test_that("forked outer folds yield the same execution graph", {
+  testthat::skip_on_cran()
+  testthat::skip_on_os("windows") # multicore is unavailable there
+  testthat::skip_if_not_installed("future")
+  expect_identical(
+    node_kinds(fit_folds("none", 1L)),
+    node_kinds(fit_folds("future", 2L, future_plan = "multicore"))
+  )
+})
+
+testthat::test_that("a multicore plan that cannot fork records each fold once", {
+  testthat::skip_on_cran()
+  testthat::skip_on_os("windows")
+  testthat::skip_if_not_installed("future")
+  # With forking disabled -- RStudio's default -- future runs a "multicore" plan in
+  # process, so the fold body executes on the host with the ambient session in reach while
+  # the host still synthesizes a node per fold. Sharing the session across both would
+  # record every outer fold twice.
+  withr::local_options(future.fork.enable = FALSE)
+  expect_identical(
+    node_kinds(fit_folds("none", 1L)),
+    node_kinds(fit_folds("future", 2L, future_plan = "multicore"))
   )
 })
 

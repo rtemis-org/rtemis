@@ -290,8 +290,16 @@ share_payload <- function(
   # Measured before sharing: `object.size()` does not understand ALTREP and reports an
   # already-shared object at its full nominal size.
   if (as.numeric(utils::object.size(obj)) < SHARE_MIN_BYTES) {
+    # Gated a level above the other skip reasons: a small payload is the ordinary case, and
+    # a caller shares several per run, so at verbosity 1 this would be the noisiest line of
+    # a run that did nothing unusual.
     if (verbosity > 1L) {
-      msg0("Not sharing ", label, ": below the size threshold.")
+      msg0(
+        "Not sharing ",
+        label,
+        ": below the size threshold.",
+        verbosity = verbosity
+      )
     }
     return(obj)
   }
@@ -666,12 +674,16 @@ progress_plapply <- function(
         invisible(NULL)
       }
       submit_upto(min(n_workers, n))
-      resolved_tasks <- function() {
-        vapply(
-          seq_len(n),
-          function(k) !is.null(tasks[[k]]) && future::resolved(tasks[[k]]),
-          logical(1L)
-        )
+      # Only tasks submitted but not yet collected can change state: below `from` the drain
+      # loop already holds the value, above `submitted` nothing has been dispatched. That
+      # window is `n_workers` wide, so drain accounting stays linear in the task count.
+      resolved_tasks <- function(from) {
+        done <- logical(n)
+        done[seq_len(from)] <- TRUE
+        for (k in seq_len(submitted - from)) {
+          done[from + k] <- future::resolved(tasks[[from + k]])
+        }
+        done
       }
       await <- function(j) {
         submit_upto(j)
@@ -685,11 +697,22 @@ progress_plapply <- function(
       # lands on whatever runs next: a later, unrelated call gets back a
       # `FutureInterruptError` in place of its value. Outstanding futures are therefore
       # canceled explicitly before unwinding, rather than abandoned.
+      # Canceling is only half of it: an interrupted forked worker stays in
+      # `parallel:::children()` until someone takes its value, and future's core accounting
+      # counts that orphan as a process it cannot attribute to any future -- it warns, and
+      # undercounts the cores left, until a later multicore run has a task handed back as
+      # interrupted. Cancel every task first so they wind down concurrently, then collect,
+      # with `signal = FALSE` so the interrupts are not re-raised here on top of the
+      # caller's own error.
       reap <- function() {
-        for (k in seq_len(n)) {
-          if (!is.null(tasks[[k]])) {
-            tryCatch(future::cancel(tasks[[k]]), error = function(e) NULL)
-          }
+        for (k in seq_len(submitted)) {
+          tryCatch(future::cancel(tasks[[k]]), error = function(e) NULL)
+        }
+        for (k in seq_len(submitted)) {
+          tryCatch(
+            future::value(tasks[[k]], signal = FALSE),
+            error = function(e) NULL
+          )
         }
         invisible(NULL)
       }
@@ -701,8 +724,16 @@ progress_plapply <- function(
         .f = run_one,
         .args = list(...)
       )
-      resolved_tasks <- function() {
-        !vapply(tasks, mirai::unresolved, logical(1L))
+      # `mirai_map()` submits every task up front, so unlike the future backend there is no
+      # submission window to bound the scan; skipping the collected prefix is what keeps it
+      # from re-reading values the drain loop already holds.
+      resolved_tasks <- function(from) {
+        done <- logical(n)
+        done[seq_len(from)] <- TRUE
+        for (k in seq_len(n - from)) {
+          done[from + k] <- !mirai::unresolved(tasks[[from + k]])
+        }
+        done
       }
       await <- function(j) {
         mirai::call_mirai(tasks[[j]])
@@ -742,8 +773,7 @@ progress_plapply <- function(
         reap()
         stop(out[[j]])
       }
-      done <- resolved_tasks()
-      done[seq_len(j)] <- TRUE
+      done <- resolved_tasks(j)
       n_done <- sum(done)
       running <- which(!done)
       progress_update(
