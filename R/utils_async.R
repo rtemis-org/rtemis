@@ -143,6 +143,162 @@ set_preferred_plan <- function(
 } # /set_preferred_plan
 
 
+# Payload below which sharing is not worth its fixed cost. The saving is this size times
+# the task count, so the break-even is well under a megabyte; the threshold is set here
+# rather than lower to keep small runs entirely on the ordinary path.
+SHARE_MIN_BYTES <- 1e6
+
+
+# Future plans that are known to place workers on this machine. `cluster` is absent
+# deliberately: it accepts remote hostnames and its name alone does not say which, so it
+# cannot be treated as local without inspecting the plan's workers.
+LOCAL_PLANS <- c(
+  "sequential",
+  "multicore",
+  "multisession",
+  "transparent",
+  "future.mirai::mirai_multisession",
+  "mirai_multisession"
+)
+
+
+# %% workers_are_local ----
+#' Are this run's workers on this machine?
+#'
+#' Shared memory is local RAM, so it only applies when every worker can map the same
+#' physical pages.
+#'
+#' @details
+#' The mirai backend is always local here: `progress_plapply()` starts its own daemons
+#' with `mirai::daemons(n_workers)` and never connects to remote ones. For the future
+#' backend the answer comes from the plan name; anything not in `LOCAL_PLANS` -- `remote`,
+#' and `cluster`, which may or may not be -- counts as not local.
+#'
+#' @param backend Character \{"none", "future", "mirai"\}: Execution backend.
+#' @param future_plan Optional Character: Future plan, when `backend` is `"future"`.
+#'
+#' @return Logical.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+workers_are_local <- function(backend, future_plan) {
+  if (backend != "future") {
+    return(TRUE)
+  }
+  !is.null(future_plan) && future_plan %in% LOCAL_PLANS
+} # /rtemis::workers_are_local
+
+
+# %% share_payload ----
+#' Place a worker payload in shared memory
+#'
+#' Every parallel task receives the same training data and slices its own rows from it,
+#' so without sharing the data is serialized once per task -- 9 GB for a 96 x 5 grid over
+#' a 19 MB training set. `mori::share()` replaces those copies with one shared-memory
+#' region that every worker maps, transmitting a name of about thirty bytes in place of
+#' the contents.
+#'
+#' @details
+#' The returned wrapper reads directly from the shared region and behaves like the
+#' original object, so callers index it exactly as before; a worker slicing rows
+#' materializes only its own subset. Regions are mapped read-only, so a worker cannot
+#' corrupt what the others are reading.
+#'
+#' `"auto"` is best-effort and returns the object untouched whenever sharing would not
+#' help or cannot work. `"always"` shares regardless of size -- including under
+#' `backend = "none"`, which is what allows a run to be compared against its own shared
+#' counterpart -- and raises when the request cannot be honored at all.
+#'
+#' **The caller must keep the returned value alive until the workers have mapped it.**
+#' Both call sites do so by capturing it in the task-runner factory's frame, which lives
+#' until `progress_plapply()` has collected every task.
+#'
+#' @param obj Object to share. `NULL` passes through untouched.
+#' @param mode Character \{"none", "auto", "always"\}: Sharing policy.
+#' @param backend Character \{"none", "future", "mirai"\}: Execution backend.
+#' @param future_plan Optional Character: Future plan, when `backend` is `"future"`.
+#' @param n_workers Integer [1, Inf): Number of workers.
+#' @param label Character: What this payload is, for the skip message.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return `obj`, or a \pkg{mori} shared wrapper around it.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+share_payload <- function(
+  obj,
+  mode = "none",
+  backend = "none",
+  future_plan = NULL,
+  n_workers = 1L,
+  label = "payload",
+  verbosity = 1L
+) {
+  if (identical(mode, "none") || is.null(obj)) {
+    return(obj)
+  }
+  local_workers <- workers_are_local(backend, future_plan)
+  if (identical(mode, "always")) {
+    if (!local_workers) {
+      rtemis.core::abort(
+        "shared_memory = \"always\" but this run's workers are not known to be on ",
+        "this machine (future plan: ",
+        future_plan %||% "unset",
+        "). Shared memory is local RAM. Use shared_memory = \"auto\" to share ",
+        "wherever it is possible, or \"none\" to disable it.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+    check_dependencies("mori")
+    return(mori::share(obj))
+  }
+  # "auto" from here: every remaining condition is a reason not to share, never an error.
+  if (!local_workers) {
+    msg0(
+      "Not sharing ",
+      label,
+      ": workers are not on this machine.",
+      verbosity = verbosity
+    )
+    return(obj)
+  }
+  if (backend == "none" || n_workers == 1L) {
+    # Sequential execution transfers nothing, so there is nothing to save.
+    return(obj)
+  }
+  if (identical(future_plan, "multicore")) {
+    # Forked workers already share these pages copy-on-write.
+    msg0(
+      "Not sharing ",
+      label,
+      ": forked workers already share memory.",
+      verbosity = verbosity
+    )
+    return(obj)
+  }
+  if (!requireNamespace("mori", quietly = TRUE)) {
+    msg0(
+      "Not sharing ",
+      label,
+      ": the mori package is not installed.",
+      verbosity = verbosity
+    )
+    return(obj)
+  }
+  # Measured before sharing: `object.size()` does not understand ALTREP and reports an
+  # already-shared object at its full nominal size.
+  if (as.numeric(utils::object.size(obj)) < SHARE_MIN_BYTES) {
+    if (verbosity > 1L) {
+      msg0("Not sharing ", label, ": below the size threshold.")
+    }
+    return(obj)
+  }
+  mori::share(obj)
+} # /rtemis::share_payload
+
+
 # %% with_preserved_rng ----
 #' Evaluate an expression without disturbing the caller's RNG
 #'
@@ -407,6 +563,14 @@ progress_plapply <- function(
     if (!is.null(future_plan) && startsWith(future_plan, "future.mirai::")) {
       check_dependencies("future.mirai")
     }
+    if (identical(future_plan, "sequential")) {
+      rtemis.core::abort(
+        "Requested the 'sequential' future plan, which runs 1 worker, but ",
+        n_workers,
+        " workers were requested. Use backend = \"none\" for sequential execution.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
   } else if (backend == "mirai") {
     check_dependencies("mirai")
   }
@@ -516,6 +680,19 @@ progress_plapply <- function(
         submit_upto(min(n, j + n_workers))
         value
       }
+      # `set_preferred_plan()` scopes the plan to this frame, so leaving early tears it
+      # down. Tearing it down with futures still running interrupts them, and the damage
+      # lands on whatever runs next: a later, unrelated call gets back a
+      # `FutureInterruptError` in place of its value. Outstanding futures are therefore
+      # canceled explicitly before unwinding, rather than abandoned.
+      reap <- function() {
+        for (k in seq_len(n)) {
+          if (!is.null(tasks[[k]])) {
+            tryCatch(future::cancel(tasks[[k]]), error = function(e) NULL)
+          }
+        }
+        invisible(NULL)
+      }
     } else {
       mirai::daemons(n_workers, dispatcher = TRUE)
       on.exit(mirai::daemons(0L), add = TRUE)
@@ -538,6 +715,9 @@ progress_plapply <- function(
           value
         }
       }
+      # `mirai::daemons(0L)` on the way out is an orderly shutdown of daemons this call
+      # owns, so nothing outstanding needs collecting first.
+      reap <- function() invisible(NULL)
     }
 
     # Drain ----
@@ -559,8 +739,7 @@ progress_plapply <- function(
     for (j in seq_len(n)) {
       out[[j]] <- await(j)
       if (stop_on_error && inherits(out[[j]], "condition")) {
-        # Tasks still in flight are abandoned; the backend teardown registered above
-        # (daemons, future plan) still runs on the way out.
+        reap()
         stop(out[[j]])
       }
       done <- resolved_tasks()

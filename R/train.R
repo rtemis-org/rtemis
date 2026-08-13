@@ -599,16 +599,46 @@ train <- function(
       on_error = on_error,
       seed = execution_config@seed
     )
+    # `outer_resampler@resamples` rather than the `Resampler`: the fold only ever indexes
+    # the list, an S7 object cannot be placed in shared memory, and the index list is
+    # itself a meaningful share of the payload (1.7 MB at n = 50,000, k = 10).
+    fold_resamples <- share_payload(
+      outer_resampler@resamples,
+      mode = execution_config@shared_memory,
+      backend = execution_config@backend,
+      future_plan = future_plan,
+      n_workers = workers[["outer_resampling"]],
+      label = "resample indices",
+      verbosity = verbosity
+    )
+    x_shared <- share_payload(
+      x,
+      mode = execution_config@shared_memory,
+      backend = execution_config@backend,
+      future_plan = future_plan,
+      n_workers = workers[["outer_resampling"]],
+      label = "training data",
+      verbosity = verbosity
+    )
+    weights_shared <- share_payload(
+      weights,
+      mode = execution_config@shared_memory,
+      backend = execution_config@backend,
+      future_plan = future_plan,
+      n_workers = workers[["outer_resampling"]],
+      label = "case weights",
+      verbosity = verbosity
+    )
     run_outer_fold <- make_outer_fold_runner(
-      x = x,
-      outer_resampler = outer_resampler,
+      x = x_shared,
+      resamples = fold_resamples,
       n_outer = n_outer,
       preprocessor_config = preprocessor_config,
       decomposition_config = decomposition_config,
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       execution_config = fold_execution_config,
-      weights = weights,
+      weights = weights_shared,
       question = question,
       # Failure policy (specs/observability.md section 7): under "stop"/"stop_outer" an
       # outer fold failure is fatal, so the fold re-raises and the dispatcher stops the
@@ -731,6 +761,8 @@ train <- function(
         backend = tuning_backend,
         future_plan = future_plan,
         n_workers = workers[["tuning"]],
+        seed = execution_config@seed,
+        shared_memory = execution_config@shared_memory,
         verbosity = verbosity,
         on_error = on_error
       )
@@ -1195,7 +1227,7 @@ train <- function(
 #' the run rather than finish folds whose results are about to be discarded.
 #'
 #' @param x Tabular data: Full training set; each fold slices its own rows.
-#' @param outer_resampler `Resampler` object: The outer resamples.
+#' @param resamples List: Outer resample index vectors.
 #' @param n_outer Integer [1, Inf): Number of outer resamples.
 #' @param preprocessor_config Optional `PreprocessorConfig` object.
 #' @param decomposition_config Optional `DecompositionConfig` object.
@@ -1215,7 +1247,7 @@ train <- function(
 #' @noRd
 make_outer_fold_runner <- function(
   x,
-  outer_resampler,
+  resamples,
   n_outer,
   preprocessor_config,
   decomposition_config,
@@ -1228,7 +1260,7 @@ make_outer_fold_runner <- function(
   verbosity
 ) {
   force(x)
-  force(outer_resampler)
+  force(resamples)
   force(n_outer)
   force(preprocessor_config)
   force(decomposition_config)
@@ -1247,7 +1279,7 @@ make_outer_fold_runner <- function(
       label = paste0(i, "/", n_outer),
       meta = list(fold = i)
     )
-    res_i <- outer_resampler[[i]]
+    res_i <- resamples[[i]]
     t_start <- Sys.time()
     model <- tryCatch(
       train(

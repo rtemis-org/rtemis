@@ -1,5 +1,12 @@
 # rtemis news
 
+## 1.3.6
+
+- New `setup_ExecutionConfig(shared_memory = )` \{"none", "auto", "always"\}: hand workers the training data through shared memory ('mori') instead of serializing a copy per task. A 96 x 5 grid over a 19 MB training set transfers 9 GB without it. `"auto"` shares when workers are local and the payload is large enough, `"always"` errors when it cannot. Off by default. 60 tuning tasks on 8 workers: 12.2s to 8.5s.
+- Tuning dispatches through the same path as outer resampling, so a grid search reproduces across `"none"`, `"future"` and `"mirai"` at any worker count. Grid cells take one RNG substream each, so tuning results change from 1.3.5 for algorithms that draw.
+- Tuning reports when no hyperparameter combination can be ranked, instead of leaving every tuned hyperparameter `NA` in silence and letting the algorithm fall back to its own default. Reached whenever the metric is undefined on any one inner resample: `balanced_accuracy` scores `NaN` on a fold missing a class, which happens whenever the rarest class has fewer cases than there are folds.
+- `futurize` and `future.apply` are no longer dependencies.
+
 ## 1.3.5
 
 - **License: BSD 3-clause**, replacing GPL (>= 3). This is what the dependency work of this release was for: with `digest` replaced by `openssl` and `htmltools` moved to Suggests, no part of rtemis's own code calls into a copyleft package, and `rtemis.core` (relicensed to BSD 3-clause in 0.4.3) was the last GPL entry in `Imports`. What remains there is `data.table` (MPL-2.0), `future` (LGPL >= 2.1, which permits use under any license), `openssl` and `S7` (MIT). The GPL packages in `Suggests` - `glmnet`, `ranger`, `rpart`, `mgcv`, `earth`, `e1071`, `hal9001` and the rest - are loaded conditionally by the algorithms that need them and impose no obligation on this package or on code that uses it. Users who could not adopt a copyleft dependency can now use rtemis; users who could are unaffected.

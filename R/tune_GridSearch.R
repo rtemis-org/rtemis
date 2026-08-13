@@ -51,29 +51,14 @@ tune_GridSearch <- function(
   n_workers = 1L,
   backend = NULL,
   future_plan = NULL,
+  seed = NULL,
+  shared_memory = "none",
   verbosity = 1L,
   on_error = "continue"
 ) {
   check_is_S7(hyperparameters, Hyperparameters)
   check_is_S7(tuner_config, TunerConfig)
   stopifnot(needs_tuning(hyperparameters))
-
-  # Dependencies ----
-  if (backend == "future") {
-    check_dependencies("futurize", "future.apply", "progressr")
-    if (!is.null(future_plan) && future_plan == "sequential") {
-      if (n_workers > 1L) {
-        rtemis.core::abort(
-          "Requested 'sequential' future plan, which supports 1 worker, but ",
-          n_workers,
-          " workers were requested.",
-          class = c("rtemis_value_error", "rtemis_input_error")
-        )
-      }
-    }
-  } else if (backend == "mirai") {
-    check_dependencies("mirai")
-  }
 
   # Intro ----
   start_time <- intro(
@@ -84,26 +69,10 @@ tune_GridSearch <- function(
 
   # Arguments ----
   algorithm <- hyperparameters@algorithm
-
-  # Parallel Processing Strategy ----
-  # If backend is NULL, default to "none"
+  # Backend validation and worker-count handling live in `progress_plapply()`, which
+  # owns dispatch for both this path and outer resampling.
   if (is.null(backend)) {
     backend <- "none"
-  }
-
-  # If backend is "future" or "mirai" with n_workers = 1, we execute
-  # sequentially using the respective backend just to test that the
-  # parallelization setup works.
-  # If the user wants standard sequential execution, they should use/leave
-  # backend = "none" (default).
-  if (backend != "none" && n_workers == 1L) {
-    if (verbosity > 0L) {
-      msg0(
-        "Using ",
-        backend,
-        " with 1 worker"
-      )
-    }
   }
 
   # Make Grid ----
@@ -204,255 +173,75 @@ tune_GridSearch <- function(
     verbosity = verbosity
   )
 
-  # learner1 ----
-  # `ptn` is the progressr progressor ticked by learner1 under the future
-  # backend. It is created inside the `with_progress()` block below (in this
-  # same frame, so learner1's closure sees it) - progressr requires the
-  # progressor to be created within an active progression session.
-  ptn <- NULL
-  learner1 <- function(
-    index,
+  # Grid cells ----
+  # `res@resamples` rather than the `Resampler`: the cell only ever indexes the list, an
+  # S7 object cannot be placed in shared memory, and the index list is itself a
+  # meaningful share of the payload (1.7 MB at n = 50,000, k = 10).
+  resamples <- share_payload(
+    res@resamples,
+    mode = shared_memory,
+    backend = backend,
+    future_plan = future_plan,
+    n_workers = n_workers,
+    label = "resample indices",
+    verbosity = verbosity
+  )
+  x_shared <- share_payload(
     x,
-    res,
-    res_param_grid,
-    hyperparameters,
-    preprocessor_config,
-    decomposition_config,
+    mode = shared_memory,
+    backend = backend,
+    future_plan = future_plan,
+    n_workers = n_workers,
+    label = "training data",
+    verbosity = verbosity
+  )
+  weights_shared <- share_payload(
     weights,
-    verbosity,
-    save_mods,
-    n_res_x_comb,
-    on_error = "continue"
-  ) {
-    if (verbosity > 1L) {
-      info(
-        "Running grid line #",
-        fmt(index, bold = TRUE),
-        "/",
-        NROW(res_param_grid),
-        "...",
-        caller = "tune_GridSearch"
-      )
-    }
-    res1 <- res[[res_param_grid[index, "resample_id"]]]
-    dat_train1 <- x[res1, ]
-    weights1 <- weights[res1]
-    dat_valid1 <- x[-res1, ]
-    hyperparams1 <- hyperparameters
-    hyperparams1 <- update(
-      hyperparams1,
-      grid_row_values(res_param_grid, index, 2:NCOL(res_param_grid)),
-      tuned = TUNED_STATUS_TUNING # Hyperparameters are being tuned
-    )
-
-    # Detach any active observability session so the inner train() is opaque to the host
-    # graph; the host host-synthesizes one grid_cell node per cell (uniform across
-    # backends). In daemons the session is already NULL, so this is a harmless no-op.
-    saved_session <- live[["session"]]
-    live[["session"]] <- NULL
-    on.exit(live[["session"]] <- saved_session, add = TRUE)
-    run_cell <- function() {
-      do_call(
-        "train",
-        args = list(
-          x = dat_train1,
-          dat_validation = dat_valid1,
-          preprocessor_config = preprocessor_config,
-          decomposition_config = decomposition_config,
-          hyperparameters = hyperparams1,
-          weights = weights1,
-          verbosity = verbosity - 1L
-        )
-      )
-    }
-    # Failure policy (specs/observability.md section 7): under "continue" a grid-cell
-    # failure is captured and returned as a marker (non-fatal); otherwise it propagates.
-    # Timestamps bracket the actual cell run so the host can record real durations on the
-    # synthesized grid_cell nodes (rather than a zero-width now/now interval).
-    cell_t_start <- Sys.time()
-    mod1 <- if (identical(on_error, "continue")) {
-      tryCatch(run_cell(), error = function(e) e)
-    } else {
-      run_cell()
-    }
-    cell_t_end <- Sys.time()
-    if (inherits(mod1, "condition")) {
-      return(list(
-        id = index,
-        resample_id = res_param_grid[index, "resample_id"],
-        metrics_training = NULL,
-        metrics_validation = NULL,
-        type = NA_character_,
-        hyperparameters = hyperparams1,
-        failed = TRUE,
-        error = conditionMessage(mod1),
-        t_start = cell_t_start,
-        t_end = cell_t_end
-      ))
-    }
-
-    out1 <- list(
-      id = index,
-      resample_id = res_param_grid[index, "resample_id"],
-      metrics_training = mod1@metrics_training,
-      metrics_validation = mod1@metrics_validation,
-      type = mod1@type,
-      hyperparameters = hyperparams1,
-      failed = FALSE,
-      t_start = cell_t_start,
-      t_end = cell_t_end
-    )
-
-    # Algorithm-specific params ----
-    # => add to hyperparameters
-    if (algorithm == "GLMNET") {
-      out1[["hyperparameters"]]@hyperparameters[["lambda.min"]] <- mod1@model[[
-        "lambda.min"
-      ]]
-      out1[["hyperparameters"]]@hyperparameters[["lambda.1se"]] <- mod1@model[[
-        "lambda.1se"
-      ]]
-    }
-    if (algorithm == "LightGBM") {
-      # Check best_iter is meaningful, otherwise issue message and set to 100L
-      best_iter <- mod1@model[["best_iter"]]
-      if (is.null(best_iter) || best_iter == -1 || best_iter == 0) {
-        info(
-          paste(
-            "best_iter returned from lightgbm:",
-            best_iter,
-            "- setting to 100L"
-          )
-        )
-        best_iter <- 100L
-      }
-      out1[["hyperparameters"]]@hyperparameters[["best_iter"]] <- best_iter
-    }
-    # if (algorithm %in% c("LINAD", "LINOA")) {
-    #   out1$est.n.leaves <- mod1$mod$n.leaves
-    # }
-    # if (algorithm == "LIHADBoost") {
-    #   out1$sel.n.steps <- mod1$mod$selected.n.steps
-    # }
-    if (save_mods) {
-      out1[["mod1"]] <- mod1
-    }
-    if (backend == "future") {
-      ptn(sprintf("Tuning resample %i/%i", index, n_res_x_comb))
-    }
-    out1
-  } # /learner1
+    mode = shared_memory,
+    backend = backend,
+    future_plan = future_plan,
+    n_workers = n_workers,
+    label = "case weights",
+    verbosity = verbosity
+  )
+  run_grid_cell <- make_grid_cell_runner(
+    x = x_shared,
+    resamples = resamples,
+    res_param_grid = res_param_grid,
+    hyperparameters = hyperparameters,
+    preprocessor_config = preprocessor_config,
+    decomposition_config = decomposition_config,
+    weights = weights_shared,
+    algorithm = algorithm,
+    save_mods = save_mods,
+    # Failure policy (specs/observability.md section 7): a grid-cell failure is fatal
+    # only under "stop". "stop_outer" tolerates cells and is fatal for outer folds alone.
+    fatal = identical(on_error, "stop"),
+    verbosity = verbosity
+  )
 
   # Train Grid ----
-  if (backend == "none") {
-    if (verbosity > 0L) {
-      msg("Tuning in sequence")
-    }
-    # Sequential execution with rtemis.core progress. `learner1` is closed
-    # over rather than forwarded through `...` because its `x` and
-    # `verbosity` arguments would collide with progress_lapply()'s own
-    # parameters.
-    grid_run <- progress_lapply(
-      seq_len(n_res_x_comb),
-      function(index) {
-        learner1(
-          index,
-          x = x,
-          res = res,
-          hyperparameters = hyperparameters,
-          res_param_grid = res_param_grid,
-          preprocessor_config = preprocessor_config,
-          decomposition_config = decomposition_config,
-          weights = weights,
-          verbosity = verbosity,
-          save_mods = save_mods,
-          n_res_x_comb = n_res_x_comb,
-          on_error = on_error
-        )
-      },
-      label = "Tuning",
-      kind = "tune",
-      verbosity = verbosity
-    )
-  } else if (backend == "future") {
-    # Future parallelization
-    future_plan <- set_preferred_plan(
-      requested_plan = future_plan,
-      n_workers = n_workers,
-      envir = parent.frame(),
-      verbosity = verbosity
-    )
-    if (verbosity > 0L) {
-      msg0(
-        "Tuning using future (",
-        bold(future_plan),
-        "); N workers: ",
-        bold(n_workers)
-      )
-    }
-    if (verbosity > 1L) {
-      # verify plan set by set_preferred_plan with envir
-      info("Current future plan:")
-      print(future::plan())
-    }
-    # Workers signal `progression` conditions via `ptn()`; future relays
-    # them to this session, where handler_rtemis() renders them through the
-    # rtemis progress system (breadcrumb line, sink envelopes). Relay
-    # granularity is bounded by chunk resolution.
-    grid_run <- progressr::with_progress(
-      {
-        ptn <- progressr::progressor(steps = NROW(res_param_grid))
-        lapply(
-          X = seq_len(n_res_x_comb),
-          FUN = learner1,
-          x = x,
-          res = res,
-          hyperparameters = hyperparameters,
-          res_param_grid = res_param_grid,
-          preprocessor_config = preprocessor_config,
-          decomposition_config = decomposition_config,
-          weights = weights,
-          verbosity = verbosity,
-          save_mods = save_mods,
-          n_res_x_comb = n_res_x_comb,
-          on_error = on_error
-        ) |>
-          futurize::futurize(seed = TRUE, globals = FALSE)
-      },
-      handlers = handler_rtemis(
-        label = "Tuning",
-        kind = "tune",
-        verbosity = verbosity
-      ),
-      # progressr gates delivery on `progressr.enable` (FALSE in
-      # non-interactive sessions); force it - the rtemis progress system
-      # does its own verbosity gating and non-interactive rendering.
-      enable = TRUE
-    )
-  } else if (backend == "mirai") {
-    if (verbosity > 0L) {
-      msg("Tuning using mirai; N workers:", bold(n_workers))
-    }
-    mirai::daemons(n_workers, dispatcher = TRUE)
-    on.exit(mirai::daemons(0L))
-    grid_run <- mirai::mirai_map(
-      .x = seq_len(n_res_x_comb),
-      .f = learner1,
-      .args = list(
-        x = x,
-        res = res,
-        hyperparameters = hyperparameters,
-        res_param_grid = res_param_grid,
-        preprocessor_config = preprocessor_config,
-        decomposition_config = decomposition_config,
-        weights = weights,
-        verbosity = verbosity,
-        save_mods = save_mods,
-        n_res_x_comb = n_res_x_comb,
-        on_error = on_error
-      )
-    )
-  }
+  # One dispatcher for every backend, shared with outer resampling. Cells receive one RNG
+  # substream each, keyed by cell index, so a grid search gives the same answer under
+  # "none", "future" and "mirai" at any worker count.
+  grid_run <- progress_plapply(
+    seq_len(n_res_x_comb),
+    run_grid_cell,
+    backend = backend,
+    n_workers = n_workers,
+    future_plan = future_plan,
+    seeds = rng_substreams(seed, n_res_x_comb),
+    label = "Tuning",
+    kind = "tune",
+    stop_on_error = identical(on_error, "stop"),
+    verbosity = verbosity
+  )
+  grid_run <- Map(
+    normalize_cell_result,
+    grid_run,
+    seq_len(n_res_x_comb),
+    res_param_grid[, "resample_id"]
+  )
 
   # Metric ----
   type <- supervised_type(x)
@@ -477,28 +266,7 @@ tune_GridSearch <- function(
   verb <- if (maximize) "maximize" else "minimize"
 
   # Aggregate ----
-  # Average test errors
-  # if using mirai, wait for all to finish. mirai does not relay progressr
-  # conditions, so wait on each mirai in index order (event-driven, like
-  # mirai's own `[.progress]`) and report through the rtemis progress
-  # system. Tasks resolve out of order under the dispatcher, so recount
-  # completions after each wait to keep the counter accurate.
-  if (backend == "mirai") {
-    tune_progress <- progress_begin(
-      n_res_x_comb,
-      label = "Tuning",
-      kind = "tune",
-      verbosity = verbosity
-    )
-    for (i in seq_len(n_res_x_comb)) {
-      mirai::call_mirai(grid_run[[i]])
-      n_done <- n_res_x_comb -
-        sum(vapply(grid_run, mirai::unresolved, logical(1L)))
-      progress_update(tune_progress, current = n_done)
-    }
-    grid_run <- grid_run[]
-    progress_end(tune_progress, status = "done")
-  }
+  # Average test errors.
   # Host-synthesize one grid_cell node per cell under the active "tune" node, with status
   # and error filled from the returned results. See specs/observability.md section 4.
   for (r in grid_run) {
@@ -750,11 +518,47 @@ tune_GridSearch <- function(
   # Consider explicitly sorting hyperparam values in increasing order,
   # so that in case of tie, lowest value is chosen -
   # if that makes sense, e.g. n.leaves, etc.
+  best_row <- select_fn(tune_results[["metrics_validation"]][[metric]])
+  # A combination whose aggregated metric is NA or NaN cannot be ranked, and when that is
+  # every combination `which.max`/`which.min` select nothing.
+  #
+  # An empty selection does not stay empty: `as.integer()` turns the resulting zero-row
+  # slice into `NA_integer_`, and indexing the grid with that yields a row of NAs. Every
+  # tuned hyperparameter is then set to NA -- not left at the value it came in with. What
+  # happens next is algorithm-dependent and none of it is what the user asked for: an
+  # algorithm that tolerates NA falls back to its own default (LightGBM reverts to
+  # `max_nrounds` with early stopping), and one that does not fails its validator with a
+  # message naming NULL, which points nowhere near the real problem.
+  #
+  # A cell failure is one way to get here; a degenerate inner resample is another and does
+  # not require any failure at all. `balanced_accuracy` averages per-class recall, so a
+  # validation fold missing a class scores NaN, and `mean()` carries that NaN to the
+  # combination -- reachable with small multiclass data long before anything errors.
+  #
+  # Warned rather than fatal: aborting would turn runs that presently return a model into
+  # errors. What must not survive is the silence.
+  if (length(best_row) == 0L) {
+    n_failed <- sum(vapply(
+      grid_run,
+      function(r) isTRUE(r[["failed"]]),
+      logical(1L)
+    ))
+    rtemis.core::warn(
+      "No hyperparameter combination could be scored on ",
+      metric,
+      " across every inner resample (",
+      n_failed,
+      " of ",
+      n_res_x_comb,
+      " grid cells failed), so tuning cannot select a winner: every tuned ",
+      "hyperparameter is left as NA and the algorithm falls back to its own default. ",
+      "Check for degenerate resamples -- a metric undefined on any one of them, such ",
+      "as balanced_accuracy where a fold is missing a class, makes its whole ",
+      "combination unrankable."
+    )
+  }
   best_param_combo_id <- as.integer(
-    tune_results[["metrics_validation"]][
-      select_fn(tune_results[["metrics_validation"]][[metric]]),
-      1
-    ]
+    tune_results[["metrics_validation"]][best_row, 1]
   )
   best_param_combo <- grid_row_values(param_grid, best_param_combo_id, -1)
   if (verbosity > 0L) {
@@ -788,6 +592,215 @@ tune_GridSearch <- function(
     best_hyperparameters = best_param_combo
   )
 } # /rtemis::tune_GridSearch
+
+
+# %% make_grid_cell_runner ----
+#' Build the per-grid-cell body
+#'
+#' Returns the closure `progress_plapply()` dispatches once per (hyperparameter
+#' combination x inner resample) cell.
+#'
+#' @details
+#' Built by a factory, and taking only `index`, for two reasons. Serializing a closure
+#' walks its enclosing environments, so a body defined in `tune_GridSearch()`'s frame
+#' would ship that whole frame to every worker. And a body taking `...` could not be fed
+#' through `progress_plapply()`, whose own `verbosity`, `label` and `kind` parameters
+#' would swallow same-named arguments meant for the cell.
+#'
+#' Under a tolerant failure policy a failure is captured and returned as a marker the
+#' aggregation excludes; under a fatal one it propagates, and the dispatcher stops the
+#' run.
+#'
+#' @param x Tabular data: Training set; each cell slices its own rows.
+#' @param resamples List: Inner resample index vectors.
+#' @param res_param_grid data.frame: One row per cell, `resample_id` plus the
+#' hyperparameter values.
+#' @param hyperparameters `Hyperparameters` object.
+#' @param preprocessor_config Optional `PreprocessorConfig` object.
+#' @param decomposition_config Optional `DecompositionConfig` object.
+#' @param weights Optional vector of case weights.
+#' @param algorithm Character: Algorithm name, for the algorithm-specific collection.
+#' @param save_mods Logical: If TRUE, the fitted model rides back with the result.
+#' @param fatal Logical: If TRUE, a cell failure is raised rather than returned.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Function of `(index)` returning the cell result list.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+make_grid_cell_runner <- function(
+  x,
+  resamples,
+  res_param_grid,
+  hyperparameters,
+  preprocessor_config,
+  decomposition_config,
+  weights,
+  algorithm,
+  save_mods,
+  fatal,
+  verbosity
+) {
+  force(x)
+  force(resamples)
+  force(res_param_grid)
+  force(hyperparameters)
+  force(preprocessor_config)
+  force(decomposition_config)
+  force(weights)
+  force(algorithm)
+  force(save_mods)
+  force(fatal)
+  force(verbosity)
+  function(index) {
+    if (verbosity > 1L) {
+      info(
+        "Running grid line #",
+        fmt(index, bold = TRUE),
+        "/",
+        NROW(res_param_grid),
+        "...",
+        caller = "tune_GridSearch"
+      )
+    }
+    res1 <- resamples[[res_param_grid[index, "resample_id"]]]
+    dat_train1 <- x[res1, ]
+    weights1 <- weights[res1]
+    dat_valid1 <- x[-res1, ]
+    hyperparams1 <- update(
+      hyperparameters,
+      grid_row_values(res_param_grid, index, 2:NCOL(res_param_grid)),
+      tuned = TUNED_STATUS_TUNING # Hyperparameters are being tuned
+    )
+
+    # Detach any active observability session so the inner train() is opaque to the host
+    # graph; the host host-synthesizes one grid_cell node per cell (uniform across
+    # backends). In daemons the session is already NULL, so this is a harmless no-op.
+    saved_session <- live[["session"]]
+    live[["session"]] <- NULL
+    on.exit(live[["session"]] <- saved_session, add = TRUE)
+    run_cell <- function() {
+      do_call(
+        "train",
+        args = list(
+          x = dat_train1,
+          dat_validation = dat_valid1,
+          preprocessor_config = preprocessor_config,
+          decomposition_config = decomposition_config,
+          hyperparameters = hyperparams1,
+          weights = weights1,
+          verbosity = verbosity - 1L
+        )
+      )
+    }
+    # Failure policy (specs/observability.md section 7): under a tolerant policy a
+    # grid-cell failure is captured and returned as a marker (non-fatal); otherwise it
+    # propagates. Timestamps bracket the actual cell run so the host can record real
+    # durations on the synthesized grid_cell nodes (rather than a zero-width interval).
+    cell_t_start <- Sys.time()
+    mod1 <- if (fatal) {
+      run_cell()
+    } else {
+      tryCatch(run_cell(), error = function(e) e)
+    }
+    cell_t_end <- Sys.time()
+    if (inherits(mod1, "condition")) {
+      return(list(
+        id = index,
+        resample_id = res_param_grid[index, "resample_id"],
+        metrics_training = NULL,
+        metrics_validation = NULL,
+        type = NA_character_,
+        hyperparameters = hyperparams1,
+        failed = TRUE,
+        error = conditionMessage(mod1),
+        t_start = cell_t_start,
+        t_end = cell_t_end
+      ))
+    }
+
+    out1 <- list(
+      id = index,
+      resample_id = res_param_grid[index, "resample_id"],
+      metrics_training = mod1@metrics_training,
+      metrics_validation = mod1@metrics_validation,
+      type = mod1@type,
+      hyperparameters = hyperparams1,
+      failed = FALSE,
+      t_start = cell_t_start,
+      t_end = cell_t_end
+    )
+
+    # Algorithm-specific params ----
+    # => add to hyperparameters
+    if (algorithm == "GLMNET") {
+      out1[["hyperparameters"]]@hyperparameters[["lambda.min"]] <- mod1@model[[
+        "lambda.min"
+      ]]
+      out1[["hyperparameters"]]@hyperparameters[["lambda.1se"]] <- mod1@model[[
+        "lambda.1se"
+      ]]
+    }
+    if (algorithm == "LightGBM") {
+      # Check best_iter is meaningful, otherwise issue message and set to 100L
+      best_iter <- mod1@model[["best_iter"]]
+      if (is.null(best_iter) || best_iter == -1 || best_iter == 0) {
+        info(
+          paste(
+            "best_iter returned from lightgbm:",
+            best_iter,
+            "- setting to 100L"
+          )
+        )
+        best_iter <- 100L
+      }
+      out1[["hyperparameters"]]@hyperparameters[["best_iter"]] <- best_iter
+    }
+    if (save_mods) {
+      out1[["mod1"]] <- mod1
+    }
+    out1
+  }
+} # /rtemis::make_grid_cell_runner
+
+
+# %% normalize_cell_result ----
+#' Normalize one grid cell result
+#'
+#' The cell body returns a structured result, failure included. A condition arrives
+#' instead only when the dispatch itself failed -- a payload that could not be serialized,
+#' or a worker that died -- which is outside the body's own `tryCatch`. Both shapes are
+#' flattened here so the node synthesis and metric aggregation downstream have one thing
+#' to read.
+#'
+#' @param res List or condition: One element of the `progress_plapply()` result.
+#' @param index Integer: Cell index, used when the result carries no id of its own.
+#' @param resample_id Integer: Inner resample the cell belonged to.
+#'
+#' @return List in the cell result shape.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+normalize_cell_result <- function(res, index, resample_id) {
+  if (!inherits(res, "condition")) {
+    return(res)
+  }
+  now <- Sys.time()
+  list(
+    id = index,
+    resample_id = resample_id,
+    metrics_training = NULL,
+    metrics_validation = NULL,
+    type = NA_character_,
+    hyperparameters = NULL,
+    failed = TRUE,
+    error = conditionMessage(res),
+    t_start = now,
+    t_end = now
+  )
+} # /rtemis::normalize_cell_result
 
 
 # %% print_tune_finding ----

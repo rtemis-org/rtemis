@@ -46,6 +46,14 @@ ExecutionConfig <- new_class(
       min = 0L,
       nullable = TRUE,
       description = "Master seed for the run's computation RNG."
+    ),
+    # Every parallel task receives the same training data and slices its own rows from
+    # it, so the data is serialized once per task. Shared memory replaces those copies
+    # with one region every worker maps.
+    shared_memory = prop_string(
+      "none",
+      enum = c("none", "auto", "always"),
+      description = "Share worker data through OS shared memory."
     )
   ),
   # Cross-field constraints (the per-field type/enum/bounds are enforced by
@@ -121,14 +129,24 @@ default_n_workers <- function(omit = 3L) {
 #' the final model fails; `"stop"` aborts on any error; `"stop_outer"` tolerates grid-cell
 #' failures but aborts on an outer-fold failure.
 #' @param seed Optional Integer [0, Inf): Master seed for the run's computation RNG,
-#' from which one independent substream per outer resample is derived. Left `NULL`, a
+#' from which one independent substream per parallel task is derived. Left `NULL`, a
 #' seed is drawn from the current RNG stream and recorded on the returned object, so
 #' every run is reproducible and the seed it used is auditable. Distinct from a
 #' `ResamplerConfig` seed, which governs how the data is split.
+#' @param shared_memory Character \{"none", "auto", "always"\}: Whether to hand workers
+#' the training data through OS shared memory instead of serializing a copy to each.
+#' `"none"` is the default. `"auto"` shares when it is possible and worthwhile -- workers
+#' local, payload above a size threshold, \pkg{mori} installed -- and quietly does not
+#' when it is not. `"always"` shares regardless of size and treats an impossible request
+#' as an error.
 #'
 #' @details
 #' Substreams are assigned by task index, so a run gives the same answer under every
 #' backend and worker count, and the parallel result matches the sequential one exactly.
+#'
+#' Shared memory needs \pkg{mori}, whose minimum R version (4.3) is above
+#' \pkg{rtemis}'s own (4.1), so `"auto"` is the portable setting for a script that may
+#' run anywhere. It is local RAM: workers on another machine cannot map it.
 #'
 #' @return `ExecutionConfig` object.
 #'
@@ -141,12 +159,20 @@ setup_ExecutionConfig <- function(
   n_workers = NULL,
   future_plan = NULL,
   on_error = c("continue", "stop", "stop_outer"),
-  seed = NULL
+  seed = NULL,
+  shared_memory = c("none", "auto", "always")
 ) {
   backend <- match.arg(backend)
   on_error <- match.arg(on_error)
+  shared_memory <- match.arg(shared_memory)
+  # "always" is a demand, so an unusable request is an error here rather than a surprise
+  # at dispatch. "auto" is best-effort: a missing mori is one more reason it cannot
+  # share, not a mistake to correct.
+  if (shared_memory == "always") {
+    check_dependencies("mori")
+  }
   if (backend == "future") {
-    check_dependencies("futurize")
+    check_dependencies("future")
     check_character(future_plan, allow_null = TRUE)
     if (is.null(future_plan)) {
       future_plan <- getOption("future.plan", "mirai_multisession")
@@ -200,6 +226,7 @@ setup_ExecutionConfig <- function(
     n_workers = n_workers,
     future_plan = if (backend == "future") future_plan else NULL,
     on_error = on_error,
-    seed = seed
+    seed = seed,
+    shared_memory = shared_memory
   )
 } # /rtemis::setup_ExecutionConfig

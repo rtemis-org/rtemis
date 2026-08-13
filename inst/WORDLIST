@@ -63,6 +63,7 @@ LinearSVMHyperparameters
 MARSHyperparameters
 MIDPT
 MLP
+mori
 MPL
 MLPHyperparameters
 MLPs

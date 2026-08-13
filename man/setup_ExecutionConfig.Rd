@@ -9,7 +9,8 @@ setup_ExecutionConfig(
   n_workers = NULL,
   future_plan = NULL,
   on_error = c("continue", "stop", "stop_outer"),
-  seed = NULL
+  seed = NULL,
+  shared_memory = c("none", "auto", "always")
 )
 }
 \arguments{
@@ -27,10 +28,17 @@ the final model fails; \code{"stop"} aborts on any error; \code{"stop_outer"} to
 failures but aborts on an outer-fold failure.}
 
 \item{seed}{Optional Integer [0, Inf): Master seed for the run's computation RNG,
-from which one independent substream per outer resample is derived. Left \code{NULL}, a
+from which one independent substream per parallel task is derived. Left \code{NULL}, a
 seed is drawn from the current RNG stream and recorded on the returned object, so
 every run is reproducible and the seed it used is auditable. Distinct from a
 \code{ResamplerConfig} seed, which governs how the data is split.}
+
+\item{shared_memory}{Character \{"none", "auto", "always"\}: Whether to hand workers
+the training data through OS shared memory instead of serializing a copy to each.
+\code{"none"} is the default. \code{"auto"} shares when it is possible and worthwhile -- workers
+local, payload above a size threshold, \pkg{mori} installed -- and quietly does not
+when it is not. \code{"always"} shares regardless of size and treats an impossible request
+as an error.}
 }
 \value{
 \code{ExecutionConfig} object.
@@ -41,6 +49,10 @@ Setup Execution Configuration
 \details{
 Substreams are assigned by task index, so a run gives the same answer under every
 backend and worker count, and the parallel result matches the sequential one exactly.
+
+Shared memory needs \pkg{mori}, whose minimum R version (4.3) is above
+\pkg{rtemis}'s own (4.1), so \code{"auto"} is the portable setting for a script that may
+run anywhere. It is local RAM: workers on another machine cannot map it.
 }
 \examples{
 setup_ExecutionConfig(backend = "future", n_workers = 4L, future_plan = "multisession")
