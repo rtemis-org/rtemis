@@ -10,6 +10,7 @@ CLI
 CMD
 CMeansConfig
 ClusterConfig
+CMRG
 ConditionalSuperLearner
 ConditionalSuperLearnerHyperparameters
 DBSCAN's
@@ -44,6 +45,7 @@ KMeansConfig
 KNN
 KNNHyperparameters
 KernelSHAP
+L'Ecuyer
 LOOCV
 Laan
 LightCART
@@ -114,6 +116,9 @@ Spectrogram
 Stata
 StratBoot
 StratSub
+substream
+Substreams
+substreams
 SuperConfig
 SuperConfigLive
 SuperLearner

@@ -8,7 +8,8 @@ setup_ExecutionConfig(
   backend = c("future", "mirai", "none"),
   n_workers = NULL,
   future_plan = NULL,
-  on_error = c("continue", "stop", "stop_outer")
+  on_error = c("continue", "stop", "stop_outer"),
+  seed = NULL
 )
 }
 \arguments{
@@ -24,12 +25,22 @@ on your system.}
 non-fatal (recorded, warned, and excluded), failing only when nothing is scorable or
 the final model fails; \code{"stop"} aborts on any error; \code{"stop_outer"} tolerates grid-cell
 failures but aborts on an outer-fold failure.}
+
+\item{seed}{Optional Integer [0, Inf): Master seed for the run's computation RNG,
+from which one independent substream per outer resample is derived. Left \code{NULL}, a
+seed is drawn from the current RNG stream and recorded on the returned object, so
+every run is reproducible and the seed it used is auditable. Distinct from a
+\code{ResamplerConfig} seed, which governs how the data is split.}
 }
 \value{
 \code{ExecutionConfig} object.
 }
 \description{
 Setup Execution Configuration
+}
+\details{
+Substreams are assigned by task index, so a run gives the same answer under every
+backend and worker count, and the parallel result matches the sequential one exactly.
 }
 \examples{
 setup_ExecutionConfig(backend = "future", n_workers = 4L, future_plan = "multisession")

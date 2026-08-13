@@ -236,16 +236,24 @@ session_active <- function() {
 # %% session_new_id ----
 #' Generate a unique session id
 #'
+#' @details
+#' The draw is RNG-neutral. Observability must not perturb the stream the computation
+#' runs on, or results would depend on whether a session happened to be created -- which
+#' is exactly what differs between an outer fold running in process (reuses the ambient
+#' session) and one running in a daemon (builds its own).
+#'
 #' @return Character.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 session_new_id <- function() {
-  paste0(
-    format(Sys.time(), "%Y%m%d%H%M%S"),
-    "-",
-    paste0(sample(c(0:9, letters[1:6]), 6L, replace = TRUE), collapse = "")
+  with_preserved_rng(
+    paste0(
+      format(Sys.time(), "%Y%m%d%H%M%S"),
+      "-",
+      paste0(sample(c(0:9, letters[1:6]), 6L, replace = TRUE), collapse = "")
+    )
   )
 } # /rtemis::session_new_id
 
@@ -578,6 +586,83 @@ session_add_node <- function(
   session_emit_sink(rec, phase = if (status == "ok") "done" else status)
   node_id
 } # /rtemis::session_add_node
+
+
+# %% session_graft ----
+#' Graft a worker's event log into the active session
+#'
+#' Merges the flat event log a worker produced -- an outer fold that ran in a daemon and
+#' therefore built its own session -- into the host session beneath `parent_id`. This is
+#' what keeps the execution graph of a parallel run identical to a sequential one; see
+#' `specs/observability.md` section 4.
+#'
+#' @details
+#' Node ids are per-session counters (`n1`, `n2`, ...), so ids from two workers collide by
+#' construction. Every grafted id is namespaced with `prefix` and each `parent_id` remapped
+#' in step.
+#'
+#' The worker's own root node is discarded and its children attached directly to
+#' `parent_id`. The host node already stands for that same `train()` call, so keeping both
+#' would give a parallel run one more level of nesting than a sequential one -- the
+#' opposite of the point. A log with no single root (which a session cannot produce) has
+#' every root attached instead, so nothing is silently dropped.
+#'
+#' Records are appended straight to the node table and never pushed onto `stack`: folds
+#' complete out of order, so a stack-based `node_enter()`/`node_exit()` bracket cannot span
+#' concurrent folds. `session_add_node()` is the same stack-free append.
+#'
+#' The sink is not fired for grafted records. They already streamed live from the worker's
+#' own sink as they happened; re-emitting here would report every event twice.
+#'
+#' @param events List: Flat event log, i.e. a `SupervisedSession`'s `@events`.
+#' @param parent_id Character: Host node the worker's nodes attach to.
+#' @param prefix Character: Namespace for the grafted node ids, e.g. `"f3"`.
+#'
+#' @return Invisible NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+session_graft <- function(events, parent_id, prefix) {
+  s <- live[["session"]]
+  if (is.null(s) || is.null(parent_id) || length(events) == 0L) {
+    return(invisible(NULL))
+  }
+  is_root <- vapply(
+    events,
+    function(rec) {
+      p <- rec[["parent_id"]]
+      is.null(p) || is.na(p)
+    },
+    logical(1L)
+  )
+  drop_id <- if (sum(is_root) == 1L) {
+    events[[which(is_root)]][["node_id"]]
+  } else {
+    NA_character_
+  }
+  remap <- function(id) paste0(prefix, ".", id)
+  ids <- character()
+  for (i in seq_along(events)) {
+    rec <- events[[i]]
+    if (identical(rec[["node_id"]], drop_id)) {
+      next
+    }
+    parent <- rec[["parent_id"]]
+    rec[["node_id"]] <- remap(rec[["node_id"]])
+    rec[["parent_id"]] <- if (
+      is.null(parent) || is.na(parent) || identical(parent, drop_id)
+    ) {
+      parent_id
+    } else {
+      remap(parent)
+    }
+    s[["nodes"]][[rec[["node_id"]]]] <- rec
+    ids <- c(ids, rec[["node_id"]])
+  }
+  s[["order"]] <- c(s[["order"]], ids)
+  invisible(NULL)
+} # /rtemis::session_graft
 
 
 # %% session_timeline ----

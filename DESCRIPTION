@@ -27,6 +27,7 @@ Imports:
     graphics,
     methods,
     openssl,
+    parallel,
     rtemis.core (>= 0.4.3),
     stats,
     S7,

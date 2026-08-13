@@ -127,18 +127,20 @@ restore_weights_column <- function(model, column) {
 #'   `progress(stage, current, total, message)`:
 #'   \describe{
 #'     \item{`stage`}{Character. Currently `"outer_fold"`.}
-#'     \item{`current`}{Integer. 1-based index of the fold about to run.}
+#'     \item{`current`}{Integer. Sequentially, the 1-based index of the fold
+#'       about to run; in parallel, the number of folds completed so far.}
 #'     \item{`total`}{Integer. Total number of outer folds.}
-#'     \item{`message`}{Character. Human-readable line, e.g.
-#'       `"Outer fold 2/5"`.}
+#'     \item{`message`}{Character. Human-readable line: `"Outer resamples 2/5"`
+#'       sequentially, and `"Outer resamples 4/10 complete; running 5, 6, 7"`
+#'       in parallel, where folds finish out of order.}
 #'   }
-#'   When `NULL`, outer folds run through
-#'   [rtemis.core::progress_lapply()], which renders the interactive
-#'   status line and emits structured progress envelopes when a message
-#'   sink is set (see [rtemis.core::set_msg_sink()]). Designed for
-#'   non-interactive callers (e.g. `rtemis.server`) that need to forward
-#'   fold progress over a wire protocol; errors raised by the callback are
-#'   swallowed so a broken sink cannot interrupt training.
+#'   Supplying a callback does not change how folds are dispatched; whether
+#'   they run in parallel is decided by `execution_config` alone.
+#'   The interactive status line and the structured progress envelopes sent to
+#'   a message sink (see [rtemis.core::set_msg_sink()]) are emitted either way.
+#'   Designed for non-interactive callers (e.g. `rtemis.server`) that need to
+#'   forward fold progress over a wire protocol; errors raised by the callback
+#'   are swallowed so a broken sink cannot interrupt training.
 #' @param ... Not used.
 #'
 #' @details
@@ -196,14 +198,25 @@ restore_weights_column <- function(model, column) {
 #' There are three levels of parallelization that may be used during training:
 #'
 #' 1. Algorithm training (e.g. a parallelized learner like LightGBM)
-#' 2. Tuning (inner resampling, where multiple resamples can be processed in parallel)
+#' 2. Tuning (where the full hyperparameter combination x inner resample cross product is
+#' processed in parallel, not just the resamples)
 #' 3. Outer resampling (where multiple outer resamples can be processed in parallel)
 #'
-#' The `train()` function will automatically manage parallelization depending
-#' on:
-#' - The number of workers specified by the user using `n_workers`
-#' - Whether the training algorithm supports parallelization itself
-#' - Whether hyperparameter tuning is needed
+#' `train()` assigns all workers to exactly one of these levels, so that no two levels
+#' compete for the same cores. The level is chosen by the first of these that applies:
+#' the algorithm parallelizes itself, tuning is needed, outer resampling is set. A run
+#' that needs none of them is sequential.
+#'
+#' The workers, backend, and future plan all come from `execution_config`; see
+#' [setup_ExecutionConfig].
+#'
+#' **Reproducibility under parallelization**
+#'
+#' `execution_config` carries the master seed for the run's computation RNG, from which
+#' one independent substream per outer resample is derived and assigned by fold index.
+#' Results therefore do not depend on the backend, the number of workers, or the order
+#' folds happened to finish in: a parallel run reproduces its sequential counterpart
+#' exactly.
 #'
 #' @return Object of class `Regression(Supervised)`, `RegressionRes(SupervisedRes)`,
 #' `Classification(Supervised)`, or `ClassificationRes(SupervisedRes)`.
@@ -463,18 +476,25 @@ train <- function(
   start_time <- intro(verbosity = verbosity, logfile = logfile)
 
   # Observability session ----
-  # The top-level call creates the ambient session; nested (per outer-fold) calls reuse
-  # it so their step nodes nest under the fold node. See specs/observability.md.
+  # An in-process outer fold reuses the ambient session, so its step nodes nest under the
+  # fold node. A fold dispatched to a daemon finds no session there and creates one; that
+  # session is the sub-log the host grafts back under the fold node, which is what keeps
+  # the graph of a parallel run identical to a sequential one.
+  # See specs/observability.md sections 3 and 4.
   on_error <- execution_config@on_error
   session_created <- session_start(verbosity = verbosity)
   # Safety net: on any exit (incl. error) the top-level call clears the ambient slot.
   on.exit(if (session_created) session_clear(), add = TRUE)
+  # Because a fold in a daemon does create a session, `session_created` cannot answer
+  # "am I the run the user asked for?". The fold worker marks itself in `live[["fold"]]`,
+  # and everything that must happen exactly once per run keys off `is_root` instead.
+  is_root <- session_created && is.null(live[["fold"]])
   # Data provenance ----
   # Only the top-level call fingerprints: nested (per outer-fold) calls would
   # each hash their own fold, which is both wasteful and not what anyone wants
   # to compare. Same rule as the session above -- the top-level object carries
   # the identity of the data the user actually supplied.
-  training_fingerprint <- if (session_created) {
+  training_fingerprint <- if (is_root) {
     data_fingerprint(x)
   } else {
     NULL
@@ -518,8 +538,11 @@ train <- function(
   hyperparameters@n_workers <- workers[["algorithm"]]
   tuner <- NULL
 
-  # Set backend to "none" if workers[["tuning"]] == 1L
-  backend <- if (workers[["tuning"]] == 1L) {
+  # Narrowed to its own name rather than overwriting `backend`: the outer resampling loop
+  # further down needs the backend the user asked for, and a single `backend` variable
+  # meaning "tuning's backend" in one half of the function and "the run's backend" in the
+  # other is exactly how outer parallelization gets silently disabled.
+  tuning_backend <- if (workers[["tuning"]] == 1L) {
     "none"
   } else {
     backend
@@ -546,6 +569,9 @@ train <- function(
   # on each. Each recursive call enters the Single Model path below (which may
   # itself tune via inner resampling). After all folds complete, execution falls
   # through to the Outer Aggregation path.
+  # Folds run in parallel when the worker ladder assigned workers to this level,
+  # which happens only when there is neither a parallelized algorithm nor tuning
+  # to spend them on. See plan/parallelization.md.
   if (!is.null(outer_resampling_config)) {
     msg0(
       fmt("<> ", col = col_outer, bold = TRUE),
@@ -562,79 +588,96 @@ train <- function(
       verbosity = verbosity
     )
     n_outer <- outer_resampler@config@n_resamples
-    run_outer_fold <- function(i) {
-      if (is.function(progress)) {
-        tryCatch(
-          progress(
-            stage = "outer_fold",
-            current = i,
-            total = n_outer,
-            message = paste0("Outer fold ", i, "/", n_outer)
-          ),
-          error = function(e) NULL
+    # Each fold trains a single model, so nothing inside it may claim workers of its own.
+    # Under the current ladder a nested call resolves to 1/1/1 anyway -- outer folds only
+    # get workers when there is neither a parallelized algorithm nor tuning to spend them
+    # on -- but stating it here is what stops a future change to that ladder from silently
+    # oversubscribing n_workers x n_workers.
+    fold_execution_config <- ExecutionConfig(
+      backend = "none",
+      n_workers = 1L,
+      on_error = on_error,
+      seed = execution_config@seed
+    )
+    run_outer_fold <- make_outer_fold_runner(
+      x = x,
+      outer_resampler = outer_resampler,
+      n_outer = n_outer,
+      preprocessor_config = preprocessor_config,
+      decomposition_config = decomposition_config,
+      hyperparameters = hyperparameters,
+      tuner_config = tuner_config,
+      execution_config = fold_execution_config,
+      weights = weights,
+      question = question,
+      # Failure policy (specs/observability.md section 7): under "stop"/"stop_outer" an
+      # outer fold failure is fatal, so the fold re-raises and the dispatcher stops the
+      # run instead of finishing folds whose results are about to be discarded.
+      fatal = !identical(on_error, "continue"),
+      verbosity = verbosity - 1L
+    )
+    outer_workers <- workers[["outer_resampling"]]
+    # `execution_config@backend`, not `tuning_backend`: the latter has already been
+    # narrowed to "none" for the very case that reaches outer parallelization.
+    parallel_folds <- outer_workers > 1L && execution_config@backend != "none"
+    fold_results <- progress_plapply(
+      seq_len(n_outer),
+      run_outer_fold,
+      backend = if (parallel_folds) execution_config@backend else "none",
+      n_workers = outer_workers,
+      future_plan = future_plan,
+      # One independent RNG substream per fold, assigned by fold index, so a resampled run
+      # gives the same answer sequentially and in parallel, at any worker count.
+      seeds = rng_substreams(execution_config@seed, n_outer),
+      label = "Outer resamples",
+      kind = "outer_resampling",
+      progress = progress,
+      stage = "outer_fold",
+      stop_on_error = !identical(on_error, "continue"),
+      verbosity = verbosity
+    )
+    # Collect ----
+    # Folds never raise out of `progress_plapply()` under "continue", so the policy is
+    # applied here, on the host, where the session and the user's console are.
+    models <- vector("list", n_outer)
+    for (i in seq_len(n_outer)) {
+      res <- normalize_fold_result(fold_results[[i]])
+      # A fold that ran in a daemon found no session there, so its `node_enter()` was
+      # inert and the host synthesizes the fold node now, grafting the sub-log the worker
+      # brought home beneath it. An in-process fold already recorded its own node and
+      # carries no session. See specs/observability.md section 4.
+      if (parallel_folds) {
+        fold_node <- session_add_node(
+          "outer_fold",
+          label = paste0(i, "/", n_outer),
+          status = if (res[["failed"]]) "error" else "ok",
+          meta = list(fold = i, error = res[["error_message"]]),
+          t_start = res[["t_start"]],
+          t_end = res[["t_end"]]
         )
-      }
-      fold_node <- node_enter(
-        "outer_fold",
-        label = paste0(i, "/", n_outer),
-        meta = list(fold = i)
-      )
-      # Failure policy (specs/observability.md section 7): under "continue" an outer
-      # fold failure is non-fatal (recorded, warned, excluded); under "stop"/
-      # "stop_outer" it is recorded then re-raised.
-      out <- tryCatch(
-        train(
-          x = x[outer_resampler[[i]], ],
-          dat_test = x[-outer_resampler[[i]], ],
-          preprocessor_config = preprocessor_config,
-          decomposition_config = decomposition_config,
-          hyperparameters = hyperparameters,
-          tuner_config = tuner_config,
-          outer_resampling_config = NULL, # This model is one of the outer resamples.
-          execution_config = execution_config,
-          weights = if (!is.null(weights)) {
-            weights[outer_resampler[[i]]]
-          } else {
-            NULL
-          },
-          question = question,
-          verbosity = verbosity - 1L
-        ),
-        error = function(e) {
-          node_exit(fold_node, status = "error", error = e)
-          if (identical(on_error, "continue")) {
-            rtemis.core::warn(
-              "Outer fold ",
-              i,
-              "/",
-              n_outer,
-              " failed: ",
-              conditionMessage(e)
-            )
-            return(NULL)
-          }
-          stop(e)
+        if (!is.null(res[["model"]]) && !is.null(res[["model"]]@session)) {
+          session_graft(
+            res[["model"]]@session@events,
+            fold_node,
+            paste0("f", i)
+          )
+          # The events now live in the root session; leaving a copy on the sub-model would
+          # store the same graph twice on the returned object.
+          res[["model"]]@session <- NULL
         }
-      )
-      if (!is.null(out)) {
-        node_exit(fold_node, status = "ok")
       }
-      out
-    }
-    # When a `progress` callback is supplied (typically by rtemis.server to
-    # forward fold boundaries over the wire), use a plain lapply and invoke
-    # it per fold. Otherwise, progress_lapply() renders the terminal status
-    # line and emits sink envelopes when a message sink is set.
-    models <- if (is.function(progress)) {
-      lapply(seq_len(n_outer), run_outer_fold)
-    } else {
-      progress_lapply(
-        seq_len(n_outer),
-        run_outer_fold,
-        label = "Outer resamples",
-        kind = "outer_resampling",
-        verbosity = verbosity
-      )
+      if (res[["failed"]]) {
+        rtemis.core::warn(
+          "Outer fold ",
+          i,
+          "/",
+          n_outer,
+          " failed: ",
+          res[["error_message"]]
+        )
+      } else {
+        models[[i]] <- res[["model"]]
+      }
     }
     names(models) <- names(outer_resampler@resamples)
     # Drop failed folds (only possible under on_error = "continue").
@@ -685,7 +728,7 @@ train <- function(
         preprocessor_config = preprocessor_config,
         decomposition_config = decomposition_config,
         weights = weights,
-        backend = backend,
+        backend = tuning_backend,
         future_plan = future_plan,
         n_workers = workers[["tuning"]],
         verbosity = verbosity,
@@ -1067,14 +1110,15 @@ train <- function(
   # Attach the run's input ----
   # Only the top-level call: a per-outer-fold sub-model shares the same input,
   # and one record per `train()` call is the design (see config-artifacts.md).
-  if (session_created) {
+  if (is_root) {
     mod@config <- input_config
   }
 
   # Finalize observability session ----
-  # Only the top-level call finalizes and attaches the session; nested (per outer-fold)
-  # calls leave their sub-model's `session` NULL, as the root session already contains
-  # their nodes. See specs/observability.md sections 3 and 10.
+  # Keyed off `session_created`, not `is_root`: an in-process fold leaves its sub-model's
+  # `session` NULL because the root session already holds its nodes, while a fold in a
+  # daemon attaches the session it built, which is how those nodes travel home to be
+  # grafted. See specs/observability.md sections 3, 4, and 10.
   if (session_created) {
     node_exit(root_node, status = "ok")
     mod@session <- session_finalize()
@@ -1086,7 +1130,7 @@ train <- function(
     print(mod)
     message()
   }
-  if (session_created && verbosity >= 2L) {
+  if (is_root && verbosity >= 2L) {
     session_report(mod@session, verbosity = verbosity)
   }
   if (!is.null(outdir)) {
@@ -1098,7 +1142,7 @@ train <- function(
     # A resampled run records one entry per fold, so folds that resolved
     # different values (early stopping settles on a different `nrounds` each
     # time) are each stated rather than collapsed.
-    if (session_created) {
+    if (is_root) {
       write_record(
         mod,
         file.path(outdir, paste0("train_", algorithm, ".record.json")),
@@ -1124,6 +1168,170 @@ train <- function(
   }
   mod
 } # /rtemis::train
+
+
+# %% make_outer_fold_runner ----
+#' Build the per-outer-fold body
+#'
+#' Returns the closure `progress_plapply()` dispatches once per outer resample. One body
+#' serves every backend: in-process it records its fold node in the ambient session and
+#' the nested `train()` nests beneath it; in a daemon there is no session yet, so
+#' `node_enter()` is inert and the nested `train()` builds the session that travels home
+#' as the fold's sub-log.
+#'
+#' @details
+#' Built by a factory rather than inline in `train()` because serializing a closure walks
+#' its enclosing environments: a body defined in `train()`'s frame would ship that entire
+#' frame to every worker, including the `progress` callback, which may hold an open socket
+#' and need not be serializable at all. This frame holds only what a fold actually needs.
+#'
+#' `live[["fold"]]` marks the call as a fold for the `train()` that runs inside it, which
+#' is how a fold in a daemon knows not to fingerprint its slice of the data, attach an
+#' input config, or report a graph of its own.
+#'
+#' Under a tolerant failure policy a failure is captured and returned, so the host can
+#' warn about it and aggregate over the folds that survived. Under a fatal one it is
+#' recorded on the fold node and then re-raised, which is what lets the dispatcher stop
+#' the run rather than finish folds whose results are about to be discarded.
+#'
+#' @param x Tabular data: Full training set; each fold slices its own rows.
+#' @param outer_resampler `Resampler` object: The outer resamples.
+#' @param n_outer Integer [1, Inf): Number of outer resamples.
+#' @param preprocessor_config Optional `PreprocessorConfig` object.
+#' @param decomposition_config Optional `DecompositionConfig` object.
+#' @param hyperparameters `Hyperparameters` object.
+#' @param tuner_config Optional `TunerConfig` object.
+#' @param execution_config `ExecutionConfig` object: Sequential config for the fold.
+#' @param weights Optional vector of case weights.
+#' @param question Optional Character: The question the model answers.
+#' @param fatal Logical: If TRUE, a fold failure is re-raised rather than returned.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Function of `(i)` returning a list with `model`, `failed`, `error`, `t_start`,
+#' `t_end`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+make_outer_fold_runner <- function(
+  x,
+  outer_resampler,
+  n_outer,
+  preprocessor_config,
+  decomposition_config,
+  hyperparameters,
+  tuner_config,
+  execution_config,
+  weights,
+  question,
+  fatal,
+  verbosity
+) {
+  force(x)
+  force(outer_resampler)
+  force(n_outer)
+  force(preprocessor_config)
+  force(decomposition_config)
+  force(hyperparameters)
+  force(tuner_config)
+  force(execution_config)
+  force(weights)
+  force(question)
+  force(fatal)
+  force(verbosity)
+  function(i) {
+    live[["fold"]] <- i
+    on.exit(live[["fold"]] <- NULL, add = TRUE)
+    fold_node <- node_enter(
+      "outer_fold",
+      label = paste0(i, "/", n_outer),
+      meta = list(fold = i)
+    )
+    res_i <- outer_resampler[[i]]
+    t_start <- Sys.time()
+    model <- tryCatch(
+      train(
+        x = x[res_i, ],
+        dat_test = x[-res_i, ],
+        preprocessor_config = preprocessor_config,
+        decomposition_config = decomposition_config,
+        hyperparameters = hyperparameters,
+        tuner_config = tuner_config,
+        outer_resampling_config = NULL, # This model is one of the outer resamples.
+        execution_config = execution_config,
+        weights = if (!is.null(weights)) weights[res_i] else NULL,
+        question = question,
+        verbosity = verbosity
+      ),
+      error = function(e) e
+    )
+    t_end <- Sys.time()
+    failed <- inherits(model, "condition")
+    node_exit(
+      fold_node,
+      status = if (failed) "error" else "ok",
+      error = if (failed) model else NULL
+    )
+    if (failed && fatal) {
+      rtemis.core::abort(
+        "Outer fold ",
+        i,
+        "/",
+        n_outer,
+        " failed: ",
+        conditionMessage(model),
+        class = c("rtemis_error", "rtemis_runtime_error")
+      )
+    }
+    list(
+      model = if (failed) NULL else model,
+      failed = failed,
+      error = if (failed) model else NULL,
+      t_start = t_start,
+      t_end = t_end
+    )
+  }
+} # /rtemis::make_outer_fold_runner
+
+
+# %% normalize_fold_result ----
+#' Normalize one outer fold result
+#'
+#' A fold body returns a structured result. A condition arrives instead only when the
+#' dispatch itself failed -- a task that could not be serialized, or a worker that died --
+#' which is outside the body's own `tryCatch`. Both shapes are flattened here so the
+#' collection loop has one thing to read.
+#'
+#' @param res List or condition: One element of the `progress_plapply()` result.
+#'
+#' @return List with `model`, `failed`, `error_message`, `t_start`, `t_end`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+normalize_fold_result <- function(res) {
+  if (inherits(res, "condition")) {
+    now <- Sys.time()
+    return(list(
+      model = NULL,
+      failed = TRUE,
+      error_message = conditionMessage(res),
+      t_start = now,
+      t_end = now
+    ))
+  }
+  list(
+    model = res[["model"]],
+    failed = isTRUE(res[["failed"]]),
+    error_message = if (is.null(res[["error"]])) {
+      NULL
+    } else {
+      conditionMessage(res[["error"]])
+    },
+    t_start = res[["t_start"]],
+    t_end = res[["t_end"]]
+  )
+} # /rtemis::normalize_fold_result
 
 
 # %% get_n_workers ----
@@ -1152,7 +1360,7 @@ train <- function(
 #' @return Named list with the number of workers for each level:
 #' - `algorithm`: Number of workers for algorithm training.
 #' - `tuning`: Number of workers for tuning (if applicable).
-#' - `outer_resampling_config`: Number of workers for outer resampling (if applicable).
+#' - `outer_resampling`: Number of workers for outer resampling (if applicable).
 #'
 #' @keywords internal
 #' @noRd

@@ -36,6 +36,16 @@ ExecutionConfig <- new_class(
       "continue",
       enum = c("continue", "stop", "stop_outer"),
       description = "Failure policy."
+    ),
+    # Master seed for the run's *computation* RNG, distinct from a ResamplerConfig's
+    # seed, which governs how the data is split. Independent substreams are derived
+    # from it and assigned by task index, so a run's results do not depend on backend,
+    # worker count, or the order tasks happened to finish in.
+    seed = prop_integer(
+      NULL,
+      min = 0L,
+      nullable = TRUE,
+      description = "Master seed for the run's computation RNG."
     )
   ),
   # Cross-field constraints (the per-field type/enum/bounds are enforced by
@@ -85,10 +95,13 @@ method(print, ExecutionConfig) <- function(x, output_type = NULL, ...) {
 #' @keywords internal
 #' @noRd
 default_n_workers <- function(omit = 3L) {
-  tryCatch(
+  # `availableCores()` names its result after the mechanism it consulted ("system",
+  # "cgroups", ...), and that name rides along into every message that prints the worker
+  # count -- "Max workers: c(system = 7)".
+  unname(tryCatch(
     parallelly::availableCores(omit = omit),
     error = function(e) 1L
-  )
+  ))
 } # /rtemis::default_n_workers
 
 
@@ -107,6 +120,15 @@ default_n_workers <- function(omit = 3L) {
 #' non-fatal (recorded, warned, and excluded), failing only when nothing is scorable or
 #' the final model fails; `"stop"` aborts on any error; `"stop_outer"` tolerates grid-cell
 #' failures but aborts on an outer-fold failure.
+#' @param seed Optional Integer [0, Inf): Master seed for the run's computation RNG,
+#' from which one independent substream per outer resample is derived. Left `NULL`, a
+#' seed is drawn from the current RNG stream and recorded on the returned object, so
+#' every run is reproducible and the seed it used is auditable. Distinct from a
+#' `ResamplerConfig` seed, which governs how the data is split.
+#'
+#' @details
+#' Substreams are assigned by task index, so a run gives the same answer under every
+#' backend and worker count, and the parallel result matches the sequential one exactly.
 #'
 #' @return `ExecutionConfig` object.
 #'
@@ -118,7 +140,8 @@ setup_ExecutionConfig <- function(
   backend = c("future", "mirai", "none"),
   n_workers = NULL,
   future_plan = NULL,
-  on_error = c("continue", "stop", "stop_outer")
+  on_error = c("continue", "stop", "stop_outer"),
+  seed = NULL
 ) {
   backend <- match.arg(backend)
   on_error <- match.arg(on_error)
@@ -163,10 +186,20 @@ setup_ExecutionConfig <- function(
       class = c("rtemis_range_error", "rtemis_input_error")
     )
   }
+  # Resolve the seed here rather than at run time so it is recorded on the config, and
+  # therefore in the run record: an unseeded run would otherwise be unreproducible, and
+  # "all runs are auditable & reproducible" has to hold for the default path too.
+  # Drawing from the current stream keeps `set.seed(1); train(...)` deterministic.
+  seed <- if (is.null(seed)) {
+    sample.int(.Machine[["integer.max"]], 1L)
+  } else {
+    clean_int(seed)
+  }
   ExecutionConfig(
     backend = backend,
     n_workers = n_workers,
     future_plan = if (backend == "future") future_plan else NULL,
-    on_error = on_error
+    on_error = on_error,
+    seed = seed
   )
 } # /rtemis::setup_ExecutionConfig
