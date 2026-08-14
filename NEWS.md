@@ -7,6 +7,7 @@
 - Tuning reports when no hyperparameter combination can be ranked, instead of leaving every tuned hyperparameter `NA` in silence and letting the algorithm fall back to its own default. Reached whenever the metric is undefined on any one inner resample: `balanced_accuracy` scores `NaN` on a fold missing a class, which happens whenever the rarest class has fewer cases than there are folds.
 - With `backend = "future"` and no `future_plan` given, the plan is now `"multisession"` on every platform, not `"multicore"` where forking is available. Forking a loaded R session is unsafe and fails as tasks resolving instantly and returning `FutureInterruptError`. `future_plan = "multicore"` still forks on request.
 - `futurize` and `future.apply` are no longer dependencies.
+- `read()` reads a parquet whose strings are Arrow's `string_view` type, which is what polars writes and what its parquet writer gives no way to avoid. Every such file failed with `cannot handle Array of type <utf8_view>`: `arrow` reads the table and has no R converter for the view types. `string_view` and `binary_view` fields are now cast to `utf8` and `binary` before the conversion, a no-op for a file that read fine before.
 
 ## 1.3.5
 

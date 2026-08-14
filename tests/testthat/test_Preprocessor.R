@@ -171,6 +171,138 @@ test_that("one_hot indexes its level map by feature name", {
 })
 
 
+test_that("remove_constants leaves a single surviving column a frame", {
+  x <- data.frame(k = rep(1, 5L), a = c(1.5, 2.5, 3.5, 4.5, 5.5))
+  out <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(remove_constants = TRUE),
+    verbosity = 0L
+  ))
+  expect_s3_class(out, "data.frame")
+  expect_identical(names(out), "a")
+  expect_identical(out[["a"]], x[["a"]])
+})
+
+
+oh_mixed <- data.frame(
+  age = c(30L, 40L, 50L, 60L),
+  grp = factor(c("a", "b", "c", "a"), levels = c("a", "b", "c")),
+  score = c(1.5, 2.5, 3.5, 4.5),
+  note = c("p", "q", "r", "s"),
+  stringsAsFactors = FALSE
+)
+
+test_that("one_hot keeps the type of every column it does not encode", {
+  x <- oh_mixed
+  out <- one_hot(x, verbosity = 0L)
+
+  # Names, column order and encoding are as they have always been; only the
+  # types differ from a frame built by `cbind`, which coerced every column to
+  # character to accommodate `note`. Row names are the default ones: they carry
+  # no case identity here, and nothing downstream may start expecting them to.
+  expect_identical(
+    names(out),
+    c("age", "grp_a", "grp_b", "grp_c", "score", "note")
+  )
+  expect_identical(rownames(out), as.character(1:4))
+  expect_identical(out[["grp_a"]], c(1, 0, 0, 1))
+  expect_identical(out[["grp_b"]], c(0, 1, 0, 0))
+  expect_identical(out[["grp_c"]], c(0, 0, 1, 0))
+  expect_identical(out[["age"]], x[["age"]])
+  expect_identical(out[["score"]], x[["score"]])
+  expect_identical(out[["note"]], x[["note"]])
+})
+
+
+test_that("one_hot encodes a data.table as it encodes a data.frame", {
+  # One encoding, two assemblies: the methods share which levels a feature is
+  # encoded against and what the columns are called, so the only difference
+  # between their output is the structure it comes back in.
+  out <- one_hot(data.table::as.data.table(oh_mixed), verbosity = 0L)
+  expect_s3_class(out, "data.table")
+  expect_identical(
+    as.data.frame(out),
+    one_hot(oh_mixed, verbosity = 0L)
+  )
+})
+
+
+test_that("one_hot encodes a data.table against its pinned levels", {
+  x <- data.table::data.table(
+    a = c(1.5, 2.5),
+    g = factor(c("a", "b"), levels = c("a", "b")),
+    h = factor(c("x", NA), levels = c("x", "y"))
+  )
+  out <- one_hot(
+    x,
+    factor_levels = list(g = c("a", "b", "c"), h = c("x", "y")),
+    verbosity = 0L
+  )
+  expect_identical(names(out), c("a", "g_a", "g_b", "g_c", "h_x", "h_y"))
+  # A level absent from the pinned set, and an NA, each stay all-zero.
+  expect_identical(out[["g_c"]], c(0, 0))
+  expect_identical(out[["h_x"]], c(1, 0))
+  expect_identical(out[["h_y"]], c(0, 0))
+})
+
+
+test_that("one_hot leaves its data.table input alone", {
+  x <- data.table::data.table(
+    a = c(1.5, 2.5),
+    g = factor(c("a", "b"))
+  )
+  before <- data.table::copy(x)
+  out <- one_hot(x, verbosity = 0L)
+  # The result must share no column memory with the input: `:=` writes through
+  # a shared column, which `setDT()` on the assembled list would have left.
+  out[, a := 99]
+  expect_identical(x, before)
+
+  # A frame of nothing but factors is encoded, not emptied, and one with no
+  # factor at all comes back a data.table.
+  all_factors <- data.table::data.table(g = factor(c("a", "b")))
+  expect_identical(
+    names(one_hot(all_factors, verbosity = 0L)),
+    c("g_a", "g_b")
+  )
+  no_factors <- data.table::data.table(a = c(1.5, 2.5))
+  expect_identical(one_hot(no_factors, verbosity = 0L), no_factors)
+})
+
+
+test_that("preprocess(one_hot = TRUE) keeps a character column's frame typed", {
+  types <- c(
+    age = "integer",
+    grp_a = "numeric",
+    grp_b = "numeric",
+    grp_c = "numeric",
+    score = "numeric",
+    note = "character"
+  )
+  out <- preprocessed(preprocess(
+    oh_mixed,
+    setup_Preprocessor(one_hot = TRUE),
+    verbosity = 0L
+  ))
+  expect_identical(
+    vapply(out, function(column) class(column)[[1L]], character(1L)),
+    types
+  )
+
+  # A data.table in, a data.table out, holding the same types.
+  out_dt <- preprocessed(preprocess(
+    data.table::as.data.table(oh_mixed),
+    setup_Preprocessor(one_hot = TRUE),
+    verbosity = 0L
+  ))
+  expect_s3_class(out_dt, "data.table")
+  expect_identical(
+    vapply(out_dt, function(column) class(column)[[1L]], character(1L)),
+    types
+  )
+})
+
+
 test_that("apply_preprocessor encodes new data as the training data was encoded", {
   pre <- preprocess(
     oh_train,

@@ -125,7 +125,7 @@ method(
           "..."
         )
       }
-      x <- x[, -constant]
+      x <- x[, -constant, drop = FALSE]
     }
   }
 
@@ -828,7 +828,13 @@ apply_preprocessor <- function(preprocessor, new_data, verbosity = 1L) {
 #' @return `PreprocessorConfig` with the learned values applied.
 #'
 #' @author EDG
+#' @seealso [apply_preprocessor], [setup_Preprocessor]
 #' @export
+#' @examples
+#' iris_pre <- preprocess(iris, setup_Preprocessor(scale = TRUE, center = TRUE))
+#' # The config as supplied carries no centers; the fitted one carries the
+#' # centers `preprocess()` computed.
+#' fitted_config(iris_pre)@scale_centers
 fitted_config <- function(preprocessor) {
   config <- preprocessor@config
   for (nm in c(
@@ -925,6 +931,74 @@ factor2integer_code <- function(
 } # /rtemis::factor2integer_code
 
 
+# %% one_hot_index ----
+#' Resolve what a feature is one-hot encoded into
+#'
+#' The policy half of one-hot encoding, shared by every `one_hot()` method:
+#' which levels the feature is encoded against, which of them each case takes,
+#' what the resulting columns are called, and how many cases had no column to
+#' take. Only the materialization differs per data structure -- a matrix for a
+#' data.frame, a column per level for a data.table -- so keeping this here is
+#' what stops two encoders from drifting into two encodings.
+#'
+#' Levels come from `factor_levels` when it carries the feature and from the
+#' feature itself otherwise. Lookup is by name and tolerant of entries with no
+#' matching column: `train()` learns a map on data that includes the outcome and
+#' applies it to features alone.
+#'
+#' @param x Factor: Feature to encode.
+#' @param factor_levels Optional named list of the form "feature_name" =
+#' "levels": Levels to encode each feature against.
+#' @param xname Character: Feature name, used for lookup and column names.
+#'
+#' @return List of `levels` (character), `index` (integer position in `levels`
+#' per case, `NA` where the case is `NA` or its level is absent), `names`
+#' (character, one column name per level) and `n_unseen` (integer count of
+#' non-`NA` cases whose level is absent from `levels`).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+one_hot_index <- function(x, factor_levels, xname) {
+  .levels <- factor_levels[[xname]]
+  if (is.null(.levels)) {
+    .levels <- levels(x)
+  }
+  index <- pinned_level_index(x, .levels)
+  list(
+    levels = .levels,
+    index = index,
+    names = paste0(xname, "_", .levels),
+    n_unseen = sum(is.na(index) & !is.na(x))
+  )
+} # /rtemis::one_hot_index
+
+
+# %% report_unseen_levels ----
+#' Report the cases one-hot encoding left all-zero
+#'
+#' @param n_unseen Named integer vector: Count of cases with unseen levels, one
+#' entry per encoded feature.
+#'
+#' @return `NULL`, invisibly. Called for its console output.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+report_unseen_levels <- function(n_unseen) {
+  for (feature in names(n_unseen)[n_unseen > 0L]) {
+    msg0(
+      "Feature '",
+      feature,
+      "': encoding ",
+      singorplu(n_unseen[[feature]], "case"),
+      " with unseen levels as all-zero..."
+    )
+  }
+  invisible(NULL)
+} # /rtemis::report_unseen_levels
+
+
 # %% one_hot ----
 #' @name one_hot
 #'
@@ -938,17 +1012,22 @@ factor2integer_code <- function(
 #' A vector input will be one-hot encoded regardless of type by looking at all unique values. With data.frame input,
 #' only column of type factor will be one-hot encoded.
 #' This function is used by [preprocess].
-#' `one_hot.data.table` operates on a copy of its input.
-#' `one_hot_` performs one-hot encoding ***in-place***.
 #'
-#' `one_hot.data.frame` encodes each feature against `factor_levels` when it
-#' carries an entry for it, and against the feature's own levels otherwise. The
-#' pinned set fixes both the columns and which column each value takes, so new
-#' data whose factor has fewer or differently ordered levels is encoded exactly
-#' as the training data was. A case whose level is absent from the pinned set --
-#' or which is `NA` -- has no column to take and stays all-zero, which is the
-#' width-preserving degradation; `factor2integer` instead reserves an index,
-#' because an embedding must index something.
+#' The data.frame and data.table methods encode identically and return the
+#' structure they were given, each assembled with that structure's own
+#' operations. Both operate on a copy of their input; `dt_set_one_hot()` encodes
+#' a data.table ***in-place*** instead. Each column keeps its own type: an
+#' expanded factor contributes its indicator columns, in its own position, and
+#' every other column is passed through as it was.
+#'
+#' Each feature is encoded against `factor_levels` when it carries an entry for
+#' it, and against the feature's own levels otherwise. The pinned set fixes both
+#' the columns and which column each value takes, so new data whose factor has
+#' fewer or differently ordered levels is encoded exactly as the training data
+#' was. A case whose level is absent from the pinned set -- or which is `NA` --
+#' has no column to take and stays all-zero, which is the width-preserving
+#' degradation; `factor2integer` instead reserves an index, because an embedding
+#' must index something.
 #'
 #' @param x Vector or data.frame
 #' @param xname Character: Variable name
@@ -957,8 +1036,8 @@ factor2integer_code <- function(
 #' tolerant of entries with no matching column.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return For vector input, a one-hot-encoded matrix, for data.frame frame
-#' input, an expanded data.frame where all factors are one-hot encoded
+#' @return For vector input, a one-hot-encoded matrix; for tabular input, an
+#' expanded object of the same class where all factors are one-hot encoded.
 #'
 #' @author EDG
 #' @keywords internal
@@ -1039,38 +1118,40 @@ method(one_hot, class_data.frame) <- function(
     if (verbosity > 0L) {
       msgstart("One hot encoding ", .names[i], "...")
     }
-    # Lookup is by feature name and tolerant of map entries with no matching
-    # column: `train()` learns a map on data that includes the outcome and
-    # applies it to features alone.
-    .levels <- factor_levels[[.names[i]]]
-    if (is.null(.levels)) {
-      .levels <- levels(x[[i]])
-    }
-    index <- pinned_level_index(x[[i]], .levels)
-    oh <- matrix(0, ncases, length(.levels))
-    colnames(oh) <- paste0(.names[i], "_", .levels)
+    enc <- one_hot_index(x[[i]], factor_levels, .names[i])
+    index <- enc[["index"]]
+    oh <- matrix(0, ncases, length(enc[["levels"]]))
+    colnames(oh) <- enc[["names"]]
     # A case with no column to take -- an unseen level, or NA -- stays all-zero.
     present <- which(!is.na(index))
     oh[cbind(present, index[present])] <- 1
-    n_unseen[[.names[i]]] <- sum(is.na(index) & !is.na(x[[i]]))
+    n_unseen[[.names[i]]] <- enc[["n_unseen"]]
     # Replace list element that was a factor with one-hot encoded matrix
     one.hot[[i]] <- oh
   }
   if (verbosity > 0L) {
     msgdone()
-    for (feature in names(n_unseen)[n_unseen > 0L]) {
-      msg0(
-        "Feature '",
-        feature,
-        "': encoding ",
-        singorplu(n_unseen[[feature]], "case"),
-        " with unseen levels as all-zero..."
-      )
-    }
+    report_unseen_levels(n_unseen)
   }
-  # do.call below creates a matrix, maintaining column names in one.hot matrix.
-  # as.data.frame on one.hot would have added {name_of_oh_element}.{column_names}
-  as.data.frame(do.call(cbind, one.hot))
+  # `cbind` would build a matrix and coerce every column to the widest common
+  # type, so a single character column would make the whole frame character.
+  # `cbind.data.frame` keeps each column's type but prefixes an expanded
+  # matrix's columns with its list element's name (`grp.grp_a`). Dropping the
+  # list names is what stops the prefixing; the names are then restored from
+  # what each element actually contributes -- an encoded factor's matrix
+  # columns, or the column's own name.
+  out <- do.call(cbind.data.frame, unname(one.hot))
+  names(out) <- unlist(
+    lapply(seq_along(one.hot), function(i) {
+      if (is.matrix(one.hot[[i]])) {
+        colnames(one.hot[[i]])
+      } else {
+        names(one.hot)[[i]]
+      }
+    }),
+    use.names = FALSE
+  )
+  out
 } # /rtemis::one_hot.data.frame
 
 
@@ -1083,30 +1164,53 @@ method(one_hot, class_data.frame) <- function(
 #'
 #' @examples
 #' ir <- data.table::as.data.table(iris)
-#' ir_oh <- one_hot(ir)
-#' ir_oh
-method(one_hot, class_data.table) <- function(x, verbosity = 1L) {
-  x <- copy(x)
-  ncases <- NROW(x)
-  factor_index <- which(sapply(x, is.factor))
-  .names <- colnames(x)
-  for (i in factor_index) {
-    if (verbosity > 0L) {
-      info("One hot encoding ", .names[i], "...")
-    }
-    .levels <- levels(x[[i]])
-    index <- as.integer(x[[i]])
-    oh <- as.data.table(matrix(0, ncases, length(.levels)))
-    .colnames <- colnames(oh) <- .levels
-    for (k in seq_along(.levels)) {
-      oh[index == k, (.colnames[k]) := 1]
-    }
-    x[, (paste(.names[i], .levels, sep = "_")) := oh]
+#' one_hot(ir)
+method(one_hot, class_data.table) <- function(
+  x,
+  factor_levels = NULL,
+  verbosity = 1L
+) {
+  .names <- names(x)
+  factor_index <- which(vapply(x, is.factor, logical(1L)))
+  if (length(factor_index) == 0L) {
+    return(copy(x))
   }
-  # remove original factor(s)
-  x[, paste(.names[factor_index]) := NULL]
-  msg("Done", verbosity = verbosity)
-  invisible(x)
+  n_unseen <- integer()
+  # One list element per input column, holding the columns that element
+  # contributes: an encoded factor contributes one per level, everything else
+  # contributes itself. Assembling in input order is what puts the indicator
+  # columns where the factor stood, with no reordering pass afterwards.
+  columns <- vector("list", length(.names))
+  for (i in seq_along(.names)) {
+    if (!i %in% factor_index) {
+      columns[[i]] <- stats::setNames(list(copy(x[[i]])), .names[i])
+      next
+    }
+    if (verbosity > 0L) {
+      msgstart("One hot encoding ", .names[i], "...")
+    }
+    enc <- one_hot_index(x[[i]], factor_levels, .names[i])
+    n_unseen[[.names[i]]] <- enc[["n_unseen"]]
+    # A case with no column to take -- an unseen level, or NA -- stays all-zero,
+    # so coding those cases 0 leaves them matching no level.
+    index <- enc[["index"]]
+    index[is.na(index)] <- 0L
+    indicators <- lapply(seq_along(enc[["levels"]]), function(k) {
+      as.double(index == k)
+    })
+    names(indicators) <- enc[["names"]]
+    columns[[i]] <- indicators
+  }
+  if (verbosity > 0L) {
+    msgdone()
+    report_unseen_levels(n_unseen)
+  }
+  # `setDT()` takes the assembled columns by reference, which is why each
+  # pass-through column was copied above: a column shared with `x` would carry a
+  # later `:=` on either object through to the other. `as.data.table()` would
+  # copy instead, but it would copy the fresh indicator columns too.
+  # `dt_set_one_hot()` is the deliberate in-place encoder.
+  setDT(unlist(columns, recursive = FALSE))[]
 } # /rtemis::one_hot.data.table
 
 

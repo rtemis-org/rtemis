@@ -24,6 +24,15 @@ The merged fields are settable inputs: supplying \code{scale_centers} makes
 \verb{@values} over \verb{@config} and not the reverse -- a learned value only fills a
 slot the user left empty.
 }
+\examples{
+iris_pre <- preprocess(iris, setup_Preprocessor(scale = TRUE, center = TRUE))
+# The config as supplied carries no centers; the fitted one carries the
+# centers `preprocess()` computed.
+fitted_config(iris_pre)@scale_centers
+}
+\seealso{
+\link{apply_preprocessor}, \link{setup_Preprocessor}
+}
 \author{
 EDG
 }
