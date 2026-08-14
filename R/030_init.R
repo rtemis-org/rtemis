@@ -134,13 +134,19 @@ inspect <- new_generic("inspect", "x", function(x) {
 #' directly instead, e.g. `preprocess(x, scale = TRUE, center = TRUE)`. At least one
 #' preprocessing parameter must be specified: `preprocess(x)` is an error.
 #'
-#' @param x data.frame or data.table: Training set data to preprocess.
+#' The preprocessed data comes back in the structure it was given -- data.frame,
+#' data.table or tibble -- and the object passed in is never modified. It carries
+#' no row names: a case identifier that matters belongs in a column, where it can
+#' be selected, joined, validated and serialized.
+#'
+#' @param x Tabular data, i.e. data.frame, data.table, or tbl_df (tibble):
+#' Training set data to preprocess.
 #' @param config `PreprocessorConfig`: Preprocessing configuration created by
 #' [setup_Preprocessor]. May be omitted, in which case [setup_Preprocessor] arguments are
 #' passed directly via `...`.
-#' @param dat_validation Optional data.frame or data.table: Validation set data. Preprocessed
+#' @param dat_validation Optional tabular data: Validation set data. Preprocessed
 #' using the values learned from the training set data.
-#' @param dat_test Optional data.frame or data.table: Test set data. Preprocessed using the
+#' @param dat_test Optional tabular data: Test set data. Preprocessed using the
 #' values learned from the training set data.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... [setup_Preprocessor] arguments: Only used when `config` is not provided.

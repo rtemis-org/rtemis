@@ -299,13 +299,16 @@ method(print, PreprocessorConfig) <- function(
 #' @param numeric_cut_n Integer [0, Inf): If > 0, convert all numeric variables to factors by
 #'   binning using `base::cut` with `breaks` equal to this number.
 #' @param numeric_cut_labels Logical: The `labels` argument of [base::cut].
-#' @param numeric_quant_n Integer [0, Inf): If > 0, convert all numeric variables to factors by
-#'   binning using `base::cut` with `breaks` equal to this number of quantiles.
-#'   produced using `stats::quantile`.
+#' @param numeric_quant_n Integer \{0\} or [2, Inf): If > 0, convert all numeric
+#'   variables to factors by binning using `base::cut` with `breaks` equal to
+#'   this number of quantiles, produced using `stats::quantile`. 0 disables; 1
+#'   is a single break, which bounds no bin, and is rejected.
 #' @param numeric_quant_NAonly Logical: If TRUE, only bin numeric variables with
 #'   missing values.
 #' @param unique_len2factor Integer [0, Inf): Convert all variables with less
-#'   than or equal to this number of unique values to factors. 0 disables.
+#'   than or equal to this number of unique values to factors. 0 and 1 both
+#'   disable it: a feature with one unique value is a constant, which
+#'   `remove_constants` covers.
 #'   For example, if binary variables are encoded with 1, 2, you could use
 #'   `unique_len2factor = 2` to convert them to factors.
 #' @param character2factor Logical: If TRUE, convert all character variables to
@@ -345,26 +348,43 @@ method(print, PreprocessorConfig) <- function(
 #'
 #' @section Order of Operations:
 #'
+#' Steps run in this order, and the order is part of what each one does:
+#' `remove_constants` runs before the quantile cut because a constant has no
+#' quantiles, `factorNA2missing` before `impute` so that missing values in a
+#' categorical feature become a level rather than a mode, and `one_hot` last
+#' among the encoders so that it sees every factor the earlier steps created.
+#'
+#' Feature *creation* precedes feature *transformation*: `add_date_features` and
+#' `add_holidays` run ahead of the conversions, so the weekday, month and
+#' holiday factors they derive are encoded and the year is scaled exactly as any
+#' column of the input would be. They run after the case and feature filters,
+#' which judge the data as it was given.
+#'
 #'   * keep complete cases only
+#'   * set aside excluded columns
+#'   * remove named features
 #'   * remove constants
 #'   * remove duplicates
 #'   * remove cases by missingness threshold
 #'   * remove features by missingness threshold
+#'   * add date features
+#'   * add holidays
 #'   * integer to factor
-#'   * integer to numeric
 #'   * logical to factor
-#'   * logical to numeric
 #'   * numeric to factor
+#'   * character to factor
+#'   * features with <= N unique values to factor
+#'   * integer to numeric
+#'   * logical to numeric
 #'   * cut numeric to n bins
 #'   * cut numeric to n quantiles
-#'   * numeric with less than N unique values to factor
-#'   * character to factor
 #'   * factor NA to named level
 #'   * factor to integer
 #'   * add missingness column
 #'   * impute
 #'   * scale and/or center
 #'   * one-hot encoding
+#'   * re-add excluded columns, after the preprocessed ones
 #'
 #' @return `PreprocessorConfig` object.
 #'
@@ -431,6 +451,17 @@ setup_Preprocessor <- function(
   numeric_quant_n <- clean_int(numeric_quant_n)
   unique_len2factor <- clean_int(unique_len2factor)
   exclude <- clean_int(exclude)
+  # `numeric_quant_n` is a count of quantiles, which are the *breaks*: one break
+  # bounds no interval, so `cut()` would reject it with "invalid number of
+  # intervals" from inside the step. The bound cannot be a `min`, since 0 is how
+  # the option is switched off.
+  if (numeric_quant_n == 1L) {
+    rtemis.core::abort(
+      "`numeric_quant_n` must be 0 (off) or at least 2: ",
+      "one quantile is a single break, which bounds no bin.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
   # Per-field validation performed by the `prop_*` property validators.
   PreprocessorConfig(
     complete_cases = complete_cases,

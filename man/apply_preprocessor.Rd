@@ -9,12 +9,13 @@ apply_preprocessor(preprocessor, new_data, verbosity = 1L)
 \arguments{
 \item{preprocessor}{\code{Preprocessor}: Trained preprocessor, i.e. the output of \link{preprocess}.}
 
-\item{new_data}{data.frame or data.table: New data to preprocess.}
+\item{new_data}{Tabular data, i.e. data.frame, data.table, or tbl_df (tibble):
+New data to preprocess.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }
 \value{
-Preprocessed data of the same class as \code{new_data} (data.frame or data.table).
+Preprocessed data, in the same structure as \code{new_data}.
 }
 \description{
 Apply a trained \code{Preprocessor} to new data, reusing the values learned from the training

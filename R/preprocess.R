@@ -57,6 +57,184 @@ check_preprocessor_replayable <- function(config) {
 } # /rtemis::check_preprocessor_replayable
 
 
+# %% frame_structure ----
+#' Name the tabular structure of an object
+#'
+#' The three structures `preprocess()` accepts and returns. Read on entry and
+#' handed to `restore_frame_structure()` on exit, so what a caller passes in is
+#' what they get back.
+#'
+#' @param x tabular data.
+#'
+#' @return Character, one of "data.table", "tibble", "data.frame".
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+frame_structure <- function(x) {
+  if (data.table::is.data.table(x)) {
+    "data.table"
+  } else if (inherits(x, "tbl_df")) {
+    "tibble"
+  } else {
+    "data.frame"
+  }
+} # /rtemis::frame_structure
+
+
+# %% as_working_dt ----
+#' Copy tabular data into a data.table to work on
+#'
+#' The one copy `preprocess()` pays, and it is not optional: `setDT()` converts
+#' *by reference*, so calling it on a caller's data.frame would turn their object
+#' into a data.table underneath them, and a caller's data.table would be
+#' rewritten by the first `set()`. Every step downstream mutates this copy by
+#' reference and costs nothing.
+#'
+#' Row names are dropped here, which is deliberate -- see `preprocess()`.
+#'
+#' @param x tabular data.
+#'
+#' @return data.table sharing no column with `x`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+as_working_dt <- function(x) {
+  if (data.table::is.data.table(x)) {
+    data.table::copy(x)
+  } else {
+    data.table::as.data.table(x)
+  }
+} # /rtemis::as_working_dt
+
+
+# %% restore_frame_structure ----
+#' Return a working data.table as the structure it came in as
+#'
+#' Free for all three: a data.table is already one, `setDF()` re-classes by
+#' reference, and `as_tibble()` on the resulting data.frame only re-classes
+#' again. Calling `as_tibble()` on the data.table *directly* would copy every
+#' column, which is why the two-step path is taken.
+#'
+#' @param x data.table: Working table.
+#' @param structure Character: Structure to restore, from `frame_structure()`.
+#'
+#' @return `x` as a data.table, data.frame or tibble.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+restore_frame_structure <- function(x, structure) {
+  if (structure == "data.table") {
+    return(x)
+  }
+  data.table::setDF(x)
+  if (structure == "tibble") {
+    x <- tibble::as_tibble(x)
+  }
+  x
+} # /rtemis::restore_frame_structure
+
+
+# %% dt_filter_cases ----
+#' Keep a subset of a working table's cases
+#'
+#' Subsetting each column rather than writing `x[keep]` because data.table
+#' evaluates `i` against the table's own columns first: a column named `keep`
+#' would silently be used in place of the filter.
+#'
+#' @param x data.table: Working table.
+#' @param keep Logical vector, one element per case.
+#'
+#' @return data.table holding the kept cases, sharing no column with `x`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+dt_filter_cases <- function(x, keep) {
+  data.table::setDT(lapply(x, function(column) column[keep]))[]
+} # /rtemis::dt_filter_cases
+
+
+# %% check_columns_remain ----
+#' Reject a step that left the working table with no columns
+#'
+#' A data.table with no columns has no cases either, so the pipeline cannot
+#' carry a case count past this point -- and a preprocessed dataset with no
+#' features is not usable by anything downstream regardless.
+#'
+#' @param x data.table: Working table.
+#' @param step Character: Name of the configuration field responsible.
+#'
+#' @return Invisible NULL. Called for the check.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_columns_remain <- function(x, step) {
+  if (ncol(x) == 0L) {
+    rtemis.core::abort(
+      "`",
+      step,
+      "` left no columns to preprocess.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  invisible(NULL)
+} # /rtemis::check_columns_remain
+
+
+# %% is_integer_column ----
+#' Is a column integer-valued
+#'
+#' `bit64::integer64` is a double carrying a class, so `is.integer()` is FALSE
+#' for it, and `integer2factor` / `integer2numeric` are documented to cover it.
+#'
+#' @param x Vector: Column to test.
+#'
+#' @return Logical.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+is_integer_column <- function(x) {
+  is.integer(x) || inherits(x, "integer64")
+} # /rtemis::is_integer_column
+
+
+# %% dt_impute_columns ----
+#' Fill a working table's missing values, one column at a time
+#'
+#' Each column is replaced whole rather than assigned into at the missing
+#' positions: a partial `set()` coerces the value into the column's existing
+#' type, so a mean imputed into an integer column would be truncated where a
+#' data.frame subassignment widens the column. `impute_discrete` and
+#' `impute_continuous` are free-text function names, so the value's type is not
+#' knowable here.
+#'
+#' @param x data.table: Working table. Modified in place.
+#' @param fn Character: Name of a function returning one value from a vector.
+#' @param select Function: Predicate choosing the columns `fn` applies to.
+#'
+#' @return Invisible NULL. Called for its effect on `x`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+dt_impute_columns <- function(x, fn, select) {
+  for (nm in names(x)) {
+    column <- x[[nm]]
+    if (!select(column) || !anyNA(column)) {
+      next
+    }
+    column[is.na(column)] <- do_call(fn, list(column, na.rm = TRUE))
+    data.table::set(x, j = nm, value = column)
+  }
+  invisible(NULL)
+} # /rtemis::dt_impute_columns
+
+
 # %% preprocess(x, PreprocessorConfig, ...) ----
 method(
   preprocess,
@@ -80,21 +258,46 @@ method(
     remove_features = NULL
   )
 
-  # Data
-  isdatatable <- data.table::is.data.table(x)
-  x <- as.data.frame(x)
+  # Data ----
+  # Every step below runs against a data.table, so a column is replaced or added
+  # by reference instead of the whole frame being copied. Entry costs one copy
+  # and exit costs none; the caller's structure is restored at the end and their
+  # object is never written through.
+  #
+  # Row names do not survive, by design: a data.table has none, a case
+  # identifier that matters belongs in a column where it can be selected,
+  # joined, validated and serialized, and nothing a run record reports can carry
+  # one.
+  input_structure <- frame_structure(x)
+  x <- as_working_dt(x)
+  if (ncol(x) == 0L) {
+    rtemis.core::abort(
+      "`x` has no columns.",
+      class = c("rtemis_dim_error", "rtemis_data_error")
+    )
+  }
 
   # Complete cases ----
   if (config@complete_cases) {
     msg("Filtering complete cases...", verbosity = verbosity)
-    x <- x[complete.cases(x), ]
+    keep <- complete.cases(x)
+    if (!all(keep)) {
+      x <- dt_filter_cases(x, keep)
+    }
   }
 
   # Set aside excluded ----
+  # Held as a plain list of columns: they take part in no step, only in the case
+  # filters below, and are appended after the last step that adds columns.
+  excluded <- NULL
   if (!is.null(config@exclude) && length(config@exclude) > 0) {
-    excluded <- x[, config@exclude, drop = FALSE]
-    excluded_names <- colnames(x)[config@exclude]
-    x <- x[, -config@exclude, drop = FALSE]
+    excluded_names <- names(x)[config@exclude]
+    excluded <- stats::setNames(
+      lapply(excluded_names, function(nm) x[[nm]]),
+      excluded_names
+    )
+    data.table::set(x, j = excluded_names, value = NULL)
+    check_columns_remain(x, "exclude")
   }
 
   # Remove named features ----
@@ -106,17 +309,22 @@ method(
       verbosity = verbosity
     )
     values$remove_features <- config@remove_features
-    x <- x[, !names(x) %in% config@remove_features, drop = FALSE]
+    present <- intersect(names(x), config@remove_features)
+    if (length(present) > 0L) {
+      data.table::set(x, j = present, value = NULL)
+    }
+    check_columns_remain(x, "remove_features")
   }
 
   # Remove constants ----
   # Must be ahead of numeric quantile at least
   if (config@remove_constants) {
-    constant <- which(sapply(
+    constant <- names(x)[vapply(
       x,
       is_constant,
+      logical(1L),
       skip_missing = config@remove_constants_skip_missing
-    ))
+    )]
     if (length(constant) > 0) {
       if (verbosity > 0L) {
         msg0(
@@ -125,172 +333,203 @@ method(
           "..."
         )
       }
-      x <- x[, -constant, drop = FALSE]
+      data.table::set(x, j = constant, value = NULL)
+      check_columns_remain(x, "remove_constants")
     }
   }
 
   # Remove duplicates ----
   if (config@remove_duplicates) {
-    # Ndups <- sum(duplicated(x))
-    duplicate_index <- which(duplicated(x))
-    Ndups <- length(duplicate_index)
+    duplicate <- duplicated(x, by = names(x))
+    Ndups <- sum(duplicate)
     if (Ndups > 0) {
       if (verbosity > 0L) {
         msg0("Removing ", singorplu(Ndups, "duplicate case"), "...")
       }
-      x <- unique(x)
+      x <- dt_filter_cases(x, !duplicate)
+      excluded <- lapply(excluded, function(column) column[!duplicate])
     }
-  } else {
-    duplicate_index <- NULL
   }
 
   # Remove Cases by missing feature threshold ----
-  if (!is.null(config@remove_cases_thres)) {
-    if (anyNA(x)) {
-      xt <- data.table::as.data.table(x)
-      # na_fraction_bycase <- apply(x, 1, function(i) sum(is.na(i))/length(i))
-      na_fraction_bycase <- data.table::transpose(xt)[, lapply(
-        .SD,
-        function(i) {
-          sum(is.na(i)) / length(i)
-        }
-      )]
-      index_remove_cases_thres <- which(
-        na_fraction_bycase >= config@remove_cases_thres
+  if (!is.null(config@remove_cases_thres) && anyNA(x)) {
+    na_fraction_bycase <- rowSums(is.na(x)) / ncol(x)
+    over_thres <- na_fraction_bycase >= config@remove_cases_thres
+    if (any(over_thres)) {
+      msg(
+        "Removing",
+        sum(over_thres),
+        "cases with >=",
+        config@remove_cases_thres,
+        "missing data...",
+        verbosity = verbosity
       )
-      if (length(index_remove_cases_thres) > 0) {
-        msg(
-          "Removing",
-          length(index_remove_cases_thres),
-          "cases with >=",
-          config@remove_cases_thres,
-          "missing data...",
-          verbosity = verbosity
-        )
-        xt <- xt[-index_remove_cases_thres, ]
-      }
-      x <- as.data.frame(xt)
+      x <- dt_filter_cases(x, !over_thres)
+      excluded <- lapply(excluded, function(column) column[!over_thres])
     }
   }
 
   # Remove Features by missing feature threshold ----
-  if (!is.null(config@remove_features_thres)) {
-    if (anyNA(x)) {
-      xt <- data.table::as.data.table(x)
-      na.fraction.byfeat <- xt[, lapply(.SD, function(i) {
-        sum(is.na(i)) / length(i)
-      })]
-      removeFeat_thres_index <- which(
-        na.fraction.byfeat >= config@remove_features_thres
+  if (!is.null(config@remove_features_thres) && anyNA(x)) {
+    na_fraction_byfeat <- vapply(
+      x,
+      function(column) sum(is.na(column)) / length(column),
+      numeric(1L)
+    )
+    over_thres <- names(x)[
+      na_fraction_byfeat >= config@remove_features_thres
+    ]
+    if (length(over_thres) > 0) {
+      msg(
+        "Removing",
+        length(over_thres),
+        "features with >=",
+        config@remove_features_thres,
+        "missing data...",
+        verbosity = verbosity
       )
-      if (length(removeFeat_thres_index) > 0) {
-        msg(
-          "Removing",
-          length(removeFeat_thres_index),
-          "features with >=",
-          config@remove_features_thres,
-          "missing data...",
-          verbosity = verbosity
-        )
-        x <- x[, -removeFeat_thres_index]
-      }
+      data.table::set(x, j = over_thres, value = NULL)
+      check_columns_remain(x, "remove_features_thres")
+    }
+  }
+
+  # Add date features ----
+  # Feature *creation*, so it runs ahead of every transformation below rather
+  # than after them: the weekday and month factors are then one-hot encoded or
+  # coded to integers like any other factor, and the year is scaled like any
+  # other numeric. It runs *after* the case and feature filters, which judge the
+  # data as it was given rather than what was derived from it.
+  if (config@add_date_features) {
+    msg("Extracting date features...", verbosity = verbosity)
+    # Find date columns
+    date_names <- names(x)[vapply(
+      x,
+      function(column) inherits(column, "Date"),
+      logical(1L)
+    )]
+    # For each date column, extract features
+    for (nm in date_names) {
+      .date_features <- dates2features(
+        x[[nm]],
+        features = config@date_features
+      )
+      data.table::set(
+        x,
+        j = paste0(nm, "_", names(.date_features)),
+        value = .date_features
+      )
+    }
+  }
+
+  # Add holidays ----
+  if (config@add_holidays) {
+    msg("Extracting holidays...", verbosity = verbosity)
+    # Find date columns
+    date_names <- names(x)[vapply(
+      x,
+      function(column) inherits(column, "Date"),
+      logical(1L)
+    )]
+    # For each date column, extract holidays
+    for (nm in date_names) {
+      data.table::set(
+        x,
+        j = paste0(nm, "_holidays"),
+        value = get_holidays(x[[nm]])
+      )
     }
   }
 
   # Integer to factor ----
-  index_integer <- NULL
   if (config@integer2factor) {
-    index_integer <- c(
-      which(sapply(x, is.integer)),
-      which(sapply(x, bit64::is.integer64))
-    )
+    integer_names <- names(x)[vapply(x, is_integer_column, logical(1L))]
     if (verbosity > 0L) {
-      if (length(index_integer) > 0) {
+      if (length(integer_names) > 0) {
         msg(
           "Converting",
-          singorplu(length(index_integer), "integer"),
+          singorplu(length(integer_names), "integer"),
           "to factor..."
         )
       } else {
         msg("No integers to convert to factor...")
       }
     }
-    for (i in index_integer) {
-      x[, i] <- as.factor(x[, i])
+    for (nm in integer_names) {
+      data.table::set(x, j = nm, value = as.factor(x[[nm]]))
     }
   }
 
   # Logical to factor ----
   if (config@logical2factor) {
-    index_logical <- which(sapply(x, is.logical))
+    logical_names <- names(x)[vapply(x, is.logical, logical(1L))]
     if (verbosity > 0L) {
-      if (length(index_logical) > 0) {
+      if (length(logical_names) > 0) {
         msg0(
           "Converting ",
-          singorplu(length(index_logical), "logical feature"),
+          singorplu(length(logical_names), "logical feature"),
           " to ",
-          ngettext(length(index_logical), "factor", "factors"),
+          ngettext(length(logical_names), "factor", "factors"),
           "..."
         )
       } else {
         msg("No logicals to convert to factor...")
       }
     }
-    for (i in index_logical) {
-      x[, i] <- as.factor(x[, i])
+    for (nm in logical_names) {
+      data.table::set(x, j = nm, value = as.factor(x[[nm]]))
     }
   }
 
   # Numeric to factor ----
   if (config@numeric2factor) {
-    index_numeric <- which(sapply(x, is.numeric))
+    numeric_names <- names(x)[vapply(x, is.numeric, logical(1L))]
     msg("Converting numeric to factors...", verbosity = verbosity)
-    if (is.null(config@numeric2factor_levels)) {
-      for (i in index_numeric) {
-        x[, i] <- as.factor(x[, i])
+    for (nm in numeric_names) {
+      converted <- if (is.null(config@numeric2factor_levels)) {
+        as.factor(x[[nm]])
+      } else {
+        factor(x[[nm]], levels = config@numeric2factor_levels)
       }
-    } else {
-      for (i in index_numeric) {
-        x[, i] <- factor(x[, i], levels = config@numeric2factor_levels)
-      }
+      data.table::set(x, j = nm, value = converted)
     }
   }
 
   # Character to factor ----
   if (config@character2factor) {
-    index_char <- which(sapply(x, is.character))
+    character_names <- names(x)[vapply(x, is.character, logical(1L))]
     if (verbosity > 0L) {
-      if (length(index_char) > 0) {
+      if (length(character_names) > 0) {
         msg0(
           "Converting ",
-          singorplu(length(index_char), "character feature"),
+          singorplu(length(character_names), "character feature"),
           " to ",
-          ngettext(length(index_char), "a factor", "factors"),
+          ngettext(length(character_names), "a factor", "factors"),
           "..."
         )
       } else {
         msg("No character features to convert to factors found.")
       }
     }
-    for (i in index_char) {
-      x[, i] <- as.factor(x[, i])
+    for (nm in character_names) {
+      data.table::set(x, j = nm, value = as.factor(x[[nm]]))
     }
   }
 
   # unique_len2factor ----
   if (config@unique_len2factor > 1) {
-    index_len <- which(sapply(
+    short_names <- names(x)[vapply(
       x,
-      \(i) length(unique(i)) <= config@unique_len2factor
-    ))
-    # Exclude factors
-    index_factor <- which(sapply(x, is.factor))
-    index_len <- setdiff(index_len, index_factor)
+      function(column) {
+        !is.factor(column) &&
+          length(unique(column)) <= config@unique_len2factor
+      },
+      logical(1L)
+    )]
     if (verbosity > 0L) {
-      if (length(index_len) > 0) {
+      if (length(short_names) > 0) {
         msg(
           "Converting",
-          singorplu(length(index_len), "feature"),
+          singorplu(length(short_names), "feature"),
           "with <=",
           config@unique_len2factor,
           "unique values to factors..."
@@ -303,84 +542,87 @@ method(
         )
       }
     }
-    for (i in index_len) {
-      x[, i] <- factor(x[, i])
+    for (nm in short_names) {
+      data.table::set(x, j = nm, value = factor(x[[nm]]))
     }
   }
 
   # Integer to numeric ----
+  # Read from the data as it stands: `integer2factor` above leaves nothing
+  # integer behind, so the two options together convert once, not twice.
   if (config@integer2numeric) {
-    if (is.null(index_integer)) {
-      index_integer <- c(
-        which(sapply(x, is.integer)),
-        which(sapply(x, bit64::is.integer64))
-      )
-    }
+    integer_names <- names(x)[vapply(x, is_integer_column, logical(1L))]
     if (verbosity > 0L) {
-      if (length(index_integer) > 0) {
+      if (length(integer_names) > 0) {
         msg(
           "Converting",
-          singorplu(length(index_integer), "integer"),
+          singorplu(length(integer_names), "integer"),
           "to numeric..."
         )
       } else {
         msg("No integers to convert to numeric...")
       }
     }
-    for (i in index_integer) {
-      x[, i] <- as.numeric(x[, i])
+    for (nm in integer_names) {
+      data.table::set(x, j = nm, value = as.numeric(x[[nm]]))
     }
   }
 
   # Logical to numeric ----
   if (config@logical2numeric) {
-    index_logical <- which(sapply(x, is.logical))
+    logical_names <- names(x)[vapply(x, is.logical, logical(1L))]
     msg("Converting logicals to numeric...", verbosity = verbosity)
-    for (i in index_logical) {
-      x[, i] <- as.numeric(x[, i])
+    for (nm in logical_names) {
+      data.table::set(x, j = nm, value = as.numeric(x[[nm]]))
     }
   }
 
   # Numeric cut ----
   if (config@numeric_cut_n > 0) {
-    index_numeric <- which(sapply(x, is.numeric))
+    numeric_names <- names(x)[vapply(x, is.numeric, logical(1L))]
     msg(
       "Cutting numeric features in",
       config@numeric_cut_n,
       "bins...",
       verbosity = verbosity
     )
-    if (length(index_numeric) > 0) {
-      for (i in index_numeric) {
-        x[, i] <- factor(
+    for (nm in numeric_names) {
+      data.table::set(
+        x,
+        j = nm,
+        value = factor(
           cut(
-            x[, i],
+            x[[nm]],
             breaks = config@numeric_cut_n,
             labels = config@numeric_cut_labels
           )
         )
-      }
+      )
     }
   }
 
   # Numeric quantile ----
   if (config@numeric_quant_n > 0) {
-    index_numeric2q <- if (config@numeric_quant_nAonly) {
-      index_numeric2q <- which(sapply(x, is.numeric) & sapply(x, anyNA))
+    quant_names <- if (config@numeric_quant_NAonly) {
+      names(x)[vapply(
+        x,
+        function(column) is.numeric(column) && anyNA(column),
+        logical(1L)
+      )]
     } else {
-      which(sapply(x, is.numeric))
+      names(x)[vapply(x, is.numeric, logical(1L))]
     }
-    if (length(index_numeric2q) > 0) {
+    if (length(quant_names) > 0) {
       msg(
         "Cutting numeric features in",
         config@numeric_quant_n,
         "quantiles...",
         verbosity = verbosity
       )
-      for (i in index_numeric2q) {
-        rng <- abs(diff(range(x[, i], na.rm = TRUE)))
+      for (nm in quant_names) {
+        rng <- abs(diff(range(x[[nm]], na.rm = TRUE)))
         quantiles <- quantile(
-          x[, i],
+          x[[nm]],
           probs = seq(0, 1, length.out = config@numeric_quant_n),
           na.rm = TRUE
         )
@@ -390,11 +632,10 @@ method(
         ] +
           .02 * rng
         quantiles <- unique(quantiles)
-        x[, i] <- factor(
-          cut(
-            x[, i],
-            breaks = quantiles
-          )
+        data.table::set(
+          x,
+          j = nm,
+          value = factor(cut(x[[nm]], breaks = quantiles))
         )
       }
     }
@@ -402,13 +643,13 @@ method(
 
   # factor NA to level ----
   if (config@factorNA2missing) {
-    index_factor <- which(sapply(x, is.factor))
+    factor_names <- names(x)[vapply(x, is.factor, logical(1L))]
     if (verbosity > 0L) {
-      if (length(index_factor) > 0) {
+      if (length(factor_names) > 0) {
         msg0(
           "Converting ",
-          length(index_factor),
-          ngettext(length(index_factor), " factor's", " factors'"),
+          length(factor_names),
+          ngettext(length(factor_names), " factor's", " factors'"),
           " NA values to level '",
           config@factorNA2missing_level,
           "'..."
@@ -417,8 +658,12 @@ method(
         msg("No factors found.")
       }
     }
-    for (i in index_factor) {
-      x[, i] <- factor_NA2missing(x[, i], config@factorNA2missing_level)
+    for (nm in factor_names) {
+      data.table::set(
+        x,
+        j = nm,
+        value = factor_NA2missing(x[[nm]], config@factorNA2missing_level)
+      )
     }
   }
 
@@ -426,12 +671,12 @@ method(
   # e.g. for algorithms that do not support factors directly, but can handle integers
   # as categorical (e.g. LightGBM)
   if (config@factor2integer) {
-    index_factor <- which(sapply(x, is.factor))
+    factor_names <- names(x)[vapply(x, is.factor, logical(1L))]
     if (verbosity > 0L) {
-      if (length(index_factor) > 0) {
+      if (length(factor_names) > 0) {
         msg(
           "Converting",
-          singorplu(length(index_factor), "factor"),
+          singorplu(length(factor_names), "factor"),
           "to integer..."
         )
       } else {
@@ -443,19 +688,22 @@ method(
     # data otherwise. Learned levels are published in `values` so that
     # `apply_preprocessor()` codes new data the way the training data was coded.
     learned_levels <- list()
-    for (i in index_factor) {
-      feature <- names(x)[i]
-      feature_levels <- config@factor2integer_levels[[feature]]
+    for (nm in factor_names) {
+      feature_levels <- config@factor2integer_levels[[nm]]
       if (is.null(feature_levels)) {
-        feature_levels <- levels(x[[i]])
+        feature_levels <- levels(x[[nm]])
       }
-      learned_levels[[feature]] <- feature_levels
-      x[, i] <- factor2integer_code(
-        x[[i]],
-        factor_levels = feature_levels,
-        startat0 = config@factor2integer_startat0,
-        xname = feature,
-        verbosity = verbosity
+      learned_levels[[nm]] <- feature_levels
+      data.table::set(
+        x,
+        j = nm,
+        value = factor2integer_code(
+          x[[nm]],
+          factor_levels = feature_levels,
+          startat0 = config@factor2integer_startat0,
+          xname = nm,
+          verbosity = verbosity
+        )
       )
     }
     if (length(learned_levels) > 0L) {
@@ -465,12 +713,15 @@ method(
 
   # Missingness ----
   if (config@missingness) {
-    cols_with_na <- which(apply(x, 2, anyNA))
-    .colnames <- colnames(x)
-    for (i in cols_with_na) {
-      x[, paste0(.colnames[i], "_missing")] <- factor(as.numeric(is.na(x[, i])))
+    names_with_na <- names(x)[vapply(x, anyNA, logical(1L))]
+    for (nm in names_with_na) {
+      data.table::set(
+        x,
+        j = paste0(nm, "_missing"),
+        value = factor(as.numeric(is.na(x[[nm]])))
+      )
       if (verbosity > 0L) {
-        msg0("Created missingness indicator for ", .colnames[i], "...")
+        msg0("Created missingness indicator for ", nm, "...")
       }
     }
   }
@@ -489,18 +740,25 @@ method(
           msg("Imputing missing values using missRanger...")
         }
       }
-      x <- missRanger::missRanger(
-        x,
+      # The external imputers rebuild the frame, so they are handed a
+      # data.frame and their result is adopted as the working table. `setDT()`
+      # is by reference, which is safe on an object they just created.
+      x <- data.table::setDT(missRanger::missRanger(
+        data.table::setDF(x),
         pmm.k = config@impute_missRanger_params[["pmm.k"]],
         verbose = verbosity
-      )
+      ))
     } else if (config@impute_type == "micePMM") {
       check_dependencies("mice")
       msg(
         "Imputing missing values by predictive mean matching using mice...",
         verbosity = verbosity
       )
-      x <- mice::complete(mice::mice(x, m = 1, method = "pmm"))
+      x <- data.table::setDT(mice::complete(mice::mice(
+        data.table::setDF(x),
+        m = 1,
+        method = "pmm"
+      )))
     } else {
       # '- mean/mode ----
       msg(
@@ -511,80 +769,59 @@ method(
         "(continuous)...",
         verbosity = verbosity
       )
-
-      index_discrete <- which(sapply(x, function(i) is_discrete(i) && anyNA(i)))
-      if (length(index_discrete) > 0) {
-        for (i in index_discrete) {
-          index <- which(is.na(x[, i]))
-          imputed <- do_call(
-            config@impute_discrete,
-            list(x[[i]], na.rm = TRUE)
-          )
-          x[index, i] <- imputed
-        }
-      }
-
-      index_numeric <- which(sapply(x, function(i) is.numeric(i) && anyNA(i)))
-      if (length(index_numeric) > 0) {
-        for (i in index_numeric) {
-          index <- which(is.na(x[, i]))
-          imputed <- do_call(
-            config@impute_continuous,
-            list(x[[i]], na.rm = TRUE)
-          )
-          x[index, i] <- imputed
-        }
-      }
+      # Discrete first: `is_discrete()` claims integer, so an integer column is
+      # imputed with the discrete function and never meets the continuous one.
+      dt_impute_columns(x, config@impute_discrete, is_discrete)
+      dt_impute_columns(x, config@impute_continuous, is.numeric)
     }
   }
 
   # Scale +/- center ----
   if (config@scale || config@center) {
-    # Get index of numeric features
-    numeric_index <- which(sapply(x, is.numeric))
+    # Get names of numeric features
+    numeric_names <- names(x)[vapply(x, is.numeric, logical(1L))]
     # `factor2integer` runs above and emits codes that are `is.numeric()`, but a
     # category code is not a numeric feature: standardizing it yields a fraction
     # of an index, which no consumer can read back -- an embedding indexes with
     # it, LightGBM reads it as a category. The coded columns are exactly those
     # just recorded, so they are dropped here by name.
-    coded_features <- names(values[["factor2integer_levels"]])
-    if (length(coded_features) > 0L) {
-      numeric_index <- numeric_index[
-        !names(numeric_index) %in% coded_features
-      ]
-    }
+    numeric_names <- setdiff(
+      numeric_names,
+      names(values[["factor2integer_levels"]])
+    )
     sc <- if (config@scale) "Scaling" else NULL
     ce <- if (config@center) "centering" else NULL
-    if (length(numeric_index) > 0) {
+    if (length(numeric_names) > 0) {
       msg(
         paste(c(sc, ce), collapse = " and "),
-        length(numeric_index),
+        length(numeric_names),
         "numeric features...",
         verbosity = verbosity
       )
       # Info: scale outputs a matrix.
       scale_ <- if (!is.null(config@scale_coefficients)) {
         # Check names match
-        stopifnot(identical(
-          names(config@scale_coefficients),
-          names(x)[numeric_index]
-        ))
+        stopifnot(identical(names(config@scale_coefficients), numeric_names))
         config@scale_coefficients
       } else {
         config@scale
       }
       center_ <- if (!is.null(config@scale_centers)) {
         # Check names match
-        stopifnot(identical(
-          names(config@scale_centers),
-          names(x)[numeric_index]
-        ))
+        stopifnot(identical(names(config@scale_centers), numeric_names))
         config@scale_centers
       } else {
         config@center
       }
       x_num_scaled <- scale(
-        x[, numeric_index, drop = FALSE],
+        matrix(
+          unlist(
+            lapply(numeric_names, function(nm) x[[nm]]),
+            use.names = FALSE
+          ),
+          nrow = nrow(x),
+          dimnames = list(NULL, numeric_names)
+        ),
         scale = scale_,
         center = center_
       )
@@ -593,15 +830,10 @@ method(
       values$scale_centers <- attr(x_num_scaled, "scaled:center")
       values$scale_coefficients <- attr(x_num_scaled, "scaled:scale")
 
-      x_num_scaled <- as.data.frame(x_num_scaled)
-
       # Insert into original dataset
-      x[, numeric_index] <- x_num_scaled
-      # j <- 0
-      # for (i in numeric_index) {
-      #   j <- j + 1
-      #   x[, i] <- x_num_scaled[, j]
-      # }
+      for (k in seq_along(numeric_names)) {
+        data.table::set(x, j = numeric_names[k], value = x_num_scaled[, k])
+      }
     } else {
       msg(
         paste(c(sc, ce), collapse = " and "),
@@ -618,19 +850,20 @@ method(
     # otherwise. Learned levels are published in `values` so that
     # `apply_preprocessor()` gives new data the same columns, in the same order,
     # holding the same values.
-    factor_index <- which(sapply(x, is.factor))
+    factor_names <- names(x)[vapply(x, is.factor, logical(1L))]
     learned_levels <- list()
-    for (i in factor_index) {
-      feature <- names(x)[i]
-      feature_levels <- config@one_hot_levels[[feature]]
+    for (nm in factor_names) {
+      feature_levels <- config@one_hot_levels[[nm]]
       if (is.null(feature_levels)) {
-        feature_levels <- levels(x[[i]])
+        feature_levels <- levels(x[[nm]])
       }
-      learned_levels[[feature]] <- feature_levels
+      learned_levels[[nm]] <- feature_levels
     }
     if (length(learned_levels) > 0L) {
       values$one_hot_levels <- learned_levels
     }
+    # The data.table method assembles a new table, which becomes the working
+    # one; it is the native encoder this pipeline exists to reach.
     x <- one_hot(
       x,
       verbosity = verbosity,
@@ -638,57 +871,33 @@ method(
     )
   }
 
-  # Add date features ----
-  if (config@add_date_features) {
-    msg("Extracting date features...", verbosity = verbosity)
-    # Find date columns
-    date_cols <- which(sapply(x, function(col) inherits(col, "Date")))
-    # For each date column, extract features
-    for (i in date_cols) {
-      .date_features <- dates2features(
-        x[[i]],
-        features = config@date_features
-      )
-      names(.date_features) <- paste0(names(x)[i], "_", names(.date_features))
-      x <- cbind(x, .date_features)
-    }
-  }
-
-  # Add holidays ----
-  if (config@add_holidays) {
-    msg("Extracting holidays...", verbosity = verbosity)
-    # Find date columns
-    date_cols <- which(sapply(x, \(col) inherits(col, "Date")))
-    # For each date column, extract holidays
-    for (i in date_cols) {
-      .holidays <- get_holidays(x[, i])
-      x[[paste0(names(x)[i], "_holidays")]] <- .holidays
-    }
-  }
-
   # Add back excluded ----
-  if (!is.null(config@exclude) && length(config@exclude) > 0) {
-    # remove any duplicates
-    if (!is.null(duplicate_index)) {
-      excluded <- excluded[-duplicate_index, , drop = FALSE]
+  # Appended, so an excluded column ends up after the preprocessed ones rather
+  # than in the position it held on entry.
+  if (!is.null(excluded)) {
+    # A step that adds columns can coin a name an excluded column already holds
+    # -- `missingness` makes `<feature>_missing`, `one_hot` makes
+    # `<feature>_<level>`. `set()` would overwrite the new column with the
+    # excluded one, losing it silently.
+    collision <- intersect(names(x), names(excluded))
+    if (length(collision) > 0L) {
+      rtemis.core::abort(
+        "Preprocessing created ",
+        ngettext(length(collision), "a column", "columns"),
+        " named after excluded ",
+        ngettext(length(collision), "one", "ones"),
+        ": ",
+        paste(collision, collapse = ", "),
+        ".\nRename the excluded ",
+        ngettext(length(collision), "column", "columns"),
+        " before calling preprocess().",
+        class = c("rtemis_value_error", "rtemis_data_error")
+      )
     }
-
-    # remove by case thres
-    if (
-      !is.null(config@remove_cases_thres) &&
-        length(index_remove_cases_thres) > 0
-    ) {
-      n_feat_inc <- NCOL(x)
-      x <- cbind(x, excluded[-index_remove_cases_thres, ])
-      colnames(x)[-c(seq(n_feat_inc))] <- excluded_names
-    } else {
-      x <- cbind(x, excluded)
-    }
+    data.table::set(x, j = names(excluded), value = excluded)
   } # /add back excluded
 
-  if (isdatatable) {
-    data.table::setDT(x)
-  }
+  x <- restore_frame_structure(x, input_structure)
   msg("Preprocessing done.", verbosity = verbosity)
 
   preprocessed <- list(training = x)
@@ -781,10 +990,11 @@ method(
 #' features will be applied to the new data.
 #'
 #' @param preprocessor `Preprocessor`: Trained preprocessor, i.e. the output of [preprocess].
-#' @param new_data data.frame or data.table: New data to preprocess.
+#' @param new_data Tabular data, i.e. data.frame, data.table, or tbl_df (tibble):
+#' New data to preprocess.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return Preprocessed data of the same class as `new_data` (data.frame or data.table).
+#' @return Preprocessed data, in the same structure as `new_data`.
 #'
 #' @author EDG
 #' @seealso [preprocess], [setup_Preprocessor]

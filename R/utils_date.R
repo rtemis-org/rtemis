@@ -54,20 +54,19 @@ get_holidays <- function(
   dates,
   holidays = c("LaborDay", "NewYearsDay", "ChristmasDay")
 ) {
+  check_dependencies("timeDate")
   # Get years from dates
   years <- unique(data.table::year(dates))
-  # Get all holidays in all years
+  # Get all holidays in all years.
+  # Each holiday is looked up as a function object rather than passed to
+  # `timeDate::holiday()` by name: that resolves a character `Holiday` with
+  # `match.fun()` against *this* frame, which sees the rtemis namespace and not
+  # timeDate's exports.
   .holidays <- do.call(
     "c",
-    lapply(years, function(year) {
-      do.call(
-        "c",
-        lapply(holidays, function(holiday) {
-          timeDate::as.Date.timeDate(timeDate::holiday(
-            year = year,
-            Holiday = holiday
-          ))
-        })
+    lapply(holidays, function(holiday) {
+      timeDate::as.Date.timeDate(
+        getExportedValue("timeDate", holiday)(year = years)
       )
     })
   )
