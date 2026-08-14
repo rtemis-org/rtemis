@@ -189,6 +189,16 @@ PreprocessorConfig <- new_class(
       FALSE,
       description = "Add a holiday indicator feature."
     ),
+    # No enum: the valid names are timeDate's holiday functions, which number in
+    # the hundreds and vary by timeDate version. They are checked against
+    # `timeDate::listHolidays()` where they are used, so the set stays accurate
+    # for the installed version.
+    holidays = prop_string(
+      c("USLaborDay", "NewYearsDay", "ChristmasDay"),
+      vector = TRUE,
+      unique_items = TRUE,
+      description = "Holidays to flag, named as timeDate holiday functions."
+    ),
     exclude = prop_integer(
       NULL,
       nullable = TRUE,
@@ -299,7 +309,7 @@ method(print, PreprocessorConfig) <- function(
 #' @param numeric_cut_n Integer [0, Inf): If > 0, convert all numeric variables to factors by
 #'   binning using `base::cut` with `breaks` equal to this number.
 #' @param numeric_cut_labels Logical: The `labels` argument of [base::cut].
-#' @param numeric_quant_n Integer \{0\} or [2, Inf): If > 0, convert all numeric
+#' @param numeric_quant_n Integer \[0, Inf): If > 0, convert all numeric
 #'   variables to factors by binning using `base::cut` with `breaks` equal to
 #'   this number of quantiles, produced using `stats::quantile`. 0 disables; 1
 #'   is a single break, which bounds no bin, and is rejected.
@@ -344,6 +354,10 @@ method(print, PreprocessorConfig) <- function(
 #' @param date_features Character \{"weekday", "month", "year"\} vector:
 #'   Features to extract from dates.
 #' @param add_holidays Logical: If TRUE, extract holidays from date columns.
+#' @param holidays Character vector: Holidays to flag when `add_holidays` is
+#'   TRUE, named as timeDate holiday functions, e.g. "USLaborDay",
+#'   "ChristmasDay". See `timeDate::listHolidays()` for the valid names. Note
+#'   that unprefixed names are not US holidays: "LaborDay" is May 1.
 #' @param exclude Optional Integer vector: Exclude these columns from preprocessing.
 #'
 #' @section Order of Operations:
@@ -439,6 +453,7 @@ setup_Preprocessor <- function(
   add_date_features = FALSE,
   date_features = c("weekday", "month", "year"),
   add_holidays = FALSE,
+  holidays = c("USLaborDay", "NewYearsDay", "ChristmasDay"),
   exclude = NULL
 ) {
   impute_type <- match_arg(
@@ -503,6 +518,7 @@ setup_Preprocessor <- function(
     add_date_features = add_date_features,
     date_features = date_features,
     add_holidays = add_holidays,
+    holidays = holidays,
     exclude = exclude
   )
 } # /setup_Preprocessor

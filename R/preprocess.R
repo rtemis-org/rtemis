@@ -131,6 +131,7 @@ restore_frame_structure <- function(x, structure) {
   }
   data.table::setDF(x)
   if (structure == "tibble") {
+    check_dependencies("tibble")
     x <- tibble::as_tibble(x)
   }
   x
@@ -435,7 +436,7 @@ method(
       data.table::set(
         x,
         j = paste0(nm, "_holidays"),
-        value = get_holidays(x[[nm]])
+        value = get_holidays(x[[nm]], config@holidays)
       )
     }
   }

@@ -528,6 +528,75 @@ test_that("add_holidays flags the holidays in a date column", {
 })
 
 
+test_that("holidays selects which holidays are flagged", {
+  skip_if_not_installed("timeDate")
+  x <- data.frame(
+    d = as.Date(c("2024-09-02", "2024-05-01", "2024-11-28")),
+    v = c(1.5, 2.5, 3.5)
+  )
+  # US Labor Day is the first Monday of September; the unprefixed "LaborDay" is
+  # May 1, so the two sets flag different rows.
+  us <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(add_holidays = TRUE, holidays = "USLaborDay"),
+    verbosity = 0L
+  ))
+  expect_identical(
+    as.character(us[["d_holidays"]]),
+    c("Holiday", "Not Holiday", "Not Holiday")
+  )
+  intl <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(add_holidays = TRUE, holidays = "LaborDay"),
+    verbosity = 0L
+  ))
+  expect_identical(
+    as.character(intl[["d_holidays"]]),
+    c("Not Holiday", "Holiday", "Not Holiday")
+  )
+  thanks <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(add_holidays = TRUE, holidays = "USThanksgivingDay"),
+    verbosity = 0L
+  ))
+  expect_identical(
+    as.character(thanks[["d_holidays"]]),
+    c("Not Holiday", "Not Holiday", "Holiday")
+  )
+})
+
+
+test_that("an unknown holiday name is rejected", {
+  skip_if_not_installed("timeDate")
+  x <- data.frame(d = as.Date("2024-09-02"), v = 1.5)
+  expect_error(
+    preprocess(
+      x,
+      setup_Preprocessor(add_holidays = TRUE, holidays = "NotAHoliday"),
+      verbosity = 0L
+    )
+  )
+})
+
+
+test_that("add_holidays leaves a missing date unlabeled", {
+  skip_if_not_installed("timeDate")
+  x <- data.frame(
+    d = as.Date(c("2024-01-01", NA, "2024-06-06")),
+    v = c(1.5, 2.5, 3.5)
+  )
+  out <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(add_holidays = TRUE),
+    verbosity = 0L
+  ))
+  expect_identical(
+    as.character(out[["d_holidays"]]),
+    c("Holiday", NA, "Not Holiday")
+  )
+})
+
+
 oh_mixed <- data.frame(
   age = c(30L, 40L, 50L, 60L),
   grp = factor(c("a", "b", "c", "a"), levels = c("a", "b", "c")),

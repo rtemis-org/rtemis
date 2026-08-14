@@ -44,6 +44,7 @@ setup_Preprocessor(
   add_date_features = FALSE,
   date_features = c("weekday", "month", "year"),
   add_holidays = FALSE,
+  holidays = c("USLaborDay", "NewYearsDay", "ChristmasDay"),
   exclude = NULL
 )
 }
@@ -104,7 +105,7 @@ binning using \code{base::cut} with \code{breaks} equal to this number.}
 
 \item{numeric_cut_labels}{Logical: The \code{labels} argument of \link[base:cut]{base::cut}.}
 
-\item{numeric_quant_n}{Integer \{0\} or [2, Inf): If > 0, convert all numeric
+\item{numeric_quant_n}{Integer [0, Inf): If > 0, convert all numeric
 variables to factors by binning using \code{base::cut} with \code{breaks} equal to
 this number of quantiles, produced using \code{stats::quantile}. 0 disables; 1
 is a single break, which bounds no bin, and is rejected.}
@@ -170,6 +171,11 @@ one-hot encoding to validation or test data using \code{Preprocessor}.}
 Features to extract from dates.}
 
 \item{add_holidays}{Logical: If TRUE, extract holidays from date columns.}
+
+\item{holidays}{Character vector: Holidays to flag when \code{add_holidays} is
+TRUE, named as timeDate holiday functions, e.g. "USLaborDay",
+"ChristmasDay". See \code{timeDate::listHolidays()} for the valid names. Note
+that unprefixed names are not US holidays: "LaborDay" is May 1.}
 
 \item{exclude}{Optional Integer vector: Exclude these columns from preprocessing.}
 }

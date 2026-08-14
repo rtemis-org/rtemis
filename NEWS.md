@@ -8,7 +8,8 @@
 - With `backend = "future"` and no `future_plan` given, the plan is now `"multisession"` on every platform, not `"multicore"` where forking is available. Forking a loaded R session is unsafe and fails as tasks resolving instantly and returning `FutureInterruptError`. `future_plan = "multicore"` still forks on request.
 - `futurize` and `future.apply` are no longer dependencies.
 - `preprocess()` runs on a data.table for all inputs; each of its steps replaces or adds a column by reference instead of copying the frame, and it reaches the native `one_hot()` data.table method. Nine steps over 1e6 x 21: 35.2s to 6.8s for a data.frame, 24.3s to 3.5s for a data.table.
-- preprocessing step order and individual processed cleaned up
+- New `setup_Preprocessor(holidays = )`: choose which holidays `add_holidays` flags, named as timeDate holiday functions. The set was previously fixed, and its `"LaborDay"` is May 1, not US Labor Day; the default is now `c("USLaborDay", "NewYearsDay", "ChristmasDay")`. `add_holidays` no longer reports a missing date as a holiday.
+- `preprocess()` step order reworked: feature creation (`add_date_features`, `add_holidays`) runs after the case and feature filters but ahead of every conversion, so derived features are encoded and scaled like any input column. `numeric_quant_n = 1` is now rejected, since one break bounds no bin, and `unique_len2factor = 1` disables the step, since a feature with one unique value is a constant.
 - `read()` reads a parquet whose strings are Arrow's `string_view` type, which is what polars writes and what its parquet writer gives no way to avoid. Every such file failed with `cannot handle Array of type <utf8_view>`: `arrow` reads the table and has no R converter for the view types. `string_view` and `binary_view` fields are now cast to `utf8` and `binary` before the conversion, a no-op for a file that read fine before.
 
 ## 1.3.5
