@@ -4,11 +4,13 @@
 \alias{session_kind_colors}
 \title{Session Node Kind Colors}
 \usage{
-session_kind_colors(kinds)
+session_kind_colors(kinds = NULL)
 }
 \arguments{
-\item{kinds}{Character vector: Node kinds to color, in display order, e.g.
-\code{unique(session_timeline(session)[["kind"]])}.}
+\item{kinds}{Character vector or NULL: Node kinds to color, in display order,
+e.g. \code{unique(session_timeline(session)[["kind"]])}. \code{NULL} returns the
+whole fixed map, which is what a remote renderer wants when it does not yet
+know which kinds a run will report.}
 }
 \value{
 Named character vector of hex colors, one per element of \code{kinds}.
@@ -23,9 +25,11 @@ recycled as needed.
 }
 \details{
 Exported so \code{rtemis.server} can attach the map to its \code{job.result} \code{session}
-slice, which is what lets the rtemislive web UI fill its bars without a
-hard-coded palette of its own. Not user-facing API: \verb{@keywords internal}
-marks it exported for mechanism rather than for use.
+slice and announce it on the \code{ready} frame, which is what lets the rtemislive
+web UI color its timeline bars and its live progress panel without a
+hard-coded palette of its own - one definition, here, for every renderer.
+Not user-facing API: \verb{@keywords internal} marks it exported for mechanism
+rather than for use.
 }
 \author{
 EDG

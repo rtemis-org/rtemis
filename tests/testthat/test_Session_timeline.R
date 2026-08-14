@@ -153,3 +153,22 @@ test_that("session_kind_colors maps known kinds and recycles for unknown", {
   expect_false(anyNA(extra))
   expect_equal(extra[["custom_step"]], rtemis_colors[[1L]])
 })
+
+test_that("session_kind_colors() returns the whole map when given no kinds", {
+  # What a remote renderer (rtemislive) asks for: it colors events as they
+  # arrive and cannot know in advance which kinds a run will report.
+  all_kinds <- session_kind_colors()
+  expect_true(length(all_kinds) > 1L)
+  expect_false(anyNA(all_kinds))
+  expect_no_error(grDevices::col2rgb(all_kinds))
+  # The progress stream's loop and the graph's per-fold node are one activity.
+  expect_equal(
+    all_kinds[["outer_resampling"]],
+    all_kinds[["outer_fold"]]
+  )
+  # Named lookup agrees with the per-kind call.
+  expect_equal(
+    unname(all_kinds[["tune"]]),
+    unname(session_kind_colors("tune")[["tune"]])
+  )
+})

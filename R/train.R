@@ -121,26 +121,6 @@ restore_weights_column <- function(model, column) {
 #' every value resolved, where each came from, and what produced it. See
 #' [write_record].
 #' @param verbosity Integer: Verbosity level.
-#' @param progress Optional function: Callback invoked at progress
-#'   checkpoints during training. When supplied, called at each outer
-#'   resampling fold boundary as
-#'   `progress(stage, current, total, message)`:
-#'   \describe{
-#'     \item{`stage`}{Character. Currently `"outer_fold"`.}
-#'     \item{`current`}{Integer. Sequentially, the 1-based index of the fold
-#'       about to run; in parallel, the number of folds completed so far.}
-#'     \item{`total`}{Integer. Total number of outer folds.}
-#'     \item{`message`}{Character. Human-readable line: `"Outer resamples 2/5"`
-#'       sequentially, and `"Outer resamples 4/10 complete; running 5, 6, 7"`
-#'       in parallel, where folds finish out of order.}
-#'   }
-#'   Supplying a callback does not change how folds are dispatched; whether
-#'   they run in parallel is decided by `execution_config` alone.
-#'   The interactive status line and the structured progress envelopes sent to
-#'   a message sink (see [rtemis.core::set_msg_sink()]) are emitted either way.
-#'   Designed for non-interactive callers (e.g. `rtemis.server`) that need to
-#'   forward fold progress over a wire protocol; errors raised by the callback
-#'   are swallowed so a broken sink cannot interrupt training.
 #' @param ... Not used.
 #'
 #' @details
@@ -245,7 +225,6 @@ train <- function(
   question = NULL,
   outdir = NULL,
   verbosity = 1L,
-  progress = NULL,
   ...
 ) {
   # SuperConfigLive dispatch ----
@@ -267,8 +246,7 @@ train <- function(
       execution_config = x@execution_config,
       question = x@question,
       outdir = x@outdir,
-      verbosity = x@verbosity,
-      progress = progress
+      verbosity = x@verbosity
     )
     # `positive_class` is handled via `...` (not a formal arg) and aborts if
     # passed as NULL, so include it only when set.
@@ -319,8 +297,7 @@ train <- function(
       execution_config = x@execution_config,
       question = x@question,
       outdir = x@outdir,
-      verbosity = x@verbosity,
-      progress = progress
+      verbosity = x@verbosity
     )
     # `positive_class` is handled via `...` (not a formal arg) and aborts if
     # passed as NULL, so include it only when set.
@@ -662,8 +639,6 @@ train <- function(
       seeds = rng_substreams(execution_config@seed, n_outer),
       label = "Outer resamples",
       kind = "outer_resampling",
-      progress = progress,
-      stage = "outer_fold",
       stop_on_error = !identical(on_error, "continue"),
       verbosity = verbosity
     )
@@ -1215,8 +1190,8 @@ train <- function(
 #' @details
 #' Built by a factory rather than inline in `train()` because serializing a closure walks
 #' its enclosing environments: a body defined in `train()`'s frame would ship that entire
-#' frame to every worker, including the `progress` callback, which may hold an open socket
-#' and need not be serializable at all. This frame holds only what a fold actually needs.
+#' frame to every worker -- every dataset, config and intermediate it happens to hold.
+#' This frame holds only what a fold actually needs.
 #'
 #' `live[["fold"]]` marks the call as a fold for the `train()` that runs inside it, which
 #' is how a fold in a daemon knows not to fingerprint its slice of the data, attach an

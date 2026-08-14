@@ -431,8 +431,8 @@ rng_set_substream <- function(stream) {
 #' Serializing a closure walks its enclosing environments, so the body is built here, in
 #' a factory whose frame holds only `X`, `FUN`, and `seeds` and whose parent is the
 #' \pkg{rtemis} namespace. Defining it inside `progress_plapply()` would ship that whole
-#' frame to every worker -- including the `progress` callback, which may hold an open
-#' socket and need not be serializable at all.
+#' frame to every worker -- the dispatcher's own bookkeeping, task handles and progress
+#' handle included, none of which a task needs and some of which cannot be serialized.
 #'
 #' Errors are captured and returned rather than raised, so every backend reports task
 #' failure the same way.
@@ -500,11 +500,6 @@ make_task_runner <- function(X, FUN, seeds) {
 #' `n_workers`, or completion order.
 #' @param label Character: Display label for the progress node.
 #' @param kind Character: Node kind forwarded in the sink envelope.
-#' @param progress Optional Function: Callback invoked as
-#' `progress(stage, current, total, message)`. Sequential runs fire it before each
-#' element; parallel runs fire it on each completion, with `current` counting completed
-#' tasks and `message` naming the tasks still in flight.
-#' @param stage Character: `stage` value passed to `progress`.
 #' @param stop_on_error Logical: If TRUE, re-raise the first task failure instead of
 #' returning it, abandoning any tasks still in flight.
 #' @param verbosity Integer: Verbosity level.
@@ -524,8 +519,6 @@ progress_plapply <- function(
   seeds = NULL,
   label = "Processing",
   kind = "progress",
-  progress = NULL,
-  stage = NULL,
   stop_on_error = FALSE,
   verbosity = 1L
 ) {
@@ -544,15 +537,10 @@ progress_plapply <- function(
       class = c("rtemis_length_error", "rtemis_input_error")
     )
   }
-  if (!is.null(progress) && !is.function(progress)) {
-    rtemis.core::abort(
-      "`progress` must be a function or NULL.",
-      class = c("rtemis_type_error", "rtemis_input_error")
-    )
-  }
-  if (is.null(stage)) {
-    stage <- kind
-  }
+  # The execution-graph node this loop runs inside, so its progress events graft onto
+  # the graph rather than reporting as a second root. Read once, here: the stack top
+  # moves as the loop body enters nodes of its own.
+  parent_node <- session_current_node()
   n <- length(X)
   if (n == 0L) {
     return(list())
@@ -583,25 +571,6 @@ progress_plapply <- function(
   # Task body ----
   run_one <- make_task_runner(X, FUN, seeds)
 
-  # Progress callback ----
-  # Errors raised by the callback are swallowed: a broken sink must not interrupt the
-  # work it is only reporting on.
-  notify <- function(current, message) {
-    if (is.null(progress)) {
-      return(invisible(NULL))
-    }
-    tryCatch(
-      progress(
-        stage = stage,
-        current = current,
-        total = n,
-        message = message
-      ),
-      error = function(e) NULL
-    )
-    invisible(NULL)
-  }
-
   # Execution ----
   # Wrapped so a seeded run leaves the caller's RNG exactly as it found it: the run's
   # randomness comes entirely from its own substreams, which means calling the same
@@ -613,7 +582,6 @@ progress_plapply <- function(
       out <- progress_lapply(
         seq_len(n),
         function(.index, ...) {
-          notify(.index, paste0(label, " ", .index, "/", n))
           res <- run_one(.index, ...)
           if (stop_on_error && inherits(res, "condition")) {
             stop(res)
@@ -623,6 +591,7 @@ progress_plapply <- function(
         ...,
         label = label,
         kind = kind,
+        parent_id = parent_node,
         verbosity = verbosity,
         package = "rtemis"
       )
@@ -753,6 +722,7 @@ progress_plapply <- function(
       n,
       label = label,
       kind = kind,
+      parent_id = parent_node,
       verbosity = verbosity,
       package = "rtemis"
     )
@@ -777,22 +747,6 @@ progress_plapply <- function(
         handle,
         current = n_done,
         label = running_label(label, running)
-      )
-      notify(
-        n_done,
-        paste0(
-          label,
-          " ",
-          n_done,
-          "/",
-          n,
-          " complete",
-          if (length(running)) {
-            paste0("; running ", format_task_ids(running))
-          } else {
-            ""
-          }
-        )
       )
     }
     drained <- TRUE

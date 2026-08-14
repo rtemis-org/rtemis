@@ -373,42 +373,56 @@ testthat::test_that("fold sub-models carry no run-level state", {
   expect_false(is.null(mod@data_fingerprint))
 })
 
-testthat::test_that("the progress callback reports monotonic completions", {
+testthat::test_that("the progress sink reports monotonic fold completions", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
+  op <- options(rtemis.progress_throttle = 0)
+  on.exit(options(op), add = TRUE)
   seen <- list()
-  callback <- function(stage, current, total, message) {
-    seen[[length(seen) + 1L]] <<- list(
-      stage = stage,
-      current = current,
-      total = total
-    )
-  }
-  invisible(train(
-    parallel_dat,
-    hyperparameters = setup_CART(),
-    outer_resampling_config = parallel_resampler,
-    execution_config = setup_ExecutionConfig(
-      backend = "mirai",
-      n_workers = 2L,
-      seed = 2026L
-    ),
-    progress = callback,
-    verbosity = 0L
-  ))
+  rtemis.core::with_msg_sink(
+    function(m) {
+      if (identical(m[["kind"]], "outer_resampling")) {
+        seen[[length(seen) + 1L]] <<- m
+      }
+    },
+    invisible(train(
+      parallel_dat,
+      hyperparameters = setup_CART(),
+      outer_resampling_config = parallel_resampler,
+      execution_config = setup_ExecutionConfig(
+        backend = "mirai",
+        n_workers = 2L,
+        seed = 2026L
+      ),
+      # Sink events fire regardless of verbosity - it gates the console
+      # renderer only, so a silent run still streams to rtemis.server.
+      verbosity = 0L
+    ))
+  )
   expect_gt(length(seen), 0L)
   expect_true(all(vapply(
     seen,
-    function(s) identical(s[["stage"]], "outer_fold"),
+    function(m) identical(m[["level"]], "progress"),
     logical(1L)
   )))
-  expect_true(all(vapply(seen, function(s) s[["total"]] == 4L, logical(1L))))
+  expect_true(all(vapply(seen, function(m) m[["total"]] == 4L, logical(1L))))
+  expect_true(all(vapply(
+    seen,
+    function(m) {
+      identical(m[["label"]], "Outer resamples") ||
+        startsWith(m[["label"]], "Outer resamples [")
+    },
+    logical(1L)
+  )))
   # Folds finish out of order, so the count must never go backwards.
   expect_false(is.unsorted(vapply(
     seen,
-    function(s) as.numeric(s[["current"]]),
+    function(m) as.numeric(m[["current"]]),
     numeric(1L)
   )))
+  statuses <- vapply(seen, function(m) m[["status"]], character(1L))
+  expect_identical(statuses[[1L]], "start")
+  expect_identical(statuses[[length(statuses)]], "done")
   expect_identical(as.numeric(seen[[length(seen)]][["current"]]), 4)
 })
 
