@@ -14,16 +14,17 @@ preprocess(
 )
 }
 \arguments{
-\item{x}{data.frame or data.table: Training set data to preprocess.}
+\item{x}{Tabular data, i.e. data.frame, data.table, or tbl_df (tibble):
+Training set data to preprocess.}
 
 \item{config}{\code{PreprocessorConfig}: Preprocessing configuration created by
 \link{setup_Preprocessor}. May be omitted, in which case \link{setup_Preprocessor} arguments are
 passed directly via \code{...}.}
 
-\item{dat_validation}{Optional data.frame or data.table: Validation set data. Preprocessed
+\item{dat_validation}{Optional tabular data: Validation set data. Preprocessed
 using the values learned from the training set data.}
 
-\item{dat_test}{Optional data.frame or data.table: Test set data. Preprocessed using the
+\item{dat_test}{Optional tabular data: Test set data. Preprocessed using the
 values learned from the training set data.}
 
 \item{verbosity}{Integer: Verbosity level.}
@@ -45,6 +46,11 @@ preprocessed using the values learned from the training data. To apply a trained
 For interactive use, \code{config} may be omitted and \link{setup_Preprocessor} arguments passed
 directly instead, e.g. \code{preprocess(x, scale = TRUE, center = TRUE)}. At least one
 preprocessing parameter must be specified: \code{preprocess(x)} is an error.
+
+The preprocessed data comes back in the structure it was given -- data.frame,
+data.table or tibble -- and the object passed in is never modified. It carries
+no row names: a case identifier that matters belongs in a column, where it can
+be selected, joined, validated and serialized.
 }
 \examples{
 # Setup a `Preprocessor`: this outputs a `PreprocessorConfig` object.

@@ -44,6 +44,7 @@ setup_Preprocessor(
   add_date_features = FALSE,
   date_features = c("weekday", "month", "year"),
   add_holidays = FALSE,
+  holidays = c("USLaborDay", "NewYearsDay", "ChristmasDay"),
   exclude = NULL
 )
 }
@@ -104,15 +105,18 @@ binning using \code{base::cut} with \code{breaks} equal to this number.}
 
 \item{numeric_cut_labels}{Logical: The \code{labels} argument of \link[base:cut]{base::cut}.}
 
-\item{numeric_quant_n}{Integer [0, Inf): If > 0, convert all numeric variables to factors by
-binning using \code{base::cut} with \code{breaks} equal to this number of quantiles.
-produced using \code{stats::quantile}.}
+\item{numeric_quant_n}{Integer [0, Inf): If > 0, convert all numeric
+variables to factors by binning using \code{base::cut} with \code{breaks} equal to
+this number of quantiles, produced using \code{stats::quantile}. 0 disables; 1
+is a single break, which bounds no bin, and is rejected.}
 
 \item{numeric_quant_NAonly}{Logical: If TRUE, only bin numeric variables with
 missing values.}
 
 \item{unique_len2factor}{Integer [0, Inf): Convert all variables with less
-than or equal to this number of unique values to factors. 0 disables.
+than or equal to this number of unique values to factors. 0 and 1 both
+disable it: a feature with one unique value is a constant, which
+\code{remove_constants} covers.
 For example, if binary variables are encoded with 1, 2, you could use
 \code{unique_len2factor = 2} to convert them to factors.}
 
@@ -168,6 +172,11 @@ Features to extract from dates.}
 
 \item{add_holidays}{Logical: If TRUE, extract holidays from date columns.}
 
+\item{holidays}{Character vector: Holidays to flag when \code{add_holidays} is
+TRUE, named as timeDate holiday functions, e.g. "USLaborDay",
+"ChristmasDay". See \code{timeDate::listHolidays()} for the valid names. Note
+that unprefixed names are not US holidays: "LaborDay" is May 1.}
+
 \item{exclude}{Optional Integer vector: Exclude these columns from preprocessing.}
 }
 \value{
@@ -178,27 +187,44 @@ Creates a \code{PreprocessorConfig} object, which can be used in \link{preproces
 }
 \section{Order of Operations}{
 
+
+Steps run in this order, and the order is part of what each one does:
+\code{remove_constants} runs before the quantile cut because a constant has no
+quantiles, \code{factorNA2missing} before \code{impute} so that missing values in a
+categorical feature become a level rather than a mode, and \code{one_hot} last
+among the encoders so that it sees every factor the earlier steps created.
+
+Feature \emph{creation} precedes feature \emph{transformation}: \code{add_date_features} and
+\code{add_holidays} run ahead of the conversions, so the weekday, month and
+holiday factors they derive are encoded and the year is scaled exactly as any
+column of the input would be. They run after the case and feature filters,
+which judge the data as it was given.
 \itemize{
 \item keep complete cases only
+\item set aside excluded columns
+\item remove named features
 \item remove constants
 \item remove duplicates
 \item remove cases by missingness threshold
 \item remove features by missingness threshold
+\item add date features
+\item add holidays
 \item integer to factor
-\item integer to numeric
 \item logical to factor
-\item logical to numeric
 \item numeric to factor
+\item character to factor
+\item features with <= N unique values to factor
+\item integer to numeric
+\item logical to numeric
 \item cut numeric to n bins
 \item cut numeric to n quantiles
-\item numeric with less than N unique values to factor
-\item character to factor
 \item factor NA to named level
 \item factor to integer
 \item add missingness column
 \item impute
 \item scale and/or center
 \item one-hot encoding
+\item re-add excluded columns, after the preprocessed ones
 }
 }
 

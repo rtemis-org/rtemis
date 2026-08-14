@@ -184,6 +184,419 @@ test_that("remove_constants leaves a single surviving column a frame", {
 })
 
 
+test_that("remove_features_thres leaves a single surviving column a frame", {
+  x <- data.frame(k = c(NA_real_, NA_real_, NA_real_), a = c(1.5, 2.5, 3.5))
+  out <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(remove_features_thres = 0.5),
+    verbosity = 0L
+  ))
+  expect_s3_class(out, "data.frame")
+  expect_identical(names(out), "a")
+  expect_identical(out[["a"]], x[["a"]])
+})
+
+
+# %% The conversion boundary ----
+# `preprocess()` runs on a data.table and restores the caller's structure at
+# exit. These pin both halves: what goes in comes back out as itself, and the
+# caller's own object is never written through -- which a data.table, alone
+# among the three, would be by an unguarded `set()`.
+
+pre_fixture <- data.frame(
+  num = c(1.5, NA, 3.5, 4.5, 5.5, 3.5),
+  int = c(10L, 20L, 30L, NA, 20L, 30L),
+  lgl = c(TRUE, FALSE, NA, TRUE, FALSE, NA),
+  chr = c("p", "q", "r", NA, "q", "r"),
+  fct = factor(c("a", "b", "c", "a", NA, "c"), levels = c("a", "b", "c")),
+  konst = rep(7, 6L),
+  stringsAsFactors = FALSE
+)
+
+pre_full_config <- function() {
+  setup_Preprocessor(
+    remove_constants = TRUE,
+    character2factor = TRUE,
+    logical2factor = TRUE,
+    factorNA2missing = TRUE,
+    missingness = TRUE,
+    impute = TRUE,
+    impute_type = "meanMode",
+    scale = TRUE,
+    center = TRUE,
+    one_hot = TRUE
+  )
+}
+
+
+test_that("preprocess returns the structure it was given", {
+  as_frame <- preprocessed(preprocess(
+    pre_fixture,
+    pre_full_config(),
+    verbosity = 0L
+  ))
+  expect_s3_class(as_frame, "data.frame")
+  expect_false(data.table::is.data.table(as_frame))
+
+  as_table <- preprocessed(preprocess(
+    data.table::as.data.table(pre_fixture),
+    pre_full_config(),
+    verbosity = 0L
+  ))
+  expect_s3_class(as_table, "data.table")
+
+  # One pipeline, three structures: the values cannot depend on which one the
+  # caller happened to hold the data in.
+  expect_equal(as.data.frame(as_table), as_frame)
+
+  skip_if_not_installed("tibble")
+  # A tibble used to come back a data.frame, the one class change the old
+  # data.frame-internal pipeline could not undo.
+  as_tibble <- preprocessed(preprocess(
+    tibble::as_tibble(pre_fixture),
+    pre_full_config(),
+    verbosity = 0L
+  ))
+  expect_s3_class(as_tibble, "tbl_df")
+  expect_equal(as.data.frame(as_tibble), as_frame)
+})
+
+
+test_that("preprocess leaves the caller's object alone", {
+  # A data.table is the one that can actually be written through: `set()` and
+  # `:=` bypass copy-on-modify, so the entry copy is what stops
+  # `preprocess(dt, ...)` from rewriting the caller's table.
+  dt <- data.table::as.data.table(pre_fixture)
+  dt_before <- data.table::copy(dt)
+  invisible(preprocess(dt, pre_full_config(), verbosity = 0L))
+  expect_identical(dt, dt_before)
+
+  df <- pre_fixture
+  df_before <- pre_fixture
+  invisible(preprocess(df, pre_full_config(), verbosity = 0L))
+  expect_identical(df, df_before)
+
+  skip_if_not_installed("tibble")
+  tb <- tibble::as_tibble(pre_fixture)
+  tb_before <- tibble::as_tibble(pre_fixture)
+  invisible(preprocess(tb, pre_full_config(), verbosity = 0L))
+  expect_identical(tb, tb_before)
+})
+
+
+test_that("preprocess output carries no row names", {
+  # Row names carry no data a run record can report: a case identifier that
+  # matters belongs in a column. They are dropped for every structure and every
+  # configuration, rather than surviving wherever no step rebuilt the frame.
+  x <- pre_fixture
+  rownames(x) <- paste0("case_", seq_len(nrow(x)))
+  expect_identical(
+    rownames(preprocessed(preprocess(
+      x,
+      setup_Preprocessor(scale = TRUE, center = TRUE),
+      verbosity = 0L
+    ))),
+    as.character(seq_len(nrow(x)))
+  )
+  filtered <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(complete_cases = TRUE),
+    verbosity = 0L
+  ))
+  expect_identical(nrow(filtered), sum(complete.cases(x)))
+  expect_identical(rownames(filtered), as.character(seq_len(nrow(filtered))))
+})
+
+
+test_that("imputation widens a column rather than truncating into it", {
+  # A partial data.table assignment coerces the value into the column's
+  # existing type, so a mean imputed into an integer column would land as a
+  # truncated integer with a warning. Whole columns are replaced instead.
+  x <- data.frame(i = c(1L, 2L, 10L, NA))
+  out <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(
+      impute = TRUE,
+      impute_type = "meanMode",
+      impute_discrete = "mean"
+    ),
+    verbosity = 0L
+  ))
+  expect_type(out[["i"]], "double")
+  expect_equal(out[["i"]], c(1, 2, 10, 13 / 3))
+})
+
+
+test_that("excluded columns skip every step and are appended at the end", {
+  x <- data.frame(
+    a = c(1.5, 2.5, 3.5, 4.5),
+    id = c("w", "x", "y", "z"),
+    b = c(10, 20, 30, 40),
+    stringsAsFactors = FALSE
+  )
+  out <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(exclude = 2L, scale = TRUE, center = TRUE),
+    verbosity = 0L
+  ))
+  # `id` held position 2 on entry and comes back last, untouched.
+  expect_identical(names(out), c("a", "b", "id"))
+  expect_identical(out[["id"]], x[["id"]])
+  expect_equal(mean(out[["a"]]), 0)
+
+  # An excluded column has to be filtered by every case-removing step, whether
+  # or not that step removed anything. Both of these used to error: one
+  # subscripted the excluded columns with `-integer(0)`, emptying them; the
+  # other read a case index that is only created when the data has NAs.
+  no_dups <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(exclude = 2L, remove_duplicates = TRUE),
+    verbosity = 0L
+  ))
+  expect_identical(no_dups[["id"]], x[["id"]])
+
+  no_nas <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(exclude = 2L, remove_cases_thres = 0.5),
+    verbosity = 0L
+  ))
+  expect_identical(no_nas[["id"]], x[["id"]])
+
+  dups <- data.frame(
+    a = c(1.5, 1.5, 3.5),
+    id = c("w", "x", "y"),
+    stringsAsFactors = FALSE
+  )
+  deduped <- preprocessed(preprocess(
+    dups,
+    setup_Preprocessor(exclude = 2L, remove_duplicates = TRUE),
+    verbosity = 0L
+  ))
+  expect_identical(deduped[["a"]], c(1.5, 3.5))
+  expect_identical(deduped[["id"]], c("w", "y"))
+})
+
+
+test_that("an excluded column that a step would shadow is an error", {
+  # `missingness` coins `<feature>_missing`; appending an excluded column of
+  # that name over it would drop the indicator without saying so.
+  x <- data.frame(
+    a = c(1.5, NA, 3.5),
+    a_missing = c("p", "q", "r"),
+    stringsAsFactors = FALSE
+  )
+  expect_error(
+    preprocess(
+      x,
+      setup_Preprocessor(exclude = 2L, missingness = TRUE),
+      verbosity = 0L
+    ),
+    class = "rtemis_data_error"
+  )
+})
+
+
+test_that("a step that removes every column is an error", {
+  x <- data.frame(a = c(1.5, 2.5), b = c(3.5, 4.5))
+  expect_error(
+    preprocess(
+      x,
+      setup_Preprocessor(exclude = c(1L, 2L)),
+      verbosity = 0L
+    ),
+    class = "rtemis_input_error"
+  )
+  expect_error(
+    preprocess(
+      x,
+      setup_Preprocessor(remove_features = c("a", "b")),
+      verbosity = 0L
+    ),
+    class = "rtemis_input_error"
+  )
+})
+
+
+test_that("numeric_quant_n bins numeric features into quantiles", {
+  x <- data.frame(
+    a = c(1, 2, 3, 4, 5, 6, 7, 8),
+    b = c(1, 2, NA, 4, 5, 6, 7, 8)
+  )
+  out <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(numeric_quant_n = 3L),
+    verbosity = 0L
+  ))
+  expect_s3_class(out[["a"]], "factor")
+  expect_s3_class(out[["b"]], "factor")
+
+  # `numeric_quant_NAonly` restricts it to the features that have NAs.
+  out_na <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(numeric_quant_n = 3L, numeric_quant_NAonly = TRUE),
+    verbosity = 0L
+  ))
+  expect_identical(out_na[["a"]], x[["a"]])
+  expect_s3_class(out_na[["b"]], "factor")
+
+  # One quantile is one break, which bounds no bin. Rejected where it is
+  # supplied, rather than reaching `cut()` as "invalid number of intervals".
+  expect_error(
+    setup_Preprocessor(numeric_quant_n = 1L),
+    class = "rtemis_input_error"
+  )
+  expect_identical(setup_Preprocessor(numeric_quant_n = 0L)@numeric_quant_n, 0L)
+})
+
+
+test_that("integer2numeric reads the data as it stands", {
+  x <- data.frame(i = c(10L, 20L, 30L), a = c(1.5, 2.5, 3.5))
+  expect_identical(
+    preprocessed(preprocess(
+      x,
+      setup_Preprocessor(integer2numeric = TRUE),
+      verbosity = 0L
+    ))[["i"]],
+    c(10, 20, 30)
+  )
+  # `integer2factor` leaves nothing integer behind, so `integer2numeric` has
+  # nothing to do -- rather than converting the new factor to its level codes,
+  # which replaced the values with 1, 2, 3.
+  out_both <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(integer2factor = TRUE, integer2numeric = TRUE),
+    verbosity = 0L
+  ))
+  expect_s3_class(out_both[["i"]], "factor")
+  expect_identical(levels(out_both[["i"]]), c("10", "20", "30"))
+})
+
+
+test_that("derived date features are transformed like any other column", {
+  skip_if_not_installed("timeDate")
+  x <- data.frame(
+    d = as.Date(c("2024-01-01", "2024-06-06", "2025-12-25", "2025-03-04")),
+    v = c(1.5, 2.5, 3.5, 4.5)
+  )
+  # Date features are created before the conversions, not appended after them,
+  # so the factors they derive are encoded and the year is scaled. Appended
+  # last, weekday and month came back as the only factors a one-hot frame
+  # did not encode, and the year as the only numeric scale did not touch.
+  out <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(
+      add_date_features = TRUE,
+      add_holidays = TRUE,
+      one_hot = TRUE,
+      scale = TRUE,
+      center = TRUE
+    ),
+    verbosity = 0L
+  ))
+  expect_false(any(vapply(out, is.factor, logical(1L))))
+  expect_true(all(c("d_weekday_Monday", "d_month_January") %in% names(out)))
+  expect_equal(mean(out[["d_year"]]), 0)
+  expect_equal(sd(out[["d_year"]]), 1)
+
+  # `factor2integer` reaches them too, which is what the LightGBM family reads.
+  coded <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(add_date_features = TRUE, factor2integer = TRUE),
+    verbosity = 0L
+  ))
+  expect_type(coded[["d_weekday"]], "integer")
+  expect_type(coded[["d_month"]], "integer")
+})
+
+
+test_that("add_holidays flags the holidays in a date column", {
+  skip_if_not_installed("timeDate")
+  x <- data.frame(
+    d = as.Date(c("2024-01-01", "2024-06-06", "2024-12-25")),
+    v = c(1.5, 2.5, 3.5)
+  )
+  out <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(add_holidays = TRUE),
+    verbosity = 0L
+  ))
+  expect_identical(names(out), c("d", "v", "d_holidays"))
+  expect_identical(
+    as.character(out[["d_holidays"]]),
+    c("Holiday", "Not Holiday", "Holiday")
+  )
+})
+
+
+test_that("holidays selects which holidays are flagged", {
+  skip_if_not_installed("timeDate")
+  x <- data.frame(
+    d = as.Date(c("2024-09-02", "2024-05-01", "2024-11-28")),
+    v = c(1.5, 2.5, 3.5)
+  )
+  # US Labor Day is the first Monday of September; the unprefixed "LaborDay" is
+  # May 1, so the two sets flag different rows.
+  us <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(add_holidays = TRUE, holidays = "USLaborDay"),
+    verbosity = 0L
+  ))
+  expect_identical(
+    as.character(us[["d_holidays"]]),
+    c("Holiday", "Not Holiday", "Not Holiday")
+  )
+  intl <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(add_holidays = TRUE, holidays = "LaborDay"),
+    verbosity = 0L
+  ))
+  expect_identical(
+    as.character(intl[["d_holidays"]]),
+    c("Not Holiday", "Holiday", "Not Holiday")
+  )
+  thanks <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(add_holidays = TRUE, holidays = "USThanksgivingDay"),
+    verbosity = 0L
+  ))
+  expect_identical(
+    as.character(thanks[["d_holidays"]]),
+    c("Not Holiday", "Not Holiday", "Holiday")
+  )
+})
+
+
+test_that("an unknown holiday name is rejected", {
+  skip_if_not_installed("timeDate")
+  x <- data.frame(d = as.Date("2024-09-02"), v = 1.5)
+  expect_error(
+    preprocess(
+      x,
+      setup_Preprocessor(add_holidays = TRUE, holidays = "NotAHoliday"),
+      verbosity = 0L
+    )
+  )
+})
+
+
+test_that("add_holidays leaves a missing date unlabeled", {
+  skip_if_not_installed("timeDate")
+  x <- data.frame(
+    d = as.Date(c("2024-01-01", NA, "2024-06-06")),
+    v = c(1.5, 2.5, 3.5)
+  )
+  out <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(add_holidays = TRUE),
+    verbosity = 0L
+  ))
+  expect_identical(
+    as.character(out[["d_holidays"]]),
+    c("Holiday", NA, "Not Holiday")
+  )
+})
+
+
 oh_mixed <- data.frame(
   age = c(30L, 40L, 50L, 60L),
   grp = factor(c("a", "b", "c", "a"), levels = c("a", "b", "c")),

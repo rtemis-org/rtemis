@@ -43,41 +43,62 @@ dates2features <- function(
 #' Get holidays from date vector
 #'
 #' @param dates Date vector
-#' @param holidays Character vector: holidays to extract
+#' @param holidays Character vector: holidays to extract, named as timeDate
+#' holiday functions. See `timeDate::listHolidays()` for the valid names.
 #'
-#' @return Factor of length `length(dates)` with levels "Not Holiday", "Holiday"
+#' @return Factor of length `length(dates)` with levels "Not Holiday",
+#' "Holiday", and `NA` wherever `dates` is `NA`.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 get_holidays <- function(
   dates,
-  holidays = c("LaborDay", "NewYearsDay", "ChristmasDay")
+  holidays = c("USLaborDay", "NewYearsDay", "ChristmasDay")
 ) {
-  # Get years from dates
-  years <- unique(data.table::year(dates))
-  # Get all holidays in all years
-  .holidays <- do.call(
-    "c",
-    lapply(years, function(year) {
-      do.call(
-        "c",
-        lapply(holidays, function(holiday) {
-          timeDate::as.Date.timeDate(timeDate::holiday(
-            year = year,
-            Holiday = holiday
-          ))
-        })
-      )
-    })
-  )
-  # Return intersection of dates and holidays
+  check_dependencies("timeDate")
+  # `check_enum()` tests a scalar, and `holidays` is a vector. Reporting every
+  # unknown name at once saves a round trip per typo.
+  unknown <- setdiff(holidays, timeDate::listHolidays())
+  if (length(unknown) > 0L) {
+    rtemis.core::abort(
+      ngettext(length(unknown), "Unknown holiday: ", "Unknown holidays: "),
+      paste(unknown, collapse = ", "),
+      ".\nSee `timeDate::listHolidays()` for the valid names.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
   holidays_fct <- factor(
     rep(0, length(dates)),
     levels = c(0, 1),
     labels = c("Not Holiday", "Holiday")
   )
-  holidays_fct[dates %in% .holidays] <- "Holiday"
+  # A missing date has no holiday status, matching the NA that `weekdays()`,
+  # `months()` and `year()` return for it in `dates2features()`. Missing dates
+  # are also kept out of `years`, because `timeDate`'s holiday functions answer
+  # an NA year with an NA date rather than an error, and `match()` pairs NA with
+  # NA -- so an NA left in either vector reports every missing date as a
+  # holiday.
+  known <- !is.na(dates)
+  holidays_fct[!known] <- NA
+  years <- unique(data.table::year(dates[known]))
+  if (length(years) == 0L) {
+    return(holidays_fct)
+  }
+  # Each holiday is looked up as a function object rather than passed to
+  # `timeDate::holiday()` by name: that resolves a character `Holiday` with
+  # `match.fun()` against *this* frame, which sees the rtemis namespace and not
+  # timeDate's exports.
+  .holidays <- do.call(
+    "c",
+    lapply(holidays, function(holiday) {
+      timeDate::as.Date.timeDate(
+        getExportedValue("timeDate", holiday)(year = years)
+      )
+    })
+  )
+  # Return intersection of dates and holidays
+  holidays_fct[known & dates %in% .holidays] <- "Holiday"
   holidays_fct
 } # /rtemis::get_holidays
 
