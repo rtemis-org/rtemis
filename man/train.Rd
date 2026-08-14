@@ -66,18 +66,20 @@ resampling fold boundary as
 \code{progress(stage, current, total, message)}:
 \describe{
 \item{\code{stage}}{Character. Currently \code{"outer_fold"}.}
-\item{\code{current}}{Integer. 1-based index of the fold about to run.}
+\item{\code{current}}{Integer. Sequentially, the 1-based index of the fold
+about to run; in parallel, the number of folds completed so far.}
 \item{\code{total}}{Integer. Total number of outer folds.}
-\item{\code{message}}{Character. Human-readable line, e.g.
-\code{"Outer fold 2/5"}.}
+\item{\code{message}}{Character. Human-readable line: \code{"Outer resamples 2/5"}
+sequentially, and \code{"Outer resamples 4/10 complete; running 5, 6, 7"}
+in parallel, where folds finish out of order.}
 }
-When \code{NULL}, outer folds run through
-\code{\link[rtemis.core:progress_lapply]{rtemis.core::progress_lapply()}}, which renders the interactive
-status line and emits structured progress envelopes when a message
-sink is set (see \code{\link[rtemis.core:set_msg_sink]{rtemis.core::set_msg_sink()}}). Designed for
-non-interactive callers (e.g. \code{rtemis.server}) that need to forward
-fold progress over a wire protocol; errors raised by the callback are
-swallowed so a broken sink cannot interrupt training.}
+Supplying a callback does not change how folds are dispatched; whether
+they run in parallel is decided by \code{execution_config} alone.
+The interactive status line and the structured progress envelopes sent to
+a message sink (see \code{\link[rtemis.core:set_msg_sink]{rtemis.core::set_msg_sink()}}) are emitted either way.
+Designed for non-interactive callers (e.g. \code{rtemis.server}) that need to
+forward fold progress over a wire protocol; errors raised by the callback
+are swallowed so a broken sink cannot interrupt training.}
 
 \item{...}{Not used.}
 }
@@ -146,17 +148,26 @@ e.g.
 There are three levels of parallelization that may be used during training:
 \enumerate{
 \item Algorithm training (e.g. a parallelized learner like LightGBM)
-\item Tuning (inner resampling, where multiple resamples can be processed in parallel)
+\item Tuning (where the full hyperparameter combination x inner resample cross product is
+processed in parallel, not just the resamples)
 \item Outer resampling (where multiple outer resamples can be processed in parallel)
 }
 
-The \code{train()} function will automatically manage parallelization depending
-on:
-\itemize{
-\item The number of workers specified by the user using \code{n_workers}
-\item Whether the training algorithm supports parallelization itself
-\item Whether hyperparameter tuning is needed
-}
+\code{train()} assigns all workers to exactly one of these levels, so that no two levels
+compete for the same cores. The level is chosen by the first of these that applies:
+the algorithm parallelizes itself, tuning is needed, outer resampling is set. A run
+that needs none of them is sequential.
+
+The workers, backend, and future plan all come from \code{execution_config}; see
+\link{setup_ExecutionConfig}.
+
+\strong{Reproducibility under parallelization}
+
+\code{execution_config} carries the master seed for the run's computation RNG, from which
+one independent substream per outer resample is derived and assigned by fold index.
+Results therefore do not depend on the backend, the number of workers, or the order
+folds happened to finish in: a parallel run reproduces its sequential counterpart
+exactly.
 }
 \examples{
 \donttest{

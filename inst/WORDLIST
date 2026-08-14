@@ -10,6 +10,7 @@ CLI
 CMD
 CMeansConfig
 ClusterConfig
+CMRG
 ConditionalSuperLearner
 ConditionalSuperLearnerHyperparameters
 DBSCAN's
@@ -44,6 +45,7 @@ KMeansConfig
 KNN
 KNNHyperparameters
 KernelSHAP
+L'Ecuyer
 LOOCV
 Laan
 LightCART
@@ -61,6 +63,7 @@ LinearSVMHyperparameters
 MARSHyperparameters
 MIDPT
 MLP
+mori
 MPL
 MLPHyperparameters
 MLPs
@@ -114,6 +117,9 @@ Spectrogram
 Stata
 StratBoot
 StratSub
+substream
+Substreams
+substreams
 SuperConfig
 SuperConfigLive
 SuperLearner
@@ -276,6 +282,7 @@ pls
 pmm
 png
 poisson
+polars
 preprocess
 preprocesses
 preprocessor
