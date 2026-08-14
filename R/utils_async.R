@@ -15,15 +15,6 @@ ALLOWED_PLANS <- c(
 )
 
 
-#' Check if system is Windows
-#'
-#' @return Logical: TRUE if Windows, FALSE otherwise
-#' @noRd
-is_windows <- function() {
-  tolower(Sys.info()[["sysname"]]) == "windows"
-} # /is_windows
-
-
 #' Identify future plan
 #'
 #' @return Character: Name of current plan
@@ -51,14 +42,17 @@ identify_plan <- function(x = NULL) {
 
 #' Set preferred plan
 #'
-#' Sets the future plan according to system and user preference:
-#' - Check whether a plan has been set by the user
-#' - Check whether there is an option set for future plan
-#' - Check available cores
-#' - Check if Windows
+#' Sets the future plan, in order of precedence:
+#' - A plan named by the caller is set as asked.
+#' - A non-sequential plan already in place is assumed to be the user's and is respected.
+#' - Otherwise the plan is `sequential` for one worker and `multisession` for more.
+#'
+#' The plan is scoped to `envir` and unwinds with it.
 #'
 #' @param requested_plan Optional character: Requested plan, one of "multicore", "multisession", "sequential".
 #' @param n_workers Optional integer: Number of workers to use.
+#' @param envir Environment: Frame the plan is scoped to.
+#' @param verbosity Integer: Verbosity level.
 #'
 #' @return Character: Name of plan set
 #'
@@ -115,8 +109,7 @@ set_preferred_plan <- function(
   }
   # If the plan is sequential, we can't currently tell if it was set by the user or is default
   # -> Ideally, we would know this. <-
-  # We therefore proceed to set our preferred plan based on OS, n available cores, and requested
-  # n workers.
+  # We therefore proceed to set our preferred plan based on the requested n workers.
   # If n_workers was set to 1 and no requested_plan was defined, use sequential
   if (!is.null(n_workers) && n_workers == 1L) {
     with(
@@ -127,18 +120,22 @@ set_preferred_plan <- function(
     return("sequential")
   }
 
-  if (is_windows()) {
-    # On Windows, multicore is not available
-    preferred_plan <- "multisession"
-  } else {
-    preferred_plan <- "multicore"
-  }
+  # `multisession` on every platform, rather than forking where forking is available.
+  # Forking is only safe in a process with one thread and nothing open across the boundary,
+  # which a loaded R session -- threaded BLAS, graphics devices, event loops, connections --
+  # frequently is not; R's own documentation restricts `mcparallel()` on those grounds. The
+  # failure is not graceful: a child can die at the fork, which surfaces as a task that
+  # resolves instantly and comes back a `FutureInterruptError`, and it is load-dependent
+  # enough to look intermittent. This branch is reached precisely because no plan was
+  # requested, so it picks the one that works everywhere; `setup_ExecutionConfig()` defaults
+  # the same way, and `"multicore"` stays available to anyone who asks for it by name.
   with(
-    future::plan(strategy = preferred_plan, workers = n_workers),
+    future::plan(strategy = "multisession", workers = n_workers),
     local = TRUE,
     envir = envir
   )
-  # This will still be sequential and not "preferred_plan" if n_workers = 1
+  # `future` resolves to a sequential plan when this leaves it a single worker, so report
+  # the plan that was actually set rather than the one asked for.
   identify_plan()
 } # /set_preferred_plan
 

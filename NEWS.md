@@ -5,6 +5,7 @@
 - New `setup_ExecutionConfig(shared_memory = )` \{"none", "auto", "always"\}: hand workers the training data through shared memory ('mori') instead of serializing a copy per task. A 96 x 5 grid over a 19 MB training set transfers 9 GB without it. `"auto"` shares when workers are local and the payload is large enough, `"always"` errors when it cannot. Off by default. 60 tuning tasks on 8 workers: 12.2s to 8.5s.
 - Tuning dispatches through the same path as outer resampling, so a grid search reproduces across `"none"`, `"future"` and `"mirai"` at any worker count. Grid cells take one RNG substream each, so tuning results change from 1.3.5 for algorithms that draw.
 - Tuning reports when no hyperparameter combination can be ranked, instead of leaving every tuned hyperparameter `NA` in silence and letting the algorithm fall back to its own default. Reached whenever the metric is undefined on any one inner resample: `balanced_accuracy` scores `NaN` on a fold missing a class, which happens whenever the rarest class has fewer cases than there are folds.
+- With `backend = "future"` and no `future_plan` given, the plan is now `"multisession"` on every platform, not `"multicore"` where forking is available. Forking a loaded R session is unsafe and fails as tasks resolving instantly and returning `FutureInterruptError`. `future_plan = "multicore"` still forks on request.
 - `futurize` and `future.apply` are no longer dependencies.
 
 ## 1.3.5

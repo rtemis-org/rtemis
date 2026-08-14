@@ -11,6 +11,7 @@
 progress_plapply <- getFromNamespace("progress_plapply", "rtemis")
 rng_substreams <- getFromNamespace("rng_substreams", "rtemis")
 with_preserved_rng <- getFromNamespace("with_preserved_rng", "rtemis")
+set_preferred_plan <- getFromNamespace("set_preferred_plan", "rtemis")
 
 # %% rng_substreams ----
 testthat::test_that("rng_substreams() derives distinct, deterministic streams", {
@@ -49,6 +50,27 @@ testthat::test_that("with_preserved_rng() restores kind and seed", {
   }))
   expect_identical(RNGkind(), before_kind)
   expect_identical(get(".Random.seed", envir = globalenv()), before_seed)
+})
+
+
+# %% set_preferred_plan ----
+testthat::test_that("an unrequested plan is never a forking one", {
+  testthat::skip_if_not_installed("future")
+  # Forking is only safe in a process that has stayed single-threaded, which a loaded R
+  # session need not be, so it is something a caller opts into by name rather than
+  # something picked for them.
+  # An already-set plan is respected rather than replaced, so reaching the fallback at all
+  # needs the ambient plan to be sequential.
+  old_plan <- future::plan("sequential")
+  on.exit(future::plan(old_plan), add = TRUE)
+  # One frame per call: the plan is scoped to the frame it is handed and unwinds with it,
+  # so calling twice in this frame would have the second call read the first one's plan
+  # back as a choice the user had made and respect it.
+  plan_for <- function(n) {
+    set_preferred_plan(n_workers = n, envir = environment(), verbosity = 0L)
+  }
+  expect_identical(plan_for(2L), "multisession")
+  expect_identical(plan_for(1L), "sequential")
 })
 
 
@@ -289,28 +311,20 @@ testthat::test_that("a parallel run yields the same execution graph", {
   )
 })
 
-# A forked worker inherits the host's `live` env, ambient session included, so "dispatched
-# in parallel" does not imply "no session in this process" the way it does for a socket
-# daemon. A fold body that relies on that implication nests into the inherited session and
-# brings home no sub-log, leaving fold nodes with nothing under them.
-testthat::test_that("forked outer folds yield the same execution graph", {
+# "Dispatched in parallel" does not imply "no session in this process": a forked worker
+# inherits the host's `live` env, ambient session included, and a `multicore` plan that
+# cannot fork runs the body on the host outright. A fold body that relies on that
+# implication nests into the reachable session, brings home no sub-log to graft, and leaves
+# a fold node the host then duplicates with its own.
+#
+# Disabling forking is what makes that condition reachable on demand: `future` runs the
+# plan in process, where the ambient session is unambiguously the host's. Actually forking
+# reaches the same fold-body branch, but only as far as the test process happens to be
+# fork-safe, which is not something a test can assert -- see `set_preferred_plan()`.
+testthat::test_that("a parallel fold never shares the host's session", {
   testthat::skip_on_cran()
   testthat::skip_on_os("windows") # multicore is unavailable there
   testthat::skip_if_not_installed("future")
-  expect_identical(
-    node_kinds(fit_folds("none", 1L)),
-    node_kinds(fit_folds("future", 2L, future_plan = "multicore"))
-  )
-})
-
-testthat::test_that("a multicore plan that cannot fork records each fold once", {
-  testthat::skip_on_cran()
-  testthat::skip_on_os("windows")
-  testthat::skip_if_not_installed("future")
-  # With forking disabled -- RStudio's default -- future runs a "multicore" plan in
-  # process, so the fold body executes on the host with the ambient session in reach while
-  # the host still synthesizes a node per fold. Sharing the session across both would
-  # record every outer fold twice.
   withr::local_options(future.fork.enable = FALSE)
   expect_identical(
     node_kinds(fit_folds("none", 1L)),
