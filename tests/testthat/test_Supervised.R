@@ -3662,6 +3662,30 @@ test_that("a record publishes a search space as the bare tag it reads back", {
   expect_identical(hp[["origin"]][["maxdepth"]], "user")
 })
 
+test_that("a fold's origins are paired against the run's input", {
+  # A fold sub-model stores no input of its own -- one record per `train()`
+  # call is the design -- so pairing it against `model@config` would compare it
+  # against nothing and report every value as `derived`: the search space that
+  # narrowed, and the value the user fixed, would read the same as one the data
+  # filled in.
+  mod <- train(
+    iris,
+    hyperparameters = setup_CART(maxdepth = tune_over(2L, 4L), minsplit = 4L),
+    outer_resampling_config = setup_Resampler(
+      n_resamples = 2L,
+      type = "KFold",
+      seed = 2026L
+    ),
+    verbosity = 0L
+  )
+  origin <- record(mod)[["folds"]][[1L]][["hyperparameters"]][[
+    "hyperparameters"
+  ]][["origin"]]
+  expect_identical(origin[["maxdepth"]], "tuned")
+  expect_identical(origin[["minsplit"]], "user")
+  expect_identical(origin[["cp"]], "default")
+})
+
 test_that("a record omits r_only values, which have no wire form", {
   # `CustomConfig@resamples` is `r_only`: case indices mean nothing away from
   # the dataset and row order they were drawn against. `S7_to_JSONSchema()`
