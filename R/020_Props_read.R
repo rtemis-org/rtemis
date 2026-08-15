@@ -378,7 +378,17 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
   leaf_enum <- if (is.null(leaf[["enum"]])) {
     NULL
   } else {
-    as.character(leaf[["enum"]])
+    # A nullable property lists `null` among its permitted values, `enum` being
+    # stricter than the type union and otherwise rejecting it. That membership
+    # is nullability, which `schema_is_nullable()` reads from the type -- so it
+    # is dropped here rather than coerced to the string "NULL". It arrives as a
+    # `NULL` element under `simplifyVector = FALSE` and as `NA` under the
+    # simplified parse; both mean the same thing here.
+    values <- Filter(
+      function(v) !is.null(v) && !is.na(v),
+      as.list(leaf[["enum"]])
+    )
+    as.character(unlist(values))
   }
   # `minItems` / `uniqueItems` sit on the array form, which for a broadcast
   # property is the trailing `oneOf` branch rather than `x` itself.

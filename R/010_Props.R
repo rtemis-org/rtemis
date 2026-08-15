@@ -3214,6 +3214,14 @@ spec_to_schema <- function(spec, read_only = FALSE) {
     list(oneOf = branches)
   } else if (spec@nullable) {
     scalar[["type"]] <- I(c(spec@type, "null"))
+    # `enum` is the stricter constraint and outranks the type union: a value of
+    # `null` fails an enum that does not list it, however the type reads. A
+    # nullable enum must therefore admit null explicitly -- otherwise every
+    # *record* naming the field is invalid, a record stating an unset field as
+    # an explicit null rather than omitting it.
+    if (!is.null(spec@enum)) {
+      scalar[["enum"]] <- I(c(as.list(spec@enum), list(NULL)))
+    }
     scalar
   } else {
     scalar
