@@ -56,9 +56,16 @@ SuperConfig <- new_class(
       nullable = TRUE,
       description = "User-provided label / question for the run."
     ),
+    # Nullable, like `SuperConfigLive`: a run that writes nothing to disk must
+    # be able to say so. A non-nullable field would have every record claim the
+    # default directory whatever the run did, and a record that names a
+    # directory nothing was written to is worse than one that names none.
+    # `setup_SuperConfig()` still defaults to "results/", so a portable recipe
+    # that omits the field keeps writing where it always did.
     outdir = prop_string(
-      "results/",
-      description = "Output directory for results."
+      NULL,
+      nullable = TRUE,
+      description = "Output directory for results. NULL = do not write to disk."
     ),
     verbosity = prop_integer(
       1L,
@@ -131,7 +138,8 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' @param execution_config `ExecutionConfig` object: Configuration for execution settings. Setup
 #' with [setup_ExecutionConfig].
 #' @param question Optional Character: Question to answer with the supervised learning analysis.
-#' @param outdir Character: Output directory for results.
+#' @param outdir Optional Character: Output directory for results; `NULL` to
+#' write nothing to disk.
 #' @param verbosity Integer [0, Inf): Verbosity level.
 #'
 #' @return `SuperConfig` object.
@@ -181,7 +189,11 @@ setup_SuperConfig <- function(
     dat_test_path <- sanitize_path(dat_test_path, must_exist = FALSE)
   }
 
-  outdir <- sanitize_path(outdir, must_exist = FALSE, type = "any")
+  # Nullable like the property it fills, and like `setup_SuperConfigLive()`: a
+  # run that writes nothing to disk has no path to sanitize.
+  if (!is.null(outdir)) {
+    outdir <- sanitize_path(outdir, must_exist = FALSE, type = "any")
+  }
 
   SuperConfig(
     dat_training_path = dat_training_path,

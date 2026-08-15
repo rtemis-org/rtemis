@@ -311,8 +311,8 @@ train <- function(
 
   # Defense against invalid args
   extra_args <- list(...)
-  if (!is.null(extra_args[["positive_class"]])) {
-    positive_class <- extra_args[["positive_class"]]
+  positive_class <- extra_args[["positive_class"]]
+  if (!is.null(positive_class)) {
     x <- set_positive_class(x, positive_class)
     extra_args[["positive_class"]] <- NULL
   }
@@ -344,6 +344,11 @@ train <- function(
     # therefore left unset, and a weighted run is identifiable from its
     # `DataFingerprint` rather than from this block.
     weights = NULL,
+    # Relevelling the outcome is all `positive_class` does to the run, so
+    # nothing downstream would otherwise say it was asked for: two runs
+    # differing only in which class is positive would produce identical input
+    # blocks, and their metrics are not comparable without it.
+    positive_class = positive_class,
     preprocessor_config = preprocessor_config,
     decomposition_config = decomposition_config,
     hyperparameters = hyperparameters,
@@ -351,6 +356,10 @@ train <- function(
     outer_resampling_config = outer_resampling_config,
     execution_config = execution_config,
     question = question,
+    # Passed rather than left to the `SuperConfig` default ("results/"), which
+    # would have every record claim a directory the run never wrote to -- a live
+    # run writes nothing to disk at all.
+    outdir = outdir,
     # A nested call passes `verbosity - 1L`, so this can be negative -- an
     # internal "quieter than silent" convention a config cannot express, its
     # `verbosity` being bounded at 0. Clamped rather than propagated: it affects

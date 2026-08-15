@@ -40,6 +40,15 @@ test_that("setup_SuperConfig() succeeds", {
   expect_s7_class(sc, SuperConfig)
 })
 
+test_that("setup_SuperConfig() takes a NULL outdir", {
+  # "Write nothing to disk" is a state a config must be able to express -- it is
+  # what every live run does -- and the property is nullable accordingly. The
+  # function default stays "results/", so a recipe that omits the field still
+  # writes where it always did.
+  expect_null(setup_SuperConfig(outdir = NULL)@outdir)
+  expect_identical(setup_SuperConfig()@outdir, "results/")
+})
+
 
 # %% train SuperConfig ----
 test_that("train() works with SuperConfig", {

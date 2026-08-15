@@ -51,7 +51,8 @@ with \link{setup_ExecutionConfig}.}
 
 \item{question}{Optional Character: Question to answer with the supervised learning analysis.}
 
-\item{outdir}{Character: Output directory for results.}
+\item{outdir}{Optional Character: Output directory for results; \code{NULL} to
+write nothing to disk.}
 
 \item{verbosity}{Integer [0, Inf): Verbosity level.}
 }

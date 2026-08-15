@@ -233,9 +233,12 @@ family_base <- function(cls) {
 #' It also keeps **run state**, which a config drops. `lambda.min` and the
 #' `nrounds` early stopping settled on are precisely what a record exists to
 #' report -- a config omits them because they are re-derived on read, but a
-#' record is the statement of what a run produced. Only constants are left out,
-#' the algorithm implying them, and computed views, which are functions of
-#' fields already present.
+#' record is the statement of what a run produced. Left out are constants, the
+#' algorithm implying them; computed views, which are functions of fields
+#' already present; and `r_only` values, which have no wire form at all. The
+#' last two are exactly what `S7_to_JSONSchema()` omits from the generated
+#' schema, and a record that carried them would fail its own document, every
+#' record schema being `additionalProperties: false`.
 #'
 #' @param cls S7 class.
 #' @param base S7 class or NULL: the family base, whose properties a leaf
@@ -256,7 +259,7 @@ record_names <- function(cls, base) {
     function(nm) {
       prop <- cls@properties[[nm]]
       role <- prop_role(prop)
-      if (identical(role, "computed")) {
+      if (role %in% c("computed", "r_only")) {
         return(FALSE)
       }
       if (identical(role, "state")) {
