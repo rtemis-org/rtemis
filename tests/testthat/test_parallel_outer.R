@@ -667,17 +667,27 @@ testthat::test_that("share_decision() gives the first applicable reason", {
   big <- rep(1L, 1e6L)
   # Not asked to, before anything else.
   expect_false(share_decision(big, "none", "mirai", NULL, 4L)[["share"]])
-  # Asked to, and worth it.
-  expect_true(share_decision(big, "auto", "mirai", NULL, 4L)[["share"]])
   # Asked to, but nothing to gain: one worker transfers nothing.
   d <- share_decision(big, "auto", "mirai", NULL, 1L)
   expect_false(d[["share"]])
   expect_match(d[["reason"]], "transfers nothing")
-  # Size is not a reason to decline: a small payload on parallel local workers shares.
-  expect_true(share_decision(small, "auto", "mirai", NULL, 4L)[["share"]])
-  # "always" shares where "auto" cannot, but locality still binds.
+  # "always" is decided before 'mori' is looked for, so it shares here whether
+  # or not the package is installed -- locality still binds.
   expect_true(share_decision(small, "always", "mirai", NULL, 4L)[["share"]])
   expect_false(share_decision(big, "auto", "future", "remote", 4L)[["share"]])
+})
+
+
+testthat::test_that("share_decision() shares under \"auto\" when it can", {
+  # The only outcomes that need 'mori' itself, which is a Suggests: without it
+  # installed, "not installed" is the correct answer rather than a failure.
+  testthat::skip_if_not_installed("mori")
+  small <- rep(1L, 10L)
+  big <- rep(1L, 1e6L)
+  # Asked to, and worth it.
+  expect_true(share_decision(big, "auto", "mirai", NULL, 4L)[["share"]])
+  # Size is not a reason to decline: a small payload on parallel local workers shares.
+  expect_true(share_decision(small, "auto", "mirai", NULL, 4L)[["share"]])
 })
 
 

@@ -220,6 +220,41 @@ test_that("train() groups by the id_strat column and keeps it out of the feature
 })
 
 
+test_that("resample() narrows any tabular input to its outcome column", {
+  # One column is still a frame: narrowing only when `NCOL(x) > 1` left a list
+  # to reach the resamplers, which failed on coercion, and made a name
+  # unresolvable in the one frame that certainly holds it. `[[` also indexes a
+  # matrix in column-major order, so a wide matrix narrowed to a single cell.
+  one_column <- iris["Sepal.Length"]
+  expect_length(
+    resample(
+      one_column,
+      setup_Resampler(n_resamples = 3L),
+      verbosity = 0L
+    )@resamples,
+    3L
+  )
+  named <- resample(
+    one_column,
+    setup_Resampler(n_resamples = 3L, stratify_var = "Sepal.Length"),
+    verbosity = 0L
+  )
+  expect_length(named@resamples, 3L)
+  # Every resample of a 150-case frame indexes cases, not columns.
+  for (train_idx in named@resamples) {
+    expect_true(all(train_idx <= nrow(one_column)))
+    expect_gt(length(train_idx), 1L)
+  }
+  matrix_input <- resample(
+    as.matrix(iris[, 1:4]),
+    setup_Resampler(n_resamples = 3L),
+    verbosity = 0L
+  )
+  expect_length(matrix_input@resamples, 3L)
+  expect_gt(length(matrix_input@resamples[[1L]]), 1L)
+})
+
+
 test_that("resample() rejects a column name it cannot resolve", {
   d <- data.frame(subject = rep(c("a", "b"), 3L), y = rnorm(6L))
   expect_error(

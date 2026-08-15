@@ -66,18 +66,24 @@ resample <- function(
   } else {
     resolve_resampler_column(config, x, "id_strat")
   }
-  if (NCOL(x) > 1) {
+  # Narrowed whenever `x` is tabular, a single column included: a 1-column
+  # frame is still a frame, and left as one it reaches the resamplers as a list
+  # and fails there on coercion rather than on anything a caller could act on.
+  if (!is.null(dim(x))) {
     if (survival::is.Surv(x)) {
       msg("Survival object will be stratified on time.", verbosity = verbosity)
       x <- x[, 1]
     } else {
-      # Stratifying on last column, i.e. outcome, is almost universal;
-      # no need to print every single time
-      msg(
-        "Input contains more than one column; stratifying on last.",
-        verbosity = verbosity - 1L
-      )
-      x <- x[[NCOL(x)]]
+      if (NCOL(x) > 1L) {
+        # Stratifying on last column, i.e. outcome, is almost universal;
+        # no need to print every single time
+        msg(
+          "Input contains more than one column; stratifying on last.",
+          verbosity = verbosity - 1L
+        )
+      }
+      # `[[` indexes a matrix in column-major order rather than by column.
+      x <- if (is.data.frame(x)) x[[NCOL(x)]] else x[, NCOL(x)]
     }
   }
 
@@ -228,13 +234,15 @@ resolve_resampler_column <- function(config, x, name) {
   if (is.null(column)) {
     return(NULL)
   }
-  if (NCOL(x) < 2L) {
+  # Tabular or not, rather than how many columns: a 1-column frame carries a
+  # name to look up just as a wider one does.
+  if (is.null(dim(x))) {
     rtemis.core::abort(
       "@",
       name,
       " names the column '",
       column,
-      "', but resample() was given a single vector. Pass the data frame the ",
+      "', but resample() was given a vector. Pass the data frame the ",
       "column lives in.",
       class = c("rtemis_value_error", "rtemis_input_error")
     )
