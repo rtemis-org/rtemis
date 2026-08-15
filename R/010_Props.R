@@ -866,7 +866,10 @@ validate_candidates <- function(value, fields) {
   candidate <- fields
   candidate[["tunable"]] <- FALSE
   for (i in seq_along(candidates)) {
-    msg <- validate_with_spec(candidates[[i]], candidate)
+    # `validate_value()`, not `validate_with_spec()`: S7 checked that this is a
+    # `HyperparameterCandidates` object and stopped there, so the type of each
+    # value inside it is checked here or nowhere.
+    msg <- validate_value(candidates[[i]], candidate)
     if (!is.null(msg)) {
       return(paste0("candidate ", i, " ", msg))
     }
@@ -881,7 +884,9 @@ validate_candidates <- function(value, fields) {
 #' Shared validator body for all factory-generated properties. Returns NULL if
 #' valid, otherwise a character message (the S7 validator contract). The
 #' property's S7 class (set by the factory) already enforces the base type;
-#' this checks arity, missingness, bounds, and enum membership.
+#' this checks arity, missingness, bounds, and enum membership. Type is checked
+#' only where the S7 class cannot see it -- an element of a nested container and
+#' a tuning candidate -- both of which go through `validate_value()`.
 #'
 #' @param value Property value being set.
 #' @param fields Named list of spec fields, from `spec_fields()`.
@@ -956,17 +961,28 @@ validate_with_spec <- function(value, fields) {
     # through to the generic checks below.
     if (fields[["broadcast"]] && !is.list(value)) {
       # A bare element stands in for the whole container.
-      return(validate_with_spec(value, items))
+      return(validate_value(value, items))
     }
     if (!is.list(value)) {
       return("must be a list.")
+    }
+    if (length(value) == 0L) {
+      # As in the generic path below: NULL is the only "unset" value, so an
+      # empty container is a real value and is rejected as one.
+      return(
+        if (nullable) {
+          "must not be empty (use NULL to leave it unset)."
+        } else {
+          "must not be empty."
+        }
+      )
     }
     msg <- validate_array_arity(value, fields)
     if (!is.null(msg)) {
       return(msg)
     }
     for (i in seq_along(value)) {
-      msg <- validate_with_spec(value[[i]], items)
+      msg <- validate_value(value[[i]], items)
       if (!is.null(msg)) {
         return(paste0("element ", i, " ", msg))
       }
@@ -1025,6 +1041,85 @@ validate_with_spec <- function(value, fields) {
 } # /rtemis::validate_with_spec
 
 
+# %% validate_spec_type ----
+#' Check a value's R type against the type its spec declares
+#'
+#' Mirrors the `type` -> S7 class mapping in `make_prop()`, and the two must
+#' change together: `make_prop()` decides what S7 enforces, this decides what is
+#' enforced where S7 cannot reach. `is.numeric()` pairs with `class_numeric`,
+#' which is a union of integer and double, so a whole number written either way
+#' satisfies a `number`; every other type is exact, as its S7 class is.
+#'
+#' @param value Value to check.
+#' @param type Character \{"boolean", "integer", "number", "string", "object"\}:
+#' Declared type.
+#'
+#' @return NULL if the type matches, otherwise a character message.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+validate_spec_type <- function(value, type) {
+  expected <- switch(
+    type,
+    boolean = "logical",
+    integer = "integer",
+    number = "numeric",
+    string = "character",
+    object = "list"
+  )
+  ok <- switch(
+    expected,
+    logical = is.logical(value),
+    integer = is.integer(value),
+    numeric = is.numeric(value),
+    character = is.character(value),
+    list = is.list(value)
+  )
+  if (ok) {
+    return(NULL)
+  }
+  paste0("must be ", expected, ", not ", typeof(value), ".")
+} # /rtemis::validate_spec_type
+
+
+# %% validate_value ----
+#' Validate a value against a spec, its type included
+#'
+#' `validate_with_spec()` takes the type as given, because S7 checks a
+#' property's class before calling its validator. Two kinds of value are
+#' invisible to that check and so are validated here instead:
+#'
+#' - an element of a nested container, where the property is a plain `list`
+#'   because R has no "list of integer vectors" class;
+#' - a tuning candidate, where the property's class is a union with
+#'   `HyperparameterCandidates` and S7 confirms the wrapper without seeing the
+#'   values inside it.
+#'
+#' Both are held to the declaration a directly-assigned value would meet.
+#'
+#' @param value Value to validate.
+#' @param fields Named list of spec fields the value must satisfy.
+#'
+#' @return NULL if valid, otherwise a character message.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+validate_value <- function(value, fields) {
+  # NULL and search values are shapes `validate_with_spec()` rules on itself,
+  # against nullability and the candidate contract rather than against a type.
+  if (is.null(value) || is_candidates(value)) {
+    return(validate_with_spec(value, fields))
+  }
+  msg <- validate_spec_type(value, fields[["type"]])
+  if (!is.null(msg)) {
+    return(msg)
+  }
+  validate_with_spec(value, fields)
+} # /rtemis::validate_value
+
+
 # %% make_prop ----
 #' Build an S7 property from a PropertySpec
 #'
@@ -1043,6 +1138,8 @@ validate_with_spec <- function(value, fields) {
 #' @noRd
 make_prop <- function(spec) {
   fields <- spec_fields(spec)
+  # Paired with `validate_spec_type()`, which enforces the same mapping for the
+  # elements of a nested container, where the S7 class can only say `list`.
   atomic_class <- switch(
     spec@type,
     boolean = class_logical,
@@ -1062,6 +1159,14 @@ make_prop <- function(spec) {
     list = class_list,
     atomic_class
   )
+  if (spec@broadcast && identical(spec_r_kind(fields), "list")) {
+    # A bare element stands in for the whole container ("this element at every
+    # position"), so the element's own class is accepted beside the list --
+    # without it S7 rejects the bare form before `validate_value()` can hold it
+    # to the element spec. `prop_array()` takes the outer spec's type from its
+    # `items`, so `atomic_class` is already the element's.
+    base_class <- base_class | atomic_class
+  }
   if (spec@tunable) {
     # A tunable hyperparameter holds either a value or the domain a tuner
     # chooses from. `spec_r_kind()` names the value's shape, so the union is

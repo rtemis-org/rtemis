@@ -10,7 +10,8 @@
 \item{x}{Named list with the following elements:
 \describe{
 \item{\code{type}}{Character: resampler type -- one of \code{"KFold"},
-\code{"StratSub"}, \code{"StratBoot"}, \code{"Bootstrap"}, \code{"LOOCV"}, \code{"Custom"}.}
+\code{"StratSub"}, \code{"StratBoot"}, \code{"Bootstrap"}, \code{"LOOCV"}. \code{"Custom"} has
+no wire form and is rejected here.}
 \item{\code{n}}{Integer: number of resamples (not used for \code{"LOOCV"}).}
 \item{\code{train_p}}{Numeric: training proportion (used by \code{"StratSub"} and
 \code{"StratBoot"}).}
@@ -18,7 +19,7 @@
 \item{\code{strat_n_bins}}{Integer: number of bins for stratification.}
 \item{\code{target_length}}{Integer or \code{NULL}: target resample length
 (\code{"StratBoot"} only).}
-\item{\code{id_strat}}{Character or \code{NULL}: ID stratification variable.}
+\item{\code{id_strat}}{Character or \code{NULL}: name of the grouping-ID column.}
 \item{\code{seed}}{Integer or \code{NULL}: random seed.}
 }}
 }

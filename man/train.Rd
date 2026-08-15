@@ -18,7 +18,6 @@ train(
   question = NULL,
   outdir = NULL,
   verbosity = 1L,
-  progress = NULL,
   ...
 )
 }
@@ -59,27 +58,6 @@ every value resolved, where each came from, and what produced it. See
 \link{write_record}.}
 
 \item{verbosity}{Integer: Verbosity level.}
-
-\item{progress}{Optional function: Callback invoked at progress
-checkpoints during training. When supplied, called at each outer
-resampling fold boundary as
-\code{progress(stage, current, total, message)}:
-\describe{
-\item{\code{stage}}{Character. Currently \code{"outer_fold"}.}
-\item{\code{current}}{Integer. Sequentially, the 1-based index of the fold
-about to run; in parallel, the number of folds completed so far.}
-\item{\code{total}}{Integer. Total number of outer folds.}
-\item{\code{message}}{Character. Human-readable line: \code{"Outer resamples 2/5"}
-sequentially, and \code{"Outer resamples 4/10 complete; running 5, 6, 7"}
-in parallel, where folds finish out of order.}
-}
-Supplying a callback does not change how folds are dispatched; whether
-they run in parallel is decided by \code{execution_config} alone.
-The interactive status line and the structured progress envelopes sent to
-a message sink (see \code{\link[rtemis.core:set_msg_sink]{rtemis.core::set_msg_sink()}}) are emitted either way.
-Designed for non-interactive callers (e.g. \code{rtemis.server}) that need to
-forward fold progress over a wire protocol; errors raised by the callback
-are swallowed so a broken sink cannot interrupt training.}
 
 \item{...}{Not used.}
 }

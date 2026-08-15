@@ -220,6 +220,185 @@ testthat::test_that("`vector = TRUE` is sugar for container 'array'", {
 })
 
 
+# %% Every declaration is enforced ----
+# The factory's promise is that declaring a constraint is enough -- nothing is
+# enforced by hand. Twice now a declaration has been published in the schema and
+# left unenforced in R, both times because S7's class check could not see the
+# value: an element of a nested container (the property is a plain `list`) and a
+# tuning candidate (the property's class is a union with
+# `HyperparameterCandidates`). Both are invisible to a spot check and neither
+# fails until much later, so the whole surface is swept here instead.
+#
+# Every spec'd property in the package, every path a value can arrive by.
+
+# One value of the wrong R type, shaped for this spec's container.
+wrong_typed <- function(fields) {
+  bad <- if (fields[["type"]] == "string") 1L else "zzz"
+  if (
+    !is.null(fields[["items"]]) && fields[["items"]][["container"]] != "none"
+  ) {
+    list(bad)
+  } else {
+    bad
+  }
+}
+
+
+# One value outside the declared set or bounds, or NULL if neither is declared.
+out_of_range <- function(fields) {
+  value <- if (!is.null(fields[["enum"]])) {
+    "zzz_not_in_enum"
+  } else if (!is.null(fields[["maximum"]])) {
+    fields[["maximum"]] + 1
+  } else if (!is.null(fields[["minimum"]])) {
+    fields[["minimum"]] - 1
+  } else if (!is.null(fields[["exclusive_maximum"]])) {
+    fields[["exclusive_maximum"]]
+  } else if (!is.null(fields[["exclusive_minimum"]])) {
+    fields[["exclusive_minimum"]]
+  } else {
+    return(NULL)
+  }
+  if (fields[["type"]] == "integer" && is.numeric(value)) {
+    value <- as.integer(value)
+  }
+  if (
+    !is.null(fields[["items"]]) && fields[["items"]][["container"]] != "none"
+  ) {
+    list(value)
+  } else {
+    value
+  }
+}
+
+
+# Whether a property accepts a value, exercised the way production does: class
+# check first, then validator.
+prop_accepts <- function(property, value) {
+  Probe <- S7::new_class("Probe", properties = list(x = property))
+  tryCatch(
+    {
+      Probe(x = value)
+      TRUE
+    },
+    error = function(e) FALSE
+  )
+}
+
+
+testthat::test_that("every declared type, bound and enum is enforced", {
+  ns <- asNamespace("rtemis")
+  objs <- mget(ls(ns, all.names = TRUE), envir = ns, inherits = FALSE)
+  classes <- Filter(function(o) inherits(o, "S7_class"), objs)
+
+  unenforced <- character()
+  n_checked <- 0L
+  for (cls_name in names(classes)) {
+    cls <- classes[[cls_name]]
+    for (nm in names(cls@properties)) {
+      property <- cls@properties[[nm]]
+      fields <- get_spec_fields(property)
+      # A constant is not settable, so there is no value to reject.
+      if (is.null(fields) || isTRUE(fields[["constant"]])) {
+        next
+      }
+      n_checked <- n_checked + 1L
+      id <- paste0(cls_name, "@", nm)
+      bad_type <- wrong_typed(fields)
+      bad_range <- out_of_range(fields)
+      checks <- list(
+        list("type", bad_type),
+        list("bound/enum", bad_range)
+      )
+      if (isTRUE(fields[["tunable"]])) {
+        # A search space is checked value by value: an out-of-range candidate
+        # would otherwise surface as a failed grid cell partway through tuning.
+        checks <- c(
+          checks,
+          list(
+            list("type, as a candidate", tune_over(c(bad_type, bad_type))),
+            if (!is.null(bad_range)) {
+              list(
+                "bound/enum, as a candidate",
+                tune_over(c(
+                  bad_range,
+                  bad_range
+                ))
+              )
+            }
+          )
+        )
+      }
+      for (check in Filter(Negate(is.null), checks)) {
+        if (is.null(check[[2L]])) {
+          next
+        }
+        if (prop_accepts(property, check[[2L]])) {
+          unenforced <- c(unenforced, paste0(id, " (", check[[1L]], ")"))
+        }
+      }
+    }
+  }
+
+  testthat::expect_gt(n_checked, 400L)
+  testthat::expect_identical(
+    unenforced,
+    character(),
+    info = "declared but not enforced -- the spec says it, nothing checks it"
+  )
+})
+
+
+testthat::test_that("a nested container's elements are type-checked", {
+  # The one place the property's S7 class cannot enforce the type: R has no
+  # "list of integer vectors" class, so the property is a plain `list` and the
+  # element type is checked by the validator or by nobody.
+  Nested <- S7::new_class(
+    "Nested",
+    properties = list(
+      idx = prop_array(
+        items = prop_integer(1L, min = 1L, vector = TRUE),
+        nullable = TRUE,
+        description = "Indices."
+      )
+    )
+  )
+  testthat::expect_no_error(Nested(idx = list(1:3, 2:4)))
+  testthat::expect_error(Nested(idx = list(c(1, 2))), "must be integer")
+  testthat::expect_error(Nested(idx = list("a")), "must be integer")
+  # The checks the element already had still apply, after the type.
+  testthat::expect_error(Nested(idx = list(0L)), "must be >= 1")
+  testthat::expect_error(Nested(idx = list(c(1L, NA_integer_))), "missing")
+  # NULL is the only "unset" value, so an empty container is a real value.
+  testthat::expect_error(Nested(idx = list()), "must not be empty")
+  testthat::expect_no_error(Nested(idx = NULL))
+})
+
+
+testthat::test_that("a broadcast element is accepted in place of its container", {
+  # `broadcast` means "this element at every position", so the element's own
+  # class has to be accepted beside the list -- otherwise S7 rejects the bare
+  # form before the validator that implements broadcasting ever runs.
+  hyperparameters <- setup_Ranger(split_select_weights = c(0.3, 0.7))
+  testthat::expect_identical(
+    hyperparameters@hyperparameters[["split_select_weights"]],
+    c(0.3, 0.7)
+  )
+  testthat::expect_no_error(
+    setup_Ranger(split_select_weights = list(c(0.5, 0.5), c(0.1, 0.9)))
+  )
+  # Broadcasting widens the shape, never the contract: the bare element is held
+  # to the same spec each listed element would be.
+  testthat::expect_error(
+    setup_Ranger(split_select_weights = c(0.3, 1.7)),
+    "must be <= 1"
+  )
+  testthat::expect_error(setup_Ranger(split_select_weights = c("a", "b")))
+  # A container that does not broadcast still takes the list form only.
+  testthat::expect_error(setup_Ranger(inbag = c(1L, 2L)), "must be")
+})
+
+
 testthat::test_that("a nested `items` spec produces a nested array schema", {
   # A matrix is an array whose items are an array -- a shape `vector = TRUE`
   # alone cannot express.
@@ -679,17 +858,16 @@ testthat::test_that("state the model carries is not written to a config", {
   testthat::expect_false(
     "lambda.min" %in% names(serializable_props(h)[["hyperparameters"]])
   )
-  # A data-shaped value the user supplied *is* written: it is an input, and
-  # `id_strat` decides which cases stay together, so losing it changes results.
+  # A value the user supplied *is* written: it is an input, and `id_strat`
+  # decides which cases stay together, so losing it changes results. What is
+  # written is the column's name -- one string any reader can act on -- rather
+  # than its values, which are true only of one dataset in one row order.
   r <- setup_Resampler(
     type = "StratSub",
     n_resamples = 2L,
-    id_strat = c("a", "b", "a")
+    id_strat = "subject"
   )
-  testthat::expect_identical(
-    serializable_props(r)[["id_strat"]],
-    c("a", "b", "a")
-  )
+  testthat::expect_identical(serializable_props(r)[["id_strat"]], "subject")
 })
 
 # %% JSON round-trip ----

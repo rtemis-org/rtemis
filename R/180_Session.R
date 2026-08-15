@@ -418,6 +418,12 @@ session_clear <- function() {
 #' (e.g. plain interactive use). The recorder and this sink fire regardless of verbosity;
 #' only the console renderer is verbosity-gated.
 #'
+#' `session_id` is what makes `node_id` meaningful to a remote consumer. Node ids are
+#' unique within a session, and one run puts several sessions on one wire: a grid cell
+#' detaches the ambient session and its inner `train()` opens its own, numbering from
+#' `n1` again, so the same id names an `outer_fold` in one event and a `train_alg` in the
+#' next. Without the session id the stream cannot be assembled into a tree at all.
+#'
 #' @param rec List: Node record.
 #' @param phase Character: `"start"`, `"done"`, `"error"`, or `"aborted"`.
 #' @param total Optional Integer: Expected child count.
@@ -432,19 +438,44 @@ session_emit_sink <- function(rec, phase, total = NULL) {
   if (is.null(sink)) {
     return(invisible(NULL))
   }
+  s <- live[["session"]]
   sink(list(
     text = paste0(rec[["kind"]], session_label_suffix(rec)),
     caller = "train",
     ts = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
     level = if (phase == "error") "error" else "info",
+    session_id = if (!is.null(s)) s[["id"]] else NA_character_,
     node_id = rec[["node_id"]],
     parent_id = rec[["parent_id"]],
     kind = rec[["kind"]],
+    label = rec[["label"]],
     status = phase,
     total = total
   ))
   invisible(NULL)
 } # /rtemis::session_emit_sink
+
+
+# %% session_current_node ----
+#' Id of the innermost open execution-graph node
+#'
+#' The node a caller is currently running inside. Passed to
+#' [rtemis.core::progress_begin()] as `parent_id` so a progress loop grafts onto the
+#' execution graph instead of reporting as a second, unrelated root - the two streams
+#' share one wire and a consumer should be able to assemble one tree from them.
+#'
+#' @return Character `node_id`, or `NULL` when no session is active or none is open.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+session_current_node <- function() {
+  s <- live[["session"]]
+  if (is.null(s) || !length(s[["stack"]])) {
+    return(NULL)
+  }
+  s[["stack"]][length(s[["stack"]])]
+} # /rtemis::session_current_node
 
 
 # %% session_render ----
@@ -863,23 +894,33 @@ session_timeline <- function(session) {
 #' recycled as needed.
 #'
 #' Exported so `rtemis.server` can attach the map to its `job.result` `session`
-#' slice, which is what lets the rtemislive web UI fill its bars without a
-#' hard-coded palette of its own. Not user-facing API: `@keywords internal`
-#' marks it exported for mechanism rather than for use.
+#' slice and announce it on the `ready` frame, which is what lets the rtemislive
+#' web UI color its timeline bars and its live progress panel without a
+#' hard-coded palette of its own - one definition, here, for every renderer.
+#' Not user-facing API: `@keywords internal` marks it exported for mechanism
+#' rather than for use.
 #'
-#' @param kinds Character vector: Node kinds to color, in display order, e.g.
-#'   `unique(session_timeline(session)[["kind"]])`.
+#' @param kinds Character vector or NULL: Node kinds to color, in display order,
+#'   e.g. `unique(session_timeline(session)[["kind"]])`. `NULL` returns the
+#'   whole fixed map, which is what a remote renderer wants when it does not yet
+#'   know which kinds a run will report.
 #'
 #' @return Named character vector of hex colors, one per element of `kinds`.
 #'
 #' @author EDG
 #' @keywords internal
 #' @export
-session_kind_colors <- function(kinds) {
-  rtemis.core::check_character(kinds)
+session_kind_colors <- function(kinds = NULL) {
+  rtemis.core::check_character(kinds, allow_null = TRUE)
   fixed <- c(
     train = "#808080",
+    # Setup rather than modeling work, and muted for the same reason: a bar the reader
+    # should be able to find and measure, but not one competing with the work itself.
+    worker_pool = rtemis_colors[["juniper"]],
     outer_fold = col_outer,
+    # The progress stream reports the loop over the folds, the graph reports each
+    # fold: one activity, so one color.
+    outer_resampling = col_outer,
     tune = col_tuner,
     # Grid cells are tuning work: same hue as `tune`, tinted halfway to white.
     grid_cell = grDevices::colorRampPalette(c(col_tuner, "#FFFFFF"))(3L)[[2L]],
@@ -890,6 +931,9 @@ session_kind_colors <- function(kinds) {
     varimp = rtemis_colors[["light_blue"]],
     metrics = rtemis_colors[["orange"]]
   )
+  if (is.null(kinds)) {
+    return(fixed)
+  }
   cols <- fixed[kinds]
   names(cols) <- kinds
   # rep_len recycles the palette so more unmapped kinds than palette colors

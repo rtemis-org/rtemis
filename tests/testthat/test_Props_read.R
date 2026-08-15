@@ -92,10 +92,11 @@ test_that("every spec'd class round-trips through JSON Schema unchanged", {
       jsonlite::toJSON(schema, auto_unbox = TRUE, null = "null", digits = NA),
       simplifyVector = FALSE
     )
-    specs <- Filter(
-      Negate(is.null),
-      lapply(cls@properties[own], rtemis:::get_spec)
-    )
+    # A `computed` or `r_only` property carries a spec but is deliberately kept
+    # out of the schema, so there is no published form for it to round-trip
+    # through. `state` stays: a record declares it, marked `readOnly`.
+    published <- Filter(rtemis:::prop_published, cls@properties[own])
+    specs <- Filter(Negate(is.null), lapply(published, rtemis:::get_spec))
     defaults <- lapply(specs, function(s) via_json(s@default))
     rt <- JSONSchema_to_S7(schema, defaults = defaults, name = cls_name)
 

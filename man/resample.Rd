@@ -7,7 +7,9 @@
 resample(x, config = setup_Resampler(), verbosity = 1L)
 }
 \arguments{
-\item{x}{Vector or data.frame: Usually the outcome; \code{NROW(x)} defines the sample size.}
+\item{x}{Vector or data.frame: Usually the outcome; \code{NROW(x)} defines the sample size. A
+config naming a column -- \code{stratify_var} or \code{id_strat} -- needs the data frame that column
+lives in, since a name cannot be looked up in a bare vector.}
 
 \item{config}{Resampler object created by \link{setup_Resampler}.}
 
@@ -42,6 +44,12 @@ y_100strat
 # LOOCV
 y_loocv <- resample(y, setup_Resampler(type = "LOOCV"))
 y_loocv
+# User-supplied resamples
+y_custom <- resample(
+  y,
+  setup_Resampler(type = "Custom", resamples = list(1:150, 51:200))
+)
+y_custom
 }
 \author{
 EDG

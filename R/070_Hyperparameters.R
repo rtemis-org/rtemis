@@ -3908,6 +3908,9 @@ setup_Ranger <- function(
   max_depth <- clean_int(max_depth)
   num_random_splits <- clean_posint(num_random_splits)
   seed <- clean_int(seed)
+  # One count vector per tree, cleaned element by element: a count is an
+  # integer, and `list(c(1, 0, 2))` is how a user writes one.
+  inbag <- clean_int(inbag)
   RangerHyperparameters(
     num_trees = num_trees,
     mtry = mtry,

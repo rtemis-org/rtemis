@@ -6,12 +6,13 @@
 \usage{
 setup_Resampler(
   n_resamples = 10L,
-  type = c("KFold", "StratSub", "StratBoot", "Bootstrap", "LOOCV"),
+  type = c("KFold", "StratSub", "StratBoot", "Bootstrap", "LOOCV", "Custom"),
   stratify_var = NULL,
   train_p = 0.75,
   strat_n_bins = 4L,
   target_length = NULL,
   id_strat = NULL,
+  resamples = NULL,
   seed = NULL,
   verbosity = 1L
 )
@@ -31,9 +32,15 @@ Type of resampler.}
 
 \item{target_length}{Optional Integer [1, Inf): Target length for stratified bootstraps.}
 
-\item{id_strat}{Optional Character vector: Per-case grouping IDs, e.g. subject IDs when the
-dataset contains repeated measurements. Cases sharing an ID stay in the same resample, so a
-case can only be present in the training or the test set, not both.}
+\item{id_strat}{Optional Character: Name of the column holding per-case grouping IDs, e.g.
+subject IDs when the dataset contains repeated measurements. Cases sharing an ID stay in the
+same resample, so a case can only be present in the training or the test set, not both.
+Requires that \code{resample()} be given the data frame the column lives in. \link{train} takes the
+column to identify cases rather than describe them, so it groups the resamples by it and
+excludes it from the features.}
+
+\item{resamples}{Optional List: Resamples to use, one integer vector of training-case indices
+per resample. Required by \code{type = "Custom"} and ignored by every other type.}
 
 \item{seed}{Optional Integer [0, Inf): Random seed.}
 

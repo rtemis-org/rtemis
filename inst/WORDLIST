@@ -9,6 +9,7 @@ CDN
 CLI
 CMD
 CMeansConfig
+ChristmasDay
 ClusterConfig
 CMRG
 ConditionalSuperLearner
@@ -48,6 +49,7 @@ KernelSHAP
 L'Ecuyer
 LOOCV
 Laan
+LaborDay
 LightCART
 LightCARTHyperparameters
 LightGBM
@@ -133,6 +135,7 @@ Talos's
 Tunable
 TunerConfig
 UI
+USLaborDay
 UMAP
 UMAPConfig
 UMX
@@ -275,6 +278,7 @@ nv
 oscorespls
 pROC
 parallelization
+parallelizing
 perceptron
 plotly
 plotly's
@@ -286,6 +290,7 @@ polars
 preprocess
 preprocesses
 preprocessor
+py
 pyarrow
 preprocessor's
 pretraining
@@ -342,6 +347,7 @@ tanh
 tbl
 tck
 tcl
+timeDate
 tibble
 toaxis
 tonexty
@@ -373,3 +379,5 @@ zmax
 zmin
 zoomable
 zt
+unserializing
+kB

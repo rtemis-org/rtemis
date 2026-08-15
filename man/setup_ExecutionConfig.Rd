@@ -7,10 +7,14 @@
 setup_ExecutionConfig(
   backend = c("future", "mirai", "none"),
   n_workers = NULL,
+  n_workers_outer = NULL,
+  n_workers_tuning = NULL,
+  n_workers_algorithm = NULL,
   future_plan = NULL,
   on_error = c("continue", "stop", "stop_outer"),
   seed = NULL,
-  shared_memory = c("none", "auto", "always")
+  shared_memory = c("auto", "none", "always"),
+  warm_workers = TRUE
 )
 }
 \arguments{
@@ -18,6 +22,15 @@ setup_ExecutionConfig(
 
 \item{n_workers}{Integer [1, Inf): Number of workers for parallel execution. Only used if \verb{backend is "future"} or "mirai". Set this to an appropriate number depending
 on your system.}
+
+\item{n_workers_outer}{Optional Integer [1, Inf): Workers for outer resampling,
+overriding the automatic assignment.}
+
+\item{n_workers_tuning}{Optional Integer [1, Inf): Workers for tuning, overriding the
+automatic assignment.}
+
+\item{n_workers_algorithm}{Optional Integer [1, Inf): Threads for a self-parallelizing
+algorithm, overriding the automatic assignment.}
 
 \item{future_plan}{Optional Character: Future plan to use if \code{backend} is "future".}
 
@@ -35,10 +48,16 @@ every run is reproducible and the seed it used is auditable. Distinct from a
 
 \item{shared_memory}{Character \{"none", "auto", "always"\}: Whether to hand workers
 the training data through OS shared memory instead of serializing a copy to each.
-\code{"none"} is the default. \code{"auto"} shares when it is possible and worthwhile -- workers
-local, payload above a size threshold, \pkg{mori} installed -- and quietly does not
-when it is not. \code{"always"} shares regardless of size and treats an impossible request
-as an error.}
+\code{"auto"} is the default: it shares whenever it can -- workers parallel and on this
+machine, \pkg{mori} installed -- and quietly does not when it cannot, falling back to
+the ordinary transport. \code{"none"} disables it. \code{"always"} is a demand rather than a
+preference: it shares even when the run is sequential, which is what allows a run to
+be compared against its own shared counterpart, and raises rather than degrades when
+the request cannot be honored -- which is what a caller relying on sharing to stay
+inside a memory budget needs.}
+
+\item{warm_workers}{Logical: Load \pkg{rtemis} in every worker as the pool is built,
+rather than leaving each worker to load it on its first task.}
 }
 \value{
 \code{ExecutionConfig} object.
@@ -47,6 +66,24 @@ as an error.}
 Setup Execution Configuration
 }
 \details{
+\strong{Worker levels}
+
+There are three levels that can absorb workers: a self-parallelizing algorithm,
+tuning, and outer resampling. Left alone, \code{n_workers} is assigned to exactly one of
+them, in that order of priority, so no two levels compete for the same cores.
+
+Naming any of \code{n_workers_outer}, \code{n_workers_tuning} or \code{n_workers_algorithm} takes
+over that assignment: the automatic one is switched off entirely and any level not
+named gets 1, so a run never mixes a hand-picked level with an inferred one.
+
+Outer resampling and tuning dispatch to worker \emph{processes}, and an outer fold runs
+inside one of those processes, so only one of the two can be parallel -- setting both
+above 1 is an error. \code{n_workers_algorithm} is threads within a worker, so it combines
+with either, and it applies even when \code{backend} is \code{"none"}: four folds on four
+processes with two Ranger threads each is \verb{n_workers_outer = 4L, n_workers_algorithm = 2L}.
+
+\strong{Reproducibility}
+
 Substreams are assigned by task index, so a run gives the same answer under every
 backend and worker count, and the parallel result matches the sequential one exactly.
 
