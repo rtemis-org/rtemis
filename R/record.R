@@ -426,7 +426,10 @@ supervised_record <- function(x, folds, outcome = "completed") {
     asked,
     list(
       origin = own[["origin"]][own_names],
-      folds = lapply(seq_along(folds), function(i) fold_record(folds[[i]], i)),
+      folds = lapply(
+        seq_along(folds),
+        function(i) fold_record(folds[[i]], i, input)
+      ),
       # The headline scores, so "was this model any good?" is one lookup rather
       # than an average over `folds`. Each fold's full metrics are there too;
       # this block is the reason to open the file.
@@ -447,14 +450,18 @@ supervised_record <- function(x, folds, outcome = "completed") {
 #'
 #' @param model `Supervised` object for one fold.
 #' @param index Integer: 1-based outer resample.
+#' @param input `SuperConfig` the *run* was given. A per-fold sub-model stores
+#'   none of its own -- one record per `train()` call is the design -- so
+#'   pairing a fold against `model@config` would compare it against nothing and
+#'   report every value as `derived`, including the ones the user fixed and the
+#'   ones tuning searched.
 #'
 #' @return Named list: one entry of the record's `folds` array.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-fold_record <- function(model, index) {
-  input <- model@config
+fold_record <- function(model, index, input = model@config) {
   out <- list(index = as.integer(index))
   if (!is.null(model@preprocessor)) {
     out[["preprocessor_config"]] <- nested_record(
