@@ -679,17 +679,16 @@ testthat::test_that("state the model carries is not written to a config", {
   testthat::expect_false(
     "lambda.min" %in% names(serializable_props(h)[["hyperparameters"]])
   )
-  # A data-shaped value the user supplied *is* written: it is an input, and
-  # `id_strat` decides which cases stay together, so losing it changes results.
+  # A value the user supplied *is* written: it is an input, and `id_strat`
+  # decides which cases stay together, so losing it changes results. What is
+  # written is the column's name -- one string any reader can act on -- rather
+  # than its values, which are true only of one dataset in one row order.
   r <- setup_Resampler(
     type = "StratSub",
     n_resamples = 2L,
-    id_strat = c("a", "b", "a")
+    id_strat = "subject"
   )
-  testthat::expect_identical(
-    serializable_props(r)[["id_strat"]],
-    c("a", "b", "a")
-  )
+  testthat::expect_identical(serializable_props(r)[["id_strat"]], "subject")
 })
 
 # %% JSON round-trip ----

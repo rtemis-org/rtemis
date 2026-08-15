@@ -14,7 +14,9 @@
 #' operations which rely on equal-length vectors. For example, you can't place resamples in a
 #' data.frame, but must use a list instead.
 #'
-#' @param x Vector or data.frame: Usually the outcome; `NROW(x)` defines the sample size.
+#' @param x Vector or data.frame: Usually the outcome; `NROW(x)` defines the sample size. A
+#' config naming a column -- `stratify_var` or `id_strat` -- needs the data frame that column
+#' lives in, since a name cannot be looked up in a bare vector.
 #' @param config Resampler object created by [setup_Resampler].
 #' @param verbosity Integer: Verbosity level.
 #'
@@ -36,6 +38,12 @@
 #' # LOOCV
 #' y_loocv <- resample(y, setup_Resampler(type = "LOOCV"))
 #' y_loocv
+#' # User-supplied resamples
+#' y_custom <- resample(
+#'   y,
+#'   setup_Resampler(type = "Custom", resamples = list(1:150, 51:200))
+#' )
+#' y_custom
 resample <- function(
   x,
   config = setup_Resampler(),
@@ -44,12 +52,20 @@ resample <- function(
   verbosity = 1L
 ) {
   check_is_S7(config, ResamplerConfig)
-  # `id_strat` declares `data_bound = "n_cases"`, so its length is checked here
-  # rather than at each caller. A resampler bounds nothing feature-related, so
-  # `x` may be the bare outcome vector as well as a data frame.
   check_data_bounds(config, x)
   # Input ----
   type <- config@type
+  # `stratify_var` and `id_strat` name columns, so they are resolved here, while
+  # `x` is still the frame they live in: everything below works on the outcome
+  # vector alone and could not look a name up.
+  strat_values <- resolve_resampler_column(config, x, "stratify_var")
+  id_strat <- if (type %in% c("LOOCV", "Custom")) {
+    # LOOCV puts one case in each resample and Custom takes the resamples as
+    # given, so neither has anything to group.
+    NULL
+  } else {
+    resolve_resampler_column(config, x, "id_strat")
+  }
   if (NCOL(x) > 1) {
     if (survival::is.Surv(x)) {
       msg("Survival object will be stratified on time.", verbosity = verbosity)
@@ -66,16 +82,15 @@ resample <- function(
   }
 
   # Stratify on case IDs ----
-  id_strat <- if (type != "LOOCV") {
-    config@id_strat
-  } else {
-    NULL
-  }
-
   if (!is.null(id_strat)) {
     # Only keep unique IDs
     idl <- !duplicated(id_strat)
     x <- x[idl]
+    # The stratification values describe the same cases, so they are narrowed
+    # with them or the two no longer line up.
+    if (!is.null(strat_values)) {
+      strat_values <- strat_values[idl]
+    }
   }
 
   if (type == "StratBoot") {
@@ -87,12 +102,10 @@ resample <- function(
   }
 
   # resample ----
-  if (!type %in% c("Bootstrap", "LOOCV")) {
-    .stratify_var <- if (is.null(config@stratify_var)) {
-      x
-    } else {
-      config@stratify_var
-    }
+  if (!type %in% c("Bootstrap", "LOOCV", "Custom")) {
+    # Unnamed, so stratify on the outcome itself -- almost always what is
+    # wanted, and the only column `resample()` is guaranteed to have.
+    .stratify_var <- if (is.null(strat_values)) x else strat_values
   }
 
   n_resamples <- if (type == "LOOCV") length(x) else config@n_resamples
@@ -148,6 +161,14 @@ resample <- function(
       seed = config@seed,
       verbosity = verbosity
     )
+  } else if (type == "Custom") {
+    ## Custom ----
+    # Supplied rather than drawn, so the only thing left to establish is that
+    # the indices address these cases. Checked here because only `resample()`
+    # sees the data; the class can check their shape but never their range.
+    res_part <- check_custom_resamples(config@resamples, NROW(x))
+    # Get number of resamples
+    config@n_resamples <- length(res_part)
   }
 
   # Update strat_n_bins ----
@@ -179,6 +200,154 @@ resample <- function(
 } # /rtemis::resample
 
 
+# %% resolve_resampler_column ----
+#' Read the column a resampler config names
+#'
+#' `stratify_var` and `id_strat` hold the *name* of a column rather than its
+#' values: a name is one string that means the same thing to any implementation
+#' reading the config, while a per-case vector is only true of one dataset in
+#' one row order. Resolving a name needs the frame, so this runs before
+#' `resample()` narrows `x` to the outcome and loses it.
+#'
+#' @param config ResamplerConfig: Config to read the column name from.
+#' @param x Vector or data.frame: What `resample()` was given.
+#' @param name Character \{"stratify_var", "id_strat"\}: Property holding the
+#' column name.
+#'
+#' @return Vector holding the column's values, or NULL if the property is unset
+#' or this resampler type does not declare it.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+resolve_resampler_column <- function(config, x, name) {
+  if (!name %in% names(props(config))) {
+    return(NULL)
+  }
+  column <- prop(config, name)
+  if (is.null(column)) {
+    return(NULL)
+  }
+  if (NCOL(x) < 2L) {
+    rtemis.core::abort(
+      "@",
+      name,
+      " names the column '",
+      column,
+      "', but resample() was given a single vector. Pass the data frame the ",
+      "column lives in.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  if (!column %in% colnames(x)) {
+    rtemis.core::abort(
+      "@",
+      name,
+      " names the column '",
+      column,
+      "', which is not present. Available columns: ",
+      paste(colnames(x), collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  if (is.data.frame(x)) x[[column]] else x[, column]
+} # /rtemis::resolve_resampler_column
+
+
+# %% drop_id_strat_column ----
+#' Remove the identifier column a resampler config names
+#'
+#' The column `id_strat` names says which cases belong together; it identifies a
+#' case rather than describing it, so it is not a feature. `resample()` needs the
+#' frame that carries it, so a caller resamples on the original and models on
+#' what this returns.
+#'
+#' A column that is named but absent is left to `resample()`, which reports it
+#' against the full frame rather than one already narrowed here.
+#'
+#' @param x data.frame, data.table, or tibble: Training data.
+#' @param config Optional ResamplerConfig: Config that may name the column.
+#'
+#' @return `x` without the identifier column, unchanged if none is named.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+drop_id_strat_column <- function(x, config) {
+  if (is.null(config) || !"id_strat" %in% names(props(config))) {
+    return(x)
+  }
+  column <- config@id_strat
+  if (is.null(column) || !column %in% colnames(x)) {
+    return(x)
+  }
+  exc(x, column)
+} # /rtemis::drop_id_strat_column
+
+
+# %% check_custom_resamples ----
+#' Check user-supplied resamples address the data
+#'
+#' A `CustomConfig` holds positions in one dataset, and its property spec can
+#' check their shape but never their range -- only `resample()` sees how many
+#' cases there are to address.
+#'
+#' @param resamples List of integer vectors: Training-case indices per resample.
+#' @param n_cases Integer [1, Inf): Number of cases the indices address.
+#'
+#' @return List of integer vectors, named per resample.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_custom_resamples <- function(resamples, n_cases) {
+  if (length(resamples) == 0L) {
+    rtemis.core::abort(
+      "@resamples must hold at least one resample.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  out <- lapply(seq_along(resamples), function(i) {
+    idx <- resamples[[i]]
+    if (!is.numeric(idx) || length(idx) == 0L || anyNA(idx)) {
+      rtemis.core::abort(
+        "@resamples[[",
+        i,
+        "]] must be a non-empty vector of case indices.",
+        class = c("rtemis_type_error", "rtemis_input_error")
+      )
+    }
+    if (any(idx != trunc(idx))) {
+      rtemis.core::abort(
+        "@resamples[[",
+        i,
+        "]] must hold whole-number case indices.",
+        class = c("rtemis_type_error", "rtemis_input_error")
+      )
+    }
+    idx <- as.integer(idx)
+    if (any(idx < 1L) || any(idx > n_cases)) {
+      rtemis.core::abort(
+        "@resamples[[",
+        i,
+        "]] indexes outside the data: indices must lie in [1, ",
+        n_cases,
+        "].",
+        class = c("rtemis_range_error", "rtemis_input_error")
+      )
+    }
+    idx
+  })
+  names(out) <- if (is.null(names(resamples))) {
+    paste0("Custom_", seq_along(out))
+  } else {
+    names(resamples)
+  }
+  out
+} # /rtemis::check_custom_resamples
+
+
 #' Bootstrap Resampling
 #'
 #' @param x Input vector.
@@ -204,7 +373,7 @@ bootstrap <- function(x, n_resamples = 10, seed = NULL) {
     seq(n_resamples),
     function(i) sort(sample(ids, .length, replace = TRUE))
   )
-  names(res) <- paste0("Bootsrap_", seq(n_resamples))
+  names(res) <- paste0("Bootstrap_", seq(n_resamples))
   res
 } # /rtemis::bootstrap
 

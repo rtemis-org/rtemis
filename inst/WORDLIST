@@ -290,6 +290,7 @@ polars
 preprocess
 preprocesses
 preprocessor
+py
 pyarrow
 preprocessor's
 pretraining
@@ -379,3 +380,4 @@ zmin
 zoomable
 zt
 unserializing
+kB

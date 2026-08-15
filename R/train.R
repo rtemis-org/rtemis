@@ -358,6 +358,14 @@ train <- function(
     verbosity = max(0L, verbosity)
   )
 
+  # A column named by `id_strat` identifies cases rather than describing them,
+  # so the learner must not see it: left in, it reaches the model as a
+  # high-cardinality feature, and `check_supervised()` rejects the run outright
+  # when the IDs are strings. Only `resample()` needs it, and only to read the
+  # grouping off, so the frame carrying it is kept for that one call.
+  x_resampling <- x
+  x <- drop_id_strat_column(x, outer_resampling_config)
+
   # Initial check targetting non-numeric or factor columns
   # Will be checked again by individual learners;
   # this stops sending to all resamples and failing, which fits our stop early design.
@@ -601,7 +609,7 @@ train <- function(
       verbosity = verbosity
     )
     outer_resampler <- resample(
-      x,
+      x_resampling,
       config = outer_resampling_config,
       verbosity = verbosity
     )
