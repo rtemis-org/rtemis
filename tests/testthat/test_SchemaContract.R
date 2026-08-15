@@ -16,6 +16,10 @@
 # The load-bearing one is "every setup_* formal has a default". That is *why*
 # a config schema can require nothing: there is no argument a user must supply,
 # so there is no key a document must carry.
+#
+# The last section audits the other direction: a rule written into an S7
+# `validator` rather than declared on a property has no route into the schema
+# at all, so every one must be mirrored into the registry or recorded.
 
 # %% .contract_family ----
 # Pair each of a family's leaf classes with the `setup_*` that builds it,
@@ -362,6 +366,18 @@ test_that("no readOnly schema property is a setup_* formal", {
 }
 
 
+# %% .registry_entries ----
+# Every entry the registry publishes a schema for, family leaves and flat
+# configs alike, in one flat list. Each carries the class it is generated from
+# and, where the registry declares one, that class's `extra`.
+.registry_entries <- function(env) {
+  c(
+    unlist(lapply(env[["families"]], `[[`, "algorithms"), recursive = FALSE),
+    env[["flat_configs"]]
+  )
+}
+
+
 test_that("the class/setup mapping covers the registry", {
   # `.contract_classes` is written out here rather than read from the registry,
   # so that the checks above still run in a built package. This is what keeps
@@ -418,10 +434,7 @@ test_that("the registry declares no conditional demand for a key", {
   env <- .contract_registry()
   skip_if(is.null(env), "data-raw/ not available (built package)")
 
-  entries <- c(
-    unlist(lapply(env[["families"]], `[[`, "algorithms"), recursive = FALSE),
-    env[["flat_configs"]]
-  )
+  entries <- .registry_entries(env)
   for (i in seq_along(entries)) {
     extra <- entries[[i]][["extra"]]
     if (is.null(extra)) {
@@ -436,6 +449,190 @@ test_that("the registry declares no conditional demand for a key", {
       )
     )
   }
+})
+
+
+# %% Class-validator audit -------------------------------------------------
+# Property-level coverage needs no audit: a property with no role aborts
+# `S7_to_JSONSchema()`, so nothing declared on a property can go unpublished. A
+# hand-written `validator = function(self)` is not a property. It is enforced in
+# R, absent from the schema, and there is nothing in either artifact to notice
+# the difference -- so a config that `rtemis validate` accepts fails at
+# `read_config()`, and every non-R client is a second-class one.
+#
+# `AGENTS.md`: "Hand-writing validation for a property usually means a factory
+# argument was missed." What follows holds a registered class to that, and is
+# the check that keeps working as the package grows: a validator added to a
+# registered class fails here until it is mirrored into the class's `extra` or
+# recorded below as a rule the schema language cannot carry.
+
+# %% .validator_classes ----
+# Every class in `cls`'s S7 ancestry that declares a validator, `S7_object`'s
+# stock one excluded. The leaf's own validator is not the whole story:
+# `MetaLearnerHyperparameters` sits between `SuperLearnerHyperparameters` and
+# `Hyperparameters`, and the properties it constrains are exactly the ones the
+# leaf's schema declares.
+.validator_classes <- function(cls) {
+  out <- list()
+  while (inherits(cls, "S7_class")) {
+    if (!identical(cls, S7::S7_object) && !is.null(cls@validator)) {
+      out <- c(out, list(cls))
+    }
+    cls <- cls@parent
+  }
+  out
+}
+
+
+# %% .spec_driven_validator ----
+# TRUE if a validator does nothing but call `check_applies_when()`. That reads
+# the gate off each property's `applies_when` spec field, which
+# `S7_to_JSONSchema()` emits into the same property's `x-rtemis` annotation --
+# one declaration, published. It is a factory argument doing its job, so it is
+# not hand-written validation and needs no `extra` to mirror it.
+.spec_driven_validator <- function(fn) {
+  expr <- body(fn)
+  calls <- if (is.call(expr) && identical(expr[[1L]], quote(`{`))) {
+    as.list(expr)[-1L]
+  } else {
+    list(expr)
+  }
+  length(calls) > 0L &&
+    all(vapply(
+      calls,
+      function(e) is.call(e) && identical(e[[1L]], quote(check_applies_when)),
+      logical(1L)
+    ))
+}
+
+
+# %% .hand_written_validators ----
+# Names of the classes in `cls`'s ancestry whose validator states a rule the
+# property specs do not.
+.hand_written_validators <- function(cls) {
+  hand <- Filter(
+    function(k) !.spec_driven_validator(k@validator),
+    .validator_classes(cls)
+  )
+  vapply(hand, function(k) k@name, character(1L))
+}
+
+
+# %% .contract_validator_gaps ----
+# Rules enforced in R and absent from the published schema, each with what
+# stops it from being an `extra` clause. Not an exemption list: an entry is a
+# claim that the schema language cannot carry the rule, and the test below
+# checks in both directions, so a rule that becomes mirrorable -- or a
+# validator that is removed -- fails here rather than lingering.
+#
+# Keyed by the class the validator is written on, which for the meta learners
+# is an ancestor of three registered leaves.
+.contract_validator_gaps <- c(
+  GridSearchConfig = paste0(
+    "`@randomize_p` must be set for a randomized search and unset for an ",
+    "exhaustive one. The second half is a value constraint and could be ",
+    "mirrored; the first is a `then` demanding a key, which the contract ",
+    "bans outright -- and `randomize_p` has no default, so nothing can fill ",
+    "it in. This is the case plan/validation-completeness.md item 3 exists ",
+    "to resolve."
+  ),
+  MARSHyperparameters = paste0(
+    "`@nfold` must be at least 2 when `@pmethod` is \"cv\". Both are plain ",
+    "scalars, so an `if`/`then` over values expresses this exactly: ",
+    "mirrorable, and not yet mirrored."
+  ),
+  LightRuleFitHyperparameters = paste0(
+    "`@ifw` cannot be combined with `@ifw_lightgbm` or `@ifw_glmnet`. Both ",
+    "of the latter are tunable, so each is published as a ",
+    "scalar-or-`candidates` `oneOf` and the `then` would have to forbid TRUE ",
+    "in either shape."
+  ),
+  HALHyperparameters = paste0(
+    "`@num_knots` must hold one value per interaction degree (`@max_degree`) ",
+    "and be non-increasing across them. JSON Schema ties an array's length to ",
+    "a constant, never to a sibling property's value, and cannot order an ",
+    "array's elements at all."
+  ),
+  BARTHyperparameters = paste0(
+    "`@num_chains` cannot exceed `@num_gfr`. JSON Schema compares a value ",
+    "against a constant, never against another property."
+  ),
+  MetaLearnerHyperparameters = paste0(
+    "`@base_learners` must hold at least two uniquely and syntactically ",
+    "named `Hyperparameters`. It is a hand-declared `new_property(class_list)` ",
+    "published through the registry's `array_refs`, so it carries no ",
+    "`PropertySpec` for `min_items` to come from, and its names are R list ",
+    "names with no counterpart in the array the schema declares. Inherited by ",
+    "the three registered meta learners."
+  ),
+  DataFingerprint = paste0(
+    "`@hash`, `@encoding`, `@language` and `@data_structure` must be ",
+    "non-empty; `@source` must be set when `@method` is \"file\"; and ",
+    "`@column_names` must hold one value per column (`@n_cols`). The first ",
+    "group is the missed factory argument AGENTS.md names -- `prop_string()` ",
+    "has no `min_length` -- the second is a `then` demanding a key, and the ",
+    "third ties an array's length to a sibling's value."
+  )
+)
+
+
+test_that("a registered class's validator is mirrored in extra or recorded", {
+  env <- .contract_registry()
+  skip_if(is.null(env), "data-raw/ not available (built package)")
+
+  for (entry in .registry_entries(env)) {
+    carriers <- .hand_written_validators(entry[["cls"]])
+    # An `extra` accounts for the class: it is the only place a cross-field
+    # rule can be published, and where it mirrors some of a validator rather
+    # than all of it the registry says which part and why -- `ExecutionConfig`
+    # mirrors its `n_workers` rule and documents why `@future_plan` stays out.
+    if (!is.null(entry[["extra"]])) {
+      expect_true(
+        "allOf" %in% names(entry[["extra"]]),
+        info = paste0(
+          entry[["cls"]]@name,
+          ": `extra` carries class-level `allOf` rules and nothing else."
+        )
+      )
+      next
+    }
+    expect_identical(
+      setdiff(carriers, names(.contract_validator_gaps)),
+      character(),
+      info = paste0(
+        entry[["cls"]]@name,
+        ": validator enforces a rule the schema does not. Mirror it in the ",
+        "registry entry's `extra`, move it onto the property's spec, or ",
+        "record in `.contract_validator_gaps` what stops both."
+      )
+    )
+  }
+})
+
+
+test_that("every recorded validator gap is still a gap", {
+  # The converse, so the record cannot outlive what it describes: a validator
+  # that is deleted, or rewritten in terms of its property specs, must be
+  # struck from the list rather than left standing as a false claim about the
+  # schema.
+  env <- .contract_registry()
+  skip_if(is.null(env), "data-raw/ not available (built package)")
+
+  carriers <- unique(unlist(lapply(
+    .registry_entries(env),
+    function(entry) {
+      if (is.null(entry[["extra"]])) {
+        .hand_written_validators(entry[["cls"]])
+      } else {
+        character()
+      }
+    }
+  )))
+  expect_identical(
+    sort(setdiff(names(.contract_validator_gaps), carriers)),
+    character(),
+    info = "recorded but no longer a gap: drop from .contract_validator_gaps"
+  )
 })
 
 

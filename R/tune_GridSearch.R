@@ -182,27 +182,21 @@ tune_GridSearch <- function(
     mode = shared_memory,
     backend = backend,
     future_plan = future_plan,
-    n_workers = n_workers,
-    label = "resample indices",
-    verbosity = verbosity
+    n_workers = n_workers
   )
   x_shared <- share_payload(
     x,
     mode = shared_memory,
     backend = backend,
     future_plan = future_plan,
-    n_workers = n_workers,
-    label = "training data",
-    verbosity = verbosity
+    n_workers = n_workers
   )
   weights_shared <- share_payload(
     weights,
     mode = shared_memory,
     backend = backend,
     future_plan = future_plan,
-    n_workers = n_workers,
-    label = "case weights",
-    verbosity = verbosity
+    n_workers = n_workers
   )
   run_grid_cell <- make_grid_cell_runner(
     x = x_shared,

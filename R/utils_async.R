@@ -140,10 +140,222 @@ set_preferred_plan <- function(
 } # /set_preferred_plan
 
 
-# Payload below which sharing is not worth its fixed cost. The saving is this size times
-# the task count, so the break-even is well under a megabyte; the threshold is set here
-# rather than lower to keep small runs entirely on the ordinary path.
-SHARE_MIN_BYTES <- 1e6
+# %% warm_workers ----
+#' Load \pkg{rtemis} in every worker
+#'
+#' A worker loads the package when it deserializes its first task, so left alone the cost
+#' falls on whichever dispatch happens to be first. Under outer resampling that is the
+#' first fold's tuning, where it reads as that fold being slower than the nine after it
+#' rather than as setup. Paying it here moves it inside the `worker_pool` node, where it
+#' is labeled and measured.
+#'
+#' @details
+#' One task per worker, each holding its worker for a moment, so the scheduler spreads
+#' them rather than reusing the one that finished first. The tasks are self-contained --
+#' `loadNamespace()` is base -- so nothing is captured from this frame.
+#'
+#' Failures are swallowed. A pool that cannot be warmed is still a usable pool: the load
+#' simply happens on the first real task, exactly as it did before.
+#'
+#' @param backend Character \{"future", "mirai"\}: Execution backend.
+#' @param n_workers Integer [1, Inf): Number of workers to warm.
+#'
+#' @return Invisible NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+warm_workers <- function(backend, n_workers) {
+  if (backend == "future") {
+    tasks <- lapply(seq_len(n_workers), function(i) {
+      future::future(
+        {
+          loadNamespace("rtemis")
+          Sys.sleep(0.05)
+          TRUE
+        },
+        seed = TRUE,
+        globals = FALSE
+      )
+    })
+    for (task in tasks) {
+      tryCatch(future::value(task), error = function(e) NULL)
+    }
+  } else {
+    tryCatch(
+      {
+        tasks <- mirai::mirai_map(
+          seq_len(n_workers),
+          function(i) {
+            loadNamespace("rtemis")
+            Sys.sleep(0.05)
+            TRUE
+          }
+        )
+        mirai::call_mirai(tasks)
+      },
+      error = function(e) NULL
+    )
+  }
+  invisible(NULL)
+} # /rtemis::warm_workers
+
+
+# %% worker_pool_start ----
+#' Start a worker pool for the duration of a run
+#'
+#' Establishes the run's workers once, so every `progress_plapply()` beneath this frame
+#' dispatches onto the same pool instead of building and tearing down its own.
+#'
+#' @details
+#' Standing a pool up costs about a second -- processes spawned, \pkg{rtemis} loaded in
+#' each. A dispatcher that pays that per call pays it once per outer fold, because tuning
+#' dispatches inside the fold loop, and on a short grid the setup outweighs what the
+#' parallelism saves.
+#'
+#' The whole of that cost, spawning and loading both, is recorded as one `worker_pool`
+#' node so it appears in the execution graph as setup rather than inflating the first
+#' thing that dispatches.
+#'
+#' The pool is recorded in `live[["worker_pool"]]`, which is what
+#' `worker_pool_available()` reads and what makes a second call here a no-op: an outer
+#' fold recurses into `train()`, which reaches this function again with the same config.
+#'
+#' Teardown differs by backend and is why `worker_pool_stop()` is not symmetric with this
+#' function. A future plan is scoped to `envir` and unwinds with that frame on its own; a
+#' mirai pool is global state that has to be released explicitly.
+#'
+#' @param backend Character \{"none", "future", "mirai"\}: Execution backend.
+#' @param n_workers Integer [1, Inf): Pool size. A value of 1 starts no pool.
+#' @param future_plan Optional Character: Future plan, when `backend` is `"future"`.
+#' @param warm Logical: If TRUE, load \pkg{rtemis} in every worker before returning, so
+#' the whole setup cost falls inside this node. FALSE leaves each worker to load on its
+#' first task, which is cheaper overall by about one dispatch and charges the difference
+#' to whatever dispatches first. Exposed so the two can be measured against each other.
+#' @param envir Environment: Frame the future plan is scoped to.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Logical: TRUE if this call started the pool, and must therefore stop it.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+worker_pool_start <- function(
+  backend,
+  n_workers,
+  future_plan = NULL,
+  warm = TRUE,
+  envir = parent.frame(),
+  verbosity = 1L
+) {
+  check_pos_integer_scalar(n_workers)
+  if (backend == "none" || n_workers == 1L) {
+    return(FALSE)
+  }
+  if (!is.null(live[["worker_pool"]])) {
+    return(FALSE)
+  }
+  t_start <- Sys.time()
+  if (backend == "future") {
+    # Left to `progress_plapply()`, which raises on it: a plan that runs one worker is not
+    # a pool, and reporting it as one here would hide the error behind a quieter symptom.
+    if (identical(future_plan, "sequential")) {
+      return(FALSE)
+    }
+    check_dependencies("future")
+    if (!is.null(future_plan) && startsWith(future_plan, "future.mirai::")) {
+      check_dependencies("future.mirai")
+    }
+    plan_set <- set_preferred_plan(
+      requested_plan = future_plan,
+      n_workers = n_workers,
+      envir = envir,
+      verbosity = verbosity
+    )
+    # `future` resolves a single-worker request to a sequential plan, so the plan that was
+    # set is not always the one asked for.
+    if (identical(plan_set, "sequential")) {
+      return(FALSE)
+    }
+  } else {
+    check_dependencies("mirai")
+    mirai::daemons(n_workers, dispatcher = TRUE)
+  }
+  # Spawning the processes is only half the cost; the other half is each one loading
+  # rtemis, which it does on its first task. Both belong to setup, so both are paid and
+  # timed here rather than one of them landing in the first fold that tunes.
+  if (warm) {
+    warm_workers(backend, n_workers)
+  }
+  live[["worker_pool"]] <- list(backend = backend, n_workers = n_workers)
+  session_add_node(
+    "worker_pool",
+    label = paste0(n_workers, " ", backend),
+    meta = list(
+      backend = backend,
+      n_workers = n_workers,
+      future_plan = future_plan
+    ),
+    t_start = t_start,
+    t_end = Sys.time()
+  )
+  if (verbosity > 0L) {
+    msg0(
+      "Started ",
+      highlight(n_workers),
+      ngettext(n_workers, " worker", " workers"),
+      " (",
+      bold(backend),
+      ") for this run."
+    )
+  }
+  TRUE
+} # /rtemis::worker_pool_start
+
+
+# %% worker_pool_stop ----
+#' Release the run's worker pool
+#'
+#' Called only by the frame whose `worker_pool_start()` returned TRUE. A future plan
+#' unwinds with the frame it was scoped to, so only the marker is cleared for that
+#' backend; mirai daemons are global and are shut down here.
+#'
+#' @return Invisible NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+worker_pool_stop <- function() {
+  pool <- live[["worker_pool"]]
+  if (is.null(pool)) {
+    return(invisible(NULL))
+  }
+  live[["worker_pool"]] <- NULL
+  if (identical(pool[["backend"]], "mirai")) {
+    mirai::daemons(0L)
+  }
+  invisible(NULL)
+} # /rtemis::worker_pool_stop
+
+
+# %% worker_pool_available ----
+#' Is there a run-level pool this dispatch can use?
+#'
+#' The backend must match, because borrowing is the decision to skip this dispatch's own
+#' setup: a future dispatch onto mirai daemons would find no plan set, and a mirai
+#' dispatch under a future plan would start daemons that then shut down the plan's own.
+#'
+#' @param backend Character \{"none", "future", "mirai"\}: Execution backend.
+#'
+#' @return Logical.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+worker_pool_available <- function(backend) {
+  pool <- live[["worker_pool"]]
+  !is.null(pool) && identical(pool[["backend"]], backend)
+} # /rtemis::worker_pool_available
 
 
 # Future plans that are known to place workers on this machine. `cluster` is absent
@@ -202,10 +414,13 @@ workers_are_local <- function(backend, future_plan) {
 #' materializes only its own subset. Regions are mapped read-only, so a worker cannot
 #' corrupt what the others are reading.
 #'
-#' `"auto"` is best-effort and returns the object untouched whenever sharing would not
-#' help or cannot work. `"always"` shares regardless of size -- including under
-#' `backend = "none"`, which is what allows a run to be compared against its own shared
-#' counterpart -- and raises when the request cannot be honored at all.
+#' `"auto"` is best-effort: it shares wherever it can and returns the object untouched
+#' wherever it cannot, including when `mori::share()` itself fails. `"always"` shares
+#' even under `backend = "none"`, which is what allows a run to be compared against its
+#' own shared counterpart, and raises when the request cannot be honored at all.
+#'
+#' Silent by design: the policy is stated once per run by `report_shared_memory()`, not
+#' once per payload per dispatch. `share_decision()` holds the policy both consult.
 #'
 #' **The caller must keep the returned value alive until the workers have mapped it.**
 #' Both call sites do so by capturing it in the task-runner factory's frame, which lives
@@ -216,8 +431,6 @@ workers_are_local <- function(backend, future_plan) {
 #' @param backend Character \{"none", "future", "mirai"\}: Execution backend.
 #' @param future_plan Optional Character: Future plan, when `backend` is `"future"`.
 #' @param n_workers Integer [1, Inf): Number of workers.
-#' @param label Character: What this payload is, for the skip message.
-#' @param verbosity Integer: Verbosity level.
 #'
 #' @return `obj`, or a \pkg{mori} shared wrapper around it.
 #'
@@ -229,16 +442,13 @@ share_payload <- function(
   mode = "none",
   backend = "none",
   future_plan = NULL,
-  n_workers = 1L,
-  label = "payload",
-  verbosity = 1L
+  n_workers = 1L
 ) {
   if (identical(mode, "none") || is.null(obj)) {
     return(obj)
   }
-  local_workers <- workers_are_local(backend, future_plan)
   if (identical(mode, "always")) {
-    if (!local_workers) {
+    if (!workers_are_local(backend, future_plan)) {
       rtemis.core::abort(
         "shared_memory = \"always\" but this run's workers are not known to be on ",
         "this machine (future plan: ",
@@ -251,57 +461,172 @@ share_payload <- function(
     check_dependencies("mori")
     return(mori::share(obj))
   }
-  # "auto" from here: every remaining condition is a reason not to share, never an error.
-  if (!local_workers) {
-    msg0(
-      "Not sharing ",
-      label,
-      ": workers are not on this machine.",
-      verbosity = verbosity
-    )
+  if (!share_decision(obj, mode, backend, future_plan, n_workers)[["share"]]) {
     return(obj)
   }
-  if (backend == "none" || n_workers == 1L) {
-    # Sequential execution transfers nothing, so there is nothing to save.
-    return(obj)
-  }
-  if (identical(future_plan, "multicore")) {
-    # Forked workers already share these pages copy-on-write.
-    msg0(
-      "Not sharing ",
-      label,
-      ": forked workers already share memory.",
-      verbosity = verbosity
-    )
-    return(obj)
-  }
-  if (!requireNamespace("mori", quietly = TRUE)) {
-    msg0(
-      "Not sharing ",
-      label,
-      ": the mori package is not installed.",
-      verbosity = verbosity
-    )
-    return(obj)
-  }
-  # Measured before sharing: `object.size()` does not understand ALTREP and reports an
-  # already-shared object at its full nominal size.
-  if (as.numeric(utils::object.size(obj)) < SHARE_MIN_BYTES) {
-    # Gated a level above the other skip reasons: a small payload is the ordinary case, and
-    # a caller shares several per run, so at verbosity 1 this would be the noisiest line of
-    # a run that did nothing unusual.
-    if (verbosity > 1L) {
-      msg0(
-        "Not sharing ",
-        label,
-        ": below the size threshold.",
-        verbosity = verbosity
+  # "auto" is best-effort, and as the default policy it is on the path of every parallel
+  # run, so a failure here degrades to the ordinary transport rather than ending the fit.
+  # Warned once per run, because a failure is a defect rather than a policy decision and
+  # a run that quietly stopped sharing is a run whose memory ceiling moved: the caller
+  # shares three payloads per dispatch and tuning dispatches once per outer fold, so
+  # warning at each would bury the first one.
+  tryCatch(mori::share(obj), error = function(e) {
+    if (is.null(live[["share_warned"]])) {
+      live[["share_warned"]] <- TRUE
+      rtemis.core::warn(
+        "Could not place a worker payload in shared memory: ",
+        conditionMessage(e),
+        "\nContinuing without it; each task receives its own copy."
       )
     }
-    return(obj)
-  }
-  mori::share(obj)
+    obj
+  })
 } # /rtemis::share_payload
+
+
+# %% format_bytes ----
+#' Human-readable byte count
+#'
+#' SI units, so a megabyte reads back as "1 MB" rather than as the 976.6 Kb the same
+#' number of bytes is in binary units.
+#'
+#' @param bytes Numeric: Size in bytes.
+#'
+#' @return Character.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+format_bytes <- function(bytes) {
+  format(
+    structure(bytes, class = "object_size"),
+    units = "auto",
+    standard = "SI"
+  )
+} # /rtemis::format_bytes
+
+
+# %% share_decision ----
+#' Will this payload be shared, and if not why not
+#'
+#' The single statement of the sharing policy. `share_payload()` acts on it and
+#' `report_shared_memory()` describes it, so what a run reports cannot drift from what
+#' it does.
+#'
+#' @details
+#' Conditions are ordered so the reason given is the first one that applies, which is
+#' also the most specific: "not asked to" before "cannot". There is no "not worth it":
+#' the transport is cheaper at every size measured, so anything that can be shared is.
+#'
+#' `"always"` reports as sharing. Its one impossible case -- workers that are not on this
+#' machine -- is an error rather than a decision, and is raised by `share_payload()`.
+#'
+#' @param obj Object to share, or NULL.
+#' @param mode Character \{"none", "auto", "always"\}: Sharing policy.
+#' @param backend Character \{"none", "future", "mirai"\}: Execution backend.
+#' @param future_plan Optional Character: Future plan, when `backend` is `"future"`.
+#' @param n_workers Integer [1, Inf): Number of workers.
+#'
+#' @return List with `share` (logical), `reason` (character, NULL when sharing) and
+#' `bytes` (numeric).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+share_decision <- function(obj, mode, backend, future_plan, n_workers) {
+  # Measured before sharing: `object.size()` does not understand ALTREP and reports an
+  # already-shared object at its full nominal size.
+  bytes <- if (is.null(obj)) 0 else as.numeric(utils::object.size(obj))
+  no <- function(reason) list(share = FALSE, reason = reason, bytes = bytes)
+  if (identical(mode, "none")) {
+    return(no("shared_memory is \"none\""))
+  }
+  if (is.null(obj)) {
+    return(no("there is nothing to share"))
+  }
+  if (!workers_are_local(backend, future_plan)) {
+    return(no("the workers are not on this machine"))
+  }
+  if (identical(mode, "always")) {
+    return(list(share = TRUE, reason = NULL, bytes = bytes))
+  }
+  if (backend == "none" || n_workers == 1L) {
+    return(no("this run transfers nothing to workers"))
+  }
+  if (identical(future_plan, "multicore")) {
+    return(no("forked workers already share memory"))
+  }
+  if (!requireNamespace("mori", quietly = TRUE)) {
+    return(no("the mori package is not installed"))
+  }
+  # No size test. Measured on a 190 x 117 frame (~190 kB), sharing costs 0.06 ms once and
+  # 0.17 ms per task in slower slicing, against 0.30 ms per task saved on serializing and
+  # unserializing it -- a net gain before the transport those bytes would also have to
+  # cross. The fixed cost a threshold would be avoiding is not there to avoid.
+  list(share = TRUE, reason = NULL, bytes = bytes)
+} # /rtemis::share_decision
+
+
+# %% report_shared_memory ----
+#' Report what a run will do about shared memory
+#'
+#' Reported once per run, from `train()`, and only when sharing was asked for: a run left
+#' on the default policy has nothing to say about a feature it is not using.
+#'
+#' @details
+#' The individual `share_payload()` calls are silent. There are three payloads per
+#' dispatch site and tuning dispatches once per outer fold, so a message at each would be
+#' thirty lines on a ten-fold run, all of them saying the same thing.
+#'
+#' @param obj Object the report is about: the training data.
+#' @param mode Character \{"none", "auto", "always"\}: Sharing policy.
+#' @param backend Character \{"none", "future", "mirai"\}: Execution backend.
+#' @param future_plan Optional Character: Future plan, when `backend` is `"future"`.
+#' @param n_workers Integer [1, Inf): Number of workers.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Invisible NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+report_shared_memory <- function(
+  obj,
+  mode,
+  backend,
+  future_plan,
+  n_workers,
+  verbosity = 1L
+) {
+  if (identical(mode, "none") || verbosity < 1L) {
+    return(invisible(NULL))
+  }
+  decision <- share_decision(obj, mode, backend, future_plan, n_workers)
+  size <- format_bytes(decision[["bytes"]])
+  if (decision[["share"]]) {
+    msg0(
+      "Shared memory (",
+      bold(mode),
+      "): training data (",
+      highlight(size),
+      ") shared across ",
+      highlight(n_workers),
+      ngettext(n_workers, " worker", " workers"),
+      "."
+    )
+  } else {
+    msg0(
+      "Shared memory (",
+      bold(mode),
+      "): not sharing training data (",
+      highlight(size),
+      ") -- ",
+      decision[["reason"]],
+      "."
+    )
+  }
+  invisible(NULL)
+} # /rtemis::report_shared_memory
 
 
 # %% with_preserved_rng ----
@@ -487,6 +812,11 @@ make_task_runner <- function(X, FUN, seeds) {
 #' recount resolved tasks, so the counter stays accurate when tasks finish out of order.
 #' Waiting is event-driven -- no polling interval to tune.
 #'
+#' **Workers are built here only if nobody built them first.** With a run-level pool
+#' standing (`worker_pool_start()`), this dispatches onto it and neither starts nor stops
+#' anything; without one it stands up its own workers for the call and releases them on
+#' the way out. Either way `n_workers` governs the submission window.
+#'
 #' @param X Vector or list: Elements to iterate over, as in [lapply()].
 #' @param FUN Function: Applied to each element of `X`.
 #' @param ... Additional arguments passed to `FUN`.
@@ -567,6 +897,9 @@ progress_plapply <- function(
   } else if (backend == "mirai") {
     check_dependencies("mirai")
   }
+  # A run-level pool, if one is standing, is dispatched onto rather than replaced. Read
+  # before the task body so both backend branches and the teardown agree on one answer.
+  borrowed <- worker_pool_available(backend)
 
   # Task body ----
   run_one <- make_task_runner(X, FUN, seeds)
@@ -613,12 +946,14 @@ progress_plapply <- function(
       )
     }
     if (backend == "future") {
-      future_plan <- set_preferred_plan(
-        requested_plan = future_plan,
-        n_workers = n_workers,
-        envir = environment(),
-        verbosity = verbosity
-      )
+      if (!borrowed) {
+        future_plan <- set_preferred_plan(
+          requested_plan = future_plan,
+          n_workers = n_workers,
+          envir = environment(),
+          verbosity = verbosity
+        )
+      }
       dots <- list(...)
       tasks <- vector("list", n)
       submitted <- 0L
@@ -658,11 +993,13 @@ progress_plapply <- function(
         submit_upto(min(n, j + n_workers))
         value
       }
-      # `set_preferred_plan()` scopes the plan to this frame, so leaving early tears it
-      # down. Tearing it down with futures still running interrupts them, and the damage
-      # lands on whatever runs next: a later, unrelated call gets back a
-      # `FutureInterruptError` in place of its value. Outstanding futures are therefore
-      # canceled explicitly before unwinding, rather than abandoned.
+      # Leaving early must not abandon work in flight, whoever owns the workers. A plan
+      # this call set is scoped to this frame and is torn down on the way out, which
+      # interrupts anything still running; a borrowed pool instead outlives the call, and
+      # a task still occupying a worker delays -- or returns its value to -- the next
+      # dispatch onto that same pool. Either way the damage lands on whatever runs next,
+      # as a `FutureInterruptError` in place of its value. Outstanding futures are
+      # therefore canceled explicitly before unwinding, rather than abandoned.
       # Canceling is only half of it: an interrupted forked worker stays in
       # `parallel:::children()` until someone takes its value, and future's core accounting
       # counts that orphan as a process it cannot attribute to any future -- it warns, and
@@ -683,8 +1020,10 @@ progress_plapply <- function(
         invisible(NULL)
       }
     } else {
-      mirai::daemons(n_workers, dispatcher = TRUE)
-      on.exit(mirai::daemons(0L), add = TRUE)
+      if (!borrowed) {
+        mirai::daemons(n_workers, dispatcher = TRUE)
+        on.exit(mirai::daemons(0L), add = TRUE)
+      }
       tasks <- mirai::mirai_map(
         .x = seq_len(n),
         .f = run_one,
@@ -713,7 +1052,9 @@ progress_plapply <- function(
         }
       }
       # `mirai::daemons(0L)` on the way out is an orderly shutdown of daemons this call
-      # owns, so nothing outstanding needs collecting first.
+      # owns, so nothing outstanding needs collecting first. A borrowed pool is not shut
+      # down at all, and mirai discards the results of a map whose handle goes out of
+      # scope, so there is likewise nothing to collect.
       reap <- function() invisible(NULL)
     }
 

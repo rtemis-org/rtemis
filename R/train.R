@@ -510,6 +510,9 @@ train <- function(
     hyperparameters = hyperparameters,
     outer_resampling_config = outer_resampling_config,
     n_workers = n_workers,
+    n_workers_outer = execution_config@n_workers_outer,
+    n_workers_tuning = execution_config@n_workers_tuning,
+    n_workers_algorithm = execution_config@n_workers_algorithm,
     verbosity = verbosity
   )
   hyperparameters@n_workers <- workers[["algorithm"]]
@@ -523,6 +526,43 @@ train <- function(
     "none"
   } else {
     backend
+  }
+
+  # Worker pool ----
+  # Started once for the whole run, so every dispatch beneath this frame reuses the same
+  # workers. The level that will dispatch is whichever the ladder gave workers to, and
+  # only one ever does, so its share is the pool size; a run that spent them on the
+  # algorithm dispatches nothing and starts no pool.
+  # Sizing it here rather than at the dispatch is what removes the per-fold cost: tuning
+  # dispatches *inside* the outer fold loop, so a pool owned by the dispatch is built and
+  # torn down once per fold, which on a short grid costs more than the parallelism saves.
+  # A sequential fold recurses into `train()` with the run's own config and reaches this
+  # again; `worker_pool_start()` finds the pool standing and hands back FALSE, so the fold
+  # borrows rather than nests.
+  pool_started <- worker_pool_start(
+    backend = backend,
+    n_workers = max(workers[["tuning"]], workers[["outer_resampling"]]),
+    future_plan = future_plan,
+    warm = execution_config@warm_workers,
+    envir = environment(),
+    verbosity = verbosity
+  )
+  on.exit(if (pool_started) worker_pool_stop(), add = TRUE)
+
+  # Reported here, once, and only by the run the user started: the individual
+  # `share_payload()` calls are silent, and there are three of them per dispatch site
+  # with tuning dispatching once per outer fold.
+  if (is_root) {
+    # One warning per run if a share fails; this is where a run begins.
+    live[["share_warned"]] <- NULL
+    report_shared_memory(
+      x,
+      mode = execution_config@shared_memory,
+      backend = backend,
+      future_plan = future_plan,
+      n_workers = max(workers[["tuning"]], workers[["outer_resampling"]]),
+      verbosity = verbosity
+    )
   }
 
   # Preprocessors ----
@@ -548,7 +588,8 @@ train <- function(
   # through to the Outer Aggregation path.
   # Folds run in parallel when the worker ladder assigned workers to this level,
   # which happens only when there is neither a parallelized algorithm nor tuning
-  # to spend them on. See plan/parallelization.md.
+  # to spend them on; otherwise the folds run one at a time and each spends the
+  # workers inside itself. See plan/parallelization.md.
   if (!is.null(outer_resampling_config)) {
     msg0(
       fmt("<> ", col = col_outer, bold = TRUE),
@@ -565,21 +606,33 @@ train <- function(
       verbosity = verbosity
     )
     n_outer <- outer_resampler@config@n_resamples
-    # Each fold trains a single model, so nothing inside it may claim workers of its own.
-    # Under the current ladder a nested call resolves to 1/1/1 anyway -- outer folds only
-    # get workers when there is neither a parallelized algorithm nor tuning to spend them
-    # on -- but stating it here is what stops a future change to that ladder from silently
-    # oversubscribing n_workers x n_workers.
-    fold_execution_config <- ExecutionConfig(
-      backend = "none",
-      n_workers = 1L,
-      on_error = on_error,
-      seed = execution_config@seed
-    )
     outer_workers <- workers[["outer_resampling"]]
     # `execution_config@backend`, not `tuning_backend`: the latter has already been
     # narrowed to "none" for the very case that reaches outer parallelization.
     parallel_folds <- outer_workers > 1L && execution_config@backend != "none"
+    # The ladder assigns the run's workers to exactly one level, and which one decides what
+    # a fold may claim. Folds got them: each fold is one of n_workers already running, so it
+    # must claim nothing, or the run oversubscribes n_workers x n_workers. Folds did not get
+    # them precisely because a level *inside* a fold did -- a parallelized algorithm, or
+    # tuning -- so the fold inherits the run's config and runs the ladder again over it,
+    # this time with no outer level to consider. Forcing the sequential config on both
+    # branches is what silently serialized every tuned or self-parallelizing run.
+    fold_execution_config <- if (parallel_folds) {
+      ExecutionConfig(
+        backend = "none",
+        n_workers = 1L,
+        # Threads, not processes: the fold is already occupying one worker and must not
+        # dispatch, but a self-parallelizing algorithm still runs multi-threaded inside
+        # it. This is what makes `n_workers_outer = 4L, n_workers_algorithm = 2L` mean
+        # four folds of two threads rather than four folds of one.
+        n_workers_algorithm = execution_config@n_workers_algorithm,
+        on_error = on_error,
+        seed = execution_config@seed,
+        warm_workers = execution_config@warm_workers
+      )
+    } else {
+      execution_config
+    }
     # `outer_resampler@resamples` rather than the `Resampler`: the fold only ever indexes
     # the list, an S7 object cannot be placed in shared memory, and the index list is
     # itself a meaningful share of the payload (1.7 MB at n = 50,000, k = 10).
@@ -588,27 +641,21 @@ train <- function(
       mode = execution_config@shared_memory,
       backend = execution_config@backend,
       future_plan = future_plan,
-      n_workers = outer_workers,
-      label = "resample indices",
-      verbosity = verbosity
+      n_workers = outer_workers
     )
     x_shared <- share_payload(
       x,
       mode = execution_config@shared_memory,
       backend = execution_config@backend,
       future_plan = future_plan,
-      n_workers = outer_workers,
-      label = "training data",
-      verbosity = verbosity
+      n_workers = outer_workers
     )
     weights_shared <- share_payload(
       weights,
       mode = execution_config@shared_memory,
       backend = execution_config@backend,
       future_plan = future_plan,
-      n_workers = outer_workers,
-      label = "case weights",
-      verbosity = verbosity
+      n_workers = outer_workers
     )
     run_outer_fold <- make_outer_fold_runner(
       x = x_shared,
@@ -1217,7 +1264,9 @@ train <- function(
 #' @param decomposition_config Optional `DecompositionConfig` object.
 #' @param hyperparameters `Hyperparameters` object.
 #' @param tuner_config Optional `TunerConfig` object.
-#' @param execution_config `ExecutionConfig` object: Sequential config for the fold.
+#' @param execution_config `ExecutionConfig` object: Config the nested `train()` runs under.
+#' Sequential when folds are dispatched in parallel; otherwise the run's own, so the fold
+#' can spend the workers on whichever inner level the ladder assigned them to.
 #' @param weights Optional vector of case weights.
 #' @param question Optional Character: The question the model answers.
 #' @param fatal Logical: If TRUE, a fold failure is re-raised rather than returned.
@@ -1373,10 +1422,15 @@ normalize_fold_result <- function(res) {
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param outer_resampling_config Optional ResamplerConfig object: Setup using [setup_Resampler].
 #' @param n_workers Integer: Total number of workers you want to use.
+#' @param n_workers_outer Optional Integer: Workers for outer resampling, named by the
+#' caller. Any named level switches off the priority assignment described below.
+#' @param n_workers_tuning Optional Integer: Workers for tuning, named by the caller.
+#' @param n_workers_algorithm Optional Integer: Threads for a self-parallelizing
+#' algorithm, named by the caller.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @details
-#' The function prioritizes parallelization levels as follows:
+#' With no level named, the function prioritizes parallelization levels as follows:
 #' 1. If algorithm is parallelized (e.g., LightGBM, Ranger): all workers go to algorithm
 #' 2. Else if tuning is needed: all workers go to tuning (inner resampling)
 #' 3. Else if outer resampling is set: all workers go to outer resampling
@@ -1394,6 +1448,9 @@ get_n_workers <- function(
   hyperparameters,
   outer_resampling_config,
   n_workers,
+  n_workers_outer = NULL,
+  n_workers_tuning = NULL,
+  n_workers_algorithm = NULL,
   verbosity = 1L
 ) {
   # Input validation
@@ -1409,6 +1466,60 @@ get_n_workers <- function(
   is_parallelized <- algorithm %in% live[["parallelized_learners"]]
   requires_tuning <- needs_tuning(hyperparameters)
   requires_resampling <- !is.null(outer_resampling_config)
+
+  # Named levels ----
+  # Any override switches the ladder off for every level, so the assignment is either
+  # entirely the caller's or entirely inferred, never half of each. A level that cannot
+  # run -- tuning with nothing to tune, folds with no outer resampler, threads for an
+  # algorithm that has none -- is clamped to 1 and said so: the config outlives any one
+  # run, and the same one is reasonably pointed at data that does and does not tune.
+  named <- list(
+    algorithm = n_workers_algorithm,
+    tuning = n_workers_tuning,
+    outer_resampling = n_workers_outer
+  )
+  if (!all(vapply(named, is.null, logical(1L)))) {
+    applies <- c(
+      algorithm = is_parallelized,
+      tuning = requires_tuning,
+      outer_resampling = requires_resampling
+    )
+    out <- lapply(names(named), function(level) {
+      asked <- named[[level]] %||% 1L
+      if (asked > 1L && !applies[[level]]) {
+        msg0(
+          "Ignoring n_workers_",
+          if (level == "outer_resampling") "outer" else level,
+          " = ",
+          asked,
+          ": this run has no ",
+          switch(
+            level,
+            algorithm = "self-parallelizing algorithm",
+            tuning = "hyperparameters to tune",
+            outer_resampling = "outer resampling"
+          ),
+          ".",
+          verbosity = verbosity
+        )
+        return(1L)
+      }
+      asked
+    })
+    names(out) <- names(named)
+    msg0(
+      bold("//"),
+      " Workers set explicitly: ",
+      gray("Algorithm: "),
+      highlight(out[["algorithm"]]),
+      gray("; Tuning: "),
+      highlight(out[["tuning"]]),
+      gray("; Outer Resampling: "),
+      highlight(out[["outer_resampling"]]),
+      verbosity = verbosity
+    )
+    return(out)
+  }
 
   # Assign workers to innermost parallelization level to avoid over-subscription
   if (is_parallelized) {

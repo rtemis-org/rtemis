@@ -914,6 +914,9 @@ session_kind_colors <- function(kinds = NULL) {
   rtemis.core::check_character(kinds, allow_null = TRUE)
   fixed <- c(
     train = "#808080",
+    # Setup rather than modeling work, and muted for the same reason: a bar the reader
+    # should be able to find and measure, but not one competing with the work itself.
+    worker_pool = rtemis_colors[["juniper"]],
     outer_fold = col_outer,
     # The progress stream reports the loop over the folds, the graph reports each
     # fold: one activity, so one color.

@@ -9,7 +9,6 @@
 
 share_payload <- getFromNamespace("share_payload", "rtemis")
 workers_are_local <- getFromNamespace("workers_are_local", "rtemis")
-SHARE_MIN_BYTES <- getFromNamespace("SHARE_MIN_BYTES", "rtemis")
 
 # Comfortably over the sharing threshold.
 big_payload <- as.data.frame(matrix(stats::rnorm(2e5), ncol = 10L))
@@ -45,8 +44,7 @@ testthat::test_that("'none' never shares", {
     big_payload,
     "none",
     "mirai",
-    n_workers = 4L,
-    verbosity = 0L
+    n_workers = 4L
   )))
 })
 
@@ -55,8 +53,7 @@ testthat::test_that("NULL payloads pass through", {
     NULL,
     "always",
     "mirai",
-    n_workers = 4L,
-    verbosity = 0L
+    n_workers = 4L
   ))
 })
 
@@ -66,18 +63,18 @@ testthat::test_that("'auto' shares a large payload for local parallel workers", 
     big_payload,
     "auto",
     "mirai",
-    n_workers = 4L,
-    verbosity = 0L
+    n_workers = 4L
   )))
 })
 
-testthat::test_that("'auto' declines when sharing would not pay", {
+testthat::test_that("'auto' declines only when sharing cannot apply", {
   testthat::skip_if_not_installed("mori")
   declines <- function(...) {
-    !is_shared_obj(share_payload(..., verbosity = 0L))
+    !is_shared_obj(share_payload(...))
   }
-  # Below the size threshold: fixed cost, no benefit.
-  expect_true(declines(small_payload, "auto", "mirai", n_workers = 4L))
+  # Size is not a reason: the transport is cheaper at every measured size, so a small
+  # payload on parallel local workers is shared like any other.
+  expect_false(declines(small_payload, "auto", "mirai", n_workers = 4L))
   # Nothing is transferred when there is one worker.
   expect_true(declines(big_payload, "auto", "mirai", n_workers = 1L))
   # Forked workers already share these pages copy-on-write.
@@ -92,15 +89,22 @@ testthat::test_that("'auto' declines when sharing would not pay", {
   expect_true(declines(big_payload, "auto", "future", "remote", n_workers = 4L))
 })
 
-testthat::test_that("'always' ignores the size threshold", {
+testthat::test_that("'always' shares even where 'auto' would not", {
   testthat::skip_if_not_installed("mori")
-  expect_lt(as.numeric(utils::object.size(small_payload)), SHARE_MIN_BYTES)
+  # The distinction that survives: "auto" needs a parallel run to share into, "always" is
+  # a demand and shares regardless, which is what lets a run be compared against its own
+  # shared counterpart.
+  expect_false(is_shared_obj(share_payload(
+    small_payload,
+    "auto",
+    "none",
+    n_workers = 1L
+  )))
   expect_true(is_shared_obj(share_payload(
     small_payload,
     "always",
     "mirai",
-    n_workers = 4L,
-    verbosity = 0L
+    n_workers = 4L
   )))
   # Including with no parallelism at all, which is what lets a run be compared against
   # its own shared counterpart.
@@ -108,8 +112,7 @@ testthat::test_that("'always' ignores the size threshold", {
     small_payload,
     "always",
     "none",
-    n_workers = 1L,
-    verbosity = 0L
+    n_workers = 1L
   )))
 })
 
@@ -121,8 +124,7 @@ testthat::test_that("'always' errors when workers are not local", {
       "always",
       "future",
       "remote",
-      n_workers = 4L,
-      verbosity = 0L
+      n_workers = 4L
     ),
     class = "rtemis_value_error"
   )
@@ -136,8 +138,7 @@ testthat::test_that("sharing collapses the serialized payload", {
     big_payload,
     "always",
     "mirai",
-    n_workers = 4L,
-    verbosity = 0L
+    n_workers = 4L
   )
   # A shared object serializes as its region name, a few hundred bytes, rather than its
   # contents -- which is the entire point.
@@ -153,8 +154,7 @@ testthat::test_that("a shared object reads back as the original", {
     big_payload,
     "always",
     "mirai",
-    n_workers = 4L,
-    verbosity = 0L
+    n_workers = 4L
   )
   expect_identical(dim(shared), dim(big_payload))
   expect_equal(shared[[1L]], big_payload[[1L]])
@@ -164,7 +164,7 @@ testthat::test_that("a shared object reads back as the original", {
 testthat::test_that("containers survive sharing", {
   testthat::skip_if_not_installed("mori")
   share_it <- function(x) {
-    share_payload(x, "always", "mirai", n_workers = 4L, verbosity = 0L)
+    share_payload(x, "always", "mirai", n_workers = 4L)
   }
   # data.frame
   expect_s3_class(share_it(big_payload), "data.frame")
@@ -195,8 +195,7 @@ testthat::test_that("a shared global is not counted against future's size limit"
     payload,
     "always",
     "mirai",
-    n_workers = 2L,
-    verbosity = 0L
+    n_workers = 2L
   )
   nominal <- as.numeric(utils::object.size(shared))
   old <- options(future.globals.maxSize = nominal / 4)
@@ -222,8 +221,7 @@ testthat::test_that("a shared object arrives shared in a worker", {
     big_payload,
     "always",
     "mirai",
-    n_workers = 2L,
-    verbosity = 0L
+    n_workers = 2L
   )
   mirai::daemons(2L, dispatcher = TRUE)
   on.exit(mirai::daemons(0L), add = TRUE)
@@ -241,10 +239,12 @@ testthat::test_that("a shared object arrives shared in a worker", {
 
 
 # %% ExecutionConfig ----
-testthat::test_that("shared_memory defaults to 'none'", {
+testthat::test_that("shared_memory defaults to 'auto'", {
+  # Best-effort by default: it applies wherever it can and is skipped, without comment,
+  # wherever it cannot -- including here, where the backend dispatches nothing.
   expect_identical(
     setup_ExecutionConfig(backend = "none")@shared_memory,
-    "none"
+    "auto"
   )
 })
 

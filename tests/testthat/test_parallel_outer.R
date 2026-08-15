@@ -12,6 +12,10 @@ progress_plapply <- getFromNamespace("progress_plapply", "rtemis")
 rng_substreams <- getFromNamespace("rng_substreams", "rtemis")
 with_preserved_rng <- getFromNamespace("with_preserved_rng", "rtemis")
 set_preferred_plan <- getFromNamespace("set_preferred_plan", "rtemis")
+worker_pool_start <- getFromNamespace("worker_pool_start", "rtemis")
+worker_pool_stop <- getFromNamespace("worker_pool_stop", "rtemis")
+worker_pool_available <- getFromNamespace("worker_pool_available", "rtemis")
+live <- getFromNamespace("live", "rtemis")
 
 # %% rng_substreams ----
 testthat::test_that("rng_substreams() derives distinct, deterministic streams", {
@@ -268,6 +272,15 @@ node_kinds <- function(mod) {
   table(vapply(mod@session@events, function(e) e[["kind"]], character(1L)))
 }
 
+# The modeling nodes alone. `worker_pool` records the workers being built, so it exists in
+# a parallel run and cannot exist in a sequential one -- the one node whose presence is
+# *supposed* to differ, and therefore the one that must be set aside when asserting that
+# nothing else does.
+model_node_kinds <- function(mod) {
+  kinds <- node_kinds(mod)
+  kinds[names(kinds) != "worker_pool"]
+}
+
 testthat::test_that("parallel outer folds reproduce the sequential run", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
@@ -306,8 +319,8 @@ testthat::test_that("a parallel run yields the same execution graph", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   expect_identical(
-    node_kinds(fit_folds("none", 1L)),
-    node_kinds(fit_folds("mirai", 2L))
+    model_node_kinds(fit_folds("none", 1L)),
+    model_node_kinds(fit_folds("mirai", 2L))
   )
 })
 
@@ -327,8 +340,8 @@ testthat::test_that("a parallel fold never shares the host's session", {
   testthat::skip_if_not_installed("future")
   withr::local_options(future.fork.enable = FALSE)
   expect_identical(
-    node_kinds(fit_folds("none", 1L)),
-    node_kinds(fit_folds("future", 2L, future_plan = "multicore"))
+    model_node_kinds(fit_folds("none", 1L)),
+    model_node_kinds(fit_folds("future", 2L, future_plan = "multicore"))
   )
 })
 
@@ -477,4 +490,223 @@ testthat::test_that("a failed parallel fold aborts under 'stop_outer'", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   expect_error(fit_failing("stop_outer"), "Outer fold")
+})
+
+
+# %% workers reach inside a sequential fold ----
+# The ladder gives the run's workers to exactly one level. When that level is inside a
+# fold -- a parallelized algorithm, or tuning -- the folds run one at a time and each must
+# still receive the workers. A fold config hard-coded to 1 worker serializes both, which
+# is invisible in the results and only shows up as a run that takes k times as long.
+
+testthat::test_that("a self-parallelizing algorithm keeps its workers inside a fold", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("ranger")
+  mod <- train(
+    parallel_dat,
+    hyperparameters = setup_Ranger(num_trees = 50L),
+    outer_resampling_config = parallel_resampler,
+    execution_config = setup_ExecutionConfig(
+      backend = "mirai",
+      n_workers = 2L,
+      seed = 2026L
+    ),
+    verbosity = 0L
+  )
+  # Ranger takes the workers as threads, so the folds themselves stay sequential and
+  # nothing is dispatched: the only evidence is the worker count each sub-model ran with.
+  expect_identical(
+    unname(vapply(
+      mod@models,
+      function(m) m@hyperparameters@n_workers,
+      integer(1L)
+    )),
+    rep(2L, length(mod@models))
+  )
+})
+
+
+testthat::test_that("tuning inside a sequential fold dispatches in parallel", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("mirai")
+  # Tuning outranks outer resampling in the ladder, so the folds run one at a time and
+  # every fold's grid must go to the workers. `progress_plapply()` announces each dispatch,
+  # which is the only externally visible difference between a parallel grid and a serial one.
+  # Verbosity 2 because a fold runs one level below its caller, and the announcement is
+  # made at 1; the handler muffles what it captures, so the run stays quiet.
+  dispatches <- character()
+  pool_starts <- character()
+  withCallingHandlers(
+    train(
+      parallel_dat,
+      hyperparameters = setup_CART(maxdepth = tune_over(2L, 4L)),
+      outer_resampling_config = setup_Resampler(
+        n_resamples = 2L,
+        type = "KFold",
+        seed = 2026L
+      ),
+      tuner_config = setup_GridSearch(
+        resampler_config = setup_Resampler(
+          n_resamples = 2L,
+          type = "KFold",
+          seed = 2026L
+        )
+      ),
+      execution_config = setup_ExecutionConfig(
+        backend = "mirai",
+        n_workers = 2L,
+        seed = 2026L
+      ),
+      verbosity = 2L
+    ),
+    message = function(m) {
+      # Messages carry ANSI styling, which sits between the digits and the word.
+      txt <- gsub("\033\\[[0-9;]*m", "", conditionMessage(m))
+      if (grepl("Dispatching", txt, fixed = TRUE)) {
+        dispatches <<- c(dispatches, txt)
+      }
+      if (grepl("for this run", txt, fixed = TRUE)) {
+        pool_starts <<- c(pool_starts, txt)
+      }
+      invokeRestart("muffleMessage")
+    }
+  )
+  # One per fold: each of the two folds tunes, and each tuning run dispatches.
+  expect_length(dispatches, 2L)
+  expect_true(all(grepl("to 2 workers", dispatches, fixed = TRUE)))
+  # Both dispatches land on one pool. Each fold recurses into train() and reaches
+  # `worker_pool_start()` again, so a pool per fold is what this rules out.
+  expect_length(pool_starts, 1L)
+  # And the run leaves nothing standing behind it.
+  expect_null(live[["worker_pool"]])
+})
+
+
+# %% worker pool ----
+# Workers are stood up once per run and dispatched onto repeatedly. Owned by the dispatch
+# instead, they are rebuilt once per outer fold, which costs more than the parallelism
+# saves on a short grid.
+
+testthat::test_that("a pool is started once and released", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("mirai")
+  expect_false(worker_pool_available("mirai"))
+  started <- worker_pool_start("mirai", 2L, verbosity = 0L)
+  on.exit(worker_pool_stop(), add = TRUE)
+  expect_true(started)
+  expect_true(worker_pool_available("mirai"))
+  # A nested caller -- an outer fold recursing into train() -- finds it standing, so it
+  # neither builds a second pool nor takes on the duty of stopping this one.
+  expect_false(worker_pool_start("mirai", 2L, verbosity = 0L))
+  # Borrowing is per backend: a future dispatch onto mirai daemons would find no plan.
+  expect_false(worker_pool_available("future"))
+  worker_pool_stop()
+  expect_false(worker_pool_available("mirai"))
+})
+
+
+testthat::test_that("no pool is started when nothing would dispatch", {
+  expect_false(worker_pool_start("none", 4L, verbosity = 0L))
+  expect_false(worker_pool_start("mirai", 1L, verbosity = 0L))
+  expect_false(worker_pool_available("mirai"))
+  expect_null(live[["worker_pool"]])
+})
+
+
+testthat::test_that("the worker pool is a node in the execution graph", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("mirai")
+  # CART needs no tuning, so the ladder gives the workers to the folds and a pool is built.
+  mod <- fit_folds("mirai", 2L)
+  pool <- Filter(
+    function(e) identical(e[["kind"]], "worker_pool"),
+    mod@session@events
+  )
+  # Once per run, whatever dispatches beneath it.
+  expect_length(pool, 1L)
+  expect_identical(pool[[1L]][["meta"]][["n_workers"]], 2L)
+  expect_identical(pool[[1L]][["meta"]][["backend"]], "mirai")
+  # Nested under the run, not reported as a second root.
+  expect_false(is.na(pool[[1L]][["parent_id"]]))
+  # Setup is work that took time, so the bar has width to read.
+  expect_gt(
+    as.numeric(difftime(
+      pool[[1L]][["t_end"]],
+      pool[[1L]][["t_start"]],
+      units = "secs"
+    )),
+    0
+  )
+})
+
+
+testthat::test_that("a sequential run reports no worker pool", {
+  testthat::skip_on_cran()
+  mod <- fit_folds("none", 1L)
+  expect_false("worker_pool" %in% names(node_kinds(mod)))
+})
+
+
+testthat::test_that("the worker_pool kind has a fixed color", {
+  # Kinds outside the fixed map fall back to a recycled palette, so the bar would change
+  # color between runs depending on which other kinds the run reported.
+  expect_true("worker_pool" %in% names(session_kind_colors()))
+  expect_identical(
+    session_kind_colors("worker_pool"),
+    c(worker_pool = unname(session_kind_colors()[["worker_pool"]]))
+  )
+})
+
+
+# %% shared memory reporting ----
+share_decision <- getFromNamespace("share_decision", "rtemis")
+report_shared_memory <- getFromNamespace("report_shared_memory", "rtemis")
+
+testthat::test_that("share_decision() gives the first applicable reason", {
+  small <- rep(1L, 10L)
+  big <- rep(1L, 1e6L)
+  # Not asked to, before anything else.
+  expect_false(share_decision(big, "none", "mirai", NULL, 4L)[["share"]])
+  # Asked to, and worth it.
+  expect_true(share_decision(big, "auto", "mirai", NULL, 4L)[["share"]])
+  # Asked to, but nothing to gain: one worker transfers nothing.
+  d <- share_decision(big, "auto", "mirai", NULL, 1L)
+  expect_false(d[["share"]])
+  expect_match(d[["reason"]], "transfers nothing")
+  # Size is not a reason to decline: a small payload on parallel local workers shares.
+  expect_true(share_decision(small, "auto", "mirai", NULL, 4L)[["share"]])
+  # "always" shares where "auto" cannot, but locality still binds.
+  expect_true(share_decision(small, "always", "mirai", NULL, 4L)[["share"]])
+  expect_false(share_decision(big, "auto", "future", "remote", 4L)[["share"]])
+})
+
+
+testthat::test_that("the shared-memory report is silent unless sharing was asked for", {
+  expect_silent(report_shared_memory(
+    rep(1L, 10L),
+    mode = "none",
+    backend = "mirai",
+    future_plan = NULL,
+    n_workers = 4L,
+    verbosity = 1L
+  ))
+})
+
+
+testthat::test_that("the shared-memory report names the size and the reason", {
+  msgs <- testthat::capture_messages(
+    report_shared_memory(
+      rep(1L, 10L),
+      mode = "auto",
+      backend = "none",
+      future_plan = NULL,
+      n_workers = 1L,
+      verbosity = 1L
+    )
+  )
+  txt <- gsub("\033\\[[0-9;]*m", "", paste(msgs, collapse = ""))
+  # Both the size and the reason, so a reader who expected sharing learns why it did not
+  # happen rather than only that it did not.
+  expect_match(txt, "not sharing training data")
+  expect_match(txt, "transfers nothing")
 })
