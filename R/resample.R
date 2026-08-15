@@ -166,7 +166,7 @@ resample <- function(
     # Supplied rather than drawn, so the only thing left to establish is that
     # the indices address these cases. Checked here because only `resample()`
     # sees the data; the class can check their shape but never their range.
-    res_part <- check_custom_resamples(config@resamples, NROW(x))
+    res_part <- custom_resamples(config@resamples, NROW(x))
     # Get number of resamples
     config@n_resamples <- length(res_part)
   }
@@ -286,12 +286,16 @@ drop_id_strat_column <- function(x, config) {
 } # /rtemis::drop_id_strat_column
 
 
-# %% check_custom_resamples ----
-#' Check user-supplied resamples address the data
+# %% custom_resamples ----
+#' User-supplied resampling
 #'
-#' A `CustomConfig` holds positions in one dataset, and its property spec can
-#' check their shape but never their range -- only `resample()` sees how many
-#' cases there are to address.
+#' The counterpart of `kfold()` and `bootstrap()` for resamples that are given
+#' rather than drawn. The property spec has already checked their shape -- a
+#' non-empty list of non-empty integer vectors, each index at least 1 -- so all
+#' that is left is the upper bound, which only `resample()` can know: `n_cases`
+#' is a fact about the data, not about the config, and none of `data_bound`'s
+#' three meanings (scalar `<=` dim, vector length `==` dim, names within
+#' columns) states "every index within the case count".
 #'
 #' @param resamples List of integer vectors: Training-case indices per resample.
 #' @param n_cases Integer [1, Inf): Number of cases the indices address.
@@ -301,33 +305,12 @@ drop_id_strat_column <- function(x, config) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_custom_resamples <- function(resamples, n_cases) {
-  if (length(resamples) == 0L) {
-    rtemis.core::abort(
-      "@resamples must hold at least one resample.",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
-  out <- lapply(seq_along(resamples), function(i) {
-    idx <- resamples[[i]]
-    if (!is.numeric(idx) || length(idx) == 0L || anyNA(idx)) {
-      rtemis.core::abort(
-        "@resamples[[",
-        i,
-        "]] must be a non-empty vector of case indices.",
-        class = c("rtemis_type_error", "rtemis_input_error")
-      )
-    }
-    if (any(idx != trunc(idx))) {
-      rtemis.core::abort(
-        "@resamples[[",
-        i,
-        "]] must hold whole-number case indices.",
-        class = c("rtemis_type_error", "rtemis_input_error")
-      )
-    }
-    idx <- as.integer(idx)
-    if (any(idx < 1L) || any(idx > n_cases)) {
+custom_resamples <- function(resamples, n_cases) {
+  # Shape is the property spec's job and has already run: a non-empty list of
+  # non-empty integer vectors, each at least 1, none missing. What is left is
+  # the upper bound, which is the only part that depends on the data.
+  for (i in seq_along(resamples)) {
+    if (any(resamples[[i]] > n_cases)) {
       rtemis.core::abort(
         "@resamples[[",
         i,
@@ -337,15 +320,12 @@ check_custom_resamples <- function(resamples, n_cases) {
         class = c("rtemis_range_error", "rtemis_input_error")
       )
     }
-    idx
-  })
-  names(out) <- if (is.null(names(resamples))) {
-    paste0("Custom_", seq_along(out))
-  } else {
-    names(resamples)
   }
-  out
-} # /rtemis::check_custom_resamples
+  if (is.null(names(resamples))) {
+    names(resamples) <- paste0("Custom_", seq_along(resamples))
+  }
+  resamples
+} # /rtemis::custom_resamples
 
 
 #' Bootstrap Resampling

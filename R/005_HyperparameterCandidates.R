@@ -147,19 +147,55 @@ is_candidates <- function(x) {
 } # /rtemis::is_candidates
 
 
+# %% clean_each ----
+#' Clean each element of a list, naming the element that fails
+#'
+#' `lapply()` would do the work, but a `clean_*()` reports the value it rejected
+#' by deparsing its own argument -- which under `lapply()` is the literal
+#' `X[[i]]`, naming nothing a user could act on. Passing the position through
+#' `arg_name` keeps the message pointing at their input.
+#'
+#' @param x List to clean.
+#' @param cleaner Function: The `rtemis.core::clean_*()` to apply per element.
+#' @param ... Passed to `cleaner`.
+#'
+#' @return List of the same length and names, each element cleaned.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+clean_each <- function(x, cleaner, ...) {
+  out <- lapply(
+    seq_along(x),
+    function(i) cleaner(x[[i]], ..., arg_name = paste0("Element ", i))
+  )
+  names(out) <- names(x)
+  out
+} # /rtemis::clean_each
+
+
 # %% clean_int ----
 #' Coerce to integer, reaching inside a hyperparameter domain
 #'
 #' Shadows `rtemis.core::clean_int()` within this package. A `setup_*()` cleans
-#' its arguments before constructing its class, and by then a tunable
-#' hyperparameter may hold a domain; cleaning that object rather than the values
-#' inside it would abort on the type. Each candidate is cleaned instead, so
-#' `tune_over(3, 4, 5)` reaches an integer hyperparameter exactly as `3L` does.
+#' its arguments before constructing its class, and by then a value may be
+#' wrapped in something; cleaning the wrapper rather than the values inside it
+#' would abort on the type. Two wrappers are reached into:
 #'
-#' @param x Value or `HyperparameterCandidates` object to coerce.
+#' - a domain, so `tune_over(3, 4, 5)` reaches an integer hyperparameter exactly
+#'   as `3L` does;
+#' - a list, so one element per resample or per tree is cleaned element by
+#'   element, `list(c(1, 2, 3))` reaching a nested integer property as
+#'   `list(1:3)` does.
+#'
+#' Both matter because `10` is a double in R: writing `10L` everywhere is not
+#' something to ask of a user, and the property's declared type is integer, so
+#' the coercion belongs at this boundary rather than in the user's source.
+#'
+#' @param x Value, `HyperparameterCandidates` object, or list to coerce.
 #' @param ... Passed to `rtemis.core::clean_int()`.
 #'
-#' @return `x` coerced, or a domain whose candidates are.
+#' @return `x` coerced, or the wrapper with its contents coerced.
 #'
 #' @author EDG
 #' @keywords internal
@@ -168,6 +204,11 @@ clean_int <- function(x, ...) {
   if (is_candidates(x)) {
     x@candidates <- lapply(x@candidates, rtemis.core::clean_int, ...)
     return(x)
+  }
+  # A data.frame is a list, and cleaning it column by column is not what any
+  # caller means by it.
+  if (is.list(x) && !is.data.frame(x)) {
+    return(clean_each(x, rtemis.core::clean_int, ...))
   }
   rtemis.core::clean_int(x, ...)
 } # /rtemis::clean_int
@@ -179,10 +220,10 @@ clean_int <- function(x, ...) {
 #' Shadows `rtemis.core::clean_posint()` within this package, for the reason
 #' given on `clean_int()`.
 #'
-#' @param x Value or `HyperparameterCandidates` object to coerce.
+#' @param x Value, `HyperparameterCandidates` object, or list to coerce.
 #' @param ... Passed to `rtemis.core::clean_posint()`.
 #'
-#' @return `x` coerced, or a domain whose candidates are.
+#' @return `x` coerced, or the wrapper with its contents coerced.
 #'
 #' @author EDG
 #' @keywords internal
@@ -191,6 +232,9 @@ clean_posint <- function(x, ...) {
   if (is_candidates(x)) {
     x@candidates <- lapply(x@candidates, rtemis.core::clean_posint, ...)
     return(x)
+  }
+  if (is.list(x) && !is.data.frame(x)) {
+    return(clean_each(x, rtemis.core::clean_posint, ...))
   }
   rtemis.core::clean_posint(x, ...)
 } # /rtemis::clean_posint

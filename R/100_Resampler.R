@@ -443,6 +443,9 @@ setup_Resampler <- function(
   n_resamples <- clean_posint(n_resamples)
   strat_n_bins <- clean_posint(strat_n_bins)
   target_length <- clean_posint(target_length)
+  # Case indices, so positive integers, cleaned element by element:
+  # `list(c(1, 2, 3))` is how this gets written in R.
+  resamples <- clean_posint(resamples)
 
   if (type == "KFold") {
     KFoldConfig(
