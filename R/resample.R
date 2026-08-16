@@ -70,7 +70,10 @@ resample <- function(
   # frame is still a frame, and left as one it reaches the resamplers as a list
   # and fails there on coercion rather than on anything a caller could act on.
   if (!is.null(dim(x))) {
-    if (survival::is.Surv(x)) {
+    # `inherits()` rather than `survival::is.Surv()`, whose body this is: survival is a
+    # Suggests, and reaching into it here both hard-fails when it is absent and loads its
+    # namespace (~450 ms) on the first resample() of every session.
+    if (inherits(x, "Surv")) {
       msg("Survival object will be stratified on time.", verbosity = verbosity)
       x <- x[, 1]
     } else {
