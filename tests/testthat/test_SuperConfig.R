@@ -50,6 +50,35 @@ test_that("setup_SuperConfig() takes a NULL outdir", {
 })
 
 
+test_that("a NULL outdir round-trips through JSON as an explicit null", {
+  # `outdir` is the one property that is nullable *and* carries a non-NULL
+  # `setup_SuperConfig` default, so omitting it and writing `null` must stay
+  # distinguishable on the wire: omitted keeps "results/", `null` means write
+  # nothing. The schema declares it `["string", "null"]` and not required.
+  x <- setup_SuperConfig(hyperparameters = setup_LightRF(), outdir = NULL)
+  file <- file.path(tempdir(), "rtemis_super_null_outdir.json")
+  write_config(x, file, overwrite = TRUE)
+  xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
+  expect_true("outdir" %in% names(xl))
+  expect_null(xl[["outdir"]])
+  expect_null(read_config(file)@outdir)
+})
+
+
+test_that("an omitted outdir reads back as the setup_SuperConfig default", {
+  x <- setup_SuperConfig(hyperparameters = setup_LightRF(), outdir = "models/")
+  file <- file.path(tempdir(), "rtemis_super_no_outdir.json")
+  write_config(x, file, overwrite = TRUE)
+  xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
+  xl[["outdir"]] <- NULL
+  writeLines(
+    as.character(jsonlite::toJSON(xl, auto_unbox = TRUE, pretty = TRUE)),
+    file
+  )
+  expect_identical(read_config(file)@outdir, "results/")
+})
+
+
 # %% train SuperConfig ----
 test_that("train() works with SuperConfig", {
   testthat::skip("For local testing only; requires CSV file")
