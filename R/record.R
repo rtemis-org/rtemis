@@ -157,11 +157,18 @@ config_record <- function(input, resolved) {
   sub_lists <- lapply(nested_list, function(nm) {
     given <- if (is.null(input)) NULL else prop(input, nm)
     resolved_list <- prop(resolved, nm)
-    out <- lapply(names(resolved_list), function(entry) {
-      nested_record(given[[entry]], resolved_list[[entry]])
+    # Left unnamed: the schema publishes this as an *array* of records, and a
+    # named R list serializes as a JSON object instead. The names are an R-side
+    # convenience -- `name_base_learners()` re-derives them from each entry's
+    # `algorithm` on the way back in -- and they are used here, to pair each
+    # resolved entry with the one the run was given.
+    entries <- names(resolved_list) %||% seq_along(resolved_list)
+    lapply(entries, function(entry) {
+      nested_record(
+        if (is.null(given)) NULL else given[[entry]],
+        resolved_list[[entry]]
+      )
     })
-    names(out) <- names(resolved_list)
-    out
   })
   names(sub_lists) <- nested_list
 
