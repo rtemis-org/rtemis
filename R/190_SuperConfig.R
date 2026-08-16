@@ -322,7 +322,7 @@ setup_SuperConfig <- function(
     },
     question = iflengthy(x[["question"]])
   )
-  # `execution_config`, `outdir`, and `verbosity` carry non-NULL defaults in
+  # `execution_config` and `verbosity` carry non-NULL defaults in
   # `setup_SuperConfig`; only override them when the config actually supplies a
   # value, so a portable recipe that omits them keeps the defaults.
   if (!is.null(x[["execution_config"]])) {
@@ -331,8 +331,13 @@ setup_SuperConfig <- function(
       .drop_meta_keys(x[["execution_config"]])
     )
   }
-  if (!is.null(x[["outdir"]])) {
-    args[["outdir"]] <- x[["outdir"]]
+  # `outdir` is nullable *and* carries a non-NULL `setup_SuperConfig` default,
+  # so an absent key and an explicit `null` mean different things: absent keeps
+  # "results/", `null` means write nothing. Key presence is the only thing that
+  # separates them. `args["outdir"] <- list(NULL)` stores a NULL element;
+  # `args[["outdir"]] <- NULL` would delete it and restore the default.
+  if ("outdir" %in% names(x)) {
+    args["outdir"] <- list(x[["outdir"]])
   }
   if (!is.null(x[["verbosity"]])) {
     args[["verbosity"]] <- x[["verbosity"]]

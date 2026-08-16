@@ -1,9 +1,11 @@
 ALTREP
+APS
 ARFF
 AutoPyTorch
 BARTHyperparameters
 BH
 Barmode
+Candes
 CARTHyperparameters
 CDN
 CLI
@@ -14,6 +16,10 @@ ClusterConfig
 CMRG
 ConditionalSuperLearner
 ConditionalSuperLearnerHyperparameters
+Conformalized
+conformalized
+conformalizes
+CQR
 DBSCAN's
 DBSCANConfig
 DTA
@@ -21,6 +27,7 @@ DecomposeConfig
 DecompositionConfig
 DuckDB
 EDG
+exchangeability
 FASTA
 GAMHyperparameters
 GLMHyperparameters
@@ -64,6 +71,8 @@ LinearSVM
 LinearSVMHyperparameters
 MARSHyperparameters
 MIDPT
+Miscoverage
+misspecified
 MLP
 mori
 MPL
@@ -90,6 +99,7 @@ NTSC
 NeuralGasConfig
 OOB
 ORCID
+parallelly
 PCAConfig
 PTM
 PTMs
@@ -101,6 +111,7 @@ Preprocess
 Preprocessor
 PreprocessorConfig
 Pretraining
+Ramdas
 ROCR
 RadialSVM
 RadialSVMHyperparameters
@@ -109,6 +120,7 @@ Relatedly
 Resampler
 ResamplerConfig
 Rprofile
+Sesia
 SL
 SHAP
 SNE
@@ -130,6 +142,7 @@ SupervisedRes
 TabNet
 TabNet's
 TabNetHyperparameters
+Tibshirani
 TreeSHAP
 Talos's
 Tunable
@@ -141,6 +154,7 @@ UMAPConfig
 UMX
 UniProt
 Valdes
+Vovk
 WASM
 XLSX
 Zeitgeber

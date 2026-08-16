@@ -175,6 +175,34 @@ families <- list(
       )
     )
   ),
+  conformal = list(
+    base_class = ConformalConfig,
+    discriminator = "type",
+    payload = NULL,
+    title = "rtemis ConformalConfig",
+    description = paste0(
+      "Language-independent config for an rtemis conformal prediction region. ",
+      "Mirrors the `ConformalConfig` object: a construction plus its ",
+      "construction-specific settings. The construction is tagged rather than ",
+      "inferred, since which of them a run may use depends on the model it is ",
+      "applied to, not on the document."
+    ),
+    discriminator_description = "Conformal construction.",
+    algorithms = list(
+      list(
+        cls = SplitConformalConfig,
+        desc = "Split conformal prediction. See setup_SplitConformal."
+      ),
+      list(
+        cls = CVPlusConfig,
+        desc = "CV+, jackknife+ and cross-conformal. See setup_CVPlus."
+      ),
+      list(
+        cls = CQRConfig,
+        desc = "Conformalized quantile regression. See setup_CQR."
+      )
+    )
+  ),
   hyperparameters = list(
     base_class = Hyperparameters,
     payload = "hyperparameters",

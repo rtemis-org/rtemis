@@ -67,6 +67,12 @@
   .contract_family(TunerConfig, list(GridSearchConfig, "setup_GridSearch")),
   .contract_family(ExplanationConfig, list(SHAPConfig, "setup_SHAP")),
   .contract_family(
+    ConformalConfig,
+    list(SplitConformalConfig, "setup_SplitConformal"),
+    list(CVPlusConfig, "setup_CVPlus"),
+    list(CQRConfig, "setup_CQR")
+  ),
+  .contract_family(
     Hyperparameters,
     list(GLMHyperparameters, "setup_GLM"),
     list(GAMHyperparameters, "setup_GAM"),
