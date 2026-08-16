@@ -4271,7 +4271,13 @@ test_that("a meta learner's record carries one block per library entry", {
       names(payload)
   ))
   entries <- payload[["base_learners"]]
-  expect_identical(names(entries), c("GLM", "CART"))
+  # Published as an array, in library order; each entry names itself with
+  # `algorithm` rather than by a list name JSON would turn into an object key.
+  expect_null(names(entries))
+  expect_identical(
+    vapply(entries, `[[`, character(1L), "algorithm"),
+    c("GLM", "CART")
+  )
   for (entry in entries) {
     expect_identical(names(entry), c("algorithm", "hyperparameters"))
     expect_true("origin" %in% names(entry[["hyperparameters"]]))

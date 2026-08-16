@@ -675,7 +675,14 @@ test_that("a meta learner's record nests one block per library entry", {
     base_learners = list(setup_GLM(), setup_CART())
   )
   entries <- config_record(hyperparameters, hyperparameters)[["base_learners"]]
-  expect_named(entries, c("GLM", "CART"))
+  # An *array* of `$ref`d blocks, in library order: a named list would
+  # serialize as a JSON object, which the schema does not admit. Each entry
+  # names itself with `algorithm`, which is where the R-side names come from.
+  expect_null(names(entries))
+  expect_identical(
+    vapply(entries, `[[`, character(1L), "algorithm"),
+    c("GLM", "CART")
+  )
   for (entry in entries) {
     expect_named(entry, c("algorithm", "hyperparameters"))
     expect_true("origin" %in% names(entry[["hyperparameters"]]))
