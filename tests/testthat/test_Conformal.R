@@ -770,19 +770,28 @@ test_that("CQR refuses a Ranger forest not trained for quantiles", {
 
 test_that("CQR reports an inverting correction rather than an inverted band", {
   # `q` goes negative when the model's band over-covers, and CQR narrows by that
-  # much. Train where the noise is large and calibrate where it is small and the
-  # correction can exceed a case's own band width, which is not an interval.
+  # much. The training noise is large for `a > 0` and negligible for `a < 0`, so
+  # the forest fits a wide band on one side and a narrow one on the other.
+  # Calibrating only on the wide side, with outcomes sitting at the band's
+  # center, makes the correction that side's half-width; the cases to bound come
+  # from the narrow side, whose own bands are a fraction of it, so the band
+  # comes back inverted by an order of magnitude rather than marginally.
   # Reported as the cause -- an over-wide quantile model -- rather than left to
   # the class validator, whose message describes only the symptom.
   set.seed(77L)
-  noisy <- data.frame(a = stats::runif(300L, -3, 3), b = stats::rnorm(300L))
-  noisy[["y"]] <- 2 * noisy[["a"]] + stats::rnorm(300L, sd = 4)
-  clean <- data.frame(a = stats::runif(150L, -3, 3), b = stats::rnorm(150L))
-  clean[["y"]] <- 2 * clean[["a"]] + stats::rnorm(150L, sd = 0.01)
-  held_out <- data.frame(a = stats::runif(100L, -3, 3), b = stats::rnorm(100L))
+  a <- stats::runif(600L, -3, 3)
+  training <- data.frame(a = a, b = stats::rnorm(600L))
+  training[["y"]] <- 2 * a + stats::rnorm(600L, sd = ifelse(a > 0, 10, 0.01))
+  wide_side <- stats::runif(200L, 0.5, 3)
+  calibration <- data.frame(a = wide_side, b = stats::rnorm(200L))
+  calibration[["y"]] <- 2 * wide_side + stats::rnorm(200L, sd = 0.01)
+  held_out <- data.frame(
+    a = stats::runif(100L, -3, -0.5),
+    b = stats::rnorm(100L)
+  )
 
   mod <- train(
-    noisy,
+    training,
     hyperparameters = setup_Ranger(quantreg = TRUE),
     verbosity = 0L
   )
@@ -790,7 +799,7 @@ test_that("CQR reports an inverting correction rather than an inverted band", {
     conformal(
       mod,
       held_out,
-      calibration = clean,
+      calibration = calibration,
       config = setup_CQR(),
       verbosity = 0L
     ),
