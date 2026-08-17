@@ -94,7 +94,13 @@ AUDIT_RESULT_CLASSES <- c(
   # the one asked for, and their vocabularies do not overlap. Pairing them by
   # name is the false match this list exists to prevent.
   "Explanation",
-  "SHAP"
+  "SHAP",
+  # Same asked-versus-resolved split: a region's `@score` is what ran, and
+  # `setup_SplitConformal`'s is what was requested -- NULL there, resolved from
+  # the outcome type here, so the two never carry the same vocabulary.
+  "PredictionRegion",
+  "PredictionInterval",
+  "PredictionSet"
 )
 
 

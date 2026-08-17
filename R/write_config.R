@@ -102,21 +102,27 @@ write_config <- new_generic(
 #' round-trip mismatch when the JSON reader parses with `simplifyVector = FALSE`.
 #'
 #' @param x List or leaf value.
+#' @param keep Character: Names of top-level elements to keep even when
+#'   zero-length. A nullable property whose `setup_*` default is non-NULL needs
+#'   its explicit NULL on the wire, since omission reads back as that default.
+#'   Applies to the top level only: it is deliberately not passed down the
+#'   recursion, so a nested config of the same name is compacted as usual.
 #'
 #' @return `x` with zero-length elements removed recursively.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-.compact_config <- function(x) {
+.compact_config <- function(x, keep = NULL) {
   if (!is.list(x)) {
     return(x)
   }
+  keepers <- intersect(keep, names(x))
   x <- lapply(x, .compact_config)
   # Only drop empty elements from named lists (JSON objects); compacting an
   # unnamed list (JSON array) would renumber and shorten it, corrupting data.
   if (!is.null(names(x))) {
-    x <- x[lengths(x) > 0L]
+    x <- x[lengths(x) > 0L | names(x) %in% keepers]
   }
   x
 } # /rtemis::.compact_config
@@ -129,19 +135,30 @@ write_config <- new_generic(
 #' @param file Character: Path to output JSON file.
 #' @param overwrite Logical: If TRUE, overwrite an existing file.
 #' @param verbosity Integer: Verbosity level.
+#' @param keep_null Character: Names of top-level payload elements to emit as
+#'   JSON `null` rather than drop when NULL. See `.compact_config()`.
 #'
 #' @return NULL, invisibly.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-.write_config_json <- function(payload, file, overwrite, verbosity) {
+.write_config_json <- function(
+  payload,
+  file,
+  overwrite,
+  verbosity,
+  keep_null = NULL
+) {
   check_dependencies("jsonlite")
+  # `null = "null"` reaches only the `keep_null` elements: compaction has
+  # already removed every other NULL, which would otherwise emit as `{}`.
   json_str <- as.character(jsonlite::toJSON(
-    .compact_config(payload),
+    .compact_config(payload, keep = keep_null),
     auto_unbox = TRUE,
     pretty = TRUE,
-    na = "null"
+    na = "null",
+    null = "null"
   ))
   write_lines(
     json_str,
@@ -168,7 +185,20 @@ method(write_config, SuperConfig) <- function(
     list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["supervised"]]),
     S7_to_list(serializable_props(x))
   )
-  .write_config_json(payload, file, overwrite, verbosity)
+  # `serializable_props()` drops a NULL-valued property, which for `outdir`
+  # would erase the difference between "write nothing" and "field omitted" --
+  # the latter reads back as the "results/" default. Restore the explicit NULL
+  # and carry it past compaction so it reaches the wire as JSON `null`.
+  if (is.null(x@outdir)) {
+    payload["outdir"] <- list(NULL)
+  }
+  .write_config_json(
+    payload,
+    file,
+    overwrite,
+    verbosity,
+    keep_null = "outdir"
+  )
   invisible(x)
 } # /rtemis::write_config.SuperConfig
 

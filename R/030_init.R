@@ -320,10 +320,9 @@ se_super <- new_generic(
 # %% se ----
 #' Standard error of the fit
 #'
-#' Computed on demand from the fitted model rather than stored: only linear and
-#' additive models produce standard errors at all, so storing three per-case
-#' vectors on every regression result carried a value that two of thirteen
-#' algorithms populate.
+#' Computed on demand from the fitted model rather than stored: only three of
+#' the twenty-four algorithms answer at all, so storing three per-case vectors
+#' on every regression result would carry a value almost none of them populate.
 #'
 #' @param x `Supervised` object.
 #' @param newdata tabular data: Data to compute standard errors for.
@@ -339,6 +338,43 @@ se <- new_generic("se", "x", function(x, newdata, ...) {
   force_supplied()
   S7_dispatch()
 })
+
+
+# %% quantile_super ----
+#' Predict conditional quantiles (internal)
+#'
+#' @description
+#' Internal S7 generic dispatching on the fitted backend's class, for the
+#' backends that can answer a quantile query from a model already fitted.
+#'
+#' A method exists only where **one** fitted object answers **every** level: a
+#' quantile regression forest stores the training outcomes at its terminal
+#' nodes, so it does; a gradient booster trained on the `quantile` objective
+#' targets the one level it was fitted for, so a pair of levels is a pair of
+#' models and belongs behind `train()` instead.
+#'
+#' The contract. Returns an `n x length(quantiles)` numeric matrix, columns in
+#' the order `quantiles` were given. A backend that was fitted without whatever
+#' it needs to answer -- Ranger without `quantreg = TRUE` -- aborts naming the
+#' setting, rather than returning point predictions.
+#'
+#' @param model Fitted model object.
+#' @param newdata tabular data: Cases to predict, already transformed.
+#' @param quantiles Numeric (0, 1): Levels to predict, in increasing order.
+#'
+#' @return Numeric matrix, one row per case and one column per level.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+quantile_super <- new_generic(
+  "quantile_super",
+  "model",
+  function(model, newdata, quantiles) {
+    force_supplied()
+    S7_dispatch()
+  }
+) # /rtemis::quantile_super
 
 
 # %% explain_super ----
@@ -511,6 +547,95 @@ explain <- new_generic(
     S7_dispatch()
   }
 ) # /rtemis::explain
+
+
+# %% conformal ----
+#' Conformal prediction regions
+#'
+#' @description
+#' A prediction interval for a regression or a set of labels for a
+#' classification, covering the truth with probability at least `1 - alpha`
+#' under exchangeability alone -- in finite samples, for any model, including a
+#' misspecified one.
+#'
+#' @details
+#' **The guarantee is marginal.** `P(Y in C(X)) >= 1 - alpha` averages over the
+#' draw of both the calibration set and the test case. It is *not* conditional:
+#' 90% marginal coverage is compatible with 99% coverage on easy cases and 60%
+#' on a hard subgroup, and averaged over everyone is not the same as guaranteed
+#' for anyone. It is also void, silently, under distribution shift --
+#' exchangeability is the whole assumption.
+#'
+#' **Width is the quality measure; coverage is the correctness check.** A
+#' useless model attains valid coverage by returning intervals wide enough to be
+#' uninformative, so read the two together. The region reports its widths (or
+#' set sizes); `conformal_metrics()` scores coverage against outcomes the region
+#' did not see.
+#'
+#' **Which data calibrates.** `calibration` is a tabular dataset holding the
+#' predictors and the outcome, in training shape. Left NULL, a model trained
+#' with `dat_test` calibrates on that split, whose residuals it already stores:
+#' `train()` never fits, tunes or early-stops on `dat_test`. Nothing else is
+#' assumed clean -- a validation split may have driven early stopping, and a
+#' model chosen by its test metric has used that split for selection, which
+#' nothing in the object records.
+#'
+#' Conformal calibration is unrelated to the probability calibration
+#' [calibrate] performs, and the two must not share rows. Where rtemis can see
+#' that they do, it refuses.
+#'
+#' **Which method.** `config` NULL takes the method the object supports: split
+#' conformal for a `Supervised`, CV+ for a `SupervisedRes`. See
+#' [setup_SplitConformal], [setup_CVPlus] and [setup_CQR].
+#'
+#' @param x `Supervised` or `SupervisedRes` object.
+#' @param newdata tabular data: Cases to bound. Predictors only, in training
+#' order, as [stats::predict()] requires.
+#' @param calibration Optional tabular data: Calibration cases, predictors and
+#' outcome, in the shape `train()` was given. NULL uses the model's stored test
+#' split where it has one.
+#' @param config Optional `ConformalConfig` object: Built by
+#' [setup_SplitConformal], [setup_CVPlus] or [setup_CQR]. NULL takes the method
+#' the object supports.
+#' @param verbosity Integer: Verbosity level.
+#' @param ... Additional arguments passed to methods.
+#'
+#' @return `PredictionInterval` object for a regression, `PredictionSet` for a
+#' classification.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' x <- data.frame(age = rnorm(300), bmi = rnorm(300))
+#' x[["y"]] <- x[["age"]] * 2 + rnorm(300, sd = 0.3)
+#' # Three splits: one fits, one calibrates, one scores what the other two did.
+#' mod <- train(
+#'   x[1:200, ],
+#'   dat_test = x[201:250, ],
+#'   hyperparameters = setup_GLM(),
+#'   verbosity = 0L
+#' )
+#'
+#' # The stored test split calibrates; 90% intervals for five fresh cases.
+#' region <- conformal(mod, x[1:5, c("age", "bmi")], verbosity = 0L)
+#' region
+#' region@lower
+#' region@upper
+#'
+#' # Coverage, against outcomes nothing in the pipeline has seen.
+#' held_out <- x[251:300, ]
+#' conformal_metrics(
+#'   conformal(mod, held_out[, c("age", "bmi")], verbosity = 0L),
+#'   held_out[["y"]]
+#' )
+conformal <- new_generic(
+  "conformal",
+  "x",
+  function(x, newdata, calibration = NULL, config = NULL, verbosity = 1L, ...) {
+    force_supplied()
+    S7_dispatch()
+  }
+) # /rtemis::conformal
 
 
 # %% decomp_ ----

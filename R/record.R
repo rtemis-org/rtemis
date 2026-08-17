@@ -157,11 +157,18 @@ config_record <- function(input, resolved) {
   sub_lists <- lapply(nested_list, function(nm) {
     given <- if (is.null(input)) NULL else prop(input, nm)
     resolved_list <- prop(resolved, nm)
-    out <- lapply(names(resolved_list), function(entry) {
-      nested_record(given[[entry]], resolved_list[[entry]])
+    # Left unnamed: the schema publishes this as an *array* of records, and a
+    # named R list serializes as a JSON object instead. The names are an R-side
+    # convenience -- `name_base_learners()` re-derives them from each entry's
+    # `algorithm` on the way back in -- and they are used here, to pair each
+    # resolved entry with the one the run was given.
+    entries <- names(resolved_list) %||% seq_along(resolved_list)
+    lapply(entries, function(entry) {
+      nested_record(
+        if (is.null(given)) NULL else given[[entry]],
+        resolved_list[[entry]]
+      )
     })
-    names(out) <- names(resolved_list)
-    out
   })
   names(sub_lists) <- nested_list
 
@@ -233,9 +240,12 @@ family_base <- function(cls) {
 #' It also keeps **run state**, which a config drops. `lambda.min` and the
 #' `nrounds` early stopping settled on are precisely what a record exists to
 #' report -- a config omits them because they are re-derived on read, but a
-#' record is the statement of what a run produced. Only constants are left out,
-#' the algorithm implying them, and computed views, which are functions of
-#' fields already present.
+#' record is the statement of what a run produced. Left out are constants, the
+#' algorithm implying them; computed views, which are functions of fields
+#' already present; and `r_only` values, which have no wire form at all. The
+#' last two are exactly what `S7_to_JSONSchema()` omits from the generated
+#' schema, and a record that carried them would fail its own document, every
+#' record schema being `additionalProperties: false`.
 #'
 #' @param cls S7 class.
 #' @param base S7 class or NULL: the family base, whose properties a leaf
@@ -256,7 +266,7 @@ record_names <- function(cls, base) {
     function(nm) {
       prop <- cls@properties[[nm]]
       role <- prop_role(prop)
-      if (identical(role, "computed")) {
+      if (role %in% c("computed", "r_only")) {
         return(FALSE)
       }
       if (identical(role, "state")) {
@@ -423,7 +433,10 @@ supervised_record <- function(x, folds, outcome = "completed") {
     asked,
     list(
       origin = own[["origin"]][own_names],
-      folds = lapply(seq_along(folds), function(i) fold_record(folds[[i]], i)),
+      folds = lapply(
+        seq_along(folds),
+        function(i) fold_record(folds[[i]], i, input)
+      ),
       # The headline scores, so "was this model any good?" is one lookup rather
       # than an average over `folds`. Each fold's full metrics are there too;
       # this block is the reason to open the file.
@@ -444,14 +457,18 @@ supervised_record <- function(x, folds, outcome = "completed") {
 #'
 #' @param model `Supervised` object for one fold.
 #' @param index Integer: 1-based outer resample.
+#' @param input `SuperConfig` the *run* was given. A per-fold sub-model stores
+#'   none of its own -- one record per `train()` call is the design -- so
+#'   pairing a fold against `model@config` would compare it against nothing and
+#'   report every value as `derived`, including the ones the user fixed and the
+#'   ones tuning searched.
 #'
 #' @return Named list: one entry of the record's `folds` array.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-fold_record <- function(model, index) {
-  input <- model@config
+fold_record <- function(model, index, input = model@config) {
   out <- list(index = as.integer(index))
   if (!is.null(model@preprocessor)) {
     out[["preprocessor_config"]] <- nested_record(

@@ -841,11 +841,15 @@ test_that("every Ranger property is generated from its own declaration", {
     base = Hyperparameters
   )
   props <- schema[["properties"]]
-  # `respect_unordered_factors` is a plain enum.
+  # `respect_unordered_factors` is a *nullable* enum, so `null` is one of the
+  # permitted values: `enum` outranks the type union, and a record states an
+  # unset field as an explicit null rather than omitting it.
+  enum <- props[["respect_unordered_factors"]][["enum"]]
   expect_identical(
-    as.character(props[["respect_unordered_factors"]][["enum"]]),
+    as.character(unlist(enum)),
     c("partition", "ignore", "order")
   )
+  expect_true(any(vapply(enum, is.null, logical(1L))))
   # `inbag`: one per-case count vector per tree.
   expect_identical(props[["inbag"]][["items"]][["type"]], "array")
   # `split_select_weights` broadcasts: one vector for all trees, or one per tree.

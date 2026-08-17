@@ -2718,6 +2718,15 @@ wire_value <- function(value, prop) {
   if (is.null(value)) {
     return(value)
   }
+  if (is_S7_list(value)) {
+    # Published as an array of `$ref`s -- one document per element -- and a
+    # *named* R list serializes as a JSON object instead. The names are an
+    # R-side convenience: `name_base_learners()` re-derives them from each
+    # entry's `algorithm` when the config is read back. Decided before the spec
+    # is consulted: such a property carries no `PropertySpec` (its shape is the
+    # element class, not a scalar domain), so a spec-first test never sees it.
+    return(unname(value))
+  }
   spec <- get_spec(prop)
   if (is.null(spec)) {
     return(value)
@@ -2737,6 +2746,14 @@ wire_value <- function(value, prop) {
   }
   if (spec@container == "map" && is.atomic(value)) {
     return(as.list(value))
+  }
+  if (spec@container == "array" && !spec@broadcast && length(value) == 1L) {
+    # R has no scalar: a one-element vector is the vector, and
+    # `toJSON(auto_unbox = TRUE)` unboxes it to a bare value -- which the schema
+    # rejects, having declared an array. Marked `AsIs` so the array survives.
+    # A `broadcast` property is exempt: there a scalar is a declared form of its
+    # own, standing for "this value for every case".
+    return(I(value))
   }
   if (spec@container == "factor" && is.factor(value)) {
     # `toJSON()` on a factor emits its labels and drops the levels attribute,
@@ -3214,6 +3231,14 @@ spec_to_schema <- function(spec, read_only = FALSE) {
     list(oneOf = branches)
   } else if (spec@nullable) {
     scalar[["type"]] <- I(c(spec@type, "null"))
+    # `enum` is the stricter constraint and outranks the type union: a value of
+    # `null` fails an enum that does not list it, however the type reads. A
+    # nullable enum must therefore admit null explicitly -- otherwise every
+    # *record* naming the field is invalid, a record stating an unset field as
+    # an explicit null rather than omitting it.
+    if (!is.null(spec@enum)) {
+      scalar[["enum"]] <- I(c(as.list(spec@enum), list(NULL)))
+    }
     scalar
   } else {
     scalar

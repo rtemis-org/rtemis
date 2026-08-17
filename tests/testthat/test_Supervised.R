@@ -3662,6 +3662,87 @@ test_that("a record publishes a search space as the bare tag it reads back", {
   expect_identical(hp[["origin"]][["maxdepth"]], "user")
 })
 
+test_that("a fold's origins are paired against the run's input", {
+  # A fold sub-model stores no input of its own -- one record per `train()`
+  # call is the design -- so pairing it against `model@config` would compare it
+  # against nothing and report every value as `derived`: the search space that
+  # narrowed, and the value the user fixed, would read the same as one the data
+  # filled in.
+  mod <- train(
+    iris,
+    hyperparameters = setup_CART(maxdepth = tune_over(2L, 4L), minsplit = 4L),
+    outer_resampling_config = setup_Resampler(
+      n_resamples = 2L,
+      type = "KFold",
+      seed = 2026L
+    ),
+    verbosity = 0L
+  )
+  origin <- record(mod)[["folds"]][[1L]][["hyperparameters"]][[
+    "hyperparameters"
+  ]][["origin"]]
+  expect_identical(origin[["maxdepth"]], "tuned")
+  expect_identical(origin[["minsplit"]], "user")
+  expect_identical(origin[["cp"]], "default")
+})
+
+test_that("a record omits r_only values, which have no wire form", {
+  # `CustomConfig@resamples` is `r_only`: case indices mean nothing away from
+  # the dataset and row order they were drawn against. `S7_to_JSONSchema()`
+  # omits such properties, so recording them emits a field the document's own
+  # schema forbids -- every record schema being `additionalProperties: false`.
+  mod <- train(
+    iris,
+    hyperparameters = setup_CART(),
+    outer_resampling_config = setup_Resampler(
+      type = "Custom",
+      resamples = list(seq_len(100L), seq.int(51L, 150L))
+    ),
+    verbosity = 0L
+  )
+  block <- record(mod)[["outer_resampling_config"]]
+  expect_false("resamples" %in% names(block))
+  expect_false("resamples" %in% names(block[["origin"]]))
+  expect_identical(block[["type"]], "Custom")
+})
+
+test_that("a record states the positive class it was given", {
+  # Relevelling the outcome is all `positive_class` does, so without this the
+  # input block cannot distinguish two runs whose metrics are not comparable.
+  dat <- iris[iris[["Species"]] != "virginica", ]
+  dat[["Species"]] <- droplevels(dat[["Species"]])
+  mod <- train(
+    dat,
+    hyperparameters = setup_CART(),
+    positive_class = "setosa",
+    verbosity = 0L
+  )
+  rec <- record(mod)
+  expect_identical(rec[["positive_class"]], "setosa")
+  expect_identical(rec[["origin"]][["positive_class"]], "user")
+})
+
+test_that("a record states where the run wrote, including nowhere", {
+  outdir <- file.path(
+    tempdir(),
+    paste0("rec_", as.integer(runif(1L, 1e6, 9e6)))
+  )
+  on.exit(unlink(outdir, recursive = TRUE), add = TRUE)
+  mod <- train(
+    iris,
+    hyperparameters = setup_CART(),
+    outdir = outdir,
+    verbosity = 0L
+  )
+  expect_identical(record(mod)[["outdir"]], outdir)
+  expect_identical(record(mod)[["origin"]][["outdir"]], "user")
+  # An in-memory run writes nothing, and naming a directory it never wrote to
+  # would be a claim the run never made.
+  mod_mem <- train(iris, hyperparameters = setup_CART(), verbosity = 0L)
+  expect_null(record(mod_mem)[["outdir"]])
+  expect_identical(record(mod_mem)[["origin"]][["outdir"]], "default")
+})
+
 
 # %% Meta learners ---------------------------------------------------------------------------------
 # The library is deliberately GLM + CART: both are always available, and on the
@@ -4190,7 +4271,13 @@ test_that("a meta learner's record carries one block per library entry", {
       names(payload)
   ))
   entries <- payload[["base_learners"]]
-  expect_identical(names(entries), c("GLM", "CART"))
+  # Published as an array, in library order; each entry names itself with
+  # `algorithm` rather than by a list name JSON would turn into an object key.
+  expect_null(names(entries))
+  expect_identical(
+    vapply(entries, `[[`, character(1L), "algorithm"),
+    c("GLM", "CART")
+  )
   for (entry in entries) {
     expect_identical(names(entry), c("algorithm", "hyperparameters"))
     expect_true("origin" %in% names(entry[["hyperparameters"]]))

@@ -769,6 +769,42 @@ test_that("a record keeps unset fields rather than omitting them", {
 })
 
 
+# %% Wire shapes JSON cannot infer from R ----
+# R has no scalar and no unnamed-list literal, so two shapes that are obvious in
+# the schema are ambiguous in the value. Both broke real documents: a GLMNET fold
+# that settled on one `lambda` emitted a number where an array was declared, and
+# a meta learner's `base_learners` emitted an object where an array was.
+
+test_that("a one-element array value stays an array on the wire", {
+  hp <- setup_GLMNET(lambda = 0.1)
+  wire <- wire_value(
+    prop(hp, "lambda"),
+    S7_class(hp)@properties[["lambda"]]
+  )
+  # `toJSON(auto_unbox = TRUE)` unboxes a bare length-1 vector; `AsIs` is what
+  # stops it.
+  expect_s3_class(wire, "AsIs")
+  expect_identical(
+    as.character(jsonlite::toJSON(list(lambda = wire), auto_unbox = TRUE)),
+    '{"lambda":[0.1]}'
+  )
+})
+
+test_that("a list of configs is published as an array, not an object", {
+  hp <- setup_SuperLearner()
+  learners <- prop(hp, "base_learners")
+  # Named R-side for readability; the names are re-derived from each entry's
+  # `algorithm` on the way back in, and a named list would serialize as a JSON
+  # object where the schema declares an array of `$ref`s.
+  expect_false(is.null(names(learners)))
+  wire <- wire_value(learners, S7_class(hp)@properties[["base_learners"]])
+  expect_null(names(wire))
+  rec <- config_record(hp, hp)[["base_learners"]]
+  expect_null(names(rec))
+  expect_length(rec, length(learners))
+})
+
+
 # %% Record metrics ----
 # A record that states the config and the provenance but not the result cannot
 # answer the question it is opened for: was this model any good?

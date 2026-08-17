@@ -166,6 +166,10 @@ default_n_workers <- function(omit = 3L) {
   # `availableCores()` names its result after the mechanism it consulted ("system",
   # "cgroups", ...), and that name rides along into every message that prints the worker
   # count -- "Max workers: c(system = 7)".
+  # The fallback covers that probe failing in an environment it cannot read, not the
+  # package being absent: `future` is an Import and hard-imports `parallelly`, so it is
+  # always installed. `availableCores()` floors at 1 and does not error on `omit`
+  # exceeding the core count, so this is reached only by an unreadable environment.
   unname(tryCatch(
     parallelly::availableCores(omit = omit),
     error = function(e) 1L
