@@ -3107,6 +3107,94 @@ test_that("predict() SupervisedRes succeeds", {
 })
 
 
+test_that("predict() RegressionRes shapes are one column per resample", {
+  newdata <- features(datr_test)
+  n <- nrow(datr_test)
+  k <- length(resmod_r_cart@models)
+  # A regression predicts one number per case, so the resamples are columns.
+  expect_identical(dim(predict(resmod_r_cart, newdata, type = "all")), c(n, k))
+  expect_length(predict(resmod_r_cart, newdata, type = "avg"), n)
+})
+
+
+test_that("predict() SupervisedRes metrics aggregate per case, not per resample", {
+  # `mean` and `sd` describe each case's prediction and how much the resamples
+  # disagreed about it. Aggregating the other way round -- over cases within a
+  # resample -- returned one number per resample and described the outcome's
+  # distribution instead.
+  newdata <- features(datr_test)
+  metrics <- predict(resmod_r_cart, newdata, type = "metrics")
+  expect_named(metrics, c("predictions", "mean", "sd"))
+  expect_length(metrics[["mean"]], nrow(datr_test))
+  expect_length(metrics[["sd"]], nrow(datr_test))
+  expect_equal(metrics[["mean"]], predict(resmod_r_cart, newdata, type = "avg"))
+})
+
+
+test_that("predict() ClassificationRes keeps the class dimension", {
+  # `sapply()` flattened each resample's `n x k` probability matrix into a
+  # column, so a multiclass prediction came back as `n * k` numbers with the
+  # class structure destroyed. Binary was unaffected, k being 1 there, which is
+  # why it survived.
+  resmod_c3 <- train(
+    datc3_train,
+    outer_resampling_config = setup_Resampler(
+      n_resamples = 3L,
+      type = "KFold",
+      seed = 2026L
+    ),
+    hyperparameters = setup_CART(),
+    verbosity = 0L
+  )
+  newdata <- features(datc3_test)
+  n <- nrow(datc3_test)
+  classes <- levels(datc3_train[["Species"]])
+
+  # The averaged prediction is in the shape one model predicts, so a resampled
+  # model reads like a single one.
+  averaged <- predict(resmod_c3, newdata)
+  expect_true(is.matrix(averaged))
+  expect_identical(dim(averaged), c(n, length(classes)))
+  expect_identical(colnames(averaged), classes)
+  expect_equal(unname(rowSums(averaged)), rep(1, n))
+
+  # One matrix per resample: a matrix cannot be a column of anything, so these
+  # stay a list -- the shape `@predicted_test` already uses.
+  each <- predict(resmod_c3, newdata, type = "all")
+  expect_type(each, "list")
+  expect_length(each, length(resmod_c3@models))
+  expect_identical(dim(each[[1L]]), c(n, length(classes)))
+
+  # And the average is the elementwise mean of them.
+  expect_equal(
+    averaged,
+    Reduce(`+`, each) / length(each),
+    ignore_attr = "dimnames"
+  )
+
+  metrics <- predict(resmod_c3, newdata, type = "metrics")
+  expect_identical(dim(metrics[["mean"]]), c(n, length(classes)))
+  expect_identical(dim(metrics[["sd"]]), c(n, length(classes)))
+})
+
+
+test_that("predict() ClassificationRes gives binary and multiclass one shape", {
+  # `prob_matrix()` stores a single column for a binary outcome, and the
+  # resampled shapes follow it rather than collapsing: a matrix from `"avg"` and
+  # a list from `"all"` whatever the class count, so no consumer branches on it.
+  # `SHAP@phi` is a list holding one matrix for the same reason.
+  newdata <- features(datc2_test)
+  averaged <- predict(resmod_c_glm, newdata)
+  expect_true(is.matrix(averaged))
+  expect_identical(dim(averaged), c(nrow(datc2_test), 1L))
+
+  each <- predict(resmod_c_glm, newdata, type = "all")
+  expect_type(each, "list")
+  expect_length(each, length(resmod_c_glm@models))
+  expect_identical(dim(each[[1L]]), c(nrow(datc2_test), 1L))
+})
+
+
 # --- Calibration ----------------------------------------------------------------------------------
 ## {LightRF}[calibrate]<Classification> ----
 # Calibrate mod_c_lightrf trained above
@@ -3427,6 +3515,26 @@ test_that("predict() CART CalibratedClassificationRes succeeds", {
   predicted_cal <- predict(resmodt_c_cart_cal, features(datc2_test))
   expect_type(predicted_cal, "double")
   expect_length(predicted_cal, nrow(datc2_test))
+})
+
+
+test_that("predict() CalibratedClassificationRes takes `type`, like its siblings", {
+  # The argument was `what` here and `type` on every other resampled predict
+  # method, so a caller who learned `type` had it swallowed by `...` and got the
+  # default back in silence.
+  newdata <- features(datc2_test)
+  n <- nrow(datc2_test)
+  k <- length(resmodt_c_cart_cal@calibration_models)
+  # A calibrated probability is a probability, so the shapes are a
+  # classification's: one matrix per resample, whatever the class count.
+  each <- predict(resmodt_c_cart_cal, newdata, type = "all")
+  expect_type(each, "list")
+  expect_length(each, k)
+  expect_identical(dim(each[[1L]]), c(n, 1L))
+  metrics <- predict(resmodt_c_cart_cal, newdata, type = "metrics")
+  expect_named(metrics, c("predictions", "mean", "sd"))
+  # Per case, as for an uncalibrated resampled model.
+  expect_length(metrics[["mean"]], n)
 })
 
 

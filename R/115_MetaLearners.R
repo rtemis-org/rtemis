@@ -86,7 +86,12 @@ MetaLearnerHyperparameters <- new_class(
         setup_Ranger()
       )))
     ),
-    meta_learner = new_property(Hyperparameters, default = quote(setup_NNLS())),
+    # `meta_learner` is declared by each leaf, not here. S7 constructs an
+    # inherited property with the *parent's* default whatever a subclass
+    # redeclares, so a copy on this class made
+    # `ConditionalSuperLearnerHyperparameters`'s `setup_Ranger()` inert -- the
+    # class published Ranger and constructed NNLS. Every leaf declares it, and
+    # a conditional super learner routes with a learner the other two do not.
     inner_resampling_config = new_property(
       ResamplerConfig,
       default = quote(setup_Resampler(n_resamples = 10L, type = "KFold"))
@@ -269,6 +274,13 @@ StackedLearnerHyperparameters <- new_class(
   parent = MetaLearnerHyperparameters,
   abstract = TRUE,
   properties = list(
+    # Declared here rather than on `MetaLearnerHyperparameters`, whose other
+    # subclass wants a different one: a stacked learner combines its library
+    # with non-negative least squares, and a conditional super learner routes
+    # to it with a Ranger oracle. S7 constructs an inherited property with the
+    # parent's default whatever a subclass redeclares, so the two defaults have
+    # to sit on sibling classes to both take effect.
+    meta_learner = new_property(Hyperparameters, default = quote(setup_NNLS())),
     discrete = prop_boolean(
       FALSE,
       tunable = TRUE,

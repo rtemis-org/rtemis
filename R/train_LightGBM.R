@@ -95,6 +95,12 @@ method(train_, LightGBMHyperparameters) <- function(
   # Set n threads
   params[["num_threads"]] <- prop(hyperparameters, "n_workers")
 
+  # An unset hyperparameter is NULL, and LightGBM does not treat a NULL as
+  # absent: it parses the empty value as 0 and fails its own range check
+  # (`alpha = NULL` aborts with "Check failed: (alpha) > (0.0)"). So NULL means
+  # "leave it to the backend", which is expressed by not sending it at all.
+  params <- Filter(Negate(is.null), params)
+
   model <- lightgbm::lgb.train(
     params = params,
     data = x,

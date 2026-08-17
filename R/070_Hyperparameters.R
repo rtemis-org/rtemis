@@ -351,6 +351,28 @@ method(validate_hyperparameters, Hyperparameters) <- function(
 } # /rtemis::validate_hyperparameters.Hyperparameters
 
 
+# %% abbrev_names ----
+#' Name the first few and count the rest
+#'
+#' For a roster too long to read: the leading names, then how many more there
+#' are. A class declaring its backend's whole parameter surface has scores.
+#'
+#' @param x Character: Names.
+#' @param n Integer: How many to name.
+#'
+#' @return Character.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+abbrev_names <- function(x, n = 6L) {
+  if (length(x) <= n) {
+    return(x)
+  }
+  c(x[seq_len(n)], paste0("(+", length(x) - n, " more)"))
+} # /rtemis::abbrev_names
+
+
 # %% repr.Hyperparameters ----
 #' Repr Hyperparameters
 #'
@@ -380,17 +402,30 @@ method(repr, Hyperparameters) <- function(
   # Select the display props explicitly: subclasses declare each
   # hyperparameter as its own property, which would otherwise print twice
   # (individually and inside `hyperparameters`).
+  #
+  # Unset hyperparameters are named rather than listed one per line, and the
+  # tunable/fixed rosters are counted rather than enumerated. A class declaring
+  # its backend's whole surface has scores of each -- LightGBM prints 86 lines
+  # otherwise, 31 of them `NULL` -- and a value the user did not set is the one
+  # thing they did not need to read. Both remain reachable with `$`.
+  hyperparameters <- x@hyperparameters
+  is_unset <- vapply(hyperparameters, is.null, logical(1L))
+  display <- list(
+    hyperparameters = hyperparameters[!is_unset],
+    unset = abbrev_names(names(hyperparameters)[is_unset]),
+    tunable_hyperparameters = length(x@tunable_hyperparameters),
+    fixed_hyperparameters = length(x@fixed_hyperparameters),
+    tuned = x@tuned,
+    resampled = x@resampled,
+    n_workers = x@n_workers
+  )
+  if (length(display[["unset"]]) == 0L) {
+    display[["unset"]] <- NULL
+  }
   out <- paste0(
     out,
     repr_ls(
-      props(x)[c(
-        "hyperparameters",
-        "tunable_hyperparameters",
-        "fixed_hyperparameters",
-        "tuned",
-        "resampled",
-        "n_workers"
-      )],
+      display,
       pad = pad,
       maxlength = maxlength,
       limit = limit,
@@ -1803,6 +1838,831 @@ setup_MonotonicHAL <- function(
 } # /rtemis::setup_MonotonicHAL
 
 
+# %% lightgbm_objective_props ----
+#' Objective-specific LightGBM hyperparameters
+#'
+#' @description
+#' The properties that parameterize a LightGBM objective, shared by the four
+#' algorithms `lightgbm::lgb.train()` backs.
+#'
+#' @details
+#' One backend behind four wrappers, so a property meaningful to any LightGBM
+#' fit is declared once and spliced into each class that can use it. A factory
+#' rather than a shared parent class, because S7 constructs an inherited property
+#' with the *parent's* default whatever a subclass redeclares -- so a base class
+#' could only ever hold properties no algorithm wants to default differently.
+#' `prop_metrics_sample()` and `prop_conformal_alpha()` share declarations the
+#' same way.
+#'
+#' Every property here is nullable and unset by default, meaning "whatever
+#' LightGBM's own default is". That is deliberate: pinning rtemis defaults onto
+#' an objective almost nobody selects would publish values a backend upgrade
+#' could silently diverge from, and the four `train_*` functions drop NULL
+#' entries before the call, since LightGBM reads a NULL as an empty value and
+#' range-checks it (`alpha = NULL` aborts with `Check failed: (alpha) > (0.0)`).
+#'
+#' The parameters tied to an objective a user must *choose* are gated on
+#' `objective` with `applies_when`, so setting one without naming the objective
+#' it belongs to is an error rather than a value LightGBM ignores. The three
+#' that apply to the objectives rtemis resolves to on its own -- `sigmoid`,
+#' `boost_from_average`, `reg_sqrt` -- are left ungated, since gating them would
+#' make a user restate the objective rtemis had already chosen for them.
+#'
+#' @param alpha Logical: Include `alpha`. FALSE on `LightRuleFit`, where the
+#' name is its GLMNET step's elastic-net mixing parameter.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_objective_props <- function(alpha = TRUE) {
+  props <- list(
+    # LightGBM spells the huber and quantile level `alpha` and admits no alias,
+    # so this is the backend's own name rather than a choice.
+    alpha = prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(objective = c("huber", "quantile")),
+      description = "Huber delta or quantile level. NULL = LightGBM's default of 0.9."
+    ),
+    tweedie_variance_power = prop_float(
+      NULL,
+      min = 1,
+      exclusive_max = 2,
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(objective = "tweedie"),
+      description = "Tweedie power: 1 is Poisson-like, near 2 is gamma-like. NULL = LightGBM's default of 1.5."
+    ),
+    fair_c = prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(objective = "fair"),
+      description = "Fair loss scale. NULL = LightGBM's default of 1."
+    ),
+    poisson_max_delta_step = prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(objective = "poisson"),
+      description = "Step cap safeguarding Poisson optimization. NULL = LightGBM's default of 0.7."
+    ),
+    sigmoid = prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Sigmoid slope, for a binary or one-vs-all objective. NULL = LightGBM's default of 1."
+    ),
+    boost_from_average = prop_boolean(
+      NULL,
+      nullable = TRUE,
+      description = "Start from the outcome's mean, for a regression, binary or cross-entropy objective. NULL = LightGBM's default of TRUE."
+    ),
+    reg_sqrt = prop_boolean(
+      NULL,
+      nullable = TRUE,
+      description = "Fit the square root of the outcome and square the prediction back, for a regression objective. NULL = LightGBM's default of FALSE."
+    )
+  )
+  if (!alpha) {
+    props[["alpha"]] <- NULL
+  }
+  prop_group(props, "objective")
+} # /rtemis::lightgbm_objective_props
+
+
+# %% lightgbm_regularization_props ----
+#' Tree-growth regularization hyperparameters
+#'
+#' @description
+#' What LightGBM requires of a split before it will make one, and what it does
+#' to the leaf values afterwards.
+#'
+#' @details
+#' Always in effect, so each carries LightGBM's own default as a real value
+#' rather than being left unset: a record saying `min_gain_to_split: 0` states
+#' what ran, where `null` would send a reader to the backend's documentation.
+#' The gated groups -- objective, DART, GOSS -- do the opposite, since a
+#' parameter that applies only under a mode has nothing to state until that mode
+#' is chosen.
+#'
+#' `linear_lambda` is offered where `linear_tree` is, being the penalty on the
+#' linear models it fits at the leaves.
+#'
+#' @param min_data_in_leaf Integer: Default for the minimum cases per leaf.
+#' @param linear_lambda Logical: Include `linear_lambda`, for the classes that
+#' declare `linear_tree`.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_regularization_props <- function(
+  min_data_in_leaf = 20L,
+  linear_lambda = TRUE
+) {
+  props <- list(
+    min_data_in_leaf = prop_integer(
+      min_data_in_leaf,
+      min = 0L,
+      tunable = TRUE,
+      description = "Minimum number of cases in a leaf."
+    ),
+    min_sum_hessian_in_leaf = prop_float(
+      1e-3,
+      min = 0,
+      tunable = TRUE,
+      description = "Minimum sum of hessians in a leaf: the smooth counterpart of a case count."
+    ),
+    min_gain_to_split = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "Minimum loss reduction a split must buy to be made."
+    ),
+    max_delta_step = prop_float(
+      0,
+      tunable = TRUE,
+      description = "Cap on each leaf's output; 0 or less leaves it uncapped."
+    ),
+    path_smooth = prop_float(
+      0,
+      min = 0,
+      tunable = TRUE,
+      description = "Smooth each leaf towards its parent, more strongly the fewer cases it holds."
+    ),
+    extra_trees = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Choose one split threshold per feature at random rather than the best."
+    ),
+    extra_seed = prop_integer(
+      6L,
+      description = "Random seed for the thresholds `extra_trees` draws."
+    ),
+    # Gated, so nullable: a gate says the property does not apply, and NULL is
+    # how that is said. The always-in-effect members above carry real defaults.
+    linear_lambda = prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(linear_tree = TRUE),
+      description = "L2 penalty on the linear models fitted at the leaves. NULL = LightGBM's default of 0."
+    )
+  )
+  if (!linear_lambda) {
+    props[["linear_lambda"]] <- NULL
+  }
+  prop_group(props, "regularization")
+} # /rtemis::lightgbm_regularization_props
+
+
+# %% lightgbm_binning_props ----
+#' Feature binning and missing-value hyperparameters
+#'
+#' @description
+#' How LightGBM discretizes features before growing trees, and what it treats as
+#' missing.
+#'
+#' @details
+#' These are `lgb.Dataset` parameters rather than `lgb.train()` ones, and they
+#' reach the backend all the same: `lgb.train()` calls `data$update_params()`
+#' before `construct()`, and rtemis hands it an unconstructed dataset. Anything
+#' that forced construction earlier in `prepare_lgb_data()` would silently stop
+#' them taking effect.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_binning_props <- function() {
+  prop_group(
+    list(
+      max_bin = prop_integer(
+        255L,
+        min = 2L,
+        tunable = TRUE,
+        description = "Most bins a feature is discretized into. Fewer is faster and more regularized."
+      ),
+      min_data_in_bin = prop_integer(
+        3L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Minimum number of cases per bin."
+      ),
+      use_missing = prop_boolean(
+        TRUE,
+        description = "Handle missing values. FALSE ignores them."
+      ),
+      zero_as_missing = prop_boolean(
+        FALSE,
+        description = "Treat zeros as missing, rather than only NA."
+      )
+    ),
+    "binning"
+  )
+} # /rtemis::lightgbm_binning_props
+
+
+# %% lightgbm_categorical_props ----
+#' Categorical-split hyperparameters
+#'
+#' @description
+#' How LightGBM splits on a categorical feature, which it does natively rather
+#' than by one-hot encoding.
+#'
+#' @details
+#' rtemis passes `categorical_feature` when it builds the dataset, so every
+#' wrapper can reach these. `max_cat_threshold` and `min_data_per_group` are
+#' declared per class, their defaults differing by algorithm.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_categorical_props <- function() {
+  prop_group(
+    list(
+      cat_l2 = prop_float(
+        10,
+        min = 0,
+        tunable = TRUE,
+        description = "L2 regularization on a categorical split."
+      ),
+      cat_smooth = prop_float(
+        10,
+        min = 0,
+        tunable = TRUE,
+        description = "Smoothing over categorical levels, which reduces the effect of rare ones."
+      ),
+      max_cat_to_onehot = prop_integer(
+        4L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Below this many levels, split one-versus-rest rather than by partition."
+      )
+    ),
+    "categorical"
+  )
+} # /rtemis::lightgbm_categorical_props
+
+
+# %% lightgbm_early_stopping_props ----
+#' Early-stopping hyperparameters beside the round count
+#'
+#' @description
+#' How much better a round must be to count as an improvement.
+#'
+#' @details
+#' For the two wrappers that stop early. A LightCART fit is one tree, and
+#' LightRuleFit fixes its first stage's round count.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_early_stopping_props <- function() {
+  prop_group(
+    list(
+      early_stopping_min_delta = prop_float(
+        0,
+        min = 0,
+        tunable = TRUE,
+        description = "Smallest improvement that resets the early-stopping counter."
+      )
+    ),
+    "early_stopping"
+  )
+} # /rtemis::lightgbm_early_stopping_props
+
+
+# %% lightgbm_determinism_props ----
+#' Reproducibility hyperparameters
+#'
+#' @description
+#' What makes two runs of one configuration agree.
+#'
+#' @details
+#' `deterministic` costs speed and needs a row- or column-wise histogram forced,
+#' which rtemis does by default (`force_col_wise = TRUE`). The seeds here are the
+#' ones LightGBM derives per stage; the run's master seed is
+#' `setup_ExecutionConfig(seed = )`.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_determinism_props <- function() {
+  prop_group(
+    list(
+      deterministic = prop_boolean(
+        FALSE,
+        description = "Force reproducible results at some cost in speed. Requires a forced histogram direction."
+      ),
+      objective_seed = prop_integer(
+        5L,
+        description = "Random seed for the objective, where it draws."
+      )
+    ),
+    "determinism"
+  )
+} # /rtemis::lightgbm_determinism_props
+
+
+# %% lightgbm_execution_props ----
+#' Execution hyperparameters
+#'
+#' @description
+#' How LightGBM organizes the work, without changing what it fits -- except
+#' `top_k`, which changes which splits the voting learner considers.
+#'
+#' @param top_k Logical: Include `top_k`, for the classes that declare
+#' `tree_learner`.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_execution_props <- function(top_k = TRUE) {
+  props <- list(
+    force_row_wise = prop_boolean(
+      FALSE,
+      description = "Force row-wise histogram building. Cheaper in memory than column-wise, slower per iteration."
+    ),
+    histogram_pool_size = prop_float(
+      -1,
+      description = "Memory cap in MB for the histogram cache; -1 leaves it uncapped."
+    ),
+    top_k = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(tree_learner = "voting"),
+      description = "Features each machine votes for in the voting tree learner. NULL = LightGBM's default of 20."
+    )
+  )
+  if (!top_k) {
+    props[["top_k"]] <- NULL
+  }
+  prop_group(props, "execution")
+} # /rtemis::lightgbm_execution_props
+
+
+# %% lightgbm_bagging_props ----
+#' Bagging hyperparameters beside the fraction and frequency
+#'
+#' @description
+#' Per-class bagging rates and the bagging seed.
+#'
+#' @details
+#' For the wrappers that bag: a LightCART fit is one tree on all of the data.
+#' The per-class rates are classification-only in the backend, which no property
+#' spec can gate on -- the outcome decides it, not a sibling property -- so they
+#' are documented rather than gated.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_bagging_props <- function() {
+  prop_group(
+    list(
+      pos_bagging_fraction = prop_float(
+        1,
+        exclusive_min = 0,
+        max = 1,
+        tunable = TRUE,
+        description = "Fraction of positive cases sampled per tree, for a binary outcome."
+      ),
+      neg_bagging_fraction = prop_float(
+        1,
+        exclusive_min = 0,
+        max = 1,
+        tunable = TRUE,
+        description = "Fraction of negative cases sampled per tree, for a binary outcome."
+      ),
+      bagging_seed = prop_integer(
+        3L,
+        description = "Random seed for bagging."
+      )
+    ),
+    "bagging"
+  )
+} # /rtemis::lightgbm_bagging_props
+
+
+# %% lightgbm_feature_sampling_props ----
+#' Feature-sampling hyperparameters beside the fraction
+#'
+#' @description
+#' Sampling features per node rather than per tree, and the seed that drives it.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_feature_sampling_props <- function() {
+  prop_group(
+    list(
+      feature_fraction_bynode = prop_float(
+        1,
+        exclusive_min = 0,
+        max = 1,
+        tunable = TRUE,
+        description = "Fraction of features sampled at each node, on top of the per-tree fraction."
+      ),
+      feature_fraction_seed = prop_integer(
+        2L,
+        description = "Random seed for feature sampling."
+      )
+    ),
+    "feature_sampling"
+  )
+} # /rtemis::lightgbm_feature_sampling_props
+
+
+# %% lightgbm_cegb_props ----
+#' Cost-efficient gradient boosting hyperparameters
+#'
+#' @description
+#' Trade split gain against a per-split and per-feature cost, so a model that
+#' must be cheap to evaluate can be fitted directly rather than pruned after.
+#'
+#' @details
+#' Works in every boosting mode and in a single tree -- both mechanisms live in
+#' split finding, which each of them runs. **The penalty scale is not comparable
+#' across modes.** Under `gbdt` the trees after the first fit shrunken residuals,
+#' so split gains are small and a fixed penalty bites early; under `rf` every
+#' tree fits the full-scale outcome and the same penalty does much less. A value
+#' tuned on one does not transfer to the other.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_cegb_props <- function() {
+  prop_group(
+    list(
+      cegb_tradeoff = prop_float(
+        1,
+        min = 0,
+        tunable = TRUE,
+        description = "Overall multiplier on every cost-efficiency penalty below."
+      ),
+      cegb_penalty_split = prop_float(
+        0,
+        min = 0,
+        tunable = TRUE,
+        description = "Cost charged per split, in units of loss reduction."
+      ),
+      cegb_penalty_feature_lazy = prop_array(
+        prop_float(0, min = 0, vector = TRUE, data_bound = "n_features"),
+        nullable = TRUE,
+        broadcast = TRUE,
+        description = "Per-feature cost charged the first time a case uses it, one value per feature."
+      ),
+      cegb_penalty_feature_coupled = prop_array(
+        prop_float(0, min = 0, vector = TRUE, data_bound = "n_features"),
+        nullable = TRUE,
+        broadcast = TRUE,
+        description = "Per-feature cost charged the first time any case uses it, one value per feature."
+      )
+    ),
+    "cegb"
+  )
+} # /rtemis::lightgbm_cegb_props
+
+
+# %% lightgbm_quantized_props ----
+#' Quantized-gradient training hyperparameters
+#'
+#' @description
+#' Train on gradients discretized into a few bins, which is faster and does
+#' change the fit.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_quantized_props <- function() {
+  quantized <- list(use_quantized_grad = TRUE)
+  prop_group(
+    list(
+      use_quantized_grad = prop_boolean(
+        FALSE,
+        description = "Discretize gradients before finding splits. Faster, and changes the fit."
+      ),
+      num_grad_quant_bins = prop_integer(
+        NULL,
+        min = 2L,
+        nullable = TRUE,
+        tunable = TRUE,
+        applies_when = quantized,
+        description = "Bins the gradients are discretized into. NULL = LightGBM's default of 4."
+      ),
+      quant_train_renew_leaf = prop_boolean(
+        NULL,
+        nullable = TRUE,
+        applies_when = quantized,
+        description = "Recompute leaf values from the exact gradients after each iteration. NULL = LightGBM's default of FALSE."
+      ),
+      stochastic_rounding = prop_boolean(
+        NULL,
+        nullable = TRUE,
+        applies_when = quantized,
+        description = "Round gradients stochastically rather than to nearest. NULL = LightGBM's default of TRUE."
+      )
+    ),
+    "quantized"
+  )
+} # /rtemis::lightgbm_quantized_props
+
+
+# %% lightgbm_constraint_props ----
+#' Structural constraint hyperparameters
+#'
+#' @description
+#' Constraints on what the trees may express: monotone relationships,
+#' permissible feature interactions, and per-feature split weighting.
+#'
+#' @details
+#' Three of these are per-feature and carry `data_bound = "n_features"`, so a
+#' form builder knows their length is decided by the data rather than by the
+#' config. `interaction_constraints` is LightGBM's own bracketed-groups string,
+#' passed through as written -- the alternative would be a nested container whose
+#' shape rtemis would have to keep in step with the backend's parser.
+#'
+#' rtemis ships MonotonicHAL as a whole algorithm for monotonicity; these are
+#' LightGBM's own constraints, and the two are unrelated implementations of the
+#' same idea.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_constraint_props <- function() {
+  prop_group(
+    list(
+      monotone_constraints = prop_integer(
+        NULL,
+        min = -1L,
+        max = 1L,
+        nullable = TRUE,
+        vector = TRUE,
+        data_bound = "n_features",
+        description = "Per-feature monotonicity: 1 increasing, -1 decreasing, 0 unconstrained."
+      ),
+      monotone_constraints_method = prop_string(
+        NULL,
+        enum = c("basic", "intermediate", "advanced"),
+        nullable = TRUE,
+        applies_when = list(monotone_constraints = c(-1L, 1L)),
+        description = "How monotonicity is enforced: 'basic' is fastest, 'advanced' least restrictive."
+      ),
+      monotone_penalty = prop_float(
+        NULL,
+        min = 0,
+        nullable = TRUE,
+        tunable = TRUE,
+        applies_when = list(monotone_constraints = c(-1L, 1L)),
+        description = "Depth penalty on splits that would break monotonicity. NULL = LightGBM's default of 0."
+      ),
+      interaction_constraints = prop_string(
+        NULL,
+        nullable = TRUE,
+        description = "Feature groups permitted to interact, in LightGBM's own bracketed form, e.g. \"[0,1],[2,3]\"."
+      ),
+      feature_contri = prop_float(
+        NULL,
+        nullable = TRUE,
+        vector = TRUE,
+        data_bound = "n_features",
+        description = "Per-feature multiplier on split gain, one value per feature."
+      )
+    ),
+    "constraints"
+  )
+} # /rtemis::lightgbm_constraint_props
+
+
+# %% lightgbm_boosting_props ----
+#' Boosting mode and sampling strategy
+#'
+#' @description
+#' Which algorithm LightGBM runs, and how it subsamples cases.
+#'
+#' @details
+#' `boosting` selects gradient boosting, a random forest, or DART. GOSS was a
+#' `boosting` value before LightGBM 4.0 and is now `data_sample_strategy`; only
+#' the current spelling is declared, so one decision has one switch.
+#'
+#' Not for LightCART, which fits one tree, nor for LightRF, which pins
+#' `boosting` to `"rf"` -- that constant is what makes it a random forest.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_boosting_props <- function() {
+  prop_group(
+    list(
+      boosting = prop_string(
+        "gbdt",
+        enum = c("gbdt", "rf", "dart"),
+        description = "Boosting algorithm: gradient boosting, random forest, or DART (dropout)."
+      ),
+      data_sample_strategy = prop_string(
+        "bagging",
+        enum = c("bagging", "goss"),
+        description = "How cases are subsampled: at random, or by gradient magnitude (GOSS)."
+      )
+    ),
+    "boosting"
+  )
+} # /rtemis::lightgbm_boosting_props
+
+
+# %% lightgbm_dart_props ----
+#' DART dropout hyperparameters
+#'
+#' @description
+#' The dropout settings DART adds to gradient boosting.
+#'
+#' @details
+#' Gated on `boosting = "dart"`, so setting one without selecting DART is an
+#' error rather than a value LightGBM ignores. Every one is unset by default,
+#' meaning LightGBM's own default.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_dart_props <- function() {
+  dart <- list(boosting = "dart")
+  prop_group(
+    list(
+      drop_rate = prop_float(
+        NULL,
+        min = 0,
+        max = 1,
+        nullable = TRUE,
+        tunable = TRUE,
+        applies_when = dart,
+        description = "Fraction of existing trees to drop per iteration. NULL = LightGBM's default of 0.1."
+      ),
+      max_drop = prop_integer(
+        NULL,
+        nullable = TRUE,
+        tunable = TRUE,
+        applies_when = dart,
+        description = "Most trees dropped in one iteration; 0 or less removes the cap. NULL = LightGBM's default of 50."
+      ),
+      skip_drop = prop_float(
+        NULL,
+        min = 0,
+        max = 1,
+        nullable = TRUE,
+        tunable = TRUE,
+        applies_when = dart,
+        description = "Probability of skipping dropout for an iteration. NULL = LightGBM's default of 0.5."
+      ),
+      uniform_drop = prop_boolean(
+        NULL,
+        nullable = TRUE,
+        tunable = TRUE,
+        applies_when = dart,
+        description = "Drop trees uniformly rather than weighted. NULL = LightGBM's default of FALSE."
+      ),
+      xgboost_dart_mode = prop_boolean(
+        NULL,
+        nullable = TRUE,
+        tunable = TRUE,
+        applies_when = dart,
+        description = "Use the XGBoost DART normalization. NULL = LightGBM's default of FALSE."
+      ),
+      drop_seed = prop_integer(
+        NULL,
+        nullable = TRUE,
+        applies_when = dart,
+        description = "Random seed for choosing which trees to drop. NULL = LightGBM's default of 4."
+      )
+    ),
+    "dart"
+  )
+} # /rtemis::lightgbm_dart_props
+
+
+# %% lightgbm_goss_props ----
+#' GOSS sampling hyperparameters
+#'
+#' @description
+#' The retain ratios Gradient-based One-Side Sampling keeps.
+#'
+#' @details
+#' Gated on `data_sample_strategy = "goss"`. GOSS keeps every case with a large
+#' gradient and samples the rest, so the two rates are what it retains from each
+#' end; LightGBM requires their sum not to exceed 1, which the class validator
+#' checks rather than leaving to the backend.
+#'
+#' @return Named list of S7 properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_goss_props <- function() {
+  goss <- list(data_sample_strategy = "goss")
+  prop_group(
+    list(
+      top_rate = prop_float(
+        NULL,
+        min = 0,
+        max = 1,
+        nullable = TRUE,
+        tunable = TRUE,
+        applies_when = goss,
+        description = "Share of large-gradient cases retained. NULL = LightGBM's default of 0.2."
+      ),
+      other_rate = prop_float(
+        NULL,
+        min = 0,
+        max = 1,
+        nullable = TRUE,
+        tunable = TRUE,
+        applies_when = goss,
+        description = "Share of the remaining cases retained. NULL = LightGBM's default of 0.1."
+      )
+    ),
+    "goss"
+  )
+} # /rtemis::lightgbm_goss_props
+
+
+# %% check_lightgbm_sampling ----
+#' Cross-parameter rules the property specs cannot carry
+#'
+#' Two rules LightGBM enforces mid-fit, checked here so they are reported
+#' against the setting the user wrote rather than as a backend abort:
+#'
+#' - GOSS cannot be combined with bagging. `bagging_fraction = 1` is not bagging,
+#'   which is why the rtemis default is compatible; anything below it is.
+#' - GOSS's two retain ratios cannot sum above 1, since together they are a share
+#'   of the training cases.
+#'
+#' @param self `Hyperparameters` object.
+#'
+#' @return Character message, or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_lightgbm_sampling <- function(self) {
+  if (!identical(self@data_sample_strategy, "goss")) {
+    return(NULL)
+  }
+  fraction <- self@bagging_fraction
+  if (is.numeric(fraction) && any(fraction < 1)) {
+    return(paste0(
+      "@data_sample_strategy \"goss\" cannot be combined with bagging: ",
+      "@bagging_fraction is ",
+      paste(fraction, collapse = ", "),
+      " and GOSS samples by gradient instead. Leave @bagging_fraction at 1."
+    ))
+  }
+  rates <- c(self@top_rate, self@other_rate)
+  if (length(rates) == 2L && is.numeric(rates) && sum(rates) > 1) {
+    return(paste0(
+      "@top_rate + @other_rate must not exceed 1: together they are a share of ",
+      "the training cases, and these sum to ",
+      sum(rates),
+      "."
+    ))
+  }
+  NULL
+} # /rtemis::check_lightgbm_sampling
+
+
 # %% LightCARTHyperparameters ----
 #' @title LightCARTHyperparameters
 #'
@@ -1815,66 +2675,94 @@ setup_MonotonicHAL <- function(
 LightCARTHyperparameters <- new_class(
   name = "LightCARTHyperparameters",
   parent = Hyperparameters,
-  properties = list(
-    algorithm = prop_algorithm("LightCART"),
-    num_leaves = prop_integer(
-      32L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Maximum number of leaves in one tree."
+  properties = c(
+    list(
+      algorithm = prop_algorithm("LightCART"),
+      device_type = prop_string(
+        "cpu",
+        enum = c("cpu", "gpu", "cuda"),
+        description = "Compute device."
+      ),
+      force_col_wise = prop_boolean(
+        TRUE,
+        description = "Force column-wise histogram building (CPU only)."
+      ),
+      feature_fraction = prop_float(
+        1.0,
+        exclusive_min = 0,
+        max = 1,
+        tunable = TRUE,
+        description = "Fraction of features sampled per tree."
+      ),
+      num_leaves = prop_integer(
+        32L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Maximum number of leaves in one tree."
+      ),
+      max_depth = prop_integer(
+        -1L,
+        tunable = TRUE,
+        description = "Maximum tree depth. -1 = no limit."
+      ),
+      lambda_l1 = prop_float(
+        0,
+        min = 0,
+        tunable = TRUE,
+        description = "L1 regularization."
+      ),
+      lambda_l2 = prop_float(
+        0,
+        min = 0,
+        tunable = TRUE,
+        description = "L2 regularization."
+      ),
+      max_cat_threshold = prop_integer(
+        32L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Maximum number of split points for categorical features."
+      ),
+      min_data_per_group = prop_integer(
+        100L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Minimum number of cases per categorical group."
+      ),
+      linear_tree = prop_boolean(
+        FALSE,
+        tunable = TRUE,
+        description = "Fit linear models at leaves."
+      ),
+      objective = prop_string(
+        NULL,
+        nullable = TRUE,
+        default_on_null = TRUE,
+        description = "LightGBM objective. NULL = set from outcome type."
+      ),
+      ifw = prop_boolean(
+        FALSE,
+        tunable = TRUE,
+        description = "Inverse Frequency Weighting in classification."
+      )
     ),
-    max_depth = prop_integer(
-      -1L,
-      tunable = TRUE,
-      description = "Maximum tree depth. -1 = no limit."
-    ),
-    lambda_l1 = prop_float(
-      0,
-      min = 0,
-      tunable = TRUE,
-      description = "L1 regularization."
-    ),
-    lambda_l2 = prop_float(
-      0,
-      min = 0,
-      tunable = TRUE,
-      description = "L2 regularization."
-    ),
-    min_data_in_leaf = prop_integer(
-      20L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Minimum number of cases in a leaf."
-    ),
-    max_cat_threshold = prop_integer(
-      32L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Maximum number of split points for categorical features."
-    ),
-    min_data_per_group = prop_integer(
-      100L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Minimum number of cases per categorical group."
-    ),
-    linear_tree = prop_boolean(
-      FALSE,
-      tunable = TRUE,
-      description = "Fit linear models at leaves."
-    ),
-    objective = prop_string(
-      NULL,
-      nullable = TRUE,
-      default_on_null = TRUE,
-      description = "LightGBM objective. NULL = set from outcome type."
-    ),
-    ifw = prop_boolean(
-      FALSE,
-      tunable = TRUE,
-      description = "Inverse Frequency Weighting in classification."
-    )
-  )
+    lightgbm_objective_props(),
+    lightgbm_regularization_props(),
+    lightgbm_binning_props(),
+    lightgbm_categorical_props(),
+    lightgbm_determinism_props(),
+    lightgbm_execution_props(top_k = FALSE),
+    lightgbm_feature_sampling_props(),
+    lightgbm_cegb_props(),
+    lightgbm_quantized_props(),
+    lightgbm_constraint_props()
+  ),
+  # Reads each property's `applies_when` spec, which is what gates the
+  # objective-specific parameters on `objective`. Spec-driven, so it declares
+  # no rule the schema does not already publish.
+  validator = function(self) {
+    check_applies_when(self)
+  }
 ) # /rtemis::LightCARTHyperparameters
 
 
@@ -1889,11 +2777,93 @@ LightCARTHyperparameters <- new_class(
 #' @param max_depth (Tunable) Integer: Maximum depth of trees. -1 = no limit.
 #' @param lambda_l1 (Tunable) Numeric [0, Inf): L1 regularization.
 #' @param lambda_l2 (Tunable) Numeric [0, Inf): L2 regularization.
-#' @param min_data_in_leaf (Tunable) Integer [1, Inf): Minimum number of data in a leaf.
 #' @param max_cat_threshold (Tunable) Integer [1, Inf): Maximum number of categories for categorical features.
 #' @param min_data_per_group (Tunable) Integer [1, Inf): Minimum number of observations per categorical group.
 #' @param linear_tree (Tunable) Logical: If TRUE, use linear trees.
 #' @param objective Optional Character: Objective function. NULL = set from outcome type.
+#' @param device_type Character \{"cpu", "gpu", "cuda"\}: Compute device.
+#' @param force_col_wise Logical: Force column-wise histogram building (CPU only).
+#' @param feature_fraction (Tunable) Numeric (0, 1]: Fraction of features sampled per tree.
+#' @param feature_fraction_bynode (Tunable) Numeric (0, 1]: Fraction of features sampled
+#' at each node, on top of the per-tree fraction.
+#' @param feature_fraction_seed Integer: Random seed for feature sampling.
+#' @param deterministic Logical: Force reproducible results at some cost in speed.
+#' @param objective_seed Integer: Random seed for the objective, where it draws.
+#' @param force_row_wise Logical: Force row-wise histogram building. Cheaper in memory
+#' than column-wise, slower per iteration.
+#' @param histogram_pool_size Numeric: Memory cap in MB for the histogram cache; -1
+#' leaves it uncapped.
+#' @param cegb_tradeoff (Tunable) Numeric [0, Inf): Overall multiplier on every
+#' cost-efficiency penalty. Its scale is not comparable between boosting modes.
+#' @param cegb_penalty_split (Tunable) Numeric [0, Inf): Cost charged per split, in units
+#' of loss reduction.
+#' @param cegb_penalty_feature_lazy Optional List: Per-feature cost charged the first
+#' time a case uses it, in \[0, Inf). One vector applied to every tree, or one vector
+#' per tree.
+#' @param cegb_penalty_feature_coupled Optional List: Per-feature cost charged the first
+#' time any case uses it, in \[0, Inf). One vector applied to every tree, or one vector
+#' per tree.
+#' @param use_quantized_grad Logical: Discretize gradients before finding splits. Faster,
+#' and changes the fit.
+#' @param num_grad_quant_bins (Tunable) Optional Integer [2, Inf): Bins the gradients are
+#' discretized into. Requires `use_quantized_grad = TRUE`. NULL uses LightGBM's default of 4.
+#' @param quant_train_renew_leaf Optional Logical: Recompute leaf values from the exact
+#' gradients after each iteration. Requires `use_quantized_grad = TRUE`. NULL uses
+#' LightGBM's default of FALSE.
+#' @param stochastic_rounding Optional Logical: Round gradients stochastically rather than
+#' to nearest. Requires `use_quantized_grad = TRUE`. NULL uses LightGBM's default of TRUE.
+#' @param monotone_constraints Optional Integer \[-1, 1\] vector: Per-feature
+#' monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature.
+#' @param monotone_constraints_method Optional Character \{"basic", "intermediate",
+#' "advanced"\}: How monotonicity is enforced. Requires `monotone_constraints`.
+#' @param monotone_penalty (Tunable) Optional Numeric [0, Inf): Depth penalty on splits
+#' that would break monotonicity. Requires `monotone_constraints`. NULL uses LightGBM's
+#' default of 0.
+#' @param interaction_constraints Optional Character: Feature groups permitted to interact,
+#' in LightGBM's own bracketed form, e.g. "\[0,1\],\[2,3\]".
+#' @param feature_contri Optional Numeric vector: Per-feature multiplier on split gain,
+#' one value per feature.
+#' @param min_data_in_leaf (Tunable) Integer [0, Inf): Minimum number of cases in a leaf.
+#' @param min_sum_hessian_in_leaf (Tunable) Numeric [0, Inf): Minimum sum of hessians in a
+#' leaf: the smooth counterpart of a case count.
+#' @param min_gain_to_split (Tunable) Numeric [0, Inf): Minimum loss reduction a split must
+#' buy to be made.
+#' @param max_delta_step (Tunable) Numeric: Cap on each leaf's output; 0 or less leaves it
+#' uncapped.
+#' @param path_smooth (Tunable) Numeric [0, Inf): Smooth each leaf towards its parent, more
+#' strongly the fewer cases it holds.
+#' @param extra_trees (Tunable) Logical: Choose one split threshold per feature at random
+#' rather than the best.
+#' @param extra_seed Integer: Random seed for the thresholds `extra_trees` draws.
+#' @param linear_lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the linear models
+#' fitted at the leaves. Requires `linear_tree = TRUE`. NULL uses LightGBM's default of 0.
+#' @param max_bin (Tunable) Integer [2, Inf): Most bins a feature is discretized into. Fewer
+#' is faster and more regularized.
+#' @param min_data_in_bin (Tunable) Integer [1, Inf): Minimum number of cases per bin.
+#' @param use_missing Logical: Handle missing values. FALSE ignores them.
+#' @param zero_as_missing Logical: Treat zeros as missing, rather than only NA.
+#' @param cat_l2 (Tunable) Numeric [0, Inf): L2 regularization on a categorical split.
+#' @param cat_smooth (Tunable) Numeric [0, Inf): Smoothing over categorical levels, which
+#' reduces the effect of rare ones.
+#' @param max_cat_to_onehot (Tunable) Integer [1, Inf): Below this many levels, split
+#' one-versus-rest rather than by partition.
+#' @param alpha (Tunable) Optional Numeric (0, Inf): Huber delta or quantile level.
+#' Requires `objective` to be "huber" or "quantile". NULL uses LightGBM's default of
+#' 0.9.
+#' @param tweedie_variance_power (Tunable) Optional Numeric [1, 2): Tweedie power: 1 is
+#' Poisson-like, near 2 is gamma-like. Requires `objective = "tweedie"`. NULL uses
+#' LightGBM's default of 1.5.
+#' @param fair_c (Tunable) Optional Numeric (0, Inf): Fair loss scale. Requires
+#' `objective = "fair"`. NULL uses LightGBM's default of 1.
+#' @param poisson_max_delta_step (Tunable) Optional Numeric (0, Inf): Step cap
+#' safeguarding Poisson optimization. Requires `objective = "poisson"`. NULL uses
+#' LightGBM's default of 0.7.
+#' @param sigmoid (Tunable) Optional Numeric (0, Inf): Sigmoid slope, for a binary or
+#' one-vs-all objective. NULL uses LightGBM's default of 1.
+#' @param boost_from_average Optional Logical: Start from the outcome's mean, for a
+#' regression, binary or cross-entropy objective. NULL uses LightGBM's default of TRUE.
+#' @param reg_sqrt Optional Logical: Fit the square root of the outcome and square the
+#' prediction back, for a regression objective. NULL uses LightGBM's default of FALSE.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return LightCARTHyperparameters object.
@@ -1908,11 +2878,54 @@ setup_LightCART <- function(
   max_depth = -1L,
   lambda_l1 = 0,
   lambda_l2 = 0,
-  min_data_in_leaf = 20L,
   max_cat_threshold = 32L,
   min_data_per_group = 100L,
   linear_tree = FALSE,
   objective = NULL,
+  device_type = "cpu",
+  force_col_wise = TRUE,
+  feature_fraction = 1.0,
+  feature_fraction_bynode = 1,
+  feature_fraction_seed = 2L,
+  deterministic = FALSE,
+  objective_seed = 5L,
+  force_row_wise = FALSE,
+  histogram_pool_size = -1,
+  cegb_tradeoff = 1,
+  cegb_penalty_split = 0,
+  cegb_penalty_feature_lazy = NULL,
+  cegb_penalty_feature_coupled = NULL,
+  use_quantized_grad = FALSE,
+  num_grad_quant_bins = NULL,
+  quant_train_renew_leaf = NULL,
+  stochastic_rounding = NULL,
+  monotone_constraints = NULL,
+  monotone_constraints_method = NULL,
+  monotone_penalty = NULL,
+  interaction_constraints = NULL,
+  feature_contri = NULL,
+  min_data_in_leaf = 20L,
+  min_sum_hessian_in_leaf = 1e-3,
+  min_gain_to_split = 0,
+  max_delta_step = 0,
+  path_smooth = 0,
+  extra_trees = FALSE,
+  extra_seed = 6L,
+  linear_lambda = NULL,
+  max_bin = 255L,
+  min_data_in_bin = 3L,
+  use_missing = TRUE,
+  zero_as_missing = FALSE,
+  cat_l2 = 10,
+  cat_smooth = 10,
+  max_cat_to_onehot = 4L,
+  alpha = NULL,
+  tweedie_variance_power = NULL,
+  fair_c = NULL,
+  poisson_max_delta_step = NULL,
+  sigmoid = NULL,
+  boost_from_average = NULL,
+  reg_sqrt = NULL,
   ifw = FALSE
 ) {
   num_leaves <- clean_posint(num_leaves)
@@ -1925,11 +2938,54 @@ setup_LightCART <- function(
     max_depth = max_depth,
     lambda_l1 = lambda_l1,
     lambda_l2 = lambda_l2,
-    min_data_in_leaf = min_data_in_leaf,
     max_cat_threshold = max_cat_threshold,
     min_data_per_group = min_data_per_group,
     linear_tree = linear_tree,
     objective = objective,
+    device_type = device_type,
+    force_col_wise = force_col_wise,
+    feature_fraction = feature_fraction,
+    feature_fraction_bynode = feature_fraction_bynode,
+    feature_fraction_seed = feature_fraction_seed,
+    deterministic = deterministic,
+    objective_seed = objective_seed,
+    force_row_wise = force_row_wise,
+    histogram_pool_size = histogram_pool_size,
+    cegb_tradeoff = cegb_tradeoff,
+    cegb_penalty_split = cegb_penalty_split,
+    cegb_penalty_feature_lazy = cegb_penalty_feature_lazy,
+    cegb_penalty_feature_coupled = cegb_penalty_feature_coupled,
+    use_quantized_grad = use_quantized_grad,
+    num_grad_quant_bins = num_grad_quant_bins,
+    quant_train_renew_leaf = quant_train_renew_leaf,
+    stochastic_rounding = stochastic_rounding,
+    monotone_constraints = monotone_constraints,
+    monotone_constraints_method = monotone_constraints_method,
+    monotone_penalty = monotone_penalty,
+    interaction_constraints = interaction_constraints,
+    feature_contri = feature_contri,
+    min_data_in_leaf = min_data_in_leaf,
+    min_sum_hessian_in_leaf = min_sum_hessian_in_leaf,
+    min_gain_to_split = min_gain_to_split,
+    max_delta_step = max_delta_step,
+    path_smooth = path_smooth,
+    extra_trees = extra_trees,
+    extra_seed = extra_seed,
+    linear_lambda = linear_lambda,
+    max_bin = max_bin,
+    min_data_in_bin = min_data_in_bin,
+    use_missing = use_missing,
+    zero_as_missing = zero_as_missing,
+    cat_l2 = cat_l2,
+    cat_smooth = cat_smooth,
+    max_cat_to_onehot = max_cat_to_onehot,
+    alpha = alpha,
+    tweedie_variance_power = tweedie_variance_power,
+    fair_c = fair_c,
+    poisson_max_delta_step = poisson_max_delta_step,
+    sigmoid = sigmoid,
+    boost_from_average = boost_from_average,
+    reg_sqrt = reg_sqrt,
     ifw = ifw
   )
 } # /rtemis::setup_LightCART
@@ -1947,113 +3003,133 @@ setup_LightCART <- function(
 LightRFHyperparameters <- new_class(
   name = "LightRFHyperparameters",
   parent = Hyperparameters,
-  properties = list(
-    algorithm = prop_algorithm("LightRF"),
-    # Constants: these four are what make lightgbm train a random forest, so
-    # they belong to the class rather than to the user.
-    boosting_type = prop_const(
-      "rf",
-      description = "Boosting type. 'rf' is what makes LightGBM a random forest."
+  properties = c(
+    list(
+      algorithm = prop_algorithm("LightRF"),
+      # Constants: these four are what make lightgbm train a random forest, so
+      # they belong to the class rather than to the user.
+      boosting = prop_const(
+        "rf",
+        description = "Boosting type. 'rf' is what makes LightGBM a random forest."
+      ),
+      learning_rate = prop_const(
+        1,
+        description = "Learning rate. No effect in 'rf' mode; set for clarity."
+      ),
+      bagging_freq = prop_const(
+        1L,
+        description = "Bagging frequency."
+      ),
+      early_stopping_rounds = prop_const(
+        -1L,
+        description = "Early stopping rounds. -1 disables early stopping."
+      ),
+      nrounds = prop_integer(
+        500L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Number of boosting rounds (trees)."
+      ),
+      num_leaves = prop_integer(
+        4096L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Maximum number of leaves per tree."
+      ),
+      max_depth = prop_integer(
+        -1L,
+        tunable = TRUE,
+        description = "Maximum tree depth. -1 = no limit."
+      ),
+      feature_fraction = prop_float(
+        NULL,
+        exclusive_min = 0,
+        max = 1,
+        nullable = TRUE,
+        tunable = TRUE,
+        description = "Fraction of features sampled per tree. NULL = sqrt(n_features)/n_features for classification, 0.33 for regression."
+      ),
+      bagging_fraction = prop_float(
+        0.623,
+        exclusive_min = 0,
+        max = 1,
+        tunable = TRUE,
+        description = "Fraction of cases sampled per tree (bagging fraction)."
+      ),
+      lambda_l1 = prop_float(
+        0,
+        min = 0,
+        tunable = TRUE,
+        description = "L1 regularization."
+      ),
+      lambda_l2 = prop_float(
+        0,
+        min = 0,
+        tunable = TRUE,
+        description = "L2 regularization."
+      ),
+      max_cat_threshold = prop_integer(
+        32L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Maximum number of split points for categorical features."
+      ),
+      min_data_per_group = prop_integer(
+        32L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Minimum number of cases per categorical group."
+      ),
+      linear_tree = prop_boolean(
+        FALSE,
+        tunable = TRUE,
+        description = "Fit linear models at leaves."
+      ),
+      ifw = prop_boolean(
+        FALSE,
+        tunable = TRUE,
+        description = "Inverse frequency weighting of outcome classes."
+      ),
+      objective = prop_string(
+        NULL,
+        nullable = TRUE,
+        default_on_null = TRUE,
+        description = "LightGBM objective. NULL = set from outcome type."
+      ),
+      device_type = prop_string(
+        "cpu",
+        enum = c("cpu", "gpu", "cuda"),
+        description = "Compute device."
+      ),
+      tree_learner = prop_string(
+        "serial",
+        enum = c("serial", "feature", "data", "voting"),
+        description = "Tree learner type."
+      ),
+      force_col_wise = prop_boolean(
+        TRUE,
+        description = "Force column-wise histogram building (CPU only)."
+      )
     ),
-    learning_rate = prop_const(
-      1,
-      description = "Learning rate. No effect in 'rf' mode; set for clarity."
-    ),
-    subsample_freq = prop_const(
-      1L,
-      description = "Bagging frequency."
-    ),
-    early_stopping_rounds = prop_const(
-      -1L,
-      description = "Early stopping rounds. -1 disables early stopping."
-    ),
-    nrounds = prop_integer(
-      500L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Number of boosting rounds (trees)."
-    ),
-    num_leaves = prop_integer(
-      4096L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Maximum number of leaves per tree."
-    ),
-    max_depth = prop_integer(
-      -1L,
-      tunable = TRUE,
-      description = "Maximum tree depth. -1 = no limit."
-    ),
-    feature_fraction = prop_float(
-      NULL,
-      exclusive_min = 0,
-      max = 1,
-      nullable = TRUE,
-      tunable = TRUE,
-      description = "Fraction of features sampled per tree. NULL = sqrt(n_features)/n_features for classification, 0.33 for regression."
-    ),
-    subsample = prop_float(
-      0.623,
-      exclusive_min = 0,
-      max = 1,
-      tunable = TRUE,
-      description = "Fraction of cases sampled per tree (bagging fraction)."
-    ),
-    lambda_l1 = prop_float(
-      0,
-      min = 0,
-      tunable = TRUE,
-      description = "L1 regularization."
-    ),
-    lambda_l2 = prop_float(
-      0,
-      min = 0,
-      tunable = TRUE,
-      description = "L2 regularization."
-    ),
-    max_cat_threshold = prop_integer(
-      32L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Maximum number of split points for categorical features."
-    ),
-    min_data_per_group = prop_integer(
-      32L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Minimum number of cases per categorical group."
-    ),
-    linear_tree = prop_boolean(
-      FALSE,
-      tunable = TRUE,
-      description = "Fit linear models at leaves."
-    ),
-    ifw = prop_boolean(
-      FALSE,
-      tunable = TRUE,
-      description = "Inverse frequency weighting of outcome classes."
-    ),
-    objective = prop_string(
-      NULL,
-      nullable = TRUE,
-      default_on_null = TRUE,
-      description = "LightGBM objective. NULL = set from outcome type."
-    ),
-    device_type = prop_string(
-      "cpu",
-      enum = c("cpu", "gpu", "cuda"),
-      description = "Compute device."
-    ),
-    tree_learner = prop_string(
-      "serial",
-      enum = c("serial", "feature", "data", "voting"),
-      description = "Tree learner type."
-    ),
-    force_col_wise = prop_boolean(
-      TRUE,
-      description = "Force column-wise histogram building (CPU only)."
-    )
-  )
+    lightgbm_objective_props(),
+    lightgbm_regularization_props(),
+    lightgbm_binning_props(),
+    lightgbm_categorical_props(),
+    lightgbm_determinism_props(),
+    lightgbm_execution_props(),
+    lightgbm_bagging_props(),
+    lightgbm_feature_sampling_props(),
+    lightgbm_cegb_props(),
+    lightgbm_quantized_props(),
+    lightgbm_constraint_props(),
+    lightgbm_early_stopping_props()
+  ),
+  # Reads each property's `applies_when` spec, which is what gates the
+  # objective-specific parameters on `objective`. Spec-driven, so it declares
+  # no rule the schema does not already publish.
+  validator = function(self) {
+    check_applies_when(self)
+  }
 ) # /rtemis::LightRFHyperparameters
 
 # %% setup_LightRF ----
@@ -2062,7 +3138,7 @@ LightRFHyperparameters <- new_class(
 #' Setup hyperparameters for LightRF training.
 #'
 #' Get more information from [lightgbm::lgb.train].
-#' Note that `boosting_type`, `learning_rate`, `subsample_freq` and
+#' Note that `boosting`, `learning_rate`, `bagging_freq` and
 #' `early_stopping_rounds` are *constants* here: they cannot be set, because
 #' they are what makes `lightgbm` train a random forest. All of them are
 #' settable when training gradient boosting with LightGBM.
@@ -2071,13 +3147,103 @@ LightRFHyperparameters <- new_class(
 #' @param num_leaves (Tunable) Integer [1, Inf): Maximum number of leaves in one tree.
 #' @param max_depth (Tunable) Integer: Maximum depth of trees. -1 = no limit.
 #' @param feature_fraction (Tunable) Optional Numeric (0, 1]: Fraction of features to use. NULL derives it from the data: sqrt(n_features)/n_features for classification, 0.33 for regression.
-#' @param subsample (Tunable) Numeric (0, 1]: Fraction of data to use.
+#' @param bagging_fraction (Tunable) Numeric (0, 1]: Fraction of cases sampled per tree.
 #' @param lambda_l1 (Tunable) Numeric [0, Inf): L1 regularization.
 #' @param lambda_l2 (Tunable) Numeric [0, Inf): L2 regularization.
 #' @param max_cat_threshold (Tunable) Integer [1, Inf): Maximum number of categories for categorical features.
 #' @param min_data_per_group (Tunable) Integer [1, Inf): Minimum number of observations per categorical group.
 #' @param linear_tree (Tunable) Logical: If TRUE, use linear trees.
 #' @param objective Optional Character: Objective function. NULL = set from outcome type.
+#' @param early_stopping_min_delta (Tunable) Numeric [0, Inf): Smallest improvement that
+#' resets the early-stopping counter.
+#' @param deterministic Logical: Force reproducible results at some cost in speed.
+#' @param objective_seed Integer: Random seed for the objective, where it draws.
+#' @param force_row_wise Logical: Force row-wise histogram building. Cheaper in memory
+#' than column-wise, slower per iteration.
+#' @param histogram_pool_size Numeric: Memory cap in MB for the histogram cache; -1
+#' leaves it uncapped.
+#' @param top_k (Tunable) Optional Integer [1, Inf): Features each machine votes for in
+#' the voting tree learner. Requires `tree_learner = "voting"`. NULL uses LightGBM's
+#' default of 20.
+#' @param pos_bagging_fraction (Tunable) Numeric (0, 1]: Fraction of positive cases
+#' sampled per tree, for a binary outcome.
+#' @param neg_bagging_fraction (Tunable) Numeric (0, 1]: Fraction of negative cases
+#' sampled per tree, for a binary outcome.
+#' @param bagging_seed Integer: Random seed for bagging.
+#' @param feature_fraction_bynode (Tunable) Numeric (0, 1]: Fraction of features sampled
+#' at each node, on top of the per-tree fraction.
+#' @param feature_fraction_seed Integer: Random seed for feature sampling.
+#' @param cegb_tradeoff (Tunable) Numeric [0, Inf): Overall multiplier on every
+#' cost-efficiency penalty. Its scale is not comparable between boosting modes.
+#' @param cegb_penalty_split (Tunable) Numeric [0, Inf): Cost charged per split, in units
+#' of loss reduction.
+#' @param cegb_penalty_feature_lazy Optional List: Per-feature cost charged the first
+#' time a case uses it, in \[0, Inf). One vector applied to every tree, or one vector
+#' per tree.
+#' @param cegb_penalty_feature_coupled Optional List: Per-feature cost charged the first
+#' time any case uses it, in \[0, Inf). One vector applied to every tree, or one vector
+#' per tree.
+#' @param use_quantized_grad Logical: Discretize gradients before finding splits. Faster,
+#' and changes the fit.
+#' @param num_grad_quant_bins (Tunable) Optional Integer [2, Inf): Bins the gradients are
+#' discretized into. Requires `use_quantized_grad = TRUE`. NULL uses LightGBM's default of 4.
+#' @param quant_train_renew_leaf Optional Logical: Recompute leaf values from the exact
+#' gradients after each iteration. Requires `use_quantized_grad = TRUE`. NULL uses
+#' LightGBM's default of FALSE.
+#' @param stochastic_rounding Optional Logical: Round gradients stochastically rather than
+#' to nearest. Requires `use_quantized_grad = TRUE`. NULL uses LightGBM's default of TRUE.
+#' @param monotone_constraints Optional Integer \[-1, 1\] vector: Per-feature
+#' monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature.
+#' @param monotone_constraints_method Optional Character \{"basic", "intermediate",
+#' "advanced"\}: How monotonicity is enforced. Requires `monotone_constraints`.
+#' @param monotone_penalty (Tunable) Optional Numeric [0, Inf): Depth penalty on splits
+#' that would break monotonicity. Requires `monotone_constraints`. NULL uses LightGBM's
+#' default of 0.
+#' @param interaction_constraints Optional Character: Feature groups permitted to interact,
+#' in LightGBM's own bracketed form, e.g. "\[0,1\],\[2,3\]".
+#' @param feature_contri Optional Numeric vector: Per-feature multiplier on split gain,
+#' one value per feature.
+#' @param min_data_in_leaf (Tunable) Integer [0, Inf): Minimum number of cases in a leaf.
+#' @param min_sum_hessian_in_leaf (Tunable) Numeric [0, Inf): Minimum sum of hessians in a
+#' leaf: the smooth counterpart of a case count.
+#' @param min_gain_to_split (Tunable) Numeric [0, Inf): Minimum loss reduction a split must
+#' buy to be made.
+#' @param max_delta_step (Tunable) Numeric: Cap on each leaf's output; 0 or less leaves it
+#' uncapped.
+#' @param path_smooth (Tunable) Numeric [0, Inf): Smooth each leaf towards its parent, more
+#' strongly the fewer cases it holds.
+#' @param extra_trees (Tunable) Logical: Choose one split threshold per feature at random
+#' rather than the best.
+#' @param extra_seed Integer: Random seed for the thresholds `extra_trees` draws.
+#' @param linear_lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the linear models
+#' fitted at the leaves. Requires `linear_tree = TRUE`. NULL uses LightGBM's default of 0.
+#' @param max_bin (Tunable) Integer [2, Inf): Most bins a feature is discretized into. Fewer
+#' is faster and more regularized.
+#' @param min_data_in_bin (Tunable) Integer [1, Inf): Minimum number of cases per bin.
+#' @param use_missing Logical: Handle missing values. FALSE ignores them.
+#' @param zero_as_missing Logical: Treat zeros as missing, rather than only NA.
+#' @param cat_l2 (Tunable) Numeric [0, Inf): L2 regularization on a categorical split.
+#' @param cat_smooth (Tunable) Numeric [0, Inf): Smoothing over categorical levels, which
+#' reduces the effect of rare ones.
+#' @param max_cat_to_onehot (Tunable) Integer [1, Inf): Below this many levels, split
+#' one-versus-rest rather than by partition.
+#' @param alpha (Tunable) Optional Numeric (0, Inf): Huber delta or quantile level.
+#' Requires `objective` to be "huber" or "quantile". NULL uses LightGBM's default of
+#' 0.9.
+#' @param tweedie_variance_power (Tunable) Optional Numeric [1, 2): Tweedie power: 1 is
+#' Poisson-like, near 2 is gamma-like. Requires `objective = "tweedie"`. NULL uses
+#' LightGBM's default of 1.5.
+#' @param fair_c (Tunable) Optional Numeric (0, Inf): Fair loss scale. Requires
+#' `objective = "fair"`. NULL uses LightGBM's default of 1.
+#' @param poisson_max_delta_step (Tunable) Optional Numeric (0, Inf): Step cap
+#' safeguarding Poisson optimization. Requires `objective = "poisson"`. NULL uses
+#' LightGBM's default of 0.7.
+#' @param sigmoid (Tunable) Optional Numeric (0, Inf): Sigmoid slope, for a binary or
+#' one-vs-all objective. NULL uses LightGBM's default of 1.
+#' @param boost_from_average Optional Logical: Start from the outcome's mean, for a
+#' regression, binary or cross-entropy objective. NULL uses LightGBM's default of TRUE.
+#' @param reg_sqrt Optional Logical: Fit the square root of the outcome and square the
+#' prediction back, for a regression objective. NULL uses LightGBM's default of FALSE.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #' @param device_type Character \{"cpu", "gpu", "cuda"\}: Compute device.
 #' @param tree_learner Character \{"serial", "feature", "data", "voting"\}: Tree learner type.
@@ -2095,7 +3261,7 @@ setup_LightRF <- function(
   num_leaves = 4096L,
   max_depth = -1L,
   feature_fraction = NULL,
-  subsample = .623, # a.k.a. bagging_fraction
+  bagging_fraction = .623,
   lambda_l1 = 0,
   lambda_l2 = 0,
   max_cat_threshold = 32L,
@@ -2104,6 +3270,52 @@ setup_LightRF <- function(
   ifw = FALSE,
   # fixed
   objective = NULL,
+  early_stopping_min_delta = 0,
+  deterministic = FALSE,
+  objective_seed = 5L,
+  force_row_wise = FALSE,
+  histogram_pool_size = -1,
+  top_k = NULL,
+  pos_bagging_fraction = 1,
+  neg_bagging_fraction = 1,
+  bagging_seed = 3L,
+  feature_fraction_bynode = 1,
+  feature_fraction_seed = 2L,
+  cegb_tradeoff = 1,
+  cegb_penalty_split = 0,
+  cegb_penalty_feature_lazy = NULL,
+  cegb_penalty_feature_coupled = NULL,
+  use_quantized_grad = FALSE,
+  num_grad_quant_bins = NULL,
+  quant_train_renew_leaf = NULL,
+  stochastic_rounding = NULL,
+  monotone_constraints = NULL,
+  monotone_constraints_method = NULL,
+  monotone_penalty = NULL,
+  interaction_constraints = NULL,
+  feature_contri = NULL,
+  min_data_in_leaf = 20L,
+  min_sum_hessian_in_leaf = 1e-3,
+  min_gain_to_split = 0,
+  max_delta_step = 0,
+  path_smooth = 0,
+  extra_trees = FALSE,
+  extra_seed = 6L,
+  linear_lambda = NULL,
+  max_bin = 255L,
+  min_data_in_bin = 3L,
+  use_missing = TRUE,
+  zero_as_missing = FALSE,
+  cat_l2 = 10,
+  cat_smooth = 10,
+  max_cat_to_onehot = 4L,
+  alpha = NULL,
+  tweedie_variance_power = NULL,
+  fair_c = NULL,
+  poisson_max_delta_step = NULL,
+  sigmoid = NULL,
+  boost_from_average = NULL,
+  reg_sqrt = NULL,
   device_type = "cpu",
   tree_learner = "serial",
   force_col_wise = TRUE
@@ -2118,7 +3330,7 @@ setup_LightRF <- function(
     num_leaves = num_leaves,
     max_depth = max_depth,
     feature_fraction = feature_fraction,
-    subsample = subsample,
+    bagging_fraction = bagging_fraction,
     lambda_l1 = lambda_l1,
     lambda_l2 = lambda_l2,
     max_cat_threshold = max_cat_threshold,
@@ -2126,6 +3338,52 @@ setup_LightRF <- function(
     linear_tree = linear_tree,
     ifw = ifw,
     objective = objective,
+    early_stopping_min_delta = early_stopping_min_delta,
+    deterministic = deterministic,
+    objective_seed = objective_seed,
+    force_row_wise = force_row_wise,
+    histogram_pool_size = histogram_pool_size,
+    top_k = top_k,
+    pos_bagging_fraction = pos_bagging_fraction,
+    neg_bagging_fraction = neg_bagging_fraction,
+    bagging_seed = bagging_seed,
+    feature_fraction_bynode = feature_fraction_bynode,
+    feature_fraction_seed = feature_fraction_seed,
+    cegb_tradeoff = cegb_tradeoff,
+    cegb_penalty_split = cegb_penalty_split,
+    cegb_penalty_feature_lazy = cegb_penalty_feature_lazy,
+    cegb_penalty_feature_coupled = cegb_penalty_feature_coupled,
+    use_quantized_grad = use_quantized_grad,
+    num_grad_quant_bins = num_grad_quant_bins,
+    quant_train_renew_leaf = quant_train_renew_leaf,
+    stochastic_rounding = stochastic_rounding,
+    monotone_constraints = monotone_constraints,
+    monotone_constraints_method = monotone_constraints_method,
+    monotone_penalty = monotone_penalty,
+    interaction_constraints = interaction_constraints,
+    feature_contri = feature_contri,
+    min_data_in_leaf = min_data_in_leaf,
+    min_sum_hessian_in_leaf = min_sum_hessian_in_leaf,
+    min_gain_to_split = min_gain_to_split,
+    max_delta_step = max_delta_step,
+    path_smooth = path_smooth,
+    extra_trees = extra_trees,
+    extra_seed = extra_seed,
+    linear_lambda = linear_lambda,
+    max_bin = max_bin,
+    min_data_in_bin = min_data_in_bin,
+    use_missing = use_missing,
+    zero_as_missing = zero_as_missing,
+    cat_l2 = cat_l2,
+    cat_smooth = cat_smooth,
+    max_cat_to_onehot = max_cat_to_onehot,
+    alpha = alpha,
+    tweedie_variance_power = tweedie_variance_power,
+    fair_c = fair_c,
+    poisson_max_delta_step = poisson_max_delta_step,
+    sigmoid = sigmoid,
+    boost_from_average = boost_from_average,
+    reg_sqrt = reg_sqrt,
     device_type = device_type,
     tree_learner = tree_learner,
     force_col_wise = force_col_wise
@@ -2147,133 +3405,162 @@ setup_LightRF <- function(
 LightGBMHyperparameters <- new_class(
   name = "LightGBMHyperparameters",
   parent = Hyperparameters,
-  properties = list(
-    algorithm = prop_algorithm("LightGBM"),
-    max_nrounds = prop_integer(
-      1000L,
-      min = 1L,
-      description = "Maximum number of boosting rounds when tuning nrounds by early stopping."
+  properties = c(
+    list(
+      algorithm = prop_algorithm("LightGBM"),
+      max_nrounds = prop_integer(
+        1000L,
+        min = 1L,
+        description = "Maximum number of boosting rounds when tuning nrounds by early stopping."
+      ),
+      force_nrounds = prop_integer(
+        NULL,
+        min = 1L,
+        nullable = TRUE,
+        description = "Use this many boosting rounds; disables the search for nrounds."
+      ),
+      early_stopping_rounds = prop_integer(
+        10L,
+        min = 1L,
+        description = "Number of rounds without improvement to stop training."
+      ),
+      num_leaves = prop_integer(
+        8L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Maximum number of leaves in one tree."
+      ),
+      max_depth = prop_integer(
+        -1L,
+        tunable = TRUE,
+        description = "Maximum tree depth. -1 = no limit."
+      ),
+      learning_rate = prop_float(
+        0.01,
+        exclusive_min = 0,
+        max = 1,
+        tunable = TRUE,
+        description = "Learning rate."
+      ),
+      feature_fraction = prop_float(
+        1.0,
+        exclusive_min = 0,
+        max = 1,
+        tunable = TRUE,
+        description = "Fraction of features sampled per tree."
+      ),
+      bagging_fraction = prop_float(
+        1.0,
+        exclusive_min = 0,
+        max = 1,
+        tunable = TRUE,
+        description = "Fraction of cases sampled per tree (bagging fraction)."
+      ),
+      bagging_freq = prop_integer(
+        1L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Bagging frequency."
+      ),
+      lambda_l1 = prop_float(
+        0,
+        min = 0,
+        tunable = TRUE,
+        description = "L1 regularization."
+      ),
+      lambda_l2 = prop_float(
+        0,
+        min = 0,
+        tunable = TRUE,
+        description = "L2 regularization."
+      ),
+      max_cat_threshold = prop_integer(
+        32L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Maximum number of split points for categorical features."
+      ),
+      min_data_per_group = prop_integer(
+        32L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Minimum number of cases per categorical group."
+      ),
+      linear_tree = prop_boolean(
+        FALSE,
+        tunable = TRUE,
+        description = "Fit linear models at leaves."
+      ),
+      ifw = prop_boolean(
+        FALSE,
+        tunable = TRUE,
+        description = "Inverse Frequency Weighting in classification."
+      ),
+      objective = prop_string(
+        NULL,
+        nullable = TRUE,
+        default_on_null = TRUE,
+        description = "LightGBM objective. NULL = set from outcome type."
+      ),
+      device_type = prop_string(
+        "cpu",
+        enum = c("cpu", "gpu", "cuda"),
+        description = "Compute device."
+      ),
+      tree_learner = prop_string(
+        "serial",
+        enum = c("serial", "feature", "data", "voting"),
+        description = "Tree learner type."
+      ),
+      force_col_wise = prop_boolean(
+        TRUE,
+        description = "Force column-wise histogram building (CPU only)."
+      ),
+      # Derived: force_nrounds if set, otherwise determined by early stopping
+      # during tuning.
+      nrounds = prop_state(prop_integer(
+        NULL,
+        min = 1L,
+        nullable = TRUE,
+        tune_on_null = TRUE,
+        description = "Resolved number of boosting rounds. NULL = determined by early stopping during tuning."
+      )),
+      # Run state: best iteration, written by the Tuner.
+      best_iter = prop_state(prop_float(
+        NULL,
+        min = 0,
+        nullable = TRUE,
+        description = "Best iteration found by early stopping."
+      ))
     ),
-    force_nrounds = prop_integer(
-      NULL,
-      min = 1L,
-      nullable = TRUE,
-      description = "Use this many boosting rounds; disables the search for nrounds."
-    ),
-    early_stopping_rounds = prop_integer(
-      10L,
-      min = 1L,
-      description = "Number of rounds without improvement to stop training."
-    ),
-    num_leaves = prop_integer(
-      8L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Maximum number of leaves in one tree."
-    ),
-    max_depth = prop_integer(
-      -1L,
-      tunable = TRUE,
-      description = "Maximum tree depth. -1 = no limit."
-    ),
-    learning_rate = prop_float(
-      0.01,
-      exclusive_min = 0,
-      max = 1,
-      tunable = TRUE,
-      description = "Learning rate."
-    ),
-    feature_fraction = prop_float(
-      1.0,
-      exclusive_min = 0,
-      max = 1,
-      tunable = TRUE,
-      description = "Fraction of features sampled per tree."
-    ),
-    subsample = prop_float(
-      1.0,
-      exclusive_min = 0,
-      max = 1,
-      tunable = TRUE,
-      description = "Fraction of cases sampled per tree (bagging fraction)."
-    ),
-    subsample_freq = prop_integer(
-      1L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Bagging frequency."
-    ),
-    lambda_l1 = prop_float(
-      0,
-      min = 0,
-      tunable = TRUE,
-      description = "L1 regularization."
-    ),
-    lambda_l2 = prop_float(
-      0,
-      min = 0,
-      tunable = TRUE,
-      description = "L2 regularization."
-    ),
-    max_cat_threshold = prop_integer(
-      32L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Maximum number of split points for categorical features."
-    ),
-    min_data_per_group = prop_integer(
-      32L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Minimum number of cases per categorical group."
-    ),
-    linear_tree = prop_boolean(
-      FALSE,
-      tunable = TRUE,
-      description = "Fit linear models at leaves."
-    ),
-    ifw = prop_boolean(
-      FALSE,
-      tunable = TRUE,
-      description = "Inverse Frequency Weighting in classification."
-    ),
-    objective = prop_string(
-      NULL,
-      nullable = TRUE,
-      default_on_null = TRUE,
-      description = "LightGBM objective. NULL = set from outcome type."
-    ),
-    device_type = prop_string(
-      "cpu",
-      enum = c("cpu", "gpu", "cuda"),
-      description = "Compute device."
-    ),
-    tree_learner = prop_string(
-      "serial",
-      enum = c("serial", "feature", "data", "voting"),
-      description = "Tree learner type."
-    ),
-    force_col_wise = prop_boolean(
-      TRUE,
-      description = "Force column-wise histogram building (CPU only)."
-    ),
-    # Derived: force_nrounds if set, otherwise determined by early stopping
-    # during tuning.
-    nrounds = prop_state(prop_integer(
-      NULL,
-      min = 1L,
-      nullable = TRUE,
-      tune_on_null = TRUE,
-      description = "Resolved number of boosting rounds. NULL = determined by early stopping during tuning."
-    )),
-    # Run state: best iteration, written by the Tuner.
-    best_iter = prop_state(prop_float(
-      NULL,
-      min = 0,
-      nullable = TRUE,
-      description = "Best iteration found by early stopping."
-    ))
-  )
+    lightgbm_objective_props(),
+    lightgbm_boosting_props(),
+    lightgbm_dart_props(),
+    lightgbm_goss_props(),
+    lightgbm_regularization_props(),
+    lightgbm_binning_props(),
+    lightgbm_categorical_props(),
+    lightgbm_determinism_props(),
+    lightgbm_execution_props(),
+    lightgbm_bagging_props(),
+    lightgbm_feature_sampling_props(),
+    lightgbm_cegb_props(),
+    lightgbm_quantized_props(),
+    lightgbm_constraint_props(),
+    lightgbm_early_stopping_props()
+  ),
+  validator = function(self) {
+    # Two rules LightGBM enforces mid-fit; reported here against the setting the
+    # user wrote. Neither is expressible on a property spec: both compare one
+    # property against another rather than against a constant.
+    sampling <- check_lightgbm_sampling(self)
+    if (!is.null(sampling)) {
+      return(sampling)
+    }
+    # Gates the objective-specific, DART and GOSS parameters on the property that
+    # selects them. Spec-driven, so it publishes no rule the schema lacks.
+    check_applies_when(self)
+  }
 ) # /rtemis::LightGBMHyperparameters
 
 method(update, LightGBMHyperparameters) <- function(
@@ -2307,14 +3594,131 @@ method(update, LightGBMHyperparameters) <- function(
 #' @param max_depth (Tunable) Integer: Maximum depth of trees. -1 = no limit.
 #' @param learning_rate (Tunable) Numeric (0, 1]: Learning rate.
 #' @param feature_fraction (Tunable) Numeric (0, 1]: Fraction of features to use.
-#' @param subsample (Tunable) Numeric (0, 1]: Fraction of data to use.
-#' @param subsample_freq (Tunable) Integer [1, Inf): Frequency of subsample.
+#' @param bagging_fraction (Tunable) Numeric (0, 1]: Fraction of cases sampled per tree.
+#' @param bagging_freq (Tunable) Integer [1, Inf): Resample every this many iterations.
 #' @param lambda_l1 (Tunable) Numeric [0, Inf): L1 regularization.
 #' @param lambda_l2 (Tunable) Numeric [0, Inf): L2 regularization.
 #' @param max_cat_threshold (Tunable) Integer [1, Inf): Maximum number of categories for categorical features.
 #' @param min_data_per_group (Tunable) Integer [1, Inf): Minimum number of observations per categorical group.
 #' @param linear_tree (Tunable) Logical: If TRUE, use linear trees.
 #' @param objective Optional Character: Objective function. NULL = set from outcome type.
+#' @param early_stopping_min_delta (Tunable) Numeric [0, Inf): Smallest improvement that
+#' resets the early-stopping counter.
+#' @param deterministic Logical: Force reproducible results at some cost in speed.
+#' @param objective_seed Integer: Random seed for the objective, where it draws.
+#' @param force_row_wise Logical: Force row-wise histogram building. Cheaper in memory
+#' than column-wise, slower per iteration.
+#' @param histogram_pool_size Numeric: Memory cap in MB for the histogram cache; -1
+#' leaves it uncapped.
+#' @param top_k (Tunable) Optional Integer [1, Inf): Features each machine votes for in
+#' the voting tree learner. Requires `tree_learner = "voting"`. NULL uses LightGBM's
+#' default of 20.
+#' @param pos_bagging_fraction (Tunable) Numeric (0, 1]: Fraction of positive cases
+#' sampled per tree, for a binary outcome.
+#' @param neg_bagging_fraction (Tunable) Numeric (0, 1]: Fraction of negative cases
+#' sampled per tree, for a binary outcome.
+#' @param bagging_seed Integer: Random seed for bagging.
+#' @param feature_fraction_bynode (Tunable) Numeric (0, 1]: Fraction of features sampled
+#' at each node, on top of the per-tree fraction.
+#' @param feature_fraction_seed Integer: Random seed for feature sampling.
+#' @param cegb_tradeoff (Tunable) Numeric [0, Inf): Overall multiplier on every
+#' cost-efficiency penalty. Its scale is not comparable between boosting modes.
+#' @param cegb_penalty_split (Tunable) Numeric [0, Inf): Cost charged per split, in units
+#' of loss reduction.
+#' @param cegb_penalty_feature_lazy Optional List: Per-feature cost charged the first
+#' time a case uses it, in \[0, Inf). One vector applied to every tree, or one vector
+#' per tree.
+#' @param cegb_penalty_feature_coupled Optional List: Per-feature cost charged the first
+#' time any case uses it, in \[0, Inf). One vector applied to every tree, or one vector
+#' per tree.
+#' @param use_quantized_grad Logical: Discretize gradients before finding splits. Faster,
+#' and changes the fit.
+#' @param num_grad_quant_bins (Tunable) Optional Integer [2, Inf): Bins the gradients are
+#' discretized into. Requires `use_quantized_grad = TRUE`. NULL uses LightGBM's default of 4.
+#' @param quant_train_renew_leaf Optional Logical: Recompute leaf values from the exact
+#' gradients after each iteration. Requires `use_quantized_grad = TRUE`. NULL uses
+#' LightGBM's default of FALSE.
+#' @param stochastic_rounding Optional Logical: Round gradients stochastically rather than
+#' to nearest. Requires `use_quantized_grad = TRUE`. NULL uses LightGBM's default of TRUE.
+#' @param monotone_constraints Optional Integer \[-1, 1\] vector: Per-feature
+#' monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature.
+#' @param monotone_constraints_method Optional Character \{"basic", "intermediate",
+#' "advanced"\}: How monotonicity is enforced. Requires `monotone_constraints`.
+#' @param monotone_penalty (Tunable) Optional Numeric [0, Inf): Depth penalty on splits
+#' that would break monotonicity. Requires `monotone_constraints`. NULL uses LightGBM's
+#' default of 0.
+#' @param interaction_constraints Optional Character: Feature groups permitted to interact,
+#' in LightGBM's own bracketed form, e.g. "\[0,1\],\[2,3\]".
+#' @param feature_contri Optional Numeric vector: Per-feature multiplier on split gain,
+#' one value per feature.
+#' @param min_data_in_leaf (Tunable) Integer [0, Inf): Minimum number of cases in a leaf.
+#' @param min_sum_hessian_in_leaf (Tunable) Numeric [0, Inf): Minimum sum of hessians in a
+#' leaf: the smooth counterpart of a case count.
+#' @param min_gain_to_split (Tunable) Numeric [0, Inf): Minimum loss reduction a split must
+#' buy to be made.
+#' @param max_delta_step (Tunable) Numeric: Cap on each leaf's output; 0 or less leaves it
+#' uncapped.
+#' @param path_smooth (Tunable) Numeric [0, Inf): Smooth each leaf towards its parent, more
+#' strongly the fewer cases it holds.
+#' @param extra_trees (Tunable) Logical: Choose one split threshold per feature at random
+#' rather than the best.
+#' @param extra_seed Integer: Random seed for the thresholds `extra_trees` draws.
+#' @param linear_lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the linear models
+#' fitted at the leaves. Requires `linear_tree = TRUE`. NULL uses LightGBM's default of 0.
+#' @param max_bin (Tunable) Integer [2, Inf): Most bins a feature is discretized into. Fewer
+#' is faster and more regularized.
+#' @param min_data_in_bin (Tunable) Integer [1, Inf): Minimum number of cases per bin.
+#' @param use_missing Logical: Handle missing values. FALSE ignores them.
+#' @param zero_as_missing Logical: Treat zeros as missing, rather than only NA.
+#' @param cat_l2 (Tunable) Numeric [0, Inf): L2 regularization on a categorical split.
+#' @param cat_smooth (Tunable) Numeric [0, Inf): Smoothing over categorical levels, which
+#' reduces the effect of rare ones.
+#' @param max_cat_to_onehot (Tunable) Integer [1, Inf): Below this many levels, split
+#' one-versus-rest rather than by partition.
+#' @param boosting Character \{"gbdt", "rf", "dart"\}: Boosting algorithm:
+#' gradient boosting, random forest, or DART (dropout).
+#' @param data_sample_strategy Character \{"bagging", "goss"\}: How cases are
+#' subsampled: at random, or by gradient magnitude (GOSS). GOSS cannot be combined
+#' with bagging, so it requires `bagging_fraction = 1`.
+#' @param drop_rate (Tunable) Optional Numeric \[0, 1\]: Fraction of existing trees
+#' to drop per iteration. Requires `boosting = "dart"`. NULL uses LightGBM's
+#' default of 0.1.
+#' @param max_drop (Tunable) Optional Integer: Most trees dropped in one iteration;
+#' 0 or less removes the cap. Requires `boosting = "dart"`. NULL uses LightGBM's
+#' default of 50.
+#' @param skip_drop (Tunable) Optional Numeric \[0, 1\]: Probability of skipping
+#' dropout for an iteration. Requires `boosting = "dart"`. NULL uses LightGBM's
+#' default of 0.5.
+#' @param uniform_drop (Tunable) Optional Logical: Drop trees uniformly rather than
+#' weighted. Requires `boosting = "dart"`. NULL uses LightGBM's default of FALSE.
+#' @param xgboost_dart_mode (Tunable) Optional Logical: Use the XGBoost DART
+#' normalization. Requires `boosting = "dart"`. NULL uses LightGBM's default of
+#' FALSE.
+#' @param drop_seed Optional Integer: Random seed for choosing which trees to drop.
+#' Requires `boosting = "dart"`. NULL uses LightGBM's default of 4.
+#' @param top_rate (Tunable) Optional Numeric \[0, 1\]: Share of large-gradient cases
+#' GOSS retains. Requires `data_sample_strategy = "goss"`. NULL uses LightGBM's
+#' default of 0.2.
+#' @param other_rate (Tunable) Optional Numeric \[0, 1\]: Share of the remaining cases
+#' GOSS retains; with `top_rate` it must not exceed 1. Requires
+#' `data_sample_strategy = "goss"`. NULL uses LightGBM's default of 0.1.
+#' @param alpha (Tunable) Optional Numeric (0, Inf): Huber delta or quantile level.
+#' Requires `objective` to be "huber" or "quantile". NULL uses LightGBM's default of
+#' 0.9.
+#' @param tweedie_variance_power (Tunable) Optional Numeric [1, 2): Tweedie power: 1 is
+#' Poisson-like, near 2 is gamma-like. Requires `objective = "tweedie"`. NULL uses
+#' LightGBM's default of 1.5.
+#' @param fair_c (Tunable) Optional Numeric (0, Inf): Fair loss scale. Requires
+#' `objective = "fair"`. NULL uses LightGBM's default of 1.
+#' @param poisson_max_delta_step (Tunable) Optional Numeric (0, Inf): Step cap
+#' safeguarding Poisson optimization. Requires `objective = "poisson"`. NULL uses
+#' LightGBM's default of 0.7.
+#' @param sigmoid (Tunable) Optional Numeric (0, Inf): Sigmoid slope, for a binary or
+#' one-vs-all objective. NULL uses LightGBM's default of 1.
+#' @param boost_from_average Optional Logical: Start from the outcome's mean, for a
+#' regression, binary or cross-entropy objective. NULL uses LightGBM's default of TRUE.
+#' @param reg_sqrt Optional Logical: Fit the square root of the outcome and square the
+#' prediction back, for a regression objective. NULL uses LightGBM's default of FALSE.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #' @param device_type Character \{"cpu", "gpu", "cuda"\}: Compute device.
 #' @param tree_learner Character \{"serial", "feature", "data", "voting"\}: Tree learner type.
@@ -2339,8 +3743,8 @@ setup_LightGBM <- function(
   max_depth = -1L,
   learning_rate = 0.01,
   feature_fraction = 1.0,
-  subsample = 1.0, # a.k.a. bagging_fraction
-  subsample_freq = 1L,
+  bagging_fraction = 1.0,
+  bagging_freq = 1L,
   lambda_l1 = 0,
   lambda_l2 = 0,
   max_cat_threshold = 32L,
@@ -2348,6 +3752,62 @@ setup_LightGBM <- function(
   linear_tree = FALSE,
   ifw = FALSE,
   objective = NULL,
+  early_stopping_min_delta = 0,
+  deterministic = FALSE,
+  objective_seed = 5L,
+  force_row_wise = FALSE,
+  histogram_pool_size = -1,
+  top_k = NULL,
+  pos_bagging_fraction = 1,
+  neg_bagging_fraction = 1,
+  bagging_seed = 3L,
+  feature_fraction_bynode = 1,
+  feature_fraction_seed = 2L,
+  cegb_tradeoff = 1,
+  cegb_penalty_split = 0,
+  cegb_penalty_feature_lazy = NULL,
+  cegb_penalty_feature_coupled = NULL,
+  use_quantized_grad = FALSE,
+  num_grad_quant_bins = NULL,
+  quant_train_renew_leaf = NULL,
+  stochastic_rounding = NULL,
+  monotone_constraints = NULL,
+  monotone_constraints_method = NULL,
+  monotone_penalty = NULL,
+  interaction_constraints = NULL,
+  feature_contri = NULL,
+  min_data_in_leaf = 20L,
+  min_sum_hessian_in_leaf = 1e-3,
+  min_gain_to_split = 0,
+  max_delta_step = 0,
+  path_smooth = 0,
+  extra_trees = FALSE,
+  extra_seed = 6L,
+  linear_lambda = NULL,
+  max_bin = 255L,
+  min_data_in_bin = 3L,
+  use_missing = TRUE,
+  zero_as_missing = FALSE,
+  cat_l2 = 10,
+  cat_smooth = 10,
+  max_cat_to_onehot = 4L,
+  boosting = "gbdt",
+  data_sample_strategy = "bagging",
+  drop_rate = NULL,
+  max_drop = NULL,
+  skip_drop = NULL,
+  uniform_drop = NULL,
+  xgboost_dart_mode = NULL,
+  drop_seed = NULL,
+  top_rate = NULL,
+  other_rate = NULL,
+  alpha = NULL,
+  tweedie_variance_power = NULL,
+  fair_c = NULL,
+  poisson_max_delta_step = NULL,
+  sigmoid = NULL,
+  boost_from_average = NULL,
+  reg_sqrt = NULL,
   device_type = "cpu",
   tree_learner = "serial",
   force_col_wise = TRUE
@@ -2357,7 +3817,7 @@ setup_LightGBM <- function(
   early_stopping_rounds <- clean_posint(early_stopping_rounds)
   num_leaves <- clean_posint(num_leaves)
   max_depth <- clean_int(max_depth)
-  subsample_freq <- clean_posint(subsample_freq)
+  bagging_freq <- clean_posint(bagging_freq)
   max_cat_threshold <- clean_posint(max_cat_threshold)
   min_data_per_group <- clean_posint(min_data_per_group)
   LightGBMHyperparameters(
@@ -2368,8 +3828,8 @@ setup_LightGBM <- function(
     max_depth = max_depth,
     learning_rate = learning_rate,
     feature_fraction = feature_fraction,
-    subsample = subsample,
-    subsample_freq = subsample_freq,
+    bagging_fraction = bagging_fraction,
+    bagging_freq = bagging_freq,
     lambda_l1 = lambda_l1,
     lambda_l2 = lambda_l2,
     max_cat_threshold = max_cat_threshold,
@@ -2377,6 +3837,62 @@ setup_LightGBM <- function(
     linear_tree = linear_tree,
     ifw = ifw,
     objective = objective,
+    early_stopping_min_delta = early_stopping_min_delta,
+    deterministic = deterministic,
+    objective_seed = objective_seed,
+    force_row_wise = force_row_wise,
+    histogram_pool_size = histogram_pool_size,
+    top_k = top_k,
+    pos_bagging_fraction = pos_bagging_fraction,
+    neg_bagging_fraction = neg_bagging_fraction,
+    bagging_seed = bagging_seed,
+    feature_fraction_bynode = feature_fraction_bynode,
+    feature_fraction_seed = feature_fraction_seed,
+    cegb_tradeoff = cegb_tradeoff,
+    cegb_penalty_split = cegb_penalty_split,
+    cegb_penalty_feature_lazy = cegb_penalty_feature_lazy,
+    cegb_penalty_feature_coupled = cegb_penalty_feature_coupled,
+    use_quantized_grad = use_quantized_grad,
+    num_grad_quant_bins = num_grad_quant_bins,
+    quant_train_renew_leaf = quant_train_renew_leaf,
+    stochastic_rounding = stochastic_rounding,
+    monotone_constraints = monotone_constraints,
+    monotone_constraints_method = monotone_constraints_method,
+    monotone_penalty = monotone_penalty,
+    interaction_constraints = interaction_constraints,
+    feature_contri = feature_contri,
+    min_data_in_leaf = min_data_in_leaf,
+    min_sum_hessian_in_leaf = min_sum_hessian_in_leaf,
+    min_gain_to_split = min_gain_to_split,
+    max_delta_step = max_delta_step,
+    path_smooth = path_smooth,
+    extra_trees = extra_trees,
+    extra_seed = extra_seed,
+    linear_lambda = linear_lambda,
+    max_bin = max_bin,
+    min_data_in_bin = min_data_in_bin,
+    use_missing = use_missing,
+    zero_as_missing = zero_as_missing,
+    cat_l2 = cat_l2,
+    cat_smooth = cat_smooth,
+    max_cat_to_onehot = max_cat_to_onehot,
+    boosting = boosting,
+    data_sample_strategy = data_sample_strategy,
+    drop_rate = drop_rate,
+    max_drop = max_drop,
+    skip_drop = skip_drop,
+    uniform_drop = uniform_drop,
+    xgboost_dart_mode = xgboost_dart_mode,
+    drop_seed = drop_seed,
+    top_rate = top_rate,
+    other_rate = other_rate,
+    alpha = alpha,
+    tweedie_variance_power = tweedie_variance_power,
+    fair_c = fair_c,
+    poisson_max_delta_step = poisson_max_delta_step,
+    sigmoid = sigmoid,
+    boost_from_average = boost_from_average,
+    reg_sqrt = reg_sqrt,
     device_type = device_type,
     tree_learner = tree_learner,
     force_col_wise = force_col_wise,
@@ -2386,20 +3902,40 @@ setup_LightGBM <- function(
 
 
 # %% LightRuleFitHyperparameters ----
-# Names of hyperparameters forwarded to each step's setup function by
-# train_LightRuleFit.
-LightRuleFit_lightgbm_params <- c(
-  "nrounds",
-  "num_leaves",
-  "max_depth",
-  "learning_rate",
-  "subsample",
-  "subsample_freq",
-  "lambda_l1",
-  "lambda_l2",
-  "objective"
-)
-LightRuleFit_glmnet_params <- c("alpha", "lambda")
+# Which of LightRuleFit's hyperparameters go to which step. `@alpha` and
+# `@lambda` are the GLMNET step's; everything else the class shares with
+# `LightGBMHyperparameters` goes to the LightGBM step.
+LightRuleFit_glmnet_params <- c("alpha_glmnet", "lambda_glmnet")
+
+
+# %% LightRuleFit_lightgbm_params ----
+#' Hyperparameters forwarded to LightRuleFit's LightGBM step
+#'
+#' Derived rather than listed. A hand-written list is a second place to record
+#' which properties the two classes share, and it fell behind the moment the
+#' classes grew: 38 properties were declared on LightRuleFit and silently not
+#' forwarded, so setting one did nothing at all.
+#'
+#' The rule is what the list was always trying to say -- every property
+#' LightRuleFit shares with `LightGBMHyperparameters`, less the two that belong
+#' to the GLMNET step and the `ifw` switches, which `train_LightRuleFit()`
+#' resolves per step itself.
+#'
+#' @return Character vector of hyperparameter names.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+LightRuleFit_lightgbm_params <- function() {
+  shared <- intersect(
+    hp_prop_names(LightRuleFitHyperparameters),
+    hp_prop_names(LightGBMHyperparameters)
+  )
+  setdiff(
+    shared,
+    c(LightRuleFit_glmnet_params, "ifw", "ifw_lightgbm", "ifw_glmnet")
+  )
+} # /rtemis::LightRuleFit_lightgbm_params
 
 #' @title LightRuleFitHyperparameters
 #'
@@ -2414,96 +3950,157 @@ LightRuleFit_glmnet_params <- c("alpha", "lambda")
 LightRuleFitHyperparameters <- new_class(
   name = "LightRuleFitHyperparameters",
   parent = Hyperparameters,
-  properties = list(
-    algorithm = prop_algorithm("LightRuleFit"),
-    nrounds = prop_integer(
-      200L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Number of boosting rounds (LightGBM step)."
+  properties = c(
+    list(
+      algorithm = prop_algorithm("LightRuleFit"),
+      device_type = prop_string(
+        "cpu",
+        enum = c("cpu", "gpu", "cuda"),
+        description = "Compute device."
+      ),
+      force_col_wise = prop_boolean(
+        TRUE,
+        description = "Force column-wise histogram building (CPU only)."
+      ),
+      tree_learner = prop_string(
+        "serial",
+        enum = c("serial", "feature", "data", "voting"),
+        description = "Tree learner type."
+      ),
+      feature_fraction = prop_float(
+        1.0,
+        exclusive_min = 0,
+        max = 1,
+        tunable = TRUE,
+        description = "Fraction of features sampled per tree."
+      ),
+      linear_tree = prop_boolean(
+        FALSE,
+        tunable = TRUE,
+        description = "Fit linear models at leaves."
+      ),
+      max_cat_threshold = prop_integer(
+        32L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Maximum number of split points for categorical features."
+      ),
+      min_data_per_group = prop_integer(
+        32L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Minimum number of cases per categorical group."
+      ),
+      nrounds = prop_integer(
+        200L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Number of boosting rounds (LightGBM step)."
+      ),
+      num_leaves = prop_integer(
+        32L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Maximum number of leaves in one tree (LightGBM step)."
+      ),
+      max_depth = prop_integer(
+        4L,
+        tunable = TRUE,
+        description = "Maximum tree depth (LightGBM step). -1 = no limit."
+      ),
+      learning_rate = prop_float(
+        0.1,
+        exclusive_min = 0,
+        max = 1,
+        tunable = TRUE,
+        description = "Learning rate (LightGBM step)."
+      ),
+      bagging_fraction = prop_float(
+        0.666,
+        exclusive_min = 0,
+        max = 1,
+        tunable = TRUE,
+        description = "Fraction of cases sampled per tree (LightGBM step)."
+      ),
+      bagging_freq = prop_integer(
+        1L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Bagging frequency (LightGBM step)."
+      ),
+      lambda_l1 = prop_float(
+        0,
+        min = 0,
+        tunable = TRUE,
+        description = "L1 regularization (LightGBM step)."
+      ),
+      lambda_l2 = prop_float(
+        0,
+        min = 0,
+        tunable = TRUE,
+        description = "L2 regularization (LightGBM step)."
+      ),
+      objective = prop_string(
+        NULL,
+        nullable = TRUE,
+        default_on_null = TRUE,
+        description = "LightGBM objective. NULL = set from outcome type."
+      ),
+      ifw_lightgbm = prop_boolean(
+        FALSE,
+        tunable = TRUE,
+        description = "Inverse Frequency Weighting in the LightGBM step."
+      ),
+      alpha_glmnet = prop_float(
+        1,
+        min = 0,
+        max = 1,
+        tunable = TRUE,
+        description = "Elastic net mixing parameter (GLMNET step)."
+      ),
+      lambda_glmnet = prop_float(
+        NULL,
+        min = 0,
+        nullable = TRUE,
+        vector = TRUE,
+        description = "Regularization strength (GLMNET step). NULL = determined by cv.glmnet."
+      ),
+      ifw_glmnet = prop_boolean(
+        FALSE,
+        tunable = TRUE,
+        description = "Inverse Frequency Weighting in the GLMNET step."
+      ),
+      ifw = prop_boolean(
+        FALSE,
+        description = "Inverse Frequency Weighting in both steps. Cannot be combined with ifw_lightgbm or ifw_glmnet."
+      )
     ),
-    num_leaves = prop_integer(
-      32L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Maximum number of leaves in one tree (LightGBM step)."
-    ),
-    max_depth = prop_integer(
-      4L,
-      tunable = TRUE,
-      description = "Maximum tree depth (LightGBM step). -1 = no limit."
-    ),
-    learning_rate = prop_float(
-      0.1,
-      exclusive_min = 0,
-      max = 1,
-      tunable = TRUE,
-      description = "Learning rate (LightGBM step)."
-    ),
-    subsample = prop_float(
-      0.666,
-      exclusive_min = 0,
-      max = 1,
-      tunable = TRUE,
-      description = "Fraction of cases sampled per tree (LightGBM step)."
-    ),
-    subsample_freq = prop_integer(
-      1L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Bagging frequency (LightGBM step)."
-    ),
-    lambda_l1 = prop_float(
-      0,
-      min = 0,
-      tunable = TRUE,
-      description = "L1 regularization (LightGBM step)."
-    ),
-    lambda_l2 = prop_float(
-      0,
-      min = 0,
-      tunable = TRUE,
-      description = "L2 regularization (LightGBM step)."
-    ),
-    objective = prop_string(
-      NULL,
-      nullable = TRUE,
-      default_on_null = TRUE,
-      description = "LightGBM objective. NULL = set from outcome type."
-    ),
-    ifw_lightgbm = prop_boolean(
-      FALSE,
-      tunable = TRUE,
-      description = "Inverse Frequency Weighting in the LightGBM step."
-    ),
-    alpha = prop_float(
-      1,
-      min = 0,
-      max = 1,
-      tunable = TRUE,
-      description = "Elastic net mixing parameter (GLMNET step)."
-    ),
-    lambda = prop_float(
-      NULL,
-      min = 0,
-      nullable = TRUE,
-      vector = TRUE,
-      description = "Regularization strength (GLMNET step). NULL = determined by cv.glmnet."
-    ),
-    ifw_glmnet = prop_boolean(
-      FALSE,
-      tunable = TRUE,
-      description = "Inverse Frequency Weighting in the GLMNET step."
-    ),
-    ifw = prop_boolean(
-      FALSE,
-      description = "Inverse Frequency Weighting in both steps. Cannot be combined with ifw_lightgbm or ifw_glmnet."
-    )
+    lightgbm_objective_props(),
+    lightgbm_boosting_props(),
+    lightgbm_dart_props(),
+    lightgbm_goss_props(),
+    lightgbm_regularization_props(),
+    lightgbm_binning_props(),
+    lightgbm_categorical_props(),
+    lightgbm_determinism_props(),
+    lightgbm_execution_props(),
+    lightgbm_bagging_props(),
+    lightgbm_feature_sampling_props(),
+    lightgbm_cegb_props(),
+    lightgbm_quantized_props(),
+    lightgbm_constraint_props()
   ),
   validator = function(self) {
     if (any(self@ifw) && (any(self@ifw_lightgbm) || any(self@ifw_glmnet))) {
-      "@ifw cannot be combined with @ifw_lightgbm or @ifw_glmnet."
+      return("@ifw cannot be combined with @ifw_lightgbm or @ifw_glmnet.")
     }
+    sampling <- check_lightgbm_sampling(self)
+    if (!is.null(sampling)) {
+      return(sampling)
+    }
+    # Gates the objective-specific, DART and GOSS parameters on the property that
+    # selects them, as on the other three classes.
+    check_applies_when(self)
   }
 ) # /rtemis::LightRuleFitHyperparameters
 
@@ -2519,15 +4116,139 @@ LightRuleFitHyperparameters <- new_class(
 #' @param num_leaves (Tunable) Integer [1, Inf): Maximum number of leaves in one tree.
 #' @param max_depth (Tunable) Integer: Maximum depth of trees.
 #' @param learning_rate (Tunable) Numeric (0, 1]: Learning rate.
-#' @param subsample (Tunable) Numeric (0, 1]: Fraction of data to use.
-#' @param subsample_freq (Tunable) Integer [1, Inf): Frequency of subsample.
+#' @param bagging_fraction (Tunable) Numeric (0, 1]: Fraction of cases sampled per tree.
+#' @param bagging_freq (Tunable) Integer [1, Inf): Resample every this many iterations.
 #' @param lambda_l1 (Tunable) Numeric [0, Inf): L1 regularization.
 #' @param lambda_l2 (Tunable) Numeric [0, Inf): L2 regularization.
 #' @param objective Optional Character: Objective function. NULL = set from outcome type.
+#' @param device_type Character \{"cpu", "gpu", "cuda"\}: Compute device.
+#' @param force_col_wise Logical: Force column-wise histogram building (CPU only).
+#' @param tree_learner Character \{"serial", "feature", "data", "voting"\}: Tree learner
+#' type.
+#' @param top_k (Tunable) Optional Integer [1, Inf): Features each machine votes for in
+#' the voting tree learner. Requires `tree_learner = "voting"`. NULL uses LightGBM's
+#' default of 20.
+#' @param feature_fraction (Tunable) Numeric (0, 1]: Fraction of features sampled per tree.
+#' @param feature_fraction_bynode (Tunable) Numeric (0, 1]: Fraction of features sampled
+#' at each node, on top of the per-tree fraction.
+#' @param feature_fraction_seed Integer: Random seed for feature sampling.
+#' @param linear_tree (Tunable) Logical: Fit linear models at leaves.
+#' @param linear_lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the linear models
+#' fitted at the leaves. Requires `linear_tree = TRUE`. NULL uses LightGBM's default of 0.
+#' @param max_cat_threshold (Tunable) Integer [1, Inf): Maximum number of split points for
+#' categorical features.
+#' @param min_data_per_group (Tunable) Integer [1, Inf): Minimum number of cases per
+#' categorical group.
+#' @param alpha (Tunable) Optional Numeric (0, Inf): Huber delta or quantile level.
+#' Requires `objective` to be "huber" or "quantile". NULL uses LightGBM's default of 0.9.
+#' @param deterministic Logical: Force reproducible results at some cost in speed.
+#' @param objective_seed Integer: Random seed for the objective, where it draws.
+#' @param force_row_wise Logical: Force row-wise histogram building. Cheaper in memory
+#' than column-wise, slower per iteration.
+#' @param histogram_pool_size Numeric: Memory cap in MB for the histogram cache; -1
+#' leaves it uncapped.
+#' @param pos_bagging_fraction (Tunable) Numeric (0, 1]: Fraction of positive cases
+#' sampled per tree, for a binary outcome.
+#' @param neg_bagging_fraction (Tunable) Numeric (0, 1]: Fraction of negative cases
+#' sampled per tree, for a binary outcome.
+#' @param bagging_seed Integer: Random seed for bagging.
+#' @param cegb_tradeoff (Tunable) Numeric [0, Inf): Overall multiplier on every
+#' cost-efficiency penalty. Its scale is not comparable between boosting modes.
+#' @param cegb_penalty_split (Tunable) Numeric [0, Inf): Cost charged per split, in units
+#' of loss reduction.
+#' @param cegb_penalty_feature_lazy Optional List: Per-feature cost charged the first
+#' time a case uses it, in \[0, Inf). One vector applied to every tree, or one vector
+#' per tree.
+#' @param cegb_penalty_feature_coupled Optional List: Per-feature cost charged the first
+#' time any case uses it, in \[0, Inf). One vector applied to every tree, or one vector
+#' per tree.
+#' @param use_quantized_grad Logical: Discretize gradients before finding splits. Faster,
+#' and changes the fit.
+#' @param num_grad_quant_bins (Tunable) Optional Integer [2, Inf): Bins the gradients are
+#' discretized into. Requires `use_quantized_grad = TRUE`. NULL uses LightGBM's default of 4.
+#' @param quant_train_renew_leaf Optional Logical: Recompute leaf values from the exact
+#' gradients after each iteration. Requires `use_quantized_grad = TRUE`. NULL uses
+#' LightGBM's default of FALSE.
+#' @param stochastic_rounding Optional Logical: Round gradients stochastically rather than
+#' to nearest. Requires `use_quantized_grad = TRUE`. NULL uses LightGBM's default of TRUE.
+#' @param monotone_constraints Optional Integer \[-1, 1\] vector: Per-feature
+#' monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature.
+#' @param monotone_constraints_method Optional Character \{"basic", "intermediate",
+#' "advanced"\}: How monotonicity is enforced. Requires `monotone_constraints`.
+#' @param monotone_penalty (Tunable) Optional Numeric [0, Inf): Depth penalty on splits
+#' that would break monotonicity. Requires `monotone_constraints`. NULL uses LightGBM's
+#' default of 0.
+#' @param interaction_constraints Optional Character: Feature groups permitted to interact,
+#' in LightGBM's own bracketed form, e.g. "\[0,1\],\[2,3\]".
+#' @param feature_contri Optional Numeric vector: Per-feature multiplier on split gain,
+#' one value per feature.
+#' @param min_data_in_leaf (Tunable) Integer [0, Inf): Minimum number of cases in a leaf.
+#' @param min_sum_hessian_in_leaf (Tunable) Numeric [0, Inf): Minimum sum of hessians in a
+#' leaf: the smooth counterpart of a case count.
+#' @param min_gain_to_split (Tunable) Numeric [0, Inf): Minimum loss reduction a split must
+#' buy to be made.
+#' @param max_delta_step (Tunable) Numeric: Cap on each leaf's output; 0 or less leaves it
+#' uncapped.
+#' @param path_smooth (Tunable) Numeric [0, Inf): Smooth each leaf towards its parent, more
+#' strongly the fewer cases it holds.
+#' @param extra_trees (Tunable) Logical: Choose one split threshold per feature at random
+#' rather than the best.
+#' @param extra_seed Integer: Random seed for the thresholds `extra_trees` draws.
+#' @param max_bin (Tunable) Integer [2, Inf): Most bins a feature is discretized into. Fewer
+#' is faster and more regularized.
+#' @param min_data_in_bin (Tunable) Integer [1, Inf): Minimum number of cases per bin.
+#' @param use_missing Logical: Handle missing values. FALSE ignores them.
+#' @param zero_as_missing Logical: Treat zeros as missing, rather than only NA.
+#' @param cat_l2 (Tunable) Numeric [0, Inf): L2 regularization on a categorical split.
+#' @param cat_smooth (Tunable) Numeric [0, Inf): Smoothing over categorical levels, which
+#' reduces the effect of rare ones.
+#' @param max_cat_to_onehot (Tunable) Integer [1, Inf): Below this many levels, split
+#' one-versus-rest rather than by partition.
+#' @param boosting Character \{"gbdt", "rf", "dart"\}: Boosting algorithm:
+#' gradient boosting, random forest, or DART (dropout).
+#' @param data_sample_strategy Character \{"bagging", "goss"\}: How cases are
+#' subsampled: at random, or by gradient magnitude (GOSS). GOSS cannot be combined
+#' with bagging, so it requires `bagging_fraction = 1`.
+#' @param drop_rate (Tunable) Optional Numeric \[0, 1\]: Fraction of existing trees
+#' to drop per iteration. Requires `boosting = "dart"`. NULL uses LightGBM's
+#' default of 0.1.
+#' @param max_drop (Tunable) Optional Integer: Most trees dropped in one iteration;
+#' 0 or less removes the cap. Requires `boosting = "dart"`. NULL uses LightGBM's
+#' default of 50.
+#' @param skip_drop (Tunable) Optional Numeric \[0, 1\]: Probability of skipping
+#' dropout for an iteration. Requires `boosting = "dart"`. NULL uses LightGBM's
+#' default of 0.5.
+#' @param uniform_drop (Tunable) Optional Logical: Drop trees uniformly rather than
+#' weighted. Requires `boosting = "dart"`. NULL uses LightGBM's default of FALSE.
+#' @param xgboost_dart_mode (Tunable) Optional Logical: Use the XGBoost DART
+#' normalization. Requires `boosting = "dart"`. NULL uses LightGBM's default of
+#' FALSE.
+#' @param drop_seed Optional Integer: Random seed for choosing which trees to drop.
+#' Requires `boosting = "dart"`. NULL uses LightGBM's default of 4.
+#' @param top_rate (Tunable) Optional Numeric \[0, 1\]: Share of large-gradient cases
+#' GOSS retains. Requires `data_sample_strategy = "goss"`. NULL uses LightGBM's
+#' default of 0.2.
+#' @param other_rate (Tunable) Optional Numeric \[0, 1\]: Share of the remaining cases
+#' GOSS retains; with `top_rate` it must not exceed 1. Requires
+#' `data_sample_strategy = "goss"`. NULL uses LightGBM's default of 0.1.
+#' @param tweedie_variance_power (Tunable) Optional Numeric [1, 2): Tweedie power: 1 is
+#' Poisson-like, near 2 is gamma-like. Requires `objective = "tweedie"`. NULL uses
+#' LightGBM's default of 1.5.
+#' @param fair_c (Tunable) Optional Numeric (0, Inf): Fair loss scale. Requires
+#' `objective = "fair"`. NULL uses LightGBM's default of 1.
+#' @param poisson_max_delta_step (Tunable) Optional Numeric (0, Inf): Step cap
+#' safeguarding Poisson optimization. Requires `objective = "poisson"`. NULL uses
+#' LightGBM's default of 0.7.
+#' @param sigmoid (Tunable) Optional Numeric (0, Inf): Sigmoid slope, for a binary or
+#' one-vs-all objective. NULL uses LightGBM's default of 1.
+#' @param boost_from_average Optional Logical: Start from the outcome's mean, for a
+#' regression, binary or cross-entropy objective. NULL uses LightGBM's default of TRUE.
+#' @param reg_sqrt Optional Logical: Fit the square root of the outcome and square the
+#' prediction back, for a regression objective. NULL uses LightGBM's default of FALSE.
 #' @param ifw_lightgbm (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in the LightGBM
 #' step.
-#' @param alpha (Tunable) Numeric \[0, 1\]: Alpha for GLMNET.
-#' @param lambda Optional Numeric [0, Inf) vector: Lambda for GLMNET. NULL = determined by cv.glmnet.
+#' @param alpha_glmnet (Tunable) Numeric \[0, 1\]: Alpha for GLMNET.
+#' @param lambda_glmnet Optional Numeric [0, Inf) vector: Lambda for GLMNET. NULL = determined by cv.glmnet.
 #' @param ifw_glmnet (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in the GLMNET step.
 #' @param ifw Logical: If TRUE, use Inverse Frequency Weighting in classification. This applies IFW
 #' to both LightGBM and GLMNET; cannot be combined with `ifw_lightgbm` or `ifw_glmnet`.
@@ -2544,34 +4265,158 @@ setup_LightRuleFit <- function(
   num_leaves = 32L,
   max_depth = 4L,
   learning_rate = 0.1,
-  subsample = 0.666,
-  subsample_freq = 1L,
+  bagging_fraction = 0.666,
+  bagging_freq = 1L,
   lambda_l1 = 0,
   lambda_l2 = 0,
   objective = NULL,
+  device_type = "cpu",
+  force_col_wise = TRUE,
+  tree_learner = "serial",
+  top_k = NULL,
+  feature_fraction = 1.0,
+  feature_fraction_bynode = 1,
+  feature_fraction_seed = 2L,
+  linear_tree = FALSE,
+  linear_lambda = NULL,
+  max_cat_threshold = 32L,
+  min_data_per_group = 32L,
+  alpha = NULL,
+  deterministic = FALSE,
+  objective_seed = 5L,
+  force_row_wise = FALSE,
+  histogram_pool_size = -1,
+  pos_bagging_fraction = 1,
+  neg_bagging_fraction = 1,
+  bagging_seed = 3L,
+  cegb_tradeoff = 1,
+  cegb_penalty_split = 0,
+  cegb_penalty_feature_lazy = NULL,
+  cegb_penalty_feature_coupled = NULL,
+  use_quantized_grad = FALSE,
+  num_grad_quant_bins = NULL,
+  quant_train_renew_leaf = NULL,
+  stochastic_rounding = NULL,
+  monotone_constraints = NULL,
+  monotone_constraints_method = NULL,
+  monotone_penalty = NULL,
+  interaction_constraints = NULL,
+  feature_contri = NULL,
+  min_data_in_leaf = 20L,
+  min_sum_hessian_in_leaf = 1e-3,
+  min_gain_to_split = 0,
+  max_delta_step = 0,
+  path_smooth = 0,
+  extra_trees = FALSE,
+  extra_seed = 6L,
+  max_bin = 255L,
+  min_data_in_bin = 3L,
+  use_missing = TRUE,
+  zero_as_missing = FALSE,
+  cat_l2 = 10,
+  cat_smooth = 10,
+  max_cat_to_onehot = 4L,
+  boosting = "gbdt",
+  data_sample_strategy = "bagging",
+  drop_rate = NULL,
+  max_drop = NULL,
+  skip_drop = NULL,
+  uniform_drop = NULL,
+  xgboost_dart_mode = NULL,
+  drop_seed = NULL,
+  top_rate = NULL,
+  other_rate = NULL,
+  tweedie_variance_power = NULL,
+  fair_c = NULL,
+  poisson_max_delta_step = NULL,
+  sigmoid = NULL,
+  boost_from_average = NULL,
+  reg_sqrt = NULL,
   ifw_lightgbm = FALSE,
-  alpha = 1,
-  lambda = NULL,
+  alpha_glmnet = 1,
+  lambda_glmnet = NULL,
   ifw_glmnet = FALSE,
   ifw = FALSE
 ) {
   nrounds <- clean_posint(nrounds)
   num_leaves <- clean_posint(num_leaves)
   max_depth <- clean_int(max_depth)
-  subsample_freq <- clean_posint(subsample_freq)
+  bagging_freq <- clean_posint(bagging_freq)
   LightRuleFitHyperparameters(
     nrounds = nrounds,
     num_leaves = num_leaves,
     max_depth = max_depth,
     learning_rate = learning_rate,
-    subsample = subsample,
-    subsample_freq = subsample_freq,
+    bagging_fraction = bagging_fraction,
+    bagging_freq = bagging_freq,
     lambda_l1 = lambda_l1,
     lambda_l2 = lambda_l2,
     objective = objective,
-    ifw_lightgbm = ifw_lightgbm,
+    device_type = device_type,
+    force_col_wise = force_col_wise,
+    tree_learner = tree_learner,
+    top_k = top_k,
+    feature_fraction = feature_fraction,
+    feature_fraction_bynode = feature_fraction_bynode,
+    feature_fraction_seed = feature_fraction_seed,
+    linear_tree = linear_tree,
+    linear_lambda = linear_lambda,
+    max_cat_threshold = max_cat_threshold,
+    min_data_per_group = min_data_per_group,
     alpha = alpha,
-    lambda = lambda,
+    deterministic = deterministic,
+    objective_seed = objective_seed,
+    force_row_wise = force_row_wise,
+    histogram_pool_size = histogram_pool_size,
+    pos_bagging_fraction = pos_bagging_fraction,
+    neg_bagging_fraction = neg_bagging_fraction,
+    bagging_seed = bagging_seed,
+    cegb_tradeoff = cegb_tradeoff,
+    cegb_penalty_split = cegb_penalty_split,
+    cegb_penalty_feature_lazy = cegb_penalty_feature_lazy,
+    cegb_penalty_feature_coupled = cegb_penalty_feature_coupled,
+    use_quantized_grad = use_quantized_grad,
+    num_grad_quant_bins = num_grad_quant_bins,
+    quant_train_renew_leaf = quant_train_renew_leaf,
+    stochastic_rounding = stochastic_rounding,
+    monotone_constraints = monotone_constraints,
+    monotone_constraints_method = monotone_constraints_method,
+    monotone_penalty = monotone_penalty,
+    interaction_constraints = interaction_constraints,
+    feature_contri = feature_contri,
+    min_data_in_leaf = min_data_in_leaf,
+    min_sum_hessian_in_leaf = min_sum_hessian_in_leaf,
+    min_gain_to_split = min_gain_to_split,
+    max_delta_step = max_delta_step,
+    path_smooth = path_smooth,
+    extra_trees = extra_trees,
+    extra_seed = extra_seed,
+    max_bin = max_bin,
+    min_data_in_bin = min_data_in_bin,
+    use_missing = use_missing,
+    zero_as_missing = zero_as_missing,
+    cat_l2 = cat_l2,
+    cat_smooth = cat_smooth,
+    max_cat_to_onehot = max_cat_to_onehot,
+    boosting = boosting,
+    data_sample_strategy = data_sample_strategy,
+    drop_rate = drop_rate,
+    max_drop = max_drop,
+    skip_drop = skip_drop,
+    uniform_drop = uniform_drop,
+    xgboost_dart_mode = xgboost_dart_mode,
+    drop_seed = drop_seed,
+    top_rate = top_rate,
+    other_rate = other_rate,
+    tweedie_variance_power = tweedie_variance_power,
+    fair_c = fair_c,
+    poisson_max_delta_step = poisson_max_delta_step,
+    sigmoid = sigmoid,
+    boost_from_average = boost_from_average,
+    reg_sqrt = reg_sqrt,
+    ifw_lightgbm = ifw_lightgbm,
+    alpha_glmnet = alpha_glmnet,
+    lambda_glmnet = lambda_glmnet,
     ifw_glmnet = ifw_glmnet,
     ifw = ifw
   )

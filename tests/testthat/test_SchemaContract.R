@@ -551,7 +551,18 @@ test_that("the registry declares no conditional demand for a key", {
     "`@ifw` cannot be combined with `@ifw_lightgbm` or `@ifw_glmnet`. Both ",
     "of the latter are tunable, so each is published as a ",
     "scalar-or-`candidates` `oneOf` and the `then` would have to forbid TRUE ",
-    "in either shape."
+    "in either shape. The class also carries the GOSS rules below, inherited ",
+    "from sharing LightGBM's sampling properties."
+  ),
+  LightGBMHyperparameters = paste0(
+    "GOSS cannot be combined with bagging (`@data_sample_strategy` \"goss\" ",
+    "with `@bagging_fraction` below 1), and `@top_rate` + `@other_rate` must ",
+    "not exceed 1. JSON Schema compares a value against a constant, never ",
+    "against a sibling property's value, so neither is expressible -- the ",
+    "first needs `bagging_fraction < 1` and the second a sum across two ",
+    "properties. Both are also tunable, so each is published as a ",
+    "scalar-or-`candidates` `oneOf`, which a `then` would have to constrain ",
+    "in both shapes."
   ),
   HALHyperparameters = paste0(
     "`@num_knots` must hold one value per interaction degree (`@max_degree`) ",
