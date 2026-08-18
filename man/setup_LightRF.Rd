@@ -9,7 +9,7 @@ setup_LightRF(
   num_leaves = 4096L,
   max_depth = -1L,
   feature_fraction = NULL,
-  subsample = 0.623,
+  bagging_fraction = 0.623,
   lambda_l1 = 0,
   lambda_l2 = 0,
   max_cat_threshold = 32L,
@@ -17,6 +17,52 @@ setup_LightRF(
   linear_tree = FALSE,
   ifw = FALSE,
   objective = NULL,
+  early_stopping_min_delta = 0,
+  deterministic = FALSE,
+  objective_seed = 5L,
+  force_row_wise = FALSE,
+  histogram_pool_size = -1,
+  top_k = NULL,
+  pos_bagging_fraction = 1,
+  neg_bagging_fraction = 1,
+  bagging_seed = 3L,
+  feature_fraction_bynode = 1,
+  feature_fraction_seed = 2L,
+  cegb_tradeoff = 1,
+  cegb_penalty_split = 0,
+  cegb_penalty_feature_lazy = NULL,
+  cegb_penalty_feature_coupled = NULL,
+  use_quantized_grad = FALSE,
+  num_grad_quant_bins = NULL,
+  quant_train_renew_leaf = NULL,
+  stochastic_rounding = NULL,
+  monotone_constraints = NULL,
+  monotone_constraints_method = NULL,
+  monotone_penalty = NULL,
+  interaction_constraints = NULL,
+  feature_contri = NULL,
+  min_data_in_leaf = 20L,
+  min_sum_hessian_in_leaf = 0.001,
+  min_gain_to_split = 0,
+  max_delta_step = 0,
+  path_smooth = 0,
+  extra_trees = FALSE,
+  extra_seed = 6L,
+  linear_lambda = NULL,
+  max_bin = 255L,
+  min_data_in_bin = 3L,
+  use_missing = TRUE,
+  zero_as_missing = FALSE,
+  cat_l2 = 10,
+  cat_smooth = 10,
+  max_cat_to_onehot = 4L,
+  alpha = NULL,
+  tweedie_variance_power = NULL,
+  fair_c = NULL,
+  poisson_max_delta_step = NULL,
+  sigmoid = NULL,
+  boost_from_average = NULL,
+  reg_sqrt = NULL,
   device_type = "cpu",
   tree_learner = "serial",
   force_col_wise = TRUE
@@ -31,7 +77,7 @@ setup_LightRF(
 
 \item{feature_fraction}{(Tunable) Optional Numeric (0, 1]: Fraction of features to use. NULL derives it from the data: sqrt(n_features)/n_features for classification, 0.33 for regression.}
 
-\item{subsample}{(Tunable) Numeric (0, 1]: Fraction of data to use.}
+\item{bagging_fraction}{(Tunable) Numeric (0, 1]: Fraction of cases sampled per tree.}
 
 \item{lambda_l1}{(Tunable) Numeric [0, Inf): L1 regularization.}
 
@@ -47,6 +93,142 @@ setup_LightRF(
 
 \item{objective}{Optional Character: Objective function. NULL = set from outcome type.}
 
+\item{early_stopping_min_delta}{(Tunable) Numeric [0, Inf): Smallest improvement that
+resets the early-stopping counter.}
+
+\item{deterministic}{Logical: Force reproducible results at some cost in speed.}
+
+\item{objective_seed}{Integer: Random seed for the objective, where it draws.}
+
+\item{force_row_wise}{Logical: Force row-wise histogram building. Cheaper in memory
+than column-wise, slower per iteration.}
+
+\item{histogram_pool_size}{Numeric: Memory cap in MB for the histogram cache; -1
+leaves it uncapped.}
+
+\item{top_k}{(Tunable) Optional Integer [1, Inf): Features each machine votes for in
+the voting tree learner. Requires \code{tree_learner = "voting"}. NULL uses LightGBM's
+default of 20.}
+
+\item{pos_bagging_fraction}{(Tunable) Numeric (0, 1]: Fraction of positive cases
+sampled per tree, for a binary outcome.}
+
+\item{neg_bagging_fraction}{(Tunable) Numeric (0, 1]: Fraction of negative cases
+sampled per tree, for a binary outcome.}
+
+\item{bagging_seed}{Integer: Random seed for bagging.}
+
+\item{feature_fraction_bynode}{(Tunable) Numeric (0, 1]: Fraction of features sampled
+at each node, on top of the per-tree fraction.}
+
+\item{feature_fraction_seed}{Integer: Random seed for feature sampling.}
+
+\item{cegb_tradeoff}{(Tunable) Numeric [0, Inf): Overall multiplier on every
+cost-efficiency penalty. Its scale is not comparable between boosting modes.}
+
+\item{cegb_penalty_split}{(Tunable) Numeric [0, Inf): Cost charged per split, in units
+of loss reduction.}
+
+\item{cegb_penalty_feature_lazy}{Optional List: Per-feature cost charged the first
+time a case uses it, in [0, Inf). One vector applied to every tree, or one vector
+per tree.}
+
+\item{cegb_penalty_feature_coupled}{Optional List: Per-feature cost charged the first
+time any case uses it, in [0, Inf). One vector applied to every tree, or one vector
+per tree.}
+
+\item{use_quantized_grad}{Logical: Discretize gradients before finding splits. Faster,
+and changes the fit.}
+
+\item{num_grad_quant_bins}{(Tunable) Optional Integer [2, Inf): Bins the gradients are
+discretized into. Requires \code{use_quantized_grad = TRUE}. NULL uses LightGBM's default of 4.}
+
+\item{quant_train_renew_leaf}{Optional Logical: Recompute leaf values from the exact
+gradients after each iteration. Requires \code{use_quantized_grad = TRUE}. NULL uses
+LightGBM's default of FALSE.}
+
+\item{stochastic_rounding}{Optional Logical: Round gradients stochastically rather than
+to nearest. Requires \code{use_quantized_grad = TRUE}. NULL uses LightGBM's default of TRUE.}
+
+\item{monotone_constraints}{Optional Integer [-1, 1] vector: Per-feature
+monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature.}
+
+\item{monotone_constraints_method}{Optional Character \{"basic", "intermediate",
+"advanced"\}: How monotonicity is enforced. Requires \code{monotone_constraints}.}
+
+\item{monotone_penalty}{(Tunable) Optional Numeric [0, Inf): Depth penalty on splits
+that would break monotonicity. Requires \code{monotone_constraints}. NULL uses LightGBM's
+default of 0.}
+
+\item{interaction_constraints}{Optional Character: Feature groups permitted to interact,
+in LightGBM's own bracketed form, e.g. "[0,1],[2,3]".}
+
+\item{feature_contri}{Optional Numeric vector: Per-feature multiplier on split gain,
+one value per feature.}
+
+\item{min_data_in_leaf}{(Tunable) Integer [0, Inf): Minimum number of cases in a leaf.}
+
+\item{min_sum_hessian_in_leaf}{(Tunable) Numeric [0, Inf): Minimum sum of hessians in a
+leaf: the smooth counterpart of a case count.}
+
+\item{min_gain_to_split}{(Tunable) Numeric [0, Inf): Minimum loss reduction a split must
+buy to be made.}
+
+\item{max_delta_step}{(Tunable) Numeric: Cap on each leaf's output; 0 or less leaves it
+uncapped.}
+
+\item{path_smooth}{(Tunable) Numeric [0, Inf): Smooth each leaf towards its parent, more
+strongly the fewer cases it holds.}
+
+\item{extra_trees}{(Tunable) Logical: Choose one split threshold per feature at random
+rather than the best.}
+
+\item{extra_seed}{Integer: Random seed for the thresholds \code{extra_trees} draws.}
+
+\item{linear_lambda}{(Tunable) Optional Numeric [0, Inf): L2 penalty on the linear models
+fitted at the leaves. Requires \code{linear_tree = TRUE}. NULL uses LightGBM's default of 0.}
+
+\item{max_bin}{(Tunable) Integer [2, Inf): Most bins a feature is discretized into. Fewer
+is faster and more regularized.}
+
+\item{min_data_in_bin}{(Tunable) Integer [1, Inf): Minimum number of cases per bin.}
+
+\item{use_missing}{Logical: Handle missing values. FALSE ignores them.}
+
+\item{zero_as_missing}{Logical: Treat zeros as missing, rather than only NA.}
+
+\item{cat_l2}{(Tunable) Numeric [0, Inf): L2 regularization on a categorical split.}
+
+\item{cat_smooth}{(Tunable) Numeric [0, Inf): Smoothing over categorical levels, which
+reduces the effect of rare ones.}
+
+\item{max_cat_to_onehot}{(Tunable) Integer [1, Inf): Below this many levels, split
+one-versus-rest rather than by partition.}
+
+\item{alpha}{(Tunable) Optional Numeric (0, Inf): Huber delta or quantile level.
+Requires \code{objective} to be "huber" or "quantile". NULL uses LightGBM's default of
+0.9.}
+
+\item{tweedie_variance_power}{(Tunable) Optional Numeric [1, 2): Tweedie power: 1 is
+Poisson-like, near 2 is gamma-like. Requires \code{objective = "tweedie"}. NULL uses
+LightGBM's default of 1.5.}
+
+\item{fair_c}{(Tunable) Optional Numeric (0, Inf): Fair loss scale. Requires
+\code{objective = "fair"}. NULL uses LightGBM's default of 1.}
+
+\item{poisson_max_delta_step}{(Tunable) Optional Numeric (0, Inf): Step cap
+safeguarding Poisson optimization. Requires \code{objective = "poisson"}. NULL uses
+LightGBM's default of 0.7.}
+
+\item{sigmoid}{(Tunable) Optional Numeric (0, Inf): Sigmoid slope, for a binary or
+one-vs-all objective. NULL uses LightGBM's default of 1.}
+
+\item{boost_from_average}{Optional Logical: Start from the outcome's mean, for a
+regression, binary or cross-entropy objective. NULL uses LightGBM's default of TRUE.}
+
+\item{reg_sqrt}{Optional Logical: Fit the square root of the outcome and square the
+prediction back, for a regression objective. NULL uses LightGBM's default of FALSE.}
+
 \item{device_type}{Character \{"cpu", "gpu", "cuda"\}: Compute device.}
 
 \item{tree_learner}{Character \{"serial", "feature", "data", "voting"\}: Tree learner type.}
@@ -61,7 +243,7 @@ Setup hyperparameters for LightRF training.
 }
 \details{
 Get more information from \link[lightgbm:lgb.train]{lightgbm::lgb.train}.
-Note that \code{boosting_type}, \code{learning_rate}, \code{subsample_freq} and
+Note that \code{boosting}, \code{learning_rate}, \code{bagging_freq} and
 \code{early_stopping_rounds} are \emph{constants} here: they cannot be set, because
 they are what makes \code{lightgbm} train a random forest. All of them are
 settable when training gradient boosting with LightGBM.

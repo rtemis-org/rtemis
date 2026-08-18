@@ -1666,3 +1666,100 @@ test_that("every applies_when gate names a real, ungated sibling", {
     }
   }
 })
+
+
+test_that("no class redeclares an inherited property with a different default", {
+  # S7 records a subclass's redeclared property on the class but generates the
+  # constructor with the *parent's* default, so the two disagree in silence:
+  #
+  #   B <- new_class("B", parent = A, properties = list(x = new_property(default = 99)))
+  #   B@properties$x$default   # 99  <- what the schema and defaults artifact read
+  #   B()@x                    #  1  <- what actually runs
+  #
+  # A published default that no run can produce is worse than a missing one, so
+  # the pattern is banned outright rather than worked around. It is what decides
+  # which properties an intermediate class such as `LightFamilyHyperparameters`
+  # may hold: only those the whole family defaults the same way.
+  #
+  # Getters are exempt -- those do override, which is what `prop_algorithm()`
+  # relies on to stamp each leaf with its own name.
+  for (cls in spec_classes()) {
+    parent <- cls@parent
+    while (
+      inherits(parent, "S7_class") && !identical(parent@name, "S7_object")
+    ) {
+      shared <- intersect(names(cls@properties), names(parent@properties))
+      for (nm in shared) {
+        child <- cls@properties[[nm]]
+        inherited <- parent@properties[[nm]]
+        if (!is.null(child[["getter"]]) || !is.null(inherited[["getter"]])) {
+          next
+        }
+        expect_identical(
+          child[["default"]],
+          inherited[["default"]],
+          info = paste0(
+            cls@name,
+            "@",
+            nm,
+            " redeclares ",
+            parent@name,
+            "'s default; S7 keeps the parent's at construction, so the class ",
+            "would publish a value it cannot produce. Leave the property on ",
+            "the leaf instead."
+          )
+        )
+      }
+      parent <- parent@parent
+    }
+  }
+})
+
+
+test_that("a spec field a build does not know is dropped, not fatal", {
+  # Specs cross versions: a worker loads the installed package while the session
+  # may run a newer one, and a saved model outlives the rtemis that wrote it.
+  # Every spec field is either an annotation for readers or a bound the
+  # property's own validator closure already enforces, so an unknown one costs
+  # metadata and nothing else -- while aborting costs the run, and does it far
+  # from the cause. Adding `group` surfaced this as "All 4 tuning grid cells
+  # failed", naming neither the field nor the version skew.
+  fields <- get_spec_fields(prop_float(1, min = 0))
+  fields[["from_a_newer_rtemis"]] <- "x"
+  expect_warning(
+    spec <- spec_object(fields),
+    "does not know: from_a_newer_rtemis"
+  )
+  # The fields this build does know survive intact.
+  expect_identical(spec@type, "number")
+  expect_identical(spec@minimum, 0)
+  # And a spec with nothing unknown reads silently.
+  expect_silent(spec_object(get_spec_fields(prop_float(1, min = 0))))
+})
+
+
+test_that("a declaration group reaches the property and the schema", {
+  # The group is a fact about where a property is declared -- stamped by the
+  # factory that declares it -- so a form builder can render one section per
+  # group without any interface curating its own list.
+  props <- prop_group(
+    list(a = prop_float(1, min = 0), b = prop_boolean(FALSE)),
+    "objective"
+  )
+  expect_identical(get_spec_fields(props[["a"]])[["group"]], "objective")
+  expect_identical(get_spec_fields(props[["b"]])[["group"]], "objective")
+  # Ungrouped stays unset, so nothing about an existing class changes.
+  expect_null(get_spec_fields(prop_float(1, min = 0))[["group"]])
+  # A property not built by a factory has no spec to stamp.
+  expect_error(
+    prop_group(list(a = new_property(class_numeric)), "objective"),
+    "built by a prop_\\* factory"
+  )
+  # It is published, so a reader outside R can see it.
+  cls <- new_class("GroupedTestConfig", properties = props)
+  schema <- S7_to_JSONSchema(cls, id = "https://x/v1/schema.json")
+  expect_identical(
+    schema[["properties"]][["a"]][["x-rtemis"]][["group"]],
+    "objective"
+  )
+})

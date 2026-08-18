@@ -30,6 +30,7 @@ EDG
 exchangeability
 FASTA
 GAMHyperparameters
+gbdt
 GLMHyperparameters
 GLMNET
 GLMNET's
@@ -37,8 +38,12 @@ GLMNETHyperparameters
 GLU
 Gantt
 Gini
+goss
+GOSS
 HALHyperparameters
 HardCLConfig
+hessians
+huber
 ICA
 ICAConfig
 IFW
@@ -111,7 +116,11 @@ Preprocess
 Preprocessor
 PreprocessorConfig
 Pretraining
+quantized
 Ramdas
+redeclares
+redeclaring
+rf
 ROCR
 RadialSVM
 RadialSVMHyperparameters
@@ -147,6 +156,7 @@ TreeSHAP
 Talos's
 Tunable
 TunerConfig
+Tweedie
 UI
 USLaborDay
 UMAP
@@ -156,6 +166,7 @@ UniProt
 Valdes
 Vovk
 WASM
+XGBoost
 XLSX
 Zeitgeber
 Zerolines

@@ -1992,29 +1992,92 @@ method(predict, SupervisedRes) <- function(
   ...
 ) {
   check_inherits(newdata, "data.frame")
-  type <- match.arg(type)
-
-  predicted <- sapply(
-    object@models,
-    function(mod) {
-      predict(mod, newdata = newdata)
-    }
-  ) # -> data.frame n cases x n resamples
-
-  if (type == "all") {
-    return(predicted)
-  } else if (type == "avg") {
-    return(apply(predicted, 1, avg_fn))
-  } else if (type == "metrics") {
-    mean_predictions <- apply(predicted, 2, mean)
-    sd_predictions <- apply(predicted, 2, sd)
-    return(list(
-      predictions = predicted,
-      mean = mean_predictions,
-      sd = sd_predictions
-    ))
-  }
+  type <- match_arg(type, c("avg", "all", "metrics"))
+  # One element per resample, each in the shape a single model predicts: a
+  # numeric vector for a regression, an `n x k` probability matrix for a
+  # classification. Collected as a list rather than with `sapply()`, which
+  # flattens a matrix into a column and so destroyed the class dimension.
+  per_fold <- lapply(object@models, function(mod) {
+    predict(mod, newdata = newdata)
+  })
+  switch(
+    type,
+    all = fold_predictions(per_fold),
+    avg = aggregate_fold_predictions(per_fold, avg_fn),
+    metrics = list(
+      predictions = fold_predictions(per_fold),
+      # Per case across resamples: the ensemble's prediction and how much the
+      # resamples disagreed about it. Averaging the other way round -- over
+      # cases within each resample -- describes the outcome's distribution
+      # rather than the prediction, which is not what a caller asking for
+      # prediction metrics wants.
+      mean = aggregate_fold_predictions(per_fold, "mean"),
+      sd = aggregate_fold_predictions(per_fold, "sd")
+    )
+  )
 } # /rtemis::predict.SupervisedRes
+
+
+# %% fold_predictions ----
+#' Per-resample predictions in their natural shape
+#'
+#' A regression predicts one number per case, so the resamples make an
+#' `n x n_resamples` matrix. A classification predicts a row of probabilities per
+#' case, which cannot be a column of anything, so the resamples stay a named
+#' list of matrices -- the shape `@predicted_test` and `@y_test` already use.
+#'
+#' @param per_fold List: One element per resample, as a single model predicts.
+#'
+#' @return Numeric matrix for a regression, named list of matrices for a
+#' classification.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+fold_predictions <- function(per_fold) {
+  if (is.matrix(per_fold[[1L]])) {
+    return(per_fold)
+  }
+  do.call(cbind, per_fold)
+} # /rtemis::fold_predictions
+
+
+# %% aggregate_fold_predictions ----
+#' Aggregate per-resample predictions to one per case
+#'
+#' Returns the shape a *single* model would predict, so a resampled model's
+#' prediction can be read the same way as one fold's: a numeric vector for a
+#' regression, an `n x k` matrix for a classification, class names intact.
+#'
+#' @param per_fold List: One element per resample, as a single model predicts.
+#' @param fn Character or function: Aggregator applied across resamples, per
+#' case and -- for a classification -- per class.
+#'
+#' @return Numeric vector for a regression, numeric matrix for a classification.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+aggregate_fold_predictions <- function(per_fold, fn) {
+  first <- per_fold[[1L]]
+  if (!is.matrix(first)) {
+    return(apply(do.call(cbind, per_fold), 1L, fn))
+  }
+  stacked <- array(
+    unlist(per_fold, use.names = FALSE),
+    dim = c(nrow(first), ncol(first), length(per_fold))
+  )
+  # `apply()` drops the result to a vector when one class is left standing --
+  # the binary case, where `prob_matrix()` stores a single column -- so the
+  # shape is restored rather than left to depend on the class count.
+  out <- matrix(
+    apply(stacked, c(1L, 2L), fn),
+    nrow = nrow(first),
+    ncol = ncol(first)
+  )
+  dimnames(out) <- dimnames(first)
+  out
+} # /rtemis::aggregate_fold_predictions
 
 
 # %% ClassificationRes ----
@@ -2208,12 +2271,15 @@ CalibratedClassificationRes <- new_class(
 method(predict, CalibratedClassificationRes) <- function(
   object,
   newdata,
-  what = c("avg", "all", "metrics"),
+  type = c("avg", "all", "metrics"),
   avg_fn = "mean",
   ...
 ) {
   check_inherits(newdata, "data.frame")
-  what <- match.arg(what)
+  # `type`, as on every other resampled predict method. It was `what` here, so a
+  # caller who learned `type` on a `SupervisedRes` had it swallowed by `...` and
+  # got the default back without a word.
+  type <- match_arg(type, c("avg", "all", "metrics"))
 
   # Check lengths match
   if (length(object@models) != length(object@calibration_models)) {
@@ -2223,7 +2289,7 @@ method(predict, CalibratedClassificationRes) <- function(
     )
   }
 
-  predicted <- mapply(
+  per_fold <- mapply(
     function(base_mod, cal_mod) {
       # 1. Predict with base model. Calibration maps one score per case, so
       #    take the positive class's column.
@@ -2240,24 +2306,21 @@ method(predict, CalibratedClassificationRes) <- function(
     },
     object@models,
     object@calibration_models,
-    SIMPLIFY = TRUE
-  ) # -> matrix n cases x n resamples
+    SIMPLIFY = FALSE
+  ) # -> one `n x 1` calibrated probability matrix per resample
 
-  if (what == "all") {
-    return(predicted)
-  } else if (what == "avg") {
-    return(apply(predicted, 1, avg_fn))
-  } else if (what == "metrics") {
-    mean_predictions <- apply(predicted, 2, mean)
-    sd_predictions <- apply(predicted, 2, sd)
-    # Return both aggregated prediction metrics (per resample)
-    # Keeping consistent with SupervisedRes
-    return(list(
-      predictions = predicted,
-      mean = mean_predictions,
-      sd = sd_predictions
-    ))
-  }
+  # Same shapes and the same per-case aggregation as `predict.SupervisedRes`,
+  # since a calibrated probability is still a probability.
+  switch(
+    type,
+    all = fold_predictions(per_fold),
+    avg = aggregate_fold_predictions(per_fold, avg_fn),
+    metrics = list(
+      predictions = fold_predictions(per_fold),
+      mean = aggregate_fold_predictions(per_fold, "mean"),
+      sd = aggregate_fold_predictions(per_fold, "sd")
+    )
+  )
 } # /rtemis::predict.CalibratedClassificationRes
 
 

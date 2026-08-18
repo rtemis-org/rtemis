@@ -52,8 +52,9 @@
 # LightRuleFit, whose second stage is GLMNET: its `alpha` and `lambda` are the
 # elastic-net mixing parameter and penalty, and both happen to spell LightGBM
 # parameters meaning entirely different things (the huber/quantile level, and
-# L2 regularization). `train_LightRuleFit()` keeps them apart with an explicit
-# allowlist; this audit reads the same constant, so the two cannot drift.
+# L2 regularization). They are kept apart by `LightRuleFit_glmnet_params`, which
+# is what the forwarding to the LightGBM step subtracts; this audit reads the
+# same constant, so the two cannot drift.
 .lgb_facing_props <- function(class_name) {
   ns <- asNamespace("rtemis")
   props <- names(get(class_name, envir = ns)@properties)
@@ -66,8 +67,9 @@
 
 # %% .lgb_covered ----
 # Canonical LightGBM parameters some class declares, resolved through the
-# backend's own alias table: rtemis names several of them differently
-# (`subsample` is `bagging_fraction`, `nrounds` is `num_iterations`).
+# backend's own alias table -- needed for the two properties named after
+# `lgb.train()`'s R arguments rather than after entries in `params`: `nrounds`
+# is `num_iterations` and `early_stopping_rounds` is `early_stopping_round`.
 .lgb_covered <- function() {
   unique(unlist(
     lapply(.LIGHTGBM_CLASSES, .lgb_class_covered),
@@ -205,102 +207,30 @@
     "num_class",
     "verbosity",
     "seed"
-  )
+  ),
+  # rtemis weights imbalanced classes itself, through `ifw`, which computes
+  # inverse-frequency case weights and hands them to the backend. LightGBM's two
+  # do the same job inside the fit and are mutually exclusive with each other,
+  # so declaring them would give one decision three switches, two of which
+  # conflict -- and on LightRuleFit there are already `ifw_lightgbm` and
+  # `ifw_glmnet`.
+  `class weighting, which rtemis owns via ifw` = c(
+    "is_unbalance",
+    "scale_pos_weight"
+  ),
+  # Only affects `lgb.Booster$refit()`, continuing a fitted booster on new data.
+  # rtemis never calls it: a refit is a new `train()`, which is what makes a run
+  # reproducible from its config.
+  `applies to refit, which rtemis does not call` = "refit_decay_rate"
 )
 
 
 # %% .LIGHTGBM_PENDING ----
-# Reachable, meaningful, and not yet declared. This list is the work, and it is
-# meant to shrink to nothing: an entry here is a parameter a user cannot set
-# today and should be able to.
-#
-# Two entries are naming decisions rather than plain additions. LightGBM spells
-# the huber and quantile level `alpha`, which on `LightRuleFitHyperparameters`
-# already means the elastic-net mixing parameter, and on `GLMNETHyperparameters`
-# means the same unrelated thing; it needs a distinct name. `boosting` is
-# declared on LightRF as `boosting_type` and fixed to "rf" there, so adding it
-# to LightGBM -- which is what makes DART and GOSS reachable at all -- has to
-# settle on one spelling for both.
-.LIGHTGBM_PENDING <- c(
-  # Objective-specific, one per objective that takes a parameter. Without these
-  # the objective is settable and its parameter is not, so `objective =
-  # "quantile"` silently trains LightGBM's default 0.9 quantile.
-  "alpha",
-  "tweedie_variance_power",
-  "fair_c",
-  "poisson_max_delta_step",
-  "sigmoid",
-  "boost_from_average",
-  "reg_sqrt",
-  "is_unbalance",
-  "scale_pos_weight",
-  # The parameters of the boosting modes `boosting` selects. DART and GOSS are
-  # unreachable from every wrapper: `boosting` itself is declared on LightRF
-  # alone and fixed to "rf" there (see `.LIGHTGBM_ASYMMETRIC`).
-  "data_sample_strategy",
-  "drop_rate",
-  "max_drop",
-  "skip_drop",
-  "uniform_drop",
-  "xgboost_dart_mode",
-  "drop_seed",
-  "top_rate",
-  "other_rate",
-  # Core tree regularization. `min_gain_to_split` and `min_sum_hessian_in_leaf`
-  # are first-rank knobs, and `min_data_in_leaf` is declared on LightCART alone
-  # -- one backend parameter, reachable from one of four wrappers.
-  "min_gain_to_split",
-  "min_sum_hessian_in_leaf",
-  "max_delta_step",
-  "path_smooth",
-  "extra_trees",
-  "linear_lambda",
-  "top_k",
-  # Binning and missing-value handling.
-  "max_bin",
-  "min_data_in_bin",
-  "use_missing",
-  "zero_as_missing",
-  # Categorical handling, beside the two thresholds already declared.
-  "cat_l2",
-  "cat_smooth",
-  "max_cat_to_onehot",
-  # Structural constraints. rtemis ships MonotonicHAL as a whole algorithm for
-  # monotonicity while LightGBM's own constraints sit unreachable.
-  "monotone_constraints",
-  "monotone_constraints_method",
-  "monotone_penalty",
-  "interaction_constraints",
-  "feature_contri",
-  # Per-node and per-class sampling, beside the per-tree fractions declared.
-  "feature_fraction_bynode",
-  "pos_bagging_fraction",
-  "neg_bagging_fraction",
-  # Cost-efficient gradient boosting.
-  "cegb_tradeoff",
-  "cegb_penalty_split",
-  "cegb_penalty_feature_lazy",
-  "cegb_penalty_feature_coupled",
-  # Reproducibility and the per-stage seeds, which decide whether two runs of
-  # one config agree.
-  "deterministic",
-  "bagging_seed",
-  "feature_fraction_seed",
-  "extra_seed",
-  "objective_seed",
-  # Stopping, beside the round count already declared.
-  "early_stopping_min_delta",
-  # Execution knobs that change timing rather than the fit, but that a user
-  # tuning a large run reaches for.
-  "force_row_wise",
-  "histogram_pool_size",
-  "refit_decay_rate",
-  # Quantized-gradient training, which does change the fit.
-  "use_quantized_grad",
-  "num_grad_quant_bins",
-  "quant_train_renew_leaf",
-  "stochastic_rounding"
-)
+# Reachable, meaningful, and not yet declared. **Empty**, and meant to stay
+# that way: it is the work, and the work is done. A parameter arriving in a
+# future LightGBM lands here from the accounting test until someone declares
+# it or records why it is unreachable.
+.LIGHTGBM_PENDING <- character()
 
 
 # %% .LIGHTGBM_ASYMMETRIC ----
@@ -320,15 +250,28 @@
   early_stopping_round = "intended: nothing to stop early in one tree, and LightRuleFit fixes its own round count",
   bagging_fraction = "intended: LightCART fits one tree on all of the data",
   bagging_freq = "intended: as bagging_fraction",
-  boosting = "pending: declared on LightRF as boosting_type and fixed to \"rf\"; LightGBM cannot reach DART or GOSS",
-  min_data_in_leaf = "pending: declared on LightCART alone, and it is core regularization for all four",
-  device_type = "pending: LightCART and LightRuleFit run on the CPU only, for no reason in the backend",
-  feature_fraction = "pending: LightCART and LightRuleFit cannot sample features",
-  force_col_wise = "pending: a performance choice the other two cannot make",
-  linear_tree = "pending: LightRuleFit cannot fit linear leaves",
-  max_cat_threshold = "pending: LightRuleFit cannot set the categorical split limit",
-  min_data_per_group = "pending: LightRuleFit cannot set the categorical group minimum",
-  tree_learner = "pending: LightCART and LightRuleFit cannot choose the tree learner"
+  # The boosting mode and the parameters of the modes it selects. LightCART
+  # fits one tree, so there is no ensemble to drop from or sample for; LightRF
+  # pins `boosting` to "rf", which is what makes it a forest, and GOSS is
+  # incompatible with the bagging a random forest is built on.
+  boosting = "intended: constant \"rf\" on LightRF, and a LightCART fit is one tree",
+  data_sample_strategy = "intended: GOSS cannot combine with bagging, which is LightRF's mechanism; LightCART fits one tree",
+  drop_rate = "intended: DART needs an ensemble to drop from",
+  max_drop = "intended: as drop_rate",
+  skip_drop = "intended: as drop_rate",
+  uniform_drop = "intended: as drop_rate",
+  xgboost_dart_mode = "intended: as drop_rate",
+  drop_seed = "intended: as drop_rate",
+  top_rate = "intended: as data_sample_strategy",
+  other_rate = "intended: as data_sample_strategy",
+  # Bagging and per-node feature sampling: a LightCART fit is one tree on all of
+  # the data, and LightRuleFit fixes its first stage's feature fraction.
+  pos_bagging_fraction = "intended: LightCART fits one tree on all of the data",
+  neg_bagging_fraction = "intended: as pos_bagging_fraction",
+  bagging_seed = "intended: as pos_bagging_fraction",
+  top_k = "intended: gated on tree_learner, which LightCART (one thread) and LightRuleFit do not declare",
+  early_stopping_min_delta = "intended: LightCART fits one tree and LightRuleFit fixes its first stage's round count, so neither stops early",
+  tree_learner = "intended: LightCART is pinned to one thread, so the parallel tree learners have nothing to distribute over"
 )
 
 
@@ -338,18 +281,12 @@
 # one: the separation is a hand-maintained allowlist, and `train_LightGBM()`
 # builds `params` from the whole property list, so a class following that
 # pattern would hand LightGBM the wrong quantity under the right name.
-.LIGHTGBM_SHADOWED_NAMES <- list(
-  LightRuleFitHyperparameters = c(
-    alpha = paste0(
-      "GLMNET's elastic-net mixing parameter for the rule-fitting stage. ",
-      "LightGBM's `alpha` is the huber and quantile level."
-    ),
-    lambda = paste0(
-      "GLMNET's penalty for the rule-fitting stage. `lambda` is a LightGBM ",
-      "alias of `lambda_l2`, which this class also declares."
-    )
-  )
-)
+# **Empty.** `LightRuleFitHyperparameters` held the only two: its GLMNET step's
+# `alpha` and `lambda`, spelling LightGBM's huber/quantile level and an alias of
+# `lambda_l2`. They are `alpha_glmnet` and `lambda_glmnet` now, following the
+# class's own `ifw_glmnet`, which retired the hazard and freed LightGBM's `alpha`
+# to be declared there like anywhere else.
+.LIGHTGBM_SHADOWED_NAMES <- list()
 
 
 test_that("no class ships two names for one LightGBM parameter", {
@@ -432,15 +369,12 @@ test_that("a declared parameter uses LightGBM's canonical name", {
   # Where rtemis has a free choice it takes the backend's own name, so one
   # parameter has one spelling across the docs, the schema and the config.
   # `Ranger` already works this way -- `sample_fraction` is ranger's name, not
-  # a house synonym -- and the entries below are where the LightGBM family does
-  # not, recorded so the list shrinks rather than grows.
+  # a house synonym. The family's own three deviations are gone: `subsample`,
+  # `subsample_freq` and `boosting_type` are now `bagging_fraction`,
+  # `bagging_freq` and `boosting`. What remains is not a LightGBM name at all.
   skip_if_not_installed("lightgbm")
   legacy <- c(
-    # These three do reach `params`, under an alias.
-    "subsample",
-    "subsample_freq",
-    "boosting_type",
-    # GLMNET's, on the two-stage class; not a LightGBM name at all.
+    # GLMNET's, on the two-stage class.
     "lambda",
     "alpha"
   )
@@ -554,25 +488,158 @@ test_that("every excluded and pending parameter is still a LightGBM parameter", 
 
 
 test_that("the objective a run asked for is the objective it trained", {
-  # The concrete cost of the pending list, pinned so the fix has a test to
-  # turn green: `objective` is a free-form string, so "quantile" is accepted
-  # while LightGBM's `alpha` -- its quantile level -- is not declared, and the
-  # fit silently targets the backend default of 0.9.
+  # `objective` is a free-form string, so "quantile" has always been accepted;
+  # until `alpha` was declared, the level was not, and the fit silently targeted
+  # LightGBM's default of 0.9 whatever the user wanted. Measured end to end,
+  # because a declared property that never reaches `params` would pass every
+  # other test in this file.
   skip_if_not_installed("lightgbm")
   skip_on_cran()
-  expect_true("alpha" %in% .LIGHTGBM_PENDING)
-  expect_false("alpha" %in% names(formals(setup_LightGBM)))
-
   set.seed(3L)
-  n <- 400L
+  n <- 600L
   x <- data.frame(a = stats::runif(n, -3, 3), b = stats::rnorm(n))
   x[["y"]] <- 2 * x[["a"]] + stats::rnorm(n, sd = 1)
-  mod <- train(
-    x,
-    hyperparameters = setup_LightGBM(objective = "quantile"),
-    verbosity = 0L
+  below_fit <- function(...) {
+    mod <- train(
+      x,
+      hyperparameters = setup_LightGBM(objective = "quantile", ...),
+      verbosity = 0L
+    )
+    mean(x[["y"]] < predict(mod, x[, c("a", "b")], verbosity = 0L))
+  }
+  # Each requested level comes out as that share of the outcomes below the fit,
+  # which is what a quantile regression means. The band is absolute rather than
+  # `expect_equal`'s relative tolerance: 0.05 of a proportion, not 5% of it.
+  near <- function(observed, target) {
+    expect_lt(abs(observed - target), 0.05)
+  }
+  near(below_fit(alpha = 0.1), 0.1)
+  near(below_fit(alpha = 0.5), 0.5)
+  near(below_fit(alpha = 0.9), 0.9)
+  # Unset still means LightGBM's own default, so nothing changes for a run that
+  # does not ask.
+  near(below_fit(), 0.9)
+})
+
+
+test_that("an unset objective parameter is not sent to the backend", {
+  # LightGBM does not read a NULL as absent: it parses the empty value and
+  # range-checks it, so `alpha = NULL` in `params` aborts the fit with
+  # `Check failed: (alpha) > (0.0)`. Every property in the objective group is
+  # nullable, so the `train_*` functions drop NULLs -- without which a plain
+  # `setup_LightGBM()` would stop training at all.
+  skip_if_not_installed("lightgbm")
+  skip_on_cran()
+  set.seed(4L)
+  n <- 200L
+  x <- data.frame(a = stats::rnorm(n), b = stats::rnorm(n))
+  x[["y"]] <- x[["a"]] + stats::rnorm(n, sd = 0.5)
+  for (hp in list(setup_LightGBM(), setup_LightCART(), setup_LightRF())) {
+    expect_no_error(train(x, hyperparameters = hp, verbosity = 0L))
+  }
+})
+
+
+test_that("every LightGBM-facing LightRuleFit property reaches the LightGBM step", {
+  # LightRuleFit is two algorithms, and `train_LightRuleFit()` forwards a subset
+  # of its hyperparameters to the first. That subset was a hand-written list,
+  # which fell behind the moment the class grew: 38 properties were declared and
+  # silently not forwarded, so setting one did nothing at all. It is derived
+  # now, and this is what keeps it honest.
+  skip_if_not_installed("lightgbm")
+  ns <- asNamespace("rtemis")
+  facing <- setdiff(
+    .lgb_facing_props("LightRuleFitHyperparameters"),
+    c(
+      names(get("Hyperparameters", envir = ns)@properties),
+      # Resolved per step by `train_LightRuleFit()` itself.
+      "ifw",
+      "ifw_lightgbm",
+      "ifw_glmnet"
+    )
   )
-  below <- mean(x[["y"]] < predict(mod, x[, c("a", "b")], verbosity = 0L))
-  # The 0.9 quantile, which nobody asked for and nobody can change.
-  expect_gt(below, 0.85)
+  forwarded <- get("LightRuleFit_lightgbm_params", envir = ns)()
+  expect_identical(
+    sort(setdiff(facing, forwarded)),
+    character(),
+    info = "declared on LightRuleFit but never handed to its LightGBM step"
+  )
+  # And nothing is forwarded that the receiving class cannot take.
+  expect_identical(
+    sort(setdiff(
+      forwarded,
+      names(get("LightGBMHyperparameters", envir = ns)@properties)
+    )),
+    character()
+  )
+})
+
+
+test_that("the GOSS rules read a search domain, not just a value", {
+  # A tunable property may hold a domain rather than a value. Each grid cell is
+  # validated on its way in, so a cell breaking either rule is refused with the
+  # message either way -- what the domain decides here is whether *any* cell
+  # could satisfy the rule. A search where none can fails every cell, and should
+  # say so now rather than as "all N tuning grid cells failed".
+  skip_if_not_installed("lightgbm")
+
+  # A value, as before.
+  expect_error(
+    setup_LightGBM(data_sample_strategy = "goss", bagging_fraction = 0.5),
+    "cannot be combined with bagging"
+  )
+  # A domain with a workable cell is accepted, as `check_applies_when()` accepts
+  # a gated domain when any candidate opens the gate.
+  expect_no_error(
+    setup_LightGBM(
+      data_sample_strategy = "goss",
+      bagging_fraction = tune_over(0.5, 1.0)
+    )
+  )
+  # A domain with none is hopeless, and named as such.
+  expect_error(
+    setup_LightGBM(
+      data_sample_strategy = "goss",
+      bagging_fraction = tune_over(0.5, 0.8)
+    ),
+    "no value of @bagging_fraction avoids it"
+  )
+  # The invalid cell of a workable domain is still refused when the tuner builds
+  # it, which is what keeps the accepted domain honest.
+  hyperparameters <- setup_LightGBM(
+    data_sample_strategy = "goss",
+    bagging_fraction = tune_over(0.5, 1.0)
+  )
+  expect_error(
+    update(
+      hyperparameters,
+      list(bagging_fraction = 0.5),
+      tuned = TUNED_STATUS_TUNING
+    ),
+    "cannot be combined with bagging"
+  )
+  expect_no_error(
+    update(
+      hyperparameters,
+      list(bagging_fraction = 1),
+      tuned = TUNED_STATUS_TUNING
+    )
+  )
+
+  # The sum rule reads domains the same way: the smallest reachable sum decides.
+  expect_no_error(
+    setup_LightGBM(
+      data_sample_strategy = "goss",
+      top_rate = tune_over(0.7, 0.2),
+      other_rate = 0.5
+    )
+  )
+  expect_error(
+    setup_LightGBM(
+      data_sample_strategy = "goss",
+      top_rate = tune_over(0.7, 0.8),
+      other_rate = 0.5
+    ),
+    "smallest they can sum to"
+  )
 })

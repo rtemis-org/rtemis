@@ -122,11 +122,11 @@ method(train_, LightRuleFitHyperparameters) <- function(
   }
 
   # Train Gradient Boosting using LightGBM ----
-  # LightRuleFit_lightgbm_params names the LightGBM hyperparameters forwarded
-  # from LightRuleFit to the LightGBM step.
+  # Every hyperparameter this class shares with LightGBM, derived rather than
+  # listed -- see `LightRuleFit_lightgbm_params()`.
   lgbm_parameters <- update(
     setup_LightGBM(),
-    get_hyperparams(hyperparameters, LightRuleFit_lightgbm_params)
+    get_hyperparams(hyperparameters, LightRuleFit_lightgbm_params())
   )
   lgbm_parameters@ifw <- hyperparameters[["ifw_lightgbm"]]
   mod_lgbm <- train(
@@ -160,8 +160,8 @@ method(train_, LightRuleFitHyperparameters) <- function(
 
   # LASSO: Select Rules ----
   lasso_hyperparameters <- setup_GLMNET(
-    alpha = hyperparameters[["alpha"]],
-    lambda = hyperparameters[["lambda"]]
+    alpha = hyperparameters[["alpha_glmnet"]],
+    lambda = hyperparameters[["lambda_glmnet"]]
   )
   dat_rules <- data.frame(cases_by_rules, y = x[[ncol(x)]])
   colnames(dat_rules)[ncol(dat_rules)] <- colnames(x)[ncol(x)]

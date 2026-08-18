@@ -176,9 +176,9 @@ test_that("LightRF back-compat access patterns work", {
   expect_identical(h@nrounds, 500L)
   # `$` and `[[` route through the computed hyperparameters list.
   expect_identical(h$num_leaves, 4096L)
-  expect_identical(h[["subsample"]], 0.623)
+  expect_identical(h[["bagging_fraction"]], 0.623)
   # The computed list includes the unsettable RF constants.
-  expect_identical(h@hyperparameters[["boosting_type"]], "rf")
+  expect_identical(h@hyperparameters[["boosting"]], "rf")
   # Unset nullable prop reads as NULL from the list (zero-length -> NULL).
   expect_null(h@hyperparameters[["objective"]])
 })
@@ -229,10 +229,10 @@ test_that("LightRF hyperparameters setter writes through to props", {
 test_that("LightRF constants cannot be changed", {
   h <- setup_LightRF()
   expect_error(
-    h@hyperparameters[["boosting_type"]] <- "gbdt",
+    h@hyperparameters[["boosting"]] <- "gbdt",
     "constant"
   )
-  expect_error(h@hyperparameters[["subsample_freq"]] <- 2L)
+  expect_error(h@hyperparameters[["bagging_freq"]] <- 2L)
   # Round-tripping the unchanged list (constants included) is fine.
   expect_no_error(h@hyperparameters <- h@hyperparameters)
   # Constants are NOT "fixed": fixed means settable but not tunable, which a
@@ -240,9 +240,9 @@ test_that("LightRF constants cannot be changed", {
   expect_setequal(
     h@constant_hyperparameters,
     c(
-      "boosting_type",
+      "boosting",
       "learning_rate",
-      "subsample_freq",
+      "bagging_freq",
       "early_stopping_rounds"
     )
   )

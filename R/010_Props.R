@@ -268,6 +268,14 @@ PropertySpec <- new_class(
     # the class validator, the tuning grid, and the form builders vendored into
     # the CLI and live.
     applies_when = NULL | class_list,
+    # Which declaration group the property came from, for a form builder to
+    # render as one section. A *fact about the declaration* rather than a
+    # judgment about the property: it is stamped by the factory that declares
+    # the group, so it cannot drift from where the property actually lives, and
+    # it says nothing about how important the property is or who should see it.
+    # A class whose properties are declared one at a time leaves it unset, and a
+    # reader shows those together as it does today.
+    group = NULL | class_character,
     description = class_character
   ),
   validator = function(self) {
@@ -565,6 +573,25 @@ spec_object <- function(fields) {
   }
   if (!is.null(fields[["members"]])) {
     fields[["members"]] <- lapply(fields[["members"]], spec_object)
+  }
+  # A field this build does not know is one a newer rtemis added. It reaches
+  # here whenever an object crosses versions -- a worker loading an installed
+  # package while the session runs a newer one is the common case, and a
+  # `.rds` model read by an older install is the other. Every spec field is
+  # either an annotation for readers or a bound already enforced by the
+  # property's own validator closure, so dropping an unknown one costs metadata
+  # and nothing else. Aborting instead would fail the whole run, and it would
+  # fail it far from here: the abort surfaces as "All 4 tuning grid cells
+  # failed", naming neither the field nor the version skew.
+  unknown <- setdiff(names(fields), names(PropertySpec@properties))
+  if (length(unknown) > 0L) {
+    warning(
+      "Ignoring property spec field(s) this version of rtemis does not know: ",
+      paste(unknown, collapse = ", "),
+      ". The object was written by a newer rtemis; upgrade to read it in full.",
+      call. = FALSE
+    )
+    fields <- fields[setdiff(names(fields), unknown)]
   }
   do.call(PropertySpec, fields)
 } # /rtemis::spec_object
@@ -2153,6 +2180,47 @@ get_spec <- function(prop) {
 } # /rtemis::get_spec
 
 
+# %% prop_group ----
+#' Stamp a declaration group onto a list of properties
+#'
+#' @description
+#' Records which group a set of properties was declared in, so that a form
+#' builder reading the schema can render them as one section.
+#'
+#' @details
+#' Applied to the whole list at once, by the factory that declares the group.
+#' That is the point: the group is a fact about where the property is declared,
+#' so stamping it in one place keeps it from disagreeing with reality -- and it
+#' costs no argument on the eleven `prop_*` factories.
+#'
+#' The spec is stored on a property as a plain list, so the group is set in
+#' place. It is metadata for readers and takes no part in validation, which is
+#' why the property's validator closure -- built before this runs, over the
+#' fields it does check -- needs no rebuilding.
+#'
+#' @param props Named list of S7 properties, from `prop_*` factories.
+#' @param group Character: Group name.
+#'
+#' @return `props`, each carrying `group`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_group <- function(props, group) {
+  check_character(group, allow_null = FALSE)
+  lapply(props, function(p) {
+    if (is.null(get_spec_fields(p))) {
+      rtemis.core::abort(
+        "prop_group() applies to properties built by a prop_* factory.",
+        class = c("rtemis_type_error", "rtemis_input_error")
+      )
+    }
+    p[["spec"]][["group"]] <- group
+    p
+  })
+} # /rtemis::prop_group
+
+
 # %% get_spec_fields ----
 #' Get the stored spec fields of an S7 property, or NULL
 #'
@@ -3297,7 +3365,8 @@ spec_to_schema <- function(spec, read_only = FALSE) {
       data_dependent = if (spec@data_dependent) TRUE else NULL,
       # A gate over *search values*: it opens when any one of them is listed,
       # and the tuning grid drops the property from the cells where it is not.
-      applies_when = spec@applies_when
+      applies_when = spec@applies_when,
+      group = spec@group
     )
   )
   if (spec@constant) {
