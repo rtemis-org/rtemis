@@ -173,26 +173,42 @@ setup_SuperConfig <- function(
   outdir = "results/",
   verbosity = 1L
 ) {
-  # Sanitize paths for security
+  # Validated, not resolved: a config is a portable recipe, so it stores the
+  # path its author wrote rather than that path resolved against this machine's
+  # working directory.
   if (!is.null(dat_training_path)) {
-    dat_training_path <- sanitize_path(dat_training_path, must_exist = FALSE)
+    dat_training_path <- sanitize_path(
+      dat_training_path,
+      must_exist = FALSE,
+      normalize = FALSE
+    )
   }
 
   if (!is.null(dat_validation_path)) {
     dat_validation_path <- sanitize_path(
       dat_validation_path,
-      must_exist = FALSE
+      must_exist = FALSE,
+      normalize = FALSE
     )
   }
 
   if (!is.null(dat_test_path)) {
-    dat_test_path <- sanitize_path(dat_test_path, must_exist = FALSE)
+    dat_test_path <- sanitize_path(
+      dat_test_path,
+      must_exist = FALSE,
+      normalize = FALSE
+    )
   }
 
   # Nullable like the property it fills, and like `setup_SuperConfigLive()`: a
   # run that writes nothing to disk has no path to sanitize.
   if (!is.null(outdir)) {
-    outdir <- sanitize_path(outdir, must_exist = FALSE, type = "any")
+    outdir <- sanitize_path(
+      outdir,
+      must_exist = FALSE,
+      type = "any",
+      normalize = FALSE
+    )
   }
 
   SuperConfig(
@@ -486,7 +502,12 @@ setup_SuperConfigLive <- function(
   verbosity = 1L
 ) {
   if (!is.null(outdir)) {
-    outdir <- sanitize_path(outdir, must_exist = FALSE, type = "any")
+    outdir <- sanitize_path(
+      outdir,
+      must_exist = FALSE,
+      type = "any",
+      normalize = FALSE
+    )
   }
   SuperConfigLive(
     dat_training = dat_training,
