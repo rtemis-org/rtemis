@@ -117,11 +117,18 @@ setup_DecomposeConfig <- function(
   outdir = "results/",
   verbosity = 1L
 ) {
-  # Sanitize paths for security
+  # Validated, not resolved: a config is a portable recipe, so it stores the
+  # path its author wrote rather than that path resolved against this machine's
+  # working directory.
   if (!is.null(dat_path)) {
-    dat_path <- sanitize_path(dat_path, must_exist = FALSE)
+    dat_path <- sanitize_path(dat_path, must_exist = FALSE, normalize = FALSE)
   }
-  outdir <- sanitize_path(outdir, must_exist = FALSE, type = "any")
+  outdir <- sanitize_path(
+    outdir,
+    must_exist = FALSE,
+    type = "any",
+    normalize = FALSE
+  )
 
   DecomposeConfig(
     dat_path = dat_path,

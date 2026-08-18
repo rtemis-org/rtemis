@@ -2,6 +2,7 @@
 
 ## 1.3.6
 
+- **A config stores the paths it was given, unresolved.** `outdir` and the data paths were resolved against the working directory and `~` expanded, so `outdir = "results/"` became an absolute path on Windows always and elsewhere whenever that directory existed. A recipe now travels between machines unchanged, and a record states the `outdir` it was given.
 - **`predict()` on a multiclass resampled classification keeps the class dimension.** `sapply()` flattened the `n x k` probability matrix of each resample into a column, so a 3-class `ClassificationRes` returned `n * 3` numbers with no `dim`. `"avg"` now returns an `n x k` matrix and `"all"` a list of them, binary included. Regression is unchanged.
 - `predict(type = "metrics")` on a resampled model aggregates per case, not per resample. `mean` and `sd` were computed over cases within each resample -- one number per resample, describing the outcome rather than the prediction.
 - `predict()` on a `CalibratedClassificationRes` takes `type`, not `what`, as its siblings do. `type` was swallowed by `...` and the default returned in silence.

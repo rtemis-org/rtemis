@@ -50,6 +50,43 @@ test_that("setup_SuperConfig() takes a NULL outdir", {
 })
 
 
+test_that("a config stores the paths it was given, unresolved", {
+  # A config is a portable recipe: the path it carries must read the same on the
+  # machine that authored it and the one that runs it. `normalizePath()` resolves
+  # a relative path against the working directory -- on Windows whether or not it
+  # exists, on POSIX only when it does -- and expands `~`, so storing its result
+  # would make the document depend on where R was started and on which platform.
+  withr::local_dir(withr::local_tempdir())
+  dir.create("results")
+  expect_identical(setup_SuperConfig(outdir = "results/")@outdir, "results/")
+  expect_identical(
+    setup_SuperConfig(dat_training_path = "~/Data/iris.csv")@dat_training_path,
+    "~/Data/iris.csv"
+  )
+  expect_identical(
+    setup_SuperConfigLive(dat_training = iris, outdir = "results/")@outdir,
+    "results/"
+  )
+  expect_identical(
+    setup_ClusterConfig(dat_path = "data.csv")@dat_path,
+    "data.csv"
+  )
+  expect_identical(
+    setup_DecomposeConfig(outdir = "results/")@outdir,
+    "results/"
+  )
+  # What the function returns changed; what it refuses did not.
+  expect_error(
+    setup_SuperConfig(outdir = "| rm -rf ."),
+    class = "rtemis_value_error"
+  )
+  expect_error(
+    setup_SuperConfig(dat_training_path = "http://example.com/iris.csv"),
+    class = "rtemis_value_error"
+  )
+})
+
+
 test_that("a NULL outdir round-trips through JSON as an explicit null", {
   # `outdir` is the one property that is nullable *and* carries a non-NULL
   # `setup_SuperConfig` default, so omitting it and writing `null` must stay
