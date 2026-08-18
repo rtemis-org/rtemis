@@ -573,3 +573,73 @@ test_that("every LightGBM-facing LightRuleFit property reaches the LightGBM step
     character()
   )
 })
+
+
+test_that("the GOSS rules read a search domain, not just a value", {
+  # A tunable property may hold a domain rather than a value. Each grid cell is
+  # validated on its way in, so a cell breaking either rule is refused with the
+  # message either way -- what the domain decides here is whether *any* cell
+  # could satisfy the rule. A search where none can fails every cell, and should
+  # say so now rather than as "all N tuning grid cells failed".
+  skip_if_not_installed("lightgbm")
+
+  # A value, as before.
+  expect_error(
+    setup_LightGBM(data_sample_strategy = "goss", bagging_fraction = 0.5),
+    "cannot be combined with bagging"
+  )
+  # A domain with a workable cell is accepted, as `check_applies_when()` accepts
+  # a gated domain when any candidate opens the gate.
+  expect_no_error(
+    setup_LightGBM(
+      data_sample_strategy = "goss",
+      bagging_fraction = tune_over(0.5, 1.0)
+    )
+  )
+  # A domain with none is hopeless, and named as such.
+  expect_error(
+    setup_LightGBM(
+      data_sample_strategy = "goss",
+      bagging_fraction = tune_over(0.5, 0.8)
+    ),
+    "no value of @bagging_fraction avoids it"
+  )
+  # The invalid cell of a workable domain is still refused when the tuner builds
+  # it, which is what keeps the accepted domain honest.
+  hyperparameters <- setup_LightGBM(
+    data_sample_strategy = "goss",
+    bagging_fraction = tune_over(0.5, 1.0)
+  )
+  expect_error(
+    update(
+      hyperparameters,
+      list(bagging_fraction = 0.5),
+      tuned = TUNED_STATUS_TUNING
+    ),
+    "cannot be combined with bagging"
+  )
+  expect_no_error(
+    update(
+      hyperparameters,
+      list(bagging_fraction = 1),
+      tuned = TUNED_STATUS_TUNING
+    )
+  )
+
+  # The sum rule reads domains the same way: the smallest reachable sum decides.
+  expect_no_error(
+    setup_LightGBM(
+      data_sample_strategy = "goss",
+      top_rate = tune_over(0.7, 0.2),
+      other_rate = 0.5
+    )
+  )
+  expect_error(
+    setup_LightGBM(
+      data_sample_strategy = "goss",
+      top_rate = tune_over(0.7, 0.8),
+      other_rate = 0.5
+    ),
+    "smallest they can sum to"
+  )
+})

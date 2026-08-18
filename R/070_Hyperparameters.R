@@ -2638,24 +2638,43 @@ lightgbm_goss_props <- function() {
 #' @keywords internal
 #' @noRd
 check_lightgbm_sampling <- function(self) {
-  if (!identical(self@data_sample_strategy, "goss")) {
+  # A tunable property may hold a *domain* rather than a value, and each grid
+  # cell is validated on its way in -- so a cell that breaks either rule is
+  # already refused with the message below. What a domain needs deciding here is
+  # whether *any* cell could satisfy the rule at all: a search where none can is
+  # a run that fails every cell, and it should say so now rather than as "all N
+  # tuning grid cells failed".
+  #
+  # `check_applies_when()` reads a gated domain the same way -- the gate opens
+  # when any candidate value satisfies it -- so a search space is rejected only
+  # when it is hopeless, never when part of it is workable.
+  if (!any(candidate_values(self@data_sample_strategy) == "goss")) {
     return(NULL)
   }
-  fraction <- self@bagging_fraction
-  if (is.numeric(fraction) && any(fraction < 1)) {
+  fraction <- candidate_values(self@bagging_fraction)
+  if (is.numeric(fraction) && !any(fraction >= 1)) {
     return(paste0(
-      "@data_sample_strategy \"goss\" cannot be combined with bagging: ",
-      "@bagging_fraction is ",
+      "@data_sample_strategy \"goss\" cannot be combined with bagging, and no ",
+      "value of @bagging_fraction avoids it: ",
       paste(fraction, collapse = ", "),
-      " and GOSS samples by gradient instead. Leave @bagging_fraction at 1."
+      ". GOSS samples by gradient instead, so leave @bagging_fraction at 1."
     ))
   }
-  rates <- c(self@top_rate, self@other_rate)
-  if (length(rates) == 2L && is.numeric(rates) && sum(rates) > 1) {
+  # The smallest reachable sum: above 1 there is no combination of the two
+  # domains that LightGBM would accept.
+  top <- candidate_values(self@top_rate)
+  other <- candidate_values(self@other_rate)
+  if (
+    is.numeric(top) &&
+      is.numeric(other) &&
+      length(top) > 0L &&
+      length(other) > 0L &&
+      min(top) + min(other) > 1
+  ) {
     return(paste0(
       "@top_rate + @other_rate must not exceed 1: together they are a share of ",
-      "the training cases, and these sum to ",
-      sum(rates),
+      "the training cases, and the smallest they can sum to here is ",
+      min(top) + min(other),
       "."
     ))
   }
