@@ -33,33 +33,68 @@ set.seed(2026)
 
 
 # %% Native primitives ----
-test_that("linad_solve() ridge solves the penalized normal equations", {
+test_that("the constant/slopes split equals fitting an intercept jointly", {
+  # The identity the whole parameterization rests on. Fitting the constant first
+  # and the slopes without an intercept gives the same answer as one joint fit
+  # -- but only on a design centered by the node's *weighted* means. Without
+  # that centering the slopes absorb part of the level and the fit is worse, so
+  # this is the test that says the refactor cost nothing.
+  #
   # The reference is a direct solve of the system LINAD defines, not glmnet:
   # glmnet divides its lambda by an internal standardization of the outcome, so
   # the two parameterizations differ by a constant that is glmnet's business.
-  scaling <- rtemis:::linad_scaling(.xm)
-  scaled <- sweep(
-    sweep(.xm, 2L, scaling[["center"]], "-"),
-    2L,
-    scaling[["scale"]],
-    "/"
-  )
   weights <- runif(.n, 0.5, 1.5)
   for (lambda in c(0, 0.01, 0.5)) {
-    gram <- crossprod(scaled * weights, scaled)
-    cross <- drop(crossprod(scaled * weights, .y))
-    penalty <- rep(lambda * sum(weights), ncol(scaled))
+    gram <- crossprod(.xm * weights, .xm)
+    cross <- drop(crossprod(.xm * weights, .y))
+    penalty <- rep(lambda * sum(weights), ncol(.xm))
     penalty[[1L]] <- 0
-    expected <- drop(solve(gram + diag(penalty), cross))
-    actual <- rtemis:::linad_solve(
-      scaled,
+    joint <- drop(solve(gram + diag(penalty), cross))
+    split <- rtemis:::linad_solve(
+      .xm,
       .y,
       weights,
       seq_len(.n),
       "ridge",
       lambda = lambda
     )
-    expect_equal(actual, unname(expected), tolerance = 1e-6)
+    expect_equal(split[["coefficients"]], unname(joint), tolerance = 1e-6)
+    # And the constant is the node's level, Eq 19.
+    expect_equal(
+      split[["constant"]],
+      stats::weighted.mean(.y, weights),
+      tolerance = 1e-10
+    )
+  }
+})
+
+
+test_that("forward selection is unchanged by dropping the intercept from a centered design", {
+  skip_if_not_installed("leaps")
+  predictors <- as.matrix(.x[, c("a", "b", "c")])
+  centered <- sweep(predictors, 2L, colMeans(predictors), "-")
+  gram <- rtemis:::linad_gram(centered, .y - mean(.y), .w, NULL)
+  for (nvmax in 1:3) {
+    ours <- rtemis:::linad_forward(
+      gram[["G"]],
+      gram[["Xty"]],
+      nvmax,
+      intercept = FALSE
+    )
+    reference <- leaps::regsubsets(
+      predictors,
+      .y,
+      nvmax = nvmax,
+      method = "forward"
+    )
+    expected <- stats::coef(reference, id = nvmax)
+    selected <- ours[abs(ours) > 1e-10]
+    expect_length(selected, length(expected) - 1L)
+    expect_equal(
+      sort(unname(selected)),
+      sort(unname(expected[-1L])),
+      tolerance = 1e-6
+    )
   }
 })
 
@@ -146,7 +181,7 @@ test_that("a node's coefficients reproduce its function value", {
       type,
       rtemis:::linad_settings(setup_LINAD(
         max_leaves = 6L,
-        leaf_model = "ridge"
+        node_model = "ridge"
       )),
       verbosity = 0L
     )
@@ -176,7 +211,7 @@ test_that("max_leaves = 1 is exactly the root model", {
     .w,
     "Regression",
     rtemis:::linad_settings(
-      setup_LINAD(max_leaves = 1L, leaf_model = "ridge", lambda = 0.01)
+      setup_LINAD(max_leaves = 1L, node_model = "ridge", lambda = 0.01)
     ),
     verbosity = 0L
   )
@@ -237,8 +272,164 @@ test_that("the tree sizes are nested", {
 })
 
 
+# %% node_value ----
+test_that("node_value is the level the tree alone has reached", {
+  # rpart's `yval` semantics under shrinkage: the root's is the constant that
+  # alone minimizes the loss (Eq 3), and a child's is its parent's plus its own
+  # shrunk, line-searched constant. It is not the intercept at x = 0 -- that is
+  # column 1 of `coefficients`, and on centered features x = 0 need not be
+  # anywhere near the data.
+  fitted <- rtemis:::linad_fit(
+    .x,
+    .xm,
+    .y,
+    .w,
+    "Regression",
+    rtemis:::linad_settings(setup_LINAD(max_leaves = 6L, node_model = "ridge")),
+    verbosity = 0L
+  )
+  frame <- fitted[["frame"]]
+  expect_true("node_value" %in% names(frame))
+  expect_equal(
+    frame[["node_value"]][[1L]],
+    stats::weighted.mean(.y, .w),
+    tolerance = 1e-10
+  )
+  expect_true(all(is.finite(frame[["node_value"]])))
+  # Every node's value is its parent's plus one step, so a child never lands
+  # further from its parent than the whole outcome range.
+  internal <- which(!is.na(frame[["left"]]))
+  for (row in internal) {
+    for (child in c(frame[["left"]][[row]], frame[["right"]][[row]])) {
+      expect_lt(
+        abs(frame[["node_value"]][[child]] - frame[["node_value"]][[row]]),
+        diff(range(.y))
+      )
+    }
+  }
+})
+
+
+test_that("with constant leaves the model is exactly its node values", {
+  # Slopes are all zero, so `node_value` is not merely the tree's share of the
+  # prediction -- it is the whole prediction, which is what makes the Additive
+  # Tree mode a plain decision tree.
+  fitted <- rtemis:::linad_fit(
+    .x,
+    .xm,
+    .y,
+    .w,
+    "Regression",
+    rtemis:::linad_settings(
+      setup_LINAD(max_leaves = 6L, node_model = "constant")
+    ),
+    verbosity = 0L
+  )
+  expect_true(all(abs(fitted[["coefficients"]][, -1L]) < 1e-10))
+  terminal <- fitted[["steps"]][[fitted[["n_leaves"]]]]
+  leaf <- rtemis:::linad_route(fitted[["frame"]], .x, terminal)
+  predicted <- rowSums(.xm * fitted[["coefficients"]][leaf, , drop = FALSE])
+  expect_equal(
+    unname(predicted),
+    fitted[["frame"]][["node_value"]][leaf],
+    tolerance = 1e-10
+  )
+})
+
+
+# %% constant_rule ----
+test_that("constant_rule changes nothing for a regression", {
+  # Eq 19 *is* the weighted mean of the residual, so the two rules are the same
+  # computation for squared error and differ only for classification.
+  fit_with <- function(rule) {
+    rtemis:::linad_fit(
+      .x,
+      .xm,
+      .y,
+      .w,
+      "Regression",
+      rtemis:::linad_settings(
+        setup_LINAD(
+          max_leaves = 5L,
+          node_model = "ridge",
+          constant_rule = rule
+        )
+      ),
+      verbosity = 0L
+    )[["coefficients"]]
+  }
+  expect_equal(fit_with("closed_form"), fit_with("least_squares"))
+})
+
+
+test_that("constant_rule changes a classification, which is why it is a switch", {
+  # Eq 20's Newton ratio and the weighted mean of the residual are different
+  # quantities on a margin. Neither was better on the data tried so far, so the
+  # rerun decides and both ship.
+  outcome <- ifelse(.y > stats::median(.y), 1, -1)
+  fit_with <- function(rule) {
+    rtemis:::linad_fit(
+      .x,
+      .xm,
+      outcome,
+      .w,
+      "Classification",
+      rtemis:::linad_settings(
+        setup_LINAD(
+          max_leaves = 5L,
+          node_model = "ridge",
+          constant_rule = rule
+        )
+      ),
+      verbosity = 0L
+    )[["coefficients"]]
+  }
+  expect_false(isTRUE(all.equal(
+    fit_with("closed_form"),
+    fit_with("least_squares")
+  )))
+})
+
+
+test_that("linad_constant() implements Eq 19 and Eq 20", {
+  weights <- runif(.n, 0.5, 1.5)
+  residual <- rnorm(.n)
+  idx <- seq_len(.n)
+  expect_equal(
+    rtemis:::linad_constant(residual, NULL, weights, idx, "Regression", 1000),
+    stats::weighted.mean(residual, weights)
+  )
+  derivatives <- list(g = rnorm(.n), h = runif(.n, 0.5, 2))
+  expect_equal(
+    rtemis:::linad_constant(
+      residual,
+      derivatives,
+      weights,
+      idx,
+      "Classification",
+      1000
+    ),
+    -sum(weights * derivatives[["g"]]) / sum(weights * derivatives[["h"]])
+  )
+  # The bound is the line search's, so a vanishing second derivative cannot send
+  # a node to infinity.
+  flat <- list(g = rep(-1, .n), h = rep(0, .n))
+  expect_equal(
+    abs(rtemis:::linad_constant(
+      residual,
+      flat,
+      weights,
+      idx,
+      "Classification",
+      2
+    )),
+    2
+  )
+})
+
+
 # %% Leaf models ----
-test_that("leaf_model = 'constant' fits no slopes, which is the Additive Tree", {
+test_that("node_model = 'constant' fits no slopes, including at the root", {
   fitted <- rtemis:::linad_fit(
     .x,
     .xm,
@@ -247,7 +438,7 @@ test_that("leaf_model = 'constant' fits no slopes, which is the Additive Tree", 
     "Regression",
     rtemis:::linad_settings(setup_LINAD(
       max_leaves = 6L,
-      leaf_model = "constant"
+      node_model = "constant"
     )),
     verbosity = 0L
   )
@@ -260,7 +451,7 @@ test_that("leaf_model = 'constant' fits no slopes, which is the Additive Tree", 
 
 test_that("nvmax bounds the terms each update adds", {
   settings <- rtemis:::linad_settings(
-    setup_LINAD(max_leaves = 4L, leaf_model = "forward", nvmax = 1L)
+    setup_LINAD(max_leaves = 4L, node_model = "forward", nvmax = 1L)
   )
   fitted <- rtemis:::linad_fit(
     .x,
@@ -298,7 +489,7 @@ test_that("gamma changes the fit, monotonically", {
       rep(1, n),
       "Regression",
       rtemis:::linad_settings(
-        setup_LINAD(gamma = gamma, max_leaves = 6L, leaf_model = "ridge")
+        setup_LINAD(gamma = gamma, max_leaves = 6L, node_model = "ridge")
       ),
       verbosity = 0L
     )[["coefficients"]]
@@ -346,14 +537,19 @@ test_that("gamma = 0 fits each leaf on its own cases alone", {
     "ridge",
     lambda = 0.05
   )
-  expect_equal(soft, subset_only, tolerance = 1e-12)
+  expect_equal(
+    soft[["coefficients"]],
+    subset_only[["coefficients"]],
+    tolerance = 1e-12
+  )
+  expect_equal(soft[["constant"]], subset_only[["constant"]], tolerance = 1e-12)
 })
 
 
 # %% Learning rate ----
 test_that("learning_rate scales the node updates, and the line search does not undo it", {
   # Reported as "learning_rate barely changes anything". It does; what masks it
-  # is that `first_learning_rate` defaults to 1, so the root model is fitted at
+  # is that `root_learning_rate` defaults to 1, so the root model is fitted at
   # full strength and the fit never falls below one global linear model. On a
   # signal the root cannot represent, the rate's effect is the whole model.
   set.seed(21)
@@ -373,7 +569,7 @@ test_that("learning_rate scales the node updates, and the line search does not u
         setup_LINAD(
           learning_rate = rate,
           max_leaves = 8L,
-          leaf_model = "ridge",
+          node_model = "ridge",
           force_max_leaves = TRUE
         )
       ),
@@ -390,7 +586,7 @@ test_that("learning_rate scales the node updates, and the line search does not u
 })
 
 
-test_that("first_learning_rate shrinks the root towards the best constant, not towards zero", {
+test_that("root_learning_rate shrinks the root towards the best constant, not towards zero", {
   # A shrunk root used to shrink its intercept towards zero, so any outcome not
   # centered on the origin came back with a large negative R-squared: the model
   # predicted nothing rather than the mean. Equation 3 says the initialization is
@@ -410,10 +606,10 @@ test_that("first_learning_rate shrinks the root towards the best constant, not t
       "Regression",
       rtemis:::linad_settings(
         setup_LINAD(
-          first_learning_rate = rate,
+          root_learning_rate = rate,
           learning_rate = 0.5,
           max_leaves = 6L,
-          leaf_model = "ridge",
+          node_model = "ridge",
           force_max_leaves = TRUE
         )
       ),
@@ -465,6 +661,161 @@ test_that("linad_baseline() is the loss-minimizing constant", {
 })
 
 
+# %% What LINAD reduces to ----
+# `setup_LINAD`'s documentation claims these are exact reductions rather than
+# approximations. That is a strong claim to make in a help page, so it is
+# guarded here rather than asserted there.
+
+test_that("max_leaves = 1 is a pure linear model", {
+  scaling <- rtemis:::linad_scaling(.xm)
+  scaled <- sweep(
+    sweep(.xm, 2L, scaling[["center"]], "-"),
+    2L,
+    scaling[["scale"]],
+    "/"
+  )
+  for (lambda in c(0, 0.01, 0.5)) {
+    fitted <- rtemis:::linad_fit(
+      .x,
+      .xm,
+      .y,
+      .w,
+      "Regression",
+      rtemis:::linad_settings(
+        setup_LINAD(
+          max_leaves = 1L,
+          node_model = "ridge",
+          lambda = lambda,
+          root_learning_rate = 1
+        )
+      ),
+      verbosity = 0L
+    )
+    penalty <- rep(lambda * sum(.w), ncol(scaled))
+    penalty[[1L]] <- 0
+    expected <- rtemis:::linad_unscale(
+      matrix(
+        drop(solve(
+          crossprod(scaled * .w, scaled) + diag(penalty),
+          drop(crossprod(scaled * .w, .y))
+        )),
+        nrow = 1L
+      ),
+      scaling
+    )
+    expect_identical(nrow(fitted[["frame"]]), 1L)
+    expect_equal(
+      unname(fitted[["coefficients"]][1L, ]),
+      unname(expected[1L, ]),
+      tolerance = 1e-6
+    )
+  }
+})
+
+
+test_that("constants, a hard partition and no shrinkage is CART", {
+  skip_if_not_installed("rpart")
+  set.seed(4)
+  n <- 400
+  x <- data.frame(a = rnorm(n), b = rnorm(n), c = rnorm(n))
+  x[["y"]] <- ifelse(x[["b"]] < 0, -3, 3) +
+    ifelse(x[["a"]] < 0.5, -1.5, 1.5) +
+    rnorm(n, sd = 0.6)
+  linad <- train(
+    x,
+    hyperparameters = setup_LINAD(
+      node_model = "constant",
+      gamma = 0,
+      learning_rate = 1,
+      line_search = "none",
+      max_leaves = 4L,
+      force_max_leaves = TRUE,
+      min_cases_leaf = 5L
+    ),
+    verbosity = 0L
+  )
+  reference <- rpart::rpart(
+    y ~ .,
+    x,
+    control = rpart::rpart.control(
+      cp = 0,
+      minbucket = 5,
+      minsplit = 10,
+      maxdepth = 30L,
+      xval = 0L
+    )
+  )
+  pruned <- rpart::prune(
+    reference,
+    cp = reference[["cptable"]][reference[["cptable"]][, "nsplit"] == 3, "CP"]
+  )
+  expect_equal(
+    unname(predict(linad, x[, c("a", "b", "c")])),
+    unname(predict(pruned, x)),
+    tolerance = 1e-10
+  )
+})
+
+
+test_that("the same with soft weighting is the Additive Tree, and differs from CART", {
+  set.seed(4)
+  n <- 300
+  x <- data.frame(a = rnorm(n), b = rnorm(n))
+  x[["y"]] <- ifelse(x[["b"]] < 0, -3, 3) + rnorm(n, sd = 0.6)
+  fit_at <- function(gamma) {
+    train(
+      x,
+      hyperparameters = setup_LINAD(
+        node_model = "constant",
+        gamma = gamma,
+        learning_rate = 1,
+        max_leaves = 4L,
+        force_max_leaves = TRUE
+      ),
+      verbosity = 0L
+    )
+  }
+  hard <- fit_at(0)
+  soft <- fit_at(0.5)
+  # Constants only, in both.
+  expect_true(all(abs(soft@model@coefficients[, -1L]) < 1e-10))
+  # Soft weighting is exactly what separates the two.
+  expect_false(isTRUE(all.equal(
+    unname(predict(soft, x[, c("a", "b")])),
+    unname(predict(hard, x[, c("a", "b")])),
+    tolerance = 1e-6
+  )))
+})
+
+
+test_that("root_learning_rate = 0 starts at the mean and splits first", {
+  fitted <- rtemis:::linad_fit(
+    .x,
+    .xm,
+    .y,
+    .w,
+    "Regression",
+    rtemis:::linad_settings(
+      setup_LINAD(
+        node_model = "ridge",
+        root_learning_rate = 0,
+        max_leaves = 4L,
+        force_max_leaves = TRUE
+      )
+    ),
+    verbosity = 0L
+  )
+  expect_equal(
+    fitted[["frame"]][["node_value"]][[1L]],
+    stats::weighted.mean(.y, .w),
+    tolerance = 1e-10
+  )
+  expect_true(all(abs(fitted[["coefficients"]][1L, -1L]) < 1e-10))
+  # And the tree still fits: the first step was a split, not a line.
+  expect_gt(nrow(fitted[["frame"]]), 1L)
+})
+
+
 # %% Split search ----
 test_that("the exhaustive search finds an interaction the stump search cannot", {
   # A slope flip with no mean shift: splitting it leaves both sides' means
@@ -490,7 +841,7 @@ test_that("the exhaustive search finds an interaction the stump search cannot", 
         rtemis:::linad_settings(
           setup_LINAD(
             max_leaves = 4L,
-            leaf_model = "ridge",
+            node_model = "ridge",
             split_search = search,
             force_max_leaves = TRUE
           )
@@ -586,14 +937,14 @@ test_that("the design matrix is full rank with factors present", {
 
 # %% Hyperparameter gates ----
 test_that("setup_LINAD() rejects a parameter its leaf model ignores", {
-  expect_error(setup_LINAD(leaf_model = "ridge", nvmax = 5L))
-  expect_error(setup_LINAD(leaf_model = "forward", lambda = 0.1))
-  expect_error(setup_LINAD(leaf_model = "ridge", alpha = 0.5))
+  expect_error(setup_LINAD(node_model = "ridge", nvmax = 5L))
+  expect_error(setup_LINAD(node_model = "forward", lambda = 0.1))
+  expect_error(setup_LINAD(node_model = "ridge", alpha = 0.5))
   expect_error(setup_LINAD(
     force_max_leaves = TRUE,
-    select_leaves_smooth = TRUE
+    smooth_validation_curve = TRUE
   ))
-  expect_error(setup_LINAD(split_search = "stump", n_quantiles = 10L))
+  expect_error(setup_LINAD(split_search = "stump", n_cuts = 10L))
   # split_binning is not gated: it discretizes the features for either search.
   expect_s7_class(
     setup_LINAD(split_search = "stump", split_binning = 32L),
@@ -601,15 +952,15 @@ test_that("setup_LINAD() rejects a parameter its leaf model ignores", {
   )
   # And accepts each where it applies.
   expect_s7_class(
-    setup_LINAD(leaf_model = "forward", nvmax = 5L),
+    setup_LINAD(node_model = "forward", nvmax = 5L),
     LINADHyperparameters
   )
   expect_s7_class(
-    setup_LINAD(leaf_model = "ridge", lambda = 0.1),
+    setup_LINAD(node_model = "ridge", lambda = 0.1),
     LINADHyperparameters
   )
   expect_s7_class(
-    setup_LINAD(leaf_model = "elasticnet", lambda = 0.1, alpha = 0.5),
+    setup_LINAD(node_model = "elasticnet", lambda = 0.1, alpha = 0.5),
     LINADHyperparameters
   )
 })
@@ -617,16 +968,16 @@ test_that("setup_LINAD() rejects a parameter its leaf model ignores", {
 
 test_that("first_* hyperparameters inherit the node-level values", {
   settings <- rtemis:::linad_settings(
-    setup_LINAD(leaf_model = "ridge", lambda = 0.2)
+    setup_LINAD(node_model = "ridge", lambda = 0.2)
   )
-  expect_identical(settings[["first_leaf_model"]], "ridge")
-  expect_identical(settings[["first_lambda"]], 0.2)
+  expect_identical(settings[["root_model"]], "ridge")
+  expect_identical(settings[["root_lambda"]], 0.2)
   overridden <- rtemis:::linad_settings(
     setup_LINAD(
-      leaf_model = "ridge",
+      node_model = "ridge",
       lambda = 0.2,
-      first_leaf_model = "constant"
+      root_model = "constant"
     )
   )
-  expect_identical(overridden[["first_leaf_model"]], "constant")
+  expect_identical(overridden[["root_model"]], "constant")
 })

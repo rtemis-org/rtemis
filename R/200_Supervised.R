@@ -3107,6 +3107,12 @@ method(print, StackedLearner) <- function(x, ...) {
 #' is one dot product per case. There is no separate initialization term: the
 #' root model's intercept is it.
 #'
+#' `frame$node_value` is what the **tree alone** predicts at a node -- the model
+#' with its slopes zeroed -- so the fit reads as a piecewise-constant tree plus a
+#' piecewise-linear correction, and the two parts can be shown separately. The
+#' root's is the constant that alone minimizes the loss; a child's is its
+#' parent's plus its own shrunk, line-searched constant.
+#'
 #' `steps[[k]]` holds the terminal node ids the tree had when it reached `k`
 #' leaves, which is what lets one grown tree be evaluated at any smaller size --
 #' the mechanism behind selecting the number of leaves on held-out data.
@@ -3158,6 +3164,16 @@ method(print, LinearAdditiveTree) <- function(x, ...) {
     "Each leaf carries a linear model over ",
     highlight(ncol(x@coefficients) - 1L),
     ngettext(ncol(x@coefficients) - 1L, " term", " terms"),
+    ".\n",
+    sep = ""
+  )
+  terminal <- x@steps[[x@n_leaves]]
+  values <- x@frame[["node_value"]][match(terminal, x@frame[["node"]])]
+  cat(
+    "Node values span ",
+    highlight(ddSci(min(values))),
+    " to ",
+    highlight(ddSci(max(values))),
     ".\n",
     sep = ""
   )

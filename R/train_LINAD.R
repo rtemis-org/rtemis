@@ -59,8 +59,8 @@ method(train_, LINADHyperparameters) <- function(
   # Dependencies ----
   # Only the elastic-net leaf model reaches outside the package.
   if (
-    identical(settings[["leaf_model"]], "elasticnet") ||
-      identical(settings[["first_leaf_model"]], "elasticnet")
+    identical(settings[["node_model"]], "elasticnet") ||
+      identical(settings[["root_model"]], "elasticnet")
   ) {
     check_dependencies("glmnet")
   }
@@ -148,7 +148,7 @@ method(train_, LINADHyperparameters) <- function(
         linad_design_matrix(validation_features, xlev),
         validation_y,
         type,
-        smooth = settings[["select_leaves_smooth"]]
+        smooth = settings[["smooth_validation_curve"]]
       )
       model@n_leaves <- as.integer(selection[["n_leaves"]])
       model@leaf_curve <- selection[["curve"]]

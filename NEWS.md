@@ -1,14 +1,19 @@
 # rtemis news
 
-## 1.3.6
+## 1.3.7
 
-- **New algorithm: LINAD, the Linear Additive Tree** -- `setup_LINAD()`. A decision tree carrying a linear model at every node, grown by stagewise gradient descent so a leaf's coefficients are the accumulated sum along its root-to-leaf path; prediction is one routing step and one dot product. rtemis' first supervised algorithm implemented in-package rather than wrapped: the ridge solve, forward selection and split search are native, so `rpart`, `leaps` and `MASS` are not involved and `glmnet` is reached only for the elastic-net leaf model.
-- **`setup_LINAD(leaf_model = "constant")` is the Additive Tree** (Luna and colleagues, PNAS 2019): the same engine with the linear models skipped, rather than a second algorithm.
-- **`setup_LINAD(split_search = "exhaustive")` scores a split by the loss after fitting both child models**, which the manuscript describes but leaves unevaluated as too expensive. Sorting once per feature and sweeping the cut point with incremental Gram updates takes the cost per feature from `O(k(nd^2 + d^3))` to `O(n log n + nd^2 + k d^3)`. It finds pure interactions -- a slope flip with no mean shift -- that the gradient stump is blind to by construction.
-- LINAD selects its number of leaves on `dat_validation`, as gradient boosting selects its number of trees; `force_max_leaves = TRUE` keeps the whole tree. `get_varimp()` reports two measures, `importance` (the linear effect, case-weighted across leaves and on the outcome's scale) and `split_gain` (the partitioning effect), because a feature can carry one and not the other.
-- `setup_LINAD(first_learning_rate = )` below 1 shrinks the root model towards the constant that alone minimizes the loss (the weighted mean, or half the log odds for a classification), not towards zero. Shrinking the intercept towards zero made the model predict nothing rather than the mean, so any outcome not centered on the origin came back with a large negative R-squared. At the default of 1 nothing changes.
-- `setup_LINAD(gamma = )` moves the fit continuously between a hard partition at 0 and a single global linear model at 1, by letting every case carry `gamma^depth` of its weight into the branch it does not belong to. It is the algorithm's main variance-reducing device. `setup_LINAD(split_binning = , split_bin_type = )` discretize numeric features before either split search, by case (`"frequency"`) or by range (`"width"`).
-- `setup_LINAD(line_search = )` and `setup_LINAD(node_selection = )` expose two points where the manuscript and the original implementation disagree -- the scope of the Newton step, and whether a frontier node is chosen by its own loss reduction or a global one -- so either can be run.
+- **New algorithm: LINAD, the Linear Additive Tree** -- `setup_LINAD()`. A decision tree with a linear model at every node, a leaf's coefficients the sum along its path. original algorithm, rtemis native implementation.
+- **LINAD generalizes the decision tree and the regularized linear model**, recovering each exactly: `max_leaves = 1` is a pure linear model, constant nodes with `gamma = 0` match `rpart` to machine precision, and with `gamma > 0` give the Additive Tree.
+- `setup_LINAD(split_search = "exhaustive")` scores a split by the loss after fitting both child models, finding interactions a gradient stump cannot see. Costs about as much as the stump search.
+- LINAD picks its number of leaves on `dat_validation`, as boosting picks its number of trees; `force_max_leaves = TRUE` keeps the whole tree.
+- `get_varimp()` on LINAD reports two measures: `importance`, the linear effect, and `split_gain`, the partitioning effect. A feature can carry one and not the other.
+- Every node carries a constant, as any tree's nodes do; `node_model` selects the model fitted on top of it. `mod@model@frame$node_value` is what the tree alone predicts at that node.
+- `setup_LINAD(gamma = )` moves the fit between a hard partition at 0 and one global linear model at 1, each case carrying `gamma^depth` of its weight into the other branch.
+- `setup_LINAD(root_learning_rate = )` shrinks only the root's slopes: at 0 the root is the outcome mean and the tree splits first, at 1 a full linear model is fitted before any split.
+- `setup_LINAD(constant_rule = )`, `(line_search = )` and `(node_selection = )` select among alternative update rules: how a node's constant is computed, the scope of the Newton step, and which node is split next.
+- `setup_LINAD(split_binning = , split_bin_type = )` discretize numeric features before either split search, spacing cut points by case or by range.
+
+## 1.3.6
 
 - **A config stores the paths it was given, unresolved.** `outdir` and the data paths were resolved against the working directory and `~` expanded, so `outdir = "results/"` became an absolute path on Windows always and elsewhere whenever that directory existed. A recipe now travels between machines unchanged, and a record states the `outdir` it was given.
 - **`predict()` on a multiclass resampled classification keeps the class dimension.** `sapply()` flattened the `n x k` probability matrix of each resample into a column, so a 3-class `ClassificationRes` returned `n * 3` numbers with no `dim`. `"avg"` now returns an `n x k` matrix and `"all"` a list of them, binary included. Regression is unchanged.

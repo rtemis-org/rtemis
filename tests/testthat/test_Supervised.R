@@ -758,7 +758,7 @@ test_that("train() LINAD RegressionRes succeeds", {
 mod_c_linad <- train(
   datc2_train,
   dat_test = datc2_test,
-  hyperparameters = setup_LINAD(max_leaves = 4L, leaf_model = "ridge"),
+  hyperparameters = setup_LINAD(max_leaves = 4L, node_model = "ridge"),
   verbosity = 0L
 )
 test_that("train() LINAD Classification succeeds", {
@@ -822,7 +822,7 @@ test_that("train() LINAD with constant leaves is an Additive Tree", {
     dat_test = datc2_test,
     hyperparameters = setup_LINAD(
       max_leaves = 4L,
-      leaf_model = "constant",
+      node_model = "constant",
       gamma = 0.8
     ),
     verbosity = 0L
@@ -839,7 +839,7 @@ test_that("train() LINAD with the exhaustive split search succeeds", {
       dat_test = datr_test,
       hyperparameters = setup_LINAD(
         max_leaves = 3L,
-        leaf_model = "ridge",
+        node_model = "ridge",
         split_search = "exhaustive",
         force_max_leaves = TRUE
       ),

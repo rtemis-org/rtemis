@@ -8,26 +8,27 @@ setup_LINAD(
   max_leaves = 20L,
   min_cases_split = 2L,
   min_cases_leaf = 1L,
-  min_cases_leaf_model = NULL,
+  min_cases_node_model = NULL,
   nvmax = NULL,
   lambda = NULL,
   alpha = NULL,
-  learning_rate = 0.5,
-  first_nvmax = NULL,
-  first_lambda = NULL,
-  first_alpha = NULL,
-  first_learning_rate = 1,
-  n_quantiles = NULL,
+  learning_rate = 0.1,
+  root_nvmax = NULL,
+  root_lambda = NULL,
+  root_alpha = NULL,
+  root_learning_rate = 1,
+  n_cuts = NULL,
   gamma = 0.1,
   split_binning = NULL,
   split_bin_type = "frequency",
   line_search = "expansion",
+  constant_rule = "closed_form",
   node_selection = "local",
   ifw = FALSE,
   force_max_leaves = FALSE,
-  select_leaves_smooth = NULL,
-  leaf_model = "forward",
-  first_leaf_model = NULL,
+  smooth_validation_curve = NULL,
+  node_model = "forward",
+  root_model = NULL,
   split_search = "stump",
   line_search_max = 1000
 )
@@ -39,25 +40,25 @@ setup_LINAD(
 
 \item{min_cases_leaf}{(Tunable) Integer [1, Inf): Fewest cases a split must leave on each side.}
 
-\item{min_cases_leaf_model}{(Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when \code{leaf_model} fits one.}
+\item{min_cases_node_model}{(Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when \code{node_model} fits one.}
 
-\item{nvmax}{(Tunable) Optional Integer [1, Inf): Terms forward selection adds beside the intercept. Applies only when \code{leaf_model} is "forward".}
+\item{nvmax}{(Tunable) Optional Integer [1, Inf): Terms forward selection adds beside the intercept. Applies only when \code{node_model} is "forward".}
 
-\item{lambda}{(Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when \code{leaf_model} is "ridge" or "elasticnet".}
+\item{lambda}{(Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when \code{node_model} is "ridge" or "elasticnet".}
 
-\item{alpha}{(Tunable) Optional Numeric [0, 1]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when \code{leaf_model} is "elasticnet".}
+\item{alpha}{(Tunable) Optional Numeric [0, 1]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when \code{node_model} is "elasticnet".}
 
 \item{learning_rate}{(Tunable) Numeric (0, 1]: Shrinkage applied to every functional update.}
 
-\item{first_nvmax}{(Tunable) Optional Integer [1, Inf): \code{nvmax} for the root model. NULL uses \code{nvmax}.}
+\item{root_nvmax}{(Tunable) Optional Integer [1, Inf): \code{nvmax} for the root model. NULL uses \code{nvmax}.}
 
-\item{first_lambda}{(Tunable) Optional Numeric [0, Inf): \code{lambda} for the root model. NULL uses \code{lambda}.}
+\item{root_lambda}{(Tunable) Optional Numeric [0, Inf): \code{lambda} for the root model. NULL uses \code{lambda}.}
 
-\item{first_alpha}{(Tunable) Optional Numeric [0, 1]: \code{alpha} for the root model. NULL uses \code{alpha}.}
+\item{root_alpha}{(Tunable) Optional Numeric [0, 1]: \code{alpha} for the root model. NULL uses \code{alpha}.}
 
-\item{first_learning_rate}{(Tunable) Numeric (0, 1]: Shrinkage applied to the root model.}
+\item{root_learning_rate}{(Tunable) Numeric [0, 1]: Shrinkage applied to the root model's slopes.}
 
-\item{n_quantiles}{(Tunable) Optional Integer [2, Inf): Quantile cut points tried per feature. Applies only when \code{split_search} is "exhaustive".}
+\item{n_cuts}{(Tunable) Optional Integer [2, Inf): Cut points tried per feature; \code{split_bin_type} decides their spacing. Applies only when \code{split_search} is "exhaustive".}
 
 \item{gamma}{(Tunable) Numeric [0, 1]: Weight a case retains in the branch it does not belong to. 0 is a hard partition.}
 
@@ -67,17 +68,19 @@ setup_LINAD(
 
 \item{line_search}{(Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.}
 
+\item{constant_rule}{(Tunable) Character \{"closed_form", "least_squares"\}: How a node's constant is computed. The two coincide for regression and differ only for classification.}
+
 \item{node_selection}{(Tunable) Character \{"local", "global"\}: Criterion for choosing which frontier node to split next.}
 
 \item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 
 \item{force_max_leaves}{Logical: If TRUE, keep every leaf grown instead of selecting a size on the validation set.}
 
-\item{select_leaves_smooth}{Optional Logical: If TRUE, smooth the validation curve before reading its minimum. Applies only when \code{force_max_leaves} is FALSE.}
+\item{smooth_validation_curve}{Optional Logical: If TRUE, smooth the validation curve before reading its minimum. Applies only when \code{force_max_leaves} is FALSE.}
 
-\item{leaf_model}{Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node.}
+\item{node_model}{Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node. "constant" is the intercept-only model every decision tree node carries; the others add a regularized linear model on top of it.}
 
-\item{first_leaf_model}{Optional Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at the root. NULL uses \code{leaf_model}.}
+\item{root_model}{Optional Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at the root. NULL uses \code{node_model}.}
 
 \item{split_search}{Character \{"stump", "exhaustive"\}: How a split is chosen.}
 
@@ -87,19 +90,58 @@ setup_LINAD(
 LINADHyperparameters object.
 }
 \description{
-Setup hyperparameters for LINAD, the Linear Additive Tree.
+Setup hyperparameters for LINAD, the Linear Additive Tree. LINAD
+\strong{generalizes} the decision tree and the regularized linear model: CART, the
+Additive Tree and a penalized linear fit are each a special case of it,
+recovered exactly by the hyperparameter combinations given under Details.
 }
 \details{
-LINAD grows a decision tree whose leaves carry linear models. It fits a
-regularized linear model on the whole sample, splits on the gradient of the
-loss, fits a linear model on each side of the split, and repeats. Because
-every update is linear, the coefficients along a root-to-leaf path sum, so
-the finished model is a tree with one linear model per leaf -- but one
-optimized stagewise rather than fitted leaf by leaf. Prediction routes a case
-to its leaf and evaluates that leaf's coefficients.
+Every node carries a constant, as any decision tree's nodes do. \code{node_model}
+selects the model fitted at each node: \code{"constant"} for that constant alone,
+or a regularized linear model on top of it. That, with \code{max_leaves} and
+\code{gamma}, is what makes LINAD a generalization rather than a hybrid -- the
+familiar algorithms are points in its hyperparameter space, and everything
+between them is reachable too.
+}
+\section{What LINAD generalizes}{
+
+Each of the following is a special case of LINAD, recovered exactly rather
+than approximated:
+
+\describe{
+\item{A pure linear model}{\code{max_leaves = 1}. Nothing is split, so the model
+is the root's alone -- ridge, elastic net or forward stepwise selection,
+whichever \code{node_model} names. Verified against a direct penalized solve.}
+\item{CART}{\code{node_model = "constant"}, \code{gamma = 0}, \code{learning_rate = 1},
+\code{line_search = "none"}. Constants only, a hard partition and no
+shrinkage. Fitted values match \code{rpart}'s to machine precision.}
+\item{The Additive Tree}{The same, with \code{gamma > 0}. Soft weighting is
+precisely what separates the Additive Tree from CART (Luna and
+colleagues, 2019; see References).}
+\item{LINAD}{Any \code{node_model} other than \code{"constant"}, with
+\code{max_leaves > 1} -- a tree whose nodes each carry a linear model.}
+}
+
+Every setting named above is tunable, so where a dataset belongs on that
+space is a question the data can answer rather than one to settle in advance:
+a linear generating process should select a full root fit and no splitting,
+while terminal nodes needing opposite-signed coefficients should select a
+split first. \code{root_learning_rate} is the dial for that first step -- at 0 the
+root is the outcome's mean and the tree splits first, at 1 a full linear
+model is fitted before any split.
+}
+
+\section{How it grows}{
+
+LINAD fits a regularized linear model on the whole sample, splits on the
+gradient of the loss, fits a model on each side of the split, and repeats.
+Every update is linear, so the coefficients along a root-to-leaf path sum:
+the finished model is a tree with one linear model per leaf, optimized
+stagewise rather than fitted leaf by leaf. Prediction routes a case to its
+leaf and evaluates that leaf's coefficients.
 
 Splits are found on the features as given, so a factor splits on a set of its
-levels; the leaf models use a reference-coded design matrix built internally.
+levels; the node models use a reference-coded design matrix built internally.
 LINAD therefore needs no encoding preprocessor and handles factors directly.
 
 \code{max_leaves} plays the role that the number of trees plays in gradient
@@ -108,33 +150,27 @@ boosting, and like it is chosen on held-out data: the tree is grown to
 \code{force_max_leaves} is TRUE. Pass \code{dat_validation} to \link{train} to control the
 set that choice is made on.
 
-Three settings change what algorithm you get:
-\itemize{
-\item \code{leaf_model = "constant"} fits no linear models and recovers the \strong{Additive
-Tree} (Luna and colleagues, 2019; see References).
-\item \code{gamma = 0} partitions the data hard, as CART does. Larger values let every
-case carry weight into both branches, decaying as \code{gamma^depth}, so each
-leaf model is pulled toward what the rest of the data supports. This is the
-algorithm's main variance-reducing device, and it moves the fit
-continuously between one global linear model and a tree whose leaves
-share nothing.
-\item \code{split_search = "exhaustive"} scores each candidate split by the loss after
-fitting both child models, rather than taking the best split of the
-gradient. It costs more per split and can find structure the gradient stump
-cannot see at all -- an interaction that changes a slope without changing
-either side's mean is invisible to a stump by construction.
-}
+\code{gamma} lets every case carry weight into both branches, decaying as
+\code{gamma^depth}, so each node's model is pulled toward what the rest of the
+data supports. It is the algorithm's main variance-reducing device.
+
+\code{split_search = "exhaustive"} scores each candidate split by the loss after
+fitting both child models, rather than taking the best split of the gradient.
+It costs more per split and can find structure the gradient stump cannot see
+at all -- an interaction that changes a slope without changing either side's
+mean is invisible to a stump by construction.
 
 \code{split_binning} discretizes numeric features before either search, so a
 candidate split falls on a bin boundary rather than between any two distinct
-values; \code{n_quantiles} then thins what is left, for the exhaustive search only.
+values; \code{n_cuts} then thins what is left, for the exhaustive search only.
 \code{split_bin_type} governs both: \code{"frequency"} spaces cuts evenly through the
 cases, \code{"width"} evenly through the feature's range.
 }
+
 \section{Learning rate and the root model}{
 
 \code{learning_rate} shrinks the update made at each \strong{node}. It does not shrink
-the root, which \code{first_learning_rate} governs and which defaults to 1: the
+the root, which \code{root_learning_rate} governs and which defaults to 1: the
 root model is the initialization \code{F_0}, not a boosting step, and shrinking an
 initialization is not meaningful.
 
@@ -146,12 +182,12 @@ different small learning rates look alike. On a signal the root cannot
 represent -- a step with no linear component -- the same sweep moves test
 R-squared from 0.58 to 0.97.
 
-To shrink everything, including the root, set \code{first_learning_rate} to the
+To shrink everything, including the root, set \code{root_learning_rate} to the
 same value. That recovers the familiar picture in which a small rate leaves
 the model badly under-fitted: at \code{1e-6} the fit reduces to the constant that
 alone minimizes the loss -- the weighted mean of the outcome, or half its log
 odds for a classification -- which scores an R-squared of 0 rather than
-anything worse. \code{first_learning_rate} interpolates between that constant and
+anything worse. \code{root_learning_rate} interpolates between that constant and
 the full linear model, never towards zero.
 
 The \code{line_search} step does \strong{not} counteract this. It is scale-free -- for
@@ -160,15 +196,17 @@ near 1 whatever the residual's size -- so the applied step stays proportional
 to \code{learning_rate}. Measured node updates scale linearly with it, by a factor
 of 50 across a 50-fold change in the rate.
 
-\code{line_search} and \code{node_selection} expose two points where the manuscript and
-the original implementation disagree, so that either can be run.
+\code{line_search}, \code{node_selection} and \code{constant_rule} each select among
+alternative update rules -- the scope of the Newton step, which frontier node
+is split next, and how a node's constant is computed. There is no settled
+best choice among them, so each is tunable.
 }
 
 \examples{
 linad_hyperparams <- setup_LINAD(max_leaves = 10L, learning_rate = 0.1)
 linad_hyperparams
 # The Additive Tree is LINAD without the linear models
-addtree_hyperparams <- setup_LINAD(leaf_model = "constant", gamma = 0.8)
+addtree_hyperparams <- setup_LINAD(node_model = "constant", gamma = 0.8)
 addtree_hyperparams
 }
 \references{
