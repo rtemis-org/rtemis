@@ -15,8 +15,8 @@ plot_manhattan.MassGLM(
   p_transform = function(x) -log10(x),
   ylab = NULL,
   theme = choose_theme(getOption("rtemis_theme")),
-  col_pos = "#43A4AC",
-  col_neg = "#FA9860",
+  col_pos = SIGN_COLORS[["positive"]],
+  col_neg = SIGN_COLORS[["negative"]],
   alpha = 0.8,
   ...
 )

@@ -296,7 +296,17 @@ test_that("draw_linad creates a visNetwork object", {
   # Every node carries a table, not a line of text.
   expect_true(all(grepl("<table", nodes[["title"]], fixed = TRUE)))
   # And the node's own value, which is what the tree alone predicts there.
-  expect_true(all(grepl("tree value", nodes[["title"]], fixed = TRUE)))
+  expect_true(all(grepl("Node value", nodes[["title"]], fixed = TRUE)))
+  # It is the table's headline number, not a line of running text: label and
+  # value are separate elements, and both sit outside the scrolling element so
+  # they stay visible while a wide model's rows are scrolled.
+  head <- sub("<div style=\"max-height.*$", "", nodes[["title"]])
+  expect_true(all(grepl("Node value", head, fixed = TRUE)))
+  values <- ddSci(
+    mod@model@frame[["node_value"]][as.integer(nodes[["id"]])],
+    4L
+  )
+  expect_true(all(mapply(grepl, values, head, MoreArgs = list(fixed = TRUE))))
 })
 
 
@@ -370,9 +380,305 @@ test_that("draw_linad's top and sort_coefs shorten and order the tables", {
     "title"
   ]]
   rows <- function(html) lengths(regmatches(html, gregexpr("<tr>", html)))
-  # Header plus intercept plus `top` slopes.
+  # The column header plus `top` slopes. The caption is not a row: it sits
+  # outside the table so it survives scrolling.
   expect_true(all(rows(topped) < rows(full)))
-  expect_true(all(rows(topped) == 3L))
+  expect_true(all(rows(topped) == 2L))
+})
+
+
+test_that("draw_linad's tables carry selected slopes, not the intercept", {
+  skip_if_not_installed("visNetwork")
+  dat <- .linad_regression()
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(
+      max_leaves = 4L,
+      node_model = "forward",
+      nvmax = 1L,
+      force_max_leaves = TRUE
+    ),
+    verbosity = 0L
+  )
+  tips <- draw_linad(mod, verbosity = 0L)[["x"]][["nodes"]][["title"]]
+  # Column 1 of `coefficients` is the model's value at x = 0, not a fitted
+  # intercept -- the node models are fitted without one. It is a long
+  # extrapolation and does not belong in a table meant to be interpreted.
+  expect_false(any(grepl("(Int)", tips, fixed = TRUE)))
+  # The level is carried by the caption instead.
+  expect_true(all(grepl("Node value", tips, fixed = TRUE)))
+  # Forward selection zeroes most coefficients; a zero says the node's model did
+  # not select the feature, so padding the table with them says nothing.
+  expect_false(any(grepl(">0.000<", tips, fixed = TRUE)))
+  # And the table scrolls rather than growing past the screen on a wide model.
+  expect_true(all(grepl("overflow-y: auto", tips, fixed = TRUE)))
+})
+
+
+test_that("draw_linad says so when a node has no linear terms", {
+  skip_if_not_installed("visNetwork")
+  dat <- .linad_regression()
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(
+      max_leaves = 3L,
+      node_model = "constant",
+      force_max_leaves = TRUE
+    ),
+    verbosity = 0L
+  )
+  tips <- draw_linad(mod, verbosity = 0L)[["x"]][["nodes"]][["title"]]
+  # With constant nodes the node values are the whole model, so an empty table
+  # is correct -- but it has to say that rather than render as a blank box.
+  expect_true(all(grepl("no linear terms", tips, fixed = TRUE)))
+  expect_true(all(grepl("Node value", tips, fixed = TRUE)))
+})
+
+
+test_that("draw_linad places nodes so that none can overlap", {
+  # vis.js's own hierarchical layout does not guarantee this: its `nodeSpacing`
+  # applies to a nominal node size rather than the rendered box, so a node made
+  # wide by its label overlaps its siblings anyway. Measured in a browser at 12
+  # overlapping pairs on a 23-node tree, unchanged by disabling the layout's
+  # optimizations and barely moved by raising nodeSpacing to 500. The
+  # coordinates are therefore computed here, and this is the guarantee.
+  skip_if_not_installed("visNetwork")
+  set.seed(3)
+  n <- 200L
+  # Long feature names are what make the boxes wide enough to collide.
+  features <- c(
+    "GMD_Temporal_Sup_L",
+    "GMD_Temporal_Pole_Mid_L",
+    "GMD_Rolandic_Oper_L",
+    "GMD_Occipital_Sup_L"
+  )
+  dat <- as.data.frame(stats::setNames(
+    lapply(features, function(i) runif(n)),
+    features
+  ))
+  dat[["y"]] <- 63 + 0.3 * dat[[1L]] - 0.2 * dat[[2L]] + rnorm(n, sd = 0.1)
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(max_leaves = 10L, force_max_leaves = TRUE),
+    verbosity = 0L
+  )
+  node_width <- 180L
+  node_gap <- 24L
+  font_size <- 14L
+  p <- draw_linad(
+    mod,
+    node_width = node_width,
+    node_gap = node_gap,
+    font_size = font_size,
+    verbosity = 0L
+  )
+  nodes <- p[["x"]][["nodes"]]
+  expect_true(all(c("x", "y") %in% names(nodes)))
+  # Separation is per pair, so the check is per pair: two neighbors must be at
+  # least their two half-widths plus the gap apart.
+  widths <- rtemis:::linad_label_width(nodes[["label"]], font_size, node_width)
+  for (level in unique(nodes[["y"]])) {
+    at_level <- which(nodes[["y"]] == level)
+    ordered <- at_level[order(nodes[["x"]][at_level])]
+    for (i in seq_along(ordered)[-1L]) {
+      left <- ordered[[i - 1L]]
+      right <- ordered[[i]]
+      expect_gte(
+        nodes[["x"]][[right]] - nodes[["x"]][[left]],
+        (widths[[left]] + widths[[right]]) / 2 + node_gap - 1e-8
+      )
+    }
+  }
+})
+
+
+test_that("linad_layout centers parents and separates every level", {
+  frame <- data.table::data.table(
+    node = 1:5,
+    parent = c(NA, 1L, 1L, 2L, 2L),
+    left = c(2L, 4L, NA, NA, NA),
+    right = c(3L, 5L, NA, NA, NA),
+    depth = c(0L, 1L, 1L, 2L, 2L)
+  )
+  out <- rtemis:::linad_layout(
+    frame,
+    1:5,
+    widths = rep(80, 5L),
+    gap = 20,
+    level_separation = 50
+  )
+  expect_length(out[["x"]], 5L)
+  # Depth drives the other axis.
+  expect_identical(out[["y"]], c(0, 50, 50, 100, 100))
+  # No two nodes at a depth are closer than their widths plus the gap.
+  for (level in unique(out[["y"]])) {
+    at_level <- sort(out[["x"]][out[["y"]] == level])
+    if (length(at_level) > 1L) {
+      expect_true(all(diff(at_level) >= 80 + 20 - 1e-8))
+    }
+  }
+  # Node 2 has two children and sits centered between them.
+  expect_equal(out[["x"]][[2L]], mean(out[["x"]][c(4L, 5L)]))
+  # Direction swaps the axes rather than recomputing anything.
+  sideways <- rtemis:::linad_layout(
+    frame,
+    1:5,
+    widths = rep(80, 5L),
+    gap = 20,
+    level_separation = 50,
+    direction = "LR"
+  )
+  expect_identical(sideways[["x"]], out[["y"]])
+  expect_identical(sideways[["y"]], out[["x"]])
+})
+
+
+test_that("draw_linad marks the node whose table is showing", {
+  skip_if_not_installed("visNetwork")
+  dat <- .linad_regression()
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(max_leaves = 5L, force_max_leaves = TRUE),
+    verbosity = 0L
+  )
+  nodes <- draw_linad(mod, verbosity = 0L)[["x"]][["nodes"]]
+  # Colors go in per node as an object, not as one string: given a string,
+  # vis.js derives every state from it and the hover border could then never
+  # differ from the fill.
+  expect_true(all(
+    c("color.background", "color.border", "color.hover.border") %in%
+      names(nodes)
+  ))
+  # At rest the border matches the fill, so it reads as no border at all.
+  expect_identical(nodes[["color.border"]], nodes[["color.background"]])
+  # On hover it flips to one color, on every node, and that color is not a
+  # fill anywhere in the tree -- otherwise the marker could not be told from
+  # an ordinary node.
+  hover <- unique(nodes[["color.hover.border"]])
+  expect_length(hover, 1L)
+  expect_false(hover %in% nodes[["color.background"]])
+  # The fill itself does not change on hover; only the border does.
+  expect_identical(
+    nodes[["color.hover.background"]],
+    nodes[["color.background"]]
+  )
+  # An explicit hover color is honored.
+  marked <- draw_linad(mod, hover_col = "#FF00FF", verbosity = 0L)
+  expect_identical(
+    unique(marked[["x"]][["nodes"]][["color.hover.border"]]),
+    "#FF00FF"
+  )
+
+  # And the table is bordered, or a mid-gray panel over mid-gray nodes has no
+  # edge at all. It follows the theme, since it has to read against both the
+  # canvas behind it and the table inside it.
+  for (name in c("darkgray", "white")) {
+    theme <- choose_theme(name)
+    tips <- draw_linad(mod, theme = theme, verbosity = 0L)[["x"]][["nodes"]][[
+      "title"
+    ]]
+    expect_true(all(grepl(
+      paste0("border: 1px solid ", theme[["fg"]]),
+      tips,
+      fixed = TRUE
+    )))
+  }
+})
+
+
+test_that("draw_linad colors coefficients by the package-wide sign scale", {
+  skip_if_not_installed("visNetwork")
+  # The same two colors mean the same two signs here as in draw_volcano() and
+  # plot_manhattan(), so the palette is read from one place rather than
+  # restated per plot.
+  signs <- rtemis:::SIGN_COLORS
+  defaults <- formals(draw_linad)
+  expect_identical(eval(defaults[["lo_col"]]), signs[["negative"]])
+  expect_identical(eval(defaults[["hi_col"]]), signs[["positive"]])
+  # Node fills come from the theme, and no theme may put a node on either end
+  # of the sign scale: a hue would then mean a coefficient's sign in one place
+  # and a node's role in another.
+  ends <- c(signs[["negative"]], signs[["positive"]])
+  for (name in c("darkgray", "white", "black", "lightgraygrid")) {
+    fills <- rtemis:::linad_palette(choose_theme(name))
+    expect_false(any(
+      unlist(fills[c("root", "node", "leaf")]) %in% ends
+    ))
+  }
+})
+
+
+test_that("twocol2html sets every label in one treatment", {
+  html <- rtemis:::twocol2html(
+    data.frame(Term = "a", Coefficient = 1),
+    caption = "Node value",
+    caption_value = "63.0242"
+  )
+  # The caption's label and the two column headers name the values beneath
+  # them, so all three carry the same style, from one string.
+  labels <- regmatches(
+    html,
+    gregexpr("text-transform: uppercase[^\"]*", html)
+  )[[1L]]
+  expect_length(labels, 3L)
+  expect_length(unique(labels), 1L)
+  # The opacity has to sit on an inner element: on the `th`, which carries the
+  # header background, it would fade that background too and let the table
+  # show through.
+  headers <- regmatches(html, gregexpr("<th[^>]*>", html))[[1L]]
+  expect_true(all(grepl("background-color", headers, fixed = TRUE)))
+  expect_false(any(grepl("opacity", headers, fixed = TRUE)))
+  # A caption with no value under it is content, not a label for something.
+  plain <- rtemis:::twocol2html(
+    data.frame(Term = "a", Coefficient = 1),
+    caption = "Just a caption"
+  )
+  expect_equal(
+    lengths(regmatches(
+      plain,
+      gregexpr("text-transform: uppercase", plain)
+    )),
+    2L,
+    ignore_attr = TRUE
+  )
+})
+
+
+test_that("draw_linad labels a node in two tiers", {
+  skip_if_not_installed("visNetwork")
+  dat <- .linad_regression()
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(max_leaves = 5L, force_max_leaves = TRUE),
+    verbosity = 0L
+  )
+  nodes <- draw_linad(mod, verbosity = 0L)[["x"]][["nodes"]]
+  labels <- nodes[["label"]]
+  # An eyebrow carrying the node value and the case count, over the rule. The
+  # markup selects vis.js font slots; it is not decoration.
+  expect_true(all(grepl("^<b>[^<]+</b><i>[^<]*n=[0-9]+</i>\n", labels)))
+  # The relational characters, not their ASCII digraphs.
+  expect_false(any(grepl(">=", labels, fixed = TRUE)))
+  expect_true(any(grepl("\u2265", labels, fixed = TRUE)))
+  # Negative numbers carry a minus sign, as the coefficient table does, not a
+  # hyphen. Checked on a value known to be negative rather than on whatever
+  # this fit produced.
+  expect_identical(rtemis:::linad_minus("-1.5"), "\u{2212}1.5")
+  expect_identical(rtemis:::linad_minus("1.5"), "1.5")
+  # Turning both off leaves the rule alone, with no stray separator.
+  bare <- draw_linad(
+    mod,
+    show_node_value = FALSE,
+    show_ncases = FALSE,
+    verbosity = 0L
+  )[["x"]][["nodes"]][["label"]]
+  expect_false(any(grepl("<b>|<i>|\u00B7", bare)))
+  # And either one alone is well formed.
+  only_n <- draw_linad(mod, show_node_value = FALSE, verbosity = 0L)
+  expect_true(all(grepl(
+    "^<i>n=[0-9]+</i>\n",
+    only_n[["x"]][["nodes"]][["label"]]
+  )))
 })
 
 

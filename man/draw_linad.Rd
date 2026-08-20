@@ -7,18 +7,24 @@
 draw_linad(
   x,
   n_leaves = NULL,
-  top = NULL,
+  top = 15L,
   sort_coefs = TRUE,
   direction = "UD",
+  node_width = 180L,
+  node_gap = 16L,
+  level_separation = NULL,
+  font_size = 14L,
   node_labels = TRUE,
   show_ncases = TRUE,
   show_node_value = TRUE,
-  lo_col = "#0290EE",
-  mid_col = "#1A1A1A",
-  hi_col = "#FE4AA3",
-  root_col = "#7F7F7F",
-  node_col = "#404040",
-  leaf_col = "#16A0AC",
+  lo_col = SIGN_COLORS[["negative"]],
+  mid_col = NULL,
+  hi_col = SIGN_COLORS[["positive"]],
+  root_col = NULL,
+  node_col = NULL,
+  leaf_col = NULL,
+  hover_col = NULL,
+  height = "600px",
   theme = choose_theme(getOption("rtemis_theme")),
   verbosity = 1L
 )
@@ -30,12 +36,26 @@ fitted LINAD model itself.}
 \item{n_leaves}{Optional Integer: Draw the tree at this size. NULL draws the
 size selected at training.}
 
-\item{top}{Optional Integer: Show only this many coefficients per node,
-largest in absolute value first.}
+\item{top}{Optional Integer: Show this many coefficients per node, largest in
+absolute value first. NULL shows every one, which on a wide model is neither
+readable nor quick to render.}
 
 \item{sort_coefs}{Logical: If TRUE, order each table by absolute coefficient.}
 
 \item{direction}{Character \{"UD", "DU", "LR", "RL"\}: Tree direction.}
+
+\item{node_width}{Integer: Largest node width in pixels. Labels wrap to stay
+within it, which is what keeps a long feature name from widening a node past
+the space the layout reserves for it.}
+
+\item{node_gap}{Integer: Clear pixels to leave between two boxes on the same
+level. Separation is computed per pair from the two nodes' own widths, so a
+narrow node sits close to its neighbor instead of being spaced as though it
+were the widest node in the tree.}
+
+\item{level_separation}{Optional Integer: Pixels between levels.}
+
+\item{font_size}{Integer: Label font size in pixels.}
 
 \item{node_labels}{Logical: If TRUE, label nodes with their rule.}
 
@@ -44,19 +64,38 @@ largest in absolute value first.}
 \item{show_node_value}{Logical: If TRUE, include the node's own value in its
 label.}
 
-\item{lo_col}{Character: Color for the most negative coefficient.}
+\item{lo_col}{Character: Color for the most negative coefficient. Defaults
+to the package-wide negative color, the same one \code{draw_volcano()} and
+\code{plot_manhattan()} use.}
 
-\item{mid_col}{Character: Color at zero.}
+\item{mid_col}{Optional Character: Color at zero. NULL uses the coefficient
+table's own background, so a coefficient of no consequence shows as no cell
+at all.}
 
-\item{hi_col}{Character: Color for the most positive coefficient.}
+\item{hi_col}{Character: Color for the most positive coefficient. Defaults
+to the package-wide positive color.}
 
-\item{root_col}{Character: Root node color.}
+\item{root_col}{Optional Character: Root node color. NULL follows the theme.}
 
-\item{node_col}{Character: Internal node color.}
+\item{node_col}{Optional Character: Internal node color. NULL follows the
+theme.}
 
-\item{leaf_col}{Character: Terminal node color.}
+\item{leaf_col}{Optional Character: Terminal node color. NULL follows the
+theme. Kept off the two ends of the coefficient scale, so a hue in this plot
+means a coefficient's sign and nothing else.}
 
-\item{theme}{\code{Theme} object.}
+\item{hover_col}{Optional Character: Border color marking the node the
+coefficient table belongs to. NULL uses the theme foreground.}
+
+\item{height}{Character: CSS height. A length rather than a percentage: a
+percentage of a container with no height of its own collapses.}
+
+\item{theme}{\code{Theme} object. Node fills, the coefficient table and the hover
+marker all follow it, chosen by the background's luminance rather than by
+theme name so that a custom theme is handled too. The two ends of the
+coefficient scale do not follow it: both ends read on either background, and
+a sign that changed color with the theme would be worse than one that did
+not.}
 
 \item{verbosity}{Integer: If > 0, print messages.}
 }
