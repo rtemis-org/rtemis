@@ -660,6 +660,224 @@ test_that("train() CART Multiclass Classification succeeds", {
   expect_s7_class(modt_c3_cart, Classification)
 })
 
+# --- LINAD ----------------------------------------------------------------------------------------
+# LINAD is implemented in this package rather than wrapped, so these blocks
+# cover the pipeline; the engine's own arithmetic is checked in test_LINAD.R.
+
+## {LINAD}[train]<Regression> ----
+mod_r_linad <- train(
+  datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_LINAD(max_leaves = 6L),
+  verbosity = 0L
+)
+test_that("train() LINAD Regression succeeds", {
+  expect_s7_class(mod_r_linad, Regression)
+  expect_s7_class(mod_r_linad@model, rtemis:::LinearAdditiveTree)
+})
+
+## {LINAD}[predict]<Regression> ----
+test_that("predict() LINAD Regression reproduces the stored fitted values", {
+  expect_equal(
+    predict(mod_r_linad, features(datr_train)),
+    mod_r_linad@predicted_training,
+    tolerance = 1e-8
+  )
+})
+
+## {LINAD}[varimp]<Regression> ----
+test_that("get_varimp() LINAD reports both of its measures", {
+  vi <- get_varimp(mod_r_linad)
+  expect_s7_class(vi, VariableImportance)
+  expect_identical(
+    names(vi@data),
+    c("variable", "importance", "split_gain")
+  )
+  expect_setequal(vi@data[["variable"]], names(features(datr_train)))
+  # The outcome is x[, 3] + x[, 5] plus a group effect, so those three carry the
+  # linear signal and a measure that cannot see them is not measuring anything.
+  ranked <- vi@data[["variable"]][order(-vi@data[["importance"]])][1:3]
+  expect_setequal(ranked, c("V3", "V5", "g"))
+})
+
+## {LINAD}[train]<Regression> Leaf-count selection ----
+test_that("train() LINAD selects the number of leaves on a validation set", {
+  mod <- train(
+    datr_train,
+    dat_validation = datr_test,
+    hyperparameters = setup_LINAD(max_leaves = 8L),
+    verbosity = 0L
+  )
+  expect_lte(mod@model@n_leaves, length(mod@model@steps))
+  expect_length(mod@model@leaf_curve, length(mod@model@steps))
+  # The frame's leaf flags describe the tree at the size that was selected.
+  expect_setequal(
+    mod@model@frame[["node"]][mod@model@frame[["is_leaf"]]],
+    mod@model@steps[[mod@model@n_leaves]]
+  )
+})
+
+test_that("train() LINAD keeps every leaf when told to", {
+  mod <- train(
+    datr_train,
+    hyperparameters = setup_LINAD(max_leaves = 5L, force_max_leaves = TRUE),
+    verbosity = 0L
+  )
+  expect_identical(mod@model@n_leaves, length(mod@model@steps))
+})
+
+## {LINAD}[train]<Regression> Grid search ----
+modt_r_linad <- train(
+  datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_LINAD(
+    max_leaves = tune_over(3L, 6L),
+    force_max_leaves = TRUE
+  ),
+  execution_config = setup_ExecutionConfig(backend = "none"),
+  verbosity = 0L
+)
+test_that("train() LINAD Regression with grid search succeeds", {
+  expect_s7_class(modt_r_linad, Regression)
+  expect_identical(modt_r_linad@hyperparameters@tuned, 1L)
+})
+
+## {LINAD}[train]<RegressionRes> ----
+resmod_r_linad <- train(
+  x = datr,
+  hyperparameters = setup_LINAD(max_leaves = 4L, force_max_leaves = TRUE),
+  outer_resampling_config = setup_Resampler(3L),
+  execution_config = setup_ExecutionConfig(backend = "none"),
+  verbosity = 0L
+)
+test_that("train() LINAD RegressionRes succeeds", {
+  expect_s7_class(resmod_r_linad, RegressionRes)
+})
+
+## {LINAD}[train]<Classification> ----
+mod_c_linad <- train(
+  datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_LINAD(max_leaves = 4L, leaf_model = "ridge"),
+  verbosity = 0L
+)
+test_that("train() LINAD Classification succeeds", {
+  expect_s7_class(mod_c_linad, Classification)
+})
+
+test_that("predict() LINAD returns the probability of the second level", {
+  # A flipped column is still a valid probability, so nothing else catches this.
+  probability <- predict(mod_c_linad, features(datc2_test))
+  observed <- outcome(datc2_test)
+  levels_observed <- levels(observed)
+  expect_gt(
+    mean(probability[observed == levels_observed[[2L]]]),
+    mean(probability[observed == levels_observed[[1L]]])
+  )
+})
+
+## {LINAD}[train]<Classification> IFW ----
+test_that("train() LINAD Classification with IFW succeeds", {
+  expect_s7_class(
+    train(
+      datc2_train,
+      dat_test = datc2_test,
+      hyperparameters = setup_LINAD(max_leaves = 3L, ifw = TRUE),
+      verbosity = 0L
+    ),
+    Classification
+  )
+})
+
+## {LINAD}[train]<ClassificationRes> ----
+test_that("train() LINAD ClassificationRes succeeds", {
+  expect_s7_class(
+    train(
+      x = datc2,
+      hyperparameters = setup_LINAD(max_leaves = 3L, force_max_leaves = TRUE),
+      outer_resampling_config = setup_Resampler(3L),
+      execution_config = setup_ExecutionConfig(backend = "none"),
+      verbosity = 0L
+    ),
+    ClassificationRes
+  )
+})
+
+## {LINAD}[train]<Classification> Multiclass is refused ----
+test_that("train() LINAD refuses a multiclass outcome", {
+  expect_error(
+    train(
+      datc3_train,
+      hyperparameters = setup_LINAD(max_leaves = 3L),
+      verbosity = 0L
+    ),
+    class = "rtemis_unsupported_error"
+  )
+})
+
+## {LINAD} AddTree mode ----
+test_that("train() LINAD with constant leaves is an Additive Tree", {
+  mod <- train(
+    datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_LINAD(
+      max_leaves = 4L,
+      leaf_model = "constant",
+      gamma = 0.8
+    ),
+    verbosity = 0L
+  )
+  expect_s7_class(mod, Classification)
+  expect_true(all(abs(mod@model@coefficients[, -1L, drop = FALSE]) < 1e-10))
+})
+
+## {LINAD} Exhaustive split search ----
+test_that("train() LINAD with the exhaustive split search succeeds", {
+  expect_s7_class(
+    train(
+      datr_train,
+      dat_test = datr_test,
+      hyperparameters = setup_LINAD(
+        max_leaves = 3L,
+        leaf_model = "ridge",
+        split_search = "exhaustive",
+        force_max_leaves = TRUE
+      ),
+      verbosity = 0L
+    ),
+    Regression
+  )
+})
+
+## {LINAD} saveRDS round trip ----
+test_that("a saved LINAD model predicts identically", {
+  path <- tempfile(fileext = ".rds")
+  saveRDS(mod_r_linad, path)
+  restored <- readRDS(path)
+  expect_equal(
+    predict(restored, features(datr_test)),
+    predict(mod_r_linad, features(datr_test))
+  )
+})
+
+## {LINAD} Missing data is refused ----
+test_that("train() LINAD with missing data throws an error", {
+  datr_train_na <- datr_train
+  datr_train_na[1:5, 1] <- NA
+  expect_error(
+    train(datr_train_na, hyperparameters = setup_LINAD(), verbosity = 0L)
+  )
+})
+
+## {LINAD} Algorithm name dispatch ----
+test_that("get_default_hyperparameters() resolves LINAD", {
+  expect_s7_class(
+    get_default_hyperparameters("LINAD"),
+    rtemis:::LINADHyperparameters
+  )
+})
+
+
 # --- LightCART ------------------------------------------------------------------------------------
 ## {LightCART}[train]<Regression> ----
 mod_r_lightcart <- train(

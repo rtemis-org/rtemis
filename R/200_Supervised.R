@@ -2891,7 +2891,7 @@ make_SupervisedRes <- function(
   }
 } # /rtemis::make_SupervisedRes
 
-early_stopping_algs <- c("LightGBM", "LightRF", "LightRuleFit", "MLP")
+early_stopping_algs <- c("LightGBM", "LightRF", "LightRuleFit", "LINAD", "MLP")
 
 
 # MLPModel ----
@@ -3089,6 +3089,80 @@ method(print, StackedLearner) <- function(x, ...) {
   print(x@cv_risk)
   invisible(x)
 } # /rtemis::print.StackedLearner
+
+
+# LinearAdditiveTree ----
+#' LinearAdditiveTree
+#'
+#' @description
+#' Class for LINAD models: a decision tree carrying a linear model at every
+#' node.
+#'
+#' Flat by design. `frame` holds one row per node and `coefficients` one row of
+#' coefficients per node, in place of a nested structure -- routing is then a
+#' vectorized pass per internal node rather than a walk per case, and the whole
+#' object serializes with no external references.
+#'
+#' A node's coefficients are the accumulated sum along its path, so prediction
+#' is one dot product per case. There is no separate initialization term: the
+#' root model's intercept is it.
+#'
+#' `steps[[k]]` holds the terminal node ids the tree had when it reached `k`
+#' leaves, which is what lets one grown tree be evaluated at any smaller size --
+#' the mechanism behind selecting the number of leaves on held-out data.
+#'
+#' @author EDG
+#' @noRd
+LinearAdditiveTree <- new_class(
+  name = "LinearAdditiveTree",
+  package = "rtemis",
+  properties = list(
+    frame = class_data.table,
+    coefficients = class_double,
+    steps = class_list,
+    n_leaves = class_integer,
+    # The features as `train()` saw them, and their levels, so the design matrix
+    # is rebuilt at predict time exactly as it was fitted.
+    xnames = class_character,
+    xlev = class_list,
+    # Which feature each design column came from, and its training spread.
+    # `varimp_super()` needs both: the first to fold a factor's dummy columns
+    # back into one feature, the second to compare coefficients across features
+    # measured on different scales.
+    design_assign = class_integer,
+    design_scale = class_double,
+    type = class_character,
+    y_levels = NULL | class_character,
+    leaf_curve = NULL | class_numeric
+  )
+) # /rtemis::LinearAdditiveTree
+
+
+# Print LinearAdditiveTree ----
+method(print, LinearAdditiveTree) <- function(x, ...) {
+  objcat("rtemis Linear Additive Tree")
+  n_nodes <- nrow(x@frame)
+  cat(
+    "Tree of ",
+    highlight(x@n_leaves),
+    ngettext(x@n_leaves, " leaf", " leaves"),
+    " over ",
+    highlight(n_nodes),
+    ngettext(n_nodes, " node", " nodes"),
+    ", max depth ",
+    highlight(max(x@frame[["depth"]])),
+    ".\n",
+    sep = ""
+  )
+  cat(
+    "Each leaf carries a linear model over ",
+    highlight(ncol(x@coefficients) - 1L),
+    ngettext(ncol(x@coefficients) - 1L, " term", " terms"),
+    ".\n",
+    sep = ""
+  )
+  invisible(x)
+} # /rtemis::print.LinearAdditiveTree
 
 
 # NNLS ----

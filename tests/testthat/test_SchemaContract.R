@@ -94,6 +94,7 @@
     list(BARTHyperparameters, "setup_BART"),
     list(HALHyperparameters, "setup_HAL"),
     list(MonotonicHALHyperparameters, "setup_MonotonicHAL"),
+    list(LINADHyperparameters, "setup_LINAD"),
     list(NNLSHyperparameters, "setup_NNLS"),
     list(SuperLearnerHyperparameters, "setup_SuperLearner"),
     list(ModalityStackingHyperparameters, "setup_ModalityStacking"),

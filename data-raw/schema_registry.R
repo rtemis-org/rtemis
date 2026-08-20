@@ -297,6 +297,10 @@ families <- list(
         desc = "Monotonic Highly Adaptive Lasso (hal9001). See `setup_MonotonicHAL`."
       ),
       list(
+        cls = LINADHyperparameters,
+        desc = "Linear Additive Tree. See `setup_LINAD`."
+      ),
+      list(
         cls = NNLSHyperparameters,
         desc = "Non-negative least squares (nnls). See `setup_NNLS`."
       ),
