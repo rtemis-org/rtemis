@@ -255,3 +255,133 @@ test_that("draw_xt creates a plotly object", {
   p <- draw_xt(df, x = df[, 1], y = df[, 2:3])
   expect_s3_class(p, "plotly")
 })
+
+
+# draw_linad ----
+# The coefficient tables are the reason this plot exists: a LINAD leaf's
+# coefficients are the accumulated sum along its path, so a feature can carry a
+# different slope -- and a different sign -- in each region. These check that
+# the tables are present, are tables, and are colored on a scale that makes a
+# sign change visible.
+
+.linad_regression <- function(n = 300L) {
+  set.seed(9)
+  x <- data.frame(
+    a = rnorm(n),
+    b = rnorm(n),
+    g = factor(sample(c("p", "q"), n, replace = TRUE))
+  )
+  # Opposite-signed slopes either side of the b split.
+  x[["y"]] <- ifelse(x[["b"]] < 0, 3 * x[["a"]], -3 * x[["a"]]) +
+    ifelse(x[["g"]] == "p", 2, -2) +
+    20 +
+    rnorm(n, sd = 0.5)
+  x
+}
+
+test_that("draw_linad creates a visNetwork object", {
+  skip_if_not_installed("visNetwork")
+  dat <- .linad_regression()
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(max_leaves = 5L, force_max_leaves = TRUE),
+    verbosity = 0L
+  )
+  p <- draw_linad(mod, verbosity = 0L)
+  expect_s3_class(p, "visNetwork")
+  nodes <- p[["x"]][["nodes"]]
+  edges <- p[["x"]][["edges"]]
+  # A tree has one edge per node bar the root.
+  expect_identical(nrow(edges), nrow(nodes) - 1L)
+  # Every node carries a table, not a line of text.
+  expect_true(all(grepl("<table", nodes[["title"]], fixed = TRUE)))
+  # And the node's own value, which is what the tree alone predicts there.
+  expect_true(all(grepl("tree value", nodes[["title"]], fixed = TRUE)))
+})
+
+
+test_that("draw_linad draws a classification, and a smaller tree on request", {
+  skip_if_not_installed("visNetwork")
+  dat <- .linad_regression()
+  dat[["y"]] <- factor(
+    ifelse(dat[["y"]] > stats::median(dat[["y"]]), "hi", "lo"),
+    levels = c("lo", "hi")
+  )
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(max_leaves = 5L, force_max_leaves = TRUE),
+    verbosity = 0L
+  )
+  expect_s3_class(draw_linad(mod, verbosity = 0L), "visNetwork")
+  # `is_leaf` describes the size selected at training, so a smaller size has to
+  # be read from `steps` instead; drawing 2 leaves must give 3 nodes, not 9.
+  small <- draw_linad(mod, n_leaves = 2L, verbosity = 0L)
+  expect_identical(nrow(small[["x"]][["nodes"]]), 3L)
+  expect_error(draw_linad(mod, n_leaves = 99L), class = "rtemis_range_error")
+})
+
+
+test_that("draw_linad's color scale is centered on zero", {
+  # The property the whole design rests on: a coefficient and its negation must
+  # land at opposite ends of the scale, so a sign flip between nodes reads as a
+  # color flip rather than as a number to be parsed.
+  colors <- rtemis:::linad_diverging(
+    c(-2, -1, 0, 1, 2),
+    lo_col = "#0290EE",
+    mid_col = "#1A1A1A",
+    hi_col = "#FE4AA3"
+  )
+  expect_length(colors, 5L)
+  expect_identical(colors[[1L]], "#0290EE")
+  expect_identical(colors[[5L]], "#FE4AA3")
+  # Zero sits at the midpoint, and equal magnitudes sit symmetrically about it.
+  expect_identical(colors[[3L]], "#1A1A1A")
+  expect_false(identical(colors[[2L]], colors[[4L]]))
+  # A shifted set of values does not move where zero sits.
+  shifted <- rtemis:::linad_diverging(
+    c(0, 1, 2, 3, 4),
+    lo_col = "#0290EE",
+    mid_col = "#1A1A1A",
+    hi_col = "#FE4AA3"
+  )
+  expect_identical(shifted[[1L]], "#1A1A1A")
+  # All-zero input cannot divide by zero; it returns the midpoint throughout.
+  expect_identical(
+    unique(rtemis:::linad_diverging(c(0, 0), "#0290EE", "#1A1A1A", "#FE4AA3")),
+    "#1A1A1A"
+  )
+})
+
+
+test_that("draw_linad's top and sort_coefs shorten and order the tables", {
+  skip_if_not_installed("visNetwork")
+  dat <- .linad_regression()
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(
+      max_leaves = 4L,
+      node_model = "ridge",
+      force_max_leaves = TRUE
+    ),
+    verbosity = 0L
+  )
+  full <- draw_linad(mod, verbosity = 0L)[["x"]][["nodes"]][["title"]]
+  topped <- draw_linad(mod, top = 1L, verbosity = 0L)[["x"]][["nodes"]][[
+    "title"
+  ]]
+  rows <- function(html) lengths(regmatches(html, gregexpr("<tr>", html)))
+  # Header plus intercept plus `top` slopes.
+  expect_true(all(rows(topped) < rows(full)))
+  expect_true(all(rows(topped) == 3L))
+})
+
+
+test_that("draw_linad refuses a model that is not a LINAD", {
+  skip_if_not_installed("visNetwork")
+  mod <- train(
+    iris[51:150, ],
+    hyperparameters = setup_CART(),
+    verbosity = 0L
+  )
+  expect_error(draw_linad(mod), class = "rtemis_type_error")
+})

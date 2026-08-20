@@ -11,6 +11,7 @@
 - `setup_LINAD(gamma = )` moves the fit between a hard partition at 0 and one global linear model at 1, each case carrying `gamma^depth` of its weight into the other branch.
 - `setup_LINAD(root_learning_rate = )` shrinks only the root's slopes: at 0 the root is the outcome mean and the tree splits first, at 1 a full linear model is fitted before any split.
 - `setup_LINAD(constant_rule = )`, `(line_search = )` and `(node_selection = )` select among alternative update rules: how a node's constant is computed, the scope of the Newton step, and which node is split next.
+- New `draw_linad()`: the fitted tree as an interactive hierarchy, each node labelled with what the tree alone predicts there and carrying its linear coefficients in a color-graded table on hover, so a coefficient changing sign between nodes reads at a glance.
 - `setup_LINAD(split_binning = , split_bin_type = )` discretize numeric features before either split search, spacing cut points by case or by range.
 
 ## 1.3.6

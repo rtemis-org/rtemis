@@ -106,6 +106,7 @@ Suggests:
     torch,
     uwot,
     vegan,
+    visNetwork,
     vroom,
     withr
 Encoding: UTF-8
