@@ -1677,7 +1677,11 @@ SupervisedRes <- new_class(
     ),
     preprocessor_config = NULL | PreprocessorConfig,
     decomposition_config = NULL | DecompositionConfig,
-    hyperparameters = NULL | Hyperparameters,
+    # A resampled run holds what was *asked for*, and that may be a set: each
+    # fold tunes independently and may select a different member, so there is no
+    # single winner at this level. The per-fold winners are on the models, whose
+    # own `hyperparameters` is always one resolved configuration.
+    hyperparameters = NULL | Hyperparameters | HyperparametersSet,
     tuner_config = NULL | TunerConfig,
     outer_resampler = Resampler,
     execution_config = ExecutionConfig,

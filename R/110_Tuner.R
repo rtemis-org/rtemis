@@ -227,8 +227,16 @@ setup_GridSearch <- function(
 #' @field type Character: Type of tuner.
 #' @field hyperparameters Named list of tunable and fixed hyperparameters.
 #' @field tuning_results Data.frame: Tuning results.
+#' @field best_variant Optional Character: Name of the `HyperparametersSet`
+#'   member the winning combination came from. NULL for a single-object search.
 #' @field best_hyperparameters Named list of best hyperparameter values. Includes only
 #' hyperparameters that were tuned.
+#'
+#' `hyperparameters` holds the **winning** configuration, which for a search
+#' over a `HyperparametersSet` is the member that won rather than the set. A
+#' union typed `Hyperparameters | HyperparametersSet` would take its prototype
+#' from an abstract class, which is the hazard the union-order rule exists for;
+#' `best_variant` carries the member's name instead.
 #'
 #' @author EDG
 #' @noRd
@@ -240,7 +248,13 @@ Tuner <- new_class(
     hyperparameters = Hyperparameters,
     tuner_config = TunerConfig,
     tuning_results = class_list, # with 2 elements: metrics_training, metrics_validation
-    best_hyperparameters = class_list
+    best_hyperparameters = class_list,
+    # Which member of a `HyperparametersSet` the winning combination came from,
+    # or NULL when the search was over a single object. Kept beside
+    # `best_hyperparameters` rather than inside it: that list is hyperparameter
+    # values, and a variant name is not one -- `.update_hyperparameters()`
+    # rejects any name that is not a settable hyperparameter.
+    best_variant = NULL | class_character
   )
 ) # /rtemis::Tuner
 
@@ -268,7 +282,8 @@ GridSearch <- new_class(
     hyperparameters,
     tuner_config,
     tuning_results,
-    best_hyperparameters
+    best_hyperparameters,
+    best_variant = NULL
   ) {
     type <- "GridSearch"
     new_object(
@@ -277,7 +292,8 @@ GridSearch <- new_class(
         hyperparameters = hyperparameters,
         tuner_config = tuner_config,
         tuning_results = tuning_results,
-        best_hyperparameters = best_hyperparameters
+        best_hyperparameters = best_hyperparameters,
+        best_variant = best_variant
       )
     )
   }

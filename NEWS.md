@@ -2,6 +2,12 @@
 
 ## 1.3.7
 
+- **`train()` takes a list of hyperparameter configurations and searches all of them** -- `train(x, list(cart = setup_LINAD(...), addtree = setup_LINAD(...)))`. Each is expanded and gated on its own and the tuner selects across their union, so combinations a cross-product cannot express are now a search space. All members must be for one algorithm.
+- The winner is named: `mod@hyperparameters@variant` says which configuration was selected, and under outer resampling each fold selects independently. Unnamed configurations are labelled by position.
+- This is what makes "which special case does this dataset select?" answerable **inside** the inner resampling loop. Comparing separate `train()` runs selects on the test data; this does not.
+- `tuning_grid()` on a list returns the union of the members' grids with a `.variant` column, and a row always specifies its configuration in full -- a hyperparameter another member tunes is filled from this one's own value, never left blank.
+- A run's config artifact carries the set it was given, and travels as `{"variants": {...}}`; the `superconfig` schema admits either one configuration or a named set of them.
+- **`tune_GridSearch()` now says why when every grid cell fails.** It reported the count and nothing else, so a systematic failure -- the common case, since every cell shares a cause -- gave no way in.
 - **New `bias_variance()`**: splits a learner's error into the part from being systematically wrong and the part from being unstable, by refitting over resamples and watching the predictions at a fixed test set. Populates the `BiasVariance` class, which had existed with nothing to produce one.
 - `bias_variance(true_values = )` measures squared bias against the true function where it is known, which only simulated data offers. Without it, bias is measured against the observed outcome and so carries the irreducible noise -- measured at 0.997 against a true variance of 1.
 - `bias_variance()` reports the sample variance across resamples, unbiased for the variance of the fitted function, and one estimate per test case rather than one number.

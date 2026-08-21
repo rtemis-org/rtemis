@@ -56,7 +56,7 @@ tune_GridSearch <- function(
   verbosity = 1L,
   on_error = "continue"
 ) {
-  check_is_S7(hyperparameters, Hyperparameters)
+  check_hyperparameters(hyperparameters)
   check_is_S7(tuner_config, TunerConfig)
   stopifnot(needs_tuning(hyperparameters))
 
@@ -76,12 +76,38 @@ tune_GridSearch <- function(
   }
 
   # Make Grid ----
-  grid_params <- get_hyperparams_need_tuning(hyperparameters)
+  # A set searches over its members; a single object is its own only member, and
+  # `tuning_members()` returns NULL for it so a fit that came from no set leaves
+  # `variant` unset.
+  members <- tuning_members(hyperparameters)
+  # Which hyperparameters were left for the search to determine. The GLMNET and
+  # LightGBM collection steps below read it to tell "the user fixed this" from
+  # "the backend chose it". For a set it is the union over members: those steps
+  # rewrite the whole grid, so the question they ask -- was this left open? --
+  # is only answerable of the search as a whole.
+  grid_params <- if (is.null(members)) {
+    get_hyperparams_need_tuning(hyperparameters)
+  } else {
+    Reduce(
+      function(a, b) utils::modifyList(a, b),
+      lapply(members, get_hyperparams_need_tuning)
+    )
+  }
   n_resamples <- tuner_config[["resampler_config"]][["n_resamples"]]
   search_type <- tuner_config[["search_type"]]
   # The single source of the combinations to fit, gated and deduplicated, and
-  # what `tuning_grid()` previews.
-  n_combinations_expanded <- prod(pmax(lengths(grid_params), 1L))
+  # what `tuning_grid()` previews. A set's expansion is the sum of its members'.
+  n_combinations_expanded <- if (is.null(members)) {
+    prod(pmax(lengths(grid_params), 1L))
+  } else {
+    sum(vapply(
+      members,
+      function(member) {
+        prod(pmax(lengths(get_hyperparams_need_tuning(member)), 1L))
+      },
+      numeric(1L)
+    ))
+  }
   param_grid <- tuning_grid(hyperparameters)
   n_combinations_gated <- NROW(param_grid)
   if (search_type == "randomized") {
@@ -203,6 +229,7 @@ tune_GridSearch <- function(
     resamples = resamples,
     res_param_grid = res_param_grid,
     hyperparameters = hyperparameters,
+    members = members,
     preprocessor_config = preprocessor_config,
     decomposition_config = decomposition_config,
     weights = weights_shared,
@@ -292,10 +319,14 @@ tune_GridSearch <- function(
     )
   )
   if (length(ok_idx) == 0L) {
+    # Naming the first failure: "all cells failed" is a count, and the cause is
+    # the same for every cell often enough that the first one is the answer.
+    first_error <- grid_run[[1L]][["error"]]
     rtemis.core::abort(
       "All ",
       n_res_x_comb,
       " tuning grid cells failed; cannot select hyperparameters.",
+      if (is.null(first_error)) "" else paste0(" First failure: ", first_error),
       class = c("rtemis_error", "rtemis_runtime_error")
     )
   }
@@ -554,12 +585,27 @@ tune_GridSearch <- function(
   best_param_combo_id <- as.integer(
     tune_results[["metrics_validation"]][best_row, 1]
   )
-  best_param_combo <- grid_row_values(param_grid, best_param_combo_id, -1)
+  best_param_combo <- grid_row_values(
+    param_grid,
+    best_param_combo_id,
+    grid_hyperparameter_columns(param_grid)
+  )
+  best_variant <- grid_variant(param_grid, best_param_combo_id)
   if (verbosity > 0L) {
     msg(
-      paste0("Best config to ", paste(verb, metric), ":")
+      paste0(
+        "Best config to ",
+        paste(verb, metric),
+        if (is.null(best_variant)) "" else paste0(" (", best_variant, ")"),
+        ":"
+      )
     )
-    print_tune_finding(param_grid[, -1, drop = FALSE], best_param_combo)
+    # The hyperparameter columns only, so the grid shown lines up with the
+    # values reported beside it; the variant is named in the line above.
+    print_tune_finding(
+      param_grid[, grid_hyperparameter_columns(param_grid), drop = FALSE],
+      best_param_combo
+    )
   }
 
   # Outro ----
@@ -576,14 +622,21 @@ tune_GridSearch <- function(
   # => add optional mods field to GridSearch
   # if (save_mods) mods <- grid_run
   GridSearch(
-    hyperparameters = hyperparameters,
+    # The winning member, so this field always holds a concrete
+    # `Hyperparameters`. `best_variant` says which member it was.
+    hyperparameters = if (is.null(best_variant)) {
+      hyperparameters
+    } else {
+      members[[best_variant]]
+    },
     tuner_config = tuner_config,
     tuning_results = list(
       param_grid = param_grid,
       training = metrics_training_by_combo_id,
       validation = metrics_validation_by_combo_id
     ),
-    best_hyperparameters = best_param_combo
+    best_hyperparameters = best_param_combo,
+    best_variant = best_variant
   )
 } # /rtemis::tune_GridSearch
 
@@ -609,7 +662,11 @@ tune_GridSearch <- function(
 #' @param resamples List: Inner resample index vectors.
 #' @param res_param_grid data.frame: One row per cell, `resample_id` plus the
 #' hyperparameter values.
-#' @param hyperparameters `Hyperparameters` object.
+#' @param hyperparameters `Hyperparameters` or `HyperparametersSet` object.
+#' @param members Optional named list of `Hyperparameters`: the set's members,
+#' or NULL when the search is over a single object. A row is applied to the
+#' member that produced it, which only the member itself knows -- two members
+#' can hold different values for a hyperparameter neither of them tunes.
 #' @param preprocessor_config Optional `PreprocessorConfig` object.
 #' @param decomposition_config Optional `DecompositionConfig` object.
 #' @param weights Optional vector of case weights.
@@ -628,6 +685,7 @@ make_grid_cell_runner <- function(
   resamples,
   res_param_grid,
   hyperparameters,
+  members,
   preprocessor_config,
   decomposition_config,
   weights,
@@ -640,6 +698,7 @@ make_grid_cell_runner <- function(
   force(resamples)
   force(res_param_grid)
   force(hyperparameters)
+  force(members)
   force(preprocessor_config)
   force(decomposition_config)
   force(weights)
@@ -662,11 +721,23 @@ make_grid_cell_runner <- function(
     dat_train1 <- x[res1, ]
     weights1 <- weights[res1]
     dat_valid1 <- x[-res1, ]
+    # A row is applied to the member that produced it, not to "the"
+    # hyperparameters: two members can hold different values for a
+    # hyperparameter neither of them tunes, and only the member knows which.
+    variant1 <- grid_variant(res_param_grid, index)
+    base1 <- if (is.null(variant1)) hyperparameters else members[[variant1]]
     hyperparams1 <- update(
-      hyperparameters,
-      grid_row_values(res_param_grid, index, 2:NCOL(res_param_grid)),
+      base1,
+      grid_row_values(
+        res_param_grid,
+        index,
+        grid_hyperparameter_columns(res_param_grid)
+      ),
       tuned = TUNED_STATUS_TUNING # Hyperparameters are being tuned
     )
+    if (!is.null(variant1)) {
+      hyperparams1@variant <- variant1
+    }
 
     # Detach any active observability session so the inner train() is opaque to the host
     # graph; the host host-synthesizes one grid_cell node per cell (uniform across

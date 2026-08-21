@@ -8,7 +8,14 @@
 #   domain      what one hyperparameter may take    -- the general idea
 #   candidates  a domain given by enumeration       -- this class
 #   space       the product of the domains          -- implicit
+#   set         a union of spaces                   -- `HyperparametersSet`
 #   grid        the space enumerated, one row each  -- `tuning_grid()`
+#
+# A *set* is the level above a space: several whole configurations searched as
+# one, for the combinations a product cannot express. `gate_tuning_grid()`
+# removes the cells that are *invalid*; a set is for the ones that are valid and
+# simply not the combinations meant -- LINAD's CART point is a conjunction of
+# four properties that gate nothing, so no product over them can name it.
 #
 # Only the enumerated kind of domain exists today. A domain a tuner samples
 # rather than enumerates -- a log-uniform range, say -- is a sibling of this

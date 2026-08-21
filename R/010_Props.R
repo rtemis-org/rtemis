@@ -3767,6 +3767,10 @@ prop_to_schema <- function(prop) {
 #'   `oneOf: [null, $ref]` when the property accepts NULL, detected from its
 #'   S7 union), instead of requiring a `PropertySpec`. Names must match
 #'   existing properties.
+#' @param variant_refs Named character: As `refs`, for a property that admits
+#' either one referenced document or a named set of them under `variants`. The
+#' set's keys are the member names, which have to survive the round trip because
+#' the tuner reports the winning member by name.
 #' @param array_refs Named character: As `refs`, for a property holding a *list*
 #'   of such objects -- one metrics object per resample, one model per fold.
 #'   Each emits an array whose `items` are the `$ref`.
@@ -3804,6 +3808,7 @@ S7_to_JSONSchema <- function(
   extra = NULL,
   refs = NULL,
   array_refs = NULL,
+  variant_refs = NULL,
   closed = TRUE,
   instance_schema_url = NULL
 ) {
@@ -3821,8 +3826,8 @@ S7_to_JSONSchema <- function(
   # Run state is part of the class, so it is part of the schema -- marked
   # `readOnly` by `prop_to_schema()`, since a user never supplies it. Whether it
   # is also written to a config is the separate `serialize` axis.
-  for (arg in c("refs", "array_refs")) {
-    named <- if (arg == "refs") refs else array_refs
+  for (arg in c("refs", "array_refs", "variant_refs")) {
+    named <- switch(arg, refs = refs, array_refs = array_refs, variant_refs)
     unknown <- setdiff(names(named), names(props))
     if (length(unknown) > 0L) {
       rtemis.core::abort(
@@ -3836,7 +3841,7 @@ S7_to_JSONSchema <- function(
       )
     }
   }
-  referenced <- c(names(refs), names(array_refs))
+  referenced <- c(names(refs), names(array_refs), names(variant_refs))
   ref_props <- props[names(props) %in% referenced]
   props <- props[!names(props) %in% referenced]
   # A derived view is not part of the contract: it is a function of fields the
@@ -3870,7 +3875,16 @@ S7_to_JSONSchema <- function(
   # class is a union containing NULL is optional, so it also admits null.
   for (nm in names(ref_props)) {
     plural <- nm %in% names(array_refs)
-    target <- unname(if (plural) array_refs[[nm]] else refs[[nm]])
+    varying <- nm %in% names(variant_refs)
+    target <- unname(
+      if (plural) {
+        array_refs[[nm]]
+      } else if (varying) {
+        variant_refs[[nm]]
+      } else {
+        refs[[nm]]
+      }
+    )
     if (record) {
       # A record nests records: the input schemas are closed and do not declare
       # `origin`, so pointing at one would reject the very block it describes.
@@ -3880,8 +3894,41 @@ S7_to_JSONSchema <- function(
     if (plural) {
       ref <- list(type = "array", items = ref)
     }
-    properties[[nm]] <- if (prop_accepts_null(ref_props[[nm]])) {
-      list(oneOf = list(list(type = "null"), ref))
+    # A `variant_refs` property admits either one document or a *set* of them,
+    # keyed by name: `{"variants": {"cart": {...}, "addtree": {...}}}`. The
+    # names are members' names and are carried by the object's keys, because
+    # they are what the tuner reports as the winner and have to survive a round
+    # trip. An array would lose them.
+    alternatives <- if (varying) {
+      list(
+        ref,
+        list(
+          type = "object",
+          properties = list(
+            variants = list(
+              type = "object",
+              minProperties = 1L,
+              additionalProperties = ref,
+              description = "Configurations to search over, keyed by name."
+            )
+          ),
+          required = list("variants"),
+          additionalProperties = FALSE,
+          description = paste0(
+            "A union of search spaces over one algorithm. Every variant is a ",
+            "configuration of the same algorithm; the tuner selects among them ",
+            "and reports which name won."
+          )
+        )
+      )
+    } else {
+      list(ref)
+    }
+    accepts_null <- prop_accepts_null(ref_props[[nm]])
+    properties[[nm]] <- if (accepts_null) {
+      list(oneOf = c(list(list(type = "null")), alternatives))
+    } else if (length(alternatives) > 1L) {
+      list(oneOf = alternatives)
     } else {
       ref
     }

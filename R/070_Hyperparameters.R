@@ -257,6 +257,8 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
 #' @field tuned Integer: Tuning status (computed; see TUNED_STATUS constants).
 #' @field resampled Integer: Outer resampling status.
 #' @field n_workers Integer: Number of workers to use for tuning.
+#' @field variant Optional Character: Name of the `HyperparametersSet` member
+#'   this came from. NULL when it did not come from a set.
 #' @field hyperparameters Named list of hyperparameter values (computed from
 #'   the subclass's properties; assignment routes back to the properties and
 #'   validates).
@@ -290,6 +292,11 @@ Hyperparameters <- new_class(
     ),
     resampled = new_property(class_integer, default = 0L),
     n_workers = new_property(class_integer, default = 1L),
+    # Which member of a `HyperparametersSet` this came from, or NULL when it did
+    # not come from one. On the base class, so `hp_prop_names()` -- which reads a
+    # subclass's *own* properties -- excludes it from the hyperparameter list and
+    # from the schema, as it does for the three above.
+    variant = NULL | class_character,
     hyperparameters = new_property(
       class_list,
       getter = function(self) {
