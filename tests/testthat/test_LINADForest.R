@@ -266,3 +266,59 @@ test_that("mtry defaults reach every feature, and mtry_split is capped by mtry_t
   expect_identical(settings[["mtry_tree"]], 3L)
   expect_identical(settings[["mtry_split"]], 3L)
 })
+
+
+# %% Degenerate data ----
+test_that("a bag that misses a factor level still fits and predicts", {
+  # A rare level is absent from most bootstrap samples, which leaves that
+  # level's design column constant within the tree. The tree's own levels are
+  # the training levels, so the column exists and prediction on a case carrying
+  # the level cannot fail -- but nothing else in the suite exercises it.
+  set.seed(11)
+  n <- 120L
+  rare <- data.frame(
+    v1 = rnorm(n),
+    v2 = rnorm(n),
+    g = factor(c(rep("a", n - 3L), "b", "b", "c"), levels = c("a", "b", "c"))
+  )
+  outcome <- rare[["v1"]] +
+    ifelse(rare[["v2"]] > 0, 2, -2) +
+    rnorm(n, sd = 0.2)
+  model <- rtemis::train(
+    data.frame(rare, y = outcome),
+    hyperparameters = rtemis::setup_LINADForest(n_trees = 8L, max_leaves = 4L),
+    execution_config = rtemis::setup_ExecutionConfig(
+      seed = 5L,
+      backend = "none"
+    ),
+    verbosity = 0L
+  )
+  expect_length(stats::predict(model, rare), n)
+  expect_identical(nrow(rtemis::get_varimp(model)@data), 3L)
+})
+
+
+test_that("too few out-of-bag cases keeps every leaf rather than selecting on noise", {
+  settings <- rtemis:::linadforest_settings(
+    rtemis::setup_LINADForest(n_trees = 1L, max_leaves = 4L),
+    ncol(.x)
+  )
+  # A bag holding all but a handful of cases leaves fewer out than a validation
+  # curve can be read from.
+  bag <- c(seq_len(.n - 3L), rep(1L, 3L))
+  grown <- rtemis:::linadforest_tree(
+    x = .x,
+    y = .y,
+    case_weights = rep(1, .n),
+    type = "Regression",
+    y_levels = NULL,
+    settings = settings,
+    bag = bag
+  )
+  expect_length(grown[["oob"]], 3L)
+  expect_null(grown[["tree"]]@leaf_curve)
+  expect_identical(
+    grown[["tree"]]@n_leaves,
+    length(grown[["tree"]]@steps)
+  )
+})

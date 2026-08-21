@@ -1816,9 +1816,9 @@ LINADForestHyperparameters <- new_class(
 #' @details
 #' LINADForest is designed to be used **untuned**. Every tree-level
 #' hyperparameter of [setup_LINAD] is available here and tunable, but the
-#' defaults are the configuration the ensemble was published with, and the one
-#' structural choice that usually needs tuning -- how large each tree should be
-#' -- is made per tree from data.
+#' defaults are the configuration the ensemble was first evaluated with, and
+#' the one structural choice that usually needs tuning -- how large each tree
+#' should be -- is made per tree from data.
 #'
 #' @section How the trees differ:
 #' Three sources of variation, each acting at a different level:
@@ -1836,8 +1836,8 @@ LINADForestHyperparameters <- new_class(
 #'     node can split at all.}
 #' }
 #'
-#' Both `mtry_*` default to NULL, meaning every feature, which is the published
-#' configuration.
+#' Both `mtry_*` default to NULL, meaning every feature, which is the
+#' configuration the ensemble was first evaluated with.
 #'
 #' @section Choosing each tree's size:
 #' A LINAD tree picks its number of leaves on held-out data, as gradient
@@ -1845,7 +1845,7 @@ LINADForestHyperparameters <- new_class(
 #' free, so each tree selects its own size on its own out-of-bag cases and no
 #' validation set has to be supplied or set aside. `force_max_leaves = TRUE`
 #' turns the selection off and grows every tree to `max_leaves`, which is what
-#' the published ensemble did.
+#' the ensemble's first evaluation did.
 #'
 #' The same out-of-bag predictions give the fitted forest an error estimate with
 #' no resampling, reported by `print()`.

@@ -239,20 +239,25 @@ linadforest_oob_metrics <- function(oob_prediction, outcome, type) {
     return(NULL)
   }
   predicted <- oob_prediction[covered]
+  # `METRICS_SAMPLES` is a closed set with no out-of-bag member, and of the six
+  # it has, "Validation" is what these cases are: held-out data on which a
+  # modeling choice -- each tree's number of leaves -- was made. Labelling them
+  # "Training" would name the rows correctly and invite exactly the in-sample
+  # reading the estimate exists to avoid.
   if (type == "Classification") {
     levels_y <- levels(outcome)
     classification_metrics(
       true_labels = outcome[covered],
       predicted_labels = prob2categorical(predicted, levels_y),
       predicted_prob = prob_matrix(predicted, levels_y),
-      sample = "Training",
+      sample = "Validation",
       verbosity = 0L
     )
   } else {
     regression_metrics(
       true = as.numeric(outcome)[covered],
       predicted = predicted,
-      sample = "Training"
+      sample = "Validation"
     )
   }
 } # /rtemis::linadforest_oob_metrics

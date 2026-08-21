@@ -107,9 +107,9 @@ and chooses its own number of leaves on the cases its bootstrap left out.
 \details{
 LINADForest is designed to be used \strong{untuned}. Every tree-level
 hyperparameter of \link{setup_LINAD} is available here and tunable, but the
-defaults are the configuration the ensemble was published with, and the one
-structural choice that usually needs tuning -- how large each tree should be
--- is made per tree from data.
+defaults are the configuration the ensemble was first evaluated with, and
+the one structural choice that usually needs tuning -- how large each tree
+should be -- is made per tree from data.
 }
 \section{How the trees differ}{
 
@@ -128,8 +128,8 @@ feature, so \code{mtry_split} changes which split is made and never whether a
 node can split at all.}
 }
 
-Both \verb{mtry_*} default to NULL, meaning every feature, which is the published
-configuration.
+Both \verb{mtry_*} default to NULL, meaning every feature, which is the
+configuration the ensemble was first evaluated with.
 }
 
 \section{Choosing each tree's size}{
@@ -139,7 +139,7 @@ boosting picks its number of trees. A bootstrap produces held-out data for
 free, so each tree selects its own size on its own out-of-bag cases and no
 validation set has to be supplied or set aside. \code{force_max_leaves = TRUE}
 turns the selection off and grows every tree to \code{max_leaves}, which is what
-the published ensemble did.
+the ensemble's first evaluation did.
 
 The same out-of-bag predictions give the fitted forest an error estimate with
 no resampling, reported by \code{print()}.
