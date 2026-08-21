@@ -103,6 +103,7 @@ test_that("setup_LightRF() succeeds", {
   HAL = HALHyperparameters,
   MonotonicHAL = MonotonicHALHyperparameters,
   LINAD = LINADHyperparameters,
+  LINADForest = LINADForestHyperparameters,
   NNLS = NNLSHyperparameters,
   SuperLearner = SuperLearnerHyperparameters,
   ModalityStacking = ModalityStackingHyperparameters,

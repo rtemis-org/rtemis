@@ -1308,23 +1308,29 @@ setup_CART <- function(
 LINAD_LEAF_MODELS <- c("forward", "ridge", "elasticnet", "constant")
 
 
-# %% LINADHyperparameters ----
-#' @title LINADHyperparameters
+# %% linad_tree_props ----
+#' Tree-level hyperparameters of a linear additive tree
 #'
 #' @description
-#' Hyperparameters subclass for LINAD, the Linear Additive Tree.
+#' The hyperparameters that describe **one** LINAD tree, shared by
+#' `LINADHyperparameters` and `LINADForestHyperparameters` so they are declared
+#' once and cannot drift apart. Arguments cover only the defaults that differ
+#' between the two: a forest's trees are strong learners, since the averaging
+#' does the variance control a single tree's `learning_rate` has to do alone.
+#'
+#' @param learning_rate Numeric: Default for `learning_rate`.
+#' @param max_leaves Integer: Default for `max_leaves`.
+#'
+#' @return Named list of S7 properties.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-LINADHyperparameters <- new_class(
-  name = "LINADHyperparameters",
-  parent = Hyperparameters,
-  properties = list(
-    algorithm = prop_algorithm("LINAD"),
+linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
+  list(
     # Growth ----
     max_leaves = prop_integer(
-      20L,
+      max_leaves,
       min = 1L,
       tunable = TRUE,
       description = "Largest number of terminal nodes to grow. Plays the role the number of trees plays in gradient boosting."
@@ -1393,7 +1399,7 @@ LINADHyperparameters <- new_class(
       description = "Elastic-net mixing: 0 is ridge, 1 is lasso."
     ),
     learning_rate = prop_float(
-      0.1,
+      learning_rate,
       exclusive_min = 0,
       max = 1,
       tunable = TRUE,
@@ -1499,6 +1505,25 @@ LINADHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
+  )
+} # /rtemis::linad_tree_props
+
+
+# %% LINADHyperparameters ----
+#' @title LINADHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for LINAD, the Linear Additive Tree.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+LINADHyperparameters <- new_class(
+  name = "LINADHyperparameters",
+  parent = Hyperparameters,
+  properties = c(
+    list(algorithm = prop_algorithm("LINAD")),
+    linad_tree_props()
   ),
   validator = function(self) {
     check_applies_when(self)
@@ -1726,6 +1751,236 @@ setup_LINAD <- function(
     ifw = ifw
   )
 } # /rtemis::setup_LINAD
+
+
+# %% LINADForestHyperparameters ----
+#' @title LINADForestHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for LINADForest, a bagged ensemble of linear
+#' additive trees. Every tree-level hyperparameter is LINAD's own, declared once
+#' in `linad_tree_props()`; `n_trees`, `mtry_split` and `mtry_tree` are what the
+#' ensemble adds.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+LINADForestHyperparameters <- new_class(
+  name = "LINADForestHyperparameters",
+  parent = Hyperparameters,
+  properties = c(
+    list(
+      algorithm = prop_algorithm("LINADForest"),
+      # Ensemble ----
+      n_trees = prop_integer(
+        50L,
+        min = 1L,
+        tunable = TRUE,
+        description = "Number of trees in the forest."
+      ),
+      mtry_split = prop_integer(
+        NULL,
+        min = 1L,
+        nullable = TRUE,
+        tunable = TRUE,
+        data_bound = "n_features",
+        description = "Features sampled at each split search. NULL scans every feature the tree holds."
+      ),
+      mtry_tree = prop_integer(
+        NULL,
+        min = 1L,
+        nullable = TRUE,
+        tunable = TRUE,
+        data_bound = "n_features",
+        description = "Features available to a whole tree, splits and node models alike. NULL gives every tree every feature."
+      )
+    ),
+    # A forest's trees are strong learners: the averaging does the variance
+    # control that a single tree's learning rate has to do alone.
+    linad_tree_props(learning_rate = 1, max_leaves = 20L)
+  ),
+  validator = function(self) {
+    check_applies_when(self)
+  }
+) # /rtemis::LINADForestHyperparameters
+
+
+# %% setup_LINADForest ----
+#' Setup LINADForest Hyperparameters
+#'
+#' Setup hyperparameters for LINADForest: a bagged ensemble of Linear Additive
+#' Trees. Each tree is fitted on a bootstrap sample of the cases, restricted to
+#' `mtry_tree` of the features, searching `mtry_split` of them at each split,
+#' and chooses its own number of leaves on the cases its bootstrap left out.
+#'
+#' @details
+#' LINADForest is designed to be used **untuned**. Every tree-level
+#' hyperparameter of [setup_LINAD] is available here and tunable, but the
+#' defaults are the configuration the ensemble was published with, and the one
+#' structural choice that usually needs tuning -- how large each tree should be
+#' -- is made per tree from data.
+#'
+#' @section How the trees differ:
+#' Three sources of variation, each acting at a different level:
+#'
+#' \describe{
+#'   \item{The bootstrap}{Each tree is fitted on `n` cases drawn with
+#'     replacement, so roughly 37% of cases are out-of-bag for any given tree.}
+#'   \item{`mtry_tree`}{Each tree is restricted to a random subset of the
+#'     features, for its splits and its node models alike. A tree's coefficients
+#'     then cover only the features it held.}
+#'   \item{`mtry_split`}{Each split search sees a fresh sample of the features
+#'     the tree holds, which decorrelates the trees further. If that sample
+#'     finds no split worth making, the node is searched again over every
+#'     feature, so `mtry_split` changes which split is made and never whether a
+#'     node can split at all.}
+#' }
+#'
+#' Both `mtry_*` default to NULL, meaning every feature, which is the published
+#' configuration.
+#'
+#' @section Choosing each tree's size:
+#' A LINAD tree picks its number of leaves on held-out data, as gradient
+#' boosting picks its number of trees. A bootstrap produces held-out data for
+#' free, so each tree selects its own size on its own out-of-bag cases and no
+#' validation set has to be supplied or set aside. `force_max_leaves = TRUE`
+#' turns the selection off and grows every tree to `max_leaves`, which is what
+#' the published ensemble did.
+#'
+#' The same out-of-bag predictions give the fitted forest an error estimate with
+#' no resampling, reported by `print()`.
+#'
+#' @section Defaults that differ from a single tree:
+#' `learning_rate` is 1 rather than 0.1. A lone LINAD tree shrinks each node
+#' update because nothing else controls its variance; in a forest the averaging
+#' does that, so each tree should be a strong learner -- the same reasoning that
+#' leaves a random forest's trees unpruned.
+#'
+#' @section Workers:
+#' LINADForest parallelizes across trees, by process rather than by thread.
+#' `n_workers_algorithm` therefore has an effect only when the run is not
+#' already dispatching: inside a parallel outer fold the forest runs its trees
+#' sequentially, since a fold may not dispatch again. For a threaded backend
+#' such as Ranger the same setting means threads within each fold.
+#'
+#' @param n_trees (Tunable) Integer [1, Inf): Number of trees in the forest.
+#' @param mtry_split (Tunable) Optional Integer [1, Inf): Features sampled at each split search. NULL scans every feature the tree holds.
+#' @param mtry_tree (Tunable) Optional Integer [1, Inf): Features available to a whole tree. NULL gives every tree every feature.
+#' @param max_leaves (Tunable) Integer [1, Inf): Largest number of terminal nodes to grow in each tree.
+#' @param force_max_leaves Logical: If TRUE, grow every tree to `max_leaves` instead of selecting a size on its out-of-bag cases.
+#' @param smooth_validation_curve Optional Logical: If TRUE, smooth the out-of-bag curve before reading its minimum. Applies only when `force_max_leaves` is FALSE.
+#' @param min_cases_split (Tunable) Integer [2, Inf): Fewest cases a node may hold and still be considered for splitting.
+#' @param min_cases_leaf (Tunable) Integer [1, Inf): Fewest cases a split must leave on each side.
+#' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` fits one.
+#' @param node_model Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node.
+#' @param nvmax (Tunable) Optional Integer [1, Inf): Terms forward selection adds beside the intercept. Applies only when `node_model` is "forward".
+#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the node models. Applies only when `node_model` is "ridge" or "elasticnet".
+#' @param alpha (Tunable) Optional Numeric \[0, 1\]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when `node_model` is "elasticnet".
+#' @param learning_rate (Tunable) Numeric (0, 1\]: Shrinkage applied to every functional update.
+#' @param root_model Optional Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each tree's root. NULL uses `node_model`.
+#' @param root_nvmax (Tunable) Optional Integer [1, Inf): `nvmax` for the root model. NULL uses `nvmax`.
+#' @param root_lambda (Tunable) Optional Numeric [0, Inf): `lambda` for the root model. NULL uses `lambda`.
+#' @param root_alpha (Tunable) Optional Numeric \[0, 1\]: `alpha` for the root model. NULL uses `alpha`.
+#' @param root_learning_rate (Tunable) Numeric \[0, 1\]: Shrinkage applied to the root model's slopes.
+#' @param split_search Character \{"stump", "exhaustive"\}: How a split is chosen.
+#' @param split_binning (Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits.
+#' @param split_bin_type (Tunable) Character \{"frequency", "width"\}: How bin edges are placed.
+#' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature. Applies only when `split_search` is "exhaustive".
+#' @param gamma (Tunable) Numeric \[0, 1\]: Weight a case retains in the branch it does not belong to. 0 is a hard partition.
+#' @param line_search (Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.
+#' @param line_search_max Numeric (0, Inf): Largest absolute step the line search may take.
+#' @param constant_rule (Tunable) Character \{"closed_form", "least_squares"\}: How a node's constant is computed.
+#' @param node_selection (Tunable) Character \{"local", "global"\}: Criterion for choosing which frontier node to split next.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @return LINADForestHyperparameters object.
+#'
+#' @references
+#' Wager S, Hastie T, Efron B (2014).
+#' Confidence intervals for random forests: the jackknife and the infinitesimal
+#' jackknife. \emph{Journal of Machine Learning Research}, 15, 1625-1651.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' linadforest_hyperparams <- setup_LINADForest(n_trees = 25L)
+#' linadforest_hyperparams
+setup_LINADForest <- function(
+  # tunable
+  n_trees = 50L,
+  mtry_split = NULL,
+  mtry_tree = NULL,
+  max_leaves = 20L,
+  min_cases_split = 2L,
+  min_cases_leaf = 1L,
+  min_cases_node_model = NULL,
+  nvmax = NULL,
+  lambda = NULL,
+  alpha = NULL,
+  learning_rate = 1,
+  root_nvmax = NULL,
+  root_lambda = NULL,
+  root_alpha = NULL,
+  root_learning_rate = 1,
+  n_cuts = NULL,
+  gamma = 0.1,
+  split_binning = NULL,
+  split_bin_type = "frequency",
+  line_search = "expansion",
+  constant_rule = "closed_form",
+  node_selection = "local",
+  ifw = FALSE,
+  # fixed
+  force_max_leaves = FALSE,
+  smooth_validation_curve = NULL,
+  node_model = "forward",
+  root_model = NULL,
+  split_search = "stump",
+  line_search_max = 1000
+) {
+  n_trees <- clean_int(n_trees)
+  mtry_split <- clean_int(mtry_split)
+  mtry_tree <- clean_int(mtry_tree)
+  max_leaves <- clean_int(max_leaves)
+  min_cases_split <- clean_int(min_cases_split)
+  min_cases_leaf <- clean_int(min_cases_leaf)
+  min_cases_node_model <- clean_int(min_cases_node_model)
+  nvmax <- clean_int(nvmax)
+  root_nvmax <- clean_int(root_nvmax)
+  n_cuts <- clean_int(n_cuts)
+  split_binning <- clean_int(split_binning)
+  LINADForestHyperparameters(
+    n_trees = n_trees,
+    mtry_split = mtry_split,
+    mtry_tree = mtry_tree,
+    max_leaves = max_leaves,
+    force_max_leaves = force_max_leaves,
+    smooth_validation_curve = smooth_validation_curve,
+    min_cases_split = min_cases_split,
+    min_cases_leaf = min_cases_leaf,
+    min_cases_node_model = min_cases_node_model,
+    node_model = node_model,
+    nvmax = nvmax,
+    lambda = lambda,
+    alpha = alpha,
+    learning_rate = learning_rate,
+    root_model = root_model,
+    root_nvmax = root_nvmax,
+    root_lambda = root_lambda,
+    root_alpha = root_alpha,
+    root_learning_rate = root_learning_rate,
+    split_search = split_search,
+    split_binning = split_binning,
+    split_bin_type = split_bin_type,
+    n_cuts = n_cuts,
+    gamma = gamma,
+    line_search = line_search,
+    line_search_max = line_search_max,
+    constant_rule = constant_rule,
+    node_selection = node_selection,
+    ifw = ifw
+  )
+} # /rtemis::setup_LINADForest
 
 
 # %% GLMNETHyperparameters ----

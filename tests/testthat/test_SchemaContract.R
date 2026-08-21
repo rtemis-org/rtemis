@@ -95,6 +95,7 @@
     list(HALHyperparameters, "setup_HAL"),
     list(MonotonicHALHyperparameters, "setup_MonotonicHAL"),
     list(LINADHyperparameters, "setup_LINAD"),
+    list(LINADForestHyperparameters, "setup_LINADForest"),
     list(NNLSHyperparameters, "setup_NNLS"),
     list(SuperLearnerHyperparameters, "setup_SuperLearner"),
     list(ModalityStackingHyperparameters, "setup_ModalityStacking"),

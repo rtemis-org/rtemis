@@ -15,6 +15,7 @@ live[["parallelized_learners"]] <- c(
   "LightGBM",
   "LightRF",
   "LightRuleFit",
+  "LINADForest",
   "Ranger"
 )
 

@@ -40,6 +40,35 @@ identify_plan <- function(x = NULL) {
 } # /rtemis::identify_plan
 
 
+# %% resolve_future_plan ----
+#' Qualify a future plan name with the package that provides it
+#'
+#' `ExecutionConfig` names plans as a user would (`"mirai_multisession"`), while
+#' `future::plan()` resolves a strategy by name off the search path and cannot
+#' see one in a package that is loaded but not attached. Qualifying it here is
+#' what makes the mirai plan reachable from a Suggests-gated namespace, and
+#' doing it in one place is what keeps every dispatch site reaching the same
+#' plan.
+#'
+#' @param backend Character: Dispatch backend.
+#' @param future_plan Optional Character: Plan name from an `ExecutionConfig`.
+#'
+#' @return Character or NULL: The plan name to hand `progress_plapply()`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+resolve_future_plan <- function(backend, future_plan) {
+  if (
+    identical(backend, "future") &&
+      identical(future_plan, "mirai_multisession")
+  ) {
+    return("future.mirai::mirai_multisession")
+  }
+  future_plan
+} # /rtemis::resolve_future_plan
+
+
 #' Set preferred plan
 #'
 #' Sets the future plan, in order of precedence:

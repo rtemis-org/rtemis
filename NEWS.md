@@ -2,6 +2,14 @@
 
 ## 1.3.7
 
+- **New algorithm: LINADForest, a bagged ensemble of Linear Additive Trees** -- `setup_LINADForest()`. Designed to be used untuned: 50 trees, each grown on a bootstrap sample and sized on its own out-of-bag cases.
+- **Each tree picks its own number of leaves on its out-of-bag cases**, so the forest self-tunes the one structural setting that usually needs a grid. `force_max_leaves = TRUE` grows every tree to `max_leaves`.
+- `setup_LINADForest(mtry_tree = )` gives each tree a random subset of the features, `(mtry_split = )` samples them again at every split search. A sample that finds no split worth making is retried over every feature, so neither can close a node.
+- `se()` on a LINADForest gives standard errors of the fit by the infinitesimal jackknife (Wager, Hastie & Efron 2014), not the spread across trees, which is a dispersion rather than a standard error.
+- A fitted LINADForest reports an out-of-bag estimate: `print()` shows it, `mod@model@oob_prediction` and `@oob_metrics` hold it. No resampling needed.
+- LINADForest parallelizes across trees, with one RNG substream per tree, so a run is identical at any worker count and on any backend.
+- LINAD's tree hyperparameters are declared once and shared with LINADForest, which inherits every one of them; `learning_rate` defaults to 1 in the forest, where averaging does the variance control.
+- **The mirai future plan was named unqualified at one of two dispatch sites.** `future::plan()` resolves a strategy off the search path, so a `backend = "future"` run whose plan was `"mirai_multisession"` worked from `train()` and failed anywhere else. Both sites now resolve it the same way.
 - **New algorithm: LINAD, the Linear Additive Tree** -- `setup_LINAD()`. A decision tree with a linear model at every node, a leaf's coefficients the sum along its path. original algorithm, rtemis native implementation.
 - **LINAD generalizes the decision tree and the regularized linear model**, recovering each exactly: `max_leaves = 1` is a pure linear model, constant nodes with `gamma = 0` match `rpart` to machine precision, and with `gamma > 0` give the Additive Tree.
 - `setup_LINAD(split_search = "exhaustive")` scores a split by the loss after fitting both child models, finding interactions a gradient stump cannot see. Costs about as much as the stump search.

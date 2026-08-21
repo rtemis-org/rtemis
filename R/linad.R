@@ -658,6 +658,35 @@ linad_context <- function(x, n_bins = NULL, bin_type = "frequency") {
 } # /rtemis::linad_context
 
 
+# %% linad_scan_features ----
+#' Resolve which features a split search scans
+#'
+#' A restriction arrives as a list of two integer vectors, one indexing
+#' `context$numeric_names` and one `context$factor_names`, rather than as a
+#' narrowed context. The context holds each feature's sort order and break
+#' positions, and rebuilding it per node is precisely the cost it exists to
+#' avoid.
+#'
+#' @param context List: `linad_context()` output.
+#' @param features Optional List: `numeric` and `factor` integer vectors.
+#'
+#' @return List of two integer vectors, named `numeric` and `factor`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_scan_features <- function(context, features = NULL) {
+  if (is.null(features)) {
+    list(
+      numeric = seq_along(context[["numeric_names"]]),
+      factor = seq_along(context[["factor_names"]])
+    )
+  } else {
+    features
+  }
+} # /rtemis::linad_scan_features
+
+
 # %% linad_stump ----
 #' Best weighted squared-error split over every feature
 #'
@@ -680,20 +709,30 @@ linad_context <- function(x, n_bins = NULL, bin_type = "frequency") {
 #' @param w Numeric vector: Node weights, length n.
 #' @param member Logical vector: Node membership, length n.
 #' @param min_cases_child Integer: Minimum members either side of the split.
+#' @param features Optional List: Which features to scan, as
+#' `linad_scan_features()` describes. NULL scans every feature.
 #'
 #' @return List describing the split, or NULL when no admissible split exists.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_stump <- function(context, r, w, member, min_cases_child) {
+linad_stump <- function(
+  context,
+  r,
+  w,
+  member,
+  min_cases_child,
+  features = NULL
+) {
   n <- context[["n"]]
   wr <- w * r
   membership <- as.numeric(member)
   best <- list(gain = -Inf)
+  scan <- linad_scan_features(context, features)
 
   # Numeric features ----
-  for (j in seq_along(context[["numeric_names"]])) {
+  for (j in scan[["numeric"]]) {
     breaks <- context[["numeric_breaks"]][[j]]
     if (length(breaks) == 0L) {
       next
@@ -735,7 +774,7 @@ linad_stump <- function(context, r, w, member, min_cases_child) {
   }
 
   # Factor features ----
-  for (j in seq_along(context[["factor_names"]])) {
+  for (j in scan[["factor"]]) {
     codes <- context[["factor_codes"]][[j]]
     levels_j <- context[["factor_levels"]][[j]]
     n_levels <- length(levels_j)
@@ -958,8 +997,90 @@ linad_node_loss <- function(state, coefficients, idx) {
 } # /rtemis::linad_node_loss
 
 
-# %% linad_expand ----
-#' Propose a split for one node
+# %% linad_sample_features ----
+#' Draw the feature sample one split search scans
+#'
+#' `mtry` features without replacement from those the tree holds, returned in
+#' the two-vector form `linad_scan_features()` reads. NULL, or an `mtry` that
+#' reaches every feature, returns NULL so the search takes its unrestricted
+#' path unchanged.
+#'
+#' @param context List: `linad_context()` output.
+#' @param mtry Optional Integer: Features to sample.
+#'
+#' @return List of two integer vectors, or NULL for no restriction.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_sample_features <- function(context, mtry = NULL) {
+  n_numeric <- length(context[["numeric_names"]])
+  n_factor <- length(context[["factor_names"]])
+  total <- n_numeric + n_factor
+  if (is.null(mtry) || mtry >= total) {
+    return(NULL)
+  }
+  drawn <- sample.int(total, mtry)
+  list(
+    numeric = drawn[drawn <= n_numeric],
+    factor = drawn[drawn > n_numeric] - n_numeric
+  )
+} # /rtemis::linad_sample_features
+
+
+# %% linad_split_search ----
+#' Dispatch to the configured split search
+#'
+#' @param state List: Fit state.
+#' @param r Numeric vector: Negative gradient.
+#' @param w Numeric vector: Node weights.
+#' @param member Logical vector: Node membership.
+#' @param features Optional List: Which features to scan, as
+#' `linad_scan_features()` describes. NULL scans every feature.
+#'
+#' @return A split, or NULL when no admissible split exists.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_split_search <- function(state, r, w, member, features) {
+  if (identical(state[["split_search"]], "exhaustive")) {
+    linad_sweep(state, r, w, member, features)
+  } else {
+    linad_stump(
+      state[["context"]],
+      r,
+      w,
+      member,
+      state[["min_cases_leaf"]],
+      features
+    )
+  }
+} # /rtemis::linad_split_search
+
+
+# %% linad_improves ----
+#' Whether a proposal reduces the loss
+#'
+#' The growth loop's own admission test, named once so the `mtry_split` retry
+#' and the loop cannot drift apart on what counts as progress.
+#'
+#' @param proposal Optional List: `linad_propose()` output.
+#'
+#' @return Logical.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_improves <- function(proposal) {
+  !is.null(proposal) &&
+    is.finite(proposal[["score"]]) &&
+    proposal[["score"]] > 0
+} # /rtemis::linad_improves
+
+
+# %% linad_propose ----
+#' Propose a split for one node, over the features it is given
 #'
 #' `ExpandNode` of Algorithm 1. Splits the node, fits a leaf model on each side,
 #' line-searches the step, and scores the result -- but commits nothing. The
@@ -969,13 +1090,15 @@ linad_node_loss <- function(state, coefficients, idx) {
 #'
 #' @param state List: Fit state.
 #' @param node List: The node to expand.
+#' @param features Optional List: Which features the split search may scan, as
+#' `linad_scan_features()` describes. NULL scans every feature.
 #'
 #' @return List describing the proposal, or NULL if the node cannot be split.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_expand <- function(state, node) {
+linad_propose <- function(state, node, features = NULL) {
   f <- drop(state[["xm"]] %*% node[["coef"]])
   derivatives <- linad_gradient(state[["y"]], f, state[["type"]])
   r <- -derivatives[["g"]]
@@ -984,17 +1107,7 @@ linad_expand <- function(state, node) {
   }
   member <- logical(state[["n"]])
   member[node[["index"]]] <- TRUE
-  split <- if (identical(state[["split_search"]], "exhaustive")) {
-    linad_sweep(state, r, node[["weights"]], member)
-  } else {
-    linad_stump(
-      state[["context"]],
-      r,
-      node[["weights"]],
-      member,
-      state[["min_cases_leaf"]]
-    )
-  }
+  split <- linad_split_search(state, r, node[["weights"]], member, features)
   if (is.null(split)) {
     return(NULL)
   }
@@ -1076,6 +1189,43 @@ linad_expand <- function(state, node) {
       loss = loss_right
     )
   )
+} # /rtemis::linad_propose
+
+
+# %% linad_expand ----
+#' Propose a split for one node, over a sample of the features
+#'
+#' `ExpandNode` of Algorithm 1, with `mtry_split` drawn once per node.
+#'
+#' A node is expanded once and its proposal cached, so a feature sample that
+#' finds nothing worth splitting on would close that node for good -- an
+#' artifact of the caching rather than a property of the method, and invisible
+#' in the output. One retry over every feature keeps `mtry_split` a choice of
+#' *which* split is made and never of *whether* the node can split at all: a
+#' node closes only where no feature improves the loss.
+#'
+#' The retry costs a second expansion, child model fits included, and only at
+#' nodes whose sample found nothing -- terminal nodes, mostly, where the full
+#' search is about to find nothing either.
+#'
+#' @param state List: Fit state.
+#' @param node List: The node to expand.
+#'
+#' @return List describing the proposal, or NULL if the node cannot be split.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_expand <- function(state, node) {
+  features <- linad_sample_features(
+    state[["context"]],
+    state[["mtry_split"]]
+  )
+  proposal <- linad_propose(state, node, features)
+  if (!is.null(features) && !linad_improves(proposal)) {
+    proposal <- linad_propose(state, node, NULL)
+  }
+  proposal
 } # /rtemis::linad_expand
 
 
@@ -1297,7 +1447,8 @@ linad_fit <- function(x, xm, y, case_weights, type, settings, verbosity = 1L) {
       )
       best <- which.max(scores)
       if (!is.finite(scores[[best]]) || scores[[best]] <= 0) {
-        # No frontier node can still reduce the loss.
+        # No frontier node can still reduce the loss. `linad_improves()` is the
+        # same test, applied per proposal.
         break
       }
       chosen <- candidates[[best]]
@@ -1698,6 +1849,9 @@ linad_settings <- function(hyperparameters) {
     root_alpha = value_or("root_alpha", alpha),
     root_learning_rate = hyperparameters[["root_learning_rate"]],
     split_search = hyperparameters[["split_search"]],
+    # A single tree scans every feature at every split; `LINADForest` overrides
+    # this in `linadforest_settings()`, which is the only caller that samples.
+    mtry_split = NULL,
     split_binning = hyperparameters[["split_binning"]],
     split_bin_type = hyperparameters[["split_bin_type"]],
     n_cuts = value_or("n_cuts", 20L),
@@ -1795,6 +1949,8 @@ linad_gram_loss <- function(G, Xty, syy, b) {
 #' @param r Numeric vector: Negative gradient.
 #' @param w Numeric vector: Node weights.
 #' @param member Logical vector: Node membership.
+#' @param features Optional List: Which features to scan, as
+#' `linad_scan_features()` describes. NULL scans every feature.
 #'
 #' @return A split, shaped as `linad_stump()` returns one, with `gain` the
 #' negated loss so the caller compares the two the same way.
@@ -1802,11 +1958,12 @@ linad_gram_loss <- function(G, Xty, syy, b) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_sweep <- function(state, r, w, member) {
+linad_sweep <- function(state, r, w, member, features = NULL) {
   context <- state[["context"]]
   xm <- state[["xm"]]
   gamma <- state[["gamma"]]
   best <- list(gain = -Inf)
+  scan <- linad_scan_features(context, features)
 
   # The node's own sufficient statistics, which every candidate's right-hand
   # side is read off by subtraction. They do not depend on the feature, so they
@@ -1886,7 +2043,7 @@ linad_sweep <- function(state, r, w, member) {
   }
 
   # Numeric features ----
-  for (j in seq_along(context[["numeric_names"]])) {
+  for (j in scan[["numeric"]]) {
     order_index <- context[["numeric_order"]][[j]]
     sorted <- context[["numeric_matrix"]][order_index, j]
     breaks <- context[["numeric_breaks"]][[j]]
@@ -1927,7 +2084,7 @@ linad_sweep <- function(state, r, w, member) {
   }
 
   # Factor features ----
-  for (j in seq_along(context[["factor_names"]])) {
+  for (j in scan[["factor"]]) {
     codes <- context[["factor_codes"]][[j]]
     levels_j <- context[["factor_levels"]][[j]]
     level_w <- as.vector(rowsum(weights, codes, reorder = TRUE))

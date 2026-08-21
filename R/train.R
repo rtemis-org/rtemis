@@ -435,9 +435,7 @@ train <- function(
     }
   }
 
-  if (backend == "future" && future_plan == "mirai_multisession") {
-    future_plan <- "future.mirai::mirai_multisession"
-  }
+  future_plan <- resolve_future_plan(backend, future_plan)
   if (!is.null(outer_resampling_config)) {
     check_is_S7(outer_resampling_config, ResamplerConfig)
   }

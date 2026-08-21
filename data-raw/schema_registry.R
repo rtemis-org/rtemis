@@ -301,6 +301,10 @@ families <- list(
         desc = "Linear Additive Tree. See `setup_LINAD`."
       ),
       list(
+        cls = LINADForestHyperparameters,
+        desc = "Bagged ensemble of Linear Additive Trees. See `setup_LINADForest`."
+      ),
+      list(
         cls = NNLSHyperparameters,
         desc = "Non-negative least squares (nnls). See `setup_NNLS`."
       ),

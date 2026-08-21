@@ -878,6 +878,171 @@ test_that("get_default_hyperparameters() resolves LINAD", {
 })
 
 
+# --- LINADForest ----------------------------------------------------------------------------------
+# LINADForest is implemented in this package rather than wrapped, so these
+# blocks cover the pipeline; the bagging arithmetic is checked in
+# test_LINADForest.R. Kept small: every fit here grows several trees.
+
+## {LINADForest}[train]<Regression> ----
+mod_r_linadforest <- train(
+  datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_LINADForest(n_trees = 5L, max_leaves = 4L),
+  verbosity = 0L
+)
+test_that("train() LINADForest Regression succeeds", {
+  expect_s7_class(mod_r_linadforest, Regression)
+  expect_s7_class(mod_r_linadforest@model, rtemis:::LINADForest)
+  expect_length(mod_r_linadforest@model@trees, 5L)
+})
+
+## {LINADForest}[predict]<Regression> ----
+test_that("predict() LINADForest Regression reproduces the stored fitted values", {
+  expect_equal(
+    predict(mod_r_linadforest, features(datr_train)),
+    mod_r_linadforest@predicted_training,
+    tolerance = 1e-8
+  )
+})
+
+## {LINADForest}[se]<Regression> ----
+test_that("se() LINADForest returns one jackknife standard error per case", {
+  standard_errors <- se(mod_r_linadforest, features(datr_test))
+  expect_length(standard_errors, nrow(datr_test))
+  expect_true(all(standard_errors >= 0))
+  expect_true(all(is.finite(standard_errors)))
+})
+
+## {LINADForest}[oob]<Regression> ----
+test_that("train() LINADForest reports an out-of-bag estimate", {
+  model <- mod_r_linadforest@model
+  expect_length(model@oob_prediction, nrow(datr_train))
+  expect_false(is.null(model@oob_metrics))
+  expect_s7_class(model@oob_metrics, rtemis:::Metrics)
+})
+
+## {LINADForest}[varimp]<Regression> ----
+test_that("get_varimp() LINADForest reports both of its measures", {
+  vi <- get_varimp(mod_r_linadforest)
+  expect_s7_class(vi, VariableImportance)
+  expect_identical(
+    names(vi@data),
+    c("variable", "importance", "split_gain")
+  )
+  expect_setequal(vi@data[["variable"]], names(features(datr_train)))
+})
+
+## {LINADForest}[train]<Regression> Feature sampling ----
+test_that("train() LINADForest samples features per tree and per split", {
+  mod <- train(
+    datr_train,
+    hyperparameters = setup_LINADForest(
+      n_trees = 4L,
+      max_leaves = 3L,
+      mtry_tree = 3L,
+      mtry_split = 2L,
+      force_max_leaves = TRUE
+    ),
+    verbosity = 0L
+  )
+  expect_true(all(vapply(
+    mod@model@trees,
+    function(tree) length(tree@xnames) == 3L,
+    logical(1L)
+  )))
+  # Prediction still takes the full frame: each tree subsets it by its own
+  # `xnames`.
+  expect_length(predict(mod, features(datr_test)), nrow(datr_test))
+})
+
+## {LINADForest}[train]<RegressionRes> ----
+test_that("train() LINADForest RegressionRes succeeds", {
+  expect_s7_class(
+    train(
+      x = datr,
+      hyperparameters = setup_LINADForest(
+        n_trees = 3L,
+        max_leaves = 3L,
+        force_max_leaves = TRUE
+      ),
+      outer_resampling_config = setup_Resampler(3L),
+      execution_config = setup_ExecutionConfig(backend = "none"),
+      verbosity = 0L
+    ),
+    RegressionRes
+  )
+})
+
+## {LINADForest}[train]<Classification> ----
+mod_c_linadforest <- train(
+  datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_LINADForest(
+    n_trees = 5L,
+    max_leaves = 3L,
+    node_model = "ridge"
+  ),
+  verbosity = 0L
+)
+test_that("train() LINADForest Classification succeeds", {
+  expect_s7_class(mod_c_linadforest, Classification)
+})
+
+test_that("predict() LINADForest returns the probability of the second level", {
+  # A flipped column is still a valid probability, so nothing else catches this.
+  probability <- predict(mod_c_linadforest, features(datc2_test))
+  observed <- outcome(datc2_test)
+  levels_observed <- levels(observed)
+  expect_gt(
+    mean(probability[observed == levels_observed[[2L]]]),
+    mean(probability[observed == levels_observed[[1L]]])
+  )
+})
+
+## {LINADForest}[train]<Classification> Multiclass is refused ----
+test_that("train() LINADForest refuses a multiclass outcome", {
+  expect_error(
+    train(
+      datc3_train,
+      hyperparameters = setup_LINADForest(n_trees = 2L, max_leaves = 3L),
+      verbosity = 0L
+    ),
+    class = "rtemis_unsupported_error"
+  )
+})
+
+## {LINADForest} saveRDS round trip ----
+test_that("a saved LINADForest model predicts identically", {
+  path <- tempfile(fileext = ".rds")
+  saveRDS(mod_r_linadforest, path)
+  restored <- readRDS(path)
+  expect_equal(
+    predict(restored, features(datr_test)),
+    predict(mod_r_linadforest, features(datr_test))
+  )
+})
+
+## {LINADForest} Missing data is refused ----
+test_that("train() LINADForest with missing data throws an error", {
+  datr_train_na <- datr_train
+  datr_train_na[1:5, 1] <- NA
+  expect_error(
+    train(
+      datr_train_na,
+      hyperparameters = setup_LINADForest(n_trees = 2L),
+      verbosity = 0L
+    )
+  )
+})
+
+## {LINADForest} Algorithm name dispatch ----
+test_that("get_default_hyperparameters() resolves LINADForest", {
+  expect_s7_class(
+    get_default_hyperparameters("LINADForest"),
+    rtemis:::LINADForestHyperparameters
+  )
+})
+
 # --- LightCART ------------------------------------------------------------------------------------
 ## {LightCART}[train]<Regression> ----
 mod_r_lightcart <- train(

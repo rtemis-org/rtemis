@@ -3181,6 +3181,68 @@ method(print, LinearAdditiveTree) <- function(x, ...) {
 } # /rtemis::print.LinearAdditiveTree
 
 
+# LINADForest ----
+#' LINADForest
+#'
+#' @description
+#' Class for LINADForest models: a bagged ensemble of linear additive trees.
+#'
+#' Each tree is an ordinary `LinearAdditiveTree` holding its own feature subset
+#' in `@xnames`, so prediction is the mean over the trees' own `predict_super()`
+#' and the subsetting needs no code of its own.
+#'
+#' `bag_counts` -- how many times each training case appears in each bag -- is
+#' the one piece of training-set-sized state kept on the fitted model. The
+#' infinitesimal jackknife reads it, and there is no other way to reach a
+#' standard error of the fit; it costs `n * n_trees` integers.
+#'
+#' @author EDG
+#' @noRd
+LINADForest <- new_class(
+  name = "LINADForest",
+  package = "rtemis",
+  properties = list(
+    # `LinearAdditiveTree` objects, one per tree.
+    trees = class_list,
+    # Training cases x trees.
+    bag_counts = class_integer,
+    # One per training case, from the trees that did not hold it. NA for a case
+    # no tree left out.
+    oob_prediction = class_numeric,
+    oob_metrics = NULL | Metrics,
+    # The features as `train()` saw them: the union of what the trees hold.
+    xnames = class_character,
+    xlev = class_list,
+    type = class_character,
+    y_levels = NULL | class_character
+  )
+) # /rtemis::LINADForest
+
+
+# Print LINADForest ----
+method(print, LINADForest) <- function(x, ...) {
+  objcat("rtemis LINADForest Model")
+  n_trees <- length(x@trees)
+  leaves <- vapply(x@trees, function(tree) tree@n_leaves, integer(1L))
+  cat(
+    "Forest of ",
+    highlight(n_trees),
+    ngettext(n_trees, " tree", " trees"),
+    ", ",
+    highlight(ddSci(mean(leaves))),
+    " leaves on average.\n",
+    sep = ""
+  )
+  if (is.null(x@oob_metrics)) {
+    cat("No out-of-bag estimate.\n")
+  } else {
+    cat("Out-of-bag:\n")
+    print(x@oob_metrics)
+  }
+  invisible(x)
+} # /rtemis::print.LINADForest
+
+
 # NNLS ----
 #' NNLS
 #'
