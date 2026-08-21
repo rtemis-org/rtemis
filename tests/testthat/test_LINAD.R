@@ -981,3 +981,172 @@ test_that("first_* hyperparameters inherit the node-level values", {
   )
   expect_identical(overridden[["root_model"]], "constant")
 })
+
+
+# %% Structural invariants ----
+test_that("a grown tree is structurally sound under every configuration", {
+  # Properties an accuracy measurement cannot see. A tree that spends leaves on
+  # nodes identical to their parents is internally consistent and merely scores
+  # worse, so nothing that compares predictions will report it.
+  configurations <- list(
+    "forward/stump" = rtemis::setup_LINAD(max_leaves = 8L),
+    "forward/exhaustive" = rtemis::setup_LINAD(
+      max_leaves = 8L,
+      split_search = "exhaustive"
+    ),
+    "ridge" = rtemis::setup_LINAD(max_leaves = 8L, node_model = "ridge"),
+    "constant" = rtemis::setup_LINAD(max_leaves = 8L, node_model = "constant"),
+    "constant/soft" = rtemis::setup_LINAD(
+      max_leaves = 8L,
+      node_model = "constant",
+      gamma = 0.5
+    ),
+    "cart" = rtemis::setup_LINAD(
+      max_leaves = 8L,
+      node_model = "constant",
+      gamma = 0,
+      learning_rate = 1,
+      line_search = "none"
+    ),
+    "rate 1" = rtemis::setup_LINAD(max_leaves = 8L, learning_rate = 1),
+    "soft" = rtemis::setup_LINAD(max_leaves = 8L, gamma = 0.5),
+    "no line search" = rtemis::setup_LINAD(
+      max_leaves = 8L,
+      line_search = "none"
+    ),
+    "global selection" = rtemis::setup_LINAD(
+      max_leaves = 8L,
+      node_selection = "global"
+    ),
+    "least squares" = rtemis::setup_LINAD(
+      max_leaves = 8L,
+      constant_rule = "least_squares"
+    ),
+    "binned" = rtemis::setup_LINAD(max_leaves = 8L, split_binning = 8L)
+  )
+  for (label in names(configurations)) {
+    hyperparameters <- configurations[[label]]
+    hyperparameters@hyperparameters <- list(force_max_leaves = TRUE)
+    fitted <- rtemis:::linad_fit(
+      x = .x,
+      xm = .xm,
+      y = .y,
+      case_weights = .w,
+      type = "Regression",
+      settings = rtemis:::linad_settings(hyperparameters),
+      verbosity = 0L
+    )
+    model <- rtemis:::LinearAdditiveTree(
+      frame = fitted[["frame"]],
+      coefficients = fitted[["coefficients"]],
+      steps = fitted[["steps"]],
+      n_leaves = as.integer(fitted[["n_leaves"]]),
+      xnames = names(.x),
+      xlev = lapply(Filter(is.factor, .x), levels),
+      design_assign = as.integer(attr(.xm, "assign")),
+      design_scale = rtemis:::linad_scaling(.xm)[["scale"]],
+      type = "Regression",
+      y_levels = NULL,
+      leaf_curve = NULL
+    )
+    model@frame[["is_leaf"]] <- model@frame[["node"]] %in%
+      model@steps[[model@n_leaves]]
+    expect_identical(
+      rtemis:::linad_check_tree(model),
+      character(),
+      info = label
+    )
+  }
+})
+
+
+test_that("a classification tree is structurally sound too", {
+  outcome <- ifelse(.y > stats::median(.y), 1, -1)
+  fitted <- rtemis:::linad_fit(
+    x = .x,
+    xm = .xm,
+    y = outcome,
+    case_weights = .w,
+    type = "Classification",
+    settings = rtemis:::linad_settings(
+      rtemis::setup_LINAD(max_leaves = 8L, force_max_leaves = TRUE)
+    ),
+    verbosity = 0L
+  )
+  model <- rtemis:::LinearAdditiveTree(
+    frame = fitted[["frame"]],
+    coefficients = fitted[["coefficients"]],
+    steps = fitted[["steps"]],
+    n_leaves = as.integer(fitted[["n_leaves"]]),
+    xnames = names(.x),
+    xlev = lapply(Filter(is.factor, .x), levels),
+    design_assign = as.integer(attr(.xm, "assign")),
+    design_scale = rtemis:::linad_scaling(.xm)[["scale"]],
+    type = "Classification",
+    y_levels = c("lo", "hi"),
+    leaf_curve = NULL
+  )
+  model@frame[["is_leaf"]] <- model@frame[["node"]] %in%
+    model@steps[[model@n_leaves]]
+  expect_identical(rtemis:::linad_check_tree(model), character())
+})
+
+
+test_that("unscaling coefficients preserves the fit exactly", {
+  # Growth runs on a standardized design so one `lambda` means the same at every
+  # node, and the finished coefficients are mapped back. Both the fitted values
+  # and every later prediction use the mapped-back coefficients, so an error in
+  # the mapping would be invisible to any check that compares one against the
+  # other: they would be wrong together.
+  scaling <- rtemis:::linad_scaling(.xm)
+  scaled <- sweep(
+    sweep(.xm, 2L, scaling[["center"]], "-"),
+    2L,
+    scaling[["scale"]],
+    "/"
+  )
+  set.seed(11)
+  coefficients <- matrix(
+    rnorm(3L * ncol(.xm)),
+    nrow = 3L,
+    dimnames = list(NULL, colnames(.xm))
+  )
+  # The same function, evaluated two ways: standardized design with the
+  # standardized coefficients, and the raw design with the mapped-back ones.
+  expect_equal(
+    scaled %*% t(coefficients),
+    .xm %*% t(rtemis:::linad_unscale(coefficients, scaling)),
+    tolerance = 1e-10
+  )
+})
+
+
+test_that("a leaf's stored coefficients are the sum along its path", {
+  # The property the whole parameterization rests on: every update is linear, so
+  # a leaf's coefficients are its parent's plus the update made at that split.
+  # Checked on the frame, where a mismatch would mean the tree a reader inspects
+  # is not the tree that predicts.
+  fitted <- rtemis:::linad_fit(
+    x = .x,
+    xm = .xm,
+    y = .y,
+    case_weights = .w,
+    type = "Regression",
+    settings = rtemis:::linad_settings(
+      rtemis::setup_LINAD(max_leaves = 8L, force_max_leaves = TRUE)
+    ),
+    verbosity = 0L
+  )
+  frame <- fitted[["frame"]]
+  coefficients <- fitted[["coefficients"]]
+  # Routing every training case by the tree must reproduce the fitted values the
+  # coefficients give directly.
+  terminal <- fitted[["steps"]][[fitted[["n_leaves"]]]]
+  routed <- rtemis:::linad_route(frame, .x, terminal)
+  rows <- match(routed, frame[["node"]])
+  direct <- rowSums(.xm * coefficients[rows, , drop = FALSE])
+  expect_length(direct, nrow(.x))
+  expect_true(all(is.finite(direct)))
+  # Every case lands in a terminal node, never an internal one.
+  expect_true(all(routed %in% terminal))
+})

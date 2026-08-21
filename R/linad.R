@@ -930,7 +930,10 @@ linad_child <- function(state, node, r, derivatives, idx, weights) {
   fit <- NULL
   enough <- length(idx) >= state[["min_cases_node_model"]] ||
     identical(state[["node_model"]], "constant")
-  if (enough && length(idx) > 0L && !is_constant(r[idx])) {
+  # A residual with no variation is still fitted: the update is that constant
+  # with zero slopes, which is what the solve returns. Degeneracy is handled
+  # below, where a NULL or non-finite fit falls back to a zero update.
+  if (enough && length(idx) > 0L) {
     # Every case with weight left, not just the node's own. This is what makes
     # `gamma` a hyperparameter rather than a formality: at 0 the set below is
     # exactly the node's cases and the fit is the hard-partition one, and as it
@@ -1028,6 +1031,33 @@ linad_sample_features <- function(context, mtry = NULL) {
 } # /rtemis::linad_sample_features
 
 
+# %% linad_min_child_cases ----
+#' Fewest cases a split may leave on a side
+#'
+#' The higher of `min_cases_leaf` and `min_cases_node_model`, so that a split
+#' never creates a node too small to carry its own model: such a node takes a
+#' zero update and predicts exactly what its parent did, spending a leaf to
+#' change nothing. Both split searches use this, so the exhaustive search scores
+#' a candidate only by child models the commit will fit.
+#'
+#' A constant node carries no model and is exempt, which is what keeps the CART
+#' and Additive Tree reductions exact.
+#'
+#' @param state List: Fit state.
+#'
+#' @return Integer.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_min_child_cases <- function(state) {
+  if (identical(state[["node_model"]], "constant")) {
+    return(state[["min_cases_leaf"]])
+  }
+  max(state[["min_cases_leaf"]], state[["min_cases_node_model"]])
+} # /rtemis::linad_min_child_cases
+
+
 # %% linad_split_search ----
 #' Dispatch to the configured split search
 #'
@@ -1052,7 +1082,7 @@ linad_split_search <- function(state, r, w, member, features) {
       r,
       w,
       member,
-      state[["min_cases_leaf"]],
+      linad_min_child_cases(state),
       features
     )
   }
@@ -1572,6 +1602,123 @@ linad_frame <- function(nodes, leaves, steps, design_names) {
 } # /rtemis::linad_frame
 
 
+# %% linad_check_tree ----
+#' Structural invariants of a grown tree
+#'
+#' Everything a fitted `LinearAdditiveTree` must satisfy whatever the
+#' hyperparameters, checked against the frame it already stores: that each split
+#' partitions its node, that no leaf merely repeats its parent, that the numbers
+#' are finite, that the leaf flags match the selected size, and that the
+#' sequence of tree sizes is unbroken.
+#'
+#' Returns the violations rather than raising, so a caller can assert on it in a
+#' test or report it across a benchmark. Cheap enough to run on every fit.
+#'
+#' These are properties an accuracy measurement cannot see: a tree that wastes
+#' leaves is a worse number, not a visible fault.
+#'
+#' @param model `LinearAdditiveTree` object.
+#'
+#' @return Character vector of violations, empty when the tree is sound.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_check_tree <- function(model) {
+  problems <- character()
+  frame <- model@frame
+  node <- frame[["node"]]
+  terminal <- model@steps[[model@n_leaves]]
+  leaf_rows <- match(terminal, node)
+  internal <- which(!is.na(frame[["left"]]))
+
+  # A split partitions its node: nothing is lost or double counted.
+  for (row in internal) {
+    children <- match(
+      c(frame[["left"]][[row]], frame[["right"]][[row]]),
+      node
+    )
+    if (anyNA(children)) {
+      problems <- c(
+        problems,
+        paste0("node ", node[[row]], " names a child that is not in the frame")
+      )
+      next
+    }
+    if (frame[["n"]][[row]] != sum(frame[["n"]][children])) {
+      problems <- c(
+        problems,
+        paste0(
+          "node ",
+          node[[row]],
+          " holds ",
+          frame[["n"]][[row]],
+          " cases but its children hold ",
+          sum(frame[["n"]][children])
+        )
+      )
+    }
+  }
+
+  # A leaf that predicts exactly what its parent did spent one of `max_leaves`
+  # to change nothing.
+  for (i in seq_along(terminal)) {
+    parent <- frame[["parent"]][[leaf_rows[[i]]]]
+    if (is.na(parent)) {
+      next
+    }
+    parent_row <- match(parent, node)
+    same_coefficients <- isTRUE(all.equal(
+      model@coefficients[leaf_rows[[i]], ],
+      model@coefficients[parent_row, ]
+    ))
+    same_value <- isTRUE(all.equal(
+      frame[["node_value"]][[leaf_rows[[i]]]],
+      frame[["node_value"]][[parent_row]]
+    ))
+    if (same_coefficients && same_value) {
+      problems <- c(
+        problems,
+        paste0(
+          "leaf ",
+          terminal[[i]],
+          " (n = ",
+          frame[["n"]][[leaf_rows[[i]]]],
+          ") is identical to its parent ",
+          parent
+        )
+      )
+    }
+  }
+
+  # A model whose numbers are not numbers predicts nothing.
+  if (!all(is.finite(model@coefficients))) {
+    problems <- c(problems, "coefficients hold non-finite values")
+  }
+  if (any(!is.finite(frame[["loss"]]))) {
+    problems <- c(problems, "frame holds a non-finite loss")
+  }
+
+  # The leaf flags describe the tree at its selected size, which is what every
+  # later reader assumes.
+  flagged <- node[frame[["is_leaf"]]]
+  if (!setequal(flagged, terminal)) {
+    problems <- c(
+      problems,
+      "is_leaf disagrees with the terminal set at the selected size"
+    )
+  }
+
+  # Growing to k leaves passes through every smaller size, which is what makes
+  # selecting a size on held-out data meaningful.
+  sizes <- lengths(model@steps)
+  if (!identical(sizes, seq_along(model@steps))) {
+    problems <- c(problems, "the sequence of tree sizes is not 1, 2, ... k")
+  }
+  problems
+} # /rtemis::linad_check_tree
+
+
 # %% linad_route ----
 #' Route cases to their terminal node
 #'
@@ -1964,6 +2111,7 @@ linad_sweep <- function(state, r, w, member, features = NULL) {
   gamma <- state[["gamma"]]
   best <- list(gain = -Inf)
   scan <- linad_scan_features(context, features)
+  min_cases_child <- linad_min_child_cases(state)
 
   # The node's own sufficient statistics, which every candidate's right-hand
   # side is read off by subtraction. They do not depend on the feature, so they
@@ -1988,10 +2136,12 @@ linad_sweep <- function(state, r, w, member, features = NULL) {
       running_G <- running_G + block[["G"]]
       running_Xty <- running_Xty + block[["Xty"]]
       running_syy <- running_syy + block[["syy"]]
+      # The same floor the stump search uses and the commit enforces: a
+      # candidate is never scored by a child model that will not be fitted.
       if (
-        member_counts[[k]] < state[["min_cases_leaf"]] ||
+        member_counts[[k]] < min_cases_child ||
           (member_counts[[length(member_counts)]] - member_counts[[k]]) <
-            state[["min_cases_leaf"]]
+            min_cases_child
       ) {
         next
       }

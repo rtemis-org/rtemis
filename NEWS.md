@@ -2,6 +2,9 @@
 
 ## 1.3.7
 
+- **A LINAD split no longer creates a node too small to carry its own model.** Both split searches now use the floor the fit enforces, so the exhaustive search cannot score a candidate by child models it will not fit. At the defaults this had made three of six leaves identical to their parents, each spending one of `max_leaves` to change nothing. Trees are smaller and every leaf earns its place.
+- **A one-case LINAD node is fitted rather than skipped.** It took a zero update and inherited its parent, so in constant-node mode a one-case leaf predicted its parent's value where CART predicts the case's own. The guard also tested the node's own cases while the fit uses every case with surviving weight, which differ whenever `gamma > 0`.
+- New internal `linad_check_tree()`: the structural invariants of a grown tree, checked across twelve configurations in the suite and on every LINAD fit in the benchmark. These are faults an accuracy measurement cannot show -- a tree that wastes leaves scores worse and reports nothing.
 - **`train()` takes a list of hyperparameter configurations and searches all of them** -- `train(x, list(cart = setup_LINAD(...), addtree = setup_LINAD(...)))`. Each is expanded and gated on its own and the tuner selects across their union, so combinations a cross-product cannot express are now a search space. All members must be for one algorithm.
 - The winner is named: `mod@hyperparameters@variant` says which configuration was selected, and under outer resampling each fold selects independently. Unnamed configurations are labelled by position.
 - This is what makes "which special case does this dataset select?" answerable **inside** the inner resampling loop. Comparing separate `train()` runs selects on the test data; this does not.

@@ -1919,7 +1919,7 @@ LINADHyperparameters <- new_class(
 #' @param smooth_validation_curve Optional Logical: If TRUE, smooth the validation curve before reading its minimum. Applies only when `force_max_leaves` is FALSE.
 #' @param min_cases_split (Tunable) Integer [2, Inf): Fewest cases a node may hold and still be considered for splitting.
 #' @param min_cases_leaf (Tunable) Integer [1, Inf): Fewest cases a split must leave on each side.
-#' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` fits one.
+#' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` is not "constant".
 #' @param node_model Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node. "constant" is the intercept-only model every decision tree node carries; the others add a regularized linear model on top of it.
 #' @param nvmax (Tunable) Optional Integer [1, Inf): Terms forward selection adds beside the intercept. Applies only when `node_model` is "forward".
 #' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when `node_model` is "ridge" or "elasticnet".
