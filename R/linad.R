@@ -145,28 +145,81 @@ linad_chol_solve <- function(G, Xty, penalty, intercept = TRUE) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_forward <- function(G, Xty, nvmax, intercept = TRUE) {
+linad_forward <- function(
+  G,
+  Xty,
+  nvmax,
+  intercept = TRUE,
+  penalty = 0,
+  syy = NULL,
+  sample_weight = NULL,
+  stop_rule = "none"
+) {
   d <- ncol(G)
   coefficients <- rep(0, d)
   active <- if (intercept) 1L else integer(0)
   nugget <- LINAD_NUGGET * max(mean(diag(G)), .Machine[["double.eps"]])
   n_steps <- min(as.integer(nvmax), d - length(active))
-  for (step in seq_len(n_steps + 1L)) {
-    solved <- if (length(active) > 0L) {
-      linad_chol_solve(
-        G[active, active, drop = FALSE],
-        Xty[active],
-        0,
-        intercept = intercept
-      )
+  # A per-term cost is what makes `nvmax` a ceiling rather than a quota. Ridge
+  # shrinks but never zeroes, so a penalized gain alone would still spend the
+  # whole budget: every added term reduces the residual sum of squares by
+  # something positive.
+  cost <- switch(
+    stop_rule,
+    none = NULL,
+    aic = 2,
+    bic = if (is.null(sample_weight) || sample_weight <= 1) {
+      NULL
     } else {
-      numeric(0)
+      log(sample_weight)
+    },
+    NULL
+  )
+  testing <- !is.null(cost) && !is.null(syy) && !is.null(sample_weight)
+  penalties <- function(index) {
+    # The intercept is never penalized: it carries the level, and shrinking it
+    # would pull the fit toward zero rather than toward the mean.
+    out <- rep(penalty, length(index))
+    if (intercept) {
+      out[index == 1L] <- 0
     }
+    out
+  }
+  solve_active <- function(index) {
+    if (length(index) == 0L) {
+      return(numeric(0))
+    }
+    linad_chol_solve(
+      G[index, index, drop = FALSE],
+      Xty[index],
+      penalties(index),
+      intercept = intercept
+    )
+  }
+  residual_sum_squares <- function(index, solved) {
+    if (is.null(syy)) {
+      return(NA_real_)
+    }
+    if (length(index) == 0L) {
+      return(syy)
+    }
+    linad_gram_loss(
+      G[index, index, drop = FALSE],
+      Xty[index],
+      syy,
+      solved
+    )
+  }
+
+  current <- NULL
+  for (step in seq_len(n_steps + 1L)) {
+    solved <- solve_active(active)
     if (is.null(solved)) {
       return(NULL)
     }
     coefficients[] <- 0
     coefficients[active] <- solved
+    current <- residual_sum_squares(active, solved)
     if (step > n_steps) {
       break
     }
@@ -177,10 +230,16 @@ linad_forward <- function(G, Xty, nvmax, intercept = TRUE) {
     }
     candidates <- setdiff(seq_len(d), active)
     chol_active <- if (length(active) > 0L) {
-      chol(G[active, active, drop = FALSE] + diag(nugget, length(active)))
+      chol(
+        G[active, active, drop = FALSE] +
+          diag(nugget + penalties(active), length(active))
+      )
     } else {
       NULL
     }
+    # Selection under the objective the fit uses: the same penalty enters the
+    # Schur complement, so a feature that only looks good unpenalized does not
+    # win the search.
     gain <- vapply(
       candidates,
       function(j) {
@@ -190,6 +249,7 @@ linad_forward <- function(G, Xty, nvmax, intercept = TRUE) {
           projected <- backsolve(chol_active, G[active, j], transpose = TRUE)
           G[[j, j]] - sum(projected^2)
         }
+        schur <- schur + penalty
         if (schur <= nugget) {
           return(-Inf)
         }
@@ -201,7 +261,27 @@ linad_forward <- function(G, Xty, nvmax, intercept = TRUE) {
     if (length(best) == 0L || !is.finite(gain[[best]]) || gain[[best]] <= 0) {
       break
     }
-    active <- c(active, candidates[[best]])
+    proposed <- c(active, candidates[[best]])
+    if (testing) {
+      trial <- solve_active(proposed)
+      if (is.null(trial)) {
+        break
+      }
+      improved <- residual_sum_squares(proposed, trial)
+      # The Gaussian information criterion, in the form that needs only the two
+      # residual sums of squares: a term is kept when the deviance it buys
+      # exceeds what it costs.
+      if (
+        !is.finite(improved) ||
+          improved <= 0 ||
+          !is.finite(current) ||
+          current <= 0 ||
+          sample_weight * log(current / improved) <= cost
+      ) {
+        break
+      }
+    }
+    active <- proposed
   }
   coefficients
 } # /rtemis::linad_forward
@@ -362,6 +442,7 @@ linad_solve <- function(
   idx,
   node_model,
   lambda = 0.05,
+  forward_stop = "none",
   alpha = 1,
   nvmax = 3L,
   derivatives = NULL,
@@ -402,7 +483,16 @@ linad_solve <- function(
   } else {
     gram <- linad_gram(cbind(centered), residual, w, idx)
     if (identical(node_model, "forward")) {
-      linad_forward(gram[["G"]], gram[["Xty"]], nvmax, intercept = FALSE)
+      linad_forward(
+        gram[["G"]],
+        gram[["Xty"]],
+        nvmax,
+        intercept = FALSE,
+        penalty = lambda * gram[["sw"]],
+        syy = gram[["syy"]],
+        sample_weight = gram[["sw"]],
+        stop_rule = forward_stop
+      )
     } else {
       # "ridge". Scaling by the weight total matches glmnet's objective, which
       # divides the residual sum of squares by it, so one `lambda` means the
@@ -952,6 +1042,7 @@ linad_child <- function(state, node, r, derivatives, idx, weights) {
       state[["lambda"]],
       state[["alpha"]],
       state[["nvmax"]],
+      forward_stop = state[["forward_stop"]],
       derivatives = derivatives,
       type = state[["type"]],
       max_step = state[["line_search_max"]],
@@ -1416,6 +1507,7 @@ linad_fit <- function(x, xm, y, case_weights, type, settings, verbosity = 1L) {
       settings[["root_lambda"]],
       settings[["root_alpha"]],
       settings[["root_nvmax"]],
+      forward_stop = settings[["forward_stop"]],
       derivatives = NULL,
       type = "Regression",
       max_step = settings[["line_search_max"]]
@@ -1995,6 +2087,7 @@ linad_settings <- function(hyperparameters) {
     root_lambda = value_or("root_lambda", lambda),
     root_alpha = value_or("root_alpha", alpha),
     root_learning_rate = hyperparameters[["root_learning_rate"]],
+    forward_stop = value_or("forward_stop", "bic"),
     split_search = hyperparameters[["split_search"]],
     # A single tree scans every feature at every split; `LINADForest` overrides
     # this in `linadforest_settings()`, which is the only caller that samples.
@@ -2034,7 +2127,16 @@ linad_settings <- function(hyperparameters) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_gram_solve <- function(G, Xty, sw, node_model, lambda, nvmax) {
+linad_gram_solve <- function(
+  G,
+  Xty,
+  sw,
+  node_model,
+  lambda,
+  nvmax,
+  syy = NULL,
+  forward_stop = "none"
+) {
   if (identical(node_model, "constant")) {
     coefficients <- rep(0, ncol(G))
     if (G[[1L, 1L]] <= 0) {
@@ -2044,7 +2146,15 @@ linad_gram_solve <- function(G, Xty, sw, node_model, lambda, nvmax) {
     return(coefficients)
   }
   if (identical(node_model, "forward")) {
-    return(linad_forward(G, Xty, nvmax))
+    return(linad_forward(
+      G,
+      Xty,
+      nvmax,
+      penalty = lambda * sw,
+      syy = syy,
+      sample_weight = sw,
+      stop_rule = forward_stop
+    ))
   }
   linad_chol_solve(G, Xty, lambda * sw)
 } # /rtemis::linad_gram_solve
@@ -2178,7 +2288,9 @@ linad_sweep <- function(state, r, w, member, features = NULL) {
           sw,
           state[["node_model"]],
           state[["lambda"]],
-          state[["nvmax"]]
+          state[["nvmax"]],
+          syy = side[["syy"]],
+          forward_stop = state[["forward_stop"]]
         )
         if (is.null(b) || !all(is.finite(b))) {
           loss <- Inf

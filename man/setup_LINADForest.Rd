@@ -13,6 +13,7 @@ setup_LINADForest(
   min_cases_leaf = 1L,
   min_cases_node_model = NULL,
   nvmax = NULL,
+  forward_stop = NULL,
   lambda = NULL,
   alpha = NULL,
   learning_rate = 1,
@@ -51,9 +52,11 @@ setup_LINADForest(
 
 \item{min_cases_node_model}{(Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when \code{node_model} fits one.}
 
-\item{nvmax}{(Tunable) Optional Integer [1, Inf): Terms forward selection adds beside the intercept. Applies only when \code{node_model} is "forward".}
+\item{nvmax}{(Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when \code{node_model} is "forward".}
 
-\item{lambda}{(Tunable) Optional Numeric [0, Inf): L2 penalty on the node models. Applies only when \code{node_model} is "ridge" or "elasticnet".}
+\item{forward_stop}{(Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when \code{node_model} is "forward".}
+
+\item{lambda}{(Tunable) Optional Numeric [0, Inf): L2 penalty on the node models. Applies only when \code{node_model} is "forward", "ridge" or "elasticnet".}
 
 \item{alpha}{(Tunable) Optional Numeric [0, 1]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when \code{node_model} is "elasticnet".}
 

@@ -2,6 +2,9 @@
 
 ## 1.3.7
 
+- **`setup_LINAD(nvmax = )` is now a ceiling rather than a quota.** Forward selection always spent its whole budget -- the gain is a square over a positive quantity, so every added term reduces the residual sum of squares by something. New `setup_LINAD(forward_stop = )` \{"bic", "aic", "none"\} sets the cost a term must earn, defaulting to "bic".
+- **`setup_LINAD(lambda = )` now reaches forward selection**, penalizing the fit and the search alike, so a feature that only looks good unpenalized no longer wins. It was the one node model with no shrinkage at all, and the documentation claimed otherwise.
+- Measured over five signal shapes at n = 500, p = 20: BIC recovers the true function better than AIC or no rule (0.451 against 0.442 and 0.440) using **40% fewer coefficients** (61 against 84 and 101), so the parsimony is close to free.
 - **A LINAD split no longer creates a node too small to carry its own model.** Both split searches now use the floor the fit enforces, so the exhaustive search cannot score a candidate by child models it will not fit. At the defaults this had made three of six leaves identical to their parents, each spending one of `max_leaves` to change nothing. Trees are smaller and every leaf earns its place.
 - **A one-case LINAD node is fitted rather than skipped.** It took a zero update and inherited its parent, so in constant-node mode a one-case leaf predicted its parent's value where CART predicts the case's own. The guard also tested the node's own cases while the fit uses every case with surviving weight, which differ whenever `gamma > 0`.
 - New internal `linad_check_tree()`: the structural invariants of a grown tree, checked across twelve configurations in the suite and on every LINAD fit in the benchmark. These are faults an accuracy measurement cannot show -- a tree that wastes leaves scores worse and reports nothing.

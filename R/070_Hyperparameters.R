@@ -1645,7 +1645,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
     node_model = prop_string(
       "forward",
       enum = LINAD_LEAF_MODELS,
-      description = "Model fitted at each node. constant is the intercept-only model every decision tree node carries; the others add a regularized linear model on top of it."
+      description = "Model fitted at each node. constant is the intercept-only model every decision tree node carries; the others add a linear model on top of it, regularized by lambda."
     ),
     nvmax = prop_integer(
       NULL,
@@ -1653,15 +1653,25 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(node_model = "forward"),
-      description = "Number of terms forward selection adds beside the intercept. A term count, not a ceiling; capped at the width of the design."
+      description = "Most terms forward selection may add beside the intercept. A ceiling: the search stops earlier when forward_stop says a term does not pay for itself. Capped at the width of the design. Defaults to 3 where it applies."
+    ),
+    forward_stop = prop_string(
+      NULL,
+      enum = c("bic", "aic", "none"),
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(node_model = "forward"),
+      description = "Cost a term must earn to be added: the Bayesian or Akaike criterion, or none to always add nvmax terms. Shrinkage alone cannot stop the search, since every added term reduces the residual sum of squares. Defaults to bic where it applies."
     ),
     lambda = prop_float(
       NULL,
       min = 0,
       nullable = TRUE,
       tunable = TRUE,
-      applies_when = list(node_model = c("ridge", "elasticnet")),
-      description = "L2 penalty on the leaf models, on a standardized design so one value means the same at every node."
+      applies_when = list(
+        node_model = c("forward", "ridge", "elasticnet")
+      ),
+      description = "L2 penalty on the node models, on a standardized design so one value means the same at every node. Under forward selection it penalizes the fit and the search alike, so a feature that only looks good unpenalized does not win. Defaults to 0.05 where it applies."
     ),
     alpha = prop_float(
       NULL,
@@ -1921,8 +1931,9 @@ LINADHyperparameters <- new_class(
 #' @param min_cases_leaf (Tunable) Integer [1, Inf): Fewest cases a split must leave on each side.
 #' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` is not "constant".
 #' @param node_model Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node. "constant" is the intercept-only model every decision tree node carries; the others add a regularized linear model on top of it.
-#' @param nvmax (Tunable) Optional Integer [1, Inf): Terms forward selection adds beside the intercept. Applies only when `node_model` is "forward".
-#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when `node_model` is "ridge" or "elasticnet".
+#' @param nvmax (Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when `node_model` is "forward".
+#' @param forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when `node_model` is "forward".
+#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when `node_model` is "forward", "ridge" or "elasticnet".
 #' @param alpha (Tunable) Optional Numeric \[0, 1\]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when `node_model` is "elasticnet".
 #' @param learning_rate (Tunable) Numeric (0, 1\]: Shrinkage applied to every functional update.
 #' @param root_model Optional Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at the root. NULL uses `node_model`.
@@ -1965,6 +1976,7 @@ setup_LINAD <- function(
   min_cases_leaf = 1L,
   min_cases_node_model = NULL,
   nvmax = NULL,
+  forward_stop = NULL,
   lambda = NULL,
   alpha = NULL,
   learning_rate = 0.1,
@@ -2005,6 +2017,7 @@ setup_LINAD <- function(
     min_cases_node_model = min_cases_node_model,
     node_model = node_model,
     nvmax = nvmax,
+    forward_stop = forward_stop,
     lambda = lambda,
     alpha = alpha,
     learning_rate = learning_rate,
@@ -2147,8 +2160,9 @@ LINADForestHyperparameters <- new_class(
 #' @param min_cases_leaf (Tunable) Integer [1, Inf): Fewest cases a split must leave on each side.
 #' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` fits one.
 #' @param node_model Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node.
-#' @param nvmax (Tunable) Optional Integer [1, Inf): Terms forward selection adds beside the intercept. Applies only when `node_model` is "forward".
-#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the node models. Applies only when `node_model` is "ridge" or "elasticnet".
+#' @param nvmax (Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when `node_model` is "forward".
+#' @param forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when `node_model` is "forward".
+#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the node models. Applies only when `node_model` is "forward", "ridge" or "elasticnet".
 #' @param alpha (Tunable) Optional Numeric \[0, 1\]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when `node_model` is "elasticnet".
 #' @param learning_rate (Tunable) Numeric (0, 1\]: Shrinkage applied to every functional update.
 #' @param root_model Optional Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each tree's root. NULL uses `node_model`.
@@ -2189,6 +2203,7 @@ setup_LINADForest <- function(
   min_cases_leaf = 1L,
   min_cases_node_model = NULL,
   nvmax = NULL,
+  forward_stop = NULL,
   lambda = NULL,
   alpha = NULL,
   learning_rate = 1,
@@ -2235,6 +2250,7 @@ setup_LINADForest <- function(
     min_cases_node_model = min_cases_node_model,
     node_model = node_model,
     nvmax = nvmax,
+    forward_stop = forward_stop,
     lambda = lambda,
     alpha = alpha,
     learning_rate = learning_rate,

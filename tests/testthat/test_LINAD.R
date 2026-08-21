@@ -938,8 +938,14 @@ test_that("the design matrix is full rank with factors present", {
 # %% Hyperparameter gates ----
 test_that("setup_LINAD() rejects a parameter its leaf model ignores", {
   expect_error(setup_LINAD(node_model = "ridge", nvmax = 5L))
-  expect_error(setup_LINAD(node_model = "forward", lambda = 0.1))
   expect_error(setup_LINAD(node_model = "ridge", alpha = 0.5))
+  expect_error(setup_LINAD(node_model = "ridge", forward_stop = "bic"))
+  # `lambda` reaches forward selection: it penalizes the fit and the search
+  # alike, so the three linear node models share one shrinkage knob.
+  expect_s7_class(
+    setup_LINAD(node_model = "forward", lambda = 0.1),
+    rtemis:::LINADHyperparameters
+  )
   expect_error(setup_LINAD(
     force_max_leaves = TRUE,
     smooth_validation_curve = TRUE
@@ -1149,4 +1155,180 @@ test_that("a leaf's stored coefficients are the sum along its path", {
   expect_true(all(is.finite(direct)))
   # Every case lands in a terminal node, never an internal one.
   expect_true(all(routed %in% terminal))
+})
+
+
+# %% Forward selection: penalty and ceiling ----
+test_that("nvmax is a ceiling, not a quota", {
+  # A per-term cost is what makes it one. Without it the search always spends
+  # its whole budget: the gain is a square over a positive quantity, so every
+  # added term reduces the residual sum of squares by something positive.
+  gram <- rtemis:::linad_gram(.xm, .y, .w, NULL)
+  count_terms <- function(rule) {
+    coefficients <- rtemis:::linad_forward(
+      gram[["G"]],
+      gram[["Xty"]],
+      nvmax = 8L,
+      syy = gram[["syy"]],
+      sample_weight = gram[["sw"]],
+      stop_rule = rule
+    )
+    sum(abs(coefficients) > 0)
+  }
+  # `none` spends the budget: 8 terms plus the intercept, or the design's width.
+  expect_identical(count_terms("none"), min(9L, ncol(.xm)))
+  # A cost can only stop the search earlier, never extend it.
+  expect_lte(count_terms("bic"), count_terms("none"))
+  expect_lte(count_terms("aic"), count_terms("none"))
+  # BIC costs log(n) per term against AIC's 2, so it is never the more generous.
+  expect_lte(count_terms("bic"), count_terms("aic"))
+})
+
+
+test_that("lambda penalizes forward selection's fit and its search", {
+  gram <- rtemis:::linad_gram(.xm, .y, .w, NULL)
+  unpenalized <- rtemis:::linad_forward(
+    gram[["G"]],
+    gram[["Xty"]],
+    nvmax = 3L,
+    penalty = 0,
+    stop_rule = "none"
+  )
+  penalized <- rtemis:::linad_forward(
+    gram[["G"]],
+    gram[["Xty"]],
+    nvmax = 3L,
+    penalty = 5 * gram[["sw"]],
+    stop_rule = "none"
+  )
+  # Shrinkage reaches the coefficients.
+  expect_false(isTRUE(all.equal(unpenalized, penalized)))
+  slopes <- function(b) b[-1L][b[-1L] != 0]
+  expect_lt(sum(abs(slopes(penalized))), sum(abs(slopes(unpenalized))))
+  # The intercept is never penalized: it carries the level, and shrinking it
+  # would pull the fit toward zero rather than toward the mean.
+  expect_gt(abs(penalized[[1L]]), 0)
+})
+
+
+test_that("forward selection at lambda 0 still matches leaps", {
+  # The unpenalized special case, which is what `leaps` computes. The
+  # equivalence is pinned here rather than at the default, since the default
+  # both penalizes and stops early.
+  skip_if_not_installed("leaps")
+  gram <- rtemis:::linad_gram(.xm, .y, .w, NULL)
+  for (nvmax in 1:3) {
+    ours <- rtemis:::linad_forward(
+      gram[["G"]],
+      gram[["Xty"]],
+      nvmax = nvmax,
+      penalty = 0,
+      stop_rule = "none"
+    )
+    reference <- leaps::regsubsets(
+      x = .xm[, -1L, drop = FALSE],
+      y = .y,
+      nvmax = nvmax,
+      method = "forward"
+    )
+    selected <- names(coef(reference, nvmax))[-1L]
+    expect_setequal(colnames(.xm)[which(abs(ours) > 0)][-1L], selected)
+  }
+})
+
+
+test_that("the two split searches agree exactly on constant leaves", {
+  # With constants in the leaves, scoring a candidate by the loss after fitting
+  # both children *is* the weighted mean-shift criterion the stump maximizes. So
+  # the two searches must choose the same splits once the exhaustive one is
+  # allowed to see every candidate cut rather than the `n_cuts` it thins to.
+  #
+  # Two independent implementations -- cumulative sums over a sorted feature
+  # against a Gram sweep with child solves -- agreeing bit for bit is the
+  # strongest evidence available that either is right.
+  outcome <- 3 *
+    ifelse(.x[["b"]] > 0, 1, -1) +
+    2 * ifelse(.x[["a"]] > 0.5, 1, 0) +
+    rnorm(.n, sd = 0.4)
+  constant <- function(search, n_cuts = NULL) {
+    settings <- rtemis:::linad_settings(
+      rtemis::setup_LINAD(
+        max_leaves = 6L,
+        node_model = "constant",
+        gamma = 0,
+        learning_rate = 1,
+        line_search = "none",
+        split_search = search,
+        n_cuts = n_cuts,
+        force_max_leaves = TRUE
+      )
+    )
+    rtemis:::linad_fit(
+      x = .x,
+      xm = .xm,
+      y = outcome,
+      case_weights = .w,
+      type = "Regression",
+      settings = settings,
+      verbosity = 0L
+    )
+  }
+  reference <- constant("stump")
+  # Enough cuts to cover every distinct value.
+  exhaustive <- constant("exhaustive", n_cuts = as.integer(.n))
+  expect_identical(
+    reference[["frame"]][["split_feature"]],
+    exhaustive[["frame"]][["split_feature"]]
+  )
+  expect_equal(
+    reference[["frame"]][["split_value"]],
+    exhaustive[["frame"]][["split_value"]]
+  )
+  expect_equal(reference[["coefficients"]], exhaustive[["coefficients"]])
+})
+
+
+test_that("the exhaustive search finds a slope change the stump cannot", {
+  # y = x^2: the simplest nonlinear function there is, and the stump is blind to
+  # its one correct split. Both halves of a symmetric parabola have nearly the
+  # same mean, so the mean-shift criterion ranks the split at zero near *last* --
+  # it does not merely fail to prefer it.
+  set.seed(2026)
+  feature <- rnorm(500L, 0, 3)
+  parabola <- data.frame(
+    x = feature,
+    y = feature^2 + 12 + rnorm(500L, 0, 1.5)
+  )
+  fit <- function(search) {
+    model <- rtemis::train(
+      parabola,
+      hyperparameters = rtemis::setup_LINAD(
+        max_leaves = 2L,
+        learning_rate = 1,
+        gamma = 0,
+        split_search = search,
+        force_max_leaves = TRUE
+      ),
+      execution_config = rtemis::setup_ExecutionConfig(
+        seed = 1L,
+        backend = "none"
+      ),
+      verbosity = 0L
+    )
+    frame <- model@model@frame
+    list(
+      cut = frame[["split_value"]][!is.na(frame[["split_feature"]])][[1L]],
+      rsq = rtemis:::rsq(
+        parabola[["y"]],
+        stats::predict(model, parabola["x"])
+      )
+    )
+  }
+  stump <- fit("stump")
+  exhaustive <- fit("exhaustive")
+  # The right split is at the vertex, x = 0.
+  expect_lt(abs(exhaustive[["cut"]]), 0.5)
+  expect_gt(abs(stump[["cut"]]), 2)
+  expect_gt(exhaustive[["rsq"]], 0.85)
+  expect_lt(stump[["rsq"]], 0.6)
 })
