@@ -2,6 +2,10 @@
 
 ## 1.3.7
 
+- **New `bias_variance()`**: splits a learner's error into the part from being systematically wrong and the part from being unstable, by refitting over resamples and watching the predictions at a fixed test set. Populates the `BiasVariance` class, which had existed with nothing to produce one.
+- `bias_variance(true_values = )` measures squared bias against the true function where it is known, which only simulated data offers. Without it, bias is measured against the observed outcome and so carries the irreducible noise -- measured at 0.997 against a true variance of 1.
+- `bias_variance()` reports the sample variance across resamples, unbiased for the variance of the fitted function, and one estimate per test case rather than one number.
+- Binary outcomes decompose on the **probability** scale, since 0-1 loss does not decompose additively into bias and variance; multiclass is refused for the same reason.
 - **New algorithm: GLMTree, model-based recursive partitioning** -- `setup_GLMTree()`, via 'partykit'. A tree carrying a generalized linear model in each leaf, split not by loss reduction but by testing whether a node's coefficients are constant across a candidate variable.
 - `setup_GLMTree(regressors = , partitioning_variables = )` take the two halves apart: the model in each leaf need not read the variables the tree splits on.
 - `setup_GLMTree(alpha = )` is the tree-size dial, and it has units -- a node splits when an instability test reaches that significance level. With few cases or many partitioning variables the tests lose power and the tree returns a single global model; raising `alpha` is the first thing to try.

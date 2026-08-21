@@ -6,6 +6,7 @@ AutoPyTorch
 BARTHyperparameters
 BH
 Barmode
+Bienenstock
 Candes
 CARTHyperparameters
 CDN
@@ -27,6 +28,7 @@ Diffenderfer
 DTA
 DecomposeConfig
 DecompositionConfig
+Doursat
 DuckDB
 EDG
 Efron
@@ -43,6 +45,7 @@ GLMTree
 GLMTreeHyperparameters
 GLU
 Gantt
+Geman
 Gini
 goss
 GOSS
@@ -200,6 +203,7 @@ Zeitgeber
 Zerolines
 adam
 adamw
+additively
 anova
 arg
 arities
