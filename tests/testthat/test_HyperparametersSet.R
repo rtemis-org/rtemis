@@ -305,3 +305,88 @@ test_that("the config artifact carries the set that was asked for", {
   expect_s7_class(model@config@hyperparameters, rtemis:::HyperparametersSet)
   expect_s7_class(model@hyperparameters, rtemis:::LINADHyperparameters)
 })
+
+
+# %% Rows that look alike are not the same row ----
+test_that("members differing only in an untuned hyperparameter both survive", {
+  # A grid holds only the properties that need *tuning*, so two members that
+  # differ in one neither of them tunes produce rows identical in every column
+  # but `.variant`. They are different configurations and both must be fitted --
+  # deduplicating the union would silently drop one, and the grid gives no
+  # visible sign that they differ.
+  set <- rtemis:::as_HyperparametersSet(list(
+    forward = setup_LINAD(node_model = "forward"),
+    constant = setup_LINAD(node_model = "constant")
+  ))
+  grid <- tuning_grid(set)
+  expect_identical(nrow(grid), 2L)
+  expect_identical(
+    as.character(grid[[".variant"]]),
+    c("forward", "constant")
+  )
+  columns <- rtemis:::grid_hyperparameter_columns(grid)
+  # Nothing distinguishes them in the hyperparameter columns; `.variant` does.
+  expect_identical(
+    grid[1L, columns, drop = FALSE],
+    grid[2L, columns, drop = FALSE],
+    ignore_attr = TRUE
+  )
+})
+
+
+# %% What tuning reports ----
+test_that("tuning names the variant count, and only for a set", {
+  variants <- train(
+    .dat,
+    hyperparameters = list(
+      linear = setup_LINAD(max_leaves = 1L, node_model = "ridge", lambda = 0.1),
+      addtree = setup_LINAD(
+        node_model = "constant",
+        gamma = 0.1,
+        learning_rate = 1,
+        max_leaves = 5L,
+        force_max_leaves = TRUE
+      )
+    ),
+    tuner_config = .tuner,
+    execution_config = .execution,
+    verbosity = 1L
+  )
+  expect_s7_class(variants, Regression)
+})
+
+
+test_that("a set reports only the winning member's own search", {
+  # The union grid holds every member's tuned hyperparameters, so reporting it
+  # whole shows one member's candidates as another's: a `lambda` searched over
+  # {0.01, 0.1} in one variant reads as {0.01, 0.1, NULL} once variants that
+  # never set it are folded in, and that NULL is not a candidate anyone offered.
+  set.seed(7)
+  n <- 300L
+  features <- data.frame(a = rnorm(n), b = rnorm(n))
+  linear_dat <- data.frame(
+    features,
+    y = 2 * features[["a"]] - 1.5 * features[["b"]] + rnorm(n, sd = 0.5)
+  )
+  expect_message(
+    train(
+      linear_dat,
+      hyperparameters = list(
+        linear = setup_LINAD(
+          max_leaves = 1L,
+          node_model = "ridge",
+          lambda = tune_over(0.01, 0.1)
+        ),
+        addtree = setup_LINAD(
+          node_model = "constant",
+          gamma = tune_over(0.1, 0.3),
+          learning_rate = 1
+        )
+      ),
+      tuner_config = .tuner,
+      execution_config = .execution,
+      verbosity = 1L
+    ),
+    regexp = "hyperparameter variants"
+  )
+})

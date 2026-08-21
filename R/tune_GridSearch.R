@@ -159,6 +159,22 @@ tune_GridSearch <- function(
       "..."
     )
     msg0(
+      # A set's combinations are spread across its members, and the count alone
+      # does not say so: two members that differ only in a hyperparameter
+      # neither tunes produce grid rows identical in every column but
+      # `.variant`, so six combinations can look like fewer.
+      if (is.null(members)) {
+        ""
+      } else {
+        paste0(
+          fmt(length(members), col = col_tuner, bold = TRUE),
+          ngettext(
+            length(members),
+            " hyperparameter variant, ",
+            " hyperparameter variants, "
+          )
+        )
+      },
       fmt(n_param_combinations, col = col_tuner, bold = TRUE),
       ngettext(
         n_param_combinations,
@@ -600,12 +616,36 @@ tune_GridSearch <- function(
         ":"
       )
     )
-    # The hyperparameter columns only, so the grid shown lines up with the
-    # values reported beside it; the variant is named in the line above.
-    print_tune_finding(
-      param_grid[, grid_hyperparameter_columns(param_grid), drop = FALSE],
-      best_param_combo
-    )
+    # For a set, only what the **winning member** actually searched. The union
+    # grid holds every member's tuned hyperparameters, so reporting it whole
+    # presents one member's candidates as another's: `lambda` searched over
+    # {0.01, 0.1} inside one variant reads as {0.01, 0.1, NULL} once three
+    # variants that do not set it are folded in, and the NULL is not a candidate
+    # anyone offered.
+    shown_columns <- grid_hyperparameter_columns(param_grid)
+    shown_grid <- param_grid
+    if (!is.null(best_variant)) {
+      shown_columns <- intersect(
+        shown_columns,
+        names(get_hyperparams_need_tuning(members[[best_variant]]))
+      )
+      shown_grid <- param_grid[
+        param_grid[[VARIANT_COLUMN]] == best_variant,
+        ,
+        drop = FALSE
+      ]
+    }
+    if (length(shown_columns) == 0L) {
+      # A member can win by being a whole configuration rather than by a value
+      # search -- the point of a set -- and then there is no combination to
+      # report beyond its name, already in the line above.
+      msg(paste0("  ", gray("no hyperparameters searched within this variant")))
+    } else {
+      print_tune_finding(
+        shown_grid[, shown_columns, drop = FALSE],
+        best_param_combo[shown_columns]
+      )
+    }
   }
 
   # Outro ----
