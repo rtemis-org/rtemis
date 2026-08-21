@@ -2050,7 +2050,9 @@ applies_when_spec_names <- function(x) {
 #' @keywords internal
 #' @noRd
 format_allowed <- function(values) {
-  values <- format(values, trim = TRUE)
+  # `format()` pads a character vector to a common width and right-justifies
+  # numbers to one, and `trim` suppresses only the second.
+  values <- trimws(format(values, trim = TRUE))
   if (length(values) == 1L) {
     return(values)
   }

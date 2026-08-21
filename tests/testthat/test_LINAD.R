@@ -1551,3 +1551,59 @@ test_that("linad_node_test charges each term and keeps a fit that pays", {
   # Nothing to explain.
   expect_false(linad_node_test(0, 0, 100, 2L, "bic"))
 })
+
+
+test_that("A ridge fit is charged the parameters it spends, not the ones it has", {
+  set.seed(2026)
+  n <- 120L
+  d <- 20L
+  X <- matrix(rnorm(n * d), n, d)
+  gram <- linad_gram(X, rnorm(n), rep(1, n), seq_len(n))
+  # No penalty is an ordinary least-squares fit: every column is a parameter.
+  expect_equal(linad_ridge_edf(gram[["G"]], 0, intercept = FALSE), d)
+  # Shrinkage spends fewer, monotonically so, and never leaves the interval.
+  edf <- vapply(
+    c(0.01, 0.1, 1, 10) * gram[["sw"]],
+    function(penalty) linad_ridge_edf(gram[["G"]], penalty, intercept = FALSE),
+    numeric(1L)
+  )
+  expect_true(all(diff(edf) < 0))
+  expect_true(all(edf > 0 & edf < d))
+  # An unpenalized intercept always costs its own parameter.
+  gram_intercept <- linad_gram(cbind(1, X), rnorm(n), rep(1, n), seq_len(n))
+  expect_gt(linad_ridge_edf(gram_intercept[["G"]], 1e6), 1 - 1e-6)
+})
+
+
+test_that("node_test keeps a ridge fit on data wider than it is long", {
+  # The nonzero count would charge every column, so BIC could never be paid at
+  # this shape and every node would fall back to a constant.
+  set.seed(2026)
+  n <- 190L
+  p <- 117L
+  X <- as.data.frame(matrix(rnorm(n * p), n, p))
+  names(X) <- paste0("x", seq_len(p))
+  X[["y"]] <- 2 * X[["x1"]] + 1.5 * X[["x2"]] - X[["x3"]] + rnorm(n, 0, 1)
+  fit <- function(...) {
+    train(
+      X,
+      hyperparameters = setup_LINAD(
+        learning_rate = 0.01,
+        gamma = 0.1,
+        node_model = "ridge",
+        lambda = 0.6,
+        ...
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+  }
+  root_slopes <- function(mod) sum(abs(mod@model@coefficients[1L, -1L]) > 1e-10)
+  expect_equal(root_slopes(fit(node_test = "bic")), p)
+  rsq <- function(mod) {
+    1 -
+      sum((X[["y"]] - predict(mod, X[, seq_len(p)]))^2) /
+        sum((X[["y"]] - mean(X[["y"]]))^2)
+  }
+  expect_gt(rsq(fit(node_test = "bic")), rsq(fit()) - 0.05)
+})

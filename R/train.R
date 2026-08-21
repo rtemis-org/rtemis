@@ -646,6 +646,16 @@ train <- function(
       "...",
       verbosity = verbosity
     )
+    # Each fold runs at `verbosity - 1L`, so the search's own announcement is
+    # silenced inside them. Say once, here, what all of them are about to do.
+    if (needs_tuning(hyperparameters) && !is.null(tuner_config)) {
+      tuning_intro(
+        tuning_grid_summary(hyperparameters, tuner_config),
+        algorithm,
+        tuner_config,
+        verbosity = verbosity
+      )
+    }
     outer_resampler <- resample(
       x_resampling,
       config = outer_resampling_config,

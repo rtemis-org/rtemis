@@ -95,17 +95,9 @@ linad_gram <- function(xm, y, w, idx = NULL) {
 #' @keywords internal
 #' @noRd
 linad_chol_solve <- function(G, Xty, penalty, intercept = TRUE) {
-  d <- ncol(G)
-  ridge <- rep(penalty, d)
-  if (intercept) {
-    ridge[[1L]] <- 0
-  }
-  # A nugget proportional to the trace keeps a rank-deficient node solvable
-  # (a constant column inside a leaf is ordinary, not an error) without
-  # perceptibly moving a well-conditioned solve.
-  nugget <- LINAD_NUGGET * max(mean(diag(G)), .Machine[["double.eps"]])
+  ridge <- linad_ridge_diagonal(G, penalty, intercept)
   chol_factor <- tryCatch(
-    chol(G + diag(ridge + nugget, d)),
+    chol(G + diag(ridge, ncol(G))),
     error = function(e) NULL
   )
   if (is.null(chol_factor)) {
@@ -113,6 +105,69 @@ linad_chol_solve <- function(G, Xty, penalty, intercept = TRUE) {
   }
   drop(backsolve(chol_factor, backsolve(chol_factor, Xty, transpose = TRUE)))
 } # /rtemis::linad_chol_solve
+
+
+# %% linad_ridge_diagonal ----
+#' The diagonal a penalized solve adds to a Gram
+#'
+#' A nugget proportional to the trace keeps a rank-deficient node solvable (a
+#' constant column inside a leaf is ordinary, not an error) without perceptibly
+#' moving a well-conditioned solve. The intercept is never penalized: it carries
+#' the level.
+#'
+#' Both the solve and the degrees-of-freedom count read the penalty from here,
+#' so the two cannot describe different models.
+#'
+#' @param G Numeric matrix: `X'WX`.
+#' @param penalty Numeric: Ridge penalty.
+#' @param intercept Logical: Whether column 1 is the intercept.
+#'
+#' @return Numeric vector of length `ncol(G)`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_ridge_diagonal <- function(G, penalty, intercept = TRUE) {
+  d <- ncol(G)
+  ridge <- rep(penalty, d)
+  if (intercept) {
+    ridge[[1L]] <- 0
+  }
+  ridge + LINAD_NUGGET * max(mean(diag(G)), .Machine[["double.eps"]])
+} # /rtemis::linad_ridge_diagonal
+
+
+# %% linad_ridge_edf ----
+#' Effective degrees of freedom of a penalized solve
+#'
+#' `tr((G + D)^-1 G)`, written as `d - sum_j D_jj [(G + D)^-1]_jj` so one
+#' Cholesky answers it. Shrinkage means a ridge fit spends fewer parameters
+#' than it has coefficients, and its nonzero count -- always the full width,
+#' since ridge shrinks but never zeroes -- would charge it for parameters it is
+#' not using. At 117 features and lambda 0.6 that difference decides whether a
+#' node can ever keep a linear model.
+#'
+#' @param G Numeric matrix: `X'WX`.
+#' @param penalty Numeric: Ridge penalty.
+#' @param intercept Logical: Whether column 1 is the intercept.
+#'
+#' @return Numeric scalar in `[0, ncol(G)]`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_ridge_edf <- function(G, penalty, intercept = TRUE) {
+  d <- ncol(G)
+  ridge <- linad_ridge_diagonal(G, penalty, intercept)
+  chol_factor <- tryCatch(
+    chol(G + diag(ridge, d)),
+    error = function(e) NULL
+  )
+  if (is.null(chol_factor)) {
+    return(d)
+  }
+  min(max(d - sum(ridge * diag(chol2inv(chol_factor))), 0), d)
+} # /rtemis::linad_ridge_edf
 
 
 # %% linad_forward ----
@@ -408,7 +463,9 @@ linad_constant <- function(
 #' constant-only fit.
 #' @param rss_linear Numeric: The same after the slopes.
 #' @param sw Numeric: Total weight carried by the fit.
-#' @param n_terms Integer: Nonzero slopes bought.
+#' @param n_terms Numeric: Parameters the slopes spend -- their count where a
+#' fit zeroes what it does not use, and the effective degrees of freedom where
+#' it shrinks instead.
 #' @param rule Character: "none", "aic" or "bic".
 #'
 #' @return Logical: TRUE to keep the slopes.
@@ -417,7 +474,7 @@ linad_constant <- function(
 #' @keywords internal
 #' @noRd
 linad_node_test <- function(rss_constant, rss_linear, sw, n_terms, rule) {
-  if (identical(rule, "none") || n_terms == 0L) {
+  if (identical(rule, "none") || n_terms <= 0) {
     return(TRUE)
   }
   per_term <- switch(rule, aic = 2, bic = log(sw), NA_real_)
@@ -551,8 +608,12 @@ linad_solve <- function(
   if (is.null(slopes) || !all(is.finite(slopes))) {
     slopes <- rep(0, length(slope_columns))
   }
-  n_terms <- sum(slopes != 0)
-  if (!identical(node_test, "none") && n_terms > 0L) {
+  n_terms <- if (identical(node_model, "ridge")) {
+    linad_ridge_edf(gram[["G"]], lambda * gram[["sw"]], intercept = FALSE)
+  } else {
+    sum(slopes != 0)
+  }
+  if (!identical(node_test, "none") && any(slopes != 0)) {
     explained <- drop(centered[idx, , drop = FALSE] %*% slopes)
     keep <- linad_node_test(
       sum(w[idx] * residual[idx]^2),
@@ -2288,7 +2349,11 @@ linad_gram_solve <- function(
   if (identical(node_test, "none") || is.null(coefficients) || is.null(syy)) {
     return(coefficients)
   }
-  n_terms <- sum(coefficients[-1L] != 0)
+  n_terms <- if (identical(node_model, "forward")) {
+    sum(coefficients[-1L] != 0)
+  } else {
+    linad_ridge_edf(G, lambda * sw) - 1
+  }
   keep <- linad_node_test(
     linad_gram_loss(G, Xty, syy, constant_only),
     linad_gram_loss(G, Xty, syy, coefficients),
