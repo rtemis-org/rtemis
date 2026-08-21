@@ -34,6 +34,13 @@
 #' subset of one algorithm's hyperparameters would compose with this without the
 #' validator knowing it exists.
 #'
+#' **A set of one is useful and is not a degenerate case.** It is how a run names
+#' its configuration: `list(baseline = setup_LINAD(...))` records `"baseline"` as
+#' the fitted model's `variant` and in the recipe, so a run says what it was
+#' without anyone reading its values back. That is why `train()` records the set
+#' it was given *before* collapsing a one-member set to its member -- collapse
+#' first and the name is nowhere in the config.
+#'
 #' @field members List of `Hyperparameters`, named. Unnamed members are labelled
 #' by position when the set is built.
 #' @field algorithm Character: The algorithm every member shares.

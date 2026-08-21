@@ -387,6 +387,55 @@ test_that("a set reports only the winning member's own search", {
       execution_config = .execution,
       verbosity = 1L
     ),
-    regexp = "hyperparameter variants"
+    regexp = "variants"
   )
+})
+
+
+test_that("a one-member set whose member searches reaches the tuner as a set", {
+  # A list of one is legitimate input, and it takes two different paths: with
+  # nothing to tune it collapses at `train()`'s entrance, and with a search of
+  # its own it stays a set and is tuned as one. The second is the only way the
+  # tuner sees a single member, which is why the count line distinguishes
+  # "1 variant" from "N variants".
+  model <- train(
+    .dat,
+    hyperparameters = list(
+      only = setup_LINAD(
+        gamma = tune_over(0.1, 0.3),
+        max_leaves = 3L,
+        force_max_leaves = TRUE
+      )
+    ),
+    tuner_config = .tuner,
+    execution_config = .execution,
+    verbosity = 0L
+  )
+  expect_s7_class(model, Regression)
+  expect_identical(model@hyperparameters@variant, "only")
+  expect_identical(model@tuner@best_variant, "only")
+  # Tuned within the member, so the search still happened.
+  expect_true(model@hyperparameters[["gamma"]] %in% c(0.1, 0.3))
+})
+
+
+test_that("a set of one names the configuration, and the name reaches the recipe", {
+  # Naming is a use of a set in its own right, with nothing to search: the run
+  # says what it was. The name has to be in `mod@config` for that to be worth
+  # anything, which means the set is recorded before a one-member set collapses.
+  model <- train(
+    .dat,
+    hyperparameters = list(
+      baseline = setup_LINAD(max_leaves = 3L, force_max_leaves = TRUE)
+    ),
+    execution_config = .execution,
+    verbosity = 0L
+  )
+  expect_identical(model@hyperparameters@variant, "baseline")
+  # What ran is one configuration; what was asked for is the named set.
+  expect_s7_class(model@hyperparameters, rtemis:::LINADHyperparameters)
+  expect_s7_class(model@config@hyperparameters, rtemis:::HyperparametersSet)
+  wire <- rtemis:::S7_to_list(model@config)
+  expect_identical(names(wire[["hyperparameters"]]), "variants")
+  expect_identical(names(wire[["hyperparameters"]][["variants"]]), "baseline")
 })

@@ -170,8 +170,8 @@ tune_GridSearch <- function(
           fmt(length(members), col = col_tuner, bold = TRUE),
           ngettext(
             length(members),
-            " hyperparameter variant, ",
-            " hyperparameter variants, "
+            " variant, ",
+            " variants, "
           )
         )
       },

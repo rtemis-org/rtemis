@@ -339,19 +339,12 @@ train <- function(
     hyperparameters <- as_HyperparametersSet(hyperparameters)
   }
   check_hyperparameters(hyperparameters)
-  # A set with nothing to choose between is the configuration it holds. Only a
-  # one-member set of fixed values can reach this -- more than one member is a
-  # choice, and so needs tuning -- and collapsing it here means a set survives
-  # past this point only when it will be resolved by tuning. Nothing downstream
-  # has to know about sets.
-  if (
-    S7_inherits(hyperparameters, HyperparametersSet) &&
-      !needs_tuning(hyperparameters)
-  ) {
-    label <- names(hyperparameters@members)[[1L]]
-    hyperparameters <- hyperparameters@members[[1L]]
-    hyperparameters@variant <- label
-  }
+  # Kept as given, because `input_config` below records what was *asked for* and
+  # a set is a different ask from the configuration it collapses to. A list of
+  # one is a legitimate and useful input -- it is how a run names its
+  # configuration -- and that name is only in the recipe if the recipe holds the
+  # set.
+  asked_hyperparameters <- hyperparameters
   algorithm <- hyperparameters@algorithm
 
   # The run's input, captured before anything resolves it. Tuning narrows a
@@ -374,7 +367,7 @@ train <- function(
     positive_class = positive_class,
     preprocessor_config = preprocessor_config,
     decomposition_config = decomposition_config,
-    hyperparameters = hyperparameters,
+    hyperparameters = asked_hyperparameters,
     tuner_config = tuner_config,
     outer_resampling_config = outer_resampling_config,
     execution_config = execution_config,
@@ -447,6 +440,21 @@ train <- function(
   backend <- execution_config@backend
   n_workers <- execution_config@n_workers
   future_plan <- execution_config@future_plan
+
+  # A set with nothing to choose between is the configuration it holds, and from
+  # here on it is that configuration: only a one-member set of fixed values
+  # reaches this, since more than one member is a choice and so needs tuning.
+  # Collapsing means a set survives past this point only when tuning will
+  # resolve it, so nothing downstream has to know about sets. The name is
+  # carried onto the member, and the set itself is already recorded above.
+  if (
+    S7_inherits(hyperparameters, HyperparametersSet) &&
+      !needs_tuning(hyperparameters)
+  ) {
+    label <- names(hyperparameters@members)[[1L]]
+    hyperparameters <- hyperparameters@members[[1L]]
+    hyperparameters@variant <- label
+  }
 
   # If outer_resampling_config is set, dat_validation and dat_test must be NULL
   if (!is.null(outer_resampling_config)) {
