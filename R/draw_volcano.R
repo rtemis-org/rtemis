@@ -179,7 +179,7 @@ draw_volcano <- function(
     group[index_ltpthresh & x > x_thresh] <- label_hi
     group <- factor(group, levels = c(label_lo, "NS", label_hi))
     if (is.null(palette)) {
-      palette <- list("#43A4AC", "#7f7f7f", "#FA9860")
+      palette <- as.list(unname(SIGN_COLORS))
     }
   }
 

@@ -1,5 +1,24 @@
 # rtemis news
 
+## 1.3.7
+
+- **New algorithm: LINAD, the Linear Additive Tree** -- `setup_LINAD()`. A decision tree with a linear model at every node, a leaf's coefficients the sum along its path. original algorithm, rtemis native implementation.
+- **LINAD generalizes the decision tree and the regularized linear model**, recovering each exactly: `max_leaves = 1` is a pure linear model, constant nodes with `gamma = 0` match `rpart` to machine precision, and with `gamma > 0` give the Additive Tree.
+- `setup_LINAD(split_search = "exhaustive")` scores a split by the loss after fitting both child models, finding interactions a gradient stump cannot see. Costs about as much as the stump search.
+- LINAD picks its number of leaves on `dat_validation`, as boosting picks its number of trees; `force_max_leaves = TRUE` keeps the whole tree.
+- `get_varimp()` on LINAD reports two measures: `importance`, the linear effect, and `split_gain`, the partitioning effect. A feature can carry one and not the other.
+- Every node carries a constant, as any tree's nodes do; `node_model` selects the model fitted on top of it. `mod@model@frame$node_value` is what the tree alone predicts at that node.
+- `setup_LINAD(gamma = )` moves the fit between a hard partition at 0 and one global linear model at 1, each case carrying `gamma^depth` of its weight into the other branch.
+- `setup_LINAD(root_learning_rate = )` shrinks only the root's slopes: at 0 the root is the outcome mean and the tree splits first, at 1 a full linear model is fitted before any split.
+- `setup_LINAD(constant_rule = )`, `(line_search = )` and `(node_selection = )` select among alternative update rules: how a node's constant is computed, the scope of the Newton step, and which node is split next.
+- New `draw_linad()`: the fitted tree as an interactive hierarchy, each node labeled with what the tree alone predicts there and carrying its linear coefficients in a color-graded table on hover, so a coefficient changing sign between nodes reads at a glance.
+- `setup_LINAD(split_binning = , split_bin_type = )` discretize numeric features before either split search, spacing cut points by case or by range.
+- **The volcano and Manhattan plots of a `MassGLM` disagreed on what a sign looks like**: both used the same two colors, with opposite meanings. Positive and negative are now one pair package-wide, shared with `draw_linad()`'s coefficient tables.
+- `draw_linad()` follows light and dark themes -- node fills, the coefficient table and the hover marker are read from the theme's background luminance, so a custom theme is handled too. The sign colors deliberately do not move with it.
+- Hovering a `draw_linad()` node outlines it, tying the floating coefficient table to the node it describes.
+- `draw_linad()`'s coefficient table is bordered, so it no longer blends into the nodes behind it, and the node value is its headline number, pinned above the rows instead of scrolling away with them.
+- `draw_linad()` nodes are set in two tiers: the node value and case count as a small eyebrow over the rule, which breaks after the feature name so an operator never leaves its value. Relations are set as `\u2265` and `\u2260` rather than as ASCII digraphs.
+
 ## 1.3.6
 
 - **A config stores the paths it was given, unresolved.** `outdir` and the data paths were resolved against the working directory and `~` expanded, so `outdir = "results/"` became an absolute path on Windows always and elsewhere whenever that directory existed. A recipe now travels between machines unchanged, and a record states the `outdir` it was given.
@@ -138,7 +157,7 @@
 
 **Breaking changes**
 
-- Isotonic calibration no longer returns probabilities of exactly 0 or 1. A block of uniformly labelled cases was previously fitted at the boundary, which asserts certainty and makes log loss infinite for a single case there whose label disagrees. Fitted values are now held at least `1 / (2 * n)` from each end, `n` being the number of calibration cases - the finest distinction that many cases can support. Only the saturated blocks move, so the map stays non-decreasing and rankings are unchanged. Regression fits are untouched.
+- Isotonic calibration no longer returns probabilities of exactly 0 or 1. A block of uniformly labeled cases was previously fitted at the boundary, which asserts certainty and makes log loss infinite for a single case there whose label disagrees. Fitted values are now held at least `1 / (2 * n)` from each end, `n` being the number of calibration cases - the finest distinction that many cases can support. Only the saturated blocks move, so the map stays non-decreasing and rankings are unchanged. Regression fits are untouched.
 - `calibrate()`'s `hyperparameters` argument defaults to `NULL`, which selects the default calibrator (`setup_Isotonic()`), rather than naming it in the signature.
 
 - Hyperparameters that only apply under certain values of another are now declared as such rather than described in prose, and a grid search over them is **conditional**. `reduce_basis` applies only at `smoothness_orders` of 0, so `setup_HAL(smoothness_orders = c(0L, 1L, 2L), reduce_basis = c(0.1, 0.5))` - previously rejected - now searches the four combinations that differ rather than the six of the cross product: `reduce_basis` is left unset above order 0, and the combinations that duplicates makes identical are collapsed, so none is fit and ranked twice. A search no value of which puts the hyperparameter in effect is still an error.
@@ -160,7 +179,7 @@
 
 **Breaking changes**
 
-- Predicted probabilities are always a matrix: one row per case, one column per class, binary carrying a single column labelled with the positive class. `predict()` on a `Classification` returns the same shape. Code taking one score per case should index it: `mod$predicted_prob_training[, 1L]`.
+- Predicted probabilities are always a matrix: one row per case, one column per class, binary carrying a single column labeled with the positive class. `predict()` on a `Classification` returns the same shape. Code taking one score per case should index it: `mod$predicted_prob_training[, 1L]`.
 - `algorithm` is gone as both a config property and a function argument - `train()`, `calibrate()`, `setup_SuperConfig()` and `setup_SuperConfigLive()` no longer take it. Name the algorithm through its `setup_*()`: `train(iris, hyperparameters = setup_LightRF())`. `train(iris)` still defaults to Ranger; `decomp(algorithm = )` and `cluster(algorithm = )` are unchanged.
 - Standard errors are computed on demand. `Regression@se_training` / `@se_validation` / `@se_test` and the `RegressionRes` equivalents are removed; use `se(mod, newdata)`, which returns `NULL` for an algorithm that has none. `to_json()` no longer reports `has_se`.
 - The `.list_to_*()` reconstructors reject a key the target config does not declare, naming it and suggesting the nearest valid property - `n` reports "did you mean `n_resamples`?".
@@ -181,7 +200,7 @@
 
 - `RegressionMetrics` and `ClassificationMetrics` declare their tables with typed, bounded columns, validated on construction: a rate outside `[0, 1]`, an undeclared column, or a missing one is rejected with a message naming the field. `MetricsRes` and its subclasses are typed likewise, covering per-resample values and their mean and standard deviation.
 - Per-class metrics name their outcome level in a `level` column rather than in row names, so serialized metrics keep their labels.
-- New `confusion_long` (`reference`, `predicted`, `n`) is the declared property and what serializes; `metrics@confusion_matrix` is unchanged as a labelled `table`. `$` and `[[` on a metrics object now reach its properties as well as its metrics.
+- New `confusion_long` (`reference`, `predicted`, `n`) is the declared property and what serializes; `metrics@confusion_matrix` is unchanged as a labeled `table`. `$` and `[[` on a metrics object now reach its properties as well as its metrics.
 - `classification_metrics(sample = )` and `regression_metrics(sample = )` default to `NULL` rather than `character()`, and accept only the sample names rtemis uses.
 - `schema.rtemis.org` publishes `regressionmetrics/v1`, `classificationmetrics/v1` and their resampled counterparts.
 

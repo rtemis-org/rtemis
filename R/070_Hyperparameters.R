@@ -1300,6 +1300,434 @@ setup_CART <- function(
 } # /rtemis::setup_CART
 
 
+# %% LINAD_LEAF_MODELS ----
+# The leaf model is one flat choice of procedure *and* regularization rather
+# than a model/penalty pair, because an `applies_when` gate may not name a
+# property that is itself gated. "constant" fits an intercept only, which is
+# what reduces LINAD to the Additive Tree.
+LINAD_LEAF_MODELS <- c("forward", "ridge", "elasticnet", "constant")
+
+
+# %% LINADHyperparameters ----
+#' @title LINADHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for LINAD, the Linear Additive Tree.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+LINADHyperparameters <- new_class(
+  name = "LINADHyperparameters",
+  parent = Hyperparameters,
+  properties = list(
+    algorithm = prop_algorithm("LINAD"),
+    # Growth ----
+    max_leaves = prop_integer(
+      20L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Largest number of terminal nodes to grow. Plays the role the number of trees plays in gradient boosting."
+    ),
+    force_max_leaves = prop_boolean(
+      FALSE,
+      description = "Keep every leaf grown instead of selecting a tree size on the validation set."
+    ),
+    smooth_validation_curve = prop_boolean(
+      NULL,
+      nullable = TRUE,
+      applies_when = list(force_max_leaves = FALSE),
+      description = "Smooth the validation curve before reading its minimum. Steadier when the validation set is small."
+    ),
+    min_cases_split = prop_integer(
+      2L,
+      min = 2L,
+      tunable = TRUE,
+      description = "Fewest cases a node may hold and still be considered for splitting."
+    ),
+    min_cases_leaf = prop_integer(
+      1L,
+      min = 1L,
+      tunable = TRUE,
+      description = "Fewest cases a split must leave on each side."
+    ),
+    min_cases_node_model = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(
+        node_model = c("forward", "ridge", "elasticnet")
+      ),
+      description = "Fewest cases needed to fit a linear model at a node. Below it the node inherits its parent unchanged."
+    ),
+    # Leaf model ----
+    node_model = prop_string(
+      "forward",
+      enum = LINAD_LEAF_MODELS,
+      description = "Model fitted at each node. constant is the intercept-only model every decision tree node carries; the others add a regularized linear model on top of it."
+    ),
+    nvmax = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(node_model = "forward"),
+      description = "Number of terms forward selection adds beside the intercept. A term count, not a ceiling; capped at the width of the design."
+    ),
+    lambda = prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(node_model = c("ridge", "elasticnet")),
+      description = "L2 penalty on the leaf models, on a standardized design so one value means the same at every node."
+    ),
+    alpha = prop_float(
+      NULL,
+      min = 0,
+      max = 1,
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(node_model = "elasticnet"),
+      description = "Elastic-net mixing: 0 is ridge, 1 is lasso."
+    ),
+    learning_rate = prop_float(
+      0.1,
+      exclusive_min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Shrinkage applied to every functional update."
+    ),
+    # Root model ----
+    root_model = prop_string(
+      NULL,
+      enum = LINAD_LEAF_MODELS,
+      nullable = TRUE,
+      description = "Model fitted at the root. NULL uses node_model."
+    ),
+    root_nvmax = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "nvmax for the root model. NULL uses nvmax. Ignored unless the root model is forward selection."
+    ),
+    root_lambda = prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "lambda for the root model. NULL uses lambda. Ignored unless the root model is penalized."
+    ),
+    root_alpha = prop_float(
+      NULL,
+      min = 0,
+      max = 1,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "alpha for the root model. NULL uses alpha. Ignored unless the root model is an elastic net."
+    ),
+    root_learning_rate = prop_float(
+      1,
+      min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Shrinkage applied to the root model's slopes. 0 fits no root model, so the first step is a split; 1 fits it in full."
+    ),
+    # Splitting ----
+    split_search = prop_string(
+      "stump",
+      enum = c("stump", "exhaustive"),
+      description = "How a split is chosen. stump takes the best squared-error split of the gradient; exhaustive scores each candidate by the loss after fitting both child models."
+    ),
+    split_binning = prop_integer(
+      NULL,
+      min = 2L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Discretize each numeric feature into this many equal-frequency bins and consider only bin boundaries as splits. Applies to both split searches. NULL considers every distinct value."
+    ),
+    split_bin_type = prop_string(
+      "frequency",
+      enum = c("frequency", "width"),
+      tunable = TRUE,
+      description = "How split_binning places bin edges: frequency spaces them evenly through the cases, width evenly through the feature's range."
+    ),
+    n_cuts = prop_integer(
+      NULL,
+      min = 2L,
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(split_search = "exhaustive"),
+      description = "Number of cut points tried per feature by the exhaustive search. split_bin_type decides how they are spaced."
+    ),
+    # Soft weighting ----
+    gamma = prop_float(
+      0.1,
+      min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Weight retained by a case in the branch it does not belong to. 0 is a hard partition; larger values share influence and reduce variance."
+    ),
+    # Step size and node selection ----
+    line_search = prop_string(
+      "expansion",
+      enum = c("expansion", "child", "none"),
+      tunable = TRUE,
+      description = "Scope of the Newton step for each update: one per expansion, one per child, or none."
+    ),
+    line_search_max = prop_float(
+      1000,
+      exclusive_min = 0,
+      description = "Largest absolute step the line search may take."
+    ),
+    constant_rule = prop_string(
+      "closed_form",
+      enum = c("closed_form", "least_squares"),
+      tunable = TRUE,
+      description = "Rule for a node's constant: the manuscript's closed forms, or the weighted mean of the residual. Identical for regression; they differ only for classification."
+    ),
+    node_selection = prop_string(
+      "local",
+      enum = c("local", "global"),
+      tunable = TRUE,
+      description = "Which frontier node to split next: by the loss reduction over its own cases, or over every case with this node's model extrapolated."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    )
+  ),
+  validator = function(self) {
+    check_applies_when(self)
+  }
+) # /rtemis::LINADHyperparameters
+
+
+# %% setup_LINAD ----
+#' Setup LINAD Hyperparameters
+#'
+#' Setup hyperparameters for LINAD, the Linear Additive Tree. LINAD
+#' **generalizes** the decision tree and the regularized linear model: CART, the
+#' Additive Tree and a penalized linear fit are each a special case of it,
+#' recovered exactly by the hyperparameter combinations given under Details.
+#'
+#' @details
+#' Every node carries a constant, as any decision tree's nodes do. `node_model`
+#' selects the model fitted at each node: `"constant"` for that constant alone,
+#' or a regularized linear model on top of it. That, with `max_leaves` and
+#' `gamma`, is what makes LINAD a generalization rather than a hybrid -- the
+#' familiar algorithms are points in its hyperparameter space, and everything
+#' between them is reachable too.
+#'
+#' @section What LINAD generalizes:
+#' Each of the following is a special case of LINAD, recovered exactly rather
+#' than approximated:
+#'
+#' \describe{
+#'   \item{A pure linear model}{`max_leaves = 1`. Nothing is split, so the model
+#'     is the root's alone -- ridge, elastic net or forward stepwise selection,
+#'     whichever `node_model` names. Verified against a direct penalized solve.}
+#'   \item{CART}{`node_model = "constant"`, `gamma = 0`, `learning_rate = 1`,
+#'     `line_search = "none"`. Constants only, a hard partition and no
+#'     shrinkage. Fitted values match `rpart`'s to machine precision.}
+#'   \item{The Additive Tree}{The same, with `gamma > 0`. Soft weighting is
+#'     precisely what separates the Additive Tree from CART (Luna and
+#'     colleagues, 2019; see References).}
+#'   \item{LINAD}{Any `node_model` other than `"constant"`, with
+#'     `max_leaves > 1` -- a tree whose nodes each carry a linear model.}
+#' }
+#'
+#' Every setting named above is tunable, so where a dataset belongs on that
+#' space is a question the data can answer rather than one to settle in advance:
+#' a linear generating process should select a full root fit and no splitting,
+#' while terminal nodes needing opposite-signed coefficients should select a
+#' split first. `root_learning_rate` is the dial for that first step -- at 0 the
+#' root is the outcome's mean and the tree splits first, at 1 a full linear
+#' model is fitted before any split.
+#'
+#' @section How it grows:
+#' LINAD fits a regularized linear model on the whole sample, splits on the
+#' gradient of the loss, fits a model on each side of the split, and repeats.
+#' Every update is linear, so the coefficients along a root-to-leaf path sum:
+#' the finished model is a tree with one linear model per leaf, optimized
+#' stagewise rather than fitted leaf by leaf. Prediction routes a case to its
+#' leaf and evaluates that leaf's coefficients.
+#'
+#' Splits are found on the features as given, so a factor splits on a set of its
+#' levels; the node models use a reference-coded design matrix built internally.
+#' LINAD therefore needs no encoding preprocessor and handles factors directly.
+#'
+#' `max_leaves` plays the role that the number of trees plays in gradient
+#' boosting, and like it is chosen on held-out data: the tree is grown to
+#' `max_leaves` and the size with the lowest validation loss is kept, unless
+#' `force_max_leaves` is TRUE. Pass `dat_validation` to [train] to control the
+#' set that choice is made on.
+#'
+#' `gamma` lets every case carry weight into both branches, decaying as
+#' `gamma^depth`, so each node's model is pulled toward what the rest of the
+#' data supports. It is the algorithm's main variance-reducing device.
+#'
+#' `split_search = "exhaustive"` scores each candidate split by the loss after
+#' fitting both child models, rather than taking the best split of the gradient.
+#' It costs more per split and can find structure the gradient stump cannot see
+#' at all -- an interaction that changes a slope without changing either side's
+#' mean is invisible to a stump by construction.
+#'
+#' `split_binning` discretizes numeric features before either search, so a
+#' candidate split falls on a bin boundary rather than between any two distinct
+#' values; `n_cuts` then thins what is left, for the exhaustive search only.
+#' `split_bin_type` governs both: `"frequency"` spaces cuts evenly through the
+#' cases, `"width"` evenly through the feature's range.
+#'
+#' @section Learning rate and the root model:
+#' `learning_rate` shrinks the update made at each **node**. It does not shrink
+#' the root, which `root_learning_rate` governs and which defaults to 1: the
+#' root model is the initialization `F_0`, not a boosting step, and shrinking an
+#' initialization is not meaningful.
+#'
+#' The consequence is worth stating, because it surprises: **however small
+#' `learning_rate` is, the fit never falls below a single global linear model.**
+#' On data whose signal is largely linear, that model is already good, so
+#' shrinking the tree's correction moves the metrics very little and two very
+#' different small learning rates look alike. On a signal the root cannot
+#' represent -- a step with no linear component -- the same sweep moves test
+#' R-squared from 0.58 to 0.97.
+#'
+#' To shrink everything, including the root, set `root_learning_rate` to the
+#' same value. That recovers the familiar picture in which a small rate leaves
+#' the model badly under-fitted: at `1e-6` the fit reduces to the constant that
+#' alone minimizes the loss -- the weighted mean of the outcome, or half its log
+#' odds for a classification -- which scores an R-squared of 0 rather than
+#' anything worse. `root_learning_rate` interpolates between that constant and
+#' the full linear model, never towards zero.
+#'
+#' The `line_search` step does **not** counteract this. It is scale-free -- for
+#' squared error it is the exact minimizer along the update direction, which is
+#' near 1 whatever the residual's size -- so the applied step stays proportional
+#' to `learning_rate`. Measured node updates scale linearly with it, by a factor
+#' of 50 across a 50-fold change in the rate.
+#'
+#' `line_search`, `node_selection` and `constant_rule` each select among
+#' alternative update rules -- the scope of the Newton step, which frontier node
+#' is split next, and how a node's constant is computed. There is no settled
+#' best choice among them, so each is tunable.
+#'
+#' @param max_leaves (Tunable) Integer [1, Inf): Largest number of terminal nodes to grow.
+#' @param force_max_leaves Logical: If TRUE, keep every leaf grown instead of selecting a size on the validation set.
+#' @param smooth_validation_curve Optional Logical: If TRUE, smooth the validation curve before reading its minimum. Applies only when `force_max_leaves` is FALSE.
+#' @param min_cases_split (Tunable) Integer [2, Inf): Fewest cases a node may hold and still be considered for splitting.
+#' @param min_cases_leaf (Tunable) Integer [1, Inf): Fewest cases a split must leave on each side.
+#' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` fits one.
+#' @param node_model Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node. "constant" is the intercept-only model every decision tree node carries; the others add a regularized linear model on top of it.
+#' @param nvmax (Tunable) Optional Integer [1, Inf): Terms forward selection adds beside the intercept. Applies only when `node_model` is "forward".
+#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when `node_model` is "ridge" or "elasticnet".
+#' @param alpha (Tunable) Optional Numeric \[0, 1\]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when `node_model` is "elasticnet".
+#' @param learning_rate (Tunable) Numeric (0, 1\]: Shrinkage applied to every functional update.
+#' @param root_model Optional Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at the root. NULL uses `node_model`.
+#' @param root_nvmax (Tunable) Optional Integer [1, Inf): `nvmax` for the root model. NULL uses `nvmax`.
+#' @param root_lambda (Tunable) Optional Numeric [0, Inf): `lambda` for the root model. NULL uses `lambda`.
+#' @param root_alpha (Tunable) Optional Numeric \[0, 1\]: `alpha` for the root model. NULL uses `alpha`.
+#' @param root_learning_rate (Tunable) Numeric \[0, 1\]: Shrinkage applied to the root model's slopes.
+#' @param split_search Character \{"stump", "exhaustive"\}: How a split is chosen.
+#' @param split_binning (Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits. Applies to both split searches.
+#' @param split_bin_type (Tunable) Character \{"frequency", "width"\}: How bin edges are placed.
+#' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature; `split_bin_type` decides their spacing. Applies only when `split_search` is "exhaustive".
+#' @param gamma (Tunable) Numeric \[0, 1\]: Weight a case retains in the branch it does not belong to. 0 is a hard partition.
+#' @param line_search (Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.
+#' @param line_search_max Numeric (0, Inf): Largest absolute step the line search may take.
+#' @param constant_rule (Tunable) Character \{"closed_form", "least_squares"\}: How a node's constant is computed. The two coincide for regression and differ only for classification.
+#' @param node_selection (Tunable) Character \{"local", "global"\}: Criterion for choosing which frontier node to split next.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @return LINADHyperparameters object.
+#'
+#' @references
+#' Luna JM, Gennatas ED, Ungar LH, Eaton E, Diffenderfer ES, Jensen ST,
+#' Simone CB 2nd, Friedman JH, Solberg TD, Valdes G (2019).
+#' Building more accurate decision trees with the additive tree.
+#' \emph{Proceedings of the National Academy of Sciences}, 116(40), 19887-19893.
+#' \doi{10.1073/pnas.1816748116}
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' linad_hyperparams <- setup_LINAD(max_leaves = 10L, learning_rate = 0.1)
+#' linad_hyperparams
+#' # The Additive Tree is LINAD without the linear models
+#' addtree_hyperparams <- setup_LINAD(node_model = "constant", gamma = 0.8)
+#' addtree_hyperparams
+setup_LINAD <- function(
+  # tunable
+  max_leaves = 20L,
+  min_cases_split = 2L,
+  min_cases_leaf = 1L,
+  min_cases_node_model = NULL,
+  nvmax = NULL,
+  lambda = NULL,
+  alpha = NULL,
+  learning_rate = 0.1,
+  root_nvmax = NULL,
+  root_lambda = NULL,
+  root_alpha = NULL,
+  root_learning_rate = 1,
+  n_cuts = NULL,
+  gamma = 0.1,
+  split_binning = NULL,
+  split_bin_type = "frequency",
+  line_search = "expansion",
+  constant_rule = "closed_form",
+  node_selection = "local",
+  ifw = FALSE,
+  # fixed
+  force_max_leaves = FALSE,
+  smooth_validation_curve = NULL,
+  node_model = "forward",
+  root_model = NULL,
+  split_search = "stump",
+  line_search_max = 1000
+) {
+  max_leaves <- clean_int(max_leaves)
+  min_cases_split <- clean_int(min_cases_split)
+  min_cases_leaf <- clean_int(min_cases_leaf)
+  min_cases_node_model <- clean_int(min_cases_node_model)
+  nvmax <- clean_int(nvmax)
+  root_nvmax <- clean_int(root_nvmax)
+  n_cuts <- clean_int(n_cuts)
+  split_binning <- clean_int(split_binning)
+  LINADHyperparameters(
+    max_leaves = max_leaves,
+    force_max_leaves = force_max_leaves,
+    smooth_validation_curve = smooth_validation_curve,
+    min_cases_split = min_cases_split,
+    min_cases_leaf = min_cases_leaf,
+    min_cases_node_model = min_cases_node_model,
+    node_model = node_model,
+    nvmax = nvmax,
+    lambda = lambda,
+    alpha = alpha,
+    learning_rate = learning_rate,
+    root_model = root_model,
+    root_nvmax = root_nvmax,
+    root_lambda = root_lambda,
+    root_alpha = root_alpha,
+    root_learning_rate = root_learning_rate,
+    split_search = split_search,
+    split_binning = split_binning,
+    split_bin_type = split_bin_type,
+    n_cuts = n_cuts,
+    gamma = gamma,
+    line_search = line_search,
+    line_search_max = line_search_max,
+    constant_rule = constant_rule,
+    node_selection = node_selection,
+    ifw = ifw
+  )
+} # /rtemis::setup_LINAD
+
+
 # %% GLMNETHyperparameters ----
 #' @title GLMNETHyperparameters
 #'

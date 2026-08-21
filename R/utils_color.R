@@ -2,6 +2,18 @@
 # ::rtemis::
 # 2016- EDG rtemis.org
 
+# %% SIGN_COLORS ----
+# The package-wide meaning of a coefficient's sign: cool for negative, warm for
+# positive, neutral for neither. Every plot that colors by sign reads from here,
+# so the same hue means the same thing to a reader moving between a volcano
+# plot, a Manhattan plot, and a LINAD coefficient table.
+SIGN_COLORS <- c(
+  negative = rtemis_colors[["blue"]],
+  neutral = "#7F7F7F",
+  positive = rtemis_colors[["red"]]
+)
+
+
 #' Simple Color Operations
 #'
 #' Invert a color or calculate the mean of two colors in HSV or RGB space.
