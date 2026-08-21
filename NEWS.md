@@ -2,6 +2,7 @@
 
 ## 1.3.7
 
+- **New `setup_LINAD(split_criterion = )` \{"mean", "linear"\}** for the stump search: score each side by the level its fit explains, or by its level and its slope in the split variable. On `y = x^2 + 12` the linear criterion splits at 0.26 against the mean criterion's 4.70, matching the exhaustive search's R2 of 0.887 against 0.517 at one pass per feature per node. It closes the curvature gap between the two searches; the cross-variable gap it does not touch.
 - **`setup_LINAD(nvmax = )` is now a ceiling rather than a quota.** Forward selection always spent its whole budget -- the gain is a square over a positive quantity, so every added term reduces the residual sum of squares by something. New `setup_LINAD(forward_stop = )` \{"bic", "aic", "none"\} sets the cost a term must earn, defaulting to "bic".
 - **`setup_LINAD(lambda = )` now reaches forward selection**, penalizing the fit and the search alike, so a feature that only looks good unpenalized no longer wins. It was the one node model with no shrinkage at all, and the documentation claimed otherwise.
 - Measured over five signal shapes at n = 500, p = 20: BIC recovers the true function better than AIC or no rule (0.451 against 0.442 and 0.440) using **40% fewer coefficients** (61 against 84 and 101), so the parsimony is close to free.

@@ -22,6 +22,7 @@ setup_LINAD(
   gamma = 0.1,
   split_binning = NULL,
   split_bin_type = "frequency",
+  split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
   node_selection = "local",
@@ -68,6 +69,8 @@ setup_LINAD(
 \item{split_binning}{(Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits. Applies to both split searches.}
 
 \item{split_bin_type}{(Tunable) Character \{"frequency", "width"\}: How bin edges are placed.}
+
+\item{split_criterion}{(Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when \code{split_search} is "stump".}
 
 \item{line_search}{(Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.}
 
@@ -159,9 +162,19 @@ data supports. It is the algorithm's main variance-reducing device.
 
 \code{split_search = "exhaustive"} scores each candidate split by the loss after
 fitting both child models, rather than taking the best split of the gradient.
-It costs more per split and can find structure the gradient stump cannot see
-at all -- an interaction that changes a slope without changing either side's
-mean is invisible to a stump by construction.
+It costs more per split and finds structure no stump can see: an interaction
+that changes another feature's slope without changing either side's mean
+leaves no trace in any one feature's marginal fit.
+
+\code{split_criterion} sets what the stump scores a side by, and closes part of
+that gap cheaply. \code{"mean"} scores the level its fit explains, which is the CART
+criterion and is blind to curvature -- a parabola's two halves have the same
+mean by construction, so the correct split at the vertex scores near last.
+\code{"linear"} adds the slope in the split variable, at one further pass per
+feature per node, and on such a problem recovers the exhaustive search's fit.
+It cannot recover the cross-variable case above, and where the change belongs
+to another feature it fits the wrong one more confidently, so it is offered
+as a tunable rather than the default.
 
 \code{split_binning} discretizes numeric features before either search, so a
 candidate split falls on a bin boundary rather than between any two distinct

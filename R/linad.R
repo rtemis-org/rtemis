@@ -777,6 +777,35 @@ linad_scan_features <- function(context, features = NULL) {
 } # /rtemis::linad_scan_features
 
 
+# %% linad_slope_gain ----
+#' What a side's slope in the split variable explains
+#'
+#' The sum of squares a weighted least-squares slope removes beyond the level,
+#' `Sxy_c^2 / Sxx_c` on centered sufficient statistics. A side whose split
+#' variable is constant has no slope to fit and explains nothing extra.
+#'
+#' @param sw Numeric: Sum of weights.
+#' @param sx Numeric: Weighted sum of the split variable.
+#' @param sxx Numeric: Weighted sum of its square.
+#' @param sxy Numeric: Weighted sum of its product with the residual.
+#' @param sy Numeric: Weighted sum of the residual.
+#'
+#' @return Numeric: Explained sum of squares, one per input element.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_slope_gain <- function(sw, sx, sxx, sxy, sy) {
+  sxx_c <- sxx - sx * sx / sw
+  sxy_c <- sxy - sx * sy / sw
+  ifelse(
+    sxx_c > .Machine[["double.eps"]] * pmax(1, abs(sxx)),
+    sxy_c^2 / sxx_c,
+    0
+  )
+} # /rtemis::linad_slope_gain
+
+
 # %% linad_stump ----
 #' Best weighted squared-error split over every feature
 #'
@@ -801,6 +830,8 @@ linad_scan_features <- function(context, features = NULL) {
 #' @param min_cases_child Integer: Minimum members either side of the split.
 #' @param features Optional List: Which features to scan, as
 #' `linad_scan_features()` describes. NULL scans every feature.
+#' @param criterion Character: What each side's fit explains -- its level
+#' ("mean") or its level and its slope in the split variable ("linear").
 #'
 #' @return List describing the split, or NULL when no admissible split exists.
 #'
@@ -813,13 +844,15 @@ linad_stump <- function(
   w,
   member,
   min_cases_child,
-  features = NULL
+  features = NULL,
+  criterion = "mean"
 ) {
   n <- context[["n"]]
   wr <- w * r
   membership <- as.numeric(member)
   best <- list(gain = -Inf)
   scan <- linad_scan_features(context, features)
+  slopes <- identical(criterion, "linear")
 
   # Numeric features ----
   for (j in scan[["numeric"]]) {
@@ -848,6 +881,27 @@ linad_stump <- function(
     gain[admissible] <- left_wr[admissible]^2 /
       left_w[admissible] +
       (total_wr - left_wr[admissible])^2 / right_w[admissible]
+    if (slopes) {
+      xo <- context[["numeric_matrix"]][o, j]
+      cum_wx <- cumsum(w[o] * xo)
+      cum_wxx <- cumsum(w[o] * xo * xo)
+      cum_wxr <- cumsum(wr[o] * xo)
+      gain[admissible] <- gain[admissible] +
+        linad_slope_gain(
+          left_w[admissible],
+          cum_wx[breaks][admissible],
+          cum_wxx[breaks][admissible],
+          cum_wxr[breaks][admissible],
+          left_wr[admissible]
+        ) +
+        linad_slope_gain(
+          right_w[admissible],
+          cum_wx[[n]] - cum_wx[breaks][admissible],
+          cum_wxx[[n]] - cum_wxx[breaks][admissible],
+          cum_wxr[[n]] - cum_wxr[breaks][admissible],
+          total_wr - left_wr[admissible]
+        )
+    }
     k <- which.max(gain)
     if (gain[[k]] > best[["gain"]]) {
       position <- breaks[[k]]
@@ -1174,7 +1228,8 @@ linad_split_search <- function(state, r, w, member, features) {
       w,
       member,
       linad_min_child_cases(state),
-      features
+      features,
+      criterion = state[["split_criterion"]]
     )
   }
 } # /rtemis::linad_split_search
@@ -2089,6 +2144,7 @@ linad_settings <- function(hyperparameters) {
     root_learning_rate = hyperparameters[["root_learning_rate"]],
     forward_stop = value_or("forward_stop", "bic"),
     split_search = hyperparameters[["split_search"]],
+    split_criterion = value_or("split_criterion", "mean"),
     # A single tree scans every feature at every split; `LINADForest` overrides
     # this in `linadforest_settings()`, which is the only caller that samples.
     mtry_split = NULL,

@@ -951,6 +951,10 @@ test_that("setup_LINAD() rejects a parameter its leaf model ignores", {
     smooth_validation_curve = TRUE
   ))
   expect_error(setup_LINAD(split_search = "stump", n_cuts = 10L))
+  expect_error(setup_LINAD(
+    split_search = "exhaustive",
+    split_criterion = "linear"
+  ))
   # split_binning is not gated: it discretizes the features for either search.
   expect_s7_class(
     setup_LINAD(split_search = "stump", split_binning = 32L),
@@ -1331,4 +1335,68 @@ test_that("the exhaustive search finds a slope change the stump cannot", {
   expect_gt(abs(stump[["cut"]]), 2)
   expect_gt(exhaustive[["rsq"]], 0.85)
   expect_lt(stump[["rsq"]], 0.6)
+})
+
+
+# %% split_criterion ----
+test_that("The linear split criterion finds a change of slope the mean criterion cannot", {
+  # A parabola's vertex is a change of slope with no change of level, so a
+  # criterion scoring only each side's mean is blind to it.
+  set.seed(2026)
+  x <- rnorm(500L, 0, 3)
+  dat <- data.frame(x = x, y = x^2 + 12 + rnorm(500L, 0, 1.5))
+  root_split <- function(mod) {
+    frame <- mod@model@frame
+    frame[!is.na(frame[["split_feature"]]), ][1L, "split_value"]
+  }
+  fit <- function(...) {
+    train(
+      dat,
+      hyperparameters = setup_LINAD(
+        max_leaves = 2L,
+        learning_rate = 1,
+        gamma = 0,
+        force_max_leaves = TRUE,
+        ...
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+  }
+  by_mean <- fit(split_search = "stump", split_criterion = "mean")
+  by_linear <- fit(split_search = "stump", split_criterion = "linear")
+  by_exhaustive <- fit(split_search = "exhaustive")
+  # The true vertex is at 0.
+  expect_lt(abs(root_split(by_linear)), abs(root_split(by_mean)))
+  expect_lt(abs(root_split(by_linear) - root_split(by_exhaustive)), 0.5)
+  rsq <- function(mod) {
+    1 -
+      sum((dat[["y"]] - predict(mod, dat["x"]))^2) /
+        sum((dat[["y"]] - mean(dat[["y"]]))^2)
+  }
+  expect_gt(rsq(by_linear), rsq(by_mean) + 0.3)
+  expect_equal(rsq(by_linear), rsq(by_exhaustive), tolerance = 0.01)
+})
+
+
+test_that("The mean criterion is the stump search's default and leaves it unchanged", {
+  set.seed(2026)
+  dat <- data.frame(x1 = rnorm(200L), x2 = rnorm(200L))
+  dat[["y"]] <- 2 * dat[["x1"]] + rnorm(200L, 0, 0.5)
+  fit <- function(...) {
+    train(
+      dat,
+      hyperparameters = setup_LINAD(
+        max_leaves = 4L,
+        split_search = "stump",
+        ...
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+  }
+  expect_equal(
+    predict(fit(), dat[c("x1", "x2")]),
+    predict(fit(split_criterion = "mean"), dat[c("x1", "x2")])
+  )
 })
