@@ -229,6 +229,10 @@ families <- list(
         desc = "Elastic net (glmnet). See `setup_GLMNET`."
       ),
       list(
+        cls = GLMTreeHyperparameters,
+        desc = "Model-Based Recursive Partitioning: a tree with a GLM in each leaf. See `setup_GLMTree`."
+      ),
+      list(
         cls = SPLSHyperparameters,
         desc = "Sparse Partial Least Squares. See `setup_SPLS`."
       ),

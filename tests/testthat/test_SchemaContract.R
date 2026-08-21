@@ -78,6 +78,7 @@
     list(GAMHyperparameters, "setup_GAM"),
     list(CARTHyperparameters, "setup_CART"),
     list(GLMNETHyperparameters, "setup_GLMNET"),
+    list(GLMTreeHyperparameters, "setup_GLMTree"),
     list(LightCARTHyperparameters, "setup_LightCART"),
     list(LightRFHyperparameters, "setup_LightRF"),
     list(LightGBMHyperparameters, "setup_LightGBM"),

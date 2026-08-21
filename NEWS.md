@@ -2,6 +2,10 @@
 
 ## 1.3.7
 
+- **New algorithm: GLMTree, model-based recursive partitioning** -- `setup_GLMTree()`, via 'partykit'. A tree carrying a generalized linear model in each leaf, split not by loss reduction but by testing whether a node's coefficients are constant across a candidate variable.
+- `setup_GLMTree(regressors = , partitioning_variables = )` take the two halves apart: the model in each leaf need not read the variables the tree splits on.
+- `setup_GLMTree(alpha = )` is the tree-size dial, and it has units -- a node splits when an instability test reaches that significance level. With few cases or many partitioning variables the tests lose power and the tree returns a single global model; raising `alpha` is the first thing to try.
+- `get_varimp()` on a GLMTree is NULL: 'partykit' has no importance measure for a model-based tree, and `get_varimp(explain(mod, newdata))` answers instead.
 - **New algorithm: LINADForest, a bagged ensemble of Linear Additive Trees** -- `setup_LINADForest()`. Designed to be used untuned: 50 trees, each grown on a bootstrap sample and sized on its own out-of-bag cases.
 - **Each tree picks its own number of leaves on its out-of-bag cases**, so the forest self-tunes the one structural setting that usually needs a grid. `force_max_leaves = TRUE` grows every tree to `max_leaves`.
 - `setup_LINADForest(mtry_tree = )` gives each tree a random subset of the features, `(mtry_split = )` samples them again at every split search. A sample that finds no split worth making is retried over every feature, so neither can close a node.

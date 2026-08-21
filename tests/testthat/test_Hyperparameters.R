@@ -86,6 +86,7 @@ test_that("setup_LightRF() succeeds", {
   GAM = GAMHyperparameters,
   CART = CARTHyperparameters,
   GLMNET = GLMNETHyperparameters,
+  GLMTree = GLMTreeHyperparameters,
   LightCART = LightCARTHyperparameters,
   LightRF = LightRFHyperparameters,
   LightGBM = LightGBMHyperparameters,

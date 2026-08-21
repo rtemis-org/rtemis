@@ -39,6 +39,8 @@ GLMHyperparameters
 GLMNET
 GLMNET's
 GLMNETHyperparameters
+GLMTree
+GLMTreeHyperparameters
 GLU
 Gantt
 Gini
@@ -47,6 +49,8 @@ GOSS
 HALHyperparameters
 HardCLConfig
 Hastie
+Hornik
+Hothorn
 hessians
 huber
 ICA
@@ -54,6 +58,7 @@ ICAConfig
 IFW
 IPC
 Interian
+Interpretability
 Isomap
 IsomapConfig
 Isotonic
@@ -190,6 +195,7 @@ Vovk
 WASM
 XGBoost
 XLSX
+Zeileis
 Zeitgeber
 Zerolines
 adam
@@ -208,6 +214,7 @@ bonferroni
 bottomleft
 bottomright
 cdn
+chisq
 cholmod
 choropleth
 cli
@@ -255,6 +262,7 @@ fuzzification
 gelu
 gini
 glmnet
+glmtree
 gpu
 grDevices
 graphopt
@@ -289,6 +297,7 @@ lda
 lgl
 lightAUC
 lightrf
+lmtree
 logcosh
 logrank
 longdash
@@ -314,6 +323,7 @@ mtext
 multicategory
 multiclass
 multilayer
+multiway
 na
 nanoparquet
 nd
@@ -323,10 +333,12 @@ nullability
 nullable
 num
 nv
+opg
 oscorespls
 pROC
 parallelization
 parallelizing
+partykit
 perceptron
 plotly
 plotly's

@@ -1300,6 +1300,273 @@ setup_CART <- function(
 } # /rtemis::setup_CART
 
 
+# %% GLMTreeHyperparameters ----
+#' @title GLMTreeHyperparameters
+#'
+#' @description
+#' Hyperparameters subclass for GLMTree, model-based recursive partitioning.
+#'
+#' Two properties are rtemis' own rather than `partykit`'s: `regressors` names
+#' the features entering each leaf's model, `partitioning_variables` names those
+#' the tree may split on. `partykit` expresses both through a two-part formula,
+#' which a config cannot carry; naming them separately is the same choice made
+#' declaratively.
+#'
+#' The rest are `mob_control()` settings, under their own names.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+GLMTreeHyperparameters <- new_class(
+  name = "GLMTreeHyperparameters",
+  parent = Hyperparameters,
+  properties = list(
+    algorithm = prop_algorithm("GLMTree"),
+    # Model and partition ----
+    regressors = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      data_bound = "feature_names",
+      description = "Features entering the linear model in each leaf. NULL uses every feature; an empty model is not expressible here, since a tree of intercepts is a decision tree and CART fits one."
+    ),
+    partitioning_variables = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      data_bound = "feature_names",
+      description = "Features the tree may split on. NULL uses every feature."
+    ),
+    # Splitting ----
+    alpha = prop_float(
+      0.05,
+      exclusive_min = 0,
+      max = 1,
+      tunable = TRUE,
+      description = "Significance level a parameter-instability test must reach before a node is split. The one setting that governs tree size."
+    ),
+    bonferroni = prop_boolean(
+      TRUE,
+      description = "Bonferroni-adjust the test p-values for the number of partitioning variables."
+    ),
+    minsize = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      data_bound = "n_cases",
+      description = "Fewest cases a node may hold. NULL uses ten times the number of parameters in a leaf's model, which scales with the number of regressors and can forbid splitting entirely on a wide design."
+    ),
+    maxdepth = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Deepest the tree may grow. NULL is unlimited."
+    ),
+    mtry = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      data_bound = "n_features",
+      description = "Partitioning variables sampled at each node. NULL tests every one."
+    ),
+    trim = prop_float(
+      0.1,
+      min = 0,
+      tunable = TRUE,
+      description = "Trimming for the split-point search: a fraction of cases below 1, a count at or above it."
+    ),
+    breakties = prop_boolean(
+      FALSE,
+      description = "Break ties in numeric partitioning variables by adding noise."
+    ),
+    prune = prop_string(
+      NULL,
+      enum = c("AIC", "BIC"),
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Post-prune the grown tree by an information criterion. NULL keeps every split the tests admitted."
+    ),
+    restart = prop_boolean(
+      TRUE,
+      description = "Restart each leaf's model from scratch rather than from its parent's fit."
+    ),
+    dfsplit = prop_boolean(
+      TRUE,
+      description = "Count each split against the degrees of freedom when pruning."
+    ),
+    numsplit = prop_string(
+      "left",
+      enum = c("left", "center"),
+      tunable = TRUE,
+      description = "Where a numeric split is placed: at the last value of the left branch, or midway between it and the next."
+    ),
+    catsplit = prop_string(
+      "binary",
+      enum = c("binary", "multiway"),
+      tunable = TRUE,
+      description = "How a categorical variable is split: into two groups of levels, or one branch per level."
+    ),
+    ordinal = prop_string(
+      "chisq",
+      enum = c("chisq", "max", "L2"),
+      tunable = TRUE,
+      description = "Test statistic for an ordered partitioning variable."
+    ),
+    vcov = prop_string(
+      "opg",
+      enum = c("opg", "info", "sandwich"),
+      description = "Covariance estimator the instability test is built on."
+    ),
+    nrep = prop_integer(
+      10000L,
+      min = 1L,
+      description = "Simulation replicates for the p-value of an ordinal split statistic."
+    ),
+    ifw = prop_boolean(
+      FALSE,
+      tunable = TRUE,
+      description = "Inverse Frequency Weighting in classification."
+    )
+  )
+) # /rtemis::GLMTreeHyperparameters
+
+
+# %% setup_GLMTree ----
+#' Setup GLMTree Hyperparameters
+#'
+#' Setup hyperparameters for GLMTree: model-based recursive partitioning, a tree
+#' carrying a generalized linear model in each leaf.
+#'
+#' @details
+#' Where a decision tree predicts a constant in each leaf, a GLMTree fits a
+#' regression there, so the model reads as "in this subgroup, these are the
+#' coefficients". `partykit::lmtree()` fits a regression, `partykit::glmtree()`
+#' a binary logistic one; rtemis selects between them from the outcome.
+#'
+#' @section How it splits:
+#' Not by loss reduction. A node is split when a **parameter-instability test**
+#' says its model's coefficients are not constant across a candidate
+#' partitioning variable -- a structural change test, at significance level
+#' `alpha`. That is the method's distinguishing feature and the source of both
+#' its strengths and its limits:
+#'
+#' \describe{
+#'   \item{It has a hypothesis-testing foundation}{Splits carry p-values, and
+#'     `alpha` is a meaningful dial rather than a tuning knob without units.}
+#'   \item{It sees a slope change with no shift in the mean}{Which a tree
+#'     splitting on the response cannot: there is nothing in the mean to find.}
+#'   \item{It needs statistical power}{With few cases, many partitioning
+#'     variables, or both, the tests do not reach `alpha` and the tree does not
+#'     split at all -- returning a single global model.}
+#' }
+#'
+#' @section When it will not split, check `minsize` before `alpha`:
+#' The default `minsize` is **ten times the number of parameters in a leaf's
+#' model**, and that scales with the number of regressors. A split has to leave
+#' `minsize` cases on each side, so with `p` regressors no split is possible
+#' below `n = 20 * (p + 1)` -- 420 cases at 20 regressors, whatever `alpha`
+#' says. A tree that returns one leaf on a wide design has usually hit this,
+#' not the significance level, and raising `alpha` will not move it. Set
+#' `minsize` directly, or narrow `regressors`.
+#'
+#' `regressors` and `partitioning_variables` are separable, and the separation
+#' is the point: the model in each leaf need not read the variables the tree
+#' splits on. Both default to every feature.
+#'
+#' @section Interpretability:
+#' Every leaf carries a full model over `regressors` -- there is no selection or
+#' shrinkage, so a leaf holds one coefficient per regressor whether or not it
+#' earned one. Restrict `regressors` to keep that number down.
+#'
+#' @section What it does not provide:
+#' No variable-importance measure: `partykit` has one for `cforest` and for
+#' constant-fit trees, and none for a model-based tree. `get_varimp()` therefore
+#' returns NULL, and `get_varimp(explain(mod, newdata))` is the route to a
+#' per-feature measure.
+#'
+#' @param regressors Optional Character vector: Features entering the linear model in each leaf. NULL uses every feature.
+#' @param partitioning_variables Optional Character vector: Features the tree may split on. NULL uses every feature.
+#' @param alpha (Tunable) Numeric (0, 1\]: Significance level a parameter-instability test must reach before a node is split.
+#' @param bonferroni Logical: If TRUE, Bonferroni-adjust the test p-values for the number of partitioning variables.
+#' @param minsize (Tunable) Optional Integer [1, Inf): Fewest cases a node may hold. NULL uses ten times the number of parameters in a leaf's model.
+#' @param maxdepth (Tunable) Optional Integer [1, Inf): Deepest the tree may grow. NULL is unlimited.
+#' @param mtry (Tunable) Optional Integer [1, Inf): Partitioning variables sampled at each node. NULL tests every one.
+#' @param trim (Tunable) Numeric [0, Inf): Trimming for the split-point search; a fraction of cases below 1, a count at or above it.
+#' @param breakties Logical: If TRUE, break ties in numeric partitioning variables by adding noise.
+#' @param prune (Tunable) Optional Character \{"AIC", "BIC"\}: Post-prune the grown tree by an information criterion. NULL keeps every split.
+#' @param restart Logical: If TRUE, restart each leaf's model from scratch rather than from its parent's fit.
+#' @param dfsplit Logical: If TRUE, count each split against the degrees of freedom when pruning.
+#' @param numsplit (Tunable) Character \{"left", "center"\}: Where a numeric split is placed.
+#' @param catsplit (Tunable) Character \{"binary", "multiway"\}: How a categorical variable is split.
+#' @param ordinal (Tunable) Character \{"chisq", "max", "L2"\}: Test statistic for an ordered partitioning variable.
+#' @param vcov Character \{"opg", "info", "sandwich"\}: Covariance estimator the instability test is built on.
+#' @param nrep Integer [1, Inf): Simulation replicates for the p-value of an ordinal split statistic.
+#' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
+#'
+#' @return GLMTreeHyperparameters object.
+#'
+#' @references
+#' Zeileis A, Hothorn T, Hornik K (2008). Model-Based Recursive Partitioning.
+#' \emph{Journal of Computational and Graphical Statistics}, 17(2), 492-514.
+#' \doi{10.1198/106186008X319331}
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' glmtree_hyperparams <- setup_GLMTree(alpha = 0.01)
+#' glmtree_hyperparams
+setup_GLMTree <- function(
+  # tunable
+  alpha = 0.05,
+  minsize = NULL,
+  maxdepth = NULL,
+  mtry = NULL,
+  trim = 0.1,
+  prune = NULL,
+  numsplit = "left",
+  catsplit = "binary",
+  ordinal = "chisq",
+  ifw = FALSE,
+  # fixed
+  regressors = NULL,
+  partitioning_variables = NULL,
+  bonferroni = TRUE,
+  breakties = FALSE,
+  restart = TRUE,
+  dfsplit = TRUE,
+  vcov = "opg",
+  nrep = 10000L
+) {
+  minsize <- clean_int(minsize)
+  maxdepth <- clean_int(maxdepth)
+  mtry <- clean_int(mtry)
+  nrep <- clean_int(nrep)
+  GLMTreeHyperparameters(
+    regressors = regressors,
+    partitioning_variables = partitioning_variables,
+    alpha = alpha,
+    bonferroni = bonferroni,
+    minsize = minsize,
+    maxdepth = maxdepth,
+    mtry = mtry,
+    trim = trim,
+    breakties = breakties,
+    prune = prune,
+    restart = restart,
+    dfsplit = dfsplit,
+    numsplit = numsplit,
+    catsplit = catsplit,
+    ordinal = ordinal,
+    vcov = vcov,
+    nrep = nrep,
+    ifw = ifw
+  )
+} # /rtemis::setup_GLMTree
+
+
 # %% LINAD_LEAF_MODELS ----
 # The leaf model is one flat choice of procedure *and* regularization rather
 # than a model/penalty pair, because an `applies_when` gate may not name a

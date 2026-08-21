@@ -660,6 +660,138 @@ test_that("train() CART Multiclass Classification succeeds", {
   expect_s7_class(modt_c3_cart, Classification)
 })
 
+
+# --- GLMTree --------------------------------------------------------------------------------------
+## {GLMTree}[train]<Regression> ----
+mod_r_glmtree <- train(
+  datr_train,
+  dat_test = datr_test,
+  hyperparameters = setup_GLMTree(),
+  verbosity = 0L
+)
+test_that("train() GLMTree Regression succeeds", {
+  expect_s7_class(mod_r_glmtree, Regression)
+  expect_s3_class(mod_r_glmtree@model, "lmtree")
+})
+
+## {GLMTree}[predict]<Regression> ----
+test_that("predict() GLMTree Regression reproduces the stored fitted values", {
+  expect_equal(
+    predict(mod_r_glmtree, features(datr_train)),
+    mod_r_glmtree@predicted_training,
+    tolerance = 1e-8
+  )
+})
+
+## {GLMTree}[varimp]<Regression> ----
+test_that("get_varimp() GLMTree is NULL, and SHAP answers instead", {
+  # `partykit` has no importance measure for a model-based tree, and inventing
+  # one would publish a contested proxy where NULL routes the user to `explain()`.
+  expect_null(get_varimp(mod_r_glmtree))
+})
+
+## {GLMTree}[train]<Regression> Separate model and partition variables ----
+test_that("train() GLMTree takes regressors and partitioning variables apart", {
+  mod <- train(
+    datr_train,
+    hyperparameters = setup_GLMTree(
+      regressors = c("V1", "V2"),
+      partitioning_variables = c("V3", "g")
+    ),
+    verbosity = 0L
+  )
+  expect_s7_class(mod, Regression)
+  expect_length(predict(mod, features(datr_test)), nrow(datr_test))
+})
+
+## {GLMTree}[train]<Regression> alpha governs tree size ----
+test_that("train() GLMTree alpha governs how readily a node splits", {
+  # The one hyperparameter with units: a node splits when an instability test
+  # reaches `alpha`, so a stricter level cannot give a larger tree.
+  strict <- train(
+    datr_train,
+    hyperparameters = setup_GLMTree(alpha = 1e-6),
+    verbosity = 0L
+  )
+  loose <- train(
+    datr_train,
+    hyperparameters = setup_GLMTree(alpha = 0.5),
+    verbosity = 0L
+  )
+  expect_lte(
+    partykit::width(strict@model),
+    partykit::width(loose@model)
+  )
+})
+
+## {GLMTree}[train]<RegressionRes> ----
+test_that("train() GLMTree RegressionRes succeeds", {
+  expect_s7_class(
+    train(
+      x = datr,
+      hyperparameters = setup_GLMTree(),
+      outer_resampling_config = setup_Resampler(3L),
+      execution_config = setup_ExecutionConfig(backend = "none"),
+      verbosity = 0L
+    ),
+    RegressionRes
+  )
+})
+
+## {GLMTree}[train]<Classification> ----
+mod_c_glmtree <- train(
+  datc2_train,
+  dat_test = datc2_test,
+  hyperparameters = setup_GLMTree(),
+  verbosity = 0L
+)
+test_that("train() GLMTree Classification succeeds", {
+  expect_s7_class(mod_c_glmtree, Classification)
+  expect_s3_class(mod_c_glmtree@model, "glmtree")
+})
+
+test_that("predict() GLMTree returns the probability of the second level", {
+  # A flipped column is still a valid probability, so nothing else catches this.
+  probability <- predict(mod_c_glmtree, features(datc2_test))
+  observed <- outcome(datc2_test)
+  levels_observed <- levels(observed)
+  expect_gt(
+    mean(probability[observed == levels_observed[[2L]]]),
+    mean(probability[observed == levels_observed[[1L]]])
+  )
+})
+
+## {GLMTree}[train]<Classification> Multiclass is refused ----
+test_that("train() GLMTree refuses a multiclass outcome", {
+  expect_error(
+    train(
+      datc3_train,
+      hyperparameters = setup_GLMTree(),
+      verbosity = 0L
+    ),
+    class = "rtemis_unsupported_error"
+  )
+})
+
+## {GLMTree} saveRDS round trip ----
+test_that("a saved GLMTree model predicts identically", {
+  path <- tempfile(fileext = ".rds")
+  saveRDS(mod_r_glmtree, path)
+  restored <- readRDS(path)
+  expect_equal(
+    predict(restored, features(datr_test)),
+    predict(mod_r_glmtree, features(datr_test))
+  )
+})
+
+## {GLMTree} Algorithm name dispatch ----
+test_that("get_default_hyperparameters() resolves GLMTree", {
+  expect_s7_class(
+    get_default_hyperparameters("GLMTree"),
+    rtemis:::GLMTreeHyperparameters
+  )
+})
+
 # --- LINAD ----------------------------------------------------------------------------------------
 # LINAD is implemented in this package rather than wrapped, so these blocks
 # cover the pipeline; the engine's own arithmetic is checked in test_LINAD.R.
