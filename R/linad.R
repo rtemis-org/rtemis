@@ -1129,15 +1129,13 @@ linad_line_search <- function(y, f, v, w, idx, type, max_step) {
 #' @noRd
 linad_child <- function(state, node, r, derivatives, idx, weights) {
   fit <- NULL
-  # A node below the linear model's floor takes a constant where `node_test` is
-  # on -- the level is always estimable -- and is left to its parent otherwise.
+  # A node below the linear model's floor is left to its parent. Splits already
+  # respect that floor, so this fires only for a node the caller placed there.
   model <- if (
     identical(state[["node_model"]], "constant") ||
       length(idx) >= state[["min_cases_node_model"]]
   ) {
     state[["node_model"]]
-  } else if (!identical(state[["node_test"]], "none")) {
-    "constant"
   } else {
     NULL
   }
@@ -1247,9 +1245,7 @@ linad_sample_features <- function(context, mtry = NULL) {
 # %% linad_min_child_cases ----
 #' Fewest cases a split may leave on a side
 #'
-#' `min_cases_leaf` where a node may fall back to a constant -- either because
-#' every node carries one or because `node_test` allows it -- and otherwise the
-#' higher of that and `min_cases_node_model`, so that a split
+#' The higher of `min_cases_leaf` and `min_cases_node_model`, so that a split
 #' never creates a node too small to carry its own model: such a node takes a
 #' zero update and predicts exactly what its parent did, spending a leaf to
 #' change nothing. Both split searches use this, so the exhaustive search scores
@@ -1266,10 +1262,7 @@ linad_sample_features <- function(context, mtry = NULL) {
 #' @keywords internal
 #' @noRd
 linad_min_child_cases <- function(state) {
-  if (
-    identical(state[["node_model"]], "constant") ||
-      !identical(state[["node_test"]], "none")
-  ) {
+  if (identical(state[["node_model"]], "constant")) {
     return(state[["min_cases_leaf"]])
   }
   max(state[["min_cases_leaf"]], state[["min_cases_node_model"]])

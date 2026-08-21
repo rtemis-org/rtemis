@@ -71,7 +71,7 @@ setup_LINAD(
 
 \item{split_bin_type}{(Tunable) Character \{"frequency", "width"\}: How bin edges are placed.}
 
-\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when \code{node_model} is a linear model.}
+\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when \code{node_model} is "ridge" or "elasticnet"; forward selection uses \code{forward_stop}.}
 
 \item{split_criterion}{(Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when \code{split_search} is "stump".}
 
@@ -174,10 +174,14 @@ warranted at all: the slopes are kept only where they reduce the node's
 residual sum of squares by more than they cost, and the node takes a plain
 constant otherwise. A tree whose flat regions carry constants and whose
 structured regions carry coefficients is both smaller to read and a statement
-about where the response is locally linear. It also frees tree growth, since
-a node too small to support a linear model can take a constant rather than
-block the split -- \code{min_cases_node_model} then governs model choice rather
-than tree shape.
+about where the response is locally linear. It buys that sparsity at a price
+in accuracy, so it is off by default.
+
+It applies to the shrinking models only. Forward selection charges the same
+cost per term through \code{forward_stop}, and a set of terms that each paid for
+itself always pays for itself jointly, so a node-level test could never
+overturn it. One cost rule per node model, at the granularity that model
+admits.
 
 \code{split_criterion} sets what the stump scores a side by, and closes part of
 that gap cheaply. \code{"mean"} scores the level its fit explains, which is the CART

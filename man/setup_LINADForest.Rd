@@ -80,7 +80,7 @@ setup_LINADForest(
 
 \item{split_bin_type}{(Tunable) Character \{"frequency", "width"\}: How bin edges are placed.}
 
-\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when \code{node_model} is a linear model.}
+\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when \code{node_model} is "ridge" or "elasticnet"; forward selection uses \code{forward_stop}.}
 
 \item{split_criterion}{(Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when \code{split_search} is "stump".}
 

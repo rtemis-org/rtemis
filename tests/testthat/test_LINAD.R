@@ -956,6 +956,9 @@ test_that("setup_LINAD() rejects a parameter its leaf model ignores", {
     split_criterion = "linear"
   ))
   expect_error(setup_LINAD(node_model = "constant", node_test = "bic"))
+  # Forward selection charges the same cost per term through `forward_stop`,
+  # which subsumes a node-level test, so the two are not both offered.
+  expect_error(setup_LINAD(node_model = "forward", node_test = "bic"))
   expect_s7_class(
     setup_LINAD(node_model = "ridge", node_test = "bic"),
     LINADHyperparameters
@@ -1475,22 +1478,24 @@ test_that("node_test gives a node a constant where its slopes do not pay", {
 })
 
 
-test_that("node_test frees tree growth that min_cases_node_model would block", {
-  # A node below the linear model's floor can carry a constant, so the floor
-  # stops constraining tree shape and constrains only model choice.
+test_that("node_test leaves the split floors where the user set them", {
+  # It changes which model a node carries, and through the losses that follow
+  # it changes expansion order, but never what a split is allowed to leave
+  # behind: a model-selection rule that quietly deepened the tree would spend
+  # the leaf budget on nodes too small to fit anything.
   set.seed(2026)
-  n <- 300L
-  X <- as.data.frame(matrix(rnorm(n * 4L), n, 4L))
-  names(X) <- paste0("x", 1:4)
+  n <- 400L
+  X <- as.data.frame(matrix(rnorm(n * 6L), n, 6L))
+  names(X) <- paste0("x", 1:6)
   X[["y"]] <- ifelse(X[["x1"]] > 0, 3 * X[["x2"]] - 2 * X[["x3"]], 5) +
     rnorm(n, 0, 1)
   fit <- function(...) {
     train(
       X,
       hyperparameters = setup_LINAD(
-        max_leaves = 8L,
+        max_leaves = 10L,
         node_model = "ridge",
-        min_cases_node_model = 60L,
+        min_cases_node_model = 30L,
         force_max_leaves = TRUE,
         ...
       ),
@@ -1498,7 +1503,13 @@ test_that("node_test frees tree growth that min_cases_node_model would block", {
       verbosity = 0L
     )
   }
-  expect_gt(fit(node_test = "bic")@model@n_leaves, fit()@model@n_leaves)
+  shape <- function(mod) {
+    frame <- mod@model@frame
+    frame[["n"]][frame[["is_leaf"]]]
+  }
+  for (rule in c("none", "aic", "bic")) {
+    expect_gte(min(shape(fit(node_test = rule))), 30L)
+  }
 })
 
 

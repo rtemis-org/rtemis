@@ -10,7 +10,7 @@
 SIGN_COLORS <- c(
   negative = rtemis_colors[["blue"]],
   neutral = "#7F7F7F",
-  positive = rtemis_colors[["red"]]
+  positive = rtemis_colors[["magenta"]]
 )
 
 
