@@ -392,6 +392,46 @@ linad_constant <- function(
 } # /rtemis::linad_constant
 
 
+# %% linad_node_test ----
+#' Whether a node's slopes earn their coefficients
+#'
+#' The constant is nested in the linear model, so on the node's own cases the
+#' slopes always reduce the residual sum of squares and the comparison is
+#' meaningless without a cost. This is the Gaussian information criterion in
+#' the form that needs only the two sums of squares, charging `n_terms` at the
+#' rule's per-term rate.
+#'
+#' Both split searches and the commit call this, so a candidate is scored by
+#' the model the node will actually receive.
+#'
+#' @param rss_constant Numeric: Weighted residual sum of squares of the
+#' constant-only fit.
+#' @param rss_linear Numeric: The same after the slopes.
+#' @param sw Numeric: Total weight carried by the fit.
+#' @param n_terms Integer: Nonzero slopes bought.
+#' @param rule Character: "none", "aic" or "bic".
+#'
+#' @return Logical: TRUE to keep the slopes.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_node_test <- function(rss_constant, rss_linear, sw, n_terms, rule) {
+  if (identical(rule, "none") || n_terms == 0L) {
+    return(TRUE)
+  }
+  per_term <- switch(rule, aic = 2, bic = log(sw), NA_real_)
+  if (!is.finite(per_term) || per_term <= 0) {
+    return(TRUE)
+  }
+  if (!is.finite(rss_constant) || rss_constant <= 0 || !is.finite(rss_linear)) {
+    return(FALSE)
+  }
+  sw * log(rss_constant / max(rss_linear, .Machine[["double.xmin"]])) >
+    per_term * n_terms
+} # /rtemis::linad_node_test
+
+
 # %% linad_solve ----
 #' Fit one leaf model, as a constant plus slopes
 #'
@@ -426,6 +466,8 @@ linad_constant <- function(
 #' @param type Character: "Regression" or "Classification".
 #' @param max_step Numeric: Bound on the constant.
 #' @param constant_rule Character: Which rule computes the constant.
+#' @param node_test Character: Cost a node's slopes must earn over the constant
+#' alone, as `linad_node_test()` applies it.
 #'
 #' @return List with `coefficients` (length `ncol(xm)`, column 1 the effective
 #' intercept in the node's own coordinates) and `constant` (the node's value),
@@ -448,7 +490,8 @@ linad_solve <- function(
   derivatives = NULL,
   type = "Regression",
   max_step = 1000,
-  constant_rule = "closed_form"
+  constant_rule = "closed_form",
+  node_test = "none"
 ) {
   if (length(idx) == 0L || sum(w[idx]) <= 0) {
     return(NULL)
@@ -507,6 +550,20 @@ linad_solve <- function(
   }
   if (is.null(slopes) || !all(is.finite(slopes))) {
     slopes <- rep(0, length(slope_columns))
+  }
+  n_terms <- sum(slopes != 0)
+  if (!identical(node_test, "none") && n_terms > 0L) {
+    explained <- drop(centered[idx, , drop = FALSE] %*% slopes)
+    keep <- linad_node_test(
+      sum(w[idx] * residual[idx]^2),
+      sum(w[idx] * (residual[idx] - explained)^2),
+      sum(w[idx]),
+      n_terms,
+      node_test
+    )
+    if (!keep) {
+      slopes <- rep(0, length(slope_columns))
+    }
   }
   # Back to the node's coordinates: the centered fit's level is `constant`, so
   # the effective intercept absorbs what centering removed.
@@ -1072,12 +1129,22 @@ linad_line_search <- function(y, f, v, w, idx, type, max_step) {
 #' @noRd
 linad_child <- function(state, node, r, derivatives, idx, weights) {
   fit <- NULL
-  enough <- length(idx) >= state[["min_cases_node_model"]] ||
-    identical(state[["node_model"]], "constant")
+  # A node below the linear model's floor takes a constant where `node_test` is
+  # on -- the level is always estimable -- and is left to its parent otherwise.
+  model <- if (
+    identical(state[["node_model"]], "constant") ||
+      length(idx) >= state[["min_cases_node_model"]]
+  ) {
+    state[["node_model"]]
+  } else if (!identical(state[["node_test"]], "none")) {
+    "constant"
+  } else {
+    NULL
+  }
   # A residual with no variation is still fitted: the update is that constant
   # with zero slopes, which is what the solve returns. Degeneracy is handled
   # below, where a NULL or non-finite fit falls back to a zero update.
-  if (enough && length(idx) > 0L) {
+  if (!is.null(model) && length(idx) > 0L) {
     # Every case with weight left, not just the node's own. This is what makes
     # `gamma` a hyperparameter rather than a formality: at 0 the set below is
     # exactly the node's cases and the fit is the hard-partition one, and as it
@@ -1092,7 +1159,7 @@ linad_child <- function(state, node, r, derivatives, idx, weights) {
       r,
       weights,
       active,
-      state[["node_model"]],
+      model,
       state[["lambda"]],
       state[["alpha"]],
       state[["nvmax"]],
@@ -1100,7 +1167,8 @@ linad_child <- function(state, node, r, derivatives, idx, weights) {
       derivatives = derivatives,
       type = state[["type"]],
       max_step = state[["line_search_max"]],
-      constant_rule = state[["constant_rule"]]
+      constant_rule = state[["constant_rule"]],
+      node_test = state[["node_test"]]
     )
   }
   if (is.null(fit) || !all(is.finite(fit[["coefficients"]]))) {
@@ -1179,7 +1247,9 @@ linad_sample_features <- function(context, mtry = NULL) {
 # %% linad_min_child_cases ----
 #' Fewest cases a split may leave on a side
 #'
-#' The higher of `min_cases_leaf` and `min_cases_node_model`, so that a split
+#' `min_cases_leaf` where a node may fall back to a constant -- either because
+#' every node carries one or because `node_test` allows it -- and otherwise the
+#' higher of that and `min_cases_node_model`, so that a split
 #' never creates a node too small to carry its own model: such a node takes a
 #' zero update and predicts exactly what its parent did, spending a leaf to
 #' change nothing. Both split searches use this, so the exhaustive search scores
@@ -1196,7 +1266,10 @@ linad_sample_features <- function(context, mtry = NULL) {
 #' @keywords internal
 #' @noRd
 linad_min_child_cases <- function(state) {
-  if (identical(state[["node_model"]], "constant")) {
+  if (
+    identical(state[["node_model"]], "constant") ||
+      !identical(state[["node_test"]], "none")
+  ) {
     return(state[["min_cases_leaf"]])
   }
   max(state[["min_cases_leaf"]], state[["min_cases_node_model"]])
@@ -1565,7 +1638,8 @@ linad_fit <- function(x, xm, y, case_weights, type, settings, verbosity = 1L) {
       forward_stop = settings[["forward_stop"]],
       derivatives = NULL,
       type = "Regression",
-      max_step = settings[["line_search_max"]]
+      max_step = settings[["line_search_max"]],
+      node_test = settings[["node_test"]]
     )
   }
   root_constant <- if (is.null(root_fit)) {
@@ -2143,6 +2217,7 @@ linad_settings <- function(hyperparameters) {
     root_alpha = value_or("root_alpha", alpha),
     root_learning_rate = hyperparameters[["root_learning_rate"]],
     forward_stop = value_or("forward_stop", "bic"),
+    node_test = value_or("node_test", "none"),
     split_search = hyperparameters[["split_search"]],
     split_criterion = value_or("split_criterion", "mean"),
     # A single tree scans every feature at every split; `LINADForest` overrides
@@ -2177,6 +2252,8 @@ linad_settings <- function(hyperparameters) {
 #' @param node_model Character: Leaf model name.
 #' @param lambda Numeric: Ridge penalty.
 #' @param nvmax Integer: Forward-selection term count.
+#' @param node_test Character: Cost a side's slopes must earn over the constant
+#' alone, as `linad_node_test()` applies it.
 #'
 #' @return Numeric vector of coefficients, or NULL.
 #'
@@ -2191,18 +2268,19 @@ linad_gram_solve <- function(
   lambda,
   nvmax,
   syy = NULL,
-  forward_stop = "none"
+  forward_stop = "none",
+  node_test = "none"
 ) {
-  if (identical(node_model, "constant")) {
-    coefficients <- rep(0, ncol(G))
-    if (G[[1L, 1L]] <= 0) {
-      return(NULL)
-    }
-    coefficients[[1L]] <- Xty[[1L]] / G[[1L, 1L]]
-    return(coefficients)
+  if (G[[1L, 1L]] <= 0) {
+    return(NULL)
   }
-  if (identical(node_model, "forward")) {
-    return(linad_forward(
+  constant_only <- rep(0, ncol(G))
+  constant_only[[1L]] <- Xty[[1L]] / G[[1L, 1L]]
+  if (identical(node_model, "constant")) {
+    return(constant_only)
+  }
+  coefficients <- if (identical(node_model, "forward")) {
+    linad_forward(
       G,
       Xty,
       nvmax,
@@ -2210,9 +2288,22 @@ linad_gram_solve <- function(
       syy = syy,
       sample_weight = sw,
       stop_rule = forward_stop
-    ))
+    )
+  } else {
+    linad_chol_solve(G, Xty, lambda * sw)
   }
-  linad_chol_solve(G, Xty, lambda * sw)
+  if (identical(node_test, "none") || is.null(coefficients) || is.null(syy)) {
+    return(coefficients)
+  }
+  n_terms <- sum(coefficients[-1L] != 0)
+  keep <- linad_node_test(
+    linad_gram_loss(G, Xty, syy, constant_only),
+    linad_gram_loss(G, Xty, syy, coefficients),
+    sw,
+    n_terms,
+    node_test
+  )
+  if (keep) coefficients else constant_only
 } # /rtemis::linad_gram_solve
 
 
@@ -2346,7 +2437,8 @@ linad_sweep <- function(state, r, w, member, features = NULL) {
           state[["lambda"]],
           state[["nvmax"]],
           syy = side[["syy"]],
-          forward_stop = state[["forward_stop"]]
+          forward_stop = state[["forward_stop"]],
+          node_test = state[["node_test"]]
         )
         if (is.null(b) || !all(is.finite(b))) {
           loss <- Inf

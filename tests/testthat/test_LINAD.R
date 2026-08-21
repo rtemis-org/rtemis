@@ -955,6 +955,11 @@ test_that("setup_LINAD() rejects a parameter its leaf model ignores", {
     split_search = "exhaustive",
     split_criterion = "linear"
   ))
+  expect_error(setup_LINAD(node_model = "constant", node_test = "bic"))
+  expect_s7_class(
+    setup_LINAD(node_model = "ridge", node_test = "bic"),
+    LINADHyperparameters
+  )
   # split_binning is not gated: it discretizes the features for either search.
   expect_s7_class(
     setup_LINAD(split_search = "stump", split_binning = 32L),
@@ -1399,4 +1404,139 @@ test_that("The mean criterion is the stump search's default and leaves it unchan
     predict(fit(), dat[c("x1", "x2")]),
     predict(fit(split_criterion = "mean"), dat[c("x1", "x2")])
   )
+})
+
+
+# %% node_test ----
+test_that("node_test leaves the fit untouched when off", {
+  set.seed(2026)
+  dat <- data.frame(x1 = rnorm(300L), x2 = rnorm(300L), x3 = rnorm(300L))
+  dat[["y"]] <- 2 * dat[["x1"]] - dat[["x2"]] + rnorm(300L, 0, 0.5)
+  fit <- function(...) {
+    train(
+      dat,
+      hyperparameters = setup_LINAD(max_leaves = 4L, node_model = "ridge", ...),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+  }
+  features <- dat[c("x1", "x2", "x3")]
+  expect_equal(
+    predict(fit(), features),
+    predict(fit(node_test = "none"), features)
+  )
+})
+
+
+test_that("node_test gives a node a constant where its slopes do not pay", {
+  # Linear structure only where x1 > 0; a pure level shift elsewhere. Every
+  # node fits slopes without the test, and the flat region should not.
+  set.seed(2026)
+  n <- 800L
+  X <- as.data.frame(matrix(rnorm(n * 4L), n, 4L))
+  names(X) <- paste0("x", 1:4)
+  X[["y"]] <- ifelse(X[["x1"]] > 0, 3 * X[["x2"]] - 2 * X[["x3"]], 5) +
+    rnorm(n, 0, 1)
+  slope_counts <- function(mod) {
+    coefficients <- mod@model@coefficients
+    frame <- mod@model@frame
+    counts <- vapply(
+      seq_len(nrow(frame)),
+      function(i) {
+        parent <- frame[["parent"]][[i]]
+        if (is.na(parent) || parent == 0L) {
+          return(NA_integer_)
+        }
+        row <- match(parent, frame[["node"]])
+        sum(abs(coefficients[i, -1L] - coefficients[row, -1L]) > 1e-8)
+      },
+      integer(1L)
+    )
+    counts[!is.na(counts)]
+  }
+  fit <- function(...) {
+    train(
+      X,
+      hyperparameters = setup_LINAD(
+        max_leaves = 6L,
+        node_model = "ridge",
+        force_max_leaves = TRUE,
+        ...
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+  }
+  without <- slope_counts(fit())
+  with_test <- slope_counts(fit(node_test = "bic"))
+  expect_equal(sum(without == 0L), 0L)
+  expect_gt(sum(with_test == 0L), 0L)
+  expect_lt(sum(with_test), sum(without))
+})
+
+
+test_that("node_test frees tree growth that min_cases_node_model would block", {
+  # A node below the linear model's floor can carry a constant, so the floor
+  # stops constraining tree shape and constrains only model choice.
+  set.seed(2026)
+  n <- 300L
+  X <- as.data.frame(matrix(rnorm(n * 4L), n, 4L))
+  names(X) <- paste0("x", 1:4)
+  X[["y"]] <- ifelse(X[["x1"]] > 0, 3 * X[["x2"]] - 2 * X[["x3"]], 5) +
+    rnorm(n, 0, 1)
+  fit <- function(...) {
+    train(
+      X,
+      hyperparameters = setup_LINAD(
+        max_leaves = 8L,
+        node_model = "ridge",
+        min_cases_node_model = 60L,
+        force_max_leaves = TRUE,
+        ...
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+  }
+  expect_gt(fit(node_test = "bic")@model@n_leaves, fit()@model@n_leaves)
+})
+
+
+test_that("Both split searches apply node_test to the models they score", {
+  set.seed(2026)
+  n <- 400L
+  X <- as.data.frame(matrix(rnorm(n * 4L), n, 4L))
+  names(X) <- paste0("x", 1:4)
+  X[["y"]] <- ifelse(X[["x1"]] > 0, 3 * X[["x2"]] - 2 * X[["x3"]], 5) +
+    rnorm(n, 0, 1)
+  for (search in c("stump", "exhaustive")) {
+    mod <- train(
+      X,
+      hyperparameters = setup_LINAD(
+        max_leaves = 6L,
+        node_model = "ridge",
+        node_test = "bic",
+        split_search = search,
+        force_max_leaves = TRUE
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+    expect_length(linad_check_tree(mod@model), 0L)
+  }
+})
+
+
+test_that("linad_node_test charges each term and keeps a fit that pays", {
+  # A halved residual sum of squares over 100 cases: the deviance is
+  # 100 * log(2) = 69.3, against 2 per term for AIC and log(100) = 4.6 for BIC.
+  expect_true(linad_node_test(100, 50, 100, 1L, "aic"))
+  expect_true(linad_node_test(100, 50, 100, 1L, "bic"))
+  expect_true(linad_node_test(100, 50, 100, 10L, "bic"))
+  expect_false(linad_node_test(100, 50, 100, 20L, "bic"))
+  # Always kept where there is no rule, and where nothing was bought.
+  expect_true(linad_node_test(100, 50, 100, 20L, "none"))
+  expect_true(linad_node_test(100, 100, 100, 0L, "bic"))
+  # Nothing to explain.
+  expect_false(linad_node_test(0, 0, 100, 2L, "bic"))
 })

@@ -25,6 +25,7 @@ setup_LINADForest(
   gamma = 0.1,
   split_binning = NULL,
   split_bin_type = "frequency",
+  node_test = NULL,
   split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
@@ -78,6 +79,8 @@ setup_LINADForest(
 \item{split_binning}{(Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits.}
 
 \item{split_bin_type}{(Tunable) Character \{"frequency", "width"\}: How bin edges are placed.}
+
+\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when \code{node_model} is a linear model.}
 
 \item{split_criterion}{(Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when \code{split_search} is "stump".}
 

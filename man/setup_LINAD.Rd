@@ -22,6 +22,7 @@ setup_LINAD(
   gamma = 0.1,
   split_binning = NULL,
   split_bin_type = "frequency",
+  node_test = NULL,
   split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
@@ -69,6 +70,8 @@ setup_LINAD(
 \item{split_binning}{(Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits. Applies to both split searches.}
 
 \item{split_bin_type}{(Tunable) Character \{"frequency", "width"\}: How bin edges are placed.}
+
+\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when \code{node_model} is a linear model.}
 
 \item{split_criterion}{(Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when \code{split_search} is "stump".}
 
@@ -165,6 +168,16 @@ fitting both child models, rather than taking the best split of the gradient.
 It costs more per split and finds structure no stump can see: an interaction
 that changes another feature's slope without changing either side's mean
 leaves no trace in any one feature's marginal fit.
+
+\code{node_test} lets the tree decide, node by node, whether a linear model is
+warranted at all: the slopes are kept only where they reduce the node's
+residual sum of squares by more than they cost, and the node takes a plain
+constant otherwise. A tree whose flat regions carry constants and whose
+structured regions carry coefficients is both smaller to read and a statement
+about where the response is locally linear. It also frees tree growth, since
+a node too small to support a linear model can take a constant rather than
+block the split -- \code{min_cases_node_model} then governs model choice rather
+than tree shape.
 
 \code{split_criterion} sets what the stump scores a side by, and closes part of
 that gap cheaply. \code{"mean"} scores the level its fit explains, which is the CART

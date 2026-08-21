@@ -1726,6 +1726,14 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       description = "Shrinkage applied to the root model's slopes. 0 fits no root model, so the first step is a split; 1 fits it in full."
     ),
     # Splitting ----
+    node_test = prop_string(
+      NULL,
+      enum = c("none", "aic", "bic"),
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(node_model = c("forward", "ridge", "elasticnet")),
+      description = "Cost a node's slopes must earn over the constant alone, so that a node carries coefficients only where the data supports them and a plain constant otherwise. The constant is nested in the linear model, so on the node's own cases the slopes always fit better and no comparison is possible without a cost; aic charges 2 per nonzero slope and bic log(n). It also frees tree growth, since a node too small for a linear model can take a constant instead of blocking the split. Defaults to none where it applies."
+    ),
     split_criterion = prop_string(
       NULL,
       enum = c("mean", "linear"),
@@ -1893,6 +1901,16 @@ LINADHyperparameters <- new_class(
 #' that changes another feature's slope without changing either side's mean
 #' leaves no trace in any one feature's marginal fit.
 #'
+#' `node_test` lets the tree decide, node by node, whether a linear model is
+#' warranted at all: the slopes are kept only where they reduce the node's
+#' residual sum of squares by more than they cost, and the node takes a plain
+#' constant otherwise. A tree whose flat regions carry constants and whose
+#' structured regions carry coefficients is both smaller to read and a statement
+#' about where the response is locally linear. It also frees tree growth, since
+#' a node too small to support a linear model can take a constant rather than
+#' block the split -- `min_cases_node_model` then governs model choice rather
+#' than tree shape.
+#'
 #' `split_criterion` sets what the stump scores a side by, and closes part of
 #' that gap cheaply. `"mean"` scores the level its fit explains, which is the CART
 #' criterion and is blind to curvature -- a parabola's two halves have the same
@@ -1962,6 +1980,7 @@ LINADHyperparameters <- new_class(
 #' @param split_search Character \{"stump", "exhaustive"\}: How a split is chosen.
 #' @param split_binning (Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits. Applies to both split searches.
 #' @param split_bin_type (Tunable) Character \{"frequency", "width"\}: How bin edges are placed.
+#' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when `node_model` is a linear model.
 #' @param split_criterion (Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when `split_search` is "stump".
 #' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature; `split_bin_type` decides their spacing. Applies only when `split_search` is "exhaustive".
 #' @param gamma (Tunable) Numeric \[0, 1\]: Weight a case retains in the branch it does not belong to. 0 is a hard partition.
@@ -2007,6 +2026,7 @@ setup_LINAD <- function(
   gamma = 0.1,
   split_binning = NULL,
   split_bin_type = "frequency",
+  node_test = NULL,
   split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
@@ -2049,6 +2069,7 @@ setup_LINAD <- function(
     split_search = split_search,
     split_binning = split_binning,
     split_bin_type = split_bin_type,
+    node_test = node_test,
     split_criterion = split_criterion,
     n_cuts = n_cuts,
     gamma = gamma,
@@ -2194,6 +2215,7 @@ LINADForestHyperparameters <- new_class(
 #' @param split_search Character \{"stump", "exhaustive"\}: How a split is chosen.
 #' @param split_binning (Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits.
 #' @param split_bin_type (Tunable) Character \{"frequency", "width"\}: How bin edges are placed.
+#' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when `node_model` is a linear model.
 #' @param split_criterion (Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when `split_search` is "stump".
 #' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature. Applies only when `split_search` is "exhaustive".
 #' @param gamma (Tunable) Numeric \[0, 1\]: Weight a case retains in the branch it does not belong to. 0 is a hard partition.
@@ -2237,6 +2259,7 @@ setup_LINADForest <- function(
   gamma = 0.1,
   split_binning = NULL,
   split_bin_type = "frequency",
+  node_test = NULL,
   split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
@@ -2285,6 +2308,7 @@ setup_LINADForest <- function(
     split_search = split_search,
     split_binning = split_binning,
     split_bin_type = split_bin_type,
+    node_test = node_test,
     split_criterion = split_criterion,
     n_cuts = n_cuts,
     gamma = gamma,
