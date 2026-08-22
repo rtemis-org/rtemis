@@ -3141,6 +3141,10 @@ LinearAdditiveTree <- new_class(
     # measured on different scales.
     design_assign = class_integer,
     design_scale = class_double,
+    # The design's column names as fitted. Coefficients are applied by
+    # position, so prediction checks the rebuilt design against these rather
+    # than trusting that it produced the same basis.
+    design_names = class_character,
     type = class_character,
     y_levels = NULL | class_character,
     leaf_curve = NULL | class_numeric
@@ -3151,7 +3155,11 @@ LinearAdditiveTree <- new_class(
 # Print LinearAdditiveTree ----
 method(print, LinearAdditiveTree) <- function(x, ...) {
   objcat("rtemis Linear Additive Tree")
-  n_nodes <- nrow(x@frame)
+  # The frame keeps every node grown; the selected size reaches only some of
+  # them, and those are the ones this model is.
+  terminal <- x@steps[[x@n_leaves]]
+  reachable <- linad_selected_nodes(x@frame, terminal)
+  n_nodes <- length(reachable)
   cat(
     "Tree of ",
     highlight(x@n_leaves),
@@ -3160,7 +3168,7 @@ method(print, LinearAdditiveTree) <- function(x, ...) {
     highlight(n_nodes),
     ngettext(n_nodes, " node", " nodes"),
     ", max depth ",
-    highlight(max(x@frame[["depth"]])),
+    highlight(max(x@frame[["depth"]][reachable])),
     ".\n",
     sep = ""
   )
@@ -3171,7 +3179,6 @@ method(print, LinearAdditiveTree) <- function(x, ...) {
     ".\n",
     sep = ""
   )
-  terminal <- x@steps[[x@n_leaves]]
   values <- x@frame[["node_value"]][match(terminal, x@frame[["node"]])]
   cat(
     "Node values span ",

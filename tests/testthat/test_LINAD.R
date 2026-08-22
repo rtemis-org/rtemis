@@ -1032,10 +1032,6 @@ test_that("a grown tree is structurally sound under every configuration", {
       max_leaves = 8L,
       line_search = "none"
     ),
-    "global selection" = rtemis::setup_LINAD(
-      max_leaves = 8L,
-      node_selection = "global"
-    ),
     "least squares" = rtemis::setup_LINAD(
       max_leaves = 8L,
       constant_rule = "least_squares"
@@ -1606,4 +1602,116 @@ test_that("node_test keeps a ridge fit on data wider than it is long", {
         sum((X[["y"]] - mean(X[["y"]]))^2)
   }
   expect_gt(rsq(fit(node_test = "bic")), rsq(fit()) - 0.05)
+})
+
+
+# %% Factor partitions ----
+test_that("The exhaustive search finds a factor partition no ordering reaches", {
+  # A and C share a slope, B reverses it, and the level means order A < B < C.
+  # The best partition {A,C} | {B} is therefore not contiguous in the
+  # mean-residual ordering that the theorem for constant leaves relies on.
+  set.seed(7)
+  n <- 900L
+  g <- factor(rep(c("A", "B", "C"), each = n / 3L))
+  x <- rnorm(n)
+  dat <- data.frame(
+    g = g,
+    x = x,
+    y = ifelse(g == "B", -3 * x + 1, 3 * x + ifelse(g == "C", 2, 0)) +
+      rnorm(n, 0, 0.5)
+  )
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(
+      max_leaves = 2L,
+      node_model = "ridge",
+      lambda = 0.01,
+      learning_rate = 1,
+      gamma = 0,
+      split_search = "exhaustive",
+      force_max_leaves = TRUE
+    ),
+    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    verbosity = 0L
+  )
+  frame <- mod@model@frame
+  root <- frame[!is.na(frame[["split_feature"]]), ][1L, ]
+  expect_equal(root[["split_feature"]], "g")
+  # Either side of the partition names it.
+  expect_setequal(
+    if (length(root[["split_levels"]][[1L]]) == 1L) {
+      root[["split_levels"]][[1L]]
+    } else {
+      setdiff(c("A", "B", "C"), root[["split_levels"]][[1L]])
+    },
+    "B"
+  )
+})
+
+
+test_that("A factor too wide to enumerate falls back to the ordering", {
+  # 12 levels is 2047 partitions against a budget of `n_cuts`, so the search
+  # takes the contiguous-cut path and must still produce a sound tree.
+  set.seed(3)
+  n <- 600L
+  h <- factor(sample(letters[1:12], n, replace = TRUE))
+  x <- rnorm(n)
+  dat <- data.frame(
+    h = h,
+    x = x,
+    y = 2 * x + as.numeric(h) / 4 + rnorm(n, 0, 0.5)
+  )
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(
+      max_leaves = 4L,
+      split_search = "exhaustive",
+      force_max_leaves = TRUE
+    ),
+    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    verbosity = 0L
+  )
+  expect_length(linad_check_tree(mod@model), 0L)
+  expect_equal(mod@model@n_leaves, 4L)
+})
+
+
+test_that("n_cuts is the budget that decides whether a factor is enumerated", {
+  # 6 levels is 31 partitions: above the default budget, below a raised one.
+  set.seed(11)
+  n <- 1200L
+  g <- factor(rep(letters[1:6], each = n / 6L))
+  x <- rnorm(n)
+  # Levels alternate slope, so the best partition is the odd/even one -- as
+  # non-contiguous in any mean ordering as a 6-level factor allows.
+  slope <- ifelse(as.integer(g) %% 2L == 0L, -3, 3)
+  dat <- data.frame(g = g, x = x, y = slope * x + rnorm(n, 0, 0.5))
+  split_of <- function(n_cuts) {
+    mod <- train(
+      dat,
+      hyperparameters = setup_LINAD(
+        max_leaves = 2L,
+        node_model = "ridge",
+        lambda = 0.01,
+        learning_rate = 1,
+        gamma = 0,
+        split_search = "exhaustive",
+        n_cuts = n_cuts,
+        force_max_leaves = TRUE
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+    frame <- mod@model@frame
+    sort(frame[!is.na(frame[["split_feature"]]), ][1L, ][["split_levels"]][[
+      1L
+    ]])
+  }
+  odds <- c("a", "c", "e")
+  enumerated <- split_of(64L)
+  expect_true(
+    identical(enumerated, odds) ||
+      identical(enumerated, sort(setdiff(letters[1:6], odds)))
+  )
+  expect_false(identical(split_of(20L), enumerated))
 })

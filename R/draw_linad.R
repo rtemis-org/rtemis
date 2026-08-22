@@ -488,18 +488,7 @@ draw_linad <- function(
   # read from `steps` instead and any node below it is dropped.
   terminal <- model@steps[[n_leaves]]
   frame <- model@frame
-  shown <- sort(unique(c(
-    terminal,
-    unlist(lapply(terminal, function(node) {
-      ancestors <- integer(0)
-      parent <- frame[["parent"]][[node]]
-      while (!is.na(parent)) {
-        ancestors <- c(ancestors, parent)
-        parent <- frame[["parent"]][[parent]]
-      }
-      ancestors
-    }))
-  )))
+  shown <- frame[["node"]][linad_selected_nodes(frame, terminal)]
 
   # Coefficient tables ----
   # Column 1 is dropped rather than shown. It is not a fitted intercept -- the
