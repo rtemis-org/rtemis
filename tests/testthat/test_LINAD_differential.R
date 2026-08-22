@@ -572,3 +572,103 @@ test_that("A forest predicts and reports a standard error for one case", {
     }
   }
 })
+
+
+# %% The design basis is part of the model ----
+test_that("Predictions do not depend on the session's contrast options", {
+  # `model.matrix()` reads `getOption("contrasts")`, which is process-global and
+  # mutable, so a design rebuilt at predict time could be a different basis
+  # multiplied against the same coefficients by position.
+  set.seed(4)
+  n <- 300L
+  dat <- data.frame(
+    g = factor(sample(c("a", "b", "c"), n, replace = TRUE)),
+    x = rnorm(n)
+  )
+  dat[["y"]] <- as.numeric(dat[["g"]]) * 2 + dat[["x"]] + rnorm(n, 0, 0.3)
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(max_leaves = 4L),
+    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    verbosity = 0L
+  )
+  features <- dat[c("g", "x")]
+  before <- predict(mod, features)
+  for (setting in list(
+    c("contr.sum", "contr.poly"),
+    c("contr.helmert", "contr.poly")
+  )) {
+    restore <- options(contrasts = setting)
+    expect_equal(predict(mod, features), before, tolerance = 1e-12)
+    options(restore)
+  }
+  # And an ordered factor is coded the same way as an unordered one.
+  ordered_dat <- dat
+  ordered_dat[["g"]] <- factor(
+    as.character(dat[["g"]]),
+    levels = c("a", "b", "c"),
+    ordered = TRUE
+  )
+  expect_equal(
+    predict(mod, ordered_dat[c("g", "x")]),
+    before,
+    tolerance = 1e-12
+  )
+})
+
+
+test_that("A design that does not match the fitted one is refused", {
+  set.seed(4)
+  n <- 120L
+  dat <- data.frame(
+    g = factor(sample(c("a", "b"), n, replace = TRUE)),
+    x = rnorm(n)
+  )
+  dat[["y"]] <- as.numeric(dat[["g"]]) + dat[["x"]] + rnorm(n, 0, 0.3)
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(max_leaves = 2L),
+    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    verbosity = 0L
+  )
+  expect_length(mod@model@design_names, ncol(mod@model@coefficients))
+  tampered <- mod
+  tampered@model@design_names <- rev(mod@model@design_names)
+  expect_error(
+    predict(tampered, dat[c("g", "x")]),
+    "does not match the one this model was fitted on"
+  )
+})
+
+
+# %% Cut budgets ----
+test_that("n_cuts is the number of candidates a feature spends", {
+  set.seed(9)
+  sorted <- sort(rnorm(200L))
+  breaks <- seq_len(199L)
+  for (budget in c(3L, 5L, 20L)) {
+    expect_length(
+      linad_cut_positions(breaks, budget, sorted, "frequency"),
+      budget
+    )
+  }
+  # Fewer admissible positions than the budget returns all of them.
+  expect_equal(linad_cut_positions(1:3, 20L, sorted[1:4], "frequency"), 1:3)
+})
+
+
+test_that("Equal-width cuts span the feature's range, tail included", {
+  # Positions 1, 2 and 3 have thresholds 0.5, 1.5 and 51. Two equal-width
+  # targets over the range 0 to 100 fall at 33.3 and 66.7, both nearest the
+  # threshold in the tail, which collapses to one candidate.
+  expect_equal(linad_cut_positions(1:3, 2L, c(0, 1, 2, 100), "width"), 3L)
+  # Frequency spacing ignores the values and keeps two.
+  expect_length(linad_cut_positions(1:3, 2L, c(0, 1, 2, 100), "frequency"), 2L)
+  # On a uniform feature the two agree closely, which is the case that hides
+  # the difference.
+  uniform <- seq(0, 1, length.out = 101L)
+  expect_equal(
+    length(linad_cut_positions(seq_len(100L), 4L, uniform, "width")),
+    length(linad_cut_positions(seq_len(100L), 4L, uniform, "frequency"))
+  )
+})
