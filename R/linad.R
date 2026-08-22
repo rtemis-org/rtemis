@@ -2434,6 +2434,62 @@ linad_sweep <- function(state, r, w, member, features = NULL) {
   weights <- w
   total <- linad_gram(xm, r, weights, NULL)
 
+  # One candidate, scored by the loss after fitting both child models. Every
+  # search path below reaches a split through this, so a candidate is never
+  # scored by a model the commit would not fit.
+  score_split <- function(left, left_members, total_members) {
+    if (
+      left_members < min_cases_child ||
+        (total_members - left_members) < min_cases_child
+    ) {
+      return(Inf)
+    }
+    right_G <- total[["G"]] - left[["G"]]
+    right_Xty <- total[["Xty"]] - left[["Xty"]]
+    right_syy <- total[["syy"]] - left[["syy"]]
+    # A case carries `gamma` of its weight into the branch it does not belong
+    # to, so each side's statistics are a mixture of the two hard sides -- both
+    # of which the caller already holds. At `gamma = 0` the mixture collapses to
+    # the hard sides themselves.
+    mix <- gamma
+    sides <- list(
+      list(
+        G = left[["G"]] + mix * right_G,
+        Xty = left[["Xty"]] + mix * right_Xty,
+        syy = left[["syy"]] + mix * right_syy
+      ),
+      list(
+        G = mix * left[["G"]] + right_G,
+        Xty = mix * left[["Xty"]] + right_Xty,
+        syy = mix * left[["syy"]] + right_syy
+      )
+    )
+    loss <- 0
+    for (side in sides) {
+      sw <- side[["G"]][[1L, 1L]]
+      if (sw <= 0) {
+        return(Inf)
+      }
+      b <- linad_gram_solve(
+        side[["G"]],
+        side[["Xty"]],
+        sw,
+        state[["node_model"]],
+        state[["lambda"]],
+        state[["nvmax"]],
+        syy = side[["syy"]],
+        forward_stop = state[["forward_stop"]],
+        node_test = state[["node_test"]]
+      )
+      if (is.null(b) || !all(is.finite(b))) {
+        return(Inf)
+      }
+      loss <- loss +
+        linad_gram_loss(side[["G"]], side[["Xty"]], side[["syy"]], b)
+    }
+    loss
+  }
+
   score_cuts <- function(order_index, cut_positions, member_counts) {
     # Sufficient statistics accumulated left-to-right in blocks, one block per
     # candidate cut, so each row is visited once per feature rather than once
@@ -2444,6 +2500,7 @@ linad_sweep <- function(state, r, w, member, features = NULL) {
     running_syy <- 0
     from <- 1L
     losses <- rep(Inf, length(cut_positions))
+    total_members <- member_counts[[length(member_counts)]]
     for (k in seq_along(cut_positions)) {
       rows <- order_index[seq.int(from, cut_positions[[k]])]
       from <- cut_positions[[k]] + 1L
@@ -2451,61 +2508,11 @@ linad_sweep <- function(state, r, w, member, features = NULL) {
       running_G <- running_G + block[["G"]]
       running_Xty <- running_Xty + block[["Xty"]]
       running_syy <- running_syy + block[["syy"]]
-      # The same floor the stump search uses and the commit enforces: a
-      # candidate is never scored by a child model that will not be fitted.
-      if (
-        member_counts[[k]] < min_cases_child ||
-          (member_counts[[length(member_counts)]] - member_counts[[k]]) <
-            min_cases_child
-      ) {
-        next
-      }
-      right_G <- total[["G"]] - running_G
-      right_Xty <- total[["Xty"]] - running_Xty
-      right_syy <- total[["syy"]] - running_syy
-      # A case carries `gamma` of its weight into the branch it does not belong
-      # to, so each side's statistics are a mixture of the two hard sides --
-      # both of which the sweep already holds. At `gamma = 0` the mixture
-      # collapses to the hard sides themselves.
-      mix <- gamma
-      sides <- list(
-        list(
-          G = running_G + mix * right_G,
-          Xty = running_Xty + mix * right_Xty,
-          syy = running_syy + mix * right_syy
-        ),
-        list(
-          G = mix * running_G + right_G,
-          Xty = mix * running_Xty + right_Xty,
-          syy = mix * running_syy + right_syy
-        )
+      losses[[k]] <- score_split(
+        list(G = running_G, Xty = running_Xty, syy = running_syy),
+        member_counts[[k]],
+        total_members
       )
-      loss <- 0
-      for (side in sides) {
-        sw <- side[["G"]][[1L, 1L]]
-        if (sw <= 0) {
-          loss <- Inf
-          break
-        }
-        b <- linad_gram_solve(
-          side[["G"]],
-          side[["Xty"]],
-          sw,
-          state[["node_model"]],
-          state[["lambda"]],
-          state[["nvmax"]],
-          syy = side[["syy"]],
-          forward_stop = state[["forward_stop"]],
-          node_test = state[["node_test"]]
-        )
-        if (is.null(b) || !all(is.finite(b))) {
-          loss <- Inf
-          break
-        }
-        loss <- loss +
-          linad_gram_loss(side[["G"]], side[["Xty"]], side[["syy"]], b)
-      }
-      losses[[k]] <- loss
     }
     losses
   }
@@ -2562,8 +2569,53 @@ linad_sweep <- function(state, r, w, member, features = NULL) {
     if (sum(keep) < 2L) {
       next
     }
+    present_levels <- present[keep]
+    n_partitions <- 2^(length(present_levels) - 1L) - 1L
+    # Ordering levels by mean residual makes the best contiguous split of that
+    # ordering the best of all partitions -- for squared error of the *mean*.
+    # This search scores by child linear models, for which the theorem does not
+    # hold, so it enumerates every partition where that costs no more than a
+    # numeric feature's candidates and falls back to the ordering above that.
+    if (n_partitions <= state[["n_cuts"]]) {
+      by_level <- lapply(
+        present_levels,
+        function(level) linad_gram(xm, r, weights, which(codes == level))
+      )
+      members_by_level <- vapply(
+        present_levels,
+        function(level) sum(member[codes == level]),
+        numeric(1L)
+      )
+      total_members <- sum(members_by_level)
+      # A mask below 2^(k-1) never holds the last level, so each partition and
+      # its complement are enumerated once between them.
+      for (mask in seq_len(n_partitions)) {
+        left <- bitwAnd(mask, bitwShiftL(1L, seq_along(present_levels) - 1L)) >
+          0L
+        loss <- score_split(
+          list(
+            G = Reduce(`+`, lapply(by_level[left], `[[`, "G")),
+            Xty = Reduce(`+`, lapply(by_level[left], `[[`, "Xty")),
+            syy = sum(vapply(by_level[left], `[[`, numeric(1L), "syy"))
+          ),
+          sum(members_by_level[left]),
+          total_members
+        )
+        if (is.finite(loss) && -loss > best[["gain"]]) {
+          best <- list(
+            gain = -loss,
+            feature = context[["factor_names"]][[j]],
+            kind = "factor",
+            value = NA_real_,
+            levels = levels_j[present_levels[left]],
+            column = j
+          )
+        }
+      }
+      next
+    }
     ranking <- order(level_wr[keep] / level_w[keep])
-    ordered_levels <- present[keep][ranking]
+    ordered_levels <- present_levels[ranking]
     order_index <- order(match(codes, ordered_levels))
     sizes <- cumsum(as.vector(table(codes)[as.character(ordered_levels)]))
     cuts <- sizes[-length(sizes)]

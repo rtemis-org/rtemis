@@ -2,6 +2,7 @@
 
 ## 1.3.7
 
+- **The LINAD exhaustive search now enumerates factor partitions rather than ordering levels by mean residual.** Ordering levels by their mean and cutting contiguously is optimal for constant leaves, and this search scores by child linear models, for which it is not: on three levels whose slopes group against their means it chose the worst of the six partitions, 6.8x the loss of the best, which its own criterion could not reach. It enumerates all `2^(k-1) - 1` partitions where that costs no more than `n_cuts` candidates and falls back to the ordering above that.
 - **A LINAD ridge node is charged the parameters it spends, not the ones it has.** `node_test` counted every nonzero coefficient, and ridge shrinks but never zeroes, so it was charged its full width: at 117 features and `lambda = 0.6` BIC demanded a 25x reduction in residual sum of squares and every node fell back to a constant, including the root. It now uses effective degrees of freedom, `tr((G + D)^-1 G)`, which at that shape is 62 of 117.
 - **The error message for a conditional hyperparameter no longer pads its allowed values** (`is ridge      or elasticnet`). `format()` pads a character vector to a common width and right-justifies numbers, and `trim` suppresses only the second.
 - **A tuned run under outer resampling now announces its grid once, before the folds start.** Each fold runs one verbosity level down, which silenced the announcement entirely; `train()` and `tune_GridSearch()` now read the same summary, so the two can never describe different searches.
