@@ -143,6 +143,7 @@ linadforest_tree <- function(
     xnames = names(features),
     xlev = xlev,
     design_assign = as.integer(attr(xm, "assign")),
+    design_names = colnames(xm),
     design_scale = linad_scaling(xm)[["scale"]],
     type = type,
     y_levels = y_levels,
@@ -275,10 +276,16 @@ linadforest_oob_metrics <- function(oob_prediction, outcome, type) {
 #' @keywords internal
 #' @noRd
 linadforest_tree_predictions <- function(trees, newdata) {
-  vapply(
-    trees,
-    function(tree) predict_super(tree, newdata),
-    numeric(NROW(newdata))
+  # Shaped explicitly: `vapply()` drops to a vector for a single case, and the
+  # aggregation and the jackknife both read this as cases x trees.
+  matrix(
+    vapply(
+      trees,
+      function(tree) predict_super(tree, newdata),
+      numeric(NROW(newdata))
+    ),
+    nrow = NROW(newdata),
+    ncol = length(trees)
   )
 } # /rtemis::linadforest_tree_predictions
 

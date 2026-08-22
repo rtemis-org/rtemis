@@ -26,7 +26,6 @@ setup_LINAD(
   split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
-  node_selection = "local",
   ifw = FALSE,
   force_max_leaves = FALSE,
   smooth_validation_curve = NULL,
@@ -78,8 +77,6 @@ setup_LINAD(
 \item{line_search}{(Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.}
 
 \item{constant_rule}{(Tunable) Character \{"closed_form", "least_squares"\}: How a node's constant is computed. The two coincide for regression and differ only for classification.}
-
-\item{node_selection}{(Tunable) Character \{"local", "global"\}: Criterion for choosing which frontier node to split next.}
 
 \item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 
@@ -229,7 +226,7 @@ near 1 whatever the residual's size -- so the applied step stays proportional
 to \code{learning_rate}. Measured node updates scale linearly with it, by a factor
 of 50 across a 50-fold change in the rate.
 
-\code{line_search}, \code{node_selection} and \code{constant_rule} each select among
+\code{line_search} and \code{constant_rule} each select among
 alternative update rules -- the scope of the Newton step, which frontier node
 is split next, and how a node's constant is computed. There is no settled
 best choice among them, so each is tunable.

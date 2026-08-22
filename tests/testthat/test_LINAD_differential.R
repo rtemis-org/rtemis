@@ -87,7 +87,7 @@ reference_sweep <- function(state, r, w, member) {
     # scores them, and this reference is about the scoring.
     wanted <- rtemis:::linad_cut_positions(
       breaks,
-      state[["n_cuts"]] - 1L,
+      state[["n_cuts"]],
       sorted,
       state[["split_bin_type"]]
     )
@@ -440,4 +440,135 @@ test_that("linad_check_tree() catches a tree holding nodes below the floor", {
     linad_check_tree(fit()@model, min_cases_child = 10000L),
     1L
   )
+})
+
+
+# %% The selected tree is the model ----
+test_that("Split-gain importance counts only splits the selected tree reaches", {
+  # The frame keeps every node grown while validation selects a smaller size,
+  # so anything describing the model must stop at the selected terminals.
+  set.seed(6)
+  n <- 400L
+  dat <- data.frame(a = rnorm(n), b = rnorm(n), c = rnorm(n))
+  dat[["y"]] <- ifelse(dat[["b"]] < 0, -2, 2) +
+    1.5 * dat[["a"]] +
+    rnorm(n, 0, 0.7)
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(max_leaves = 7L, force_max_leaves = TRUE),
+    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    verbosity = 0L
+  )
+  total_gain <- function(k) {
+    shrunk <- mod
+    shrunk@model@n_leaves <- k
+    importance <- varimp_super(shrunk@model)
+    sum(S7::prop(importance, S7::prop_names(importance)[[1L]])[["split_gain"]])
+  }
+  # One leaf reaches no split at all.
+  expect_equal(total_gain(1L), 0)
+  # And a larger selected tree never reaches less gain than a smaller one.
+  gains <- vapply(seq_len(7L), total_gain, numeric(1L))
+  expect_false(is.unsorted(gains))
+})
+
+
+test_that("A printed tree describes its selected size, not everything grown", {
+  set.seed(6)
+  n <- 300L
+  dat <- data.frame(a = rnorm(n), b = rnorm(n))
+  dat[["y"]] <- ifelse(dat[["b"]] < 0, -2, 2) + dat[["a"]] + rnorm(n, 0, 0.7)
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(max_leaves = 6L, force_max_leaves = TRUE),
+    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    verbosity = 0L
+  )
+  shrunk <- mod
+  shrunk@model@n_leaves <- 1L
+  # A single-leaf tree is one node of depth 0, whatever the frame still holds.
+  expect_match(
+    paste(utils::capture.output(print(shrunk@model)), collapse = " "),
+    "1 node"
+  )
+  expect_gt(nrow(mod@model@frame), 1L)
+})
+
+
+# %% Classification initialization ----
+test_that("The classification root is the loss-minimizing constant at every rate", {
+  set.seed(2)
+  n <- 400L
+  dat <- data.frame(x = rnorm(n))
+  dat[["y"]] <- factor(
+    ifelse(runif(n) < 0.8, "pos", "neg"),
+    levels = c("neg", "pos")
+  )
+  prevalence <- mean(dat[["y"]] == "pos")
+  baseline <- 0.5 * log(prevalence / (1 - prevalence))
+  for (rate in c(0, 1e-12, 0.5, 1)) {
+    mod <- train(
+      dat,
+      hyperparameters = setup_LINAD(
+        max_leaves = 1L,
+        node_model = "constant",
+        root_learning_rate = rate
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+    expect_equal(
+      mod@model@frame[["node_value"]][[1L]],
+      baseline,
+      tolerance = 1e-8,
+      info = rate
+    )
+    # An intercept-only classification predicts the prevalence.
+    expect_equal(
+      predict(mod, dat["x"])[[1L]],
+      prevalence,
+      tolerance = 1e-8,
+      info = rate
+    )
+  }
+})
+
+
+# %% Forest boundaries ----
+test_that("A forest predicts and reports a standard error for one case", {
+  set.seed(1)
+  n <- 150L
+  dat <- data.frame(a = rnorm(n), b = rnorm(n))
+  dat[["y"]] <- 2 * dat[["a"]] + rnorm(n)
+  classification <- dat
+  classification[["y"]] <- factor(
+    ifelse(dat[["y"]] > 0, "hi", "lo"),
+    levels = c("lo", "hi")
+  )
+  one_row <- dat[1L, c("a", "b")]
+  for (n_trees in c(1L, 3L)) {
+    for (outcome in list(dat, classification)) {
+      mod <- train(
+        outcome,
+        hyperparameters = setup_LINADForest(n_trees = n_trees, max_leaves = 4L),
+        execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+        verbosity = 0L
+      )
+      expect_length(predict(mod, one_row), 1L)
+      expect_equal(
+        as.vector(predict(mod, one_row)),
+        as.vector(predict(mod, dat[1:3, c("a", "b")]))[[1L]],
+        tolerance = 1e-10
+      )
+      standard_error <- se(mod, one_row)
+      expect_length(standard_error, 1L)
+      if (n_trees == 1L) {
+        # The infinitesimal jackknife is a covariance across bags and has
+        # nothing to vary over with one tree.
+        expect_true(is.na(standard_error))
+      } else {
+        expect_true(is.finite(standard_error) && standard_error >= 0)
+      }
+    }
+  }
 })

@@ -1794,12 +1794,6 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       tunable = TRUE,
       description = "Rule for a node's constant: the manuscript's closed forms, or the weighted mean of the residual. Identical for regression; they differ only for classification."
     ),
-    node_selection = prop_string(
-      "local",
-      enum = c("local", "global"),
-      tunable = TRUE,
-      description = "Which frontier node to split next: by the loss reduction over its own cases, or over every case with this node's model extrapolated."
-    ),
     ifw = prop_boolean(
       FALSE,
       tunable = TRUE,
@@ -1959,7 +1953,7 @@ LINADHyperparameters <- new_class(
 #' to `learning_rate`. Measured node updates scale linearly with it, by a factor
 #' of 50 across a 50-fold change in the rate.
 #'
-#' `line_search`, `node_selection` and `constant_rule` each select among
+#' `line_search` and `constant_rule` each select among
 #' alternative update rules -- the scope of the Newton step, which frontier node
 #' is split next, and how a node's constant is computed. There is no settled
 #' best choice among them, so each is tunable.
@@ -1991,7 +1985,6 @@ LINADHyperparameters <- new_class(
 #' @param line_search (Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.
 #' @param line_search_max Numeric (0, Inf): Largest absolute step the line search may take.
 #' @param constant_rule (Tunable) Character \{"closed_form", "least_squares"\}: How a node's constant is computed. The two coincide for regression and differ only for classification.
-#' @param node_selection (Tunable) Character \{"local", "global"\}: Criterion for choosing which frontier node to split next.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return LINADHyperparameters object.
@@ -2034,7 +2027,6 @@ setup_LINAD <- function(
   split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
-  node_selection = "local",
   ifw = FALSE,
   # fixed
   force_max_leaves = FALSE,
@@ -2080,7 +2072,6 @@ setup_LINAD <- function(
     line_search = line_search,
     line_search_max = line_search_max,
     constant_rule = constant_rule,
-    node_selection = node_selection,
     ifw = ifw
   )
 } # /rtemis::setup_LINAD
@@ -2226,7 +2217,6 @@ LINADForestHyperparameters <- new_class(
 #' @param line_search (Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.
 #' @param line_search_max Numeric (0, Inf): Largest absolute step the line search may take.
 #' @param constant_rule (Tunable) Character \{"closed_form", "least_squares"\}: How a node's constant is computed.
-#' @param node_selection (Tunable) Character \{"local", "global"\}: Criterion for choosing which frontier node to split next.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return LINADForestHyperparameters object.
@@ -2267,7 +2257,6 @@ setup_LINADForest <- function(
   split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
-  node_selection = "local",
   ifw = FALSE,
   # fixed
   force_max_leaves = FALSE,
@@ -2319,7 +2308,6 @@ setup_LINADForest <- function(
     line_search = line_search,
     line_search_max = line_search_max,
     constant_rule = constant_rule,
-    node_selection = node_selection,
     ifw = ifw
   )
 } # /rtemis::setup_LINADForest

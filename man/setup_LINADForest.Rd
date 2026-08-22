@@ -29,7 +29,6 @@ setup_LINADForest(
   split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
-  node_selection = "local",
   ifw = FALSE,
   force_max_leaves = FALSE,
   smooth_validation_curve = NULL,
@@ -87,8 +86,6 @@ setup_LINADForest(
 \item{line_search}{(Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.}
 
 \item{constant_rule}{(Tunable) Character \{"closed_form", "least_squares"\}: How a node's constant is computed.}
-
-\item{node_selection}{(Tunable) Character \{"local", "global"\}: Criterion for choosing which frontier node to split next.}
 
 \item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 

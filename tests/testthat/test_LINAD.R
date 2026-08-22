@@ -1032,10 +1032,6 @@ test_that("a grown tree is structurally sound under every configuration", {
       max_leaves = 8L,
       line_search = "none"
     ),
-    "global selection" = rtemis::setup_LINAD(
-      max_leaves = 8L,
-      node_selection = "global"
-    ),
     "least squares" = rtemis::setup_LINAD(
       max_leaves = 8L,
       constant_rule = "least_squares"
