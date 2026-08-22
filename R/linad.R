@@ -95,11 +95,8 @@ linad_gram <- function(xm, y, w, idx = NULL) {
 #' @keywords internal
 #' @noRd
 linad_chol_solve <- function(G, Xty, penalty, intercept = TRUE) {
-  ridge <- linad_ridge_diagonal(G, penalty, intercept)
-  chol_factor <- tryCatch(
-    chol(G + diag(ridge, ncol(G))),
-    error = function(e) NULL
-  )
+  diag(G) <- diag(G) + linad_ridge_diagonal(G, penalty, intercept)
+  chol_factor <- tryCatch(chol(G), error = function(e) NULL)
   if (is.null(chol_factor)) {
     return(NULL)
   }
@@ -129,7 +126,9 @@ linad_chol_solve <- function(G, Xty, penalty, intercept = TRUE) {
 #' @noRd
 linad_ridge_diagonal <- function(G, penalty, intercept = TRUE) {
   d <- ncol(G)
-  ridge <- rep(penalty, d)
+  # `penalty` is a scalar for a whole-design solve and one value per column when
+  # forward selection penalizes an active set, so the length is set explicitly.
+  ridge <- rep_len(penalty, d)
   if (intercept) {
     ridge[[1L]] <- 0
   }
@@ -159,10 +158,8 @@ linad_ridge_diagonal <- function(G, penalty, intercept = TRUE) {
 linad_ridge_edf <- function(G, penalty, intercept = TRUE) {
   d <- ncol(G)
   ridge <- linad_ridge_diagonal(G, penalty, intercept)
-  chol_factor <- tryCatch(
-    chol(G + diag(ridge, d)),
-    error = function(e) NULL
-  )
+  diag(G) <- diag(G) + ridge
+  chol_factor <- tryCatch(chol(G), error = function(e) NULL)
   if (is.null(chol_factor)) {
     return(d)
   }
@@ -213,7 +210,8 @@ linad_forward <- function(
   d <- ncol(G)
   coefficients <- rep(0, d)
   active <- if (intercept) 1L else integer(0)
-  nugget <- LINAD_NUGGET * max(mean(diag(G)), .Machine[["double.eps"]])
+  diagonal <- diag(G)
+  nugget <- LINAD_NUGGET * max(mean(diagonal), .Machine[["double.eps"]])
   n_steps <- min(as.integer(nvmax), d - length(active))
   # A per-term cost is what makes `nvmax` a ceiling rather than a quota. Ridge
   # shrinks but never zeroes, so a penalized gain alone would still spend the
@@ -295,23 +293,22 @@ linad_forward <- function(
     # Selection under the objective the fit uses: the same penalty enters the
     # Schur complement, so a feature that only looks good unpenalized does not
     # win the search.
-    gain <- vapply(
-      candidates,
-      function(j) {
-        schur <- if (is.null(chol_active)) {
-          G[[j, j]]
-        } else {
-          projected <- backsolve(chol_active, G[active, j], transpose = TRUE)
-          G[[j, j]] - sum(projected^2)
-        }
-        schur <- schur + penalty
-        if (schur <= nugget) {
-          return(-Inf)
-        }
-        gradient[[j]]^2 / schur
-      },
-      numeric(1L)
-    )
+    # Every candidate's Schur complement from one triangular solve over their
+    # columns together, rather than one solve each: the matrices are the size of
+    # the active set, so per-call overhead otherwise dwarfs the arithmetic.
+    schur <- if (is.null(chol_active)) {
+      diagonal[candidates]
+    } else {
+      projected <- backsolve(
+        chol_active,
+        G[active, candidates, drop = FALSE],
+        transpose = TRUE
+      )
+      diagonal[candidates] - colSums(projected^2)
+    }
+    schur <- schur + penalty
+    gain <- gradient[candidates]^2 / schur
+    gain[!is.finite(schur) | schur <= nugget] <- -Inf
     best <- which.max(gain)
     if (length(best) == 0L || !is.finite(gain[[best]]) || gain[[best]] <= 0) {
       break
