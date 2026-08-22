@@ -1891,18 +1891,41 @@ linad_frame <- function(nodes, leaves, steps, design_names) {
 #'
 #' @param model `LinearAdditiveTree` object.
 #'
+#' @param min_cases_child Optional Integer: The floor a split had to leave on
+#' each side. Supplied by a caller that knows the hyperparameters, since the
+#' fitted tree does not carry them.
+#'
 #' @return Character vector of violations, empty when the tree is sound.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_check_tree <- function(model) {
+linad_check_tree <- function(model, min_cases_child = NULL) {
   problems <- character()
   frame <- model@frame
   node <- frame[["node"]]
   terminal <- model@steps[[model@n_leaves]]
   leaf_rows <- match(terminal, node)
   internal <- which(!is.na(frame[["left"]]))
+
+  # No node smaller than the floor its split was required to leave. A rule that
+  # moves that floor without saying so spends the leaf budget on nodes too small
+  # to carry a model, which no accuracy measurement reliably shows.
+  if (!is.null(min_cases_child)) {
+    undersized <- node[frame[["n"]] < min_cases_child]
+    if (length(undersized) > 0L) {
+      problems <- c(
+        problems,
+        paste0(
+          "node(s) ",
+          paste(undersized, collapse = ", "),
+          " hold fewer than the ",
+          min_cases_child,
+          " cases a split had to leave"
+        )
+      )
+    }
+  }
 
   # A split partitions its node: nothing is lost or double counted.
   for (row in internal) {
