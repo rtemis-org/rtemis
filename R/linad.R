@@ -770,10 +770,14 @@ linad_cut_positions <- function(
     return(breaks)
   }
   if (identical(type, "width") && !is.null(sorted)) {
-    values <- sorted[breaks]
+    # Thresholds, not the values below them, and spanning the feature's whole
+    # observed range: taking the range of `sorted[breaks]` instead stops short
+    # of the last break's right-hand value, so a sparse upper tail falls outside
+    # every target.
+    values <- (sorted[breaks] + sorted[breaks + 1L]) / 2
     targets <- seq(
-      values[[1L]],
-      values[[length(values)]],
+      sorted[[1L]],
+      sorted[[length(sorted)]],
       length.out = n_cuts + 2L
     )[-c(1L, n_cuts + 2L)]
     # The admissible position whose value sits closest to each evenly spaced
@@ -1443,31 +1447,8 @@ linad_propose <- function(state, node, features = NULL) {
   loss_left <- linad_node_loss(state, coef_left, index_left)
   loss_right <- linad_node_loss(state, coef_right, index_right)
 
-  score <- if (identical(state[["node_selection"]], "global")) {
-    # The legacy criterion: the loss over *every* case, with this node's own
-    # model extrapolated to the cases it does not contain. It is not the tree's
-    # actual loss -- those cases sit in other leaves -- which is why it differs
-    # from the local form and why the two are an ablation rather than a
-    # refactoring.
-    after <- f
-    after[index_left] <- drop(
-      state[["xm"]][index_left, , drop = FALSE] %*% coef_left
-    )
-    after[index_right] <- drop(
-      state[["xm"]][index_right, , drop = FALSE] %*% coef_right
-    )
-    all_rows <- seq_len(state[["n"]])
-    sum(
-      state[["case_weights"]] * linad_loss(state[["y"]], f, state[["type"]])
-    ) -
-      sum(
-        state[["case_weights"]][all_rows] *
-          linad_loss(state[["y"]], after, state[["type"]])
-      )
-  } else {
-    # Algorithm 1 line 9, without its stray leading minus.
-    node[["loss"]] - (loss_left + loss_right)
-  }
+  # Algorithm 1 line 9, without its stray leading minus.
+  score <- node[["loss"]] - (loss_left + loss_right)
 
   list(
     split = split,
@@ -1665,9 +1646,9 @@ linad_fit <- function(x, xm, y, case_weights, type, settings, verbosity = 1L) {
   # is no separate init term to keep in step with the coefficients.
   # The root fits `y` itself by least squares, in both outcome types -- it is an
   # initialization, not a boosting step, so there is no gradient yet to fit. Its
-  # constant is therefore Eq 3 for a regression (the weighted mean) and the
-  # least-squares level for a classification, and `root_learning_rate` shrinks
-  # only the slopes around it.
+  # constant is the baseline that minimizes the loss, which is the weighted mean
+  # for a regression and half the log odds for a classification, and
+  # `root_learning_rate` shrinks only the slopes around it.
   #
   # That separation is the whole point: nothing special-cases the intercept any
   # more. Shrinking the slopes cannot disturb the level, which is what used to
@@ -1693,11 +1674,10 @@ linad_fit <- function(x, xm, y, case_weights, type, settings, verbosity = 1L) {
       node_test = settings[["node_test"]]
     )
   }
-  root_constant <- if (is.null(root_fit)) {
-    linad_baseline(y, case_weights, type)
-  } else {
-    root_fit[["constant"]]
-  }
+  # Taken from the outcome rather than from the fit, which is run as a
+  # regression and would otherwise make an intercept-only classification
+  # predict the mean of the -1/+1 labels instead of the prevalence.
+  root_constant <- linad_baseline(y, case_weights, type)
   root_slopes <- if (is.null(root_fit)) {
     rep(0, ncol(xm_scaled) - 1L)
   } else {
@@ -1872,6 +1852,38 @@ linad_frame <- function(nodes, leaves, steps, design_names) {
     n_leaves = length(leaves)
   )
 } # /rtemis::linad_frame
+
+
+# %% linad_selected_nodes ----
+#' The rows a selected tree can reach
+#'
+#' A fitted model keeps the fully grown frame, and validation selects a size
+#' from it. Everything below that size's terminal nodes is still in the frame
+#' and is unreachable: prediction stops at the terminals, so anything that
+#' describes the model -- its structure, its importances, its printed summary --
+#' must stop there too.
+#'
+#' @param frame data.table: The tree frame.
+#' @param terminal Integer vector: Node ids terminal at the selected size.
+#'
+#' @return Integer vector of frame row indices, sorted.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_selected_nodes <- function(frame, terminal) {
+  keep <- match(terminal, frame[["node"]])
+  repeat {
+    parents <- frame[["parent"]][keep]
+    parents <- match(parents[!is.na(parents)], frame[["node"]])
+    new <- setdiff(parents, keep)
+    if (length(new) == 0L) {
+      break
+    }
+    keep <- c(keep, new)
+  }
+  sort(keep)
+} # /rtemis::linad_selected_nodes
 
 
 # %% linad_check_tree ----
@@ -2080,6 +2092,22 @@ linad_route <- function(frame, x, terminal) {
 #' @keywords internal
 #' @noRd
 linad_raw_prediction <- function(model, x, xm, n_leaves = NULL) {
+  # Coefficients are applied by position, so a design rebuilt on a different
+  # basis has to be caught here or it is multiplied silently. Empty for a model
+  # fitted before the names were recorded.
+  if (
+    length(model@design_names) > 0L &&
+      !identical(colnames(xm), model@design_names)
+  ) {
+    rtemis.core::abort(
+      "Design matrix does not match the one this model was fitted on. Fitted: ",
+      paste(model@design_names, collapse = ", "),
+      ". Rebuilt: ",
+      paste(colnames(xm), collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_data_error")
+    )
+  }
   if (is.null(n_leaves)) {
     n_leaves <- model@n_leaves
   }
@@ -2179,7 +2207,21 @@ linad_design_matrix <- function(x, xlev = NULL) {
       x[[feature]] <- values
     }
   }
-  stats::model.matrix(~., data = x)
+  # Reference coding, named rather than taken from `getOption("contrasts")`.
+  # The option is process-global and mutable, so a model fitted under one
+  # setting and predicted under another would be multiplied against a design
+  # built from a different basis, positionally and silently.
+  factors <- names(x)[vapply(
+    x,
+    function(column) is.factor(column) && nlevels(column) > 1L,
+    logical(1L)
+  )]
+  contrasts <- if (length(factors) > 0L) {
+    stats::setNames(rep(list("contr.treatment"), length(factors)), factors)
+  } else {
+    NULL
+  }
+  stats::model.matrix(~., data = x, contrasts.arg = contrasts)
 } # /rtemis::linad_design_matrix
 
 
@@ -2303,7 +2345,6 @@ linad_settings <- function(hyperparameters) {
     gamma = hyperparameters[["gamma"]],
     line_search = hyperparameters[["line_search"]],
     line_search_max = hyperparameters[["line_search_max"]],
-    node_selection = hyperparameters[["node_selection"]],
     constant_rule = hyperparameters[["constant_rule"]]
   )
 } # /rtemis::linad_settings
@@ -2550,7 +2591,7 @@ linad_sweep <- function(state, r, w, member, features = NULL) {
     # already coarsened the feature, this thins what is left, by the same rule.
     wanted <- linad_cut_positions(
       breaks,
-      state[["n_cuts"]] - 1L,
+      state[["n_cuts"]],
       sorted,
       state[["split_bin_type"]]
     )

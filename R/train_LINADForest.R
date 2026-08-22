@@ -305,6 +305,10 @@ method(varimp_super, LINADForest) <- function(model, ...) {
 #' dispersion rather than a standard error of the fit, so it is not what is
 #' reported here.
 #'
+#' The estimator is a covariance across bags, so it is NA for a single-tree
+#' forest and noisy for a small one -- the Monte-Carlo correction is the term
+#' that grows as the tree count falls.
+#'
 #' @param model `LINADForest` object.
 #' @param newdata tabular data: Data to compute standard errors for.
 #'

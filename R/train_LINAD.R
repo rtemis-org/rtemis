@@ -115,6 +115,7 @@ method(train_, LINADHyperparameters) <- function(
     xnames = names(features),
     xlev = xlev,
     design_assign = as.integer(attr(xm, "assign")),
+    design_names = colnames(xm),
     design_scale = linad_scaling(xm)[["scale"]],
     type = type,
     y_levels = y_levels,
@@ -263,7 +264,13 @@ method(varimp_super, LinearAdditiveTree) <- function(model, ...) {
     numeric(1L)
   )
 
-  internal <- which(!is.na(frame[["left"]]) & !(frame[["node"]] %in% terminal))
+  # Only splits the selected tree can reach: a node below a selected terminal is
+  # never visited by prediction and its gain is not part of this model.
+  reachable <- linad_selected_nodes(frame, terminal)
+  internal <- reachable[
+    !is.na(frame[["left"]][reachable]) &
+      !(frame[["node"]][reachable] %in% terminal)
+  ]
   gain <- rep(0, length(model@xnames))
   names(gain) <- model@xnames
   for (row in internal) {
