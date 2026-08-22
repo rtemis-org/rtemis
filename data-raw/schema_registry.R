@@ -406,11 +406,13 @@ flat_configs <- list(
     refs = c(
       preprocessor_config = .url("preprocessor"),
       decomposition_config = .url("decomposition"),
-      hyperparameters = .url("hyperparameters"),
       tuner_config = .url("tuner"),
       outer_resampling_config = .url("resampler"),
       execution_config = .url("execution")
-    )
+    ),
+    # A run may name one configuration or a set of them to search over, so this
+    # property admits either. See `variant_refs` in `S7_to_JSONSchema()`.
+    variant_refs = c(hyperparameters = .url("hyperparameters"))
   ),
   decompose = list(
     cls = DecomposeConfig,

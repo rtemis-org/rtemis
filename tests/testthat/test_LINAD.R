@@ -938,13 +938,31 @@ test_that("the design matrix is full rank with factors present", {
 # %% Hyperparameter gates ----
 test_that("setup_LINAD() rejects a parameter its leaf model ignores", {
   expect_error(setup_LINAD(node_model = "ridge", nvmax = 5L))
-  expect_error(setup_LINAD(node_model = "forward", lambda = 0.1))
   expect_error(setup_LINAD(node_model = "ridge", alpha = 0.5))
+  expect_error(setup_LINAD(node_model = "ridge", forward_stop = "bic"))
+  # `lambda` reaches forward selection: it penalizes the fit and the search
+  # alike, so the three linear node models share one shrinkage knob.
+  expect_s7_class(
+    setup_LINAD(node_model = "forward", lambda = 0.1),
+    rtemis:::LINADHyperparameters
+  )
   expect_error(setup_LINAD(
     force_max_leaves = TRUE,
     smooth_validation_curve = TRUE
   ))
   expect_error(setup_LINAD(split_search = "stump", n_cuts = 10L))
+  expect_error(setup_LINAD(
+    split_search = "exhaustive",
+    split_criterion = "linear"
+  ))
+  expect_error(setup_LINAD(node_model = "constant", node_test = "bic"))
+  # Forward selection charges the same cost per term through `forward_stop`,
+  # which subsumes a node-level test, so the two are not both offered.
+  expect_error(setup_LINAD(node_model = "forward", node_test = "bic"))
+  expect_s7_class(
+    setup_LINAD(node_model = "ridge", node_test = "bic"),
+    LINADHyperparameters
+  )
   # split_binning is not gated: it discretizes the features for either search.
   expect_s7_class(
     setup_LINAD(split_search = "stump", split_binning = 32L),
@@ -980,4 +998,612 @@ test_that("first_* hyperparameters inherit the node-level values", {
     )
   )
   expect_identical(overridden[["root_model"]], "constant")
+})
+
+
+# %% Structural invariants ----
+test_that("a grown tree is structurally sound under every configuration", {
+  # Properties an accuracy measurement cannot see. A tree that spends leaves on
+  # nodes identical to their parents is internally consistent and merely scores
+  # worse, so nothing that compares predictions will report it.
+  configurations <- list(
+    "forward/stump" = rtemis::setup_LINAD(max_leaves = 8L),
+    "forward/exhaustive" = rtemis::setup_LINAD(
+      max_leaves = 8L,
+      split_search = "exhaustive"
+    ),
+    "ridge" = rtemis::setup_LINAD(max_leaves = 8L, node_model = "ridge"),
+    "constant" = rtemis::setup_LINAD(max_leaves = 8L, node_model = "constant"),
+    "constant/soft" = rtemis::setup_LINAD(
+      max_leaves = 8L,
+      node_model = "constant",
+      gamma = 0.5
+    ),
+    "cart" = rtemis::setup_LINAD(
+      max_leaves = 8L,
+      node_model = "constant",
+      gamma = 0,
+      learning_rate = 1,
+      line_search = "none"
+    ),
+    "rate 1" = rtemis::setup_LINAD(max_leaves = 8L, learning_rate = 1),
+    "soft" = rtemis::setup_LINAD(max_leaves = 8L, gamma = 0.5),
+    "no line search" = rtemis::setup_LINAD(
+      max_leaves = 8L,
+      line_search = "none"
+    ),
+    "global selection" = rtemis::setup_LINAD(
+      max_leaves = 8L,
+      node_selection = "global"
+    ),
+    "least squares" = rtemis::setup_LINAD(
+      max_leaves = 8L,
+      constant_rule = "least_squares"
+    ),
+    "binned" = rtemis::setup_LINAD(max_leaves = 8L, split_binning = 8L)
+  )
+  for (label in names(configurations)) {
+    hyperparameters <- configurations[[label]]
+    hyperparameters@hyperparameters <- list(force_max_leaves = TRUE)
+    fitted <- rtemis:::linad_fit(
+      x = .x,
+      xm = .xm,
+      y = .y,
+      case_weights = .w,
+      type = "Regression",
+      settings = rtemis:::linad_settings(hyperparameters),
+      verbosity = 0L
+    )
+    model <- rtemis:::LinearAdditiveTree(
+      frame = fitted[["frame"]],
+      coefficients = fitted[["coefficients"]],
+      steps = fitted[["steps"]],
+      n_leaves = as.integer(fitted[["n_leaves"]]),
+      xnames = names(.x),
+      xlev = lapply(Filter(is.factor, .x), levels),
+      design_assign = as.integer(attr(.xm, "assign")),
+      design_scale = rtemis:::linad_scaling(.xm)[["scale"]],
+      type = "Regression",
+      y_levels = NULL,
+      leaf_curve = NULL
+    )
+    model@frame[["is_leaf"]] <- model@frame[["node"]] %in%
+      model@steps[[model@n_leaves]]
+    expect_identical(
+      rtemis:::linad_check_tree(model),
+      character(),
+      info = label
+    )
+  }
+})
+
+
+test_that("a classification tree is structurally sound too", {
+  outcome <- ifelse(.y > stats::median(.y), 1, -1)
+  fitted <- rtemis:::linad_fit(
+    x = .x,
+    xm = .xm,
+    y = outcome,
+    case_weights = .w,
+    type = "Classification",
+    settings = rtemis:::linad_settings(
+      rtemis::setup_LINAD(max_leaves = 8L, force_max_leaves = TRUE)
+    ),
+    verbosity = 0L
+  )
+  model <- rtemis:::LinearAdditiveTree(
+    frame = fitted[["frame"]],
+    coefficients = fitted[["coefficients"]],
+    steps = fitted[["steps"]],
+    n_leaves = as.integer(fitted[["n_leaves"]]),
+    xnames = names(.x),
+    xlev = lapply(Filter(is.factor, .x), levels),
+    design_assign = as.integer(attr(.xm, "assign")),
+    design_scale = rtemis:::linad_scaling(.xm)[["scale"]],
+    type = "Classification",
+    y_levels = c("lo", "hi"),
+    leaf_curve = NULL
+  )
+  model@frame[["is_leaf"]] <- model@frame[["node"]] %in%
+    model@steps[[model@n_leaves]]
+  expect_identical(rtemis:::linad_check_tree(model), character())
+})
+
+
+test_that("unscaling coefficients preserves the fit exactly", {
+  # Growth runs on a standardized design so one `lambda` means the same at every
+  # node, and the finished coefficients are mapped back. Both the fitted values
+  # and every later prediction use the mapped-back coefficients, so an error in
+  # the mapping would be invisible to any check that compares one against the
+  # other: they would be wrong together.
+  scaling <- rtemis:::linad_scaling(.xm)
+  scaled <- sweep(
+    sweep(.xm, 2L, scaling[["center"]], "-"),
+    2L,
+    scaling[["scale"]],
+    "/"
+  )
+  set.seed(11)
+  coefficients <- matrix(
+    rnorm(3L * ncol(.xm)),
+    nrow = 3L,
+    dimnames = list(NULL, colnames(.xm))
+  )
+  # The same function, evaluated two ways: standardized design with the
+  # standardized coefficients, and the raw design with the mapped-back ones.
+  expect_equal(
+    scaled %*% t(coefficients),
+    .xm %*% t(rtemis:::linad_unscale(coefficients, scaling)),
+    tolerance = 1e-10
+  )
+})
+
+
+test_that("a leaf's stored coefficients are the sum along its path", {
+  # The property the whole parameterization rests on: every update is linear, so
+  # a leaf's coefficients are its parent's plus the update made at that split.
+  # Checked on the frame, where a mismatch would mean the tree a reader inspects
+  # is not the tree that predicts.
+  fitted <- rtemis:::linad_fit(
+    x = .x,
+    xm = .xm,
+    y = .y,
+    case_weights = .w,
+    type = "Regression",
+    settings = rtemis:::linad_settings(
+      rtemis::setup_LINAD(max_leaves = 8L, force_max_leaves = TRUE)
+    ),
+    verbosity = 0L
+  )
+  frame <- fitted[["frame"]]
+  coefficients <- fitted[["coefficients"]]
+  # Routing every training case by the tree must reproduce the fitted values the
+  # coefficients give directly.
+  terminal <- fitted[["steps"]][[fitted[["n_leaves"]]]]
+  routed <- rtemis:::linad_route(frame, .x, terminal)
+  rows <- match(routed, frame[["node"]])
+  direct <- rowSums(.xm * coefficients[rows, , drop = FALSE])
+  expect_length(direct, nrow(.x))
+  expect_true(all(is.finite(direct)))
+  # Every case lands in a terminal node, never an internal one.
+  expect_true(all(routed %in% terminal))
+})
+
+
+# %% Forward selection: penalty and ceiling ----
+test_that("nvmax is a ceiling, not a quota", {
+  # A per-term cost is what makes it one. Without it the search always spends
+  # its whole budget: the gain is a square over a positive quantity, so every
+  # added term reduces the residual sum of squares by something positive.
+  gram <- rtemis:::linad_gram(.xm, .y, .w, NULL)
+  count_terms <- function(rule) {
+    coefficients <- rtemis:::linad_forward(
+      gram[["G"]],
+      gram[["Xty"]],
+      nvmax = 8L,
+      syy = gram[["syy"]],
+      sample_weight = gram[["sw"]],
+      stop_rule = rule
+    )
+    sum(abs(coefficients) > 0)
+  }
+  # `none` spends the budget: 8 terms plus the intercept, or the design's width.
+  expect_identical(count_terms("none"), min(9L, ncol(.xm)))
+  # A cost can only stop the search earlier, never extend it.
+  expect_lte(count_terms("bic"), count_terms("none"))
+  expect_lte(count_terms("aic"), count_terms("none"))
+  # BIC costs log(n) per term against AIC's 2, so it is never the more generous.
+  expect_lte(count_terms("bic"), count_terms("aic"))
+})
+
+
+test_that("lambda penalizes forward selection's fit and its search", {
+  gram <- rtemis:::linad_gram(.xm, .y, .w, NULL)
+  unpenalized <- rtemis:::linad_forward(
+    gram[["G"]],
+    gram[["Xty"]],
+    nvmax = 3L,
+    penalty = 0,
+    stop_rule = "none"
+  )
+  penalized <- rtemis:::linad_forward(
+    gram[["G"]],
+    gram[["Xty"]],
+    nvmax = 3L,
+    penalty = 5 * gram[["sw"]],
+    stop_rule = "none"
+  )
+  # Shrinkage reaches the coefficients.
+  expect_false(isTRUE(all.equal(unpenalized, penalized)))
+  slopes <- function(b) b[-1L][b[-1L] != 0]
+  expect_lt(sum(abs(slopes(penalized))), sum(abs(slopes(unpenalized))))
+  # The intercept is never penalized: it carries the level, and shrinking it
+  # would pull the fit toward zero rather than toward the mean.
+  expect_gt(abs(penalized[[1L]]), 0)
+})
+
+
+test_that("forward selection at lambda 0 still matches leaps", {
+  # The unpenalized special case, which is what `leaps` computes. The
+  # equivalence is pinned here rather than at the default, since the default
+  # both penalizes and stops early.
+  skip_if_not_installed("leaps")
+  gram <- rtemis:::linad_gram(.xm, .y, .w, NULL)
+  for (nvmax in 1:3) {
+    ours <- rtemis:::linad_forward(
+      gram[["G"]],
+      gram[["Xty"]],
+      nvmax = nvmax,
+      penalty = 0,
+      stop_rule = "none"
+    )
+    reference <- leaps::regsubsets(
+      x = .xm[, -1L, drop = FALSE],
+      y = .y,
+      nvmax = nvmax,
+      method = "forward"
+    )
+    selected <- names(coef(reference, nvmax))[-1L]
+    expect_setequal(colnames(.xm)[which(abs(ours) > 0)][-1L], selected)
+  }
+})
+
+
+test_that("the two split searches agree exactly on constant leaves", {
+  # With constants in the leaves, scoring a candidate by the loss after fitting
+  # both children *is* the weighted mean-shift criterion the stump maximizes. So
+  # the two searches must choose the same splits once the exhaustive one is
+  # allowed to see every candidate cut rather than the `n_cuts` it thins to.
+  #
+  # Two independent implementations -- cumulative sums over a sorted feature
+  # against a Gram sweep with child solves -- agreeing bit for bit is the
+  # strongest evidence available that either is right.
+  outcome <- 3 *
+    ifelse(.x[["b"]] > 0, 1, -1) +
+    2 * ifelse(.x[["a"]] > 0.5, 1, 0) +
+    rnorm(.n, sd = 0.4)
+  constant <- function(search, n_cuts = NULL) {
+    settings <- rtemis:::linad_settings(
+      rtemis::setup_LINAD(
+        max_leaves = 6L,
+        node_model = "constant",
+        gamma = 0,
+        learning_rate = 1,
+        line_search = "none",
+        split_search = search,
+        n_cuts = n_cuts,
+        force_max_leaves = TRUE
+      )
+    )
+    rtemis:::linad_fit(
+      x = .x,
+      xm = .xm,
+      y = outcome,
+      case_weights = .w,
+      type = "Regression",
+      settings = settings,
+      verbosity = 0L
+    )
+  }
+  reference <- constant("stump")
+  # Enough cuts to cover every distinct value.
+  exhaustive <- constant("exhaustive", n_cuts = as.integer(.n))
+  expect_identical(
+    reference[["frame"]][["split_feature"]],
+    exhaustive[["frame"]][["split_feature"]]
+  )
+  expect_equal(
+    reference[["frame"]][["split_value"]],
+    exhaustive[["frame"]][["split_value"]]
+  )
+  expect_equal(reference[["coefficients"]], exhaustive[["coefficients"]])
+})
+
+
+test_that("the exhaustive search finds a slope change the stump cannot", {
+  # y = x^2: the simplest nonlinear function there is, and the stump is blind to
+  # its one correct split. Both halves of a symmetric parabola have nearly the
+  # same mean, so the mean-shift criterion ranks the split at zero near *last* --
+  # it does not merely fail to prefer it.
+  set.seed(2026)
+  feature <- rnorm(500L, 0, 3)
+  parabola <- data.frame(
+    x = feature,
+    y = feature^2 + 12 + rnorm(500L, 0, 1.5)
+  )
+  fit <- function(search) {
+    model <- rtemis::train(
+      parabola,
+      hyperparameters = rtemis::setup_LINAD(
+        max_leaves = 2L,
+        learning_rate = 1,
+        gamma = 0,
+        split_search = search,
+        force_max_leaves = TRUE
+      ),
+      execution_config = rtemis::setup_ExecutionConfig(
+        seed = 1L,
+        backend = "none"
+      ),
+      verbosity = 0L
+    )
+    frame <- model@model@frame
+    list(
+      cut = frame[["split_value"]][!is.na(frame[["split_feature"]])][[1L]],
+      rsq = rtemis:::rsq(
+        parabola[["y"]],
+        stats::predict(model, parabola["x"])
+      )
+    )
+  }
+  stump <- fit("stump")
+  exhaustive <- fit("exhaustive")
+  # The right split is at the vertex, x = 0.
+  expect_lt(abs(exhaustive[["cut"]]), 0.5)
+  expect_gt(abs(stump[["cut"]]), 2)
+  expect_gt(exhaustive[["rsq"]], 0.85)
+  expect_lt(stump[["rsq"]], 0.6)
+})
+
+
+# %% split_criterion ----
+test_that("The linear split criterion finds a change of slope the mean criterion cannot", {
+  # A parabola's vertex is a change of slope with no change of level, so a
+  # criterion scoring only each side's mean is blind to it.
+  set.seed(2026)
+  x <- rnorm(500L, 0, 3)
+  dat <- data.frame(x = x, y = x^2 + 12 + rnorm(500L, 0, 1.5))
+  root_split <- function(mod) {
+    frame <- mod@model@frame
+    frame[!is.na(frame[["split_feature"]]), ][1L, "split_value"]
+  }
+  fit <- function(...) {
+    train(
+      dat,
+      hyperparameters = setup_LINAD(
+        max_leaves = 2L,
+        learning_rate = 1,
+        gamma = 0,
+        force_max_leaves = TRUE,
+        ...
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+  }
+  by_mean <- fit(split_search = "stump", split_criterion = "mean")
+  by_linear <- fit(split_search = "stump", split_criterion = "linear")
+  by_exhaustive <- fit(split_search = "exhaustive")
+  # The true vertex is at 0.
+  expect_lt(abs(root_split(by_linear)), abs(root_split(by_mean)))
+  expect_lt(abs(root_split(by_linear) - root_split(by_exhaustive)), 0.5)
+  rsq <- function(mod) {
+    1 -
+      sum((dat[["y"]] - predict(mod, dat["x"]))^2) /
+        sum((dat[["y"]] - mean(dat[["y"]]))^2)
+  }
+  expect_gt(rsq(by_linear), rsq(by_mean) + 0.3)
+  expect_equal(rsq(by_linear), rsq(by_exhaustive), tolerance = 0.01)
+})
+
+
+test_that("The mean criterion is the stump search's default and leaves it unchanged", {
+  set.seed(2026)
+  dat <- data.frame(x1 = rnorm(200L), x2 = rnorm(200L))
+  dat[["y"]] <- 2 * dat[["x1"]] + rnorm(200L, 0, 0.5)
+  fit <- function(...) {
+    train(
+      dat,
+      hyperparameters = setup_LINAD(
+        max_leaves = 4L,
+        split_search = "stump",
+        ...
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+  }
+  expect_equal(
+    predict(fit(), dat[c("x1", "x2")]),
+    predict(fit(split_criterion = "mean"), dat[c("x1", "x2")])
+  )
+})
+
+
+# %% node_test ----
+test_that("node_test leaves the fit untouched when off", {
+  set.seed(2026)
+  dat <- data.frame(x1 = rnorm(300L), x2 = rnorm(300L), x3 = rnorm(300L))
+  dat[["y"]] <- 2 * dat[["x1"]] - dat[["x2"]] + rnorm(300L, 0, 0.5)
+  fit <- function(...) {
+    train(
+      dat,
+      hyperparameters = setup_LINAD(max_leaves = 4L, node_model = "ridge", ...),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+  }
+  features <- dat[c("x1", "x2", "x3")]
+  expect_equal(
+    predict(fit(), features),
+    predict(fit(node_test = "none"), features)
+  )
+})
+
+
+test_that("node_test gives a node a constant where its slopes do not pay", {
+  # Linear structure only where x1 > 0; a pure level shift elsewhere. Every
+  # node fits slopes without the test, and the flat region should not.
+  set.seed(2026)
+  n <- 800L
+  X <- as.data.frame(matrix(rnorm(n * 4L), n, 4L))
+  names(X) <- paste0("x", 1:4)
+  X[["y"]] <- ifelse(X[["x1"]] > 0, 3 * X[["x2"]] - 2 * X[["x3"]], 5) +
+    rnorm(n, 0, 1)
+  slope_counts <- function(mod) {
+    coefficients <- mod@model@coefficients
+    frame <- mod@model@frame
+    counts <- vapply(
+      seq_len(nrow(frame)),
+      function(i) {
+        parent <- frame[["parent"]][[i]]
+        if (is.na(parent) || parent == 0L) {
+          return(NA_integer_)
+        }
+        row <- match(parent, frame[["node"]])
+        sum(abs(coefficients[i, -1L] - coefficients[row, -1L]) > 1e-8)
+      },
+      integer(1L)
+    )
+    counts[!is.na(counts)]
+  }
+  fit <- function(...) {
+    train(
+      X,
+      hyperparameters = setup_LINAD(
+        max_leaves = 6L,
+        node_model = "ridge",
+        force_max_leaves = TRUE,
+        ...
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+  }
+  without <- slope_counts(fit())
+  with_test <- slope_counts(fit(node_test = "bic"))
+  expect_equal(sum(without == 0L), 0L)
+  expect_gt(sum(with_test == 0L), 0L)
+  expect_lt(sum(with_test), sum(without))
+})
+
+
+test_that("node_test leaves the split floors where the user set them", {
+  # It changes which model a node carries, and through the losses that follow
+  # it changes expansion order, but never what a split is allowed to leave
+  # behind: a model-selection rule that quietly deepened the tree would spend
+  # the leaf budget on nodes too small to fit anything.
+  set.seed(2026)
+  n <- 400L
+  X <- as.data.frame(matrix(rnorm(n * 6L), n, 6L))
+  names(X) <- paste0("x", 1:6)
+  X[["y"]] <- ifelse(X[["x1"]] > 0, 3 * X[["x2"]] - 2 * X[["x3"]], 5) +
+    rnorm(n, 0, 1)
+  fit <- function(...) {
+    train(
+      X,
+      hyperparameters = setup_LINAD(
+        max_leaves = 10L,
+        node_model = "ridge",
+        min_cases_node_model = 30L,
+        force_max_leaves = TRUE,
+        ...
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+  }
+  shape <- function(mod) {
+    frame <- mod@model@frame
+    frame[["n"]][frame[["is_leaf"]]]
+  }
+  for (rule in c("none", "aic", "bic")) {
+    expect_gte(min(shape(fit(node_test = rule))), 30L)
+  }
+})
+
+
+test_that("Both split searches apply node_test to the models they score", {
+  set.seed(2026)
+  n <- 400L
+  X <- as.data.frame(matrix(rnorm(n * 4L), n, 4L))
+  names(X) <- paste0("x", 1:4)
+  X[["y"]] <- ifelse(X[["x1"]] > 0, 3 * X[["x2"]] - 2 * X[["x3"]], 5) +
+    rnorm(n, 0, 1)
+  for (search in c("stump", "exhaustive")) {
+    mod <- train(
+      X,
+      hyperparameters = setup_LINAD(
+        max_leaves = 6L,
+        node_model = "ridge",
+        node_test = "bic",
+        split_search = search,
+        force_max_leaves = TRUE
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+    expect_length(linad_check_tree(mod@model), 0L)
+  }
+})
+
+
+test_that("linad_node_test charges each term and keeps a fit that pays", {
+  # A halved residual sum of squares over 100 cases: the deviance is
+  # 100 * log(2) = 69.3, against 2 per term for AIC and log(100) = 4.6 for BIC.
+  expect_true(linad_node_test(100, 50, 100, 1L, "aic"))
+  expect_true(linad_node_test(100, 50, 100, 1L, "bic"))
+  expect_true(linad_node_test(100, 50, 100, 10L, "bic"))
+  expect_false(linad_node_test(100, 50, 100, 20L, "bic"))
+  # Always kept where there is no rule, and where nothing was bought.
+  expect_true(linad_node_test(100, 50, 100, 20L, "none"))
+  expect_true(linad_node_test(100, 100, 100, 0L, "bic"))
+  # Nothing to explain.
+  expect_false(linad_node_test(0, 0, 100, 2L, "bic"))
+})
+
+
+test_that("A ridge fit is charged the parameters it spends, not the ones it has", {
+  set.seed(2026)
+  n <- 120L
+  d <- 20L
+  X <- matrix(rnorm(n * d), n, d)
+  gram <- linad_gram(X, rnorm(n), rep(1, n), seq_len(n))
+  # No penalty is an ordinary least-squares fit: every column is a parameter.
+  expect_equal(linad_ridge_edf(gram[["G"]], 0, intercept = FALSE), d)
+  # Shrinkage spends fewer, monotonically so, and never leaves the interval.
+  edf <- vapply(
+    c(0.01, 0.1, 1, 10) * gram[["sw"]],
+    function(penalty) linad_ridge_edf(gram[["G"]], penalty, intercept = FALSE),
+    numeric(1L)
+  )
+  expect_true(all(diff(edf) < 0))
+  expect_true(all(edf > 0 & edf < d))
+  # An unpenalized intercept always costs its own parameter.
+  gram_intercept <- linad_gram(cbind(1, X), rnorm(n), rep(1, n), seq_len(n))
+  expect_gt(linad_ridge_edf(gram_intercept[["G"]], 1e6), 1 - 1e-6)
+})
+
+
+test_that("node_test keeps a ridge fit on data wider than it is long", {
+  # The nonzero count would charge every column, so BIC could never be paid at
+  # this shape and every node would fall back to a constant.
+  set.seed(2026)
+  n <- 190L
+  p <- 117L
+  X <- as.data.frame(matrix(rnorm(n * p), n, p))
+  names(X) <- paste0("x", seq_len(p))
+  X[["y"]] <- 2 * X[["x1"]] + 1.5 * X[["x2"]] - X[["x3"]] + rnorm(n, 0, 1)
+  fit <- function(...) {
+    train(
+      X,
+      hyperparameters = setup_LINAD(
+        learning_rate = 0.01,
+        gamma = 0.1,
+        node_model = "ridge",
+        lambda = 0.6,
+        ...
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+  }
+  root_slopes <- function(mod) sum(abs(mod@model@coefficients[1L, -1L]) > 1e-10)
+  expect_equal(root_slopes(fit(node_test = "bic")), p)
+  rsq <- function(mod) {
+    1 -
+      sum((X[["y"]] - predict(mod, X[, seq_len(p)]))^2) /
+        sum((X[["y"]] - mean(X[["y"]]))^2)
+  }
+  expect_gt(rsq(fit(node_test = "bic")), rsq(fit()) - 0.05)
 })

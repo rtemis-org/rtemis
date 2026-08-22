@@ -51,7 +51,7 @@ tune <- function(
   shared_memory = "none",
   on_error = "continue"
 ) {
-  check_is_S7(hyperparameters, Hyperparameters)
+  check_hyperparameters(hyperparameters)
   check_is_S7(tuner_config, TunerConfig)
   stopifnot(needs_tuning(hyperparameters))
 

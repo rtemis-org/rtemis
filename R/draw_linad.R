@@ -56,7 +56,7 @@ linad_palette <- function(theme) {
     list(
       root = "#A8A8A8",
       node = "#D2D2D2",
-      leaf = "#9FC0E0",
+      leaf = rtemis_colors[["teal"]],
       table_bg = "#E6E6E6",
       header_bg = "#C6C6C6",
       table_fg = "#000000",

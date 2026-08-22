@@ -114,26 +114,33 @@ test_that("a forest is reproducible, and parallel dispatch does not change it", 
 # %% Feature sampling ----
 test_that("mtry_split never leaves a node unsplittable", {
   # A node is expanded once and its proposal cached, so a feature sample that
-  # admitted no split would close the node for good. The redraw is what keeps
-  # the tree the size it was asked for.
-  hyperparameters <- rtemis::setup_LINADForest(
-    n_trees = 1L,
-    max_leaves = 6L,
-    mtry_split = 1L,
-    force_max_leaves = TRUE
-  )
-  settings <- rtemis:::linadforest_settings(hyperparameters, ncol(.x))
-  set.seed(7)
-  grown <- rtemis:::linadforest_tree(
-    x = .x,
-    y = .y,
-    case_weights = rep(1, .n),
-    type = "Regression",
-    y_levels = NULL,
-    settings = settings,
-    bag = seq_len(.n)
-  )
-  expect_identical(grown[["tree"]]@n_leaves, 6L)
+  # admitted no split would close the node for good. The invariant is that
+  # sampling one feature per split reaches the same tree size as scanning all of
+  # them -- an absolute leaf count would instead pin whatever the growth rules
+  # happen to allow.
+  grow <- function(mtry_split) {
+    hyperparameters <- rtemis::setup_LINADForest(
+      n_trees = 1L,
+      max_leaves = 6L,
+      mtry_split = mtry_split,
+      force_max_leaves = TRUE
+    )
+    settings <- rtemis:::linadforest_settings(hyperparameters, ncol(.x))
+    set.seed(7)
+    rtemis:::linadforest_tree(
+      x = .x,
+      y = .y,
+      case_weights = rep(1, .n),
+      type = "Regression",
+      y_levels = NULL,
+      settings = settings,
+      bag = seq_len(.n)
+    )[["tree"]]
+  }
+  sampled <- grow(1L)
+  every <- grow(NULL)
+  expect_identical(sampled@n_leaves, every@n_leaves)
+  expect_gt(sampled@n_leaves, 1L)
 })
 
 

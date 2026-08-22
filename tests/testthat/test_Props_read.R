@@ -285,3 +285,17 @@ test_that("JSONSchema_to_S7() names unresolved `$ref` properties", {
   expect_null(cls()@nested)
   expect_true(inherits(cls(nested = exec())@nested, "ExecutionRestored"))
 })
+
+
+# %% format_allowed ----
+test_that("A gate lists its allowed values without padding them", {
+  # `format()` pads a character vector to a common width and right-justifies
+  # numbers to one, and `trim` suppresses only the second.
+  expect_equal(format_allowed(c("ridge", "elasticnet")), "ridge or elasticnet")
+  expect_equal(format_allowed(c(-1L, 1L)), "-1 or 1")
+  expect_equal(format_allowed("stump"), "stump")
+  expect_equal(
+    format_allowed(c("a", "bb", "ccc")),
+    "a, bb or ccc"
+  )
+})

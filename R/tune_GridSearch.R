@@ -56,7 +56,7 @@ tune_GridSearch <- function(
   verbosity = 1L,
   on_error = "continue"
 ) {
-  check_is_S7(hyperparameters, Hyperparameters)
+  check_hyperparameters(hyperparameters)
   check_is_S7(tuner_config, TunerConfig)
   stopifnot(needs_tuning(hyperparameters))
 
@@ -76,24 +76,36 @@ tune_GridSearch <- function(
   }
 
   # Make Grid ----
-  grid_params <- get_hyperparams_need_tuning(hyperparameters)
-  n_resamples <- tuner_config[["resampler_config"]][["n_resamples"]]
+  # A set searches over its members; a single object is its own only member, and
+  # `tuning_members()` returns NULL for it so a fit that came from no set leaves
+  # `variant` unset.
+  members <- tuning_members(hyperparameters)
+  # Which hyperparameters were left for the search to determine. The GLMNET and
+  # LightGBM collection steps below read it to tell "the user fixed this" from
+  # "the backend chose it". For a set it is the union over members: those steps
+  # rewrite the whole grid, so the question they ask -- was this left open? --
+  # is only answerable of the search as a whole.
+  grid_params <- if (is.null(members)) {
+    get_hyperparams_need_tuning(hyperparameters)
+  } else {
+    Reduce(
+      function(a, b) utils::modifyList(a, b),
+      lapply(members, get_hyperparams_need_tuning)
+    )
+  }
   search_type <- tuner_config[["search_type"]]
-  # The single source of the combinations to fit, gated and deduplicated, and
-  # what `tuning_grid()` previews.
-  n_combinations_expanded <- prod(pmax(lengths(grid_params), 1L))
+  grid_summary <- tuning_grid_summary(hyperparameters, tuner_config)
+  n_resamples <- grid_summary[["n_resamples"]]
   param_grid <- tuning_grid(hyperparameters)
   n_combinations_gated <- NROW(param_grid)
   if (search_type == "randomized") {
     # Sampled here, before anything is derived from the grid, so that each
-    # selected combination is still run on every resample. Rounding can reach 0
-    # on a small grid.
-    n_sampled <- max(
-      1L,
-      round(tuner_config[["randomize_p"]] * n_combinations_gated)
-    )
+    # selected combination is still run on every resample.
     param_grid <- param_grid[
-      sort(sample.int(n_combinations_gated, n_sampled)),
+      sort(sample.int(
+        n_combinations_gated,
+        grid_summary[["n_param_combinations"]]
+      )),
       ,
       drop = FALSE
     ]
@@ -111,9 +123,6 @@ tune_GridSearch <- function(
     ]
   )
   rownames(res_param_grid) <- NULL
-  # NA marks a combination a gate excluded the hyperparameter from, so the
-  # columns holding one are exactly those the grid made conditional.
-  gated_params <- names(param_grid)[vapply(param_grid, anyNA, logical(1L))]
   param_grid <- cbind(
     param_combo_id = seq_len(n_param_combinations),
     param_grid
@@ -121,50 +130,7 @@ tune_GridSearch <- function(
   n_res_x_comb <- NROW(res_param_grid)
 
   # Intro pt. 2 ----
-  if (verbosity > 0L) {
-    msg0(
-      fmt("<> ", col = col_tuner, bold = TRUE),
-      "Tuning ",
-      algorithm,
-      " by ",
-      search_type,
-      " grid search with ",
-      desc(tuner_config@config[["resampler_config"]]),
-      "..."
-    )
-    msg0(
-      fmt(n_param_combinations, col = col_tuner, bold = TRUE),
-      ngettext(
-        n_param_combinations,
-        " parameter combination x ",
-        " parameter combinations x "
-      ),
-      fmt(n_resamples, col = col_tuner, bold = TRUE),
-      " resamples: ",
-      fmt(n_res_x_comb, col = col_tuner, bold = TRUE),
-      " models total",
-      " (",
-      Sys.getenv("R_PLATFORM"),
-      ")."
-    )
-    # Reported against the gated count, which isolates the gate's reduction from
-    # a randomized search's sampling.
-    if (n_combinations_gated < n_combinations_expanded) {
-      msg0(
-        "Conditional grid: ",
-        fmt(n_combinations_expanded, col = col_tuner, bold = TRUE),
-        " combinations reduced to ",
-        fmt(n_combinations_gated, col = col_tuner, bold = TRUE),
-        "; ",
-        oxfordcomma(gated_params),
-        ngettext(
-          length(gated_params),
-          " does not apply to every combination.",
-          " do not apply to every combination."
-        )
-      )
-    }
-  }
+  tuning_intro(grid_summary, algorithm, tuner_config, verbosity)
 
   # Resamples ----
   res <- resample(
@@ -203,6 +169,7 @@ tune_GridSearch <- function(
     resamples = resamples,
     res_param_grid = res_param_grid,
     hyperparameters = hyperparameters,
+    members = members,
     preprocessor_config = preprocessor_config,
     decomposition_config = decomposition_config,
     weights = weights_shared,
@@ -292,10 +259,14 @@ tune_GridSearch <- function(
     )
   )
   if (length(ok_idx) == 0L) {
+    # Naming the first failure: "all cells failed" is a count, and the cause is
+    # the same for every cell often enough that the first one is the answer.
+    first_error <- grid_run[[1L]][["error"]]
     rtemis.core::abort(
       "All ",
       n_res_x_comb,
       " tuning grid cells failed; cannot select hyperparameters.",
+      if (is.null(first_error)) "" else paste0(" First failure: ", first_error),
       class = c("rtemis_error", "rtemis_runtime_error")
     )
   }
@@ -554,12 +525,51 @@ tune_GridSearch <- function(
   best_param_combo_id <- as.integer(
     tune_results[["metrics_validation"]][best_row, 1]
   )
-  best_param_combo <- grid_row_values(param_grid, best_param_combo_id, -1)
+  best_param_combo <- grid_row_values(
+    param_grid,
+    best_param_combo_id,
+    grid_hyperparameter_columns(param_grid)
+  )
+  best_variant <- grid_variant(param_grid, best_param_combo_id)
   if (verbosity > 0L) {
     msg(
-      paste0("Best config to ", paste(verb, metric), ":")
+      paste0(
+        "Best config to ",
+        paste(verb, metric),
+        if (is.null(best_variant)) "" else paste0(" (", best_variant, ")"),
+        ":"
+      )
     )
-    print_tune_finding(param_grid[, -1, drop = FALSE], best_param_combo)
+    # For a set, only what the **winning member** actually searched. The union
+    # grid holds every member's tuned hyperparameters, so reporting it whole
+    # presents one member's candidates as another's: `lambda` searched over
+    # {0.01, 0.1} inside one variant reads as {0.01, 0.1, NULL} once three
+    # variants that do not set it are folded in, and the NULL is not a candidate
+    # anyone offered.
+    shown_columns <- grid_hyperparameter_columns(param_grid)
+    shown_grid <- param_grid
+    if (!is.null(best_variant)) {
+      shown_columns <- intersect(
+        shown_columns,
+        names(get_hyperparams_need_tuning(members[[best_variant]]))
+      )
+      shown_grid <- param_grid[
+        param_grid[[VARIANT_COLUMN]] == best_variant,
+        ,
+        drop = FALSE
+      ]
+    }
+    if (length(shown_columns) == 0L) {
+      # A member can win by being a whole configuration rather than by a value
+      # search -- the point of a set -- and then there is no combination to
+      # report beyond its name, already in the line above.
+      msg(paste0("  ", gray("no hyperparameters searched within this variant")))
+    } else {
+      print_tune_finding(
+        shown_grid[, shown_columns, drop = FALSE],
+        best_param_combo[shown_columns]
+      )
+    }
   }
 
   # Outro ----
@@ -576,14 +586,21 @@ tune_GridSearch <- function(
   # => add optional mods field to GridSearch
   # if (save_mods) mods <- grid_run
   GridSearch(
-    hyperparameters = hyperparameters,
+    # The winning member, so this field always holds a concrete
+    # `Hyperparameters`. `best_variant` says which member it was.
+    hyperparameters = if (is.null(best_variant)) {
+      hyperparameters
+    } else {
+      members[[best_variant]]
+    },
     tuner_config = tuner_config,
     tuning_results = list(
       param_grid = param_grid,
       training = metrics_training_by_combo_id,
       validation = metrics_validation_by_combo_id
     ),
-    best_hyperparameters = best_param_combo
+    best_hyperparameters = best_param_combo,
+    best_variant = best_variant
   )
 } # /rtemis::tune_GridSearch
 
@@ -609,7 +626,11 @@ tune_GridSearch <- function(
 #' @param resamples List: Inner resample index vectors.
 #' @param res_param_grid data.frame: One row per cell, `resample_id` plus the
 #' hyperparameter values.
-#' @param hyperparameters `Hyperparameters` object.
+#' @param hyperparameters `Hyperparameters` or `HyperparametersSet` object.
+#' @param members Optional named list of `Hyperparameters`: the set's members,
+#' or NULL when the search is over a single object. A row is applied to the
+#' member that produced it, which only the member itself knows -- two members
+#' can hold different values for a hyperparameter neither of them tunes.
 #' @param preprocessor_config Optional `PreprocessorConfig` object.
 #' @param decomposition_config Optional `DecompositionConfig` object.
 #' @param weights Optional vector of case weights.
@@ -628,6 +649,7 @@ make_grid_cell_runner <- function(
   resamples,
   res_param_grid,
   hyperparameters,
+  members,
   preprocessor_config,
   decomposition_config,
   weights,
@@ -640,6 +662,7 @@ make_grid_cell_runner <- function(
   force(resamples)
   force(res_param_grid)
   force(hyperparameters)
+  force(members)
   force(preprocessor_config)
   force(decomposition_config)
   force(weights)
@@ -662,11 +685,23 @@ make_grid_cell_runner <- function(
     dat_train1 <- x[res1, ]
     weights1 <- weights[res1]
     dat_valid1 <- x[-res1, ]
+    # A row is applied to the member that produced it, not to "the"
+    # hyperparameters: two members can hold different values for a
+    # hyperparameter neither of them tunes, and only the member knows which.
+    variant1 <- grid_variant(res_param_grid, index)
+    base1 <- if (is.null(variant1)) hyperparameters else members[[variant1]]
     hyperparams1 <- update(
-      hyperparameters,
-      grid_row_values(res_param_grid, index, 2:NCOL(res_param_grid)),
+      base1,
+      grid_row_values(
+        res_param_grid,
+        index,
+        grid_hyperparameter_columns(res_param_grid)
+      ),
       tuned = TUNED_STATUS_TUNING # Hyperparameters are being tuned
     )
+    if (!is.null(variant1)) {
+      hyperparams1@variant <- variant1
+    }
 
     # Detach any active observability session so the inner train() is opaque to the host
     # graph; the host host-synthesizes one grid_cell node per cell (uniform across
@@ -848,3 +883,141 @@ print_tune_finding <- function(param_grid, best_param_combo, pad = 22L) {
   out <- utils::capture.output(printls(tfl, print_class = FALSE, pad = pad))
   message(paste(out, collapse = "\n"))
 } # /rtemis::print_tune_finding
+
+
+# %% tuning_grid_summary ----
+#' What a grid search will fit, before it fits anything
+#'
+#' The counts a run announces, derived without building the grid a second time
+#' or drawing the randomized sample. `train()` reads this to announce a search
+#' it is about to run inside outer resampling folds, where each fold's own
+#' announcement is silenced; `tune_GridSearch()` reads the same values, so the
+#' two can never describe different searches.
+#'
+#' @param hyperparameters Hyperparameters or HyperparametersSet object.
+#' @param tuner_config TunerConfig object.
+#'
+#' @return List with `n_members`, `n_combinations_expanded`,
+#' `n_combinations_gated`, `n_param_combinations`, `gated_params`,
+#' `n_resamples` and `n_models`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+tuning_grid_summary <- function(hyperparameters, tuner_config) {
+  members <- tuning_members(hyperparameters)
+  # A set's expansion is the sum of its members'.
+  n_combinations_expanded <- if (is.null(members)) {
+    prod(pmax(lengths(get_hyperparams_need_tuning(hyperparameters)), 1L))
+  } else {
+    sum(vapply(
+      members,
+      function(member) {
+        prod(pmax(lengths(get_hyperparams_need_tuning(member)), 1L))
+      },
+      numeric(1L)
+    ))
+  }
+  grid <- tuning_grid(hyperparameters)
+  n_combinations_gated <- NROW(grid)
+  # Rounding can reach 0 on a small grid.
+  n_param_combinations <- if (
+    identical(tuner_config[["search_type"]], "randomized")
+  ) {
+    max(1L, round(tuner_config[["randomize_p"]] * n_combinations_gated))
+  } else {
+    n_combinations_gated
+  }
+  n_resamples <- tuner_config[["resampler_config"]][["n_resamples"]]
+  list(
+    n_members = if (is.null(members)) NULL else length(members),
+    n_combinations_expanded = n_combinations_expanded,
+    n_combinations_gated = n_combinations_gated,
+    n_param_combinations = n_param_combinations,
+    # NA marks a combination a gate excluded the hyperparameter from, so the
+    # columns holding one are exactly those the grid made conditional.
+    gated_params = names(grid)[vapply(grid, anyNA, logical(1L))],
+    n_resamples = n_resamples,
+    n_models = n_param_combinations * n_resamples
+  )
+} # /rtemis::tuning_grid_summary
+
+
+# %% tuning_intro ----
+#' Announce a grid search
+#'
+#' @param summary List: `tuning_grid_summary()` output.
+#' @param algorithm Character: Algorithm name.
+#' @param tuner_config TunerConfig object.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return NULL, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+tuning_intro <- function(summary, algorithm, tuner_config, verbosity = 1L) {
+  if (verbosity < 1L) {
+    return(invisible(NULL))
+  }
+  n_members <- summary[["n_members"]]
+  n_combinations <- summary[["n_param_combinations"]]
+  gated_params <- summary[["gated_params"]]
+  msg0(
+    fmt("<> ", col = col_tuner, bold = TRUE),
+    "Tuning ",
+    algorithm,
+    " by ",
+    tuner_config[["search_type"]],
+    " grid search with ",
+    desc(tuner_config@config[["resampler_config"]]),
+    "..."
+  )
+  msg0(
+    # A set's combinations are spread across its members, and the count alone
+    # does not say so: two members that differ only in a hyperparameter neither
+    # tunes produce grid rows identical in every column but `.variant`, so six
+    # combinations can look like fewer.
+    if (is.null(n_members)) {
+      ""
+    } else {
+      paste0(
+        fmt(n_members, col = col_tuner, bold = TRUE),
+        ngettext(n_members, " variant, ", " variants, ")
+      )
+    },
+    fmt(n_combinations, col = col_tuner, bold = TRUE),
+    ngettext(
+      n_combinations,
+      " parameter combination x ",
+      " parameter combinations x "
+    ),
+    fmt(summary[["n_resamples"]], col = col_tuner, bold = TRUE),
+    " resamples: ",
+    fmt(summary[["n_models"]], col = col_tuner, bold = TRUE),
+    " models total",
+    " (",
+    Sys.getenv("R_PLATFORM"),
+    ")."
+  )
+  # Reported against the gated count, which isolates the gate's reduction from
+  # a randomized search's sampling.
+  if (
+    summary[["n_combinations_gated"]] < summary[["n_combinations_expanded"]]
+  ) {
+    msg0(
+      "Conditional grid: ",
+      fmt(summary[["n_combinations_expanded"]], col = col_tuner, bold = TRUE),
+      " combinations reduced to ",
+      fmt(summary[["n_combinations_gated"]], col = col_tuner, bold = TRUE),
+      "; ",
+      oxfordcomma(gated_params),
+      ngettext(
+        length(gated_params),
+        " does not apply to every combination.",
+        " do not apply to every combination."
+      )
+    )
+  }
+  invisible(NULL)
+} # /rtemis::tuning_intro

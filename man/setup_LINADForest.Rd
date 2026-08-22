@@ -13,6 +13,7 @@ setup_LINADForest(
   min_cases_leaf = 1L,
   min_cases_node_model = NULL,
   nvmax = NULL,
+  forward_stop = NULL,
   lambda = NULL,
   alpha = NULL,
   learning_rate = 1,
@@ -24,6 +25,8 @@ setup_LINADForest(
   gamma = 0.1,
   split_binning = NULL,
   split_bin_type = "frequency",
+  node_test = NULL,
+  split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
   node_selection = "local",
@@ -51,9 +54,11 @@ setup_LINADForest(
 
 \item{min_cases_node_model}{(Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when \code{node_model} fits one.}
 
-\item{nvmax}{(Tunable) Optional Integer [1, Inf): Terms forward selection adds beside the intercept. Applies only when \code{node_model} is "forward".}
+\item{nvmax}{(Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when \code{node_model} is "forward".}
 
-\item{lambda}{(Tunable) Optional Numeric [0, Inf): L2 penalty on the node models. Applies only when \code{node_model} is "ridge" or "elasticnet".}
+\item{forward_stop}{(Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when \code{node_model} is "forward".}
+
+\item{lambda}{(Tunable) Optional Numeric [0, Inf): L2 penalty on the node models. Applies only when \code{node_model} is "forward", "ridge" or "elasticnet".}
 
 \item{alpha}{(Tunable) Optional Numeric [0, 1]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when \code{node_model} is "elasticnet".}
 
@@ -74,6 +79,10 @@ setup_LINADForest(
 \item{split_binning}{(Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits.}
 
 \item{split_bin_type}{(Tunable) Character \{"frequency", "width"\}: How bin edges are placed.}
+
+\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when \code{node_model} is "ridge" or "elasticnet"; forward selection uses \code{forward_stop}.}
+
+\item{split_criterion}{(Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when \code{split_search} is "stump".}
 
 \item{line_search}{(Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.}
 

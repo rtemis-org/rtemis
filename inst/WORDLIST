@@ -47,6 +47,7 @@ GLU
 Gantt
 Geman
 Gini
+HyperparametersSet
 goss
 GOSS
 HALHyperparameters
@@ -204,6 +205,7 @@ Zerolines
 adam
 adamw
 additively
+aic
 anova
 arg
 arities
@@ -213,6 +215,7 @@ auditable
 backend's
 beeswarm
 betweenness
+bic
 blake
 bonferroni
 bottomleft

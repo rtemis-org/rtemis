@@ -47,7 +47,9 @@ SuperConfig <- new_class(
     ),
     preprocessor_config = NULL | PreprocessorConfig,
     decomposition_config = NULL | DecompositionConfig,
-    hyperparameters = NULL | Hyperparameters,
+    # A set is a union of search spaces over one algorithm, and a recipe has to
+    # say which was asked for. NULL stays first so the prototype is NULL.
+    hyperparameters = NULL | Hyperparameters | HyperparametersSet,
     tuner_config = NULL | TunerConfig,
     outer_resampling_config = NULL | ResamplerConfig,
     execution_config = ExecutionConfig,
@@ -323,6 +325,8 @@ setup_SuperConfig <- function(
     },
     hyperparameters = if (is.null(x[["hyperparameters"]])) {
       NULL
+    } else if (is_wire_hyperparameters_set(x[["hyperparameters"]])) {
+      .list_to_HyperparametersSet(x[["hyperparameters"]])
     } else {
       .list_to_Hyperparameters(x[["hyperparameters"]])
     },
@@ -396,7 +400,9 @@ SuperConfigLive <- new_class(
     ),
     preprocessor_config = NULL | PreprocessorConfig,
     decomposition_config = NULL | DecompositionConfig,
-    hyperparameters = NULL | Hyperparameters,
+    # A set is a union of search spaces over one algorithm, and a recipe has to
+    # say which was asked for. NULL stays first so the prototype is NULL.
+    hyperparameters = NULL | Hyperparameters | HyperparametersSet,
     tuner_config = NULL | TunerConfig,
     outer_resampling_config = NULL | ResamplerConfig,
     execution_config = ExecutionConfig,

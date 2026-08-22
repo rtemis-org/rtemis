@@ -328,7 +328,23 @@ train <- function(
   if (is.null(hyperparameters)) {
     hyperparameters <- setup_Ranger()
   }
-  check_is_S7(hyperparameters, Hyperparameters)
+  # A plain list of `Hyperparameters` is the user-facing form of a set, coerced
+  # here so nothing downstream sees a bare list. Coercing at the boundary rather
+  # than teaching the internals to accept a list is what keeps `needs_tuning()`
+  # and its siblings from needing a `class_list` method, which would claim the
+  # bare list type across the package for one meaning.
+  if (
+    is.list(hyperparameters) && !S7_inherits(hyperparameters, Hyperparameters)
+  ) {
+    hyperparameters <- as_HyperparametersSet(hyperparameters)
+  }
+  check_hyperparameters(hyperparameters)
+  # Kept as given, because `input_config` below records what was *asked for* and
+  # a set is a different ask from the configuration it collapses to. A list of
+  # one is a legitimate and useful input -- it is how a run names its
+  # configuration -- and that name is only in the recipe if the recipe holds the
+  # set.
+  asked_hyperparameters <- hyperparameters
   algorithm <- hyperparameters@algorithm
 
   # The run's input, captured before anything resolves it. Tuning narrows a
@@ -351,7 +367,7 @@ train <- function(
     positive_class = positive_class,
     preprocessor_config = preprocessor_config,
     decomposition_config = decomposition_config,
-    hyperparameters = hyperparameters,
+    hyperparameters = asked_hyperparameters,
     tuner_config = tuner_config,
     outer_resampling_config = outer_resampling_config,
     execution_config = execution_config,
@@ -424,6 +440,21 @@ train <- function(
   backend <- execution_config@backend
   n_workers <- execution_config@n_workers
   future_plan <- execution_config@future_plan
+
+  # A set with nothing to choose between is the configuration it holds, and from
+  # here on it is that configuration: only a one-member set of fixed values
+  # reaches this, since more than one member is a choice and so needs tuning.
+  # Collapsing means a set survives past this point only when tuning will
+  # resolve it, so nothing downstream has to know about sets. The name is
+  # carried onto the member, and the set itself is already recorded above.
+  if (
+    S7_inherits(hyperparameters, HyperparametersSet) &&
+      !needs_tuning(hyperparameters)
+  ) {
+    label <- names(hyperparameters@members)[[1L]]
+    hyperparameters <- hyperparameters@members[[1L]]
+    hyperparameters@variant <- label
+  }
 
   # If outer_resampling_config is set, dat_validation and dat_test must be NULL
   if (!is.null(outer_resampling_config)) {
@@ -615,6 +646,16 @@ train <- function(
       "...",
       verbosity = verbosity
     )
+    # Each fold runs at `verbosity - 1L`, so the search's own announcement is
+    # silenced inside them. Say once, here, what all of them are about to do.
+    if (needs_tuning(hyperparameters) && !is.null(tuner_config)) {
+      tuning_intro(
+        tuning_grid_summary(hyperparameters, tuner_config),
+        algorithm,
+        tuner_config,
+        verbosity = verbosity
+      )
+    }
     outer_resampler <- resample(
       x_resampling,
       config = outer_resampling_config,
@@ -805,11 +846,16 @@ train <- function(
         on_error = on_error
       )
       # Update hyperparameters
+      # A set collapses here: from this point on `hyperparameters` is the one
+      # winning member, and every path below it is unchanged.
       hyperparameters <- update(
-        hyperparameters,
+        tuner@hyperparameters,
         tuner@best_hyperparameters,
         tuned = 1L
       )
+      # Which member won, so the fitted model reports it rather than leaving a
+      # reader to infer it from the winning values.
+      hyperparameters@variant <- tuner@best_variant
       node_exit(tune_node, status = "ok")
     } # /Tune
 

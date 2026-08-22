@@ -10,6 +10,7 @@ setup_LINAD(
   min_cases_leaf = 1L,
   min_cases_node_model = NULL,
   nvmax = NULL,
+  forward_stop = NULL,
   lambda = NULL,
   alpha = NULL,
   learning_rate = 0.1,
@@ -21,6 +22,8 @@ setup_LINAD(
   gamma = 0.1,
   split_binning = NULL,
   split_bin_type = "frequency",
+  node_test = NULL,
+  split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
   node_selection = "local",
@@ -40,11 +43,13 @@ setup_LINAD(
 
 \item{min_cases_leaf}{(Tunable) Integer [1, Inf): Fewest cases a split must leave on each side.}
 
-\item{min_cases_node_model}{(Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when \code{node_model} fits one.}
+\item{min_cases_node_model}{(Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when \code{node_model} is not "constant".}
 
-\item{nvmax}{(Tunable) Optional Integer [1, Inf): Terms forward selection adds beside the intercept. Applies only when \code{node_model} is "forward".}
+\item{nvmax}{(Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when \code{node_model} is "forward".}
 
-\item{lambda}{(Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when \code{node_model} is "ridge" or "elasticnet".}
+\item{forward_stop}{(Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when \code{node_model} is "forward".}
+
+\item{lambda}{(Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when \code{node_model} is "forward", "ridge" or "elasticnet".}
 
 \item{alpha}{(Tunable) Optional Numeric [0, 1]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when \code{node_model} is "elasticnet".}
 
@@ -65,6 +70,10 @@ setup_LINAD(
 \item{split_binning}{(Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits. Applies to both split searches.}
 
 \item{split_bin_type}{(Tunable) Character \{"frequency", "width"\}: How bin edges are placed.}
+
+\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when \code{node_model} is "ridge" or "elasticnet"; forward selection uses \code{forward_stop}.}
+
+\item{split_criterion}{(Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when \code{split_search} is "stump".}
 
 \item{line_search}{(Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.}
 
@@ -156,9 +165,33 @@ data supports. It is the algorithm's main variance-reducing device.
 
 \code{split_search = "exhaustive"} scores each candidate split by the loss after
 fitting both child models, rather than taking the best split of the gradient.
-It costs more per split and can find structure the gradient stump cannot see
-at all -- an interaction that changes a slope without changing either side's
-mean is invisible to a stump by construction.
+It costs more per split and finds structure no stump can see: an interaction
+that changes another feature's slope without changing either side's mean
+leaves no trace in any one feature's marginal fit.
+
+\code{node_test} lets the tree decide, node by node, whether a linear model is
+warranted at all: the slopes are kept only where they reduce the node's
+residual sum of squares by more than they cost, and the node takes a plain
+constant otherwise. A tree whose flat regions carry constants and whose
+structured regions carry coefficients is both smaller to read and a statement
+about where the response is locally linear. It buys that sparsity at a price
+in accuracy, so it is off by default.
+
+It applies to the shrinking models only. Forward selection charges the same
+cost per term through \code{forward_stop}, and a set of terms that each paid for
+itself always pays for itself jointly, so a node-level test could never
+overturn it. One cost rule per node model, at the granularity that model
+admits.
+
+\code{split_criterion} sets what the stump scores a side by, and closes part of
+that gap cheaply. \code{"mean"} scores the level its fit explains, which is the CART
+criterion and is blind to curvature -- a parabola's two halves have the same
+mean by construction, so the correct split at the vertex scores near last.
+\code{"linear"} adds the slope in the split variable, at one further pass per
+feature per node, and on such a problem recovers the exhaustive search's fit.
+It cannot recover the cross-variable case above, and where the change belongs
+to another feature it fits the wrong one more confidently, so it is offered
+as a tunable rather than the default.
 
 \code{split_binning} discretizes numeric features before either search, so a
 candidate split falls on a bin boundary rather than between any two distinct

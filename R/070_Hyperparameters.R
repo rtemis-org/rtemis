@@ -257,6 +257,8 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
 #' @field tuned Integer: Tuning status (computed; see TUNED_STATUS constants).
 #' @field resampled Integer: Outer resampling status.
 #' @field n_workers Integer: Number of workers to use for tuning.
+#' @field variant Optional Character: Name of the `HyperparametersSet` member
+#'   this came from. NULL when it did not come from a set.
 #' @field hyperparameters Named list of hyperparameter values (computed from
 #'   the subclass's properties; assignment routes back to the properties and
 #'   validates).
@@ -290,6 +292,11 @@ Hyperparameters <- new_class(
     ),
     resampled = new_property(class_integer, default = 0L),
     n_workers = new_property(class_integer, default = 1L),
+    # Which member of a `HyperparametersSet` this came from, or NULL when it did
+    # not come from one. On the base class, so `hp_prop_names()` -- which reads a
+    # subclass's *own* properties -- excludes it from the hyperparameter list and
+    # from the schema, as it does for the three above.
+    variant = NULL | class_character,
     hyperparameters = new_property(
       class_list,
       getter = function(self) {
@@ -1638,7 +1645,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
     node_model = prop_string(
       "forward",
       enum = LINAD_LEAF_MODELS,
-      description = "Model fitted at each node. constant is the intercept-only model every decision tree node carries; the others add a regularized linear model on top of it."
+      description = "Model fitted at each node. constant is the intercept-only model every decision tree node carries; the others add a linear model on top of it, regularized by lambda."
     ),
     nvmax = prop_integer(
       NULL,
@@ -1646,15 +1653,25 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(node_model = "forward"),
-      description = "Number of terms forward selection adds beside the intercept. A term count, not a ceiling; capped at the width of the design."
+      description = "Most terms forward selection may add beside the intercept. A ceiling: the search stops earlier when forward_stop says a term does not pay for itself. Capped at the width of the design. Defaults to 3 where it applies."
+    ),
+    forward_stop = prop_string(
+      NULL,
+      enum = c("bic", "aic", "none"),
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(node_model = "forward"),
+      description = "Cost a term must earn to be added: the Bayesian or Akaike criterion, or none to always add nvmax terms. Shrinkage alone cannot stop the search, since every added term reduces the residual sum of squares. Defaults to bic where it applies."
     ),
     lambda = prop_float(
       NULL,
       min = 0,
       nullable = TRUE,
       tunable = TRUE,
-      applies_when = list(node_model = c("ridge", "elasticnet")),
-      description = "L2 penalty on the leaf models, on a standardized design so one value means the same at every node."
+      applies_when = list(
+        node_model = c("forward", "ridge", "elasticnet")
+      ),
+      description = "L2 penalty on the node models, on a standardized design so one value means the same at every node. Under forward selection it penalizes the fit and the search alike, so a feature that only looks good unpenalized does not win. Defaults to 0.05 where it applies."
     ),
     alpha = prop_float(
       NULL,
@@ -1709,6 +1726,22 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       description = "Shrinkage applied to the root model's slopes. 0 fits no root model, so the first step is a split; 1 fits it in full."
     ),
     # Splitting ----
+    node_test = prop_string(
+      NULL,
+      enum = c("none", "aic", "bic"),
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(node_model = c("ridge", "elasticnet")),
+      description = "Cost a node's slopes must earn over the constant alone, so that a node carries coefficients only where the data supports them and a plain constant otherwise. The constant is nested in the linear model, so on the node's own cases the slopes always fit better and no comparison is possible without a cost; aic charges 2 per nonzero slope and bic log(n). Forward selection has the same criterion per term in forward_stop, which subsumes this one, so this is the shrinking models' equivalent. Defaults to none where it applies."
+    ),
+    split_criterion = prop_string(
+      NULL,
+      enum = c("mean", "linear"),
+      nullable = TRUE,
+      tunable = TRUE,
+      applies_when = list(split_search = "stump"),
+      description = "What the stump search scores a candidate side by: the level its fit explains, or its level and its slope in the split variable. linear finds a change of slope in the split variable, such as a parabola's vertex, which a level criterion cannot see; it can also chase the slope of the wrong variable where the change belongs to another. Defaults to mean where it applies."
+    ),
     split_search = prop_string(
       "stump",
       enum = c("stump", "exhaustive"),
@@ -1864,9 +1897,33 @@ LINADHyperparameters <- new_class(
 #'
 #' `split_search = "exhaustive"` scores each candidate split by the loss after
 #' fitting both child models, rather than taking the best split of the gradient.
-#' It costs more per split and can find structure the gradient stump cannot see
-#' at all -- an interaction that changes a slope without changing either side's
-#' mean is invisible to a stump by construction.
+#' It costs more per split and finds structure no stump can see: an interaction
+#' that changes another feature's slope without changing either side's mean
+#' leaves no trace in any one feature's marginal fit.
+#'
+#' `node_test` lets the tree decide, node by node, whether a linear model is
+#' warranted at all: the slopes are kept only where they reduce the node's
+#' residual sum of squares by more than they cost, and the node takes a plain
+#' constant otherwise. A tree whose flat regions carry constants and whose
+#' structured regions carry coefficients is both smaller to read and a statement
+#' about where the response is locally linear. It buys that sparsity at a price
+#' in accuracy, so it is off by default.
+#'
+#' It applies to the shrinking models only. Forward selection charges the same
+#' cost per term through `forward_stop`, and a set of terms that each paid for
+#' itself always pays for itself jointly, so a node-level test could never
+#' overturn it. One cost rule per node model, at the granularity that model
+#' admits.
+#'
+#' `split_criterion` sets what the stump scores a side by, and closes part of
+#' that gap cheaply. `"mean"` scores the level its fit explains, which is the CART
+#' criterion and is blind to curvature -- a parabola's two halves have the same
+#' mean by construction, so the correct split at the vertex scores near last.
+#' `"linear"` adds the slope in the split variable, at one further pass per
+#' feature per node, and on such a problem recovers the exhaustive search's fit.
+#' It cannot recover the cross-variable case above, and where the change belongs
+#' to another feature it fits the wrong one more confidently, so it is offered
+#' as a tunable rather than the default.
 #'
 #' `split_binning` discretizes numeric features before either search, so a
 #' candidate split falls on a bin boundary rather than between any two distinct
@@ -1912,10 +1969,11 @@ LINADHyperparameters <- new_class(
 #' @param smooth_validation_curve Optional Logical: If TRUE, smooth the validation curve before reading its minimum. Applies only when `force_max_leaves` is FALSE.
 #' @param min_cases_split (Tunable) Integer [2, Inf): Fewest cases a node may hold and still be considered for splitting.
 #' @param min_cases_leaf (Tunable) Integer [1, Inf): Fewest cases a split must leave on each side.
-#' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` fits one.
+#' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` is not "constant".
 #' @param node_model Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node. "constant" is the intercept-only model every decision tree node carries; the others add a regularized linear model on top of it.
-#' @param nvmax (Tunable) Optional Integer [1, Inf): Terms forward selection adds beside the intercept. Applies only when `node_model` is "forward".
-#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when `node_model` is "ridge" or "elasticnet".
+#' @param nvmax (Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when `node_model` is "forward".
+#' @param forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when `node_model` is "forward".
+#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when `node_model` is "forward", "ridge" or "elasticnet".
 #' @param alpha (Tunable) Optional Numeric \[0, 1\]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when `node_model` is "elasticnet".
 #' @param learning_rate (Tunable) Numeric (0, 1\]: Shrinkage applied to every functional update.
 #' @param root_model Optional Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at the root. NULL uses `node_model`.
@@ -1926,6 +1984,8 @@ LINADHyperparameters <- new_class(
 #' @param split_search Character \{"stump", "exhaustive"\}: How a split is chosen.
 #' @param split_binning (Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits. Applies to both split searches.
 #' @param split_bin_type (Tunable) Character \{"frequency", "width"\}: How bin edges are placed.
+#' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when `node_model` is "ridge" or "elasticnet"; forward selection uses `forward_stop`.
+#' @param split_criterion (Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when `split_search` is "stump".
 #' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature; `split_bin_type` decides their spacing. Applies only when `split_search` is "exhaustive".
 #' @param gamma (Tunable) Numeric \[0, 1\]: Weight a case retains in the branch it does not belong to. 0 is a hard partition.
 #' @param line_search (Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.
@@ -1958,6 +2018,7 @@ setup_LINAD <- function(
   min_cases_leaf = 1L,
   min_cases_node_model = NULL,
   nvmax = NULL,
+  forward_stop = NULL,
   lambda = NULL,
   alpha = NULL,
   learning_rate = 0.1,
@@ -1969,6 +2030,8 @@ setup_LINAD <- function(
   gamma = 0.1,
   split_binning = NULL,
   split_bin_type = "frequency",
+  node_test = NULL,
+  split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
   node_selection = "local",
@@ -1998,6 +2061,7 @@ setup_LINAD <- function(
     min_cases_node_model = min_cases_node_model,
     node_model = node_model,
     nvmax = nvmax,
+    forward_stop = forward_stop,
     lambda = lambda,
     alpha = alpha,
     learning_rate = learning_rate,
@@ -2009,6 +2073,8 @@ setup_LINAD <- function(
     split_search = split_search,
     split_binning = split_binning,
     split_bin_type = split_bin_type,
+    node_test = node_test,
+    split_criterion = split_criterion,
     n_cuts = n_cuts,
     gamma = gamma,
     line_search = line_search,
@@ -2140,8 +2206,9 @@ LINADForestHyperparameters <- new_class(
 #' @param min_cases_leaf (Tunable) Integer [1, Inf): Fewest cases a split must leave on each side.
 #' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` fits one.
 #' @param node_model Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node.
-#' @param nvmax (Tunable) Optional Integer [1, Inf): Terms forward selection adds beside the intercept. Applies only when `node_model` is "forward".
-#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the node models. Applies only when `node_model` is "ridge" or "elasticnet".
+#' @param nvmax (Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when `node_model` is "forward".
+#' @param forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when `node_model` is "forward".
+#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the node models. Applies only when `node_model` is "forward", "ridge" or "elasticnet".
 #' @param alpha (Tunable) Optional Numeric \[0, 1\]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when `node_model` is "elasticnet".
 #' @param learning_rate (Tunable) Numeric (0, 1\]: Shrinkage applied to every functional update.
 #' @param root_model Optional Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each tree's root. NULL uses `node_model`.
@@ -2152,6 +2219,8 @@ LINADForestHyperparameters <- new_class(
 #' @param split_search Character \{"stump", "exhaustive"\}: How a split is chosen.
 #' @param split_binning (Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits.
 #' @param split_bin_type (Tunable) Character \{"frequency", "width"\}: How bin edges are placed.
+#' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when `node_model` is "ridge" or "elasticnet"; forward selection uses `forward_stop`.
+#' @param split_criterion (Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when `split_search` is "stump".
 #' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature. Applies only when `split_search` is "exhaustive".
 #' @param gamma (Tunable) Numeric \[0, 1\]: Weight a case retains in the branch it does not belong to. 0 is a hard partition.
 #' @param line_search (Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.
@@ -2182,6 +2251,7 @@ setup_LINADForest <- function(
   min_cases_leaf = 1L,
   min_cases_node_model = NULL,
   nvmax = NULL,
+  forward_stop = NULL,
   lambda = NULL,
   alpha = NULL,
   learning_rate = 1,
@@ -2193,6 +2263,8 @@ setup_LINADForest <- function(
   gamma = 0.1,
   split_binning = NULL,
   split_bin_type = "frequency",
+  node_test = NULL,
+  split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
   node_selection = "local",
@@ -2228,6 +2300,7 @@ setup_LINADForest <- function(
     min_cases_node_model = min_cases_node_model,
     node_model = node_model,
     nvmax = nvmax,
+    forward_stop = forward_stop,
     lambda = lambda,
     alpha = alpha,
     learning_rate = learning_rate,
@@ -2239,6 +2312,8 @@ setup_LINADForest <- function(
     split_search = split_search,
     split_binning = split_binning,
     split_bin_type = split_bin_type,
+    node_test = node_test,
+    split_criterion = split_criterion,
     n_cuts = n_cuts,
     gamma = gamma,
     line_search = line_search,

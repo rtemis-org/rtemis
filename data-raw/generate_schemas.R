@@ -202,6 +202,7 @@ for (family in names(flat_configs)) {
       extra = cfg[["extra"]],
       refs = cfg[["refs"]],
       array_refs = cfg[["array_refs"]],
+      variant_refs = cfg[["variant_refs"]],
       # A config instance self-identifies with `$schema`; a results object does
       # not, being produced by rtemis rather than authored against a schema, so
       # declaring the field would put a key in the contract that nothing writes.

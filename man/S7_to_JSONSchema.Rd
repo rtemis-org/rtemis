@@ -19,6 +19,7 @@ S7_to_JSONSchema(
   extra = NULL,
   refs = NULL,
   array_refs = NULL,
+  variant_refs = NULL,
   closed = TRUE,
   instance_schema_url = NULL
 )
@@ -80,6 +81,11 @@ existing properties.}
 \item{array_refs}{Named character: As \code{refs}, for a property holding a \emph{list}
 of such objects -- one metrics object per resample, one model per fold.
 Each emits an array whose \code{items} are the \verb{$ref}.}
+
+\item{variant_refs}{Named character: As \code{refs}, for a property that admits
+either one referenced document or a named set of them under \code{variants}. The
+set's keys are the member names, which have to survive the round trip because
+the tuner reports the winning member by name.}
 
 \item{closed}{Logical: If TRUE (default) the schema sets
 \code{additionalProperties: false}. Pass FALSE for leaves composed into a
