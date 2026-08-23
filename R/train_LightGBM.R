@@ -148,6 +148,49 @@ method(predict_super, class_lgb.Booster) <- function(
 } # /rtemis::predict_super.lgb.Booster
 
 
+# %% learning_curve_super.lgb.Booster ----
+#' Learning curve of a boosted model
+#'
+#' One step is one boosting iteration. The booster records an evaluation log per
+#' dataset it was given, so the training series is always present and the
+#' validation series appears when `dat_validation` was passed. Shared by every
+#' algorithm whose fitted object is an `lgb.Booster`.
+#'
+#' @param model `lgb.Booster` object.
+#'
+#' @return data.frame, as `learning_curve_frame()` shapes it.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(learning_curve_super, class_lgb.Booster) <- function(model) {
+  evaluations <- model[["record_evals"]]
+  series <- function(dataset) {
+    entry <- evaluations[[dataset]]
+    if (is.null(entry) || length(entry) == 0L) {
+      return(NULL)
+    }
+    # One metric per booster here; the first is the objective it optimized.
+    unlist(entry[[1L]][["eval"]], use.names = FALSE)
+  }
+  training <- series("training")
+  validation <- series("validation")
+  best <- model[["best_iter"]]
+  learning_curve_frame(
+    loss_training = training,
+    loss_validation = validation,
+    unit = "boosting iterations",
+    # `best_iter` is -1 where no early stopping ran, and the model then kept
+    # every iteration it was asked for.
+    selected = if (is.null(best) || is.na(best) || best < 1L) {
+      max(length(training), length(validation))
+    } else {
+      best
+    }
+  )
+} # /rtemis::learning_curve_super.lgb.Booster
+
+
 # %% varimp_super.class_lgb.Booster ----
 #' Get variable importance from LightGBM model
 #'

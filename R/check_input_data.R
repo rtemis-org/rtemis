@@ -213,6 +213,74 @@ check_supervised <- function(
 } # /rtemis::check_supervised
 
 
+# %% check_case_weights ----
+#' Check case weights before anything divides by their mean
+#'
+#' Weighted Grams, Cholesky factorizations and weighted means all assume the
+#' same four things, and every one of them fails silently or unhelpfully when
+#' they do not hold: a length matching the data, finite values, nothing
+#' negative, and a mean above zero.
+#'
+#' Called once from [train] so every algorithm is covered, and again from the
+#' `train_()` methods whose numerics depend on it, since `train_()` is a public
+#' entry point of its own.
+#'
+#' @param weights Optional Numeric vector: Case weights.
+#' @param n Integer: Number of training cases.
+#'
+#' @return `weights`, invisibly. Throws if any assumption is violated.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_case_weights <- function(weights, n) {
+  if (is.null(weights)) {
+    return(invisible(weights))
+  }
+  if (!is.numeric(weights)) {
+    rtemis.core::abort(
+      "Case weights must be numeric, not ",
+      class(weights)[[1L]],
+      ".",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
+  if (length(weights) != n) {
+    rtemis.core::abort(
+      "Case weights must have one value per training case: expected length ",
+      n,
+      ", got ",
+      length(weights),
+      ".",
+      class = c("rtemis_length_error", "rtemis_input_error")
+    )
+  }
+  if (!all(is.finite(weights))) {
+    rtemis.core::abort(
+      "Case weights must all be finite; ",
+      sum(!is.finite(weights)),
+      " are not.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  if (any(weights < 0)) {
+    rtemis.core::abort(
+      "Case weights must be non-negative; ",
+      sum(weights < 0),
+      " are negative.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  if (mean(weights) <= 0) {
+    rtemis.core::abort(
+      "Case weights must have a positive mean; every weight is zero.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  invisible(weights)
+} # /rtemis::check_case_weights
+
+
 # %% check_unsupervised_data ----
 #' Check data ahead of unsupervised learning
 #'

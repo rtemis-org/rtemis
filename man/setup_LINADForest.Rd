@@ -30,11 +30,15 @@ setup_LINADForest(
   line_search = "expansion",
   constant_rule = "closed_form",
   ifw = FALSE,
+  patience = NULL,
   force_max_leaves = FALSE,
   smooth_validation_curve = NULL,
   node_model = "forward",
   root_model = NULL,
   split_search = "stump",
+  split_features = NULL,
+  linear_features = NULL,
+  global_features = NULL,
   line_search_max = 1000
 )
 }
@@ -89,6 +93,8 @@ setup_LINADForest(
 
 \item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 
+\item{patience}{(Tunable) Optional Integer [1, Inf): Expansions without validation improvement before growth stops. Requires a validation set.}
+
 \item{force_max_leaves}{Logical: If TRUE, grow every tree to \code{max_leaves} instead of selecting a size on its out-of-bag cases.}
 
 \item{smooth_validation_curve}{Optional Logical: If TRUE, smooth the out-of-bag curve before reading its minimum. Applies only when \code{force_max_leaves} is FALSE.}
@@ -98,6 +104,12 @@ setup_LINADForest(
 \item{root_model}{Optional Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each tree's root. NULL uses \code{node_model}.}
 
 \item{split_search}{Character \{"stump", "exhaustive"\}: How a split is chosen.}
+
+\item{split_features}{Optional Character vector: Features that may define a split. NULL imposes no constraint, so every feature may. \code{mtry_split} samples within this set.}
+
+\item{linear_features}{Optional Character vector: Features that get a slope in the node models. NULL imposes no constraint, so every feature does.}
+
+\item{global_features}{Optional Character vector: Linear features whose slope is shared by every leaf of a tree. Must be a subset of \code{linear_features} where that is set. NULL imposes no constraint.}
 
 \item{line_search_max}{Numeric (0, Inf): Largest absolute step the line search may take.}
 }

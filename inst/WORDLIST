@@ -2,6 +2,7 @@ AddTree
 ALTREP
 APS
 ARFF
+argmin
 AutoPyTorch
 BARTHyperparameters
 BH
@@ -35,6 +36,7 @@ Efron
 elasticnet
 exchangeability
 FASTA
+finiteness
 GAMHyperparameters
 gbdt
 GLMHyperparameters
@@ -116,6 +118,7 @@ ModalityStackingHyperparameters
 MonotonicHAL
 MonotonicHALHyperparameters
 Multilayer
+natively
 NCOL
 NMF
 NMFConfig

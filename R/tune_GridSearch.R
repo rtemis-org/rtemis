@@ -435,27 +435,40 @@ tune_GridSearch <- function(
   # } /XGBoost
 
   ## LINAD ----
-  # if (algorithm %in% c("LINAD", "LINOA")) {
-  #   if (verbosity > 1L) {
-  #     info("Extracting best N leaves from LINAD models...")
-  #   }
-  #   est.n.leaves.all <- data.frame(n.leaves = plyr::laply(
-  #     grid_run,
-  #     \(x) ifelse(length(x$est.n.leaves) == 0, 1, x$est.n.leaves)
-  #   ))
-  #   est.n.leaves.all$param_combo_id <- rep(seq_len(n_param_combinations),
-  #     each = n_resamples
-  #   )
-  #   est.n.leaves.by.param_combo_id <- aggregate(
-  #     n.leaves ~ param_combo_id, est.n.leaves.all,
-  #     metrics_aggregate_fn
-  #   )
-  #   tune_results <- cbind(
-  #     n.leaves =
-  #       round(est.n.leaves.by.param_combo_id$n.leaves), tune_results
-  #   )
-  #   n_params <- n_params + 1
-  # } # /LINAD, LINOA
+  # Each cell selected its own leaf count on its resample's validation fold;
+  # the final fit has no validation set and would otherwise keep every leaf it
+  # grew. Carrying the average back means the model trained on all the data is
+  # the size tuning measured, as `nrounds` is for LightGBM above.
+  if (algorithm == "LINAD") {
+    if (verbosity > 1L) {
+      info("Extracting best N of leaves from LINAD models...")
+    }
+    leaves_cv <- data.table(
+      best_n_leaves = vapply(
+        grid_run,
+        function(cell) {
+          selected <- cell[["hyperparameters"]][["best_n_leaves"]]
+          if (is.null(selected)) NA_real_ else as.numeric(selected)
+        },
+        numeric(1L)
+      )
+    )
+    leaves_cv[["param_combo_id"]] <- rep(
+      seq_len(n_param_combinations),
+      each = n_resamples
+    )
+    leaves_by_param_combo_id <- leaves_cv[,
+      lapply(.SD, function(values) {
+        get(tuner_config[["metrics_aggregate_fn"]])(values, na.rm = TRUE)
+      }),
+      by = param_combo_id
+    ]
+    selected_leaves <- as.integer(round(
+      leaves_by_param_combo_id[["best_n_leaves"]]
+    ))
+    param_grid[["best_n_leaves"]] <- selected_leaves
+    tune_results[["param_grid"]][["best_n_leaves"]] <- selected_leaves
+  } # /LINAD
 
   ## LIHADBoost ----
   # if (algorithm == "LIHADBoost") {
@@ -785,6 +798,12 @@ make_grid_cell_runner <- function(
         best_iter <- 100L
       }
       out1[["hyperparameters"]]@hyperparameters[["best_iter"]] <- best_iter
+    }
+    if (algorithm == "LINAD") {
+      # The size this cell's validation fold selected. Without capturing it the
+      # final fit -- which gets no validation set -- keeps every leaf it grew.
+      out1[["hyperparameters"]]@hyperparameters[["best_n_leaves"]] <-
+        as.integer(mod1@model@n_leaves)
     }
     if (save_mods) {
       out1[["mod1"]] <- mod1

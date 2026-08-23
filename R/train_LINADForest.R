@@ -134,18 +134,10 @@ method(train_, LINADForestHyperparameters) <- function(
   }
   settings <- linadforest_settings(hyperparameters, ncol(features))
 
-  # Dependencies ----
-  # Only the elastic-net node model reaches outside the package.
-  if (
-    identical(settings[["node_model"]], "elasticnet") ||
-      identical(settings[["root_model"]], "elasticnet")
-  ) {
-    check_dependencies("glmnet")
-  }
-
   if (is.null(weights)) {
     weights <- rep(1, NROW(features))
   }
+  check_case_weights(weights, NROW(features))
   # Rescaled to average 1 so `lambda`, which multiplies the weight total, means
   # the same thing whether or not inverse frequency weighting is on. Each tree
   # rescales its own bag again, for the same reason.
@@ -295,6 +287,35 @@ method(varimp_super, LINADForest) <- function(model, ...) {
     )
   )
 } # /rtemis::varimp_super.LINADForest
+
+
+# %% learning_curve_super.LINADForest ----
+#' Learning curves of every tree in a LINADForest
+#'
+#' Each tree selects its own size on its own out-of-bag cases, so a forest has
+#' one curve per tree rather than one curve. The rows carry a `tree` column and
+#' the spread of selected sizes is the interesting part.
+#'
+#' @param model `LINADForest` object.
+#'
+#' @return data.frame with a `tree` column added to the usual shape.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(learning_curve_super, LINADForest) <- function(model) {
+  curves <- lapply(seq_along(model@trees), function(index) {
+    curve <- learning_curve_super(model@trees[[index]])
+    cbind(tree = index, curve)
+  })
+  out <- do.call(rbind, curves)
+  attr(out, "unit") <- "leaves"
+  # One number for a forest of selections: the typical tree's size.
+  attr(out, "selected") <- as.integer(round(stats::median(
+    vapply(model@trees, function(tree) tree@n_leaves, integer(1L))
+  )))
+  out
+} # /rtemis::learning_curve_super.LINADForest
 
 
 # %% se_super.LINADForest ----

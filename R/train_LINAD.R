@@ -12,6 +12,9 @@
 #' grown by stagewise gradient descent so that a leaf's coefficients are the
 #' accumulated sum along its root-to-leaf path.
 #'
+#' The node models are fitted natively, elastic net included, so training
+#' reaches outside the package for nothing.
+#'
 #' LINAD needs no encoding preprocessor. It searches and routes splits on the
 #' features as given, so a factor splits on a set of its levels, and builds a
 #' reference-coded design matrix internally for the leaf models. Returning a
@@ -56,15 +59,6 @@ method(train_, LINADHyperparameters) <- function(
   }
   settings <- linad_settings(hyperparameters)
 
-  # Dependencies ----
-  # Only the elastic-net leaf model reaches outside the package.
-  if (
-    identical(settings[["node_model"]], "elasticnet") ||
-      identical(settings[["root_model"]], "elasticnet")
-  ) {
-    check_dependencies("glmnet")
-  }
-
   # Data ----
   check_supervised(x = x, allow_missing = FALSE, verbosity = verbosity)
   type <- supervised_type(x)
@@ -88,6 +82,7 @@ method(train_, LINADHyperparameters) <- function(
   if (is.null(weights)) {
     weights <- rep(1, NROW(features))
   }
+  check_case_weights(weights, NROW(features))
   # Rescaled to average 1 so `lambda`, which multiplies the weight total, means
   # the same thing whether or not inverse frequency weighting is on.
   weights <- weights / mean(weights)
@@ -98,6 +93,21 @@ method(train_, LINADHyperparameters) <- function(
     levels
   )
   xm <- linad_design_matrix(features, xlev)
+  # Only needed while growing, and only when `patience` asks growth to watch it.
+  validation <- if (
+    !is.null(dat_validation) && !is.null(settings[["patience"]])
+  ) {
+    validation_features <- as.data.frame(features(dat_validation))
+    list(
+      x = validation_features,
+      xm = linad_design_matrix(validation_features, xlev),
+      y = if (type == "Classification") {
+        ifelse(outcome(dat_validation) == y_levels[[2L]], 1, -1)
+      } else {
+        as.numeric(outcome(dat_validation))
+      }
+    )
+  }
   fitted <- linad_fit(
     x = features,
     xm = xm,
@@ -105,6 +115,7 @@ method(train_, LINADHyperparameters) <- function(
     case_weights = weights,
     type = type,
     settings = settings,
+    validation = validation,
     verbosity = verbosity
   )
   model <- LinearAdditiveTree(
@@ -119,14 +130,37 @@ method(train_, LINADHyperparameters) <- function(
     design_scale = linad_scaling(xm)[["scale"]],
     type = type,
     y_levels = y_levels,
-    leaf_curve = NULL
+    settings = fitted[["settings"]],
+    leaf_curve = NULL,
+    training_curve = NULL
   )
+  # Recorded whether or not a validation set was given: alone it cannot select a
+  # size, but beside the validation curve it is what shows overfitting.
+  model@training_curve <- linad_size_curve(model, features, xm, y, type)
 
   # Number of leaves ----
   # The manuscript's counterpart to choosing the number of trees in gradient
   # boosting: score the tree at every size it passed through, keep the argmin.
   if (!settings[["force_max_leaves"]] && length(model@steps) > 1L) {
-    if (is.null(dat_validation)) {
+    carried <- hyperparameters[["best_n_leaves"]]
+    if (is.null(dat_validation) && !is.null(carried)) {
+      # Tuning selected a size on each resample's validation fold and the
+      # Tuner carried the average here. Applying it is what makes the model
+      # trained on all the data the size that tuning measured; truncating a
+      # grown tree to `k` is exactly the tree grown to `k`, since a node's
+      # coefficients depend only on its ancestors.
+      model@n_leaves <- as.integer(min(carried, length(model@steps)))
+      if (verbosity > 0L) {
+        info(
+          "Kept ",
+          model@n_leaves,
+          ngettext(model@n_leaves, " leaf", " leaves"),
+          " of ",
+          length(model@steps),
+          ", the size selected during tuning."
+        )
+      }
+    } else if (is.null(dat_validation)) {
       if (verbosity > 0L) {
         info(
           "No validation set: keeping all ",
@@ -209,6 +243,30 @@ method(predict_super, LinearAdditiveTree) <- function(
     raw
   }
 } # /rtemis::predict_super.LinearAdditiveTree
+
+
+# %% learning_curve_super.LinearAdditiveTree ----
+#' Learning curve of a Linear Additive Tree
+#'
+#' One step is one leaf. The validation series is what `linad_select_leaves()`
+#' chose the size from; the training series is recorded whether or not a
+#' validation set was given.
+#'
+#' @param model `LinearAdditiveTree` object.
+#'
+#' @return data.frame, as `learning_curve_frame()` shapes it.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(learning_curve_super, LinearAdditiveTree) <- function(model) {
+  learning_curve_frame(
+    loss_training = model@training_curve,
+    loss_validation = model@leaf_curve,
+    unit = "leaves",
+    selected = model@n_leaves
+  )
+} # /rtemis::learning_curve_super.LinearAdditiveTree
 
 
 # %% varimp_super.LinearAdditiveTree ----

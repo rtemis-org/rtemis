@@ -2,6 +2,20 @@
 
 ## 1.3.7
 
+- **New `setup_LINAD(split_features = , linear_features = , global_features = )`**: which features may define a split, which get a slope in the node models, and which of those slopes are shared by every leaf rather than free to change along a path. `NULL` on each imposes no constraint -- all, all, and nothing pinned -- which is LINAD as it was. Also on `setup_LINADForest()`, where `mtry_split` samples within the split-eligible set.
+- A pinned coefficient is identical in every leaf exactly, at any `gamma`, which makes LINAD a varying-coefficient model: a global baseline plus the node deviations along the path. Making every linear feature global gives a tree with shared coefficients and node-specific constants.
+- Restricting the split set is the largest speed-up available on wide data.
+- `draw_linad()` marks each coefficient in a node's table with where it came from: an identity sign for a global effect, a delta for one this node changed, nothing for one inherited unchanged. `show_changes = FALSE` turns them off.
+- **`split_search = "exhaustive"` now scores classification candidates by the model it commits.** It used a least-squares level where the committed child uses the manuscript's Newton step, which changed the chosen split in 9 of 20 seeds at a median 1.4% worse committed loss.
+- **The elastic-net node model is fitted natively**, so `split_search = "exhaustive"` scores the real child rather than a ridge surrogate that ignored `alpha`, and LINAD no longer needs 'glmnet'. `lambda` now means the same thing under `node_model = "ridge"` and `"elasticnet"`, and `alpha = 0` reproduces the ridge exactly; 'glmnet' scales the ridge half of its penalty by the outcome's spread, so elastic-net fits are not reproducible at the same `lambda` as before.
+- The exhaustive search and the commit fit a node on the same rows once soft weights decay past the engine's tolerance.
+- A fitted LINAD model records every hyperparameter its run resolved in `mod@model@settings`, including defaults such as `n_cuts` that were previously left unset on the hyperparameters.
+- `LinearAdditiveTree` and `LINADForest` validate their own structure at construction.
+- Case weights are checked for length, finiteness, non-negativity and a positive mean before any algorithm divides by their mean.
+- **New `plot_learning()` and `get_learning_curve()`**: loss against training progress for any algorithm that trains in steps, in its own unit -- epochs for MLP, leaves for LINAD, boosting iterations for the LightGBM family -- with the step the model kept marked. Returns NULL rather than an error for an algorithm that records none.
+- **New `setup_LINAD(patience = )`**: stop growing when validation loss has not improved for that many expansions, as gradient boosting stops on rounds. The size is still the argmin of the curve reached, so stopping bounds growth without changing selection. LINADForest applies it per tree against that tree's own out-of-bag cases.
+- **A tuned LINAD now keeps the leaf count tuning selected.** Each grid cell chose its size on the held-out fold of its inner resample and was scored with that size applied; the final fit gets no validation set, so it kept every leaf it grew -- a model systematically larger than the one measured. The Tuner carries the selected count back as `best_n_leaves`, as it already did for LightGBM's `best_iter`.
+- A LINAD model records its training loss at every size beside the validation loss, so a learning curve can show overfitting rather than only where the minimum fell.
 - The error message for a conditional hyperparameter no longer pads its allowed values.
 - A tuned run under outer resampling announces its grid once, before the folds start.
 - **`train()` takes a list of hyperparameter configurations and searches all of them** -- `train(x, list(cart = setup_LINAD(...), addtree = setup_LINAD(...)))`. Each is expanded and gated on its own and the tuner selects across their union, so combinations a cross-product cannot express are now a search space. All members must be for one algorithm.

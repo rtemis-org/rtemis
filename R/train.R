@@ -993,6 +993,9 @@ train <- function(
         weights <- ifw(x[[ncols]], type = "case_weights", verbosity = verbosity)
       }
     } # /IFW
+    # Whatever produced them, the weights reach every algorithm from here, so
+    # this is where their assumptions are checked rather than in each backend.
+    check_case_weights(weights, NROW(x))
 
     # Train algorithm ----
     # A torch-backed algorithm names the device it resolved, because "which

@@ -310,6 +310,62 @@ linad_label_width <- function(labels, font_size, cap) {
 } # /rtemis::linad_label_width
 
 
+# %% linad_term_marks ----
+#' Which of a node's coefficients are pinned and which changed here
+#'
+#' A leaf's coefficients are the accumulated sum along its path, so the table
+#' shows what the model uses but not where any of it came from. Two facts
+#' answer that, and both are read off the fitted model rather than recomputed:
+#'
+#' - a **global** term has one coefficient shared by every leaf, because
+#'   `global_features` said only the root may set it;
+#' - a term **changed here** when this node's coefficient differs from its
+#'   parent's, which is what the node's own model contributed.
+#'
+#' The two are exclusive by construction: a global coefficient cannot change
+#' below the root. The root itself is marked for neither -- it has no parent to
+#' differ from, and it is where every coefficient originates.
+#'
+#' @param model `LinearAdditiveTree` object.
+#' @param shown Integer vector: Node ids being drawn.
+#'
+#' @return List with `global` (a logical vector over slope columns) and
+#' `changed` (nodes x slope columns).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_term_marks <- function(model, shown) {
+  slopes <- model@coefficients[, -1L, drop = FALSE]
+  width <- NCOL(slopes)
+  roles <- linad_roles(
+    list(numeric_names = character(), factor_names = character()),
+    model@design_assign,
+    model@xnames,
+    linear_features = model@settings[["linear_features"]],
+    global_features = model@settings[["global_features"]]
+  )
+  global <- logical(width)
+  if (!is.null(roles[["adaptive"]]) && width > 0L) {
+    pool <- if (is.null(roles[["linear"]])) {
+      seq_len(width)
+    } else {
+      roles[["linear"]]
+    }
+    global[setdiff(pool, roles[["adaptive"]])] <- TRUE
+  }
+  parent <- model@frame[["parent"]][shown]
+  changed <- matrix(FALSE, length(shown), width)
+  has_parent <- which(!is.na(parent))
+  if (length(has_parent) > 0L && width > 0L) {
+    parent_rows <- match(parent[has_parent], model@frame[["node"]])
+    changed[has_parent, ] <- slopes[shown[has_parent], , drop = FALSE] !=
+      slopes[parent_rows, , drop = FALSE]
+  }
+  list(global = global, changed = changed)
+} # /rtemis::linad_term_marks
+
+
 # %% draw_linad ----
 #' Plot a Linear Additive Tree
 #'
@@ -363,6 +419,11 @@ linad_label_width <- function(labels, font_size, cap) {
 #' @param font_size Integer: Label font size in pixels.
 #' @param node_labels Logical: If TRUE, label nodes with their rule.
 #' @param show_ncases Logical: If TRUE, include the case count in node labels.
+#' @param show_changes Logical: If TRUE, mark each coefficient in the node's
+#' table with where it came from: a global effect, shared by every leaf, is
+#' marked with an identity sign, and one this node changed with a delta. A term
+#' with neither was inherited from the parent unchanged. The root carries no
+#' marks: it has no parent to differ from.
 #' @param show_node_value Logical: If TRUE, include the node's own value in its
 #' label.
 #' @param lo_col Character: Color for the most negative coefficient. Defaults
@@ -413,6 +474,7 @@ draw_linad <- function(
   node_labels = TRUE,
   show_ncases = TRUE,
   show_node_value = TRUE,
+  show_changes = TRUE,
   lo_col = SIGN_COLORS[["negative"]],
   mid_col = NULL,
   hi_col = SIGN_COLORS[["positive"]],
@@ -500,6 +562,14 @@ draw_linad <- function(
   # and it is what the caption carries.
   coefficients <- model@coefficients[shown, -1L, drop = FALSE]
   labels <- colnames(coefficients)
+  # Where each coefficient came from: pinned globally, or set by this node.
+  # A table of accumulated values alone cannot say which, and under an effect
+  # scope that distinction is the main thing a reader is looking for.
+  marks <- if (show_changes) {
+    linad_term_marks(model, shown)
+  } else {
+    NULL
+  }
   tables <- lapply(seq_along(shown), function(i) {
     values <- coefficients[i, ]
     # A zero coefficient means this node's model did not select the feature, so
@@ -514,7 +584,21 @@ draw_linad <- function(
     if (!is.null(top)) {
       index <- index[seq_len(min(length(index), top))]
     }
-    data.frame(Term = labels[index], Coefficient = unname(values[index]))
+    terms <- labels[index]
+    if (!is.null(marks)) {
+      # U+2261 for a coefficient identical in every leaf, U+0394 for one this
+      # node changed. Text, not color: color already carries the sign, and one
+      # channel cannot mean two things.
+      terms <- paste0(
+        terms,
+        ifelse(
+          marks[["global"]][index],
+          " \u2261",
+          ifelse(marks[["changed"]][i, index], " \u0394", "")
+        )
+      )
+    }
+    data.frame(Term = terms, Coefficient = unname(values[index]))
   })
   # One gradient across every table: the same coefficient must be the same
   # color in every node, or the comparison the plot exists for is defeated

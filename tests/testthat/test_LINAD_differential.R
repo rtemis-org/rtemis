@@ -21,39 +21,48 @@
 #' algebraic loss identity: each side's weights are formed explicitly over every
 #' row, each side's model is fitted from those weights, and the loss is the
 #' weighted sum of squared residuals of the fitted values.
-reference_sweep <- function(state, r, w, member) {
+#'
+#' Each side is fitted by `linad_solve()` -- the function the *commit* uses, not
+#' the one the search uses -- so this reference states the search's contract
+#' rather than restating its implementation: a candidate must be scored by the
+#' model the node will actually receive. The active rows are the node's own,
+#' resolved once as `linad_propose()` resolves them, which is the rule both
+#' sides are required to share.
+reference_sweep <- function(state, r, w, member, derivatives = NULL) {
   xm <- state[["xm"]]
   context <- state[["context"]]
   gamma <- state[["gamma"]]
   n <- nrow(xm)
   min_child <- rtemis:::linad_min_child_cases(state)
   total_members <- sum(member)
+  active <- rtemis:::linad_active_rows(w)
 
   side_loss <- function(weights) {
-    if (sum(weights) <= 0) {
+    if (sum(weights[active]) <= 0) {
       return(Inf)
     }
-    fitted <- if (identical(state[["node_model"]], "constant")) {
-      rep(sum(weights * r) / sum(weights), n)
-    } else {
-      gram <- rtemis:::linad_gram(xm, r, weights, NULL)
-      b <- rtemis:::linad_gram_solve(
-        gram[["G"]],
-        gram[["Xty"]],
-        gram[["sw"]],
-        state[["node_model"]],
-        state[["lambda"]],
-        state[["nvmax"]],
-        syy = gram[["syy"]],
-        forward_stop = state[["forward_stop"]],
-        node_test = state[["node_test"]]
-      )
-      if (is.null(b) || !all(is.finite(b))) {
-        return(Inf)
-      }
-      drop(xm %*% b)
+    fit <- rtemis:::linad_solve(
+      xm,
+      r,
+      weights,
+      active,
+      state[["node_model"]],
+      state[["lambda"]],
+      state[["alpha"]] %||% 1,
+      state[["nvmax"]],
+      forward_stop = state[["forward_stop"]],
+      derivatives = derivatives,
+      type = state[["type"]] %||% "Regression",
+      max_step = state[["line_search_max"]] %||% 1000,
+      constant_rule = state[["constant_rule"]] %||% "closed_form",
+      node_test = state[["node_test"]],
+      allowed = state[["adaptive_columns"]]
+    )
+    if (is.null(fit) || !all(is.finite(fit[["coefficients"]]))) {
+      return(Inf)
     }
-    sum(weights * (r - fitted)^2)
+    fitted <- drop(xm %*% fit[["coefficients"]])
+    sum(weights[active] * (r[active] - fitted[active])^2)
   }
 
   loss_of <- function(goes_left) {
@@ -142,9 +151,14 @@ reference_state <- function(x, xm, settings = list()) {
     n_cuts = 20L,
     node_model = "ridge",
     lambda = 0.1,
+    alpha = 1,
     nvmax = 3L,
     forward_stop = "none",
     node_test = "none",
+    type = "Regression",
+    line_search_max = 1000,
+    constant_rule = "closed_form",
+    adaptive_columns = NULL,
     split_search = "exhaustive",
     split_criterion = "mean",
     split_bin_type = "frequency",
@@ -312,45 +326,272 @@ test_that("linad_sweep() agrees with the definition on randomized problems", {
 })
 
 
+# %% Classification, where the search and the commit once diverged ----
+test_that("linad_sweep() scores a classification candidate as the commit fits it", {
+  # The committed child's constant is a Newton step over the weighted
+  # derivatives; the search once had only `X'WX` and `X'Wr` and used the
+  # weighted least-squares level instead, so it ranked splits by a model that
+  # was never built. Every configuration here is checked against a reference
+  # that fits both children with `linad_solve()`.
+  set.seed(2027)
+  n <- 200L
+  x <- data.frame(
+    a = rnorm(n),
+    b = rnorm(n),
+    g = factor(sample(c("p", "q", "r"), n, replace = TRUE))
+  )
+  xm <- cbind(
+    1,
+    x[["a"]],
+    x[["b"]],
+    as.numeric(x[["g"]] == "q"),
+    as.numeric(x[["g"]] == "r")
+  )
+  labels <- ifelse(
+    2 * x[["a"]] * ifelse(x[["b"]] > 0, 1, -1) + rnorm(n) > 0,
+    1,
+    -1
+  )
+  grid <- expand.grid(
+    node_model = c("constant", "ridge", "forward", "elasticnet"),
+    gamma = c(0, 0.3),
+    constant_rule = c("closed_form", "least_squares"),
+    stringsAsFactors = FALSE
+  )
+  for (row in seq_len(nrow(grid))) {
+    f <- rnorm(n, 0, 0.4)
+    derivatives <- rtemis:::linad_gradient(labels, f, "Classification")
+    r <- -derivatives[["g"]]
+    w <- runif(n, 0.5, 2)
+    member <- rep(TRUE, n)
+    state <- reference_state(
+      x,
+      xm,
+      list(
+        node_model = grid[["node_model"]][[row]],
+        gamma = grid[["gamma"]][[row]],
+        constant_rule = grid[["constant_rule"]][[row]],
+        alpha = 0.5,
+        type = "Classification"
+      )
+    )
+    fast <- rtemis:::linad_sweep(
+      state,
+      r,
+      w,
+      member,
+      derivatives = derivatives,
+      active = rtemis:::linad_active_rows(w)
+    )
+    slow <- reference_sweep(state, r, w, member, derivatives)
+    label <- paste(
+      grid[["node_model"]][[row]],
+      grid[["gamma"]][[row]],
+      grid[["constant_rule"]][[row]]
+    )
+    expect_equal(fast[["feature"]], slow[["feature"]], info = label)
+    expect_equal(
+      -fast[["gain"]],
+      slow[["loss"]],
+      tolerance = 1e-8,
+      info = label
+    )
+  }
+})
+
+
+test_that("The search and the commit fit the same rows across the weight tolerance", {
+  # `LINAD_WEIGHT_TOLERANCE` drops a case whose soft weight has decayed past a
+  # fraction of the node's largest. The rule is resolved once per node and
+  # shared, so weights straddling it must not move the search away from the
+  # model the commit builds.
+  set.seed(2028)
+  n <- 160L
+  x <- data.frame(a = rnorm(n), b = rnorm(n))
+  xm <- cbind(1, x[["a"]], x[["b"]])
+  r <- 2 * x[["a"]] * ifelse(x[["b"]] > 0, 1, -1) + rnorm(n, 0, 0.4)
+  member <- rep(TRUE, n)
+  tolerance <- rtemis:::LINAD_WEIGHT_TOLERANCE
+  # A third of the cases sit above the threshold, a third just below it, and a
+  # third far below, so both sides of the rule are exercised.
+  w <- rep(1, n)
+  w[seq(2L, n, by = 3L)] <- tolerance * 0.5
+  w[seq(3L, n, by = 3L)] <- tolerance * 1e-4
+  active <- rtemis:::linad_active_rows(w)
+  expect_gt(length(active), 0L)
+  expect_lt(length(active), n)
+  for (node_model in c("ridge", "forward")) {
+    for (gamma in c(0, 0.3)) {
+      state <- reference_state(
+        x,
+        xm,
+        list(node_model = node_model, gamma = gamma, min_cases_leaf = 5L)
+      )
+      fast <- rtemis:::linad_sweep(state, r, w, member, active = active)
+      slow <- reference_sweep(state, r, w, member)
+      label <- paste(node_model, gamma)
+      expect_equal(fast[["feature"]], slow[["feature"]], info = label)
+      expect_equal(
+        -fast[["gain"]],
+        slow[["loss"]],
+        tolerance = 1e-8,
+        info = label
+      )
+    }
+  }
+})
+
+
+# %% Feature roles reach the search, not only the commit ----
+test_that("The exhaustive search scores children under the adaptive restriction", {
+  # The rule that matters most: if the search scores candidates by child models
+  # that ignore the effect-scope restriction, it optimizes a model the commit
+  # will never build.
+  set.seed(2029)
+  n <- 180L
+  x <- data.frame(a = rnorm(n), b = rnorm(n), c = rnorm(n))
+  xm <- cbind(1, x[["a"]], x[["b"]], x[["c"]])
+  r <- 2 * x[["a"]] * ifelse(x[["b"]] > 0, 1, -1) + x[["c"]] + rnorm(n, 0, 0.4)
+  w <- runif(n, 0.5, 2)
+  member <- rep(TRUE, n)
+  for (adaptive in list(1L, c(1L, 3L), integer(0))) {
+    state <- reference_state(
+      x,
+      xm,
+      list(node_model = "ridge", gamma = 0.2, adaptive_columns = adaptive)
+    )
+    fast <- rtemis:::linad_sweep(state, r, w, member)
+    slow <- reference_sweep(state, r, w, member)
+    label <- paste(adaptive, collapse = ",")
+    expect_equal(fast[["feature"]], slow[["feature"]], info = label)
+    expect_equal(
+      -fast[["gain"]],
+      slow[["loss"]],
+      tolerance = 1e-8,
+      info = label
+    )
+  }
+})
+
+
 # %% The two node-model solvers against each other ----
 test_that("linad_solve() and linad_gram_solve() fit the same model", {
   # One is used by the commit and reads the data; the other is used by the
   # exhaustive search and reads sufficient statistics. They fit the same node
   # model by different routes -- one centers the design and carries the level
-  # separately, the other solves jointly with an intercept column -- and a
+  # separately, the other reads the centered system off the raw Gram -- and a
   # divergence between them is a search optimizing a model that is never built.
+  #
+  # Both outcome types, both constant rules and every node model: the
+  # classification constant is a Newton step rather than a weighted mean, and
+  # the search once had no way to form it.
   set.seed(3)
   for (rep in seq_len(10L)) {
     n <- sample(60:200, 1L)
     p <- sample(2:6, 1L)
     X <- matrix(rnorm(n * p), n, p)
     xm <- cbind(1, X)
-    y <- drop(X %*% rnorm(p)) + rnorm(n)
+    signal <- drop(X %*% rnorm(p))
     w <- if (rep %% 2L == 0L) rep(1, n) else runif(n, 0.3, 2)
     idx <- sort(sample.int(n, max(20L, n %/% 2L)))
-    gram <- rtemis:::linad_gram(xm, y, w, idx)
     lambda <- sample(c(0, 0.05, 0.5), 1L)
+    alpha <- sample(c(0, 0.5, 1), 1L)
     nvmax <- sample(seq_len(p), 1L)
-    for (node_model in c("constant", "ridge", "forward")) {
+    for (type in c("Regression", "Classification")) {
+      if (identical(type, "Classification")) {
+        labels <- ifelse(signal + rnorm(n) > 0, 1, -1)
+        derivatives <- rtemis:::linad_gradient(
+          labels,
+          rnorm(n, 0, 0.3),
+          type
+        )
+        y <- -derivatives[["g"]]
+      } else {
+        derivatives <- NULL
+        y <- signal + rnorm(n)
+      }
+      gram <- rtemis:::linad_gram(xm, y, w, idx, derivatives)
+      for (node_model in c("constant", "ridge", "forward", "elasticnet")) {
+        for (constant_rule in c("closed_form", "least_squares")) {
+          direct <- rtemis:::linad_solve(
+            xm,
+            y,
+            w,
+            idx,
+            node_model,
+            lambda = lambda,
+            alpha = alpha,
+            nvmax = nvmax,
+            forward_stop = "none",
+            derivatives = derivatives,
+            type = type,
+            constant_rule = constant_rule
+          )
+          from_gram <- rtemis:::linad_gram_solve(
+            gram[["G"]],
+            gram[["Xty"]],
+            gram[["syy"]],
+            node_model,
+            lambda,
+            alpha,
+            nvmax,
+            forward_stop = "none",
+            sg = gram[["sg"]],
+            sh = gram[["sh"]],
+            type = type,
+            constant_rule = constant_rule
+          )
+          expect_equal(
+            direct[["coefficients"]],
+            from_gram,
+            tolerance = 1e-8,
+            info = paste(type, node_model, constant_rule, rep)
+          )
+        }
+      }
+    }
+  }
+})
+
+
+test_that("The two solvers agree when a node may fit only some columns", {
+  # Effect scope reaches the model as a column restriction, and the search and
+  # the commit have to apply the identical one: a search scoring child models
+  # that ignore the restriction optimizes a model the commit will never build.
+  set.seed(31)
+  for (rep in seq_len(8L)) {
+    n <- sample(80:200, 1L)
+    p <- sample(3:7, 1L)
+    X <- matrix(rnorm(n * p), n, p)
+    xm <- cbind(1, X)
+    y <- drop(X %*% rnorm(p)) + rnorm(n)
+    w <- runif(n, 0.3, 2)
+    idx <- sort(sample.int(n, max(30L, n %/% 2L)))
+    gram <- rtemis:::linad_gram(xm, y, w, idx)
+    allowed <- sort(sample.int(p, sample(seq_len(p), 1L)))
+    for (node_model in c("ridge", "forward", "elasticnet")) {
       direct <- rtemis:::linad_solve(
         xm,
         y,
         w,
         idx,
         node_model,
-        lambda = lambda,
-        nvmax = nvmax,
-        forward_stop = "none"
+        lambda = 0.05,
+        alpha = 0.5,
+        nvmax = 3L,
+        forward_stop = "none",
+        allowed = allowed
       )
       from_gram <- rtemis:::linad_gram_solve(
         gram[["G"]],
         gram[["Xty"]],
-        gram[["sw"]],
+        gram[["syy"]],
         node_model,
-        lambda,
-        nvmax,
-        syy = gram[["syy"]],
-        forward_stop = "none"
+        0.05,
+        0.5,
+        3L,
+        forward_stop = "none",
+        allowed = allowed
       )
       expect_equal(
         direct[["coefficients"]],
@@ -358,7 +599,61 @@ test_that("linad_solve() and linad_gram_solve() fit the same model", {
         tolerance = 1e-8,
         info = paste(node_model, rep)
       )
+      # A column outside the allowed set never receives a coefficient.
+      expect_true(
+        all(direct[["coefficients"]][-1L][-allowed] == 0),
+        info = paste(node_model, rep)
+      )
     }
+  }
+})
+
+
+test_that("linad_enet_gram() solves the objective it names", {
+  # Two independent references, one per penalty. The L2 half must reproduce the
+  # engine's own ridge exactly at alpha = 0 -- one `lambda` cannot mean two
+  # things -- and the L1 half is checked against glmnet, whose lasso uses the
+  # same parameterization.
+  skip_if_not_installed("glmnet")
+  set.seed(41)
+  n <- 200L
+  p <- 6L
+  X <- matrix(rnorm(n * p), n, p)
+  target <- drop(X %*% c(2, -1.5, 0, 0, 0.7, 0)) + rnorm(n)
+  w <- runif(n, 0.5, 2)
+  centered <- sweep(X, 2L, drop(crossprod(w, X)) / sum(w), "-")
+  residual <- target - sum(w * target) / sum(w)
+  gram <- rtemis:::linad_gram(centered, residual, w, NULL)
+  sw <- gram[["sw"]]
+  for (lambda in c(0.001, 0.05, 0.3)) {
+    expect_equal(
+      rtemis:::linad_enet_gram(gram[["G"]], gram[["Xty"]], lambda * sw, 0),
+      rtemis:::linad_chol_solve(
+        gram[["G"]],
+        gram[["Xty"]],
+        lambda * sw,
+        intercept = FALSE
+      ),
+      tolerance = 1e-8,
+      info = paste("ridge boundary", lambda)
+    )
+    expect_equal(
+      rtemis:::linad_enet_gram(gram[["G"]], gram[["Xty"]], 0, lambda * sw),
+      unname(drop(as.matrix(stats::coef(
+        glmnet::glmnet(
+          centered,
+          residual,
+          weights = w,
+          alpha = 1,
+          lambda = lambda,
+          standardize = FALSE,
+          intercept = FALSE
+        ),
+        s = lambda
+      ))))[-1L],
+      tolerance = 1e-5,
+      info = paste("lasso", lambda)
+    )
   }
 })
 

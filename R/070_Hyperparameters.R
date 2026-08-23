@@ -1609,6 +1609,13 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       tunable = TRUE,
       description = "Largest number of terminal nodes to grow. Plays the role the number of trees plays in gradient boosting."
     ),
+    patience = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "Expansions without validation improvement before growth stops, as gradient boosting stops on rounds. Needs a validation set; without one the tree grows to max_leaves. Stopping only bounds growth -- the size is still the one that minimizes validation loss over the curve reached. Defaults to growing to max_leaves."
+    ),
     force_max_leaves = prop_boolean(
       FALSE,
       description = "Keep every leaf grown instead of selecting a tree size on the validation set."
@@ -1768,6 +1775,32 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       applies_when = list(split_search = "exhaustive"),
       description = "Number of cut points tried per feature by the exhaustive search. split_bin_type decides how they are spaced."
     ),
+    # Feature roles ----
+    # Two independent axes: whether a feature may define a partition, and
+    # whether its modeled effect is absent, shared by every subgroup, or free
+    # to change along a path. NULL means no constraint imposed on each, which
+    # reads as all, all, and nothing pinned.
+    split_features = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      data_bound = "feature_names",
+      description = "Features that may define a split. NULL imposes no constraint, so every feature may. Independent of the linear roles: a feature can split without entering any node model, or the reverse."
+    ),
+    linear_features = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      data_bound = "feature_names",
+      description = "Features that get a slope in the node models. NULL imposes no constraint, so every feature does. A tree with no slopes at all is node_model = constant."
+    ),
+    global_features = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      data_bound = "feature_names",
+      description = "Linear features whose slope is shared by every leaf: the root estimates it and no node below may change it. Must be a subset of linear_features where that is set. NULL imposes no constraint, so no coefficient is pinned and every linear feature may adapt."
+    ),
     # Soft weighting ----
     gamma = prop_float(
       0.1,
@@ -1803,6 +1836,43 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
 } # /rtemis::linad_tree_props
 
 
+# %% linad_feature_role_rule ----
+#' The one feature-role rule that relates two properties
+#'
+#' `data_bound = "feature_names"` validates each selector against the training
+#' features on its own. What it cannot say is that one selector's values must
+#' lie inside another's: a globally shared slope is still a slope, so a global
+#' feature that is not a linear feature asks for a coefficient no model fits.
+#'
+#' It refers to no data, so it belongs in the classes' own validators and fires
+#' at construction -- `setup_LINAD()` refuses the combination rather than a grid
+#' cell failing partway through tuning. `linear_features = NULL` imposes no
+#' constraint, so every feature is a linear feature and there is nothing left to
+#' check.
+#'
+#' @param self `LINADHyperparameters` or `LINADForestHyperparameters`.
+#'
+#' @return Character message, or NULL when the rule holds.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_feature_role_rule <- function(self) {
+  if (is.null(self@linear_features) || is.null(self@global_features)) {
+    return(NULL)
+  }
+  outside <- setdiff(self@global_features, self@linear_features)
+  if (length(outside) == 0L) {
+    return(NULL)
+  }
+  paste0(
+    "@global_features must be a subset of @linear_features: a shared slope is still a slope. Not in @linear_features: ",
+    paste(outside, collapse = ", "),
+    "."
+  )
+} # /rtemis::linad_feature_role_rule
+
+
 # %% LINADHyperparameters ----
 #' @title LINADHyperparameters
 #'
@@ -1816,11 +1886,24 @@ LINADHyperparameters <- new_class(
   name = "LINADHyperparameters",
   parent = Hyperparameters,
   properties = c(
-    list(algorithm = prop_algorithm("LINAD")),
+    list(
+      algorithm = prop_algorithm("LINAD"),
+      # Run state: the leaf count validation selected, written by the Tuner.
+      # A grid cell selects its size on the inner resample's held-out fold and
+      # the final fit gets no validation set, so without carrying this the model
+      # that ships keeps every leaf it grew -- larger than the one measured.
+      # LINADForest needs no counterpart: every tree has out-of-bag cases.
+      best_n_leaves = prop_state(prop_integer(
+        NULL,
+        min = 1L,
+        nullable = TRUE,
+        description = "Leaf count selected on validation data during tuning."
+      ))
+    ),
     linad_tree_props()
   ),
   validator = function(self) {
-    check_applies_when(self)
+    c(check_applies_when(self), linad_feature_role_rule(self))
   }
 ) # /rtemis::LINADHyperparameters
 
@@ -1895,6 +1978,14 @@ LINADHyperparameters <- new_class(
 #' that changes another feature's slope without changing either side's mean
 #' leaves no trace in any one feature's marginal fit.
 #'
+#' A node's model is fitted to what its parent left, so its slopes are the
+#' *change* to the parent's coefficients and `lambda` and `alpha` penalize that
+#' change. At `alpha = 1` the change is a lasso, so a feature whose coefficient
+#' does not need to move gets exactly zero and inherits its parent's value: the
+#' tree decides per feature, per node, whether an effect keeps adapting. Ridge
+#' shrinks every change but zeroes none, so every coefficient moves at every
+#' node.
+#'
 #' `node_test` lets the tree decide, node by node, whether a linear model is
 #' warranted at all: the slopes are kept only where they reduce the node's
 #' residual sum of squares by more than they cost, and the node takes a plain
@@ -1924,6 +2015,50 @@ LINADHyperparameters <- new_class(
 #' values; `n_cuts` then thins what is left, for the exhaustive search only.
 #' `split_bin_type` governs both: `"frequency"` spaces cuts evenly through the
 #' cases, `"width"` evenly through the feature's range.
+#'
+#' @section Feature roles:
+#' A feature's behavior has two independent axes: whether it may **define a
+#' partition**, and whether its modeled **effect** is absent, shared by every
+#' subgroup, or free to change along a path. Three name-based selectors set
+#' them, and on each of the three **NULL imposes no constraint** -- which means
+#' "all" for the first two and "nothing pinned" for the third:
+#'
+#' \describe{
+#'   \item{`split_features`}{Features the tree may split on.}
+#'   \item{`linear_features`}{Features that receive a slope in the node models.}
+#'   \item{`global_features`}{Linear features whose slope is shared by every
+#'     leaf: the root estimates it and no node below may change it. Must be a
+#'     subset of `linear_features` where that is set.}
+#' }
+#'
+#' The axes are independent, so a feature may split without entering any node
+#' model, enter every node model without ever splitting, do both, or neither.
+#' Roles are assigned to **source features**: naming a factor moves all of its
+#' encoded columns together, never one of them.
+#'
+#' Declaring effect scope turns LINAD into a varying-coefficient model with a
+#' hierarchical form -- a global baseline plus the node deviations accumulated
+#' down the path. `global` is a hard constraint on the coefficient: it holds
+#' exactly, at any `gamma`. `gamma` is the soft, data-driven version of the same
+#' idea, pulling every node's fit toward what the rest of the data supports
+#' until, at `gamma = 1`, every coefficient is effectively global. The two
+#' compose without interacting: `gamma` decides how much a node's *adaptive*
+#' coefficients may move, and `global_features` decides which coefficients are
+#' allowed to move at all.
+#'
+#' Because a global coefficient is estimated at the root, `root_learning_rate`
+#' shrinks it: at 0 the root fits no slopes and a global feature carries no
+#' effect anywhere.
+#'
+#' The constrained family keeps useful reductions. No splits (`max_leaves = 1`)
+#' is a penalized linear model; `node_model = "constant"` is a tree of
+#' constants; making every linear feature global gives a tree with shared
+#' coefficients and node-specific constants; and leaving all three NULL
+#' reproduces unconstrained LINAD exactly.
+#'
+#' Restricting the split set is also the largest single speed-up available on
+#' wide data, since the search cost is linear in the number of candidate
+#' features.
 #'
 #' @section Learning rate and the root model:
 #' `learning_rate` shrinks the update made at each **node**. It does not shrink
@@ -1959,6 +2094,7 @@ LINADHyperparameters <- new_class(
 #' best choice among them, so each is tunable.
 #'
 #' @param max_leaves (Tunable) Integer [1, Inf): Largest number of terminal nodes to grow.
+#' @param patience (Tunable) Optional Integer [1, Inf): Expansions without validation improvement before growth stops. Requires a validation set.
 #' @param force_max_leaves Logical: If TRUE, keep every leaf grown instead of selecting a size on the validation set.
 #' @param smooth_validation_curve Optional Logical: If TRUE, smooth the validation curve before reading its minimum. Applies only when `force_max_leaves` is FALSE.
 #' @param min_cases_split (Tunable) Integer [2, Inf): Fewest cases a node may hold and still be considered for splitting.
@@ -1981,6 +2117,9 @@ LINADHyperparameters <- new_class(
 #' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when `node_model` is "ridge" or "elasticnet"; forward selection uses `forward_stop`.
 #' @param split_criterion (Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when `split_search` is "stump".
 #' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature; `split_bin_type` decides their spacing. Applies only when `split_search` is "exhaustive".
+#' @param split_features Optional Character vector: Features that may define a split. NULL imposes no constraint, so every feature may.
+#' @param linear_features Optional Character vector: Features that get a slope in the node models. NULL imposes no constraint, so every feature does.
+#' @param global_features Optional Character vector: Linear features whose slope is shared by every leaf. Must be a subset of `linear_features` where that is set. NULL imposes no constraint, so no coefficient is pinned.
 #' @param gamma (Tunable) Numeric \[0, 1\]: Weight a case retains in the branch it does not belong to. 0 is a hard partition.
 #' @param line_search (Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.
 #' @param line_search_max Numeric (0, Inf): Largest absolute step the line search may take.
@@ -2029,11 +2168,15 @@ setup_LINAD <- function(
   constant_rule = "closed_form",
   ifw = FALSE,
   # fixed
+  patience = NULL,
   force_max_leaves = FALSE,
   smooth_validation_curve = NULL,
   node_model = "forward",
   root_model = NULL,
   split_search = "stump",
+  split_features = NULL,
+  linear_features = NULL,
+  global_features = NULL,
   line_search_max = 1000
 ) {
   max_leaves <- clean_int(max_leaves)
@@ -2046,6 +2189,7 @@ setup_LINAD <- function(
   split_binning <- clean_int(split_binning)
   LINADHyperparameters(
     max_leaves = max_leaves,
+    patience = patience,
     force_max_leaves = force_max_leaves,
     smooth_validation_curve = smooth_validation_curve,
     min_cases_split = min_cases_split,
@@ -2068,6 +2212,9 @@ setup_LINAD <- function(
     node_test = node_test,
     split_criterion = split_criterion,
     n_cuts = n_cuts,
+    split_features = split_features,
+    linear_features = linear_features,
+    global_features = global_features,
     gamma = gamma,
     line_search = line_search,
     line_search_max = line_search_max,
@@ -2124,7 +2271,7 @@ LINADForestHyperparameters <- new_class(
     linad_tree_props(learning_rate = 1, max_leaves = 20L)
   ),
   validator = function(self) {
-    check_applies_when(self)
+    c(check_applies_when(self), linad_feature_role_rule(self))
   }
 ) # /rtemis::LINADForestHyperparameters
 
@@ -2191,6 +2338,7 @@ LINADForestHyperparameters <- new_class(
 #' @param mtry_split (Tunable) Optional Integer [1, Inf): Features sampled at each split search. NULL scans every feature the tree holds.
 #' @param mtry_tree (Tunable) Optional Integer [1, Inf): Features available to a whole tree. NULL gives every tree every feature.
 #' @param max_leaves (Tunable) Integer [1, Inf): Largest number of terminal nodes to grow in each tree.
+#' @param patience (Tunable) Optional Integer [1, Inf): Expansions without validation improvement before growth stops. Requires a validation set.
 #' @param force_max_leaves Logical: If TRUE, grow every tree to `max_leaves` instead of selecting a size on its out-of-bag cases.
 #' @param smooth_validation_curve Optional Logical: If TRUE, smooth the out-of-bag curve before reading its minimum. Applies only when `force_max_leaves` is FALSE.
 #' @param min_cases_split (Tunable) Integer [2, Inf): Fewest cases a node may hold and still be considered for splitting.
@@ -2213,6 +2361,9 @@ LINADForestHyperparameters <- new_class(
 #' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when `node_model` is "ridge" or "elasticnet"; forward selection uses `forward_stop`.
 #' @param split_criterion (Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when `split_search` is "stump".
 #' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature. Applies only when `split_search` is "exhaustive".
+#' @param split_features Optional Character vector: Features that may define a split. NULL imposes no constraint, so every feature may. `mtry_split` samples within this set.
+#' @param linear_features Optional Character vector: Features that get a slope in the node models. NULL imposes no constraint, so every feature does.
+#' @param global_features Optional Character vector: Linear features whose slope is shared by every leaf of a tree. Must be a subset of `linear_features` where that is set. NULL imposes no constraint.
 #' @param gamma (Tunable) Numeric \[0, 1\]: Weight a case retains in the branch it does not belong to. 0 is a hard partition.
 #' @param line_search (Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.
 #' @param line_search_max Numeric (0, Inf): Largest absolute step the line search may take.
@@ -2259,11 +2410,15 @@ setup_LINADForest <- function(
   constant_rule = "closed_form",
   ifw = FALSE,
   # fixed
+  patience = NULL,
   force_max_leaves = FALSE,
   smooth_validation_curve = NULL,
   node_model = "forward",
   root_model = NULL,
   split_search = "stump",
+  split_features = NULL,
+  linear_features = NULL,
+  global_features = NULL,
   line_search_max = 1000
 ) {
   n_trees <- clean_int(n_trees)
@@ -2282,6 +2437,7 @@ setup_LINADForest <- function(
     mtry_split = mtry_split,
     mtry_tree = mtry_tree,
     max_leaves = max_leaves,
+    patience = patience,
     force_max_leaves = force_max_leaves,
     smooth_validation_curve = smooth_validation_curve,
     min_cases_split = min_cases_split,
@@ -2304,6 +2460,9 @@ setup_LINADForest <- function(
     node_test = node_test,
     split_criterion = split_criterion,
     n_cuts = n_cuts,
+    split_features = split_features,
+    linear_features = linear_features,
+    global_features = global_features,
     gamma = gamma,
     line_search = line_search,
     line_search_max = line_search_max,

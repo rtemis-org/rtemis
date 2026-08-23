@@ -577,6 +577,17 @@ test_that("the registry declares no conditional demand for a key", {
     "`@num_chains` cannot exceed `@num_gfr`. JSON Schema compares a value ",
     "against a constant, never against another property."
   ),
+  LINADHyperparameters = paste0(
+    "`@global_features` must be a subset of `@linear_features`. Both are ",
+    "arrays of feature names, and JSON Schema compares an element against a ",
+    "constant or an enum, never against another property's contents -- there ",
+    "is no vocabulary for one array containing another. `extra` carries only ",
+    "`if`/`then` over `const`/`enum` values, so there is nothing to mirror."
+  ),
+  LINADForestHyperparameters = paste0(
+    "The same `@global_features` subset-of `@linear_features` rule LINAD ",
+    "carries, from sharing `linad_tree_props()`."
+  ),
   MetaLearnerHyperparameters = paste0(
     "`@base_learners` must hold at least two uniquely and syntactically ",
     "named `Hyperparameters`. It is a hand-declared `new_property(class_list)` ",
