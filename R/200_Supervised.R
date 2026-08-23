@@ -2744,6 +2744,123 @@ method(plot_metric, SupervisedRes) <- function(
 } # /rtemis::plot_metric.SupervisedRes
 
 
+# %% learning_curve_frame ----
+#' Assemble a learning curve in the shape every algorithm reports it in
+#'
+#' One row per step of training, whatever the algorithm calls a step. `unit`
+#' names it for the axis; `selected` is the step the fitted model kept, so a
+#' reader can see the curve and the choice made from it together.
+#'
+#' @param loss_training Optional Numeric vector: Training loss per step.
+#' @param loss_validation Optional Numeric vector: Validation loss per step.
+#' @param unit Character: What one step is -- "epochs", "leaves", ...
+#' @param selected Integer: The step the model kept.
+#'
+#' @return data.frame with `unit` and `selected` attributes.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+learning_curve_frame <- function(
+  loss_training = NULL,
+  loss_validation = NULL,
+  unit,
+  selected
+) {
+  n <- max(length(loss_training), length(loss_validation))
+  pad <- function(values) {
+    if (length(values) == 0L) rep(NA_real_, n) else as.numeric(values)
+  }
+  out <- data.frame(
+    iteration = seq_len(n),
+    loss_training = pad(loss_training),
+    loss_validation = pad(loss_validation)
+  )
+  attr(out, "unit") <- unit
+  attr(out, "selected") <- as.integer(selected)
+  out
+} # /rtemis::learning_curve_frame
+
+
+# %% get_learning_curve.Supervised ----
+method(get_learning_curve, Supervised) <- function(x) {
+  # Only algorithms that train in steps define `learning_curve_super()`.
+  # Anything else records no curve, which is an answer rather than a failure --
+  # so a missing method reads as NULL instead of propagating S7's dispatch
+  # error, as `se()` does above.
+  tryCatch(
+    learning_curve_super(model = x@model),
+    S7_error_method_not_found = function(e) NULL
+  )
+} # /rtemis::get_learning_curve.Supervised
+
+
+# %% plot_learning.Supervised ----
+method(plot_learning, Supervised) <- function(
+  x,
+  theme = choose_theme(getOption("rtemis_theme")),
+  ...
+) {
+  curve <- get_learning_curve(x)
+  if (is.null(curve)) {
+    rtemis.core::abort(
+      x@algorithm,
+      " records no learning curve. ",
+      "`plot_learning()` applies to algorithms that train in steps: ",
+      paste(early_stopping_algs, collapse = ", "),
+      ".",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  unit <- attr(curve, "unit")
+  selected <- attr(curve, "selected")
+  # An ensemble reports one curve per tree; the shared picture is their mean at
+  # each size, since the trees stop at different ones.
+  if (!is.null(curve[["tree"]])) {
+    curve <- stats::aggregate(
+      cbind(loss_training, loss_validation) ~ iteration,
+      curve,
+      mean,
+      na.rm = TRUE,
+      na.action = stats::na.pass
+    )
+  }
+  series <- list(
+    Training = curve[["loss_training"]],
+    Validation = curve[["loss_validation"]]
+  )
+  series <- Filter(function(values) any(!is.na(values)), series)
+  if (length(series) == 0L) {
+    rtemis.core::abort(
+      "The learning curve of this ",
+      x@algorithm,
+      " model holds no losses.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  # A series that is NA everywhere but the kept step, so the choice reads off
+  # the same axes as the curve it was made from.
+  if (length(selected) == 1L && !is.na(selected)) {
+    series[["Selected"]] <- ifelse(
+      curve[["iteration"]] == selected,
+      series[[1L]],
+      NA_real_
+    )
+  }
+  draw_scatter(
+    x = lapply(series, function(values) curve[["iteration"]]),
+    y = series,
+    mode = "lines+markers",
+    main = paste(x@algorithm, "learning curve"),
+    xlab = labelify(unit),
+    ylab = "Loss",
+    rsq = FALSE,
+    theme = theme,
+    ...
+  )
+} # /rtemis::plot_learning.Supervised
+
+
 # %% plot_varimp.Supervised ----
 method(plot_varimp, Supervised) <- function(
   x,
@@ -3141,17 +3258,117 @@ LinearAdditiveTree <- new_class(
     # measured on different scales.
     design_assign = class_integer,
     design_scale = class_double,
+    # The design's column names as fitted. Coefficients are applied by
+    # position, so prediction checks the rebuilt design against these rather
+    # than trusting that it produced the same basis.
+    design_names = class_character,
     type = class_character,
     y_levels = NULL | class_character,
-    leaf_curve = NULL | class_numeric
-  )
+    # Every hyperparameter as the run resolved it, feature roles included.
+    # Several defaults exist only after resolution -- `n_cuts` is the clearest
+    # -- so a serialized fit that did not carry this would not record what
+    # produced it.
+    settings = class_list,
+    # Loss at every size the tree passed through, on the validation set and on
+    # the training set. The pair is what shows overfitting: one alone cannot.
+    leaf_curve = NULL | class_numeric,
+    training_curve = NULL | class_numeric
+  ),
+  validator = function(self) {
+    n_nodes <- NROW(self@frame)
+    if (NROW(self@coefficients) != n_nodes) {
+      return(paste0(
+        "@coefficients must have one row per node: ",
+        n_nodes,
+        " nodes, ",
+        NROW(self@coefficients),
+        " coefficient rows."
+      ))
+    }
+    if (NCOL(self@coefficients) != length(self@design_names)) {
+      return(paste0(
+        "@coefficients must have one column per design column: ",
+        length(self@design_names),
+        " design columns, ",
+        NCOL(self@coefficients),
+        " coefficient columns."
+      ))
+    }
+    if (length(self@design_assign) != length(self@design_names)) {
+      return("@design_assign must have one entry per design column.")
+    }
+    if (length(self@design_scale) != length(self@design_names)) {
+      return("@design_scale must have one entry per design column.")
+    }
+    # `design_assign` indexes `xnames`, with 0 at the intercept.
+    assigned <- self@design_assign[self@design_assign > 0L]
+    if (length(assigned) > 0L && max(assigned) > length(self@xnames)) {
+      return("@design_assign names a feature beyond @xnames.")
+    }
+    if (length(self@n_leaves) != 1L) {
+      return("@n_leaves must be a single value.")
+    }
+    if (self@n_leaves < 1L || self@n_leaves > length(self@steps)) {
+      return(paste0(
+        "@n_leaves must be a size the tree passed through, 1 to ",
+        length(self@steps),
+        "; got ",
+        self@n_leaves,
+        "."
+      ))
+    }
+    if (n_nodes > 0L) {
+      nodes <- self@frame[["node"]]
+      # Every id `steps` names has to exist, or selecting a size routes cases
+      # to a node that is not there.
+      unknown <- setdiff(unlist(self@steps, use.names = FALSE), nodes)
+      if (length(unknown) > 0L) {
+        return(paste0(
+          "@steps names node ids the frame does not have: ",
+          paste(unknown, collapse = ", "),
+          "."
+        ))
+      }
+      links <- unlist(
+        self@frame[, c("parent", "left", "right")],
+        use.names = FALSE
+      )
+      links <- links[!is.na(links)]
+      unknown <- setdiff(links, nodes)
+      if (length(unknown) > 0L) {
+        return(paste0(
+          "@frame links to node ids it does not have: ",
+          paste(unknown, collapse = ", "),
+          "."
+        ))
+      }
+    }
+    if (
+      !is.null(self@leaf_curve) && length(self@leaf_curve) != length(self@steps)
+    ) {
+      return("@leaf_curve must have one loss per size the tree passed through.")
+    }
+    if (
+      !is.null(self@training_curve) &&
+        length(self@training_curve) != length(self@steps)
+    ) {
+      return(
+        "@training_curve must have one loss per size the tree passed through."
+      )
+    }
+    NULL
+  }
 ) # /rtemis::LinearAdditiveTree
 
 
 # Print LinearAdditiveTree ----
 method(print, LinearAdditiveTree) <- function(x, ...) {
   objcat("rtemis Linear Additive Tree")
-  n_nodes <- nrow(x@frame)
+  # The frame keeps every node grown; the selected size reaches only some of
+  # them, and those are the ones this model is.
+  terminal <- x@steps[[x@n_leaves]]
+  reachable <- linad_selected_nodes(x@frame, terminal)
+  n_nodes <- length(reachable)
   cat(
     "Tree of ",
     highlight(x@n_leaves),
@@ -3160,7 +3377,7 @@ method(print, LinearAdditiveTree) <- function(x, ...) {
     highlight(n_nodes),
     ngettext(n_nodes, " node", " nodes"),
     ", max depth ",
-    highlight(max(x@frame[["depth"]])),
+    highlight(max(x@frame[["depth"]][reachable])),
     ".\n",
     sep = ""
   )
@@ -3171,7 +3388,6 @@ method(print, LinearAdditiveTree) <- function(x, ...) {
     ".\n",
     sep = ""
   )
-  terminal <- x@steps[[x@n_leaves]]
   values <- x@frame[["node_value"]][match(terminal, x@frame[["node"]])]
   cat(
     "Node values span ",
@@ -3219,7 +3435,52 @@ LINADForest <- new_class(
     xlev = class_list,
     type = class_character,
     y_levels = NULL | class_character
-  )
+  ),
+  validator = function(self) {
+    n_trees <- length(self@trees)
+    not_trees <- !vapply(
+      self@trees,
+      function(tree) inherits(tree, "rtemis::LinearAdditiveTree"),
+      logical(1L)
+    )
+    if (any(not_trees)) {
+      return("@trees must all be LinearAdditiveTree objects.")
+    }
+    if (n_trees > 0L) {
+      if (NCOL(self@bag_counts) != n_trees) {
+        return(paste0(
+          "@bag_counts must have one column per tree: ",
+          n_trees,
+          " trees, ",
+          NCOL(self@bag_counts),
+          " columns."
+        ))
+      }
+      if (length(self@oob_prediction) != NROW(self@bag_counts)) {
+        return(paste0(
+          "@oob_prediction must have one value per training case: ",
+          NROW(self@bag_counts),
+          " cases, ",
+          length(self@oob_prediction),
+          " predictions."
+        ))
+      }
+      # A tree holds a `mtry_tree` subset, so its features are a subset of the
+      # forest's rather than equal to them.
+      outside <- setdiff(
+        unlist(lapply(self@trees, function(tree) tree@xnames)),
+        self@xnames
+      )
+      if (length(outside) > 0L) {
+        return(paste0(
+          "@trees hold features the forest does not name: ",
+          paste(outside, collapse = ", "),
+          "."
+        ))
+      }
+    }
+    NULL
+  }
 ) # /rtemis::LINADForest
 
 

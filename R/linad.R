@@ -49,31 +49,83 @@ LINAD_BASELINE_MAX <- 10
 #' Subsetting rows rather than zero-weighting them is what keeps a deep node
 #' cheap: a leaf holding 30 of 1000 cases costs 30 rows, not 1000.
 #'
+#' `sg` and `sh` are the weighted first and second derivative totals Equation 20
+#' needs. They are sums over rows like every other quantity here, so the
+#' exhaustive search can accumulate them incrementally and build the same
+#' constant `linad_constant()` gives the commit.
+#'
 #' @param xm Numeric matrix: Intercept-augmented design matrix.
 #' @param y Numeric vector: Target, length `nrow(xm)`.
 #' @param w Numeric vector: Case weights, length `nrow(xm)`.
 #' @param idx Optional Integer vector: Rows to include. NULL uses every row.
+#' @param derivatives Optional List: `linad_gradient()` output. When given, the
+#' weighted derivative totals are accumulated alongside.
 #'
 #' @return List with `G`, `Xty`, `sw` (sum of weights) and `syy` (weighted sum
-#' of squared `y`).
+#' of squared `y`), plus `sg` and `sh` when `derivatives` is given.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_gram <- function(xm, y, w, idx = NULL) {
+linad_gram <- function(xm, y, w, idx = NULL, derivatives = NULL) {
   if (!is.null(idx)) {
     xm <- xm[idx, , drop = FALSE]
     y <- y[idx]
     w <- w[idx]
+    if (!is.null(derivatives)) {
+      derivatives <- list(
+        g = derivatives[["g"]][idx],
+        h = derivatives[["h"]][idx]
+      )
+    }
   }
   xw <- xm * w
-  list(
+  out <- list(
     G = crossprod(xw, xm),
     Xty = drop(crossprod(xw, y)),
     sw = sum(w),
     syy = sum(w * y * y)
   )
+  if (!is.null(derivatives)) {
+    out[["sg"]] <- sum(w * derivatives[["g"]])
+    out[["sh"]] <- sum(w * derivatives[["h"]])
+  }
+  out
 } # /rtemis::linad_gram
+
+
+# %% linad_active_rows ----
+#' The rows a node fits on
+#'
+#' A case whose soft weight has decayed past `LINAD_WEIGHT_TOLERANCE` of the
+#' node's largest contributes nothing a double can represent, and dropping it is
+#' what keeps a deep node's fit proportional to its own size rather than to the
+#' whole dataset.
+#'
+#' Computed once per node, from the **node's** weights rather than from each
+#' child's, and handed to the split search and to the commit alike. A rule
+#' applied to one and not the other would have the search score a model fitted
+#' on a different set of rows, which is the defect family this engine has been
+#' bitten by most.
+#'
+#' At `gamma = 0` a node's weight vector is already exactly zero off its own
+#' cases, so this returns the node's members and the hard partition stays a
+#' special case rather than a separate path.
+#'
+#' @param w Numeric vector: The node's weights.
+#'
+#' @return Integer vector of row indices.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_active_rows <- function(w) {
+  largest <- max(w)
+  if (!is.finite(largest) || largest <= 0) {
+    return(seq_along(w))
+  }
+  which(w > LINAD_WEIGHT_TOLERANCE * largest)
+} # /rtemis::linad_active_rows
 
 
 # %% linad_chol_solve ----
@@ -95,11 +147,8 @@ linad_gram <- function(xm, y, w, idx = NULL) {
 #' @keywords internal
 #' @noRd
 linad_chol_solve <- function(G, Xty, penalty, intercept = TRUE) {
-  ridge <- linad_ridge_diagonal(G, penalty, intercept)
-  chol_factor <- tryCatch(
-    chol(G + diag(ridge, ncol(G))),
-    error = function(e) NULL
-  )
+  diag(G) <- diag(G) + linad_ridge_diagonal(G, penalty, intercept)
+  chol_factor <- tryCatch(chol(G), error = function(e) NULL)
   if (is.null(chol_factor)) {
     return(NULL)
   }
@@ -129,7 +178,9 @@ linad_chol_solve <- function(G, Xty, penalty, intercept = TRUE) {
 #' @noRd
 linad_ridge_diagonal <- function(G, penalty, intercept = TRUE) {
   d <- ncol(G)
-  ridge <- rep(penalty, d)
+  # `penalty` is a scalar for a whole-design solve and one value per column when
+  # forward selection penalizes an active set, so the length is set explicitly.
+  ridge <- rep_len(penalty, d)
   if (intercept) {
     ridge[[1L]] <- 0
   }
@@ -159,15 +210,100 @@ linad_ridge_diagonal <- function(G, penalty, intercept = TRUE) {
 linad_ridge_edf <- function(G, penalty, intercept = TRUE) {
   d <- ncol(G)
   ridge <- linad_ridge_diagonal(G, penalty, intercept)
-  chol_factor <- tryCatch(
-    chol(G + diag(ridge, d)),
-    error = function(e) NULL
-  )
+  diag(G) <- diag(G) + ridge
+  chol_factor <- tryCatch(chol(G), error = function(e) NULL)
   if (is.null(chol_factor)) {
     return(d)
   }
   min(max(d - sum(ridge * diag(chol2inv(chol_factor))), 0), d)
 } # /rtemis::linad_ridge_edf
+
+
+# %% linad_enet_gram ----
+#' Elastic-net slopes from sufficient statistics
+#'
+#' Cyclic coordinate descent on the normal equations, minimizing
+#'
+#' ```
+#' (1 / (2 sw)) sum_i w_i (r_i - x_i'b)^2
+#'   + lambda (alpha |b|_1 + (1 - alpha) |b|^2 / 2)
+#' ```
+#'
+#' which in Gram form needs only `S = X'WX` and `Sxr = X'Wr`. The design is
+#' centered and intercept-free, so there is no level to profile out and no
+#' column standardization: the growth loop already standardizes globally.
+#'
+#' Written natively rather than delegated because the exhaustive search fits a
+#' child model per candidate and cannot call a coordinate-descent package
+#' thousands of times per node. One implementation reached from both routes is
+#' also the only way the search and the commit can be made to agree: a Gram
+#' surrogate that ignored `alpha` would score a model the commit never builds.
+#'
+#' At `alpha = 0` the update reduces to `(S + lambda sw I) b = Sxr`, which is
+#' exactly what `linad_chol_solve()` solves, so the elastic net and the ridge
+#' agree at the boundary by construction.
+#'
+#' @param S Numeric matrix: `X'WX` on the centered, intercept-free design.
+#' @param Sxr Numeric vector: `X'Wr` on the same design.
+#' @param l2 Numeric: L2 penalty, already scaled to the weight total.
+#' @param l1 Numeric: L1 penalty, on the same scale.
+#' @param tolerance Numeric: Largest coefficient change that counts as
+#' converged, relative to the columns' scale.
+#' @param max_iterations Integer: Cap on full sweeps.
+#'
+#' @return Numeric vector of slopes, or NULL if the system is degenerate.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_enet_gram <- function(
+  S,
+  Sxr,
+  l2,
+  l1,
+  tolerance = 1e-10,
+  max_iterations = 1000L
+) {
+  d <- ncol(S)
+  if (d == 0L) {
+    return(numeric(0))
+  }
+  # The same nugget every other solve carries, so a rank-deficient node is
+  # ordinary here too, and the L2 term is added on the diagonal exactly as the
+  # ridge adds it.
+  denominator <- diag(S) + linad_ridge_diagonal(S, l2, intercept = FALSE)
+  if (any(!is.finite(denominator)) || any(denominator <= 0)) {
+    return(NULL)
+  }
+  b <- numeric(d)
+  # `Sxr - S b`, carried rather than recomputed: one coefficient changing
+  # updates it in `O(d)` where reforming it costs `O(d^2)`.
+  gradient <- Sxr
+  own <- diag(S)
+  for (iteration in seq_len(max_iterations)) {
+    largest_change <- 0
+    for (j in seq_len(d)) {
+      # `Sxr_j - S[j, -j] b_{-j}`: the carried gradient with column `j`'s own
+      # contribution added back, which is the quantity the soft threshold acts
+      # on. The penalty enters only through the denominator.
+      partial <- gradient[[j]] + own[[j]] * b[[j]]
+      updated <- sign(partial) * max(abs(partial) - l1, 0) / denominator[[j]]
+      change <- updated - b[[j]]
+      if (change != 0) {
+        gradient <- gradient - change * S[, j]
+        b[[j]] <- updated
+        largest_change <- max(largest_change, abs(change))
+      }
+    }
+    if (largest_change <= tolerance * max(1, max(abs(b)))) {
+      break
+    }
+  }
+  if (!all(is.finite(b))) {
+    return(NULL)
+  }
+  b
+} # /rtemis::linad_enet_gram
 
 
 # %% linad_forward ----
@@ -213,7 +349,8 @@ linad_forward <- function(
   d <- ncol(G)
   coefficients <- rep(0, d)
   active <- if (intercept) 1L else integer(0)
-  nugget <- LINAD_NUGGET * max(mean(diag(G)), .Machine[["double.eps"]])
+  diagonal <- diag(G)
+  nugget <- LINAD_NUGGET * max(mean(diagonal), .Machine[["double.eps"]])
   n_steps <- min(as.integer(nvmax), d - length(active))
   # A per-term cost is what makes `nvmax` a ceiling rather than a quota. Ridge
   # shrinks but never zeroes, so a penalized gain alone would still spend the
@@ -295,23 +432,22 @@ linad_forward <- function(
     # Selection under the objective the fit uses: the same penalty enters the
     # Schur complement, so a feature that only looks good unpenalized does not
     # win the search.
-    gain <- vapply(
-      candidates,
-      function(j) {
-        schur <- if (is.null(chol_active)) {
-          G[[j, j]]
-        } else {
-          projected <- backsolve(chol_active, G[active, j], transpose = TRUE)
-          G[[j, j]] - sum(projected^2)
-        }
-        schur <- schur + penalty
-        if (schur <= nugget) {
-          return(-Inf)
-        }
-        gradient[[j]]^2 / schur
-      },
-      numeric(1L)
-    )
+    # Every candidate's Schur complement from one triangular solve over their
+    # columns together, rather than one solve each: the matrices are the size of
+    # the active set, so per-call overhead otherwise dwarfs the arithmetic.
+    schur <- if (is.null(chol_active)) {
+      diagonal[candidates]
+    } else {
+      projected <- backsolve(
+        chol_active,
+        G[active, candidates, drop = FALSE],
+        transpose = TRUE
+      )
+      diagonal[candidates] - colSums(projected^2)
+    }
+    schur <- schur + penalty
+    gain <- gradient[candidates]^2 / schur
+    gain[!is.finite(schur) | schur <= nugget] <- -Inf
     best <- which.max(gain)
     if (length(best) == 0L || !is.finite(gain[[best]]) || gain[[best]] <= 0) {
       break
@@ -423,28 +559,82 @@ linad_constant <- function(
   max_step,
   rule = "closed_form"
 ) {
-  total <- sum(w[idx])
-  if (total <= 0) {
+  linad_constant_from_sums(
+    swr = sum(w[idx] * r[idx]),
+    sw = sum(w[idx]),
+    sg = if (is.null(derivatives)) {
+      NULL
+    } else {
+      sum(w[idx] * derivatives[["g"]][idx])
+    },
+    sh = if (is.null(derivatives)) {
+      NULL
+    } else {
+      sum(w[idx] * derivatives[["h"]][idx])
+    },
+    type = type,
+    max_step = max_step,
+    rule = rule
+  )
+} # /rtemis::linad_constant
+
+
+# %% linad_constant_from_sums ----
+#' The node's constant, from weighted totals alone
+#'
+#' Equations 19 and 20 need four weighted sums and nothing else, so the rule
+#' lives here and both routes to it -- `linad_constant()` over explicit rows and
+#' `linad_gram_solve()` over accumulated sufficient statistics -- reach the same
+#' function. Two implementations agreeing is precisely what the exhaustive
+#' search has been caught not doing.
+#'
+#' @param swr Numeric: `sum(w r)`.
+#' @param sw Numeric: `sum(w)`.
+#' @param sg Optional Numeric: `sum(w g)`, the weighted first derivative total.
+#' @param sh Optional Numeric: `sum(w h)`, the weighted second derivative total.
+#' @param type Character: "Regression" or "Classification".
+#' @param max_step Numeric: Bound on the absolute constant.
+#' @param rule Character: "closed_form" for Eqs 19/20, or "least_squares" for
+#' the weighted mean of the residual in both outcome types.
+#'
+#' @return Numeric scalar.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_constant_from_sums <- function(
+  swr,
+  sw,
+  sg,
+  sh,
+  type,
+  max_step,
+  rule = "closed_form"
+) {
+  if (!is.finite(sw) || sw <= 0) {
     return(0)
   }
   # Eq 19, and the whole of the `least_squares` rule: the weighted mean of the
   # residual is also what an intercept-only least-squares fit returns, so the
   # two rules coincide for a regression and differ only for a classification.
-  if (!identical(type, "Classification") || identical(rule, "least_squares")) {
-    return(sum(w[idx] * r[idx]) / total)
+  if (
+    !identical(type, "Classification") ||
+      identical(rule, "least_squares") ||
+      is.null(sg) ||
+      is.null(sh)
+  ) {
+    return(swr / sw)
   }
   # Eq 20.
-  numerator <- sum(w[idx] * derivatives[["g"]][idx])
-  denominator <- sum(w[idx] * derivatives[["h"]][idx])
-  if (!is.finite(denominator) || denominator <= 0) {
-    return(sign(-numerator) * min(max_step, LINAD_BASELINE_MAX))
+  if (!is.finite(sh) || sh <= 0) {
+    return(sign(-sg) * min(max_step, LINAD_BASELINE_MAX))
   }
-  step <- -numerator / denominator
+  step <- -sg / sh
   if (!is.finite(step)) {
     return(0)
   }
   sign(step) * min(abs(step), max_step)
-} # /rtemis::linad_constant
+} # /rtemis::linad_constant_from_sums
 
 
 # %% linad_node_test ----
@@ -489,6 +679,112 @@ linad_node_test <- function(rss_constant, rss_linear, sw, n_terms, rule) {
 } # /rtemis::linad_node_test
 
 
+# %% linad_slopes ----
+#' Fit a node's slopes from centered sufficient statistics
+#'
+#' The single slope fitter. `linad_solve()` reaches it with statistics formed
+#' from the node's rows and `linad_gram_solve()` with statistics the exhaustive
+#' search accumulated, so a candidate is scored by the model the node will
+#' actually receive rather than by one that merely agrees with it.
+#'
+#' The design is centered on the node's weighted column means and carries no
+#' intercept: the node's constant already holds the level, and on a centered
+#' design the intercept-free slopes are the joint-fit slopes exactly.
+#'
+#' `allowed` is how effect scope reaches the model. A column outside it is
+#' never offered to the fit and keeps a coefficient of zero, so the returned
+#' vector is full width whatever the restriction and everything downstream --
+#' accumulation, prediction, the coefficient tables -- is untouched.
+#'
+#' @param S Numeric matrix: `X'WX` on the centered, intercept-free design.
+#' @param Sxr Numeric vector: `X'Wr` on the same design.
+#' @param syy Numeric: `sum(w r^2)` for the target the slopes fit, that is,
+#' after the constant is removed.
+#' @param sw Numeric: Sum of weights.
+#' @param node_model Character: "forward", "ridge" or "elasticnet".
+#' @param lambda Numeric: Penalty.
+#' @param alpha Numeric: Elastic-net mixing.
+#' @param nvmax Integer: Forward-selection term count.
+#' @param forward_stop Character: Forward selection's per-term cost rule.
+#' @param node_test Character: Cost the slopes must earn over the constant.
+#' @param allowed Optional Integer vector: Slope columns this node may fit.
+#' NULL allows every column.
+#'
+#' @return Numeric vector of length `ncol(S)`, zero outside `allowed`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_slopes <- function(
+  S,
+  Sxr,
+  syy,
+  sw,
+  node_model,
+  lambda,
+  alpha,
+  nvmax,
+  forward_stop = "none",
+  node_test = "none",
+  allowed = NULL
+) {
+  d <- ncol(S)
+  slopes <- rep(0, d)
+  columns <- if (is.null(allowed)) seq_len(d) else allowed
+  if (d == 0L || length(columns) == 0L) {
+    return(slopes)
+  }
+  sub_S <- S[columns, columns, drop = FALSE]
+  sub_Sxr <- Sxr[columns]
+  fitted <- if (identical(node_model, "forward")) {
+    linad_forward(
+      sub_S,
+      sub_Sxr,
+      nvmax,
+      intercept = FALSE,
+      penalty = lambda * sw,
+      syy = syy,
+      sample_weight = sw,
+      stop_rule = forward_stop
+    )
+  } else if (identical(node_model, "elasticnet")) {
+    linad_enet_gram(
+      sub_S,
+      sub_Sxr,
+      lambda * sw * (1 - alpha),
+      lambda * sw * alpha
+    )
+  } else {
+    # "ridge". Scaling by the weight total matches the elastic net's objective,
+    # which divides the residual sum of squares by it, so one `lambda` means the
+    # same thing in a node of 30 cases and a node of 300.
+    linad_chol_solve(sub_S, sub_Sxr, lambda * sw, intercept = FALSE)
+  }
+  if (is.null(fitted) || !all(is.finite(fitted))) {
+    return(slopes)
+  }
+  if (!identical(node_test, "none") && any(fitted != 0)) {
+    n_terms <- if (identical(node_model, "ridge")) {
+      linad_ridge_edf(sub_S, lambda * sw, intercept = FALSE)
+    } else {
+      sum(fitted != 0)
+    }
+    keep <- linad_node_test(
+      syy,
+      linad_gram_loss(sub_S, sub_Sxr, syy, fitted),
+      sw,
+      n_terms,
+      node_test
+    )
+    if (!keep) {
+      return(slopes)
+    }
+  }
+  slopes[columns] <- fitted
+  slopes
+} # /rtemis::linad_slopes
+
+
 # %% linad_solve ----
 #' Fit one leaf model, as a constant plus slopes
 #'
@@ -525,6 +821,8 @@ linad_node_test <- function(rss_constant, rss_linear, sw, n_terms, rule) {
 #' @param constant_rule Character: Which rule computes the constant.
 #' @param node_test Character: Cost a node's slopes must earn over the constant
 #' alone, as `linad_node_test()` applies it.
+#' @param allowed Optional Integer vector: Slope columns this node may fit,
+#' indexing the design without its intercept. NULL allows every column.
 #'
 #' @return List with `coefficients` (length `ncol(xm)`, column 1 the effective
 #' intercept in the node's own coordinates) and `constant` (the node's value),
@@ -548,7 +846,8 @@ linad_solve <- function(
   type = "Regression",
   max_step = 1000,
   constant_rule = "closed_form",
-  node_test = "none"
+  node_test = "none",
+  allowed = NULL
 ) {
   if (length(idx) == 0L || sum(w[idx]) <= 0) {
     return(NULL)
@@ -576,108 +875,25 @@ linad_solve <- function(
   center <- drop(crossprod(w[idx], xm[idx, slope_columns, drop = FALSE])) /
     sum(w[idx])
   centered <- sweep(xm[, slope_columns, drop = FALSE], 2L, center, "-")
-  residual <- y - constant
-
-  slopes <- if (identical(node_model, "elasticnet")) {
-    linad_glmnet_slopes(centered, residual, w, idx, lambda, alpha)
-  } else {
-    gram <- linad_gram(cbind(centered), residual, w, idx)
-    if (identical(node_model, "forward")) {
-      linad_forward(
-        gram[["G"]],
-        gram[["Xty"]],
-        nvmax,
-        intercept = FALSE,
-        penalty = lambda * gram[["sw"]],
-        syy = gram[["syy"]],
-        sample_weight = gram[["sw"]],
-        stop_rule = forward_stop
-      )
-    } else {
-      # "ridge". Scaling by the weight total matches glmnet's objective, which
-      # divides the residual sum of squares by it, so one `lambda` means the
-      # same thing in a node of 30 cases and a node of 300.
-      linad_chol_solve(
-        gram[["G"]],
-        gram[["Xty"]],
-        lambda * gram[["sw"]],
-        intercept = FALSE
-      )
-    }
-  }
-  if (is.null(slopes) || !all(is.finite(slopes))) {
-    slopes <- rep(0, length(slope_columns))
-  }
-  n_terms <- if (identical(node_model, "ridge")) {
-    linad_ridge_edf(gram[["G"]], lambda * gram[["sw"]], intercept = FALSE)
-  } else {
-    sum(slopes != 0)
-  }
-  if (!identical(node_test, "none") && any(slopes != 0)) {
-    explained <- drop(centered[idx, , drop = FALSE] %*% slopes)
-    keep <- linad_node_test(
-      sum(w[idx] * residual[idx]^2),
-      sum(w[idx] * (residual[idx] - explained)^2),
-      sum(w[idx]),
-      n_terms,
-      node_test
-    )
-    if (!keep) {
-      slopes <- rep(0, length(slope_columns))
-    }
-  }
+  gram <- linad_gram(cbind(centered), y - constant, w, idx)
+  slopes <- linad_slopes(
+    gram[["G"]],
+    gram[["Xty"]],
+    gram[["syy"]],
+    gram[["sw"]],
+    node_model,
+    lambda,
+    alpha,
+    nvmax,
+    forward_stop = forward_stop,
+    node_test = node_test,
+    allowed = allowed
+  )
   # Back to the node's coordinates: the centered fit's level is `constant`, so
   # the effective intercept absorbs what centering removed.
   coefficients <- c(constant - sum(center * slopes), slopes)
   list(coefficients = coefficients, constant = constant)
 } # /rtemis::linad_solve
-
-
-# %% linad_glmnet_slopes ----
-#' Elastic-net slopes on a centered, intercept-free design
-#'
-#' The one leaf model not fitted natively. Coordinate descent overtakes a
-#' Cholesky solve once the design is wide, and an L1 penalty has no closed form,
-#' so this path earns its dependency; the other three do not.
-#'
-#' `intercept = FALSE`, because the node's constant has already been removed from
-#' the target and the design is centered on the node's weighted means.
-#'
-#' @param centered Numeric matrix: Design without an intercept column, centered.
-#' @param residual Numeric vector: Target after the constant is removed.
-#' @param w Numeric vector: Weights.
-#' @param idx Integer vector: Rows this node fits on.
-#' @param lambda Numeric: Penalty.
-#' @param alpha Numeric: Mixing between ridge (0) and lasso (1).
-#'
-#' @return Numeric vector of slopes, or NULL if the fit failed.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-linad_glmnet_slopes <- function(centered, residual, w, idx, lambda, alpha) {
-  check_dependencies("glmnet")
-  if (ncol(centered) == 0L) {
-    return(NULL)
-  }
-  fit <- tryCatch(
-    glmnet::glmnet(
-      centered[idx, , drop = FALSE],
-      residual[idx],
-      weights = w[idx],
-      alpha = alpha,
-      lambda = lambda,
-      standardize = FALSE,
-      intercept = FALSE
-    ),
-    error = function(e) NULL
-  )
-  if (is.null(fit)) {
-    return(NULL)
-  }
-  # `coef()` keeps a leading intercept slot even when none was fitted.
-  drop(as.matrix(stats::coef(fit, s = lambda)))[-1L]
-} # /rtemis::linad_glmnet_slopes
 
 
 # %% linad_loss ----
@@ -773,10 +989,14 @@ linad_cut_positions <- function(
     return(breaks)
   }
   if (identical(type, "width") && !is.null(sorted)) {
-    values <- sorted[breaks]
+    # Thresholds, not the values below them, and spanning the feature's whole
+    # observed range: taking the range of `sorted[breaks]` instead stops short
+    # of the last break's right-hand value, so a sparse upper tail falls outside
+    # every target.
+    values <- (sorted[breaks] + sorted[breaks + 1L]) / 2
     targets <- seq(
-      values[[1L]],
-      values[[length(values)]],
+      sorted[[1L]],
+      sorted[[length(sorted)]],
       length.out = n_cuts + 2L
     )[-c(1L, n_cuts + 2L)]
     # The admissible position whose value sits closest to each evenly spaced
@@ -893,6 +1113,85 @@ linad_scan_features <- function(context, features = NULL) {
     features
   }
 } # /rtemis::linad_scan_features
+
+
+# %% linad_roles ----
+#' Resolve feature roles into the indices the engine works in
+#'
+#' Feature behavior has two independent axes: **split eligibility**, whether a
+#' feature may define a partition, and **effect scope**, whether its modeled
+#' effect is absent, shared by every subgroup, or allowed to change by node.
+#' The public contract names features; everything below this line works in
+#' column indices, and this is the one place the two meet.
+#'
+#' `NULL` means *no constraint imposed* for each of the three selectors, which
+#' reads as "all" for splits and linear terms and "nothing pinned" for global
+#' effects. Each returns NULL in turn, so an unrestricted run takes exactly the
+#' code path it took before feature roles existed.
+#'
+#' A categorical's dummy columns share one `assign` code, so naming the factor
+#' moves the whole encoded group together -- roles are assigned to source
+#' features, never to unrelated indicator columns.
+#'
+#' Names are matched rather than required: `validate_hyperparameters()` has
+#' already refused names absent from the training data, and a LINADForest tree
+#' holding a `mtry_tree` subset legitimately sees only some of them.
+#'
+#' @param context List: `linad_context()` output.
+#' @param design_assign Integer vector: `attr(model.matrix(), "assign")`, one
+#' entry per design column with 0 at the intercept.
+#' @param xnames Character vector: Source feature names, in column order.
+#' @param split_features Optional Character vector: Features that may split.
+#' @param linear_features Optional Character vector: Features with a slope.
+#' @param global_features Optional Character vector: Linear features whose
+#' slope is shared by every leaf.
+#'
+#' @return List with `split` (a `linad_scan_features()` restriction or NULL),
+#' `linear` and `adaptive` (slope-column indices or NULL).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_roles <- function(
+  context,
+  design_assign,
+  xnames,
+  split_features = NULL,
+  linear_features = NULL,
+  global_features = NULL
+) {
+  split_columns <- if (is.null(split_features)) {
+    NULL
+  } else {
+    list(
+      numeric = which(context[["numeric_names"]] %in% split_features),
+      factor = which(context[["factor_names"]] %in% split_features)
+    )
+  }
+  # Slope columns are the design without its intercept, indexed from 1, which
+  # is the coordinate system `linad_slopes()` works in.
+  slope_feature <- xnames[design_assign[-1L]]
+  linear_columns <- if (is.null(linear_features)) {
+    NULL
+  } else {
+    which(slope_feature %in% linear_features)
+  }
+  adaptive_columns <- if (is.null(global_features)) {
+    linear_columns
+  } else {
+    pool <- if (is.null(linear_columns)) {
+      seq_along(slope_feature)
+    } else {
+      linear_columns
+    }
+    setdiff(pool, which(slope_feature %in% global_features))
+  }
+  list(
+    split = split_columns,
+    linear = linear_columns,
+    adaptive = adaptive_columns
+  )
+} # /rtemis::linad_roles
 
 
 # %% linad_slope_gain ----
@@ -1180,6 +1479,9 @@ linad_line_search <- function(y, f, v, w, idx, type, max_step) {
 #' @param derivatives List: `linad_gradient()` at the parent's function value.
 #' @param idx Integer vector: The child's member rows.
 #' @param weights Numeric vector: The child's weights, after Eq 29.
+#' @param active Integer vector: The rows the node fits on, as
+#' `linad_active_rows()` resolves them from the parent's weights. The split
+#' search scored this candidate over the same rows.
 #'
 #' @return List with the child's `index`, `weights`, `coef`, `depth`, the
 #' un-shrunk update direction `v` and its coefficients, and the `constant` that
@@ -1188,7 +1490,7 @@ linad_line_search <- function(y, f, v, w, idx, type, max_step) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_child <- function(state, node, r, derivatives, idx, weights) {
+linad_child <- function(state, node, r, derivatives, idx, weights, active) {
   fit <- NULL
   # A node below the linear model's floor is left to its parent. Splits already
   # respect that floor, so this fires only for a node the caller placed there.
@@ -1205,14 +1507,9 @@ linad_child <- function(state, node, r, derivatives, idx, weights) {
   # below, where a NULL or non-finite fit falls back to a zero update.
   if (!is.null(model) && length(idx) > 0L) {
     # Every case with weight left, not just the node's own. This is what makes
-    # `gamma` a hyperparameter rather than a formality: at 0 the set below is
+    # `gamma` a hyperparameter rather than a formality: at 0 the active set is
     # exactly the node's cases and the fit is the hard-partition one, and as it
     # rises each leaf model is pulled toward what the rest of the data supports.
-    #
-    # Rows whose weight has decayed past `LINAD_WEIGHT_TOLERANCE` are dropped.
-    # They contribute nothing a double can represent, and skipping them is what
-    # keeps a deep node's fit proportional to its own size.
-    active <- which(weights > LINAD_WEIGHT_TOLERANCE * max(weights))
     fit <- linad_solve(
       state[["xm"]],
       r,
@@ -1227,7 +1524,8 @@ linad_child <- function(state, node, r, derivatives, idx, weights) {
       type = state[["type"]],
       max_step = state[["line_search_max"]],
       constant_rule = state[["constant_rule"]],
-      node_test = state[["node_test"]]
+      node_test = state[["node_test"]],
+      allowed = state[["adaptive_columns"]]
     )
   }
   if (is.null(fit) || !all(is.finite(fit[["coefficients"]]))) {
@@ -1275,30 +1573,37 @@ linad_node_loss <- function(state, coefficients, idx) {
 # %% linad_sample_features ----
 #' Draw the feature sample one split search scans
 #'
-#' `mtry` features without replacement from those the tree holds, returned in
-#' the two-vector form `linad_scan_features()` reads. NULL, or an `mtry` that
-#' reaches every feature, returns NULL so the search takes its unrestricted
-#' path unchanged.
+#' `mtry` features without replacement from those the tree may split on,
+#' returned in the two-vector form `linad_scan_features()` reads. The draw is
+#' made **within** `allowed` rather than over every feature, so `split_features`
+#' and `mtry_split` compose: the first says which partitions are admissible, the
+#' second how many of them one node considers.
+#'
+#' NULL, or an `mtry` that reaches the whole pool, returns `allowed` unchanged --
+#' NULL where nothing was restricted, so an unrestricted run takes its original
+#' path.
 #'
 #' @param context List: `linad_context()` output.
 #' @param mtry Optional Integer: Features to sample.
+#' @param allowed Optional List: The split-eligible features, as
+#' `linad_scan_features()` describes them. NULL allows every feature.
 #'
 #' @return List of two integer vectors, or NULL for no restriction.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_sample_features <- function(context, mtry = NULL) {
-  n_numeric <- length(context[["numeric_names"]])
-  n_factor <- length(context[["factor_names"]])
-  total <- n_numeric + n_factor
+linad_sample_features <- function(context, mtry = NULL, allowed = NULL) {
+  pool <- linad_scan_features(context, allowed)
+  n_numeric <- length(pool[["numeric"]])
+  total <- n_numeric + length(pool[["factor"]])
   if (is.null(mtry) || mtry >= total) {
-    return(NULL)
+    return(allowed)
   }
   drawn <- sample.int(total, mtry)
   list(
-    numeric = drawn[drawn <= n_numeric],
-    factor = drawn[drawn > n_numeric] - n_numeric
+    numeric = pool[["numeric"]][drawn[drawn <= n_numeric]],
+    factor = pool[["factor"]][drawn[drawn > n_numeric] - n_numeric]
   )
 } # /rtemis::linad_sample_features
 
@@ -1339,16 +1644,29 @@ linad_min_child_cases <- function(state) {
 #' @param member Logical vector: Node membership.
 #' @param features Optional List: Which features to scan, as
 #' `linad_scan_features()` describes. NULL scans every feature.
+#' @param derivatives List: `linad_gradient()` at the parent's function value.
+#' @param active Integer vector: The node's active rows.
 #'
 #' @return A split, or NULL when no admissible split exists.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_split_search <- function(state, r, w, member, features) {
+linad_split_search <- function(
+  state,
+  r,
+  w,
+  member,
+  features,
+  derivatives = NULL,
+  active = NULL
+) {
   if (identical(state[["split_search"]], "exhaustive")) {
-    linad_sweep(state, r, w, member, features)
+    linad_sweep(state, r, w, member, features, derivatives, active)
   } else {
+    # The stump scores a candidate by the mean shift it produces rather than by
+    # a fitted child model, so it has no model to keep in step with the commit
+    # and reads every row's weight as it stands.
     linad_stump(
       state[["context"]],
       r,
@@ -1410,7 +1728,19 @@ linad_propose <- function(state, node, features = NULL) {
   }
   member <- logical(state[["n"]])
   member[node[["index"]]] <- TRUE
-  split <- linad_split_search(state, r, node[["weights"]], member, features)
+  # One active-row rule per node, resolved here and handed to the search and to
+  # both commits. Resolving it separately on each side is how the search comes
+  # to score a model that is never built.
+  active <- linad_active_rows(node[["weights"]])
+  split <- linad_split_search(
+    state,
+    r,
+    node[["weights"]],
+    member,
+    features,
+    derivatives,
+    active
+  )
   if (is.null(split)) {
     return(NULL)
   }
@@ -1429,8 +1759,24 @@ linad_propose <- function(state, node, features = NULL) {
   weights_right <- node[["weights"]]
   weights_right[goes_left] <- weights_right[goes_left] * state[["gamma"]]
 
-  left <- linad_child(state, node, r, derivatives, index_left, weights_left)
-  right <- linad_child(state, node, r, derivatives, index_right, weights_right)
+  left <- linad_child(
+    state,
+    node,
+    r,
+    derivatives,
+    index_left,
+    weights_left,
+    active
+  )
+  right <- linad_child(
+    state,
+    node,
+    r,
+    derivatives,
+    index_right,
+    weights_right,
+    active
+  )
 
   steps <- linad_steps(state, node, f, goes_left, left, right)
   coef_left <- node[["coef"]] +
@@ -1446,31 +1792,8 @@ linad_propose <- function(state, node, features = NULL) {
   loss_left <- linad_node_loss(state, coef_left, index_left)
   loss_right <- linad_node_loss(state, coef_right, index_right)
 
-  score <- if (identical(state[["node_selection"]], "global")) {
-    # The legacy criterion: the loss over *every* case, with this node's own
-    # model extrapolated to the cases it does not contain. It is not the tree's
-    # actual loss -- those cases sit in other leaves -- which is why it differs
-    # from the local form and why the two are an ablation rather than a
-    # refactoring.
-    after <- f
-    after[index_left] <- drop(
-      state[["xm"]][index_left, , drop = FALSE] %*% coef_left
-    )
-    after[index_right] <- drop(
-      state[["xm"]][index_right, , drop = FALSE] %*% coef_right
-    )
-    all_rows <- seq_len(state[["n"]])
-    sum(
-      state[["case_weights"]] * linad_loss(state[["y"]], f, state[["type"]])
-    ) -
-      sum(
-        state[["case_weights"]][all_rows] *
-          linad_loss(state[["y"]], after, state[["type"]])
-      )
-  } else {
-    # Algorithm 1 line 9, without its stray leading minus.
-    node[["loss"]] - (loss_left + loss_right)
-  }
+  # Algorithm 1 line 9, without its stray leading minus.
+  score <- node[["loss"]] - (loss_left + loss_right)
 
   list(
     split = split,
@@ -1498,14 +1821,15 @@ linad_propose <- function(state, node, features = NULL) {
 # %% linad_expand ----
 #' Propose a split for one node, over a sample of the features
 #'
-#' `ExpandNode` of Algorithm 1, with `mtry_split` drawn once per node.
+#' `ExpandNode` of Algorithm 1, with `mtry_split` drawn once per node from the
+#' features `split_features` admits.
 #'
 #' A node is expanded once and its proposal cached, so a feature sample that
 #' finds nothing worth splitting on would close that node for good -- an
 #' artifact of the caching rather than a property of the method, and invisible
-#' in the output. One retry over every feature keeps `mtry_split` a choice of
-#' *which* split is made and never of *whether* the node can split at all: a
-#' node closes only where no feature improves the loss.
+#' in the output. One retry over every admissible feature keeps `mtry_split` a
+#' choice of *which* split is made and never of *whether* the node can split at
+#' all: a node closes only where no admissible feature improves the loss.
 #'
 #' The retry costs a second expansion, child model fits included, and only at
 #' nodes whose sample found nothing -- terminal nodes, mostly, where the full
@@ -1520,13 +1844,18 @@ linad_propose <- function(state, node, features = NULL) {
 #' @keywords internal
 #' @noRd
 linad_expand <- function(state, node) {
+  allowed <- state[["split_columns"]]
   features <- linad_sample_features(
     state[["context"]],
-    state[["mtry_split"]]
+    state[["mtry_split"]],
+    allowed
   )
   proposal <- linad_propose(state, node, features)
-  if (!is.null(features) && !linad_improves(proposal)) {
-    proposal <- linad_propose(state, node, NULL)
+  # The retry restores every *admissible* feature, not every feature: a split
+  # the user disallowed must not come back through the mechanism that stops a
+  # poor sample from closing a node.
+  if (!identical(features, allowed) && !linad_improves(proposal)) {
+    proposal <- linad_propose(state, node, allowed)
   }
   proposal
 } # /rtemis::linad_expand
@@ -1628,12 +1957,22 @@ linad_steps <- function(state, node, f, goes_left, left, right) {
 #' @param settings List: Hyperparameter values, as named in `setup_LINAD`.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return List with `frame`, `coefficients`, `steps` and `n_leaves`.
+#' @return List with `frame`, `coefficients`, `steps`, `n_leaves` and
+#' `settings`, the last being every hyperparameter as the run resolved it.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_fit <- function(x, xm, y, case_weights, type, settings, verbosity = 1L) {
+linad_fit <- function(
+  x,
+  xm,
+  y,
+  case_weights,
+  type,
+  settings,
+  validation = NULL,
+  verbosity = 1L
+) {
   n <- nrow(xm)
   # Growth runs in standardized space so one `lambda` means the same thing at
   # every node; the finished coefficients are mapped back before they are
@@ -1645,6 +1984,30 @@ linad_fit <- function(x, xm, y, case_weights, type, settings, verbosity = 1L) {
     scaling[["scale"]],
     "/"
   )
+  context <- linad_context(
+    x,
+    settings[["split_binning"]],
+    settings[["split_bin_type"]]
+  )
+  # Feature roles, resolved from names to column indices once. The design's
+  # `assign` attribute is read from `xm` rather than from the scaled copy,
+  # which `sweep()` returns without it.
+  roles <- linad_roles(
+    context,
+    as.integer(attr(xm, "assign")),
+    names(x),
+    settings[["split_features"]],
+    settings[["linear_features"]],
+    settings[["global_features"]]
+  )
+  # A node with no adaptive column may change its constant and nothing else,
+  # which is what `node_model = "constant"` already means. Saying so here rather
+  # than special-casing it below is what keeps `min_cases_node_model`, the split
+  # floors and `node_test` behaving as they do for any constant-node tree. The
+  # root is untouched: it still fits the global effects.
+  if (!is.null(roles[["adaptive"]]) && length(roles[["adaptive"]]) == 0L) {
+    settings[["node_model"]] <- "constant"
+  }
   state <- c(
     settings,
     list(
@@ -1654,11 +2017,10 @@ linad_fit <- function(x, xm, y, case_weights, type, settings, verbosity = 1L) {
       n = n,
       case_weights = case_weights,
       type = type,
-      context = linad_context(
-        x,
-        settings[["split_binning"]],
-        settings[["split_bin_type"]]
-      )
+      context = context,
+      split_columns = roles[["split"]],
+      linear_columns = roles[["linear"]],
+      adaptive_columns = roles[["adaptive"]]
     )
   )
 
@@ -1668,9 +2030,9 @@ linad_fit <- function(x, xm, y, case_weights, type, settings, verbosity = 1L) {
   # is no separate init term to keep in step with the coefficients.
   # The root fits `y` itself by least squares, in both outcome types -- it is an
   # initialization, not a boosting step, so there is no gradient yet to fit. Its
-  # constant is therefore Eq 3 for a regression (the weighted mean) and the
-  # least-squares level for a classification, and `root_learning_rate` shrinks
-  # only the slopes around it.
+  # constant is the baseline that minimizes the loss, which is the weighted mean
+  # for a regression and half the log odds for a classification, and
+  # `root_learning_rate` shrinks only the slopes around it.
   #
   # That separation is the whole point: nothing special-cases the intercept any
   # more. Shrinking the slopes cannot disturb the level, which is what used to
@@ -1693,14 +2055,14 @@ linad_fit <- function(x, xm, y, case_weights, type, settings, verbosity = 1L) {
       derivatives = NULL,
       type = "Regression",
       max_step = settings[["line_search_max"]],
-      node_test = settings[["node_test"]]
+      node_test = settings[["node_test"]],
+      allowed = roles[["linear"]]
     )
   }
-  root_constant <- if (is.null(root_fit)) {
-    linad_baseline(y, case_weights, type)
-  } else {
-    root_fit[["constant"]]
-  }
+  # Taken from the outcome rather than from the fit, which is run as a
+  # regression and would otherwise make an intercept-only classification
+  # predict the mean of the -1/+1 labels instead of the prevalence.
+  root_constant <- linad_baseline(y, case_weights, type)
   root_slopes <- if (is.null(root_fit)) {
     rep(0, ncol(xm_scaled) - 1L)
   } else {
@@ -1736,6 +2098,29 @@ linad_fit <- function(x, xm, y, case_weights, type, settings, verbosity = 1L) {
   nodes[[1L]][["loss"]] <- linad_node_loss(state, root_coef, seq_len(n))
   leaves <- 1L
   steps <- list(1L)
+
+  # Early stopping ----
+  # Validation cases are routed as the tree grows rather than re-routed from
+  # scratch at every size: a split moves only the cases sitting in the node it
+  # splits, and `linad_goes_left()` is the same primitive the commit routes
+  # with, so there is no second copy of the routing rule.
+  patience <- settings[["patience"]]
+  watching <- !is.null(validation) && !is.null(patience)
+  if (watching) {
+    validation_xm <- sweep(
+      sweep(validation[["xm"]], 2L, scaling[["center"]], "-"),
+      2L,
+      scaling[["scale"]],
+      "/"
+    )
+    validation_leaf <- rep(1L, nrow(validation_xm))
+    validation_f <- drop(validation_xm %*% root_coef)
+    validation_loss <- mean(
+      linad_loss(validation[["y"]], validation_f, type)
+    )
+    best_loss <- validation_loss
+    since_best <- 0L
+  }
 
   if (settings[["max_leaves"]] > 1L) {
     nodes[[1L]][["proposal"]] <- linad_expand(state, nodes[[1L]])
@@ -1793,6 +2178,52 @@ linad_fit <- function(x, xm, y, case_weights, type, settings, verbosity = 1L) {
         }
       }
       steps[[length(leaves)]] <- leaves
+      if (watching) {
+        moved <- which(validation_leaf == chosen)
+        if (length(moved) > 0L) {
+          goes_left <- linad_goes_left(
+            proposal[["split"]],
+            validation[["x"]][moved, , drop = FALSE]
+          )
+          validation_leaf[moved] <- ifelse(
+            goes_left,
+            child_ids[[1L]],
+            child_ids[[2L]]
+          )
+          for (side in seq_len(2L)) {
+            rows <- moved[validation_leaf[moved] == child_ids[[side]]]
+            if (length(rows) > 0L) {
+              validation_f[rows] <- drop(
+                validation_xm[rows, , drop = FALSE] %*%
+                  nodes[[child_ids[[side]]]][["coef"]]
+              )
+            }
+          }
+        }
+        validation_loss <- mean(
+          linad_loss(validation[["y"]], validation_f, type)
+        )
+        if (validation_loss < best_loss) {
+          best_loss <- validation_loss
+          since_best <- 0L
+        } else {
+          since_best <- since_best + 1L
+        }
+        if (since_best >= patience) {
+          if (verbosity > 0L) {
+            info(
+              "Stopped at ",
+              length(leaves),
+              ngettext(length(leaves), " leaf", " leaves"),
+              ": validation loss has not improved for ",
+              patience,
+              ngettext(patience, " expansion", " expansions"),
+              "."
+            )
+          }
+          break
+        }
+      }
       if (verbosity > 1L) {
         dbg(
           "LINAD: ",
@@ -1808,6 +2239,11 @@ linad_fit <- function(x, xm, y, case_weights, type, settings, verbosity = 1L) {
 
   fitted <- linad_frame(nodes, leaves, steps, colnames(xm))
   fitted[["coefficients"]] <- linad_unscale(fitted[["coefficients"]], scaling)
+  # Every value the run actually used, resolved. Several defaults are resolved
+  # only here -- `n_cuts` is the clearest -- so without this a serialized fit
+  # does not record what produced it and reproducing it means knowing the
+  # package version's resolution rules.
+  fitted[["settings"]] <- settings
   fitted
 } # /rtemis::linad_fit
 
@@ -1877,6 +2313,38 @@ linad_frame <- function(nodes, leaves, steps, design_names) {
 } # /rtemis::linad_frame
 
 
+# %% linad_selected_nodes ----
+#' The rows a selected tree can reach
+#'
+#' A fitted model keeps the fully grown frame, and validation selects a size
+#' from it. Everything below that size's terminal nodes is still in the frame
+#' and is unreachable: prediction stops at the terminals, so anything that
+#' describes the model -- its structure, its importances, its printed summary --
+#' must stop there too.
+#'
+#' @param frame data.table: The tree frame.
+#' @param terminal Integer vector: Node ids terminal at the selected size.
+#'
+#' @return Integer vector of frame row indices, sorted.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_selected_nodes <- function(frame, terminal) {
+  keep <- match(terminal, frame[["node"]])
+  repeat {
+    parents <- frame[["parent"]][keep]
+    parents <- match(parents[!is.na(parents)], frame[["node"]])
+    new <- setdiff(parents, keep)
+    if (length(new) == 0L) {
+      break
+    }
+    keep <- c(keep, new)
+  }
+  sort(keep)
+} # /rtemis::linad_selected_nodes
+
+
 # %% linad_check_tree ----
 #' Structural invariants of a grown tree
 #'
@@ -1894,18 +2362,41 @@ linad_frame <- function(nodes, leaves, steps, design_names) {
 #'
 #' @param model `LinearAdditiveTree` object.
 #'
+#' @param min_cases_child Optional Integer: The floor a split had to leave on
+#' each side. Supplied by a caller that knows the hyperparameters, since the
+#' fitted tree does not carry them.
+#'
 #' @return Character vector of violations, empty when the tree is sound.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_check_tree <- function(model) {
+linad_check_tree <- function(model, min_cases_child = NULL) {
   problems <- character()
   frame <- model@frame
   node <- frame[["node"]]
   terminal <- model@steps[[model@n_leaves]]
   leaf_rows <- match(terminal, node)
   internal <- which(!is.na(frame[["left"]]))
+
+  # No node smaller than the floor its split was required to leave. A rule that
+  # moves that floor without saying so spends the leaf budget on nodes too small
+  # to carry a model, which no accuracy measurement reliably shows.
+  if (!is.null(min_cases_child)) {
+    undersized <- node[frame[["n"]] < min_cases_child]
+    if (length(undersized) > 0L) {
+      problems <- c(
+        problems,
+        paste0(
+          "node(s) ",
+          paste(undersized, collapse = ", "),
+          " hold fewer than the ",
+          min_cases_child,
+          " cases a split had to leave"
+        )
+      )
+    }
+  }
 
   # A split partitions its node: nothing is lost or double counted.
   for (row in internal) {
@@ -1990,6 +2481,58 @@ linad_check_tree <- function(model) {
   if (!identical(sizes, seq_along(model@steps))) {
     problems <- c(problems, "the sequence of tree sizes is not 1, 2, ... k")
   }
+  # Feature roles, as the fitted model records them: a coefficient outside the
+  # linear set was never fitted, and a global one is the same in every node by
+  # construction rather than by coincidence.
+  roles <- linad_roles(
+    list(numeric_names = character(), factor_names = character()),
+    model@design_assign,
+    model@xnames,
+    linear_features = model@settings[["linear_features"]],
+    global_features = model@settings[["global_features"]]
+  )
+  slopes <- model@coefficients[, -1L, drop = FALSE]
+  if (!is.null(roles[["linear"]]) && NCOL(slopes) > 0L) {
+    outside <- setdiff(seq_len(NCOL(slopes)), roles[["linear"]])
+    nonzero <- outside[apply(slopes[, outside, drop = FALSE] != 0, 2L, any)]
+    if (length(nonzero) > 0L) {
+      problems <- c(
+        problems,
+        paste0(
+          "design column(s) ",
+          paste(colnames(slopes)[nonzero], collapse = ", "),
+          " carry a coefficient but are not linear features"
+        )
+      )
+    }
+  }
+  if (!is.null(roles[["adaptive"]]) && NCOL(slopes) > 0L) {
+    pinned <- setdiff(
+      if (is.null(roles[["linear"]])) {
+        seq_len(NCOL(slopes))
+      } else {
+        roles[["linear"]]
+      },
+      roles[["adaptive"]]
+    )
+    reachable <- linad_selected_nodes(frame, terminal)
+    varying <- pinned[apply(
+      slopes[reachable, pinned, drop = FALSE],
+      2L,
+      function(column) diff(range(column)) != 0
+    )]
+    if (length(varying) > 0L) {
+      problems <- c(
+        problems,
+        paste0(
+          "global column(s) ",
+          paste(colnames(slopes)[varying], collapse = ", "),
+          " differ between nodes"
+        )
+      )
+    }
+  }
+
   problems
 } # /rtemis::linad_check_tree
 
@@ -2060,12 +2603,61 @@ linad_route <- function(frame, x, terminal) {
 #' @keywords internal
 #' @noRd
 linad_raw_prediction <- function(model, x, xm, n_leaves = NULL) {
+  # Coefficients are applied by position, so a design rebuilt on a different
+  # basis has to be caught here or it is multiplied silently. Empty for a model
+  # fitted before the names were recorded.
+  if (
+    length(model@design_names) > 0L &&
+      !identical(colnames(xm), model@design_names)
+  ) {
+    rtemis.core::abort(
+      "Design matrix does not match the one this model was fitted on. Fitted: ",
+      paste(model@design_names, collapse = ", "),
+      ". Rebuilt: ",
+      paste(colnames(xm), collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_data_error")
+    )
+  }
   if (is.null(n_leaves)) {
     n_leaves <- model@n_leaves
   }
   leaf <- linad_route(model@frame, x, model@steps[[n_leaves]])
   rowSums(xm * model@coefficients[leaf, , drop = FALSE])
 } # /rtemis::linad_raw_prediction
+
+
+# %% linad_size_curve ----
+#' Loss at every size the tree passed through
+#'
+#' Truncating the tree is exact -- a node's coefficients depend only on its
+#' ancestors -- so scoring size `k` needs no refit, only a prediction that stops
+#' at that size's terminal set.
+#'
+#' @param model `LinearAdditiveTree` object.
+#' @param x data.frame: Features, unencoded.
+#' @param xm Numeric matrix: Features, encoded.
+#' @param y Numeric vector: Outcome, on the training scale.
+#' @param type Character: "Regression" or "Classification".
+#'
+#' @return Numeric vector, one mean loss per size.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_size_curve <- function(model, x, xm, y, type) {
+  vapply(
+    seq_along(model@steps),
+    function(k) {
+      mean(linad_loss(
+        y,
+        linad_raw_prediction(model, x, xm, n_leaves = k),
+        type
+      ))
+    },
+    numeric(1L)
+  )
+} # /rtemis::linad_size_curve
 
 
 # %% linad_select_leaves ----
@@ -2090,14 +2682,7 @@ linad_raw_prediction <- function(model, x, xm, n_leaves = NULL) {
 #' @noRd
 linad_select_leaves <- function(model, x, xm, y, type, smooth = FALSE) {
   sizes <- seq_along(model@steps)
-  curve <- vapply(
-    sizes,
-    function(k) {
-      f <- linad_raw_prediction(model, x, xm, n_leaves = k)
-      mean(linad_loss(y, f, type))
-    },
-    numeric(1L)
-  )
+  curve <- linad_size_curve(model, x, xm, y, type)
   scored <- curve
   if (smooth && length(sizes) >= 4L) {
     smoothed <- tryCatch(
@@ -2159,7 +2744,21 @@ linad_design_matrix <- function(x, xlev = NULL) {
       x[[feature]] <- values
     }
   }
-  stats::model.matrix(~., data = x)
+  # Reference coding, named rather than taken from `getOption("contrasts")`.
+  # The option is process-global and mutable, so a model fitted under one
+  # setting and predicted under another would be multiplied against a design
+  # built from a different basis, positionally and silently.
+  factors <- names(x)[vapply(
+    x,
+    function(column) is.factor(column) && nlevels(column) > 1L,
+    logical(1L)
+  )]
+  contrasts <- if (length(factors) > 0L) {
+    stats::setNames(rep(list("contr.treatment"), length(factors)), factors)
+  } else {
+    NULL
+  }
+  stats::model.matrix(~., data = x, contrasts.arg = contrasts)
 } # /rtemis::linad_design_matrix
 
 
@@ -2271,6 +2870,7 @@ linad_settings <- function(hyperparameters) {
     root_alpha = value_or("root_alpha", alpha),
     root_learning_rate = hyperparameters[["root_learning_rate"]],
     forward_stop = value_or("forward_stop", "bic"),
+    patience = hyperparameters[["patience"]],
     node_test = value_or("node_test", "none"),
     split_search = hyperparameters[["split_search"]],
     split_criterion = value_or("split_criterion", "mean"),
@@ -2280,34 +2880,55 @@ linad_settings <- function(hyperparameters) {
     split_binning = hyperparameters[["split_binning"]],
     split_bin_type = hyperparameters[["split_bin_type"]],
     n_cuts = value_or("n_cuts", 20L),
+    split_features = hyperparameters[["split_features"]],
+    linear_features = hyperparameters[["linear_features"]],
+    global_features = hyperparameters[["global_features"]],
     gamma = hyperparameters[["gamma"]],
     line_search = hyperparameters[["line_search"]],
     line_search_max = hyperparameters[["line_search_max"]],
-    node_selection = hyperparameters[["node_selection"]],
     constant_rule = hyperparameters[["constant_rule"]]
   )
 } # /rtemis::linad_settings
 
 
 # %% linad_gram_solve ----
-#' Solve a leaf model from sufficient statistics alone
+#' Fit a leaf model from sufficient statistics alone
 #'
-#' The Gram path of `linad_solve()`, split out because the exhaustive split
-#' search needs to fit thousands of candidate models without ever touching the
-#' rows again.
+#' The Gram route into `linad_solve()`'s own two steps, split out because the
+#' exhaustive split search fits thousands of candidate models without ever
+#' touching the rows again.
 #'
-#' The elastic net has no Gram form, so a search under it is scored with a ridge
-#' of the same `lambda`. The chosen split is then fitted with the real leaf
-#' model, so this affects which split wins, not what is fitted at it.
+#' The statistics arrive on the raw intercept-augmented design; the constant and
+#' the centered slope system are read off it algebraically. Writing
+#' `sw = sum(w)` and `m = G[1, -1] / sw` for the weighted column means,
+#'
+#' ```
+#' S   = G[-1, -1] - sw m m'
+#' Sxr = Xty[-1] - m Xty[1]
+#' ```
+#'
+#' are the centered cross-products, and `X_c'W(r - c) = X_c'Wr` for any constant
+#' `c`, since the centered columns are weight-orthogonal to the intercept. So
+#' the same two pieces `linad_solve()` fits are available here, and both routes
+#' call `linad_constant_from_sums()` and `linad_slopes()` rather than agreeing
+#' by construction.
 #'
 #' @param G Numeric matrix: `X'WX`.
 #' @param Xty Numeric vector: `X'Wy`.
-#' @param sw Numeric: Sum of weights.
+#' @param syy Numeric: `sum(w y^2)`.
 #' @param node_model Character: Leaf model name.
-#' @param lambda Numeric: Ridge penalty.
+#' @param lambda Numeric: Penalty.
+#' @param alpha Numeric: Elastic-net mixing.
 #' @param nvmax Integer: Forward-selection term count.
+#' @param forward_stop Character: Forward selection's per-term cost rule.
 #' @param node_test Character: Cost a side's slopes must earn over the constant
 #' alone, as `linad_node_test()` applies it.
+#' @param sg Optional Numeric: `sum(w g)` over the same rows, for Equation 20.
+#' @param sh Optional Numeric: `sum(w h)` over the same rows.
+#' @param type Character: "Regression" or "Classification".
+#' @param max_step Numeric: Bound on the constant.
+#' @param constant_rule Character: Which rule computes the constant.
+#' @param allowed Optional Integer vector: Slope columns the node may fit.
 #'
 #' @return Numeric vector of coefficients, or NULL.
 #'
@@ -2317,51 +2938,59 @@ linad_settings <- function(hyperparameters) {
 linad_gram_solve <- function(
   G,
   Xty,
-  sw,
+  syy,
   node_model,
   lambda,
-  nvmax,
-  syy = NULL,
+  alpha = 1,
+  nvmax = 3L,
   forward_stop = "none",
-  node_test = "none"
+  node_test = "none",
+  sg = NULL,
+  sh = NULL,
+  type = "Regression",
+  max_step = 1000,
+  constant_rule = "closed_form",
+  allowed = NULL
 ) {
-  if (G[[1L, 1L]] <= 0) {
+  sw <- G[[1L, 1L]]
+  if (sw <= 0) {
     return(NULL)
   }
-  constant_only <- rep(0, ncol(G))
-  constant_only[[1L]] <- Xty[[1L]] / G[[1L, 1L]]
-  if (identical(node_model, "constant")) {
-    return(constant_only)
-  }
-  coefficients <- if (identical(node_model, "forward")) {
-    linad_forward(
-      G,
-      Xty,
-      nvmax,
-      penalty = lambda * sw,
-      syy = syy,
-      sample_weight = sw,
-      stop_rule = forward_stop
-    )
-  } else {
-    linad_chol_solve(G, Xty, lambda * sw)
-  }
-  if (identical(node_test, "none") || is.null(coefficients) || is.null(syy)) {
+  constant <- linad_constant_from_sums(
+    Xty[[1L]],
+    sw,
+    sg,
+    sh,
+    type,
+    max_step,
+    constant_rule
+  )
+  d <- ncol(G)
+  if (identical(node_model, "constant") || d == 1L) {
+    coefficients <- rep(0, d)
+    coefficients[[1L]] <- constant
     return(coefficients)
   }
-  n_terms <- if (identical(node_model, "forward")) {
-    sum(coefficients[-1L] != 0)
-  } else {
-    linad_ridge_edf(G, lambda * sw) - 1
-  }
-  keep <- linad_node_test(
-    linad_gram_loss(G, Xty, syy, constant_only),
-    linad_gram_loss(G, Xty, syy, coefficients),
+  center <- G[1L, -1L] / sw
+  S <- G[-1L, -1L, drop = FALSE] - sw * outer(center, center)
+  Sxr <- Xty[-1L] - center * Xty[[1L]]
+  # The target the slopes fit is `r - constant`, so its weighted sum of squares
+  # is the node's own expanded about that constant.
+  syy_centered <- syy - 2 * constant * Xty[[1L]] + constant * constant * sw
+  slopes <- linad_slopes(
+    S,
+    Sxr,
+    syy_centered,
     sw,
-    n_terms,
-    node_test
+    node_model,
+    lambda,
+    alpha,
+    nvmax,
+    forward_stop = forward_stop,
+    node_test = node_test,
+    allowed = allowed
   )
-  if (keep) coefficients else constant_only
+  c(constant - sum(center * slopes), slopes)
 } # /rtemis::linad_gram_solve
 
 
@@ -2413,6 +3042,10 @@ linad_gram_loss <- function(G, Xty, syy, b) {
 #' @param member Logical vector: Node membership.
 #' @param features Optional List: Which features to scan, as
 #' `linad_scan_features()` describes. NULL scans every feature.
+#' @param derivatives Optional List: `linad_gradient()` at the parent's function
+#' value. Needed only where the constant is a Newton step.
+#' @param active Optional Integer vector: The node's active rows, as
+#' `linad_active_rows()` resolves them. NULL uses every row.
 #'
 #' @return A split, shaped as `linad_stump()` returns one, with `gain` the
 #' negated loss so the caller compares the two the same way.
@@ -2420,92 +3053,120 @@ linad_gram_loss <- function(G, Xty, syy, b) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_sweep <- function(state, r, w, member, features = NULL) {
+linad_sweep <- function(
+  state,
+  r,
+  w,
+  member,
+  features = NULL,
+  derivatives = NULL,
+  active = NULL
+) {
   context <- state[["context"]]
   xm <- state[["xm"]]
   gamma <- state[["gamma"]]
   best <- list(gain = -Inf)
   scan <- linad_scan_features(context, features)
   min_cases_child <- linad_min_child_cases(state)
+  # The node's active rows, resolved once by the caller and shared with the
+  # commit. A row the commit will not fit on must not contribute to the
+  # statistics a candidate is scored by.
+  in_scope <- logical(context[["n"]])
+  in_scope[if (is.null(active)) seq_len(context[["n"]]) else active] <- TRUE
 
   # The node's own sufficient statistics, which every candidate's right-hand
   # side is read off by subtraction. They do not depend on the feature, so they
   # are formed once per node rather than once per feature.
   weights <- w
-  total <- linad_gram(xm, r, weights, NULL)
+  total <- linad_gram(xm, r, weights, which(in_scope), derivatives)
+
+  # One candidate, scored by the loss after fitting both child models. Every
+  # search path below reaches a split through this, so a candidate is never
+  # scored by a model the commit would not fit.
+  score_split <- function(left, left_members, total_members) {
+    if (
+      left_members < min_cases_child ||
+        (total_members - left_members) < min_cases_child
+    ) {
+      return(Inf)
+    }
+    # A case carries `gamma` of its weight into the branch it does not belong
+    # to, so each side's statistics are a mixture of the two hard sides -- both
+    # of which the caller already holds. At `gamma = 0` the mixture collapses to
+    # the hard sides themselves. Every quantity here is a sum over rows, the
+    # derivative totals included, so all of them mix the same way.
+    mix <- function(name) {
+      whole <- total[[name]]
+      if (is.null(whole)) {
+        return(NULL)
+      }
+      part <- left[[name]]
+      rest <- whole - part
+      list(part + gamma * rest, gamma * part + rest)
+    }
+    G <- mix("G")
+    Xty <- mix("Xty")
+    syy <- mix("syy")
+    sg <- mix("sg")
+    sh <- mix("sh")
+    loss <- 0
+    for (side in seq_len(2L)) {
+      if (G[[side]][[1L, 1L]] <= 0) {
+        return(Inf)
+      }
+      b <- linad_gram_solve(
+        G[[side]],
+        Xty[[side]],
+        syy[[side]],
+        state[["node_model"]],
+        state[["lambda"]],
+        state[["alpha"]],
+        state[["nvmax"]],
+        forward_stop = state[["forward_stop"]],
+        node_test = state[["node_test"]],
+        sg = if (is.null(sg)) NULL else sg[[side]],
+        sh = if (is.null(sh)) NULL else sh[[side]],
+        type = state[["type"]],
+        max_step = state[["line_search_max"]],
+        constant_rule = state[["constant_rule"]],
+        allowed = state[["adaptive_columns"]]
+      )
+      if (is.null(b) || !all(is.finite(b))) {
+        return(Inf)
+      }
+      loss <- loss + linad_gram_loss(G[[side]], Xty[[side]], syy[[side]], b)
+    }
+    loss
+  }
 
   score_cuts <- function(order_index, cut_positions, member_counts) {
     # Sufficient statistics accumulated left-to-right in blocks, one block per
     # candidate cut, so each row is visited once per feature rather than once
     # per cut.
     d <- ncol(xm)
-    running_G <- matrix(0, d, d)
-    running_Xty <- numeric(d)
-    running_syy <- 0
+    running <- list(
+      G = matrix(0, d, d),
+      Xty = numeric(d),
+      syy = 0,
+      sg = if (is.null(derivatives)) NULL else 0,
+      sh = if (is.null(derivatives)) NULL else 0
+    )
     from <- 1L
     losses <- rep(Inf, length(cut_positions))
+    total_members <- member_counts[[length(member_counts)]]
     for (k in seq_along(cut_positions)) {
       rows <- order_index[seq.int(from, cut_positions[[k]])]
       from <- cut_positions[[k]] + 1L
-      block <- linad_gram(xm, r, weights, rows)
-      running_G <- running_G + block[["G"]]
-      running_Xty <- running_Xty + block[["Xty"]]
-      running_syy <- running_syy + block[["syy"]]
-      # The same floor the stump search uses and the commit enforces: a
-      # candidate is never scored by a child model that will not be fitted.
-      if (
-        member_counts[[k]] < min_cases_child ||
-          (member_counts[[length(member_counts)]] - member_counts[[k]]) <
-            min_cases_child
-      ) {
-        next
-      }
-      right_G <- total[["G"]] - running_G
-      right_Xty <- total[["Xty"]] - running_Xty
-      right_syy <- total[["syy"]] - running_syy
-      # A case carries `gamma` of its weight into the branch it does not belong
-      # to, so each side's statistics are a mixture of the two hard sides --
-      # both of which the sweep already holds. At `gamma = 0` the mixture
-      # collapses to the hard sides themselves.
-      mix <- gamma
-      sides <- list(
-        list(
-          G = running_G + mix * right_G,
-          Xty = running_Xty + mix * right_Xty,
-          syy = running_syy + mix * right_syy
-        ),
-        list(
-          G = mix * running_G + right_G,
-          Xty = mix * running_Xty + right_Xty,
-          syy = mix * running_syy + right_syy
-        )
-      )
-      loss <- 0
-      for (side in sides) {
-        sw <- side[["G"]][[1L, 1L]]
-        if (sw <= 0) {
-          loss <- Inf
-          break
+      rows <- rows[in_scope[rows]]
+      if (length(rows) > 0L) {
+        block <- linad_gram(xm, r, weights, rows, derivatives)
+        for (name in names(running)) {
+          if (!is.null(running[[name]])) {
+            running[[name]] <- running[[name]] + block[[name]]
+          }
         }
-        b <- linad_gram_solve(
-          side[["G"]],
-          side[["Xty"]],
-          sw,
-          state[["node_model"]],
-          state[["lambda"]],
-          state[["nvmax"]],
-          syy = side[["syy"]],
-          forward_stop = state[["forward_stop"]],
-          node_test = state[["node_test"]]
-        )
-        if (is.null(b) || !all(is.finite(b))) {
-          loss <- Inf
-          break
-        }
-        loss <- loss +
-          linad_gram_loss(side[["G"]], side[["Xty"]], side[["syy"]], b)
       }
-      losses[[k]] <- loss
+      losses[[k]] <- score_split(running, member_counts[[k]], total_members)
     }
     losses
   }
@@ -2523,7 +3184,7 @@ linad_sweep <- function(state, r, w, member, features = NULL) {
     # already coarsened the feature, this thins what is left, by the same rule.
     wanted <- linad_cut_positions(
       breaks,
-      state[["n_cuts"]] - 1L,
+      state[["n_cuts"]],
       sorted,
       state[["split_bin_type"]]
     )
@@ -2555,15 +3216,80 @@ linad_sweep <- function(state, r, w, member, features = NULL) {
   for (j in scan[["factor"]]) {
     codes <- context[["factor_codes"]][[j]]
     levels_j <- context[["factor_levels"]][[j]]
-    level_w <- as.vector(rowsum(weights, codes, reorder = TRUE))
-    level_wr <- as.vector(rowsum(weights * r, codes, reorder = TRUE))
+    scoped <- weights * in_scope
+    level_w <- as.vector(rowsum(scoped, codes, reorder = TRUE))
+    level_wr <- as.vector(rowsum(scoped * r, codes, reorder = TRUE))
     present <- sort(unique(codes))
     keep <- level_w > 0
     if (sum(keep) < 2L) {
       next
     }
+    present_levels <- present[keep]
+    n_partitions <- 2^(length(present_levels) - 1L) - 1L
+    # Ordering levels by mean residual makes the best contiguous split of that
+    # ordering the best of all partitions -- for squared error of the *mean*.
+    # This search scores by child linear models, for which the theorem does not
+    # hold, so it enumerates every partition where that costs no more than a
+    # numeric feature's candidates and falls back to the ordering above that.
+    if (n_partitions <= state[["n_cuts"]]) {
+      by_level <- lapply(
+        present_levels,
+        function(level) {
+          linad_gram(
+            xm,
+            r,
+            weights,
+            which(codes == level & in_scope),
+            derivatives
+          )
+        }
+      )
+      members_by_level <- vapply(
+        present_levels,
+        function(level) sum(member[codes == level]),
+        numeric(1L)
+      )
+      total_members <- sum(members_by_level)
+      # A mask below 2^(k-1) never holds the last level, so each partition and
+      # its complement are enumerated once between them.
+      for (mask in seq_len(n_partitions)) {
+        left <- bitwAnd(mask, bitwShiftL(1L, seq_along(present_levels) - 1L)) >
+          0L
+        chosen <- by_level[left]
+        loss <- score_split(
+          list(
+            G = Reduce(`+`, lapply(chosen, `[[`, "G")),
+            Xty = Reduce(`+`, lapply(chosen, `[[`, "Xty")),
+            syy = sum(vapply(chosen, `[[`, numeric(1L), "syy")),
+            sg = if (is.null(derivatives)) {
+              NULL
+            } else {
+              sum(vapply(chosen, `[[`, numeric(1L), "sg"))
+            },
+            sh = if (is.null(derivatives)) {
+              NULL
+            } else {
+              sum(vapply(chosen, `[[`, numeric(1L), "sh"))
+            }
+          ),
+          sum(members_by_level[left]),
+          total_members
+        )
+        if (is.finite(loss) && -loss > best[["gain"]]) {
+          best <- list(
+            gain = -loss,
+            feature = context[["factor_names"]][[j]],
+            kind = "factor",
+            value = NA_real_,
+            levels = levels_j[present_levels[left]],
+            column = j
+          )
+        }
+      }
+      next
+    }
     ranking <- order(level_wr[keep] / level_w[keep])
-    ordered_levels <- present[keep][ranking]
+    ordered_levels <- present_levels[ranking]
     order_index <- order(match(codes, ordered_levels))
     sizes <- cumsum(as.vector(table(codes)[as.character(ordered_levels)]))
     cuts <- sizes[-length(sizes)]

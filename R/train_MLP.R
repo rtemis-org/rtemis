@@ -899,6 +899,30 @@ method(predict_super, MLPModel) <- function(
 } # /rtemis::predict_super.MLPModel
 
 
+# %% learning_curve_super.MLPModel ----
+#' Learning curve of an MLP
+#'
+#' One step is one epoch. `torch_fit()` records both series and the epoch whose
+#' weights were restored, so this is a rename rather than a computation.
+#'
+#' @param model `MLPModel` object.
+#'
+#' @return data.frame, as `learning_curve_frame()` shapes it.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(learning_curve_super, MLPModel) <- function(model) {
+  history <- model@history
+  learning_curve_frame(
+    loss_training = history[["loss_training"]],
+    loss_validation = history[["loss_validation"]],
+    unit = "epochs",
+    selected = model@best_epoch
+  )
+} # /rtemis::learning_curve_super.MLPModel
+
+
 # %% varimp_super.MLPModel ----
 #' Get variable importance from an MLP model
 #'

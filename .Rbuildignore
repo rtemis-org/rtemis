@@ -14,10 +14,11 @@
 ^cran-comments\.md$
 ^LICENSE\.md$
 ^data-raw$
-^design$
 ^dev$
 ^docs$
 ^plan$
+^review$
+^design$
 ^specs$
 ^ARCHITECTURE\.md$
 ^AGENTS\.md$

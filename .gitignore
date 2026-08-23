@@ -53,3 +53,6 @@ AGENTS.md
 CLAUDE.md
 .claude/
 SKILL.md
+
+# Review notes and session prompts (local only)
+review/

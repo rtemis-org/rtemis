@@ -126,6 +126,20 @@ linadforest_tree <- function(
   weights <- weights / mean(weights)
   xlev <- lapply(Filter(is.factor, features), levels)
   xm <- linad_design_matrix(features, xlev)
+  oob <- setdiff(seq_len(nrow(x)), bag)
+  # A tree's own out-of-bag cases are its validation set, so `patience` needs
+  # no held-out data of its own here -- and the growth it saves multiplies by
+  # the tree count.
+  validation <- if (
+    !is.null(settings[["patience"]]) && length(oob) >= LINADFOREST_MIN_OOB
+  ) {
+    oob_features <- x[oob, columns, drop = FALSE]
+    list(
+      x = oob_features,
+      xm = linad_design_matrix(oob_features, xlev),
+      y = y[oob]
+    )
+  }
   fitted <- linad_fit(
     x = features,
     xm = xm,
@@ -133,6 +147,7 @@ linadforest_tree <- function(
     case_weights = weights,
     type = type,
     settings = settings,
+    validation = validation,
     verbosity = 0L
   )
   tree <- LinearAdditiveTree(
@@ -143,13 +158,16 @@ linadforest_tree <- function(
     xnames = names(features),
     xlev = xlev,
     design_assign = as.integer(attr(xm, "assign")),
+    design_names = colnames(xm),
     design_scale = linad_scaling(xm)[["scale"]],
     type = type,
     y_levels = y_levels,
-    leaf_curve = NULL
+    settings = fitted[["settings"]],
+    leaf_curve = NULL,
+    training_curve = NULL
   )
 
-  oob <- setdiff(seq_len(nrow(x)), bag)
+  tree@training_curve <- linad_size_curve(tree, features, xm, y[bag], type)
   if (
     !settings[["force_max_leaves"]] &&
       length(tree@steps) > 1L &&
@@ -275,10 +293,16 @@ linadforest_oob_metrics <- function(oob_prediction, outcome, type) {
 #' @keywords internal
 #' @noRd
 linadforest_tree_predictions <- function(trees, newdata) {
-  vapply(
-    trees,
-    function(tree) predict_super(tree, newdata),
-    numeric(NROW(newdata))
+  # Shaped explicitly: `vapply()` drops to a vector for a single case, and the
+  # aggregation and the jackknife both read this as cases x trees.
+  matrix(
+    vapply(
+      trees,
+      function(tree) predict_super(tree, newdata),
+      numeric(NROW(newdata))
+    ),
+    nrow = NROW(newdata),
+    ncol = length(trees)
   )
 } # /rtemis::linadforest_tree_predictions
 

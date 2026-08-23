@@ -1032,10 +1032,6 @@ test_that("a grown tree is structurally sound under every configuration", {
       max_leaves = 8L,
       line_search = "none"
     ),
-    "global selection" = rtemis::setup_LINAD(
-      max_leaves = 8L,
-      node_selection = "global"
-    ),
     "least squares" = rtemis::setup_LINAD(
       max_leaves = 8L,
       constant_rule = "least_squares"
@@ -1062,9 +1058,11 @@ test_that("a grown tree is structurally sound under every configuration", {
       xnames = names(.x),
       xlev = lapply(Filter(is.factor, .x), levels),
       design_assign = as.integer(attr(.xm, "assign")),
+      design_names = colnames(.xm),
       design_scale = rtemis:::linad_scaling(.xm)[["scale"]],
       type = "Regression",
       y_levels = NULL,
+      settings = fitted[["settings"]],
       leaf_curve = NULL
     )
     model@frame[["is_leaf"]] <- model@frame[["node"]] %in%
@@ -1099,8 +1097,10 @@ test_that("a classification tree is structurally sound too", {
     xnames = names(.x),
     xlev = lapply(Filter(is.factor, .x), levels),
     design_assign = as.integer(attr(.xm, "assign")),
+    design_names = colnames(.xm),
     design_scale = rtemis:::linad_scaling(.xm)[["scale"]],
     type = "Classification",
+    settings = fitted[["settings"]],
     y_levels = c("lo", "hi"),
     leaf_curve = NULL
   )
@@ -1606,4 +1606,339 @@ test_that("node_test keeps a ridge fit on data wider than it is long", {
         sum((X[["y"]] - mean(X[["y"]]))^2)
   }
   expect_gt(rsq(fit(node_test = "bic")), rsq(fit()) - 0.05)
+})
+
+
+# %% Factor partitions ----
+test_that("The exhaustive search finds a factor partition no ordering reaches", {
+  # A and C share a slope, B reverses it, and the level means order A < B < C.
+  # The best partition {A,C} | {B} is therefore not contiguous in the
+  # mean-residual ordering that the theorem for constant leaves relies on.
+  set.seed(7)
+  n <- 900L
+  g <- factor(rep(c("A", "B", "C"), each = n / 3L))
+  x <- rnorm(n)
+  dat <- data.frame(
+    g = g,
+    x = x,
+    y = ifelse(g == "B", -3 * x + 1, 3 * x + ifelse(g == "C", 2, 0)) +
+      rnorm(n, 0, 0.5)
+  )
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(
+      max_leaves = 2L,
+      node_model = "ridge",
+      lambda = 0.01,
+      learning_rate = 1,
+      gamma = 0,
+      split_search = "exhaustive",
+      force_max_leaves = TRUE
+    ),
+    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    verbosity = 0L
+  )
+  frame <- mod@model@frame
+  root <- frame[!is.na(frame[["split_feature"]]), ][1L, ]
+  expect_equal(root[["split_feature"]], "g")
+  # Either side of the partition names it.
+  expect_setequal(
+    if (length(root[["split_levels"]][[1L]]) == 1L) {
+      root[["split_levels"]][[1L]]
+    } else {
+      setdiff(c("A", "B", "C"), root[["split_levels"]][[1L]])
+    },
+    "B"
+  )
+})
+
+
+test_that("A factor too wide to enumerate falls back to the ordering", {
+  # 12 levels is 2047 partitions against a budget of `n_cuts`, so the search
+  # takes the contiguous-cut path and must still produce a sound tree.
+  set.seed(3)
+  n <- 600L
+  h <- factor(sample(letters[1:12], n, replace = TRUE))
+  x <- rnorm(n)
+  dat <- data.frame(
+    h = h,
+    x = x,
+    y = 2 * x + as.numeric(h) / 4 + rnorm(n, 0, 0.5)
+  )
+  mod <- train(
+    dat,
+    hyperparameters = setup_LINAD(
+      max_leaves = 4L,
+      split_search = "exhaustive",
+      force_max_leaves = TRUE
+    ),
+    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    verbosity = 0L
+  )
+  expect_length(linad_check_tree(mod@model), 0L)
+  expect_equal(mod@model@n_leaves, 4L)
+})
+
+
+test_that("n_cuts is the budget that decides whether a factor is enumerated", {
+  # 6 levels is 31 partitions: above the default budget, below a raised one.
+  set.seed(11)
+  n <- 1200L
+  g <- factor(rep(letters[1:6], each = n / 6L))
+  x <- rnorm(n)
+  # Levels alternate slope, so the best partition is the odd/even one -- as
+  # non-contiguous in any mean ordering as a 6-level factor allows.
+  slope <- ifelse(as.integer(g) %% 2L == 0L, -3, 3)
+  dat <- data.frame(g = g, x = x, y = slope * x + rnorm(n, 0, 0.5))
+  split_of <- function(n_cuts) {
+    mod <- train(
+      dat,
+      hyperparameters = setup_LINAD(
+        max_leaves = 2L,
+        node_model = "ridge",
+        lambda = 0.01,
+        learning_rate = 1,
+        gamma = 0,
+        split_search = "exhaustive",
+        n_cuts = n_cuts,
+        force_max_leaves = TRUE
+      ),
+      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      verbosity = 0L
+    )
+    frame <- mod@model@frame
+    sort(frame[!is.na(frame[["split_feature"]]), ][1L, ][["split_levels"]][[
+      1L
+    ]])
+  }
+  odds <- c("a", "c", "e")
+  enumerated <- split_of(64L)
+  expect_true(
+    identical(enumerated, odds) ||
+      identical(enumerated, sort(setdiff(letters[1:6], odds)))
+  )
+  expect_false(identical(split_of(20L), enumerated))
+})
+
+
+# %% Feature roles ----
+# Two independent axes: which features may define a partition, and whether a
+# modeled effect is absent, shared by every subgroup, or free to change along a
+# path. The reductions below are the specification, not edge cases.
+
+.roles_data <- local({
+  set.seed(404)
+  n <- 300L
+  dat <- data.frame(
+    a = rnorm(n),
+    b = rnorm(n),
+    g = factor(sample(c("p", "q", "r"), n, replace = TRUE)),
+    d = rnorm(n)
+  )
+  dat[["y"]] <- 2 *
+    dat[["a"]] +
+    ifelse(dat[["b"]] < 0, -3, 3) +
+    0.5 * dat[["d"]] +
+    rnorm(n)
+  dat
+})
+
+
+.roles_fit <- function(...) {
+  train(
+    .roles_data,
+    hyperparameters = setup_LINAD(
+      max_leaves = 6L,
+      node_model = "ridge",
+      force_max_leaves = TRUE,
+      ...
+    ),
+    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    verbosity = 0L
+  )@model
+}
+
+
+.roles_slopes <- function(model) {
+  model@coefficients[, -1L, drop = FALSE]
+}
+
+
+test_that("Unrestricted roles reproduce the model built without them", {
+  # The plan's hardest acceptance criterion: NULL on each selector must impose
+  # no constraint, so the code path is the one that ran before roles existed.
+  baseline <- .roles_fit()
+  explicit <- .roles_fit(
+    split_features = names(.roles_data)[1:4],
+    linear_features = names(.roles_data)[1:4]
+  )
+  expect_identical(baseline@frame, explicit@frame)
+  expect_equal(baseline@coefficients, explicit@coefficients)
+  expect_equal(
+    predict_super(baseline, features(.roles_data)),
+    predict_super(explicit, features(.roles_data))
+  )
+})
+
+
+test_that("split_features is the only set the tree partitions on", {
+  model <- .roles_fit(split_features = c("b", "g"))
+  used <- unique(stats::na.omit(model@frame[["split_feature"]]))
+  expect_true(all(used %in% c("b", "g")))
+  expect_true(length(used) > 0L)
+  # It constrains the search rather than merely the winner. `d` carries a small
+  # linear effect and no step, so nothing would choose it: restricted to it, the
+  # tree splits on it anyway.
+  narrowed <- .roles_fit(split_features = "d")
+  expect_setequal(
+    unique(stats::na.omit(narrowed@frame[["split_feature"]])),
+    "d"
+  )
+})
+
+
+test_that("linear_features is the only set that receives a slope", {
+  model <- .roles_fit(linear_features = c("a", "d"))
+  slopes <- .roles_slopes(model)
+  carried <- colnames(slopes)[apply(slopes != 0, 2L, any)]
+  expect_setequal(carried, c("a", "d"))
+})
+
+
+test_that("A categorical's roles apply to its whole encoded group", {
+  model <- .roles_fit(linear_features = c("g", "d"))
+  slopes <- .roles_slopes(model)
+  carried <- colnames(slopes)[apply(slopes != 0, 2L, any)]
+  # Reference coding gives `g` two design columns; naming the feature moves
+  # both, never one.
+  expect_setequal(carried, c("gq", "gr", "d"))
+})
+
+
+test_that("A global coefficient is identical in every leaf", {
+  model <- .roles_fit(global_features = "a")
+  slopes <- .roles_slopes(model)
+  expect_equal(diff(range(slopes[, "a"])), 0)
+  # And the point of declaring it: the others are still free to move.
+  expect_gt(
+    max(apply(slopes[, c("b", "d"), drop = FALSE], 2L, function(x) {
+      diff(range(x))
+    })),
+    0
+  )
+  expect_identical(rtemis:::linad_check_tree(model), character())
+})
+
+
+test_that("No adaptive slopes gives global coefficients and node constants", {
+  # A model class in its own right: what a PALM tree with an intercept-only
+  # node model is.
+  model <- .roles_fit(global_features = names(.roles_data)[1:4])
+  slopes <- .roles_slopes(model)
+  expect_equal(max(apply(slopes, 2L, function(x) diff(range(x)))), 0)
+  # The tree is still a tree: its constants differ between nodes.
+  expect_gt(diff(range(model@frame[["node_value"]])), 0)
+  expect_identical(rtemis:::linad_check_tree(model), character())
+})
+
+
+test_that("Feature roles reach the exhaustive search, not only the commit", {
+  # A search scoring child models that ignore the restrictions optimizes a
+  # model the commit will never build.
+  model <- train(
+    .roles_data,
+    hyperparameters = setup_LINAD(
+      max_leaves = 5L,
+      node_model = "ridge",
+      split_search = "exhaustive",
+      force_max_leaves = TRUE,
+      split_features = c("b", "g"),
+      linear_features = c("a", "d"),
+      global_features = "a"
+    ),
+    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    verbosity = 0L
+  )@model
+  used <- unique(stats::na.omit(model@frame[["split_feature"]]))
+  expect_true(all(used %in% c("b", "g")))
+  slopes <- .roles_slopes(model)
+  carried <- colnames(slopes)[apply(slopes != 0, 2L, any)]
+  expect_setequal(carried, c("a", "d"))
+  expect_equal(diff(range(slopes[, "a"])), 0)
+  expect_identical(rtemis:::linad_check_tree(model), character())
+})
+
+
+test_that("A LINADForest applies the roles its trees are given", {
+  model <- train(
+    .roles_data,
+    hyperparameters = setup_LINADForest(
+      n_trees = 4L,
+      max_leaves = 4L,
+      node_model = "ridge",
+      force_max_leaves = TRUE,
+      split_features = c("b", "g"),
+      global_features = "a"
+    ),
+    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    verbosity = 0L
+  )@model
+  for (tree in model@trees) {
+    used <- unique(stats::na.omit(tree@frame[["split_feature"]]))
+    expect_true(all(used %in% c("b", "g")))
+    slopes <- tree@coefficients[, -1L, drop = FALSE]
+    if ("a" %in% colnames(slopes)) {
+      expect_equal(diff(range(slopes[, "a"])), 0)
+    }
+  }
+})
+
+
+test_that("mtry_split samples within the split-eligible set", {
+  # The two compose: the first says which partitions are admissible, the
+  # second how many of them one node considers. The retry that stops a poor
+  # sample from closing a node must not reintroduce a disallowed feature.
+  model <- train(
+    .roles_data,
+    hyperparameters = setup_LINADForest(
+      n_trees = 5L,
+      mtry_split = 1L,
+      max_leaves = 5L,
+      force_max_leaves = TRUE,
+      split_features = c("b", "d")
+    ),
+    execution_config = setup_ExecutionConfig(seed = 3L, backend = "none"),
+    verbosity = 0L
+  )@model
+  used <- unlist(lapply(model@trees, function(tree) {
+    stats::na.omit(tree@frame[["split_feature"]])
+  }))
+  expect_true(all(used %in% c("b", "d")))
+})
+
+
+test_that("The fitted model records every setting the run resolved", {
+  model <- .roles_fit(global_features = "a")
+  # `n_cuts` is resolved inside `linad_settings()` and is NULL on the
+  # hyperparameters, so without this a serialized run does not record it.
+  expect_identical(model@settings[["n_cuts"]], 20L)
+  expect_identical(model@settings[["global_features"]], "a")
+  expect_identical(model@settings[["node_model"]], "ridge")
+  expect_identical(model@settings[["gamma"]], 0.1)
+})
+
+
+test_that("The role gates refuse what they should", {
+  expect_error(
+    setup_LINAD(linear_features = "a", global_features = "b"),
+    "subset of @linear_features"
+  )
+  expect_error(
+    train(
+      .roles_data,
+      hyperparameters = setup_LINAD(max_leaves = 3L, split_features = "nope"),
+      verbosity = 0L
+    ),
+    class = "rtemis_value_error"
+  )
 })

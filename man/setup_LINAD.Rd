@@ -26,13 +26,16 @@ setup_LINAD(
   split_criterion = NULL,
   line_search = "expansion",
   constant_rule = "closed_form",
-  node_selection = "local",
   ifw = FALSE,
+  patience = NULL,
   force_max_leaves = FALSE,
   smooth_validation_curve = NULL,
   node_model = "forward",
   root_model = NULL,
   split_search = "stump",
+  split_features = NULL,
+  linear_features = NULL,
+  global_features = NULL,
   line_search_max = 1000
 )
 }
@@ -79,9 +82,9 @@ setup_LINAD(
 
 \item{constant_rule}{(Tunable) Character \{"closed_form", "least_squares"\}: How a node's constant is computed. The two coincide for regression and differ only for classification.}
 
-\item{node_selection}{(Tunable) Character \{"local", "global"\}: Criterion for choosing which frontier node to split next.}
-
 \item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
+
+\item{patience}{(Tunable) Optional Integer [1, Inf): Expansions without validation improvement before growth stops. Requires a validation set.}
 
 \item{force_max_leaves}{Logical: If TRUE, keep every leaf grown instead of selecting a size on the validation set.}
 
@@ -92,6 +95,12 @@ setup_LINAD(
 \item{root_model}{Optional Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at the root. NULL uses \code{node_model}.}
 
 \item{split_search}{Character \{"stump", "exhaustive"\}: How a split is chosen.}
+
+\item{split_features}{Optional Character vector: Features that may define a split. NULL imposes no constraint, so every feature may.}
+
+\item{linear_features}{Optional Character vector: Features that get a slope in the node models. NULL imposes no constraint, so every feature does.}
+
+\item{global_features}{Optional Character vector: Linear features whose slope is shared by every leaf. Must be a subset of \code{linear_features} where that is set. NULL imposes no constraint, so no coefficient is pinned.}
 
 \item{line_search_max}{Numeric (0, Inf): Largest absolute step the line search may take.}
 }
@@ -169,6 +178,14 @@ It costs more per split and finds structure no stump can see: an interaction
 that changes another feature's slope without changing either side's mean
 leaves no trace in any one feature's marginal fit.
 
+A node's model is fitted to what its parent left, so its slopes are the
+\emph{change} to the parent's coefficients and \code{lambda} and \code{alpha} penalize that
+change. At \code{alpha = 1} the change is a lasso, so a feature whose coefficient
+does not need to move gets exactly zero and inherits its parent's value: the
+tree decides per feature, per node, whether an effect keeps adapting. Ridge
+shrinks every change but zeroes none, so every coefficient moves at every
+node.
+
 \code{node_test} lets the tree decide, node by node, whether a linear model is
 warranted at all: the slopes are kept only where they reduce the node's
 residual sum of squares by more than they cost, and the node takes a plain
@@ -200,6 +217,52 @@ values; \code{n_cuts} then thins what is left, for the exhaustive search only.
 cases, \code{"width"} evenly through the feature's range.
 }
 
+\section{Feature roles}{
+
+A feature's behavior has two independent axes: whether it may \strong{define a
+partition}, and whether its modeled \strong{effect} is absent, shared by every
+subgroup, or free to change along a path. Three name-based selectors set
+them, and on each of the three \strong{NULL imposes no constraint} -- which means
+"all" for the first two and "nothing pinned" for the third:
+
+\describe{
+\item{\code{split_features}}{Features the tree may split on.}
+\item{\code{linear_features}}{Features that receive a slope in the node models.}
+\item{\code{global_features}}{Linear features whose slope is shared by every
+leaf: the root estimates it and no node below may change it. Must be a
+subset of \code{linear_features} where that is set.}
+}
+
+The axes are independent, so a feature may split without entering any node
+model, enter every node model without ever splitting, do both, or neither.
+Roles are assigned to \strong{source features}: naming a factor moves all of its
+encoded columns together, never one of them.
+
+Declaring effect scope turns LINAD into a varying-coefficient model with a
+hierarchical form -- a global baseline plus the node deviations accumulated
+down the path. \code{global} is a hard constraint on the coefficient: it holds
+exactly, at any \code{gamma}. \code{gamma} is the soft, data-driven version of the same
+idea, pulling every node's fit toward what the rest of the data supports
+until, at \code{gamma = 1}, every coefficient is effectively global. The two
+compose without interacting: \code{gamma} decides how much a node's \emph{adaptive}
+coefficients may move, and \code{global_features} decides which coefficients are
+allowed to move at all.
+
+Because a global coefficient is estimated at the root, \code{root_learning_rate}
+shrinks it: at 0 the root fits no slopes and a global feature carries no
+effect anywhere.
+
+The constrained family keeps useful reductions. No splits (\code{max_leaves = 1})
+is a penalized linear model; \code{node_model = "constant"} is a tree of
+constants; making every linear feature global gives a tree with shared
+coefficients and node-specific constants; and leaving all three NULL
+reproduces unconstrained LINAD exactly.
+
+Restricting the split set is also the largest single speed-up available on
+wide data, since the search cost is linear in the number of candidate
+features.
+}
+
 \section{Learning rate and the root model}{
 
 \code{learning_rate} shrinks the update made at each \strong{node}. It does not shrink
@@ -229,7 +292,7 @@ near 1 whatever the residual's size -- so the applied step stays proportional
 to \code{learning_rate}. Measured node updates scale linearly with it, by a factor
 of 50 across a 50-fold change in the rate.
 
-\code{line_search}, \code{node_selection} and \code{constant_rule} each select among
+\code{line_search} and \code{constant_rule} each select among
 alternative update rules -- the scope of the Newton step, which frontier node
 is split next, and how a node's constant is computed. There is no settled
 best choice among them, so each is tunable.

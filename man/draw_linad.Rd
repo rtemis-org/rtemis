@@ -17,6 +17,7 @@ draw_linad(
   node_labels = TRUE,
   show_ncases = TRUE,
   show_node_value = TRUE,
+  show_changes = TRUE,
   lo_col = SIGN_COLORS[["negative"]],
   mid_col = NULL,
   hi_col = SIGN_COLORS[["positive"]],
@@ -63,6 +64,12 @@ were the widest node in the tree.}
 
 \item{show_node_value}{Logical: If TRUE, include the node's own value in its
 label.}
+
+\item{show_changes}{Logical: If TRUE, mark each coefficient in the node's
+table with where it came from: a global effect, shared by every leaf, is
+marked with an identity sign, and one this node changed with a delta. A term
+with neither was inherited from the parent unchanged. The root carries no
+marks: it has no parent to differ from.}
 
 \item{lo_col}{Character: Color for the most negative coefficient. Defaults
 to the package-wide negative color, the same one \code{draw_volcano()} and

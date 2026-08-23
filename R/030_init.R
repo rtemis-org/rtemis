@@ -856,6 +856,98 @@ plot_roc <- new_generic("plot_roc", "x")
 plot_varimp <- new_generic("plot_varimp", "x")
 
 
+# %% plot_learning ----
+#' Plot a learning curve
+#'
+#' @description
+#' Plot loss against training progress for an algorithm that records it. The
+#' unit of progress is the algorithm's own -- epochs for a neural network,
+#' leaves for a Linear Additive Tree, boosting iterations for a gradient
+#' boosting machine -- and the point the model kept is marked.
+#'
+#' Both the training and the validation series are drawn where the algorithm
+#' records them. The pair is what shows overfitting: a validation curve alone
+#' cannot say whether a rising loss is overfitting or a fit that has yet to
+#' converge.
+#'
+#' @param x `Supervised` object.
+#' @param ... Additional arguments passed to methods.
+#'
+#' @return plotly object.
+#'
+#' @author EDG
+#' @export
+#' @examplesIf interactive()
+#' dat <- set_outcome(iris[, 1:4], "Sepal.Length")
+#' mod <- train(
+#'   dat[1:100, ],
+#'   dat_validation = dat[101:150, ],
+#'   hyperparameters = setup_LINAD(max_leaves = 12L)
+#' )
+#' plot_learning(mod)
+#'
+#' @seealso [get_learning_curve], which returns the same data untouched
+plot_learning <- new_generic("plot_learning", "x")
+
+
+# %% get_learning_curve ----
+#' Learning curve of a fitted model
+#'
+#' @description
+#' The loss recorded at every step of training, as data rather than a picture:
+#' one row per step, with the training and validation loss where the algorithm
+#' records them.
+#'
+#' Returns NULL for an algorithm that records no learning curve, so it is safe
+#' to call on any model.
+#'
+#' @param x `Supervised` object.
+#' @param ... Additional arguments passed to methods.
+#'
+#' @return data.frame with columns `iteration`, `loss_training` and
+#' `loss_validation`, carrying attributes `unit` and `selected`; or NULL.
+#'
+#' @author EDG
+#' @export
+#' @examplesIf interactive()
+#' dat <- set_outcome(iris[, 1:4], "Sepal.Length")
+#' mod <- train(
+#'   dat[1:100, ],
+#'   dat_validation = dat[101:150, ],
+#'   hyperparameters = setup_LINAD(max_leaves = 12L)
+#' )
+#' get_learning_curve(mod)
+#'
+#' @seealso [plot_learning], which draws it
+get_learning_curve <- new_generic("get_learning_curve", "x")
+
+
+# %% learning_curve_super ----
+#' Learning curve of a fitted model object
+#'
+#' The per-algorithm half of [get_learning_curve]: dispatches on the fitted
+#' model class and returns the curve in one shape whatever the algorithm's own
+#' unit of progress is. A missing method means the algorithm records no curve,
+#' which `get_learning_curve()` reports as NULL rather than as a dispatch error.
+#'
+#' @param model Fitted model object.
+#'
+#' @return data.frame with `iteration`, `loss_training` and `loss_validation`,
+#' carrying `unit` and `selected` attributes.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+learning_curve_super <- new_generic(
+  "learning_curve_super",
+  "model",
+  function(model) {
+    force_supplied()
+    S7_dispatch()
+  }
+)
+
+
 # %% plot_true_pred ----
 #' Plot True vs. Predicted Values
 #'
