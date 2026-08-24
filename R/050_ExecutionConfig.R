@@ -260,6 +260,10 @@ setup_ExecutionConfig <- function(
   shared_memory = c("auto", "none", "always"),
   warm_workers = TRUE
 ) {
+  # Captured before anything is filled in: this function's defaults are not the
+  # class's, so a record comparing the two would report the backend it picked,
+  # the pool it sized and the seed it drew as the caller's choices.
+  origins <- supplied_origins()
   backend <- match.arg(backend)
   on_error <- match.arg(on_error)
   shared_memory <- match.arg(shared_memory)
@@ -346,7 +350,7 @@ setup_ExecutionConfig <- function(
   } else {
     clean_int(seed)
   }
-  ExecutionConfig(
+  out <- ExecutionConfig(
     backend = backend,
     n_workers = n_workers,
     n_workers_outer = n_workers_outer,
@@ -358,4 +362,6 @@ setup_ExecutionConfig <- function(
     shared_memory = shared_memory,
     warm_workers = warm_workers
   )
+  config_origins(out) <- origins
+  out
 } # /rtemis::setup_ExecutionConfig

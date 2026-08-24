@@ -12,12 +12,107 @@
 # derived is decided by the declarations (`tunable`, `tune_on_null`), not by a
 # guess.
 #
-# One inference remains, and it is worth naming. `setup_*()` applies its
-# defaults before `train()` ever sees the config, so "the user typed
-# `nrounds = 500`" and "500 is the default" arrive identical. They are separated
-# by comparing against the declared default, which means a user who explicitly
-# supplies the default value is reported as `"default"`. The value is the same
-# either way, so a replay is unaffected; only the attribution is.
+# One thing cannot be observed this way, and the `setup_*()` is the only place
+# it is knowable. Its defaults are applied before `train()` ever sees the
+# config, so "the caller typed `nrounds = 500`" and "500 is the default" arrive
+# identical. A setup function that records which of its arguments were supplied
+# -- `supplied_origins()`, attached by `config_origins<-()` -- states the
+# difference outright. One that does not leaves the old inference to run,
+# comparing against the *declared* default: it reads a caller who supplied the
+# default value as `"default"`, and a convenience default that differs from the
+# class's as `"user"` -- which is what made every `ExecutionConfig` field the
+# caller never chose read as theirs. The value is the same either way, so a
+# replay is unaffected; only the attribution is.
+
+# %% supplied_origins ----
+#' Which of a setup function's arguments the caller supplied
+#'
+#' Called from inside a `setup_*()`. Returns one origin per formal: `"user"` for
+#' an argument the caller named, `"default"` for one the function is left to
+#' fill in.
+#'
+#' This is the half of `origin` nothing downstream can observe. Comparing the
+#' config a run was given against the one it resolved separates `derived` and
+#' `tuned` by observation, but `setup_*()` applies its own defaults before
+#' anything else sees the config, so "the caller asked for `backend = "future"`"
+#' and "`future` is what this function uses when nobody asks" arrive identical.
+#' Only the function itself can tell them apart, and only while its own call is
+#' still on the stack.
+#'
+#' Only for a `setup_*()` its caller reaches directly. It reports what *this*
+#' call was told, so wiring it into one that an internal caller fully populates
+#' records that caller's forwarding as the user's choices -- `train()` passes
+#' `outdir = outdir` deliberately, which is why `setup_SuperConfig()` is left to
+#' the comparison. Where an intermediary restates every field, the fix is for
+#' the intermediary to forward only what it was given.
+#'
+#' @return Named character: one of `VALUE_ORIGINS` per formal.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+supplied_origins <- function() {
+  frame <- sys.parent()
+  fn <- sys.function(frame)
+  # `envir` is where the call's `...` is expanded from, and the call is the one
+  # written at the setup function's *call site* -- `train()` forwards its dots
+  # as `setup_ExecutionConfig(...)`, which cannot be matched against the
+  # formals anywhere else. Left to default, `match.call()` looks in this
+  # helper's caller, finds no dots, and stops. `sys.frame(0)` is the global
+  # environment, so a call made at top level resolves too.
+  supplied <- setdiff(
+    names(match.call(fn, sys.call(frame), envir = sys.frame(sys.parent(2)))),
+    ""
+  )
+  formals_ <- setdiff(names(formals(fn)), "...")
+  stats::setNames(
+    ifelse(formals_ %in% supplied, "user", "default"),
+    formals_
+  )
+} # /rtemis::supplied_origins
+
+
+# %% config_origins ----
+#' Origins a config states about its own fields
+#'
+#' Attached by the `setup_*()` that built the object, read by `config_record()`.
+#' An attribute rather than a property: it is bookkeeping *about* the config,
+#' not part of it, and a property would publish it in the schema, in the wire
+#' shape, and among the record's own fields.
+#'
+#' Absent when the object was built some other way, or rebuilt by something that
+#' did not carry it forward. The record then infers from the declared defaults,
+#' as it always did -- a coarser answer, never a wrong one.
+#'
+#' @param x S7 config object, or NULL.
+#'
+#' @return Named character, or NULL when the object states nothing.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+config_origins <- function(x) {
+  if (is.null(x)) NULL else attr(x, "rtemis_origins", exact = TRUE)
+} # /rtemis::config_origins
+
+
+# %% config_origins<- ----
+#' State the origins of a config's fields
+#'
+#' @param x S7 config object.
+#' @param value Named character: one of `VALUE_ORIGINS` per field, as
+#'   `supplied_origins()` returns.
+#'
+#' @return `x`, carrying the origins.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+`config_origins<-` <- function(x, value) {
+  attr(x, "rtemis_origins") <- value
+  x
+} # /rtemis::config_origins<-
+
 
 # %% value_origin ----
 #' Where one value came from
@@ -28,13 +123,23 @@
 #' @param state Logical: Whether the field is run state -- written by the run,
 #'   never supplied. Such a field cannot be `"user"` or `"default"`: if it holds
 #'   nothing, the run never got to it.
+#' @param declared Character or NULL: what the config itself says about this
+#'   field, from `config_origins()`. Consulted only where the inference below
+#'   would otherwise run: a value the run *changed* is reported from what was
+#'   observed, whatever the config claimed about it.
 #'
 #' @return Character: one of `VALUE_ORIGINS`.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-value_origin <- function(input, resolved, spec, state = FALSE) {
+value_origin <- function(
+  input,
+  resolved,
+  spec,
+  state = FALSE,
+  declared = NULL
+) {
   if (state && is.null(resolved)) {
     # Only a run writes it, and it holds nothing -- so the run never determined
     # it. `default` would claim a default exists for something no default can
@@ -59,8 +164,14 @@ value_origin <- function(input, resolved, spec, state = FALSE) {
         (spec@tune_on_null && is.null(input)))
     return(if (searched) "tuned" else "derived")
   }
-  # Unchanged: the run used what it was given. Whether that was chosen or
-  # merely inherited is the one inference here -- see the file header.
+  # Unchanged: the run used what it was given. Whether that was chosen or merely
+  # inherited is the one thing nothing here can observe -- so it is stated by
+  # the `setup_*()` that knows, and inferred only when it did not say. The
+  # inference reads a supplied value that happens to equal the default as
+  # `"default"`; a stated origin does not.
+  if (!is.null(declared)) {
+    return(declared)
+  }
   if (!is.null(spec) && identical(input, spec@default)) "default" else "user"
 } # /rtemis::value_origin
 
@@ -132,12 +243,17 @@ config_record <- function(input, resolved) {
       flat
     )
   }
+  # What the input config says about itself, where it says anything: a
+  # `setup_*()` records which of its arguments were supplied, because that is
+  # the one thing a comparison cannot recover.
+  declared <- config_origins(input)
   origin <- lapply(flat, function(nm) {
     value_origin(
       input_values[[nm]],
       values[[nm]],
       get_spec(props[[nm]]),
-      state = identical(prop_role(props[[nm]]), "state")
+      state = identical(prop_role(props[[nm]]), "state"),
+      declared = if (nm %in% names(declared)) declared[[nm]] else NULL
     )
   })
   names(origin) <- flat
