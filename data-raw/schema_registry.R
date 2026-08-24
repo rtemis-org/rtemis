@@ -35,7 +35,7 @@ families <- list(
       "Language-independent config for an rtemis decomposition (dimensionality ",
       "reduction). Mirrors the `DecompositionConfig` object: an algorithm name, ",
       "an algorithm-specific `config`, and an optional feature subset. The same ",
-      "config drives rtemis (R), rtemis-py, and rtemislive to identical output."
+      "config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical output."
     ),
     algorithm_description = "Decomposition algorithm name.",
     algorithms = list(
@@ -69,7 +69,7 @@ families <- list(
     description = paste0(
       "Language-independent config for an rtemis clustering run. Mirrors the ",
       "`ClusteringConfig` object: an algorithm name and an algorithm-specific ",
-      "`config`. The same config drives rtemis (R), rtemis-py, and rtemislive ",
+      "`config`. The same config drives rtemis (R), rtemis CLI/shell, and rtemislive ",
       "to identical output."
     ),
     algorithm_description = "Clustering algorithm name.",
@@ -104,7 +104,7 @@ families <- list(
     description = paste0(
       "Language-independent config for an rtemis resampler. Mirrors the ",
       "`ResamplerConfig` object: a resampler type plus its type-specific ",
-      "settings. The same config drives rtemis (R), rtemis-py, and ",
+      "settings. The same config drives rtemis (R), rtemis CLI/shell, and ",
       "rtemislive to identical resamples."
     ),
     discriminator_description = "Resampler type.",
@@ -401,7 +401,7 @@ flat_configs <- list(
       "Mirrors the `SuperConfig` object: data references, optional ",
       "preprocessing / decomposition, an algorithm with hyperparameters, ",
       "optional tuning and outer resampling, and execution settings. The ",
-      "same config drives rtemis (R), rtemis-py, and rtemislive."
+      "same config drives rtemis (R), rtemis CLI/shell, and rtemislive."
     ),
     refs = c(
       preprocessor_config = .url("preprocessor"),
@@ -491,7 +491,7 @@ flat_configs <- list(
     description = paste0(
       "Language-independent config for rtemis preprocessing. Mirrors the ",
       "`PreprocessorConfig` object / `setup_Preprocessor` arguments. The same ",
-      "config drives rtemis (R), rtemis-py, and rtemislive to identical output."
+      "config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical output."
     )
   )
 )

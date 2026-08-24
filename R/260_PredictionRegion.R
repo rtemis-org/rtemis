@@ -356,11 +356,16 @@ method(desc, ConformalConfig) <- function(x) {
 #' setup_SplitConformal(alpha = 0.05)
 #' setup_SplitConformal(score = "LAC")
 setup_SplitConformal <- function(alpha = 0.1, score = NULL, seed = NULL) {
-  SplitConformalConfig(
+  # Before the seed is resolved: an unseeded call draws one, and a record
+  # comparing that against the class default (NULL) would call it the caller's.
+  origins <- supplied_origins()
+  out <- SplitConformalConfig(
     alpha = alpha,
     score = score,
     seed = resolve_conformal_seed(seed)
   )
+  config_origins(out) <- origins
+  out
 } # /rtemis::setup_SplitConformal
 
 
@@ -409,11 +414,16 @@ setup_SplitConformal <- function(alpha = 0.1, score = NULL, seed = NULL) {
 #' setup_CVPlus()
 #' setup_CVPlus(alpha = 0.2)
 setup_CVPlus <- function(alpha = 0.1, score = NULL, seed = NULL) {
-  CVPlusConfig(
+  # Before the seed is resolved: an unseeded call draws one, and a record
+  # comparing that against the class default (NULL) would call it the caller's.
+  origins <- supplied_origins()
+  out <- CVPlusConfig(
     alpha = alpha,
     score = score,
     seed = resolve_conformal_seed(seed)
   )
+  config_origins(out) <- origins
+  out
 } # /rtemis::setup_CVPlus
 
 

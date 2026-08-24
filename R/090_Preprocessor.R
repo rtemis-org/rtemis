@@ -456,6 +456,10 @@ setup_Preprocessor <- function(
   holidays = c("USLaborDay", "NewYearsDay", "ChristmasDay"),
   exclude = NULL
 ) {
+  # Before `impute_type` is matched: the missRanger parameter list this function
+  # hands over is not the class's empty default, so a record comparing the two
+  # would report it as the caller's.
+  origins <- supplied_origins()
   impute_type <- match_arg(
     impute_type,
     c("missRanger", "micePMM", "meanMode")
@@ -478,7 +482,7 @@ setup_Preprocessor <- function(
     )
   }
   # Per-field validation performed by the `prop_*` property validators.
-  PreprocessorConfig(
+  out <- PreprocessorConfig(
     complete_cases = complete_cases,
     remove_features_thres = remove_features_thres,
     remove_cases_thres = remove_cases_thres,
@@ -521,6 +525,8 @@ setup_Preprocessor <- function(
     holidays = holidays,
     exclude = exclude
   )
+  config_origins(out) <- origins
+  out
 } # /setup_Preprocessor
 
 # Note:

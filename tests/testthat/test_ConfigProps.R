@@ -749,6 +749,77 @@ test_that("a searched hyperparameter is `tuned`, not `derived`", {
   expect_identical(origin[["cp"]], "default")
 })
 
+test_that("a setup default is `default`, however far it is from the class's", {
+  # `setup_ExecutionConfig()` picks a backend, sizes a worker pool and draws a
+  # seed, none of which are the *class* defaults ("none", 1L, NULL). Comparing
+  # the two -- all a record could do before -- reported every one of them as the
+  # caller's choice. "none" needs no dependency, so this runs anywhere.
+  ec <- setup_ExecutionConfig(backend = "none")
+  origin <- config_record(ec, ec)[["origin"]]
+  expect_identical(origin[["backend"]], "user")
+  expect_identical(origin[["n_workers"]], "default")
+  expect_identical(origin[["seed"]], "default")
+  expect_identical(origin[["on_error"]], "default")
+  # Drawn rather than declared, and recorded either way: an unseeded run has to
+  # stay reproducible.
+  expect_false(is.null(prop(ec, "seed")))
+})
+
+test_that("every setup whose defaults are not the class's states its origins", {
+  # The complete list, from comparing each `setup_*()`'s no-argument result
+  # against its class's declared defaults. Anywhere else the two agree, and the
+  # comparison already answers correctly.
+  sc <- setup_SplitConformal()
+  expect_identical(
+    config_record(sc, sc)[["origin"]][["seed"]],
+    "default"
+  )
+  cv <- setup_CVPlus()
+  expect_identical(
+    config_record(cv, cv)[["origin"]][["seed"]],
+    "default"
+  )
+  # Drawn either way -- a conformal run has to stay reproducible.
+  expect_false(is.null(prop(sc, "seed")))
+  pp <- setup_Preprocessor()
+  expect_identical(
+    config_record(pp, pp)[["origin"]][["impute_missRanger_params"]],
+    "default"
+  )
+  # And a supplied one is still the caller's.
+  cv2 <- setup_CVPlus(seed = 42L)
+  expect_identical(config_record(cv2, cv2)[["origin"]][["seed"]], "user")
+})
+
+test_that("supplying a value that equals the default still reads `user`", {
+  # The inference could not tell these apart, and said so in this file's header.
+  ec <- setup_ExecutionConfig(backend = "none", warm_workers = TRUE)
+  origin <- config_record(ec, ec)[["origin"]]
+  expect_identical(origin[["warm_workers"]], "user")
+})
+
+test_that("a config built without `setup_*()` falls back to the inference", {
+  # Nothing states an origin, so the comparison answers -- the same answer it
+  # gave before, never a wrong one.
+  ec <- ExecutionConfig(backend = "none")
+  expect_null(config_origins(ec))
+  origin <- config_record(ec, ec)[["origin"]]
+  expect_identical(origin[["backend"]], "default")
+})
+
+test_that("a stated origin never overrides what the run was seen to do", {
+  # `declared` is consulted only where the inference would have run. A value the
+  # run changed is reported from the change, whatever the config claimed.
+  expect_identical(
+    value_origin(1L, 2L, NULL, declared = "user"),
+    "derived"
+  )
+  expect_identical(
+    value_origin(1L, 1L, NULL, declared = "user"),
+    "user"
+  )
+})
+
 test_that("a learned preprocessor value is `derived`, a supplied one `user`", {
   prp <- preprocess(iris[, 1:4], scale = TRUE, center = TRUE, verbosity = 0L)
   rec <- config_record(prp@config, fitted_config(prp))

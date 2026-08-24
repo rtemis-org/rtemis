@@ -52,7 +52,7 @@ utils::globalVariables("self")
       bold(pkgname),
       " v.",
       rtemis_version,
-      " \U1F30A",
+      " \Ub7",
       " ",
       utils::sessionInfo()[[2]],
       " (",
@@ -64,7 +64,7 @@ utils::globalVariables("self")
       pkglogo(),
       vline,
       fmt_gradient(
-        paste0(rep("\u2500", nchar(vline) - 14L), collapse = ""),
+        paste0(rep("\u2500", nchar(vline) - 15L), collapse = ""),
         colors = c(
           rtemis_colors[["red"]],
           rtemis_colors[["orange"]],
