@@ -7,7 +7,8 @@
 #'
 #' @param x tabular data: Input to be checked.
 #' @param name Character: Name of dataset.
-#' @param get_duplicates Logical: If TRUE, check for duplicate cases.
+#' @param get_duplicates Logical: If TRUE, count duplicate cases. If FALSE,
+#' `n_duplicates` is `NULL` and nothing reports on duplicates.
 #' @param get_na_case_pct Logical: If TRUE, calculate percent of NA values per
 #' case.
 #' @param get_na_feature_pct Logical: If TRUE, calculate percent of NA values
@@ -81,11 +82,23 @@ check_data <- function(
   index_constant <- which(sapply(x, is_constant))
   n_constant <- length(index_constant)
 
+  ## Distinct values per column ----
+  # Observed values, so `NA` is not one of them and a factor level with no cases
+  # is not one either: an encoder makes a column per level it *sees*, which is
+  # what makes this the width a categorical feature contributes.
+  n_distinct_per_col <- vapply(
+    x,
+    \(v) as.integer(uniqueN(v, na.rm = TRUE)),
+    integer(1L)
+  )
+
   ## Duplicates ----
+  # NULL, not NA, when the scan is skipped: NULL is "not computed", while an
+  # integer NA would claim the scan ran and could not answer.
   n_duplicates <- if (get_duplicates) {
-    n_rows - uniqueN(x)
+    as.integer(n_rows - uniqueN(x))
   } else {
-    NA
+    NULL
   }
 
   ## NAs ----
@@ -163,6 +176,7 @@ check_data <- function(
     n_duplicates = n_duplicates,
     n_cols_anyna = n_cols_anyna,
     n_na = n_na,
+    n_distinct_per_col = n_distinct_per_col,
     classes_na = classes_na,
     na_feature_pct = na_feature_pct,
     na_case_pct = na_case_pct,
@@ -264,12 +278,18 @@ method(to_html, CheckData) <- function(
     "constant",
     ngettext(n_constant, "feature", "features")
   ))
-  .col <- if (n_duplicates > 0) html_orange else html_strong
-  duplicates <- html_raw(paste(
-    .col(n_duplicates),
-    "duplicate",
-    ngettext(n_duplicates, "case", "cases")
-  ))
+  # NULL when the scan was skipped, and then there is no line to render.
+  n_duplicates_found <- isTRUE(n_duplicates > 0)
+  duplicates <- if (is.null(n_duplicates)) {
+    NULL
+  } else {
+    .col <- if (n_duplicates_found) html_orange else html_strong
+    html_raw(paste(
+      .col(n_duplicates),
+      "duplicate",
+      ngettext(n_duplicates, "case", "cases")
+    ))
+  }
 
   .col <- if (n_cols_anyna > 0) html_orange else html_strong
   nas <- if (n_cols_anyna > 0) {
@@ -305,7 +325,7 @@ method(to_html, CheckData) <- function(
     NULL
   }
 
-  rec_dups <- if (n_duplicates > 0) {
+  rec_dups <- if (n_duplicates_found) {
     html_li(html_raw(paste(html_orange(
       "Consider removing the duplicate",
       ngettext(n_duplicates, "case", "cases")
@@ -329,7 +349,7 @@ method(to_html, CheckData) <- function(
     NULL
   }
 
-  recs <- if (sum(n_constant, n_duplicates, n_cols_anyna) == 0) {
+  recs <- if (sum(n_constant, n_cols_anyna) == 0 && !n_duplicates_found) {
     html_li(html_success("Everything looks good"))
   } else {
     list(
@@ -368,7 +388,7 @@ method(to_html, CheckData) <- function(
       html_span(html_strong("Issues"), class = "sidelined"),
       html_ul(
         html_li(constants),
-        html_li(duplicates),
+        if (!is.null(duplicates)) html_li(duplicates),
         html_li(nas)
       )
     ), # p Issues

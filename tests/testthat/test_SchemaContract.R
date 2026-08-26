@@ -118,8 +118,9 @@
 
 # %% .contract_no_setup ----
 # Registered classes with no `setup_*` and no input form: the furniture of a
-# record, and the results classes describing what a run produced. Nothing
-# authors one, so none states a user's intent and none is a config.
+# record, the results classes describing what a run produced, and the findings
+# `validate_config()` reports about a config. Nothing authors one, so none
+# states a user's intent and none is a config.
 .contract_no_setup <- c(
   "Provenance",
   "DataFingerprint",
@@ -127,7 +128,9 @@
   "ClassificationMetrics",
   "DecompositionMetrics",
   "RegressionMetricsRes",
-  "ClassificationMetricsRes"
+  "ClassificationMetricsRes",
+  "Diagnostic",
+  "Diagnostics"
 )
 
 

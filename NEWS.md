@@ -1,5 +1,15 @@
 # rtemis news
 
+## 1.3.8
+
+- **New `validate_config()`**: checks a config against the published schema and, when given the data, against the dataset it would run on. Returns a `Diagnostics` of findings -- each with a stable `code`, a `severity`, a technical message, a plain-language one, the numbers behind it, and where a deterministic one exists an RFC 6902 JSON Patch that fixes it. Empty means clean; nothing is thrown.
+- Seven data checks: `OUTCOME_MISSING`, `OUTCOME_TYPE_MISMATCH`, `RESAMPLE_MIN_CLASS`, `RESAMPLE_N_ROWS`, `FEATURE_CONSTANT`, `DIM_P_GT_N`, `MISSING_INCOMPATIBLE`. A `SCHEMA_INVALID` finding wraps what `read_config()` rejects, so the schema half is that validation rather than a second one.
+- `DIM_P_GT_N` counts predictors *after* categorical encoding, so a k-level factor counts k.
+- `Diagnostic` and `Diagnostics` publish `diagnostic/v1` and `diagnostics/v1` at schema.rtemis.org.
+- **`check_data()` reports `n_distinct_per_col`**: distinct observed values per column, one entry per column.
+- `supervised_algorithms` gains a `missing` column: whether the algorithm accepts a training set containing `NA`. `NA` for the meta learners, which take whatever their base learners take.
+- `check_data(get_duplicates = FALSE)` no longer errors; `n_duplicates` is `NULL` when the scan is skipped, and nothing reports on duplicates.
+
 ## 1.3.7
 
 - **New `setup_LINAD(split_features = , linear_features = , global_features = )`**: which features may define a split, which get a slope in the node models, and which of those slopes are shared by every leaf rather than free to change along a path. `NULL` on each imposes no constraint -- all, all, and nothing pinned -- which is LINAD as it was. Also on `setup_LINADForest()`, where `mtry_split` samples within the split-eligible set.

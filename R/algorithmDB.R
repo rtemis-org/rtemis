@@ -3,47 +3,69 @@
 # 2025- EDG rtemis.org
 
 # Supervised Learning ----
+# Columns: `name`, `description`, then the task and data traits, as "TRUE" /
+# "FALSE" strings -- `rbind(c(...))` coerces every cell to character.
+#
+# `class`, `reg`, `surv`  which tasks the algorithm performs.
+# `missing`               whether it accepts a training set containing `NA`.
+#                         This is the same fact each `train_` method states as
+#                         `check_supervised(allow_missing = )`, declared here so
+#                         that a check can read it without running the method.
+#                         `NA` for the meta learners: a stacked ensemble accepts
+#                         whatever its base learners accept, so the answer is a
+#                         property of the library it is given, not of the
+#                         algorithm.
 supervised_algorithms <- data.frame(rbind(
-  c("BART", "Bayesian Additive Regression Trees", TRUE, TRUE, FALSE),
-  c("CART", "Classification and Regression Trees", TRUE, TRUE, TRUE),
+  c("BART", "Bayesian Additive Regression Trees", TRUE, TRUE, FALSE, FALSE),
+  c("CART", "Classification and Regression Trees", TRUE, TRUE, TRUE, TRUE),
   c(
     "ConditionalSuperLearner",
     "Conditional SuperLearner",
     TRUE,
     TRUE,
+    FALSE,
+    NA
+  ),
+  c("GAM", "Generalized Additive Model", TRUE, TRUE, FALSE, FALSE),
+  c("GLM", "Generalized Linear Model", TRUE, TRUE, FALSE, FALSE),
+  c("GLMNET", "Elastic Net", TRUE, TRUE, TRUE, FALSE),
+  c("GLMTree", "Model-Based Recursive Partitioning", TRUE, TRUE, FALSE, FALSE),
+  c("HAL", "Highly Adaptive Lasso", TRUE, TRUE, FALSE, FALSE),
+  c("Isotonic", "Isotonic Regression", TRUE, TRUE, FALSE, FALSE),
+  c(
+    "MonotonicHAL",
+    "Monotonic Highly Adaptive Lasso",
+    TRUE,
+    TRUE,
+    FALSE,
     FALSE
   ),
-  c("GAM", "Generalized Additive Model", TRUE, TRUE, FALSE),
-  c("GLM", "Generalized Linear Model", TRUE, TRUE, FALSE),
-  c("GLMNET", "Elastic Net", TRUE, TRUE, TRUE),
-  c("GLMTree", "Model-Based Recursive Partitioning", TRUE, TRUE, FALSE),
-  c("HAL", "Highly Adaptive Lasso", TRUE, TRUE, FALSE),
-  c("Isotonic", "Isotonic Regression", TRUE, TRUE, FALSE),
-  c("MonotonicHAL", "Monotonic Highly Adaptive Lasso", TRUE, TRUE, FALSE),
-  c("KNN", "k-Nearest Neighbors", TRUE, TRUE, FALSE),
-  c("LightCART", "Decision Tree", TRUE, TRUE, FALSE),
-  c("LightGBM", "Gradient Boosting", TRUE, TRUE, FALSE),
-  c("LightRF", "LightGBM Random Forest", TRUE, TRUE, FALSE),
-  c("LightRuleFit", "LightGBM RuleFit", TRUE, TRUE, FALSE),
-  c("LINAD", "Linear Additive Tree", TRUE, TRUE, FALSE),
-  c("LINADForest", "Linear Additive Tree Forest", TRUE, TRUE, FALSE),
+  c("KNN", "k-Nearest Neighbors", TRUE, TRUE, FALSE, FALSE),
+  c("LightCART", "Decision Tree", TRUE, TRUE, FALSE, TRUE),
+  c("LightGBM", "Gradient Boosting", TRUE, TRUE, FALSE, TRUE),
+  c("LightRF", "LightGBM Random Forest", TRUE, TRUE, FALSE, TRUE),
+  c("LightRuleFit", "LightGBM RuleFit", TRUE, TRUE, FALSE, TRUE),
+  c("LINAD", "Linear Additive Tree", TRUE, TRUE, FALSE, FALSE),
+  c("LINADForest", "Linear Additive Tree Forest", TRUE, TRUE, FALSE, FALSE),
   c(
     "MARS",
     "Multivariate Adaptive Regression Splines",
     TRUE,
     TRUE,
+    FALSE,
     FALSE
   ),
-  c("MLP", "Multilayer Perceptron", TRUE, TRUE, FALSE),
-  c("ModalityStacking", "Per-Modality Stacked Ensemble", TRUE, TRUE, FALSE),
-  c("NNLS", "Non-negative Least Squares", TRUE, TRUE, FALSE),
-  c("Ranger", "Random Forest", TRUE, TRUE, FALSE),
-  c("SuperLearner", "Cross-validated Stacked Ensemble", TRUE, TRUE, FALSE),
+  c("MLP", "Multilayer Perceptron", TRUE, TRUE, FALSE, FALSE),
+  c("ModalityStacking", "Per-Modality Stacked Ensemble", TRUE, TRUE, FALSE, NA),
+  c("NNLS", "Non-negative Least Squares", TRUE, TRUE, FALSE, FALSE),
+  c("Ranger", "Random Forest", TRUE, TRUE, FALSE, TRUE),
+  c("SuperLearner", "Cross-validated Stacked Ensemble", TRUE, TRUE, FALSE, NA),
   c(
     "LinearSVM",
     "Support Vector Machine with Linear Kernel",
     TRUE,
     TRUE,
+    FALSE,
     FALSE
   ),
   c(
@@ -51,18 +73,54 @@ supervised_algorithms <- data.frame(rbind(
     "Support Vector Machine with Radial Kernel",
     TRUE,
     TRUE,
+    FALSE,
     FALSE
   ),
-  c("SPLS", "Sparse Partial Least Squares", TRUE, TRUE, FALSE),
-  c("TabNet", "Attentive Interpretable Tabular Learning", TRUE, TRUE, FALSE)
+  c("SPLS", "Sparse Partial Least Squares", TRUE, TRUE, FALSE, FALSE),
+  c(
+    "TabNet",
+    "Attentive Interpretable Tabular Learning",
+    TRUE,
+    TRUE,
+    FALSE,
+    FALSE
+  )
 ))
 colnames(supervised_algorithms) <- c(
   "name",
   "description",
   "class",
   "reg",
-  "surv"
+  "surv",
+  "missing"
 )
+
+# %% algorithm_allows_missing ----
+#' Does an algorithm accept a training set containing `NA`?
+#'
+#' Reads the `missing` trait, which mirrors what the algorithm's `train_` method
+#' passes as `check_supervised(allow_missing = )`.
+#'
+#' @param algorithm Character: Algorithm name.
+#'
+#' @return Logical: TRUE, FALSE, or `NA` where the answer belongs to the
+#'   algorithm's base learners rather than to the algorithm (the meta learners),
+#'   or where the name is not a known algorithm.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+algorithm_allows_missing <- function(algorithm) {
+  idx <- match(
+    tolower(algorithm),
+    tolower(supervised_algorithms[["name"]])
+  )
+  if (is.na(idx)) {
+    return(NA)
+  }
+  as.logical(supervised_algorithms[["missing"]][[idx]])
+} # /rtemis::algorithm_allows_missing
+
 
 supervised_multiclass <- c(
   "GLMNET",

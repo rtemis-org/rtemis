@@ -60,15 +60,38 @@ read_config <- function(file) {
     simplifyDataFrame = FALSE,
     simplifyMatrix = FALSE
   )
-  kind <- .detect_config_kind(xl)
+  .config_from_list(xl)
+} # /rtemis::read_config
+
+
+# %% .config_from_list ----
+#' Reconstruct an rtemis config object from a parsed config list
+#'
+#' The reconstruction half of [read_config], separated from the file half so
+#' that a config arriving as a list -- over the wire, or from a caller that
+#' already parsed the JSON -- goes through the same route as one read from
+#' disk. There is deliberately no second validation path: whatever
+#' [read_config] accepts, this accepts, and whatever it rejects, this rejects
+#' with the same condition.
+#'
+#' @param x Named list parsed from a config document, carrying a `$schema`.
+#'
+#' @return A `SuperConfig`, `DecomposeConfig`, `ClusterConfig`,
+#'   `DecompositionConfig`, `ClusteringConfig`, or `PreprocessorConfig` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+.config_from_list <- function(x) {
+  kind <- .detect_config_kind(x)
   switch(
     kind,
-    supervised = .list_to_SuperConfig(xl),
-    decompose = .list_to_DecomposeConfig(xl),
-    cluster = .list_to_ClusterConfig(xl),
-    decomposition = .list_to_DecompositionConfig(xl),
-    clustering = .list_to_ClusteringConfig(xl),
-    preprocessor = .list_to_PreprocessorConfig(xl),
+    supervised = .list_to_SuperConfig(x),
+    decompose = .list_to_DecomposeConfig(x),
+    cluster = .list_to_ClusterConfig(x),
+    decomposition = .list_to_DecompositionConfig(x),
+    clustering = .list_to_ClusteringConfig(x),
+    preprocessor = .list_to_PreprocessorConfig(x),
     rtemis.core::abort(
       "Unknown config kind: ",
       kind,
@@ -77,7 +100,7 @@ read_config <- function(file) {
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   )
-} # /rtemis::read_config
+} # /rtemis::.config_from_list
 
 
 # %% .drop_meta_keys ----

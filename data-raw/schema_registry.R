@@ -485,6 +485,30 @@ flat_configs <- list(
     ),
     array_refs = c(res_metrics = .url("classificationmetrics"))
   ),
+  # Findings, not configs: what `validate_config()` reports about a config, so
+  # every property is `readOnly` and none has an input form. `diagnostic` is a
+  # family of its own so that `diagnostics` can `$ref` it once instead of
+  # restating the finding's shape inside an array.
+  diagnostic = list(
+    cls = Diagnostic,
+    title = "rtemis Diagnostic",
+    description = paste0(
+      "One finding from validating an rtemis config: a stable code, how much ",
+      "it matters, the technical and plain-language accounts of it, the ",
+      "numbers behind it, and -- where a deterministic one exists -- an RFC ",
+      "6902 JSON Patch that fixes it."
+    )
+  ),
+  diagnostics = list(
+    cls = Diagnostics,
+    title = "rtemis Diagnostics",
+    description = paste0(
+      "The findings for one rtemis config, in the order they were made. An ",
+      "empty array means the config is clean: there is no separate validity ",
+      "flag, an empty list of problems being the same statement."
+    ),
+    array_refs = c(diagnostics = .url("diagnostic"))
+  ),
   preprocessor = list(
     cls = PreprocessorConfig,
     title = "rtemis PreprocessorConfig",
