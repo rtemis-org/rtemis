@@ -5,6 +5,12 @@
 # The data half of `validate_config()`: what a schema cannot see, because it is
 # a fact about the dataset rather than about the document.
 #
+# Each check reads a `DataProfile` rather than the data. That is what makes the
+# same rule runnable outside R: the profile is a bounded document any language
+# can compute in one pass, so a rule expressed over its fields ports, while one
+# expressed over an R data.table does not. `missing_after_preprocessing()` is
+# the single exception and says so where it is defined.
+#
 # Each check is written over the *parts* a config carries -- a preprocessor, a
 # resampler, an algorithm, an outcome -- rather than over one config class. A
 # `SuperConfig` carries all of them and gets every applicable check; a
@@ -96,11 +102,76 @@ config_prop <- function(config, name) {
 } # /rtemis::config_prop
 
 
+# %% profile_columns ----
+#' The profile's column table
+#'
+#' @param profile `DataProfile` object.
+#'
+#' @return `data.frame` with `name`, `dtype`, `n_distinct`, `n_missing`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+profile_columns <- function(profile) {
+  profile@columns
+} # /rtemis::profile_columns
+
+
+# %% profile_field ----
+#' One measured field of one column, or NULL
+#'
+#' @param profile `DataProfile` object.
+#' @param column Character: Column name.
+#' @param field Character: One of the `columns` table's fields.
+#'
+#' @return The value, or NULL when the column is not in the profile.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+profile_field <- function(profile, column, field) {
+  if (is.null(column)) {
+    return(NULL)
+  }
+  cols <- profile_columns(profile)
+  i <- match(column, cols[["name"]])
+  if (is.na(i)) {
+    return(NULL)
+  }
+  cols[[field]][[i]]
+} # /rtemis::profile_field
+
+
+# %% profile_level_counts ----
+#' Observed level counts for one column
+#'
+#' Empty where the column is not categorical, and *also* empty where it has more
+#' than `PROFILE_MAX_LEVELS` levels -- the profile omits those deliberately. A
+#' caller that needs to tell the two apart compares against `n_distinct`.
+#'
+#' @param profile `DataProfile` object.
+#' @param column Character: Column name.
+#'
+#' @return `data.frame` with `level` and `n`, possibly with no rows.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+profile_level_counts <- function(profile, column) {
+  counts <- profile@level_counts
+  if (is.null(column) || is.null(counts) || NROW(counts) == 0L) {
+    return(data.frame(level = character(), n = integer()))
+  }
+  counts[counts[["column"]] == column, c("level", "n"), drop = FALSE]
+} # /rtemis::profile_level_counts
+
+
 # %% validate_data ----
 #' Run every applicable data check for one config
 #'
 #' @param config Resolved rtemis config object.
-#' @param data tabular data: The dataset the config would run on.
+#' @param data tabular data: The dataset the config would run on. Profiled
+#'   here; only `check_missing_incompatible()` reads the rows themselves.
 #' @param outcome Optional Character: Name of the outcome column.
 #' @param step Optional Integer [1, Inf): Position in the plan.
 #'
@@ -112,39 +183,40 @@ config_prop <- function(config, name) {
 validate_data <- function(config, data, outcome = NULL, step = NULL) {
   parts <- config_parts(config)
   dat <- as.data.table(data)
-  cd <- check_data(dat, name = "data", get_duplicates = FALSE)
+  # Duplicates are the one whole-table scan and no check reads them, so the
+  # profile a validation makes is the cheap one.
+  profile <- data_profile(dat, n_duplicates = FALSE)
 
   # Outcome ----
   # Resolving the outcome comes first and can end the pass: every check below
   # that reads it would otherwise report on a column that is not there.
-  resolution <- resolve_outcome(dat, outcome, parts[["supervised"]])
+  resolution <- resolve_outcome(profile, outcome, parts[["supervised"]])
   if (!is.null(resolution[["diagnostic"]])) {
     return(list(set_step(resolution[["diagnostic"]], step)))
   }
   outcome_name <- resolution[["name"]]
-  outcome_value <- if (is.null(outcome_name)) NULL else dat[[outcome_name]]
-  feature_names <- setdiff(names(dat), outcome_name)
+  feature_names <- setdiff(profile_columns(profile)[["name"]], outcome_name)
 
   out <- c(
-    check_outcome_type(outcome_value, outcome_name, parts),
+    check_outcome_type(profile, outcome_name, parts),
     unlist(
       lapply(
         names(parts[["resamplers"]]),
         function(pointer) {
           resampler <- parts[["resamplers"]][[pointer]]
           c(
-            check_resample_min_class(resampler, outcome_value, pointer),
-            check_resample_n_rows(resampler, cd@n_rows, pointer)
+            check_resample_min_class(resampler, profile, outcome_name, pointer),
+            check_resample_n_rows(resampler, profile@n_rows, pointer)
           )
         }
       ),
       recursive = FALSE
     ),
-    check_feature_constant(dat, feature_names, parts),
-    check_feature_type(dat, feature_names),
+    check_feature_constant(profile, feature_names, parts),
+    check_feature_type(profile, feature_names),
     check_preprocessor_supported(parts),
-    check_dim_p_gt_n(cd, dat, feature_names, parts),
-    check_missing_incompatible(cd, dat, feature_names, outcome_name, parts)
+    check_dim_p_gt_n(profile, feature_names, parts),
+    check_missing_incompatible(profile, dat, feature_names, outcome_name, parts)
   )
   out <- Filter(Negate(is.null), out)
   lapply(out, set_step, step = step)
@@ -187,7 +259,7 @@ set_step <- function(x, step) {
 #' features, so the outcome is left unresolved and every check that reads it is
 #' skipped rather than pointed at the only column there is.
 #'
-#' @param dat data.table: The dataset.
+#' @param profile `DataProfile` object for the dataset.
 #' @param outcome Optional Character: Name of the outcome column.
 #' @param supervised Logical: Whether the config designates an outcome.
 #'
@@ -198,18 +270,15 @@ set_step <- function(x, step) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-resolve_outcome <- function(dat, outcome, supervised) {
+resolve_outcome <- function(profile, outcome, supervised) {
+  nms <- profile_columns(profile)[["name"]]
   if (is.null(outcome)) {
     return(list(
-      name = if (supervised && NCOL(dat) >= 2L) {
-        names(dat)[[NCOL(dat)]]
-      } else {
-        NULL
-      },
+      name = if (supervised && length(nms) >= 2L) nms[[length(nms)]] else NULL,
       diagnostic = NULL
     ))
   }
-  if (length(outcome) != 1L || !outcome %in% names(dat)) {
+  if (length(outcome) != 1L || !outcome %in% nms) {
     return(list(
       name = NULL,
       diagnostic = new_diagnostic(
@@ -219,19 +288,32 @@ resolve_outcome <- function(dat, outcome, supervised) {
           "Outcome column '",
           paste(outcome, collapse = "', '"),
           "' is not in the data. Columns are: ",
-          paste0("'", names(dat), "'", collapse = ", "),
+          paste0("'", nms, "'", collapse = ", "),
           "."
         ),
         evidence = list(
           outcome = outcome,
-          columns = names(dat),
-          nearest = Filter(nzchar, nearest_hint(outcome, names(dat)))
+          columns = nms,
+          nearest = Filter(nzchar, nearest_hint(outcome, nms))
         )
       )
     ))
   }
   list(name = outcome, diagnostic = NULL)
 } # /rtemis::resolve_outcome
+
+
+# %% SUPERVISED_OUTCOME_DTYPES ----
+# Profile dtypes `check_supervised()` accepts as an outcome. The R side states
+# the same set as `inherits(x, c("integer", "numeric", "factor"))`; this is that
+# set in the profile's vocabulary, and the two must change together.
+SUPERVISED_OUTCOME_DTYPES <- c("integer", "number", "categorical")
+
+# Profile dtypes `check_numeric_or_factor()` accepts as a predictor. Narrower
+# than the outcome set only in that it is the same set -- both require numeric
+# or factor -- but they are separate rules in `check_supervised()` and are kept
+# separate here so a change to one does not silently move the other.
+SUPERVISED_FEATURE_DTYPES <- c("integer", "number", "categorical")
 
 
 # %% check_outcome_type ----
@@ -250,8 +332,8 @@ resolve_outcome <- function(dat, outcome, supervised) {
 #'   two tasks says the same thing about itself. A warning rather than an error,
 #'   because the run completes -- the setting is ignored, not fatal.
 #'
-#' @param outcome_value Vector or NULL: The outcome column.
-#' @param outcome_name Character or NULL: Its name.
+#' @param profile `DataProfile` object for the dataset.
+#' @param outcome_name Character or NULL: The outcome column.
 #' @param parts Named list from `config_parts()`.
 #'
 #' @return List of `Diagnostic` objects, possibly empty.
@@ -259,27 +341,27 @@ resolve_outcome <- function(dat, outcome, supervised) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_outcome_type <- function(outcome_value, outcome_name, parts) {
-  if (is.null(outcome_value)) {
+check_outcome_type <- function(profile, outcome_name, parts) {
+  if (is.null(outcome_name)) {
     return(list())
   }
-  observed <- class(outcome_value)[[1L]]
-  if (!inherits(outcome_value, c("integer", "numeric", "factor"))) {
+  observed <- profile_field(profile, outcome_name, "dtype")
+  if (!observed %in% SUPERVISED_OUTCOME_DTYPES) {
     return(list(new_diagnostic(
       code = "OUTCOME_TYPE_MISMATCH",
       severity = "error",
       message = paste0(
         "Outcome '",
         outcome_name,
-        "' is ",
+        "' holds ",
         observed,
-        "; rtemis requires an integer, numeric, or factor outcome. Convert it ",
-        "to a factor to classify, or to a number to regress."
+        " values; rtemis requires an integer, numeric, or factor outcome. ",
+        "Convert it to a factor to classify, or to a number to regress."
       ),
-      evidence = list(outcome = outcome_name, outcome_class = observed)
+      evidence = list(outcome = outcome_name, outcome_dtype = observed)
     )))
   }
-  data_task <- if (is.factor(outcome_value)) "Classification" else "Regression"
+  data_task <- if (observed == "categorical") "Classification" else "Regression"
   declared <- declared_task(parts)
   if (is.null(declared) || identical(declared, data_task)) {
     return(list())
@@ -300,15 +382,15 @@ check_outcome_type <- function(outcome_value, outcome_name, parts) {
       declared_task_reason(parts),
       ") but outcome '",
       outcome_name,
-      "' is ",
+      "' holds ",
       observed,
-      ", which rtemis reads as ",
+      " values, which rtemis reads as ",
       tolower(data_task),
       "."
     ),
     evidence = list(
       outcome = outcome_name,
-      outcome_class = observed,
+      outcome_dtype = observed,
       declared_task = declared,
       data_task = data_task
     )
@@ -419,7 +501,8 @@ config_algorithm <- function(parts) {
 #' meet.
 #'
 #' @param resampler `ResamplerConfig` object.
-#' @param outcome_value Vector or NULL: The outcome column.
+#' @param profile `DataProfile` object for the dataset.
+#' @param outcome_name Character or NULL: The outcome column.
 #' @param pointer Character: JSON Pointer of the property holding `resampler`.
 #'
 #' @return List of `Diagnostic` objects, possibly empty.
@@ -427,25 +510,65 @@ config_algorithm <- function(parts) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_resample_min_class <- function(resampler, outcome_value, pointer) {
-  if (is.null(outcome_value) || !is.factor(outcome_value)) {
+check_resample_min_class <- function(
+  resampler,
+  profile,
+  outcome_name,
+  pointer
+) {
+  if (is.null(outcome_name)) {
+    return(list())
+  }
+  if (
+    !identical(profile_field(profile, outcome_name, "dtype"), "categorical")
+  ) {
     return(list())
   }
   if (!resampler@type %in% c("KFold", "StratSub", "StratBoot")) {
     return(list())
   }
-  counts <- table(droplevels(outcome_value))
-  min_class <- as.integer(min(counts))
   n_resamples <- resampler@n_resamples
+  counts <- profile_level_counts(profile, outcome_name)
+  if (NROW(counts) == 0L) {
+    # The profile omits level counts above `PROFILE_MAX_LEVELS`, so this check
+    # cannot run rather than passing. Saying so is the point: a silent skip is
+    # indistinguishable from a clean result.
+    return(list(new_diagnostic(
+      code = "RESAMPLE_MIN_CLASS",
+      severity = "note",
+      message = paste0(
+        "Outcome '",
+        outcome_name,
+        "' has ",
+        profile_field(profile, outcome_name, "n_distinct"),
+        " levels, more than the ",
+        PROFILE_MAX_LEVELS,
+        " a profile carries counts for, so the class balance of the ",
+        resampler@type,
+        " resampler at `",
+        pointer,
+        "` was not checked."
+      ),
+      evidence = list(
+        resampler = pointer,
+        type = resampler@type,
+        n_resamples = n_resamples,
+        n_levels = profile_field(profile, outcome_name, "n_distinct"),
+        max_levels = PROFILE_MAX_LEVELS
+      )
+    )))
+  }
+  min_class <- min(counts[["n"]])
   if (min_class >= n_resamples) {
     return(list())
   }
+  min_level <- counts[["level"]][[which.min(counts[["n"]])]]
   list(new_diagnostic(
     code = "RESAMPLE_MIN_CLASS",
     severity = "error",
     message = paste0(
       "Class '",
-      names(counts)[[which.min(counts)]],
+      min_level,
       "' has ",
       min_class,
       " ",
@@ -462,9 +585,12 @@ check_resample_min_class <- function(resampler, outcome_value, pointer) {
       resampler = pointer,
       type = resampler@type,
       n_resamples = n_resamples,
-      min_class = names(counts)[[which.min(counts)]],
+      min_class = min_level,
       min_class_n = min_class,
-      class_counts = as.list(counts)
+      class_counts = stats::setNames(
+        as.list(counts[["n"]]),
+        counts[["level"]]
+      )
     ),
     # Fewer parts than the rarest class has cases is the one repair that needs
     # no judgment. Below two there is no fold count that works, so nothing is
@@ -654,7 +780,7 @@ check_resample_n_rows <- function(resampler, n_rows, pointer) {
 #' drops all of them and `remove_features` drops the ones it names, so a config
 #' that has dealt with the problem is clean rather than repeatedly told about it.
 #'
-#' @param dat data.table: The dataset.
+#' @param profile `DataProfile` object for the dataset.
 #' @param feature_names Character: The predictor columns.
 #' @param parts Named list from `config_parts()`.
 #'
@@ -663,7 +789,7 @@ check_resample_n_rows <- function(resampler, n_rows, pointer) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_feature_constant <- function(dat, feature_names, parts) {
+check_feature_constant <- function(profile, feature_names, parts) {
   if (length(feature_names) == 0L) {
     return(list())
   }
@@ -672,9 +798,21 @@ check_feature_constant <- function(dat, feature_names, parts) {
     return(list())
   }
   skip_missing <- if (is.null(pp)) TRUE else pp@remove_constants_skip_missing
+  # `is_constant()` in the profile's terms. Skipping missing values, a column
+  # with at most one observed value never varies -- an entirely missing one
+  # included, which is what `na.exclude()` leaves. Not skipping them, a single
+  # `NA` makes the comparison undecidable and so not constant, which is exactly
+  # one observed value and nothing missing.
   constant <- feature_names[vapply(
     feature_names,
-    function(nm) is_constant(dat[[nm]], skip_missing = skip_missing),
+    function(nm) {
+      n_distinct <- profile_field(profile, nm, "n_distinct")
+      if (skip_missing) {
+        n_distinct <= 1L
+      } else {
+        n_distinct == 1L && profile_field(profile, nm, "n_missing") == 0L
+      }
+    },
     logical(1L)
   )]
   already <- if (is.null(pp)) {
@@ -799,7 +937,7 @@ check_preprocessor_supported <- function(parts) {
 #' the chance. Converting the column is a change to the data rather than to the
 #' config, so there is no patch to offer either.
 #'
-#' @param dat data.table: The dataset.
+#' @param profile `DataProfile` object for the dataset.
 #' @param feature_names Character: The predictor columns.
 #'
 #' @return List of `Diagnostic` objects, possibly empty.
@@ -807,25 +945,20 @@ check_preprocessor_supported <- function(parts) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_feature_type <- function(dat, feature_names) {
+check_feature_type <- function(profile, feature_names) {
   if (length(feature_names) == 0L) {
     return(list())
   }
-  unsupported <- feature_names[
-    !vapply(
-      feature_names,
-      function(nm) is.numeric(dat[[nm]]) || is.factor(dat[[nm]]),
-      logical(1L)
-    )
-  ]
+  dtypes <- vapply(
+    feature_names,
+    function(nm) profile_field(profile, nm, "dtype"),
+    character(1L)
+  )
+  unsupported <- feature_names[!dtypes %in% SUPERVISED_FEATURE_DTYPES]
   if (length(unsupported) == 0L) {
     return(list())
   }
-  classes <- vapply(
-    unsupported,
-    function(nm) class(dat[[nm]])[[1L]],
-    character(1L)
-  )
+  classes <- dtypes[unsupported]
   list(new_diagnostic(
     code = "FEATURE_TYPE_UNSUPPORTED",
     severity = "error",
@@ -838,7 +971,7 @@ check_feature_type <- function(dat, feature_names) {
     ),
     evidence = list(
       features = unname(unsupported),
-      classes = unname(classes),
+      dtypes = unname(classes),
       n_features = length(unsupported)
     )
   ))
@@ -854,7 +987,7 @@ check_feature_type <- function(dat, feature_names) {
 #' - **Categorical encoding.** A factor contributes one column per level it
 #'   takes -- rtemis's `one_hot()` encodes every level, dropping no reference --
 #'   while a numeric or date column contributes one.
-#'   `CheckData@n_distinct_per_col` supplies the level counts.
+#'   The profile's `n_distinct` supplies the level counts.
 #' - **Decomposition.** `train()` applies `decomposition_config` before fitting,
 #'   so a pipeline that extracts `k` components hands the learner `k` features
 #'   however wide the data was. Reporting the encoded width there would state a
@@ -869,8 +1002,7 @@ check_feature_type <- function(dat, feature_names) {
 #' decomposition step, more rows -- is a choice this reports the numbers for
 #' rather than makes.
 #'
-#' @param cd `CheckData` object for the data.
-#' @param dat data.table: The dataset.
+#' @param profile `DataProfile` object for the dataset.
 #' @param feature_names Character: The predictor columns.
 #' @param parts Named list from `config_parts()`.
 #'
@@ -879,15 +1011,15 @@ check_feature_type <- function(dat, feature_names) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_dim_p_gt_n <- function(cd, dat, feature_names, parts) {
+check_dim_p_gt_n <- function(profile, feature_names, parts) {
   if (length(feature_names) == 0L) {
     return(list())
   }
   widths <- vapply(
     feature_names,
     function(nm) {
-      if (is.factor(dat[[nm]]) || is.character(dat[[nm]])) {
-        cd@n_distinct_per_col[[nm]]
+      if (identical(profile_field(profile, nm, "dtype"), "categorical")) {
+        profile_field(profile, nm, "n_distinct")
       } else {
         1L
       }
@@ -895,7 +1027,7 @@ check_dim_p_gt_n <- function(cd, dat, feature_names, parts) {
     integer(1L)
   )
   encoded_p <- sum(widths)
-  n_rows <- cd@n_rows
+  n_rows <- profile@n_rows
 
   decomposition <- parts[["decomposition_config"]]
   effective_p <- encoded_p
@@ -985,6 +1117,15 @@ check_dim_p_gt_n <- function(cd, dat, feature_names, parts) {
 #' treating them as a remedy misses one that does not. Both are wrong, and the
 #' data is in hand, so this simulates them exactly instead.
 #'
+#' **The one check that reads the rows.** Everything else in this file reads a
+#' `DataProfile`, which is what lets the same rule run outside R. This cannot:
+#' the case step changes each feature's missing fraction, so the answer depends
+#' on the joint missingness pattern, and carrying that would cost one entry per
+#' feature per missing-count bucket -- unbounded exactly where it matters, on
+#' wide data. It is reachable only for a standalone `PreprocessorConfig`, since
+#' `train()` rejects both threshold steps, so an implementation with a profile
+#' and no rows has every check but this one.
+#'
 #' Mirrors `preprocess()`: cases first, at a fraction of the *feature* count
 #' (`train()` preprocesses `features(x)` and re-attaches the outcome), then
 #' features on the cases that remain, each dropping at `>=` the threshold. The
@@ -1047,8 +1188,9 @@ missing_after_preprocessing <- function(dat, feature_names, pp) {
 #' `missing_after_preprocessing()` simulates both rather than assuming either
 #' way.
 #'
-#' @param cd `CheckData` object for the data.
-#' @param dat data.table: The dataset.
+#' @param profile `DataProfile` object for the dataset.
+#' @param dat data.table: The dataset. Read only by
+#'   `missing_after_preprocessing()`; see the note there.
 #' @param feature_names Character: The predictor columns.
 #' @param outcome_name Character or NULL: The outcome column.
 #' @param parts Named list from `config_parts()`.
@@ -1059,20 +1201,20 @@ missing_after_preprocessing <- function(dat, feature_names, pp) {
 #' @keywords internal
 #' @noRd
 check_missing_incompatible <- function(
-  cd,
+  profile,
   dat,
   feature_names,
   outcome_name,
   parts
 ) {
-  if (cd@n_na == 0L) {
+  if (sum(profile_columns(profile)[["n_missing"]]) == 0L) {
     return(list())
   }
   pp <- parts[["preprocessor_config"]]
   out <- list()
 
   if (!is.null(outcome_name)) {
-    n_na_outcome <- sum(is.na(dat[[outcome_name]]))
+    n_na_outcome <- profile_field(profile, outcome_name, "n_missing")
     if (n_na_outcome > 0L) {
       out <- c(
         out,
@@ -1092,7 +1234,7 @@ check_missing_incompatible <- function(
           evidence = list(
             outcome = outcome_name,
             n_missing = n_na_outcome,
-            n_rows = cd@n_rows
+            n_rows = profile@n_rows
           )
         ))
       )
@@ -1110,7 +1252,7 @@ check_missing_incompatible <- function(
         op %in% c(PREPROCESSOR_CASE_OPS, PREPROCESSOR_LEARNED_DROP_OPS))
   }
   if (runs("complete_cases")) {
-    n_complete <- sum(complete.cases(dat))
+    n_complete <- profile@n_complete_cases
     if (n_complete < 2L) {
       out <- c(
         out,
@@ -1121,19 +1263,22 @@ check_missing_incompatible <- function(
             "`complete_cases` keeps rows with no gaps, and only ",
             n_complete,
             " of ",
-            cd@n_rows,
+            profile@n_rows,
             " ",
-            ngettext(cd@n_rows, "row has", "rows have"),
+            ngettext(profile@n_rows, "row has", "rows have"),
             " none."
           ),
-          evidence = list(n_complete = n_complete, n_rows = cd@n_rows)
+          evidence = list(n_complete = n_complete, n_rows = profile@n_rows)
         ))
       )
     }
     return(out)
   }
 
-  all_missing <- names(dat)[vapply(dat, function(v) all(is.na(v)), logical(1L))]
+  cols <- profile_columns(profile)
+  all_missing <- cols[["name"]][
+    cols[["n_distinct"]] == 0L & cols[["n_missing"]] > 0L
+  ]
   if (runs("impute")) {
     if (length(all_missing) > 0L) {
       out <- c(
@@ -1179,7 +1324,7 @@ check_missing_incompatible <- function(
     n_missing = n_remaining,
     n_features_missing = sum(vapply(
       feature_names,
-      function(nm) anyNA(dat[[nm]]),
+      function(nm) profile_field(profile, nm, "n_missing") > 0L,
       logical(1L)
     )),
     algorithm = algorithm %||% NA_character_,

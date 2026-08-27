@@ -127,7 +127,9 @@ test_that("OUTCOME_TYPE_MISMATCH: a character outcome rtemis cannot use", {
   dat <- data.frame(x1 = rnorm(20L), y = rep(c("no", "yes"), 10L))
   d <- .only(validate_config(.config(), data = dat), "OUTCOME_TYPE_MISMATCH")
   expect_identical(d@severity, "error")
-  expect_identical(d@evidence[["outcome_class"]], "character")
+  # The profile's vocabulary, not R's class name: "string" is what a polars
+  # reader calls the same column, and the rule has to mean one thing in both.
+  expect_identical(d@evidence[["outcome_dtype"]], "string")
 })
 
 
@@ -973,7 +975,7 @@ test_that("FEATURE_TYPE_UNSUPPORTED: predictors train() cannot read", {
   )
   expect_identical(d@severity, "error")
   expect_identical(d@evidence[["features"]], c("site", "when"))
-  expect_identical(d@evidence[["classes"]], c("character", "Date"))
+  expect_identical(d@evidence[["dtypes"]], c("string", "temporal"))
   # Converting a column changes the data, not the config, so there is no patch.
   expect_null(d@fix)
 })
@@ -1017,4 +1019,79 @@ test_that("FEATURE_TYPE_UNSUPPORTED is silent on numeric and factor predictors",
     y = rnorm(40L)
   )
   expect_length(validate_config(.config("GLM"), data = dat), 0L)
+})
+
+
+# %% Reading the profile, not the data ----
+# Every check but one reads a `DataProfile`, which is what lets the same rule
+# run outside R. These pin that boundary: the evidence speaks the profile's
+# vocabulary, and the one exception is named.
+
+test_that("evidence reports profile dtypes, not R class names", {
+  set.seed(2026L)
+  dat <- data.frame(
+    x1 = rnorm(20L),
+    when = Sys.Date() + seq_len(20L),
+    y = rnorm(20L)
+  )
+  d <- .only(
+    validate_config(.config("GLM"), data = dat),
+    "FEATURE_TYPE_UNSUPPORTED"
+  )
+  # "temporal", not "Date": the token a polars reader produces for the same
+  # column, so a rule written against it means one thing in both.
+  expect_identical(d@evidence[["dtypes"]], "temporal")
+  expect_true(all(d@evidence[["dtypes"]] %in% PROFILE_DTYPES))
+})
+
+
+test_that("an outcome with more levels than the profile carries is reported", {
+  # `PROFILE_MAX_LEVELS` omits the counts, so the class-balance check cannot
+  # run. It says so rather than passing: a silent skip is indistinguishable
+  # from a clean result.
+  n <- PROFILE_MAX_LEVELS + 1L
+  set.seed(2026L)
+  dat <- data.frame(x1 = rnorm(n), y = factor(seq_len(n)))
+  d <- .only(
+    validate_config(
+      .config(outer_resampling_config = .kfold(5L)),
+      data = dat
+    ),
+    "RESAMPLE_MIN_CLASS"
+  )
+  expect_identical(d@severity, "note")
+  expect_identical(d@evidence[["n_levels"]], n)
+  expect_identical(d@evidence[["max_levels"]], PROFILE_MAX_LEVELS)
+  expect_match(d@message, "was not checked", fixed = TRUE)
+})
+
+
+test_that("FEATURE_CONSTANT over the profile reproduces is_constant()", {
+  # The two spellings must agree for both settings of
+  # `remove_constants_skip_missing`, since the profile has no values to compare.
+  set.seed(2026L)
+  dat <- data.frame(
+    varies = rnorm(6L),
+    repeated = rep(1, 6L),
+    repeated_with_gap = c(1, 1, 1, 1, 1, NA),
+    all_missing = rep(NA_real_, 6L),
+    y = rnorm(6L)
+  )
+  features <- c("varies", "repeated", "repeated_with_gap", "all_missing")
+  for (skip in c(TRUE, FALSE)) {
+    expected <- features[vapply(
+      features,
+      function(nm) is_constant(dat[[nm]], skip_missing = skip),
+      logical(1L)
+    )]
+    out <- validate_config(
+      .config(
+        "LightGBM",
+        preprocessor_config = list(remove_constants_skip_missing = skip)
+      ),
+      data = dat
+    )
+    found <- .finding(out, "FEATURE_CONSTANT")@evidence[["features"]]
+    expect_setequal(found, expected)
+  }
 })
