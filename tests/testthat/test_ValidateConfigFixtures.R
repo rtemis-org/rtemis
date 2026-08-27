@@ -380,15 +380,89 @@ test_that("FEATURE_CONSTANT ignores a constant outcome", {
 
 
 # %% DIM_P_GT_N ----
-test_that("DIM_P_GT_N: more predictor columns than rows", {
+.wide_data <- function(n_rows = 8L, n_cols = 20L) {
   set.seed(2026L)
-  dat <- as.data.frame(matrix(rnorm(8L * 20L), nrow = 8L))
-  dat[["y"]] <- rnorm(8L)
-  d <- .only(validate_config(.config("GLM"), data = dat), "DIM_P_GT_N")
+  dat <- as.data.frame(matrix(rnorm(n_rows * n_cols), nrow = n_rows))
+  dat[["y"]] <- rnorm(n_rows)
+  dat
+}
+
+
+test_that("DIM_P_GT_N warns only where the fit goes rank-deficient", {
+  # Severity is the algorithm's answer, not a judgment about wide data: an
+  # unregularized least squares is rank-deficient here, a penalized one is not.
+  d <- .only(validate_config(.config("GLM"), data = .wide_data()), "DIM_P_GT_N")
   expect_identical(d@severity, "warning")
   expect_identical(d@evidence[["encoded_p"]], 20L)
+  expect_identical(d@evidence[["effective_p"]], 20L)
   expect_identical(d@evidence[["n_rows"]], 8L)
+  expect_false(d@evidence[["algorithm_handles_p_gt_n"]])
   expect_null(d@fix)
+})
+
+
+test_that("DIM_P_GT_N is a note for an algorithm built for this regime", {
+  for (algorithm in c("GLMNET", "HAL", "SPLS", "Ranger", "LightGBM")) {
+    d <- .only(
+      validate_config(.config(algorithm), data = .wide_data()),
+      "DIM_P_GT_N"
+    )
+    expect_identical(d@severity, "note", info = algorithm)
+    expect_true(d@evidence[["algorithm_handles_p_gt_n"]], info = algorithm)
+  }
+})
+
+
+test_that("DIM_P_GT_N is a note where the answer is not the algorithm's", {
+  # A stacked ensemble fits in this regime if its base learners do, so the
+  # trait is NA and the finding records the shape without asserting harm.
+  d <- .only(
+    validate_config(.config("SuperLearner"), data = .wide_data()),
+    "DIM_P_GT_N"
+  )
+  expect_identical(d@severity, "note")
+})
+
+
+test_that("DIM_P_GT_N counts what the learner sees, not the raw width", {
+  # `train()` applies `decomposition_config` before fitting, so a pipeline that
+  # extracts 3 components hands the learner 3 features however wide the data is.
+  # Reporting 20 here would state a number the model never sees.
+  expect_length(
+    validate_config(
+      .config(
+        "GLM",
+        decomposition_config = list(
+          algorithm = "PCA",
+          config = list(k = 3L)
+        )
+      ),
+      data = .wide_data()
+    ),
+    0L
+  )
+})
+
+
+test_that("DIM_P_GT_N reports the component count when it still exceeds rows", {
+  d <- .only(
+    validate_config(
+      .config(
+        "GLM",
+        decomposition_config = list(
+          algorithm = "PCA",
+          config = list(k = 20L)
+        )
+      ),
+      data = .wide_data()
+    ),
+    "DIM_P_GT_N"
+  )
+  expect_identical(d@severity, "warning")
+  expect_identical(d@evidence[["effective_p"]], 20L)
+  expect_identical(d@evidence[["decomposition"]], "PCA")
+  expect_identical(d@evidence[["decomposition_k"]], 20L)
+  expect_match(d@message, "PCA extracts 20 components", fixed = TRUE)
 })
 
 

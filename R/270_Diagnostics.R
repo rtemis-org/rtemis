@@ -96,8 +96,9 @@ DIAGNOSTIC_PLAIN <- c(
   DIM_P_GT_N = paste0(
     "There are more things being measured than there are rows to learn from. ",
     "A model in this position can fit the rows it was given almost perfectly ",
-    "and still be wrong about new cases, so treat the result with care: use ",
-    "more rows, fewer columns, or a method built for this situation."
+    "and still be wrong about new cases. Some methods are built for exactly ",
+    "this and handle it; others cannot, and give an answer that only looks ",
+    "like one. The finding says which of the two you have."
   ),
   MISSING_INCOMPATIBLE = paste0(
     "This dataset has gaps -- rows where a value was not recorded -- and the ",

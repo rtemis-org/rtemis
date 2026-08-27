@@ -24,9 +24,10 @@
 #' @param config Resolved rtemis config object.
 #'
 #' @return Named list with elements `preprocessor_config`,
-#'   `resamplers` (named list of `ResamplerConfig`, keyed by the JSON Pointer of
-#'   the property holding each), `hyperparameters`, `positive_class`, and
-#'   `supervised`. Each is NULL, or empty, where the config does not carry it.
+#'   `decomposition_config`, `resamplers` (named list of `ResamplerConfig`,
+#'   keyed by the JSON Pointer of the property holding each),
+#'   `hyperparameters`, `positive_class`, and `supervised`. Each is NULL, or
+#'   empty, where the config does not carry it.
 #'
 #' @author EDG
 #' @keywords internal
@@ -34,6 +35,7 @@
 config_parts <- function(config) {
   out <- list(
     preprocessor_config = NULL,
+    decomposition_config = NULL,
     resamplers = list(),
     hyperparameters = NULL,
     positive_class = NULL,
@@ -52,6 +54,7 @@ config_parts <- function(config) {
   # only in how the data reaches them, so a class test would validate the
   # portable recipe and quietly find nothing in the live one.
   out[["preprocessor_config"]] <- config_prop(config, "preprocessor_config")
+  out[["decomposition_config"]] <- config_prop(config, "decomposition_config")
   out[["hyperparameters"]] <- config_prop(config, "hyperparameters")
   out[["positive_class"]] <- config_prop(config, "positive_class")
   # Both resamplers partition the same cases and fail the same way, so both are
@@ -138,7 +141,7 @@ validate_data <- function(config, data, outcome = NULL, step = NULL) {
       recursive = FALSE
     ),
     check_feature_constant(dat, feature_names, parts),
-    check_dim_p_gt_n(cd, dat, feature_names),
+    check_dim_p_gt_n(cd, dat, feature_names, parts),
     check_missing_incompatible(cd, dat, outcome_name, parts)
   )
   out <- Filter(Negate(is.null), out)
@@ -709,28 +712,40 @@ check_feature_constant <- function(dat, feature_names, parts) {
 
 
 # %% check_dim_p_gt_n ----
-#' Are there more encoded predictors than rows?
+#' Does the learner see more predictors than there are rows?
 #'
-#' Counted after categorical encoding, because that is the width the model
-#' actually fits: a factor contributes one column per level it takes -- rtemis's
-#' `one_hot()` encodes every level, dropping no reference -- while a numeric or
-#' date column contributes one. `CheckData@n_distinct_per_col` supplies the
-#' level counts.
+#' Counted at the width the model actually fits, which is two steps from the
+#' column count:
 #'
-#' A warning rather than an error: p > n is the situation regularized methods
-#' exist for, and a config that chose one is not wrong. What it costs is the
-#' ability of an unregularized fit to be checked at all, which is worth saying.
+#' - **Categorical encoding.** A factor contributes one column per level it
+#'   takes -- rtemis's `one_hot()` encodes every level, dropping no reference --
+#'   while a numeric or date column contributes one.
+#'   `CheckData@n_distinct_per_col` supplies the level counts.
+#' - **Decomposition.** `train()` applies `decomposition_config` before fitting,
+#'   so a pipeline that extracts `k` components hands the learner `k` features
+#'   however wide the data was. Reporting the encoded width there would state a
+#'   number the model never sees.
+#'
+#' Severity is the algorithm's answer, not a judgment: `p_gt_n` is FALSE only
+#' where the fit is an unregularized least squares and goes rank-deficient, and
+#' those are the runs that complete while producing aliased coefficients -- a
+#' warning by the definition of the level. Everything else regularizes, selects,
+#' or cannot be rank-deficient, so the situation is worth recording and nothing
+#' is wrong: a note. Which remedy to reach for -- a regularized algorithm, a
+#' decomposition step, more rows -- is a choice this reports the numbers for
+#' rather than makes.
 #'
 #' @param cd `CheckData` object for the data.
 #' @param dat data.table: The dataset.
 #' @param feature_names Character: The predictor columns.
+#' @param parts Named list from `config_parts()`.
 #'
 #' @return List of `Diagnostic` objects, possibly empty.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_dim_p_gt_n <- function(cd, dat, feature_names) {
+check_dim_p_gt_n <- function(cd, dat, feature_names, parts) {
   if (length(feature_names) == 0L) {
     return(list())
   }
@@ -747,14 +762,32 @@ check_dim_p_gt_n <- function(cd, dat, feature_names) {
   )
   encoded_p <- sum(widths)
   n_rows <- cd@n_rows
-  if (encoded_p <= n_rows) {
+
+  decomposition <- parts[["decomposition_config"]]
+  effective_p <- encoded_p
+  decomposition_evidence <- NULL
+  if (!is.null(decomposition)) {
+    k <- config_prop(decomposition, "k")
+    if (!is.null(k)) {
+      effective_p <- k
+      decomposition_evidence <- list(
+        decomposition = decomposition@algorithm,
+        decomposition_k = k
+      )
+    }
+  }
+  if (effective_p <= n_rows) {
     return(list())
   }
-  categorical <- names(widths)[widths > 1L]
-  list(new_diagnostic(
-    code = "DIM_P_GT_N",
-    severity = "warning",
-    message = paste0(
+
+  algorithm <- config_algorithm(parts)
+  handles <- if (is.null(algorithm)) {
+    NA
+  } else {
+    algorithm_handles_p_gt_n(algorithm)
+  }
+  what <- if (is.null(decomposition_evidence)) {
+    paste0(
       length(feature_names),
       ngettext(
         length(feature_names),
@@ -762,18 +795,48 @@ check_dim_p_gt_n <- function(cd, dat, feature_names) {
         " predictors encode"
       ),
       " to ",
-      encoded_p,
-      " columns, more than the ",
+      effective_p,
+      " columns"
+    )
+  } else {
+    paste0(
+      decomposition_evidence[["decomposition"]],
+      " extracts ",
+      effective_p,
+      ngettext(effective_p, " component", " components")
+    )
+  }
+  list(new_diagnostic(
+    code = "DIM_P_GT_N",
+    severity = if (isFALSE(handles)) "warning" else "note",
+    message = paste0(
+      what,
+      ", more than the ",
       n_rows,
       " ",
       ngettext(n_rows, "row", "rows"),
-      " available."
+      " available.",
+      if (isFALSE(handles)) {
+        paste0(
+          " ",
+          algorithm,
+          " fits an unregularized least squares, so the fit is rank-deficient."
+        )
+      } else if (!is.null(algorithm)) {
+        paste0(" ", algorithm, " fits in this regime.")
+      }
     ),
-    evidence = list(
-      n_features = length(feature_names),
-      encoded_p = encoded_p,
-      n_rows = n_rows,
-      categorical_features = categorical
+    evidence = c(
+      list(
+        n_features = length(feature_names),
+        encoded_p = encoded_p,
+        effective_p = effective_p,
+        n_rows = n_rows,
+        categorical_features = names(widths)[widths > 1L],
+        algorithm = algorithm %||% NA_character_,
+        algorithm_handles_p_gt_n = handles
+      ),
+      decomposition_evidence
     )
   ))
 } # /rtemis::check_dim_p_gt_n
