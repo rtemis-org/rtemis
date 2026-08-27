@@ -101,6 +101,7 @@ test_that("a clean regression pair returns an empty Diagnostics", {
 
 # %% OUTCOME_MISSING ----
 test_that("OUTCOME_MISSING: the named outcome column is not in the data", {
+  # rule: OUTCOME_MISSING/not-a-column
   d <- .only(
     validate_config(.config(), data = .balanced_data(), outcome = "readmit"),
     "OUTCOME_MISSING"
@@ -124,6 +125,7 @@ test_that("OUTCOME_MISSING ends the pass rather than cascading", {
 
 # %% OUTCOME_TYPE_MISMATCH ----
 test_that("OUTCOME_TYPE_MISMATCH: a character outcome rtemis cannot use", {
+  # rule: OUTCOME_TYPE_MISMATCH/unusable-dtype
   dat <- data.frame(x1 = rnorm(20L), y = rep(c("no", "yes"), 10L))
   d <- .only(validate_config(.config(), data = dat), "OUTCOME_TYPE_MISMATCH")
   expect_identical(d@severity, "error")
@@ -134,6 +136,7 @@ test_that("OUTCOME_TYPE_MISMATCH: a character outcome rtemis cannot use", {
 
 
 test_that("OUTCOME_TYPE_MISMATCH: positive_class on a numeric outcome", {
+  # rule: OUTCOME_TYPE_MISMATCH/positive-class-on-numeric
   set.seed(2026L)
   dat <- data.frame(x1 = rnorm(30L), y = rnorm(30L))
   d <- .only(
@@ -160,6 +163,7 @@ test_that("a binary outcome held as 0/1 integers reads as regression", {
 
 # %% RESAMPLE_MIN_CLASS ----
 test_that("RESAMPLE_MIN_CLASS: the rarer class cannot fill every fold", {
+  # rule: RESAMPLE_MIN_CLASS/fewer-cases-than-resamples
   d <- .only(
     validate_config(
       .config(outer_resampling_config = .kfold(10L)),
@@ -230,6 +234,7 @@ test_that("RESAMPLE_MIN_CLASS does not apply to an unstratified bootstrap", {
 
 # %% RESAMPLE_N_ROWS ----
 test_that("RESAMPLE_N_ROWS: more folds than rows", {
+  # rule: RESAMPLE_N_ROWS/more-folds-than-rows
   d <- .only(
     validate_config(
       .config("GLM", outer_resampling_config = .kfold(10L)),
@@ -266,6 +271,7 @@ test_that("RESAMPLE_N_ROWS offers no fix when no fold count would work", {
 
 
 test_that("RESAMPLE_N_ROWS: folds that leave a single test case", {
+  # rule: RESAMPLE_N_ROWS/thin-test-fold
   d <- .only(
     validate_config(
       .config("GLM", outer_resampling_config = .kfold(10L)),
@@ -280,6 +286,7 @@ test_that("RESAMPLE_N_ROWS: folds that leave a single test case", {
 
 
 test_that("RESAMPLE_N_ROWS: a train_p split that leaves no test cases", {
+  # rule: RESAMPLE_N_ROWS/empty-split-side
   d <- .only(
     validate_config(
       .config(
@@ -299,8 +306,58 @@ test_that("RESAMPLE_N_ROWS: a train_p split that leaves no test cases", {
 })
 
 
+test_that("RESAMPLE_N_ROWS: a resampler that needs at least two rows", {
+  # rule: RESAMPLE_N_ROWS/needs-two-rows
+  # LOOCV and Bootstrap name no fold count and no fraction, so the row count
+  # alone decides them. `remove_constants` keeps FEATURE_CONSTANT quiet: with
+  # one row every column is constant, which is true and not what is under test.
+  for (type in c("LOOCV", "Bootstrap")) {
+    d <- .only(
+      validate_config(
+        .config(
+          "GLM",
+          preprocessor_config = list(remove_constants = TRUE),
+          outer_resampling_config = list(type = type)
+        ),
+        data = .regression_data(1L)
+      ),
+      "RESAMPLE_N_ROWS"
+    )
+    expect_identical(d@severity, "error", info = type)
+    expect_identical(d@evidence[["type"]], type)
+    expect_identical(d@evidence[["n_rows"]], 1L)
+    expect_null(d@fix)
+  }
+})
+
+
+test_that("RESAMPLE_N_ROWS: a train_p split that leaves one test case", {
+  # rule: RESAMPLE_N_ROWS/single-test-case
+  # The warning beside the error above: the split is possible, and a score
+  # computed on one case carries no information.
+  d <- .only(
+    validate_config(
+      .config(
+        "GLM",
+        outer_resampling_config = list(
+          type = "StratSub",
+          n_resamples = 3L,
+          train_p = 0.9
+        )
+      ),
+      data = .regression_data(10L)
+    ),
+    "RESAMPLE_N_ROWS"
+  )
+  expect_identical(d@severity, "warning")
+  expect_identical(d@evidence[["n_train"]], 9)
+  expect_identical(d@evidence[["n_test"]], 1)
+})
+
+
 # %% FEATURE_CONSTANT ----
 test_that("FEATURE_CONSTANT: predictors that never vary", {
+  # rule: FEATURE_CONSTANT/no-preprocessor-block
   dat <- .balanced_data(40L)
   dat[["site"]] <- factor("A")
   dat[["fee"]] <- 99L
@@ -311,18 +368,29 @@ test_that("FEATURE_CONSTANT: predictors that never vary", {
   )
   expect_identical(d@severity, "warning")
   expect_identical(d@evidence[["features"]], c("site", "fee"))
+  # Two operations: the block is created empty and filled by the one after it.
+  # An expression language has no object constructor, so this is the spelling
+  # `checks/v1` can also emit -- see plan/validation-rules.md.
   expect_identical(
     d@fix,
-    list(list(
-      op = "add",
-      path = "/preprocessor_config",
-      value = list(remove_features = list("site", "fee"))
-    ))
+    list(
+      list(
+        op = "add",
+        path = "/preprocessor_config",
+        value = stats::setNames(list(), character())
+      ),
+      list(
+        op = "add",
+        path = "/preprocessor_config/remove_features",
+        value = list("site", "fee")
+      )
+    )
   )
 })
 
 
 test_that("FEATURE_CONSTANT patches into an existing preprocessor block", {
+  # rule: FEATURE_CONSTANT/existing-preprocessor-block
   dat <- .balanced_data(40L)
   dat[["site"]] <- factor("A")
   dat <- dat[, c("x1", "x2", "site", "y")]
@@ -393,6 +461,7 @@ test_that("FEATURE_CONSTANT ignores a constant outcome", {
 
 
 test_that("DIM_P_GT_N warns only where the fit goes rank-deficient", {
+  # rule: DIM_P_GT_N/encoded-rank-deficient
   # Severity is the algorithm's answer, not a judgment about wide data: an
   # unregularized least squares is rank-deficient here, a penalized one is not.
   d <- .only(validate_config(.config("GLM"), data = .wide_data()), "DIM_P_GT_N")
@@ -406,6 +475,7 @@ test_that("DIM_P_GT_N warns only where the fit goes rank-deficient", {
 
 
 test_that("DIM_P_GT_N is a note for an algorithm built for this regime", {
+  # rule: DIM_P_GT_N/encoded-algorithm-fits
   for (algorithm in c("GLMNET", "HAL", "SPLS", "Ranger", "LightGBM")) {
     d <- .only(
       validate_config(.config(algorithm), data = .wide_data()),
@@ -449,6 +519,7 @@ test_that("DIM_P_GT_N counts what the learner sees, not the raw width", {
 
 
 test_that("DIM_P_GT_N reports the component count when it still exceeds rows", {
+  # rule: DIM_P_GT_N/components-rank-deficient
   d <- .only(
     validate_config(
       .config(
@@ -467,6 +538,71 @@ test_that("DIM_P_GT_N reports the component count when it still exceeds rows", {
   expect_identical(d@evidence[["decomposition"]], "PCA")
   expect_identical(d@evidence[["decomposition_k"]], 20L)
   expect_match(d@message, "PCA extracts 20 components", fixed = TRUE)
+})
+
+
+test_that("DIM_P_GT_N is a note when a decomposition feeds an algorithm that fits", {
+  # rule: DIM_P_GT_N/components-algorithm-fits
+  d <- .only(
+    validate_config(
+      .config(
+        "GLMNET",
+        decomposition_config = list(
+          algorithm = "PCA",
+          config = list(k = 20L)
+        )
+      ),
+      data = .wide_data()
+    ),
+    "DIM_P_GT_N"
+  )
+  expect_identical(d@severity, "note")
+  expect_identical(d@evidence[["decomposition_k"]], 20L)
+  expect_identical(d@evidence[["algorithm"]], "GLMNET")
+})
+
+
+test_that("DIM_P_GT_N reports the width with no algorithm to judge it", {
+  # rule: DIM_P_GT_N/encoded-no-algorithm
+  # A config that names no algorithm still says something about the shape of
+  # the data, and there is nothing to assert harm about: a note.
+  d <- .only(
+    validate_config(
+      list(
+        `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+        scale = TRUE
+      ),
+      data = .wide_data()
+    ),
+    "DIM_P_GT_N"
+  )
+  expect_identical(d@severity, "note")
+  expect_true(is.na(d@evidence[["algorithm"]]))
+  expect_null(d@evidence[["decomposition"]])
+  # Every column is a feature: with no outcome designated, calling the last one
+  # an outcome would drop it from the count.
+  expect_identical(d@evidence[["n_features"]], 21L)
+})
+
+
+test_that("DIM_P_GT_N reports a component count with no algorithm to judge it", {
+  # rule: DIM_P_GT_N/components-no-algorithm
+  d <- .only(
+    validate_config(
+      list(
+        `$schema` = "https://schema.rtemis.org/decompose/v1/schema.json",
+        decomposition_config = list(
+          algorithm = "PCA",
+          config = list(k = 20L)
+        )
+      ),
+      data = .wide_data()
+    ),
+    "DIM_P_GT_N"
+  )
+  expect_identical(d@severity, "note")
+  expect_identical(d@evidence[["decomposition"]], "PCA")
+  expect_true(is.na(d@evidence[["algorithm"]]))
 })
 
 
@@ -499,6 +635,7 @@ test_that("DIM_P_GT_N is silent when the encoded width fits", {
 
 # %% MISSING_INCOMPATIBLE ----
 test_that("MISSING_INCOMPATIBLE: gaps reach an algorithm that refuses them", {
+  # rule: MISSING_INCOMPATIBLE/algorithm-refuses-gaps
   dat <- .balanced_data(40L)
   dat[["x1"]][1:3] <- NA
   d <- .only(
@@ -529,6 +666,7 @@ test_that("MISSING_INCOMPATIBLE is silent for an algorithm that takes gaps", {
 
 
 test_that("MISSING_INCOMPATIBLE warns where the algorithm cannot answer", {
+  # rule: MISSING_INCOMPATIBLE/tolerance-unknown
   # A meta learner accepts whatever its base learners accept, so the trait is
   # NA and the finding says gaps survive without claiming they are fatal.
   dat <- .balanced_data(40L)
@@ -545,6 +683,7 @@ test_that("MISSING_INCOMPATIBLE warns where the algorithm cannot answer", {
 
 
 test_that("MISSING_INCOMPATIBLE: a gap in the outcome, which nothing removes", {
+  # rule: MISSING_INCOMPATIBLE/outcome-has-gaps
   dat <- .balanced_data(40L)
   dat[["y"]][1L] <- NA
   out <- validate_config(
@@ -559,6 +698,7 @@ test_that("MISSING_INCOMPATIBLE: a gap in the outcome, which nothing removes", {
 
 
 test_that("MISSING_INCOMPATIBLE: complete_cases leaves nothing to train on", {
+  # rule: MISSING_INCOMPATIBLE/complete-cases-leaves-nothing
   # A standalone preprocessor, because `train()` rejects `complete_cases`
   # outright -- see the PREPROCESSOR_UNSUPPORTED fixtures below.
   set.seed(2026L)
@@ -581,6 +721,7 @@ test_that("MISSING_INCOMPATIBLE: complete_cases leaves nothing to train on", {
 
 
 test_that("MISSING_INCOMPATIBLE: imputation has nothing to learn from", {
+  # rule: MISSING_INCOMPATIBLE/nothing-to-impute-from
   set.seed(2026L)
   dat <- data.frame(x1 = rnorm(20L), x2 = NA_real_, y = rnorm(20L))
   out <- validate_config(
@@ -888,6 +1029,7 @@ test_that("remove_cases_thres is simulated at the column count", {
 
 # %% PREPROCESSOR_UNSUPPORTED ----
 test_that("PREPROCESSOR_UNSUPPORTED: steps train() cannot run", {
+  # rule: PREPROCESSOR_UNSUPPORTED/case-ops
   dat <- .balanced_data(40L)
   for (op in c("complete_cases", "remove_duplicates")) {
     d <- .only(
@@ -905,6 +1047,7 @@ test_that("PREPROCESSOR_UNSUPPORTED: steps train() cannot run", {
 
 
 test_that("PREPROCESSOR_UNSUPPORTED: a learned column drop", {
+  # rule: PREPROCESSOR_UNSUPPORTED/learned-drop-ops
   d <- .only(
     validate_config(
       .config("GLM", preprocessor_config = list(remove_features_thres = 0.9)),
@@ -914,6 +1057,29 @@ test_that("PREPROCESSOR_UNSUPPORTED: a learned column drop", {
   )
   expect_identical(d@evidence[["learned_drop_ops"]], "remove_features_thres")
   expect_match(d@message, "different feature set", fixed = TRUE)
+})
+
+
+test_that("PREPROCESSOR_UNSUPPORTED: both families at once", {
+  # rule: PREPROCESSOR_UNSUPPORTED/both-families
+  # One finding naming both reasons, not two findings: the config carries one
+  # unusable `preprocessor_config`, however many ways it is unusable.
+  d <- .only(
+    validate_config(
+      .config(
+        "GLM",
+        preprocessor_config = list(
+          complete_cases = TRUE,
+          remove_features_thres = 0.9
+        )
+      ),
+      data = .balanced_data(40L)
+    ),
+    "PREPROCESSOR_UNSUPPORTED"
+  )
+  expect_identical(d@evidence[["case_ops"]], "complete_cases")
+  expect_identical(d@evidence[["learned_drop_ops"]], "remove_features_thres")
+  expect_match(d@message, "replay at predict time; ", fixed = TRUE)
 })
 
 
@@ -961,6 +1127,7 @@ test_that("a gap only in the outcome is reported once, not twice", {
 
 # %% FEATURE_TYPE_UNSUPPORTED ----
 test_that("FEATURE_TYPE_UNSUPPORTED: predictors train() cannot read", {
+  # rule: FEATURE_TYPE_UNSUPPORTED/not-numeric-or-factor
   set.seed(2026L)
   n <- 40L
   dat <- data.frame(
@@ -1046,6 +1213,7 @@ test_that("evidence reports profile dtypes, not R class names", {
 
 
 test_that("an outcome with more levels than the profile carries is reported", {
+  # rule: RESAMPLE_MIN_CLASS/levels-not-carried
   # `PROFILE_MAX_LEVELS` omits the counts, so the class-balance check cannot
   # run. It says so rather than passing: a silent skip is indistinguishable
   # from a clean result.

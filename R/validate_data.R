@@ -587,9 +587,15 @@ check_resample_min_class <- function(
       n_resamples = n_resamples,
       min_class = min_level,
       min_class_n = min_class,
-      class_counts = stats::setNames(
-        as.list(counts[["n"]]),
-        counts[["level"]]
+      # Long form, one record per level, as `profile/v1` carries them. A
+      # name -> count map cannot be iterated by an expression language, so the
+      # rule set could not reproduce it and the two would state the same fact
+      # in shapes a conformance run could not compare.
+      class_counts = lapply(
+        seq_len(NROW(counts)),
+        function(i) {
+          list(level = counts[["level"]][[i]], n = counts[["n"]][[i]])
+        }
       )
     ),
     # Fewer parts than the rarest class has cases is the one repair that needs
@@ -841,19 +847,31 @@ check_feature_constant <- function(profile, feature_names, parts) {
     evidence = list(features = constant, n_features = length(constant)),
     # Naming the columns is deterministic; the union with what the config
     # already removes is what keeps the patch from discarding that list.
-    fix = list(list(
-      op = "add",
-      path = if (is.null(pp)) {
-        "/preprocessor_config"
-      } else {
-        "/preprocessor_config/remove_features"
-      },
-      value = if (is.null(pp)) {
-        list(remove_features = as.list(constant))
-      } else {
-        as.list(union(already, constant))
-      }
-    ))
+    #
+    # With no block to patch into, two operations rather than one carrying a
+    # constructed object: an expression language has no object constructor, so
+    # this is the spelling a second implementation can also produce. RFC 6902
+    # applies them in order, and the result is the same document.
+    fix = if (is.null(pp)) {
+      list(
+        list(
+          op = "add",
+          path = "/preprocessor_config",
+          value = stats::setNames(list(), character())
+        ),
+        list(
+          op = "add",
+          path = "/preprocessor_config/remove_features",
+          value = as.list(constant)
+        )
+      )
+    } else {
+      list(list(
+        op = "add",
+        path = "/preprocessor_config/remove_features",
+        value = as.list(union(already, constant))
+      ))
+    }
   ))
 } # /rtemis::check_feature_constant
 

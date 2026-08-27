@@ -99,20 +99,29 @@ test:
     {{ rscript }} -e "testthat::test_local(stop_on_failure = TRUE)"
     @just _msg "Done"
 
-# Generate schemas + defaults into a throwaway directory to assert the config contract
+# `generate_checks.R` also refreshes the `inst/` copies of checks and traits,
+# which are what the package ships and what `test_ChecksArtifact.R` reads, so a
+# diff there after this runs means the committed copies were stale.
+[doc("Generate schemas + defaults + checks into a throwaway directory to assert the contracts")]
 schemas-check:
     @just _msg "─── Checking schema generation for {{ pkg }}... ───"
     @dir=$(mktemp -d); trap 'rm -rf "$dir"' EXIT; \
         {{ rscript }} data-raw/generate_schemas.R "$dir" && \
-        {{ rscript }} data-raw/generate_defaults.R "$dir"
+        {{ rscript }} data-raw/generate_defaults.R "$dir" && \
+        {{ rscript }} data-raw/generate_checks.R "$dir"
+    @git diff --quiet --exit-code -- inst/checks inst/traits || { \
+        echo "   Note: inst/checks or inst/traits was regenerated -- the committed copy was stale."; \
+        echo "   Review the diff and commit it with the rule-set change."; \
+    }
     @just _msg "Done"
 
-# Write schemas + defaults to the schema repo (publishing step; commit there separately)
+[doc("Write schemas + defaults + checks to the schema repo (publishing step; commit there separately)")]
 schemas repo=schema_repo:
     @just _need SCHEMA_REPO "{{ repo }}"
     @just _msg "─── Generating schemas for {{ pkg }} into {{ repo }}... ───"
     {{ rscript }} data-raw/generate_schemas.R {{ repo }}
     {{ rscript }} data-raw/generate_defaults.R {{ repo }}
+    {{ rscript }} data-raw/generate_checks.R {{ repo }}
     @just _msg "Done"
 
 # Generate schemas and refresh the registry index; stops before the commit
@@ -160,7 +169,12 @@ publish-downstream:
     cd "{{ live_repo }}" && pnpm sync:schemas && pnpm check:schemas && pnpm test
     @just _msg "─── Vendoring into {{ cli_repo }}... ───"
     cd "{{ cli_repo }}" && just sync-schemas
+    # Three documents the registry publishes but does not index: `just index`
+    # lists only schema.json / record.json, and `sync-schemas` fetches what the
+    # index lists, so these are copied by hand.
     cp "{{ schema_repo }}/defaults/v1/defaults.json" "{{ cli_repo }}/rtemis-cli/defaults/defaults.json"
+    cp "{{ schema_repo }}/checks/v1/checks.json" "{{ cli_repo }}/rtemis-cli/checks/checks.json"
+    cp "{{ schema_repo }}/traits/v1/traits.json" "{{ cli_repo }}/rtemis-cli/checks/traits.json"
     cd "{{ cli_repo }}" && just fbi
     @just _msg "─── Checking {{ cli_repo }} ───"
     @cd "{{ cli_repo }}" && just check || { \

@@ -2,6 +2,9 @@
 
 ## 1.3.8
 
+- **New `checks/v1` and `traits/v1` at schema.rtemis.org**: the nine data checks as 29 JSONLogic rules over a `profile/v1` description, plus the algorithm traits they read. Authored in infix in `data-raw/checks.R` and compiled at generation time; rtemis's own checks remain the reference implementation and are unchanged in what they report.
+- `RESAMPLE_MIN_CLASS` evidence reports `class_counts` in long form, one record per level, as `profile/v1` carries them.
+- `FEATURE_CONSTANT` offers a two-operation patch where the config has no `preprocessor_config`: the block is added empty, then filled.
 - **New `train(preflight = TRUE)`**: checks the configuration against the data before training and stops on any finding of severity "error", reporting warnings and continuing. Off by default.
 - **New `data_profile()` and the `profile/v1` schema**: measured facts about one dataset -- dimensions, columns with their types, distinct and missing counts, observed level counts for low-cardinality categorical columns, complete-case and duplicate counts. Bounded by the number of columns rather than rows, so a validator can check a config against data without the data.
 - **New `validate_config()`**: checks a config against the published schema and, when given the data, against the dataset it would run on. Returns a `Diagnostics` of findings -- each with a stable `code`, a `severity`, a technical message, a plain-language one, the numbers behind it, and where a deterministic one exists an RFC 6902 JSON Patch that fixes it. Empty means clean; nothing is thrown.

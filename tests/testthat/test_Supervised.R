@@ -4432,6 +4432,58 @@ test_that("NNLS applies case weights as sqrt(w) on both sides", {
 })
 
 
+## {NNLS}[train]<Classification> ----
+# Binary only, and a linear probability model rather than a link-function
+# classifier: NNLS's own scale *is* the probability scale. Numeric predictors
+# on [0, 1], which is the shape the stacking meta learner sees.
+nnls_datc <- data.frame(
+  p1 = seq(0, 1, length.out = 100L),
+  p2 = rev(seq(0, 1, length.out = 100L))
+)
+nnls_datc[["y"]] <- factor(
+  ifelse(nnls_datc[["p1"]] > 0.5, "yes", "no"),
+  levels = c("no", "yes")
+)
+mod_c_nnls <- train(
+  nnls_datc,
+  hyperparameters = setup_NNLS(),
+  verbosity = 0L
+)
+
+test_that("train() NNLS Classification succeeds", {
+  expect_s7_class(mod_c_nnls, Classification)
+  # Regression leaves `y_levels` NULL; classification is the only thing that
+  # sets it, and `predict_super()` needs it to know which scale it is on.
+  expect_identical(mod_c_nnls@model@y_levels, c("no", "yes"))
+  expect_null(mod_r_nnls@model@y_levels)
+})
+
+
+test_that("NNLS predicts the probability of the second outcome level", {
+  # The encoding is `as.numeric(outcome) - 1`, so the fitted value is P(second
+  # level). Inverting it would flip every probability in the package's default
+  # stacking meta learner while still producing a valid-looking model, so the
+  # direction is asserted rather than assumed.
+  predicted <- predict(mod_c_nnls, nnls_datc[, c("p1", "p2")])
+  expect_identical(colnames(predicted), "yes")
+  expect_length(predicted, NROW(nnls_datc))
+  expect_true(all(predicted >= 0 & predicted <= 1))
+  expect_gt(
+    mean(predicted[nnls_datc[["y"]] == "yes"]),
+    mean(predicted[nnls_datc[["y"]] == "no"])
+  )
+})
+
+
+test_that("NNLS clamps a linear predictor that leaves [0, 1]", {
+  # A linear probability model is unbounded by construction, so a case outside
+  # the training range leaves the scale it is read on. Every other classifier
+  # here passes through a link function and cannot.
+  outside <- data.frame(p1 = c(5, -5), p2 = c(0, 0))
+  expect_identical(as.numeric(predict(mod_c_nnls, outside)), c(1, 0))
+})
+
+
 test_that("train() NNLS aborts on multiclass and on non-numeric predictors", {
   expect_error(
     train(x = datc3_train, hyperparameters = setup_NNLS(), verbosity = 0L),
@@ -4640,6 +4692,32 @@ test_that("train() ModalityStacking gives each entry only its own features", {
 test_that("ModalityStacking predicts on new data", {
   predicted <- predict(mod_r_ms, datr_test[, -NCOL(datr_test), with = FALSE])
   expect_length(predicted, NROW(datr_test))
+  expect_false(anyNA(predicted))
+})
+
+
+## {ModalityStacking}[train]<Classification> ----
+test_that("train() ModalityStacking Classification succeeds", {
+  mod <- train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_ModalityStacking(
+      feature_groups = list(
+        sepal = c("Sepal.Length", "Sepal.Width"),
+        petal = c("Petal.Length", "Petal.Width", "gn")
+      ),
+      base_learners = list(sepal = setup_GLM(), petal = setup_CART()),
+      inner_resampling_config = meta_res
+    ),
+    verbosity = 0L
+  )
+  expect_s7_class(mod, Classification)
+  expect_identical(
+    mod@model@base_models[["sepal"]]@xnames,
+    c("Sepal.Length", "Sepal.Width")
+  )
+  predicted <- predict(mod, datc2_test[, -NCOL(datc2_test)])
+  expect_length(predicted, NROW(datc2_test))
   expect_false(anyNA(predicted))
 })
 
@@ -4906,4 +4984,67 @@ test_that("a meta learner's record carries one block per library entry", {
     expect_true("origin" %in% names(entry[["hyperparameters"]]))
   }
   expect_identical(payload[["meta_learner"]][["algorithm"]], "NNLS")
+})
+
+
+# --- Case-matrix coverage -------------------------------------------------------------------------
+# What every algorithm claims in `algorithmDB.R` must be exercised here.
+#
+# The claim used to live only in the skill's prose ("the Class/Reg columns you
+# set in algorithmDB.R must agree with which blocks exist"), which is how NNLS
+# and ModalityStacking came to declare classification support and be tested on
+# regression alone. Half-support is exactly the failure mode the registry is
+# supposed to prevent, so the agreement is read off the source rather than
+# trusted.
+#
+# Reads the section headers, not the results: what this asserts is that a block
+# for each supported outcome type *exists*, since a block gated behind an
+# unavailable backend still has to be written. `## {Alg}[train]<Task> ----` is
+# the convention `references/testing.md` sets, so a block that does not follow
+# it is invisible here -- which is the cost of the convention being the index.
+#
+# `surv` is deliberately not read. It does not mean what `class` and `reg` mean:
+# those say what *rtemis* does with an outcome, and `supervised_type()` resolves
+# only Classification and Regression, so no survival run exists to test. The
+# column says what the *backend* can do. When survival lands, `surv` joins the
+# claims below in the same edit that gives `supervised_type()` a third answer.
+test_that("every algorithm is tested on every outcome type it supports", {
+  src <- readLines(test_path("test_Supervised.R"))
+  headers <- grep("## \\{[A-Za-z0-9]+\\}\\[train\\]<", src, value = TRUE)
+  algorithm <- sub("^[ ]*## \\{([A-Za-z0-9]+)\\}.*$", "\\1", headers)
+  task <- sub("^.*\\[train\\]<([A-Za-z]+)>.*$", "\\1", headers)
+  tested <- function(name, block) any(algorithm == name & task == block)
+
+  missing_blocks <- character()
+  for (i in seq_len(NROW(supervised_algorithms))) {
+    name <- supervised_algorithms[["name"]][[i]]
+    claims <- c(
+      Regression = isTRUE(as.logical(supervised_algorithms[["reg"]][[i]])),
+      Classification = isTRUE(as.logical(supervised_algorithms[["class"]][[i]]))
+    )
+    for (block in names(claims)[claims]) {
+      if (!tested(name, block)) {
+        missing_blocks <- c(missing_blocks, paste0(name, " <", block, ">"))
+      }
+    }
+    # Multiclass is a separate claim, made by membership in
+    # `supervised_multiclass` rather than by a column, and it is a separate
+    # block: an algorithm can be binary-only and many are.
+    if (
+      name %in%
+        supervised_multiclass &&
+        !any(grepl(paste0("\\{", name, "\\}.*Multiclass"), src))
+    ) {
+      missing_blocks <- c(missing_blocks, paste0(name, " <Multiclass>"))
+    }
+  }
+  expect_identical(
+    missing_blocks,
+    character(),
+    info = paste0(
+      "Declared in algorithmDB.R with no train block here: ",
+      paste(missing_blocks, collapse = ", "),
+      ". Add the block, or correct the claim."
+    )
+  )
 })
