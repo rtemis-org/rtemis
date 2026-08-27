@@ -130,7 +130,8 @@
   "RegressionMetricsRes",
   "ClassificationMetricsRes",
   "Diagnostic",
-  "Diagnostics"
+  "Diagnostics",
+  "DataProfile"
 )
 
 

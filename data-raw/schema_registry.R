@@ -485,6 +485,21 @@ flat_configs <- list(
     ),
     array_refs = c(res_metrics = .url("classificationmetrics"))
   ),
+  # A description, not a config and not a record: measured facts about one
+  # dataset, published so that any implementation can validate a config against
+  # data without the data -- and without R.
+  profile = list(
+    cls = DataProfile,
+    title = "rtemis DataProfile",
+    description = paste0(
+      "What one dataset is, in the facts a validator needs: dimensions, ",
+      "columns with their types, distinct and missing counts, level counts ",
+      "for low-cardinality categorical columns, and complete-case and ",
+      "duplicate counts. Bounded by the number of columns rather than the ",
+      "number of rows, so it travels where the data cannot."
+    ),
+    refs = c(fingerprint = .url("datafingerprint"))
+  ),
   # Findings, not configs: what `validate_config()` reports about a config, so
   # every property is `readOnly` and none has an input form. `diagnostic` is a
   # family of its own so that `diagnostics` can `$ref` it once instead of

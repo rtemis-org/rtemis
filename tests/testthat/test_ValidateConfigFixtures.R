@@ -138,7 +138,9 @@ test_that("OUTCOME_TYPE_MISMATCH: positive_class on a numeric outcome", {
     validate_config(.config(positive_class = "yes"), data = dat),
     "OUTCOME_TYPE_MISMATCH"
   )
-  expect_identical(d@severity, "error")
+  # A warning: `train()` ignores `positive_class` on a numeric outcome and
+  # completes, so this must not stop a run that works.
+  expect_identical(d@severity, "warning")
   expect_identical(d@evidence[["declared_task"]], "Classification")
   expect_identical(d@evidence[["data_task"]], "Regression")
 })
@@ -298,7 +300,7 @@ test_that("RESAMPLE_N_ROWS: a train_p split that leaves no test cases", {
 # %% FEATURE_CONSTANT ----
 test_that("FEATURE_CONSTANT: predictors that never vary", {
   dat <- .balanced_data(40L)
-  dat[["site"]] <- "A"
+  dat[["site"]] <- factor("A")
   dat[["fee"]] <- 99L
   dat <- dat[, c("x1", "x2", "site", "fee", "y")]
   d <- .only(
@@ -320,7 +322,7 @@ test_that("FEATURE_CONSTANT: predictors that never vary", {
 
 test_that("FEATURE_CONSTANT patches into an existing preprocessor block", {
   dat <- .balanced_data(40L)
-  dat[["site"]] <- "A"
+  dat[["site"]] <- factor("A")
   dat <- dat[, c("x1", "x2", "site", "y")]
   d <- .only(
     validate_config(
@@ -345,7 +347,7 @@ test_that("FEATURE_CONSTANT patches into an existing preprocessor block", {
 
 test_that("FEATURE_CONSTANT is silent when the config already removes them", {
   dat <- .balanced_data(40L)
-  dat[["site"]] <- "A"
+  dat[["site"]] <- factor("A")
   dat <- dat[, c("x1", "x2", "site", "y")]
   base <- .config(outer_resampling_config = .kfold(5L))
   expect_length(
@@ -555,13 +557,18 @@ test_that("MISSING_INCOMPATIBLE: a gap in the outcome, which nothing removes", {
 
 
 test_that("MISSING_INCOMPATIBLE: complete_cases leaves nothing to train on", {
+  # A standalone preprocessor, because `train()` rejects `complete_cases`
+  # outright -- see the PREPROCESSOR_UNSUPPORTED fixtures below.
   set.seed(2026L)
   dat <- data.frame(x1 = rnorm(10L), x2 = rnorm(10L), y = rnorm(10L))
   dat[["x1"]][1:5] <- NA
   dat[["x2"]][6:10] <- NA
   d <- .only(
     validate_config(
-      .config("GLM", preprocessor_config = list(complete_cases = TRUE)),
+      list(
+        `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+        complete_cases = TRUE
+      ),
       data = dat
     ),
     "MISSING_INCOMPATIBLE"
@@ -590,19 +597,12 @@ test_that("MISSING_INCOMPATIBLE: imputation has nothing to learn from", {
 })
 
 
-test_that("MISSING_INCOMPATIBLE is silent when preprocessing resolves the gaps", {
+test_that("MISSING_INCOMPATIBLE is silent when imputation resolves the gaps", {
   dat <- .balanced_data(40L)
   dat[["x1"]][1:3] <- NA
   expect_length(
     validate_config(
       .config("GLM", preprocessor_config = list(impute = TRUE)),
-      data = dat
-    ),
-    0L
-  )
-  expect_length(
-    validate_config(
-      .config("GLM", preprocessor_config = list(complete_cases = TRUE)),
       data = dat
     ),
     0L
@@ -675,7 +675,7 @@ test_that("the RESAMPLE_N_ROWS fix clears the finding", {
 
 test_that("the FEATURE_CONSTANT fix clears the finding, block or no block", {
   dat <- .balanced_data(40L)
-  dat[["site"]] <- "A"
+  dat[["site"]] <- factor("A")
   dat <- dat[, c("x1", "x2", "site", "y")]
 
   # No preprocessor block: the patch creates one.
@@ -701,7 +701,7 @@ test_that("the FEATURE_CONSTANT fix clears the finding, block or no block", {
 
 test_that("several fixes apply together", {
   dat <- .balanced_data(60L, minority = 4L)
-  dat[["site"]] <- "A"
+  dat[["site"]] <- factor("A")
   dat <- dat[, c("x1", "x2", "site", "y")]
   config <- .config(outer_resampling_config = .kfold(10L))
   out <- validate_config(config, data = dat)
@@ -735,7 +735,7 @@ test_that("a config with no outcome treats every column as a feature", {
   # outcome would drop it from the feature checks. `site` is last and constant;
   # a supervised config would let it through as the outcome, this must not.
   dat <- .balanced_data(40L)
-  dat[["site"]] <- "A"
+  dat[["site"]] <- factor("A")
   out <- validate_config(
     list(
       `$schema` = "https://schema.rtemis.org/decomposition/v1/schema.json",
@@ -767,7 +767,7 @@ test_that("the data checks run on a preprocessor config too", {
   # A plan step is not always a supervised config. A standalone preprocessor
   # carries the parts the missingness and constant checks read, and gets them.
   dat <- .balanced_data(40L)
-  dat[["site"]] <- "A"
+  dat[["site"]] <- factor("A")
   out <- validate_config(
     list(
       `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
@@ -781,7 +781,7 @@ test_that("the data checks run on a preprocessor config too", {
 
 test_that("validate_config() stamps the step onto every data finding", {
   dat <- .balanced_data(40L)
-  dat[["site"]] <- "A"
+  dat[["site"]] <- factor("A")
   out <- validate_config(
     .config(outer_resampling_config = .kfold(5L)),
     data = dat[, c("x1", "x2", "site", "y")],
@@ -792,4 +792,229 @@ test_that("validate_config() stamps the step onto every data finding", {
     function(i) identical(out[[i]]@step, 2L),
     logical(1L)
   )))
+})
+
+
+# %% Preprocessing thresholds ----
+# `remove_features_thres` / `remove_cases_thres` drop what is missing above a
+# threshold. `train()` rejects both -- a learned column drop would give each
+# resample a different feature set, and a case drop cannot be replayed at
+# predict time -- so inside a supervised config they resolve nothing. They are
+# still supported by `preprocess()`, and there they are simulated exactly.
+
+.thin_column_data <- function(n = 60L, n_missing = 54L) {
+  set.seed(2026L)
+  dat <- data.frame(x1 = rnorm(n), x2 = rnorm(n), y = rnorm(n))
+  dat[["x1"]][seq_len(n_missing)] <- NA
+  dat
+}
+
+
+test_that("a threshold in a supervised config resolves nothing", {
+  out <- validate_config(
+    .config("GLM", preprocessor_config = list(remove_features_thres = 0.5)),
+    data = .thin_column_data()
+  )
+  expect_setequal(
+    diagnostic_codes(out),
+    c("PREPROCESSOR_UNSUPPORTED", "MISSING_INCOMPATIBLE")
+  )
+  # The gaps are still counted, because the step that would remove them is one
+  # `train()` will not run.
+  expect_identical(
+    .finding(out, "MISSING_INCOMPATIBLE")@evidence[["n_missing"]],
+    54L
+  )
+})
+
+
+test_that("a threshold that drops the gappy feature clears it for preprocess()", {
+  # The same config as a standalone preprocessor: here the step does run, and
+  # `missing_after_preprocessing()` simulates it exactly.
+  expect_length(
+    validate_config(
+      list(
+        `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+        remove_features_thres = 0.5
+      ),
+      data = .thin_column_data()
+    ),
+    0L
+  )
+})
+
+
+test_that("a threshold too high to drop it does not clear the finding", {
+  d <- .only(
+    validate_config(
+      list(
+        `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+        remove_features_thres = 0.95
+      ),
+      data = .thin_column_data()
+    ),
+    "MISSING_INCOMPATIBLE"
+  )
+  # A warning, not an error: a preprocessor config names no algorithm, so
+  # whether the surviving gaps are fatal is not knowable from it.
+  expect_identical(d@severity, "warning")
+  expect_identical(d@evidence[["n_missing"]], 54L)
+})
+
+
+test_that("remove_cases_thres is simulated at the column count", {
+  # `preprocess()` drops a case when its missing fraction reaches the
+  # threshold, and does it before the feature step. A standalone preprocessor
+  # designates no outcome, so every column counts toward the fraction: each
+  # incomplete case here is missing 1 of 3, or 0.33.
+  set.seed(2026L)
+  dat <- data.frame(x1 = rnorm(20L), x2 = rnorm(20L), y = rnorm(20L))
+  dat[["x1"]][1:3] <- NA
+  pp <- function(thres) {
+    list(
+      `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+      remove_cases_thres = thres
+    )
+  }
+  expect_length(validate_config(pp(0.3), data = dat), 0L)
+  expect_identical(
+    diagnostic_codes(validate_config(pp(0.5), data = dat)),
+    "MISSING_INCOMPATIBLE"
+  )
+})
+
+
+# %% PREPROCESSOR_UNSUPPORTED ----
+test_that("PREPROCESSOR_UNSUPPORTED: steps train() cannot run", {
+  dat <- .balanced_data(40L)
+  for (op in c("complete_cases", "remove_duplicates")) {
+    d <- .only(
+      validate_config(
+        .config("GLM", preprocessor_config = stats::setNames(list(TRUE), op)),
+        data = dat
+      ),
+      "PREPROCESSOR_UNSUPPORTED"
+    )
+    expect_identical(d@severity, "error", info = op)
+    expect_identical(d@evidence[["case_ops"]], op, info = op)
+    expect_null(d@fix)
+  }
+})
+
+
+test_that("PREPROCESSOR_UNSUPPORTED: a learned column drop", {
+  d <- .only(
+    validate_config(
+      .config("GLM", preprocessor_config = list(remove_features_thres = 0.9)),
+      data = .balanced_data(40L)
+    ),
+    "PREPROCESSOR_UNSUPPORTED"
+  )
+  expect_identical(d@evidence[["learned_drop_ops"]], "remove_features_thres")
+  expect_match(d@message, "different feature set", fixed = TRUE)
+})
+
+
+test_that("PREPROCESSOR_UNSUPPORTED does not apply to a standalone preprocessor", {
+  # `preprocess()` supports every one of these; only `train()` rejects them.
+  expect_length(
+    validate_config(
+      list(
+        `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+        remove_duplicates = TRUE
+      ),
+      data = .balanced_data(40L)
+    ),
+    0L
+  )
+})
+
+
+test_that("named remove_features and remove_constants stay allowed", {
+  dat <- .balanced_data(40L)
+  dat[["site"]] <- factor("A")
+  dat <- dat[, c("x1", "x2", "site", "y")]
+  for (cfg in list(
+    list(remove_features = "site"),
+    list(remove_constants = TRUE)
+  )) {
+    expect_length(
+      validate_config(.config("GLM", preprocessor_config = cfg), data = dat),
+      0L
+    )
+  }
+})
+
+
+test_that("a gap only in the outcome is reported once, not twice", {
+  # Both the outcome rule and the reaches-the-learner rule carry this code; the
+  # second must not fire, since no *feature* gap reaches anything.
+  dat <- .balanced_data(40L)
+  dat[["y"]][1L] <- NA
+  out <- validate_config(.config("GLM"), data = dat)
+  expect_identical(diagnostic_codes(out), "MISSING_INCOMPATIBLE")
+  expect_identical(out[[1L]]@evidence[["outcome"]], "y")
+})
+
+
+# %% FEATURE_TYPE_UNSUPPORTED ----
+test_that("FEATURE_TYPE_UNSUPPORTED: predictors train() cannot read", {
+  set.seed(2026L)
+  n <- 40L
+  dat <- data.frame(
+    x1 = rnorm(n),
+    site = sample(c("a", "b"), n, TRUE),
+    when = Sys.Date() + seq_len(n),
+    y = rnorm(n)
+  )
+  d <- .only(
+    validate_config(.config("GLM"), data = dat),
+    "FEATURE_TYPE_UNSUPPORTED"
+  )
+  expect_identical(d@severity, "error")
+  expect_identical(d@evidence[["features"]], c("site", "when"))
+  expect_identical(d@evidence[["classes"]], c("character", "Date"))
+  # Converting a column changes the data, not the config, so there is no patch.
+  expect_null(d@fix)
+})
+
+
+test_that("FEATURE_TYPE_UNSUPPORTED fires despite character2factor", {
+  # `check_supervised()` runs before `preprocess()` in `train()`, so the
+  # setting that would convert this column never gets the chance. Pinned
+  # because the check would otherwise look over-strict.
+  set.seed(2026L)
+  dat <- data.frame(
+    x1 = rnorm(40L),
+    site = sample(c("a", "b"), 40L, TRUE),
+    y = rnorm(40L)
+  )
+  expect_identical(
+    diagnostic_codes(validate_config(
+      .config("GLM", preprocessor_config = list(character2factor = TRUE)),
+      data = dat
+    )),
+    "FEATURE_TYPE_UNSUPPORTED"
+  )
+  expect_error(
+    train(
+      dat,
+      hyperparameters = setup_GLM(),
+      preprocessor_config = setup_Preprocessor(character2factor = TRUE),
+      verbosity = 0L
+    ),
+    "not numeric or factor"
+  )
+})
+
+
+test_that("FEATURE_TYPE_UNSUPPORTED is silent on numeric and factor predictors", {
+  set.seed(2026L)
+  dat <- data.frame(
+    x1 = rnorm(40L),
+    x2 = 1:40,
+    site = factor(sample(c("a", "b"), 40L, TRUE)),
+    y = rnorm(40L)
+  )
+  expect_length(validate_config(.config("GLM"), data = dat), 0L)
 })

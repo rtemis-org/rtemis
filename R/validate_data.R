@@ -141,8 +141,10 @@ validate_data <- function(config, data, outcome = NULL, step = NULL) {
       recursive = FALSE
     ),
     check_feature_constant(dat, feature_names, parts),
+    check_feature_type(dat, feature_names),
+    check_preprocessor_supported(parts),
     check_dim_p_gt_n(cd, dat, feature_names, parts),
-    check_missing_incompatible(cd, dat, outcome_name, parts)
+    check_missing_incompatible(cd, dat, feature_names, outcome_name, parts)
   )
   out <- Filter(Negate(is.null), out)
   lapply(out, set_step, step = step)
@@ -235,7 +237,7 @@ resolve_outcome <- function(dat, outcome, supervised) {
 # %% check_outcome_type ----
 #' Is the outcome the kind of column this config predicts?
 #'
-#' Two independent ways the pair can disagree, and both are fatal:
+#' Two independent ways the pair can disagree, and only the first is fatal:
 #'
 #' - The column is a type rtemis cannot use as an outcome at all. A character
 #'   column is the common case: it looks categorical but `check_supervised()`
@@ -245,7 +247,8 @@ resolve_outcome <- function(dat, outcome, supervised) {
 #'   binary-classification setting, so it names a factor level; on a numeric
 #'   outcome rtemis infers regression and the setting is a statement about a
 #'   question the run is not asking. An algorithm that performs only one of the
-#'   two tasks says the same thing about itself.
+#'   two tasks says the same thing about itself. A warning rather than an error,
+#'   because the run completes -- the setting is ignored, not fatal.
 #'
 #' @param outcome_value Vector or NULL: The outcome column.
 #' @param outcome_name Character or NULL: Its name.
@@ -283,7 +286,13 @@ check_outcome_type <- function(outcome_value, outcome_name, parts) {
   }
   list(new_diagnostic(
     code = "OUTCOME_TYPE_MISMATCH",
-    severity = "error",
+    # A warning, not an error: `train()` ignores `positive_class` on a numeric
+    # outcome and completes, so stopping the run would reject a config that
+    # works -- a portable recipe reused across a classification and a
+    # regression dataset is the ordinary way to reach this. What it costs is
+    # that the run answers the question the *data* poses rather than the one the
+    # config states, which the caller should see and decide about.
+    severity = "warning",
     message = paste0(
       "Config declares ",
       tolower(declared),
@@ -711,6 +720,131 @@ check_feature_constant <- function(dat, feature_names, parts) {
 } # /rtemis::check_feature_constant
 
 
+# %% check_preprocessor_supported ----
+#' Can this preprocessing run inside `train()`?
+#'
+#' Mirrors `check_preprocessor_for_train()`, which aborts on two families of
+#' step: those that drop cases (a fitted preprocessor cannot replay them) and
+#' those that learn which columns to drop (each resample would learn a different
+#' set). Both are guaranteed aborts, so a pre-flight that missed them would pass
+#' a config `train()` rejects one line later.
+#'
+#' Only for a config that trains. `preprocess()` supports every one of these
+#' steps, so a standalone `PreprocessorConfig` is checked for what it declares,
+#' not for what `train()` would do with it.
+#'
+#' No fix is offered: the remedy is to run the step before training, which is a
+#' change to the workflow rather than a patch to the config.
+#'
+#' @param parts Named list from `config_parts()`.
+#'
+#' @return List of `Diagnostic` objects, possibly empty.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_preprocessor_supported <- function(parts) {
+  pp <- parts[["preprocessor_config"]]
+  if (is.null(pp) || !isTRUE(parts[["supervised"]])) {
+    return(list())
+  }
+  cases <- preprocessor_ops_set(pp, PREPROCESSOR_CASE_OPS)
+  learned <- preprocessor_ops_set(pp, PREPROCESSOR_LEARNED_DROP_OPS)
+  if (length(cases) == 0L && length(learned) == 0L) {
+    return(list())
+  }
+  reasons <- c(
+    if (length(cases) > 0L) {
+      paste0(
+        paste0("`", cases, "`", collapse = ", "),
+        ngettext(length(cases), " removes cases", " remove cases"),
+        ", which a fitted preprocessor cannot replay at predict time"
+      )
+    },
+    if (length(learned) > 0L) {
+      paste0(
+        paste0("`", learned, "`", collapse = ", "),
+        ngettext(length(learned), " decides", " decide"),
+        " which columns to drop from the data, so each resample would train on",
+        " a different feature set"
+      )
+    }
+  )
+  list(new_diagnostic(
+    code = "PREPROCESSOR_UNSUPPORTED",
+    severity = "error",
+    message = paste0(
+      "`preprocessor_config` cannot run inside train(): ",
+      paste(reasons, collapse = "; "),
+      ". Do this before training, with preprocess() on the full dataset."
+    ),
+    evidence = list(
+      case_ops = unname(cases),
+      learned_drop_ops = unname(learned)
+    )
+  ))
+} # /rtemis::check_preprocessor_supported
+
+
+# %% check_feature_type ----
+#' Are all the predictors a type rtemis can train on?
+#'
+#' `check_supervised()` requires every predictor to be numeric or a factor and
+#' aborts otherwise, so a character or date predictor is a guaranteed failure
+#' rather than a risk.
+#'
+#' No preprocessing rescues it, which is why this check is unconditional:
+#' `check_supervised()` runs *before* `preprocess()` in `train()`, so
+#' `character2factor` -- which would convert exactly this column -- never gets
+#' the chance. Converting the column is a change to the data rather than to the
+#' config, so there is no patch to offer either.
+#'
+#' @param dat data.table: The dataset.
+#' @param feature_names Character: The predictor columns.
+#'
+#' @return List of `Diagnostic` objects, possibly empty.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_feature_type <- function(dat, feature_names) {
+  if (length(feature_names) == 0L) {
+    return(list())
+  }
+  unsupported <- feature_names[
+    !vapply(
+      feature_names,
+      function(nm) is.numeric(dat[[nm]]) || is.factor(dat[[nm]]),
+      logical(1L)
+    )
+  ]
+  if (length(unsupported) == 0L) {
+    return(list())
+  }
+  classes <- vapply(
+    unsupported,
+    function(nm) class(dat[[nm]])[[1L]],
+    character(1L)
+  )
+  list(new_diagnostic(
+    code = "FEATURE_TYPE_UNSUPPORTED",
+    severity = "error",
+    message = paste0(
+      length(unsupported),
+      ngettext(length(unsupported), " predictor is", " predictors are"),
+      " neither numeric nor a factor: ",
+      paste0("'", unsupported, "' (", classes, ")", collapse = ", "),
+      "."
+    ),
+    evidence = list(
+      features = unname(unsupported),
+      classes = unname(classes),
+      n_features = length(unsupported)
+    )
+  ))
+} # /rtemis::check_feature_type
+
+
 # %% check_dim_p_gt_n ----
 #' Does the learner see more predictors than there are rows?
 #'
@@ -842,6 +976,54 @@ check_dim_p_gt_n <- function(cd, dat, feature_names, parts) {
 } # /rtemis::check_dim_p_gt_n
 
 
+# %% missing_after_preprocessing ----
+#' How many gaps are left in the features once preprocessing has run
+#'
+#' `remove_cases_thres` and `remove_features_thres` drop what is missing *above
+#' a threshold*, so whether they resolve a dataset's gaps depends on the
+#' dataset. Treating them as no help reports an error on a run that completes;
+#' treating them as a remedy misses one that does not. Both are wrong, and the
+#' data is in hand, so this simulates them exactly instead.
+#'
+#' Mirrors `preprocess()`: cases first, at a fraction of the *feature* count
+#' (`train()` preprocesses `features(x)` and re-attaches the outcome), then
+#' features on the cases that remain, each dropping at `>=` the threshold. The
+#' two must stay in step -- a change to either rule in `preprocess()` belongs
+#' here in the same edit.
+#'
+#' @param dat data.table: The dataset.
+#' @param feature_names Character: The predictor columns.
+#' @param pp `PreprocessorConfig` object or NULL.
+#'
+#' @return Integer: Missing values remaining in the features.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+missing_after_preprocessing <- function(dat, feature_names, pp) {
+  if (length(feature_names) == 0L) {
+    return(0L)
+  }
+  feat <- as.data.frame(dat)[, feature_names, drop = FALSE]
+  if (!is.null(pp) && !is.null(pp@remove_cases_thres)) {
+    keep <- rowSums(is.na(feat)) / NCOL(feat) < pp@remove_cases_thres
+    feat <- feat[keep, , drop = FALSE]
+  }
+  if (NROW(feat) == 0L) {
+    return(0L)
+  }
+  if (!is.null(pp) && !is.null(pp@remove_features_thres)) {
+    fraction <- vapply(
+      feat,
+      function(v) sum(is.na(v)) / length(v),
+      numeric(1L)
+    )
+    feat <- feat[, fraction < pp@remove_features_thres, drop = FALSE]
+  }
+  sum(is.na(feat))
+} # /rtemis::missing_after_preprocessing
+
+
 # %% check_missing_incompatible ----
 #' Will missing values reach a run that cannot take them?
 #'
@@ -859,13 +1041,15 @@ check_dim_p_gt_n <- function(cd, dat, feature_names, parts) {
 #'   algorithm's to give (a meta learner defers to its base learners) or where
 #'   no algorithm is named.
 #'
-#' Only `complete_cases` and `impute` count as resolving the gaps.
-#' `remove_features_thres` and `remove_cases_thres` drop what is missing *above
-#' a threshold*, so they leave whatever falls below it; treating them as a
-#' remedy would clear the finding for a config that still fails.
+#' `complete_cases` and `impute` resolve the gaps outright.
+#' `remove_features_thres` and `remove_cases_thres` drop what is missing above a
+#' threshold, so whether they resolve *these* gaps depends on the data --
+#' `missing_after_preprocessing()` simulates both rather than assuming either
+#' way.
 #'
 #' @param cd `CheckData` object for the data.
 #' @param dat data.table: The dataset.
+#' @param feature_names Character: The predictor columns.
 #' @param outcome_name Character or NULL: The outcome column.
 #' @param parts Named list from `config_parts()`.
 #'
@@ -874,7 +1058,13 @@ check_dim_p_gt_n <- function(cd, dat, feature_names, parts) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_missing_incompatible <- function(cd, dat, outcome_name, parts) {
+check_missing_incompatible <- function(
+  cd,
+  dat,
+  feature_names,
+  outcome_name,
+  parts
+) {
   if (cd@n_na == 0L) {
     return(list())
   }
@@ -909,7 +1099,17 @@ check_missing_incompatible <- function(cd, dat, outcome_name, parts) {
     }
   }
 
-  if (!is.null(pp) && pp@complete_cases) {
+  # A step `train()` rejects resolves nothing: `PREPROCESSOR_UNSUPPORTED` reports
+  # that it cannot run, and the gaps it was meant to remove are still there. Both
+  # findings are wanted -- the caller has to drop the step *and* handle the gaps
+  # another way.
+  runs <- function(op) {
+    !is.null(pp) &&
+      isTRUE(prop(pp, op)) &&
+      !(isTRUE(parts[["supervised"]]) &&
+        op %in% c(PREPROCESSOR_CASE_OPS, PREPROCESSOR_LEARNED_DROP_OPS))
+  }
+  if (runs("complete_cases")) {
     n_complete <- sum(complete.cases(dat))
     if (n_complete < 2L) {
       out <- c(
@@ -934,7 +1134,7 @@ check_missing_incompatible <- function(cd, dat, outcome_name, parts) {
   }
 
   all_missing <- names(dat)[vapply(dat, function(v) all(is.na(v)), logical(1L))]
-  if (!is.null(pp) && pp@impute) {
+  if (runs("impute")) {
     if (length(all_missing) > 0L) {
       out <- c(
         out,
@@ -959,12 +1159,29 @@ check_missing_incompatible <- function(cd, dat, outcome_name, parts) {
     return(out)
   }
 
-  # Nothing in the config removes the gaps, so they reach the learner.
+  # What actually reaches the learner, with the threshold steps simulated: a
+  # feature that is 90% missing is dropped by `remove_features_thres = 0.5`, and
+  # a run whose gaps leave with it completes.
+  n_remaining <- missing_after_preprocessing(
+    dat,
+    feature_names,
+    # The threshold steps only run outside `train()`; inside it they are
+    # rejected, so simulating them there would credit a removal that never
+    # happens.
+    if (isTRUE(parts[["supervised"]])) NULL else pp
+  )
+  if (n_remaining == 0L) {
+    return(out)
+  }
   algorithm <- config_algorithm(parts)
   allows <- if (is.null(algorithm)) NA else algorithm_allows_missing(algorithm)
   evidence <- list(
-    n_missing = cd@n_na,
-    n_features_missing = cd@n_cols_anyna,
+    n_missing = n_remaining,
+    n_features_missing = sum(vapply(
+      feature_names,
+      function(nm) anyNA(dat[[nm]]),
+      logical(1L)
+    )),
     algorithm = algorithm %||% NA_character_,
     algorithm_allows_missing = allows
   )
@@ -981,24 +1198,24 @@ check_missing_incompatible <- function(cd, dat, outcome_name, parts) {
           algorithm,
           " does not accept missing values, and nothing in this config ",
           "removes them: ",
-          cd@n_na,
+          n_remaining,
           " missing ",
-          ngettext(cd@n_na, "value", "values"),
+          ngettext(n_remaining, "value", "values"),
           " across ",
-          cd@n_cols_anyna,
+          evidence[["n_features_missing"]],
           " ",
-          ngettext(cd@n_cols_anyna, "column", "columns"),
-          ". Impute, or keep complete cases only."
+          ngettext(evidence[["n_features_missing"]], "column", "columns"),
+          ". Impute, or drop the incomplete cases before training."
         )
       } else {
         paste0(
-          cd@n_na,
+          n_remaining,
           " missing ",
-          ngettext(cd@n_na, "value", "values"),
+          ngettext(n_remaining, "value", "values"),
           " across ",
-          cd@n_cols_anyna,
+          evidence[["n_features_missing"]],
           " ",
-          ngettext(cd@n_cols_anyna, "column", "columns"),
+          ngettext(evidence[["n_features_missing"]], "column", "columns"),
           " reach the learner unchanged; not every algorithm accepts them."
         )
       },

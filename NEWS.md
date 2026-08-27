@@ -2,13 +2,17 @@
 
 ## 1.3.8
 
+- **New `train(preflight = TRUE)`**: checks the configuration against the data before training and stops on any finding of severity "error", reporting warnings and continuing. Off by default.
+- **New `data_profile()` and the `profile/v1` schema**: measured facts about one dataset -- dimensions, columns with their types, distinct and missing counts, observed level counts for low-cardinality categorical columns, complete-case and duplicate counts. Bounded by the number of columns rather than rows, so a validator can check a config against data without the data.
 - **New `validate_config()`**: checks a config against the published schema and, when given the data, against the dataset it would run on. Returns a `Diagnostics` of findings -- each with a stable `code`, a `severity`, a technical message, a plain-language one, the numbers behind it, and where a deterministic one exists an RFC 6902 JSON Patch that fixes it. Empty means clean; nothing is thrown.
-- Seven data checks: `OUTCOME_MISSING`, `OUTCOME_TYPE_MISMATCH`, `RESAMPLE_MIN_CLASS`, `RESAMPLE_N_ROWS`, `FEATURE_CONSTANT`, `DIM_P_GT_N`, `MISSING_INCOMPATIBLE`. A `SCHEMA_INVALID` finding wraps what `read_config()` rejects, so the schema half is that validation rather than a second one.
+- **`train()` no longer accepts preprocessing that drops columns by threshold.** `remove_features_thres` joins the case-dropping steps it already rejected: under resampling each fold would learn its own set, so the folds train on different features and their metrics are not comparable. `remove_features` (named) and `remove_constants` are unaffected.
+- Nine data checks: `OUTCOME_MISSING`, `OUTCOME_TYPE_MISMATCH`, `RESAMPLE_MIN_CLASS`, `RESAMPLE_N_ROWS`, `FEATURE_CONSTANT`, `FEATURE_TYPE_UNSUPPORTED`, `PREPROCESSOR_UNSUPPORTED`, `DIM_P_GT_N`, `MISSING_INCOMPATIBLE`. A `SCHEMA_INVALID` finding wraps what `read_config()` rejects, so the schema half is that validation rather than a second one.
 - `DIM_P_GT_N` counts what the learner is handed: predictors *after* categorical encoding (a k-level factor counts k), and the component count when `decomposition_config` reduces them first. Its severity is the algorithm's: a warning where the fit is an unregularized least squares and goes rank-deficient, a note where the algorithm regularizes, selects, or cannot be rank-deficient.
 - `supervised_algorithms` gains a `p_gt_n` column: whether a fit with more predictors than cases is usable. `NA` for the meta learners.
 - `Diagnostic` and `Diagnostics` publish `diagnostic/v1` and `diagnostics/v1` at schema.rtemis.org.
 - **`check_data()` reports `n_distinct_per_col`**: distinct observed values per column, one entry per column.
 - `supervised_algorithms` gains a `missing` column: whether the algorithm accepts a training set containing `NA`. `NA` for the meta learners, which take whatever their base learners take.
+- `MISSING_INCOMPATIBLE` simulates `remove_features_thres` and `remove_cases_thres` exactly for a standalone `PreprocessorConfig`, and credits neither inside a supervised config, where `train()` rejects them.
 - `check_data(get_duplicates = FALSE)` no longer errors; `n_duplicates` is `NULL` when the scan is skipped, and nothing reports on duplicates.
 
 ## 1.3.7

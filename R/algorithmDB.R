@@ -14,12 +14,11 @@
 # `p_gt_n`                whether a fit with more predictors than cases is
 #                         usable. FALSE where the fit is an unregularized least
 #                         squares and goes rank-deficient -- GLM and GAM
-#                         directly, GLMTree through the GLM in each leaf, NNLS
-#                         because non-negativity constrains the solution set
-#                         without identifying it. TRUE where the algorithm
-#                         regularizes, selects, or cannot be rank-deficient at
-#                         all: Isotonic takes a single predictor, so p exceeds n
-#                         only when there are no cases.
+#                         directly, GLMTree through the GLM in each leaf. TRUE
+#                         where the algorithm regularizes, selects, or cannot be
+#                         rank-deficient at all: NNLS's non-negativity makes the
+#                         solution sparse, and Isotonic is univariate, so p
+#                         exceeds n only when there are no cases.
 #
 # Both are `NA` for the meta learners: a stacked ensemble takes whatever its
 # base learners take, so the answer is a property of the library it is given,
@@ -109,7 +108,7 @@ supervised_algorithms <- data.frame(rbind(
     NA,
     NA
   ),
-  c("NNLS", "Non-negative Least Squares", TRUE, TRUE, FALSE, FALSE, FALSE),
+  c("NNLS", "Non-negative Least Squares", TRUE, TRUE, FALSE, FALSE, TRUE),
   c("Ranger", "Random Forest", TRUE, TRUE, FALSE, TRUE, TRUE),
   c(
     "SuperLearner",

@@ -13,19 +13,61 @@ PREPROCESSOR_CASE_OPS <- c(
   "remove_cases_thres"
 )
 
+# %% PREPROCESSOR_LEARNED_DROP_OPS ----
+# Steps that decide *which columns to drop* from the data in front of them.
+# Rejected inside `train()` for a different reason than the case ops: they can
+# be replayed, but under resampling each fold learns the set from its own
+# training subset, so the folds train over different feature spaces and their
+# metrics are not comparable -- and "the model" is not one model.
+#
+# `remove_features` is the deterministic counterpart and stays allowed: it names
+# the columns, so every fold drops the same ones. `remove_constants` also stays,
+# because a zero-variance column is not a threshold someone chose -- scaling it
+# divides by zero and no algorithm can use it, so dropping it is a requirement
+# of fitting rather than a cleaning decision.
+PREPROCESSOR_LEARNED_DROP_OPS <- c("remove_features_thres")
 
-# %% check_preprocessor_replayable ----
-#' Reject a training preprocessor that would drop cases
+
+# %% preprocessor_ops_set ----
+#' Which of a set of preprocessing steps a config actually turns on
 #'
-#' A preprocessor fitted by `train()` is re-applied to every later dataset:
-#' validation, test, and whatever `predict()` is handed. A step that removes
-#' rows cannot be replayed -- it returns fewer predictions than rows, with no
-#' way for the caller to tell which are missing -- so it is rejected here
-#' rather than producing a model whose `predict()` silently loses cases.
+#' @param config `PreprocessorConfig` object.
+#' @param ops Character: Property names to test.
 #'
-#' Case removal is data preparation, not part of the model: do it before
-#' `train()`, where the outcome is still attached and the dropped rows are
-#' visible.
+#' @return Character: The subset that is set to something other than NULL/FALSE.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+preprocessor_ops_set <- function(config, ops) {
+  Filter(
+    function(nm) {
+      value <- prop(config, nm)
+      !is.null(value) && !identical(value, FALSE)
+    },
+    ops
+  )
+} # /rtemis::preprocessor_ops_set
+
+
+# %% check_preprocessor_for_train ----
+#' Reject a training preprocessor that drops cases or learns which columns to drop
+#'
+#' `train()` fits a preprocessor and re-applies it to every later dataset:
+#' validation, test, and whatever `predict()` is handed. Two families of step
+#' have no place in one, for two different reasons.
+#'
+#' **Case removal** cannot be replayed at all -- it returns fewer predictions
+#' than rows, with no way for the caller to tell which are missing.
+#'
+#' **A learned column drop** can be replayed, but under outer resampling each
+#' fold learns its set from its own training subset, so the folds train over
+#' different feature spaces and their metrics are not comparable.
+#'
+#' Both are data preparation rather than part of the model: do them before
+#' `train()`, where the outcome is still attached and what was dropped is
+#' visible. `remove_features` names its columns and stays allowed, as does
+#' `remove_constants`, which is a requirement of fitting rather than a choice.
 #'
 #' @param config `PreprocessorConfig` object.
 #'
@@ -34,18 +76,12 @@ PREPROCESSOR_CASE_OPS <- c(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_preprocessor_replayable <- function(config) {
-  set <- Filter(
-    function(nm) {
-      value <- prop(config, nm)
-      !is.null(value) && !identical(value, FALSE)
-    },
-    PREPROCESSOR_CASE_OPS
-  )
-  if (length(set) > 0L) {
+check_preprocessor_for_train <- function(config) {
+  cases <- preprocessor_ops_set(config, PREPROCESSOR_CASE_OPS)
+  if (length(cases) > 0L) {
     rtemis.core::abort(
       "`preprocessor_config` removes cases, which a fitted preprocessor cannot replay: ",
-      paste(set, collapse = ", "),
+      paste(cases, collapse = ", "),
       ".\n",
       "A preprocessor learned by train() is re-applied to new data at predict() time, ",
       "where dropping rows would return fewer predictions than rows.\n",
@@ -53,8 +89,21 @@ check_preprocessor_replayable <- function(config) {
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
+  learned <- preprocessor_ops_set(config, PREPROCESSOR_LEARNED_DROP_OPS)
+  if (length(learned) > 0L) {
+    rtemis.core::abort(
+      "`preprocessor_config` decides which columns to drop from the data: ",
+      paste(learned, collapse = ", "),
+      ".\n",
+      "Under resampling each fold learns that set from its own training subset, ",
+      "so the folds train on different features and their metrics are not comparable.\n",
+      "Drop the columns before calling train(), with preprocess() on the full dataset, ",
+      "or name them with `remove_features`.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
   invisible(NULL)
-} # /rtemis::check_preprocessor_replayable
+} # /rtemis::check_preprocessor_for_train
 
 
 # %% frame_structure ----

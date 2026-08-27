@@ -35,6 +35,8 @@ DIAGNOSTIC_CODES <- c(
   "RESAMPLE_MIN_CLASS",
   "RESAMPLE_N_ROWS",
   "FEATURE_CONSTANT",
+  "FEATURE_TYPE_UNSUPPORTED",
+  "PREPROCESSOR_UNSUPPORTED",
   "DIM_P_GT_N",
   "MISSING_INCOMPATIBLE"
 )
@@ -93,6 +95,20 @@ DIAGNOSTIC_PLAIN <- c(
     "A column that never changes cannot explain anything that does, so it ",
     "adds nothing to the model and can be left out."
   ),
+  FEATURE_TYPE_UNSUPPORTED = paste0(
+    "Some of the columns being used to predict hold text, or dates, or ",
+    "something else a model cannot read. A model needs numbers, or labels from ",
+    "a fixed set of categories. Convert those columns before training: text ",
+    "naming a category should become a category, and a date should become the ",
+    "parts of it that matter, such as the month or the day of the week."
+  ),
+  PREPROCESSOR_UNSUPPORTED = paste0(
+    "One of the data-cleaning steps in this setup cannot run as part of ",
+    "training. Steps that throw rows away, or that work out for themselves ",
+    "which columns to discard, have to happen beforehand: the model has to be ",
+    "able to repeat every step on new data, and it has to treat each slice of ",
+    "the data the same way. Clean the data first, then train on the result."
+  ),
   DIM_P_GT_N = paste0(
     "There are more things being measured than there are rows to learn from. ",
     "A model in this position can fit the rows it was given almost perfectly ",
@@ -121,7 +137,7 @@ stopifnot(setequal(names(DIAGNOSTIC_PLAIN), DIAGNOSTIC_CODES))
 #' technical and plain-language accounts of it, the numbers behind it, and --
 #' where one exists -- a patch that fixes it.
 #'
-#' @field code Character \{"SCHEMA_INVALID", "OUTCOME_MISSING", "OUTCOME_TYPE_MISMATCH", "RESAMPLE_MIN_CLASS", "RESAMPLE_N_ROWS", "FEATURE_CONSTANT", "DIM_P_GT_N", "MISSING_INCOMPATIBLE"\}:
+#' @field code Character \{"SCHEMA_INVALID", "OUTCOME_MISSING", "OUTCOME_TYPE_MISMATCH", "RESAMPLE_MIN_CLASS", "RESAMPLE_N_ROWS", "FEATURE_CONSTANT", "FEATURE_TYPE_UNSUPPORTED", "PREPROCESSOR_UNSUPPORTED", "DIM_P_GT_N", "MISSING_INCOMPATIBLE"\}:
 #'   Stable identifier for the kind of finding. Permanent once published; a
 #'   client may branch on it.
 #' @field severity Character \{"error", "warning", "note"\}: What the finding

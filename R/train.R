@@ -120,6 +120,9 @@ restore_weights_column <- function(model, column) {
 #' record, `train_<algorithm>.record.json`, stating what the run actually did:
 #' every value resolved, where each came from, and what produced it. See
 #' [write_record].
+#' @param preflight Logical: If TRUE, check the configuration against `x` with
+#' [validate_config] before training and stop on any finding of severity
+#' "error". Findings of severity "warning" are reported and training continues.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used.
 #'
@@ -224,6 +227,7 @@ train <- function(
   execution_config = setup_ExecutionConfig(), # ExecutionConfig
   question = NULL,
   outdir = NULL,
+  preflight = FALSE,
   verbosity = 1L,
   ...
 ) {
@@ -246,6 +250,7 @@ train <- function(
       execution_config = x@execution_config,
       question = x@question,
       outdir = x@outdir,
+      preflight = preflight,
       verbosity = x@verbosity
     )
     # `positive_class` is handled via `...` (not a formal arg) and aborts if
@@ -297,6 +302,7 @@ train <- function(
       execution_config = x@execution_config,
       question = x@question,
       outdir = x@outdir,
+      preflight = preflight,
       verbosity = x@verbosity
     )
     # `positive_class` is handled via `...` (not a formal arg) and aborts if
@@ -436,6 +442,22 @@ train <- function(
 
   # execution_config must always be set
   check_is_S7(execution_config, ExecutionConfig)
+
+  # Pre-flight ----
+  # Every config object is validated by now, so this is the first point the
+  # recipe and the data can be checked against each other -- and the last point
+  # before the run starts spending.
+  if (preflight) {
+    preflight_config(
+      x = x,
+      preprocessor_config = preprocessor_config,
+      decomposition_config = decomposition_config,
+      hyperparameters = hyperparameters,
+      tuner_config = tuner_config,
+      outer_resampling_config = outer_resampling_config,
+      verbosity = verbosity
+    )
+  }
   # Override parallelization parameters with those from execution_config
   backend <- execution_config@backend
   n_workers <- execution_config@n_workers
@@ -867,7 +889,7 @@ train <- function(
     # data at all. Same layout as the decomposition block below -- transform
     # the features, re-attach the outcome last.
     if (!is.null(preprocessor_config)) {
-      check_preprocessor_replayable(preprocessor_config)
+      check_preprocessor_for_train(preprocessor_config)
       prep_node <- node_enter("preprocess")
       if (verbosity == 1L) {
         msg("Preprocessing...")

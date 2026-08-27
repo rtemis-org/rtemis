@@ -933,3 +933,45 @@ test_that("a fitted preprocessor returns one prediction per row", {
   newdata <- features(datr)
   expect_length(predict(mod, newdata), nrow(newdata))
 })
+
+
+test_that("train() rejects a preprocessor that learns which columns to drop", {
+  # Replayable, unlike the case ops, but each resample would learn the set from
+  # its own training subset -- so the folds train on different features and
+  # their metrics are not comparable.
+  datr <- data.frame(a = rnorm(40L), b = rnorm(40L), y = rnorm(40L))
+  for (op in PREPROCESSOR_LEARNED_DROP_OPS) {
+    config <- do.call(
+      setup_Preprocessor,
+      stats::setNames(list(0.5), op)
+    )
+    expect_error(
+      train(
+        x = datr,
+        preprocessor_config = config,
+        hyperparameters = setup_GLM(),
+        verbosity = 0L
+      ),
+      "different feature"
+    )
+  }
+})
+
+
+test_that("named and constant feature removal stay allowed in train()", {
+  datr <- data.frame(a = rnorm(40L), b = rnorm(40L), y = rnorm(40L))
+  datr[["const"]] <- 1
+  for (config in list(
+    setup_Preprocessor(remove_features = "b"),
+    setup_Preprocessor(remove_constants = TRUE)
+  )) {
+    expect_no_error(
+      train(
+        x = datr[, c("a", "b", "const", "y")],
+        preprocessor_config = config,
+        hyperparameters = setup_GLM(),
+        verbosity = 0L
+      )
+    )
+  }
+})

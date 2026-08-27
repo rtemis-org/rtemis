@@ -18,9 +18,9 @@ base_url <- "https://schema.rtemis.org"
 # provenance and the fingerprints it holds -- do not carry one themselves.
 provenance_url <- paste0(base_url, "/provenance/v1/schema.json")
 record_parts <- c("provenance", "datafingerprint")
-# Results classes: what a run produced, or what validating a config reported --
-# not a config a run resolves. They have no input form, so no `record.json`
-# either: the whole document is a report.
+# Results classes: what a run produced, what validating a config reported, or
+# what a dataset measured as -- not a config a run resolves. They have no input
+# form, so no `record.json` either: the whole document is a report.
 result_classes <- c(
   "regressionmetrics",
   "classificationmetrics",
@@ -28,7 +28,8 @@ result_classes <- c(
   "regressionmetricsres",
   "classificationmetricsres",
   "diagnostic",
-  "diagnostics"
+  "diagnostics",
+  "profile"
 )
 # Only a *pipeline* record represents a run, so only one carries provenance. A
 # component config (preprocessor, execution, ...) has a record form too, but it

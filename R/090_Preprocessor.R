@@ -270,12 +270,13 @@ method(print, PreprocessorConfig) <- function(
 #' @description
 #' Creates a `PreprocessorConfig` object, which can be used in [preprocess].
 #'
-#' @param complete_cases Logical: If TRUE, only retain complete cases (no missing data).
+#' @param complete_cases Logical: If TRUE, only retain complete cases (no missing
+#' data). Not available inside [train]: a fitted preprocessor is replayed at predict time, where dropping rows would return fewer predictions than rows.
 #' @param remove_cases_thres Optional Numeric (0, 1]: Remove cases with >= to
-#' this fraction of missing features. 1 removes only fully-missing cases.
+#' this fraction of missing features. 1 removes only fully-missing cases. Not available inside [train]: a fitted preprocessor is replayed at predict time, where dropping rows would return fewer predictions than rows.
 #' @param remove_features_thres Optional Numeric (0, 1]: Remove features with
 #' missing values in >= to this fraction of cases. 1 removes only fully-missing
-#' features.
+#' features. Not available inside [train]: each resample would learn its own set, so the folds would train on different features. Name the columns with `remove_features` instead, or drop them beforehand with [preprocess].
 #' @param missingness Logical: If TRUE, generate new boolean columns for each
 #' feature with missing values, indicating which cases were missing data.
 #' @param impute Logical: If TRUE, impute missing cases. See `impute_discrete` and
@@ -346,7 +347,7 @@ method(print, PreprocessorConfig) <- function(
 #' @param remove_constants_skip_missing Logical: If TRUE, skip missing values, before
 #'   checking if feature is constant.
 #' @param remove_features Optional Character vector: Features to remove.
-#' @param remove_duplicates Logical: If TRUE, remove duplicate cases.
+#' @param remove_duplicates Logical: If TRUE, remove duplicate cases. Not available inside [train]: a fitted preprocessor is replayed at predict time, where dropping rows would return fewer predictions than rows.
 #' @param one_hot Logical: If TRUE, convert all factors using one-hot encoding.
 #' @param one_hot_levels Optional List: Named list of the form "feature_name" = "levels". Used when applying
 #'   one-hot encoding to validation or test data using `Preprocessor`.

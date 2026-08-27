@@ -17,6 +17,7 @@ train(
   execution_config = setup_ExecutionConfig(),
   question = NULL,
   outdir = NULL,
+  preflight = FALSE,
   verbosity = 1L,
   ...
 )
@@ -56,6 +57,10 @@ fitted model is saved there as \verb{train_<algorithm>.rds}, alongside a run
 record, \verb{train_<algorithm>.record.json}, stating what the run actually did:
 every value resolved, where each came from, and what produced it. See
 \link{write_record}.}
+
+\item{preflight}{Logical: If TRUE, check the configuration against \code{x} with
+\link{validate_config} before training and stop on any finding of severity
+"error". Findings of severity "warning" are reported and training continues.}
 
 \item{verbosity}{Integer: Verbosity level.}
 

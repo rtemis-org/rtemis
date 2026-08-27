@@ -127,3 +127,79 @@ validate_config <- function(
     step = step
   ))
 } # /rtemis::validate_config
+
+
+# %% preflight_config ----
+#' Check a training call's configuration against its data before it runs
+#'
+#' The pre-flight [train] performs when `preflight = TRUE`. The user who most
+#' needs these checks is the one who does not know to ask for them: without it a
+#' config that cannot work is discovered by the run failing, or -- worse -- by a
+#' run that completes and reports a number computed on folds a class never
+#' reached.
+#'
+#' Errors stop the run, because every one of them means the run either fails or
+#' answers a different question than the caller asked. Warnings and notes are
+#' reported and the run proceeds: a warning says the result is likely not what
+#' was wanted, which is the caller's judgment to make, not this function's.
+#'
+#' @param x tabular data: The training set.
+#' @param preprocessor_config,decomposition_config,hyperparameters,tuner_config,outer_resampling_config
+#'   The configuration objects [train] was given.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return `NULL`, invisibly. Throws on any finding of severity "error".
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+preflight_config <- function(
+  x,
+  preprocessor_config = NULL,
+  decomposition_config = NULL,
+  hyperparameters = NULL,
+  tuner_config = NULL,
+  outer_resampling_config = NULL,
+  verbosity = 1L
+) {
+  diagnostics <- validate_config(
+    setup_SuperConfig(
+      preprocessor_config = preprocessor_config,
+      decomposition_config = decomposition_config,
+      hyperparameters = hyperparameters,
+      tuner_config = tuner_config,
+      outer_resampling_config = outer_resampling_config,
+      outdir = NULL,
+      verbosity = 0L
+    ),
+    data = x
+  )
+  if (length(diagnostics) == 0L) {
+    return(invisible(NULL))
+  }
+  found <- diagnostics@diagnostics
+  errors <- Filter(function(d) d@severity == "error", found)
+  if (length(errors) > 0L) {
+    rtemis.core::abort(
+      "Configuration cannot run on this data:\n",
+      paste0(
+        "  - ",
+        vapply(
+          errors,
+          function(d) paste0(d@code, ": ", d@message),
+          character(1L)
+        ),
+        collapse = "\n"
+      ),
+      "\nCall `validate_config()` for the full findings, or `preflight = FALSE` to skip this check.",
+      class = c("rtemis_preflight_error", "rtemis_data_error")
+    )
+  }
+  warnings <- Filter(function(d) d@severity == "warning", found)
+  if (length(warnings) > 0L && verbosity > 0L) {
+    for (d in warnings) {
+      msg0(d@code, ": ", d@message)
+    }
+  }
+  invisible(NULL)
+} # /rtemis::preflight_config
