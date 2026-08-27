@@ -171,7 +171,9 @@ publish-downstream:
     cd "{{ cli_repo }}" && just sync-schemas
     # Three documents the registry publishes but does not index: `just index`
     # lists only schema.json / record.json, and `sync-schemas` fetches what the
-    # index lists, so these are copied by hand.
+    # index lists, so these are copied by hand. `checks/` does not exist until
+    # the first copy creates it.
+    mkdir -p "{{ cli_repo }}/rtemis-cli/checks"
     cp "{{ schema_repo }}/defaults/v1/defaults.json" "{{ cli_repo }}/rtemis-cli/defaults/defaults.json"
     cp "{{ schema_repo }}/checks/v1/checks.json" "{{ cli_repo }}/rtemis-cli/checks/checks.json"
     cp "{{ schema_repo }}/traits/v1/traits.json" "{{ cli_repo }}/rtemis-cli/checks/traits.json"
@@ -179,9 +181,13 @@ publish-downstream:
     @just _msg "─── Checking {{ cli_repo }} ───"
     @cd "{{ cli_repo }}" && just check || { \
         echo ""; \
-        echo "   If the embedded-schema count assert failed, that is the tripwire working:"; \
-        echo "   a new algorithm adds one input and one record schema, so raise both counts"; \
-        echo "   in rtemis-cli/src/lib.rs by 1 and re-run. Do not loosen the assert."; \
+        echo "   A failing assert in rtemis-cli/src/lib.rs is the tripwire working."; \
+        echo "   The vendored tree itself is checked against schemas.lock.json, which"; \
+        echo "   sync-schemas regenerates, so a moved schema is a reviewable diff and"; \
+        echo "   never a number to edit. What does need a human is a schema that changes"; \
+        echo "   the registry's *shape*: NO_RECORD_FORM lists the inputs with no record"; \
+        echo "   sibling, and a new results or description class belongs in it. Say why"; \
+        echo "   in the comment above it. Do not loosen an assert to get past one."; \
         exit 1; \
     }
     @just _msg "Done"
