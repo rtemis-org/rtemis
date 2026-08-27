@@ -5,6 +5,16 @@
 # `train(preflight = TRUE)`: the configuration checked against the data before
 # the run starts spending. Off by default, so the tests that matter most are the
 # ones showing it changes nothing when it is off.
+#
+# Three of these fit models to prove the pre-flight let the run through, and
+# together they cost about nine seconds -- poor value inside a CRAN check, whose
+# whole budget is around ten minutes. They carry `skip_on_cran()`.
+#
+# The test that stays is the one that *aborts*: no model is fitted, it costs
+# under a tenth of a second, and it exercises the feature's actual point. What
+# CRAN then does not verify is that a clean config still trains -- the paired
+# "and this one works" half of the no-false-positive claim. That belongs to CI,
+# which runs the whole suite, and is why it should.
 
 .preflight_data <- function(n = 60L, minority = 30L) {
   set.seed(2026L)
@@ -17,6 +27,7 @@
 
 
 test_that("preflight is off by default and changes nothing", {
+  skip_on_cran()
   # A config the pre-flight would reject still trains, because nothing asked.
   dat <- .preflight_data(60L, minority = 4L)
   expect_no_error(
@@ -47,6 +58,7 @@ test_that("preflight stops on an error finding, naming the code", {
 
 
 test_that("preflight lets a clean configuration through", {
+  skip_on_cran()
   expect_no_error(
     train(
       .preflight_data(),
@@ -60,6 +72,7 @@ test_that("preflight lets a clean configuration through", {
 
 
 test_that("preflight reports warnings without stopping", {
+  skip_on_cran()
   # A constant predictor is a warning: the run completes, and the caller is
   # told. Whether that result is wanted is their judgment, not the check's.
   # A *factor* constant, because `check_supervised()` rejects a character
