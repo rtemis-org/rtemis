@@ -46,7 +46,8 @@ test_that("the checks artifact declares the sections an evaluator reads", {
   )
   expect_identical(doc[["expression_language"]], "jsonlogic")
   expect_true(all(
-    c("inputs", "evaluation", "let", "rules", "unevaluable") %in% names(doc)
+    c("inputs", "evaluation", "plain", "let", "rules", "unevaluable") %in%
+      names(doc)
   ))
   expect_gt(length(doc[["let"]]), 0L)
   expect_gt(length(doc[["rules"]]), 0L)
@@ -69,13 +70,33 @@ test_that("every rule speaks the published diagnostic vocabulary", {
   # A rule's id names its code, so a finding can be traced back to the rule
   # that made it without a lookup.
   expect_true(all(startsWith(ids, paste0(codes, "/"))))
-  # `plain` is authored per code in `DIAGNOSTIC_PLAIN` and looked up by the
-  # renderer. A copy in the artifact would be one per rule, and would drift.
+  # `plain` is published once per code, not per rule: several rules share a
+  # code, so a copy on each rule would be a copy that has to agree with itself.
   expect_false(any(vapply(
     rules,
     function(r) "plain" %in% names(r),
     logical(1L)
   )))
+})
+
+
+test_that("the artifact publishes one plain-language account per code", {
+  skip_if_no_artifact()
+  doc <- jsonlite::fromJSON(.checks_path, simplifyVector = FALSE)
+  # Every code the vocabulary declares, and nothing else: a host renders this
+  # verbatim rather than transcribing it, so a missing entry is a finding it
+  # cannot explain and a stray one is text nothing will ever show.
+  expect_setequal(names(doc[["plain"]]), DIAGNOSTIC_CODES)
+  expect_true(all(vapply(
+    doc[["plain"]],
+    function(x) is.character(x) && length(x) == 1L && nzchar(x),
+    logical(1L)
+  )))
+  # The same text the R side reports, so a finding read from a record and one
+  # rendered from the artifact say the same thing.
+  for (code in DIAGNOSTIC_CODES) {
+    expect_identical(doc[["plain"]][[code]], unname(DIAGNOSTIC_PLAIN[[code]]))
+  }
 })
 
 

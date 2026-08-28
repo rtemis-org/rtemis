@@ -101,7 +101,7 @@ restore_weights_column <- function(model, column) {
 #' @param dat_validation Tabular data: Validation set data.
 #' @param dat_test Tabular data: Test set data.
 #' @param weights Optional vector of case weights.
-#' @param preprocessor_config Optional PreprocessorConfig object: Setup using [setup_Preprocessor].
+#' @param preprocessor_config Optional SupervisedPreprocessorConfig object: Setup using [setup_SupervisedPreprocessor].
 #' @param decomposition_config Optional DecompositionConfig object: Setup using a decomposition
 #'  `setup_*` function.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
@@ -357,6 +357,12 @@ train <- function(
   # search space and `train_()` fills in what the data decides, so by the time
   # the model is built `hyperparameters` says what *ran*; only this says what
   # was *asked for*. `record()` needs both to report where each value came from.
+  # Before the recipe is built: `SuperConfig` types this block, so an S7 error
+  # would otherwise reach the caller in place of the message that names the fix.
+  if (!is.null(preprocessor_config)) {
+    check_preprocessor_for_train(preprocessor_config)
+  }
+
   # `dat_training_path` stays unset for an in-memory run -- data identity is the
   # provenance block's `DataFingerprint`, not a path.
   input_config <- setup_SuperConfig(
@@ -417,10 +423,6 @@ train <- function(
 
   if (!is.null(tuner_config)) {
     check_is_S7(tuner_config, TunerConfig)
-  }
-
-  if (!is.null(preprocessor_config)) {
-    check_is_S7(preprocessor_config, PreprocessorConfig)
   }
 
   # Can only use algorithms whose output can be applied on new data: we need to apply the
@@ -889,7 +891,6 @@ train <- function(
     # data at all. Same layout as the decomposition block below -- transform
     # the features, re-attach the outcome last.
     if (!is.null(preprocessor_config)) {
-      check_preprocessor_for_train(preprocessor_config)
       prep_node <- node_enter("preprocess")
       if (verbosity == 1L) {
         msg("Preprocessing...")

@@ -15,10 +15,21 @@
     "source": "A scan source is either `logic` (an expression yielding an array) or `pointers` (a list of RFC 6901 JSON Pointers into the config). Each pointer yields `{pointer, name, value}`: the pointer as written, its last segment, and what it resolves to, or null. A `*` segment expands to every member of the object or array at that point, in document order, which is how a hyperparameter set's members are reached.",
     "rules": "For each rule: if `over` names a scan, run once per element with it bound to `item`, otherwise once. Evaluate `let` into `bindings`, then `applies_when`; where false, the rule does not apply and reports nothing. Where `condition` is true, report a finding carrying the rule's `code`, `severity`, evaluated `evidence`, and rendered `message`. Attach `fix` where present and its `when` holds.",
     "message": "Three substitutions, no conditionals. `{key}` inserts the value of an evidence key or a slot; an array value joins its elements with ', '. `{key|singular|plural}` selects on the value, which is its own magnitude when a number and its length when an array: singular at exactly 1, plural otherwise.",
-    "plain": "Not in this document. The plain-language account is authored once per `code` and looked up by the renderer, which is what keeps one explanation per kind of problem where several rules share a code.",
+    "plain": "In `plain`, keyed by `code` rather than by rule: several rules share a code, and one explanation per kind of problem is the point. Render it beside the rule's own `message`, which states the particulars.",
     "unevaluable": "Where an entry's `when` holds, the rule set cannot fully answer for the codes it `affects`. Report the validation as incomplete for those codes rather than as clean."
   },
   "severities": ["error", "warning", "note"],
+  "plain": {
+    "SCHEMA_INVALID": "This setup could not be read. Something in it does not match what rtemis expects -- a misspelled setting, or a value of the wrong kind. Nothing was checked against your data, because the setup has to be readable first.",
+    "OUTCOME_MISSING": "The column you asked to predict is not in this dataset. Check the spelling, or pick a column that is there.",
+    "OUTCOME_TYPE_MISMATCH": "The column you asked to predict does not hold the kind of values this setup expects. Predicting which group something falls into needs a column of labels; predicting a quantity needs a column of numbers. Right now the two do not match, so the run would answer a different question than you asked.",
+    "RESAMPLE_MIN_CLASS": "To check how well the model does, the data is split into several parts and each part is held back in turn. One of the groups you are predicting has fewer cases than there are parts, so at least one part would contain none of that group and the score for it would be meaningless. Use fewer parts, or gather more cases of the rarer group.",
+    "RESAMPLE_N_ROWS": "To check how well the model does, the data is split into several parts and each part is held back in turn. There are not enough rows for the number of parts asked for, so some parts would be empty or hold a single row. A score from one row says nothing. Use fewer parts, or more data.",
+    "FEATURE_CONSTANT": "Some columns hold the same value in every row, or hold no value at all. A column that never changes cannot explain anything that does, so it adds nothing to the model and can be left out.",
+    "FEATURE_TYPE_UNSUPPORTED": "Some of the columns being used to predict hold text, or dates, or something else a model cannot read. A model needs numbers, or labels from a fixed set of categories. Convert those columns before training: text naming a category should become a category, and a date should become the parts of it that matter, such as the month or the day of the week.",
+    "DIM_P_GT_N": "There are more things being measured than there are rows to learn from. A model in this position can fit the rows it was given almost perfectly and still be wrong about new cases. Some methods are built for exactly this and handle it; others cannot, and give an answer that only looks like one. The finding says which of the two you have.",
+    "MISSING_INCOMPATIBLE": "This dataset has gaps -- rows where a value was not recorded -- and the way this run is set up does not deal with them. Either fill the gaps in, drop the rows or columns that have them, or choose a method that can work around them."
+  },
   "let": [
     {
       "name": "supervised",
@@ -928,134 +939,6 @@
       }
     },
     {
-      "name": "case_ops",
-      "kind": "scan",
-      "source": {
-        "pointers": [
-          "/preprocessor_config/complete_cases",
-          "/preprocessor_config/remove_duplicates",
-          "/preprocessor_config/remove_cases_thres"
-        ]
-      },
-      "where": {
-        "and": [
-          {
-            "!==": [
-              {
-                "var": "item.value"
-              },
-              null
-            ]
-          },
-          {
-            "!==": [
-              {
-                "var": "item.value"
-              },
-              false
-            ]
-          }
-        ]
-      },
-      "select": {
-        "name": {
-          "var": "item.name"
-        },
-        "label": {
-          "cat": [
-            "`",
-            {
-              "var": "item.name"
-            },
-            "`"
-          ]
-        }
-      }
-    },
-    {
-      "name": "learned_drop_ops",
-      "kind": "scan",
-      "source": {
-        "pointers": [
-          "/preprocessor_config/remove_features_thres"
-        ]
-      },
-      "where": {
-        "and": [
-          {
-            "!==": [
-              {
-                "var": "item.value"
-              },
-              null
-            ]
-          },
-          {
-            "!==": [
-              {
-                "var": "item.value"
-              },
-              false
-            ]
-          }
-        ]
-      },
-      "select": {
-        "name": {
-          "var": "item.name"
-        },
-        "label": {
-          "cat": [
-            "`",
-            {
-              "var": "item.name"
-            },
-            "`"
-          ]
-        }
-      }
-    },
-    {
-      "name": "n_case_ops",
-      "kind": "expr",
-      "logic": {
-        "reduce": [
-          {
-            "var": "bindings.case_ops"
-          },
-          {
-            "+": [
-              {
-                "var": "accumulator"
-              },
-              1
-            ]
-          },
-          0
-        ]
-      }
-    },
-    {
-      "name": "n_learned_drop_ops",
-      "kind": "expr",
-      "logic": {
-        "reduce": [
-          {
-            "var": "bindings.learned_drop_ops"
-          },
-          {
-            "+": [
-              {
-                "var": "accumulator"
-              },
-              1
-            ]
-          },
-          0
-        ]
-      }
-    },
-    {
       "name": "total_missing",
       "kind": "expr",
       "logic": {
@@ -1183,27 +1066,11 @@
       "name": "runs_complete_cases",
       "kind": "expr",
       "logic": {
-        "and": [
+        "===": [
           {
-            "===": [
-              {
-                "var": "config.preprocessor_config.complete_cases"
-              },
-              true
-            ]
+            "var": "config.preprocessor_config.complete_cases"
           },
-          {
-            "!": [
-              {
-                "===": [
-                  {
-                    "var": "bindings.supervised"
-                  },
-                  true
-                ]
-              }
-            ]
-          }
+          true
         ]
       }
     },
@@ -3030,280 +2897,6 @@
           }
         ]
       }
-    },
-    {
-      "id": "PREPROCESSOR_UNSUPPORTED/case-ops",
-      "code": "PREPROCESSOR_UNSUPPORTED",
-      "applies_when": {
-        "and": [
-          {
-            "===": [
-              {
-                "var": "bindings.outcome_resolvable"
-              },
-              true
-            ]
-          },
-          {
-            "===": [
-              {
-                "var": "bindings.supervised"
-              },
-              true
-            ]
-          },
-          {
-            "!==": [
-              {
-                "var": "config.preprocessor_config"
-              },
-              null
-            ]
-          }
-        ]
-      },
-      "condition": {
-        "and": [
-          {
-            ">": [
-              {
-                "var": "bindings.n_case_ops"
-              },
-              0
-            ]
-          },
-          {
-            "===": [
-              {
-                "var": "bindings.n_learned_drop_ops"
-              },
-              0
-            ]
-          }
-        ]
-      },
-      "severity": "error",
-      "evidence": {
-        "case_ops": {
-          "map": [
-            {
-              "var": "bindings.case_ops"
-            },
-            {
-              "var": "name"
-            }
-          ]
-        },
-        "learned_drop_ops": {
-          "map": [
-            {
-              "var": "bindings.learned_drop_ops"
-            },
-            {
-              "var": "name"
-            }
-          ]
-        }
-      },
-      "slots": {
-        "case_labels": {
-          "map": [
-            {
-              "var": "bindings.case_ops"
-            },
-            {
-              "var": "label"
-            }
-          ]
-        }
-      },
-      "message": "`preprocessor_config` cannot run inside train(): {case_labels} {case_ops|removes cases|remove cases}, which a fitted preprocessor cannot replay at predict time. Do this before training, with preprocess() on the full dataset."
-    },
-    {
-      "id": "PREPROCESSOR_UNSUPPORTED/learned-drop-ops",
-      "code": "PREPROCESSOR_UNSUPPORTED",
-      "applies_when": {
-        "and": [
-          {
-            "===": [
-              {
-                "var": "bindings.outcome_resolvable"
-              },
-              true
-            ]
-          },
-          {
-            "===": [
-              {
-                "var": "bindings.supervised"
-              },
-              true
-            ]
-          },
-          {
-            "!==": [
-              {
-                "var": "config.preprocessor_config"
-              },
-              null
-            ]
-          }
-        ]
-      },
-      "condition": {
-        "and": [
-          {
-            "===": [
-              {
-                "var": "bindings.n_case_ops"
-              },
-              0
-            ]
-          },
-          {
-            ">": [
-              {
-                "var": "bindings.n_learned_drop_ops"
-              },
-              0
-            ]
-          }
-        ]
-      },
-      "severity": "error",
-      "evidence": {
-        "case_ops": {
-          "map": [
-            {
-              "var": "bindings.case_ops"
-            },
-            {
-              "var": "name"
-            }
-          ]
-        },
-        "learned_drop_ops": {
-          "map": [
-            {
-              "var": "bindings.learned_drop_ops"
-            },
-            {
-              "var": "name"
-            }
-          ]
-        }
-      },
-      "slots": {
-        "learned_labels": {
-          "map": [
-            {
-              "var": "bindings.learned_drop_ops"
-            },
-            {
-              "var": "label"
-            }
-          ]
-        }
-      },
-      "message": "`preprocessor_config` cannot run inside train(): {learned_labels} {learned_drop_ops|decides|decide} which columns to drop from the data, so each resample would train on a different feature set. Do this before training, with preprocess() on the full dataset."
-    },
-    {
-      "id": "PREPROCESSOR_UNSUPPORTED/both-families",
-      "code": "PREPROCESSOR_UNSUPPORTED",
-      "applies_when": {
-        "and": [
-          {
-            "===": [
-              {
-                "var": "bindings.outcome_resolvable"
-              },
-              true
-            ]
-          },
-          {
-            "===": [
-              {
-                "var": "bindings.supervised"
-              },
-              true
-            ]
-          },
-          {
-            "!==": [
-              {
-                "var": "config.preprocessor_config"
-              },
-              null
-            ]
-          }
-        ]
-      },
-      "condition": {
-        "and": [
-          {
-            ">": [
-              {
-                "var": "bindings.n_case_ops"
-              },
-              0
-            ]
-          },
-          {
-            ">": [
-              {
-                "var": "bindings.n_learned_drop_ops"
-              },
-              0
-            ]
-          }
-        ]
-      },
-      "severity": "error",
-      "evidence": {
-        "case_ops": {
-          "map": [
-            {
-              "var": "bindings.case_ops"
-            },
-            {
-              "var": "name"
-            }
-          ]
-        },
-        "learned_drop_ops": {
-          "map": [
-            {
-              "var": "bindings.learned_drop_ops"
-            },
-            {
-              "var": "name"
-            }
-          ]
-        }
-      },
-      "slots": {
-        "case_labels": {
-          "map": [
-            {
-              "var": "bindings.case_ops"
-            },
-            {
-              "var": "label"
-            }
-          ]
-        },
-        "learned_labels": {
-          "map": [
-            {
-              "var": "bindings.learned_drop_ops"
-            },
-            {
-              "var": "label"
-            }
-          ]
-        }
-      },
-      "message": "`preprocessor_config` cannot run inside train(): {case_labels} {case_ops|removes cases|remove cases}, which a fitted preprocessor cannot replay at predict time; {learned_labels} {learned_drop_ops|decides|decide} which columns to drop from the data, so each resample would train on a different feature set. Do this before training, with preprocess() on the full dataset."
     },
     {
       "id": "FEATURE_TYPE_UNSUPPORTED/not-numeric-or-factor",

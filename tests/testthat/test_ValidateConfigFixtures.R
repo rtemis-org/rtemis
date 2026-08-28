@@ -699,8 +699,8 @@ test_that("MISSING_INCOMPATIBLE: a gap in the outcome, which nothing removes", {
 
 test_that("MISSING_INCOMPATIBLE: complete_cases leaves nothing to train on", {
   # rule: MISSING_INCOMPATIBLE/complete-cases-leaves-nothing
-  # A standalone preprocessor, because `train()` rejects `complete_cases`
-  # outright -- see the PREPROCESSOR_UNSUPPORTED fixtures below.
+  # A standalone preprocessor: `complete_cases` is not a setting a supervised
+  # config carries.
   set.seed(2026L)
   dat <- data.frame(x1 = rnorm(10L), x2 = rnorm(10L), y = rnorm(10L))
   dat[["x1"]][1:5] <- NA
@@ -940,10 +940,10 @@ test_that("validate_config() stamps the step onto every data finding", {
 
 # %% Preprocessing thresholds ----
 # `remove_features_thres` / `remove_cases_thres` drop what is missing above a
-# threshold. `train()` rejects both -- a learned column drop would give each
+# threshold. `preprocess()` supports both, and there they are simulated exactly.
+# A supervised config declares neither: a learned column drop would give each
 # resample a different feature set, and a case drop cannot be replayed at
-# predict time -- so inside a supervised config they resolve nothing. They are
-# still supported by `preprocess()`, and there they are simulated exactly.
+# predict time.
 
 .thin_column_data <- function(n = 60L, n_missing = 54L) {
   set.seed(2026L)
@@ -951,24 +951,6 @@ test_that("validate_config() stamps the step onto every data finding", {
   dat[["x1"]][seq_len(n_missing)] <- NA
   dat
 }
-
-
-test_that("a threshold in a supervised config resolves nothing", {
-  out <- validate_config(
-    .config("GLM", preprocessor_config = list(remove_features_thres = 0.5)),
-    data = .thin_column_data()
-  )
-  expect_setequal(
-    diagnostic_codes(out),
-    c("PREPROCESSOR_UNSUPPORTED", "MISSING_INCOMPATIBLE")
-  )
-  # The gaps are still counted, because the step that would remove them is one
-  # `train()` will not run.
-  expect_identical(
-    .finding(out, "MISSING_INCOMPATIBLE")@evidence[["n_missing"]],
-    54L
-  )
-})
 
 
 test_that("a threshold that drops the gappy feature clears it for preprocess()", {
@@ -1027,74 +1009,30 @@ test_that("remove_cases_thres is simulated at the column count", {
 })
 
 
-# %% PREPROCESSOR_UNSUPPORTED ----
-test_that("PREPROCESSOR_UNSUPPORTED: steps train() cannot run", {
-  # rule: PREPROCESSOR_UNSUPPORTED/case-ops
-  dat <- .balanced_data(40L)
-  for (op in c("complete_cases", "remove_duplicates")) {
-    d <- .only(
+# %% Operations a supervised config cannot express ----
+# The type carries the rule: a supervised document naming one of these does not
+# reconstruct, so the finding is `SCHEMA_INVALID` and there is nothing left for
+# a data check to say. They remain valid for a standalone preprocessor.
+
+test_that("the excluded operations stay valid for a standalone preprocessor", {
+  # `preprocess()` supports every one of them; only a run that fits one cannot.
+  for (cfg in list(
+    list(remove_duplicates = TRUE),
+    list(complete_cases = TRUE)
+  )) {
+    expect_length(
       validate_config(
-        .config("GLM", preprocessor_config = stats::setNames(list(TRUE), op)),
-        data = dat
+        c(
+          list(
+            `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json"
+          ),
+          cfg
+        ),
+        data = .balanced_data(40L)
       ),
-      "PREPROCESSOR_UNSUPPORTED"
+      0L
     )
-    expect_identical(d@severity, "error", info = op)
-    expect_identical(d@evidence[["case_ops"]], op, info = op)
-    expect_null(d@fix)
   }
-})
-
-
-test_that("PREPROCESSOR_UNSUPPORTED: a learned column drop", {
-  # rule: PREPROCESSOR_UNSUPPORTED/learned-drop-ops
-  d <- .only(
-    validate_config(
-      .config("GLM", preprocessor_config = list(remove_features_thres = 0.9)),
-      data = .balanced_data(40L)
-    ),
-    "PREPROCESSOR_UNSUPPORTED"
-  )
-  expect_identical(d@evidence[["learned_drop_ops"]], "remove_features_thres")
-  expect_match(d@message, "different feature set", fixed = TRUE)
-})
-
-
-test_that("PREPROCESSOR_UNSUPPORTED: both families at once", {
-  # rule: PREPROCESSOR_UNSUPPORTED/both-families
-  # One finding naming both reasons, not two findings: the config carries one
-  # unusable `preprocessor_config`, however many ways it is unusable.
-  d <- .only(
-    validate_config(
-      .config(
-        "GLM",
-        preprocessor_config = list(
-          complete_cases = TRUE,
-          remove_features_thres = 0.9
-        )
-      ),
-      data = .balanced_data(40L)
-    ),
-    "PREPROCESSOR_UNSUPPORTED"
-  )
-  expect_identical(d@evidence[["case_ops"]], "complete_cases")
-  expect_identical(d@evidence[["learned_drop_ops"]], "remove_features_thres")
-  expect_match(d@message, "replay at predict time; ", fixed = TRUE)
-})
-
-
-test_that("PREPROCESSOR_UNSUPPORTED does not apply to a standalone preprocessor", {
-  # `preprocess()` supports every one of these; only `train()` rejects them.
-  expect_length(
-    validate_config(
-      list(
-        `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
-        remove_duplicates = TRUE
-      ),
-      data = .balanced_data(40L)
-    ),
-    0L
-  )
 })
 
 
@@ -1169,7 +1107,9 @@ test_that("FEATURE_TYPE_UNSUPPORTED fires despite character2factor", {
     train(
       dat,
       hyperparameters = setup_GLM(),
-      preprocessor_config = setup_Preprocessor(character2factor = TRUE),
+      preprocessor_config = setup_SupervisedPreprocessor(
+        character2factor = TRUE
+      ),
       verbosity = 0L
     ),
     "not numeric or factor"

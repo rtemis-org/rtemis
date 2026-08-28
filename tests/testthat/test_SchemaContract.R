@@ -109,6 +109,7 @@
     NULL,
     list(ExecutionConfig, "setup_ExecutionConfig"),
     list(PreprocessorConfig, "setup_Preprocessor"),
+    list(SupervisedPreprocessorConfig, "setup_SupervisedPreprocessor"),
     list(SuperConfig, "setup_SuperConfig"),
     list(DecomposeConfig, "setup_DecomposeConfig"),
     list(ClusterConfig, "setup_ClusterConfig")

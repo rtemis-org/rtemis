@@ -31,7 +31,7 @@ train(
 
 \item{weights}{Optional vector of case weights.}
 
-\item{preprocessor_config}{Optional PreprocessorConfig object: Setup using \link{setup_Preprocessor}.}
+\item{preprocessor_config}{Optional SupervisedPreprocessorConfig object: Setup using \link{setup_SupervisedPreprocessor}.}
 
 \item{decomposition_config}{Optional DecompositionConfig object: Setup using a decomposition
 \verb{setup_*} function.}

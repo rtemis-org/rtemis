@@ -8,8 +8,10 @@
 # Each check reads a `DataProfile` rather than the data. That is what makes the
 # same rule runnable outside R: the profile is a bounded document any language
 # can compute in one pass, so a rule expressed over its fields ports, while one
-# expressed over an R data.table does not. `missing_after_preprocessing()` is
-# the single exception and says so where it is defined.
+# expressed over an R data.table does not. `missing_after_preprocessing()`
+# reads the rows in one case -- a threshold on a standalone
+# `PreprocessorConfig` -- and says so where it is defined; a supervised config
+# cannot reach it.
 #
 # Each check is written over the *parts* a config carries -- a preprocessor, a
 # resampler, an algorithm, an outcome -- rather than over one config class. A
@@ -51,7 +53,12 @@ config_parts <- function(config) {
     # config has none, because those methods model every column jointly.
     supervised = "hyperparameters" %in% names(S7_class(config)@properties)
   )
-  if (S7_inherits(config, PreprocessorConfig)) {
+  # Either preprocessor config standing on its own. They are siblings, so
+  # neither test implies the other.
+  if (
+    S7_inherits(config, PreprocessorConfig) ||
+      S7_inherits(config, SupervisedPreprocessorConfig)
+  ) {
     out[["preprocessor_config"]] <- config
     return(out)
   }
@@ -214,7 +221,6 @@ validate_data <- function(config, data, outcome = NULL, step = NULL) {
     ),
     check_feature_constant(profile, feature_names, parts),
     check_feature_type(profile, feature_names),
-    check_preprocessor_supported(parts),
     check_dim_p_gt_n(profile, feature_names, parts),
     check_missing_incompatible(profile, dat, feature_names, outcome_name, parts)
   )
@@ -876,72 +882,6 @@ check_feature_constant <- function(profile, feature_names, parts) {
 } # /rtemis::check_feature_constant
 
 
-# %% check_preprocessor_supported ----
-#' Can this preprocessing run inside `train()`?
-#'
-#' Mirrors `check_preprocessor_for_train()`, which aborts on two families of
-#' step: those that drop cases (a fitted preprocessor cannot replay them) and
-#' those that learn which columns to drop (each resample would learn a different
-#' set). Both are guaranteed aborts, so a pre-flight that missed them would pass
-#' a config `train()` rejects one line later.
-#'
-#' Only for a config that trains. `preprocess()` supports every one of these
-#' steps, so a standalone `PreprocessorConfig` is checked for what it declares,
-#' not for what `train()` would do with it.
-#'
-#' No fix is offered: the remedy is to run the step before training, which is a
-#' change to the workflow rather than a patch to the config.
-#'
-#' @param parts Named list from `config_parts()`.
-#'
-#' @return List of `Diagnostic` objects, possibly empty.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-check_preprocessor_supported <- function(parts) {
-  pp <- parts[["preprocessor_config"]]
-  if (is.null(pp) || !isTRUE(parts[["supervised"]])) {
-    return(list())
-  }
-  cases <- preprocessor_ops_set(pp, PREPROCESSOR_CASE_OPS)
-  learned <- preprocessor_ops_set(pp, PREPROCESSOR_LEARNED_DROP_OPS)
-  if (length(cases) == 0L && length(learned) == 0L) {
-    return(list())
-  }
-  reasons <- c(
-    if (length(cases) > 0L) {
-      paste0(
-        paste0("`", cases, "`", collapse = ", "),
-        ngettext(length(cases), " removes cases", " remove cases"),
-        ", which a fitted preprocessor cannot replay at predict time"
-      )
-    },
-    if (length(learned) > 0L) {
-      paste0(
-        paste0("`", learned, "`", collapse = ", "),
-        ngettext(length(learned), " decides", " decide"),
-        " which columns to drop from the data, so each resample would train on",
-        " a different feature set"
-      )
-    }
-  )
-  list(new_diagnostic(
-    code = "PREPROCESSOR_UNSUPPORTED",
-    severity = "error",
-    message = paste0(
-      "`preprocessor_config` cannot run inside train(): ",
-      paste(reasons, collapse = "; "),
-      ". Do this before training, with preprocess() on the full dataset."
-    ),
-    evidence = list(
-      case_ops = unname(cases),
-      learned_drop_ops = unname(learned)
-    )
-  ))
-} # /rtemis::check_preprocessor_supported
-
-
 # %% check_feature_type ----
 #' Are all the predictors a type rtemis can train on?
 #'
@@ -1135,14 +1075,17 @@ check_dim_p_gt_n <- function(profile, feature_names, parts) {
 #' treating them as a remedy misses one that does not. Both are wrong, and the
 #' data is in hand, so this simulates them exactly instead.
 #'
-#' **The one check that reads the rows.** Everything else in this file reads a
-#' `DataProfile`, which is what lets the same rule run outside R. This cannot:
-#' the case step changes each feature's missing fraction, so the answer depends
-#' on the joint missingness pattern, and carrying that would cost one entry per
-#' feature per missing-count bucket -- unbounded exactly where it matters, on
-#' wide data. It is reachable only for a standalone `PreprocessorConfig`, since
-#' `train()` rejects both threshold steps, so an implementation with a profile
-#' and no rows has every check but this one.
+#' With neither threshold set the profile answers on its own, and that is the
+#' only path a supervised config can take: `SupervisedPreprocessorConfig`
+#' declares neither, so every check a supervised config receives is readable
+#' from a profile alone, and the same rule runs outside R.
+#'
+#' **The one place this file reads the rows** is a threshold on a standalone
+#' `PreprocessorConfig`. The case step changes each feature's missing fraction,
+#' so the answer depends on the joint missingness pattern, and carrying that
+#' would cost one entry per feature per missing-count bucket -- unbounded
+#' exactly where it matters, on wide data. `checks/v1` declares this case
+#' unevaluable rather than reproducing it.
 #'
 #' Mirrors `preprocess()`: cases first, at a fraction of the *feature* count
 #' (`train()` preprocesses `features(x)` and re-attaches the outcome), then
@@ -1150,34 +1093,52 @@ check_dim_p_gt_n <- function(profile, feature_names, parts) {
 #' two must stay in step -- a change to either rule in `preprocess()` belongs
 #' here in the same edit.
 #'
-#' @param dat data.table: The dataset.
+#' @param profile `DataProfile` object for the dataset.
+#' @param dat data.table: The dataset. Read only where a threshold is set.
 #' @param feature_names Character: The predictor columns.
-#' @param pp `PreprocessorConfig` object or NULL.
+#' @param pp `PreprocessorConfig` or `SupervisedPreprocessorConfig`, or NULL.
 #'
 #' @return Integer: Missing values remaining in the features.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-missing_after_preprocessing <- function(dat, feature_names, pp) {
+missing_after_preprocessing <- function(profile, dat, feature_names, pp) {
   if (length(feature_names) == 0L) {
     return(0L)
   }
+  remove_cases_thres <- if (is.null(pp)) {
+    NULL
+  } else {
+    pp_opt(pp, "remove_cases_thres")
+  }
+  remove_features_thres <- if (is.null(pp)) {
+    NULL
+  } else {
+    pp_opt(pp, "remove_features_thres")
+  }
+  # Nothing shrinks the gaps, so the profile already holds the answer. This is
+  # the only path a supervised config can take -- it declares neither threshold
+  # -- which is what keeps every check it gets readable from a profile alone.
+  if (is.null(remove_cases_thres) && is.null(remove_features_thres)) {
+    cols <- profile_columns(profile)
+    return(sum(cols[["n_missing"]][cols[["name"]] %in% feature_names]))
+  }
   feat <- as.data.frame(dat)[, feature_names, drop = FALSE]
-  if (!is.null(pp) && !is.null(pp@remove_cases_thres)) {
-    keep <- rowSums(is.na(feat)) / NCOL(feat) < pp@remove_cases_thres
+  if (!is.null(remove_cases_thres)) {
+    keep <- rowSums(is.na(feat)) / NCOL(feat) < remove_cases_thres
     feat <- feat[keep, , drop = FALSE]
   }
   if (NROW(feat) == 0L) {
     return(0L)
   }
-  if (!is.null(pp) && !is.null(pp@remove_features_thres)) {
+  if (!is.null(remove_features_thres)) {
     fraction <- vapply(
       feat,
       function(v) sum(is.na(v)) / length(v),
       numeric(1L)
     )
-    feat <- feat[, fraction < pp@remove_features_thres, drop = FALSE]
+    feat <- feat[, fraction < remove_features_thres, drop = FALSE]
   }
   sum(is.na(feat))
 } # /rtemis::missing_after_preprocessing
@@ -1259,15 +1220,11 @@ check_missing_incompatible <- function(
     }
   }
 
-  # A step `train()` rejects resolves nothing: `PREPROCESSOR_UNSUPPORTED` reports
-  # that it cannot run, and the gaps it was meant to remove are still there. Both
-  # findings are wanted -- the caller has to drop the step *and* handle the gaps
-  # another way.
+  # Whether a step runs is now the config's type: a supervised config carries no
+  # `PREPROCESSOR_TRAIN_EXCLUDED` property, so `pp_opt()` reports the declared
+  # default -- off -- and there is nothing to gate.
   runs <- function(op) {
-    !is.null(pp) &&
-      isTRUE(prop(pp, op)) &&
-      !(isTRUE(parts[["supervised"]]) &&
-        op %in% c(PREPROCESSOR_CASE_OPS, PREPROCESSOR_LEARNED_DROP_OPS))
+    !is.null(pp) && isTRUE(pp_opt(pp, op))
   }
   if (runs("complete_cases")) {
     n_complete <- profile@n_complete_cases
@@ -1325,14 +1282,9 @@ check_missing_incompatible <- function(
   # What actually reaches the learner, with the threshold steps simulated: a
   # feature that is 90% missing is dropped by `remove_features_thres = 0.5`, and
   # a run whose gaps leave with it completes.
-  n_remaining <- missing_after_preprocessing(
-    dat,
-    feature_names,
-    # The threshold steps only run outside `train()`; inside it they are
-    # rejected, so simulating them there would credit a removal that never
-    # happens.
-    if (isTRUE(parts[["supervised"]])) NULL else pp
-  )
+  # A supervised config carries no threshold property, so nothing is credited
+  # there without the call site having to say so.
+  n_remaining <- missing_after_preprocessing(profile, dat, feature_names, pp)
   if (n_remaining == 0L) {
     return(out)
   }

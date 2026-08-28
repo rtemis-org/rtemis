@@ -89,7 +89,8 @@ write_config <- new_generic(
   cluster = "https://schema.rtemis.org/cluster/v1/schema.json",
   decomposition = "https://schema.rtemis.org/decomposition/v1/schema.json",
   clustering = "https://schema.rtemis.org/clustering/v1/schema.json",
-  preprocessor = "https://schema.rtemis.org/preprocessor/v1/schema.json"
+  preprocessor = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+  supervisedpreprocessor = "https://schema.rtemis.org/supervisedpreprocessor/v1/schema.json"
 ) # /rtemis::.RTEMIS_SUPPORTED_CONFIGS
 
 

@@ -158,9 +158,9 @@ checks_document <- list(
       "exactly 1, plural otherwise."
     ),
     plain = paste0(
-      "Not in this document. The plain-language account is authored once per ",
-      "`code` and looked up by the renderer, which is what keeps one ",
-      "explanation per kind of problem where several rules share a code."
+      "In `plain`, keyed by `code` rather than by rule: several rules share a ",
+      "code, and one explanation per kind of problem is the point. Render it ",
+      "beside the rule's own `message`, which states the particulars."
     ),
     unevaluable = paste0(
       "Where an entry's `when` holds, the rule set cannot fully answer for ",
@@ -169,6 +169,12 @@ checks_document <- list(
     )
   ),
   severities = DIAGNOSTIC_SEVERITIES,
+  # The plain-language account per code. Published rather than left to each
+  # host to transcribe: it is authored once here, every implementation renders
+  # it verbatim, and the conformance corpus already asserts the exact text, so
+  # a copy in another language was a copy that had to agree without any way to
+  # check it until a fixture happened to cover it.
+  plain = as.list(DIAGNOSTIC_PLAIN),
   let = compiled[["let"]],
   rules = rules,
   unevaluable = unevaluable

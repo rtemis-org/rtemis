@@ -9,7 +9,7 @@ test_that("SuperConfig() succeeds", {
     dat_validation_path = "validation.csv",
     dat_test_path = "test.csv",
     weights = NULL,
-    preprocessor_config = setup_Preprocessor(),
+    preprocessor_config = setup_SupervisedPreprocessor(),
     hyperparameters = setup_GLMNET(),
     tuner_config = setup_GridSearch(),
     outer_resampling_config = setup_Resampler(),
@@ -28,7 +28,7 @@ test_that("setup_SuperConfig() succeeds", {
     dat_validation_path = "validation.csv",
     dat_test_path = "test.csv",
     weights = NULL,
-    preprocessor_config = setup_Preprocessor(),
+    preprocessor_config = setup_SupervisedPreprocessor(),
     hyperparameters = setup_LightGBM(),
     tuner_config = setup_GridSearch(),
     outer_resampling_config = setup_Resampler(),
@@ -124,7 +124,7 @@ test_that("train() works with SuperConfig", {
     dat_validation_path = NULL,
     dat_test_path = NULL,
     weights = NULL,
-    preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
+    preprocessor_config = setup_SupervisedPreprocessor(scale = TRUE),
     hyperparameters = setup_LightRF(),
     tuner_config = setup_GridSearch(),
     outer_resampling_config = setup_Resampler(),
@@ -145,7 +145,7 @@ test_that("SuperConfig round-trips through write_config/read_config JSON", {
     dat_validation_path = NULL,
     dat_test_path = NULL,
     weights = NULL,
-    preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
+    preprocessor_config = setup_SupervisedPreprocessor(scale = TRUE),
     hyperparameters = setup_LightRF(),
     tuner_config = setup_GridSearch(),
     outer_resampling_config = setup_Resampler(),
@@ -182,8 +182,8 @@ test_that("read_config ignores `$schema` on nested configs", {
       `$schema` = "https://schema.rtemis.org/supervised/v1/schema.json",
       dat_training_path = "~/Data/iris.csv",
       preprocessor_config = list(
-        `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
-        remove_duplicates = TRUE
+        `$schema` = "https://schema.rtemis.org/supervisedpreprocessor/v1/schema.json",
+        scale = TRUE
       ),
       decomposition_config = list(
         `$schema` = "https://schema.rtemis.org/decomposition/v1/schema.json",
@@ -200,7 +200,7 @@ test_that("read_config ignores `$schema` on nested configs", {
   )
   x <- read_config(file)
   expect_s7_class(x, SuperConfig)
-  expect_true(x@preprocessor_config@remove_duplicates)
+  expect_true(x@preprocessor_config@scale)
   expect_s7_class(x@decomposition_config, DecompositionConfig)
   expect_identical(x@execution_config@n_workers, 1L)
 })

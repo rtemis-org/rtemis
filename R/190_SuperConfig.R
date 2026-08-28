@@ -45,7 +45,7 @@ SuperConfig <- new_class(
       nullable = TRUE,
       description = "Outcome level to treat as positive (binary classification)."
     ),
-    preprocessor_config = NULL | PreprocessorConfig,
+    preprocessor_config = NULL | SupervisedPreprocessorConfig,
     decomposition_config = NULL | DecompositionConfig,
     # A set is a union of search spaces over one algorithm, and a recipe has to
     # say which was asked for. NULL stays first so the prototype is NULL.
@@ -131,7 +131,7 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' If NULL, no weights are used.
 #' @param positive_class Character or NULL: For binary classification, the
 #' outcome level to treat as positive. NULL keeps the existing factor level order.
-#' @param preprocessor_config `PreprocessorConfig` object: Configuration for data preprocessing.
+#' @param preprocessor_config `SupervisedPreprocessorConfig` object: Configuration for data preprocessing.
 #' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
 #' @param hyperparameters `Hyperparameters` object: Configuration for model hyperparameters.
 #' @param tuner_config `TunerConfig` object: Configuration for hyperparameter tuning.
@@ -151,7 +151,7 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' @examples
 #' sc <- setup_SuperConfig(
 #'   dat_training_path = "train.csv",
-#'   preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
+#'   preprocessor_config = setup_SupervisedPreprocessor(scale = TRUE),
 #'   hyperparameters = setup_LightRF(),
 #'   tuner_config = setup_GridSearch(),
 #'   outer_resampling_config = setup_Resampler(),
@@ -316,7 +316,7 @@ setup_SuperConfig <- function(
     preprocessor_config = if (is.null(x[["preprocessor_config"]])) {
       NULL
     } else {
-      do.call(setup_Preprocessor, .drop_meta_keys(x[["preprocessor_config"]]))
+      .list_to_SupervisedPreprocessorConfig(x[["preprocessor_config"]])
     },
     decomposition_config = if (is.null(x[["decomposition_config"]])) {
       NULL
@@ -398,7 +398,7 @@ SuperConfigLive <- new_class(
       nullable = TRUE,
       description = "Outcome level to treat as positive (binary classification)."
     ),
-    preprocessor_config = NULL | PreprocessorConfig,
+    preprocessor_config = NULL | SupervisedPreprocessorConfig,
     decomposition_config = NULL | DecompositionConfig,
     # A set is a union of search spaces over one algorithm, and a recipe has to
     # say which was asked for. NULL stays first so the prototype is NULL.

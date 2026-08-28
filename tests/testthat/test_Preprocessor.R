@@ -874,7 +874,10 @@ test_that("train() preprocesses features, never the outcome", {
   plain <- train(datr, hyperparameters = setup_GLM(), verbosity = 0L)
   scaled <- train(
     datr,
-    preprocessor_config = setup_Preprocessor(scale = TRUE, center = TRUE),
+    preprocessor_config = setup_SupervisedPreprocessor(
+      scale = TRUE,
+      center = TRUE
+    ),
     hyperparameters = setup_GLM(),
     verbosity = 0L
   )
@@ -895,30 +898,6 @@ test_that("train() preprocesses features, never the outcome", {
 })
 
 
-test_that("train() rejects a preprocessor that removes cases", {
-  datr <- data.frame(a = rnorm(40L), b = rnorm(40L), y = rnorm(40L))
-  for (op in PREPROCESSOR_CASE_OPS) {
-    config <- do.call(
-      setup_Preprocessor,
-      stats::setNames(
-        list(if (op == "remove_cases_thres") 0.5 else TRUE),
-        op
-      )
-    )
-    expect_error(
-      train(
-        x = datr,
-        preprocessor_config = config,
-        hyperparameters = setup_GLM(),
-        verbosity = 0L
-      ),
-      "cannot replay",
-      info = op
-    )
-  }
-})
-
-
 test_that("a fitted preprocessor returns one prediction per row", {
   # A case-removing step could not be replayed on new data: asked for n rows,
   # `predict()` must return n predictions.
@@ -926,7 +905,10 @@ test_that("a fitted preprocessor returns one prediction per row", {
   datr[["y"]] <- datr[["a"]] + rnorm(60L)
   mod <- train(
     datr,
-    preprocessor_config = setup_Preprocessor(scale = TRUE, center = TRUE),
+    preprocessor_config = setup_SupervisedPreprocessor(
+      scale = TRUE,
+      center = TRUE
+    ),
     hyperparameters = setup_GLM(),
     verbosity = 0L
   )
@@ -935,16 +917,19 @@ test_that("a fitted preprocessor returns one prediction per row", {
 })
 
 
-test_that("train() rejects a preprocessor that learns which columns to drop", {
-  # Replayable, unlike the case ops, but each resample would learn the set from
-  # its own training subset -- so the folds train on different features and
-  # their metrics are not comparable.
+test_that("train() rejects a preprocessor carrying an excluded operation", {
+  # `SupervisedPreprocessorConfig` cannot express any of them, so what reaches
+  # train() is a `PreprocessorConfig` and the answer is a type error naming the
+  # operation that made it one.
   datr <- data.frame(a = rnorm(40L), b = rnorm(40L), y = rnorm(40L))
-  for (op in PREPROCESSOR_LEARNED_DROP_OPS) {
-    config <- do.call(
-      setup_Preprocessor,
-      stats::setNames(list(0.5), op)
-    )
+  values <- list(
+    complete_cases = TRUE,
+    remove_duplicates = TRUE,
+    remove_cases_thres = 0.5,
+    remove_features_thres = 0.5
+  )
+  for (op in PREPROCESSOR_TRAIN_EXCLUDED) {
+    config <- do.call(setup_Preprocessor, values[op])
     expect_error(
       train(
         x = datr,
@@ -952,7 +937,8 @@ test_that("train() rejects a preprocessor that learns which columns to drop", {
         hyperparameters = setup_GLM(),
         verbosity = 0L
       ),
-      "different feature"
+      op,
+      info = op
     )
   }
 })
@@ -962,8 +948,8 @@ test_that("named and constant feature removal stay allowed in train()", {
   datr <- data.frame(a = rnorm(40L), b = rnorm(40L), y = rnorm(40L))
   datr[["const"]] <- 1
   for (config in list(
-    setup_Preprocessor(remove_features = "b"),
-    setup_Preprocessor(remove_constants = TRUE)
+    setup_SupervisedPreprocessor(remove_features = "b"),
+    setup_SupervisedPreprocessor(remove_constants = TRUE)
   )) {
     expect_no_error(
       train(
@@ -974,4 +960,71 @@ test_that("named and constant feature removal stay allowed in train()", {
       )
     )
   }
+})
+
+
+# SupervisedPreprocessorConfig ----
+# The two classes are built from one property list, and the two `setup_*`
+# functions cannot be: `supplied_origins()` reads its caller's formals, so each
+# needs its own. These assert what that costs -- that the second stays the first
+# minus `PREPROCESSOR_TRAIN_EXCLUDED`, in name, in order, and in default.
+test_that("SupervisedPreprocessorConfig is PreprocessorConfig minus the excluded ops", {
+  full <- names(props(setup_Preprocessor()))
+  supervised <- names(props(setup_SupervisedPreprocessor()))
+  expect_identical(supervised, setdiff(full, PREPROCESSOR_TRAIN_EXCLUDED))
+  expect_true(all(PREPROCESSOR_TRAIN_EXCLUDED %in% full))
+  expect_false(any(PREPROCESSOR_TRAIN_EXCLUDED %in% supervised))
+})
+
+
+test_that("setup_SupervisedPreprocessor formals track setup_Preprocessor", {
+  full <- formals(setup_Preprocessor)
+  supervised <- formals(setup_SupervisedPreprocessor)
+  expect_identical(
+    names(supervised),
+    setdiff(names(full), PREPROCESSOR_TRAIN_EXCLUDED)
+  )
+  for (nm in names(supervised)) {
+    expect_identical(supervised[[nm]], full[[nm]], info = nm)
+  }
+})
+
+
+test_that("pp_opt reads an omitted option as its declared default", {
+  supervised <- setup_SupervisedPreprocessor()
+  full <- setup_Preprocessor()
+  for (nm in PREPROCESSOR_TRAIN_EXCLUDED) {
+    expect_identical(pp_opt(supervised, nm), prop(full, nm), info = nm)
+  }
+  # A property both carry is read from the object, not from the default.
+  expect_true(pp_opt(setup_SupervisedPreprocessor(scale = TRUE), "scale"))
+})
+
+
+test_that("train() and SuperConfig refuse a PreprocessorConfig", {
+  expect_error(
+    setup_SuperConfig(
+      dat_training_path = "t.csv",
+      preprocessor_config = setup_Preprocessor(),
+      hyperparameters = setup_LightRF()
+    ),
+    "SupervisedPreprocessorConfig"
+  )
+  # The corrective message names the operations that made it the wrong type.
+  expect_error(
+    train(
+      iris,
+      preprocessor_config = setup_Preprocessor(complete_cases = TRUE),
+      verbosity = 0L
+    ),
+    "complete_cases"
+  )
+})
+
+
+test_that("a supervised document cannot name an excluded operation", {
+  expect_error(
+    .list_to_SupervisedPreprocessorConfig(list(remove_duplicates = TRUE)),
+    "remove_duplicates"
+  )
 })

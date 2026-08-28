@@ -122,6 +122,7 @@ AUDIT_RESULT_CLASSES <- c(
 parse_roxygen_params <- function(r_dir) {
   files <- list.files(r_dir, pattern = "[.][Rr]$", full.names = TRUE)
   out <- list()
+  inherited <- list()
   for (f in files) {
     lines <- readLines(f, warn = FALSE)
     block <- character()
@@ -146,13 +147,59 @@ parse_roxygen_params <- function(r_dir) {
         if (length(params) > 0L) {
           out[[fn[[2L]]]] <- params
         }
+        inherits_from <- .roxygen_block_inherits(block)
+        if (length(inherits_from) > 0L) {
+          inherited[[fn[[2L]]]] <- inherits_from
+        }
       }
       # Any non-roxygen line ends the current block.
       block <- character()
     }
   }
+  # `@inheritParams` after every file is parsed, so the target is present
+  # whichever order the files came in. One hop only: roxygen resolves chains,
+  # and a chain here would mean documenting a class three functions away from
+  # the properties it declares.
+  for (name in names(inherited)) {
+    for (target in inherited[[name]]) {
+      from <- out[[target]]
+      if (is.null(from)) {
+        next
+      }
+      own <- out[[name]] %||% character()
+      out[[name]] <- c(own, from[setdiff(names(from), names(own))])
+    }
+  }
   out
 } # /rtemis::parse_roxygen_params
+
+
+# %% .roxygen_block_inherits ----
+#' The functions one roxygen block inherits parameter documentation from
+#'
+#' `@inheritParams` is how a `setup_*` that takes a subset of another's
+#' arguments documents them once. The audit reads roxygen source rather than
+#' installed `.Rd`, so it has to follow the tag itself or read a block that
+#' documents nothing.
+#'
+#' @param block Character vector: Roxygen block with the `#'` prefix stripped.
+#'
+#' @return Character vector of function names, possibly empty.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+.roxygen_block_inherits <- function(block) {
+  m <- regmatches(
+    block,
+    regexec("^@inheritParams\\s+(\\S+)\\s*$", block, perl = TRUE)
+  )
+  vapply(
+    Filter(function(x) length(x) == 2L, m),
+    function(x) x[[2L]],
+    character(1L)
+  )
+} # /rtemis::.roxygen_block_inherits
 
 
 # %% .roxygen_block_params ----

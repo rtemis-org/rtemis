@@ -92,11 +92,12 @@ read_config <- function(file) {
     decomposition = .list_to_DecompositionConfig(x),
     clustering = .list_to_ClusteringConfig(x),
     preprocessor = .list_to_PreprocessorConfig(x),
+    supervisedpreprocessor = .list_to_SupervisedPreprocessorConfig(x),
     rtemis.core::abort(
       "Unknown config kind: ",
       kind,
       ". Expected 'supervised', 'decompose', 'cluster', 'decomposition', ",
-      "'clustering', or 'preprocessor'.",
+      "'clustering', 'preprocessor', or 'supervisedpreprocessor'.",
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   )

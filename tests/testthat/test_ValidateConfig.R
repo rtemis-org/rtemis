@@ -188,3 +188,38 @@ test_that("validate_config() records the plan step on every finding", {
 test_that("validate_config() rejects a config that is neither list nor object", {
   expect_error(validate_config("a string"), class = "rtemis_type_error")
 })
+
+
+# %% Operations a supervised config cannot express ----
+# The type carries the rule, so a supervised document naming one of these does
+# not reconstruct: the answer is the schema half, which is why these live here
+# rather than with the data-check fixtures. No `data` is needed -- a config that
+# will not reconstruct has no fields for a data check to read.
+
+test_that("each excluded operation is an unknown key in a supervised config", {
+  values <- list(
+    complete_cases = TRUE,
+    remove_duplicates = TRUE,
+    remove_cases_thres = 0.5,
+    remove_features_thres = 0.9
+  )
+  for (op in names(values)) {
+    out <- validate_config(.min_config(preprocessor_config = values[op]))
+    expect_length(out, 1L)
+    expect_identical(out[[1L]]@code, "SCHEMA_INVALID", info = op)
+    expect_match(out[[1L]]@message, op, fixed = TRUE, info = op)
+  }
+})
+
+
+test_that("the excluded operations remain valid for a standalone preprocessor", {
+  # `preprocess()` supports every one of them; only a run that fits one cannot.
+  expect_length(
+    validate_config(list(
+      `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+      remove_duplicates = TRUE,
+      remove_cases_thres = 0.5
+    )),
+    0L
+  )
+})

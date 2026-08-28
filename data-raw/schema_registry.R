@@ -404,7 +404,7 @@ flat_configs <- list(
       "same config drives rtemis (R), rtemis CLI/shell, and rtemislive."
     ),
     refs = c(
-      preprocessor_config = .url("preprocessor"),
+      preprocessor_config = .url("supervisedpreprocessor"),
       decomposition_config = .url("decomposition"),
       tuner_config = .url("tuner"),
       outer_resampling_config = .url("resampler"),
@@ -531,6 +531,19 @@ flat_configs <- list(
       "Language-independent config for rtemis preprocessing. Mirrors the ",
       "`PreprocessorConfig` object / `setup_Preprocessor` arguments. The same ",
       "config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical output."
+    )
+  ),
+  supervisedpreprocessor = list(
+    cls = SupervisedPreprocessorConfig,
+    title = "rtemis SupervisedPreprocessorConfig",
+    description = paste0(
+      "Language-independent config for the preprocessing a supervised run can ",
+      "fit. Mirrors the `SupervisedPreprocessorConfig` object / ",
+      "`setup_SupervisedPreprocessor` arguments: `preprocessor` without the ",
+      "operations a fitted preprocessor cannot replay at predict time ",
+      "(`complete_cases`, `remove_duplicates`, `remove_cases_thres`) or would ",
+      "learn differently in every resample (`remove_features_thres`). Those ",
+      "belong to `preprocessor`, applied to a dataset before training."
     )
   )
 )

@@ -4059,7 +4059,7 @@ mod_c_glm_pp <- train(
   x = datc2_train,
   dat_test = datc2_test,
   hyperparameters = setup_GLM(),
-  preprocessor = setup_Preprocessor(
+  preprocessor = setup_SupervisedPreprocessor(
     scale = TRUE,
     center = TRUE
   )

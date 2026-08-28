@@ -2,6 +2,10 @@
 
 ## 1.3.8
 
+- **New `setup_SupervisedPreprocessor()` and `SupervisedPreprocessorConfig`**: the preprocessing a `train()` run can fit, published as `supervisedpreprocessor/v1`. `setup_Preprocessor()` without `complete_cases`, `remove_duplicates` and `remove_cases_thres`, which a fitted preprocessor cannot replay at predict time -- asked for n rows it must return n predictions -- and without `remove_features_thres`, which each fold would learn from its own training subset. `SuperConfig@preprocessor_config` takes this type; the four are still available to `preprocess()`.
+- **`PREPROCESSOR_UNSUPPORTED` is gone**, and so is the check behind it: what it reported is not a setting `train()` refuses, it is not a setting. Eight data checks remain.
+- A `PreprocessorConfig` handed to `train()` is a type error naming the operations that made it one, and the fix.
+
 - **New `checks/v1` and `traits/v1` at schema.rtemis.org**: the nine data checks as 29 JSONLogic rules over a `profile/v1` description, plus the algorithm traits they read. Authored in infix in `data-raw/checks.R` and compiled at generation time; rtemis's own checks remain the reference implementation and are unchanged in what they report.
 - **New `checks/v1/corpus.json` at schema.rtemis.org**: the fixture corpus as portable data -- 78 `(profile, config, outcome)` cases with the findings rtemis reported for each, which every implementation of `checks/v1` has to reproduce. Recorded from `test_ValidateConfigFixtures.R` itself, so a fixture added there is carried without restating it.
 - `RESAMPLE_MIN_CLASS` evidence reports `class_counts` in long form, one record per level, as `profile/v1` carries them.

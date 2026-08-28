@@ -6,207 +6,299 @@
 # https://github.com/RConsortium/S7/
 # https://rconsortium.github.io/S7
 
+# %% PREPROCESSOR_TRAIN_EXCLUDED ----
+# The operations `SupervisedPreprocessorConfig` omits, and why they cannot be
+# part of a preprocessor `train()` fits.
+#
+# `complete_cases`, `remove_duplicates` and `remove_cases_thres` drop *cases*. A
+# fitted preprocessor is replayed on validation, test, and whatever `predict()`
+# is handed, and a prediction call has nothing it may drop: asked for n rows it
+# must return n predictions.
+#
+# `remove_features_thres` decides *which columns to drop* from the data in front
+# of it. It replays, but under resampling each fold learns the set from its own
+# training subset, so the folds train over different feature spaces and their
+# metrics do not average into an estimate of one model.
+#
+# `remove_features` names its columns, so every fold drops the same ones, and
+# `remove_constants` is a requirement of fitting rather than a cleaning choice.
+# Both stay.
+PREPROCESSOR_TRAIN_EXCLUDED <- c(
+  "complete_cases",
+  "remove_features_thres",
+  "remove_cases_thres",
+  "remove_duplicates"
+)
+
+
+# %% .preprocessor_properties ----
+# Declared once, in this order, and read by both preprocessor classes.
+# `SupervisedPreprocessorConfig` is this list minus `PREPROCESSOR_TRAIN_EXCLUDED`,
+# so a property added here reaches both classes and the order the schema
+# publishes stays the order it is written in.
+.preprocessor_properties <- list(
+  complete_cases = prop_boolean(
+    FALSE,
+    description = "Retain only complete cases."
+  ),
+  remove_features_thres = prop_float(
+    NULL,
+    exclusive_min = 0,
+    max = 1,
+    nullable = TRUE,
+    description = "Remove features missing in >= this fraction of cases."
+  ),
+  remove_cases_thres = prop_float(
+    NULL,
+    exclusive_min = 0,
+    max = 1,
+    nullable = TRUE,
+    description = "Remove cases missing >= this fraction of features."
+  ),
+  missingness = prop_boolean(
+    FALSE,
+    description = "Add a boolean missingness indicator per feature with NAs."
+  ),
+  impute = prop_boolean(FALSE, description = "Impute missing values."),
+  impute_type = prop_string(
+    "missRanger",
+    enum = c("missRanger", "micePMM", "meanMode"),
+    description = "Imputation method."
+  ),
+  impute_missRanger_params = prop_bag(
+    description = "Parameters passed to missRanger (e.g. pmm.k, maxiter, num.trees)."
+  ),
+  impute_discrete = prop_string(
+    "get_mode",
+    description = "Function name to impute discrete features."
+  ),
+  impute_continuous = prop_string(
+    "mean",
+    description = "Function name to impute continuous features."
+  ),
+  integer2factor = prop_boolean(
+    FALSE,
+    description = "Convert integers to factors."
+  ),
+  integer2numeric = prop_boolean(
+    FALSE,
+    description = "Convert integers to numeric."
+  ),
+  logical2factor = prop_boolean(
+    FALSE,
+    description = "Convert logicals to factors."
+  ),
+  logical2numeric = prop_boolean(
+    FALSE,
+    description = "Convert logicals to numeric."
+  ),
+  numeric2factor = prop_boolean(
+    FALSE,
+    description = "Convert numeric to factors."
+  ),
+  numeric2factor_levels = prop_string(
+    NULL,
+    nullable = TRUE,
+    vector = TRUE,
+    description = "Factor levels for numeric2factor."
+  ),
+  numeric_cut_n = prop_integer(
+    0L,
+    min = 0L,
+    description = "Cut numeric features into this many bins (0 = off)."
+  ),
+  numeric_cut_labels = prop_boolean(
+    FALSE,
+    description = "Use labels for numeric_cut bins."
+  ),
+  numeric_quant_n = prop_integer(
+    0L,
+    min = 0L,
+    description = "Cut numeric features into this many quantile bins (0 = off)."
+  ),
+  numeric_quant_NAonly = prop_boolean(
+    FALSE,
+    description = "Quantile-cut only features with NAs."
+  ),
+  unique_len2factor = prop_integer(
+    0L,
+    min = 0L,
+    description = "Convert features with <= this many unique values to factors (0 = off)."
+  ),
+  character2factor = prop_boolean(
+    FALSE,
+    description = "Convert character features to factors."
+  ),
+  factorNA2missing = prop_boolean(
+    FALSE,
+    description = "Convert factor NAs to a 'missing' level."
+  ),
+  factorNA2missing_level = prop_string(
+    "missing",
+    description = "Level name for factorNA2missing."
+  ),
+  factor2integer = prop_boolean(
+    FALSE,
+    description = "Convert factors to integers."
+  ),
+  factor2integer_startat0 = prop_boolean(
+    TRUE,
+    description = "factor2integer starts at 0."
+  ),
+  factor2integer_levels = prop_map(
+    prop_string("", vector = TRUE),
+    nullable = TRUE,
+    data_dependent = TRUE,
+    description = "Per-feature factor2integer levels, keyed by feature name."
+  ),
+  scale = prop_boolean(FALSE, description = "Scale features."),
+  center = prop_boolean(FALSE, description = "Center features."),
+  # Settable *and* run-written: `preprocess()` uses a supplied value in place
+  # of computing one, and stores what it computed when none was given. So it
+  # is config, not state -- `readOnly` would reject a legitimate input. A
+  # record marks it readOnly, where it genuinely was derived.
+  scale_centers = prop_map(
+    prop_float(0),
+    nullable = TRUE,
+    data_dependent = TRUE,
+    description = "Per-feature centering values, keyed by feature name."
+  ),
+  scale_coefficients = prop_map(
+    prop_float(0),
+    nullable = TRUE,
+    data_dependent = TRUE,
+    description = "Per-feature scaling values, keyed by feature name."
+  ),
+  remove_constants = prop_boolean(
+    FALSE,
+    description = "Remove constant features."
+  ),
+  remove_constants_skip_missing = prop_boolean(
+    TRUE,
+    description = "Ignore missing values when detecting constants."
+  ),
+  remove_duplicates = prop_boolean(
+    FALSE,
+    description = "Remove duplicate cases."
+  ),
+  remove_features = prop_string(
+    NULL,
+    nullable = TRUE,
+    vector = TRUE,
+    description = "Names of features to remove."
+  ),
+  one_hot = prop_boolean(FALSE, description = "One-hot encode factors."),
+  one_hot_levels = prop_map(
+    prop_string("", vector = TRUE),
+    nullable = TRUE,
+    data_dependent = TRUE,
+    description = "Per-feature one-hot levels, keyed by feature name."
+  ),
+  add_date_features = prop_boolean(
+    FALSE,
+    description = "Add date-derived features."
+  ),
+  date_features = prop_string(
+    c("weekday", "month", "year"),
+    enum = c("weekday", "month", "year"),
+    vector = TRUE,
+    description = "Date features to add."
+  ),
+  add_holidays = prop_boolean(
+    FALSE,
+    description = "Add a holiday indicator feature."
+  ),
+  # No enum: the valid names are timeDate's holiday functions, which number in
+  # the hundreds and vary by timeDate version. They are checked against
+  # `timeDate::listHolidays()` where they are used, so the set stays accurate
+  # for the installed version.
+  holidays = prop_string(
+    c("USLaborDay", "NewYearsDay", "ChristmasDay"),
+    vector = TRUE,
+    unique_items = TRUE,
+    description = "Holidays to flag, named as timeDate holiday functions."
+  ),
+  exclude = prop_integer(
+    NULL,
+    nullable = TRUE,
+    vector = TRUE,
+    description = "Column indices to exclude from preprocessing."
+  )
+) # /.preprocessor_properties
+
+
 # %% PreprocessorConfig ----
 #' PreprocessorConfig
 #'
 #' @description
-#' PreprocessorConfig class.
+#' PreprocessorConfig class. Every preprocessing operation rtemis performs,
+#' for [preprocess] on a dataset in hand.
 #'
 #' @author EDG
 #' @noRd
 PreprocessorConfig <- new_class(
   name = "PreprocessorConfig",
   package = "rtemis",
-  properties = list(
-    complete_cases = prop_boolean(
-      FALSE,
-      description = "Retain only complete cases."
-    ),
-    remove_features_thres = prop_float(
-      NULL,
-      exclusive_min = 0,
-      max = 1,
-      nullable = TRUE,
-      description = "Remove features missing in >= this fraction of cases."
-    ),
-    remove_cases_thres = prop_float(
-      NULL,
-      exclusive_min = 0,
-      max = 1,
-      nullable = TRUE,
-      description = "Remove cases missing >= this fraction of features."
-    ),
-    missingness = prop_boolean(
-      FALSE,
-      description = "Add a boolean missingness indicator per feature with NAs."
-    ),
-    impute = prop_boolean(FALSE, description = "Impute missing values."),
-    impute_type = prop_string(
-      "missRanger",
-      enum = c("missRanger", "micePMM", "meanMode"),
-      description = "Imputation method."
-    ),
-    impute_missRanger_params = prop_bag(
-      description = "Parameters passed to missRanger (e.g. pmm.k, maxiter, num.trees)."
-    ),
-    impute_discrete = prop_string(
-      "get_mode",
-      description = "Function name to impute discrete features."
-    ),
-    impute_continuous = prop_string(
-      "mean",
-      description = "Function name to impute continuous features."
-    ),
-    integer2factor = prop_boolean(
-      FALSE,
-      description = "Convert integers to factors."
-    ),
-    integer2numeric = prop_boolean(
-      FALSE,
-      description = "Convert integers to numeric."
-    ),
-    logical2factor = prop_boolean(
-      FALSE,
-      description = "Convert logicals to factors."
-    ),
-    logical2numeric = prop_boolean(
-      FALSE,
-      description = "Convert logicals to numeric."
-    ),
-    numeric2factor = prop_boolean(
-      FALSE,
-      description = "Convert numeric to factors."
-    ),
-    numeric2factor_levels = prop_string(
-      NULL,
-      nullable = TRUE,
-      vector = TRUE,
-      description = "Factor levels for numeric2factor."
-    ),
-    numeric_cut_n = prop_integer(
-      0L,
-      min = 0L,
-      description = "Cut numeric features into this many bins (0 = off)."
-    ),
-    numeric_cut_labels = prop_boolean(
-      FALSE,
-      description = "Use labels for numeric_cut bins."
-    ),
-    numeric_quant_n = prop_integer(
-      0L,
-      min = 0L,
-      description = "Cut numeric features into this many quantile bins (0 = off)."
-    ),
-    numeric_quant_NAonly = prop_boolean(
-      FALSE,
-      description = "Quantile-cut only features with NAs."
-    ),
-    unique_len2factor = prop_integer(
-      0L,
-      min = 0L,
-      description = "Convert features with <= this many unique values to factors (0 = off)."
-    ),
-    character2factor = prop_boolean(
-      FALSE,
-      description = "Convert character features to factors."
-    ),
-    factorNA2missing = prop_boolean(
-      FALSE,
-      description = "Convert factor NAs to a 'missing' level."
-    ),
-    factorNA2missing_level = prop_string(
-      "missing",
-      description = "Level name for factorNA2missing."
-    ),
-    factor2integer = prop_boolean(
-      FALSE,
-      description = "Convert factors to integers."
-    ),
-    factor2integer_startat0 = prop_boolean(
-      TRUE,
-      description = "factor2integer starts at 0."
-    ),
-    factor2integer_levels = prop_map(
-      prop_string("", vector = TRUE),
-      nullable = TRUE,
-      data_dependent = TRUE,
-      description = "Per-feature factor2integer levels, keyed by feature name."
-    ),
-    scale = prop_boolean(FALSE, description = "Scale features."),
-    center = prop_boolean(FALSE, description = "Center features."),
-    # Settable *and* run-written: `preprocess()` uses a supplied value in place
-    # of computing one, and stores what it computed when none was given. So it
-    # is config, not state -- `readOnly` would reject a legitimate input. A
-    # record marks it readOnly, where it genuinely was derived.
-    scale_centers = prop_map(
-      prop_float(0),
-      nullable = TRUE,
-      data_dependent = TRUE,
-      description = "Per-feature centering values, keyed by feature name."
-    ),
-    scale_coefficients = prop_map(
-      prop_float(0),
-      nullable = TRUE,
-      data_dependent = TRUE,
-      description = "Per-feature scaling values, keyed by feature name."
-    ),
-    remove_constants = prop_boolean(
-      FALSE,
-      description = "Remove constant features."
-    ),
-    remove_constants_skip_missing = prop_boolean(
-      TRUE,
-      description = "Ignore missing values when detecting constants."
-    ),
-    remove_duplicates = prop_boolean(
-      FALSE,
-      description = "Remove duplicate cases."
-    ),
-    remove_features = prop_string(
-      NULL,
-      nullable = TRUE,
-      vector = TRUE,
-      description = "Names of features to remove."
-    ),
-    one_hot = prop_boolean(FALSE, description = "One-hot encode factors."),
-    one_hot_levels = prop_map(
-      prop_string("", vector = TRUE),
-      nullable = TRUE,
-      data_dependent = TRUE,
-      description = "Per-feature one-hot levels, keyed by feature name."
-    ),
-    add_date_features = prop_boolean(
-      FALSE,
-      description = "Add date-derived features."
-    ),
-    date_features = prop_string(
-      c("weekday", "month", "year"),
-      enum = c("weekday", "month", "year"),
-      vector = TRUE,
-      description = "Date features to add."
-    ),
-    add_holidays = prop_boolean(
-      FALSE,
-      description = "Add a holiday indicator feature."
-    ),
-    # No enum: the valid names are timeDate's holiday functions, which number in
-    # the hundreds and vary by timeDate version. They are checked against
-    # `timeDate::listHolidays()` where they are used, so the set stays accurate
-    # for the installed version.
-    holidays = prop_string(
-      c("USLaborDay", "NewYearsDay", "ChristmasDay"),
-      vector = TRUE,
-      unique_items = TRUE,
-      description = "Holidays to flag, named as timeDate holiday functions."
-    ),
-    exclude = prop_integer(
-      NULL,
-      nullable = TRUE,
-      vector = TRUE,
-      description = "Column indices to exclude from preprocessing."
-    )
-  )
+  properties = .preprocessor_properties
 ) # /PreprocessorConfig
+
+
+# %% SupervisedPreprocessorConfig ----
+#' SupervisedPreprocessorConfig
+#'
+#' @description
+#' SupervisedPreprocessorConfig class. The preprocessing a `train()` run can
+#' fit: `PreprocessorConfig` without the operations a fitted preprocessor
+#' cannot replay at predict time or would learn differently in every fold. See
+#' `PREPROCESSOR_TRAIN_EXCLUDED`.
+#'
+#' A sibling of `PreprocessorConfig` rather than a subclass: an S7 subclass
+#' satisfies its parent's type, so inheritance in either direction would let the
+#' wider config pass where only this one belongs, which is the whole point of
+#' the distinction.
+#'
+#' @author EDG
+#' @noRd
+SupervisedPreprocessorConfig <- new_class(
+  name = "SupervisedPreprocessorConfig",
+  package = "rtemis",
+  properties = .preprocessor_properties[
+    setdiff(names(.preprocessor_properties), PREPROCESSOR_TRAIN_EXCLUDED)
+  ]
+) # /SupervisedPreprocessorConfig
+
+
+# %% AnyPreprocessorConfig ----
+# Either preprocessor config, for code that reads the operations both carry.
+# `PreprocessorConfig` stays first so the union's prototype is the wider one.
+AnyPreprocessorConfig <- PreprocessorConfig | SupervisedPreprocessorConfig
+
+
+# %% pp_opt ----
+#' One preprocessing option, or its declared default when the class omits it
+#'
+#' `SupervisedPreprocessorConfig` does not carry
+#' `PREPROCESSOR_TRAIN_EXCLUDED`, so code shared with `preprocess()` reads those
+#' four through this rather than branching on class. The value returned for an
+#' absent property is the default the shared property list declares, which is
+#' the "off" value for all four -- so a supervised config behaves exactly as one
+#' that left them unset, and there is no second table of off-values to drift.
+#'
+#' @param config `PreprocessorConfig` or `SupervisedPreprocessorConfig` object.
+#' @param name Character: Property name.
+#'
+#' @return The property's value, or its declared default.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+pp_opt <- function(config, name) {
+  if (name %in% names(props(config))) {
+    prop(config, name)
+  } else {
+    .preprocessor_properties[[name]]$default
+  }
+} # /rtemis::pp_opt
 
 
 # %% names.PreprocessorConfig ----
@@ -262,6 +354,56 @@ method(print, PreprocessorConfig) <- function(
   cat(repr(x, limit = limit, output_type = output_type))
   invisible(x)
 } # /rtemis::print.PreprocessorConfig
+
+
+# %% SupervisedPreprocessorConfig accessors ----
+# The sibling class reads its properties the same way. Written out rather than
+# copied from the methods above: `method()` retrieves S7 generics only, and
+# `names`, `$`, `.DollarNames` and `[[` are base generics.
+method(names, SupervisedPreprocessorConfig) <- function(x) {
+  names(props(x))
+}
+method(`$`, SupervisedPreprocessorConfig) <- function(x, name) {
+  props(x)[[name]]
+}
+method(`.DollarNames`, SupervisedPreprocessorConfig) <- function(
+  x,
+  pattern = ""
+) {
+  all_names <- names(props(x))
+  grep(pattern, all_names, value = TRUE)
+}
+method(`[[`, SupervisedPreprocessorConfig) <- function(x, name) {
+  props(x)[[name]]
+}
+method(print, SupervisedPreprocessorConfig) <- function(
+  x,
+  limit = -1L,
+  output_type = NULL,
+  ...
+) {
+  cat(repr(x, limit = limit, output_type = output_type))
+  invisible(x)
+}
+
+
+# %% repr.SupervisedPreprocessorConfig ----
+# Names itself, so a printed object says which of the two it is.
+method(repr, SupervisedPreprocessorConfig) <- function(
+  x,
+  limit = -1L,
+  pad = 0L,
+  output_type = NULL
+) {
+  paste0(
+    repr_S7name(
+      "SupervisedPreprocessorConfig",
+      pad = pad,
+      output_type = output_type
+    ),
+    repr_ls(props(x), pad = pad, limit = limit, output_type = output_type)
+  )
+} # /rtemis::repr.SupervisedPreprocessorConfig
 
 
 # %% setup_Preprocessor ----
@@ -539,6 +681,144 @@ setup_Preprocessor <- function(
 #   "remove_features" # Character vector of feature names to remove.
 # )
 
+# %% setup_SupervisedPreprocessor ----
+#' Setup Supervised Preprocessor
+#'
+#' @description
+#' Creates a `SupervisedPreprocessorConfig` object: the preprocessing a [train]
+#' run can fit, which is [setup_Preprocessor] without the four operations a
+#' fitted preprocessor cannot carry.
+#'
+#' @details
+#' `complete_cases`, `remove_duplicates` and `remove_cases_thres` drop cases. A
+#' preprocessor fitted by [train] is replayed on validation, test and whatever
+#' [stats::predict()] is handed, and a prediction call has nothing it may drop:
+#' asked for n rows it must return n predictions.
+#'
+#' `remove_features_thres` decides which columns to drop from the data in front
+#' of it. Under resampling each fold would learn that set from its own training
+#' subset, so the folds would train over different feature spaces and their
+#' metrics would not average into an estimate of one model. Name the columns
+#' with `remove_features` instead, which drops the same ones in every fold.
+#'
+#' All four are available in [setup_Preprocessor], for [preprocess] on a dataset
+#' in hand, where the outcome is still attached and what was dropped is visible.
+#'
+#' @inheritParams setup_Preprocessor
+#'
+#' @return `SupervisedPreprocessorConfig` object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' preproc_config <- setup_SupervisedPreprocessor(impute = TRUE)
+#' preproc_config
+setup_SupervisedPreprocessor <- function(
+  missingness = FALSE,
+  impute = FALSE,
+  impute_type = c("missRanger", "micePMM", "meanMode"),
+  impute_missRanger_params = list(
+    pmm.k = 3,
+    maxiter = 10,
+    num.trees = 500
+  ),
+  impute_discrete = "get_mode",
+  impute_continuous = "mean",
+  integer2factor = FALSE,
+  integer2numeric = FALSE,
+  logical2factor = FALSE,
+  logical2numeric = FALSE,
+  numeric2factor = FALSE,
+  numeric2factor_levels = NULL,
+  numeric_cut_n = 0L,
+  numeric_cut_labels = FALSE,
+  numeric_quant_n = 0L,
+  numeric_quant_NAonly = FALSE,
+  unique_len2factor = 0L,
+  character2factor = FALSE,
+  factorNA2missing = FALSE,
+  factorNA2missing_level = "missing",
+  factor2integer = FALSE,
+  factor2integer_startat0 = TRUE,
+  factor2integer_levels = NULL,
+  scale = FALSE,
+  center = scale,
+  scale_centers = NULL,
+  scale_coefficients = NULL,
+  remove_constants = FALSE,
+  remove_constants_skip_missing = TRUE,
+  remove_features = NULL,
+  one_hot = FALSE,
+  one_hot_levels = NULL,
+  add_date_features = FALSE,
+  date_features = c("weekday", "month", "year"),
+  add_holidays = FALSE,
+  holidays = c("USLaborDay", "NewYearsDay", "ChristmasDay"),
+  exclude = NULL
+) {
+  # Before `impute_type` is matched: the missRanger parameter list this function
+  # hands over is not the class's empty default, so a record comparing the two
+  # would report it as the caller's.
+  origins <- supplied_origins()
+  impute_type <- match_arg(
+    impute_type,
+    c("missRanger", "micePMM", "meanMode")
+  )
+  numeric_cut_n <- clean_int(numeric_cut_n)
+  numeric_quant_n <- clean_int(numeric_quant_n)
+  unique_len2factor <- clean_int(unique_len2factor)
+  exclude <- clean_int(exclude)
+  if (numeric_quant_n == 1L) {
+    rtemis.core::abort(
+      "`numeric_quant_n` must be 0 (off) or at least 2: ",
+      "one quantile is a single break, which bounds no bin.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  # Per-field validation performed by the `prop_*` property validators.
+  out <- SupervisedPreprocessorConfig(
+    missingness = missingness,
+    impute = impute,
+    impute_type = impute_type,
+    impute_missRanger_params = impute_missRanger_params,
+    impute_discrete = impute_discrete,
+    impute_continuous = impute_continuous,
+    integer2factor = integer2factor,
+    integer2numeric = integer2numeric,
+    logical2factor = logical2factor,
+    logical2numeric = logical2numeric,
+    numeric2factor = numeric2factor,
+    numeric2factor_levels = numeric2factor_levels,
+    numeric_cut_n = numeric_cut_n,
+    numeric_cut_labels = numeric_cut_labels,
+    numeric_quant_n = numeric_quant_n,
+    numeric_quant_NAonly = numeric_quant_NAonly,
+    unique_len2factor = unique_len2factor,
+    character2factor = character2factor,
+    factorNA2missing = factorNA2missing,
+    factorNA2missing_level = factorNA2missing_level,
+    factor2integer = factor2integer,
+    factor2integer_startat0 = factor2integer_startat0,
+    factor2integer_levels = factor2integer_levels,
+    scale = scale,
+    center = center,
+    scale_centers = scale_centers,
+    scale_coefficients = scale_coefficients,
+    remove_constants = remove_constants,
+    remove_constants_skip_missing = remove_constants_skip_missing,
+    remove_features = remove_features,
+    one_hot = one_hot,
+    one_hot_levels = one_hot_levels,
+    add_date_features = add_date_features,
+    date_features = date_features,
+    add_holidays = add_holidays,
+    holidays = holidays,
+    exclude = exclude
+  )
+  config_origins(out) <- origins
+  out
+} # /setup_SupervisedPreprocessor
+
 # %% Preprocessor ----
 #' Preprocessor
 #'
@@ -560,7 +840,9 @@ Preprocessor <- new_class(
   name = "Preprocessor",
   package = "rtemis",
   properties = list(
-    config = PreprocessorConfig,
+    # Either config: `train()` fits from the supervised one and keeps it, so the
+    # fitted object reports the vocabulary the run was actually given.
+    config = AnyPreprocessorConfig,
     preprocessed = class_data.frame | class_list,
     values = class_list
   ),
@@ -681,3 +963,32 @@ method(preprocessed, Preprocessor) <- function(x) {
   check_wire_keys(args, names(formals(setup_Preprocessor)), "preprocessor")
   do.call(setup_Preprocessor, args)
 } # /rtemis::.list_to_PreprocessorConfig
+
+
+# %% .list_to_SupervisedPreprocessorConfig ----
+#' Convert a list to a SupervisedPreprocessorConfig object
+#'
+#' As `.list_to_PreprocessorConfig()`, for the config a supervised document
+#' carries. A document naming one of `PREPROCESSOR_TRAIN_EXCLUDED` is rejected by
+#' `check_wire_keys()` as an unknown key, which is the whole point of the
+#' separate type: the operation is not a setting that is refused later, it is not
+#' a setting here at all.
+#'
+#' @param x Named list of `setup_SupervisedPreprocessor` parameters.
+#'
+#' @return A `SupervisedPreprocessorConfig` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+#' @examples
+#' .list_to_SupervisedPreprocessorConfig(list(scale = TRUE, center = TRUE))
+.list_to_SupervisedPreprocessorConfig <- function(x) {
+  args <- from_wire(.drop_meta_keys(x), SupervisedPreprocessorConfig)
+  check_wire_keys(
+    args,
+    names(formals(setup_SupervisedPreprocessor)),
+    "supervisedpreprocessor"
+  )
+  do.call(setup_SupervisedPreprocessor, args)
+} # /rtemis::.list_to_SupervisedPreprocessorConfig

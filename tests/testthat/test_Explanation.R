@@ -427,7 +427,7 @@ test_that("a user-level one-hot is carried back too, through both hops", {
   dat <- .agg_dat()
   mod <- train(
     dat,
-    preprocessor_config = setup_Preprocessor(one_hot = TRUE),
+    preprocessor_config = setup_SupervisedPreprocessor(one_hot = TRUE),
     hyperparameters = setup_GLM(),
     verbosity = 0L
   )

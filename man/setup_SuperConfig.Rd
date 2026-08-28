@@ -35,7 +35,7 @@ If NULL, no weights are used.}
 \item{positive_class}{Character or NULL: For binary classification, the
 outcome level to treat as positive. NULL keeps the existing factor level order.}
 
-\item{preprocessor_config}{\code{PreprocessorConfig} object: Configuration for data preprocessing.}
+\item{preprocessor_config}{\code{SupervisedPreprocessorConfig} object: Configuration for data preprocessing.}
 
 \item{decomposition_config}{\code{DecompositionConfig} object: Configuration for data decomposition.}
 
@@ -68,7 +68,7 @@ CLI) before \link{train}.
 \examples{
 sc <- setup_SuperConfig(
   dat_training_path = "train.csv",
-  preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
+  preprocessor_config = setup_SupervisedPreprocessor(scale = TRUE),
   hyperparameters = setup_LightRF(),
   tuner_config = setup_GridSearch(),
   outer_resampling_config = setup_Resampler(),

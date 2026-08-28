@@ -26,10 +26,9 @@
 #
 # **One rule is one condition, one severity, one message.** Where the reference
 # implementation appends a clause -- the sentence `DIM_P_GT_N` adds about the
-# algorithm, the two `PREPROCESSOR_UNSUPPORTED` reasons joined by a semicolon
-# -- that is two or three rules here with disjoint guards, not one rule with a
-# conditional template. It costs more rules and buys a renderer that only ever
-# substitutes.
+# algorithm -- that is two or three rules here with disjoint guards, not one
+# rule with a conditional template. It costs more rules and buys a renderer
+# that only ever substitutes.
 #
 # **`plain` is not here and never will be.** It is authored once per code in
 # `DIAGNOSTIC_PLAIN` and looked up; several rules share a code precisely so
@@ -198,24 +197,6 @@ CHECKS_LET <- list(
     "any"
   ),
 
-  # Preprocessing steps `train()` refuses, in the two families it refuses them
-  # for. Both are guaranteed aborts, so a pre-flight that missed them would
-  # pass a config `train()` rejects one line later.
-  scan_pointers(
-    "case_ops",
-    .pointers(PREPROCESSOR_CASE_OPS),
-    where = "item.value !== null and item.value !== false",
-    select = list(name = "item.name", label = "concat('`', item.name, '`')")
-  ),
-  scan_pointers(
-    "learned_drop_ops",
-    .pointers(PREPROCESSOR_LEARNED_DROP_OPS),
-    where = "item.value !== null and item.value !== false",
-    select = list(name = "item.name", label = "concat('`', item.name, '`')")
-  ),
-  expr("n_case_ops", "count(case_ops)", "number"),
-  expr("n_learned_drop_ops", "count(learned_drop_ops)", "number"),
-
   # Missingness. `runs_*` credits a step only where `train()` will actually run
   # it: a step it rejects resolves nothing, and the gaps it was meant to remove
   # are still there.
@@ -232,9 +213,12 @@ CHECKS_LET <- list(
       label = r"[concat("'", item.name, "'")]"
     )
   ),
+  # No `supervised` guard: `supervisedpreprocessor` does not carry
+  # `complete_cases`, so the field is absent there and the test is false on its
+  # own -- the type says what a guard used to.
   expr(
     "runs_complete_cases",
-    "config.preprocessor_config.complete_cases === true and not supervised",
+    "config.preprocessor_config.complete_cases === true",
     "boolean"
   ),
   expr(
@@ -604,56 +588,6 @@ CHECKS_RULES <- list(
         )
       )
     )
-  ),
-
-  # %% PREPROCESSOR_UNSUPPORTED ----
-  # Three rules, one per shape of the reason clause. No fix: the remedy is to
-  # run the step before training, which is a change to the workflow rather than
-  # a patch to the config.
-  rule(
-    id = "PREPROCESSOR_UNSUPPORTED/case-ops",
-    code = "PREPROCESSOR_UNSUPPORTED",
-    applies_when = "outcome_resolvable and supervised
-                    and config.preprocessor_config !== null",
-    condition = "n_case_ops > 0 and n_learned_drop_ops === 0",
-    severity = "error",
-    evidence = list(
-      case_ops = 'pluck(case_ops, "name")',
-      learned_drop_ops = 'pluck(learned_drop_ops, "name")'
-    ),
-    slots = list(case_labels = 'pluck(case_ops, "label")'),
-    message = "`preprocessor_config` cannot run inside train(): {case_labels} {case_ops|removes cases|remove cases}, which a fitted preprocessor cannot replay at predict time. Do this before training, with preprocess() on the full dataset."
-  ),
-  rule(
-    id = "PREPROCESSOR_UNSUPPORTED/learned-drop-ops",
-    code = "PREPROCESSOR_UNSUPPORTED",
-    applies_when = "outcome_resolvable and supervised
-                    and config.preprocessor_config !== null",
-    condition = "n_case_ops === 0 and n_learned_drop_ops > 0",
-    severity = "error",
-    evidence = list(
-      case_ops = 'pluck(case_ops, "name")',
-      learned_drop_ops = 'pluck(learned_drop_ops, "name")'
-    ),
-    slots = list(learned_labels = 'pluck(learned_drop_ops, "label")'),
-    message = "`preprocessor_config` cannot run inside train(): {learned_labels} {learned_drop_ops|decides|decide} which columns to drop from the data, so each resample would train on a different feature set. Do this before training, with preprocess() on the full dataset."
-  ),
-  rule(
-    id = "PREPROCESSOR_UNSUPPORTED/both-families",
-    code = "PREPROCESSOR_UNSUPPORTED",
-    applies_when = "outcome_resolvable and supervised
-                    and config.preprocessor_config !== null",
-    condition = "n_case_ops > 0 and n_learned_drop_ops > 0",
-    severity = "error",
-    evidence = list(
-      case_ops = 'pluck(case_ops, "name")',
-      learned_drop_ops = 'pluck(learned_drop_ops, "name")'
-    ),
-    slots = list(
-      case_labels = 'pluck(case_ops, "label")',
-      learned_labels = 'pluck(learned_drop_ops, "label")'
-    ),
-    message = "`preprocessor_config` cannot run inside train(): {case_labels} {case_ops|removes cases|remove cases}, which a fitted preprocessor cannot replay at predict time; {learned_labels} {learned_drop_ops|decides|decide} which columns to drop from the data, so each resample would train on a different feature set. Do this before training, with preprocess() on the full dataset."
   ),
 
   # %% FEATURE_TYPE_UNSUPPORTED ----
