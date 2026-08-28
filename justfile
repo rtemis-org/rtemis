@@ -102,13 +102,16 @@ test:
 # `generate_checks.R` also refreshes the `inst/` copies of checks and traits,
 # which are what the package ships and what `test_ChecksArtifact.R` reads, so a
 # diff there after this runs means the committed copies were stale.
+# `generate_checks_corpus.R` writes no `inst/` copy: nothing in R reads the
+# corpus, it being generated *from* the tests that are its oracle.
 [doc("Generate schemas + defaults + checks into a throwaway directory to assert the contracts")]
 schemas-check:
     @just _msg "─── Checking schema generation for {{ pkg }}... ───"
     @dir=$(mktemp -d); trap 'rm -rf "$dir"' EXIT; \
         {{ rscript }} data-raw/generate_schemas.R "$dir" && \
         {{ rscript }} data-raw/generate_defaults.R "$dir" && \
-        {{ rscript }} data-raw/generate_checks.R "$dir"
+        {{ rscript }} data-raw/generate_checks.R "$dir" && \
+        {{ rscript }} data-raw/generate_checks_corpus.R "$dir"
     @git diff --quiet --exit-code -- inst/checks inst/traits || { \
         echo "   Note: inst/checks or inst/traits was regenerated -- the committed copy was stale."; \
         echo "   Review the diff and commit it with the rule-set change."; \
@@ -122,6 +125,9 @@ schemas repo=schema_repo:
     {{ rscript }} data-raw/generate_schemas.R {{ repo }}
     {{ rscript }} data-raw/generate_defaults.R {{ repo }}
     {{ rscript }} data-raw/generate_checks.R {{ repo }}
+    # After the rule set, which it reads to tell an array-valued evidence key
+    # from a scalar one. Runs the fixture suite, so it is the slow one here.
+    {{ rscript }} data-raw/generate_checks_corpus.R {{ repo }}
     @just _msg "Done"
 
 # Generate schemas and refresh the registry index; stops before the commit
@@ -168,15 +174,13 @@ publish-downstream:
     @just _msg "─── Vendoring into {{ live_repo }}... ───"
     cd "{{ live_repo }}" && pnpm sync:schemas && pnpm check:schemas && pnpm test
     @just _msg "─── Vendoring into {{ cli_repo }}... ───"
+    # `sync-schemas` fetches the whole registry -- the indexed schemas, and the
+    # four documents the index does not list (defaults, checks, traits and the
+    # conformance corpus) by their known paths -- and records a digest for each
+    # in `schemas.lock.json`. Everything it takes comes from the deployed
+    # registry, so confirm the push is live before running this: the recipe
+    # names any document it cannot fetch.
     cd "{{ cli_repo }}" && just sync-schemas
-    # Three documents the registry publishes but does not index: `just index`
-    # lists only schema.json / record.json, and `sync-schemas` fetches what the
-    # index lists, so these are copied by hand. `checks/` does not exist until
-    # the first copy creates it.
-    mkdir -p "{{ cli_repo }}/rtemis-cli/checks"
-    cp "{{ schema_repo }}/defaults/v1/defaults.json" "{{ cli_repo }}/rtemis-cli/defaults/defaults.json"
-    cp "{{ schema_repo }}/checks/v1/checks.json" "{{ cli_repo }}/rtemis-cli/checks/checks.json"
-    cp "{{ schema_repo }}/traits/v1/traits.json" "{{ cli_repo }}/rtemis-cli/checks/traits.json"
     cd "{{ cli_repo }}" && just fbi
     @just _msg "─── Checking {{ cli_repo }} ───"
     @cd "{{ cli_repo }}" && just check || { \

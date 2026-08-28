@@ -17,29 +17,10 @@ schema_repo <- if (length(args) >= 1L) args[[1L]] else "~/Schemas/schema"
 schema_repo <- path.expand(schema_repo)
 base_url <- "https://schema.rtemis.org"
 
+source(file.path("data-raw", "write_json.R"))
 source(file.path("data-raw", "checks_compile.R"))
 source(file.path("data-raw", "checks_contract.R"))
 source(file.path("data-raw", "checks.R"))
-
-
-# %% write_json_document ----
-# One document, serialized the way `defaults/v1` already is.
-write_json_document <- function(x, path) {
-  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  write_lines(
-    as.character(jsonlite::toJSON(
-      x,
-      auto_unbox = TRUE,
-      pretty = TRUE,
-      na = "null",
-      null = "null",
-      digits = NA
-    )),
-    file = path,
-    overwrite = TRUE,
-    verbosity = 0L
-  )
-} # /write_json_document
 
 
 # Traits ---------------------------------------------------------------------

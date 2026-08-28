@@ -3,6 +3,7 @@
 ## 1.3.8
 
 - **New `checks/v1` and `traits/v1` at schema.rtemis.org**: the nine data checks as 29 JSONLogic rules over a `profile/v1` description, plus the algorithm traits they read. Authored in infix in `data-raw/checks.R` and compiled at generation time; rtemis's own checks remain the reference implementation and are unchanged in what they report.
+- **New `checks/v1/corpus.json` at schema.rtemis.org**: the fixture corpus as portable data -- 78 `(profile, config, outcome)` cases with the findings rtemis reported for each, which every implementation of `checks/v1` has to reproduce. Recorded from `test_ValidateConfigFixtures.R` itself, so a fixture added there is carried without restating it.
 - `RESAMPLE_MIN_CLASS` evidence reports `class_counts` in long form, one record per level, as `profile/v1` carries them.
 - `FEATURE_CONSTANT` offers a two-operation patch where the config has no `preprocessor_config`: the block is added empty, then filled.
 - **New `train(preflight = TRUE)`**: checks the configuration against the data before training and stops on any finding of severity "error", reporting warnings and continuing. Off by default.
