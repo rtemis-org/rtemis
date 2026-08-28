@@ -2,6 +2,8 @@
 
 ## 1.3.8
 
+- **`train()` pre-flights a `SuperConfigLive` unless told otherwise.** That type binds its data in memory rather than naming a path, which is the shape a run submitted over the wire arrives in: the submitter is not the person who reads the failure, so a run that cannot answer the question asked is refused before it starts spending. `preflight = FALSE` skips it. Every other entry point is unchanged, pre-flight still being opt-in.
+- Fixed: the pre-flight dropped `positive_class` when reassembling the config it checks, so it could report less than `validate_config()` reports on the same run. A drift test now derives the property list from `config_parts()`, so one added there cannot be forgotten here.
 - **New `setup_SupervisedPreprocessor()` and `SupervisedPreprocessorConfig`**: the preprocessing a `train()` run can fit, published as `supervisedpreprocessor/v1`. `setup_Preprocessor()` without `complete_cases`, `remove_duplicates` and `remove_cases_thres`, which a fitted preprocessor cannot replay at predict time -- asked for n rows it must return n predictions -- and without `remove_features_thres`, which each fold would learn from its own training subset. `SuperConfig@preprocessor_config` takes this type; the four are still available to `preprocess()`.
 - **`PREPROCESSOR_UNSUPPORTED` is gone**, and so is the check behind it: what it reported is not a setting `train()` refuses, it is not a setting. Eight data checks remain.
 - A `PreprocessorConfig` handed to `train()` is a type error naming the operations that made it one, and the fix.

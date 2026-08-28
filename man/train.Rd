@@ -60,7 +60,11 @@ every value resolved, where each came from, and what produced it. See
 
 \item{preflight}{Logical: If TRUE, check the configuration against \code{x} with
 \link{validate_config} before training and stop on any finding of severity
-"error". Findings of severity "warning" are reported and training continues.}
+"error". Findings of severity "warning" are reported and training continues.
+Defaults to FALSE, except for a \code{SuperConfigLive}, where it defaults to TRUE:
+that type binds its data in memory and is what a server hands a run it
+accepted on a client's behalf, so the check belongs to the type rather than
+to each caller remembering to ask for it. Pass FALSE explicitly to skip it.}
 
 \item{verbosity}{Integer: Verbosity level.}
 

@@ -123,6 +123,10 @@ restore_weights_column <- function(model, column) {
 #' @param preflight Logical: If TRUE, check the configuration against `x` with
 #' [validate_config] before training and stop on any finding of severity
 #' "error". Findings of severity "warning" are reported and training continues.
+#' Defaults to FALSE, except for a `SuperConfigLive`, where it defaults to TRUE:
+#' that type binds its data in memory and is what a server hands a run it
+#' accepted on a client's behalf, so the check belongs to the type rather than
+#' to each caller remembering to ask for it. Pass FALSE explicitly to skip it.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used.
 #'
@@ -233,6 +237,16 @@ train <- function(
 ) {
   # SuperConfigLive dispatch ----
   if (S7_inherits(x, SuperConfigLive)) {
+    # Checked unless the caller said otherwise. A `SuperConfigLive` carries its
+    # training data rather than a path to it, which is the shape a run submitted
+    # over the wire arrives in: the submitter is not the person who will read
+    # the failure, so a run that cannot answer the question asked has to be
+    # refused here rather than reported as a result. `missing()` rather than a
+    # different default in the signature, there being one signature for every
+    # dispatch.
+    if (missing(preflight)) {
+      preflight <- TRUE
+    }
     resolved <- resolve_weights_column(
       list(x@dat_training, x@dat_validation, x@dat_test),
       x@weights
@@ -457,6 +471,7 @@ train <- function(
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       outer_resampling_config = outer_resampling_config,
+      positive_class = positive_class,
       verbosity = verbosity
     )
   }

@@ -143,9 +143,18 @@ validate_config <- function(
 #' reported and the run proceeds: a warning says the result is likely not what
 #' was wanted, which is the caller's judgment to make, not this function's.
 #'
+#' The config is reassembled here because the inner [train] holds its
+#' configuration as separate arguments rather than as one object. Every property
+#' `config_parts()` reads has to be carried across, or this reports something
+#' different from what `validate_config()` reports on the same run --
+#' `positive_class` is one such property, being what `declared_task()` reads to
+#' decide whether a config states a task.
+#'
 #' @param x tabular data: The training set.
 #' @param preprocessor_config,decomposition_config,hyperparameters,tuner_config,outer_resampling_config
 #'   The configuration objects [train] was given.
+#' @param positive_class Optional character: The outcome level [train] was given
+#'   as the positive class.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return `NULL`, invisibly. Throws on any finding of severity "error".
@@ -160,6 +169,7 @@ preflight_config <- function(
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
+  positive_class = NULL,
   verbosity = 1L
 ) {
   diagnostics <- validate_config(
@@ -169,6 +179,7 @@ preflight_config <- function(
       hyperparameters = hyperparameters,
       tuner_config = tuner_config,
       outer_resampling_config = outer_resampling_config,
+      positive_class = positive_class,
       outdir = NULL,
       verbosity = 0L
     ),
