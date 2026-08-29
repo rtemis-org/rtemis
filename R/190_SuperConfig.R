@@ -383,6 +383,11 @@ setup_SuperConfig <- function(
   if (!is.null(x[["verbosity"]])) {
     args[["verbosity"]] <- x[["verbosity"]]
   }
+  # Non-nullable with a TRUE default, so an absent key keeps the default and
+  # only an explicit `false` turns the conversion off.
+  if (!is.null(x[["character2factor"]])) {
+    args[["character2factor"]] <- x[["character2factor"]]
+  }
   do.call(setup_SuperConfig, args)
 } # /rtemis::.list_to_SuperConfig
 

@@ -202,6 +202,18 @@
       }
     },
     {
+      "name": "character2factor",
+      "kind": "expr",
+      "logic": {
+        "===": [
+          {
+            "var": "config.character2factor"
+          },
+          true
+        ]
+      }
+    },
+    {
       "name": "outcome_columns",
       "kind": "scan",
       "source": {
@@ -246,7 +258,7 @@
       }
     },
     {
-      "name": "outcome_dtype",
+      "name": "outcome_raw_dtype",
       "kind": "expr",
       "logic": {
         "reduce": [
@@ -272,6 +284,38 @@
             ]
           },
           null
+        ]
+      }
+    },
+    {
+      "name": "outcome_dtype",
+      "kind": "expr",
+      "logic": {
+        "if": [
+          {
+            "and": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.character2factor"
+                  },
+                  true
+                ]
+              },
+              {
+                "===": [
+                  {
+                    "var": "bindings.outcome_raw_dtype"
+                  },
+                  "string"
+                ]
+              }
+            ]
+          },
+          "categorical",
+          {
+            "var": "bindings.outcome_raw_dtype"
+          }
         ]
       }
     },
@@ -364,6 +408,45 @@
             "var": "bindings.outcome_name"
           }
         ]
+      },
+      "select": {
+        "name": {
+          "var": "item.name"
+        },
+        "dtype": {
+          "if": [
+            {
+              "and": [
+                {
+                  "===": [
+                    {
+                      "var": "bindings.character2factor"
+                    },
+                    true
+                  ]
+                },
+                {
+                  "===": [
+                    {
+                      "var": "item.dtype"
+                    },
+                    "string"
+                  ]
+                }
+              ]
+            },
+            "categorical",
+            {
+              "var": "item.dtype"
+            }
+          ]
+        },
+        "n_distinct": {
+          "var": "item.n_distinct"
+        },
+        "n_missing": {
+          "var": "item.n_missing"
+        }
       }
     },
     {

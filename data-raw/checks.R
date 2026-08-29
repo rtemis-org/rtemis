@@ -75,20 +75,49 @@ CHECKS_LET <- list(
      else null",
     "any"
   ),
+  # How the config's files are read. A delimited file carries no types, so this
+  # is what decides whether a column of labels reaches the learner as a factor
+  # or as a string rtemis cannot use. False for a config family that names no
+  # path, where the data is already read and nothing is converted.
+  expr("character2factor", "config.character2factor === true", "boolean"),
+
   scan(
     "outcome_columns",
     "profile.columns",
     where = "item.name === outcome_name"
   ),
   expr("outcome_resolved", "count(outcome_columns) === 1", "boolean"),
-  expr("outcome_dtype", 'first(outcome_columns, "dtype")', "any"),
+  expr("outcome_raw_dtype", 'first(outcome_columns, "dtype")', "any"),
+  expr(
+    "outcome_dtype",
+    "if character2factor and outcome_raw_dtype === 'string'
+     then 'categorical'
+     else outcome_raw_dtype",
+    "any"
+  ),
   expr("outcome_n_distinct", 'first(outcome_columns, "n_distinct")', "any"),
   expr("outcome_n_missing", 'first(outcome_columns, "n_missing")', "any"),
   expr("outcome_is_categorical", "outcome_dtype === 'categorical'", "boolean"),
 
-  # Predictors: every column that is not the outcome. With no outcome resolved
-  # that is every column, which is what a decomposition config wants.
-  scan("features", "profile.columns", where = "item.name !== outcome_name"),
+  # Predictors: every column that is not the outcome -- with no outcome
+  # resolved that is every column, which is what a decomposition config wants.
+  # Carries the dtype the run will see rather than the one the file stores,
+  # rewritten once here so every scan below reads the effective type without
+  # repeating the rule. The same reason `effective_dtype()` exists on the R
+  # side.
+  scan(
+    "features",
+    "profile.columns",
+    where = "item.name !== outcome_name",
+    select = list(
+      name = "item.name",
+      dtype = "if character2factor and item.dtype === 'string'
+               then 'categorical'
+               else item.dtype",
+      n_distinct = "item.n_distinct",
+      n_missing = "item.n_missing"
+    )
+  ),
   expr("n_features", "count(features)", "number"),
 
   # The algorithm the config names. A hyperparameter *set* is a search over one
@@ -592,9 +621,12 @@ CHECKS_RULES <- list(
 
   # %% FEATURE_TYPE_UNSUPPORTED ----
   # Unconditional, which looks over-strict until you check the order:
-  # `check_supervised()` runs *before* `preprocess()` in `train()`, so
-  # `character2factor` -- the setting that exists to convert exactly this
-  # column -- never gets the chance.
+  # The *preprocessor's* `character2factor` does not rescue this column:
+  # `check_supervised()` runs before `preprocess()` in `train()`, and
+  # preprocessing is fitted per fold inside resampling. `SuperConfig`'s
+  # `character2factor` is a different setting and does rescue it, being applied
+  # when the file is read -- which is why `features` carries the effective dtype
+  # rather than the measured one.
   rule(
     id = "FEATURE_TYPE_UNSUPPORTED/not-numeric-or-factor",
     code = "FEATURE_TYPE_UNSUPPORTED",

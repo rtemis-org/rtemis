@@ -126,12 +126,31 @@ test_that("OUTCOME_MISSING ends the pass rather than cascading", {
 # %% OUTCOME_TYPE_MISMATCH ----
 test_that("OUTCOME_TYPE_MISMATCH: a character outcome rtemis cannot use", {
   # rule: OUTCOME_TYPE_MISMATCH/unusable-dtype
+  # Only when the config declines to convert it. A delimited file carries no
+  # types, so `character2factor` is what decides whether this column reaches the
+  # learner as a factor or as a string rtemis cannot use -- and the config, not
+  # the reader that measured the profile, is what says.
   dat <- data.frame(x1 = rnorm(20L), y = rep(c("no", "yes"), 10L))
-  d <- .only(validate_config(.config(), data = dat), "OUTCOME_TYPE_MISMATCH")
+  d <- .only(
+    validate_config(.config(character2factor = FALSE), data = dat),
+    "OUTCOME_TYPE_MISMATCH"
+  )
   expect_identical(d@severity, "error")
   # The profile's vocabulary, not R's class name: "string" is what a polars
   # reader calls the same column, and the rule has to mean one thing in both.
   expect_identical(d@evidence[["outcome_dtype"]], "string")
+})
+
+
+test_that("a character outcome the config converts is not a finding", {
+  # The other half, and the default: `character2factor` is TRUE, so the same
+  # data and the same algorithm are clean. Without this pinned, the check above
+  # reads as "rtemis cannot train on a CSV of labels", which is not true.
+  dat <- data.frame(x1 = rnorm(20L), y = rep(c("no", "yes"), 10L))
+  expect_identical(
+    diagnostic_codes(validate_config(.config(), data = dat)),
+    character()
+  )
 })
 
 
@@ -1066,6 +1085,34 @@ test_that("a gap only in the outcome is reported once, not twice", {
 # %% FEATURE_TYPE_UNSUPPORTED ----
 test_that("FEATURE_TYPE_UNSUPPORTED: predictors train() cannot read", {
   # rule: FEATURE_TYPE_UNSUPPORTED/not-numeric-or-factor
+  # `character2factor = FALSE` so the string column is reported alongside the
+  # date one. A date is unusable whatever the config says; a string is only
+  # unusable when the config declines to convert it, which the fixture below
+  # separates.
+  set.seed(2026L)
+  n <- 40L
+  dat <- data.frame(
+    x1 = rnorm(n),
+    site = sample(c("a", "b"), n, TRUE),
+    when = Sys.Date() + seq_len(n),
+    y = rnorm(n)
+  )
+  d <- .only(
+    validate_config(.config("GLM", character2factor = FALSE), data = dat),
+    "FEATURE_TYPE_UNSUPPORTED"
+  )
+  expect_identical(d@severity, "error")
+  expect_identical(d@evidence[["features"]], c("site", "when"))
+  expect_identical(d@evidence[["dtypes"]], c("string", "temporal"))
+  # Converting a column changes the data, not the config, so there is no patch.
+  expect_null(d@fix)
+})
+
+
+test_that("a date predictor is unusable whatever the config reads", {
+  # `character2factor` converts strings, not dates, so the conversion narrows
+  # the finding rather than clearing it. Pinned so that "the config can rescue a
+  # bad predictor" does not become the reading.
   set.seed(2026L)
   n <- 40L
   dat <- data.frame(
@@ -1078,18 +1125,20 @@ test_that("FEATURE_TYPE_UNSUPPORTED: predictors train() cannot read", {
     validate_config(.config("GLM"), data = dat),
     "FEATURE_TYPE_UNSUPPORTED"
   )
-  expect_identical(d@severity, "error")
-  expect_identical(d@evidence[["features"]], c("site", "when"))
-  expect_identical(d@evidence[["dtypes"]], c("string", "temporal"))
-  # Converting a column changes the data, not the config, so there is no patch.
-  expect_null(d@fix)
+  expect_identical(d@evidence[["features"]], "when")
+  expect_identical(d@evidence[["dtypes"]], "temporal")
 })
 
 
-test_that("FEATURE_TYPE_UNSUPPORTED fires despite character2factor", {
-  # `check_supervised()` runs before `preprocess()` in `train()`, so the
-  # setting that would convert this column never gets the chance. Pinned
-  # because the check would otherwise look over-strict.
+test_that("FEATURE_TYPE_UNSUPPORTED fires despite the preprocessor's character2factor", {
+  # Two settings share a name and only one of them rescues this column.
+  #
+  # `SuperConfig@character2factor` is a *reading* convention, applied when the
+  # file is parsed, before any check -- so it is held FALSE here. The
+  # preprocessor's own `character2factor` is a fitted step, run per fold inside
+  # resampling, and `check_supervised()` has already aborted by then. Pinned
+  # because the check would otherwise look over-strict, and because the two
+  # settings are easy to mistake for each other.
   set.seed(2026L)
   dat <- data.frame(
     x1 = rnorm(40L),
@@ -1098,7 +1147,11 @@ test_that("FEATURE_TYPE_UNSUPPORTED fires despite character2factor", {
   )
   expect_identical(
     diagnostic_codes(validate_config(
-      .config("GLM", preprocessor_config = list(character2factor = TRUE)),
+      .config(
+        "GLM",
+        character2factor = FALSE,
+        preprocessor_config = list(character2factor = TRUE)
+      ),
       data = dat
     )),
     "FEATURE_TYPE_UNSUPPORTED"

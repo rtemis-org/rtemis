@@ -123,6 +123,16 @@ test_that("a SuperConfigLive caller can still opt out", {
 })
 
 
+# Properties that describe how the config's *files* are read. `train()` is
+# handed data that has already been read -- by `train.SuperConfig`, or by the
+# caller -- so by the time the pre-flight runs the conversion has either
+# happened or was never going to, and the profile it measures already reflects
+# it. Carrying one into the reassembly would be carrying a decision that is
+# spent. Every other property `config_parts()` reads describes the run and must
+# survive the reassembly.
+PREFLIGHT_READING_PROPERTIES <- "character2factor"
+
+
 test_that("the pre-flight reads every config property the checks read", {
   # `preflight_config()` reassembles a `SuperConfig` because the inner `train()`
   # holds its configuration as separate arguments. A property `config_parts()`
@@ -141,14 +151,18 @@ test_that("the pre-flight reads every config property the checks read", {
     )
   )))
   expect_gt(length(read_by_checks), 0L)
+  # The one exemption is named above and has to be argued for, not added to.
+  must_carry <- setdiff(read_by_checks, PREFLIGHT_READING_PROPERTIES)
   expect_true(
-    all(read_by_checks %in% names(formals(preflight_config))),
+    all(must_carry %in% names(formals(preflight_config))),
     info = paste(
       "config_parts() reads properties preflight_config() cannot carry:",
       paste(
-        setdiff(read_by_checks, names(formals(preflight_config))),
+        setdiff(must_carry, names(formals(preflight_config))),
         collapse = ", "
       )
     )
   )
+  # The exemption stays honest only while it names properties that exist.
+  expect_true(all(PREFLIGHT_READING_PROPERTIES %in% read_by_checks))
 })

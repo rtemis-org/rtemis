@@ -78,18 +78,31 @@ test_that("data_profile() measures columns in order", {
 })
 
 
-test_that("level counts are carried in long form for categoricals only", {
+test_that("level counts are carried in long form for label-valued columns", {
+  # Categorical *and* string. Whether a column of labels arrives as a factor or
+  # as character is a property of the reader, not of the data -- and a config
+  # declaring `character2factor` turns one into the other -- so withholding the
+  # counts from one of them would make the profile describe the reader.
   x <- data.frame(
     g = factor(c("a", "a", "b")),
     n = c(1, 2, 3),
-    s = c("p", "q", "r"),
+    s = c("p", "q", "q"),
     stringsAsFactors = FALSE
   )
   p <- data_profile(x)
   expect_identical(names(p@level_counts), c("column", "level", "n"))
-  expect_identical(p@level_counts[["column"]], c("g", "g"))
-  expect_identical(p@level_counts[["level"]], c("a", "b"))
-  expect_identical(p@level_counts[["n"]], c(2L, 1L))
+  expect_identical(p@level_counts[["column"]], c("g", "g", "s", "s"))
+  expect_identical(p@level_counts[["level"]], c("a", "b", "p", "q"))
+  expect_identical(p@level_counts[["n"]], c(2L, 1L, 1L, 2L))
+})
+
+
+test_that("a numeric column carries no level counts however few values it has", {
+  # The bound is on labels, not on cardinality: a numeric column with three
+  # distinct values is still numeric, and level counts would invite a check to
+  # treat it as a class.
+  p <- data_profile(data.frame(n = c(1, 2, 2, 3), y = rnorm(4L)))
+  expect_identical(NROW(p@level_counts), 0L)
 })
 
 
