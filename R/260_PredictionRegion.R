@@ -912,7 +912,6 @@ method(to_json, PredictionSet) <- function(x, ...) {
 #' @noRd
 to_json_region_common <- function(x) {
   list(
-    .class = S7_class(x)@name,
     type = x@type,
     algorithm = x@algorithm,
     description = desc(x),

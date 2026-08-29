@@ -239,5 +239,6 @@ importFrom(rtemis.core,
   clean_colnames,
   clean_names,
   ddSci,
-  labelify
+  labelify,
+  write_JSONSchema
 )

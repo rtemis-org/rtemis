@@ -193,6 +193,10 @@ for (family in names(flat_configs)) {
       title = cfg[["title"]],
       description = cfg[["description"]],
       record = kind == "record",
+      # A results class is produced by rtemis, not authored against the schema,
+      # so every property it declares is present in every document it emits.
+      # It has no `record.json` sibling to carry that, having no input form.
+      asserted = family %in% result_classes,
       provenance_url = if (kind == "record" && family %in% pipeline_records) {
         provenance_url
       },
@@ -212,7 +216,10 @@ for (family in names(flat_configs)) {
       # declaring the field would put a key in the contract that nothing writes.
       instance_schema_url = if (!(family %in% result_classes)) id
     )
-    if (kind == "schema") {
+    # The config contract governs documents a caller authors. A results class is
+    # not one: its `required` states what rtemis always writes, which is the
+    # record's rule rather than the config's.
+    if (kind == "schema" && !(family %in% result_classes)) {
       assert_config_contract(schema, id)
     }
     write_JSONSchema(

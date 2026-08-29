@@ -111,7 +111,10 @@ test_that("to_json() emits a Diagnostics the wire can carry", {
     fix = list(list(op = "add", path = "/x", value = list("a")))
   )))
   j <- to_json(ds)
-  expect_identical(j[[".class"]], "Diagnostics")
+  # Exactly what `diagnostics/v1` declares, and nothing else: the schema is
+  # `additionalProperties: false`, so an extra key makes the wire document
+  # invalid against the contract the server publishes it under.
+  expect_identical(names(j), "diagnostics")
   expect_length(j[["diagnostics"]], 1L)
   expect_identical(j[["diagnostics"]][[1L]][["code"]], "FEATURE_CONSTANT")
   expect_identical(j[["diagnostics"]][[1L]][["evidence"]][["features"]], "a")

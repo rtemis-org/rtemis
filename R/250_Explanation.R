@@ -665,7 +665,6 @@ method(to_json, SHAP) <- function(x, ...) {
     stats::setNames(colMeans(abs(m)), x@feature_names)
   })
   out <- list(
-    .class = S7_class(x)@name,
     type = x@type,
     algorithm = x@algorithm,
     description = desc(x),

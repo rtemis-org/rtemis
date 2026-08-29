@@ -1,5 +1,30 @@
 # rtemis news
 
+## 1.3.9
+
+- **The eight results schemas declare `required`.** `diagnostic/v1`,
+  `diagnostics/v1`, `profile/v1` and the five metrics classes were generated
+  under the config contract, which forbids `required` because a config is a
+  partial expression of intent. A results document asserts fact, so `{}` was
+  valid as a `diagnostic/v1`. `S7_to_JSONSchema(asserted = TRUE)` is the third
+  mode beside config and record.
+- **`to_json()` no longer emits `.class`.** The marker named the S7 class for a
+  frontend to dispatch on, from before documents carried `$schema`. Nothing has
+  read it since, and every results schema is `additionalProperties: false` and
+  declares no such property -- so each `diagnostics` payload the server sent was
+  invalid against its own published schema.
+- **The checks corpus records whole documents.** Its profiles dropped
+  `fingerprint` and its findings dropped `step`, both hand-written reassemblies
+  of a schema rather than what `to_json()` emits. The `step` omission was
+  discarding the value the fixture named "stamps the step onto every data
+  finding" exists to prove. Both now come from `to_json()`, and the generator
+  asserts every recorded profile and finding carries its schema's full property
+  set before writing.
+- **`write_JSONSchema()` and `write_lines()` moved to rtemis.core**; the first is
+  re-exported, so `rtemis::write_JSONSchema()` is unchanged. The registry has
+  more than one producer, and a document's shape belongs to the registry rather
+  than to whichever package emitted it. Keywords are now ordered on write.
+
 ## 1.3.8
 
 - **New `ingest()` and `setup_Ingest()`**, published as `ingest/v1`: read a data file and normalize it to Parquet. A delimited file, a spreadsheet or a Stata file carries no usable type information and Parquet does, so this is the one step that decides types -- everything after it reads a declaration rather than inferring one. Every reading decision comes from the config, not from a reader's default: a default that is not in the config is a decision the record cannot report.

@@ -921,7 +921,6 @@ test_that("a region publishes its provenance and summary, not its bounds", {
   region <- conformal(mod, .features(x[251:300, ]), verbosity = 0L)
   wire <- to_json(region)
 
-  expect_identical(wire[[".class"]], "PredictionInterval")
   expect_identical(wire[["method"]], "Split")
   expect_identical(wire[["alpha"]], 0.1)
   expect_equal(wire[["coverage"]], 0.9)

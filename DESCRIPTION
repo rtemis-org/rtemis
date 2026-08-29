@@ -1,5 +1,5 @@
 Package: rtemis
-Version: 1.3.8
+Version: 1.3.9
 Title: Machine Learning and Visualization
 Date: 2026-08-26
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
@@ -29,7 +29,7 @@ Imports:
     openssl,
     parallel,
     parallelly,
-    rtemis.core (>= 0.4.3),
+    rtemis.core (>= 0.4.4),
     stats,
     S7,
     utils

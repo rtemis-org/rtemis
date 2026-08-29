@@ -30,6 +30,7 @@ DTA
 DecomposeConfig
 DecompositionConfig
 Doursat
+dtype
 DuckDB
 EDG
 Efron
@@ -135,6 +136,8 @@ ORCID
 parallelly
 PCAConfig
 PNAS
+pre
+profilers
 PTM
 PTMs
 Parallelization
@@ -147,6 +150,7 @@ PreprocessorConfig
 Pretraining
 quantized
 Ramdas
+reassemblies
 redeclares
 redeclaring
 rf
@@ -179,6 +183,7 @@ SuperConfig
 SuperConfigLive
 SuperLearner
 SuperLearnerHyperparameters
+SupervisedPreprocessorConfig
 SupervisedRes
 TabNet
 TabNet's
@@ -200,6 +205,7 @@ UniProt
 Valdes
 visNetwork
 Vovk
+vroom
 WASM
 XGBoost
 XLSX

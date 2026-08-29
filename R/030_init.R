@@ -1168,9 +1168,9 @@ to_html <- new_generic("to_html", "x")
 #' to send structured results to the browser frontend without scraping
 #' R console output.
 #'
-#' Each output list includes a `.class` field equal to the most specific
-#' S7 class name, allowing the frontend to dispatch to a class-specific
-#' renderer.
+#' The output carries only what the object's schema declares. Every results
+#' schema is `additionalProperties: false`, so a key the schema does not name
+#' makes the document invalid against the contract it is published under.
 #'
 #' The default method walks the class's *published* properties (see
 #' `prop_published()`), recursing into S7-typed properties and passing through
@@ -1204,7 +1204,7 @@ method(to_json, S7_object) <- function(x, ...) {
   nms <- published_prop_names(S7_class(x))
   body <- lapply(nms, function(nm) .to_json_value(prop(x, nm)))
   names(body) <- nms
-  c(list(.class = S7_class(x)@name), body)
+  body
 } # /rtemis::to_json.S7_object
 
 
@@ -1782,77 +1782,6 @@ S7_to_list <- function(x) {
   }
   x
 } # /rtemis::S7_to_list
-
-
-# %% write_lines ----
-#' Write lines to file
-#'
-#' Normalizes path, check if directory exists, creates it if necessary,
-#' writes lines to file, and checks if file was created successfully.
-#'
-#' @param x Character: Text to write to file.
-#' @param file Character: Path to output file.
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @return Invisible NULL. Called for side effect of writing to file.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-write_lines <- function(x, file, overwrite = FALSE, verbosity = 1L) {
-  # Normalize path
-  file <- normalizePath(file, mustWork = FALSE)
-  # Check if file exists
-  if (file.exists(file)) {
-    if (overwrite) {
-      if (verbosity >= 1L) {
-        msg(fmt(
-          paste("Overwriting existing file:", file),
-          col = rtemis_colors[["orange"]]
-        ))
-      }
-    } else {
-      rtemis.core::abort(
-        "File already exists: ",
-        file,
-        ". Set `overwrite = TRUE` to overwrite.",
-        class = c("rtemis_file_exists", "rtemis_io_error")
-      )
-    }
-  }
-  # Get directory name
-  dir <- dirname(file)
-  # Check if directory exists, create it if not
-  if (!dir.exists(dir)) {
-    dir.create(dir, recursive = TRUE)
-    if (!dir.exists(dir)) {
-      rtemis.core::abort(
-        "Failed to create directory: ",
-        dir,
-        class = "rtemis_io_error"
-      )
-    } else {
-      if (verbosity >= 1L) {
-        msg(checkmark(), "Created directory:", dir)
-      }
-    }
-  }
-  # Write lines to file
-  writeLines(x, con = file)
-  # Check if file was created successfully
-  if (!file.exists(file)) {
-    rtemis.core::abort(
-      "Failed to create file: ",
-      file,
-      class = "rtemis_io_error"
-    )
-  } else {
-    if (verbosity >= 1L) {
-      msg(checkmark(), "Created file:", file)
-    }
-  }
-  invisible(NULL)
-} # /rtemis::write_lines
 
 
 # %% coming up in rtemis.core

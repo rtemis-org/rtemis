@@ -167,29 +167,36 @@ as_evidence <- function(evidence) {
 
 
 # %% as_finding ----
-# A `Diagnostic` as `diagnostic/v1` carries it, minus `step`: the corpus
-# records one config at a time, never a plan, so the field is always NULL.
+# A `Diagnostic` as `diagnostic/v1` carries it. `to_json()` decides which
+# properties that is, so the recorded finding cannot fall behind the class the
+# way a hand-written list does; what is added here is only the serialization
+# jsonlite cannot infer -- which evidence values are arrays, and a patch op's
+# object shape.
+#
+# The list this replaced dropped `step`, on the stated grounds that the corpus
+# records one config at a time so the field is always NULL. It is not:
+# `validate_config(step = )` stamps it, one fixture exists to prove that, and
+# the corpus was discarding the value that fixture is about. No comparison reads
+# `step`, which is why nothing noticed.
 as_finding <- function(d) {
-  list(
-    code = d@code,
-    severity = d@severity,
-    message = d@message,
-    plain = d@plain,
-    evidence = as_evidence(d@evidence),
-    fix = if (is.null(d@fix)) NULL else lapply(d@fix, as_document)
-  )
+  out <- to_json(d)
+  out[["evidence"]] <- as_evidence(out[["evidence"]])
+  if (!is.null(out[["fix"]])) {
+    out[["fix"]] <- lapply(out[["fix"]], as_document)
+  }
+  out
 } # /as_finding
 
 
 # %% as_profile ----
+# `to_json()` and not a reassembly: it walks the class's published properties,
+# so the recorded document is the one rtemis emits rather than a second
+# description of `profile/v1` maintained here. The list this replaced dropped
+# `fingerprint`, which went unnoticed for as long as the schema declared no
+# `required` -- and a profile the corpus records but rtemis would never emit is
+# not an oracle for anything.
 as_profile <- function(p) {
-  list(
-    n_rows = p@n_rows,
-    columns = p@columns,
-    level_counts = p@level_counts,
-    n_complete_cases = p@n_complete_cases,
-    n_duplicates = p@n_duplicates
-  )
+  to_json(p)
 } # /as_profile
 
 
@@ -263,6 +270,36 @@ if (length(cases$rows) == 0L) {
     "no fixture called validate_config() with data; the capture did not take"
   )
 }
+# A case is only an oracle if what it records is a document both implementations
+# could have been handed, so every recorded profile and finding carries the full
+# property set of the schema it claims to be. Asserted here, where a dropped
+# field is one line from its cause: without it the failure surfaces two repos
+# away, in the CLI's conformance suite, as a schema the corpus does not satisfy.
+schema_props <- function(family) {
+  names(jsonlite::fromJSON(
+    file.path(schema_repo, family, "v1", "schema.json"),
+    simplifyVector = FALSE
+  )[["properties"]])
+}
+assert_complete <- function(x, props, what, id) {
+  missing <- setdiff(props, names(x))
+  if (length(missing) > 0L) {
+    stop(
+      what, " in '", id, "' is missing ", paste(missing, collapse = ", "),
+      ". It has to be a document rtemis would emit, not a reassembly of one.",
+      call. = FALSE
+    )
+  }
+}
+profile_props <- schema_props("profile")
+diagnostic_props <- schema_props("diagnostic")
+for (row in cases$rows) {
+  assert_complete(row[["profile"]], profile_props, "The profile", row[["id"]])
+  for (finding in row[["findings"]]) {
+    assert_complete(finding, diagnostic_props, "A finding", row[["id"]])
+  }
+}
+
 out_file <- file.path(schema_repo, "checks", "v1", "corpus.json")
 write_json_document(
   list(

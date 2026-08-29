@@ -83,15 +83,6 @@ cases <- list(
 
 # %% Write and measure ----
 
-# `to_json()` prefixes an R-side `.class` marker, which `profile/v1` does not
-# declare and -- alone among the published schemas -- forbids outright. No other
-# implementation emits one, so a fixture carrying it would fail every host on a
-# field none of them can produce.
-as_document <- function(x) {
-  x[[".class"]] <- NULL
-  x
-}
-
 sha256 <- function(path) {
   paste(
     as.character(openssl::sha256(readBin(path, "raw", file.size(path)))),
@@ -109,7 +100,7 @@ measure <- function(case) {
     # Registry-relative, which is what a consumer knows a document by.
     data = paste(rel_dir, case[["file"]], sep = "/"),
     sha256 = sha256(path),
-    profile = as_document(to_json(data_profile(read(path, verbosity = 0L))))
+    profile = to_json(data_profile(read(path, verbosity = 0L)))
   )
 }
 

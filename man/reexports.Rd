@@ -7,6 +7,7 @@
 \alias{labelify}
 \alias{clean_names}
 \alias{clean_colnames}
+\alias{write_JSONSchema}
 \title{Objects exported from other packages}
 \keyword{internal}
 \description{
@@ -14,6 +15,6 @@ These objects are imported from other packages. Follow the links
 below to see their documentation.
 
 \describe{
-  \item{rtemis.core}{\code{\link[rtemis.core:clean_colnames]{clean_colnames()}}, \code{\link[rtemis.core:clean_names]{clean_names()}}, \code{\link[rtemis.core:ddSci]{ddSci()}}, \code{\link[rtemis.core:labelify]{labelify()}}}
+  \item{rtemis.core}{\code{\link[rtemis.core:clean_colnames]{clean_colnames()}}, \code{\link[rtemis.core:clean_names]{clean_names()}}, \code{\link[rtemis.core:ddSci]{ddSci()}}, \code{\link[rtemis.core:labelify]{labelify()}}, \code{\link[rtemis.core:write_JSONSchema]{write_JSONSchema()}}}
 }}
 

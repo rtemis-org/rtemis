@@ -3761,6 +3761,13 @@ prop_to_schema <- function(prop) {
 #'   unset value is written as an explicit `null` rather than omitted. The
 #'   difference between an input schema and a record schema is exactly this;
 #'   membership is identical.
+#' @param asserted Logical: If TRUE, emit an **assertion** schema: the input
+#'   form, but with every property required. For a results class -- a document
+#'   rtemis produces rather than one a caller authors, and which has no record
+#'   sibling to carry the requirement. The config contract's reason for omitting
+#'   `required` is that a config is a partial expression of intent; a results
+#'   document asserts fact, so the record's rule applies to it and not the
+#'   config's. Mutually exclusive with `record`.
 #' @param extra Named list merged into the schema after generation, for
 #'   cross-field constraints that are not per-property (e.g. an `allOf` of
 #'   if/then clauses for kernel-specific SVM hyperparameters).
@@ -3803,6 +3810,7 @@ S7_to_JSONSchema <- function(
   base = NULL,
   required = NULL,
   record = FALSE,
+  asserted = FALSE,
   provenance_url = NULL,
   fold_refs = NULL,
   metrics_refs = NULL,
@@ -3815,6 +3823,14 @@ S7_to_JSONSchema <- function(
   instance_schema_url = NULL
 ) {
   check_character(id, allow_null = FALSE)
+  if (record && asserted) {
+    rtemis.core::abort(
+      "`record` and `asserted` are the two ways a schema states that every ",
+      "property is present; pass one. `record` also retargets nested `$ref`s ",
+      "and adds the run blocks, which a results class has none of.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
   if (!inherits(x, "S7_class")) {
     rtemis.core::abort(
       "`x` must be an S7 class.",
@@ -3952,12 +3968,16 @@ S7_to_JSONSchema <- function(
       properties
     )
   }
-  if (record) {
+  if (record || asserted) {
     # Every emitted property, `$schema` excluded: it identifies the document
     # rather than recording anything the run did. Constants are excluded too --
     # the algorithm implies them, `prop_serialized()` keeps them out of a
     # written record, and requiring what is never written would reject every
     # record rtemis produces.
+    #
+    # A nullable property is required like any other: `to_json()` writes an
+    # unset value as an explicit `null` rather than omitting the key, so the
+    # key is always there and its absence is a defect rather than a default.
     constants <- names(Filter(
       function(p) {
         spec <- get_spec(p)
@@ -3966,6 +3986,8 @@ S7_to_JSONSchema <- function(
       props
     ))
     required <- setdiff(names(properties), c("$schema", constants))
+  }
+  if (record) {
     # A nested config carries its own `origin`, so it is not covered here.
     origin_props <- props[intersect(required, names(props))]
     origin_props <- origin_props[setdiff(names(origin_props), constants)]
@@ -4286,45 +4308,3 @@ S7_dispatcher_JSONSchema <- function(
   )
   Filter(Negate(is.null), schema)
 } # /rtemis::S7_dispatcher_JSONSchema
-
-
-# %% write_JSONSchema ----
-#' Write a schema list produced by [S7_to_JSONSchema] to a JSON file
-#'
-#' @param schema Named list: Schema produced by [S7_to_JSONSchema].
-#' @param file Character: Path to output JSON file.
-#' @param overwrite Logical: If TRUE, overwrite an existing file.
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @return `schema`, invisibly.
-#'
-#' @author EDG
-#' @export
-#' @examplesIf requireNamespace("jsonlite", quietly = TRUE)
-#' schema <- list(
-#'   `$schema` = "https://json-schema.org/draft/2020-12/schema",
-#'   `$id` = "https://example.org/demo/v1/schema.json",
-#'   title = "Demo",
-#'   type = "object",
-#'   properties = list(n = list(type = "integer", minimum = 1L))
-#' )
-#' tmpfile <- file.path(tempdir(), "demo.schema.json")
-#' write_JSONSchema(schema, tmpfile, overwrite = TRUE, verbosity = 0L)
-write_JSONSchema <- function(schema, file, overwrite = FALSE, verbosity = 1L) {
-  check_dependencies("jsonlite")
-  json_str <- as.character(jsonlite::toJSON(
-    schema,
-    auto_unbox = TRUE,
-    pretty = TRUE,
-    na = "null",
-    null = "null",
-    digits = NA
-  ))
-  write_lines(
-    json_str,
-    file = file,
-    overwrite = overwrite,
-    verbosity = verbosity
-  )
-  invisible(schema)
-} # /rtemis::write_JSONSchema

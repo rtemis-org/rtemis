@@ -166,7 +166,6 @@ test_that("data_profile() accepts every tabular structure", {
 # %% to_json ----
 test_that("to_json() emits the shapes the wire needs", {
   j <- to_json(data_profile(data.frame(g = factor(c("a", "b")), n = c(1, 2))))
-  expect_identical(j[[".class"]], "DataProfile")
   # Row-oriented: an array of objects, which is what a filter iterates -- not
   # an object of parallel arrays, which one cannot.
   txt <- as.character(jsonlite::toJSON(j[["columns"]]))

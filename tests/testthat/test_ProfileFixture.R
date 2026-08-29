@@ -42,11 +42,7 @@ test_that("the reference implementation reproduces the recorded fixture", {
       package = "rtemis"
     )
     expect_true(nzchar(f), info = case[["data"]])
-    # `.class` is an R-side marker `to_json()` prefixes; it is not declared by
-    # `profile/v1`, which forbids it outright, and no other implementation emits
-    # one. `data-raw/generate_profile_fixture.R` drops it for the same reason.
     measured <- to_json(data_profile(read(f, verbosity = 0L)))
-    measured[[".class"]] <- NULL
     # Compared through JSON so the assertion is about the *document*, which is
     # what every other implementation sees, rather than about R's object.
     expect_identical(

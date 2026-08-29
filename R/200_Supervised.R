@@ -675,7 +675,6 @@ method(to_json, Supervised) <- function(x, ...) {
   # including props that may be NULL (e.g. `varimp` is either a
   # `VariableImportance` object or NULL).
   out <- list(
-    .class = S7_class(x)@name,
     algorithm = x@algorithm,
     type = x@type,
     question = x@question,
@@ -1923,7 +1922,6 @@ method(repr, SupervisedRes) <- function(
 #' @noRd
 method(to_json, SupervisedRes) <- function(x, ...) {
   out <- list(
-    .class = S7_class(x)@name,
     algorithm = x@algorithm,
     type = x@type,
     question = x@question,

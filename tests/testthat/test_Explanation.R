@@ -295,7 +295,6 @@ test_that("[[ indexes contributions by class", {
 test_that("to_json publishes the explanation's identity, not its bulk", {
   x <- .shap_multiclass()
   j <- to_json(x)
-  expect_identical(j[[".class"]], "SHAP")
   expect_identical(j[["type"]], "SHAP")
   expect_identical(j[["estimator"]], "TreeSHAP")
   expect_identical(j[["classes"]], names(x@phi))
