@@ -40,8 +40,8 @@ Applied to all three datasets.}
 \item{outcome}{Optional Character: Name of the outcome column; \code{NULL} for
 rtemis's convention, the last column.}
 
-\item{features}{Optional Character: Names of the predictor columns; \code{NULL}
-for every column except the outcome.}
+\item{features}{Optional Character vector: Names of the predictor columns;
+\code{NULL} for every column except the outcome.}
 
 \item{weights}{Optional Character: Column name in training data to use as observation weights.
 If NULL, no weights are used.}

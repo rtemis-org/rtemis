@@ -173,8 +173,8 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' Applied to all three datasets.
 #' @param outcome Optional Character: Name of the outcome column; `NULL` for
 #' rtemis's convention, the last column.
-#' @param features Optional Character: Names of the predictor columns; `NULL`
-#' for every column except the outcome.
+#' @param features Optional Character vector: Names of the predictor columns;
+#' `NULL` for every column except the outcome.
 #' @param weights Optional Character: Column name in training data to use as observation weights.
 #' If NULL, no weights are used.
 #' @param positive_class Character or NULL: For binary classification, the
