@@ -100,7 +100,8 @@ schemas-check:
         {{ rscript }} data-raw/generate_schemas.R "$dir" && \
         {{ rscript }} data-raw/generate_defaults.R "$dir" && \
         {{ rscript }} data-raw/generate_checks.R "$dir" && \
-        {{ rscript }} data-raw/generate_checks_corpus.R "$dir"
+        {{ rscript }} data-raw/generate_checks_corpus.R "$dir" && \
+        {{ rscript }} data-raw/generate_profile_fixture.R "$dir"
     @git diff --quiet --exit-code -- inst/checks inst/traits || { \
         echo "   Note: inst/checks or inst/traits was regenerated -- the committed copy was stale."; \
         echo "   Review the diff and commit it with the rule-set change."; \
