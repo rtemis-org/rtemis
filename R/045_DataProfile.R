@@ -99,11 +99,17 @@ PROFILE_MAX_LEVELS <- 64L
 #'   `data.frame`, with its `name`, `dtype`, `n_distinct` (observed non-missing
 #'   values) and `n_missing`.
 #' @field level_counts Optional List vector: One row per (`column`, `level`)
-#'   with its count `n`, as a `data.frame`, for categorical columns of at most
-#'   `PROFILE_MAX_LEVELS` levels. Observed levels only -- named `level_counts`
-#'   rather than `levels` because R's `levels()` means the *declared* set, and
-#'   Croissant's `sc:Enumeration` likewise describes a complete domain, while
-#'   this is what the rows actually contain.
+#'   with its count `n`, as a `data.frame`, for categorical *and string* columns
+#'   of at most `PROFILE_MAX_LEVELS` levels. Observed levels only -- named
+#'   `level_counts` rather than `levels` because R's `levels()` means the
+#'   *declared* set, and Croissant's `sc:Enumeration` likewise describes a
+#'   complete domain, while this is what the rows actually contain.
+#'
+#'   String columns are included because whether a column of labels arrives as
+#'   `factor` or `character` is a property of how it was read, not of the data:
+#'   the level set is the same either way, and a config that declares
+#'   `character2factor` turns one into the other. Withholding the counts would
+#'   make the profile describe the reader rather than the dataset.
 #' @field n_complete_cases Integer [0, Inf): Rows with no missing value in any
 #'   column.
 #' @field n_duplicates Optional Integer [0, Inf): Rows that repeat an earlier
@@ -156,7 +162,7 @@ DataProfile <- new_class(
       ),
       nullable = TRUE,
       data_dependent = TRUE,
-      description = "Observed level counts in long form, one row per column and level, for categorical columns with at most 64 levels."
+      description = "Observed level counts in long form, one row per column and level, for categorical and string columns with at most 64 levels."
     ),
     n_complete_cases = prop_integer(
       0L,
@@ -260,8 +266,14 @@ data_profile <- function(x, n_duplicates = TRUE, fingerprint = FALSE) {
 
   # Long form, and only where the level set is small enough to be a description
   # rather than a copy of the column.
+  # String as well as categorical: the level set of a column of labels does not
+  # depend on whether the reader gave it as `factor` or `character`, and
+  # `character2factor` turns one into the other. A check that has to know the
+  # minority class of an outcome read from a CSV needs these.
   wanted <- nms[
-    dtypes == "categorical" & columns[["n_distinct"]] <= PROFILE_MAX_LEVELS
+    dtypes %in%
+      c("categorical", "string") &
+      columns[["n_distinct"]] <= PROFILE_MAX_LEVELS
   ]
   level_counts_df <- if (length(wanted) == 0L) {
     data.frame(
@@ -279,7 +291,11 @@ data_profile <- function(x, n_duplicates = TRUE, fingerprint = FALSE) {
         # there, and a second implementation reading a CSV has no notion of a
         # declared-but-unused level at all. Reporting one would make the two
         # fields disagree and be unreproducible outside R.
-        counts <- table(droplevels(dat[[nm]]))
+        # `factor()` on character data gives lexically ordered levels, which is
+        # what this column would become under `character2factor` -- so the two
+        # readings of the same file produce the same level order here.
+        v <- dat[[nm]]
+        counts <- table(if (is.factor(v)) droplevels(v) else factor(v))
         data.frame(
           column = nm,
           level = names(counts),

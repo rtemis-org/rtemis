@@ -70,6 +70,12 @@ config_parts <- function(config) {
   out[["decomposition_config"]] <- config_prop(config, "decomposition_config")
   out[["hyperparameters"]] <- config_prop(config, "hyperparameters")
   out[["positive_class"]] <- config_prop(config, "positive_class")
+  # How the config's files are read. A delimited file carries no types, so this
+  # is what decides whether a column of labels reaches the learner as a factor
+  # or as an unusable string. NULL for a config with no paths -- a
+  # `SuperConfigLive` holds a frame whose types are already decided -- and the
+  # effective dtype below then reads the profile unchanged.
+  out[["character2factor"]] <- config_prop(config, "character2factor")
   # Both resamplers partition the same cases and fail the same way, so both are
   # checked. Each is keyed by the JSON Pointer of the property that holds it, so
   # a finding's `fix` patches the one it is about.
@@ -149,6 +155,40 @@ profile_field <- function(profile, column, field) {
 } # /rtemis::profile_field
 
 
+# %% effective_dtype ----
+#' The dtype a column will have when the run reads it
+#'
+#' The profile describes the dataset as it is; the config says how it will be
+#' read. A `string` column under `character2factor` reaches the learner as a
+#' factor, so every check that branches on dtype has to ask for the effective
+#' one rather than the measured one -- otherwise the same file validates
+#' differently depending on which reader measured it, which is the profile
+#' describing the reader instead of the data.
+#'
+#' Nothing else is translated. This is the one conversion a config can declare
+#' that changes a column's *kind*; the rest change values within a kind.
+#'
+#' @param profile `DataProfile` object.
+#' @param column Character: Column name.
+#' @param parts Named list from `config_parts()`.
+#'
+#' @return Character dtype, or NULL when the column is not in the profile.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+effective_dtype <- function(profile, column, parts) {
+  observed <- profile_field(profile, column, "dtype")
+  if (is.null(observed)) {
+    return(NULL)
+  }
+  if (identical(observed, "string") && isTRUE(parts[["character2factor"]])) {
+    return("categorical")
+  }
+  observed
+} # /rtemis::effective_dtype
+
+
 # %% profile_level_counts ----
 #' Observed level counts for one column
 #'
@@ -212,7 +252,13 @@ validate_data <- function(config, data, outcome = NULL, step = NULL) {
         function(pointer) {
           resampler <- parts[["resamplers"]][[pointer]]
           c(
-            check_resample_min_class(resampler, profile, outcome_name, pointer),
+            check_resample_min_class(
+              resampler,
+              profile,
+              outcome_name,
+              pointer,
+              parts
+            ),
             check_resample_n_rows(resampler, profile@n_rows, pointer)
           )
         }
@@ -220,7 +266,7 @@ validate_data <- function(config, data, outcome = NULL, step = NULL) {
       recursive = FALSE
     ),
     check_feature_constant(profile, feature_names, parts),
-    check_feature_type(profile, feature_names),
+    check_feature_type(profile, feature_names, parts),
     check_dim_p_gt_n(profile, feature_names, parts),
     check_missing_incompatible(profile, dat, feature_names, outcome_name, parts)
   )
@@ -351,7 +397,7 @@ check_outcome_type <- function(profile, outcome_name, parts) {
   if (is.null(outcome_name)) {
     return(list())
   }
-  observed <- profile_field(profile, outcome_name, "dtype")
+  observed <- effective_dtype(profile, outcome_name, parts)
   if (!observed %in% SUPERVISED_OUTCOME_DTYPES) {
     return(list(new_diagnostic(
       code = "OUTCOME_TYPE_MISMATCH",
@@ -510,6 +556,7 @@ config_algorithm <- function(parts) {
 #' @param profile `DataProfile` object for the dataset.
 #' @param outcome_name Character or NULL: The outcome column.
 #' @param pointer Character: JSON Pointer of the property holding `resampler`.
+#' @param parts Named list from `config_parts()`.
 #'
 #' @return List of `Diagnostic` objects, possibly empty.
 #'
@@ -520,13 +567,14 @@ check_resample_min_class <- function(
   resampler,
   profile,
   outcome_name,
-  pointer
+  pointer,
+  parts
 ) {
   if (is.null(outcome_name)) {
     return(list())
   }
   if (
-    !identical(profile_field(profile, outcome_name, "dtype"), "categorical")
+    !identical(effective_dtype(profile, outcome_name, parts), "categorical")
   ) {
     return(list())
   }
@@ -886,30 +934,36 @@ check_feature_constant <- function(profile, feature_names, parts) {
 #' Are all the predictors a type rtemis can train on?
 #'
 #' `check_supervised()` requires every predictor to be numeric or a factor and
-#' aborts otherwise, so a character or date predictor is a guaranteed failure
-#' rather than a risk.
+#' aborts otherwise, so a character or date predictor that reaches it is a
+#' guaranteed failure rather than a risk.
 #'
-#' No preprocessing rescues it, which is why this check is unconditional:
-#' `check_supervised()` runs *before* `preprocess()` in `train()`, so
-#' `character2factor` -- which would convert exactly this column -- never gets
-#' the chance. Converting the column is a change to the data rather than to the
-#' config, so there is no patch to offer either.
+#' What decides whether one reaches it is `SuperConfig@character2factor`, which
+#' is a *reading* convention: it runs when the file is parsed, before any check.
+#' `effective_dtype()` applies it, which is why a string predictor is reported
+#' only when the config declines the conversion.
+#'
+#' The preprocessor's own `character2factor` is a different setting and does not
+#' rescue anything here: `preprocess()` is fitted per fold, inside resampling,
+#' and `check_supervised()` has already run. Converting the column at that point
+#' is a change to the data rather than to the config, so there is no patch to
+#' offer either.
 #'
 #' @param profile `DataProfile` object for the dataset.
 #' @param feature_names Character: The predictor columns.
+#' @param parts Named list from `config_parts()`.
 #'
 #' @return List of `Diagnostic` objects, possibly empty.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_feature_type <- function(profile, feature_names) {
+check_feature_type <- function(profile, feature_names, parts) {
   if (length(feature_names) == 0L) {
     return(list())
   }
   dtypes <- vapply(
     feature_names,
-    function(nm) profile_field(profile, nm, "dtype"),
+    function(nm) effective_dtype(profile, nm, parts),
     character(1L)
   )
   unsupported <- feature_names[!dtypes %in% SUPERVISED_FEATURE_DTYPES]
@@ -976,7 +1030,7 @@ check_dim_p_gt_n <- function(profile, feature_names, parts) {
   widths <- vapply(
     feature_names,
     function(nm) {
-      if (identical(profile_field(profile, nm, "dtype"), "categorical")) {
+      if (identical(effective_dtype(profile, nm, parts), "categorical")) {
         profile_field(profile, nm, "n_distinct")
       } else {
         1L

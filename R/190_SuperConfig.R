@@ -33,6 +33,21 @@ SuperConfig <- new_class(
       nullable = TRUE,
       description = "Path to the held-out test data."
     ),
+    # How the paths above are read. A delimited file carries no type
+    # information, so something has to decide that a column of labels is a
+    # factor rather than a string, and that decision belongs to the config: it
+    # changes what the run trains on, it is what `validate_config()` has to know
+    # to answer whether the run can work, and the record has to be able to
+    # report it. Applied to all three datasets, so their columns cannot end up
+    # typed differently from each other.
+    character2factor = prop_boolean(
+      TRUE,
+      description = paste0(
+        "Read character columns as factors. Supervised learning needs ",
+        "categorical predictors as factors, and a delimited file cannot say ",
+        "which columns those are."
+      )
+    ),
     # Column name in the training data.
     weights = prop_string(
       NULL,
@@ -127,6 +142,10 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' leaves the recipe unbound; set it (or supply data) before [train].
 #' @param dat_validation_path Optional Character: Path to validation data file.
 #' @param dat_test_path Optional Character: Path to test data file.
+#' @param character2factor Logical: If TRUE, read character columns as factors.
+#' A delimited file carries no type information, so this is what decides whether
+#' a column of labels is a categorical predictor or an unusable string one.
+#' Applied to all three datasets.
 #' @param weights Optional Character: Column name in training data to use as observation weights.
 #' If NULL, no weights are used.
 #' @param positive_class Character or NULL: For binary classification, the
@@ -163,6 +182,7 @@ setup_SuperConfig <- function(
   dat_training_path = NULL,
   dat_validation_path = NULL,
   dat_test_path = NULL,
+  character2factor = TRUE,
   weights = NULL,
   positive_class = NULL,
   preprocessor_config = NULL,
@@ -217,6 +237,7 @@ setup_SuperConfig <- function(
     dat_training_path = dat_training_path,
     dat_validation_path = dat_validation_path,
     dat_test_path = dat_test_path,
+    character2factor = character2factor,
     weights = weights,
     positive_class = positive_class,
     preprocessor_config = preprocessor_config,

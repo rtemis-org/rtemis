@@ -287,14 +287,19 @@ train <- function(
         class = c("rtemis_null_input", "rtemis_input_error")
       )
     }
-    dat_training <- read(x@dat_training_path, character2factor = TRUE)
+    # The config decides how its files are read, and the same way for all
+    # three: a validation set whose labels stayed character while training's
+    # became factors is a set `check_supervised()` rejects for a difference the
+    # caller never asked for.
+    c2f <- x@character2factor
+    dat_training <- read(x@dat_training_path, character2factor = c2f)
     dat_validation <- if (!is.null(x@dat_validation_path)) {
-      read(x@dat_validation_path)
+      read(x@dat_validation_path, character2factor = c2f)
     } else {
       NULL
     }
     dat_test <- if (!is.null(x@dat_test_path)) {
-      read(x@dat_test_path)
+      read(x@dat_test_path, character2factor = c2f)
     } else {
       NULL
     }

@@ -8,6 +8,7 @@ setup_SuperConfig(
   dat_training_path = NULL,
   dat_validation_path = NULL,
   dat_test_path = NULL,
+  character2factor = TRUE,
   weights = NULL,
   positive_class = NULL,
   preprocessor_config = NULL,
@@ -28,6 +29,11 @@ leaves the recipe unbound; set it (or supply data) before \link{train}.}
 \item{dat_validation_path}{Optional Character: Path to validation data file.}
 
 \item{dat_test_path}{Optional Character: Path to test data file.}
+
+\item{character2factor}{Logical: If TRUE, read character columns as factors.
+A delimited file carries no type information, so this is what decides whether
+a column of labels is a categorical predictor or an unusable string one.
+Applied to all three datasets.}
 
 \item{weights}{Optional Character: Column name in training data to use as observation weights.
 If NULL, no weights are used.}
