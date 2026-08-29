@@ -524,6 +524,22 @@ flat_configs <- list(
     ),
     array_refs = c(diagnostics = .url("diagnostic"))
   ),
+  # The first node of a pipeline: how a file becomes the typed Parquet everything
+  # downstream reads. Published because the decisions it holds -- what counts as
+  # missing, whether labels are factors, which reader parsed the file -- change
+  # what the run trains on, and a record that could not report them could not
+  # account for its own numbers.
+  ingest = list(
+    cls = IngestConfig,
+    title = "rtemis IngestConfig",
+    description = paste0(
+      "Language-independent config for reading a data file and normalizing it ",
+      "to Parquet. A delimited file, a spreadsheet or a Stata file carries no ",
+      "usable type information and Parquet does, so this is the one step that ",
+      "decides types -- everything after it reads a declaration rather than ",
+      "inferring one."
+    )
+  ),
   preprocessor = list(
     cls = PreprocessorConfig,
     title = "rtemis PreprocessorConfig",

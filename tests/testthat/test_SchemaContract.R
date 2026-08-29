@@ -108,6 +108,7 @@
   .contract_family(
     NULL,
     list(ExecutionConfig, "setup_ExecutionConfig"),
+    list(IngestConfig, "setup_Ingest"),
     list(PreprocessorConfig, "setup_Preprocessor"),
     list(SupervisedPreprocessorConfig, "setup_SupervisedPreprocessor"),
     list(SuperConfig, "setup_SuperConfig"),
