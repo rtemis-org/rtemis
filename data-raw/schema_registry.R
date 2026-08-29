@@ -93,6 +93,62 @@ families <- list(
       )
     )
   ),
+  # The first node of a pipeline: how a file becomes the typed Parquet
+  # everything downstream reads. Published because the decisions it holds --
+  # what counts as missing, whether labels are factors, which reader parsed the
+  # file, and any types the user declares outright -- change what the run trains
+  # on, and a record that could not report them could not account for its own
+  # numbers.
+  #
+  # A family rather than one config: a delimited file has a separator, a
+  # spreadsheet has a sheet number, a Parquet has neither.
+  #
+  # Nested mode, like `decomposition`, because the base carries settings of its
+  # own -- the declared types and the three post-read operations apply whatever
+  # the file is. Top-level mode (`resampler`) requires a base holding nothing
+  # but the discriminator: its leaves serialize as siblings, so a base property
+  # would have to be repeated in every leaf to survive the record.
+  ingest = list(
+    base_class = IngestConfig,
+    discriminator = "format",
+    payload = NULL,
+    title = "rtemis IngestConfig",
+    description = paste0(
+      "Language-independent config for reading a data file and normalizing it ",
+      "to Parquet. A delimited file or a spreadsheet carries no usable type ",
+      "information and Parquet does, so this is the one step that decides ",
+      "types -- everything after it reads a declaration rather than inferring ",
+      "one. `format` is what the file is, not a preference, so it has no ",
+      "default and a config that disagrees with its file is an error."
+    ),
+    discriminator_description = "What the file is.",
+    algorithms = list(
+      list(
+        cls = DelimitedIngestConfig,
+        desc = "A delimited file (csv, tsv, ...). See setup_Ingest."
+      ),
+      list(
+        cls = ParquetIngestConfig,
+        desc = "A Parquet file, which declares its own types. See setup_Ingest."
+      ),
+      list(
+        cls = XLSXIngestConfig,
+        desc = "A spreadsheet. See setup_Ingest."
+      ),
+      list(
+        cls = RDSIngestConfig,
+        desc = "An RDS file. See setup_Ingest."
+      ),
+      list(
+        cls = DTAIngestConfig,
+        desc = "A Stata file. See setup_Ingest."
+      ),
+      list(
+        cls = ARFFIngestConfig,
+        desc = "An ARFF file. See setup_Ingest."
+      )
+    )
+  ),
   # Top-level mode: a ResamplerConfig serializes its per-type fields as
   # siblings of `type` (not nested), so the leaves are open and the
   # dispatcher enforces strictness with `unevaluatedProperties`.
@@ -523,22 +579,6 @@ flat_configs <- list(
       "flag, an empty list of problems being the same statement."
     ),
     array_refs = c(diagnostics = .url("diagnostic"))
-  ),
-  # The first node of a pipeline: how a file becomes the typed Parquet everything
-  # downstream reads. Published because the decisions it holds -- what counts as
-  # missing, whether labels are factors, which reader parsed the file -- change
-  # what the run trains on, and a record that could not report them could not
-  # account for its own numbers.
-  ingest = list(
-    cls = IngestConfig,
-    title = "rtemis IngestConfig",
-    description = paste0(
-      "Language-independent config for reading a data file and normalizing it ",
-      "to Parquet. A delimited file, a spreadsheet or a Stata file carries no ",
-      "usable type information and Parquet does, so this is the one step that ",
-      "decides types -- everything after it reads a declaration rather than ",
-      "inferring one."
-    )
   ),
   preprocessor = list(
     cls = PreprocessorConfig,

@@ -106,9 +106,17 @@
     )
   ),
   .contract_family(
+    IngestConfig,
+    list(DelimitedIngestConfig, "setup_DelimitedIngest"),
+    list(ParquetIngestConfig, "setup_ParquetIngest"),
+    list(XLSXIngestConfig, "setup_XLSXIngest"),
+    list(RDSIngestConfig, "setup_RDSIngest"),
+    list(DTAIngestConfig, "setup_DTAIngest"),
+    list(ARFFIngestConfig, "setup_ARFFIngest")
+  ),
+  .contract_family(
     NULL,
     list(ExecutionConfig, "setup_ExecutionConfig"),
-    list(IngestConfig, "setup_Ingest"),
     list(PreprocessorConfig, "setup_Preprocessor"),
     list(SupervisedPreprocessorConfig, "setup_SupervisedPreprocessor"),
     list(SuperConfig, "setup_SuperConfig"),

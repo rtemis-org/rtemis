@@ -91,6 +91,7 @@ read_config <- function(file) {
     cluster = .list_to_ClusterConfig(x),
     decomposition = .list_to_DecompositionConfig(x),
     clustering = .list_to_ClusteringConfig(x),
+    ingest = .list_to_IngestConfig(x),
     preprocessor = .list_to_PreprocessorConfig(x),
     supervisedpreprocessor = .list_to_SupervisedPreprocessorConfig(x),
     rtemis.core::abort(

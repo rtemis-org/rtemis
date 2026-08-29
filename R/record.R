@@ -290,6 +290,16 @@ config_record <- function(input, resolved) {
 
   # Declaration order, so a record reads like the class it describes.
   out <- c(values, sub, sub_lists)[names_]
+  # `origin` reports where each field came from, so a block with no fields
+  # reports nothing. The schema omits it for the same reason -- a leaf whose
+  # settings are all inherited from its family base declares none of its own --
+  # and a record carrying an empty one would not validate against it.
+  if (length(origin) == 0L) {
+    # Named even when empty, so `names()` gives `character(0)` rather than NULL
+    # and a caller comparing field sets does not have to special-case it.
+    names(out) <- names(out) %||% character()
+    return(out)
+  }
   c(out, list(origin = origin))
 } # /rtemis::config_record
 
