@@ -9,6 +9,8 @@ setup_SuperConfig(
   dat_validation_path = NULL,
   dat_test_path = NULL,
   character2factor = TRUE,
+  outcome = NULL,
+  features = NULL,
   weights = NULL,
   positive_class = NULL,
   preprocessor_config = NULL,
@@ -34,6 +36,12 @@ leaves the recipe unbound; set it (or supply data) before \link{train}.}
 A delimited file carries no type information, so this is what decides whether
 a column of labels is a categorical predictor or an unusable string one.
 Applied to all three datasets.}
+
+\item{outcome}{Optional Character: Name of the outcome column; \code{NULL} for
+rtemis's convention, the last column.}
+
+\item{features}{Optional Character: Names of the predictor columns; \code{NULL}
+for every column except the outcome.}
 
 \item{weights}{Optional Character: Column name in training data to use as observation weights.
 If NULL, no weights are used.}

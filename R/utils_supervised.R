@@ -187,10 +187,14 @@ check_supervised_inputs <- function(x, y = NULL) {
 #' ir <- set_outcome(iris, "Sepal.Length")
 #' head(ir)
 set_outcome <- function(dat, outcome_column) {
-  # Get index of outcome column
-  id <- grep(outcome_column, names(dat))
-  # Check
-  if (length(id) == 0) {
+  check_character_scalar(outcome_column)
+  # `match()`, not `grep()`: a column name is a name, not a pattern. `grep()`
+  # matched it as a regular expression and as a substring, so `set_outcome(dat,
+  # "age")` moved both `age` and `age_group` to the end and left `age_group` as
+  # the outcome -- the wrong target, silently, on data that looks fine. A `.` in
+  # a name (`Sepal.Length`) was a wildcard for the same reason.
+  id <- match(outcome_column, names(dat))
+  if (is.na(id)) {
     rtemis.core::abort(
       'Column "',
       outcome_column,
@@ -522,3 +526,62 @@ expand_grid <- function(x, stringsAsFactors = FALSE) {
   # Expand grid
   expand.grid(x, stringsAsFactors = stringsAsFactors)
 } # /expand_grid
+
+
+# %% project_frame ----
+#' Select predictors and place the outcome last
+#'
+#' Applies a `SuperConfig`'s `outcome` and `features` to one dataset. Either may
+#' be `NULL`, in which case rtemis's convention applies unchanged: the outcome
+#' is the last column and every other column is a predictor.
+#'
+#' `weights` is kept whatever `features` says. The weights column is not a
+#' predictor, but it has to survive selection so that `resolve_weights_column()`
+#' can still find it -- dropping it here would turn a named weights column into
+#' a missing-column error one call later, blaming the wrong thing.
+#'
+#' @param dat Tabular data.
+#' @param outcome Optional Character: Name of the outcome column.
+#' @param features Optional Character: Names of the predictor columns.
+#' @param weights Optional Character: Name of the weights column.
+#'
+#' @return Tabular data with the selected columns, outcome last.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+project_frame <- function(
+  dat,
+  outcome = NULL,
+  features = NULL,
+  weights = NULL
+) {
+  if (is.null(outcome) && is.null(features)) {
+    return(dat)
+  }
+  present <- names(dat)
+  missing_named <- setdiff(c(outcome, features, weights), present)
+  if (length(missing_named) > 0L) {
+    rtemis.core::abort(
+      "Column(s) not in the data: ",
+      paste(missing_named, collapse = ", "),
+      ".\n  The data has: ",
+      paste(present, collapse = ", "),
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  # With no `outcome` named, the convention still holds and the last column is
+  # it -- so it has to be kept even when `features` does not list it.
+  outcome_column <- outcome %||% present[length(present)]
+  keep <- if (is.null(features)) {
+    present
+  } else {
+    unique(c(features, weights, outcome_column))
+  }
+  dat <- if (is.data.table(dat)) {
+    dat[, keep, with = FALSE]
+  } else {
+    dat[, keep, drop = FALSE]
+  }
+  set_outcome(dat, outcome_column)
+} # /rtemis::project_frame

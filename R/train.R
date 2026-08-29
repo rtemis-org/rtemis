@@ -303,6 +303,28 @@ train <- function(
     } else {
       NULL
     }
+    # What the run predicts, and from what. Applied to all three datasets for
+    # the reason `character2factor` is: sets whose columns differ from each
+    # other are rejected downstream for a difference the caller never asked for.
+    # With both properties NULL this is a no-op and rtemis's convention applies
+    # exactly as it did.
+    dat_training <- project_frame(
+      dat_training,
+      x@outcome,
+      x@features,
+      x@weights
+    )
+    if (!is.null(dat_validation)) {
+      dat_validation <- project_frame(
+        dat_validation,
+        x@outcome,
+        x@features,
+        x@weights
+      )
+    }
+    if (!is.null(dat_test)) {
+      dat_test <- project_frame(dat_test, x@outcome, x@features, x@weights)
+    }
     # Call train() with data and other parameters from config
     resolved <- resolve_weights_column(
       list(dat_training, dat_validation, dat_test),

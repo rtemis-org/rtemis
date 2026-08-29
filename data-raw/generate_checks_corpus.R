@@ -285,7 +285,11 @@ assert_complete <- function(x, props, what, id) {
   missing <- setdiff(props, names(x))
   if (length(missing) > 0L) {
     stop(
-      what, " in '", id, "' is missing ", paste(missing, collapse = ", "),
+      what,
+      " in '",
+      id,
+      "' is missing ",
+      paste(missing, collapse = ", "),
       ". It has to be a document rtemis would emit, not a reassembly of one.",
       call. = FALSE
     )

@@ -48,6 +48,31 @@ SuperConfig <- new_class(
         "which columns those are."
       )
     ),
+    # Which column is predicted, and from which. rtemis's convention is that
+    # the outcome is the last column and every other column is a predictor,
+    # arranged by `set_outcome()`. That convention is fine as a default and
+    # wrong as the only expression of it: a default that is not in the config is
+    # a decision the record cannot report, which is why `character2factor` moved
+    # here for the same reason. Left NULL, the convention applies exactly as
+    # before; named, `train()` arranges the frame and the record says what was
+    # predicted from what.
+    outcome = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = paste0(
+        "Name of the outcome column. NULL = rtemis's convention, the last ",
+        "column."
+      )
+    ),
+    features = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      description = paste0(
+        "Names of the columns to use as predictors. NULL = every column ",
+        "except the outcome."
+      )
+    ),
     # Column name in the training data.
     weights = prop_string(
       NULL,
@@ -146,6 +171,10 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' A delimited file carries no type information, so this is what decides whether
 #' a column of labels is a categorical predictor or an unusable string one.
 #' Applied to all three datasets.
+#' @param outcome Optional Character: Name of the outcome column; `NULL` for
+#' rtemis's convention, the last column.
+#' @param features Optional Character: Names of the predictor columns; `NULL`
+#' for every column except the outcome.
 #' @param weights Optional Character: Column name in training data to use as observation weights.
 #' If NULL, no weights are used.
 #' @param positive_class Character or NULL: For binary classification, the
@@ -183,6 +212,8 @@ setup_SuperConfig <- function(
   dat_validation_path = NULL,
   dat_test_path = NULL,
   character2factor = TRUE,
+  outcome = NULL,
+  features = NULL,
   weights = NULL,
   positive_class = NULL,
   preprocessor_config = NULL,
@@ -238,6 +269,8 @@ setup_SuperConfig <- function(
     dat_validation_path = dat_validation_path,
     dat_test_path = dat_test_path,
     character2factor = character2factor,
+    outcome = outcome,
+    features = features,
     weights = weights,
     positive_class = positive_class,
     preprocessor_config = preprocessor_config,

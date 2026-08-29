@@ -5048,3 +5048,94 @@ test_that("every algorithm is tested on every outcome type it supports", {
     )
   )
 })
+
+
+# %% outcome and features ----
+
+test_that("set_outcome matches a column name exactly, not as a pattern", {
+  # `grep()` matched the name as a regular expression and as a substring, so
+  # `set_outcome(dat, "age")` moved both `age` and `age_group` and left the
+  # wrong column as the outcome -- silently, on data that looks fine.
+  dat <- data.frame(age = 1:3, age_group = c("a", "b", "c"), y = 4:6)
+  expect_identical(names(set_outcome(dat, "age")), c("age_group", "y", "age"))
+  # A `.` in a name was a wildcard for the same reason.
+  dotted <- data.frame(a.b = 1:3, axb = 4:6, y = 7:9)
+  expect_identical(names(set_outcome(dotted, "a.b")), c("axb", "y", "a.b"))
+  expect_error(set_outcome(dat, "nope"), class = "rtemis_value_error")
+})
+
+
+test_that("SuperConfig's outcome and features decide what is trained on", {
+  dat <- data.frame(
+    age = seq_len(60L),
+    los = rev(seq_len(60L)),
+    noise = rnorm(60L),
+    y = factor(rep(c("no", "yes"), each = 30L))
+  )
+  path <- file.path(tempdir(), "project_frame.csv")
+  on.exit(unlink(path), add = TRUE)
+  write.csv(dat, path, row.names = FALSE)
+
+  config <- setup_SuperConfig(
+    dat_training_path = path,
+    outcome = "y",
+    features = c("age", "los"),
+    hyperparameters = setup_LightRF(),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L),
+    outdir = NULL,
+    verbosity = 0L
+  )
+  mod <- train(config)
+  # `noise` was excluded by `features`, and `y` is the outcome rather than
+  # whatever happened to be last in the file.
+  expect_identical(mod@xnames, c("age", "los"))
+  expect_s3_class(mod, "rtemis::ClassificationRes")
+})
+
+
+test_that("an outcome that is not the last column is moved, not assumed", {
+  # The whole point of the property: rtemis's convention is last-column, and a
+  # config that names a different one has to override it rather than be
+  # silently ignored.
+  dat <- data.frame(
+    target = c(rep(1.5, 30L), rep(9.5, 30L)),
+    a = seq_len(60L),
+    b = rev(seq_len(60L))
+  )
+  path <- file.path(tempdir(), "outcome_first.csv")
+  on.exit(unlink(path), add = TRUE)
+  write.csv(dat, path, row.names = FALSE)
+
+  mod <- train(setup_SuperConfig(
+    dat_training_path = path,
+    outcome = "target",
+    hyperparameters = setup_LightRF(),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L),
+    outdir = NULL,
+    verbosity = 0L
+  ))
+  expect_identical(mod@xnames, c("a", "b"))
+})
+
+
+test_that("a named column that is not in the data is a corrective error", {
+  dat <- data.frame(a = seq_len(20L), y = factor(rep(c("x", "z"), 10L)))
+  path <- file.path(tempdir(), "missing_col.csv")
+  on.exit(unlink(path), add = TRUE)
+  write.csv(dat, path, row.names = FALSE)
+
+  config <- setup_SuperConfig(
+    dat_training_path = path,
+    outcome = "readmit30",
+    hyperparameters = setup_LightRF(),
+    outdir = NULL,
+    verbosity = 0L
+  )
+  expect_error(train(config), "readmit30", class = "rtemis_value_error")
+})
+
+
+test_that("both properties NULL leaves rtemis's convention untouched", {
+  dat <- data.frame(a = seq_len(40L), b = rev(seq_len(40L)), y = rnorm(40L))
+  expect_identical(rtemis:::project_frame(dat), dat)
+})
