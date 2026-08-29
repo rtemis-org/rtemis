@@ -120,6 +120,15 @@ validate_config <- function(
     return(Diagnostics())
   }
   check_tabular(data)
+  # A config that names its outcome answers the question, so the caller need
+  # not. `outcome` stays an override -- checking a config against a frame whose
+  # outcome differs is a real question -- but the default now comes from the
+  # document rather than from the last-column convention. Without this,
+  # `SuperConfig@outcome` would be decorative here while the Rust evaluator
+  # reads it, and the two would disagree on the same input.
+  if (is.null(outcome) && prop_exists(resolved, "outcome")) {
+    outcome <- resolved@outcome
+  }
   Diagnostics(validate_data(
     config = resolved,
     data = data,
