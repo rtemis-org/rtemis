@@ -2,6 +2,24 @@
 
 ## 1.3.9
 
+- **A `oneOf` property documents its alternatives, and says which is the common
+  one.** `hyperparameters` admits one configuration or a set of named ones, and
+  only the set carried a description -- so the sole branch that explained itself
+  was the exception, and a reader looking for guidance found it and wrote it.
+  Both branches now carry a title and a description, the rare one says it is
+  uncommon and what it is for, and the property's own description survives the
+  `oneOf` rather than being discarded by it.
+- **A discriminated union's payload no longer calls itself "variant-specific".**
+  One word meant both a branch of a discriminated union and a member of a named
+  set, in schemas where a parent admits both. It now names the discriminator it
+  belongs to and states the default rule: anything unset takes rtemis's default,
+  so `{}` is every default and is the usual value -- the answer to the question
+  the description otherwise invites.
+- **`is_wire_hyperparameters_set()` is exported.** `rtemis.server` needs the same
+  discriminator one layer earlier, to know whether a payload names its learner at
+  the top level or inside each variant. Two spellings of one rule is how a config
+  becomes submittable on one path and unreadable on the other.
+
 - **A supervised record names its execution graph, written beside it as
   Parquet.** `train()` recorded the session on the fitted object and the record
   kept only its `started` and `finished`, so a stored record said when a run

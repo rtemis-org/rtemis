@@ -3923,25 +3923,48 @@ S7_to_JSONSchema <- function(
     # names are members' names and are carried by the object's keys, because
     # they are what the tuner reports as the winner and have to survive a round
     # trip. An array would lose them.
+    #
+    # Both branches are titled and described, and the common one says it is
+    # common. A `oneOf` whose alternatives are undocumented is read by whoever
+    # meets it first -- and when only the rare branch carried prose, it was the
+    # only branch that explained itself, so a reader looking for guidance found
+    # the exception and wrote it. The set is genuinely uncommon: it exists to
+    # compare named alternatives, and one member of it is the single
+    # configuration written the long way.
     alternatives <- if (varying) {
       list(
-        ref,
+        c(
+          ref,
+          list(
+            title = "One configuration",
+            description = paste0(
+              "One algorithm and its settings. The ordinary form, and the one ",
+              "to use unless the run is deliberately comparing named ",
+              "alternatives."
+            )
+          )
+        ),
         list(
+          title = "Named alternatives to search over",
           type = "object",
           properties = list(
             variants = list(
               type = "object",
               minProperties = 1L,
               additionalProperties = ref,
-              description = "Configurations to search over, keyed by name."
+              description = paste0(
+                "Configurations to search over, keyed by name. Every one is a ",
+                "configuration of the same algorithm."
+              )
             )
           ),
           required = list("variants"),
           additionalProperties = FALSE,
           description = paste0(
-            "A union of search spaces over one algorithm. Every variant is a ",
-            "configuration of the same algorithm; the tuner selects among them ",
-            "and reports which name won."
+            "Uncommon. Several configurations of one algorithm for a tuner to ",
+            "select among, reporting which name won. Use this only when the ",
+            "run is comparing named alternatives; a set holding a single ",
+            "member is the one configuration above, written the long way."
           )
         )
       )
@@ -3949,10 +3972,24 @@ S7_to_JSONSchema <- function(
       list(ref)
     }
     accepts_null <- prop_accepts_null(ref_props[[nm]])
+    # The property's own description, which a bare `oneOf` used to discard: a
+    # reader choosing between alternatives needs to know what the property is
+    # for before deciding which shape to write, and losing it left the choice
+    # documented only from inside the branches.
+    described <- properties[[nm]][["description"]]
+    guidance <- if (varying) {
+      paste0(
+        "One configuration, or several named ones for a tuner to choose ",
+        "between. Write the single configuration unless the run is ",
+        "comparing named alternatives."
+      )
+    }
+    preface <- paste(c(described, guidance), collapse = " ")
+    envelope <- if (nzchar(preface)) list(description = preface) else list()
     properties[[nm]] <- if (accepts_null) {
-      list(oneOf = c(list(list(type = "null")), alternatives))
+      c(envelope, list(oneOf = c(list(list(type = "null")), alternatives)))
     } else if (length(alternatives) > 1L) {
-      list(oneOf = alternatives)
+      c(envelope, list(oneOf = alternatives))
     } else {
       ref
     }
@@ -4274,12 +4311,19 @@ S7_dispatcher_JSONSchema <- function(
     description = discriminator_description
   )))
   if (!top_level) {
+    # Not "variant-specific": a `variant_refs` parent admits a `variants` block
+    # of its own, and one word meaning both the branch of a discriminated union
+    # and a member of a named set is how a reader ends up filling in the wrong
+    # one. The default rule is stated because it is the answer to the question
+    # this description otherwise invites -- what to write when nothing is being
+    # overridden.
     properties[[payload]] <- list(
       type = "object",
       description = paste0(
-        "Variant-specific parameters. Validated per `",
+        "Settings for the chosen `",
         discriminator,
-        "` below."
+        "`, validated against it below. Anything not set takes rtemis's ",
+        "default, so `{}` is every default and is the usual value."
       )
     )
   }
