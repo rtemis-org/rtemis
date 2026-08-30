@@ -134,6 +134,7 @@
 .contract_no_setup <- c(
   "Provenance",
   "DataFingerprint",
+  "DataRef",
   "RegressionMetrics",
   "ClassificationMetrics",
   "DecompositionMetrics",
@@ -609,6 +610,12 @@ test_that("the registry declares no conditional demand for a key", {
     "`PropertySpec` for `min_items` to come from, and its names are R list ",
     "names with no counterpart in the array the schema declares. Inherited by ",
     "the three registered meta learners."
+  ),
+  DataRef = paste0(
+    "`@path` and `@hash` must be non-empty. The same missed factory argument ",
+    "as `DataFingerprint` -- `prop_string()` has no `min_length` -- and the ",
+    "same reason it is not an empty default with no validator: a reference ",
+    "that names no file, or that cannot be checked, is not a reference."
   ),
   DataFingerprint = paste0(
     "`@hash`, `@encoding`, `@language` and `@data_structure` must be ",

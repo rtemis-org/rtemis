@@ -2,6 +2,29 @@
 
 ## 1.3.9
 
+- **A supervised record names its execution graph, written beside it as
+  Parquet.** `train()` recorded the session on the fitted object and the record
+  kept only its `started` and `finished`, so a stored record said when a run
+  began and ended but not what happened between. The graph is a table, so it
+  goes in a columnar file: `train_<algorithm>.session.parquet` beside
+  `train_<algorithm>.record.json`, with the record's new `session` field naming
+  it. New `dataref/v1`, `$ref`d wherever a record names a file written beside
+  it.
+- **`DataRef` carries `path`, `encoding`, `algorithm`, `hash`, `bytes`, and
+  `n_rows`/`n_cols` when the file is a table.** A reference to a file, not to a
+  table: most of what a run writes beside its record is tabular, the fitted
+  object and the log are not. The digest is over the file's bytes -- a canonical
+  logical form is what two implementations need to agree on one digest, and a
+  sidecar is written once by the engine that ran. The hash sits inside the
+  record, so a changed sidecar contradicts it.
+- **`nanoparquet` moves from Suggests to Imports.** A record that names a file
+  it could not write is not something a caller should be able to produce by
+  having installed less.
+- **`session_nodes()`**: the session as one row per node with absolute
+  timestamps -- the durable projection, as distinct from `session_timeline()`'s
+  display one. `meta` travels as JSON text rather than flattened columns, so the
+  table's shape does not depend on which node kinds a run produced.
+
 - **The eight results schemas declare `required`.** `diagnostic/v1`,
   `diagnostics/v1`, `profile/v1` and the five metrics classes were generated
   under the config contract, which forbids `required` because a config is a

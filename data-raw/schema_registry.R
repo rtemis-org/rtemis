@@ -412,6 +412,20 @@ flat_configs <- list(
       data_test = .url("datafingerprint")
     )
   ),
+  # Not a config either: a record's reference to a file written beside it.
+  # Most of what a run produces this way is tabular -- the execution graph
+  # today, the per-fold predictions and grid results later -- and belongs in a
+  # columnar file any data tool reads. Some of it is not: the fitted object and
+  # the log are already written beside the record. The reference is to a file.
+  dataref = list(
+    cls = DataRef,
+    title = "rtemis DataRef",
+    description = paste0(
+      "A reference from a record to a file written beside it: where it is, ",
+      "how it is encoded, how big it is, and the digest that ties it to the ",
+      "record naming it."
+    )
+  ),
   datafingerprint = list(
     cls = DataFingerprint,
     title = "rtemis DataFingerprint",

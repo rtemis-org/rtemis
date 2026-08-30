@@ -3755,6 +3755,11 @@ prop_to_schema <- function(prop) {
 #' @param provenance_url Character or NULL: If set (and `record` is TRUE), adds
 #'   a required `provenance` property referencing that schema. Only a top-level
 #'   record carries it; a nested one inherits its parent's.
+#' @param session_url Character or NULL: If set (and `record` is TRUE), adds a
+#'   required, nullable `session` property referencing that schema -- the
+#'   reference to the execution graph written beside the record. Nullable
+#'   because a run can produce no session: a pipeline result records none, and a
+#'   model fitted before sessions existed has none to write.
 #' @param record Logical: If TRUE, emit the **record** form of the schema: the
 #'   same properties, but every one required. A record states what a run
 #'   actually used, so nothing in it may fall back to a reader's defaults -- an
@@ -3812,6 +3817,7 @@ S7_to_JSONSchema <- function(
   record = FALSE,
   asserted = FALSE,
   provenance_url = NULL,
+  session_url = NULL,
   fold_refs = NULL,
   metrics_refs = NULL,
   metrics_ref = NULL,
@@ -4021,6 +4027,17 @@ S7_to_JSONSchema <- function(
     if (!is.null(provenance_url)) {
       properties[["provenance"]] <- list(`$ref` = provenance_url)
       required <- c(required, "provenance")
+    }
+    # Where the execution graph is, not what it holds: the graph is a table and
+    # travels as a columnar file beside the record. Required so that a record
+    # always states whether there is one, nullable so that "there is none" is
+    # sayable.
+    if (!is.null(session_url)) {
+      properties[["session"]] <- list(
+        description = "The run's execution graph, written beside this record.",
+        oneOf = list(list(type = "null"), list(`$ref` = session_url))
+      )
+      required <- c(required, "session")
     }
   }
   schema <- list(

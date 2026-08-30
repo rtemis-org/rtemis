@@ -568,7 +568,11 @@ supervised_record <- function(x, folds, outcome = "completed") {
       # this block is the reason to open the file.
       metrics = sample_metrics(x, metric_row),
       metrics_sd = sample_metrics(x, metric_sd_row),
-      provenance = S7_to_list(provenance_of(x, outcome = outcome))
+      provenance = S7_to_list(provenance_of(x, outcome = outcome)),
+      # Filled by `write_record()`, which is where a file exists to point at.
+      # Present and null here so that a record built but not written states the
+      # same fields as one that was.
+      session = NULL
     )
   )
 } # /rtemis::supervised_record

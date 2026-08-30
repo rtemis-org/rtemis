@@ -17,7 +17,9 @@ base_url <- "https://schema.rtemis.org"
 # `$ref`d by every top-level record. The two schemas that *make up* a record --
 # provenance and the fingerprints it holds -- do not carry one themselves.
 provenance_url <- paste0(base_url, "/provenance/v1/schema.json")
-record_parts <- c("provenance", "datafingerprint")
+# `$ref`d by a record that names a file written beside it.
+dataref_url <- paste0(base_url, "/dataref/v1/schema.json")
+record_parts <- c("provenance", "datafingerprint", "dataref")
 # Results classes: what a run produced, what validating a config reported, or
 # what a dataset measured as -- not a config a run resolves. They have no input
 # form, so no `record.json` either: the whole document is a report.
@@ -199,6 +201,12 @@ for (family in names(flat_configs)) {
       asserted = family %in% result_classes,
       provenance_url = if (kind == "record" && family %in% pipeline_records) {
         provenance_url
+      },
+      # Only a supervised run records an execution graph: `provenance_of()`
+      # reads `@session` conditionally for exactly that reason, a pipeline
+      # result carrying none.
+      session_url = if (kind == "record" && family == "supervised") {
+        dataref_url
       },
       fold_refs = if (kind == "record" && family == "supervised") fold_refs,
       metrics_refs = if (kind == "record" && family == "supervised") {

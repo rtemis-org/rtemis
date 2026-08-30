@@ -14,6 +14,7 @@ S7_to_JSONSchema(
   record = FALSE,
   asserted = FALSE,
   provenance_url = NULL,
+  session_url = NULL,
   fold_refs = NULL,
   metrics_refs = NULL,
   metrics_ref = NULL,
@@ -63,6 +64,12 @@ config's. Mutually exclusive with \code{record}.}
 \item{provenance_url}{Character or NULL: If set (and \code{record} is TRUE), adds
 a required \code{provenance} property referencing that schema. Only a top-level
 record carries it; a nested one inherits its parent's.}
+
+\item{session_url}{Character or NULL: If set (and \code{record} is TRUE), adds a
+required, nullable \code{session} property referencing that schema -- the
+reference to the execution graph written beside the record. Nullable
+because a run can produce no session: a pipeline result records none, and a
+model fitted before sessions existed has none to write.}
 
 \item{fold_refs}{Named character or NULL: If set (and \code{record} is TRUE), adds
 a required \code{folds} array whose entries reference these record schemas. Only

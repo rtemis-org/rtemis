@@ -883,6 +883,96 @@ session_timeline <- function(session) {
 } # /rtemis::session_timeline
 
 
+# %% session_nodes ----
+#' Execution graph as a table
+#'
+#' @description
+#' The session's event log as one row per node, for writing to a columnar file.
+#'
+#' @details
+#' The durable projection, as distinct from [session_timeline()]'s display one:
+#' absolute timestamps rather than milliseconds from the session start, and no
+#' tooltip text. A reader reconstructs the tree from `parent_id` and computes
+#' whatever offsets it wants to draw.
+#'
+#' `meta` is kind-specific -- `resample_id` on a grid cell, `error_message` and
+#' `error_class` on a failure -- so it travels as a JSON string rather than as
+#' flattened columns. Flattening would make the table's shape depend on which
+#' node kinds a run happened to produce, and would change every time a payload
+#' gains a key; one text column is lossless and stable, and both DuckDB and
+#' polars extract from it.
+#'
+#' @param session `SupervisedSession`: The session to flatten.
+#'
+#' @return `data.frame` with one row per node: `node_id`, `parent_id`, `kind`,
+#' `label`, `status`, `t_start`, `t_end`, `meta`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+session_nodes <- function(session) {
+  check_is_S7(session, SupervisedSession)
+  events <- session@events
+  if (length(events) == 0L) {
+    return(data.frame(
+      node_id = character(0L),
+      parent_id = character(0L),
+      kind = character(0L),
+      label = character(0L),
+      status = character(0L),
+      t_start = as.POSIXct(character(0L)),
+      t_end = as.POSIXct(character(0L)),
+      meta = character(0L),
+      stringsAsFactors = FALSE
+    ))
+  }
+  chr <- function(field) {
+    vapply(
+      events,
+      function(e) {
+        value <- e[[field]]
+        if (is.null(value)) NA_character_ else as.character(value)
+      },
+      character(1L)
+    )
+  }
+  time <- function(field) {
+    out <- lapply(events, function(e) {
+      value <- e[[field]]
+      if (is.null(value)) as.POSIXct(NA) else value
+    })
+    do.call(c, out)
+  }
+  data.frame(
+    node_id = chr("node_id"),
+    parent_id = chr("parent_id"),
+    kind = chr("kind"),
+    label = chr("label"),
+    status = chr("status"),
+    t_start = time("t_start"),
+    t_end = time("t_end"),
+    meta = vapply(
+      events,
+      function(e) {
+        meta <- e[["meta"]]
+        if (is.null(meta) || length(meta) == 0L) {
+          NA_character_
+        } else {
+          as.character(jsonlite::toJSON(
+            meta,
+            auto_unbox = TRUE,
+            na = "null",
+            null = "null"
+          ))
+        }
+      },
+      character(1L)
+    ),
+    stringsAsFactors = FALSE
+  )
+} # /rtemis::session_nodes
+
+
 # %% session_kind_colors ----
 #' Session Node Kind Colors
 #'
