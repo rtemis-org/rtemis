@@ -491,13 +491,21 @@ grid_hyperparameter_columns <- function(grid) {
 #' configuration with no reference to what the property declares, and a document
 #' carrying anything beside `variants` is not one.
 #'
+#' Exported for `rtemis.server`, which needs the same discriminator one layer
+#' earlier: its `train` handler has to know whether a payload names its learner
+#' at the top level or inside each variant, and that question has to be answered
+#' the same way there as it is in `.list_to_SuperConfig()`. Two spellings of one
+#' rule is how a config becomes submittable on one path and not the other.
+#'
 #' @param x Value to test, as parsed from JSON.
 #'
 #' @return Logical.
 #'
 #' @author EDG
 #' @keywords internal
-#' @noRd
+#' @export
+#' @examples
+#' is_wire_hyperparameters_set(list(variants = list()))
 is_wire_hyperparameters_set <- function(x) {
   identical(names(x), "variants")
 } # /rtemis::is_wire_hyperparameters_set
