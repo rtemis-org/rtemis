@@ -47,6 +47,9 @@ config_parts <- function(config) {
     resamplers = list(),
     hyperparameters = NULL,
     positive_class = NULL,
+    # The predictors the config names, or NULL for rtemis's convention: every
+    # column except the outcome.
+    features = NULL,
     # Whether the config is for a run that designates an outcome, which decides
     # whether the last column means anything (see `resolve_outcome()`). The
     # `hyperparameters` block is the marker: a decomposition or clustering
@@ -66,6 +69,7 @@ config_parts <- function(config) {
   # `SuperConfigLive` declare the same blocks under the same names and differ
   # only in how the data reaches them, so a class test would validate the
   # portable recipe and quietly find nothing in the live one.
+  out[["features"]] <- config_prop(config, "features")
   out[["preprocessor_config"]] <- config_prop(config, "preprocessor_config")
   out[["decomposition_config"]] <- config_prop(config, "decomposition_config")
   out[["hyperparameters"]] <- config_prop(config, "hyperparameters")
@@ -242,7 +246,14 @@ validate_data <- function(config, data, outcome = NULL, step = NULL) {
     return(list(set_step(resolution[["diagnostic"]], step)))
   }
   outcome_name <- resolution[["name"]]
+  # What the run will train on, which is not the same as what the table holds.
+  # A config that names its predictors excludes the rest, so a finding about a
+  # column it excluded would be true of the dataset and false of the run -- and
+  # a finding the user can see is wrong is one they learn to argue with.
   feature_names <- setdiff(profile_columns(profile)[["name"]], outcome_name)
+  if (!is.null(parts[["features"]])) {
+    feature_names <- intersect(feature_names, parts[["features"]])
+  }
 
   out <- c(
     check_outcome_type(profile, outcome_name, parts),

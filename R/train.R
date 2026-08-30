@@ -247,10 +247,21 @@ train <- function(
     if (missing(preflight)) {
       preflight <- TRUE
     }
-    resolved <- resolve_weights_column(
+    # What the run predicts, and from what -- the same projection the path-based
+    # dispatch applies, so a config means the same thing whether its data
+    # arrived as a file or over the wire. With both properties NULL this is a
+    # no-op and rtemis's last-column convention applies exactly as before.
+    live_frames <- lapply(
       list(x@dat_training, x@dat_validation, x@dat_test),
-      x@weights
+      function(dat) {
+        if (is.null(dat)) {
+          NULL
+        } else {
+          project_frame(dat, x@outcome, x@features, x@weights)
+        }
+      }
     )
+    resolved <- resolve_weights_column(live_frames, x@weights)
     train_args <- list(
       x = resolved[["datasets"]][[1L]],
       dat_validation = resolved[["datasets"]][[2L]],

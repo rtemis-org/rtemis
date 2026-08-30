@@ -99,16 +99,27 @@ CHECKS_LET <- list(
   expr("outcome_n_missing", 'first(outcome_columns, "n_missing")', "any"),
   expr("outcome_is_categorical", "outcome_dtype === 'categorical'", "boolean"),
 
-  # Predictors: every column that is not the outcome -- with no outcome
-  # resolved that is every column, which is what a decomposition config wants.
+  # Predictors: what the run will actually train on.
+  #
+  # `config.features` names them when the config says so; otherwise it is every
+  # column that is not the outcome, which is rtemis's convention and what a
+  # decomposition config wants. Reading the config here is what makes a finding
+  # about the *run* rather than about the table: without it a plan that
+  # excludes a date column still gets `FEATURE_TYPE_UNSUPPORTED` for that
+  # column, which is true of the dataset and false of the run -- and a finding
+  # the user can see is wrong is a finding they learn to argue with.
+  #
   # Carries the dtype the run will see rather than the one the file stores,
   # rewritten once here so every scan below reads the effective type without
   # repeating the rule. The same reason `effective_dtype()` exists on the R
   # side.
+  expr("selected_features", "config.features", "any"),
   scan(
     "features",
     "profile.columns",
-    where = "item.name !== outcome_name",
+    where = "item.name !== outcome_name
+             and (selected_features === null
+                  or item.name in selected_features)",
     select = list(
       name = "item.name",
       dtype = "if character2factor and item.dtype === 'string'

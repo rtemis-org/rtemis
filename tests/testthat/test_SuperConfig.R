@@ -295,3 +295,55 @@ test_that("a search space survives write_config/read_config", {
   # The reconstructed config still knows it needs tuning.
   expect_true(needs_tuning(xtoo@hyperparameters))
 })
+
+
+# %% wire round-trip ----
+
+test_that("every SuperConfig property survives the wire converter", {
+  # `.list_to_SuperConfig()` maps wire keys to `setup_SuperConfig()` arguments
+  # by hand, one line per property. A property added to the class and not to
+  # that list is dropped silently: the document carries it, the reconstructed
+  # config does not, and every check downstream reasons about a config the user
+  # did not write.
+  #
+  # `outcome` and `features` were added and not mapped, so a plan naming its
+  # predictors was validated against every column in the table -- reported as a
+  # finding about a column the plan had excluded. `check_wire_keys()` did not
+  # catch it: it rejects keys the class does not have, and this is the mirror
+  # case, a property the converter does not read.
+  #
+  # Derived from the class rather than listed here, so the next property is
+  # covered without this test being edited.
+  wire_read <- names(formals(rtemis:::.list_to_SuperConfig))
+  properties <- names(SuperConfig@properties)
+  body_text <- paste(
+    deparse(body(rtemis:::.list_to_SuperConfig)),
+    collapse = "\n"
+  )
+  unmapped <- Filter(
+    function(prop) !grepl(paste0('x\\[\\["', prop, '"\\]\\]'), body_text),
+    properties
+  )
+  expect_identical(
+    unmapped,
+    character(0),
+    info = paste(
+      "properties the wire converter never reads:",
+      paste(unmapped, collapse = ", ")
+    )
+  )
+  expect_length(wire_read, 1L)
+})
+
+
+test_that("a config's outcome and features round-trip through JSON", {
+  config <- list(
+    `$schema` = "https://schema.rtemis.org/supervised/v1/schema.json",
+    hyperparameters = list(algorithm = "GLM", hyperparameters = list()),
+    outcome = "y",
+    features = c("a", "b")
+  )
+  restored <- rtemis:::.config_from_list(config)
+  expect_identical(restored@outcome, "y")
+  expect_identical(restored@features, c("a", "b"))
+})

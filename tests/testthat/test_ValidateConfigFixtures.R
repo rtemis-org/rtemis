@@ -1109,6 +1109,38 @@ test_that("FEATURE_TYPE_UNSUPPORTED: predictors train() cannot read", {
 })
 
 
+test_that("a column the config excludes is not a predictor", {
+  # The checks describe the *run*, not the table. A config that names its
+  # predictors excludes the rest, so a date column left out of `features` is
+  # not something the model will read and must not be reported as one.
+  #
+  # Found in rtemislive: the assistant proposed two numeric predictors and was
+  # told a date column it had never listed was unusable. It worked around the
+  # finding rather than trusting it, which is the cost of a validator that is
+  # wrong once -- "the findings are authoritative" stops being true.
+  set.seed(2026L)
+  n <- 40L
+  dat <- data.frame(
+    x1 = rnorm(n),
+    x2 = rnorm(n),
+    when = Sys.Date() + seq_len(n),
+    y = rnorm(n)
+  )
+  named <- validate_config(
+    .config("GLM", features = c("x1", "x2")),
+    data = dat
+  )
+  expect_length(named@diagnostics, 0L)
+
+  # Unnamed, the convention still applies and the date is still a predictor.
+  unnamed <- .only(
+    validate_config(.config("GLM"), data = dat),
+    "FEATURE_TYPE_UNSUPPORTED"
+  )
+  expect_identical(unnamed@evidence[["features"]], "when")
+})
+
+
 test_that("a date predictor is unusable whatever the config reads", {
   # `character2factor` converts strings, not dates, so the conversion narrows
   # the finding rather than clearing it. Pinned so that "the config can rescue a

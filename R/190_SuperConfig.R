@@ -365,6 +365,8 @@ setup_SuperConfig <- function(
     dat_training_path = x[["dat_training_path"]],
     dat_validation_path = x[["dat_validation_path"]],
     dat_test_path = x[["dat_test_path"]],
+    outcome = iflengthy(x[["outcome"]]),
+    features = iflengthy(x[["features"]]),
     weights = x[["weights"]],
     positive_class = iflengthy(x[["positive_class"]]),
     preprocessor_config = if (is.null(x[["preprocessor_config"]])) {
@@ -445,6 +447,28 @@ SuperConfigLive <- new_class(
     dat_training = class_tabular,
     dat_validation = NULL | class_tabular,
     dat_test = NULL | class_tabular,
+    # Which column is predicted, and from which -- the same pair
+    # `SuperConfig` carries, for the same reason. `build_super_config()` in
+    # rtemis.server passes every remaining `SuperConfig` property straight
+    # through to `setup_SuperConfigLive()`, so a property here is not optional
+    # parity: without it a config the wire accepts dies as an unused argument.
+    outcome = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = paste0(
+        "Name of the outcome column. NULL = rtemis's convention, the last ",
+        "column."
+      )
+    ),
+    features = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      description = paste0(
+        "Names of the columns to use as predictors. NULL = every column ",
+        "except the outcome."
+      )
+    ),
     # Column name in dat_training.
     weights = prop_string(
       NULL,
@@ -526,6 +550,10 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 #'
 #' @param dat_training data.frame or data.table. Training data.
 #' @param dat_validation data.frame, data.table, or `NULL`.
+#' @param outcome Optional Character: Name of the outcome column; `NULL`
+#' for rtemis's convention, the last column.
+#' @param features Optional Character vector: Names of the predictor
+#' columns; `NULL` for every column except the outcome.
 #' @param dat_test data.frame, data.table, or `NULL`.
 #' @param weights Optional Character: Column name in `dat_training` used
 #'   as observation weights.
@@ -554,6 +582,8 @@ setup_SuperConfigLive <- function(
   dat_training,
   dat_validation = NULL,
   dat_test = NULL,
+  outcome = NULL,
+  features = NULL,
   weights = NULL,
   positive_class = NULL,
   preprocessor_config = NULL,
@@ -578,6 +608,8 @@ setup_SuperConfigLive <- function(
     dat_training = dat_training,
     dat_validation = dat_validation,
     dat_test = dat_test,
+    outcome = outcome,
+    features = features,
     weights = weights,
     positive_class = positive_class,
     preprocessor_config = preprocessor_config,

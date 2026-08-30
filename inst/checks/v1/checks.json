@@ -392,6 +392,13 @@
       }
     },
     {
+      "name": "selected_features",
+      "kind": "expr",
+      "logic": {
+        "var": "config.features"
+      }
+    },
+    {
       "name": "features",
       "kind": "scan",
       "source": {
@@ -400,12 +407,38 @@
         }
       },
       "where": {
-        "!==": [
+        "and": [
           {
-            "var": "item.name"
+            "!==": [
+              {
+                "var": "item.name"
+              },
+              {
+                "var": "bindings.outcome_name"
+              }
+            ]
           },
           {
-            "var": "bindings.outcome_name"
+            "or": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.selected_features"
+                  },
+                  null
+                ]
+              },
+              {
+                "in": [
+                  {
+                    "var": "item.name"
+                  },
+                  {
+                    "var": "bindings.selected_features"
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
