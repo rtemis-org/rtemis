@@ -3928,9 +3928,17 @@ S7_to_JSONSchema <- function(
     # common. A `oneOf` whose alternatives are undocumented is read by whoever
     # meets it first -- and when only the rare branch carried prose, it was the
     # only branch that explained itself, so a reader looking for guidance found
-    # the exception and wrote it. The set is genuinely uncommon: it exists to
-    # compare named alternatives, and one member of it is the single
-    # configuration written the long way.
+    # the exception and wrote it.
+    #
+    # What the set is for is stated the way `R/075_HyperparametersSet.R` states
+    # it: a single block is the *product* of its values, a set is a *union* of
+    # such spaces, and the union exists for a conjunction of settings that no
+    # product expresses and no `applies_when` gate carves out. Saying instead
+    # that it is "for comparing named alternatives" named a use and not the
+    # reason, which left a reader unable to tell when a comparison was called
+    # for -- and the claim that one member is the single configuration written
+    # the long way is false: a set of one names the run, and the name is
+    # recorded as the fitted model's `variant`.
     alternatives <- if (varying) {
       list(
         c(
@@ -3938,14 +3946,14 @@ S7_to_JSONSchema <- function(
           list(
             title = "One configuration",
             description = paste0(
-              "One algorithm and its settings. The ordinary form, and the one ",
-              "to use unless the run is deliberately comparing named ",
-              "alternatives."
+              "One algorithm and its settings. The ordinary form: its values ",
+              "are searched as their product, which is what a run wants ",
+              "whenever the settings vary independently."
             )
           )
         ),
         list(
-          title = "Named alternatives to search over",
+          title = "A named set, searched as one space",
           type = "object",
           properties = list(
             variants = list(
@@ -3961,10 +3969,16 @@ S7_to_JSONSchema <- function(
           required = list("variants"),
           additionalProperties = FALSE,
           description = paste0(
-            "Uncommon. Several configurations of one algorithm for a tuner to ",
-            "select among, reporting which name won. Use this only when the ",
-            "run is comparing named alternatives; a set holding a single ",
-            "member is the one configuration above, written the long way."
+            "Uncommon. Several configurations of one algorithm, each expanded ",
+            "and gated on its own and searched as their union; the tuner ",
+            "reports which name won. For settings that are only meaningful ",
+            "together -- a conjunction of fields naming one shape of model -- ",
+            "which a single configuration cannot express, since that is the ",
+            "product of its values and the cells around such a point are ",
+            "individually valid. A set of one member is not the ordinary form ",
+            "written the long way: its name is recorded as the fitted model's ",
+            "variant, so a run says what it was without its values being read ",
+            "back."
           )
         )
       )
@@ -3979,9 +3993,9 @@ S7_to_JSONSchema <- function(
     described <- properties[[nm]][["description"]]
     guidance <- if (varying) {
       paste0(
-        "One configuration, or several named ones for a tuner to choose ",
-        "between. Write the single configuration unless the run is ",
-        "comparing named alternatives."
+        "One configuration, or a named set of them searched as one space. ",
+        "Write the single configuration unless several settings are only ",
+        "meaningful together."
       )
     }
     preface <- paste(c(described, guidance), collapse = " ")
