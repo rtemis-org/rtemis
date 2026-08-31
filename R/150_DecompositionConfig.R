@@ -354,7 +354,7 @@ NMFConfig <- new_class(
     ),
     method = prop_string(
       "brunet",
-      description = "NMF method (see `NMF::nmf`)."
+      description = "NMF method."
     ),
     nrun = prop_integer(
       1L,
@@ -418,7 +418,7 @@ UMAPConfig <- new_class(
     ),
     init = prop_string(
       "spectral",
-      description = "Initialization type (see `uwot::umap` `init`)."
+      description = "Initialization type for the embedding."
     ),
     metric = prop_string(
       "euclidean",
@@ -705,7 +705,7 @@ IsomapConfig <- new_class(
     path = prop_string(
       "shortest",
       enum = c("shortest", "extended"),
-      description = "`path` argument for `vegan::isomap`."
+      description = "How geodesic distances are traced through the neighborhood graph."
     )
   )
 ) # /rtemis::IsomapConfig

@@ -4003,7 +4003,79 @@ S7_to_JSONSchema <- function(
     }
     preface <- paste(c(described, guidance), collapse = " ")
     envelope <- if (nzchar(preface)) list(description = preface) else list()
-    properties[[nm]] <- if (accepts_null) {
+    # A `variant_refs` property dispatches on the *presence of* `variants`
+    # rather than offering its two shapes as an undiscriminated `oneOf`.
+    #
+    # Both alternatives are objects, so a `oneOf` gives a validator no way to
+    # tell which one a document was attempting, and every branch's failure is
+    # reported as an instruction. A single learner missing its settings block
+    # came back as four: "must be null", "must have required property
+    # `hyperparameters`", "must have required property `variants`", and -- the
+    # damaging one -- "must NOT have additional properties (algorithm)", which
+    # tells a reader to delete the field the intended branch *requires*. Follow
+    # it and the block empties, and an empty config is schema-valid, so nothing
+    # objects a second time.
+    #
+    # `if`/`then` keyed on `variants` reports only the branch the document is
+    # actually in. It is also what the code already does: `.list_to_SuperConfig`
+    # and rtemislive's `fromSupervisedConfig` both dispatch on whether
+    # `variants` is there, so the `oneOf` described a choice nothing makes.
+    properties[[nm]] <- if (varying) {
+      object_type <- if (accepts_null) list("object", "null") else "object"
+      c(
+        envelope,
+        list(
+          type = object_type,
+          allOf = list(
+            list(
+              `if` = list(
+                type = "object",
+                required = list("variants")
+              ),
+              # Without its own `required`: the `if` has already established
+              # `variants`, so restating it in the `then` would be a
+              # conditional demand for a key, which the input-schema contract
+              # forbids (`plan/schema-interface-boundary.md`). A guard is not a
+              # demand; the branch still closes with `additionalProperties`.
+              then = alternatives[[2L]][
+                names(alternatives[[2L]]) != "required"
+              ]
+            ),
+            list(
+              `if` = list(
+                type = "object",
+                not = list(required = list("variants"))
+              ),
+              # The bare `$ref`, without the branch's title: a `then` that
+              # carries anything besides a reference is a different construct
+              # to a reader, and consumers key on that (`rtemis-cli`'s form
+              # builder, `nested_ref`). What the branch is for is already in
+              # the property's own description, which is where a reader
+              # choosing a shape looks first.
+              then = ref
+            )
+          )
+        )
+      )
+    } else if (accepts_null) {
+      # Stays a `oneOf`, and the reason is worth stating because the question
+      # keeps being reopened: what forced the `if`/`then` above is that *both*
+      # of its branches are objects, so no validator can tell which one a
+      # document was attempting and every branch's failure is reported as an
+      # instruction. `null` and an object differ by JSON type. A validator can
+      # tell, a reader can tell, and the arm the value never matched is
+      # identifiable as such by anything walking the failure -- which is what
+      # `rtemis-schema`'s `validate/explain.rs` and rtemislive's
+      # `significantErrors` both do, reporting one line for a nullable block
+      # that got a string.
+      #
+      # This is the same line `tunable`'s `scalar | array` and `broadcast`'s
+      # `element | array` sit on, and it is the whole line: discriminable by
+      # type stays a `oneOf`; two branches of one type does not.
+      #
+      # Consumers are not the argument. `nested_ref` and `rtemis-cli`'s
+      # `structural_dispatch_ref` read all three shapes, so either would
+      # survive a change here. There is simply nothing to gain from one.
       c(envelope, list(oneOf = c(list(list(type = "null")), alternatives)))
     } else if (length(alternatives) > 1L) {
       c(envelope, list(oneOf = alternatives))

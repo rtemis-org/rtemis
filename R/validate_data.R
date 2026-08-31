@@ -494,8 +494,8 @@ declared_task <- function(parts) {
   if (is.na(idx)) {
     return(NULL)
   }
-  does_class <- as.logical(supervised_algorithms[["class"]][[idx]])
-  does_reg <- as.logical(supervised_algorithms[["reg"]][[idx]])
+  does_class <- as.logical(supervised_algorithms[["classification"]][[idx]])
+  does_reg <- as.logical(supervised_algorithms[["regression"]][[idx]])
   if (isTRUE(does_class) && !isTRUE(does_reg)) {
     return("Classification")
   }

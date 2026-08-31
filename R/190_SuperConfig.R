@@ -197,6 +197,8 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' @author EDG
 #' @export
 #' @examples
+#' \dontrun{
+#' # requires local data file
 #' sc <- setup_SuperConfig(
 #'   dat_training_path = "train.csv",
 #'   preprocessor_config = setup_SupervisedPreprocessor(scale = TRUE),
@@ -207,6 +209,7 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #'   question = "Can we tell iris species apart given their measurements?",
 #'   outdir = "models/"
 #' )
+#' }
 setup_SuperConfig <- function(
   dat_training_path = NULL,
   dat_validation_path = NULL,

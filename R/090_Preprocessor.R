@@ -296,7 +296,7 @@ pp_opt <- function(config, name) {
   if (name %in% names(props(config))) {
     prop(config, name)
   } else {
-    .preprocessor_properties[[name]]$default
+    .preprocessor_properties[[name]][["default"]]
   }
 } # /rtemis::pp_opt
 

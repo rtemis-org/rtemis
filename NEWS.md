@@ -2,6 +2,50 @@
 
 ## 1.3.9
 
+- **`hyperparameters` dispatches on the presence of `variants`, not on an
+  undiscriminated `oneOf`.** Both alternatives are objects, so no validator
+  could tell which one a document was attempting, and every branch's failure was
+  reported as an instruction. A single learner missing its settings block came
+  back as four: "must be null", "must have required property `hyperparameters`",
+  "must have required property `variants`", and -- the damaging one -- "must NOT
+  have additional properties (algorithm)", which tells a reader to delete the
+  field the intended branch *requires*. Follow it and the block empties, and an
+  empty config is schema-valid, so nothing objects a second time. Three
+  open-weight agents did exactly that. `allOf` with `if`/`then` reports only the
+  branch the document is in: boon now gives one error where it gave five. This
+  supersedes the branch titles added above -- the ordinary branch is a bare
+  `$ref` again, because a `then` carrying anything more is a different construct
+  to the readers that key on it, and what the branches are for is in the
+  property's own description.
+- **Algorithm traits are spelled out**
+  `class`, `reg`, `missing` and `p_gt_n` are now `classification`, `regression`,
+  `handles_missing_data` and `handles_p_greater_than_n`, in
+  `supervised_algorithms`, in `traits/v1`, and in the `checks/v1` expressions
+  that read them. An abbreviation a rule author recognizes is not one a reader
+  choosing a learner does, and these four are what `MISSING_INCOMPATIBLE` and
+  `DIM_P_GT_N` judge a config by. `survival` stays recorded in
+  `supervised_algorithms` -- the fact is real and the column is what a future
+  rule will read -- but is absent from `traits/v1`: rtemis dispatches no survival
+  run, and publishing it offered a capability nothing could act on.
+  `checks/v1/corpus.json` is unchanged by the rename, which is what says it
+  changed no finding.
+- **No published schema description names an R construct.** 72 of them ended
+  "See `setup_X`."; others named `.list_to_Hyperparameters` or a package
+  function. The corpus is language-independent and is read by four kinds of
+  consumer, only one of which can call an R function. The roxygen docs keep
+  their pointers, which is where an R user looks. Enforced from now on by
+  `rtemis.core::assert_config_contract()`, which also caught two property
+  descriptions naming `NMF::nmf` and `uwot::umap`.
+- **The pre-flight's exemption list names `features`, with the argument.**
+  `config_parts()` reads it and `preflight_config()` has no formal for it, which
+  the contract test correctly refused. It cannot be forwarded: `train()` is
+  handed a frame `project_frame()` has already narrowed, so there is nothing to
+  carry -- and nothing needed, since against a projected frame `features = NULL`
+  names exactly the set the config named against the unprojected one. The one
+  place the equivalence is inexact is recorded beside it: a `weights` column
+  survives projection and falls inside "every column but the outcome", which no
+  rule reads today.
+
 - **A `oneOf` property documents its alternatives, and says which is the common
   one.** `hyperparameters` admits one configuration or a set of named ones, and
   only the set carried a description -- so the sole branch that explained itself

@@ -28,7 +28,15 @@ source(file.path("data-raw", "checks.R"))
 # holds them as strings ("TRUE" / "FALSE" / NA) because it is built from a
 # character matrix; they are logical here, so that `=== true` and `=== false`
 # mean what they say and the third value is JSON null.
-trait_columns <- c("class", "reg", "surv", "missing", "p_gt_n")
+# `survival` is recorded in `supervised_algorithms` but deliberately absent
+# here: rtemis dispatches no survival run, so publishing the column would offer
+# a capability nothing can act on. Add it back when survival runs exist.
+trait_columns <- c(
+  "classification",
+  "regression",
+  "handles_missing_data",
+  "handles_p_greater_than_n"
+)
 traits <- lapply(seq_len(nrow(supervised_algorithms)), function(i) {
   row <- c(
     list(name = supervised_algorithms[["name"]][[i]]),
@@ -52,31 +60,22 @@ traits_document <- list(
     "explicit comparison against true, false and null; a trait read by ",
     "truthiness gives the wrong answer for a meta learner."
   ),
-  # What each column means, because one of them does not mean what its
-  # neighbours do and a reader has no way to tell from the values.
+  # What each column means. A `null` is not "no": it is the meta learners'
+  # answer, where the property belongs to the base learners they are given.
   trait_descriptions = list(
-    class = paste0(
+    classification = paste0(
       "rtemis fits this algorithm to a categorical outcome. `checks/v1` reads ",
       "it to decide whether a config declares a task its outcome cannot serve."
     ),
-    reg = paste0(
-      "rtemis fits this algorithm to a numeric outcome. Read with `class` for ",
-      "the same decision."
+    regression = paste0(
+      "rtemis fits this algorithm to a numeric outcome. Read with ",
+      "`classification` for the same decision."
     ),
-    surv = paste0(
-      "The backend supports right-censored survival outcomes. **This is not a ",
-      "statement about rtemis**, unlike `class` and `reg`: rtemis resolves an ",
-      "outcome to Classification or Regression only, and dispatches no ",
-      "survival run, so no `checks/v1` rule reads this. It is published ",
-      "because survival support is planned and the column is what a future ",
-      "rule will read; until then it describes what the backend could do, not ",
-      "what rtemis will do with it."
-    ),
-    missing = paste0(
+    handles_missing_data = paste0(
       "The algorithm accepts a training set containing missing values. Read by ",
       "MISSING_INCOMPATIBLE, where false is an error and null a warning."
     ),
-    p_gt_n = paste0(
+    handles_p_greater_than_n = paste0(
       "The algorithm gives a usable fit with more predictors than cases. False ",
       "only where the fit is an unregularized least squares and goes ",
       "rank-deficient. Read by DIM_P_GT_N, where it decides the severity."

@@ -594,7 +594,7 @@
                 ]
               },
               {
-                "var": "current.missing"
+                "var": "current.handles_missing_data"
               },
               {
                 "var": "accumulator"
@@ -624,7 +624,7 @@
                 ]
               },
               {
-                "var": "current.p_gt_n"
+                "var": "current.handles_p_greater_than_n"
               },
               {
                 "var": "accumulator"
@@ -654,7 +654,7 @@
                 ]
               },
               {
-                "var": "current.class"
+                "var": "current.classification"
               },
               {
                 "var": "accumulator"
@@ -684,7 +684,7 @@
                 ]
               },
               {
-                "var": "current.reg"
+                "var": "current.regression"
               },
               {
                 "var": "accumulator"

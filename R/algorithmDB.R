@@ -6,12 +6,20 @@
 # Columns: `name`, `description`, then the task and data traits, as "TRUE" /
 # "FALSE" strings -- `rbind(c(...))` coerces every cell to character.
 #
-# `class`, `reg`, `surv`  which tasks the algorithm performs.
-# `missing`               whether it accepts a training set containing `NA`.
+# `classification`, `regression`, `survival`
+#                         which tasks the algorithm performs. `survival` is
+#                         recorded but *not published* in `traits/v1`: rtemis
+#                         resolves an outcome to Classification or Regression
+#                         only and dispatches no survival run, so publishing it
+#                         would offer a capability nothing can act on. Add it to
+#                         `trait_columns` in `data-raw/generate_checks.R` when
+#                         survival runs exist.
+# `handles_missing_data`  whether it accepts a training set containing `NA`.
 #                         This is the same fact each `train_` method states as
 #                         `check_supervised(allow_missing = )`, declared here so
 #                         that a check can read it without running the method.
-# `p_gt_n`                whether a fit with more predictors than cases is
+# `handles_p_greater_than_n`
+#                         whether a fit with more predictors than cases is
 #                         usable. FALSE where the fit is an unregularized least
 #                         squares and goes rank-deficient -- GLM and GAM
 #                         directly, GLMTree through the GLM in each leaf. TRUE
@@ -151,11 +159,11 @@ supervised_algorithms <- data.frame(rbind(
 colnames(supervised_algorithms) <- c(
   "name",
   "description",
-  "class",
-  "reg",
-  "surv",
-  "missing",
-  "p_gt_n"
+  "classification",
+  "regression",
+  "survival",
+  "handles_missing_data",
+  "handles_p_greater_than_n"
 )
 
 # %% algorithm_trait ----
@@ -194,14 +202,14 @@ algorithm_trait <- function(algorithm, trait) {
 #' @keywords internal
 #' @noRd
 algorithm_handles_p_gt_n <- function(algorithm) {
-  algorithm_trait(algorithm, "p_gt_n")
+  algorithm_trait(algorithm, "handles_p_greater_than_n")
 } # /rtemis::algorithm_handles_p_gt_n
 
 
 # %% algorithm_allows_missing ----
 #' Does an algorithm accept a training set containing `NA`?
 #'
-#' Reads the `missing` trait, which mirrors what the algorithm's `train_` method
+#' Reads the `handles_missing_data` trait, which mirrors what the algorithm's `train_` method
 #' passes as `check_supervised(allow_missing = )`.
 #'
 #' @param algorithm Character: Algorithm name.
@@ -214,7 +222,7 @@ algorithm_handles_p_gt_n <- function(algorithm) {
 #' @keywords internal
 #' @noRd
 algorithm_allows_missing <- function(algorithm) {
-  algorithm_trait(algorithm, "missing")
+  algorithm_trait(algorithm, "handles_missing_data")
 } # /rtemis::algorithm_allows_missing
 
 

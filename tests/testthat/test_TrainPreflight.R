@@ -123,14 +123,30 @@ test_that("a SuperConfigLive caller can still opt out", {
 })
 
 
-# Properties that describe how the config's *files* are read. `train()` is
+# Properties already spent by the time the pre-flight runs, because the frame
+# it measures reflects them. Carrying one into the reassembly would be carrying
+# a decision that has already been made. Every other property `config_parts()`
+# reads describes the run and must survive the reassembly.
+#
+# `character2factor` describes how the config's *files* are read. `train()` is
 # handed data that has already been read -- by `train.SuperConfig`, or by the
-# caller -- so by the time the pre-flight runs the conversion has either
-# happened or was never going to, and the profile it measures already reflects
-# it. Carrying one into the reassembly would be carrying a decision that is
-# spent. Every other property `config_parts()` reads describes the run and must
-# survive the reassembly.
-PREFLIGHT_READING_PROPERTIES <- "character2factor"
+# caller -- so the conversion has either happened or was never going to, and
+# the profile already reflects it.
+#
+# `features` names the columns to predict from, and it is spent for the same
+# reason one step later: `train.SuperConfig` calls `project_frame()` before the
+# inner `train()`, keeping `c(features, weights, outcome)` with the outcome
+# last. The inner `train()` therefore has no `features` argument to forward --
+# there is nothing to carry -- and it needs none: against the projected frame,
+# `features = NULL` ("every column but the outcome") names exactly the set the
+# config named against the unprojected one. A caller who reaches the inner
+# `train()` directly passes their own frame, where `NULL` means the same thing.
+#
+# The equivalence is exact except for `weights`, which survives projection and
+# would fall inside "every column but the outcome". `config_parts()` does not
+# read `weights`, so no check sees the difference today; a check that starts
+# reading it would need this argument revisited rather than extended.
+PREFLIGHT_READING_PROPERTIES <- c("character2factor", "features")
 
 
 test_that("the pre-flight reads every config property the checks read", {

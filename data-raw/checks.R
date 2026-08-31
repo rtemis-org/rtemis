@@ -147,10 +147,22 @@ CHECKS_LET <- list(
   # belongs to the algorithm's base learners rather than to the algorithm.
   # Tested with `=== false` and `=== true` rather than by truthiness, so no
   # port-variable semantics decide a severity.
-  expr("allows_missing", 'first(algorithm_traits, "missing")', "any"),
-  expr("handles_p_gt_n", 'first(algorithm_traits, "p_gt_n")', "any"),
-  expr("does_classification", 'first(algorithm_traits, "class")', "any"),
-  expr("does_regression", 'first(algorithm_traits, "reg")', "any"),
+  expr(
+    "allows_missing",
+    'first(algorithm_traits, "handles_missing_data")',
+    "any"
+  ),
+  expr(
+    "handles_p_gt_n",
+    'first(algorithm_traits, "handles_p_greater_than_n")',
+    "any"
+  ),
+  expr(
+    "does_classification",
+    'first(algorithm_traits, "classification")',
+    "any"
+  ),
+  expr("does_regression", 'first(algorithm_traits, "regression")', "any"),
 
   # Preprocessing, read off the resolved config. A block that is absent reads
   # as null throughout, which is the same answer the reference implementation

@@ -80,6 +80,8 @@ or described without data and have a path bound later (e.g. by the \code{rtemis}
 CLI) before \link{train}.
 }
 \examples{
+\dontrun{
+# requires local data file
 sc <- setup_SuperConfig(
   dat_training_path = "train.csv",
   preprocessor_config = setup_SupervisedPreprocessor(scale = TRUE),
@@ -90,6 +92,7 @@ sc <- setup_SuperConfig(
   question = "Can we tell iris species apart given their measurements?",
   outdir = "models/"
 )
+}
 }
 \author{
 EDG

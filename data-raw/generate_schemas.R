@@ -70,8 +70,11 @@ source(file.path("data-raw", "schema_registry.R"))
 # The input-schema contract, asserted on every config schema before it is
 # written: no required beyond the keys carrying the document's shape, no
 # conditional branch demanding a key, no emitted defaults. See
-# `schema_contract.R` for what each rule prevents.
-source(file.path("data-raw", "schema_contract.R"))
+# `rtemis.core::assert_config_contract()` for what each rule prevents.
+# From rtemis.core, so rtemis and rtemis.draw publish into one registry under
+# one contract. Attached rather than called with `::` at each site: the three
+# call sites below read as the rule they are.
+assert_config_contract <- rtemis.core::assert_config_contract
 
 # Generation ----------------------------------------------------------------
 for (family in names(families)) {

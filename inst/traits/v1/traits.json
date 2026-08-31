@@ -3,228 +3,200 @@
   "title": "rtemis supervised algorithm traits",
   "description": "What each supervised algorithm can do, as the facts a validator needs. Read by `checks/v1/checks.json`. Every trait is three-valued, and a null is not \"unknown\" but *not the algorithm's to answer*: a stacked ensemble accepts whatever its base learners accept, so the answer is a property of the library it is given rather than of the algorithm. Test with an explicit comparison against true, false and null; a trait read by truthiness gives the wrong answer for a meta learner.",
   "trait_descriptions": {
-    "class": "rtemis fits this algorithm to a categorical outcome. `checks/v1` reads it to decide whether a config declares a task its outcome cannot serve.",
-    "reg": "rtemis fits this algorithm to a numeric outcome. Read with `class` for the same decision.",
-    "surv": "The backend supports right-censored survival outcomes. **This is not a statement about rtemis**, unlike `class` and `reg`: rtemis resolves an outcome to Classification or Regression only, and dispatches no survival run, so no `checks/v1` rule reads this. It is published because survival support is planned and the column is what a future rule will read; until then it describes what the backend could do, not what rtemis will do with it.",
-    "missing": "The algorithm accepts a training set containing missing values. Read by MISSING_INCOMPATIBLE, where false is an error and null a warning.",
-    "p_gt_n": "The algorithm gives a usable fit with more predictors than cases. False only where the fit is an unregularized least squares and goes rank-deficient. Read by DIM_P_GT_N, where it decides the severity."
+    "classification": "rtemis fits this algorithm to a categorical outcome. `checks/v1` reads it to decide whether a config declares a task its outcome cannot serve.",
+    "regression": "rtemis fits this algorithm to a numeric outcome. Read with `classification` for the same decision.",
+    "handles_missing_data": "The algorithm accepts a training set containing missing values. Read by MISSING_INCOMPATIBLE, where false is an error and null a warning.",
+    "handles_p_greater_than_n": "The algorithm gives a usable fit with more predictors than cases. False only where the fit is an unregularized least squares and goes rank-deficient. Read by DIM_P_GT_N, where it decides the severity."
   },
   "traits": [
     {
       "name": "BART",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "CART",
-      "class": true,
-      "reg": true,
-      "surv": true,
-      "missing": true,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": true,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "ConditionalSuperLearner",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": null,
-      "p_gt_n": null
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": null,
+      "handles_p_greater_than_n": null
     },
     {
       "name": "GAM",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": false
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": false
     },
     {
       "name": "GLM",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": false
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": false
     },
     {
       "name": "GLMNET",
-      "class": true,
-      "reg": true,
-      "surv": true,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "GLMTree",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": false
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": false
     },
     {
       "name": "HAL",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "Isotonic",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "MonotonicHAL",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "KNN",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "LightCART",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": true,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": true,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "LightGBM",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": true,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": true,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "LightRF",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": true,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": true,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "LightRuleFit",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": true,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": true,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "LINAD",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "LINADForest",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "MARS",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "MLP",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "ModalityStacking",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": null,
-      "p_gt_n": null
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": null,
+      "handles_p_greater_than_n": null
     },
     {
       "name": "NNLS",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "Ranger",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": true,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": true,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "SuperLearner",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": null,
-      "p_gt_n": null
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": null,
+      "handles_p_greater_than_n": null
     },
     {
       "name": "LinearSVM",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "RadialSVM",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "SPLS",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     },
     {
       "name": "TabNet",
-      "class": true,
-      "reg": true,
-      "surv": false,
-      "missing": false,
-      "p_gt_n": true
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
     }
   ]
 }
