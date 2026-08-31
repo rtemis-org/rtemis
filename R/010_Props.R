@@ -3932,13 +3932,17 @@ S7_to_JSONSchema <- function(
     #
     # What the set is for is stated the way `R/075_HyperparametersSet.R` states
     # it: a single block is the *product* of its values, a set is a *union* of
-    # such spaces, and the union exists for a conjunction of settings that no
-    # product expresses and no `applies_when` gate carves out. Saying instead
-    # that it is "for comparing named alternatives" named a use and not the
-    # reason, which left a reader unable to tell when a comparison was called
-    # for -- and the claim that one member is the single configuration written
-    # the long way is false: a set of one names the run, and the name is
-    # recorded as the fitted model's `variant`.
+    # such spaces, and a union is any shape a product is not. Two earlier
+    # wordings each named one use as if it were the reason -- "for comparing
+    # named alternatives", then "for settings only meaningful together" -- and
+    # both left out the commonest one, which is carving the space itself:
+    # searching more values of a hyperparameter where another is small and
+    # fewer where it is large. Neither is wrong about its own case; both are
+    # too narrow to tell a reader whether their case is covered.
+    #
+    # The claim that one member is the single configuration written the long
+    # way is false, and stays corrected: a set of one names the run, and the
+    # name is recorded as the fitted model's `variant`.
     alternatives <- if (varying) {
       list(
         c(
@@ -3969,16 +3973,15 @@ S7_to_JSONSchema <- function(
           required = list("variants"),
           additionalProperties = FALSE,
           description = paste0(
-            "Uncommon. Several configurations of one algorithm, each expanded ",
-            "and gated on its own and searched as their union; the tuner ",
-            "reports which name won. For settings that are only meaningful ",
-            "together -- a conjunction of fields naming one shape of model -- ",
-            "which a single configuration cannot express, since that is the ",
-            "product of its values and the cells around such a point are ",
-            "individually valid. A set of one member is not the ordinary form ",
-            "written the long way: its name is recorded as the fitted model's ",
-            "variant, so a run says what it was without its values being read ",
-            "back."
+            "Several configurations of one algorithm, each expanded and gated ",
+            "on its own and searched as their union; the tuner reports which ",
+            "name won. Write one where the space to search is not a product: ",
+            "more values of a hyperparameter where another is small and fewer ",
+            "where it is large, or a conjunction of fields that is only ",
+            "meaningful together and that no product can name. A set of one ",
+            "member is not the ordinary form written the long way: its name is ",
+            "recorded as the fitted model's variant, so a run says what it was ",
+            "without its values being read back."
           )
         )
       )
@@ -3993,9 +3996,9 @@ S7_to_JSONSchema <- function(
     described <- properties[[nm]][["description"]]
     guidance <- if (varying) {
       paste0(
-        "One configuration, or a named set of them searched as one space. ",
-        "Write the single configuration unless several settings are only ",
-        "meaningful together."
+        "One configuration, searched as the product of its values, or a named ",
+        "set of them searched as their union. Write the single configuration ",
+        "unless the space to search is not a product."
       )
     }
     preface <- paste(c(described, guidance), collapse = " ")
