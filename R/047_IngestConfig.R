@@ -676,7 +676,7 @@ ingest <- function(
   arrow::write_parquet(dat, outfile)
 
   msg0(
-    bold(highlight("▶")),
+    bold(highlight("\U25B6")),
     " Ingested ",
     highlight(basename(path)),
     " to ",
