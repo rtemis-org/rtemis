@@ -22,9 +22,9 @@ to send structured results to the browser frontend without scraping
 R console output.
 }
 \details{
-Each output list includes a \code{.class} field equal to the most specific
-S7 class name, allowing the frontend to dispatch to a class-specific
-renderer.
+The output carries only what the object's schema declares. Every results
+schema is \code{additionalProperties: false}, so a key the schema does not name
+makes the document invalid against the contract it is published under.
 
 The default method walks the class's \emph{published} properties (see
 \code{prop_published()}), recursing into S7-typed properties and passing through

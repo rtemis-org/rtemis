@@ -17,7 +17,8 @@ check_data(
 
 \item{name}{Character: Name of dataset.}
 
-\item{get_duplicates}{Logical: If TRUE, check for duplicate cases.}
+\item{get_duplicates}{Logical: If TRUE, count duplicate cases. If FALSE,
+\code{n_duplicates} is \code{NULL} and nothing reports on duplicates.}
 
 \item{get_na_case_pct}{Logical: If TRUE, calculate percent of NA values per
 case.}

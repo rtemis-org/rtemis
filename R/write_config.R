@@ -39,7 +39,6 @@
 #' @examples
 #' x <- setup_SuperConfig(
 #'   dat_training_path = "~/Data/iris.csv",
-#'   preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
 #'   hyperparameters = setup_LightRF(),
 #'   outer_resampling_config = setup_Resampler(),
 #'   question = "Can we tell iris species apart given their measurements?",
@@ -89,7 +88,9 @@ write_config <- new_generic(
   cluster = "https://schema.rtemis.org/cluster/v1/schema.json",
   decomposition = "https://schema.rtemis.org/decomposition/v1/schema.json",
   clustering = "https://schema.rtemis.org/clustering/v1/schema.json",
-  preprocessor = "https://schema.rtemis.org/preprocessor/v1/schema.json"
+  ingest = "https://schema.rtemis.org/ingest/v1/schema.json",
+  preprocessor = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+  supervisedpreprocessor = "https://schema.rtemis.org/supervisedpreprocessor/v1/schema.json"
 ) # /rtemis::.RTEMIS_SUPPORTED_CONFIGS
 
 
@@ -257,6 +258,24 @@ method(write_config, DecompositionConfig) <- function(
 } # /rtemis::write_config.DecompositionConfig
 
 
+# %% write_config.IngestConfig ----
+#' @author EDG
+#' @noRd
+method(write_config, IngestConfig) <- function(
+  x,
+  file,
+  overwrite = FALSE,
+  verbosity = 1L
+) {
+  payload <- c(
+    list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["ingest"]]),
+    S7_to_list(serializable_props(x))
+  )
+  .write_config_json(payload, file, overwrite, verbosity)
+  invisible(x)
+} # /rtemis::write_config.IngestConfig
+
+
 # %% write_config.PreprocessorConfig ----
 #' @author EDG
 #' @noRd
@@ -351,6 +370,21 @@ method(write_config, ClusteringConfig) <- function(
 write_record <- function(x, file, overwrite = FALSE, verbosity = 1L) {
   check_dependencies("jsonlite")
   payload <- if (is.list(x) && !S7_inherits(x)) x else record(x)
+  # The execution graph is a table, so it goes beside the record rather than
+  # into it, and the record names it. Written here rather than in `record()`
+  # because a reference is to a file, and `record()` produces a document with no
+  # file to point at.
+  if ("session" %in% names(payload)) {
+    ref <- write_session_sidecar(
+      x,
+      file,
+      overwrite = overwrite,
+      verbosity = verbosity
+    )
+    # As a list, like `provenance`: the payload is what jsonlite serializes, and
+    # an S7 object is not something it can write.
+    payload[["session"]] <- if (is.null(ref)) NULL else S7_to_list(ref)
+  }
   json_str <- as.character(jsonlite::toJSON(
     payload,
     auto_unbox = TRUE,
@@ -366,3 +400,107 @@ write_record <- function(x, file, overwrite = FALSE, verbosity = 1L) {
   )
   invisible(x)
 } # /rtemis::write_record
+
+
+# %% session_sidecar_path ----
+#' Where a record's session sidecar goes
+#'
+#' Beside the record and named after it, so a directory of runs pairs up by
+#' inspection exactly as the record and the fitted object already do.
+#'
+#' @param file Character: The record's path.
+#'
+#' @return Character: Path to the sidecar.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+session_sidecar_path <- function(file) {
+  # `.record.json` first, then a bare `.json`: the convention is
+  # `train_<algorithm>.record.json`, but a record written to any other name
+  # should still yield `<name>.session.parquet` rather than
+  # `<name>.json.session.parquet`.
+  stem <- sub("\\.record\\.json$", "", file)
+  stem <- sub("\\.json$", "", stem)
+  paste0(stem, ".session.parquet")
+} # /rtemis::session_sidecar_path
+
+
+# %% write_session_sidecar ----
+#' Write a run's execution graph beside its record
+#'
+#' @details
+#' Returns the `DataRef` the record carries, or NULL when the object has no
+#' session to write -- a pipeline result, or a model from before sessions were
+#' recorded. NULL rather than an empty reference: a reference to a file that
+#' does not exist is worse than saying there is none.
+#'
+#' The digest is over the file's bytes. Two implementations would need a
+#' canonical logical form to agree on a digest for one table; a sidecar is
+#' written once by the engine that ran, so the bytes are the content.
+#'
+#' @param x Fitted model object.
+#' @param file Character: The record's path.
+#' @param overwrite Logical: If TRUE, overwrite an existing sidecar.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return `DataRef` or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+write_session_sidecar <- function(x, file, overwrite = FALSE, verbosity = 1L) {
+  if (!S7_inherits(x) || !("session" %in% names(S7_class(x)@properties))) {
+    return(NULL)
+  }
+  session <- prop(x, "session")
+  if (is.null(session) || length(session@events) == 0L) {
+    return(NULL)
+  }
+  nodes <- session_nodes(session)
+  path <- session_sidecar_path(file)
+  if (file.exists(path) && !overwrite) {
+    rtemis.core::abort(
+      "File exists and `overwrite` is FALSE: ",
+      path,
+      class = c("rtemis_file_error", "rtemis_input_error")
+    )
+  }
+  write_parquet_table(nodes, path)
+  if (verbosity > 0L) {
+    msg(checkmark(), "Created file:", path)
+  }
+  DataRef(
+    path = basename(path),
+    encoding = "parquet",
+    algorithm = "sha256",
+    # The same file hasher `data_fingerprint()` uses, so a digest over a
+    # sidecar and a digest over a dataset are computed one way.
+    hash = .hash_file(path, "sha256"),
+    bytes = as.integer(file.size(path)),
+    n_rows = nrow(nodes),
+    n_cols = ncol(nodes)
+  )
+} # /rtemis::write_session_sidecar
+
+
+# %% write_parquet_table ----
+#' Write a data.frame to Parquet
+#'
+#' Through nanoparquet, which writes the Parquet types directly and carries no
+#' Arrow C++ dependency. An Import rather than a Suggest, because a record that
+#' names a file it could not write is not something a caller should be able to
+#' produce by having installed less.
+#'
+#' @param x data.frame: The table.
+#' @param path Character: Where to write it.
+#'
+#' @return `path`, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+write_parquet_table <- function(x, path) {
+  nanoparquet::write_parquet(x, path, compression = "zstd")
+  invisible(path)
+} # /rtemis::write_parquet_table

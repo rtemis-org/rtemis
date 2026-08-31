@@ -17,15 +17,21 @@ base_url <- "https://schema.rtemis.org"
 # `$ref`d by every top-level record. The two schemas that *make up* a record --
 # provenance and the fingerprints it holds -- do not carry one themselves.
 provenance_url <- paste0(base_url, "/provenance/v1/schema.json")
-record_parts <- c("provenance", "datafingerprint")
-# Results classes: what a run produced, not a config a run resolves. They have
-# no input form, so no `record.json` either -- the whole document is a report.
+# `$ref`d by a record that names a file written beside it.
+dataref_url <- paste0(base_url, "/dataref/v1/schema.json")
+record_parts <- c("provenance", "datafingerprint", "dataref")
+# Results classes: what a run produced, what validating a config reported, or
+# what a dataset measured as -- not a config a run resolves. They have no input
+# form, so no `record.json` either: the whole document is a report.
 result_classes <- c(
   "regressionmetrics",
   "classificationmetrics",
   "decompositionmetrics",
   "regressionmetricsres",
-  "classificationmetricsres"
+  "classificationmetricsres",
+  "diagnostic",
+  "diagnostics",
+  "profile"
 )
 # Only a *pipeline* record represents a run, so only one carries provenance. A
 # component config (preprocessor, execution, ...) has a record form too, but it
@@ -64,8 +70,11 @@ source(file.path("data-raw", "schema_registry.R"))
 # The input-schema contract, asserted on every config schema before it is
 # written: no required beyond the keys carrying the document's shape, no
 # conditional branch demanding a key, no emitted defaults. See
-# `schema_contract.R` for what each rule prevents.
-source(file.path("data-raw", "schema_contract.R"))
+# `rtemis.core::assert_config_contract()` for what each rule prevents.
+# From rtemis.core, so rtemis and rtemis.draw publish into one registry under
+# one contract. Attached rather than called with `::` at each site: the three
+# call sites below read as the rule they are.
+assert_config_contract <- rtemis.core::assert_config_contract
 
 # Generation ----------------------------------------------------------------
 for (family in names(families)) {
@@ -189,8 +198,18 @@ for (family in names(flat_configs)) {
       title = cfg[["title"]],
       description = cfg[["description"]],
       record = kind == "record",
+      # A results class is produced by rtemis, not authored against the schema,
+      # so every property it declares is present in every document it emits.
+      # It has no `record.json` sibling to carry that, having no input form.
+      asserted = family %in% result_classes,
       provenance_url = if (kind == "record" && family %in% pipeline_records) {
         provenance_url
+      },
+      # Only a supervised run records an execution graph: `provenance_of()`
+      # reads `@session` conditionally for exactly that reason, a pipeline
+      # result carrying none.
+      session_url = if (kind == "record" && family == "supervised") {
+        dataref_url
       },
       fold_refs = if (kind == "record" && family == "supervised") fold_refs,
       metrics_refs = if (kind == "record" && family == "supervised") {
@@ -208,7 +227,10 @@ for (family in names(flat_configs)) {
       # declaring the field would put a key in the contract that nothing writes.
       instance_schema_url = if (!(family %in% result_classes)) id
     )
-    if (kind == "schema") {
+    # The config contract governs documents a caller authors. A results class is
+    # not one: its `required` states what rtemis always writes, which is the
+    # record's rule rather than the config's.
+    if (kind == "schema" && !(family %in% result_classes)) {
       assert_config_contract(schema, id)
     }
     write_JSONSchema(

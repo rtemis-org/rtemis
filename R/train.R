@@ -101,7 +101,7 @@ restore_weights_column <- function(model, column) {
 #' @param dat_validation Tabular data: Validation set data.
 #' @param dat_test Tabular data: Test set data.
 #' @param weights Optional vector of case weights.
-#' @param preprocessor_config Optional PreprocessorConfig object: Setup using [setup_Preprocessor].
+#' @param preprocessor_config Optional SupervisedPreprocessorConfig object: Setup using [setup_SupervisedPreprocessor].
 #' @param decomposition_config Optional DecompositionConfig object: Setup using a decomposition
 #'  `setup_*` function.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
@@ -120,6 +120,13 @@ restore_weights_column <- function(model, column) {
 #' record, `train_<algorithm>.record.json`, stating what the run actually did:
 #' every value resolved, where each came from, and what produced it. See
 #' [write_record].
+#' @param preflight Logical: If TRUE, check the configuration against `x` with
+#' [validate_config] before training and stop on any finding of severity
+#' "error". Findings of severity "warning" are reported and training continues.
+#' Defaults to FALSE, except for a `SuperConfigLive`, where it defaults to TRUE:
+#' that type binds its data in memory and is what a server hands a run it
+#' accepted on a client's behalf, so the check belongs to the type rather than
+#' to each caller remembering to ask for it. Pass FALSE explicitly to skip it.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used.
 #'
@@ -224,15 +231,37 @@ train <- function(
   execution_config = setup_ExecutionConfig(), # ExecutionConfig
   question = NULL,
   outdir = NULL,
+  preflight = FALSE,
   verbosity = 1L,
   ...
 ) {
   # SuperConfigLive dispatch ----
   if (S7_inherits(x, SuperConfigLive)) {
-    resolved <- resolve_weights_column(
+    # Checked unless the caller said otherwise. A `SuperConfigLive` carries its
+    # training data rather than a path to it, which is the shape a run submitted
+    # over the wire arrives in: the submitter is not the person who will read
+    # the failure, so a run that cannot answer the question asked has to be
+    # refused here rather than reported as a result. `missing()` rather than a
+    # different default in the signature, there being one signature for every
+    # dispatch.
+    if (missing(preflight)) {
+      preflight <- TRUE
+    }
+    # What the run predicts, and from what -- the same projection the path-based
+    # dispatch applies, so a config means the same thing whether its data
+    # arrived as a file or over the wire. With both properties NULL this is a
+    # no-op and rtemis's last-column convention applies exactly as before.
+    live_frames <- lapply(
       list(x@dat_training, x@dat_validation, x@dat_test),
-      x@weights
+      function(dat) {
+        if (is.null(dat)) {
+          NULL
+        } else {
+          project_frame(dat, x@outcome, x@features, x@weights)
+        }
+      }
     )
+    resolved <- resolve_weights_column(live_frames, x@weights)
     train_args <- list(
       x = resolved[["datasets"]][[1L]],
       dat_validation = resolved[["datasets"]][[2L]],
@@ -246,6 +275,7 @@ train <- function(
       execution_config = x@execution_config,
       question = x@question,
       outdir = x@outdir,
+      preflight = preflight,
       verbosity = x@verbosity
     )
     # `positive_class` is handled via `...` (not a formal arg) and aborts if
@@ -268,16 +298,43 @@ train <- function(
         class = c("rtemis_null_input", "rtemis_input_error")
       )
     }
-    dat_training <- read(x@dat_training_path, character2factor = TRUE)
+    # The config decides how its files are read, and the same way for all
+    # three: a validation set whose labels stayed character while training's
+    # became factors is a set `check_supervised()` rejects for a difference the
+    # caller never asked for.
+    c2f <- x@character2factor
+    dat_training <- read(x@dat_training_path, character2factor = c2f)
     dat_validation <- if (!is.null(x@dat_validation_path)) {
-      read(x@dat_validation_path)
+      read(x@dat_validation_path, character2factor = c2f)
     } else {
       NULL
     }
     dat_test <- if (!is.null(x@dat_test_path)) {
-      read(x@dat_test_path)
+      read(x@dat_test_path, character2factor = c2f)
     } else {
       NULL
+    }
+    # What the run predicts, and from what. Applied to all three datasets for
+    # the reason `character2factor` is: sets whose columns differ from each
+    # other are rejected downstream for a difference the caller never asked for.
+    # With both properties NULL this is a no-op and rtemis's convention applies
+    # exactly as it did.
+    dat_training <- project_frame(
+      dat_training,
+      x@outcome,
+      x@features,
+      x@weights
+    )
+    if (!is.null(dat_validation)) {
+      dat_validation <- project_frame(
+        dat_validation,
+        x@outcome,
+        x@features,
+        x@weights
+      )
+    }
+    if (!is.null(dat_test)) {
+      dat_test <- project_frame(dat_test, x@outcome, x@features, x@weights)
     }
     # Call train() with data and other parameters from config
     resolved <- resolve_weights_column(
@@ -297,6 +354,7 @@ train <- function(
       execution_config = x@execution_config,
       question = x@question,
       outdir = x@outdir,
+      preflight = preflight,
       verbosity = x@verbosity
     )
     # `positive_class` is handled via `...` (not a formal arg) and aborts if
@@ -351,6 +409,12 @@ train <- function(
   # search space and `train_()` fills in what the data decides, so by the time
   # the model is built `hyperparameters` says what *ran*; only this says what
   # was *asked for*. `record()` needs both to report where each value came from.
+  # Before the recipe is built: `SuperConfig` types this block, so an S7 error
+  # would otherwise reach the caller in place of the message that names the fix.
+  if (!is.null(preprocessor_config)) {
+    check_preprocessor_for_train(preprocessor_config)
+  }
+
   # `dat_training_path` stays unset for an in-memory run -- data identity is the
   # provenance block's `DataFingerprint`, not a path.
   input_config <- setup_SuperConfig(
@@ -413,10 +477,6 @@ train <- function(
     check_is_S7(tuner_config, TunerConfig)
   }
 
-  if (!is.null(preprocessor_config)) {
-    check_is_S7(preprocessor_config, PreprocessorConfig)
-  }
-
   # Can only use algorithms whose output can be applied on new data: we need to apply the
   # transformation learned on the training data to validation and test sets.
   if (!is.null(decomposition_config)) {
@@ -436,6 +496,23 @@ train <- function(
 
   # execution_config must always be set
   check_is_S7(execution_config, ExecutionConfig)
+
+  # Pre-flight ----
+  # Every config object is validated by now, so this is the first point the
+  # recipe and the data can be checked against each other -- and the last point
+  # before the run starts spending.
+  if (preflight) {
+    preflight_config(
+      x = x,
+      preprocessor_config = preprocessor_config,
+      decomposition_config = decomposition_config,
+      hyperparameters = hyperparameters,
+      tuner_config = tuner_config,
+      outer_resampling_config = outer_resampling_config,
+      positive_class = positive_class,
+      verbosity = verbosity
+    )
+  }
   # Override parallelization parameters with those from execution_config
   backend <- execution_config@backend
   n_workers <- execution_config@n_workers
@@ -867,7 +944,6 @@ train <- function(
     # data at all. Same layout as the decomposition block below -- transform
     # the features, re-attach the outcome last.
     if (!is.null(preprocessor_config)) {
-      check_preprocessor_replayable(preprocessor_config)
       prep_node <- node_enter("preprocess")
       if (verbosity == 1L) {
         msg("Preprocessing...")

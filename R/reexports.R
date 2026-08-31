@@ -23,3 +23,8 @@ rtemis.core::clean_names
 #' @importFrom rtemis.core clean_colnames
 #' @export
 rtemis.core::clean_colnames
+
+
+#' @importFrom rtemis.core write_JSONSchema
+#' @export
+rtemis.core::write_JSONSchema

@@ -155,10 +155,6 @@ walkthroughs of main features and full API reference.
 
 There is a lot more coming - both within this package and the other packages in the rtemis framework.
 
-## rtemisalpha
-
-The original, unmaintained version of rtemis remains available as `rtemisalpha` at [rtemis-org/rtemis-legacy](https://github.com/rtemis-org/rtemis-legacy).
-
 ---
 
 © 2016–2026 E.D. Gennatas. Licensed under [BSD 3-Clause](https://opensource.org/license/bsd-3-clause).

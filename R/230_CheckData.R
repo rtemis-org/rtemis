@@ -19,9 +19,10 @@ CheckData <- new_class(
     n_ordered = class_integer,
     n_date = class_integer,
     n_constant = class_integer,
-    n_duplicates = class_integer,
+    n_duplicates = NULL | class_integer,
     n_cols_anyna = class_integer,
     n_na = class_integer,
+    n_distinct_per_col = NULL | class_integer,
     classes_na = NULL | class_any,
     na_feature_pct = NULL | class_data.frame,
     na_case_pct = NULL | class_data.frame,
@@ -39,9 +40,10 @@ CheckData <- new_class(
     n_ordered,
     n_date,
     n_constant,
-    n_duplicates,
     n_cols_anyna,
     n_na,
+    n_duplicates = NULL,
+    n_distinct_per_col = NULL,
     classes_na = NULL,
     na_feature_pct = NULL,
     na_case_pct = NULL,
@@ -78,6 +80,7 @@ CheckData <- new_class(
       n_duplicates = n_duplicates,
       n_cols_anyna = n_cols_anyna,
       n_na = n_na,
+      n_distinct_per_col = n_distinct_per_col,
       classes_na = classes_na,
       na_feature_pct = na_feature_pct,
       na_case_pct = na_case_pct,
@@ -241,22 +244,26 @@ method(repr, CheckData) <- function(
     sep = "\n"
   )
 
-  out <- paste(
-    out,
-    paste(
-      "  *",
-      fmt(
-        n_duplicates,
-        col = if (n_duplicates > 0) rtemis_colors[["orange"]] else NULL,
-        bold = TRUE,
-        pad = pad,
-        output_type = output_type
+  # Skipped scan (`get_duplicates = FALSE`): nothing was counted, so nothing is
+  # reported rather than a count of zero.
+  if (!is.null(n_duplicates)) {
+    out <- paste(
+      out,
+      paste(
+        "  *",
+        fmt(
+          n_duplicates,
+          col = if (n_duplicates > 0) rtemis_colors[["orange"]] else NULL,
+          bold = TRUE,
+          pad = pad,
+          output_type = output_type
+        ),
+        "duplicate",
+        ngettext(n_duplicates, "case", "cases")
       ),
-      "duplicate",
-      ngettext(n_duplicates, "case", "cases")
-    ),
-    sep = "\n"
-  )
+      sep = "\n"
+    )
+  }
 
   nas <- if (n_cols_anyna > 0) {
     classes_na <- x[["classes_na"]]
@@ -333,7 +340,8 @@ method(repr, CheckData) <- function(
     sep = "\n"
   )
 
-  if (sum(n_character, n_constant, n_duplicates, n_cols_anyna) > 0) {
+  n_duplicates_found <- isTRUE(n_duplicates > 0)
+  if (sum(n_character, n_constant, n_cols_anyna) > 0 || n_duplicates_found) {
     if (n_character > 0) {
       out <- paste(
         out,
@@ -364,7 +372,7 @@ method(repr, CheckData) <- function(
       )
     }
 
-    if (n_duplicates > 0) {
+    if (n_duplicates_found) {
       out <- paste(
         out,
         fmt(

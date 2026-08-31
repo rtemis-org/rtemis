@@ -17,6 +17,7 @@ train(
   execution_config = setup_ExecutionConfig(),
   question = NULL,
   outdir = NULL,
+  preflight = FALSE,
   verbosity = 1L,
   ...
 )
@@ -30,7 +31,7 @@ train(
 
 \item{weights}{Optional vector of case weights.}
 
-\item{preprocessor_config}{Optional PreprocessorConfig object: Setup using \link{setup_Preprocessor}.}
+\item{preprocessor_config}{Optional SupervisedPreprocessorConfig object: Setup using \link{setup_SupervisedPreprocessor}.}
 
 \item{decomposition_config}{Optional DecompositionConfig object: Setup using a decomposition
 \verb{setup_*} function.}
@@ -56,6 +57,14 @@ fitted model is saved there as \verb{train_<algorithm>.rds}, alongside a run
 record, \verb{train_<algorithm>.record.json}, stating what the run actually did:
 every value resolved, where each came from, and what produced it. See
 \link{write_record}.}
+
+\item{preflight}{Logical: If TRUE, check the configuration against \code{x} with
+\link{validate_config} before training and stop on any finding of severity
+"error". Findings of severity "warning" are reported and training continues.
+Defaults to FALSE, except for a \code{SuperConfigLive}, where it defaults to TRUE:
+that type binds its data in memory and is what a server hands a run it
+accepted on a client's behalf, so the check belongs to the type rather than
+to each caller remembering to ask for it. Pass FALSE explicitly to skip it.}
 
 \item{verbosity}{Integer: Verbosity level.}
 

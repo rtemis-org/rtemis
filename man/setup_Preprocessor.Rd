@@ -49,14 +49,15 @@ setup_Preprocessor(
 )
 }
 \arguments{
-\item{complete_cases}{Logical: If TRUE, only retain complete cases (no missing data).}
+\item{complete_cases}{Logical: If TRUE, only retain complete cases (no missing
+data). Not available inside \link{train}: a fitted preprocessor is replayed at predict time, where dropping rows would return fewer predictions than rows.}
 
 \item{remove_features_thres}{Optional Numeric (0, 1]: Remove features with
 missing values in >= to this fraction of cases. 1 removes only fully-missing
-features.}
+features. Not available inside \link{train}: each resample would learn its own set, so the folds would train on different features. Name the columns with \code{remove_features} instead, or drop them beforehand with \link{preprocess}.}
 
 \item{remove_cases_thres}{Optional Numeric (0, 1]: Remove cases with >= to
-this fraction of missing features. 1 removes only fully-missing cases.}
+this fraction of missing features. 1 removes only fully-missing cases. Not available inside \link{train}: a fitted preprocessor is replayed at predict time, where dropping rows would return fewer predictions than rows.}
 
 \item{missingness}{Logical: If TRUE, generate new boolean columns for each
 feature with missing values, indicating which cases were missing data.}
@@ -158,7 +159,7 @@ checking if feature is constant.}
 
 \item{remove_features}{Optional Character vector: Features to remove.}
 
-\item{remove_duplicates}{Logical: If TRUE, remove duplicate cases.}
+\item{remove_duplicates}{Logical: If TRUE, remove duplicate cases. Not available inside \link{train}: a fitted preprocessor is replayed at predict time, where dropping rows would return fewer predictions than rows.}
 
 \item{one_hot}{Logical: If TRUE, convert all factors using one-hot encoding.}
 

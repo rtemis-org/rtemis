@@ -8,6 +8,8 @@ setup_SuperConfigLive(
   dat_training,
   dat_validation = NULL,
   dat_test = NULL,
+  outcome = NULL,
+  features = NULL,
   weights = NULL,
   positive_class = NULL,
   preprocessor_config = NULL,
@@ -27,6 +29,12 @@ setup_SuperConfigLive(
 \item{dat_validation}{data.frame, data.table, or \code{NULL}.}
 
 \item{dat_test}{data.frame, data.table, or \code{NULL}.}
+
+\item{outcome}{Optional Character: Name of the outcome column; \code{NULL}
+for rtemis's convention, the last column.}
+
+\item{features}{Optional Character vector: Names of the predictor
+columns; \code{NULL} for every column except the outcome.}
 
 \item{weights}{Optional Character: Column name in \code{dat_training} used
 as observation weights.}

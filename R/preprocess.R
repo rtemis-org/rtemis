@@ -2,59 +2,78 @@
 # ::rtemis::
 # 2017- EDG rtemis.org
 
-# %% PREPROCESSOR_CASE_OPS ----
-# Preprocessing steps that drop *cases* rather than transform values. They have
-# no place in a preprocessor fitted by `train()`: that one is replayed on new
-# data at predict time, and there is nothing a prediction call may drop --
-# asked for n rows it must return n predictions.
-PREPROCESSOR_CASE_OPS <- c(
-  "complete_cases",
-  "remove_duplicates",
-  "remove_cases_thres"
-)
-
-
-# %% check_preprocessor_replayable ----
-#' Reject a training preprocessor that would drop cases
-#'
-#' A preprocessor fitted by `train()` is re-applied to every later dataset:
-#' validation, test, and whatever `predict()` is handed. A step that removes
-#' rows cannot be replayed -- it returns fewer predictions than rows, with no
-#' way for the caller to tell which are missing -- so it is rejected here
-#' rather than producing a model whose `predict()` silently loses cases.
-#'
-#' Case removal is data preparation, not part of the model: do it before
-#' `train()`, where the outcome is still attached and the dropped rows are
-#' visible.
+# %% preprocessor_ops_set ----
+#' Which of a set of preprocessing steps a config actually turns on
 #'
 #' @param config `PreprocessorConfig` object.
+#' @param ops Character: Property names to test.
+#'
+#' @return Character: The subset that is set to something other than NULL/FALSE.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+preprocessor_ops_set <- function(config, ops) {
+  Filter(
+    function(nm) {
+      value <- prop(config, nm)
+      !is.null(value) && !identical(value, FALSE)
+    },
+    ops
+  )
+} # /rtemis::preprocessor_ops_set
+
+
+# %% check_preprocessor_for_train ----
+#' Require the preprocessor type `train()` can fit
+#'
+#' The rule itself is the type: `SupervisedPreprocessorConfig` does not carry
+#' `PREPROCESSOR_TRAIN_EXCLUDED`, so a supervised config cannot express those
+#' operations and no run has to be stopped for them. What is left here is the
+#' corrective message for the one way a caller still meets the distinction --
+#' handing `train()` a `PreprocessorConfig` built for `preprocess()`.
+#'
+#' Naming the operations they actually set is the useful part: a config that
+#' happens to set none of the four differs from the supervised type in nothing
+#' but its class, and saying so is what makes the fix obvious.
+#'
+#' @param config `PreprocessorConfig` or `SupervisedPreprocessorConfig` object.
 #'
 #' @return Invisible NULL. Called for the check.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-check_preprocessor_replayable <- function(config) {
-  set <- Filter(
-    function(nm) {
-      value <- prop(config, nm)
-      !is.null(value) && !identical(value, FALSE)
-    },
-    PREPROCESSOR_CASE_OPS
-  )
-  if (length(set) > 0L) {
-    rtemis.core::abort(
-      "`preprocessor_config` removes cases, which a fitted preprocessor cannot replay: ",
-      paste(set, collapse = ", "),
-      ".\n",
-      "A preprocessor learned by train() is re-applied to new data at predict() time, ",
-      "where dropping rows would return fewer predictions than rows.\n",
-      "Remove cases before calling train(), with preprocess() on the full dataset.",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
+check_preprocessor_for_train <- function(config) {
+  if (S7_inherits(config, SupervisedPreprocessorConfig)) {
+    return(invisible(NULL))
   }
-  invisible(NULL)
-} # /rtemis::check_preprocessor_replayable
+  # Anything that is not a preprocessor config at all fails as a type error
+  # here, so the message below speaks only to the two that are.
+  check_is_S7(config, PreprocessorConfig)
+  excluded <- preprocessor_ops_set(config, PREPROCESSOR_TRAIN_EXCLUDED)
+  rtemis.core::abort(
+    "`preprocessor_config` must be a SupervisedPreprocessorConfig: use ",
+    "setup_SupervisedPreprocessor() rather than setup_Preprocessor().\n",
+    if (length(excluded) > 0L) {
+      paste0(
+        "It sets ",
+        paste(excluded, collapse = ", "),
+        ", which train() cannot fit: a preprocessor learned here is replayed at ",
+        "predict() time, where dropping rows would return fewer predictions than ",
+        "rows, and a threshold learned per fold trains the folds on different ",
+        "features.\nDo those steps first, with preprocess() on the full dataset.\n"
+      )
+    } else {
+      paste0(
+        "It sets none of ",
+        paste(PREPROCESSOR_TRAIN_EXCLUDED, collapse = ", "),
+        ", so the same arguments build one.\n"
+      )
+    },
+    class = c("rtemis_type_error", "rtemis_input_error")
+  )
+} # /rtemis::check_preprocessor_for_train
 
 
 # %% frame_structure ----
@@ -236,10 +255,12 @@ dt_impute_columns <- function(x, fn, select) {
 } # /rtemis::dt_impute_columns
 
 
-# %% preprocess(x, PreprocessorConfig, ...) ----
+# %% preprocess(x, AnyPreprocessorConfig, ...) ----
+# Registered for the union, so the one method serves both configs: S7 registers
+# a union signature against each member class.
 method(
   preprocess,
-  list(class_tabular, PreprocessorConfig)
+  list(class_tabular, AnyPreprocessorConfig)
 ) <- function(
   x,
   config,
@@ -279,7 +300,7 @@ method(
   }
 
   # Complete cases ----
-  if (config@complete_cases) {
+  if (isTRUE(pp_opt(config, "complete_cases"))) {
     msg("Filtering complete cases...", verbosity = verbosity)
     keep <- complete.cases(x)
     if (!all(keep)) {
@@ -340,7 +361,7 @@ method(
   }
 
   # Remove duplicates ----
-  if (config@remove_duplicates) {
+  if (isTRUE(pp_opt(config, "remove_duplicates"))) {
     duplicate <- duplicated(x, by = names(x))
     Ndups <- sum(duplicate)
     if (Ndups > 0) {
@@ -353,15 +374,16 @@ method(
   }
 
   # Remove Cases by missing feature threshold ----
-  if (!is.null(config@remove_cases_thres) && anyNA(x)) {
+  remove_cases_thres <- pp_opt(config, "remove_cases_thres")
+  if (!is.null(remove_cases_thres) && anyNA(x)) {
     na_fraction_bycase <- rowSums(is.na(x)) / ncol(x)
-    over_thres <- na_fraction_bycase >= config@remove_cases_thres
+    over_thres <- na_fraction_bycase >= remove_cases_thres
     if (any(over_thres)) {
       msg(
         "Removing",
         sum(over_thres),
         "cases with >=",
-        config@remove_cases_thres,
+        remove_cases_thres,
         "missing data...",
         verbosity = verbosity
       )
@@ -371,21 +393,22 @@ method(
   }
 
   # Remove Features by missing feature threshold ----
-  if (!is.null(config@remove_features_thres) && anyNA(x)) {
+  remove_features_thres <- pp_opt(config, "remove_features_thres")
+  if (!is.null(remove_features_thres) && anyNA(x)) {
     na_fraction_byfeat <- vapply(
       x,
       function(column) sum(is.na(column)) / length(column),
       numeric(1L)
     )
     over_thres <- names(x)[
-      na_fraction_byfeat >= config@remove_features_thres
+      na_fraction_byfeat >= remove_features_thres
     ]
     if (length(over_thres) > 0) {
       msg(
         "Removing",
         length(over_thres),
         "features with >=",
-        config@remove_features_thres,
+        remove_features_thres,
         "missing data...",
         verbosity = verbosity
       )

@@ -1,0 +1,4023 @@
+{
+  "$id": "https://schema.rtemis.org/checks/v1/checks.json",
+  "title": "rtemis data checks",
+  "description": "Whether a config is right for the data it is about to run on, as rules rather than as code. Each rule reads a `profile/v1` description of the dataset, a config document, the outcome column's name, and `traits/v1`; none reads the data. Generated from rtemis's own checks, which remain the reference implementation.",
+  "expression_language": "jsonlogic",
+  "inputs": {
+    "profile": "https://schema.rtemis.org/profile/v1/schema.json",
+    "config": "The config being validated, with defaults resolved.",
+    "outcome": "Name of the outcome column, or null to take rtemis's convention.",
+    "traits": "https://schema.rtemis.org/traits/v1/traits.json"
+  },
+  "evaluation": {
+    "data": "Evaluate against an object holding the four inputs under their own names, plus `bindings` (filled by `let`) and, inside an iteration, `item`.",
+    "let": "Evaluate in order, writing each result to `bindings.<name>`. An entry of kind `expr` evaluates its `logic`. An entry of kind `scan` iterates its source, evaluating `where` and `select` with the element bound to `item` and everything else still in scope -- which is what JSONLogic's own `filter` cannot do, since it replaces the data with the element. `select` is a name -> expression map and is the only way to build a record.",
+    "source": "A scan source is either `logic` (an expression yielding an array) or `pointers` (a list of RFC 6901 JSON Pointers into the config). Each pointer yields `{pointer, name, value}`: the pointer as written, its last segment, and what it resolves to, or null. A `*` segment expands to every member of the object or array at that point, in document order, which is how a hyperparameter set's members are reached.",
+    "rules": "For each rule: if `over` names a scan, run once per element with it bound to `item`, otherwise once. Evaluate `let` into `bindings`, then `applies_when`; where false, the rule does not apply and reports nothing. Where `condition` is true, report a finding carrying the rule's `code`, `severity`, evaluated `evidence`, and rendered `message`. Attach `fix` where present and its `when` holds.",
+    "message": "Three substitutions, no conditionals. `{key}` inserts the value of an evidence key or a slot; an array value joins its elements with ', '. `{key|singular|plural}` selects on the value, which is its own magnitude when a number and its length when an array: singular at exactly 1, plural otherwise.",
+    "plain": "In `plain`, keyed by `code` rather than by rule: several rules share a code, and one explanation per kind of problem is the point. Render it beside the rule's own `message`, which states the particulars.",
+    "unevaluable": "Where an entry's `when` holds, the rule set cannot fully answer for the codes it `affects`. Report the validation as incomplete for those codes rather than as clean."
+  },
+  "severities": ["error", "warning", "note"],
+  "plain": {
+    "SCHEMA_INVALID": "This setup could not be read. Something in it does not match what rtemis expects -- a misspelled setting, or a value of the wrong kind. Nothing was checked against your data, because the setup has to be readable first.",
+    "OUTCOME_MISSING": "The column you asked to predict is not in this dataset. Check the spelling, or pick a column that is there.",
+    "OUTCOME_TYPE_MISMATCH": "The column you asked to predict does not hold the kind of values this setup expects. Predicting which group something falls into needs a column of labels; predicting a quantity needs a column of numbers. Right now the two do not match, so the run would answer a different question than you asked.",
+    "RESAMPLE_MIN_CLASS": "To check how well the model does, the data is split into several parts and each part is held back in turn. One of the groups you are predicting has fewer cases than there are parts, so at least one part would contain none of that group and the score for it would be meaningless. Use fewer parts, or gather more cases of the rarer group.",
+    "RESAMPLE_N_ROWS": "To check how well the model does, the data is split into several parts and each part is held back in turn. There are not enough rows for the number of parts asked for, so some parts would be empty or hold a single row. A score from one row says nothing. Use fewer parts, or more data.",
+    "FEATURE_CONSTANT": "Some columns hold the same value in every row, or hold no value at all. A column that never changes cannot explain anything that does, so it adds nothing to the model and can be left out.",
+    "FEATURE_TYPE_UNSUPPORTED": "Some of the columns being used to predict hold text, or dates, or something else a model cannot read. A model needs numbers, or labels from a fixed set of categories. Convert those columns before training: text naming a category should become a category, and a date should become the parts of it that matter, such as the month or the day of the week.",
+    "DIM_P_GT_N": "There are more things being measured than there are rows to learn from. A model in this position can fit the rows it was given almost perfectly and still be wrong about new cases. Some methods are built for exactly this and handle it; others cannot, and give an answer that only looks like one. The finding says which of the two you have.",
+    "MISSING_INCOMPATIBLE": "This dataset has gaps -- rows where a value was not recorded -- and the way this run is set up does not deal with them. Either fill the gaps in, drop the rows or columns that have them, or choose a method that can work around them."
+  },
+  "let": [
+    {
+      "name": "supervised",
+      "kind": "expr",
+      "logic": {
+        "!==": [
+          {
+            "var": "config.hyperparameters"
+          },
+          null
+        ]
+      }
+    },
+    {
+      "name": "n_columns",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "profile.columns"
+          },
+          {
+            "+": [
+              {
+                "var": "accumulator"
+              },
+              1
+            ]
+          },
+          0
+        ]
+      }
+    },
+    {
+      "name": "column_labels",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "profile.columns"
+        }
+      },
+      "select": {
+        "label": {
+          "cat": [
+            "'",
+            {
+              "var": "item.name"
+            },
+            "'"
+          ]
+        }
+      }
+    },
+    {
+      "name": "last_column",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "profile.columns"
+          },
+          {
+            "var": "current.name"
+          },
+          null
+        ]
+      }
+    },
+    {
+      "name": "named_matches",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "profile.columns"
+        }
+      },
+      "where": {
+        "===": [
+          {
+            "var": "item.name"
+          },
+          {
+            "var": "outcome"
+          }
+        ]
+      }
+    },
+    {
+      "name": "outcome_resolvable",
+      "kind": "expr",
+      "logic": {
+        "or": [
+          {
+            "===": [
+              {
+                "var": "outcome"
+              },
+              null
+            ]
+          },
+          {
+            "===": [
+              {
+                "reduce": [
+                  {
+                    "var": "bindings.named_matches"
+                  },
+                  {
+                    "+": [
+                      {
+                        "var": "accumulator"
+                      },
+                      1
+                    ]
+                  },
+                  0
+                ]
+              },
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "outcome_name",
+      "kind": "expr",
+      "logic": {
+        "if": [
+          {
+            "!==": [
+              {
+                "var": "outcome"
+              },
+              null
+            ]
+          },
+          {
+            "var": "outcome"
+          },
+          {
+            "if": [
+              {
+                "and": [
+                  {
+                    "===": [
+                      {
+                        "var": "bindings.supervised"
+                      },
+                      true
+                    ]
+                  },
+                  {
+                    ">=": [
+                      {
+                        "var": "bindings.n_columns"
+                      },
+                      2
+                    ]
+                  }
+                ]
+              },
+              {
+                "var": "bindings.last_column"
+              },
+              null
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "character2factor",
+      "kind": "expr",
+      "logic": {
+        "===": [
+          {
+            "var": "config.character2factor"
+          },
+          true
+        ]
+      }
+    },
+    {
+      "name": "outcome_columns",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "profile.columns"
+        }
+      },
+      "where": {
+        "===": [
+          {
+            "var": "item.name"
+          },
+          {
+            "var": "bindings.outcome_name"
+          }
+        ]
+      }
+    },
+    {
+      "name": "outcome_resolved",
+      "kind": "expr",
+      "logic": {
+        "===": [
+          {
+            "reduce": [
+              {
+                "var": "bindings.outcome_columns"
+              },
+              {
+                "+": [
+                  {
+                    "var": "accumulator"
+                  },
+                  1
+                ]
+              },
+              0
+            ]
+          },
+          1
+        ]
+      }
+    },
+    {
+      "name": "outcome_raw_dtype",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.outcome_columns"
+          },
+          {
+            "if": [
+              {
+                "===": [
+                  {
+                    "var": "accumulator"
+                  },
+                  null
+                ]
+              },
+              {
+                "var": "current.dtype"
+              },
+              {
+                "var": "accumulator"
+              }
+            ]
+          },
+          null
+        ]
+      }
+    },
+    {
+      "name": "outcome_dtype",
+      "kind": "expr",
+      "logic": {
+        "if": [
+          {
+            "and": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.character2factor"
+                  },
+                  true
+                ]
+              },
+              {
+                "===": [
+                  {
+                    "var": "bindings.outcome_raw_dtype"
+                  },
+                  "string"
+                ]
+              }
+            ]
+          },
+          "categorical",
+          {
+            "var": "bindings.outcome_raw_dtype"
+          }
+        ]
+      }
+    },
+    {
+      "name": "outcome_n_distinct",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.outcome_columns"
+          },
+          {
+            "if": [
+              {
+                "===": [
+                  {
+                    "var": "accumulator"
+                  },
+                  null
+                ]
+              },
+              {
+                "var": "current.n_distinct"
+              },
+              {
+                "var": "accumulator"
+              }
+            ]
+          },
+          null
+        ]
+      }
+    },
+    {
+      "name": "outcome_n_missing",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.outcome_columns"
+          },
+          {
+            "if": [
+              {
+                "===": [
+                  {
+                    "var": "accumulator"
+                  },
+                  null
+                ]
+              },
+              {
+                "var": "current.n_missing"
+              },
+              {
+                "var": "accumulator"
+              }
+            ]
+          },
+          null
+        ]
+      }
+    },
+    {
+      "name": "outcome_is_categorical",
+      "kind": "expr",
+      "logic": {
+        "===": [
+          {
+            "var": "bindings.outcome_dtype"
+          },
+          "categorical"
+        ]
+      }
+    },
+    {
+      "name": "selected_features",
+      "kind": "expr",
+      "logic": {
+        "var": "config.features"
+      }
+    },
+    {
+      "name": "features",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "profile.columns"
+        }
+      },
+      "where": {
+        "and": [
+          {
+            "!==": [
+              {
+                "var": "item.name"
+              },
+              {
+                "var": "bindings.outcome_name"
+              }
+            ]
+          },
+          {
+            "or": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.selected_features"
+                  },
+                  null
+                ]
+              },
+              {
+                "in": [
+                  {
+                    "var": "item.name"
+                  },
+                  {
+                    "var": "bindings.selected_features"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "select": {
+        "name": {
+          "var": "item.name"
+        },
+        "dtype": {
+          "if": [
+            {
+              "and": [
+                {
+                  "===": [
+                    {
+                      "var": "bindings.character2factor"
+                    },
+                    true
+                  ]
+                },
+                {
+                  "===": [
+                    {
+                      "var": "item.dtype"
+                    },
+                    "string"
+                  ]
+                }
+              ]
+            },
+            "categorical",
+            {
+              "var": "item.dtype"
+            }
+          ]
+        },
+        "n_distinct": {
+          "var": "item.n_distinct"
+        },
+        "n_missing": {
+          "var": "item.n_missing"
+        }
+      }
+    },
+    {
+      "name": "n_features",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.features"
+          },
+          {
+            "+": [
+              {
+                "var": "accumulator"
+              },
+              1
+            ]
+          },
+          0
+        ]
+      }
+    },
+    {
+      "name": "variant_algorithms",
+      "kind": "scan",
+      "source": {
+        "pointers": [
+          "/hyperparameters/variants/*/algorithm"
+        ]
+      }
+    },
+    {
+      "name": "algorithm",
+      "kind": "expr",
+      "logic": {
+        "if": [
+          {
+            "!==": [
+              {
+                "var": "config.hyperparameters.algorithm"
+              },
+              null
+            ]
+          },
+          {
+            "var": "config.hyperparameters.algorithm"
+          },
+          {
+            "reduce": [
+              {
+                "var": "bindings.variant_algorithms"
+              },
+              {
+                "if": [
+                  {
+                    "===": [
+                      {
+                        "var": "accumulator"
+                      },
+                      null
+                    ]
+                  },
+                  {
+                    "var": "current.value"
+                  },
+                  {
+                    "var": "accumulator"
+                  }
+                ]
+              },
+              null
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "algorithm_traits",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "traits"
+        }
+      },
+      "where": {
+        "===": [
+          {
+            "var": "item.name"
+          },
+          {
+            "var": "bindings.algorithm"
+          }
+        ]
+      }
+    },
+    {
+      "name": "allows_missing",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.algorithm_traits"
+          },
+          {
+            "if": [
+              {
+                "===": [
+                  {
+                    "var": "accumulator"
+                  },
+                  null
+                ]
+              },
+              {
+                "var": "current.handles_missing_data"
+              },
+              {
+                "var": "accumulator"
+              }
+            ]
+          },
+          null
+        ]
+      }
+    },
+    {
+      "name": "handles_p_gt_n",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.algorithm_traits"
+          },
+          {
+            "if": [
+              {
+                "===": [
+                  {
+                    "var": "accumulator"
+                  },
+                  null
+                ]
+              },
+              {
+                "var": "current.handles_p_greater_than_n"
+              },
+              {
+                "var": "accumulator"
+              }
+            ]
+          },
+          null
+        ]
+      }
+    },
+    {
+      "name": "does_classification",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.algorithm_traits"
+          },
+          {
+            "if": [
+              {
+                "===": [
+                  {
+                    "var": "accumulator"
+                  },
+                  null
+                ]
+              },
+              {
+                "var": "current.classification"
+              },
+              {
+                "var": "accumulator"
+              }
+            ]
+          },
+          null
+        ]
+      }
+    },
+    {
+      "name": "does_regression",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.algorithm_traits"
+          },
+          {
+            "if": [
+              {
+                "===": [
+                  {
+                    "var": "accumulator"
+                  },
+                  null
+                ]
+              },
+              {
+                "var": "current.regression"
+              },
+              {
+                "var": "accumulator"
+              }
+            ]
+          },
+          null
+        ]
+      }
+    },
+    {
+      "name": "remove_constants",
+      "kind": "expr",
+      "logic": {
+        "===": [
+          {
+            "var": "config.preprocessor_config.remove_constants"
+          },
+          true
+        ]
+      }
+    },
+    {
+      "name": "skip_missing",
+      "kind": "expr",
+      "logic": {
+        "if": [
+          {
+            "===": [
+              {
+                "var": "config.preprocessor_config"
+              },
+              null
+            ]
+          },
+          true,
+          {
+            "===": [
+              {
+                "var": "config.preprocessor_config.remove_constants_skip_missing"
+              },
+              true
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "already_removed",
+      "kind": "expr",
+      "logic": {
+        "var": "config.preprocessor_config.remove_features"
+      }
+    },
+    {
+      "name": "already_removed_list",
+      "kind": "expr",
+      "logic": {
+        "if": [
+          {
+            "===": [
+              {
+                "var": "bindings.already_removed"
+              },
+              null
+            ]
+          },
+          [],
+          {
+            "var": "bindings.already_removed"
+          }
+        ]
+      }
+    },
+    {
+      "name": "constants",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "bindings.features"
+        }
+      },
+      "where": {
+        "and": [
+          {
+            "if": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.skip_missing"
+                  },
+                  true
+                ]
+              },
+              {
+                "<=": [
+                  {
+                    "var": "item.n_distinct"
+                  },
+                  1
+                ]
+              },
+              {
+                "and": [
+                  {
+                    "===": [
+                      {
+                        "var": "item.n_distinct"
+                      },
+                      1
+                    ]
+                  },
+                  {
+                    "===": [
+                      {
+                        "var": "item.n_missing"
+                      },
+                      0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "!": [
+              {
+                "in": [
+                  {
+                    "var": "item.name"
+                  },
+                  {
+                    "var": "bindings.already_removed_list"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "select": {
+        "name": {
+          "var": "item.name"
+        },
+        "label": {
+          "cat": [
+            "'",
+            {
+              "var": "item.name"
+            },
+            "'"
+          ]
+        }
+      }
+    },
+    {
+      "name": "n_constants",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.constants"
+          },
+          {
+            "+": [
+              {
+                "var": "accumulator"
+              },
+              1
+            ]
+          },
+          0
+        ]
+      }
+    },
+    {
+      "name": "constant_names",
+      "kind": "expr",
+      "logic": {
+        "map": [
+          {
+            "var": "bindings.constants"
+          },
+          {
+            "var": "name"
+          }
+        ]
+      }
+    },
+    {
+      "name": "unsupported_features",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "bindings.features"
+        }
+      },
+      "where": {
+        "!": [
+          {
+            "in": [
+              {
+                "var": "item.dtype"
+              },
+              [
+                "integer",
+                "number",
+                "categorical"
+              ]
+            ]
+          }
+        ]
+      },
+      "select": {
+        "name": {
+          "var": "item.name"
+        },
+        "dtype": {
+          "var": "item.dtype"
+        },
+        "label": {
+          "cat": [
+            "'",
+            {
+              "var": "item.name"
+            },
+            "' (",
+            {
+              "var": "item.dtype"
+            },
+            ")"
+          ]
+        }
+      }
+    },
+    {
+      "name": "n_unsupported_features",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.unsupported_features"
+          },
+          {
+            "+": [
+              {
+                "var": "accumulator"
+              },
+              1
+            ]
+          },
+          0
+        ]
+      }
+    },
+    {
+      "name": "feature_widths",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "bindings.features"
+        }
+      },
+      "select": {
+        "width": {
+          "if": [
+            {
+              "===": [
+                {
+                  "var": "item.dtype"
+                },
+                "categorical"
+              ]
+            },
+            {
+              "var": "item.n_distinct"
+            },
+            1
+          ]
+        }
+      }
+    },
+    {
+      "name": "encoded_p",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.feature_widths"
+          },
+          {
+            "+": [
+              {
+                "var": "accumulator"
+              },
+              {
+                "var": "current.width"
+              }
+            ]
+          },
+          0
+        ]
+      }
+    },
+    {
+      "name": "wide_features",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "bindings.features"
+        }
+      },
+      "where": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "item.dtype"
+              },
+              "categorical"
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "item.n_distinct"
+              },
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "decomposition_k",
+      "kind": "expr",
+      "logic": {
+        "var": "config.decomposition_config.config.k"
+      }
+    },
+    {
+      "name": "decomposition_name",
+      "kind": "expr",
+      "logic": {
+        "var": "config.decomposition_config.algorithm"
+      }
+    },
+    {
+      "name": "effective_p",
+      "kind": "expr",
+      "logic": {
+        "if": [
+          {
+            "===": [
+              {
+                "var": "bindings.decomposition_k"
+              },
+              null
+            ]
+          },
+          {
+            "var": "bindings.encoded_p"
+          },
+          {
+            "var": "bindings.decomposition_k"
+          }
+        ]
+      }
+    },
+    {
+      "name": "total_missing",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "profile.columns"
+          },
+          {
+            "+": [
+              {
+                "var": "accumulator"
+              },
+              {
+                "var": "current.n_missing"
+              }
+            ]
+          },
+          0
+        ]
+      }
+    },
+    {
+      "name": "feature_missing",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.features"
+          },
+          {
+            "+": [
+              {
+                "var": "accumulator"
+              },
+              {
+                "var": "current.n_missing"
+              }
+            ]
+          },
+          0
+        ]
+      }
+    },
+    {
+      "name": "missing_features",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "bindings.features"
+        }
+      },
+      "where": {
+        ">": [
+          {
+            "var": "item.n_missing"
+          },
+          0
+        ]
+      }
+    },
+    {
+      "name": "n_features_missing",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.missing_features"
+          },
+          {
+            "+": [
+              {
+                "var": "accumulator"
+              },
+              1
+            ]
+          },
+          0
+        ]
+      }
+    },
+    {
+      "name": "all_missing_columns",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "profile.columns"
+        }
+      },
+      "where": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "item.n_distinct"
+              },
+              0
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "item.n_missing"
+              },
+              0
+            ]
+          }
+        ]
+      },
+      "select": {
+        "name": {
+          "var": "item.name"
+        },
+        "label": {
+          "cat": [
+            "'",
+            {
+              "var": "item.name"
+            },
+            "'"
+          ]
+        }
+      }
+    },
+    {
+      "name": "runs_complete_cases",
+      "kind": "expr",
+      "logic": {
+        "===": [
+          {
+            "var": "config.preprocessor_config.complete_cases"
+          },
+          true
+        ]
+      }
+    },
+    {
+      "name": "runs_impute",
+      "kind": "expr",
+      "logic": {
+        "===": [
+          {
+            "var": "config.preprocessor_config.impute"
+          },
+          true
+        ]
+      }
+    },
+    {
+      "name": "thresholds_set",
+      "kind": "expr",
+      "logic": {
+        "or": [
+          {
+            "!==": [
+              {
+                "var": "config.preprocessor_config.remove_cases_thres"
+              },
+              null
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "config.preprocessor_config.remove_features_thres"
+              },
+              null
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "missing_evaluable",
+      "kind": "expr",
+      "logic": {
+        "or": [
+          {
+            "===": [
+              {
+                "var": "bindings.supervised"
+              },
+              true
+            ]
+          },
+          {
+            "!": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.thresholds_set"
+                  },
+                  true
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "resamplers",
+      "kind": "scan",
+      "source": {
+        "pointers": [
+          "/outer_resampling_config",
+          "/tuner_config/config/resampler_config"
+        ]
+      },
+      "where": {
+        "!==": [
+          {
+            "var": "item.value"
+          },
+          null
+        ]
+      }
+    },
+    {
+      "name": "outcome_levels",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "profile.level_counts"
+        }
+      },
+      "where": {
+        "===": [
+          {
+            "var": "item.column"
+          },
+          {
+            "var": "bindings.outcome_name"
+          }
+        ]
+      }
+    },
+    {
+      "name": "n_outcome_levels",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.outcome_levels"
+          },
+          {
+            "+": [
+              {
+                "var": "accumulator"
+              },
+              1
+            ]
+          },
+          0
+        ]
+      }
+    },
+    {
+      "name": "min_class_n",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.outcome_levels"
+          },
+          {
+            "if": [
+              {
+                "===": [
+                  {
+                    "var": "accumulator"
+                  },
+                  null
+                ]
+              },
+              {
+                "var": "current.n"
+              },
+              {
+                "min": [
+                  {
+                    "var": "accumulator"
+                  },
+                  {
+                    "var": "current.n"
+                  }
+                ]
+              }
+            ]
+          },
+          null
+        ]
+      }
+    },
+    {
+      "name": "min_classes",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "bindings.outcome_levels"
+        }
+      },
+      "where": {
+        "===": [
+          {
+            "var": "item.n"
+          },
+          {
+            "var": "bindings.min_class_n"
+          }
+        ]
+      }
+    },
+    {
+      "name": "min_class_level",
+      "kind": "expr",
+      "logic": {
+        "reduce": [
+          {
+            "var": "bindings.min_classes"
+          },
+          {
+            "if": [
+              {
+                "===": [
+                  {
+                    "var": "accumulator"
+                  },
+                  null
+                ]
+              },
+              {
+                "var": "current.level"
+              },
+              {
+                "var": "accumulator"
+              }
+            ]
+          },
+          null
+        ]
+      }
+    },
+    {
+      "name": "outcome_class_counts",
+      "kind": "scan",
+      "source": {
+        "logic": {
+          "var": "bindings.outcome_levels"
+        }
+      },
+      "select": {
+        "level": {
+          "var": "item.level"
+        },
+        "n": {
+          "var": "item.n"
+        }
+      }
+    }
+  ],
+  "rules": [
+    {
+      "id": "OUTCOME_MISSING/not-a-column",
+      "code": "OUTCOME_MISSING",
+      "condition": {
+        "and": [
+          {
+            "!==": [
+              {
+                "var": "outcome"
+              },
+              null
+            ]
+          },
+          {
+            "===": [
+              {
+                "reduce": [
+                  {
+                    "var": "bindings.named_matches"
+                  },
+                  {
+                    "+": [
+                      {
+                        "var": "accumulator"
+                      },
+                      1
+                    ]
+                  },
+                  0
+                ]
+              },
+              0
+            ]
+          }
+        ]
+      },
+      "severity": "error",
+      "evidence": {
+        "outcome": {
+          "var": "outcome"
+        },
+        "columns": {
+          "map": [
+            {
+              "var": "profile.columns"
+            },
+            {
+              "var": "name"
+            }
+          ]
+        }
+      },
+      "slots": {
+        "column_labels": {
+          "map": [
+            {
+              "var": "bindings.column_labels"
+            },
+            {
+              "var": "label"
+            }
+          ]
+        }
+      },
+      "message": "Outcome column '{outcome}' is not in the data. Columns are: {column_labels}."
+    },
+    {
+      "id": "OUTCOME_TYPE_MISMATCH/unusable-dtype",
+      "code": "OUTCOME_TYPE_MISMATCH",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolved"
+              },
+              true
+            ]
+          }
+        ]
+      },
+      "condition": {
+        "!": [
+          {
+            "in": [
+              {
+                "var": "bindings.outcome_dtype"
+              },
+              [
+                "integer",
+                "number",
+                "categorical"
+              ]
+            ]
+          }
+        ]
+      },
+      "severity": "error",
+      "evidence": {
+        "outcome": {
+          "var": "bindings.outcome_name"
+        },
+        "outcome_dtype": {
+          "var": "bindings.outcome_dtype"
+        }
+      },
+      "message": "Outcome '{outcome}' holds {outcome_dtype} values; rtemis requires an integer, numeric, or factor outcome. Convert it to a factor to classify, or to a number to regress."
+    },
+    {
+      "id": "OUTCOME_TYPE_MISMATCH/positive-class-on-numeric",
+      "code": "OUTCOME_TYPE_MISMATCH",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolved"
+              },
+              true
+            ]
+          },
+          {
+            "in": [
+              {
+                "var": "bindings.outcome_dtype"
+              },
+              [
+                "integer",
+                "number",
+                "categorical"
+              ]
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "config.positive_class"
+              },
+              null
+            ]
+          }
+        ]
+      },
+      "condition": {
+        "!": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_is_categorical"
+              },
+              true
+            ]
+          }
+        ]
+      },
+      "severity": "warning",
+      "evidence": {
+        "outcome": {
+          "var": "bindings.outcome_name"
+        },
+        "outcome_dtype": {
+          "var": "bindings.outcome_dtype"
+        },
+        "declared_task": "Classification",
+        "data_task": "Regression"
+      },
+      "slots": {
+        "positive_class": {
+          "var": "config.positive_class"
+        }
+      },
+      "message": "Config declares classification (`positive_class` is '{positive_class}') but outcome '{outcome}' holds {outcome_dtype} values, which rtemis reads as regression."
+    },
+    {
+      "id": "OUTCOME_TYPE_MISMATCH/algorithm-classifies-only",
+      "code": "OUTCOME_TYPE_MISMATCH",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolved"
+              },
+              true
+            ]
+          },
+          {
+            "in": [
+              {
+                "var": "bindings.outcome_dtype"
+              },
+              [
+                "integer",
+                "number",
+                "categorical"
+              ]
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "config.positive_class"
+              },
+              null
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.does_classification"
+              },
+              true
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "bindings.does_regression"
+              },
+              true
+            ]
+          }
+        ]
+      },
+      "condition": {
+        "!": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_is_categorical"
+              },
+              true
+            ]
+          }
+        ]
+      },
+      "severity": "warning",
+      "evidence": {
+        "outcome": {
+          "var": "bindings.outcome_name"
+        },
+        "outcome_dtype": {
+          "var": "bindings.outcome_dtype"
+        },
+        "declared_task": "Classification",
+        "data_task": "Regression"
+      },
+      "slots": {
+        "algorithm": {
+          "var": "bindings.algorithm"
+        }
+      },
+      "message": "Config declares classification (algorithm {algorithm}) but outcome '{outcome}' holds {outcome_dtype} values, which rtemis reads as regression."
+    },
+    {
+      "id": "OUTCOME_TYPE_MISMATCH/algorithm-regresses-only",
+      "code": "OUTCOME_TYPE_MISMATCH",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolved"
+              },
+              true
+            ]
+          },
+          {
+            "in": [
+              {
+                "var": "bindings.outcome_dtype"
+              },
+              [
+                "integer",
+                "number",
+                "categorical"
+              ]
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "config.positive_class"
+              },
+              null
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.does_regression"
+              },
+              true
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "bindings.does_classification"
+              },
+              true
+            ]
+          }
+        ]
+      },
+      "condition": {
+        "===": [
+          {
+            "var": "bindings.outcome_is_categorical"
+          },
+          true
+        ]
+      },
+      "severity": "warning",
+      "evidence": {
+        "outcome": {
+          "var": "bindings.outcome_name"
+        },
+        "outcome_dtype": {
+          "var": "bindings.outcome_dtype"
+        },
+        "declared_task": "Regression",
+        "data_task": "Classification"
+      },
+      "slots": {
+        "algorithm": {
+          "var": "bindings.algorithm"
+        }
+      },
+      "message": "Config declares regression (algorithm {algorithm}) but outcome '{outcome}' holds {outcome_dtype} values, which rtemis reads as classification."
+    },
+    {
+      "id": "RESAMPLE_MIN_CLASS/levels-not-carried",
+      "code": "RESAMPLE_MIN_CLASS",
+      "over": "resamplers",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolved"
+              },
+              true
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_is_categorical"
+              },
+              true
+            ]
+          },
+          {
+            "in": [
+              {
+                "var": "item.value.type"
+              },
+              [
+                "KFold",
+                "StratSub",
+                "StratBoot"
+              ]
+            ]
+          }
+        ]
+      },
+      "condition": {
+        "===": [
+          {
+            "var": "bindings.n_outcome_levels"
+          },
+          0
+        ]
+      },
+      "severity": "note",
+      "evidence": {
+        "resampler": {
+          "var": "item.pointer"
+        },
+        "type": {
+          "var": "item.value.type"
+        },
+        "n_resamples": {
+          "var": "item.value.n_resamples"
+        },
+        "n_levels": {
+          "var": "bindings.outcome_n_distinct"
+        },
+        "max_levels": 64
+      },
+      "slots": {
+        "outcome": {
+          "var": "bindings.outcome_name"
+        }
+      },
+      "message": "Outcome '{outcome}' has {n_levels} levels, more than the {max_levels} a profile carries counts for, so the class balance of the {type} resampler at `{resampler}` was not checked."
+    },
+    {
+      "id": "RESAMPLE_MIN_CLASS/fewer-cases-than-resamples",
+      "code": "RESAMPLE_MIN_CLASS",
+      "over": "resamplers",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolved"
+              },
+              true
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_is_categorical"
+              },
+              true
+            ]
+          },
+          {
+            "in": [
+              {
+                "var": "item.value.type"
+              },
+              [
+                "KFold",
+                "StratSub",
+                "StratBoot"
+              ]
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "bindings.n_outcome_levels"
+              },
+              0
+            ]
+          }
+        ]
+      },
+      "condition": {
+        "<": [
+          {
+            "var": "bindings.min_class_n"
+          },
+          {
+            "var": "item.value.n_resamples"
+          }
+        ]
+      },
+      "severity": "error",
+      "evidence": {
+        "resampler": {
+          "var": "item.pointer"
+        },
+        "type": {
+          "var": "item.value.type"
+        },
+        "n_resamples": {
+          "var": "item.value.n_resamples"
+        },
+        "min_class": {
+          "var": "bindings.min_class_level"
+        },
+        "min_class_n": {
+          "var": "bindings.min_class_n"
+        },
+        "class_counts": {
+          "var": "bindings.outcome_class_counts"
+        }
+      },
+      "message": "Class '{min_class}' has {min_class_n} {min_class_n|case|cases} but the {type} resampler at `{resampler}` asks for {n_resamples} resamples.",
+      "fix": {
+        "when": {
+          ">=": [
+            {
+              "var": "bindings.min_class_n"
+            },
+            2
+          ]
+        },
+        "patch": [
+          {
+            "op": "replace",
+            "path": "{resampler}/n_resamples",
+            "value": {
+              "var": "bindings.min_class_n"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "RESAMPLE_N_ROWS/needs-two-rows",
+      "code": "RESAMPLE_N_ROWS",
+      "over": "resamplers",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "in": [
+              {
+                "var": "item.value.type"
+              },
+              [
+                "LOOCV",
+                "Bootstrap"
+              ]
+            ]
+          }
+        ]
+      },
+      "condition": {
+        "<": [
+          {
+            "var": "profile.n_rows"
+          },
+          2
+        ]
+      },
+      "severity": "error",
+      "evidence": {
+        "resampler": {
+          "var": "item.pointer"
+        },
+        "type": {
+          "var": "item.value.type"
+        },
+        "n_rows": {
+          "var": "profile.n_rows"
+        }
+      },
+      "message": "The {type} resampler at `{resampler}` needs at least 2 rows; the data has {n_rows}."
+    },
+    {
+      "id": "RESAMPLE_N_ROWS/more-folds-than-rows",
+      "code": "RESAMPLE_N_ROWS",
+      "over": "resamplers",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "item.value.type"
+              },
+              "KFold"
+            ]
+          }
+        ]
+      },
+      "condition": {
+        "<": [
+          {
+            "var": "profile.n_rows"
+          },
+          {
+            "var": "item.value.n_resamples"
+          }
+        ]
+      },
+      "severity": "error",
+      "evidence": {
+        "resampler": {
+          "var": "item.pointer"
+        },
+        "type": {
+          "var": "item.value.type"
+        },
+        "n_rows": {
+          "var": "profile.n_rows"
+        },
+        "n_resamples": {
+          "var": "item.value.n_resamples"
+        }
+      },
+      "message": "The KFold resampler at `{resampler}` asks for {n_resamples} folds but the data has {n_rows} {n_rows|row|rows}.",
+      "fix": {
+        "when": {
+          ">=": [
+            {
+              "var": "profile.n_rows"
+            },
+            4
+          ]
+        },
+        "patch": [
+          {
+            "op": "replace",
+            "path": "{resampler}/n_resamples",
+            "value": {
+              "/": [
+                {
+                  "-": [
+                    {
+                      "var": "profile.n_rows"
+                    },
+                    {
+                      "%": [
+                        {
+                          "var": "profile.n_rows"
+                        },
+                        2
+                      ]
+                    }
+                  ]
+                },
+                2
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "RESAMPLE_N_ROWS/thin-test-fold",
+      "code": "RESAMPLE_N_ROWS",
+      "over": "resamplers",
+      "let": {
+        "n_test": {
+          "/": [
+            {
+              "-": [
+                {
+                  "var": "profile.n_rows"
+                },
+                {
+                  "%": [
+                    {
+                      "var": "profile.n_rows"
+                    },
+                    {
+                      "var": "item.value.n_resamples"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "var": "item.value.n_resamples"
+            }
+          ]
+        }
+      },
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "item.value.type"
+              },
+              "KFold"
+            ]
+          },
+          {
+            ">=": [
+              {
+                "var": "profile.n_rows"
+              },
+              {
+                "var": "item.value.n_resamples"
+              }
+            ]
+          }
+        ]
+      },
+      "condition": {
+        "<": [
+          {
+            "var": "bindings.n_test"
+          },
+          2
+        ]
+      },
+      "severity": "warning",
+      "evidence": {
+        "resampler": {
+          "var": "item.pointer"
+        },
+        "type": {
+          "var": "item.value.type"
+        },
+        "n_rows": {
+          "var": "profile.n_rows"
+        },
+        "n_resamples": {
+          "var": "item.value.n_resamples"
+        },
+        "n_test": {
+          "var": "bindings.n_test"
+        }
+      },
+      "message": "The KFold resampler at `{resampler}` leaves {n_test} {n_test|case|cases} per test fold ({n_rows} rows over {n_resamples} folds)."
+    },
+    {
+      "id": "RESAMPLE_N_ROWS/empty-split-side",
+      "code": "RESAMPLE_N_ROWS",
+      "over": "resamplers",
+      "let": {
+        "n_train": {
+          "+": [
+            {
+              "-": [
+                {
+                  "*": [
+                    {
+                      "var": "profile.n_rows"
+                    },
+                    {
+                      "var": "item.value.train_p"
+                    }
+                  ]
+                },
+                {
+                  "%": [
+                    {
+                      "*": [
+                        {
+                          "var": "profile.n_rows"
+                        },
+                        {
+                          "var": "item.value.train_p"
+                        }
+                      ]
+                    },
+                    1
+                  ]
+                }
+              ]
+            },
+            {
+              "if": [
+                {
+                  "or": [
+                    {
+                      ">": [
+                        {
+                          "%": [
+                            {
+                              "*": [
+                                {
+                                  "var": "profile.n_rows"
+                                },
+                                {
+                                  "var": "item.value.train_p"
+                                }
+                              ]
+                            },
+                            1
+                          ]
+                        },
+                        0.5
+                      ]
+                    },
+                    {
+                      "and": [
+                        {
+                          "===": [
+                            {
+                              "%": [
+                                {
+                                  "*": [
+                                    {
+                                      "var": "profile.n_rows"
+                                    },
+                                    {
+                                      "var": "item.value.train_p"
+                                    }
+                                  ]
+                                },
+                                1
+                              ]
+                            },
+                            0.5
+                          ]
+                        },
+                        {
+                          "===": [
+                            {
+                              "%": [
+                                {
+                                  "-": [
+                                    {
+                                      "*": [
+                                        {
+                                          "var": "profile.n_rows"
+                                        },
+                                        {
+                                          "var": "item.value.train_p"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "%": [
+                                        {
+                                          "*": [
+                                            {
+                                              "var": "profile.n_rows"
+                                            },
+                                            {
+                                              "var": "item.value.train_p"
+                                            }
+                                          ]
+                                        },
+                                        1
+                                      ]
+                                    }
+                                  ]
+                                },
+                                2
+                              ]
+                            },
+                            1
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          ]
+        },
+        "n_test": {
+          "-": [
+            {
+              "var": "profile.n_rows"
+            },
+            {
+              "+": [
+                {
+                  "-": [
+                    {
+                      "*": [
+                        {
+                          "var": "profile.n_rows"
+                        },
+                        {
+                          "var": "item.value.train_p"
+                        }
+                      ]
+                    },
+                    {
+                      "%": [
+                        {
+                          "*": [
+                            {
+                              "var": "profile.n_rows"
+                            },
+                            {
+                              "var": "item.value.train_p"
+                            }
+                          ]
+                        },
+                        1
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "if": [
+                    {
+                      "or": [
+                        {
+                          ">": [
+                            {
+                              "%": [
+                                {
+                                  "*": [
+                                    {
+                                      "var": "profile.n_rows"
+                                    },
+                                    {
+                                      "var": "item.value.train_p"
+                                    }
+                                  ]
+                                },
+                                1
+                              ]
+                            },
+                            0.5
+                          ]
+                        },
+                        {
+                          "and": [
+                            {
+                              "===": [
+                                {
+                                  "%": [
+                                    {
+                                      "*": [
+                                        {
+                                          "var": "profile.n_rows"
+                                        },
+                                        {
+                                          "var": "item.value.train_p"
+                                        }
+                                      ]
+                                    },
+                                    1
+                                  ]
+                                },
+                                0.5
+                              ]
+                            },
+                            {
+                              "===": [
+                                {
+                                  "%": [
+                                    {
+                                      "-": [
+                                        {
+                                          "*": [
+                                            {
+                                              "var": "profile.n_rows"
+                                            },
+                                            {
+                                              "var": "item.value.train_p"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "%": [
+                                            {
+                                              "*": [
+                                                {
+                                                  "var": "profile.n_rows"
+                                                },
+                                                {
+                                                  "var": "item.value.train_p"
+                                                }
+                                              ]
+                                            },
+                                            1
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    2
+                                  ]
+                                },
+                                1
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    1,
+                    0
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "in": [
+              {
+                "var": "item.value.type"
+              },
+              [
+                "StratSub",
+                "StratBoot"
+              ]
+            ]
+          }
+        ]
+      },
+      "condition": {
+        "or": [
+          {
+            "<": [
+              {
+                "var": "bindings.n_test"
+              },
+              1
+            ]
+          },
+          {
+            "<": [
+              {
+                "var": "bindings.n_train"
+              },
+              2
+            ]
+          }
+        ]
+      },
+      "severity": "error",
+      "evidence": {
+        "resampler": {
+          "var": "item.pointer"
+        },
+        "type": {
+          "var": "item.value.type"
+        },
+        "n_rows": {
+          "var": "profile.n_rows"
+        },
+        "train_p": {
+          "var": "item.value.train_p"
+        },
+        "n_train": {
+          "var": "bindings.n_train"
+        },
+        "n_test": {
+          "var": "bindings.n_test"
+        }
+      },
+      "message": "The {type} resampler at `{resampler}` splits {n_rows} {n_rows|row|rows} at train_p {train_p} into {n_train} training and {n_test} test; neither side can be empty and training needs at least 2."
+    },
+    {
+      "id": "RESAMPLE_N_ROWS/single-test-case",
+      "code": "RESAMPLE_N_ROWS",
+      "over": "resamplers",
+      "let": {
+        "n_train": {
+          "+": [
+            {
+              "-": [
+                {
+                  "*": [
+                    {
+                      "var": "profile.n_rows"
+                    },
+                    {
+                      "var": "item.value.train_p"
+                    }
+                  ]
+                },
+                {
+                  "%": [
+                    {
+                      "*": [
+                        {
+                          "var": "profile.n_rows"
+                        },
+                        {
+                          "var": "item.value.train_p"
+                        }
+                      ]
+                    },
+                    1
+                  ]
+                }
+              ]
+            },
+            {
+              "if": [
+                {
+                  "or": [
+                    {
+                      ">": [
+                        {
+                          "%": [
+                            {
+                              "*": [
+                                {
+                                  "var": "profile.n_rows"
+                                },
+                                {
+                                  "var": "item.value.train_p"
+                                }
+                              ]
+                            },
+                            1
+                          ]
+                        },
+                        0.5
+                      ]
+                    },
+                    {
+                      "and": [
+                        {
+                          "===": [
+                            {
+                              "%": [
+                                {
+                                  "*": [
+                                    {
+                                      "var": "profile.n_rows"
+                                    },
+                                    {
+                                      "var": "item.value.train_p"
+                                    }
+                                  ]
+                                },
+                                1
+                              ]
+                            },
+                            0.5
+                          ]
+                        },
+                        {
+                          "===": [
+                            {
+                              "%": [
+                                {
+                                  "-": [
+                                    {
+                                      "*": [
+                                        {
+                                          "var": "profile.n_rows"
+                                        },
+                                        {
+                                          "var": "item.value.train_p"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "%": [
+                                        {
+                                          "*": [
+                                            {
+                                              "var": "profile.n_rows"
+                                            },
+                                            {
+                                              "var": "item.value.train_p"
+                                            }
+                                          ]
+                                        },
+                                        1
+                                      ]
+                                    }
+                                  ]
+                                },
+                                2
+                              ]
+                            },
+                            1
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          ]
+        },
+        "n_test": {
+          "-": [
+            {
+              "var": "profile.n_rows"
+            },
+            {
+              "+": [
+                {
+                  "-": [
+                    {
+                      "*": [
+                        {
+                          "var": "profile.n_rows"
+                        },
+                        {
+                          "var": "item.value.train_p"
+                        }
+                      ]
+                    },
+                    {
+                      "%": [
+                        {
+                          "*": [
+                            {
+                              "var": "profile.n_rows"
+                            },
+                            {
+                              "var": "item.value.train_p"
+                            }
+                          ]
+                        },
+                        1
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "if": [
+                    {
+                      "or": [
+                        {
+                          ">": [
+                            {
+                              "%": [
+                                {
+                                  "*": [
+                                    {
+                                      "var": "profile.n_rows"
+                                    },
+                                    {
+                                      "var": "item.value.train_p"
+                                    }
+                                  ]
+                                },
+                                1
+                              ]
+                            },
+                            0.5
+                          ]
+                        },
+                        {
+                          "and": [
+                            {
+                              "===": [
+                                {
+                                  "%": [
+                                    {
+                                      "*": [
+                                        {
+                                          "var": "profile.n_rows"
+                                        },
+                                        {
+                                          "var": "item.value.train_p"
+                                        }
+                                      ]
+                                    },
+                                    1
+                                  ]
+                                },
+                                0.5
+                              ]
+                            },
+                            {
+                              "===": [
+                                {
+                                  "%": [
+                                    {
+                                      "-": [
+                                        {
+                                          "*": [
+                                            {
+                                              "var": "profile.n_rows"
+                                            },
+                                            {
+                                              "var": "item.value.train_p"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "%": [
+                                            {
+                                              "*": [
+                                                {
+                                                  "var": "profile.n_rows"
+                                                },
+                                                {
+                                                  "var": "item.value.train_p"
+                                                }
+                                              ]
+                                            },
+                                            1
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    2
+                                  ]
+                                },
+                                1
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    1,
+                    0
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "in": [
+              {
+                "var": "item.value.type"
+              },
+              [
+                "StratSub",
+                "StratBoot"
+              ]
+            ]
+          },
+          {
+            ">=": [
+              {
+                "var": "bindings.n_test"
+              },
+              1
+            ]
+          },
+          {
+            ">=": [
+              {
+                "var": "bindings.n_train"
+              },
+              2
+            ]
+          }
+        ]
+      },
+      "condition": {
+        "<": [
+          {
+            "var": "bindings.n_test"
+          },
+          2
+        ]
+      },
+      "severity": "warning",
+      "evidence": {
+        "resampler": {
+          "var": "item.pointer"
+        },
+        "type": {
+          "var": "item.value.type"
+        },
+        "n_rows": {
+          "var": "profile.n_rows"
+        },
+        "train_p": {
+          "var": "item.value.train_p"
+        },
+        "n_train": {
+          "var": "bindings.n_train"
+        },
+        "n_test": {
+          "var": "bindings.n_test"
+        }
+      },
+      "message": "The {type} resampler at `{resampler}` leaves {n_test} test case per resample ({n_rows} rows at train_p {train_p})."
+    },
+    {
+      "id": "FEATURE_CONSTANT/no-preprocessor-block",
+      "code": "FEATURE_CONSTANT",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "!": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.remove_constants"
+                  },
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "config.preprocessor_config"
+              },
+              null
+            ]
+          }
+        ]
+      },
+      "condition": {
+        ">": [
+          {
+            "var": "bindings.n_constants"
+          },
+          0
+        ]
+      },
+      "severity": "warning",
+      "evidence": {
+        "features": {
+          "var": "bindings.constant_names"
+        },
+        "n_features": {
+          "var": "bindings.n_constants"
+        }
+      },
+      "slots": {
+        "feature_labels": {
+          "map": [
+            {
+              "var": "bindings.constants"
+            },
+            {
+              "var": "label"
+            }
+          ]
+        }
+      },
+      "message": "{n_features} {n_features|predictor never varies|predictors never vary}: {feature_labels}.",
+      "fix": {
+        "patch": [
+          {
+            "op": "add",
+            "path": "/preprocessor_config",
+            "value": {}
+          },
+          {
+            "op": "add",
+            "path": "/preprocessor_config/remove_features",
+            "value": {
+              "var": "bindings.constant_names"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "FEATURE_CONSTANT/existing-preprocessor-block",
+      "code": "FEATURE_CONSTANT",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "!": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.remove_constants"
+                  },
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "config.preprocessor_config"
+              },
+              null
+            ]
+          }
+        ]
+      },
+      "condition": {
+        ">": [
+          {
+            "var": "bindings.n_constants"
+          },
+          0
+        ]
+      },
+      "severity": "warning",
+      "evidence": {
+        "features": {
+          "var": "bindings.constant_names"
+        },
+        "n_features": {
+          "var": "bindings.n_constants"
+        }
+      },
+      "slots": {
+        "feature_labels": {
+          "map": [
+            {
+              "var": "bindings.constants"
+            },
+            {
+              "var": "label"
+            }
+          ]
+        }
+      },
+      "message": "{n_features} {n_features|predictor never varies|predictors never vary}: {feature_labels}.",
+      "fix": {
+        "patch": [
+          {
+            "op": "add",
+            "path": "/preprocessor_config/remove_features",
+            "value": {
+              "merge": [
+                {
+                  "var": "bindings.already_removed_list"
+                },
+                {
+                  "var": "bindings.constant_names"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "FEATURE_TYPE_UNSUPPORTED/not-numeric-or-factor",
+      "code": "FEATURE_TYPE_UNSUPPORTED",
+      "applies_when": {
+        "===": [
+          {
+            "var": "bindings.outcome_resolvable"
+          },
+          true
+        ]
+      },
+      "condition": {
+        ">": [
+          {
+            "var": "bindings.n_unsupported_features"
+          },
+          0
+        ]
+      },
+      "severity": "error",
+      "evidence": {
+        "features": {
+          "map": [
+            {
+              "var": "bindings.unsupported_features"
+            },
+            {
+              "var": "name"
+            }
+          ]
+        },
+        "dtypes": {
+          "map": [
+            {
+              "var": "bindings.unsupported_features"
+            },
+            {
+              "var": "dtype"
+            }
+          ]
+        },
+        "n_features": {
+          "var": "bindings.n_unsupported_features"
+        }
+      },
+      "slots": {
+        "feature_labels": {
+          "map": [
+            {
+              "var": "bindings.unsupported_features"
+            },
+            {
+              "var": "label"
+            }
+          ]
+        }
+      },
+      "message": "{n_features} {n_features|predictor is|predictors are} neither numeric nor a factor: {feature_labels}."
+    },
+    {
+      "id": "DIM_P_GT_N/encoded-rank-deficient",
+      "code": "DIM_P_GT_N",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "bindings.n_features"
+              },
+              0
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.decomposition_k"
+              },
+              null
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.handles_p_gt_n"
+              },
+              false
+            ]
+          }
+        ]
+      },
+      "condition": {
+        ">": [
+          {
+            "var": "bindings.effective_p"
+          },
+          {
+            "var": "profile.n_rows"
+          }
+        ]
+      },
+      "severity": "warning",
+      "evidence": {
+        "n_features": {
+          "var": "bindings.n_features"
+        },
+        "encoded_p": {
+          "var": "bindings.encoded_p"
+        },
+        "effective_p": {
+          "var": "bindings.effective_p"
+        },
+        "n_rows": {
+          "var": "profile.n_rows"
+        },
+        "categorical_features": {
+          "map": [
+            {
+              "var": "bindings.wide_features"
+            },
+            {
+              "var": "name"
+            }
+          ]
+        },
+        "algorithm": {
+          "var": "bindings.algorithm"
+        },
+        "algorithm_handles_p_gt_n": {
+          "var": "bindings.handles_p_gt_n"
+        }
+      },
+      "message": "{n_features} {n_features|predictor encodes|predictors encode} to {effective_p} columns, more than the {n_rows} {n_rows|row|rows} available. {algorithm} fits an unregularized least squares, so the fit is rank-deficient."
+    },
+    {
+      "id": "DIM_P_GT_N/encoded-algorithm-fits",
+      "code": "DIM_P_GT_N",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "bindings.n_features"
+              },
+              0
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.decomposition_k"
+              },
+              null
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "bindings.handles_p_gt_n"
+              },
+              false
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "bindings.algorithm"
+              },
+              null
+            ]
+          }
+        ]
+      },
+      "condition": {
+        ">": [
+          {
+            "var": "bindings.effective_p"
+          },
+          {
+            "var": "profile.n_rows"
+          }
+        ]
+      },
+      "severity": "note",
+      "evidence": {
+        "n_features": {
+          "var": "bindings.n_features"
+        },
+        "encoded_p": {
+          "var": "bindings.encoded_p"
+        },
+        "effective_p": {
+          "var": "bindings.effective_p"
+        },
+        "n_rows": {
+          "var": "profile.n_rows"
+        },
+        "categorical_features": {
+          "map": [
+            {
+              "var": "bindings.wide_features"
+            },
+            {
+              "var": "name"
+            }
+          ]
+        },
+        "algorithm": {
+          "var": "bindings.algorithm"
+        },
+        "algorithm_handles_p_gt_n": {
+          "var": "bindings.handles_p_gt_n"
+        }
+      },
+      "message": "{n_features} {n_features|predictor encodes|predictors encode} to {effective_p} columns, more than the {n_rows} {n_rows|row|rows} available. {algorithm} fits in this regime."
+    },
+    {
+      "id": "DIM_P_GT_N/encoded-no-algorithm",
+      "code": "DIM_P_GT_N",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "bindings.n_features"
+              },
+              0
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.decomposition_k"
+              },
+              null
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.algorithm"
+              },
+              null
+            ]
+          }
+        ]
+      },
+      "condition": {
+        ">": [
+          {
+            "var": "bindings.effective_p"
+          },
+          {
+            "var": "profile.n_rows"
+          }
+        ]
+      },
+      "severity": "note",
+      "evidence": {
+        "n_features": {
+          "var": "bindings.n_features"
+        },
+        "encoded_p": {
+          "var": "bindings.encoded_p"
+        },
+        "effective_p": {
+          "var": "bindings.effective_p"
+        },
+        "n_rows": {
+          "var": "profile.n_rows"
+        },
+        "categorical_features": {
+          "map": [
+            {
+              "var": "bindings.wide_features"
+            },
+            {
+              "var": "name"
+            }
+          ]
+        },
+        "algorithm": {
+          "var": "bindings.algorithm"
+        },
+        "algorithm_handles_p_gt_n": {
+          "var": "bindings.handles_p_gt_n"
+        }
+      },
+      "message": "{n_features} {n_features|predictor encodes|predictors encode} to {effective_p} columns, more than the {n_rows} {n_rows|row|rows} available."
+    },
+    {
+      "id": "DIM_P_GT_N/components-rank-deficient",
+      "code": "DIM_P_GT_N",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "bindings.n_features"
+              },
+              0
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "bindings.decomposition_k"
+              },
+              null
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.handles_p_gt_n"
+              },
+              false
+            ]
+          }
+        ]
+      },
+      "condition": {
+        ">": [
+          {
+            "var": "bindings.effective_p"
+          },
+          {
+            "var": "profile.n_rows"
+          }
+        ]
+      },
+      "severity": "warning",
+      "evidence": {
+        "n_features": {
+          "var": "bindings.n_features"
+        },
+        "encoded_p": {
+          "var": "bindings.encoded_p"
+        },
+        "effective_p": {
+          "var": "bindings.effective_p"
+        },
+        "n_rows": {
+          "var": "profile.n_rows"
+        },
+        "categorical_features": {
+          "map": [
+            {
+              "var": "bindings.wide_features"
+            },
+            {
+              "var": "name"
+            }
+          ]
+        },
+        "algorithm": {
+          "var": "bindings.algorithm"
+        },
+        "algorithm_handles_p_gt_n": {
+          "var": "bindings.handles_p_gt_n"
+        },
+        "decomposition": {
+          "var": "bindings.decomposition_name"
+        },
+        "decomposition_k": {
+          "var": "bindings.decomposition_k"
+        }
+      },
+      "message": "{decomposition} extracts {effective_p} {effective_p|component|components}, more than the {n_rows} {n_rows|row|rows} available. {algorithm} fits an unregularized least squares, so the fit is rank-deficient."
+    },
+    {
+      "id": "DIM_P_GT_N/components-algorithm-fits",
+      "code": "DIM_P_GT_N",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "bindings.n_features"
+              },
+              0
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "bindings.decomposition_k"
+              },
+              null
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "bindings.handles_p_gt_n"
+              },
+              false
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "bindings.algorithm"
+              },
+              null
+            ]
+          }
+        ]
+      },
+      "condition": {
+        ">": [
+          {
+            "var": "bindings.effective_p"
+          },
+          {
+            "var": "profile.n_rows"
+          }
+        ]
+      },
+      "severity": "note",
+      "evidence": {
+        "n_features": {
+          "var": "bindings.n_features"
+        },
+        "encoded_p": {
+          "var": "bindings.encoded_p"
+        },
+        "effective_p": {
+          "var": "bindings.effective_p"
+        },
+        "n_rows": {
+          "var": "profile.n_rows"
+        },
+        "categorical_features": {
+          "map": [
+            {
+              "var": "bindings.wide_features"
+            },
+            {
+              "var": "name"
+            }
+          ]
+        },
+        "algorithm": {
+          "var": "bindings.algorithm"
+        },
+        "algorithm_handles_p_gt_n": {
+          "var": "bindings.handles_p_gt_n"
+        },
+        "decomposition": {
+          "var": "bindings.decomposition_name"
+        },
+        "decomposition_k": {
+          "var": "bindings.decomposition_k"
+        }
+      },
+      "message": "{decomposition} extracts {effective_p} {effective_p|component|components}, more than the {n_rows} {n_rows|row|rows} available. {algorithm} fits in this regime."
+    },
+    {
+      "id": "DIM_P_GT_N/components-no-algorithm",
+      "code": "DIM_P_GT_N",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "bindings.n_features"
+              },
+              0
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "bindings.decomposition_k"
+              },
+              null
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.algorithm"
+              },
+              null
+            ]
+          }
+        ]
+      },
+      "condition": {
+        ">": [
+          {
+            "var": "bindings.effective_p"
+          },
+          {
+            "var": "profile.n_rows"
+          }
+        ]
+      },
+      "severity": "note",
+      "evidence": {
+        "n_features": {
+          "var": "bindings.n_features"
+        },
+        "encoded_p": {
+          "var": "bindings.encoded_p"
+        },
+        "effective_p": {
+          "var": "bindings.effective_p"
+        },
+        "n_rows": {
+          "var": "profile.n_rows"
+        },
+        "categorical_features": {
+          "map": [
+            {
+              "var": "bindings.wide_features"
+            },
+            {
+              "var": "name"
+            }
+          ]
+        },
+        "algorithm": {
+          "var": "bindings.algorithm"
+        },
+        "algorithm_handles_p_gt_n": {
+          "var": "bindings.handles_p_gt_n"
+        },
+        "decomposition": {
+          "var": "bindings.decomposition_name"
+        },
+        "decomposition_k": {
+          "var": "bindings.decomposition_k"
+        }
+      },
+      "message": "{decomposition} extracts {effective_p} {effective_p|component|components}, more than the {n_rows} {n_rows|row|rows} available."
+    },
+    {
+      "id": "MISSING_INCOMPATIBLE/outcome-has-gaps",
+      "code": "MISSING_INCOMPATIBLE",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolved"
+              },
+              true
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "bindings.total_missing"
+              },
+              0
+            ]
+          }
+        ]
+      },
+      "condition": {
+        ">": [
+          {
+            "var": "bindings.outcome_n_missing"
+          },
+          0
+        ]
+      },
+      "severity": "error",
+      "evidence": {
+        "outcome": {
+          "var": "bindings.outcome_name"
+        },
+        "n_missing": {
+          "var": "bindings.outcome_n_missing"
+        },
+        "n_rows": {
+          "var": "profile.n_rows"
+        }
+      },
+      "message": "Outcome '{outcome}' has {n_missing} missing {n_missing|value|values}. Preprocessing transforms features, so no setting removes them: drop those rows before training."
+    },
+    {
+      "id": "MISSING_INCOMPATIBLE/complete-cases-leaves-nothing",
+      "code": "MISSING_INCOMPATIBLE",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "bindings.total_missing"
+              },
+              0
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.runs_complete_cases"
+              },
+              true
+            ]
+          }
+        ]
+      },
+      "condition": {
+        "<": [
+          {
+            "var": "profile.n_complete_cases"
+          },
+          2
+        ]
+      },
+      "severity": "error",
+      "evidence": {
+        "n_complete": {
+          "var": "profile.n_complete_cases"
+        },
+        "n_rows": {
+          "var": "profile.n_rows"
+        }
+      },
+      "message": "`complete_cases` keeps rows with no gaps, and only {n_complete} of {n_rows} {n_rows|row has|rows have} none."
+    },
+    {
+      "id": "MISSING_INCOMPATIBLE/nothing-to-impute-from",
+      "code": "MISSING_INCOMPATIBLE",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "bindings.total_missing"
+              },
+              0
+            ]
+          },
+          {
+            "!": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.runs_complete_cases"
+                  },
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.runs_impute"
+              },
+              true
+            ]
+          }
+        ]
+      },
+      "condition": {
+        ">": [
+          {
+            "reduce": [
+              {
+                "var": "bindings.all_missing_columns"
+              },
+              {
+                "+": [
+                  {
+                    "var": "accumulator"
+                  },
+                  1
+                ]
+              },
+              0
+            ]
+          },
+          0
+        ]
+      },
+      "severity": "error",
+      "evidence": {
+        "features": {
+          "map": [
+            {
+              "var": "bindings.all_missing_columns"
+            },
+            {
+              "var": "name"
+            }
+          ]
+        },
+        "impute_type": {
+          "var": "config.preprocessor_config.impute_type"
+        }
+      },
+      "slots": {
+        "feature_labels": {
+          "map": [
+            {
+              "var": "bindings.all_missing_columns"
+            },
+            {
+              "var": "label"
+            }
+          ]
+        }
+      },
+      "message": "Imputation fills gaps from the values a column does have, and {feature_labels}{features| has none.| have none.} Drop {features|it|them} before imputing."
+    },
+    {
+      "id": "MISSING_INCOMPATIBLE/algorithm-refuses-gaps",
+      "code": "MISSING_INCOMPATIBLE",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "bindings.total_missing"
+              },
+              0
+            ]
+          },
+          {
+            "!": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.runs_complete_cases"
+                  },
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "!": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.runs_impute"
+                  },
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.missing_evaluable"
+              },
+              true
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.allows_missing"
+              },
+              false
+            ]
+          }
+        ]
+      },
+      "condition": {
+        ">": [
+          {
+            "var": "bindings.feature_missing"
+          },
+          0
+        ]
+      },
+      "severity": "error",
+      "evidence": {
+        "n_missing": {
+          "var": "bindings.feature_missing"
+        },
+        "n_features_missing": {
+          "var": "bindings.n_features_missing"
+        },
+        "algorithm": {
+          "var": "bindings.algorithm"
+        },
+        "algorithm_allows_missing": {
+          "var": "bindings.allows_missing"
+        }
+      },
+      "message": "{algorithm} does not accept missing values, and nothing in this config removes them: {n_missing} missing {n_missing|value|values} across {n_features_missing} {n_features_missing|column|columns}. Impute, or drop the incomplete cases before training."
+    },
+    {
+      "id": "MISSING_INCOMPATIBLE/tolerance-unknown",
+      "code": "MISSING_INCOMPATIBLE",
+      "applies_when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.outcome_resolvable"
+              },
+              true
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "bindings.total_missing"
+              },
+              0
+            ]
+          },
+          {
+            "!": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.runs_complete_cases"
+                  },
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "!": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.runs_impute"
+                  },
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.missing_evaluable"
+              },
+              true
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "bindings.allows_missing"
+              },
+              false
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "bindings.allows_missing"
+              },
+              true
+            ]
+          }
+        ]
+      },
+      "condition": {
+        ">": [
+          {
+            "var": "bindings.feature_missing"
+          },
+          0
+        ]
+      },
+      "severity": "warning",
+      "evidence": {
+        "n_missing": {
+          "var": "bindings.feature_missing"
+        },
+        "n_features_missing": {
+          "var": "bindings.n_features_missing"
+        },
+        "algorithm": {
+          "var": "bindings.algorithm"
+        },
+        "algorithm_allows_missing": {
+          "var": "bindings.allows_missing"
+        }
+      },
+      "message": "{n_missing} missing {n_missing|value|values} across {n_features_missing} {n_features_missing|column|columns} reach the learner unchanged; not every algorithm accepts them."
+    }
+  ],
+  "unevaluable": [
+    {
+      "id": "missing-after-thresholds",
+      "when": {
+        "and": [
+          {
+            "!": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.supervised"
+                  },
+                  true
+                ]
+              }
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "bindings.thresholds_set"
+              },
+              true
+            ]
+          },
+          {
+            ">": [
+              {
+                "var": "bindings.total_missing"
+              },
+              0
+            ]
+          }
+        ]
+      },
+      "affects": "MISSING_INCOMPATIBLE",
+      "reason": "Whether `remove_cases_thres` and `remove_features_thres` resolve this dataset's gaps depends on the joint missingness pattern, which a profile does not carry. Findings for MISSING_INCOMPATIBLE are incomplete for this config."
+    }
+  ]
+}

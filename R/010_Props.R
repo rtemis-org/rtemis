@@ -3755,12 +3755,24 @@ prop_to_schema <- function(prop) {
 #' @param provenance_url Character or NULL: If set (and `record` is TRUE), adds
 #'   a required `provenance` property referencing that schema. Only a top-level
 #'   record carries it; a nested one inherits its parent's.
+#' @param session_url Character or NULL: If set (and `record` is TRUE), adds a
+#'   required, nullable `session` property referencing that schema -- the
+#'   reference to the execution graph written beside the record. Nullable
+#'   because a run can produce no session: a pipeline result records none, and a
+#'   model fitted before sessions existed has none to write.
 #' @param record Logical: If TRUE, emit the **record** form of the schema: the
 #'   same properties, but every one required. A record states what a run
 #'   actually used, so nothing in it may fall back to a reader's defaults -- an
 #'   unset value is written as an explicit `null` rather than omitted. The
 #'   difference between an input schema and a record schema is exactly this;
 #'   membership is identical.
+#' @param asserted Logical: If TRUE, emit an **assertion** schema: the input
+#'   form, but with every property required. For a results class -- a document
+#'   rtemis produces rather than one a caller authors, and which has no record
+#'   sibling to carry the requirement. The config contract's reason for omitting
+#'   `required` is that a config is a partial expression of intent; a results
+#'   document asserts fact, so the record's rule applies to it and not the
+#'   config's. Mutually exclusive with `record`.
 #' @param extra Named list merged into the schema after generation, for
 #'   cross-field constraints that are not per-property (e.g. an `allOf` of
 #'   if/then clauses for kernel-specific SVM hyperparameters).
@@ -3803,7 +3815,9 @@ S7_to_JSONSchema <- function(
   base = NULL,
   required = NULL,
   record = FALSE,
+  asserted = FALSE,
   provenance_url = NULL,
+  session_url = NULL,
   fold_refs = NULL,
   metrics_refs = NULL,
   metrics_ref = NULL,
@@ -3815,6 +3829,14 @@ S7_to_JSONSchema <- function(
   instance_schema_url = NULL
 ) {
   check_character(id, allow_null = FALSE)
+  if (record && asserted) {
+    rtemis.core::abort(
+      "`record` and `asserted` are the two ways a schema states that every ",
+      "property is present; pass one. `record` also retargets nested `$ref`s ",
+      "and adds the run blocks, which a results class has none of.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
   if (!inherits(x, "S7_class")) {
     rtemis.core::abort(
       "`x` must be an S7 class.",
@@ -3901,25 +3923,65 @@ S7_to_JSONSchema <- function(
     # names are members' names and are carried by the object's keys, because
     # they are what the tuner reports as the winner and have to survive a round
     # trip. An array would lose them.
+    #
+    # Both branches are titled and described, and the common one says it is
+    # common. A `oneOf` whose alternatives are undocumented is read by whoever
+    # meets it first -- and when only the rare branch carried prose, it was the
+    # only branch that explained itself, so a reader looking for guidance found
+    # the exception and wrote it.
+    #
+    # What the set is for is stated the way `R/075_HyperparametersSet.R` states
+    # it: a single block is the *product* of its values, a set is a *union* of
+    # such spaces, and a union is any shape a product is not. Two earlier
+    # wordings each named one use as if it were the reason -- "for comparing
+    # named alternatives", then "for settings only meaningful together" -- and
+    # both left out the commonest one, which is carving the space itself:
+    # searching more values of a hyperparameter where another is small and
+    # fewer where it is large. Neither is wrong about its own case; both are
+    # too narrow to tell a reader whether their case is covered.
+    #
+    # The claim that one member is the single configuration written the long
+    # way is false, and stays corrected: a set of one names the run, and the
+    # name is recorded as the fitted model's `variant`.
     alternatives <- if (varying) {
       list(
-        ref,
+        c(
+          ref,
+          list(
+            title = "One configuration",
+            description = paste0(
+              "One algorithm and its settings. The ordinary form: its values ",
+              "are searched as their product, which is what a run wants ",
+              "whenever the settings vary independently."
+            )
+          )
+        ),
         list(
+          title = "A named set, searched as one space",
           type = "object",
           properties = list(
             variants = list(
               type = "object",
               minProperties = 1L,
               additionalProperties = ref,
-              description = "Configurations to search over, keyed by name."
+              description = paste0(
+                "Configurations to search over, keyed by name. Every one is a ",
+                "configuration of the same algorithm."
+              )
             )
           ),
           required = list("variants"),
           additionalProperties = FALSE,
           description = paste0(
-            "A union of search spaces over one algorithm. Every variant is a ",
-            "configuration of the same algorithm; the tuner selects among them ",
-            "and reports which name won."
+            "Several configurations of one algorithm, each expanded and gated ",
+            "on its own and searched as their union; the tuner reports which ",
+            "name won. Write one where the space to search is not a product: ",
+            "more values of a hyperparameter where another is small and fewer ",
+            "where it is large, or a conjunction of fields that is only ",
+            "meaningful together and that no product can name. A set of one ",
+            "member is not the ordinary form written the long way: its name is ",
+            "recorded as the fitted model's variant, so a run says what it was ",
+            "without its values being read back."
           )
         )
       )
@@ -3927,10 +3989,96 @@ S7_to_JSONSchema <- function(
       list(ref)
     }
     accepts_null <- prop_accepts_null(ref_props[[nm]])
-    properties[[nm]] <- if (accepts_null) {
-      list(oneOf = c(list(list(type = "null")), alternatives))
+    # The property's own description, which a bare `oneOf` used to discard: a
+    # reader choosing between alternatives needs to know what the property is
+    # for before deciding which shape to write, and losing it left the choice
+    # documented only from inside the branches.
+    described <- properties[[nm]][["description"]]
+    guidance <- if (varying) {
+      paste0(
+        "One configuration, searched as the product of its values, or a named ",
+        "set of them searched as their union. Write the single configuration ",
+        "unless the space to search is not a product."
+      )
+    }
+    preface <- paste(c(described, guidance), collapse = " ")
+    envelope <- if (nzchar(preface)) list(description = preface) else list()
+    # A `variant_refs` property dispatches on the *presence of* `variants`
+    # rather than offering its two shapes as an undiscriminated `oneOf`.
+    #
+    # Both alternatives are objects, so a `oneOf` gives a validator no way to
+    # tell which one a document was attempting, and every branch's failure is
+    # reported as an instruction. A single learner missing its settings block
+    # came back as four: "must be null", "must have required property
+    # `hyperparameters`", "must have required property `variants`", and -- the
+    # damaging one -- "must NOT have additional properties (algorithm)", which
+    # tells a reader to delete the field the intended branch *requires*. Follow
+    # it and the block empties, and an empty config is schema-valid, so nothing
+    # objects a second time.
+    #
+    # `if`/`then` keyed on `variants` reports only the branch the document is
+    # actually in. It is also what the code already does: `.list_to_SuperConfig`
+    # and rtemislive's `fromSupervisedConfig` both dispatch on whether
+    # `variants` is there, so the `oneOf` described a choice nothing makes.
+    properties[[nm]] <- if (varying) {
+      object_type <- if (accepts_null) list("object", "null") else "object"
+      c(
+        envelope,
+        list(
+          type = object_type,
+          allOf = list(
+            list(
+              `if` = list(
+                type = "object",
+                required = list("variants")
+              ),
+              # Without its own `required`: the `if` has already established
+              # `variants`, so restating it in the `then` would be a
+              # conditional demand for a key, which the input-schema contract
+              # forbids (`plan/schema-interface-boundary.md`). A guard is not a
+              # demand; the branch still closes with `additionalProperties`.
+              then = alternatives[[2L]][
+                names(alternatives[[2L]]) != "required"
+              ]
+            ),
+            list(
+              `if` = list(
+                type = "object",
+                not = list(required = list("variants"))
+              ),
+              # The bare `$ref`, without the branch's title: a `then` that
+              # carries anything besides a reference is a different construct
+              # to a reader, and consumers key on that (`rtemis-cli`'s form
+              # builder, `nested_ref`). What the branch is for is already in
+              # the property's own description, which is where a reader
+              # choosing a shape looks first.
+              then = ref
+            )
+          )
+        )
+      )
+    } else if (accepts_null) {
+      # Stays a `oneOf`, and the reason is worth stating because the question
+      # keeps being reopened: what forced the `if`/`then` above is that *both*
+      # of its branches are objects, so no validator can tell which one a
+      # document was attempting and every branch's failure is reported as an
+      # instruction. `null` and an object differ by JSON type. A validator can
+      # tell, a reader can tell, and the arm the value never matched is
+      # identifiable as such by anything walking the failure -- which is what
+      # `rtemis-schema`'s `validate/explain.rs` and rtemislive's
+      # `significantErrors` both do, reporting one line for a nullable block
+      # that got a string.
+      #
+      # This is the same line `tunable`'s `scalar | array` and `broadcast`'s
+      # `element | array` sit on, and it is the whole line: discriminable by
+      # type stays a `oneOf`; two branches of one type does not.
+      #
+      # Consumers are not the argument. `nested_ref` and `rtemis-cli`'s
+      # `structural_dispatch_ref` read all three shapes, so either would
+      # survive a change here. There is simply nothing to gain from one.
+      c(envelope, list(oneOf = c(list(list(type = "null")), alternatives)))
     } else if (length(alternatives) > 1L) {
-      list(oneOf = alternatives)
+      c(envelope, list(oneOf = alternatives))
     } else {
       ref
     }
@@ -3952,12 +4100,16 @@ S7_to_JSONSchema <- function(
       properties
     )
   }
-  if (record) {
+  if (record || asserted) {
     # Every emitted property, `$schema` excluded: it identifies the document
     # rather than recording anything the run did. Constants are excluded too --
     # the algorithm implies them, `prop_serialized()` keeps them out of a
     # written record, and requiring what is never written would reject every
     # record rtemis produces.
+    #
+    # A nullable property is required like any other: `to_json()` writes an
+    # unset value as an explicit `null` rather than omitting the key, so the
+    # key is always there and its absence is a defect rather than a default.
     constants <- names(Filter(
       function(p) {
         spec <- get_spec(p)
@@ -3966,6 +4118,8 @@ S7_to_JSONSchema <- function(
       props
     ))
     required <- setdiff(names(properties), c("$schema", constants))
+  }
+  if (record) {
     # A nested config carries its own `origin`, so it is not covered here.
     origin_props <- props[intersect(required, names(props))]
     origin_props <- origin_props[setdiff(names(origin_props), constants)]
@@ -3999,6 +4153,17 @@ S7_to_JSONSchema <- function(
     if (!is.null(provenance_url)) {
       properties[["provenance"]] <- list(`$ref` = provenance_url)
       required <- c(required, "provenance")
+    }
+    # Where the execution graph is, not what it holds: the graph is a table and
+    # travels as a columnar file beside the record. Required so that a record
+    # always states whether there is one, nullable so that "there is none" is
+    # sayable.
+    if (!is.null(session_url)) {
+      properties[["session"]] <- list(
+        description = "The run's execution graph, written beside this record.",
+        oneOf = list(list(type = "null"), list(`$ref` = session_url))
+      )
+      required <- c(required, "session")
     }
   }
   schema <- list(
@@ -4235,12 +4400,19 @@ S7_dispatcher_JSONSchema <- function(
     description = discriminator_description
   )))
   if (!top_level) {
+    # Not "variant-specific": a `variant_refs` parent admits a `variants` block
+    # of its own, and one word meaning both the branch of a discriminated union
+    # and a member of a named set is how a reader ends up filling in the wrong
+    # one. The default rule is stated because it is the answer to the question
+    # this description otherwise invites -- what to write when nothing is being
+    # overridden.
     properties[[payload]] <- list(
       type = "object",
       description = paste0(
-        "Variant-specific parameters. Validated per `",
+        "Settings for the chosen `",
         discriminator,
-        "` below."
+        "`, validated against it below. Anything not set takes rtemis's ",
+        "default, so `{}` is every default and is the usual value."
       )
     )
   }
@@ -4286,45 +4458,3 @@ S7_dispatcher_JSONSchema <- function(
   )
   Filter(Negate(is.null), schema)
 } # /rtemis::S7_dispatcher_JSONSchema
-
-
-# %% write_JSONSchema ----
-#' Write a schema list produced by [S7_to_JSONSchema] to a JSON file
-#'
-#' @param schema Named list: Schema produced by [S7_to_JSONSchema].
-#' @param file Character: Path to output JSON file.
-#' @param overwrite Logical: If TRUE, overwrite an existing file.
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @return `schema`, invisibly.
-#'
-#' @author EDG
-#' @export
-#' @examplesIf requireNamespace("jsonlite", quietly = TRUE)
-#' schema <- list(
-#'   `$schema` = "https://json-schema.org/draft/2020-12/schema",
-#'   `$id` = "https://example.org/demo/v1/schema.json",
-#'   title = "Demo",
-#'   type = "object",
-#'   properties = list(n = list(type = "integer", minimum = 1L))
-#' )
-#' tmpfile <- file.path(tempdir(), "demo.schema.json")
-#' write_JSONSchema(schema, tmpfile, overwrite = TRUE, verbosity = 0L)
-write_JSONSchema <- function(schema, file, overwrite = FALSE, verbosity = 1L) {
-  check_dependencies("jsonlite")
-  json_str <- as.character(jsonlite::toJSON(
-    schema,
-    auto_unbox = TRUE,
-    pretty = TRUE,
-    na = "null",
-    null = "null",
-    digits = NA
-  ))
-  write_lines(
-    json_str,
-    file = file,
-    overwrite = overwrite,
-    verbosity = verbosity
-  )
-  invisible(schema)
-} # /rtemis::write_JSONSchema

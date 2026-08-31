@@ -33,6 +33,46 @@ SuperConfig <- new_class(
       nullable = TRUE,
       description = "Path to the held-out test data."
     ),
+    # How the paths above are read. A delimited file carries no type
+    # information, so something has to decide that a column of labels is a
+    # factor rather than a string, and that decision belongs to the config: it
+    # changes what the run trains on, it is what `validate_config()` has to know
+    # to answer whether the run can work, and the record has to be able to
+    # report it. Applied to all three datasets, so their columns cannot end up
+    # typed differently from each other.
+    character2factor = prop_boolean(
+      TRUE,
+      description = paste0(
+        "Read character columns as factors. Supervised learning needs ",
+        "categorical predictors as factors, and a delimited file cannot say ",
+        "which columns those are."
+      )
+    ),
+    # Which column is predicted, and from which. rtemis's convention is that
+    # the outcome is the last column and every other column is a predictor,
+    # arranged by `set_outcome()`. That convention is fine as a default and
+    # wrong as the only expression of it: a default that is not in the config is
+    # a decision the record cannot report, which is why `character2factor` moved
+    # here for the same reason. Left NULL, the convention applies exactly as
+    # before; named, `train()` arranges the frame and the record says what was
+    # predicted from what.
+    outcome = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = paste0(
+        "Name of the outcome column. NULL = rtemis's convention, the last ",
+        "column."
+      )
+    ),
+    features = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      description = paste0(
+        "Names of the columns to use as predictors. NULL = every column ",
+        "except the outcome."
+      )
+    ),
     # Column name in the training data.
     weights = prop_string(
       NULL,
@@ -45,7 +85,7 @@ SuperConfig <- new_class(
       nullable = TRUE,
       description = "Outcome level to treat as positive (binary classification)."
     ),
-    preprocessor_config = NULL | PreprocessorConfig,
+    preprocessor_config = NULL | SupervisedPreprocessorConfig,
     decomposition_config = NULL | DecompositionConfig,
     # A set is a union of search spaces over one algorithm, and a recipe has to
     # say which was asked for. NULL stays first so the prototype is NULL.
@@ -127,11 +167,19 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' leaves the recipe unbound; set it (or supply data) before [train].
 #' @param dat_validation_path Optional Character: Path to validation data file.
 #' @param dat_test_path Optional Character: Path to test data file.
+#' @param character2factor Logical: If TRUE, read character columns as factors.
+#' A delimited file carries no type information, so this is what decides whether
+#' a column of labels is a categorical predictor or an unusable string one.
+#' Applied to all three datasets.
+#' @param outcome Optional Character: Name of the outcome column; `NULL` for
+#' rtemis's convention, the last column.
+#' @param features Optional Character vector: Names of the predictor columns;
+#' `NULL` for every column except the outcome.
 #' @param weights Optional Character: Column name in training data to use as observation weights.
 #' If NULL, no weights are used.
 #' @param positive_class Character or NULL: For binary classification, the
 #' outcome level to treat as positive. NULL keeps the existing factor level order.
-#' @param preprocessor_config `PreprocessorConfig` object: Configuration for data preprocessing.
+#' @param preprocessor_config `SupervisedPreprocessorConfig` object: Configuration for data preprocessing.
 #' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
 #' @param hyperparameters `Hyperparameters` object: Configuration for model hyperparameters.
 #' @param tuner_config `TunerConfig` object: Configuration for hyperparameter tuning.
@@ -149,9 +197,11 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' @author EDG
 #' @export
 #' @examples
+#' \dontrun{
+#' # requires local data file
 #' sc <- setup_SuperConfig(
 #'   dat_training_path = "train.csv",
-#'   preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
+#'   preprocessor_config = setup_SupervisedPreprocessor(scale = TRUE),
 #'   hyperparameters = setup_LightRF(),
 #'   tuner_config = setup_GridSearch(),
 #'   outer_resampling_config = setup_Resampler(),
@@ -159,10 +209,14 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #'   question = "Can we tell iris species apart given their measurements?",
 #'   outdir = "models/"
 #' )
+#' }
 setup_SuperConfig <- function(
   dat_training_path = NULL,
   dat_validation_path = NULL,
   dat_test_path = NULL,
+  character2factor = TRUE,
+  outcome = NULL,
+  features = NULL,
   weights = NULL,
   positive_class = NULL,
   preprocessor_config = NULL,
@@ -217,6 +271,9 @@ setup_SuperConfig <- function(
     dat_training_path = dat_training_path,
     dat_validation_path = dat_validation_path,
     dat_test_path = dat_test_path,
+    character2factor = character2factor,
+    outcome = outcome,
+    features = features,
     weights = weights,
     positive_class = positive_class,
     preprocessor_config = preprocessor_config,
@@ -311,12 +368,14 @@ setup_SuperConfig <- function(
     dat_training_path = x[["dat_training_path"]],
     dat_validation_path = x[["dat_validation_path"]],
     dat_test_path = x[["dat_test_path"]],
+    outcome = iflengthy(x[["outcome"]]),
+    features = iflengthy(x[["features"]]),
     weights = x[["weights"]],
     positive_class = iflengthy(x[["positive_class"]]),
     preprocessor_config = if (is.null(x[["preprocessor_config"]])) {
       NULL
     } else {
-      do.call(setup_Preprocessor, .drop_meta_keys(x[["preprocessor_config"]]))
+      .list_to_SupervisedPreprocessorConfig(x[["preprocessor_config"]])
     },
     decomposition_config = if (is.null(x[["decomposition_config"]])) {
       NULL
@@ -362,6 +421,11 @@ setup_SuperConfig <- function(
   if (!is.null(x[["verbosity"]])) {
     args[["verbosity"]] <- x[["verbosity"]]
   }
+  # Non-nullable with a TRUE default, so an absent key keeps the default and
+  # only an explicit `false` turns the conversion off.
+  if (!is.null(x[["character2factor"]])) {
+    args[["character2factor"]] <- x[["character2factor"]]
+  }
   do.call(setup_SuperConfig, args)
 } # /rtemis::.list_to_SuperConfig
 
@@ -386,6 +450,28 @@ SuperConfigLive <- new_class(
     dat_training = class_tabular,
     dat_validation = NULL | class_tabular,
     dat_test = NULL | class_tabular,
+    # Which column is predicted, and from which -- the same pair
+    # `SuperConfig` carries, for the same reason. `build_super_config()` in
+    # rtemis.server passes every remaining `SuperConfig` property straight
+    # through to `setup_SuperConfigLive()`, so a property here is not optional
+    # parity: without it a config the wire accepts dies as an unused argument.
+    outcome = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = paste0(
+        "Name of the outcome column. NULL = rtemis's convention, the last ",
+        "column."
+      )
+    ),
+    features = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      description = paste0(
+        "Names of the columns to use as predictors. NULL = every column ",
+        "except the outcome."
+      )
+    ),
     # Column name in dat_training.
     weights = prop_string(
       NULL,
@@ -398,7 +484,7 @@ SuperConfigLive <- new_class(
       nullable = TRUE,
       description = "Outcome level to treat as positive (binary classification)."
     ),
-    preprocessor_config = NULL | PreprocessorConfig,
+    preprocessor_config = NULL | SupervisedPreprocessorConfig,
     decomposition_config = NULL | DecompositionConfig,
     # A set is a union of search spaces over one algorithm, and a recipe has to
     # say which was asked for. NULL stays first so the prototype is NULL.
@@ -467,6 +553,10 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 #'
 #' @param dat_training data.frame or data.table. Training data.
 #' @param dat_validation data.frame, data.table, or `NULL`.
+#' @param outcome Optional Character: Name of the outcome column; `NULL`
+#' for rtemis's convention, the last column.
+#' @param features Optional Character vector: Names of the predictor
+#' columns; `NULL` for every column except the outcome.
 #' @param dat_test data.frame, data.table, or `NULL`.
 #' @param weights Optional Character: Column name in `dat_training` used
 #'   as observation weights.
@@ -495,6 +585,8 @@ setup_SuperConfigLive <- function(
   dat_training,
   dat_validation = NULL,
   dat_test = NULL,
+  outcome = NULL,
+  features = NULL,
   weights = NULL,
   positive_class = NULL,
   preprocessor_config = NULL,
@@ -519,6 +611,8 @@ setup_SuperConfigLive <- function(
     dat_training = dat_training,
     dat_validation = dat_validation,
     dat_test = dat_test,
+    outcome = outcome,
+    features = features,
     weights = weights,
     positive_class = positive_class,
     preprocessor_config = preprocessor_config,

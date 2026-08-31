@@ -1,0 +1,202 @@
+{
+  "$id": "https://schema.rtemis.org/traits/v1/traits.json",
+  "title": "rtemis supervised algorithm traits",
+  "description": "What each supervised algorithm can do, as the facts a validator needs. Read by `checks/v1/checks.json`. Every trait is three-valued, and a null is not \"unknown\" but *not the algorithm's to answer*: a stacked ensemble accepts whatever its base learners accept, so the answer is a property of the library it is given rather than of the algorithm. Test with an explicit comparison against true, false and null; a trait read by truthiness gives the wrong answer for a meta learner.",
+  "trait_descriptions": {
+    "classification": "rtemis fits this algorithm to a categorical outcome. `checks/v1` reads it to decide whether a config declares a task its outcome cannot serve.",
+    "regression": "rtemis fits this algorithm to a numeric outcome. Read with `classification` for the same decision.",
+    "handles_missing_data": "The algorithm accepts a training set containing missing values. Read by MISSING_INCOMPATIBLE, where false is an error and null a warning.",
+    "handles_p_greater_than_n": "The algorithm gives a usable fit with more predictors than cases. False only where the fit is an unregularized least squares and goes rank-deficient. Read by DIM_P_GT_N, where it decides the severity."
+  },
+  "traits": [
+    {
+      "name": "BART",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "CART",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": true,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "ConditionalSuperLearner",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": null,
+      "handles_p_greater_than_n": null
+    },
+    {
+      "name": "GAM",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": false
+    },
+    {
+      "name": "GLM",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": false
+    },
+    {
+      "name": "GLMNET",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "GLMTree",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": false
+    },
+    {
+      "name": "HAL",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "Isotonic",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "MonotonicHAL",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "KNN",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "LightCART",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": true,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "LightGBM",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": true,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "LightRF",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": true,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "LightRuleFit",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": true,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "LINAD",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "LINADForest",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "MARS",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "MLP",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "ModalityStacking",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": null,
+      "handles_p_greater_than_n": null
+    },
+    {
+      "name": "NNLS",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "Ranger",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": true,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "SuperLearner",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": null,
+      "handles_p_greater_than_n": null
+    },
+    {
+      "name": "LinearSVM",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "RadialSVM",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "SPLS",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    },
+    {
+      "name": "TabNet",
+      "classification": true,
+      "regression": true,
+      "handles_missing_data": false,
+      "handles_p_greater_than_n": true
+    }
+  ]
+}

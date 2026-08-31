@@ -7,7 +7,7 @@
 #   A schema states what is true of the data. It never states what any
 #   interface chooses to fill in.
 #
-# `data-raw/schema_contract.R` enforces this on the generated artifacts, but
+# `rtemis.core::assert_config_contract()` enforces this on the generated artifacts, but
 # generation is a deliberate act and `data-raw/` is not in the built package.
 # These tests check the same contract structurally, from what the package
 # itself can see, so a violation surfaces on every `just test` rather than only
@@ -106,9 +106,19 @@
     )
   ),
   .contract_family(
+    IngestConfig,
+    list(DelimitedIngestConfig, "setup_DelimitedIngest"),
+    list(ParquetIngestConfig, "setup_ParquetIngest"),
+    list(XLSXIngestConfig, "setup_XLSXIngest"),
+    list(RDSIngestConfig, "setup_RDSIngest"),
+    list(DTAIngestConfig, "setup_DTAIngest"),
+    list(ARFFIngestConfig, "setup_ARFFIngest")
+  ),
+  .contract_family(
     NULL,
     list(ExecutionConfig, "setup_ExecutionConfig"),
     list(PreprocessorConfig, "setup_Preprocessor"),
+    list(SupervisedPreprocessorConfig, "setup_SupervisedPreprocessor"),
     list(SuperConfig, "setup_SuperConfig"),
     list(DecomposeConfig, "setup_DecomposeConfig"),
     list(ClusterConfig, "setup_ClusterConfig")
@@ -118,16 +128,21 @@
 
 # %% .contract_no_setup ----
 # Registered classes with no `setup_*` and no input form: the furniture of a
-# record, and the results classes describing what a run produced. Nothing
-# authors one, so none states a user's intent and none is a config.
+# record, the results classes describing what a run produced, and the findings
+# `validate_config()` reports about a config. Nothing authors one, so none
+# states a user's intent and none is a config.
 .contract_no_setup <- c(
   "Provenance",
   "DataFingerprint",
+  "DataRef",
   "RegressionMetrics",
   "ClassificationMetrics",
   "DecompositionMetrics",
   "RegressionMetricsRes",
-  "ClassificationMetricsRes"
+  "ClassificationMetricsRes",
+  "Diagnostic",
+  "Diagnostics",
+  "DataProfile"
 )
 
 
@@ -357,20 +372,27 @@ test_that("no readOnly schema property is a setup_* formal", {
 
 
 # %% .contract_registry ----
-# `data-raw/schema_registry.R` and its contract helpers, evaluated against the
+# `data-raw/schema_registry.R`, evaluated against the
 # loaded namespace: the entries reference class objects, and `base_url` is
 # supplied by `generate_schemas.R` rather than by the registry itself.
 # `data-raw/` is absent from a built package, so a caller gets NULL there.
 .contract_registry <- function() {
   registry <- testthat::test_path("..", "..", "data-raw", "schema_registry.R")
-  contract <- testthat::test_path("..", "..", "data-raw", "schema_contract.R")
-  if (!file.exists(registry) || !file.exists(contract)) {
+  if (!file.exists(registry)) {
     return(NULL)
   }
   env <- new.env(parent = asNamespace("rtemis"))
   env[["base_url"]] <- "https://schema.rtemis.org"
+  # The contract moved to rtemis.core, which rtemis.draw imports too: one
+  # registry, one standard. Bound here because the registry's callers expect
+  # the bare name.
+  env[["assert_config_contract"]] <- rtemis.core::assert_config_contract
+  # The rule helpers too: this suite checks a registry `extra` clause directly,
+  # before it is ever assembled into a schema, so it needs the predicate rather
+  # than the whole assertion. Internal on purpose -- one exported entry point,
+  # and a test in the same ecosystem may reach past it.
+  env[[".conditional_demands"]] <- rtemis.core:::.conditional_demands
   sys.source(registry, envir = env)
-  sys.source(contract, envir = env)
   env
 }
 
@@ -595,6 +617,12 @@ test_that("the registry declares no conditional demand for a key", {
     "`PropertySpec` for `min_items` to come from, and its names are R list ",
     "names with no counterpart in the array the schema declares. Inherited by ",
     "the three registered meta learners."
+  ),
+  DataRef = paste0(
+    "`@path` and `@hash` must be non-empty. The same missed factory argument ",
+    "as `DataFingerprint` -- `prop_string()` has no `min_length` -- and the ",
+    "same reason it is not an empty default with no validator: a reference ",
+    "that names no file, or that cannot be checked, is not a reference."
   ),
   DataFingerprint = paste0(
     "`@hash`, `@encoding`, `@language` and `@data_structure` must be ",

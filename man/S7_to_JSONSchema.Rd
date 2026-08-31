@@ -12,7 +12,9 @@ S7_to_JSONSchema(
   base = NULL,
   required = NULL,
   record = FALSE,
+  asserted = FALSE,
   provenance_url = NULL,
+  session_url = NULL,
   fold_refs = NULL,
   metrics_refs = NULL,
   metrics_ref = NULL,
@@ -51,9 +53,23 @@ unset value is written as an explicit \code{null} rather than omitted. The
 difference between an input schema and a record schema is exactly this;
 membership is identical.}
 
+\item{asserted}{Logical: If TRUE, emit an \strong{assertion} schema: the input
+form, but with every property required. For a results class -- a document
+rtemis produces rather than one a caller authors, and which has no record
+sibling to carry the requirement. The config contract's reason for omitting
+\code{required} is that a config is a partial expression of intent; a results
+document asserts fact, so the record's rule applies to it and not the
+config's. Mutually exclusive with \code{record}.}
+
 \item{provenance_url}{Character or NULL: If set (and \code{record} is TRUE), adds
 a required \code{provenance} property referencing that schema. Only a top-level
 record carries it; a nested one inherits its parent's.}
+
+\item{session_url}{Character or NULL: If set (and \code{record} is TRUE), adds a
+required, nullable \code{session} property referencing that schema -- the
+reference to the execution graph written beside the record. Nullable
+because a run can produce no session: a pipeline result records none, and a
+model fitted before sessions existed has none to write.}
 
 \item{fold_refs}{Named character or NULL: If set (and \code{record} is TRUE), adds
 a required \code{folds} array whose entries reference these record schemas. Only

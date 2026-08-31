@@ -8,6 +8,9 @@ setup_SuperConfig(
   dat_training_path = NULL,
   dat_validation_path = NULL,
   dat_test_path = NULL,
+  character2factor = TRUE,
+  outcome = NULL,
+  features = NULL,
   weights = NULL,
   positive_class = NULL,
   preprocessor_config = NULL,
@@ -29,13 +32,24 @@ leaves the recipe unbound; set it (or supply data) before \link{train}.}
 
 \item{dat_test_path}{Optional Character: Path to test data file.}
 
+\item{character2factor}{Logical: If TRUE, read character columns as factors.
+A delimited file carries no type information, so this is what decides whether
+a column of labels is a categorical predictor or an unusable string one.
+Applied to all three datasets.}
+
+\item{outcome}{Optional Character: Name of the outcome column; \code{NULL} for
+rtemis's convention, the last column.}
+
+\item{features}{Optional Character vector: Names of the predictor columns;
+\code{NULL} for every column except the outcome.}
+
 \item{weights}{Optional Character: Column name in training data to use as observation weights.
 If NULL, no weights are used.}
 
 \item{positive_class}{Character or NULL: For binary classification, the
 outcome level to treat as positive. NULL keeps the existing factor level order.}
 
-\item{preprocessor_config}{\code{PreprocessorConfig} object: Configuration for data preprocessing.}
+\item{preprocessor_config}{\code{SupervisedPreprocessorConfig} object: Configuration for data preprocessing.}
 
 \item{decomposition_config}{\code{DecompositionConfig} object: Configuration for data decomposition.}
 
@@ -66,9 +80,11 @@ or described without data and have a path bound later (e.g. by the \code{rtemis}
 CLI) before \link{train}.
 }
 \examples{
+\dontrun{
+# requires local data file
 sc <- setup_SuperConfig(
   dat_training_path = "train.csv",
-  preprocessor_config = setup_Preprocessor(remove_duplicates = TRUE),
+  preprocessor_config = setup_SupervisedPreprocessor(scale = TRUE),
   hyperparameters = setup_LightRF(),
   tuner_config = setup_GridSearch(),
   outer_resampling_config = setup_Resampler(),
@@ -76,6 +92,7 @@ sc <- setup_SuperConfig(
   question = "Can we tell iris species apart given their measurements?",
   outdir = "models/"
 )
+}
 }
 \author{
 EDG

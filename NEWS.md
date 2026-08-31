@@ -1,5 +1,151 @@
 # rtemis news
 
+## 1.3.9
+
+- **`hyperparameters` dispatches on the presence of `variants`, not on an
+  undiscriminated `oneOf`.** Both alternatives are objects, so no validator
+  could tell which one a document was attempting, and every branch's failure was
+  reported as an instruction. A single learner missing its settings block came
+  back as four: "must be null", "must have required property `hyperparameters`",
+  "must have required property `variants`", and -- the damaging one -- "must NOT
+  have additional properties (algorithm)", which tells a reader to delete the
+  field the intended branch *requires*. Follow it and the block empties, and an
+  empty config is schema-valid, so nothing objects a second time. Three
+  open-weight agents did exactly that. `allOf` with `if`/`then` reports only the
+  branch the document is in: boon now gives one error where it gave five. This
+  supersedes the branch titles added above -- the ordinary branch is a bare
+  `$ref` again, because a `then` carrying anything more is a different construct
+  to the readers that key on it, and what the branches are for is in the
+  property's own description.
+- **Algorithm traits are spelled out**
+  `class`, `reg`, `missing` and `p_gt_n` are now `classification`, `regression`,
+  `handles_missing_data` and `handles_p_greater_than_n`, in
+  `supervised_algorithms`, in `traits/v1`, and in the `checks/v1` expressions
+  that read them. An abbreviation a rule author recognizes is not one a reader
+  choosing a learner does, and these four are what `MISSING_INCOMPATIBLE` and
+  `DIM_P_GT_N` judge a config by. `survival` stays recorded in
+  `supervised_algorithms` -- the fact is real and the column is what a future
+  rule will read -- but is absent from `traits/v1`: rtemis dispatches no survival
+  run, and publishing it offered a capability nothing could act on.
+  `checks/v1/corpus.json` is unchanged by the rename, which is what says it
+  changed no finding.
+- **No published schema description names an R construct.** 72 of them ended
+  "See `setup_X`."; others named `.list_to_Hyperparameters` or a package
+  function. The corpus is language-independent and is read by four kinds of
+  consumer, only one of which can call an R function. The roxygen docs keep
+  their pointers, which is where an R user looks. Enforced from now on by
+  `rtemis.core::assert_config_contract()`, which also caught two property
+  descriptions naming `NMF::nmf` and `uwot::umap`.
+- **The pre-flight's exemption list names `features`, with the argument.**
+  `config_parts()` reads it and `preflight_config()` has no formal for it, which
+  the contract test correctly refused. It cannot be forwarded: `train()` is
+  handed a frame `project_frame()` has already narrowed, so there is nothing to
+  carry -- and nothing needed, since against a projected frame `features = NULL`
+  names exactly the set the config named against the unprojected one. The one
+  place the equivalence is inexact is recorded beside it: a `weights` column
+  survives projection and falls inside "every column but the outcome", which no
+  rule reads today.
+
+- **A `oneOf` property documents its alternatives, and says which is the common
+  one.** `hyperparameters` admits one configuration or a set of named ones, and
+  only the set carried a description -- so the sole branch that explained itself
+  was the exception, and a reader looking for guidance found it and wrote it.
+  Both branches now carry a title and a description, the rare one says it is
+  uncommon and what it is for, and the property's own description survives the
+  `oneOf` rather than being discarded by it.
+- **A discriminated union's payload no longer calls itself "variant-specific".**
+  One word meant both a branch of a discriminated union and a member of a named
+  set, in schemas where a parent admits both. It now names the discriminator it
+  belongs to and states the default rule: anything unset takes rtemis's default,
+  so `{}` is every default and is the usual value -- the answer to the question
+  the description otherwise invites.
+- **`is_wire_hyperparameters_set()` is exported.** `rtemis.server` needs the same
+  discriminator one layer earlier, to know whether a payload names its learner at
+  the top level or inside each variant. Two spellings of one rule is how a config
+  becomes submittable on one path and unreadable on the other.
+
+- **A supervised record names its execution graph, written beside it as
+  Parquet.** `train()` recorded the session on the fitted object and the record
+  kept only its `started` and `finished`, so a stored record said when a run
+  began and ended but not what happened between. The graph is a table, so it
+  goes in a columnar file: `train_<algorithm>.session.parquet` beside
+  `train_<algorithm>.record.json`, with the record's new `session` field naming
+  it. New `dataref/v1`, `$ref`d wherever a record names a file written beside
+  it.
+- **`DataRef` carries `path`, `encoding`, `algorithm`, `hash`, `bytes`, and
+  `n_rows`/`n_cols` when the file is a table.** A reference to a file, not to a
+  table: most of what a run writes beside its record is tabular, the fitted
+  object and the log are not. The digest is over the file's bytes -- a canonical
+  logical form is what two implementations need to agree on one digest, and a
+  sidecar is written once by the engine that ran. The hash sits inside the
+  record, so a changed sidecar contradicts it.
+- **`nanoparquet` moves from Suggests to Imports.** A record that names a file
+  it could not write is not something a caller should be able to produce by
+  having installed less.
+- **`session_nodes()`**: the session as one row per node with absolute
+  timestamps -- the durable projection, as distinct from `session_timeline()`'s
+  display one. `meta` travels as JSON text rather than flattened columns, so the
+  table's shape does not depend on which node kinds a run produced.
+
+- **The eight results schemas declare `required`.** `diagnostic/v1`,
+  `diagnostics/v1`, `profile/v1` and the five metrics classes were generated
+  under the config contract, which forbids `required` because a config is a
+  partial expression of intent. A results document asserts fact, so `{}` was
+  valid as a `diagnostic/v1`. `S7_to_JSONSchema(asserted = TRUE)` is the third
+  mode beside config and record.
+- **`to_json()` no longer emits `.class`.** The marker named the S7 class for a
+  frontend to dispatch on, from before documents carried `$schema`. Nothing has
+  read it since, and every results schema is `additionalProperties: false` and
+  declares no such property -- so each `diagnostics` payload the server sent was
+  invalid against its own published schema.
+- **The checks corpus records whole documents.** Its profiles dropped
+  `fingerprint` and its findings dropped `step`, both hand-written reassemblies
+  of a schema rather than what `to_json()` emits. The `step` omission was
+  discarding the value the fixture named "stamps the step onto every data
+  finding" exists to prove. Both now come from `to_json()`, and the generator
+  asserts every recorded profile and finding carries its schema's full property
+  set before writing.
+- **`write_JSONSchema()` and `write_lines()` moved to rtemis.core**; the first is
+  re-exported, so `rtemis::write_JSONSchema()` is unchanged. The registry has
+  more than one producer, and a document's shape belongs to the registry rather
+  than to whichever package emitted it. Keywords are now ordered on write.
+
+## 1.3.8
+
+- **New `ingest()` and `setup_Ingest()`**, published as `ingest/v1`: read a data file and normalize it to Parquet. A delimited file, a spreadsheet or a Stata file carries no usable type information and Parquet does, so this is the one step that decides types -- everything after it reads a declaration rather than inferring one. Every reading decision comes from the config, not from a reader's default: a default that is not in the config is a decision the record cannot report.
+- `DelimitedIngestConfig` has a separator and a quote character, `XLSXIngestConfig` a sheet number, `ParquetIngestConfig` neither. A setting that belongs to another format is refused by name rather than accepted and ignored. `format` is what the file *is*, so `ingest()` derives it and a config that disagrees with its file is an error.
+- **`columns` declares types outright** -- `c(Age = "integer", Dx = "categorical")`, in the `profile/v1` vocabulary -- applied after reading. Inference is a guess made from the values a file happens to hold; where the user knows, saying so beats every heuristic, and the record reports what was declared.
+- The ingest manifest names the engine that read the file. R today; the choice is recorded from the start because it is unrecoverable once a second implementation exists.
+
+- **New `profile/v1/fixture.json`**, generated by `data-raw/generate_profile_fixture.R` and published beside the checks corpus. Each case names a Parquet file published with it and carries the `profile/v1` document rtemis measures for it, so every implementation reads the same file and must produce the same document. Parquet because it *declares* its types: a delimited file would make this a test of three type inferences rather than of three profilers. The corpus cannot cover this -- profiles are *inputs* to it, so hosts can agree on every rule and still disagree about the dataset.
+
+- **New `SuperConfig@character2factor`**, default TRUE. A delimited file carries no types, so something has to decide whether a column of labels is a categorical predictor or an unusable string one -- and that decision is now the config's, where `validate_config()` can read it and the record can report it. `train()` was forcing the conversion regardless, which made a config succeed that the checks correctly rejected.
+- Applied to the validation and test sets too. They were read with the default (FALSE) while training got TRUE, so their text columns stayed character and `check_supervised()` rejected them for a difference nobody asked for.
+- `FEATURE_TYPE_UNSUPPORTED` and `OUTCOME_TYPE_MISMATCH` read the effective dtype: a string column is reported only where the config declines to convert it. The preprocessor's own `character2factor` still rescues nothing -- `check_supervised()` runs before `preprocess()`, which is fitted per fold -- and the two settings are now distinguished in the docs and pinned by separate fixtures.
+- **`data_profile()` carries level counts for string columns**, not just factors. Whether a column of labels arrives as `factor` or `character` is a property of the reader; the level set is the same either way. Without them `RESAMPLE_MIN_CLASS` could not answer for any outcome read from a CSV.
+- **`train()` pre-flights a `SuperConfigLive` unless told otherwise.** That type binds its data in memory rather than naming a path, which is the shape a run submitted over the wire arrives in: the submitter is not the person who reads the failure, so a run that cannot answer the question asked is refused before it starts spending. `preflight = FALSE` skips it. Every other entry point is unchanged, pre-flight still being opt-in.
+- Fixed: the pre-flight dropped `positive_class` when reassembling the config it checks, so it could report less than `validate_config()` reports on the same run. A drift test now derives the property list from `config_parts()`, so one added there cannot be forgotten here.
+- **New `setup_SupervisedPreprocessor()` and `SupervisedPreprocessorConfig`**: the preprocessing a `train()` run can fit, published as `supervisedpreprocessor/v1`. `setup_Preprocessor()` without `complete_cases`, `remove_duplicates` and `remove_cases_thres`, which a fitted preprocessor cannot replay at predict time -- asked for n rows it must return n predictions -- and without `remove_features_thres`, which each fold would learn from its own training subset. `SuperConfig@preprocessor_config` takes this type; the four are still available to `preprocess()`.
+- **`PREPROCESSOR_UNSUPPORTED` is gone**, and so is the check behind it: what it reported is not a setting `train()` refuses, it is not a setting. Eight data checks remain.
+- A `PreprocessorConfig` handed to `train()` is a type error naming the operations that made it one, and the fix.
+
+- **New `checks/v1` and `traits/v1` at schema.rtemis.org**: the nine data checks as 29 JSONLogic rules over a `profile/v1` description, plus the algorithm traits they read. Authored in infix in `data-raw/checks.R` and compiled at generation time; rtemis's own checks remain the reference implementation and are unchanged in what they report.
+- **New `checks/v1/corpus.json` at schema.rtemis.org**: the fixture corpus as portable data -- 78 `(profile, config, outcome)` cases with the findings rtemis reported for each, which every implementation of `checks/v1` has to reproduce. Recorded from `test_ValidateConfigFixtures.R` itself, so a fixture added there is carried without restating it.
+- `RESAMPLE_MIN_CLASS` evidence reports `class_counts` in long form, one record per level, as `profile/v1` carries them.
+- `FEATURE_CONSTANT` offers a two-operation patch where the config has no `preprocessor_config`: the block is added empty, then filled.
+- **New `train(preflight = TRUE)`**: checks the configuration against the data before training and stops on any finding of severity "error", reporting warnings and continuing. Off by default.
+- **New `data_profile()` and the `profile/v1` schema**: measured facts about one dataset -- dimensions, columns with their types, distinct and missing counts, observed level counts for low-cardinality categorical columns, complete-case and duplicate counts. Bounded by the number of columns rather than rows, so a validator can check a config against data without the data.
+- **New `validate_config()`**: checks a config against the published schema and, when given the data, against the dataset it would run on. Returns a `Diagnostics` of findings -- each with a stable `code`, a `severity`, a technical message, a plain-language one, the numbers behind it, and where a deterministic one exists an RFC 6902 JSON Patch that fixes it. Empty means clean; nothing is thrown.
+- **`train()` no longer accepts preprocessing that drops columns by threshold.** `remove_features_thres` joins the case-dropping steps it already rejected: under resampling each fold would learn its own set, so the folds train on different features and their metrics are not comparable. `remove_features` (named) and `remove_constants` are unaffected.
+- Nine data checks: `OUTCOME_MISSING`, `OUTCOME_TYPE_MISMATCH`, `RESAMPLE_MIN_CLASS`, `RESAMPLE_N_ROWS`, `FEATURE_CONSTANT`, `FEATURE_TYPE_UNSUPPORTED`, `PREPROCESSOR_UNSUPPORTED`, `DIM_P_GT_N`, `MISSING_INCOMPATIBLE`. A `SCHEMA_INVALID` finding wraps what `read_config()` rejects, so the schema half is that validation rather than a second one.
+- `DIM_P_GT_N` counts what the learner is handed: predictors *after* categorical encoding (a k-level factor counts k), and the component count when `decomposition_config` reduces them first. Its severity is the algorithm's: a warning where the fit is an unregularized least squares and goes rank-deficient, a note where the algorithm regularizes, selects, or cannot be rank-deficient.
+- `supervised_algorithms` gains a `p_gt_n` column: whether a fit with more predictors than cases is usable. `NA` for the meta learners.
+- `Diagnostic` and `Diagnostics` publish `diagnostic/v1` and `diagnostics/v1` at schema.rtemis.org.
+- **`check_data()` reports `n_distinct_per_col`**: distinct observed values per column, one entry per column.
+- `supervised_algorithms` gains a `missing` column: whether the algorithm accepts a training set containing `NA`. `NA` for the meta learners, which take whatever their base learners take.
+- `MISSING_INCOMPATIBLE` simulates `remove_features_thres` and `remove_cases_thres` exactly for a standalone `PreprocessorConfig`, and credits neither inside a supervised config, where `train()` rejects them.
+- `check_data(get_duplicates = FALSE)` no longer errors; `n_duplicates` is `NULL` when the scan is skipped, and nothing reports on duplicates.
+
 ## 1.3.7
 
 - **New `setup_LINAD(split_features = , linear_features = , global_features = )`**: which features may define a split, which get a slope in the node models, and which of those slopes are shared by every leaf rather than free to change along a path. `NULL` on each imposes no constraint -- all, all, and nothing pinned -- which is LINAD as it was. Also on `setup_LINADForest()`, where `mtry_split` samples within the split-eligible set.

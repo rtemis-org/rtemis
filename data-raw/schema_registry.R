@@ -41,25 +41,25 @@ families <- list(
     algorithms = list(
       list(
         cls = PCAConfig,
-        desc = "Principal Component Analysis. See setup_PCA."
+        desc = "Principal Component Analysis."
       ),
       list(
         cls = ICAConfig,
-        desc = "Independent Component Analysis. See setup_ICA."
+        desc = "Independent Component Analysis."
       ),
       list(
         cls = NMFConfig,
-        desc = "Non-negative Matrix Factorization. See setup_NMF."
+        desc = "Non-negative Matrix Factorization."
       ),
       list(
         cls = UMAPConfig,
-        desc = "Uniform Manifold Approximation and Projection. See setup_UMAP."
+        desc = "Uniform Manifold Approximation and Projection."
       ),
       list(
         cls = tSNEConfig,
-        desc = "t-Distributed Stochastic Neighbor Embedding. See setup_tSNE."
+        desc = "t-Distributed Stochastic Neighbor Embedding."
       ),
-      list(cls = IsomapConfig, desc = "Isomap. See setup_Isomap.")
+      list(cls = IsomapConfig, desc = "Isomap.")
     )
   ),
   clustering = list(
@@ -74,22 +74,78 @@ families <- list(
     ),
     algorithm_description = "Clustering algorithm name.",
     algorithms = list(
-      list(cls = KMeansConfig, desc = "K-means clustering. See setup_KMeans."),
+      list(cls = KMeansConfig, desc = "K-means clustering."),
       list(
         cls = HardCLConfig,
-        desc = "Hard competitive learning. See setup_HardCL."
+        desc = "Hard competitive learning."
       ),
       list(
         cls = NeuralGasConfig,
-        desc = "Neural Gas clustering. See setup_NeuralGas."
+        desc = "Neural Gas clustering."
       ),
       list(
         cls = CMeansConfig,
-        desc = "Fuzzy c-means clustering. See setup_CMeans."
+        desc = "Fuzzy c-means clustering."
       ),
       list(
         cls = DBSCANConfig,
-        desc = "DBSCAN density-based clustering. See setup_DBSCAN."
+        desc = "DBSCAN density-based clustering."
+      )
+    )
+  ),
+  # The first node of a pipeline: how a file becomes the typed Parquet
+  # everything downstream reads. Published because the decisions it holds --
+  # what counts as missing, whether labels are factors, which reader parsed the
+  # file, and any types the user declares outright -- change what the run trains
+  # on, and a record that could not report them could not account for its own
+  # numbers.
+  #
+  # A family rather than one config: a delimited file has a separator, a
+  # spreadsheet has a sheet number, a Parquet has neither.
+  #
+  # Nested mode, like `decomposition`, because the base carries settings of its
+  # own -- the declared types and the three post-read operations apply whatever
+  # the file is. Top-level mode (`resampler`) requires a base holding nothing
+  # but the discriminator: its leaves serialize as siblings, so a base property
+  # would have to be repeated in every leaf to survive the record.
+  ingest = list(
+    base_class = IngestConfig,
+    discriminator = "format",
+    payload = NULL,
+    title = "rtemis IngestConfig",
+    description = paste0(
+      "Language-independent config for reading a data file and normalizing it ",
+      "to Parquet. A delimited file or a spreadsheet carries no usable type ",
+      "information and Parquet does, so this is the one step that decides ",
+      "types -- everything after it reads a declaration rather than inferring ",
+      "one. `format` is what the file is, not a preference, so it has no ",
+      "default and a config that disagrees with its file is an error."
+    ),
+    discriminator_description = "What the file is.",
+    algorithms = list(
+      list(
+        cls = DelimitedIngestConfig,
+        desc = "A delimited file (csv, tsv, ...)."
+      ),
+      list(
+        cls = ParquetIngestConfig,
+        desc = "A Parquet file, which declares its own types."
+      ),
+      list(
+        cls = XLSXIngestConfig,
+        desc = "A spreadsheet."
+      ),
+      list(
+        cls = RDSIngestConfig,
+        desc = "An RDS file."
+      ),
+      list(
+        cls = DTAIngestConfig,
+        desc = "A Stata file."
+      ),
+      list(
+        cls = ARFFIngestConfig,
+        desc = "An ARFF file."
       )
     )
   ),
@@ -111,27 +167,27 @@ families <- list(
     algorithms = list(
       list(
         cls = KFoldConfig,
-        desc = "K-fold cross-validation. See setup_Resampler."
+        desc = "K-fold cross-validation."
       ),
       list(
         cls = StratSubConfig,
-        desc = "Stratified subsampling. See setup_Resampler."
+        desc = "Stratified subsampling."
       ),
       list(
         cls = StratBootConfig,
-        desc = "Stratified bootstrap. See setup_Resampler."
+        desc = "Stratified bootstrap."
       ),
       list(
         cls = BootstrapConfig,
-        desc = "Bootstrap resampling. See setup_Resampler."
+        desc = "Bootstrap resampling."
       ),
       list(
         cls = LOOCVConfig,
-        desc = "Leave-one-out cross-validation. See setup_Resampler."
+        desc = "Leave-one-out cross-validation."
       ),
       list(
         cls = CustomConfig,
-        desc = "Custom, user-supplied resamples. See setup_Resampler."
+        desc = "Custom, user-supplied resamples."
       )
     )
   ),
@@ -148,7 +204,7 @@ families <- list(
     algorithms = list(
       list(
         cls = GridSearchConfig,
-        desc = "Grid search over hyperparameter combinations. See setup_GridSearch.",
+        desc = "Grid search over hyperparameter combinations.",
         refs = c(
           resampler_config = "https://schema.rtemis.org/resampler/v1/schema.json"
         )
@@ -171,7 +227,7 @@ families <- list(
     algorithms = list(
       list(
         cls = SHAPConfig,
-        desc = "Shapley additive contributions. See setup_SHAP."
+        desc = "Shapley additive contributions."
       )
     )
   ),
@@ -191,15 +247,15 @@ families <- list(
     algorithms = list(
       list(
         cls = SplitConformalConfig,
-        desc = "Split conformal prediction. See setup_SplitConformal."
+        desc = "Split conformal prediction."
       ),
       list(
         cls = CVPlusConfig,
-        desc = "CV+, jackknife+ and cross-conformal. See setup_CVPlus."
+        desc = "CV+, jackknife+ and cross-conformal."
       ),
       list(
         cls = CQRConfig,
-        desc = "Conformalized quantile regression. See setup_CQR."
+        desc = "Conformalized quantile regression."
       )
     )
   ),
@@ -210,126 +266,124 @@ families <- list(
     description = paste0(
       "Language-independent algorithm hyperparameters: an algorithm name and an ",
       "algorithm-specific `hyperparameters` object, validated per-algorithm ",
-      "against schema.rtemis.org/hyperparameters/<algorithm>/v1. Mirrors the ",
-      "`{algorithm, hyperparameters}` wire format consumed by ",
-      "`.list_to_Hyperparameters`."
+      "against schema.rtemis.org/hyperparameters/<algorithm>/v1."
     ),
-    algorithm_description = "Supervised-learning algorithm name (matches `setup_<algorithm>`).",
+    algorithm_description = "Supervised-learning algorithm name.",
     algorithms = list(
       list(
         cls = GLMHyperparameters,
-        desc = "GLM (generalized linear model). See `setup_GLM`."
+        desc = "GLM (generalized linear model)."
       ),
       list(
         cls = GAMHyperparameters,
-        desc = "GAM (generalized additive model). See `setup_GAM`."
+        desc = "GAM (generalized additive model)."
       ),
       list(
         cls = GLMNETHyperparameters,
-        desc = "Elastic net (glmnet). See `setup_GLMNET`."
+        desc = "Elastic net (glmnet)."
       ),
       list(
         cls = GLMTreeHyperparameters,
-        desc = "Model-Based Recursive Partitioning: a tree with a GLM in each leaf. See `setup_GLMTree`."
+        desc = "Model-Based Recursive Partitioning: a tree with a GLM in each leaf."
       ),
       list(
         cls = SPLSHyperparameters,
-        desc = "Sparse Partial Least Squares. See `setup_SPLS`."
+        desc = "Sparse Partial Least Squares."
       ),
       list(
         cls = MARSHyperparameters,
-        desc = "Multivariate Adaptive Regression Splines (earth). See `setup_MARS`."
+        desc = "Multivariate Adaptive Regression Splines (earth)."
       ),
       list(
         cls = LinearSVMHyperparameters,
-        desc = "SVM with linear kernel (e1071). See `setup_LinearSVM`."
+        desc = "SVM with linear kernel (e1071)."
       ),
       list(
         cls = RadialSVMHyperparameters,
-        desc = "SVM with radial kernel (e1071). See `setup_RadialSVM`."
+        desc = "SVM with radial kernel (e1071)."
       ),
       list(
         cls = CARTHyperparameters,
-        desc = "CART decision tree (rpart). See `setup_CART`."
+        desc = "CART decision tree (rpart)."
       ),
       list(
         cls = RangerHyperparameters,
-        desc = "Ranger random forest. See `setup_Ranger`."
+        desc = "Ranger random forest."
       ),
       list(
         cls = LightCARTHyperparameters,
-        desc = "Single LightGBM tree (CART mode). See `setup_LightCART`."
+        desc = "Single LightGBM tree (CART mode)."
       ),
       list(
         cls = LightRFHyperparameters,
-        desc = "LightGBM random forest. See `setup_LightRF`."
+        desc = "LightGBM random forest."
       ),
       list(
         cls = LightGBMHyperparameters,
-        desc = "LightGBM gradient boosting. See `setup_LightGBM`."
+        desc = "LightGBM gradient boosting."
       ),
       list(
         cls = LightRuleFitHyperparameters,
-        desc = "LightRuleFit (LightGBM rules + GLMNET). See `setup_LightRuleFit`."
+        desc = "LightRuleFit (LightGBM rules + GLMNET)."
       ),
       list(
         cls = BARTHyperparameters,
-        desc = "Bayesian Additive Regression Trees (stochtree). See `setup_BART`."
+        desc = "Bayesian Additive Regression Trees (stochtree)."
       ),
       list(
         cls = IsotonicHyperparameters,
-        desc = "Isotonic regression. See `setup_Isotonic`."
+        desc = "Isotonic regression."
       ),
       list(
         cls = MLPHyperparameters,
-        desc = "Multilayer perceptron (torch). See `setup_MLP`."
+        desc = "Multilayer perceptron (torch)."
       ),
       list(
         cls = TabNetHyperparameters,
-        desc = "TabNet neural network. See `setup_TabNet`."
+        desc = "TabNet neural network."
       ),
       list(
         cls = KNNHyperparameters,
-        desc = "k-Nearest Neighbors (kknn). See `setup_KNN`."
+        desc = "k-Nearest Neighbors (kknn)."
       ),
       list(
         cls = HALHyperparameters,
-        desc = "Highly Adaptive Lasso (hal9001). See `setup_HAL`."
+        desc = "Highly Adaptive Lasso (hal9001)."
       ),
       list(
         cls = MonotonicHALHyperparameters,
-        desc = "Monotonic Highly Adaptive Lasso (hal9001). See `setup_MonotonicHAL`."
+        desc = "Monotonic Highly Adaptive Lasso (hal9001)."
       ),
       list(
         cls = LINADHyperparameters,
-        desc = "Linear Additive Tree. See `setup_LINAD`."
+        desc = "Linear Additive Tree."
       ),
       list(
         cls = LINADForestHyperparameters,
-        desc = "Bagged ensemble of Linear Additive Trees. See `setup_LINADForest`."
+        desc = "Bagged ensemble of Linear Additive Trees."
       ),
       list(
         cls = NNLSHyperparameters,
-        desc = "Non-negative least squares (nnls). See `setup_NNLS`."
+        desc = "Non-negative least squares (nnls)."
       ),
       # The meta learners hold other hyperparameters, so their leaves reference
       # this same family -- a recursive schema, which is valid but which a form
       # builder must bound. See plan/superlearner.md gap 5.
       list(
         cls = SuperLearnerHyperparameters,
-        desc = "SuperLearner: cross-validated stacked ensemble. See `setup_SuperLearner`.",
+        desc = "SuperLearner: cross-validated stacked ensemble.",
         refs = .meta_learner_refs,
         array_refs = .meta_learner_array_refs
       ),
       list(
         cls = ModalityStackingHyperparameters,
-        desc = "ModalityStacking: stacked ensemble with one learner per feature group. See `setup_ModalityStacking`.",
+        desc = "ModalityStacking: stacked ensemble with one learner per feature group.",
         refs = .meta_learner_refs,
         array_refs = .meta_learner_array_refs
       ),
       list(
         cls = ConditionalSuperLearnerHyperparameters,
-        desc = "Conditional SuperLearner: an oracle routes each case to one of a library of experts. See `setup_ConditionalSuperLearner`.",
+        desc = "Conditional SuperLearner: an oracle routes each case to one of a library of experts.",
         refs = .meta_learner_refs,
         array_refs = .meta_learner_array_refs
       )
@@ -356,6 +410,20 @@ flat_configs <- list(
       data_test = .url("datafingerprint")
     )
   ),
+  # Not a config either: a record's reference to a file written beside it.
+  # Most of what a run produces this way is tabular -- the execution graph
+  # today, the per-fold predictions and grid results later -- and belongs in a
+  # columnar file any data tool reads. Some of it is not: the fitted object and
+  # the log are already written beside the record. The reference is to a file.
+  dataref = list(
+    cls = DataRef,
+    title = "rtemis DataRef",
+    description = paste0(
+      "A reference from a record to a file written beside it: where it is, ",
+      "how it is encoded, how big it is, and the digest that ties it to the ",
+      "record naming it."
+    )
+  ),
   datafingerprint = list(
     cls = DataFingerprint,
     title = "rtemis DataFingerprint",
@@ -369,8 +437,7 @@ flat_configs <- list(
     title = "rtemis ExecutionConfig",
     description = paste0(
       "Language-independent config for rtemis execution: sequential, ",
-      "parallel, or distributed. Mirrors the `ExecutionConfig` object / ",
-      "`setup_ExecutionConfig` arguments."
+      "parallel, or distributed."
     ),
     # Cross-field rules `setup_ExecutionConfig()` *rejects*, mirrored here. A
     # rule the class validator enforces but `setup_*` resolves does not belong:
@@ -404,7 +471,7 @@ flat_configs <- list(
       "same config drives rtemis (R), rtemis CLI/shell, and rtemislive."
     ),
     refs = c(
-      preprocessor_config = .url("preprocessor"),
+      preprocessor_config = .url("supervisedpreprocessor"),
       decomposition_config = .url("decomposition"),
       tuner_config = .url("tuner"),
       outer_resampling_config = .url("resampler"),
@@ -485,13 +552,63 @@ flat_configs <- list(
     ),
     array_refs = c(res_metrics = .url("classificationmetrics"))
   ),
+  # A description, not a config and not a record: measured facts about one
+  # dataset, published so that any implementation can validate a config against
+  # data without the data -- and without R.
+  profile = list(
+    cls = DataProfile,
+    title = "rtemis DataProfile",
+    description = paste0(
+      "What one dataset is, in the facts a validator needs: dimensions, ",
+      "columns with their types, distinct and missing counts, level counts ",
+      "for low-cardinality categorical columns, and complete-case and ",
+      "duplicate counts. Bounded by the number of columns rather than the ",
+      "number of rows, so it travels where the data cannot."
+    ),
+    refs = c(fingerprint = .url("datafingerprint"))
+  ),
+  # Findings, not configs: what `validate_config()` reports about a config, so
+  # every property is `readOnly` and none has an input form. `diagnostic` is a
+  # family of its own so that `diagnostics` can `$ref` it once instead of
+  # restating the finding's shape inside an array.
+  diagnostic = list(
+    cls = Diagnostic,
+    title = "rtemis Diagnostic",
+    description = paste0(
+      "One finding from validating an rtemis config: a stable code, how much ",
+      "it matters, the technical and plain-language accounts of it, the ",
+      "numbers behind it, and -- where a deterministic one exists -- an RFC ",
+      "6902 JSON Patch that fixes it."
+    )
+  ),
+  diagnostics = list(
+    cls = Diagnostics,
+    title = "rtemis Diagnostics",
+    description = paste0(
+      "The findings for one rtemis config, in the order they were made. An ",
+      "empty array means the config is clean: there is no separate validity ",
+      "flag, an empty list of problems being the same statement."
+    ),
+    array_refs = c(diagnostics = .url("diagnostic"))
+  ),
   preprocessor = list(
     cls = PreprocessorConfig,
     title = "rtemis PreprocessorConfig",
     description = paste0(
-      "Language-independent config for rtemis preprocessing. Mirrors the ",
-      "`PreprocessorConfig` object / `setup_Preprocessor` arguments. The same ",
+      "Language-independent config for rtemis preprocessing. The same ",
       "config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical output."
+    )
+  ),
+  supervisedpreprocessor = list(
+    cls = SupervisedPreprocessorConfig,
+    title = "rtemis SupervisedPreprocessorConfig",
+    description = paste0(
+      "Language-independent config for the preprocessing a supervised run can ",
+      "fit: the preprocessing config without the ",
+      "operations a fitted preprocessor cannot replay at predict time ",
+      "(`complete_cases`, `remove_duplicates`, `remove_cases_thres`) or would ",
+      "learn differently in every resample (`remove_features_thres`). Those ",
+      "belong to `preprocessor`, applied to a dataset before training."
     )
   )
 )

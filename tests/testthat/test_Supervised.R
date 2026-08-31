@@ -4059,7 +4059,7 @@ mod_c_glm_pp <- train(
   x = datc2_train,
   dat_test = datc2_test,
   hyperparameters = setup_GLM(),
-  preprocessor = setup_Preprocessor(
+  preprocessor = setup_SupervisedPreprocessor(
     scale = TRUE,
     center = TRUE
   )
@@ -4432,6 +4432,58 @@ test_that("NNLS applies case weights as sqrt(w) on both sides", {
 })
 
 
+## {NNLS}[train]<Classification> ----
+# Binary only, and a linear probability model rather than a link-function
+# classifier: NNLS's own scale *is* the probability scale. Numeric predictors
+# on [0, 1], which is the shape the stacking meta learner sees.
+nnls_datc <- data.frame(
+  p1 = seq(0, 1, length.out = 100L),
+  p2 = rev(seq(0, 1, length.out = 100L))
+)
+nnls_datc[["y"]] <- factor(
+  ifelse(nnls_datc[["p1"]] > 0.5, "yes", "no"),
+  levels = c("no", "yes")
+)
+mod_c_nnls <- train(
+  nnls_datc,
+  hyperparameters = setup_NNLS(),
+  verbosity = 0L
+)
+
+test_that("train() NNLS Classification succeeds", {
+  expect_s7_class(mod_c_nnls, Classification)
+  # Regression leaves `y_levels` NULL; classification is the only thing that
+  # sets it, and `predict_super()` needs it to know which scale it is on.
+  expect_identical(mod_c_nnls@model@y_levels, c("no", "yes"))
+  expect_null(mod_r_nnls@model@y_levels)
+})
+
+
+test_that("NNLS predicts the probability of the second outcome level", {
+  # The encoding is `as.numeric(outcome) - 1`, so the fitted value is P(second
+  # level). Inverting it would flip every probability in the package's default
+  # stacking meta learner while still producing a valid-looking model, so the
+  # direction is asserted rather than assumed.
+  predicted <- predict(mod_c_nnls, nnls_datc[, c("p1", "p2")])
+  expect_identical(colnames(predicted), "yes")
+  expect_length(predicted, NROW(nnls_datc))
+  expect_true(all(predicted >= 0 & predicted <= 1))
+  expect_gt(
+    mean(predicted[nnls_datc[["y"]] == "yes"]),
+    mean(predicted[nnls_datc[["y"]] == "no"])
+  )
+})
+
+
+test_that("NNLS clamps a linear predictor that leaves [0, 1]", {
+  # A linear probability model is unbounded by construction, so a case outside
+  # the training range leaves the scale it is read on. Every other classifier
+  # here passes through a link function and cannot.
+  outside <- data.frame(p1 = c(5, -5), p2 = c(0, 0))
+  expect_identical(as.numeric(predict(mod_c_nnls, outside)), c(1, 0))
+})
+
+
 test_that("train() NNLS aborts on multiclass and on non-numeric predictors", {
   expect_error(
     train(x = datc3_train, hyperparameters = setup_NNLS(), verbosity = 0L),
@@ -4640,6 +4692,32 @@ test_that("train() ModalityStacking gives each entry only its own features", {
 test_that("ModalityStacking predicts on new data", {
   predicted <- predict(mod_r_ms, datr_test[, -NCOL(datr_test), with = FALSE])
   expect_length(predicted, NROW(datr_test))
+  expect_false(anyNA(predicted))
+})
+
+
+## {ModalityStacking}[train]<Classification> ----
+test_that("train() ModalityStacking Classification succeeds", {
+  mod <- train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_ModalityStacking(
+      feature_groups = list(
+        sepal = c("Sepal.Length", "Sepal.Width"),
+        petal = c("Petal.Length", "Petal.Width", "gn")
+      ),
+      base_learners = list(sepal = setup_GLM(), petal = setup_CART()),
+      inner_resampling_config = meta_res
+    ),
+    verbosity = 0L
+  )
+  expect_s7_class(mod, Classification)
+  expect_identical(
+    mod@model@base_models[["sepal"]]@xnames,
+    c("Sepal.Length", "Sepal.Width")
+  )
+  predicted <- predict(mod, datc2_test[, -NCOL(datc2_test)])
+  expect_length(predicted, NROW(datc2_test))
   expect_false(anyNA(predicted))
 })
 
@@ -4906,4 +4984,158 @@ test_that("a meta learner's record carries one block per library entry", {
     expect_true("origin" %in% names(entry[["hyperparameters"]]))
   }
   expect_identical(payload[["meta_learner"]][["algorithm"]], "NNLS")
+})
+
+
+# --- Case-matrix coverage -------------------------------------------------------------------------
+# What every algorithm claims in `algorithmDB.R` must be exercised here.
+#
+# The claim used to live only in the skill's prose ("the Class/Reg columns you
+# set in algorithmDB.R must agree with which blocks exist"), which is how NNLS
+# and ModalityStacking came to declare classification support and be tested on
+# regression alone. Half-support is exactly the failure mode the registry is
+# supposed to prevent, so the agreement is read off the source rather than
+# trusted.
+#
+# Reads the section headers, not the results: what this asserts is that a block
+# for each supported outcome type *exists*, since a block gated behind an
+# unavailable backend still has to be written. `## {Alg}[train]<Task> ----` is
+# the convention `references/testing.md` sets, so a block that does not follow
+# it is invisible here -- which is the cost of the convention being the index.
+#
+# `surv` is deliberately not read. It does not mean what `class` and `reg` mean:
+# those say what *rtemis* does with an outcome, and `supervised_type()` resolves
+# only Classification and Regression, so no survival run exists to test. The
+# column says what the *backend* can do. When survival lands, `surv` joins the
+# claims below in the same edit that gives `supervised_type()` a third answer.
+test_that("every algorithm is tested on every outcome type it supports", {
+  src <- readLines(test_path("test_Supervised.R"))
+  headers <- grep("## \\{[A-Za-z0-9]+\\}\\[train\\]<", src, value = TRUE)
+  algorithm <- sub("^[ ]*## \\{([A-Za-z0-9]+)\\}.*$", "\\1", headers)
+  task <- sub("^.*\\[train\\]<([A-Za-z]+)>.*$", "\\1", headers)
+  tested <- function(name, block) any(algorithm == name & task == block)
+
+  missing_blocks <- character()
+  for (i in seq_len(NROW(supervised_algorithms))) {
+    name <- supervised_algorithms[["name"]][[i]]
+    claims <- c(
+      Regression = isTRUE(as.logical(supervised_algorithms[["reg"]][[i]])),
+      Classification = isTRUE(as.logical(supervised_algorithms[["class"]][[i]]))
+    )
+    for (block in names(claims)[claims]) {
+      if (!tested(name, block)) {
+        missing_blocks <- c(missing_blocks, paste0(name, " <", block, ">"))
+      }
+    }
+    # Multiclass is a separate claim, made by membership in
+    # `supervised_multiclass` rather than by a column, and it is a separate
+    # block: an algorithm can be binary-only and many are.
+    if (
+      name %in%
+        supervised_multiclass &&
+        !any(grepl(paste0("\\{", name, "\\}.*Multiclass"), src))
+    ) {
+      missing_blocks <- c(missing_blocks, paste0(name, " <Multiclass>"))
+    }
+  }
+  expect_identical(
+    missing_blocks,
+    character(),
+    info = paste0(
+      "Declared in algorithmDB.R with no train block here: ",
+      paste(missing_blocks, collapse = ", "),
+      ". Add the block, or correct the claim."
+    )
+  )
+})
+
+
+# %% outcome and features ----
+
+test_that("set_outcome matches a column name exactly, not as a pattern", {
+  # `grep()` matched the name as a regular expression and as a substring, so
+  # `set_outcome(dat, "age")` moved both `age` and `age_group` and left the
+  # wrong column as the outcome -- silently, on data that looks fine.
+  dat <- data.frame(age = 1:3, age_group = c("a", "b", "c"), y = 4:6)
+  expect_identical(names(set_outcome(dat, "age")), c("age_group", "y", "age"))
+  # A `.` in a name was a wildcard for the same reason.
+  dotted <- data.frame(a.b = 1:3, axb = 4:6, y = 7:9)
+  expect_identical(names(set_outcome(dotted, "a.b")), c("axb", "y", "a.b"))
+  expect_error(set_outcome(dat, "nope"), class = "rtemis_value_error")
+})
+
+
+test_that("SuperConfig's outcome and features decide what is trained on", {
+  dat <- data.frame(
+    age = seq_len(60L),
+    los = rev(seq_len(60L)),
+    noise = rnorm(60L),
+    y = factor(rep(c("no", "yes"), each = 30L))
+  )
+  path <- file.path(tempdir(), "project_frame.csv")
+  on.exit(unlink(path), add = TRUE)
+  write.csv(dat, path, row.names = FALSE)
+
+  config <- setup_SuperConfig(
+    dat_training_path = path,
+    outcome = "y",
+    features = c("age", "los"),
+    hyperparameters = setup_LightRF(),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L),
+    outdir = NULL,
+    verbosity = 0L
+  )
+  mod <- train(config)
+  # `noise` was excluded by `features`, and `y` is the outcome rather than
+  # whatever happened to be last in the file.
+  expect_identical(mod@xnames, c("age", "los"))
+  expect_s3_class(mod, "rtemis::ClassificationRes")
+})
+
+
+test_that("an outcome that is not the last column is moved, not assumed", {
+  # The whole point of the property: rtemis's convention is last-column, and a
+  # config that names a different one has to override it rather than be
+  # silently ignored.
+  dat <- data.frame(
+    target = c(rep(1.5, 30L), rep(9.5, 30L)),
+    a = seq_len(60L),
+    b = rev(seq_len(60L))
+  )
+  path <- file.path(tempdir(), "outcome_first.csv")
+  on.exit(unlink(path), add = TRUE)
+  write.csv(dat, path, row.names = FALSE)
+
+  mod <- train(setup_SuperConfig(
+    dat_training_path = path,
+    outcome = "target",
+    hyperparameters = setup_LightRF(),
+    outer_resampling_config = setup_Resampler(n_resamples = 3L),
+    outdir = NULL,
+    verbosity = 0L
+  ))
+  expect_identical(mod@xnames, c("a", "b"))
+})
+
+
+test_that("a named column that is not in the data is a corrective error", {
+  dat <- data.frame(a = seq_len(20L), y = factor(rep(c("x", "z"), 10L)))
+  path <- file.path(tempdir(), "missing_col.csv")
+  on.exit(unlink(path), add = TRUE)
+  write.csv(dat, path, row.names = FALSE)
+
+  config <- setup_SuperConfig(
+    dat_training_path = path,
+    outcome = "readmit30",
+    hyperparameters = setup_LightRF(),
+    outdir = NULL,
+    verbosity = 0L
+  )
+  expect_error(train(config), "readmit30", class = "rtemis_value_error")
+})
+
+
+test_that("both properties NULL leaves rtemis's convention untouched", {
+  dat <- data.frame(a = seq_len(40L), b = rev(seq_len(40L)), y = rnorm(40L))
+  expect_identical(rtemis:::project_frame(dat), dat)
 })

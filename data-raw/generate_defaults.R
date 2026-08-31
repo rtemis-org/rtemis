@@ -28,12 +28,23 @@ source(file.path("data-raw", "schema_registry.R"))
 # %% .setup_fn ----
 # The `setup_*()` function that builds `cls`, or NULL when the class has none
 # (its defaults then come from nowhere a user can see, and it is skipped).
+#
+# An S7 class object *is* a function, so `doc_source_for_class()`'s last-resort
+# candidate -- the class name itself, which exists so `audit_props.R` can find a
+# class's `@field` block -- otherwise resolves to the class's own constructor
+# and its formals are read as defaults. They are not: they are the property
+# prototypes, which is a different claim. It emitted `hash: ""` for a
+# `DataFingerprint`, a value that class's own validator rejects, so the
+# published artifact contradicted the class it was generated from.
+#
+# A class with no `setup_*()` has no user-facing defaults, and absence in the
+# artifact means exactly that.
 .setup_fn <- function(cls) {
   for (nm in doc_source_for_class(cls@name)) {
     fn <- tryCatch(get(nm, envir = asNamespace("rtemis")), error = function(e) {
       NULL
     })
-    if (is.function(fn)) {
+    if (is.function(fn) && !inherits(fn, "S7_class")) {
       return(fn)
     }
   }

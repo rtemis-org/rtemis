@@ -65,3 +65,38 @@ test_that("to_html() escapes text that came from the data", {
   expect_match(out, "a&lt;b&amp;c", fixed = TRUE)
   expect_false(grepl(">a<b&c<", out, fixed = TRUE))
 })
+
+
+# %% n_distinct_per_col ----
+test_that("check_data() counts distinct values per column", {
+  x <- data.frame(
+    num = c(1, 2, 2, 3),
+    fct = factor(c("a", "b", "a", "b")),
+    const = rep(1L, 4L),
+    withna = c(1, NA, 1, 2)
+  )
+  cd <- check_data(x)
+  # One entry per column, in column order, named for the column.
+  expect_named(cd$n_distinct_per_col, names(x))
+  expect_type(cd$n_distinct_per_col, "integer")
+  expect_equal(unname(cd$n_distinct_per_col), c(3L, 2L, 1L, 2L))
+})
+
+
+test_that("n_distinct_per_col ignores NA and counts unused factor levels", {
+  # NA is absence, not a value, so it is not a distinct level: an encoder makes
+  # no column for it. An unused level is likewise nothing to encode.
+  x <- data.frame(
+    withna = c("a", NA, "b"),
+    unused = factor(c("x", "x", "y"), levels = c("x", "y", "z"))
+  )
+  cd <- check_data(x)
+  expect_equal(unname(cd$n_distinct_per_col), c(2L, 2L))
+})
+
+
+test_that("n_distinct_per_col agrees with n_constant", {
+  x <- data.frame(a = 1:5, b = rep("k", 5L), c = c(1, 1, 1, 1, 2))
+  cd <- check_data(x)
+  expect_equal(sum(cd$n_distinct_per_col == 1L), cd$n_constant)
+})

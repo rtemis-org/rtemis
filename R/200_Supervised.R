@@ -675,7 +675,6 @@ method(to_json, Supervised) <- function(x, ...) {
   # including props that may be NULL (e.g. `varimp` is either a
   # `VariableImportance` object or NULL).
   out <- list(
-    .class = S7_class(x)@name,
     algorithm = x@algorithm,
     type = x@type,
     question = x@question,
@@ -737,10 +736,12 @@ method(print, Supervised) <- function(
 # %% desc_preprocessor_steps ----
 #' Human-readable summary of the active preprocessing steps
 #'
-#' Maps the `PreprocessorConfig` flags onto short labels for use in `desc()`
-#' sentences. Returns `character(0)` when no recognized step is active.
+#' Maps the preprocessor flags onto short labels for use in `desc()`
+#' sentences. Returns `character(0)` when no recognized step is active. Reads
+#' the case- and threshold-dropping steps through `pp_opt()`, since a
+#' `SupervisedPreprocessorConfig` does not carry them.
 #'
-#' @param config `PreprocessorConfig` object.
+#' @param config `PreprocessorConfig` or `SupervisedPreprocessorConfig` object.
 #'
 #' @return Character vector of step labels.
 #'
@@ -749,13 +750,13 @@ method(print, Supervised) <- function(
 #' @noRd
 desc_preprocessor_steps <- function(config) {
   steps <- character()
-  if (isTRUE(config@complete_cases)) {
+  if (isTRUE(pp_opt(config, "complete_cases"))) {
     steps <- c(steps, "complete-case filtering")
   }
-  if (!is.null(config@remove_features_thres)) {
+  if (!is.null(pp_opt(config, "remove_features_thres"))) {
     steps <- c(steps, "high-missingness feature removal")
   }
-  if (!is.null(config@remove_cases_thres)) {
+  if (!is.null(pp_opt(config, "remove_cases_thres"))) {
     steps <- c(steps, "high-missingness case removal")
   }
   if (isTRUE(config@impute)) {
@@ -782,7 +783,7 @@ desc_preprocessor_steps <- function(config) {
   if (isTRUE(config@remove_constants)) {
     steps <- c(steps, "constant-feature removal")
   }
-  if (isTRUE(config@remove_duplicates)) {
+  if (isTRUE(pp_opt(config, "remove_duplicates"))) {
     steps <- c(steps, "duplicate removal")
   }
   if (!is.null(config@remove_features)) {
@@ -1921,7 +1922,6 @@ method(repr, SupervisedRes) <- function(
 #' @noRd
 method(to_json, SupervisedRes) <- function(x, ...) {
   out <- list(
-    .class = S7_class(x)@name,
     algorithm = x@algorithm,
     type = x@type,
     question = x@question,
