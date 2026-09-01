@@ -10,7 +10,7 @@ Two faces, deliberately different:
 
 - **The user-facing API is functional.** `train()`, `cluster()` and `decomp()`
   take data plus configuration objects and return a result. Configuration is
-  built by `setup_*()` functions — `setup_LightGBM()`, `setup_Resampler()`,
+  built by `setup_*()` functions — `setup_LightGBM()`, `setup_KFold()`,
   `setup_Preprocessor()` — never by hand-constructing classes.
 - **The internals are object-oriented.** Everything is an S7 class with
   declared, validated properties; behaviour is attached with `S7::method()`.

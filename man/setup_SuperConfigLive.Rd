@@ -52,17 +52,17 @@ level order.}
 means "do not write to disk" (the rtemislive case).}
 }
 \value{
-\code{SuperConfigLive} object.
+\code{SuperConfigTabular} object.
 }
 \description{
-Build a \code{SuperConfigLive} -- same shape as \link{setup_SuperConfig} but with
+Build a \code{SuperConfigTabular} -- same shape as \link{setup_SuperConfig} but with
 in-memory tabular data instead of file paths.
 }
 \examples{
 scl <- setup_SuperConfigLive(
   dat_training = iris,
   hyperparameters = setup_LightGBM(),
-  outer_resampling_config = setup_Resampler(),
+  outer_resampling_config = setup_KFold(),
   question = "Can we tell iris species apart given their measurements?"
 )
 }

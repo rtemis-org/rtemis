@@ -133,7 +133,7 @@ make_bias_variance_runner <- function(
 #' bv <- bias_variance(
 #'   dat,
 #'   hyperparameters = setup_CART(),
-#'   resampler_config = setup_Resampler(n_resamples = 10L, type = "StratBoot"),
+#'   resampler_config = setup_StratBoot(n_resamples = 10L),
 #'   verbosity = 0L
 #' )
 #' bv
@@ -181,10 +181,8 @@ bias_variance <- function(
     )
   }
   if (is.null(resampler_config)) {
-    resampler_config <- setup_Resampler(
-      n_resamples = 100L,
-      type = "StratBoot",
-      verbosity = 0L
+    resampler_config <- setup_StratBoot(
+      n_resamples = 100L
     )
   }
   check_is_S7(resampler_config, ResamplerConfig)
@@ -210,12 +208,10 @@ bias_variance <- function(
     }
     held_out <- resample(
       outcome(x),
-      config = setup_Resampler(
+      config = setup_StratSub(
         n_resamples = 1L,
-        type = "StratSub",
         train_p = 1 - test_p,
-        seed = execution_config@seed,
-        verbosity = 0L
+        seed = execution_config@seed
       ),
       verbosity = 0L
     )@resamples[[1L]]

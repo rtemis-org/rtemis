@@ -40,7 +40,7 @@
 #' x <- setup_SuperConfig(
 #'   dat_training_path = "~/Data/iris.csv",
 #'   hyperparameters = setup_LightRF(),
-#'   outer_resampling_config = setup_Resampler(),
+#'   outer_resampling_config = setup_KFold(),
 #'   question = "Can we tell iris species apart given their measurements?",
 #'   outdir = "models/"
 #' )
@@ -89,6 +89,7 @@ write_config <- new_generic(
   decomposition = "https://schema.rtemis.org/decomposition/v1/schema.json",
   clustering = "https://schema.rtemis.org/clustering/v1/schema.json",
   ingest = "https://schema.rtemis.org/ingest/v1/schema.json",
+  partition = "https://schema.rtemis.org/partition/v1/schema.json",
   preprocessor = "https://schema.rtemis.org/preprocessor/v1/schema.json",
   supervisedpreprocessor = "https://schema.rtemis.org/supervisedpreprocessor/v1/schema.json"
 ) # /rtemis::.RTEMIS_SUPPORTED_CONFIGS
@@ -170,10 +171,10 @@ write_config <- new_generic(
 } # /rtemis::.write_config_json
 
 
-# %% write_config.SuperConfig ----
+# %% write_config.SuperConfigPaths ----
 #' @author EDG
 #' @noRd
-method(write_config, SuperConfig) <- function(
+method(write_config, SuperConfigPaths) <- function(
   x,
   file,
   overwrite = FALSE,
@@ -201,7 +202,7 @@ method(write_config, SuperConfig) <- function(
     keep_null = "outdir"
   )
   invisible(x)
-} # /rtemis::write_config.SuperConfig
+} # /rtemis::write_config.SuperConfigPaths
 
 
 # %% write_config.DecomposeConfig ----
@@ -274,6 +275,24 @@ method(write_config, IngestConfig) <- function(
   .write_config_json(payload, file, overwrite, verbosity)
   invisible(x)
 } # /rtemis::write_config.IngestConfig
+
+
+# %% write_config.PartitionConfig ----
+#' @author EDG
+#' @noRd
+method(write_config, PartitionConfig) <- function(
+  x,
+  file,
+  overwrite = FALSE,
+  verbosity = 1L
+) {
+  payload <- c(
+    list(`$schema` = .RTEMIS_SUPPORTED_CONFIGS[["partition"]]),
+    S7_to_list(serializable_props(x))
+  )
+  .write_config_json(payload, file, overwrite, verbosity)
+  invisible(x)
+} # /rtemis::write_config.PartitionConfig
 
 
 # %% write_config.PreprocessorConfig ----

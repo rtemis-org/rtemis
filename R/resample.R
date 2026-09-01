@@ -17,7 +17,8 @@
 #' @param x Vector or data.frame: Usually the outcome; `NROW(x)` defines the sample size. A
 #' config naming a column -- `stratify_var` or `id_strat` -- needs the data frame that column
 #' lives in, since a name cannot be looked up in a bare vector.
-#' @param config Resampler object created by [setup_Resampler].
+#' @param config Resampler object created by one of the `setup_*` resampler
+#' functions, e.g. [setup_KFold].
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return `Resampler` object.
@@ -27,26 +28,26 @@
 #' @examples
 #' y <- rnorm(200)
 #' # 10-fold (stratified)
-#' y_10fold <- resample(y, setup_Resampler(10L, "kfold"))
+#' y_10fold <- resample(y, setup_KFold(10L))
 #' y_10fold
 #' # 25 stratified subsamples
-#' y_25strat <- resample(y, setup_Resampler(25L, "stratsub"))
+#' y_25strat <- resample(y, setup_StratSub(25L))
 #' y_25strat
 #' # 100 stratified bootstraps
-#' y_100strat <- resample(y, setup_Resampler(100L, "stratboot"))
+#' y_100strat <- resample(y, setup_StratBoot(100L))
 #' y_100strat
 #' # LOOCV
-#' y_loocv <- resample(y, setup_Resampler(type = "LOOCV"))
+#' y_loocv <- resample(y, setup_LOOCV())
 #' y_loocv
 #' # User-supplied resamples
 #' y_custom <- resample(
 #'   y,
-#'   setup_Resampler(type = "Custom", resamples = list(1:150, 51:200))
+#'   setup_Custom(resamples = list(1:150, 51:200))
 #' )
 #' y_custom
 resample <- function(
   x,
-  config = setup_Resampler(),
+  config = setup_KFold(),
   #  index = NULL,
   #  group = NULL,
   verbosity = 1L

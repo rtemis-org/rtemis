@@ -21,9 +21,8 @@ tune_dat <- local({
 })
 
 tune_config <- setup_GridSearch(
-  resampler_config = setup_Resampler(
+  resampler_config = setup_KFold(
     n_resamples = 3L,
-    type = "KFold",
     seed = 7L
   )
 )

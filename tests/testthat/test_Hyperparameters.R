@@ -1113,7 +1113,7 @@ test_that("a meta learner rejects a resampler that does not partition", {
   expect_error(
     validate_hyperparameters(
       setup_SuperLearner(
-        inner_resampling_config = setup_Resampler(type = "Bootstrap")
+        inner_resampling_config = setup_Bootstrap()
       ),
       dat
     ),

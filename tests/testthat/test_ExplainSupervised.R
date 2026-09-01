@@ -1541,7 +1541,7 @@ test_that("SHAP gives an importance to an algorithm that has none of its own", {
   train(
     dat,
     hyperparameters = hyperparameters,
-    outer_resampling_config = setup_Resampler(n_resamples = 4L, type = "KFold"),
+    outer_resampling_config = setup_KFold(n_resamples = 4L),
     verbosity = 0L
   )
 }

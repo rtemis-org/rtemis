@@ -1024,7 +1024,7 @@ method(
 #' @seealso [preprocess], [setup_Preprocessor]
 #' @export
 #' @examples
-#' res <- resample(iris, setup_Resampler(seed = 2026))
+#' res <- resample(iris, setup_KFold(seed = 2026))
 #' iris_train <- iris[res[[1]], ]
 #' iris_test <- iris[-res[[1]], ]
 #'

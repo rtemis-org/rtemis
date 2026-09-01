@@ -10,13 +10,117 @@
 #' SuperConfig Class
 #'
 #' @description
-#' Supervised Learning Configuration Class.
+#' Abstract superclass for a supervised-learning configuration. Carries every
+#' property common to both concrete shapes -- a portable recipe naming file
+#' paths (`SuperConfigPaths`) and an in-memory recipe carrying tabular data
+#' directly (`SuperConfigTabular`) -- named for what a supervised-learning
+#' recipe *is* regardless of how its data arrives, the same idiom
+#' `ResamplerConfig`/`IngestConfig` and their leaves already use. Where a
+#' property genuinely accepts either concrete shape (e.g. a fitted
+#' `Supervised@config`, which records whichever kind of recipe trained it),
+#' typing it `NULL | SuperConfig` is the correct, precise union -- only
+#' *dispatch* on which shape a config is needs the concrete classes.
 #'
 #' @author EDG
 #' @noRd
 SuperConfig <- new_class(
   name = "SuperConfig",
   package = "rtemis",
+  abstract = TRUE,
+  properties = c(
+    list(
+      # Which column is predicted, and from which. rtemis's convention is that
+      # the outcome is the last column and every other column is a predictor,
+      # arranged by `set_outcome()`. That convention is fine as a default and
+      # wrong as the only expression of it: a default that is not in the config is
+      # a decision the record cannot report. Left NULL, the convention applies
+      # exactly as before; named, `train()` arranges the frame and the record
+      # says what was predicted from what.
+      outcome = prop_string(
+        NULL,
+        nullable = TRUE,
+        description = paste0(
+          "Name of the outcome column. NULL = rtemis's convention, the last ",
+          "column."
+        )
+      ),
+      features = prop_string(
+        NULL,
+        nullable = TRUE,
+        vector = TRUE,
+        description = paste0(
+          "Names of the columns to use as predictors. NULL = every column ",
+          "except the outcome."
+        )
+      ),
+      # Column name in the training data.
+      weights = prop_string(
+        NULL,
+        nullable = TRUE,
+        description = "Name of the column to use as case weights."
+      ),
+      # Binary-classification positive level.
+      positive_class = prop_string(
+        NULL,
+        nullable = TRUE,
+        description = "Outcome level to treat as positive (binary classification)."
+      ),
+      preprocessor_config = NULL | SupervisedPreprocessorConfig,
+      decomposition_config = NULL | DecompositionConfig,
+      # A set is a union of search spaces over one algorithm, and a recipe has to
+      # say which was asked for. NULL stays first so the prototype is NULL.
+      hyperparameters = NULL | Hyperparameters | HyperparametersSet,
+      tuner_config = NULL | TunerConfig,
+      outer_resampling_config = NULL | ResamplerConfig,
+      execution_config = ExecutionConfig,
+      question = prop_string(
+        NULL,
+        nullable = TRUE,
+        description = "User-provided label / question for the run."
+      )
+    ),
+    prop_host_only(list(
+      # Not agent-writable: where and how much to log is the host's decision
+      # (the CLI, the server, the console a human is watching), never part of
+      # the modeling question an agent is answering. Read by
+      # `generate_authoring.R` into `authoring/v1`, not by any schema a model is
+      # ever handed -- see `PropertySpec@agent_writable`.
+      #
+      # Nullable: a run that writes nothing to disk must be able to say so. A
+      # non-nullable field would have every record claim the default directory
+      # whatever the run did, and a record that names a directory nothing was
+      # written to is worse than one that names none. `setup_SuperConfig()`
+      # still defaults to "results/", so a portable recipe that omits the field
+      # keeps writing where it always did.
+      outdir = prop_string(
+        NULL,
+        nullable = TRUE,
+        description = "Output directory for results. NULL = do not write to disk."
+      ),
+      verbosity = prop_integer(
+        1L,
+        min = 0L,
+        description = "Verbosity level."
+      )
+    ))
+  )
+) # /rtemis::SuperConfig
+
+
+# %% SuperConfigPaths ----
+#' SuperConfigPaths Class
+#'
+#' @description
+#' Supervised Learning Configuration Class, data-agnostic: names file paths
+#' rather than carrying data. The portable, publishable, serializable shape --
+#' see [setup_SuperConfig].
+#'
+#' @author EDG
+#' @noRd
+SuperConfigPaths <- new_class(
+  name = "SuperConfigPaths",
+  package = "rtemis",
+  parent = SuperConfig,
   properties = list(
     dat_training_path = prop_string(
       NULL,
@@ -39,7 +143,8 @@ SuperConfig <- new_class(
     # changes what the run trains on, it is what `validate_config()` has to know
     # to answer whether the run can work, and the record has to be able to
     # report it. Applied to all three datasets, so their columns cannot end up
-    # typed differently from each other.
+    # typed differently from each other. Not shared with `SuperConfigTabular`:
+    # in-memory data arrives already typed, so there is nothing here to decide.
     character2factor = prop_boolean(
       TRUE,
       description = paste0(
@@ -47,81 +152,15 @@ SuperConfig <- new_class(
         "categorical predictors as factors, and a delimited file cannot say ",
         "which columns those are."
       )
-    ),
-    # Which column is predicted, and from which. rtemis's convention is that
-    # the outcome is the last column and every other column is a predictor,
-    # arranged by `set_outcome()`. That convention is fine as a default and
-    # wrong as the only expression of it: a default that is not in the config is
-    # a decision the record cannot report, which is why `character2factor` moved
-    # here for the same reason. Left NULL, the convention applies exactly as
-    # before; named, `train()` arranges the frame and the record says what was
-    # predicted from what.
-    outcome = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = paste0(
-        "Name of the outcome column. NULL = rtemis's convention, the last ",
-        "column."
-      )
-    ),
-    features = prop_string(
-      NULL,
-      nullable = TRUE,
-      vector = TRUE,
-      description = paste0(
-        "Names of the columns to use as predictors. NULL = every column ",
-        "except the outcome."
-      )
-    ),
-    # Column name in the training data.
-    weights = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Name of the column to use as case weights."
-    ),
-    # Binary-classification positive level.
-    positive_class = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Outcome level to treat as positive (binary classification)."
-    ),
-    preprocessor_config = NULL | SupervisedPreprocessorConfig,
-    decomposition_config = NULL | DecompositionConfig,
-    # A set is a union of search spaces over one algorithm, and a recipe has to
-    # say which was asked for. NULL stays first so the prototype is NULL.
-    hyperparameters = NULL | Hyperparameters | HyperparametersSet,
-    tuner_config = NULL | TunerConfig,
-    outer_resampling_config = NULL | ResamplerConfig,
-    execution_config = ExecutionConfig,
-    question = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "User-provided label / question for the run."
-    ),
-    # Nullable, like `SuperConfigLive`: a run that writes nothing to disk must
-    # be able to say so. A non-nullable field would have every record claim the
-    # default directory whatever the run did, and a record that names a
-    # directory nothing was written to is worse than one that names none.
-    # `setup_SuperConfig()` still defaults to "results/", so a portable recipe
-    # that omits the field keeps writing where it always did.
-    outdir = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Output directory for results. NULL = do not write to disk."
-    ),
-    verbosity = prop_integer(
-      1L,
-      min = 0L,
-      description = "Verbosity level."
     )
   )
-) # /rtemis::SuperConfig
+) # /rtemis::SuperConfigPaths
 
 
-# %% repr.SuperConfig ----
-#' Repr SuperConfig
+# %% repr.SuperConfigPaths ----
+#' Repr SuperConfigPaths
 #'
-#' @param x `SuperConfig` object.
+#' @param x `SuperConfigPaths` object.
 #' @param pad Integer: Number of spaces to pad the message with.
 #' @param output_type Character {"ansi", "html", or "plain"}: Output type.
 #'
@@ -129,30 +168,30 @@ SuperConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-method(repr, SuperConfig) <- function(x, pad = 0L, output_type = NULL) {
-  out <- repr_S7name("SuperConfig", pad = pad, output_type = output_type)
+method(repr, SuperConfigPaths) <- function(x, pad = 0L, output_type = NULL) {
+  out <- repr_S7name("SuperConfigPaths", pad = pad, output_type = output_type)
   out <- paste0(
     out,
     repr_ls(props(x), pad = pad, limit = 20L, output_type = output_type)
   )
   out
-} # /rtemis::repr.SuperConfig
+} # /rtemis::repr.SuperConfigPaths
 
 
-# %% print.SuperConfig ----
-#' Print `SuperConfig`
+# %% print.SuperConfigPaths ----
+#' Print `SuperConfigPaths`
 #'
-#' Print `SuperConfig` object
+#' Print `SuperConfigPaths` object
 #'
-#' @param x `SuperConfig` object.
+#' @param x `SuperConfigPaths` object.
 #' @param ... Not used.
 #'
 #' @author EDG
 #' @noRd
-method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
+method(print, SuperConfigPaths) <- function(x, output_type = NULL, ...) {
   cat(repr(x, output_type = output_type))
   invisible(x)
-} # /rtemis::print.SuperConfig
+} # /rtemis::print.SuperConfigPaths
 
 
 # %% setup_SuperConfig ----
@@ -192,7 +231,7 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #' write nothing to disk.
 #' @param verbosity Integer [0, Inf): Verbosity level.
 #'
-#' @return `SuperConfig` object.
+#' @return `SuperConfigPaths` object.
 #'
 #' @author EDG
 #' @export
@@ -204,7 +243,7 @@ method(print, SuperConfig) <- function(x, output_type = NULL, ...) {
 #'   preprocessor_config = setup_SupervisedPreprocessor(scale = TRUE),
 #'   hyperparameters = setup_LightRF(),
 #'   tuner_config = setup_GridSearch(),
-#'   outer_resampling_config = setup_Resampler(),
+#'   outer_resampling_config = setup_KFold(),
 #'   execution_config = setup_ExecutionConfig(),
 #'   question = "Can we tell iris species apart given their measurements?",
 #'   outdir = "models/"
@@ -267,7 +306,7 @@ setup_SuperConfig <- function(
     )
   }
 
-  SuperConfig(
+  SuperConfigPaths(
     dat_training_path = dat_training_path,
     dat_validation_path = dat_validation_path,
     dat_test_path = dat_test_path,
@@ -357,13 +396,13 @@ setup_SuperConfig <- function(
 #' @param x Named list carrying `SuperConfig` fields (e.g. `hyperparameters`,
 #'   `decomposition_config`, `outer_resampling_config`).
 #'
-#' @return `SuperConfig` object.
+#' @return `SuperConfigPaths` object.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 .list_to_SuperConfig <- function(x) {
-  check_wire_keys(x, names(SuperConfig@properties), "supervised config")
+  check_wire_keys(x, names(SuperConfigPaths@properties), "supervised config")
   args <- list(
     dat_training_path = x[["dat_training_path"]],
     dat_validation_path = x[["dat_validation_path"]],
@@ -430,92 +469,36 @@ setup_SuperConfig <- function(
 } # /rtemis::.list_to_SuperConfig
 
 
-# %% SuperConfigLive ----
-#' SuperConfigLive
+# %% SuperConfigTabular ----
+#' SuperConfigTabular
 #'
 #' @details
-#' Like `SuperConfig`, but carries in-memory training/validation/test data
-#' instead of file paths. Used by `rtemislive` (uploads arrive over a WS
+#' Like `SuperConfigPaths`, but carries in-memory training/validation/test
+#' data instead of file paths. Used by `rtemislive` (uploads arrive over a WS
 #' frame, not as a file) and by future HPC submission paths that hand the
 #' data directly to a worker.
 #' Not serializable to a config file -- in-memory data does not round-trip
-#' cleanly. Use `SuperConfig` when you need on-disk reproducibility.
+#' cleanly. Use `SuperConfigPaths` when you need on-disk reproducibility.
 #'
 #' @author EDG
 #' @noRd
-SuperConfigLive <- new_class(
-  name = "SuperConfigLive",
+SuperConfigTabular <- new_class(
+  name = "SuperConfigTabular",
   package = "rtemis",
+  parent = SuperConfig,
   properties = list(
     dat_training = class_tabular,
     dat_validation = NULL | class_tabular,
-    dat_test = NULL | class_tabular,
-    # Which column is predicted, and from which -- the same pair
-    # `SuperConfig` carries, for the same reason. `build_super_config()` in
-    # rtemis.server passes every remaining `SuperConfig` property straight
-    # through to `setup_SuperConfigLive()`, so a property here is not optional
-    # parity: without it a config the wire accepts dies as an unused argument.
-    outcome = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = paste0(
-        "Name of the outcome column. NULL = rtemis's convention, the last ",
-        "column."
-      )
-    ),
-    features = prop_string(
-      NULL,
-      nullable = TRUE,
-      vector = TRUE,
-      description = paste0(
-        "Names of the columns to use as predictors. NULL = every column ",
-        "except the outcome."
-      )
-    ),
-    # Column name in dat_training.
-    weights = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Name of the column to use as case weights."
-    ),
-    # Binary-classification positive level.
-    positive_class = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Outcome level to treat as positive (binary classification)."
-    ),
-    preprocessor_config = NULL | SupervisedPreprocessorConfig,
-    decomposition_config = NULL | DecompositionConfig,
-    # A set is a union of search spaces over one algorithm, and a recipe has to
-    # say which was asked for. NULL stays first so the prototype is NULL.
-    hyperparameters = NULL | Hyperparameters | HyperparametersSet,
-    tuner_config = NULL | TunerConfig,
-    outer_resampling_config = NULL | ResamplerConfig,
-    execution_config = ExecutionConfig,
-    question = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "User-provided label / question for the run."
-    ),
-    outdir = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Output directory for results. NULL = do not write to disk."
-    ),
-    verbosity = prop_integer(
-      1L,
-      min = 0L,
-      description = "Verbosity level."
-    )
+    dat_test = NULL | class_tabular
   )
-) # /rtemis::SuperConfigLive
+) # /rtemis::SuperConfigTabular
 
 
-# %% repr.SuperConfigLive ----
+# %% repr.SuperConfigTabular ----
 #' @author EDG
 #' @noRd
-method(repr, SuperConfigLive) <- function(x, pad = 0L, output_type = NULL) {
-  out <- repr_S7name("SuperConfigLive", pad = pad, output_type = output_type)
+method(repr, SuperConfigTabular) <- function(x, pad = 0L, output_type = NULL) {
+  out <- repr_S7name("SuperConfigTabular", pad = pad, output_type = output_type)
   # Replace heavy data slots with a {rows, cols} summary so the printout
   # stays readable.
   pl <- props(x)
@@ -533,22 +516,22 @@ method(repr, SuperConfigLive) <- function(x, pad = 0L, output_type = NULL) {
     repr_ls(pl, pad = pad, limit = 20L, output_type = output_type)
   )
   out
-} # /rtemis::repr.SuperConfigLive
+} # /rtemis::repr.SuperConfigTabular
 
 
-# %% print.SuperConfigLive ----
+# %% print.SuperConfigTabular ----
 #' @author EDG
 #' @noRd
-method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
+method(print, SuperConfigTabular) <- function(x, output_type = NULL, ...) {
   cat(repr(x, output_type = output_type))
   invisible(x)
-} # /rtemis::print.SuperConfigLive
+} # /rtemis::print.SuperConfigTabular
 
 
 # %% setup_SuperConfigLive ----
 #' Setup SuperConfigLive
 #'
-#' Build a `SuperConfigLive` -- same shape as [setup_SuperConfig] but with
+#' Build a `SuperConfigTabular` -- same shape as [setup_SuperConfig] but with
 #' in-memory tabular data instead of file paths.
 #'
 #' @param dat_training data.frame or data.table. Training data.
@@ -570,7 +553,7 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 #' @param outdir Optional Character: Output directory; `NULL`
 #'   means "do not write to disk" (the rtemislive case).
 #'
-#' @return `SuperConfigLive` object.
+#' @return `SuperConfigTabular` object.
 #'
 #' @author EDG
 #' @export
@@ -578,7 +561,7 @@ method(print, SuperConfigLive) <- function(x, output_type = NULL, ...) {
 #' scl <- setup_SuperConfigLive(
 #'   dat_training = iris,
 #'   hyperparameters = setup_LightGBM(),
-#'   outer_resampling_config = setup_Resampler(),
+#'   outer_resampling_config = setup_KFold(),
 #'   question = "Can we tell iris species apart given their measurements?"
 #' )
 setup_SuperConfigLive <- function(
@@ -607,7 +590,7 @@ setup_SuperConfigLive <- function(
       normalize = FALSE
     )
   }
-  SuperConfigLive(
+  SuperConfigTabular(
     dat_training = dat_training,
     dat_validation = dat_validation,
     dat_test = dat_test,

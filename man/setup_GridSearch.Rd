@@ -5,7 +5,7 @@
 \title{Setup Grid Search Config}
 \usage{
 setup_GridSearch(
-  resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold"),
+  resampler_config = setup_KFold(n_resamples = 5L),
   search_type = "exhaustive",
   randomize_p = NULL,
   metrics_aggregate_fn = "mean",
@@ -14,7 +14,8 @@ setup_GridSearch(
 )
 }
 \arguments{
-\item{resampler_config}{\code{ResamplerConfig} set by \link{setup_Resampler}.}
+\item{resampler_config}{\code{ResamplerConfig} set by one of the \verb{setup_*}
+resampler functions, e.g. \link{setup_KFold}.}
 
 \item{search_type}{Character \{"exhaustive", "randomized"\}: Type of
 grid search to use. Exhaustive search will try all combinations of
@@ -41,7 +42,7 @@ Create a \code{GridSearchConfig} object that can be passed to \link{train}.
 }
 \examples{
 gridsearch_config <- setup_GridSearch(
-  resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold"),
+  resampler_config = setup_KFold(n_resamples = 5L),
   search_type = "exhaustive"
 )
 gridsearch_config

@@ -57,12 +57,12 @@
   ),
   .contract_family(
     ResamplerConfig,
-    list(KFoldConfig, "setup_Resampler"),
-    list(StratSubConfig, "setup_Resampler"),
-    list(StratBootConfig, "setup_Resampler"),
-    list(BootstrapConfig, "setup_Resampler"),
-    list(LOOCVConfig, "setup_Resampler"),
-    list(CustomConfig, "setup_Resampler")
+    list(KFoldConfig, "setup_KFold"),
+    list(StratSubConfig, "setup_StratSub"),
+    list(StratBootConfig, "setup_StratBoot"),
+    list(BootstrapConfig, "setup_Bootstrap"),
+    list(LOOCVConfig, "setup_LOOCV"),
+    list(CustomConfig, "setup_Custom")
   ),
   .contract_family(TunerConfig, list(GridSearchConfig, "setup_GridSearch")),
   .contract_family(ExplanationConfig, list(SHAPConfig, "setup_SHAP")),
@@ -115,11 +115,18 @@
     list(ARFFIngestConfig, "setup_ARFFIngest")
   ),
   .contract_family(
+    PartitionConfig,
+    list(RandomPartitionConfig, "setup_RandomPartition"),
+    list(TimePartitionConfig, "setup_TimePartition"),
+    list(GroupPartitionConfig, "setup_GroupPartition"),
+    list(PredefinedPartitionConfig, "setup_PredefinedPartition")
+  ),
+  .contract_family(
     NULL,
     list(ExecutionConfig, "setup_ExecutionConfig"),
     list(PreprocessorConfig, "setup_Preprocessor"),
     list(SupervisedPreprocessorConfig, "setup_SupervisedPreprocessor"),
-    list(SuperConfig, "setup_SuperConfig"),
+    list(SuperConfigPaths, "setup_SuperConfig"),
     list(DecomposeConfig, "setup_DecomposeConfig"),
     list(ClusterConfig, "setup_ClusterConfig")
   )
@@ -148,9 +155,9 @@
 
 # %% .contract_no_schema ----
 # `setup_*` exports backing no published schema, and so outside the contract.
-# `SuperConfigLive` holds in-memory tables rather than paths and does not
-# serialize, so it has no document form and `dat_training` has nowhere to come
-# from but the caller.
+# `setup_SuperConfigLive()` builds a `SuperConfigTabular`, which holds
+# in-memory tables rather than paths and does not serialize, so it has no
+# document form and `dat_training` has nowhere to come from but the caller.
 .contract_no_schema <- "setup_SuperConfigLive"
 
 
@@ -228,12 +235,21 @@ test_that("every setup_* backing a schema takes no mandatory argument", {
   # the schema accepts will fail at `do.call(setup_*, doc)`.
   for (nm in unique(vapply(.contract_classes, `[[`, character(1L), "setup"))) {
     fm <- formals(get(nm, envir = asNamespace("rtemis")))
+    # `formals()` on a zero-argument function (`setup_LOOCV()`) returns NULL
+    # rather than an empty pairlist -- the strongest case of "no mandatory
+    # argument", not an exception to it.
+    if (is.null(fm)) {
+      fm <- list()
+    }
     fm <- fm[names(fm) != "..."]
-    mandatory <- names(fm)[vapply(
+    # `character(...)` rather than a bare subset: `names(list())` is NULL, so
+    # zero remaining formals would otherwise compare NULL against
+    # `character()` below and fail on identity rather than content.
+    mandatory <- as.character(names(fm)[vapply(
       fm,
       function(d) identical(d, quote(expr = )),
       logical(1L)
-    )]
+    )])
     expect_identical(
       mandatory,
       character(),
@@ -343,10 +359,12 @@ test_that("no readOnly schema property is a setup_* formal", {
   # state field a `setup_*` accepts is one a user can write, so declaring it
   # read-only would misdescribe the document.
   #
-  # Only where one `setup_*` builds one class. `setup_Resampler()` builds six,
-  # so its formals are the union over all of them and say nothing about any
-  # one: it takes `n_resamples` and discards it for LOOCV, whose count only
-  # `resample()` can know.
+  # Only where one `setup_*` builds one class. Every registered family now
+  # has a dedicated constructor per leaf (resampler included, since
+  # `setup_Resampler(type = )` was split into `setup_KFold()`/`setup_StratSub()`/
+  # etc.), so this exclusion is defensive rather than load-bearing today: it
+  # protects against a future family sharing one constructor across variants,
+  # the way `setup_Resampler()` once did.
   shared <- vapply(.contract_classes, `[[`, character(1L), "setup")
   shared <- names(Filter(function(n) n > 1L, table(shared)))
   for (entry in Filter(
@@ -358,10 +376,13 @@ test_that("no readOnly schema property is a setup_* formal", {
       function(p) isTRUE(p[["readOnly"]]),
       schema[["properties"]]
     ))
-    formals_nm <- names(formals(get(
+    # `as.character(...)`: `formals()` on a zero-argument function
+    # (`setup_LOOCV()`) returns NULL, and `names(NULL)` stays NULL rather than
+    # `character(0)`.
+    formals_nm <- as.character(names(formals(get(
       entry[["setup"]],
       envir = asNamespace("rtemis")
-    )))
+    ))))
     expect_identical(
       intersect(state, formals_nm),
       character(),
@@ -710,10 +731,21 @@ test_that("a record carries exactly the keys its record schema requires", {
   for (entry in .contract_classes) {
     cls <- entry[["cls"]]
     setup <- get(entry[["setup"]], envir = asNamespace("rtemis"))
-    object <- setup()
-    # A shared `setup_*` builds one variant of its family (`setup_Resampler()`
-    # returns a KFoldConfig), so only the variant it actually builds is checked
-    # here; the others are covered by the schema-shape tests above.
+    # A bare call has a default for every formal (the whole contract's
+    # premise), but a default is not always a *usable* one: `setup_Custom()`
+    # takes `resamples = NULL` and then rejects NULL, deliberately -- there is
+    # no meaningful empty Custom resampler, only a config that has not been
+    # told its resamples yet. That class's record shape is covered on its own
+    # below, with real resamples.
+    object <- tryCatch(setup(), error = function(e) NULL)
+    if (is.null(object)) {
+      next
+    }
+    # A shared `setup_*`, where one exists, builds one variant of its family,
+    # so only the variant it actually builds is checked here; the others are
+    # covered by the schema-shape tests above. Every resampler constructor is
+    # now dedicated to its own leaf, so this guard no longer excludes any of
+    # them.
     if (!S7_inherits(object, cls)) {
       next
     }
@@ -722,6 +754,19 @@ test_that("a record carries exactly the keys its record schema requires", {
     ]])
     expect_setequal(names(config_record(object, object)), required)
   }
+})
+
+
+test_that("a CustomConfig record carries exactly the keys its record schema requires", {
+  # Not reachable via a bare `setup_Custom()` call (see above), so checked
+  # directly with real resamples.
+  entry <- Filter(
+    function(e) identical(e[["cls"]]@name, "CustomConfig"),
+    .contract_classes
+  )[[1L]]
+  object <- setup_Custom(resamples = list(1:3, 2:4))
+  required <- as.character(.contract_schema(entry, record = TRUE)[["required"]])
+  expect_setequal(names(config_record(object, object)), required)
 })
 
 

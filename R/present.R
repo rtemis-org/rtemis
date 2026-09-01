@@ -29,12 +29,12 @@
 #' iris_lightrf <- train(
 #'   iris,
 #'   hyperparameters = setup_LightRF(),
-#'   outer_resampling_config = setup_Resampler(seed = 2026)
+#'   outer_resampling_config = setup_KFold(seed = 2026)
 #' )
 #' iris_rsvm <- train(
 #'   iris,
 #'   hyperparameters = setup_RadialSVM(),
-#'   outer_resampling_config = setup_Resampler(seed = 2026)
+#'   outer_resampling_config = setup_KFold(seed = 2026)
 #' )
 #' present(list(iris_lightrf, iris_rsvm), metric = "balanced_accuracy")
 #' }

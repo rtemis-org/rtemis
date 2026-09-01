@@ -25,10 +25,8 @@ set.seed(2026)
 .test <- .dat[-.in_training, ]
 .test_truth <- .truth[-.in_training]
 
-.resampler <- setup_Resampler(
-  n_resamples = 20L,
-  type = "StratBoot",
-  verbosity = 0L
+.resampler <- setup_StratBoot(
+  n_resamples = 20L
 )
 .execution <- setup_ExecutionConfig(seed = 1L, backend = "none")
 
@@ -161,10 +159,8 @@ test_that("bias_variance() refuses inputs it cannot decompose", {
       .train,
       setup_CART(),
       dat_test = .test,
-      resampler_config = setup_Resampler(
-        n_resamples = 1L,
-        type = "StratBoot",
-        verbosity = 0L
+      resampler_config = setup_StratBoot(
+        n_resamples = 1L
       ),
       verbosity = 0L
     ),

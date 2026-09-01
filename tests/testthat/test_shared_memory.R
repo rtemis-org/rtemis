@@ -273,7 +273,7 @@ shm_dat <- local({
   )
 })
 
-shm_resampler <- setup_Resampler(n_resamples = 4L, type = "KFold", seed = 2026L)
+shm_resampler <- setup_KFold(n_resamples = 4L, seed = 2026L)
 
 fit_shm <- function(shared_memory, backend = "mirai", n_workers = 2L) {
   train(
@@ -324,9 +324,8 @@ testthat::test_that("tuning gives the same answer shared or not", {
         xval = 10L
       ),
       tuner_config = setup_GridSearch(
-        resampler_config = setup_Resampler(
+        resampler_config = setup_KFold(
           n_resamples = 3L,
-          type = "KFold",
           seed = 7L
         )
       ),

@@ -2,9 +2,9 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# %% SuperConfig ----
-test_that("SuperConfig() succeeds", {
-  sc <- SuperConfig(
+# %% SuperConfigPaths ----
+test_that("SuperConfigPaths() succeeds", {
+  sc <- SuperConfigPaths(
     dat_training_path = "train.csv",
     dat_validation_path = "validation.csv",
     dat_test_path = "test.csv",
@@ -12,13 +12,13 @@ test_that("SuperConfig() succeeds", {
     preprocessor_config = setup_SupervisedPreprocessor(),
     hyperparameters = setup_GLMNET(),
     tuner_config = setup_GridSearch(),
-    outer_resampling_config = setup_Resampler(),
+    outer_resampling_config = setup_KFold(),
     execution_config = setup_ExecutionConfig(),
     question = "Can we predict the future from the past?",
     outdir = "results/",
     verbosity = 1L
   )
-  expect_s7_class(sc, SuperConfig)
+  expect_s7_class(sc, SuperConfigPaths)
 })
 
 # %% setup_SuperConfig() ----
@@ -31,13 +31,13 @@ test_that("setup_SuperConfig() succeeds", {
     preprocessor_config = setup_SupervisedPreprocessor(),
     hyperparameters = setup_LightGBM(),
     tuner_config = setup_GridSearch(),
-    outer_resampling_config = setup_Resampler(),
+    outer_resampling_config = setup_KFold(),
     execution_config = setup_ExecutionConfig(),
     question = "Can we predict the future from the past?",
     outdir = "models/",
     verbosity = 1L
   )
-  expect_s7_class(sc, SuperConfig)
+  expect_s7_class(sc, SuperConfigPaths)
 })
 
 test_that("setup_SuperConfig() takes a NULL outdir", {
@@ -127,7 +127,7 @@ test_that("train() works with SuperConfig", {
     preprocessor_config = setup_SupervisedPreprocessor(scale = TRUE),
     hyperparameters = setup_LightRF(),
     tuner_config = setup_GridSearch(),
-    outer_resampling_config = setup_Resampler(),
+    outer_resampling_config = setup_KFold(),
     execution_config = setup_ExecutionConfig(),
     question = "Can we tell iris species apart given their measurements?",
     outdir = "models/",
@@ -148,7 +148,7 @@ test_that("SuperConfig round-trips through write_config/read_config JSON", {
     preprocessor_config = setup_SupervisedPreprocessor(scale = TRUE),
     hyperparameters = setup_LightRF(),
     tuner_config = setup_GridSearch(),
-    outer_resampling_config = setup_Resampler(),
+    outer_resampling_config = setup_KFold(),
     execution_config = setup_ExecutionConfig(),
     question = "Can we tell iris species apart given their measurements?",
     outdir = "models/",
@@ -163,7 +163,7 @@ test_that("SuperConfig round-trips through write_config/read_config JSON", {
     "https://schema.rtemis.org/supervised/v1/schema.json"
   )
   xtoo <- read_config(file)
-  expect_s7_class(xtoo, SuperConfig)
+  expect_s7_class(xtoo, SuperConfigPaths)
   expect_identical(
     xtoo@hyperparameters@algorithm,
     x@hyperparameters@algorithm
@@ -199,7 +199,7 @@ test_that("read_config ignores `$schema` on nested configs", {
     auto_unbox = TRUE
   )
   x <- read_config(file)
-  expect_s7_class(x, SuperConfig)
+  expect_s7_class(x, SuperConfigPaths)
   expect_true(x@preprocessor_config@scale)
   expect_s7_class(x@decomposition_config, DecompositionConfig)
   expect_identical(x@execution_config@n_workers, 1L)
@@ -315,7 +315,7 @@ test_that("every SuperConfig property survives the wire converter", {
   # Derived from the class rather than listed here, so the next property is
   # covered without this test being edited.
   wire_read <- names(formals(rtemis:::.list_to_SuperConfig))
-  properties <- names(SuperConfig@properties)
+  properties <- names(SuperConfigPaths@properties)
   body_text <- paste(
     deparse(body(rtemis:::.list_to_SuperConfig)),
     collapse = "\n"

@@ -106,7 +106,7 @@ mod_c_glm_cal
 resmod_c_glm <- train(
   x = dat,
   hyperparameters = setup_GLM(),
-  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_KFold(n_resamples = 3L)
 )
 
 # Calibrate the `ClassificationRes` using the same resampling configuration as used for training.

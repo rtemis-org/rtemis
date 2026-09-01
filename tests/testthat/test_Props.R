@@ -862,8 +862,7 @@ testthat::test_that("state the model carries is not written to a config", {
   # decides which cases stay together, so losing it changes results. What is
   # written is the column's name -- one string any reader can act on -- rather
   # than its values, which are true only of one dataset in one row order.
-  r <- setup_Resampler(
-    type = "StratSub",
+  r <- setup_StratSub(
     n_resamples = 2L,
     id_strat = "subject"
   )

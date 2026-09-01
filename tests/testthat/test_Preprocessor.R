@@ -31,7 +31,7 @@ testthat::test_that("integer-typed args accept friendly numeric input", {
 })
 
 # Preprocessor: preprocess(PreprocessorConfig) ----
-res <- resample(iris, setup_Resampler(seed = 2025))
+res <- resample(iris, setup_KFold(seed = 2025))
 iris_train <- iris[res$Fold_1, ]
 iris_test <- iris[-res$Fold_1, ]
 iris_Pre <- preprocess(

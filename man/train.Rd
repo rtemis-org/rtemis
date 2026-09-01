@@ -40,7 +40,8 @@ train(
 
 \item{tuner_config}{TunerConfig object: Setup using \link{setup_GridSearch}.}
 
-\item{outer_resampling_config}{Optional ResamplerConfig object: Setup using \link{setup_Resampler}.
+\item{outer_resampling_config}{Optional ResamplerConfig object: Setup using
+one of the \verb{setup_*} resampler functions, e.g. \link{setup_KFold}.
 This defines the outer resampling method, i.e. the splitting into training and test sets for the
 purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
 you might want to use a \code{dat_test} dataset to assess model performance on a single test set.}
@@ -61,7 +62,7 @@ every value resolved, where each came from, and what produced it. See
 \item{preflight}{Logical: If TRUE, check the configuration against \code{x} with
 \link{validate_config} before training and stop on any finding of severity
 "error". Findings of severity "warning" are reported and training continues.
-Defaults to FALSE, except for a \code{SuperConfigLive}, where it defaults to TRUE:
+Defaults to FALSE, except for a \code{SuperConfigTabular}, where it defaults to TRUE:
 that type binds its data in memory and is what a server hands a run it
 accepted on a client's behalf, so the check belongs to the type rather than
 to each caller remembering to ask for it. Pass FALSE explicitly to skip it.}
@@ -119,14 +120,14 @@ test error.
 
 If using \emph{\strong{outer resampling}}, you can set a seed when defining \code{outer_resampling_config}, e.g.
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{outer_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{outer_resampling_config = setup_KFold(n_resamples = 10L, seed = 2026L)
 }\if{html}{\out{</div>}}
 
 If using \emph{\strong{tuning with inner resampling}}, you can set a seed when defining \code{tuner_config},
 e.g.
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{tuner_config = setup_GridSearch(
-  resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold", seed = 2027L)
+  resampler_config = setup_KFold(n_resamples = 5L, seed = 2027L)
 )
 }\if{html}{\out{</div>}}
 
@@ -161,7 +162,7 @@ exactly.
 iris_c_lightRF <- train(
    iris,
    hyperparameters = setup_LightRF(),
-   outer_resampling_config = setup_Resampler(),
+   outer_resampling_config = setup_KFold(),
 )
 }
 }

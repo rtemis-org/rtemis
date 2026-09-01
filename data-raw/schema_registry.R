@@ -149,6 +149,41 @@ families <- list(
       )
     )
   ),
+  # Top-level mode, the same reason `resampler` is: `PartitionConfig`'s base
+  # carries nothing but the discriminator, so each leaf's own fields serialize
+  # as siblings of `method`.
+  partition = list(
+    base_class = PartitionConfig,
+    discriminator = "method",
+    payload = NULL,
+    title = "rtemis PartitionConfig",
+    description = paste0(
+      "Language-independent config for splitting a dataset into a training ",
+      "set and a held-out test set. A first-class, auditable operation -- ",
+      "the same reason `ingest` is one -- rather than a field on `SuperConfig`: ",
+      "how a held-out set was produced is a decision the record must be able ",
+      "to report."
+    ),
+    discriminator_description = "How the dataset is split.",
+    algorithms = list(
+      list(
+        cls = RandomPartitionConfig,
+        desc = "A uniformly random split."
+      ),
+      list(
+        cls = TimePartitionConfig,
+        desc = "A split by time order."
+      ),
+      list(
+        cls = GroupPartitionConfig,
+        desc = "A split that keeps each group of cases on one side."
+      ),
+      list(
+        cls = PredefinedPartitionConfig,
+        desc = "A split already recorded in the data itself."
+      )
+    )
+  ),
   # Top-level mode: a ResamplerConfig serializes its per-type fields as
   # siblings of `type` (not nested), so the leaves are open and the
   # dispatcher enforces strictness with `unevaluatedProperties`.
@@ -461,7 +496,7 @@ flat_configs <- list(
     )
   ),
   supervised = list(
-    cls = SuperConfig,
+    cls = SuperConfigPaths,
     title = "rtemis SuperConfig",
     description = paste0(
       "Language-independent config for an rtemis supervised-learning run. ",

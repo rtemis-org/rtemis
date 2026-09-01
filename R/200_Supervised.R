@@ -2480,7 +2480,7 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
 #' @noRd
 #'
 #' @examples
-#' mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_Resampler())
+#' mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_KFold())
 #' describe(mod)
 method(describe, SupervisedRes) <- function(x, verbosity = 1L) {
   descx <- desc(x)

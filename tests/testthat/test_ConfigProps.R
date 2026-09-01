@@ -236,7 +236,7 @@ test_that("S7_to_JSONSchema emits $refs for nested config properties", {
   )
   # A non-nullable nested config emits a bare $ref.
   sup <- S7_to_JSONSchema(
-    SuperConfig,
+    SuperConfigPaths,
     id = "https://schema.rtemis.org/supervised/v1/schema.json",
     refs = c(
       preprocessor_config = "https://schema.rtemis.org/preprocessor/v1/schema.json",
@@ -296,12 +296,12 @@ test_that("serialized configs carry only declared parameters", {
     "Y_init" %in% names(serializable_props(setup_tSNE())[["config"]])
   )
   # A resampler serializes type + n_resamples + its settings, but not id_strat.
-  rs <- serializable_props(setup_Resampler(n_resamples = 5L, type = "KFold"))
+  rs <- serializable_props(setup_KFold(n_resamples = 5L))
   expect_true(all(c("type", "n_resamples") %in% names(rs)))
   expect_false("id_strat" %in% names(rs))
   # LOOCV leaves `n_resamples` unset.
   expect_null(
-    serializable_props(setup_Resampler(type = "LOOCV"))[["n_resamples"]]
+    serializable_props(setup_LOOCV())[["n_resamples"]]
   )
   # A tuner keeps its nested resampler config (it serializes as its own schema).
   expect_true(
@@ -735,7 +735,7 @@ test_that("a searched hyperparameter is `tuned`, not `derived`", {
     iris,
     hyperparameters = setup_CART(maxdepth = tune_over(2L, 4L)),
     tuner_config = setup_GridSearch(
-      resampler_config = setup_Resampler(n_resamples = 2L, type = "KFold")
+      resampler_config = setup_KFold(n_resamples = 2L)
     ),
     verbosity = 0L
   )
@@ -832,7 +832,7 @@ test_that("a learned preprocessor value is `derived`, a supplied one `user`", {
 test_that("a record keeps unset fields rather than omitting them", {
   # `required` in a record schema means every field, so an unset one is stated
   # as null rather than left to a reader's defaults.
-  cfg <- setup_Resampler(type = "KFold", n_resamples = 3L)
+  cfg <- setup_KFold(n_resamples = 3L)
   rec <- config_record(cfg, cfg)
   expect_true("seed" %in% names(rec))
   expect_null(rec[["seed"]])
@@ -906,7 +906,7 @@ test_that("a resampled record reports the mean and the spread", {
   mod <- train(
     datr,
     hyperparameters = setup_CART(),
-    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    outer_resampling_config = setup_KFold(n_resamples = 3L),
     verbosity = 0L
   )
   rec <- record(mod)

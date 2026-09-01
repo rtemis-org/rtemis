@@ -174,7 +174,8 @@ GridSearchConfig <- new_class(
 #'
 #' Create a `GridSearchConfig` object that can be passed to [train].
 #'
-#' @param resampler_config `ResamplerConfig` set by [setup_Resampler].
+#' @param resampler_config `ResamplerConfig` set by one of the `setup_*`
+#' resampler functions, e.g. [setup_KFold].
 #' @param search_type Character \{"exhaustive", "randomized"\}: Type of
 #' grid search to use. Exhaustive search will try all combinations of
 #' config. Randomized will try a random sample of size
@@ -194,12 +195,12 @@ GridSearchConfig <- new_class(
 #' @export
 #' @examples
 #' gridsearch_config <- setup_GridSearch(
-#'   resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold"),
+#'   resampler_config = setup_KFold(n_resamples = 5L),
 #'   search_type = "exhaustive"
 #' )
 #' gridsearch_config
 setup_GridSearch <- function(
-  resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold"),
+  resampler_config = setup_KFold(n_resamples = 5L),
   search_type = "exhaustive",
   randomize_p = NULL,
   metrics_aggregate_fn = "mean",
