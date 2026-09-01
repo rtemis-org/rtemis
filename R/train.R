@@ -224,7 +224,7 @@ train <- function(
   dat_validation = NULL,
   dat_test = NULL,
   weights = NULL,
-  preprocessor_config = NULL, # PreprocessorConfig
+  preprocessor_config = NULL, # SupervisedPreprocessorConfig
   decomposition_config = NULL, # DecompositionConfig
   hyperparameters = NULL, # Hyperparameters
   tuner_config = NULL, # TunerConfig
@@ -1401,7 +1401,7 @@ train <- function(
 #' @param x Tabular data: Full training set; each fold slices its own rows.
 #' @param resamples List: Outer resample index vectors.
 #' @param n_outer Integer [1, Inf): Number of outer resamples.
-#' @param preprocessor_config Optional `PreprocessorConfig` object.
+#' @param preprocessor_config Optional `SupervisedPreprocessorConfig` object.
 #' @param decomposition_config Optional `DecompositionConfig` object.
 #' @param hyperparameters `Hyperparameters` object.
 #' @param tuner_config Optional `TunerConfig` object.

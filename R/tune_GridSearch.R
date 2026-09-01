@@ -22,7 +22,7 @@
 #' @param x tabular data: Training set.
 #' @param hyperparameters `Hyperparameters` object created with a learner's `setup_*` function.
 #' @param tuner_config `TunerConfig` object created with [setup_GridSearch].
-#' @param preprocessor_config Optional `PreprocessorConfig` object: Applied within each tuning
+#' @param preprocessor_config Optional `SupervisedPreprocessorConfig` object: Applied within each tuning
 #' fold so hyperparameters are evaluated on preprocessed data.
 #' @param decomposition_config Optional `DecompositionConfig` object: Setup using a decomposition
 #' `setup_`*` function.
@@ -644,7 +644,7 @@ tune_GridSearch <- function(
 #' or NULL when the search is over a single object. A row is applied to the
 #' member that produced it, which only the member itself knows -- two members
 #' can hold different values for a hyperparameter neither of them tunes.
-#' @param preprocessor_config Optional `PreprocessorConfig` object.
+#' @param preprocessor_config Optional `SupervisedPreprocessorConfig` object.
 #' @param decomposition_config Optional `DecompositionConfig` object.
 #' @param weights Optional vector of case weights.
 #' @param algorithm Character: Algorithm name, for the algorithm-specific collection.
