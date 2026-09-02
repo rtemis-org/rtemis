@@ -454,8 +454,9 @@ setup_PredefinedPartition <- function(
 #' @param dat data.frame or data.table: The dataset to split.
 #' @param config `PartitionConfig`: The split rule.
 #' @param outdir Optional Character: Directory to write `training.parquet` and
-#' `test.parquet` to. If `NULL`, nothing is written and the manifest's
-#' `output` entries are the in-memory frames themselves.
+#' `test.parquet` to; created if it does not exist. If `NULL`, nothing is
+#' written and each `outputs` entry carries its fingerprint and row count
+#' without a `path`.
 #' @param overwrite Logical: If TRUE, overwrite existing output files.
 #' @param verbosity Integer: Verbosity level.
 #'
@@ -480,23 +481,35 @@ partition <- function(
   training <- dat[idi[["training"]], , drop = FALSE]
   test <- dat[idi[["test"]], , drop = FALSE]
 
+  if (!is.null(outdir)) {
+    check_dependencies("arrow")
+    outdir <- sanitize_path(
+      outdir,
+      must_exist = FALSE,
+      type = "any",
+      normalize = FALSE
+    )
+    if (
+      !dir.exists(outdir) &&
+        !dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
+    ) {
+      rtemis.core::abort(
+        "Cannot create output directory: ",
+        outdir,
+        ".",
+        class = c("rtemis_file_error", "rtemis_io_error")
+      )
+    }
+  }
+
   write_side <- function(side_dat, name) {
     if (is.null(outdir)) {
       return(list(fingerprint = data_fingerprint(side_dat)))
     }
-    check_dependencies("arrow")
-    path <- file.path(
-      sanitize_path(
-        outdir,
-        must_exist = FALSE,
-        type = "any",
-        normalize = FALSE
-      ),
-      paste0(name, ".parquet")
-    )
+    path <- file.path(outdir, paste0(name, ".parquet"))
     if (file.exists(path) && !overwrite) {
       rtemis.core::abort(
-        "`outfile` exists: ",
+        "Output file exists: ",
         path,
         ". Pass `overwrite = TRUE` to replace it.",
         class = c("rtemis_file_error", "rtemis_input_error")

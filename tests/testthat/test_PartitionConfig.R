@@ -125,6 +125,54 @@ test_that("partition() writes Parquet files when outdir is given", {
 })
 
 
+test_that("partition() creates outdir when it does not exist", {
+  skip_if_not_installed("arrow")
+  dt <- data.frame(a = 1:20, y = rnorm(20))
+  dir <- file.path(withr::local_tempdir(), "new", "nested")
+  expect_false(dir.exists(dir))
+  man <- partition(
+    dt,
+    setup_RandomPartition(train_p = 0.8, seed = 1L),
+    outdir = dir,
+    verbosity = 0L
+  )
+  expect_true(dir.exists(dir))
+  expect_true(file.exists(man[["outputs"]][["training"]][["path"]]))
+  expect_true(file.exists(man[["outputs"]][["test"]][["path"]]))
+})
+
+
+test_that("partition() refuses to overwrite existing output without overwrite", {
+  skip_if_not_installed("arrow")
+  dt <- data.frame(a = 1:20, y = rnorm(20))
+  dir <- withr::local_tempdir()
+  config <- setup_RandomPartition(train_p = 0.8, seed = 1L)
+  partition(dt, config, outdir = dir, verbosity = 0L)
+  expect_error(
+    partition(dt, config, outdir = dir, verbosity = 0L),
+    class = "rtemis_file_error"
+  )
+  expect_no_error(
+    partition(dt, config, outdir = dir, overwrite = TRUE, verbosity = 0L)
+  )
+})
+
+
+test_that("partition() reports fingerprints without paths when outdir is NULL", {
+  dt <- data.frame(a = 1:20, y = rnorm(20))
+  man <- partition(
+    dt,
+    setup_RandomPartition(train_p = 0.8, seed = 1L),
+    verbosity = 0L
+  )
+  expect_null(man[["outputs"]][["training"]][["path"]])
+  expect_null(man[["outputs"]][["test"]][["path"]])
+  expect_false(is.null(man[["outputs"]][["training"]][["fingerprint"]]))
+  expect_identical(man[["outputs"]][["training"]][["n_rows"]], 16L)
+  expect_identical(man[["outputs"]][["test"]][["n_rows"]], 4L)
+})
+
+
 test_that("a PartitionConfig round-trips through write_config/read_config", {
   x <- setup_TimePartition(column = "visit_date", train_p = 0.8)
   file <- file.path(tempdir(), "rtemis_partition.json")

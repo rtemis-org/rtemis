@@ -489,16 +489,15 @@ spec_classes <- function(ns = "rtemis") {
 #' Candidate `setup_*` function names documenting a config class
 #'
 #' `LightRFHyperparameters` -> `setup_LightRF`, `PCAConfig` -> `setup_PCA`.
-#' Every resampler subclass has had its own dedicated `setup_*` since
-#' `setup_Resampler(type = )` was split into one constructor per type, so the
-#' stripped-name candidate below now resolves for those directly; `fallback`
-#' remains for classes whose constructor name does not derive from the class
-#' name by stripping `Config`/`Hyperparameters` -- either because one setup
-#' function still shares several classes, or, as for `SuperConfigPaths`/
-#' `SuperConfigTabular`, because the class was named for what differs
-#' structurally (a path-based vs. an in-memory recipe) while the constructors
-#' kept their established names (`setup_SuperConfig`/`setup_SuperConfigLive`),
-#' which do not end in `Config` at all.
+#' Every resampler subclass has its own dedicated `setup_*`, which the
+#' stripped-name candidate below resolves directly. `fallback` covers classes
+#' whose constructor name does not derive from the class name by stripping
+#' `Config`/`Hyperparameters` -- either because one setup function serves
+#' several classes, or, as for `SuperConfigPaths`/`SuperConfigTabular`, because
+#' the class is named for what differs structurally (a path-based vs. an
+#' in-memory recipe) while the constructors carry their own names
+#' (`setup_SuperConfig`/`setup_SuperConfigLive`), which do not end in `Config`
+#' at all.
 #'
 #' @param class_name Character: S7 class name.
 #'

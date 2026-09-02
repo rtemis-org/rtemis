@@ -8,7 +8,10 @@
 
 # Description
 # `ResamplerConfig` class and subclasses create objects that store resampling configuration.
-# They are set by `setup_KFold()` and perform type checking and validation.
+# They are set by the dedicated constructors -- `setup_KFold()`,
+# `setup_StratSub()`, `setup_StratBoot()`, `setup_Bootstrap()`,
+# `setup_LOOCV()`, `setup_Custom()` -- which perform type checking and
+# validation.
 # They are used by `resample()`.
 # `Resampler` class stores resamples and their configuration.
 # `Resampler` objects are created by `resample()`.

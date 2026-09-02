@@ -12,8 +12,9 @@ partition(dat, config, outdir = NULL, overwrite = FALSE, verbosity = 1L)
 \item{config}{\code{PartitionConfig}: The split rule.}
 
 \item{outdir}{Optional Character: Directory to write \code{training.parquet} and
-\code{test.parquet} to. If \code{NULL}, nothing is written and the manifest's
-\code{output} entries are the in-memory frames themselves.}
+\code{test.parquet} to; created if it does not exist. If \code{NULL}, nothing is
+written and each \code{outputs} entry carries its fingerprint and row count
+without a \code{path}.}
 
 \item{overwrite}{Logical: If TRUE, overwrite existing output files.}
 

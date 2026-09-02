@@ -389,7 +389,7 @@ setup_SplitConformal <- function(alpha = 0.1, score = NULL, seed = NULL) {
 #' the tighter one.
 #'
 #' **The folds must partition the cases**, each case out-of-fold exactly once.
-#' `setup_KFold()` and `"LOOCV"` do; the subsampling and
+#' `setup_KFold()` and `setup_LOOCV()` do; the subsampling and
 #' bootstrap types do not, and `conformal()` refuses them by checking the
 #' indices rather than the type name.
 #'
