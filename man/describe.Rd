@@ -33,7 +33,7 @@ species_lightrf <- train(iris, hyperparameters = setup_LightRF())
 describe(species_lightrf)
 
 # --- For `SupervisedRes` objects ---
-mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_Resampler())
+mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_KFold())
 describe(mod)
 
 # --- For factors ---

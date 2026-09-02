@@ -88,6 +88,21 @@ test:
     {{ rscript }} -e "testthat::test_local(stop_on_failure = TRUE)"
     @just _msg "Done"
 
+# A filtered run takes minutes, so it wants to be started once, in the
+# background, and waited on -- `<out>/verdict` is written only when the run
+# ends, which makes its existence the completion signal, and `<out>/log` holds
+# everything else. Wait with `until [ -f <out>/verdict ]; do sleep 15; done`.
+# Do not wait on the log: it contains the test names and would match a pattern
+# before the run has produced a result.
+[doc("Run tests matching a filter, verdict to <out>/verdict, log to <out>/log")]
+test-filter filter out="/tmp/rtemis-test":
+    @mkdir -p {{ out }} && rm -f {{ out }}/verdict {{ out }}/log
+    @just _msg "─── Running tests matching '{{ filter }}' for {{ pkg }}... ───"
+    -@RTEMIS_TEST_FILTER='{{ filter }}' RTEMIS_TEST_OUT='{{ out }}' \
+        {{ rscript }} tools/test-filter.R > {{ out }}/log 2>&1
+    @cat {{ out }}/verdict 2>/dev/null || { echo "no verdict -- the run died, see {{ out }}/log"; exit 1; }
+    @grep -q '^failed=0 error=0 ' {{ out }}/verdict || exit 1
+
 # `generate_checks.R` also refreshes the `inst/` copies of checks and traits,
 # which are what the package ships and what `test_ChecksArtifact.R` reads, so a
 # diff there after this runs means the committed copies were stale.

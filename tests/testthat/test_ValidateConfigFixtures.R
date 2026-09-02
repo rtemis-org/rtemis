@@ -1165,7 +1165,7 @@ test_that("a date predictor is unusable whatever the config reads", {
 test_that("FEATURE_TYPE_UNSUPPORTED fires despite the preprocessor's character2factor", {
   # Two settings share a name and only one of them rescues this column.
   #
-  # `SuperConfig@character2factor` is a *reading* convention, applied when the
+  # `SuperConfigPaths@character2factor` is a *reading* convention, applied when the
   # file is parsed, before any check -- so it is held FALSE here. The
   # preprocessor's own `character2factor` is a fitted step, run per fold inside
   # resampling, and `check_supervised()` has already aborted by then. Pinned

@@ -93,7 +93,7 @@ The following `setup_` functions are available to configure each step of the wor
 - Tuning: `setup_GridSearch()`
 - Clustering: `setup_CMeans()`, `setup_HardCL()`, etc.
 - Decomposition: `setup_NMF()`, `setup_ICA()`, etc.
-- Resampling: `setup_Resampler()`
+- Resampling: `setup_KFold()`, `setup_StratSub()`, etc.
 - Preprocessing: `setup_Preprocessor()`
 
 ## Supervised Learning
@@ -109,9 +109,8 @@ mod_lightgbm <- train(
         learning_rate = c(.001, .005, .01),
         subsample = c(.6, .9)
   ),
-  outer_resampling_config = setup_Resampler(
-    n_resamples = 25L,
-    type = "StratSub"
+  outer_resampling_config = setup_StratSub(
+    n_resamples = 25L
   )
 )
 ```

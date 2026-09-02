@@ -23,7 +23,7 @@ set.seed(2026)
 )
 .execution <- setup_ExecutionConfig(seed = 1L, backend = "none")
 .tuner <- setup_GridSearch(
-  resampler_config = setup_Resampler(3L, "KFold", verbosity = 0L)
+  resampler_config = setup_KFold(3L)
 )
 
 
@@ -244,7 +244,7 @@ test_that("outer resampling lets every fold choose for itself", {
       )
     ),
     tuner_config = .tuner,
-    outer_resampling_config = setup_Resampler(3L, "KFold", verbosity = 0L),
+    outer_resampling_config = setup_KFold(3L),
     execution_config = .execution,
     verbosity = 0L
   )

@@ -48,7 +48,7 @@ should have to say which artifact they want.
 x <- setup_SuperConfig(
   dat_training_path = "~/Data/iris.csv",
   hyperparameters = setup_LightRF(),
-  outer_resampling_config = setup_Resampler(),
+  outer_resampling_config = setup_KFold(),
   question = "Can we tell iris species apart given their measurements?",
   outdir = "models/"
 )

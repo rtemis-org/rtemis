@@ -71,7 +71,7 @@ write nothing to disk.}
 \item{verbosity}{Integer [0, Inf): Verbosity level.}
 }
 \value{
-\code{SuperConfig} object.
+\code{SuperConfigPaths} object.
 }
 \description{
 Setup \code{SuperConfig} object. \code{SuperConfig} is a portable, data-agnostic recipe:
@@ -87,7 +87,7 @@ sc <- setup_SuperConfig(
   preprocessor_config = setup_SupervisedPreprocessor(scale = TRUE),
   hyperparameters = setup_LightRF(),
   tuner_config = setup_GridSearch(),
-  outer_resampling_config = setup_Resampler(),
+  outer_resampling_config = setup_KFold(),
   execution_config = setup_ExecutionConfig(),
   question = "Can we tell iris species apart given their measurements?",
   outdir = "models/"

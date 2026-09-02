@@ -106,7 +106,8 @@ restore_weights_column <- function(model, column) {
 #'  `setup_*` function.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
 #' @param tuner_config TunerConfig object: Setup using [setup_GridSearch].
-#' @param outer_resampling_config Optional ResamplerConfig object: Setup using [setup_Resampler].
+#' @param outer_resampling_config Optional ResamplerConfig object: Setup using
+#' one of the `setup_*` resampler functions, e.g. [setup_KFold].
 #' This defines the outer resampling method, i.e. the splitting into training and test sets for the
 #' purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
 #' you might want to use a `dat_test` dataset to assess model performance on a single test set.
@@ -123,7 +124,7 @@ restore_weights_column <- function(model, column) {
 #' @param preflight Logical: If TRUE, check the configuration against `x` with
 #' [validate_config] before training and stop on any finding of severity
 #' "error". Findings of severity "warning" are reported and training continues.
-#' Defaults to FALSE, except for a `SuperConfigLive`, where it defaults to TRUE:
+#' Defaults to FALSE, except for a `SuperConfigTabular`, where it defaults to TRUE:
 #' that type binds its data in memory and is what a server hands a run it
 #' accepted on a client's behalf, so the check belongs to the type rather than
 #' to each caller remembering to ask for it. Pass FALSE explicitly to skip it.
@@ -170,13 +171,13 @@ restore_weights_column <- function(model, column) {
 #'
 #' If using ***outer resampling***, you can set a seed when defining `outer_resampling_config`, e.g.
 #' ```r
-#' outer_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold", seed = 2026L)
+#' outer_resampling_config = setup_KFold(n_resamples = 10L, seed = 2026L)
 #' ```
 #' If using ***tuning with inner resampling***, you can set a seed when defining `tuner_config`,
 #' e.g.
 #' ```r
 #' tuner_config = setup_GridSearch(
-#'   resampler_config = setup_Resampler(n_resamples = 5L, type = "KFold", seed = 2027L)
+#'   resampler_config = setup_KFold(n_resamples = 5L, seed = 2027L)
 #' )
 #' ```
 #'
@@ -215,7 +216,7 @@ restore_weights_column <- function(model, column) {
 #' iris_c_lightRF <- train(
 #'    iris,
 #'    hyperparameters = setup_LightRF(),
-#'    outer_resampling_config = setup_Resampler(),
+#'    outer_resampling_config = setup_KFold(),
 #' )
 #' }
 train <- function(
@@ -223,7 +224,7 @@ train <- function(
   dat_validation = NULL,
   dat_test = NULL,
   weights = NULL,
-  preprocessor_config = NULL, # PreprocessorConfig
+  preprocessor_config = NULL, # SupervisedPreprocessorConfig
   decomposition_config = NULL, # DecompositionConfig
   hyperparameters = NULL, # Hyperparameters
   tuner_config = NULL, # TunerConfig
@@ -235,9 +236,9 @@ train <- function(
   verbosity = 1L,
   ...
 ) {
-  # SuperConfigLive dispatch ----
-  if (S7_inherits(x, SuperConfigLive)) {
-    # Checked unless the caller said otherwise. A `SuperConfigLive` carries its
+  # SuperConfigTabular dispatch ----
+  if (S7_inherits(x, SuperConfigTabular)) {
+    # Checked unless the caller said otherwise. A `SuperConfigTabular` carries its
     # training data rather than a path to it, which is the shape a run submitted
     # over the wire arrives in: the submitter is not the person who will read
     # the failure, so a run that cannot answer the question asked has to be
@@ -284,17 +285,17 @@ train <- function(
       train_args[["positive_class"]] <- x@positive_class
     }
     return(restore_weights_column(do.call(train, train_args), x@weights))
-  } # / train.SuperConfigLive
+  } # / train.SuperConfigTabular
 
-  # SuperConfig dispatch ----
-  if (S7_inherits(x, SuperConfig)) {
-    # `SuperConfig` is a recipe: `dat_training_path` may be unbound. Require it
+  # SuperConfigPaths dispatch ----
+  if (S7_inherits(x, SuperConfigPaths)) {
+    # `SuperConfigPaths` is a recipe: `dat_training_path` may be unbound. Require it
     # at train time (the CLI sets it from its data argument before calling).
     if (is.null(x@dat_training_path)) {
       rtemis.core::abort(
-        "This `SuperConfig` has no `dat_training_path`; set it before training ",
+        "This `SuperConfigPaths` has no `dat_training_path`; set it before training ",
         '(e.g. `x@dat_training_path <- "data.parquet"`) or bind in-memory ',
-        "data via `SuperConfigLive`.",
+        "data via `SuperConfigTabular`.",
         class = c("rtemis_null_input", "rtemis_input_error")
       )
     }
@@ -363,7 +364,7 @@ train <- function(
       train_args[["positive_class"]] <- x@positive_class
     }
     return(restore_weights_column(do.call(train, train_args), x@weights))
-  } # / train.SuperConfig
+  } # / train.SuperConfigPaths
 
   # Checks ----
 
@@ -409,7 +410,7 @@ train <- function(
   # search space and `train_()` fills in what the data decides, so by the time
   # the model is built `hyperparameters` says what *ran*; only this says what
   # was *asked for*. `record()` needs both to report where each value came from.
-  # Before the recipe is built: `SuperConfig` types this block, so an S7 error
+  # Before the recipe is built: `SuperConfigPaths` types this block, so an S7 error
   # would otherwise reach the caller in place of the message that names the fix.
   if (!is.null(preprocessor_config)) {
     check_preprocessor_for_train(preprocessor_config)
@@ -418,7 +419,7 @@ train <- function(
   # `dat_training_path` stays unset for an in-memory run -- data identity is the
   # provenance block's `DataFingerprint`, not a path.
   input_config <- setup_SuperConfig(
-    # `SuperConfig` is a portable recipe over a data *path*, so it names a
+    # `SuperConfigPaths` is a portable recipe over a data *path*, so it names a
     # weights column rather than carrying the values; `weights` here is the
     # vector itself, which has no place in such a document. The field is
     # therefore left unset, and a weighted run is identifiable from its
@@ -436,7 +437,7 @@ train <- function(
     outer_resampling_config = outer_resampling_config,
     execution_config = execution_config,
     question = question,
-    # Passed rather than left to the `SuperConfig` default ("results/"), which
+    # Passed rather than left to the `SuperConfigPaths` default ("results/"), which
     # would have every record claim a directory the run never wrote to -- a live
     # run writes nothing to disk at all.
     outdir = outdir,
@@ -1400,7 +1401,7 @@ train <- function(
 #' @param x Tabular data: Full training set; each fold slices its own rows.
 #' @param resamples List: Outer resample index vectors.
 #' @param n_outer Integer [1, Inf): Number of outer resamples.
-#' @param preprocessor_config Optional `PreprocessorConfig` object.
+#' @param preprocessor_config Optional `SupervisedPreprocessorConfig` object.
 #' @param decomposition_config Optional `DecompositionConfig` object.
 #' @param hyperparameters `Hyperparameters` object.
 #' @param tuner_config Optional `TunerConfig` object.
@@ -1560,7 +1561,8 @@ normalize_fold_result <- function(res) {
 #'
 #' @param algorithm Character: Algorithm name.
 #' @param hyperparameters `Hyperparameters` object: Setup using one of `setup_*` functions.
-#' @param outer_resampling_config Optional ResamplerConfig object: Setup using [setup_Resampler].
+#' @param outer_resampling_config Optional ResamplerConfig object: Setup using
+#' one of the `setup_*` resampler functions, e.g. [setup_KFold].
 #' @param n_workers Integer: Total number of workers you want to use.
 #' @param n_workers_outer Optional Integer: Workers for outer resampling, named by the
 #' caller. Any named level switches off the priority assignment described below.

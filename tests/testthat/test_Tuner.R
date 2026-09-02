@@ -92,7 +92,7 @@ test_that("a conditional grid search fits exactly the previewed combinations", {
     dat,
     hyperparameters = hyperparameters,
     tuner_config = setup_GridSearch(
-      resampler_config = setup_Resampler(n_resamples = 2L)
+      resampler_config = setup_KFold(n_resamples = 2L)
     ),
     verbosity = 0L
   )
@@ -127,7 +127,7 @@ test_that("a randomized search samples combinations, not grid rows", {
     tuner_config = setup_GridSearch(
       search_type = "randomized",
       randomize_p = 0.5,
-      resampler_config = setup_Resampler(n_resamples = 3L)
+      resampler_config = setup_KFold(n_resamples = 3L)
     ),
     verbosity = 0L
   )
@@ -165,7 +165,7 @@ test_that("a randomized search always keeps at least one combination", {
     tuner_config = setup_GridSearch(
       search_type = "randomized",
       randomize_p = 0.1,
-      resampler_config = setup_Resampler(n_resamples = 2L)
+      resampler_config = setup_KFold(n_resamples = 2L)
     ),
     verbosity = 0L
   )

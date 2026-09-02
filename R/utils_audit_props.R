@@ -489,8 +489,15 @@ spec_classes <- function(ns = "rtemis") {
 #' Candidate `setup_*` function names documenting a config class
 #'
 #' `LightRFHyperparameters` -> `setup_LightRF`, `PCAConfig` -> `setup_PCA`.
-#' Families whose subclasses share one setup function (resamplers, tuners) fall
-#' back to it.
+#' Every resampler subclass has its own dedicated `setup_*`, which the
+#' stripped-name candidate below resolves directly. `fallback` covers classes
+#' whose constructor name does not derive from the class name by stripping
+#' `Config`/`Hyperparameters` -- either because one setup function serves
+#' several classes, or, as for `SuperConfigPaths`/`SuperConfigTabular`, because
+#' the class is named for what differs structurally (a path-based vs. an
+#' in-memory recipe) while the constructors carry their own names
+#' (`setup_SuperConfig`/`setup_SuperConfigLive`), which do not end in `Config`
+#' at all.
 #'
 #' @param class_name Character: S7 class name.
 #'
@@ -504,14 +511,10 @@ doc_source_for_class <- function(class_name) {
   # Both spellings occur: setup_LightRF (stripped) and setup_ExecutionConfig
   # (unstripped). Try the stripped form first, then the class name verbatim.
   fallback <- c(
-    KFold = "setup_Resampler",
-    StratSub = "setup_Resampler",
-    StratBoot = "setup_Resampler",
-    Bootstrap = "setup_Resampler",
-    LOOCV = "setup_Resampler",
-    Custom = "setup_Resampler",
     GridSearch = "setup_GridSearch",
-    Preprocessor = "setup_Preprocessor"
+    Preprocessor = "setup_Preprocessor",
+    SuperConfigPaths = "setup_SuperConfig",
+    SuperConfigTabular = "setup_SuperConfigLive"
   )
   out <- c(
     paste0("setup_", stripped),
@@ -593,6 +596,19 @@ audit_prop_docs <- function(r_dir, classes = NULL, aliases = PROP_DOC_ALIASES) {
         )
       }
     }
+    # Only user-settable properties have a `@param` to compare against. Run
+    # state is written by the runtime and a constant is determined by the
+    # class, so neither is documented as a parameter; their contract is the
+    # spec, which reaches the schema directly.
+    not_settable <- c(role_prop_names(cls, "state"), constant_spec_names(cls))
+    settable <- setdiff(spec_prop_names(cls), not_settable)
+    if (length(settable) == 0L) {
+      # Nothing a user could set (e.g. `LOOCVConfig`: a constant discriminator
+      # plus state `resample()` fills in), so there is nothing to document and
+      # a missing doc source is not a finding -- `setup_LOOCV()` correctly has
+      # no `@param` to have.
+      next
+    }
     if (length(params) == 0L) {
       # No documentation source at all: one finding for the class, rather than
       # one per property, which would drown the per-property findings.
@@ -605,12 +621,7 @@ audit_prop_docs <- function(r_dir, classes = NULL, aliases = PROP_DOC_ALIASES) {
       )
       next
     }
-    # Only user-settable properties have a `@param` to compare against. Run
-    # state is written by the runtime and a constant is determined by the
-    # class, so neither is documented as a parameter; their contract is the
-    # spec, which reaches the schema directly.
-    not_settable <- c(role_prop_names(cls, "state"), constant_spec_names(cls))
-    for (prop_name in setdiff(spec_prop_names(cls), not_settable)) {
+    for (prop_name in settable) {
       spec <- get_spec(cls@properties[[prop_name]])
       if (!nzchar(spec@description)) {
         add(class_name, prop_name, "description", "", "(empty)")

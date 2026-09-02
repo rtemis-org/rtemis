@@ -39,7 +39,7 @@ region states the guarantee it carries rather than letting a reader assume
 the tighter one.
 
 \strong{The folds must partition the cases}, each case out-of-fold exactly once.
-\code{setup_Resampler(type = "KFold")} and \code{"LOOCV"} do; the subsampling and
+\code{setup_KFold()} and \code{setup_LOOCV()} do; the subsampling and
 bootstrap types do not, and \code{conformal()} refuses them by checking the
 indices rather than the type name.
 

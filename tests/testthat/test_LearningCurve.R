@@ -219,7 +219,7 @@ test_that("A tuned LINAD keeps the leaf count tuning selected", {
   res <- train(
     dat,
     hyperparameters = setup_LINAD(max_leaves = tune_over(6L, 20L)),
-    outer_resampling_config = setup_Resampler(n_resamples = 3L, seed = 2026),
+    outer_resampling_config = setup_KFold(n_resamples = 3L, seed = 2026),
     execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
     verbosity = 0L
   )

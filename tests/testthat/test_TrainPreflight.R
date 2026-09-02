@@ -34,7 +34,7 @@ test_that("preflight is off by default and changes nothing", {
     train(
       dat,
       hyperparameters = setup_LightRF(),
-      outer_resampling_config = setup_Resampler(n_resamples = 10L),
+      outer_resampling_config = setup_KFold(n_resamples = 10L),
       verbosity = 0L
     )
   )
@@ -47,7 +47,7 @@ test_that("preflight stops on an error finding, naming the code", {
     train(
       dat,
       hyperparameters = setup_LightRF(),
-      outer_resampling_config = setup_Resampler(n_resamples = 10L),
+      outer_resampling_config = setup_KFold(n_resamples = 10L),
       preflight = TRUE,
       verbosity = 0L
     ),
@@ -63,7 +63,7 @@ test_that("preflight lets a clean configuration through", {
     train(
       .preflight_data(),
       hyperparameters = setup_LightRF(),
-      outer_resampling_config = setup_Resampler(n_resamples = 5L),
+      outer_resampling_config = setup_KFold(n_resamples = 5L),
       preflight = TRUE,
       verbosity = 0L
     )
@@ -84,7 +84,7 @@ test_that("preflight reports warnings without stopping", {
     train(
       dat,
       hyperparameters = setup_LightRF(),
-      outer_resampling_config = setup_Resampler(n_resamples = 5L),
+      outer_resampling_config = setup_KFold(n_resamples = 5L),
       preflight = TRUE,
       verbosity = 0L
     )
@@ -100,7 +100,7 @@ test_that("a SuperConfigLive is checked without being asked", {
   cfg <- setup_SuperConfigLive(
     dat_training = .preflight_data(60L, minority = 4L),
     hyperparameters = setup_LightRF(),
-    outer_resampling_config = setup_Resampler(n_resamples = 10L),
+    outer_resampling_config = setup_KFold(n_resamples = 10L),
     verbosity = 0L
   )
   expect_error(
@@ -116,7 +116,7 @@ test_that("a SuperConfigLive caller can still opt out", {
   cfg <- setup_SuperConfigLive(
     dat_training = .preflight_data(60L, minority = 4L),
     hyperparameters = setup_LightRF(),
-    outer_resampling_config = setup_Resampler(n_resamples = 10L),
+    outer_resampling_config = setup_KFold(n_resamples = 10L),
     verbosity = 0L
   )
   expect_no_error(train(cfg, preflight = FALSE))

@@ -7,7 +7,7 @@
 setup_SuperLearner(
   base_learners = list(setup_GLM(), setup_GLMNET(), setup_Ranger()),
   meta_learner = setup_NNLS(),
-  inner_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold"),
+  inner_resampling_config = setup_KFold(n_resamples = 10L),
   discrete = FALSE,
   expand_search_spaces = TRUE,
   ifw = FALSE

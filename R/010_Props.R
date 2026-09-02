@@ -183,6 +183,18 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   `check_applies_when()`.
 #' @field description Character: Human-readable description (schema
 #'   "description", TUI help text).
+#' @field agent_writable Logical or NULL: If FALSE, no agent-facing view of
+#'   this property should offer it for the model to fill in -- `outdir`,
+#'   `verbosity`, and the like, which are the host's to set, not part of the
+#'   question being asked. NULL (the default for every property unless
+#'   stamped by `prop_host_only()`) means agent-writable. A fact about
+#'   *authorship policy*, not about the type: unlike every other field on this
+#'   spec, it is deliberately never emitted into a published schema's
+#'   `x-rtemis` block -- see `spec_to_schema()`'s comment on `annotations` --
+#'   because who may author a property can change with the workflow while the
+#'   property's type cannot, and a published schema must not. It is read
+#'   directly off the class by `generate_authoring.R`, into a separately
+#'   versioned artifact (`authoring/v1`) with its own lifecycle.
 #'
 #' @author EDG
 #' @noRd
@@ -276,6 +288,10 @@ PropertySpec <- new_class(
     # A class whose properties are declared one at a time leaves it unset, and a
     # reader shows those together as it does today.
     group = NULL | class_character,
+    # See the `@field agent_writable` doc above: deliberately never reaches
+    # `spec_to_schema()`'s `annotations` list, stamped only by
+    # `prop_host_only()`, and read directly by `generate_authoring.R`.
+    agent_writable = NULL | class_logical,
     description = class_character
   ),
   validator = function(self) {
@@ -2223,6 +2239,43 @@ prop_group <- function(props, group) {
 } # /rtemis::prop_group
 
 
+# %% prop_host_only ----
+#' Mark a list of properties as not agent-writable
+#'
+#' @description
+#' Stamps `agent_writable = FALSE` onto a set of properties -- `outdir`,
+#' `verbosity`, and the like, which the host sets, not the question a config
+#' answers.
+#'
+#' @details
+#' Applied to the whole list at once, the same shape as `prop_group()`: a fact
+#' about workflow authorship, stamped where the property is declared, at no
+#' cost to the eleven `prop_*` factories. Never reaches the published schema
+#' -- see `PropertySpec@agent_writable`'s doc -- read instead by
+#' `generate_authoring.R` into the separately versioned `authoring/v1`
+#' artifact.
+#'
+#' @param props Named list of S7 properties, from `prop_*` factories.
+#'
+#' @return `props`, each carrying `agent_writable = FALSE`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_host_only <- function(props) {
+  lapply(props, function(p) {
+    if (is.null(get_spec_fields(p))) {
+      rtemis.core::abort(
+        "prop_host_only() applies to properties built by a prop_* factory.",
+        class = c("rtemis_type_error", "rtemis_input_error")
+      )
+    }
+    p[["spec"]][["agent_writable"]] <- FALSE
+    p
+  })
+} # /rtemis::prop_host_only
+
+
 # %% get_spec_fields ----
 #' Get the stored spec fields of an S7 property, or NULL
 #'
@@ -4071,7 +4124,11 @@ S7_to_JSONSchema <- function(
       #
       # This is the same line `tunable`'s `scalar | array` and `broadcast`'s
       # `element | array` sit on, and it is the whole line: discriminable by
-      # type stays a `oneOf`; two branches of one type does not.
+      # type stays a `oneOf`; two branches of one type need a structural
+      # predicate to become `allOf`/`if`/`then` instead -- the `varying`
+      # branch above has one (`variants`'s presence). Where no such predicate
+      # exists, a same-type union has no honest alternative to `oneOf`: do
+      # not invent a `then` with nothing to key its `if` on.
       #
       # Consumers are not the argument. `nested_ref` and `rtemis-cli`'s
       # `structural_dispatch_ref` read all three shapes, so either would

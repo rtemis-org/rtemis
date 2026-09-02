@@ -65,10 +65,11 @@ config_parts <- function(config) {
     out[["preprocessor_config"]] <- config
     return(out)
   }
-  # Read by property name rather than by class. `SuperConfig` and
-  # `SuperConfigLive` declare the same blocks under the same names and differ
-  # only in how the data reaches them, so a class test would validate the
-  # portable recipe and quietly find nothing in the live one.
+  # Read by property name rather than by class. `SuperConfigPaths` and
+  # `SuperConfigTabular` inherit the same blocks under the same names from
+  # their shared `SuperConfig` parent and differ only in how the data reaches
+  # them, so a test keyed on the concrete class would validate the portable
+  # recipe and quietly find nothing in the tabular one.
   out[["features"]] <- config_prop(config, "features")
   out[["preprocessor_config"]] <- config_prop(config, "preprocessor_config")
   out[["decomposition_config"]] <- config_prop(config, "decomposition_config")
@@ -77,7 +78,7 @@ config_parts <- function(config) {
   # How the config's files are read. A delimited file carries no types, so this
   # is what decides whether a column of labels reaches the learner as a factor
   # or as an unusable string. NULL for a config with no paths -- a
-  # `SuperConfigLive` holds a frame whose types are already decided -- and the
+  # `SuperConfigTabular` holds a frame whose types are already decided -- and the
   # effective dtype below then reads the profile unchanged.
   out[["character2factor"]] <- config_prop(config, "character2factor")
   # Both resamplers partition the same cases and fail the same way, so both are
@@ -948,7 +949,7 @@ check_feature_constant <- function(profile, feature_names, parts) {
 #' aborts otherwise, so a character or date predictor that reaches it is a
 #' guaranteed failure rather than a risk.
 #'
-#' What decides whether one reaches it is `SuperConfig@character2factor`, which
+#' What decides whether one reaches it is `SuperConfigPaths@character2factor`, which
 #' is a *reading* convention: it runs when the file is parsed, before any check.
 #' `effective_dtype()` applies it, which is why a string predictor is reported
 #' only when the config declines the conversion.

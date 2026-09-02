@@ -23,8 +23,8 @@ get_tuner_fn <- function(type = "GridSearch") {
 #' @param x tabular data: Training set data.
 #' @param hyperparameters `Hyperparameters` object: make using each learner's `setup_*` function.
 #' @param tuner_config `TunerConfig` object: created with [setup_GridSearch].
-#' @param preprocessor_config Optional `PreprocessorConfig` object: created with
-#' [setup_Preprocessor].
+#' @param preprocessor_config Optional `SupervisedPreprocessorConfig` object: created with
+#' [setup_SupervisedPreprocessor].
 #' @param decomposition_config Optional `DecompositionConfig` object: created with a
 #' decomposition `setup_*` function.
 #' @param weights Numeric vector: Optional case weights.

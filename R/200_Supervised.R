@@ -809,7 +809,7 @@ desc_preprocessor_steps <- function(config) {
 #' `@config@features` (`Decomposition`) or `@features` (`DecompositionConfig`).
 #'
 #' @param out Character: The description string to append to.
-#' @param preprocessor_config `PreprocessorConfig` object or `NULL`.
+#' @param preprocessor_config `PreprocessorConfig` / `SupervisedPreprocessorConfig` object or `NULL`.
 #' @param decomposition `Decomposition` / `DecompositionConfig` object or `NULL`.
 #'
 #' @return Character: `out` with any applicable sentences appended.
@@ -1676,7 +1676,7 @@ SupervisedRes <- new_class(
       nullable = TRUE,
       description = "Kind of supervised learning the models perform."
     ),
-    preprocessor_config = NULL | PreprocessorConfig,
+    preprocessor_config = NULL | SupervisedPreprocessorConfig,
     decomposition_config = NULL | DecompositionConfig,
     # A resampled run holds what was *asked for*, and that may be a set: each
     # fold tunes independently and may select a different member, so there is no
@@ -2480,7 +2480,7 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
 #' @noRd
 #'
 #' @examples
-#' mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_Resampler())
+#' mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_KFold())
 #' describe(mod)
 method(describe, SupervisedRes) <- function(x, verbosity = 1L) {
   descx <- desc(x)

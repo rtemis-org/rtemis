@@ -337,13 +337,31 @@ is_S7_list <- function(x) {
 #' properties in its schema but not in its record, and the record would fail
 #' validation against the schema generated from the same class.
 #'
+#' The "topmost ancestor below `S7_object`" heuristic assumes that ancestor is
+#' always a registry-declared, discriminated family base that
+#' `S7_to_JSONSchema()` was actually called with as `base =`. That has been
+#' true of every family so far, but it is a coincidence of what families have
+#' existed, not something derivable from the class hierarchy alone -- the
+#' registry is what actually decides `base =`, and it is unavailable here
+#' (`data-raw/` is absent from the built package, and this runs at record time,
+#' not generation time). `SuperConfig` breaks the coincidence: `SuperConfigPaths`
+#' and `SuperConfigTabular` share it purely for common properties, `supervised/v1`
+#' is a flat config with no discriminator, and `S7_to_JSONSchema()` is called on
+#' it with no `base =` at all -- so nothing was subtracted from its schema, and
+#' nothing may be subtracted from its record either. Named explicitly rather
+#' than inferred, since there is no cheaper, equally reliable signal for "was
+#' this class actually generated with a `base =`" than knowing it was not.
+#'
 #' @param cls S7 class.
 #'
-#' @return S7 class, or NULL when `cls` has no parent but `S7_object`.
+#' @return S7 class, or NULL when `cls` has no parent but `S7_object`, or when
+#'   the topmost ancestor is a known non-family one (see above).
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
+.NON_FAMILY_ABSTRACT_PARENTS <- c("SuperConfig")
+
 family_base <- function(cls) {
   base <- cls@parent
   if (is.null(base) || identical(base@name, "S7_object")) {
@@ -351,6 +369,9 @@ family_base <- function(cls) {
   }
   while (!is.null(base@parent) && !identical(base@parent@name, "S7_object")) {
     base <- base@parent
+  }
+  if (base@name %in% .NON_FAMILY_ABSTRACT_PARENTS) {
+    return(NULL)
   }
   base
 } # /rtemis::family_base

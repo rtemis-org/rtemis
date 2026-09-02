@@ -60,7 +60,7 @@ prp <- setup_Preprocessor(remove_duplicates = TRUE, scale = TRUE, center = TRUE)
 prp
 
 # Resample iris to get train and test data
-res <- resample(iris, setup_Resampler(seed = 2026))
+res <- resample(iris, setup_KFold(seed = 2026))
 iris_train <- iris[res[[1]], ]
 iris_test <- iris[-res[[1]], ]
 

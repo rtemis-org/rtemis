@@ -69,11 +69,9 @@ linadforest_settings <- function(hyperparameters, n_features) {
 linadforest_bags <- function(y, n_trees, seed = NULL) {
   resampler <- resample(
     y,
-    config = setup_Resampler(
+    config = setup_Bootstrap(
       n_resamples = n_trees,
-      type = "Bootstrap",
-      seed = seed,
-      verbosity = 0L
+      seed = seed
     ),
     verbosity = 0L
   )

@@ -2,6 +2,48 @@
 
 ## 1.3.9
 
+- **Who may author a property is now a fact the generator can record, kept out
+  of the published schema itself.** New `PropertySpec@agent_writable` (stamped
+  by the new `prop_host_only()`, applied so far to `SuperConfig@outdir` and
+  `@verbosity`) and a new `data-raw/generate_authoring.R`, publishing
+  `authoring/v1`: which properties, per schema, are the host's to set rather
+  than part of the question an agent's config answers. Deliberately never
+  reaches a schema's own `x-rtemis` block -- workflow authorship can change
+  (a delegated, sandboxed agent is a coherent future workflow) while a
+  published schema version must not, so it is versioned as its own,
+  separately-lifecycled artifact instead, the same relationship
+  `defaults/v1` already has to the schemas.
+- **Added `check_is_S7()`**
+- **New `partition()`, alongside `ingest()`: a held-out train/test split as its
+  own auditable step**, config'd via `setup_RandomPartition()`,
+  `setup_TimePartition()`, `setup_GroupPartition()`, or
+  `setup_PredefinedPartition()`, published at `partition/v1`. Deliberately not
+  a `SuperConfig` field: `SuperConfig` has so far only ever referenced data,
+  and a split field would be the first data-manipulation operation in it, with
+  no principled place to stop before a filter, a join, or a derived column.
+  `partition()` produces ordinary Parquet files (or, called on in-memory data
+  directly, ordinary frames) that `SuperConfig`'s existing `dat_training_path`/
+  `dat_test_path` then simply name -- the same relationship they already have
+  with `ingest()`'s output -- so how a held-out set was produced is now a
+  decision the record can report.
+- **`setup_Resampler(type = )` was split into `setup_KFold()`, `setup_StratSub()`,
+  `setup_StratBoot()`, `setup_Bootstrap()`, `setup_LOOCV()` and `setup_Custom()`,
+  each taking only the parameters its own type uses.** Every other dispatched
+  family (`decomposition`, `clustering`, `conformal`, `hyperparameters`) already
+  worked this way; the resampler dispatcher was the one exception, and its
+  `verbosity` argument was accepted, documented, and never used. `setup_Resampler()`
+  is removed, with no compatibility wrapper.
+- **`SuperConfig` and `SuperConfigLive` now share an abstract `SuperConfig`
+  parent** carrying the 13 properties both had -- `SuperConfigPaths` (built by
+  [setup_SuperConfig], the portable, file-path recipe) and `SuperConfigTabular`
+  (built by [setup_SuperConfigLive], the in-memory recipe) add only what
+  actually differs between them. Previously the two classes duplicated the
+  same 13 declarations by hand, with nothing to catch the two drifting apart.
+  `setup_SuperConfig()`/`setup_SuperConfigLive()` keep their names and return
+  shapes; only the internal class names changed. `supervised/v1`'s published
+  schema is unchanged in substance (same fields, same constraints; the
+  `properties` object lists the shared fields before the path-specific ones,
+  which does not affect validation).
 - **`hyperparameters` dispatches on the presence of `variants`, not on an
   undiscriminated `oneOf`.** Both alternatives are objects, so no validator
   could tell which one a document was attempting, and every branch's failure was

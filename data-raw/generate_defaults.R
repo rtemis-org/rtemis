@@ -11,7 +11,7 @@
 #
 # Defaults are read from the `setup_*()` formals, not `PropertySpec@default`.
 # The two can differ: `ResamplerConfig@n_resamples` has class default NULL,
-# while `setup_Resampler(n_resamples = 10L)` is what a user gets.
+# while `setup_KFold(n_resamples = 10L)` is what a user gets.
 #
 # Run with: Rscript data-raw/generate_defaults.R [SCHEMA_REPO]
 
@@ -108,7 +108,7 @@ source(file.path("data-raw", "schema_registry.R"))
   props <- cls@properties
   # Run state has no user-facing default: the run writes it, so whatever the
   # shared `setup_*()` formal says about it is not what a user gets. LOOCV is
-  # the case that shows it -- `setup_Resampler(n_resamples = 10L)` serves all
+  # the case that shows it -- `setup_KFold(n_resamples = 10L)` serves all
   # six types, but LOOCV's count comes from the data.
   state <- role_prop_names(cls, "state")
   out <- list()

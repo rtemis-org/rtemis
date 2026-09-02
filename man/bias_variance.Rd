@@ -108,7 +108,7 @@ dat <- data.frame(features, y = 2 * features$a + rnorm(n))
 bv <- bias_variance(
   dat,
   hyperparameters = setup_CART(),
-  resampler_config = setup_Resampler(n_resamples = 10L, type = "StratBoot"),
+  resampler_config = setup_StratBoot(n_resamples = 10L),
   verbosity = 0L
 )
 bv

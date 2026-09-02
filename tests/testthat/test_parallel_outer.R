@@ -241,9 +241,8 @@ parallel_dat <- local({
     y = factor(sample(c("no", "yes"), n, replace = TRUE))
   )
 })
-parallel_resampler <- setup_Resampler(
+parallel_resampler <- setup_KFold(
   n_resamples = 4L,
-  type = "KFold",
   seed = 2026L
 )
 
@@ -540,15 +539,13 @@ testthat::test_that("tuning inside a sequential fold dispatches in parallel", {
     train(
       parallel_dat,
       hyperparameters = setup_CART(maxdepth = tune_over(2L, 4L)),
-      outer_resampling_config = setup_Resampler(
+      outer_resampling_config = setup_KFold(
         n_resamples = 2L,
-        type = "KFold",
         seed = 2026L
       ),
       tuner_config = setup_GridSearch(
-        resampler_config = setup_Resampler(
+        resampler_config = setup_KFold(
           n_resamples = 2L,
-          type = "KFold",
           seed = 2026L
         )
       ),

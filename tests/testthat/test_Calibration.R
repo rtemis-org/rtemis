@@ -304,12 +304,12 @@ test_that("calibrate() defaults to Isotonic on ClassificationRes", {
   resmod <- train(
     datc2,
     hyperparameters = setup_GLM(),
-    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    outer_resampling_config = setup_KFold(n_resamples = 3L),
     verbosity = 0L
   )
   cal <- calibrate(
     resmod,
-    resampler_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    resampler_config = setup_KFold(n_resamples = 3L),
     verbosity = 0L
   )
   expect_s7_class(cal, CalibratedClassificationRes)
@@ -387,7 +387,7 @@ test_that("calibrate() rejects IFW on ClassificationRes", {
   resmod <- train(
     datc2,
     hyperparameters = setup_GLM(),
-    outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold"),
+    outer_resampling_config = setup_KFold(n_resamples = 3L),
     verbosity = 0L
   )
   expect_error(

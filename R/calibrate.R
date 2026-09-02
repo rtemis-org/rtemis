@@ -146,9 +146,8 @@ method(calibrate, Classification) <- function(
 method(calibrate, ClassificationRes) <- function(
   x,
   hyperparameters = NULL,
-  resampler_config = setup_Resampler(
-    n_resamples = 5L,
-    type = "KFold"
+  resampler_config = setup_KFold(
+    n_resamples = 5L
   ),
   train_verbosity = 0L,
   verbosity = 1L,

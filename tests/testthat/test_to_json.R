@@ -82,7 +82,7 @@ test_that("to_json(Classification) includes binclasspos", {
 resmod <- train(
   x = datr,
   hyperparameters = setup_GLM(),
-  outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+  outer_resampling_config = setup_KFold(n_resamples = 3L)
 )
 
 test_that("to_json(RegressionRes) returns a list with the resample summary", {

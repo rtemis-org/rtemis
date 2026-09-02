@@ -94,7 +94,7 @@ MetaLearnerHyperparameters <- new_class(
     # a conditional super learner routes with a learner the other two do not.
     inner_resampling_config = new_property(
       ResamplerConfig,
-      default = quote(setup_Resampler(n_resamples = 10L, type = "KFold"))
+      default = quote(setup_KFold(n_resamples = 10L))
     ),
     expand_search_spaces = prop_boolean(
       TRUE,
@@ -364,7 +364,7 @@ SuperLearnerHyperparameters <- new_class(
 setup_SuperLearner <- function(
   base_learners = list(setup_GLM(), setup_GLMNET(), setup_Ranger()),
   meta_learner = setup_NNLS(),
-  inner_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold"),
+  inner_resampling_config = setup_KFold(n_resamples = 10L),
   # tunable
   discrete = FALSE,
   # fixed
@@ -524,7 +524,7 @@ setup_ModalityStacking <- function(
   feature_groups = NULL,
   base_learners = list(setup_GLM(), setup_GLMNET(), setup_Ranger()),
   meta_learner = setup_NNLS(),
-  inner_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold"),
+  inner_resampling_config = setup_KFold(n_resamples = 10L),
   # tunable
   discrete = FALSE,
   # fixed
@@ -702,7 +702,7 @@ method(
 setup_ConditionalSuperLearner <- function(
   base_learners = list(setup_GLM(), setup_GLMNET(), setup_Ranger()),
   meta_learner = setup_Ranger(),
-  inner_resampling_config = setup_Resampler(n_resamples = 10L, type = "KFold"),
+  inner_resampling_config = setup_KFold(n_resamples = 10L),
   # tunable
   n_iterations = 4L,
   # fixed

@@ -250,7 +250,7 @@ test_that("CV+ attains nominal coverage over replications", {
       x <- .conformal_reg(220L)
       mod <- train(
         x[1:150, ],
-        outer_resampling_config = setup_Resampler(5L, "KFold"),
+        outer_resampling_config = setup_KFold(5L),
         hyperparameters = setup_GLM(),
         verbosity = 0L
       )
@@ -592,7 +592,7 @@ test_that("CV+ reads the fold models and names what it resolved to", {
   x <- .conformal_reg(300L, seed = 2026L)
   mod <- train(
     x[1:200, ],
-    outer_resampling_config = setup_Resampler(5L, "KFold", seed = 1L),
+    outer_resampling_config = setup_KFold(5L, seed = 1L),
     hyperparameters = setup_GLM(),
     verbosity = 0L
   )
@@ -614,7 +614,7 @@ test_that("leave-one-out folds resolve to jackknife+", {
   x <- .conformal_reg(120L, seed = 4L)
   mod <- train(
     x[1:60, ],
-    outer_resampling_config = setup_Resampler(type = "LOOCV"),
+    outer_resampling_config = setup_LOOCV(),
     hyperparameters = setup_GLM(),
     verbosity = 0L
   )
@@ -628,7 +628,7 @@ test_that("a classification over folds resolves to cross-conformal", {
   x <- .conformal_clf(400L, seed = 6L)
   mod <- train(
     x[1:250, ],
-    outer_resampling_config = setup_Resampler(5L, "KFold", seed = 1L),
+    outer_resampling_config = setup_KFold(5L, seed = 1L),
     hyperparameters = setup_Ranger(),
     verbosity = 0L
   )
@@ -649,7 +649,7 @@ test_that("CV+ refuses folds that do not partition the cases", {
   x <- .conformal_reg(300L, seed = 8L)
   mod <- train(
     x[1:200, ],
-    outer_resampling_config = setup_Resampler(4L, "StratSub", seed = 1L),
+    outer_resampling_config = setup_StratSub(4L, seed = 1L),
     hyperparameters = setup_GLM(),
     verbosity = 0L
   )
@@ -664,7 +664,7 @@ test_that("CV+ takes no calibration data, and split conformal no resamples", {
   x <- .conformal_reg(300L, seed = 9L)
   res_mod <- train(
     x[1:200, ],
-    outer_resampling_config = setup_Resampler(5L, "KFold", seed = 1L),
+    outer_resampling_config = setup_KFold(5L, seed = 1L),
     hyperparameters = setup_GLM(),
     verbosity = 0L
   )
@@ -901,7 +901,7 @@ test_that("a region prints its construction, its guarantee and its size", {
 
   cv_mod <- train(
     x[1:200, ],
-    outer_resampling_config = setup_Resampler(5L, "KFold", seed = 1L),
+    outer_resampling_config = setup_KFold(5L, seed = 1L),
     hyperparameters = setup_GLM(),
     verbosity = 0L
   )

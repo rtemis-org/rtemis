@@ -167,7 +167,7 @@ inspect <- new_generic("inspect", "x", function(x) {
 #' prp
 #'
 #' # Resample iris to get train and test data
-#' res <- resample(iris, setup_Resampler(seed = 2026))
+#' res <- resample(iris, setup_KFold(seed = 2026))
 #' iris_train <- iris[res[[1]], ]
 #' iris_test <- iris[-res[[1]], ]
 #'
@@ -1010,7 +1010,7 @@ plot_manhattan <- new_generic("plot_manhattan", "x")
 #' describe(species_lightrf)
 #'
 #' # --- For `SupervisedRes` objects ---
-#' mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_Resampler())
+#' mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_KFold())
 #' describe(mod)
 #'
 #' # --- For factors ---
@@ -1595,7 +1595,7 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' resmod_c_glm <- train(
 #'   x = dat,
 #'   hyperparameters = setup_GLM(),
-#'   outer_resampling_config = setup_Resampler(n_resamples = 3L, type = "KFold")
+#'   outer_resampling_config = setup_KFold(n_resamples = 3L)
 #' )
 #'
 #' # Calibrate the `ClassificationRes` using the same resampling configuration as used for training.

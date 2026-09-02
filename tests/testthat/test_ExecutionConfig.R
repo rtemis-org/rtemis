@@ -122,9 +122,8 @@ testthat::test_that("named levels reach the run, and compose", {
   mod <- train(
     x,
     hyperparameters = setup_Ranger(num_trees = 50L),
-    outer_resampling_config = setup_Resampler(
+    outer_resampling_config = setup_KFold(
       n_resamples = 4L,
-      type = "KFold",
       seed = 1L
     ),
     execution_config = setup_ExecutionConfig(

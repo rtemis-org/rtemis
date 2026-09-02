@@ -559,7 +559,7 @@ method(conformal, Supervised) <- function(
     rtemis.core::abort(
       "CV+ needs a model trained with outer resampling: it reads the per-fold ",
       "models and their out-of-fold predictions off a `SupervisedRes`.\n",
-      "Train with `outer_resampling_config = setup_Resampler()`, or use ",
+      "Train with `outer_resampling_config = setup_KFold()`, or use ",
       "`setup_SplitConformal()` on this model.",
       class = c("rtemis_unsupported_error", "rtemis_input_error")
     )
@@ -884,8 +884,8 @@ conformal_fold_structure <- function(x) {
       "CV+ needs every case held out exactly once, and ",
       desc(x@outer_resampler),
       " do not partition the data.\n",
-      "Train with `setup_Resampler(type = \"KFold\")` or ",
-      "`setup_Resampler(type = \"LOOCV\")`, or use ",
+      "Train with `setup_KFold()` or ",
+      "`setup_LOOCV()`, or use ",
       "`setup_SplitConformal()` on a model with a held-out test split.",
       class = c("rtemis_value_error", "rtemis_input_error")
     )

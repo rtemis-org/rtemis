@@ -92,13 +92,15 @@ read_config <- function(file) {
     decomposition = .list_to_DecompositionConfig(x),
     clustering = .list_to_ClusteringConfig(x),
     ingest = .list_to_IngestConfig(x),
+    partition = .list_to_PartitionConfig(x),
     preprocessor = .list_to_PreprocessorConfig(x),
     supervisedpreprocessor = .list_to_SupervisedPreprocessorConfig(x),
     rtemis.core::abort(
       "Unknown config kind: ",
       kind,
       ". Expected 'supervised', 'decompose', 'cluster', 'decomposition', ",
-      "'clustering', 'preprocessor', or 'supervisedpreprocessor'.",
+      "'clustering', 'ingest', 'partition', 'preprocessor', or ",
+      "'supervisedpreprocessor'.",
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   )
@@ -136,6 +138,63 @@ read_config <- function(file) {
   }
   x[!startsWith(names(x), "$")]
 } # /rtemis::.drop_meta_keys
+
+
+# %% check_is_S7 ----
+#' Check that a value is an instance of a given S7 class
+#'
+#' Called over 60 times across the package (`train()`, `tune()`, `resample()`,
+#' `preprocess()`, `decomp()`, `cluster()`, `explain()`, every `draw_*()`, and
+#' more) to guard an argument documented as one S7 class before using it as
+#' one -- and, until this definition, the function itself did not exist:
+#' every one of those call sites would have failed with "object 'check_is_S7'
+#' not found" instead of the intended type error, the moment any of them
+#' actually received a wrong-type argument. `S7_inherits()` rather than base
+#' R's `inherits()`, which `rtemis.core::check_inherits()` already wraps and
+#' which is not a safe substitute here: every call site passes an S7 class
+#' *object* (`IngestConfig`, `Theme`, ...) as `cls`, not a character class
+#' name, and `inherits(x, an_S7_class_object)` is not the check any of them
+#' intended.
+#'
+#' @param x Object to check.
+#' @param cls S7 class object to check against.
+#' @param allow_null Logical: If TRUE, NULL values are allowed and return early.
+#' @param arg_name Character: Name of the variable for error messages.
+#'
+#' @return Called for side effects. Throws an error if the check fails.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_is_S7 <- function(
+  x,
+  cls,
+  allow_null = TRUE,
+  arg_name = deparse(substitute(x))
+) {
+  if (allow_null && is.null(x)) {
+    return(invisible())
+  }
+  if (is.null(x)) {
+    rtemis.core::abort(
+      "`",
+      arg_name,
+      "` cannot be NULL.",
+      class = c("rtemis_null_input", "rtemis_input_error")
+    )
+  }
+  if (!S7_inherits(x, cls)) {
+    rtemis.core::abort(
+      "`",
+      arg_name,
+      "` must be a `",
+      cls@name,
+      "` object.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
+  invisible()
+} # /rtemis::check_is_S7
 
 
 # %% check_wire_keys ----

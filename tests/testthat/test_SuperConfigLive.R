@@ -2,9 +2,10 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 #
-# Tests for `SuperConfigLive` and its `train()` dispatch arm. The wire-
-# level integration (rtemislive train handler → SuperConfigLive) is
-# covered in test_rtemislive_dispatch_data_jobs.R / test_rtemislive_serial.R.
+# Tests for `SuperConfigTabular` (built by `setup_SuperConfigLive()`) and its
+# `train()` dispatch arm. The wire-level integration (rtemislive train handler
+# → SuperConfigTabular) is covered in
+# test_rtemislive_dispatch_data_jobs.R / test_rtemislive_serial.R.
 
 library(data.table)
 
@@ -31,7 +32,7 @@ test_that("setup_SuperConfigLive returns a SuperConfigLive with expected props",
     dat_training = dt,
     hyperparameters = setup_GLM()
   )
-  expect_true(S7_inherits(cfg, SuperConfigLive))
+  expect_true(S7_inherits(cfg, SuperConfigTabular))
   expect_identical(cfg@dat_training, dt)
   expect_null(cfg@dat_validation)
   expect_null(cfg@dat_test)
