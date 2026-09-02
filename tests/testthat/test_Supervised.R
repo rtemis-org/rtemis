@@ -293,6 +293,38 @@ test_that("train() GLMNET Multiclass Classification succeeds", {
   expect_s7_class(modt_c3_glmnet, Classification)
 })
 
+## {GLMNET}[train]<Classification> explicit family ----
+# The family used to be bound in a local that only the is-NULL branch wrote, so
+# setting it -- the one way to be certain of it -- left `family` NULL and glmnet
+# refused the fit with "Invalid family argument".
+test_that("train() GLMNET honors an explicitly set family", {
+  mod_c <- train(
+    x = datc2_train,
+    dat_test = datc2_test,
+    hyperparameters = setup_GLMNET(
+      alpha = 1,
+      lambda = 0.01,
+      family = "binomial"
+    )
+  )
+  expect_s7_class(mod_c, Classification)
+  expect_identical(mod_c@hyperparameters[["family"]], "binomial")
+
+  mod_r <- train(
+    x = datr_train,
+    dat_test = datr_test,
+    hyperparameters = setup_GLMNET(lambda = 0.01, family = "gaussian")
+  )
+  expect_s7_class(mod_r, Regression)
+  expect_identical(mod_r@hyperparameters[["family"]], "gaussian")
+})
+
+## {GLMNET}[train]<Classification> resolved family ----
+test_that("train() GLMNET reports the family it resolved from the outcome", {
+  expect_identical(modt_c_glmnet@hyperparameters[["family"]], "binomial")
+  expect_identical(mod_r_glmnet@hyperparameters[["family"]], "gaussian")
+})
+
 # --- GAM ------------------------------------------------------------------------------------------
 ## {GAM}[train]<Regression> spline & parametric ----
 mod_r_gam <- train(

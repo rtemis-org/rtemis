@@ -33,9 +33,14 @@ totals <- sprintf(
   sum(df[["passed"]]),
   length(unique(df[["file"]]))
 )
-bad <- df[df[["failed"]] > 0L | df[["error"]], c("file", "test", "failed", "error")]
+bad <- df[
+  df[["failed"]] > 0L | df[["error"]],
+  c("file", "test", "failed", "error")
+]
 lines <- c(
   totals,
-  if (nrow(bad) > 0L) c("", utils::capture.output(print(bad, row.names = FALSE)))
+  if (nrow(bad) > 0L) {
+    c("", utils::capture.output(print(bad, row.names = FALSE)))
+  }
 )
 writeLines(lines, file.path(out, "verdict"))

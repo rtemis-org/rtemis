@@ -116,17 +116,19 @@ method(train_, GLMNETHyperparameters) <- function(
   } else {
     NA_integer_
   }
-  family <- if (is.null(hyperparameters[["family"]])) {
-    if (type == "Regression") {
+  # A family the user set wins; NULL is resolved from the outcome. Written back
+  # rather than kept in a local, so that the family the model was trained with
+  # is among the hyperparameters `train()` adopts and the model reports.
+  if (is.null(hyperparameters[["family"]])) {
+    hyperparameters@family <- if (type == "Regression") {
       "gaussian"
-    } else if (type == "Classification") {
-      if (n_classes == 2L) {
-        "binomial"
-      } else {
-        "multinomial"
-      }
+    } else if (n_classes == 2L) {
+      "binomial"
+    } else {
+      "multinomial"
     }
   }
+  family <- hyperparameters[["family"]]
 
   # Train ----
   xm <- glmnet_design_matrix(x)
