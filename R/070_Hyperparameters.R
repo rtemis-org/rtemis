@@ -511,17 +511,15 @@ method(print, Hyperparameters) <- function(x, output_type = NULL, ...) {
 
 
 # %% serializable_props.Hyperparameters ----
-# A serialized config is `{algorithm, hyperparameters}` -- exactly what
-# `.list_to_Hyperparameters()` consumes and what the hyperparameters schema
-# describes. Everything else on the object is either derived from the specs
+# A serialized config is `algorithm` plus the settings as its siblings --
+# exactly what `.list_to_Hyperparameters()` consumes and what the
+# hyperparameters schema describes, so `{"algorithm": "Ranger"}` is Ranger with
+# every default. Everything else on the object is either derived from the specs
 # (`tunable_`/`fixed_hyperparameters`) or run state set during training
 # (`tuned`, `resampled`, `n_workers`), so it is reconstructed on read rather
 # than written.
 method(serializable_props, Hyperparameters) <- function(x) {
-  list(
-    algorithm = x@algorithm,
-    hyperparameters = config_prop_values(x, Hyperparameters)
-  )
+  dispatched_props(x, Hyperparameters, "algorithm")
 } # /rtemis::serializable_props.Hyperparameters
 
 
@@ -7555,12 +7553,10 @@ setup_NNLS <- function(normalize = TRUE, ifw = FALSE) {
 #' Internal function used by `rtemis.server` to reconstruct a `Hyperparameters`
 #' object from a wire-format list. Not intended for direct use by end users.
 #'
-#' @param x Named list with two elements:
-#'   \describe{
-#'     \item{`algorithm`}{Character: algorithm name, e.g. `"GLM"`, `"RF"`.}
-#'     \item{`hyperparameters`}{Named list of hyperparameter name-value pairs
-#'       passed to the corresponding `setup_<algorithm>()` function.}
-#'   }
+#' @param x Named list: `algorithm` (Character: algorithm name, e.g. `"GLM"`,
+#'   `"Ranger"`) plus, as its siblings, the hyperparameter name-value pairs
+#'   passed to the corresponding `setup_<algorithm>()` function. A list holding
+#'   only `algorithm` is that algorithm with every default.
 #'
 #' @return A `Hyperparameters` object as returned by `setup_<algorithm>()`.
 #'
@@ -7568,9 +7564,15 @@ setup_NNLS <- function(normalize = TRUE, ifw = FALSE) {
 #' @keywords internal
 #' @export
 #' @examples
-#' .list_to_Hyperparameters(list(algorithm = "GLMNET", hyperparameters = list(alpha = 1)))
+#' .list_to_Hyperparameters(list(algorithm = "GLMNET", alpha = 1))
 .list_to_Hyperparameters <- function(x) {
   algorithm <- x[["algorithm"]]
+  if (is.null(algorithm)) {
+    rtemis.core::abort(
+      "`algorithm` is required to build a Hyperparameters object.",
+      class = c("rtemis_null_input", "rtemis_input_error")
+    )
+  }
   fn <- paste0("setup_", algorithm)
   if (!exists(fn, mode = "function")) {
     # The published enum lists canonical names only, so a case mismatch is the
@@ -7589,15 +7591,10 @@ setup_NNLS <- function(normalize = TRUE, ifw = FALSE) {
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-  check_wire_keys(x, c("algorithm", "hyperparameters"), "hyperparameters")
-  args <- from_wire(
-    .drop_meta_keys(x[["hyperparameters"]]),
-    get(paste0(algorithm, "Hyperparameters"))
-  )
-  check_wire_keys(
-    args,
-    names(formals(get(fn))),
-    paste(algorithm, "hyperparameter")
-  )
-  do.call(fn, args)
-}
+  label <- paste(algorithm, "hyperparameter")
+  check_no_settings_key(x, "hyperparameters", "algorithm", label)
+  settings <- .drop_meta_keys(x)
+  settings[["algorithm"]] <- NULL
+  check_wire_keys(settings, names(formals(get(fn))), label)
+  do.call(fn, from_wire(settings, get(paste0(algorithm, "Hyperparameters"))))
+} # /rtemis::.list_to_Hyperparameters

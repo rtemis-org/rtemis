@@ -22,7 +22,7 @@
   c(
     list(
       `$schema` = .supervised_schema,
-      hyperparameters = list(algorithm = algorithm, hyperparameters = list())
+      hyperparameters = list(algorithm = algorithm)
     ),
     list(...)
   )
@@ -221,21 +221,18 @@ test_that("RESAMPLE_MIN_CLASS offers no fix below two cases", {
 test_that("RESAMPLE_MIN_CLASS covers the tuner's inner resampler too", {
   out <- validate_config(
     .config(
-      tuner_config = list(
-        type = "GridSearch",
-        config = list(resampler_config = .kfold(10L))
-      )
+      tuner_config = list(type = "GridSearch", resampler_config = .kfold(10L))
     ),
     data = .balanced_data(60L, minority = 4L)
   )
   d <- .only(out, "RESAMPLE_MIN_CLASS")
   expect_identical(
     d@evidence[["resampler"]],
-    "/tuner_config/config/resampler_config"
+    "/tuner_config/resampler_config"
   )
   expect_identical(
     d@fix[[1L]][["path"]],
-    "/tuner_config/config/resampler_config/n_resamples"
+    "/tuner_config/resampler_config/n_resamples"
   )
 })
 
@@ -527,7 +524,7 @@ test_that("DIM_P_GT_N counts what the learner sees, not the raw width", {
         "GLM",
         decomposition_config = list(
           algorithm = "PCA",
-          config = list(k = 3L)
+          k = 3L
         )
       ),
       data = .wide_data()
@@ -545,7 +542,7 @@ test_that("DIM_P_GT_N reports the component count when it still exceeds rows", {
         "GLM",
         decomposition_config = list(
           algorithm = "PCA",
-          config = list(k = 20L)
+          k = 20L
         )
       ),
       data = .wide_data()
@@ -568,7 +565,7 @@ test_that("DIM_P_GT_N is a note when a decomposition feeds an algorithm that fit
         "GLMNET",
         decomposition_config = list(
           algorithm = "PCA",
-          config = list(k = 20L)
+          k = 20L
         )
       ),
       data = .wide_data()
@@ -612,7 +609,7 @@ test_that("DIM_P_GT_N reports a component count with no algorithm to judge it", 
         `$schema` = "https://schema.rtemis.org/decompose/v1/schema.json",
         decomposition_config = list(
           algorithm = "PCA",
-          config = list(k = 20L)
+          k = 20L
         )
       ),
       data = .wide_data()
@@ -902,7 +899,7 @@ test_that("a config with no outcome treats every column as a feature", {
     list(
       `$schema` = "https://schema.rtemis.org/decomposition/v1/schema.json",
       algorithm = "PCA",
-      config = list(k = 2L)
+      k = 2L
     ),
     data = dat
   )

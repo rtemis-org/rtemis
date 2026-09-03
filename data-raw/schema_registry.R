@@ -12,6 +12,11 @@
 # `PropertySpec`. `extra` carries only class-level `allOf` rules, which are
 # constraints between properties rather than declarations of them.
 #
+# Every family publishes one shape: the discriminator, any field the base
+# declares for every variant, and the variant's own settings, all as siblings
+# (`S7_dispatcher_JSONSchema()`). A document holding only the discriminator is
+# that variant with every default.
+#
 # Requires the package to be loaded first: the entries reference class objects.
 
 # Schema `$id` for a family's top-level schema, used by `refs` entries below.
@@ -29,13 +34,12 @@
 families <- list(
   decomposition = list(
     base_class = DecompositionConfig,
-    payload = "config",
     title = "rtemis DecompositionConfig",
     description = paste0(
       "Language-independent config for an rtemis decomposition (dimensionality ",
       "reduction). Mirrors the `DecompositionConfig` object: an algorithm name, ",
-      "an algorithm-specific `config`, and an optional feature subset. The same ",
-      "config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical output."
+      "its settings, and an optional feature subset. The same config drives ",
+      "rtemis (R), rtemis CLI/shell, and rtemislive to identical output."
     ),
     algorithm_description = "Decomposition algorithm name.",
     algorithms = list(
@@ -64,13 +68,12 @@ families <- list(
   ),
   clustering = list(
     base_class = ClusteringConfig,
-    payload = "config",
     title = "rtemis ClusteringConfig",
     description = paste0(
       "Language-independent config for an rtemis clustering run. Mirrors the ",
-      "`ClusteringConfig` object: an algorithm name and an algorithm-specific ",
-      "`config`. The same config drives rtemis (R), rtemis CLI/shell, and rtemislive ",
-      "to identical output."
+      "`ClusteringConfig` object: an algorithm name and its settings. The same ",
+      "config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical ",
+      "output."
     ),
     algorithm_description = "Clustering algorithm name.",
     algorithms = list(
@@ -101,17 +104,13 @@ families <- list(
   # numbers.
   #
   # A family rather than one config: a delimited file has a separator, a
-  # spreadsheet has a sheet number, a Parquet has neither.
-  #
-  # Nested mode, like `decomposition`, because the base carries settings of its
-  # own -- the declared types and the three post-read operations apply whatever
-  # the file is. Top-level mode (`resampler`) requires a base holding nothing
-  # but the discriminator: its leaves serialize as siblings, so a base property
-  # would have to be repeated in every leaf to survive the record.
+  # spreadsheet has a sheet number, a Parquet has neither. The base carries
+  # settings of its own -- the declared types and the three post-read
+  # operations apply whatever the file is -- which the dispatcher publishes
+  # once, beside `format`.
   ingest = list(
     base_class = IngestConfig,
     discriminator = "format",
-    payload = NULL,
     title = "rtemis IngestConfig",
     description = paste0(
       "Language-independent config for reading a data file and normalizing it ",
@@ -149,13 +148,11 @@ families <- list(
       )
     )
   ),
-  # Top-level mode, the same reason `resampler` is: `PartitionConfig`'s base
-  # carries nothing but the discriminator, so each leaf's own fields serialize
-  # as siblings of `method`.
+  # `PartitionConfig`'s base carries nothing but the discriminator, so a
+  # document is `method` plus the method's own fields.
   partition = list(
     base_class = PartitionConfig,
     discriminator = "method",
-    payload = NULL,
     title = "rtemis PartitionConfig",
     description = paste0(
       "Language-independent config for splitting a dataset into a training ",
@@ -184,13 +181,9 @@ families <- list(
       )
     )
   ),
-  # Top-level mode: a ResamplerConfig serializes its per-type fields as
-  # siblings of `type` (not nested), so the leaves are open and the
-  # dispatcher enforces strictness with `unevaluatedProperties`.
   resampler = list(
     base_class = ResamplerConfig,
     discriminator = "type",
-    payload = NULL,
     title = "rtemis ResamplerConfig",
     description = paste0(
       "Language-independent config for an rtemis resampler. Mirrors the ",
@@ -229,11 +222,10 @@ families <- list(
   tuner = list(
     base_class = TunerConfig,
     discriminator = "type",
-    payload = "config",
     title = "rtemis TunerConfig",
     description = paste0(
       "Language-independent config for rtemis hyperparameter tuning. Mirrors ",
-      "the `TunerConfig` object: a tuner type and a type-specific `config`."
+      "the `TunerConfig` object: a tuner type and its settings."
     ),
     discriminator_description = "Tuner type.",
     algorithms = list(
@@ -249,7 +241,6 @@ families <- list(
   explanation = list(
     base_class = ExplanationConfig,
     discriminator = "type",
-    payload = NULL,
     title = "rtemis ExplanationConfig",
     description = paste0(
       "Language-independent config for a per-case rtemis explanation. Mirrors ",
@@ -269,7 +260,6 @@ families <- list(
   conformal = list(
     base_class = ConformalConfig,
     discriminator = "type",
-    payload = NULL,
     title = "rtemis ConformalConfig",
     description = paste0(
       "Language-independent config for an rtemis conformal prediction region. ",
@@ -296,12 +286,11 @@ families <- list(
   ),
   hyperparameters = list(
     base_class = Hyperparameters,
-    payload = "hyperparameters",
     title = "rtemis Hyperparameters",
     description = paste0(
-      "Language-independent algorithm hyperparameters: an algorithm name and an ",
-      "algorithm-specific `hyperparameters` object, validated per-algorithm ",
-      "against schema.rtemis.org/hyperparameters/<algorithm>/v1."
+      "Language-independent algorithm hyperparameters: an algorithm name and ",
+      "its hyperparameters, validated per-algorithm against ",
+      "schema.rtemis.org/hyperparameters/<algorithm>/v1."
     ),
     algorithm_description = "Supervised-learning algorithm name.",
     algorithms = list(

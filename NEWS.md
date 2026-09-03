@@ -2,6 +2,28 @@
 
 ## 1.3.9
 
+- **Every config family now publishes one shape: the discriminator with the
+  variant's settings as its siblings.** `hyperparameters/v1`,
+  `decomposition/v1`, `clustering/v1` and `tuner/v1` nested the settings under
+  a second key (`{"algorithm": "Ranger", "hyperparameters": {...}}`), so
+  "Ranger with every default" had to be spelled with an empty object -- the
+  one construct a delta config should express by absence, and the one an
+  observed model could not emit: it sent `""`, was told to write `{}`, re-sent
+  `""`, and then invented a setting to get past the validator. `resampler/v1`
+  already used the other shape, and it is now the only one:
+  `{"algorithm": "Ranger"}` is Ranger with every default and
+  `{"algorithm": "Ranger", "num_trees": 500}` sets one thing.
+  `S7_dispatcher_JSONSchema()` loses its `payload` argument and states the
+  shape rule in every family's description; every family's
+  `serializable_props()` goes through the new `dispatched_props()`; the
+  `.list_to_*()` readers take the flat form and refuse the nested one by name,
+  saying where the settings go; records are written flat, `origin` beside the
+  name; and a record dispatcher requires the fields the base declares for
+  every variant, which the record now carries (`decomposition/v1/record.json`
+  requires `features`, which a decomposition record used to drop). The data
+  checks read the tuner's inner resampler at `/tuner_config/resampler_config`
+  and a decomposition's `k` beside its `algorithm`. The corpus, the CLI and
+  rtemislive all changed with it: regenerate, publish, then re-vendor.
 - **Who may author a property is now a fact the generator can record, kept out
   of the published schema itself.** New `PropertySpec@agent_writable` (stamped
   by the new `prop_host_only()`, applied so far to `SuperConfig@outdir` and

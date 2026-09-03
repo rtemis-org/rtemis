@@ -7,12 +7,10 @@
 .list_to_Hyperparameters(x)
 }
 \arguments{
-\item{x}{Named list with two elements:
-\describe{
-\item{\code{algorithm}}{Character: algorithm name, e.g. \code{"GLM"}, \code{"RF"}.}
-\item{\code{hyperparameters}}{Named list of hyperparameter name-value pairs
-passed to the corresponding \verb{setup_<algorithm>()} function.}
-}}
+\item{x}{Named list: \code{algorithm} (Character: algorithm name, e.g. \code{"GLM"},
+\code{"Ranger"}) plus, as its siblings, the hyperparameter name-value pairs
+passed to the corresponding \verb{setup_<algorithm>()} function. A list holding
+only \code{algorithm} is that algorithm with every default.}
 }
 \value{
 A \code{Hyperparameters} object as returned by \verb{setup_<algorithm>()}.
@@ -22,7 +20,7 @@ Internal function used by \code{rtemis.server} to reconstruct a \code{Hyperparam
 object from a wire-format list. Not intended for direct use by end users.
 }
 \examples{
-.list_to_Hyperparameters(list(algorithm = "GLMNET", hyperparameters = list(alpha = 1)))
+.list_to_Hyperparameters(list(algorithm = "GLMNET", alpha = 1))
 }
 \author{
 EDG

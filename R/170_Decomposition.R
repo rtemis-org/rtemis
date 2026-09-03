@@ -322,13 +322,13 @@ reconstruct <- function(decom, x, verbosity = 1L) {
 #' Internal function used by `rtemis.server` and `SuperConfig` deserialization
 #' to reconstruct a `DecompositionConfig` object from a named list. The list
 #' must carry an `algorithm` element naming a decomposition algorithm that can
-#' be applied on new data (see `decom_algorithms_applicable`); the elements of
-#' `config`, along with `features`, are passed to that algorithm's `setup_*`
-#' function.
+#' be applied on new data (see `decom_algorithms_applicable`); its siblings --
+#' the algorithm's settings and, optionally, `features` -- are passed to that
+#' algorithm's `setup_*` function.
 #'
-#' @param x Named list with an `algorithm` element, algorithm-specific
-#'   parameters nested under `config`, and optionally `features`, e.g.
-#'   `list(algorithm = "PCA", config = list(k = 3L))`.
+#' @param x Named list with an `algorithm` element plus, as its siblings, the
+#'   algorithm's settings and optionally `features`, e.g.
+#'   `list(algorithm = "PCA", k = 3L)`.
 #'
 #' @return A `DecompositionConfig` object (an algorithm-specific subclass).
 #'
@@ -336,7 +336,7 @@ reconstruct <- function(decom, x, verbosity = 1L) {
 #' @keywords internal
 #' @export
 #' @examples
-#' .list_to_DecompositionConfig(list(algorithm = "PCA", config = list(k = 3L)))
+#' .list_to_DecompositionConfig(list(algorithm = "PCA", k = 3L))
 .list_to_DecompositionConfig <- function(x) {
   algorithm <- x[["algorithm"]]
   if (is.null(algorithm)) {
@@ -358,20 +358,13 @@ reconstruct <- function(decom, x, verbosity = 1L) {
   }
   # Normalize casing and drop `algorithm` before forwarding to the setup fn.
   algorithm <- get_decom_name(algorithm)
-  # One shape: `{algorithm, config, features?}`, which is what the published
-  # schema declares -- a flat `{algorithm, k, ...}` is rejected by it, so
-  # accepting one here would take input the contract does not. `features` is a
-  # sibling of `config`, so it is re-attached explicitly. `.drop_meta_keys()`
-  # removes document metadata (e.g. `$schema`), which is not a setup arg.
-  check_wire_keys(
-    x,
-    c("algorithm", "config", "features"),
-    "decomposition config"
-  )
-  params <- c(
-    .drop_meta_keys(x[["config"]]),
-    if (!is.null(x[["features"]])) list(features = x[["features"]])
-  )
+  # One shape: `{algorithm, k, ..., features?}`, which is what the published
+  # schema declares. `.drop_meta_keys()` removes document metadata (e.g.
+  # `$schema`), which is not a setup arg.
+  label <- paste(algorithm, "decomposition")
+  check_no_settings_key(x, "config", "algorithm", label)
+  params <- .drop_meta_keys(x)
+  params[["algorithm"]] <- NULL
   # `features` may arrive from the wire as a list of scalars (a JSON array parsed
   # without vector simplification); flatten it to a character vector so the
   # strict `setup_*` check accepts it.
@@ -381,10 +374,6 @@ reconstruct <- function(decom, x, verbosity = 1L) {
     )
   }
   setup_fn <- get_decom_setup_fn(algorithm)
-  check_wire_keys(
-    params,
-    names(formals(setup_fn)),
-    paste(algorithm, "decomposition")
-  )
+  check_wire_keys(params, names(formals(setup_fn)), label)
   do.call(setup_fn, params)
 } # /rtemis::.list_to_DecompositionConfig

@@ -42,7 +42,7 @@ test_that("randomize_p is required by, and only by, a randomized search", {
 test_that(".list_to_TunerConfig() falls back to setup_GridSearch() defaults", {
   # Fields the incoming list omits must take the `setup_*` default rather than
   # being passed through as NULL.
-  tc <- .list_to_TunerConfig(list(type = "GridSearch", config = list()))
+  tc <- .list_to_TunerConfig(list(type = "GridSearch"))
   expect_s7_class(tc, GridSearchConfig)
   expect_s7_class(tc@resampler_config, ResamplerConfig)
   expect_identical(tc@search_type, "exhaustive")
@@ -50,7 +50,7 @@ test_that(".list_to_TunerConfig() falls back to setup_GridSearch() defaults", {
   # A supplied resampler_config is decoded into its own config object.
   tc <- .list_to_TunerConfig(list(
     type = "GridSearch",
-    config = list(resampler_config = list(type = "KFold", n_resamples = 3L))
+    resampler_config = list(type = "KFold", n_resamples = 3L)
   ))
   expect_identical(tc@resampler_config@n_resamples, 3L)
   # An unrecognized key is now named rather than dropped, and the nested
@@ -58,7 +58,7 @@ test_that(".list_to_TunerConfig() falls back to setup_GridSearch() defaults", {
   expect_error(
     .list_to_TunerConfig(list(
       type = "GridSearch",
-      config = list(resampler_config = list(type = "KFold", n = 3L))
+      resampler_config = list(type = "KFold", n = 3L)
     )),
     "did you mean `n_resamples`",
     fixed = TRUE

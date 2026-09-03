@@ -1022,7 +1022,7 @@
       "name": "decomposition_k",
       "kind": "expr",
       "logic": {
-        "var": "config.decomposition_config.config.k"
+        "var": "config.decomposition_config.k"
       }
     },
     {
@@ -1260,7 +1260,7 @@
       "source": {
         "pointers": [
           "/outer_resampling_config",
-          "/tuner_config/config/resampler_config"
+          "/tuner_config/resampler_config"
         ]
       },
       "where": {

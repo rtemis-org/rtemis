@@ -516,7 +516,8 @@ test_that("setup_MLP() rejects both architecture paths at once", {
   expect_error(
     .list_to_Hyperparameters(list(
       algorithm = "MLP",
-      hyperparameters = list(hidden_units = c(64L, 32L), shape = "funnel")
+      hidden_units = c(64L, 32L),
+      shape = "funnel"
     )),
     class = "rtemis_value_error"
   )
@@ -822,16 +823,14 @@ test_that("run state stays out of the serialized config", {
   # The Tuner writes both.
   h@nrounds <- 137L
   h@best_iter <- 120
-  serialized <- serializable_props(h)[["hyperparameters"]]
+  serialized <- serializable_props(h)
   expect_false(any(c("nrounds", "best_iter") %in% names(serialized)))
   # ...but the training backend still reads them off the runtime list.
   expect_identical(h@hyperparameters[["nrounds"]], 137L)
 
   g <- setup_GLMNET()
   g@`lambda.min` <- 0.01
-  expect_false(
-    "lambda.min" %in% names(serializable_props(g)[["hyperparameters"]])
-  )
+  expect_false("lambda.min" %in% names(serializable_props(g)))
 })
 
 
@@ -880,7 +879,7 @@ test_that("run state is in the schema as readOnly, but never serialized", {
     # Declared with a real type, not an opaque blob.
     expect_true("number" %in% as.character(prop_schema[["type"]]), info = nm)
   }
-  written <- serializable_props(setup_GLMNET())[["hyperparameters"]]
+  written <- serializable_props(setup_GLMNET())
   expect_false(any(c("lambda.min", "lambda.1se") %in% names(written)))
 })
 

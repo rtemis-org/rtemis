@@ -197,8 +197,8 @@ config_record <- function(input, resolved) {
   # The fields the *record schema* declares, which is what `origin` must cover:
   # a family leaf's inherited machinery is subtracted by `S7_to_JSONSchema()`'s
   # `base`, so it is subtracted here too. `serializable_props()` is the wrong
-  # level -- for a family it returns the wire shape (`{algorithm, config}`),
-  # while a leaf record declares the flat fields inside it.
+  # level -- for a family it also carries the discriminator and the base's
+  # shared fields, which the dispatcher declares and the leaf record does not.
   base <- family_base(cls)
   names_ <- record_names(cls, base)
   props <- cls@properties
@@ -768,10 +768,11 @@ sample_metrics <- function(x, reader) {
 # %% nested_record ----
 #' The record form of one nested config block, or NULL
 #'
-#' A family config serializes as `{algorithm, <payload>}`, so its record is that
-#' shape with the payload replaced by the leaf's record. A flat config is its own
-#' record. Either way the block carries its own `origin`, which is why the
-#' parent's does not cover it.
+#' A family config serializes as its discriminator plus its settings as
+#' siblings, so its record is the leaf's record with the discriminator (and any
+#' field the family base declares for every variant) in front. A flat config is
+#' its own record. Either way the block carries its own `origin`, which is why
+#' the parent's does not cover it.
 #'
 #' @param input S7 config the run was given, or NULL.
 #' @param resolved S7 config the run used, or NULL.
@@ -786,57 +787,52 @@ nested_record <- function(input, resolved) {
     return(NULL)
   }
   leaf <- config_record(input, resolved)
-  shape <- family_shape(resolved)
-  if (is.null(shape)) {
+  discriminator <- family_discriminator(resolved)
+  if (is.null(discriminator)) {
     return(leaf)
   }
-  out <- list()
   # The discriminator always leads: without it a dispatcher matches no branch,
   # and its `unevaluatedProperties` then rejects the very fields the leaf
-  # declares.
-  out[[shape[["discriminator"]]]] <- prop(resolved, shape[["discriminator"]])
-  if (is.null(shape[["payload"]])) {
-    # Top-level mode: the leaf's fields are siblings of the discriminator.
-    return(c(out, leaf))
-  }
-  out[[shape[["payload"]]]] <- leaf
-  out
+  # declares. The base's shared fields follow, since the dispatcher's record
+  # declares them and the leaf's does not.
+  c(
+    family_prop_values(
+      resolved,
+      family_base(S7_class(resolved)),
+      discriminator
+    ),
+    leaf
+  )
 } # /rtemis::nested_record
 
 
-# %% family_shape ----
-#' How a discriminated config family serializes: its discriminator and payload
+# %% family_discriminator ----
+#' The property a discriminated config family dispatches on
 #'
 #' Mirrors `data-raw/schema_registry.R`. The discriminator is what a dispatcher's
 #' `if/then` keys on, so a record block missing it matches no branch -- and then
 #' `unevaluatedProperties` rejects every field the leaf would have declared.
-#' `payload` is NULL for a family that serializes its variant's fields as
-#' siblings of the discriminator rather than nesting them (the resampler).
 #'
 #' @param x S7 config object.
 #'
-#' @return Named list with `discriminator` and `payload`, or NULL when `x` is
-#'   not a discriminated family.
+#' @return Character, or NULL when `x` is not a discriminated family.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-family_shape <- function(x) {
-  if (S7_inherits(x, Hyperparameters)) {
-    list(discriminator = "algorithm", payload = "hyperparameters")
-  } else if (
-    S7_inherits(x, DecompositionConfig) || S7_inherits(x, ClusteringConfig)
+family_discriminator <- function(x) {
+  if (
+    S7_inherits(x, Hyperparameters) ||
+      S7_inherits(x, DecompositionConfig) ||
+      S7_inherits(x, ClusteringConfig)
   ) {
-    list(discriminator = "algorithm", payload = "config")
-  } else if (S7_inherits(x, TunerConfig)) {
-    list(discriminator = "type", payload = "config")
-  } else if (S7_inherits(x, ResamplerConfig)) {
-    # Top-level mode: the variant's fields are siblings of `type`.
-    list(discriminator = "type", payload = NULL)
+    "algorithm"
+  } else if (S7_inherits(x, TunerConfig) || S7_inherits(x, ResamplerConfig)) {
+    "type"
   } else {
     NULL
   }
-} # /rtemis::family_shape
+} # /rtemis::family_discriminator
 
 
 # %% record.Decomposition ----

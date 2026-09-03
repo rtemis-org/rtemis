@@ -188,7 +188,7 @@ test_that("read_config ignores `$schema` on nested configs", {
       decomposition_config = list(
         `$schema` = "https://schema.rtemis.org/decomposition/v1/schema.json",
         algorithm = "PCA",
-        config = list(k = 2L)
+        k = 2L
       ),
       execution_config = list(
         `$schema` = "https://schema.rtemis.org/execution/v1/schema.json",
@@ -280,7 +280,7 @@ test_that("a search space survives write_config/read_config", {
   # The wire form is tagged, so a reader tells a search space from a value
   # without consulting the schema.
   xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
-  hp <- xl[["hyperparameters"]][["hyperparameters"]]
+  hp <- xl[["hyperparameters"]]
   expect_identical(names(hp[["max_depth"]]), "candidates")
   expect_identical(unlist(hp[["max_depth"]][["candidates"]]), c(3L, 4L, 5L))
   # A value is written plainly, with no tag to strip.
@@ -339,7 +339,7 @@ test_that("every SuperConfig property survives the wire converter", {
 test_that("a config's outcome and features round-trip through JSON", {
   config <- list(
     `$schema` = "https://schema.rtemis.org/supervised/v1/schema.json",
-    hyperparameters = list(algorithm = "GLM", hyperparameters = list()),
+    hyperparameters = list(algorithm = "GLM"),
     outcome = "y",
     features = c("a", "b")
   )

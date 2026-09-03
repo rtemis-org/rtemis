@@ -4210,10 +4210,10 @@ test_that("a record reports what ran, not what was asked for", {
   mod <- train(iris, hyperparameters = setup_LightRF(), verbosity = 0L)
   rec <- record(mod)
   # Top level is what was *asked for*: NULL, meaning "decide from the outcome".
-  expect_null(rec[["hyperparameters"]][["hyperparameters"]][["objective"]])
+  expect_null(rec[["hyperparameters"]][["objective"]])
   # `folds` is what *ran*. A single fit is one fold, not a second shape.
   expect_length(rec[["folds"]], 1L)
-  hp <- rec[["folds"]][[1L]][["hyperparameters"]][["hyperparameters"]]
+  hp <- rec[["folds"]][[1L]][["hyperparameters"]]
   expect_identical(hp[["objective"]], "multiclass")
   expect_identical(hp[["origin"]][["objective"]], "default")
   expect_identical(rec[["provenance"]][["outcome"]], "completed")
@@ -4246,17 +4246,17 @@ test_that("each fold's resolved values are recorded separately", {
   rec <- record(mod)
   expect_length(rec[["folds"]], 3L)
   # Asked for: nothing -- "determine by early stopping".
-  expect_null(rec[["hyperparameters"]][["hyperparameters"]][["nrounds"]])
+  expect_null(rec[["hyperparameters"]][["nrounds"]])
   ran <- vapply(
     rec[["folds"]],
-    function(f) f[["hyperparameters"]][["hyperparameters"]][["nrounds"]],
+    function(f) f[["hyperparameters"]][["nrounds"]],
     numeric(1L)
   )
   expect_length(ran, 3L)
   expect_true(all(ran > 0))
   # Each fold says how its value came about.
   expect_identical(
-    rec[["folds"]][[1L]][["hyperparameters"]][["hyperparameters"]][["origin"]][[
+    rec[["folds"]][[1L]][["hyperparameters"]][["origin"]][[
       "nrounds"
     ]],
     "tuned"
@@ -4306,7 +4306,7 @@ test_that("a record publishes a search space as the bare tag it reads back", {
     hyperparameters = setup_CART(maxdepth = tune_over(2L, 4L)),
     verbosity = 0L
   )
-  hp <- record(mod)[["hyperparameters"]][["hyperparameters"]]
+  hp <- record(mod)[["hyperparameters"]]
   expect_true(is_wire_candidates(hp[["maxdepth"]]))
   expect_identical(hp[["maxdepth"]][["candidates"]], c(2L, 4L))
   # The user supplied the search, so that is what `origin` reports here; the
@@ -4983,7 +4983,7 @@ test_that("a meta learner's record carries one block per library entry", {
   # `record()` rather than `outdir`: writing a record validates it against the
   # *published* schemas, which will not know these algorithms until they are
   # published (plan/superlearner.md, step 9).
-  payload <- record(mod_r_sl)[["hyperparameters"]][["hyperparameters"]]
+  payload <- record(mod_r_sl)[["hyperparameters"]]
   # Every property the leaf schema declares, inherited ones included: these come
   # from three different levels of the class hierarchy.
   expect_true(all(

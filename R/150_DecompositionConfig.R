@@ -67,17 +67,12 @@ DecompositionConfig <- new_class(
 
 
 # %% serializable_props.DecompositionConfig ----
-# Serialize as {algorithm, config[, features]} (the public shape); the
-# per-algorithm properties are redundant with the computed `config`.
+# `algorithm`, then `features` (declared on the base, so shared by every
+# algorithm), then the algorithm's settings as siblings -- the shape the
+# decomposition schema declares. The computed `config` list is not written: it
+# is a view of the same properties.
 method(serializable_props, DecompositionConfig) <- function(x) {
-  out <- list(
-    algorithm = x@algorithm,
-    config = config_prop_values(x, DecompositionConfig)
-  )
-  if (!is.null(x@features)) {
-    out[["features"]] <- x@features
-  }
-  out
+  dispatched_props(x, DecompositionConfig, "algorithm")
 } # /rtemis::serializable_props.DecompositionConfig
 
 

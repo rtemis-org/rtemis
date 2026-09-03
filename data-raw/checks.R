@@ -241,7 +241,7 @@ CHECKS_LET <- list(
   # A decomposition runs before the fit, so a pipeline extracting k components
   # hands the learner k features however wide the data was. Reporting the
   # encoded width there would state a number the model never sees.
-  expr("decomposition_k", "config.decomposition_config.config.k", "any"),
+  expr("decomposition_k", "config.decomposition_config.k", "any"),
   expr("decomposition_name", "config.decomposition_config.algorithm", "any"),
   expr(
     "effective_p",
@@ -295,7 +295,7 @@ CHECKS_LET <- list(
   # checked, and each finding's fix patches the one it is about.
   scan_pointers(
     "resamplers",
-    c("/outer_resampling_config", "/tuner_config/config/resampler_config"),
+    c("/outer_resampling_config", "/tuner_config/resampler_config"),
     where = "item.value !== null"
   ),
   scan(

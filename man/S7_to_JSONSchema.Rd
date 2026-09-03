@@ -104,8 +104,8 @@ set's keys are the member names, which have to survive the round trip because
 the tuner reports the winning member by name.}
 
 \item{closed}{Logical: If TRUE (default) the schema sets
-\code{additionalProperties: false}. Pass FALSE for leaves composed into a
-top-level-mode dispatcher, which enforces strictness with
+\code{additionalProperties: false}. Pass FALSE for a family leaf, which its
+dispatcher composes into one object and closes with
 \code{unevaluatedProperties} instead (see \link{S7_dispatcher_JSONSchema}).}
 
 \item{instance_schema_url}{Character or NULL: If set, adds a \verb{$schema}

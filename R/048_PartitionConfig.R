@@ -88,7 +88,7 @@ TimePartitionConfig <- new_class(
     # No default: a time split with no column to order by is not a request
     # anything can act on, the same reason `IngestConfig@format` has none --
     # but a config schema may not require a leaf property (only the
-    # discriminator/payload may be required), so this stays nullable and
+    # discriminator may be required), so this stays nullable and
     # `setup_TimePartition()` aborts on a NULL, the way `setup_Custom()`
     # already does for `resamples`.
     column = prop_string(
