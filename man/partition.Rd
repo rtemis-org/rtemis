@@ -23,8 +23,8 @@ without a \code{path}.}
 \value{
 Named list: the partition manifest -- \code{config}, \code{source} (a
 \code{DataFingerprint} of \code{dat}), and \code{outputs} (a list with \code{training} and
-\code{test}, each a \code{DataFingerprint}, plus the path written to when \code{outdir} is
-given).
+\code{test}, each holding a \code{fingerprint} and, when \code{outdir} is given, the \code{path}
+written to).
 }
 \description{
 A held-out split is a decision -- which rows train, which are held out, and

@@ -462,8 +462,8 @@ setup_PredefinedPartition <- function(
 #'
 #' @return Named list: the partition manifest -- `config`, `source` (a
 #' `DataFingerprint` of `dat`), and `outputs` (a list with `training` and
-#' `test`, each a `DataFingerprint`, plus the path written to when `outdir` is
-#' given).
+#' `test`, each holding a `fingerprint` and, when `outdir` is given, the `path`
+#' written to).
 #'
 #' @author EDG
 #' @export
