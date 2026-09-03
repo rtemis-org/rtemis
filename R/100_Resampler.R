@@ -46,15 +46,14 @@ ResamplerConfig <- new_class(
 
 
 # %% serializable_props.ResamplerConfig ----
-# A resampler serializes its type-specific settings as siblings of `type`
-# (there is no nested `config` object). `id_strat` is written like any other
-# input: it decides which cases stay together, so a config that dropped it
-# would resample differently on re-read.
+# A resampler serializes its type-specific settings as siblings of `type`, as
+# every family does. `id_strat` is written like any other input: it decides
+# which cases stay together, so a config that dropped it would resample
+# differently on re-read. `n_resamples` is declared per subclass and arrives
+# through `config_prop_values()` -- which drops LOOCV's, that being state the
+# data determine.
 method(serializable_props, ResamplerConfig) <- function(x) {
-  # `type` is the only base property; everything else, `n_resamples` included,
-  # is declared per subclass and arrives through `config_prop_values()` -- which
-  # drops LOOCV's, that being state the data determine.
-  c(list(type = x@type), config_prop_values(x, ResamplerConfig))
+  dispatched_props(x, ResamplerConfig, "type")
 } # /rtemis::serializable_props.ResamplerConfig
 
 

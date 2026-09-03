@@ -71,10 +71,10 @@ ConformalConfig <- new_class(
 
 
 # %% serializable_props.ConformalConfig ----
-# Type-specific settings serialize as siblings of `type`, as for
-# `ExplanationConfig`: one flat object per construction, not a nested `config`.
+# Construction-specific settings serialize as siblings of `type`, as every
+# family does.
 method(serializable_props, ConformalConfig) <- function(x) {
-  c(list(type = x@type), config_prop_values(x, ConformalConfig))
+  dispatched_props(x, ConformalConfig, "type")
 } # /rtemis::serializable_props.ConformalConfig
 
 

@@ -7,15 +7,12 @@
 .list_to_TunerConfig(x)
 }
 \arguments{
-\item{x}{Named list with two elements:
-\describe{
-\item{\code{type}}{Character: tuner type. Currently only \code{"GridSearch"} is
-supported.}
-\item{\code{config}}{Named list of tuner configuration fields. For
-\code{"GridSearch"}: \code{resampler_config} (a list accepted by
+\item{x}{Named list: \code{type} (Character: tuner type; currently only
+\code{"GridSearch"} is supported) plus, as its siblings, the tuner's settings.
+For \code{"GridSearch"}: \code{resampler_config} (a list accepted by
 \code{\link[=.list_to_ResamplerConfig]{.list_to_ResamplerConfig()}}), \code{search_type}, \code{randomize_p},
-\code{metrics_aggregate_fn}, \code{metric}, and \code{maximize}.}
-}}
+\code{metrics_aggregate_fn}, \code{metric}, and \code{maximize}. A list holding only
+\code{type} is that tuner with every default.}
 }
 \value{
 A \code{TunerConfig} object (currently a \code{GridSearchConfig}).
@@ -28,10 +25,8 @@ direct use by end users.
 \examples{
 .list_to_TunerConfig(list(
   type = "GridSearch",
-  config = list(
-    resampler_config = list(type = "KFold", n_resamples = 5L),
-    search_type = "exhaustive"
-  )
+  resampler_config = list(type = "KFold", n_resamples = 5L),
+  search_type = "exhaustive"
 ))
 }
 \author{

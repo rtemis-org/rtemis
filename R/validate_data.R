@@ -94,7 +94,7 @@ config_parts <- function(config) {
       S7_inherits(tuner, GridSearchConfig) &&
       !is.null(tuner@resampler_config)
   ) {
-    out[["resamplers"]][["/tuner_config/config/resampler_config"]] <-
+    out[["resamplers"]][["/tuner_config/resampler_config"]] <-
       tuner@resampler_config
   }
   out

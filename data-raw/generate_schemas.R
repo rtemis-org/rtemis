@@ -59,7 +59,7 @@ decomposition_metrics_ref <- paste0(
 )
 
 # Registry ------------------------------------------------------------------
-# Per family: the base class, the payload field name, the dispatcher's title and
+# Per family: the base class, the discriminator, the dispatcher's title and
 # descriptions, and the per-algorithm classes with a one-line description, and
 # an optional `extra` supplying cross-field constraints that are not
 # per-property. Which properties take part is decided by their declared role
@@ -85,11 +85,6 @@ for (family in names(families)) {
   } else {
     fam[["discriminator"]]
   }
-  # `payload = NULL` (top-level mode) needs open leaves so the dispatcher's
-  # `unevaluatedProperties` can account for them.
-  top_level <- !("payload" %in% names(fam)) || is.null(fam[["payload"]])
-  payload <- if (top_level) NULL else fam[["payload"]]
-
   # Leaves. Each is written twice: the input schema, and its `record.json`
   # sibling, which declares the same properties with every one required. A
   # record states what a run used, so nothing in it falls back to a reader's
@@ -108,15 +103,15 @@ for (family in names(families)) {
         description = algo[["desc"]],
         base = fam[["base_class"]],
         record = kind == "record",
-        # A leaf is nested under its dispatcher, which carries the block.
         extra = algo[["extra"]],
         refs = algo[["refs"]],
         array_refs = algo[["array_refs"]],
-        closed = !top_level
+        # Open: the dispatcher composes the leaf into its own object and
+        # closes the whole with `unevaluatedProperties`.
+        closed = FALSE
       )
       if (kind == "schema") {
-        # A leaf carries neither: the dispatcher declares the discriminator
-        # and, in nested-payload mode, holds the leaf under the payload key.
+        # A leaf requires nothing: the dispatcher declares the discriminator.
         assert_config_contract(schema, id)
       }
       write_JSONSchema(
@@ -136,7 +131,6 @@ for (family in names(families)) {
       classes = classes,
       id = dispatcher_id,
       discriminator = discriminator,
-      payload = payload,
       base = fam[["base_class"]],
       record = kind == "record",
       title = fam[["title"]],
@@ -151,14 +145,13 @@ for (family in names(families)) {
       instance_schema_url = dispatcher_id
     )
     if (kind == "schema") {
-      # `{discriminator, payload}` is the shape of a dispatched document, not a
-      # value a user supplies: without the payload key there is nothing for the
-      # selected variant's schema to apply to, and `.list_to_*` rejects the
-      # document. Top-level mode has no payload, so the discriminator alone.
+      # The discriminator is the shape of a dispatched document, not a value a
+      # user supplies: without it no variant's schema applies, and `.list_to_*`
+      # rejects the document.
       assert_config_contract(
         dispatcher,
         dispatcher_id,
-        structural = c(discriminator, payload)
+        structural = discriminator
       )
     }
     write_JSONSchema(

@@ -855,9 +855,7 @@ testthat::test_that("a flat config answers the same question as a family", {
 testthat::test_that("state the model carries is not written to a config", {
   h <- setup_GLMNET()
   h@`lambda.min` <- 0.03
-  testthat::expect_false(
-    "lambda.min" %in% names(serializable_props(h)[["hyperparameters"]])
-  )
+  testthat::expect_false("lambda.min" %in% names(serializable_props(h)))
   # A value the user supplied *is* written: it is an input, and `id_strat`
   # decides which cases stay together, so losing it changes results. What is
   # written is the column's name -- one string any reader can act on -- rather

@@ -49,13 +49,11 @@ ClusteringConfig <- new_class(
 
 
 # %% serializable_props.ClusteringConfig ----
-# Serialize as {algorithm, config} (the public shape); the per-algorithm
-# properties are redundant with the computed `config`.
+# `algorithm` plus the algorithm's settings as siblings -- the shape the
+# clustering schema declares. The computed `config` list is not written: it is
+# a view of the same properties.
 method(serializable_props, ClusteringConfig) <- function(x) {
-  list(
-    algorithm = x@algorithm,
-    config = config_prop_values(x, ClusteringConfig)
-  )
+  dispatched_props(x, ClusteringConfig, "algorithm")
 } # /rtemis::serializable_props.ClusteringConfig
 
 
@@ -464,11 +462,11 @@ setup_DBSCAN <- function(
 #' Internal function used to reconstruct a `ClusteringConfig` object from a named
 #' list, such as the result of parsing a JSON config conforming to the
 #' schema.rtemis.org clustering schema. The list must carry an `algorithm`
-#' element; the remaining elements (flat, or nested under `config`) are passed to
-#' that algorithm's `setup_*` function.
+#' element; the remaining elements, its siblings, are passed to that
+#' algorithm's `setup_*` function.
 #'
 #' @param x Named list with an `algorithm` element plus algorithm-specific
-#'   parameters, e.g. `list(algorithm = "DBSCAN", config = list(eps = 0.5))`.
+#'   parameters as its siblings, e.g. `list(algorithm = "DBSCAN", eps = 0.5)`.
 #'
 #' @return A `ClusteringConfig` object (an algorithm-specific subclass).
 #'
@@ -484,17 +482,14 @@ setup_DBSCAN <- function(
     )
   }
   algorithm <- get_clust_name(algorithm)
-  # One shape: `{algorithm, config}`, which is what the published schema
-  # declares -- a flat `{algorithm, k, ...}` is rejected by it, so accepting one
-  # here would take input the contract does not. `.drop_meta_keys()` removes
-  # document metadata (e.g. `$schema`), which is not a setup arg.
-  check_wire_keys(x, c("algorithm", "config"), "clustering config")
-  params <- .drop_meta_keys(x[["config"]])
+  # One shape: `{algorithm, k, ...}`, which is what the published schema
+  # declares. `.drop_meta_keys()` removes document metadata (e.g. `$schema`),
+  # which is not a setup arg.
+  label <- paste(algorithm, "clustering")
+  check_no_settings_key(x, "config", "algorithm", label)
+  params <- .drop_meta_keys(x)
+  params[["algorithm"]] <- NULL
   setup_fn <- get_clust_setup_fn(algorithm)
-  check_wire_keys(
-    params,
-    names(formals(setup_fn)),
-    paste(algorithm, "clustering")
-  )
+  check_wire_keys(params, names(formals(setup_fn)), label)
   do.call(setup_fn, params)
 } # /rtemis::.list_to_ClusteringConfig

@@ -12,7 +12,7 @@
   c(
     list(
       `$schema` = .supervised_schema,
-      hyperparameters = list(algorithm = "LightRF", hyperparameters = list())
+      hyperparameters = list(algorithm = "LightRF")
     ),
     list(...)
   )

@@ -51,10 +51,11 @@ TunerConfig <- new_class(
 
 
 # %% serializable_props.TunerConfig ----
-# Serialize as {type, config} (the public shape); the per-tuner properties
-# are redundant with the computed `config`.
+# `type` plus the tuner's settings as siblings -- the shape the tuner schema
+# declares. The computed `config` list is not written: it is a view of the same
+# properties.
 method(serializable_props, TunerConfig) <- function(x) {
-  list(type = x@type, config = config_prop_values(x, TunerConfig))
+  dispatched_props(x, TunerConfig, "type")
 } # /rtemis::serializable_props.TunerConfig
 
 
@@ -400,15 +401,12 @@ method(repr, GridSearch) <- function(
 #' to reconstruct a `TunerConfig` object from a named list. Not intended for
 #' direct use by end users.
 #'
-#' @param x Named list with two elements:
-#'   \describe{
-#'     \item{`type`}{Character: tuner type. Currently only `"GridSearch"` is
-#'       supported.}
-#'     \item{`config`}{Named list of tuner configuration fields. For
-#'       `"GridSearch"`: `resampler_config` (a list accepted by
-#'       [.list_to_ResamplerConfig()]), `search_type`, `randomize_p`,
-#'       `metrics_aggregate_fn`, `metric`, and `maximize`.}
-#'   }
+#' @param x Named list: `type` (Character: tuner type; currently only
+#'   `"GridSearch"` is supported) plus, as its siblings, the tuner's settings.
+#'   For `"GridSearch"`: `resampler_config` (a list accepted by
+#'   [.list_to_ResamplerConfig()]), `search_type`, `randomize_p`,
+#'   `metrics_aggregate_fn`, `metric`, and `maximize`. A list holding only
+#'   `type` is that tuner with every default.
 #'
 #' @return A `TunerConfig` object (currently a `GridSearchConfig`).
 #'
@@ -418,36 +416,23 @@ method(repr, GridSearch) <- function(
 #' @examples
 #' .list_to_TunerConfig(list(
 #'   type = "GridSearch",
-#'   config = list(
-#'     resampler_config = list(type = "KFold", n_resamples = 5L),
-#'     search_type = "exhaustive"
-#'   )
+#'   resampler_config = list(type = "KFold", n_resamples = 5L),
+#'   search_type = "exhaustive"
 #' ))
 .list_to_TunerConfig <- function(x) {
-  if (x[["type"]] == "GridSearch") {
-    check_wire_keys(x, c("type", "config"), "tuner")
-    config <- .drop_meta_keys(x[["config"]])
-    check_wire_keys(
-      config,
-      names(GridSearchConfig@properties),
-      "GridSearch tuner"
-    )
+  if (identical(x[["type"]], "GridSearch")) {
+    label <- "GridSearch tuner"
+    check_no_settings_key(x, "config", "type", label)
+    settings <- .drop_meta_keys(x)
+    settings[["type"]] <- NULL
+    check_wire_keys(settings, names(formals(setup_GridSearch)), label)
     # Drop absent (NULL) elements so that `setup_GridSearch`'s own argument
     # defaults apply to whatever the config omits (e.g. `search_type`,
     # `metrics_aggregate_fn`, `resampler_config`) instead of passing NULL.
-    args <- Filter(
-      Negate(is.null),
-      list(
-        search_type = config[["search_type"]],
-        randomize_p = config[["randomize_p"]],
-        metrics_aggregate_fn = config[["metrics_aggregate_fn"]],
-        metric = config[["metric"]],
-        maximize = config[["maximize"]]
-      )
-    )
-    if (!is.null(config[["resampler_config"]])) {
+    args <- Filter(Negate(is.null), settings)
+    if (!is.null(args[["resampler_config"]])) {
       args[["resampler_config"]] <- .list_to_ResamplerConfig(
-        config[["resampler_config"]]
+        args[["resampler_config"]]
       )
     }
     do.call(setup_GridSearch, args)

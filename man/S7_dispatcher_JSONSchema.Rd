@@ -2,13 +2,12 @@
 % Please edit documentation in R/010_Props.R
 \name{S7_dispatcher_JSONSchema}
 \alias{S7_dispatcher_JSONSchema}
-\title{Generate a per-algorithm dispatcher JSON Schema}
+\title{Generate a config family's dispatcher JSON Schema}
 \usage{
 S7_dispatcher_JSONSchema(
   classes,
   id,
   discriminator = "algorithm",
-  payload = "config",
   base = NULL,
   title = NULL,
   description = "",
@@ -27,25 +26,23 @@ S7_dispatcher_JSONSchema(
 \item{discriminator}{Character: Name of the property that selects the
 variant (e.g. "algorithm", "type").}
 
-\item{payload}{Character or NULL: Name of the variant-specific field
-(e.g. "config", "hyperparameters"). \code{NULL} selects top-level mode, where
-the variant's fields are siblings of the discriminator (see Details).}
-
 \item{base}{Optional S7 class: The family base class. Its own
 \verb{prop_*}-declared properties are shared by every variant, so they are
 emitted here rather than on any leaf (see Details).}
 
 \item{title}{Optional Character: Schema title.}
 
-\item{description}{Character: Schema description. If empty, omitted.}
+\item{description}{Character: Schema description. If empty, omitted. The
+shape rule -- settings are siblings of the discriminator -- is appended,
+so every family states it the same way.}
 
 \item{discriminator_description}{Character: Description of the
 discriminator property.}
 
 \item{record}{Logical: If TRUE, dispatch to the variants' \strong{record}
 schemas (\verb{<family>/<variant>/v1/record.json}) rather than their input
-schemas. The discriminator and payload are required either way; what
-changes is which leaf each \verb{if/then} branch applies.}
+schemas, and require every property the dispatcher itself declares. The
+discriminator is required either way.}
 
 \item{instance_schema_url}{Character or NULL: If set, adds a \verb{$schema}
 const property so instances can self-identify.}
@@ -55,41 +52,44 @@ Named list: the dispatcher JSON Schema. Serialize with
 \link{write_JSONSchema}.
 }
 \description{
-Assembles the \verb{<family>/v1} schema for a config family: an object with an
-\code{algorithm} discriminator and an algorithm-specific payload
-(\code{config} / \code{hyperparameters}), plus an \code{allOf} of \verb{if/then} clauses that
-validate the payload against the per-algorithm leaf schema
-(\verb{<family>/<algorithm>/v1}) selected by \code{algorithm}. The algorithm enum,
-the leaf \verb{$ref} URLs, and the \code{allOf} table are all derived from the
-classes, so the dispatcher cannot drift from the leaves it dispatches to.
+Assembles the \verb{<family>/v1} schema for a config family: an object holding
+the discriminator (\code{algorithm}, \code{type}, ...), the properties the family base
+declares for every variant, and an \code{allOf} of \verb{if/then} clauses that apply
+the selected variant's leaf schema (\verb{<family>/<variant>/v1}) to the whole
+object. The discriminator enum, the leaf \verb{$ref} URLs and the \code{allOf} table
+are all derived from the classes, so the dispatcher cannot drift from the
+leaves it dispatches to.
 }
 \details{
 The leaf URLs are derived from \code{id}: for a dispatcher
-\verb{.../<family>/v1/schema.json}, algorithm \code{A} maps to
+\verb{.../<family>/v1/schema.json}, variant \code{A} maps to
 \verb{.../<family>/<tolower(A)>/v1/schema.json} -- matching \link{S7_to_JSONSchema}'s
 \code{id} convention for the leaves.
 
-Two shapes, matching how the R classes serialize:
-\itemize{
-\item \strong{Nested payload} (\code{payload} set): the variant's parameters live in one
-object (\code{config} / \code{hyperparameters}), so each \code{then} narrows that
-property to the leaf \verb{$ref}. Leaves are closed
-(\code{additionalProperties: false}) and independently valid.
-\item \strong{Top-level mode} (\code{payload = NULL}): the variant's fields are siblings
-of the discriminator (as in \code{ResamplerConfig}), so each \code{then} applies
-the leaf \verb{$ref} to the whole object. \code{additionalProperties} is evaluated
-per-schema and would not see the leaf's properties, so strictness comes
-from draft 2020-12's \code{unevaluatedProperties: false}, which does account
-for properties evaluated by the applied \verb{$ref}. Leaves for this mode
-must be generated open (\code{closed = FALSE} in \link{S7_to_JSONSchema}) so they
-compose.
-}
+One shape, matching how every family serializes (\code{dispatched_props()}): the
+variant's settings are \strong{siblings of the discriminator}. A document holding
+only the discriminator is that variant with every default, so "nothing set"
+is said by absence, as a delta config says everything else. There is no
+settings object a writer must remember to leave empty -- that construct was
+the one observed models could not reliably emit (\code{""} arrived where \code{{}}
+was meant, and the repair that followed invented a setting nobody chose).
+
+Each \code{then} is exactly the leaf \verb{$ref}, applied to the whole object; readers
+key on that. \code{additionalProperties} is evaluated per schema and would not
+see the leaf's properties, so strictness comes from draft 2020-12's
+\code{unevaluatedProperties: false}, which does account for properties evaluated
+by the applied \verb{$ref}. Leaves must therefore be generated open
+(\code{closed = FALSE} in \link{S7_to_JSONSchema}) so they compose.
+
+The leaf's keys and the dispatcher's are disjoint by construction: \code{base}
+subtracts every base property, the discriminator included, from each leaf,
+so a setting can never land on a key the dispatcher declares.
 
 \code{base} closes the loop with \link{S7_to_JSONSchema}'s \code{base} argument, which
 \emph{subtracts} the family base's properties from every leaf: the dispatcher
 adds them back at the top level, from the same \code{PropertySpec}, so the shared
 fields are declared once. Base properties carrying no spec are class
-machinery (the computed payload list, run state) and are skipped, as is the
+machinery (a computed settings list, run state) and are skipped, as is the
 discriminator, which is generated from the variant enum.
 }
 \examples{
@@ -97,7 +97,7 @@ discriminator, which is generated from the variant enum.
 schema <- S7_dispatcher_JSONSchema(
   classes = list(PCAConfig, ICAConfig),
   id = "https://schema.rtemis.org/decomposition/v1/schema.json",
-  payload = "config"
+  base = DecompositionConfig
 )
 }
 }

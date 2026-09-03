@@ -2729,13 +2729,15 @@ prop_algorithm <- function(algorithm) {
 } # /rtemis::prop_algorithm
 
 
-# Shared by the config families whose public shape is an `algorithm` + a named
-# parameter list (`hyperparameters`, decomposition/clustering `config`): an
-# abstract base holding run/meta state, and per-algorithm subclasses that
-# declare each parameter as its own (factory or plain) property. The base's
-# list property is computed from the subclass's own properties (getter) and
-# assignments route back to them (setter). "Own" = declared by the subclass,
-# i.e. not inherited from the base.
+# Shared by the dispatched config families (hyperparameters, decomposition,
+# clustering, tuner, resampler, ...): an abstract base holding the
+# discriminator and any run/meta state, and per-variant subclasses that declare
+# each setting as their own (factory or plain) property. Where the base exposes
+# a computed list of those settings (`@hyperparameters`, `@config`), it is
+# assembled from the subclass's own properties (getter) and assignments route
+# back to them (setter). "Own" = declared by the subclass, i.e. not inherited
+# from the base. On the wire the settings are siblings of the discriminator --
+# see `dispatched_props()`.
 
 # %% own_prop_names ----
 #' Names of a subclass's own properties (excluding the base's)
@@ -2815,6 +2817,67 @@ config_prop_values <- function(self, base) {
   }
   values
 } # /rtemis::config_prop_values
+
+
+# %% family_prop_values ----
+#' The fields a family's dispatcher declares, as a serialized config carries them
+#'
+#' The discriminator first -- without it a dispatcher matches no branch and
+#' its `unevaluatedProperties` rejects everything else -- then the properties
+#' the base declares for every variant (a decomposition's `features`), in
+#' declaration order. What the variant itself declares is
+#' `config_prop_values()`'s half; `dispatched_props()` joins the two.
+#'
+#' @param x S7 object: a member of the family.
+#' @param base S7 class: the family base class.
+#' @param discriminator Character: Name of the discriminator property.
+#'
+#' @return Named list.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+family_prop_values <- function(x, base, discriminator) {
+  props <- base@properties
+  shared <- setdiff(names(props), discriminator)
+  shared <- Filter(
+    function(nm) {
+      !is.null(get_spec(props[[nm]])) && prop_serialized(props[[nm]])
+    },
+    shared
+  )
+  values <- lapply(shared, function(nm) wire_value(prop(x, nm), props[[nm]]))
+  names(values) <- shared
+  c(stats::setNames(list(prop(x, discriminator)), discriminator), values)
+} # /rtemis::family_prop_values
+
+
+# %% dispatched_props ----
+#' The wire form of a dispatched config
+#'
+#' One shape for every config family, the one `S7_dispatcher_JSONSchema()`
+#' publishes: the discriminator, the base's shared fields, then the variant's
+#' own settings, all as siblings. A variant with nothing set serializes as the
+#' discriminator alone, so "nothing set" is said by absence, as a delta config
+#' says everything else -- never by an empty settings object, which is the one
+#' construct a writer has to remember to emit and the one observed models could
+#' not.
+#'
+#' @param x S7 object: a member of the family.
+#' @param base S7 class: the family base class.
+#' @param discriminator Character: Name of the discriminator property.
+#'
+#' @return Named list.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+dispatched_props <- function(x, base, discriminator) {
+  c(
+    family_prop_values(x, base, discriminator),
+    config_prop_values(x, base)
+  )
+} # /rtemis::dispatched_props
 
 
 # %% wire_value ----
@@ -3842,8 +3905,8 @@ prop_to_schema <- function(prop) {
 #'   of such objects -- one metrics object per resample, one model per fold.
 #'   Each emits an array whose `items` are the `$ref`.
 #' @param closed Logical: If TRUE (default) the schema sets
-#'   `additionalProperties: false`. Pass FALSE for leaves composed into a
-#'   top-level-mode dispatcher, which enforces strictness with
+#'   `additionalProperties: false`. Pass FALSE for a family leaf, which its
+#'   dispatcher composes into one object and closes with
 #'   `unevaluatedProperties` instead (see [S7_dispatcher_JSONSchema]).
 #' @param instance_schema_url Character or NULL: If set, adds a `$schema`
 #'   const property (instances self-identify, as in the config families).
@@ -4273,15 +4336,15 @@ discriminator_value <- function(cls, discriminator) {
 #' The properties a family base class declares with the `prop_*` factories are
 #' shared by every variant, so they are published on the dispatcher rather than
 #' repeated on each leaf -- [S7_to_JSONSchema] subtracts them from the leaves
-#' via its `base` argument. Spec-less base properties are class machinery (the
-#' computed payload list, the discriminator, run state such as `tuned`) and have
-#' no schema form, so they are skipped rather than erroring: unlike a leaf, a
-#' base class is expected to carry them.
+#' via its `base` argument. Spec-less base properties are class machinery (a
+#' computed settings list, the discriminator, run state such as `tuned`) and
+#' have no schema form, so they are skipped rather than erroring: unlike a
+#' leaf, a base class is expected to carry them.
 #'
 #' @param base S7 class or NULL: The family base class. NULL yields no
 #'   properties.
 #' @param skip Character: Property names the dispatcher emits itself (the
-#'   discriminator and the payload).
+#'   discriminator).
 #'
 #' @return Named list of JSON Schema properties, in declaration order.
 #'
@@ -4308,18 +4371,18 @@ base_schema_properties <- function(base, skip = character()) {
 
 
 # %% S7_dispatcher_JSONSchema ----
-#' Generate a per-algorithm dispatcher JSON Schema
+#' Generate a config family's dispatcher JSON Schema
 #'
-#' Assembles the `<family>/v1` schema for a config family: an object with an
-#' `algorithm` discriminator and an algorithm-specific payload
-#' (`config` / `hyperparameters`), plus an `allOf` of `if/then` clauses that
-#' validate the payload against the per-algorithm leaf schema
-#' (`<family>/<algorithm>/v1`) selected by `algorithm`. The algorithm enum,
-#' the leaf `$ref` URLs, and the `allOf` table are all derived from the
-#' classes, so the dispatcher cannot drift from the leaves it dispatches to.
+#' Assembles the `<family>/v1` schema for a config family: an object holding
+#' the discriminator (`algorithm`, `type`, ...), the properties the family base
+#' declares for every variant, and an `allOf` of `if/then` clauses that apply
+#' the selected variant's leaf schema (`<family>/<variant>/v1`) to the whole
+#' object. The discriminator enum, the leaf `$ref` URLs and the `allOf` table
+#' are all derived from the classes, so the dispatcher cannot drift from the
+#' leaves it dispatches to.
 #'
 #' The leaf URLs are derived from `id`: for a dispatcher
-#' `.../<family>/v1/schema.json`, algorithm `A` maps to
+#' `.../<family>/v1/schema.json`, variant `A` maps to
 #' `.../<family>/<tolower(A)>/v1/schema.json` -- matching [S7_to_JSONSchema]'s
 #' `id` convention for the leaves.
 #'
@@ -4329,44 +4392,47 @@ base_schema_properties <- function(base, skip = character()) {
 #'   (e.g. "https://schema.rtemis.org/decomposition/v1/schema.json").
 #' @param discriminator Character: Name of the property that selects the
 #'   variant (e.g. "algorithm", "type").
-#' @param payload Character or NULL: Name of the variant-specific field
-#'   (e.g. "config", "hyperparameters"). `NULL` selects top-level mode, where
-#'   the variant's fields are siblings of the discriminator (see Details).
 #' @param base Optional S7 class: The family base class. Its own
 #'   `prop_*`-declared properties are shared by every variant, so they are
 #'   emitted here rather than on any leaf (see Details).
 #' @param title Optional Character: Schema title.
-#' @param description Character: Schema description. If empty, omitted.
+#' @param description Character: Schema description. If empty, omitted. The
+#'   shape rule -- settings are siblings of the discriminator -- is appended,
+#'   so every family states it the same way.
 #' @param discriminator_description Character: Description of the
 #'   discriminator property.
 #' @param record Logical: If TRUE, dispatch to the variants' **record**
 #'   schemas (`<family>/<variant>/v1/record.json`) rather than their input
-#'   schemas. The discriminator and payload are required either way; what
-#'   changes is which leaf each `if/then` branch applies.
+#'   schemas, and require every property the dispatcher itself declares. The
+#'   discriminator is required either way.
 #' @param instance_schema_url Character or NULL: If set, adds a `$schema`
 #'   const property so instances can self-identify.
 #'
 #' @details
-#' Two shapes, matching how the R classes serialize:
+#' One shape, matching how every family serializes (`dispatched_props()`): the
+#' variant's settings are **siblings of the discriminator**. A document holding
+#' only the discriminator is that variant with every default, so "nothing set"
+#' is said by absence, as a delta config says everything else. There is no
+#' settings object a writer must remember to leave empty -- that construct was
+#' the one observed models could not reliably emit (`""` arrived where `{}`
+#' was meant, and the repair that followed invented a setting nobody chose).
 #'
-#' * **Nested payload** (`payload` set): the variant's parameters live in one
-#'   object (`config` / `hyperparameters`), so each `then` narrows that
-#'   property to the leaf `$ref`. Leaves are closed
-#'   (`additionalProperties: false`) and independently valid.
-#' * **Top-level mode** (`payload = NULL`): the variant's fields are siblings
-#'   of the discriminator (as in `ResamplerConfig`), so each `then` applies
-#'   the leaf `$ref` to the whole object. `additionalProperties` is evaluated
-#'   per-schema and would not see the leaf's properties, so strictness comes
-#'   from draft 2020-12's `unevaluatedProperties: false`, which does account
-#'   for properties evaluated by the applied `$ref`. Leaves for this mode
-#'   must be generated open (`closed = FALSE` in [S7_to_JSONSchema]) so they
-#'   compose.
+#' Each `then` is exactly the leaf `$ref`, applied to the whole object; readers
+#' key on that. `additionalProperties` is evaluated per schema and would not
+#' see the leaf's properties, so strictness comes from draft 2020-12's
+#' `unevaluatedProperties: false`, which does account for properties evaluated
+#' by the applied `$ref`. Leaves must therefore be generated open
+#' (`closed = FALSE` in [S7_to_JSONSchema]) so they compose.
+#'
+#' The leaf's keys and the dispatcher's are disjoint by construction: `base`
+#' subtracts every base property, the discriminator included, from each leaf,
+#' so a setting can never land on a key the dispatcher declares.
 #'
 #' `base` closes the loop with [S7_to_JSONSchema]'s `base` argument, which
 #' *subtracts* the family base's properties from every leaf: the dispatcher
 #' adds them back at the top level, from the same `PropertySpec`, so the shared
 #' fields are declared once. Base properties carrying no spec are class
-#' machinery (the computed payload list, run state) and are skipped, as is the
+#' machinery (a computed settings list, run state) and are skipped, as is the
 #' discriminator, which is generated from the variant enum.
 #'
 #' @return Named list: the dispatcher JSON Schema. Serialize with
@@ -4379,14 +4445,13 @@ base_schema_properties <- function(base, skip = character()) {
 #' schema <- S7_dispatcher_JSONSchema(
 #'   classes = list(PCAConfig, ICAConfig),
 #'   id = "https://schema.rtemis.org/decomposition/v1/schema.json",
-#'   payload = "config"
+#'   base = DecompositionConfig
 #' )
 #' }
 S7_dispatcher_JSONSchema <- function(
   classes,
   id,
   discriminator = "algorithm",
-  payload = "config",
   base = NULL,
   title = NULL,
   description = "",
@@ -4434,11 +4499,10 @@ S7_dispatcher_JSONSchema <- function(
   }
   # Leaf URLs share the dispatcher's family base; variant -> lowercase slug.
   leaf_file <- if (record) "record.json" else "schema.json"
-  family_base <- sub("/v1/(schema|record)\\.json$", "", id)
+  family_url <- sub("/v1/(schema|record)\\.json$", "", id)
   leaf_id <- function(variant) {
-    paste0(family_base, "/", tolower(variant), "/v1/", leaf_file)
+    paste0(family_url, "/", tolower(variant), "/v1/", leaf_file)
   }
-  top_level <- is.null(payload)
   properties <- list()
   if (!is.null(instance_schema_url)) {
     properties[["$schema"]] <- list(
@@ -4456,26 +4520,9 @@ S7_dispatcher_JSONSchema <- function(
     enum = variants,
     description = discriminator_description
   )))
-  if (!top_level) {
-    # Not "variant-specific": a `variant_refs` parent admits a `variants` block
-    # of its own, and one word meaning both the branch of a discriminated union
-    # and a member of a named set is how a reader ends up filling in the wrong
-    # one. The default rule is stated because it is the answer to the question
-    # this description otherwise invites -- what to write when nothing is being
-    # overridden.
-    properties[[payload]] <- list(
-      type = "object",
-      description = paste0(
-        "Settings for the chosen `",
-        discriminator,
-        "`, validated against it below. Anything not set takes rtemis's ",
-        "default, so `{}` is every default and is the usual value."
-      )
-    )
-  }
   properties <- c(
     properties,
-    base_schema_properties(base, skip = c(discriminator, payload))
+    base_schema_properties(base, skip = discriminator)
   )
   all_of <- lapply(variants, function(variant) {
     # `required` on the discriminator: a `properties`-only `if` is vacuously
@@ -4487,29 +4534,53 @@ S7_dispatcher_JSONSchema <- function(
       ),
       required = I(discriminator)
     )
-    consequence <- if (top_level) {
-      list(`$ref` = leaf_id(variant))
-    } else {
-      list(
-        properties = stats::setNames(
-          list(list(`$ref` = leaf_id(variant))),
-          payload
-        )
-      )
-    }
-    list(`if` = condition, then = consequence)
+    # Exactly the `$ref` and nothing else: a `then` carrying anything besides
+    # the reference is a different construct to the readers that key on it.
+    list(`if` = condition, then = list(`$ref` = leaf_id(variant)))
   })
+  # The one sentence a writer needs and the old settings object used to carry:
+  # where the settings go, and what leaving them out means. Stated by the
+  # generator so every family says it identically.
+  shape <- if (record) {
+    paste0(
+      "`",
+      discriminator,
+      "` selects the variant; its resolved settings are siblings of it, ",
+      "validated against the variant's own record schema below."
+    )
+  } else {
+    paste0(
+      "`",
+      discriminator,
+      "` selects the variant and its settings are siblings of it, validated ",
+      "against the variant's own schema below. Anything not set takes ",
+      "rtemis's default, so an object holding only `",
+      discriminator,
+      "` is that variant with every default."
+    )
+  }
+  description <- paste(
+    c(if (nzchar(description)) description, shape),
+    collapse = " "
+  )
+  # An input requires the discriminator alone: without it no branch applies
+  # and `unevaluatedProperties` rejects every setting. A record requires every
+  # property it declares, as its leaves do.
+  required <- if (record) {
+    setdiff(names(properties), "$schema")
+  } else {
+    discriminator
+  }
   schema <- list(
     `$schema` = "https://json-schema.org/draft/2020-12/schema",
     `$id` = id,
     title = title,
-    description = if (nzchar(description)) description else NULL,
+    description = description,
     type = "object",
-    required = I(c(discriminator, payload)),
-    # Top-level mode composes the leaf into this object, so strictness must
-    # account for properties evaluated by the applied `$ref`.
-    additionalProperties = if (top_level) NULL else FALSE,
-    unevaluatedProperties = if (top_level) FALSE else NULL,
+    required = I(required),
+    # The leaf is composed into this object, so strictness must account for
+    # properties evaluated by the applied `$ref`.
+    unevaluatedProperties = FALSE,
     properties = properties,
     allOf = all_of
   )

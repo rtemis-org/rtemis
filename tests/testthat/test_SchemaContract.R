@@ -770,11 +770,11 @@ test_that("a CustomConfig record carries exactly the keys its record schema requ
 })
 
 
-test_that("a meta learner's record nests one block per library entry", {
+test_that("a meta learner's record carries one block per library entry", {
   # `base_learners` is a list of S7 objects, which `config_record()` has to
-  # recognize as a third kind of property: not flat, not a single nested config.
-  # Serialized flat it would carry no per-entry `origin`, which every `$ref`d
-  # block requires.
+  # recognize as a third kind of property: not a scalar, not a single nested
+  # config. Merged into the parent's own fields it would carry no per-entry
+  # `origin`, which every `$ref`d block requires.
   hyperparameters <- setup_SuperLearner(
     base_learners = list(setup_GLM(), setup_CART())
   )
@@ -788,7 +788,16 @@ test_that("a meta learner's record nests one block per library entry", {
     c("GLM", "CART")
   )
   for (entry in entries) {
-    expect_named(entry, c("algorithm", "hyperparameters"))
-    expect_true("origin" %in% names(entry[["hyperparameters"]]))
+    # Flat, like every family block: the discriminator leads -- a dispatcher
+    # keys its `if/then` on it, and a block that does not lead with it matches
+    # no branch -- and the leaf's own settings follow as siblings.
+    expect_identical(names(entry)[[1L]], "algorithm")
+    # `origin` accounts for every setting the block carries. That is what makes
+    # the entry readable on its own, and it is the half a flat *merge* into the
+    # parent would lose.
+    expect_setequal(
+      names(entry[["origin"]]),
+      setdiff(names(entry), c("algorithm", "origin"))
+    )
   }
 })

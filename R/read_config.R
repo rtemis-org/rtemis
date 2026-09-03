@@ -197,6 +197,52 @@ check_is_S7 <- function(
 } # /rtemis::check_is_S7
 
 
+# %% check_no_settings_key ----
+#' Refuse settings nested under a key instead of beside the discriminator
+#'
+#' Every dispatched family serializes its settings as siblings of the
+#' discriminator: `{"algorithm": "Ranger", "num_trees": 500}`. A document that
+#' nests them -- `{"algorithm": "Ranger", "hyperparameters": {...}}`, the shape
+#' these families once had -- would otherwise be refused by `check_wire_keys()`
+#' as an unknown key, which names the symptom where this names the fix.
+#'
+#' @param x Named list parsed from the wire.
+#' @param key Character: The retired settings key (`"hyperparameters"`,
+#'   `"config"`).
+#' @param discriminator Character: The family's discriminator (`"algorithm"`,
+#'   `"type"`).
+#' @param label Character: The config's name, for the error message.
+#'
+#' @return `x`, invisibly. Throws if `key` is present.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_no_settings_key <- function(x, key, discriminator, label) {
+  if (!key %in% names(x)) {
+    return(invisible(x))
+  }
+  rtemis.core::abort(
+    "`",
+    key,
+    "` is not a ",
+    label,
+    " key: settings are siblings of `",
+    discriminator,
+    "`, not nested under `",
+    key,
+    "`. Move each entry of `",
+    key,
+    "` up beside `",
+    discriminator,
+    "` and drop `",
+    key,
+    "`.",
+    class = c("rtemis_value_error", "rtemis_input_error")
+  )
+} # /rtemis::check_no_settings_key
+
+
 # %% check_wire_keys ----
 #' Reject wire keys a config does not declare
 #'

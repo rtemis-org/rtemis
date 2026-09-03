@@ -123,11 +123,9 @@ ExplanationConfig <- new_class(
 
 
 # %% serializable_props.ExplanationConfig ----
-# Type-specific settings serialize as siblings of `type`, as for
-# `ResamplerConfig`: the wire shape is one flat object per kind, not a nested
-# `config`.
+# Kind-specific settings serialize as siblings of `type`, as every family does.
 method(serializable_props, ExplanationConfig) <- function(x) {
-  c(list(type = x@type), config_prop_values(x, ExplanationConfig))
+  dispatched_props(x, ExplanationConfig, "type")
 } # /rtemis::serializable_props.ExplanationConfig
 
 

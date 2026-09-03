@@ -139,7 +139,7 @@ test_that("S7_dispatcher_JSONSchema derives enum, leaf refs, and allOf", {
   s <- S7_dispatcher_JSONSchema(
     classes = list(PCAConfig, ICAConfig, tSNEConfig),
     id = "https://schema.rtemis.org/decomposition/v1/schema.json",
-    payload = "config",
+    base = DecompositionConfig,
     title = "rtemis DecompositionConfig",
     instance_schema_url = "https://schema.rtemis.org/decomposition/v1/schema.json"
   )
@@ -148,16 +148,24 @@ test_that("S7_dispatcher_JSONSchema derives enum, leaf refs, and allOf", {
     as.character(s[["properties"]][["algorithm"]][["enum"]]),
     c("PCA", "ICA", "tSNE")
   )
-  # required = algorithm + payload; additionalProperties closed.
-  expect_identical(as.character(s[["required"]]), c("algorithm", "config"))
-  expect_false(s[["additionalProperties"]])
+  # Only the discriminator is required: a document holding nothing else is
+  # that algorithm with every default. There is no settings object to leave
+  # empty, so nothing else can be demanded.
+  expect_identical(as.character(s[["required"]]), "algorithm")
+  # The base's shared field is published once, beside the discriminator.
+  expect_true("features" %in% names(s[["properties"]]))
+  expect_false("config" %in% names(s[["properties"]]))
+  # The leaf is composed into this object, so strictness comes from
+  # unevaluatedProperties, not additionalProperties.
+  expect_false(s[["unevaluatedProperties"]])
+  expect_false("additionalProperties" %in% names(s))
   # $schema const present when instance_schema_url is set.
   expect_identical(
     s[["properties"]][["$schema"]][["const"]],
     "https://schema.rtemis.org/decomposition/v1/schema.json"
   )
-  # one allOf clause per class, dispatching the payload to the leaf URL by
-  # lowercase algorithm slug.
+  # one allOf clause per class, applying the leaf URL (by lowercase algorithm
+  # slug) to the whole object: the `then` is exactly the `$ref`.
   expect_length(s[["allOf"]], 3L)
   clause <- s[["allOf"]][[3L]]
   expect_identical(
@@ -165,27 +173,41 @@ test_that("S7_dispatcher_JSONSchema derives enum, leaf refs, and allOf", {
     "tSNE"
   )
   expect_identical(
-    clause[["then"]][["properties"]][["config"]][["$ref"]],
-    "https://schema.rtemis.org/decomposition/tsne/v1/schema.json"
+    clause[["then"]],
+    list(`$ref` = "https://schema.rtemis.org/decomposition/tsne/v1/schema.json")
+  )
+  # The shape rule is stated in the description, once, the same for every
+  # family.
+  expect_match(s[["description"]], "siblings of it", fixed = TRUE)
+})
+
+test_that("a record dispatcher requires every field it declares", {
+  s <- S7_dispatcher_JSONSchema(
+    classes = list(PCAConfig, ICAConfig),
+    id = "https://schema.rtemis.org/decomposition/v1/record.json",
+    base = DecompositionConfig,
+    record = TRUE
+  )
+  expect_identical(as.character(s[["required"]]), c("algorithm", "features"))
+  expect_identical(
+    s[["allOf"]][[1L]][["then"]][["$ref"]],
+    "https://schema.rtemis.org/decomposition/pca/v1/record.json"
   )
 })
 
-test_that("dispatcher supports a custom discriminator and top-level mode", {
+test_that("dispatcher supports a custom discriminator", {
   s <- S7_dispatcher_JSONSchema(
     classes = list(KFoldConfig, LOOCVConfig),
     id = "https://schema.rtemis.org/resampler/v1/schema.json",
-    discriminator = "type",
-    payload = NULL
+    discriminator = "type"
   )
   expect_identical(
     as.character(s[["properties"]][["type"]][["enum"]]),
     c("KFold", "LOOCV")
   )
-  # Top-level mode composes the leaf into the object, so strictness comes
-  # from unevaluatedProperties, not additionalProperties.
   expect_false(s[["unevaluatedProperties"]])
   expect_false("additionalProperties" %in% names(s))
-  # No payload property, and `then` applies the leaf $ref to the whole object.
+  # `then` applies the leaf $ref to the whole object.
   expect_false("config" %in% names(s[["properties"]]))
   expect_identical(
     s[["allOf"]][[1L]][["then"]][["$ref"]],
@@ -286,15 +308,13 @@ test_that("serialized configs carry only declared parameters", {
   # others are what a portable config omits.
   h <- setup_LightRF(nrounds = 100L)
   hp <- serializable_props(h)
-  expect_identical(names(hp), c("algorithm", "hyperparameters"))
+  # The algorithm leads and its settings are its siblings: nothing is nested.
+  expect_identical(names(hp)[[1L]], "algorithm")
+  expect_false("hyperparameters" %in% names(hp))
   expect_length(h@constant_hyperparameters, 4L)
-  expect_false(any(
-    h@constant_hyperparameters %in% names(hp[["hyperparameters"]])
-  ))
+  expect_false(any(h@constant_hyperparameters %in% names(hp)))
   # tSNE's Y_init (a matrix) has no JSON form.
-  expect_false(
-    "Y_init" %in% names(serializable_props(setup_tSNE())[["config"]])
-  )
+  expect_false("Y_init" %in% names(serializable_props(setup_tSNE())))
   # A resampler serializes type + n_resamples + its settings, but not id_strat.
   rs <- serializable_props(setup_KFold(n_resamples = 5L))
   expect_true(all(c("type", "n_resamples") %in% names(rs)))
@@ -305,8 +325,7 @@ test_that("serialized configs carry only declared parameters", {
   )
   # A tuner keeps its nested resampler config (it serializes as its own schema).
   expect_true(
-    "resampler_config" %in%
-      names(serializable_props(setup_GridSearch())[["config"]])
+    "resampler_config" %in% names(serializable_props(setup_GridSearch()))
   )
 })
 
@@ -314,7 +333,6 @@ test_that("dispatcher generates the discriminator from a spec", {
   s <- S7_dispatcher_JSONSchema(
     classes = list(PCAConfig, ICAConfig),
     id = "https://schema.rtemis.org/decomposition/v1/schema.json",
-    payload = "config",
     discriminator_description = "Decomposition algorithm name."
   )
   algorithm <- s[["properties"]][["algorithm"]]
@@ -333,7 +351,6 @@ test_that("dispatcher emits the family base's shared properties", {
   s <- S7_dispatcher_JSONSchema(
     classes = list(PCAConfig, ICAConfig),
     id = "https://schema.rtemis.org/decomposition/v1/schema.json",
-    payload = "config",
     base = DecompositionConfig
   )
   # Generated from the same PropertySpec the R class enforces, so the two
@@ -384,7 +401,6 @@ test_that("a resampler declares n_resamples per type, not on the base", {
     classes = list(KFoldConfig, LOOCVConfig),
     id = "https://schema.rtemis.org/resampler/v1/schema.json",
     discriminator = "type",
-    payload = NULL,
     base = ResamplerConfig
   )
   expect_identical(names(disp[["properties"]]), "type")
@@ -397,20 +413,15 @@ test_that("dispatcher skips spec-less base machinery and needs no base", {
   s <- S7_dispatcher_JSONSchema(
     classes = list(CARTHyperparameters, GLMHyperparameters),
     id = "https://schema.rtemis.org/hyperparameters/v1/schema.json",
-    payload = "hyperparameters",
     base = Hyperparameters
   )
-  expect_identical(
-    names(s[["properties"]]),
-    c("algorithm", "hyperparameters")
-  )
+  expect_identical(names(s[["properties"]]), "algorithm")
   # `base` is optional.
   bare <- S7_dispatcher_JSONSchema(
     classes = list(KMeansConfig),
-    id = "https://schema.rtemis.org/clustering/v1/schema.json",
-    payload = "config"
+    id = "https://schema.rtemis.org/clustering/v1/schema.json"
   )
-  expect_identical(names(bare[["properties"]]), c("algorithm", "config"))
+  expect_identical(names(bare[["properties"]]), "algorithm")
   expect_error(
     S7_dispatcher_JSONSchema(
       classes = list(KMeansConfig),
@@ -422,41 +433,85 @@ test_that("dispatcher skips spec-less base machinery and needs no base", {
 })
 
 
-test_that("dispatcher orders base properties after the payload", {
+test_that("dispatcher orders base properties after the discriminator", {
   s <- S7_dispatcher_JSONSchema(
     classes = list(PCAConfig),
     id = "https://schema.rtemis.org/decomposition/v1/schema.json",
-    payload = "config",
     base = DecompositionConfig,
     instance_schema_url = "https://schema.rtemis.org/decomposition/v1/schema.json"
   )
   expect_identical(
     names(s[["properties"]]),
-    c("$schema", "algorithm", "config", "features")
+    c("$schema", "algorithm", "features")
   )
 })
 
 
 # %% Serialization ----
 test_that("config families serialize to their canonical public shape", {
-  # DecompositionConfig -> {algorithm, config[, features]}
-  expect_identical(
-    names(serializable_props(setup_PCA(k = 3L))),
-    c("algorithm", "config")
-  )
-  expect_identical(
-    names(serializable_props(setup_PCA(k = 3L, features = c("a", "b")))),
-    c("algorithm", "config", "features")
-  )
-  # ClusteringConfig -> {algorithm, config}
-  expect_identical(
-    names(serializable_props(setup_KMeans(k = 3L))),
-    c("algorithm", "config")
-  )
-  # The per-algorithm properties are NOT leaked as siblings of config.
+  # DecompositionConfig -> {algorithm, features, <settings>}: the discriminator
+  # leads, the base's shared field follows, and the settings are siblings.
+  pca <- serializable_props(setup_PCA(k = 3L, features = c("a", "b")))
+  expect_identical(names(pca)[1:2], c("algorithm", "features"))
+  expect_identical(pca[["features"]], c("a", "b"))
+  expect_identical(pca[["k"]], 3L)
+  expect_false("config" %in% names(pca))
+  # An unset shared field is written as NULL here and compacted away by
+  # `write_config()`, like any other unset value.
+  expect_null(serializable_props(setup_PCA(k = 3L))[["features"]])
+  # ClusteringConfig -> {algorithm, <settings>}
+  km <- serializable_props(setup_KMeans(k = 3L))
+  expect_identical(names(km)[[1L]], "algorithm")
+  expect_identical(km[["k"]], 3L)
+  expect_false("config" %in% names(km))
   s7l <- S7_to_list(setup_DBSCAN(eps = 0.5))
-  expect_identical(sort(names(s7l)), c("algorithm", "config"))
-  expect_false("eps" %in% names(s7l))
+  expect_identical(s7l[["algorithm"]], "DBSCAN")
+  expect_identical(s7l[["eps"]], 0.5)
+  expect_false("config" %in% names(s7l))
+})
+
+test_that("a discriminator alone reconstructs a variant with every default", {
+  # The shape's whole point: nothing set is said by absence, and there is no
+  # settings object a writer has to remember to leave empty.
+  expect_s7_class(
+    .list_to_Hyperparameters(list(algorithm = "Ranger")),
+    RangerHyperparameters
+  )
+  expect_s7_class(
+    .list_to_DecompositionConfig(list(algorithm = "PCA")),
+    PCAConfig
+  )
+  expect_s7_class(
+    .list_to_ClusteringConfig(list(algorithm = "KMeans")),
+    KMeansConfig
+  )
+  expect_s7_class(
+    .list_to_TunerConfig(list(type = "GridSearch")),
+    GridSearchConfig
+  )
+})
+
+test_that("settings nested under a settings key are refused with the fix", {
+  # The shape these families once had. Refused by name rather than as an
+  # unknown key, because the message has to say where the settings go.
+  for (call in list(
+    quote(.list_to_Hyperparameters(list(
+      algorithm = "CART",
+      hyperparameters = list(maxdepth = 3L)
+    ))),
+    quote(.list_to_DecompositionConfig(list(
+      algorithm = "PCA",
+      config = list(k = 2L)
+    ))),
+    quote(.list_to_ClusteringConfig(list(
+      algorithm = "KMeans",
+      config = list(k = 2L)
+    ))),
+    quote(.list_to_TunerConfig(list(type = "GridSearch", config = list())))
+  )) {
+    msg <- tryCatch(eval(call), error = conditionMessage)
+    expect_match(msg, "settings are siblings of", fixed = TRUE)
+  }
 })
 
 # %% x-rtemis annotations ----
@@ -625,16 +680,10 @@ test_that("every .list_to_* rejects a key its config does not declare", {
   }
   reject(.list_to_PreprocessorConfig(list(scale = TRUE, bogus = 1)))
   reject(.list_to_ResamplerConfig(list(type = "KFold", bogus = 1)))
-  reject(.list_to_Hyperparameters(list(
-    algorithm = "CART",
-    hyperparameters = list(bogus = 1)
-  )))
+  reject(.list_to_Hyperparameters(list(algorithm = "CART", bogus = 1)))
   reject(.list_to_DecompositionConfig(list(algorithm = "PCA", bogus = 1)))
   reject(.list_to_ClusteringConfig(list(algorithm = "KMeans", bogus = 1)))
-  reject(.list_to_TunerConfig(list(
-    type = "GridSearch",
-    config = list(bogus = 1)
-  )))
+  reject(.list_to_TunerConfig(list(type = "GridSearch", bogus = 1)))
   reject(.list_to_SuperConfig(list(bogus = 1)))
   reject(.list_to_DecomposeConfig(list(bogus = 1)))
   reject(.list_to_ClusterConfig(list(bogus = 1)))
@@ -671,10 +720,7 @@ test_that("a near-miss key is named with its likely intent", {
   # A typo: small edit distance.
   expect_match(
     tryCatch(
-      .list_to_Hyperparameters(list(
-        algorithm = "CART",
-        hyperparameters = list(maxdept = 3L)
-      )),
+      .list_to_Hyperparameters(list(algorithm = "CART", maxdept = 3L)),
       error = conditionMessage
     ),
     "did you mean `maxdepth`",
