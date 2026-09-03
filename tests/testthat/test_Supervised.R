@@ -4329,9 +4329,7 @@ test_that("a fold's origins are paired against the run's input", {
     ),
     verbosity = 0L
   )
-  origin <- record(mod)[["folds"]][[1L]][["hyperparameters"]][[
-    "hyperparameters"
-  ]][["origin"]]
+  origin <- record(mod)[["folds"]][[1L]][["hyperparameters"]][["origin"]]
   expect_identical(origin[["maxdepth"]], "tuned")
   expect_identical(origin[["minsplit"]], "user")
   expect_identical(origin[["cp"]], "default")
@@ -5007,8 +5005,17 @@ test_that("a meta learner's record carries one block per library entry", {
     c("GLM", "CART")
   )
   for (entry in entries) {
-    expect_identical(names(entry), c("algorithm", "hyperparameters"))
-    expect_true("origin" %in% names(entry[["hyperparameters"]]))
+    # Flat, like every family block: the discriminator leads -- a dispatcher
+    # keys its `if/then` on it, and a block that does not lead with it matches
+    # no branch -- and the leaf's own settings follow as siblings.
+    expect_identical(names(entry)[[1L]], "algorithm")
+    # `origin` accounts for every setting the block carries. That is what makes
+    # the entry readable on its own, and it is the half a flat *merge* into the
+    # parent would lose.
+    expect_setequal(
+      names(entry[["origin"]]),
+      setdiff(names(entry), c("algorithm", "origin"))
+    )
   }
   expect_identical(payload[["meta_learner"]][["algorithm"]], "NNLS")
 })
