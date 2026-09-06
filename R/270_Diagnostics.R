@@ -23,7 +23,7 @@
 # guesses is worse than none.
 
 # %% DIAGNOSTIC_CODES ----
-# The diagnostic vocabulary. One schema code plus the seven data checks.
+# The diagnostic vocabulary. One schema code plus the eight data checks.
 #
 # `SCHEMA_INVALID` is the whole schema half: `read_config()`'s reconstruction
 # either succeeds or names what is wrong, so the finding is that condition
