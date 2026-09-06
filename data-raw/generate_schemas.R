@@ -26,6 +26,7 @@ record_parts <- c("provenance", "datafingerprint", "dataref")
 result_classes <- c(
   "regressionmetrics",
   "classificationmetrics",
+  "clusteringmetrics",
   "decompositionmetrics",
   "regressionmetricsres",
   "classificationmetricsres",

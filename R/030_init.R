@@ -724,6 +724,54 @@ cluster_ <- new_generic(
 ) # /rtemis::cluster_
 
 
+# %% cluster_membership ----
+#' Generic for extracting a clustering's membership matrix
+#'
+#' Dispatches on the *config* class, which `cluster()` holds. The default
+#' method returns NULL, so an algorithm that fits no membership matrix needs no
+#' method and `cluster()` builds a `HardClustering` for it. An algorithm that
+#' does fit one returns it with **column j corresponding to cluster label j**;
+#' `SoftClustering`'s validator checks what it can of that, but permuting the
+#' backend's columns into rtemis' order is the method's responsibility.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+cluster_membership <- new_generic(
+  "cluster_membership",
+  "config",
+  function(config, clust) {
+    force_supplied()
+    S7_dispatch()
+  }
+) # /rtemis::cluster_membership
+
+
+# %% cluster_k ----
+#' Generic for the number of clusters a fit produced
+#'
+#' Only consulted when the config does not prescribe `k`. Returns the number of
+#' **fitted** clusters -- excluding a noise label, and including a cluster that
+#' won no case -- which is not in general the number of distinct labels.
+#'
+#' The default method aborts rather than counting labels: label counting is
+#' correct only where a backend's non-noise labels enumerate its fitted
+#' clusters, so an algorithm that discovers `k` has to say where its count comes
+#' from instead of inheriting a guess.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+cluster_k <- new_generic(
+  "cluster_k",
+  "config",
+  function(config, clust) {
+    force_supplied()
+    S7_dispatch()
+  }
+) # /rtemis::cluster_k
+
+
 # %% desc ----
 #' Short description for inline printing.
 #' This is like `repr` for single-line descriptions.

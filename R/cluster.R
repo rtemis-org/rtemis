@@ -92,12 +92,19 @@ cluster <- function(
     args = list(clust = clust)
   )
 
+  # Soft algorithms carry a weight per cluster per case; the rest do not, and
+  # that is what selects the result variant below.
+  membership <- cluster_membership(config = config, clust = clust)
+
   if (!is.null(config[["k"]])) {
     # For algorithms where k is specified in config
     k <- config[["k"]]
   } else {
-    # For algorithms where k is not prescribed, but determined from the clustering result
-    k <- length(unique(clusters))
+    # For algorithms where k is not prescribed but determined by the fit. The
+    # algorithm says where its count comes from: counting distinct labels
+    # over-counts a noise sentinel and under-counts a cluster that won no case,
+    # so it is DBSCAN's method rather than the general answer.
+    k <- cluster_k(config = config, clust = clust)
     if (verbosity > 0L) {
       msg0(paste0("Found ", highlight(k), " clusters."))
     }
@@ -105,13 +112,30 @@ cluster <- function(
 
   # Outro ----
   outro(start_time, verbosity = verbosity)
-  out <- Clustering(
-    algorithm = algorithm,
-    clust = clust,
-    k = k,
-    clusters = clusters,
-    config = config
-  )
+  # `Clustering` is abstract: every result is one variant or the other, and
+  # which one follows from whether the algorithm produced a membership matrix.
+  out <- if (is.null(membership)) {
+    HardClustering(
+      algorithm = algorithm,
+      clust = clust,
+      k = k,
+      clusters = clusters,
+      config = config
+    )
+  } else {
+    SoftClustering(
+      algorithm = algorithm,
+      clust = clust,
+      k = k,
+      clusters = clusters,
+      config = config,
+      membership = membership
+    )
+  }
+
+  # Cheap measures only, computed inline as `decomp()` does. See
+  # `compute_clustering_metrics()` on what is deliberately not here.
+  out@metrics <- compute_clustering_metrics(out)
 
   # `cluster()` fits every column it is given, so the input frame is the data
   # the run used. Reduced to a matrix like `decomp()` does, for the same reason

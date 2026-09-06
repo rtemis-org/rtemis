@@ -85,7 +85,11 @@ test_that("DecompositionConfig generates its JSON Schema", {
   HardCL = HardCLConfig,
   NeuralGas = NeuralGasConfig,
   CMeans = CMeansConfig,
-  DBSCAN = DBSCANConfig
+  DBSCAN = DBSCANConfig,
+  GMM = GMMConfig,
+  HOPACH = HOPACHConfig,
+  PAM = PAMConfig,
+  PAMK = PAMKConfig
 )
 
 test_that("setup_* clustering defaults do not drift from property defaults", {
@@ -114,6 +118,14 @@ test_that("clustering config validators enforce bounds and enums", {
   expect_error(setup_DBSCAN(eps = 0)) # exclusive min
   expect_error(setup_CMeans(m = 1)) # exclusive min
   expect_error(setup_DBSCAN(search = "bogus"))
+  expect_error(setup_HOPACH(max_levels = 16L)) # max
+  expect_error(setup_HOPACH(max_children = 1L)) # min
+  expect_error(setup_HOPACH(element_order = "co")) # backend option that never works
+  expect_error(setup_GMM(k = 0L)) # min
+  expect_error(setup_GMM(model_names = "ZZZ")) # enum
+  expect_error(setup_PAM(variant = "bogus"))
+  expect_error(setup_PAMK(alpha = 1.5)) # max
+  expect_error(setup_PAMK(krange = 1L)) # class validator: needs a candidate > 1
 })
 
 test_that("CMeans weights broadcast and control is an open object", {

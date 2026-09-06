@@ -1,5 +1,61 @@
 # rtemis news
 
+## 1.4.0
+
+- **A clustering run now reports metrics, and says why a measure is absent.**
+  New `ClusteringMetrics`, published as `clusteringmetrics/v1` and carried by
+  the run record: a one-row table of `n_cases`, `n_clusters`, `noise_fraction`,
+  `mean_assignment_uncertainty` and `mean_assignment_entropy`, beside a matching
+  row of statuses. `NA` alone cannot distinguish a measure that came out
+  undefined from one the algorithm cannot support or one nobody asked for, so
+  each value carries one of `computed`, `unsupported`, `not_applicable`,
+  `not_requested` or `undefined`. Values and statuses are generated from a
+  single measure declaration, and the rule joining them -- `computed` promises a
+  number, every other status promises none -- is enforced by the class and
+  mirrored into the published schema, so a non-R implementation cannot accept a
+  document rtemis rejects. `n_clusters` is copied from `Clustering@k` rather
+  than recounted. Only measures linear in cases times clusters, over values
+  already in hand, are computed on every run; a silhouette is quadratic and
+  will need an explicit call.
+- **Clustering results are now typed by whether they carry memberships.**
+  `Clustering` is abstract with two variants: `HardClustering`, and
+  `SoftClustering`, which adds a required `membership` matrix -- one row per
+  case, one column per cluster, validated for finiteness, range, row sums and
+  agreement with the hard labels. CMeans was discarding the membership matrix
+  it already fitted; it now reports it. `Clustering@k` is the number of
+  *fitted* clusters, from a new `cluster_k()` the algorithm registers, rather
+  than the number of distinct labels: the label count over-reported DBSCAN's
+  noise sentinel as a cluster (an all-noise fit reported one) and would
+  under-report a mixture component that wins no case.
+- **New clustering algorithm: GMM, the Gaussian mixture model** --
+  `setup_GMM()`, via 'mclust'. Each cluster is a Gaussian component with its
+  own mean and covariance, so clusters may be elongated, differently oriented
+  and differently sized, and every case carries a posterior probability per
+  component. The first algorithm to select its own `k`: leave `k` unset and BIC
+  chooses both the number of components and the covariance parameterization;
+  set it and BIC chooses only the parameterization.
+- **New clustering algorithms: PAM and PAMK, partitioning around medoids** --
+  `setup_PAM()` via 'cluster', `setup_PAMK()` via 'fpc'. PAM is the
+  medoid-based counterpart of k-means, usable with non-Euclidean
+  dissimilarities and less sensitive to outliers; it takes `k`. PAMK fits PAM
+  (or CLARA, with `use_pam = FALSE`) for every candidate in `krange` and keeps
+  the best by average silhouette width or Calinski-Harabasz, so it takes no
+  `k` and `Clustering@k` reports what the search chose. Neither can place
+  unseen cases in a fitted partition, so `newdata` is refused rather than
+  ignored.
+- **New clustering algorithm: HOPACH, the Hierarchical Ordered Partitioning
+  and Collapsing Hybrid of van der Laan & Pollard (2003)** -- `setup_HOPACH()`,
+  via the Bioconductor package 'hopach'. A divisive tree with collapsing steps at each
+  level, which selects the level with maximally homogeneous clusters by the
+  median (or mean) split silhouette. It is the first clustering algorithm that
+  *discovers* `k` as well as ordering its clusters, so it takes no `k`:
+  `max_levels` and `max_children` bound the tree, and `Clustering@k` reports
+  what was found. It cannot place unseen cases in the fitted tree, so
+  `newdata` is refused rather than ignored. Two options the backend documents
+  are not offered because they do not work: `d = "abseuclid"`, which
+  `distancematrix()` has no branch for, and `ord = "co"`, which errors for
+  every input.
+
 ## 1.3.9
 
 - **Every config family now publishes one shape: the discriminator with the

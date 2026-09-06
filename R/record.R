@@ -862,7 +862,9 @@ method(record, Clustering) <- function(x, outcome = "completed") {
     x@cluster_config,
     "clustering_config",
     x@config,
-    outcome
+    outcome,
+    metrics_block = TRUE,
+    metrics = x@metrics
   )
 } # /rtemis::record.Clustering
 
