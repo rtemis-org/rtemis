@@ -126,6 +126,17 @@ method(cluster_, PAMKConfig) <- function(config, x, verbosity = 1L) {
 } # /rtemis::cluster_.PAMKConfig
 
 
+# %% cluster_k.PAMKConfig ----
+# `pamk()` reports the number of clusters its criterion selected. Taken from
+# there rather than from the labels, so the two cannot disagree.
+#
+#' @keywords internal
+#' @noRd
+method(cluster_k, PAMKConfig) <- function(config, clust) {
+  as.integer(clust[["nc"]])
+} # /rtemis::cluster_k.PAMKConfig
+
+
 # %% clustpredict_PAMK ----
 #' clustpredict method for PAMK
 #'

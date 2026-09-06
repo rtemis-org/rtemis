@@ -57,6 +57,32 @@ method(serializable_props, ClusteringConfig) <- function(x) {
 } # /rtemis::serializable_props.ClusteringConfig
 
 
+# %% cluster_membership.ClusteringConfig ----
+# The default: no membership matrix, so `cluster()` builds a `HardClustering`.
+# An algorithm that fits one overrides this; the presence of an override is what
+# the roster test asserts, since a missing method is silently indistinguishable
+# from a genuine absence.
+method(cluster_membership, ClusteringConfig) <- function(config, clust) {
+  NULL
+} # /rtemis::cluster_membership.ClusteringConfig
+
+
+# %% cluster_k.ClusteringConfig ----
+# Deliberately an abort, not a label count. Counting distinct labels is right
+# only where a backend's non-noise labels enumerate its fitted clusters; it
+# over-counts a noise sentinel and under-counts a cluster that won no case. An
+# algorithm that discovers `k` states where its count comes from.
+method(cluster_k, ClusteringConfig) <- function(config, clust) {
+  rtemis.core::abort(
+    "`",
+    config@algorithm,
+    "` does not prescribe `k` and registers no `cluster_k()` method, so the ",
+    "number of clusters it found cannot be established.",
+    class = c("rtemis_unsupported_error", "rtemis_error")
+  )
+} # /rtemis::cluster_k.ClusteringConfig
+
+
 # %% `$`.ClusteringConfig ----
 # Make ClusteringConfig@config `$`-accessible
 method(`$`, ClusteringConfig) <- function(x, name) {

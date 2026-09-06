@@ -51,6 +51,18 @@ method(cluster_, HOPACHConfig) <- function(config, x, verbosity = 1L) {
 } # /rtemis::cluster_.HOPACHConfig
 
 
+# %% cluster_k.HOPACHConfig ----
+# `hopach()` reports the size of the level it selected, which is the fitted
+# count. Its labels are level-path codes remapped by `clustpredict_HOPACH()`,
+# so counting them would be counting the remapping rather than the fit.
+#
+#' @keywords internal
+#' @noRd
+method(cluster_k, HOPACHConfig) <- function(config, clust) {
+  as.integer(clust[["clustering"]][["k"]])
+} # /rtemis::cluster_k.HOPACHConfig
+
+
 # %% clustpredict_HOPACH ----
 #' clustpredict method for HOPACH
 #'
