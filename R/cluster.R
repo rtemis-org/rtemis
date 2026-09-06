@@ -100,10 +100,10 @@ cluster <- function(
     # For algorithms where k is specified in config
     k <- config[["k"]]
   } else {
-    # For algorithms where k is not prescribed but determined by the fit. The
-    # algorithm says where its count comes from: counting distinct labels
-    # over-counts a noise sentinel and under-counts a cluster that won no case,
-    # so it is DBSCAN's method rather than the general answer.
+    # For algorithms where k is not prescribed but determined by the fit. Each
+    # algorithm reports its own fitted count: distinct labels answer that for
+    # some backends and not others, over-counting a noise sentinel and
+    # under-counting a cluster that won no case.
     k <- cluster_k(config = config, clust = clust)
     if (verbosity > 0L) {
       msg0(paste0("Found ", highlight(k), " clusters."))

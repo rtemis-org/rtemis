@@ -7,9 +7,10 @@
 # wrong, and only repeated sampling can tell the difference between a valid
 # region and a plausible-looking one.
 #
-# Each simulation is sized so its Monte Carlo standard error is small against
-# the tolerance it asserts, and seeded, so a failure is a regression rather than
-# a bad day. See `plan/conformal.md`.
+# Each simulation is seeded and checked against a band wide enough to be stable
+# over a handful of replications and narrow enough to catch a construction that
+# is off by an order statistic or not covering at all, so a failure is a
+# regression rather than a bad day. See `plan/conformal.md`.
 
 # %% Fixtures ----
 
@@ -215,7 +216,7 @@ test_that("a smaller alpha buys a wider interval", {
 
 # %% Coverage simulations ----
 
-test_that("split conformal attains nominal coverage over replications", {
+test_that("split conformal coverage lands in the right region", {
   # A smoke test that coverage lands in the right region, not a coverage study.
   # Coverage conditional on one calibration set is Beta-distributed around
   # `1 - alpha`, so a handful of replications is averaged and checked against a
@@ -241,7 +242,7 @@ test_that("split conformal attains nominal coverage over replications", {
 })
 
 
-test_that("CV+ attains nominal coverage over replications", {
+test_that("CV+ coverage clears its guarantee over replications", {
   skip_on_cran()
   set.seed(5252L)
   coverage <- vapply(
@@ -402,7 +403,7 @@ test_that("APS and LAC are both valid and trade set size for adaptivity", {
 })
 
 
-test_that("classification coverage holds over replications", {
+test_that("classification coverage lands in the right region", {
   skip_on_cran()
   set.seed(8282L)
   coverage <- vapply(
