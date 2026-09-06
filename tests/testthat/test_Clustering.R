@@ -274,7 +274,12 @@ test_that("clustpredict_PAM() and clustpredict_PAMK() refuse newdata", {
 
 test_that("Clustering is abstract; every result is one of the two variants", {
   expect_error(Clustering())
-  km <- cluster(x, algorithm = "KMeans", config = setup_KMeans(k = 3L), verbosity = 0L)
+  km <- cluster(
+    x,
+    algorithm = "KMeans",
+    config = setup_KMeans(k = 3L),
+    verbosity = 0L
+  )
   expect_s7_class(km, HardClustering)
   expect_s7_class(km, Clustering)
   expect_false(S7_inherits(km, SoftClustering))
@@ -282,7 +287,12 @@ test_that("Clustering is abstract; every result is one of the two variants", {
 
 test_that("CMeans yields a SoftClustering carrying its membership matrix", {
   skip_if_not_installed("e1071")
-  cl <- cluster(x, algorithm = "CMeans", config = setup_CMeans(k = 3L), verbosity = 0L)
+  cl <- cluster(
+    x,
+    algorithm = "CMeans",
+    config = setup_CMeans(k = 3L),
+    verbosity = 0L
+  )
   expect_s7_class(cl, SoftClustering)
   m <- cl@membership
   expect_true(is.matrix(m) && is.numeric(m))
@@ -301,11 +311,20 @@ test_that("CMeans yields a SoftClustering carrying its membership matrix", {
 
 test_that("SoftClustering rejects a permuted membership matrix", {
   skip_if_not_installed("e1071")
-  cl <- cluster(x, algorithm = "CMeans", config = setup_CMeans(k = 3L), verbosity = 0L)
+  cl <- cluster(
+    x,
+    algorithm = "CMeans",
+    config = setup_CMeans(k = 3L),
+    verbosity = 0L
+  )
   build <- function(m, k = cl@k) {
     SoftClustering(
-      algorithm = "CMeans", clust = cl@clust, k = k,
-      clusters = cl@clusters, config = cl@config, membership = m
+      algorithm = "CMeans",
+      clust = cl@clust,
+      k = k,
+      clusters = cl@clusters,
+      config = cl@config,
+      membership = m
     )
   }
   m <- cl@membership
@@ -393,9 +412,14 @@ test_that("every algorithm produces the variant the roster claims", {
     PAMK = setup_PAMK(krange = 2:5)
   )
   pkgs <- c(
-    KMeans = "flexclust", HardCL = "flexclust", NeuralGas = "flexclust",
-    CMeans = "e1071", DBSCAN = "dbscan", HOPACH = "hopach",
-    PAM = "cluster", PAMK = "fpc"
+    KMeans = "flexclust",
+    HardCL = "flexclust",
+    NeuralGas = "flexclust",
+    CMeans = "e1071",
+    DBSCAN = "dbscan",
+    HOPACH = "hopach",
+    PAM = "cluster",
+    PAMK = "fpc"
   )
   for (nm in names(.clust_capabilities)) {
     skip_if_not_installed(pkgs[[nm]])
