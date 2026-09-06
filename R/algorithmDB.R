@@ -264,7 +264,6 @@ supervised_multiclass <- c(
 # needs every base to answer the *same* question, and rtemis's exact estimators
 # are each locked to one value function -- LinearSHAP is interventional-only,
 # LightGBM's TreeSHAP conditional-only -- so a mixed library has none in common.
-# See `plan/explain.md`.
 #
 # Only seven algorithms are unconditionally exact. That is the honest shape of
 # this: exactness is usually a property of the fitted model, and this column's

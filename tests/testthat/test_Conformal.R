@@ -10,7 +10,7 @@
 # Each simulation is seeded and checked against a band wide enough to be stable
 # over a handful of replications and narrow enough to catch a construction that
 # is off by an order statistic or not covering at all, so a failure is a
-# regression rather than a bad day. See `plan/conformal.md`.
+# real regression.
 
 # %% Fixtures ----
 

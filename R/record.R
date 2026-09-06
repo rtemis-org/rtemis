@@ -3,7 +3,7 @@
 # 2026- EDG rtemis.org
 
 # Turning a finished run into a record: the values it used, where each one came
-# from, and what produced it. See `plan/config-artifacts.md`.
+# from, and what produced it.
 #
 # The hard part is `origin`, and what makes it answerable is that a model
 # carries *both* configs -- the input it was given (`@config`) and the resolved
