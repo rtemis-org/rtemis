@@ -1,5 +1,5 @@
 Package: rtemis
-Version: 1.3.9
+Version: 1.4.0
 Title: Machine Learning and Visualization
 Date: 2026-08-31
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
@@ -38,6 +38,7 @@ Suggests:
     arrow,
     bit64,
     car,
+    cluster,
     colorspace,
     DBI,
     dbscan,
@@ -48,6 +49,7 @@ Suggests:
     farff,
     fastICA,
     flexclust,
+    fpc,
     future.mirai,
     geosphere,
     ggplot2,
@@ -59,6 +61,7 @@ Suggests:
     hal9001,
     haven,
     heatmaply,
+    hopach,
     htmltools,
     htmlwidgets,
     igraph,

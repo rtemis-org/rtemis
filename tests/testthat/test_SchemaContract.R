@@ -53,7 +53,10 @@
     list(HardCLConfig, "setup_HardCL"),
     list(NeuralGasConfig, "setup_NeuralGas"),
     list(CMeansConfig, "setup_CMeans"),
-    list(DBSCANConfig, "setup_DBSCAN")
+    list(DBSCANConfig, "setup_DBSCAN"),
+    list(HOPACHConfig, "setup_HOPACH"),
+    list(PAMConfig, "setup_PAM"),
+    list(PAMKConfig, "setup_PAMK")
   ),
   .contract_family(
     ResamplerConfig,

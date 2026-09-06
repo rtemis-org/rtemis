@@ -8,6 +8,7 @@ BARTHyperparameters
 BH
 Barmode
 Bienenstock
+Calinski
 Candes
 CARTHyperparameters
 CDN
@@ -20,6 +21,7 @@ CMRG
 ConditionalSuperLearner
 ConditionalSuperLearnerHyperparameters
 Conformalized
+asw
 conformalized
 conformalizes
 CQR
@@ -32,6 +34,7 @@ DecompositionConfig
 Doursat
 dtype
 DuckDB
+Duda
 EDG
 Efron
 elasticnet
@@ -39,6 +42,7 @@ exchangeability
 FASTA
 finiteness
 GAMHyperparameters
+fpc
 gbdt
 GLMHyperparameters
 GLMNET
@@ -50,14 +54,20 @@ GLU
 Gantt
 Geman
 Gini
+Harabasz
 HyperparametersSet
 goss
 GOSS
 HALHyperparameters
 HardCLConfig
+HOPACH
+HOPACHConfig
 Hastie
 Hornik
 Hothorn
+Bioconductor
+MJ
+MSS
 hessians
 huber
 ICA
@@ -120,6 +130,7 @@ ModalityStackingHyperparameters
 MonotonicHAL
 MonotonicHALHyperparameters
 Multilayer
+multiasw
 natively
 NCOL
 NMF
@@ -134,7 +145,11 @@ NeuralGasConfig
 OOB
 ORCID
 parallelly
+PAMConfig
+PAMK
+PAMKConfig
 PCAConfig
+PJ
 PNAS
 pre
 profilers
@@ -162,6 +177,7 @@ RangerHyperparameters
 Relatedly
 Resampler
 ResamplerConfig
+Rousseeuw
 Rprofile
 Sesia
 SL
@@ -212,6 +228,8 @@ XLSX
 Zeileis
 Zeitgeber
 Zerolines
+abscor
+abscosangle
 adam
 adamw
 additively
@@ -236,8 +254,10 @@ cholmod
 choropleth
 cli
 cloglog
+clust
 cmeans
 colorbar
+cosangle
 cryptographic
 ctree
 colorscale
@@ -270,6 +290,7 @@ embeddings
 entmax
 enum
 epanechnikov
+euclid
 extratrees
 fdr
 feedforward
@@ -290,6 +311,7 @@ hochberg
 holm
 hommel
 homoskedastic
+hopach
 htest
 htmlwidget
 https
@@ -326,6 +348,8 @@ maxstat
 md
 mds
 meanMode
+medoid
+medsil
 mgaussian
 micePMM
 minmax
@@ -344,6 +368,7 @@ multiway
 na
 nanoparquet
 nd
+nn
 nnls
 nrounds
 nullability
@@ -439,6 +464,7 @@ unprefixed
 unpruned
 unscorable
 untuned
+uwnn
 validator
 validators
 vaeac

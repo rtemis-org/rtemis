@@ -93,6 +93,32 @@ families <- list(
       list(
         cls = DBSCANConfig,
         desc = "DBSCAN density-based clustering."
+      ),
+      list(
+        cls = HOPACHConfig,
+        desc = "Hierarchical Ordered Partitioning and Collapsing Hybrid."
+      ),
+      list(
+        cls = PAMConfig,
+        desc = "Partitioning Around Medoids."
+      ),
+      list(
+        cls = PAMKConfig,
+        desc = "Partitioning Around Medoids with estimation of the number of clusters.",
+        # Mirrors `PAMKConfig`'s validator: neither criterion can score a
+        # single cluster, so a candidate set holding only 1 has nothing to
+        # choose between. `contains` states it without demanding the key.
+        extra = list(
+          allOf = list(
+            list(
+              properties = list(
+                krange = list(
+                  contains = list(type = "integer", minimum = 2L)
+                )
+              )
+            )
+          )
+        )
       )
     )
   ),

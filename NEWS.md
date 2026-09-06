@@ -1,5 +1,29 @@
 # rtemis news
 
+## 1.4.0
+
+- **New clustering algorithms: PAM and PAMK, partitioning around medoids** --
+  `setup_PAM()` via 'cluster', `setup_PAMK()` via 'fpc'. PAM is the
+  medoid-based counterpart of k-means, usable with non-Euclidean
+  dissimilarities and less sensitive to outliers; it takes `k`. PAMK fits PAM
+  (or CLARA, with `use_pam = FALSE`) for every candidate in `krange` and keeps
+  the best by average silhouette width or Calinski-Harabasz, so it takes no
+  `k` and `Clustering@k` reports what the search chose. Neither can place
+  unseen cases in a fitted partition, so `newdata` is refused rather than
+  ignored.
+- **New clustering algorithm: HOPACH, the Hierarchical Ordered Partitioning
+  and Collapsing Hybrid of van der Laan & Pollard (2003)** -- `setup_HOPACH()`,
+  via the Bioconductor package 'hopach'. A divisive tree with collapsing steps at each
+  level, which selects the level with maximally homogeneous clusters by the
+  median (or mean) split silhouette. It is the first clustering algorithm that
+  *discovers* `k` as well as ordering its clusters, so it takes no `k`:
+  `max_levels` and `max_children` bound the tree, and `Clustering@k` reports
+  what was found. It cannot place unseen cases in the fitted tree, so
+  `newdata` is refused rather than ignored. Two options the backend documents
+  are not offered because they do not work: `d = "abseuclid"`, which
+  `distancematrix()` has no branch for, and `ord = "co"`, which errors for
+  every input.
+
 ## 1.3.9
 
 - **Every config family now publishes one shape: the discriminator with the

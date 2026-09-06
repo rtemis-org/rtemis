@@ -573,13 +573,12 @@ clust_algorithms <- data.frame(rbind(
   c("DBSCAN", "Density-based spatial clustering of applications with noise"),
   # c("EMC", "Expectation Maximization Clustering"),
   c("HardCL", "Hard Competitive Learning"),
-  # c("HOPACH", "Hierarchical Ordered Partitioning And Collapsing Hybrid"),
-  # c("H2OKMeans", "H2O K-Means Clustering"),
+  c("HOPACH", "Hierarchical Ordered Partitioning and Collapsing Hybrid"),
   c("KMeans", "K-Means Clustering"),
   # c("MeanShift", "Mean Shift Clustering"),
-  c("NeuralGas", "Neural Gas Clustering")
-  # c("PAM", "Partitioning Around Medoids"),
-  # c("PAMK", "Partitioning Around Medoids with k estimation"),
+  c("NeuralGas", "Neural Gas Clustering"),
+  c("PAM", "Partitioning Around Medoids"),
+  c("PAMK", "Partitioning Around Medoids with k estimation")
   # c("SPEC", "Spectral Clustering")
 ))
 
