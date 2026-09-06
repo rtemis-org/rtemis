@@ -148,6 +148,7 @@
   "DataRef",
   "RegressionMetrics",
   "ClassificationMetrics",
+  "ClusteringMetrics",
   "DecompositionMetrics",
   "RegressionMetricsRes",
   "ClassificationMetricsRes",

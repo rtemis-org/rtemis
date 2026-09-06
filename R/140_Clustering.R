@@ -40,7 +40,10 @@ Clustering <- new_class(
     # alone cannot supply. Assigned by `cluster()`.
     cluster_config = NULL | ClusterConfig,
     # See `Decomposition@data_fingerprint`. Assigned by `cluster()`.
-    data_fingerprint = NULL | DataFingerprint
+    data_fingerprint = NULL | DataFingerprint,
+    # Metrics for the training data, assigned by `cluster()`; see
+    # `Decomposition@metrics`.
+    metrics = NULL | ClusteringMetrics
   )
 ) # /Clustering
 

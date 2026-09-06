@@ -2,6 +2,21 @@
 
 ## 1.4.0
 
+- **A clustering run now reports metrics, and says why a measure is absent.**
+  New `ClusteringMetrics`, published as `clusteringmetrics/v1` and carried by
+  the run record: a one-row table of `n_cases`, `n_clusters`, `noise_fraction`,
+  `mean_assignment_uncertainty` and `mean_assignment_entropy`, beside a matching
+  row of statuses. `NA` alone cannot distinguish a measure that came out
+  undefined from one the algorithm cannot support or one nobody asked for, so
+  each value carries one of `computed`, `unsupported`, `not_applicable`,
+  `not_requested` or `undefined`. Values and statuses are generated from a
+  single measure declaration, and the rule joining them -- `computed` promises a
+  number, every other status promises none -- is enforced by the class and
+  mirrored into the published schema, so a non-R implementation cannot accept a
+  document rtemis rejects. `n_clusters` is copied from `Clustering@k` rather
+  than recounted. Only measures linear in cases times clusters, over values
+  already in hand, are computed on every run; a silhouette is quadratic and
+  will need an explicit call.
 - **Clustering results are now typed by whether they carry memberships.**
   `Clustering` is abstract with two variants: `HardClustering`, and
   `SoftClustering`, which adds a required `membership` matrix -- one row per

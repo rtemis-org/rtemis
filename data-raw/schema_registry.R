@@ -31,6 +31,39 @@
 .meta_learner_array_refs <- c(base_learners = .url("hyperparameters"))
 
 
+# One `allOf` clause: a measure's status implies the shape of its value.
+# `metrics` and `status` are one-row *tables*, so both are arrays and the
+# per-measure keys sit under `items`; targeting `properties` directly emits a
+# fragment that silently validates everything.
+.status_implies <- function(nm, status_schema, value_schema) {
+  if (is.character(status_schema)) {
+    status_schema <- list(const = status_schema)
+  }
+  list(
+    `if` = list(
+      properties = list(
+        status = list(
+          items = list(
+            properties = stats::setNames(list(status_schema), nm),
+            required = I(nm)
+          )
+        )
+      ),
+      required = I("status")
+    ),
+    then = list(
+      properties = list(
+        metrics = list(
+          items = list(
+            properties = stats::setNames(list(value_schema), nm)
+          )
+        )
+      )
+    )
+  )
+} # /.status_implies
+
+
 families <- list(
   decomposition = list(
     base_class = DecompositionConfig,
@@ -572,6 +605,44 @@ flat_configs <- list(
       "form (one row per cell), overall metrics, and per-class metrics. Which ",
       "overall columns are present depends on the task, so only the invariant ",
       "ones are required."
+    )
+  ),
+  clusteringmetrics = list(
+    cls = ClusteringMetrics,
+    title = "rtemis ClusteringMetrics",
+    description = paste0(
+      "Clustering metrics: a single-row table of measure values beside a row ",
+      "of statuses saying why each holds what it does. Every measure is ",
+      "declared for every algorithm, so one an algorithm cannot support is ",
+      "null with a status of \"unsupported\" rather than an absent column -- ",
+      "null alone cannot distinguish a measure that was computed and came out ",
+      "undefined from one nobody asked for."
+    ),
+    # Mirrors `ClusteringMetrics`' validator: `computed` promises a number and
+    # every other status promises none. Generated from the same measure list as
+    # the columns, so a measure cannot be added to one and missed in the other.
+    #
+    # `metrics` and `status` are one-row *tables*, so both are arrays and the
+    # per-measure keys sit under `items`. Targeting `properties` directly would
+    # emit a fragment that silently validates everything.
+    extra = list(
+      allOf = unlist(
+        lapply(names(CLUSTERING_MEASURES), function(nm) {
+          list(
+            # computed => a value
+            .status_implies(nm, "computed", list(not = list(type = "null"))),
+            # not computed => no value. Both directions, because the validator
+            # enforces both and a half-mirrored rule is one other
+            # implementations still get wrong.
+            .status_implies(
+              nm,
+              list(not = list(const = "computed")),
+              list(type = "null")
+            )
+          )
+        }),
+        recursive = FALSE
+      )
     )
   ),
   decompositionmetrics = list(

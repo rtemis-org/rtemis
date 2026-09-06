@@ -383,6 +383,59 @@ test_that("cluster_k has no label-counting default", {
 })
 
 
+# %% ClusteringMetrics ----
+
+test_that("cluster() attaches metrics, with soft measures only where supported", {
+  hard <- cluster(
+    x,
+    algorithm = "KMeans",
+    config = setup_KMeans(k = 3L),
+    verbosity = 0L
+  )
+  expect_s7_class(hard@metrics, ClusteringMetrics)
+  m <- hard@metrics@metrics
+  st <- hard@metrics@status
+  expect_identical(m[["n_cases"]], nrow(x))
+  # Copied from `@k`, never recounted.
+  expect_identical(m[["n_clusters"]], hard@k)
+  expect_identical(st[["mean_assignment_uncertainty"]], "unsupported")
+  expect_true(is.na(m[["mean_assignment_uncertainty"]]))
+
+  skip_if_not_installed("e1071")
+  soft <- cluster(
+    x,
+    algorithm = "CMeans",
+    config = setup_CMeans(k = 3L),
+    verbosity = 0L
+  )
+  sm <- soft@metrics@metrics
+  expect_identical(soft@metrics@status[["mean_assignment_entropy"]], "computed")
+  expect_gte(sm[["mean_assignment_uncertainty"]], 0)
+  expect_gte(sm[["mean_assignment_entropy"]], 0)
+})
+
+test_that("a status of computed requires a value, and any other forbids one", {
+  # The rule the value/status split creates, mirrored into the published schema.
+  expect_error(ClusteringMetrics(sample = "Training", n_cases = NA_integer_))
+  ok <- ClusteringMetrics(sample = "Training", n_cases = 10L)
+  expect_identical(ok@status[["n_cases"]], "computed")
+  expect_identical(ok@status[["noise_fraction"]], "unsupported")
+  expect_true(is.na(ok@metrics[["noise_fraction"]]))
+})
+
+test_that("DBSCAN noise reaches the metrics as a fraction, not a cluster", {
+  skip_if_not_installed("dbscan")
+  cl <- cluster(
+    x,
+    algorithm = "DBSCAN",
+    config = setup_DBSCAN(eps = 0.3, min_points = 5L),
+    verbosity = 0L
+  )
+  expect_gt(cl@metrics@metrics[["noise_fraction"]], 0)
+  expect_identical(cl@metrics@metrics[["n_clusters"]], cl@k)
+})
+
+
 # %% Capability roster ----
 # Hand-written, and required to name every registered algorithm exactly. Never
 # derived from the registered methods: deriving it would conceal the omission

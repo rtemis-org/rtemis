@@ -133,6 +133,10 @@ cluster <- function(
     )
   }
 
+  # Cheap measures only, computed inline as `decomp()` does. See
+  # `compute_clustering_metrics()` on what is deliberately not here.
+  out@metrics <- compute_clustering_metrics(out)
+
   # `cluster()` fits every column it is given, so the input frame is the data
   # the run used. Reduced to a matrix like `decomp()` does, for the same reason
   # and one more: an "object" hash sees the container, so without it the same
