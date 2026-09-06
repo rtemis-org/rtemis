@@ -1,4 +1,5 @@
 AddTree
+AE
 ALTREP
 APS
 ARFF
@@ -36,9 +37,15 @@ dtype
 DuckDB
 Duda
 EDG
+EEE
+EEI
+EEV
 Efron
 elasticnet
 exchangeability
+EII
+EVI
+EVV
 FASTA
 finiteness
 GAMHyperparameters
@@ -54,6 +61,8 @@ GLU
 Gantt
 Geman
 Gini
+GMM
+GMMConfig
 Harabasz
 HyperparametersSet
 goss
@@ -112,6 +121,7 @@ LinearSVMHyperparameters
 luminance
 MARSHyperparameters
 MIDPT
+mclust
 minimizer
 Miscoverage
 misspecified
@@ -164,6 +174,7 @@ Preprocessor
 PreprocessorConfig
 Pretraining
 quantized
+Raftery
 Ramdas
 reassemblies
 redeclares
@@ -179,6 +190,7 @@ Resampler
 ResamplerConfig
 Rousseeuw
 Rprofile
+Scrucca
 Sesia
 SL
 SHAP
@@ -220,8 +232,14 @@ UMX
 UniProt
 Valdes
 visNetwork
+VEE
+VEI
+VEV
 Vovk
 vroom
+VVE
+VVI
+VVV
 WASM
 XGBoost
 XLSX

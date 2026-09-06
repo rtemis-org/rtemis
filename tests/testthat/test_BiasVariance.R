@@ -47,9 +47,17 @@ set.seed(2026)
 }
 
 
+# The CART baseline five tests compare against. `.execution` fixes the seed and
+# the data is fixed, so `.bv(setup_CART())` is deterministic -- which the
+# reproducibility test below asserts outright. Computing it once rather than per
+# test saves ~100 model fits and changes nothing that is asserted; the
+# reproducibility test deliberately keeps calling `.bv()` twice.
+.cart <- .bv(setup_CART())
+
+
 # %% Shape ----
 test_that("bias_variance() returns one estimate per test case", {
-  result <- .bv(setup_CART())
+  result <- .cart
   expect_s7_class(result, rtemis:::BiasVariance)
   expect_length(result@bias_squared, nrow(.test))
   expect_length(result@variance, nrow(.test))
@@ -65,7 +73,7 @@ test_that("a correctly specified model has almost no bias and almost no variance
   # The process is linear, so a penalized linear model is the right shape for it
   # and both terms should be small next to a tree's.
   linear <- .bv(setup_GLMNET(lambda = 0.1))
-  tree <- .bv(setup_CART())
+  tree <- .cart
   expect_lt(linear@mean_bias_squared, tree@mean_bias_squared)
   expect_lt(linear@mean_variance, tree@mean_variance)
 })
@@ -75,7 +83,7 @@ test_that("growing a tree deeper trades bias for variance", {
   # The trade-off the decomposition exists to expose: the deeper tree fits the
   # training sample more closely, so its average prediction is closer to the
   # truth and its predictions move more between samples.
-  shallow <- .bv(setup_CART())
+  shallow <- .cart
   deep <- .bv(setup_CART(maxdepth = 30L, minsplit = 2L, cp = 0))
   expect_lt(deep@mean_bias_squared, shallow@mean_bias_squared)
   expect_gt(deep@mean_variance, shallow@mean_variance)
@@ -84,7 +92,7 @@ test_that("growing a tree deeper trades bias for variance", {
 
 test_that("bagging cuts a tree's variance and leaves its bias", {
   # What a random forest is *for*, stated as a measurement.
-  tree <- .bv(setup_CART())
+  tree <- .cart
   forest <- .bv(setup_Ranger())
   expect_lt(forest@mean_variance, tree@mean_variance / 2)
 })
@@ -93,7 +101,7 @@ test_that("bagging cuts a tree's variance and leaves its bias", {
 test_that("measuring bias against the outcome inflates it by the noise variance", {
   # Without `true_values` the reference carries the irreducible noise, so what
   # is reported is bias^2 + sigma^2. Measured at 0.997 against a true 1.0.
-  exact <- .bv(setup_CART())
+  exact <- .cart
   contaminated <- .bv(setup_CART(), true_values = NULL)
   gap <- contaminated@mean_bias_squared - exact@mean_bias_squared
   expect_equal(gap, .noise_variance, tolerance = 0.15)

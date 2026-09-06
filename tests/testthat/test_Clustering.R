@@ -270,6 +270,35 @@ test_that("clustpredict_PAM() and clustpredict_PAMK() refuse newdata", {
 })
 
 
+# setup_GMM ----
+test_that("setup_GMM() succeeds", {
+  expect_s7_class(setup_GMM(), GMMConfig)
+  expect_null(setup_GMM()[["k"]])
+})
+
+# cluster GMM ----
+test_that("cluster_GMM() is soft, and k is fixed or selected", {
+  skip_if_not_installed("mclust")
+  fixed <- cluster(
+    x,
+    algorithm = "GMM",
+    config = setup_GMM(k = 3L),
+    verbosity = 0L
+  )
+  expect_s7_class(fixed, SoftClustering)
+  expect_identical(fixed@k, 3L)
+  expect_identical(dim(fixed@membership), c(nrow(x), 3L))
+  # `k` unset: BIC selects it, and `@k` is the fitted component count.
+  selected <- cluster(
+    x,
+    algorithm = "GMM",
+    config = setup_GMM(),
+    verbosity = 0L
+  )
+  expect_identical(selected@k, ncol(selected@membership))
+})
+
+
 # %% The hard/soft variant pair ----
 
 test_that("Clustering is abstract; every result is one of the two variants", {
@@ -364,6 +393,10 @@ test_that("cluster_k has no label-counting default", {
   NeuralGas = list(soft = FALSE, prescribes_k = TRUE),
   CMeans = list(soft = TRUE, prescribes_k = TRUE),
   DBSCAN = list(soft = FALSE, prescribes_k = FALSE),
+  # The hybrid: `k` is nullable, so unset means BIC selects it and GMM must
+  # register `cluster_k()`. `prescribes_k` asks whether the config *always*
+  # prescribes one, and GMM does not.
+  GMM = list(soft = TRUE, prescribes_k = FALSE),
   HOPACH = list(soft = FALSE, prescribes_k = FALSE),
   PAM = list(soft = FALSE, prescribes_k = TRUE),
   PAMK = list(soft = FALSE, prescribes_k = FALSE)
@@ -407,6 +440,7 @@ test_that("every algorithm produces the variant the roster claims", {
     NeuralGas = setup_NeuralGas(k = 3L),
     CMeans = setup_CMeans(k = 3L),
     DBSCAN = setup_DBSCAN(eps = 0.3, min_points = 5L),
+    GMM = setup_GMM(k = 3L),
     HOPACH = setup_HOPACH(dist = "euclid", max_levels = 3L, max_children = 5L),
     PAM = setup_PAM(k = 3L),
     PAMK = setup_PAMK(krange = 2:5)
@@ -417,6 +451,7 @@ test_that("every algorithm produces the variant the roster claims", {
     NeuralGas = "flexclust",
     CMeans = "e1071",
     DBSCAN = "dbscan",
+    GMM = "mclust",
     HOPACH = "hopach",
     PAM = "cluster",
     PAMK = "fpc"

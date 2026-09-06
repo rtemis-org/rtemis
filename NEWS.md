@@ -2,6 +2,23 @@
 
 ## 1.4.0
 
+- **Clustering results are now typed by whether they carry memberships.**
+  `Clustering` is abstract with two variants: `HardClustering`, and
+  `SoftClustering`, which adds a required `membership` matrix -- one row per
+  case, one column per cluster, validated for finiteness, range, row sums and
+  agreement with the hard labels. CMeans was discarding the membership matrix
+  it already fitted; it now reports it. `Clustering@k` is the number of
+  *fitted* clusters, from a new `cluster_k()` the algorithm registers, rather
+  than the number of distinct labels: the label count over-reported DBSCAN's
+  noise sentinel as a cluster (an all-noise fit reported one) and would
+  under-report a mixture component that wins no case.
+- **New clustering algorithm: GMM, the Gaussian mixture model** --
+  `setup_GMM()`, via 'mclust'. Each cluster is a Gaussian component with its
+  own mean and covariance, so clusters may be elongated, differently oriented
+  and differently sized, and every case carries a posterior probability per
+  component. The first algorithm to select its own `k`: leave `k` unset and BIC
+  chooses both the number of components and the covariance parameterization;
+  set it and BIC chooses only the parameterization.
 - **New clustering algorithms: PAM and PAMK, partitioning around medoids** --
   `setup_PAM()` via 'cluster', `setup_PAMK()` via 'fpc'. PAM is the
   medoid-based counterpart of k-means, usable with non-Euclidean

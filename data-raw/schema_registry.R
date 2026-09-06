@@ -95,6 +95,10 @@ families <- list(
         desc = "DBSCAN density-based clustering."
       ),
       list(
+        cls = GMMConfig,
+        desc = "Gaussian mixture model clustering."
+      ),
+      list(
         cls = HOPACHConfig,
         desc = "Hierarchical Ordered Partitioning and Collapsing Hybrid."
       ),

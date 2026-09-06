@@ -73,6 +73,7 @@ Suggests:
     lightAUC,
     lightgbm,
     matrixStats,
+    mclust,
     mgcv,
     mice,
     mirai,

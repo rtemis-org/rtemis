@@ -940,6 +940,113 @@ setup_PAMK <- function(
 } # /rtemis::setup_PAMK
 
 
+# %% GMMConfig ----
+#' @title GMMConfig
+#'
+#' @description
+#' ClusteringConfig subclass for Gaussian Mixture Model clustering.
+#'
+#' `k` is optional, which makes this the one clustering config that both
+#' prescribes and discovers: left unset, the number of components is selected
+#' by BIC over the candidate models; set, it is fixed and BIC selects only the
+#' covariance parameterization.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+GMMConfig <- new_class(
+  name = "GMMConfig",
+  parent = ClusteringConfig,
+  properties = list(
+    algorithm = prop_algorithm("GMM"),
+    k = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      description = paste0(
+        "Number of mixture components. Unset selects it by BIC over the ",
+        "candidate models."
+      )
+    ),
+    # The 14 multivariate parameterizations. Each is three letters for the
+    # components' volume, shape and orientation: E equal across components,
+    # V varying, I axis-aligned.
+    model_names = prop_string(
+      NULL,
+      enum = c(
+        "EII",
+        "VII",
+        "EEI",
+        "VEI",
+        "EVI",
+        "VVI",
+        "EEE",
+        "VEE",
+        "EVE",
+        "VVE",
+        "EEV",
+        "VEV",
+        "EVV",
+        "VVV"
+      ),
+      nullable = TRUE,
+      vector = TRUE,
+      unique_items = TRUE,
+      description = paste0(
+        "Covariance parameterizations to consider. Each names the components' ",
+        "volume, shape and orientation in that order: \"E\" equal across ",
+        "components, \"V\" varying, \"I\" axis-aligned. Unset considers all ",
+        "of them."
+      )
+    )
+  )
+) # /rtemis::GMMConfig
+
+
+# %% setup_GMM ----
+#' Setup GMMConfig
+#'
+#' Setup a `GMMConfig` object for Gaussian Mixture Model clustering, via the
+#' 'mclust' package.
+#'
+#' A GMM is the model-based counterpart of the prototype methods: each cluster
+#' is a Gaussian component with its own mean and covariance, so clusters may be
+#' elongated, differently oriented and differently sized, and every case gets a
+#' posterior probability for each component rather than only a label. The
+#' result is therefore a soft clustering.
+#'
+#' Both the number of components and the covariance parameterization are
+#' selected by BIC, which makes `k` optional: leave it unset to have the number
+#' of components chosen, or set it to fix the number and let BIC choose only the
+#' parameterization.
+#'
+#' Argument names are rtemis' own: `k` is `mclust::Mclust()`'s `G` and
+#' `model_names` is its `modelNames`.
+#'
+#' @param k Optional Integer [1, Inf): Number of mixture components. Unset selects it by BIC.
+#' @param model_names Optional Character \{"EII", "VII", "EEI", "VEI", "EVI", "VVI", "EEE", "VEE", "EVE", "VVE", "EEV", "VEV", "EVV", "VVV"\} vector: Covariance parameterizations to consider. Unset considers all of them.
+#'
+#' @return `GMMConfig` object.
+#'
+#' @references
+#' Scrucca L, Fop M, Murphy TB, Raftery AE (2016). mclust 5: Clustering,
+#' Classification and Density Estimation Using Gaussian Finite Mixture Models.
+#' \emph{The R Journal}, 8(1), 289-317.
+#' \doi{10.32614/RJ-2016-021}
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' gmm_config <- setup_GMM(k = 3L)
+#' gmm_config
+setup_GMM <- function(k = NULL, model_names = NULL) {
+  if (!is.null(k)) {
+    k <- clean_posint(k)
+  }
+  GMMConfig(k = k, model_names = model_names)
+} # /rtemis::setup_GMM
+
+
 # %% .list_to_ClusteringConfig ----
 #' Convert a list to a ClusteringConfig object
 #'

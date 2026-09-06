@@ -572,6 +572,7 @@ clust_algorithms <- data.frame(rbind(
   c("CMeans", "Fuzzy C-means Clustering"),
   c("DBSCAN", "Density-based spatial clustering of applications with noise"),
   # c("EMC", "Expectation Maximization Clustering"),
+  c("GMM", "Gaussian Mixture Model"),
   c("HardCL", "Hard Competitive Learning"),
   c("HOPACH", "Hierarchical Ordered Partitioning and Collapsing Hybrid"),
   c("KMeans", "K-Means Clustering"),

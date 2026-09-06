@@ -86,6 +86,7 @@ test_that("DecompositionConfig generates its JSON Schema", {
   NeuralGas = NeuralGasConfig,
   CMeans = CMeansConfig,
   DBSCAN = DBSCANConfig,
+  GMM = GMMConfig,
   HOPACH = HOPACHConfig,
   PAM = PAMConfig,
   PAMK = PAMKConfig
@@ -120,6 +121,8 @@ test_that("clustering config validators enforce bounds and enums", {
   expect_error(setup_HOPACH(max_levels = 16L)) # max
   expect_error(setup_HOPACH(max_children = 1L)) # min
   expect_error(setup_HOPACH(element_order = "co")) # backend option that never works
+  expect_error(setup_GMM(k = 0L)) # min
+  expect_error(setup_GMM(model_names = "ZZZ")) # enum
   expect_error(setup_PAM(variant = "bogus"))
   expect_error(setup_PAMK(alpha = 1.5)) # max
   expect_error(setup_PAMK(krange = 1L)) # class validator: needs a candidate > 1
