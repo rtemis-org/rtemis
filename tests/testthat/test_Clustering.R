@@ -101,6 +101,32 @@ test_that("cluster_DBSCAN() succeeds", {
   expect_s7_class(iris_dbscan, Clustering)
 })
 
+# DBSCAN noise is not a cluster ----
+test_that("cluster() does not count DBSCAN noise as a cluster", {
+  skip_if_not_installed("dbscan")
+  # `eps` small enough that most cases are noise (label 0) but some clusters
+  # remain: `@k` must count the clusters, not the noise label.
+  partial <- cluster(
+    x,
+    algorithm = "DBSCAN",
+    config = setup_DBSCAN(eps = 0.3, min_points = 5L),
+    verbosity = 0L
+  )
+  expect_true(0L %in% partial@clusters)
+  expect_identical(partial@k, length(setdiff(unique(partial@clusters), 0L)))
+  expect_false(partial@k == length(unique(partial@clusters)))
+
+  # Nothing dense enough to cluster: zero clusters, not one.
+  all_noise <- cluster(
+    x,
+    algorithm = "DBSCAN",
+    config = setup_DBSCAN(eps = 0.01, min_points = 50L),
+    verbosity = 0L
+  )
+  expect_identical(unique(all_noise@clusters), 0L)
+  expect_identical(all_noise@k, 0L)
+})
+
 # setup_HOPACH ----
 test_that("setup_HOPACH() succeeds", {
   expect_s7_class(setup_HOPACH(), HOPACHConfig)

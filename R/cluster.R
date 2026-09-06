@@ -96,8 +96,14 @@ cluster <- function(
     # For algorithms where k is specified in config
     k <- config[["k"]]
   } else {
-    # For algorithms where k is not prescribed, but determined from the clustering result
-    k <- length(unique(clusters))
+    # For algorithms where k is not prescribed, but determined from the
+    # clustering result. Label 0 is the noise sentinel -- DBSCAN assigns it to
+    # every case in no dense region -- and noise is not a cluster, so it is
+    # excluded from the count. Every other algorithm labels 1:k, so the
+    # `setdiff()` is a no-op for them. Without it a fit that found three
+    # clusters and left some cases unassigned reports four, and a fit that
+    # found none at all reports one.
+    k <- length(setdiff(unique(clusters), 0L))
     if (verbosity > 0L) {
       msg0(paste0("Found ", highlight(k), " clusters."))
     }
