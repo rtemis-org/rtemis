@@ -156,7 +156,7 @@ set_preferred_plan <- function(
   # failure is not graceful: a child can die at the fork, which surfaces as a task that
   # resolves instantly and comes back a `FutureInterruptError`, and it is load-dependent
   # enough to look intermittent. This branch is reached precisely because no plan was
-  # requested, so it picks the one that works everywhere; `setup_ExecutionConfig()` defaults
+  # requested, so it picks the one that works everywhere; `setup_FutureExecution()` defaults
   # the same way, and `"multicore"` stays available to anyone who asks for it by name.
   with(
     future::plan(strategy = "multisession", workers = n_workers),

@@ -32,8 +32,8 @@ fit_tuned <- function(backend, n_workers, seed = 2026L, ...) {
     tune_dat,
     hyperparameters = setup_CART(maxdepth = tune_over(2L, 3L, 4L), xval = 10L),
     tuner_config = tune_config,
-    execution_config = setup_ExecutionConfig(
-      backend = backend,
+    execution_config = exec_config(
+      backend,
       n_workers = n_workers,
       seed = seed,
       ...
@@ -139,8 +139,7 @@ fit_failing_tune <- function(on_error) {
     failing_tune_dat,
     hyperparameters = setup_CART(maxdepth = tune_over(2L, 3L), xval = 0L),
     tuner_config = tune_config,
-    execution_config = setup_ExecutionConfig(
-      backend = "mirai",
+    execution_config = setup_MiraiExecution(
       n_workers = 2L,
       seed = 2026L,
       on_error = on_error

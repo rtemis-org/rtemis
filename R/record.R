@@ -56,7 +56,7 @@ supplied_origins <- function() {
   fn <- sys.function(frame)
   # `envir` is where the call's `...` is expanded from, and the call is the one
   # written at the setup function's *call site* -- `train()` forwards its dots
-  # as `setup_ExecutionConfig(...)`, which cannot be matched against the
+  # as `setup_FutureExecution(...)`, which cannot be matched against the
   # formals anywhere else. Left to default, `match.call()` looks in this
   # helper's caller, finds no dots, and stops. `sys.frame(0)` is the global
   # environment, so a call made at top level resolves too.

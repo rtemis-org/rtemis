@@ -55,7 +55,7 @@ class_glmtree <- new_S3_class("glmtree")
 #'
 #' Only the arguments named in the call are forced, read off `match.call()`.
 #' Forcing the rest would evaluate defaults nothing asked for
-#' (`setup_ExecutionConfig()` for a `train_` method that ignores it) and would
+#' (`setup_FutureExecution()` for a `train_` method that ignores it) and would
 #' turn an omitted required formal into "argument "x" is missing, with no
 #' default" before the method can say anything better. It is not about
 #' preserving method defaults: S7 requires a method's defaults to match its
@@ -236,7 +236,7 @@ train_ <- new_generic(
     x,
     weights = NULL,
     dat_validation = NULL,
-    execution_config = setup_ExecutionConfig(),
+    execution_config = setup_FutureExecution(),
     verbosity = 1L
   ) {
     force_supplied()

@@ -18,7 +18,7 @@ setup_SuperConfig(
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
-  execution_config = setup_ExecutionConfig(),
+  execution_config = setup_FutureExecution(),
   question = NULL,
   outdir = "results/",
   verbosity = 1L
@@ -61,7 +61,7 @@ outcome level to treat as positive. NULL keeps the existing factor level order.}
 resampling during model training.}
 
 \item{execution_config}{\code{ExecutionConfig} object: Configuration for execution settings. Setup
-with \link{setup_ExecutionConfig}.}
+with \link{setup_FutureExecution}.}
 
 \item{question}{Optional Character: Question to answer with the supervised learning analysis.}
 
@@ -88,7 +88,7 @@ sc <- setup_SuperConfig(
   hyperparameters = setup_LightRF(),
   tuner_config = setup_GridSearch(),
   outer_resampling_config = setup_KFold(),
-  execution_config = setup_ExecutionConfig(),
+  execution_config = setup_FutureExecution(),
   question = "Can we tell iris species apart given their measurements?",
   outdir = "models/"
 )

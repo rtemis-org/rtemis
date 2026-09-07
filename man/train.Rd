@@ -14,7 +14,7 @@ train(
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
-  execution_config = setup_ExecutionConfig(),
+  execution_config = setup_FutureExecution(),
   question = NULL,
   outdir = NULL,
   preflight = FALSE,
@@ -46,7 +46,7 @@ This defines the outer resampling method, i.e. the splitting into training and t
 purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
 you might want to use a \code{dat_test} dataset to assess model performance on a single test set.}
 
-\item{execution_config}{\code{ExecutionConfig} object: Setup using \link{setup_ExecutionConfig}. This
+\item{execution_config}{\code{ExecutionConfig} object: Setup using \link{setup_FutureExecution}. This
 allows you to set backend ("future", "mirai", or "none"), number of workers, and future plan if
 using \code{backend = "future"}.}
 
@@ -147,7 +147,7 @@ the algorithm parallelizes itself, tuning is needed, outer resampling is set. A 
 that needs none of them is sequential.
 
 The workers, backend, and future plan all come from \code{execution_config}; see
-\link{setup_ExecutionConfig}.
+\link{setup_FutureExecution}.
 
 \strong{Reproducibility under parallelization}
 

@@ -21,7 +21,7 @@ set.seed(2026)
     0.5 * .features[["a"]] +
     rnorm(.n, sd = 0.5)
 )
-.execution <- setup_ExecutionConfig(seed = 1L, backend = "none")
+.execution <- setup_SerialExecution(seed = 1L)
 .tuner <- setup_GridSearch(
   resampler_config = setup_KFold(3L)
 )

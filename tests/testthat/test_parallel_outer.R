@@ -251,8 +251,8 @@ fit_folds <- function(backend, n_workers, seed = 2026L, ...) {
     parallel_dat,
     hyperparameters = setup_CART(xval = 10L, prune_cp = 0.05),
     outer_resampling_config = parallel_resampler,
-    execution_config = setup_ExecutionConfig(
-      backend = backend,
+    execution_config = exec_config(
+      backend,
       n_workers = n_workers,
       seed = seed,
       ...
@@ -401,8 +401,7 @@ testthat::test_that("the progress sink reports monotonic fold completions", {
       parallel_dat,
       hyperparameters = setup_CART(),
       outer_resampling_config = parallel_resampler,
-      execution_config = setup_ExecutionConfig(
-        backend = "mirai",
+      execution_config = setup_MiraiExecution(
         n_workers = 2L,
         seed = 2026L
       ),
@@ -458,8 +457,7 @@ fit_failing <- function(on_error) {
     failing_dat,
     hyperparameters = setup_CART(),
     outer_resampling_config = parallel_resampler,
-    execution_config = setup_ExecutionConfig(
-      backend = "mirai",
+    execution_config = setup_MiraiExecution(
       n_workers = 2L,
       seed = 2026L,
       on_error = on_error
@@ -505,8 +503,7 @@ testthat::test_that("a self-parallelizing algorithm keeps its workers inside a f
     parallel_dat,
     hyperparameters = setup_Ranger(num_trees = 50L),
     outer_resampling_config = parallel_resampler,
-    execution_config = setup_ExecutionConfig(
-      backend = "mirai",
+    execution_config = setup_MiraiExecution(
       n_workers = 2L,
       seed = 2026L
     ),
@@ -549,8 +546,7 @@ testthat::test_that("tuning inside a sequential fold dispatches in parallel", {
           seed = 2026L
         )
       ),
-      execution_config = setup_ExecutionConfig(
-        backend = "mirai",
+      execution_config = setup_MiraiExecution(
         n_workers = 2L,
         seed = 2026L
       ),

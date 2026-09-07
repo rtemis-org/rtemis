@@ -161,9 +161,9 @@ test_that("doc_source_for_class() offers stripped and unstripped candidates", {
   expect_true(
     "setup_LightRF" %in% doc_source_for_class("LightRFHyperparameters")
   )
-  # setup_ExecutionConfig keeps the suffix.
+  # setup_ClusterConfig keeps the suffix.
   expect_true(
-    "setup_ExecutionConfig" %in% doc_source_for_class("ExecutionConfig")
+    "setup_ClusterConfig" %in% doc_source_for_class("ClusterConfig")
   )
   # Every resampler subclass has its own dedicated setup function.
   expect_true("setup_KFold" %in% doc_source_for_class("KFoldConfig"))

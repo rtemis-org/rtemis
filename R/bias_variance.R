@@ -144,7 +144,7 @@ bias_variance <- function(
   true_values = NULL,
   resampler_config = NULL,
   test_p = 0.3,
-  execution_config = setup_ExecutionConfig(),
+  execution_config = setup_FutureExecution(),
   verbosity = 1L
 ) {
   # Input ----
@@ -283,9 +283,7 @@ bias_variance <- function(
   dispatching <- execution_config@backend != "none" &&
     execution_config@n_workers > 1L
   inner_config <- if (dispatching) {
-    ExecutionConfig(
-      backend = "none",
-      n_workers = 1L,
+    SerialExecutionConfig(
       seed = execution_config@seed,
       on_error = execution_config@on_error
     )

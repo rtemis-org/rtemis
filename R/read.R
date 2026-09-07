@@ -300,7 +300,7 @@ read <- function(
   } else if (output == "tibble") {
     .dat <- tibble::as_tibble(.dat)
   } else if (output == "data.frame") {
-    if (!is.data.frame(.dat)) {
+    if (!is.data.frame(.dat) || tibble::is_tibble(.dat)) {
       .dat <- as.data.frame(.dat)
     } else {
       setDF(.dat)

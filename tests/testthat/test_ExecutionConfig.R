@@ -5,26 +5,31 @@
 # library(testthat)
 
 # %% ExecutionConfig ----
-ec <- ExecutionConfig(
-  backend = "future",
+# `backend` selects the variant and is a computed constant on each, so a
+# variant is constructed directly rather than by naming the backend.
+ec <- FutureExecutionConfig(
   n_workers = 4L,
   future_plan = "multisession"
 )
 ec
-testthat::test_that("ExecutionConfig() works", {
-  expect_s7_class(
-    ec,
-    ExecutionConfig
-  )
+testthat::test_that("the execution variants build and share the base", {
+  expect_s7_class(ec, ExecutionConfig)
+  expect_s7_class(ec, ParallelExecutionConfig)
+  expect_identical(ec@backend, "future")
+  expect_s7_class(SerialExecutionConfig(), ExecutionConfig)
+  expect_identical(SerialExecutionConfig()@backend, "none")
+  expect_identical(SerialExecutionConfig()@n_workers, 1L)
+  expect_identical(MiraiExecutionConfig()@backend, "mirai")
+  # The base is abstract: a backend is not a setting on one flat class.
+  expect_error(ExecutionConfig())
 })
 
-# %% setup_ExecutionConfig() ----
-ec <- setup_ExecutionConfig(
-  backend = "future",
+# %% setup_FutureExecution() ----
+ec <- setup_FutureExecution(
   n_workers = 4L,
   future_plan = "multisession"
 )
-testthat::test_that("setup_ExecutionConfig() works", {
+testthat::test_that("setup_FutureExecution() works", {
   expect_s7_class(
     ec,
     ExecutionConfig
@@ -33,17 +38,17 @@ testthat::test_that("setup_ExecutionConfig() works", {
 
 
 # %% seed ----
-testthat::test_that("setup_ExecutionConfig() keeps an explicit seed", {
+testthat::test_that("setup_FutureExecution() keeps an explicit seed", {
   expect_identical(
-    setup_ExecutionConfig(backend = "none", seed = 2026L)@seed,
+    setup_SerialExecution(seed = 2026L)@seed,
     2026L
   )
 })
 
-testthat::test_that("setup_ExecutionConfig() resolves a seed when none is given", {
+testthat::test_that("setup_FutureExecution() resolves a seed when none is given", {
   # An unseeded run must still be reproducible, so a seed is drawn and recorded rather
   # than left NULL for the run to improvise.
-  ec_unseeded <- setup_ExecutionConfig(backend = "none")
+  ec_unseeded <- setup_SerialExecution()
   expect_type(ec_unseeded@seed, "integer")
   expect_false(is.null(ec_unseeded@seed))
 })
@@ -51,9 +56,9 @@ testthat::test_that("setup_ExecutionConfig() resolves a seed when none is given"
 testthat::test_that("the drawn seed comes from the caller's RNG stream", {
   # Which is what keeps `set.seed(x); train(...)` deterministic without an explicit seed.
   set.seed(2026L)
-  first <- setup_ExecutionConfig(backend = "none")@seed
+  first <- setup_SerialExecution()@seed
   set.seed(2026L)
-  expect_identical(setup_ExecutionConfig(backend = "none")@seed, first)
+  expect_identical(setup_SerialExecution()@seed, first)
 })
 
 
@@ -62,7 +67,7 @@ testthat::test_that("the drawn seed comes from the caller's RNG stream", {
 # caller's choice replaces that entirely.
 
 testthat::test_that("unset levels leave the ladder in charge", {
-  ec <- setup_ExecutionConfig(backend = "mirai", n_workers = 4L)
+  ec <- setup_MiraiExecution(n_workers = 4L)
   expect_null(ec@n_workers_outer)
   expect_null(ec@n_workers_tuning)
   expect_null(ec@n_workers_algorithm)
@@ -70,8 +75,7 @@ testthat::test_that("unset levels leave the ladder in charge", {
 
 
 testthat::test_that("n_workers follows the dispatch levels when they are named", {
-  ec <- setup_ExecutionConfig(
-    backend = "mirai",
+  ec <- setup_MiraiExecution(
     n_workers_outer = 4L,
     n_workers_algorithm = 2L
   )
@@ -84,7 +88,7 @@ testthat::test_that("n_workers follows the dispatch levels when they are named",
 
 testthat::test_that("algorithm threads need no backend", {
   # Threads run in the calling process, so there is nothing to dispatch to.
-  ec <- setup_ExecutionConfig(backend = "none", n_workers_algorithm = 8L)
+  ec <- setup_SerialExecution(n_workers_algorithm = 8L)
   expect_identical(ec@n_workers_algorithm, 8L)
   expect_identical(ec@n_workers, 1L)
 })
@@ -93,8 +97,7 @@ testthat::test_that("algorithm threads need no backend", {
 testthat::test_that("two parallel dispatch levels are rejected", {
   # An outer fold runs in a worker process and cannot dispatch again from inside one.
   expect_error(
-    setup_ExecutionConfig(
-      backend = "mirai",
+    setup_MiraiExecution(
       n_workers_outer = 2L,
       n_workers_tuning = 4L
     ),
@@ -104,10 +107,15 @@ testthat::test_that("two parallel dispatch levels are rejected", {
 
 
 testthat::test_that("a dispatch level is rejected when nothing dispatches", {
+  # The class states this as a bound, so a document is rejected by the schema
+  # too; `setup_SerialExecution()` knows it is serial and can say why, which a
+  # bound alone cannot.
   expect_error(
-    setup_ExecutionConfig(backend = "none", n_workers_outer = 4L),
-    "must be 1 or unset when backend is 'none'"
+    setup_SerialExecution(n_workers_outer = 4L),
+    "must be 1 or unset under serial execution"
   )
+  # The bound is what a non-R implementation gets, and it still holds.
+  expect_error(SerialExecutionConfig(n_workers_outer = 4L), "must be <= 1")
 })
 
 
@@ -126,8 +134,7 @@ testthat::test_that("named levels reach the run, and compose", {
       n_resamples = 4L,
       seed = 1L
     ),
-    execution_config = setup_ExecutionConfig(
-      backend = "mirai",
+    execution_config = setup_MiraiExecution(
       n_workers_outer = 4L,
       n_workers_algorithm = 2L,
       seed = 2026L

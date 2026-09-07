@@ -111,7 +111,7 @@ restore_weights_column <- function(model, column) {
 #' This defines the outer resampling method, i.e. the splitting into training and test sets for the
 #' purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
 #' you might want to use a `dat_test` dataset to assess model performance on a single test set.
-#' @param execution_config `ExecutionConfig` object: Setup using [setup_ExecutionConfig]. This
+#' @param execution_config `ExecutionConfig` object: Setup using [setup_FutureExecution]. This
 #' allows you to set backend ("future", "mirai", or "none"), number of workers, and future plan if
 #' using `backend = "future"`.
 #' @param question Optional character string defining the question that the model is trying to
@@ -196,7 +196,7 @@ restore_weights_column <- function(model, column) {
 #' that needs none of them is sequential.
 #'
 #' The workers, backend, and future plan all come from `execution_config`; see
-#' [setup_ExecutionConfig].
+#' [setup_FutureExecution].
 #'
 #' **Reproducibility under parallelization**
 #'
@@ -229,7 +229,7 @@ train <- function(
   hyperparameters = NULL, # Hyperparameters
   tuner_config = NULL, # TunerConfig
   outer_resampling_config = NULL, # ResamplerConfig
-  execution_config = setup_ExecutionConfig(), # ExecutionConfig
+  execution_config = setup_FutureExecution(), # ExecutionConfig
   question = NULL,
   outdir = NULL,
   preflight = FALSE,
@@ -752,9 +752,7 @@ train <- function(
     # this time with no outer level to consider. Forcing the sequential config on both
     # branches is what silently serialized every tuned or self-parallelizing run.
     fold_execution_config <- if (parallel_folds) {
-      ExecutionConfig(
-        backend = "none",
-        n_workers = 1L,
+      SerialExecutionConfig(
         # Threads, not processes: the fold is already occupying one worker and must not
         # dispatch, but a self-parallelizing algorithm still runs multi-threaded inside
         # it. This is what makes `n_workers_outer = 4L, n_workers_algorithm = 2L` mean

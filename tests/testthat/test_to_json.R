@@ -39,7 +39,7 @@ test_that("to_json(Regression) recurses into nested S7 props", {
   # marker naming it: the property it sits on is what says which class it is.
   expect_setequal(
     names(j[["execution_config"]]),
-    published_prop_names(ExecutionConfig)
+    published_prop_names(S7_class(prop(mod_r_glm, "execution_config")))
   )
 })
 
@@ -110,11 +110,11 @@ test_that("to_json(RegressionRes) excludes models list (only summary count)", {
 
 # Default method ----
 test_that("default to_json emits exactly the published properties", {
-  exec <- setup_ExecutionConfig()
+  exec <- setup_FutureExecution()
   j <- to_json(exec)
   expect_type(j, "list")
   # Exactly, in order: a results schema is `additionalProperties: false`, so an
   # extra key makes the document invalid against the contract it is published
   # under, and a missing one makes it incomplete.
-  expect_identical(names(j), published_prop_names(ExecutionConfig))
+  expect_identical(names(j), published_prop_names(S7_class(exec)))
 })

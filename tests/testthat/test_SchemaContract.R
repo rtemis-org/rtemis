@@ -126,8 +126,13 @@
     list(PredefinedPartitionConfig, "setup_PredefinedPartition")
   ),
   .contract_family(
+    ExecutionConfig,
+    list(SerialExecutionConfig, "setup_SerialExecution"),
+    list(FutureExecutionConfig, "setup_FutureExecution"),
+    list(MiraiExecutionConfig, "setup_MiraiExecution")
+  ),
+  .contract_family(
     NULL,
-    list(ExecutionConfig, "setup_ExecutionConfig"),
     list(PreprocessorConfig, "setup_Preprocessor"),
     list(SupervisedPreprocessorConfig, "setup_SupervisedPreprocessor"),
     list(SuperConfigPaths, "setup_SuperConfig"),
@@ -669,8 +674,9 @@ test_that("a registered class's validator is mirrored in extra or recorded", {
     carriers <- .hand_written_validators(entry[["cls"]])
     # An `extra` accounts for the class: it is the only place a cross-field
     # rule can be published, and where it mirrors some of a validator rather
-    # than all of it the registry says which part and why -- `ExecutionConfig`
-    # mirrors its `n_workers` rule and documents why `@future_plan` stays out.
+    # than all of it the registry says which part and why -- the parallel
+    # execution variants mirror the one dispatch rule they inherit from
+    # `ParallelExecutionConfig`.
     if (!is.null(entry[["extra"]])) {
       expect_true(
         "allOf" %in% names(entry[["extra"]]),

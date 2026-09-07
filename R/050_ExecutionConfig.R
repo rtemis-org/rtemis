@@ -6,44 +6,27 @@
 #' ExecutionConfig Class
 #'
 #' @description
-#' Execution Configuration Class, defining sequential/parallel/distributed execution settings.
+#' Abstract base for the execution family: how a run dispatches work. `backend`
+#' is the discriminator and the variant holds what that backend actually needs.
+#' Concrete variants are `SerialExecutionConfig`, `FutureExecutionConfig` and
+#' `MiraiExecutionConfig`; build one with [setup_FutureExecution].
 #'
 #' @author EDG
 #' @noRd
 ExecutionConfig <- new_class(
   name = "ExecutionConfig",
   package = "rtemis",
+  abstract = TRUE,
+  # Only what every variant shares *unchanged*. A property a variant needs to
+  # constrain is declared on the variants instead, never here and overridden:
+  # `own_prop_names()` subtracts by name, so an override is not a leaf's own
+  # property and would vanish from the published leaf schema, taking its
+  # constraint with it.
   properties = list(
-    # "none" (sequential) is the conservative default: valid with no
-    # `future_plan` and `n_workers = 1`. setup_ExecutionConfig defaults to
-    # "future" for interactive convenience.
-    backend = prop_string(
-      "none",
-      enum = c("future", "mirai", "none"),
-      description = "Execution backend."
-    ),
-    n_workers = prop_integer(
-      1L,
-      min = 1L,
-      description = "Number of parallel workers (used when backend is 'future' or 'mirai')."
-    ),
-    # Per-level overrides. NULL means "let the ladder decide"; setting any one of them
-    # turns the ladder off entirely and the unset levels take 1, so a config never mixes
-    # a hand-picked level with an inferred one.
-    n_workers_outer = prop_integer(
-      NULL,
-      min = 1L,
-      nullable = TRUE,
-      description = "Workers for outer resampling. NULL = assigned by the worker ladder."
-    ),
-    n_workers_tuning = prop_integer(
-      NULL,
-      min = 1L,
-      nullable = TRUE,
-      description = "Workers for tuning. NULL = assigned by the worker ladder."
-    ),
+    backend = class_character,
     # Threads inside a worker rather than worker processes, which is why this composes
-    # with either dispatch level and is allowed even when `backend` is "none".
+    # with either dispatch level and is declared on the base: it is meaningful under
+    # serial execution too.
     n_workers_algorithm = prop_integer(
       NULL,
       min = 1L,
@@ -53,11 +36,6 @@ ExecutionConfig <- new_class(
     warm_workers = prop_boolean(
       TRUE,
       description = "Load rtemis in every worker when the pool is built, rather than on each worker's first task."
-    ),
-    future_plan = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Future plan to use when backend is 'future'."
     ),
     on_error = prop_string(
       "continue",
@@ -84,25 +62,114 @@ ExecutionConfig <- new_class(
       enum = c("none", "auto", "always"),
       description = "Share worker data through OS shared memory."
     )
+  )
+) # /rtemis::ExecutionConfig
+
+
+# %% SerialExecutionConfig ----
+#' SerialExecutionConfig Class
+#'
+#' @description
+#' Execution in the calling process: nothing is dispatched to a worker. The
+#' backend value is `"none"` because `backend` names the backend and there is
+#' no third backend, only the absence of one; the class is named for what it
+#' is.
+#'
+#' `n_workers` and the two dispatch levels are constrained rather than removed.
+#' A variant that dropped them would invalidate every stored serial document
+#' under `additionalProperties: false`, so the rules that governed them become
+#' type facts instead: the pool is fixed at one worker and neither dispatch
+#' level can exceed one.
+#'
+#' @author EDG
+#' @noRd
+SerialExecutionConfig <- new_class(
+  name = "SerialExecutionConfig",
+  parent = ExecutionConfig,
+  package = "rtemis",
+  properties = list(
+    backend = prop_algorithm("none"),
+    n_workers = prop_const(
+      1L,
+      description = "Serial execution runs in the calling process, so the pool is one worker."
+    ),
+    # Carried by the variant although serial execution never consults it: the
+    # published leaf closes with `additionalProperties: false` and every
+    # execution record written so far holds this key, so omitting it would
+    # invalidate those documents rather than ignore the field.
+    future_plan = prop_state(prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Future plan. Unused under serial execution."
+    )),
+    # Bounded to 1 rather than declared constant: unset is the ordinary case and
+    # must stay expressible, so these remain nullable integers whose only legal
+    # value is 1. `min == max` states the old cross-field rule as a bound.
+    n_workers_outer = prop_integer(
+      NULL,
+      min = 1L,
+      max = 1L,
+      nullable = TRUE,
+      description = "Workers for outer resampling. Serial execution dispatches nothing, so 1 or unset."
+    ),
+    n_workers_tuning = prop_integer(
+      NULL,
+      min = 1L,
+      max = 1L,
+      nullable = TRUE,
+      description = "Workers for tuning. Serial execution dispatches nothing, so 1 or unset."
+    )
+  )
+) # /rtemis::SerialExecutionConfig
+
+
+# %% ParallelExecutionConfig ----
+#' ParallelExecutionConfig Class
+#'
+#' @description
+#' Abstract base for the backends that dispatch to worker processes. Named for
+#' parallelism rather than asynchrony: what varies across these variants is how
+#' many workers run at once, not whether the caller blocks -- `train()` blocks
+#' under every backend.
+#'
+#' Exists so the one surviving cross-field rule is declared once instead of on
+#' each concrete backend.
+#'
+#' @author EDG
+#' @noRd
+ParallelExecutionConfig <- new_class(
+  name = "ParallelExecutionConfig",
+  parent = ExecutionConfig,
+  package = "rtemis",
+  abstract = TRUE,
+  properties = list(
+    n_workers = prop_integer(
+      1L,
+      min = 1L,
+      description = "Number of parallel workers."
+    ),
+    # Per-level overrides. NULL means "let the ladder decide"; setting any one of them
+    # turns the ladder off entirely and the unset levels take 1, so a config never mixes
+    # a hand-picked level with an inferred one.
+    n_workers_outer = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      description = "Workers for outer resampling. NULL = assigned by the worker ladder."
+    ),
+    n_workers_tuning = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      description = "Workers for tuning. NULL = assigned by the worker ladder."
+    )
   ),
-  # Cross-field constraints (the per-field type/enum/bounds are enforced by
-  # the prop_* validators).
   validator = function(self) {
     # `NULL > 1L` is `logical(0)`, so `isTRUE()` reads an unset level as "not parallel"
     # without a separate is.null() guard at each use.
     outer_parallel <- isTRUE(self@n_workers_outer > 1L)
     tuning_parallel <- isTRUE(self@n_workers_tuning > 1L)
-    if (self@backend == "future" && is.null(self@future_plan)) {
-      "@future_plan must be set when backend is 'future'."
-    } else if (self@backend == "none" && self@n_workers != 1L) {
-      "n_workers must be 1 when backend is 'none'."
-    } else if (self@backend == "none" && (outer_parallel || tuning_parallel)) {
-      paste0(
-        "n_workers_outer and n_workers_tuning must be 1 or unset when backend is ",
-        "'none', which dispatches nothing. n_workers_algorithm is threads within the ",
-        "calling process and may still be set."
-      )
-    } else if (outer_parallel && tuning_parallel) {
+    if (outer_parallel && tuning_parallel) {
       paste0(
         "Only one dispatch level can run in parallel, but n_workers_outer is ",
         self@n_workers_outer,
@@ -114,12 +181,60 @@ ExecutionConfig <- new_class(
       )
     }
   }
-) # /rtemis::ExecutionConfig
+) # /rtemis::ParallelExecutionConfig
+
+
+# %% FutureExecutionConfig ----
+#' FutureExecutionConfig Class
+#'
+#' @description
+#' Dispatch through \pkg{future}. `future_plan` is non-nullable here, which is
+#' what the old "must be set when backend is 'future'" rule stated at runtime.
+#'
+#' @author EDG
+#' @noRd
+FutureExecutionConfig <- new_class(
+  name = "FutureExecutionConfig",
+  parent = ParallelExecutionConfig,
+  package = "rtemis",
+  properties = list(
+    backend = prop_algorithm("future"),
+    future_plan = prop_string(
+      "mirai_multisession",
+      description = "Future plan to use."
+    )
+  )
+) # /rtemis::FutureExecutionConfig
+
+
+# %% MiraiExecutionConfig ----
+#' MiraiExecutionConfig Class
+#'
+#' @description
+#' Dispatch through \pkg{mirai}.
+#'
+#' @author EDG
+#' @noRd
+MiraiExecutionConfig <- new_class(
+  name = "MiraiExecutionConfig",
+  parent = ParallelExecutionConfig,
+  package = "rtemis",
+  properties = list(
+    backend = prop_algorithm("mirai"),
+    # Carried for the same reason as on the serial variant: stored documents
+    # hold the key, and the leaf schema is closed.
+    future_plan = prop_state(prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Future plan. Unused under the mirai backend."
+    ))
+  )
+) # /rtemis::MiraiExecutionConfig
 
 
 # %% repr.ExecutionConfig ----
 method(repr, ExecutionConfig) <- function(x, pad = 0L, output_type = NULL) {
-  out <- repr_S7name("ExecutionConfig", pad = pad, output_type = output_type)
+  out <- repr_S7name(S7_class(x)@name, pad = pad, output_type = output_type)
   .props <- props(x)
   if (.props[["backend"]] != "future") {
     .props[["future_plan"]] <- NULL
@@ -179,20 +294,132 @@ default_n_workers <- function(omit = 3L) {
 
 # %% --- User API ----
 
-# %% setup_ExecutionConfig ----
-#' Setup Execution Configuration
+# %% EXECUTION_CLASSES ----
+# The execution family, keyed by the `backend` value each variant declares.
+EXECUTION_CLASSES <- list(
+  none = SerialExecutionConfig,
+  future = FutureExecutionConfig,
+  mirai = MiraiExecutionConfig
+)
+
+EXECUTION_SETUP <- c(
+  none = "setup_SerialExecution",
+  future = "setup_FutureExecution",
+  mirai = "setup_MiraiExecution"
+)
+
+
+# %% .execution_common ----
+#' Validate and resolve the settings every execution variant shares
 #'
-#' @param backend Character \{"future", "mirai", "none"\}: Execution backend.
-#' @param n_workers Integer [1, Inf): Number of workers for parallel execution. Only used if `backend is
-#'  "future"` or "mirai". Set this to an appropriate number depending
-#' on your system.
+#' @param n_workers_outer,n_workers_tuning,n_workers_algorithm Optional Integer.
+#' @param on_error,shared_memory Character: Already matched by the caller.
+#' @param seed Optional Integer.
+#' @param warm_workers Logical.
+#'
+#' @return Named list of resolved shared settings.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+.execution_common <- function(
+  n_workers_outer,
+  n_workers_tuning,
+  n_workers_algorithm,
+  on_error,
+  seed,
+  shared_memory,
+  warm_workers
+) {
+  check_logical_scalar(warm_workers)
+  for (nm in c("n_workers_outer", "n_workers_tuning", "n_workers_algorithm")) {
+    v <- get(nm)
+    if (!is.null(v)) {
+      v <- clean_int(v)
+      check_pos_integer_scalar(v)
+      assign(nm, v)
+    }
+  }
+  # "always" is a demand, so an unusable request is an error here rather than a surprise
+  # at dispatch. "auto" is best-effort: a missing mori is one more reason it cannot
+  # share, not a mistake to correct.
+  if (shared_memory == "always") {
+    check_dependencies("mori")
+  }
+  # Resolved here rather than at run time so it is recorded on the config, and
+  # therefore in the run record: an unseeded run would otherwise be unreproducible, and
+  # "all runs are auditable & reproducible" has to hold for the default path too.
+  # Drawing from the current stream keeps `set.seed(1); train(...)` deterministic.
+  seed <- if (is.null(seed)) {
+    sample.int(.Machine[["integer.max"]], 1L)
+  } else {
+    clean_int(seed)
+  }
+  list(
+    n_workers_outer = n_workers_outer,
+    n_workers_tuning = n_workers_tuning,
+    n_workers_algorithm = n_workers_algorithm,
+    on_error = on_error,
+    seed = seed,
+    shared_memory = shared_memory,
+    warm_workers = warm_workers
+  )
+} # /rtemis::.execution_common
+
+
+# %% .resolve_n_workers ----
+#' Size the worker pool for a parallel backend
+#'
+#' With the dispatch levels named explicitly the pool follows from them rather
+#' than from `default_n_workers()`. Only the dispatch levels count: algorithm
+#' workers are threads inside a worker, not workers of their own.
+#'
+#' @param n_workers Optional Integer: What the caller supplied.
+#' @param n_workers_outer,n_workers_tuning Optional Integer.
+#'
+#' @return Integer.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+.resolve_n_workers <- function(n_workers, n_workers_outer, n_workers_tuning) {
+  if (is.null(n_workers)) {
+    n_workers <- if (is.null(n_workers_outer) && is.null(n_workers_tuning)) {
+      default_n_workers()
+    } else {
+      max(1L, n_workers_outer %||% 1L, n_workers_tuning %||% 1L)
+    }
+  }
+  n_workers <- clean_int(n_workers)
+  if (n_workers < 1L) {
+    rtemis.core::abort(
+      "n_workers must be at least 1.",
+      class = c("rtemis_range_error", "rtemis_input_error")
+    )
+  }
+  n_workers
+} # /rtemis::.resolve_n_workers
+
+
+# %% --- User API ----
+
+# %% setup_FutureExecution ----
+#' Set up a `FutureExecutionConfig`
+#'
+#' @description
+#' Parallel execution through \pkg{future}. A plan is required, and is filled in
+#' from `getOption("future.plan", "mirai_multisession")` when not given.
+#'
+#' @param n_workers Integer [1, Inf): Number of parallel workers. Left `NULL`,
+#' it follows the named dispatch levels, or `default_n_workers()` if none is named.
 #' @param n_workers_outer Optional Integer [1, Inf): Workers for outer resampling,
 #' overriding the automatic assignment.
 #' @param n_workers_tuning Optional Integer [1, Inf): Workers for tuning, overriding the
 #' automatic assignment.
 #' @param n_workers_algorithm Optional Integer [1, Inf): Threads for a self-parallelizing
 #' algorithm, overriding the automatic assignment.
-#' @param future_plan Optional Character: Future plan to use if `backend` is "future".
+#' @param future_plan Character: Future plan to use. Defaults to
+#' `getOption("future.plan", "mirai_multisession")`.
 #' @param on_error Character \{"continue", "stop", "stop_outer"\}: Failure policy.
 #' `"continue"` makes grid cells and unscorable hyperparameter combinations
 #' non-fatal (recorded, warned, and excluded), failing only when nothing is scorable or
@@ -229,9 +456,7 @@ default_n_workers <- function(omit = 3L) {
 #' Outer resampling and tuning dispatch to worker *processes*, and an outer fold runs
 #' inside one of those processes, so only one of the two can be parallel -- setting both
 #' above 1 is an error. `n_workers_algorithm` is threads within a worker, so it combines
-#' with either, and it applies even when `backend` is `"none"`: four folds on four
-#' processes with two Ranger threads each is `n_workers_outer = 4L,
-#' n_workers_algorithm = 2L`.
+#' with either.
 #'
 #' **Reproducibility**
 #'
@@ -242,126 +467,260 @@ default_n_workers <- function(omit = 3L) {
 #' \pkg{rtemis}'s own (4.1), so `"auto"` is the portable setting for a script that may
 #' run anywhere. It is local RAM: workers on another machine cannot map it.
 #'
-#' @return `ExecutionConfig` object.
+#' @return `FutureExecutionConfig` object.
 #'
 #' @author EDG
 #' @export
 #' @examples
-#' setup_ExecutionConfig(backend = "future", n_workers = 4L, future_plan = "multisession")
-setup_ExecutionConfig <- function(
-  backend = c("future", "mirai", "none"),
+#' setup_FutureExecution(n_workers = 4L, future_plan = "multisession")
+setup_FutureExecution <- function(
   n_workers = NULL,
   n_workers_outer = NULL,
   n_workers_tuning = NULL,
   n_workers_algorithm = NULL,
-  future_plan = NULL,
+  future_plan = getOption("future.plan", "mirai_multisession"),
   on_error = c("continue", "stop", "stop_outer"),
   seed = NULL,
   shared_memory = c("auto", "none", "always"),
   warm_workers = TRUE
 ) {
   # Captured before anything is filled in: this function's defaults are not the
-  # class's, so a record comparing the two would report the backend it picked,
-  # the pool it sized and the seed it drew as the caller's choices.
+  # class's, so a record comparing the two would report the pool it sized and
+  # the seed it drew as the caller's choices.
   origins <- supplied_origins()
-  backend <- match.arg(backend)
   on_error <- match.arg(on_error)
   shared_memory <- match.arg(shared_memory)
-  check_logical_scalar(warm_workers)
-  if (!is.null(n_workers_outer)) {
-    n_workers_outer <- clean_int(n_workers_outer)
-    check_pos_integer_scalar(n_workers_outer)
-  }
-  if (!is.null(n_workers_tuning)) {
-    n_workers_tuning <- clean_int(n_workers_tuning)
-    check_pos_integer_scalar(n_workers_tuning)
-  }
-  if (!is.null(n_workers_algorithm)) {
-    n_workers_algorithm <- clean_int(n_workers_algorithm)
-    check_pos_integer_scalar(n_workers_algorithm)
-  }
-  # `n_workers` is the pool this run will build, so with the levels named explicitly it
-  # follows from them rather than from `default_n_workers()`. Only the dispatch levels
-  # count: algorithm workers are threads inside a worker, not workers of their own.
-  # Not under `backend = "none"`, which dispatches nothing: deriving a pool size there
-  # would trip the generic "n_workers must be 1" check below over a value the caller
-  # never supplied, in place of the validator's message naming the level they did.
-  overrides <- list(n_workers_outer, n_workers_tuning, n_workers_algorithm)
-  if (
-    is.null(n_workers) &&
-      backend != "none" &&
-      !all(vapply(overrides, is.null, logical(1L)))
-  ) {
-    n_workers <- max(1L, n_workers_outer %||% 1L, n_workers_tuning %||% 1L)
-  }
-  # "always" is a demand, so an unusable request is an error here rather than a surprise
-  # at dispatch. "auto" is best-effort: a missing mori is one more reason it cannot
-  # share, not a mistake to correct.
-  if (shared_memory == "always") {
-    check_dependencies("mori")
-  }
-  if (backend == "future") {
-    check_dependencies("future")
-    check_character(future_plan, allow_null = TRUE)
-    if (is.null(future_plan)) {
-      future_plan <- getOption("future.plan", "mirai_multisession")
-    }
-    if (!future_plan %in% ALLOWED_PLANS) {
-      rtemis.core::abort(
-        "'",
-        future_plan,
-        "' is not an allowed future plan. Allowed plans: ",
-        paste(ALLOWED_PLANS, collapse = ", "),
-        ".",
-        class = c("rtemis_value_error", "rtemis_input_error")
-      )
-    }
-    if (is.null(n_workers)) {
-      n_workers <- default_n_workers()
-    }
-  } else if (backend == "mirai") {
-    check_dependencies("mirai")
-    if (is.null(n_workers)) {
-      n_workers <- default_n_workers()
-    }
-  } else if (backend == "none") {
-    if (is.null(n_workers)) {
-      n_workers <- 1L
-    } else if (n_workers != 1L) {
-      rtemis.core::abort(
-        "n_workers must be 1 when backend is 'none'.",
-        class = c("rtemis_value_error", "rtemis_input_error")
-      )
-    }
-  }
-  n_workers <- clean_int(n_workers)
-  if (n_workers < 1L) {
+  check_dependencies("future")
+  check_character(future_plan)
+  if (!future_plan %in% ALLOWED_PLANS) {
     rtemis.core::abort(
-      "n_workers must be at least 1.",
-      class = c("rtemis_range_error", "rtemis_input_error")
+      "'",
+      future_plan,
+      "' is not an allowed future plan. Allowed plans: ",
+      paste(ALLOWED_PLANS, collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-  # Resolve the seed here rather than at run time so it is recorded on the config, and
-  # therefore in the run record: an unseeded run would otherwise be unreproducible, and
-  # "all runs are auditable & reproducible" has to hold for the default path too.
-  # Drawing from the current stream keeps `set.seed(1); train(...)` deterministic.
-  seed <- if (is.null(seed)) {
-    sample.int(.Machine[["integer.max"]], 1L)
-  } else {
-    clean_int(seed)
-  }
-  out <- ExecutionConfig(
-    backend = backend,
-    n_workers = n_workers,
-    n_workers_outer = n_workers_outer,
-    n_workers_tuning = n_workers_tuning,
-    n_workers_algorithm = n_workers_algorithm,
-    future_plan = if (backend == "future") future_plan else NULL,
-    on_error = on_error,
-    seed = seed,
-    shared_memory = shared_memory,
-    warm_workers = warm_workers
+  shared <- .execution_common(
+    n_workers_outer,
+    n_workers_tuning,
+    n_workers_algorithm,
+    on_error,
+    seed,
+    shared_memory,
+    warm_workers
+  )
+  out <- do.call(
+    FutureExecutionConfig,
+    c(
+      shared,
+      list(
+        n_workers = .resolve_n_workers(
+          n_workers,
+          shared[["n_workers_outer"]],
+          shared[["n_workers_tuning"]]
+        ),
+        future_plan = future_plan
+      )
+    )
   )
   config_origins(out) <- origins
   out
-} # /rtemis::setup_ExecutionConfig
+} # /rtemis::setup_FutureExecution
+
+
+# %% setup_MiraiExecution ----
+#' Set up a `MiraiExecutionConfig`
+#'
+#' @description
+#' Parallel execution through \pkg{mirai}. Takes no plan: \pkg{mirai} has no
+#' equivalent of a `future_plan`, which is why it is not an argument here.
+#'
+#' @inheritParams setup_FutureExecution
+#'
+#' @details
+#' See [setup_FutureExecution] for how the three worker levels are assigned and
+#' how the run's seed is resolved; both are identical under either backend.
+#'
+#' @return `MiraiExecutionConfig` object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' setup_MiraiExecution(n_workers = 2L)
+setup_MiraiExecution <- function(
+  n_workers = NULL,
+  n_workers_outer = NULL,
+  n_workers_tuning = NULL,
+  n_workers_algorithm = NULL,
+  on_error = c("continue", "stop", "stop_outer"),
+  seed = NULL,
+  shared_memory = c("auto", "none", "always"),
+  warm_workers = TRUE
+) {
+  origins <- supplied_origins()
+  on_error <- match.arg(on_error)
+  shared_memory <- match.arg(shared_memory)
+  check_dependencies("mirai")
+  shared <- .execution_common(
+    n_workers_outer,
+    n_workers_tuning,
+    n_workers_algorithm,
+    on_error,
+    seed,
+    shared_memory,
+    warm_workers
+  )
+  out <- do.call(
+    MiraiExecutionConfig,
+    c(
+      shared,
+      list(
+        n_workers = .resolve_n_workers(
+          n_workers,
+          shared[["n_workers_outer"]],
+          shared[["n_workers_tuning"]]
+        ),
+        future_plan = NULL
+      )
+    )
+  )
+  config_origins(out) <- origins
+  out
+} # /rtemis::setup_MiraiExecution
+
+
+# %% setup_SerialExecution ----
+#' Set up a `SerialExecutionConfig`
+#'
+#' @description
+#' Execution in the calling process: nothing is dispatched to a worker. Takes
+#' no `n_workers` and no `future_plan`, neither of which a serial run can act
+#' on.
+#'
+#' @param n_workers_outer Optional Integer \[1, 1\]: Workers for outer resampling.
+#' Serial execution dispatches nothing, so 1 or unset.
+#' @param n_workers_tuning Optional Integer \[1, 1\]: Workers for tuning. Serial
+#' execution dispatches nothing, so 1 or unset.
+#' @inheritParams setup_FutureExecution
+#'
+#' @details
+#' `n_workers_algorithm` still applies: it is threads *within the calling
+#' process*, not worker processes, so a self-parallelizing algorithm runs
+#' multi-threaded under a serial config.
+#'
+#' See [setup_FutureExecution] for how the run's seed is resolved.
+#'
+#' @return `SerialExecutionConfig` object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' setup_SerialExecution()
+setup_SerialExecution <- function(
+  n_workers_outer = NULL,
+  n_workers_tuning = NULL,
+  n_workers_algorithm = NULL,
+  on_error = c("continue", "stop", "stop_outer"),
+  seed = NULL,
+  shared_memory = c("auto", "none", "always"),
+  warm_workers = TRUE
+) {
+  origins <- supplied_origins()
+  on_error <- match.arg(on_error)
+  shared_memory <- match.arg(shared_memory)
+  shared <- .execution_common(
+    n_workers_outer,
+    n_workers_tuning,
+    n_workers_algorithm,
+    on_error,
+    seed,
+    shared_memory,
+    warm_workers
+  )
+  # The class states this as a bound; said here so the message names the reason
+  # and the level, which a bound cannot.
+  for (nm in c("n_workers_outer", "n_workers_tuning")) {
+    v <- shared[[nm]]
+    if (!is.null(v) && v != 1L) {
+      rtemis.core::abort(
+        nm,
+        " must be 1 or unset under serial execution, which dispatches nothing ",
+        "(got ",
+        v,
+        "). n_workers_algorithm is threads within the calling process and may ",
+        "still be set.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+  }
+  out <- do.call(
+    SerialExecutionConfig,
+    c(shared, list(future_plan = NULL))
+  )
+  config_origins(out) <- origins
+  out
+} # /rtemis::setup_SerialExecution
+
+
+# %% .list_to_ExecutionConfig ----
+#' Rebuild an execution config from a wire list
+#'
+#' @param x Named list: The `execution_config` block of a config document.
+#'
+#' @return `ExecutionConfig` subclass object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+.list_to_ExecutionConfig <- function(x) {
+  keys <- unique(unlist(c(
+    list(names(ExecutionConfig@properties)),
+    lapply(EXECUTION_CLASSES, function(cls) names(cls@properties))
+  )))
+  check_wire_keys(x, keys, "execution config")
+  args <- .drop_meta_keys(x)
+  backend <- args[["backend"]]
+  if (is.null(backend) || !backend %in% names(EXECUTION_SETUP)) {
+    rtemis.core::abort(
+      "An execution config needs a `backend`, one of: ",
+      paste0("'", names(EXECUTION_SETUP), "'", collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  args[["backend"]] <- NULL
+  # A document records every property of its variant, including those the
+  # variant's `setup_*` has no formal for: the ones it never consults
+  # (`future_plan` is null in a serial record) and the ones its class fixes
+  # (`n_workers` is 1 there, and not settable). Drop those, and refuse anything
+  # else, which is a document claiming something its backend cannot do.
+  fn <- get(EXECUTION_SETUP[[backend]], envir = asNamespace("rtemis"))
+  cls <- EXECUTION_CLASSES[[backend]]
+  unusable <- setdiff(names(args), names(formals(fn)))
+  settled <- vapply(
+    unusable,
+    function(nm) {
+      v <- args[[nm]]
+      if (is.null(v)) {
+        return(TRUE)
+      }
+      spec <- get_spec(cls@properties[[nm]])
+      !is.null(spec) && spec@constant && isTRUE(all.equal(v, spec@default))
+    },
+    logical(1L)
+  )
+  carried <- unusable[!settled]
+  if (length(carried) > 0L) {
+    rtemis.core::abort(
+      "An execution config with backend '",
+      backend,
+      "' cannot carry: ",
+      paste(carried, collapse = ", "),
+      ". Its value is fixed by the variant, or the backend never reads it.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  do.call(fn, args[setdiff(names(args), unusable)])
+} # /rtemis::.list_to_ExecutionConfig

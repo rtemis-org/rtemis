@@ -42,10 +42,7 @@ fit <- function(search) {
       split_search = search,
       force_max_leaves = TRUE
     ),
-    execution_config = rtemis::setup_ExecutionConfig(
-      seed = 1L,
-      backend = "none"
-    ),
+    execution_config = rtemis::setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )
   frame <- model@model@frame
