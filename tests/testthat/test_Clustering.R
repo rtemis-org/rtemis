@@ -176,6 +176,38 @@ test_that("clustpredict_HOPACH() refuses newdata", {
   )
 })
 
+
+# HOPACH reports an over-collapsed tree ----
+test_that("cluster_HOPACH() reports a tree collapsed to one cluster", {
+  skip_if_not_installed("hopach")
+  # `hopach()`'s collapsing step can merge down to a single cluster. This input
+  # reaches that state under the default settings, where `hopach()` errors
+  # while descending from it, and under `max_levels = 1L`, where the level
+  # search ends first and it returns the one-cluster partition. Both must
+  # surface as the same rtemis error rather than as a base-R message or a
+  # `Clustering` holding a single cluster.
+  set.seed(81)
+  overcollapse <- matrix(runif(20L * 5L), nrow = 20L, ncol = 5L)
+  expect_error(
+    suppressWarnings(cluster(
+      overcollapse,
+      algorithm = "HOPACH",
+      verbosity = 0L
+    )),
+    class = "rtemis_runtime_error"
+  )
+  expect_error(
+    suppressWarnings(cluster(
+      overcollapse,
+      algorithm = "HOPACH",
+      config = setup_HOPACH(max_levels = 1L),
+      verbosity = 0L
+    )),
+    class = "rtemis_runtime_error"
+  )
+})
+
+
 # setup_PAM ----
 test_that("setup_PAM() succeeds", {
   expect_s7_class(setup_PAM(), PAMConfig)

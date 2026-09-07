@@ -236,19 +236,24 @@ is_integer_column <- function(x) {
 #' @param x data.table: Working table. Modified in place.
 #' @param fn Character: Name of a function returning one value from a vector.
 #' @param select Function: Predicate choosing the columns `fn` applies to.
+#' @param verbosity Integer: Verbosity level.
 #'
 #' @return Invisible NULL. Called for its effect on `x`.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-dt_impute_columns <- function(x, fn, select) {
+dt_impute_columns <- function(x, fn, select, verbosity = 1L) {
   for (nm in names(x)) {
     column <- x[[nm]]
     if (!select(column) || !anyNA(column)) {
       next
     }
-    column[is.na(column)] <- do_call(fn, list(column, na.rm = TRUE))
+    column[is.na(column)] <- do_call(
+      fn,
+      list(column, na.rm = TRUE),
+      verbosity = verbosity
+    )
     data.table::set(x, j = nm, value = column)
   }
   invisible(NULL)
@@ -795,8 +800,8 @@ method(
       )
       # Discrete first: `is_discrete()` claims integer, so an integer column is
       # imputed with the discrete function and never meets the continuous one.
-      dt_impute_columns(x, config@impute_discrete, is_discrete)
-      dt_impute_columns(x, config@impute_continuous, is.numeric)
+      dt_impute_columns(x, config@impute_discrete, is_discrete, verbosity)
+      dt_impute_columns(x, config@impute_continuous, is.numeric, verbosity)
     }
   }
 

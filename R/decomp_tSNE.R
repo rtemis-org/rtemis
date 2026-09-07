@@ -22,7 +22,8 @@ method(decomp_, tSNEConfig) <- function(config, x, verbosity = 1L) {
     args,
     error_pattern_suggestion = list(
       "Remove duplicates" = "Remove duplicates using `preprocess()"
-    )
+    ),
+    verbosity = verbosity
   )
   check_inherits(decom, "Rtsne")
   list(decom = decom, transformed = decom[["Y"]])

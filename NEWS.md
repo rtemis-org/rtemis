@@ -2,6 +2,11 @@
 
 ## 1.4.0
 
+- `do_call()` propagates warnings unchanged.`verbosity` gates its suggestions, which are printed only for a recognized warning and once per call.
+- **HOPACH reports a collapsed tree instead of failing opaquely.** `hopach` can
+  collapse its tree to one cluster and then either error while descending from
+  it or return that one-cluster partition; both now raise a
+  `rtemis_runtime_error` naming the cause and pointing at `dist`.
 - **A clustering run now reports metrics, and says why a measure is absent.**
   New `ClusteringMetrics`, published as `clusteringmetrics/v1` and carried by
   the run record: a one-row table of `n_cases`, `n_clusters`, `noise_fraction`,

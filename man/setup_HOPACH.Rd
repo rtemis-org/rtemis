@@ -66,6 +66,11 @@ Argument names are rtemis' own. They map to \code{hopach::hopach()} as:
 Two values \code{hopach} documents are not offered, because neither works:
 \code{d = "abseuclid"}, which \code{distancematrix()} has no branch for, and
 \code{ord = "co"}, which errors for every input.
+
+On some datasets \code{hopach} collapses its tree all the way to a single
+cluster and cannot split it further, which ends the run with an error.
+Whether it happens depends on the data and on \code{dist}, so another \code{dist}
+clusters the same data.
 }
 \examples{
 hopach_config <- setup_HOPACH(dist = "euclid", max_levels = 3L)

@@ -126,7 +126,7 @@ method(decomp_, NMFConfig) <- function(config, x, verbosity = 1L) {
     method = config[["method"]],
     nrun = config[["nrun"]]
   )
-  decom <- do_call(NMF::nmf, args)
+  decom <- do_call(NMF::nmf, args, verbosity = verbosity)
   list(decom = decom, transformed = nmf_scores(nmf_basis(decom), xm))
 } # /rtemis::decomp_.NMFConfig
 

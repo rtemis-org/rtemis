@@ -733,7 +733,8 @@ make_grid_cell_runner <- function(
           hyperparameters = hyperparams1,
           weights = weights1,
           verbosity = verbosity - 1L
-        )
+        ),
+        verbosity = verbosity
       )
     }
     # Failure policy (specs/observability.md section 7): under a tolerant policy a

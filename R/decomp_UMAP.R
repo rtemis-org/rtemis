@@ -32,7 +32,8 @@ method(decomp_, UMAPConfig) <- function(config, x, verbosity = 1L) {
     args,
     error_pattern_suggestion = list(
       "as_cholmod_sparse" = "Try installing packages 'Matrix' and 'irlba' from source."
-    )
+    ),
+    verbosity = verbosity
   )
   # ret_model = TRUE returns list
   check_inherits(decom, "list")
