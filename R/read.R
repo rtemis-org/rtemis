@@ -14,7 +14,7 @@
 #' - **Delimited** files using `data.table:fread()`, `arrow:read_delim_arrow()`,
 #'   `vroom::vroom()`, or `duckdb::duckdb_read_csv()`
 #' - **ARFF** files using `farff::readARFF()`
-#' - **Parquet** files using `arrow::read_parquet()` or `nanoparquet::read_parquet`
+#' - **Parquet** files using `nanoparquet::read_parquet` or `arrow::read_parquet()`
 #' - **XLSX** files using `readxl::read_excel()`
 #' - **DTA** files from Stata using `haven::read_dta()`
 #' - **FASTA** files using `seqinr::read.fasta()`
@@ -65,7 +65,7 @@ read <- function(
   character2factor = FALSE,
   clean_colnames = TRUE,
   delim_reader = c("data.table", "vroom", "duckdb", "arrow"),
-  parquet_reader = c("arrow", "nanoparquet"),
+  parquet_reader = c("nanoparquet", "arrow"),
   xlsx_sheet = 1,
   sep = NULL,
   quote = "\"",
