@@ -61,7 +61,7 @@ outcome level to treat as positive. NULL keeps the existing factor level order.}
 resampling during model training.}
 
 \item{execution_config}{\code{ExecutionConfig} object: Configuration for execution settings. Setup
-with \link{setup_FutureExecution}.}
+with \link{setup_SerialExecution}, \link{setup_FutureExecution} or \link{setup_MiraiExecution}.}
 
 \item{question}{Optional Character: Question to answer with the supervised learning analysis.}
 

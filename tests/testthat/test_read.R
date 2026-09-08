@@ -37,7 +37,7 @@ test_that("read() leaves a parquet carrying no view type untouched", {
   x <- data.frame(
     a = 1:3,
     b = c("x", "y", "z"),
-    # d = as.Date("2026-01-01") + 0:2,
+    d = as.Date("2026-01-01") + 0:2,
     f = factor(c("p", "q", "p")),
     stringsAsFactors = FALSE
   )
@@ -51,7 +51,7 @@ test_that("read() leaves a parquet carrying no view type untouched", {
   expect_identical(materialize_arrow_views(tbl), tbl)
 
   out <- read(path, verbosity = 0L, output = "data.frame")
-  # this may fail on Date integer vs. double
-  # nanoparquet reads Data as integer type
-  expect_identical(out, x)
+  # Compared by value: nanoparquet returns a Date backed by integer, where
+  # as.Date() returns one backed by double.
+  expect_equal(out, x)
 })

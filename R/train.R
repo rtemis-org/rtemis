@@ -111,9 +111,11 @@ restore_weights_column <- function(model, column) {
 #' This defines the outer resampling method, i.e. the splitting into training and test sets for the
 #' purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
 #' you might want to use a `dat_test` dataset to assess model performance on a single test set.
-#' @param execution_config `ExecutionConfig` object: Setup using [setup_FutureExecution]. This
-#' allows you to set backend ("future", "mirai", or "none"), number of workers, and future plan if
-#' using `backend = "future"`.
+#' @param execution_config `ExecutionConfig` object: Setup using
+#' [setup_SerialExecution], [setup_FutureExecution] or [setup_MiraiExecution].
+#' The function you call selects the backend; each sets the number of workers
+#' per dispatch level, and [setup_FutureExecution] additionally sets the future
+#' plan.
 #' @param question Optional character string defining the question that the model is trying to
 #' answer.
 #' @param outdir Character, optional: String defining the output directory. The

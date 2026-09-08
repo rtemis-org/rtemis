@@ -46,9 +46,11 @@ This defines the outer resampling method, i.e. the splitting into training and t
 purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
 you might want to use a \code{dat_test} dataset to assess model performance on a single test set.}
 
-\item{execution_config}{\code{ExecutionConfig} object: Setup using \link{setup_FutureExecution}. This
-allows you to set backend ("future", "mirai", or "none"), number of workers, and future plan if
-using \code{backend = "future"}.}
+\item{execution_config}{\code{ExecutionConfig} object: Setup using
+\link{setup_SerialExecution}, \link{setup_FutureExecution} or \link{setup_MiraiExecution}.
+The function you call selects the backend; each sets the number of workers
+per dispatch level, and \link{setup_FutureExecution} additionally sets the future
+plan.}
 
 \item{question}{Optional character string defining the question that the model is trying to
 answer.}

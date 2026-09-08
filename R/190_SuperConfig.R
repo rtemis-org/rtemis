@@ -225,7 +225,7 @@ method(print, SuperConfigPaths) <- function(x, output_type = NULL, ...) {
 #' @param outer_resampling_config `ResamplerConfig` object: Configuration for outer res
 #' resampling during model training.
 #' @param execution_config `ExecutionConfig` object: Configuration for execution settings. Setup
-#' with [setup_FutureExecution].
+#' with [setup_SerialExecution], [setup_FutureExecution] or [setup_MiraiExecution].
 #' @param question Optional Character: Question to answer with the supervised learning analysis.
 #' @param outdir Optional Character: Output directory for results; `NULL` to
 #' write nothing to disk.

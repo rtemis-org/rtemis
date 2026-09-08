@@ -300,8 +300,8 @@ read <- function(
   } else if (output == "tibble") {
     .dat <- tibble::as_tibble(.dat)
   } else if (output == "data.frame") {
-    # nanoparquet as of right now outputs "tbl" "data.frame",
-    # inherits is needed because tibble::is_tibble() return FALSE in this case
+    # nanoparquet returns a frame classed "tbl" "data.frame", which
+    # tibble::is_tibble() reports FALSE for, so the class is tested directly.
     if (!is.data.frame(.dat) || inherits(.dat, "tbl")) {
       .dat <- as.data.frame(.dat)
     } else {

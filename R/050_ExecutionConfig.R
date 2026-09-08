@@ -9,7 +9,8 @@
 #' Abstract base for the execution family: how a run dispatches work. `backend`
 #' is the discriminator and the variant holds what that backend actually needs.
 #' Concrete variants are `SerialExecutionConfig`, `FutureExecutionConfig` and
-#' `MiraiExecutionConfig`; build one with [setup_FutureExecution].
+#' `MiraiExecutionConfig`; build one with [setup_SerialExecution],
+#' [setup_FutureExecution] or [setup_MiraiExecution].
 #'
 #' @author EDG
 #' @noRd
@@ -75,11 +76,11 @@ ExecutionConfig <- new_class(
 #' no third backend, only the absence of one; the class is named for what it
 #' is.
 #'
-#' `n_workers` and the two dispatch levels are constrained rather than removed.
-#' A variant that dropped them would invalidate every stored serial document
-#' under `additionalProperties: false`, so the rules that governed them become
-#' type facts instead: the pool is fixed at one worker and neither dispatch
-#' level can exceed one.
+#' Descends from `ExecutionConfig` rather than `ParallelExecutionConfig`, so it
+#' carries no worker pool and no dispatch levels: `n_workers`,
+#' `n_workers_outer` and `n_workers_tuning` are properties of the parallel
+#' backends only. `n_workers_algorithm` sits on the base and applies here,
+#' being threads inside the calling process rather than worker processes.
 #'
 #' @author EDG
 #' @noRd
