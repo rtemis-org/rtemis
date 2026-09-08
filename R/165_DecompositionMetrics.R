@@ -39,7 +39,7 @@ decomposition_metric_columns <- function() {
       description = paste0(
         "Largest absolute correlation between two distinct components. ",
         "Approximately 0 for PCA by construction; a high value means the ",
-        "components carry redundant information. NA for a single component."
+        "components carry redundant information. Undefined for a single component."
       )
     ),
     effective_dimensionality = prop_metric(

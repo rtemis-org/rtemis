@@ -2055,20 +2055,54 @@ applies_when_spec_names <- function(x) {
 } # /rtemis::applies_when_spec_names
 
 
+# %% format_json_literals ----
+#' Spell an atomic vector the way JSON writes it
+#'
+#' A published description is read by every implementation, so a value in it
+#' must be the value a reader would write. R's `TRUE` is JSON's `true`, and an
+#' unquoted string cannot be told from a boolean or a number once R's casing is
+#' gone -- so strings are quoted, which is what the surrounding descriptions
+#' already do for an enum value.
+#'
+#' @param values Atomic vector.
+#'
+#' @return Character vector of the same length.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+format_json_literals <- function(values) {
+  if (is.logical(values)) {
+    return(ifelse(values, "true", "false"))
+  }
+  if (is.character(values)) {
+    return(paste0('"', values, '"'))
+  }
+  trimws(format(values, trim = TRUE))
+} # /rtemis::format_json_literals
+
+
 # %% format_allowed ----
 #' Format a gate's allowed values for an error message
 #'
 #' @param values Atomic vector.
+#' @param json Logical: If TRUE, spell each value as JSON writes it, for a
+#'   published description. If FALSE, as R writes it, for a message telling an
+#'   R caller what to set.
 #'
 #' @return Character scalar.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-format_allowed <- function(values) {
-  # `format()` pads a character vector to a common width and right-justifies
-  # numbers to one, and `trim` suppresses only the second.
-  values <- trimws(format(values, trim = TRUE))
+format_allowed <- function(values, json = FALSE) {
+  values <- if (json) {
+    format_json_literals(values)
+  } else {
+    # `format()` pads a character vector to a common width and right-justifies
+    # numbers to one, and `trim` suppresses only the second.
+    trimws(format(values, trim = TRUE))
+  }
   if (length(values) == 1L) {
     return(values)
   }
@@ -3278,7 +3312,9 @@ candidates_schema <- function(value_schema) {
 applies_when_note <- function(applies_when) {
   clauses <- vapply(
     names(applies_when),
-    function(nm) paste0(nm, " is ", format_allowed(applies_when[[nm]])),
+    function(nm) {
+      paste0(nm, " is ", format_allowed(applies_when[[nm]], json = TRUE))
+    },
     character(1L)
   )
   paste0("Applies only when ", paste(clauses, collapse = " and "), ".")

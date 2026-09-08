@@ -32,7 +32,7 @@ ExecutionConfig <- new_class(
       NULL,
       min = 1L,
       nullable = TRUE,
-      description = "Threads for a self-parallelizing algorithm. NULL = assigned by the worker ladder."
+      description = "Threads for a self-parallelizing algorithm. Unset lets the worker ladder assign it."
     ),
     warm_workers = prop_boolean(
       TRUE,
@@ -126,13 +126,13 @@ ParallelExecutionConfig <- new_class(
       NULL,
       min = 1L,
       nullable = TRUE,
-      description = "Workers for outer resampling. NULL = assigned by the worker ladder."
+      description = "Workers for outer resampling. Unset lets the worker ladder assign it."
     ),
     n_workers_tuning = prop_integer(
       NULL,
       min = 1L,
       nullable = TRUE,
-      description = "Workers for tuning. NULL = assigned by the worker ladder."
+      description = "Workers for tuning. Unset lets the worker ladder assign it."
     )
   ),
   validator = function(self) {

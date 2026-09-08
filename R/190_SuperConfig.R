@@ -40,7 +40,7 @@ SuperConfig <- new_class(
         NULL,
         nullable = TRUE,
         description = paste0(
-          "Name of the outcome column. NULL = rtemis's convention, the last ",
+          "Name of the outcome column. Unset follows rtemis's convention, the last ",
           "column."
         )
       ),
@@ -49,7 +49,7 @@ SuperConfig <- new_class(
         nullable = TRUE,
         vector = TRUE,
         description = paste0(
-          "Names of the columns to use as predictors. NULL = every column ",
+          "Names of the columns to use as predictors. Unset uses every column ",
           "except the outcome."
         )
       ),
@@ -95,7 +95,7 @@ SuperConfig <- new_class(
       outdir = prop_string(
         NULL,
         nullable = TRUE,
-        description = "Output directory for results. NULL = do not write to disk."
+        description = "Output directory for results. Unset does not write to disk."
       ),
       verbosity = prop_integer(
         1L,

@@ -100,7 +100,7 @@ DelimitedIngestConfig <- new_class(
     sep = prop_string(
       NULL,
       nullable = TRUE,
-      description = "Field separator. NULL lets the reader detect it."
+      description = "Field separator. Unset lets the reader detect it."
     ),
     quote = prop_string("\"", description = "Quote character."),
     na_strings = prop_string(

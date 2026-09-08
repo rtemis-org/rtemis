@@ -409,7 +409,7 @@ DBSCANConfig <- new_class(
       vector = TRUE,
       data_bound = "n_cases",
       data_dependent = TRUE,
-      description = "Weights for data points. NULL = unweighted."
+      description = "Weights for data points. Unset leaves the cases unweighted."
     ),
     border_points = prop_boolean(
       TRUE,
@@ -742,7 +742,7 @@ PAMConfig <- new_class(
       min = 1L,
       nullable = TRUE,
       description = paste0(
-        "Number of random starts. NULL uses the deterministic build phase ",
+        "Number of random starts. Unset uses the deterministic build phase ",
         "instead of drawing the initial medoids at random."
       )
     )
@@ -845,7 +845,7 @@ PAMKConfig <- new_class(
     use_pam = prop_boolean(
       TRUE,
       description = paste0(
-        "Fit each candidate with PAM. FALSE uses CLARA instead, which ",
+        "Fit each candidate with PAM. Disabling it uses CLARA instead, which ",
         "subsamples and is intended for large datasets."
       )
     ),

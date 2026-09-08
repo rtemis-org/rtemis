@@ -424,7 +424,7 @@ UMAPConfig <- new_class(
       NULL,
       min = 1L,
       nullable = TRUE,
-      description = "Number of epochs. NULL = algorithm default."
+      description = "Number of epochs. Unset uses the algorithm's default."
     ),
     learning_rate = prop_float(1.0, min = 0, description = "Learning rate."),
     scale = prop_boolean(TRUE, description = "Scale input data before UMAP.")
@@ -538,7 +538,7 @@ tSNEConfig <- new_class(
       nullable = TRUE,
       data_bound = "n_cases",
       data_dependent = TRUE,
-      description = "Initial Y (embedding) matrix. NULL = random initialization."
+      description = "Initial Y (embedding) matrix. Unset initializes it at random."
     ),
     pca_center = prop_boolean(
       TRUE,

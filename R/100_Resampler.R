@@ -358,7 +358,7 @@ CustomConfig <- new_class(
       NULL,
       min = 1L,
       nullable = TRUE,
-      description = "Number of resamples, one per supplied index vector; set from @resamples."
+      description = "Number of resamples, one per supplied index vector; set from resamples."
     ))
   )
 ) # /rtemis::CustomConfig

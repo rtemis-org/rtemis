@@ -76,6 +76,12 @@ source(file.path("data-raw", "schema_registry.R"))
 # one contract. Attached rather than called with `::` at each site: the three
 # call sites below read as the rule they are.
 assert_config_contract <- rtemis.core::assert_config_contract
+# The two prose rules on their own. `assert_config_contract()` applies them too,
+# but it governs only documents a caller authors -- so a record and a result
+# class, which are exempt from the rules about what a document may demand, would
+# otherwise publish descriptions nothing checked. Prose is read by every
+# implementation whatever the document asserts, so this runs on all of them.
+assert_description_language <- rtemis.core::assert_description_language
 
 # Generation ----------------------------------------------------------------
 for (family in names(families)) {
@@ -123,6 +129,7 @@ for (family in names(families)) {
         # closes the whole with `unevaluatedProperties`.
         closed = FALSE
       )
+      assert_description_language(schema, id)
       if (kind == "schema") {
         # A leaf requires nothing: the dispatcher declares the discriminator.
         assert_config_contract(schema, id)
@@ -157,6 +164,7 @@ for (family in names(families)) {
       },
       instance_schema_url = dispatcher_id
     )
+    assert_description_language(dispatcher, dispatcher_id)
     if (kind == "schema") {
       # The discriminator is the shape of a dispatched document, not a value a
       # user supplies: without it no variant's schema applies, and `.list_to_*`
@@ -233,6 +241,7 @@ for (family in names(flat_configs)) {
       # declaring the field would put a key in the contract that nothing writes.
       instance_schema_url = if (!(family %in% result_classes)) id
     )
+    assert_description_language(schema, id)
     # The config contract governs documents a caller authors. A results class is
     # not one: its `required` states what rtemis always writes, which is the
     # record's rule rather than the config's.

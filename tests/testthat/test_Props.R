@@ -81,7 +81,7 @@ LightRFProps <- S7::new_class(
     objective = prop_string(
       NULL,
       nullable = TRUE,
-      description = "LightGBM objective. NULL = set from outcome type."
+      description = "LightGBM objective. Unset sets it from the outcome type."
     ),
     device_type = prop_string(
       "cpu",
@@ -1645,6 +1645,35 @@ test_that("applies_when reaches the schema and the description", {
     schema[["description"]],
     "Applies only when smoothness_orders is 0\\.$"
   )
+})
+
+
+test_that("the applies_when note spells its values as JSON, not as R", {
+  # The note is published, so it must name the value a reader would write:
+  # `true`, not `TRUE`, and a quoted string, which is also what distinguishes
+  # the two once R's casing is gone.
+  bool_gate <- get_spec(
+    rtemis:::LightGBMHyperparameters@properties[["linear_lambda"]]
+  )
+  expect_match(
+    rtemis:::spec_to_schema(bool_gate)[["description"]],
+    "Applies only when linear_tree is true\\.$"
+  )
+  enum_gate <- get_spec(rtemis:::SpectralConfig@properties[["sigma"]])
+  expect_match(
+    rtemis:::spec_to_schema(enum_gate)[["description"]],
+    'Applies only when kernel is "rbf" or "laplace"\\.$'
+  )
+  # The R-facing validator message is the other audience and keeps R's own
+  # spelling, since it tells an R caller what to set: unquoted there, and
+  # `TRUE` rather than `true` for a boolean gate.
+  expect_error(
+    SpectralConfig(kernel = "rbf_local", sigma = 1),
+    "is rbf or laplace",
+    fixed = TRUE
+  )
+  expect_identical(rtemis:::format_allowed(TRUE), "TRUE")
+  expect_identical(rtemis:::format_allowed(TRUE, json = TRUE), "true")
 })
 
 
