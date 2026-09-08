@@ -4,237 +4,39 @@
 
 - `setup_SerialExecution()`, `setup_FutureExecution()` and `setup_MiraiExecution()` build an execution config for one backend each, so an argument is offered only where it applies: a serial config has no `n_workers` and no `future_plan`.
 - `do_call()` propagates warnings unchanged.`verbosity` gates its suggestions, which are printed only for a recognized warning and once per call.
-- **HOPACH reports a collapsed tree instead of failing opaquely.** `hopach` can
-  collapse its tree to one cluster and then either error while descending from
-  it or return that one-cluster partition; both now raise a
-  `rtemis_runtime_error` naming the cause and pointing at `dist`.
-- **A clustering run now reports metrics, and says why a measure is absent.**
-  New `ClusteringMetrics`, published as `clusteringmetrics/v1` and carried by
-  the run record: a one-row table of `n_cases`, `n_clusters`, `noise_fraction`,
-  `mean_assignment_uncertainty` and `mean_assignment_entropy`, beside a matching
-  row of statuses. `NA` alone cannot distinguish a measure that came out
-  undefined from one the algorithm cannot support or one nobody asked for, so
-  each value carries one of `computed`, `unsupported`, `not_applicable`,
-  `not_requested` or `undefined`. Values and statuses are generated from a
-  single measure declaration, and the rule joining them -- `computed` promises a
-  number, every other status promises none -- is enforced by the class and
-  mirrored into the published schema, so a non-R implementation cannot accept a
-  document rtemis rejects. `n_clusters` is copied from `Clustering@k` rather
-  than recounted. Only measures linear in cases times clusters, over values
-  already in hand, are computed on every run; a silhouette is quadratic and
-  will need an explicit call.
-- **Clustering results are now typed by whether they carry memberships.**
-  `Clustering` is abstract with two variants: `HardClustering`, and
-  `SoftClustering`, which adds a required `membership` matrix -- one row per
-  case, one column per cluster, validated for finiteness, range, row sums and
-  agreement with the hard labels. CMeans was discarding the membership matrix
-  it already fitted; it now reports it. `Clustering@k` is the number of
-  *fitted* clusters, from a new `cluster_k()` the algorithm registers, rather
-  than the number of distinct labels: the label count over-reported DBSCAN's
-  noise sentinel as a cluster (an all-noise fit reported one) and would
-  under-report a mixture component that wins no case.
-- **New clustering algorithm: GMM, the Gaussian mixture model** --
-  `setup_GMM()`, via 'mclust'. Each cluster is a Gaussian component with its
-  own mean and covariance, so clusters may be elongated, differently oriented
-  and differently sized, and every case carries a posterior probability per
-  component. The first algorithm to select its own `k`: leave `k` unset and BIC
-  chooses both the number of components and the covariance parameterization;
-  set it and BIC chooses only the parameterization.
-- **New clustering algorithms: PAM and PAMK, partitioning around medoids** --
-  `setup_PAM()` via 'cluster', `setup_PAMK()` via 'fpc'. PAM is the
-  medoid-based counterpart of k-means, usable with non-Euclidean
-  dissimilarities and less sensitive to outliers; it takes `k`. PAMK fits PAM
-  (or CLARA, with `use_pam = FALSE`) for every candidate in `krange` and keeps
-  the best by average silhouette width or Calinski-Harabasz, so it takes no
-  `k` and `Clustering@k` reports what the search chose. Neither can place
-  unseen cases in a fitted partition, so `newdata` is refused rather than
-  ignored.
-- **New clustering algorithm: HOPACH, the Hierarchical Ordered Partitioning
-  and Collapsing Hybrid of van der Laan & Pollard (2003)** -- `setup_HOPACH()`,
-  via the Bioconductor package 'hopach'. A divisive tree with collapsing steps at each
-  level, which selects the level with maximally homogeneous clusters by the
-  median (or mean) split silhouette. It is the first clustering algorithm that
-  *discovers* `k` as well as ordering its clusters, so it takes no `k`:
-  `max_levels` and `max_children` bound the tree, and `Clustering@k` reports
-  what was found. It cannot place unseen cases in the fitted tree, so
-  `newdata` is refused rather than ignored. Two options the backend documents
-  are not offered because they do not work: `d = "abseuclid"`, which
-  `distancematrix()` has no branch for, and `ord = "co"`, which errors for
-  every input.
+- **HOPACH reports a collapsed tree instead of failing opaquely.** `hopach` can collapse its tree to one cluster and then either error while descending from it or return that one-cluster partition; both now raise a `rtemis_runtime_error` naming the cause and pointing at `dist`.
+- **A clustering run now reports metrics, and says why a measure is absent.** New `ClusteringMetrics`, published as `clusteringmetrics/v1` and carried by the run record: a one-row table of `n_cases`, `n_clusters`, `noise_fraction`, `mean_assignment_uncertainty` and `mean_assignment_entropy`, beside a matching row of statuses. `NA` alone cannot distinguish a measure that came out undefined from one the algorithm cannot support or one nobody asked for, so each value carries one of `computed`, `unsupported`, `not_applicable`, `not_requested` or `undefined`. Values and statuses are generated from a single measure declaration, and the rule joining them -- `computed` promises a number, every other status promises none -- is enforced by the class and mirrored into the published schema, so a non-R implementation cannot accept a document rtemis rejects. `n_clusters` is copied from `Clustering@k` rather than recounted. Only measures linear in cases times clusters, over values already in hand, are computed on every run; a silhouette is quadratic and will need an explicit call.
+- **Clustering results are now typed by whether they carry memberships.** `Clustering` is abstract with two variants: `HardClustering`, and `SoftClustering`, which adds a required `membership` matrix -- one row per case, one column per cluster, validated for finiteness, range, row sums and agreement with the hard labels. CMeans was discarding the membership matrix it already fitted; it now reports it. `Clustering@k` is the number of *fitted* clusters, from a new `cluster_k()` the algorithm registers, rather than the number of distinct labels: the label count over-reported DBSCAN's noise sentinel as a cluster (an all-noise fit reported one) and would under-report a mixture component that wins no case.
+- **New clustering algorithm: GMM, the Gaussian mixture model** -- `setup_GMM()`, via 'mclust'. Each cluster is a Gaussian component with its own mean and covariance, so clusters may be elongated, differently oriented and differently sized, and every case carries a posterior probability per component. The first algorithm to select its own `k`: leave `k` unset and BIC chooses both the number of components and the covariance parameterization; set it and BIC chooses only the parameterization.
+- **New clustering algorithms: PAM and PAMK, partitioning around medoids** -- `setup_PAM()` via 'cluster', `setup_PAMK()` via 'fpc'. PAM is the medoid-based counterpart of k-means, usable with non-Euclidean dissimilarities and less sensitive to outliers; it takes `k`. PAMK fits PAM (or CLARA, with `use_pam = FALSE`) for every candidate in `krange` and keeps the best by average silhouette width or Calinski-Harabasz, so it takes no `k` and `Clustering@k` reports what the search chose. Neither can place unseen cases in a fitted partition, so `newdata` is refused rather than ignored.
+- **New clustering algorithm: HOPACH, the Hierarchical Ordered Partitioning and Collapsing Hybrid of van der Laan & Pollard (2003)** -- `setup_HOPACH()`, via the Bioconductor package 'hopach'. A divisive tree with collapsing steps at each level, which selects the level with maximally homogeneous clusters by the median (or mean) split silhouette. It is the first clustering algorithm that *discovers* `k` as well as ordering its clusters, so it takes no `k`: `max_levels` and `max_children` bound the tree, and `Clustering@k` reports what was found. It cannot place unseen cases in the fitted tree, so `newdata` is refused rather than ignored. Two options the backend documents are not offered because they do not work: `d = "abseuclid"`, which `distancematrix()` has no branch for, and `ord = "co"`, which errors for every input.
 
 ## 1.3.9
 
-- **Every config family now publishes one shape: the discriminator with the
-  variant's settings as its siblings.** `hyperparameters/v1`,
-  `decomposition/v1`, `clustering/v1` and `tuner/v1` nested the settings under
-  a second key (`{"algorithm": "Ranger", "hyperparameters": {...}}`), so
-  "Ranger with every default" had to be spelled with an empty object -- the
-  one construct a delta config should express by absence, and the one an
-  observed model could not emit: it sent `""`, was told to write `{}`, re-sent
-  `""`, and then invented a setting to get past the validator. `resampler/v1`
-  already used the other shape, and it is now the only one:
-  `{"algorithm": "Ranger"}` is Ranger with every default and
-  `{"algorithm": "Ranger", "num_trees": 500}` sets one thing.
-  `S7_dispatcher_JSONSchema()` loses its `payload` argument and states the
-  shape rule in every family's description; every family's
-  `serializable_props()` goes through the new `dispatched_props()`; the
-  `.list_to_*()` readers take the flat form and refuse the nested one by name,
-  saying where the settings go; records are written flat, `origin` beside the
-  name; and a record dispatcher requires the fields the base declares for
-  every variant, which the record now carries (`decomposition/v1/record.json`
-  requires `features`, which a decomposition record used to drop). The data
-  checks read the tuner's inner resampler at `/tuner_config/resampler_config`
-  and a decomposition's `k` beside its `algorithm`. The corpus, the CLI and
-  rtemislive all changed with it: regenerate, publish, then re-vendor.
-- **Who may author a property is now a fact the generator can record, kept out
-  of the published schema itself.** New `PropertySpec@agent_writable` (stamped
-  by the new `prop_host_only()`, applied so far to `SuperConfig@outdir` and
-  `@verbosity`) and a new `data-raw/generate_authoring.R`, publishing
-  `authoring/v1`: which properties, per schema, are the host's to set rather
-  than part of the question an agent's config answers. Deliberately never
-  reaches a schema's own `x-rtemis` block -- workflow authorship can change
-  (a delegated, sandboxed agent is a coherent future workflow) while a
-  published schema version must not, so it is versioned as its own,
-  separately-lifecycled artifact instead, the same relationship
-  `defaults/v1` already has to the schemas.
+- **Every config family now publishes one shape: the discriminator with the variant's settings as its siblings.** `hyperparameters/v1`, `decomposition/v1`, `clustering/v1` and `tuner/v1` nested the settings under a second key (`{"algorithm": "Ranger", "hyperparameters": {...}}`), so "Ranger with every default" had to be spelled with an empty object -- the one construct a delta config should express by absence, and the one an observed model could not emit: it sent `""`, was told to write `{}`, re-sent `""`, and then invented a setting to get past the validator. `resampler/v1` already used the other shape, and it is now the only one: `{"algorithm": "Ranger"}` is Ranger with every default and `{"algorithm": "Ranger", "num_trees": 500}` sets one thing. `S7_dispatcher_JSONSchema()` loses its `payload` argument and states the shape rule in every family's description; every family's `serializable_props()` goes through the new `dispatched_props()`; the `.list_to_*()` readers take the flat form and refuse the nested one by name, saying where the settings go; records are written flat, `origin` beside the name; and a record dispatcher requires the fields the base declares for every variant, which the record now carries (`decomposition/v1/record.json` requires `features`, which a decomposition record used to drop). The data checks read the tuner's inner resampler at `/tuner_config/resampler_config` and a decomposition's `k` beside its `algorithm`. The corpus, the CLI and rtemislive all changed with it: regenerate, publish, then re-vendor.
+- **Who may author a property is now a fact the generator can record, kept out of the published schema itself.** New `PropertySpec@agent_writable` (stamped by the new `prop_host_only()`, applied so far to `SuperConfig@outdir` and `@verbosity`) and a new `data-raw/generate_authoring.R`, publishing `authoring/v1`: which properties, per schema, are the host's to set rather than part of the question an agent's config answers. Deliberately never reaches a schema's own `x-rtemis` block -- workflow authorship can change (a delegated, sandboxed agent is a coherent future workflow) while a published schema version must not, so it is versioned as its own, separately-lifecycled artifact instead, the same relationship `defaults/v1` already has to the schemas.
 - **Added `check_is_S7()`**
-- **New `partition()`, alongside `ingest()`: a held-out train/test split as its
-  own auditable step**, config'd via `setup_RandomPartition()`,
-  `setup_TimePartition()`, `setup_GroupPartition()`, or
-  `setup_PredefinedPartition()`, published at `partition/v1`. Deliberately not
-  a `SuperConfig` field: `SuperConfig` has so far only ever referenced data,
-  and a split field would be the first data-manipulation operation in it, with
-  no principled place to stop before a filter, a join, or a derived column.
-  `partition()` produces ordinary Parquet files (or, called on in-memory data
-  directly, ordinary frames) that `SuperConfig`'s existing `dat_training_path`/
-  `dat_test_path` then simply name -- the same relationship they already have
-  with `ingest()`'s output -- so how a held-out set was produced is now a
-  decision the record can report.
-- **`setup_Resampler(type = )` was split into `setup_KFold()`, `setup_StratSub()`,
-  `setup_StratBoot()`, `setup_Bootstrap()`, `setup_LOOCV()` and `setup_Custom()`,
-  each taking only the parameters its own type uses.** Every other dispatched
-  family (`decomposition`, `clustering`, `conformal`, `hyperparameters`) already
-  worked this way; the resampler dispatcher was the one exception, and its
-  `verbosity` argument was accepted, documented, and never used. `setup_Resampler()`
-  is removed, with no compatibility wrapper.
-- **`SuperConfig` and `SuperConfigLive` now share an abstract `SuperConfig`
-  parent** carrying the 13 properties both had -- `SuperConfigPaths` (built by
-  [setup_SuperConfig], the portable, file-path recipe) and `SuperConfigTabular`
-  (built by [setup_SuperConfigLive], the in-memory recipe) add only what
-  actually differs between them. Previously the two classes duplicated the
-  same 13 declarations by hand, with nothing to catch the two drifting apart.
-  `setup_SuperConfig()`/`setup_SuperConfigLive()` keep their names and return
-  shapes; only the internal class names changed. `supervised/v1`'s published
-  schema is unchanged in substance (same fields, same constraints; the
-  `properties` object lists the shared fields before the path-specific ones,
-  which does not affect validation).
-- **`hyperparameters` dispatches on the presence of `variants`, not on an
-  undiscriminated `oneOf`.** Both alternatives are objects, so no validator
-  could tell which one a document was attempting, and every branch's failure was
-  reported as an instruction. A single learner missing its settings block came
-  back as four: "must be null", "must have required property `hyperparameters`",
-  "must have required property `variants`", and -- the damaging one -- "must NOT
-  have additional properties (algorithm)", which tells a reader to delete the
-  field the intended branch *requires*. Follow it and the block empties, and an
-  empty config is schema-valid, so nothing objects a second time. Three
-  open-weight agents did exactly that. `allOf` with `if`/`then` reports only the
-  branch the document is in: boon now gives one error where it gave five. This
-  supersedes the branch titles added above -- the ordinary branch is a bare
-  `$ref` again, because a `then` carrying anything more is a different construct
-  to the readers that key on it, and what the branches are for is in the
-  property's own description.
-- **Algorithm traits are spelled out**
-  `class`, `reg`, `missing` and `p_gt_n` are now `classification`, `regression`,
-  `handles_missing_data` and `handles_p_greater_than_n`, in
-  `supervised_algorithms`, in `traits/v1`, and in the `checks/v1` expressions
-  that read them. An abbreviation a rule author recognizes is not one a reader
-  choosing a learner does, and these four are what `MISSING_INCOMPATIBLE` and
-  `DIM_P_GT_N` judge a config by. `survival` stays recorded in
-  `supervised_algorithms` -- the fact is real and the column is what a future
-  rule will read -- but is absent from `traits/v1`: rtemis dispatches no survival
-  run, and publishing it offered a capability nothing could act on.
-  `checks/v1/corpus.json` is unchanged by the rename, which is what says it
-  changed no finding.
-- **No published schema description names an R construct.** 72 of them ended
-  "See `setup_X`."; others named `.list_to_Hyperparameters` or a package
-  function. The corpus is language-independent and is read by four kinds of
-  consumer, only one of which can call an R function. The roxygen docs keep
-  their pointers, which is where an R user looks. Enforced from now on by
-  `rtemis.core::assert_config_contract()`, which also caught two property
-  descriptions naming `NMF::nmf` and `uwot::umap`.
-- **The pre-flight's exemption list names `features`, with the argument.**
-  `config_parts()` reads it and `preflight_config()` has no formal for it, which
-  the contract test correctly refused. It cannot be forwarded: `train()` is
-  handed a frame `project_frame()` has already narrowed, so there is nothing to
-  carry -- and nothing needed, since against a projected frame `features = NULL`
-  names exactly the set the config named against the unprojected one. The one
-  place the equivalence is inexact is recorded beside it: a `weights` column
-  survives projection and falls inside "every column but the outcome", which no
-  rule reads today.
+- **New `partition()`, alongside `ingest()`: a held-out train/test split as its own auditable step**, config'd via `setup_RandomPartition()`, `setup_TimePartition()`, `setup_GroupPartition()`, or `setup_PredefinedPartition()`, published at `partition/v1`. Deliberately not a `SuperConfig` field: `SuperConfig` has so far only ever referenced data, and a split field would be the first data-manipulation operation in it, with no principled place to stop before a filter, a join, or a derived column. `partition()` produces ordinary Parquet files (or, called on in-memory data directly, ordinary frames) that `SuperConfig`'s existing `dat_training_path`/ `dat_test_path` then simply name -- the same relationship they already have with `ingest()`'s output -- so how a held-out set was produced is now a decision the record can report.
+- **`setup_Resampler(type = )` was split into `setup_KFold()`, `setup_StratSub()`, `setup_StratBoot()`, `setup_Bootstrap()`, `setup_LOOCV()` and `setup_Custom()`, each taking only the parameters its own type uses.** Every other dispatched family (`decomposition`, `clustering`, `conformal`, `hyperparameters`) already worked this way; the resampler dispatcher was the one exception, and its `verbosity` argument was accepted, documented, and never used. `setup_Resampler()` is removed, with no compatibility wrapper.
+- **`SuperConfig` and `SuperConfigLive` now share an abstract `SuperConfig` parent** carrying the 13 properties both had -- `SuperConfigPaths` (built by [setup_SuperConfig], the portable, file-path recipe) and `SuperConfigTabular` (built by [setup_SuperConfigLive], the in-memory recipe) add only what actually differs between them. Previously the two classes duplicated the same 13 declarations by hand, with nothing to catch the two drifting apart. `setup_SuperConfig()`/`setup_SuperConfigLive()` keep their names and return shapes; only the internal class names changed. `supervised/v1`'s published schema is unchanged in substance (same fields, same constraints; the `properties` object lists the shared fields before the path-specific ones, which does not affect validation).
+- **`hyperparameters` dispatches on the presence of `variants`, not on an undiscriminated `oneOf`.** Both alternatives are objects, so no validator could tell which one a document was attempting, and every branch's failure was reported as an instruction. A single learner missing its settings block came back as four: "must be null", "must have required property `hyperparameters`", "must have required property `variants`", and -- the damaging one -- "must NOT have additional properties (algorithm)", which tells a reader to delete the field the intended branch *requires*. Follow it and the block empties, and an empty config is schema-valid, so nothing objects a second time. Three open-weight agents did exactly that. `allOf` with `if`/`then` reports only the branch the document is in: boon now gives one error where it gave five. This supersedes the branch titles added above -- the ordinary branch is a bare `$ref` again, because a `then` carrying anything more is a different construct to the readers that key on it, and what the branches are for is in the property's own description.
+- **Algorithm traits are spelled out** `class`, `reg`, `missing` and `p_gt_n` are now `classification`, `regression`, `handles_missing_data` and `handles_p_greater_than_n`, in `supervised_algorithms`, in `traits/v1`, and in the `checks/v1` expressions that read them. An abbreviation a rule author recognizes is not one a reader choosing a learner does, and these four are what `MISSING_INCOMPATIBLE` and `DIM_P_GT_N` judge a config by. `survival` stays recorded in `supervised_algorithms` -- the fact is real and the column is what a future rule will read -- but is absent from `traits/v1`: rtemis dispatches no survival run, and publishing it offered a capability nothing could act on. `checks/v1/corpus.json` is unchanged by the rename, which is what says it changed no finding.
+- **No published schema description names an R construct.** 72 of them ended "See `setup_X`."; others named `.list_to_Hyperparameters` or a package function. The corpus is language-independent and is read by four kinds of consumer, only one of which can call an R function. The roxygen docs keep their pointers, which is where an R user looks. Enforced from now on by `rtemis.core::assert_config_contract()`, which also caught two property descriptions naming `NMF::nmf` and `uwot::umap`.
+- **The pre-flight's exemption list names `features`, with the argument.** `config_parts()` reads it and `preflight_config()` has no formal for it, which the contract test correctly refused. It cannot be forwarded: `train()` is handed a frame `project_frame()` has already narrowed, so there is nothing to carry -- and nothing needed, since against a projected frame `features = NULL` names exactly the set the config named against the unprojected one. The one place the equivalence is inexact is recorded beside it: a `weights` column survives projection and falls inside "every column but the outcome", which no rule reads today.
 
-- **A `oneOf` property documents its alternatives, and says which is the common
-  one.** `hyperparameters` admits one configuration or a set of named ones, and
-  only the set carried a description -- so the sole branch that explained itself
-  was the exception, and a reader looking for guidance found it and wrote it.
-  Both branches now carry a title and a description, the rare one says it is
-  uncommon and what it is for, and the property's own description survives the
-  `oneOf` rather than being discarded by it.
-- **A discriminated union's payload no longer calls itself "variant-specific".**
-  One word meant both a branch of a discriminated union and a member of a named
-  set, in schemas where a parent admits both. It now names the discriminator it
-  belongs to and states the default rule: anything unset takes rtemis's default,
-  so `{}` is every default and is the usual value -- the answer to the question
-  the description otherwise invites.
-- **`is_wire_hyperparameters_set()` is exported.** `rtemis.server` needs the same
-  discriminator one layer earlier, to know whether a payload names its learner at
-  the top level or inside each variant. Two spellings of one rule is how a config
-  becomes submittable on one path and unreadable on the other.
+- **A `oneOf` property documents its alternatives, and says which is the common one.** `hyperparameters` admits one configuration or a set of named ones, and only the set carried a description -- so the sole branch that explained itself was the exception, and a reader looking for guidance found it and wrote it. Both branches now carry a title and a description, the rare one says it is uncommon and what it is for, and the property's own description survives the `oneOf` rather than being discarded by it.
+- **A discriminated union's payload no longer calls itself "variant-specific".** One word meant both a branch of a discriminated union and a member of a named set, in schemas where a parent admits both. It now names the discriminator it belongs to and states the default rule: anything unset takes rtemis's default, so `{}` is every default and is the usual value -- the answer to the question the description otherwise invites.
+- **`is_wire_hyperparameters_set()` is exported.** `rtemis.server` needs the same discriminator one layer earlier, to know whether a payload names its learner at the top level or inside each variant. Two spellings of one rule is how a config becomes submittable on one path and unreadable on the other.
 
-- **A supervised record names its execution graph, written beside it as
-  Parquet.** `train()` recorded the session on the fitted object and the record
-  kept only its `started` and `finished`, so a stored record said when a run
-  began and ended but not what happened between. The graph is a table, so it
-  goes in a columnar file: `train_<algorithm>.session.parquet` beside
-  `train_<algorithm>.record.json`, with the record's new `session` field naming
-  it. New `dataref/v1`, `$ref`d wherever a record names a file written beside
-  it.
-- **`DataRef` carries `path`, `encoding`, `algorithm`, `hash`, `bytes`, and
-  `n_rows`/`n_cols` when the file is a table.** A reference to a file, not to a
-  table: most of what a run writes beside its record is tabular, the fitted
-  object and the log are not. The digest is over the file's bytes -- a canonical
-  logical form is what two implementations need to agree on one digest, and a
-  sidecar is written once by the engine that ran. The hash sits inside the
-  record, so a changed sidecar contradicts it.
-- **`nanoparquet` moves from Suggests to Imports.** A record that names a file
-  it could not write is not something a caller should be able to produce by
-  having installed less.
-- **`session_nodes()`**: the session as one row per node with absolute
-  timestamps -- the durable projection, as distinct from `session_timeline()`'s
-  display one. `meta` travels as JSON text rather than flattened columns, so the
-  table's shape does not depend on which node kinds a run produced.
+- **A supervised record names its execution graph, written beside it as Parquet.** `train()` recorded the session on the fitted object and the record kept only its `started` and `finished`, so a stored record said when a run began and ended but not what happened between. The graph is a table, so it goes in a columnar file: `train_<algorithm>.session.parquet` beside `train_<algorithm>.record.json`, with the record's new `session` field naming it. New `dataref/v1`, `$ref`d wherever a record names a file written beside it.
+- **`DataRef` carries `path`, `encoding`, `algorithm`, `hash`, `bytes`, and `n_rows`/`n_cols` when the file is a table.** A reference to a file, not to a table: most of what a run writes beside its record is tabular, the fitted object and the log are not. The digest is over the file's bytes -- a canonical logical form is what two implementations need to agree on one digest, and a sidecar is written once by the engine that ran. The hash sits inside the record, so a changed sidecar contradicts it.
+- **`nanoparquet` moves from Suggests to Imports.** A record that names a file it could not write is not something a caller should be able to produce by having installed less.
+- **`session_nodes()`**: the session as one row per node with absolute timestamps -- the durable projection, as distinct from `session_timeline()`'s display one. `meta` travels as JSON text rather than flattened columns, so the table's shape does not depend on which node kinds a run produced.
 
-- **The eight results schemas declare `required`.** `diagnostic/v1`,
-  `diagnostics/v1`, `profile/v1` and the five metrics classes were generated
-  under the config contract, which forbids `required` because a config is a
-  partial expression of intent. A results document asserts fact, so `{}` was
-  valid as a `diagnostic/v1`. `S7_to_JSONSchema(asserted = TRUE)` is the third
-  mode beside config and record.
-- **`to_json()` no longer emits `.class`.** The marker named the S7 class for a
-  frontend to dispatch on, from before documents carried `$schema`. Nothing has
-  read it since, and every results schema is `additionalProperties: false` and
-  declares no such property -- so each `diagnostics` payload the server sent was
-  invalid against its own published schema.
-- **The checks corpus records whole documents.** Its profiles dropped
-  `fingerprint` and its findings dropped `step`, both hand-written reassemblies
-  of a schema rather than what `to_json()` emits. The `step` omission was
-  discarding the value the fixture named "stamps the step onto every data
-  finding" exists to prove. Both now come from `to_json()`, and the generator
-  asserts every recorded profile and finding carries its schema's full property
-  set before writing.
-- **`write_JSONSchema()` and `write_lines()` moved to rtemis.core**; the first is
-  re-exported, so `rtemis::write_JSONSchema()` is unchanged. The registry has
-  more than one producer, and a document's shape belongs to the registry rather
-  than to whichever package emitted it. Keywords are now ordered on write.
+- **The eight results schemas declare `required`.** `diagnostic/v1`, `diagnostics/v1`, `profile/v1` and the five metrics classes were generated under the config contract, which forbids `required` because a config is a partial expression of intent. A results document asserts fact, so `{}` was valid as a `diagnostic/v1`. `S7_to_JSONSchema(asserted = TRUE)` is the third mode beside config and record.
+- **`to_json()` no longer emits `.class`.** The marker named the S7 class for a frontend to dispatch on, from before documents carried `$schema`. Nothing has read it since, and every results schema is `additionalProperties: false` and declares no such property -- so each `diagnostics` payload the server sent was invalid against its own published schema.
+- **The checks corpus records whole documents.** Its profiles dropped `fingerprint` and its findings dropped `step`, both hand-written reassemblies of a schema rather than what `to_json()` emits. The `step` omission was discarding the value the fixture named "stamps the step onto every data finding" exists to prove. Both now come from `to_json()`, and the generator asserts every recorded profile and finding carries its schema's full property set before writing.
+- **`write_JSONSchema()` and `write_lines()` moved to rtemis.core**; the first is re-exported, so `rtemis::write_JSONSchema()` is unchanged. The registry has more than one producer, and a document's shape belongs to the registry rather than to whichever package emitted it. Keywords are now ordered on write.
 
 ## 1.3.8
 
@@ -555,8 +357,7 @@
 
 ## 1.2.7
 
-- Added `DecomposeConfig` and `ClusterConfig` pipeline-recipe classes with `setup_DecomposeConfig()` / `setup_ClusterConfig()`, mirroring `SuperConfig`: they bundle a data path, the algorithm config (`DecompositionConfig` /
-`ClusteringConfig`), and an output directory.
+- Added `DecomposeConfig` and `ClusterConfig` pipeline-recipe classes with `setup_DecomposeConfig()` / `setup_ClusterConfig()`, mirroring `SuperConfig`: they bundle a data path, the algorithm config (`DecompositionConfig` / `ClusteringConfig`), and an output directory.
 - `decomp()` now accepts `DecomposeConfig` objects.
 - `cluster()` now accepts `ClusterConfig` objects.
 - Added `outdir` arg to `decomp()` and `cluster()`
