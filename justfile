@@ -12,6 +12,10 @@ tarball_glob := pkg + "_*.tar.gz"
 # kept with the notes that explain them. Everything below stands on its own.
 import? '__dev/publish.just'
 
+# Optional, and absent from a clone: recipes that read a working directory this
+# package does not ship, kept with it rather than named here.
+import? '__dev/plan.just'
+
 # List available recipes
 default:
     @just --list
