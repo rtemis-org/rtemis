@@ -369,9 +369,7 @@ families <- list(
     title = "rtemis ExecutionConfig",
     description = paste0(
       "Language-independent config for rtemis execution: sequential, ",
-      "parallel, or distributed. `backend` selects the variant; what each ",
-      "backend needs is declared on the variant rather than governed by ",
-      "cross-field rules over one flat class."
+      "parallel, or distributed."
     ),
     discriminator_description = "Execution backend.",
     algorithms = list(
