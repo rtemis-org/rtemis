@@ -584,7 +584,7 @@ ConditionalSuperLearnerHyperparameters <- new_class(
       enum = c("squared_error", "log_loss"),
       nullable = TRUE,
       default_on_null = TRUE,
-      description = "Per-case loss the oracle minimizes. NULL = squared error, which for classification is the Brier score."
+      description = "Per-case loss the oracle minimizes. Unset uses squared error, which for classification is the Brier score."
     ),
     init = prop_string(
       "full",

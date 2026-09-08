@@ -81,7 +81,7 @@ LightRFProps <- S7::new_class(
     objective = prop_string(
       NULL,
       nullable = TRUE,
-      description = "LightGBM objective. NULL = set from outcome type."
+      description = "LightGBM objective. Unset sets it from the outcome type."
     ),
     device_type = prop_string(
       "cpu",
@@ -184,6 +184,36 @@ testthat::test_that("bad defaults fail at factory time, not first instantiation"
   testthat::expect_error(prop_string(NULL, nullable = FALSE), "default")
   testthat::expect_no_error(prop_string(NULL, nullable = TRUE))
 })
+
+# %% Exclusive integer bounds ----
+testthat::test_that("prop_integer takes exclusive bounds and emits them", {
+  Cls <- S7::new_class(
+    "ExclIntProps",
+    properties = list(
+      # An open lower bound on a count: "at least one", stated as > 0 rather
+      # than min = 1, for a backend whose own documentation reads that way.
+      n = prop_integer(1L, exclusive_min = 0L),
+      k = prop_integer(1L, exclusive_max = 10L)
+    )
+  )
+  testthat::expect_error(Cls(n = 0L))
+  testthat::expect_no_error(Cls(n = 1L))
+  testthat::expect_error(Cls(k = 10L))
+  testthat::expect_no_error(Cls(k = 9L))
+
+  # The bound reaches the schema, not just the R validator.
+  s <- spec_to_schema(get_spec(Cls@properties[["n"]]))
+  testthat::expect_identical(s[["type"]], "integer")
+  testthat::expect_identical(s[["exclusiveMinimum"]], 0L)
+  testthat::expect_null(s[["minimum"]])
+  s <- spec_to_schema(get_spec(Cls@properties[["k"]]))
+  testthat::expect_identical(s[["exclusiveMaximum"]], 10L)
+
+  # A default outside its own exclusive bound fails at factory time, as it
+  # does for the inclusive bounds and for prop_float.
+  testthat::expect_error(prop_integer(0L, exclusive_min = 0L), "default")
+})
+
 
 # %% Vector-valued props ----
 # %% Arity axes: container / items / broadcast ----
@@ -1645,6 +1675,35 @@ test_that("applies_when reaches the schema and the description", {
     schema[["description"]],
     "Applies only when smoothness_orders is 0\\.$"
   )
+})
+
+
+test_that("the applies_when note spells its values as JSON, not as R", {
+  # The note is published, so it must name the value a reader would write:
+  # `true`, not `TRUE`, and a quoted string, which is also what distinguishes
+  # the two once R's casing is gone.
+  bool_gate <- get_spec(
+    rtemis:::LightGBMHyperparameters@properties[["linear_lambda"]]
+  )
+  expect_match(
+    rtemis:::spec_to_schema(bool_gate)[["description"]],
+    "Applies only when linear_tree is true\\.$"
+  )
+  enum_gate <- get_spec(rtemis:::SpectralConfig@properties[["sigma"]])
+  expect_match(
+    rtemis:::spec_to_schema(enum_gate)[["description"]],
+    'Applies only when kernel is "rbf" or "laplace"\\.$'
+  )
+  # The R-facing validator message is the other audience and keeps R's own
+  # spelling, since it tells an R caller what to set: unquoted there, and
+  # `TRUE` rather than `true` for a boolean gate.
+  expect_error(
+    SpectralConfig(kernel = "rbf_local", sigma = 1),
+    "is rbf or laplace",
+    fixed = TRUE
+  )
+  expect_identical(rtemis:::format_allowed(TRUE), "TRUE")
+  expect_identical(rtemis:::format_allowed(TRUE, json = TRUE), "true")
 })
 
 

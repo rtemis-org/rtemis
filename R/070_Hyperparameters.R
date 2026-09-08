@@ -964,21 +964,21 @@ MARSHyperparameters <- new_class(
       min = -1,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Generalized Cross Validation penalty per knot. NULL uses 3 when @degree is greater than 1 and 2 otherwise. 0 penalizes terms but not knots, and -1 removes the penalty."
+      description = "Generalized Cross Validation penalty per knot. Unset uses 3 when degree is greater than 1 and 2 otherwise. 0 penalizes terms but not knots, and -1 removes the penalty."
     ),
     nk = prop_integer(
       NULL,
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Maximum number of terms, including the intercept, created by the forward pass. NULL lets earth derive it from the number of features."
+      description = "Maximum number of terms, including the intercept, created by the forward pass. Unset lets earth derive it from the number of features."
     ),
     nprune = prop_integer(
       NULL,
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Maximum number of terms, including the intercept, retained after pruning. NULL keeps every term the forward pass created."
+      description = "Maximum number of terms, including the intercept, retained after pruning. Unset keeps every term the forward pass created."
     ),
     thresh = prop_float(
       0.001,
@@ -1013,7 +1013,7 @@ MARSHyperparameters <- new_class(
     pmethod = prop_string(
       "backward",
       enum = c("backward", "none", "exhaustive", "forward", "seqrep", "cv"),
-      description = "Pruning method. \"cv\" selects the number of terms by cross-validation and requires @nfold. Multiclass classification allows only \"backward\" and \"none\"."
+      description = "Pruning method. \"cv\" selects the number of terms by cross-validation and requires nfold. Multiclass classification allows only \"backward\" and \"none\"."
     ),
     nfold = prop_integer(
       0L,
@@ -1024,11 +1024,11 @@ MARSHyperparameters <- new_class(
     ncross = prop_integer(
       1L,
       min = 1L,
-      description = "Number of times the @nfold cross-validation is repeated. Applies only when @nfold is greater than 1."
+      description = "Number of times the nfold cross-validation is repeated. Applies only when nfold is greater than 1."
     ),
     stratify = prop_boolean(
       TRUE,
-      description = "Stratify the cross-validation folds on the outcome. Applies only when @nfold is greater than 1."
+      description = "Stratify the cross-validation folds on the outcome. Applies only when nfold is greater than 1."
     ),
     fast_beta = prop_float(
       1,
@@ -1333,14 +1333,14 @@ GLMTreeHyperparameters <- new_class(
       nullable = TRUE,
       vector = TRUE,
       data_bound = "feature_names",
-      description = "Features entering the linear model in each leaf. NULL uses every feature; an empty model is not expressible here, since a tree of intercepts is a decision tree and CART fits one."
+      description = "Features entering the linear model in each leaf. Unset uses every feature; an empty model is not expressible here, since a tree of intercepts is a decision tree and CART fits one."
     ),
     partitioning_variables = prop_string(
       NULL,
       nullable = TRUE,
       vector = TRUE,
       data_bound = "feature_names",
-      description = "Features the tree may split on. NULL uses every feature."
+      description = "Features the tree may split on. Unset uses every feature."
     ),
     # Splitting ----
     alpha = prop_float(
@@ -1360,14 +1360,14 @@ GLMTreeHyperparameters <- new_class(
       nullable = TRUE,
       tunable = TRUE,
       data_bound = "n_cases",
-      description = "Fewest cases a node may hold. NULL uses ten times the number of parameters in a leaf's model, which scales with the number of regressors and can forbid splitting entirely on a wide design."
+      description = "Fewest cases a node may hold. Unset uses ten times the number of parameters in a leaf's model, which scales with the number of regressors and can forbid splitting entirely on a wide design."
     ),
     maxdepth = prop_integer(
       NULL,
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Deepest the tree may grow. NULL is unlimited."
+      description = "Deepest the tree may grow. Unset means unlimited."
     ),
     mtry = prop_integer(
       NULL,
@@ -1375,7 +1375,7 @@ GLMTreeHyperparameters <- new_class(
       nullable = TRUE,
       tunable = TRUE,
       data_bound = "n_features",
-      description = "Partitioning variables sampled at each node. NULL tests every one."
+      description = "Partitioning variables sampled at each node. Unset tests every one."
     ),
     trim = prop_float(
       0.1,
@@ -1392,7 +1392,7 @@ GLMTreeHyperparameters <- new_class(
       enum = c("AIC", "BIC"),
       nullable = TRUE,
       tunable = TRUE,
-      description = "Post-prune the grown tree by an information criterion. NULL keeps every split the tests admitted."
+      description = "Post-prune the grown tree by an information criterion. Unset keeps every split the tests admitted."
     ),
     restart = prop_boolean(
       TRUE,
@@ -1699,21 +1699,21 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       NULL,
       enum = LINAD_LEAF_MODELS,
       nullable = TRUE,
-      description = "Model fitted at the root. NULL uses node_model."
+      description = "Model fitted at the root. Unset uses node_model."
     ),
     root_nvmax = prop_integer(
       NULL,
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "nvmax for the root model. NULL uses nvmax. Ignored unless the root model is forward selection."
+      description = "nvmax for the root model. Unset uses nvmax. Ignored unless the root model is forward selection."
     ),
     root_lambda = prop_float(
       NULL,
       min = 0,
       nullable = TRUE,
       tunable = TRUE,
-      description = "lambda for the root model. NULL uses lambda. Ignored unless the root model is penalized."
+      description = "lambda for the root model. Unset uses lambda. Ignored unless the root model is penalized."
     ),
     root_alpha = prop_float(
       NULL,
@@ -1721,7 +1721,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       max = 1,
       nullable = TRUE,
       tunable = TRUE,
-      description = "alpha for the root model. NULL uses alpha. Ignored unless the root model is an elastic net."
+      description = "alpha for the root model. Unset uses alpha. Ignored unless the root model is an elastic net."
     ),
     root_learning_rate = prop_float(
       1,
@@ -1757,7 +1757,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       min = 2L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Discretize each numeric feature into this many equal-frequency bins and consider only bin boundaries as splits. Applies to both split searches. NULL considers every distinct value."
+      description = "Discretize each numeric feature into this many equal-frequency bins and consider only bin boundaries as splits. Applies to both split searches. Unset considers every distinct value."
     ),
     split_bin_type = prop_string(
       "frequency",
@@ -1783,21 +1783,21 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       nullable = TRUE,
       vector = TRUE,
       data_bound = "feature_names",
-      description = "Features that may define a split. NULL imposes no constraint, so every feature may. Independent of the linear roles: a feature can split without entering any node model, or the reverse."
+      description = "Features that may define a split. Unset imposes no constraint, so every feature may. Independent of the linear roles: a feature can split without entering any node model, or the reverse."
     ),
     linear_features = prop_string(
       NULL,
       nullable = TRUE,
       vector = TRUE,
       data_bound = "feature_names",
-      description = "Features that get a slope in the node models. NULL imposes no constraint, so every feature does. A tree with no slopes at all is node_model = constant."
+      description = "Features that get a slope in the node models. Unset imposes no constraint, so every feature does. A tree with no slopes at all is node_model = constant."
     ),
     global_features = prop_string(
       NULL,
       nullable = TRUE,
       vector = TRUE,
       data_bound = "feature_names",
-      description = "Linear features whose slope is shared by every leaf: the root estimates it and no node below may change it. Must be a subset of linear_features where that is set. NULL imposes no constraint, so no coefficient is pinned and every linear feature may adapt."
+      description = "Linear features whose slope is shared by every leaf: the root estimates it and no node below may change it. Must be a subset of linear_features where that is set. Unset imposes no constraint, so no coefficient is pinned and every linear feature may adapt."
     ),
     # Soft weighting ----
     gamma = prop_float(
@@ -2253,7 +2253,7 @@ LINADForestHyperparameters <- new_class(
         nullable = TRUE,
         tunable = TRUE,
         data_bound = "n_features",
-        description = "Features sampled at each split search. NULL scans every feature the tree holds."
+        description = "Features sampled at each split search. Unset scans every feature the tree holds."
       ),
       mtry_tree = prop_integer(
         NULL,
@@ -2261,7 +2261,7 @@ LINADForestHyperparameters <- new_class(
         nullable = TRUE,
         tunable = TRUE,
         data_bound = "n_features",
-        description = "Features available to a whole tree, splits and node models alike. NULL gives every tree every feature."
+        description = "Features available to a whole tree, splits and node models alike. Unset gives every tree every feature."
       )
     ),
     # A forest's trees are strong learners: the averaging does the variance
@@ -2505,7 +2505,7 @@ GLMNETHyperparameters <- new_class(
       ),
       nullable = TRUE,
       default_on_null = TRUE,
-      description = "GLM family. NULL = set from outcome type."
+      description = "GLM family. Unset sets it from the outcome type."
     ),
     offset = prop_float(
       NULL,
@@ -2530,7 +2530,7 @@ GLMNETHyperparameters <- new_class(
       nullable = TRUE,
       vector = TRUE,
       tune_on_null = TRUE,
-      description = "Regularization strength. NULL = determined by cv.glmnet during tuning."
+      description = "Regularization strength. Unset lets the backend's internal cross-validation determine it during tuning."
     ),
     penalty_factor = prop_float(
       NULL,
@@ -2667,7 +2667,7 @@ HALHyperparameters <- new_class(
       min = 1L,
       nullable = TRUE,
       vector = TRUE,
-      description = "Number of knots per interaction degree, one value per degree, non-increasing. NULL generates them from max_degree and smoothness_orders."
+      description = "Number of knots per interaction degree, one value per degree, non-increasing. Unset generates them from max_degree and smoothness_orders."
     ),
     reduce_basis = prop_float(
       NULL,
@@ -2676,7 +2676,7 @@ HALHyperparameters <- new_class(
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(smoothness_orders = 0L),
-      description = "Minimum proportion of cases a basis function must be non-zero in to be kept. NULL uses the backend default of 1/sqrt(n)."
+      description = "Minimum proportion of cases a basis function must be non-zero in to be kept. Unset uses the backend default of 1/sqrt(n)."
     ),
     max_basis = prop_integer(
       5000000L,
@@ -2689,7 +2689,7 @@ HALHyperparameters <- new_class(
     ),
     use_min = prop_boolean(
       TRUE,
-      description = "Select lambda.min from the internal cross-validation. FALSE selects the more heavily penalized lambda.1se."
+      description = "Select lambda.min from the internal cross-validation. Disabling it selects the more heavily penalized lambda.1se."
     ),
     nfolds = prop_integer(
       10L,
@@ -2699,7 +2699,7 @@ HALHyperparameters <- new_class(
     seed = prop_integer(
       NULL,
       nullable = TRUE,
-      description = "Random seed for the internal cross-validation's fold assignment. NULL leaves it drawn from the ambient RNG."
+      description = "Random seed for the internal cross-validation's fold assignment. Unset leaves it drawn from the ambient RNG."
     ),
     ifw = prop_boolean(
       FALSE,
@@ -2871,7 +2871,7 @@ MonotonicHALHyperparameters <- new_class(
       NULL,
       min = 1L,
       nullable = TRUE,
-      description = "Number of knots spanning each feature. NULL generates them from smoothness_orders."
+      description = "Number of knots spanning each feature. Unset generates them from smoothness_orders."
     ),
     reduce_basis = prop_float(
       NULL,
@@ -2880,11 +2880,11 @@ MonotonicHALHyperparameters <- new_class(
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(smoothness_orders = 0L),
-      description = "Minimum proportion of cases a basis function must be non-zero in to be kept. NULL uses the backend default of 1/sqrt(n)."
+      description = "Minimum proportion of cases a basis function must be non-zero in to be kept. Unset uses the backend default of 1/sqrt(n)."
     ),
     penalized = prop_boolean(
       TRUE,
-      description = "Apply the lasso penalty to the basis functions. FALSE removes it, making the fit the non-parametric maximum likelihood estimate over the monotonic class."
+      description = "Apply the lasso penalty to the basis functions. Disabling it removes the penalty, making the fit the non-parametric maximum likelihood estimate over the monotonic class."
     ),
     cv_select = prop_const(
       TRUE,
@@ -2892,7 +2892,7 @@ MonotonicHALHyperparameters <- new_class(
     ),
     use_min = prop_boolean(
       TRUE,
-      description = "Select lambda.min from the internal cross-validation. FALSE selects the more heavily penalized lambda.1se."
+      description = "Select lambda.min from the internal cross-validation. Disabling it selects the more heavily penalized lambda.1se."
     ),
     nfolds = prop_integer(
       10L,
@@ -2902,7 +2902,7 @@ MonotonicHALHyperparameters <- new_class(
     seed = prop_integer(
       NULL,
       nullable = TRUE,
-      description = "Random seed for the internal cross-validation's fold assignment. NULL leaves it drawn from the ambient RNG."
+      description = "Random seed for the internal cross-validation's fold assignment. Unset leaves it drawn from the ambient RNG."
     ),
     ifw = prop_boolean(
       FALSE,
@@ -3056,7 +3056,7 @@ lightgbm_objective_props <- function(alpha = TRUE) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(objective = c("huber", "quantile")),
-      description = "Huber delta or quantile level. NULL = LightGBM's default of 0.9."
+      description = "Huber delta or quantile level. Unset uses LightGBM's default of 0.9."
     ),
     tweedie_variance_power = prop_float(
       NULL,
@@ -3065,7 +3065,7 @@ lightgbm_objective_props <- function(alpha = TRUE) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(objective = "tweedie"),
-      description = "Tweedie power: 1 is Poisson-like, near 2 is gamma-like. NULL = LightGBM's default of 1.5."
+      description = "Tweedie power: 1 is Poisson-like, near 2 is gamma-like. Unset uses LightGBM's default of 1.5."
     ),
     fair_c = prop_float(
       NULL,
@@ -3073,7 +3073,7 @@ lightgbm_objective_props <- function(alpha = TRUE) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(objective = "fair"),
-      description = "Fair loss scale. NULL = LightGBM's default of 1."
+      description = "Fair loss scale. Unset uses LightGBM's default of 1."
     ),
     poisson_max_delta_step = prop_float(
       NULL,
@@ -3081,24 +3081,24 @@ lightgbm_objective_props <- function(alpha = TRUE) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(objective = "poisson"),
-      description = "Step cap safeguarding Poisson optimization. NULL = LightGBM's default of 0.7."
+      description = "Step cap safeguarding Poisson optimization. Unset uses LightGBM's default of 0.7."
     ),
     sigmoid = prop_float(
       NULL,
       exclusive_min = 0,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Sigmoid slope, for a binary or one-vs-all objective. NULL = LightGBM's default of 1."
+      description = "Sigmoid slope, for a binary or one-vs-all objective. Unset uses LightGBM's default of 1."
     ),
     boost_from_average = prop_boolean(
       NULL,
       nullable = TRUE,
-      description = "Start from the outcome's mean, for a regression, binary or cross-entropy objective. NULL = LightGBM's default of TRUE."
+      description = "Start from the outcome's mean, for a regression, binary or cross-entropy objective. Unset uses LightGBM's default of true."
     ),
     reg_sqrt = prop_boolean(
       NULL,
       nullable = TRUE,
-      description = "Fit the square root of the outcome and square the prediction back, for a regression objective. NULL = LightGBM's default of FALSE."
+      description = "Fit the square root of the outcome and square the prediction back, for a regression objective. Unset uses LightGBM's default of false."
     )
   )
   if (!alpha) {
@@ -3186,7 +3186,7 @@ lightgbm_regularization_props <- function(
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(linear_tree = TRUE),
-      description = "L2 penalty on the linear models fitted at the leaves. NULL = LightGBM's default of 0."
+      description = "L2 penalty on the linear models fitted at the leaves. Unset uses LightGBM's default of 0."
     )
   )
   if (!linear_lambda) {
@@ -3232,11 +3232,11 @@ lightgbm_binning_props <- function() {
       ),
       use_missing = prop_boolean(
         TRUE,
-        description = "Handle missing values. FALSE ignores them."
+        description = "Handle missing values. Disabling it ignores them."
       ),
       zero_as_missing = prop_boolean(
         FALSE,
-        description = "Treat zeros as missing, rather than only NA."
+        description = "Treat zeros as missing, rather than only an explicit missing value."
       )
     ),
     "binning"
@@ -3383,7 +3383,7 @@ lightgbm_execution_props <- function(top_k = TRUE) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(tree_learner = "voting"),
-      description = "Features each machine votes for in the voting tree learner. NULL = LightGBM's default of 20."
+      description = "Features each machine votes for in the voting tree learner. Unset uses LightGBM's default of 20."
     )
   )
   if (!top_k) {
@@ -3547,19 +3547,19 @@ lightgbm_quantized_props <- function() {
         nullable = TRUE,
         tunable = TRUE,
         applies_when = quantized,
-        description = "Bins the gradients are discretized into. NULL = LightGBM's default of 4."
+        description = "Bins the gradients are discretized into. Unset uses LightGBM's default of 4."
       ),
       quant_train_renew_leaf = prop_boolean(
         NULL,
         nullable = TRUE,
         applies_when = quantized,
-        description = "Recompute leaf values from the exact gradients after each iteration. NULL = LightGBM's default of FALSE."
+        description = "Recompute leaf values from the exact gradients after each iteration. Unset uses LightGBM's default of false."
       ),
       stochastic_rounding = prop_boolean(
         NULL,
         nullable = TRUE,
         applies_when = quantized,
-        description = "Round gradients stochastically rather than to nearest. NULL = LightGBM's default of TRUE."
+        description = "Round gradients stochastically rather than to nearest. Unset uses LightGBM's default of true."
       )
     ),
     "quantized"
@@ -3615,7 +3615,7 @@ lightgbm_constraint_props <- function() {
         nullable = TRUE,
         tunable = TRUE,
         applies_when = list(monotone_constraints = c(-1L, 1L)),
-        description = "Depth penalty on splits that would break monotonicity. NULL = LightGBM's default of 0."
+        description = "Depth penalty on splits that would break monotonicity. Unset uses LightGBM's default of 0."
       ),
       interaction_constraints = prop_string(
         NULL,
@@ -3700,14 +3700,14 @@ lightgbm_dart_props <- function() {
         nullable = TRUE,
         tunable = TRUE,
         applies_when = dart,
-        description = "Fraction of existing trees to drop per iteration. NULL = LightGBM's default of 0.1."
+        description = "Fraction of existing trees to drop per iteration. Unset uses LightGBM's default of 0.1."
       ),
       max_drop = prop_integer(
         NULL,
         nullable = TRUE,
         tunable = TRUE,
         applies_when = dart,
-        description = "Most trees dropped in one iteration; 0 or less removes the cap. NULL = LightGBM's default of 50."
+        description = "Most trees dropped in one iteration; 0 or less removes the cap. Unset uses LightGBM's default of 50."
       ),
       skip_drop = prop_float(
         NULL,
@@ -3716,27 +3716,27 @@ lightgbm_dart_props <- function() {
         nullable = TRUE,
         tunable = TRUE,
         applies_when = dart,
-        description = "Probability of skipping dropout for an iteration. NULL = LightGBM's default of 0.5."
+        description = "Probability of skipping dropout for an iteration. Unset uses LightGBM's default of 0.5."
       ),
       uniform_drop = prop_boolean(
         NULL,
         nullable = TRUE,
         tunable = TRUE,
         applies_when = dart,
-        description = "Drop trees uniformly rather than weighted. NULL = LightGBM's default of FALSE."
+        description = "Drop trees uniformly rather than weighted. Unset uses LightGBM's default of false."
       ),
       xgboost_dart_mode = prop_boolean(
         NULL,
         nullable = TRUE,
         tunable = TRUE,
         applies_when = dart,
-        description = "Use the XGBoost DART normalization. NULL = LightGBM's default of FALSE."
+        description = "Use the XGBoost DART normalization. Unset uses LightGBM's default of false."
       ),
       drop_seed = prop_integer(
         NULL,
         nullable = TRUE,
         applies_when = dart,
-        description = "Random seed for choosing which trees to drop. NULL = LightGBM's default of 4."
+        description = "Random seed for choosing which trees to drop. Unset uses LightGBM's default of 4."
       )
     ),
     "dart"
@@ -3772,7 +3772,7 @@ lightgbm_goss_props <- function() {
         nullable = TRUE,
         tunable = TRUE,
         applies_when = goss,
-        description = "Share of large-gradient cases retained. NULL = LightGBM's default of 0.2."
+        description = "Share of large-gradient cases retained. Unset uses LightGBM's default of 0.2."
       ),
       other_rate = prop_float(
         NULL,
@@ -3781,7 +3781,7 @@ lightgbm_goss_props <- function() {
         nullable = TRUE,
         tunable = TRUE,
         applies_when = goss,
-        description = "Share of the remaining cases retained. NULL = LightGBM's default of 0.1."
+        description = "Share of the remaining cases retained. Unset uses LightGBM's default of 0.1."
       )
     ),
     "goss"
@@ -3927,7 +3927,7 @@ LightCARTHyperparameters <- new_class(
         NULL,
         nullable = TRUE,
         default_on_null = TRUE,
-        description = "LightGBM objective. NULL = set from outcome type."
+        description = "LightGBM objective. Unset sets it from the outcome type."
       ),
       ifw = prop_boolean(
         FALSE,
@@ -4236,7 +4236,7 @@ LightRFHyperparameters <- new_class(
         max = 1,
         nullable = TRUE,
         tunable = TRUE,
-        description = "Fraction of features sampled per tree. NULL = sqrt(n_features)/n_features for classification, 0.33 for regression."
+        description = "Fraction of features sampled per tree. Unset uses sqrt(n_features)/n_features for classification and 0.33 for regression."
       ),
       bagging_fraction = prop_float(
         0.623,
@@ -4283,7 +4283,7 @@ LightRFHyperparameters <- new_class(
         NULL,
         nullable = TRUE,
         default_on_null = TRUE,
-        description = "LightGBM objective. NULL = set from outcome type."
+        description = "LightGBM objective. Unset sets it from the outcome type."
       ),
       device_type = prop_string(
         "cpu",
@@ -4689,7 +4689,7 @@ LightGBMHyperparameters <- new_class(
         NULL,
         nullable = TRUE,
         default_on_null = TRUE,
-        description = "LightGBM objective. NULL = set from outcome type."
+        description = "LightGBM objective. Unset sets it from the outcome type."
       ),
       device_type = prop_string(
         "cpu",
@@ -4712,7 +4712,7 @@ LightGBMHyperparameters <- new_class(
         min = 1L,
         nullable = TRUE,
         tune_on_null = TRUE,
-        description = "Resolved number of boosting rounds. NULL = determined by early stopping during tuning."
+        description = "Resolved number of boosting rounds. Unset lets early stopping determine it during tuning."
       )),
       # Run state: best iteration, written by the Tuner.
       best_iter = prop_state(prop_float(
@@ -5233,7 +5233,7 @@ LightRuleFitHyperparameters <- new_class(
         NULL,
         nullable = TRUE,
         default_on_null = TRUE,
-        description = "LightGBM objective. NULL = set from outcome type."
+        description = "LightGBM objective. Unset sets it from the outcome type."
       ),
       ifw_lightgbm = prop_boolean(
         FALSE,
@@ -5252,7 +5252,7 @@ LightRuleFitHyperparameters <- new_class(
         min = 0,
         nullable = TRUE,
         vector = TRUE,
-        description = "Regularization strength (GLMNET step). NULL = determined by cv.glmnet."
+        description = "Regularization strength (GLMNET step). Unset lets the backend's internal cross-validation determine it."
       ),
       ifw_glmnet = prop_boolean(
         FALSE,
@@ -5836,7 +5836,7 @@ MLPHyperparameters <- new_class(
       nullable = TRUE,
       tunable = TRUE,
       vector = TRUE,
-      description = "Units in each hidden layer, one value per layer, so the length is the depth. NULL generates the widths from the shape settings."
+      description = "Units in each hidden layer, one value per layer, so the length is the depth. Unset generates the widths from the shape settings."
     ),
     shape = prop_string(
       NULL,
@@ -5857,7 +5857,7 @@ MLPHyperparameters <- new_class(
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Widest generated hidden layer. NULL derives it from the encoded input width. Ignored when hidden_units is set."
+      description = "Widest generated hidden layer. Unset derives it from the encoded input width. Ignored when hidden_units is set."
     ),
     activation = prop_string(
       "relu",
@@ -5870,7 +5870,7 @@ MLPHyperparameters <- new_class(
       enum = TORCH_NORMS,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Normalization applied in every hidden layer. NULL applies none."
+      description = "Normalization applied in every hidden layer. Unset applies none."
     ),
     norm_first = prop_boolean(
       FALSE,
@@ -5915,14 +5915,14 @@ MLPHyperparameters <- new_class(
     # Categorical embeddings ----
     embeddings = prop_boolean(
       TRUE,
-      description = "Represent each categorical feature by a learned embedding. FALSE one-hot encodes them instead."
+      description = "Represent each categorical feature by a learned embedding. Disabling it one-hot encodes them instead."
     ),
     embedding_dim = prop_integer(
       NULL,
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Width of every embedding. NULL sizes each from its feature's cardinality."
+      description = "Width of every embedding. Unset sizes each from its feature's cardinality."
     ),
     embedding_dropout = prop_float(
       0,
@@ -5950,7 +5950,7 @@ MLPHyperparameters <- new_class(
       exclusive_max = 1,
       nullable = TRUE,
       applies_when = list(optimizer = c("adamw", "adam")),
-      description = "Exponential decay rate of the first moment estimate. NULL leaves the torch default."
+      description = "Exponential decay rate of the first moment estimate. Unset leaves the torch default."
     ),
     beta2 = prop_float(
       NULL,
@@ -5958,27 +5958,27 @@ MLPHyperparameters <- new_class(
       exclusive_max = 1,
       nullable = TRUE,
       applies_when = list(optimizer = c("adamw", "adam")),
-      description = "Exponential decay rate of the second moment estimate. NULL leaves the torch default."
+      description = "Exponential decay rate of the second moment estimate. Unset leaves the torch default."
     ),
     eps = prop_float(
       NULL,
       exclusive_min = 0,
       nullable = TRUE,
       applies_when = list(optimizer = c("adamw", "adam", "rmsprop")),
-      description = "Term added to the denominator for numerical stability. NULL leaves the torch default."
+      description = "Term added to the denominator for numerical stability. Unset leaves the torch default."
     ),
     momentum = prop_float(
       NULL,
       min = 0,
       nullable = TRUE,
       applies_when = list(optimizer = c("sgd", "rmsprop")),
-      description = "Momentum factor. NULL leaves the torch default."
+      description = "Momentum factor. Unset leaves the torch default."
     ),
     lr_scheduler = prop_string(
       NULL,
       enum = TORCH_SCHEDULERS,
       nullable = TRUE,
-      description = "Learning-rate schedule, configured from the epoch budget. NULL holds the learning rate fixed."
+      description = "Learning-rate schedule, configured from the epoch budget. Unset holds the learning rate fixed."
     ),
     batch_size = prop_integer(
       256L,
@@ -6002,14 +6002,14 @@ MLPHyperparameters <- new_class(
       exclusive_min = 0,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Clip the gradient norm to this value before each step. NULL does not clip."
+      description = "Clip the gradient norm to this value before each step. Unset does not clip."
     ),
     loss = prop_string(
       NULL,
       enum = TORCH_LOSSES,
       nullable = TRUE,
       default_on_null = TRUE,
-      description = "Training objective. NULL = set from outcome type."
+      description = "Training objective. Unset sets it from the outcome type."
     ),
     # Execution ----
     device = prop_string(
@@ -6021,7 +6021,7 @@ MLPHyperparameters <- new_class(
     seed = prop_integer(
       NULL,
       nullable = TRUE,
-      description = "Random seed for weight initialization, dropout and batch shuffling. NULL leaves them drawn from the ambient RNG."
+      description = "Random seed for weight initialization, dropout and batch shuffling. Unset leaves them drawn from the ambient RNG."
     ),
     num_workers = prop_integer(
       0L,
@@ -6363,7 +6363,7 @@ TabNetHyperparameters <- new_class(
       NULL,
       enum = c("step", "reduce_on_plateau"),
       nullable = TRUE,
-      description = "Learning-rate scheduler. NULL = none."
+      description = "Learning-rate scheduler. Unset applies no schedule."
     ),
     lr_decay = prop_float(
       0.1,
@@ -6657,7 +6657,7 @@ RangerHyperparameters <- new_class(
       nullable = TRUE,
       tunable = TRUE,
       data_bound = "n_features",
-      description = "Number of features considered at each split. NULL = ranger default."
+      description = "Number of features considered at each split. Unset uses the ranger default."
     ),
     importance = prop_string(
       "impurity",
@@ -6677,7 +6677,7 @@ RangerHyperparameters <- new_class(
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Minimal node size. NULL = ranger default by task type."
+      description = "Minimal node size. Unset uses the ranger default for the task type."
     ),
     min_bucket = prop_integer(
       NULL,
@@ -6690,7 +6690,7 @@ RangerHyperparameters <- new_class(
       min = 0L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Maximal tree depth. NULL or 0 = unlimited."
+      description = "Maximal tree depth. Unset or 0 means unlimited."
     ),
     replace = prop_boolean(
       TRUE,
@@ -6724,7 +6724,7 @@ RangerHyperparameters <- new_class(
       NULL,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Splitting rule (task-dependent). NULL = ranger default."
+      description = "Splitting rule (task-dependent). Unset uses the ranger default."
     ),
     num_random_splits = prop_integer(
       1L,
@@ -6768,7 +6768,7 @@ RangerHyperparameters <- new_class(
       NULL,
       enum = c("partition", "ignore", "order"),
       nullable = TRUE,
-      description = "Handling of unordered factors. NULL uses the ranger default."
+      description = "Handling of unordered factors. Unset uses the ranger default."
     ),
     scale_permutation_importance = prop_boolean(
       FALSE,
@@ -6830,7 +6830,7 @@ RangerHyperparameters <- new_class(
     seed = prop_integer(
       NULL,
       nullable = TRUE,
-      description = "Random seed. NULL = generated from R."
+      description = "Random seed. Unset draws one from the ambient RNG."
     ),
     na_action = prop_string(
       "na.learn",
@@ -7291,7 +7291,7 @@ BARTHyperparameters <- new_class(
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Maximum depth of any tree. NULL imposes no limit."
+      description = "Maximum depth of any tree. Unset imposes no limit."
     ),
     num_features_subsample = prop_integer(
       NULL,
@@ -7299,7 +7299,7 @@ BARTHyperparameters <- new_class(
       nullable = TRUE,
       tunable = TRUE,
       data_bound = "n_features",
-      description = "Number of features subsampled when growing each tree. NULL uses every feature."
+      description = "Number of features subsampled when growing each tree. Unset uses every feature."
     ),
     variance_forest_num_trees = prop_integer(
       0L,
@@ -7349,7 +7349,7 @@ BARTHyperparameters <- new_class(
     seed = prop_integer(
       NULL,
       nullable = TRUE,
-      description = "Random seed for the sampler. NULL leaves the sampler seeded by the system."
+      description = "Random seed for the sampler. Unset leaves the sampler seeded by the system."
     ),
     ifw = prop_boolean(
       FALSE,

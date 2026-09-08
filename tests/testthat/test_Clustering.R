@@ -331,6 +331,72 @@ test_that("cluster_GMM() is soft, and k is fixed or selected", {
 })
 
 
+# setup_Spectral ----
+test_that("setup_Spectral() succeeds", {
+  expect_s7_class(setup_Spectral(), SpectralConfig)
+  expect_null(setup_Spectral()[["sigma"]])
+})
+
+# setup_Spectral throws error ----
+test_that("setup_Spectral() throws error with bad values or wrong types", {
+  expect_error(setup_Spectral(k = 1L))
+  expect_error(setup_Spectral(kernel = "gaussian"))
+})
+
+# cluster Spectral ----
+test_that("cluster_Spectral() succeeds", {
+  skip_if_not_installed("kernlab")
+  iris_spectral <- cluster(
+    x,
+    algorithm = "Spectral",
+    config = setup_Spectral(k = 3L),
+    verbosity = 0L
+  )
+  expect_s7_class(iris_spectral, Clustering)
+  # Spectral prescribes k, so `@k` is what was configured.
+  expect_identical(iris_spectral@k, 3L)
+  expect_type(iris_spectral@clusters, "integer")
+  expect_length(iris_spectral@clusters, nrow(x))
+  expect_identical(sort(unique(iris_spectral@clusters)), seq_len(3L))
+  # The data.frame `x` must have reached the backend's matrix method: its list
+  # method clusters the columns instead, and returns a well-formed `specc`
+  # carrying one label per column rather than per case.
+  expect_length(iris_spectral@clust@.Data, nrow(x))
+})
+
+# cluster Spectral kernels ----
+test_that("cluster_Spectral() reaches every kernel the enum publishes", {
+  skip_if_not_installed("kernlab")
+  for (cfg in list(
+    setup_Spectral(k = 3L, kernel = "rbf", sigma = 1),
+    setup_Spectral(k = 3L, kernel = "rbf_local"),
+    setup_Spectral(k = 3L, kernel = "laplace"),
+    setup_Spectral(k = 3L, kernel = "laplace", sigma = 0.5),
+    setup_Spectral(k = 3L, nystrom = TRUE, nystrom_sample = 40L)
+  )) {
+    cl <- cluster(x, algorithm = "Spectral", config = cfg, verbosity = 0L)
+    expect_s7_class(cl, HardClustering)
+    expect_length(cl@clusters, nrow(x))
+    expect_true(all(cl@clusters %in% seq_len(3L)))
+  }
+})
+
+# Spectral refuses new data ----
+test_that("clustpredict_Spectral() refuses newdata", {
+  skip_if_not_installed("kernlab")
+  iris_spectral <- cluster(
+    x,
+    algorithm = "Spectral",
+    config = setup_Spectral(k = 3L),
+    verbosity = 0L
+  )
+  expect_error(
+    clustpredict_Spectral(iris_spectral@clust, newdata = x),
+    class = "rtemis_unsupported_error"
+  )
+})
+
+
 # %% The hard/soft variant pair ----
 
 test_that("Clustering is abstract; every result is one of the two variants", {
@@ -484,7 +550,8 @@ test_that("DBSCAN noise reaches the metrics as a fraction, not a cluster", {
   GMM = list(soft = TRUE, prescribes_k = FALSE),
   HOPACH = list(soft = FALSE, prescribes_k = FALSE),
   PAM = list(soft = FALSE, prescribes_k = TRUE),
-  PAMK = list(soft = FALSE, prescribes_k = FALSE)
+  PAMK = list(soft = FALSE, prescribes_k = FALSE),
+  Spectral = list(soft = FALSE, prescribes_k = TRUE)
 )
 
 test_that("the capability roster covers every registered algorithm", {
@@ -528,7 +595,8 @@ test_that("every algorithm produces the variant the roster claims", {
     GMM = setup_GMM(k = 3L),
     HOPACH = setup_HOPACH(dist = "euclid", max_levels = 3L, max_children = 5L),
     PAM = setup_PAM(k = 3L),
-    PAMK = setup_PAMK(krange = 2:5)
+    PAMK = setup_PAMK(krange = 2:5),
+    Spectral = setup_Spectral(k = 3L)
   )
   pkgs <- c(
     KMeans = "flexclust",
@@ -539,7 +607,8 @@ test_that("every algorithm produces the variant the roster claims", {
     GMM = "mclust",
     HOPACH = "hopach",
     PAM = "cluster",
-    PAMK = "fpc"
+    PAMK = "fpc",
+    Spectral = "kernlab"
   )
   for (nm in names(.clust_capabilities)) {
     skip_if_not_installed(pkgs[[nm]])

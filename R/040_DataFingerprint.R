@@ -166,7 +166,7 @@ DataFingerprint <- new_class(
     source = prop_string(
       NULL,
       nullable = TRUE,
-      description = "Path the data was read from. NULL for in-memory input."
+      description = "Path the data was read from. Unset for in-memory input."
     ),
     # Recorded, not asserted. Whether a second implementation reproduces a
     # digest is a question a specification answers, and none exists; what can be

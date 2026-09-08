@@ -301,3 +301,16 @@ test_that("A gate lists its allowed values without padding them", {
     "a, bb or ccc"
   )
 })
+
+test_that("a gate spells its values as JSON when the message is published", {
+  # `applies_when_note()` goes into a schema every implementation reads, so the
+  # value must be the one a reader would write. The R form above is the other
+  # audience: a validator message telling an R caller what to set.
+  expect_equal(format_allowed(TRUE, json = TRUE), "true")
+  expect_equal(format_allowed(c(TRUE, FALSE), json = TRUE), "true or false")
+  expect_equal(
+    format_allowed(c("rbf", "laplace"), json = TRUE),
+    '"rbf" or "laplace"'
+  )
+  expect_equal(format_allowed(c(-1L, 1L), json = TRUE), "-1 or 1")
+})

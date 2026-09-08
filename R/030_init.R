@@ -1832,22 +1832,6 @@ S7_to_list <- function(x) {
 } # /rtemis::S7_to_list
 
 
-# %% coming up in rtemis.core
-collapse_head <- function(x, maxlength = 6L, format_fn = identity) {
-  if (maxlength == -1L || length(x) <= maxlength) {
-    paste(format_fn(x), collapse = ", ")
-  } else {
-    paste0(
-      paste(
-        format_fn(utils::head(as.vector(x), n = maxlength)),
-        collapse = ", "
-      ),
-      ", ..."
-    )
-  }
-}
-
-
 # %% repr, S7 ----
 # generic for S7 objects, when no more specific method is defined.
 method(repr, S7_object) <- function(x, limit = -1L, output_type = NULL, ...) {

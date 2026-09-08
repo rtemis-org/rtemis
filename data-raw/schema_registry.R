@@ -164,17 +164,26 @@ families <- list(
       ),
       list(
         cls = PAMKConfig,
-        desc = "Partitioning Around Medoids with estimation of the number of clusters.",
-        # Mirrors `PAMKConfig`'s validator: neither criterion can score a
-        # single cluster, so a candidate set holding only 1 has nothing to
-        # choose between. `contains` states it without demanding the key.
+        desc = "Partitioning Around Medoids with estimation of the number of clusters."
+      ),
+      list(
+        cls = SpectralConfig,
+        desc = "Spectral clustering.",
+        # Mirrors `SpectralConfig`'s validator: local scaling reads a per-case
+        # width off the full pairwise distance matrix, which the Nystrom
+        # approximation never forms. `properties` alone passes vacuously on an
+        # absent key, which would fire `then` for every config omitting
+        # `kernel`, so the `if` names `kernel` in `required` and the rule stays
+        # silent unless the kernel is written out as "rbf_local".
         extra = list(
           allOf = list(
             list(
-              properties = list(
-                krange = list(
-                  contains = list(type = "integer", minimum = 2L)
-                )
+              `if` = list(
+                properties = list(kernel = list(const = "rbf_local")),
+                required = I("kernel")
+              ),
+              then = list(
+                properties = list(nystrom = list(const = FALSE))
               )
             )
           )

@@ -164,7 +164,7 @@ Diagnostic <- new_class(
       NULL,
       min = 1L,
       nullable = TRUE,
-      description = "Position of the config in the plan it came from. NULL when the config was validated on its own."
+      description = "Position of the config in the plan it came from. Unset when the config was validated on its own."
     ),
     message = prop_string(
       "",
@@ -185,7 +185,7 @@ Diagnostic <- new_class(
     fix = prop_array(
       items = prop_bag(),
       nullable = TRUE,
-      description = "RFC 6902 JSON Patch against the config this finding is about. NULL where no deterministic fix exists."
+      description = "RFC 6902 JSON Patch against the config this finding is about. Unset where no deterministic fix exists."
     )
   )
 ) # /rtemis::Diagnostic

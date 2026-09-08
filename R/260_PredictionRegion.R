@@ -166,7 +166,7 @@ prop_conformal_score <- function() {
     enum = CONFORMAL_SCORES,
     nullable = TRUE,
     default_on_null = TRUE,
-    description = "Nonconformity score. NULL = 'absolute' for a regression, 'APS' for a classification."
+    description = "Nonconformity score. Unset uses 'absolute' for a regression and 'APS' for a classification."
   )
 } # /rtemis::prop_conformal_score
 
@@ -191,7 +191,7 @@ prop_conformal_seed <- function() {
     NULL,
     min = 0L,
     nullable = TRUE,
-    description = "Random seed for the APS draw. NULL draws one and records it."
+    description = "Random seed for the APS draw. Unset draws one and records it."
   )
 } # /rtemis::prop_conformal_seed
 

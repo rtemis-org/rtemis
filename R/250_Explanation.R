@@ -213,20 +213,20 @@ SHAPConfig <- new_class(
       enum = SHAP_PERTURBATIONS,
       nullable = TRUE,
       default_on_null = TRUE,
-      description = "Value function. NULL = the resolved estimator's documented default."
+      description = "Value function. Unset uses the resolved estimator's documented default."
     ),
     scale = prop_string(
       NULL,
       enum = SHAP_SCALES,
       nullable = TRUE,
       default_on_null = TRUE,
-      description = "Scale contributions are additive on. NULL = set from outcome type."
+      description = "Scale contributions are additive on. Unset sets it from the outcome type."
     ),
     background_n = prop_integer(
       NULL,
       min = 1L,
       nullable = TRUE,
-      description = "Cases to subsample from the background. NULL = use all of it."
+      description = "Cases to subsample from the background. Unset uses all of it."
     ),
     # A coalition is a feature subset, and how many are evaluated is what
     # decides whether a kernel estimate is exact or sampled -- so it belongs
@@ -237,14 +237,14 @@ SHAPConfig <- new_class(
       min = 2L,
       nullable = TRUE,
       applies_when = list(estimator = "kernel"),
-      description = "Most feature subsets to evaluate. NULL lets the backend decide."
+      description = "Most feature subsets to evaluate. Unset lets the backend decide."
     ),
     approach = prop_string(
       NULL,
       enum = SHAP_APPROACHES,
       nullable = TRUE,
       applies_when = list(estimator = "kernel", perturbation = "conditional"),
-      description = "Conditional-distribution estimator. NULL = the backend's default."
+      description = "Conditional-distribution estimator. Unset uses the backend's default."
     ),
     seed = prop_integer(
       NULL,
@@ -471,7 +471,7 @@ SHAP <- new_class(
     # the numbers.
     exact = prop_boolean(
       FALSE,
-      description = "TRUE if the values are exact for the declared value function."
+      description = "Whether the values are exact for the declared value function."
     )
   ),
   validator = function(self) {

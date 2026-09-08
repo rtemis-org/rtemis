@@ -57,7 +57,8 @@
     list(GMMConfig, "setup_GMM"),
     list(HOPACHConfig, "setup_HOPACH"),
     list(PAMConfig, "setup_PAM"),
-    list(PAMKConfig, "setup_PAMK")
+    list(PAMKConfig, "setup_PAMK"),
+    list(SpectralConfig, "setup_Spectral")
   ),
   .contract_family(
     ResamplerConfig,
@@ -418,11 +419,6 @@ test_that("no readOnly schema property is a setup_* formal", {
   # registry, one standard. Bound here because the registry's callers expect
   # the bare name.
   env[["assert_config_contract"]] <- rtemis.core::assert_config_contract
-  # The rule helpers too: this suite checks a registry `extra` clause directly,
-  # before it is ever assembled into a schema, so it needs the predicate rather
-  # than the whole assertion. Internal on purpose -- one exported entry point,
-  # and a test in the same ecosystem may reach past it.
-  env[[".conditional_demands"]] <- rtemis.core:::.conditional_demands
   sys.source(registry, envir = env)
   env
 }
@@ -506,9 +502,13 @@ test_that("the class/setup mapping covers the registry", {
 })
 
 
-test_that("the registry declares no conditional demand for a key", {
+test_that("every registry `extra` clause satisfies the config contract", {
   # Guards the artifacts directly, and is the check that would have caught a
-  # `then = list(required = ...)` clause. `data-raw/` is absent from the built
+  # `then = list(required = ...)` clause. An `extra` is a schema fragment, and
+  # `assert_config_contract()` walks a fragment the same way it walks a whole
+  # document, so the rule is checked here per entry -- naming the class that
+  # declared it -- rather than only at generation time, once the clause has
+  # been merged and its origin lost. `data-raw/` is absent from the built
   # package, so this runs from the source tree only.
   env <- .contract_registry()
   skip_if(is.null(env), "data-raw/ not available (built package)")
@@ -519,12 +519,10 @@ test_that("the registry declares no conditional demand for a key", {
     if (is.null(extra)) {
       next
     }
-    expect_identical(
-      env[[".conditional_demands"]](extra),
-      character(),
-      info = paste0(
-        entries[[i]][["cls"]]@name,
-        ": a `then` may constrain a value but may not demand a key."
+    expect_no_error(
+      rtemis.core::assert_config_contract(
+        extra,
+        id = entries[[i]][["cls"]]@name
       )
     )
   }

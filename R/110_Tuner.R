@@ -149,12 +149,12 @@ GridSearchConfig <- new_class(
     metric = prop_string(
       NULL,
       nullable = TRUE,
-      description = "Metric to minimize or maximize. NULL = set from outcome type."
+      description = "Metric to minimize or maximize. Unset sets it from the outcome type."
     ),
     maximize = prop_boolean(
       NULL,
       nullable = TRUE,
-      description = "Maximize `metric` (otherwise minimize). NULL = set from the metric."
+      description = "Maximize `metric` (otherwise minimize). Unset sets it from the metric."
     )
   ),
   validator = function(self) {
