@@ -423,6 +423,18 @@ PropertySpec <- new_class(
         return("@contains_min is only meaningful when @container is 'array'.")
       }
     }
+    if (!is.null(self@contains_min)) {
+      # Validated independently of the default: a nullable property with a NULL
+      # default never exercises its own bound, so an unusable one would reach
+      # the schema and be rejected only when a reader compiled it.
+      if (
+        length(self@contains_min) != 1L ||
+          is.na(self@contains_min) ||
+          !is.finite(self@contains_min)
+      ) {
+        return("@contains_min must be a single finite, non-missing value.")
+      }
+    }
     if (self@broadcast && self@min_items > 1L) {
       return(
         "@broadcast and @min_items > 1 are contradictory: a broadcast scalar stands in for the whole array."
@@ -3318,6 +3330,81 @@ candidates_schema <- function(value_schema) {
 } # /rtemis::candidates_schema
 
 
+# %% gate_value_schema ----
+#' The schema a gating sibling's value must satisfy for the gate to open
+#'
+#' `check_applies_when()` reads the sibling's value, unwraps a search domain to
+#' its candidates, and opens the gate when **any** of the resulting scalars is
+#' listed. This builds the JSON Schema saying the same thing, and it must be
+#' driven by the shapes the sibling's *own* schema admits: tunability decides
+#' whether a search domain is one of them, not what a plain value looks like.
+#' Deriving the shape from `@tunable` alone published a scalar `enum` against a
+#' vector-valued sibling and an array matcher against a domain that serializes
+#' as `{"candidates": [...]}` -- an object matching neither.
+#'
+#' @param spec `PropertySpec` of the gating sibling, or NULL if it carries none.
+#' @param allowed Vector: The values that open the gate.
+#' @param cls_name Character: Class name, for the error message.
+#' @param gate_name Character: Sibling name, for the error message.
+#'
+#' @return Named list: The JSON Schema fragment for the sibling's value.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+gate_value_schema <- function(spec, allowed, cls_name, gate_name) {
+  scalar <- list(enum = I(allowed))
+  # A sibling with no spec carries no declared shape; a bare scalar is the only
+  # thing that can be assumed about it.
+  if (is.null(spec)) {
+    return(scalar)
+  }
+  container <- spec@container
+  if (!container %in% c("none", "array")) {
+    # Bounded on purpose: a map, table, struct or matrix sibling has no
+    # membership reading agreed with `check_applies_when()`, and guessing one
+    # would publish a rule R does not enforce. Widen this deliberately, with a
+    # gate that needs it.
+    rtemis.core::abort(
+      "@applies_when cannot gate on ",
+      cls_name,
+      "@",
+      gate_name,
+      ": a '",
+      container,
+      "' container has no membership form. Gate on a scalar or array sibling.",
+      class = "rtemis_input_error"
+    )
+  }
+  # One value of the sibling. An array holds several, and the gate opens when
+  # any element is listed; `broadcast` lets a bare scalar stand for the array.
+  value <- if (container == "array") {
+    array_form <- list(type = "array", contains = scalar)
+    if (spec@broadcast) {
+      list(anyOf = list(scalar, array_form))
+    } else {
+      array_form
+    }
+  } else {
+    scalar
+  }
+  if (!spec@tunable) {
+    return(value)
+  }
+  # A tunable sibling may instead hold a search domain, which serializes as an
+  # object (`candidates_schema()`), never as a bare array. The gate opens when
+  # any candidate opens it, so the same value matcher applies element-wise.
+  domain <- list(
+    type = "object",
+    properties = list(
+      candidates = list(type = "array", contains = value)
+    ),
+    required = I("candidates")
+  )
+  list(anyOf = list(value, domain))
+} # /rtemis::gate_value_schema
+
+
 # %% applies_when_clauses ----
 #' The JSON Schema clauses enforcing a class's `applies_when` gates
 #'
@@ -3362,20 +3449,12 @@ applies_when_clauses <- function(x, properties) {
       } else {
         get_spec(cls_props[[gate_name]])
       }
-      # A tunable sibling may hold a search domain rather than one value, and
-      # the gate opens when any candidate is listed -- the same reading
-      # `check_applies_when()` takes, where the grid then drops the gated
-      # property from the cells that cannot use it.
-      gated_on[[gate_name]] <- if (!is.null(spec) && spec@tunable) {
-        list(
-          anyOf = list(
-            list(enum = I(allowed)),
-            list(type = "array", contains = list(enum = I(allowed)))
-          )
-        )
-      } else {
-        list(enum = I(allowed))
-      }
+      gated_on[[gate_name]] <- gate_value_schema(
+        spec,
+        allowed,
+        x@name,
+        gate_name
+      )
     }
     if (length(gated_on) == 0L) {
       next
@@ -3514,7 +3593,14 @@ spec_to_schema <- function(spec, read_only = FALSE) {
       # case"). Distinct from `tunable`'s identically-shaped oneOf, which is a
       # search space -- see the note on PropertySpec@container.
       arr[["type"]] <- "array"
-      branches <- list(element, arr)
+      # Every element of the broadcast array is that scalar, so "at least one
+      # element reaches the bound" is "the scalar reaches it". Without this the
+      # scalar branch carries no threshold and accepts what R rejects.
+      scalar_element <- element
+      if (!is.null(spec@contains_min)) {
+        scalar_element[["minimum"]] <- spec@contains_min
+      }
+      branches <- list(scalar_element, arr)
       if (spec@nullable) {
         branches <- c(list(list(type = "null")), branches)
       }
@@ -4484,6 +4570,23 @@ S7_to_JSONSchema <- function(
     schema[["required"]] <- I(required)
   }
   if (!is.null(extra)) {
+    # `allOf` and nothing else. `modifyList()` recurses, so an `extra` carrying
+    # `properties` would overwrite *individual* generated constraints -- a
+    # `minimum` or an `enum` -- without replacing the map, leaving a schema
+    # that looks generated and is not. `allOf` composes instead: it can only
+    # add a constraint beside what the specs produced, never weaken one.
+    unknown <- setdiff(names(extra), "allOf")
+    if (length(unknown) > 0L) {
+      rtemis.core::abort(
+        "`extra` may carry `allOf` and nothing else, but ",
+        if (is.null(id)) "a schema" else id,
+        " also declares: ",
+        paste(unknown, collapse = ", "),
+        ". A cross-field rule belongs in `allOf`; a per-property constraint ",
+        "belongs on the property's `prop_*` factory.",
+        class = "rtemis_input_error"
+      )
+    }
     schema <- utils::modifyList(schema, extra)
   }
   # After the merge, not before: `modifyList()` recurses, so an `extra`

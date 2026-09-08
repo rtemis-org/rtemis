@@ -416,6 +416,10 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
     broadcast = broadcast,
     min_items = as.integer(arity[["minItems"]] %||% 1L),
     unique_items = isTRUE(arity[["uniqueItems"]]),
+    # The `contains` bound sits on the array form beside `minItems`. Without
+    # this the round trip drops it: a class reconstructed from its own schema
+    # would accept a collection the original rejects.
+    contains_min = as_bound(arity[["contains"]][["minimum"]]),
     tune_on_null = isTRUE(ann[["tune_on_null"]]),
     default_on_null = isTRUE(ann[["default_on_null"]]),
     data_bound = data_bound,

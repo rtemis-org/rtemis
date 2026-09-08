@@ -97,7 +97,7 @@ families <- list(
       "its settings, and an optional feature subset. The same config drives ",
       "rtemis (R), rtemis CLI/shell, and rtemislive to identical output."
     ),
-    algorithm_description = "Decomposition algorithm name.",
+    discriminator_description = "Decomposition algorithm name.",
     algorithms = list(
       list(
         cls = PCAConfig,
@@ -131,7 +131,7 @@ families <- list(
       "config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical ",
       "output."
     ),
-    algorithm_description = "Clustering algorithm name.",
+    discriminator_description = "Clustering algorithm name.",
     algorithms = list(
       list(cls = KMeansConfig, desc = "K-means clustering."),
       list(
@@ -406,7 +406,7 @@ families <- list(
       "its hyperparameters, validated per-algorithm against ",
       "schema.rtemis.org/hyperparameters/<algorithm>/v1."
     ),
-    algorithm_description = "Supervised-learning algorithm name.",
+    discriminator_description = "Supervised-learning algorithm name.",
     algorithms = list(
       list(
         cls = GLMHyperparameters,

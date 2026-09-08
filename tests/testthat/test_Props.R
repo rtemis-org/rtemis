@@ -775,6 +775,163 @@ testthat::test_that("empty schema description is omitted", {
   testthat::expect_identical(s[["description"]], "A tiny config.")
 })
 
+testthat::test_that("contains_min survives the schema round trip", {
+  # `schema_to_spec()` read `minItems` and `uniqueItems` but not
+  # `contains.minimum`, so a class rebuilt from its own published schema
+  # accepted a collection the original rejected.
+  A <- S7::new_class(
+    name = "A",
+    package = NULL,
+    properties = list(
+      x = prop_integer(2L, min = 1L, vector = TRUE, contains_min = 2L)
+    )
+  )
+  s <- S7_to_JSONSchema(A, id = "https://example.org/a.json")
+  testthat::expect_identical(
+    s[["properties"]][["x"]][["contains"]][["minimum"]],
+    2L
+  )
+  B <- JSONSchema_to_S7(s, name = "B", defaults = list(x = 2L))
+  testthat::expect_error(A(x = 1L))
+  testthat::expect_error(B(x = 1L))
+})
+
+
+testthat::test_that("contains_min covers a broadcast scalar", {
+  # Every element of a broadcast array is that scalar, so the bound applies to
+  # it. Without a threshold on the scalar branch the schema accepted what R
+  # rejected.
+  C <- S7::new_class(
+    name = "C",
+    package = NULL,
+    properties = list(
+      x = prop_integer(
+        2L,
+        min = 1L,
+        vector = TRUE,
+        broadcast = TRUE,
+        contains_min = 2L
+      )
+    )
+  )
+  s <- S7_to_JSONSchema(C, id = "https://example.org/c.json")
+  scalar_branch <- s[["properties"]][["x"]][["oneOf"]][[1L]]
+  testthat::expect_identical(scalar_branch[["minimum"]], 2L)
+  testthat::expect_error(C(x = 1L))
+})
+
+
+testthat::test_that("contains_min must be a finite scalar", {
+  # Validated at declaration, independently of the default: a nullable property
+  # with a NULL default never exercises its own bound, so an unusable one would
+  # reach the schema and fail only when a reader compiled it.
+  for (bad in list(numeric(0), c(2, 3), NA_real_, Inf, -Inf)) {
+    testthat::expect_error(
+      prop_integer(NULL, nullable = TRUE, vector = TRUE, contains_min = bad)
+    )
+  }
+  testthat::expect_no_error(
+    prop_integer(NULL, nullable = TRUE, vector = TRUE, contains_min = 2L)
+  )
+})
+
+
+testthat::test_that("an applies_when gate matches the sibling's declared shape", {
+  # Regression: the emitter chose the wire shape from `@tunable`, which decides
+  # whether a *search domain* is possible and says nothing about what a plain
+  # value looks like. That published a scalar `enum` against a vector-valued
+  # sibling -- making rtemis write records its own schema rejected -- and an
+  # array matcher against a domain that serializes as `{"candidates": [...]}`,
+  # an object matching neither branch.
+  Gated <- S7::new_class(
+    name = "Gated",
+    package = NULL,
+    properties = list(
+      vec = prop_integer(1L, vector = TRUE),
+      dom = prop_string("a", enum = c("a", "b"), tunable = TRUE),
+      on_vec = prop_integer(
+        NULL,
+        nullable = TRUE,
+        applies_when = list(vec = 1L)
+      ),
+      on_dom = prop_integer(
+        NULL,
+        nullable = TRUE,
+        applies_when = list(dom = "a")
+      )
+    )
+  )
+  s <- S7_to_JSONSchema(Gated, id = "https://example.org/gated.json")
+  then_of <- function(prop) {
+    for (cl in s[["allOf"]]) {
+      if (prop %in% names(cl[["if"]][["properties"]])) {
+        return(cl[["then"]][["properties"]])
+      }
+    }
+    NULL
+  }
+  # An array sibling is matched element-wise, never as a scalar enum.
+  vec_match <- then_of("on_vec")[["vec"]]
+  testthat::expect_identical(vec_match[["type"]], "array")
+  testthat::expect_identical(as.vector(vec_match[["contains"]][["enum"]]), 1L)
+  testthat::expect_false("enum" %in% names(vec_match))
+  # A tunable sibling admits its plain value or a tagged domain object.
+  dom_match <- then_of("on_dom")[["dom"]]
+  testthat::expect_length(dom_match[["anyOf"]], 2L)
+  tagged <- dom_match[["anyOf"]][[2L]]
+  testthat::expect_identical(tagged[["type"]], "object")
+  testthat::expect_identical(as.vector(tagged[["required"]]), "candidates")
+  testthat::expect_identical(
+    as.vector(tagged[["properties"]][["candidates"]][["contains"]][["enum"]]),
+    "a"
+  )
+})
+
+
+testthat::test_that("a gate on a sibling with no membership form is refused", {
+  Bad <- S7::new_class(
+    name = "Bad",
+    package = NULL,
+    properties = list(
+      m = prop_map(prop_integer(1L), nullable = TRUE),
+      g = prop_integer(NULL, nullable = TRUE, applies_when = list(m = 1L))
+    )
+  )
+  testthat::expect_error(
+    S7_to_JSONSchema(Bad, id = "https://example.org/bad.json"),
+    class = "rtemis_input_error"
+  )
+})
+
+
+testthat::test_that("`extra` may carry allOf and nothing else", {
+  # `modifyList()` recurses, so an `extra` carrying `properties` overwrites
+  # individual generated constraints without replacing the map -- a schema that
+  # looks generated and is not. `allOf` can only compose beside them.
+  Tiny <- S7::new_class(
+    name = "Tiny",
+    package = NULL,
+    properties = list(a = prop_integer(1L, min = 1L))
+  )
+  testthat::expect_error(
+    S7_to_JSONSchema(
+      Tiny,
+      id = "https://example.org/tiny.json",
+      extra = list(properties = list(a = list(minimum = 99L)))
+    ),
+    class = "rtemis_input_error"
+  )
+  s <- S7_to_JSONSchema(
+    Tiny,
+    id = "https://example.org/tiny.json",
+    extra = list(allOf = list(list(required = I("a"))))
+  )
+  testthat::expect_length(s[["allOf"]], 1L)
+  # The generated constraint survives beside it.
+  testthat::expect_identical(s[["properties"]][["a"]][["minimum"]], 1L)
+})
+
+
 testthat::test_that("a property with no declared role is an error", {
   Mixed <- S7::new_class(
     name = "Mixed",

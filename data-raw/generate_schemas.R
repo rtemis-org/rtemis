@@ -155,13 +155,7 @@ for (family in names(families)) {
       record = kind == "record",
       title = fam[["title"]],
       description = fam[["description"]],
-      discriminator_description = if (
-        is.null(fam[["discriminator_description"]])
-      ) {
-        fam[["algorithm_description"]]
-      } else {
-        fam[["discriminator_description"]]
-      },
+      discriminator_description = fam[["discriminator_description"]],
       instance_schema_url = dispatcher_id
     )
     assert_description_language(dispatcher, dispatcher_id)
