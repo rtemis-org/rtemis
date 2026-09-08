@@ -88,37 +88,7 @@ SerialExecutionConfig <- new_class(
   parent = ExecutionConfig,
   package = "rtemis",
   properties = list(
-    backend = prop_algorithm("none"),
-    n_workers = prop_const(
-      1L,
-      description = "Serial execution runs in the calling process, so the pool is one worker."
-    ),
-    # Carried by the variant although serial execution never consults it: the
-    # published leaf closes with `additionalProperties: false` and every
-    # execution record written so far holds this key, so omitting it would
-    # invalidate those documents rather than ignore the field.
-    future_plan = prop_state(prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Future plan. Unused under serial execution."
-    )),
-    # Bounded to 1 rather than declared constant: unset is the ordinary case and
-    # must stay expressible, so these remain nullable integers whose only legal
-    # value is 1. `min == max` states the old cross-field rule as a bound.
-    n_workers_outer = prop_integer(
-      NULL,
-      min = 1L,
-      max = 1L,
-      nullable = TRUE,
-      description = "Workers for outer resampling. Serial execution dispatches nothing, so 1 or unset."
-    ),
-    n_workers_tuning = prop_integer(
-      NULL,
-      min = 1L,
-      max = 1L,
-      nullable = TRUE,
-      description = "Workers for tuning. Serial execution dispatches nothing, so 1 or unset."
-    )
+    backend = prop_algorithm("none")
   )
 ) # /rtemis::SerialExecutionConfig
 
@@ -220,25 +190,74 @@ MiraiExecutionConfig <- new_class(
   parent = ParallelExecutionConfig,
   package = "rtemis",
   properties = list(
-    backend = prop_algorithm("mirai"),
-    # Carried for the same reason as on the serial variant: stored documents
-    # hold the key, and the leaf schema is closed.
-    future_plan = prop_state(prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Future plan. Unused under the mirai backend."
-    ))
+    backend = prop_algorithm("mirai")
   )
 ) # /rtemis::MiraiExecutionConfig
+
+
+# %% execution_n_workers ----
+#' The worker pool an execution config builds
+#'
+#' Declared on `ParallelExecutionConfig` because only a parallel backend has a
+#' pool. Serial execution runs in the calling process, which is one worker, and
+#' says so here rather than by carrying a property fixed at 1 that a form would
+#' then offer.
+#'
+#' @param x `ExecutionConfig` object.
+#'
+#' @return Integer.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+execution_n_workers <- function(x) {
+  if (S7_inherits(x, ParallelExecutionConfig)) x@n_workers else 1L
+} # /rtemis::execution_n_workers
+
+
+# %% execution_dispatch_level ----
+#' A named dispatch level, or NULL where the backend has none
+#'
+#' `n_workers_outer` and `n_workers_tuning` are declared on
+#' `ParallelExecutionConfig`: they name how many worker *processes* a level
+#' claims, and serial execution dispatches to none. Reading them through here
+#' lets the worker ladder ask every config the same question.
+#'
+#' @param x `ExecutionConfig` object.
+#' @param level Character \{"n_workers_outer", "n_workers_tuning"\}.
+#'
+#' @return Integer, or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+execution_dispatch_level <- function(x, level) {
+  if (S7_inherits(x, ParallelExecutionConfig)) prop(x, level) else NULL
+} # /rtemis::execution_dispatch_level
+
+
+# %% execution_future_plan ----
+#' The future plan an execution config runs under, or NULL
+#'
+#' Only `FutureExecutionConfig` has one; the other backends do not consult a
+#' plan, so they do not declare the property.
+#'
+#' @param x `ExecutionConfig` object.
+#'
+#' @return Character, or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+execution_future_plan <- function(x) {
+  if (S7_inherits(x, FutureExecutionConfig)) x@future_plan else NULL
+} # /rtemis::execution_future_plan
 
 
 # %% repr.ExecutionConfig ----
 method(repr, ExecutionConfig) <- function(x, pad = 0L, output_type = NULL) {
   out <- repr_S7name(S7_class(x)@name, pad = pad, output_type = output_type)
   .props <- props(x)
-  if (.props[["backend"]] != "future") {
-    .props[["future_plan"]] <- NULL
-  }
   # An unset level is the ordinary case and says nothing the reader does not already
   # know from `n_workers`; a set one is the whole point and stays.
   for (level in c(
@@ -323,8 +342,6 @@ EXECUTION_SETUP <- c(
 #' @keywords internal
 #' @noRd
 .execution_common <- function(
-  n_workers_outer,
-  n_workers_tuning,
   n_workers_algorithm,
   on_error,
   seed,
@@ -332,13 +349,9 @@ EXECUTION_SETUP <- c(
   warm_workers
 ) {
   check_logical_scalar(warm_workers)
-  for (nm in c("n_workers_outer", "n_workers_tuning", "n_workers_algorithm")) {
-    v <- get(nm)
-    if (!is.null(v)) {
-      v <- clean_int(v)
-      check_pos_integer_scalar(v)
-      assign(nm, v)
-    }
+  if (!is.null(n_workers_algorithm)) {
+    n_workers_algorithm <- clean_int(n_workers_algorithm)
+    check_pos_integer_scalar(n_workers_algorithm)
   }
   # "always" is a demand, so an unusable request is an error here rather than a surprise
   # at dispatch. "auto" is best-effort: a missing mori is one more reason it cannot
@@ -356,8 +369,6 @@ EXECUTION_SETUP <- c(
     clean_int(seed)
   }
   list(
-    n_workers_outer = n_workers_outer,
-    n_workers_tuning = n_workers_tuning,
     n_workers_algorithm = n_workers_algorithm,
     on_error = on_error,
     seed = seed,
@@ -365,6 +376,37 @@ EXECUTION_SETUP <- c(
     warm_workers = warm_workers
   )
 } # /rtemis::.execution_common
+
+
+# %% .execution_dispatch ----
+#' Validate and resolve the settings only a parallel backend has
+#'
+#' @param n_workers,n_workers_outer,n_workers_tuning Optional Integer.
+#'
+#' @return Named list of resolved dispatch settings.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+.execution_dispatch <- function(n_workers, n_workers_outer, n_workers_tuning) {
+  for (nm in c("n_workers_outer", "n_workers_tuning")) {
+    v <- get(nm)
+    if (!is.null(v)) {
+      v <- clean_int(v)
+      check_pos_integer_scalar(v)
+      assign(nm, v)
+    }
+  }
+  list(
+    n_workers = .resolve_n_workers(
+      n_workers,
+      n_workers_outer,
+      n_workers_tuning
+    ),
+    n_workers_outer = n_workers_outer,
+    n_workers_tuning = n_workers_tuning
+  )
+} # /rtemis::.execution_dispatch
 
 
 # %% .resolve_n_workers ----
@@ -502,27 +544,18 @@ setup_FutureExecution <- function(
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-  shared <- .execution_common(
-    n_workers_outer,
-    n_workers_tuning,
-    n_workers_algorithm,
-    on_error,
-    seed,
-    shared_memory,
-    warm_workers
-  )
   out <- do.call(
     FutureExecutionConfig,
     c(
-      shared,
-      list(
-        n_workers = .resolve_n_workers(
-          n_workers,
-          shared[["n_workers_outer"]],
-          shared[["n_workers_tuning"]]
-        ),
-        future_plan = future_plan
-      )
+      .execution_common(
+        n_workers_algorithm,
+        on_error,
+        seed,
+        shared_memory,
+        warm_workers
+      ),
+      .execution_dispatch(n_workers, n_workers_outer, n_workers_tuning),
+      list(future_plan = future_plan)
     )
   )
   config_origins(out) <- origins
@@ -563,27 +596,17 @@ setup_MiraiExecution <- function(
   on_error <- match.arg(on_error)
   shared_memory <- match.arg(shared_memory)
   check_dependencies("mirai")
-  shared <- .execution_common(
-    n_workers_outer,
-    n_workers_tuning,
-    n_workers_algorithm,
-    on_error,
-    seed,
-    shared_memory,
-    warm_workers
-  )
   out <- do.call(
     MiraiExecutionConfig,
     c(
-      shared,
-      list(
-        n_workers = .resolve_n_workers(
-          n_workers,
-          shared[["n_workers_outer"]],
-          shared[["n_workers_tuning"]]
-        ),
-        future_plan = NULL
-      )
+      .execution_common(
+        n_workers_algorithm,
+        on_error,
+        seed,
+        shared_memory,
+        warm_workers
+      ),
+      .execution_dispatch(n_workers, n_workers_outer, n_workers_tuning)
     )
   )
   config_origins(out) <- origins
@@ -599,10 +622,6 @@ setup_MiraiExecution <- function(
 #' no `n_workers` and no `future_plan`, neither of which a serial run can act
 #' on.
 #'
-#' @param n_workers_outer Optional Integer \[1, 1\]: Workers for outer resampling.
-#' Serial execution dispatches nothing, so 1 or unset.
-#' @param n_workers_tuning Optional Integer \[1, 1\]: Workers for tuning. Serial
-#' execution dispatches nothing, so 1 or unset.
 #' @inheritParams setup_FutureExecution
 #'
 #' @details
@@ -619,8 +638,6 @@ setup_MiraiExecution <- function(
 #' @examples
 #' setup_SerialExecution()
 setup_SerialExecution <- function(
-  n_workers_outer = NULL,
-  n_workers_tuning = NULL,
   n_workers_algorithm = NULL,
   on_error = c("continue", "stop", "stop_outer"),
   seed = NULL,
@@ -630,34 +647,15 @@ setup_SerialExecution <- function(
   origins <- supplied_origins()
   on_error <- match.arg(on_error)
   shared_memory <- match.arg(shared_memory)
-  shared <- .execution_common(
-    n_workers_outer,
-    n_workers_tuning,
-    n_workers_algorithm,
-    on_error,
-    seed,
-    shared_memory,
-    warm_workers
-  )
-  # The class states this as a bound; said here so the message names the reason
-  # and the level, which a bound cannot.
-  for (nm in c("n_workers_outer", "n_workers_tuning")) {
-    v <- shared[[nm]]
-    if (!is.null(v) && v != 1L) {
-      rtemis.core::abort(
-        nm,
-        " must be 1 or unset under serial execution, which dispatches nothing ",
-        "(got ",
-        v,
-        "). n_workers_algorithm is threads within the calling process and may ",
-        "still be set.",
-        class = c("rtemis_value_error", "rtemis_input_error")
-      )
-    }
-  }
   out <- do.call(
     SerialExecutionConfig,
-    c(shared, list(future_plan = NULL))
+    .execution_common(
+      n_workers_algorithm,
+      on_error,
+      seed,
+      shared_memory,
+      warm_workers
+    )
   )
   config_origins(out) <- origins
   out
@@ -691,36 +689,23 @@ setup_SerialExecution <- function(
     )
   }
   args[["backend"]] <- NULL
-  # A document records every property of its variant, including those the
-  # variant's `setup_*` has no formal for: the ones it never consults
-  # (`future_plan` is null in a serial record) and the ones its class fixes
-  # (`n_workers` is 1 there, and not settable). Drop those, and refuse anything
-  # else, which is a document claiming something its backend cannot do.
+  # A variant declares only what its backend acts on, so a key it has no
+  # formal for is a document claiming something that backend cannot do -- a
+  # `n_workers` on a serial config, a `future_plan` on a mirai one. The
+  # published schema rejects it too: the dispatcher closes the composed
+  # document with `unevaluatedProperties`, and the leaf declares no such
+  # property to evaluate it.
   fn <- get(EXECUTION_SETUP[[backend]], envir = asNamespace("rtemis"))
-  cls <- EXECUTION_CLASSES[[backend]]
-  unusable <- setdiff(names(args), names(formals(fn)))
-  settled <- vapply(
-    unusable,
-    function(nm) {
-      v <- args[[nm]]
-      if (is.null(v)) {
-        return(TRUE)
-      }
-      spec <- get_spec(cls@properties[[nm]])
-      !is.null(spec) && spec@constant && isTRUE(all.equal(v, spec@default))
-    },
-    logical(1L)
-  )
-  carried <- unusable[!settled]
+  carried <- setdiff(names(args), names(formals(fn)))
   if (length(carried) > 0L) {
     rtemis.core::abort(
       "An execution config with backend '",
       backend,
       "' cannot carry: ",
       paste(carried, collapse = ", "),
-      ". Its value is fixed by the variant, or the backend never reads it.",
+      ".",
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-  do.call(fn, args[setdiff(names(args), unusable)])
+  do.call(fn, args)
 } # /rtemis::.list_to_ExecutionConfig

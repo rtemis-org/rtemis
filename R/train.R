@@ -516,8 +516,8 @@ train <- function(
   }
   # Override parallelization parameters with those from execution_config
   backend <- execution_config@backend
-  n_workers <- execution_config@n_workers
-  future_plan <- execution_config@future_plan
+  n_workers <- execution_n_workers(execution_config)
+  future_plan <- execution_future_plan(execution_config)
 
   # A set with nothing to choose between is the configuration it holds, and from
   # here on it is that configuration: only a one-member set of fixed values
@@ -634,8 +634,14 @@ train <- function(
     hyperparameters = hyperparameters,
     outer_resampling_config = outer_resampling_config,
     n_workers = n_workers,
-    n_workers_outer = execution_config@n_workers_outer,
-    n_workers_tuning = execution_config@n_workers_tuning,
+    n_workers_outer = execution_dispatch_level(
+      execution_config,
+      "n_workers_outer"
+    ),
+    n_workers_tuning = execution_dispatch_level(
+      execution_config,
+      "n_workers_tuning"
+    ),
     n_workers_algorithm = execution_config@n_workers_algorithm,
     verbosity = verbosity
   )

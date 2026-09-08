@@ -281,7 +281,7 @@ bias_variance <- function(
   # A resample runs inside a worker and must not dispatch again, so the nested
   # `train()` gets a sequential config -- the same rule outer resampling follows.
   dispatching <- execution_config@backend != "none" &&
-    execution_config@n_workers > 1L
+    execution_n_workers(execution_config) > 1L
   inner_config <- if (dispatching) {
     SerialExecutionConfig(
       seed = execution_config@seed,
@@ -300,10 +300,10 @@ bias_variance <- function(
       execution_config = inner_config
     ),
     backend = execution_config@backend,
-    n_workers = execution_config@n_workers,
+    n_workers = execution_n_workers(execution_config),
     future_plan = resolve_future_plan(
       execution_config@backend,
-      execution_config@future_plan
+      execution_future_plan(execution_config)
     ),
     # One substream per resample, by index, so the estimate does not depend on
     # the worker count.

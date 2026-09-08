@@ -18,8 +18,25 @@ testthat::test_that("the execution variants build and share the base", {
   expect_identical(ec@backend, "future")
   expect_s7_class(SerialExecutionConfig(), ExecutionConfig)
   expect_identical(SerialExecutionConfig()@backend, "none")
-  expect_identical(SerialExecutionConfig()@n_workers, 1L)
   expect_identical(MiraiExecutionConfig()@backend, "mirai")
+  # A variant declares only what its backend acts on. Serial dispatches
+  # nothing, so a worker pool and the two dispatch levels are not properties it
+  # has -- there is nothing to reject, because there is nothing to set. (S7
+  # drops an unknown constructor argument silently, so the property set is what
+  # says this, not an error.)
+  expect_named(
+    props(SerialExecutionConfig()),
+    c(
+      "backend",
+      "n_workers_algorithm",
+      "warm_workers",
+      "on_error",
+      "seed",
+      "shared_memory"
+    )
+  )
+  expect_false("future_plan" %in% names(props(MiraiExecutionConfig())))
+  expect_true("future_plan" %in% names(props(FutureExecutionConfig())))
   # The base is abstract: a backend is not a setting on one flat class.
   expect_error(ExecutionConfig())
 })
@@ -90,7 +107,6 @@ testthat::test_that("algorithm threads need no backend", {
   # Threads run in the calling process, so there is nothing to dispatch to.
   ec <- setup_SerialExecution(n_workers_algorithm = 8L)
   expect_identical(ec@n_workers_algorithm, 8L)
-  expect_identical(ec@n_workers, 1L)
 })
 
 
@@ -106,16 +122,17 @@ testthat::test_that("two parallel dispatch levels are rejected", {
 })
 
 
-testthat::test_that("a dispatch level is rejected when nothing dispatches", {
-  # The class states this as a bound, so a document is rejected by the schema
-  # too; `setup_SerialExecution()` knows it is serial and can say why, which a
-  # bound alone cannot.
+testthat::test_that("a serial config offers no dispatch level to set", {
+  # Unrepresentable rather than rejected: `setup_SerialExecution()` has no such
+  # formal, and the published leaf declares no such property, so the dispatcher's
+  # `unevaluatedProperties` rejects a document that carries one.
+  expect_false("n_workers_outer" %in% names(formals(setup_SerialExecution)))
+  expect_false("n_workers" %in% names(formals(setup_SerialExecution)))
+  expect_error(setup_SerialExecution(n_workers_outer = 4L), "unused argument")
   expect_error(
-    setup_SerialExecution(n_workers_outer = 4L),
-    "must be 1 or unset under serial execution"
+    rtemis:::.list_to_ExecutionConfig(list(backend = "none", n_workers = 1L)),
+    "cannot carry"
   )
-  # The bound is what a non-R implementation gets, and it still holds.
-  expect_error(SerialExecutionConfig(n_workers_outer = 4L), "must be <= 1")
 })
 
 

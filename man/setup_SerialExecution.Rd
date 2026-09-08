@@ -5,8 +5,6 @@
 \title{Set up a \code{SerialExecutionConfig}}
 \usage{
 setup_SerialExecution(
-  n_workers_outer = NULL,
-  n_workers_tuning = NULL,
   n_workers_algorithm = NULL,
   on_error = c("continue", "stop", "stop_outer"),
   seed = NULL,
@@ -15,12 +13,6 @@ setup_SerialExecution(
 )
 }
 \arguments{
-\item{n_workers_outer}{Optional Integer [1, 1]: Workers for outer resampling.
-Serial execution dispatches nothing, so 1 or unset.}
-
-\item{n_workers_tuning}{Optional Integer [1, 1]: Workers for tuning. Serial
-execution dispatches nothing, so 1 or unset.}
-
 \item{n_workers_algorithm}{Optional Integer [1, Inf): Threads for a self-parallelizing
 algorithm, overriding the automatic assignment.}
 

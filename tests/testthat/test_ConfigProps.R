@@ -862,7 +862,7 @@ test_that("a config built without `setup_*()` falls back to the inference", {
   ec <- SerialExecutionConfig()
   expect_null(config_origins(ec))
   origin <- config_record(ec, ec)[["origin"]]
-  expect_identical(origin[["n_workers_outer"]], "default")
+  expect_identical(origin[["shared_memory"]], "default")
 })
 
 test_that("a stated origin never overrides what the run was seen to do", {

@@ -193,7 +193,7 @@ test_that("read_config ignores `$schema` on nested configs", {
       execution_config = list(
         `$schema` = "https://schema.rtemis.org/execution/v1/schema.json",
         backend = "none",
-        n_workers = 1L
+        on_error = "stop"
       )
     ),
     file,
@@ -203,7 +203,7 @@ test_that("read_config ignores `$schema` on nested configs", {
   expect_s7_class(x, SuperConfigPaths)
   expect_true(x@preprocessor_config@scale)
   expect_s7_class(x@decomposition_config, DecompositionConfig)
-  expect_identical(x@execution_config@n_workers, 1L)
+  expect_identical(x@execution_config@on_error, "stop")
 })
 
 
