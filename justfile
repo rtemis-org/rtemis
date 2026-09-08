@@ -108,12 +108,16 @@ test-filter filter out="/tmp/rtemis-test":
 # diff there after this runs means the committed copies were stale.
 # `generate_checks_corpus.R` writes no `inst/` copy: nothing in R reads the
 # corpus, it being generated *from* the tests that are its oracle.
+# Runs every generator `schemas` runs, in the same order. A generator missing
+# here is one this gate cannot fail on: `generate_authoring.R` was absent, so a
+# change that broke it passed `schemas-check` and failed mid-publish.
 [doc("Generate schemas + defaults + checks into a throwaway directory to assert the contracts")]
 schemas-check:
     @just _msg "─── Checking schema generation for {{ pkg }}... ───"
     @dir=$(mktemp -d); trap 'rm -rf "$dir"' EXIT; \
         {{ rscript }} data-raw/generate_schemas.R "$dir" && \
         {{ rscript }} data-raw/generate_defaults.R "$dir" && \
+        {{ rscript }} data-raw/generate_authoring.R "$dir" && \
         {{ rscript }} data-raw/generate_checks.R "$dir" && \
         {{ rscript }} data-raw/generate_checks_corpus.R "$dir" && \
         {{ rscript }} data-raw/generate_profile_fixture.R "$dir"

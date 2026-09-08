@@ -2819,6 +2819,43 @@ config_prop_values <- function(self, base) {
 } # /rtemis::config_prop_values
 
 
+# %% family_shared_names ----
+#' The settings a family base declares for every variant
+#'
+#' A dispatched document is the discriminator, these, then the variant's own
+#' settings as siblings. The one definition of the middle group, used by the
+#' three places that must agree about it: `family_prop_values()` composes their
+#' *values* into the document, `config_record()` reports their *origins*, and
+#' `S7_to_JSONSchema()` declares those origins in the leaf's record schema.
+#'
+#' The discriminator is excluded by construction rather than by name: a family
+#' base declares it as bare `class_character`, carrying no `PropertySpec`, so
+#' the spec test drops it. Computed views and `r_only` values are dropped the
+#' same way, and run state by `prop_serialized()` -- a record reports state,
+#' but the base's state is not part of a *config* document.
+#'
+#' @param base S7 class or NULL: the family base.
+#'
+#' @return Character vector, in declaration order; empty for a flat config.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+family_shared_names <- function(base) {
+  if (is.null(base)) {
+    return(character())
+  }
+  props <- base@properties
+  unlist(Filter(
+    function(nm) {
+      !is.null(get_spec(props[[nm]])) && prop_serialized(props[[nm]])
+    },
+    names(props)
+  )) %||%
+    character()
+} # /rtemis::family_shared_names
+
+
 # %% family_prop_values ----
 #' The fields a family's dispatcher declares, as a serialized config carries them
 #'
@@ -2839,13 +2876,7 @@ config_prop_values <- function(self, base) {
 #' @noRd
 family_prop_values <- function(x, base, discriminator) {
   props <- base@properties
-  shared <- setdiff(names(props), discriminator)
-  shared <- Filter(
-    function(nm) {
-      !is.null(get_spec(props[[nm]])) && prop_serialized(props[[nm]])
-    },
-    shared
-  )
+  shared <- setdiff(family_shared_names(base), discriminator)
   values <- lapply(shared, function(nm) wire_value(prop(x, nm), props[[nm]]))
   names(values) <- shared
   c(stats::setNames(list(prop(x, discriminator)), discriminator), values)
@@ -4243,6 +4274,15 @@ S7_to_JSONSchema <- function(
     # A nested config carries its own `origin`, so it is not covered here.
     origin_props <- props[intersect(required, names(props))]
     origin_props <- origin_props[setdiff(names(origin_props), constants)]
+    # For a family leaf, the document is this object composed with the
+    # dispatcher's, and the composed document has one `origin`. The dispatcher
+    # emits none, so the leaf declares the union -- its own fields and the
+    # base's shared settings -- which is what `config_record()` writes, from
+    # this same `family_shared_names()`. Declaration order matches it.
+    if (!is.null(base)) {
+      shared <- setdiff(family_shared_names(base), names(origin_props))
+      origin_props <- c(origin_props, base@properties[shared])
+    }
     if (length(origin_props) > 0L) {
       properties[["origin"]] <- origin_schema(origin_props)
       required <- c(required, "origin")

@@ -440,6 +440,23 @@ test_that("no readOnly schema property is a setup_* formal", {
 }
 
 
+test_that("FAMILY_DISCRIMINATORS and the registry name the same families", {
+  # One declaration of which property each family dispatches on, read by the
+  # schema generators and by the record writer's `family_discriminator()`.
+  # `generate_schemas.R` stops on a registry family missing from the table;
+  # this is the other direction -- a table entry no family publishes, which
+  # would be a discriminator nothing dispatches on.
+  env <- .contract_registry()
+  skip_if(is.null(env), "data-raw/ not available (built package)")
+  registered <- vapply(
+    get("families", envir = env),
+    function(fam) fam[["base_class"]]@name,
+    character(1L)
+  )
+  expect_setequal(unname(registered), names(FAMILY_DISCRIMINATORS))
+})
+
+
 test_that("the class/setup mapping covers the registry", {
   # `.contract_classes` is written out here rather than read from the registry,
   # so that the checks above still run in a built package. This is what keeps

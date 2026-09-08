@@ -2,20 +2,7 @@
 
 ## 1.4.0
 
-- **`ExecutionConfig` is a discriminated family, not a flat class with rules.**
-  `backend` now selects `SerialExecutionConfig`, `FutureExecutionConfig` or
-  `MiraiExecutionConfig` (the last two sharing an abstract
-  `ParallelExecutionConfig`), the way every other config family already
-  dispatches. Three of its four cross-field validator rules become type facts a
-  published schema states: serial fixes `n_workers` at 1 and bounds both
-  dispatch levels to 1, and the future variant declares `future_plan`
-  non-nullable. The fourth -- at most one dispatch level parallel -- is mirrored
-  into the schema, so the family has no rule enforced only in R.
-  `setup_ExecutionConfig()` is **removed**, replaced by one constructor per
-  variant -- `setup_SerialExecution()`, `setup_FutureExecution()`,
-  `setup_MiraiExecution()` -- so no function accepts an argument its backend
-  cannot act on: there is no `n_workers` to pass to a serial config and no
-  `future_plan` outside the future one. Existing documents stay valid.
+- `setup_SerialExecution()`, `setup_FutureExecution()` and `setup_MiraiExecution()` build an execution config for one backend each, so an argument is offered only where it applies: a serial config has no `n_workers` and no `future_plan`.
 - `do_call()` propagates warnings unchanged.`verbosity` gates its suggestions, which are printed only for a recognized warning and once per call.
 - **HOPACH reports a collapsed tree instead of failing opaquely.** `hopach` can
   collapse its tree to one cluster and then either error while descending from

@@ -300,7 +300,9 @@ read <- function(
   } else if (output == "tibble") {
     .dat <- tibble::as_tibble(.dat)
   } else if (output == "data.frame") {
-    if (!is.data.frame(.dat) || tibble::is_tibble(.dat)) {
+    # nanoparquet as of right now outputs "tbl" "data.frame",
+    # inherits is needed because tibble::is_tibble() return FALSE in this case
+    if (!is.data.frame(.dat) || inherits(.dat, "tbl")) {
       .dat <- as.data.frame(.dat)
     } else {
       setDF(.dat)

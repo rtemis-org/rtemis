@@ -196,7 +196,6 @@ families <- list(
   # once, beside `format`.
   ingest = list(
     base_class = IngestConfig,
-    discriminator = "format",
     title = "rtemis IngestConfig",
     description = paste0(
       "Language-independent config for reading a data file and normalizing it ",
@@ -238,7 +237,6 @@ families <- list(
   # document is `method` plus the method's own fields.
   partition = list(
     base_class = PartitionConfig,
-    discriminator = "method",
     title = "rtemis PartitionConfig",
     description = paste0(
       "Language-independent config for splitting a dataset into a training ",
@@ -269,7 +267,6 @@ families <- list(
   ),
   resampler = list(
     base_class = ResamplerConfig,
-    discriminator = "type",
     title = "rtemis ResamplerConfig",
     description = paste0(
       "Language-independent config for an rtemis resampler. Mirrors the ",
@@ -307,7 +304,6 @@ families <- list(
   ),
   tuner = list(
     base_class = TunerConfig,
-    discriminator = "type",
     title = "rtemis TunerConfig",
     description = paste0(
       "Language-independent config for rtemis hyperparameter tuning. Mirrors ",
@@ -326,7 +322,6 @@ families <- list(
   ),
   explanation = list(
     base_class = ExplanationConfig,
-    discriminator = "type",
     title = "rtemis ExplanationConfig",
     description = paste0(
       "Language-independent config for a per-case rtemis explanation. Mirrors ",
@@ -345,7 +340,6 @@ families <- list(
   ),
   conformal = list(
     base_class = ConformalConfig,
-    discriminator = "type",
     title = "rtemis ConformalConfig",
     description = paste0(
       "Language-independent config for an rtemis conformal prediction region. ",
@@ -372,7 +366,6 @@ families <- list(
   ),
   execution = list(
     base_class = ExecutionConfig,
-    discriminator = "backend",
     title = "rtemis ExecutionConfig",
     description = paste0(
       "Language-independent config for rtemis execution: sequential, ",

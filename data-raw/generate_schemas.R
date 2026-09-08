@@ -81,10 +81,22 @@ assert_config_contract <- rtemis.core::assert_config_contract
 for (family in names(families)) {
   fam <- families[[family]]
   classes <- lapply(fam[["algorithms"]], `[[`, "cls")
-  discriminator <- if (is.null(fam[["discriminator"]])) {
-    "algorithm"
-  } else {
-    fam[["discriminator"]]
+  # From `FAMILY_DISCRIMINATORS` (`R/record.R`), the one declaration of which
+  # property each family dispatches on. The record writer's
+  # `family_discriminator()` reads the same table, so a family the registry
+  # publishes and a family the record writer composes cannot be two different
+  # sets -- which is how `ExecutionConfig` came to have a published dispatcher
+  # and records written without its discriminator.
+  discriminator <- FAMILY_DISCRIMINATORS[[fam[["base_class"]]@name]]
+  if (is.null(discriminator)) {
+    stop(
+      sprintf(
+        "Family '%s' (%s) has no FAMILY_DISCRIMINATORS entry in R/record.R.",
+        family,
+        fam[["base_class"]]@name
+      ),
+      call. = FALSE
+    )
   }
   # Leaves. Each is written twice: the input schema, and its `record.json`
   # sibling, which declares the same properties with every one required. A
