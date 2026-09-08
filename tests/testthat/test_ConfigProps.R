@@ -126,7 +126,7 @@ test_that("clustering config validators enforce bounds and enums", {
   expect_error(setup_GMM(model_names = "ZZZ")) # enum
   expect_error(setup_PAM(variant = "bogus"))
   expect_error(setup_PAMK(alpha = 1.5)) # max
-  expect_error(setup_PAMK(krange = 1L)) # class validator: needs a candidate > 1
+  expect_error(setup_PAMK(krange = 1L)) # contains_min: needs a candidate > 1
   # applies_when: subsets only mean something for the subset-based criterion
   expect_error(setup_PAMK(criterion = "asw", n_subsets = 5L))
   expect_error(setup_Spectral(k = 1L)) # min

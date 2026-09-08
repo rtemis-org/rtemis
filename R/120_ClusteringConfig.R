@@ -827,10 +827,12 @@ PAMKConfig <- new_class(
       min = 1L,
       vector = TRUE,
       unique_items = TRUE,
+      contains_min = 2L,
       description = paste0(
         "Candidate numbers of clusters to compare. Neither criterion can ",
         "score a single cluster, so including 1 selects it only when a ",
-        "Duda-Hart test finds no evidence for more."
+        "Duda-Hart test finds no evidence for more, and a set holding only 1 ",
+        "has nothing to choose between."
       )
     ),
     criterion = prop_string(
@@ -879,12 +881,7 @@ PAMKConfig <- new_class(
   # nothing to choose between and the backend fails with "subscript out of
   # bounds".
   validator = function(self) {
-    c(
-      check_applies_when(self),
-      if (length(self@krange) > 0L && max(self@krange) < 2L) {
-        "@krange must include at least one value greater than 1."
-      }
-    )
+    check_applies_when(self)
   }
 ) # /rtemis::PAMKConfig
 

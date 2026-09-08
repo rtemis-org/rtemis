@@ -164,21 +164,7 @@ families <- list(
       ),
       list(
         cls = PAMKConfig,
-        desc = "Partitioning Around Medoids with estimation of the number of clusters.",
-        # Mirrors `PAMKConfig`'s validator: neither criterion can score a
-        # single cluster, so a candidate set holding only 1 has nothing to
-        # choose between. `contains` states it without demanding the key.
-        extra = list(
-          allOf = list(
-            list(
-              properties = list(
-                krange = list(
-                  contains = list(type = "integer", minimum = 2L)
-                )
-              )
-            )
-          )
-        )
+        desc = "Partitioning Around Medoids with estimation of the number of clusters."
       ),
       list(
         cls = SpectralConfig,

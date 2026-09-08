@@ -248,6 +248,10 @@ PropertySpec <- new_class(
     # constraint nothing enforces.
     min_items = new_property(class_integer, default = 1L),
     unique_items = new_property(class_logical, default = FALSE),
+    # At least one element must reach this value. A bound on the array's
+    # *contents* rather than its arity, for a candidate set where some values
+    # are useless alone but legal beside a usable one.
+    contains_min = NULL | class_numeric,
     # A constant is determined by the class, not chosen by the user: it is not
     # settable, and `@default` holds the single permitted value. Distinct from
     # a *fixed* property, which the user does set but cannot tune.
@@ -414,6 +418,9 @@ PropertySpec <- new_class(
       }
       if (self@unique_items) {
         return("@unique_items is only meaningful when @container is 'array'.")
+      }
+      if (!is.null(self@contains_min)) {
+        return("@contains_min is only meaningful when @container is 'array'.")
       }
     }
     if (self@broadcast && self@min_items > 1L) {
@@ -680,6 +687,16 @@ validate_array_arity <- function(value, fields) {
   }
   if (fields[["unique_items"]] && anyDuplicated(value) > 0L) {
     return("must not contain duplicate values.")
+  }
+  contains_min <- fields[["contains_min"]]
+  if (
+    !is.null(contains_min) && length(value) > 0L && max(value) < contains_min
+  ) {
+    return(paste0(
+      "must include at least one value of ",
+      contains_min,
+      " or more."
+    ))
   }
   NULL
 } # /rtemis::validate_array_arity
@@ -1319,6 +1336,9 @@ prop_boolean <- function(
 #' @param applies_when Optional named list: Sibling properties this one is only
 #'   in effect for, mapped to the values that put it in effect. Requires
 #'   `nullable`.
+#' @param contains_min Optional Numeric: Lowest value at least one element must
+#'   reach. A bound on an `array` container's contents rather than its arity,
+#'   for a candidate set in which a value is legal only beside a usable one.
 #' @param description Character: Human-readable description.
 #'
 #' @return S7 property.
@@ -1339,6 +1359,7 @@ prop_integer <- function(
   vector = FALSE,
   broadcast = FALSE,
   min_items = 1L,
+  contains_min = NULL,
   unique_items = FALSE,
   data_bound = NULL,
   data_dependent = FALSE,
@@ -1360,6 +1381,7 @@ prop_integer <- function(
     container = if (vector) "array" else "none",
     broadcast = broadcast,
     min_items = min_items,
+    contains_min = contains_min,
     unique_items = unique_items,
     data_bound = data_bound,
     data_dependent = data_dependent,
@@ -3296,6 +3318,86 @@ candidates_schema <- function(value_schema) {
 } # /rtemis::candidates_schema
 
 
+# %% applies_when_clauses ----
+#' The JSON Schema clauses enforcing a class's `applies_when` gates
+#'
+#' The gate is declared once on the property and enforced in R by
+#' `check_applies_when()`. Without these clauses it would reach the published
+#' document as an `x-rtemis` annotation only -- a rule every non-R
+#' implementation would have to re-derive from prose, which is the same
+#' asymmetry the `extra` field exists to close.
+#'
+#' One clause per gated property: *if the property is present and not null,
+#' the sibling that gates it holds one of the listed values.* The `if` names
+#' the property in `required` so that a document omitting it is untouched --
+#' `properties` alone passes vacuously on an absent key and would fire `then`
+#' on every such document.
+#'
+#' The `then` constrains a value and never demands a key, which is what
+#' `assert_config_contract()` requires of an input schema: an absent gate
+#' sibling resolves to its default, and defaults are published separately.
+#'
+#' @param x S7 class.
+#' @param properties Named list: The schema's emitted properties. A gate on a
+#'   property this schema does not carry has nothing to attach to.
+#'
+#' @return List of `allOf` clauses, or NULL where the class declares no gate.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+applies_when_clauses <- function(x, properties) {
+  cls_props <- x@properties
+  clauses <- list()
+  for (nm in applies_when_spec_names(x)) {
+    if (!nm %in% names(properties)) {
+      next
+    }
+    gate <- get_spec_fields(cls_props[[nm]])[["applies_when"]]
+    gated_on <- list()
+    for (gate_name in names(gate)) {
+      allowed <- gate[[gate_name]]
+      spec <- if (is.null(cls_props[[gate_name]])) {
+        NULL
+      } else {
+        get_spec(cls_props[[gate_name]])
+      }
+      # A tunable sibling may hold a search domain rather than one value, and
+      # the gate opens when any candidate is listed -- the same reading
+      # `check_applies_when()` takes, where the grid then drops the gated
+      # property from the cells that cannot use it.
+      gated_on[[gate_name]] <- if (!is.null(spec) && spec@tunable) {
+        list(
+          anyOf = list(
+            list(enum = I(allowed)),
+            list(type = "array", contains = list(enum = I(allowed)))
+          )
+        )
+      } else {
+        list(enum = I(allowed))
+      }
+    }
+    if (length(gated_on) == 0L) {
+      next
+    }
+    clauses[[length(clauses) + 1L]] <- list(
+      `if` = list(
+        properties = stats::setNames(
+          list(list(not = list(type = "null"))),
+          nm
+        ),
+        required = I(nm)
+      ),
+      then = list(properties = gated_on)
+    )
+  }
+  if (length(clauses) == 0L) {
+    return(NULL)
+  }
+  clauses
+} # /rtemis::applies_when_clauses
+
+
 # %% applies_when_note ----
 #' The sentence describing an `applies_when` gate
 #'
@@ -3401,7 +3503,10 @@ spec_to_schema <- function(spec, read_only = FALSE) {
         type = if (spec@nullable) I(c("array", "null")) else "array",
         items = element,
         minItems = spec@min_items,
-        uniqueItems = if (spec@unique_items) TRUE else NULL
+        uniqueItems = if (spec@unique_items) TRUE else NULL,
+        contains = if (!is.null(spec@contains_min)) {
+          list(minimum = spec@contains_min)
+        }
       )
     )
     if (spec@broadcast) {
@@ -4380,6 +4485,13 @@ S7_to_JSONSchema <- function(
   }
   if (!is.null(extra)) {
     schema <- utils::modifyList(schema, extra)
+  }
+  # After the merge, not before: `modifyList()` recurses, so an `extra`
+  # carrying its own `allOf` would merge into these clauses element by element
+  # rather than sitting beside them.
+  gate_clauses <- applies_when_clauses(x, properties)
+  if (!is.null(gate_clauses)) {
+    schema[["allOf"]] <- c(schema[["allOf"]], gate_clauses)
   }
   schema
 } # /rtemis::S7_to_JSONSchema
