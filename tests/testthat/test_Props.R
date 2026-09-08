@@ -185,6 +185,36 @@ testthat::test_that("bad defaults fail at factory time, not first instantiation"
   testthat::expect_no_error(prop_string(NULL, nullable = TRUE))
 })
 
+# %% Exclusive integer bounds ----
+testthat::test_that("prop_integer takes exclusive bounds and emits them", {
+  Cls <- S7::new_class(
+    "ExclIntProps",
+    properties = list(
+      # An open lower bound on a count: "at least one", stated as > 0 rather
+      # than min = 1, for a backend whose own documentation reads that way.
+      n = prop_integer(1L, exclusive_min = 0L),
+      k = prop_integer(1L, exclusive_max = 10L)
+    )
+  )
+  testthat::expect_error(Cls(n = 0L))
+  testthat::expect_no_error(Cls(n = 1L))
+  testthat::expect_error(Cls(k = 10L))
+  testthat::expect_no_error(Cls(k = 9L))
+
+  # The bound reaches the schema, not just the R validator.
+  s <- spec_to_schema(get_spec(Cls@properties[["n"]]))
+  testthat::expect_identical(s[["type"]], "integer")
+  testthat::expect_identical(s[["exclusiveMinimum"]], 0L)
+  testthat::expect_null(s[["minimum"]])
+  s <- spec_to_schema(get_spec(Cls@properties[["k"]]))
+  testthat::expect_identical(s[["exclusiveMaximum"]], 10L)
+
+  # A default outside its own exclusive bound fails at factory time, as it
+  # does for the inclusive bounds and for prop_float.
+  testthat::expect_error(prop_integer(0L, exclusive_min = 0L), "default")
+})
+
+
 # %% Vector-valued props ----
 # %% Arity axes: container / items / broadcast ----
 # Hand-built specs for shapes the factories do not yet expose (nested items,

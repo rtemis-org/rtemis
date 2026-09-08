@@ -1294,6 +1294,7 @@ prop_boolean <- function(
 #'
 #' @param default Integer: Default value (NULL only if `nullable`).
 #' @param min,max Integer or NULL: Inclusive bounds.
+#' @param exclusive_min,exclusive_max Integer or NULL: Exclusive bounds.
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
 #' @param tune_on_null Logical: If TRUE, a NULL value means "determine by
@@ -1329,6 +1330,8 @@ prop_integer <- function(
   default,
   min = NULL,
   max = NULL,
+  exclusive_min = NULL,
+  exclusive_max = NULL,
   nullable = FALSE,
   tunable = FALSE,
   tune_on_null = FALSE,
@@ -1347,8 +1350,8 @@ prop_integer <- function(
     default = default,
     minimum = min,
     maximum = max,
-    exclusive_minimum = NULL,
-    exclusive_maximum = NULL,
+    exclusive_minimum = exclusive_min,
+    exclusive_maximum = exclusive_max,
     enum = NULL,
     nullable = nullable,
     tunable = tunable,
