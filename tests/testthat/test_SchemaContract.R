@@ -57,7 +57,8 @@
     list(GMMConfig, "setup_GMM"),
     list(HOPACHConfig, "setup_HOPACH"),
     list(PAMConfig, "setup_PAM"),
-    list(PAMKConfig, "setup_PAMK")
+    list(PAMKConfig, "setup_PAMK"),
+    list(SpectralConfig, "setup_Spectral")
   ),
   .contract_family(
     ResamplerConfig,

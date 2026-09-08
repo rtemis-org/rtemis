@@ -5,6 +5,7 @@ APS
 ARFF
 argmin
 AutoPyTorch
+AY
 BARTHyperparameters
 BH
 Barmode
@@ -98,6 +99,7 @@ KMeansConfig
 KNN
 KNNHyperparameters
 KernelSHAP
+kernlab
 L'Ecuyer
 LH
 LINAD
@@ -107,6 +109,7 @@ LINADHyperparameters
 LOOCV
 Laan
 LaborDay
+laplace
 LightCART
 LightCARTHyperparameters
 LightGBM
@@ -144,6 +147,7 @@ Multilayer
 multiasw
 natively
 NCOL
+Ng
 NMF
 NMFConfig
 NNLS
@@ -168,6 +172,7 @@ PTM
 PTMs
 Parallelization
 Perceptron
+Perona
 Polley
 Preformatted
 Preprocess
@@ -177,6 +182,7 @@ Pretraining
 quantized
 Raftery
 Ramdas
+rbf
 reassemblies
 redeclares
 redeclaring
@@ -200,6 +206,7 @@ Solberg
 SPLS
 SPLSHyperparameters
 Shapley
+SpectralConfig
 Spectrogram
 stagewise
 Stata
@@ -499,6 +506,7 @@ wilcox
 xanchor
 yanchor
 yref
+Zelnik
 zmax
 zmin
 zoomable

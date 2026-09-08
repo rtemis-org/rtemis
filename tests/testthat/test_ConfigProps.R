@@ -89,7 +89,8 @@ test_that("DecompositionConfig generates its JSON Schema", {
   GMM = GMMConfig,
   HOPACH = HOPACHConfig,
   PAM = PAMConfig,
-  PAMK = PAMKConfig
+  PAMK = PAMKConfig,
+  Spectral = SpectralConfig
 )
 
 test_that("setup_* clustering defaults do not drift from property defaults", {
@@ -126,6 +127,18 @@ test_that("clustering config validators enforce bounds and enums", {
   expect_error(setup_PAM(variant = "bogus"))
   expect_error(setup_PAMK(alpha = 1.5)) # max
   expect_error(setup_PAMK(krange = 1L)) # class validator: needs a candidate > 1
+  # applies_when: subsets only mean something for the subset-based criterion
+  expect_error(setup_PAMK(criterion = "asw", n_subsets = 5L))
+  expect_error(setup_Spectral(k = 1L)) # min
+  expect_error(setup_Spectral(kernel = "bogus")) # enum
+  expect_error(setup_Spectral(sigma = 0)) # exclusive min
+  expect_error(setup_Spectral(sigma_sample_fraction = 1.5)) # max
+  # applies_when: no width to set when the kernel builds its own
+  expect_error(setup_Spectral(kernel = "rbf_local", sigma = 1))
+  # applies_when: nothing to sample when the approximation is off
+  expect_error(setup_Spectral(nystrom_sample = 40L))
+  # class validator: local scaling needs every pairwise distance
+  expect_error(setup_Spectral(kernel = "rbf_local", nystrom = TRUE))
 })
 
 test_that("CMeans weights broadcast and control is an open object", {

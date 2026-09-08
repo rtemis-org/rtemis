@@ -179,6 +179,26 @@ families <- list(
             )
           )
         )
+      ),
+      list(
+        cls = SpectralConfig,
+        desc = "Spectral clustering.",
+        # Mirrors `SpectralConfig`'s validator: local scaling reads a per-case
+        # width off the full pairwise distance matrix, which the Nystrom
+        # approximation never forms. Both are plain scalars with defaults, so
+        # an `if`/`then` over values states it without demanding a key.
+        extra = list(
+          allOf = list(
+            list(
+              `if` = list(
+                properties = list(kernel = list(const = "rbf_local"))
+              ),
+              then = list(
+                properties = list(nystrom = list(const = FALSE))
+              )
+            )
+          )
+        )
       )
     )
   ),

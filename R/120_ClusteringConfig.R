@@ -879,9 +879,12 @@ PAMKConfig <- new_class(
   # nothing to choose between and the backend fails with "subscript out of
   # bounds".
   validator = function(self) {
-    if (length(self@krange) > 0L && max(self@krange) < 2L) {
-      "@krange must include at least one value greater than 1."
-    }
+    c(
+      check_applies_when(self),
+      if (length(self@krange) > 0L && max(self@krange) < 2L) {
+        "@krange must include at least one value greater than 1."
+      }
+    )
   }
 ) # /rtemis::PAMKConfig
 
@@ -1050,6 +1053,205 @@ setup_GMM <- function(k = NULL, model_names = NULL) {
   }
   GMMConfig(k = k, model_names = model_names)
 } # /rtemis::setup_GMM
+
+
+# %% SpectralConfig ----
+#' @title SpectralConfig
+#'
+#' @description
+#' ClusteringConfig subclass for spectral clustering.
+#'
+#' `kernel` fuses the backend's two kernel arguments into one setting. That is
+#' not cosmetic: `kernlab::specc()` discards its `kernel` argument whenever
+#' `kpar` is one of the strings "automatic" or "local", so the pair admits
+#' combinations that name a kernel and then silently use a different one. One
+#' enum cannot express those.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+SpectralConfig <- new_class(
+  name = "SpectralConfig",
+  parent = ClusteringConfig,
+  properties = list(
+    algorithm = prop_algorithm("Spectral"),
+    # The backend's upper bound is `k <= n_cases`, and its lower bound is 2:
+    # one cluster leaves a single eigenvector and the embedding loses its
+    # matrix shape. `data_bound = "n_cases"` states neither, so both are in the
+    # description, as `PAMConfig` does for the same reason.
+    k = prop_integer(
+      3L,
+      min = 2L,
+      description = paste0(
+        "Number of clusters. Must be at least 2 and no more than the number ",
+        "of cases."
+      )
+    ),
+    kernel = prop_string(
+      "rbf",
+      enum = c("rbf", "rbf_local", "laplace"),
+      description = paste0(
+        "Similarity measure the affinity matrix is built from: \"rbf\" = ",
+        "Gaussian, with one width shared by every case; \"rbf_local\" = ",
+        "Gaussian with a per-case width taken from the distance to its ",
+        "seventh nearest neighbor, which lets one clustering hold groups of ",
+        "differing density; \"laplace\" = exponential, which decays more ",
+        "slowly than the Gaussian and so keeps more weight on distant pairs."
+      )
+    ),
+    sigma = prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      applies_when = list(kernel = c("rbf", "laplace")),
+      description = paste0(
+        "Inverse kernel width: larger values make the affinity fall off ",
+        "faster with distance. Unset estimates it for \"rbf\" by searching a ",
+        "grid of widths for the one whose embedding clusters most tightly, ",
+        "and uses 1 for \"laplace\"."
+      )
+    ),
+    sigma_sample_fraction = prop_float(
+      NULL,
+      exclusive_min = 0,
+      max = 1,
+      nullable = TRUE,
+      applies_when = list(kernel = "rbf"),
+      description = paste0(
+        "Fraction of the cases the kernel width is estimated from. Lowering ",
+        "it is the way to make the search affordable on many cases, since it ",
+        "decomposes one affinity matrix per candidate width. Used only when ",
+        "\"sigma\" is unset, which is what triggers the search. Unset uses ",
+        "three quarters of them."
+      )
+    ),
+    iterations = prop_integer(
+      200L,
+      min = 1L,
+      description = paste0(
+        "Maximum number of k-means iterations run on the spectral embedding."
+      )
+    ),
+    nystrom = prop_boolean(
+      FALSE,
+      description = paste0(
+        "Approximate the affinity matrix from a sample of the cases by the ",
+        "Nystrom method, rather than decomposing it in full. The exact ",
+        "decomposition is cubic in the number of cases; this trades some ",
+        "accuracy for a cost set by the sample size instead. Cannot be ",
+        "combined with the \"rbf_local\" kernel, whose per-case widths need ",
+        "every pairwise distance."
+      )
+    ),
+    nystrom_sample = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      applies_when = list(nystrom = TRUE),
+      description = paste0(
+        "Number of cases the approximation samples. Must be fewer than the ",
+        "number of cases, and enough larger than the number of clusters for ",
+        "the sample to be clustered on its own. Unset samples one sixth of ",
+        "the cases."
+      )
+    )
+  ),
+  # Local scaling reads a per-case width off the full pairwise distance
+  # matrix, which the Nystrom approximation never forms; the backend refuses
+  # the combination outright.
+  validator = function(self) {
+    c(
+      check_applies_when(self),
+      if (identical(self@kernel, "rbf_local") && self@nystrom) {
+        paste0(
+          "@nystrom cannot be combined with @kernel \"rbf_local\": local ",
+          "scaling needs every pairwise distance."
+        )
+      }
+    )
+  }
+) # /rtemis::SpectralConfig
+
+
+# %% setup_Spectral ----
+#' Setup SpectralConfig
+#'
+#' Setup a `SpectralConfig` object for spectral clustering, via the 'kernlab'
+#' package.
+#'
+#' Spectral clustering does not look for compact groups in the data itself. It
+#' builds a similarity graph over the cases, embeds them in the leading
+#' eigenvectors of that graph's normalized Laplacian, and runs k-means there.
+#' Groups that are connected but not compact -- concentric rings, elongated
+#' bands -- separate in that embedding while k-means on the raw features cannot
+#' find them.
+#'
+#' The cost is cubic in the number of cases, since the whole affinity matrix is
+#' decomposed. Set `nystrom` to approximate the decomposition from a sample
+#' instead.
+#'
+#' `kernel` fuses `kernlab::specc()`'s `kernel` and `kpar` arguments, which are
+#' not independent: `kpar = "automatic"` and `kpar = "local"` both replace
+#' whatever `kernel` names with a Gaussian kernel of their own. The three
+#' values here are the combinations that mean something, and each maps to one
+#' pair. The remaining 'kernlab' kernels -- polynomial, linear, hyperbolic
+#' tangent, Bessel, ANOVA, spline -- are not exposed: they are inner products
+#' rather than distance-decaying similarities, so they can give an affinity
+#' matrix with negative entries, which is not a similarity graph and which the
+#' normalization step has no defined meaning for.
+#'
+#' Argument names are rtemis' own. They map to `kernlab::specc()` as: `k` ->
+#' `centers`, `sigma_sample_fraction` -> `mod.sample`, `nystrom` ->
+#' `nystrom.red`, `nystrom_sample` -> `nystrom.sample`; `iterations` keeps its
+#' name, and `kernel` and `sigma` together set `kernel` and `kpar`.
+#'
+#' @param k Integer [2, Inf): Number of clusters. Must be no more than the number of cases.
+#' @param kernel Character \{"rbf", "rbf_local", "laplace"\}: Similarity measure the affinity matrix is built from.
+#' @param sigma Optional Numeric (0, Inf): Inverse kernel width. Unset estimates it for "rbf" and uses 1 for "laplace". Applies when `kernel` is "rbf" or "laplace".
+#' @param sigma_sample_fraction Optional Numeric (0, 1\]: Fraction of the cases the kernel width is estimated from. Unset uses three quarters of them. Used only when `sigma` is unset. Applies when `kernel` is "rbf".
+#' @param iterations Integer [1, Inf): Maximum number of k-means iterations run on the spectral embedding.
+#' @param nystrom Logical: If TRUE, approximate the affinity matrix from a sample of the cases by the Nystrom method.
+#' @param nystrom_sample Optional Integer [1, Inf): Number of cases the approximation samples. Unset samples one sixth of them. Applies when `nystrom` is TRUE.
+#'
+#' @return `SpectralConfig` object.
+#'
+#' @references
+#' Ng AY, Jordan MI, Weiss Y (2001). On Spectral Clustering: Analysis and an
+#' Algorithm. \emph{Advances in Neural Information Processing Systems}, 14,
+#' 849-856.
+#'
+#' Zelnik-Manor L, Perona P (2004). Self-Tuning Spectral Clustering.
+#' \emph{Advances in Neural Information Processing Systems}, 17, 1601-1608.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' spectral_config <- setup_Spectral(k = 3L)
+#' spectral_config
+setup_Spectral <- function(
+  k = 3L,
+  kernel = "rbf",
+  sigma = NULL,
+  sigma_sample_fraction = NULL,
+  iterations = 200L,
+  nystrom = FALSE,
+  nystrom_sample = NULL
+) {
+  k <- clean_posint(k)
+  iterations <- clean_posint(iterations)
+  if (!is.null(nystrom_sample)) {
+    nystrom_sample <- clean_posint(nystrom_sample)
+  }
+  SpectralConfig(
+    k = k,
+    kernel = kernel,
+    sigma = sigma,
+    sigma_sample_fraction = sigma_sample_fraction,
+    iterations = iterations,
+    nystrom = nystrom,
+    nystrom_sample = nystrom_sample
+  )
+} # /rtemis::setup_Spectral
 
 
 # %% .list_to_ClusteringConfig ----

@@ -578,8 +578,8 @@ clust_algorithms <- data.frame(rbind(
   # c("MeanShift", "Mean Shift Clustering"),
   c("NeuralGas", "Neural Gas Clustering"),
   c("PAM", "Partitioning Around Medoids"),
-  c("PAMK", "Partitioning Around Medoids with k estimation")
-  # c("SPEC", "Spectral Clustering")
+  c("PAMK", "Partitioning Around Medoids with k estimation"),
+  c("Spectral", "Spectral Clustering")
 ))
 
 get_clust_name <- function(algorithm) {
