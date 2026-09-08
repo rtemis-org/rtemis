@@ -508,7 +508,7 @@ spec_classes <- function(ns = "rtemis") {
 #' @noRd
 doc_source_for_class <- function(class_name) {
   stripped <- sub("(Hyperparameters|Config)$", "", class_name)
-  # Both spellings occur: setup_LightRF (stripped) and setup_ExecutionConfig
+  # Both spellings occur: setup_LightRF (stripped) and setup_Preprocessor
   # (unstripped). Try the stripped form first, then the class name verbatim.
   fallback <- c(
     GridSearch = "setup_GridSearch",

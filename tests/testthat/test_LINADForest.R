@@ -86,10 +86,10 @@ test_that("a forest is reproducible, and parallel dispatch does not change it", 
         mtry_split = 2L,
         force_max_leaves = TRUE
       ),
-      execution_config = rtemis::setup_ExecutionConfig(
-        seed = 42L,
-        backend = backend,
-        n_workers = n_workers
+      execution_config = exec_config(
+        backend,
+        n_workers = n_workers,
+        seed = 42L
       ),
       verbosity = 0L
     )
@@ -294,10 +294,7 @@ test_that("a bag that misses a factor level still fits and predicts", {
   model <- rtemis::train(
     data.frame(rare, y = outcome),
     hyperparameters = rtemis::setup_LINADForest(n_trees = 8L, max_leaves = 4L),
-    execution_config = rtemis::setup_ExecutionConfig(
-      seed = 5L,
-      backend = "none"
-    ),
+    execution_config = rtemis::setup_SerialExecution(seed = 5L),
     verbosity = 0L
   )
   expect_length(stats::predict(model, rare), n)

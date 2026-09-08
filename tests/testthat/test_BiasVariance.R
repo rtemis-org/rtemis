@@ -28,7 +28,7 @@ set.seed(2026)
 .resampler <- setup_StratBoot(
   n_resamples = 20L
 )
-.execution <- setup_ExecutionConfig(seed = 1L, backend = "none")
+.execution <- setup_SerialExecution(seed = 1L)
 
 .bv <- function(
   hyperparameters,
@@ -117,9 +117,8 @@ test_that("bias_variance() is reproducible, and parallel matches sequential", {
   skip_if_not_installed("mirai")
   parallel <- .bv(
     setup_CART(),
-    execution = setup_ExecutionConfig(
+    execution = setup_MiraiExecution(
       seed = 1L,
-      backend = "mirai",
       n_workers = 2L
     )
   )

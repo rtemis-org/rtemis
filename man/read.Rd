@@ -11,7 +11,7 @@ read(
   character2factor = FALSE,
   clean_colnames = TRUE,
   delim_reader = c("data.table", "vroom", "duckdb", "arrow"),
-  parquet_reader = c("arrow", "nanoparquet"),
+  parquet_reader = c("nanoparquet", "arrow"),
   xlsx_sheet = 1,
   sep = NULL,
   quote = "\\"",
@@ -84,7 +84,7 @@ characters to factors
 \item \strong{Delimited} files using \code{data.table:fread()}, \code{arrow:read_delim_arrow()},
 \code{vroom::vroom()}, or \code{duckdb::duckdb_read_csv()}
 \item \strong{ARFF} files using \code{farff::readARFF()}
-\item \strong{Parquet} files using \code{arrow::read_parquet()} or \code{nanoparquet::read_parquet}
+\item \strong{Parquet} files using \code{nanoparquet::read_parquet} or \code{arrow::read_parquet()}
 \item \strong{XLSX} files using \code{readxl::read_excel()}
 \item \strong{DTA} files from Stata using \code{haven::read_dta()}
 \item \strong{FASTA} files using \code{seqinr::read.fasta()}

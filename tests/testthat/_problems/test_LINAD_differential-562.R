@@ -152,7 +152,7 @@ for (n_trees in c(1L, 3L)) {
     mod <- train(
       outcome,
       hyperparameters = setup_LINADForest(n_trees = n_trees, max_leaves = 4L),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
     expect_length(predict(mod, one_row), 1L)

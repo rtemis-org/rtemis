@@ -64,6 +64,29 @@
 } # /.status_implies
 
 
+# The one cross-field rule that survives splitting `ExecutionConfig` into
+# variants: at most one dispatch level may be parallel. It is not
+# discriminator-conditional, so no variant dissolves it -- but it is two
+# independent comparisons against the constant 1, which standard JSON Schema
+# composes with `not`. The `required` sits inside the negation, so an accepted
+# document need not carry either key. Declared once and attached to both
+# parallel backends, which inherit the validator from
+# `ParallelExecutionConfig`.
+.parallel_dispatch_rule <- list(
+  allOf = list(
+    list(
+      not = list(
+        required = I(c("n_workers_outer", "n_workers_tuning")),
+        properties = list(
+          n_workers_outer = list(type = "integer", minimum = 2L),
+          n_workers_tuning = list(type = "integer", minimum = 2L)
+        )
+      )
+    )
+  )
+)
+
+
 families <- list(
   decomposition = list(
     base_class = DecompositionConfig,
@@ -173,7 +196,6 @@ families <- list(
   # once, beside `format`.
   ingest = list(
     base_class = IngestConfig,
-    discriminator = "format",
     title = "rtemis IngestConfig",
     description = paste0(
       "Language-independent config for reading a data file and normalizing it ",
@@ -215,7 +237,6 @@ families <- list(
   # document is `method` plus the method's own fields.
   partition = list(
     base_class = PartitionConfig,
-    discriminator = "method",
     title = "rtemis PartitionConfig",
     description = paste0(
       "Language-independent config for splitting a dataset into a training ",
@@ -246,7 +267,6 @@ families <- list(
   ),
   resampler = list(
     base_class = ResamplerConfig,
-    discriminator = "type",
     title = "rtemis ResamplerConfig",
     description = paste0(
       "Language-independent config for an rtemis resampler. Mirrors the ",
@@ -284,7 +304,6 @@ families <- list(
   ),
   tuner = list(
     base_class = TunerConfig,
-    discriminator = "type",
     title = "rtemis TunerConfig",
     description = paste0(
       "Language-independent config for rtemis hyperparameter tuning. Mirrors ",
@@ -303,7 +322,6 @@ families <- list(
   ),
   explanation = list(
     base_class = ExplanationConfig,
-    discriminator = "type",
     title = "rtemis ExplanationConfig",
     description = paste0(
       "Language-independent config for a per-case rtemis explanation. Mirrors ",
@@ -322,7 +340,6 @@ families <- list(
   ),
   conformal = list(
     base_class = ConformalConfig,
-    discriminator = "type",
     title = "rtemis ConformalConfig",
     description = paste0(
       "Language-independent config for an rtemis conformal prediction region. ",
@@ -344,6 +361,31 @@ families <- list(
       list(
         cls = CQRConfig,
         desc = "Conformalized quantile regression."
+      )
+    )
+  ),
+  execution = list(
+    base_class = ExecutionConfig,
+    title = "rtemis ExecutionConfig",
+    description = paste0(
+      "Language-independent config for rtemis execution: sequential, ",
+      "parallel, or distributed."
+    ),
+    discriminator_description = "Execution backend.",
+    algorithms = list(
+      list(
+        cls = SerialExecutionConfig,
+        desc = "Execution in the calling process, dispatching nothing."
+      ),
+      list(
+        cls = FutureExecutionConfig,
+        desc = "Parallel execution through the future package.",
+        extra = .parallel_dispatch_rule
+      ),
+      list(
+        cls = MiraiExecutionConfig,
+        desc = "Parallel execution through the mirai package.",
+        extra = .parallel_dispatch_rule
       )
     )
   ),
@@ -517,34 +559,6 @@ flat_configs <- list(
     description = paste0(
       "Identity of one dataset: a content hash plus the structural facts that ",
       "make a mismatch diagnosable rather than merely detectable."
-    )
-  ),
-  execution = list(
-    cls = ExecutionConfig,
-    title = "rtemis ExecutionConfig",
-    description = paste0(
-      "Language-independent config for rtemis execution: sequential, ",
-      "parallel, or distributed."
-    ),
-    # Cross-field rules `setup_ExecutionConfig()` *rejects*, mirrored here. A
-    # rule the class validator enforces but `setup_*` resolves does not belong:
-    # the validator only ever sees post-`setup_*` values, while the schema sees
-    # the document as authored. `@future_plan` is the case in point -- the class
-    # requires it when `backend` is "future", but `setup_ExecutionConfig()`
-    # fills a NULL one in from `getOption("future.plan", "mirai_multisession")`,
-    # so requiring it here would reject configs that read and run fine (and
-    # leave the CLI's form with an unsatisfiable field, since the default is
-    # resolved at read time and so absent from the defaults artifact).
-    extra = list(
-      allOf = list(
-        list(
-          `if` = list(
-            properties = list(backend = list(const = "none")),
-            required = I("backend")
-          ),
-          then = list(properties = list(n_workers = list(const = 1L)))
-        )
-      )
     )
   ),
   supervised = list(

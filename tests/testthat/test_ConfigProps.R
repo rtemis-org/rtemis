@@ -808,16 +808,16 @@ test_that("a searched hyperparameter is `tuned`, not `derived`", {
 })
 
 test_that("a setup default is `default`, however far it is from the class's", {
-  # `setup_ExecutionConfig()` picks a backend, sizes a worker pool and draws a
-  # seed, none of which are the *class* defaults ("none", 1L, NULL). Comparing
-  # the two -- all a record could do before -- reported every one of them as the
-  # caller's choice. "none" needs no dependency, so this runs anywhere.
-  ec <- setup_ExecutionConfig(backend = "none")
+  # `setup_FutureExecution()` sizes a worker pool and fills a plan, neither of
+  # which is the *class* default (1L, "mirai_multisession" only by coincidence).
+  # Comparing the two -- all a record could do before -- reported them as the
+  # caller's choice. A dispatched leaf records the properties it declares
+  # itself, so the assertions below name those rather than the family base's.
+  ec <- setup_FutureExecution()
   origin <- config_record(ec, ec)[["origin"]]
-  expect_identical(origin[["backend"]], "user")
   expect_identical(origin[["n_workers"]], "default")
-  expect_identical(origin[["seed"]], "default")
-  expect_identical(origin[["on_error"]], "default")
+  expect_identical(origin[["n_workers_outer"]], "default")
+  expect_identical(origin[["future_plan"]], "default")
   # Drawn rather than declared, and recorded either way: an unseeded run has to
   # stay reproducible.
   expect_false(is.null(prop(ec, "seed")))
@@ -851,18 +851,18 @@ test_that("every setup whose defaults are not the class's states its origins", {
 
 test_that("supplying a value that equals the default still reads `user`", {
   # The inference could not tell these apart, and said so in this file's header.
-  ec <- setup_ExecutionConfig(backend = "none", warm_workers = TRUE)
+  ec <- setup_FutureExecution(future_plan = "mirai_multisession")
   origin <- config_record(ec, ec)[["origin"]]
-  expect_identical(origin[["warm_workers"]], "user")
+  expect_identical(origin[["future_plan"]], "user")
 })
 
 test_that("a config built without `setup_*()` falls back to the inference", {
   # Nothing states an origin, so the comparison answers -- the same answer it
   # gave before, never a wrong one.
-  ec <- ExecutionConfig(backend = "none")
+  ec <- SerialExecutionConfig()
   expect_null(config_origins(ec))
   origin <- config_record(ec, ec)[["origin"]]
-  expect_identical(origin[["backend"]], "default")
+  expect_identical(origin[["shared_memory"]], "default")
 })
 
 test_that("a stated origin never overrides what the run was seen to do", {

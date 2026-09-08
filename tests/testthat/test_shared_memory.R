@@ -243,18 +243,15 @@ testthat::test_that("shared_memory defaults to 'auto'", {
   # Best-effort by default: it applies wherever it can and is skipped, without comment,
   # wherever it cannot -- including here, where the backend dispatches nothing.
   expect_identical(
-    setup_ExecutionConfig(backend = "none")@shared_memory,
+    setup_SerialExecution()@shared_memory,
     "auto"
   )
 })
 
 testthat::test_that("shared_memory is validated", {
-  expect_error(setup_ExecutionConfig(backend = "none", shared_memory = "yes"))
+  expect_error(setup_SerialExecution(shared_memory = "yes"))
   expect_identical(
-    setup_ExecutionConfig(
-      backend = "none",
-      shared_memory = "auto"
-    )@shared_memory,
+    setup_SerialExecution(shared_memory = "auto")@shared_memory,
     "auto"
   )
 })
@@ -280,8 +277,8 @@ fit_shm <- function(shared_memory, backend = "mirai", n_workers = 2L) {
     shm_dat,
     hyperparameters = setup_CART(xval = 10L, prune_cp = 0.03),
     outer_resampling_config = shm_resampler,
-    execution_config = setup_ExecutionConfig(
-      backend = backend,
+    execution_config = exec_config(
+      backend,
       n_workers = n_workers,
       seed = 2026L,
       shared_memory = shared_memory
@@ -329,8 +326,7 @@ testthat::test_that("tuning gives the same answer shared or not", {
           seed = 7L
         )
       ),
-      execution_config = setup_ExecutionConfig(
-        backend = "mirai",
+      execution_config = setup_MiraiExecution(
         n_workers = 2L,
         seed = 2026L,
         shared_memory = shared_memory

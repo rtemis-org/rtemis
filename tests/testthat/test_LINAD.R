@@ -1321,10 +1321,7 @@ test_that("the exhaustive search finds a slope change the stump cannot", {
         split_search = search,
         force_max_leaves = TRUE
       ),
-      execution_config = rtemis::setup_ExecutionConfig(
-        seed = 1L,
-        backend = "none"
-      ),
+      execution_config = rtemis::setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
     frame <- model@model@frame
@@ -1367,7 +1364,7 @@ test_that("The linear split criterion finds a change of slope the mean criterion
         force_max_leaves = TRUE,
         ...
       ),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
   }
@@ -1399,7 +1396,7 @@ test_that("The mean criterion is the stump search's default and leaves it unchan
         split_search = "stump",
         ...
       ),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
   }
@@ -1419,7 +1416,7 @@ test_that("node_test leaves the fit untouched when off", {
     train(
       dat,
       hyperparameters = setup_LINAD(max_leaves = 4L, node_model = "ridge", ...),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
   }
@@ -1466,7 +1463,7 @@ test_that("node_test gives a node a constant where its slopes do not pay", {
         force_max_leaves = TRUE,
         ...
       ),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
   }
@@ -1499,7 +1496,7 @@ test_that("node_test leaves the split floors where the user set them", {
         force_max_leaves = TRUE,
         ...
       ),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
   }
@@ -1530,7 +1527,7 @@ test_that("Both split searches apply node_test to the models they score", {
         split_search = search,
         force_max_leaves = TRUE
       ),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
     expect_length(linad_check_tree(mod@model), 0L)
@@ -1594,7 +1591,7 @@ test_that("node_test keeps a ridge fit on data wider than it is long", {
         lambda = 0.6,
         ...
       ),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
   }
@@ -1635,7 +1632,7 @@ test_that("The exhaustive search finds a factor partition no ordering reaches", 
       split_search = "exhaustive",
       force_max_leaves = TRUE
     ),
-    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )
   frame <- mod@model@frame
@@ -1672,7 +1669,7 @@ test_that("A factor too wide to enumerate falls back to the ordering", {
       split_search = "exhaustive",
       force_max_leaves = TRUE
     ),
-    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )
   expect_length(linad_check_tree(mod@model), 0L)
@@ -1703,7 +1700,7 @@ test_that("n_cuts is the budget that decides whether a factor is enumerated", {
         n_cuts = n_cuts,
         force_max_leaves = TRUE
       ),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
     frame <- mod@model@frame
@@ -1753,7 +1750,7 @@ test_that("n_cuts is the budget that decides whether a factor is enumerated", {
       force_max_leaves = TRUE,
       ...
     ),
-    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )@model
 }
@@ -1856,7 +1853,7 @@ test_that("Feature roles reach the exhaustive search, not only the commit", {
       linear_features = c("a", "d"),
       global_features = "a"
     ),
-    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )@model
   used <- unique(stats::na.omit(model@frame[["split_feature"]]))
@@ -1880,7 +1877,7 @@ test_that("A LINADForest applies the roles its trees are given", {
       split_features = c("b", "g"),
       global_features = "a"
     ),
-    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )@model
   for (tree in model@trees) {
@@ -1907,7 +1904,7 @@ test_that("mtry_split samples within the split-eligible set", {
       force_max_leaves = TRUE,
       split_features = c("b", "d")
     ),
-    execution_config = setup_ExecutionConfig(seed = 3L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 3L),
     verbosity = 0L
   )@model
   used <- unlist(lapply(model@trees, function(tree) {

@@ -100,7 +100,7 @@ method(train_, LINADForestHyperparameters) <- function(
   x,
   weights = NULL,
   dat_validation = NULL,
-  execution_config = setup_ExecutionConfig(),
+  execution_config = setup_FutureExecution(),
   verbosity = 1L
 ) {
   # Hyperparameters ----
@@ -161,7 +161,7 @@ method(train_, LINADForestHyperparameters) <- function(
     n_workers = hyperparameters@n_workers,
     future_plan = resolve_future_plan(
       execution_config@backend,
-      execution_config@future_plan
+      execution_future_plan(execution_config)
     ),
     # One independent RNG substream per tree, assigned by tree index, so the
     # feature sampling is the same sequentially and in parallel at any worker

@@ -56,7 +56,7 @@ supplied_origins <- function() {
   fn <- sys.function(frame)
   # `envir` is where the call's `...` is expanded from, and the call is the one
   # written at the setup function's *call site* -- `train()` forwards its dots
-  # as `setup_ExecutionConfig(...)`, which cannot be matched against the
+  # as `setup_FutureExecution(...)`, which cannot be matched against the
   # formals anywhere else. Left to default, `match.call()` looks in this
   # helper's caller, finds no dots, and stops. `sys.frame(0)` is the global
   # environment, so a call made at top level resolves too.
@@ -247,16 +247,33 @@ config_record <- function(input, resolved) {
   # `setup_*()` records which of its arguments were supplied, because that is
   # the one thing a comparison cannot recover.
   declared <- config_origins(input)
-  origin <- lapply(flat, function(nm) {
+  # A document has one `origin`, covering every field it carries -- and a
+  # family leaf's block is composed with the base's shared settings by
+  # `nested_record()`, so those settings' origins belong here even though their
+  # *values* are contributed by the dispatcher's half. Without this a record
+  # states `seed: 42` and never says whether the caller chose it.
+  #
+  # `S7_to_JSONSchema()` declares exactly this union in the leaf's record
+  # schema, from the same `family_shared_names()`, so writer and schema cannot
+  # disagree; `test_RecordDocuments.R` validates a real record against it.
+  origin_names <- unique(c(flat, family_shared_names(base)))
+  origin <- lapply(origin_names, function(nm) {
+    prop_def <- props[[nm]]
+    resolved_value <- S7_to_list(wire_value(prop(resolved, nm), prop_def))
+    input_value <- if (is.null(input)) {
+      NULL
+    } else {
+      S7_to_list(wire_value(prop(input, nm), prop_def))
+    }
     value_origin(
-      input_values[[nm]],
-      values[[nm]],
-      get_spec(props[[nm]]),
-      state = identical(prop_role(props[[nm]]), "state"),
+      input_value,
+      resolved_value,
+      get_spec(prop_def),
+      state = identical(prop_role(prop_def), "state"),
       declared = if (nm %in% names(declared)) declared[[nm]] else NULL
     )
   })
-  names(origin) <- flat
+  names(origin) <- origin_names
 
   sub <- lapply(nested, function(nm) {
     nested_record(
@@ -806,6 +823,33 @@ nested_record <- function(input, resolved) {
 } # /rtemis::nested_record
 
 
+# %% FAMILY_DISCRIMINATORS ----
+# Every dispatched config family, keyed by the name of its base class and
+# valued with the property its dispatcher keys on.
+#
+# The single declaration of that fact. `data-raw/generate_schemas.R` reads it
+# rather than restating it, so a family declared in the registry and a family
+# the record writer knows about cannot be two different sets -- which is
+# exactly how they drifted: this was a hand-written `S7_inherits()` chain
+# covering five of the ten families, so a record for any of the other five was
+# written without its discriminator, matched no dispatcher branch, and was
+# rejected by the `unevaluatedProperties` of the schema rtemis itself
+# published. `test_SchemaContract.R` checks the two sets agree, and
+# `test_RecordDocuments.R` validates a real record for every family.
+FAMILY_DISCRIMINATORS <- list(
+  Hyperparameters = "algorithm",
+  DecompositionConfig = "algorithm",
+  ClusteringConfig = "algorithm",
+  IngestConfig = "format",
+  PartitionConfig = "method",
+  ResamplerConfig = "type",
+  TunerConfig = "type",
+  ExplanationConfig = "type",
+  ConformalConfig = "type",
+  ExecutionConfig = "backend"
+)
+
+
 # %% family_discriminator ----
 #' The property a discriminated config family dispatches on
 #'
@@ -821,17 +865,12 @@ nested_record <- function(input, resolved) {
 #' @keywords internal
 #' @noRd
 family_discriminator <- function(x) {
-  if (
-    S7_inherits(x, Hyperparameters) ||
-      S7_inherits(x, DecompositionConfig) ||
-      S7_inherits(x, ClusteringConfig)
-  ) {
-    "algorithm"
-  } else if (S7_inherits(x, TunerConfig) || S7_inherits(x, ResamplerConfig)) {
-    "type"
-  } else {
-    NULL
+  base <- family_base(if (S7_inherits(x)) S7_class(x) else x)
+  if (is.null(base)) {
+    return(NULL)
   }
+  discriminator <- FAMILY_DISCRIMINATORS[[base@name]]
+  if (is.null(discriminator)) NULL else discriminator
 } # /rtemis::family_discriminator
 
 

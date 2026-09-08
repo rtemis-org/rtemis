@@ -17,7 +17,7 @@ setup_SuperConfigLive(
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
-  execution_config = setup_ExecutionConfig(),
+  execution_config = setup_FutureExecution(),
   question = NULL,
   outdir = NULL,
   verbosity = 1L

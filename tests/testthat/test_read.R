@@ -51,5 +51,7 @@ test_that("read() leaves a parquet carrying no view type untouched", {
   expect_identical(materialize_arrow_views(tbl), tbl)
 
   out <- read(path, verbosity = 0L, output = "data.frame")
-  expect_identical(out, x)
+  # Compared by value: nanoparquet returns a Date backed by integer, where
+  # as.Date() returns one backed by double.
+  expect_equal(out, x)
 })

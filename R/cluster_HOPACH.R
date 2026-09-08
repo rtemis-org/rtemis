@@ -6,6 +6,19 @@
 # https://bioconductor.org/packages/hopach/
 # https://rdrr.io/bioc/hopach/man/hopach.html
 
+# %% hopach_overcollapse_msg ----
+# `hopach()`'s collapsing step is allowed one merge too many, so it can reduce
+# the tree to a single cluster. `hopach()` then either fails while trying to
+# descend from that level, or, if the level search ends first, returns the
+# one-cluster partition. Which of the two happens depends on the data and on
+# `dist`, so both are reported with the same explanation.
+hopach_overcollapse_msg <- paste0(
+  "HOPACH collapsed its tree to a single cluster, which 'hopach' cannot ",
+  "split further. Whether this happens depends on the data and on the ",
+  "distance measure: rerun with another `dist`, e.g. \"euclid\" or \"cor\"."
+)
+
+
 # %% cluster_.HOPACHConfig ----
 #' Hierarchical Ordered Partitioning and Collapsing Hybrid (HOPACH)
 #'
@@ -23,20 +36,27 @@ method(cluster_, HOPACHConfig) <- function(config, x, verbosity = 1L) {
 
   # Cluster ----
   msg("Clustering with", config@algorithm, "...", verbosity = verbosity)
-  clust <- hopach::hopach(
-    data = x,
-    d = config[["dist"]],
-    clusters = config[["level_selection"]],
-    K = config[["max_levels"]],
-    kmax = config[["max_children"]],
-    khigh = config[["max_children_mss"]],
-    coll = config[["collapse"]],
-    newmed = config[["new_medoid"]],
-    mss = config[["mss"]],
-    impr = config[["min_improvement"]],
-    initord = config[["initial_order"]],
-    ord = config[["element_order"]],
-    verbose = verbosity > 1L
+  clust <- do_call(
+    hopach::hopach,
+    list(
+      data = x,
+      d = config[["dist"]],
+      clusters = config[["level_selection"]],
+      K = config[["max_levels"]],
+      kmax = config[["max_children"]],
+      khigh = config[["max_children_mss"]],
+      coll = config[["collapse"]],
+      newmed = config[["new_medoid"]],
+      mss = config[["mss"]],
+      impr = config[["min_improvement"]],
+      initord = config[["initial_order"]],
+      ord = config[["element_order"]],
+      verbose = verbosity > 1L
+    ),
+    error_pattern_suggestion = list(
+      "must be an array of at least two dimensions" = hopach_overcollapse_msg
+    ),
+    verbosity = verbosity
   )
   # `hopach()` returns a bare list, so there is no class to check. Assert the
   # structure `clustpredict_HOPACH()` reads instead, so a backend that changes
@@ -45,6 +65,16 @@ method(cluster_, HOPACHConfig) <- function(config, x, verbosity = 1L) {
     rtemis.core::abort(
       "hopach::hopach() did not return a clustering.",
       class = c("rtemis_type_error", "rtemis_error")
+    )
+  }
+  # Every level `hopach()` can legitimately select holds at least two clusters:
+  # the first level it builds has two or more and the level search only ever
+  # replaces it with a collapsed level. `k < 2` therefore identifies the
+  # over-collapsed level exactly, with no partition to confuse it with.
+  if (as.integer(clust[["clustering"]][["k"]]) < 2L) {
+    rtemis.core::abort(
+      hopach_overcollapse_msg,
+      class = c("rtemis_runtime_error", "rtemis_error")
     )
   }
   clust

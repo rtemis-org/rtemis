@@ -3328,7 +3328,7 @@ lightgbm_early_stopping_props <- function() {
 #' `deterministic` costs speed and needs a row- or column-wise histogram forced,
 #' which rtemis does by default (`force_col_wise = TRUE`). The seeds here are the
 #' ones LightGBM derives per stage; the run's master seed is
-#' `setup_ExecutionConfig(seed = )`.
+#' `setup_FutureExecution(seed = )`.
 #'
 #' @return Named list of S7 properties.
 #'

@@ -126,8 +126,13 @@
     list(PredefinedPartitionConfig, "setup_PredefinedPartition")
   ),
   .contract_family(
+    ExecutionConfig,
+    list(SerialExecutionConfig, "setup_SerialExecution"),
+    list(FutureExecutionConfig, "setup_FutureExecution"),
+    list(MiraiExecutionConfig, "setup_MiraiExecution")
+  ),
+  .contract_family(
     NULL,
-    list(ExecutionConfig, "setup_ExecutionConfig"),
     list(PreprocessorConfig, "setup_Preprocessor"),
     list(SupervisedPreprocessorConfig, "setup_SupervisedPreprocessor"),
     list(SuperConfigPaths, "setup_SuperConfig"),
@@ -435,6 +440,23 @@ test_that("no readOnly schema property is a setup_* formal", {
 }
 
 
+test_that("FAMILY_DISCRIMINATORS and the registry name the same families", {
+  # One declaration of which property each family dispatches on, read by the
+  # schema generators and by the record writer's `family_discriminator()`.
+  # `generate_schemas.R` stops on a registry family missing from the table;
+  # this is the other direction -- a table entry no family publishes, which
+  # would be a discriminator nothing dispatches on.
+  env <- .contract_registry()
+  skip_if(is.null(env), "data-raw/ not available (built package)")
+  registered <- vapply(
+    get("families", envir = env),
+    function(fam) fam[["base_class"]]@name,
+    character(1L)
+  )
+  expect_setequal(unname(registered), names(FAMILY_DISCRIMINATORS))
+})
+
+
 test_that("the class/setup mapping covers the registry", {
   # `.contract_classes` is written out here rather than read from the registry,
   # so that the checks above still run in a built package. This is what keeps
@@ -669,8 +691,9 @@ test_that("a registered class's validator is mirrored in extra or recorded", {
     carriers <- .hand_written_validators(entry[["cls"]])
     # An `extra` accounts for the class: it is the only place a cross-field
     # rule can be published, and where it mirrors some of a validator rather
-    # than all of it the registry says which part and why -- `ExecutionConfig`
-    # mirrors its `n_workers` rule and documents why `@future_plan` stays out.
+    # than all of it the registry says which part and why -- the parallel
+    # execution variants mirror the one dispatch rule they inherit from
+    # `ParallelExecutionConfig`.
     if (!is.null(entry[["extra"]])) {
       expect_true(
         "allOf" %in% names(entry[["extra"]]),

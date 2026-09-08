@@ -258,7 +258,7 @@ test_that("JSONSchema_to_S7() names unresolved `$ref` properties", {
       nested = list(
         oneOf = list(
           list(type = "null"),
-          list(`$ref` = "https://schema.rtemis.org/execution/v1/schema.json")
+          list(`$ref` = "https://schema.rtemis.org/preprocessor/v1/schema.json")
         )
       )
     )
@@ -266,24 +266,26 @@ test_that("JSONSchema_to_S7() names unresolved `$ref` properties", {
   expect_error(JSONSchema_to_S7(schema), class = "rtemis_value_error")
 
   # A nested config resolves to a class the reader built from its own schema,
-  # which is how a port composes a whole config tree.
-  exec_schema <- S7_to_JSONSchema(
-    rtemis:::ExecutionConfig,
-    id = "https://schema.rtemis.org/execution/v1/schema.json"
+  # which is how a port composes a whole config tree. A flat config: a
+  # dispatched family's document is assembled from a dispatcher and a leaf, and
+  # neither half is what `S7_to_JSONSchema()` emits from one class.
+  prep_schema <- S7_to_JSONSchema(
+    rtemis:::PreprocessorConfig,
+    id = "https://schema.rtemis.org/preprocessor/v1/schema.json"
   )
-  exec_specs <- Filter(
+  prep_specs <- Filter(
     Negate(is.null),
-    lapply(rtemis:::ExecutionConfig@properties, rtemis:::get_spec)
+    lapply(rtemis:::PreprocessorConfig@properties, rtemis:::get_spec)
   )
-  exec <- JSONSchema_to_S7(
-    exec_schema,
-    defaults = lapply(exec_specs, function(s) s@default),
-    name = "ExecutionRestored"
+  prep <- JSONSchema_to_S7(
+    prep_schema,
+    defaults = lapply(prep_specs, function(s) s@default),
+    name = "PreprocessorRestored"
   )
-  cls <- JSONSchema_to_S7(schema, refs = list(nested = exec))
+  cls <- JSONSchema_to_S7(schema, refs = list(nested = prep))
   expect_true(inherits(cls, "S7_class"))
   expect_null(cls()@nested)
-  expect_true(inherits(cls(nested = exec())@nested, "ExecutionRestored"))
+  expect_true(inherits(cls(nested = prep())@nested, "PreprocessorRestored"))
 })
 
 

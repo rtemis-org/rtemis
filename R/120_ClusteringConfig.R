@@ -624,6 +624,11 @@ HOPACHConfig <- new_class(
 #' `d = "abseuclid"`, which `distancematrix()` has no branch for, and
 #' `ord = "co"`, which errors for every input.
 #'
+#' On some datasets `hopach` collapses its tree all the way to a single
+#' cluster and cannot split it further, which ends the run with an error.
+#' Whether it happens depends on the data and on `dist`, so another `dist`
+#' clusters the same data.
+#'
 #' @param dist Character \{"cosangle", "abscosangle", "euclid", "cor", "abscor"\}: Distance measure.
 #' @param level_selection Character \{"best", "greedy"\}: Which level of the tree becomes the returned partition. "best": the level minimizing MSS; "greedy": the first level below which MSS increases.
 #' @param max_levels Integer \[1, 15\]: Maximum number of levels in the tree.

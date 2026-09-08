@@ -19,7 +19,7 @@ method(train_, LightCARTHyperparameters) <- function(
   x,
   weights = NULL,
   dat_validation = NULL,
-  execution_config = setup_ExecutionConfig(),
+  execution_config = setup_FutureExecution(),
   verbosity = 1L
 ) {
   # Dependencies ----

@@ -89,7 +89,8 @@ cluster <- function(
   # Clusters ----
   clusters <- do_call(
     fn = get_clustpredict_fn(algorithm),
-    args = list(clust = clust)
+    args = list(clust = clust),
+    verbosity = verbosity
   )
 
   # Soft algorithms carry a weight per cluster per case; the rest do not, and

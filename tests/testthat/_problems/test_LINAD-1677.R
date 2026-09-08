@@ -42,6 +42,6 @@ mod <- train(
     split_search = "exhaustive",
     force_max_leaves = TRUE
   ),
-  execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+  execution_config = setup_SerialExecution(seed = 1L),
   verbosity = 0L
 )

@@ -225,7 +225,7 @@ method(print, SuperConfigPaths) <- function(x, output_type = NULL, ...) {
 #' @param outer_resampling_config `ResamplerConfig` object: Configuration for outer res
 #' resampling during model training.
 #' @param execution_config `ExecutionConfig` object: Configuration for execution settings. Setup
-#' with [setup_ExecutionConfig].
+#' with [setup_SerialExecution], [setup_FutureExecution] or [setup_MiraiExecution].
 #' @param question Optional Character: Question to answer with the supervised learning analysis.
 #' @param outdir Optional Character: Output directory for results; `NULL` to
 #' write nothing to disk.
@@ -244,7 +244,7 @@ method(print, SuperConfigPaths) <- function(x, output_type = NULL, ...) {
 #'   hyperparameters = setup_LightRF(),
 #'   tuner_config = setup_GridSearch(),
 #'   outer_resampling_config = setup_KFold(),
-#'   execution_config = setup_ExecutionConfig(),
+#'   execution_config = setup_FutureExecution(),
 #'   question = "Can we tell iris species apart given their measurements?",
 #'   outdir = "models/"
 #' )
@@ -263,7 +263,7 @@ setup_SuperConfig <- function(
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
-  execution_config = setup_ExecutionConfig(),
+  execution_config = setup_FutureExecution(),
   question = NULL,
   outdir = "results/",
   verbosity = 1L
@@ -444,9 +444,8 @@ setup_SuperConfig <- function(
   # `setup_SuperConfig`; only override them when the config actually supplies a
   # value, so a portable recipe that omits them keeps the defaults.
   if (!is.null(x[["execution_config"]])) {
-    args[["execution_config"]] <- do.call(
-      setup_ExecutionConfig,
-      .drop_meta_keys(x[["execution_config"]])
+    args[["execution_config"]] <- .list_to_ExecutionConfig(
+      x[["execution_config"]]
     )
   }
   # `outdir` is nullable *and* carries a non-NULL `setup_SuperConfig` default,
@@ -577,7 +576,7 @@ setup_SuperConfigLive <- function(
   hyperparameters = NULL,
   tuner_config = NULL,
   outer_resampling_config = NULL,
-  execution_config = setup_ExecutionConfig(),
+  execution_config = setup_FutureExecution(),
   question = NULL,
   outdir = NULL,
   verbosity = 1L

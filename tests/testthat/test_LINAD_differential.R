@@ -720,7 +720,7 @@ test_that("linad_check_tree() catches a tree holding nodes below the floor", {
         force_max_leaves = TRUE,
         ...
       ),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
   }
@@ -751,7 +751,7 @@ test_that("Split-gain importance counts only splits the selected tree reaches", 
   mod <- train(
     dat,
     hyperparameters = setup_LINAD(max_leaves = 7L, force_max_leaves = TRUE),
-    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )
   total_gain <- function(k) {
@@ -776,7 +776,7 @@ test_that("A printed tree describes its selected size, not everything grown", {
   mod <- train(
     dat,
     hyperparameters = setup_LINAD(max_leaves = 6L, force_max_leaves = TRUE),
-    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )
   shrunk <- mod
@@ -809,7 +809,7 @@ test_that("The classification root is the loss-minimizing constant at every rate
         node_model = "constant",
         root_learning_rate = rate
       ),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
     expect_equal(
@@ -846,7 +846,7 @@ test_that("A forest predicts and reports a standard error for one case", {
       mod <- train(
         outcome,
         hyperparameters = setup_LINADForest(n_trees = n_trees, max_leaves = 4L),
-        execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+        execution_config = setup_SerialExecution(seed = 1L),
         verbosity = 0L
       )
       expect_length(predict(mod, one_row), 1L)
@@ -884,7 +884,7 @@ test_that("Predictions do not depend on the session's contrast options", {
   mod <- train(
     dat,
     hyperparameters = setup_LINAD(max_leaves = 4L),
-    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )
   features <- dat[c("g", "x")]
@@ -923,7 +923,7 @@ test_that("A design that does not match the fitted one is refused", {
   mod <- train(
     dat,
     hyperparameters = setup_LINAD(max_leaves = 2L),
-    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )
   expect_length(mod@model@design_names, ncol(mod@model@coefficients))

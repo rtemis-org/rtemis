@@ -11,7 +11,7 @@ bias_variance(
   true_values = NULL,
   resampler_config = NULL,
   test_p = 0.3,
-  execution_config = setup_ExecutionConfig(),
+  execution_config = setup_FutureExecution(),
   verbosity = 1L
 )
 }

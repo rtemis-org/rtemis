@@ -20,7 +20,7 @@ test_that("Every stepwise algorithm reports its curve in one shape", {
       training,
       dat_validation = validation,
       hyperparameters = hyperparameters,
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
   }
@@ -56,7 +56,7 @@ test_that("An algorithm that does not train in steps reports no curve", {
   mod <- train(
     dat,
     hyperparameters = setup_CART(),
-    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )
   # NULL is the answer, not a dispatch error.
@@ -73,7 +73,7 @@ test_that("A forest reports one row per tree and iteration", {
   mod <- train(
     dat,
     hyperparameters = setup_LINADForest(n_trees = 4L, max_leaves = 5L),
-    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )
   curve <- get_learning_curve(mod)
@@ -97,7 +97,7 @@ test_that("plot_learning() draws every algorithm that has a curve", {
     dat[1:200, ],
     dat_validation = dat[201:300, ],
     hyperparameters = setup_LINAD(max_leaves = 10L),
-    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )
   expect_s3_class(plot_learning(mod), "plotly")
@@ -121,7 +121,7 @@ test_that("patience is inert when unset", {
     train(
       training,
       hyperparameters = setup_LINAD(max_leaves = 15L, ...),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L,
       dat_validation = validation
     )
@@ -158,7 +158,7 @@ test_that("patience bounds growth and the size is still the curve's argmin", {
         node_model = "constant",
         patience = patience
       ),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
   }
@@ -194,7 +194,7 @@ test_that("A forest lets each tree stop on its own out-of-bag cases", {
         node_model = "constant",
         patience = patience
       ),
-      execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+      execution_config = setup_SerialExecution(seed = 1L),
       verbosity = 0L
     )
   }
@@ -220,7 +220,7 @@ test_that("A tuned LINAD keeps the leaf count tuning selected", {
     dat,
     hyperparameters = setup_LINAD(max_leaves = tune_over(6L, 20L)),
     outer_resampling_config = setup_KFold(n_resamples = 3L, seed = 2026),
-    execution_config = setup_ExecutionConfig(seed = 1L, backend = "none"),
+    execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )
   kept <- vapply(res@models, function(mod) mod@model@n_leaves, integer(1L))

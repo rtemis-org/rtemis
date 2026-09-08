@@ -13,7 +13,7 @@ test_that("SuperConfigPaths() succeeds", {
     hyperparameters = setup_GLMNET(),
     tuner_config = setup_GridSearch(),
     outer_resampling_config = setup_KFold(),
-    execution_config = setup_ExecutionConfig(),
+    execution_config = setup_FutureExecution(),
     question = "Can we predict the future from the past?",
     outdir = "results/",
     verbosity = 1L
@@ -32,7 +32,7 @@ test_that("setup_SuperConfig() succeeds", {
     hyperparameters = setup_LightGBM(),
     tuner_config = setup_GridSearch(),
     outer_resampling_config = setup_KFold(),
-    execution_config = setup_ExecutionConfig(),
+    execution_config = setup_FutureExecution(),
     question = "Can we predict the future from the past?",
     outdir = "models/",
     verbosity = 1L
@@ -128,7 +128,7 @@ test_that("train() works with SuperConfig", {
     hyperparameters = setup_LightRF(),
     tuner_config = setup_GridSearch(),
     outer_resampling_config = setup_KFold(),
-    execution_config = setup_ExecutionConfig(),
+    execution_config = setup_FutureExecution(),
     question = "Can we tell iris species apart given their measurements?",
     outdir = "models/",
     verbosity = 1L
@@ -149,7 +149,7 @@ test_that("SuperConfig round-trips through write_config/read_config JSON", {
     hyperparameters = setup_LightRF(),
     tuner_config = setup_GridSearch(),
     outer_resampling_config = setup_KFold(),
-    execution_config = setup_ExecutionConfig(),
+    execution_config = setup_FutureExecution(),
     question = "Can we tell iris species apart given their measurements?",
     outdir = "models/",
     verbosity = 1L
@@ -192,7 +192,8 @@ test_that("read_config ignores `$schema` on nested configs", {
       ),
       execution_config = list(
         `$schema` = "https://schema.rtemis.org/execution/v1/schema.json",
-        n_workers = 1L
+        backend = "none",
+        on_error = "stop"
       )
     ),
     file,
@@ -202,7 +203,7 @@ test_that("read_config ignores `$schema` on nested configs", {
   expect_s7_class(x, SuperConfigPaths)
   expect_true(x@preprocessor_config@scale)
   expect_s7_class(x@decomposition_config, DecompositionConfig)
-  expect_identical(x@execution_config@n_workers, 1L)
+  expect_identical(x@execution_config@on_error, "stop")
 })
 
 
