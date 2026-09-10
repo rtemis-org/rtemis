@@ -19,7 +19,7 @@
 #
 # The last section audits the other direction: a rule written into an S7
 # `validator` rather than declared on a property has no route into the schema
-# at all, so every one must be mirrored into the registry or recorded.
+# at all, so every one must be replaced by a typed declaration.
 
 # %% .contract_family ----
 # Pair each of a family's leaf classes with the `setup_*` that builds it,
@@ -33,9 +33,9 @@
 
 
 # %% .contract_classes ----
-# Every class `data-raw/schema_registry.R` publishes a config schema for, with
-# the `setup_*` that builds it. Kept in step with the registry by
-# "the class/setup mapping covers the registry" below, so an entry added there
+# Every class `schema_catalog()` publishes a config schema for, with
+# the `setup_*` that builds it. Kept in step with the catalog by
+# "the class/setup mapping covers the catalog" below, so an entry added there
 # and not here fails rather than going untested.
 .contract_classes <- c(
   .contract_family(
@@ -172,35 +172,6 @@
 .contract_no_schema <- "setup_SuperConfigLive"
 
 
-# %% .contract_refs ----
-# Placeholder `$ref` targets for the properties whose type is another S7
-# class. Those carry no `PropertySpec`, so `S7_to_JSONSchema()` requires each
-# to be referenced or it aborts. Only the property's name and shape are under
-# test, never the target, so the URL is derived rather than copied from
-# `data-raw/schema_registry.R` -- which the built package cannot see.
-.contract_refs <- function(cls, base = NULL) {
-  props <- cls@properties
-  if (!is.null(base)) {
-    props <- props[own_prop_names(cls, base)]
-  }
-  needs_ref <- vapply(
-    props,
-    function(p) {
-      !isTRUE(prop_role(p) %in% c("computed", "r_only")) && is.null(get_spec(p))
-    },
-    logical(1L)
-  )
-  nm <- names(props)[needs_ref]
-  if (length(nm) == 0L) {
-    return(NULL)
-  }
-  stats::setNames(
-    paste0("https://schema.rtemis.org/", tolower(nm), "/v1/schema.json"),
-    nm
-  )
-}
-
-
 # %% .contract_schema ----
 # The schema the generator would emit for one entry, in either kind.
 .contract_schema <- function(entry, record = FALSE) {
@@ -212,8 +183,7 @@
       ".json"
     ),
     base = entry[["base"]],
-    record = record,
-    refs = .contract_refs(entry[["cls"]], entry[["base"]])
+    record = record
   )
 }
 
@@ -318,7 +288,7 @@ test_that("config schemas emit no default keyword", {
 test_that("config schemas have no conditional demand for a key", {
   # A `then` may constrain a value but may not demand a key an implementation
   # could supply. The generator asserts this over the whole document; here it
-  # is the class-level `allOf` that the registry contributes.
+  # is the class-level `allOf` that the catalog contributes.
   for (entry in .contract_classes) {
     schema <- .contract_schema(entry)
     demanded <- unlist(lapply(
@@ -403,62 +373,34 @@ test_that("no readOnly schema property is a setup_* formal", {
 })
 
 
-# %% .contract_registry ----
-# `data-raw/schema_registry.R`, evaluated against the
-# loaded namespace: the entries reference class objects, and `base_url` is
-# supplied by `generate_schemas.R` rather than by the registry itself.
-# `data-raw/` is absent from a built package, so a caller gets NULL there.
-.contract_registry <- function() {
-  registry <- testthat::test_path("..", "..", "data-raw", "schema_registry.R")
-  if (!file.exists(registry)) {
-    return(NULL)
-  }
-  env <- new.env(parent = asNamespace("rtemis"))
-  env[["base_url"]] <- "https://schema.rtemis.org"
-  # The contract moved to rtemis.core, which rtemis.draw imports too: one
-  # registry, one standard. Bound here because the registry's callers expect
-  # the bare name.
-  env[["assert_config_contract"]] <- rtemis.core::assert_config_contract
-  sys.source(registry, envir = env)
-  env
-}
-
-
-# %% .registry_entries ----
-# Every entry the registry publishes a schema for, family leaves and flat
-# configs alike, in one flat list. Each carries the class it is generated from
-# and, where the registry declares one, that class's `extra`.
-.registry_entries <- function(env) {
+# %% .catalog_entries ----
+.catalog_entries <- function(catalog) {
   c(
-    unlist(lapply(env[["families"]], `[[`, "algorithms"), recursive = FALSE),
-    env[["flat_configs"]]
+    unlist(lapply(catalog$families, `[[`, "algorithms"), recursive = FALSE),
+    catalog$flat_configs
   )
 }
 
 
-test_that("FAMILY_DISCRIMINATORS and the registry name the same families", {
-  # One declaration of which property each family dispatches on, read by the
-  # schema generators and by the record writer's `family_discriminator()`.
-  # `generate_schemas.R` stops on a registry family missing from the table;
-  # this is the other direction -- a table entry no family publishes, which
-  # would be a discriminator nothing dispatches on.
-  env <- .contract_registry()
-  skip_if(is.null(env), "data-raw/ not available (built package)")
-  registered <- vapply(
-    get("families", envir = env),
-    function(fam) fam[["base_class"]]@name,
-    character(1L)
-  )
-  expect_setequal(unname(registered), names(FAMILY_DISCRIMINATORS))
+test_that("catalog family discriminators agree with the record writer", {
+  for (family in schema_catalog()$families) {
+    for (leaf in family$algorithms) {
+      expect_identical(family_base(leaf$cls), family$base_class)
+      expect_identical(
+        schema_publication(family_base(leaf$cls))@discriminator,
+        family$discriminator
+      )
+      expect_identical(family_discriminator(leaf$cls), family$discriminator)
+    }
+  }
 })
 
 
-test_that("the class/setup mapping covers the registry", {
-  # `.contract_classes` is written out here rather than read from the registry,
+test_that("the independent class/setup mapping covers the catalog", {
+  # `.contract_classes` is written out here rather than read from the catalog,
   # so that the checks above still run in a built package. This is what keeps
   # the two in step.
-  env <- .contract_registry()
-  skip_if(is.null(env), "data-raw/ not available (built package)")
+  env <- schema_catalog()
 
   leaves <- unlist(
     lapply(env[["families"]], `[[`, "algorithms"),
@@ -502,46 +444,15 @@ test_that("the class/setup mapping covers the registry", {
 })
 
 
-test_that("every registry `extra` clause satisfies the config contract", {
-  # Guards the artifacts directly, and is the check that would have caught a
-  # `then = list(required = ...)` clause. An `extra` is a schema fragment, and
-  # `assert_config_contract()` walks a fragment the same way it walks a whole
-  # document, so the rule is checked here per entry -- naming the class that
-  # declared it -- rather than only at generation time, once the clause has
-  # been merged and its origin lost. `data-raw/` is absent from the built
-  # package, so this runs from the source tree only.
-  env <- .contract_registry()
-  skip_if(is.null(env), "data-raw/ not available (built package)")
-
-  entries <- .registry_entries(env)
-  for (i in seq_along(entries)) {
-    extra <- entries[[i]][["extra"]]
-    if (is.null(extra)) {
-      next
-    }
-    expect_no_error(
-      rtemis.core::assert_config_contract(
-        extra,
-        id = entries[[i]][["cls"]]@name
-      )
-    )
+test_that("every generated class clause satisfies the config contract", {
+  for (entry in .catalog_entries(schema_catalog())) {
+    expect_no_error(rtemis.core::assert_config_contract(
+      list(allOf = class_rule_clauses(entry$cls)),
+      id = entry$cls@name
+    ))
   }
 })
 
-
-# %% Class-validator audit -------------------------------------------------
-# Property-level coverage needs no audit: a property with no role aborts
-# `S7_to_JSONSchema()`, so nothing declared on a property can go unpublished. A
-# hand-written `validator = function(self)` is not a property. It is enforced in
-# R, absent from the schema, and there is nothing in either artifact to notice
-# the difference -- so a config that `rtemis validate` accepts fails at
-# `read_config()`, and every non-R client is a second-class one.
-#
-# `AGENTS.md`: "Hand-writing validation for a property usually means a factory
-# argument was missed." What follows holds a registered class to that, and is
-# the check that keeps working as the package grows: a validator added to a
-# registered class fails here until it is mirrored into the class's `extra` or
-# recorded below as a rule the schema language cannot carry.
 
 # %% .validator_classes ----
 # Every class in `cls`'s S7 ancestry that declares a validator, `S7_object`'s
@@ -552,7 +463,9 @@ test_that("every registry `extra` clause satisfies the config contract", {
 .validator_classes <- function(cls) {
   out <- list()
   while (inherits(cls, "S7_class")) {
-    if (!identical(cls, S7::S7_object) && !is.null(cls@validator)) {
+    if (
+      !identical(cls, S7::S7_object) && !is.null(schema_native_validator(cls))
+    ) {
       out <- c(out, list(cls))
     }
     cls <- cls@parent
@@ -566,8 +479,11 @@ test_that("every registry `extra` clause satisfies the config contract", {
 # the gate off each property's `applies_when` spec field, which
 # `S7_to_JSONSchema()` emits into the same property's `x-rtemis` annotation --
 # one declaration, published. It is a factory argument doing its job, so it is
-# not hand-written validation and needs no `extra` to mirror it.
+# a generated validator whose declaration is already published.
 .spec_driven_validator <- function(fn) {
+  if (identical(fn, check_applies_when)) {
+    return(TRUE)
+  }
   expr <- body(fn)
   calls <- if (is.call(expr) && identical(expr[[1L]], quote(`{`))) {
     as.list(expr)[-1L]
@@ -588,157 +504,19 @@ test_that("every registry `extra` clause satisfies the config contract", {
 # property specs do not.
 .hand_written_validators <- function(cls) {
   hand <- Filter(
-    function(k) !.spec_driven_validator(k@validator),
+    function(k) !.spec_driven_validator(schema_native_validator(k)),
     .validator_classes(cls)
   )
   vapply(hand, function(k) k@name, character(1L))
 }
 
 
-# %% .contract_validator_gaps ----
-# Rules enforced in R and absent from the published schema, each with what
-# stops it from being an `extra` clause. Not an exemption list: an entry is a
-# claim that the schema language cannot carry the rule, and the test below
-# checks in both directions, so a rule that becomes mirrorable -- or a
-# validator that is removed -- fails here rather than lingering.
-#
-# Keyed by the class the validator is written on, which for the meta learners
-# is an ancestor of three registered leaves.
-.contract_validator_gaps <- c(
-  GridSearchConfig = paste0(
-    "`@randomize_p` must be set for a randomized search and unset for an ",
-    "exhaustive one. The second half is a value constraint and could be ",
-    "mirrored; the first is a `then` demanding a key, which the contract ",
-    "bans outright -- and `randomize_p` has no default, so nothing can fill ",
-    "it in. This is the case plan/validation-completeness.md item 3 exists ",
-    "to resolve."
-  ),
-  MARSHyperparameters = paste0(
-    "`@nfold` must be at least 2 when `@pmethod` is \"cv\". Both are plain ",
-    "scalars, so an `if`/`then` over values expresses this exactly: ",
-    "mirrorable, and not yet mirrored."
-  ),
-  LightRuleFitHyperparameters = paste0(
-    "`@ifw` cannot be combined with `@ifw_lightgbm` or `@ifw_glmnet`. Both ",
-    "of the latter are tunable, so each is published as a ",
-    "scalar-or-`candidates` `oneOf` and the `then` would have to forbid TRUE ",
-    "in either shape. The class also carries the GOSS rules below, inherited ",
-    "from sharing LightGBM's sampling properties."
-  ),
-  LightGBMHyperparameters = paste0(
-    "GOSS cannot be combined with bagging (`@data_sample_strategy` \"goss\" ",
-    "with `@bagging_fraction` below 1), and `@top_rate` + `@other_rate` must ",
-    "not exceed 1. JSON Schema compares a value against a constant, never ",
-    "against a sibling property's value, so neither is expressible -- the ",
-    "first needs `bagging_fraction < 1` and the second a sum across two ",
-    "properties. Both are also tunable, so each is published as a ",
-    "scalar-or-`candidates` `oneOf`, which a `then` would have to constrain ",
-    "in both shapes."
-  ),
-  HALHyperparameters = paste0(
-    "`@num_knots` must hold one value per interaction degree (`@max_degree`) ",
-    "and be non-increasing across them. JSON Schema ties an array's length to ",
-    "a constant, never to a sibling property's value, and cannot order an ",
-    "array's elements at all."
-  ),
-  BARTHyperparameters = paste0(
-    "`@num_chains` cannot exceed `@num_gfr`. JSON Schema compares a value ",
-    "against a constant, never against another property."
-  ),
-  LINADHyperparameters = paste0(
-    "`@global_features` must be a subset of `@linear_features`. Both are ",
-    "arrays of feature names, and JSON Schema compares an element against a ",
-    "constant or an enum, never against another property's contents -- there ",
-    "is no vocabulary for one array containing another. `extra` carries only ",
-    "`if`/`then` over `const`/`enum` values, so there is nothing to mirror."
-  ),
-  LINADForestHyperparameters = paste0(
-    "The same `@global_features` subset-of `@linear_features` rule LINAD ",
-    "carries, from sharing `linad_tree_props()`."
-  ),
-  MetaLearnerHyperparameters = paste0(
-    "`@base_learners` must hold at least two uniquely and syntactically ",
-    "named `Hyperparameters`. It is a hand-declared `new_property(class_list)` ",
-    "published through the registry's `array_refs`, so it carries no ",
-    "`PropertySpec` for `min_items` to come from, and its names are R list ",
-    "names with no counterpart in the array the schema declares. Inherited by ",
-    "the three registered meta learners."
-  ),
-  DataRef = paste0(
-    "`@path` and `@hash` must be non-empty. The same missed factory argument ",
-    "as `DataFingerprint` -- `prop_string()` has no `min_length` -- and the ",
-    "same reason it is not an empty default with no validator: a reference ",
-    "that names no file, or that cannot be checked, is not a reference."
-  ),
-  DataFingerprint = paste0(
-    "`@hash`, `@encoding`, `@language` and `@data_structure` must be ",
-    "non-empty; `@source` must be set when `@method` is \"file\"; and ",
-    "`@column_names` must hold one value per column (`@n_cols`). The first ",
-    "group is the missed factory argument AGENTS.md names -- `prop_string()` ",
-    "has no `min_length` -- the second is a `then` demanding a key, and the ",
-    "third ties an array's length to a sibling's value."
-  )
-)
-
-
-test_that("a registered class's validator is mirrored in extra or recorded", {
-  env <- .contract_registry()
-  skip_if(is.null(env), "data-raw/ not available (built package)")
-
-  for (entry in .registry_entries(env)) {
-    carriers <- .hand_written_validators(entry[["cls"]])
-    # An `extra` accounts for the class: it is the only place a cross-field
-    # rule can be published, and where it mirrors some of a validator rather
-    # than all of it the registry says which part and why -- the parallel
-    # execution variants mirror the one dispatch rule they inherit from
-    # `ParallelExecutionConfig`.
-    if (!is.null(entry[["extra"]])) {
-      expect_true(
-        "allOf" %in% names(entry[["extra"]]),
-        info = paste0(
-          entry[["cls"]]@name,
-          ": `extra` carries class-level `allOf` rules and nothing else."
-        )
-      )
-      next
-    }
-    expect_identical(
-      setdiff(carriers, names(.contract_validator_gaps)),
-      character(),
-      info = paste0(
-        entry[["cls"]]@name,
-        ": validator enforces a rule the schema does not. Mirror it in the ",
-        "registry entry's `extra`, move it onto the property's spec, or ",
-        "record in `.contract_validator_gaps` what stops both."
-      )
-    )
-  }
-})
-
-
-test_that("every recorded validator gap is still a gap", {
-  # The converse, so the record cannot outlive what it describes: a validator
-  # that is deleted, or rewritten in terms of its property specs, must be
-  # struck from the list rather than left standing as a false claim about the
-  # schema.
-  env <- .contract_registry()
-  skip_if(is.null(env), "data-raw/ not available (built package)")
-
+test_that("published classes have no opaque native validators", {
   carriers <- unique(unlist(lapply(
-    .registry_entries(env),
-    function(entry) {
-      if (is.null(entry[["extra"]])) {
-        .hand_written_validators(entry[["cls"]])
-      } else {
-        character()
-      }
-    }
+    .catalog_entries(schema_catalog()),
+    function(entry) .hand_written_validators(entry$cls)
   )))
-  expect_identical(
-    sort(setdiff(names(.contract_validator_gaps), carriers)),
-    character(),
-    info = "recorded but no longer a gap: drop from .contract_validator_gaps"
-  )
+  expect_length(carriers, 0L)
 })
 
 
@@ -805,12 +583,10 @@ test_that("a meta learner's record carries one block per library entry", {
     base_learners = list(setup_GLM(), setup_CART())
   )
   entries <- config_record(hyperparameters, hyperparameters)[["base_learners"]]
-  # An *array* of `$ref`d blocks, in library order: a named list would
-  # serialize as a JSON object, which the schema does not admit. Each entry
-  # names itself with `algorithm`, which is where the R-side names come from.
-  expect_null(names(entries))
+  # The map preserves library identity separately from algorithm identity.
+  expect_identical(names(entries), c("GLM", "CART"))
   expect_identical(
-    vapply(entries, `[[`, character(1L), "algorithm"),
+    unname(vapply(entries, `[[`, character(1L), "algorithm")),
     c("GLM", "CART")
   )
   for (entry in entries) {

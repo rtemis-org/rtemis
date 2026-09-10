@@ -82,7 +82,7 @@ decomposition_metric_columns <- function() {
 #'
 #' @author EDG
 #' @noRd
-DecompositionMetrics <- new_class(
+DecompositionMetrics <- schema_class(
   name = "DecompositionMetrics",
   parent = Metrics,
   properties = list(
@@ -116,7 +116,15 @@ DecompositionMetrics <- new_class(
         reconstruction_gap = reconstruction_gap
       )
     )
-  }
+  },
+  publication = SchemaPublication(
+    role = "document",
+    slug = "decompositionmetrics",
+    title = "rtemis DecompositionMetrics",
+    description = "Decomposition metrics: a single-row table of reconstruction quality, component redundancy and effective dimensionality. Which cells are populated follows from the algorithm's traits -- a metric its algorithm cannot support is null -- so every column is declared for every algorithm and every cell is nullable. Unprefixed columns describe the data the decomposition was fitted on; `oos_` columns describe data the fit never saw.",
+    order = 10L,
+    kind = "report"
+  )
 ) # /rtemis::DecompositionMetrics
 
 

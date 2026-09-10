@@ -119,7 +119,7 @@ DATA_HASH_DISPLAY_CHARS <- 12L
 #'
 #' @author EDG
 #' @noRd
-DataFingerprint <- new_class(
+DataFingerprint <- schema_class(
   name = "DataFingerprint",
   package = "rtemis",
   properties = list(
@@ -187,29 +187,33 @@ DataFingerprint <- new_class(
       description = "The form the data was held in when hashed."
     )
   ),
-  validator = function(self) {
-    if (!nzchar(self@hash)) {
-      return("@hash must not be empty.")
-    }
-    if (!nzchar(self@encoding)) {
-      return("@encoding must not be empty.")
-    }
-    if (!nzchar(self@language)) {
-      return("@language must not be empty.")
-    }
-    if (!nzchar(self@data_structure)) {
-      return("@data_structure must not be empty.")
-    }
-    if (self@method == "file" && is.null(self@source)) {
-      return("@source must be set when @method is 'file'.")
-    }
-    if (
-      !is.null(self@column_names) && length(self@column_names) != self@n_cols
-    ) {
-      return("@column_names must have one entry per column (@n_cols).")
-    }
-    NULL
-  }
+  rules = list(
+    NonEmptyStrings(
+      id = "datafingerprint.identity",
+      properties = c("hash", "encoding", "language", "data_structure"),
+      message = "hash, encoding, language, and data_structure must be non-empty."
+    ),
+    PresenceRule(
+      id = "datafingerprint.file-source",
+      property = "source",
+      when = SchemaPredicate(property = "method", equals = "file"),
+      message = "source must be set when method is file."
+    ),
+    LengthMatches(
+      id = "datafingerprint.column-names",
+      values = "column_names",
+      count = "n_cols",
+      message = "column_names must have one entry per column (n_cols) when set."
+    )
+  ),
+  publication = SchemaPublication(
+    role = "document",
+    slug = "datafingerprint",
+    title = "rtemis DataFingerprint",
+    description = "Identity of one dataset: a content hash plus the structural facts that make a mismatch diagnosable rather than merely detectable.",
+    order = 3L,
+    kind = "component"
+  )
 ) # /rtemis::DataFingerprint
 
 

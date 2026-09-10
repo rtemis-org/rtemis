@@ -60,12 +60,21 @@ PREDICTION_REGION_TYPES <- c("Interval", "Set")
 #'
 #' @author EDG
 #' @noRd
-ConformalConfig <- new_class(
+ConformalConfig <- schema_class(
   name = "ConformalConfig",
   package = "rtemis",
   abstract = TRUE,
   properties = list(
     type = class_character
+  ),
+  publication = SchemaPublication(
+    role = "family",
+    slug = "conformal",
+    title = "rtemis ConformalConfig",
+    description = "Language-independent config for an rtemis conformal prediction region. Mirrors the `ConformalConfig` object: a construction plus its construction-specific settings. The construction is tagged rather than inferred, since which of them a run may use depends on the model it is applied to, not on the document.",
+    discriminator = "type",
+    discriminator_description = "Conformal construction.",
+    order = 8L
   )
 ) # /rtemis::ConformalConfig
 
@@ -229,7 +238,7 @@ resolve_conformal_seed <- function(seed) {
 #'
 #' @author EDG
 #' @noRd
-SplitConformalConfig <- new_class(
+SplitConformalConfig <- schema_class(
   name = "SplitConformalConfig",
   parent = ConformalConfig,
   properties = list(
@@ -237,6 +246,11 @@ SplitConformalConfig <- new_class(
     alpha = prop_conformal_alpha(),
     score = prop_conformal_score(),
     seed = prop_conformal_seed()
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Split conformal prediction.",
+    order = 1L
   )
 ) # /rtemis::SplitConformalConfig
 
@@ -256,7 +270,7 @@ SplitConformalConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-CVPlusConfig <- new_class(
+CVPlusConfig <- schema_class(
   name = "CVPlusConfig",
   parent = ConformalConfig,
   properties = list(
@@ -264,6 +278,11 @@ CVPlusConfig <- new_class(
     alpha = prop_conformal_alpha(),
     score = prop_conformal_score(),
     seed = prop_conformal_seed()
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "CV+, jackknife+ and cross-conformal.",
+    order = 2L
   )
 ) # /rtemis::CVPlusConfig
 
@@ -280,12 +299,17 @@ CVPlusConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-CQRConfig <- new_class(
+CQRConfig <- schema_class(
   name = "CQRConfig",
   parent = ConformalConfig,
   properties = list(
     type = prop_algorithm("CQR"),
     alpha = prop_conformal_alpha()
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Conformalized quantile regression.",
+    order = 3L
   )
 ) # /rtemis::CQRConfig
 

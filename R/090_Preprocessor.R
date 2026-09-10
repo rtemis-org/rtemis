@@ -236,10 +236,18 @@ PREPROCESSOR_TRAIN_EXCLUDED <- c(
 #'
 #' @author EDG
 #' @noRd
-PreprocessorConfig <- new_class(
+PreprocessorConfig <- schema_class(
   name = "PreprocessorConfig",
   package = "rtemis",
-  properties = .preprocessor_properties
+  properties = .preprocessor_properties,
+  publication = SchemaPublication(
+    role = "document",
+    slug = "preprocessor",
+    title = "rtemis PreprocessorConfig",
+    description = "Language-independent config for rtemis preprocessing. The same config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical output.",
+    order = 16L,
+    kind = "config"
+  )
 ) # /PreprocessorConfig
 
 
@@ -259,12 +267,20 @@ PreprocessorConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-SupervisedPreprocessorConfig <- new_class(
+SupervisedPreprocessorConfig <- schema_class(
   name = "SupervisedPreprocessorConfig",
   package = "rtemis",
   properties = .preprocessor_properties[
     setdiff(names(.preprocessor_properties), PREPROCESSOR_TRAIN_EXCLUDED)
-  ]
+  ],
+  publication = SchemaPublication(
+    role = "document",
+    slug = "supervisedpreprocessor",
+    title = "rtemis SupervisedPreprocessorConfig",
+    description = "Language-independent config for the preprocessing a supervised run can fit: the preprocessing config without the operations a fitted preprocessor cannot replay at predict time (`complete_cases`, `remove_duplicates`, `remove_cases_thres`) or would learn differently in every resample (`remove_features_thres`). Those belong to `preprocessor`, applied to a dataset before training.",
+    order = 17L,
+    kind = "config"
+  )
 ) # /SupervisedPreprocessorConfig
 
 

@@ -13,10 +13,8 @@ is_wire_hyperparameters_set(x)
 Logical.
 }
 \description{
-The tag \code{serializable_props()} writes, \code{{"variants": {...}}}. An exact-names
-test, as \code{is_wire_candidates()} uses: a reader tells a set from a single
-configuration with no reference to what the property declares, and a document
-carrying anything beside \code{variants} is not one.
+The presence of \code{variants} selects the set shape. The selected reader
+validates its complete structure and rejects extra keys.
 }
 \details{
 Exported for \code{rtemis.server}, which needs the same discriminator one layer

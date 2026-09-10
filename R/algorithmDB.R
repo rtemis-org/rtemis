@@ -3,7 +3,7 @@
 # 2025- EDG rtemis.org
 
 # Supervised Learning ----
-# Columns: `name`, `description`, then the task and data traits, as "TRUE" /
+# Columns: `name`, then the task and data traits, as "TRUE" /
 # "FALSE" strings -- `rbind(c(...))` coerces every cell to character.
 #
 # `classification`, `regression`, `survival`
@@ -34,7 +34,6 @@
 supervised_algorithms <- data.frame(rbind(
   c(
     "BART",
-    "Bayesian Additive Regression Trees",
     TRUE,
     TRUE,
     FALSE,
@@ -43,7 +42,6 @@ supervised_algorithms <- data.frame(rbind(
   ),
   c(
     "CART",
-    "Classification and Regression Trees",
     TRUE,
     TRUE,
     TRUE,
@@ -52,45 +50,41 @@ supervised_algorithms <- data.frame(rbind(
   ),
   c(
     "ConditionalSuperLearner",
-    "Conditional SuperLearner",
     TRUE,
     TRUE,
     FALSE,
     NA,
     NA
   ),
-  c("GAM", "Generalized Additive Model", TRUE, TRUE, FALSE, FALSE, FALSE),
-  c("GLM", "Generalized Linear Model", TRUE, TRUE, FALSE, FALSE, FALSE),
-  c("GLMNET", "Elastic Net", TRUE, TRUE, TRUE, FALSE, TRUE),
+  c("GAM", TRUE, TRUE, FALSE, FALSE, FALSE),
+  c("GLM", TRUE, TRUE, FALSE, FALSE, FALSE),
+  c("GLMNET", TRUE, TRUE, TRUE, FALSE, TRUE),
   c(
     "GLMTree",
-    "Model-Based Recursive Partitioning",
     TRUE,
     TRUE,
     FALSE,
     FALSE,
     FALSE
   ),
-  c("HAL", "Highly Adaptive Lasso", TRUE, TRUE, FALSE, FALSE, TRUE),
-  c("Isotonic", "Isotonic Regression", TRUE, TRUE, FALSE, FALSE, TRUE),
+  c("HAL", TRUE, TRUE, FALSE, FALSE, TRUE),
+  c("Isotonic", TRUE, TRUE, FALSE, FALSE, TRUE),
   c(
     "MonotonicHAL",
-    "Monotonic Highly Adaptive Lasso",
     TRUE,
     TRUE,
     FALSE,
     FALSE,
     TRUE
   ),
-  c("KNN", "k-Nearest Neighbors", TRUE, TRUE, FALSE, FALSE, TRUE),
-  c("LightCART", "Decision Tree", TRUE, TRUE, FALSE, TRUE, TRUE),
-  c("LightGBM", "Gradient Boosting", TRUE, TRUE, FALSE, TRUE, TRUE),
-  c("LightRF", "LightGBM Random Forest", TRUE, TRUE, FALSE, TRUE, TRUE),
-  c("LightRuleFit", "LightGBM RuleFit", TRUE, TRUE, FALSE, TRUE, TRUE),
-  c("LINAD", "Linear Additive Tree", TRUE, TRUE, FALSE, FALSE, TRUE),
+  c("KNN", TRUE, TRUE, FALSE, FALSE, TRUE),
+  c("LightCART", TRUE, TRUE, FALSE, TRUE, TRUE),
+  c("LightGBM", TRUE, TRUE, FALSE, TRUE, TRUE),
+  c("LightRF", TRUE, TRUE, FALSE, TRUE, TRUE),
+  c("LightRuleFit", TRUE, TRUE, FALSE, TRUE, TRUE),
+  c("LINAD", TRUE, TRUE, FALSE, FALSE, TRUE),
   c(
     "LINADForest",
-    "Linear Additive Tree Forest",
     TRUE,
     TRUE,
     FALSE,
@@ -99,28 +93,25 @@ supervised_algorithms <- data.frame(rbind(
   ),
   c(
     "MARS",
-    "Multivariate Adaptive Regression Splines",
     TRUE,
     TRUE,
     FALSE,
     FALSE,
     TRUE
   ),
-  c("MLP", "Multilayer Perceptron", TRUE, TRUE, FALSE, FALSE, TRUE),
+  c("MLP", TRUE, TRUE, FALSE, FALSE, TRUE),
   c(
     "ModalityStacking",
-    "Per-Modality Stacked Ensemble",
     TRUE,
     TRUE,
     FALSE,
     NA,
     NA
   ),
-  c("NNLS", "Non-negative Least Squares", TRUE, TRUE, FALSE, FALSE, TRUE),
-  c("Ranger", "Random Forest", TRUE, TRUE, FALSE, TRUE, TRUE),
+  c("NNLS", TRUE, TRUE, FALSE, FALSE, TRUE),
+  c("Ranger", TRUE, TRUE, FALSE, TRUE, TRUE),
   c(
     "SuperLearner",
-    "Cross-validated Stacked Ensemble",
     TRUE,
     TRUE,
     FALSE,
@@ -129,7 +120,6 @@ supervised_algorithms <- data.frame(rbind(
   ),
   c(
     "LinearSVM",
-    "Support Vector Machine with Linear Kernel",
     TRUE,
     TRUE,
     FALSE,
@@ -138,17 +128,15 @@ supervised_algorithms <- data.frame(rbind(
   ),
   c(
     "RadialSVM",
-    "Support Vector Machine with Radial Kernel",
     TRUE,
     TRUE,
     FALSE,
     FALSE,
     TRUE
   ),
-  c("SPLS", "Sparse Partial Least Squares", TRUE, TRUE, FALSE, FALSE, TRUE),
+  c("SPLS", TRUE, TRUE, FALSE, FALSE, TRUE),
   c(
     "TabNet",
-    "Attentive Interpretable Tabular Learning",
     TRUE,
     TRUE,
     FALSE,
@@ -158,13 +146,21 @@ supervised_algorithms <- data.frame(rbind(
 ))
 colnames(supervised_algorithms) <- c(
   "name",
-  "description",
   "classification",
   "regression",
   "survival",
   "handles_missing_data",
   "handles_p_greater_than_n"
 )
+
+supervised_algorithms <- data.frame(
+  name = supervised_algorithms$name,
+  description = unname(schema_algorithm_descriptions(Hyperparameters)[
+    supervised_algorithms$name
+  ]),
+  supervised_algorithms[-1L]
+)
+
 
 # %% algorithm_trait ----
 #' Read one logical trait of a supervised algorithm
@@ -567,20 +563,11 @@ resolve_fit_hyperparameters <- function(fit, fit_params) {
 
 
 # Clustering ----
-clust_algorithms <- data.frame(rbind(
-  c("CMeans", "Fuzzy C-means Clustering"),
-  c("DBSCAN", "Density-based spatial clustering of applications with noise"),
-  # c("EMC", "Expectation Maximization Clustering"),
-  c("GMM", "Gaussian Mixture Model"),
-  c("HardCL", "Hard Competitive Learning"),
-  c("HOPACH", "Hierarchical Ordered Partitioning and Collapsing Hybrid"),
-  c("KMeans", "K-Means Clustering"),
-  # c("MeanShift", "Mean Shift Clustering"),
-  c("NeuralGas", "Neural Gas Clustering"),
-  c("PAM", "Partitioning Around Medoids"),
-  c("PAMK", "Partitioning Around Medoids with k estimation"),
-  c("Spectral", "Spectral Clustering")
-))
+clust_algorithms <- local({
+  descriptions <- schema_algorithm_descriptions(ClusteringConfig)
+  descriptions <- descriptions[order(names(descriptions))]
+  data.frame(name = names(descriptions), description = unname(descriptions))
+})
 
 get_clust_name <- function(algorithm) {
   clustname <- clust_algorithms[, 1][
@@ -642,14 +629,14 @@ get_clust_setup_fn <- function(algorithm) {
 # "TRUE"/"FALSE" strings.
 decom_algorithms <- data.frame(
   name = c("ICA", "Isomap", "NMF", "PCA", "tSNE", "UMAP"),
-  description = c(
-    "Independent Component Analysis",
+  description = unname(schema_algorithm_descriptions(DecompositionConfig)[c(
+    "ICA",
     "Isomap",
-    "Non-negative Matrix Factorization",
-    "Principal Component Analysis",
-    "t-distributed Stochastic Neighbor Embedding",
-    "Uniform Manifold Approximation and Projection"
-  ),
+    "NMF",
+    "PCA",
+    "tSNE",
+    "UMAP"
+  )]),
   linear = c(TRUE, FALSE, TRUE, TRUE, FALSE, FALSE),
   can_apply = c(TRUE, FALSE, TRUE, TRUE, FALSE, TRUE),
   invertible = c(TRUE, FALSE, TRUE, TRUE, FALSE, FALSE),

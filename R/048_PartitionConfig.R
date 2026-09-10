@@ -28,12 +28,21 @@
 #'
 #' @author EDG
 #' @noRd
-PartitionConfig <- new_class(
+PartitionConfig <- schema_class(
   name = "PartitionConfig",
   package = "rtemis",
   abstract = TRUE,
   properties = list(
     method = class_character
+  ),
+  publication = SchemaPublication(
+    role = "family",
+    slug = "partition",
+    title = "rtemis PartitionConfig",
+    description = "Language-independent config for splitting a dataset into a training set and a held-out test set. A first-class, auditable operation -- the same reason `ingest` is one -- rather than a field on `SuperConfig`: how a held-out set was produced is a decision the record must be able to report.",
+    discriminator = "method",
+    discriminator_description = "How the dataset is split.",
+    order = 4L
   )
 ) # /rtemis::PartitionConfig
 
@@ -47,7 +56,7 @@ PartitionConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-RandomPartitionConfig <- new_class(
+RandomPartitionConfig <- schema_class(
   name = "RandomPartitionConfig",
   parent = PartitionConfig,
   package = "rtemis",
@@ -65,6 +74,11 @@ RandomPartitionConfig <- new_class(
       nullable = TRUE,
       description = "Random seed."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "A uniformly random split.",
+    order = 1L
   )
 ) # /rtemis::RandomPartitionConfig
 
@@ -79,7 +93,7 @@ RandomPartitionConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-TimePartitionConfig <- new_class(
+TimePartitionConfig <- schema_class(
   name = "TimePartitionConfig",
   parent = PartitionConfig,
   package = "rtemis",
@@ -102,6 +116,11 @@ TimePartitionConfig <- new_class(
       exclusive_max = 1,
       description = "Fraction of the earliest-ordered cases assigned to training."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "A split by time order.",
+    order = 2L
   )
 ) # /rtemis::TimePartitionConfig
 
@@ -116,7 +135,7 @@ TimePartitionConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-GroupPartitionConfig <- new_class(
+GroupPartitionConfig <- schema_class(
   name = "GroupPartitionConfig",
   parent = PartitionConfig,
   package = "rtemis",
@@ -148,6 +167,11 @@ GroupPartitionConfig <- new_class(
       nullable = TRUE,
       description = "Random seed."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "A split that keeps each group of cases on one side.",
+    order = 3L
   )
 ) # /rtemis::GroupPartitionConfig
 
@@ -163,7 +187,7 @@ GroupPartitionConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-PredefinedPartitionConfig <- new_class(
+PredefinedPartitionConfig <- schema_class(
   name = "PredefinedPartitionConfig",
   parent = PartitionConfig,
   package = "rtemis",
@@ -184,6 +208,11 @@ PredefinedPartitionConfig <- new_class(
       "test",
       description = "Value in `column` identifying held-out test cases."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "A split already recorded in the data itself.",
+    order = 4L
   )
 ) # /rtemis::PredefinedPartitionConfig
 

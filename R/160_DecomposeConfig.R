@@ -18,7 +18,7 @@
 #'
 #' @author EDG
 #' @noRd
-DecomposeConfig <- new_class(
+DecomposeConfig <- schema_class(
   name = "DecomposeConfig",
   package = "rtemis",
   properties = list(
@@ -33,7 +33,11 @@ DecomposeConfig <- new_class(
       description = "Decomposition algorithm name."
     ),
     # Nested config object (a `$ref` in the generated schema).
-    decomposition_config = NULL | DecompositionConfig,
+    decomposition_config = prop_object(
+      DecompositionConfig,
+      nullable = TRUE,
+      description = "Decomposition algorithm and its settings."
+    ),
     outdir = prop_string(
       "results/",
       description = "Output directory for results."
@@ -43,6 +47,16 @@ DecomposeConfig <- new_class(
       min = 0L,
       description = "Verbosity level."
     )
+  ),
+  publication = SchemaPublication(
+    role = "document",
+    slug = "decompose",
+    title = "rtemis DecomposeConfig",
+    description = "Language-independent config for an rtemis decomposition pipeline: a data reference, a `DecompositionConfig`, and an output directory.",
+    order = 5L,
+    kind = "pipeline",
+    record_provenance = "rtemis::Provenance",
+    record_metrics = "rtemis::DecompositionMetrics"
   )
 ) # /rtemis::DecomposeConfig
 

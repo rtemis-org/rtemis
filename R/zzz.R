@@ -30,6 +30,7 @@ utils::globalVariables("self")
 # Unicode emojis: https://www.unicode.org/emoji/charts/full-emoji-list.html
 
 .onLoad <- function(libname, pkgname) {
+  .schema_catalog_cache$ready <- TRUE
   # S7
   S7::methods_register()
   # Set default options if not already set by user

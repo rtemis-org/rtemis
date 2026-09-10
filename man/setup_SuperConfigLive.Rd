@@ -46,7 +46,7 @@ level order.}
 
 \item{preprocessor_config, hyperparameters, tuner_config, outer_resampling_config, execution_config, question, verbosity}{See \link{setup_SuperConfig}.}
 
-\item{decomposition_config}{\code{DecompositionConfig} object: Configuration for data decomposition.}
+\item{decomposition_config}{Optional \code{DecompositionConfig}: Configuration for data decomposition.}
 
 \item{outdir}{Optional Character: Output directory; \code{NULL}
 means "do not write to disk" (the rtemislive case).}

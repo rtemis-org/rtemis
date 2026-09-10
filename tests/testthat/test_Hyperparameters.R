@@ -1032,16 +1032,7 @@ test_that("a leaf's schema declares every property it inherits", {
   schema <- S7_to_JSONSchema(
     SuperLearnerHyperparameters,
     id = "https://example.org/superlearner/v1/schema.json",
-    base = Hyperparameters,
-    # The config-valued properties carry no spec: each publishes its own schema,
-    # as `data-raw/schema_registry.R` declares.
-    refs = c(
-      meta_learner = "https://example.org/hyperparameters/v1/schema.json",
-      inner_resampling_config = "https://example.org/resampler/v1/schema.json"
-    ),
-    array_refs = c(
-      base_learners = "https://example.org/hyperparameters/v1/schema.json"
-    )
+    base = Hyperparameters
   )
   expect_named(
     schema[["properties"]],

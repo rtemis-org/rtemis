@@ -22,7 +22,9 @@ schema_repo <- if (length(args) >= 1L) args[[1L]] else "~/Schemas/schema"
 schema_repo <- path.expand(schema_repo)
 base_url <- "https://schema.rtemis.org"
 
-source(file.path("data-raw", "schema_registry.R"))
+catalog <- schema_catalog()
+families <- catalog$families
+flat_configs <- catalog$flat_configs
 
 
 # %% .setup_fn ----
@@ -128,8 +130,7 @@ defaults <- list()
 
 for (family in names(families)) {
   fam <- families[[family]]
-  # `FAMILY_DISCRIMINATORS` (`R/record.R`) -- see `generate_schemas.R`.
-  discriminator <- FAMILY_DISCRIMINATORS[[fam[["base_class"]]@name]]
+  discriminator <- fam[["discriminator"]]
   for (algo in fam[["algorithms"]]) {
     cls <- algo[["cls"]]
     slug <- tolower(discriminator_value(cls, discriminator))

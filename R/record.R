@@ -219,12 +219,18 @@ config_record <- function(input, resolved) {
   nested <- Filter(
     function(nm) {
       value <- prop(resolved, nm)
-      S7_inherits(value) && !is_candidates(value)
+      fields <- get_spec_fields(props[[nm]])
+      (!is.null(fields[["target_class"]]) && fields[["container"]] == "none") ||
+        (S7_inherits(value) && !is_candidates(value))
     },
     names_
   )
   nested_list <- Filter(
-    function(nm) is_S7_list(prop(resolved, nm)),
+    function(nm) {
+      fields <- get_spec_fields(props[[nm]])
+      (!is.null(fields[["target_class"]]) && fields[["container"]] != "none") ||
+        is_S7_list(prop(resolved, nm))
+    },
     setdiff(names_, nested)
   )
   flat <- setdiff(names_, c(nested, nested_list))
@@ -290,18 +296,22 @@ config_record <- function(input, resolved) {
   sub_lists <- lapply(nested_list, function(nm) {
     given <- if (is.null(input)) NULL else prop(input, nm)
     resolved_list <- prop(resolved, nm)
-    # Left unnamed: the schema publishes this as an *array* of records, and a
-    # named R list serializes as a JSON object instead. The names are an R-side
-    # convenience -- `name_base_learners()` re-derives them from each entry's
-    # `algorithm` on the way back in -- and they are used here, to pair each
-    # resolved entry with the one the run was given.
+    if (is.null(resolved_list)) {
+      return(NULL)
+    }
+    # Map keys pair resolved entries with their inputs and travel on the wire.
+    # Positional arrays retain their order and carry no names.
     entries <- names(resolved_list) %||% seq_along(resolved_list)
-    lapply(entries, function(entry) {
+    records <- lapply(entries, function(entry) {
       nested_record(
         if (is.null(given)) NULL else given[[entry]],
         resolved_list[[entry]]
       )
     })
+    if (identical(get_spec_fields(props[[nm]])[["container"]], "map")) {
+      names(records) <- names(resolved_list) %||% character()
+    }
+    records
   })
   names(sub_lists) <- nested_list
 
@@ -341,56 +351,27 @@ is_S7_list <- function(x) {
 
 
 # %% family_base ----
-#' The base class of a config object's family
-#'
-#' The topmost ancestor below `S7_object`: `Hyperparameters` for
-#' `SuperLearnerHyperparameters`, `ResamplerConfig` for `KFoldConfig`, NULL for a
-#' flat config that has no family.
-#'
-#' Must be the *family* base, not `cls@parent`: `S7_to_JSONSchema()` subtracts
-#' the family base from every leaf, so a class with an intermediate ancestor
-#' (`SuperLearnerHyperparameters` sits under `StackedLearnerHyperparameters`
-#' under `MetaLearnerHyperparameters`) would otherwise have the intermediate's
-#' properties in its schema but not in its record, and the record would fail
-#' validation against the schema generated from the same class.
-#'
-#' The "topmost ancestor below `S7_object`" heuristic assumes that ancestor is
-#' always a registry-declared, discriminated family base that
-#' `S7_to_JSONSchema()` was actually called with as `base =`. That has been
-#' true of every family so far, but it is a coincidence of what families have
-#' existed, not something derivable from the class hierarchy alone -- the
-#' registry is what actually decides `base =`, and it is unavailable here
-#' (`data-raw/` is absent from the built package, and this runs at record time,
-#' not generation time). `SuperConfig` breaks the coincidence: `SuperConfigPaths`
-#' and `SuperConfigTabular` share it purely for common properties, `supervised/v1`
-#' is a flat config with no discriminator, and `S7_to_JSONSchema()` is called on
-#' it with no `base =` at all -- so nothing was subtracted from its schema, and
-#' nothing may be subtracted from its record either. Named explicitly rather
-#' than inferred, since there is no cheaper, equally reliable signal for "was
-#' this class actually generated with a `base =`" than knowing it was not.
-#'
-#' @param cls S7 class.
-#'
-#' @return S7 class, or NULL when `cls` has no parent but `S7_object`, or when
-#'   the topmost ancestor is a known non-family one (see above).
-#'
-#' @author EDG
+#' Find the explicitly declared family root in a class's ancestry
+#' @param cls S7 class: Class to inspect.
+#' @return S7 family class, or NULL for an independent document.
 #' @keywords internal
 #' @noRd
-.NON_FAMILY_ABSTRACT_PARENTS <- c("SuperConfig")
-
 family_base <- function(cls) {
-  base <- cls@parent
-  if (is.null(base) || identical(base@name, "S7_object")) {
-    return(NULL)
+  roots <- Filter(
+    function(parent) {
+      identical(attr(parent, "rtemis_schema", exact = TRUE)[["role"]], "family")
+    },
+    schema_class_ancestors(cls)
+  )
+  if (length(roots) > 1L) {
+    rtemis.core::abort(
+      "Class ",
+      cls@name,
+      " has more than one schema family root.",
+      class = "rtemis_schema_error"
+    )
   }
-  while (!is.null(base@parent) && !identical(base@parent@name, "S7_object")) {
-    base <- base@parent
-  }
-  if (base@name %in% .NON_FAMILY_ABSTRACT_PARENTS) {
-    return(NULL)
-  }
-  base
+  if (length(roots)) roots[[1L]] else NULL
 } # /rtemis::family_base
 
 
@@ -699,6 +680,14 @@ record_object <- function(x) {
   nms <- published_prop_names(S7_class(x))
   out <- lapply(nms, function(nm) {
     value <- wire_value(prop(x, nm), declared[[nm]])
+    fields <- get_spec_fields(declared[[nm]])
+    if (
+      !is.null(value) &&
+        !is.null(fields[["target_class"]]) &&
+        fields[["container"]] != "none"
+    ) {
+      return(lapply(value, record_object))
+    }
     if (S7_inherits(value)) record_object(value) else value
   })
   names(out) <- nms
@@ -823,39 +812,10 @@ nested_record <- function(input, resolved) {
 } # /rtemis::nested_record
 
 
-# %% FAMILY_DISCRIMINATORS ----
-# Every dispatched config family, keyed by the name of its base class and
-# valued with the property its dispatcher keys on.
-#
-# The single declaration of that fact. `data-raw/generate_schemas.R` reads it
-# rather than restating it, so a family declared in the registry and a family
-# the record writer knows about cannot be two different sets -- which is
-# exactly how they drifted: this was a hand-written `S7_inherits()` chain
-# covering five of the ten families, so a record for any of the other five was
-# written without its discriminator, matched no dispatcher branch, and was
-# rejected by the `unevaluatedProperties` of the schema rtemis itself
-# published. `test_SchemaContract.R` checks the two sets agree, and
-# `test_RecordDocuments.R` validates a real record for every family.
-FAMILY_DISCRIMINATORS <- list(
-  Hyperparameters = "algorithm",
-  DecompositionConfig = "algorithm",
-  ClusteringConfig = "algorithm",
-  IngestConfig = "format",
-  PartitionConfig = "method",
-  ResamplerConfig = "type",
-  TunerConfig = "type",
-  ExplanationConfig = "type",
-  ConformalConfig = "type",
-  ExecutionConfig = "backend"
-)
-
-
 # %% family_discriminator ----
 #' The property a discriminated config family dispatches on
 #'
-#' Mirrors `data-raw/schema_registry.R`. The discriminator is what a dispatcher's
-#' `if/then` keys on, so a record block missing it matches no branch -- and then
-#' `unevaluatedProperties` rejects every field the leaf would have declared.
+#' Reads the family root's class declaration without a separate dispatch table.
 #'
 #' @param x S7 config object.
 #'
@@ -865,12 +825,11 @@ FAMILY_DISCRIMINATORS <- list(
 #' @keywords internal
 #' @noRd
 family_discriminator <- function(x) {
-  base <- family_base(if (S7_inherits(x)) S7_class(x) else x)
+  base <- family_base(if (inherits(x, "S7_class")) x else S7_class(x))
   if (is.null(base)) {
     return(NULL)
   }
-  discriminator <- FAMILY_DISCRIMINATORS[[base@name]]
-  if (is.null(discriminator)) NULL else discriminator
+  attr(base, "rtemis_schema", exact = TRUE)[["discriminator"]]
 } # /rtemis::family_discriminator
 
 

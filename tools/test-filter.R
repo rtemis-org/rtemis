@@ -24,6 +24,14 @@ res <- testthat::test_local(
   stop_on_failure = FALSE
 )
 df <- as.data.frame(res)
+saveRDS(res, file.path(out, "results.rds"))
+for (entry in res) {
+  for (result in entry[["results"]]) {
+    if (inherits(result, c("expectation_failure", "expectation_error"))) {
+      print(result)
+    }
+  }
+}
 
 totals <- sprintf(
   "failed=%d error=%d skipped=%d passed=%d files=%d",

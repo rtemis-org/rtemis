@@ -65,14 +65,37 @@ SuperConfig <- new_class(
         nullable = TRUE,
         description = "Outcome level to treat as positive (binary classification)."
       ),
-      preprocessor_config = NULL | SupervisedPreprocessorConfig,
-      decomposition_config = NULL | DecompositionConfig,
-      # A set is a union of search spaces over one algorithm, and a recipe has to
-      # say which was asked for. NULL stays first so the prototype is NULL.
-      hyperparameters = NULL | Hyperparameters | HyperparametersSet,
-      tuner_config = NULL | TunerConfig,
-      outer_resampling_config = NULL | ResamplerConfig,
-      execution_config = ExecutionConfig,
+      preprocessor_config = prop_object(
+        SupervisedPreprocessorConfig,
+        nullable = TRUE,
+        description = "Preprocessing configuration for predictors and outcome."
+      ),
+      decomposition_config = prop_object(
+        DecompositionConfig,
+        nullable = TRUE,
+        description = "Decomposition applied before supervised learning."
+      ),
+      hyperparameters = prop_object_choice(
+        Hyperparameters,
+        HyperparametersSet,
+        presence_key = "variants",
+        nullable = TRUE,
+        description = "One configuration, searched as the product of its values, or a named set searched as their union. Use one configuration when its settings vary independently."
+      ),
+      tuner_config = prop_object(
+        TunerConfig,
+        nullable = TRUE,
+        description = "Hyperparameter tuning configuration."
+      ),
+      outer_resampling_config = prop_object(
+        ResamplerConfig,
+        nullable = TRUE,
+        description = "Outer resampling configuration for estimating predictive performance."
+      ),
+      execution_config = prop_object(
+        ExecutionConfig,
+        description = "Execution backend and parallel worker settings."
+      ),
       question = prop_string(
         NULL,
         nullable = TRUE,
@@ -117,7 +140,7 @@ SuperConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-SuperConfigPaths <- new_class(
+SuperConfigPaths <- schema_class(
   name = "SuperConfigPaths",
   package = "rtemis",
   parent = SuperConfig,
@@ -153,6 +176,26 @@ SuperConfigPaths <- new_class(
         "which columns those are."
       )
     )
+  ),
+  publication = SchemaPublication(
+    role = "document",
+    slug = "supervised",
+    title = "rtemis SuperConfig",
+    description = "Language-independent config for an rtemis supervised-learning run. Mirrors the `SuperConfig` object: data references, optional preprocessing / decomposition, an algorithm with hyperparameters, optional tuning and outer resampling, and execution settings. The same config drives rtemis (R), rtemis CLI/shell, and rtemislive.",
+    order = 4L,
+    kind = "pipeline",
+    record_provenance = "rtemis::Provenance",
+    record_session = "rtemis::DataRef",
+    record_folds = c(
+      "hyperparameters",
+      "preprocessor_config",
+      "decomposition_config"
+    ),
+    record_metrics = c(
+      "rtemis::RegressionMetrics",
+      "rtemis::ClassificationMetrics"
+    ),
+    record_metrics_shape = "samples"
   )
 ) # /rtemis::SuperConfigPaths
 
@@ -218,11 +261,11 @@ method(print, SuperConfigPaths) <- function(x, output_type = NULL, ...) {
 #' If NULL, no weights are used.
 #' @param positive_class Character or NULL: For binary classification, the
 #' outcome level to treat as positive. NULL keeps the existing factor level order.
-#' @param preprocessor_config `SupervisedPreprocessorConfig` object: Configuration for data preprocessing.
-#' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
-#' @param hyperparameters `Hyperparameters` object: Configuration for model hyperparameters.
-#' @param tuner_config `TunerConfig` object: Configuration for hyperparameter tuning.
-#' @param outer_resampling_config `ResamplerConfig` object: Configuration for outer res
+#' @param preprocessor_config Optional `SupervisedPreprocessorConfig`: Configuration for data preprocessing.
+#' @param decomposition_config Optional `DecompositionConfig`: Configuration for data decomposition.
+#' @param hyperparameters Optional `Hyperparameters` or `HyperparametersSet`: One model configuration or a named set of configurations searched as a union.
+#' @param tuner_config Optional `TunerConfig`: Configuration for hyperparameter tuning.
+#' @param outer_resampling_config Optional `ResamplerConfig`: Configuration for outer res
 #' resampling during model training.
 #' @param execution_config `ExecutionConfig` object: Configuration for execution settings. Setup
 #' with [setup_SerialExecution], [setup_FutureExecution] or [setup_MiraiExecution].
@@ -548,7 +591,7 @@ method(print, SuperConfigTabular) <- function(x, output_type = NULL, ...) {
 #'   level order.
 #' @param preprocessor_config,hyperparameters,tuner_config,outer_resampling_config,execution_config,question,verbosity
 #'   See [setup_SuperConfig].
-#' @param decomposition_config `DecompositionConfig` object: Configuration for data decomposition.
+#' @param decomposition_config Optional `DecompositionConfig`: Configuration for data decomposition.
 #' @param outdir Optional Character: Output directory; `NULL`
 #'   means "do not write to disk" (the rtemislive case).
 #'

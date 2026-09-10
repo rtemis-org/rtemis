@@ -904,34 +904,6 @@ testthat::test_that("a gate on a sibling with no membership form is refused", {
 })
 
 
-testthat::test_that("`extra` may carry allOf and nothing else", {
-  # `modifyList()` recurses, so an `extra` carrying `properties` overwrites
-  # individual generated constraints without replacing the map -- a schema that
-  # looks generated and is not. `allOf` can only compose beside them.
-  Tiny <- S7::new_class(
-    name = "Tiny",
-    package = NULL,
-    properties = list(a = prop_integer(1L, min = 1L))
-  )
-  testthat::expect_error(
-    S7_to_JSONSchema(
-      Tiny,
-      id = "https://example.org/tiny.json",
-      extra = list(properties = list(a = list(minimum = 99L)))
-    ),
-    class = "rtemis_input_error"
-  )
-  s <- S7_to_JSONSchema(
-    Tiny,
-    id = "https://example.org/tiny.json",
-    extra = list(allOf = list(list(required = I("a"))))
-  )
-  testthat::expect_length(s[["allOf"]], 1L)
-  # The generated constraint survives beside it.
-  testthat::expect_identical(s[["properties"]][["a"]][["minimum"]], 1L)
-})
-
-
 testthat::test_that("a property with no declared role is an error", {
   Mixed <- S7::new_class(
     name = "Mixed",
@@ -1745,41 +1717,6 @@ test_that("from_wire rebuilds a factor property", {
   restored <- from_wire(parsed, Demo)
   expect_identical(restored[["y"]], factor(c("a", "b"), levels = c("b", "a")))
   expect_no_error(Demo(y = restored[["y"]]))
-})
-
-
-# %% array_refs ----
-
-test_that("array_refs emits an array of $ref", {
-  Demo <- new_class(
-    "DemoArrayRefs",
-    properties = list(parts = new_property(class_list))
-  )
-  target <- "https://schema.rtemis.org/regressionmetrics/v1/schema.json"
-  sch <- S7_to_JSONSchema(
-    Demo,
-    id = "https://schema.rtemis.org/r/demoarrayrefs/v1/schema.json",
-    array_refs = c(parts = target)
-  )
-  parts <- sch[["properties"]][["parts"]]
-  expect_identical(parts[["type"]], "array")
-  expect_identical(parts[["items"]][["$ref"]], target)
-})
-
-
-test_that("array_refs must name existing properties", {
-  Demo <- new_class(
-    "DemoArrayRefs2",
-    properties = list(parts = new_property(class_list))
-  )
-  expect_error(
-    S7_to_JSONSchema(
-      Demo,
-      id = "https://schema.rtemis.org/r/demoarrayrefs2/v1/schema.json",
-      array_refs = c(nope = "https://example.org/x.json")
-    ),
-    "array_refs"
-  )
 })
 
 

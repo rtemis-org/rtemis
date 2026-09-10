@@ -41,27 +41,33 @@
 #' it was given *before* collapsing a one-member set to its member -- collapse
 #' first and the name is nowhere in the config.
 #'
-#' @field members List of `Hyperparameters`, named. Unnamed members are labelled
+#' @field variants List of `Hyperparameters` objects: Named configurations. Unnamed members are labeled
 #' by position when the set is built.
 #' @field algorithm Character: The algorithm every member shares.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-HyperparametersSet <- new_class(
+HyperparametersSet <- schema_class(
   name = "HyperparametersSet",
   package = "rtemis",
   properties = list(
-    members = class_list,
-    algorithm = new_property(
+    variants = prop_collection(
+      Hyperparameters,
+      container = "map",
+      min_items = 1L,
+      same_variant = TRUE,
+      description = "Configurations to search over, keyed by name. Every entry is a configuration of the same algorithm."
+    ),
+    algorithm = prop_computed(new_property(
       class_character,
       getter = function(self) {
-        if (length(self@members) == 0L) {
+        if (length(self@variants) == 0L) {
           return(NA_character_)
         }
-        self@members[[1L]]@algorithm
+        self@variants[[1L]]@algorithm
       }
-    ),
+    )),
     # `train()` writes `n_workers` and `resampled` onto the hyperparameters it
     # was handed, before it knows whether tuning will collapse a set. Both
     # write through to every member, because a member is what eventually trains
@@ -75,78 +81,55 @@ HyperparametersSet <- new_class(
     # `integer(0)` into each member's `n_workers` and `resampled`, and the
     # failure surfaces later and elsewhere: `train()` reads
     # `hyperparameters@resampled == 0L` and gets `argument is of length zero`.
-    n_workers = new_property(
+    n_workers = prop_computed(new_property(
       class_integer,
       getter = function(self) {
-        if (length(self@members) == 0L) {
+        if (length(self@variants) == 0L) {
           return(1L)
         }
-        self@members[[1L]]@n_workers
+        self@variants[[1L]]@n_workers
       },
       setter = function(self, value) {
         if (length(value) == 0L) {
           return(self)
         }
-        self@members <- lapply(self@members, function(member) {
+        self@variants <- lapply(self@variants, function(member) {
           member@n_workers <- value
           member
         })
         self
       }
-    ),
-    resampled = new_property(
+    )),
+    resampled = prop_computed(new_property(
       class_integer,
       getter = function(self) {
-        if (length(self@members) == 0L) {
+        if (length(self@variants) == 0L) {
           return(0L)
         }
-        self@members[[1L]]@resampled
+        self@variants[[1L]]@resampled
       },
       setter = function(self, value) {
         if (length(value) == 0L) {
           return(self)
         }
-        self@members <- lapply(self@members, function(member) {
+        self@variants <- lapply(self@variants, function(member) {
           member@resampled <- value
           member
         })
         self
       }
-    )
+    ))
   ),
-  validator = function(self) {
-    if (length(self@members) == 0L) {
-      return("must hold at least one Hyperparameters object.")
-    }
-    is_hyperparameters <- vapply(
-      self@members,
-      function(member) S7_inherits(member, Hyperparameters),
-      logical(1L)
+  publication = SchemaPublication(
+    role = "inline",
+    title = "A named set, searched as one space",
+    description = paste0(
+      "Several configurations of one algorithm, each expanded and gated on its own ",
+      "and searched as their union; the tuner reports which name won. Use this ",
+      "form when the search space is not a product of independent settings. ",
+      "A set of one names its fitted model's variant."
     )
-    if (!all(is_hyperparameters)) {
-      return(paste0(
-        "every member must be a Hyperparameters object; member ",
-        which(!is_hyperparameters)[[1L]],
-        " is not."
-      ))
-    }
-    algorithms <- vapply(
-      self@members,
-      function(member) member@algorithm,
-      character(1L)
-    )
-    if (length(unique(algorithms)) > 1L) {
-      return(paste0(
-        "every member must be for the same algorithm, not ",
-        paste(unique(algorithms), collapse = " and "),
-        "."
-      ))
-    }
-    if (is.null(names(self@members)) || any(!nzchar(names(self@members)))) {
-      return("every member must be named.")
-    }
-    NULL
-  }
+  )
 ) # /rtemis::HyperparametersSet
 
 
@@ -221,7 +204,7 @@ as_HyperparametersSet <- function(x) {
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-  HyperparametersSet(members = name_set_members(x))
+  HyperparametersSet(variants = name_set_members(x))
 } # /rtemis::as_HyperparametersSet
 
 
@@ -264,7 +247,7 @@ name_set_members <- function(members) {
 #' @keywords internal
 #' @noRd
 method(repr, HyperparametersSet) <- function(x, pad = 0L, output_type = NULL) {
-  n <- length(x@members)
+  n <- length(x@variants)
   paste0(
     repr_S7name("HyperparametersSet", pad = pad, output_type = output_type),
     "Searching ",
@@ -273,7 +256,7 @@ method(repr, HyperparametersSet) <- function(x, pad = 0L, output_type = NULL) {
     " of ",
     highlight(x@algorithm, output_type = output_type),
     ": ",
-    paste(names(x@members), collapse = ", "),
+    paste(names(x@variants), collapse = ", "),
     "\n"
   )
 } # /rtemis::repr.HyperparametersSet
@@ -299,13 +282,13 @@ method(print, HyperparametersSet) <- function(x, output_type = NULL, ...) {
 # %% `[[`.HyperparametersSet ----
 # Members by name or position, so a set indexes like the list it was written as.
 method(`[[`, HyperparametersSet) <- function(x, name) {
-  x@members[[name]]
+  x@variants[[name]]
 }
 
 
 # %% length.HyperparametersSet ----
 method(length, HyperparametersSet) <- function(x) {
-  length(x@members)
+  length(x@variants)
 }
 
 
@@ -324,8 +307,8 @@ VARIANT_COLUMN <- ".variant"
 method(needs_tuning, HyperparametersSet) <- function(x) {
   # More than one member is a choice to make even when no member varies
   # anything: the members are the candidates.
-  length(x@members) > 1L ||
-    any(vapply(x@members, needs_tuning, logical(1L)))
+  length(x@variants) > 1L ||
+    any(vapply(x@variants, needs_tuning, logical(1L)))
 } # /rtemis::needs_tuning.HyperparametersSet
 
 
@@ -387,9 +370,9 @@ member_grid_fill <- function(member, name, n) {
 #' @keywords internal
 #' @noRd
 method(tuning_grid, HyperparametersSet) <- function(x) {
-  labels <- names(x@members)
+  labels <- names(x@variants)
   grids <- lapply(labels, function(label) {
-    grid <- tuning_grid(x@members[[label]])
+    grid <- tuning_grid(x@variants[[label]])
     if (is.null(grid)) {
       # `data.frame()` with no columns has no rows either, so the single row a
       # fixed member contributes is made explicitly.
@@ -402,7 +385,7 @@ method(tuning_grid, HyperparametersSet) <- function(x) {
     grid <- grids[[i]]
     for (name in setdiff(columns, names(grid))) {
       grid[[name]] <- member_grid_fill(
-        x@members[[i]],
+        x@variants[[i]],
         name,
         max(NROW(grid), 1L)
       )
@@ -435,7 +418,7 @@ method(tuning_grid, HyperparametersSet) <- function(x) {
 #' @noRd
 tuning_members <- function(x) {
   if (S7_inherits(x, HyperparametersSet)) {
-    return(x@members)
+    return(x@variants)
   }
   NULL
 } # /rtemis::tuning_members
@@ -486,10 +469,8 @@ grid_hyperparameter_columns <- function(grid) {
 # %% is_wire_hyperparameters_set ----
 #' Is this parsed JSON a set of hyperparameters?
 #'
-#' The tag `serializable_props()` writes, `{"variants": {...}}`. An exact-names
-#' test, as `is_wire_candidates()` uses: a reader tells a set from a single
-#' configuration with no reference to what the property declares, and a document
-#' carrying anything beside `variants` is not one.
+#' The presence of `variants` selects the set shape. The selected reader
+#' validates its complete structure and rejects extra keys.
 #'
 #' Exported for `rtemis.server`, which needs the same discriminator one layer
 #' earlier: its `train` handler has to know whether a payload names its learner
@@ -507,7 +488,7 @@ grid_hyperparameter_columns <- function(grid) {
 #' @examples
 #' is_wire_hyperparameters_set(list(variants = list()))
 is_wire_hyperparameters_set <- function(x) {
-  identical(names(x), "variants")
+  is.list(x) && "variants" %in% names(x)
 } # /rtemis::is_wire_hyperparameters_set
 
 
@@ -518,11 +499,6 @@ is_wire_hyperparameters_set <- function(x) {
 #' member name, so the names survive the round trip. They have to: the name is
 #' what the tuner reports as the winner, so a set whose names regenerated on read
 #' would report a different answer than the run that produced it.
-#'
-#' This is why the default is not enough. A list of S7 objects is published as
-#' an array of `$ref`s and **unnamed** -- `base_learners` re-derives its names
-#' from each entry's `algorithm`, which a set cannot do, since every member
-#' shares one.
 #'
 #' `algorithm` is left out: it is a computed getter over the members, so the
 #' members already carry it and a set is not a document that could disagree
@@ -536,7 +512,7 @@ is_wire_hyperparameters_set <- function(x) {
 #' @keywords internal
 #' @noRd
 method(serializable_props, HyperparametersSet) <- function(x) {
-  list(variants = x@members)
+  list(variants = x@variants)
 } # /rtemis::serializable_props.HyperparametersSet
 
 
@@ -545,7 +521,7 @@ method(serializable_props, HyperparametersSet) <- function(x) {
 #' @keywords internal
 #' @noRd
 method(to_json, HyperparametersSet) <- function(x, ...) {
-  list(variants = lapply(x@members, to_json))
+  S7_to_list(x)
 } # /rtemis::to_json.HyperparametersSet
 
 
@@ -565,6 +541,7 @@ method(to_json, HyperparametersSet) <- function(x, ...) {
 #' @keywords internal
 #' @noRd
 .list_to_HyperparametersSet <- function(x) {
+  check_wire_keys(x, "variants", "hyperparameters set")
   variants <- x[["variants"]]
   if (!is.list(variants) || length(variants) == 0L) {
     rtemis.core::abort(
@@ -601,9 +578,9 @@ method(validate_hyperparameters, HyperparametersSet) <- function(
   hyperparameters,
   x
 ) {
-  for (label in names(hyperparameters@members)) {
+  for (label in names(hyperparameters@variants)) {
     withCallingHandlers(
-      validate_hyperparameters(hyperparameters@members[[label]], x),
+      validate_hyperparameters(hyperparameters@variants[[label]], x),
       rtemis_error = function(e) {
         rtemis.core::abort(
           "Variant '",

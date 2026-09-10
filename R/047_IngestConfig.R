@@ -33,7 +33,7 @@ INGEST_DTYPES <- setdiff(PROFILE_DTYPES, "other")
 #'
 #' @author EDG
 #' @noRd
-IngestConfig <- new_class(
+IngestConfig <- schema_class(
   name = "IngestConfig",
   package = "rtemis",
   abstract = TRUE,
@@ -71,6 +71,15 @@ IngestConfig <- new_class(
       FALSE,
       description = "Drop rows that repeat an earlier row exactly."
     )
+  ),
+  publication = SchemaPublication(
+    role = "family",
+    slug = "ingest",
+    title = "rtemis IngestConfig",
+    description = "Language-independent config for reading a data file and normalizing it to Parquet. A delimited file or a spreadsheet carries no usable type information and Parquet does, so this is the one step that decides types -- everything after it reads a declaration rather than inferring one. `format` is what the file is, not a preference, so it has no default and a config that disagrees with its file is an error.",
+    discriminator = "format",
+    discriminator_description = "What the file is.",
+    order = 3L
   )
 ) # /rtemis::IngestConfig
 
@@ -84,7 +93,7 @@ IngestConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-DelimitedIngestConfig <- new_class(
+DelimitedIngestConfig <- schema_class(
   name = "DelimitedIngestConfig",
   parent = IngestConfig,
   package = "rtemis",
@@ -108,6 +117,11 @@ DelimitedIngestConfig <- new_class(
       vector = TRUE,
       description = "Strings to read as missing."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "A delimited file (csv, tsv, ...).",
+    order = 1L
   )
 ) # /rtemis::DelimitedIngestConfig
 
@@ -121,7 +135,7 @@ DelimitedIngestConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-ParquetIngestConfig <- new_class(
+ParquetIngestConfig <- schema_class(
   name = "ParquetIngestConfig",
   parent = IngestConfig,
   package = "rtemis",
@@ -132,6 +146,11 @@ ParquetIngestConfig <- new_class(
       enum = c("arrow", "nanoparquet"),
       description = "Library used to read the file."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "A Parquet file, which declares its own types.",
+    order = 2L
   )
 ) # /rtemis::ParquetIngestConfig
 
@@ -145,7 +164,7 @@ ParquetIngestConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-XLSXIngestConfig <- new_class(
+XLSXIngestConfig <- schema_class(
   name = "XLSXIngestConfig",
   parent = IngestConfig,
   package = "rtemis",
@@ -161,6 +180,11 @@ XLSXIngestConfig <- new_class(
       vector = TRUE,
       description = "Strings to read as missing."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "A spreadsheet.",
+    order = 3L
   )
 ) # /rtemis::XLSXIngestConfig
 
@@ -175,11 +199,16 @@ XLSXIngestConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-RDSIngestConfig <- new_class(
+RDSIngestConfig <- schema_class(
   name = "RDSIngestConfig",
   parent = IngestConfig,
   package = "rtemis",
-  properties = list(format = prop_algorithm("rds"))
+  properties = list(format = prop_algorithm("rds")),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "An RDS file.",
+    order = 4L
+  )
 ) # /rtemis::RDSIngestConfig
 
 
@@ -191,11 +220,16 @@ RDSIngestConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-DTAIngestConfig <- new_class(
+DTAIngestConfig <- schema_class(
   name = "DTAIngestConfig",
   parent = IngestConfig,
   package = "rtemis",
-  properties = list(format = prop_algorithm("dta"))
+  properties = list(format = prop_algorithm("dta")),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "A Stata file.",
+    order = 5L
+  )
 ) # /rtemis::DTAIngestConfig
 
 
@@ -207,11 +241,16 @@ DTAIngestConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-ARFFIngestConfig <- new_class(
+ARFFIngestConfig <- schema_class(
   name = "ARFFIngestConfig",
   parent = IngestConfig,
   package = "rtemis",
-  properties = list(format = prop_algorithm("arff"))
+  properties = list(format = prop_algorithm("arff")),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "An ARFF file.",
+    order = 6L
+  )
 ) # /rtemis::ARFFIngestConfig
 
 

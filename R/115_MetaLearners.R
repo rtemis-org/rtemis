@@ -66,9 +66,8 @@ name_base_learners <- function(base_learners) {
 #' combines the base learners' predictions, `ConditionalSuperLearnerHyperparameters`
 #' routes each case to one of them.
 #'
-#' `base_learners`, `meta_learner` and `inner_resampling_config` hold config
-#' objects and so carry no `PropertySpec`: each publishes its own schema, which
-#' the generator references.
+#' Typed references connect each nested configuration to its published schema.
+#' The library is a named map so learner identities survive serialization.
 #'
 #' @author EDG
 #' @keywords internal
@@ -78,8 +77,13 @@ MetaLearnerHyperparameters <- new_class(
   parent = Hyperparameters,
   abstract = TRUE,
   properties = list(
-    base_learners = new_property(
-      class_list,
+    base_learners = prop_collection(
+      Hyperparameters,
+      container = "map",
+      min_items = 2L,
+      key_pattern = "^[A-Za-z.]",
+      key_not_pattern = "[^A-Za-z0-9._]|^[.][0-9]|^(if|else|repeat|while|function|for|in|next|break|TRUE|FALSE|NULL|Inf|NaN|NA|NA_integer_|NA_real_|NA_complex_|NA_character_)$",
+      description = "Base learners keyed by portable ASCII identifiers: letters, digits, periods, and underscores, beginning with a letter or a period not followed by a digit; R reserved words are excluded. Every entry is a learner configuration.",
       default = quote(name_base_learners(list(
         setup_GLM(),
         setup_GLMNET(),
@@ -92,8 +96,9 @@ MetaLearnerHyperparameters <- new_class(
     # `ConditionalSuperLearnerHyperparameters`'s `setup_Ranger()` inert -- the
     # class published Ranger and constructed NNLS. Every leaf declares it, and
     # a conditional super learner routes with a learner the other two do not.
-    inner_resampling_config = new_property(
+    inner_resampling_config = prop_object(
       ResamplerConfig,
+      description = "Resampling configuration used to construct cross-validated predictions for the meta learner.",
       default = quote(setup_KFold(n_resamples = 10L))
     ),
     expand_search_spaces = prop_boolean(
@@ -105,41 +110,7 @@ MetaLearnerHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
-  ),
-  validator = function(self) {
-    if (length(self@base_learners) < 2L) {
-      return(
-        "@base_learners must hold at least 2 learners; with one there is nothing to combine."
-      )
-    }
-    nms <- names(self@base_learners)
-    if (is.null(nms) || any(!nzchar(nms)) || anyDuplicated(nms) > 0L) {
-      return("@base_learners must have unique, non-empty names.")
-    }
-    # The names become column names of the level-one data the meta learner is
-    # trained on, and a formula-based learner there would silently see the
-    # mangled form `make.names()` produces.
-    if (!identical(make.names(nms), nms)) {
-      return(paste0(
-        "@base_learners names must be syntactically valid; these are not: ",
-        paste(nms[make.names(nms) != nms], collapse = ", "),
-        "."
-      ))
-    }
-    is_hp <- vapply(
-      self@base_learners,
-      function(learner) S7_inherits(learner, Hyperparameters),
-      logical(1L)
-    )
-    if (!all(is_hp)) {
-      return(paste0(
-        "@base_learners must hold `Hyperparameters` objects (make them with `setup_*()`); these do not: ",
-        paste(nms[!is_hp], collapse = ", "),
-        "."
-      ))
-    }
-    NULL
-  }
+  )
 ) # /rtemis::MetaLearnerHyperparameters
 
 
@@ -280,7 +251,11 @@ StackedLearnerHyperparameters <- new_class(
     # to it with a Ranger oracle. S7 constructs an inherited property with the
     # parent's default whatever a subclass redeclares, so the two defaults have
     # to sit on sibling classes to both take effect.
-    meta_learner = new_property(Hyperparameters, default = quote(setup_NNLS())),
+    meta_learner = prop_object(
+      Hyperparameters,
+      default = quote(setup_NNLS()),
+      description = "Learner that combines the base learners' cross-validated predictions."
+    ),
     discrete = prop_boolean(
       FALSE,
       tunable = TRUE,
@@ -299,11 +274,16 @@ StackedLearnerHyperparameters <- new_class(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-SuperLearnerHyperparameters <- new_class(
+SuperLearnerHyperparameters <- schema_class(
   name = "SuperLearnerHyperparameters",
   parent = StackedLearnerHyperparameters,
   properties = list(
     algorithm = prop_algorithm("SuperLearner")
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "SuperLearner: cross-validated stacked ensemble.",
+    order = 25L
   )
 ) # /rtemis::SuperLearnerHyperparameters
 
@@ -392,7 +372,7 @@ setup_SuperLearner <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-ModalityStackingHyperparameters <- new_class(
+ModalityStackingHyperparameters <- schema_class(
   name = "ModalityStackingHyperparameters",
   parent = StackedLearnerHyperparameters,
   properties = list(
@@ -404,6 +384,11 @@ ModalityStackingHyperparameters <- new_class(
       data_dependent = TRUE,
       description = "Features each base learner sees, keyed by base learner name."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "ModalityStacking: stacked ensemble with one learner per feature group.",
+    order = 26L
   )
 ) # /rtemis::ModalityStackingHyperparameters
 
@@ -564,13 +549,14 @@ setup_ModalityStacking <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-ConditionalSuperLearnerHyperparameters <- new_class(
+ConditionalSuperLearnerHyperparameters <- schema_class(
   name = "ConditionalSuperLearnerHyperparameters",
   parent = MetaLearnerHyperparameters,
   properties = list(
     algorithm = prop_algorithm("ConditionalSuperLearner"),
-    meta_learner = new_property(
+    meta_learner = prop_object(
       Hyperparameters,
+      description = "Classifier that selects a base learner for each case.",
       default = quote(setup_Ranger())
     ),
     n_iterations = prop_integer(
@@ -596,6 +582,11 @@ ConditionalSuperLearnerHyperparameters <- new_class(
       min = 1L,
       description = "Fewest cases an expert's region may hold before the expert keeps its previous fit instead of being refitted."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Conditional SuperLearner: an oracle routes each case to one of a library of experts.",
+    order = 27L
   )
 ) # /rtemis::ConditionalSuperLearnerHyperparameters
 

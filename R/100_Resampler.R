@@ -35,12 +35,21 @@
 #'
 #' @author EDG
 #' @noRd
-ResamplerConfig <- new_class(
+ResamplerConfig <- schema_class(
   name = "ResamplerConfig",
   package = "rtemis",
   abstract = TRUE,
   properties = list(
     type = class_character
+  ),
+  publication = SchemaPublication(
+    role = "family",
+    slug = "resampler",
+    title = "rtemis ResamplerConfig",
+    description = "Language-independent config for an rtemis resampler. Mirrors the `ResamplerConfig` object: a resampler type plus its type-specific settings. The same config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical resamples.",
+    discriminator = "type",
+    discriminator_description = "Resampler type.",
+    order = 5L
   )
 ) # /rtemis::ResamplerConfig
 
@@ -134,7 +143,7 @@ method(desc, ResamplerConfig) <- function(x) {
 #'
 #' @author EDG
 #' @noRd
-KFoldConfig <- new_class(
+KFoldConfig <- schema_class(
   name = "KFoldConfig",
   parent = ResamplerConfig,
   properties = list(
@@ -165,6 +174,11 @@ KFoldConfig <- new_class(
       nullable = TRUE,
       description = "Random seed."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "K-fold cross-validation.",
+    order = 1L
   )
 ) # /rtemis::KFoldConfig
 
@@ -177,7 +191,7 @@ KFoldConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-StratSubConfig <- new_class(
+StratSubConfig <- schema_class(
   name = "StratSubConfig",
   parent = ResamplerConfig,
   properties = list(
@@ -214,6 +228,11 @@ StratSubConfig <- new_class(
       nullable = TRUE,
       description = "Random seed."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Stratified subsampling.",
+    order = 2L
   )
 ) # /rtemis::StratSubConfig
 
@@ -226,7 +245,7 @@ StratSubConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-StratBootConfig <- new_class(
+StratBootConfig <- schema_class(
   name = "StratBootConfig",
   parent = ResamplerConfig,
   properties = list(
@@ -269,6 +288,11 @@ StratBootConfig <- new_class(
       nullable = TRUE,
       description = "Random seed."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Stratified bootstrap.",
+    order = 3L
   )
 ) # /rtemis::StratBootConfig
 
@@ -281,7 +305,7 @@ StratBootConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-BootstrapConfig <- new_class(
+BootstrapConfig <- schema_class(
   name = "BootstrapConfig",
   parent = ResamplerConfig,
   properties = list(
@@ -302,6 +326,11 @@ BootstrapConfig <- new_class(
       nullable = TRUE,
       description = "Random seed."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Bootstrap resampling.",
+    order = 4L
   )
 ) # /rtemis::BootstrapConfig
 
@@ -314,7 +343,7 @@ BootstrapConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-LOOCVConfig <- new_class(
+LOOCVConfig <- schema_class(
   name = "LOOCVConfig",
   parent = ResamplerConfig,
   properties = list(
@@ -327,6 +356,11 @@ LOOCVConfig <- new_class(
       nullable = TRUE,
       description = "Number of resamples, one per case; set from the data."
     ))
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Leave-one-out cross-validation.",
+    order = 5L
   )
 ) # /rtemis::LOOCVConfig
 
@@ -339,7 +373,7 @@ LOOCVConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-CustomConfig <- new_class(
+CustomConfig <- schema_class(
   name = "CustomConfig",
   parent = ResamplerConfig,
   properties = list(
@@ -360,6 +394,11 @@ CustomConfig <- new_class(
       nullable = TRUE,
       description = "Number of resamples, one per supplied index vector; set from resamples."
     ))
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Custom, user-supplied resamples.",
+    order = 6L
   )
 ) # /rtemis::CustomConfig
 

@@ -112,12 +112,21 @@ SHAP_APPROACHES <- c(
 #'
 #' @author EDG
 #' @noRd
-ExplanationConfig <- new_class(
+ExplanationConfig <- schema_class(
   name = "ExplanationConfig",
   package = "rtemis",
   abstract = TRUE,
   properties = list(
     type = class_character
+  ),
+  publication = SchemaPublication(
+    role = "family",
+    slug = "explanation",
+    title = "rtemis ExplanationConfig",
+    description = "Language-independent config for a per-case rtemis explanation. Mirrors the `ExplanationConfig` object: a kind of explanation plus its kind-specific settings. The kind is tagged rather than inferred, so a second kind of explanation can be added without changing how the first is read.",
+    discriminator = "type",
+    discriminator_description = "Kind of explanation.",
+    order = 7L
   )
 ) # /rtemis::ExplanationConfig
 
@@ -198,7 +207,7 @@ method(print, ExplanationConfig) <- function(
 #'
 #' @author EDG
 #' @noRd
-SHAPConfig <- new_class(
+SHAPConfig <- schema_class(
   name = "SHAPConfig",
   parent = ExplanationConfig,
   properties = list(
@@ -255,7 +264,12 @@ SHAPConfig <- new_class(
   ),
   validator = function(self) {
     check_applies_when(self)
-  }
+  },
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Shapley additive contributions.",
+    order = 1L
+  )
 ) # /rtemis::SHAPConfig
 
 

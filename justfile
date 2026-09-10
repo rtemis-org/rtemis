@@ -20,6 +20,10 @@ import? '__dev/plan.just'
 default:
     @just --list
 
+[doc("Run a saved R development probe")]
+probe script:
+    {{ rscript }} "{{ script }}"
+
 _msg msg:
     @printf '\033[38;2;108;163;160m[%s] %s\033[0m\n' "$(date '+%Y-%m-%d %H:%M:%S')" "{{ msg }}"
 
@@ -107,6 +111,32 @@ test-filter filter out="/tmp/rtemis-test":
     @cat {{ out }}/verdict 2>/dev/null || { echo "no verdict -- the run died, see {{ out }}/log"; exit 1; }
     @grep -q '^failed=0 error=0 ' {{ out }}/verdict || exit 1
 
+# Generate the complete artifact corpus without publishing or indexing it.
+[doc("Generate every schema artifact into a local directory")]
+schema-artifacts out:
+    {{ rscript }} data-raw/generate_schemas.R "{{ out }}"
+    {{ rscript }} data-raw/generate_defaults.R "{{ out }}"
+    {{ rscript }} data-raw/generate_authoring.R "{{ out }}"
+    {{ rscript }} data-raw/generate_checks.R "{{ out }}"
+    {{ rscript }} data-raw/generate_checks_corpus.R "{{ out }}"
+    {{ rscript }} data-raw/generate_profile_fixture.R "{{ out }}"
+
+[doc("Audit property reconstruction from an existing generated artifact corpus")]
+schema-roundtrip artifacts report:
+    {{ rscript }} tools/schema-roundtrip.R "{{ artifacts }}" "{{ report }}"
+
+[doc("Compare generated artifact bytes and save both manifests")]
+schema-diff before after report:
+    python3 tools/schema-diff.py "{{ before }}" "{{ after }}" "{{ report }}"
+
+[doc("Compile the real generated schema graph and validate serialized documents")]
+schema-graph artifacts report:
+    {{ rscript }} tools/schema-graph.R "{{ artifacts }}" "{{ report }}"
+
+[doc("Export class-rule boundary cases for an independent JSONLogic evaluator")]
+schema-rules report:
+    {{ rscript }} tools/schema-rules.R "{{ report }}"
+
 # `generate_checks.R` also refreshes the `inst/` copies of checks and traits,
 # which are what the package ships and what `test_ChecksArtifact.R` reads, so a
 # diff there after this runs means the committed copies were stale.
@@ -119,12 +149,7 @@ test-filter filter out="/tmp/rtemis-test":
 schemas-check:
     @just _msg "─── Checking schema generation for {{ pkg }}... ───"
     @dir=$(mktemp -d); trap 'rm -rf "$dir"' EXIT; \
-        {{ rscript }} data-raw/generate_schemas.R "$dir" && \
-        {{ rscript }} data-raw/generate_defaults.R "$dir" && \
-        {{ rscript }} data-raw/generate_authoring.R "$dir" && \
-        {{ rscript }} data-raw/generate_checks.R "$dir" && \
-        {{ rscript }} data-raw/generate_checks_corpus.R "$dir" && \
-        {{ rscript }} data-raw/generate_profile_fixture.R "$dir"
+        just schema-artifacts "$dir"
     @git diff --quiet --exit-code -- inst/checks inst/traits || { \
         echo "   Note: inst/checks or inst/traits was regenerated -- the committed copy was stale."; \
         echo "   Review the diff and commit it with the rule-set change."; \

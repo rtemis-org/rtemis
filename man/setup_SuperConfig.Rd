@@ -49,15 +49,15 @@ If NULL, no weights are used.}
 \item{positive_class}{Character or NULL: For binary classification, the
 outcome level to treat as positive. NULL keeps the existing factor level order.}
 
-\item{preprocessor_config}{\code{SupervisedPreprocessorConfig} object: Configuration for data preprocessing.}
+\item{preprocessor_config}{Optional \code{SupervisedPreprocessorConfig}: Configuration for data preprocessing.}
 
-\item{decomposition_config}{\code{DecompositionConfig} object: Configuration for data decomposition.}
+\item{decomposition_config}{Optional \code{DecompositionConfig}: Configuration for data decomposition.}
 
-\item{hyperparameters}{\code{Hyperparameters} object: Configuration for model hyperparameters.}
+\item{hyperparameters}{Optional \code{Hyperparameters} or \code{HyperparametersSet}: One model configuration or a named set of configurations searched as a union.}
 
-\item{tuner_config}{\code{TunerConfig} object: Configuration for hyperparameter tuning.}
+\item{tuner_config}{Optional \code{TunerConfig}: Configuration for hyperparameter tuning.}
 
-\item{outer_resampling_config}{\code{ResamplerConfig} object: Configuration for outer res
+\item{outer_resampling_config}{Optional \code{ResamplerConfig}: Configuration for outer res
 resampling during model training.}
 
 \item{execution_config}{\code{ExecutionConfig} object: Configuration for execution settings. Setup

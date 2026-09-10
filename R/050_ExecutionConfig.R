@@ -14,7 +14,7 @@
 #'
 #' @author EDG
 #' @noRd
-ExecutionConfig <- new_class(
+ExecutionConfig <- schema_class(
   name = "ExecutionConfig",
   package = "rtemis",
   abstract = TRUE,
@@ -63,6 +63,15 @@ ExecutionConfig <- new_class(
       enum = c("none", "auto", "always"),
       description = "Share worker data through OS shared memory."
     )
+  ),
+  publication = SchemaPublication(
+    role = "family",
+    slug = "execution",
+    title = "rtemis ExecutionConfig",
+    description = "Language-independent config for rtemis execution: sequential, parallel, or distributed.",
+    discriminator = "backend",
+    discriminator_description = "Execution backend.",
+    order = 9L
   )
 ) # /rtemis::ExecutionConfig
 
@@ -84,12 +93,17 @@ ExecutionConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-SerialExecutionConfig <- new_class(
+SerialExecutionConfig <- schema_class(
   name = "SerialExecutionConfig",
   parent = ExecutionConfig,
   package = "rtemis",
   properties = list(
     backend = prop_algorithm("none")
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Execution in the calling process, dispatching nothing.",
+    order = 1L
   )
 ) # /rtemis::SerialExecutionConfig
 
@@ -108,7 +122,7 @@ SerialExecutionConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-ParallelExecutionConfig <- new_class(
+ParallelExecutionConfig <- schema_class(
   name = "ParallelExecutionConfig",
   parent = ExecutionConfig,
   package = "rtemis",
@@ -135,23 +149,18 @@ ParallelExecutionConfig <- new_class(
       description = "Workers for tuning. Unset lets the worker ladder assign it."
     )
   ),
-  validator = function(self) {
-    # `NULL > 1L` is `logical(0)`, so `isTRUE()` reads an unset level as "not parallel"
-    # without a separate is.null() guard at each use.
-    outer_parallel <- isTRUE(self@n_workers_outer > 1L)
-    tuning_parallel <- isTRUE(self@n_workers_tuning > 1L)
-    if (outer_parallel && tuning_parallel) {
-      paste0(
-        "Only one dispatch level can run in parallel, but n_workers_outer is ",
-        self@n_workers_outer,
-        " and n_workers_tuning is ",
-        self@n_workers_tuning,
-        ". An outer fold runs in a worker process and cannot dispatch again from ",
-        "inside one. Set one of them to 1. n_workers_algorithm is threads within a ",
-        "worker and combines with either."
-      )
-    }
-  }
+  rules = list(ForbidTogether(
+    id = "execution.parallel-dispatch",
+    conditions = list(
+      SchemaPredicate(property = "n_workers_outer", minimum = 2),
+      SchemaPredicate(property = "n_workers_tuning", minimum = 2)
+    ),
+    message = paste0(
+      "Only one dispatch level can run in parallel. Set n_workers_outer or ",
+      "n_workers_tuning to 1. An outer fold cannot dispatch again from inside ",
+      "a worker process; algorithm threads may combine with either level."
+    )
+  ))
 ) # /rtemis::ParallelExecutionConfig
 
 
@@ -164,7 +173,7 @@ ParallelExecutionConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-FutureExecutionConfig <- new_class(
+FutureExecutionConfig <- schema_class(
   name = "FutureExecutionConfig",
   parent = ParallelExecutionConfig,
   package = "rtemis",
@@ -174,6 +183,11 @@ FutureExecutionConfig <- new_class(
       "mirai_multisession",
       description = "Future plan to use."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Parallel execution through the future package.",
+    order = 2L
   )
 ) # /rtemis::FutureExecutionConfig
 
@@ -186,12 +200,17 @@ FutureExecutionConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-MiraiExecutionConfig <- new_class(
+MiraiExecutionConfig <- schema_class(
   name = "MiraiExecutionConfig",
   parent = ParallelExecutionConfig,
   package = "rtemis",
   properties = list(
     backend = prop_algorithm("mirai")
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Parallel execution through the mirai package.",
+    order = 3L
   )
 ) # /rtemis::MiraiExecutionConfig
 

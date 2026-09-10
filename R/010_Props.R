@@ -127,6 +127,12 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'
 #' @field type Character: JSON Schema base type
 #'   \{"boolean", "integer", "number", "string"\}.
+#' @field target_class Optional Character: Qualified S7 class identity for an
+#'   object reference or a collection of object references.
+#' @field alternate_class Optional Character: Inline class selected by a structural key.
+#' @field presence_key Optional Character: Key whose presence selects the alternate class.
+#' @field same_variant Logical: Whether every collection member must share its family discriminator.
+#' @field key_pattern,key_not_pattern Optional Character: Required and forbidden patterns for keys of an object-reference map.
 #' @field default Default value (scalar of `type`, or NULL).
 #' @field minimum,maximum Numeric or NULL: Inclusive bounds.
 #' @field exclusive_minimum,exclusive_maximum Numeric or NULL: Exclusive bounds.
@@ -155,6 +161,7 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   shape.
 #' @field min_items Integer [1, Inf): Fewest elements an `array` container may
 #'   hold.
+#' @field max_items Optional Integer [0, Inf): Maximum reference collection size.
 #' @field unique_items Logical: If TRUE, an `array` container's elements must
 #'   be distinct.
 #' @field tune_on_null Logical: If TRUE, a NULL value means "determine by
@@ -203,6 +210,12 @@ PropertySpec <- new_class(
   package = "rtemis",
   properties = list(
     type = class_character,
+    target_class = NULL | class_character,
+    alternate_class = NULL | class_character,
+    presence_key = NULL | class_character,
+    same_variant = new_property(class_logical, default = FALSE),
+    key_pattern = NULL | class_character,
+    key_not_pattern = NULL | class_character,
     default = class_any,
     minimum = NULL | class_numeric,
     maximum = NULL | class_numeric,
@@ -247,6 +260,7 @@ PropertySpec <- new_class(
     # equivalent JSON Schema keyword pair, so widening them would publish a
     # constraint nothing enforces.
     min_items = new_property(class_integer, default = 1L),
+    max_items = NULL | class_integer,
     unique_items = new_property(class_logical, default = FALSE),
     # At least one element must reach this value. A bound on the array's
     # *contents* rather than its arity, for a candidate set where some values
@@ -299,6 +313,107 @@ PropertySpec <- new_class(
     description = class_character
   ),
   validator = function(self) {
+    for (field in c("key_pattern", "key_not_pattern")) {
+      pattern <- prop(self, field)
+      if (is.null(pattern)) {
+        next
+      }
+      if (
+        self@container != "map" ||
+          is.null(self@target_class) ||
+          length(pattern) != 1L ||
+          is.na(pattern) ||
+          !nzchar(pattern)
+      ) {
+        return(paste0(
+          "@",
+          field,
+          " requires an object-reference map and one non-empty pattern."
+        ))
+      }
+      valid_pattern <- tryCatch(
+        {
+          suppressWarnings(grepl(pattern, "", perl = TRUE))
+          TRUE
+        },
+        error = function(e) FALSE
+      )
+      if (!valid_pattern) {
+        return(paste0("@", field, " must be a valid regular expression."))
+      }
+    }
+    reference <- !is.null(self@target_class)
+    if (length(self@same_variant) != 1L || is.na(self@same_variant)) {
+      return("@same_variant must be a non-missing logical scalar.")
+    }
+    if (!is.null(self@alternate_class) || !is.null(self@presence_key)) {
+      if (
+        !reference ||
+          self@container != "none" ||
+          is.null(self@alternate_class) ||
+          length(self@alternate_class) != 1L ||
+          is.na(self@alternate_class) ||
+          !grepl(
+            "^[A-Za-z][A-Za-z0-9.]*::[A-Za-z][A-Za-z0-9._]*$",
+            self@alternate_class
+          ) ||
+          is.null(self@presence_key) ||
+          length(self@presence_key) != 1L ||
+          is.na(self@presence_key) ||
+          !nzchar(self@presence_key)
+      ) {
+        return(
+          "an alternate class requires a scalar reference and a non-empty presence key."
+        )
+      }
+    }
+    if (
+      self@same_variant &&
+        (!reference || !self@container %in% c("array", "map"))
+    ) {
+      return(
+        "@same_variant requires a collection of referenced family members."
+      )
+    }
+    if (reference) {
+      if (
+        length(self@target_class) != 1L ||
+          is.na(self@target_class) ||
+          !grepl(
+            "^[A-Za-z][A-Za-z0-9.]*::[A-Za-z][A-Za-z0-9._]*$",
+            self@target_class
+          )
+      ) {
+        return(
+          "@target_class must be a qualified S7 class name (package::Class)."
+        )
+      }
+      if (
+        self@type != "object" || !self@container %in% c("none", "array", "map")
+      ) {
+        return(
+          "a class reference requires object type and a scalar, array, or map container."
+        )
+      }
+      if (
+        self@tunable ||
+          self@broadcast ||
+          self@constant ||
+          !is.null(self@items) ||
+          !is.null(self@members) ||
+          !is.null(self@enum) ||
+          !is.null(self@minimum) ||
+          !is.null(self@maximum) ||
+          !is.null(self@exclusive_minimum) ||
+          !is.null(self@exclusive_maximum) ||
+          !is.null(self@contains_min) ||
+          self@unique_items
+      ) {
+        return(
+          "a class reference cannot declare scalar domains or nested primitive constraints."
+        )
+      }
+    }
     if (!self@type %in% PROP_TYPES) {
       return(paste0(
         "@type must be one of ",
@@ -349,7 +464,7 @@ PropertySpec <- new_class(
     if (self@container == "none" && !is.null(self@items)) {
       return("@items is only meaningful when @container is not 'none'.")
     }
-    if (self@container == "map" && is.null(self@items)) {
+    if (self@container == "map" && is.null(self@items) && !reference) {
       return("@items must describe the value type when @container is 'map'.")
     }
     if (self@container %in% c("table", "struct")) {
@@ -409,10 +524,43 @@ PropertySpec <- new_class(
     if (self@broadcast && self@container == "none") {
       return("@broadcast requires a @container to broadcast into.")
     }
-    if (length(self@min_items) != 1L || self@min_items < 1L) {
-      return("@min_items must be a single value >= 1.")
+    lower_arity <- if (
+      (reference && self@container != "none") || self@container == "table"
+    ) {
+      0L
+    } else {
+      1L
     }
-    if (self@container != "array") {
+    if (
+      self@container == "table" &&
+        (self@unique_items || !is.null(self@contains_min))
+    ) {
+      return("table rows do not support @unique_items or @contains_min.")
+    }
+    if (
+      length(self@min_items) != 1L ||
+        is.na(self@min_items) ||
+        self@min_items < lower_arity
+    ) {
+      return(paste0("@min_items must be a single value >= ", lower_arity, "."))
+    }
+    if (!is.null(self@max_items)) {
+      if (
+        (!reference && self@container != "table") ||
+          self@container == "none" ||
+          length(self@max_items) != 1L ||
+          is.na(self@max_items) ||
+          self@max_items < self@min_items
+      ) {
+        return(
+          "@max_items requires a reference collection or table and must be a single value >= @min_items."
+        )
+      }
+    }
+    if (
+      !self@container %in% c("array", "table") &&
+        !(reference && self@container == "map")
+    ) {
       if (self@min_items != 1L) {
         return("@min_items is only meaningful when @container is 'array'.")
       }
@@ -528,6 +676,15 @@ PropertySpec <- new_class(
     # The default must itself conform to the spec.
     # An invalid declaration fails on package load, not at first instantiation.
     fields <- spec_fields(self)
+    if (reference) {
+      # A reference may have no literal default, or an S7 constructor default
+      # evaluated per instance by new_property(). Its declared target supplies
+      # the type independently of the constructor expression.
+      if (is.null(self@default) || is.language(self@default)) {
+        return(NULL)
+      }
+      return(validate_reference_value(self@default, fields))
+    }
     if (!is.null(self@default)) {
       type_ok <- switch(
         spec_r_kind(fields),
@@ -649,6 +806,9 @@ spec_object <- function(fields) {
 #' @noRd
 spec_r_kind <- function(fields) {
   container <- fields[["container"]]
+  if (!is.null(fields[["target_class"]]) && container != "none") {
+    return("list")
+  }
   if (container == "matrix") {
     return("matrix")
   }
@@ -885,6 +1045,12 @@ validate_table <- function(value, fields) {
   if (!is.data.frame(value)) {
     return("must be a data frame.")
   }
+  if (nrow(value) < fields[["min_items"]]) {
+    return(paste0("must hold at least ", fields[["min_items"]], " rows."))
+  }
+  if (!is.null(fields[["max_items"]]) && nrow(value) > fields[["max_items"]]) {
+    return(paste0("must hold at most ", fields[["max_items"]], " rows."))
+  }
   msg <- validate_member_names(names(value), fields, "column")
   if (!is.null(msg)) {
     return(msg)
@@ -969,6 +1135,9 @@ validate_candidates <- function(value, fields) {
 #' @keywords internal
 #' @noRd
 validate_with_spec <- function(value, fields) {
+  if (!is.null(fields[["target_class"]])) {
+    return(validate_reference_value(value, fields))
+  }
   nullable <- fields[["nullable"]]
   container <- fields[["container"]]
   if (is.null(value)) {
@@ -1210,6 +1379,9 @@ validate_value <- function(value, fields) {
 #' @noRd
 make_prop <- function(spec) {
   fields <- spec_fields(spec)
+  if (!is.null(spec@target_class)) {
+    return(make_reference_prop(spec))
+  }
   # Paired with `validate_spec_type()`, which enforces the same mapping for the
   # elements of a nested container, where the S7 class can only say `list`.
   atomic_class <- switch(
@@ -1817,6 +1989,9 @@ prop_factor <- function(
 #'   not affect serialization.
 #' @param description Character: Human-readable description.
 #'
+#' @param min_items Integer [0, Inf): Fewest rows allowed in the table.
+#' @param max_items Optional Integer [0, Inf): Most rows allowed in the table.
+#'
 #' @return S7 property.
 #'
 #' @author EDG
@@ -1828,6 +2003,8 @@ prop_table <- function(
   nullable = FALSE,
   data_bound = NULL,
   data_dependent = FALSE,
+  min_items = 0L,
+  max_items = NULL,
   description = ""
 ) {
   column_specs <- member_specs(columns, "columns")
@@ -1847,6 +2024,8 @@ prop_table <- function(
     nullable = nullable,
     tunable = FALSE,
     container = "table",
+    min_items = min_items,
+    max_items = max_items,
     items = NULL,
     members = column_specs,
     required_members = required,
@@ -2795,8 +2974,16 @@ spec_prop_values <- function(self) {
 #' @keywords internal
 #' @noRd
 prop_algorithm <- function(algorithm) {
-  force(algorithm)
-  new_property(class_character, getter = function(self) algorithm)
+  check_character(algorithm, allow_null = FALSE)
+  if (length(algorithm) != 1L || is.na(algorithm) || !nzchar(algorithm)) {
+    rtemis.core::abort(
+      "`algorithm` must be a non-empty character scalar.",
+      class = "rtemis_value_error"
+    )
+  }
+  p <- new_property(class_character, getter = function(self) algorithm)
+  p[["discriminator"]] <- algorithm
+  p
 } # /rtemis::prop_algorithm
 
 
@@ -3006,6 +3193,18 @@ wire_value <- function(value, prop) {
   if (is.null(value)) {
     return(value)
   }
+  fields <- get_spec_fields(prop)
+  if (!is.null(fields[["target_class"]])) {
+    if (fields[["container"]] == "array") {
+      return(unname(value))
+    }
+    if (fields[["container"]] == "map") {
+      if (length(value) == 0L) {
+        names(value) <- character()
+      }
+      return(value)
+    }
+  }
   if (is_S7_list(value)) {
     # Published as an array of `$ref`s -- one document per element -- and a
     # *named* R list serializes as a JSON object instead. The names are an
@@ -3082,6 +3281,34 @@ from_wire <- function(x, cls) {
   for (nm in intersect(names(x), names(props))) {
     fields <- get_spec_fields(props[[nm]])
     if (is.null(fields)) {
+      next
+    }
+    if (!is.null(fields[["target_class"]])) {
+      value <- x[[nm]]
+      if (S7_inherits(value)) {
+        problem <- validate_reference_value(value, fields)
+        if (!is.null(problem)) {
+          rtemis.core::abort(nm, " ", problem, class = "rtemis_type_error")
+        }
+        next
+      }
+      if (!is.null(value)) {
+        x[nm] <- list(
+          if (fields[["container"]] == "none") {
+            target <- if (
+              !is.null(fields[["presence_key"]]) &&
+                fields[["presence_key"]] %in% names(value)
+            ) {
+              fields[["alternate_class"]]
+            } else {
+              fields[["target_class"]]
+            }
+            from_wire_object(value, target)
+          } else {
+            lapply(value, from_wire_object, target = fields[["target_class"]])
+          }
+        )
+      }
       next
     }
     container <- fields[["container"]]
@@ -3409,10 +3636,8 @@ gate_value_schema <- function(spec, allowed, cls_name, gate_name) {
 #' The JSON Schema clauses enforcing a class's `applies_when` gates
 #'
 #' The gate is declared once on the property and enforced in R by
-#' `check_applies_when()`. Without these clauses it would reach the published
-#' document as an `x-rtemis` annotation only -- a rule every non-R
-#' implementation would have to re-derive from prose, which is the same
-#' asymmetry the `extra` field exists to close.
+#' `check_applies_when()`. These clauses enforce the same candidate and value
+#' semantics for consumers that validate standard JSON Schema.
 #'
 #' One clause per gated property: *if the property is present and not null,
 #' the sibling that gates it holds one of the listed values.* The `if` names
@@ -3554,12 +3779,13 @@ members_schema <- function(members, required = NULL) {
 #' @param spec `PropertySpec` object.
 #' @param read_only Logical: If TRUE, the property is run state -- marked
 #'   `readOnly` and annotated `role: "state"`.
+#' @param reference Optional Character: Resolved schema URL for a class reference.
 #' @return Named list (JSON Schema property).
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-spec_to_schema <- function(spec, read_only = FALSE) {
+spec_to_schema <- function(spec, read_only = FALSE, reference = NULL) {
   scalar <- Filter(
     Negate(is.null),
     list(
@@ -3574,7 +3800,9 @@ spec_to_schema <- function(spec, read_only = FALSE) {
   # The element schema: a nested `items` spec when the shape is nested (a
   # matrix, a list of per-tree vectors), otherwise this spec's own leaf.
   element <- if (is.null(spec@items)) scalar else spec_to_schema(spec@items)
-  out <- if (spec@container == "array") {
+  out <- if (!is.null(spec@target_class)) {
+    reference_schema(spec, reference)
+  } else if (spec@container == "array") {
     # A genuinely vector-valued field (e.g. per-feature weights).
     arr <- Filter(
       Negate(is.null),
@@ -3653,9 +3881,14 @@ spec_to_schema <- function(spec, read_only = FALSE) {
     )
   } else if (spec@container == "table") {
     # Row-oriented: an array of the declared object shape, one per row.
-    list(
-      type = if (spec@nullable) I(c("array", "null")) else "array",
-      items = members_schema(spec@members, spec@required_members)
+    Filter(
+      Negate(is.null),
+      list(
+        type = if (spec@nullable) I(c("array", "null")) else "array",
+        items = members_schema(spec@members, spec@required_members),
+        minItems = if (spec@min_items > 0L) spec@min_items else NULL,
+        maxItems = spec@max_items
+      )
     )
   } else if (spec@container == "struct") {
     obj <- members_schema(spec@members, spec@required_members)
@@ -3728,6 +3961,10 @@ spec_to_schema <- function(spec, read_only = FALSE) {
     Negate(is.null),
     list(
       type = spec@type,
+      target_class = spec@target_class,
+      alternate_class = spec@alternate_class,
+      presence_key = spec@presence_key,
+      same_variant = if (spec@same_variant) TRUE else NULL,
       role = if (read_only) {
         "state"
       } else if (spec@constant) {
@@ -4150,21 +4387,8 @@ prop_to_schema <- function(prop) {
 #'   `required` is that a config is a partial expression of intent; a results
 #'   document asserts fact, so the record's rule applies to it and not the
 #'   config's. Mutually exclusive with `record`.
-#' @param extra Named list merged into the schema after generation, for
-#'   cross-field constraints that are not per-property (e.g. an `allOf` of
-#'   if/then clauses for kernel-specific SVM hyperparameters).
-#' @param refs Named character: Properties holding a nested config object,
-#'   mapped to the `$id` of the schema for that config. Each emits a `$ref` (or
-#'   `oneOf: [null, $ref]` when the property accepts NULL, detected from its
-#'   S7 union), instead of requiring a `PropertySpec`. Names must match
-#'   existing properties.
-#' @param variant_refs Named character: As `refs`, for a property that admits
-#' either one referenced document or a named set of them under `variants`. The
-#' set's keys are the member names, which have to survive the round trip because
-#' the tuner reports the winning member by name.
-#' @param array_refs Named character: As `refs`, for a property holding a *list*
-#'   of such objects -- one metrics object per resample, one model per fold.
-#'   Each emits an array whose `items` are the `$ref`.
+#' @param reference_urls Optional named character: Publication URLs keyed by
+#'   qualified class identity. If omitted, derived from the package catalog.
 #' @param closed Logical: If TRUE (default) the schema sets
 #'   `additionalProperties: false`. Pass FALSE for a family leaf, which its
 #'   dispatcher composes into one object and closes with
@@ -4198,10 +4422,7 @@ S7_to_JSONSchema <- function(
   fold_refs = NULL,
   metrics_refs = NULL,
   metrics_ref = NULL,
-  extra = NULL,
-  refs = NULL,
-  array_refs = NULL,
-  variant_refs = NULL,
+  reference_urls = NULL,
   closed = TRUE,
   instance_schema_url = NULL
 ) {
@@ -4224,27 +4445,14 @@ S7_to_JSONSchema <- function(
   if (!is.null(base)) {
     props <- props[own_prop_names(x, base)]
   }
-  # Run state is part of the class, so it is part of the schema -- marked
-  # `readOnly` by `prop_to_schema()`, since a user never supplies it. Whether it
-  # is also written to a config is the separate `serialize` axis.
-  for (arg in c("refs", "array_refs", "variant_refs")) {
-    named <- switch(arg, refs = refs, array_refs = array_refs, variant_refs)
-    unknown <- setdiff(names(named), names(props))
-    if (length(unknown) > 0L) {
-      rtemis.core::abort(
-        "`",
-        arg,
-        "` names no such (or omitted) propert",
-        if (length(unknown) == 1L) "y: " else "ies: ",
-        paste(unknown, collapse = ", "),
-        ".",
-        class = c("rtemis_value_error", "rtemis_input_error")
-      )
-    }
-  }
-  referenced <- c(names(refs), names(array_refs), names(variant_refs))
-  ref_props <- props[names(props) %in% referenced]
-  props <- props[!names(props) %in% referenced]
+  typed_refs <- names(Filter(
+    function(p) {
+      !is.null(get_spec_fields(p)[["target_class"]]) && prop_published(p)
+    },
+    props
+  ))
+  ref_props <- props[typed_refs]
+  props <- props[setdiff(names(props), typed_refs)]
   # A derived view is not part of the contract: it is a function of fields the
   # schema already declares, so publishing it would let the two disagree.
   props <- props[
@@ -4261,7 +4469,7 @@ S7_to_JSONSchema <- function(
   )]
   if (length(specless) > 0L) {
     rtemis.core::abort(
-      "Properties with no declared role (build them with the prop_* factories, `refs` them, or declare them with prop_state()): ",
+      "Properties with no declared role (build them with the prop_* factories, including prop_object() or prop_collection(), or declare their role with prop_state()): ",
       paste(specless, collapse = ", "),
       ".",
       class = "rtemis_input_error"
@@ -4272,196 +4480,34 @@ S7_to_JSONSchema <- function(
     function(nm) prop_to_schema(props[[nm]])
   )
   names(properties) <- names(props)
-  # Nested config properties reference their own schema. A property whose S7
-  # class is a union containing NULL is optional, so it also admits null.
-  for (nm in names(ref_props)) {
-    plural <- nm %in% names(array_refs)
-    varying <- nm %in% names(variant_refs)
-    target <- unname(
-      if (plural) {
-        array_refs[[nm]]
-      } else if (varying) {
-        variant_refs[[nm]]
-      } else {
-        refs[[nm]]
+  if (length(ref_props)) {
+    if (is.null(reference_urls)) {
+      reference_urls <- schema_reference_urls(
+        schema_catalog(),
+        "https://schema.rtemis.org",
+        record = record
+      )
+    }
+    for (nm in names(ref_props)) {
+      spec <- get_spec(ref_props[[nm]])
+      target <- unname(reference_urls[spec@target_class])
+      if (length(target) != 1L || is.na(target)) {
+        rtemis.core::abort(
+          "Property ",
+          x@name,
+          "@",
+          nm,
+          " references unpublished class ",
+          spec@target_class,
+          ".",
+          class = "rtemis_schema_error"
+        )
       }
-    )
-    if (record) {
-      # A record nests records: the input schemas are closed and do not declare
-      # `origin`, so pointing at one would reject the very block it describes.
-      target <- sub("/schema\\.json$", "/record.json", target)
-    }
-    ref <- list(`$ref` = target)
-    if (plural) {
-      ref <- list(type = "array", items = ref)
-    }
-    # A `variant_refs` property admits either one document or a *set* of them,
-    # keyed by name: `{"variants": {"cart": {...}, "addtree": {...}}}`. The
-    # names are members' names and are carried by the object's keys, because
-    # they are what the tuner reports as the winner and have to survive a round
-    # trip. An array would lose them.
-    #
-    # Both branches are titled and described, and the common one says it is
-    # common. A `oneOf` whose alternatives are undocumented is read by whoever
-    # meets it first -- and when only the rare branch carried prose, it was the
-    # only branch that explained itself, so a reader looking for guidance found
-    # the exception and wrote it.
-    #
-    # What the set is for is stated the way `R/075_HyperparametersSet.R` states
-    # it: a single block is the *product* of its values, a set is a *union* of
-    # such spaces, and a union is any shape a product is not. Two earlier
-    # wordings each named one use as if it were the reason -- "for comparing
-    # named alternatives", then "for settings only meaningful together" -- and
-    # both left out the commonest one, which is carving the space itself:
-    # searching more values of a hyperparameter where another is small and
-    # fewer where it is large. Neither is wrong about its own case; both are
-    # too narrow to tell a reader whether their case is covered.
-    #
-    # The claim that one member is the single configuration written the long
-    # way is false, and stays corrected: a set of one names the run, and the
-    # name is recorded as the fitted model's `variant`.
-    alternatives <- if (varying) {
-      list(
-        c(
-          ref,
-          list(
-            title = "One configuration",
-            description = paste0(
-              "One algorithm and its settings. The ordinary form: its values ",
-              "are searched as their product, which is what a run wants ",
-              "whenever the settings vary independently."
-            )
-          )
-        ),
-        list(
-          title = "A named set, searched as one space",
-          type = "object",
-          properties = list(
-            variants = list(
-              type = "object",
-              minProperties = 1L,
-              additionalProperties = ref,
-              description = paste0(
-                "Configurations to search over, keyed by name. Every one is a ",
-                "configuration of the same algorithm."
-              )
-            )
-          ),
-          required = list("variants"),
-          additionalProperties = FALSE,
-          description = paste0(
-            "Several configurations of one algorithm, each expanded and gated ",
-            "on its own and searched as their union; the tuner reports which ",
-            "name won. Write one where the space to search is not a product: ",
-            "more values of a hyperparameter where another is small and fewer ",
-            "where it is large, or a conjunction of fields that is only ",
-            "meaningful together and that no product can name. A set of one ",
-            "member is not the ordinary form written the long way: its name is ",
-            "recorded as the fitted model's variant, so a run says what it was ",
-            "without its values being read back."
-          )
-        )
+      properties[[nm]] <- spec_to_schema(
+        spec,
+        read_only = identical(prop_role(ref_props[[nm]]), "state"),
+        reference = target
       )
-    } else {
-      list(ref)
-    }
-    accepts_null <- prop_accepts_null(ref_props[[nm]])
-    # The property's own description, which a bare `oneOf` used to discard: a
-    # reader choosing between alternatives needs to know what the property is
-    # for before deciding which shape to write, and losing it left the choice
-    # documented only from inside the branches.
-    described <- properties[[nm]][["description"]]
-    guidance <- if (varying) {
-      paste0(
-        "One configuration, searched as the product of its values, or a named ",
-        "set of them searched as their union. Write the single configuration ",
-        "unless the space to search is not a product."
-      )
-    }
-    preface <- paste(c(described, guidance), collapse = " ")
-    envelope <- if (nzchar(preface)) list(description = preface) else list()
-    # A `variant_refs` property dispatches on the *presence of* `variants`
-    # rather than offering its two shapes as an undiscriminated `oneOf`.
-    #
-    # Both alternatives are objects, so a `oneOf` gives a validator no way to
-    # tell which one a document was attempting, and every branch's failure is
-    # reported as an instruction. A single learner missing its settings block
-    # came back as four: "must be null", "must have required property
-    # `hyperparameters`", "must have required property `variants`", and -- the
-    # damaging one -- "must NOT have additional properties (algorithm)", which
-    # tells a reader to delete the field the intended branch *requires*. Follow
-    # it and the block empties, and an empty config is schema-valid, so nothing
-    # objects a second time.
-    #
-    # `if`/`then` keyed on `variants` reports only the branch the document is
-    # actually in. It is also what the code already does: `.list_to_SuperConfig`
-    # and rtemislive's `fromSupervisedConfig` both dispatch on whether
-    # `variants` is there, so the `oneOf` described a choice nothing makes.
-    properties[[nm]] <- if (varying) {
-      object_type <- if (accepts_null) list("object", "null") else "object"
-      c(
-        envelope,
-        list(
-          type = object_type,
-          allOf = list(
-            list(
-              `if` = list(
-                type = "object",
-                required = list("variants")
-              ),
-              # Without its own `required`: the `if` has already established
-              # `variants`, so restating it in the `then` would be a
-              # conditional demand for a key, which the input-schema contract
-              # forbids (`plan/schema-interface-boundary.md`). A guard is not a
-              # demand; the branch still closes with `additionalProperties`.
-              then = alternatives[[2L]][
-                names(alternatives[[2L]]) != "required"
-              ]
-            ),
-            list(
-              `if` = list(
-                type = "object",
-                not = list(required = list("variants"))
-              ),
-              # The bare `$ref`, without the branch's title: a `then` that
-              # carries anything besides a reference is a different construct
-              # to a reader, and consumers key on that (`rtemis-cli`'s form
-              # builder, `nested_ref`). What the branch is for is already in
-              # the property's own description, which is where a reader
-              # choosing a shape looks first.
-              then = ref
-            )
-          )
-        )
-      )
-    } else if (accepts_null) {
-      # Stays a `oneOf`, and the reason is worth stating because the question
-      # keeps being reopened: what forced the `if`/`then` above is that *both*
-      # of its branches are objects, so no validator can tell which one a
-      # document was attempting and every branch's failure is reported as an
-      # instruction. `null` and an object differ by JSON type. A validator can
-      # tell, a reader can tell, and the arm the value never matched is
-      # identifiable as such by anything walking the failure -- which is what
-      # `rtemis-schema`'s `validate/explain.rs` and rtemislive's
-      # `significantErrors` both do, reporting one line for a nullable block
-      # that got a string.
-      #
-      # This is the same line `tunable`'s `scalar | array` and `broadcast`'s
-      # `element | array` sit on, and it is the whole line: discriminable by
-      # type stays a `oneOf`; two branches of one type need a structural
-      # predicate to become `allOf`/`if`/`then` instead -- the `varying`
-      # branch above has one (`variants`'s presence). Where no such predicate
-      # exists, a same-type union has no honest alternative to `oneOf`: do
-      # not invent a `then` with nothing to key its `if` on.
-      #
-      # Consumers are not the argument. `nested_ref` and `rtemis-cli`'s
-      # `structural_dispatch_ref` read all three shapes, so either would
-      # survive a change here. There is simply nothing to gain from one.
-      c(envelope, list(oneOf = c(list(list(type = "null")), alternatives)))
-    } else if (length(alternatives) > 1L) {
-      c(envelope, list(oneOf = alternatives))
-    } else {
-      ref
     }
   }
   # Preserve declaration order.
@@ -4569,33 +4615,20 @@ S7_to_JSONSchema <- function(
   if (!is.null(required)) {
     schema[["required"]] <- I(required)
   }
-  if (!is.null(extra)) {
-    # `allOf` and nothing else. `modifyList()` recurses, so an `extra` carrying
-    # `properties` would overwrite *individual* generated constraints -- a
-    # `minimum` or an `enum` -- without replacing the map, leaving a schema
-    # that looks generated and is not. `allOf` composes instead: it can only
-    # add a constraint beside what the specs produced, never weaken one.
-    unknown <- setdiff(names(extra), "allOf")
-    if (length(unknown) > 0L) {
-      rtemis.core::abort(
-        "`extra` may carry `allOf` and nothing else, but ",
-        if (is.null(id)) "a schema" else id,
-        " also declares: ",
-        paste(unknown, collapse = ", "),
-        ". A cross-field rule belongs in `allOf`; a per-property constraint ",
-        "belongs on the property's `prop_*` factory.",
-        class = "rtemis_input_error"
-      )
-    }
-    schema <- utils::modifyList(schema, extra)
-  }
-  # After the merge, not before: `modifyList()` recurses, so an `extra`
-  # carrying its own `allOf` would merge into these clauses element by element
-  # rather than sitting beside them.
   gate_clauses <- applies_when_clauses(x, properties)
   if (!is.null(gate_clauses)) {
     schema[["allOf"]] <- c(schema[["allOf"]], gate_clauses)
   }
+  rules <- schema_rules(x)
+  if (length(rules)) {
+    clauses <- class_rule_clauses(x)
+    if (length(clauses)) {
+      schema[["allOf"]] <- c(schema[["allOf"]], clauses)
+    }
+    schema[["x-rtemis"]][["rules"]] <- rules
+    schema[["x-rtemis"]][["validation"]] <- class_document_rules(x)
+  }
+  schema[["x-rtemis"]][["publication"]] <- schema_publication_annotation(x)
   schema
 } # /rtemis::S7_to_JSONSchema
 
@@ -4603,12 +4636,8 @@ S7_to_JSONSchema <- function(
 # %% discriminator_value ----
 #' Read a class's constant discriminator value without constructing it
 #'
-#' Each dispatched subclass overrides the discriminator (`type` / `algorithm`)
-#' with a computed constant property (`prop_algorithm`), whose getter ignores
-#' `self`. Reading it via the getter avoids default-constructing the class,
-#' which may deliberately be invalid with defaults (e.g. `ResamplerConfig`
-#' requires `n` for every type except LOOCV). Falls back to instantiation for a
-#' plain (non-computed) discriminator property.
+#' Each dispatched subclass declares its identity with `prop_algorithm()`.
+#' Discovery reads that declaration without executing a getter or constructor.
 #'
 #' @param cls S7 class.
 #' @param discriminator Character: Name of the discriminator property.
@@ -4619,8 +4648,18 @@ S7_to_JSONSchema <- function(
 #' @keywords internal
 #' @noRd
 discriminator_value <- function(cls, discriminator) {
-  getter <- cls@properties[[discriminator]][["getter"]]
-  if (is.null(getter)) prop(cls(), discriminator) else getter(NULL)
+  value <- cls@properties[[discriminator]][["discriminator"]]
+  if (is.null(value)) {
+    rtemis.core::abort(
+      "Class ",
+      cls@name,
+      " must declare discriminator '",
+      discriminator,
+      "' with prop_algorithm().",
+      class = "rtemis_schema_error"
+    )
+  }
+  value
 } # /rtemis::discriminator_value
 
 
@@ -4878,5 +4917,6 @@ S7_dispatcher_JSONSchema <- function(
     properties = properties,
     allOf = all_of
   )
+  schema[["x-rtemis"]][["publication"]] <- schema_publication_annotation(base)
   Filter(Negate(is.null), schema)
 } # /rtemis::S7_dispatcher_JSONSchema

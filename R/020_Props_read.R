@@ -262,10 +262,21 @@ members_spec <- function(obj, x, ann, container, data_bound, description) {
     container = container,
     items = NULL,
     members = members,
+    min_items = if (container == "table") {
+      as.integer(x[["minItems"]] %||% 0L)
+    } else {
+      1L
+    },
+    max_items = if (container == "table" && !is.null(x[["maxItems"]])) {
+      as.integer(x[["maxItems"]])
+    } else {
+      NULL
+    },
     required_members = as.character(obj[["required"]] %||% names(members)),
     broadcast = FALSE,
     data_bound = data_bound,
     data_dependent = isTRUE(ann[["data_dependent"]]),
+    group = ann[["group"]],
     description = description
   )
 } # /rtemis::members_spec
@@ -325,6 +336,43 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
     description <- strip_suffix(description, applies_when_note(applies_when))
   }
 
+  if (!is.null(ann[["target_class"]])) {
+    return(PropertySpec(
+      type = type,
+      target_class = ann[["target_class"]],
+      alternate_class = ann[["alternate_class"]],
+      presence_key = ann[["presence_key"]],
+      same_variant = isTRUE(ann[["same_variant"]]),
+      key_pattern = x[["propertyNames"]][["pattern"]],
+      key_not_pattern = x[["propertyNames"]][["not"]][["pattern"]],
+      default = default,
+      nullable = schema_is_nullable(x),
+      tunable = FALSE,
+      container = container,
+      broadcast = FALSE,
+      min_items = as.integer(
+        if (container == "map") {
+          x[["minProperties"]] %||% 0L
+        } else {
+          x[["minItems"]] %||% 1L
+        }
+      ),
+      max_items = if (
+        is.null(x[["maxItems"]]) && is.null(x[["maxProperties"]])
+      ) {
+        NULL
+      } else {
+        as.integer(x[["maxItems"]] %||% x[["maxProperties"]])
+      },
+      group = ann[["group"]],
+      data_dependent = isTRUE(ann[["data_dependent"]]),
+      data_bound = data_bound,
+      applies_when = applies_when,
+      default_on_null = isTRUE(ann[["default_on_null"]]),
+      description = description
+    ))
+  }
+
   if (constant) {
     # `const` is the whole schema for a constant: bounds and enum were never
     # emitted because `prop_const()` never sets them.
@@ -336,6 +384,7 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
       container = "none",
       broadcast = FALSE,
       constant = TRUE,
+      group = ann[["group"]],
       description = description
     ))
   }
@@ -425,6 +474,7 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
     data_bound = data_bound,
     data_dependent = isTRUE(ann[["data_dependent"]]),
     applies_when = applies_when,
+    group = ann[["group"]],
     description = description
   )
 } # /rtemis::schema_to_spec
@@ -455,6 +505,8 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
 #' published in the defaults artifact under this schema's `$id`.
 #' @param refs Optional named list: Property name to S7 class, for properties
 #' published as a `$ref` to another schema.
+#' @param authoring Optional named list: Property name to logical authorship
+#' policy, from the separate authoring artifact under this schema's `$id`.
 #' @param name Optional Character: Class name. Defaults to the schema `title`.
 #' @param package Optional Character: Package name recorded on the class.
 #'
@@ -487,7 +539,8 @@ JSONSchema_to_S7 <- function(
   defaults = NULL,
   refs = NULL,
   name = NULL,
-  package = NULL
+  package = NULL,
+  authoring = NULL
 ) {
   if (!is.list(schema) || is.null(schema[["properties"]])) {
     rtemis.core::abort(
@@ -498,6 +551,28 @@ JSONSchema_to_S7 <- function(
   props <- schema[["properties"]]
   # `$schema` identifies the document, not a field of the class.
   props[["$schema"]] <- NULL
+  if (!is.null(authoring)) {
+    if (
+      !is.list(authoring) ||
+        is.null(names(authoring)) ||
+        anyNA(names(authoring)) ||
+        any(!nzchar(names(authoring))) ||
+        anyDuplicated(names(authoring)) > 0L ||
+        length(setdiff(names(authoring), names(props))) > 0L ||
+        !all(vapply(
+          authoring,
+          function(value) {
+            is.logical(value) && length(value) == 1L && !is.na(value)
+          },
+          logical(1L)
+        ))
+    ) {
+      rtemis.core::abort(
+        "`authoring` must map declared property names to non-missing logical scalars.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+  }
 
   is_ref <- vapply(
     props,
@@ -511,6 +586,12 @@ JSONSchema_to_S7 <- function(
     },
     logical(1L)
   )
+  is_ref <- is_ref &
+    vapply(
+      props,
+      function(p) is.null(p[["x-rtemis"]][["target_class"]]),
+      logical(1L)
+    )
   unresolved <- setdiff(names(props)[is_ref], names(refs))
   if (length(unresolved) > 0L) {
     rtemis.core::abort(
@@ -531,7 +612,10 @@ JSONSchema_to_S7 <- function(
     function(nm) {
       p <- props[[nm]]
       constant <- identical(p[["x-rtemis"]][["role"]], "constant")
-      !constant && !schema_is_nullable(p) && is.null(defaults[[nm]])
+      !constant &&
+        is.null(p[["x-rtemis"]][["target_class"]]) &&
+        !schema_is_nullable(p) &&
+        is.null(defaults[[nm]])
     },
     logical(1L)
   )
@@ -546,7 +630,9 @@ JSONSchema_to_S7 <- function(
     )
   }
   specs <- lapply(spec_names, function(nm) {
-    schema_to_spec(props[[nm]], default = defaults[[nm]])
+    spec <- schema_to_spec(props[[nm]], default = defaults[[nm]])
+    spec@agent_writable <- authoring[[nm]]
+    spec
   })
   names(specs) <- spec_names
 
@@ -561,9 +647,21 @@ JSONSchema_to_S7 <- function(
   })
   names(properties) <- names(props)
 
-  new_class(
+  rules <- lapply(
+    schema[["x-rtemis"]][["rules"]] %||% list(),
+    schema_rule_from_fields
+  )
+  schema_class(
     name = name %||% schema[["title"]] %||% "JSONSchemaClass",
     package = package,
-    properties = properties
+    properties = properties,
+    validator = if (
+      any(vapply(specs, function(s) !is.null(s@applies_when), logical(1L)))
+    ) {
+      function(self) check_applies_when(self)
+    } else {
+      NULL
+    },
+    rules = rules
   )
 } # /rtemis::JSONSchema_to_S7

@@ -273,7 +273,7 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-Hyperparameters <- new_class(
+Hyperparameters <- schema_class(
   name = "Hyperparameters",
   package = "rtemis",
   abstract = TRUE,
@@ -332,6 +332,15 @@ Hyperparameters <- new_class(
       class_character,
       getter = function(self) constant_spec_names(S7_class(self))
     )
+  ),
+  publication = SchemaPublication(
+    role = "family",
+    slug = "hyperparameters",
+    title = "rtemis Hyperparameters",
+    description = "Language-independent algorithm hyperparameters: an algorithm name and its hyperparameters, validated per-algorithm against schema.rtemis.org/hyperparameters/<algorithm>/v1.",
+    discriminator = "algorithm",
+    discriminator_description = "Supervised-learning algorithm name.",
+    order = 10L
   )
 ) # /rtemis::Hyperparameters
 
@@ -846,7 +855,7 @@ method(get_hyperparams, list(Hyperparameters, class_character)) <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-GLMHyperparameters <- new_class(
+GLMHyperparameters <- schema_class(
   name = "GLMHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -856,6 +865,11 @@ GLMHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "GLM (generalized linear model).",
+    order = 1L
   )
 ) # /rtemis::GLMHyperparameters
 
@@ -888,7 +902,7 @@ setup_GLM <- function(ifw = FALSE) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-GAMHyperparameters <- new_class(
+GAMHyperparameters <- schema_class(
   name = "GAMHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -904,6 +918,11 @@ GAMHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "GAM (generalized additive model).",
+    order = 2L
   )
 ) # /rtemis::GAMHyperparameters
 
@@ -948,7 +967,7 @@ setup_GAM <- function(k = 5L, ifw = FALSE) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-MARSHyperparameters <- new_class(
+MARSHyperparameters <- schema_class(
   name = "MARSHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -1042,11 +1061,19 @@ MARSHyperparameters <- new_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
-  validator = function(self) {
-    if (identical(self@pmethod, "cv") && self@nfold < 2L) {
-      "@pmethod \"cv\" selects the number of terms by cross-validation, so @nfold must be at least 2."
-    }
-  }
+  rules = list(ForbidTogether(
+    id = "mars.cv-folds",
+    message = 'pmethod "cv" requires nfold to be at least 2.',
+    conditions = list(
+      SchemaPredicate(property = "pmethod", equals = "cv"),
+      SchemaPredicate(property = "nfold", maximum = 1)
+    )
+  )),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Multivariate Adaptive Regression Splines (earth).",
+    order = 6L
+  )
 ) # /rtemis::MARSHyperparameters
 
 
@@ -1141,7 +1168,7 @@ setup_MARS <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-CARTHyperparameters <- new_class(
+CARTHyperparameters <- schema_class(
   name = "CARTHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -1227,6 +1254,11 @@ CARTHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "CART decision tree (rpart).",
+    order = 9L
   )
 ) # /rtemis::CARTHyperparameters
 
@@ -1322,7 +1354,7 @@ setup_CART <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-GLMTreeHyperparameters <- new_class(
+GLMTreeHyperparameters <- schema_class(
   name = "GLMTreeHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -1435,6 +1467,11 @@ GLMTreeHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Model-Based Recursive Partitioning: a tree with a GLM in each leaf.",
+    order = 4L
   )
 ) # /rtemis::GLMTreeHyperparameters
 
@@ -1834,43 +1871,6 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
 } # /rtemis::linad_tree_props
 
 
-# %% linad_feature_role_rule ----
-#' The one feature-role rule that relates two properties
-#'
-#' `data_bound = "feature_names"` validates each selector against the training
-#' features on its own. What it cannot say is that one selector's values must
-#' lie inside another's: a globally shared slope is still a slope, so a global
-#' feature that is not a linear feature asks for a coefficient no model fits.
-#'
-#' It refers to no data, so it belongs in the classes' own validators and fires
-#' at construction -- `setup_LINAD()` refuses the combination rather than a grid
-#' cell failing partway through tuning. `linear_features = NULL` imposes no
-#' constraint, so every feature is a linear feature and there is nothing left to
-#' check.
-#'
-#' @param self `LINADHyperparameters` or `LINADForestHyperparameters`.
-#'
-#' @return Character message, or NULL when the rule holds.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-linad_feature_role_rule <- function(self) {
-  if (is.null(self@linear_features) || is.null(self@global_features)) {
-    return(NULL)
-  }
-  outside <- setdiff(self@global_features, self@linear_features)
-  if (length(outside) == 0L) {
-    return(NULL)
-  }
-  paste0(
-    "@global_features must be a subset of @linear_features: a shared slope is still a slope. Not in @linear_features: ",
-    paste(outside, collapse = ", "),
-    "."
-  )
-} # /rtemis::linad_feature_role_rule
-
-
 # %% LINADHyperparameters ----
 #' @title LINADHyperparameters
 #'
@@ -1880,7 +1880,7 @@ linad_feature_role_rule <- function(self) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-LINADHyperparameters <- new_class(
+LINADHyperparameters <- schema_class(
   name = "LINADHyperparameters",
   parent = Hyperparameters,
   properties = c(
@@ -1900,9 +1900,18 @@ LINADHyperparameters <- new_class(
     ),
     linad_tree_props()
   ),
-  validator = function(self) {
-    c(check_applies_when(self), linad_feature_role_rule(self))
-  }
+  validator = function(self) check_applies_when(self),
+  rules = list(SubsetOf(
+    id = "linad.global-features",
+    subset = "global_features",
+    superset = "linear_features",
+    message = "global_features must be a subset of linear_features when both are set."
+  )),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Linear Additive Tree.",
+    order = 22L
+  )
 ) # /rtemis::LINADHyperparameters
 
 
@@ -2234,7 +2243,7 @@ setup_LINAD <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-LINADForestHyperparameters <- new_class(
+LINADForestHyperparameters <- schema_class(
   name = "LINADForestHyperparameters",
   parent = Hyperparameters,
   properties = c(
@@ -2268,9 +2277,18 @@ LINADForestHyperparameters <- new_class(
     # control that a single tree's learning rate has to do alone.
     linad_tree_props(learning_rate = 1, max_leaves = 20L)
   ),
-  validator = function(self) {
-    c(check_applies_when(self), linad_feature_role_rule(self))
-  }
+  validator = function(self) check_applies_when(self),
+  rules = list(SubsetOf(
+    id = "linad.global-features",
+    subset = "global_features",
+    superset = "linear_features",
+    message = "global_features must be a subset of linear_features when both are set."
+  )),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Bagged ensemble of Linear Additive Trees.",
+    order = 23L
+  )
 ) # /rtemis::LINADForestHyperparameters
 
 
@@ -2481,7 +2499,7 @@ setup_LINADForest <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-GLMNETHyperparameters <- new_class(
+GLMNETHyperparameters <- schema_class(
   name = "GLMNETHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -2565,6 +2583,11 @@ GLMNETHyperparameters <- new_class(
       nullable = TRUE,
       description = "Largest lambda within one standard error of the minimum."
     ))
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Elastic net (glmnet).",
+    order = 3L
   )
 ) # /rtemis::GLMNETHyperparameters
 
@@ -2643,7 +2666,7 @@ setup_GLMNET <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-HALHyperparameters <- new_class(
+HALHyperparameters <- schema_class(
   name = "HALHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -2707,36 +2730,25 @@ HALHyperparameters <- new_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
-  validator = function(self) {
-    # The knot vector is indexed by interaction degree, so its length is tied
-    # to `max_degree` -- which means `max_degree` must be a single value for
-    # the pairing to be well defined.
-    if (!is.null(self@num_knots)) {
-      if (is_candidates(self@max_degree)) {
-        return(
-          "@num_knots cannot be combined with a search over @max_degree: it needs one value per degree, so leave it NULL while tuning @max_degree."
-        )
-      }
-      if (length(self@num_knots) != self@max_degree) {
-        return(paste0(
-          "@num_knots must have one value per interaction degree: expected length ",
-          self@max_degree,
-          ", got ",
-          length(self@num_knots),
-          "."
-        ))
-      }
-      if (is.unsorted(rev(self@num_knots))) {
-        return(
-          "@num_knots must be non-increasing across degrees: higher-order interactions cannot use more knots than lower-order ones."
-        )
-      }
-    }
-    # The backend applies the basis reduction only to the zero-order basis and
-    # warns that it dropped the request otherwise, which @reduce_basis declares
-    # as an `applies_when` gate.
-    check_applies_when(self)
-  }
+  validator = function(self) check_applies_when(self),
+  rules = list(
+    LengthMatches(
+      id = "hal.knots-degree",
+      values = "num_knots",
+      count = "max_degree",
+      message = "num_knots must have one value per interaction degree; leave it unset while tuning max_degree."
+    ),
+    NonIncreasing(
+      id = "hal.knots-order",
+      property = "num_knots",
+      message = "num_knots must be non-increasing across interaction degrees."
+    )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Highly Adaptive Lasso (hal9001).",
+    order = 20L
+  )
 ) # /rtemis::HALHyperparameters
 
 
@@ -2855,7 +2867,7 @@ setup_HAL <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-MonotonicHALHyperparameters <- new_class(
+MonotonicHALHyperparameters <- schema_class(
   name = "MonotonicHALHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -2915,7 +2927,12 @@ MonotonicHALHyperparameters <- new_class(
     # warns that it dropped the request otherwise, which @reduce_basis declares
     # as an `applies_when` gate.
     check_applies_when(self)
-  }
+  },
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Monotonic Highly Adaptive Lasso (hal9001).",
+    order = 21L
+  )
 ) # /rtemis::MonotonicHALHyperparameters
 
 
@@ -3789,67 +3806,37 @@ lightgbm_goss_props <- function() {
 } # /rtemis::lightgbm_goss_props
 
 
-# %% check_lightgbm_sampling ----
-#' Cross-parameter rules the property specs cannot carry
-#'
-#' Two rules LightGBM enforces mid-fit, checked here so they are reported
-#' against the setting the user wrote rather than as a backend abort:
-#'
-#' - GOSS cannot be combined with bagging. `bagging_fraction = 1` is not bagging,
-#'   which is why the rtemis default is compatible; anything below it is.
-#' - GOSS's two retain ratios cannot sum above 1, since together they are a share
-#'   of the training cases.
-#'
-#' @param self `Hyperparameters` object.
-#'
-#' @return Character message, or NULL.
-#'
-#' @author EDG
+# %% lightgbm_sampling_rules ----
+#' Declare the sampling constraints shared by LightGBM-based learners
+#' @return List of typed class rules.
 #' @keywords internal
 #' @noRd
-check_lightgbm_sampling <- function(self) {
-  # A tunable property may hold a *domain* rather than a value, and each grid
-  # cell is validated on its way in -- so a cell that breaks either rule is
-  # already refused with the message below. What a domain needs deciding here is
-  # whether *any* cell could satisfy the rule at all: a search where none can is
-  # a run that fails every cell, and it should say so now rather than as "all N
-  # tuning grid cells failed".
-  #
-  # `check_applies_when()` reads a gated domain the same way -- the gate opens
-  # when any candidate value satisfies it -- so a search space is rejected only
-  # when it is hopeless, never when part of it is workable.
-  if (!any(candidate_values(self@data_sample_strategy) == "goss")) {
-    return(NULL)
-  }
-  fraction <- candidate_values(self@bagging_fraction)
-  if (is.numeric(fraction) && !any(fraction >= 1)) {
-    return(paste0(
-      "@data_sample_strategy \"goss\" cannot be combined with bagging, and no ",
-      "value of @bagging_fraction avoids it: ",
-      paste(fraction, collapse = ", "),
-      ". GOSS samples by gradient instead, so leave @bagging_fraction at 1."
-    ))
-  }
-  # The smallest reachable sum: above 1 there is no combination of the two
-  # domains that LightGBM would accept.
-  top <- candidate_values(self@top_rate)
-  other <- candidate_values(self@other_rate)
-  if (
-    is.numeric(top) &&
-      is.numeric(other) &&
-      length(top) > 0L &&
-      length(other) > 0L &&
-      min(top) + min(other) > 1
-  ) {
-    return(paste0(
-      "@top_rate + @other_rate must not exceed 1: together they are a share of ",
-      "the training cases, and the smallest they can sum to here is ",
-      min(top) + min(other),
-      "."
-    ))
-  }
-  NULL
-} # /rtemis::check_lightgbm_sampling
+lightgbm_sampling_rules <- function() {
+  list(
+    ForbidTogether(
+      id = "lightgbm.goss-bagging",
+      message = 'data_sample_strategy "goss" requires at least one bagging_fraction candidate equal to 1.',
+      conditions = list(
+        SchemaPredicate(property = "data_sample_strategy", equals = "goss"),
+        SchemaPredicate(
+          property = "bagging_fraction",
+          exclusive_maximum = 1,
+          quantifier = "all"
+        )
+      )
+    ),
+    SumBound(
+      id = "lightgbm.goss-share",
+      properties = c("top_rate", "other_rate"),
+      maximum = 1,
+      conditions = list(SchemaPredicate(
+        property = "data_sample_strategy",
+        equals = "goss"
+      )),
+      message = "The smallest candidate values of top_rate and other_rate must sum to at most 1 for GOSS."
+    )
+  )
+}
 
 
 # %% LightCARTHyperparameters ----
@@ -3861,7 +3848,7 @@ check_lightgbm_sampling <- function(self) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-LightCARTHyperparameters <- new_class(
+LightCARTHyperparameters <- schema_class(
   name = "LightCARTHyperparameters",
   parent = Hyperparameters,
   properties = c(
@@ -3951,7 +3938,12 @@ LightCARTHyperparameters <- new_class(
   # no rule the schema does not already publish.
   validator = function(self) {
     check_applies_when(self)
-  }
+  },
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Single LightGBM tree (CART mode).",
+    order = 11L
+  )
 ) # /rtemis::LightCARTHyperparameters
 
 
@@ -4189,7 +4181,7 @@ setup_LightCART <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-LightRFHyperparameters <- new_class(
+LightRFHyperparameters <- schema_class(
   name = "LightRFHyperparameters",
   parent = Hyperparameters,
   properties = c(
@@ -4318,7 +4310,12 @@ LightRFHyperparameters <- new_class(
   # no rule the schema does not already publish.
   validator = function(self) {
     check_applies_when(self)
-  }
+  },
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "LightGBM random forest.",
+    order = 12L
+  )
 ) # /rtemis::LightRFHyperparameters
 
 # %% setup_LightRF ----
@@ -4591,7 +4588,7 @@ setup_LightRF <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-LightGBMHyperparameters <- new_class(
+LightGBMHyperparameters <- schema_class(
   name = "LightGBMHyperparameters",
   parent = Hyperparameters,
   properties = c(
@@ -4738,18 +4735,13 @@ LightGBMHyperparameters <- new_class(
     lightgbm_constraint_props(),
     lightgbm_early_stopping_props()
   ),
-  validator = function(self) {
-    # Two rules LightGBM enforces mid-fit; reported here against the setting the
-    # user wrote. Neither is expressible on a property spec: both compare one
-    # property against another rather than against a constant.
-    sampling <- check_lightgbm_sampling(self)
-    if (!is.null(sampling)) {
-      return(sampling)
-    }
-    # Gates the objective-specific, DART and GOSS parameters on the property that
-    # selects them. Spec-driven, so it publishes no rule the schema lacks.
-    check_applies_when(self)
-  }
+  validator = function(self) check_applies_when(self),
+  rules = lightgbm_sampling_rules(),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "LightGBM gradient boosting.",
+    order = 13L
+  )
 ) # /rtemis::LightGBMHyperparameters
 
 method(update, LightGBMHyperparameters) <- function(
@@ -5136,7 +5128,7 @@ LightRuleFit_lightgbm_params <- function() {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-LightRuleFitHyperparameters <- new_class(
+LightRuleFitHyperparameters <- schema_class(
   name = "LightRuleFitHyperparameters",
   parent = Hyperparameters,
   properties = c(
@@ -5279,18 +5271,33 @@ LightRuleFitHyperparameters <- new_class(
     lightgbm_quantized_props(),
     lightgbm_constraint_props()
   ),
-  validator = function(self) {
-    if (any(self@ifw) && (any(self@ifw_lightgbm) || any(self@ifw_glmnet))) {
-      return("@ifw cannot be combined with @ifw_lightgbm or @ifw_glmnet.")
-    }
-    sampling <- check_lightgbm_sampling(self)
-    if (!is.null(sampling)) {
-      return(sampling)
-    }
-    # Gates the objective-specific, DART and GOSS parameters on the property that
-    # selects them, as on the other three classes.
-    check_applies_when(self)
-  }
+  validator = function(self) check_applies_when(self),
+  rules = c(
+    lightgbm_sampling_rules(),
+    list(
+      ForbidTogether(
+        id = "lightrulefit.ifw-lightgbm",
+        message = "ifw cannot be combined with ifw_lightgbm.",
+        conditions = list(
+          SchemaPredicate(property = "ifw", equals = TRUE),
+          SchemaPredicate(property = "ifw_lightgbm", equals = TRUE)
+        )
+      ),
+      ForbidTogether(
+        id = "lightrulefit.ifw-glmnet",
+        message = "ifw cannot be combined with ifw_glmnet.",
+        conditions = list(
+          SchemaPredicate(property = "ifw", equals = TRUE),
+          SchemaPredicate(property = "ifw_glmnet", equals = TRUE)
+        )
+      )
+    )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "LightRuleFit (LightGBM rules + GLMNET).",
+    order = 14L
+  )
 ) # /rtemis::LightRuleFitHyperparameters
 
 
@@ -5621,7 +5628,7 @@ setup_LightRuleFit <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-IsotonicHyperparameters <- new_class(
+IsotonicHyperparameters <- schema_class(
   name = "IsotonicHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -5631,6 +5638,11 @@ IsotonicHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Isotonic regression.",
+    order = 16L
   )
 ) # /rtemis::IsotonicHyperparameters
 
@@ -5666,7 +5678,7 @@ setup_Isotonic <- function(ifw = FALSE) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-LinearSVMHyperparameters <- new_class(
+LinearSVMHyperparameters <- schema_class(
   name = "LinearSVMHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -5686,6 +5698,11 @@ LinearSVMHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "SVM with linear kernel (e1071).",
+    order = 7L
   )
 ) # /rtemis::LinearSVMHyperparameters
 
@@ -5727,7 +5744,7 @@ setup_LinearSVM <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-RadialSVMHyperparameters <- new_class(
+RadialSVMHyperparameters <- schema_class(
   name = "RadialSVMHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -5753,6 +5770,11 @@ RadialSVMHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "SVM with radial kernel (e1071).",
+    order = 8L
   )
 ) # /rtemis::RadialSVMHyperparameters
 
@@ -5824,7 +5846,7 @@ MLP_SHAPES <- c(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-MLPHyperparameters <- new_class(
+MLPHyperparameters <- schema_class(
   name = "MLPHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -6040,7 +6062,12 @@ MLPHyperparameters <- new_class(
   ),
   validator = function(self) {
     check_applies_when(self)
-  }
+  },
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Multilayer perceptron (torch).",
+    order = 17L
+  )
 ) # /rtemis::MLPHyperparameters
 
 
@@ -6265,7 +6292,7 @@ setup_MLP <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-TabNetHyperparameters <- new_class(
+TabNetHyperparameters <- schema_class(
   name = "TabNetHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -6471,6 +6498,11 @@ TabNetHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "TabNet neural network.",
+    order = 18L
   )
 ) # /rtemis::TabNetHyperparameters
 
@@ -6640,7 +6672,7 @@ get_tabnet_config <- function(hyperparameters) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-RangerHyperparameters <- new_class(
+RangerHyperparameters <- schema_class(
   name = "RangerHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -6842,6 +6874,11 @@ RangerHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Ranger random forest.",
+    order = 10L
   )
 ) # /rtemis::RangerHyperparameters
 
@@ -7001,7 +7038,7 @@ setup_Ranger <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-SPLSHyperparameters <- new_class(
+SPLSHyperparameters <- schema_class(
   name = "SPLSHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -7065,6 +7102,11 @@ SPLSHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Sparse Partial Least Squares.",
+    order = 5L
   )
 ) # /rtemis::SPLSHyperparameters
 
@@ -7147,7 +7189,7 @@ setup_SPLS <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-KNNHyperparameters <- new_class(
+KNNHyperparameters <- schema_class(
   name = "KNNHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -7190,6 +7232,11 @@ KNNHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "k-Nearest Neighbors (kknn).",
+    order = 19L
   )
 ) # /rtemis::KNNHyperparameters
 
@@ -7255,7 +7302,7 @@ setup_KNN <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-BARTHyperparameters <- new_class(
+BARTHyperparameters <- schema_class(
   name = "BARTHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -7357,14 +7404,18 @@ BARTHyperparameters <- new_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
-  validator = function(self) {
-    # Each MCMC chain is seeded from its own grow-from-root ensemble, so there
-    # must be at least as many of those as there are chains. num_gfr = 0 runs
-    # every chain from root instead and lifts the requirement.
-    if (any(self@num_gfr > 0L) && any(self@num_chains > self@num_gfr)) {
-      "@num_chains cannot exceed @num_gfr when @num_gfr is greater than 0."
-    }
-  }
+  rules = list(CompareFields(
+    id = "bart.initial-ensembles",
+    left = "num_chains",
+    right = "num_gfr",
+    conditions = list(SchemaPredicate(property = "num_gfr", minimum = 1)),
+    message = "num_chains cannot exceed num_gfr when num_gfr is greater than 0."
+  )),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Bayesian Additive Regression Trees (stochtree).",
+    order = 15L
+  )
 ) # /rtemis::BARTHyperparameters
 
 
@@ -7490,7 +7541,7 @@ setup_BART <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-NNLSHyperparameters <- new_class(
+NNLSHyperparameters <- schema_class(
   name = "NNLSHyperparameters",
   parent = Hyperparameters,
   properties = list(
@@ -7505,6 +7556,11 @@ NNLSHyperparameters <- new_class(
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Non-negative least squares (nnls).",
+    order = 24L
   )
 ) # /rtemis::NNLSHyperparameters
 

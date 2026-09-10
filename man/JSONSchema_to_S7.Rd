@@ -9,7 +9,8 @@ JSONSchema_to_S7(
   defaults = NULL,
   refs = NULL,
   name = NULL,
-  package = NULL
+  package = NULL,
+  authoring = NULL
 )
 }
 \arguments{
@@ -25,6 +26,9 @@ published as a \verb{$ref} to another schema.}
 \item{name}{Optional Character: Class name. Defaults to the schema \code{title}.}
 
 \item{package}{Optional Character: Package name recorded on the class.}
+
+\item{authoring}{Optional named list: Property name to logical authorship
+policy, from the separate authoring artifact under this schema's \verb{$id}.}
 }
 \value{
 S7 class.

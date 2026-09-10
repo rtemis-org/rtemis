@@ -64,7 +64,7 @@ DATA_ENCODINGS <- c("parquet")
 #'
 #' @author EDG
 #' @noRd
-DataRef <- new_class(
+DataRef <- schema_class(
   name = "DataRef",
   package = "rtemis",
   properties = list(
@@ -113,15 +113,19 @@ DataRef <- new_class(
       description = "Columns, when the referenced file is a table."
     )
   ),
-  validator = function(self) {
-    if (!nzchar(self@path)) {
-      return("@path must name a file.")
-    }
-    if (!nzchar(self@hash)) {
-      return("@hash must be the digest of that file's bytes.")
-    }
-    NULL
-  }
+  rules = list(NonEmptyStrings(
+    id = "dataref.identity",
+    properties = c("path", "hash"),
+    message = "path must name a file and hash must contain its digest."
+  )),
+  publication = SchemaPublication(
+    role = "document",
+    slug = "dataref",
+    title = "rtemis DataRef",
+    description = "A reference from a record to a file written beside it: where it is, how it is encoded, how big it is, and the digest that ties it to the record naming it.",
+    order = 2L,
+    kind = "component"
+  )
 ) # /rtemis::DataRef
 
 

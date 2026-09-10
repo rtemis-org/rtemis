@@ -19,35 +19,6 @@
 
 testthat::skip_if_not_installed("jsonvalidate")
 
-# %% .refs_for ----
-# Placeholder `$ref` targets for properties whose type is another S7 class.
-# Those carry no `PropertySpec`, so `S7_to_JSONSchema()` requires each to be
-# referenced. Only the document's shape is under test, never the target, so the
-# URL is derived rather than read from `data-raw/`, which a built package
-# cannot see. Mirrors `.contract_refs()` in `test_SchemaContract.R`.
-.refs_for <- function(cls, base = NULL) {
-  props <- cls@properties
-  if (!is.null(base)) {
-    props <- props[own_prop_names(cls, base)]
-  }
-  needs_ref <- vapply(
-    props,
-    function(p) {
-      !isTRUE(prop_role(p) %in% c("computed", "r_only")) && is.null(get_spec(p))
-    },
-    logical(1L)
-  )
-  nm <- names(props)[needs_ref]
-  if (length(nm) == 0L) {
-    return(NULL)
-  }
-  stats::setNames(
-    paste0("https://schema.rtemis.org/", tolower(nm), "/v1/schema.json"),
-    nm
-  )
-}
-
-
 # %% .stub_external_refs ----
 # A nested config block is a document in its own right, validated by its own
 # family's case below, and `jsonvalidate` resolves no `https://` reference. Its
@@ -95,7 +66,6 @@ testthat::skip_if_not_installed("jsonvalidate")
     description = leaf@name,
     base = base,
     record = TRUE,
-    refs = .refs_for(leaf, base),
     closed = FALSE
   )
   d[["$id"]] <- NULL
@@ -145,7 +115,7 @@ testthat::test_that("every family's record validates against its own schema", {
     discriminator <- family_discriminator(obj)
     expect_false(
       is.null(discriminator),
-      info = paste0(nm, ": no discriminator -- FAMILY_DISCRIMINATORS is short.")
+      info = paste0(nm, ": family has no declared discriminator.")
     )
     if (is.null(discriminator)) {
       # Report every affected family rather than stopping at the first.
@@ -203,5 +173,12 @@ testthat::test_that("every dispatched family has a record document under test", 
     function(obj) family_base(S7_class(obj))@name,
     character(1L)
   )
-  expect_setequal(unique(covered), names(FAMILY_DISCRIMINATORS))
+  expect_setequal(
+    unique(covered),
+    unname(vapply(
+      schema_catalog()$families,
+      function(f) f$base_class@name,
+      character(1L)
+    ))
+  )
 })

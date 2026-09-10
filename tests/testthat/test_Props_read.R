@@ -15,45 +15,30 @@ spec_of <- function(cls, nm) rtemis:::get_spec(cls@properties[[nm]])
 # outright). Discovered rather than listed, so a new class is covered without
 # editing this file.
 schema_classes <- function() {
-  ns <- asNamespace("rtemis")
-  objs <- mget(ls(ns, all.names = TRUE), envir = ns, inherits = FALSE)
-  objs <- Filter(function(o) inherits(o, "S7_class"), objs)
-  Filter(
-    function(o) {
-      own <- own_prop_names_for(o)
-      length(own) > 0L &&
-        any(vapply(
-          o@properties[own],
-          function(p) !is.null(rtemis:::get_spec(p)),
-          logical(1L)
-        )) &&
-        all(
-          !is.na(vapply(o@properties[own], rtemis:::prop_role, character(1L)))
-        )
-    },
-    objs
+  catalog <- schema_catalog()
+  entries <- c(
+    unlist(
+      lapply(catalog$families, function(family) family$algorithms),
+      recursive = FALSE
+    ),
+    catalog$flat_configs,
+    catalog$inline
+  )
+  classes <- lapply(entries, `[[`, "cls")
+  stats::setNames(
+    classes,
+    vapply(classes, function(cls) cls@name, character(1L))
   )
 }
 
 
-# Properties the class declares itself: a family leaf's inherited machinery is
-# excluded from its schema by the `base` argument, so it is excluded here too.
-is_base_parent <- function(cls) {
-  identical(cls@parent@name, "S7_object")
-}
-
-
 own_prop_names_for <- function(cls) {
-  if (is_base_parent(cls)) {
-    return(names(cls@properties))
-  }
-  setdiff(names(cls@properties), names(cls@parent@properties))
+  base <- family_base(cls)
+  if (is.null(base)) names(cls@properties) else own_prop_names(cls, base)
 }
 
 
-base_of <- function(cls) {
-  if (is_base_parent(cls)) NULL else cls@parent
-}
+base_of <- function(cls) family_base(cls)
 
 
 # Defaults reach a reader through the published artifact, i.e. through JSON.
@@ -71,7 +56,7 @@ via_json <- function(x) {
 
 
 # %% JSONSchema_to_S7() round-trips every declared class ----
-test_that("every spec'd class round-trips through JSON Schema unchanged", {
+test_that("every published property preserves its schema constraints on read", {
   classes <- schema_classes()
   expect_gt(length(classes), 20L)
 
@@ -97,15 +82,24 @@ test_that("every spec'd class round-trips through JSON Schema unchanged", {
     # through. `state` stays: a record declares it, marked `readOnly`.
     published <- Filter(rtemis:::prop_published, cls@properties[own])
     specs <- Filter(Negate(is.null), lapply(published, rtemis:::get_spec))
-    defaults <- lapply(specs, function(s) via_json(s@default))
+    # Object construction defaults belong to the separate defaults artifact.
+    # This test compares declarations, including reference identity and arity.
+    defaults <- lapply(specs, function(s) {
+      if (is.null(s@target_class)) via_json(s@default) else NULL
+    })
     rt <- JSONSchema_to_S7(schema, defaults = defaults, name = cls_name)
 
-    expect_setequal(names(rt@properties), names(specs))
+    expect_setequal(
+      as.character(names(rt@properties)),
+      as.character(names(specs))
+    )
     for (nm in names(specs)) {
       original <- specs[[nm]]
       restored <- spec_of(rt, nm)
       label <- paste0(cls_name, "@", nm)
       expect_equal(restored@type, original@type, label = label)
+      expect_equal(restored@target_class, original@target_class, label = label)
+      expect_equal(restored@max_items, original@max_items, label = label)
       expect_equal(restored@minimum, original@minimum, label = label)
       expect_equal(restored@maximum, original@maximum, label = label)
       expect_equal(
