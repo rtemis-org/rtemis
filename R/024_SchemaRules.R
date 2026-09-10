@@ -191,10 +191,10 @@ schema_rule_fields <- function(rule) {
   )
   out[["kind"]] <- S7_class(rule)@name
   if ("conditions" %in% names(out)) {
-    out$conditions <- lapply(rule@conditions, props)
+    out[["conditions"]] <- lapply(rule@conditions, props)
   }
   if ("when" %in% names(out)) {
-    out$when <- props(rule@when)
+    out[["when"]] <- props(rule@when)
   }
   plain <- function(value) {
     if (is.list(value)) {
@@ -221,9 +221,9 @@ schema_rule_fields <- function(rule) {
 schema_rule_from_fields <- function(fields) {
   if (
     !is.list(fields) ||
-      !is.character(fields$kind) ||
-      length(fields$kind) != 1L ||
-      is.na(fields$kind)
+      !is.character(fields[["kind"]]) ||
+      length(fields[["kind"]]) != 1L ||
+      is.na(fields[["kind"]])
   ) {
     rtemis.core::abort(
       "Schema rule kind must be one string.",
@@ -231,7 +231,7 @@ schema_rule_from_fields <- function(fields) {
     )
   }
   cls <- switch(
-    fields$kind,
+    fields[["kind"]],
     ForbidTogether = ForbidTogether,
     StatusValueRule = StatusValueRule,
     CompareFields = CompareFields,
@@ -246,14 +246,14 @@ schema_rule_from_fields <- function(fields) {
       class = "rtemis_schema_error"
     )
   )
-  fields$kind <- NULL
+  fields[["kind"]] <- NULL
   if ("conditions" %in% names(fields)) {
-    fields$conditions <- lapply(fields$conditions, function(p) {
+    fields[["conditions"]] <- lapply(fields[["conditions"]], function(p) {
       do.call(SchemaPredicate, p)
     })
   }
   if ("when" %in% names(fields)) {
-    fields$when <- do.call(SchemaPredicate, fields$when)
+    fields[["when"]] <- do.call(SchemaPredicate, fields[["when"]])
   }
   for (nm in intersect(c("properties"), names(fields))) {
     fields[[nm]] <- unlist(fields[[nm]], use.names = FALSE)
@@ -289,20 +289,25 @@ validate_rule_declaration <- function(rule, cls) {
     rtemis.core::abort(
       cls@name,
       " rule ",
-      rule$id,
+      rule[["id"]],
       ": ",
       message,
       class = "rtemis_schema_error"
     )
   }
-  predicates <- c(rule$conditions, if (!is.null(rule$when)) list(rule$when))
+  predicates <- c(
+    rule[["conditions"]],
+    if (!is.null(rule[["when"]])) list(rule[["when"]])
+  )
   for (predicate in predicates) {
-    if (grepl(".", predicate$property, fixed = TRUE)) {
+    if (grepl(".", predicate[["property"]], fixed = TRUE)) {
       fail("condition property names must contain no periods.")
     }
-    spec <- get_spec_fields(cls@properties[[predicate$property]])
+    spec <- get_spec_fields(cls@properties[[predicate[["property"]]]])
     if (
-      is.null(spec) || spec$container != "none" || !is.null(spec$target_class)
+      is.null(spec) ||
+        spec[["container"]] != "none" ||
+        !is.null(spec[["target_class"]])
     ) {
       fail("conditions require declared scalar properties, optionally tunable.")
     }
@@ -314,11 +319,11 @@ validate_rule_declaration <- function(rule, cls) {
           logical(1L)
         )
       ) &&
-        !spec$type %in% c("integer", "number")
+        !spec[["type"]] %in% c("integer", "number")
     ) {
       fail("a bound requires a numeric property.")
     }
-    value <- predicate$equals
+    value <- predicate[["equals"]]
     if (!is.null(value)) {
       type <- if (is.logical(value)) {
         "boolean"
@@ -328,20 +333,23 @@ validate_rule_declaration <- function(rule, cls) {
         "string"
       }
       if (
-        !identical(type, if (spec$type == "integer") "number" else spec$type)
+        !identical(
+          type,
+          if (spec[["type"]] == "integer") "number" else spec[["type"]]
+        )
       ) {
         fail("equality value has the wrong property type.")
       }
     }
   }
-  if (rule$kind == "ForbidTogether") {
+  if (rule[["kind"]] == "ForbidTogether") {
     return(NULL)
-  } else if (rule$kind == "StatusValueRule") {
-    specs <- lapply(c(rule$values, rule$statuses), function(nm) {
+  } else if (rule[["kind"]] == "StatusValueRule") {
+    specs <- lapply(c(rule[["values"]], rule[["statuses"]]), function(nm) {
       get_spec(cls@properties[[nm]])
     })
     if (
-      identical(rule$values, rule$statuses) ||
+      identical(rule[["values"]], rule[["statuses"]]) ||
         any(vapply(specs, is.null, logical(1L)))
     ) {
       fail("name two distinct declared table properties.")
@@ -363,7 +371,9 @@ validate_rule_declaration <- function(rule, cls) {
       fail("value and status columns must match.")
     }
     for (column in specs[[2L]]@members) {
-      if (column@type != "string" || !rule$computed_status %in% column@enum) {
+      if (
+        column@type != "string" || !rule[["computed_status"]] %in% column@enum
+      ) {
         fail("every status column must enumerate the computed status.")
       }
     }
@@ -386,16 +396,20 @@ matches_rule_predicate <- function(value, predicate) {
   if (is.null(value) || !length(value) || !is.atomic(value) || anyNA(value)) {
     return(FALSE)
   }
-  matched <- if (!is.null(predicate$minimum)) {
-    value >= predicate$minimum
-  } else if (!is.null(predicate$maximum)) {
-    value <= predicate$maximum
-  } else if (!is.null(predicate$exclusive_maximum)) {
-    value < predicate$exclusive_maximum
+  matched <- if (!is.null(predicate[["minimum"]])) {
+    value >= predicate[["minimum"]]
+  } else if (!is.null(predicate[["maximum"]])) {
+    value <= predicate[["maximum"]]
+  } else if (!is.null(predicate[["exclusive_maximum"]])) {
+    value < predicate[["exclusive_maximum"]]
   } else {
-    value == predicate$equals
+    value == predicate[["equals"]]
   }
-  if (identical(predicate$quantifier, "all")) all(matched) else any(matched)
+  if (identical(predicate[["quantifier"]], "all")) {
+    all(matched)
+  } else {
+    any(matched)
+  }
 }
 
 
@@ -408,19 +422,19 @@ matches_rule_predicate <- function(value, predicate) {
 #' @noRd
 validate_class_rules <- function(self, rules) {
   failures <- lapply(rules, function(rule) {
-    if (rule$kind == "ForbidTogether") {
+    if (rule[["kind"]] == "ForbidTogether") {
       if (
         all(vapply(
-          rule$conditions,
-          function(p) matches_rule_predicate(prop(self, p$property), p),
+          rule[["conditions"]],
+          function(p) matches_rule_predicate(prop(self, p[["property"]]), p),
           logical(1L)
         ))
       ) {
-        return(paste0("[", rule$id, "] ", rule$message))
+        return(paste0("[", rule[["id"]], "] ", rule[["message"]]))
       }
-    } else if (rule$kind == "StatusValueRule") {
-      values <- prop(self, rule$values)
-      statuses <- prop(self, rule$statuses)
+    } else if (rule[["kind"]] == "StatusValueRule") {
+      values <- prop(self, rule[["values"]])
+      statuses <- prop(self, rule[["statuses"]])
       if (
         is.null(values) ||
           is.null(statuses) ||
@@ -432,23 +446,23 @@ validate_class_rules <- function(self, rules) {
         return(NULL)
       }
       for (nm in intersect(names(values), names(statuses))) {
-        computed <- identical(statuses[[nm]], rule$computed_status)
+        computed <- identical(statuses[[nm]], rule[["computed_status"]])
         present <- !is.na(values[[nm]])
         if (length(present) == 1L && computed != isTRUE(present)) {
           return(paste0(
             "[",
-            rule$id,
+            rule[["id"]],
             "] @",
-            rule$values,
+            rule[["values"]],
             "$",
             nm,
             " ",
-            rule$message
+            rule[["message"]]
           ))
         }
       }
     } else if (relation_rule_fails(self, rule)) {
-      return(paste0("[", rule$id, "] ", rule$message))
+      return(paste0("[", rule[["id"]], "] ", rule[["message"]]))
     }
     NULL
   })
@@ -465,29 +479,29 @@ validate_class_rules <- function(self, rules) {
 class_rule_clauses <- function(cls) {
   unlist(
     lapply(schema_rules(cls), function(rule) {
-      if (rule$kind == "ForbidTogether") {
-        predicates <- lapply(rule$conditions, function(p) {
-          predicate_schema(p, get_spec(cls@properties[[p$property]]))
+      if (rule[["kind"]] == "ForbidTogether") {
+        predicates <- lapply(rule[["conditions"]], function(p) {
+          predicate_schema(p, get_spec(cls@properties[[p[["property"]]]]))
         })
         names(predicates) <- vapply(
-          rule$conditions,
+          rule[["conditions"]],
           `[[`,
           character(1L),
           "property"
         )
         return(list(list(
-          `$comment` = rule$id,
+          `$comment` = rule[["id"]],
           not = list(required = I(names(predicates)), properties = predicates)
         )))
       }
-      if (rule$kind != "StatusValueRule") {
+      if (rule[["kind"]] != "StatusValueRule") {
         return(relation_rule_clauses(rule, cls))
       }
-      columns <- names(get_spec(cls@properties[[rule$values]])@members)
+      columns <- names(get_spec(cls@properties[[rule[["values"]]]])@members)
       unlist(
         lapply(columns, function(nm) {
           lapply(c(TRUE, FALSE), function(computed) {
-            status <- list(const = rule$computed_status)
+            status <- list(const = rule[["computed_status"]])
             if (!computed) {
               status <- list(not = status)
             }
@@ -502,7 +516,7 @@ class_rule_clauses <- function(cls) {
                   )
                 )
               ),
-              c(rule$values, rule$statuses)
+              c(rule[["values"]], rule[["statuses"]])
             )
             value <- if (computed) {
               list(not = list(type = "null"))
@@ -510,9 +524,9 @@ class_rule_clauses <- function(cls) {
               list(type = "null")
             }
             list(
-              `$comment` = rule$id,
+              `$comment` = rule[["id"]],
               `if` = list(
-                required = I(c(rule$values, rule$statuses)),
+                required = I(c(rule[["values"]], rule[["statuses"]])),
                 properties = antecedent
               ),
               then = list(
@@ -520,7 +534,7 @@ class_rule_clauses <- function(cls) {
                   list(list(
                     items = list(properties = stats::setNames(list(value), nm))
                   )),
-                  rule$values
+                  rule[["values"]]
                 )
               )
             )

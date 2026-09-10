@@ -189,9 +189,9 @@ schema_class <- function(..., publication = NULL, rules = list()) {
   }
   declared_rules <- lapply(rules, schema_rule_fields)
   args <- list(...)
-  original_validator <- args$validator
+  original_validator <- args[["validator"]]
   if (length(declared_rules)) {
-    args$validator <- function(self) {
+    args[["validator"]] <- function(self) {
       c(
         if (!is.null(original_validator)) original_validator(self),
         validate_class_rules(self, declared_rules)
@@ -199,6 +199,7 @@ schema_class <- function(..., publication = NULL, rules = list()) {
     }
   }
   cls <- do.call(new_class, args)
+  validate_inherited_property_contracts(cls)
   if (length(declared_rules)) {
     attr(cls, "rtemis_rules") <- declared_rules
     attr(cls, "rtemis_native_validator") <- original_validator
@@ -256,6 +257,65 @@ schema_class <- function(..., publication = NULL, rules = list()) {
   )
   attr(cls, "rtemis_schema") <- S7::props(publication)
   cls
+}
+
+
+# %% property_validation_contract ----
+#' Extract the inherited validation contract from property metadata
+#' @param fields Optional named list: Property specification fields.
+#' @return Named list excluding defaults and presentation metadata, or NULL.
+#' @keywords internal
+#' @noRd
+property_validation_contract <- function(fields) {
+  if (is.null(fields)) {
+    return(NULL)
+  }
+  fields[c("default", "description", "group")] <- NULL
+  if (!is.null(fields[["items"]])) {
+    fields[["items"]] <- property_validation_contract(fields[["items"]])
+  }
+  if (!is.null(fields[["members"]])) {
+    fields[["members"]] <- lapply(
+      fields[["members"]],
+      property_validation_contract
+    )
+  }
+  fields
+}
+
+
+# %% validate_inherited_property_contracts ----
+#' Check property declarations against retained ancestor validators
+#' @param cls S7 class: Class to inspect.
+#' @return NULL, invisibly. Invalid overrides raise a schema error.
+#' @keywords internal
+#' @noRd
+validate_inherited_property_contracts <- function(cls) {
+  # S7 runs ancestor property validators on descendant instances as well.
+  for (parent in schema_class_ancestors(cls)) {
+    for (nm in names(parent@properties)) {
+      inherited <- get_spec_fields(parent@properties[[nm]])
+      if (is.null(inherited)) {
+        next
+      }
+      declared <- get_spec_fields(cls@properties[[nm]])
+      if (
+        !identical(
+          property_validation_contract(inherited),
+          property_validation_contract(declared)
+        )
+      ) {
+        rtemis.core::abort(
+          cls@name,
+          " has an unsupported type, value shape, or constraint override for inherited @",
+          nm,
+          "; keep its validation contract unchanged.",
+          class = "rtemis_schema_error"
+        )
+      }
+    }
+  }
+  invisible(NULL)
 }
 
 
@@ -335,8 +395,8 @@ schema_publication_annotation <- function(cls) {
 #' @noRd
 schema_algorithm_descriptions <- function(base) {
   families <- Filter(
-    function(f) identical(f$base_class, base),
-    schema_catalog()$families
+    function(f) identical(f[["base_class"]], base),
+    schema_catalog()[["families"]]
   )
   if (length(families) != 1L) {
     rtemis.core::abort(
@@ -346,10 +406,10 @@ schema_algorithm_descriptions <- function(base) {
   }
   family <- families[[1L]]
   stats::setNames(
-    vapply(family$algorithms, `[[`, character(1L), "desc"),
+    vapply(family[["algorithms"]], `[[`, character(1L), "desc"),
     vapply(
-      family$algorithms,
-      function(a) discriminator_value(a$cls, family$discriminator),
+      family[["algorithms"]],
+      function(a) discriminator_value(a[["cls"]], family[["discriminator"]]),
       character(1L)
     )
   )
@@ -419,10 +479,10 @@ schema_record_arguments <- function(cls, catalog, base_url) {
 #' @noRd
 schema_catalog <- function(classes = NULL) {
   cacheable <- is.null(classes) &&
-    (isTRUE(.schema_catalog_cache$ready) ||
+    (isTRUE(.schema_catalog_cache[["ready"]]) ||
       environmentIsLocked(asNamespace("rtemis")))
-  if (cacheable && !is.null(.schema_catalog_cache$value)) {
-    return(.schema_catalog_cache$value)
+  if (cacheable && !is.null(.schema_catalog_cache[["value"]])) {
+    return(.schema_catalog_cache[["value"]])
   }
   if (is.null(classes)) {
     ns <- asNamespace("rtemis")
@@ -560,7 +620,7 @@ schema_catalog <- function(classes = NULL) {
   }
   out <- list(families = families, flat_configs = documents, inline = inline)
   if (cacheable) {
-    .schema_catalog_cache$value <- out
+    .schema_catalog_cache[["value"]] <- out
   }
   out
 }

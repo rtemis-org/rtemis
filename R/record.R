@@ -239,16 +239,6 @@ config_record <- function(input, resolved) {
     S7_to_list(wire_value(prop(resolved, nm), props[[nm]]))
   })
   names(values) <- flat
-  input_values <- if (is.null(input)) {
-    list()
-  } else {
-    stats::setNames(
-      lapply(flat, function(nm) {
-        S7_to_list(wire_value(prop(input, nm), props[[nm]]))
-      }),
-      flat
-    )
-  }
   # What the input config says about itself, where it says anything: a
   # `setup_*()` records which of its arguments were supplied, because that is
   # the one thing a comparison cannot recover.

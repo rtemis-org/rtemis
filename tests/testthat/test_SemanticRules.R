@@ -178,3 +178,54 @@ test_that("inherited rules validate every concrete property override", {
     )
   }
 })
+
+
+test_that("inherited property contracts match retained S7 validation", {
+  Parent <- schema_class(
+    "ScalarConflictParent",
+    properties = list(x = prop_integer(1L, max = 4L), y = prop_integer(1L)),
+    rules = list(ForbidTogether(
+      id = "test.inherited-conflict",
+      message = "Reduce one value.",
+      conditions = list(
+        SchemaPredicate(property = "x", minimum = 2),
+        SchemaPredicate(property = "y", minimum = 2)
+      )
+    ))
+  )
+  for (replacement in list(
+    prop_integer(1L, max = 4L, tunable = TRUE),
+    prop_integer(1L, max = 5L),
+    S7::new_property(S7::class_integer)
+  )) {
+    expect_error(
+      schema_class(
+        "InvalidConflictChild",
+        parent = Parent,
+        properties = list(x = replacement)
+      ),
+      "validation contract unchanged"
+    )
+  }
+  Child <- schema_class(
+    "ScalarConflictChild",
+    parent = Parent,
+    properties = list(
+      x = prop_integer(2L, max = 4L, description = "An amount.")
+    )
+  )
+  expect_identical(get_spec_fields(Child@properties$x)[["default"]], 2L)
+  expect_identical(Child(x = 2L)@x, 2L)
+  expect_error(Child(x = 2L, y = 2L), "test.inherited-conflict")
+  validate <- jsonvalidate::json_validator(
+    jsonlite::toJSON(
+      S7_to_JSONSchema(Child, id = "https://example.org/child/schema.json"),
+      auto_unbox = TRUE,
+      null = "null"
+    ),
+    engine = "ajv"
+  )
+  expect_true(validate('{"x":2,"y":1}'))
+  expect_false(validate('{"x":2,"y":2}'))
+  expect_false(validate('{"x":{"candidates":[1,3]},"y":1}'))
+})

@@ -3780,12 +3780,18 @@ members_schema <- function(members, required = NULL) {
 #' @param read_only Logical: If TRUE, the property is run state -- marked
 #'   `readOnly` and annotated `role: "state"`.
 #' @param reference Optional Character: Resolved schema URL for a class reference.
+#' @param reference_urls Optional named Character: Publication URLs by qualified class identity.
 #' @return Named list (JSON Schema property).
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-spec_to_schema <- function(spec, read_only = FALSE, reference = NULL) {
+spec_to_schema <- function(
+  spec,
+  read_only = FALSE,
+  reference = NULL,
+  reference_urls = NULL
+) {
   scalar <- Filter(
     Negate(is.null),
     list(
@@ -3801,7 +3807,7 @@ spec_to_schema <- function(spec, read_only = FALSE, reference = NULL) {
   # matrix, a list of per-tree vectors), otherwise this spec's own leaf.
   element <- if (is.null(spec@items)) scalar else spec_to_schema(spec@items)
   out <- if (!is.null(spec@target_class)) {
-    reference_schema(spec, reference)
+    reference_schema(spec, reference, reference_urls)
   } else if (spec@container == "array") {
     # A genuinely vector-valued field (e.g. per-feature weights).
     arr <- Filter(
@@ -4506,7 +4512,8 @@ S7_to_JSONSchema <- function(
       properties[[nm]] <- spec_to_schema(
         spec,
         read_only = identical(prop_role(ref_props[[nm]]), "state"),
-        reference = target
+        reference = target,
+        reference_urls = reference_urls
       )
     }
   }

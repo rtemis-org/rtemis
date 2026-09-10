@@ -2,6 +2,35 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
+test_that("inline alternatives retain the caller's publication URL context", {
+  catalog <- schema_catalog()
+  for (record in c(FALSE, TRUE)) {
+    urls <- schema_reference_urls(
+      catalog,
+      "https://example.org/contracts",
+      record
+    )
+    schema <- S7_to_JSONSchema(
+      SuperConfigPaths,
+      id = "https://example.org/contracts/supervised/v1/schema.json",
+      record = record,
+      reference_urls = urls
+    )
+    variants <- schema$properties$hyperparameters$allOf[[
+      1L
+    ]]$then$properties$variants
+    expect_identical(
+      variants$additionalProperties$`$ref`,
+      unname(urls["rtemis::Hyperparameters"])
+    )
+    expect_identical(
+      schema$properties$hyperparameters$allOf[[2L]]$then$`$ref`,
+      unname(urls["rtemis::Hyperparameters"])
+    )
+  }
+})
+
+
 test_that("reference declarations validate target identity and collection bounds", {
   Map <- S7::new_class(
     "ReferenceMap",

@@ -76,7 +76,7 @@ validate_reference_value <- function(value, fields) {
     family <- reference_family(fields[["target_class"]])
     variants <- vapply(
       values,
-      function(x) prop(x, family$discriminator),
+      function(x) prop(x, family[["discriminator"]]),
       character(1L)
     )
     if (length(unique(variants)) > 1L) {
@@ -217,9 +217,9 @@ prop_collection <- function(
 #' @noRd
 schema_reference_urls <- function(catalog, base_url, record = FALSE) {
   out <- character()
-  for (slug in names(catalog$families)) {
-    family <- catalog$families[[slug]]
-    base <- family$base_class
+  for (slug in names(catalog[["families"]])) {
+    family <- catalog[["families"]][[slug]]
+    base <- family[["base_class"]]
     file <- if (record) "record.json" else "schema.json"
     out[[paste0(base@package, "::", base@name)]] <- paste0(
       base_url,
@@ -228,9 +228,9 @@ schema_reference_urls <- function(catalog, base_url, record = FALSE) {
       "/v1/",
       file
     )
-    for (leaf in family$algorithms) {
-      cls <- leaf$cls
-      variant <- tolower(discriminator_value(cls, family$discriminator))
+    for (leaf in family[["algorithms"]]) {
+      cls <- leaf[["cls"]]
+      variant <- tolower(discriminator_value(cls, family[["discriminator"]]))
       out[[paste0(cls@package, "::", cls@name)]] <- paste0(
         base_url,
         "/",
@@ -242,10 +242,10 @@ schema_reference_urls <- function(catalog, base_url, record = FALSE) {
       )
     }
   }
-  for (slug in names(catalog$flat_configs)) {
-    entry <- catalog$flat_configs[[slug]]
-    cls <- entry$cls
-    file <- if (record && entry$kind %in% c("config", "pipeline")) {
+  for (slug in names(catalog[["flat_configs"]])) {
+    entry <- catalog[["flat_configs"]][[slug]]
+    cls <- entry[["cls"]]
+    file <- if (record && entry[["kind"]] %in% c("config", "pipeline")) {
       "record.json"
     } else {
       "schema.json"
@@ -266,10 +266,11 @@ schema_reference_urls <- function(catalog, base_url, record = FALSE) {
 #' Emit the standard JSON Schema shape of a typed class reference
 #' @param spec `PropertySpec`: Object or collection declaration.
 #' @param target Character: Resolved target schema URL.
+#' @param reference_urls Optional named Character: Publication URLs by qualified class identity.
 #' @return Named list containing standard JSON Schema keywords.
 #' @keywords internal
 #' @noRd
-reference_schema <- function(spec, target) {
+reference_schema <- function(spec, target, reference_urls = NULL) {
   if (is.null(target)) {
     rtemis.core::abort(
       "No published schema for reference target ",
@@ -280,7 +281,7 @@ reference_schema <- function(spec, target) {
   }
   ref <- list(`$ref` = target)
   if (!is.null(spec@alternate_class)) {
-    return(reference_choice_schema(spec, target))
+    return(reference_choice_schema(spec, target, reference_urls))
   }
   if (spec@container == "none") {
     return(
@@ -318,15 +319,15 @@ reference_schema <- function(spec, target) {
   if (spec@same_variant) {
     family <- reference_family(spec@target_class)
     variants <- vapply(
-      family$algorithms,
-      function(a) discriminator_value(a$cls, family$discriminator),
+      family[["algorithms"]],
+      function(a) discriminator_value(a[["cls"]], family[["discriminator"]]),
       character(1L)
     )
     branches <- lapply(variants, function(value) {
       item <- list(
         properties = stats::setNames(
           list(list(const = value)),
-          family$discriminator
+          family[["discriminator"]]
         )
       )
       stats::setNames(
@@ -347,10 +348,13 @@ reference_schema <- function(spec, target) {
 #' @keywords internal
 #' @noRd
 reference_family <- function(target) {
-  families <- schema_catalog()$families
+  families <- schema_catalog()[["families"]]
   matches <- Filter(
     function(f) {
-      identical(paste0(f$base_class@package, "::", f$base_class@name), target)
+      identical(
+        paste0(f[["base_class"]]@package, "::", f[["base_class"]]@name),
+        target
+      )
     },
     families
   )
@@ -411,11 +415,12 @@ prop_object_choice <- function(
 #' Generate the presence-selected form from its inline class declaration
 #' @param spec `PropertySpec`: Object choice declaration.
 #' @param target Character: Resolved primary reference URL.
+#' @param reference_urls Optional named Character: Publication URLs by qualified class identity.
 #' @return Named list: Property schema.
 #' @keywords internal
 #' @noRd
-reference_choice_schema <- function(spec, target) {
-  alternate <- schema_catalog()$inline[[spec@alternate_class]]
+reference_choice_schema <- function(spec, target, reference_urls = NULL) {
+  alternate <- schema_catalog()[["inline"]][[spec@alternate_class]]
   if (is.null(alternate)) {
     rtemis.core::abort(
       "Alternate class ",
@@ -426,12 +431,13 @@ reference_choice_schema <- function(spec, target) {
   }
   record <- endsWith(target, "/record.json")
   schema <- S7_to_JSONSchema(
-    alternate$cls,
-    id = paste0("urn:rtemis:inline:", alternate$cls@name),
-    title = alternate$title,
-    description = alternate$description,
+    alternate[["cls"]],
+    id = paste0("urn:rtemis:inline:", alternate[["cls"]]@name),
+    title = alternate[["title"]],
+    description = alternate[["description"]],
     record = record,
-    asserted = !record
+    asserted = !record,
+    reference_urls = reference_urls
   )
   schema[c("$id", "$schema", "required")] <- NULL
   list(

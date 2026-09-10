@@ -208,50 +208,50 @@ validate_relation_declaration <- function(rule, cls, fail) {
         "@",
         nm,
         " has an unsupported type or value shape for ",
-        rule$kind,
+        rule[["kind"]],
         "."
       ))
     }
     spec
   }
   switch(
-    rule$kind,
+    rule[["kind"]],
     CompareFields = {
-      require_spec(rule$left, c("integer", "number"))
-      require_spec(rule$right, c("integer", "number"))
-      if (rule$left == rule$right) {
+      require_spec(rule[["left"]], c("integer", "number"))
+      require_spec(rule[["right"]], c("integer", "number"))
+      if (rule[["left"]] == rule[["right"]]) {
         fail("comparison must name distinct properties.")
       }
     },
-    SumBound = for (nm in rule$properties) {
+    SumBound = for (nm in rule[["properties"]]) {
       require_spec(nm, c("integer", "number"), tunable = TRUE)
     },
     LengthMatches = {
-      require_spec(rule$values, container = "array", flat = FALSE)
-      require_spec(rule$count, "integer", tunable = TRUE)
+      require_spec(rule[["values"]], container = "array", flat = FALSE)
+      require_spec(rule[["count"]], "integer", tunable = TRUE)
     },
     SubsetOf = {
-      require_spec(rule$subset, "string", "array")
-      require_spec(rule$superset, "string", "array")
-      if (rule$subset == rule$superset) {
+      require_spec(rule[["subset"]], "string", "array")
+      require_spec(rule[["superset"]], "string", "array")
+      if (rule[["subset"]] == rule[["superset"]]) {
         fail("subset must name distinct properties.")
       }
     },
     NonIncreasing = require_spec(
-      rule$property,
+      rule[["property"]],
       c("integer", "number"),
       "array"
     ),
     PresenceRule = {
-      spec <- require_spec(rule$property)
+      spec <- require_spec(rule[["property"]])
       if (!spec@nullable) {
         fail("a presence constraint requires a nullable property.")
       }
-      if (rule$property == rule$when$property) {
+      if (rule[["property"]] == rule[["when"]][["property"]]) {
         fail("a presence condition must name another property.")
       }
     },
-    NonEmptyStrings = for (nm in rule$properties) {
+    NonEmptyStrings = for (nm in rule[["properties"]]) {
       if (require_spec(nm, "string")@nullable) {
         fail("non-empty string constraints require nonnullable properties.")
       }
@@ -272,49 +272,52 @@ validate_relation_declaration <- function(rule, cls, fail) {
 relation_rule_fails <- function(self, rule) {
   value <- function(nm) prop(self, nm)
   if (
-    length(rule$conditions) &&
+    length(rule[["conditions"]]) &&
       !all(vapply(
-        rule$conditions,
-        function(p) matches_rule_predicate(value(p$property), p),
+        rule[["conditions"]],
+        function(p) matches_rule_predicate(value(p[["property"]]), p),
         logical(1L)
       ))
   ) {
     return(FALSE)
   }
   switch(
-    rule$kind,
-    CompareFields = !is.null(value(rule$left)) &&
-      !is.null(value(rule$right)) &&
-      value(rule$left) > value(rule$right),
+    rule[["kind"]],
+    CompareFields = !is.null(value(rule[["left"]])) &&
+      !is.null(value(rule[["right"]])) &&
+      value(rule[["left"]]) > value(rule[["right"]]),
     SumBound = {
-      values <- lapply(rule$properties, function(nm) {
+      values <- lapply(rule[["properties"]], function(nm) {
         candidate_values(value(nm))
       })
       if (any(vapply(values, is.null, logical(1L)))) {
         FALSE
       } else {
-        sum(vapply(values, min, numeric(1L))) > rule$maximum
+        sum(vapply(values, min, numeric(1L))) > rule[["maximum"]]
       }
     },
-    LengthMatches = !is.null(value(rule$values)) &&
-      !is.null(value(rule$count)) &&
-      (is_candidates(value(rule$count)) ||
-        length(value(rule$values)) != value(rule$count)),
-    SubsetOf = !is.null(value(rule$subset)) &&
-      !is.null(value(rule$superset)) &&
-      !all(value(rule$subset) %in% value(rule$superset)),
-    NonIncreasing = !is.null(value(rule$property)) &&
-      is.unsorted(rev(value(rule$property))),
+    LengthMatches = !is.null(value(rule[["values"]])) &&
+      !is.null(value(rule[["count"]])) &&
+      (is_candidates(value(rule[["count"]])) ||
+        length(value(rule[["values"]])) != value(rule[["count"]])),
+    SubsetOf = !is.null(value(rule[["subset"]])) &&
+      !is.null(value(rule[["superset"]])) &&
+      !all(value(rule[["subset"]]) %in% value(rule[["superset"]])),
+    NonIncreasing = !is.null(value(rule[["property"]])) &&
+      is.unsorted(rev(value(rule[["property"]]))),
     PresenceRule = {
-      active <- matches_rule_predicate(value(rule$when$property), rule$when)
+      active <- matches_rule_predicate(
+        value(rule[["when"]][["property"]]),
+        rule[["when"]]
+      )
       if (active) {
-        is.null(value(rule$property))
+        is.null(value(rule[["property"]]))
       } else {
-        rule$forbid_otherwise && !is.null(value(rule$property))
+        rule[["forbid_otherwise"]] && !is.null(value(rule[["property"]]))
       }
     },
     NonEmptyStrings = any(vapply(
-      rule$properties,
+      rule[["properties"]],
       function(nm) !nzchar(value(nm)),
       logical(1L)
     )),
@@ -334,21 +337,21 @@ relation_rule_fails <- function(self, rule) {
 #' @keywords internal
 #' @noRd
 predicate_schema <- function(predicate, spec) {
-  scalar <- if (!is.null(predicate$minimum)) {
-    list(type = "number", minimum = predicate$minimum)
-  } else if (!is.null(predicate$maximum)) {
-    list(type = "number", maximum = predicate$maximum)
-  } else if (!is.null(predicate$exclusive_maximum)) {
-    list(type = "number", exclusiveMaximum = predicate$exclusive_maximum)
+  scalar <- if (!is.null(predicate[["minimum"]])) {
+    list(type = "number", minimum = predicate[["minimum"]])
+  } else if (!is.null(predicate[["maximum"]])) {
+    list(type = "number", maximum = predicate[["maximum"]])
+  } else if (!is.null(predicate[["exclusive_maximum"]])) {
+    list(type = "number", exclusiveMaximum = predicate[["exclusive_maximum"]])
   } else {
-    list(const = predicate$equals)
+    list(const = predicate[["equals"]])
   }
   if (!spec@tunable) {
     return(scalar)
   }
   candidates <- list(type = "array", minItems = 1L)
   candidates[[
-    if (predicate$quantifier == "all") "items" else "contains"
+    if (predicate[["quantifier"]] == "all") "items" else "contains"
   ]] <- scalar
   list(
     anyOf = list(
@@ -371,41 +374,44 @@ predicate_schema <- function(predicate, spec) {
 #' @keywords internal
 #' @noRd
 relation_rule_clauses <- function(rule, cls) {
-  if (rule$kind == "NonEmptyStrings") {
+  if (rule[["kind"]] == "NonEmptyStrings") {
     return(list(list(
-      `$comment` = rule$id,
+      `$comment` = rule[["id"]],
       properties = stats::setNames(
-        rep(list(list(minLength = 1L)), length(rule$properties)),
-        rule$properties
+        rep(list(list(minLength = 1L)), length(rule[["properties"]])),
+        rule[["properties"]]
       )
     )))
   }
-  if (rule$kind == "PresenceRule") {
+  if (rule[["kind"]] == "PresenceRule") {
     antecedent <- list(
-      required = I(rule$when$property),
+      required = I(rule[["when"]][["property"]]),
       properties = stats::setNames(
         list(predicate_schema(
-          rule$when,
-          get_spec(cls@properties[[rule$when$property]])
+          rule[["when"]],
+          get_spec(cls@properties[[rule[["when"]][["property"]]]])
         )),
-        rule$when$property
+        rule[["when"]][["property"]]
       )
     )
     out <- list(
-      `$comment` = rule$id,
+      `$comment` = rule[["id"]],
       `if` = antecedent,
       then = list(
         properties = stats::setNames(
           list(list(not = list(type = "null"))),
-          rule$property
+          rule[["property"]]
         )
       )
     )
-    if (rule$forbid_otherwise) {
+    if (rule[["forbid_otherwise"]]) {
       out[["else"]] <- list(
-        `if` = list(required = I(rule$when$property)),
+        `if` = list(required = I(rule[["when"]][["property"]])),
         then = list(
-          properties = stats::setNames(list(list(type = "null")), rule$property)
+          properties = stats::setNames(
+            list(list(type = "null")),
+            rule[["property"]]
+          )
         )
       )
     }
@@ -444,27 +450,27 @@ predicate_logic <- function(predicate) {
   op <- rule_logic_node
   v <- rule_logic_var
   scalar <- function(value) {
-    if (!is.null(predicate$minimum)) {
-      op(">=", value, predicate$minimum)
-    } else if (!is.null(predicate$maximum)) {
-      op("<=", value, predicate$maximum)
-    } else if (!is.null(predicate$exclusive_maximum)) {
-      op("<", value, predicate$exclusive_maximum)
+    if (!is.null(predicate[["minimum"]])) {
+      op(">=", value, predicate[["minimum"]])
+    } else if (!is.null(predicate[["maximum"]])) {
+      op("<=", value, predicate[["maximum"]])
+    } else if (!is.null(predicate[["exclusive_maximum"]])) {
+      op("<", value, predicate[["exclusive_maximum"]])
     } else {
-      op("===", value, predicate$equals)
+      op("===", value, predicate[["equals"]])
     }
   }
-  path <- predicate$property
+  path <- predicate[["property"]]
   domain <- v(paste0(path, ".candidates"))
   reduced <- op(
     "reduce",
     domain,
     op(
-      if (predicate$quantifier == "all") "and" else "or",
+      if (predicate[["quantifier"]] == "all") "and" else "or",
       v("accumulator"),
       scalar(v("current"))
     ),
-    predicate$quantifier == "all"
+    predicate[["quantifier"]] == "all"
   )
   op(
     "and",
@@ -491,17 +497,17 @@ relation_rule_logic <- function(rule) {
   present <- function(nm) op("!==", v(nm), NULL)
   count <- function(x) op("reduce", x, op("+", v("accumulator"), 1L), 0L)
   last <- function(x) op("reduce", x, v("current"), NULL)
-  conditions <- lapply(rule$conditions, predicate_logic)
+  conditions <- lapply(rule[["conditions"]], predicate_logic)
   expr <- switch(
-    rule$kind,
+    rule[["kind"]],
     CompareFields = op(
       "and",
-      present(rule$left),
-      present(rule$right),
-      op(">", v(rule$left), v(rule$right))
+      present(rule[["left"]]),
+      present(rule[["right"]]),
+      op(">", v(rule[["left"]]), v(rule[["right"]]))
     ),
     SumBound = {
-      smallest <- lapply(rule$properties, function(nm) {
+      smallest <- lapply(rule[["properties"]], function(nm) {
         domain <- v(paste0(nm, ".candidates"))
         op(
           "if",
@@ -524,25 +530,25 @@ relation_rule_logic <- function(rule) {
         op,
         c(
           list("and"),
-          lapply(rule$properties, present),
-          list(op(">", do.call(op, c(list("+"), smallest)), rule$maximum))
+          lapply(rule[["properties"]], present),
+          list(op(">", do.call(op, c(list("+"), smallest)), rule[["maximum"]]))
         )
       )
     },
     LengthMatches = op(
       "and",
-      present(rule$values),
-      present(rule$count),
+      present(rule[["values"]]),
+      present(rule[["count"]]),
       op(
         "or",
-        present(paste0(rule$count, ".candidates")),
-        op("!==", count(v(rule$values)), v(rule$count))
+        present(paste0(rule[["count"]], ".candidates")),
+        op("!==", count(v(rule[["values"]])), v(rule[["count"]]))
       )
     ),
     SubsetOf = {
       reduced <- op(
         "reduce",
-        v(rule$subset),
+        v(rule[["subset"]]),
         list(
           v("accumulator.0"),
           op(
@@ -551,19 +557,19 @@ relation_rule_logic <- function(rule) {
             op("in", v("current"), v("accumulator.0"))
           )
         ),
-        list(v(rule$superset), TRUE)
+        list(v(rule[["superset"]]), TRUE)
       )
       op(
         "and",
-        present(rule$subset),
-        present(rule$superset),
+        present(rule[["subset"]]),
+        present(rule[["superset"]]),
         op("!", last(reduced))
       )
     },
     NonIncreasing = {
       reduced <- op(
         "reduce",
-        v(rule$property),
+        v(rule[["property"]]),
         list(
           v("current"),
           op(
@@ -578,13 +584,13 @@ relation_rule_logic <- function(rule) {
         ),
         list(NULL, TRUE)
       )
-      op("and", present(rule$property), op("!", last(reduced)))
+      op("and", present(rule[["property"]]), op("!", last(reduced)))
     },
     PresenceRule = op(
       "if",
-      predicate_logic(rule$when),
-      op("===", v(rule$property), NULL),
-      if (rule$forbid_otherwise) present(rule$property) else FALSE
+      predicate_logic(rule[["when"]]),
+      op("===", v(rule[["property"]]), NULL),
+      if (rule[["forbid_otherwise"]]) present(rule[["property"]]) else FALSE
     ),
     NULL
   )
@@ -613,7 +619,7 @@ class_document_rules <- function(cls) {
       if (is.null(logic)) {
         return(NULL)
       }
-      list(id = rule$id, message = rule$message, condition = logic)
+      list(id = rule[["id"]], message = rule[["message"]], condition = logic)
     })
   )
   if (!length(rules)) {
