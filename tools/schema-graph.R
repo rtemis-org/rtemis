@@ -135,7 +135,7 @@ edges <- lapply(ids, function(id) {
 })
 edges <- unlist(edges, recursive = FALSE)
 for (edge in edges) {
-  stopifnot(edge$target %in% ids)
+  stopifnot(edge[["target"]] %in% ids)
 }
 for (id in ids) {
   validator <- validator_for(id)
@@ -211,33 +211,33 @@ for (family in names(configs)) {
     nested_record(x, x)
   )
 }
-hp <- configs$hyperparameters
+hp <- configs[["hyperparameters"]]
 wire <- S7_to_list(hp)
-stopifnot(identical(names(wire$base_learners), c("clinical", "imaging")))
+stopifnot(identical(names(wire[["base_learners"]]), c("clinical", "imaging")))
 restored <- .list_to_Hyperparameters(jsonlite::fromJSON(
   jsonlite::toJSON(wire, auto_unbox = TRUE, null = "null"),
   simplifyVector = FALSE
 ))
 stopifnot(identical(names(restored@base_learners), names(hp@base_learners)))
 mutant <- wire
-mutant$base_learners <- mutant$base_learners[1L]
-cases$library_short <- check_document(
+mutant[["base_learners"]] <- mutant[["base_learners"]][1L]
+cases[["library_short"]] <- check_document(
   "library_short",
   "hyperparameters/v1/schema.json",
   mutant,
   FALSE
 )
 mutant <- wire
-mutant$base_learners$imaging <- S7_to_list(setup_KMeans())
-cases$library_wrong_family <- check_document(
+mutant[["base_learners"]][["imaging"]] <- S7_to_list(setup_KMeans())
+cases[["library_wrong_family"]] <- check_document(
   "library_wrong_family",
   "hyperparameters/v1/schema.json",
   mutant,
   FALSE
 )
 mutant <- wire
-mutant$base_learners <- unname(mutant$base_learners)
-cases$library_array <- check_document(
+mutant[["base_learners"]] <- unname(mutant[["base_learners"]])
+cases[["library_array"]] <- check_document(
   "library_array",
   "hyperparameters/v1/schema.json",
   mutant,
@@ -252,26 +252,26 @@ mutant <- structure(
   ),
   class = "json"
 )
-cases$library_empty_key <- check_document(
+cases[["library_empty_key"]] <- check_document(
   "library_empty_key",
   "hyperparameters/v1/schema.json",
   mutant,
   FALSE
 )
 mutant <- nested_record(hp, hp)
-mutant$base_learners$imaging$origin <- NULL
-cases$library_missing_origin <- check_document(
+mutant[["base_learners"]][["imaging"]][["origin"]] <- NULL
+cases[["library_missing_origin"]] <- check_document(
   "library_missing_origin",
   "hyperparameters/v1/record.json",
   mutant,
   FALSE
 )
-cases$diagnostics_empty <- check_document(
+cases[["diagnostics_empty"]] <- check_document(
   "diagnostics_empty",
   "diagnostics/v1/schema.json",
   record_object(Diagnostics())
 )
-cases$diagnostics_wrong <- check_document(
+cases[["diagnostics_wrong"]] <- check_document(
   "diagnostics_wrong",
   "diagnostics/v1/schema.json",
   list(diagnostics = list(S7_to_list(setup_GLM()))),
@@ -286,7 +286,7 @@ pipeline <- setup_SuperConfig(
   execution_config = setup_SerialExecution()
 )
 payload <- S7_to_list(pipeline)
-cases$named_set <- check_document(
+cases[["named_set"]] <- check_document(
   "named_set",
   "supervised/v1/schema.json",
   payload
@@ -294,11 +294,11 @@ cases$named_set <- check_document(
 set_record <- nested_record(set, set)
 stopifnot(
   identical(names(set_record), "variants"),
-  identical(names(set_record$variants), c("cart", "linear"))
+  identical(names(set_record[["variants"]]), c("cart", "linear"))
 )
 set_schema <- documents[[
   "https://schema.rtemis.org/supervised/v1/record.json"
-]]$properties$hyperparameters
+]][["properties"]][["hyperparameters"]]
 set_id <- "https://schema.rtemis.org/test/set-record/schema.json"
 documents[[set_id]] <- list(
   `$id` = set_id,
@@ -307,30 +307,35 @@ documents[[set_id]] <- list(
 )
 ids <- c(ids, set_id)
 keys[[set_id]] <- "set_record_probe"
-cases$named_set_record <- check_document(
+cases[["named_set_record"]] <- check_document(
   "named_set_record",
   "test/set-record/schema.json",
   list(hyperparameters = set_record)
 )
 mutant <- payload
-mutant$hyperparameters$variants$linear <- S7_to_list(setup_CART())
-cases$set_mixed_algorithms <- check_document(
+mutant[["hyperparameters"]][["variants"]][[
+  "linear"
+]] <- S7_to_list(setup_CART())
+cases[["set_mixed_algorithms"]] <- check_document(
   "set_mixed_algorithms",
   "supervised/v1/schema.json",
   mutant,
   FALSE
 )
 mutant <- payload
-mutant$hyperparameters$variants <- structure(list(), names = character())
-cases$set_empty <- check_document(
+mutant[["hyperparameters"]][["variants"]] <- structure(
+  list(),
+  names = character()
+)
+cases[["set_empty"]] <- check_document(
   "set_empty",
   "supervised/v1/schema.json",
   mutant,
   FALSE
 )
 mutant <- payload
-mutant$hyperparameters$algorithm <- "LINAD"
-cases$set_extra_key <- check_document(
+mutant[["hyperparameters"]][["algorithm"]] <- "LINAD"
+cases[["set_extra_key"]] <- check_document(
   "set_extra_key",
   "supervised/v1/schema.json",
   mutant,
@@ -348,7 +353,7 @@ stopifnot(identical(
 
 ok <- vapply(
   cases,
-  function(case) identical(case$actual, case$expected),
+  function(case) identical(case[["actual"]], case[["expected"]]),
   logical(1L)
 )
 report <- list(

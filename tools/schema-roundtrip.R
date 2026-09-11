@@ -9,8 +9,8 @@ artifact_dir <- args[[1L]]
 report_file <- args[[2L]]
 base_url <- "https://schema.rtemis.org"
 catalog <- schema_catalog()
-families <- catalog$families
-flat_configs <- catalog$flat_configs
+families <- catalog[["families"]]
+flat_configs <- catalog[["flat_configs"]]
 
 
 # %% read_artifact ----
