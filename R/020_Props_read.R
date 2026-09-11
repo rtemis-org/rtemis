@@ -176,42 +176,6 @@ coerce_to_type <- function(value, type) {
 } # /rtemis::coerce_to_type
 
 
-# %% element_placeholder ----
-#' A conforming stand-in for an element descriptor's unused default
-#'
-#' `PropertySpec` requires `@default` to conform to the spec, but the `@items`
-#' spec of a container describes an *element type*, and nothing reads its
-#' default: `prop_array()` and `prop_map()` both document it as unused, and
-#' `validate_with_spec()` never consults it. So the emitter does not publish it
-#' and there is nothing to restore. This fills the slot with the smallest value
-#' the declared constraints admit, which keeps the reconstructed spec valid
-#' without implying the original held that value.
-#'
-#' @param type Character \{"boolean", "integer", "number", "string",
-#' "object"\}: Declared leaf type.
-#' @param minimum Optional Numeric: Lower bound, if declared.
-#' @param enum Optional Character: Permitted values, if declared.
-#'
-#' @return A scalar of the declared type.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-element_placeholder <- function(type, minimum = NULL, enum = NULL) {
-  if (!is.null(enum)) {
-    return(enum[[1L]])
-  }
-  switch(
-    type,
-    boolean = FALSE,
-    string = "",
-    integer = as.integer(minimum %||% 0L),
-    number = as.numeric(minimum %||% 0),
-    object = list()
-  )
-} # /rtemis::element_placeholder
-
-
 # %% strip_suffix ----
 #' Remove a trailing sentence from a description
 #'
@@ -250,13 +214,19 @@ strip_suffix <- function(x, suffix) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-members_spec <- function(obj, x, ann, container, data_bound, description) {
-  # Each member reads back as an element: its default is a placeholder nothing
-  # uses, since only settable properties carry defaults.
-  members <- lapply(obj[["properties"]], schema_to_spec, element = TRUE)
+members_spec <- function(obj, x, ann, container, data_bound, description,
+  declarations = NULL, path = "", default = NULL, default_present = TRUE, default_policy = NULL) {
+  member_path <- paste0(path, if (container == "table") "/items" else "", "/properties/")
+  members <- lapply(names(obj[["properties"]]), function(nm) {
+    schema_to_spec(obj[["properties"]][[nm]], element = TRUE,
+      declarations = declarations, path = paste0(member_path, default_pointer(nm)))
+  })
+  names(members) <- names(obj[["properties"]])
   PropertySpec(
     type = "object",
-    default = NULL,
+    default = default,
+    default_present = default_present,
+    default_policy = default_policy,
     nullable = schema_is_nullable(x),
     tunable = FALSE,
     container = container,
@@ -302,7 +272,24 @@ members_spec <- function(obj, x, ann, container, data_bound, description) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-schema_to_spec <- function(x, default = NULL, element = FALSE) {
+schema_to_spec <- function(x, default = NULL, element = FALSE, declarations = NULL, path = "") {
+  default_present <- !missing(default)
+  default_policy <- NULL
+  if (!is.null(declarations)) {
+    if (!path %in% names(declarations)) {
+      rtemis.core::abort("Missing default declaration at ", path, ".", class = "rtemis_schema_error")
+    }
+    declaration <- declarations[[path]]
+    if (!declaration[["kind"]] %in% c("literal", "none")) {
+      rtemis.core::abort("Unknown default declaration at ", path, ".", class = "rtemis_schema_error")
+    }
+    default_present <- identical(declaration[["kind"]], "literal")
+    if (default_present && !"value" %in% names(declaration)) {
+      rtemis.core::abort("Literal default lacks value at ", path, ".", class = "rtemis_schema_error")
+    }
+    default <- default_from_wire(declaration[["value"]], x)
+    if (!is.null(declaration[["policy"]])) default_policy <- do.call(DefaultPolicy, declaration[["policy"]])
+  }
   ann <- x[["x-rtemis"]]
   if (is.null(ann) || is.null(ann[["type"]])) {
     rtemis.core::abort(
@@ -346,6 +333,8 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
       key_pattern = x[["propertyNames"]][["pattern"]],
       key_not_pattern = x[["propertyNames"]][["not"]][["pattern"]],
       default = default,
+      default_present = default_present,
+      default_policy = default_policy,
       nullable = schema_is_nullable(x),
       tunable = FALSE,
       container = container,
@@ -390,13 +379,14 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
   }
 
   if (container == "table") {
-    # The row object holds the column schemas; each column describes a cell, so
-    # it reads back as an element (its default is a placeholder nothing uses).
-    return(members_spec(x[["items"]], x, ann, "table", data_bound, description))
+    # Column defaults are declaration metadata, separate from table values.
+    return(members_spec(x[["items"]], x, ann, "table", data_bound, description,
+      declarations, path, default, default_present, default_policy))
   }
   if (container == "struct") {
     # A struct emits its object shape directly rather than as an array element.
-    return(members_spec(x, x, ann, "struct", data_bound, description))
+    return(members_spec(x, x, ann, "struct", data_bound, description,
+      declarations, path, default, default_present, default_policy))
   }
 
   child <- schema_element(x, container, tunable, broadcast)
@@ -407,7 +397,8 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
   items <- if (
     container %in% c("array", "map") && !is.null(child[["x-rtemis"]])
   ) {
-    schema_to_spec(child, element = TRUE)
+    schema_to_spec(child, element = TRUE, declarations = declarations,
+      path = paste0(path, schema_child_pointer(x, child)))
   } else {
     NULL
   }
@@ -448,11 +439,9 @@ schema_to_spec <- function(x, default = NULL, element = FALSE) {
   }
   PropertySpec(
     type = type,
-    default = if (element) {
-      element_placeholder(type, as_bound(leaf[["minimum"]]), leaf_enum)
-    } else {
-      coerce_to_type(default, type)
-    },
+    default = if (is.null(declarations)) coerce_to_type(default, type) else default,
+    default_present = default_present,
+    default_policy = default_policy,
     minimum = as_bound(leaf[["minimum"]]),
     maximum = as_bound(leaf[["maximum"]]),
     exclusive_minimum = as_bound(leaf[["exclusiveMinimum"]]),
@@ -540,13 +529,22 @@ JSONSchema_to_S7 <- function(
   refs = NULL,
   name = NULL,
   package = NULL,
-  authoring = NULL
+  authoring = NULL,
+  declarations = NULL
 ) {
   if (!is.list(schema) || is.null(schema[["properties"]])) {
     rtemis.core::abort(
       "`schema` must be a JSON Schema with a `properties` object.",
       class = c("rtemis_type_error", "rtemis_input_error")
     )
+  }
+  if (!is.null(defaults[["format_version"]])) {
+    if (!identical(as.integer(defaults[["format_version"]]), 2L)) {
+      rtemis.core::abort("Unsupported defaults artifact version.", class = "rtemis_schema_error")
+    }
+    declarations <- defaults[["declarations"]][[schema[["$id"]]]]
+    if (is.null(declarations)) rtemis.core::abort("Defaults artifact has no declaration for this schema.", class = "rtemis_schema_error")
+    defaults <- NULL
   }
   props <- schema[["properties"]]
   # `$schema` identifies the document, not a field of the class.
@@ -604,33 +602,15 @@ JSONSchema_to_S7 <- function(
   }
 
   spec_names <- names(props)[!is_ref]
-  # Checked from the schema rather than from the built specs: `PropertySpec`
-  # rejects a NULL default on a non-nullable property, so it would abort with
-  # its own message before this one could name every offender.
-  needs_default <- vapply(
-    spec_names,
-    function(nm) {
-      p <- props[[nm]]
-      constant <- identical(p[["x-rtemis"]][["role"]], "constant")
-      !constant &&
-        is.null(p[["x-rtemis"]][["target_class"]]) &&
-        !schema_is_nullable(p) &&
-        is.null(defaults[[nm]])
-    },
-    logical(1L)
-  )
-  if (any(needs_default)) {
-    missing_default <- spec_names[needs_default]
-    rtemis.core::abort(
-      "No default supplied for non-nullable propert",
-      if (length(missing_default) == 1L) "y: " else "ies: ",
-      paste(missing_default, collapse = ", "),
-      ". Pass them in `defaults`.",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
   specs <- lapply(spec_names, function(nm) {
-    spec <- schema_to_spec(props[[nm]], default = defaults[[nm]])
+    spec <- if (!is.null(declarations)) {
+      schema_to_spec(props[[nm]], declarations = declarations,
+        path = paste0("/properties/", default_pointer(nm)))
+    } else if (nm %in% names(defaults)) {
+      schema_to_spec(props[[nm]], default = defaults[[nm]])
+    } else {
+      schema_to_spec(props[[nm]])
+    }
     spec@agent_writable <- authoring[[nm]]
     spec
   })

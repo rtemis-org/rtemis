@@ -133,6 +133,9 @@ GridSearchConfig <- schema_class(
   name = "GridSearchConfig",
   parent = TunerConfig,
   package = "rtemis",
+  defaults = list(
+    resampler_config = DefaultPolicy(kind = "literal", value = setup_KFold(n_resamples = 5L))
+  ),
   properties = list(
     type = prop_algorithm("GridSearch"),
     # Nested config object; serialized/validated as a ResamplerConfig, so it
@@ -223,6 +226,7 @@ setup_GridSearch <- function(
   metric = NULL,
   maximize = NULL
 ) {
+  apply_setup_defaults(GridSearchConfig)
   # Arguments ----
   # Per-field validation and the exhaustive/randomize_p rule are enforced by
   # the property specs and the `GridSearchConfig` validator.

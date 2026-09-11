@@ -117,7 +117,7 @@ test_that("reference constraints survive reconstruction from serialized schema",
     jsonlite::toJSON(schema, auto_unbox = TRUE, null = "null"),
     simplifyVector = FALSE
   )
-  Restored <- JSONSchema_to_S7(schema)
+  Restored <- JSONSchema_to_S7(schema, defaults = list(value = NULL))
   expect_identical(
     spec_fields(get_spec(Declared@properties[["value"]])),
     spec_fields(get_spec(Restored@properties[["value"]]))

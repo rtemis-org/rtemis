@@ -198,6 +198,7 @@ KMeansConfig <- schema_class(
 #' kmeans_config <- setup_KMeans(k = 4L, dist = "euclidean")
 #' kmeans_config
 setup_KMeans <- function(k = 3L, dist = "euclidean") {
+  apply_setup_defaults(KMeansConfig)
   k <- clean_posint(k)
   KMeansConfig(k = k, dist = dist)
 } # /rtemis::setup_KMeans
@@ -246,6 +247,7 @@ HardCLConfig <- schema_class(
 #' hardcl_config <- setup_HardCL(k = 4L, dist = "euclidean")
 #' hardcl_config
 setup_HardCL <- function(k = 3L, dist = "euclidean") {
+  apply_setup_defaults(HardCLConfig)
   k <- clean_posint(k)
   HardCLConfig(k = k, dist = dist)
 } # /rtemis::setup_HardCL
@@ -294,6 +296,7 @@ NeuralGasConfig <- schema_class(
 #' neuralgas_config <- setup_NeuralGas(k = 4L, dist = "euclidean")
 #' neuralgas_config
 setup_NeuralGas <- function(k = 3L, dist = "euclidean") {
+  apply_setup_defaults(NeuralGasConfig)
   k <- clean_posint(k)
   NeuralGasConfig(k = k, dist = dist)
 } # /rtemis::setup_NeuralGas
@@ -392,6 +395,7 @@ setup_CMeans <- function(
   weights = 1.0,
   control = list()
 ) {
+  apply_setup_defaults(CMeansConfig)
   k <- clean_posint(k)
   max_iter <- clean_posint(max_iter)
   CMeansConfig(
@@ -501,6 +505,7 @@ setup_DBSCAN <- function(
   split_rule = "SUGGEST",
   approx = FALSE
 ) {
+  apply_setup_defaults(DBSCANConfig)
   min_points <- clean_posint(min_points)
   bucket_size <- clean_posint(bucket_size)
   DBSCANConfig(
@@ -706,6 +711,7 @@ setup_HOPACH <- function(
   initial_order = "co",
   element_order = "own"
 ) {
+  apply_setup_defaults(HOPACHConfig)
   max_levels <- clean_posint(max_levels)
   max_children <- clean_posint(max_children)
   max_children_mss <- clean_posint(max_children_mss)
@@ -834,6 +840,7 @@ setup_PAM <- function(
   variant = "original",
   nstart = NULL
 ) {
+  apply_setup_defaults(PAMConfig)
   k <- clean_posint(k)
   if (!is.null(nstart)) {
     nstart <- clean_posint(nstart)
@@ -979,6 +986,7 @@ setup_PAMK <- function(
   alpha = 0.001,
   n_subsets = NULL
 ) {
+  apply_setup_defaults(PAMKConfig)
   krange <- clean_posint(krange)
   if (!is.null(n_subsets)) {
     n_subsets <- clean_posint(n_subsets)
@@ -1099,6 +1107,7 @@ GMMConfig <- schema_class(
 #' gmm_config <- setup_GMM(k = 3L)
 #' gmm_config
 setup_GMM <- function(k = NULL, model_names = NULL) {
+  apply_setup_defaults(GMMConfig)
   if (!is.null(k)) {
     k <- clean_posint(k)
   }
@@ -1291,6 +1300,7 @@ setup_Spectral <- function(
   nystrom = FALSE,
   nystrom_sample = NULL
 ) {
+  apply_setup_defaults(SpectralConfig)
   k <- clean_posint(k)
   iterations <- clean_posint(iterations)
   if (!is.null(nystrom_sample)) {

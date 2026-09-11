@@ -227,6 +227,7 @@ setup_PCA <- function(
   tol = NULL,
   features = NULL
 ) {
+  apply_setup_defaults(PCAConfig)
   k <- clean_posint(k)
   PCAConfig(
     k = k,
@@ -333,6 +334,7 @@ setup_ICA <- function(
   tol = 1e-04,
   features = NULL
 ) {
+  apply_setup_defaults(ICAConfig)
   k <- clean_posint(k)
   maxit <- clean_posint(maxit)
   ICAConfig(
@@ -406,6 +408,7 @@ setup_NMF <- function(
   nrun = if (length(k) > 1L) 30L else 1L,
   features = NULL
 ) {
+  apply_setup_defaults(NMFConfig)
   k <- clean_posint(k)
   nrun <- clean_posint(nrun)
   NMFConfig(k = k, method = method, nrun = nrun, features = features)
@@ -496,6 +499,7 @@ setup_UMAP <- function(
   scale = TRUE,
   features = NULL
 ) {
+  apply_setup_defaults(UMAPConfig)
   k <- clean_posint(k)
   n_neighbors <- clean_posint(n_neighbors)
   n_epochs <- clean_posint(n_epochs)
@@ -525,6 +529,11 @@ setup_UMAP <- function(
 tSNEConfig <- schema_class(
   name = "tSNEConfig",
   parent = DecompositionConfig,
+  defaults = list(
+    verbose = DefaultPolicy(kind = "runtime", requires = "verbose", reason = "Read from the runtime verbosity option."),
+    stop_lying_iter = DefaultPolicy(kind = "expression", expression = list(`if` = list(list(`===` = list(list(var = "Y_init"), NULL)), 250L, 0L))),
+    mom_switch_iter = DefaultPolicy(kind = "expression", expression = list(`if` = list(list(`===` = list(list(var = "Y_init"), NULL)), 250L, 0L)))
+  ),
   properties = list(
     algorithm = prop_algorithm("tSNE"),
     k = prop_integer(
@@ -670,6 +679,7 @@ setup_tSNE <- function(
   num_threads = 1L,
   features = NULL
 ) {
+  apply_setup_defaults(tSNEConfig)
   k <- clean_posint(k)
   initial_dims <- clean_posint(initial_dims)
   max_iter <- clean_posint(max_iter)
@@ -769,6 +779,7 @@ setup_Isomap <- function(
   path = "shortest",
   features = NULL
 ) {
+  apply_setup_defaults(IsomapConfig)
   k <- clean_posint(k)
   nsd <- clean_int(nsd)
   IsomapConfig(

@@ -23,6 +23,9 @@ ExecutionConfig <- schema_class(
   # `own_prop_names()` subtracts by name, so an override is not a leaf's own
   # property and would vanish from the published leaf schema, taking its
   # constraint with it.
+  defaults = list(
+    seed = DefaultPolicy(kind = "runtime", on_null = TRUE, requires = "seed", reason = "Drawn from the runtime random stream and recorded.")
+  ),
   properties = list(
     backend = class_character,
     # Threads inside a worker rather than worker processes, which is why this composes
@@ -127,6 +130,9 @@ ParallelExecutionConfig <- schema_class(
   parent = ExecutionConfig,
   package = "rtemis",
   abstract = TRUE,
+  defaults = list(
+    n_workers = DefaultPolicy(kind = "runtime", on_null = TRUE, requires = "n_workers", reason = "Resolved from available cores or explicit dispatch levels.")
+  ),
   properties = list(
     n_workers = prop_integer(
       1L,
@@ -177,6 +183,9 @@ FutureExecutionConfig <- schema_class(
   name = "FutureExecutionConfig",
   parent = ParallelExecutionConfig,
   package = "rtemis",
+  defaults = list(
+    future_plan = DefaultPolicy(kind = "runtime", requires = "future_plan", reason = "Read from the runtime future plan option.")
+  ),
   properties = list(
     backend = prop_algorithm("future"),
     future_plan = prop_string(
@@ -550,6 +559,7 @@ setup_FutureExecution <- function(
   # class's, so a record comparing the two would report the pool it sized and
   # the seed it drew as the caller's choices.
   origins <- supplied_origins()
+  apply_setup_defaults(FutureExecutionConfig)
   on_error <- match.arg(on_error)
   shared_memory <- match.arg(shared_memory)
   check_dependencies("future")
@@ -613,6 +623,7 @@ setup_MiraiExecution <- function(
   warm_workers = TRUE
 ) {
   origins <- supplied_origins()
+  apply_setup_defaults(MiraiExecutionConfig)
   on_error <- match.arg(on_error)
   shared_memory <- match.arg(shared_memory)
   check_dependencies("mirai")
@@ -665,6 +676,7 @@ setup_SerialExecution <- function(
   warm_workers = TRUE
 ) {
   origins <- supplied_origins()
+  apply_setup_defaults(SerialExecutionConfig)
   on_error <- match.arg(on_error)
   shared_memory <- match.arg(shared_memory)
   out <- do.call(

@@ -217,6 +217,8 @@ PropertySpec <- new_class(
     key_pattern = NULL | class_character,
     key_not_pattern = NULL | class_character,
     default = class_any,
+    default_present = new_property(class_logical, default = TRUE),
+    default_policy = NULL | DefaultPolicy,
     minimum = NULL | class_numeric,
     maximum = NULL | class_numeric,
     exclusive_minimum = NULL | class_numeric,
@@ -675,6 +677,15 @@ PropertySpec <- new_class(
     }
     # The default must itself conform to the spec.
     # An invalid declaration fails on package load, not at first instantiation.
+    if (length(self@default_present) != 1L || is.na(self@default_present)) {
+      return("@default_present must be one non-missing logical value.")
+    }
+    if (!self@default_present) {
+      if (!is.null(self@default) || self@constant) {
+        return("An absent default must have NULL metadata and cannot be constant.")
+      }
+      return(NULL)
+    }
     fields <- spec_fields(self)
     if (reference) {
       # A reference may have no literal default, or an S7 constructor default
@@ -735,6 +746,9 @@ PropertySpec <- new_class(
 #' @noRd
 spec_fields <- function(spec) {
   fields <- props(spec)
+  if (!is.null(fields[["default_policy"]])) {
+    fields[["default_policy"]] <- props(fields[["default_policy"]])
+  }
   if (!is.null(fields[["items"]])) {
     fields[["items"]] <- spec_fields(fields[["items"]])
   }
@@ -760,6 +774,9 @@ spec_fields <- function(spec) {
 #' @keywords internal
 #' @noRd
 spec_object <- function(fields) {
+  if (!is.null(fields[["default_policy"]]) && !S7_inherits(fields[["default_policy"]])) {
+    fields[["default_policy"]] <- do.call(DefaultPolicy, fields[["default_policy"]])
+  }
   if (!is.null(fields[["items"]])) {
     fields[["items"]] <- spec_object(fields[["items"]])
   }
@@ -1420,7 +1437,9 @@ make_prop <- function(spec) {
   }
   p <- new_property(
     class = if (spec@nullable) NULL | base_class else base_class,
-    default = spec@default,
+    default = if (spec@default_present || spec@nullable) spec@default else quote(
+      rtemis.core::abort("This property requires an explicit value.", class = "rtemis_input_error")
+    ),
     validator = spec_validator(fields)
   )
   p[["spec"]] <- fields

@@ -889,6 +889,7 @@ GLMHyperparameters <- schema_class(
 #' glm_hyperparams <- setup_GLM(ifw = TRUE)
 #' glm_hyperparams
 setup_GLM <- function(ifw = FALSE) {
+  apply_setup_defaults(GLMHyperparameters)
   GLMHyperparameters(ifw = ifw)
 } # /rtemis::setup_GLM
 
@@ -945,6 +946,7 @@ GAMHyperparameters <- schema_class(
 #' gam_hyperparams <- setup_GAM(k = 5L, ifw = FALSE)
 #' gam_hyperparams
 setup_GAM <- function(k = 5L, ifw = FALSE) {
+  apply_setup_defaults(GAMHyperparameters)
   k <- clean_posint(k)
   GAMHyperparameters(k = k, ifw = ifw)
 } # /rtemis::setup_GAM
@@ -1131,6 +1133,7 @@ setup_MARS <- function(
   fast_beta = 1,
   ifw = FALSE
 ) {
+  apply_setup_defaults(MARSHyperparameters)
   degree <- clean_posint(degree)
   nk <- clean_posint(nk)
   nprune <- clean_posint(nprune)
@@ -1310,6 +1313,7 @@ setup_CART <- function(
   cost = NULL,
   ifw = FALSE
 ) {
+  apply_setup_defaults(CARTHyperparameters)
   maxdepth <- clean_int(maxdepth)
   minsplit <- clean_int(minsplit)
   minbucket <- clean_int(minbucket)
@@ -1582,6 +1586,7 @@ setup_GLMTree <- function(
   vcov = "opg",
   nrep = 10000L
 ) {
+  apply_setup_defaults(GLMTreeHyperparameters)
   minsize <- clean_int(minsize)
   maxdepth <- clean_int(maxdepth)
   mtry <- clean_int(mtry)
@@ -2186,6 +2191,7 @@ setup_LINAD <- function(
   global_features = NULL,
   line_search_max = 1000
 ) {
+  apply_setup_defaults(LINADHyperparameters)
   max_leaves <- clean_int(max_leaves)
   min_cases_split <- clean_int(min_cases_split)
   min_cases_leaf <- clean_int(min_cases_leaf)
@@ -2437,6 +2443,7 @@ setup_LINADForest <- function(
   global_features = NULL,
   line_search_max = 1000
 ) {
+  apply_setup_defaults(LINADForestHyperparameters)
   n_trees <- clean_int(n_trees)
   mtry_split <- clean_int(mtry_split)
   mtry_tree <- clean_int(mtry_tree)
@@ -2631,6 +2638,7 @@ setup_GLMNET <- function(
   intercept = TRUE,
   ifw = TRUE
 ) {
+  apply_setup_defaults(GLMNETHyperparameters)
   nlambda <- clean_posint(nlambda)
   GLMNETHyperparameters(
     alpha = alpha,
@@ -2823,6 +2831,7 @@ setup_HAL <- function(
   seed = NULL,
   ifw = FALSE
 ) {
+  apply_setup_defaults(HALHyperparameters)
   max_degree <- clean_posint(max_degree)
   smoothness_orders <- clean_int(smoothness_orders)
   num_knots <- clean_posint(num_knots)
@@ -3008,6 +3017,7 @@ setup_MonotonicHAL <- function(
   seed = NULL,
   ifw = FALSE
 ) {
+  apply_setup_defaults(MonotonicHALHyperparameters)
   smoothness_orders <- clean_int(smoothness_orders)
   num_knots <- clean_posint(num_knots)
   nfolds <- clean_posint(nfolds)
@@ -4109,6 +4119,7 @@ setup_LightCART <- function(
   reg_sqrt = NULL,
   ifw = FALSE
 ) {
+  apply_setup_defaults(LightCARTHyperparameters)
   num_leaves <- clean_posint(num_leaves)
   max_depth <- clean_int(max_depth)
   min_data_in_leaf <- clean_posint(min_data_in_leaf)
@@ -4506,6 +4517,7 @@ setup_LightRF <- function(
   tree_learner = "serial",
   force_col_wise = TRUE
 ) {
+  apply_setup_defaults(LightRFHyperparameters)
   nrounds <- clean_posint(nrounds)
   num_leaves <- clean_posint(num_leaves)
   max_depth <- clean_int(max_depth)
@@ -4993,6 +5005,7 @@ setup_LightGBM <- function(
   tree_learner = "serial",
   force_col_wise = TRUE
 ) {
+  apply_setup_defaults(LightGBMHyperparameters)
   max_nrounds <- clean_posint(max_nrounds)
   force_nrounds <- clean_posint(force_nrounds)
   early_stopping_rounds <- clean_posint(early_stopping_rounds)
@@ -5534,6 +5547,7 @@ setup_LightRuleFit <- function(
   ifw_glmnet = FALSE,
   ifw = FALSE
 ) {
+  apply_setup_defaults(LightRuleFitHyperparameters)
   nrounds <- clean_posint(nrounds)
   num_leaves <- clean_posint(num_leaves)
   max_depth <- clean_int(max_depth)
@@ -5664,6 +5678,7 @@ IsotonicHyperparameters <- schema_class(
 #' isotonic_hyperparams <- setup_Isotonic(ifw = TRUE)
 #' isotonic_hyperparams
 setup_Isotonic <- function(ifw = FALSE) {
+  apply_setup_defaults(IsotonicHyperparameters)
   IsotonicHyperparameters(ifw = ifw)
 } # /rtemis::setup_Isotonic
 
@@ -5727,6 +5742,7 @@ setup_LinearSVM <- function(
   cost = 1,
   ifw = FALSE
 ) {
+  apply_setup_defaults(LinearSVMHyperparameters)
   LinearSVMHyperparameters(
     cost = cost,
     ifw = ifw
@@ -5801,6 +5817,7 @@ setup_RadialSVM <- function(
   gamma = 0.01,
   ifw = FALSE
 ) {
+  apply_setup_defaults(RadialSVMHyperparameters)
   RadialSVMHyperparameters(
     cost = cost,
     gamma = gamma,
@@ -6213,6 +6230,7 @@ setup_MLP <- function(
   num_workers = 0L,
   drop_last = FALSE
 ) {
+  apply_setup_defaults(MLPHyperparameters)
   hidden_units <- clean_posint(hidden_units)
   shape_layers <- clean_posint(shape_layers)
   shape_max_units <- clean_posint(shape_max_units)
@@ -6598,6 +6616,7 @@ setup_TabNet <- function(
   skip_importance = FALSE,
   ifw = FALSE
 ) {
+  apply_setup_defaults(TabNetHyperparameters)
   batch_size <- clean_posint(batch_size)
   epochs <- clean_posint(epochs)
   decision_width <- clean_posint(decision_width)
@@ -6675,6 +6694,9 @@ get_tabnet_config <- function(hyperparameters) {
 RangerHyperparameters <- schema_class(
   name = "RangerHyperparameters",
   parent = Hyperparameters,
+  defaults = list(
+    sample_fraction = DefaultPolicy(kind = "expression", expression = list(`if` = list(list(var = "replace"), 1, 0.632)))
+  ),
   properties = list(
     algorithm = prop_algorithm("Ranger"),
     num_trees = prop_integer(
@@ -6972,6 +6994,7 @@ setup_Ranger <- function(
   na_action = "na.learn",
   ifw = FALSE
 ) {
+  apply_setup_defaults(RangerHyperparameters)
   num_trees <- clean_posint(num_trees)
   mtry <- clean_posint(mtry)
   min_node_size <- clean_posint(min_node_size)
@@ -7158,6 +7181,7 @@ setup_SPLS <- function(
   maxstep = 100L,
   ifw = FALSE
 ) {
+  apply_setup_defaults(SPLSHyperparameters)
   k <- clean_posint(k)
   maxstep <- clean_posint(maxstep)
   SPLSHyperparameters(
@@ -7278,6 +7302,7 @@ setup_KNN <- function(
   scale = TRUE,
   ifw = FALSE
 ) {
+  apply_setup_defaults(KNNHyperparameters)
   k <- clean_posint(k)
   KNNHyperparameters(
     k = k,
@@ -7498,6 +7523,7 @@ setup_BART <- function(
   seed = NULL,
   ifw = FALSE
 ) {
+  apply_setup_defaults(BARTHyperparameters)
   num_trees <- clean_posint(num_trees)
   min_samples_leaf <- clean_posint(min_samples_leaf)
   max_depth <- clean_posint(max_depth)
@@ -7599,6 +7625,7 @@ NNLSHyperparameters <- schema_class(
 #' nnls_hyperparams <- setup_NNLS(normalize = FALSE)
 #' nnls_hyperparams
 setup_NNLS <- function(normalize = TRUE, ifw = FALSE) {
+  apply_setup_defaults(NNLSHyperparameters)
   NNLSHyperparameters(normalize = normalize, ifw = ifw)
 } # /rtemis::setup_NNLS
 

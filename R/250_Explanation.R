@@ -358,6 +358,7 @@ setup_SHAP <- function(
   approach = NULL,
   seed = NULL
 ) {
+  apply_setup_defaults(SHAPConfig)
   estimator <- match_arg(estimator, SHAP_ESTIMATORS)
   background_n <- clean_posint(background_n)
   n_coalitions <- clean_posint(n_coalitions)

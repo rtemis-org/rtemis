@@ -454,6 +454,7 @@ setup_KFold <- function(
   id_strat = NULL,
   seed = NULL
 ) {
+  apply_setup_defaults(KFoldConfig)
   KFoldConfig(
     n_resamples = clean_posint(n_resamples),
     stratify_var = stratify_var,
@@ -494,6 +495,7 @@ setup_StratSub <- function(
   id_strat = NULL,
   seed = NULL
 ) {
+  apply_setup_defaults(StratSubConfig)
   StratSubConfig(
     n_resamples = clean_posint(n_resamples),
     train_p = train_p,
@@ -537,6 +539,7 @@ setup_StratBoot <- function(
   id_strat = NULL,
   seed = NULL
 ) {
+  apply_setup_defaults(StratBootConfig)
   StratBootConfig(
     n_resamples = clean_posint(n_resamples),
     stratify_var = stratify_var,
@@ -573,6 +576,7 @@ setup_Bootstrap <- function(
   id_strat = NULL,
   seed = NULL
 ) {
+  apply_setup_defaults(BootstrapConfig)
   BootstrapConfig(
     n_resamples = clean_posint(n_resamples),
     id_strat = id_strat,
@@ -596,6 +600,7 @@ setup_Bootstrap <- function(
 #' loocv_resampler <- setup_LOOCV()
 #' loocv_resampler
 setup_LOOCV <- function() {
+  apply_setup_defaults(LOOCVConfig)
   LOOCVConfig()
 } # /rtemis::setup_LOOCV
 
@@ -614,6 +619,7 @@ setup_LOOCV <- function() {
 #' custom_resampler <- setup_Custom(resamples = list(1:3, 2:4))
 #' custom_resampler
 setup_Custom <- function(resamples = NULL) {
+  apply_setup_defaults(CustomConfig)
   if (is.null(resamples)) {
     rtemis.core::abort(
       "Custom resampling needs its resamples: supply `resamples` as a list of ",

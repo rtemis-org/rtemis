@@ -84,11 +84,11 @@ MetaLearnerHyperparameters <- new_class(
       key_pattern = "^[A-Za-z.]",
       key_not_pattern = "[^A-Za-z0-9._]|^[.][0-9]|^(if|else|repeat|while|function|for|in|next|break|TRUE|FALSE|NULL|Inf|NaN|NA|NA_integer_|NA_real_|NA_complex_|NA_character_)$",
       description = "Base learners keyed by portable ASCII identifiers: letters, digits, periods, and underscores, beginning with a letter or a period not followed by a digit; R reserved words are excluded. Every entry is a learner configuration.",
-      default = quote(name_base_learners(list(
+      default = name_base_learners(list(
         setup_GLM(),
         setup_GLMNET(),
         setup_Ranger()
-      )))
+      ))
     ),
     # `meta_learner` is declared by each leaf, not here. S7 constructs an
     # inherited property with the *parent's* default whatever a subclass
@@ -99,7 +99,7 @@ MetaLearnerHyperparameters <- new_class(
     inner_resampling_config = prop_object(
       ResamplerConfig,
       description = "Resampling configuration used to construct cross-validated predictions for the meta learner.",
-      default = quote(setup_KFold(n_resamples = 10L))
+      default = setup_KFold(n_resamples = 10L)
     ),
     expand_search_spaces = prop_boolean(
       TRUE,
@@ -253,7 +253,7 @@ StackedLearnerHyperparameters <- new_class(
     # to sit on sibling classes to both take effect.
     meta_learner = prop_object(
       Hyperparameters,
-      default = quote(setup_NNLS()),
+      default = setup_NNLS(),
       description = "Learner that combines the base learners' cross-validated predictions."
     ),
     discrete = prop_boolean(
@@ -351,6 +351,7 @@ setup_SuperLearner <- function(
   expand_search_spaces = TRUE,
   ifw = FALSE
 ) {
+  apply_setup_defaults(SuperLearnerHyperparameters)
   SuperLearnerHyperparameters(
     base_learners = name_base_learners(base_learners),
     meta_learner = meta_learner,
@@ -516,6 +517,7 @@ setup_ModalityStacking <- function(
   expand_search_spaces = TRUE,
   ifw = FALSE
 ) {
+  apply_setup_defaults(ModalityStackingHyperparameters)
   # One learner for every group is the common case; broadcast it before naming
   # so the names come from the groups rather than from a repeated algorithm.
   if (S7_inherits(base_learners, Hyperparameters)) {
@@ -557,7 +559,7 @@ ConditionalSuperLearnerHyperparameters <- schema_class(
     meta_learner = prop_object(
       Hyperparameters,
       description = "Classifier that selects a base learner for each case.",
-      default = quote(setup_Ranger())
+      default = setup_Ranger()
     ),
     n_iterations = prop_integer(
       4L,
@@ -703,6 +705,7 @@ setup_ConditionalSuperLearner <- function(
   expand_search_spaces = TRUE,
   ifw = FALSE
 ) {
+  apply_setup_defaults(ConditionalSuperLearnerHyperparameters)
   n_iterations <- clean_posint(n_iterations)
   min_region_size <- clean_posint(min_region_size)
   ConditionalSuperLearnerHyperparameters(

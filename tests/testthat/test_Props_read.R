@@ -185,17 +185,16 @@ test_that("a restored class enforces the same constraints", {
 })
 
 
-# %% defaults are required, not invented ----
-test_that("JSONSchema_to_S7() names non-nullable properties with no default", {
+# %% missing defaults remain required at construction ----
+test_that("JSONSchema_to_S7() can describe properties without inventing defaults", {
   schema <- S7_to_JSONSchema(
     rtemis:::CARTHyperparameters,
     id = "https://schema.rtemis.org/test/cart/v1/schema.json",
     base = rtemis:::Hyperparameters
   )
-  expect_error(
-    JSONSchema_to_S7(schema),
-    class = "rtemis_value_error"
-  )
+  restored <- JSONSchema_to_S7(schema)
+  expect_false(get_spec(restored@properties[["cp"]])@default_present)
+  expect_error(restored(), class = "rtemis_input_error")
 })
 
 

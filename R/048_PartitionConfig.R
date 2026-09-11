@@ -252,6 +252,7 @@ PARTITION_SETUP <- c(
 #' @examples
 #' setup_RandomPartition(train_p = 0.8, seed = 2026L)
 setup_RandomPartition <- function(train_p = 0.75, seed = NULL) {
+  apply_setup_defaults(RandomPartitionConfig)
   RandomPartitionConfig(train_p = train_p, seed = clean_int(seed))
 } # /rtemis::setup_RandomPartition
 
@@ -275,6 +276,7 @@ setup_RandomPartition <- function(train_p = 0.75, seed = NULL) {
 #' @examples
 #' setup_TimePartition(column = "visit_date", train_p = 0.8)
 setup_TimePartition <- function(column = NULL, train_p = 0.75) {
+  apply_setup_defaults(TimePartitionConfig)
   if (is.null(column)) {
     rtemis.core::abort(
       "A time split needs a `column` to order cases by.",
@@ -303,6 +305,7 @@ setup_TimePartition <- function(column = NULL, train_p = 0.75) {
 #' @examples
 #' setup_GroupPartition(column = "subject_id", train_p = 0.8, seed = 2026L)
 setup_GroupPartition <- function(column = NULL, train_p = 0.75, seed = NULL) {
+  apply_setup_defaults(GroupPartitionConfig)
   if (is.null(column)) {
     rtemis.core::abort(
       "A group split needs a `column` naming the per-case group IDs.",
@@ -341,6 +344,7 @@ setup_PredefinedPartition <- function(
   training_value = "train",
   test_value = "test"
 ) {
+  apply_setup_defaults(PredefinedPartitionConfig)
   if (is.null(column)) {
     rtemis.core::abort(
       "A predefined split needs a `column` holding each case's partition label.",

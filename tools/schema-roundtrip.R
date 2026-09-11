@@ -54,7 +54,7 @@ compare_fields <- function(original, restored, prefix = "") {
 
 
 # %% Audit ----
-defaults <- read_artifact("defaults/v1/defaults.json")[["defaults"]]
+defaults <- read_artifact("defaults/v2/defaults.json")[["declarations"]]
 authoring <- read_artifact("authoring/v1/authoring.json")[["authoring"]]
 entries <- list()
 for (family in names(families)) {
@@ -112,7 +112,8 @@ for (path in sort(names(entries))) {
       row[["status"]] <- "no_property_spec"
     } else {
       restored <- tryCatch(
-        schema_to_spec(schema[["properties"]][[nm]], defaults[[id]][[nm]]),
+        schema_to_spec(schema[["properties"]][[nm]], declarations = defaults[[id]],
+          path = paste0("/properties/", default_pointer(nm))),
         error = identity
       )
       if (inherits(restored, "error")) {

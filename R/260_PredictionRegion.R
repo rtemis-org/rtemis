@@ -241,6 +241,9 @@ resolve_conformal_seed <- function(seed) {
 SplitConformalConfig <- schema_class(
   name = "SplitConformalConfig",
   parent = ConformalConfig,
+  defaults = list(
+    seed = DefaultPolicy(kind = "runtime", on_null = TRUE, requires = "seed", reason = "Drawn from the runtime random stream and recorded.")
+  ),
   properties = list(
     type = prop_algorithm("Split"),
     alpha = prop_conformal_alpha(),
@@ -273,6 +276,9 @@ SplitConformalConfig <- schema_class(
 CVPlusConfig <- schema_class(
   name = "CVPlusConfig",
   parent = ConformalConfig,
+  defaults = list(
+    seed = DefaultPolicy(kind = "runtime", on_null = TRUE, requires = "seed", reason = "Drawn from the runtime random stream and recorded.")
+  ),
   properties = list(
     type = prop_algorithm("CVPlus"),
     alpha = prop_conformal_alpha(),
@@ -383,6 +389,7 @@ setup_SplitConformal <- function(alpha = 0.1, score = NULL, seed = NULL) {
   # Before the seed is resolved: an unseeded call draws one, and a record
   # comparing that against the class default (NULL) would call it the caller's.
   origins <- supplied_origins()
+  apply_setup_defaults(SplitConformalConfig)
   out <- SplitConformalConfig(
     alpha = alpha,
     score = score,
@@ -441,6 +448,7 @@ setup_CVPlus <- function(alpha = 0.1, score = NULL, seed = NULL) {
   # Before the seed is resolved: an unseeded call draws one, and a record
   # comparing that against the class default (NULL) would call it the caller's.
   origins <- supplied_origins()
+  apply_setup_defaults(CVPlusConfig)
   out <- CVPlusConfig(
     alpha = alpha,
     score = score,
@@ -488,6 +496,7 @@ setup_CVPlus <- function(alpha = 0.1, score = NULL, seed = NULL) {
 #' setup_CQR()
 #' setup_CQR(alpha = 0.05)
 setup_CQR <- function(alpha = 0.1) {
+  apply_setup_defaults(CQRConfig)
   CQRConfig(alpha = alpha)
 } # /rtemis::setup_CQR
 

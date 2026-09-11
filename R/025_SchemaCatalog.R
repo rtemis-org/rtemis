@@ -174,10 +174,11 @@ method(repr, SchemaPublication) <- function(x, output_type = NULL, ...) {
 #' @param ... Arguments: Passed to `S7::new_class()`.
 #' @param publication Optional `SchemaPublication`: This class's publication metadata.
 #' @param rules List of `SchemaRule` objects: Invariants declared by this class.
+#' @param defaults Optional List: Named DefaultPolicy overrides for this class.
 #' @return S7 class with validated, non-inheriting metadata.
 #' @keywords internal
 #' @noRd
-schema_class <- function(..., publication = NULL, rules = list()) {
+schema_class <- function(..., publication = NULL, rules = list(), defaults = NULL) {
   if (!is.null(publication)) {
     check_is_S7(publication, SchemaPublication)
   }
@@ -199,6 +200,14 @@ schema_class <- function(..., publication = NULL, rules = list()) {
     }
   }
   cls <- do.call(new_class, args)
+  if (!is.null(defaults)) {
+    if (!is.list(defaults) || is.null(names(defaults)) || anyDuplicated(names(defaults)) ||
+        any(!names(defaults) %in% names(cls@properties))) {
+      rtemis.core::abort("Class defaults must name distinct declared properties.", class = "rtemis_schema_error")
+    }
+    for (policy in defaults) check_is_S7(policy, DefaultPolicy)
+    attr(cls, "rtemis_defaults") <- lapply(defaults, props)
+  }
   validate_inherited_property_contracts(cls)
   if (length(declared_rules)) {
     attr(cls, "rtemis_rules") <- declared_rules
@@ -270,7 +279,7 @@ property_validation_contract <- function(fields) {
   if (is.null(fields)) {
     return(NULL)
   }
-  fields[c("default", "description", "group")] <- NULL
+  fields[c("default", "default_present", "default_policy", "description", "group")] <- NULL
   if (!is.null(fields[["items"]])) {
     fields[["items"]] <- property_validation_contract(fields[["items"]])
   }

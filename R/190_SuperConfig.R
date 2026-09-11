@@ -144,6 +144,10 @@ SuperConfigPaths <- schema_class(
   name = "SuperConfigPaths",
   package = "rtemis",
   parent = SuperConfig,
+  defaults = list(
+    execution_config = DefaultPolicy(kind = "literal", value = list(backend = "future")),
+    outdir = DefaultPolicy(kind = "literal", value = "results/")
+  ),
   properties = list(
     dat_training_path = prop_string(
       NULL,
@@ -311,6 +315,7 @@ setup_SuperConfig <- function(
   outdir = "results/",
   verbosity = 1L
 ) {
+  apply_setup_defaults(SuperConfigPaths)
   # Validated, not resolved: a config is a portable recipe, so it stores the
   # path its author wrote rather than that path resolved against this machine's
   # working directory.

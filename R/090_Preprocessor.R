@@ -65,9 +65,9 @@ PREPROCESSOR_TRAIN_EXCLUDED <- c(
     enum = c("missRanger", "micePMM", "meanMode"),
     description = "Imputation method."
   ),
-  impute_missRanger_params = prop_bag(
+  impute_missRanger_params = prop_default(prop_bag(
     description = "Parameters passed to missRanger (e.g. pmm.k, maxiter, num.trees)."
-  ),
+  ), DefaultPolicy(kind = "literal", value = list(pmm.k = 3, maxiter = 10, num.trees = 500))),
   impute_discrete = prop_string(
     "get_mode",
     description = "Function name to impute discrete features."
@@ -152,7 +152,8 @@ PREPROCESSOR_TRAIN_EXCLUDED <- c(
     description = "Per-feature factor2integer levels, keyed by feature name."
   ),
   scale = prop_boolean(FALSE, description = "Scale features."),
-  center = prop_boolean(FALSE, description = "Center features."),
+  center = prop_default(prop_boolean(FALSE, description = "Center features."),
+    DefaultPolicy(kind = "expression", expression = list(var = "scale"))),
   # Settable *and* run-written: `preprocess()` uses a supplied value in place
   # of computing one, and stores what it computed when none was given. So it
   # is config, not state -- `readOnly` would reject a legitimate input. A
@@ -619,6 +620,7 @@ setup_Preprocessor <- function(
   # hands over is not the class's empty default, so a record comparing the two
   # would report it as the caller's.
   origins <- supplied_origins()
+  apply_setup_defaults(PreprocessorConfig)
   impute_type <- match_arg(
     impute_type,
     c("missRanger", "micePMM", "meanMode")
@@ -776,6 +778,7 @@ setup_SupervisedPreprocessor <- function(
   # hands over is not the class's empty default, so a record comparing the two
   # would report it as the caller's.
   origins <- supplied_origins()
+  apply_setup_defaults(SupervisedPreprocessorConfig)
   impute_type <- match_arg(
     impute_type,
     c("missRanger", "micePMM", "meanMode")

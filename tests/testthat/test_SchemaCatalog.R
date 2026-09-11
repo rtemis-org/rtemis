@@ -144,7 +144,7 @@ test_that("group and authorship round-trip independently of schema defaults", {
   )
   Restored <- JSONSchema_to_S7(
     schema,
-    defaults = list(workers = 2L),
+    defaults = list(workers = 2L, state = NULL),
     authoring = list(workers = FALSE)
   )
   for (nm in names(Declared@properties)) {

@@ -130,6 +130,7 @@ setup_ClusterConfig <- function(
   outdir = "results/",
   verbosity = 1L
 ) {
+  apply_setup_defaults(ClusterConfig)
   # Validated, not resolved: a config is a portable recipe, so it stores the
   # path its author wrote rather than that path resolved against this machine's
   # working directory.

@@ -121,6 +121,10 @@ schema-artifacts out:
     {{ rscript }} data-raw/generate_checks_corpus.R "{{ out }}"
     {{ rscript }} data-raw/generate_profile_fixture.R "{{ out }}"
 
+[doc("Generate the defaults artifact beside an existing schema corpus")]
+schema-defaults out:
+    {{ rscript }} data-raw/generate_defaults.R "{{ out }}"
+
 [doc("Audit property reconstruction from an existing generated artifact corpus")]
 schema-roundtrip artifacts report:
     {{ rscript }} tools/schema-roundtrip.R "{{ artifacts }}" "{{ report }}"

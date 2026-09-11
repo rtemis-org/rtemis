@@ -329,6 +329,7 @@ setup_DelimitedIngest <- function(
   quote = "\"",
   na_strings = ""
 ) {
+  apply_setup_defaults(DelimitedIngestConfig)
   DelimitedIngestConfig(
     columns = columns,
     character2factor = character2factor,
@@ -372,6 +373,7 @@ setup_ParquetIngest <- function(
   remove_duplicates = FALSE,
   reader = "arrow"
 ) {
+  apply_setup_defaults(ParquetIngestConfig)
   ParquetIngestConfig(
     columns = columns,
     character2factor = character2factor,
@@ -413,6 +415,7 @@ setup_XLSXIngest <- function(
   sheet = 1L,
   na_strings = ""
 ) {
+  apply_setup_defaults(XLSXIngestConfig)
   XLSXIngestConfig(
     columns = columns,
     character2factor = character2factor,
@@ -451,6 +454,7 @@ setup_RDSIngest <- function(
   clean_colnames = TRUE,
   remove_duplicates = FALSE
 ) {
+  apply_setup_defaults(RDSIngestConfig)
   RDSIngestConfig(
     columns = columns,
     character2factor = character2factor,
@@ -486,6 +490,7 @@ setup_DTAIngest <- function(
   clean_colnames = TRUE,
   remove_duplicates = FALSE
 ) {
+  apply_setup_defaults(DTAIngestConfig)
   DTAIngestConfig(
     columns = columns,
     character2factor = character2factor,
@@ -521,6 +526,7 @@ setup_ARFFIngest <- function(
   clean_colnames = TRUE,
   remove_duplicates = FALSE
 ) {
+  apply_setup_defaults(ARFFIngestConfig)
   ARFFIngestConfig(
     columns = columns,
     character2factor = character2factor,
