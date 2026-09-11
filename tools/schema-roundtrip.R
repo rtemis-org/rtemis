@@ -37,6 +37,8 @@ compare_fields <- function(original, restored, prefix = "") {
     path <- paste0(prefix, nm)
     a <- original[[nm]]
     b <- restored[[nm]]
+    if (S7_inherits(a)) a <- default_wire_value(a)
+    if (S7_inherits(b)) b <- default_wire_value(b)
     if (identical(a, b)) {
       next
     }
@@ -54,7 +56,12 @@ compare_fields <- function(original, restored, prefix = "") {
 
 
 # %% Audit ----
-defaults <- read_artifact("defaults/v2/defaults.json")[["declarations"]]
+artifact <- read_artifact("defaults/v2/defaults.json")
+defaults <- artifact[["declarations"]]
+schema_paths <- list.files(artifact_dir, pattern = "^schema[.]json$", recursive = TRUE)
+schemas <- lapply(schema_paths, read_artifact)
+names(schemas) <- vapply(schemas, `[[`, character(1L), "$id")
+graph <- default_artifact_graph(schemas, artifact)
 authoring <- read_artifact("authoring/v1/authoring.json")[["authoring"]]
 entries <- list()
 for (family in names(families)) {
@@ -113,7 +120,7 @@ for (path in sort(names(entries))) {
     } else {
       restored <- tryCatch(
         schema_to_spec(schema[["properties"]][[nm]], declarations = defaults[[id]],
-          path = paste0("/properties/", default_pointer(nm))),
+          path = paste0("/properties/", default_pointer(nm)), decode_reference = graph[["decode"]]),
         error = identity
       )
       if (inherits(restored, "error")) {

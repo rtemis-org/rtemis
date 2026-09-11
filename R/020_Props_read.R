@@ -208,6 +208,12 @@ strip_suffix <- function(x, suffix) {
 #' @param container Character \{"table", "struct"\}: Which container to build.
 #' @param data_bound Character or NULL: The property's data bound.
 #' @param description Character: The property's description.
+#' @param declarations Optional List: Declaration descriptors keyed by schema pointer.
+#' @param path Character: Pointer to this node.
+#' @param default Optional ANY: Declared value.
+#' @param default_present Logical: Whether default metadata is present.
+#' @param default_policy Optional DefaultPolicy: Input policy.
+#' @param decode_reference Optional Function: Artifact graph reference decoder.
 #'
 #' @return `PropertySpec` object.
 #'
@@ -215,11 +221,10 @@ strip_suffix <- function(x, suffix) {
 #' @keywords internal
 #' @noRd
 members_spec <- function(obj, x, ann, container, data_bound, description,
-  declarations = NULL, path = "", default = NULL, default_present = TRUE, default_policy = NULL) {
+  declarations = NULL, path = "", default = NULL, default_present = TRUE, default_policy = NULL, decode_reference = NULL) {
   member_path <- paste0(path, if (container == "table") "/items" else "", "/properties/")
   members <- lapply(names(obj[["properties"]]), function(nm) {
-    schema_to_spec(obj[["properties"]][[nm]], element = TRUE,
-      declarations = declarations, path = paste0(member_path, default_pointer(nm)))
+    schema_to_spec(obj[["properties"]][[nm]], declarations = declarations, path = paste0(member_path, default_pointer(nm)), decode_reference = decode_reference)
   })
   names(members) <- names(obj[["properties"]])
   PropertySpec(
@@ -263,23 +268,23 @@ members_spec <- function(obj, x, ann, container, data_bound, description,
 #' `spec_to_schema()`.
 #' @param default Optional: The property's default, from the defaults artifact.
 #' A `const` property takes its value from the schema and ignores this.
-#' @param element Logical: If TRUE, `x` describes one element of a container
-#' rather than a settable property, so its default is a placeholder (see
-#' `element_placeholder()`).
+#' @param declarations Optional List: Declaration descriptors keyed by schema pointer.
+#' @param path Character: Pointer to this node.
+#' @param decode_reference Optional Function: Artifact graph reference decoder.
 #'
 #' @return `PropertySpec` object.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-schema_to_spec <- function(x, default = NULL, element = FALSE, declarations = NULL, path = "") {
+schema_to_spec <- function(x, default = NULL, declarations = NULL, path = "", decode_reference = NULL) {
   default_present <- !missing(default)
   default_policy <- NULL
   if (!is.null(declarations)) {
     if (!path %in% names(declarations)) {
       rtemis.core::abort("Missing default declaration at ", path, ".", class = "rtemis_schema_error")
     }
-    declaration <- declarations[[path]]
+    declaration <- restore_default_numbers(declarations[[path]])
     if (!declaration[["kind"]] %in% c("literal", "none")) {
       rtemis.core::abort("Unknown default declaration at ", path, ".", class = "rtemis_schema_error")
     }
@@ -287,7 +292,7 @@ schema_to_spec <- function(x, default = NULL, element = FALSE, declarations = NU
     if (default_present && !"value" %in% names(declaration)) {
       rtemis.core::abort("Literal default lacks value at ", path, ".", class = "rtemis_schema_error")
     }
-    default <- default_from_wire(declaration[["value"]], x)
+    default <- default_from_wire(declaration[["value"]], x, decode_reference)
     if (!is.null(declaration[["policy"]])) default_policy <- do.call(DefaultPolicy, declaration[["policy"]])
   }
   ann <- x[["x-rtemis"]]
@@ -363,6 +368,9 @@ schema_to_spec <- function(x, default = NULL, element = FALSE, declarations = NU
   }
 
   if (constant) {
+    if (!is.null(declarations) && (!default_present || !identical(default, coerce_to_type(x[["const"]], type)))) {
+      rtemis.core::abort("Constant default contradicts its schema at ", path, ".", class = "rtemis_schema_error")
+    }
     # `const` is the whole schema for a constant: bounds and enum were never
     # emitted because `prop_const()` never sets them.
     return(PropertySpec(
@@ -381,12 +389,12 @@ schema_to_spec <- function(x, default = NULL, element = FALSE, declarations = NU
   if (container == "table") {
     # Column defaults are declaration metadata, separate from table values.
     return(members_spec(x[["items"]], x, ann, "table", data_bound, description,
-      declarations, path, default, default_present, default_policy))
+      declarations, path, default, default_present, default_policy, decode_reference))
   }
   if (container == "struct") {
     # A struct emits its object shape directly rather than as an array element.
     return(members_spec(x, x, ann, "struct", data_bound, description,
-      declarations, path, default, default_present, default_policy))
+      declarations, path, default, default_present, default_policy, decode_reference))
   }
 
   child <- schema_element(x, container, tunable, broadcast)
@@ -397,8 +405,8 @@ schema_to_spec <- function(x, default = NULL, element = FALSE, declarations = NU
   items <- if (
     container %in% c("array", "map") && !is.null(child[["x-rtemis"]])
   ) {
-    schema_to_spec(child, element = TRUE, declarations = declarations,
-      path = paste0(path, schema_child_pointer(x, child)))
+    schema_to_spec(child, declarations = declarations,
+      path = paste0(path, schema_child_pointer(x, child)), decode_reference = decode_reference)
   } else {
     NULL
   }
@@ -479,9 +487,8 @@ schema_to_spec <- function(x, default = NULL, element = FALSE, declarations = NU
 #'
 #' Defaults are supplied separately because they are not a schema keyword: the
 #' published tree carries no `default`, and defaults live in their own versioned
-#' artifact keyed by schema `$id`. A property that is neither nullable nor
-#' `const` therefore needs an entry in `defaults`, and the error names any that
-#' are missing rather than inventing a value.
+#' artifact keyed by schema `$id`. Absent declaration defaults remain absent;
+#' constructing a non-nullable property without a default requires a value.
 #'
 #' Properties holding a nested config are published as a `$ref` to that config's
 #' own schema, which this function does not fetch; supply the corresponding S7
@@ -490,14 +497,20 @@ schema_to_spec <- function(x, default = NULL, element = FALSE, declarations = NU
 #' @param schema Named list: A JSON Schema, as produced by [S7_to_JSONSchema]
 #' or parsed from the published tree with `jsonlite::fromJSON(simplifyVector =
 #' FALSE)`.
-#' @param defaults Optional named list: Property name to default value, as
-#' published in the defaults artifact under this schema's `$id`.
+#' @param defaults Optional named list: Version 2 defaults artifact, or explicit
+#' property declaration values for an independently supplied schema.
 #' @param refs Optional named list: Property name to S7 class, for properties
 #' published as a `$ref` to another schema.
 #' @param authoring Optional named list: Property name to logical authorship
 #' policy, from the separate authoring artifact under this schema's `$id`.
 #' @param name Optional Character: Class name. Defaults to the schema `title`.
 #' @param package Optional Character: Package name recorded on the class.
+#' @param declarations Optional List: Declaration descriptors keyed by schema pointer.
+#' @param schemas Optional List: Complete parsed schema graph keyed by canonical ID.
+#' Used with a version 2 artifact to reconstruct typed references without source classes.
+#' @param decode_reference Optional Function: Reference decoder for a custom artifact graph.
+#' @param parent Optional S7 class: Reconstructed parent type.
+#' @param policies Optional List: Serialized input policy descriptors.
 #'
 #' @return S7 class.
 #'
@@ -530,8 +543,13 @@ JSONSchema_to_S7 <- function(
   name = NULL,
   package = NULL,
   authoring = NULL,
-  declarations = NULL
+  declarations = NULL,
+  schemas = NULL,
+  decode_reference = NULL,
+  parent = NULL,
+  policies = NULL
 ) {
+  if (!is.null(schemas)) return(default_artifact_graph(schemas, defaults, authoring)[["class"]](schema[["$id"]]))
   if (!is.list(schema) || is.null(schema[["properties"]])) {
     rtemis.core::abort(
       "`schema` must be a JSON Schema with a `properties` object.",
@@ -544,6 +562,7 @@ JSONSchema_to_S7 <- function(
     }
     declarations <- defaults[["declarations"]][[schema[["$id"]]]]
     if (is.null(declarations)) rtemis.core::abort("Defaults artifact has no declaration for this schema.", class = "rtemis_schema_error")
+    policies <- defaults[["resolution"]][[schema[["$id"]]]]
     defaults <- NULL
   }
   props <- schema[["properties"]]
@@ -605,7 +624,7 @@ JSONSchema_to_S7 <- function(
   specs <- lapply(spec_names, function(nm) {
     spec <- if (!is.null(declarations)) {
       schema_to_spec(props[[nm]], declarations = declarations,
-        path = paste0("/properties/", default_pointer(nm)))
+        path = paste0("/properties/", default_pointer(nm)), decode_reference = decode_reference)
     } else if (nm %in% names(defaults)) {
       schema_to_spec(props[[nm]], default = defaults[[nm]])
     } else {
@@ -631,10 +650,25 @@ JSONSchema_to_S7 <- function(
     schema[["x-rtemis"]][["rules"]] %||% list(),
     schema_rule_from_fields
   )
+  policy_objects <- lapply(policies, function(p) {
+    p[["requires"]] <- if (is.null(p[["requires"]])) NULL else unlist(p[["requires"]], use.names = FALSE)
+    do.call(DefaultPolicy, p)
+  })
+  constructor <- NULL
+  if (!is.null(parent)) {
+    .artifact_parent <- parent
+    constructor <- function() NULL
+    formals(constructor) <- as.pairlist(lapply(properties, function(p) p[["default"]]))
+    body(constructor) <- as.call(c(list(as.name("new_object"), quote(.artifact_parent())),
+      stats::setNames(lapply(names(properties), as.name), names(properties))))
+  }
   schema_class(
     name = name %||% schema[["title"]] %||% "JSONSchemaClass",
     package = package,
     properties = properties,
+    parent = parent %||% S7_object,
+    constructor = constructor,
+    defaults = if (length(policy_objects)) policy_objects else NULL,
     validator = if (
       any(vapply(specs, function(s) !is.null(s@applies_when), logical(1L)))
     ) {

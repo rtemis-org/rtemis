@@ -133,6 +133,8 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #' @field presence_key Optional Character: Key whose presence selects the alternate class.
 #' @field same_variant Logical: Whether every collection member must share its family discriminator.
 #' @field key_pattern,key_not_pattern Optional Character: Required and forbidden patterns for keys of an object-reference map.
+#' @field default_present Logical: Whether declaration default metadata is present.
+#' @field default_policy Optional DefaultPolicy: Input resolution policy.
 #' @field default Default value (scalar of `type`, or NULL).
 #' @field minimum,maximum Numeric or NULL: Inclusive bounds.
 #' @field exclusive_minimum,exclusive_maximum Numeric or NULL: Exclusive bounds.

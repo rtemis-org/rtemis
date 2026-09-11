@@ -208,6 +208,7 @@ schema_class <- function(..., publication = NULL, rules = list(), defaults = NUL
     for (policy in defaults) check_is_S7(policy, DefaultPolicy)
     attr(cls, "rtemis_defaults") <- lapply(defaults, props)
   }
+  validate_default_policies(cls)
   validate_inherited_property_contracts(cls)
   if (length(declared_rules)) {
     attr(cls, "rtemis_rules") <- declared_rules

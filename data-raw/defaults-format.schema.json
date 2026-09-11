@@ -186,6 +186,15 @@
         "value": {},
         "policy": {
           "$ref": "#/$defs/policy"
+        },
+        "number_types": {
+          "type": "object",
+          "additionalProperties": {
+            "enum": [
+              "integer",
+              "number"
+            ]
+          }
         }
       },
       "required": [

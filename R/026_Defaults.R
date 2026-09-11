@@ -80,7 +80,9 @@ default_wire_value <- function(value, fields = NULL) {
   if (S7_inherits(value)) {
     cls <- S7_class(value)
     base <- family_base(cls)
-    nms <- if (is.null(base)) {
+    nms <- if (!is.null(attr(cls, "rtemis_artifact_schema"))) {
+      names(Filter(function(p) prop_serialized(p) || identical(prop_role(p), "constant"), cls@properties))
+    } else if (is.null(base)) {
       names(Filter(prop_serialized, cls@properties))
     } else {
       unique(c(schema_publication(base)@discriminator, family_shared_names(base),
@@ -148,6 +150,8 @@ default_declarations <- function(spec, schema, path) {
     list(kind = "literal", value = default_wire_value(spec@default, spec_fields(spec)))
   } else list(kind = "none")
   node[["policy"]] <- if (!is.null(spec@default_policy)) props(spec@default_policy) else NULL
+  number_types <- default_number_types(node)
+  if (length(number_types)) node[["number_types"]] <- number_types
   out <- stats::setNames(list(node), path)
   if (!is.null(spec@items)) {
     child <- schema_element(schema, spec@container, spec@tunable, spec@broadcast)
@@ -161,6 +165,62 @@ default_declarations <- function(spec, schema, path) {
       out <- c(out, default_declarations(spec@members[[nm]], object[["properties"]][[nm]],
         paste0(path, prefix, "/properties/", default_pointer(nm))))
     }
+  }
+  out
+}
+
+
+# %% default_number_types ----
+#' Preserve numeric literal types not specified inside opaque objects
+#' @param value ANY: JSON-ready declaration node.
+#' @param path Character: JSON Pointer within the node.
+#' @return Named list of integer/number tags.
+#' @keywords internal
+#' @noRd
+default_number_types <- function(value, path = "") {
+  if (is.numeric(value) && length(value) == 1L && !inherits(value, "AsIs")) {
+    return(stats::setNames(list(if (is.integer(value)) "integer" else "number"), path))
+  }
+  if (!is.list(value) && !(is.numeric(value) && length(value))) return(list())
+  out <- list()
+  for (i in seq_along(value)) {
+    key <- if (is.null(names(value))) as.character(i - 1L) else default_pointer(names(value)[[i]])
+    out <- c(out, default_number_types(value[[i]], paste0(path, "/", key)))
+  }
+  out
+}
+
+
+# %% restore_default_numbers ----
+#' Restore the explicit number types in a declaration node
+#' @param node Named list: Decoded default descriptor.
+#' @return Named list with numeric literal storage restored.
+#' @keywords internal
+#' @noRd
+restore_default_numbers <- function(node) {
+  types <- node[["number_types"]]
+  visited <- character()
+  restore <- function(value, path = "") {
+    if (path %in% names(types)) {
+      if (!is.numeric(value) || length(value) != 1L || !is.finite(value) ||
+          !types[[path]] %in% c("integer", "number")) {
+        rtemis.core::abort("Invalid default numeric type at ", path, ".", class = "rtemis_schema_error")
+      }
+      visited <<- c(visited, path)
+      return(if (types[[path]] == "integer") clean_int(value) else as.numeric(value))
+    }
+    if (!is.list(value)) return(value)
+    out <- lapply(seq_along(value), function(i) {
+      key <- if (is.null(names(value))) as.character(i - 1L) else default_pointer(names(value)[[i]])
+      restore(value[[i]], paste0(path, "/", key))
+    })
+    names(out) <- names(value)
+    out
+  }
+  node[["number_types"]] <- NULL
+  out <- restore(node)
+  if (!setequal(visited, names(types))) {
+    rtemis.core::abort("Default numeric metadata references a missing value.", class = "rtemis_schema_error")
   }
   out
 }
@@ -210,7 +270,7 @@ default_expression_value <- function(expression, values) {
 #' Resolve class-owned input policies
 #' @param cls S7 class: Configuration class.
 #' @param values Named list: Authored values, preserving explicit NULL keys.
-#' @param context Optional List: Explicit runtime values keyed by requirement.
+#' @param context Optional List: Explicit runtime values keyed by property name.
 #' @return List with values, origins, and pending requirements.
 #' @keywords internal
 #' @noRd
@@ -247,11 +307,11 @@ resolve_class_defaults <- function(cls, values, context = NULL) {
           })
       },
       runtime = {
-        if (length(policy@requires) != 1L || !policy@requires %in% names(context)) {
+        if (!nm %in% names(context)) {
           pending[[nm]] <<- list(requires = policy@requires, reason = policy@reason)
           return(invisible(NULL))
         }
-        context[[policy@requires]]
+        context[[nm]]
       }
     )
     if (nm %in% names(pending)) return(invisible(NULL))
@@ -273,16 +333,21 @@ resolve_class_defaults <- function(cls, values, context = NULL) {
 #' Restore a default using its declared wire shape
 #' @param value ANY: JSON-decoded value.
 #' @param schema List: Property schema.
+#' @param decode_reference Optional Function: Artifact graph reference decoder.
 #' @return Typed R value.
 #' @keywords internal
 #' @noRd
-default_from_wire <- function(value, schema) {
+default_from_wire <- function(value, schema, decode_reference = NULL) {
   if (is.null(value)) return(NULL)
   ann <- schema[["x-rtemis"]]
   container <- ann[["container"]] %||% "none"
   target <- ann[["target_class"]]
   if (!is.null(target)) {
-    restore <- function(value) normalize_default_object(from_wire_object(value, target))
+    restore <- function(value) {
+      if (!is.null(decode_reference)) return(decode_reference(value,
+        if (!is.null(ann[["alternate_class"]]) && ann[["presence_key"]] %in% names(value)) ann[["alternate_class"]] else target))
+      normalize_default_object(from_wire_object(value, target))
+    }
     if (container == "none") return(restore(value))
     return(lapply(value, restore))
   }
@@ -290,6 +355,10 @@ default_from_wire <- function(value, schema) {
     return(HyperparameterCandidates(candidates = lapply(value[["candidates"]], function(v) {
       default_from_wire(v, modifyList(schema, list(`x-rtemis` = modifyList(ann, list(tunable = FALSE)))))
     })))
+  }
+  if (container == "matrix") {
+    rows <- lapply(value, unlist, use.names = FALSE)
+    return(do.call(rbind, rows))
   }
   if (container == "factor") return(from_wire_factor(value))
   if (container == "table") {
@@ -303,12 +372,12 @@ default_from_wire <- function(value, schema) {
   }
   if (container == "struct") {
     return(stats::setNames(lapply(names(value), function(nm) {
-      default_from_wire(value[[nm]], schema[["properties"]][[nm]])
+      default_from_wire(value[[nm]], schema[["properties"]][[nm]], decode_reference)
     }), names(value)))
   }
   child <- schema_element(schema, container, isTRUE(ann[["tunable"]]), isTRUE(ann[["broadcast"]]))
   if (container %in% c("map", "array") && !is.null(child[["x-rtemis"]])) {
-    return(lapply(value, default_from_wire, schema = child))
+    return(lapply(value, default_from_wire, schema = child, decode_reference = decode_reference))
   }
   if (ann[["type"]] == "object") return(if (length(value) == 0L) list() else value)
   if (container != "none" && is.list(value)) value <- unlist(value, use.names = container == "map")
@@ -411,5 +480,53 @@ apply_setup_defaults <- function(cls, envir = parent.frame()) {
     }
     assign(nm, value, envir = envir)
   }
+  invisible(NULL)
+}
+
+
+# %% validate_default_policies ----
+#' Check input policy dependencies and result types at declaration
+#' @param cls S7 class: Owning class.
+#' @return NULL, invisibly.
+#' @keywords internal
+#' @noRd
+validate_default_policies <- function(cls) {
+  policies <- class_default_policies(cls)
+  types <- function(expr) {
+    if (is.null(expr)) return("null")
+    if (!is.list(expr)) return(if (is.logical(expr)) "boolean" else if (is.character(expr)) "string" else if (is.integer(expr)) "integer" else "number")
+    op <- names(expr)[[1L]]
+    args <- expr[[1L]]
+    if (op == "var") {
+      spec <- get_spec(cls@properties[[args]])
+      if (is.null(spec)) rtemis.core::abort("Default expressions require typed input: ", args, ".", class = "rtemis_schema_error")
+      return(c(if (spec@container == "none") spec@type else "collection", if (spec@nullable) "null"))
+    }
+    operands <- lapply(args, types)
+    if (op == "if") {
+      if (!identical(operands[[1L]], "boolean")) rtemis.core::abort("Default conditions must have Boolean type.", class = "rtemis_schema_error")
+      return(unique(c(operands[[2L]], operands[[3L]])))
+    }
+    if (op %in% c("===", "!==")) return("boolean")
+    if (any(!unlist(operands) %in% c("integer", "number"))) rtemis.core::abort("Default arithmetic requires numeric scalar types.", class = "rtemis_schema_error")
+    if (op %in% c(">", "<", ">=", "<=")) "boolean" else if (op != "/" && all(unlist(operands) == "integer")) "integer" else "number"
+  }
+  visited <- active <- character()
+  visit <- function(nm) {
+    if (nm %in% active) rtemis.core::abort("Cyclic default dependency at ", cls@name, "@", nm, ".", class = "rtemis_schema_error")
+    if (nm %in% visited) return(invisible(NULL))
+    active <<- c(active, nm)
+    policy <- policies[[nm]]
+    if (!is.null(policy) && policy@kind == "expression") {
+      for (dep in default_expression_dependencies(policy@expression)) visit(dep)
+      spec <- get_spec(cls@properties[[nm]])
+      allowed <- c(spec@type, if (spec@type == "number") "integer", if (spec@nullable) "null")
+      if (any(!types(policy@expression) %in% allowed)) rtemis.core::abort(cls@name, "@", nm, " default expression has an incompatible result type.", class = "rtemis_schema_error")
+    }
+    active <<- setdiff(active, nm)
+    visited <<- c(visited, nm)
+    invisible(NULL)
+  }
+  for (nm in names(policies)) visit(nm)
   invisible(NULL)
 }

@@ -92,10 +92,9 @@ test_that("default expressions reject ambiguity and cycles", {
   candidate <- resolve_class_defaults(RangerHyperparameters, list(replace = tune_over(FALSE, TRUE)))
   expect_true("sample_fraction" %in% names(candidate[["pending"]]))
   expect_error(setup_Ranger(replace = tune_over(FALSE, TRUE)), class = "rtemis_defaults_pending")
-  cls <- schema_class("CyclicDefaults", properties = list(x = prop_integer(1L), y = prop_integer(1L)),
+  expect_error(schema_class("CyclicDefaults", properties = list(x = prop_integer(1L), y = prop_integer(1L)),
     defaults = list(x = DefaultPolicy(kind = "expression", expression = list(var = "y")),
-      y = DefaultPolicy(kind = "expression", expression = list(var = "x"))))
-  expect_error(resolve_class_defaults(cls, list()), "Cyclic default dependency")
+      y = DefaultPolicy(kind = "expression", expression = list(var = "x")))), "Cyclic default dependency")
 })
 
 
