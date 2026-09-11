@@ -16,15 +16,17 @@ test_that("inline alternatives retain the caller's publication URL context", {
       record = record,
       reference_urls = urls
     )
-    variants <- schema$properties$hyperparameters$allOf[[
+    variants <- schema[["properties"]][["hyperparameters"]][["allOf"]][[
       1L
-    ]]$then$properties$variants
+    ]][["then"]][["properties"]][["variants"]]
     expect_identical(
-      variants$additionalProperties$`$ref`,
+      variants[["additionalProperties"]][["$ref"]],
       unname(urls["rtemis::Hyperparameters"])
     )
     expect_identical(
-      schema$properties$hyperparameters$allOf[[2L]]$then$`$ref`,
+      schema[["properties"]][["hyperparameters"]][["allOf"]][[2L]][["then"]][[
+        "$ref"
+      ]],
       unname(urls["rtemis::Hyperparameters"])
     )
   }
@@ -87,9 +89,9 @@ test_that("null, empty maps and empty arrays retain their declared wire types", 
   record <- config_record(x, x)
   expect_false("origin" %in% names(record))
   expect_true("optional" %in% names(record))
-  expect_null(record$optional)
-  expect_identical(names(record$mapping), character())
-  expect_null(names(record$sequence))
+  expect_null(record[["optional"]])
+  expect_identical(names(record[["mapping"]]), character())
+  expect_null(names(record[["sequence"]]))
 })
 
 
@@ -117,8 +119,8 @@ test_that("reference constraints survive reconstruction from serialized schema",
   )
   Restored <- JSONSchema_to_S7(schema)
   expect_identical(
-    spec_fields(get_spec(Declared@properties$value)),
-    spec_fields(get_spec(Restored@properties$value))
+    spec_fields(get_spec(Declared@properties[["value"]])),
+    spec_fields(get_spec(Restored@properties[["value"]]))
   )
   expect_null(Restored()@value)
   expect_s7_class(Restored(value = list(a = setup_GLM())), Restored)
@@ -151,26 +153,26 @@ test_that("report collections serialize and validate their actual element types"
   )
   report <- Diagnostics(list(finding))
   wire <- record_object(report)
-  expect_identical(wire$diagnostics[[1L]]$code, finding@code)
+  expect_identical(wire[["diagnostics"]][[1L]][["code"]], finding@code)
   expect_error(Diagnostics(list(setup_GLM())), "Diagnostic")
   expect_error(report@diagnostics <- list(setup_GLM()), "Diagnostic")
   expect_identical(
-    get_spec(RegressionMetricsRes@properties$res_metrics)@target_class,
+    get_spec(RegressionMetricsRes@properties[["res_metrics"]])@target_class,
     "rtemis::RegressionMetrics"
   )
   expect_identical(
-    get_spec(ClassificationMetricsRes@properties$res_metrics)@target_class,
+    get_spec(ClassificationMetricsRes@properties[["res_metrics"]])@target_class,
     "rtemis::ClassificationMetrics"
   )
 })
 # %% Portable library identities ----
 test_that("library names use the same portable grammar in R and JSON Schema", {
-  spec <- get_spec(MetaLearnerHyperparameters@properties$base_learners)
+  spec <- get_spec(MetaLearnerHyperparameters@properties[["base_learners"]])
   schema <- spec_to_schema(spec, reference = "https://example.org/learner.json")
   # Isolate the key predicate; full member documents are covered by schema-graph.
   validate <- jsonvalidate::json_validator(
     jsonlite::toJSON(
-      list(type = "object", propertyNames = schema$propertyNames),
+      list(type = "object", propertyNames = schema[["propertyNames"]]),
       auto_unbox = TRUE
     ),
     engine = "ajv"

@@ -1928,7 +1928,7 @@ test_that("The fitted model records every setting the run resolved", {
 test_that("The role gates refuse what they should", {
   expect_error(
     setup_LINAD(linear_features = "a", global_features = "b"),
-    "subset of @linear_features"
+    "linad[.]global-features"
   )
   expect_error(
     train(

@@ -8,15 +8,6 @@
 # the RNG substreams that make a parallel run reproduce its sequential counterpart, and
 # the session grafting that keeps the execution graph the same shape either way.
 
-progress_plapply <- getFromNamespace("progress_plapply", "rtemis")
-rng_substreams <- getFromNamespace("rng_substreams", "rtemis")
-with_preserved_rng <- getFromNamespace("with_preserved_rng", "rtemis")
-set_preferred_plan <- getFromNamespace("set_preferred_plan", "rtemis")
-worker_pool_start <- getFromNamespace("worker_pool_start", "rtemis")
-worker_pool_stop <- getFromNamespace("worker_pool_stop", "rtemis")
-worker_pool_available <- getFromNamespace("worker_pool_available", "rtemis")
-live <- getFromNamespace("live", "rtemis")
-
 # %% rng_substreams ----
 testthat::test_that("rng_substreams() derives distinct, deterministic streams", {
   streams <- rng_substreams(2026L, 4L)

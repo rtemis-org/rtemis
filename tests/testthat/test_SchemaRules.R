@@ -53,14 +53,14 @@ test_that("parallel dispatch rules agree across R, JSON Schema, and reconstructi
   }
   expect_true(.rule_accepts(validator, list(n_workers_outer = 2L)))
   without <- schema
-  without$allOf <- Filter(
+  without[["allOf"]] <- Filter(
     function(clause) {
       !identical(clause[["$comment"]], "execution.parallel-dispatch")
     },
-    schema$allOf
+    schema[["allOf"]]
   )
-  if (!length(without$allOf)) {
-    without$allOf <- NULL
+  if (!length(without[["allOf"]])) {
+    without[["allOf"]] <- NULL
   }
   expect_true(.rule_accepts(
     .rule_schema_validator(without),
@@ -90,11 +90,11 @@ test_that("the current Spectral restriction derives from its class declaration",
     }
   }
   without <- schema
-  without$allOf <- Filter(
+  without[["allOf"]] <- Filter(
     function(clause) {
       !identical(clause[["$comment"]], "spectral.local-kernel-nystrom")
     },
-    schema$allOf
+    schema[["allOf"]]
   )
   expect_true(.rule_accepts(
     .rule_schema_validator(without),
@@ -136,8 +136,8 @@ test_that("status and value pairing agrees at every measure and status boundary"
           error = identity
         )
         wire <- record_object(base)
-        wire$metrics <- values
-        wire$status <- statuses
+        wire[["metrics"]] <- values
+        wire[["status"]] <- statuses
         label <- paste(nm, status, present)
         expect_identical(!inherits(original, "error"), expected, info = label)
         expect_identical(!inherits(rebuilt, "error"), expected, info = label)
@@ -158,17 +158,17 @@ test_that("status and value pairing agrees at every measure and status boundary"
     expect_true(.rule_accepts(validator, unset))
   }
   mutant <- wire
-  mutant$status[[1L]] <- "computed"
+  mutant[["status"]][[1L]] <- "computed"
   expect_false(.rule_accepts(validator, mutant))
   without <- schema
-  without$allOf <- Filter(
+  without[["allOf"]] <- Filter(
     function(clause) {
       !identical(clause[["$comment"]], "clustering-metrics.status-value")
     },
-    schema$allOf
+    schema[["allOf"]]
   )
-  if (!length(without$allOf)) {
-    without$allOf <- NULL
+  if (!length(without[["allOf"]])) {
+    without[["allOf"]] <- NULL
   }
   expect_true(.rule_accepts(.rule_schema_validator(without), mutant))
 })

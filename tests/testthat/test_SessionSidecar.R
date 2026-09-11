@@ -95,8 +95,8 @@ test_that("session_nodes() of an empty session is an empty table, not an error",
 # %% DataRef ----
 
 test_that("DataRef requires a path and a hash", {
-  expect_error(DataRef(path = "", hash = "abc"), "@path")
-  expect_error(DataRef(path = "x.parquet", hash = ""), "@hash")
+  expect_error(DataRef(path = "", hash = "abc"), "dataref[.]identity")
+  expect_error(DataRef(path = "x.parquet", hash = ""), "dataref[.]identity")
 })
 
 

@@ -7,7 +7,7 @@ test_that("typed rules preserve native validation across boundary and candidate 
   sys.source(test_path("fixtures", "schema-native-validators.R"), oracle)
   sys.source(test_path("fixtures", "schema-rule-cases.R"), oracle)
   classes <- unique(vapply(
-    oracle$schema_rule_cases(),
+    oracle[["schema_rule_cases"]](),
     `[[`,
     character(1L),
     "class"
@@ -18,7 +18,7 @@ test_that("typed rules preserve native validation across boundary and candidate 
     S7::new_class(
       paste0("Oracle", nm),
       properties = originals[[nm]]@properties,
-      validator = oracle$.legacy_validators[[nm]]
+      validator = oracle[[".legacy_validators"]][[nm]]
     )
   })
   names(legacy) <- classes
@@ -32,7 +32,7 @@ test_that("typed rules preserve native validation across boundary and candidate 
       get_spec_fields(p)[["default"]]
     })
     # These classes contain primitive declarations and one nullable reference.
-    defaults <- defaults[names(schema$properties)]
+    defaults <- defaults[names(schema[["properties"]])]
     defaults <- defaults[!vapply(defaults, is.language, logical(1L))]
     JSONSchema_to_S7(
       jsonlite::fromJSON(
@@ -42,20 +42,23 @@ test_that("typed rules preserve native validation across boundary and candidate 
       defaults = defaults
     )
   })
-  for (case in oracle$schema_rule_cases()) {
+  for (case in oracle[["schema_rule_cases"]]()) {
     call <- function(cls) {
       tryCatch(
         {
-          do.call(cls, case$arguments)
+          do.call(cls, case[["arguments"]])
           TRUE
         },
         error = function(e) FALSE
       )
     }
-    expected <- case$expected %||% call(legacy[[case$class]])
-    label <- paste(case$class, paste(names(case$arguments), collapse = ","))
-    expect_identical(call(originals[[case$class]]), expected, info = label)
-    expect_identical(call(rebuilt[[case$class]]), expected, info = label)
+    expected <- case[["expected"]] %||% call(legacy[[case[["class"]]]])
+    label <- paste(
+      case[["class"]],
+      paste(names(case[["arguments"]]), collapse = ",")
+    )
+    expect_identical(call(originals[[case[["class"]]]]), expected, info = label)
+    expect_identical(call(rebuilt[[case[["class"]]]]), expected, info = label)
   }
 })
 
@@ -214,7 +217,7 @@ test_that("inherited property contracts match retained S7 validation", {
       x = prop_integer(2L, max = 4L, description = "An amount.")
     )
   )
-  expect_identical(get_spec_fields(Child@properties$x)[["default"]], 2L)
+  expect_identical(get_spec_fields(Child@properties[["x"]])[["default"]], 2L)
   expect_identical(Child(x = 2L)@x, 2L)
   expect_error(Child(x = 2L, y = 2L), "test.inherited-conflict")
   validate <- jsonvalidate::json_validator(
