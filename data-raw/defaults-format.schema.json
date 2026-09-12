@@ -171,6 +171,63 @@
               "value"
             ]
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "not": {
+                  "const": "literal"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "not": {
+                  "const": "expression"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "expression": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "not": {
+                  "const": "runtime"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "requires": {
+                "type": "null"
+              },
+              "reason": {
+                "type": "null"
+              }
+            }
+          }
         }
       ]
     },
@@ -214,6 +271,22 @@
             "required": [
               "value"
             ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "none"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "value"
+              ]
+            }
           }
         }
       ]

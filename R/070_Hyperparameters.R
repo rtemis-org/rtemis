@@ -6695,7 +6695,10 @@ RangerHyperparameters <- schema_class(
   name = "RangerHyperparameters",
   parent = Hyperparameters,
   defaults = list(
-    sample_fraction = DefaultPolicy(kind = "expression", expression = list(`if` = list(list(var = "replace"), 1, 0.632)))
+    sample_fraction = DefaultPolicy(
+      kind = "expression",
+      expression = list(`if` = list(list(var = "replace"), 1, 0.632))
+    )
   ),
   properties = list(
     algorithm = prop_algorithm("Ranger"),

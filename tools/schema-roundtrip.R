@@ -37,8 +37,12 @@ compare_fields <- function(original, restored, prefix = "") {
     path <- paste0(prefix, nm)
     a <- original[[nm]]
     b <- restored[[nm]]
-    if (S7_inherits(a)) a <- default_wire_value(a)
-    if (S7_inherits(b)) b <- default_wire_value(b)
+    if (S7_inherits(a)) {
+      a <- default_wire_value(a)
+    }
+    if (S7_inherits(b)) {
+      b <- default_wire_value(b)
+    }
     if (identical(a, b)) {
       next
     }
@@ -58,7 +62,11 @@ compare_fields <- function(original, restored, prefix = "") {
 # %% Audit ----
 artifact <- read_artifact("defaults/v2/defaults.json")
 defaults <- artifact[["declarations"]]
-schema_paths <- list.files(artifact_dir, pattern = "^schema[.]json$", recursive = TRUE)
+schema_paths <- list.files(
+  artifact_dir,
+  pattern = "^(schema|record)[.]json$",
+  recursive = TRUE
+)
 schemas <- lapply(schema_paths, read_artifact)
 names(schemas) <- vapply(schemas, `[[`, character(1L), "$id")
 graph <- default_artifact_graph(schemas, artifact)
@@ -119,8 +127,12 @@ for (path in sort(names(entries))) {
       row[["status"]] <- "no_property_spec"
     } else {
       restored <- tryCatch(
-        schema_to_spec(schema[["properties"]][[nm]], declarations = defaults[[id]],
-          path = paste0("/properties/", default_pointer(nm)), decode_reference = graph[["decode"]]),
+        schema_to_spec(
+          schema[["properties"]][[nm]],
+          declarations = defaults[[id]],
+          path = paste0("/properties/", default_pointer(nm)),
+          decode_reference = graph[["decode"]]
+        ),
         error = identity
       )
       if (inherits(restored, "error")) {
@@ -138,12 +150,115 @@ for (path in sort(names(entries))) {
     rows[[length(rows) + 1L]] <- row
   }
 }
+# Inline declarations are addressed within their owning document.
+for (id in intersect(names(schemas), names(defaults))) {
+  walk_inline <- function(node, pointer = "") {
+    if (!is.list(node)) {
+      return(invisible(NULL))
+    }
+    identity <- node[["x-rtemis"]][["publication"]][["class"]]
+    if (!is.null(identity) && identity %in% names(catalog[["inline"]])) {
+      cls <- catalog[["inline"]][[identity]][["cls"]]
+      for (nm in names(node[["properties"]])) {
+        source <- get_spec(cls@properties[[nm]])
+        path <- paste0(pointer, "/properties/", default_pointer(nm))
+        restored <- schema_to_spec(
+          node[["properties"]][[nm]],
+          declarations = defaults[[id]],
+          path = path,
+          decode_reference = graph[["decode"]]
+        )
+        differences <- compare_fields(
+          spec_fields(source),
+          spec_fields(restored)
+        )
+        rows[[length(rows) + 1L]] <<- list(
+          class = cls@name,
+          schema = id,
+          pointer = path,
+          property = nm,
+          status = if (length(differences)) "different" else "equal",
+          differences = differences
+        )
+      }
+    }
+    for (i in seq_along(node)) {
+      key <- if (is.null(names(node))) {
+        as.character(i - 1L)
+      } else {
+        default_pointer(names(node)[[i]])
+      }
+      walk_inline(node[[i]], paste0(pointer, "/", key))
+    }
+    invisible(NULL)
+  }
+  walk_inline(schemas[[id]])
+}
 counts <- table(vapply(rows, `[[`, character(1L), "status"))
+
+
+# %% resolution_fields ----
+#' Normalize resolved input policies to portable wire values
+#' @param cls S7 class: Native or artifact-reconstructed class.
+#' @return List of resolved values, origins, and pending requirements.
+#' @keywords internal
+#' @noRd
+resolution_fields <- function(cls) {
+  result <- resolve_class_defaults(cls, list())
+  result[["values"]] <- stats::setNames(
+    lapply(names(result[["values"]]), function(nm) {
+      default_wire_value(
+        result[["values"]][[nm]],
+        get_spec_fields(cls@properties[[nm]])
+      )
+    }),
+    names(result[["values"]])
+  )
+  canonical <- function(x) {
+    if (!is.list(x)) {
+      return(x)
+    }
+    if (!is.null(names(x))) {
+      x <- x[sort(names(x))]
+    }
+    lapply(x, canonical)
+  }
+  canonical(jsonlite::fromJSON(
+    jsonlite::toJSON(result, auto_unbox = TRUE, null = "null", digits = NA),
+    simplifyVector = FALSE
+  ))
+}
+
+
+# %% Input policy audit ----
+policy_rows <- lapply(names(entries), function(path) {
+  id <- paste0(base_url, "/", path)
+  tryCatch(
+    {
+      before <- resolution_fields(entries[[path]][["cls"]])
+      after <- resolution_fields(graph[["class"]](id))
+      differences <- compare_fields(before, after)
+      list(
+        schema = id,
+        status = if (length(differences)) "different" else "equal",
+        differences = differences
+      )
+    },
+    error = function(e) {
+      list(schema = id, status = "error", error = conditionMessage(e))
+    }
+  )
+})
+policy_counts <- table(vapply(policy_rows, `[[`, character(1L), "status"))
 report <- list(
   property_count = length(rows),
+  declaration_nodes = sum(lengths(defaults)),
+  reference_decoding = "artifact_graph_only",
   schema_count = length(entries),
   counts = as.list(counts),
   properties = rows,
+  input_policy_counts = as.list(policy_counts),
+  input_policies = policy_rows,
   validators = validators[sort(names(validators))]
 )
 dir.create(dirname(report_file), recursive = TRUE, showWarnings = FALSE)
@@ -158,4 +273,5 @@ writeLines(
   report_file
 )
 print(counts)
+print(policy_counts)
 cat(length(validators), "distinct declaring classes with validators\n")

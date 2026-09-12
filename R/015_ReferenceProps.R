@@ -100,9 +100,16 @@ make_reference_prop <- function(spec) {
   cls <- if (spec@container == "none") S7_object else class_list
   p <- new_property(
     class = if (spec@nullable) NULL | cls else cls,
-    default = if (spec@default_present || spec@nullable) spec@default else quote(
-      rtemis.core::abort("This property requires an explicit value.", class = "rtemis_input_error")
-    ),
+    default = if (spec@default_present || spec@nullable) {
+      spec@default
+    } else {
+      quote(
+        rtemis.core::abort(
+          "This property requires an explicit value.",
+          class = "rtemis_input_error"
+        )
+      )
+    },
     validator = spec_validator(fields)
   )
   p[["spec"]] <- fields

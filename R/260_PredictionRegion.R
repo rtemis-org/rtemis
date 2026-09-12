@@ -242,7 +242,12 @@ SplitConformalConfig <- schema_class(
   name = "SplitConformalConfig",
   parent = ConformalConfig,
   defaults = list(
-    seed = DefaultPolicy(kind = "runtime", on_null = TRUE, requires = "seed", reason = "Drawn from the runtime random stream and recorded.")
+    seed = DefaultPolicy(
+      kind = "runtime",
+      on_null = TRUE,
+      requires = "seed",
+      reason = "Drawn from the runtime random stream and recorded."
+    )
   ),
   properties = list(
     type = prop_algorithm("Split"),
@@ -277,7 +282,12 @@ CVPlusConfig <- schema_class(
   name = "CVPlusConfig",
   parent = ConformalConfig,
   defaults = list(
-    seed = DefaultPolicy(kind = "runtime", on_null = TRUE, requires = "seed", reason = "Drawn from the runtime random stream and recorded.")
+    seed = DefaultPolicy(
+      kind = "runtime",
+      on_null = TRUE,
+      requires = "seed",
+      reason = "Drawn from the runtime random stream and recorded."
+    )
   ),
   properties = list(
     type = prop_algorithm("CVPlus"),

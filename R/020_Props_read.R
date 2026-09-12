@@ -220,11 +220,32 @@ strip_suffix <- function(x, suffix) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-members_spec <- function(obj, x, ann, container, data_bound, description,
-  declarations = NULL, path = "", default = NULL, default_present = TRUE, default_policy = NULL, decode_reference = NULL) {
-  member_path <- paste0(path, if (container == "table") "/items" else "", "/properties/")
+members_spec <- function(
+  obj,
+  x,
+  ann,
+  container,
+  data_bound,
+  description,
+  declarations = NULL,
+  path = "",
+  default = NULL,
+  default_present = TRUE,
+  default_policy = NULL,
+  decode_reference = NULL
+) {
+  member_path <- paste0(
+    path,
+    if (container == "table") "/items" else "",
+    "/properties/"
+  )
   members <- lapply(names(obj[["properties"]]), function(nm) {
-    schema_to_spec(obj[["properties"]][[nm]], declarations = declarations, path = paste0(member_path, default_pointer(nm)), decode_reference = decode_reference)
+    schema_to_spec(
+      obj[["properties"]][[nm]],
+      declarations = declarations,
+      path = paste0(member_path, default_pointer(nm)),
+      decode_reference = decode_reference
+    )
   })
   names(members) <- names(obj[["properties"]])
   PropertySpec(
@@ -277,23 +298,62 @@ members_spec <- function(obj, x, ann, container, data_bound, description,
 #' @author EDG
 #' @keywords internal
 #' @noRd
-schema_to_spec <- function(x, default = NULL, declarations = NULL, path = "", decode_reference = NULL) {
+schema_to_spec <- function(
+  x,
+  default = NULL,
+  declarations = NULL,
+  path = "",
+  decode_reference = NULL
+) {
   default_present <- !missing(default)
   default_policy <- NULL
   if (!is.null(declarations)) {
     if (!path %in% names(declarations)) {
-      rtemis.core::abort("Missing default declaration at ", path, ".", class = "rtemis_schema_error")
+      rtemis.core::abort(
+        "Missing default declaration at ",
+        path,
+        ".",
+        class = "rtemis_schema_error"
+      )
     }
     declaration <- restore_default_numbers(declarations[[path]])
     if (!declaration[["kind"]] %in% c("literal", "none")) {
-      rtemis.core::abort("Unknown default declaration at ", path, ".", class = "rtemis_schema_error")
+      rtemis.core::abort(
+        "Unknown default declaration at ",
+        path,
+        ".",
+        class = "rtemis_schema_error"
+      )
+    }
+    if (
+      length(setdiff(names(declaration), c("kind", "value", "policy"))) ||
+        (identical(declaration[["kind"]], "none") &&
+          "value" %in% names(declaration))
+    ) {
+      rtemis.core::abort(
+        "Contradictory default declaration at ",
+        path,
+        ".",
+        class = "rtemis_schema_error"
+      )
     }
     default_present <- identical(declaration[["kind"]], "literal")
     if (default_present && !"value" %in% names(declaration)) {
-      rtemis.core::abort("Literal default lacks value at ", path, ".", class = "rtemis_schema_error")
+      rtemis.core::abort(
+        "Literal default lacks value at ",
+        path,
+        ".",
+        class = "rtemis_schema_error"
+      )
     }
     default <- default_from_wire(declaration[["value"]], x, decode_reference)
-    if (!is.null(declaration[["policy"]])) default_policy <- do.call(DefaultPolicy, declaration[["policy"]])
+    if (!is.null(declaration[["policy"]])) {
+      default_policy <- default_policy_from_wire(
+        declaration[["policy"]],
+        x,
+        decode_reference
+      )
+    }
   }
   ann <- x[["x-rtemis"]]
   if (is.null(ann) || is.null(ann[["type"]])) {
@@ -368,8 +428,17 @@ schema_to_spec <- function(x, default = NULL, declarations = NULL, path = "", de
   }
 
   if (constant) {
-    if (!is.null(declarations) && (!default_present || !identical(default, coerce_to_type(x[["const"]], type)))) {
-      rtemis.core::abort("Constant default contradicts its schema at ", path, ".", class = "rtemis_schema_error")
+    if (
+      !is.null(declarations) &&
+        (!default_present ||
+          !identical(default, coerce_to_type(x[["const"]], type)))
+    ) {
+      rtemis.core::abort(
+        "Constant default contradicts its schema at ",
+        path,
+        ".",
+        class = "rtemis_schema_error"
+      )
     }
     # `const` is the whole schema for a constant: bounds and enum were never
     # emitted because `prop_const()` never sets them.
@@ -388,13 +457,37 @@ schema_to_spec <- function(x, default = NULL, declarations = NULL, path = "", de
 
   if (container == "table") {
     # Column defaults are declaration metadata, separate from table values.
-    return(members_spec(x[["items"]], x, ann, "table", data_bound, description,
-      declarations, path, default, default_present, default_policy, decode_reference))
+    return(members_spec(
+      x[["items"]],
+      x,
+      ann,
+      "table",
+      data_bound,
+      description,
+      declarations,
+      path,
+      default,
+      default_present,
+      default_policy,
+      decode_reference
+    ))
   }
   if (container == "struct") {
     # A struct emits its object shape directly rather than as an array element.
-    return(members_spec(x, x, ann, "struct", data_bound, description,
-      declarations, path, default, default_present, default_policy, decode_reference))
+    return(members_spec(
+      x,
+      x,
+      ann,
+      "struct",
+      data_bound,
+      description,
+      declarations,
+      path,
+      default,
+      default_present,
+      default_policy,
+      decode_reference
+    ))
   }
 
   child <- schema_element(x, container, tunable, broadcast)
@@ -405,8 +498,12 @@ schema_to_spec <- function(x, default = NULL, declarations = NULL, path = "", de
   items <- if (
     container %in% c("array", "map") && !is.null(child[["x-rtemis"]])
   ) {
-    schema_to_spec(child, declarations = declarations,
-      path = paste0(path, schema_child_pointer(x, child)), decode_reference = decode_reference)
+    schema_to_spec(
+      child,
+      declarations = declarations,
+      path = paste0(path, schema_child_pointer(x, child)),
+      decode_reference = decode_reference
+    )
   } else {
     NULL
   }
@@ -447,7 +544,11 @@ schema_to_spec <- function(x, default = NULL, declarations = NULL, path = "", de
   }
   PropertySpec(
     type = type,
-    default = if (is.null(declarations)) coerce_to_type(default, type) else default,
+    default = if (is.null(declarations)) {
+      coerce_to_type(default, type)
+    } else {
+      default
+    },
     default_present = default_present,
     default_policy = default_policy,
     minimum = as_bound(leaf[["minimum"]]),
@@ -485,14 +586,16 @@ schema_to_spec <- function(x, default = NULL, declarations = NULL, path = "", de
 #' properties carry the same types, bounds, enums, containers, and validators as
 #' the class the schema was generated from.
 #'
-#' Defaults are supplied separately because they are not a schema keyword: the
-#' published tree carries no `default`, and defaults live in their own versioned
-#' artifact keyed by schema `$id`. Absent declaration defaults remain absent;
+#' Defaults are supplied in a separate versioned artifact keyed by schema `$id`.
+#' The published schemas carry no `default` keywords. Absent declaration defaults remain absent;
 #' constructing a non-nullable property without a default requires a value.
 #'
 #' Properties holding a nested config are published as a `$ref` to that config's
-#' own schema, which this function does not fetch; supply the corresponding S7
-#' classes via `refs`.
+#' own schema. Supply the parsed graph through `schemas` and the version 2
+#' artifact through `defaults` to reconstruct these references. Independently
+#' supplied S7 reference classes can be passed through `refs`.
+#' Reconstructed constructors use declaration defaults; input resolution policies
+#' remain separate metadata on the class.
 #'
 #' @param schema Named list: A JSON Schema, as produced by [S7_to_JSONSchema]
 #' or parsed from the published tree with `jsonlite::fromJSON(simplifyVector =
@@ -549,20 +652,41 @@ JSONSchema_to_S7 <- function(
   parent = NULL,
   policies = NULL
 ) {
-  if (!is.null(schemas)) return(default_artifact_graph(schemas, defaults, authoring)[["class"]](schema[["$id"]]))
+  if (!is.null(schemas)) {
+    return(default_artifact_graph(schemas, defaults, authoring)[[
+      "class"
+    ]](schema[["$id"]]))
+  }
   if (!is.list(schema) || is.null(schema[["properties"]])) {
     rtemis.core::abort(
       "`schema` must be a JSON Schema with a `properties` object.",
       class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
+  if (
+    any(c("$id", "declarations", "resolution") %in% names(defaults)) &&
+      is.null(defaults[["format_version"]])
+  ) {
+    rtemis.core::abort(
+      "Defaults artifact lacks its format version.",
+      class = "rtemis_schema_error"
+    )
+  }
   if (!is.null(defaults[["format_version"]])) {
-    if (!identical(as.integer(defaults[["format_version"]]), 2L)) {
-      rtemis.core::abort("Unsupported defaults artifact version.", class = "rtemis_schema_error")
+    if (!identical(defaults[["format_version"]], 2L)) {
+      rtemis.core::abort(
+        "Unsupported defaults artifact version.",
+        class = "rtemis_schema_error"
+      )
     }
     declarations <- defaults[["declarations"]][[schema[["$id"]]]]
-    if (is.null(declarations)) rtemis.core::abort("Defaults artifact has no declaration for this schema.", class = "rtemis_schema_error")
-    policies <- defaults[["resolution"]][[schema[["$id"]]]]
+    if (is.null(declarations)) {
+      rtemis.core::abort(
+        "Defaults artifact has no declaration for this schema.",
+        class = "rtemis_schema_error"
+      )
+    }
+    policies <- defaults[["resolution"]][[schema[["$id"]]]] %||% list()
     defaults <- NULL
   }
   props <- schema[["properties"]]
@@ -623,8 +747,12 @@ JSONSchema_to_S7 <- function(
   spec_names <- names(props)[!is_ref]
   specs <- lapply(spec_names, function(nm) {
     spec <- if (!is.null(declarations)) {
-      schema_to_spec(props[[nm]], declarations = declarations,
-        path = paste0("/properties/", default_pointer(nm)), decode_reference = decode_reference)
+      schema_to_spec(
+        props[[nm]],
+        declarations = declarations,
+        path = paste0("/properties/", default_pointer(nm)),
+        decode_reference = decode_reference
+      )
     } else if (nm %in% names(defaults)) {
       schema_to_spec(props[[nm]], default = defaults[[nm]])
     } else {
@@ -650,19 +778,28 @@ JSONSchema_to_S7 <- function(
     schema[["x-rtemis"]][["rules"]] %||% list(),
     schema_rule_from_fields
   )
-  policy_objects <- lapply(policies, function(p) {
-    p[["requires"]] <- if (is.null(p[["requires"]])) NULL else unlist(p[["requires"]], use.names = FALSE)
-    do.call(DefaultPolicy, p)
+  policy_objects <- lapply(names(policies), function(nm) {
+    default_policy_from_wire(
+      policies[[nm]],
+      props[[nm]],
+      decode_reference,
+      preserve_reference = TRUE
+    )
   })
+  names(policy_objects) <- names(policies)
   constructor <- NULL
   if (!is.null(parent)) {
     .artifact_parent <- parent
-    constructor <- function() NULL
-    formals(constructor) <- as.pairlist(lapply(properties, function(p) p[["default"]]))
-    body(constructor) <- as.call(c(list(as.name("new_object"), quote(.artifact_parent())),
-      stats::setNames(lapply(names(properties), as.name), names(properties))))
+    constructor <- function() new_object(.artifact_parent())
+    formals(constructor) <- as.pairlist(lapply(properties, function(p) {
+      p[["default"]]
+    }))
+    body(constructor) <- as.call(c(
+      list(as.name("new_object"), quote(.artifact_parent())),
+      stats::setNames(lapply(names(properties), as.name), names(properties))
+    ))
   }
-  schema_class(
+  cls <- schema_class(
     name = name %||% schema[["title"]] %||% "JSONSchemaClass",
     package = package,
     properties = properties,
@@ -678,4 +815,9 @@ JSONSchema_to_S7 <- function(
     },
     rules = rules
   )
+  attr(cls, "rtemis_artifact_schema") <- schema
+  if (!is.null(policies)) {
+    attr(cls, "rtemis_artifact_policies") <- policy_objects
+  }
+  cls
 } # /rtemis::JSONSchema_to_S7

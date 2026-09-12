@@ -478,6 +478,7 @@ testthat::test_that("a failed parallel fold aborts under 'stop_outer'", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   expect_error(fit_failing("stop_outer"), "Outer fold")
+  expect_null(live[["worker_pool"]])
 })
 
 

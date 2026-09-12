@@ -24,7 +24,12 @@ ExecutionConfig <- schema_class(
   # property and would vanish from the published leaf schema, taking its
   # constraint with it.
   defaults = list(
-    seed = DefaultPolicy(kind = "runtime", on_null = TRUE, requires = "seed", reason = "Drawn from the runtime random stream and recorded.")
+    seed = DefaultPolicy(
+      kind = "runtime",
+      on_null = TRUE,
+      requires = "seed",
+      reason = "Drawn from the runtime random stream and recorded."
+    )
   ),
   properties = list(
     backend = class_character,
@@ -131,7 +136,12 @@ ParallelExecutionConfig <- schema_class(
   package = "rtemis",
   abstract = TRUE,
   defaults = list(
-    n_workers = DefaultPolicy(kind = "runtime", on_null = TRUE, requires = "n_workers", reason = "Resolved from available cores or explicit dispatch levels.")
+    n_workers = DefaultPolicy(
+      kind = "runtime",
+      on_null = TRUE,
+      requires = "n_workers",
+      reason = "Resolved from available cores or explicit dispatch levels."
+    )
   ),
   properties = list(
     n_workers = prop_integer(
@@ -184,7 +194,11 @@ FutureExecutionConfig <- schema_class(
   parent = ParallelExecutionConfig,
   package = "rtemis",
   defaults = list(
-    future_plan = DefaultPolicy(kind = "runtime", requires = "future_plan", reason = "Read from the runtime future plan option.")
+    future_plan = DefaultPolicy(
+      kind = "runtime",
+      requires = "future_plan",
+      reason = "Read from the runtime future plan option."
+    )
   ),
   properties = list(
     backend = prop_algorithm("future"),

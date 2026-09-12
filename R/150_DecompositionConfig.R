@@ -530,9 +530,23 @@ tSNEConfig <- schema_class(
   name = "tSNEConfig",
   parent = DecompositionConfig,
   defaults = list(
-    verbose = DefaultPolicy(kind = "runtime", requires = "verbose", reason = "Read from the runtime verbosity option."),
-    stop_lying_iter = DefaultPolicy(kind = "expression", expression = list(`if` = list(list(`===` = list(list(var = "Y_init"), NULL)), 250L, 0L))),
-    mom_switch_iter = DefaultPolicy(kind = "expression", expression = list(`if` = list(list(`===` = list(list(var = "Y_init"), NULL)), 250L, 0L)))
+    verbose = DefaultPolicy(
+      kind = "runtime",
+      requires = "verbose",
+      reason = "Read from the runtime verbosity option."
+    ),
+    stop_lying_iter = DefaultPolicy(
+      kind = "expression",
+      expression = list(
+        `if` = list(list(`===` = list(list(var = "Y_init"), NULL)), 250L, 0L)
+      )
+    ),
+    mom_switch_iter = DefaultPolicy(
+      kind = "expression",
+      expression = list(
+        `if` = list(list(`===` = list(list(var = "Y_init"), NULL)), 250L, 0L)
+      )
+    )
   ),
   properties = list(
     algorithm = prop_algorithm("tSNE"),

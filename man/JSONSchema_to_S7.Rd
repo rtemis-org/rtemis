@@ -10,15 +10,20 @@ JSONSchema_to_S7(
   refs = NULL,
   name = NULL,
   package = NULL,
-  authoring = NULL
+  authoring = NULL,
+  declarations = NULL,
+  schemas = NULL,
+  decode_reference = NULL,
+  parent = NULL,
+  policies = NULL
 )
 }
 \arguments{
 \item{schema}{Named list: A JSON Schema, as produced by \link{S7_to_JSONSchema}
 or parsed from the published tree with \code{jsonlite::fromJSON(simplifyVector = FALSE)}.}
 
-\item{defaults}{Optional named list: Property name to default value, as
-published in the defaults artifact under this schema's \verb{$id}.}
+\item{defaults}{Optional named list: Version 2 defaults artifact, or explicit
+property declaration values for an independently supplied schema.}
 
 \item{refs}{Optional named list: Property name to S7 class, for properties
 published as a \verb{$ref} to another schema.}
@@ -29,6 +34,17 @@ published as a \verb{$ref} to another schema.}
 
 \item{authoring}{Optional named list: Property name to logical authorship
 policy, from the separate authoring artifact under this schema's \verb{$id}.}
+
+\item{declarations}{Optional List: Declaration descriptors keyed by schema pointer.}
+
+\item{schemas}{Optional List: Complete parsed schema graph keyed by canonical ID.
+Used with a version 2 artifact to reconstruct typed references without source classes.}
+
+\item{decode_reference}{Optional Function: Reference decoder for a custom artifact graph.}
+
+\item{parent}{Optional S7 class: Reconstructed parent type.}
+
+\item{policies}{Optional List: Serialized input policy descriptors.}
 }
 \value{
 S7 class.
@@ -40,15 +56,16 @@ properties carry the same types, bounds, enums, containers, and validators as
 the class the schema was generated from.
 }
 \details{
-Defaults are supplied separately because they are not a schema keyword: the
-published tree carries no \code{default}, and defaults live in their own versioned
-artifact keyed by schema \verb{$id}. A property that is neither nullable nor
-\code{const} therefore needs an entry in \code{defaults}, and the error names any that
-are missing rather than inventing a value.
+Defaults are supplied in a separate versioned artifact keyed by schema \verb{$id}.
+The published schemas carry no \code{default} keywords. Absent declaration defaults remain absent;
+constructing a non-nullable property without a default requires a value.
 
 Properties holding a nested config are published as a \verb{$ref} to that config's
-own schema, which this function does not fetch; supply the corresponding S7
-classes via \code{refs}.
+own schema. Supply the parsed graph through \code{schemas} and the version 2
+artifact through \code{defaults} to reconstruct these references. Independently
+supplied S7 reference classes can be passed through \code{refs}.
+Reconstructed constructors use declaration defaults; input resolution policies
+remain separate metadata on the class.
 }
 \examples{
 # A schema as `S7_to_JSONSchema()` emits it: standard keywords carry the

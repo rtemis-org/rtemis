@@ -684,7 +684,9 @@ PropertySpec <- new_class(
     }
     if (!self@default_present) {
       if (!is.null(self@default) || self@constant) {
-        return("An absent default must have NULL metadata and cannot be constant.")
+        return(
+          "An absent default must have NULL metadata and cannot be constant."
+        )
       }
       return(NULL)
     }
@@ -776,8 +778,14 @@ spec_fields <- function(spec) {
 #' @keywords internal
 #' @noRd
 spec_object <- function(fields) {
-  if (!is.null(fields[["default_policy"]]) && !S7_inherits(fields[["default_policy"]])) {
-    fields[["default_policy"]] <- do.call(DefaultPolicy, fields[["default_policy"]])
+  if (
+    !is.null(fields[["default_policy"]]) &&
+      !S7_inherits(fields[["default_policy"]])
+  ) {
+    fields[["default_policy"]] <- do.call(
+      DefaultPolicy,
+      fields[["default_policy"]]
+    )
   }
   if (!is.null(fields[["items"]])) {
     fields[["items"]] <- spec_object(fields[["items"]])
@@ -1162,6 +1170,21 @@ validate_with_spec <- function(value, fields) {
   if (is.null(value)) {
     return(if (nullable) NULL else "must not be NULL.")
   }
+  if (isTRUE(fields[["constant"]])) {
+    expected <- fields[["default"]]
+    same <- if (is.numeric(value) && is.numeric(expected)) {
+      identical(as.numeric(value), as.numeric(expected))
+    } else {
+      identical(value, expected)
+    }
+    if (!same) {
+      return(paste0(
+        "must equal the declared constant ",
+        paste(deparse(expected), collapse = ""),
+        "."
+      ))
+    }
+  }
   if (is_candidates(value)) {
     return(validate_candidates(value, fields))
   }
@@ -1439,9 +1462,16 @@ make_prop <- function(spec) {
   }
   p <- new_property(
     class = if (spec@nullable) NULL | base_class else base_class,
-    default = if (spec@default_present || spec@nullable) spec@default else quote(
-      rtemis.core::abort("This property requires an explicit value.", class = "rtemis_input_error")
-    ),
+    default = if (spec@default_present || spec@nullable) {
+      spec@default
+    } else {
+      quote(
+        rtemis.core::abort(
+          "This property requires an explicit value.",
+          class = "rtemis_input_error"
+        )
+      )
+    },
     validator = spec_validator(fields)
   )
   p[["spec"]] <- fields

@@ -134,7 +134,10 @@ GridSearchConfig <- schema_class(
   parent = TunerConfig,
   package = "rtemis",
   defaults = list(
-    resampler_config = DefaultPolicy(kind = "literal", value = setup_KFold(n_resamples = 5L))
+    resampler_config = DefaultPolicy(
+      kind = "literal",
+      value = setup_KFold(n_resamples = 5L)
+    )
   ),
   properties = list(
     type = prop_algorithm("GridSearch"),

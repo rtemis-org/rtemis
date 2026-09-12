@@ -145,7 +145,10 @@ SuperConfigPaths <- schema_class(
   package = "rtemis",
   parent = SuperConfig,
   defaults = list(
-    execution_config = DefaultPolicy(kind = "literal", value = list(backend = "future")),
+    execution_config = DefaultPolicy(
+      kind = "literal",
+      value = list(backend = "future")
+    ),
     outdir = DefaultPolicy(kind = "literal", value = "results/")
   ),
   properties = list(

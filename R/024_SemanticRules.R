@@ -23,6 +23,7 @@ CompareFields <- new_class(
     ),
     conditions = prop_collection(
       SchemaPredicate,
+      default = list(),
       description = "Conditions enabling the comparison."
     )
   )
@@ -54,6 +55,7 @@ SumBound <- new_class(
     ),
     conditions = prop_collection(
       SchemaPredicate,
+      default = list(),
       description = "Conditions enabling the sum bound."
     )
   ),

@@ -2,6 +2,7 @@
 
 ## 1.4.0
 
+- `JSONSchema_to_S7()` reads versioned declaration defaults and reconstructs typed references from a supplied schema graph.
 - **`prop_integer()` takes `exclusive_min` and `exclusive_max`.**
 - `setup_SerialExecution()`, `setup_FutureExecution()` and `setup_MiraiExecution()` build an execution config for one backend each, so an argument is offered only where it applies: a serial config has no `n_workers` and no `future_plan`.
 - `do_call()` propagates warnings unchanged.`verbosity` gates its suggestions, which are printed only for a recognized warning and once per call.
