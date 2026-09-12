@@ -1,17 +1,17 @@
 {
-  "$id": "https://schema.rtemis.org/defaults/v2/format.schema.json",
+  "$id": "https://schema.rtemis.org/defaults/v1/format.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "rtemis defaults artifact",
   "type": "object",
   "properties": {
     "$id": {
-      "const": "https://schema.rtemis.org/defaults/v2/defaults.json"
+      "const": "https://schema.rtemis.org/defaults/v1/defaults.json"
     },
     "$schema": {
-      "const": "https://schema.rtemis.org/defaults/v2/format.schema.json"
+      "const": "https://schema.rtemis.org/defaults/v1/format.schema.json"
     },
     "format_version": {
-      "const": 2
+      "const": 1
     },
     "producer": {
       "type": "object",

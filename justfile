@@ -116,7 +116,7 @@ test-filter filter out="/tmp/rtemis-test":
 schema-artifacts out:
     {{ rscript }} data-raw/generate_schemas.R "{{ out }}"
     {{ rscript }} data-raw/generate_defaults.R "{{ out }}"
-    {{ rscript }} tools/defaults-conformance.R "{{ out }}/defaults/v2/corpus.json"
+    {{ rscript }} tools/defaults-conformance.R "{{ out }}/defaults/v1/corpus.json"
     {{ rscript }} data-raw/generate_authoring.R "{{ out }}"
     {{ rscript }} data-raw/generate_checks.R "{{ out }}"
     {{ rscript }} data-raw/generate_checks_corpus.R "{{ out }}"

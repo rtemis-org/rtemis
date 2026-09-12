@@ -60,7 +60,7 @@ compare_fields <- function(original, restored, prefix = "") {
 
 
 # %% Audit ----
-artifact <- read_artifact("defaults/v2/defaults.json")
+artifact <- read_artifact("defaults/v1/defaults.json")
 defaults <- artifact[["declarations"]]
 schema_paths <- list.files(
   artifact_dir,

@@ -673,7 +673,7 @@ JSONSchema_to_S7 <- function(
     )
   }
   if (!is.null(defaults[["format_version"]])) {
-    if (!identical(defaults[["format_version"]], 2L)) {
+    if (!identical(defaults[["format_version"]], 1L)) {
       rtemis.core::abort(
         "Unsupported defaults artifact version.",
         class = "rtemis_schema_error"

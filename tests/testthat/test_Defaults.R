@@ -127,7 +127,7 @@ test_that("input policies preserve typed values through JSON", {
     )
   )
   artifact <- list(
-    format_version = 2L,
+    format_version = 1L,
     declarations = stats::setNames(
       list(default_declarations(
         get_spec(property),
@@ -156,7 +156,7 @@ test_that("input policies preserve typed values through JSON", {
     resolve_class_defaults(cls, list(x = "custom"))[["values"]][["x"]],
     "custom"
   )
-  for (version in list(1L, 3L, "2", 2.5)) {
+  for (version in list(2L, 3L, "1", 1.5)) {
     invalid <- artifact
     invalid[["format_version"]] <- version
     expect_error(
@@ -353,7 +353,7 @@ test_that("artifact references reconstruct without native readers", {
   artifact <- jsonlite::fromJSON(
     jsonlite::toJSON(
       list(
-        format_version = 2L,
+        format_version = 1L,
         declarations = declarations,
         resolution = stats::setNames(
           list(list(
@@ -456,7 +456,7 @@ test_that("artifact family policies do not invent discriminator defaults", {
     )
   )
   artifact <- list(
-    format_version = 2L,
+    format_version = 1L,
     declarations = stats::setNames(
       list(
         default_declarations(

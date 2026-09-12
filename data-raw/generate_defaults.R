@@ -190,9 +190,9 @@ for (id in names(resolution)) {
   }
 }
 out <- list(
-  `$schema` = paste0(base_url, "/defaults/v2/format.schema.json"),
-  `$id` = paste0(base_url, "/defaults/v2/defaults.json"),
-  format_version = 2L,
+  `$schema` = paste0(base_url, "/defaults/v1/format.schema.json"),
+  `$id` = paste0(base_url, "/defaults/v1/defaults.json"),
+  format_version = 1L,
   producer = list(
     package = "rtemis",
     version = as.character(utils::packageVersion("rtemis"))
@@ -201,7 +201,7 @@ out <- list(
   declarations = declarations,
   resolution = resolution
 )
-out_dir <- file.path(schema_repo, "defaults", "v2")
+out_dir <- file.path(schema_repo, "defaults", "v1")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 jsonlite::write_json(
   out,
@@ -230,7 +230,7 @@ if (!isTRUE(valid)) {
   )
 }
 cat(sprintf(
-  "defaults v2: %d schemas, %d declaration nodes -> %s\n",
+  "defaults v1: %d schemas, %d declaration nodes -> %s\n",
   length(declarations),
   sum(lengths(declarations)),
   out_dir

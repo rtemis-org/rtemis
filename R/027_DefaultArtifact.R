@@ -11,7 +11,7 @@
 #' @keywords internal
 #' @noRd
 default_artifact_graph <- function(schemas, defaults, authoring = NULL) {
-  if (!identical(defaults[["format_version"]], 2L)) {
+  if (!identical(defaults[["format_version"]], 1L)) {
     rtemis.core::abort(
       "Unsupported defaults artifact version.",
       class = "rtemis_schema_error"

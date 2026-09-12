@@ -7,7 +7,7 @@
 # NA and a long double the same way.
 
 # %% write_json_document ----
-# One document, serialized the way `defaults/v1` already is.
+# Serialize a document with the shared JSON wire conventions.
 write_json_document <- function(x, path) {
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
   write_lines(
