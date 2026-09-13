@@ -164,7 +164,11 @@ for (slug in c("delimited", "xlsx")) {
   add(paste0("ingest-", slug), "ingest", leaf, input)
 }
 jsonlite::write_json(
-  list(format_version = 1L, cases = unname(cases)),
+  list(
+    `$id` = "https://schema.rtemis.org/defaults/v1/corpus.json",
+    format_version = 1L,
+    cases = unname(cases)
+  ),
   args[[1L]],
   auto_unbox = TRUE,
   null = "null",
