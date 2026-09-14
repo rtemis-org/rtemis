@@ -126,6 +126,14 @@ schema-artifacts out:
 schema-defaults out:
     {{ rscript }} data-raw/generate_defaults.R "{{ out }}"
 
+[doc("Verify defaults generation ignores unrelated files and requires its catalog graph")]
+schema-defaults-check artifacts report:
+    python3 tools/schema-defaults-check.py "{{ artifacts }}" "{{ report }}"
+
+[doc("Refresh the checks and traits artifacts shipped with the package")]
+checks-refresh:
+    {{ rscript }} data-raw/generate_checks.R inst
+
 [doc("Audit property reconstruction from an existing generated artifact corpus")]
 schema-roundtrip artifacts report:
     {{ rscript }} tools/schema-roundtrip.R "{{ artifacts }}" "{{ report }}"
@@ -142,23 +150,20 @@ schema-graph artifacts report:
 schema-rules report:
     {{ rscript }} tools/schema-rules.R "{{ report }}"
 
-# `generate_checks.R` also refreshes the `inst/` copies of checks and traits,
-# which are what the package ships and what `test_ChecksArtifact.R` reads, so a
-# diff there after this runs means the committed copies were stale.
-# `generate_checks_corpus.R` writes no `inst/` copy: nothing in R reads the
-# corpus, it being generated *from* the tests that are its oracle.
-# Runs every generator `schemas` runs, in the same order. A generator missing
-# here is one this gate cannot fail on: `generate_authoring.R` was absent, so a
-# change that broke it passed `schemas-check` and failed mid-publish.
+# Check the full generated corpus and compare shipped artifacts without
+# modifying them. `checks-refresh` explicitly updates those package copies.
 [doc("Generate schemas + defaults + checks into a throwaway directory to assert the contracts")]
 schemas-check:
     @just _msg "─── Checking schema generation for {{ pkg }}... ───"
     @dir=$(mktemp -d); trap 'rm -rf "$dir"' EXIT; \
-        just schema-artifacts "$dir"
-    @git diff --quiet --exit-code -- inst/checks inst/traits || { \
-        echo "   Note: inst/checks or inst/traits was regenerated -- the committed copy was stale."; \
-        echo "   Review the diff and commit it with the rule-set change."; \
-    }
+        just schema-artifacts "$dir" && \
+        just schema-defaults-check "$dir" "$dir/defaults-check.json" && \
+        { diff -u inst/checks/v1/checks.json "$dir/checks/v1/checks.json" && \
+          diff -u inst/traits/v1/traits.json "$dir/traits/v1/traits.json"; } || { \
+            echo "   Generation or artifact comparison failed; inspect the diagnostics above."; \
+            echo "   For shipped checks/traits drift, run 'just checks-refresh' and review the diff."; \
+            exit 1; \
+        }
     @just _msg "Done"
 
 # Build the source tarball

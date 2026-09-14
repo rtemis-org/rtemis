@@ -475,10 +475,9 @@ grid_hyperparameter_columns <- function(grid) {
 #' Exported for `rtemis.server`, which needs the same discriminator one layer
 #' earlier: its `train` handler has to know whether a payload names its learner
 #' at the top level or inside each variant, and that question has to be answered
-#' the same way there as it is in `.list_to_SuperConfig()`. Two spellings of one
-#' rule is how a config becomes submittable on one path and not the other.
+#' the same way there as it is in `.list_to_SuperConfig()`.
 #'
-#' @param x Value to test, as parsed from JSON.
+#' @param x ANY: Value to test, as parsed from JSON.
 #'
 #' @return Logical.
 #'

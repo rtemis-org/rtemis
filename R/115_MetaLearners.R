@@ -90,12 +90,8 @@ MetaLearnerHyperparameters <- new_class(
         setup_Ranger()
       ))
     ),
-    # `meta_learner` is declared by each leaf, not here. S7 constructs an
-    # inherited property with the *parent's* default whatever a subclass
-    # redeclares, so a copy on this class made
-    # `ConditionalSuperLearnerHyperparameters`'s `setup_Ranger()` inert -- the
-    # class published Ranger and constructed NNLS. Every leaf declares it, and
-    # a conditional super learner routes with a learner the other two do not.
+    # Each leaf declares `meta_learner` so its constructor uses the matching
+    # learner default; S7 retains ancestor formal defaults for inherited properties.
     inner_resampling_config = prop_object(
       ResamplerConfig,
       description = "Resampling configuration used to construct cross-validated predictions for the meta learner.",

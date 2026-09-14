@@ -1,3 +1,7 @@
+# schema-native-validators.R
+# ::rtemis::
+# 2026- EDG rtemis.org
+
 # Frozen behavioral oracle for the reviewed native validators.
 # Changes require an explicit contract decision and independent boundary cases.
 linad_feature_role_rule <-

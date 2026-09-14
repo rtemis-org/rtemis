@@ -1,4 +1,7 @@
 # test_SessionSidecar.R
+# ::rtemis::
+# 2026- EDG rtemis.org
+
 # Tests for session_nodes(), DataRef, and the sidecar write_record() writes.
 
 t0 <- as.POSIXct("2026-01-01 00:00:00", tz = "UTC")

@@ -211,6 +211,45 @@ for (family in names(configs)) {
     nested_record(x, x)
   )
 }
+preprocessor <- setup_Preprocessor(
+  scale = TRUE,
+  scale_centers = c(candidates = 1.5)
+)
+preprocessor_record <- nested_record(preprocessor, preprocessor)
+cases[["candidate_named_map_record"]] <- check_document(
+  "candidate_named_map_record",
+  "preprocessor/v1/record.json",
+  preprocessor_record
+)
+preprocessor_record[["scale_centers"]][["candidates"]] <- "invalid"
+cases[["candidate_named_map_wrong_type"]] <- check_document(
+  "candidate_named_map_wrong_type",
+  "preprocessor/v1/record.json",
+  preprocessor_record,
+  FALSE
+)
+mlp <- setup_MLP(hidden_units = tune_over(c(12L, 6L), c(24L, 12L)))
+mlp_wire <- S7_to_list(mlp)
+mlp_restored <- .list_to_Hyperparameters(jsonlite::fromJSON(
+  jsonlite::toJSON(mlp_wire, auto_unbox = TRUE, null = "null"),
+  simplifyVector = FALSE
+))
+stopifnot(identical(
+  mlp_restored@hidden_units@candidates,
+  mlp@hidden_units@candidates
+))
+cases[["vector_candidate_input"]] <- check_document(
+  "vector_candidate_input",
+  "hyperparameters/v1/schema.json",
+  mlp_wire
+)
+mlp_wire[["hidden_units"]][["candidates"]][[1L]][[1L]] <- 1.5
+cases[["vector_candidate_wrong_type"]] <- check_document(
+  "vector_candidate_wrong_type",
+  "hyperparameters/v1/schema.json",
+  mlp_wire,
+  FALSE
+)
 hp <- configs[["hyperparameters"]]
 wire <- S7_to_list(hp)
 stopifnot(identical(names(wire[["base_learners"]]), c("clinical", "imaging")))

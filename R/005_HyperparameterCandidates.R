@@ -27,8 +27,8 @@
 # reconstructors. `tune_over()` is the only way to build one, which is what
 # makes a search space unambiguous in R -- a bare vector is always a value.
 #
-# On the wire it is tagged -- `{"candidates": [...]}` -- so a reader tells a
-# search space from a value with no reference to the declared type. The tag
+# On the wire it is tagged -- `{"candidates": [...]}` -- within a property
+# whose declaration permits tuning. Ordinary maps may use the same key. The tag
 # names the *kind* of domain, leaving a sampled one to arrive beside it rather
 # than in place of it. Both forms are generated from one `PropertySpec` (see
 # `make_prop()` and `spec_to_schema()`).
@@ -281,6 +281,7 @@ candidate_values <- function(x) {
 #' named in one place: `from_wire()` rebuilds the R object from it, and the
 #' record writer reads it to tell a hyperparameter the run *searched* from one
 #' it derived -- that record works in wire values, never in R objects.
+#' Callers interpreting the tag must also check the property's tunability.
 #'
 #' @param x Value to test, as parsed from JSON or produced by `wire_value()`.
 #'

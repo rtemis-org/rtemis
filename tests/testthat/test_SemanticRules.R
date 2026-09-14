@@ -214,10 +214,10 @@ test_that("inherited property contracts match retained S7 validation", {
     "ScalarConflictChild",
     parent = Parent,
     properties = list(
-      x = prop_integer(2L, max = 4L, description = "An amount.")
+      x = prop_integer(1L, max = 4L, description = "An amount.")
     )
   )
-  expect_identical(get_spec_fields(Child@properties[["x"]])[["default"]], 2L)
+  expect_identical(get_spec_fields(Child@properties[["x"]])[["default"]], 1L)
   expect_identical(Child(x = 2L)@x, 2L)
   expect_error(Child(x = 2L, y = 2L), "test.inherited-conflict")
   validate <- jsonvalidate::json_validator(

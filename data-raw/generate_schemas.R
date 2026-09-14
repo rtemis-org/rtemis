@@ -16,8 +16,8 @@ schema_repo <- path.expand(schema_repo)
 base_url <- "https://schema.rtemis.org"
 # Publication inventory is derived from the package classes.
 catalog <- schema_catalog()
-families <- catalog$families
-flat_configs <- catalog$flat_configs
+families <- catalog[["families"]]
+flat_configs <- catalog[["flat_configs"]]
 
 # The input-schema contract, asserted on every config schema before it is
 # written: no required beyond the keys carrying the document's shape, no

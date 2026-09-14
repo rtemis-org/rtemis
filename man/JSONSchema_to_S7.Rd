@@ -22,7 +22,7 @@ JSONSchema_to_S7(
 \item{schema}{Named list: A JSON Schema, as produced by \link{S7_to_JSONSchema}
 or parsed from the published tree with \code{jsonlite::fromJSON(simplifyVector = FALSE)}.}
 
-\item{defaults}{Optional named list: Version 2 defaults artifact, or explicit
+\item{defaults}{Optional named list: Format version 1 defaults artifact, or explicit
 property declaration values for an independently supplied schema.}
 
 \item{refs}{Optional named list: Property name to S7 class, for properties
@@ -38,7 +38,7 @@ policy, from the separate authoring artifact under this schema's \verb{$id}.}
 \item{declarations}{Optional List: Declaration descriptors keyed by schema pointer.}
 
 \item{schemas}{Optional List: Complete parsed schema graph keyed by canonical ID.
-Used with a version 2 artifact to reconstruct typed references without source classes.}
+Used with a format version 1 artifact to reconstruct typed references without source classes.}
 
 \item{decode_reference}{Optional Function: Reference decoder for a custom artifact graph.}
 
@@ -61,7 +61,7 @@ The published schemas carry no \code{default} keywords. Absent declaration defau
 constructing a non-nullable property without a default requires a value.
 
 Properties holding a nested config are published as a \verb{$ref} to that config's
-own schema. Supply the parsed graph through \code{schemas} and the version 2
+own schema. Supply the parsed graph through \code{schemas} and the format version 1
 artifact through \code{defaults} to reconstruct these references. Independently
 supplied S7 reference classes can be passed through \code{refs}.
 Reconstructed constructors use declaration defaults; input resolution policies

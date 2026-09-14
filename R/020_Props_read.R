@@ -591,7 +591,7 @@ schema_to_spec <- function(
 #' constructing a non-nullable property without a default requires a value.
 #'
 #' Properties holding a nested config are published as a `$ref` to that config's
-#' own schema. Supply the parsed graph through `schemas` and the version 2
+#' own schema. Supply the parsed graph through `schemas` and the format version 1
 #' artifact through `defaults` to reconstruct these references. Independently
 #' supplied S7 reference classes can be passed through `refs`.
 #' Reconstructed constructors use declaration defaults; input resolution policies
@@ -600,7 +600,7 @@ schema_to_spec <- function(
 #' @param schema Named list: A JSON Schema, as produced by [S7_to_JSONSchema]
 #' or parsed from the published tree with `jsonlite::fromJSON(simplifyVector =
 #' FALSE)`.
-#' @param defaults Optional named list: Version 2 defaults artifact, or explicit
+#' @param defaults Optional named list: Format version 1 defaults artifact, or explicit
 #' property declaration values for an independently supplied schema.
 #' @param refs Optional named list: Property name to S7 class, for properties
 #' published as a `$ref` to another schema.
@@ -610,7 +610,7 @@ schema_to_spec <- function(
 #' @param package Optional Character: Package name recorded on the class.
 #' @param declarations Optional List: Declaration descriptors keyed by schema pointer.
 #' @param schemas Optional List: Complete parsed schema graph keyed by canonical ID.
-#' Used with a version 2 artifact to reconstruct typed references without source classes.
+#' Used with a format version 1 artifact to reconstruct typed references without source classes.
 #' @param decode_reference Optional Function: Reference decoder for a custom artifact graph.
 #' @param parent Optional S7 class: Reconstructed parent type.
 #' @param policies Optional List: Serialized input policy descriptors.

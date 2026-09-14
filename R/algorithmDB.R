@@ -154,9 +154,9 @@ colnames(supervised_algorithms) <- c(
 )
 
 supervised_algorithms <- data.frame(
-  name = supervised_algorithms$name,
+  name = supervised_algorithms[["name"]],
   description = unname(schema_algorithm_descriptions(Hyperparameters)[
-    supervised_algorithms$name
+    supervised_algorithms[["name"]]
   ]),
   supervised_algorithms[-1L]
 )

@@ -160,7 +160,7 @@ value_origin <- function(
     # before comparing, so a search space arrives tagged rather than as the R
     # object.
     searched <- !is.null(spec) &&
-      (is_wire_candidates(input) ||
+      ((spec@tunable && is_wire_candidates(input)) ||
         (spec@tune_on_null && is.null(input)))
     return(if (searched) "tuned" else "derived")
   }

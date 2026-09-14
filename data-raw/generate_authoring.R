@@ -30,8 +30,8 @@ schema_repo <- path.expand(schema_repo)
 base_url <- "https://schema.rtemis.org"
 
 catalog <- schema_catalog()
-families <- catalog$families
-flat_configs <- catalog$flat_configs
+families <- catalog[["families"]]
+flat_configs <- catalog[["flat_configs"]]
 
 
 # %% .schema_properties ----

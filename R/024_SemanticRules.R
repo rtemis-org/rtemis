@@ -630,7 +630,11 @@ class_document_rules <- function(cls) {
   list(
     expression_language = "jsonlogic",
     phase = "resolved",
-    evaluation = "Evaluate each condition against the schema-valid document after resolving the separately published defaults. A true condition is a violation. Missing paths yield null. Equality is strict and conditional operands are Boolean.",
+    evaluation = paste0(
+      "Evaluate each condition against the schema-valid document after resolving the separately published defaults. ",
+      "Rule IDs declared in x-rtemis.rules but absent here are enforced by standard JSON Schema clauses. ",
+      "A true condition is a violation. Missing paths yield null. Equality is strict and conditional operands are Boolean."
+    ),
     rules = rules
   )
 }

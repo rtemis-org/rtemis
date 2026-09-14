@@ -275,24 +275,73 @@ test_that("default expressions reject ambiguity and cycles", {
 })
 
 
-test_that("class metadata and inherited construction are distinct", {
+test_that("inherited declaration defaults cannot contradict construction", {
   parent <- schema_class(
     "DefaultParent",
     properties = list(x = prop_integer(1L))
   )
+  expect_error(
+    schema_class(
+      "DefaultChild",
+      parent = parent,
+      properties = list(x = prop_integer(2L))
+    ),
+    "declaration default unchanged",
+    class = "rtemis_schema_error"
+  )
   child <- schema_class(
-    "DefaultChild",
+    "PolicyChild",
     parent = parent,
-    properties = list(x = prop_integer(2L))
+    defaults = list(x = DefaultPolicy(kind = "literal", value = 2L))
   )
   expect_identical(child()@x, 1L)
   expect_identical(resolve_class_defaults(child, list())[["values"]][["x"]], 2L)
   expect_identical(child(x = 2L)@x, 2L)
+  setup <- function(x = 2L) {
+    apply_setup_defaults(child)
+    child(x = x)
+  }
+  expect_identical(setup()@x, 2L)
+  expect_identical(setup(x = 3L)@x, 3L)
+  nullable <- schema_class(
+    "NullableDefaultParent",
+    properties = list(x = prop_integer(NULL, nullable = TRUE))
+  )
+  absent <- get_spec(nullable@properties[["x"]])
+  absent@default_present <- FALSE
+  expect_error(
+    schema_class(
+      "AbsentDefaultChild",
+      parent = nullable,
+      properties = list(x = make_prop(absent))
+    ),
+    "declaration default unchanged"
+  )
   expect_null(get_spec(SuperConfigPaths@properties[["outdir"]])@default)
   expect_identical(
     resolve_class_defaults(SuperConfigPaths, list())[["values"]][["outdir"]],
     "results/"
   )
+})
+
+
+test_that("nested declaration metadata may vary without changing property defaults", {
+  parent <- schema_class(
+    "NestedDefaultParent",
+    properties = list(
+      x = prop_struct(list(n = prop_integer(1L)), nullable = TRUE)
+    )
+  )
+  child <- schema_class(
+    "NestedDefaultChild",
+    parent = parent,
+    properties = list(
+      x = prop_struct(list(n = prop_integer(2L)), nullable = TRUE)
+    )
+  )
+  expect_null(child()@x)
+  expect_null(get_spec(child@properties[["x"]])@default)
+  expect_identical(get_spec(child@properties[["x"]])@members[["n"]]@default, 2L)
 })
 
 

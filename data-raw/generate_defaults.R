@@ -3,23 +3,18 @@
 # 2026- EDG rtemis.org
 
 suppressMessages(devtools::load_all(quiet = TRUE))
+source(file.path("data-raw", "write_json.R"))
 args <- commandArgs(trailingOnly = TRUE)
 schema_repo <- path.expand(if (length(args)) args[[1L]] else "~/Schemas/schema")
 base_url <- "https://schema.rtemis.org"
 catalog <- schema_catalog()
 entries <- default_catalog_entries(catalog, base_url)
 declarations <- resolution <- list()
-manifest <- list()
 for (id in names(entries)) {
   entry <- entries[[id]]
   cls <- entry[["cls"]]
   path <- file.path(schema_repo, entry[["path"]])
   schema <- jsonlite::fromJSON(path, simplifyVector = FALSE)
-  manifest[[entry[["path"]]]] <- unclass(as.character(openssl::sha256(readBin(
-    path,
-    "raw",
-    n = file.info(path)[["size"]]
-  ))))
   declared <- list()
   for (nm in intersect(names(schema[["properties"]]), names(cls@properties))) {
     spec <- get_spec(cls@properties[[nm]])
@@ -123,11 +118,23 @@ for (id in names(entries)) {
     stats::setNames(list(), character())
   }
 }
-schema_files <- sort(list.files(
-  schema_repo,
-  pattern = "^(schema|record)[.]json$",
-  recursive = TRUE
+schema_urls <- unique(c(
+  schema_reference_urls(catalog, base_url),
+  schema_reference_urls(catalog, base_url, record = TRUE)
 ))
+schema_files <- sort(substring(unname(schema_urls), nchar(base_url) + 2L))
+missing_files <- schema_files[
+  !file.exists(file.path(schema_repo, schema_files))
+]
+if (length(missing_files)) {
+  rtemis.core::abort(
+    "Defaults require all catalog schemas and records; generate the missing files: ",
+    paste(missing_files, collapse = ", "),
+    ".",
+    class = "rtemis_schema_error"
+  )
+}
+manifest <- list()
 for (relative in schema_files) {
   path <- file.path(schema_repo, relative)
   manifest[[relative]] <- unclass(as.character(openssl::sha256(readBin(
@@ -203,13 +210,9 @@ out <- list(
 )
 out_dir <- file.path(schema_repo, "defaults", "v1")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-jsonlite::write_json(
+write_json_document(
   out,
-  file.path(out_dir, "defaults.json"),
-  auto_unbox = TRUE,
-  null = "null",
-  pretty = TRUE,
-  digits = NA
+  file.path(out_dir, "defaults.json")
 )
 invisible(file.copy(
   "data-raw/defaults-format.schema.json",

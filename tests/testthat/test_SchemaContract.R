@@ -240,6 +240,61 @@ test_that("every setup_* backing a schema takes no mandatory argument", {
 })
 
 
+test_that("setup formals agree with class-owned resolution defaults", {
+  ns <- asNamespace("rtemis")
+  uses_defaults <- Filter(
+    function(nm) {
+      fn <- get(nm, envir = ns)
+      is.function(fn) && "apply_setup_defaults" %in% all.names(body(fn))
+    },
+    ls(ns, pattern = "^setup_")
+  )
+  mapped <- vapply(.contract_classes, `[[`, character(1L), "setup")
+  expect_setequal(uses_defaults, mapped)
+  for (entry in .contract_classes) {
+    cls <- entry[["cls"]]
+    setup <- get(entry[["setup"]], envir = ns)
+    fm <- formals(setup)
+    policies <- class_default_policies(cls)
+    resolved <- resolve_class_defaults(cls, list())
+    envir <- list2env(resolved[["values"]], parent = environment(setup))
+    for (nm in intersect(names(fm), names(policies))) {
+      if (!policies[[nm]]@kind %in% c("declaration", "literal", "expression")) {
+        next
+      }
+      label <- paste0(entry[["setup"]], "(", nm, ") / ", cls@name)
+      expect_true(nm %in% names(resolved[["values"]]), info = label)
+      if (identical(cls, SuperConfigPaths) && nm == "execution_config") {
+        # The portable recipe selects a backend; the R call also resolves
+        # workers and seed from the host. Check the call without sampling it.
+        expect_identical(fm[[nm]], quote(setup_FutureExecution()), info = label)
+        expect_identical(resolved[["values"]][[nm]], list(backend = "future"))
+        next
+      }
+      value <- eval(fm[[nm]], envir)
+      spec <- get_spec(cls@properties[[nm]])
+      if (
+        !is.null(spec@enum) &&
+          spec@container == "none" &&
+          is.character(value) &&
+          length(value) > 1L
+      ) {
+        expect_identical(sort(value), sort(spec@enum), info = label)
+        value <- match.arg(value, choices = value)
+      }
+      if (nm == "base_learners") {
+        value <- name_base_learners(value)
+      }
+      expect_identical(
+        value,
+        resolved[["values"]][[nm]],
+        info = label
+      )
+    }
+  }
+})
+
+
 test_that("every setup_* export is classified", {
   # So a `setup_*` written years from now cannot escape the check above by
   # simply not being listed: it must be paired with the class it builds, or

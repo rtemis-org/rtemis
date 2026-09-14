@@ -8,6 +8,11 @@ test_that("class publication preserves the frozen publication inventory", {
     simplifyVector = FALSE
   )
   catalog <- schema_catalog()
+  identities <- names(schema_reference_urls(
+    catalog,
+    "https://schema.rtemis.org"
+  ))
+  expect_true(all(startsWith(identities, "rtemis::")))
   derived <- list(
     families = lapply(catalog[["families"]], function(f) {
       list(

@@ -405,7 +405,7 @@ NMFConfig <- schema_class(
 setup_NMF <- function(
   k = 2L,
   method = "brunet",
-  nrun = if (length(k) > 1L) 30L else 1L,
+  nrun = 1L,
   features = NULL
 ) {
   apply_setup_defaults(NMFConfig)

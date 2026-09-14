@@ -650,7 +650,7 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
     }
     return(lapply(value, restore))
   }
-  if (is_wire_candidates(value)) {
+  if (isTRUE(ann[["tunable"]]) && is_wire_candidates(value)) {
     return(HyperparameterCandidates(
       candidates = lapply(value[["candidates"]], function(v) {
         default_from_wire(
@@ -701,12 +701,20 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
     isTRUE(ann[["broadcast"]])
   )
   if (container %in% c("map", "array") && !is.null(child[["x-rtemis"]])) {
-    return(lapply(
+    value <- lapply(
       value,
       default_from_wire,
       schema = child,
       decode_reference = decode_reference
-    ))
+    )
+    child_ann <- child[["x-rtemis"]]
+    if (
+      (child_ann[["container"]] %||% "none") != "none" ||
+        identical(child_ann[["type"]], "object") ||
+        !is.null(child_ann[["target_class"]])
+    ) {
+      return(value)
+    }
   }
   if (ann[["type"]] == "object") {
     return(if (length(value) == 0L) list() else value)

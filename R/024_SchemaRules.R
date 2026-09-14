@@ -454,9 +454,9 @@ validate_class_rules <- function(self, rules) {
             rule[["id"]],
             "] @",
             rule[["values"]],
-            "$",
+            " column `",
             nm,
-            " ",
+            "`: ",
             rule[["message"]]
           ))
         }

@@ -7,7 +7,7 @@
 is_wire_hyperparameters_set(x)
 }
 \arguments{
-\item{x}{Value to test, as parsed from JSON.}
+\item{x}{ANY: Value to test, as parsed from JSON.}
 }
 \value{
 Logical.
@@ -20,8 +20,7 @@ validates its complete structure and rejects extra keys.
 Exported for \code{rtemis.server}, which needs the same discriminator one layer
 earlier: its \code{train} handler has to know whether a payload names its learner
 at the top level or inside each variant, and that question has to be answered
-the same way there as it is in \code{.list_to_SuperConfig()}. Two spellings of one
-rule is how a config becomes submittable on one path and not the other.
+the same way there as it is in \code{.list_to_SuperConfig()}.
 }
 \examples{
 is_wire_hyperparameters_set(list(variants = list()))

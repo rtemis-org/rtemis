@@ -1,3 +1,7 @@
+# schema-rule-cases.R
+# ::rtemis::
+# 2026- EDG rtemis.org
+
 # Declarative boundary corpus shared by the R and foreign-runtime checks.
 schema_rule_cases <- function() {
   cases <- list()

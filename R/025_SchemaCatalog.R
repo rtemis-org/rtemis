@@ -343,6 +343,21 @@ validate_inherited_property_contracts <- function(cls) {
           class = "rtemis_schema_error"
         )
       }
+      # S7's generated constructor keeps the ancestor's formal default.
+      if (
+        !identical(
+          inherited[c("default", "default_present")],
+          declared[c("default", "default_present")]
+        )
+      ) {
+        rtemis.core::abort(
+          cls@name,
+          " changes the declaration default for inherited @",
+          nm,
+          "; keep its declaration default unchanged and declare input resolution with class defaults.",
+          class = "rtemis_schema_error"
+        )
+      }
     }
   }
   invisible(NULL)

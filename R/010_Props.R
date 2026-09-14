@@ -3270,8 +3270,7 @@ wire_value <- function(value, prop) {
     return(value)
   }
   if (is_candidates(value)) {
-    # Tagged, so a reader tells a search space from a value without knowing the
-    # property's declared type. A scalar hyperparameter's candidates flatten to
+    # Tagged within a declared tunable property. A scalar hyperparameter's candidates flatten to
     # an array; a vector-valued one's stay a list, so each candidate keeps its
     # own array.
     return(list(
@@ -3316,8 +3315,8 @@ wire_value <- function(value, prop) {
 #' - A **factor** travels as `{levels, codes}` and must be rebuilt, levels and
 #'   their order included.
 #' - A **domain** is tagged, since JSON has no function calls and so no
-#'   `tune_over()`. `{"candidates": [...]}` is a search space and anything else
-#'   is a value, which takes no reference to the declared type at all.
+#'   `tune_over()`. `{"candidates": [...]}` selects a search space only when
+#'   the property is declared tunable; ordinary maps may use that key.
 #'
 #' @param x Named list parsed from JSON.
 #' @param cls S7 class the list reconstructs.
@@ -3370,9 +3369,10 @@ from_wire <- function(x, cls) {
     if (container == "factor" && is.list(x[[nm]])) {
       x[[nm]] <- from_wire_factor(x[[nm]])
     }
-    if (is_wire_candidates(x[[nm]])) {
-      x[[nm]] <- HyperparameterCandidates(
-        candidates = as.list(x[[nm]][["candidates"]])
+    if (isTRUE(fields[["tunable"]]) && is_wire_candidates(x[[nm]])) {
+      x[[nm]] <- default_from_wire(
+        x[[nm]],
+        spec_to_schema(get_spec(props[[nm]]))
       )
     }
   }
