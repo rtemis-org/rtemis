@@ -146,7 +146,7 @@ stopifnot(setequal(names(DIAGNOSTIC_PLAIN), DIAGNOSTIC_CODES))
 #'
 #' @author EDG
 #' @noRd
-Diagnostic <- new_class(
+Diagnostic <- schema_class(
   name = "Diagnostic",
   package = "rtemis",
   properties = list(
@@ -187,6 +187,14 @@ Diagnostic <- new_class(
       nullable = TRUE,
       description = "RFC 6902 JSON Patch against the config this finding is about. Unset where no deterministic fix exists."
     )
+  ),
+  publication = SchemaPublication(
+    role = "document",
+    slug = "diagnostic",
+    title = "rtemis Diagnostic",
+    description = "One finding from validating an rtemis config: a stable code, how much it matters, the technical and plain-language accounts of it, the numbers behind it, and -- where a deterministic one exists -- an RFC 6902 JSON Patch that fixes it.",
+    order = 14L,
+    kind = "report"
   )
 ) # /rtemis::Diagnostic
 
@@ -285,22 +293,23 @@ method(print, Diagnostic) <- function(x, pad = 0L, output_type = NULL, ...) {
 #'
 #' @author EDG
 #' @noRd
-Diagnostics <- new_class(
+Diagnostics <- schema_class(
   name = "Diagnostics",
   package = "rtemis",
   properties = list(
-    # A list of S7 objects has no `prop_*` factory -- the same position
-    # `RegressionMetricsRes@res_metrics` is in -- so it is declared plainly and
-    # published through the registry's `array_refs`, which points its schema at
-    # `diagnostic/v1`.
-    diagnostics = new_property(class_list)
+    diagnostics = prop_state(prop_collection(Diagnostic))
   ),
   constructor = function(diagnostics = list()) {
-    for (d in diagnostics) {
-      check_is_S7(d, Diagnostic)
-    }
     new_object(S7_object(), diagnostics = diagnostics)
-  }
+  },
+  publication = SchemaPublication(
+    role = "document",
+    slug = "diagnostics",
+    title = "rtemis Diagnostics",
+    description = "The findings for one rtemis config, in the order they were made. An empty array means the config is clean: there is no separate validity flag, an empty list of problems being the same statement.",
+    order = 15L,
+    kind = "report"
+  )
 ) # /rtemis::Diagnostics
 
 

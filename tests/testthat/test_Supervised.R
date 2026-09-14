@@ -4972,7 +4972,7 @@ test_that("train() ConditionalSuperLearner aborts on multiclass", {
 
 ## Meta learner records ----
 test_that("a meta learner's record carries one block per library entry", {
-  # `base_learners` is published as an array of `$ref`s, so each element is a
+  # `base_learners` is published as a map of `$ref`s, so each element is a
   # record in its own right -- with its own `origin`, which the generated
   # `record.json` requires of every referenced block.
   #
@@ -4995,11 +4995,12 @@ test_that("a meta learner's record carries one block per library entry", {
       names(payload)
   ))
   entries <- payload[["base_learners"]]
-  # Published as an array, in library order; each entry names itself with
-  # `algorithm` rather than by a list name JSON would turn into an object key.
-  expect_null(names(entries))
   expect_identical(
-    vapply(entries, `[[`, character(1L), "algorithm"),
+    names(entries),
+    names(mod_r_sl@hyperparameters@base_learners)
+  )
+  expect_identical(
+    unname(vapply(entries, `[[`, character(1L), "algorithm")),
     c("GLM", "CART")
   )
   for (entry in entries) {

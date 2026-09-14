@@ -31,7 +31,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-TunerConfig <- new_class(
+TunerConfig <- schema_class(
   name = "TunerConfig",
   package = "rtemis",
   abstract = TRUE,
@@ -46,6 +46,15 @@ TunerConfig <- new_class(
         route_config_assignment(self, TunerConfig, value)
       }
     )
+  ),
+  publication = SchemaPublication(
+    role = "family",
+    slug = "tuner",
+    title = "rtemis TunerConfig",
+    description = "Language-independent config for rtemis hyperparameter tuning. Mirrors the `TunerConfig` object: a tuner type and its settings.",
+    discriminator = "type",
+    discriminator_description = "Tuner type.",
+    order = 6L
   )
 ) # /rtemis::TunerConfig
 
@@ -120,16 +129,26 @@ method(`[[`, TunerConfig) <- function(x, name) {
 #'
 #' @author EDG
 #' @noRd
-GridSearchConfig <- new_class(
+GridSearchConfig <- schema_class(
   name = "GridSearchConfig",
   parent = TunerConfig,
   package = "rtemis",
+  defaults = list(
+    resampler_config = DefaultPolicy(
+      kind = "literal",
+      value = setup_KFold(n_resamples = 5L)
+    )
+  ),
   properties = list(
     type = prop_algorithm("GridSearch"),
     # Nested config object; serialized/validated as a ResamplerConfig, so it
     # is a plain property (excluded from generated schemas, where it is a
     # `$ref` to the resampler schema).
-    resampler_config = NULL | ResamplerConfig,
+    resampler_config = prop_object(
+      ResamplerConfig,
+      nullable = TRUE,
+      description = "Resampling configuration for evaluating hyperparameter combinations."
+    ),
     search_type = prop_string(
       "exhaustive",
       enum = c("exhaustive", "randomized"),
@@ -157,16 +176,18 @@ GridSearchConfig <- new_class(
       description = "Maximize `metric` (otherwise minimize). Unset sets it from the metric."
     )
   ),
-  validator = function(self) {
-    # `randomize_p` applies to, and is required by, a randomized search: it is
-    # the sampling fraction `tune_GridSearch()` multiplies the combination
-    # count by, so leaving it unset would fail there instead of here.
-    if (self@search_type == "exhaustive" && !is.null(self@randomize_p)) {
-      "@randomize_p must not be set when @search_type is 'exhaustive'."
-    } else if (self@search_type == "randomized" && is.null(self@randomize_p)) {
-      "@randomize_p must be set when @search_type is 'randomized'."
-    }
-  }
+  rules = list(PresenceRule(
+    id = "gridsearch.sampling-fraction",
+    property = "randomize_p",
+    when = SchemaPredicate(property = "search_type", equals = "randomized"),
+    forbid_otherwise = TRUE,
+    message = "randomize_p must be set exactly when search_type is randomized."
+  )),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Grid search over hyperparameter combinations.",
+    order = 1L
+  )
 ) # /rtemis::GridSearchConfig
 
 
@@ -175,8 +196,8 @@ GridSearchConfig <- new_class(
 #'
 #' Create a `GridSearchConfig` object that can be passed to [train].
 #'
-#' @param resampler_config `ResamplerConfig` set by one of the `setup_*`
-#' resampler functions, e.g. [setup_KFold].
+#' @param resampler_config Optional `ResamplerConfig`: Resampling configuration
+#' from a `setup_*` resampler function, e.g. [setup_KFold].
 #' @param search_type Character \{"exhaustive", "randomized"\}: Type of
 #' grid search to use. Exhaustive search will try all combinations of
 #' config. Randomized will try a random sample of size
@@ -208,6 +229,7 @@ setup_GridSearch <- function(
   metric = NULL,
   maximize = NULL
 ) {
+  apply_setup_defaults(GridSearchConfig)
   # Arguments ----
   # Per-field validation and the exhaustive/randomize_p rule are enforced by
   # the property specs and the `GridSearchConfig` validator.

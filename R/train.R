@@ -531,8 +531,8 @@ train <- function(
     S7_inherits(hyperparameters, HyperparametersSet) &&
       !needs_tuning(hyperparameters)
   ) {
-    label <- names(hyperparameters@members)[[1L]]
-    hyperparameters <- hyperparameters@members[[1L]]
+    label <- names(hyperparameters@variants)[[1L]]
+    hyperparameters <- hyperparameters@variants[[1L]]
     hyperparameters@variant <- label
   }
 

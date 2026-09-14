@@ -20,6 +20,10 @@ import? '__dev/plan.just'
 default:
     @just --list
 
+[doc("Run a saved R development probe")]
+probe script:
+    {{ rscript }} "{{ script }}"
+
 _msg msg:
     @printf '\033[38;2;108;163;160m[%s] %s\033[0m\n' "$(date '+%Y-%m-%d %H:%M:%S')" "{{ msg }}"
 
@@ -107,28 +111,59 @@ test-filter filter out="/tmp/rtemis-test":
     @cat {{ out }}/verdict 2>/dev/null || { echo "no verdict -- the run died, see {{ out }}/log"; exit 1; }
     @grep -q '^failed=0 error=0 ' {{ out }}/verdict || exit 1
 
-# `generate_checks.R` also refreshes the `inst/` copies of checks and traits,
-# which are what the package ships and what `test_ChecksArtifact.R` reads, so a
-# diff there after this runs means the committed copies were stale.
-# `generate_checks_corpus.R` writes no `inst/` copy: nothing in R reads the
-# corpus, it being generated *from* the tests that are its oracle.
-# Runs every generator `schemas` runs, in the same order. A generator missing
-# here is one this gate cannot fail on: `generate_authoring.R` was absent, so a
-# change that broke it passed `schemas-check` and failed mid-publish.
+# Generate the complete artifact corpus without publishing or indexing it.
+[doc("Generate every schema artifact into a local directory")]
+schema-artifacts out:
+    {{ rscript }} data-raw/generate_schemas.R "{{ out }}"
+    {{ rscript }} data-raw/generate_defaults.R "{{ out }}"
+    {{ rscript }} tools/defaults-conformance.R "{{ out }}/defaults/v1/corpus.json"
+    {{ rscript }} data-raw/generate_authoring.R "{{ out }}"
+    {{ rscript }} data-raw/generate_checks.R "{{ out }}"
+    {{ rscript }} data-raw/generate_checks_corpus.R "{{ out }}"
+    {{ rscript }} data-raw/generate_profile_fixture.R "{{ out }}"
+
+[doc("Generate the defaults artifact beside an existing schema corpus")]
+schema-defaults out:
+    {{ rscript }} data-raw/generate_defaults.R "{{ out }}"
+
+[doc("Verify defaults generation ignores unrelated files and requires its catalog graph")]
+schema-defaults-check artifacts report:
+    python3 tools/schema-defaults-check.py "{{ artifacts }}" "{{ report }}"
+
+[doc("Refresh the checks and traits artifacts shipped with the package")]
+checks-refresh:
+    {{ rscript }} data-raw/generate_checks.R inst
+
+[doc("Audit property reconstruction from an existing generated artifact corpus")]
+schema-roundtrip artifacts report:
+    {{ rscript }} tools/schema-roundtrip.R "{{ artifacts }}" "{{ report }}"
+
+[doc("Compare generated artifact bytes and save both manifests")]
+schema-diff before after report:
+    python3 tools/schema-diff.py "{{ before }}" "{{ after }}" "{{ report }}"
+
+[doc("Compile the real generated schema graph and validate serialized documents")]
+schema-graph artifacts report:
+    {{ rscript }} tools/schema-graph.R "{{ artifacts }}" "{{ report }}"
+
+[doc("Export class-rule boundary cases for an independent JSONLogic evaluator")]
+schema-rules report:
+    {{ rscript }} tools/schema-rules.R "{{ report }}"
+
+# Check the full generated corpus and compare shipped artifacts without
+# modifying them. `checks-refresh` explicitly updates those package copies.
 [doc("Generate schemas + defaults + checks into a throwaway directory to assert the contracts")]
 schemas-check:
     @just _msg "─── Checking schema generation for {{ pkg }}... ───"
     @dir=$(mktemp -d); trap 'rm -rf "$dir"' EXIT; \
-        {{ rscript }} data-raw/generate_schemas.R "$dir" && \
-        {{ rscript }} data-raw/generate_defaults.R "$dir" && \
-        {{ rscript }} data-raw/generate_authoring.R "$dir" && \
-        {{ rscript }} data-raw/generate_checks.R "$dir" && \
-        {{ rscript }} data-raw/generate_checks_corpus.R "$dir" && \
-        {{ rscript }} data-raw/generate_profile_fixture.R "$dir"
-    @git diff --quiet --exit-code -- inst/checks inst/traits || { \
-        echo "   Note: inst/checks or inst/traits was regenerated -- the committed copy was stale."; \
-        echo "   Review the diff and commit it with the rule-set change."; \
-    }
+        just schema-artifacts "$dir" && \
+        just schema-defaults-check "$dir" "$dir/defaults-check.json" && \
+        { diff -u inst/checks/v1/checks.json "$dir/checks/v1/checks.json" && \
+          diff -u inst/traits/v1/traits.json "$dir/traits/v1/traits.json"; } || { \
+            echo "   Generation or artifact comparison failed; inspect the diagnostics above."; \
+            echo "   For shipped checks/traits drift, run 'just checks-refresh' and review the diff."; \
+            exit 1; \
+        }
     @just _msg "Done"
 
 # Build the source tarball
@@ -187,3 +222,7 @@ clean:
     rm -rf {{ pkg }}.Rcheck
     rm -f {{ tarball_glob }}
     @just _msg "Done"
+
+[doc("Export R defaults conformance cases for shared consumers")]
+defaults-conformance out:
+    {{ rscript }} tools/defaults-conformance.R "{{ out }}"

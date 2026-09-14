@@ -6,6 +6,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      run-parallel-tests:
+        description: Run parallel worker integration tests
+        type: boolean
+        default: false
 
 name: R-CMD-check
 
@@ -16,12 +21,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  R-CMD-check:
+  checks:
+    name: R-CMD-check (${{ matrix.test-group }})
     runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        test-group: [general, supervised, fitting]
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      RTEMIS_TEST_GROUP: ${{ matrix.test-group }}
+      RTEMIS_RUN_PARALLEL_TESTS: ${{ github.event_name == 'workflow_dispatch' && inputs.run-parallel-tests && 'true' || 'false' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +59,30 @@ jobs:
           needs: check
           cache-version: 5
       - uses: r-lib/actions/check-r-package@v2
+        timeout-minutes: 25
         with:
           upload-snapshots: true
           build_args: 'c("--no-manual", "--compact-vignettes=gs+qpdf")'
+          args: ${{ matrix.test-group == 'general' && 'c("--no-manual", "--as-cran")' || 'c("--no-manual", "--as-cran", "--no-examples")' }}
           error-on: '"note"'
+      - name: Show partial test output
+        if: ${{ failure() || cancelled() }}
+        run: find check -name 'testthat.Rout*' -exec tail -n 150 '{}' \;
+      - name: Preserve check diagnostics
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: check-diagnostics-${{ matrix.test-group }}
+          path: check
+          if-no-files-found: ignore
+
+  R-CMD-check:
+    needs: checks
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every test group
+        env:
+          RESULT: ${{ needs.checks.result }}
+        run: test "$RESULT" = success

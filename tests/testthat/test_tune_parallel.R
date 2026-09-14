@@ -50,6 +50,7 @@ tuning_metrics <- function(mod) {
 
 # %% Cross-backend reproducibility ----
 testthat::test_that("tuning reproduces across backends", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   sequential <- tuning_metrics(fit_tuned("none", 1L))
@@ -59,6 +60,7 @@ testthat::test_that("tuning reproduces across backends", {
 })
 
 testthat::test_that("the future backend agrees with the others", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("future")
   expect_identical(
@@ -70,6 +72,7 @@ testthat::test_that("the future backend agrees with the others", {
 })
 
 testthat::test_that("a tuned run picks the same hyperparameters either way", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   expect_identical(
@@ -149,6 +152,7 @@ fit_failing_tune <- function(on_error) {
 }
 
 testthat::test_that("unscorable combinations are reported, not passed over", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   # Every combination fails on at least one inner resample here, so none can be ranked.

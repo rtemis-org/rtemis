@@ -1813,7 +1813,7 @@ method(serializable_props, S7_object) <- function(x) {
   values <- values[keep]
   for (nm in names(values)) {
     if (!is.null(declared[[nm]])) {
-      values[[nm]] <- wire_value(values[[nm]], declared[[nm]])
+      values[nm] <- list(wire_value(values[[nm]], declared[[nm]]))
     }
   }
   values

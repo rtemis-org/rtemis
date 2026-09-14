@@ -18,7 +18,7 @@
 #'
 #' @author EDG
 #' @noRd
-ClusterConfig <- new_class(
+ClusterConfig <- schema_class(
   name = "ClusterConfig",
   package = "rtemis",
   properties = list(
@@ -33,7 +33,11 @@ ClusterConfig <- new_class(
       description = "Clustering algorithm name."
     ),
     # Nested config object (a `$ref` in the generated schema).
-    clustering_config = NULL | ClusteringConfig,
+    clustering_config = prop_object(
+      ClusteringConfig,
+      nullable = TRUE,
+      description = "Clustering algorithm and its settings."
+    ),
     outdir = prop_string(
       "results/",
       description = "Output directory for results."
@@ -43,6 +47,15 @@ ClusterConfig <- new_class(
       min = 0L,
       description = "Verbosity level."
     )
+  ),
+  publication = SchemaPublication(
+    role = "document",
+    slug = "cluster",
+    title = "rtemis ClusterConfig",
+    description = "Language-independent config for an rtemis clustering pipeline: a data reference, a `ClusteringConfig`, and an output directory.",
+    order = 6L,
+    kind = "pipeline",
+    record_provenance = "rtemis::Provenance"
   )
 ) # /rtemis::ClusterConfig
 
@@ -117,6 +130,7 @@ setup_ClusterConfig <- function(
   outdir = "results/",
   verbosity = 1L
 ) {
+  apply_setup_defaults(ClusterConfig)
   # Validated, not resolved: a config is a portable recipe, so it stores the
   # path its author wrote rather than that path resolved against this machine's
   # working directory.

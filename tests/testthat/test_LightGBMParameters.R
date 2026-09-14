@@ -586,7 +586,7 @@ test_that("the GOSS rules read a search domain, not just a value", {
   # A value, as before.
   expect_error(
     setup_LightGBM(data_sample_strategy = "goss", bagging_fraction = 0.5),
-    "cannot be combined with bagging"
+    "lightgbm.goss-bagging"
   )
   # A domain with a workable cell is accepted, as `check_applies_when()` accepts
   # a gated domain when any candidate opens the gate.
@@ -602,7 +602,7 @@ test_that("the GOSS rules read a search domain, not just a value", {
       data_sample_strategy = "goss",
       bagging_fraction = tune_over(0.5, 0.8)
     ),
-    "no value of @bagging_fraction avoids it"
+    "lightgbm.goss-bagging"
   )
   # The invalid cell of a workable domain is still refused when the tuner builds
   # it, which is what keeps the accepted domain honest.
@@ -616,7 +616,7 @@ test_that("the GOSS rules read a search domain, not just a value", {
       list(bagging_fraction = 0.5),
       tuned = TUNED_STATUS_TUNING
     ),
-    "cannot be combined with bagging"
+    "lightgbm.goss-bagging"
   )
   expect_no_error(
     update(
@@ -640,6 +640,6 @@ test_that("the GOSS rules read a search domain, not just a value", {
       top_rate = tune_over(0.7, 0.8),
       other_rate = 0.5
     ),
-    "smallest they can sum to"
+    "lightgbm.goss-share"
   )
 })

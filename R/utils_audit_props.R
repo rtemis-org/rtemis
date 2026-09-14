@@ -138,7 +138,7 @@ parse_roxygen_params <- function(r_dir) {
       fn <- regmatches(
         line,
         regexec(
-          "^\\s*([a-zA-Z._][a-zA-Z0-9._]*)\\s*<-\\s*(function|(S7::)?new_class)",
+          "^\\s*([a-zA-Z._][a-zA-Z0-9._]*)\\s*<-\\s*(function|(S7::)?new_class|schema_class)",
           line
         )
       )[[1L]]
@@ -585,7 +585,14 @@ audit_prop_docs <- function(r_dir, classes = NULL, aliases = PROP_DOC_ALIASES) {
     if (isTRUE(cls@abstract)) {
       next
     }
-    sources <- doc_source_for_class(class_name)
+    sources <- unique(c(
+      doc_source_for_class(class_name),
+      vapply(
+        schema_class_ancestors(cls),
+        function(parent) parent@name,
+        character(1L)
+      )
+    ))
     params <- character()
     for (src in sources) {
       if (!is.null(docs[[src]])) {
@@ -700,6 +707,34 @@ audit_prop_docs <- function(r_dir, classes = NULL, aliases = PROP_DOC_ALIASES) {
     return(findings)
   }
   doc_type <- doc[["type"]]
+  if (!is.null(spec@target_class)) {
+    target <- sub("^.*::", "", spec@target_class)
+    if (!is.null(spec@alternate_class)) {
+      target <- paste(target, "or", sub("^.*::", "", spec@alternate_class))
+    }
+    declared <- if (spec@container == "none") {
+      target
+    } else {
+      paste0("List of ", target, " objects")
+    }
+    normalized <- gsub("`", "", doc_type, fixed = TRUE)
+    valid_type <- if (spec@container == "none") {
+      identical(sub(" object$", "", normalized), target)
+    } else {
+      startsWith(normalized, "List") && grepl(target, normalized, fixed = TRUE)
+    }
+    if (is.na(valid_type) || !valid_type) {
+      add("type", doc_type, declared)
+    }
+    if (!identical(doc[["nullable"]], spec@nullable)) {
+      add(
+        "nullable",
+        if (doc[["nullable"]]) "Optional" else "not Optional",
+        if (spec@nullable) "nullable = TRUE" else "nullable = FALSE"
+      )
+    }
+    return(findings)
+  }
   # A container is documented by the R value a user passes ("Matrix", "List",
   # "Named vector"); its bounds and enum live on the innermost element spec.
   expected_container <- container_doc_type(spec)

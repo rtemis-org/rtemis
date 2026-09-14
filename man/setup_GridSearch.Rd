@@ -14,8 +14,8 @@ setup_GridSearch(
 )
 }
 \arguments{
-\item{resampler_config}{\code{ResamplerConfig} set by one of the \verb{setup_*}
-resampler functions, e.g. \link{setup_KFold}.}
+\item{resampler_config}{Optional \code{ResamplerConfig}: Resampling configuration
+from a \verb{setup_*} resampler function, e.g. \link{setup_KFold}.}
 
 \item{search_type}{Character \{"exhaustive", "randomized"\}: Type of
 grid search to use. Exhaustive search will try all combinations of

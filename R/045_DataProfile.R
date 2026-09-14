@@ -122,7 +122,7 @@ PROFILE_MAX_LEVELS <- 64L
 #'
 #' @author EDG
 #' @noRd
-DataProfile <- new_class(
+DataProfile <- schema_class(
   name = "DataProfile",
   package = "rtemis",
   properties = list(
@@ -175,7 +175,19 @@ DataProfile <- new_class(
       nullable = TRUE,
       description = "Rows that repeat an earlier row exactly. Null when not counted."
     ),
-    fingerprint = NULL | DataFingerprint
+    fingerprint = prop_object(
+      DataFingerprint,
+      nullable = TRUE,
+      description = "Identity of the profiled dataset."
+    )
+  ),
+  publication = SchemaPublication(
+    role = "document",
+    slug = "profile",
+    title = "rtemis DataProfile",
+    description = "What one dataset is, in the facts a validator needs: dimensions, columns with their types, distinct and missing counts, level counts for low-cardinality categorical columns, and complete-case and duplicate counts. Bounded by the number of columns rather than the number of rows, so it travels where the data cannot.",
+    order = 13L,
+    kind = "report"
   )
 ) # /rtemis::DataProfile
 

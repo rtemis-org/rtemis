@@ -1,0 +1,295 @@
+{
+  "$id": "https://schema.rtemis.org/defaults/v1/format.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "rtemis defaults artifact",
+  "type": "object",
+  "properties": {
+    "$id": {
+      "const": "https://schema.rtemis.org/defaults/v1/defaults.json"
+    },
+    "$schema": {
+      "const": "https://schema.rtemis.org/defaults/v1/format.schema.json"
+    },
+    "format_version": {
+      "const": 1
+    },
+    "producer": {
+      "type": "object",
+      "properties": {
+        "package": {
+          "const": "rtemis"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "package",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "schemas": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
+    "declarations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/$defs/declaration"
+        }
+      }
+    },
+    "resolution": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/$defs/policy"
+        }
+      }
+    }
+  },
+  "required": [
+    "$id",
+    "$schema",
+    "format_version",
+    "producer",
+    "schemas",
+    "declarations",
+    "resolution"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "policy": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "declaration",
+            "none",
+            "literal",
+            "expression",
+            "runtime"
+          ]
+        },
+        "value": {},
+        "expression": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "requires": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "on_null": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "on_null"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "runtime"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "requires",
+              "reason"
+            ],
+            "properties": {
+              "requires": {
+                "type": "array"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "expression"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "expression"
+            ],
+            "properties": {
+              "expression": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "literal"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "value"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "not": {
+                  "const": "literal"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "not": {
+                  "const": "expression"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "expression": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "not": {
+                  "const": "runtime"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "requires": {
+                "type": "null"
+              },
+              "reason": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "declaration": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "literal",
+            "none"
+          ]
+        },
+        "value": {},
+        "policy": {
+          "$ref": "#/$defs/policy"
+        },
+        "number_types": {
+          "type": "object",
+          "additionalProperties": {
+            "enum": [
+              "integer",
+              "number"
+            ]
+          }
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "literal"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "value"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "none"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "value"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

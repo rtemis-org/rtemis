@@ -292,7 +292,7 @@ method(`[[`, Metrics) <- function(x, name) {
 #'
 #' @author EDG
 #' @noRd
-RegressionMetrics <- new_class(
+RegressionMetrics <- schema_class(
   name = "RegressionMetrics",
   parent = Metrics,
   properties = list(
@@ -315,7 +315,15 @@ RegressionMetrics <- new_class(
         rsq = rsq
       )
     )
-  }
+  },
+  publication = SchemaPublication(
+    role = "document",
+    slug = "regressionmetrics",
+    title = "rtemis RegressionMetrics",
+    description = "Regression metrics for one sample: a single-row table of mean absolute error, mean squared error, root mean squared error and R-squared. Every cell is nullable, a metric being genuinely undefined for some samples.",
+    order = 7L,
+    kind = "report"
+  )
 ) # /rtemis::RegressionMetrics
 
 
@@ -370,7 +378,7 @@ method(print, RegressionMetrics) <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-ClassificationMetrics <- new_class(
+ClassificationMetrics <- schema_class(
   name = "ClassificationMetrics",
   parent = Metrics,
   properties = list(
@@ -431,7 +439,15 @@ ClassificationMetrics <- new_class(
         positive_class = positive_class
       )
     )
-  }
+  },
+  publication = SchemaPublication(
+    role = "document",
+    slug = "classificationmetrics",
+    title = "rtemis ClassificationMetrics",
+    description = "Classification metrics for one sample: the confusion matrix in long form (one row per cell), overall metrics, and per-class metrics. Which overall columns are present depends on the task, so only the invariant ones are required.",
+    order = 8L,
+    kind = "report"
+  )
 ) # /rtemis::ClassificationMetrics
 
 
@@ -552,17 +568,16 @@ MetricsRes <- new_class(
 # %% prop_res_metrics ----
 #' Per-resample metrics
 #'
-#' A list holding one metrics object per resample. Declared without a
-#' `PropertySpec`: its elements are S7 objects with schemas of their own, which
-#' the generator wires up as an array of `$ref`s.
+#' A typed array holding one metrics object per resample.
 #'
+#' @param cls S7 class: Required metrics type for every resample.
 #' @return S7 property.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-prop_res_metrics <- function() {
-  new_property(class_list)
+prop_res_metrics <- function(cls) {
+  prop_state(prop_collection(cls))
 } # /rtemis::prop_res_metrics
 
 
@@ -693,11 +708,11 @@ method(print, MetricsRes) <- function(
 # %% RegressionMetricsRes ----
 #' @author EDG
 #' @noRd
-RegressionMetricsRes <- new_class(
+RegressionMetricsRes <- schema_class(
   name = "RegressionMetricsRes",
   parent = MetricsRes,
   properties = list(
-    res_metrics = prop_res_metrics(),
+    res_metrics = prop_res_metrics(RegressionMetrics),
     mean_metrics = prop_mean_metrics(regression_metric_columns()),
     sd_metrics = prop_sd_metrics(regression_metric_columns())
   ),
@@ -709,13 +724,21 @@ RegressionMetricsRes <- new_class(
       mean_metrics = vec2df(colMeans(stacked)),
       sd_metrics = vec2df(sapply(stacked, sd))
     )
-  }
+  },
+  publication = SchemaPublication(
+    role = "document",
+    slug = "regressionmetricsres",
+    title = "rtemis RegressionMetricsRes",
+    description = "Regression metrics aggregated across resamples: each resample's metrics, plus their mean and standard deviation.",
+    order = 11L,
+    kind = "report"
+  )
 ) # /rtemis::RegressionMetricsRes
 
 
 #' @author EDG
 #' @noRd
-ClassificationMetricsRes <- new_class(
+ClassificationMetricsRes <- schema_class(
   name = "ClassificationMetricsRes",
   parent = MetricsRes,
   properties = list(
@@ -724,7 +747,7 @@ ClassificationMetricsRes <- new_class(
       class = class_table,
       getter = function(self) long_to_confusion(self@confusion_long)
     )),
-    res_metrics = prop_res_metrics(),
+    res_metrics = prop_res_metrics(ClassificationMetrics),
     # Aggregated from each resample's `overall` table, so those are its columns.
     mean_metrics = prop_mean_metrics(
       classification_overall_columns(),
@@ -747,7 +770,15 @@ ClassificationMetricsRes <- new_class(
       mean_metrics = vec2df(colMeans(stacked)),
       sd_metrics = vec2df(sapply(stacked, sd))
     )
-  }
+  },
+  publication = SchemaPublication(
+    role = "document",
+    slug = "classificationmetricsres",
+    title = "rtemis ClassificationMetricsRes",
+    description = "Classification metrics aggregated across resamples: each resample's metrics, the aggregate confusion matrix in long form, and the mean and standard deviation of the overall metrics.",
+    order = 12L,
+    kind = "report"
+  )
 ) # /rtemis::ClassificationMetricsRes
 
 

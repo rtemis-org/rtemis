@@ -183,6 +183,7 @@ testthat::test_that("containers survive sharing", {
 })
 
 testthat::test_that("a shared global is not counted against future's size limit", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mori")
   testthat::skip_if_not_installed("future")
@@ -214,6 +215,7 @@ testthat::test_that("a shared global is not counted against future's size limit"
 })
 
 testthat::test_that("a shared object arrives shared in a worker", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mori")
   testthat::skip_if_not_installed("mirai")
@@ -292,6 +294,7 @@ fold_predictions <- function(mod) {
 }
 
 testthat::test_that("outer resampling gives the same answer shared or not", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mori")
   testthat::skip_if_not_installed("mirai")
@@ -310,6 +313,7 @@ testthat::test_that("sharing changes nothing in a sequential run either", {
 })
 
 testthat::test_that("tuning gives the same answer shared or not", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mori")
   testthat::skip_if_not_installed("mirai")

@@ -37,7 +37,7 @@ test_that("a list of Hyperparameters coerces to a set", {
   expect_identical(set@algorithm, "LINAD")
   expect_length(set, 2L)
   # Unnamed members are labelled by position; named ones keep their name.
-  expect_identical(names(set@members), c("cart", "variant_2"))
+  expect_identical(names(set@variants), c("cart", "variant_2"))
   expect_s7_class(set[["cart"]], rtemis:::LINADHyperparameters)
   # Coercing a set is a no-op, so the boundary can be crossed twice safely.
   expect_identical(rtemis:::as_HyperparametersSet(set), set)
@@ -77,8 +77,8 @@ test_that("building a set leaves its members alone", {
   # every member and the failure surfaced much later, in `train()`.
   member <- setup_LINAD()
   set <- rtemis:::as_HyperparametersSet(list(member))
-  expect_identical(set@members[[1L]]@n_workers, member@n_workers)
-  expect_identical(set@members[[1L]]@resampled, member@resampled)
+  expect_identical(set@variants[[1L]]@n_workers, member@n_workers)
+  expect_identical(set@variants[[1L]]@resampled, member@resampled)
   expect_length(set@n_workers, 1L)
   expect_length(set@resampled, 1L)
 })
@@ -89,7 +89,7 @@ test_that("n_workers and resampled write through to every member", {
   set@n_workers <- 4L
   expect_identical(set@n_workers, 4L)
   expect_true(all(vapply(
-    set@members,
+    set@variants,
     function(member) identical(member@n_workers, 4L),
     logical(1L)
   )))
@@ -278,7 +278,7 @@ test_that("a set round trips through its wire form", {
   restored <- rtemis:::.list_to_HyperparametersSet(wire)
   expect_s7_class(restored, rtemis:::HyperparametersSet)
   # The names have to survive: the name is what the tuner reports as the winner.
-  expect_identical(names(restored@members), c("linear", "addtree"))
+  expect_identical(names(restored@variants), c("linear", "addtree"))
   expect_identical(restored@algorithm, "LINAD")
   expect_identical(restored[["addtree"]][["node_model"]], "constant")
   expect_identical(restored[["addtree"]][["gamma"]], 0.3)

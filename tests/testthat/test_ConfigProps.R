@@ -268,10 +268,7 @@ test_that("dispatcher rejects a non-constant or duplicated discriminator", {
 test_that("S7_to_JSONSchema emits $refs for nested config properties", {
   s <- S7_to_JSONSchema(
     DecomposeConfig,
-    id = "https://schema.rtemis.org/decompose/v1/schema.json",
-    refs = c(
-      decomposition_config = "https://schema.rtemis.org/decomposition/v1/schema.json"
-    )
+    id = "https://schema.rtemis.org/decompose/v1/schema.json"
   )
   # `decomposition_config` accepts NULL, so the ref is wrapped in a oneOf.
   ref <- s[["properties"]][["decomposition_config"]]
@@ -284,15 +281,7 @@ test_that("S7_to_JSONSchema emits $refs for nested config properties", {
   # A non-nullable nested config emits a bare $ref.
   sup <- S7_to_JSONSchema(
     SuperConfigPaths,
-    id = "https://schema.rtemis.org/supervised/v1/schema.json",
-    refs = c(
-      preprocessor_config = "https://schema.rtemis.org/preprocessor/v1/schema.json",
-      decomposition_config = "https://schema.rtemis.org/decomposition/v1/schema.json",
-      hyperparameters = "https://schema.rtemis.org/hyperparameters/v1/schema.json",
-      tuner_config = "https://schema.rtemis.org/tuner/v1/schema.json",
-      outer_resampling_config = "https://schema.rtemis.org/resampler/v1/schema.json",
-      execution_config = "https://schema.rtemis.org/execution/v1/schema.json"
-    )
+    id = "https://schema.rtemis.org/supervised/v1/schema.json"
   )
   expect_identical(
     sup[["properties"]][["execution_config"]][["$ref"]],
@@ -302,15 +291,6 @@ test_that("S7_to_JSONSchema emits $refs for nested config properties", {
   expect_identical(
     names(s[["properties"]]),
     intersect(names(DecomposeConfig@properties), names(s[["properties"]]))
-  )
-  # `refs` must name real properties.
-  expect_error(
-    S7_to_JSONSchema(
-      DecomposeConfig,
-      id = "https://x/a.json",
-      refs = c(nope = "u")
-    ),
-    "no such"
   )
 })
 
@@ -541,13 +521,29 @@ test_that("settings nested under a settings key are refused with the fix", {
 
 # %% x-rtemis annotations ----
 test_that("x-rtemis agrees with the standard keywords, for every property", {
+  targets <- schema_reference_urls(
+    schema_catalog(),
+    "https://schema.rtemis.org"
+  )
   # The annotation block is a second description of the same property. It is
   # generated from the same spec, so it cannot drift by construction -- but a
   # bug in either emitter would let the two disagree, and a consumer trusting
   # the annotation over the keywords would then generate a wrong model.
   for (cls in spec_classes()) {
     for (nm in spec_prop_names(cls)) {
-      schema <- spec_to_schema(get_spec(cls@properties[[nm]]))
+      spec <- get_spec(cls@properties[[nm]])
+      if (
+        !is.null(spec@target_class) && !spec@target_class %in% names(targets)
+      ) {
+        expect_error(spec_to_schema(spec), "No published schema")
+        next
+      }
+      target <- if (is.null(spec@target_class)) {
+        NULL
+      } else {
+        targets[[spec@target_class]]
+      }
+      schema <- spec_to_schema(spec, reference = target)
       ann <- schema[["x-rtemis"]]
       label <- paste0(cls@name, "@", nm)
       expect_false(is.null(ann), info = label)
@@ -574,6 +570,13 @@ test_that("x-rtemis agrees with the standard keywords, for every property", {
         # A struct declares its members, where a map declares only their type.
         expect_true("object" %in% types, info = label)
         expect_true("properties" %in% names(schema), info = label)
+      } else if (!is.null(ann[["target_class"]])) {
+        ref <- if (!is.null(ann[["alternate_class"]])) {
+          schema[["allOf"]][[2L]][["then"]]
+        } else {
+          if (schema_is_nullable(schema)) schema[["oneOf"]][[2L]] else schema
+        }
+        expect_identical(ref[["$ref"]], target, info = label)
       } else if (identical(ann[["role"]], "constant")) {
         # A constant asserts its value; it has no `type` keyword.
         expect_true("const" %in% names(schema), info = label)
@@ -915,7 +918,7 @@ test_that("a record keeps unset fields rather than omitting them", {
 # R has no scalar and no unnamed-list literal, so two shapes that are obvious in
 # the schema are ambiguous in the value. Both broke real documents: a GLMNET fold
 # that settled on one `lambda` emitted a number where an array was declared, and
-# a meta learner's `base_learners` emitted an object where an array was.
+# collection names require a declared map to survive serialization.
 
 test_that("a one-element array value stays an array on the wire", {
   hp <- setup_GLMNET(lambda = 0.1)
@@ -932,18 +935,22 @@ test_that("a one-element array value stays an array on the wire", {
   )
 })
 
-test_that("a list of configs is published as an array, not an object", {
-  hp <- setup_SuperLearner()
+test_that("a named library preserves its identities in configs and records", {
+  hp <- setup_SuperLearner(
+    base_learners = list(clinical = setup_GLM(), imaging = setup_CART())
+  )
   learners <- prop(hp, "base_learners")
-  # Named R-side for readability; the names are re-derived from each entry's
-  # `algorithm` on the way back in, and a named list would serialize as a JSON
-  # object where the schema declares an array of `$ref`s.
-  expect_false(is.null(names(learners)))
+  expect_identical(names(learners), c("clinical", "imaging"))
   wire <- wire_value(learners, S7_class(hp)@properties[["base_learners"]])
-  expect_null(names(wire))
+  expect_identical(names(wire), names(learners))
   rec <- config_record(hp, hp)[["base_learners"]]
-  expect_null(names(rec))
+  expect_identical(names(rec), names(learners))
   expect_length(rec, length(learners))
+  restored <- .list_to_Hyperparameters(jsonlite::fromJSON(
+    jsonlite::toJSON(S7_to_list(hp), auto_unbox = TRUE, null = "null"),
+    simplifyVector = FALSE
+  ))
+  expect_identical(names(restored@base_learners), names(learners))
 })
 
 

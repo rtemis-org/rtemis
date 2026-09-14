@@ -1080,11 +1080,17 @@ progress_plapply <- function(
           value
         }
       }
-      # `mirai::daemons(0L)` on the way out is an orderly shutdown of daemons this call
-      # owns, so nothing outstanding needs collecting first. A borrowed pool is not shut
-      # down at all, and mirai discards the results of a map whose handle goes out of
-      # scope, so there is likewise nothing to collect.
-      reap <- function() invisible(NULL)
+      # Cancel this map's outstanding tasks before propagating a failure. This releases
+      # borrowed workers for the next dispatch and lets an owned pool shut down without
+      # waiting on abandoned work.
+      reap <- function() {
+        for (task in tasks) {
+          if (mirai::unresolved(task)) {
+            mirai::stop_mirai(task)
+          }
+        }
+        invisible(NULL)
+      }
     }
 
     # Drain ----

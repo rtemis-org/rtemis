@@ -29,7 +29,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-ClusteringConfig <- new_class(
+ClusteringConfig <- schema_class(
   name = "ClusteringConfig",
   package = "rtemis",
   abstract = TRUE,
@@ -44,6 +44,15 @@ ClusteringConfig <- new_class(
         route_config_assignment(self, ClusteringConfig, value)
       }
     )
+  ),
+  publication = SchemaPublication(
+    role = "family",
+    slug = "clustering",
+    title = "rtemis ClusteringConfig",
+    description = "Language-independent config for an rtemis clustering run. Mirrors the `ClusteringConfig` object: an algorithm name and its settings. The same config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical output.",
+    discriminator = "algorithm",
+    discriminator_description = "Clustering algorithm name.",
+    order = 2L
   )
 ) # /rtemis::ClusteringConfig
 
@@ -155,7 +164,7 @@ method(print, ClusteringConfig) <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-KMeansConfig <- new_class(
+KMeansConfig <- schema_class(
   name = "KMeansConfig",
   parent = ClusteringConfig,
   properties = list(
@@ -166,6 +175,11 @@ KMeansConfig <- new_class(
       enum = c("euclidean", "manhattan"),
       description = "Distance measure."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "K-means clustering.",
+    order = 1L
   )
 ) # /rtemis::KMeansConfig
 
@@ -184,6 +198,7 @@ KMeansConfig <- new_class(
 #' kmeans_config <- setup_KMeans(k = 4L, dist = "euclidean")
 #' kmeans_config
 setup_KMeans <- function(k = 3L, dist = "euclidean") {
+  apply_setup_defaults(KMeansConfig)
   k <- clean_posint(k)
   KMeansConfig(k = k, dist = dist)
 } # /rtemis::setup_KMeans
@@ -198,7 +213,7 @@ setup_KMeans <- function(k = 3L, dist = "euclidean") {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-HardCLConfig <- new_class(
+HardCLConfig <- schema_class(
   name = "HardCLConfig",
   parent = ClusteringConfig,
   properties = list(
@@ -209,6 +224,11 @@ HardCLConfig <- new_class(
       enum = c("euclidean", "manhattan"),
       description = "Distance measure."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Hard competitive learning.",
+    order = 2L
   )
 ) # /rtemis::HardCLConfig
 
@@ -227,6 +247,7 @@ HardCLConfig <- new_class(
 #' hardcl_config <- setup_HardCL(k = 4L, dist = "euclidean")
 #' hardcl_config
 setup_HardCL <- function(k = 3L, dist = "euclidean") {
+  apply_setup_defaults(HardCLConfig)
   k <- clean_posint(k)
   HardCLConfig(k = k, dist = dist)
 } # /rtemis::setup_HardCL
@@ -241,7 +262,7 @@ setup_HardCL <- function(k = 3L, dist = "euclidean") {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-NeuralGasConfig <- new_class(
+NeuralGasConfig <- schema_class(
   name = "NeuralGasConfig",
   parent = ClusteringConfig,
   properties = list(
@@ -252,6 +273,11 @@ NeuralGasConfig <- new_class(
       enum = c("euclidean", "manhattan"),
       description = "Distance measure."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Neural Gas clustering.",
+    order = 3L
   )
 ) # /rtemis::NeuralGasConfig
 
@@ -270,6 +296,7 @@ NeuralGasConfig <- new_class(
 #' neuralgas_config <- setup_NeuralGas(k = 4L, dist = "euclidean")
 #' neuralgas_config
 setup_NeuralGas <- function(k = 3L, dist = "euclidean") {
+  apply_setup_defaults(NeuralGasConfig)
   k <- clean_posint(k)
   NeuralGasConfig(k = k, dist = dist)
 } # /rtemis::setup_NeuralGas
@@ -286,7 +313,7 @@ setup_NeuralGas <- function(k = 3L, dist = "euclidean") {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-CMeansConfig <- new_class(
+CMeansConfig <- schema_class(
   name = "CMeansConfig",
   parent = ClusteringConfig,
   properties = list(
@@ -330,6 +357,11 @@ CMeansConfig <- new_class(
     control = prop_bag(
       description = "Control parameters passed to the clustering backend."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Fuzzy c-means clustering.",
+    order = 4L
   )
 ) # /rtemis::CMeansConfig
 
@@ -363,6 +395,7 @@ setup_CMeans <- function(
   weights = 1.0,
   control = list()
 ) {
+  apply_setup_defaults(CMeansConfig)
   k <- clean_posint(k)
   max_iter <- clean_posint(max_iter)
   CMeansConfig(
@@ -388,7 +421,7 @@ setup_CMeans <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-DBSCANConfig <- new_class(
+DBSCANConfig <- schema_class(
   name = "DBSCANConfig",
   parent = ClusteringConfig,
   properties = list(
@@ -434,6 +467,11 @@ DBSCANConfig <- new_class(
       FALSE,
       description = "Use approximate nearest neighbor search."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "DBSCAN density-based clustering.",
+    order = 5L
   )
 ) # /rtemis::DBSCANConfig
 
@@ -467,6 +505,7 @@ setup_DBSCAN <- function(
   split_rule = "SUGGEST",
   approx = FALSE
 ) {
+  apply_setup_defaults(DBSCANConfig)
   min_points <- clean_posint(min_points)
   bucket_size <- clean_posint(bucket_size)
   DBSCANConfig(
@@ -497,7 +536,7 @@ setup_DBSCAN <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-HOPACHConfig <- new_class(
+HOPACHConfig <- schema_class(
   name = "HOPACHConfig",
   parent = ClusteringConfig,
   properties = list(
@@ -596,6 +635,11 @@ HOPACHConfig <- new_class(
         "cluster's medoid."
       )
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Hierarchical Ordered Partitioning and Collapsing Hybrid.",
+    order = 7L
   )
 ) # /rtemis::HOPACHConfig
 
@@ -667,6 +711,7 @@ setup_HOPACH <- function(
   initial_order = "co",
   element_order = "own"
 ) {
+  apply_setup_defaults(HOPACHConfig)
   max_levels <- clean_posint(max_levels)
   max_children <- clean_posint(max_children)
   max_children_mss <- clean_posint(max_children_mss)
@@ -695,7 +740,7 @@ setup_HOPACH <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-PAMConfig <- new_class(
+PAMConfig <- schema_class(
   name = "PAMConfig",
   parent = ClusteringConfig,
   properties = list(
@@ -746,6 +791,11 @@ PAMConfig <- new_class(
         "instead of drawing the initial medoids at random."
       )
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Partitioning Around Medoids.",
+    order = 8L
   )
 ) # /rtemis::PAMConfig
 
@@ -790,6 +840,7 @@ setup_PAM <- function(
   variant = "original",
   nstart = NULL
 ) {
+  apply_setup_defaults(PAMConfig)
   k <- clean_posint(k)
   if (!is.null(nstart)) {
     nstart <- clean_posint(nstart)
@@ -817,7 +868,7 @@ setup_PAM <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-PAMKConfig <- new_class(
+PAMKConfig <- schema_class(
   name = "PAMKConfig",
   parent = ClusteringConfig,
   properties = list(
@@ -882,7 +933,12 @@ PAMKConfig <- new_class(
   # bounds".
   validator = function(self) {
     check_applies_when(self)
-  }
+  },
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Partitioning Around Medoids with estimation of the number of clusters.",
+    order = 9L
+  )
 ) # /rtemis::PAMKConfig
 
 
@@ -930,6 +986,7 @@ setup_PAMK <- function(
   alpha = 0.001,
   n_subsets = NULL
 ) {
+  apply_setup_defaults(PAMKConfig)
   krange <- clean_posint(krange)
   if (!is.null(n_subsets)) {
     n_subsets <- clean_posint(n_subsets)
@@ -959,7 +1016,7 @@ setup_PAMK <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-GMMConfig <- new_class(
+GMMConfig <- schema_class(
   name = "GMMConfig",
   parent = ClusteringConfig,
   properties = list(
@@ -1004,6 +1061,11 @@ GMMConfig <- new_class(
         "of them."
       )
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Gaussian mixture model clustering.",
+    order = 6L
   )
 ) # /rtemis::GMMConfig
 
@@ -1045,6 +1107,7 @@ GMMConfig <- new_class(
 #' gmm_config <- setup_GMM(k = 3L)
 #' gmm_config
 setup_GMM <- function(k = NULL, model_names = NULL) {
+  apply_setup_defaults(GMMConfig)
   if (!is.null(k)) {
     k <- clean_posint(k)
   }
@@ -1067,7 +1130,7 @@ setup_GMM <- function(k = NULL, model_names = NULL) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-SpectralConfig <- new_class(
+SpectralConfig <- schema_class(
   name = "SpectralConfig",
   parent = ClusteringConfig,
   properties = list(
@@ -1156,17 +1219,20 @@ SpectralConfig <- new_class(
   # Local scaling reads a per-case width off the full pairwise distance
   # matrix, which the Nystrom approximation never forms; the backend refuses
   # the combination outright.
-  validator = function(self) {
-    c(
-      check_applies_when(self),
-      if (identical(self@kernel, "rbf_local") && self@nystrom) {
-        paste0(
-          "@nystrom cannot be combined with @kernel \"rbf_local\": local ",
-          "scaling needs every pairwise distance."
-        )
-      }
-    )
-  }
+  validator = check_applies_when,
+  rules = list(ForbidTogether(
+    id = "spectral.local-kernel-nystrom",
+    conditions = list(
+      SchemaPredicate(property = "kernel", equals = "rbf_local"),
+      SchemaPredicate(property = "nystrom", equals = TRUE)
+    ),
+    message = "nystrom cannot be combined with kernel 'rbf_local': local scaling needs every pairwise distance."
+  )),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Spectral clustering.",
+    order = 10L
+  )
 ) # /rtemis::SpectralConfig
 
 
@@ -1234,6 +1300,7 @@ setup_Spectral <- function(
   nystrom = FALSE,
   nystrom_sample = NULL
 ) {
+  apply_setup_defaults(SpectralConfig)
   k <- clean_posint(k)
   iterations <- clean_posint(iterations)
   if (!is.null(nystrom_sample)) {

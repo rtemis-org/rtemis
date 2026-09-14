@@ -37,12 +37,12 @@ RUN_OUTCOMES <- c("completed", "failed", "canceled")
 #' @field elapsed_seconds Numeric [0, Inf): Wall-clock duration.
 #' @field outcome Character \{"completed", "failed", "canceled"\}: How the run
 #'   ended.
-#' @field data_training,data_validation,data_test `DataFingerprint`: Identity of
+#' @field data_training,data_validation,data_test Optional `DataFingerprint`: Identity of
 #'   each dataset used.
 #'
 #' @author EDG
 #' @noRd
-Provenance <- new_class(
+Provenance <- schema_class(
   name = "Provenance",
   package = "rtemis",
   properties = list(
@@ -83,8 +83,28 @@ Provenance <- new_class(
     # file at a path can change -- so the record carries the hash, and
     # `present()` can tell a rerun on the same data from a rerun on different
     # data.
-    data_training = NULL | DataFingerprint,
-    data_validation = NULL | DataFingerprint,
-    data_test = NULL | DataFingerprint
+    data_training = prop_object(
+      DataFingerprint,
+      nullable = TRUE,
+      description = "Identity of the training dataset."
+    ),
+    data_validation = prop_object(
+      DataFingerprint,
+      nullable = TRUE,
+      description = "Identity of the validation dataset."
+    ),
+    data_test = prop_object(
+      DataFingerprint,
+      nullable = TRUE,
+      description = "Identity of the test dataset."
+    )
+  ),
+  publication = SchemaPublication(
+    role = "document",
+    slug = "provenance",
+    title = "rtemis Provenance",
+    description = "What produced a run record: package and language versions, platform, timing, how the run ended, and a fingerprint of each dataset used. Referenced by every `<family>/v1/record.json`.",
+    order = 1L,
+    kind = "component"
   )
 ) # /rtemis::Provenance

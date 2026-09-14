@@ -32,7 +32,7 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-DecompositionConfig <- new_class(
+DecompositionConfig <- schema_class(
   name = "DecompositionConfig",
   package = "rtemis",
   abstract = TRUE,
@@ -62,6 +62,15 @@ DecompositionConfig <- new_class(
         route_config_assignment(self, DecompositionConfig, value)
       }
     )
+  ),
+  publication = SchemaPublication(
+    role = "family",
+    slug = "decomposition",
+    title = "rtemis DecompositionConfig",
+    description = "Language-independent config for an rtemis decomposition (dimensionality reduction). Mirrors the `DecompositionConfig` object: an algorithm name, its settings, and an optional feature subset. The same config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical output.",
+    discriminator = "algorithm",
+    discriminator_description = "Decomposition algorithm name.",
+    order = 1L
   )
 ) # /rtemis::DecompositionConfig
 
@@ -167,7 +176,7 @@ method(print, DecompositionConfig) <- function(
 #'
 #' @author EDG
 #' @noRd
-PCAConfig <- new_class(
+PCAConfig <- schema_class(
   name = "PCAConfig",
   parent = DecompositionConfig,
   properties = list(
@@ -185,6 +194,11 @@ PCAConfig <- new_class(
       nullable = TRUE,
       description = "Magnitude tolerance below which components are omitted."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Principal Component Analysis.",
+    order = 1L
   )
 ) # /rtemis::PCAConfig
 
@@ -213,6 +227,7 @@ setup_PCA <- function(
   tol = NULL,
   features = NULL
 ) {
+  apply_setup_defaults(PCAConfig)
   k <- clean_posint(k)
   PCAConfig(
     k = k,
@@ -232,7 +247,7 @@ setup_PCA <- function(
 #'
 #' @author EDG
 #' @noRd
-ICAConfig <- new_class(
+ICAConfig <- schema_class(
   name = "ICAConfig",
   parent = DecompositionConfig,
   properties = list(
@@ -268,6 +283,11 @@ ICAConfig <- new_class(
       description = "Maximum number of iterations."
     ),
     tol = prop_float(1e-04, min = 0, description = "Convergence tolerance.")
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Independent Component Analysis.",
+    order = 2L
   )
 ) # /rtemis::ICAConfig
 
@@ -314,6 +334,7 @@ setup_ICA <- function(
   tol = 1e-04,
   features = NULL
 ) {
+  apply_setup_defaults(ICAConfig)
   k <- clean_posint(k)
   maxit <- clean_posint(maxit)
   ICAConfig(
@@ -337,7 +358,7 @@ setup_ICA <- function(
 #'
 #' @author EDG
 #' @noRd
-NMFConfig <- new_class(
+NMFConfig <- schema_class(
   name = "NMFConfig",
   parent = DecompositionConfig,
   properties = list(
@@ -356,6 +377,11 @@ NMFConfig <- new_class(
       min = 1L,
       description = "Number of runs to perform."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Non-negative Matrix Factorization.",
+    order = 3L
   )
 ) # /rtemis::NMFConfig
 
@@ -379,9 +405,10 @@ NMFConfig <- new_class(
 setup_NMF <- function(
   k = 2L,
   method = "brunet",
-  nrun = if (length(k) > 1L) 30L else 1L,
+  nrun = 1L,
   features = NULL
 ) {
+  apply_setup_defaults(NMFConfig)
   k <- clean_posint(k)
   nrun <- clean_posint(nrun)
   NMFConfig(k = k, method = method, nrun = nrun, features = features)
@@ -396,7 +423,7 @@ setup_NMF <- function(
 #'
 #' @author EDG
 #' @noRd
-UMAPConfig <- new_class(
+UMAPConfig <- schema_class(
   name = "UMAPConfig",
   parent = DecompositionConfig,
   properties = list(
@@ -428,6 +455,11 @@ UMAPConfig <- new_class(
     ),
     learning_rate = prop_float(1.0, min = 0, description = "Learning rate."),
     scale = prop_boolean(TRUE, description = "Scale input data before UMAP.")
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Uniform Manifold Approximation and Projection.",
+    order = 4L
   )
 ) # /rtemis::UMAPConfig
 
@@ -467,6 +499,7 @@ setup_UMAP <- function(
   scale = TRUE,
   features = NULL
 ) {
+  apply_setup_defaults(UMAPConfig)
   k <- clean_posint(k)
   n_neighbors <- clean_posint(n_neighbors)
   n_epochs <- clean_posint(n_epochs)
@@ -493,9 +526,28 @@ setup_UMAP <- function(
 #'
 #' @author EDG
 #' @noRd
-tSNEConfig <- new_class(
+tSNEConfig <- schema_class(
   name = "tSNEConfig",
   parent = DecompositionConfig,
+  defaults = list(
+    verbose = DefaultPolicy(
+      kind = "runtime",
+      requires = "verbose",
+      reason = "Read from the runtime verbosity option."
+    ),
+    stop_lying_iter = DefaultPolicy(
+      kind = "expression",
+      expression = list(
+        `if` = list(list(`===` = list(list(var = "Y_init"), NULL)), 250L, 0L)
+      )
+    ),
+    mom_switch_iter = DefaultPolicy(
+      kind = "expression",
+      expression = list(
+        `if` = list(list(`===` = list(list(var = "Y_init"), NULL)), 250L, 0L)
+      )
+    )
+  ),
   properties = list(
     algorithm = prop_algorithm("tSNE"),
     k = prop_integer(
@@ -571,6 +623,11 @@ tSNEConfig <- new_class(
       min = 0L,
       description = "Number of threads (0 = all cores)."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "t-Distributed Stochastic Neighbor Embedding.",
+    order = 5L
   )
 ) # /rtemis::tSNEConfig
 
@@ -636,6 +693,7 @@ setup_tSNE <- function(
   num_threads = 1L,
   features = NULL
 ) {
+  apply_setup_defaults(tSNEConfig)
   k <- clean_posint(k)
   initial_dims <- clean_posint(initial_dims)
   max_iter <- clean_posint(max_iter)
@@ -677,7 +735,7 @@ setup_tSNE <- function(
 #'
 #' @author EDG
 #' @noRd
-IsomapConfig <- new_class(
+IsomapConfig <- schema_class(
   name = "IsomapConfig",
   parent = DecompositionConfig,
   properties = list(
@@ -702,6 +760,11 @@ IsomapConfig <- new_class(
       enum = c("shortest", "extended"),
       description = "How geodesic distances are traced through the neighborhood graph."
     )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Isomap.",
+    order = 6L
   )
 ) # /rtemis::IsomapConfig
 
@@ -730,6 +793,7 @@ setup_Isomap <- function(
   path = "shortest",
   features = NULL
 ) {
+  apply_setup_defaults(IsomapConfig)
   k <- clean_posint(k)
   nsd <- clean_int(nsd)
   IsomapConfig(

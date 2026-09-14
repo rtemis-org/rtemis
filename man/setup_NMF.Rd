@@ -4,12 +4,7 @@
 \alias{setup_NMF}
 \title{Setup NMF config.}
 \usage{
-setup_NMF(
-  k = 2L,
-  method = "brunet",
-  nrun = if (length(k) > 1L) 30L else 1L,
-  features = NULL
-)
+setup_NMF(k = 2L, method = "brunet", nrun = 1L, features = NULL)
 }
 \arguments{
 \item{k}{Integer [1, Inf): Number of components.}

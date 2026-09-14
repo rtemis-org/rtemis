@@ -6,9 +6,8 @@
 # algorithm traits the rules read as `traits/v1/traits.json`. Run with:
 # Rscript data-raw/generate_checks.R [SCHEMA_REPO]
 #
-# Also writes both documents to `inst/`, so that the package carries the
-# artifact it publishes: `data-raw/` is in `.Rbuildignore`, and the corpus test
-# that pairs every rule with a fixture has to read the rule set on CRAN.
+# The target is explicit. `just checks-refresh` updates the package's shipped
+# copies; scratch generation writes only to its requested output directory.
 
 suppressMessages(devtools::load_all(quiet = TRUE))
 
@@ -183,16 +182,14 @@ assert_checks_contract(checks_document)
 
 
 # Write ----------------------------------------------------------------------
-for (target in c(schema_repo, "inst")) {
-  write_json_document(
-    traits_document,
-    file.path(target, "traits", "v1", "traits.json")
-  )
-  write_json_document(
-    checks_document,
-    file.path(target, "checks", "v1", "checks.json")
-  )
-}
+write_json_document(
+  traits_document,
+  file.path(schema_repo, "traits", "v1", "traits.json")
+)
+write_json_document(
+  checks_document,
+  file.path(schema_repo, "checks", "v1", "checks.json")
+)
 
 cat(sprintf(
   "%-16s %d bindings, %d rules, %d unevaluable -> %s\n",

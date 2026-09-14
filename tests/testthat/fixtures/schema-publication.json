@@ -1,0 +1,439 @@
+{
+  "families": {
+    "decomposition": {
+      "base_class": "DecompositionConfig",
+      "title": "rtemis DecompositionConfig",
+      "description": "Language-independent config for an rtemis decomposition (dimensionality reduction). Mirrors the `DecompositionConfig` object: an algorithm name, its settings, and an optional feature subset. The same config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical output.",
+      "discriminator_description": "Decomposition algorithm name.",
+      "algorithms": [
+        {
+          "class": "PCAConfig",
+          "description": "Principal Component Analysis."
+        },
+        {
+          "class": "ICAConfig",
+          "description": "Independent Component Analysis."
+        },
+        {
+          "class": "NMFConfig",
+          "description": "Non-negative Matrix Factorization."
+        },
+        {
+          "class": "UMAPConfig",
+          "description": "Uniform Manifold Approximation and Projection."
+        },
+        {
+          "class": "tSNEConfig",
+          "description": "t-Distributed Stochastic Neighbor Embedding."
+        },
+        {
+          "class": "IsomapConfig",
+          "description": "Isomap."
+        }
+      ]
+    },
+    "clustering": {
+      "base_class": "ClusteringConfig",
+      "title": "rtemis ClusteringConfig",
+      "description": "Language-independent config for an rtemis clustering run. Mirrors the `ClusteringConfig` object: an algorithm name and its settings. The same config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical output.",
+      "discriminator_description": "Clustering algorithm name.",
+      "algorithms": [
+        {
+          "class": "KMeansConfig",
+          "description": "K-means clustering."
+        },
+        {
+          "class": "HardCLConfig",
+          "description": "Hard competitive learning."
+        },
+        {
+          "class": "NeuralGasConfig",
+          "description": "Neural Gas clustering."
+        },
+        {
+          "class": "CMeansConfig",
+          "description": "Fuzzy c-means clustering."
+        },
+        {
+          "class": "DBSCANConfig",
+          "description": "DBSCAN density-based clustering."
+        },
+        {
+          "class": "GMMConfig",
+          "description": "Gaussian mixture model clustering."
+        },
+        {
+          "class": "HOPACHConfig",
+          "description": "Hierarchical Ordered Partitioning and Collapsing Hybrid."
+        },
+        {
+          "class": "PAMConfig",
+          "description": "Partitioning Around Medoids."
+        },
+        {
+          "class": "PAMKConfig",
+          "description": "Partitioning Around Medoids with estimation of the number of clusters."
+        },
+        {
+          "class": "SpectralConfig",
+          "description": "Spectral clustering."
+        }
+      ]
+    },
+    "ingest": {
+      "base_class": "IngestConfig",
+      "title": "rtemis IngestConfig",
+      "description": "Language-independent config for reading a data file and normalizing it to Parquet. A delimited file or a spreadsheet carries no usable type information and Parquet does, so this is the one step that decides types -- everything after it reads a declaration rather than inferring one. `format` is what the file is, not a preference, so it has no default and a config that disagrees with its file is an error.",
+      "discriminator_description": "What the file is.",
+      "algorithms": [
+        {
+          "class": "DelimitedIngestConfig",
+          "description": "A delimited file (csv, tsv, ...)."
+        },
+        {
+          "class": "ParquetIngestConfig",
+          "description": "A Parquet file, which declares its own types."
+        },
+        {
+          "class": "XLSXIngestConfig",
+          "description": "A spreadsheet."
+        },
+        {
+          "class": "RDSIngestConfig",
+          "description": "An RDS file."
+        },
+        {
+          "class": "DTAIngestConfig",
+          "description": "A Stata file."
+        },
+        {
+          "class": "ARFFIngestConfig",
+          "description": "An ARFF file."
+        }
+      ]
+    },
+    "partition": {
+      "base_class": "PartitionConfig",
+      "title": "rtemis PartitionConfig",
+      "description": "Language-independent config for splitting a dataset into a training set and a held-out test set. A first-class, auditable operation -- the same reason `ingest` is one -- rather than a field on `SuperConfig`: how a held-out set was produced is a decision the record must be able to report.",
+      "discriminator_description": "How the dataset is split.",
+      "algorithms": [
+        {
+          "class": "RandomPartitionConfig",
+          "description": "A uniformly random split."
+        },
+        {
+          "class": "TimePartitionConfig",
+          "description": "A split by time order."
+        },
+        {
+          "class": "GroupPartitionConfig",
+          "description": "A split that keeps each group of cases on one side."
+        },
+        {
+          "class": "PredefinedPartitionConfig",
+          "description": "A split already recorded in the data itself."
+        }
+      ]
+    },
+    "resampler": {
+      "base_class": "ResamplerConfig",
+      "title": "rtemis ResamplerConfig",
+      "description": "Language-independent config for an rtemis resampler. Mirrors the `ResamplerConfig` object: a resampler type plus its type-specific settings. The same config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical resamples.",
+      "discriminator_description": "Resampler type.",
+      "algorithms": [
+        {
+          "class": "KFoldConfig",
+          "description": "K-fold cross-validation."
+        },
+        {
+          "class": "StratSubConfig",
+          "description": "Stratified subsampling."
+        },
+        {
+          "class": "StratBootConfig",
+          "description": "Stratified bootstrap."
+        },
+        {
+          "class": "BootstrapConfig",
+          "description": "Bootstrap resampling."
+        },
+        {
+          "class": "LOOCVConfig",
+          "description": "Leave-one-out cross-validation."
+        },
+        {
+          "class": "CustomConfig",
+          "description": "Custom, user-supplied resamples."
+        }
+      ]
+    },
+    "tuner": {
+      "base_class": "TunerConfig",
+      "title": "rtemis TunerConfig",
+      "description": "Language-independent config for rtemis hyperparameter tuning. Mirrors the `TunerConfig` object: a tuner type and its settings.",
+      "discriminator_description": "Tuner type.",
+      "algorithms": [
+        {
+          "class": "GridSearchConfig",
+          "description": "Grid search over hyperparameter combinations."
+        }
+      ]
+    },
+    "explanation": {
+      "base_class": "ExplanationConfig",
+      "title": "rtemis ExplanationConfig",
+      "description": "Language-independent config for a per-case rtemis explanation. Mirrors the `ExplanationConfig` object: a kind of explanation plus its kind-specific settings. The kind is tagged rather than inferred, so a second kind of explanation can be added without changing how the first is read.",
+      "discriminator_description": "Kind of explanation.",
+      "algorithms": [
+        {
+          "class": "SHAPConfig",
+          "description": "Shapley additive contributions."
+        }
+      ]
+    },
+    "conformal": {
+      "base_class": "ConformalConfig",
+      "title": "rtemis ConformalConfig",
+      "description": "Language-independent config for an rtemis conformal prediction region. Mirrors the `ConformalConfig` object: a construction plus its construction-specific settings. The construction is tagged rather than inferred, since which of them a run may use depends on the model it is applied to, not on the document.",
+      "discriminator_description": "Conformal construction.",
+      "algorithms": [
+        {
+          "class": "SplitConformalConfig",
+          "description": "Split conformal prediction."
+        },
+        {
+          "class": "CVPlusConfig",
+          "description": "CV+, jackknife+ and cross-conformal."
+        },
+        {
+          "class": "CQRConfig",
+          "description": "Conformalized quantile regression."
+        }
+      ]
+    },
+    "execution": {
+      "base_class": "ExecutionConfig",
+      "title": "rtemis ExecutionConfig",
+      "description": "Language-independent config for rtemis execution: sequential, parallel, or distributed.",
+      "discriminator_description": "Execution backend.",
+      "algorithms": [
+        {
+          "class": "SerialExecutionConfig",
+          "description": "Execution in the calling process, dispatching nothing."
+        },
+        {
+          "class": "FutureExecutionConfig",
+          "description": "Parallel execution through the future package."
+        },
+        {
+          "class": "MiraiExecutionConfig",
+          "description": "Parallel execution through the mirai package."
+        }
+      ]
+    },
+    "hyperparameters": {
+      "base_class": "Hyperparameters",
+      "title": "rtemis Hyperparameters",
+      "description": "Language-independent algorithm hyperparameters: an algorithm name and its hyperparameters, validated per-algorithm against schema.rtemis.org/hyperparameters/<algorithm>/v1.",
+      "discriminator_description": "Supervised-learning algorithm name.",
+      "algorithms": [
+        {
+          "class": "GLMHyperparameters",
+          "description": "GLM (generalized linear model)."
+        },
+        {
+          "class": "GAMHyperparameters",
+          "description": "GAM (generalized additive model)."
+        },
+        {
+          "class": "GLMNETHyperparameters",
+          "description": "Elastic net (glmnet)."
+        },
+        {
+          "class": "GLMTreeHyperparameters",
+          "description": "Model-Based Recursive Partitioning: a tree with a GLM in each leaf."
+        },
+        {
+          "class": "SPLSHyperparameters",
+          "description": "Sparse Partial Least Squares."
+        },
+        {
+          "class": "MARSHyperparameters",
+          "description": "Multivariate Adaptive Regression Splines (earth)."
+        },
+        {
+          "class": "LinearSVMHyperparameters",
+          "description": "SVM with linear kernel (e1071)."
+        },
+        {
+          "class": "RadialSVMHyperparameters",
+          "description": "SVM with radial kernel (e1071)."
+        },
+        {
+          "class": "CARTHyperparameters",
+          "description": "CART decision tree (rpart)."
+        },
+        {
+          "class": "RangerHyperparameters",
+          "description": "Ranger random forest."
+        },
+        {
+          "class": "LightCARTHyperparameters",
+          "description": "Single LightGBM tree (CART mode)."
+        },
+        {
+          "class": "LightRFHyperparameters",
+          "description": "LightGBM random forest."
+        },
+        {
+          "class": "LightGBMHyperparameters",
+          "description": "LightGBM gradient boosting."
+        },
+        {
+          "class": "LightRuleFitHyperparameters",
+          "description": "LightRuleFit (LightGBM rules + GLMNET)."
+        },
+        {
+          "class": "BARTHyperparameters",
+          "description": "Bayesian Additive Regression Trees (stochtree)."
+        },
+        {
+          "class": "IsotonicHyperparameters",
+          "description": "Isotonic regression."
+        },
+        {
+          "class": "MLPHyperparameters",
+          "description": "Multilayer perceptron (torch)."
+        },
+        {
+          "class": "TabNetHyperparameters",
+          "description": "TabNet neural network."
+        },
+        {
+          "class": "KNNHyperparameters",
+          "description": "k-Nearest Neighbors (kknn)."
+        },
+        {
+          "class": "HALHyperparameters",
+          "description": "Highly Adaptive Lasso (hal9001)."
+        },
+        {
+          "class": "MonotonicHALHyperparameters",
+          "description": "Monotonic Highly Adaptive Lasso (hal9001)."
+        },
+        {
+          "class": "LINADHyperparameters",
+          "description": "Linear Additive Tree."
+        },
+        {
+          "class": "LINADForestHyperparameters",
+          "description": "Bagged ensemble of Linear Additive Trees."
+        },
+        {
+          "class": "NNLSHyperparameters",
+          "description": "Non-negative least squares (nnls)."
+        },
+        {
+          "class": "SuperLearnerHyperparameters",
+          "description": "SuperLearner: cross-validated stacked ensemble."
+        },
+        {
+          "class": "ModalityStackingHyperparameters",
+          "description": "ModalityStacking: stacked ensemble with one learner per feature group."
+        },
+        {
+          "class": "ConditionalSuperLearnerHyperparameters",
+          "description": "Conditional SuperLearner: an oracle routes each case to one of a library of experts."
+        }
+      ]
+    }
+  },
+  "documents": {
+    "provenance": {
+      "class": "Provenance",
+      "title": "rtemis Provenance",
+      "description": "What produced a run record: package and language versions, platform, timing, how the run ended, and a fingerprint of each dataset used. Referenced by every `<family>/v1/record.json`."
+    },
+    "dataref": {
+      "class": "DataRef",
+      "title": "rtemis DataRef",
+      "description": "A reference from a record to a file written beside it: where it is, how it is encoded, how big it is, and the digest that ties it to the record naming it."
+    },
+    "datafingerprint": {
+      "class": "DataFingerprint",
+      "title": "rtemis DataFingerprint",
+      "description": "Identity of one dataset: a content hash plus the structural facts that make a mismatch diagnosable rather than merely detectable."
+    },
+    "supervised": {
+      "class": "SuperConfigPaths",
+      "title": "rtemis SuperConfig",
+      "description": "Language-independent config for an rtemis supervised-learning run. Mirrors the `SuperConfig` object: data references, optional preprocessing / decomposition, an algorithm with hyperparameters, optional tuning and outer resampling, and execution settings. The same config drives rtemis (R), rtemis CLI/shell, and rtemislive."
+    },
+    "decompose": {
+      "class": "DecomposeConfig",
+      "title": "rtemis DecomposeConfig",
+      "description": "Language-independent config for an rtemis decomposition pipeline: a data reference, a `DecompositionConfig`, and an output directory."
+    },
+    "cluster": {
+      "class": "ClusterConfig",
+      "title": "rtemis ClusterConfig",
+      "description": "Language-independent config for an rtemis clustering pipeline: a data reference, a `ClusteringConfig`, and an output directory."
+    },
+    "regressionmetrics": {
+      "class": "RegressionMetrics",
+      "title": "rtemis RegressionMetrics",
+      "description": "Regression metrics for one sample: a single-row table of mean absolute error, mean squared error, root mean squared error and R-squared. Every cell is nullable, a metric being genuinely undefined for some samples."
+    },
+    "classificationmetrics": {
+      "class": "ClassificationMetrics",
+      "title": "rtemis ClassificationMetrics",
+      "description": "Classification metrics for one sample: the confusion matrix in long form (one row per cell), overall metrics, and per-class metrics. Which overall columns are present depends on the task, so only the invariant ones are required."
+    },
+    "clusteringmetrics": {
+      "class": "ClusteringMetrics",
+      "title": "rtemis ClusteringMetrics",
+      "description": "Clustering metrics: a single-row table of measure values beside a row of statuses saying why each holds what it does. Every measure is declared for every algorithm, so one an algorithm cannot support is null with a status of \"unsupported\" rather than an absent column -- null alone cannot distinguish a measure that was computed and came out undefined from one nobody asked for."
+    },
+    "decompositionmetrics": {
+      "class": "DecompositionMetrics",
+      "title": "rtemis DecompositionMetrics",
+      "description": "Decomposition metrics: a single-row table of reconstruction quality, component redundancy and effective dimensionality. Which cells are populated follows from the algorithm's traits -- a metric its algorithm cannot support is null -- so every column is declared for every algorithm and every cell is nullable. Unprefixed columns describe the data the decomposition was fitted on; `oos_` columns describe data the fit never saw."
+    },
+    "regressionmetricsres": {
+      "class": "RegressionMetricsRes",
+      "title": "rtemis RegressionMetricsRes",
+      "description": "Regression metrics aggregated across resamples: each resample's metrics, plus their mean and standard deviation."
+    },
+    "classificationmetricsres": {
+      "class": "ClassificationMetricsRes",
+      "title": "rtemis ClassificationMetricsRes",
+      "description": "Classification metrics aggregated across resamples: each resample's metrics, the aggregate confusion matrix in long form, and the mean and standard deviation of the overall metrics."
+    },
+    "profile": {
+      "class": "DataProfile",
+      "title": "rtemis DataProfile",
+      "description": "What one dataset is, in the facts a validator needs: dimensions, columns with their types, distinct and missing counts, level counts for low-cardinality categorical columns, and complete-case and duplicate counts. Bounded by the number of columns rather than the number of rows, so it travels where the data cannot."
+    },
+    "diagnostic": {
+      "class": "Diagnostic",
+      "title": "rtemis Diagnostic",
+      "description": "One finding from validating an rtemis config: a stable code, how much it matters, the technical and plain-language accounts of it, the numbers behind it, and -- where a deterministic one exists -- an RFC 6902 JSON Patch that fixes it."
+    },
+    "diagnostics": {
+      "class": "Diagnostics",
+      "title": "rtemis Diagnostics",
+      "description": "The findings for one rtemis config, in the order they were made. An empty array means the config is clean: there is no separate validity flag, an empty list of problems being the same statement."
+    },
+    "preprocessor": {
+      "class": "PreprocessorConfig",
+      "title": "rtemis PreprocessorConfig",
+      "description": "Language-independent config for rtemis preprocessing. The same config drives rtemis (R), rtemis CLI/shell, and rtemislive to identical output."
+    },
+    "supervisedpreprocessor": {
+      "class": "SupervisedPreprocessorConfig",
+      "title": "rtemis SupervisedPreprocessorConfig",
+      "description": "Language-independent config for the preprocessing a supervised run can fit: the preprocessing config without the operations a fitted preprocessor cannot replay at predict time (`complete_cases`, `remove_duplicates`, `remove_cases_thres`) or would learn differently in every resample (`remove_features_thres`). Those belong to `preprocessor`, applied to a dataset before training."
+    }
+  }
+}

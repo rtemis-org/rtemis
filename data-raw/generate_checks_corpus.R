@@ -204,8 +204,8 @@ as_profile <- function(p) {
 # `validate_config()` is rebound in the namespace so that every call the suite
 # makes is recorded on the way past.
 cases <- new.env(parent = emptyenv())
-cases$rows <- list()
-cases$label <- "<none>"
+cases[["rows"]] <- list()
+cases[["label"]] <- "<none>"
 
 ns <- asNamespace("rtemis")
 original <- get("validate_config", envir = ns)
@@ -213,9 +213,9 @@ original <- get("validate_config", envir = ns)
 recording <- function(config, data = NULL, outcome = NULL, step = NULL) {
   out <- original(config, data = data, outcome = outcome, step = step)
   if (!is.null(data)) {
-    n <- length(cases$rows) + 1L
-    cases$rows[[n]] <- list(
-      id = paste0(cases$label, " #", n),
+    n <- length(cases[["rows"]]) + 1L
+    cases[["rows"]][[n]] <- list(
+      id = paste0(cases[["label"]], " #", n),
       # The profile a validation makes: the cheap one, with no duplicate scan.
       profile = as_profile(data_profile(data, n_duplicates = FALSE)),
       config = as_document(config),
@@ -237,7 +237,7 @@ for (env in list(ns, as.environment("package:rtemis"))) {
 # The test name each triple came from, so a conformance failure names the
 # fixture that produced it rather than an index.
 labelling <- function(desc, code) {
-  cases$label <- desc
+  cases[["label"]] <- desc
   testthat::test_that(desc, code)
 } # /labelling
 
@@ -254,7 +254,7 @@ assign("test_that", labelling, envir = env)
 # mean this file could disagree with it.
 old_wd <- setwd(dirname(fixtures))
 testthat::with_reporter(
-  testthat::SilentReporter$new(),
+  testthat::SilentReporter[["new"]](),
   suppressMessages(sys.source(
     basename(fixtures),
     envir = env,
@@ -265,7 +265,7 @@ setwd(old_wd)
 
 
 # Write ----------------------------------------------------------------------
-if (length(cases$rows) == 0L) {
+if (length(cases[["rows"]]) == 0L) {
   stop(
     "no fixture called validate_config() with data; the capture did not take"
   )
@@ -297,7 +297,7 @@ assert_complete <- function(x, props, what, id) {
 }
 profile_props <- schema_props("profile")
 diagnostic_props <- schema_props("diagnostic")
-for (row in cases$rows) {
+for (row in cases[["rows"]]) {
   assert_complete(row[["profile"]], profile_props, "The profile", row[["id"]])
   for (finding in row[["findings"]]) {
     assert_complete(finding, diagnostic_props, "A finding", row[["id"]])
@@ -320,7 +320,7 @@ write_json_document(
       "does not do."
     ),
     rtemis_version = as.character(utils::packageVersion("rtemis")),
-    cases = cases$rows
+    cases = cases[["rows"]]
   ),
   out_file
 )
@@ -328,6 +328,6 @@ write_json_document(
 cat(sprintf(
   "%-16s %d cases -> %s\n",
   "checks corpus",
-  length(cases$rows),
+  length(cases[["rows"]]),
   out_file
 ))

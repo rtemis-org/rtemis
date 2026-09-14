@@ -118,18 +118,22 @@ clustering_status_columns <- function() {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-ClusteringMetrics <- new_class(
+ClusteringMetrics <- schema_class(
   name = "ClusteringMetrics",
   parent = Metrics,
   properties = list(
     metrics = prop_state(prop_table(
       columns = clustering_metric_columns(),
       nullable = TRUE,
+      min_items = 1L,
+      max_items = 1L,
       description = "Clustering metrics, one row."
     )),
     status = prop_state(prop_table(
       columns = clustering_status_columns(),
       nullable = TRUE,
+      min_items = 1L,
+      max_items = 1L,
       description = "Why each metric holds the value it does, one row."
     ))
   ),
@@ -166,34 +170,21 @@ ClusteringMetrics <- new_class(
       )
     )
   },
-  # The rule the value/status split creates: `computed` promises a number, and
-  # every other status promises none. Mirrored into the published schema by
-  # `data-raw/schema_registry.R`, since a validator the schema lacks is a rule
-  # only R obeys.
-  validator = function(self) {
-    if (is.null(self@metrics) || is.null(self@status)) {
-      return(NULL)
-    }
-    for (nm in names(CLUSTERING_MEASURES)) {
-      computed <- identical(self@status[[nm]], "computed")
-      present <- !is.na(self@metrics[[nm]])
-      if (computed && !present) {
-        return(paste0(
-          "@metrics$",
-          nm,
-          " must hold a value when its status is 'computed'."
-        ))
-      }
-      if (!computed && present) {
-        return(paste0(
-          "@metrics$",
-          nm,
-          " must be NA when its status is not 'computed'."
-        ))
-      }
-    }
-    NULL
-  }
+  rules = list(StatusValueRule(
+    id = "clustering-metrics.status-value",
+    values = "metrics",
+    statuses = "status",
+    computed_status = "computed",
+    message = "must hold a value when its status is 'computed', and must be null for every other status."
+  )),
+  publication = SchemaPublication(
+    role = "document",
+    slug = "clusteringmetrics",
+    title = "rtemis ClusteringMetrics",
+    description = "Clustering metrics: a single-row table of measure values beside a row of statuses saying why each holds what it does. Every measure is declared for every algorithm, so one an algorithm cannot support is null with a status of \"unsupported\" rather than an absent column -- null alone cannot distinguish a measure that was computed and came out undefined from one nobody asked for.",
+    order = 9L,
+    kind = "report"
+  )
 ) # /rtemis::ClusteringMetrics
 
 

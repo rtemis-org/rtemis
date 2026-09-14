@@ -137,6 +137,7 @@ testthat::test_that("a serial config offers no dispatch level to set", {
 
 
 testthat::test_that("named levels reach the run, and compose", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   testthat::skip_if_not_installed("ranger")

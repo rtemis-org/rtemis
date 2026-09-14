@@ -60,12 +60,21 @@ PREDICTION_REGION_TYPES <- c("Interval", "Set")
 #'
 #' @author EDG
 #' @noRd
-ConformalConfig <- new_class(
+ConformalConfig <- schema_class(
   name = "ConformalConfig",
   package = "rtemis",
   abstract = TRUE,
   properties = list(
     type = class_character
+  ),
+  publication = SchemaPublication(
+    role = "family",
+    slug = "conformal",
+    title = "rtemis ConformalConfig",
+    description = "Language-independent config for an rtemis conformal prediction region. Mirrors the `ConformalConfig` object: a construction plus its construction-specific settings. The construction is tagged rather than inferred, since which of them a run may use depends on the model it is applied to, not on the document.",
+    discriminator = "type",
+    discriminator_description = "Conformal construction.",
+    order = 8L
   )
 ) # /rtemis::ConformalConfig
 
@@ -229,14 +238,27 @@ resolve_conformal_seed <- function(seed) {
 #'
 #' @author EDG
 #' @noRd
-SplitConformalConfig <- new_class(
+SplitConformalConfig <- schema_class(
   name = "SplitConformalConfig",
   parent = ConformalConfig,
+  defaults = list(
+    seed = DefaultPolicy(
+      kind = "runtime",
+      on_null = TRUE,
+      requires = "seed",
+      reason = "Drawn from the runtime random stream and recorded."
+    )
+  ),
   properties = list(
     type = prop_algorithm("Split"),
     alpha = prop_conformal_alpha(),
     score = prop_conformal_score(),
     seed = prop_conformal_seed()
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Split conformal prediction.",
+    order = 1L
   )
 ) # /rtemis::SplitConformalConfig
 
@@ -256,14 +278,27 @@ SplitConformalConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-CVPlusConfig <- new_class(
+CVPlusConfig <- schema_class(
   name = "CVPlusConfig",
   parent = ConformalConfig,
+  defaults = list(
+    seed = DefaultPolicy(
+      kind = "runtime",
+      on_null = TRUE,
+      requires = "seed",
+      reason = "Drawn from the runtime random stream and recorded."
+    )
+  ),
   properties = list(
     type = prop_algorithm("CVPlus"),
     alpha = prop_conformal_alpha(),
     score = prop_conformal_score(),
     seed = prop_conformal_seed()
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "CV+, jackknife+ and cross-conformal.",
+    order = 2L
   )
 ) # /rtemis::CVPlusConfig
 
@@ -280,12 +315,17 @@ CVPlusConfig <- new_class(
 #'
 #' @author EDG
 #' @noRd
-CQRConfig <- new_class(
+CQRConfig <- schema_class(
   name = "CQRConfig",
   parent = ConformalConfig,
   properties = list(
     type = prop_algorithm("CQR"),
     alpha = prop_conformal_alpha()
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Conformalized quantile regression.",
+    order = 3L
   )
 ) # /rtemis::CQRConfig
 
@@ -359,6 +399,7 @@ setup_SplitConformal <- function(alpha = 0.1, score = NULL, seed = NULL) {
   # Before the seed is resolved: an unseeded call draws one, and a record
   # comparing that against the class default (NULL) would call it the caller's.
   origins <- supplied_origins()
+  apply_setup_defaults(SplitConformalConfig)
   out <- SplitConformalConfig(
     alpha = alpha,
     score = score,
@@ -417,6 +458,7 @@ setup_CVPlus <- function(alpha = 0.1, score = NULL, seed = NULL) {
   # Before the seed is resolved: an unseeded call draws one, and a record
   # comparing that against the class default (NULL) would call it the caller's.
   origins <- supplied_origins()
+  apply_setup_defaults(CVPlusConfig)
   out <- CVPlusConfig(
     alpha = alpha,
     score = score,
@@ -464,6 +506,7 @@ setup_CVPlus <- function(alpha = 0.1, score = NULL, seed = NULL) {
 #' setup_CQR()
 #' setup_CQR(alpha = 0.05)
 setup_CQR <- function(alpha = 0.1) {
+  apply_setup_defaults(CQRConfig)
   CQRConfig(alpha = alpha)
 } # /rtemis::setup_CQR
 

@@ -18,10 +18,7 @@ S7_to_JSONSchema(
   fold_refs = NULL,
   metrics_refs = NULL,
   metrics_ref = NULL,
-  extra = NULL,
-  refs = NULL,
-  array_refs = NULL,
-  variant_refs = NULL,
+  reference_urls = NULL,
   closed = TRUE,
   instance_schema_url = NULL
 )
@@ -84,24 +81,8 @@ required, nullable \code{metrics} property referencing that one schema. For a
 run whose result is a single metrics object rather than a per-sample map;
 mutually exclusive with \code{metrics_refs}.}
 
-\item{extra}{Named list merged into the schema after generation, for
-cross-field constraints that are not per-property (e.g. an \code{allOf} of
-if/then clauses for kernel-specific SVM hyperparameters).}
-
-\item{refs}{Named character: Properties holding a nested config object,
-mapped to the \verb{$id} of the schema for that config. Each emits a \verb{$ref} (or
-\verb{oneOf: [null, $ref]} when the property accepts NULL, detected from its
-S7 union), instead of requiring a \code{PropertySpec}. Names must match
-existing properties.}
-
-\item{array_refs}{Named character: As \code{refs}, for a property holding a \emph{list}
-of such objects -- one metrics object per resample, one model per fold.
-Each emits an array whose \code{items} are the \verb{$ref}.}
-
-\item{variant_refs}{Named character: As \code{refs}, for a property that admits
-either one referenced document or a named set of them under \code{variants}. The
-set's keys are the member names, which have to survive the round trip because
-the tuner reports the winning member by name.}
+\item{reference_urls}{Optional named character: Publication URLs keyed by
+qualified class identity. If omitted, derived from the package catalog.}
 
 \item{closed}{Logical: If TRUE (default) the schema sets
 \code{additionalProperties: false}. Pass FALSE for a family leaf, which its
