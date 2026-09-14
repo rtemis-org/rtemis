@@ -45,24 +45,27 @@ class_default_policies <- function(cls) {
   out <- list()
   for (nm in names(cls@properties)) {
     property <- cls@properties[[nm]]
-    spec <- get_spec(property)
-    if (is.null(spec) || !prop_role(property) %in% "config") {
+    fields <- get_spec_fields(property)
+    if (is.null(fields) || !prop_role(property) %in% "config") {
       next
     }
-    policy <- spec@default_policy
+    policy <- fields[["default_policy"]]
+    if (!is.null(policy) && !S7_inherits(policy, DefaultPolicy)) {
+      policy <- do.call(DefaultPolicy, policy)
+    }
     if (is.null(policy)) {
-      policy <- if (spec@default_on_null || spec@tune_on_null) {
+      policy <- if (fields[["default_on_null"]] || fields[["tune_on_null"]]) {
         DefaultPolicy(
           kind = "runtime",
           on_null = TRUE,
-          requires = if (spec@tune_on_null) "tuning" else "task",
-          reason = if (spec@tune_on_null) {
+          requires = if (fields[["tune_on_null"]]) "tuning" else "task",
+          reason = if (fields[["tune_on_null"]]) {
             "Resolved by tuning."
           } else {
             "Resolved from the task."
           }
         )
-      } else if (spec@default_present) {
+      } else if (fields[["default_present"]]) {
         DefaultPolicy(kind = "declaration")
       } else {
         DefaultPolicy(kind = "none")

@@ -407,8 +407,8 @@ record_names <- function(cls, base) {
       if (identical(role, "state")) {
         return(TRUE)
       }
-      spec <- get_spec(prop)
-      is.null(spec) || !spec@constant
+      fields <- get_spec_fields(prop)
+      is.null(fields) || !fields[["constant"]]
     },
     names_
   )

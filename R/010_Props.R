@@ -2292,8 +2292,8 @@ tune_on_null_spec_names <- function(x) {
 constant_spec_names <- function(x) {
   names(Filter(
     function(p) {
-      s <- get_spec(p)
-      !is.null(s) && s@constant
+      fields <- get_spec_fields(p)
+      !is.null(fields) && fields[["constant"]]
     },
     x@properties
   ))
@@ -2719,8 +2719,8 @@ prop_serialized <- function(prop) {
   if (role %in% c("state", "computed", "r_only")) {
     return(FALSE)
   }
-  spec <- get_spec(prop)
-  if (is.null(spec)) {
+  fields <- get_spec_fields(prop)
+  if (is.null(fields)) {
     # A spec-less, role-less property is machinery (a computed payload list, a
     # discriminator); its family's `serializable_props` decides.
     return(TRUE)
@@ -2729,7 +2729,7 @@ prop_serialized <- function(prop) {
   # (`id_strat`, `Y_init`, learned scaling centers): dropping a value the user
   # supplied would lose it silently. Only a constant is omitted, being implied
   # by the algorithm.
-  !spec@constant
+  !fields[["constant"]]
 } # /rtemis::prop_serialized
 
 
@@ -2804,7 +2804,7 @@ prop_role <- function(prop) {
   if (!is.null(role)) {
     return(role)
   }
-  if (is.null(get_spec(prop))) NA_character_ else "config"
+  if (is.null(get_spec_fields(prop))) NA_character_ else "config"
 } # /rtemis::prop_role
 
 
@@ -2880,8 +2880,8 @@ role_prop_names <- function(x, role) {
 data_dependent_prop_names <- function(x) {
   names(Filter(
     function(p) {
-      spec <- get_spec(p)
-      !is.null(spec) && spec@data_dependent
+      fields <- get_spec_fields(p)
+      !is.null(fields) && fields[["data_dependent"]]
     },
     x@properties
   ))
@@ -2940,7 +2940,7 @@ data_bound_props <- function(x) {
 #' @keywords internal
 #' @noRd
 spec_prop_names <- function(x) {
-  names(Filter(function(p) !is.null(get_spec(p)), x@properties))
+  names(Filter(function(p) !is.null(get_spec_fields(p)), x@properties))
 } # /rtemis::spec_prop_names
 
 
@@ -2958,8 +2958,8 @@ spec_prop_names <- function(x) {
 tunable_spec_names <- function(x) {
   names(Filter(
     function(p) {
-      s <- get_spec(p)
-      !is.null(s) && s@tunable
+      fields <- get_spec_fields(p)
+      !is.null(fields) && fields[["tunable"]]
     },
     x@properties
   ))
@@ -2980,8 +2980,8 @@ tunable_spec_names <- function(x) {
 fixed_spec_names <- function(x) {
   names(Filter(
     function(p) {
-      s <- get_spec(p)
-      !is.null(s) && !s@tunable
+      fields <- get_spec_fields(p)
+      !is.null(fields) && !fields[["tunable"]]
     },
     x@properties
   ))
@@ -3157,7 +3157,7 @@ family_shared_names <- function(base) {
   props <- base@properties
   unlist(Filter(
     function(nm) {
-      !is.null(get_spec(props[[nm]])) && prop_serialized(props[[nm]])
+      !is.null(get_spec_fields(props[[nm]])) && prop_serialized(props[[nm]])
     },
     names(props)
   )) %||%
@@ -3265,8 +3265,7 @@ wire_value <- function(value, prop) {
     # element class, not a scalar domain), so a spec-first test never sees it.
     return(unname(value))
   }
-  spec <- get_spec(prop)
-  if (is.null(spec)) {
+  if (is.null(fields)) {
     return(value)
   }
   if (is_candidates(value)) {
@@ -3274,17 +3273,21 @@ wire_value <- function(value, prop) {
     # an array; a vector-valued one's stay a list, so each candidate keeps its
     # own array.
     return(list(
-      candidates = if (spec@container == "none") {
+      candidates = if (fields[["container"]] == "none") {
         unlist(value@candidates, use.names = FALSE)
       } else {
         value@candidates
       }
     ))
   }
-  if (spec@container == "map" && is.atomic(value)) {
+  if (fields[["container"]] == "map" && is.atomic(value)) {
     return(as.list(value))
   }
-  if (spec@container == "array" && !spec@broadcast && length(value) == 1L) {
+  if (
+    fields[["container"]] == "array" &&
+      !fields[["broadcast"]] &&
+      length(value) == 1L
+  ) {
     # R has no scalar: a one-element vector is the vector, and
     # `toJSON(auto_unbox = TRUE)` unboxes it to a bare value -- which the schema
     # rejects, having declared an array. Marked `AsIs` so the array survives.
@@ -3292,7 +3295,7 @@ wire_value <- function(value, prop) {
     # own, standing for "this value for every case".
     return(I(value))
   }
-  if (spec@container == "factor" && is.factor(value)) {
+  if (fields[["container"]] == "factor" && is.factor(value)) {
     # `toJSON()` on a factor emits its labels and drops the levels attribute,
     # losing both their order -- which is what decides the positive class --
     # and any level with no cases.
