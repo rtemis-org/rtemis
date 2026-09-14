@@ -6,6 +6,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      run-parallel-tests:
+        description: Run parallel worker integration tests
+        type: boolean
+        default: false
 
 name: R-CMD-check
 
@@ -23,12 +28,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test-group: [contracts, supervised, fitting]
+        test-group: [general, supervised, fitting]
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
       RTEMIS_TEST_GROUP: ${{ matrix.test-group }}
+      RTEMIS_RUN_PARALLEL_TESTS: ${{ github.event_name == 'workflow_dispatch' && inputs.run-parallel-tests && 'true' || 'false' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +63,7 @@ jobs:
         with:
           upload-snapshots: true
           build_args: 'c("--no-manual", "--compact-vignettes=gs+qpdf")'
-          args: ${{ matrix.test-group == 'contracts' && 'c("--no-manual", "--as-cran")' || 'c("--no-manual", "--as-cran", "--no-examples")' }}
+          args: ${{ matrix.test-group == 'general' && 'c("--no-manual", "--as-cran")' || 'c("--no-manual", "--as-cran", "--no-examples")' }}
           error-on: '"note"'
       - name: Show partial test output
         if: ${{ failure() || cancelled() }}

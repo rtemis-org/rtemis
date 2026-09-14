@@ -50,6 +50,7 @@ testthat::test_that("with_preserved_rng() restores kind and seed", {
 
 # %% set_preferred_plan ----
 testthat::test_that("an unrequested plan is never a forking one", {
+  skip_ci_parallel_integration()
   testthat::skip_if_not_installed("future")
   # Forking is only safe in a process that has stayed single-threaded, which a loaded R
   # session need not be, so it is something a caller opts into by name rather than
@@ -135,6 +136,7 @@ for (backend_name in names(backends)) {
   testthat::test_that(
     paste0("progress_plapply() matches the sequential result (", backend, ")"),
     {
+      skip_ci_parallel_integration()
       testthat::skip_on_cran()
       testthat::skip_if_not_installed(backend)
       seeds <- rng_substreams(2026L, 4L)
@@ -171,6 +173,7 @@ for (backend_name in names(backends)) {
   testthat::test_that(
     paste0("progress_plapply() preserves input order (", backend, ")"),
     {
+      skip_ci_parallel_integration()
       testthat::skip_on_cran()
       testthat::skip_if_not_installed(backend)
       # Reversed durations, so completion order is the opposite of input order.
@@ -191,6 +194,7 @@ for (backend_name in names(backends)) {
   testthat::test_that(
     paste0("progress_plapply() reports failures uniformly (", backend, ")"),
     {
+      skip_ci_parallel_integration()
       testthat::skip_on_cran()
       testthat::skip_if_not_installed(backend)
       failing <- function(i) if (i == 3L) stop("boom") else i
@@ -272,6 +276,7 @@ model_node_kinds <- function(mod) {
 }
 
 testthat::test_that("parallel outer folds reproduce the sequential run", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   sequential <- fit_folds("none", 1L)
@@ -288,6 +293,7 @@ testthat::test_that("parallel outer folds reproduce the sequential run", {
 })
 
 testthat::test_that("the result does not depend on the worker count", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   expect_identical(
@@ -297,6 +303,7 @@ testthat::test_that("the result does not depend on the worker count", {
 })
 
 testthat::test_that("the future backend agrees with the others", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("future")
   expect_identical(
@@ -306,6 +313,7 @@ testthat::test_that("the future backend agrees with the others", {
 })
 
 testthat::test_that("a parallel run yields the same execution graph", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   expect_identical(
@@ -325,10 +333,12 @@ testthat::test_that("a parallel run yields the same execution graph", {
 # reaches the same fold-body branch, but only as far as the test process happens to be
 # fork-safe, which is not something a test can assert -- see `set_preferred_plan()`.
 testthat::test_that("a parallel fold never shares the host's session", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_on_os("windows") # multicore is unavailable there
   testthat::skip_if_not_installed("future")
-  withr::local_options(future.fork.enable = FALSE)
+  withr::local_options(parallelly.fork.enable = FALSE)
+  stopifnot(!future::supportsMulticore())
   expect_identical(
     model_node_kinds(fit_folds("none", 1L)),
     model_node_kinds(fit_folds("future", 2L, future_plan = "multicore"))
@@ -336,6 +346,7 @@ testthat::test_that("a parallel fold never shares the host's session", {
 })
 
 testthat::test_that("the grafted graph is well formed", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   mod <- fit_folds("mirai", 2L)
@@ -358,6 +369,7 @@ testthat::test_that("the grafted graph is well formed", {
 })
 
 testthat::test_that("fold sub-models carry no run-level state", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   mod <- fit_folds("mirai", 2L)
@@ -377,6 +389,7 @@ testthat::test_that("fold sub-models carry no run-level state", {
 })
 
 testthat::test_that("the progress sink reports monotonic fold completions", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   op <- options(rtemis.progress_throttle = 0)
@@ -458,6 +471,7 @@ fit_failing <- function(on_error) {
 }
 
 testthat::test_that("a failed parallel fold is tolerated under 'continue'", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   mod <- suppressWarnings(fit_failing("continue"))
@@ -475,6 +489,7 @@ testthat::test_that("a failed parallel fold is tolerated under 'continue'", {
 })
 
 testthat::test_that("a failed parallel fold aborts under 'stop_outer'", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   expect_error(fit_failing("stop_outer"), "Outer fold")
@@ -489,6 +504,7 @@ testthat::test_that("a failed parallel fold aborts under 'stop_outer'", {
 # is invisible in the results and only shows up as a run that takes k times as long.
 
 testthat::test_that("a self-parallelizing algorithm keeps its workers inside a fold", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("ranger")
   mod <- train(
@@ -515,6 +531,7 @@ testthat::test_that("a self-parallelizing algorithm keeps its workers inside a f
 
 
 testthat::test_that("tuning inside a sequential fold dispatches in parallel", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   # Tuning outranks outer resampling in the ladder, so the folds run one at a time and
@@ -573,6 +590,7 @@ testthat::test_that("tuning inside a sequential fold dispatches in parallel", {
 # saves on a short grid.
 
 testthat::test_that("a pool is started once and released", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   expect_false(worker_pool_available("mirai"))
@@ -599,6 +617,7 @@ testthat::test_that("no pool is started when nothing would dispatch", {
 
 
 testthat::test_that("the worker pool is a node in the execution graph", {
+  skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   # CART needs no tuning, so the ladder gives the workers to the folds and a pool is built.

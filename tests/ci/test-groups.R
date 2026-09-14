@@ -6,7 +6,7 @@
 ci_test_groups <- function(path) {
   files <- sort(list.files(path, pattern = "^test.*[.][rR]$"))
   labels <- sub("[.][rR]$", "", sub("^test[-_]", "", files))
-  groups <- stats::setNames(rep("contracts", length(labels)), labels)
+  groups <- stats::setNames(rep("general", length(labels)), labels)
   groups[labels == "Supervised"] <- "supervised"
   groups[
     labels %in%
@@ -27,7 +27,7 @@ ci_test_groups <- function(path) {
 
 # %% ci_test_filter ----
 ci_test_filter <- function(group, path) {
-  if (!group %in% c("all", "contracts", "supervised", "fitting")) {
+  if (!group %in% c("all", "general", "supervised", "fitting")) {
     stop("Unknown RTEMIS_TEST_GROUP: ", group)
   }
   if (group == "all") {
