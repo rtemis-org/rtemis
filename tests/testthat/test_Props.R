@@ -1563,16 +1563,11 @@ test_that("an r_only property is neither serialized nor published", {
   p <- prop_r_only(new_property(class_any))
   expect_identical(prop_role(p), "r_only")
   expect_false(prop_serialized(p))
-  # The real ones: a fitted backend model has no wire form, and unlike a
-  # computed view nothing published can reconstruct it.
-  for (nm in c("model", "session_info")) {
-    expect_identical(
-      prop_role(Supervised@properties[[nm]]),
-      "r_only",
-      info = nm
-    )
-    expect_false(prop_serialized(Supervised@properties[[nm]]), info = nm)
-  }
+  expect_identical(prop_role(Supervised@properties[["session_info"]]), "r_only")
+  expect_false(prop_serialized(Supervised@properties[["session_info"]]))
+  expect_identical(prop_role(Supervised@properties[["model"]]), "runtime")
+  expect_false(prop_serialized(Supervised@properties[["model"]]))
+  expect_false(prop_published(Supervised@properties[["model"]]))
 })
 
 

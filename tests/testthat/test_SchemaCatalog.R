@@ -33,7 +33,27 @@ test_that("class publication preserves the frozen publication inventory", {
       )
     })
   )
+  expect_identical(
+    setdiff(names(derived[["documents"]]), names(original[["documents"]])),
+    c("implementation", "variableimportance")
+  )
+  derived[["documents"]][c("implementation", "variableimportance")] <- NULL
   expect_identical(derived, original)
+})
+
+
+test_that("publication separates generating language from contract scope", {
+  shared <- schema_publication_annotation(Implementation)
+  expect_identical(shared[["producer"]], "rtemis")
+  expect_identical(shared[["language"]], "r")
+  expect_identical(shared[["scope"]], "shared")
+  expect_identical(shared[["domain"]], "ml")
+  expect_identical(
+    schema_publication_annotation(KNNHyperparameters)[["scope"]],
+    "implementation"
+  )
+  expect_error(SchemaPublication(description = "Invalid.", scope = "python"))
+  expect_error(SchemaPublication(description = "Invalid.", domain = "../ml"))
 })
 
 

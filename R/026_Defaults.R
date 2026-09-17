@@ -276,6 +276,16 @@ default_declarations <- function(spec, schema, path) {
         )
       )
     }
+    if (!is.null(spec@additional_members)) {
+      out <- c(
+        out,
+        default_declarations(
+          spec@additional_members,
+          object[["additionalProperties"]],
+          paste0(path, prefix, "/additionalProperties")
+        )
+      )
+    }
   }
   out
 }
@@ -675,22 +685,29 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
   }
   if (container == "table") {
     columns <- schema[["items"]][["properties"]]
+    present <- unique(unlist(lapply(value, names), use.names = FALSE))
+    if (length(value) > 0L) {
+      columns <- columns[intersect(names(columns), present)]
+    }
+    for (nm in setdiff(present, names(columns))) {
+      columns[[nm]] <- schema[["items"]][["additionalProperties"]]
+    }
     out <- lapply(names(columns), function(nm) {
-      cells <- lapply(value, `[[`, nm)
+      cells <- lapply(value, function(row) row[[nm]] %||% NA)
       coerce_to_type(
         unlist(cells, use.names = FALSE),
         columns[[nm]][["x-rtemis"]][["type"]]
       )
     })
     names(out) <- names(columns)
-    return(as.data.frame(out, stringsAsFactors = FALSE))
+    return(as.data.frame(out, stringsAsFactors = FALSE, check.names = FALSE))
   }
   if (container == "struct") {
     return(stats::setNames(
       lapply(names(value), function(nm) {
         default_from_wire(
           value[[nm]],
-          schema[["properties"]][[nm]],
+          schema[["properties"]][[nm]] %||% schema[["additionalProperties"]],
           decode_reference
         )
       }),

@@ -258,6 +258,19 @@ members_spec <- function(
     container = container,
     items = NULL,
     members = members,
+    additional_members = if (is.list(obj[["additionalProperties"]])) {
+      schema_to_spec(
+        obj[["additionalProperties"]],
+        declarations = declarations,
+        path = paste0(
+          path,
+          if (container == "table") "/items" else "",
+          "/additionalProperties"
+        ),
+        decode_reference = decode_reference
+      )
+    },
+    min_members = as.integer(obj[["minProperties"]] %||% 0L),
     min_items = if (container == "table") {
       as.integer(x[["minItems"]] %||% 0L)
     } else {
@@ -657,6 +670,15 @@ JSONSchema_to_S7 <- function(
       "class"
     ]](schema[["$id"]]))
   }
+  if (
+    !is.null(schema[["x-rtemis"]][["publication"]][["parent"]]) &&
+      is.null(parent)
+  ) {
+    rtemis.core::abort(
+      "A published parent requires the artifact graph in `schemas` or an explicit `parent`.",
+      class = "rtemis_schema_error"
+    )
+  }
   if (!is.list(schema) || is.null(schema[["properties"]])) {
     rtemis.core::abort(
       "`schema` must be a JSON Schema with a `properties` object.",
@@ -773,6 +795,19 @@ JSONSchema_to_S7 <- function(
     if (isTRUE(props[[nm]][["readOnly"]])) prop_state(prop) else prop
   })
   names(properties) <- names(props)
+  runtime <- schema[["x-rtemis"]][["runtime_properties"]]
+  for (nm in names(runtime)) {
+    if (
+      nm %in% names(properties) || !identical(runtime[[nm]][["kind"]], "opaque")
+    ) {
+      rtemis.core::abort(
+        "Invalid runtime property declaration: ",
+        nm,
+        class = "rtemis_schema_error"
+      )
+    }
+    properties[[nm]] <- prop_runtime(runtime[[nm]][["description"]])
+  }
 
   rules <- lapply(
     schema[["x-rtemis"]][["rules"]] %||% list(),
@@ -794,8 +829,13 @@ JSONSchema_to_S7 <- function(
     formals(constructor) <- as.pairlist(lapply(properties, function(p) {
       p[["default"]]
     }))
+    parent_names <- intersect(names(parent@properties), names(properties))
+    parent_call <- as.call(c(
+      list(as.name(".artifact_parent")),
+      stats::setNames(lapply(parent_names, as.name), parent_names)
+    ))
     body(constructor) <- as.call(c(
-      list(as.name("new_object"), quote(.artifact_parent())),
+      list(as.name("new_object"), parent_call),
       stats::setNames(lapply(names(properties), as.name), names(properties))
     ))
   }

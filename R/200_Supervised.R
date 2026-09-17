@@ -19,44 +19,29 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-VariableImportance <- new_class(
+VariableImportance <- schema_class(
   name = "VariableImportance",
   package = "rtemis",
   properties = list(
-    data = class_data.table
+    data = prop_table(
+      columns = list(
+        variable = prop_string(description = "Predictor or model term.")
+      ),
+      additional = prop_float(
+        NULL,
+        nullable = TRUE,
+        description = "Importance measure; null denotes an unavailable or nonfinite value."
+      ),
+      min_columns = 2L,
+      min_items = 1L,
+      description = "One row per predictor or model term, with a variable name and one or more named numeric importance measures."
+    )
   ),
-  validator = function(self) {
-    # Must include at least two columns
-    if (NCOL(self@data) < 2L) {
-      rtemis.core::abort(
-        "Variable importance data must include at least two columns: 'variable' and at least one importance measure.",
-        class = c("rtemis_dim_error", "rtemis_data_error")
-      )
-    }
-    # Must include column "variable" of type character
-    if (!"variable" %in% names(self@data)) {
-      rtemis.core::abort(
-        "Variable importance data must include a 'variable' column.",
-        class = "rtemis_data_error"
-      )
-    }
-    if (!is.character(self@data[["variable"]])) {
-      rtemis.core::abort(
-        "Column 'variable' must be of type character.",
-        class = "rtemis_data_error"
-      )
-    }
-    # All other columns must be numeric
-    other_cols <- setdiff(names(self@data), "variable")
-    if (!all(self@data[, sapply(.SD, is.numeric), .SDcols = other_cols])) {
-      rtemis.core::abort(
-        "All columns other than 'variable' must be numeric.",
-        class = "rtemis_data_error"
-      )
-    }
-    # Number of rows will be checked by Supervised to be at least as many as
-    # the number of predictors.
-  }
+  publication = SchemaPublication(
+    kind = "report",
+    scope = "shared",
+    description = "Variable importance measures by predictor or model term."
+  )
 ) # /rtemis::VariableImportance
 
 
@@ -117,11 +102,13 @@ Supervised <- new_class(
   name = "Supervised",
   package = "rtemis",
   properties = list(
-    algorithm = class_character,
-    # The fitted backend object: an `rpart` tree, an `lgb.Booster`. It has no
-    # wire form and never will, and unlike a computed view nothing published
-    # can reconstruct it -- the saved `.rds` is its only carrier.
-    model = prop_r_only(new_property(class_any)),
+    algorithm = prop_string(
+      description = "Algorithm identifier of the fitted implementation."
+    ),
+    # Native fitted state stays on the object, outside its portable wire values.
+    model = prop_runtime(
+      "Fitted model used by this implementation for prediction."
+    ),
     # No default: the kind of learning follows from the outcome, so there is no
     # value a class definition could honestly supply. NULL is the unset value,
     # and a constructor that failed to set it fails at first use rather than
@@ -132,12 +119,24 @@ Supervised <- new_class(
       nullable = TRUE,
       description = "Kind of supervised learning the model performs."
     ),
-    preprocessor = NULL | Preprocessor,
-    preprocessor_internal = NULL | Preprocessor,
-    decomposition = NULL | Decomposition,
+    preprocessor = prop_runtime(
+      "Fitted preprocessing applied before feature decomposition.",
+      cls = Preprocessor
+    ),
+    preprocessor_internal = prop_runtime(
+      "Fitted algorithm-specific preprocessing applied before prediction.",
+      cls = Preprocessor
+    ),
+    decomposition = prop_runtime(
+      "Fitted feature decomposition applied before algorithm-specific preprocessing.",
+      cls = Decomposition
+    ),
     hyperparameters = NULL | Hyperparameters,
     tuner = NULL | Tuner,
-    execution_config = ExecutionConfig,
+    execution_config = prop_object(
+      ExecutionConfig,
+      description = "Execution settings used by this implementation."
+    ),
     # The outcome, in the same shape as the predictions it is compared against:
     # numeric for regression, a factor of its levels for classification.
     y_training = class_numeric | class_factor,
@@ -151,14 +150,29 @@ Supervised <- new_class(
     metrics_training = Metrics,
     metrics_validation = NULL | Metrics,
     metrics_test = NULL | Metrics,
-    xnames = class_character,
-    varimp = NULL | VariableImportance,
-    question = NULL | class_character,
+    xnames = prop_string(
+      vector = TRUE,
+      description = "Predictor names in the order expected by the fitted model."
+    ),
+    varimp = prop_object(
+      VariableImportance,
+      nullable = TRUE,
+      description = "Variable importance measures from the fitted model."
+    ),
+    question = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Question addressed by this analysis."
+    ),
     # Provenance. `session_info` is a full `utils::sessionInfo()` -- the first
     # thing asked for when troubleshooting -- and `session` is the run timeline.
     # `data_fingerprint` identifies the training data itself, so that comparing
     # models trained on different inputs is detectable rather than silent.
-    data_fingerprint = NULL | DataFingerprint,
+    data_fingerprint = prop_object(
+      DataFingerprint,
+      nullable = TRUE,
+      description = "Fingerprint of the training data."
+    ),
     # R-specific by construction, and what a consumer outside R would want
     # from it -- versions, platform -- is what `Provenance` publishes.
     session_info = prop_r_only(new_property(class_any)),
@@ -658,9 +672,9 @@ method(repr, Supervised) <- function(
 #'
 #' Convert a `Supervised` (or `Regression` / `Classification` /
 #' `CalibratedClassification`) object to a JSON-serializable list. Excludes
-#' the model object, the full prediction and outcome vectors, and the R
-#' session_info -- all of which are either not JSON-friendly, too large for the
-#' control-plane response, or fetched separately as Arrow IPC bulk data.
+#' native fitted objects, the full prediction and outcome vectors, and R
+#' session_info. Portable preprocessing and decomposition settings are carried
+#' by the run record; bulk predictions and outcomes are fetched as Arrow IPC.
 #'
 #' @param x `Supervised` object.
 #'
@@ -681,13 +695,6 @@ method(to_json, Supervised) <- function(x, ...) {
     description = desc(x), # used by rtemislive
     xnames = x@xnames,
     n_features = length(x@xnames),
-    preprocessor = .to_json_value(x@preprocessor),
-    preprocessor_internal = .to_json_value(x@preprocessor_internal),
-    decomposition = if (!is.null(x@decomposition)) {
-      x@decomposition@algorithm
-    } else {
-      NULL
-    },
     hyperparameters = .to_json_value(x@hyperparameters),
     tuner = .to_json_value(x@tuner),
     execution_config = .to_json_value(x@execution_config),
@@ -1668,7 +1675,9 @@ SupervisedRes <- new_class(
   name = "SupervisedRes",
   package = "rtemis",
   properties = list(
-    algorithm = class_character,
+    algorithm = prop_string(
+      description = "Algorithm identifier of the fitted implementation."
+    ),
     models = class_list,
     type = prop_string(
       NULL,
@@ -1685,7 +1694,10 @@ SupervisedRes <- new_class(
     hyperparameters = NULL | Hyperparameters | HyperparametersSet,
     tuner_config = NULL | TunerConfig,
     outer_resampler = Resampler,
-    execution_config = ExecutionConfig,
+    execution_config = prop_object(
+      ExecutionConfig,
+      description = "Execution settings used by this implementation."
+    ),
     # One element per resample, each a `Supervised`-shaped outcome vector.
     y_training = class_list,
     y_test = class_list,
@@ -1694,12 +1706,23 @@ SupervisedRes <- new_class(
     predicted_test = class_list,
     metrics_training = MetricsRes,
     metrics_test = MetricsRes,
-    xnames = class_character,
+    xnames = prop_string(
+      vector = TRUE,
+      description = "Predictor names in the order expected by the fitted model."
+    ),
     varimp = NULL | class_list,
-    question = NULL | class_character,
+    question = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Question addressed by this analysis."
+    ),
     # See `Supervised` for the provenance and input rationale.
     config = NULL | SuperConfig,
-    data_fingerprint = NULL | DataFingerprint,
+    data_fingerprint = prop_object(
+      DataFingerprint,
+      nullable = TRUE,
+      description = "Fingerprint of the training data."
+    ),
     # R-specific by construction, and what a consumer outside R would want
     # from it -- versions, platform -- is what `Provenance` publishes.
     session_info = prop_r_only(new_property(class_any)),

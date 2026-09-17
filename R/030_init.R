@@ -1825,7 +1825,7 @@ S7_to_list <- function(x) {
   if (S7_inherits(x)) {
     x <- serializable_props(x)
   }
-  if (is.list(x)) {
+  if (is.list(x) && !is.data.frame(x)) {
     x <- lapply(x, S7_to_list)
   }
   x

@@ -151,7 +151,8 @@ default_artifact_graph <- function(schemas, defaults, authoring = NULL) {
       declaration <- declaration[keep]
       names(declaration) <- substring(names(declaration), nchar(path) + 1L)
     }
-    parent <- NULL
+    parent_identity <- schema[["x-rtemis"]][["publication"]][["parent"]]
+    parent <- if (!is.null(parent_identity)) class_for(parent_identity)
     parent_info <- parents[[id]]
     if (!is.null(parent_info)) {
       parent_location <- identities[[parent_info[["identity"]]]]

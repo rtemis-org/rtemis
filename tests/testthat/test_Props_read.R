@@ -87,11 +87,19 @@ test_that("every published property preserves its schema constraints on read", {
     defaults <- lapply(specs, function(s) {
       if (is.null(s@target_class)) via_json(s@default) else NULL
     })
+    defaults <- defaults[vapply(
+      specs,
+      function(s) s@default_present,
+      logical(1L)
+    )]
     rt <- JSONSchema_to_S7(schema, defaults = defaults, name = cls_name)
 
     expect_setequal(
       as.character(names(rt@properties)),
-      as.character(names(specs))
+      as.character(c(
+        names(specs),
+        names(schema[["x-rtemis"]][["runtime_properties"]])
+      ))
     )
     for (nm in names(specs)) {
       original <- specs[[nm]]

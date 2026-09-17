@@ -401,7 +401,7 @@ record_names <- function(cls, base) {
     function(nm) {
       prop <- cls@properties[[nm]]
       role <- prop_role(prop)
-      if (role %in% c("computed", "r_only")) {
+      if (role %in% c("computed", "r_only", "runtime")) {
         return(FALSE)
       }
       if (identical(role, "state")) {
@@ -445,10 +445,16 @@ provenance_of <- function(x, outcome = "completed") {
   finished <- if (is.null(session)) NULL else session@finished
   info <- if (has("session_info")) prop(x, "session_info") else list()
   Provenance(
-    rtemis_version = as.character(utils::packageVersion("rtemis")),
-    # From the recorded session rather than the current one: a model reloaded
-    # from disk must report the R that trained it, not the R reading it.
-    r_version = info[["R.version"]][["version.string"]] %||% R.version.string,
+    # Captured versions describe the training environment even after reload.
+    implementation = Implementation(
+      name = "rtemis",
+      version = info[["otherPkgs"]][["rtemis"]][["Version"]] %||%
+        info[["loadedOnly"]][["rtemis"]][["Version"]] %||%
+        as.character(utils::packageVersion("rtemis")),
+      language = "r",
+      language_version = info[["R.version"]][["version.string"]] %||%
+        R.version.string
+    ),
     platform = info[["platform"]] %||% R.version[["platform"]],
     started = iso8601(started),
     finished = iso8601(finished),

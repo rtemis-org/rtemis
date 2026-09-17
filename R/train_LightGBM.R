@@ -201,6 +201,9 @@ method(learning_curve_super, class_lgb.Booster) <- function(model) {
 method(varimp_super, class_lgb.Booster) <- function(model) {
   check_inherits(model, "lgb.Booster")
   vi <- lightgbm::lgb.importance(model, percentage = TRUE) # -> data.table
+  if (nrow(vi) == 0L) {
+    return(NULL)
+  }
   names(vi)[1] <- "variable"
   VariableImportance(vi)
 } # /rtemis::varimp_super.lgb.Booster

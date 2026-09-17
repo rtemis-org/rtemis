@@ -157,6 +157,9 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   always present. Any other declared member is optional, so its absence
 #'   means "not computed for this task" rather than "invalid". NULL means all
 #'   of them are required.
+#' @field additional_members PropertySpec or NULL: Type of undeclared table
+#'   columns or struct fields. NULL closes the shape.
+#' @field min_members Integer: Minimum number of columns or fields.
 #' @field broadcast Logical: If TRUE, a bare scalar is accepted in place of the
 #'   container, meaning "this value for every element". Mutually exclusive with
 #'   `tunable`: a broadcast element and a one-element search space are the same
@@ -258,6 +261,8 @@ PropertySpec <- new_class(
     # exists only for binary classification) be absent without being invalid,
     # without needing class-level if/then vocabulary.
     required_members = NULL | class_character,
+    additional_members = class_any,
+    min_members = new_property(class_integer, default = 0L),
     broadcast = class_logical,
     # How many elements an array container holds, and whether they repeat.
     # Only "array" carries these: a matrix's rows and a map's keys have no
@@ -472,6 +477,30 @@ PropertySpec <- new_class(
       return("@items must describe the value type when @container is 'map'.")
     }
     if (self@container %in% c("table", "struct")) {
+      if (!is.null(self@additional_members)) {
+        if (!S7_inherits(self@additional_members, PropertySpec)) {
+          return("@additional_members must be a PropertySpec or NULL.")
+        }
+        if (
+          self@container == "table" &&
+            self@additional_members@container != "none"
+        ) {
+          return("Additional table columns must describe scalar cells.")
+        }
+      }
+      if (
+        length(self@min_members) != 1L ||
+          is.na(self@min_members) ||
+          self@min_members < 0L
+      ) {
+        return("@min_members must be one non-negative integer.")
+      }
+      if (
+        is.null(self@additional_members) &&
+          self@min_members > length(self@members)
+      ) {
+        return("@min_members exceeds the closed shape's declared members.")
+      }
       if (!is.list(self@members) || length(self@members) == 0L) {
         return(paste0(
           "@members must be a non-empty named list when @container is '",
@@ -513,6 +542,11 @@ PropertySpec <- new_class(
         return("@items and @members are mutually exclusive.")
       }
     } else {
+      if (!is.null(self@additional_members) || self@min_members != 0L) {
+        return(
+          "Additional members and member counts require a table or struct."
+        )
+      }
       if (!is.null(self@members)) {
         return(
           "@members is only meaningful when @container is 'table' or 'struct'."
@@ -759,6 +793,11 @@ spec_fields <- function(spec) {
   if (!is.null(fields[["members"]])) {
     fields[["members"]] <- lapply(fields[["members"]], spec_fields)
   }
+  if (!is.null(fields[["additional_members"]])) {
+    fields[["additional_members"]] <- spec_fields(fields[[
+      "additional_members"
+    ]])
+  }
   fields
 } # /rtemis::spec_fields
 
@@ -792,6 +831,11 @@ spec_object <- function(fields) {
   }
   if (!is.null(fields[["members"]])) {
     fields[["members"]] <- lapply(fields[["members"]], spec_object)
+  }
+  if (!is.null(fields[["additional_members"]])) {
+    fields[["additional_members"]] <- spec_object(fields[[
+      "additional_members"
+    ]])
   }
   # A field this build does not know is one a newer rtemis added. It reaches
   # here whenever an object crosses versions -- a worker loading an installed
@@ -933,6 +977,9 @@ validate_table_column <- function(column, fields) {
   if (!fields[["nullable"]] && anyNA(column)) {
     return("must not contain missing values.")
   }
+  if (!fields[["nullable"]] && is.numeric(column) && any(!is.finite(column))) {
+    return("must contain finite values.")
+  }
   present <- column[!is.na(column)]
   minimum <- fields[["minimum"]]
   maximum <- fields[["maximum"]]
@@ -984,8 +1031,20 @@ validate_table_column <- function(column, fields) {
 #' @noRd
 validate_member_names <- function(present, fields, noun) {
   declared <- names(fields[["members"]])
+  if (anyNA(present) || any(!nzchar(present)) || anyDuplicated(present)) {
+    return(paste0(noun, " names must be non-empty and unique."))
+  }
+  if (length(present) < fields[["min_members"]]) {
+    return(paste0(
+      "must have at least ",
+      fields[["min_members"]],
+      " ",
+      noun,
+      "s."
+    ))
+  }
   unknown <- setdiff(present, declared)
-  if (length(unknown) > 0L) {
+  if (length(unknown) > 0L && is.null(fields[["additional_members"]])) {
     return(paste0(
       "has undeclared ",
       noun,
@@ -1042,7 +1101,10 @@ validate_struct <- function(value, fields) {
     return(msg)
   }
   for (nm in names(value)) {
-    msg <- validate_with_spec(value[[nm]], fields[["members"]][[nm]])
+    msg <- validate_value(
+      value[[nm]],
+      fields[["members"]][[nm]] %||% fields[["additional_members"]]
+    )
     if (!is.null(msg)) {
       return(paste0("field '", nm, "' ", msg))
     }
@@ -1084,7 +1146,10 @@ validate_table <- function(value, fields) {
   }
   present <- names(value)
   for (nm in present) {
-    msg <- validate_table_column(value[[nm]], fields[["members"]][[nm]])
+    msg <- validate_table_column(
+      value[[nm]],
+      fields[["members"]][[nm]] %||% fields[["additional_members"]]
+    )
     if (!is.null(msg)) {
       return(paste0("column '", nm, "' ", msg))
     }
@@ -1292,6 +1357,9 @@ validate_with_spec <- function(value, fields) {
   msg <- validate_array_arity(value, fields)
   if (!is.null(msg)) {
     return(msg)
+  }
+  if (!is.null(items) && items[["container"]] == "none") {
+    return(validate_table_column(value, items))
   }
   if (anyNA(value)) {
     return("must not contain missing values.")
@@ -1716,7 +1784,9 @@ prop_float <- function(
 # %% prop_string ----
 #' Character (string) S7 property with attached PropertySpec
 #'
-#' @param default Character: Default value (NULL only if `nullable`).
+#' @param default Optional Character: Declaration default (NULL only if `nullable`).
+#'   Omitting the argument declares no default and requires an explicit value
+#'   when constructing a non-nullable property.
 #' @param enum Character or NULL: Allowed values.
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
@@ -1749,7 +1819,7 @@ prop_float <- function(
 #' @keywords internal
 #' @noRd
 prop_string <- function(
-  default,
+  default = NULL,
   enum = NULL,
   nullable = FALSE,
   tunable = FALSE,
@@ -1767,6 +1837,7 @@ prop_string <- function(
   make_prop(PropertySpec(
     type = "string",
     default = default,
+    default_present = !missing(default),
     minimum = NULL,
     maximum = NULL,
     exclusive_minimum = NULL,
@@ -2042,6 +2113,8 @@ prop_factor <- function(
 #'
 #' @param min_items Integer [0, Inf): Fewest rows allowed in the table.
 #' @param max_items Optional Integer [0, Inf): Most rows allowed in the table.
+#' @param additional Optional factory property: Type of all undeclared columns.
+#' @param min_columns Integer: Minimum column count, including declared columns.
 #'
 #' @return S7 property.
 #'
@@ -2056,7 +2129,9 @@ prop_table <- function(
   data_dependent = FALSE,
   min_items = 0L,
   max_items = NULL,
-  description = ""
+  description = "",
+  additional = NULL,
+  min_columns = 0L
 ) {
   column_specs <- member_specs(columns, "columns")
   # Resolved here rather than left NULL so that the published `required` and
@@ -2067,6 +2142,7 @@ prop_table <- function(
     # names the row, which is what the row-oriented encoding emits.
     type = "object",
     default = NULL,
+    default_present = nullable,
     minimum = NULL,
     maximum = NULL,
     exclusive_minimum = NULL,
@@ -2079,6 +2155,10 @@ prop_table <- function(
     max_items = max_items,
     items = NULL,
     members = column_specs,
+    additional_members = if (!is.null(additional)) {
+      member_specs(list(additional = additional), "additional")[[1L]]
+    },
+    min_members = min_columns,
     required_members = required,
     broadcast = FALSE,
     data_bound = data_bound,
@@ -2139,6 +2219,8 @@ member_specs <- function(members, what) {
 #'
 #' Unlike a table's columns, a struct's members may themselves be containers.
 #'
+#' @param additional Optional factory property: Type of undeclared fields.
+#' @param min_members Integer: Minimum number of fields.
 #' @param members Named list of S7 properties built by `prop_*` factories: One
 #'   per field. Their own defaults are unused.
 #' @param required Character, optional: Names of the always-present fields.
@@ -2159,7 +2241,9 @@ prop_struct <- function(
   required = NULL,
   nullable = FALSE,
   data_dependent = FALSE,
-  description = ""
+  description = "",
+  additional = NULL,
+  min_members = 0L
 ) {
   specs <- member_specs(members, "members")
   make_prop(PropertySpec(
@@ -2176,6 +2260,10 @@ prop_struct <- function(
     container = "struct",
     items = NULL,
     members = specs,
+    additional_members = if (!is.null(additional)) {
+      member_specs(list(additional = additional), "additional")[[1L]]
+    },
+    min_members = min_members,
     # Resolved here rather than left NULL so that the published `required` and
     # the spec read back from it name the same set.
     required_members = required %||% names(specs),
@@ -2716,7 +2804,7 @@ prop_state <- function(property) {
 #' @noRd
 prop_serialized <- function(prop) {
   role <- prop_role(prop)
-  if (role %in% c("state", "computed", "r_only")) {
+  if (role %in% c("state", "computed", "r_only", "runtime")) {
     return(FALSE)
   }
   fields <- get_spec_fields(prop)
@@ -2757,12 +2845,41 @@ prop_computed <- function(property) {
 } # /rtemis::prop_computed
 
 
+# %% prop_runtime ----
+#' Opaque runtime property with no serialized value
+#'
+#' The property name and purpose are published for class generation. Each
+#' implementation holds its own native object; a deserialized object starts
+#' with NULL until runtime code attaches that state.
+#' @param description Character: Purpose of the native runtime value.
+#' @param cls S7 class or base type: Accepted native values, in addition to NULL.
+#' @return S7 property accepting a native object or NULL.
+#' @keywords internal
+#' @noRd
+prop_runtime <- function(description, cls = class_any) {
+  check_character(description, allow_null = FALSE)
+  if (length(description) != 1L || !nzchar(description)) {
+    rtemis.core::abort(
+      "A runtime property requires a description.",
+      class = "rtemis_schema_error"
+    )
+  }
+  property <- new_property(
+    if (identical(cls, class_any)) class_any else NULL | cls
+  )
+  property[["role"]] <- "runtime"
+  property[["runtime_description"]] <- description
+  property
+}
+
+
 # %% prop_r_only ----
 #' S7 property that exists only in R
 #'
-#' Marks a property with no wire form at all -- a fitted backend model, a
-#' `sessionInfo()` -- so it is omitted from the generated schema and from
-#' serialization rather than aborting generation as undeclared drift.
+#' Marks an R-specific property with no wire form, such as `sessionInfo()`,
+#' so it is omitted from the generated schema and from serialization rather
+#' than aborting generation as undeclared drift. Shared native state uses
+#' `prop_runtime()` so other implementations can generate the property.
 #'
 #' Reach for it only when the value genuinely exists and cannot travel. A slot
 #' that holds nothing wants deleting, not declaring: the marker exists so that
@@ -2793,7 +2910,7 @@ prop_r_only <- function(property) {
 #'
 #' @param prop S7 property (an element of `Class@properties`).
 #'
-#' @return Character: "config", "state", "computed", "r_only", or `NA_character_` for a
+#' @return Character: "config", "state", "computed", "runtime", "r_only", or `NA_character_` for a
 #'   spec-less property with no declared role (i.e. drift).
 #'
 #' @author EDG
@@ -2832,7 +2949,7 @@ prop_role <- function(prop) {
 #' @keywords internal
 #' @noRd
 prop_published <- function(prop) {
-  !prop_role(prop) %in% c("computed", "r_only")
+  !prop_role(prop) %in% c("computed", "r_only", "runtime")
 } # /rtemis::prop_published
 
 
@@ -3283,6 +3400,19 @@ wire_value <- function(value, prop) {
   if (fields[["container"]] == "map" && is.atomic(value)) {
     return(as.list(value))
   }
+  if (fields[["container"]] == "struct") {
+    return(stats::setNames(
+      lapply(names(value), function(nm) {
+        wire_value(
+          value[[nm]],
+          list(
+            spec = fields[["members"]][[nm]] %||% fields[["additional_members"]]
+          )
+        )
+      }),
+      names(value)
+    ))
+  }
   if (
     fields[["container"]] == "array" &&
       !fields[["broadcast"]] &&
@@ -3365,6 +3495,12 @@ from_wire <- function(x, cls) {
       next
     }
     container <- fields[["container"]]
+    if (container == "table" && is.list(x[[nm]]) && !is.data.frame(x[[nm]])) {
+      x[[nm]] <- default_from_wire(
+        x[[nm]],
+        spec_to_schema(get_spec(props[[nm]]))
+      )
+    }
     is_scalar_map <- container == "map" && spec_r_kind(fields) == "atomic"
     if (is_scalar_map && is.list(x[[nm]])) {
       x[[nm]] <- unlist(x[[nm]])
@@ -3801,18 +3937,35 @@ applies_when_note <- function(applies_when) {
 #' @param members Named list of `PropertySpec` objects, one per member.
 #' @param required Character or NULL: The always-present members. NULL means
 #'   all of them.
+#' @param additional Optional PropertySpec: Type of undeclared members.
+#' @param min_members Integer: Minimum number of members.
 #'
 #' @return Named list (JSON Schema object).
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-members_schema <- function(members, required = NULL) {
+members_schema <- function(
+  members,
+  required = NULL,
+  additional = NULL,
+  min_members = 0L
+) {
   out <- list(
     type = "object",
     properties = lapply(members, spec_to_schema),
-    additionalProperties = FALSE
+    additionalProperties = if (is.null(additional)) {
+      FALSE
+    } else {
+      spec_to_schema(additional)
+    }
   )
+  if (min_members > 0L) {
+    out[["minProperties"]] <- min_members
+  }
+  if (!is.null(additional)) {
+    out[["propertyNames"]] <- list(minLength = 1L)
+  }
   required <- required %||% names(members)
   if (length(required) > 0L) {
     out[["required"]] <- I(required)
@@ -3945,13 +4098,23 @@ spec_to_schema <- function(
       Negate(is.null),
       list(
         type = if (spec@nullable) I(c("array", "null")) else "array",
-        items = members_schema(spec@members, spec@required_members),
+        items = members_schema(
+          spec@members,
+          spec@required_members,
+          spec@additional_members,
+          spec@min_members
+        ),
         minItems = if (spec@min_items > 0L) spec@min_items else NULL,
         maxItems = spec@max_items
       )
     )
   } else if (spec@container == "struct") {
-    obj <- members_schema(spec@members, spec@required_members)
+    obj <- members_schema(
+      spec@members,
+      spec@required_members,
+      spec@additional_members,
+      spec@min_members
+    )
     if (spec@nullable) {
       obj[["type"]] <- I(c("object", "null"))
     }
@@ -4518,7 +4681,7 @@ S7_to_JSONSchema <- function(
   props <- props[
     !vapply(
       props,
-      function(p) prop_role(p) %in% c("computed", "r_only"),
+      function(p) prop_role(p) %in% c("computed", "r_only", "runtime"),
       logical(1L)
     )
   ]
@@ -4690,6 +4853,18 @@ S7_to_JSONSchema <- function(
     schema[["x-rtemis"]][["validation"]] <- class_document_rules(x)
   }
   schema[["x-rtemis"]][["publication"]] <- schema_publication_annotation(x)
+  runtime <- Filter(
+    function(p) identical(prop_role(p), "runtime"),
+    x@properties
+  )
+  if (length(runtime)) {
+    schema[["x-rtemis"]][["runtime_properties"]] <- lapply(
+      runtime,
+      function(p) {
+        list(description = p[["runtime_description"]], kind = "opaque")
+      }
+    )
+  }
   schema
 } # /rtemis::S7_to_JSONSchema
 
