@@ -98,7 +98,7 @@ SUPERVISED_TYPES <- c("Regression", "Classification")
 #'
 #' @author EDG
 #' @noRd
-Supervised <- new_class(
+Supervised <- schema_class(
   name = "Supervised",
   package = "rtemis",
   properties = list(
@@ -131,25 +131,86 @@ Supervised <- new_class(
       "Fitted feature decomposition applied before algorithm-specific preprocessing.",
       cls = Decomposition
     ),
-    hyperparameters = NULL | Hyperparameters,
-    tuner = NULL | Tuner,
+    hyperparameters = prop_object(
+      Hyperparameters,
+      nullable = TRUE,
+      description = "Algorithm settings used by the fitted model; the run record carries complete resolution details."
+    ),
+    tuner = prop_runtime(
+      "Native tuning results; portable tuning details are carried by the run record.",
+      cls = Tuner
+    ),
     execution_config = prop_object(
       ExecutionConfig,
       description = "Execution settings used by this implementation."
     ),
     # The outcome, in the same shape as the predictions it is compared against:
     # numeric for regression, a factor of its levels for classification.
-    y_training = class_numeric | class_factor,
-    y_validation = NULL | class_numeric | class_factor,
-    y_test = NULL | class_numeric | class_factor,
+    y_training = prop_state(prop_union(
+      list(
+        prop_array(prop_float(NULL, nullable = TRUE)),
+        prop_factor(allow_missing = TRUE)
+      ),
+      nullable = FALSE,
+      description = "Observed outcomes for the training sample, in row order. Numeric values or categorical levels and codes; unavailable values are null."
+    )),
+    y_validation = prop_state(prop_union(
+      list(
+        prop_array(prop_float(NULL, nullable = TRUE)),
+        prop_factor(allow_missing = TRUE)
+      ),
+      nullable = TRUE,
+      description = "Observed outcomes for the validation sample, in row order. Numeric values or categorical levels and codes; unavailable values are null."
+    )),
+    y_test = prop_state(prop_union(
+      list(
+        prop_array(prop_float(NULL, nullable = TRUE)),
+        prop_factor(allow_missing = TRUE)
+      ),
+      nullable = TRUE,
+      description = "Observed outcomes for the test sample, in row order. Numeric values or categorical levels and codes; unavailable values are null."
+    )),
     # Regression predicts numeric, classification predicts a factor of the
     # outcome's levels; there is no third case.
-    predicted_training = class_numeric | class_factor,
-    predicted_validation = NULL | class_numeric | class_factor,
-    predicted_test = NULL | class_numeric | class_factor,
-    metrics_training = Metrics,
-    metrics_validation = NULL | Metrics,
-    metrics_test = NULL | Metrics,
+    predicted_training = prop_state(prop_union(
+      list(
+        prop_array(prop_float(NULL, nullable = TRUE)),
+        prop_factor(allow_missing = TRUE)
+      ),
+      nullable = FALSE,
+      description = "Predictions for the training sample, in row order. Numeric values or categorical levels and codes; unavailable values are null."
+    )),
+    predicted_validation = prop_state(prop_union(
+      list(
+        prop_array(prop_float(NULL, nullable = TRUE)),
+        prop_factor(allow_missing = TRUE)
+      ),
+      nullable = TRUE,
+      description = "Predictions for the validation sample, in row order. Numeric values or categorical levels and codes; unavailable values are null."
+    )),
+    predicted_test = prop_state(prop_union(
+      list(
+        prop_array(prop_float(NULL, nullable = TRUE)),
+        prop_factor(allow_missing = TRUE)
+      ),
+      nullable = TRUE,
+      description = "Predictions for the test sample, in row order. Numeric values or categorical levels and codes; unavailable values are null."
+    )),
+    metrics_training = prop_state(prop_union(
+      list(prop_object(RegressionMetrics), prop_object(ClassificationMetrics)),
+      nullable = FALSE,
+      description = "Metrics for the training sample."
+    )),
+    metrics_validation = prop_state(prop_union(
+      list(prop_object(RegressionMetrics), prop_object(ClassificationMetrics)),
+      nullable = TRUE,
+      description = "Metrics for the validation sample."
+    )),
+    metrics_test = prop_state(prop_union(
+      list(prop_object(RegressionMetrics), prop_object(ClassificationMetrics)),
+      nullable = TRUE,
+      description = "Metrics for the test sample."
+    )),
     xnames = prop_string(
       vector = TRUE,
       description = "Predictor names in the order expected by the fitted model."
@@ -176,13 +237,60 @@ Supervised <- new_class(
     # R-specific by construction, and what a consumer outside R would want
     # from it -- versions, platform -- is what `Provenance` publishes.
     session_info = prop_r_only(new_property(class_any)),
-    session = NULL | SupervisedSession,
+    session = prop_runtime(
+      "Native execution session; portable history is carried by the session artifact.",
+      cls = SupervisedSession
+    ),
     # The run's *input*, which nothing else here carries: the hyperparameters on
     # this object are the ones that ran, resolved, and only the input says what
     # was asked for. `record()` needs both to state where each value came from.
     # Assigned by `train()` after construction rather than threaded through five
     # constructors that have no use for it.
-    config = NULL | SuperConfig
+    config = prop_runtime(
+      "Native input configuration, which may contain in-memory data; portable settings are carried by the run record.",
+      cls = SuperConfig
+    )
+  ),
+  publication = SchemaPublication(
+    kind = "report",
+    scope = "shared",
+    slug = "supervisedresult",
+    description = "Portable supervised learning result; native fitted state is held separately on the object."
+  ),
+  rules = unlist(
+    lapply(
+      c(
+        "y_training",
+        "y_validation",
+        "y_test",
+        "predicted_training",
+        "predicted_validation",
+        "predicted_test",
+        "metrics_training",
+        "metrics_validation",
+        "metrics_test"
+      ),
+      function(nm) {
+        lapply(seq_along(SUPERVISED_TYPES), function(i) {
+          UnionSelectionRule(
+            id = paste0("supervised.", tolower(SUPERVISED_TYPES[[i]]), ".", nm),
+            message = paste0(
+              nm,
+              " must use the ",
+              tolower(SUPERVISED_TYPES[[i]]),
+              " representation selected by type."
+            ),
+            property = nm,
+            alternative = i,
+            when = SchemaPredicate(
+              property = "type",
+              equals = SUPERVISED_TYPES[[i]]
+            )
+          )
+        })
+      }
+    ),
+    recursive = FALSE
   ),
   constructor = function(
     algorithm,
@@ -976,7 +1084,7 @@ method(describe, Supervised) <- function(x, verbosity = 1L) {
 #'
 #' @author EDG
 #' @noRd
-Classification <- new_class(
+Classification <- schema_class(
   name = "Classification",
   package = "rtemis",
   parent = Supervised,
@@ -988,20 +1096,38 @@ Classification <- new_class(
     predicted_prob_training = prop_state(prop_matrix(
       nullable = TRUE,
       items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
-      description = "Predicted training probabilities, one row per case."
+      description = "Predicted training probabilities, one row per case; binary results contain the positive-level column selected by binclasspos, and multiclass columns follow the training outcome levels."
     )),
     predicted_prob_validation = prop_state(prop_matrix(
       nullable = TRUE,
       items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
-      description = "Predicted validation probabilities, one row per case."
+      description = "Predicted validation probabilities, one row per case; binary results contain the positive-level column selected by binclasspos, and multiclass columns follow the training outcome levels."
     )),
     predicted_prob_test = prop_state(prop_matrix(
       nullable = TRUE,
       items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
-      description = "Predicted test probabilities, one row per case."
+      description = "Predicted test probabilities, one row per case; binary results contain the positive-level column selected by binclasspos, and multiclass columns follow the training outcome levels."
     )),
-    binclasspos = class_integer
+    binclasspos = prop_integer(
+      2L,
+      min = 1L,
+      max = 2L,
+      description = "One-based position of the positive level for binary classification."
+    )
   ),
+  publication = SchemaPublication(
+    kind = "report",
+    scope = "shared",
+    description = "Portable classification result."
+  ),
+  rules = list(RequireConditions(
+    id = "classification.type",
+    message = "type must identify classification.",
+    conditions = list(SchemaPredicate(
+      property = "type",
+      equals = "Classification"
+    ))
+  )),
   constructor = function(
     algorithm = NULL,
     model = NULL,
@@ -1134,17 +1260,17 @@ CalibratedClassification <- new_class(
     predicted_prob_training_calibrated = prop_state(prop_matrix(
       nullable = FALSE,
       items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
-      description = "Calibrated training probabilities, one row per case."
+      description = "Calibrated training probabilities, one row per case; binary results contain the positive-level column selected by binclasspos, and multiclass columns follow the training outcome levels."
     )),
     predicted_prob_validation_calibrated = prop_state(prop_matrix(
       nullable = TRUE,
       items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
-      description = "Calibrated validation probabilities, one row per case."
+      description = "Calibrated validation probabilities, one row per case; binary results contain the positive-level column selected by binclasspos, and multiclass columns follow the training outcome levels."
     )),
     predicted_prob_test_calibrated = prop_state(prop_matrix(
       nullable = TRUE,
       items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
-      description = "Calibrated test probabilities, one row per case."
+      description = "Calibrated test probabilities, one row per case; binary results contain the positive-level column selected by binclasspos, and multiclass columns follow the training outcome levels."
     )),
     metrics_training_calibrated = Metrics,
     metrics_validation_calibrated = NULL | Metrics,
@@ -1287,9 +1413,19 @@ method(predict, CalibratedClassification) <- function(object, newdata, ...) {
 #'
 #' @author EDG
 #' @noRd
-Regression <- new_class(
+Regression <- schema_class(
   name = "Regression",
   parent = Supervised,
+  publication = SchemaPublication(
+    kind = "report",
+    scope = "shared",
+    description = "Portable regression result."
+  ),
+  rules = list(RequireConditions(
+    id = "regression.type",
+    message = "type must identify regression.",
+    conditions = list(SchemaPredicate(property = "type", equals = "Regression"))
+  )),
   constructor = function(
     algorithm = NULL,
     model = NULL,

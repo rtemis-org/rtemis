@@ -2,6 +2,9 @@
 
 ## 1.4.1
 
+- `Supervised`, `Regression`, and `Classification` publish shared result schemas with typed outcomes, predictions, metrics, and runtime-only fitted state.
+- Categorical result values preserve class order and missing positions through explicit levels and codes.
+- Parallel worker integration tests require opt-in in automated agent sessions; a bounded diagnostic recipe records stalled runs.
 - Matrix property declarations support numeric cell bounds and cell-level nullability.
 - Typed array decoding preserves missing-cell positions and rejects invalid cell types and ragged matrices.
 - Schema publication metadata identifies the generating language, contract scope, registry domain, and standalone parent class.

@@ -149,6 +149,55 @@ ForbidTogether <- new_class(
 )
 
 
+# %% RequireConditions ----
+#' Require scalar conditions on an observed document
+#' @field conditions List of `SchemaPredicate` objects: Conditions that must all hold.
+#' @keywords internal
+#' @noRd
+RequireConditions <- new_class(
+  "RequireConditions",
+  package = "rtemis",
+  parent = SchemaRule,
+  properties = list(
+    conditions = prop_collection(
+      SchemaPredicate,
+      min_items = 1L,
+      description = "Conditions that must all hold."
+    )
+  ),
+  validator = function(self) {
+    fields <- vapply(self@conditions, function(p) p@property, character(1L))
+    if (anyDuplicated(fields)) {
+      return("@conditions must name distinct properties.")
+    }
+    NULL
+  }
+)
+
+
+# %% UnionSelectionRule ----
+#' Select a declared union alternative using a sibling condition
+#' @field property Character: Union-valued property.
+#' @field alternative Integer \[1, Inf): One-based position in the union declaration.
+#' @field when SchemaPredicate: Condition selecting this alternative.
+#' @keywords internal
+#' @noRd
+UnionSelectionRule <- new_class(
+  "UnionSelectionRule",
+  package = "rtemis",
+  parent = SchemaRule,
+  properties = list(
+    property = prop_string(description = "Union-valued property."),
+    alternative = prop_integer(
+      1L,
+      min = 1L,
+      description = "Position of the selected alternative in its declaration."
+    ),
+    when = SchemaPredicate
+  )
+)
+
+
 # %% StatusValueRule ----
 #' Pair metric availability with a row of statuses
 #' @field values,statuses Character: Names of the value and status table properties.
@@ -233,6 +282,8 @@ schema_rule_from_fields <- function(fields) {
   cls <- switch(
     fields[["kind"]],
     ForbidTogether = ForbidTogether,
+    RequireConditions = RequireConditions,
+    UnionSelectionRule = UnionSelectionRule,
     StatusValueRule = StatusValueRule,
     CompareFields = CompareFields,
     SumBound = SumBound,
@@ -342,7 +393,16 @@ validate_rule_declaration <- function(rule, cls) {
       }
     }
   }
-  if (rule[["kind"]] == "ForbidTogether") {
+  if (rule[["kind"]] %in% c("ForbidTogether", "RequireConditions")) {
+    return(NULL)
+  } else if (rule[["kind"]] == "UnionSelectionRule") {
+    spec <- get_spec_fields(cls@properties[[rule[["property"]]]])
+    if (
+      is.null(spec[["alternatives"]]) ||
+        rule[["alternative"]] > length(spec[["alternatives"]])
+    ) {
+      fail("select an existing alternative of a declared union property.")
+    }
     return(NULL)
   } else if (rule[["kind"]] == "StatusValueRule") {
     specs <- lapply(c(rule[["values"]], rule[["statuses"]]), function(nm) {
@@ -422,13 +482,38 @@ matches_rule_predicate <- function(value, predicate) {
 #' @noRd
 validate_class_rules <- function(self, rules) {
   failures <- lapply(rules, function(rule) {
-    if (rule[["kind"]] == "ForbidTogether") {
+    if (rule[["kind"]] == "UnionSelectionRule") {
       if (
-        all(vapply(
-          rule[["conditions"]],
-          function(p) matches_rule_predicate(prop(self, p[["property"]]), p),
-          logical(1L)
+        !matches_rule_predicate(
+          prop(self, rule[["when"]][["property"]]),
+          rule[["when"]]
+        )
+      ) {
+        return(NULL)
+      }
+      value <- prop(self, rule[["property"]])
+      if (is.null(value)) {
+        return(NULL)
+      }
+      spec <- get_spec_fields(S7_class(self)@properties[[rule[["property"]]]])
+      if (
+        !is.null(validate_value(
+          value,
+          spec[["alternatives"]][[rule[["alternative"]]]]
         ))
+      ) {
+        return(paste0("[", rule[["id"]], "] ", rule[["message"]]))
+      }
+    } else if (rule[["kind"]] %in% c("ForbidTogether", "RequireConditions")) {
+      if (
+        identical(
+          rule[["kind"]] == "ForbidTogether",
+          all(vapply(
+            rule[["conditions"]],
+            function(p) matches_rule_predicate(prop(self, p[["property"]]), p),
+            logical(1L)
+          ))
+        )
       ) {
         return(paste0("[", rule[["id"]], "] ", rule[["message"]]))
       }
@@ -479,7 +564,38 @@ validate_class_rules <- function(self, rules) {
 class_rule_clauses <- function(cls) {
   unlist(
     lapply(schema_rules(cls), function(rule) {
-      if (rule[["kind"]] == "ForbidTogether") {
+      if (rule[["kind"]] == "UnionSelectionRule") {
+        nm <- rule[["property"]]
+        spec <- get_spec_fields(cls@properties[[nm]])
+        index <- rule[["alternative"]] - 1L + as.integer(spec[["nullable"]])
+        selected <- list(
+          `$ref` = paste0(
+            "#/properties/",
+            default_pointer(nm),
+            "/anyOf/",
+            index
+          )
+        )
+        if (spec[["nullable"]]) {
+          selected <- list(oneOf = list(list(type = "null"), selected))
+        }
+        predicate <- rule[["when"]]
+        return(list(list(
+          `$comment` = rule[["id"]],
+          `if` = list(
+            required = I(predicate[["property"]]),
+            properties = stats::setNames(
+              list(predicate_schema(
+                predicate,
+                get_spec(cls@properties[[predicate[["property"]]]])
+              )),
+              predicate[["property"]]
+            )
+          ),
+          then = list(properties = stats::setNames(list(selected), nm))
+        )))
+      }
+      if (rule[["kind"]] %in% c("ForbidTogether", "RequireConditions")) {
         predicates <- lapply(rule[["conditions"]], function(p) {
           predicate_schema(p, get_spec(cls@properties[[p[["property"]]]]))
         })
@@ -489,10 +605,11 @@ class_rule_clauses <- function(cls) {
           character(1L),
           "property"
         )
-        return(list(list(
-          `$comment` = rule[["id"]],
-          not = list(required = I(names(predicates)), properties = predicates)
-        )))
+        clause <- list(required = I(names(predicates)), properties = predicates)
+        if (rule[["kind"]] == "ForbidTogether") {
+          clause <- list(not = clause)
+        }
+        return(list(c(list(`$comment` = rule[["id"]]), clause)))
       }
       if (rule[["kind"]] != "StatusValueRule") {
         return(relation_rule_clauses(rule, cls))

@@ -35,9 +35,21 @@ test_that("class publication preserves the frozen publication inventory", {
   )
   expect_identical(
     setdiff(names(derived[["documents"]]), names(original[["documents"]])),
-    c("implementation", "variableimportance")
+    c(
+      "classification",
+      "implementation",
+      "regression",
+      "supervisedresult",
+      "variableimportance"
+    )
   )
-  derived[["documents"]][c("implementation", "variableimportance")] <- NULL
+  derived[["documents"]][c(
+    "classification",
+    "implementation",
+    "regression",
+    "supervisedresult",
+    "variableimportance"
+  )] <- NULL
   expect_identical(derived, original)
 })
 

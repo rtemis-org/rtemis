@@ -560,6 +560,30 @@ test_that("x-rtemis agrees with the standard keywords, for every property", {
       types <- as.character(schema[["type"]])
       if (isTRUE(ann[["tunable"]]) || isTRUE(ann[["broadcast"]])) {
         expect_true("oneOf" %in% names(schema), info = label)
+      } else if (identical(ann[["type"]], "union")) {
+        expect_null(schema[["type"]], info = label)
+        alternatives <- Filter(
+          function(branch) !identical(branch[["type"]], "null"),
+          schema[["anyOf"]]
+        )
+        expect_identical(
+          length(alternatives),
+          length(spec@alternatives),
+          info = label
+        )
+        expect_identical(
+          vapply(
+            alternatives,
+            function(branch) branch[["x-rtemis"]][["type"]],
+            character(1L)
+          ),
+          vapply(
+            spec@alternatives,
+            function(branch) branch@type,
+            character(1L)
+          ),
+          info = label
+        )
       } else if (container %in% c("array", "matrix", "table")) {
         # A table is an array of row objects.
         expect_true("array" %in% types, info = label)

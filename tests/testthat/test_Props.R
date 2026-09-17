@@ -1672,10 +1672,12 @@ test_that("a declared level set constrains the levels in the schema", {
 })
 
 
-test_that("a factor property must be nullable, having no prototype value", {
-  # The same constraint `prop_matrix()` and `prop_table()` carry: a spec's
-  # default must validate, and there is no factor a class could default to.
-  expect_error(prop_factor(), "default")
+test_that("a required factor has no fabricated declaration default", {
+  property <- prop_factor()
+  expect_false(get_spec(property)@default_present)
+  Demo <- new_class("RequiredFactor", properties = list(y = property))
+  expect_error(Demo(), "explicit value")
+  expect_identical(Demo(y = factor("a"))@y, factor("a"))
 })
 
 
@@ -1686,8 +1688,8 @@ test_that("a factor survives the wire with its level order and empty levels", {
   # positive.
   reordered <- factor(c("b", "a", "b"), levels = c("b", "a"))
   wire <- wire_value(reordered, prop)
-  expect_identical(wire[["levels"]], c("b", "a"))
-  expect_identical(wire[["codes"]], c(1L, 2L, 1L))
+  expect_identical(unclass(wire[["levels"]]), c("b", "a"))
+  expect_identical(unclass(wire[["codes"]]), c(1L, 2L, 1L))
   expect_identical(from_wire_factor(wire), reordered)
   # A level with no cases disappears entirely from an array of labels.
   unobserved <- factor(c("a", "a"), levels = c("a", "b", "c"))

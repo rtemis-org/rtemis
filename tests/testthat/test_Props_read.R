@@ -92,13 +92,30 @@ test_that("every published property preserves its schema constraints on read", {
       function(s) s@default_present,
       logical(1L)
     )]
-    rt <- JSONSchema_to_S7(schema, defaults = defaults, name = cls_name)
+    parent <- if (!is.null(schema[["x-rtemis"]][["publication"]][["parent"]])) {
+      cls@parent
+    } else {
+      NULL
+    }
+    rt <- JSONSchema_to_S7(
+      schema,
+      defaults = defaults,
+      name = cls_name,
+      parent = parent
+    )
 
     expect_setequal(
       as.character(names(rt@properties)),
       as.character(c(
         names(specs),
-        names(schema[["x-rtemis"]][["runtime_properties"]])
+        names(schema[["x-rtemis"]][["runtime_properties"]]),
+        # An explicitly supplied native parent retains implementation-only fields.
+        if (!is.null(parent)) {
+          names(Filter(
+            function(p) prop_role(p) %in% c("r_only", "computed"),
+            parent@properties
+          ))
+        }
       ))
     )
     for (nm in names(specs)) {

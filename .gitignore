@@ -57,3 +57,6 @@ SKILL.md
 
 # Review notes and session prompts (local only)
 review/
+
+# Internal
+tests/testthat/_problems/

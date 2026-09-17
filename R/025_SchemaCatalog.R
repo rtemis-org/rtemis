@@ -315,6 +315,12 @@ property_validation_contract <- function(fields) {
     "description",
     "group"
   )] <- NULL
+  if (!is.null(fields[["alternatives"]])) {
+    fields[["alternatives"]] <- lapply(
+      fields[["alternatives"]],
+      property_validation_contract
+    )
+  }
   if (!is.null(fields[["items"]])) {
     fields[["items"]] <- property_validation_contract(fields[["items"]])
   }

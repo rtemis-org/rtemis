@@ -1780,7 +1780,8 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 # %% serializable_props ----
 #' Properties of an S7 object to serialize
 #'
-#' The default keeps every property `prop_serialized()` admits, so a flat config
+#' Reports keep every published property, including observed state. Other
+#' objects keep every property `prop_serialized()` admits, so a flat config
 #' drops the same fields a config family does rather than emitting whatever it
 #' happens to hold. Config-family classes (`Hyperparameters`,
 #' `DecompositionConfig`, `ClusteringConfig`) override this to return their
@@ -1801,12 +1802,19 @@ serializable_props <- new_generic("serializable_props", "x")
 method(serializable_props, S7_object) <- function(x) {
   values <- props(x)
   declared <- S7_class(x)@properties
+  publication <- schema_publication(S7_class(x))
+  observed <- !is.null(publication) && publication@kind == "report"
   keep <- vapply(
     names(values),
     function(nm) {
       # A property this object holds but does not declare cannot be judged;
       # keep it rather than silently dropping data.
-      is.null(declared[[nm]]) || prop_serialized(declared[[nm]])
+      is.null(declared[[nm]]) ||
+        if (observed) {
+          prop_published(declared[[nm]])
+        } else {
+          prop_serialized(declared[[nm]])
+        }
     },
     logical(1L)
   )

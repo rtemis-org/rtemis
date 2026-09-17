@@ -149,6 +149,9 @@
 # `validate_config()` reports about a config. Nothing authors one, so none
 # states a user's intent and none is a config.
 .contract_no_setup <- c(
+  "Supervised",
+  "Regression",
+  "Classification",
   "Implementation",
   "VariableImportance",
   "Provenance",

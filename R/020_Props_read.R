@@ -38,7 +38,7 @@
 #' @keywords internal
 #' @noRd
 schema_is_nullable <- function(x) {
-  branches <- x[["oneOf"]]
+  branches <- x[["oneOf"]] %||% x[["anyOf"]]
   if (!is.null(branches)) {
     return(any(vapply(
       branches,
@@ -401,6 +401,32 @@ schema_to_spec <- function(
     description <- strip_suffix(description, applies_when_note(applies_when))
   }
 
+  if (type == "union") {
+    branches <- x[["anyOf"]]
+    keep <- which(
+      !vapply(branches, function(b) identical(b[["type"]], "null"), logical(1L))
+    )
+    return(PropertySpec(
+      type = "union",
+      alternatives = lapply(keep, function(i) {
+        schema_to_spec(
+          branches[[i]],
+          declarations = declarations,
+          path = paste0(path, "/anyOf/", i - 1L),
+          decode_reference = decode_reference
+        )
+      }),
+      default = default,
+      default_present = default_present,
+      default_policy = default_policy,
+      nullable = schema_is_nullable(x),
+      tunable = FALSE,
+      container = "none",
+      broadcast = FALSE,
+      group = ann[["group"]],
+      description = description
+    ))
+  }
   if (!is.null(ann[["target_class"]])) {
     return(PropertySpec(
       type = type,
@@ -568,6 +594,7 @@ schema_to_spec <- function(
     exclusive_maximum = as_bound(leaf[["exclusiveMaximum"]]),
     enum = leaf_enum,
     nullable = schema_is_nullable(x),
+    allow_missing = isTRUE(ann[["allow_missing"]]),
     tunable = tunable,
     container = container,
     items = items,
@@ -750,7 +777,10 @@ JSONSchema_to_S7 <- function(
   is_ref <- is_ref &
     vapply(
       props,
-      function(p) is.null(p[["x-rtemis"]][["target_class"]]),
+      function(p) {
+        is.null(p[["x-rtemis"]][["target_class"]]) &&
+          !identical(p[["x-rtemis"]][["type"]], "union")
+      },
       logical(1L)
     )
   unresolved <- setdiff(names(props)[is_ref], names(refs))
@@ -811,6 +841,27 @@ JSONSchema_to_S7 <- function(
     schema[["x-rtemis"]][["rules"]] %||% list(),
     schema_rule_from_fields
   )
+  if (!is.null(parent)) {
+    inherited <- schema_rules(parent)
+    inherited_ids <- vapply(inherited, `[[`, character(1L), "id")
+    declared_ids <- vapply(rules, function(rule) rule@id, character(1L))
+    if (length(setdiff(inherited_ids, declared_ids))) {
+      rtemis.core::abort(
+        "Child schema is missing inherited rules.",
+        class = "rtemis_schema_error"
+      )
+    }
+    for (i in seq_along(inherited)) {
+      rule <- rules[[match(inherited_ids[[i]], declared_ids)]]
+      if (!identical(schema_rule_fields(rule), inherited[[i]])) {
+        rtemis.core::abort(
+          "Child schema changes an inherited rule.",
+          class = "rtemis_schema_error"
+        )
+      }
+    }
+    rules <- rules[!declared_ids %in% inherited_ids]
+  }
   policy_objects <- lapply(names(policies), function(nm) {
     default_policy_from_wire(
       policies[[nm]],

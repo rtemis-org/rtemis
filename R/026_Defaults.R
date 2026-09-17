@@ -250,6 +250,19 @@ default_declarations <- function(spec, schema, path) {
     node[["number_types"]] <- number_types
   }
   out <- stats::setNames(list(node), path)
+  if (!is.null(spec@alternatives)) {
+    for (i in seq_along(spec@alternatives)) {
+      offset <- i + as.integer(spec@nullable)
+      out <- c(
+        out,
+        default_declarations(
+          spec@alternatives[[i]],
+          schema[["anyOf"]][[offset]],
+          paste0(path, "/anyOf/", offset - 1L)
+        )
+      )
+    }
+  }
   if (!is.null(spec@items)) {
     child <- schema_element(
       schema,
@@ -709,6 +722,51 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
     return(NULL)
   }
   ann <- schema[["x-rtemis"]]
+  if (identical(ann[["type"]], "union")) {
+    matches <- list()
+    for (branch in schema[["anyOf"]]) {
+      if (identical(branch[["type"]], "null")) {
+        next
+      }
+      branch_type <- branch[["type"]] %||% "object"
+      wire_type <- if (is.list(value)) {
+        if (is.null(names(value))) "array" else "object"
+      } else if (is.character(value)) {
+        "string"
+      } else if (is.logical(value)) {
+        "boolean"
+      } else if (is.numeric(value)) {
+        c("number", "integer")
+      } else {
+        "native"
+      }
+      if (!any(wire_type %in% branch_type)) {
+        next
+      }
+      decoded <- tryCatch(
+        {
+          decoded <- default_from_wire(value, branch, decode_reference)
+          problem <- validate_value(
+            decoded,
+            spec_fields(schema_to_spec(branch))
+          )
+          if (!is.null(problem)) {
+            stop(problem)
+          }
+          list(value = decoded)
+        },
+        error = function(e) NULL
+      )
+      if (!is.null(decoded)) matches <- c(matches, list(decoded))
+    }
+    if (!length(matches)) {
+      rtemis.core::abort(
+        "Value must match a declared alternative.",
+        class = "rtemis_schema_error"
+      )
+    }
+    return(matches[[1L]][["value"]])
+  }
   container <- ann[["container"]] %||% "none"
   target <- ann[["target_class"]]
   if (!is.null(target)) {
@@ -1206,7 +1264,7 @@ resolve_config_defaults <- function(cls, values, context = NULL, path = "") {
           },
           family[["algorithms"]]
         )
-        if (length(matches) != 1L) {
+        if (!length(matches)) {
           rtemis.core::abort(
             "A referenced family requires one discriminator at ",
             pointer,
