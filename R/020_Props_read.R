@@ -504,12 +504,10 @@ schema_to_spec <- function(
   }
 
   child <- schema_element(x, container, tunable, broadcast)
-  # `@items` is only meaningful for "array" and "map" (a matrix's element type
-  # is fixed, and a scalar has no element). Within those, a nested element
-  # carries its own annotations while a scalar leaf does not, which is exactly
-  # the condition under which `spec_to_schema()` recursed.
+  # Explicit cell declarations carry annotations on the element schema,
+  # including a matrix cell; an implicit scalar leaf carries none.
   items <- if (
-    container %in% c("array", "map") && !is.null(child[["x-rtemis"]])
+    container %in% c("array", "map", "matrix") && !is.null(child[["x-rtemis"]])
   ) {
     schema_to_spec(
       child,

@@ -1,5 +1,14 @@
 # rtemis news
 
+## 1.4.1
+
+- Matrix property declarations support numeric cell bounds and cell-level nullability.
+- Typed array decoding preserves missing-cell positions and rejects invalid cell types and ragged matrices.
+- Schema publication metadata identifies the generating language, contract scope, registry domain, and standalone parent class.
+- `Implementation` and `Provenance` record package and language identities independently of schema authorship.
+- `VariableImportance` publishes a shared report schema with named numeric measures and null values for unavailable results.
+- `JSONSchema_to_S7()` reconstructs standalone inheritance and runtime-only properties from schema artifacts.
+
 ## 1.4.0
 
 - `JSONSchema_to_S7()` reconstructs declaration defaults, typed references, and input policies from a supplied artifact graph.

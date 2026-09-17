@@ -470,6 +470,16 @@ PropertySpec <- new_class(
     if (!is.null(self@items) && !S7_inherits(self@items, PropertySpec)) {
       return("@items must be a PropertySpec or NULL.")
     }
+    if (self@container == "matrix" && !is.null(self@items)) {
+      if (
+        !self@items@type %in% c("number", "integer") ||
+          self@items@container != "none" ||
+          self@items@tunable ||
+          self@items@constant
+      ) {
+        return("Matrix items must describe untunable numeric scalar cells.")
+      }
+    }
     if (self@container == "none" && !is.null(self@items)) {
       return("@items is only meaningful when @container is not 'none'.")
     }
@@ -1283,10 +1293,21 @@ validate_with_spec <- function(value, fields) {
     if (!is.matrix(value)) {
       return("must be a matrix.")
     }
-    if (anyNA(value)) {
-      return("must not contain missing values.")
+    if (!is.numeric(value)) {
+      return("must be a numeric matrix.")
     }
-    return(NULL)
+    if (any(dim(value) == 0L)) {
+      return("must have at least one row and one column.")
+    }
+    if (any(is.infinite(value))) {
+      return("must contain finite values or declared missing cells.")
+    }
+    cells <- fields[["items"]]
+    if (is.null(cells)) {
+      cells <- fields
+      cells[["nullable"]] <- FALSE
+    }
+    return(validate_table_column(value, cells))
   }
   if (container == "table") {
     return(validate_table(value, fields))
@@ -1963,6 +1984,7 @@ prop_array <- function(
   make_prop(PropertySpec(
     type = item_spec@type,
     default = NULL,
+    default_present = nullable,
     minimum = NULL,
     maximum = NULL,
     exclusive_minimum = NULL,
@@ -1997,6 +2019,8 @@ prop_array <- function(
 #'   should not prompt for it. An annotation only; it does not affect
 #'   serialization.
 #' @param description Character: Human-readable description.
+#' @param items Optional S7 property: Numeric scalar cell declaration, including
+#'   bounds and cell nullability. Omitting it requires finite numeric cells.
 #'
 #' @return S7 property.
 #'
@@ -2007,11 +2031,20 @@ prop_matrix <- function(
   nullable = FALSE,
   data_bound = NULL,
   data_dependent = FALSE,
-  description = ""
+  description = "",
+  items = NULL
 ) {
+  item_spec <- if (!is.null(items)) get_spec(items) else NULL
+  if (!is.null(items) && is.null(item_spec)) {
+    rtemis.core::abort(
+      "`items` must be a property built by a prop_* factory.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
   make_prop(PropertySpec(
     type = "number",
     default = NULL,
+    default_present = nullable,
     minimum = NULL,
     maximum = NULL,
     exclusive_minimum = NULL,
@@ -2020,7 +2053,7 @@ prop_matrix <- function(
     nullable = nullable,
     tunable = FALSE,
     container = "matrix",
-    items = NULL,
+    items = item_spec,
     broadcast = FALSE,
     data_bound = data_bound,
     data_dependent = data_dependent,
@@ -3495,15 +3528,17 @@ from_wire <- function(x, cls) {
       next
     }
     container <- fields[["container"]]
-    if (container == "table" && is.list(x[[nm]]) && !is.data.frame(x[[nm]])) {
-      x[[nm]] <- default_from_wire(
+    if (
+      container %in%
+        c("array", "map", "matrix", "table", "struct") &&
+        is.list(x[[nm]]) &&
+        !is.data.frame(x[[nm]]) &&
+        !(isTRUE(fields[["tunable"]]) && is_wire_candidates(x[[nm]]))
+    ) {
+      x[nm] <- list(default_from_wire(
         x[[nm]],
         spec_to_schema(get_spec(props[[nm]]))
-      )
-    }
-    is_scalar_map <- container == "map" && spec_r_kind(fields) == "atomic"
-    if (is_scalar_map && is.list(x[[nm]])) {
-      x[[nm]] <- unlist(x[[nm]])
+      ))
     }
     if (container == "factor" && is.list(x[[nm]])) {
       x[[nm]] <- from_wire_factor(x[[nm]])
@@ -4086,7 +4121,7 @@ spec_to_schema <- function(
       additionalProperties = FALSE
     )
   } else if (spec@container == "matrix") {
-    row <- list(type = "array", items = scalar, minItems = 1L)
+    row <- list(type = "array", items = element, minItems = 1L)
     list(
       type = if (spec@nullable) I(c("array", "null")) else "array",
       items = row,

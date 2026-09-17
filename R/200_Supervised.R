@@ -985,9 +985,21 @@ Classification <- new_class(
     # class's probability, in the binary case, where every backend reduces to a
     # single score. `prob_matrix()` normalizes whatever the backend returned, so
     # the shape is the same for every algorithm and every class count.
-    predicted_prob_training = NULL | class_matrix,
-    predicted_prob_validation = NULL | class_matrix,
-    predicted_prob_test = NULL | class_matrix,
+    predicted_prob_training = prop_state(prop_matrix(
+      nullable = TRUE,
+      items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
+      description = "Predicted training probabilities, one row per case."
+    )),
+    predicted_prob_validation = prop_state(prop_matrix(
+      nullable = TRUE,
+      items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
+      description = "Predicted validation probabilities, one row per case."
+    )),
+    predicted_prob_test = prop_state(prop_matrix(
+      nullable = TRUE,
+      items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
+      description = "Predicted test probabilities, one row per case."
+    )),
     binclasspos = class_integer
   ),
   constructor = function(
@@ -1119,9 +1131,21 @@ CalibratedClassification <- new_class(
     predicted_training_calibrated = class_factor,
     predicted_validation_calibrated = NULL | class_factor,
     predicted_test_calibrated = NULL | class_factor,
-    predicted_prob_training_calibrated = class_matrix,
-    predicted_prob_validation_calibrated = NULL | class_matrix,
-    predicted_prob_test_calibrated = NULL | class_matrix,
+    predicted_prob_training_calibrated = prop_state(prop_matrix(
+      nullable = FALSE,
+      items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
+      description = "Calibrated training probabilities, one row per case."
+    )),
+    predicted_prob_validation_calibrated = prop_state(prop_matrix(
+      nullable = TRUE,
+      items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
+      description = "Calibrated validation probabilities, one row per case."
+    )),
+    predicted_prob_test_calibrated = prop_state(prop_matrix(
+      nullable = TRUE,
+      items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
+      description = "Calibrated test probabilities, one row per case."
+    )),
     metrics_training_calibrated = Metrics,
     metrics_validation_calibrated = NULL | Metrics,
     metrics_test_calibrated = NULL | Metrics

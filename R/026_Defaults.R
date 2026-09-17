@@ -626,6 +626,76 @@ default_policy_from_wire <- function(
 }
 
 
+# %% decode_atomic_cells ----
+#' Restore atomic cells without dropping JSON nulls or coercing mixed types
+#' @param value Atomic vector or list: Decoded cells.
+#' @param type Character: Declared primitive type.
+#' @param nullable Logical: Whether an individual cell can be null.
+#' @return Atomic vector with cell positions and names retained.
+#' @keywords internal
+#' @noRd
+decode_atomic_cells <- function(value, type, nullable) {
+  prototype <- switch(
+    type,
+    boolean = logical(1L),
+    integer = integer(1L),
+    number = numeric(1L),
+    string = character(1L)
+  )
+  missing <- switch(
+    type,
+    boolean = NA,
+    integer = NA_integer_,
+    number = NA_real_,
+    string = NA_character_
+  )
+  out <- vapply(
+    seq_along(value),
+    function(i) {
+      cell <- value[[i]]
+      if (
+        is.null(cell) || (is.atomic(cell) && length(cell) == 1L && is.na(cell))
+      ) {
+        if (!nullable) {
+          rtemis.core::abort(
+            "Array cells must not be null.",
+            class = "rtemis_schema_error"
+          )
+        }
+        return(missing)
+      }
+      valid <- length(cell) == 1L &&
+        switch(
+          type,
+          boolean = is.logical(cell),
+          integer = is.numeric(cell) &&
+            !is.na(cell) &&
+            is.finite(cell) &&
+            cell == trunc(cell),
+          number = is.numeric(cell),
+          string = is.character(cell)
+        )
+      if (!isTRUE(valid)) {
+        rtemis.core::abort(
+          "Array cell has the wrong JSON type.",
+          class = "rtemis_schema_error"
+        )
+      }
+      if (type == "integer" && abs(cell) > .Machine[["integer.max"]]) {
+        rtemis.core::abort(
+          "Integer cell is outside the native integer range.",
+          class = "rtemis_schema_error"
+        )
+      }
+      coerce_to_type(cell, type)
+    },
+    prototype
+  )
+  names(out) <- names(value)
+  out
+}
+
+
 # %% default_from_wire ----
 #' Restore a default using its declared wire shape
 #' @param value ANY: JSON-decoded value.
@@ -677,7 +747,42 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
     ))
   }
   if (container == "matrix") {
-    rows <- lapply(value, unlist, use.names = FALSE)
+    if (is.matrix(value)) {
+      return(value)
+    }
+    if (!is.list(value) || !length(value) || !is.null(names(value))) {
+      rtemis.core::abort(
+        "A matrix requires an array of rows.",
+        class = "rtemis_schema_error"
+      )
+    }
+    if (
+      !all(vapply(
+        value,
+        function(row) is.list(row) && is.null(names(row)),
+        logical(1L)
+      ))
+    ) {
+      rtemis.core::abort(
+        "Matrix rows must be arrays.",
+        class = "rtemis_schema_error"
+      )
+    }
+    widths <- lengths(value)
+    if (any(widths == 0L) || any(widths != widths[[1L]])) {
+      rtemis.core::abort(
+        "Matrix rows must have equal positive lengths.",
+        class = "rtemis_schema_error"
+      )
+    }
+    cell <- schema[["items"]][["items"]]
+    rows <- lapply(value, function(row) {
+      decode_atomic_cells(
+        row,
+        cell[["x-rtemis"]][["type"]] %||% ann[["type"]],
+        schema_is_nullable(cell)
+      )
+    })
     return(do.call(rbind, rows))
   }
   if (container == "factor") {
@@ -714,12 +819,33 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
       names(value)
     ))
   }
+  if (container == "array" && is.list(value) && !is.null(names(value))) {
+    rtemis.core::abort(
+      "An array cannot be decoded from a JSON object.",
+      class = "rtemis_schema_error"
+    )
+  }
   child <- schema_element(
     schema,
     container,
     isTRUE(ann[["tunable"]]),
     isTRUE(ann[["broadcast"]])
   )
+  child_ann <- child[["x-rtemis"]]
+  if (
+    container %in%
+      c("map", "array") &&
+      (child_ann[["container"]] %||% "none") == "none" &&
+      (child_ann[["type"]] %||% ann[["type"]]) %in%
+        c("boolean", "integer", "number", "string")
+  ) {
+    out <- decode_atomic_cells(
+      value,
+      child_ann[["type"]] %||% ann[["type"]],
+      schema_is_nullable(child)
+    )
+    return(if (container == "map") out else unname(out))
+  }
   if (container %in% c("map", "array") && !is.null(child[["x-rtemis"]])) {
     value <- lapply(
       value,
