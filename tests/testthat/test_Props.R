@@ -736,10 +736,10 @@ testthat::test_that("spec_to_schema maps bounds, nullability, tunability", {
 # %% S7_to_JSONSchema ----
 schema <- S7_to_JSONSchema(
   LightRFProps,
-  id = "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json",
+  id = "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json",
   title = "rtemis LightRFHyperparameters",
   description = "Hyperparameters for the LightRF algorithm (LightGBM random forest mode).",
-  instance_schema_url = "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json"
+  instance_schema_url = "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json"
 )
 
 testthat::test_that("S7_to_JSONSchema assembles a complete schema", {
@@ -752,7 +752,7 @@ testthat::test_that("S7_to_JSONSchema assembles a complete schema", {
   testthat::expect_length(schema[["properties"]], 16L)
   testthat::expect_identical(
     schema[["properties"]][["$schema"]][["const"]],
-    "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json"
+    "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json"
   )
   testthat::expect_false(
     "default" %in% names(schema[["properties"]][["nrounds"]])
@@ -1034,7 +1034,7 @@ testthat::test_that("schema serializes to JSON and round-trips", {
   parsed <- jsonlite::fromJSON(tmpfile, simplifyVector = FALSE)
   testthat::expect_identical(
     parsed[["$id"]],
-    "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json"
+    "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json"
   )
   # enum stays an array even though scalar-unboxing is on.
   testthat::expect_identical(
@@ -1563,16 +1563,11 @@ test_that("an r_only property is neither serialized nor published", {
   p <- prop_r_only(new_property(class_any))
   expect_identical(prop_role(p), "r_only")
   expect_false(prop_serialized(p))
-  # The real ones: a fitted backend model has no wire form, and unlike a
-  # computed view nothing published can reconstruct it.
-  for (nm in c("model", "session_info")) {
-    expect_identical(
-      prop_role(Supervised@properties[[nm]]),
-      "r_only",
-      info = nm
-    )
-    expect_false(prop_serialized(Supervised@properties[[nm]]), info = nm)
-  }
+  expect_identical(prop_role(Supervised@properties[["session_info"]]), "r_only")
+  expect_false(prop_serialized(Supervised@properties[["session_info"]]))
+  expect_identical(prop_role(Supervised@properties[["model"]]), "runtime")
+  expect_false(prop_serialized(Supervised@properties[["model"]]))
+  expect_false(prop_published(Supervised@properties[["model"]]))
 })
 
 
@@ -1677,10 +1672,12 @@ test_that("a declared level set constrains the levels in the schema", {
 })
 
 
-test_that("a factor property must be nullable, having no prototype value", {
-  # The same constraint `prop_matrix()` and `prop_table()` carry: a spec's
-  # default must validate, and there is no factor a class could default to.
-  expect_error(prop_factor(), "default")
+test_that("a required factor has no fabricated declaration default", {
+  property <- prop_factor()
+  expect_false(get_spec(property)@default_present)
+  Demo <- new_class("RequiredFactor", properties = list(y = property))
+  expect_error(Demo(), "explicit value")
+  expect_identical(Demo(y = factor("a"))@y, factor("a"))
 })
 
 
@@ -1691,8 +1688,8 @@ test_that("a factor survives the wire with its level order and empty levels", {
   # positive.
   reordered <- factor(c("b", "a", "b"), levels = c("b", "a"))
   wire <- wire_value(reordered, prop)
-  expect_identical(wire[["levels"]], c("b", "a"))
-  expect_identical(wire[["codes"]], c(1L, 2L, 1L))
+  expect_identical(unclass(wire[["levels"]]), c("b", "a"))
+  expect_identical(unclass(wire[["codes"]]), c(1L, 2L, 1L))
   expect_identical(from_wire_factor(wire), reordered)
   # A level with no cases disappears entirely from an array of labels.
   unobserved <- factor(c("a", "a"), levels = c("a", "b", "c"))

@@ -63,7 +63,7 @@
 #' @examples
 #' # A config that does not reconstruct: one finding, and no data checks.
 #' bad <- list(
-#'   `$schema` = "https://schema.rtemis.org/supervised/v1/schema.json",
+#'   `$schema` = "https://schema.rtemis.org/supervised/r/v1/schema.json",
 #'   n_foldz = 10L
 #' )
 #' validate_config(bad)

@@ -1,10 +1,10 @@
 {
   "$id": "https://schema.rtemis.org/checks/v1/checks.json",
   "title": "rtemis data checks",
-  "description": "Whether a config is right for the data it is about to run on, as rules rather than as code. Each rule reads a `profile/v1` description of the dataset, a config document, the outcome column's name, and `traits/v1`; none reads the data. Generated from rtemis's own checks, which remain the reference implementation.",
+  "description": "Whether a config is right for the data it is about to run on, as rules rather than as code. Each rule reads a `profile/r/v1` description of the dataset, a config document, the outcome column's name, and `traits/v1`; none reads the data. Generated from rtemis's own checks, which remain the reference implementation.",
   "expression_language": "jsonlogic",
   "inputs": {
-    "profile": "https://schema.rtemis.org/profile/v1/schema.json",
+    "profile": "https://schema.rtemis.org/profile/r/v1/schema.json",
     "config": "The config being validated, with defaults resolved.",
     "outcome": "Name of the outcome column, or null to take rtemis's convention.",
     "traits": "https://schema.rtemis.org/traits/v1/traits.json"

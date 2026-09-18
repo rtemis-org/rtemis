@@ -108,7 +108,7 @@ doc <- list(
   `$id` = paste0(base_url, "/profile/v1/fixture.json"),
   title = "rtemis profile conformance fixture",
   description = paste0(
-    "One Parquet file per case and the `profile/v1` document rtemis measures ",
+    "One Parquet file per case and the `profile/r/v1` document rtemis measures ",
     "for it. Every implementation of the profile reads the same file and must ",
     "produce the same document. Parquet because it declares its types: a ",
     "delimited file would make this a test of three type inferences rather ",

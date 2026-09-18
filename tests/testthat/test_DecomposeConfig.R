@@ -41,7 +41,7 @@ test_that("DecomposeConfig round-trips through write_config/read_config JSON", {
   xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
   expect_identical(
     xl[["$schema"]],
-    "https://schema.rtemis.org/decompose/v1/schema.json"
+    "https://schema.rtemis.org/decompose/r/v1/schema.json"
   )
   xtoo <- read_config(file)
   expect_s7_class(xtoo, DecomposeConfig)

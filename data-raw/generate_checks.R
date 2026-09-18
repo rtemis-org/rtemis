@@ -105,14 +105,14 @@ checks_document <- list(
   title = "rtemis data checks",
   description = paste0(
     "Whether a config is right for the data it is about to run on, as rules ",
-    "rather than as code. Each rule reads a `profile/v1` description of the ",
+    "rather than as code. Each rule reads a `profile/r/v1` description of the ",
     "dataset, a config document, the outcome column's name, and ",
     "`traits/v1`; none reads the data. Generated from rtemis's own checks, ",
     "which remain the reference implementation."
   ),
   expression_language = "jsonlogic",
   inputs = list(
-    profile = paste0(base_url, "/profile/v1/schema.json"),
+    profile = paste0(base_url, "/profile/r/v1/schema.json"),
     config = "The config being validated, with defaults resolved.",
     outcome = "Name of the outcome column, or null to take rtemis's convention.",
     traits = paste0(base_url, "/traits/v1/traits.json")

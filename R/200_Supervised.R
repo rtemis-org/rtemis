@@ -19,44 +19,29 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-VariableImportance <- new_class(
+VariableImportance <- schema_class(
   name = "VariableImportance",
   package = "rtemis",
   properties = list(
-    data = class_data.table
+    data = prop_table(
+      columns = list(
+        variable = prop_string(description = "Predictor or model term.")
+      ),
+      additional = prop_float(
+        NULL,
+        nullable = TRUE,
+        description = "Importance measure; null denotes an unavailable or nonfinite value."
+      ),
+      min_columns = 2L,
+      min_items = 1L,
+      description = "One row per predictor or model term, with a variable name and one or more named numeric importance measures."
+    )
   ),
-  validator = function(self) {
-    # Must include at least two columns
-    if (NCOL(self@data) < 2L) {
-      rtemis.core::abort(
-        "Variable importance data must include at least two columns: 'variable' and at least one importance measure.",
-        class = c("rtemis_dim_error", "rtemis_data_error")
-      )
-    }
-    # Must include column "variable" of type character
-    if (!"variable" %in% names(self@data)) {
-      rtemis.core::abort(
-        "Variable importance data must include a 'variable' column.",
-        class = "rtemis_data_error"
-      )
-    }
-    if (!is.character(self@data[["variable"]])) {
-      rtemis.core::abort(
-        "Column 'variable' must be of type character.",
-        class = "rtemis_data_error"
-      )
-    }
-    # All other columns must be numeric
-    other_cols <- setdiff(names(self@data), "variable")
-    if (!all(self@data[, sapply(.SD, is.numeric), .SDcols = other_cols])) {
-      rtemis.core::abort(
-        "All columns other than 'variable' must be numeric.",
-        class = "rtemis_data_error"
-      )
-    }
-    # Number of rows will be checked by Supervised to be at least as many as
-    # the number of predictors.
-  }
+  publication = SchemaPublication(
+    kind = "report",
+    scope = "shared",
+    description = "Variable importance measures by predictor or model term."
+  )
 ) # /rtemis::VariableImportance
 
 
@@ -113,15 +98,17 @@ SUPERVISED_TYPES <- c("Regression", "Classification")
 #'
 #' @author EDG
 #' @noRd
-Supervised <- new_class(
+Supervised <- schema_class(
   name = "Supervised",
   package = "rtemis",
   properties = list(
-    algorithm = class_character,
-    # The fitted backend object: an `rpart` tree, an `lgb.Booster`. It has no
-    # wire form and never will, and unlike a computed view nothing published
-    # can reconstruct it -- the saved `.rds` is its only carrier.
-    model = prop_r_only(new_property(class_any)),
+    algorithm = prop_string(
+      description = "Algorithm identifier of the fitted implementation."
+    ),
+    # Native fitted state stays on the object, outside its portable wire values.
+    model = prop_runtime(
+      "Fitted model used by this implementation for prediction."
+    ),
     # No default: the kind of learning follows from the outcome, so there is no
     # value a class definition could honestly supply. NULL is the unset value,
     # and a constructor that failed to set it fails at first use rather than
@@ -132,43 +119,188 @@ Supervised <- new_class(
       nullable = TRUE,
       description = "Kind of supervised learning the model performs."
     ),
-    preprocessor = NULL | Preprocessor,
-    preprocessor_internal = NULL | Preprocessor,
-    decomposition = NULL | Decomposition,
-    hyperparameters = NULL | Hyperparameters,
-    tuner = NULL | Tuner,
-    execution_config = ExecutionConfig,
+    preprocessor = prop_runtime(
+      "Fitted preprocessing applied before feature decomposition.",
+      cls = Preprocessor
+    ),
+    preprocessor_internal = prop_runtime(
+      "Fitted algorithm-specific preprocessing applied before prediction.",
+      cls = Preprocessor
+    ),
+    decomposition = prop_runtime(
+      "Fitted feature decomposition applied before algorithm-specific preprocessing.",
+      cls = Decomposition
+    ),
+    hyperparameters = prop_schema_choice(
+      prop_object(
+        Hyperparameters,
+        nullable = TRUE,
+        description = "Algorithm settings used by the fitted model; the run record carries complete resolution details."
+      ),
+      schemas = list(
+        `rtemis-ml::Hyperparameters` = "https://schema.rtemis.org/hyperparameters/python/v1/schema.json"
+      )
+    ),
+    tuner = prop_runtime(
+      "Native tuning results; portable tuning details are carried by the run record.",
+      cls = Tuner
+    ),
+    execution_config = prop_schema_choice(
+      prop_object(
+        ExecutionConfig,
+        description = "Execution settings used by this implementation."
+      ),
+      schemas = list(
+        `rtemis-ml::ExecutionConfig` = "https://schema.rtemis.org/execution/python/v1/schema.json"
+      )
+    ),
     # The outcome, in the same shape as the predictions it is compared against:
     # numeric for regression, a factor of its levels for classification.
-    y_training = class_numeric | class_factor,
-    y_validation = NULL | class_numeric | class_factor,
-    y_test = NULL | class_numeric | class_factor,
+    y_training = prop_state(prop_union(
+      list(
+        prop_external(prop_array(prop_float(NULL, nullable = TRUE))),
+        prop_external(prop_factor(allow_missing = TRUE))
+      ),
+      nullable = FALSE,
+      description = "Observed outcomes for the training sample, in row order. Numeric values or categorical levels and codes; unavailable values are null."
+    )),
+    y_validation = prop_state(prop_union(
+      list(
+        prop_external(prop_array(prop_float(NULL, nullable = TRUE))),
+        prop_external(prop_factor(allow_missing = TRUE))
+      ),
+      nullable = TRUE,
+      description = "Observed outcomes for the validation sample, in row order. Numeric values or categorical levels and codes; unavailable values are null."
+    )),
+    y_test = prop_state(prop_union(
+      list(
+        prop_external(prop_array(prop_float(NULL, nullable = TRUE))),
+        prop_external(prop_factor(allow_missing = TRUE))
+      ),
+      nullable = TRUE,
+      description = "Observed outcomes for the test sample, in row order. Numeric values or categorical levels and codes; unavailable values are null."
+    )),
     # Regression predicts numeric, classification predicts a factor of the
     # outcome's levels; there is no third case.
-    predicted_training = class_numeric | class_factor,
-    predicted_validation = NULL | class_numeric | class_factor,
-    predicted_test = NULL | class_numeric | class_factor,
-    metrics_training = Metrics,
-    metrics_validation = NULL | Metrics,
-    metrics_test = NULL | Metrics,
-    xnames = class_character,
-    varimp = NULL | VariableImportance,
-    question = NULL | class_character,
+    predicted_training = prop_state(prop_union(
+      list(
+        prop_external(prop_array(prop_float(NULL, nullable = TRUE))),
+        prop_external(prop_factor(allow_missing = TRUE))
+      ),
+      nullable = FALSE,
+      description = "Predictions for the training sample, in row order. Numeric values or categorical levels and codes; unavailable values are null."
+    )),
+    predicted_validation = prop_state(prop_union(
+      list(
+        prop_external(prop_array(prop_float(NULL, nullable = TRUE))),
+        prop_external(prop_factor(allow_missing = TRUE))
+      ),
+      nullable = TRUE,
+      description = "Predictions for the validation sample, in row order. Numeric values or categorical levels and codes; unavailable values are null."
+    )),
+    predicted_test = prop_state(prop_union(
+      list(
+        prop_external(prop_array(prop_float(NULL, nullable = TRUE))),
+        prop_external(prop_factor(allow_missing = TRUE))
+      ),
+      nullable = TRUE,
+      description = "Predictions for the test sample, in row order. Numeric values or categorical levels and codes; unavailable values are null."
+    )),
+    metrics_training = prop_state(prop_union(
+      list(prop_object(RegressionMetrics), prop_object(ClassificationMetrics)),
+      nullable = FALSE,
+      description = "Metrics for the training sample."
+    )),
+    metrics_validation = prop_state(prop_union(
+      list(prop_object(RegressionMetrics), prop_object(ClassificationMetrics)),
+      nullable = TRUE,
+      description = "Metrics for the validation sample."
+    )),
+    metrics_test = prop_state(prop_union(
+      list(prop_object(RegressionMetrics), prop_object(ClassificationMetrics)),
+      nullable = TRUE,
+      description = "Metrics for the test sample."
+    )),
+    xnames = prop_string(
+      vector = TRUE,
+      description = "Predictor names in the order expected by the fitted model."
+    ),
+    varimp = prop_object(
+      VariableImportance,
+      nullable = TRUE,
+      description = "Variable importance measures from the fitted model."
+    ),
+    question = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Question addressed by this analysis."
+    ),
     # Provenance. `session_info` is a full `utils::sessionInfo()` -- the first
     # thing asked for when troubleshooting -- and `session` is the run timeline.
     # `data_fingerprint` identifies the training data itself, so that comparing
     # models trained on different inputs is detectable rather than silent.
-    data_fingerprint = NULL | DataFingerprint,
+    data_fingerprint = prop_object(
+      DataFingerprint,
+      nullable = TRUE,
+      description = "Fingerprint of the training data."
+    ),
     # R-specific by construction, and what a consumer outside R would want
     # from it -- versions, platform -- is what `Provenance` publishes.
     session_info = prop_r_only(new_property(class_any)),
-    session = NULL | SupervisedSession,
+    session = prop_runtime(
+      "Native execution session; portable history is carried by the session artifact.",
+      cls = SupervisedSession
+    ),
     # The run's *input*, which nothing else here carries: the hyperparameters on
     # this object are the ones that ran, resolved, and only the input says what
     # was asked for. `record()` needs both to state where each value came from.
     # Assigned by `train()` after construction rather than threaded through five
     # constructors that have no use for it.
-    config = NULL | SuperConfig
+    config = prop_runtime(
+      "Native input configuration, which may contain in-memory data; portable settings are carried by the run record.",
+      cls = SuperConfig
+    )
+  ),
+  publication = SchemaPublication(
+    kind = "report",
+    scope = "shared",
+    slug = "supervisedresult",
+    description = "Portable supervised learning result; native fitted state is held separately on the object."
+  ),
+  rules = unlist(
+    lapply(
+      c(
+        "y_training",
+        "y_validation",
+        "y_test",
+        "predicted_training",
+        "predicted_validation",
+        "predicted_test",
+        "metrics_training",
+        "metrics_validation",
+        "metrics_test"
+      ),
+      function(nm) {
+        lapply(seq_along(SUPERVISED_TYPES), function(i) {
+          UnionSelectionRule(
+            id = paste0("supervised.", tolower(SUPERVISED_TYPES[[i]]), ".", nm),
+            message = paste0(
+              nm,
+              " must use the ",
+              tolower(SUPERVISED_TYPES[[i]]),
+              " representation selected by type."
+            ),
+            property = nm,
+            alternative = i,
+            when = SchemaPredicate(
+              property = "type",
+              equals = SUPERVISED_TYPES[[i]]
+            )
+          )
+        })
+      }
+    ),
+    recursive = FALSE
   ),
   constructor = function(
     algorithm,
@@ -658,9 +790,9 @@ method(repr, Supervised) <- function(
 #'
 #' Convert a `Supervised` (or `Regression` / `Classification` /
 #' `CalibratedClassification`) object to a JSON-serializable list. Excludes
-#' the model object, the full prediction and outcome vectors, and the R
-#' session_info -- all of which are either not JSON-friendly, too large for the
-#' control-plane response, or fetched separately as Arrow IPC bulk data.
+#' native fitted objects, the full prediction and outcome vectors, and R
+#' session_info. Portable preprocessing and decomposition settings are carried
+#' by the run record; bulk predictions and outcomes are fetched as Arrow IPC.
 #'
 #' @param x `Supervised` object.
 #'
@@ -681,16 +813,15 @@ method(to_json, Supervised) <- function(x, ...) {
     description = desc(x), # used by rtemislive
     xnames = x@xnames,
     n_features = length(x@xnames),
-    preprocessor = .to_json_value(x@preprocessor),
-    preprocessor_internal = .to_json_value(x@preprocessor_internal),
-    decomposition = if (!is.null(x@decomposition)) {
-      x@decomposition@algorithm
-    } else {
-      NULL
-    },
-    hyperparameters = .to_json_value(x@hyperparameters),
+    hyperparameters = .to_json_value(wire_value(
+      x@hyperparameters,
+      S7_class(x)@properties[["hyperparameters"]]
+    )),
     tuner = .to_json_value(x@tuner),
-    execution_config = .to_json_value(x@execution_config),
+    execution_config = .to_json_value(wire_value(
+      x@execution_config,
+      S7_class(x)@properties[["execution_config"]]
+    )),
     metrics_training = .to_json_value(x@metrics_training),
     metrics_validation = .to_json_value(x@metrics_validation),
     metrics_test = .to_json_value(x@metrics_test),
@@ -969,7 +1100,7 @@ method(describe, Supervised) <- function(x, verbosity = 1L) {
 #'
 #' @author EDG
 #' @noRd
-Classification <- new_class(
+Classification <- schema_class(
   name = "Classification",
   package = "rtemis",
   parent = Supervised,
@@ -978,11 +1109,41 @@ Classification <- new_class(
     # class's probability, in the binary case, where every backend reduces to a
     # single score. `prob_matrix()` normalizes whatever the backend returned, so
     # the shape is the same for every algorithm and every class count.
-    predicted_prob_training = NULL | class_matrix,
-    predicted_prob_validation = NULL | class_matrix,
-    predicted_prob_test = NULL | class_matrix,
-    binclasspos = class_integer
+    predicted_prob_training = prop_state(prop_external(prop_matrix(
+      nullable = TRUE,
+      items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
+      description = "Predicted training probabilities, one row per case; binary results contain the positive-level column selected by binclasspos, and multiclass columns follow the training outcome levels."
+    ))),
+    predicted_prob_validation = prop_state(prop_external(prop_matrix(
+      nullable = TRUE,
+      items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
+      description = "Predicted validation probabilities, one row per case; binary results contain the positive-level column selected by binclasspos, and multiclass columns follow the training outcome levels."
+    ))),
+    predicted_prob_test = prop_state(prop_external(prop_matrix(
+      nullable = TRUE,
+      items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
+      description = "Predicted test probabilities, one row per case; binary results contain the positive-level column selected by binclasspos, and multiclass columns follow the training outcome levels."
+    ))),
+    binclasspos = prop_integer(
+      2L,
+      min = 1L,
+      max = 2L,
+      description = "One-based position of the positive level for binary classification."
+    )
   ),
+  publication = SchemaPublication(
+    kind = "report",
+    scope = "shared",
+    description = "Portable classification result."
+  ),
+  rules = list(RequireConditions(
+    id = "classification.type",
+    message = "type must identify classification.",
+    conditions = list(SchemaPredicate(
+      property = "type",
+      equals = "Classification"
+    ))
+  )),
   constructor = function(
     algorithm = NULL,
     model = NULL,
@@ -1112,9 +1273,21 @@ CalibratedClassification <- new_class(
     predicted_training_calibrated = class_factor,
     predicted_validation_calibrated = NULL | class_factor,
     predicted_test_calibrated = NULL | class_factor,
-    predicted_prob_training_calibrated = class_matrix,
-    predicted_prob_validation_calibrated = NULL | class_matrix,
-    predicted_prob_test_calibrated = NULL | class_matrix,
+    predicted_prob_training_calibrated = prop_state(prop_external(prop_matrix(
+      nullable = FALSE,
+      items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
+      description = "Calibrated training probabilities, one row per case; binary results contain the positive-level column selected by binclasspos, and multiclass columns follow the training outcome levels."
+    ))),
+    predicted_prob_validation_calibrated = prop_state(prop_external(prop_matrix(
+      nullable = TRUE,
+      items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
+      description = "Calibrated validation probabilities, one row per case; binary results contain the positive-level column selected by binclasspos, and multiclass columns follow the training outcome levels."
+    ))),
+    predicted_prob_test_calibrated = prop_state(prop_external(prop_matrix(
+      nullable = TRUE,
+      items = prop_float(NULL, min = 0, max = 1, nullable = TRUE),
+      description = "Calibrated test probabilities, one row per case; binary results contain the positive-level column selected by binclasspos, and multiclass columns follow the training outcome levels."
+    ))),
     metrics_training_calibrated = Metrics,
     metrics_validation_calibrated = NULL | Metrics,
     metrics_test_calibrated = NULL | Metrics
@@ -1256,9 +1429,19 @@ method(predict, CalibratedClassification) <- function(object, newdata, ...) {
 #'
 #' @author EDG
 #' @noRd
-Regression <- new_class(
+Regression <- schema_class(
   name = "Regression",
   parent = Supervised,
+  publication = SchemaPublication(
+    kind = "report",
+    scope = "shared",
+    description = "Portable regression result."
+  ),
+  rules = list(RequireConditions(
+    id = "regression.type",
+    message = "type must identify regression.",
+    conditions = list(SchemaPredicate(property = "type", equals = "Regression"))
+  )),
   constructor = function(
     algorithm = NULL,
     model = NULL,
@@ -1664,46 +1847,215 @@ method(present, Classification) <- function(
 #'
 #' @author EDG
 #' @noRd
-SupervisedRes <- new_class(
+SupervisedRes <- schema_class(
   name = "SupervisedRes",
   package = "rtemis",
   properties = list(
-    algorithm = class_character,
-    models = class_list,
+    algorithm = prop_string(
+      description = "Algorithm identifier of the fitted implementation."
+    ),
+    models = prop_state(prop_union(
+      list(
+        prop_collection(Regression, min_items = 1L),
+        prop_collection(Classification, min_items = 1L)
+      ),
+      description = "Fitted result for each successful resample, in resample_ids order."
+    )),
+    resample_ids = prop_state(prop_string(
+      vector = TRUE,
+      unique_items = TRUE,
+      description = "Identifiers of successful resamples in the order used by all per-resample arrays; each identifies a split in outer_resampler."
+    )),
     type = prop_string(
-      NULL,
       enum = SUPERVISED_TYPES,
-      nullable = TRUE,
       description = "Kind of supervised learning the models perform."
     ),
-    preprocessor_config = NULL | SupervisedPreprocessorConfig,
-    decomposition_config = NULL | DecompositionConfig,
+    preprocessor_config = prop_object(
+      SupervisedPreprocessorConfig,
+      nullable = TRUE,
+      description = "Preprocessing settings requested for each resample."
+    ),
+    decomposition_config = prop_object(
+      DecompositionConfig,
+      nullable = TRUE,
+      description = "Feature decomposition settings requested for each resample."
+    ),
     # A resampled run holds what was *asked for*, and that may be a set: each
     # fold tunes independently and may select a different member, so there is no
     # single winner at this level. The per-fold winners are on the models, whose
     # own `hyperparameters` is always one resolved configuration.
-    hyperparameters = NULL | Hyperparameters | HyperparametersSet,
-    tuner_config = NULL | TunerConfig,
-    outer_resampler = Resampler,
-    execution_config = ExecutionConfig,
+    hyperparameters = prop_schema_choice(
+      prop_object_choice(
+        Hyperparameters,
+        HyperparametersSet,
+        presence_key = "variants",
+        nullable = TRUE,
+        description = "Requested algorithm settings or named variants; successful folds hold their selected settings."
+      ),
+      schemas = list(
+        `rtemis-ml::Hyperparameters` = "https://schema.rtemis.org/hyperparameters/python/v1/schema.json"
+      )
+    ),
+    tuner_config = prop_object(
+      TunerConfig,
+      nullable = TRUE,
+      description = "Tuning settings requested for each resample."
+    ),
+    outer_resampler = prop_object(
+      Resampler,
+      description = "All requested outer splits, including splits whose models failed."
+    ),
+    execution_config = prop_schema_choice(
+      prop_object(
+        ExecutionConfig,
+        description = "Execution settings used by this implementation."
+      ),
+      schemas = list(
+        `rtemis-ml::ExecutionConfig` = "https://schema.rtemis.org/execution/python/v1/schema.json"
+      )
+    ),
     # One element per resample, each a `Supervised`-shaped outcome vector.
-    y_training = class_list,
-    y_test = class_list,
+    y_training = prop_state(prop_union(
+      list(
+        prop_array(prop_external(prop_array(
+          prop_float(NULL, nullable = TRUE),
+          nullable = FALSE
+        ))),
+        prop_array(prop_external(prop_factor(
+          allow_missing = TRUE,
+          nullable = FALSE
+        )))
+      ),
+      description = "Observed outcomes for each training sample, in resample_ids order."
+    )),
+    y_test = prop_state(prop_union(
+      list(
+        prop_array(prop_external(prop_array(
+          prop_float(NULL, nullable = TRUE),
+          nullable = TRUE
+        ))),
+        prop_array(prop_external(prop_factor(
+          allow_missing = TRUE,
+          nullable = TRUE
+        )))
+      ),
+      description = "Observed outcomes for each test sample, in resample_ids order; null entries preserve unavailable samples."
+    )),
     # One element per resample, each a `Supervised`-shaped prediction vector.
-    predicted_training = class_list,
-    predicted_test = class_list,
-    metrics_training = MetricsRes,
-    metrics_test = MetricsRes,
-    xnames = class_character,
-    varimp = NULL | class_list,
-    question = NULL | class_character,
+    predicted_training = prop_state(prop_union(
+      list(
+        prop_array(prop_external(prop_array(
+          prop_float(NULL, nullable = TRUE),
+          nullable = FALSE
+        ))),
+        prop_array(prop_external(prop_factor(
+          allow_missing = TRUE,
+          nullable = FALSE
+        )))
+      ),
+      description = "Predictions for each training sample, in resample_ids order."
+    )),
+    predicted_test = prop_state(prop_union(
+      list(
+        prop_array(prop_external(prop_array(
+          prop_float(NULL, nullable = TRUE),
+          nullable = TRUE
+        ))),
+        prop_array(prop_external(prop_factor(
+          allow_missing = TRUE,
+          nullable = TRUE
+        )))
+      ),
+      description = "Predictions for each test sample, in resample_ids order; null entries preserve unavailable samples."
+    )),
+    metrics_training = prop_state(prop_union(
+      list(
+        prop_object(RegressionMetricsRes),
+        prop_object(ClassificationMetricsRes)
+      ),
+      description = "Per-resample training metrics and aggregate summaries; res_metrics follows resample_ids order."
+    )),
+    metrics_test = prop_state(prop_union(
+      list(
+        prop_object(RegressionMetricsRes),
+        prop_object(ClassificationMetricsRes)
+      ),
+      description = "Per-resample test metrics and aggregate summaries; res_metrics follows resample_ids order."
+    )),
+    xnames = prop_string(
+      vector = TRUE,
+      description = "Predictor names in the order expected by the fitted model."
+    ),
+    varimp = prop_state(prop_array(
+      prop_object(VariableImportance, nullable = TRUE),
+      nullable = TRUE,
+      description = "Variable importance in resample_ids order; a null element denotes an unavailable importance result."
+    )),
+    question = prop_string(
+      NULL,
+      nullable = TRUE,
+      description = "Question addressed by this analysis."
+    ),
     # See `Supervised` for the provenance and input rationale.
-    config = NULL | SuperConfig,
-    data_fingerprint = NULL | DataFingerprint,
+    config = prop_runtime(
+      "Native input configuration, which may contain in-memory data; portable settings are carried by the run record.",
+      cls = SuperConfig
+    ),
+    data_fingerprint = prop_object(
+      DataFingerprint,
+      nullable = TRUE,
+      description = "Fingerprint of the training data."
+    ),
     # R-specific by construction, and what a consumer outside R would want
     # from it -- versions, platform -- is what `Provenance` publishes.
     session_info = prop_r_only(new_property(class_any)),
-    session = NULL | SupervisedSession
+    session = prop_runtime(
+      "Native execution session; portable history is carried by the session artifact.",
+      cls = SupervisedSession
+    )
+  ),
+  publication = SchemaPublication(
+    kind = "report",
+    scope = "shared",
+    description = "Portable supervised results aggregated over successful resamples."
+  ),
+  rules = unlist(
+    lapply(
+      c(
+        "models",
+        "y_training",
+        "y_test",
+        "predicted_training",
+        "predicted_test",
+        "metrics_training",
+        "metrics_test"
+      ),
+      function(nm) {
+        lapply(seq_along(SUPERVISED_TYPES), function(i) {
+          UnionSelectionRule(
+            id = paste0(
+              "supervisedres.",
+              tolower(SUPERVISED_TYPES[[i]]),
+              ".",
+              nm
+            ),
+            message = paste0(
+              nm,
+              " must use the ",
+              tolower(SUPERVISED_TYPES[[i]]),
+              " representation selected by type."
+            ),
+            property = nm,
+            alternative = i,
+            when = SchemaPredicate(
+              property = "type",
+              equals = SUPERVISED_TYPES[[i]]
+            )
+          )
+        })
+      }
+    ),
+    recursive = FALSE
   ),
   constructor = function(
     algorithm,
@@ -1732,7 +2084,8 @@ SupervisedRes <- new_class(
       S7::S7_object(),
       algorithm = algorithm,
       models = models,
-      type = models[[1]]@type,
+      resample_ids = names(models),
+      type = type,
       preprocessor_config = preprocessor_config,
       decomposition_config = decomposition_config,
       hyperparameters = hyperparameters,
@@ -1934,13 +2287,19 @@ method(to_json, SupervisedRes) <- function(x, ...) {
     n_resamples = length(x@models),
     preprocessor_config = .to_json_value(x@preprocessor_config),
     decomposition_config = .to_json_value(x@decomposition_config),
-    hyperparameters = .to_json_value(x@hyperparameters),
+    hyperparameters = .to_json_value(wire_value(
+      x@hyperparameters,
+      S7_class(x)@properties[["hyperparameters"]]
+    )),
     tuner_config = .to_json_value(x@tuner_config),
     outer_resampler = .to_json_value(x@outer_resampler),
     # Human-readable resampling strategy (e.g. "10 independent folds"), so
     # consumers can caption aggregate results without re-deriving it.
     resampler_desc = desc(x@outer_resampler),
-    execution_config = .to_json_value(x@execution_config),
+    execution_config = .to_json_value(wire_value(
+      x@execution_config,
+      S7_class(x)@properties[["execution_config"]]
+    )),
     metrics_training = .to_json_value(x@metrics_training),
     metrics_test = .to_json_value(x@metrics_test),
     # varimp is `NULL | class_list` of VariableImportance.
@@ -2092,13 +2451,40 @@ aggregate_fold_predictions <- function(per_fold, fn) {
 #'
 #' @author EDG
 #' @noRd
-ClassificationRes <- new_class(
+ClassificationRes <- schema_class(
   name = "ClassificationRes",
   parent = SupervisedRes,
   properties = list(
-    predicted_prob_training = class_any,
-    predicted_prob_test = class_any
+    predicted_prob_training = prop_state(prop_array(
+      prop_external(prop_matrix(
+        nullable = TRUE,
+        items = prop_float(NULL, min = 0, max = 1, nullable = TRUE)
+      )),
+      nullable = TRUE,
+      description = "Training probability matrices in resample_ids order. Each matrix uses its model's class order and binary positive level; null entries preserve unavailable probabilities."
+    )),
+    predicted_prob_test = prop_state(prop_array(
+      prop_external(prop_matrix(
+        nullable = TRUE,
+        items = prop_float(NULL, min = 0, max = 1, nullable = TRUE)
+      )),
+      nullable = TRUE,
+      description = "Test probability matrices in resample_ids order. Each matrix uses its model's class order and binary positive level; null entries preserve unavailable probabilities."
+    ))
   ),
+  publication = SchemaPublication(
+    kind = "report",
+    scope = "shared",
+    description = "Portable classification results aggregated over successful resamples."
+  ),
+  rules = list(RequireConditions(
+    id = "classificationres.type",
+    message = "type must identify classification.",
+    conditions = list(SchemaPredicate(
+      property = "type",
+      equals = "Classification"
+    ))
+  )),
   constructor = function(
     algorithm,
     models,
@@ -2336,9 +2722,19 @@ method(predict, CalibratedClassificationRes) <- function(
 #'
 #' @author EDG
 #' @noRd
-RegressionRes <- new_class(
+RegressionRes <- schema_class(
   name = "RegressionRes",
   parent = SupervisedRes,
+  publication = SchemaPublication(
+    kind = "report",
+    scope = "shared",
+    description = "Portable regression results aggregated over successful resamples."
+  ),
+  rules = list(RequireConditions(
+    id = "regressionres.type",
+    message = "type must identify regression.",
+    conditions = list(SchemaPredicate(property = "type", equals = "Regression"))
+  )),
   constructor = function(
     algorithm,
     models,

@@ -5,7 +5,7 @@
 # rtemis's half of the profile conformance contract.
 #
 # `profile/v1/fixture.json` names a Parquet file per case and carries the
-# `profile/v1` document rtemis measures for it. The CLI's polars profiler and
+# `profile/r/v1` document rtemis measures for it. The CLI's polars profiler and
 # rtemislive's DuckDB one read the same file and must produce the same document;
 # this asserts the reference implementation still produces what was recorded.
 #

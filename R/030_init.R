@@ -1780,7 +1780,8 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 # %% serializable_props ----
 #' Properties of an S7 object to serialize
 #'
-#' The default keeps every property `prop_serialized()` admits, so a flat config
+#' Reports keep every published property, including observed state. Other
+#' objects keep every property `prop_serialized()` admits, so a flat config
 #' drops the same fields a config family does rather than emitting whatever it
 #' happens to hold. Config-family classes (`Hyperparameters`,
 #' `DecompositionConfig`, `ClusteringConfig`) override this to return their
@@ -1801,16 +1802,29 @@ serializable_props <- new_generic("serializable_props", "x")
 method(serializable_props, S7_object) <- function(x) {
   values <- props(x)
   declared <- S7_class(x)@properties
+  artifact <- attr(S7_class(x), "rtemis_artifact_schema")
+  publication <- schema_publication(S7_class(x))
+  observed <- !is.null(publication) && publication@kind == "report"
   keep <- vapply(
     names(values),
     function(nm) {
+      # Reconstructed classes serialize the document they were read from,
+      # including report state and family discriminators.
+      if (!is.null(artifact)) {
+        return(nm %in% names(artifact[["properties"]]))
+      }
       # A property this object holds but does not declare cannot be judged;
       # keep it rather than silently dropping data.
-      is.null(declared[[nm]]) || prop_serialized(declared[[nm]])
+      is.null(declared[[nm]]) ||
+        if (observed) {
+          prop_published(declared[[nm]])
+        } else {
+          prop_serialized(declared[[nm]])
+        }
     },
     logical(1L)
   )
-  values <- values[keep]
+  values <- values[artifact_present_names(x, names(values)[keep])]
   for (nm in names(values)) {
     if (!is.null(declared[[nm]])) {
       values[nm] <- list(wire_value(values[[nm]], declared[[nm]]))
@@ -1825,7 +1839,7 @@ S7_to_list <- function(x) {
   if (S7_inherits(x)) {
     x <- serializable_props(x)
   }
-  if (is.list(x)) {
+  if (is.list(x) && !is.data.frame(x)) {
     x <- lapply(x, S7_to_list)
   }
   x

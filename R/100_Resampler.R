@@ -641,15 +641,33 @@ setup_Custom <- function(resamples = NULL) {
 #' @description
 #' Class for resampling objects.
 #'
+#' @field type Character: Resampling method used to draw the splits.
+#' @field resamples Named list: One-based training-row positions by split name; repeated positions retain bootstrap multiplicity.
+#' @field config ResamplerConfig: Settings used to draw the resamples.
+#'
 #' @author EDG
 #' @noRd
-Resampler <- new_class(
+Resampler <- schema_class(
   name = "Resampler",
   package = "rtemis",
   properties = list(
-    type = class_character,
-    resamples = class_list,
-    config = ResamplerConfig
+    type = prop_string(
+      description = "Resampling method used to draw the splits."
+    ),
+    resamples = prop_state(prop_map(
+      prop_external(prop_integer(min = 1L, vector = TRUE)),
+      description = "Training-row positions by resample identifier, using one-based indices. Repeated positions preserve bootstrap multiplicity."
+    )),
+    config = prop_object(
+      ResamplerConfig,
+      description = "Settings used to draw the resamples."
+    )
+  ),
+  publication = SchemaPublication(
+    kind = "report",
+    scope = "shared",
+    slug = "resamplerresult",
+    description = "Observed resampling splits and the settings used to draw them."
   )
 ) # /rtemis::Resampler
 

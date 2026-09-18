@@ -4,9 +4,9 @@
 
 # Single source of truth for the schema.rtemis.org algorithm-family schemas.
 # Generates, per family, one leaf schema per algorithm (S7_to_JSONSchema) plus
-# the `<family>/v1` dispatcher (S7_dispatcher_JSONSchema), and writes them to
-# the schema repo in the uniform `<family>/v1` + `<family>/<algorithm>/v1`
-# layout. Run with: Rscript data-raw/generate_schemas.R [SCHEMA_REPO]
+# the dispatcher (S7_dispatcher_JSONSchema). Implementation-specific
+# namespaces include the language after the family; shared namespaces do not.
+# Each document keeps its version immediately above its filename. Run with: Rscript data-raw/generate_schemas.R [SCHEMA_REPO]
 
 suppressMessages(devtools::load_all(quiet = TRUE))
 
@@ -41,6 +41,7 @@ reference_urls <- list(
 )
 for (family in names(families)) {
   fam <- families[[family]]
+  namespace <- schema_namespace(family, fam[["base_class"]])
   classes <- lapply(fam[["algorithms"]], `[[`, "cls")
   discriminator <- fam[["discriminator"]]
   # Leaves. Each is written twice: the input schema, and its `record.json`
@@ -50,10 +51,10 @@ for (family in names(families)) {
   for (algo in fam[["algorithms"]]) {
     cls <- algo[["cls"]]
     slug <- tolower(discriminator_value(cls, discriminator))
-    dir <- file.path(schema_repo, family, slug, "v1")
+    dir <- file.path(schema_repo, namespace, slug, "v1")
     dir.create(dir, recursive = TRUE, showWarnings = FALSE)
     for (kind in c("schema", "record")) {
-      id <- paste0(base_url, "/", family, "/", slug, "/v1/", kind, ".json")
+      id <- paste0(base_url, "/", namespace, "/", slug, "/v1/", kind, ".json")
       schema <- S7_to_JSONSchema(
         cls,
         id = id,
@@ -83,7 +84,7 @@ for (family in names(families)) {
   # Dispatcher, likewise in both kinds: the record dispatcher routes each
   # variant to its `record.json` rather than its `schema.json`.
   for (kind in c("schema", "record")) {
-    dispatcher_id <- paste0(base_url, "/", family, "/v1/", kind, ".json")
+    dispatcher_id <- paste0(base_url, "/", namespace, "/v1/", kind, ".json")
     dispatcher <- S7_dispatcher_JSONSchema(
       classes = classes,
       id = dispatcher_id,
@@ -108,7 +109,7 @@ for (family in names(families)) {
     }
     write_JSONSchema(
       dispatcher,
-      file.path(schema_repo, family, "v1", paste0(kind, ".json")),
+      file.path(schema_repo, namespace, "v1", paste0(kind, ".json")),
       overwrite = TRUE,
       verbosity = 0L
     )
@@ -125,7 +126,8 @@ for (family in names(families)) {
 # one schema per class, with constraints generated from its declarations.
 for (family in names(flat_configs)) {
   cfg <- flat_configs[[family]]
-  dir <- file.path(schema_repo, family, "v1")
+  namespace <- schema_namespace(family, cfg[["cls"]])
+  dir <- file.path(schema_repo, namespace, "v1")
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   # A record's own components have no record form: they *are* the record's
   # furniture, not configs a run resolves. Nor do results classes, which are
@@ -136,7 +138,7 @@ for (family in names(flat_configs)) {
     c("schema", "record")
   }
   for (kind in kinds) {
-    id <- paste0(base_url, "/", family, "/v1/", kind, ".json")
+    id <- paste0(base_url, "/", namespace, "/v1/", kind, ".json")
     arguments <- list(
       x = cfg[["cls"]],
       id = id,
@@ -145,7 +147,7 @@ for (family in names(flat_configs)) {
       record = kind == "record",
       asserted = cfg[["kind"]] == "report",
       reference_urls = reference_urls[[kind]],
-      instance_schema_url = if (cfg[["kind"]] != "report") id
+      instance_schema_url = id
     )
     if (kind == "record") {
       arguments <- c(

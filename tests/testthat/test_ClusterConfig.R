@@ -41,7 +41,7 @@ test_that("ClusterConfig round-trips through write_config/read_config JSON", {
   xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
   expect_identical(
     xl[["$schema"]],
-    "https://schema.rtemis.org/cluster/v1/schema.json"
+    "https://schema.rtemis.org/cluster/r/v1/schema.json"
   )
   xtoo <- read_config(file)
   expect_s7_class(xtoo, ClusterConfig)

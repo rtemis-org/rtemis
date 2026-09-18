@@ -309,7 +309,7 @@ CHECKS_LET <- list(
   # The earliest level holding the minimum, which is what `which.min()` picks
   # on a tie.
   expr("min_class_level", 'first(min_classes, "level")', "any"),
-  # Long form, one record per level, matching the shape `profile/v1` settled
+  # Long form, one record per level, matching the shape `profile/r/v1` settled
   # on: an expression language iterates arrays and cannot iterate a
   # name -> count map.
   scan(

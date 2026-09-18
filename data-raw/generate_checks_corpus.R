@@ -167,7 +167,7 @@ as_evidence <- function(evidence) {
 
 
 # %% as_finding ----
-# A `Diagnostic` as `diagnostic/v1` carries it. `to_json()` decides which
+# A `Diagnostic` as `diagnostic/r/v1` carries it. `to_json()` decides which
 # properties that is, so the recorded finding cannot fall behind the class the
 # way a hand-written list does; what is added here is only the serialization
 # jsonlite cannot infer -- which evidence values are arrays, and a patch op's
@@ -191,7 +191,7 @@ as_finding <- function(d) {
 # %% as_profile ----
 # `to_json()` and not a reassembly: it walks the class's published properties,
 # so the recorded document is the one rtemis emits rather than a second
-# description of `profile/v1` maintained here. The list this replaced dropped
+# description of `profile/r/v1` maintained here. The list this replaced dropped
 # `fingerprint`, which went unnoticed for as long as the schema declared no
 # `required` -- and a profile the corpus records but rtemis would never emit is
 # not an oracle for anything.
@@ -277,12 +277,21 @@ if (length(cases[["rows"]]) == 0L) {
 # away, in the CLI's conformance suite, as a schema the corpus does not satisfy.
 schema_props <- function(family) {
   names(jsonlite::fromJSON(
-    file.path(schema_repo, family, "v1", "schema.json"),
+    file.path(
+      schema_repo,
+      schema_namespace(
+        family,
+        schema_catalog()[["flat_configs"]][[family]][["cls"]]
+      ),
+      "v1",
+      "schema.json"
+    ),
     simplifyVector = FALSE
   )[["properties"]])
 }
 assert_complete <- function(x, props, what, id) {
-  missing <- setdiff(props, names(x))
+  # The optional document identifier is not an observed report property.
+  missing <- setdiff(props, c(names(x), "$schema"))
   if (length(missing) > 0L) {
     stop(
       what,

@@ -28,7 +28,11 @@ add <- function(name, slug, cls, input, context = NULL) {
   }
   cases[[name]] <<- list(
     name = name,
-    schema = paste0("https://schema.rtemis.org/", slug, "/v1/schema.json"),
+    schema = paste0(
+      "https://schema.rtemis.org/",
+      schema_namespace(slug, cls),
+      "/v1/schema.json"
+    ),
     input = wire_input,
     context = context,
     expected = list(

@@ -5,12 +5,41 @@
 # %% default_artifact_graph ----
 #' Reconstruct typed references from a closed artifact graph
 #' @param schemas Named list: Parsed schemas keyed by canonical identity.
-#' @param defaults Named list: Versioned defaults artifact.
+#' @param defaults Named list: Versioned defaults artifact or list of producer artifacts.
 #' @param authoring Optional List: Authoring maps keyed by schema identity.
 #' @return List containing class and wire-value readers backed only by artifacts.
 #' @keywords internal
 #' @noRd
 default_artifact_graph <- function(schemas, defaults, authoring = NULL) {
+  if (is.null(defaults[["format_version"]])) {
+    artifacts <- defaults
+    if (
+      !length(artifacts) ||
+        !all(vapply(
+          artifacts,
+          function(item) {
+            identical(item[["format_version"]], 1L)
+          },
+          logical(1L)
+        ))
+    ) {
+      rtemis.core::abort(
+        "Unsupported defaults artifact version.",
+        class = "rtemis_schema_error"
+      )
+    }
+    defaults <- list(format_version = 1L)
+    for (field in c("declarations", "resolution", "schemas")) {
+      values <- do.call(c, lapply(artifacts, `[[`, field))
+      if (anyDuplicated(names(values))) {
+        rtemis.core::abort(
+          "Defaults artifacts have overlapping owners.",
+          class = "rtemis_schema_error"
+        )
+      }
+      defaults[[field]] <- values
+    }
+  }
   if (!identical(defaults[["format_version"]], 1L)) {
     rtemis.core::abort(
       "Unsupported defaults artifact version.",
@@ -108,7 +137,9 @@ default_artifact_graph <- function(schemas, defaults, authoring = NULL) {
       default_from_wire(value[[nm]], document[["properties"]][[nm]], decode)
     })
     names(args) <- names(value)
-    do.call(cls, args)
+    result <- do.call(cls, args)
+    attr(result, "rtemis_artifact_fields") <- names(value) %||% character()
+    result
   }
   class_for <- function(identity) {
     if (exists(identity, classes, inherits = FALSE)) {
@@ -151,7 +182,8 @@ default_artifact_graph <- function(schemas, defaults, authoring = NULL) {
       declaration <- declaration[keep]
       names(declaration) <- substring(names(declaration), nchar(path) + 1L)
     }
-    parent <- NULL
+    parent_identity <- schema[["x-rtemis"]][["publication"]][["parent"]]
+    parent <- if (!is.null(parent_identity)) class_for(parent_identity)
     parent_info <- parents[[id]]
     if (!is.null(parent_info)) {
       parent_location <- identities[[parent_info[["identity"]]]]

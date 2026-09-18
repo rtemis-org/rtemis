@@ -4215,7 +4215,8 @@ test_that("a record reports what ran, not what was asked for", {
   expect_identical(hp[["objective"]], "multiclass")
   expect_identical(hp[["origin"]][["objective"]], "default")
   expect_identical(rec[["provenance"]][["outcome"]], "completed")
-  expect_true(nzchar(rec[["provenance"]][["rtemis_version"]]))
+  expect_true(nzchar(rec[["provenance"]][["implementation"]][["version"]]))
+  expect_identical(rec[["provenance"]][["implementation"]][["language"]], "r")
 })
 
 test_that("record() refuses a model with no stored input", {

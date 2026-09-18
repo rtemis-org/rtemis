@@ -23,6 +23,59 @@
 RUN_OUTCOMES <- c("completed", "failed", "canceled")
 
 
+# %% Implementation ----
+#' Implementation identity
+#'
+#' @description Package and language versions of the implementation that ran.
+#' @field name Character: Implementation package name.
+#' @field version Character: Implementation package version.
+#' @field language Character: Lowercase language identifier.
+#' @field language_version Character: Language runtime version.
+#' @author EDG
+#' @keywords internal
+#' @noRd
+Implementation <- schema_class(
+  name = "Implementation",
+  package = "rtemis",
+  properties = list(
+    name = prop_string(description = "Implementation package name."),
+    version = prop_string(description = "Implementation package version."),
+    language = prop_string(
+      description = "Lowercase language identifier, such as r or python."
+    ),
+    language_version = prop_string(description = "Language runtime version.")
+  ),
+  publication = SchemaPublication(
+    role = "document",
+    slug = "implementation",
+    title = "rtemis Implementation",
+    description = "Package and language identity of the implementation that executed a run.",
+    kind = "report",
+    scope = "shared"
+  )
+)
+
+
+# %% repr.Implementation ----
+#' @keywords internal
+#' @noRd
+method(repr, Implementation) <- function(x, output_type = NULL, ...) {
+  fmt(
+    paste0(
+      x@name,
+      " ",
+      x@version,
+      " (",
+      x@language,
+      " ",
+      x@language_version,
+      ")"
+    ),
+    output_type = output_type
+  )
+}
+
+
 # %% Provenance ----
 #' Provenance
 #'
@@ -30,8 +83,7 @@ RUN_OUTCOMES <- c("completed", "failed", "canceled")
 #' What produced a run record: package and language versions, platform, timing,
 #' how the run ended, and a `DataFingerprint` per dataset it used.
 #'
-#' @field rtemis_version Character: rtemis version that produced the record.
-#' @field r_version Character: R version, as `R.version.string`.
+#' @field implementation `Implementation`: Package and language that executed the run.
 #' @field platform Character: Platform the run executed on.
 #' @field started,finished Character: ISO 8601 timestamps.
 #' @field elapsed_seconds Numeric [0, Inf): Wall-clock duration.
@@ -49,13 +101,9 @@ Provenance <- schema_class(
     # Versions decide reproducibility: the same config on a different rtemis
     # can resolve a default differently, and only the record can say which one
     # ran.
-    rtemis_version = prop_string(
-      "",
-      description = "rtemis version that produced this record."
-    ),
-    r_version = prop_string(
-      "",
-      description = "R version, as reported by `R.version.string`."
+    implementation = prop_object(
+      Implementation,
+      description = "Package and language identity of the implementation that executed the run."
     ),
     platform = prop_string(
       "",
@@ -105,6 +153,7 @@ Provenance <- schema_class(
     title = "rtemis Provenance",
     description = "What produced a run record: package and language versions, platform, timing, how the run ended, and a fingerprint of each dataset used. Referenced by every `<family>/v1/record.json`.",
     order = 1L,
-    kind = "component"
+    kind = "report",
+    scope = "shared"
   )
 ) # /rtemis::Provenance

@@ -255,7 +255,7 @@ test_that("LightRF constants cannot be changed", {
 test_that("LightRFHyperparameters generates its JSON Schema", {
   schema <- S7_to_JSONSchema(
     LightRFHyperparameters,
-    id = "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json",
+    id = "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json",
     base = Hyperparameters
   )
   expect_identical(
@@ -839,7 +839,7 @@ test_that("every Ranger property is generated from its own declaration", {
   expect_length(role_prop_names(RangerHyperparameters, "external"), 0L)
   schema <- S7_to_JSONSchema(
     RangerHyperparameters,
-    id = "https://schema.rtemis.org/hyperparameters/ranger/v1/schema.json",
+    id = "https://schema.rtemis.org/hyperparameters/r/ranger/v1/schema.json",
     base = Hyperparameters
   )
   props <- schema[["properties"]]
@@ -868,7 +868,7 @@ test_that("run state is in the schema as readOnly, but never serialized", {
   # is re-derived on read.
   schema <- S7_to_JSONSchema(
     GLMNETHyperparameters,
-    id = "https://schema.rtemis.org/hyperparameters/glmnet/v1/schema.json",
+    id = "https://schema.rtemis.org/hyperparameters/r/glmnet/v1/schema.json",
     base = Hyperparameters
   )
   for (nm in c("lambda.min", "lambda.1se")) {
@@ -916,7 +916,7 @@ test_that("tune_on_null is declared on the property, not per class", {
   # It reaches the schema: a consumer cannot derive it from the keywords.
   schema <- S7_to_JSONSchema(
     GLMNETHyperparameters,
-    id = "https://schema.rtemis.org/hyperparameters/glmnet/v1/schema.json",
+    id = "https://schema.rtemis.org/hyperparameters/r/glmnet/v1/schema.json",
     base = Hyperparameters
   )
   expect_true(schema[["properties"]][["lambda"]][["x-rtemis"]][[

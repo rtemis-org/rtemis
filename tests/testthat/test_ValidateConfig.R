@@ -6,7 +6,7 @@
 # through. The data half's fixture corpus lives in
 # `test_ValidateConfigFixtures.R`.
 
-.supervised_schema <- "https://schema.rtemis.org/supervised/v1/schema.json"
+.supervised_schema <- "https://schema.rtemis.org/supervised/r/v1/schema.json"
 
 .min_config <- function(...) {
   c(
@@ -111,7 +111,7 @@ test_that("to_json() emits a Diagnostics the wire can carry", {
     fix = list(list(op = "add", path = "/x", value = list("a")))
   )))
   j <- to_json(ds)
-  # Exactly what `diagnostics/v1` declares, and nothing else: the schema is
+  # Exactly what `diagnostics/r/v1` declares, and nothing else: the schema is
   # `additionalProperties: false`, so an extra key makes the wire document
   # invalid against the contract the server publishes it under.
   expect_identical(names(j), "diagnostics")
@@ -160,7 +160,7 @@ test_that("a missing or unrecognized $schema is reported as SCHEMA_INVALID", {
 
 test_that("a run record is reported as SCHEMA_INVALID, and named as a record", {
   out <- validate_config(list(
-    `$schema` = "https://schema.rtemis.org/supervised/v1/record.json"
+    `$schema` = "https://schema.rtemis.org/supervised/r/v1/record.json"
   ))
   expect_identical(out[[1L]]@code, "SCHEMA_INVALID")
   expect_match(out[[1L]]@message, "record", fixed = TRUE)
@@ -219,7 +219,7 @@ test_that("the excluded operations remain valid for a standalone preprocessor", 
   # `preprocess()` supports every one of them; only a run that fits one cannot.
   expect_length(
     validate_config(list(
-      `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+      `$schema` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json",
       remove_duplicates = TRUE,
       remove_cases_thres = 0.5
     )),

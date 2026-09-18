@@ -17,6 +17,8 @@
 #' @field discriminator_description Optional Character: Dispatch property help.
 #' @field order Integer [1, Inf): Presentation order within the publication role.
 #' @field kind Character \{"config", "pipeline", "report", "component"\}: Document kind.
+#' @field scope Character \{"shared", "implementation"\}: Contract portability.
+#' @field domain Character: Registry subject area, independent of its producer.
 #' @field record_provenance,record_session Optional Character: Qualified class identities for record supplements.
 #' @field record_folds Optional Character vector: Config properties resolved for each fold.
 #' @field record_metrics Optional Character vector: Qualified metric class identities.
@@ -28,6 +30,15 @@ SchemaPublication <- new_class(
   name = "SchemaPublication",
   package = "rtemis",
   properties = list(
+    scope = prop_string(
+      "implementation",
+      enum = c("shared", "implementation"),
+      description = "Whether the contract is shared across implementations or owned by one implementation."
+    ),
+    domain = prop_string(
+      "ml",
+      description = "Registry subject area, independent of the generating package."
+    ),
     role = prop_string(
       "document",
       enum = c("family", "leaf", "document", "inline"),
@@ -98,6 +109,9 @@ SchemaPublication <- new_class(
     )
   ),
   validator = function(self) {
+    if (!grepl("^[a-z][a-z0-9_-]*$", self@domain)) {
+      return("@domain must be a lowercase identifier starting with a letter.")
+    }
     supplements <- c(
       self@record_provenance,
       self@record_session,
@@ -301,6 +315,12 @@ property_validation_contract <- function(fields) {
     "description",
     "group"
   )] <- NULL
+  if (!is.null(fields[["alternatives"]])) {
+    fields[["alternatives"]] <- lapply(
+      fields[["alternatives"]],
+      property_validation_contract
+    )
+  }
   if (!is.null(fields[["items"]])) {
     fields[["items"]] <- property_validation_contract(fields[["items"]])
   }
@@ -422,13 +442,28 @@ schema_publication_annotation <- function(cls) {
   if (is.null(publication)) {
     return(NULL)
   }
-  list(
+  annotation <- list(
     producer = cls@package,
+    language = "r",
+    scope = publication@scope,
+    domain = publication@domain,
     class = paste0(cls@package, "::", cls@name),
     role = publication@role,
     kind = publication@kind,
     order = publication@order
   )
+  parent <- cls@parent
+  parent_publication <- if (inherits(parent, "S7_class")) {
+    schema_publication(parent)
+  }
+  if (
+    publication@role == "document" &&
+      !is.null(parent_publication) &&
+      parent_publication@role == "document"
+  ) {
+    annotation[["parent"]] <- paste0(parent@package, "::", parent@name)
+  }
+  annotation
 }
 
 

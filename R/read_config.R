@@ -130,7 +130,7 @@ read_config <- function(file) {
 #' @export
 #' @noRd
 #' @examples
-#' .drop_meta_keys(list(`$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+#' .drop_meta_keys(list(`$schema` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json",
 #'                      remove_duplicates = TRUE))
 .drop_meta_keys <- function(x) {
   if (is.null(names(x))) {

@@ -576,3 +576,28 @@ test_that("policy result types are rejected when declared", {
   )
   expect_length(resolve_class_defaults(DataFingerprint, list())[["values"]], 0L)
 })
+
+
+test_that("default previews use the declared candidate wire shape", {
+  scalar <- prop_float(1, tunable = TRUE)
+  vector <- prop_float(c(1, 2), vector = TRUE, tunable = TRUE)
+  for (case in list(
+    list(
+      property = scalar,
+      value = tune_over(1, 2),
+      expected = list(candidates = c(1, 2))
+    ),
+    list(
+      property = vector,
+      value = tune_over(c(1, 2), c(3, 4)),
+      expected = list(candidates = list(c(1, 2), c(3, 4)))
+    )
+  )) {
+    actual <- default_wire_value(
+      case[["value"]],
+      get_spec_fields(case[["property"]])
+    )
+    expect_identical(actual, case[["expected"]])
+    expect_false("from_vector" %in% names(actual))
+  }
+})

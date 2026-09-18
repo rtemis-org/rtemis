@@ -113,12 +113,17 @@ test_that("setup_KFold() loocv succeeds", {
 
 # Resampler ----
 test_that("Resampler() succeeds", {
-  res <- Resampler(
-    type = "Custom",
-    resamples = list(),
-    config = setup_KFold()
-  )
+  draws <- list(first = c(1L, 2L, 3L))
+  config <- setup_Custom(resamples = draws)
+  res <- Resampler(type = "Custom", resamples = draws, config = config)
   expect_s7_class(res, Resampler)
+  expect_identical(res@resamples, draws)
+  expect_error(Resampler(type = "Custom", resamples = list(), config = config))
+  expect_error(Resampler(
+    type = "Custom",
+    resamples = unname(draws),
+    config = config
+  ))
 })
 
 # resample() vector ----

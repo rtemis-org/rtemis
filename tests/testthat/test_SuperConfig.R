@@ -160,7 +160,7 @@ test_that("SuperConfig round-trips through write_config/read_config JSON", {
   xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
   expect_identical(
     xl[["$schema"]],
-    "https://schema.rtemis.org/supervised/v1/schema.json"
+    "https://schema.rtemis.org/supervised/r/v1/schema.json"
   )
   xtoo <- read_config(file)
   expect_s7_class(xtoo, SuperConfigPaths)
@@ -179,19 +179,19 @@ test_that("read_config ignores `$schema` on nested configs", {
   file <- file.path(tempdir(), "rtemis_nested_schema.json")
   jsonlite::write_json(
     list(
-      `$schema` = "https://schema.rtemis.org/supervised/v1/schema.json",
+      `$schema` = "https://schema.rtemis.org/supervised/r/v1/schema.json",
       dat_training_path = "~/Data/iris.csv",
       preprocessor_config = list(
-        `$schema` = "https://schema.rtemis.org/supervisedpreprocessor/v1/schema.json",
+        `$schema` = "https://schema.rtemis.org/supervisedpreprocessor/r/v1/schema.json",
         scale = TRUE
       ),
       decomposition_config = list(
-        `$schema` = "https://schema.rtemis.org/decomposition/v1/schema.json",
+        `$schema` = "https://schema.rtemis.org/decomposition/r/v1/schema.json",
         algorithm = "PCA",
         k = 2L
       ),
       execution_config = list(
-        `$schema` = "https://schema.rtemis.org/execution/v1/schema.json",
+        `$schema` = "https://schema.rtemis.org/execution/r/v1/schema.json",
         backend = "none",
         on_error = "stop"
       )
@@ -216,7 +216,7 @@ test_that("DecompositionConfig round-trips through write_config/read_config", {
   xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
   expect_identical(
     xl[["$schema"]],
-    "https://schema.rtemis.org/decomposition/v1/schema.json"
+    "https://schema.rtemis.org/decomposition/r/v1/schema.json"
   )
   xtoo <- read_config(file)
   expect_s7_class(xtoo, DecompositionConfig)
@@ -233,7 +233,7 @@ test_that("ClusteringConfig round-trips through write_config/read_config", {
   xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
   expect_identical(
     xl[["$schema"]],
-    "https://schema.rtemis.org/clustering/v1/schema.json"
+    "https://schema.rtemis.org/clustering/r/v1/schema.json"
   )
   xtoo <- read_config(file)
   expect_s7_class(xtoo, ClusteringConfig)
@@ -339,7 +339,7 @@ test_that("every SuperConfig property survives the wire converter", {
 
 test_that("a config's outcome and features round-trip through JSON", {
   config <- list(
-    `$schema` = "https://schema.rtemis.org/supervised/v1/schema.json",
+    `$schema` = "https://schema.rtemis.org/supervised/r/v1/schema.json",
     hyperparameters = list(algorithm = "GLM"),
     outcome = "y",
     features = c("a", "b")
