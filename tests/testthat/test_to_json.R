@@ -35,11 +35,16 @@ test_that("to_json(Regression) recurses into nested S7 props", {
   j <- to_json(mod_r_glm)
   expect_true(is.list(j[["metrics_training"]]))
   expect_true(is.list(j[["execution_config"]]))
-  # A nested object carries the nested class's own published properties, not a
-  # marker naming it: the property it sits on is what says which class it is.
   expect_setequal(
     names(j[["execution_config"]]),
-    published_prop_names(S7_class(prop(mod_r_glm, "execution_config")))
+    c(
+      published_prop_names(S7_class(prop(mod_r_glm, "execution_config"))),
+      "$schema"
+    )
+  )
+  expect_identical(
+    j[["execution_config"]][["$schema"]],
+    "https://schema.rtemis.org/execution/r/v1/schema.json"
   )
 })
 

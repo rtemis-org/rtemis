@@ -211,3 +211,36 @@ test_that("group and authorship round-trip independently of schema defaults", {
     "logical scalars"
   )
 })
+
+
+test_that("implementation paths are language-qualified and shared paths are stable", {
+  urls <- schema_reference_urls(schema_catalog(), "https://schema.rtemis.org")
+  records <- schema_reference_urls(
+    schema_catalog(),
+    "https://schema.rtemis.org",
+    record = TRUE
+  )
+  expect_identical(
+    unname(urls[["rtemis::Hyperparameters"]]),
+    "https://schema.rtemis.org/hyperparameters/r/v1/schema.json"
+  )
+  expect_identical(
+    unname(urls[["rtemis::LightGBMHyperparameters"]]),
+    "https://schema.rtemis.org/hyperparameters/r/lightgbm/v1/schema.json"
+  )
+  expect_identical(
+    unname(records[["rtemis::LightGBMHyperparameters"]]),
+    "https://schema.rtemis.org/hyperparameters/r/lightgbm/v1/record.json"
+  )
+  expect_identical(
+    unname(urls[["rtemis::Supervised"]]),
+    "https://schema.rtemis.org/supervisedresult/v1/schema.json"
+  )
+  expect_identical(
+    unname(urls[["rtemis::Provenance"]]),
+    "https://schema.rtemis.org/provenance/v1/schema.json"
+  )
+  entries <- default_catalog_entries(schema_catalog())
+  expect_true(all(names(entries) %in% unname(urls)))
+  expect_false(any(grepl("/hyperparameters/v1/", names(entries), fixed = TRUE)))
+})

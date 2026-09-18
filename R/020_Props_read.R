@@ -448,6 +448,7 @@ schema_to_spec <- function(
     return(PropertySpec(
       type = type,
       target_class = ann[["target_class"]],
+      schema_choices = ann[["schema_choices"]],
       alternate_class = ann[["alternate_class"]],
       presence_key = ann[["presence_key"]],
       same_variant = isTRUE(ann[["same_variant"]]),
@@ -836,6 +837,13 @@ JSONSchema_to_S7 <- function(
       return(if (schema_is_nullable(props[[nm]])) NULL | cls else cls)
     }
     prop <- make_prop(specs[[nm]])
+    if (
+      !is.null(decode_reference) &&
+        is.null(prop[["getter"]]) &&
+        is.null(prop[["setter"]])
+    ) {
+      prop <- artifact_presence_property(prop, nm)
+    }
     # `readOnly` is how run state appears in the published contract.
     if (isTRUE(props[[nm]][["readOnly"]])) prop_state(prop) else prop
   })
@@ -927,3 +935,45 @@ JSONSchema_to_S7 <- function(
   }
   cls
 } # /rtemis::JSONSchema_to_S7
+
+
+# %% artifact_presence_property ----
+#' Track assignments to properties reconstructed from serialized documents
+#' @param property S7 property: Stored declaration with ordinary attribute storage.
+#' @param name Character: Property name.
+#' @return S7 property retaining its declaration and recording explicit assignments.
+#' @keywords internal
+#' @noRd
+artifact_presence_property <- function(property, name) {
+  force(name)
+  fields <- get_spec_fields(property)
+  property[["setter"]] <- function(self, value) {
+    problem <- validate_value(value, fields)
+    if (!is.null(problem)) {
+      rtemis.core::abort(name, " ", problem, class = "rtemis_value_error")
+    }
+    attr(self, name) <- value
+    present <- attr(self, "rtemis_artifact_fields")
+    if (!is.null(present)) {
+      # The constructor validates after all setters have initialized storage.
+      # Decoded objects additionally validate class rules on later assignments.
+      S7::validate(self)
+      attr(self, "rtemis_artifact_fields") <- union(present, name)
+    }
+    self
+  }
+  property
+}
+
+
+# %% artifact_present_names ----
+#' Preserve omitted fields when serializing an artifact-reconstructed object
+#' @param value S7 object: Reconstructed or native object.
+#' @param names Character: Otherwise eligible property names.
+#' @return Character: Explicitly present names, or all eligible names for native objects.
+#' @keywords internal
+#' @noRd
+artifact_present_names <- function(value, names) {
+  present <- attr(value, "rtemis_artifact_fields")
+  if (is.null(present)) names else intersect(names, present)
+}

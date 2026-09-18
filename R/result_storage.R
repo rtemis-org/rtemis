@@ -48,6 +48,9 @@ result_walk <- function(x, transform, fields = NULL, native = FALSE) {
     )
     return(if (fields[["container"]] == "array") unname(out) else out)
   }
+  if (!native && !is.null(fields[["schema_choices"]])) {
+    return(schema_choice_wire(x, fields))
+  }
   if (S7_inherits(x)) {
     cls <- S7_class(x)
     if (native) {
@@ -58,6 +61,7 @@ result_walk <- function(x, transform, fields = NULL, native = FALSE) {
       } else {
         published_prop_names(cls)
       }
+      names <- artifact_present_names(x, names)
       values <- lapply(names, function(nm) {
         result_walk(
           prop(x, nm),
@@ -81,6 +85,7 @@ result_walk <- function(x, transform, fields = NULL, native = FALSE) {
     } else {
       published_prop_names(cls)
     }
+    names <- artifact_present_names(x, names)
     out <- lapply(names, function(nm) {
       result_walk(prop(x, nm), transform, get_spec_fields(cls@properties[[nm]]))
     })
@@ -514,7 +519,29 @@ read_result <- function(file, registry, load_data = FALSE) {
   validator(file, error = TRUE)
   graph <- default_artifact_graph(
     schemas,
-    read(file.path(registry, "defaults/v1/defaults.json"))
+    lapply(
+      unique(c(
+        "https://schema.rtemis.org/defaults/v1/defaults.json",
+        vapply(
+          Filter(
+            function(schema) {
+              !is.null(schema[["x-rtemis"]][["defaults"]])
+            },
+            schemas
+          ),
+          function(schema) schema[["x-rtemis"]][["defaults"]],
+          character(1L)
+        )
+      )),
+      function(id) {
+        prefix <- "https://schema.rtemis.org/"
+        if (!startsWith(id, prefix)) {
+          stop("Defaults must identify a registry artifact.")
+        }
+        relative <- substring(id, nchar(prefix) + 1L)
+        read(result_data_path(registry, relative))
+      }
+    )
   )
   result <- graph[["decode"]](document, publication[["class"]])
   if (load_data) {

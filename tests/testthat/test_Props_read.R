@@ -276,7 +276,9 @@ test_that("JSONSchema_to_S7() names unresolved `$ref` properties", {
       nested = list(
         oneOf = list(
           list(type = "null"),
-          list(`$ref` = "https://schema.rtemis.org/preprocessor/v1/schema.json")
+          list(
+            `$ref` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json"
+          )
         )
       )
     )
@@ -289,7 +291,7 @@ test_that("JSONSchema_to_S7() names unresolved `$ref` properties", {
   # neither half is what `S7_to_JSONSchema()` emits from one class.
   prep_schema <- S7_to_JSONSchema(
     rtemis:::PreprocessorConfig,
-    id = "https://schema.rtemis.org/preprocessor/v1/schema.json"
+    id = "https://schema.rtemis.org/preprocessor/r/v1/schema.json"
   )
   prep_specs <- Filter(
     Negate(is.null),

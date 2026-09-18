@@ -21,7 +21,7 @@ S7_dispatcher_JSONSchema(
 (each carries a computed constant discriminator property).}
 
 \item{id}{Character: Dispatcher \verb{$id} URL
-(e.g. "https://schema.rtemis.org/decomposition/v1/schema.json").}
+(e.g. "https://schema.rtemis.org/decomposition/r/v1/schema.json").}
 
 \item{discriminator}{Character: Name of the property that selects the
 variant (e.g. "algorithm", "type").}
@@ -96,7 +96,7 @@ discriminator, which is generated from the variant enum.
 \dontrun{
 schema <- S7_dispatcher_JSONSchema(
   classes = list(PCAConfig, ICAConfig),
-  id = "https://schema.rtemis.org/decomposition/v1/schema.json",
+  id = "https://schema.rtemis.org/decomposition/r/v1/schema.json",
   base = DecompositionConfig
 )
 }

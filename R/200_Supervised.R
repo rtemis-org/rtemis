@@ -131,18 +131,28 @@ Supervised <- schema_class(
       "Fitted feature decomposition applied before algorithm-specific preprocessing.",
       cls = Decomposition
     ),
-    hyperparameters = prop_object(
-      Hyperparameters,
-      nullable = TRUE,
-      description = "Algorithm settings used by the fitted model; the run record carries complete resolution details."
+    hyperparameters = prop_schema_choice(
+      prop_object(
+        Hyperparameters,
+        nullable = TRUE,
+        description = "Algorithm settings used by the fitted model; the run record carries complete resolution details."
+      ),
+      schemas = list(
+        `rtemis-ml::Hyperparameters` = "https://schema.rtemis.org/hyperparameters/python/v1/schema.json"
+      )
     ),
     tuner = prop_runtime(
       "Native tuning results; portable tuning details are carried by the run record.",
       cls = Tuner
     ),
-    execution_config = prop_object(
-      ExecutionConfig,
-      description = "Execution settings used by this implementation."
+    execution_config = prop_schema_choice(
+      prop_object(
+        ExecutionConfig,
+        description = "Execution settings used by this implementation."
+      ),
+      schemas = list(
+        `rtemis-ml::ExecutionConfig` = "https://schema.rtemis.org/execution/python/v1/schema.json"
+      )
     ),
     # The outcome, in the same shape as the predictions it is compared against:
     # numeric for regression, a factor of its levels for classification.
@@ -803,9 +813,15 @@ method(to_json, Supervised) <- function(x, ...) {
     description = desc(x), # used by rtemislive
     xnames = x@xnames,
     n_features = length(x@xnames),
-    hyperparameters = .to_json_value(x@hyperparameters),
+    hyperparameters = .to_json_value(wire_value(
+      x@hyperparameters,
+      S7_class(x)@properties[["hyperparameters"]]
+    )),
     tuner = .to_json_value(x@tuner),
-    execution_config = .to_json_value(x@execution_config),
+    execution_config = .to_json_value(wire_value(
+      x@execution_config,
+      S7_class(x)@properties[["execution_config"]]
+    )),
     metrics_training = .to_json_value(x@metrics_training),
     metrics_validation = .to_json_value(x@metrics_validation),
     metrics_test = .to_json_value(x@metrics_test),
@@ -1868,12 +1884,17 @@ SupervisedRes <- schema_class(
     # fold tunes independently and may select a different member, so there is no
     # single winner at this level. The per-fold winners are on the models, whose
     # own `hyperparameters` is always one resolved configuration.
-    hyperparameters = prop_object_choice(
-      Hyperparameters,
-      HyperparametersSet,
-      presence_key = "variants",
-      nullable = TRUE,
-      description = "Requested algorithm settings or named variants; successful folds hold their selected settings."
+    hyperparameters = prop_schema_choice(
+      prop_object_choice(
+        Hyperparameters,
+        HyperparametersSet,
+        presence_key = "variants",
+        nullable = TRUE,
+        description = "Requested algorithm settings or named variants; successful folds hold their selected settings."
+      ),
+      schemas = list(
+        `rtemis-ml::Hyperparameters` = "https://schema.rtemis.org/hyperparameters/python/v1/schema.json"
+      )
     ),
     tuner_config = prop_object(
       TunerConfig,
@@ -1884,9 +1905,14 @@ SupervisedRes <- schema_class(
       Resampler,
       description = "All requested outer splits, including splits whose models failed."
     ),
-    execution_config = prop_object(
-      ExecutionConfig,
-      description = "Execution settings used by this implementation."
+    execution_config = prop_schema_choice(
+      prop_object(
+        ExecutionConfig,
+        description = "Execution settings used by this implementation."
+      ),
+      schemas = list(
+        `rtemis-ml::ExecutionConfig` = "https://schema.rtemis.org/execution/python/v1/schema.json"
+      )
     ),
     # One element per resample, each a `Supervised`-shaped outcome vector.
     y_training = prop_state(prop_union(
@@ -2261,13 +2287,19 @@ method(to_json, SupervisedRes) <- function(x, ...) {
     n_resamples = length(x@models),
     preprocessor_config = .to_json_value(x@preprocessor_config),
     decomposition_config = .to_json_value(x@decomposition_config),
-    hyperparameters = .to_json_value(x@hyperparameters),
+    hyperparameters = .to_json_value(wire_value(
+      x@hyperparameters,
+      S7_class(x)@properties[["hyperparameters"]]
+    )),
     tuner_config = .to_json_value(x@tuner_config),
     outer_resampler = .to_json_value(x@outer_resampler),
     # Human-readable resampling strategy (e.g. "10 independent folds"), so
     # consumers can caption aggregate results without re-deriving it.
     resampler_desc = desc(x@outer_resampler),
-    execution_config = .to_json_value(x@execution_config),
+    execution_config = .to_json_value(wire_value(
+      x@execution_config,
+      S7_class(x)@properties[["execution_config"]]
+    )),
     metrics_training = .to_json_value(x@metrics_training),
     metrics_test = .to_json_value(x@metrics_test),
     # varimp is `NULL | class_list` of VariableImportance.

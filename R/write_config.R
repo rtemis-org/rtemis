@@ -76,22 +76,22 @@ write_config <- new_generic(
 # vocabulary with every value resolved, so it is a sibling document rather than
 # a different family.
 .RTEMIS_RECORD_SCHEMAS <- c(
-  supervised = "https://schema.rtemis.org/supervised/v1/record.json",
-  decompose = "https://schema.rtemis.org/decompose/v1/record.json",
-  cluster = "https://schema.rtemis.org/cluster/v1/record.json"
+  supervised = "https://schema.rtemis.org/supervised/r/v1/record.json",
+  decompose = "https://schema.rtemis.org/decompose/r/v1/record.json",
+  cluster = "https://schema.rtemis.org/cluster/r/v1/record.json"
 ) # /rtemis::.RTEMIS_RECORD_SCHEMAS
 
 
 .RTEMIS_SUPPORTED_CONFIGS <- c(
-  supervised = "https://schema.rtemis.org/supervised/v1/schema.json",
-  decompose = "https://schema.rtemis.org/decompose/v1/schema.json",
-  cluster = "https://schema.rtemis.org/cluster/v1/schema.json",
-  decomposition = "https://schema.rtemis.org/decomposition/v1/schema.json",
-  clustering = "https://schema.rtemis.org/clustering/v1/schema.json",
-  ingest = "https://schema.rtemis.org/ingest/v1/schema.json",
-  partition = "https://schema.rtemis.org/partition/v1/schema.json",
-  preprocessor = "https://schema.rtemis.org/preprocessor/v1/schema.json",
-  supervisedpreprocessor = "https://schema.rtemis.org/supervisedpreprocessor/v1/schema.json"
+  supervised = "https://schema.rtemis.org/supervised/r/v1/schema.json",
+  decompose = "https://schema.rtemis.org/decompose/r/v1/schema.json",
+  cluster = "https://schema.rtemis.org/cluster/r/v1/schema.json",
+  decomposition = "https://schema.rtemis.org/decomposition/r/v1/schema.json",
+  clustering = "https://schema.rtemis.org/clustering/r/v1/schema.json",
+  ingest = "https://schema.rtemis.org/ingest/r/v1/schema.json",
+  partition = "https://schema.rtemis.org/partition/r/v1/schema.json",
+  preprocessor = "https://schema.rtemis.org/preprocessor/r/v1/schema.json",
+  supervisedpreprocessor = "https://schema.rtemis.org/supervisedpreprocessor/r/v1/schema.json"
 ) # /rtemis::.RTEMIS_SUPPORTED_CONFIGS
 
 

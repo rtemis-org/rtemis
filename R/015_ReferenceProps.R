@@ -59,7 +59,14 @@ validate_reference_value <- function(value, fields) {
     values,
     function(x) {
       S7_inherits(x) &&
-        inherits(x, c(fields[["target_class"]], fields[["alternate_class"]]))
+        inherits(
+          x,
+          c(
+            fields[["target_class"]],
+            fields[["alternate_class"]],
+            names(fields[["schema_choices"]])
+          )
+        )
     },
     logical(1L)
   )
@@ -218,6 +225,23 @@ prop_collection <- function(
 }
 
 
+# %% schema_namespace ----
+#' Derive the publication namespace from declared contract scope
+#' @param slug Character: Concept namespace.
+#' @param cls S7 class: Published class owning the contract.
+#' @return Character: Shared namespace or language-qualified namespace.
+#' @keywords internal
+#' @noRd
+schema_namespace <- function(slug, cls) {
+  publication <- schema_publication_annotation(cls)
+  if (identical(publication[["scope"]], "implementation")) {
+    paste(slug, publication[["language"]], sep = "/")
+  } else {
+    slug
+  }
+}
+
+
 # %% schema_reference_urls ----
 #' Resolve reference identities against an already discovered publication graph
 #' @param catalog Named list: Derived schema catalog.
@@ -231,6 +255,7 @@ schema_reference_urls <- function(catalog, base_url, record = FALSE) {
   for (slug in names(catalog[["families"]])) {
     family <- catalog[["families"]][[slug]]
     base <- family[["base_class"]]
+    slug <- schema_namespace(slug, base)
     file <- if (record) "record.json" else "schema.json"
     out[[paste0(base@package, "::", base@name)]] <- paste0(
       base_url,
@@ -256,6 +281,7 @@ schema_reference_urls <- function(catalog, base_url, record = FALSE) {
   for (slug in names(catalog[["flat_configs"]])) {
     entry <- catalog[["flat_configs"]][[slug]]
     cls <- entry[["cls"]]
+    slug <- schema_namespace(slug, cls)
     file <- if (record && entry[["kind"]] %in% c("config", "pipeline")) {
       "record.json"
     } else {
@@ -291,8 +317,16 @@ reference_schema <- function(spec, target, reference_urls = NULL) {
     )
   }
   ref <- list(`$ref` = target)
+  if (!is.null(spec@schema_choices)) {
+    targets <- c(target, unname(unlist(spec@schema_choices, use.names = FALSE)))
+    ref <- list(
+      oneOf = lapply(targets, function(url) {
+        list(`$ref` = url, required = I("$schema"))
+      })
+    )
+  }
   if (!is.null(spec@alternate_class)) {
-    return(reference_choice_schema(spec, target, reference_urls))
+    return(reference_choice_schema(spec, target, reference_urls, primary = ref))
   }
   if (spec@container == "none") {
     return(
@@ -427,10 +461,16 @@ prop_object_choice <- function(
 #' @param spec `PropertySpec`: Object choice declaration.
 #' @param target Character: Resolved primary reference URL.
 #' @param reference_urls Optional named Character: Publication URLs by qualified class identity.
+#' @param primary Optional List: Contract selecting the primary object form.
 #' @return Named list: Property schema.
 #' @keywords internal
 #' @noRd
-reference_choice_schema <- function(spec, target, reference_urls = NULL) {
+reference_choice_schema <- function(
+  spec,
+  target,
+  reference_urls = NULL,
+  primary = NULL
+) {
   alternate <- schema_catalog()[["inline"]][[spec@alternate_class]]
   if (is.null(alternate)) {
     rtemis.core::abort(
@@ -463,7 +503,7 @@ reference_choice_schema <- function(spec, target, reference_urls = NULL) {
           type = "object",
           not = list(required = I(spec@presence_key))
         ),
-        then = list(`$ref` = target)
+        then = primary %||% list(`$ref` = target)
       )
     )
   )
@@ -505,4 +545,100 @@ from_wire_object <- function(value, target) {
     )
   }
   result
+}
+
+
+# %% prop_schema_choice ----
+#' Add explicitly identified implementation contracts to an object reference
+#' @param prop S7 property: A scalar class reference, optionally with an inline alternative.
+#' @param schemas Named List: Canonical schema URLs keyed by qualified class identity.
+#' @return S7 property with schema-selected typed alternatives.
+#' @keywords internal
+#' @noRd
+prop_schema_choice <- function(prop, schemas) {
+  fields <- get_spec_fields(prop)
+  fields[["schema_choices"]] <- schemas
+  make_prop(do.call(PropertySpec, fields))
+}
+
+
+# %% schema_choice_urls ----
+#' Resolve the native and foreign identities of a schema-selected reference
+#' @param fields Named List: Stored property specification.
+#' @return Named character vector of schema URLs.
+#' @keywords internal
+#' @noRd
+schema_choice_urls <- function(fields) {
+  urls <- schema_reference_urls(schema_catalog(), "https://schema.rtemis.org")
+  target <- fields[["target_class"]]
+  c(urls[target], unlist(fields[["schema_choices"]], use.names = TRUE))
+}
+
+
+# %% schema_choice_target ----
+#' Select a declared class by its explicit wire identity
+#' @param value Named List: Serialized config.
+#' @param fields Named List: Stored property specification.
+#' @return Qualified class identity.
+#' @keywords internal
+#' @noRd
+schema_choice_target <- function(value, fields) {
+  if (
+    !is.null(fields[["presence_key"]]) &&
+      fields[["presence_key"]] %in% names(value)
+  ) {
+    return(fields[["alternate_class"]])
+  }
+  urls <- schema_choice_urls(fields)
+  identity <- value[["$schema"]]
+  if (
+    !is.character(identity) ||
+      length(identity) != 1L ||
+      is.na(identity) ||
+      !identity %in% urls
+  ) {
+    rtemis.core::abort(
+      "Config must identify a declared contract with $schema.",
+      class = "rtemis_schema_error"
+    )
+  }
+  names(urls)[match(identity, urls)]
+}
+
+
+# %% schema_choice_wire ----
+#' Serialize a native typed config with its boundary schema identity
+#' @param value S7 object: Config accepted by the reference.
+#' @param fields Named List: Stored property specification.
+#' @return Named List: Explicitly identified config or declared inline alternative.
+#' @keywords internal
+#' @noRd
+schema_choice_wire <- function(value, fields) {
+  if (!S7_inherits(value)) {
+    rtemis.core::abort(
+      "Schema-selected references require typed objects.",
+      class = "rtemis_type_error"
+    )
+  }
+  if (
+    !is.null(fields[["alternate_class"]]) &&
+      inherits(value, fields[["alternate_class"]])
+  ) {
+    return(.to_json_value(value))
+  }
+  urls <- schema_choice_urls(fields)
+  selected <- vapply(
+    names(urls),
+    function(target) inherits(value, target),
+    logical(1L)
+  )
+  if (sum(selected) != 1L) {
+    rtemis.core::abort(
+      "Config must match exactly one declared schema class.",
+      class = "rtemis_schema_error"
+    )
+  }
+  out <- default_wire_value(value)
+  out[["$schema"]] <- unname(urls[selected])
+  out
 }

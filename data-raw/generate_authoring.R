@@ -86,12 +86,13 @@ authoring <- list()
 
 for (family in names(families)) {
   fam <- families[[family]]
+  namespace <- schema_namespace(family, fam[["base_class"]])
   discriminator <- fam[["discriminator"]]
   for (algo in fam[["algorithms"]]) {
     cls <- algo[["cls"]]
     slug <- tolower(discriminator_value(cls, discriminator))
-    id <- paste0(base_url, "/", family, "/", slug, "/v1/schema.json")
-    path <- file.path(schema_repo, family, slug, "v1", "schema.json")
+    id <- paste0(base_url, "/", namespace, "/", slug, "/v1/schema.json")
+    path <- file.path(schema_repo, namespace, slug, "v1", "schema.json")
     a <- .class_authoring(cls, path)
     if (!is.null(a)) {
       authoring[[id]] <- a
@@ -99,8 +100,8 @@ for (family in names(families)) {
   }
   # A dispatcher publishes the discriminator plus any field declared on the
   # family base, which every variant also declares -- read off the first.
-  dispatcher_id <- paste0(base_url, "/", family, "/v1/schema.json")
-  dispatcher_path <- file.path(schema_repo, family, "v1", "schema.json")
+  dispatcher_id <- paste0(base_url, "/", namespace, "/v1/schema.json")
+  dispatcher_path <- file.path(schema_repo, namespace, "v1", "schema.json")
   a <- .class_authoring(fam[["algorithms"]][[1L]][["cls"]], dispatcher_path)
   if (!is.null(a)) {
     authoring[[dispatcher_id]] <- a
@@ -109,8 +110,9 @@ for (family in names(families)) {
 
 for (family in names(flat_configs)) {
   cfg <- flat_configs[[family]]
-  id <- paste0(base_url, "/", family, "/v1/schema.json")
-  path <- file.path(schema_repo, family, "v1", "schema.json")
+  namespace <- schema_namespace(family, cfg[["cls"]])
+  id <- paste0(base_url, "/", namespace, "/v1/schema.json")
+  path <- file.path(schema_repo, namespace, "v1", "schema.json")
   a <- .class_authoring(cfg[["cls"]], path)
   if (!is.null(a)) {
     authoring[[id]] <- a

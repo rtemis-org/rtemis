@@ -118,6 +118,9 @@ default_wire_value <- function(value, fields = NULL) {
   if (is_candidates(value) && !is.null(fields)) {
     return(lapply(wire_value(value, list(spec = fields)), default_wire_value))
   }
+  if (!is.null(fields[["schema_choices"]])) {
+    return(schema_choice_wire(value, fields))
+  }
   if (S7_inherits(value)) {
     cls <- S7_class(value)
     base <- family_base(cls)
@@ -140,6 +143,7 @@ default_wire_value <- function(value, fields = NULL) {
         ))
       ))
     }
+    nms <- artifact_present_names(value, nms)
     out <- lapply(nms, function(nm) {
       default_wire_value(prop(value, nm), get_spec_fields(cls@properties[[nm]]))
     })
@@ -800,6 +804,13 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
   target <- ann[["target_class"]]
   if (!is.null(target)) {
     restore <- function(value) {
+      if (!is.null(ann[["schema_choices"]])) {
+        target <- schema_choice_target(value, ann)
+        if (!is.null(decode_reference)) {
+          return(decode_reference(value, target))
+        }
+        return(normalize_default_object(from_wire_object(value, target)))
+      }
       if (!is.null(decode_reference)) {
         return(decode_reference(
           value,
@@ -1038,20 +1049,20 @@ default_catalog_entries <- function(
   base_url = "https://schema.rtemis.org"
 ) {
   out <- list()
-  add <- function(cls, path) {
-    out[[paste0(base_url, "/", path)]] <<- list(cls = cls, path = path)
+  urls <- schema_reference_urls(catalog, base_url)
+  add <- function(cls) {
+    id <- unname(urls[[paste0(cls@package, "::", cls@name)]])
+    path <- substring(id, nchar(base_url) + 2L)
+    out[[id]] <<- list(cls = cls, path = path)
   }
-  for (nm in names(catalog[["families"]])) {
-    family <- catalog[["families"]][[nm]]
-    add(family[["base_class"]], paste0(nm, "/v1/schema.json"))
+  for (family in catalog[["families"]]) {
+    add(family[["base_class"]])
     for (leaf in family[["algorithms"]]) {
-      cls <- leaf[["cls"]]
-      slug <- tolower(discriminator_value(cls, family[["discriminator"]]))
-      add(cls, paste0(nm, "/", slug, "/v1/schema.json"))
+      add(leaf[["cls"]])
     }
   }
-  for (nm in names(catalog[["flat_configs"]])) {
-    add(catalog[["flat_configs"]][[nm]][["cls"]], paste0(nm, "/v1/schema.json"))
+  for (entry in catalog[["flat_configs"]]) {
+    add(entry[["cls"]])
   }
   out[sort(names(out))]
 }

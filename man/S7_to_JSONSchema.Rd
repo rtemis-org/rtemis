@@ -27,7 +27,7 @@ S7_to_JSONSchema(
 \item{x}{S7 class (e.g. \code{LightRFHyperparameters}).}
 
 \item{id}{Character: Schema \verb{$id} URL
-(e.g. "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json").}
+(e.g. "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json").}
 
 \item{title}{Character: Schema title. Defaults to the class name.}
 
@@ -110,7 +110,7 @@ instead of emitting a wrong schema.
 \dontrun{
 schema <- S7_to_JSONSchema(
   LightRFHyperparameters,
-  id = "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json",
+  id = "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json",
   base = Hyperparameters
 )
 }

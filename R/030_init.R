@@ -1824,7 +1824,7 @@ method(serializable_props, S7_object) <- function(x) {
     },
     logical(1L)
   )
-  values <- values[keep]
+  values <- values[artifact_present_names(x, names(values)[keep])]
   for (nm in names(values)) {
     if (!is.null(declared[[nm]])) {
       values[nm] <- list(wire_value(values[[nm]], declared[[nm]]))

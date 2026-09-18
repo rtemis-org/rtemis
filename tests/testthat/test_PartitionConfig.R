@@ -180,7 +180,7 @@ test_that("a PartitionConfig round-trips through write_config/read_config", {
   xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
   expect_identical(
     xl[["$schema"]],
-    "https://schema.rtemis.org/partition/v1/schema.json"
+    "https://schema.rtemis.org/partition/r/v1/schema.json"
   )
   xtoo <- read_config(file)
   expect_s7_class(xtoo, TimePartitionConfig)

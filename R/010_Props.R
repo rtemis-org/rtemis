@@ -130,6 +130,7 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   \{"boolean", "integer", "number", "string"\}.
 #' @field target_class Optional Character: Qualified S7 class identity for an
 #'   object reference or a collection of object references.
+#' @field schema_choices Optional List: Additional schema URLs keyed by qualified class identity.
 #' @field alternate_class Optional Character: Inline class selected by a structural key.
 #' @field presence_key Optional Character: Key whose presence selects the alternate class.
 #' @field same_variant Logical: Whether every collection member must share its family discriminator.
@@ -220,6 +221,7 @@ PropertySpec <- new_class(
   properties = list(
     type = class_character,
     target_class = NULL | class_character,
+    schema_choices = NULL | class_list,
     alternate_class = NULL | class_character,
     presence_key = NULL | class_character,
     same_variant = new_property(class_logical, default = FALSE),
@@ -425,6 +427,37 @@ PropertySpec <- new_class(
       }
     }
     reference <- !is.null(self@target_class)
+    if (!is.null(self@schema_choices)) {
+      choices <- self@schema_choices
+      nms <- names(choices)
+      if (
+        !reference ||
+          self@container != "none" ||
+          !length(choices) ||
+          is.null(nms) ||
+          anyNA(nms) ||
+          anyDuplicated(nms) ||
+          any(
+            !grepl("^[A-Za-z][A-Za-z0-9.-]*::[A-Za-z][A-Za-z0-9._]*$", nms)
+          ) ||
+          self@target_class %in% nms ||
+          !all(vapply(
+            choices,
+            function(url) {
+              is.character(url) &&
+                length(url) == 1L &&
+                !is.na(url) &&
+                grepl("^https://[^?#]+/v[0-9]+/schema[.]json$", url)
+            },
+            logical(1L)
+          )) ||
+          anyDuplicated(unlist(choices, use.names = FALSE))
+      ) {
+        return(
+          "@schema_choices requires unique schema URLs and class identities on a scalar reference."
+        )
+      }
+    }
     if (length(self@same_variant) != 1L || is.na(self@same_variant)) {
       return("@same_variant must be a non-missing logical scalar.")
     }
@@ -436,7 +469,7 @@ PropertySpec <- new_class(
           length(self@alternate_class) != 1L ||
           is.na(self@alternate_class) ||
           !grepl(
-            "^[A-Za-z][A-Za-z0-9.]*::[A-Za-z][A-Za-z0-9._]*$",
+            "^[A-Za-z][A-Za-z0-9.-]*::[A-Za-z][A-Za-z0-9._]*$",
             self@alternate_class
           ) ||
           is.null(self@presence_key) ||
@@ -462,7 +495,7 @@ PropertySpec <- new_class(
         length(self@target_class) != 1L ||
           is.na(self@target_class) ||
           !grepl(
-            "^[A-Za-z][A-Za-z0-9.]*::[A-Za-z][A-Za-z0-9._]*$",
+            "^[A-Za-z][A-Za-z0-9.-]*::[A-Za-z][A-Za-z0-9._]*$",
             self@target_class
           )
       ) {
@@ -3672,6 +3705,9 @@ wire_value <- function(value, prop) {
       list(spec = fields[["alternatives"]][[which(matches)[[1L]]]])
     ))
   }
+  if (!is.null(fields[["schema_choices"]])) {
+    return(schema_choice_wire(value, fields))
+  }
   if (!is.null(fields[["target_class"]])) {
     if (fields[["container"]] == "array") {
       return(unname(value))
@@ -3827,6 +3863,9 @@ from_wire <- function(x, cls) {
               fields[["alternate_class"]]
             } else {
               fields[["target_class"]]
+            }
+            if (!is.null(fields[["schema_choices"]])) {
+              target <- schema_choice_target(value, fields)
             }
             from_wire_object(value, target)
           } else {
@@ -4599,6 +4638,7 @@ spec_to_schema <- function(
     list(
       type = spec@type,
       target_class = spec@target_class,
+      schema_choices = spec@schema_choices,
       alternate_class = spec@alternate_class,
       presence_key = spec@presence_key,
       same_variant = if (spec@same_variant) TRUE else NULL,
@@ -5045,7 +5085,7 @@ prop_to_schema <- function(prop) {
 #'
 #' @param x S7 class (e.g. `LightRFHyperparameters`).
 #' @param id Character: Schema `$id` URL
-#'   (e.g. "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json").
+#'   (e.g. "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json").
 #' @param title Character: Schema title. Defaults to the class name.
 #' @param description Character: Schema description. If empty, the
 #'   "description" keyword is omitted from the schema.
@@ -5104,7 +5144,7 @@ prop_to_schema <- function(prop) {
 #' \dontrun{
 #' schema <- S7_to_JSONSchema(
 #'   LightRFHyperparameters,
-#'   id = "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json",
+#'   id = "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json",
 #'   base = Hyperparameters
 #' )
 #' }
@@ -5448,7 +5488,7 @@ base_schema_properties <- function(base, skip = character()) {
 #' @param classes List of S7 classes: the family's per-variant subclasses
 #'   (each carries a computed constant discriminator property).
 #' @param id Character: Dispatcher `$id` URL
-#'   (e.g. "https://schema.rtemis.org/decomposition/v1/schema.json").
+#'   (e.g. "https://schema.rtemis.org/decomposition/r/v1/schema.json").
 #' @param discriminator Character: Name of the property that selects the
 #'   variant (e.g. "algorithm", "type").
 #' @param base Optional S7 class: The family base class. Its own
@@ -5503,7 +5543,7 @@ base_schema_properties <- function(base, skip = character()) {
 #' \dontrun{
 #' schema <- S7_dispatcher_JSONSchema(
 #'   classes = list(PCAConfig, ICAConfig),
-#'   id = "https://schema.rtemis.org/decomposition/v1/schema.json",
+#'   id = "https://schema.rtemis.org/decomposition/r/v1/schema.json",
 #'   base = DecompositionConfig
 #' )
 #' }

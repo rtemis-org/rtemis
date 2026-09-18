@@ -736,10 +736,10 @@ testthat::test_that("spec_to_schema maps bounds, nullability, tunability", {
 # %% S7_to_JSONSchema ----
 schema <- S7_to_JSONSchema(
   LightRFProps,
-  id = "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json",
+  id = "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json",
   title = "rtemis LightRFHyperparameters",
   description = "Hyperparameters for the LightRF algorithm (LightGBM random forest mode).",
-  instance_schema_url = "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json"
+  instance_schema_url = "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json"
 )
 
 testthat::test_that("S7_to_JSONSchema assembles a complete schema", {
@@ -752,7 +752,7 @@ testthat::test_that("S7_to_JSONSchema assembles a complete schema", {
   testthat::expect_length(schema[["properties"]], 16L)
   testthat::expect_identical(
     schema[["properties"]][["$schema"]][["const"]],
-    "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json"
+    "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json"
   )
   testthat::expect_false(
     "default" %in% names(schema[["properties"]][["nrounds"]])
@@ -1034,7 +1034,7 @@ testthat::test_that("schema serializes to JSON and round-trips", {
   parsed <- jsonlite::fromJSON(tmpfile, simplifyVector = FALSE)
   testthat::expect_identical(
     parsed[["$id"]],
-    "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json"
+    "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json"
   )
   # enum stays an array even though scalar-unboxing is on.
   testthat::expect_identical(

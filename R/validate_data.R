@@ -653,7 +653,7 @@ check_resample_min_class <- function(
       n_resamples = n_resamples,
       min_class = min_level,
       min_class_n = min_class,
-      # Long form, one record per level, as `profile/v1` carries them. A
+      # Long form, one record per level, as `profile/r/v1` carries them. A
       # name -> count map cannot be iterated by an expression language, so the
       # rule set could not reproduce it and the two would state the same fact
       # in shapes a conformance run could not compare.

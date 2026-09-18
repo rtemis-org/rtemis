@@ -28,7 +28,7 @@
 # %% DATA_ENCODINGS ----
 # How a referenced file is written. Parquet for a table, because a record is
 # *storage*: it is
-# already this project's storage format (`ingest` writes it, `profile/v1`
+# already this project's storage format (`ingest` writes it, `profile/r/v1`
 # fixtures publish it), every data tool reads it, and row-group statistics are
 # what a later index queries. Arrow IPC stays the *wire* format, which is a
 # different job and is unaffected.

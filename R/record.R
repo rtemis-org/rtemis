@@ -537,7 +537,7 @@ method(record, SupervisedRes) <- function(x, outcome = "completed") {
 #' @param folds List of `Supervised` objects: the models actually fitted.
 #' @param outcome Character: How the run ended; see `RUN_OUTCOMES`.
 #'
-#' @return Named list conforming to `supervised/v1/record.json`.
+#' @return Named list conforming to `supervised/r/v1/record.json`.
 #'
 #' @author EDG
 #' @keywords internal
