@@ -7,7 +7,8 @@ test_that("artifact-only reconstruction preserves declared parent identity", {
     "ArtifactParent",
     package = "rtemis",
     properties = list(
-      label = prop_string(description = "Observed label."),
+      label = prop_state(prop_string(description = "Observed label.")),
+      category = prop_const("observation"),
       model = prop_runtime("Fitted native model used for prediction."),
       preprocessor = Supervised@properties[["preprocessor"]],
       preprocessor_internal = Supervised@properties[["preprocessor_internal"]],
@@ -59,6 +60,10 @@ test_that("artifact-only reconstruction preserves declared parent identity", {
   value <- RestoredChild(label = "observed", score = 0.75)
   expect_true(S7::S7_inherits(value, RestoredParent))
   expect_identical(value@label, "observed")
+  expect_identical(
+    S7_to_list(value),
+    list(label = "observed", category = "observation", score = 0.75)
+  )
   runtime <- schemas[[2L]][["x-rtemis"]][["runtime_properties"]]
   for (nm in names(runtime)) {
     expect_null(prop(value, nm))

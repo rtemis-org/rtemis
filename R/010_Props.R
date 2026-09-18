@@ -165,6 +165,7 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #'   container, meaning "this value for every element". Mutually exclusive with
 #'   `tunable`: a broadcast element and a one-element search space are the same
 #'   shape.
+#' @field external Logical: Permit a typed Parquet reference in place of an inline value.
 #' @field min_items Integer [1, Inf): Fewest elements an `array` container may
 #'   hold.
 #' @field max_items Optional Integer [0, Inf): Maximum reference collection size.
@@ -253,6 +254,7 @@ PropertySpec <- new_class(
     items = class_any,
     alternatives = class_any,
     allow_missing = new_property(class_logical, default = FALSE),
+    external = new_property(class_logical, default = FALSE),
     # The members of a declared object shape, which one recursive `items` spec
     # cannot describe because they are heterogeneous: each carries its own type
     # and bounds. Shared by the two containers built on that shape -- a `table`
@@ -327,6 +329,25 @@ PropertySpec <- new_class(
     description = class_character
   ),
   validator = function(self) {
+    if (length(self@external) != 1L || is.na(self@external)) {
+      return("external must be one non-missing logical value.")
+    }
+    if (
+      self@external &&
+        (!self@container %in% c("array", "matrix", "factor") ||
+          !is.null(self@target_class) ||
+          self@tunable ||
+          self@broadcast ||
+          self@constant ||
+          (self@container == "array" &&
+            !is.null(self@items) &&
+            (self@items@container != "none" ||
+              !is.null(self@items@target_class))))
+    ) {
+      return(
+        "External storage requires an untunable primitive array, matrix or factor."
+      )
+    }
     if (self@type == "union") {
       if (
         self@container != "none" ||
@@ -965,7 +986,8 @@ spec_r_kind <- function(fields) {
   }
   nested <- container != "none" &&
     !is.null(fields[["items"]]) &&
-    fields[["items"]][["container"]] != "none"
+    (fields[["items"]][["container"]] != "none" ||
+      !is.null(fields[["items"]][["target_class"]]))
   if (nested) "list" else "atomic"
 } # /rtemis::spec_r_kind
 
@@ -1298,6 +1320,9 @@ validate_candidates <- function(value, fields) {
 #' @keywords internal
 #' @noRd
 validate_with_spec <- function(value, fields) {
+  if (isTRUE(fields[["external"]]) && S7_inherits(value)) {
+    return(validate_external_reference(value, fields))
+  }
   if (!is.null(fields[["target_class"]])) {
     return(validate_reference_value(value, fields))
   }
@@ -1408,11 +1433,19 @@ validate_with_spec <- function(value, fields) {
     }
     return(NULL)
   }
-  if (container == "map" && is.null(names(value))) {
-    return("must be named.")
+  if (container == "map") {
+    keys <- names(value)
+    if (
+      is.null(keys) || anyNA(keys) || any(!nzchar(keys)) || anyDuplicated(keys)
+    ) {
+      return("must have unique, non-empty names.")
+    }
   }
   items <- fields[["items"]]
-  if (!is.null(items) && items[["container"]] != "none") {
+  if (
+    !is.null(items) &&
+      (items[["container"]] != "none" || !is.null(items[["target_class"]]))
+  ) {
     # Elements are themselves containers, so each is validated against `items`.
     # A container of *scalars* is a plain (possibly named) R vector and falls
     # through to the generic checks below.
@@ -1569,13 +1602,18 @@ validate_spec_type <- function(value, type) {
 validate_value <- function(value, fields) {
   # NULL and search values are shapes `validate_with_spec()` rules on itself,
   # against nullability and the candidate contract rather than against a type.
-  if (is.null(value) || is_candidates(value)) {
+  if (
+    is.null(value) ||
+      is_candidates(value) ||
+      (isTRUE(fields[["external"]]) && S7_inherits(value))
+  ) {
     return(validate_with_spec(value, fields))
   }
   if (
     !is.null(fields[["alternatives"]]) ||
       !is.null(fields[["target_class"]]) ||
-      fields[["container"]] %in% c("factor", "matrix", "table", "struct")
+      fields[["container"]] %in% c("factor", "matrix", "table", "struct") ||
+      identical(spec_r_kind(fields), "list")
   ) {
     return(validate_with_spec(value, fields))
   }
@@ -1649,6 +1687,9 @@ make_prop <- function(spec) {
     list = class_list,
     atomic_class
   )
+  if (spec@external) {
+    base_class <- base_class | S7_object
+  }
   if (spec@broadcast && identical(spec_r_kind(fields), "list")) {
     # A bare element stands in for the whole container ("this element at every
     # position"), so the element's own class is accepted beside the list --
@@ -1702,6 +1743,71 @@ spec_validator <- function(fields) {
   force(fields)
   function(value) validate_with_spec(value, fields)
 } # /rtemis::spec_validator
+
+
+# %% prop_external ----
+#' Permit a portable value to reference a Parquet file
+#' @param property S7 property: Primitive array, matrix or factor declaration.
+#' @return S7 property accepting either its inline value or a DataRef.
+#' @keywords internal
+#' @noRd
+prop_external <- function(property) {
+  spec <- get_spec(property)
+  spec@external <- TRUE
+  out <- make_prop(spec)
+  out[["role"]] <- property[["role"]]
+  out
+}
+
+
+# %% validate_external_reference ----
+#' Check a reference against its property's declared storage shape
+#' @param value S7 object: Reference value.
+#' @param fields Named list: Property specification fields.
+#' @return Character validation message or NULL.
+#' @keywords internal
+#' @noRd
+validate_external_reference <- function(value, fields) {
+  if (!inherits(value, "rtemis::DataRef")) {
+    return("must reference a DataRef.")
+  }
+  if (!identical(value@layout, fields[["container"]])) {
+    return("reference layout must match the declared value shape.")
+  }
+  if (
+    is.null(value@n_rows) ||
+      is.null(value@n_cols) ||
+      is.null(value@columns) ||
+      !length(value@columns) ||
+      anyDuplicated(value@columns)
+  ) {
+    return("reference must declare dimensions and distinct selected columns.")
+  }
+  if (!is.finite(value@bytes) || value@bytes != floor(value@bytes)) {
+    return("reference bytes must be a whole nonnegative size.")
+  }
+  if (value@n_cols < 1L) {
+    return("reference must declare at least one column.")
+  }
+  if (value@n_rows < fields[["min_items"]]) {
+    return("reference has too few rows for its declared value.")
+  }
+  if (value@layout != "matrix" && length(value@columns) != 1L) {
+    return("an array or factor reference must select exactly one column.")
+  }
+  if (value@layout == "factor") {
+    if (
+      is.null(value@levels) ||
+        !length(value@levels) ||
+        anyDuplicated(value@levels)
+    ) {
+      return("a factor reference must declare distinct ordered levels.")
+    }
+  } else if (!is.null(value@levels)) {
+    return("only factor references declare levels.")
+  }
+  NULL
+}
 
 
 # %% prop_union ----
@@ -1816,7 +1922,7 @@ prop_boolean <- function(
 #' @keywords internal
 #' @noRd
 prop_integer <- function(
-  default,
+  default = NULL,
   min = NULL,
   max = NULL,
   exclusive_min = NULL,
@@ -1838,6 +1944,7 @@ prop_integer <- function(
   make_prop(PropertySpec(
     type = "integer",
     default = default,
+    default_present = !missing(default),
     minimum = min,
     maximum = max,
     exclusive_minimum = exclusive_min,
@@ -2066,6 +2173,7 @@ prop_map <- function(
   make_prop(PropertySpec(
     type = value_spec@type,
     default = NULL,
+    default_present = nullable,
     minimum = NULL,
     maximum = NULL,
     exclusive_minimum = NULL,
@@ -3544,6 +3652,9 @@ wire_value <- function(value, prop) {
     return(value)
   }
   fields <- get_spec_fields(prop)
+  if (isTRUE(fields[["external"]]) && S7_inherits(value)) {
+    return(value)
+  }
   if (!is.null(fields[["alternatives"]])) {
     matches <- vapply(
       fields[["alternatives"]],
@@ -3572,7 +3683,16 @@ wire_value <- function(value, prop) {
       return(value)
     }
   }
-  if (is_S7_list(value)) {
+  if (
+    !is.null(fields[["items"]]) && fields[["container"]] %in% c("array", "map")
+  ) {
+    items <- fields[["items"]]
+    if (is.list(value) && !is.data.frame(value)) {
+      value <- lapply(value, wire_value, prop = list(spec = items))
+      return(if (fields[["container"]] == "array") unname(value) else value)
+    }
+  }
+  if (is_S7_list(value) && is.null(fields)) {
     # Published as an array of `$ref`s -- one document per element -- and a
     # *named* R list serializes as a JSON object instead. The names are an
     # R-side convenience: `name_base_learners()` re-derives them from each
@@ -3663,6 +3783,13 @@ from_wire <- function(x, cls) {
   for (nm in intersect(names(x), names(props))) {
     fields <- get_spec_fields(props[[nm]])
     if (is.null(fields)) {
+      next
+    }
+    if (isTRUE(fields[["external"]])) {
+      x[nm] <- list(default_from_wire(
+        x[[nm]],
+        spec_to_schema(get_spec(props[[nm]]))
+      ))
       next
     }
     if (!is.null(fields[["alternatives"]])) {
@@ -4408,6 +4535,8 @@ spec_to_schema <- function(
     # A string-keyed object of homogeneous values (per-feature centers).
     list(
       type = if (spec@nullable) I(c("object", "null")) else "object",
+      minProperties = 1L,
+      propertyNames = list(minLength = 1L),
       additionalProperties = element
     )
   } else if (spec@tunable) {
@@ -4506,6 +4635,68 @@ spec_to_schema <- function(
     out[["readOnly"]] <- TRUE
   }
   out[["x-rtemis"]] <- annotations
+  if (spec@external) {
+    if (is.null(reference_urls)) {
+      reference_urls <- schema_reference_urls(
+        schema_catalog(),
+        "https://schema.rtemis.org"
+      )
+    }
+    ref <- unname(reference_urls["rtemis::DataRef"])
+    if (length(ref) != 1L || is.na(ref)) {
+      rtemis.core::abort(
+        "External storage requires a published DataRef.",
+        class = "rtemis_schema_error"
+      )
+    }
+    columns <- list(
+      type = "array",
+      items = list(type = "string"),
+      minItems = 1L,
+      uniqueItems = TRUE
+    )
+    if (spec@container != "matrix") {
+      columns[["maxItems"]] <- 1L
+    }
+    external <- list(
+      `$ref` = ref,
+      required = I(c(
+        "path",
+        "encoding",
+        "algorithm",
+        "hash",
+        "bytes",
+        "n_rows",
+        "n_cols",
+        "layout",
+        "columns",
+        "levels"
+      )),
+      properties = list(
+        bytes = list(type = "integer"),
+        n_rows = list(type = "integer", minimum = spec@min_items),
+        n_cols = list(type = "integer", minimum = 1L),
+        layout = list(const = spec@container),
+        columns = columns,
+        levels = if (spec@container == "factor") {
+          list(
+            type = "array",
+            items = list(type = "string"),
+            minItems = 1L,
+            uniqueItems = TRUE
+          )
+        } else {
+          list(type = "null")
+        }
+      )
+    )
+    annotations[["external"]] <- TRUE
+    out <- list(anyOf = list(out, external), `x-rtemis` = annotations)
+    if (nzchar(description)) {
+      out[["description"]] <- description
+    }
+    if (read_only) out[["readOnly"]] <- TRUE
+  }
   if (spec@data_dependent) {
     # Machine-visible in the published contract: a consumer building a form
     # skips these rather than asking for a value whose shape the data decides.
@@ -5044,7 +5235,7 @@ S7_to_JSONSchema <- function(
         `$schema` = list(
           type = "string",
           const = instance_schema_url,
-          description = "JSON Schema URI for this config instance."
+          description = "JSON Schema URI for this document."
         )
       ),
       properties
@@ -5376,7 +5567,7 @@ S7_dispatcher_JSONSchema <- function(
     properties[["$schema"]] <- list(
       type = "string",
       const = instance_schema_url,
-      description = "JSON Schema URI for this config instance."
+      description = "JSON Schema URI for this document."
     )
   }
   # Generated from a spec like every other property, so it carries the same

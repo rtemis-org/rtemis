@@ -1802,11 +1802,17 @@ serializable_props <- new_generic("serializable_props", "x")
 method(serializable_props, S7_object) <- function(x) {
   values <- props(x)
   declared <- S7_class(x)@properties
+  artifact <- attr(S7_class(x), "rtemis_artifact_schema")
   publication <- schema_publication(S7_class(x))
   observed <- !is.null(publication) && publication@kind == "report"
   keep <- vapply(
     names(values),
     function(nm) {
+      # Reconstructed classes serialize the document they were read from,
+      # including report state and family discriminators.
+      if (!is.null(artifact)) {
+        return(nm %in% names(artifact[["properties"]]))
+      }
       # A property this object holds but does not declare cannot be judged;
       # keep it rather than silently dropping data.
       is.null(declared[[nm]]) ||

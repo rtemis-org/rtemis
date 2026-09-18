@@ -282,7 +282,8 @@ schema_props <- function(family) {
   )[["properties"]])
 }
 assert_complete <- function(x, props, what, id) {
-  missing <- setdiff(props, names(x))
+  # The optional document identifier is not an observed report property.
+  missing <- setdiff(props, c(names(x), "$schema"))
   if (length(missing) > 0L) {
     stop(
       what,

@@ -557,6 +557,16 @@ test_that("x-rtemis agrees with the standard keywords, for every property", {
         isTRUE(ann[["tunable"]]) && isTRUE(ann[["broadcast"]]),
         info = label
       )
+      if (isTRUE(ann[["external"]])) {
+        expect_identical(length(schema[["anyOf"]]), 2L, info = label)
+        expect_identical(
+          schema[["anyOf"]][[2L]][["properties"]][["layout"]][["const"]],
+          container,
+          info = label
+        )
+        expect_true(nzchar(schema[["anyOf"]][[2L]][["$ref"]]), info = label)
+        schema <- schema[["anyOf"]][[1L]]
+      }
       types <- as.character(schema[["type"]])
       if (isTRUE(ann[["tunable"]]) || isTRUE(ann[["broadcast"]])) {
         expect_true("oneOf" %in% names(schema), info = label)

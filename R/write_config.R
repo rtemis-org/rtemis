@@ -496,7 +496,7 @@ write_session_sidecar <- function(x, file, overwrite = FALSE, verbosity = 1L) {
     # The same file hasher `data_fingerprint()` uses, so a digest over a
     # sidecar and a digest over a dataset are computed one way.
     hash = .hash_file(path, "sha256"),
-    bytes = as.integer(file.size(path)),
+    bytes = file.size(path),
     n_rows = nrow(nodes),
     n_cols = ncol(nodes)
   )

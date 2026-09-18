@@ -250,6 +250,17 @@ default_declarations <- function(spec, schema, path) {
     node[["number_types"]] <- number_types
   }
   out <- stats::setNames(list(node), path)
+  if (spec@external) {
+    spec@external <- FALSE
+    return(c(
+      out,
+      default_declarations(
+        spec,
+        schema[["anyOf"]][[1L]],
+        paste0(path, "/anyOf/0")
+      )
+    ))
+  }
   if (!is.null(spec@alternatives)) {
     for (i in seq_along(spec@alternatives)) {
       offset <- i + as.integer(spec@nullable)
@@ -722,6 +733,18 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
     return(NULL)
   }
   ann <- schema[["x-rtemis"]]
+  if (isTRUE(ann[["external"]])) {
+    if (S7_inherits(value)) {
+      return(value)
+    }
+    if (is.list(value) && "path" %in% names(value)) {
+      if (!is.null(decode_reference)) {
+        return(decode_reference(value, "rtemis::DataRef"))
+      }
+      return(.list_to_DataRef(value))
+    }
+    return(default_from_wire(value, schema[["anyOf"]][[1L]], decode_reference))
+  }
   if (identical(ann[["type"]], "union")) {
     matches <- list()
     for (branch in schema[["anyOf"]]) {
@@ -740,7 +763,10 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
       } else {
         "native"
       }
-      if (!any(wire_type %in% branch_type)) {
+      if (
+        !isTRUE(branch[["x-rtemis"]][["external"]]) &&
+          !any(wire_type %in% branch_type)
+      ) {
         next
       }
       decoded <- tryCatch(

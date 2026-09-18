@@ -145,7 +145,7 @@ for (family in names(flat_configs)) {
       record = kind == "record",
       asserted = cfg[["kind"]] == "report",
       reference_urls = reference_urls[[kind]],
-      instance_schema_url = if (cfg[["kind"]] != "report") id
+      instance_schema_url = id
     )
     if (kind == "record") {
       arguments <- c(

@@ -38,6 +38,9 @@
 #' @keywords internal
 #' @noRd
 schema_is_nullable <- function(x) {
+  if (isTRUE(x[["x-rtemis"]][["external"]])) {
+    return(schema_is_nullable(x[["anyOf"]][[1L]]))
+  }
   branches <- x[["oneOf"]] %||% x[["anyOf"]]
   if (!is.null(branches)) {
     return(any(vapply(
@@ -318,6 +321,20 @@ schema_to_spec <- function(
   path = "",
   decode_reference = NULL
 ) {
+  if (isTRUE(x[["x-rtemis"]][["external"]])) {
+    args <- list(
+      x = x[["anyOf"]][[1L]],
+      declarations = declarations,
+      path = paste0(path, "/anyOf/0"),
+      decode_reference = decode_reference
+    )
+    if (!missing(default)) {
+      args["default"] <- list(default)
+    }
+    spec <- do.call(schema_to_spec, args)
+    spec@external <- TRUE
+    return(spec)
+  }
   default_present <- !missing(default)
   default_policy <- NULL
   if (!is.null(declarations)) {

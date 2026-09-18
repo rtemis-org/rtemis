@@ -5,7 +5,7 @@
 # A reference from a run record to a file written beside it.
 #
 # Not everything a run produces belongs inside a JSON document. Most of it is
-# tabular -- the execution graph, and later the per-fold predictions, the
+# tabular -- the execution graph, per-fold predictions, the
 # grid-search results, the variable importances, the calibration points -- and a
 # table belongs in a columnar file, typed and compressed and readable by any
 # data tool. Some of it is not tabular at all: `rt_save()` already writes the
@@ -58,9 +58,12 @@ DATA_ENCODINGS <- c("parquet")
 #'   "sha3-256", "sha3-512", "blake2b", "blake2s", "sha1", "md5"\}: Hash
 #'   algorithm.
 #' @field hash Character: Hash digest of the file's bytes, as hex.
-#' @field bytes Integer [0, Inf): Size of the file.
+#' @field bytes Numeric [0, Inf): Size of the file in bytes.
 #' @field n_rows Optional Integer [0, Inf): Rows, when the file is a table.
-#' @field n_cols Optional Integer [0, Inf): Columns, when the file is a table.
+#' @field n_cols Optional Integer [0, Inf): Columns in the complete file.
+#' @field layout Optional Character \{"array", "matrix", "factor"\}: Shape restored from the selected columns.
+#' @field columns Optional Character vector: Selected columns, in value order.
+#' @field levels Optional Character vector: Ordered categorical levels, including unused levels.
 #'
 #' @author EDG
 #' @noRd
@@ -92,9 +95,9 @@ DataRef <- schema_class(
     ),
     # Every referenced file has a size, and a reader deciding whether to fetch
     # one needs it before it does. A second integrity signal beside the digest.
-    bytes = prop_integer(
-      0L,
-      min = 0L,
+    bytes = prop_float(
+      0,
+      min = 0,
       description = "Size of the file."
     ),
     # Unset for a file that is not a table. Nullable rather than zero: an empty
@@ -110,7 +113,27 @@ DataRef <- schema_class(
       NULL,
       nullable = TRUE,
       min = 0L,
-      description = "Columns, when the referenced file is a table."
+      description = "Columns in the complete referenced table, before selecting columns."
+    ),
+    layout = prop_string(
+      NULL,
+      nullable = TRUE,
+      enum = c("array", "matrix", "factor"),
+      description = "Value shape restored from the selected columns."
+    ),
+    columns = prop_string(
+      NULL,
+      vector = TRUE,
+      nullable = TRUE,
+      unique_items = TRUE,
+      description = "Selected column names in the order used to reconstruct the value."
+    ),
+    levels = prop_string(
+      NULL,
+      vector = TRUE,
+      nullable = TRUE,
+      unique_items = TRUE,
+      description = "Ordered categorical levels, including unused levels; null for other layouts."
     )
   ),
   rules = list(NonEmptyStrings(
@@ -124,7 +147,8 @@ DataRef <- schema_class(
     title = "rtemis DataRef",
     description = "A reference from a record to a file written beside it: where it is, how it is encoded, how big it is, and the digest that ties it to the record naming it.",
     order = 2L,
-    kind = "component"
+    kind = "component",
+    scope = "shared"
   )
 ) # /rtemis::DataRef
 
@@ -161,3 +185,15 @@ method(print, DataRef) <- function(x, output_type = NULL, ...) {
   cat(repr(x, output_type = output_type))
   invisible(x)
 } # /rtemis::print.DataRef
+
+
+# %% .list_to_DataRef ----
+#' Decode a file reference without accessing its file
+#' @param value Named list: Parsed reference.
+#' @return DataRef object.
+#' @keywords internal
+#' @noRd
+.list_to_DataRef <- function(value) {
+  value[["$schema"]] <- NULL
+  do.call(DataRef, from_wire(value, DataRef))
+}
