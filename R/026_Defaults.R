@@ -115,6 +115,9 @@ default_wire_value <- function(value, fields = NULL) {
       class = "rtemis_schema_error"
     )
   }
+  if (is_candidates(value) && !is.null(fields)) {
+    return(lapply(wire_value(value, list(spec = fields)), default_wire_value))
+  }
   if (S7_inherits(value)) {
     cls <- S7_class(value)
     base <- family_base(cls)

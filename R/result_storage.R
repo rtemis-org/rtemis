@@ -252,7 +252,7 @@ result_load_payload <- function(
         !is.na(numeric) &
           (!is.finite(numeric) |
             numeric != floor(numeric) |
-            abs(numeric) > .Machine$integer.max)
+            abs(numeric) > .Machine[["integer.max"]])
       )
     ) {
       stop("Integer payload exceeds the supported index range.")
