@@ -18,7 +18,8 @@ supplied, which names its own; an explicit \code{algorithm} that disagrees with
 
 \item{config}{\code{ClusteringConfig}, optional: Algorithm-specific config from a
 clustering \verb{setup_*} function. Its \code{features} selects the columns to cluster
-on; \code{NULL} clusters on every column of \code{x}.}
+on; \code{NULL} selects every numeric column of \code{x}, since a clustering backend
+reads numbers. The returned object's config carries the resolved names.}
 
 \item{outdir}{Character, optional: Output directory. If not NULL, the returned
 \code{Clustering} object is saved there as an \code{.rds} file, alongside a run record

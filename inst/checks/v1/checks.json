@@ -395,7 +395,86 @@
       "name": "selected_features",
       "kind": "expr",
       "logic": {
-        "var": "config.features"
+        "if": [
+          {
+            "!==": [
+              {
+                "var": "config.features"
+              },
+              null
+            ]
+          },
+          {
+            "var": "config.features"
+          },
+          {
+            "if": [
+              {
+                "===": [
+                  {
+                    "var": "bindings.supervised"
+                  },
+                  true
+                ]
+              },
+              null,
+              {
+                "if": [
+                  {
+                    "!==": [
+                      {
+                        "var": "config.clustering_config.features"
+                      },
+                      null
+                    ]
+                  },
+                  {
+                    "var": "config.clustering_config.features"
+                  },
+                  {
+                    "var": "config.decomposition_config.features"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "numeric_features_only",
+      "kind": "expr",
+      "logic": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "bindings.supervised"
+              },
+              false
+            ]
+          },
+          {
+            "or": [
+              {
+                "!==": [
+                  {
+                    "var": "config.clustering_config"
+                  },
+                  null
+                ]
+              },
+              {
+                "!==": [
+                  {
+                    "var": "config.decomposition_config"
+                  },
+                  null
+                ]
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -436,6 +515,37 @@
                   {
                     "var": "bindings.selected_features"
                   }
+                ]
+              }
+            ]
+          },
+          {
+            "or": [
+              {
+                "!==": [
+                  {
+                    "var": "bindings.selected_features"
+                  },
+                  null
+                ]
+              },
+              {
+                "===": [
+                  {
+                    "var": "bindings.numeric_features_only"
+                  },
+                  false
+                ]
+              },
+              {
+                "in": [
+                  {
+                    "var": "item.dtype"
+                  },
+                  [
+                    "number",
+                    "integer"
+                  ]
                 ]
               }
             ]
@@ -3869,6 +3979,16 @@
       },
       "severity": "error",
       "evidence": {
+        "features": {
+          "map": [
+            {
+              "var": "bindings.missing_features"
+            },
+            {
+              "var": "name"
+            }
+          ]
+        },
         "n_missing": {
           "var": "bindings.feature_missing"
         },
@@ -3965,6 +4085,16 @@
       },
       "severity": "warning",
       "evidence": {
+        "features": {
+          "map": [
+            {
+              "var": "bindings.missing_features"
+            },
+            {
+              "var": "name"
+            }
+          ]
+        },
         "n_missing": {
           "var": "bindings.feature_missing"
         },

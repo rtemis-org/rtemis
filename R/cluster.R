@@ -19,7 +19,8 @@
 #' `config` is an error rather than a mislabeled run.
 #' @param config `ClusteringConfig`, optional: Algorithm-specific config from a
 #' clustering `setup_*` function. Its `features` selects the columns to cluster
-#' on; `NULL` clusters on every column of `x`.
+#' on; `NULL` selects every numeric column of `x`, since a clustering backend
+#' reads numbers. The returned object's config carries the resolved names.
 #' @param outdir Character, optional: Output directory. If not NULL, the returned
 #' `Clustering` object is saved there as an `.rds` file, alongside a run record
 #' (`cluster_<algorithm>.record.json`) stating what the run resolved. See
@@ -83,12 +84,19 @@ cluster <- function(
 
   # Feature selection ----
   # The config's `features` is the record's account of which columns were
-  # clustered, so the fit must use exactly those; see `decomp()`.
-  if (!is.null(config@features)) {
-    x <- as.data.frame(x)
+  # clustered, so the fit must use exactly those. Unset means every numeric
+  # column, resolved here and written back to the config: a clustering backend
+  # reads numbers, and handing it a date column because the caller did not
+  # enumerate a hundred names is a run that fails on data any other interface
+  # clusters without being asked. `train()` resolves its decomposition step the
+  # same way, and `decomp()` now does too, so one rule covers all three.
+  x <- as.data.frame(x)
+  if (is.null(config@features)) {
+    config@features <- resolve_unsupervised_features(x, "Clustering")
+  } else {
     check_data_bounds(config, x, has_outcome = FALSE)
-    x <- x[, config@features, drop = FALSE]
   }
+  x <- x[, config@features, drop = FALSE]
 
   # Intro ----
   start_time <- intro(verbosity = verbosity)

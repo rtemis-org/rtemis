@@ -22,12 +22,13 @@ feature columns that were not decomposed.
 Apply a fitted decomposition to new data for algorithms that support this.
 }
 \details{
-When the fitted decomposition was learned on a subset of the features (i.e.
-\code{decom@config@features} is not \code{NULL}), only those columns of \code{new_data} are
-transformed; the remaining columns are returned unchanged, alongside the
-learned components, in the layout \verb{[kept features, components]}. When
-\code{features} is \code{NULL} (the standalone default), all columns of \code{new_data} are
-decomposed and only the components are returned.
+A fit is learned on the columns \code{decom@config@features} names, so only those
+columns of \code{new_data} are transformed; the remaining columns are returned
+unchanged, alongside the learned components, in the layout
+\verb{[kept features, components]}. \code{decomp()} resolves an unset \code{features} to
+the numeric columns and records them, so a fit it produced always names
+them. A \code{Decomposition} assembled by hand with no \code{features} transforms
+every column of \code{new_data} and returns only the components.
 }
 \examples{
 iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")

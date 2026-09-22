@@ -167,6 +167,17 @@ test_that("the pre-flight reads every config property the checks read", {
     )
   )))
   expect_gt(length(read_by_checks), 0L)
+  # `config_parts()` reads every pipeline's documents, not only the supervised
+  # one: a clustering or decomposition run names its columns inside its
+  # algorithm's config, and `config_parts()` reads that block. A property no
+  # supervised config declares is not something this reassembly can drop, so
+  # the claim is about the ones that reach it.
+  supervised_properties <- unique(c(
+    names(SuperConfig@properties),
+    names(SuperConfigPaths@properties),
+    names(SuperConfigTabular@properties)
+  ))
+  read_by_checks <- intersect(read_by_checks, supervised_properties)
   # The one exemption is named above and has to be argued for, not added to.
   must_carry <- setdiff(read_by_checks, PREFLIGHT_READING_PROPERTIES)
   expect_true(

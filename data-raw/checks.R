@@ -101,25 +101,61 @@ CHECKS_LET <- list(
 
   # Predictors: what the run will actually train on.
   #
-  # `config.features` names them when the config says so; otherwise it is every
-  # column that is not the outcome, which is rtemis's convention and what a
-  # decomposition config wants. Reading the config here is what makes a finding
-  # about the *run* rather than about the table: without it a plan that
-  # excludes a date column still gets `FEATURE_TYPE_UNSUPPORTED` for that
-  # column, which is true of the dataset and false of the run -- and a finding
-  # the user can see is wrong is a finding they learn to argue with.
+  # Reading the config here is what makes a finding about the *run* rather than
+  # about the table: without it a plan that excludes a date column still gets
+  # `FEATURE_TYPE_UNSUPPORTED` for that column, which is true of the dataset and
+  # false of the run -- and a finding the user can see is wrong is a finding
+  # they learn to argue with.
   #
+  # A pipeline document names its columns in one of two places. A supervised
+  # config names them at the top level; an unsupervised one names them inside
+  # the algorithm's own config, because there the selection is part of what the
+  # algorithm is given. Reading only the first is what sent a clustering plan
+  # naming 122 numeric columns back with `FEATURE_TYPE_UNSUPPORTED` for the date
+  # column it had left out. The supervised branch returns early rather than
+  # falling through, so a supervised run's own decomposition step -- which may
+  # name a subset of the predictors to decompose -- is never mistaken for the
+  # predictors themselves.
+  expr(
+    "selected_features",
+    "if config.features !== null then config.features
+     else if supervised then null
+     else if config.clustering_config.features !== null
+       then config.clustering_config.features
+     else config.decomposition_config.features",
+    "any"
+  ),
+  # Unset means something different for the two kinds of run. A supervised run
+  # trains on every column but the outcome, whatever its type, and so does a
+  # standalone preprocessor. A clustering or decomposition run reads a numeric
+  # matrix and takes every *numeric* column: that is what the published schemas
+  # say and what `cluster()` and `decomp()` resolve it to, so a column the run
+  # will not read is not a feature of it. The marker is the algorithm block,
+  # which is what makes the document a run of that kind.
+  expr(
+    "numeric_features_only",
+    "supervised === false
+     and (config.clustering_config !== null
+          or config.decomposition_config !== null)",
+    "boolean"
+  ),
   # Carries the dtype the run will see rather than the one the file stores,
   # rewritten once here so every scan below reads the effective type without
   # repeating the rule. The same reason `effective_dtype()` exists on the R
   # side.
-  expr("selected_features", "config.features", "any"),
   scan(
     "features",
     "profile.columns",
-    where = "item.name !== outcome_name
+    where = paste0(
+      "item.name !== outcome_name
              and (selected_features === null
-                  or item.name in selected_features)",
+                  or item.name in selected_features)
+             and (selected_features !== null
+                  or numeric_features_only === false
+                  or item.dtype in ",
+      .array(NUMERIC_DTYPES),
+      ")"
+    ),
     select = list(
       name = "item.name",
       dtype = "if character2factor and item.dtype === 'string'
@@ -848,6 +884,7 @@ CHECKS_RULES <- list(
     condition = "feature_missing > 0",
     severity = "error",
     evidence = list(
+      features = 'pluck(missing_features, "name")',
       n_missing = "feature_missing",
       n_features_missing = "n_features_missing",
       algorithm = "algorithm",
@@ -865,6 +902,7 @@ CHECKS_RULES <- list(
     condition = "feature_missing > 0",
     severity = "warning",
     evidence = list(
+      features = 'pluck(missing_features, "name")',
       n_missing = "feature_missing",
       n_features_missing = "n_features_missing",
       algorithm = "algorithm",

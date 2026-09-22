@@ -6,6 +6,8 @@
 - The PAMK criterion is an object from `setup_ASWCriterion()`, `setup_CHCriterion()` or `setup_MultiASWCriterion()`, which alone carries the number of subsets; `setup_PAMK()` no longer takes `criterion` as a string or `n_subsets`.
 - `setup_ClusterConfig()` and `setup_DecomposeConfig()` no longer take `algorithm`; a cluster or decompose document names its algorithm once, inside its clustering or decomposition config, and `cluster()` and `decomp()` reject an `algorithm` that disagrees with a supplied config.
 - Clustering configs declare `features`, the columns to cluster on, and every clustering `setup_*()` accepts it; the run record states the subset.
+- `cluster()` and `decomp()` resolve an unset `features` to every numeric column, as the schemas and `train()`'s decomposition step already stated, and record the resolved list on the fit, so a run is no longer handed a date or a label column the backend cannot read. Both abort when fewer than two numeric columns remain.
+- `validate_config()` reads a clustering or decomposition run's columns from the algorithm's own config, where the document names them, and treats an unset `features` as the numeric columns. A plan that named its columns was previously told a column it had excluded was unusable.
 - Shared results identify implementation-specific configs by schema and read their typed settings without inserting omitted defaults.
 - Implementation-specific schema paths include the language namespace; shared result paths remain unqualified.
 

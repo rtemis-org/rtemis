@@ -17,7 +17,9 @@
 #' is supplied, which names its own; an explicit `algorithm` that disagrees
 #' with `config` is an error rather than a mislabeled run.
 #' @param config DecompositionConfig: Algorithm-specific config. Its `features`
-#' selects the columns of `x` to decompose; `NULL` decomposes all of them.
+#' selects the columns of `x` to decompose; `NULL` selects every numeric column,
+#' since a decomposition reads a numeric matrix. The returned object's config
+#' carries the resolved names, and `apply_decomp()` replays that selection.
 #' @param outdir Character, optional: Output directory. If not NULL, the returned
 #' `Decomposition` object is saved there as an `.rds` file, alongside a run
 #' record (`decomp_<algorithm>.record.json`) stating what the run resolved. See
@@ -82,12 +84,17 @@ decomp <- function(
   # Feature selection ----
   # `apply_decomp()` subsets new data by `config@features`, so the fit must use
   # exactly those columns or the replay transforms a different matrix.
-  # `x` is features-only here: there is no outcome column to exclude.
-  if (!is.null(config@features)) {
-    x <- as.data.frame(x)
+  # `x` is features-only here: there is no outcome column to exclude. Unset
+  # means every numeric column, resolved here and written back so the fit, the
+  # record and the replay name the same columns -- what `train()` already does
+  # for the decomposition step it runs.
+  x <- as.data.frame(x)
+  if (is.null(config@features)) {
+    config@features <- resolve_unsupervised_features(x, "Decomposition")
+  } else {
     check_data_bounds(config, x, has_outcome = FALSE)
-    x <- x[, config@features, drop = FALSE]
   }
+  x <- x[, config@features, drop = FALSE]
 
   # Intro ----
   start_time <- intro(verbosity = verbosity)

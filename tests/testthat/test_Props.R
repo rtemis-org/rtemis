@@ -1780,17 +1780,19 @@ test_that("the applies_when note spells its values as JSON, not as R", {
     rtemis:::spec_to_schema(bool_gate)[["description"]],
     "Applies only when linear_tree is true\\.$"
   )
-  enum_gate <- get_spec(rtemis:::SpectralConfig@properties[["sigma"]])
+  enum_gate <- get_spec(
+    rtemis:::LINADHyperparameters@properties[["nvmax"]]
+  )
   expect_match(
     rtemis:::spec_to_schema(enum_gate)[["description"]],
-    'Applies only when kernel is "rbf" or "laplace"\\.$'
+    'Applies only when node_model is "forward"\\.$'
   )
   # The R-facing validator message is the other audience and keeps R's own
   # spelling, since it tells an R caller what to set: unquoted there, and
   # `TRUE` rather than `true` for a boolean gate.
   expect_error(
-    SpectralConfig(kernel = "rbf_local", sigma = 1),
-    "is rbf or laplace",
+    setup_LINAD(node_model = "ridge", nvmax = 3L),
+    "is forward",
     fixed = TRUE
   )
   expect_identical(rtemis:::format_allowed(TRUE), "TRUE")
