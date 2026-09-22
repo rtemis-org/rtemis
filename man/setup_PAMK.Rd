@@ -10,7 +10,8 @@ setup_PAMK(
   use_pam = TRUE,
   scaling = FALSE,
   alpha = 0.001,
-  n_subsets = NULL
+  n_subsets = NULL,
+  features = NULL
 )
 }
 \arguments{
@@ -25,6 +26,9 @@ setup_PAMK(
 \item{alpha}{Numeric [0, 1]: Significance level of the Duda-Hart test, used only when 1 is among the candidates.}
 
 \item{n_subsets}{Optional Integer [1, Inf): Number of random subsets the average silhouette width is computed on. Applies when \code{criterion} is "multiasw".}
+
+\item{features}{Optional Character vector: Names of at least 2 distinct
+feature columns to cluster on. \code{NULL} clusters on all numeric features.}
 }
 \value{
 \code{PAMKConfig} object.

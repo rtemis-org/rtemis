@@ -11,7 +11,8 @@ setup_Spectral(
   sigma_sample_fraction = NULL,
   iterations = 200L,
   nystrom = FALSE,
-  nystrom_sample = NULL
+  nystrom_sample = NULL,
+  features = NULL
 )
 }
 \arguments{
@@ -28,6 +29,9 @@ setup_Spectral(
 \item{nystrom}{Logical: If TRUE, approximate the affinity matrix from a sample of the cases by the Nystrom method.}
 
 \item{nystrom_sample}{Optional Integer [1, Inf): Number of cases the approximation samples. Unset samples one sixth of them. Applies when \code{nystrom} is TRUE.}
+
+\item{features}{Optional Character vector: Names of at least 2 distinct
+feature columns to cluster on. \code{NULL} clusters on all numeric features.}
 }
 \value{
 \code{SpectralConfig} object.

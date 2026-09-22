@@ -51,3 +51,20 @@ test_that("DecomposeConfig round-trips through write_config/read_config JSON", {
     x@decomposition_config@algorithm
   )
 })
+
+
+# %% one place for the algorithm ----
+test_that("a decompose document names its algorithm only inside decomposition_config", {
+  expect_false("algorithm" %in% names(DecomposeConfig@properties))
+  expect_error(
+    .list_to_DecomposeConfig(list(
+      algorithm = "PCA",
+      decomposition_config = list(algorithm = "PCA", k = 2L)
+    )),
+    class = "rtemis_input_error"
+  )
+  x <- .list_to_DecomposeConfig(list(
+    decomposition_config = list(algorithm = "PCA", k = 2L)
+  ))
+  expect_identical(x@decomposition_config@algorithm, "PCA")
+})

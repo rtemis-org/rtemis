@@ -623,3 +623,63 @@ test_that("every algorithm produces the variant the roster claims", {
     expect_length(cl@clusters, nrow(x))
   }
 })
+
+
+# features selection ----
+test_that("cluster() fits on config@features and the record says so", {
+  config <- setup_KMeans(k = 3L, features = c("Sepal.Length", "Sepal.Width"))
+  fit <- cluster(x, config = config, verbosity = 0L)
+  expect_s7_class(fit, Clustering)
+  # Fitted on the two selected columns only: the fingerprint sees two columns
+  # and the recorded document carries the subset.
+  expect_identical(fit@data_fingerprint@n_cols, 2L)
+  expect_identical(
+    fit@cluster_config@clustering_config@features,
+    c("Sepal.Length", "Sepal.Width")
+  )
+})
+
+test_that("cluster() validates config@features against the data", {
+  expect_error(
+    cluster(
+      iris,
+      config = setup_KMeans(k = 3L, features = c("Sepal.Length", "Species")),
+      verbosity = 0L
+    ),
+    "must name numeric training features"
+  )
+  expect_error(
+    cluster(
+      x,
+      config = setup_KMeans(k = 3L, features = c("Sepal.Length", "nope")),
+      verbosity = 0L
+    ),
+    class = "rtemis_value_error"
+  )
+  expect_error(setup_KMeans(features = "one"))
+  expect_error(setup_KMeans(features = c("a", "a")))
+})
+
+# one place for the algorithm ----
+test_that("cluster() takes the algorithm from config and refuses a disagreeing label", {
+  fit <- cluster(x, config = setup_KMeans(k = 3L), verbosity = 0L)
+  expect_identical(fit@algorithm, "KMeans")
+  expect_error(
+    cluster(
+      x,
+      algorithm = "PAM",
+      config = setup_KMeans(k = 3L),
+      verbosity = 0L
+    ),
+    "pass one or the other",
+    class = "rtemis_value_error"
+  )
+  # An alias of the config's own algorithm is not a disagreement.
+  fit2 <- cluster(
+    x,
+    algorithm = "kmeans",
+    config = setup_KMeans(k = 3L),
+    verbosity = 0L
+  )
+  expect_identical(fit2@algorithm, "KMeans")
+})

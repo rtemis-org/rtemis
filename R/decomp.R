@@ -13,7 +13,9 @@
 #' @param x Matrix, data frame, or `DecomposeConfig` object: Input data, or a
 #' `DecomposeConfig` recipe (from [setup_DecomposeConfig]) carrying the data
 #' path, algorithm config, and output directory.
-#' @param algorithm Character: Decomposition algorithm.
+#' @param algorithm Character: Decomposition algorithm. Not needed when `config`
+#' is supplied, which names its own; an explicit `algorithm` that disagrees
+#' with `config` is an error rather than a mislabeled run.
 #' @param config DecompositionConfig: Algorithm-specific config. Its `features`
 #' selects the columns of `x` to decompose; `NULL` decomposes all of them.
 #' @param outdir Character, optional: Output directory. If not NULL, the returned
@@ -46,18 +48,10 @@ decomp <- function(
         class = c("rtemis_null_input", "rtemis_input_error")
       )
     }
-    # The algorithm label prefers an explicit top-level `algorithm`, falling back
-    # to the one carried by `decomposition_config`, then the formal default.
-    algorithm <- x@algorithm
-    if (is.null(algorithm) && !is.null(x@decomposition_config)) {
-      algorithm <- x@decomposition_config@algorithm
-    }
-    if (is.null(algorithm)) {
-      algorithm <- "ICA"
-    }
+    # The document names the algorithm in one place, its `decomposition_config`;
+    # with none, the formal default below applies.
     return(decomp(
       x = read(x@dat_path),
-      algorithm = algorithm,
       config = x@decomposition_config,
       outdir = x@outdir,
       verbosity = x@verbosity
@@ -65,10 +59,25 @@ decomp <- function(
   } # / decomp.DecomposeConfig
 
   # Checks ----
+  # A supplied config names its algorithm; `algorithm` then serves only to catch
+  # a caller naming a different one, which would otherwise run under the wrong
+  # label with the wrong settings.
   if (is.null(config)) {
     config <- get_default_decomparams(algorithm)
+  } else {
+    check_is_S7(config, DecompositionConfig)
+    if (!missing(algorithm) && get_decom_name(algorithm) != config@algorithm) {
+      rtemis.core::abort(
+        "`algorithm` is \"",
+        algorithm,
+        "\" but `config` is a ",
+        config@algorithm,
+        " config; pass one or the other.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+    algorithm <- config@algorithm
   }
-  check_is_S7(config, DecompositionConfig)
 
   # Feature selection ----
   # `apply_decomp()` subsets new data by `config@features`, so the fit must use
@@ -127,7 +136,6 @@ decomp <- function(
   # NULL is rejected, and a record reporting the default with origin `default`
   # is the honest reading of "the caller did not choose one".
   input_args <- list(
-    algorithm = algorithm,
     decomposition_config = config,
     verbosity = max(0L, verbosity)
   )

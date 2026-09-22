@@ -4,12 +4,15 @@
 \alias{setup_GMM}
 \title{Setup GMMConfig}
 \usage{
-setup_GMM(k = NULL, model_names = NULL)
+setup_GMM(k = NULL, model_names = NULL, features = NULL)
 }
 \arguments{
 \item{k}{Optional Integer [1, Inf): Number of mixture components. Unset selects it by BIC.}
 
 \item{model_names}{Optional Character \{"EII", "VII", "EEI", "VEI", "EVI", "VVI", "EEE", "VEE", "EVE", "VVE", "EEV", "VEV", "EVV", "VVV"\} vector: Covariance parameterizations to consider. Unset considers all of them.}
+
+\item{features}{Optional Character vector: Names of at least 2 distinct
+feature columns to cluster on. \code{NULL} clusters on all numeric features.}
 }
 \value{
 \code{GMMConfig} object.

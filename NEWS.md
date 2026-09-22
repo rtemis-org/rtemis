@@ -2,6 +2,8 @@
 
 ## 1.4.1
 
+- `setup_ClusterConfig()` and `setup_DecomposeConfig()` no longer take `algorithm`; a cluster or decompose document names its algorithm once, inside its clustering or decomposition config, and `cluster()` and `decomp()` reject an `algorithm` that disagrees with a supplied config.
+- Clustering configs declare `features`, the columns to cluster on, and every clustering `setup_*()` accepts it; the run record states the subset.
 - Shared results identify implementation-specific configs by schema and read their typed settings without inserting omitted defaults.
 - Implementation-specific schema paths include the language namespace; shared result paths remain unqualified.
 

@@ -403,3 +403,22 @@ test_that("an unset features decomposes every column", {
   expect_null(fit@config@features)
   expect_identical(names(apply_decomp(fit, x, verbosity = 0L)), c("PC1", "PC2"))
 })
+
+
+# one place for the algorithm ----
+test_that("decomp() takes the algorithm from config and refuses a disagreeing label", {
+  fit <- decomp(x, config = setup_PCA(k = 2L), verbosity = 0L)
+  expect_identical(fit@algorithm, "PCA")
+  expect_error(
+    decomp(x, algorithm = "ICA", config = setup_PCA(k = 2L), verbosity = 0L),
+    "pass one or the other",
+    class = "rtemis_value_error"
+  )
+  fit2 <- decomp(
+    x,
+    algorithm = "pca",
+    config = setup_PCA(k = 2L),
+    verbosity = 0L
+  )
+  expect_identical(fit2@algorithm, "PCA")
+})

@@ -172,6 +172,76 @@ test_that("catalog rejects orphan leaves and duplicate publication identities", 
 })
 
 
+test_that("an authored document may not shadow a referenced family's discriminator", {
+  shadowing <- list(
+    algorithm = prop_string(NULL, nullable = TRUE, description = "A copy."),
+    clustering_config = prop_object(
+      ClusteringConfig,
+      nullable = TRUE,
+      description = "The family that owns the name."
+    )
+  )
+  expect_error(
+    schema_class(
+      "ShadowingPipeline",
+      package = "rtemis",
+      properties = shadowing,
+      publication = SchemaPublication(
+        kind = "pipeline",
+        description = "Shadowing."
+      )
+    ),
+    "name the variant once",
+    class = "rtemis_schema_error"
+  )
+  expect_error(
+    schema_class(
+      "ShadowingConfig",
+      package = "rtemis",
+      properties = shadowing,
+      publication = SchemaPublication(
+        kind = "config",
+        description = "Shadowing."
+      )
+    ),
+    class = "rtemis_schema_error"
+  )
+  # A report restates what ran; it is read, not authored, so it may carry the
+  # algorithm beside the config that named it.
+  expect_s3_class(
+    schema_class(
+      "RestatingReport",
+      package = "rtemis",
+      properties = shadowing,
+      publication = SchemaPublication(
+        kind = "report",
+        description = "Restating."
+      )
+    ),
+    "S7_class"
+  )
+  # A property that is not the discriminator is not a shadow.
+  expect_s3_class(
+    schema_class(
+      "PlainPipeline",
+      package = "rtemis",
+      properties = list(
+        label = prop_string(NULL, nullable = TRUE, description = "A label."),
+        clustering_config = shadowing[["clustering_config"]]
+      ),
+      publication = SchemaPublication(kind = "pipeline", description = "Plain.")
+    ),
+    "S7_class"
+  )
+  # A leaf carries its own discriminator beside a same-family reference.
+  expect_identical(schema_publication(SuperLearnerHyperparameters)@role, "leaf")
+  expect_true(all(
+    c("algorithm", "base_learners") %in%
+      names(SuperLearnerHyperparameters@properties)
+  ))
+})
+
+
 test_that("group and authorship round-trip independently of schema defaults", {
   Declared <- S7::new_class(
     "PolicyRoundtrip",

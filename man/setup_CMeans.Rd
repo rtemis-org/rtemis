@@ -12,7 +12,8 @@ setup_CMeans(
   m = 2,
   rate_par = NULL,
   weights = 1,
-  control = list()
+  control = list(),
+  features = NULL
 )
 }
 \arguments{
@@ -31,6 +32,9 @@ setup_CMeans(
 \item{weights}{Numeric vector: Case weights. Either a scalar, applied to every case, or a vector with one value per case.}
 
 \item{control}{List: Control config for clustering algorithm.}
+
+\item{features}{Optional Character vector: Names of at least 2 distinct
+feature columns to cluster on. \code{NULL} clusters on all numeric features.}
 }
 \value{
 CMeansConfig object.

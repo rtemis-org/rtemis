@@ -23,6 +23,8 @@
 #'
 #' @field algorithm Character: Algorithm name (computed constant, overridden
 #'   per subclass).
+#' @field features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to cluster on. `NULL` means all numeric features.
 #' @field config List: Algorithm-specific parameters (computed from the
 #'   subclass's properties; assignment routes back and validates).
 #'
@@ -35,6 +37,22 @@ ClusteringConfig <- schema_class(
   abstract = TRUE,
   properties = list(
     algorithm = class_character,
+    # Declared on the base as `DecompositionConfig` declares it, so every
+    # algorithm shares it and the document -- not a job parameter beside it --
+    # says which columns were clustered. A subset is only a subset if it names
+    # at least two distinct columns.
+    features = prop_string(
+      NULL,
+      nullable = TRUE,
+      vector = TRUE,
+      min_items = 2L,
+      unique_items = TRUE,
+      data_bound = "numeric_feature_names",
+      description = paste(
+        "Names of the feature columns to cluster on. null = all numeric",
+        "features."
+      )
+    ),
     config = new_property(
       class_list,
       getter = function(self) {
@@ -58,7 +76,8 @@ ClusteringConfig <- schema_class(
 
 
 # %% serializable_props.ClusteringConfig ----
-# `algorithm` plus the algorithm's settings as siblings -- the shape the
+# `algorithm`, then `features` (declared on the base, so shared by every
+# algorithm), then the algorithm's settings as siblings -- the shape the
 # clustering schema declares. The computed `config` list is not written: it is
 # a view of the same properties.
 method(serializable_props, ClusteringConfig) <- function(x) {
@@ -126,9 +145,13 @@ method(repr, ClusteringConfig) <- function(
     pad = pad,
     output_type = output_type
   )
+  config <- x@config
+  if (!is.null(x@features)) {
+    config <- c(config, list(features = x@features))
+  }
   paste0(
     out,
-    repr_ls(x@config, pad = pad, output_type = output_type)
+    repr_ls(config, pad = pad, output_type = output_type)
   )
 } # /rtemis::repr.ClusteringConfig
 
@@ -190,6 +213,8 @@ KMeansConfig <- schema_class(
 #' @param k Integer [1, Inf): Number of clusters.
 #' @param dist Character \{"euclidean", "manhattan"\}: Distance measure to use.
 #'
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to cluster on. `NULL` clusters on all numeric features.
 #' @return KMeansConfig object.
 #'
 #' @author EDG
@@ -197,10 +222,10 @@ KMeansConfig <- schema_class(
 #' @examples
 #' kmeans_config <- setup_KMeans(k = 4L, dist = "euclidean")
 #' kmeans_config
-setup_KMeans <- function(k = 3L, dist = "euclidean") {
+setup_KMeans <- function(k = 3L, dist = "euclidean", features = NULL) {
   apply_setup_defaults(KMeansConfig)
   k <- clean_posint(k)
-  KMeansConfig(k = k, dist = dist)
+  KMeansConfig(k = k, dist = dist, features = features)
 } # /rtemis::setup_KMeans
 
 
@@ -239,6 +264,8 @@ HardCLConfig <- schema_class(
 #' @param k Integer [1, Inf): Number of clusters.
 #' @param dist Character \{"euclidean", "manhattan"\}: Distance measure to use.
 #'
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to cluster on. `NULL` clusters on all numeric features.
 #' @return HardCLConfig object.
 #'
 #' @author EDG
@@ -246,10 +273,10 @@ HardCLConfig <- schema_class(
 #' @examples
 #' hardcl_config <- setup_HardCL(k = 4L, dist = "euclidean")
 #' hardcl_config
-setup_HardCL <- function(k = 3L, dist = "euclidean") {
+setup_HardCL <- function(k = 3L, dist = "euclidean", features = NULL) {
   apply_setup_defaults(HardCLConfig)
   k <- clean_posint(k)
-  HardCLConfig(k = k, dist = dist)
+  HardCLConfig(k = k, dist = dist, features = features)
 } # /rtemis::setup_HardCL
 
 
@@ -288,6 +315,8 @@ NeuralGasConfig <- schema_class(
 #' @param k Integer [1, Inf): Number of clusters.
 #' @param dist Character \{"euclidean", "manhattan"\}: Distance measure to use.
 #'
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to cluster on. `NULL` clusters on all numeric features.
 #' @return NeuralGasConfig object.
 #'
 #' @author EDG
@@ -295,10 +324,10 @@ NeuralGasConfig <- schema_class(
 #' @examples
 #' neuralgas_config <- setup_NeuralGas(k = 4L, dist = "euclidean")
 #' neuralgas_config
-setup_NeuralGas <- function(k = 3L, dist = "euclidean") {
+setup_NeuralGas <- function(k = 3L, dist = "euclidean", features = NULL) {
   apply_setup_defaults(NeuralGasConfig)
   k <- clean_posint(k)
-  NeuralGasConfig(k = k, dist = dist)
+  NeuralGasConfig(k = k, dist = dist, features = features)
 } # /rtemis::setup_NeuralGas
 
 
@@ -378,6 +407,8 @@ CMeansConfig <- schema_class(
 #' @param weights Numeric vector: Case weights. Either a scalar, applied to every case, or a vector with one value per case.
 #' @param control List: Control config for clustering algorithm.
 #'
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to cluster on. `NULL` clusters on all numeric features.
 #' @return CMeansConfig object.
 #'
 #' @author EDG
@@ -393,7 +424,8 @@ setup_CMeans <- function(
   m = 2.0,
   rate_par = NULL,
   weights = 1.0,
-  control = list()
+  control = list(),
+  features = NULL
 ) {
   apply_setup_defaults(CMeansConfig)
   k <- clean_posint(k)
@@ -406,7 +438,8 @@ setup_CMeans <- function(
     m = m,
     rate_par = rate_par,
     weights = weights,
-    control = control
+    control = control,
+    features = features
   )
 } # /rtemis::setup_CMeans
 
@@ -488,6 +521,8 @@ DBSCANConfig <- schema_class(
 #' @param split_rule Character \{"SUGGEST", "STD", "MIDPT", "FAIR", "SL_MIDPT", "SL_FAIR"\}: Rule for splitting the k-d tree.
 #' @param approx Logical: If TRUE, use approximate nearest neighbor search.
 #'
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to cluster on. `NULL` clusters on all numeric features.
 #' @return DBSCANConfig object.
 #'
 #' @author EDG
@@ -503,7 +538,8 @@ setup_DBSCAN <- function(
   search = "kdtree",
   bucket_size = 100L,
   split_rule = "SUGGEST",
-  approx = FALSE
+  approx = FALSE,
+  features = NULL
 ) {
   apply_setup_defaults(DBSCANConfig)
   min_points <- clean_posint(min_points)
@@ -516,7 +552,8 @@ setup_DBSCAN <- function(
     search = search,
     bucket_size = bucket_size,
     split_rule = split_rule,
-    approx = approx
+    approx = approx,
+    features = features
   )
 } # /rtemis::setup_DBSCAN
 
@@ -685,6 +722,8 @@ HOPACHConfig <- schema_class(
 #' @param initial_order Character \{"co", "clust"\}: How clusters in the first level are ordered.
 #' @param element_order Character \{"own", "neighbor"\}: How elements are ordered within a cluster.
 #'
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to cluster on. `NULL` clusters on all numeric features.
 #' @return `HOPACHConfig` object.
 #'
 #' @references
@@ -709,7 +748,8 @@ setup_HOPACH <- function(
   mss = "med",
   min_improvement = 0,
   initial_order = "co",
-  element_order = "own"
+  element_order = "own",
+  features = NULL
 ) {
   apply_setup_defaults(HOPACHConfig)
   max_levels <- clean_posint(max_levels)
@@ -726,7 +766,8 @@ setup_HOPACH <- function(
     mss = mss,
     min_improvement = min_improvement,
     initial_order = initial_order,
-    element_order = element_order
+    element_order = element_order,
+    features = features
   )
 } # /rtemis::setup_HOPACH
 
@@ -820,6 +861,8 @@ PAMConfig <- schema_class(
 #' @param variant Character \{"original", "o_1", "o_2", "f_3", "f_4", "f_5", "faster"\}: Algorithm variant; "original" is the published algorithm, the others trade exactness for speed.
 #' @param nstart Optional Integer [1, Inf): Number of random starts. NULL uses the deterministic build phase instead of drawing the initial medoids at random.
 #'
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to cluster on. `NULL` clusters on all numeric features.
 #' @return `PAMConfig` object.
 #'
 #' @references
@@ -838,7 +881,8 @@ setup_PAM <- function(
   stand = FALSE,
   do_swap = TRUE,
   variant = "original",
-  nstart = NULL
+  nstart = NULL,
+  features = NULL
 ) {
   apply_setup_defaults(PAMConfig)
   k <- clean_posint(k)
@@ -851,7 +895,8 @@ setup_PAM <- function(
     stand = stand,
     do_swap = do_swap,
     variant = variant,
-    nstart = nstart
+    nstart = nstart,
+    features = features
   )
 } # /rtemis::setup_PAM
 
@@ -966,6 +1011,8 @@ PAMKConfig <- schema_class(
 #' @param alpha Numeric \[0, 1\]: Significance level of the Duda-Hart test, used only when 1 is among the candidates.
 #' @param n_subsets Optional Integer [1, Inf): Number of random subsets the average silhouette width is computed on. Applies when `criterion` is "multiasw".
 #'
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to cluster on. `NULL` clusters on all numeric features.
 #' @return `PAMKConfig` object.
 #'
 #' @references
@@ -984,7 +1031,8 @@ setup_PAMK <- function(
   use_pam = TRUE,
   scaling = FALSE,
   alpha = 0.001,
-  n_subsets = NULL
+  n_subsets = NULL,
+  features = NULL
 ) {
   apply_setup_defaults(PAMKConfig)
   krange <- clean_posint(krange)
@@ -997,7 +1045,8 @@ setup_PAMK <- function(
     use_pam = use_pam,
     scaling = scaling,
     alpha = alpha,
-    n_subsets = n_subsets
+    n_subsets = n_subsets,
+    features = features
   )
 } # /rtemis::setup_PAMK
 
@@ -1093,6 +1142,8 @@ GMMConfig <- schema_class(
 #' @param k Optional Integer [1, Inf): Number of mixture components. Unset selects it by BIC.
 #' @param model_names Optional Character \{"EII", "VII", "EEI", "VEI", "EVI", "VVI", "EEE", "VEE", "EVE", "VVE", "EEV", "VEV", "EVV", "VVV"\} vector: Covariance parameterizations to consider. Unset considers all of them.
 #'
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to cluster on. `NULL` clusters on all numeric features.
 #' @return `GMMConfig` object.
 #'
 #' @references
@@ -1106,12 +1157,12 @@ GMMConfig <- schema_class(
 #' @examples
 #' gmm_config <- setup_GMM(k = 3L)
 #' gmm_config
-setup_GMM <- function(k = NULL, model_names = NULL) {
+setup_GMM <- function(k = NULL, model_names = NULL, features = NULL) {
   apply_setup_defaults(GMMConfig)
   if (!is.null(k)) {
     k <- clean_posint(k)
   }
-  GMMConfig(k = k, model_names = model_names)
+  GMMConfig(k = k, model_names = model_names, features = features)
 } # /rtemis::setup_GMM
 
 
@@ -1276,6 +1327,8 @@ SpectralConfig <- schema_class(
 #' @param nystrom Logical: If TRUE, approximate the affinity matrix from a sample of the cases by the Nystrom method.
 #' @param nystrom_sample Optional Integer [1, Inf): Number of cases the approximation samples. Unset samples one sixth of them. Applies when `nystrom` is TRUE.
 #'
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to cluster on. `NULL` clusters on all numeric features.
 #' @return `SpectralConfig` object.
 #'
 #' @references
@@ -1298,7 +1351,8 @@ setup_Spectral <- function(
   sigma_sample_fraction = NULL,
   iterations = 200L,
   nystrom = FALSE,
-  nystrom_sample = NULL
+  nystrom_sample = NULL,
+  features = NULL
 ) {
   apply_setup_defaults(SpectralConfig)
   k <- clean_posint(k)
@@ -1313,7 +1367,8 @@ setup_Spectral <- function(
     sigma_sample_fraction = sigma_sample_fraction,
     iterations = iterations,
     nystrom = nystrom,
-    nystrom_sample = nystrom_sample
+    nystrom_sample = nystrom_sample,
+    features = features
   )
 } # /rtemis::setup_Spectral
 

@@ -51,3 +51,25 @@ test_that("ClusterConfig round-trips through write_config/read_config JSON", {
     x@clustering_config@algorithm
   )
 })
+
+
+# %% one place for the algorithm ----
+test_that("a cluster document names its algorithm only inside clustering_config", {
+  expect_false("algorithm" %in% names(ClusterConfig@properties))
+  expect_error(
+    .list_to_ClusterConfig(list(
+      algorithm = "KMeans",
+      clustering_config = list(algorithm = "KMeans", k = 3L)
+    )),
+    class = "rtemis_input_error"
+  )
+  x <- .list_to_ClusterConfig(list(
+    clustering_config = list(
+      algorithm = "KMeans",
+      k = 3L,
+      features = c("a", "b")
+    )
+  ))
+  expect_identical(x@clustering_config@algorithm, "KMeans")
+  expect_identical(x@clustering_config@features, c("a", "b"))
+})
