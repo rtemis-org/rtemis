@@ -901,6 +901,214 @@ setup_PAM <- function(
 } # /rtemis::setup_PAM
 
 
+# %% PAMKCriterionConfig ----
+#' PAMKCriterionConfig
+#'
+#' @description
+#' Abstract family for the criterion PAMK selects the number of clusters by.
+#' Each criterion is a variant carrying only its own settings, so a setting
+#' that applies to one criterion cannot be written beside another.
+#'
+#' @field type Character: Criterion name (computed constant, overridden per
+#'   subclass).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+PAMKCriterionConfig <- schema_class(
+  name = "PAMKCriterionConfig",
+  package = "rtemis",
+  abstract = TRUE,
+  properties = list(
+    type = class_character
+  ),
+  publication = SchemaPublication(
+    role = "family",
+    slug = "pamkcriterion",
+    title = "rtemis PAMKCriterionConfig",
+    description = "Language-independent config for the criterion PAMK chooses the number of clusters by: a criterion type plus that criterion's own settings.",
+    discriminator = "type",
+    discriminator_description = "Criterion name.",
+    order = 3L
+  )
+) # /rtemis::PAMKCriterionConfig
+
+
+# %% serializable_props.PAMKCriterionConfig ----
+# `type` plus the criterion's settings as siblings -- the shape every family
+# declares.
+method(serializable_props, PAMKCriterionConfig) <- function(x) {
+  dispatched_props(x, PAMKCriterionConfig, "type")
+} # /rtemis::serializable_props.PAMKCriterionConfig
+
+
+# %% ASWCriterionConfig ----
+#' @keywords internal
+#' @noRd
+ASWCriterionConfig <- schema_class(
+  name = "ASWCriterionConfig",
+  parent = PAMKCriterionConfig,
+  properties = list(
+    type = prop_algorithm("asw")
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Average silhouette width over all cases.",
+    order = 1L
+  )
+) # /rtemis::ASWCriterionConfig
+
+
+# %% setup_ASWCriterion ----
+#' Setup ASWCriterionConfig
+#'
+#' Setup the average silhouette width criterion for [setup_PAMK]: every
+#' candidate number of clusters is scored by the mean silhouette width over
+#' all cases, and the highest wins.
+#'
+#' @return `ASWCriterionConfig` object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' setup_ASWCriterion()
+setup_ASWCriterion <- function() {
+  apply_setup_defaults(ASWCriterionConfig)
+  ASWCriterionConfig()
+} # /rtemis::setup_ASWCriterion
+
+
+# %% CHCriterionConfig ----
+#' @keywords internal
+#' @noRd
+CHCriterionConfig <- schema_class(
+  name = "CHCriterionConfig",
+  parent = PAMKCriterionConfig,
+  properties = list(
+    type = prop_algorithm("ch")
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Calinski-Harabasz index.",
+    order = 2L
+  )
+) # /rtemis::CHCriterionConfig
+
+
+# %% setup_CHCriterion ----
+#' Setup CHCriterionConfig
+#'
+#' Setup the Calinski-Harabasz criterion for [setup_PAMK]: every candidate
+#' number of clusters is scored by the ratio of between-cluster to
+#' within-cluster dispersion, and the highest wins.
+#'
+#' @return `CHCriterionConfig` object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' setup_CHCriterion()
+setup_CHCriterion <- function() {
+  apply_setup_defaults(CHCriterionConfig)
+  CHCriterionConfig()
+} # /rtemis::setup_CHCriterion
+
+
+# %% MultiASWCriterionConfig ----
+#' @keywords internal
+#' @noRd
+MultiASWCriterionConfig <- schema_class(
+  name = "MultiASWCriterionConfig",
+  parent = PAMKCriterionConfig,
+  properties = list(
+    type = prop_algorithm("multiasw"),
+    n_subsets = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      description = paste0(
+        "Number of random subsets the average silhouette width is computed ",
+        "on. Absent uses the backend's default."
+      )
+    )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Average silhouette width averaged over random subsets of the cases.",
+    order = 3L
+  )
+) # /rtemis::MultiASWCriterionConfig
+
+
+# %% setup_MultiASWCriterion ----
+#' Setup MultiASWCriterionConfig
+#'
+#' Setup the subsampled average silhouette width criterion for [setup_PAMK]:
+#' the silhouette width is computed on random subsets of the cases and
+#' averaged, which makes the score affordable on many cases.
+#'
+#' `n_subsets` maps to `fpc::pamk()`'s `ns`.
+#'
+#' @param n_subsets Optional Integer [1, Inf): Number of random subsets the
+#' average silhouette width is computed on.
+#'
+#' @return `MultiASWCriterionConfig` object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' setup_MultiASWCriterion(n_subsets = 20L)
+setup_MultiASWCriterion <- function(n_subsets = NULL) {
+  apply_setup_defaults(MultiASWCriterionConfig)
+  if (!is.null(n_subsets)) {
+    n_subsets <- clean_posint(n_subsets)
+  }
+  MultiASWCriterionConfig(n_subsets = n_subsets)
+} # /rtemis::setup_MultiASWCriterion
+
+
+# %% .list_to_PAMKCriterionConfig ----
+#' Convert a list to a PAMKCriterionConfig object
+#'
+#' @param x Named list with a `type` element plus the criterion's settings as
+#'   its siblings, e.g. `list(type = "multiasw", n_subsets = 20L)`.
+#'
+#' @return A `PAMKCriterionConfig` object (a criterion-specific subclass).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+.list_to_PAMKCriterionConfig <- function(x) {
+  if (S7_inherits(x, PAMKCriterionConfig)) {
+    return(x)
+  }
+  type <- x[["type"]]
+  if (is.null(type)) {
+    rtemis.core::abort(
+      "`type` is required to build a PAMKCriterionConfig.",
+      class = c("rtemis_null_input", "rtemis_input_error")
+    )
+  }
+  setup_fn <- switch(
+    type,
+    asw = setup_ASWCriterion,
+    ch = setup_CHCriterion,
+    multiasw = setup_MultiASWCriterion,
+    rtemis.core::abort(
+      "Unknown PAMK criterion `",
+      type,
+      "`; one of \"asw\", \"ch\", \"multiasw\".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  )
+  label <- paste(type, "criterion")
+  params <- .drop_meta_keys(x)
+  params[["type"]] <- NULL
+  check_wire_keys(params, names(formals(setup_fn)), label)
+  do.call(setup_fn, Filter(Negate(is.null), params))
+} # /rtemis::.list_to_PAMKCriterionConfig
+
+
 # %% PAMKConfig ----
 #' @title PAMKConfig
 #'
@@ -931,13 +1139,17 @@ PAMKConfig <- schema_class(
         "has nothing to choose between."
       )
     ),
-    criterion = prop_string(
-      "asw",
-      enum = c("asw", "multiasw", "ch"),
+    # The criterion is a variant of its own family rather than a name beside
+    # a setting that applies to only one of the names: a setting that applies
+    # only under another setting's value is the sign the pair belongs in one
+    # object.
+    criterion = prop_object(
+      PAMKCriterionConfig,
+      default = setup_ASWCriterion(),
       description = paste0(
-        "Criterion used to choose the number of clusters: \"asw\" = average ",
-        "silhouette width, \"multiasw\" = average silhouette width computed ",
-        "on random subsets, \"ch\" = Calinski-Harabasz index."
+        "Criterion used to choose the number of clusters, with that ",
+        "criterion's own settings. Absent = average silhouette width over ",
+        "all cases."
       )
     ),
     use_pam = prop_boolean(
@@ -962,23 +1174,8 @@ PAMKConfig <- schema_class(
         "Significance level of the Duda-Hart test, which decides between one ",
         "cluster and more. Only used when 1 is among the candidates."
       )
-    ),
-    n_subsets = prop_integer(
-      NULL,
-      min = 1L,
-      nullable = TRUE,
-      applies_when = list(criterion = "multiasw"),
-      description = paste0(
-        "Number of random subsets the average silhouette width is computed on."
-      )
     )
   ),
-  # Neither criterion can score a single cluster, so a search over 1 alone has
-  # nothing to choose between and the backend fails with "subscript out of
-  # bounds".
-  validator = function(self) {
-    check_applies_when(self)
-  },
   publication = SchemaPublication(
     role = "leaf",
     description = "Partitioning Around Medoids with estimation of the number of clusters.",
@@ -998,18 +1195,18 @@ PAMKConfig <- schema_class(
 #' number of clusters chosen is reported by the resulting `Clustering`.
 #'
 #' Argument names are rtemis' own. They map to `fpc::pamk()` as:
-#' `use_pam` -> `usepam`, `n_subsets` -> `ns`; the rest keep their names.
+#' `use_pam` -> `usepam`; the criterion's `type` -> `criterion` and its
+#' `n_subsets` -> `ns`; the rest keep their names.
 #'
 #' `fpc::pamk()` also accepts a per-variable numeric vector for `scaling`; only
 #' the logical form is exposed here. Scale by column with [preprocess] instead,
 #' where the decision is recorded and replayed with the data.
 #'
 #' @param krange Integer [1, Inf) vector: Candidate numbers of clusters to compare. Must include at least one value greater than 1.
-#' @param criterion Character \{"asw", "multiasw", "ch"\}: Criterion used to choose the number of clusters.
+#' @param criterion `PAMKCriterionConfig`: Criterion used to choose the number of clusters, from [setup_ASWCriterion], [setup_CHCriterion] or [setup_MultiASWCriterion].
 #' @param use_pam Logical: If TRUE, fit each candidate with PAM; if FALSE, with CLARA.
 #' @param scaling Logical: If TRUE, scale each variable by its root mean square after centering.
 #' @param alpha Numeric \[0, 1\]: Significance level of the Duda-Hart test, used only when 1 is among the candidates.
-#' @param n_subsets Optional Integer [1, Inf): Number of random subsets the average silhouette width is computed on. Applies when `criterion` is "multiasw".
 #'
 #' @param features Optional Character vector: Names of at least 2 distinct
 #'   feature columns to cluster on. `NULL` clusters on all numeric features.
@@ -1025,27 +1222,24 @@ PAMKConfig <- schema_class(
 #' @examples
 #' pamk_config <- setup_PAMK(krange = 2:5)
 #' pamk_config
+#' setup_PAMK(krange = 2:5, criterion = setup_MultiASWCriterion(n_subsets = 20L))
 setup_PAMK <- function(
   krange = 2:10,
-  criterion = "asw",
+  criterion = setup_ASWCriterion(),
   use_pam = TRUE,
   scaling = FALSE,
   alpha = 0.001,
-  n_subsets = NULL,
   features = NULL
 ) {
   apply_setup_defaults(PAMKConfig)
   krange <- clean_posint(krange)
-  if (!is.null(n_subsets)) {
-    n_subsets <- clean_posint(n_subsets)
-  }
+  check_is_S7(criterion, PAMKCriterionConfig)
   PAMKConfig(
     krange = krange,
     criterion = criterion,
     use_pam = use_pam,
     scaling = scaling,
     alpha = alpha,
-    n_subsets = n_subsets,
     features = features
   )
 } # /rtemis::setup_PAMK
@@ -1166,60 +1360,167 @@ setup_GMM <- function(k = NULL, model_names = NULL, features = NULL) {
 } # /rtemis::setup_GMM
 
 
-# %% SpectralConfig ----
-#' @title SpectralConfig
+# %% NystromConfig ----
+#' NystromConfig
 #'
 #' @description
-#' ClusteringConfig subclass for spectral clustering.
-#'
-#' `kernel` fuses the backend's two kernel arguments into one setting. That is
-#' not cosmetic: `kernlab::specc()` discards its `kernel` argument whenever
-#' `kpar` is one of the strings "automatic" or "local", so the pair admits
-#' combinations that name a kernel and then silently use a different one. One
-#' enum cannot express those.
+#' The Nystrom approximation of a spectral clustering's affinity matrix: how
+#' many cases the approximation samples. Its presence on a spectral config is
+#' what turns the approximation on, so there is no flag to keep in step with
+#' the sample size.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-SpectralConfig <- schema_class(
-  name = "SpectralConfig",
+NystromConfig <- schema_class(
+  name = "NystromConfig",
+  package = "rtemis",
+  properties = list(
+    sample = prop_integer(
+      NULL,
+      min = 1L,
+      nullable = TRUE,
+      description = paste0(
+        "Number of cases the approximation samples. Must be fewer than the ",
+        "number of cases, and enough larger than the number of clusters for ",
+        "the sample to be clustered on its own. Absent samples one sixth of ",
+        "the cases."
+      )
+    )
+  ),
+  publication = SchemaPublication(
+    role = "document",
+    slug = "nystrom",
+    title = "rtemis NystromConfig",
+    description = "Language-independent config for the Nystrom approximation of a spectral clustering's affinity matrix: the number of cases sampled. The exact decomposition is cubic in the number of cases; the approximation trades some accuracy for a cost set by the sample size instead.",
+    order = 8L,
+    kind = "config"
+  )
+) # /rtemis::NystromConfig
+
+
+# %% setup_Nystrom ----
+#' Setup NystromConfig
+#'
+#' Setup the Nystrom approximation for [setup_SpectralRBF] or
+#' [setup_SpectralLaplace]. Passing one turns the approximation on; its
+#' `sample` says how many cases it samples.
+#'
+#' `sample` maps to `kernlab::specc()`'s `nystrom.sample`; passing the config
+#' at all sets `nystrom.red = TRUE`.
+#'
+#' @param sample Optional Integer [1, Inf): Number of cases the approximation
+#' samples. Must be fewer than the number of cases. Unset samples one sixth of
+#' them.
+#'
+#' @return `NystromConfig` object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' setup_Nystrom(sample = 200L)
+setup_Nystrom <- function(sample = NULL) {
+  apply_setup_defaults(NystromConfig)
+  if (!is.null(sample)) {
+    sample <- clean_posint(sample)
+  }
+  NystromConfig(sample = sample)
+} # /rtemis::setup_Nystrom
+
+
+# %% .list_to_NystromConfig ----
+#' @keywords internal
+#' @noRd
+.list_to_NystromConfig <- function(x) {
+  if (S7_inherits(x, NystromConfig)) {
+    return(x)
+  }
+  params <- .drop_meta_keys(x)
+  check_wire_keys(params, names(formals(setup_Nystrom)), "Nystrom config")
+  do.call(setup_Nystrom, Filter(Negate(is.null), params))
+} # /rtemis::.list_to_NystromConfig
+
+
+# Spectral clustering does not look for compact groups in the data itself. It
+# builds a similarity graph over the cases, embeds them in the leading
+# eigenvectors of that graph's normalized Laplacian, and runs k-means there.
+# Groups that are connected but not compact -- concentric rings, elongated
+# bands -- separate in that embedding while k-means on the raw features cannot
+# find them.
+#
+# One variant per kernel, because the kernels take different settings: a
+# width for the Gaussian and the exponential kernels, none for the locally
+# scaled Gaussian, and only the two with a global width can be approximated
+# by the Nystrom method. One class with a `kernel` enum needed four rules to
+# say which setting went with which kernel; three classes need none.
+#
+# The remaining 'kernlab' kernels -- polynomial, linear, hyperbolic tangent,
+# Bessel, ANOVA, spline -- are not exposed: they are inner products rather
+# than distance-decaying similarities, so they can give an affinity matrix
+# with negative entries, which is not a similarity graph and which the
+# normalization step has no defined meaning for.
+
+# The two settings every spectral variant shares, declared once.
+.spectral_k <- function() {
+  # The backend's upper bound is `k <= n_cases`, and its lower bound is 2: one
+  # cluster leaves a single eigenvector and the embedding loses its matrix
+  # shape. `data_bound = "n_cases"` states neither, so both are in the
+  # description, as `PAMConfig` does for the same reason.
+  prop_integer(
+    3L,
+    min = 2L,
+    description = paste0(
+      "Number of clusters. Must be at least 2 and no more than the number ",
+      "of cases."
+    )
+  )
+}
+.spectral_iterations <- function() {
+  prop_integer(
+    200L,
+    min = 1L,
+    description = paste0(
+      "Maximum number of k-means iterations run on the spectral embedding."
+    )
+  )
+}
+.spectral_nystrom <- function() {
+  prop_object(
+    NystromConfig,
+    nullable = TRUE,
+    description = paste0(
+      "Approximate the affinity matrix from a sample of the cases by the ",
+      "Nystrom method rather than decomposing it in full. Absent = the exact ",
+      "decomposition, which is cubic in the number of cases."
+    )
+  )
+}
+
+
+# %% SpectralRBFConfig ----
+#' @title SpectralRBFConfig
+#'
+#' @description
+#' ClusteringConfig subclass for spectral clustering with a Gaussian kernel of
+#' one width shared by every case.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+SpectralRBFConfig <- schema_class(
+  name = "SpectralRBFConfig",
   parent = ClusteringConfig,
   properties = list(
-    algorithm = prop_algorithm("Spectral"),
-    # The backend's upper bound is `k <= n_cases`, and its lower bound is 2:
-    # one cluster leaves a single eigenvector and the embedding loses its
-    # matrix shape. `data_bound = "n_cases"` states neither, so both are in the
-    # description, as `PAMConfig` does for the same reason.
-    k = prop_integer(
-      3L,
-      min = 2L,
-      description = paste0(
-        "Number of clusters. Must be at least 2 and no more than the number ",
-        "of cases."
-      )
-    ),
-    kernel = prop_string(
-      "rbf",
-      enum = c("rbf", "rbf_local", "laplace"),
-      description = paste0(
-        "Similarity measure the affinity matrix is built from: \"rbf\" = ",
-        "Gaussian, with one width shared by every case; \"rbf_local\" = ",
-        "Gaussian with a per-case width taken from the distance to its ",
-        "seventh nearest neighbor, which lets one clustering hold groups of ",
-        "differing density; \"laplace\" = exponential, which decays more ",
-        "slowly than the Gaussian and so keeps more weight on distant pairs."
-      )
-    ),
+    algorithm = prop_algorithm("SpectralRBF"),
+    k = .spectral_k(),
     sigma = prop_float(
       NULL,
       exclusive_min = 0,
       nullable = TRUE,
-      applies_when = list(kernel = c("rbf", "laplace")),
       description = paste0(
         "Inverse kernel width: larger values make the affinity fall off ",
-        "faster with distance. Unset estimates it for \"rbf\" by searching a ",
-        "grid of widths for the one whose embedding clusters most tightly, ",
-        "and uses 1 for \"laplace\"."
+        "faster with distance. Absent estimates it by searching a grid of ",
+        "widths for the one whose embedding clusters most tightly."
       )
     ),
     sigma_sample_fraction = prop_float(
@@ -1227,150 +1528,252 @@ SpectralConfig <- schema_class(
       exclusive_min = 0,
       max = 1,
       nullable = TRUE,
-      applies_when = list(kernel = "rbf"),
       description = paste0(
-        "Fraction of the cases the kernel width is estimated from. Lowering ",
-        "it is the way to make the search affordable on many cases, since it ",
-        "decomposes one affinity matrix per candidate width. Used only when ",
-        "\"sigma\" is unset, which is what triggers the search. Unset uses ",
-        "three quarters of them."
+        "Fraction of the cases the kernel width is estimated from when ",
+        "`sigma` is absent. Lowering it is the way to make the search ",
+        "affordable on many cases, since it decomposes one affinity matrix ",
+        "per candidate width. Absent uses three quarters of them."
       )
     ),
-    iterations = prop_integer(
-      200L,
-      min = 1L,
-      description = paste0(
-        "Maximum number of k-means iterations run on the spectral embedding."
-      )
-    ),
-    nystrom = prop_boolean(
-      FALSE,
-      description = paste0(
-        "Approximate the affinity matrix from a sample of the cases by the ",
-        "Nystrom method, rather than decomposing it in full. The exact ",
-        "decomposition is cubic in the number of cases; this trades some ",
-        "accuracy for a cost set by the sample size instead. Cannot be ",
-        "combined with the \"rbf_local\" kernel, whose per-case widths need ",
-        "every pairwise distance."
-      )
-    ),
-    nystrom_sample = prop_integer(
-      NULL,
-      min = 1L,
-      nullable = TRUE,
-      applies_when = list(nystrom = TRUE),
-      description = paste0(
-        "Number of cases the approximation samples. Must be fewer than the ",
-        "number of cases, and enough larger than the number of clusters for ",
-        "the sample to be clustered on its own. Unset samples one sixth of ",
-        "the cases."
-      )
-    )
+    iterations = .spectral_iterations(),
+    nystrom = .spectral_nystrom()
   ),
-  # Local scaling reads a per-case width off the full pairwise distance
-  # matrix, which the Nystrom approximation never forms; the backend refuses
-  # the combination outright.
-  validator = check_applies_when,
-  rules = list(ForbidTogether(
-    id = "spectral.local-kernel-nystrom",
-    conditions = list(
-      SchemaPredicate(property = "kernel", equals = "rbf_local"),
-      SchemaPredicate(property = "nystrom", equals = TRUE)
-    ),
-    message = "nystrom cannot be combined with kernel 'rbf_local': local scaling needs every pairwise distance."
-  )),
   publication = SchemaPublication(
     role = "leaf",
-    description = "Spectral clustering.",
+    description = "Spectral clustering with a Gaussian kernel of one shared width.",
     order = 10L
   )
-) # /rtemis::SpectralConfig
+) # /rtemis::SpectralRBFConfig
 
 
-# %% setup_Spectral ----
-#' Setup SpectralConfig
+# %% setup_SpectralRBF ----
+#' Setup SpectralRBFConfig
 #'
-#' Setup a `SpectralConfig` object for spectral clustering, via the 'kernlab'
-#' package.
+#' Setup a `SpectralRBFConfig` object for spectral clustering with a Gaussian
+#' (radial basis function) kernel, via the 'kernlab' package.
 #'
-#' Spectral clustering does not look for compact groups in the data itself. It
-#' builds a similarity graph over the cases, embeds them in the leading
-#' eigenvectors of that graph's normalized Laplacian, and runs k-means there.
-#' Groups that are connected but not compact -- concentric rings, elongated
-#' bands -- separate in that embedding while k-means on the raw features cannot
-#' find them.
+#' Spectral clustering builds a similarity graph over the cases, embeds them
+#' in the leading eigenvectors of that graph's normalized Laplacian, and runs
+#' k-means there. Groups that are connected but not compact -- concentric
+#' rings, elongated bands -- separate in that embedding while k-means on the
+#' raw features cannot find them. This variant measures similarity with a
+#' Gaussian kernel whose width is shared by every case; see
+#' [setup_SpectralLocal] for a per-case width and [setup_SpectralLaplace] for
+#' an exponential kernel.
 #'
-#' The cost is cubic in the number of cases, since the whole affinity matrix is
-#' decomposed. Set `nystrom` to approximate the decomposition from a sample
-#' instead.
-#'
-#' `kernel` fuses `kernlab::specc()`'s `kernel` and `kpar` arguments, which are
-#' not independent: `kpar = "automatic"` and `kpar = "local"` both replace
-#' whatever `kernel` names with a Gaussian kernel of their own. The three
-#' values here are the combinations that mean something, and each maps to one
-#' pair. The remaining 'kernlab' kernels -- polynomial, linear, hyperbolic
-#' tangent, Bessel, ANOVA, spline -- are not exposed: they are inner products
-#' rather than distance-decaying similarities, so they can give an affinity
-#' matrix with negative entries, which is not a similarity graph and which the
-#' normalization step has no defined meaning for.
+#' The cost is cubic in the number of cases, since the whole affinity matrix
+#' is decomposed. Pass `nystrom` to approximate the decomposition from a
+#' sample instead.
 #'
 #' Argument names are rtemis' own. They map to `kernlab::specc()` as: `k` ->
-#' `centers`, `sigma_sample_fraction` -> `mod.sample`, `nystrom` ->
-#' `nystrom.red`, `nystrom_sample` -> `nystrom.sample`; `iterations` keeps its
-#' name, and `kernel` and `sigma` together set `kernel` and `kpar`.
+#' `centers`, `sigma` -> `kpar = list(sigma)` with `kernel = "rbfdot"`,
+#' `sigma_sample_fraction` -> `mod.sample` (with `kpar = "automatic"` when
+#' `sigma` is unset), `nystrom` -> `nystrom.red` and `nystrom.sample`;
+#' `iterations` keeps its name.
 #'
 #' @param k Integer [2, Inf): Number of clusters. Must be no more than the number of cases.
-#' @param kernel Character \{"rbf", "rbf_local", "laplace"\}: Similarity measure the affinity matrix is built from.
-#' @param sigma Optional Numeric (0, Inf): Inverse kernel width. Unset estimates it for "rbf" and uses 1 for "laplace". Applies when `kernel` is "rbf" or "laplace".
-#' @param sigma_sample_fraction Optional Numeric (0, 1\]: Fraction of the cases the kernel width is estimated from. Unset uses three quarters of them. Used only when `sigma` is unset. Applies when `kernel` is "rbf".
+#' @param sigma Optional Numeric (0, Inf): Inverse kernel width. Unset estimates it from the data.
+#' @param sigma_sample_fraction Optional Numeric (0, 1\]: Fraction of the cases the kernel width is estimated from when `sigma` is unset. Unset uses three quarters of them.
 #' @param iterations Integer [1, Inf): Maximum number of k-means iterations run on the spectral embedding.
-#' @param nystrom Logical: If TRUE, approximate the affinity matrix from a sample of the cases by the Nystrom method.
-#' @param nystrom_sample Optional Integer [1, Inf): Number of cases the approximation samples. Unset samples one sixth of them. Applies when `nystrom` is TRUE.
+#' @param nystrom Optional `NystromConfig`: Approximate the affinity matrix from a sample of the cases, from [setup_Nystrom]. `NULL` decomposes it in full.
 #'
 #' @param features Optional Character vector: Names of at least 2 distinct
 #'   feature columns to cluster on. `NULL` clusters on all numeric features.
-#' @return `SpectralConfig` object.
+#' @return `SpectralRBFConfig` object.
 #'
 #' @references
 #' Ng AY, Jordan MI, Weiss Y (2001). On Spectral Clustering: Analysis and an
 #' Algorithm. \emph{Advances in Neural Information Processing Systems}, 14,
 #' 849-856.
 #'
+#' @author EDG
+#' @export
+#' @examples
+#' spectral_config <- setup_SpectralRBF(k = 3L)
+#' spectral_config
+#' setup_SpectralRBF(k = 3L, nystrom = setup_Nystrom(sample = 100L))
+setup_SpectralRBF <- function(
+  k = 3L,
+  sigma = NULL,
+  sigma_sample_fraction = NULL,
+  iterations = 200L,
+  nystrom = NULL,
+  features = NULL
+) {
+  apply_setup_defaults(SpectralRBFConfig)
+  k <- clean_posint(k)
+  iterations <- clean_posint(iterations)
+  if (!is.null(nystrom)) {
+    check_is_S7(nystrom, NystromConfig)
+  }
+  SpectralRBFConfig(
+    k = k,
+    sigma = sigma,
+    sigma_sample_fraction = sigma_sample_fraction,
+    iterations = iterations,
+    nystrom = nystrom,
+    features = features
+  )
+} # /rtemis::setup_SpectralRBF
+
+
+# %% SpectralLaplaceConfig ----
+#' @title SpectralLaplaceConfig
+#'
+#' @description
+#' ClusteringConfig subclass for spectral clustering with an exponential
+#' (Laplacian) kernel.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+SpectralLaplaceConfig <- schema_class(
+  name = "SpectralLaplaceConfig",
+  parent = ClusteringConfig,
+  properties = list(
+    algorithm = prop_algorithm("SpectralLaplace"),
+    k = .spectral_k(),
+    sigma = prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      description = paste0(
+        "Inverse kernel width: larger values make the affinity fall off ",
+        "faster with distance. Absent uses 1."
+      )
+    ),
+    iterations = .spectral_iterations(),
+    nystrom = .spectral_nystrom()
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Spectral clustering with an exponential kernel, which decays more slowly than the Gaussian and so keeps more weight on distant pairs.",
+    order = 11L
+  )
+) # /rtemis::SpectralLaplaceConfig
+
+
+# %% setup_SpectralLaplace ----
+#' Setup SpectralLaplaceConfig
+#'
+#' Setup a `SpectralLaplaceConfig` object for spectral clustering with an
+#' exponential (Laplacian) kernel, via the 'kernlab' package. The exponential
+#' kernel decays more slowly than the Gaussian of [setup_SpectralRBF] and so
+#' keeps more weight on distant pairs.
+#'
+#' Argument names are rtemis' own. They map to `kernlab::specc()` as: `k` ->
+#' `centers`, `sigma` -> `kpar = list(sigma)` with `kernel = "laplacedot"`,
+#' `nystrom` -> `nystrom.red` and `nystrom.sample`; `iterations` keeps its
+#' name.
+#'
+#' @param k Integer [2, Inf): Number of clusters. Must be no more than the number of cases.
+#' @param sigma Optional Numeric (0, Inf): Inverse kernel width. Unset uses 1.
+#' @param iterations Integer [1, Inf): Maximum number of k-means iterations run on the spectral embedding.
+#' @param nystrom Optional `NystromConfig`: Approximate the affinity matrix from a sample of the cases, from [setup_Nystrom]. `NULL` decomposes it in full.
+#'
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to cluster on. `NULL` clusters on all numeric features.
+#' @return `SpectralLaplaceConfig` object.
+#'
+#' @references
+#' Ng AY, Jordan MI, Weiss Y (2001). On Spectral Clustering: Analysis and an
+#' Algorithm. \emph{Advances in Neural Information Processing Systems}, 14,
+#' 849-856.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' setup_SpectralLaplace(k = 3L, sigma = 0.5)
+setup_SpectralLaplace <- function(
+  k = 3L,
+  sigma = NULL,
+  iterations = 200L,
+  nystrom = NULL,
+  features = NULL
+) {
+  apply_setup_defaults(SpectralLaplaceConfig)
+  k <- clean_posint(k)
+  iterations <- clean_posint(iterations)
+  if (!is.null(nystrom)) {
+    check_is_S7(nystrom, NystromConfig)
+  }
+  SpectralLaplaceConfig(
+    k = k,
+    sigma = sigma,
+    iterations = iterations,
+    nystrom = nystrom,
+    features = features
+  )
+} # /rtemis::setup_SpectralLaplace
+
+
+# %% SpectralLocalConfig ----
+#' @title SpectralLocalConfig
+#'
+#' @description
+#' ClusteringConfig subclass for spectral clustering with a Gaussian kernel
+#' whose width is set per case.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+SpectralLocalConfig <- schema_class(
+  name = "SpectralLocalConfig",
+  parent = ClusteringConfig,
+  properties = list(
+    algorithm = prop_algorithm("SpectralLocal"),
+    k = .spectral_k(),
+    iterations = .spectral_iterations()
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Spectral clustering with a Gaussian kernel whose width is set per case from the distance to its seventh nearest neighbor, which lets one clustering hold groups of differing density.",
+    order = 12L
+  )
+) # /rtemis::SpectralLocalConfig
+
+
+# %% setup_SpectralLocal ----
+#' Setup SpectralLocalConfig
+#'
+#' Setup a `SpectralLocalConfig` object for spectral clustering with a locally
+#' scaled Gaussian kernel, via the 'kernlab' package. Each case's kernel width
+#' is taken from the distance to its seventh nearest neighbor, which lets one
+#' clustering hold groups of differing density. The per-case widths need every
+#' pairwise distance, so this variant has no Nystrom approximation.
+#'
+#' Argument names are rtemis' own. They map to `kernlab::specc()` as: `k` ->
+#' `centers`, with `kpar = "local"`; `iterations` keeps its name.
+#'
+#' @param k Integer [2, Inf): Number of clusters. Must be no more than the number of cases.
+#' @param iterations Integer [1, Inf): Maximum number of k-means iterations run on the spectral embedding.
+#'
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to cluster on. `NULL` clusters on all numeric features.
+#' @return `SpectralLocalConfig` object.
+#'
+#' @references
 #' Zelnik-Manor L, Perona P (2004). Self-Tuning Spectral Clustering.
 #' \emph{Advances in Neural Information Processing Systems}, 17, 1601-1608.
 #'
 #' @author EDG
 #' @export
 #' @examples
-#' spectral_config <- setup_Spectral(k = 3L)
-#' spectral_config
-setup_Spectral <- function(
+#' setup_SpectralLocal(k = 3L)
+setup_SpectralLocal <- function(
   k = 3L,
-  kernel = "rbf",
-  sigma = NULL,
-  sigma_sample_fraction = NULL,
   iterations = 200L,
-  nystrom = FALSE,
-  nystrom_sample = NULL,
   features = NULL
 ) {
-  apply_setup_defaults(SpectralConfig)
+  apply_setup_defaults(SpectralLocalConfig)
   k <- clean_posint(k)
   iterations <- clean_posint(iterations)
-  if (!is.null(nystrom_sample)) {
-    nystrom_sample <- clean_posint(nystrom_sample)
-  }
-  SpectralConfig(
+  SpectralLocalConfig(
     k = k,
-    kernel = kernel,
-    sigma = sigma,
-    sigma_sample_fraction = sigma_sample_fraction,
     iterations = iterations,
-    nystrom = nystrom,
-    nystrom_sample = nystrom_sample,
     features = features
   )
-} # /rtemis::setup_Spectral
+} # /rtemis::setup_SpectralLocal
 
 
 # %% .list_to_ClusteringConfig ----
@@ -1408,5 +1811,40 @@ setup_Spectral <- function(
   params[["algorithm"]] <- NULL
   setup_fn <- get_clust_setup_fn(algorithm)
   check_wire_keys(params, names(formals(setup_fn)), label)
+  # A setting that is itself an object (`criterion`, `nystrom`) arrives as a
+  # list; its property declares the class, so the class's reader rebuilds it.
+  # Read from the declaration rather than from a per-algorithm branch, so a
+  # new object-valued setting needs nothing here.
+  params <- read_wire_objects(
+    params,
+    schema_algorithm_class(ClusteringConfig, algorithm)
+  )
   do.call(setup_fn, params)
 } # /rtemis::.list_to_ClusteringConfig
+
+
+# %% read_wire_objects ----
+#' Rebuild the object-valued settings of a wire list from their declarations
+#'
+#' @param params Named list: Setup arguments as parsed from JSON.
+#' @param cls S7 class: The config class whose properties declare the targets.
+#'
+#' @return `params`, with every list under a property declaring a
+#'   `target_class` replaced by that class's object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+read_wire_objects <- function(params, cls) {
+  for (nm in intersect(names(params), names(cls@properties))) {
+    value <- params[[nm]]
+    if (!is.list(value) || S7_inherits(value)) {
+      next
+    }
+    target <- get_spec_fields(cls@properties[[nm]])[["target_class"]]
+    if (!is.null(target)) {
+      params[[nm]] <- from_wire_object(value, target)
+    }
+  }
+  params
+} # /rtemis::read_wire_objects

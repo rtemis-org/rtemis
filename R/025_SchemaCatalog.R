@@ -583,6 +583,46 @@ schema_algorithm_descriptions <- function(base) {
 }
 
 
+# %% schema_algorithm_class ----
+#' The published leaf class behind one algorithm name of a family
+#' @param base S7 class: The family's abstract base.
+#' @param name Character: The discriminator value, in the registry's spelling.
+#' @return S7 class.
+#' @keywords internal
+#' @noRd
+schema_algorithm_class <- function(base, name) {
+  families <- Filter(
+    function(f) identical(f[["base_class"]], base),
+    schema_catalog()[["families"]]
+  )
+  if (length(families) != 1L) {
+    rtemis.core::abort(
+      "Algorithm classes require a published family.",
+      class = "rtemis_schema_error"
+    )
+  }
+  family <- families[[1L]]
+  for (a in family[["algorithms"]]) {
+    if (
+      identical(
+        discriminator_value(a[["cls"]], family[["discriminator"]]),
+        name
+      )
+    ) {
+      return(a[["cls"]])
+    }
+  }
+  rtemis.core::abort(
+    "No published ",
+    base@name,
+    " variant named `",
+    name,
+    "`.",
+    class = c("rtemis_value_error", "rtemis_input_error")
+  )
+} # /rtemis::schema_algorithm_class
+
+
 # %% schema_record_arguments ----
 #' Resolve the record supplements declared on one pipeline class
 #' @param cls S7 class: Pipeline class.

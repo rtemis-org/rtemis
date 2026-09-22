@@ -75,8 +75,16 @@
           "description": "Partitioning Around Medoids with estimation of the number of clusters."
         },
         {
-          "class": "SpectralConfig",
-          "description": "Spectral clustering."
+          "class": "SpectralRBFConfig",
+          "description": "Spectral clustering with a Gaussian kernel of one shared width."
+        },
+        {
+          "class": "SpectralLaplaceConfig",
+          "description": "Spectral clustering with an exponential kernel, which decays more slowly than the Gaussian and so keeps more weight on distant pairs."
+        },
+        {
+          "class": "SpectralLocalConfig",
+          "description": "Spectral clustering with a Gaussian kernel whose width is set per case from the distance to its seventh nearest neighbor, which lets one clustering hold groups of differing density."
         }
       ]
     },
@@ -109,6 +117,26 @@
         {
           "class": "ARFFIngestConfig",
           "description": "An ARFF file."
+        }
+      ]
+    },
+    "pamkcriterion": {
+      "base_class": "PAMKCriterionConfig",
+      "title": "rtemis PAMKCriterionConfig",
+      "description": "Language-independent config for the criterion PAMK chooses the number of clusters by: a criterion type plus that criterion's own settings.",
+      "discriminator_description": "Criterion name.",
+      "algorithms": [
+        {
+          "class": "ASWCriterionConfig",
+          "description": "Average silhouette width over all cases."
+        },
+        {
+          "class": "CHCriterionConfig",
+          "description": "Calinski-Harabasz index."
+        },
+        {
+          "class": "MultiASWCriterionConfig",
+          "description": "Average silhouette width averaged over random subsets of the cases."
         }
       ]
     },
@@ -389,6 +417,11 @@
       "class": "ClassificationMetrics",
       "title": "rtemis ClassificationMetrics",
       "description": "Classification metrics for one sample: the confusion matrix in long form (one row per cell), overall metrics, and per-class metrics. Which overall columns are present depends on the task, so only the invariant ones are required."
+    },
+    "nystrom": {
+      "class": "NystromConfig",
+      "title": "rtemis NystromConfig",
+      "description": "Language-independent config for the Nystrom approximation of a spectral clustering's affinity matrix: the number of cases sampled. The exact decomposition is cubic in the number of cases; the approximation trades some accuracy for a cost set by the sample size instead."
     },
     "clusteringmetrics": {
       "class": "ClusteringMetrics",

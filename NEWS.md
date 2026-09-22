@@ -2,6 +2,8 @@
 
 ## 1.4.1
 
+- Spectral clustering is three algorithms, one per kernel: `setup_SpectralRBF()`, `setup_SpectralLaplace()` and `setup_SpectralLocal()` replace `setup_Spectral()`, each taking only the settings its kernel uses; the Nystrom approximation is a `setup_Nystrom()` object whose presence turns it on.
+- The PAMK criterion is an object from `setup_ASWCriterion()`, `setup_CHCriterion()` or `setup_MultiASWCriterion()`, which alone carries the number of subsets; `setup_PAMK()` no longer takes `criterion` as a string or `n_subsets`.
 - `setup_ClusterConfig()` and `setup_DecomposeConfig()` no longer take `algorithm`; a cluster or decompose document names its algorithm once, inside its clustering or decomposition config, and `cluster()` and `decomp()` reject an `algorithm` that disagrees with a supplied config.
 - Clustering configs declare `features`, the columns to cluster on, and every clustering `setup_*()` accepts it; the run record states the subset.
 - Shared results identify implementation-specific configs by schema and read their typed settings without inserting omitted defaults.

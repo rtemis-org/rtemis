@@ -5,52 +5,29 @@
 # References ----
 # https://rdrr.io/cran/kernlab/man/specc.html
 
-# %% specc_kernel_args ----
-#' The `kernel`/`kpar` pair one rtemis kernel setting maps to
+# %% cluster_specc ----
+#' Fit `kernlab::specc()` for one spectral variant
 #'
-#' `kernlab::specc()` takes the kernel as two arguments that are not
-#' independent: `kpar = "automatic"` estimates a Gaussian width and `kpar =
-#' "local"` builds a per-case one, and both discard whatever `kernel` names.
-#' `SpectralConfig` therefore publishes one setting, and this is where it
-#' becomes the pair. `mod.sample` is added by the caller, since only the
-#' estimating branch reads it.
+#' The three variants differ only in how the kernel is specified, so the fit
+#' is one function taking the backend's `kernel`/`kpar` pair and the width
+#' search's sample fraction, with the variant supplying them.
 #'
-#' @param kernel Character: `SpectralConfig@kernel`.
-#' @param sigma Numeric or NULL: `SpectralConfig@sigma`.
+#' `specc()` is S4-dispatched, and a data.frame is a list, so it would reach the
+#' `list` method -- which clusters the *columns* as strings. The matrix coercion
+#' selects the matrix method, and it is lossless because
+#' `check_unsupervised_data()` has rejected non-numeric columns.
 #'
-#' @return Named list: The `kernel` and `kpar` arguments to pass on.
+#' @param config `ClusteringConfig`: One of the spectral variants; `k`,
+#'   `iterations` and (where the variant declares it) `nystrom` are read here.
+#' @param x Data frame or matrix: Numeric features.
+#' @param kernel_args Named list: The backend's `kernel` and `kpar` arguments.
+#' @param mod_sample Numeric or NULL: `mod.sample`, passed only when set.
+#' @param verbosity Integer: Verbosity level.
 #'
-#' @author EDG
+#' @return `specc` object.
 #' @keywords internal
 #' @noRd
-specc_kernel_args <- function(kernel, sigma) {
-  if (identical(kernel, "rbf_local")) {
-    # `kpar = "local"` is the whole specification: it builds the kernel itself
-    # and reads no width, so `kernel` is deliberately not passed.
-    return(list(kpar = "local"))
-  }
-  if (identical(kernel, "rbf") && is.null(sigma)) {
-    return(list(kernel = "rbfdot", kpar = "automatic"))
-  }
-  backend_kernel <- switch(kernel, rbf = "rbfdot", laplace = "laplacedot")
-  # An empty `kpar` is how the backend's own default width is asked for: it
-  # constructs the kernel with `do.call(kernel, kpar)`.
-  list(
-    kernel = backend_kernel,
-    kpar = if (is.null(sigma)) list() else list(sigma = sigma)
-  )
-} # /rtemis::specc_kernel_args
-
-
-# %% cluster_.SpectralConfig ----
-#' Spectral clustering
-#'
-#' @keywords internal
-#' @noRd
-method(cluster_, SpectralConfig) <- function(config, x, verbosity = 1L) {
-  # Checks ----
-  check_is_S7(config, SpectralConfig)
-
+cluster_specc <- function(config, x, kernel_args, mod_sample, verbosity) {
   # Dependencies ----
   check_dependencies("kernlab")
 
@@ -59,49 +36,120 @@ method(cluster_, SpectralConfig) <- function(config, x, verbosity = 1L) {
 
   # Cluster ----
   msg("Clustering with", config@algorithm, "...", verbosity = verbosity)
-  kernel <- config[["kernel"]]
-  sigma <- config[["sigma"]]
+  nystrom <- if ("nystrom" %in% names(S7_class(config)@properties)) {
+    prop(config, "nystrom")
+  }
   args <- c(
     list(
-      # `specc()` is S4-dispatched, and a data.frame is a list, so it reaches
-      # the `list` method -- which clusters the *columns* as strings and
-      # returns a well-formed `specc` holding one label per column. The
-      # coercion is what selects the matrix method, and it is lossless because
-      # `check_unsupervised_data()` has rejected non-numeric columns.
       x = as.matrix(x),
       centers = config[["k"]],
       iterations = config[["iterations"]],
-      nystrom.red = config[["nystrom"]]
+      nystrom.red = !is.null(nystrom)
     ),
-    specc_kernel_args(kernel, sigma)
+    kernel_args
   )
-  # Both are read only on one branch and have non-NULL backend defaults, so
-  # each is passed only when set rather than forwarded as NULL, which the
-  # backend would take as the value.
-  if (identical(kernel, "rbf") && is.null(sigma)) {
-    if (!is.null(config[["sigma_sample_fraction"]])) {
-      args[["mod.sample"]] <- config[["sigma_sample_fraction"]]
-    }
+  # Both have non-NULL backend defaults, so each is passed only when set rather
+  # than forwarded as NULL, which the backend would take as the value.
+  if (!is.null(mod_sample)) {
+    args[["mod.sample"]] <- mod_sample
   }
-  if (config[["nystrom"]] && !is.null(config[["nystrom_sample"]])) {
-    args[["nystrom.sample"]] <- config[["nystrom_sample"]]
+  if (!is.null(nystrom) && !is.null(nystrom@sample)) {
+    args[["nystrom.sample"]] <- nystrom@sample
   }
   clust <- do.call(kernlab::specc, args)
   check_inherits(clust, "specc")
   clust
-} # /rtemis::cluster_.SpectralConfig
+} # /rtemis::cluster_specc
 
 
-# %% clustpredict_Spectral ----
-#' clustpredict method for Spectral
+# %% cluster_.SpectralRBFConfig ----
+#' Spectral clustering with a Gaussian kernel of one shared width
 #'
-#' @author EDG
+#' `kpar = "automatic"` asks the backend to search for the width; when a width
+#' is given it is passed as `kpar = list(sigma)`. The search's sample fraction
+#' is read only on the search branch.
+#'
 #' @keywords internal
 #' @noRd
-clustpredict_Spectral <- function(clust, newdata = NULL) {
-  # The embedding is defined by an eigendecomposition of the training cases'
-  # affinity matrix, and 'kernlab' offers no out-of-sample extension of it, so
-  # new data is refused rather than silently ignored.
+method(cluster_, SpectralRBFConfig) <- function(config, x, verbosity = 1L) {
+  check_is_S7(config, SpectralRBFConfig)
+  sigma <- config[["sigma"]]
+  if (is.null(sigma)) {
+    cluster_specc(
+      config,
+      x,
+      kernel_args = list(kernel = "rbfdot", kpar = "automatic"),
+      mod_sample = config[["sigma_sample_fraction"]],
+      verbosity = verbosity
+    )
+  } else {
+    cluster_specc(
+      config,
+      x,
+      kernel_args = list(kernel = "rbfdot", kpar = list(sigma = sigma)),
+      mod_sample = NULL,
+      verbosity = verbosity
+    )
+  }
+} # /rtemis::cluster_.SpectralRBFConfig
+
+
+# %% cluster_.SpectralLaplaceConfig ----
+#' Spectral clustering with an exponential kernel
+#'
+#' An empty `kpar` is how the backend's own default width (1) is asked for: it
+#' constructs the kernel with `do.call(kernel, kpar)`.
+#'
+#' @keywords internal
+#' @noRd
+method(cluster_, SpectralLaplaceConfig) <- function(config, x, verbosity = 1L) {
+  check_is_S7(config, SpectralLaplaceConfig)
+  sigma <- config[["sigma"]]
+  cluster_specc(
+    config,
+    x,
+    kernel_args = list(
+      kernel = "laplacedot",
+      kpar = if (is.null(sigma)) list() else list(sigma = sigma)
+    ),
+    mod_sample = NULL,
+    verbosity = verbosity
+  )
+} # /rtemis::cluster_.SpectralLaplaceConfig
+
+
+# %% cluster_.SpectralLocalConfig ----
+#' Spectral clustering with a per-case kernel width
+#'
+#' `kpar = "local"` is the whole specification: the backend builds the kernel
+#' itself from each case's seventh-nearest-neighbor distance and reads no
+#' width, so `kernel` is deliberately not passed.
+#'
+#' @keywords internal
+#' @noRd
+method(cluster_, SpectralLocalConfig) <- function(config, x, verbosity = 1L) {
+  check_is_S7(config, SpectralLocalConfig)
+  cluster_specc(
+    config,
+    x,
+    kernel_args = list(kpar = "local"),
+    mod_sample = NULL,
+    verbosity = verbosity
+  )
+} # /rtemis::cluster_.SpectralLocalConfig
+
+
+# %% clustpredict_SpectralRBF ----
+#' Cluster labels of a fitted `specc`
+#'
+#' The embedding is defined by an eigendecomposition of the training cases'
+#' affinity matrix, and 'kernlab' offers no out-of-sample extension of it, so
+#' new data is refused rather than silently ignored. One reading serves the
+#' three variants, each under the name its algorithm resolves to.
+#'
+#' @keywords internal
+#' @noRd
+clustpredict_SpectralRBF <- function(clust, newdata = NULL) {
   if (!is.null(newdata)) {
     rtemis.core::abort(
       "Spectral clustering cannot assign new data to fitted clusters.",
@@ -112,4 +160,14 @@ clustpredict_Spectral <- function(clust, newdata = NULL) {
   # `specc` holds the k-means assignment over the embedding in its `.Data`
   # part, already 1:k. It carries the input's row names, which are not data.
   as.integer(clust@.Data)
-} # /rtemis::clustpredict_Spectral
+} # /rtemis::clustpredict_SpectralRBF
+
+# %% clustpredict_SpectralLaplace ----
+#' @keywords internal
+#' @noRd
+clustpredict_SpectralLaplace <- clustpredict_SpectralRBF
+
+# %% clustpredict_SpectralLocal ----
+#' @keywords internal
+#' @noRd
+clustpredict_SpectralLocal <- clustpredict_SpectralRBF

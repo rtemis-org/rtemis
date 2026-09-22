@@ -4,6 +4,7 @@ ALTREP
 APS
 ARFF
 argmin
+ASWCriterionConfig
 AutoPyTorch
 AY
 BARTHyperparameters
@@ -14,6 +15,7 @@ Calinski
 Candes
 CARTHyperparameters
 CDN
+CHCriterionConfig
 CLI
 CMD
 CMeans
@@ -143,6 +145,7 @@ ModalityStacking
 ModalityStackingHyperparameters
 MonotonicHAL
 MonotonicHALHyperparameters
+MultiASWCriterionConfig
 Multilayer
 multiasw
 natively
@@ -157,12 +160,14 @@ Nystrom
 NROW
 NTSC
 NeuralGasConfig
+NystromConfig
 OOB
 ORCID
 parallelly
 PAMConfig
 PAMK
 PAMKConfig
+PAMKCriterionConfig
 PCAConfig
 PJ
 PNAS
@@ -203,10 +208,15 @@ SL
 SHAP
 SNE
 Solberg
+SpectralLaplace
+SpectralLaplaceConfig
+SpectralLocal
+SpectralLocalConfig
+SpectralRBF
+SpectralRBFConfig
 SPLS
 SPLSHyperparameters
 Shapley
-SpectralConfig
 Spectrogram
 stagewise
 Stata
