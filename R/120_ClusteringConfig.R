@@ -1792,7 +1792,7 @@ setup_SpectralLocal <- function(
 #'
 #' @author EDG
 #' @keywords internal
-#' @noRd
+#' @export
 .list_to_ClusteringConfig <- function(x) {
   algorithm <- x[["algorithm"]]
   if (is.null(algorithm)) {
