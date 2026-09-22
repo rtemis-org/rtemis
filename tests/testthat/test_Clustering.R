@@ -85,6 +85,31 @@ test_that("cluster_CMeans() succeeds", {
   expect_s7_class(iris_cmeans, Clustering)
 })
 
+test_that("cluster_CMeans() succeeds with its columns named", {
+  # Naming `features` is what put the config through `check_data_bounds()`,
+  # where the default `weights` -- the scalar 1, standing for every case --
+  # was read as a vector one value long and refused: "`weights` must have one
+  # value per case: expected length 150, got 1". Reported from a Study
+  # session whose config was valid against the published schema, which offers
+  # the scalar; the run failed before reaching e1071.
+  skip_if_not_installed("e1071")
+  fit <- cluster(
+    x,
+    config = setup_CMeans(k = 3L, features = c("Sepal.Length", "Sepal.Width"))
+  )
+  expect_s7_class(fit, Clustering)
+  expect_identical(fit@config@features, c("Sepal.Length", "Sepal.Width"))
+  # And a per-case vector still runs, and a wrong-length one still does not.
+  expect_s7_class(
+    cluster(x, config = setup_CMeans(k = 3L, weights = rep(1, NROW(x)))),
+    Clustering
+  )
+  expect_error(
+    cluster(x, config = setup_CMeans(k = 3L, weights = rep(1, 5L))),
+    class = "rtemis_length_error"
+  )
+})
+
 # setup_DBSCAN ----
 test_that("setup_DBSCAN() succeeds", {
   expect_s7_class(setup_DBSCAN(), DBSCANConfig)

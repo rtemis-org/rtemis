@@ -1132,6 +1132,44 @@ test_that("check_data_bounds() requires vector properties to match the dimension
   expect_invisible(check_data_bounds(setup_CART(cost = c(1, 2)), datr_bounds))
 })
 
+test_that("check_data_bounds() takes a broadcast scalar for the whole vector", {
+  # `CMeansConfig@weights` broadcasts: a scalar stands for every case, which
+  # is what its default is and what the published schema offers
+  # (`oneOf: [number, array]`). Checking its length against the case count
+  # rejected the contract's own shape, so every CMeans run on more than one
+  # case failed before reaching the backend -- and told the caller to supply
+  # what the scalar already meant.
+  expect_invisible(
+    check_data_bounds(setup_CMeans(k = 2L), datr_bounds, has_outcome = FALSE)
+  )
+  # Nor is the scalar an upper bound on the dimension: a case weight of 500
+  # over 40 cases is a weight, not an out-of-range index.
+  expect_invisible(
+    check_data_bounds(
+      setup_CMeans(k = 2L, weights = 500),
+      datr_bounds,
+      has_outcome = FALSE
+    )
+  )
+  # A vector still has to match, which is the whole point of the bound.
+  expect_error(
+    check_data_bounds(
+      setup_CMeans(k = 2L, weights = rep(1, 5L)),
+      datr_bounds,
+      has_outcome = FALSE
+    ),
+    class = "rtemis_length_error"
+  )
+  expect_invisible(
+    check_data_bounds(
+      setup_CMeans(k = 2L, weights = rep(1, n_cd)),
+      datr_bounds,
+      has_outcome = FALSE
+    )
+  )
+})
+
+
 test_that("check_data_bounds() checks feature_names by membership", {
   expect_error(
     check_data_bounds(

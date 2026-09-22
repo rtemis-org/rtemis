@@ -93,9 +93,13 @@ cluster <- function(
   x <- as.data.frame(x)
   if (is.null(config@features)) {
     config@features <- resolve_unsupervised_features(x, "Clustering")
-  } else {
-    check_data_bounds(config, x, has_outcome = FALSE)
   }
+  # Against the frame as supplied, so that `features` is checked against every
+  # column the caller has and a per-case setting against every row. Both
+  # paths, because a bound that is not about the feature selection -- CMeans'
+  # per-case `weights` -- is wrong just as often when the selection was left
+  # to us.
+  check_data_bounds(config, x, has_outcome = FALSE)
   x <- x[, config@features, drop = FALSE]
 
   # Intro ----

@@ -8,10 +8,11 @@
 # from which the S7 validators, the `config` list, and the JSON Schema
 # (S7_to_JSONSchema) are generated. The abstract `ClusteringConfig`
 # superclass provides the computed `config` list. Clustering has no tuning,
-# so every parameter is a fixed scalar. Parameters that are not cleanly
-# JSON-expressible (CMeans `control`, a list; the scalar-or-vector `weights`)
-# are plain properties: stored and validated by class, but excluded from
-# schemas.
+# so every parameter is a fixed scalar. CMeans' `weights` (a scalar standing
+# for every case, or one value per case) and `control` (an untyped bag passed
+# to the backend) are declared and published like the rest: `broadcast`
+# generates the scalar-or-array shape, and a data-dependent value says in its
+# description that it cannot be filled in without the data.
 
 # %% ClusteringConfig ----
 #' ClusteringConfig
