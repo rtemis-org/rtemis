@@ -556,6 +556,11 @@ schema_publication_annotation <- function(cls) {
 
 # %% schema_algorithm_descriptions ----
 #' Read algorithm prose from the classes that publish it
+#'
+#' A schema description is a sentence, but every caller uses it as a name
+#' inside its own sentence ("Ranger random forest was used for ..."), so the
+#' closing period is dropped here rather than at each call site.
+#'
 #' @param base S7 class: Published family root.
 #' @return Named character vector keyed by discriminator value.
 #' @keywords internal
@@ -573,7 +578,11 @@ schema_algorithm_descriptions <- function(base) {
   }
   family <- families[[1L]]
   stats::setNames(
-    vapply(family[["algorithms"]], `[[`, character(1L), "desc"),
+    sub(
+      "\\.$",
+      "",
+      vapply(family[["algorithms"]], `[[`, character(1L), "desc")
+    ),
     vapply(
       family[["algorithms"]],
       function(a) discriminator_value(a[["cls"]], family[["discriminator"]]),
