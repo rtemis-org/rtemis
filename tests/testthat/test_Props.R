@@ -1543,6 +1543,15 @@ test_that("a struct declaration is itself checked", {
 })
 
 
+test_that("a non-nullable struct declares no default and requires a value", {
+  property <- prop_struct(list(a = prop_integer(1L)))
+  expect_false(get_spec(property)@default_present)
+  Test <- S7::new_class("RequiredStruct", properties = list(x = property))
+  expect_error(Test(), "requires an explicit value")
+  expect_identical(Test(x = list(a = 2L))@x, list(a = 2L))
+})
+
+
 test_that("a struct emits an object schema and round-trips", {
   orig <- get_spec(demo_struct_prop())
   sch <- spec_to_schema(orig)

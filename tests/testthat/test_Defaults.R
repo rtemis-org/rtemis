@@ -601,3 +601,44 @@ test_that("default previews use the declared candidate wire shape", {
     expect_false("from_vector" %in% names(actual))
   }
 })
+
+
+test_that("closed tables and structs reject undeclared wire fields clearly", {
+  table <- spec_to_schema(get_spec(prop_table(
+    list(a = prop_integer(1L), b = prop_integer(1L)),
+    required = "a",
+    nullable = TRUE
+  )))
+  expect_error(
+    default_from_wire(list(list(a = 1L, z = 2L)), table),
+    "undeclared column\\(s\\) 'z'",
+    class = "rtemis_schema_error"
+  )
+  struct <- spec_to_schema(get_spec(prop_struct(
+    list(a = prop_integer(1L)),
+    nullable = TRUE
+  )))
+  expect_error(
+    default_from_wire(list(a = 1L, z = 2L), struct),
+    "undeclared field\\(s\\) 'z'",
+    class = "rtemis_schema_error"
+  )
+})
+
+
+
+test_that("a cell omitted from a table row decodes as missing", {
+  # `jsonlite::toJSON()` drops an NA cell from a row-oriented data frame, so R's
+  # own output omits the cells a nullable column leaves empty.
+  property <- VariableImportance@properties[["data"]]
+  data <- data.frame(variable = c("a", "b"), Gain = c(0.75, NA))
+  wire <- jsonlite::fromJSON(
+    jsonlite::toJSON(data, auto_unbox = TRUE),
+    simplifyVector = FALSE
+  )
+  expect_false("Gain" %in% names(wire[[2L]]))
+  expect_identical(
+    default_from_wire(wire, spec_to_schema(get_spec(property))),
+    data
+  )
+})

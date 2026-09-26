@@ -22,7 +22,8 @@
 - Schema publication metadata identifies the generating language, contract scope, registry domain, and standalone parent class.
 - `Implementation` and `Provenance` record package and language identities independently of schema authorship.
 - `VariableImportance` publishes a shared report schema with named numeric measures and null values for unavailable results.
-- `JSONSchema_to_S7()` reconstructs standalone inheritance and runtime-only properties from schema artifacts.
+- `JSONSchema_to_S7()` reconstructs standalone inheritance and runtime-only properties from schema artifacts, and rejects a `parent` other than the one the schema declares.
+- Reading a table or object with a field its schema does not declare fails with an error naming the field.
 
 ## 1.4.0
 

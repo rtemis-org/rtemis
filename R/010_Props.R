@@ -2573,6 +2573,7 @@ prop_struct <- function(
     # "object" names the shape the struct emits.
     type = "object",
     default = NULL,
+    default_present = nullable,
     minimum = NULL,
     maximum = NULL,
     exclusive_minimum = NULL,

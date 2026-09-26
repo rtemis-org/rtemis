@@ -892,8 +892,18 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
     if (length(value) > 0L) {
       columns <- columns[intersect(names(columns), present)]
     }
-    for (nm in setdiff(present, names(columns))) {
-      columns[[nm]] <- schema[["items"]][["additionalProperties"]]
+    undeclared <- setdiff(present, names(columns))
+    additional <- schema[["items"]][["additionalProperties"]]
+    if (length(undeclared) && !is.list(additional)) {
+      rtemis.core::abort(
+        "Table has undeclared column(s) ",
+        paste0("'", undeclared, "'", collapse = ", "),
+        ".",
+        class = "rtemis_schema_error"
+      )
+    }
+    for (nm in undeclared) {
+      columns[[nm]] <- additional
     }
     out <- lapply(names(columns), function(nm) {
       cells <- lapply(value, function(row) row[[nm]] %||% NA)
@@ -906,6 +916,15 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
     return(as.data.frame(out, stringsAsFactors = FALSE, check.names = FALSE))
   }
   if (container == "struct") {
+    undeclared <- setdiff(names(value), names(schema[["properties"]]))
+    if (length(undeclared) && !is.list(schema[["additionalProperties"]])) {
+      rtemis.core::abort(
+        "Object has undeclared field(s) ",
+        paste0("'", undeclared, "'", collapse = ", "),
+        ".",
+        class = "rtemis_schema_error"
+      )
+    }
     return(stats::setNames(
       lapply(names(value), function(nm) {
         default_from_wire(

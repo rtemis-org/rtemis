@@ -713,20 +713,32 @@ JSONSchema_to_S7 <- function(
       "class"
     ]](schema[["$id"]]))
   }
-  if (
-    !is.null(schema[["x-rtemis"]][["publication"]][["parent"]]) &&
-      is.null(parent)
-  ) {
-    rtemis.core::abort(
-      "A published parent requires the artifact graph in `schemas` or an explicit `parent`.",
-      class = "rtemis_schema_error"
-    )
-  }
   if (!is.list(schema) || is.null(schema[["properties"]])) {
     rtemis.core::abort(
       "`schema` must be a JSON Schema with a `properties` object.",
       class = c("rtemis_type_error", "rtemis_input_error")
     )
+  }
+  parent_identity <- schema[["x-rtemis"]][["publication"]][["parent"]]
+  if (!is.null(parent_identity)) {
+    if (is.null(parent)) {
+      rtemis.core::abort(
+        "A published parent requires the artifact graph in `schemas` or an explicit `parent`.",
+        class = "rtemis_schema_error"
+      )
+    }
+    # Any parent would satisfy a presence check; the schema names one.
+    supplied <- paste0(parent@package, "::", parent@name)
+    if (!identical(supplied, parent_identity)) {
+      rtemis.core::abort(
+        "`parent` is ",
+        supplied,
+        " but the schema declares ",
+        parent_identity,
+        ".",
+        class = "rtemis_schema_error"
+      )
+    }
   }
   if (
     any(c("$id", "declarations", "resolution") %in% names(defaults)) &&

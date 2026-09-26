@@ -78,6 +78,11 @@ test_that("artifact-only reconstruction preserves declared parent identity", {
   expect_error(RestoredChild(score = 0.75), "requires an explicit value")
   expect_error(RestoredChild(label = "observed", score = -1))
   expect_error(JSONSchema_to_S7(schemas[[2L]]), "published parent")
+  expect_error(
+    JSONSchema_to_S7(schemas[[2L]], parent = Child),
+    "schema declares rtemis::ArtifactParent"
+  )
+  expect_error(JSONSchema_to_S7(1), "must be a JSON Schema")
   schemas[[2L]][["x-rtemis"]][["publication"]][["parent"]] <- "rtemis::Missing"
   expect_error(
     default_artifact_graph(schemas, defaults)[["class"]](names(schemas)[[2L]]),
