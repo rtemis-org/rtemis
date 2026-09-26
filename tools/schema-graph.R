@@ -200,14 +200,18 @@ configs <- list(
 )
 for (family in names(configs)) {
   x <- configs[[family]]
+  namespace <- schema_namespace(
+    family,
+    schema_catalog()[["families"]][[family]][["base_class"]]
+  )
   cases[[paste0(family, "_input")]] <- check_document(
     paste0(family, "_input"),
-    paste0(family, "/v1/schema.json"),
+    paste0(namespace, "/v1/schema.json"),
     S7_to_list(x)
   )
   cases[[paste0(family, "_record")]] <- check_document(
     paste0(family, "_record"),
-    paste0(family, "/v1/record.json"),
+    paste0(namespace, "/v1/record.json"),
     nested_record(x, x)
   )
 }
@@ -218,13 +222,13 @@ preprocessor <- setup_Preprocessor(
 preprocessor_record <- nested_record(preprocessor, preprocessor)
 cases[["candidate_named_map_record"]] <- check_document(
   "candidate_named_map_record",
-  "preprocessor/v1/record.json",
+  "preprocessor/r/v1/record.json",
   preprocessor_record
 )
 preprocessor_record[["scale_centers"]][["candidates"]] <- "invalid"
 cases[["candidate_named_map_wrong_type"]] <- check_document(
   "candidate_named_map_wrong_type",
-  "preprocessor/v1/record.json",
+  "preprocessor/r/v1/record.json",
   preprocessor_record,
   FALSE
 )
@@ -240,13 +244,13 @@ stopifnot(identical(
 ))
 cases[["vector_candidate_input"]] <- check_document(
   "vector_candidate_input",
-  "hyperparameters/v1/schema.json",
+  "hyperparameters/r/v1/schema.json",
   mlp_wire
 )
 mlp_wire[["hidden_units"]][["candidates"]][[1L]][[1L]] <- 1.5
 cases[["vector_candidate_wrong_type"]] <- check_document(
   "vector_candidate_wrong_type",
-  "hyperparameters/v1/schema.json",
+  "hyperparameters/r/v1/schema.json",
   mlp_wire,
   FALSE
 )
@@ -262,7 +266,7 @@ mutant <- wire
 mutant[["base_learners"]] <- mutant[["base_learners"]][1L]
 cases[["library_short"]] <- check_document(
   "library_short",
-  "hyperparameters/v1/schema.json",
+  "hyperparameters/r/v1/schema.json",
   mutant,
   FALSE
 )
@@ -270,7 +274,7 @@ mutant <- wire
 mutant[["base_learners"]][["imaging"]] <- S7_to_list(setup_KMeans())
 cases[["library_wrong_family"]] <- check_document(
   "library_wrong_family",
-  "hyperparameters/v1/schema.json",
+  "hyperparameters/r/v1/schema.json",
   mutant,
   FALSE
 )
@@ -278,7 +282,7 @@ mutant <- wire
 mutant[["base_learners"]] <- unname(mutant[["base_learners"]])
 cases[["library_array"]] <- check_document(
   "library_array",
-  "hyperparameters/v1/schema.json",
+  "hyperparameters/r/v1/schema.json",
   mutant,
   FALSE
 )
@@ -293,7 +297,7 @@ mutant <- structure(
 )
 cases[["library_empty_key"]] <- check_document(
   "library_empty_key",
-  "hyperparameters/v1/schema.json",
+  "hyperparameters/r/v1/schema.json",
   mutant,
   FALSE
 )
@@ -301,18 +305,18 @@ mutant <- nested_record(hp, hp)
 mutant[["base_learners"]][["imaging"]][["origin"]] <- NULL
 cases[["library_missing_origin"]] <- check_document(
   "library_missing_origin",
-  "hyperparameters/v1/record.json",
+  "hyperparameters/r/v1/record.json",
   mutant,
   FALSE
 )
 cases[["diagnostics_empty"]] <- check_document(
   "diagnostics_empty",
-  "diagnostics/v1/schema.json",
+  "diagnostics/r/v1/schema.json",
   record_object(Diagnostics())
 )
 cases[["diagnostics_wrong"]] <- check_document(
   "diagnostics_wrong",
-  "diagnostics/v1/schema.json",
+  "diagnostics/r/v1/schema.json",
   list(diagnostics = list(S7_to_list(setup_GLM()))),
   FALSE
 )
@@ -327,7 +331,7 @@ pipeline <- setup_SuperConfig(
 payload <- S7_to_list(pipeline)
 cases[["named_set"]] <- check_document(
   "named_set",
-  "supervised/v1/schema.json",
+  "supervised/r/v1/schema.json",
   payload
 )
 set_record <- nested_record(set, set)
@@ -336,7 +340,7 @@ stopifnot(
   identical(names(set_record[["variants"]]), c("cart", "linear"))
 )
 set_schema <- documents[[
-  "https://schema.rtemis.org/supervised/v1/record.json"
+  "https://schema.rtemis.org/supervised/r/v1/record.json"
 ]][["properties"]][["hyperparameters"]]
 set_id <- "https://schema.rtemis.org/test/set-record/schema.json"
 documents[[set_id]] <- list(
@@ -357,7 +361,7 @@ mutant[["hyperparameters"]][["variants"]][[
 ]] <- S7_to_list(setup_CART())
 cases[["set_mixed_algorithms"]] <- check_document(
   "set_mixed_algorithms",
-  "supervised/v1/schema.json",
+  "supervised/r/v1/schema.json",
   mutant,
   FALSE
 )
@@ -368,7 +372,7 @@ mutant[["hyperparameters"]][["variants"]] <- structure(
 )
 cases[["set_empty"]] <- check_document(
   "set_empty",
-  "supervised/v1/schema.json",
+  "supervised/r/v1/schema.json",
   mutant,
   FALSE
 )
@@ -376,7 +380,7 @@ mutant <- payload
 mutant[["hyperparameters"]][["algorithm"]] <- "LINAD"
 cases[["set_extra_key"]] <- check_document(
   "set_extra_key",
-  "supervised/v1/schema.json",
+  "supervised/r/v1/schema.json",
   mutant,
   FALSE
 )

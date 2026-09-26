@@ -6,17 +6,17 @@
 \usage{
 setup_PAMK(
   krange = 2:10,
-  criterion = "asw",
+  criterion = setup_ASWCriterion(),
   use_pam = TRUE,
   scaling = FALSE,
   alpha = 0.001,
-  n_subsets = NULL
+  features = NULL
 )
 }
 \arguments{
 \item{krange}{Integer [1, Inf) vector: Candidate numbers of clusters to compare. Must include at least one value greater than 1.}
 
-\item{criterion}{Character \{"asw", "multiasw", "ch"\}: Criterion used to choose the number of clusters.}
+\item{criterion}{\code{PAMKCriterionConfig}: Criterion used to choose the number of clusters, from \link{setup_ASWCriterion}, \link{setup_CHCriterion} or \link{setup_MultiASWCriterion}.}
 
 \item{use_pam}{Logical: If TRUE, fit each candidate with PAM; if FALSE, with CLARA.}
 
@@ -24,7 +24,8 @@ setup_PAMK(
 
 \item{alpha}{Numeric [0, 1]: Significance level of the Duda-Hart test, used only when 1 is among the candidates.}
 
-\item{n_subsets}{Optional Integer [1, Inf): Number of random subsets the average silhouette width is computed on. Applies when \code{criterion} is "multiasw".}
+\item{features}{Optional Character vector: Names of at least 2 distinct
+feature columns to cluster on. \code{NULL} clusters on all numeric features.}
 }
 \value{
 \code{PAMKConfig} object.
@@ -39,7 +40,8 @@ scoring best under \code{criterion}. There is therefore no \code{k} to set, and 
 number of clusters chosen is reported by the resulting \code{Clustering}.
 
 Argument names are rtemis' own. They map to \code{fpc::pamk()} as:
-\code{use_pam} -> \code{usepam}, \code{n_subsets} -> \code{ns}; the rest keep their names.
+\code{use_pam} -> \code{usepam}; the criterion's \code{type} -> \code{criterion} and its
+\code{n_subsets} -> \code{ns}; the rest keep their names.
 
 \code{fpc::pamk()} also accepts a per-variable numeric vector for \code{scaling}; only
 the logical form is exposed here. Scale by column with \link{preprocess} instead,
@@ -48,6 +50,7 @@ where the decision is recorded and replayed with the data.
 \examples{
 pamk_config <- setup_PAMK(krange = 2:5)
 pamk_config
+setup_PAMK(krange = 2:5, criterion = setup_MultiASWCriterion(n_subsets = 20L))
 }
 \references{
 Kaufman L, Rousseeuw PJ (1990). \emph{Finding Groups in Data: An

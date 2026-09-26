@@ -41,7 +41,7 @@ test_that("DecomposeConfig round-trips through write_config/read_config JSON", {
   xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
   expect_identical(
     xl[["$schema"]],
-    "https://schema.rtemis.org/decompose/v1/schema.json"
+    "https://schema.rtemis.org/decompose/r/v1/schema.json"
   )
   xtoo <- read_config(file)
   expect_s7_class(xtoo, DecomposeConfig)
@@ -50,4 +50,21 @@ test_that("DecomposeConfig round-trips through write_config/read_config JSON", {
     xtoo@decomposition_config@algorithm,
     x@decomposition_config@algorithm
   )
+})
+
+
+# %% one place for the algorithm ----
+test_that("a decompose document names its algorithm only inside decomposition_config", {
+  expect_false("algorithm" %in% names(DecomposeConfig@properties))
+  expect_error(
+    .list_to_DecomposeConfig(list(
+      algorithm = "PCA",
+      decomposition_config = list(algorithm = "PCA", k = 2L)
+    )),
+    class = "rtemis_input_error"
+  )
+  x <- .list_to_DecomposeConfig(list(
+    decomposition_config = list(algorithm = "PCA", k = 2L)
+  ))
+  expect_identical(x@decomposition_config@algorithm, "PCA")
 })

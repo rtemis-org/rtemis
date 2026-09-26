@@ -736,10 +736,10 @@ testthat::test_that("spec_to_schema maps bounds, nullability, tunability", {
 # %% S7_to_JSONSchema ----
 schema <- S7_to_JSONSchema(
   LightRFProps,
-  id = "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json",
+  id = "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json",
   title = "rtemis LightRFHyperparameters",
   description = "Hyperparameters for the LightRF algorithm (LightGBM random forest mode).",
-  instance_schema_url = "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json"
+  instance_schema_url = "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json"
 )
 
 testthat::test_that("S7_to_JSONSchema assembles a complete schema", {
@@ -752,7 +752,7 @@ testthat::test_that("S7_to_JSONSchema assembles a complete schema", {
   testthat::expect_length(schema[["properties"]], 16L)
   testthat::expect_identical(
     schema[["properties"]][["$schema"]][["const"]],
-    "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json"
+    "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json"
   )
   testthat::expect_false(
     "default" %in% names(schema[["properties"]][["nrounds"]])
@@ -1034,7 +1034,7 @@ testthat::test_that("schema serializes to JSON and round-trips", {
   parsed <- jsonlite::fromJSON(tmpfile, simplifyVector = FALSE)
   testthat::expect_identical(
     parsed[["$id"]],
-    "https://schema.rtemis.org/hyperparameters/lightrf/v1/schema.json"
+    "https://schema.rtemis.org/hyperparameters/r/lightrf/v1/schema.json"
   )
   # enum stays an array even though scalar-unboxing is on.
   testthat::expect_identical(
@@ -1131,6 +1131,44 @@ test_that("check_data_bounds() requires vector properties to match the dimension
   )
   expect_invisible(check_data_bounds(setup_CART(cost = c(1, 2)), datr_bounds))
 })
+
+test_that("check_data_bounds() takes a broadcast scalar for the whole vector", {
+  # `CMeansConfig@weights` broadcasts: a scalar stands for every case, which
+  # is what its default is and what the published schema offers
+  # (`oneOf: [number, array]`). Checking its length against the case count
+  # rejected the contract's own shape, so every CMeans run on more than one
+  # case failed before reaching the backend -- and told the caller to supply
+  # what the scalar already meant.
+  expect_invisible(
+    check_data_bounds(setup_CMeans(k = 2L), datr_bounds, has_outcome = FALSE)
+  )
+  # Nor is the scalar an upper bound on the dimension: a case weight of 500
+  # over 40 cases is a weight, not an out-of-range index.
+  expect_invisible(
+    check_data_bounds(
+      setup_CMeans(k = 2L, weights = 500),
+      datr_bounds,
+      has_outcome = FALSE
+    )
+  )
+  # A vector still has to match, which is the whole point of the bound.
+  expect_error(
+    check_data_bounds(
+      setup_CMeans(k = 2L, weights = rep(1, 5L)),
+      datr_bounds,
+      has_outcome = FALSE
+    ),
+    class = "rtemis_length_error"
+  )
+  expect_invisible(
+    check_data_bounds(
+      setup_CMeans(k = 2L, weights = rep(1, n_cd)),
+      datr_bounds,
+      has_outcome = FALSE
+    )
+  )
+})
+
 
 test_that("check_data_bounds() checks feature_names by membership", {
   expect_error(
@@ -1505,6 +1543,15 @@ test_that("a struct declaration is itself checked", {
 })
 
 
+test_that("a non-nullable struct declares no default and requires a value", {
+  property <- prop_struct(list(a = prop_integer(1L)))
+  expect_false(get_spec(property)@default_present)
+  Test <- S7::new_class("RequiredStruct", properties = list(x = property))
+  expect_error(Test(), "requires an explicit value")
+  expect_identical(Test(x = list(a = 2L))@x, list(a = 2L))
+})
+
+
 test_that("a struct emits an object schema and round-trips", {
   orig <- get_spec(demo_struct_prop())
   sch <- spec_to_schema(orig)
@@ -1563,16 +1610,11 @@ test_that("an r_only property is neither serialized nor published", {
   p <- prop_r_only(new_property(class_any))
   expect_identical(prop_role(p), "r_only")
   expect_false(prop_serialized(p))
-  # The real ones: a fitted backend model has no wire form, and unlike a
-  # computed view nothing published can reconstruct it.
-  for (nm in c("model", "session_info")) {
-    expect_identical(
-      prop_role(Supervised@properties[[nm]]),
-      "r_only",
-      info = nm
-    )
-    expect_false(prop_serialized(Supervised@properties[[nm]]), info = nm)
-  }
+  expect_identical(prop_role(Supervised@properties[["session_info"]]), "r_only")
+  expect_false(prop_serialized(Supervised@properties[["session_info"]]))
+  expect_identical(prop_role(Supervised@properties[["model"]]), "runtime")
+  expect_false(prop_serialized(Supervised@properties[["model"]]))
+  expect_false(prop_published(Supervised@properties[["model"]]))
 })
 
 
@@ -1677,10 +1719,12 @@ test_that("a declared level set constrains the levels in the schema", {
 })
 
 
-test_that("a factor property must be nullable, having no prototype value", {
-  # The same constraint `prop_matrix()` and `prop_table()` carry: a spec's
-  # default must validate, and there is no factor a class could default to.
-  expect_error(prop_factor(), "default")
+test_that("a required factor has no fabricated declaration default", {
+  property <- prop_factor()
+  expect_false(get_spec(property)@default_present)
+  Demo <- new_class("RequiredFactor", properties = list(y = property))
+  expect_error(Demo(), "explicit value")
+  expect_identical(Demo(y = factor("a"))@y, factor("a"))
 })
 
 
@@ -1691,8 +1735,8 @@ test_that("a factor survives the wire with its level order and empty levels", {
   # positive.
   reordered <- factor(c("b", "a", "b"), levels = c("b", "a"))
   wire <- wire_value(reordered, prop)
-  expect_identical(wire[["levels"]], c("b", "a"))
-  expect_identical(wire[["codes"]], c(1L, 2L, 1L))
+  expect_identical(unclass(wire[["levels"]]), c("b", "a"))
+  expect_identical(unclass(wire[["codes"]]), c(1L, 2L, 1L))
   expect_identical(from_wire_factor(wire), reordered)
   # A level with no cases disappears entirely from an array of labels.
   unobserved <- factor(c("a", "a"), levels = c("a", "b", "c"))
@@ -1783,17 +1827,19 @@ test_that("the applies_when note spells its values as JSON, not as R", {
     rtemis:::spec_to_schema(bool_gate)[["description"]],
     "Applies only when linear_tree is true\\.$"
   )
-  enum_gate <- get_spec(rtemis:::SpectralConfig@properties[["sigma"]])
+  enum_gate <- get_spec(
+    rtemis:::LINADHyperparameters@properties[["nvmax"]]
+  )
   expect_match(
     rtemis:::spec_to_schema(enum_gate)[["description"]],
-    'Applies only when kernel is "rbf" or "laplace"\\.$'
+    'Applies only when node_model is "forward"\\.$'
   )
   # The R-facing validator message is the other audience and keeps R's own
   # spelling, since it tells an R caller what to set: unquoted there, and
   # `TRUE` rather than `true` for a boolean gate.
   expect_error(
-    SpectralConfig(kernel = "rbf_local", sigma = 1),
-    "is rbf or laplace",
+    setup_LINAD(node_model = "ridge", nvmax = 3L),
+    "is forward",
     fixed = TRUE
   )
   expect_identical(rtemis:::format_allowed(TRUE), "TRUE")

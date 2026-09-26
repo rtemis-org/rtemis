@@ -12,7 +12,7 @@ test_that("inline alternatives retain the caller's publication URL context", {
     )
     schema <- S7_to_JSONSchema(
       SuperConfigPaths,
-      id = "https://example.org/contracts/supervised/v1/schema.json",
+      id = "https://example.org/contracts/supervised/r/v1/schema.json",
       record = record,
       reference_urls = urls
     )
@@ -226,4 +226,140 @@ test_that("library names use the same portable grammar in R and JSON Schema", {
   ))
   expect_identical(restored@key_pattern, spec@key_pattern)
   expect_identical(restored@key_not_pattern, spec@key_not_pattern)
+})
+
+
+test_that("schema-selected references preserve types and explicit wire identity", {
+  property <- Supervised@properties[["hyperparameters"]]
+  spec <- get_spec(property)
+  schema <- prop_to_schema(property)
+  declaration <- default_declarations(spec, schema, "/properties/value")
+  restored <- schema_to_spec(
+    schema,
+    declarations = declaration,
+    path = "/properties/value"
+  )
+  expect_identical(spec_fields(restored), spec_fields(spec))
+  Holder <- new_class(
+    "ImplementationHolder",
+    properties = list(value = property)
+  )
+  config <- setup_LightGBM(num_leaves = 7L)
+  holder <- Holder(value = config)
+  wire <- S7_to_list(holder)
+  identity <- "https://schema.rtemis.org/hyperparameters/r/v1/schema.json"
+  expect_identical(wire[["value"]][["$schema"]], identity)
+  expect_identical(wire[["value"]][["num_leaves"]], 7L)
+  expect_identical(from_wire(wire, Holder)[["value"]]@num_leaves, 7L)
+  expect_null(Holder()@value)
+  expect_error(Holder(value = setup_KMeans()), "Hyperparameters")
+  for (tag in list(NULL, "https://example.org/unknown/v1/schema.json", 1L)) {
+    invalid <- wire
+    invalid[["value"]]["$schema"] <- list(tag)
+    expect_error(from_wire(invalid, Holder), "declared contract")
+  }
+  expect_error(
+    prop_schema_choice(prop_string(), list(`test::Config` = identity)),
+    "scalar reference"
+  )
+  expect_error(
+    prop_schema_choice(
+      prop_collection(Hyperparameters),
+      list(`test::Config` = identity)
+    ),
+    "scalar reference"
+  )
+  expect_error(
+    prop_schema_choice(
+      prop_object(Hyperparameters),
+      list(`test::Config` = "unknown")
+    ),
+    "schema_urls|schema URLs"
+  )
+  expect_error(
+    prop_schema_choice(
+      prop_object(Hyperparameters),
+      list(`test::Config` = identity, `test::Other` = identity)
+    ),
+    "unique"
+  )
+  for (branch in schema[["oneOf"]][[2L]][["oneOf"]]) {
+    expect_identical(unname(branch[["required"]]), I("$schema"))
+  }
+})
+
+
+test_that("schema-selected resampled settings retain their inline variant set", {
+  property <- SupervisedRes@properties[["hyperparameters"]]
+  Holder <- new_class(
+    "ImplementationSetHolder",
+    properties = list(value = property)
+  )
+  variants <- HyperparametersSet(
+    variants = list(small = setup_KNN(k = 3L), large = setup_KNN(k = 5L))
+  )
+  wire <- S7_to_list(Holder(value = variants))
+  expect_named(wire[["value"]], "variants")
+  restored <- from_wire(wire, Holder)[["value"]]
+  expect_s7_class(restored, HyperparametersSet)
+  expect_identical(names(restored@variants), c("small", "large"))
+})
+
+
+test_that("artifact decoding preserves omission and tracks explicit later assignments", {
+  Config <- schema_class(
+    "PresenceFixture",
+    package = "rtemis",
+    properties = list(
+      count = prop_integer(3L, min = 1L),
+      label = prop_string(NULL, nullable = TRUE)
+    ),
+    publication = SchemaPublication(description = "Presence fixture.")
+  )
+  id <- "https://schema.rtemis.org/presencefixture/r/v1/schema.json"
+  schema <- S7_to_JSONSchema(Config, id = id)
+  declarations <- unlist(
+    lapply(names(Config@properties), function(nm) {
+      default_declarations(
+        get_spec(Config@properties[[nm]]),
+        schema[["properties"]][[nm]],
+        paste0("/properties/", nm)
+      )
+    }),
+    recursive = FALSE
+  )
+  graph <- default_artifact_graph(
+    stats::setNames(list(schema), id),
+    list(
+      format_version = 1L,
+      declarations = stats::setNames(list(declarations), id)
+    )
+  )
+  config <- graph[["decode"]](list(label = NULL), "rtemis::PresenceFixture")
+  expect_identical(S7_to_list(config), list(label = NULL))
+  expect_identical(default_wire_value(config), list(label = NULL))
+  materialized <- result_walk(
+    config,
+    function(value, fields) value,
+    native = TRUE
+  )
+  expect_identical(S7_to_list(materialized), list(label = NULL))
+  config@count <- 3L
+  expect_identical(S7_to_list(config), list(count = 3L, label = NULL))
+  expect_error(config@count <- 0L, "at least|>=|minimum|must")
+  expect_error(config@count <- "3", "integer")
+  expect_error(
+    default_artifact_graph(list(), list(list(format_version = 2L))),
+    "Unsupported"
+  )
+  expect_error(
+    default_artifact_graph(
+      list(),
+      list(
+        list(format_version = 1L, declarations = list(same = list())),
+        list(format_version = 1L, declarations = list(same = list()))
+      )
+    ),
+    "overlapping"
+  )
 })

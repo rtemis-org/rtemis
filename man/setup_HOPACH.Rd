@@ -15,7 +15,8 @@ setup_HOPACH(
   mss = "med",
   min_improvement = 0,
   initial_order = "co",
-  element_order = "own"
+  element_order = "own",
+  features = NULL
 )
 }
 \arguments{
@@ -40,6 +41,9 @@ setup_HOPACH(
 \item{initial_order}{Character \{"co", "clust"\}: How clusters in the first level are ordered.}
 
 \item{element_order}{Character \{"own", "neighbor"\}: How elements are ordered within a cluster.}
+
+\item{features}{Optional Character vector: Names of at least 2 distinct
+feature columns to cluster on. \code{NULL} clusters on all numeric features.}
 }
 \value{
 \code{HOPACHConfig} object.

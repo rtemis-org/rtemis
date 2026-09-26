@@ -49,7 +49,7 @@ IngestConfig <- schema_class(
       prop_string(INGEST_DTYPES[[1L]], enum = INGEST_DTYPES),
       nullable = TRUE,
       description = paste0(
-        "Declared column types, keyed by column name, in the `profile/v1` ",
+        "Declared column types, keyed by column name, in the `profile/r/v1` ",
         "vocabulary. A column named here is converted after reading rather ",
         "than inferred; one absent is left as the reader gave it."
       )
@@ -281,7 +281,7 @@ INGEST_SETUP <- c(
 # by class.
 #
 # @param columns Optional Named vector: Declared column types, keyed by column
-# name, in the `profile/v1` vocabulary -- `c(Age = "integer")`. A column named
+# name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
 # here is converted after reading rather than inferred.
 # @param character2factor Logical: If TRUE, read character columns as factors.
 # @param clean_colnames Logical: If TRUE, normalize column names.
@@ -301,7 +301,7 @@ INGEST_SETUP <- c(
 #' against the class they belong to.
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
-#' name, in the `profile/v1` vocabulary -- `c(Age = "integer")`. A column named
+#' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
 #' here is converted after reading rather than inferred, which is what makes a
 #' known type beat a heuristic.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
@@ -351,7 +351,7 @@ setup_DelimitedIngest <- function(
 #' tell the reader except which reader to be.
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
-#' name, in the `profile/v1` vocabulary -- `c(Age = "integer")`. A column named
+#' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
 #' here is converted after reading rather than inferred, which is what makes a
 #' known type beat a heuristic.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
@@ -392,7 +392,7 @@ setup_ParquetIngest <- function(
 #' only thing that must be said.
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
-#' name, in the `profile/v1` vocabulary -- `c(Age = "integer")`. A column named
+#' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
 #' here is converted after reading rather than inferred, which is what makes a
 #' known type beat a heuristic.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
@@ -435,7 +435,7 @@ setup_XLSXIngest <- function(
 #' has no settings of its own.
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
-#' name, in the `profile/v1` vocabulary -- `c(Age = "integer")`. A column named
+#' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
 #' here is converted after reading rather than inferred, which is what makes a
 #' known type beat a heuristic.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
@@ -471,7 +471,7 @@ setup_RDSIngest <- function(
 #' Reading a Stata file. Its types are declared in the file.
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
-#' name, in the `profile/v1` vocabulary -- `c(Age = "integer")`. A column named
+#' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
 #' here is converted after reading rather than inferred, which is what makes a
 #' known type beat a heuristic.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
@@ -507,7 +507,7 @@ setup_DTAIngest <- function(
 #' Reading an ARFF file. Its header declares the attribute types.
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
-#' name, in the `profile/v1` vocabulary -- `c(Age = "integer")`. A column named
+#' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
 #' here is converted after reading rather than inferred, which is what makes a
 #' known type beat a heuristic.
 #' @param character2factor Logical: If TRUE, read character columns as factors.

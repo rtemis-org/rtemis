@@ -27,16 +27,11 @@ DecomposeConfig <- schema_class(
       nullable = TRUE,
       description = "Path to the input data."
     ),
-    algorithm = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Decomposition algorithm name."
-    ),
     # Nested config object (a `$ref` in the generated schema).
     decomposition_config = prop_object(
       DecompositionConfig,
       nullable = TRUE,
-      description = "Decomposition algorithm and its settings."
+      description = "Decomposition algorithm and its settings, including the feature columns to decompose. Absent = the default algorithm with its default settings on all numeric columns."
     ),
     outdir = prop_string(
       "results/",
@@ -106,11 +101,10 @@ method(print, DecomposeConfig) <- function(x, output_type = NULL, ...) {
 #'
 #' @param dat_path Character or NULL: Path to input data file. NULL leaves the
 #' recipe unbound; set it (or supply data) before [decomp].
-#' @param algorithm Character or NULL: Decomposition algorithm. May be left NULL
-#' if `decomposition_config` is supplied (it carries its own algorithm).
 #' @param decomposition_config `DecompositionConfig` object or NULL: Configuration
 #' for the decomposition itself. Setup with a decomposition `setup_*` function,
-#' e.g. [setup_PCA]. If NULL, defaults for `algorithm` are used at [decomp] time.
+#' e.g. [setup_PCA]. If NULL, [decomp] runs its default algorithm with default
+#' settings.
 #' @param outdir Character: Output directory for results.
 #' @param verbosity Integer [0, Inf): Verbosity level.
 #'
@@ -126,7 +120,6 @@ method(print, DecomposeConfig) <- function(x, output_type = NULL, ...) {
 #' )
 setup_DecomposeConfig <- function(
   dat_path = NULL,
-  algorithm = NULL,
   decomposition_config = NULL,
   outdir = "results/",
   verbosity = 1L
@@ -147,7 +140,6 @@ setup_DecomposeConfig <- function(
 
   DecomposeConfig(
     dat_path = dat_path,
-    algorithm = algorithm,
     decomposition_config = decomposition_config,
     outdir = outdir,
     verbosity = as.integer(verbosity)
@@ -174,7 +166,6 @@ setup_DecomposeConfig <- function(
   check_wire_keys(x, names(DecomposeConfig@properties), "decompose config")
   args <- list(
     dat_path = x[["dat_path"]],
-    algorithm = x[["algorithm"]],
     decomposition_config = if (is.null(x[["decomposition_config"]])) {
       NULL
     } else {

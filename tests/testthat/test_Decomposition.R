@@ -393,13 +393,43 @@ test_that("decomp() validates config@features against the data", {
   )
 })
 
-test_that("an unset features decomposes every column", {
+test_that("an unset features decomposes every numeric column, resolved onto the fit", {
+  # `null` means every numeric column, and the fit records which those were, so
+  # the replay transforms the same matrix and the run record states what ran.
   fit <- decomp(
     x,
     algorithm = "PCA",
     config = setup_PCA(k = 2L),
     verbosity = 0L
   )
-  expect_null(fit@config@features)
+  expect_identical(fit@config@features, names(x))
   expect_identical(names(apply_decomp(fit, x, verbosity = 0L)), c("PC1", "PC2"))
+
+  # A column the backend cannot read is not decomposed, and does not stop the
+  # run: `iris`' species column comes back beside the components.
+  mixed <- decomp(iris, config = setup_PCA(k = 2L), verbosity = 0L)
+  expect_identical(mixed@config@features, names(x))
+  expect_identical(
+    names(apply_decomp(mixed, iris, verbosity = 0L)),
+    c("Species", "PC1", "PC2")
+  )
+})
+
+
+# one place for the algorithm ----
+test_that("decomp() takes the algorithm from config and refuses a disagreeing label", {
+  fit <- decomp(x, config = setup_PCA(k = 2L), verbosity = 0L)
+  expect_identical(fit@algorithm, "PCA")
+  expect_error(
+    decomp(x, algorithm = "ICA", config = setup_PCA(k = 2L), verbosity = 0L),
+    "pass one or the other",
+    class = "rtemis_value_error"
+  )
+  fit2 <- decomp(
+    x,
+    algorithm = "pca",
+    config = setup_PCA(k = 2L),
+    verbosity = 0L
+  )
+  expect_identical(fit2@algorithm, "PCA")
 })

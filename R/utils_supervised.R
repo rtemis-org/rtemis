@@ -50,8 +50,8 @@ attach_outcome <- function(features_df, outcome_value, outcome_nm) {
 #' one task and a matrix for another cannot be declared in a schema, and makes
 #' every consumer branch on the class count to read it.
 #'
-#' Columns are labeled with the classes they hold whenever the outcome levels
-#' are at hand and the backend supplied no names of its own, so that a consumer
+#' Named columns are reordered to outcome level order; unnamed columns are
+#' labeled in that order. Binary results retain the positive class column, so a consumer
 #' reading the matrix -- the long predictions table rtemislive plots, above
 #' all -- does not have to know rtemis's column order to interpret it.
 #'
@@ -82,11 +82,34 @@ prob_matrix <- function(x, levels = NULL, binclasspos = 2L) {
     x <- array(x, dim(x)[1:2], dimnames = dimnames(x)[1:2])
   }
   out <- if (is.null(dim(x))) matrix(x, ncol = 1L) else as.matrix(x)
-  if (!is.null(levels) && is.null(colnames(out))) {
-    if (ncol(out) == 1L) {
-      colnames(out) <- levels[[binclasspos]]
-    } else if (length(levels) == ncol(out)) {
-      colnames(out) <- levels
+  if (!is.null(levels)) {
+    expected <- if (length(levels) == 2L && ncol(out) == 1L) {
+      levels[[binclasspos]]
+    } else {
+      levels
+    }
+    if (ncol(out) != length(expected)) {
+      rtemis.core::abort(
+        "Probability columns must match the outcome levels.",
+        class = c("rtemis_dim_error", "rtemis_data_error")
+      )
+    }
+    columns <- colnames(out)
+    if (is.null(columns) || ncol(out) == 1L) {
+      colnames(out) <- expected
+    } else {
+      if (anyDuplicated(columns) || !setequal(columns, expected)) {
+        rtemis.core::abort(
+          "Probability column names must identify every outcome level once.",
+          class = c("rtemis_dim_error", "rtemis_data_error")
+        )
+      }
+      if (!identical(columns, expected)) {
+        out <- out[, match(expected, columns), drop = FALSE]
+      }
+    }
+    if (length(levels) == 2L && ncol(out) == 2L) {
+      out <- out[, binclasspos, drop = FALSE]
     }
   }
   out

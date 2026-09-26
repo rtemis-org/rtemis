@@ -5,7 +5,8 @@
   "type": "object",
   "properties": {
     "$id": {
-      "const": "https://schema.rtemis.org/defaults/v1/defaults.json"
+      "type": "string",
+      "pattern": "^https://schema\\.rtemis\\.org/defaults/(?:[a-z][a-z0-9-]*/)?v1/defaults\\.json$"
     },
     "$schema": {
       "const": "https://schema.rtemis.org/defaults/v1/format.schema.json"
@@ -17,7 +18,8 @@
       "type": "object",
       "properties": {
         "package": {
-          "const": "rtemis"
+          "type": "string",
+          "minLength": 1
         },
         "version": {
           "type": "string",

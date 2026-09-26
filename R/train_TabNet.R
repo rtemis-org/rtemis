@@ -91,6 +91,8 @@ method(predict_super, class_tabnet_fit) <- function(
     predict(model, new_data = newdata)[[1]]
   } else if (type == "Classification") {
     predicted <- predict(model, new_data = newdata, type = "prob")
+    # hardhat prefixes probability column names; the result contract uses labels.
+    names(predicted) <- sub("^\\.pred_", "", names(predicted))
     if (NCOL(predicted) == 2) {
       predicted[[2]]
     } else {

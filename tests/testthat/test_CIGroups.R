@@ -51,19 +51,39 @@ test_that("new tests enter the default CI group automatically", {
 })
 
 
-test_that("parallel integration is local by default and explicit in CI", {
-  withr::local_envvar(c(CI = NA, RTEMIS_RUN_PARALLEL_TESTS = NA))
+test_that("parallel integration requires explicit opt-in in automated runs", {
+  withr::local_envvar(c(CI = NA, CODEX_CI = NA, RTEMIS_RUN_PARALLEL_TESTS = NA))
   expect_no_error(skip_ci_parallel_integration())
+  for (flag in c("CI", "CODEX_CI")) {
+    for (value in c("true", "TRUE", "1")) {
+      withr::with_envvar(stats::setNames(value, flag), {
+        expect_condition(skip_ci_parallel_integration(), class = "skip")
+        withr::with_envvar(
+          c(RTEMIS_RUN_PARALLEL_TESTS = "true"),
+          expect_no_error(skip_ci_parallel_integration())
+        )
+      })
+    }
+  }
+  for (value in c("false", "FALSE", "0")) {
+    withr::with_envvar(
+      c(RTEMIS_RUN_PARALLEL_TESTS = value),
+      expect_condition(skip_ci_parallel_integration(), class = "skip")
+    )
+  }
+  withr::with_envvar(
+    c(CI = "false", CODEX_CI = "0"),
+    expect_no_error(skip_ci_parallel_integration())
+  )
+  withr::with_envvar(
+    c(RTEMIS_RUN_PARALLEL_TESTS = "typo"),
+    expect_error(skip_ci_parallel_integration(), "must be")
+  )
+})
 
-  Sys.setenv(CI = "true")
-  expect_condition(skip_ci_parallel_integration(), class = "skip")
-  Sys.setenv(RTEMIS_RUN_PARALLEL_TESTS = "false")
-  expect_condition(skip_ci_parallel_integration(), class = "skip")
-  Sys.setenv(RTEMIS_RUN_PARALLEL_TESTS = "true")
-  expect_no_error(skip_ci_parallel_integration())
 
-  Sys.setenv(CI = "TRUE", RTEMIS_RUN_PARALLEL_TESTS = "FALSE")
-  expect_condition(skip_ci_parallel_integration(), class = "skip")
-  Sys.setenv(CI = "false")
+test_that("parallel opt-in never overrides a CRAN guard", {
+  withr::local_envvar(c(NOT_CRAN = "false", RTEMIS_RUN_PARALLEL_TESTS = "true"))
   expect_no_error(skip_ci_parallel_integration())
+  expect_condition(testthat::skip_on_cran(), class = "skip")
 })

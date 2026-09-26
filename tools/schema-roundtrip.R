@@ -75,6 +75,7 @@ entries <- list()
 for (family in names(families)) {
   fam <- families[[family]]
   base <- fam[["base_class"]]
+  family <- schema_namespace(family, base)
   entries[[paste0(family, "/v1/schema.json")]] <- list(
     cls = base,
     properties = family_shared_names(base)
@@ -93,6 +94,7 @@ for (family in names(families)) {
 }
 for (family in names(flat_configs)) {
   cls <- flat_configs[[family]][["cls"]]
+  family <- schema_namespace(family, cls)
   entries[[paste0(family, "/v1/schema.json")]] <- list(
     cls = cls,
     properties = names(cls@properties)

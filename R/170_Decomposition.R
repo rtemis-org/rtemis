@@ -115,7 +115,8 @@ method(print, Decomposition) <- function(
 #' @param new_data Tabular data.
 #'
 #' @return List with `selected`, the columns to transform, and `kept`, the
-#' columns to pass through (`NULL` when the fit used every column).
+#' columns to pass through (`NULL` for a hand-assembled fit that names no
+#' columns, which transforms every one of them).
 #'
 #' @author EDG
 #' @keywords internal
@@ -184,12 +185,13 @@ decomp_matrix <- function(decom, data) {
 #' @param verbosity Integer: Verbosity level
 #'
 #' @details
-#' When the fitted decomposition was learned on a subset of the features (i.e.
-#' `decom@config@features` is not `NULL`), only those columns of `new_data` are
-#' transformed; the remaining columns are returned unchanged, alongside the
-#' learned components, in the layout `[kept features, components]`. When
-#' `features` is `NULL` (the standalone default), all columns of `new_data` are
-#' decomposed and only the components are returned.
+#' A fit is learned on the columns `decom@config@features` names, so only those
+#' columns of `new_data` are transformed; the remaining columns are returned
+#' unchanged, alongside the learned components, in the layout
+#' `[kept features, components]`. `decomp()` resolves an unset `features` to
+#' the numeric columns and records them, so a fit it produced always names
+#' them. A `Decomposition` assembled by hand with no `features` transforms
+#' every column of `new_data` and returns only the components.
 #'
 #' @return A data.frame of the learned components for `new_data`, preceded by any
 #' feature columns that were not decomposed.

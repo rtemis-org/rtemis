@@ -1,5 +1,30 @@
 # rtemis news
 
+## 1.4.1
+
+- Spectral clustering is three algorithms, one per kernel: `setup_SpectralRBF()`, `setup_SpectralLaplace()` and `setup_SpectralLocal()` replace `setup_Spectral()`, each taking only the settings its kernel uses; the Nystrom approximation is a `setup_Nystrom()` object whose presence turns it on.
+- The PAMK criterion is an object from `setup_ASWCriterion()`, `setup_CHCriterion()` or `setup_MultiASWCriterion()`, which alone carries the number of subsets; `setup_PAMK()` no longer takes `criterion` as a string or `n_subsets`.
+- `setup_ClusterConfig()` and `setup_DecomposeConfig()` no longer take `algorithm`; a cluster or decompose document names its algorithm once, inside its clustering or decomposition config, and `cluster()` and `decomp()` reject an `algorithm` that disagrees with a supplied config.
+- Clustering configs declare `features`, the columns to cluster on, and every clustering `setup_*()` accepts it; the run record states the subset.
+- `cluster()` and `decomp()` cluster or decompose every numeric column when the config names no `features`, and record the columns used on the fit.
+- Shared results identify implementation-specific configs by schema and read their typed settings without inserting omitted defaults.
+- Implementation-specific schema paths include the language namespace; shared result paths remain unqualified.
+
+- The defaults artifact format accepts producer-owned namespaces while retaining separate schema declarations and resolution policies.
+
+- `write_result()` and `read_result()` support portable result JSON with optional Parquet payloads, lazy loading, and integrity checks.
+- Resampled results retain successful fold identifiers and all requested training-row splits, including failed folds and bootstrap repetitions.
+- `Supervised`, `Regression`, `Classification`, and their resampled counterparts publish shared result schemas with typed outcomes, predictions, metrics, and runtime-only fitted state.
+- Categorical result values preserve class order and missing positions through explicit levels and codes.
+- Parallel worker integration tests require opt-in in automated agent sessions; a bounded diagnostic recipe records stalled runs.
+- Matrix property declarations support numeric cell bounds and cell-level nullability.
+- Typed array decoding preserves missing-cell positions and rejects invalid cell types and ragged matrices.
+- Schema publication metadata identifies the generating language, contract scope, registry domain, and standalone parent class.
+- `Implementation` and `Provenance` record package and language identities independently of schema authorship.
+- `VariableImportance` publishes a shared report schema with named numeric measures and null values for unavailable results.
+- `JSONSchema_to_S7()` reconstructs standalone inheritance and runtime-only properties from schema artifacts, and rejects a `parent` other than the one the schema declares.
+- Reading a table or object with a field its schema does not declare fails with an error naming the field.
+
 ## 1.4.0
 
 - `JSONSchema_to_S7()` reconstructs declaration defaults, typed references, and input policies from a supplied artifact graph.
@@ -281,7 +306,7 @@
 - Per-class metrics name their outcome level in a `level` column rather than in row names, so serialized metrics keep their labels.
 - New `confusion_long` (`reference`, `predicted`, `n`) is the declared property and what serializes; `metrics@confusion_matrix` is unchanged as a labeled `table`. `$` and `[[` on a metrics object now reach its properties as well as its metrics.
 - `classification_metrics(sample = )` and `regression_metrics(sample = )` default to `NULL` rather than `character()`, and accept only the sample names rtemis uses.
-- `schema.rtemis.org` publishes `regressionmetrics/v1`, `classificationmetrics/v1` and their resampled counterparts.
+- `schema.rtemis.org` publishes `regressionmetrics/r/v1`, `classificationmetrics/r/v1` and their resampled counterparts.
 
 **Declarations and schemas**
 

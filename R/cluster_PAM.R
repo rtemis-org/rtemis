@@ -97,10 +97,13 @@ method(cluster_, PAMKConfig) <- function(config, x, verbosity = 1L) {
 
   # Cluster ----
   msg("Clustering with", config@algorithm, "...", verbosity = verbosity)
+  # `criterion` is a variant of its own family; its `type` is the backend's
+  # criterion name and only the subsampled one carries a setting.
+  criterion <- config[["criterion"]]
   args <- list(
     data = x,
     krange = config[["krange"]],
-    criterion = config[["criterion"]],
+    criterion = criterion@type,
     usepam = config[["use_pam"]],
     scaling = config[["scaling"]],
     alpha = config[["alpha"]],
@@ -108,8 +111,11 @@ method(cluster_, PAMKConfig) <- function(config, x, verbosity = 1L) {
   )
   # `ns` has a non-NULL backend default, so it is passed only when set rather
   # than forwarded as NULL, which `pamk()` would take as the value.
-  if (!is.null(config[["n_subsets"]])) {
-    args[["ns"]] <- config[["n_subsets"]]
+  if (
+    S7_inherits(criterion, MultiASWCriterionConfig) &&
+      !is.null(criterion@n_subsets)
+  ) {
+    args[["ns"]] <- criterion@n_subsets
   }
   clust <- do.call(fpc::pamk, args)
   # `pamk()` returns a bare list, so there is no class to check on the result

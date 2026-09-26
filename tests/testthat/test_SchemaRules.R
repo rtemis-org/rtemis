@@ -73,34 +73,18 @@ test_that("parallel dispatch rules agree across R, JSON Schema, and reconstructi
 })
 
 
-test_that("the current Spectral restriction derives from its class declaration", {
-  schema <- S7_to_JSONSchema(
-    SpectralConfig,
-    base = ClusteringConfig,
-    id = "https://example.org/spectral/schema.json"
-  )
-  validator <- .rule_schema_validator(schema)
-  for (kernel in c("rbf", "laplace", "rbf_local")) {
-    for (nystrom in c(FALSE, TRUE)) {
-      args <- list(kernel = kernel, nystrom = nystrom)
-      expected <- !(kernel == "rbf_local" && nystrom)
-      object <- tryCatch(do.call(SpectralConfig, args), error = identity)
-      expect_identical(!inherits(object, "error"), expected)
-      expect_identical(.rule_accepts(validator, args), expected)
+test_that("no clustering variant carries a cross-property rule", {
+  # The spectral variants and the PAMK criterion are one class per shape, so
+  # what used to be four rules on one class is now structure. A rule coming
+  # back here means a shape defect: split the variant or nest the pair.
+  for (leaf in schema_catalog()[["families"]][["clustering"]][["algorithms"]]) {
+    cls <- leaf[["cls"]]
+    expect_length(schema_rules(cls), 0L)
+    for (nm in names(cls@properties)) {
+      fields <- get_spec_fields(cls@properties[[nm]])
+      expect_null(fields[["applies_when"]], info = paste(cls@name, nm))
     }
   }
-  without <- schema
-  without[["allOf"]] <- Filter(
-    function(clause) {
-      !identical(clause[["$comment"]], "spectral.local-kernel-nystrom")
-    },
-    schema[["allOf"]]
-  )
-  expect_true(.rule_accepts(
-    .rule_schema_validator(without),
-    list(kernel = "rbf_local", nystrom = TRUE)
-  ))
-  expect_true(.rule_accepts(validator, list(nystrom = TRUE)))
 })
 
 

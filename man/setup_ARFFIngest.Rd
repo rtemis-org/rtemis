@@ -13,7 +13,7 @@ setup_ARFFIngest(
 }
 \arguments{
 \item{columns}{Optional Named vector: Declared column types, keyed by column
-name, in the \code{profile/v1} vocabulary -- \code{c(Age = "integer")}. A column named
+name, in the \code{profile/r/v1} vocabulary -- \code{c(Age = "integer")}. A column named
 here is converted after reading rather than inferred, which is what makes a
 known type beat a heuristic.}
 

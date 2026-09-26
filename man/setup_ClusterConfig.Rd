@@ -6,7 +6,6 @@
 \usage{
 setup_ClusterConfig(
   dat_path = NULL,
-  algorithm = NULL,
   clustering_config = NULL,
   outdir = "results/",
   verbosity = 1L
@@ -16,12 +15,11 @@ setup_ClusterConfig(
 \item{dat_path}{Character or NULL: Path to input data file. NULL leaves the
 recipe unbound; set it (or supply data) before \link{cluster}.}
 
-\item{algorithm}{Character or NULL: Clustering algorithm. May be left NULL if
-\code{clustering_config} is supplied (it carries its own algorithm).}
-
 \item{clustering_config}{\code{ClusteringConfig} object or NULL: Configuration for
-the clustering itself. Setup with a clustering \verb{setup_*} function, e.g.
-\link{setup_KMeans}. If NULL, defaults for \code{algorithm} are used at \link{cluster} time.}
+the clustering itself, naming the algorithm, its settings and the feature
+columns to cluster on. Setup with a clustering \verb{setup_*} function, e.g.
+\link{setup_KMeans}. If NULL, \link{cluster} runs its default algorithm with default
+settings.}
 
 \item{outdir}{Character: Output directory for results.}
 

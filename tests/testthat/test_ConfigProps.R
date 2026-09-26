@@ -61,7 +61,7 @@ test_that("decomposition config setter routes and rejects unknown keys", {
 test_that("DecompositionConfig generates its JSON Schema", {
   s <- S7_to_JSONSchema(
     PCAConfig,
-    id = "https://schema.rtemis.org/decomposition/pca/v1/schema.json",
+    id = "https://schema.rtemis.org/decomposition/r/pca/v1/schema.json",
     base = DecompositionConfig
   )
   expect_setequal(names(s[["properties"]]), c("k", "center", "scale", "tol"))
@@ -90,7 +90,9 @@ test_that("DecompositionConfig generates its JSON Schema", {
   HOPACH = HOPACHConfig,
   PAM = PAMConfig,
   PAMK = PAMKConfig,
-  Spectral = SpectralConfig
+  SpectralRBF = SpectralRBFConfig,
+  SpectralLaplace = SpectralLaplaceConfig,
+  SpectralLocal = SpectralLocalConfig
 )
 
 test_that("setup_* clustering defaults do not drift from property defaults", {
@@ -127,18 +129,22 @@ test_that("clustering config validators enforce bounds and enums", {
   expect_error(setup_PAM(variant = "bogus"))
   expect_error(setup_PAMK(alpha = 1.5)) # max
   expect_error(setup_PAMK(krange = 1L)) # contains_min: needs a candidate > 1
-  # applies_when: subsets only mean something for the subset-based criterion
-  expect_error(setup_PAMK(criterion = "asw", n_subsets = 5L))
-  expect_error(setup_Spectral(k = 1L)) # min
-  expect_error(setup_Spectral(kernel = "bogus")) # enum
-  expect_error(setup_Spectral(sigma = 0)) # exclusive min
-  expect_error(setup_Spectral(sigma_sample_fraction = 1.5)) # max
-  # applies_when: no width to set when the kernel builds its own
-  expect_error(setup_Spectral(kernel = "rbf_local", sigma = 1))
-  # applies_when: nothing to sample when the approximation is off
-  expect_error(setup_Spectral(nystrom_sample = 40L))
-  # class validator: local scaling needs every pairwise distance
-  expect_error(setup_Spectral(kernel = "rbf_local", nystrom = TRUE))
+  # The criterion is an object of its own family, not a name: a string is
+  # refused, and a subset count exists only on the subsampled criterion.
+  expect_error(setup_PAMK(criterion = "asw"))
+  expect_error(setup_MultiASWCriterion(n_subsets = 0L)) # min
+  expect_error(setup_ASWCriterion(n_subsets = 5L)) # no such setting
+  expect_error(setup_SpectralRBF(k = 1L)) # min
+  expect_error(setup_SpectralRBF(sigma = 0)) # exclusive min
+  expect_error(setup_SpectralRBF(sigma_sample_fraction = 1.5)) # max
+  expect_error(setup_SpectralLaplace(sigma = 0)) # exclusive min
+  # Structure, not rules: the local kernel declares no width and no
+  # approximation, so neither can be written beside it.
+  expect_error(setup_SpectralLocal(sigma = 1))
+  expect_error(setup_SpectralLocal(nystrom = setup_Nystrom()))
+  # The approximation is an object; its presence is what turns it on.
+  expect_error(setup_SpectralRBF(nystrom = TRUE))
+  expect_error(setup_Nystrom(sample = 0L)) # min
 })
 
 test_that("CMeans weights broadcast and control is an open object", {
@@ -146,7 +152,7 @@ test_that("CMeans weights broadcast and control is an open object", {
   expect_true("control" %in% names(cfg@config))
   s <- S7_to_JSONSchema(
     CMeansConfig,
-    id = "https://schema.rtemis.org/clustering/cmeans/v1/schema.json",
+    id = "https://schema.rtemis.org/clustering/r/cmeans/v1/schema.json",
     base = ClusteringConfig
   )
   # `weights`: one number for every case, or a per-case vector.
@@ -163,10 +169,10 @@ test_that("CMeans weights broadcast and control is an open object", {
 test_that("S7_dispatcher_JSONSchema derives enum, leaf refs, and allOf", {
   s <- S7_dispatcher_JSONSchema(
     classes = list(PCAConfig, ICAConfig, tSNEConfig),
-    id = "https://schema.rtemis.org/decomposition/v1/schema.json",
+    id = "https://schema.rtemis.org/decomposition/r/v1/schema.json",
     base = DecompositionConfig,
     title = "rtemis DecompositionConfig",
-    instance_schema_url = "https://schema.rtemis.org/decomposition/v1/schema.json"
+    instance_schema_url = "https://schema.rtemis.org/decomposition/r/v1/schema.json"
   )
   # algorithm enum derived from the classes' computed @algorithm.
   expect_identical(
@@ -187,7 +193,7 @@ test_that("S7_dispatcher_JSONSchema derives enum, leaf refs, and allOf", {
   # $schema const present when instance_schema_url is set.
   expect_identical(
     s[["properties"]][["$schema"]][["const"]],
-    "https://schema.rtemis.org/decomposition/v1/schema.json"
+    "https://schema.rtemis.org/decomposition/r/v1/schema.json"
   )
   # one allOf clause per class, applying the leaf URL (by lowercase algorithm
   # slug) to the whole object: the `then` is exactly the `$ref`.
@@ -199,7 +205,9 @@ test_that("S7_dispatcher_JSONSchema derives enum, leaf refs, and allOf", {
   )
   expect_identical(
     clause[["then"]],
-    list(`$ref` = "https://schema.rtemis.org/decomposition/tsne/v1/schema.json")
+    list(
+      `$ref` = "https://schema.rtemis.org/decomposition/r/tsne/v1/schema.json"
+    )
   )
   # The shape rule is stated in the description, once, the same for every
   # family.
@@ -209,21 +217,21 @@ test_that("S7_dispatcher_JSONSchema derives enum, leaf refs, and allOf", {
 test_that("a record dispatcher requires every field it declares", {
   s <- S7_dispatcher_JSONSchema(
     classes = list(PCAConfig, ICAConfig),
-    id = "https://schema.rtemis.org/decomposition/v1/record.json",
+    id = "https://schema.rtemis.org/decomposition/r/v1/record.json",
     base = DecompositionConfig,
     record = TRUE
   )
   expect_identical(as.character(s[["required"]]), c("algorithm", "features"))
   expect_identical(
     s[["allOf"]][[1L]][["then"]][["$ref"]],
-    "https://schema.rtemis.org/decomposition/pca/v1/record.json"
+    "https://schema.rtemis.org/decomposition/r/pca/v1/record.json"
   )
 })
 
 test_that("dispatcher supports a custom discriminator", {
   s <- S7_dispatcher_JSONSchema(
     classes = list(KFoldConfig, LOOCVConfig),
-    id = "https://schema.rtemis.org/resampler/v1/schema.json",
+    id = "https://schema.rtemis.org/resampler/r/v1/schema.json",
     discriminator = "type"
   )
   expect_identical(
@@ -236,7 +244,7 @@ test_that("dispatcher supports a custom discriminator", {
   expect_false("config" %in% names(s[["properties"]]))
   expect_identical(
     s[["allOf"]][[1L]][["then"]][["$ref"]],
-    "https://schema.rtemis.org/resampler/kfold/v1/schema.json"
+    "https://schema.rtemis.org/resampler/r/kfold/v1/schema.json"
   )
   # Each `if` requires the discriminator: a properties-only `if` is vacuously
   # true when absent, which would apply every branch at once.
@@ -268,7 +276,7 @@ test_that("dispatcher rejects a non-constant or duplicated discriminator", {
 test_that("S7_to_JSONSchema emits $refs for nested config properties", {
   s <- S7_to_JSONSchema(
     DecomposeConfig,
-    id = "https://schema.rtemis.org/decompose/v1/schema.json"
+    id = "https://schema.rtemis.org/decompose/r/v1/schema.json"
   )
   # `decomposition_config` accepts NULL, so the ref is wrapped in a oneOf.
   ref <- s[["properties"]][["decomposition_config"]]
@@ -276,16 +284,16 @@ test_that("S7_to_JSONSchema emits $refs for nested config properties", {
   expect_identical(ref[["oneOf"]][[1L]][["type"]], "null")
   expect_identical(
     ref[["oneOf"]][[2L]][["$ref"]],
-    "https://schema.rtemis.org/decomposition/v1/schema.json"
+    "https://schema.rtemis.org/decomposition/r/v1/schema.json"
   )
   # A non-nullable nested config emits a bare $ref.
   sup <- S7_to_JSONSchema(
     SuperConfigPaths,
-    id = "https://schema.rtemis.org/supervised/v1/schema.json"
+    id = "https://schema.rtemis.org/supervised/r/v1/schema.json"
   )
   expect_identical(
     sup[["properties"]][["execution_config"]][["$ref"]],
-    "https://schema.rtemis.org/execution/v1/schema.json"
+    "https://schema.rtemis.org/execution/r/v1/schema.json"
   )
   # Property order follows the class declaration.
   expect_identical(
@@ -297,7 +305,7 @@ test_that("S7_to_JSONSchema emits $refs for nested config properties", {
 test_that("closed = FALSE omits additionalProperties for composed leaves", {
   args <- list(
     KFoldConfig,
-    id = "https://schema.rtemis.org/resampler/kfold/v1/schema.json",
+    id = "https://schema.rtemis.org/resampler/r/kfold/v1/schema.json",
     base = ResamplerConfig
   )
   expect_false(do.call(S7_to_JSONSchema, args)[["additionalProperties"]])
@@ -337,7 +345,7 @@ test_that("serialized configs carry only declared parameters", {
 test_that("dispatcher generates the discriminator from a spec", {
   s <- S7_dispatcher_JSONSchema(
     classes = list(PCAConfig, ICAConfig),
-    id = "https://schema.rtemis.org/decomposition/v1/schema.json",
+    id = "https://schema.rtemis.org/decomposition/r/v1/schema.json",
     discriminator_description = "Decomposition algorithm name."
   )
   algorithm <- s[["properties"]][["algorithm"]]
@@ -355,7 +363,7 @@ test_that("dispatcher generates the discriminator from a spec", {
 test_that("dispatcher emits the family base's shared properties", {
   s <- S7_dispatcher_JSONSchema(
     classes = list(PCAConfig, ICAConfig),
-    id = "https://schema.rtemis.org/decomposition/v1/schema.json",
+    id = "https://schema.rtemis.org/decomposition/r/v1/schema.json",
     base = DecompositionConfig
   )
   # Generated from the same PropertySpec the R class enforces, so the two
@@ -383,7 +391,7 @@ test_that("a resampler declares n_resamples per type, not on the base", {
   # "required unless LOOCV" rule.
   kfold <- S7_to_JSONSchema(
     KFoldConfig,
-    id = "https://schema.rtemis.org/resampler/kfold/v1/schema.json",
+    id = "https://schema.rtemis.org/resampler/r/kfold/v1/schema.json",
     base = ResamplerConfig,
     closed = FALSE
   )
@@ -392,7 +400,7 @@ test_that("a resampler declares n_resamples per type, not on the base", {
 
   loocv <- S7_to_JSONSchema(
     LOOCVConfig,
-    id = "https://schema.rtemis.org/resampler/loocv/v1/schema.json",
+    id = "https://schema.rtemis.org/resampler/r/loocv/v1/schema.json",
     base = ResamplerConfig,
     closed = FALSE
   )
@@ -404,7 +412,7 @@ test_that("a resampler declares n_resamples per type, not on the base", {
   # The dispatcher no longer carries it, and no `if/then` branch requires it.
   disp <- S7_dispatcher_JSONSchema(
     classes = list(KFoldConfig, LOOCVConfig),
-    id = "https://schema.rtemis.org/resampler/v1/schema.json",
+    id = "https://schema.rtemis.org/resampler/r/v1/schema.json",
     discriminator = "type",
     base = ResamplerConfig
   )
@@ -417,14 +425,14 @@ test_that("dispatcher skips spec-less base machinery and needs no base", {
   # Hyperparameters' base properties are all computed views or run state.
   s <- S7_dispatcher_JSONSchema(
     classes = list(CARTHyperparameters, GLMHyperparameters),
-    id = "https://schema.rtemis.org/hyperparameters/v1/schema.json",
+    id = "https://schema.rtemis.org/hyperparameters/r/v1/schema.json",
     base = Hyperparameters
   )
   expect_identical(names(s[["properties"]]), "algorithm")
   # `base` is optional.
   bare <- S7_dispatcher_JSONSchema(
     classes = list(KMeansConfig),
-    id = "https://schema.rtemis.org/clustering/v1/schema.json"
+    id = "https://schema.rtemis.org/clustering/r/v1/schema.json"
   )
   expect_identical(names(bare[["properties"]]), "algorithm")
   expect_error(
@@ -441,9 +449,9 @@ test_that("dispatcher skips spec-less base machinery and needs no base", {
 test_that("dispatcher orders base properties after the discriminator", {
   s <- S7_dispatcher_JSONSchema(
     classes = list(PCAConfig),
-    id = "https://schema.rtemis.org/decomposition/v1/schema.json",
+    id = "https://schema.rtemis.org/decomposition/r/v1/schema.json",
     base = DecompositionConfig,
-    instance_schema_url = "https://schema.rtemis.org/decomposition/v1/schema.json"
+    instance_schema_url = "https://schema.rtemis.org/decomposition/r/v1/schema.json"
   )
   expect_identical(
     names(s[["properties"]]),
@@ -557,9 +565,43 @@ test_that("x-rtemis agrees with the standard keywords, for every property", {
         isTRUE(ann[["tunable"]]) && isTRUE(ann[["broadcast"]]),
         info = label
       )
+      if (isTRUE(ann[["external"]])) {
+        expect_identical(length(schema[["anyOf"]]), 2L, info = label)
+        expect_identical(
+          schema[["anyOf"]][[2L]][["properties"]][["layout"]][["const"]],
+          container,
+          info = label
+        )
+        expect_true(nzchar(schema[["anyOf"]][[2L]][["$ref"]]), info = label)
+        schema <- schema[["anyOf"]][[1L]]
+      }
       types <- as.character(schema[["type"]])
       if (isTRUE(ann[["tunable"]]) || isTRUE(ann[["broadcast"]])) {
         expect_true("oneOf" %in% names(schema), info = label)
+      } else if (identical(ann[["type"]], "union")) {
+        expect_null(schema[["type"]], info = label)
+        alternatives <- Filter(
+          function(branch) !identical(branch[["type"]], "null"),
+          schema[["anyOf"]]
+        )
+        expect_identical(
+          length(alternatives),
+          length(spec@alternatives),
+          info = label
+        )
+        expect_identical(
+          vapply(
+            alternatives,
+            function(branch) branch[["x-rtemis"]][["type"]],
+            character(1L)
+          ),
+          vapply(
+            spec@alternatives,
+            function(branch) branch@type,
+            character(1L)
+          ),
+          info = label
+        )
       } else if (container %in% c("array", "matrix", "table")) {
         # A table is an array of row objects.
         expect_true("array" %in% types, info = label)
@@ -576,7 +618,26 @@ test_that("x-rtemis agrees with the standard keywords, for every property", {
         } else {
           if (schema_is_nullable(schema)) schema[["oneOf"]][[2L]] else schema
         }
-        expect_identical(ref[["$ref"]], target, info = label)
+        if (!is.null(ann[["schema_choices"]])) {
+          choices <- ref[["oneOf"]]
+          expect_identical(
+            vapply(choices, `[[`, character(1L), "$ref"),
+            c(target, unlist(ann[["schema_choices"]], use.names = FALSE)),
+            info = label
+          )
+          expect_true(
+            all(vapply(
+              choices,
+              function(branch) {
+                identical(branch[["required"]], I("$schema"))
+              },
+              logical(1L)
+            )),
+            info = label
+          )
+        } else {
+          expect_identical(ref[["$ref"]], target, info = label)
+        }
       } else if (identical(ann[["role"]], "constant")) {
         # A constant asserts its value; it has no `type` keyword.
         expect_true("const" %in% names(schema), info = label)
@@ -771,7 +832,7 @@ test_that("document metadata is allowed through the check", {
   # from disk must not trip the strictness.
   expect_s7_class(
     .list_to_PreprocessorConfig(list(
-      `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+      `$schema` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json",
       scale = TRUE
     )),
     PreprocessorConfig

@@ -87,11 +87,36 @@ test_that("every published property preserves its schema constraints on read", {
     defaults <- lapply(specs, function(s) {
       if (is.null(s@target_class)) via_json(s@default) else NULL
     })
-    rt <- JSONSchema_to_S7(schema, defaults = defaults, name = cls_name)
+    defaults <- defaults[vapply(
+      specs,
+      function(s) s@default_present,
+      logical(1L)
+    )]
+    parent <- if (!is.null(schema[["x-rtemis"]][["publication"]][["parent"]])) {
+      cls@parent
+    } else {
+      NULL
+    }
+    rt <- JSONSchema_to_S7(
+      schema,
+      defaults = defaults,
+      name = cls_name,
+      parent = parent
+    )
 
     expect_setequal(
       as.character(names(rt@properties)),
-      as.character(names(specs))
+      as.character(c(
+        names(specs),
+        names(schema[["x-rtemis"]][["runtime_properties"]]),
+        # An explicitly supplied native parent retains implementation-only fields.
+        if (!is.null(parent)) {
+          names(Filter(
+            function(p) prop_role(p) %in% c("r_only", "computed"),
+            parent@properties
+          ))
+        }
+      ))
     )
     for (nm in names(specs)) {
       original <- specs[[nm]]
@@ -251,7 +276,9 @@ test_that("JSONSchema_to_S7() names unresolved `$ref` properties", {
       nested = list(
         oneOf = list(
           list(type = "null"),
-          list(`$ref` = "https://schema.rtemis.org/preprocessor/v1/schema.json")
+          list(
+            `$ref` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json"
+          )
         )
       )
     )
@@ -264,7 +291,7 @@ test_that("JSONSchema_to_S7() names unresolved `$ref` properties", {
   # neither half is what `S7_to_JSONSchema()` emits from one class.
   prep_schema <- S7_to_JSONSchema(
     rtemis:::PreprocessorConfig,
-    id = "https://schema.rtemis.org/preprocessor/v1/schema.json"
+    id = "https://schema.rtemis.org/preprocessor/r/v1/schema.json"
   )
   prep_specs <- Filter(
     Negate(is.null),

@@ -85,6 +85,31 @@ test_that("cluster_CMeans() succeeds", {
   expect_s7_class(iris_cmeans, Clustering)
 })
 
+test_that("cluster_CMeans() succeeds with its columns named", {
+  # Naming `features` is what put the config through `check_data_bounds()`,
+  # where the default `weights` -- the scalar 1, standing for every case --
+  # was read as a vector one value long and refused: "`weights` must have one
+  # value per case: expected length 150, got 1". Reported from a Study
+  # session whose config was valid against the published schema, which offers
+  # the scalar; the run failed before reaching e1071.
+  skip_if_not_installed("e1071")
+  fit <- cluster(
+    x,
+    config = setup_CMeans(k = 3L, features = c("Sepal.Length", "Sepal.Width"))
+  )
+  expect_s7_class(fit, Clustering)
+  expect_identical(fit@config@features, c("Sepal.Length", "Sepal.Width"))
+  # And a per-case vector still runs, and a wrong-length one still does not.
+  expect_s7_class(
+    cluster(x, config = setup_CMeans(k = 3L, weights = rep(1, NROW(x)))),
+    Clustering
+  )
+  expect_error(
+    cluster(x, config = setup_CMeans(k = 3L, weights = rep(1, 5L))),
+    class = "rtemis_length_error"
+  )
+})
+
 # setup_DBSCAN ----
 test_that("setup_DBSCAN() succeeds", {
   expect_s7_class(setup_DBSCAN(), DBSCANConfig)
@@ -263,6 +288,24 @@ test_that("cluster_PAMK() succeeds", {
 })
 
 # PAMK via CLARA returns a different fit class ----
+test_that("cluster_PAMK() runs each criterion variant", {
+  skip_if_not_installed("fpc")
+  for (criterion in list(
+    setup_ASWCriterion(),
+    setup_CHCriterion(),
+    setup_MultiASWCriterion(n_subsets = 5L)
+  )) {
+    cl <- cluster(
+      x,
+      config = setup_PAMK(krange = 2:4, criterion = criterion),
+      verbosity = 0L
+    )
+    expect_s7_class(cl, HardClustering)
+    expect_true(cl@k %in% 2:4)
+    expect_s7_class(cl@config[["criterion"]], PAMKCriterionConfig)
+  }
+})
+
 test_that("cluster_PAMK() accepts the CLARA fit that use_pam = FALSE produces", {
   skip_if_not_installed("fpc")
   iris_pamk <- cluster(
@@ -331,28 +374,40 @@ test_that("cluster_GMM() is soft, and k is fixed or selected", {
 })
 
 
-# setup_Spectral ----
-test_that("setup_Spectral() succeeds", {
-  expect_s7_class(setup_Spectral(), SpectralConfig)
-  expect_null(setup_Spectral()[["sigma"]])
+# setup_Spectral* ----
+test_that("the spectral variants construct with their own settings only", {
+  expect_s7_class(setup_SpectralRBF(), SpectralRBFConfig)
+  expect_null(setup_SpectralRBF()[["sigma"]])
+  expect_null(setup_SpectralRBF()[["nystrom"]])
+  expect_s7_class(setup_SpectralLaplace(sigma = 0.5), SpectralLaplaceConfig)
+  expect_s7_class(setup_SpectralLocal(), SpectralLocalConfig)
+  expect_false("sigma" %in% names(SpectralLocalConfig@properties))
+  expect_false("nystrom" %in% names(SpectralLocalConfig@properties))
+  expect_false(
+    "sigma_sample_fraction" %in% names(SpectralLaplaceConfig@properties)
+  )
+  ny <- setup_SpectralRBF(nystrom = setup_Nystrom(sample = 40L))
+  expect_s7_class(ny[["nystrom"]], NystromConfig)
+  expect_identical(ny[["nystrom"]]@sample, 40L)
 })
 
-# setup_Spectral throws error ----
-test_that("setup_Spectral() throws error with bad values or wrong types", {
-  expect_error(setup_Spectral(k = 1L))
-  expect_error(setup_Spectral(kernel = "gaussian"))
+# setup_Spectral* throws error ----
+test_that("the spectral variants refuse bad values", {
+  expect_error(setup_SpectralRBF(k = 1L))
+  expect_error(setup_SpectralLocal(k = 1L))
+  expect_error(setup_SpectralRBF(nystrom = list(sample = 40L)))
 })
 
 # cluster Spectral ----
-test_that("cluster_Spectral() succeeds", {
+test_that("cluster_SpectralRBF() succeeds", {
   skip_if_not_installed("kernlab")
   iris_spectral <- cluster(
     x,
-    algorithm = "Spectral",
-    config = setup_Spectral(k = 3L),
+    config = setup_SpectralRBF(k = 3L),
     verbosity = 0L
   )
   expect_s7_class(iris_spectral, Clustering)
+  expect_identical(iris_spectral@algorithm, "SpectralRBF")
   # Spectral prescribes k, so `@k` is what was configured.
   expect_identical(iris_spectral@k, 3L)
   expect_type(iris_spectral@clusters, "integer")
@@ -365,34 +420,70 @@ test_that("cluster_Spectral() succeeds", {
 })
 
 # cluster Spectral kernels ----
-test_that("cluster_Spectral() reaches every kernel the enum publishes", {
+test_that("every spectral variant reaches its kernel", {
   skip_if_not_installed("kernlab")
   for (cfg in list(
-    setup_Spectral(k = 3L, kernel = "rbf", sigma = 1),
-    setup_Spectral(k = 3L, kernel = "rbf_local"),
-    setup_Spectral(k = 3L, kernel = "laplace"),
-    setup_Spectral(k = 3L, kernel = "laplace", sigma = 0.5),
-    setup_Spectral(k = 3L, nystrom = TRUE, nystrom_sample = 40L)
+    setup_SpectralRBF(k = 3L, sigma = 1),
+    setup_SpectralRBF(k = 3L, sigma_sample_fraction = 0.5),
+    setup_SpectralLocal(k = 3L),
+    setup_SpectralLaplace(k = 3L),
+    setup_SpectralLaplace(k = 3L, sigma = 0.5),
+    setup_SpectralRBF(k = 3L, nystrom = setup_Nystrom(sample = 40L)),
+    setup_SpectralLaplace(k = 3L, nystrom = setup_Nystrom())
   )) {
-    cl <- cluster(x, algorithm = "Spectral", config = cfg, verbosity = 0L)
+    cl <- cluster(x, config = cfg, verbosity = 0L)
     expect_s7_class(cl, HardClustering)
+    expect_identical(cl@algorithm, cfg@algorithm)
     expect_length(cl@clusters, nrow(x))
     expect_true(all(cl@clusters %in% seq_len(3L)))
   }
 })
 
 # Spectral refuses new data ----
-test_that("clustpredict_Spectral() refuses newdata", {
+test_that("clustpredict_Spectral*() refuses newdata", {
   skip_if_not_installed("kernlab")
   iris_spectral <- cluster(
     x,
-    algorithm = "Spectral",
-    config = setup_Spectral(k = 3L),
+    config = setup_SpectralLocal(k = 3L),
     verbosity = 0L
   )
   expect_error(
-    clustpredict_Spectral(iris_spectral@clust, newdata = x),
+    clustpredict_SpectralLocal(iris_spectral@clust, newdata = x),
     class = "rtemis_unsupported_error"
+  )
+})
+
+# Spectral and PAMK round-trip through JSON ----
+test_that("object-valued settings round-trip through the wire reader", {
+  cfg <- setup_SpectralRBF(k = 4L, nystrom = setup_Nystrom(sample = 40L))
+  back <- .list_to_ClusteringConfig(list(
+    algorithm = "SpectralRBF",
+    k = 4L,
+    nystrom = list(sample = 40L)
+  ))
+  expect_identical(back@k, cfg@k)
+  expect_s7_class(back[["nystrom"]], NystromConfig)
+  expect_identical(back[["nystrom"]]@sample, 40L)
+  pamk <- .list_to_ClusteringConfig(list(
+    algorithm = "PAMK",
+    krange = 2:4,
+    criterion = list(type = "multiasw", n_subsets = 20L)
+  ))
+  expect_s7_class(pamk[["criterion"]], MultiASWCriterionConfig)
+  expect_identical(pamk[["criterion"]]@n_subsets, 20L)
+  expect_error(
+    .list_to_ClusteringConfig(list(
+      algorithm = "PAMK",
+      criterion = list(type = "bogus")
+    )),
+    class = "rtemis_value_error"
+  )
+  # A criterion with a setting that is not its own is refused, not ignored.
+  expect_error(
+    .list_to_ClusteringConfig(list(
+      algorithm = "PAMK",
+      criterion = list(type = "asw", n_subsets = 5L)
+    ))
   )
 })
 
@@ -551,7 +642,9 @@ test_that("DBSCAN noise reaches the metrics as a fraction, not a cluster", {
   HOPACH = list(soft = FALSE, prescribes_k = FALSE),
   PAM = list(soft = FALSE, prescribes_k = TRUE),
   PAMK = list(soft = FALSE, prescribes_k = FALSE),
-  Spectral = list(soft = FALSE, prescribes_k = TRUE)
+  SpectralRBF = list(soft = FALSE, prescribes_k = TRUE),
+  SpectralLaplace = list(soft = FALSE, prescribes_k = TRUE),
+  SpectralLocal = list(soft = FALSE, prescribes_k = TRUE)
 )
 
 test_that("the capability roster covers every registered algorithm", {
@@ -596,7 +689,9 @@ test_that("every algorithm produces the variant the roster claims", {
     HOPACH = setup_HOPACH(dist = "euclid", max_levels = 3L, max_children = 5L),
     PAM = setup_PAM(k = 3L),
     PAMK = setup_PAMK(krange = 2:5),
-    Spectral = setup_Spectral(k = 3L)
+    SpectralRBF = setup_SpectralRBF(k = 3L),
+    SpectralLaplace = setup_SpectralLaplace(k = 3L),
+    SpectralLocal = setup_SpectralLocal(k = 3L)
   )
   pkgs <- c(
     KMeans = "flexclust",
@@ -608,7 +703,9 @@ test_that("every algorithm produces the variant the roster claims", {
     HOPACH = "hopach",
     PAM = "cluster",
     PAMK = "fpc",
-    Spectral = "kernlab"
+    SpectralRBF = "kernlab",
+    SpectralLaplace = "kernlab",
+    SpectralLocal = "kernlab"
   )
   for (nm in names(.clust_capabilities)) {
     skip_if_not_installed(pkgs[[nm]])
@@ -622,4 +719,64 @@ test_that("every algorithm produces the variant the roster claims", {
     expect_type(cl@k, "integer")
     expect_length(cl@clusters, nrow(x))
   }
+})
+
+
+# features selection ----
+test_that("cluster() fits on config@features and the record says so", {
+  config <- setup_KMeans(k = 3L, features = c("Sepal.Length", "Sepal.Width"))
+  fit <- cluster(x, config = config, verbosity = 0L)
+  expect_s7_class(fit, Clustering)
+  # Fitted on the two selected columns only: the fingerprint sees two columns
+  # and the recorded document carries the subset.
+  expect_identical(fit@data_fingerprint@n_cols, 2L)
+  expect_identical(
+    fit@cluster_config@clustering_config@features,
+    c("Sepal.Length", "Sepal.Width")
+  )
+})
+
+test_that("cluster() validates config@features against the data", {
+  expect_error(
+    cluster(
+      iris,
+      config = setup_KMeans(k = 3L, features = c("Sepal.Length", "Species")),
+      verbosity = 0L
+    ),
+    "must name numeric training features"
+  )
+  expect_error(
+    cluster(
+      x,
+      config = setup_KMeans(k = 3L, features = c("Sepal.Length", "nope")),
+      verbosity = 0L
+    ),
+    class = "rtemis_value_error"
+  )
+  expect_error(setup_KMeans(features = "one"))
+  expect_error(setup_KMeans(features = c("a", "a")))
+})
+
+# one place for the algorithm ----
+test_that("cluster() takes the algorithm from config and refuses a disagreeing label", {
+  fit <- cluster(x, config = setup_KMeans(k = 3L), verbosity = 0L)
+  expect_identical(fit@algorithm, "KMeans")
+  expect_error(
+    cluster(
+      x,
+      algorithm = "PAM",
+      config = setup_KMeans(k = 3L),
+      verbosity = 0L
+    ),
+    "pass one or the other",
+    class = "rtemis_value_error"
+  )
+  # An alias of the config's own algorithm is not a disagreement.
+  fit2 <- cluster(
+    x,
+    algorithm = "kmeans",
+    config = setup_KMeans(k = 3L),
+    verbosity = 0L
+  )
+  expect_identical(fit2@algorithm, "KMeans")
 })

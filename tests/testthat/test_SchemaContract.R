@@ -58,7 +58,15 @@
     list(HOPACHConfig, "setup_HOPACH"),
     list(PAMConfig, "setup_PAM"),
     list(PAMKConfig, "setup_PAMK"),
-    list(SpectralConfig, "setup_Spectral")
+    list(SpectralRBFConfig, "setup_SpectralRBF"),
+    list(SpectralLaplaceConfig, "setup_SpectralLaplace"),
+    list(SpectralLocalConfig, "setup_SpectralLocal")
+  ),
+  .contract_family(
+    PAMKCriterionConfig,
+    list(ASWCriterionConfig, "setup_ASWCriterion"),
+    list(CHCriterionConfig, "setup_CHCriterion"),
+    list(MultiASWCriterionConfig, "setup_MultiASWCriterion")
   ),
   .contract_family(
     ResamplerConfig,
@@ -138,7 +146,8 @@
     list(SupervisedPreprocessorConfig, "setup_SupervisedPreprocessor"),
     list(SuperConfigPaths, "setup_SuperConfig"),
     list(DecomposeConfig, "setup_DecomposeConfig"),
-    list(ClusterConfig, "setup_ClusterConfig")
+    list(ClusterConfig, "setup_ClusterConfig"),
+    list(NystromConfig, "setup_Nystrom")
   )
 )
 
@@ -149,6 +158,15 @@
 # `validate_config()` reports about a config. Nothing authors one, so none
 # states a user's intent and none is a config.
 .contract_no_setup <- c(
+  "Supervised",
+  "Regression",
+  "Classification",
+  "SupervisedRes",
+  "RegressionRes",
+  "ClassificationRes",
+  "Resampler",
+  "Implementation",
+  "VariableImportance",
   "Provenance",
   "DataFingerprint",
   "DataRef",

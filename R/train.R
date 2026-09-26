@@ -1007,21 +1007,11 @@ train <- function(
       outcome_nm <- names(x)[ncols]
       feat <- as.data.frame(features(x))
       # Resolve the columns to decompose: NULL -> all numeric features.
-      decomp_features <- decomposition_config@features
-      if (is.null(decomp_features)) {
-        decomp_features <- names(numeric_features(x))
-      }
       # Binds the *resolved* selection, which for an unset `features` is
       # whatever the data happen to supply, so no declaration can express it.
       # An explicit selection is validated by `decomp()` against `feat`.
-      if (length(decomp_features) < 2L) {
-        rtemis.core::abort(
-          "Decomposition requires at least 2 numeric feature columns.\n",
-          length(decomp_features),
-          " available to decompose.",
-          class = c("rtemis_length_error", "rtemis_input_error")
-        )
-      }
+      decomp_features <- decomposition_config@features %||%
+        resolve_unsupervised_features(feat, "Decomposition")
       # Persist the resolved names so apply_decomp() replays the same selection
       # on validation/test here and on new data at predict() time. `decomp()`
       # subsets `feat` by them, so the fit and the replay cannot disagree.

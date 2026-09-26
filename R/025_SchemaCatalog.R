@@ -17,6 +17,8 @@
 #' @field discriminator_description Optional Character: Dispatch property help.
 #' @field order Integer [1, Inf): Presentation order within the publication role.
 #' @field kind Character \{"config", "pipeline", "report", "component"\}: Document kind.
+#' @field scope Character \{"shared", "implementation"\}: Contract portability.
+#' @field domain Character: Registry subject area, independent of its producer.
 #' @field record_provenance,record_session Optional Character: Qualified class identities for record supplements.
 #' @field record_folds Optional Character vector: Config properties resolved for each fold.
 #' @field record_metrics Optional Character vector: Qualified metric class identities.
@@ -28,6 +30,15 @@ SchemaPublication <- new_class(
   name = "SchemaPublication",
   package = "rtemis",
   properties = list(
+    scope = prop_string(
+      "implementation",
+      enum = c("shared", "implementation"),
+      description = "Whether the contract is shared across implementations or owned by one implementation."
+    ),
+    domain = prop_string(
+      "ml",
+      description = "Registry subject area, independent of the generating package."
+    ),
     role = prop_string(
       "document",
       enum = c("family", "leaf", "document", "inline"),
@@ -98,6 +109,9 @@ SchemaPublication <- new_class(
     )
   ),
   validator = function(self) {
+    if (!grepl("^[a-z][a-z0-9_-]*$", self@domain)) {
+      return("@domain must be a lowercase identifier starting with a letter.")
+    }
     supplements <- c(
       self@record_provenance,
       self@record_session,
@@ -279,7 +293,94 @@ schema_class <- function(
     list(description = publication@description),
     cls@name
   )
+  if (
+    publication@role == "document" &&
+      publication@kind %in% c("config", "pipeline")
+  ) {
+    validate_reference_discriminators(cls)
+  }
   attr(cls, "rtemis_schema") <- S7::props(publication)
+  cls
+}
+
+
+# %% validate_reference_discriminators ----
+#' Refuse a document property that shadows a referenced family's discriminator
+#'
+#' An authored document (a config or a pipeline) has no discriminator of its
+#' own, so a property named like the discriminator of a family one of its
+#' properties references can only be a second copy of that fact -- and a reader
+#' with nothing but the schema has no rule for which copy wins. A family leaf
+#' legitimately carries its own discriminator beside a reference to the same
+#' family (a meta-learner's `algorithm` beside its base learners'), which is why
+#' the check is scoped to documents.
+#'
+#' Only families already declared when the document is declared can be
+#' checked, which is the case for a same-package reference in collation order;
+#' an unresolved target is skipped rather than guessed.
+#'
+#' @param cls S7 class: The document class, with its inherited properties.
+#' @return NULL, invisibly; aborts with class `rtemis_schema_error`.
+#' @keywords internal
+#' @noRd
+validate_reference_discriminators <- function(cls) {
+  own <- names(cls@properties)
+  for (nm in own) {
+    fields <- get_spec_fields(cls@properties[[nm]])
+    targets <- unique(c(
+      fields[["target_class"]],
+      fields[["alternate_class"]],
+      fields[["items"]][["target_class"]]
+    ))
+    for (target in targets) {
+      family <- declared_class(target)
+      if (is.null(family)) {
+        next
+      }
+      publication <- attr(family, "rtemis_schema", exact = TRUE)
+      if (is.null(publication) || !identical(publication[["role"]], "family")) {
+        next
+      }
+      discriminator <- publication[["discriminator"]]
+      if (discriminator %in% setdiff(own, nm)) {
+        rtemis.core::abort(
+          cls@name,
+          " declares `",
+          discriminator,
+          "` beside `",
+          nm,
+          "`, which references the ",
+          family@name,
+          " family whose discriminator is `",
+          discriminator,
+          "`; name the variant once, inside `",
+          nm,
+          "`.",
+          class = "rtemis_schema_error"
+        )
+      }
+    }
+  }
+  invisible(NULL)
+}
+
+
+# %% declared_class ----
+#' Resolve a qualified class identity to a class already declared
+#' @param target Character: `package::Class`.
+#' @return S7 class, or NULL when the package is not loaded or the class is not
+#' yet declared.
+#' @keywords internal
+#' @noRd
+declared_class <- function(target) {
+  parts <- strsplit(target, "::", fixed = TRUE)[[1L]]
+  if (length(parts) != 2L || !isNamespaceLoaded(parts[[1L]])) {
+    return(NULL)
+  }
+  cls <- get0(parts[[2L]], envir = asNamespace(parts[[1L]]), inherits = FALSE)
+  if (!inherits(cls, "S7_class")) {
+    return(NULL)
+  }
   cls
 }
 
@@ -301,6 +402,12 @@ property_validation_contract <- function(fields) {
     "description",
     "group"
   )] <- NULL
+  if (!is.null(fields[["alternatives"]])) {
+    fields[["alternatives"]] <- lapply(
+      fields[["alternatives"]],
+      property_validation_contract
+    )
+  }
   if (!is.null(fields[["items"]])) {
     fields[["items"]] <- property_validation_contract(fields[["items"]])
   }
@@ -422,18 +529,38 @@ schema_publication_annotation <- function(cls) {
   if (is.null(publication)) {
     return(NULL)
   }
-  list(
+  annotation <- list(
     producer = cls@package,
+    language = "r",
+    scope = publication@scope,
+    domain = publication@domain,
     class = paste0(cls@package, "::", cls@name),
     role = publication@role,
     kind = publication@kind,
     order = publication@order
   )
+  parent <- cls@parent
+  parent_publication <- if (inherits(parent, "S7_class")) {
+    schema_publication(parent)
+  }
+  if (
+    publication@role == "document" &&
+      !is.null(parent_publication) &&
+      parent_publication@role == "document"
+  ) {
+    annotation[["parent"]] <- paste0(parent@package, "::", parent@name)
+  }
+  annotation
 }
 
 
 # %% schema_algorithm_descriptions ----
 #' Read algorithm prose from the classes that publish it
+#'
+#' A schema description is a sentence, but every caller uses it as a name
+#' inside its own sentence ("Ranger random forest was used for ..."), so the
+#' closing period is dropped here rather than at each call site.
+#'
 #' @param base S7 class: Published family root.
 #' @return Named character vector keyed by discriminator value.
 #' @keywords internal
@@ -451,7 +578,11 @@ schema_algorithm_descriptions <- function(base) {
   }
   family <- families[[1L]]
   stats::setNames(
-    vapply(family[["algorithms"]], `[[`, character(1L), "desc"),
+    sub(
+      "\\.$",
+      "",
+      vapply(family[["algorithms"]], `[[`, character(1L), "desc")
+    ),
     vapply(
       family[["algorithms"]],
       function(a) discriminator_value(a[["cls"]], family[["discriminator"]]),
@@ -459,6 +590,46 @@ schema_algorithm_descriptions <- function(base) {
     )
   )
 }
+
+
+# %% schema_algorithm_class ----
+#' The published leaf class behind one algorithm name of a family
+#' @param base S7 class: The family's abstract base.
+#' @param name Character: The discriminator value, in the registry's spelling.
+#' @return S7 class.
+#' @keywords internal
+#' @noRd
+schema_algorithm_class <- function(base, name) {
+  families <- Filter(
+    function(f) identical(f[["base_class"]], base),
+    schema_catalog()[["families"]]
+  )
+  if (length(families) != 1L) {
+    rtemis.core::abort(
+      "Algorithm classes require a published family.",
+      class = "rtemis_schema_error"
+    )
+  }
+  family <- families[[1L]]
+  for (a in family[["algorithms"]]) {
+    if (
+      identical(
+        discriminator_value(a[["cls"]], family[["discriminator"]]),
+        name
+      )
+    ) {
+      return(a[["cls"]])
+    }
+  }
+  rtemis.core::abort(
+    "No published ",
+    base@name,
+    " variant named `",
+    name,
+    "`.",
+    class = c("rtemis_value_error", "rtemis_input_error")
+  )
+} # /rtemis::schema_algorithm_class
 
 
 # %% schema_record_arguments ----

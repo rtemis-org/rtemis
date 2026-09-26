@@ -41,7 +41,7 @@ test_that("ClusterConfig round-trips through write_config/read_config JSON", {
   xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
   expect_identical(
     xl[["$schema"]],
-    "https://schema.rtemis.org/cluster/v1/schema.json"
+    "https://schema.rtemis.org/cluster/r/v1/schema.json"
   )
   xtoo <- read_config(file)
   expect_s7_class(xtoo, ClusterConfig)
@@ -50,4 +50,26 @@ test_that("ClusterConfig round-trips through write_config/read_config JSON", {
     xtoo@clustering_config@algorithm,
     x@clustering_config@algorithm
   )
+})
+
+
+# %% one place for the algorithm ----
+test_that("a cluster document names its algorithm only inside clustering_config", {
+  expect_false("algorithm" %in% names(ClusterConfig@properties))
+  expect_error(
+    .list_to_ClusterConfig(list(
+      algorithm = "KMeans",
+      clustering_config = list(algorithm = "KMeans", k = 3L)
+    )),
+    class = "rtemis_input_error"
+  )
+  x <- .list_to_ClusterConfig(list(
+    clustering_config = list(
+      algorithm = "KMeans",
+      k = 3L,
+      features = c("a", "b")
+    )
+  ))
+  expect_identical(x@clustering_config@algorithm, "KMeans")
+  expect_identical(x@clustering_config@features, c("a", "b"))
 })

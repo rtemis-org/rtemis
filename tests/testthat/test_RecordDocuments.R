@@ -95,6 +95,11 @@ testthat::skip_if_not_installed("jsonvalidate")
     execution = setup_SerialExecution(seed = 1L),
     execution_parallel = setup_MiraiExecution(n_workers = 2L, seed = 1L),
     clustering = setup_KMeans(k = 3L),
+    clustering_nested = setup_PAMK(
+      krange = 2:4,
+      criterion = setup_MultiASWCriterion(n_subsets = 5L)
+    ),
+    pamkcriterion = setup_MultiASWCriterion(n_subsets = 5L),
     decomposition = setup_PCA(k = 2L),
     resampler = setup_KFold(3L),
     tuner = setup_GridSearch(resampler_config = setup_KFold(3L)),

@@ -44,6 +44,11 @@ config_parts <- function(config) {
   out <- list(
     preprocessor_config = NULL,
     decomposition_config = NULL,
+    clustering_config = NULL,
+    # Whether the run reads a numeric matrix, so that a column it cannot read
+    # is not a feature of it. True for the clustering and decomposition
+    # pipeline documents; see below.
+    numeric_features_only = FALSE,
     resamplers = list(),
     hyperparameters = NULL,
     positive_class = NULL,
@@ -75,6 +80,25 @@ config_parts <- function(config) {
   out[["decomposition_config"]] <- config_prop(config, "decomposition_config")
   out[["hyperparameters"]] <- config_prop(config, "hyperparameters")
   out[["positive_class"]] <- config_prop(config, "positive_class")
+  out[["clustering_config"]] <- config_prop(config, "clustering_config")
+  # A clustering or decomposition run reads a numeric matrix, and its document
+  # names the columns inside the algorithm's own config, because there the
+  # selection is part of what the algorithm is given (`cluster/r/v1`,
+  # `decompose/r/v1`). Reading only the top level made every excluded column a
+  # feature of the run: a clustering plan naming 122 numeric columns came back
+  # with FEATURE_TYPE_UNSUPPORTED for the date column it had left out.
+  #
+  # A supervised run's own `decomposition_config` is a step inside it, not the
+  # run, so the block is read only where there is no `hyperparameters`.
+  unsupervised_family <- if (out[["supervised"]]) {
+    NULL
+  } else {
+    out[["clustering_config"]] %||% out[["decomposition_config"]]
+  }
+  out[["numeric_features_only"]] <- !is.null(unsupervised_family)
+  if (is.null(out[["features"]]) && !is.null(unsupervised_family)) {
+    out[["features"]] <- config_prop(unsupervised_family, "features")
+  }
   # How the config's files are read. A delimited file carries no types, so this
   # is what decides whether a column of labels reaches the learner as a factor
   # or as an unusable string. NULL for a config with no paths -- a
@@ -251,9 +275,19 @@ validate_data <- function(config, data, outcome = NULL, step = NULL) {
   # A config that names its predictors excludes the rest, so a finding about a
   # column it excluded would be true of the dataset and false of the run -- and
   # a finding the user can see is wrong is one they learn to argue with.
-  feature_names <- setdiff(profile_columns(profile)[["name"]], outcome_name)
+  columns <- profile_columns(profile)
+  feature_names <- setdiff(columns[["name"]], outcome_name)
   if (!is.null(parts[["features"]])) {
     feature_names <- intersect(feature_names, parts[["features"]])
+  } else if (isTRUE(parts[["numeric_features_only"]])) {
+    # Unset on a clustering or decomposition run means every numeric column:
+    # that is what `cluster()` and `decomp()` resolve it to, so a date column is
+    # not a feature of the run and a finding about its type would be about the
+    # table.
+    feature_names <- intersect(
+      feature_names,
+      columns[["name"]][columns[["dtype"]] %in% NUMERIC_DTYPES]
+    )
   }
 
   out <- c(
@@ -653,7 +687,7 @@ check_resample_min_class <- function(
       n_resamples = n_resamples,
       min_class = min_level,
       min_class_n = min_class,
-      # Long form, one record per level, as `profile/v1` carries them. A
+      # Long form, one record per level, as `profile/r/v1` carries them. A
       # name -> count map cannot be iterated by an expression language, so the
       # rule set could not reproduce it and the two would state the same fact
       # in shapes a conformance run could not compare.
@@ -1356,13 +1390,19 @@ check_missing_incompatible <- function(
   }
   algorithm <- config_algorithm(parts)
   allows <- if (is.null(algorithm)) NA else algorithm_allows_missing(algorithm)
+  # Named, not just counted: told only "2 columns", a reader guesses which,
+  # and one guessed a column that was not even a feature of the run
+  # (Haiku 4.5 on a clustering plan, 2026-09-22). Every other column finding
+  # names its columns.
+  with_gaps <- feature_names[vapply(
+    feature_names,
+    function(nm) profile_field(profile, nm, "n_missing") > 0L,
+    logical(1L)
+  )]
   evidence <- list(
+    features = with_gaps,
     n_missing = n_remaining,
-    n_features_missing = sum(vapply(
-      feature_names,
-      function(nm) profile_field(profile, nm, "n_missing") > 0L,
-      logical(1L)
-    )),
+    n_features_missing = length(with_gaps),
     algorithm = algorithm %||% NA_character_,
     algorithm_allows_missing = allows
   )

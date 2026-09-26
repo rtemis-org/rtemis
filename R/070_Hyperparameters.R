@@ -207,8 +207,20 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
       }
       spec <- get_spec(specs[[nm]])
       is_vector <- !is.null(spec) && spec@container != "none"
+      # A `broadcast` declaration admits a bare scalar in place of the whole
+      # container -- "this value for every element" -- and the published
+      # schema offers exactly that shape (`oneOf: [number, array]`). Reading
+      # its length against the dimension rejects the contract's own answer:
+      # `CMeansConfig@weights` broadcasts and defaults to the scalar 1, so
+      # every CMeans run on more than one case failed here, with a message
+      # telling the caller to supply what the scalar already meant.
+      broadcast_scalar <- is_vector && spec@broadcast && length(value) == 1L
       if (is_vector) {
-        if (length(value) != dim_value) {
+        # A broadcast scalar has nothing to check: it stands for a value per
+        # element, and its own magnitude is unrelated to the dimension --
+        # falling through to the scalar branch below would read a case weight
+        # of 500 as "more than the 190 cases".
+        if (!broadcast_scalar && length(value) != dim_value) {
           rtemis.core::abort(
             "`",
             nm,

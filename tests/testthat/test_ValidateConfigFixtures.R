@@ -15,7 +15,7 @@
 # a gap in the outcome -- and a constructed frame says which shape it is
 # testing, where a data file only shows it.
 
-.supervised_schema <- "https://schema.rtemis.org/supervised/v1/schema.json"
+.supervised_schema <- "https://schema.rtemis.org/supervised/r/v1/schema.json"
 
 # The smallest config that reconstructs: a schema and an algorithm.
 .config <- function(algorithm = "LightRF", ...) {
@@ -25,6 +25,22 @@
       hyperparameters = list(algorithm = algorithm)
     ),
     list(...)
+  )
+}
+
+# The unsupervised documents, whose columns are named inside the algorithm's
+# own config. The smallest that reconstructs: a schema and an algorithm.
+.cluster_config <- function(...) {
+  list(
+    `$schema` = "https://schema.rtemis.org/cluster/r/v1/schema.json",
+    clustering_config = c(list(algorithm = "KMeans"), list(...))
+  )
+}
+
+.decompose_config <- function(...) {
+  list(
+    `$schema` = "https://schema.rtemis.org/decompose/r/v1/schema.json",
+    decomposition_config = c(list(algorithm = "PCA"), list(...))
   )
 }
 
@@ -585,7 +601,7 @@ test_that("DIM_P_GT_N reports the width with no algorithm to judge it", {
   d <- .only(
     validate_config(
       list(
-        `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+        `$schema` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json",
         scale = TRUE
       ),
       data = .wide_data()
@@ -606,7 +622,7 @@ test_that("DIM_P_GT_N reports a component count with no algorithm to judge it", 
   d <- .only(
     validate_config(
       list(
-        `$schema` = "https://schema.rtemis.org/decompose/v1/schema.json",
+        `$schema` = "https://schema.rtemis.org/decompose/r/v1/schema.json",
         decomposition_config = list(
           algorithm = "PCA",
           k = 20L
@@ -724,7 +740,7 @@ test_that("MISSING_INCOMPATIBLE: complete_cases leaves nothing to train on", {
   d <- .only(
     validate_config(
       list(
-        `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+        `$schema` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json",
         complete_cases = TRUE
       ),
       data = dat
@@ -897,7 +913,7 @@ test_that("a config with no outcome treats every column as a feature", {
   dat[["site"]] <- factor("A")
   out <- validate_config(
     list(
-      `$schema` = "https://schema.rtemis.org/decomposition/v1/schema.json",
+      `$schema` = "https://schema.rtemis.org/decomposition/r/v1/schema.json",
       algorithm = "PCA",
       k = 2L
     ),
@@ -912,7 +928,7 @@ test_that("an explicit outcome applies whatever the config is for", {
   dat <- .balanced_data(40L)
   out <- validate_config(
     list(
-      `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+      `$schema` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json",
       remove_constants = FALSE
     ),
     data = dat,
@@ -929,7 +945,7 @@ test_that("the data checks run on a preprocessor config too", {
   dat[["site"]] <- factor("A")
   out <- validate_config(
     list(
-      `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+      `$schema` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json",
       remove_constants = FALSE
     ),
     data = dat[, c("x1", "x2", "site", "y")]
@@ -975,7 +991,7 @@ test_that("a threshold that drops the gappy feature clears it for preprocess()",
   expect_length(
     validate_config(
       list(
-        `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+        `$schema` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json",
         remove_features_thres = 0.5
       ),
       data = .thin_column_data()
@@ -989,7 +1005,7 @@ test_that("a threshold too high to drop it does not clear the finding", {
   d <- .only(
     validate_config(
       list(
-        `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+        `$schema` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json",
         remove_features_thres = 0.95
       ),
       data = .thin_column_data()
@@ -1013,7 +1029,7 @@ test_that("remove_cases_thres is simulated at the column count", {
   dat[["x1"]][1:3] <- NA
   pp <- function(thres) {
     list(
-      `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json",
+      `$schema` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json",
       remove_cases_thres = thres
     )
   }
@@ -1040,7 +1056,7 @@ test_that("the excluded operations stay valid for a standalone preprocessor", {
       validate_config(
         c(
           list(
-            `$schema` = "https://schema.rtemis.org/preprocessor/v1/schema.json"
+            `$schema` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json"
           ),
           cfg
         ),
@@ -1135,6 +1151,72 @@ test_that("a column the config excludes is not a predictor", {
     "FEATURE_TYPE_UNSUPPORTED"
   )
   expect_identical(unnamed@evidence[["features"]], "when")
+})
+
+
+test_that("an unsupervised config's features decide what the run reads", {
+  # The same claim as above for a clustering or decomposition run, whose
+  # columns are named inside the algorithm's own config rather than at the top
+  # level. Reading only the top level made every column a feature of the run:
+  # a clustering plan naming 122 numeric columns came back with
+  # FEATURE_TYPE_UNSUPPORTED for the date column it had left out, and the
+  # assistant, told to trust the findings, spent the session arguing with one.
+  set.seed(2026L)
+  n <- 40L
+  dat <- data.frame(
+    x1 = rnorm(n),
+    x2 = rnorm(n),
+    when = Sys.Date() + seq_len(n),
+    site = sample(c("a", "b"), n, TRUE)
+  )
+  for (config in list(
+    .cluster_config(features = c("x1", "x2")),
+    .decompose_config(features = c("x1", "x2"))
+  )) {
+    expect_length(validate_config(config, data = dat)@diagnostics, 0L)
+  }
+
+  # Unset means every *numeric* column, which is what `cluster()` and
+  # `decomp()` resolve it to and what the published schemas say -- so the date
+  # and the string are not features of the run either.
+  for (config in list(.cluster_config(), .decompose_config())) {
+    expect_length(validate_config(config, data = dat)@diagnostics, 0L)
+  }
+
+  # Named explicitly, a column the backend cannot read is still reported: the
+  # run would fail on it, and nothing else says so.
+  d <- .only(
+    validate_config(.cluster_config(features = c("x1", "when")), data = dat),
+    "FEATURE_TYPE_UNSUPPORTED"
+  )
+  expect_identical(d@evidence[["features"]], "when")
+  expect_identical(d@evidence[["dtypes"]], "temporal")
+})
+
+
+test_that("a supervised run's decomposition step is not its predictor list", {
+  # `decomposition_config.features` names the columns that step decomposes,
+  # which is not the same question as which columns the model reads. Pinned so
+  # that the unsupervised lookup above cannot start answering it.
+  set.seed(2026L)
+  n <- 40L
+  dat <- data.frame(
+    x1 = rnorm(n),
+    x2 = rnorm(n),
+    when = Sys.Date() + seq_len(n),
+    y = rnorm(n)
+  )
+  d <- .only(
+    validate_config(
+      .config(
+        "GLM",
+        decomposition_config = list(algorithm = "PCA", features = c("x1", "x2"))
+      ),
+      data = dat
+    ),
+    "FEATURE_TYPE_UNSUPPORTED"
+  )
+  expect_identical(d@evidence[["features"]], "when")
 })
 
 

@@ -14,8 +14,13 @@
 #' are cases to be clustered), or a `ClusterConfig` recipe (from
 #' [setup_ClusterConfig]) carrying the data path, algorithm config, and output
 #' directory.
-#' @param algorithm Character: Clustering algorithm.
-#' @param config List: Algorithm-specific config.
+#' @param algorithm Character: Clustering algorithm. Not needed when `config` is
+#' supplied, which names its own; an explicit `algorithm` that disagrees with
+#' `config` is an error rather than a mislabeled run.
+#' @param config `ClusteringConfig`, optional: Algorithm-specific config from a
+#' clustering `setup_*` function. Its `features` selects the columns to cluster
+#' on; `NULL` selects every numeric column of `x`, since a clustering backend
+#' reads numbers. The returned object's config carries the resolved names.
 #' @param outdir Character, optional: Output directory. If not NULL, the returned
 #' `Clustering` object is saved there as an `.rds` file, alongside a run record
 #' (`cluster_<algorithm>.record.json`) stating what the run resolved. See
@@ -46,18 +51,10 @@ cluster <- function(
         class = c("rtemis_null_input", "rtemis_input_error")
       )
     }
-    # The algorithm label prefers an explicit top-level `algorithm`, falling back
-    # to the one carried by `clustering_config`, then the formal default.
-    algorithm <- x@algorithm
-    if (is.null(algorithm) && !is.null(x@clustering_config)) {
-      algorithm <- x@clustering_config@algorithm
-    }
-    if (is.null(algorithm)) {
-      algorithm <- "KMeans"
-    }
+    # The document names the algorithm in one place, its `clustering_config`;
+    # with none, the formal default below applies.
     return(cluster(
       x = read(x@dat_path),
-      algorithm = algorithm,
       config = x@clustering_config,
       outdir = x@outdir,
       verbosity = x@verbosity
@@ -65,10 +62,45 @@ cluster <- function(
   } # / cluster.ClusterConfig
 
   # Checks ----
+  # A supplied config names its algorithm; `algorithm` then serves only to catch
+  # a caller naming a different one, which would otherwise run under the wrong
+  # label with the wrong settings.
   if (is.null(config)) {
     config <- get_default_clusterparams(algorithm)
+  } else {
+    check_is_S7(config, ClusteringConfig)
+    if (!missing(algorithm) && get_clust_name(algorithm) != config@algorithm) {
+      rtemis.core::abort(
+        "`algorithm` is \"",
+        algorithm,
+        "\" but `config` is a ",
+        config@algorithm,
+        " config; pass one or the other.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+    algorithm <- config@algorithm
   }
-  check_is_S7(config, ClusteringConfig)
+
+  # Feature selection ----
+  # The config's `features` is the record's account of which columns were
+  # clustered, so the fit must use exactly those. Unset means every numeric
+  # column, resolved here and written back to the config: a clustering backend
+  # reads numbers, and handing it a date column because the caller did not
+  # enumerate a hundred names is a run that fails on data any other interface
+  # clusters without being asked. `train()` resolves its decomposition step the
+  # same way, and `decomp()` now does too, so one rule covers all three.
+  x <- as.data.frame(x)
+  if (is.null(config@features)) {
+    config@features <- resolve_unsupervised_features(x, "Clustering")
+  }
+  # Against the frame as supplied, so that `features` is checked against every
+  # column the caller has and a per-case setting against every row. Both
+  # paths, because a bound that is not about the feature selection -- CMeans'
+  # per-case `weights` -- is wrong just as often when the selection was left
+  # to us.
+  check_data_bounds(config, x, has_outcome = FALSE)
+  x <- x[, config@features, drop = FALSE]
 
   # Intro ----
   start_time <- intro(verbosity = verbosity)
@@ -153,7 +185,6 @@ cluster <- function(
   # NULL is rejected, and a record reporting the default with origin `default`
   # is the honest reading of "the caller did not choose one".
   input_args <- list(
-    algorithm = algorithm,
     clustering_config = config,
     verbosity = max(0L, verbosity)
   )

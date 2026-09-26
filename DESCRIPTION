@@ -1,7 +1,7 @@
 Package: rtemis
-Version: 1.4.0
-Title: Machine Learning and Visualization
-Date: 2026-08-31
+Version: 1.4.1
+Title: Advanced Machine Learning and Visualization
+Date: 2026-09-16
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
     email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
 Description: Schema-driven machine learning and visualization package with an 'S7' backend 
@@ -12,7 +12,9 @@ Description: Schema-driven machine learning and visualization package with an 'S
     preprocessing, decomposition, hyperparameter tuning, model stacking, and testing with
     nested resampling.
     Supports 'data.frame', 'data.table', and 'tibble' inputs, parallel execution, and interactive 
-    visualizations. The package first appeared in E.D. Gennatas (2017)
+    visualizations. Includes native implementations of SuperLearner, RuleFit, and Linear Additive 
+    Trees. Provides Shapley values and supports conformal prediction. The package first appeared in 
+    E.D. Gennatas (2017)
     <https://repository.upenn.edu/entities/publication/d81892ea-3087-4b71-a6f5-739c58626d64>.
 License: BSD_3_clause + file LICENSE
 URL: https://www.rtemis.org, https://docs.rtemis.org/r/ml, https://docs.rtemis.org/r/ml-api/

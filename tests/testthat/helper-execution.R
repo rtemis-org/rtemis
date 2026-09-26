@@ -3,13 +3,18 @@
 # 2026- EDG rtemis.org
 
 # %% skip_ci_parallel_integration ----
-# Real worker integration runs locally and requires an explicit CI opt-in.
+# Real worker integration requires opt-in in CI and automated agent sessions.
 # Sequential execution and worker-policy assertions do not use this gate.
 skip_ci_parallel_integration <- function() {
+  requested <- tolower(trimws(Sys.getenv("RTEMIS_RUN_PARALLEL_TESTS")))
+  if (!requested %in% c("", "true", "false", "1", "0")) {
+    stop("RTEMIS_RUN_PARALLEL_TESTS must be true, false, 1, or 0.")
+  }
+  automated <- any(tolower(Sys.getenv(c("CI", "CODEX_CI"))) %in% c("true", "1"))
+  enabled <- requested %in% c("true", "1") || (requested == "" && !automated)
   testthat::skip_if(
-    identical(tolower(Sys.getenv("CI")), "true") &&
-      !identical(tolower(Sys.getenv("RTEMIS_RUN_PARALLEL_TESTS")), "true"),
-    "Parallel worker integration requires RTEMIS_RUN_PARALLEL_TESTS=true in CI"
+    !enabled,
+    "Parallel worker integration requires RTEMIS_RUN_PARALLEL_TESTS=true in automated runs; false disables it everywhere"
   )
 }
 

@@ -27,16 +27,13 @@ ClusterConfig <- schema_class(
       nullable = TRUE,
       description = "Path to the input data."
     ),
-    algorithm = prop_string(
-      NULL,
-      nullable = TRUE,
-      description = "Clustering algorithm name."
-    ),
-    # Nested config object (a `$ref` in the generated schema).
+    # Nested config object (a `$ref` in the generated schema). The algorithm is
+    # named here and nowhere else in the document: a second copy beside it
+    # would be a fact stated twice, with no rule for which copy wins.
     clustering_config = prop_object(
       ClusteringConfig,
       nullable = TRUE,
-      description = "Clustering algorithm and its settings."
+      description = "Clustering algorithm and its settings, including the feature columns to cluster on. Absent = the default algorithm with its default settings on all numeric columns."
     ),
     outdir = prop_string(
       "results/",
@@ -105,11 +102,11 @@ method(print, ClusterConfig) <- function(x, output_type = NULL, ...) {
 #'
 #' @param dat_path Character or NULL: Path to input data file. NULL leaves the
 #' recipe unbound; set it (or supply data) before [cluster].
-#' @param algorithm Character or NULL: Clustering algorithm. May be left NULL if
-#' `clustering_config` is supplied (it carries its own algorithm).
 #' @param clustering_config `ClusteringConfig` object or NULL: Configuration for
-#' the clustering itself. Setup with a clustering `setup_*` function, e.g.
-#' [setup_KMeans]. If NULL, defaults for `algorithm` are used at [cluster] time.
+#' the clustering itself, naming the algorithm, its settings and the feature
+#' columns to cluster on. Setup with a clustering `setup_*` function, e.g.
+#' [setup_KMeans]. If NULL, [cluster] runs its default algorithm with default
+#' settings.
 #' @param outdir Character: Output directory for results.
 #' @param verbosity Integer [0, Inf): Verbosity level.
 #'
@@ -125,7 +122,6 @@ method(print, ClusterConfig) <- function(x, output_type = NULL, ...) {
 #' )
 setup_ClusterConfig <- function(
   dat_path = NULL,
-  algorithm = NULL,
   clustering_config = NULL,
   outdir = "results/",
   verbosity = 1L
@@ -146,7 +142,6 @@ setup_ClusterConfig <- function(
 
   ClusterConfig(
     dat_path = dat_path,
-    algorithm = algorithm,
     clustering_config = clustering_config,
     outdir = outdir,
     verbosity = as.integer(verbosity)
@@ -173,7 +168,6 @@ setup_ClusterConfig <- function(
   check_wire_keys(x, names(ClusterConfig@properties), "cluster config")
   args <- list(
     dat_path = x[["dat_path"]],
-    algorithm = x[["algorithm"]],
     clustering_config = if (is.null(x[["clustering_config"]])) {
       NULL
     } else {

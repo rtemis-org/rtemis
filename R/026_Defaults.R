@@ -115,6 +115,12 @@ default_wire_value <- function(value, fields = NULL) {
       class = "rtemis_schema_error"
     )
   }
+  if (is_candidates(value) && !is.null(fields)) {
+    return(lapply(wire_value(value, list(spec = fields)), default_wire_value))
+  }
+  if (!is.null(fields[["schema_choices"]])) {
+    return(schema_choice_wire(value, fields))
+  }
   if (S7_inherits(value)) {
     cls <- S7_class(value)
     base <- family_base(cls)
@@ -137,6 +143,7 @@ default_wire_value <- function(value, fields = NULL) {
         ))
       ))
     }
+    nms <- artifact_present_names(value, nms)
     out <- lapply(nms, function(nm) {
       default_wire_value(prop(value, nm), get_spec_fields(cls@properties[[nm]]))
     })
@@ -250,6 +257,30 @@ default_declarations <- function(spec, schema, path) {
     node[["number_types"]] <- number_types
   }
   out <- stats::setNames(list(node), path)
+  if (spec@external) {
+    spec@external <- FALSE
+    return(c(
+      out,
+      default_declarations(
+        spec,
+        schema[["anyOf"]][[1L]],
+        paste0(path, "/anyOf/0")
+      )
+    ))
+  }
+  if (!is.null(spec@alternatives)) {
+    for (i in seq_along(spec@alternatives)) {
+      offset <- i + as.integer(spec@nullable)
+      out <- c(
+        out,
+        default_declarations(
+          spec@alternatives[[i]],
+          schema[["anyOf"]][[offset]],
+          paste0(path, "/anyOf/", offset - 1L)
+        )
+      )
+    }
+  }
   if (!is.null(spec@items)) {
     child <- schema_element(
       schema,
@@ -273,6 +304,16 @@ default_declarations <- function(spec, schema, path) {
           spec@members[[nm]],
           object[["properties"]][[nm]],
           paste0(path, prefix, "/properties/", default_pointer(nm))
+        )
+      )
+    }
+    if (!is.null(spec@additional_members)) {
+      out <- c(
+        out,
+        default_declarations(
+          spec@additional_members,
+          object[["additionalProperties"]],
+          paste0(path, prefix, "/additionalProperties")
         )
       )
     }
@@ -616,6 +657,76 @@ default_policy_from_wire <- function(
 }
 
 
+# %% decode_atomic_cells ----
+#' Restore atomic cells without dropping JSON nulls or coercing mixed types
+#' @param value Atomic vector or list: Decoded cells.
+#' @param type Character: Declared primitive type.
+#' @param nullable Logical: Whether an individual cell can be null.
+#' @return Atomic vector with cell positions and names retained.
+#' @keywords internal
+#' @noRd
+decode_atomic_cells <- function(value, type, nullable) {
+  prototype <- switch(
+    type,
+    boolean = logical(1L),
+    integer = integer(1L),
+    number = numeric(1L),
+    string = character(1L)
+  )
+  missing <- switch(
+    type,
+    boolean = NA,
+    integer = NA_integer_,
+    number = NA_real_,
+    string = NA_character_
+  )
+  out <- vapply(
+    seq_along(value),
+    function(i) {
+      cell <- value[[i]]
+      if (
+        is.null(cell) || (is.atomic(cell) && length(cell) == 1L && is.na(cell))
+      ) {
+        if (!nullable) {
+          rtemis.core::abort(
+            "Array cells must not be null.",
+            class = "rtemis_schema_error"
+          )
+        }
+        return(missing)
+      }
+      valid <- length(cell) == 1L &&
+        switch(
+          type,
+          boolean = is.logical(cell),
+          integer = is.numeric(cell) &&
+            !is.na(cell) &&
+            is.finite(cell) &&
+            cell == trunc(cell),
+          number = is.numeric(cell),
+          string = is.character(cell)
+        )
+      if (!isTRUE(valid)) {
+        rtemis.core::abort(
+          "Array cell has the wrong JSON type.",
+          class = "rtemis_schema_error"
+        )
+      }
+      if (type == "integer" && abs(cell) > .Machine[["integer.max"]]) {
+        rtemis.core::abort(
+          "Integer cell is outside the native integer range.",
+          class = "rtemis_schema_error"
+        )
+      }
+      coerce_to_type(cell, type)
+    },
+    prototype
+  )
+  names(out) <- names(value)
+  out
+}
+
+
 # %% default_from_wire ----
 #' Restore a default using its declared wire shape
 #' @param value ANY: JSON-decoded value.
@@ -629,10 +740,77 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
     return(NULL)
   }
   ann <- schema[["x-rtemis"]]
+  if (isTRUE(ann[["external"]])) {
+    if (S7_inherits(value)) {
+      return(value)
+    }
+    if (is.list(value) && "path" %in% names(value)) {
+      if (!is.null(decode_reference)) {
+        return(decode_reference(value, "rtemis::DataRef"))
+      }
+      return(.list_to_DataRef(value))
+    }
+    return(default_from_wire(value, schema[["anyOf"]][[1L]], decode_reference))
+  }
+  if (identical(ann[["type"]], "union")) {
+    matches <- list()
+    for (branch in schema[["anyOf"]]) {
+      if (identical(branch[["type"]], "null")) {
+        next
+      }
+      branch_type <- branch[["type"]] %||% "object"
+      wire_type <- if (is.list(value)) {
+        if (is.null(names(value))) "array" else "object"
+      } else if (is.character(value)) {
+        "string"
+      } else if (is.logical(value)) {
+        "boolean"
+      } else if (is.numeric(value)) {
+        c("number", "integer")
+      } else {
+        "native"
+      }
+      if (
+        !isTRUE(branch[["x-rtemis"]][["external"]]) &&
+          !any(wire_type %in% branch_type)
+      ) {
+        next
+      }
+      decoded <- tryCatch(
+        {
+          decoded <- default_from_wire(value, branch, decode_reference)
+          problem <- validate_value(
+            decoded,
+            spec_fields(schema_to_spec(branch))
+          )
+          if (!is.null(problem)) {
+            stop(problem)
+          }
+          list(value = decoded)
+        },
+        error = function(e) NULL
+      )
+      if (!is.null(decoded)) matches <- c(matches, list(decoded))
+    }
+    if (!length(matches)) {
+      rtemis.core::abort(
+        "Value must match a declared alternative.",
+        class = "rtemis_schema_error"
+      )
+    }
+    return(matches[[1L]][["value"]])
+  }
   container <- ann[["container"]] %||% "none"
   target <- ann[["target_class"]]
   if (!is.null(target)) {
     restore <- function(value) {
+      if (!is.null(ann[["schema_choices"]])) {
+        target <- schema_choice_target(value, ann)
+        if (!is.null(decode_reference)) {
+          return(decode_reference(value, target))
+        }
+        return(normalize_default_object(from_wire_object(value, target)))
+      }
       if (!is.null(decode_reference)) {
         return(decode_reference(
           value,
@@ -667,7 +845,42 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
     ))
   }
   if (container == "matrix") {
-    rows <- lapply(value, unlist, use.names = FALSE)
+    if (is.matrix(value)) {
+      return(value)
+    }
+    if (!is.list(value) || !length(value) || !is.null(names(value))) {
+      rtemis.core::abort(
+        "A matrix requires an array of rows.",
+        class = "rtemis_schema_error"
+      )
+    }
+    if (
+      !all(vapply(
+        value,
+        function(row) is.list(row) && is.null(names(row)),
+        logical(1L)
+      ))
+    ) {
+      rtemis.core::abort(
+        "Matrix rows must be arrays.",
+        class = "rtemis_schema_error"
+      )
+    }
+    widths <- lengths(value)
+    if (any(widths == 0L) || any(widths != widths[[1L]])) {
+      rtemis.core::abort(
+        "Matrix rows must have equal positive lengths.",
+        class = "rtemis_schema_error"
+      )
+    }
+    cell <- schema[["items"]][["items"]]
+    rows <- lapply(value, function(row) {
+      decode_atomic_cells(
+        row,
+        cell[["x-rtemis"]][["type"]] %||% ann[["type"]],
+        schema_is_nullable(cell)
+      )
+    })
     return(do.call(rbind, rows))
   }
   if (container == "factor") {
@@ -675,27 +888,59 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
   }
   if (container == "table") {
     columns <- schema[["items"]][["properties"]]
+    present <- unique(unlist(lapply(value, names), use.names = FALSE))
+    if (length(value) > 0L) {
+      columns <- columns[intersect(names(columns), present)]
+    }
+    undeclared <- setdiff(present, names(columns))
+    additional <- schema[["items"]][["additionalProperties"]]
+    if (length(undeclared) && !is.list(additional)) {
+      rtemis.core::abort(
+        "Table has undeclared column(s) ",
+        paste0("'", undeclared, "'", collapse = ", "),
+        ".",
+        class = "rtemis_schema_error"
+      )
+    }
+    for (nm in undeclared) {
+      columns[[nm]] <- additional
+    }
     out <- lapply(names(columns), function(nm) {
-      cells <- lapply(value, `[[`, nm)
+      cells <- lapply(value, function(row) row[[nm]] %||% NA)
       coerce_to_type(
         unlist(cells, use.names = FALSE),
         columns[[nm]][["x-rtemis"]][["type"]]
       )
     })
     names(out) <- names(columns)
-    return(as.data.frame(out, stringsAsFactors = FALSE))
+    return(as.data.frame(out, stringsAsFactors = FALSE, check.names = FALSE))
   }
   if (container == "struct") {
+    undeclared <- setdiff(names(value), names(schema[["properties"]]))
+    if (length(undeclared) && !is.list(schema[["additionalProperties"]])) {
+      rtemis.core::abort(
+        "Object has undeclared field(s) ",
+        paste0("'", undeclared, "'", collapse = ", "),
+        ".",
+        class = "rtemis_schema_error"
+      )
+    }
     return(stats::setNames(
       lapply(names(value), function(nm) {
         default_from_wire(
           value[[nm]],
-          schema[["properties"]][[nm]],
+          schema[["properties"]][[nm]] %||% schema[["additionalProperties"]],
           decode_reference
         )
       }),
       names(value)
     ))
+  }
+  if (container == "array" && is.list(value) && !is.null(names(value))) {
+    rtemis.core::abort(
+      "An array cannot be decoded from a JSON object.",
+      class = "rtemis_schema_error"
+    )
   }
   child <- schema_element(
     schema,
@@ -703,6 +948,21 @@ default_from_wire <- function(value, schema, decode_reference = NULL) {
     isTRUE(ann[["tunable"]]),
     isTRUE(ann[["broadcast"]])
   )
+  child_ann <- child[["x-rtemis"]]
+  if (
+    container %in%
+      c("map", "array") &&
+      (child_ann[["container"]] %||% "none") == "none" &&
+      (child_ann[["type"]] %||% ann[["type"]]) %in%
+        c("boolean", "integer", "number", "string")
+  ) {
+    out <- decode_atomic_cells(
+      value,
+      child_ann[["type"]] %||% ann[["type"]],
+      schema_is_nullable(child)
+    )
+    return(if (container == "map") out else unname(out))
+  }
   if (container %in% c("map", "array") && !is.null(child[["x-rtemis"]])) {
     value <- lapply(
       value,
@@ -808,20 +1068,20 @@ default_catalog_entries <- function(
   base_url = "https://schema.rtemis.org"
 ) {
   out <- list()
-  add <- function(cls, path) {
-    out[[paste0(base_url, "/", path)]] <<- list(cls = cls, path = path)
+  urls <- schema_reference_urls(catalog, base_url)
+  add <- function(cls) {
+    id <- unname(urls[[paste0(cls@package, "::", cls@name)]])
+    path <- substring(id, nchar(base_url) + 2L)
+    out[[id]] <<- list(cls = cls, path = path)
   }
-  for (nm in names(catalog[["families"]])) {
-    family <- catalog[["families"]][[nm]]
-    add(family[["base_class"]], paste0(nm, "/v1/schema.json"))
+  for (family in catalog[["families"]]) {
+    add(family[["base_class"]])
     for (leaf in family[["algorithms"]]) {
-      cls <- leaf[["cls"]]
-      slug <- tolower(discriminator_value(cls, family[["discriminator"]]))
-      add(cls, paste0(nm, "/", slug, "/v1/schema.json"))
+      add(leaf[["cls"]])
     }
   }
-  for (nm in names(catalog[["flat_configs"]])) {
-    add(catalog[["flat_configs"]][[nm]][["cls"]], paste0(nm, "/v1/schema.json"))
+  for (entry in catalog[["flat_configs"]]) {
+    add(entry[["cls"]])
   }
   out[sort(names(out))]
 }
@@ -1063,7 +1323,7 @@ resolve_config_defaults <- function(cls, values, context = NULL, path = "") {
           },
           family[["algorithms"]]
         )
-        if (length(matches) != 1L) {
+        if (!length(matches)) {
           rtemis.core::abort(
             "A referenced family requires one discriminator at ",
             pointer,

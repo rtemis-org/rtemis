@@ -10,7 +10,8 @@ setup_PAM(
   stand = FALSE,
   do_swap = TRUE,
   variant = "original",
-  nstart = NULL
+  nstart = NULL,
+  features = NULL
 )
 }
 \arguments{
@@ -25,6 +26,9 @@ setup_PAM(
 \item{variant}{Character \{"original", "o_1", "o_2", "f_3", "f_4", "f_5", "faster"\}: Algorithm variant; "original" is the published algorithm, the others trade exactness for speed.}
 
 \item{nstart}{Optional Integer [1, Inf): Number of random starts. NULL uses the deterministic build phase instead of drawing the initial medoids at random.}
+
+\item{features}{Optional Character vector: Names of at least 2 distinct
+feature columns to cluster on. \code{NULL} clusters on all numeric features.}
 }
 \value{
 \code{PAMConfig} object.

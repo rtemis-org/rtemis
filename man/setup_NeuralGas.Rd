@@ -4,12 +4,15 @@
 \alias{setup_NeuralGas}
 \title{Setup NeuralGasConfig}
 \usage{
-setup_NeuralGas(k = 3L, dist = "euclidean")
+setup_NeuralGas(k = 3L, dist = "euclidean", features = NULL)
 }
 \arguments{
 \item{k}{Integer [1, Inf): Number of clusters.}
 
 \item{dist}{Character \{"euclidean", "manhattan"\}: Distance measure to use.}
+
+\item{features}{Optional Character vector: Names of at least 2 distinct
+feature columns to cluster on. \code{NULL} clusters on all numeric features.}
 }
 \value{
 NeuralGasConfig object.

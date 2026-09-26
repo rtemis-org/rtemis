@@ -75,6 +75,14 @@ PROFILE_DTYPES <- c(
   "other"
 )
 
+# The dtypes a numeric-only backend can read, and so the columns an
+# unsupervised run selects when its config names none. The same set
+# `getnumericnames()` returns on a frame -- a Date is not one of them, because
+# `profile_dtype()` calls it temporal before `is.numeric()` sees it -- and the
+# set `validate_data.R` and `data-raw/checks.R` both read, so the run and the
+# checks cannot disagree about what a feature is.
+NUMERIC_DTYPES <- c("number", "integer")
+
 # Level counts are carried for a categorical column with at most this many
 # levels. An identifier column read as a category would otherwise put one row
 # per case into a document whose whole purpose is to be small.

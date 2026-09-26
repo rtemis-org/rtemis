@@ -13,9 +13,13 @@
 #' @param x Matrix, data frame, or `DecomposeConfig` object: Input data, or a
 #' `DecomposeConfig` recipe (from [setup_DecomposeConfig]) carrying the data
 #' path, algorithm config, and output directory.
-#' @param algorithm Character: Decomposition algorithm.
+#' @param algorithm Character: Decomposition algorithm. Not needed when `config`
+#' is supplied, which names its own; an explicit `algorithm` that disagrees
+#' with `config` is an error rather than a mislabeled run.
 #' @param config DecompositionConfig: Algorithm-specific config. Its `features`
-#' selects the columns of `x` to decompose; `NULL` decomposes all of them.
+#' selects the columns of `x` to decompose; `NULL` selects every numeric column,
+#' since a decomposition reads a numeric matrix. The returned object's config
+#' carries the resolved names, and `apply_decomp()` replays that selection.
 #' @param outdir Character, optional: Output directory. If not NULL, the returned
 #' `Decomposition` object is saved there as an `.rds` file, alongside a run
 #' record (`decomp_<algorithm>.record.json`) stating what the run resolved. See
@@ -46,18 +50,10 @@ decomp <- function(
         class = c("rtemis_null_input", "rtemis_input_error")
       )
     }
-    # The algorithm label prefers an explicit top-level `algorithm`, falling back
-    # to the one carried by `decomposition_config`, then the formal default.
-    algorithm <- x@algorithm
-    if (is.null(algorithm) && !is.null(x@decomposition_config)) {
-      algorithm <- x@decomposition_config@algorithm
-    }
-    if (is.null(algorithm)) {
-      algorithm <- "ICA"
-    }
+    # The document names the algorithm in one place, its `decomposition_config`;
+    # with none, the formal default below applies.
     return(decomp(
       x = read(x@dat_path),
-      algorithm = algorithm,
       config = x@decomposition_config,
       outdir = x@outdir,
       verbosity = x@verbosity
@@ -65,20 +61,44 @@ decomp <- function(
   } # / decomp.DecomposeConfig
 
   # Checks ----
+  # A supplied config names its algorithm; `algorithm` then serves only to catch
+  # a caller naming a different one, which would otherwise run under the wrong
+  # label with the wrong settings.
   if (is.null(config)) {
     config <- get_default_decomparams(algorithm)
+  } else {
+    check_is_S7(config, DecompositionConfig)
+    if (!missing(algorithm) && get_decom_name(algorithm) != config@algorithm) {
+      rtemis.core::abort(
+        "`algorithm` is \"",
+        algorithm,
+        "\" but `config` is a ",
+        config@algorithm,
+        " config; pass one or the other.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+    algorithm <- config@algorithm
   }
-  check_is_S7(config, DecompositionConfig)
 
   # Feature selection ----
   # `apply_decomp()` subsets new data by `config@features`, so the fit must use
   # exactly those columns or the replay transforms a different matrix.
-  # `x` is features-only here: there is no outcome column to exclude.
-  if (!is.null(config@features)) {
-    x <- as.data.frame(x)
-    check_data_bounds(config, x, has_outcome = FALSE)
-    x <- x[, config@features, drop = FALSE]
+  # `x` is features-only here: there is no outcome column to exclude. Unset
+  # means every numeric column, resolved here and written back so the fit, the
+  # record and the replay name the same columns -- what `train()` already does
+  # for the decomposition step it runs.
+  x <- as.data.frame(x)
+  if (is.null(config@features)) {
+    config@features <- resolve_unsupervised_features(x, "Decomposition")
   }
+  # Against the frame as supplied, so that `features` is checked against every
+  # column the caller has and a per-case setting against every row. Both
+  # paths, because a bound that is not about the feature selection -- CMeans'
+  # per-case `weights` -- is wrong just as often when the selection was left
+  # to us.
+  check_data_bounds(config, x, has_outcome = FALSE)
+  x <- x[, config@features, drop = FALSE]
 
   # Intro ----
   start_time <- intro(verbosity = verbosity)
@@ -127,7 +147,6 @@ decomp <- function(
   # NULL is rejected, and a record reporting the default with origin `default`
   # is the honest reading of "the caller did not choose one".
   input_args <- list(
-    algorithm = algorithm,
     decomposition_config = config,
     verbosity = max(0L, verbosity)
   )

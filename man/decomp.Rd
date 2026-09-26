@@ -11,10 +11,14 @@ decomp(x, algorithm = "ICA", config = NULL, outdir = NULL, verbosity = 1L)
 \code{DecomposeConfig} recipe (from \link{setup_DecomposeConfig}) carrying the data
 path, algorithm config, and output directory.}
 
-\item{algorithm}{Character: Decomposition algorithm.}
+\item{algorithm}{Character: Decomposition algorithm. Not needed when \code{config}
+is supplied, which names its own; an explicit \code{algorithm} that disagrees
+with \code{config} is an error rather than a mislabeled run.}
 
 \item{config}{DecompositionConfig: Algorithm-specific config. Its \code{features}
-selects the columns of \code{x} to decompose; \code{NULL} decomposes all of them.}
+selects the columns of \code{x} to decompose; \code{NULL} selects every numeric column,
+since a decomposition reads a numeric matrix. The returned object's config
+carries the resolved names, and \code{apply_decomp()} replays that selection.}
 
 \item{outdir}{Character, optional: Output directory. If not NULL, the returned
 \code{Decomposition} object is saved there as an \code{.rds} file, alongside a run

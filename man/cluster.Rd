@@ -12,9 +12,14 @@ are cases to be clustered), or a \code{ClusterConfig} recipe (from
 \link{setup_ClusterConfig}) carrying the data path, algorithm config, and output
 directory.}
 
-\item{algorithm}{Character: Clustering algorithm.}
+\item{algorithm}{Character: Clustering algorithm. Not needed when \code{config} is
+supplied, which names its own; an explicit \code{algorithm} that disagrees with
+\code{config} is an error rather than a mislabeled run.}
 
-\item{config}{List: Algorithm-specific config.}
+\item{config}{\code{ClusteringConfig}, optional: Algorithm-specific config from a
+clustering \verb{setup_*} function. Its \code{features} selects the columns to cluster
+on; \code{NULL} selects every numeric column of \code{x}, since a clustering backend
+reads numbers. The returned object's config carries the resolved names.}
 
 \item{outdir}{Character, optional: Output directory. If not NULL, the returned
 \code{Clustering} object is saved there as an \code{.rds} file, alongside a run record

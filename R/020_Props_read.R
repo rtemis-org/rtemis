@@ -38,7 +38,10 @@
 #' @keywords internal
 #' @noRd
 schema_is_nullable <- function(x) {
-  branches <- x[["oneOf"]]
+  if (isTRUE(x[["x-rtemis"]][["external"]])) {
+    return(schema_is_nullable(x[["anyOf"]][[1L]]))
+  }
+  branches <- x[["oneOf"]] %||% x[["anyOf"]]
   if (!is.null(branches)) {
     return(any(vapply(
       branches,
@@ -258,6 +261,19 @@ members_spec <- function(
     container = container,
     items = NULL,
     members = members,
+    additional_members = if (is.list(obj[["additionalProperties"]])) {
+      schema_to_spec(
+        obj[["additionalProperties"]],
+        declarations = declarations,
+        path = paste0(
+          path,
+          if (container == "table") "/items" else "",
+          "/additionalProperties"
+        ),
+        decode_reference = decode_reference
+      )
+    },
+    min_members = as.integer(obj[["minProperties"]] %||% 0L),
     min_items = if (container == "table") {
       as.integer(x[["minItems"]] %||% 0L)
     } else {
@@ -305,6 +321,20 @@ schema_to_spec <- function(
   path = "",
   decode_reference = NULL
 ) {
+  if (isTRUE(x[["x-rtemis"]][["external"]])) {
+    args <- list(
+      x = x[["anyOf"]][[1L]],
+      declarations = declarations,
+      path = paste0(path, "/anyOf/0"),
+      decode_reference = decode_reference
+    )
+    if (!missing(default)) {
+      args["default"] <- list(default)
+    }
+    spec <- do.call(schema_to_spec, args)
+    spec@external <- TRUE
+    return(spec)
+  }
   default_present <- !missing(default)
   default_policy <- NULL
   if (!is.null(declarations)) {
@@ -388,10 +418,37 @@ schema_to_spec <- function(
     description <- strip_suffix(description, applies_when_note(applies_when))
   }
 
+  if (type == "union") {
+    branches <- x[["anyOf"]]
+    keep <- which(
+      !vapply(branches, function(b) identical(b[["type"]], "null"), logical(1L))
+    )
+    return(PropertySpec(
+      type = "union",
+      alternatives = lapply(keep, function(i) {
+        schema_to_spec(
+          branches[[i]],
+          declarations = declarations,
+          path = paste0(path, "/anyOf/", i - 1L),
+          decode_reference = decode_reference
+        )
+      }),
+      default = default,
+      default_present = default_present,
+      default_policy = default_policy,
+      nullable = schema_is_nullable(x),
+      tunable = FALSE,
+      container = "none",
+      broadcast = FALSE,
+      group = ann[["group"]],
+      description = description
+    ))
+  }
   if (!is.null(ann[["target_class"]])) {
     return(PropertySpec(
       type = type,
       target_class = ann[["target_class"]],
+      schema_choices = ann[["schema_choices"]],
       alternate_class = ann[["alternate_class"]],
       presence_key = ann[["presence_key"]],
       same_variant = isTRUE(ann[["same_variant"]]),
@@ -491,12 +548,10 @@ schema_to_spec <- function(
   }
 
   child <- schema_element(x, container, tunable, broadcast)
-  # `@items` is only meaningful for "array" and "map" (a matrix's element type
-  # is fixed, and a scalar has no element). Within those, a nested element
-  # carries its own annotations while a scalar leaf does not, which is exactly
-  # the condition under which `spec_to_schema()` recursed.
+  # Explicit cell declarations carry annotations on the element schema,
+  # including a matrix cell; an implicit scalar leaf carries none.
   items <- if (
-    container %in% c("array", "map") && !is.null(child[["x-rtemis"]])
+    container %in% c("array", "map", "matrix") && !is.null(child[["x-rtemis"]])
   ) {
     schema_to_spec(
       child,
@@ -557,6 +612,7 @@ schema_to_spec <- function(
     exclusive_maximum = as_bound(leaf[["exclusiveMaximum"]]),
     enum = leaf_enum,
     nullable = schema_is_nullable(x),
+    allow_missing = isTRUE(ann[["allow_missing"]]),
     tunable = tunable,
     container = container,
     items = items,
@@ -663,6 +719,27 @@ JSONSchema_to_S7 <- function(
       class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
+  parent_identity <- schema[["x-rtemis"]][["publication"]][["parent"]]
+  if (!is.null(parent_identity)) {
+    if (is.null(parent)) {
+      rtemis.core::abort(
+        "A published parent requires the artifact graph in `schemas` or an explicit `parent`.",
+        class = "rtemis_schema_error"
+      )
+    }
+    # Any parent would satisfy a presence check; the schema names one.
+    supplied <- paste0(parent@package, "::", parent@name)
+    if (!identical(supplied, parent_identity)) {
+      rtemis.core::abort(
+        "`parent` is ",
+        supplied,
+        " but the schema declares ",
+        parent_identity,
+        ".",
+        class = "rtemis_schema_error"
+      )
+    }
+  }
   if (
     any(c("$id", "declarations", "resolution") %in% names(defaults)) &&
       is.null(defaults[["format_version"]])
@@ -730,7 +807,10 @@ JSONSchema_to_S7 <- function(
   is_ref <- is_ref &
     vapply(
       props,
-      function(p) is.null(p[["x-rtemis"]][["target_class"]]),
+      function(p) {
+        is.null(p[["x-rtemis"]][["target_class"]]) &&
+          !identical(p[["x-rtemis"]][["type"]], "union")
+      },
       logical(1L)
     )
   unresolved <- setdiff(names(props)[is_ref], names(refs))
@@ -769,15 +849,56 @@ JSONSchema_to_S7 <- function(
       return(if (schema_is_nullable(props[[nm]])) NULL | cls else cls)
     }
     prop <- make_prop(specs[[nm]])
+    if (
+      !is.null(decode_reference) &&
+        is.null(prop[["getter"]]) &&
+        is.null(prop[["setter"]])
+    ) {
+      prop <- artifact_presence_property(prop, nm)
+    }
     # `readOnly` is how run state appears in the published contract.
     if (isTRUE(props[[nm]][["readOnly"]])) prop_state(prop) else prop
   })
   names(properties) <- names(props)
+  runtime <- schema[["x-rtemis"]][["runtime_properties"]]
+  for (nm in names(runtime)) {
+    if (
+      nm %in% names(properties) || !identical(runtime[[nm]][["kind"]], "opaque")
+    ) {
+      rtemis.core::abort(
+        "Invalid runtime property declaration: ",
+        nm,
+        class = "rtemis_schema_error"
+      )
+    }
+    properties[[nm]] <- prop_runtime(runtime[[nm]][["description"]])
+  }
 
   rules <- lapply(
     schema[["x-rtemis"]][["rules"]] %||% list(),
     schema_rule_from_fields
   )
+  if (!is.null(parent)) {
+    inherited <- schema_rules(parent)
+    inherited_ids <- vapply(inherited, `[[`, character(1L), "id")
+    declared_ids <- vapply(rules, function(rule) rule@id, character(1L))
+    if (length(setdiff(inherited_ids, declared_ids))) {
+      rtemis.core::abort(
+        "Child schema is missing inherited rules.",
+        class = "rtemis_schema_error"
+      )
+    }
+    for (i in seq_along(inherited)) {
+      rule <- rules[[match(inherited_ids[[i]], declared_ids)]]
+      if (!identical(schema_rule_fields(rule), inherited[[i]])) {
+        rtemis.core::abort(
+          "Child schema changes an inherited rule.",
+          class = "rtemis_schema_error"
+        )
+      }
+    }
+    rules <- rules[!declared_ids %in% inherited_ids]
+  }
   policy_objects <- lapply(names(policies), function(nm) {
     default_policy_from_wire(
       policies[[nm]],
@@ -794,8 +915,13 @@ JSONSchema_to_S7 <- function(
     formals(constructor) <- as.pairlist(lapply(properties, function(p) {
       p[["default"]]
     }))
+    parent_names <- intersect(names(parent@properties), names(properties))
+    parent_call <- as.call(c(
+      list(as.name(".artifact_parent")),
+      stats::setNames(lapply(parent_names, as.name), parent_names)
+    ))
     body(constructor) <- as.call(c(
-      list(as.name("new_object"), quote(.artifact_parent())),
+      list(as.name("new_object"), parent_call),
       stats::setNames(lapply(names(properties), as.name), names(properties))
     ))
   }
@@ -821,3 +947,45 @@ JSONSchema_to_S7 <- function(
   }
   cls
 } # /rtemis::JSONSchema_to_S7
+
+
+# %% artifact_presence_property ----
+#' Track assignments to properties reconstructed from serialized documents
+#' @param property S7 property: Stored declaration with ordinary attribute storage.
+#' @param name Character: Property name.
+#' @return S7 property retaining its declaration and recording explicit assignments.
+#' @keywords internal
+#' @noRd
+artifact_presence_property <- function(property, name) {
+  force(name)
+  fields <- get_spec_fields(property)
+  property[["setter"]] <- function(self, value) {
+    problem <- validate_value(value, fields)
+    if (!is.null(problem)) {
+      rtemis.core::abort(name, " ", problem, class = "rtemis_value_error")
+    }
+    attr(self, name) <- value
+    present <- attr(self, "rtemis_artifact_fields")
+    if (!is.null(present)) {
+      # The constructor validates after all setters have initialized storage.
+      # Decoded objects additionally validate class rules on later assignments.
+      S7::validate(self)
+      attr(self, "rtemis_artifact_fields") <- union(present, name)
+    }
+    self
+  }
+  property
+}
+
+
+# %% artifact_present_names ----
+#' Preserve omitted fields when serializing an artifact-reconstructed object
+#' @param value S7 object: Reconstructed or native object.
+#' @param names Character: Otherwise eligible property names.
+#' @return Character: Explicitly present names, or all eligible names for native objects.
+#' @keywords internal
+#' @noRd
+artifact_present_names <- function(value, names) {
+  present <- attr(value, "rtemis_artifact_fields")
+  if (is.null(present)) names else intersect(names, present)
+}
