@@ -121,8 +121,12 @@ result_data_path <- function(base, relative) {
       "DataRef.path must be a normalized relative path inside the result directory."
     )
   }
-  base <- normalizePath(base, mustWork = TRUE)
-  path <- normalizePath(file.path(base, relative), mustWork = TRUE)
+  base <- normalizePath(base, winslash = "/", mustWork = TRUE)
+  path <- normalizePath(
+    file.path(base, relative),
+    winslash = "/",
+    mustWork = TRUE
+  )
   if (!startsWith(path, paste0(base, "/"))) {
     stop("DataRef.path escapes the result directory.")
   }
@@ -351,8 +355,8 @@ write_result <- function(
   if (
     dir.exists(target_dir) &&
       !startsWith(
-        normalizePath(target_dir),
-        paste0(normalizePath(dirname(file)), "/")
+        normalizePath(target_dir, winslash = "/"),
+        paste0(normalizePath(dirname(file), winslash = "/"), "/")
       )
   ) {
     stop("Output data directory escapes the result directory.")
