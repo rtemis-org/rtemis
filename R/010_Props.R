@@ -4776,7 +4776,7 @@ VALUE_ORIGINS <- c("user", "default", "derived", "tuned", "unset")
 #' A parallel map rather than per-field wrappers: values keep their plain shape,
 #' so a record stays diffable against a config and every reader of one can read
 #' the other. This is the same "flat + annotate" choice the property schemas
-#' make (see the governing principle in `plan/rtemis-types.md`).
+#' make (see the governing principle in `spec: rtemis/rtemis-types`).
 #'
 #' Each field's permitted origins are narrowed by what it is: run state can only
 #' have been computed, and a value cannot be `"tuned"` unless it is tunable. The

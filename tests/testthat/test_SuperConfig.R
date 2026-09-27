@@ -207,6 +207,21 @@ test_that("read_config ignores `$schema` on nested configs", {
 })
 
 
+# %% read_config requires an applicable decomposition ----
+test_that("a supervised document refuses a decomposition that cannot be applied to new data", {
+  # The decomposition is learned on the training cases and applied to every
+  # other set, so the reader rejects an algorithm with no out-of-sample map
+  # rather than leaving `train()` to fail after the data are read.
+  expect_error(
+    .list_to_SuperConfig(list(
+      dat_training_path = "~/Data/iris.csv",
+      decomposition_config = list(algorithm = "tSNE", k = 2L)
+    )),
+    class = "rtemis_unsupported_error"
+  )
+})
+
+
 # %% write_config.DecompositionConfig & read_config ----
 test_that("DecompositionConfig round-trips through write_config/read_config", {
   x <- setup_PCA(k = 3L)

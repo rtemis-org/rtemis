@@ -1,4 +1,4 @@
-# decom_NMF.R
+# decomp_NMF.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 

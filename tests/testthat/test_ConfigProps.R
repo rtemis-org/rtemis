@@ -751,7 +751,7 @@ test_that("the data-dependent $comment names the dimension the value follows", {
 
 
 # %% Wire strictness ----
-# Principle 2 of `plan/wire-vocabulary.md`: nothing is dropped silently. A key
+# Principle 2 of `spec: rtemis/wire-vocabulary`: nothing is dropped silently. A key
 # a config does not declare is a stale name, a typo, or a field from another
 # variant -- every one of which trains something other than what was asked for
 # if it is quietly ignored.

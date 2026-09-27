@@ -1,4 +1,4 @@
-# decom_PCA.R
+# decomp_PCA.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 

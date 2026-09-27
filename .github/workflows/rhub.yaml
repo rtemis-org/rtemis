@@ -4,7 +4,6 @@
 #
 # rhub::rhub_setup()
 #
-# Package-specific repository/runtime setup is documented in .github/CI.md.
 
 name: R-hub
 run-name: >-

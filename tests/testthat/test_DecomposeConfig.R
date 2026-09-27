@@ -68,3 +68,22 @@ test_that("a decompose document names its algorithm only inside decomposition_co
   ))
   expect_identical(x@decomposition_config@algorithm, "PCA")
 })
+
+
+# %% algorithms without an out-of-sample map ----
+test_that("a decompose document round-trips for an algorithm that cannot be applied to new data", {
+  # Standalone decomposition fits and embeds in one call, so `can_apply` does
+  # not restrict it; only the supervised pipeline needs to apply a fit.
+  for (config in list(setup_tSNE(k = 2L), setup_Isomap(k = 2L))) {
+    x <- setup_DecomposeConfig(decomposition_config = config)
+    file <- withr::local_tempfile(fileext = ".json")
+    write_config(x, file, verbosity = 0L)
+    xtoo <- read_config(file)
+    expect_s7_class(xtoo, DecomposeConfig)
+    expect_identical(
+      xtoo@decomposition_config@algorithm,
+      config@algorithm,
+      info = config@algorithm
+    )
+  }
+})

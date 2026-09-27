@@ -1,4 +1,4 @@
-# decom_UMAP.R
+# decomp_UMAP.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -22,8 +22,17 @@ method(decomp_, UMAPConfig) <- function(config, x, verbosity = 1L) {
 
   # Decompose ----
   msg("Decomposing with", config@algorithm, "...", verbosity = verbosity)
+  # uwot otherwise uses half the hardware threads, ignoring the core limit a
+  # CRAN check sets; `default_n_workers()` honors it. The count is stored on the
+  # fit, which records none, so `apply_decomp_` uses the same one.
+  n_threads <- default_n_workers()
   args <- c(
-    list(X = x, n_components = config[["k"]], ret_model = TRUE),
+    list(
+      X = x,
+      n_components = config[["k"]],
+      ret_model = TRUE,
+      n_threads = n_threads
+    ),
     config@config
   )
   args[["k"]] <- NULL
@@ -37,6 +46,7 @@ method(decomp_, UMAPConfig) <- function(config, x, verbosity = 1L) {
   )
   # ret_model = TRUE returns list
   check_inherits(decom, "list")
+  decom[["rtemis_n_threads"]] <- n_threads
   list(decom = decom, transformed = decom[["embedding"]])
 } # /rtemis::decomp_.UMAPConfig
 
@@ -64,5 +74,10 @@ method(apply_decomp_, UMAPConfig) <- function(
   verbosity = 1L
 ) {
   check_dependencies("uwot")
-  uwot::umap_transform(X = new_data, model = decom)
+  # A fit that carries no thread count applies single-threaded.
+  uwot::umap_transform(
+    X = new_data,
+    model = decom,
+    n_threads = decom[["rtemis_n_threads"]] %||% 1L
+  )
 } # /rtemis::apply_decomp_.UMAPConfig

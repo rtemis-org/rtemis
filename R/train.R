@@ -483,18 +483,7 @@ train <- function(
   # Can only use algorithms whose output can be applied on new data: we need to apply the
   # transformation learned on the training data to validation and test sets.
   if (!is.null(decomposition_config)) {
-    check_is_S7(decomposition_config, DecompositionConfig)
-    if (!decomposition_config@algorithm %in% decom_algorithms_applicable) {
-      rtemis.core::abort(
-        "Decomposition algorithm '",
-        decomposition_config@algorithm,
-        "' cannot be applied on new data and is not supported in `train()`.\n",
-        "Supported decomposition algorithms: ",
-        paste(decom_algorithms_applicable, collapse = ", "),
-        ".",
-        class = "rtemis_unsupported_error"
-      )
-    }
+    check_decom_applicable(decomposition_config)
   }
 
   # execution_config must always be set
@@ -645,6 +634,13 @@ train <- function(
       "n_workers_tuning"
     ),
     n_workers_algorithm = execution_config@n_workers_algorithm,
+    backend = switch(
+      backend,
+      none = "serial",
+      future = paste0("future (", execution_config@future_plan, ")"),
+      backend
+    ),
+    device = describe_device(hyperparameters),
     verbosity = verbosity
   )
   hyperparameters@n_workers <- workers[["algorithm"]]
@@ -721,7 +717,7 @@ train <- function(
   # Folds run in parallel when the worker ladder assigned workers to this level,
   # which happens only when there is neither a parallelized algorithm nor tuning
   # to spend them on; otherwise the folds run one at a time and each spends the
-  # workers inside itself. See plan/parallelization.md.
+  # workers inside itself. spec: rtemis/parallelization.
   if (!is.null(outer_resampling_config)) {
     msg0(
       fmt("<> ", col = col_outer, bold = TRUE),
@@ -1071,16 +1067,11 @@ train <- function(
     check_case_weights(weights, NROW(x))
 
     # Train algorithm ----
-    # A torch-backed algorithm names the device it resolved, because "which
-    # device did that actually run on" is otherwise unanswerable from the log
-    # and the answer depends on the machine.
-    device <- training_device(hyperparameters)
-    on_device <- if (is.null(device)) "" else paste0(" on ", toupper(device))
+    # The device is named once per run, in the resources line.
     if (is_tuned(hyperparameters)) {
       msg0(
         "Training ",
         highlight(paste(algorithm, type)),
-        on_device,
         " with tuned hyperparameters...",
         verbosity = verbosity
       )
@@ -1088,7 +1079,6 @@ train <- function(
       msg0(
         "Training ",
         highlight(paste(algorithm, type)),
-        on_device,
         "...",
         verbosity = verbosity
       )
@@ -1565,9 +1555,16 @@ normalize_fold_result <- function(res) {
 #' @param n_workers_tuning Optional Integer: Workers for tuning, named by the caller.
 #' @param n_workers_algorithm Optional Integer: Threads for a self-parallelizing
 #' algorithm, named by the caller.
+#' @param backend Character: Execution backend label for the resources line.
+#' @param device Character: Compute device label for the resources line, from
+#' `describe_device()`.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @details
+#' Prints one line stating every resource the run may use: the compute device,
+#' the backend, the worker ceiling and each level's share, and whether the
+#' shares were set by the caller.
+#'
 #' With no level named, the function prioritizes parallelization levels as follows:
 #' 1. If algorithm is parallelized (e.g., LightGBM, Ranger): all workers go to algorithm
 #' 2. Else if tuning is needed: all workers go to tuning (inner resampling)
@@ -1589,6 +1586,8 @@ get_n_workers <- function(
   n_workers_outer = NULL,
   n_workers_tuning = NULL,
   n_workers_algorithm = NULL,
+  backend = "serial",
+  device = "CPU",
   verbosity = 1L
 ) {
   # Input validation
@@ -1645,15 +1644,12 @@ get_n_workers <- function(
       asked
     })
     names(out) <- names(named)
-    msg0(
-      bold("//"),
-      " Workers set explicitly: ",
-      gray("Algorithm: "),
-      highlight(out[["algorithm"]]),
-      gray("; Tuning: "),
-      highlight(out[["tuning"]]),
-      gray("; Outer Resampling: "),
-      highlight(out[["outer_resampling"]]),
+    msg_resources(
+      backend = backend,
+      n_workers = n_workers,
+      workers = out,
+      explicit = TRUE,
+      device = device,
       verbosity = verbosity
     )
     return(out)
@@ -1694,24 +1690,101 @@ get_n_workers <- function(
     workers_outer_resampling <- 1L
   }
 
-  msg0(
-    bold("//"),
-    " Max workers: ",
-    highlight(n_workers),
-    " { ",
-    gray("Algorithm: "),
-    highlight(workers_algorithm),
-    gray("; Tuning: "),
-    highlight(workers_tuning),
-    gray("; Outer Resampling: "),
-    highlight(workers_outer_resampling),
-    " }",
-    verbosity = verbosity
-  )
-
-  list(
+  out <- list(
     algorithm = workers_algorithm,
     tuning = workers_tuning,
     outer_resampling = workers_outer_resampling
   )
+  msg_resources(
+    backend = backend,
+    n_workers = n_workers,
+    workers = out,
+    explicit = FALSE,
+    device = device,
+    verbosity = verbosity
+  )
+  out
 } # /rtemis::get_n_workers
+
+
+# %% msg_resources ----
+#' Print the resources a run may use, on one line
+#'
+#' Device first, since it is what changes most between machines, then the
+#' backend, then the worker ceiling and each level's share:
+#'
+#' `// MPS (auto-selected) | mirai | 2 workers: algorithm 2 threads, tuning 1, outer resampling 1`
+#'
+#' The algorithm's share is threads inside one worker, so it can exceed the
+#' worker ceiling under serial execution. `(as set)` marks shares the caller
+#' named; otherwise the worker ladder assigned them.
+#'
+#' @param backend Character: Execution backend label.
+#' @param n_workers Integer: Worker ceiling.
+#' @param workers Named list: `algorithm`, `tuning`, `outer_resampling`.
+#' @param explicit Logical: Whether the caller named the shares.
+#' @param device Character: Compute device label.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return NULL, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+msg_resources <- function(
+  backend,
+  n_workers,
+  workers,
+  explicit,
+  device = "CPU",
+  verbosity = 1L
+) {
+  sep <- gray(" | ")
+  msg0(
+    bold("//"),
+    " ",
+    highlight(device),
+    sep,
+    highlight(backend),
+    sep,
+    highlight(n_workers),
+    ngettext(n_workers, " worker: ", " workers: "),
+    "algorithm ",
+    highlight(workers[["algorithm"]]),
+    ngettext(workers[["algorithm"]], " thread", " threads"),
+    ", tuning ",
+    highlight(workers[["tuning"]]),
+    ", outer resampling ",
+    highlight(workers[["outer_resampling"]]),
+    if (explicit) gray(" (as set)"),
+    verbosity = verbosity
+  )
+  invisible(NULL)
+} # /rtemis::msg_resources
+
+
+# %% describe_device ----
+#' The compute device label for the resources line
+#'
+#' The device the algorithm will train on, with `(auto-selected)` when the
+#' algorithm chose it because the caller named none. Only the device in use is
+#' named.
+#'
+#' @param hyperparameters `Hyperparameters` object.
+#'
+#' @return Character, e.g. `"CPU"` or `"MPS (auto-selected)"`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+describe_device <- function(hyperparameters) {
+  device <- training_device(hyperparameters)
+  if (is.null(device)) {
+    return("CPU")
+  }
+  # The torch-backed algorithms call it `device`; the LightGBM family,
+  # following its backend, `device_type`.
+  requested <- hyperparameters[["device"]] %||% hyperparameters[["device_type"]]
+  auto_selected <- is.null(requested) || identical(requested, "auto")
+  paste0(toupper(device), if (auto_selected) " (auto-selected)")
+} # /rtemis::describe_device

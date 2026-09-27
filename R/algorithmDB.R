@@ -700,10 +700,6 @@ get_decom_desc <- function(algorithm) {
   decomdesc
 } # /rtemis::get_decom_desc
 
-get_decom_fn <- function(algorithm) {
-  paste0("decom_", get_decom_name(algorithm))
-} # /rtemis::get_decom_fn
-
 get_default_decomparams <- function(algorithm) {
   do.call(paste0("setup_", get_decom_name(algorithm)), list())
 } # /rtemis::get_default_decomparams
@@ -711,10 +707,6 @@ get_default_decomparams <- function(algorithm) {
 get_decom_setup_fn <- function(algorithm) {
   paste0("setup_", get_decom_name(algorithm))
 } # /rtemis::get_decom_setup_fn
-
-get_decom_predict_fn <- function(algorithm) {
-  paste0("predict_", get_decom_name(algorithm))
-} # /rtemis::get_decom_predict_fn
 
 
 # %% decomposition_traits ----

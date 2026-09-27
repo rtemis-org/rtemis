@@ -318,15 +318,48 @@ reconstruct <- function(decom, x, verbosity = 1L) {
 } # /rtemis::reconstruct
 
 
+# %% check_decom_applicable ----
+#' Require a decomposition that can be applied to new data
+#'
+#' A supervised pipeline learns the decomposition on the training cases and
+#' applies it to every other set, so only algorithms whose `can_apply` trait is
+#' TRUE can serve as its decomposition step.
+#'
+#' @param decomposition_config `DecompositionConfig` object.
+#'
+#' @return `decomposition_config`, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+check_decom_applicable <- function(decomposition_config) {
+  check_is_S7(decomposition_config, DecompositionConfig)
+  if (!decomposition_config@algorithm %in% decom_algorithms_applicable) {
+    rtemis.core::abort(
+      "Decomposition algorithm '",
+      decomposition_config@algorithm,
+      "' cannot be applied on new data and is not supported in `train()`.\n",
+      "Supported decomposition algorithms: ",
+      paste(decom_algorithms_applicable, collapse = ", "),
+      ".",
+      class = "rtemis_unsupported_error"
+    )
+  }
+  invisible(decomposition_config)
+} # /rtemis::check_decom_applicable
+
+
 # %% .list_to_DecompositionConfig ----
 #' Convert a list to a DecompositionConfig object
 #'
-#' Internal function used by `rtemis.server` and `SuperConfig` deserialization
-#' to reconstruct a `DecompositionConfig` object from a named list. The list
-#' must carry an `algorithm` element naming a decomposition algorithm that can
-#' be applied on new data (see `decom_algorithms_applicable`); its siblings --
-#' the algorithm's settings and, optionally, `features` -- are passed to that
-#' algorithm's `setup_*` function.
+#' Internal function used by `rtemis.server`, `read_config()`, and the
+#' `DecomposeConfig` and `SuperConfig` readers to reconstruct a
+#' `DecompositionConfig` object from a named list. The list must carry an
+#' `algorithm` element naming a decomposition algorithm; its siblings -- the
+#' algorithm's settings and, optionally, `features` -- are passed to that
+#' algorithm's `setup_*` function. Whether the algorithm can be applied to new
+#' data is a requirement of the supervised pipeline, not of the document, so
+#' the `SuperConfig` reader checks it separately.
 #'
 #' @param x Named list with an `algorithm` element plus, as its siblings, the
 #'   algorithm's settings and optionally `features`, e.g.
@@ -345,17 +378,6 @@ reconstruct <- function(decom, x, verbosity = 1L) {
     rtemis.core::abort(
       "`algorithm` is required to build a DecompositionConfig.",
       class = c("rtemis_null_input", "rtemis_input_error")
-    )
-  }
-  if (!decom_can_apply(algorithm)) {
-    rtemis.core::abort(
-      "Decomposition algorithm '",
-      algorithm,
-      "' cannot be applied on new data.\n",
-      "Supported algorithms: ",
-      paste(decom_algorithms_applicable, collapse = ", "),
-      ".",
-      class = "rtemis_unsupported_error"
     )
   }
   # Normalize casing and drop `algorithm` before forwarding to the setup fn.

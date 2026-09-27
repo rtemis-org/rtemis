@@ -4,7 +4,7 @@
 
 # Description
 # `conformal()` methods and the arithmetic behind them. The classes they build
-# live in `R/260_PredictionRegion.R`; see `plan/conformal.md` for the design.
+# live in `R/260_PredictionRegion.R`; design: `spec: rtemis/conformal`.
 #
 # Every construction here reduces to the same two steps: score the calibration
 # cases, then admit the outcomes whose score would not stand out among them.

@@ -824,3 +824,49 @@ torch_restore <- function(module, state) {
   module[["eval"]]()
   module
 } # /rtemis::torch_restore
+
+
+# %% set_torch_threads ----
+#' Set libtorch's intra-op thread count for this process
+#'
+#' libtorch otherwise runs on every core it sees, which oversubscribes a machine
+#' whose other cores are already rtemis workers and exceeds the two cores a CRAN
+#' check may use. Every torch fit and prediction calls this first, with the
+#' algorithm's resolved worker count.
+#'
+#' The count is process-global, and how often it can be set depends on
+#' libtorch's parallel backend: the OpenMP backend accepts any number of calls,
+#' while the native backend (the macOS build) accepts one, before any parallel
+#' work, and refuses every later call with a warning. So the count is set, not
+#' scoped, and the function returns the count libtorch holds afterwards -- the
+#' number a fit records, which can differ from the one requested. Once the
+#' backend has refused a change it is not asked again, so its warning is not
+#' repeated on every fit.
+#'
+#' @param n_threads Integer \[1, Inf): Threads requested.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Integer: The intra-op thread count libtorch holds.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+set_torch_threads <- function(n_threads, verbosity = 1L) {
+  n_threads <- as.integer(n_threads)
+  current <- as.integer(torch::torch_get_num_threads())
+  if (current != n_threads && !isTRUE(live[["torch_threads_fixed"]])) {
+    torch::torch_set_num_threads(n_threads)
+    current <- as.integer(torch::torch_get_num_threads())
+    if (current != n_threads) {
+      live[["torch_threads_fixed"]] <- TRUE
+      msg0(
+        "libtorch keeps ",
+        current,
+        " threads for this R session: its parallel backend accepts one ",
+        "thread setting per process.",
+        verbosity = verbosity
+      )
+    }
+  }
+  current
+} # /rtemis::set_torch_threads

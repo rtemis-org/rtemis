@@ -3452,6 +3452,11 @@ MLPModel <- new_class(
     type = class_character,
     y_levels = NULL | class_character,
     device = class_character,
+    # libtorch intra-op threads the fit ran with: the algorithm workers
+    # `train()` resolved, or the count libtorch already held if its backend
+    # refused a change. Prediction requests the same count, as a LightGBM
+    # booster keeps its `num_threads`.
+    n_threads = class_integer,
     epochs_trained = class_integer,
     best_epoch = class_integer,
     history = class_data.frame

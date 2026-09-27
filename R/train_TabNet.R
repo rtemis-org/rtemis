@@ -61,6 +61,10 @@ method(train_, TabNetHyperparameters) <- function(
   # categorical predictors internally thus, you don't need to make any treatment.
   config <- get_tabnet_config(hyperparameters)
   config[["verbose"]] <- verbosity > 0L
+  n_threads <- set_torch_threads(
+    prop(hyperparameters, "n_workers"),
+    verbosity = verbosity
+  )
   model <- tabnet::tabnet_fit(
     x = x,
     y = y,
@@ -68,8 +72,44 @@ method(train_, TabNetHyperparameters) <- function(
     weights = weights
   )
   check_inherits(model, "tabnet_fit")
+  # The count libtorch held for the fit; the backend object records none.
+  model[["rtemis_n_threads"]] <- n_threads
   list(model = model, preprocessor = prp)
 } # /rtemis::train_.TabNetHyperparameters
+
+
+# %% training_device.TabNetHyperparameters ----
+#' The device TabNet will train on
+#'
+#' `"auto"` is resolved the way tabnet resolves it (tabnet 0.9.1,
+#' `get_device_from_config()`): cuda, then mps, then cpu. So on Apple silicon an
+#' automatic TabNet fit runs on the GPU.
+#'
+#' @param x `TabNetHyperparameters` object.
+#'
+#' @return Character or NULL, when libtorch is not installed.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(training_device, TabNetHyperparameters) <- function(x) {
+  if (
+    !requireNamespace("torch", quietly = TRUE) || !torch::torch_is_installed()
+  ) {
+    return(NULL)
+  }
+  device <- x[["device"]]
+  if (!identical(device, "auto")) {
+    return(device)
+  }
+  if (torch::cuda_is_available()) {
+    "cuda"
+  } else if (torch::backends_mps_is_available()) {
+    "mps"
+  } else {
+    "cpu"
+  }
+} # /rtemis::training_device.TabNetHyperparameters
 
 
 # %% predict_super.class_tabnet_fit ----
@@ -87,6 +127,12 @@ method(predict_super, class_tabnet_fit) <- function(
   type = NULL,
   verbosity = 0L
 ) {
+  check_dependencies("torch", "tabnet")
+  # A fit that carries no thread count predicts single-threaded.
+  set_torch_threads(
+    model[["rtemis_n_threads"]] %||% 1L,
+    verbosity = verbosity
+  )
   if (type == "Regression") {
     predict(model, new_data = newdata)[[1]]
   } else if (type == "Classification") {

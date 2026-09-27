@@ -313,3 +313,37 @@ method(explain_super, class_lgb.Booster) <- function(
     exact = TRUE
   )
 } # /rtemis::explain_super.lgb.Booster
+
+
+# %% lightgbm_training_device ----
+#' The device a LightGBM-family algorithm will train on
+#'
+#' LightGBM, LightRF, LightCART and LightRuleFit pass `device_type` to
+#' `lightgbm::lgb.train()` as given; there is no automatic choice to resolve.
+#'
+#' @param x Hyperparameters of one of the four classes.
+#'
+#' @return Character.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_training_device <- function(x) {
+  x[["device_type"]]
+} # /rtemis::lightgbm_training_device
+
+
+# %% training_device.LightGBMHyperparameters ----
+method(training_device, LightGBMHyperparameters) <- lightgbm_training_device
+
+
+# %% training_device.LightRFHyperparameters ----
+method(training_device, LightRFHyperparameters) <- lightgbm_training_device
+
+
+# %% training_device.LightCARTHyperparameters ----
+method(training_device, LightCARTHyperparameters) <- lightgbm_training_device
+
+
+# %% training_device.LightRuleFitHyperparameters ----
+method(training_device, LightRuleFitHyperparameters) <- lightgbm_training_device

@@ -1526,6 +1526,14 @@ if (torch_available()) {
   test_that("train() TabNet Regression succeeds", {
     expect_s7_class(mod_r_tabnet, Regression)
   })
+  test_that("TabNet records the libtorch thread count it trained with", {
+    # The count libtorch held, not the one requested: see the MLP block.
+    expect_identical(
+      mod_r_tabnet@model[["rtemis_n_threads"]],
+      as.integer(torch::torch_get_num_threads())
+    )
+    expect_lte(mod_r_tabnet@model[["rtemis_n_threads"]], 2L)
+  })
 }
 
 ## {TabNet}[train]<Classification> ----
@@ -2211,6 +2219,32 @@ if (mlp_installed) {
     expect_s7_class(mod_r_mlp, Regression)
   })
 
+  ## {MLP}[train]<Regression> libtorch threads ----
+  # libtorch runs on every core unless told otherwise, which breaks the
+  # two-core limit on CRAN. The count is process-global, and the native backend
+  # (macOS) accepts one setting per process, so a fit records the count libtorch
+  # actually held rather than the one it asked for.
+  test_that("MLP requests the resolved algorithm workers and records libtorch's count", {
+    mod <- train(
+      x = datr_train,
+      hyperparameters = setup_MLP(
+        hidden_units = 8L,
+        max_epochs = 2L,
+        device = "cpu",
+        seed = 2025L
+      ),
+      execution_config = setup_SerialExecution(n_workers_algorithm = 2L),
+      verbosity = 0L
+    )
+    expect_identical(mod@hyperparameters@n_workers, 2L)
+    expect_identical(
+      mod@model@n_threads,
+      as.integer(torch::torch_get_num_threads())
+    )
+    # helper-torch.R pins the test process to at most two threads.
+    expect_lte(mod@model@n_threads, 2L)
+  })
+
   ## {MLP}[train]<Regression> Generated architecture ----
   # The path a user who types nothing takes: the widths come from the shape and
   # the encoded input width, and the fit reports what it used.
@@ -2495,12 +2529,40 @@ if (mlp_installed) {
   })
 
   ## {MLP} Device reporting ----
-  test_that("training_device() names the device only for a torch algorithm", {
-    # train() prints this in the line it already emits, so it has to be exact
-    # and side-effect-free: the algorithm resolves the device again for real.
+  test_that("training_device() names the device for algorithms that can leave the CPU", {
+    # train() prints this in its resources line, so it has to be exact and
+    # side-effect-free: the algorithm resolves the device again for real.
     expect_identical(training_device(setup_MLP(device = "cpu")), "cpu")
     expect_identical(mod_r_mlp@model@device, "cpu")
     expect_null(training_device(setup_CART()))
+    expect_identical(
+      training_device(setup_LightGBM(device_type = "cuda")),
+      "cuda"
+    )
+    # TabNet resolves "auto" as tabnet does: cuda, then mps, then cpu.
+    expected_tabnet <- if (torch::cuda_is_available()) {
+      "cuda"
+    } else if (torch::backends_mps_is_available()) {
+      "mps"
+    } else {
+      "cpu"
+    }
+    expect_identical(training_device(setup_TabNet()), expected_tabnet)
+    expect_identical(training_device(setup_TabNet(device = "cpu")), "cpu")
+  })
+
+  test_that("the device label names the device in use and whether it was auto-selected", {
+    expect_identical(describe_device(setup_MLP(device = "cpu")), "CPU")
+    expect_identical(describe_device(setup_CART()), "CPU")
+    expect_identical(describe_device(setup_LightGBM()), "CPU")
+    expect_identical(
+      describe_device(setup_LightGBM(device_type = "cuda")),
+      "CUDA"
+    )
+    expect_identical(
+      describe_device(setup_TabNet()),
+      paste0(toupper(training_device(setup_TabNet())), " (auto-selected)")
+    )
   })
 
   ## {MLP}[predict]<Regression> /\\Error missing values ----
@@ -4979,7 +5041,7 @@ test_that("a meta learner's record carries one block per library entry", {
   #
   # `record()` rather than `outdir`: writing a record validates it against the
   # *published* schemas, which will not know these algorithms until they are
-  # published (plan/superlearner.md, step 9).
+  # published (`spec: rtemis/superlearner`, step 9).
   payload <- record(mod_r_sl)[["hyperparameters"]]
   # Every property the leaf schema declares, inherited ones included: these come
   # from three different levels of the class hierarchy.

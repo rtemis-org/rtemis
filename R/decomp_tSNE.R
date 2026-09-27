@@ -1,4 +1,4 @@
-# decom_tSNE.R
+# decomp_tSNE.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 

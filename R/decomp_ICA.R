@@ -1,4 +1,4 @@
-# decom_ICA.R
+# decomp_ICA.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 

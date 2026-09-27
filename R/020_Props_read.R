@@ -18,7 +18,7 @@
 #     default has been through a JSON encoder.
 #
 # A schema alone is not sufficient to rebuild a class: `default` is deliberately
-# not a schema keyword (see `plan/config-artifacts.md`), so defaults arrive
+# not a schema keyword (`spec: rtemis/config-artifacts`), so defaults arrive
 # separately, from the artifact `data-raw/generate_defaults.R` publishes. That
 # split is the contract a port has to honor too, which is why `defaults` is an
 # argument here rather than something inferred.

@@ -402,7 +402,7 @@ test_that("FEATURE_CONSTANT: predictors that never vary", {
   expect_identical(d@evidence[["features"]], c("site", "fee"))
   # Two operations: the block is created empty and filled by the one after it.
   # An expression language has no object constructor, so this is the spelling
-  # `checks/v1` can also emit -- see plan/validation-rules.md.
+  # `checks/v1` can also emit -- `spec: rtemis/validation-rules`.
   expect_identical(
     d@fix,
     list(

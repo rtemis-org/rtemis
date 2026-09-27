@@ -1,4 +1,4 @@
-# decom_Isomap.R
+# decomp_Isomap.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 

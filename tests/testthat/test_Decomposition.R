@@ -317,6 +317,17 @@ test_that("decomp() UMAP succeeds", {
   expect_s7_class(iris_umap, Decomposition)
 })
 
+
+test_that("UMAP threads with the resolved worker count, at most two under a CRAN check", {
+  skip_if_not_installed("uwot")
+  # uwot's own default is half the hardware threads, whatever the core limit.
+  withr::local_envvar(`_R_CHECK_LIMIT_CORES_` = "TRUE")
+  decom <- decomp(x, algorithm = "umap", verbosity = 0L)
+  expect_identical(decom@decom[["rtemis_n_threads"]], default_n_workers())
+  expect_lte(decom@decom[["rtemis_n_threads"]], 2L)
+  expect_identical(nrow(apply_decomp(decom, x, verbosity = 0L)), nrow(x))
+})
+
 # t-SNE ----
 test_that("setup_tSNE() succeeds", {
   config <- setup_tSNE()

@@ -185,3 +185,52 @@ testthat::test_that("a level that cannot run is clamped, not obeyed", {
   )
   expect_identical(workers[["tuning"]], 1L)
 })
+
+
+testthat::test_that("a CRAN check resolves the default worker count to at most two", {
+  # Every self-parallelizing learner, libtorch's included, threads with the
+  # workers resolved from `default_n_workers()` unless told otherwise, and CRAN
+  # allows two cores. `availableCores()` reads `_R_CHECK_LIMIT_CORES_`, which a
+  # CRAN check sets.
+  withr::local_envvar(`_R_CHECK_LIMIT_CORES_` = "TRUE")
+  expect_lte(getFromNamespace("default_n_workers", "rtemis")(), 2L)
+})
+
+
+testthat::test_that("the resources line states device, backend, ceiling and every level", {
+  # One line is the whole account of what a run may use; a level or the device
+  # missing from it is a resource the log cannot answer for.
+  resources_line <- function(...) {
+    paste(
+      gsub(
+        "\\033\\[[0-9;]*m",
+        "",
+        testthat::capture_messages(
+          getFromNamespace("get_n_workers", "rtemis")(
+            algorithm = "CART",
+            hyperparameters = setup_CART(),
+            outer_resampling_config = NULL,
+            verbosity = 1L,
+            ...
+          )
+        )
+      ),
+      collapse = ""
+    )
+  }
+  expect_match(
+    resources_line(
+      n_workers = 3L,
+      backend = "mirai",
+      device = "MPS (auto-selected)"
+    ),
+    "// MPS (auto-selected) | mirai | 3 workers: algorithm 1 thread, tuning 1, outer resampling 1",
+    fixed = TRUE
+  )
+  explicit <- resources_line(n_workers = 1L, n_workers_algorithm = 2L)
+  expect_match(
+    explicit,
+    "// CPU | serial | 1 worker: algorithm 1 thread, tuning 1, outer resampling 1 (as set)",
+    fixed = TRUE
+  )
+})

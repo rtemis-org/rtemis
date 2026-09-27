@@ -751,6 +751,10 @@ method(train_, MLPHyperparameters) <- function(
     )
   }
   weights <- if (is.null(weights)) rep(1, NROW(dat)) else weights
+  n_threads <- set_torch_threads(
+    prop(hyperparameters, "n_workers"),
+    verbosity = verbosity
+  )
   fitted <- torch_fit(
     module = module,
     inputs = mlp_inputs(dat, numeric_features, categorical_features),
@@ -841,6 +845,7 @@ method(train_, MLPHyperparameters) <- function(
     type = type,
     y_levels = y_levels,
     device = device,
+    n_threads = n_threads,
     epochs_trained = as.integer(fitted[["epochs_trained"]]),
     best_epoch = as.integer(fitted[["best_epoch"]]),
     history = fitted[["history"]]
@@ -879,6 +884,7 @@ method(predict_super, MLPModel) <- function(
   verbosity = 0L
 ) {
   check_dependencies("torch")
+  set_torch_threads(model@n_threads, verbosity = verbosity)
   output <- torch_forward(
     mlp_model_module(model),
     mlp_inputs(newdata, model@numeric_features, model@categorical_features),

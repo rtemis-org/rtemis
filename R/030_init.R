@@ -1697,13 +1697,14 @@ needs_tuning <- new_generic("needs_tuning", "x")
 # %% training_device ----
 #' The compute device an algorithm will train on, or NULL
 #'
-#' Answered before training starts so that `train()` can name it in the line it
-#' already prints, rather than the algorithm printing a second line about it.
-#' Must be free of side effects: it runs purely to build a message, and the
-#' algorithm resolves the device again for real.
+#' Answered before training starts so that `train()` can name it in its
+#' resources line. Must be free of side effects: it runs purely to build a
+#' message, and the algorithm resolves the device again for real.
 #'
-#' NULL for everything that runs on the CPU by definition, which is every
-#' algorithm but the torch-backed ones.
+#' NULL for everything that runs on the CPU by definition. Algorithms that can
+#' leave the CPU register a method: the torch-backed ones, resolving an
+#' automatic choice the way their backend will, and the LightGBM family, which
+#' reports its `device_type`.
 #'
 #' @keywords internal
 #' @noRd
