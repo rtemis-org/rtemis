@@ -2,21 +2,18 @@
 
 ## 1.4.1
 
-- Spectral clustering is three algorithms, one per kernel: `setup_SpectralRBF()`, `setup_SpectralLaplace()` and `setup_SpectralLocal()` replace `setup_Spectral()`, each taking only the settings its kernel uses; the Nystrom approximation is a `setup_Nystrom()` object whose presence turns it on.
-- The PAMK criterion is an object from `setup_ASWCriterion()`, `setup_CHCriterion()` or `setup_MultiASWCriterion()`, which alone carries the number of subsets; `setup_PAMK()` no longer takes `criterion` as a string or `n_subsets`.
-- `setup_ClusterConfig()` and `setup_DecomposeConfig()` no longer take `algorithm`; a cluster or decompose document names its algorithm once, inside its clustering or decomposition config, and `cluster()` and `decomp()` reject an `algorithm` that disagrees with a supplied config.
-- Clustering configs declare `features`, the columns to cluster on, and every clustering `setup_*()` accepts it; the run record states the subset.
-- `cluster()` and `decomp()` cluster or decompose every numeric column when the config names no `features`, and record the columns used on the fit.
+- `setup_SpectralRBF()`, `setup_SpectralLaplace()`, and `setup_SpectralLocal()` configure spectral clustering through 'kernlab', one per kernel; `setup_Nystrom()` enables the Nystrom approximation.
+- `setup_ASWCriterion()`, `setup_CHCriterion()`, and `setup_MultiASWCriterion()` configure how `setup_PAMK()` selects the number of clusters.
+- `setup_ClusterConfig()` and `setup_DecomposeConfig()` no longer take `algorithm`; the clustering or decomposition config names it, and `cluster()` and `decomp()` reject an `algorithm` that disagrees with a supplied config.
+- Clustering configs take `features`, the columns to cluster on.
+- `cluster()` and `decomp()` use every numeric column when the config names no `features`, and record the columns used.
 - Shared results identify implementation-specific configs by schema and read their typed settings without inserting omitted defaults.
 - Implementation-specific schema paths include the language namespace; shared result paths remain unqualified.
-
 - The defaults artifact format accepts producer-owned namespaces while retaining separate schema declarations and resolution policies.
-
 - `write_result()` and `read_result()` support portable result JSON with optional Parquet payloads, lazy loading, and integrity checks.
 - Resampled results retain successful fold identifiers and all requested training-row splits, including failed folds and bootstrap repetitions.
 - `Supervised`, `Regression`, `Classification`, and their resampled counterparts publish shared result schemas with typed outcomes, predictions, metrics, and runtime-only fitted state.
 - Categorical result values preserve class order and missing positions through explicit levels and codes.
-- Parallel worker integration tests require opt-in in automated agent sessions; a bounded diagnostic recipe records stalled runs.
 - Matrix property declarations support numeric cell bounds and cell-level nullability.
 - Typed array decoding preserves missing-cell positions and rejects invalid cell types and ragged matrices.
 - Schema publication metadata identifies the generating language, contract scope, registry domain, and standalone parent class.
@@ -27,12 +24,11 @@
 
 ## 1.4.0
 
+- `setup_SerialExecution()`, `setup_FutureExecution()`, and `setup_MiraiExecution()` configure their respective execution backends, replacing `setup_ExecutionConfig()`.
 - `JSONSchema_to_S7()` reconstructs declaration defaults, typed references, and input policies from a supplied artifact graph.
 - Integer property declarations support exclusive lower and upper bounds.
-- `setup_SerialExecution()`, `setup_FutureExecution()`, and `setup_MiraiExecution()` configure their respective execution backends.
 - `ClusteringMetrics` records clustering measures with a status explaining each missing value.
 - `HardClustering` and `SoftClustering` distinguish hard assignments from results with membership probabilities.
-- `setup_Spectral()` configures spectral clustering through 'kernlab'.
 - `setup_GMM()` configures Gaussian mixture models through 'mclust', with optional selection of the number of components.
 - `setup_PAM()` and `setup_PAMK()` configure medoid clustering through 'cluster' and 'fpc'.
 - `setup_HOPACH()` configures hierarchical clustering through 'hopach'.
@@ -42,12 +38,11 @@
 - Config families publish flat documents with a discriminator and the selected variant's settings.
 - A separate authoring artifact identifies properties reserved for the host.
 - `partition()` creates auditable train/test splits with random, time, group, or predefined partition configurations.
-- `setup_KFold()`, `setup_StratSub()`, `setup_StratBoot()`, `setup_Bootstrap()`, `setup_LOOCV()`, and `setup_Custom()` configure individual resampling methods.
+- `setup_KFold()`, `setup_StratSub()`, `setup_StratBoot()`, `setup_Bootstrap()`, `setup_LOOCV()`, and `setup_Custom()` configure individual resampling methods. `setup_Resampler()` remains available with a deprecation warning naming its replacement.
 - `SuperConfigPaths` and `SuperConfigTabular` share common supervised configuration properties.
 - `is_wire_hyperparameters_set()` identifies a serialized set of named learner configurations.
 - Supervised records reference session graphs stored as Parquet sidecars.
 - `DataRef` records a sidecar's path, encoding, digest, size, and optional table dimensions.
-- `session_nodes()` returns session events as a table with absolute timestamps.
 
 ## 1.3.8
 
@@ -65,293 +60,177 @@
 
 ## 1.3.7
 
-- **New `setup_LINAD(split_features = , linear_features = , global_features = )`**: which features may define a split, which get a slope in the node models, and which of those slopes are shared by every leaf rather than free to change along a path. `NULL` on each imposes no constraint -- all, all, and nothing pinned -- which is LINAD as it was. Also on `setup_LINADForest()`, where `mtry_split` samples within the split-eligible set.
-- A pinned coefficient is identical in every leaf exactly, at any `gamma`, which makes LINAD a varying-coefficient model: a global baseline plus the node deviations along the path. Making every linear feature global gives a tree with shared coefficients and node-specific constants.
-- Restricting the split set is the largest speed-up available on wide data.
-- `draw_linad()` marks each coefficient in a node's table with where it came from: an identity sign for a global effect, a delta for one this node changed, nothing for one inherited unchanged. `show_changes = FALSE` turns them off.
-- **`split_search = "exhaustive"` now scores classification candidates by the model it commits.** It used a least-squares level where the committed child uses the manuscript's Newton step, which changed the chosen split in 9 of 20 seeds at a median 1.4% worse committed loss.
-- **The elastic-net node model is fitted natively**, so `split_search = "exhaustive"` scores the real child rather than a ridge surrogate that ignored `alpha`, and LINAD no longer needs 'glmnet'. `lambda` now means the same thing under `node_model = "ridge"` and `"elasticnet"`, and `alpha = 0` reproduces the ridge exactly; 'glmnet' scales the ridge half of its penalty by the outcome's spread, so elastic-net fits are not reproducible at the same `lambda` as before.
-- The exhaustive search and the commit fit a node on the same rows once soft weights decay past the engine's tolerance.
-- A fitted LINAD model records every hyperparameter its run resolved in `mod@model@settings`, including defaults such as `n_cuts` that were previously left unset on the hyperparameters.
-- `LinearAdditiveTree` and `LINADForest` validate their own structure at construction.
-- Case weights are checked for length, finiteness, non-negativity and a positive mean before any algorithm divides by their mean.
-- **New `plot_learning()` and `get_learning_curve()`**: loss against training progress for any algorithm that trains in steps, in its own unit -- epochs for MLP, leaves for LINAD, boosting iterations for the LightGBM family -- with the step the model kept marked. Returns NULL rather than an error for an algorithm that records none.
-- **New `setup_LINAD(patience = )`**: stop growing when validation loss has not improved for that many expansions, as gradient boosting stops on rounds. The size is still the argmin of the curve reached, so stopping bounds growth without changing selection. LINADForest applies it per tree against that tree's own out-of-bag cases.
-- **A tuned LINAD now keeps the leaf count tuning selected.** Each grid cell chose its size on the held-out fold of its inner resample and was scored with that size applied; the final fit gets no validation set, so it kept every leaf it grew -- a model systematically larger than the one measured. The Tuner carries the selected count back as `best_n_leaves`, as it already did for LightGBM's `best_iter`.
-- A LINAD model records its training loss at every size beside the validation loss, so a learning curve can show overfitting rather than only where the minimum fell.
-- The error message for a conditional hyperparameter no longer pads its allowed values.
-- A tuned run under outer resampling announces its grid once, before the folds start.
-- **`train()` takes a list of hyperparameter configurations and searches all of them** -- `train(x, list(cart = setup_LINAD(...), addtree = setup_LINAD(...)))`. Each is expanded and gated on its own and the tuner selects across their union, so combinations a cross-product cannot express are now a search space. All members must be for one algorithm.
-- The winner is named: `mod@hyperparameters@variant` says which configuration was selected, and under outer resampling each fold selects independently. Unnamed configurations are labelled by position.
-- This is what makes "which special case does this dataset select?" answerable **inside** the inner resampling loop. Comparing separate `train()` runs selects on the test data; this does not.
-- `tuning_grid()` on a list returns the union of the members' grids with a `.variant` column, and a row always specifies its configuration in full -- a hyperparameter another member tunes is filled from this one's own value, never left blank.
-- A run's config artifact carries the set it was given, and travels as `{"variants": {...}}`; the `superconfig` schema admits either one configuration or a named set of them.
-- **`tune_GridSearch()` now says why when every grid cell fails.** It reported the count and nothing else, so a systematic failure -- the common case, since every cell shares a cause -- gave no way in.
-- **New `bias_variance()`**: splits a learner's error into the part from being systematically wrong and the part from being unstable, by refitting over resamples and watching the predictions at a fixed test set. Populates the `BiasVariance` class, which had existed with nothing to produce one.
-- `bias_variance(true_values = )` measures squared bias against the true function where it is known, which only simulated data offers. Without it, bias is measured against the observed outcome and so carries the irreducible noise -- measured at 0.997 against a true variance of 1.
-- `bias_variance()` reports the sample variance across resamples, unbiased for the variance of the fitted function, and one estimate per test case rather than one number.
-- Binary outcomes decompose on the **probability** scale, since 0-1 loss does not decompose additively into bias and variance; multiclass is refused for the same reason.
-- **New algorithm: GLMTree, model-based recursive partitioning** -- `setup_GLMTree()`, via 'partykit'. A tree carrying a generalized linear model in each leaf, split not by loss reduction but by testing whether a node's coefficients are constant across a candidate variable.
-- `setup_GLMTree(regressors = , partitioning_variables = )` take the two halves apart: the model in each leaf need not read the variables the tree splits on.
-- `setup_GLMTree(alpha = )` is the tree-size dial, and it has units -- a node splits when an instability test reaches that significance level. With few cases or many partitioning variables the tests lose power and the tree returns a single global model; raising `alpha` is the first thing to try.
-- `get_varimp()` on a GLMTree is NULL: 'partykit' has no importance measure for a model-based tree, and `get_varimp(explain(mod, newdata))` answers instead.
-- **New algorithm: LINADForest, a bagged ensemble of Linear Additive Trees** -- `setup_LINADForest()`. Designed to be used untuned: 50 trees, each grown on a bootstrap sample and sized on its own out-of-bag cases.
-- **Each tree picks its own number of leaves on its out-of-bag cases**, so the forest self-tunes the one structural setting that usually needs a grid. `force_max_leaves = TRUE` grows every tree to `max_leaves`.
-- `setup_LINADForest(mtry_tree = )` gives each tree a random subset of the features, `(mtry_split = )` samples them again at every split search. A sample that finds no split worth making is retried over every feature, so neither can close a node.
-- `se()` on a LINADForest gives standard errors of the fit by the infinitesimal jackknife (Wager, Hastie & Efron 2014), not the spread across trees, which is a dispersion rather than a standard error.
-- A fitted LINADForest reports an out-of-bag estimate: `print()` shows it, `mod@model@oob_prediction` and `@oob_metrics` hold it. No resampling needed.
-- LINADForest parallelizes across trees, with one RNG substream per tree, so a run is identical at any worker count and on any backend.
-- The tree hyperparameters of LINAD are declared once and shared with LINADForest, which inherits every one of them; `learning_rate` defaults to 1 in the forest, where averaging does the variance control.
-- **The mirai future plan was named unqualified at one of two dispatch sites.** `future::plan()` resolves a strategy off the search path, so a `backend = "future"` run whose plan was `"mirai_multisession"` worked from `train()` and failed anywhere else. Both sites now resolve it the same way.
-- **New algorithm: LINAD, the Linear Additive Tree** -- `setup_LINAD()`. A decision tree with a linear model at every node, a leaf's coefficients the sum along its path. original algorithm, rtemis native implementation.
-- **LINAD generalizes the decision tree and the regularized linear model**, recovering each exactly: `max_leaves = 1` is a pure linear model, constant nodes with `gamma = 0` match `rpart` to machine precision, and with `gamma > 0` give the Additive Tree.
-- `setup_LINAD(split_search = "exhaustive")` scores a split by the loss after fitting both child models, finding interactions a gradient stump cannot see. Costs about as much as the stump search.
-- LINAD picks its number of leaves on `dat_validation`, as boosting picks its number of trees; `force_max_leaves = TRUE` keeps the whole tree.
-- `get_varimp()` on LINAD reports two measures: `importance`, the linear effect, and `split_gain`, the partitioning effect. A feature can carry one and not the other.
-- Every node carries a constant, as any tree's nodes do; `node_model` selects the model fitted on top of it. `mod@model@frame$node_value` is what the tree alone predicts at that node.
-- `setup_LINAD(gamma = )` moves the fit between a hard partition at 0 and one global linear model at 1, each case carrying `gamma^depth` of its weight into the other branch.
-- `setup_LINAD(root_learning_rate = )` shrinks only the root's slopes: at 0 the root is the outcome mean and the tree splits first, at 1 a full linear model is fitted before any split.
-- `setup_LINAD(constant_rule = )` and `(line_search = )` select among alternative update rules: how a node's constant is computed and the scope of the Newton step.
-- `setup_LINAD(node_model = "forward")` selects terms under a cost: `nvmax` is a ceiling and `forward_stop` \{"bic", "aic", "none"\} sets what a term must earn. `lambda` penalizes the fit and the selection alike.
-- `setup_LINAD(node_test = )` \{"none", "aic", "bic"\} keeps a ridge or elastic-net node's slopes only where they pay for themselves, and gives it a plain constant otherwise.
-- `setup_LINAD(split_criterion = )` \{"mean", "linear"\} scores a stump candidate by the level each side explains, or by its level and its slope in the split variable.
-- New `draw_linad()`: the fitted tree as an interactive hierarchy, each node labeled with what the tree alone predicts there and carrying its linear coefficients in a color-graded table on hover, so a coefficient changing sign between nodes reads at a glance.
-- `setup_LINAD(split_binning = , split_bin_type = )` discretize numeric features before either split search, spacing cut points by case or by range.
-- **The volcano and Manhattan plots of a `MassGLM` disagreed on what a sign looks like**: both used the same two colors, with opposite meanings. Positive and negative are now one pair package-wide, shared with `draw_linad()`'s coefficient tables.
-- `draw_linad()` follows light and dark themes -- node fills, the coefficient table and the hover marker are read from the theme's background luminance, so a custom theme is handled too. The sign colors deliberately do not move with it.
-- Hovering a `draw_linad()` node outlines it, tying the floating coefficient table to the node it describes.
-- `draw_linad()`'s coefficient table is bordered, so it no longer blends into the nodes behind it, and the node value is its headline number, pinned above the rows instead of scrolling away with them.
-- `draw_linad()` nodes are set in two tiers: the node value and case count as a small eyebrow over the rule, which breaks after the feature name so an operator never leaves its value. Relations are set as `\u2265` and `\u2260` rather than as ASCII digraphs.
+- `setup_LINAD()` configures the Linear Additive Tree, a decision tree with a linear model at every node whose leaf coefficients are the sum along the path.
+- LINAD recovers a pure linear model at `max_leaves = 1` and a CART-equivalent tree with constant nodes at `gamma = 0`.
+- `setup_LINAD(split_search = "exhaustive")` scores each split by the loss after fitting both child models.
+- LINAD selects its number of leaves on `dat_validation`; `force_max_leaves = TRUE` keeps the full tree, and `patience` stops growth early.
+- `setup_LINAD()` takes `gamma`, `root_learning_rate`, `constant_rule`, `line_search`, `node_model` \{"forward", "ridge", "elasticnet"\}, `node_test`, `split_criterion`, `split_binning`, and `split_bin_type`.
+- `setup_LINAD(split_features = , linear_features = , global_features = )` restrict which features may split, which enter the node models, and which have one coefficient shared by every leaf.
+- `get_varimp()` on LINAD reports `importance`, the linear effect, and `split_gain`, the partitioning effect.
+- `draw_linad()` draws a fitted LINAD tree as an interactive hierarchy with per-node coefficient tables; `show_changes` marks global, changed, and inherited coefficients.
+- `setup_LINADForest()` configures a bagged ensemble of Linear Additive Trees, each sized on its own out-of-bag cases, with `mtry_tree` and `mtry_split` feature sampling.
+- `se()` on a LINADForest returns infinitesimal jackknife standard errors.
+- A fitted LINADForest reports out-of-bag predictions and metrics.
+- LINADForest parallelizes across trees with results independent of worker count and backend.
+- `setup_GLMTree()` configures model-based recursive partitioning through 'partykit', with separate `regressors` and `partitioning_variables`.
+- `plot_learning()` and `get_learning_curve()` show loss against training progress for algorithms that train in steps.
+- `train()` accepts a named list of hyperparameter configurations for one algorithm and tunes across all of them; `mod@hyperparameters@variant` names the selected configuration.
+- `tuning_grid()` on a list of configurations returns the union of their grids with a `.variant` column.
+- Configs serialize a set of hyperparameter configurations as `{"variants": {...}}`.
+- `bias_variance()` decomposes a learner's error into bias and variance over resamples at a fixed test set; `true_values` measures bias against a known true function.
+- Case weights must have one finite, non-negative value per case and a positive mean.
+- Volcano and Manhattan plots share one package-wide pair of colors for positive and negative effects.
 
 ## 1.3.6
 
-- **A config stores the paths it was given, unresolved.** `outdir` and the data paths were resolved against the working directory and `~` expanded, so `outdir = "results/"` became an absolute path on Windows always and elsewhere whenever that directory existed. A recipe now travels between machines unchanged, and a record states the `outdir` it was given.
-- **`predict()` on a multiclass resampled classification keeps the class dimension.** `sapply()` flattened the `n x k` probability matrix of each resample into a column, so a 3-class `ClassificationRes` returned `n * 3` numbers with no `dim`. `"avg"` now returns an `n x k` matrix and `"all"` a list of them, binary included. Regression is unchanged.
-- `predict(type = "metrics")` on a resampled model aggregates per case, not per resample. `mean` and `sd` were computed over cases within each resample -- one number per resample, describing the outcome rather than the prediction.
-- `predict()` on a `CalibratedClassificationRes` takes `type`, not `what`, as its siblings do. `type` was swallowed by `...` and the default returned in silence.
-- **LightGBM hyperparameters renamed to the backend's own names**: `subsample` to `bagging_fraction`, `subsample_freq` to `bagging_freq`, `boosting_type` to `boosting`. All three were LightGBM aliases. `nrounds` and `early_stopping_rounds` keep their names, being `lgb.train()`'s own R arguments.
-- **DART and GOSS are reachable**: new `setup_LightGBM(boosting = )` \{"gbdt", "rf", "dart"\} and `setup_LightGBM(data_sample_strategy = )` \{"bagging", "goss"\}, with `drop_rate`, `max_drop`, `skip_drop`, `uniform_drop`, `xgboost_dart_mode`, `drop_seed`, `top_rate` and `other_rate`. Two of LightGBM's three boosting algorithms could not be selected at all. Also on `LightRuleFit`, whose first stage is a booster.
-- **Every LightGBM parameter rtemis can honor is now settable.** Tree regularization (`min_data_in_leaf`, `min_sum_hessian_in_leaf`, `min_gain_to_split`, `max_delta_step`, `path_smooth`, `extra_trees`, `linear_lambda`), binning and missing values (`max_bin`, `min_data_in_bin`, `use_missing`, `zero_as_missing`), categorical splits (`cat_l2`, `cat_smooth`, `max_cat_to_onehot`), structural constraints (`monotone_constraints` and friends, `interaction_constraints`, `feature_contri`), bagging and per-node feature sampling, cost-efficient boosting, quantized gradients, determinism and the per-stage seeds. `setup_LightGBM()` takes 77 hyperparameters, against 21 before.
-- Printing a `Hyperparameters` object names its unset hyperparameters and counts them, rather than giving each a line, and counts the tunable and fixed rosters rather than listing them. `setup_LightGBM()` printed 86 lines, 31 of them `NULL`.
-- **The four LightGBM algorithms now expose the same surface**, bar what each cannot use: LightCART fits one tree, so it takes no bagging, boosting mode or parallel tree learner; LightRF is a forest by definition, so no DART or GOSS. Everything else -- `device_type`, `force_col_wise`, `feature_fraction` and its per-node pair, `linear_tree`, `max_cat_threshold`, `min_data_per_group` -- reaches all four, where it previously reached two.
-- `setup_LightRuleFit()`'s GLMNET-step parameters are `alpha_glmnet` and `lambda_glmnet`, following the class's own `ifw_glmnet`. They spelled LightGBM parameters meaning something else -- the huber/quantile level, and an alias of `lambda_l2`, which the same class declares -- and renaming them frees LightGBM's `alpha` to be set there like anywhere else.
-- **A LightRuleFit hyperparameter now reaches its LightGBM step.** The forwarded set was a hand-written list; it is derived from what the two classes share, so a property cannot be declared and silently ignored.
-- GOSS combined with bagging, and `top_rate + other_rate > 1`, are refused rather than aborting inside the fit. Both read a `tune_over()` domain as well as a value: a search space is refused when no combination in it could work, and an unworkable cell of a workable space is refused as the tuner builds it.
-- **The LightGBM objective's own parameters are now settable**: `alpha` (huber delta / quantile level), `tweedie_variance_power`, `fair_c`, `poisson_max_delta_step`, `sigmoid`, `boost_from_average`, `reg_sqrt`. `setup_LightGBM(objective = "quantile")` silently trained the default 0.9 quantile before; `alpha = 0.1` now puts 10% of outcomes below the fit. Unset by default, so no existing fit changes.
-- Objective- and mode-specific parameters are gated on the property that selects them: setting `alpha` without `objective = "huber"` or `"quantile"` is an error naming what to set. `LightRuleFit`'s `alpha` is its GLMNET step's, so LightGBM's is not reachable there yet.
-- An unset LightGBM hyperparameter is no longer sent to the backend. LightGBM reads a `NULL` as an empty value and range-checks it: `alpha = NULL` aborted the fit with `Check failed: (alpha) > (0.0)`.
-- Property schemas gain `x-rtemis.group`, naming the declaration group a hyperparameter came from, so a form builder can render one section per group rather than one flat list of 80 fields.
-- A property spec field this version of rtemis does not know is dropped with a warning naming it, rather than aborting. It is reached whenever an object crosses versions -- a session running one rtemis while its workers load another.
-- New test gate over the rtemis/LightGBM parameter boundary: each of LightGBM's 141 parameters, read from the compiled library, must be declared, excluded with a reason, or listed as pending, and none may be declared under two of its aliases. 19 were declared before this release, 72 now, and nothing is left pending.
-- `setup_ConditionalSuperLearner()`'s Ranger oracle was declared but inert: S7 constructs an inherited property with the parent's default whatever a subclass redeclares, so the class published Ranger and constructed NNLS. A new gate rejects any class redeclaring an inherited default.
-- New `conformal(model, newdata)`: a prediction interval for a regression or a set of labels for a classification, covering the truth with probability at least `1 - alpha` under exchangeability alone -- finite-sample, distribution-free, any of the 24 algorithms. `se()` answers for three of them; this answers for all.
-- New `setup_SplitConformal()`, `setup_CVPlus()`, `setup_CQR()`. CV+ calibrates on the out-of-fold predictions a `SupervisedRes` already stores, spending no data, and resolves to jackknife+ over LOOCV folds and cross-conformal for a classification. CQR conformalizes a quantile regression forest's own bounds, so width tracks the noise.
-- The guarantee delivered is on the region: `1 - alpha` for split conformal and CQR, `1 - 2 * alpha` for the fold constructions. A region prints both it and the requested level.
-- Calibration data is not guessed. A model trained with `dat_test` calibrates on that split, whose residuals it already holds; a validation split is not taken by default, and the two cases where `calibrate()` has already fitted on the same rows are refused. CV+ requires the out-of-fold sets to partition the cases, checked on the indices.
-- Classification sets take `score` \{"APS", "LAC"\}. APS is randomized, without which a model erring on more than `alpha` of its cases returns every label for every case; the seed is resolved and recorded, as `setup_ExecutionConfig()` does. Empty sets are preserved.
-- New `conformal_metrics(region, true_outcome)`: coverage, and width or set size with the singleton and empty rates. Scored against outcomes the region did not see, coverage on the calibration data being `1 - alpha` by construction.
-- `predict()` on a Ranger model no longer consumes a draw from the caller's RNG. `ranger::predict()` takes its seed from the R stream when not given one, so `set.seed(1); predict(mod, x)` shifted every draw after it -- once per call, and once per fold for anything predicting under each fold's model.
-
-- `setup_SuperConfig(outdir = NULL)` -- write nothing to disk -- survives a `write_config()` / `read_config()` round-trip. The schema declares the field `["string", "null"]` and optional, so an explicit `null` and an omitted field are both valid and mean different things; both previously read back as the `"results/"` default, silently turning a run that wrote nothing into one that writes. `null` is now emitted and read as itself, and an omitted field still takes the default.
-
-- 'parallelly' moves from Suggests to Imports. `default_n_workers()` calls it unconditionally on the path of every `train()`, and 'future' already hard-imports it, so nothing new is installed.
-- `resample()` no longer loads 'survival' to test for a `Surv` object. 'survival' is a Suggests, so the call both hard-failed without it installed and cost a 450ms namespace load on the first `resample()` of a session -- charged to `train()` before its first outer fold. Cold `resample()`: 489ms to 4ms.
-- New `setup_ExecutionConfig(shared_memory = )` \{"none", "auto", "always"\}: hand workers the training data through shared memory ('mori') instead of serializing a copy per task. A 96 x 5 grid over a 19 MB training set transfers 9 GB without it. `"auto"` shares when workers are local and the payload is large enough, `"always"` errors when it cannot. Off by default. 60 tuning tasks on 8 workers: 12.2s to 8.5s.
-- **`shared_memory` now defaults to `"auto"`, and `"auto"` no longer applies a size threshold**: it shares whenever the run is parallel, the workers are local and 'mori' is installed. The 1 MB threshold existed to avoid a fixed cost that measurement does not find. On a 190 x 117 frame (190 kB): `mori::share()` costs 0.06ms once and 0.17ms per task in slower slicing, against 0.30ms per task saved on serializing and unserializing, before the transport those 180 kB would also cross. Results are unaffected either way. `"auto"` is best-effort and now also falls back, with one warning, if `mori::share()` itself fails; `"always"` still shares under sequential execution and still errors rather than degrades.
-- `train()` reports what shared memory did, once per run, when `shared_memory` is not `"none"` -- the share itself, and otherwise the reason for declining one: `Shared memory (auto): not sharing training data (258.5 kB) -- this run transfers nothing to workers.` Neither was reported at verbosity 1 before.
-- New `setup_ExecutionConfig(n_workers_outer = , n_workers_tuning = , n_workers_algorithm = )`: name the workers per level instead of letting `n_workers` be assigned to one level by priority. Naming any level switches the automatic assignment off and unnamed levels take 1. Outer resampling and tuning dispatch to processes and an outer fold runs inside one, so only one of the two may exceed 1; `n_workers_algorithm` is threads within a worker and combines with either, including under `backend = "none"`. `n_workers_outer = 4L, n_workers_algorithm = 2L` is four folds of two threads.
-- New `setup_ExecutionConfig(warm_workers = )`: load rtemis in every worker as the pool is built. TRUE by default; FALSE leaves each worker to load on its first task, which is ~1s cheaper per run and charges the difference to whichever dispatch is first.
-- New `worker_pool` node in the execution graph: the run's workers being started and warmed, timed as one bar under `train`. Workers are warmed on creation rather than loading rtemis on their first task, so setup is reported as setup instead of inflating the first fold that tunes. ~0.5s spawn + ~0.7s load on 4 workers.
-- Workers are started once per `train()` call and reused by every dispatch, instead of being built and torn down per dispatch and therefore per outer fold. Pool setup costs ~1s, so a tuned 10-fold run paid it 10 times: 10 folds x 15 grid cells on 4 workers, 27.5s to 8.5s, against 13.8s sequential. Parallel tuning under outer resampling was slower than sequential before this.
-- Outer resampling no longer serializes the level inside each fold. Folds were handed a 1-worker config unconditionally, so under `outer_resampling_config` a tuned run ran its grid one cell at a time and a parallelized learner ran on one thread. Folds now receive a sequential config only when the folds themselves are parallel.
-- Tuning dispatches through the same path as outer resampling, so a grid search reproduces across `"none"`, `"future"` and `"mirai"` at any worker count. Grid cells take one RNG substream each, so tuning results change from 1.3.5 for algorithms that draw.
-- Tuning reports when no hyperparameter combination can be ranked, instead of leaving every tuned hyperparameter `NA` in silence and letting the algorithm fall back to its own default. Reached whenever the metric is undefined on any one inner resample: `balanced_accuracy` scores `NaN` on a fold missing a class, which happens whenever the rarest class has fewer cases than there are folds.
-- With `backend = "future"` and no `future_plan` given, the plan is now `"multisession"` on every platform, not `"multicore"` where forking is available. Forking a loaded R session is unsafe and fails as tasks resolving instantly and returning `FutureInterruptError`. `future_plan = "multicore"` still forks on request.
-- `futurize` and `future.apply` are no longer dependencies.
-- `preprocess()` runs on a data.table for all inputs; each of its steps replaces or adds a column by reference instead of copying the frame, and it reaches the native `one_hot()` data.table method. Nine steps over 1e6 x 21: 35.2s to 6.8s for a data.frame, 24.3s to 3.5s for a data.table.
-- New `setup_Preprocessor(holidays = )`: choose which holidays `add_holidays` flags, named as timeDate holiday functions. The set was previously fixed, and its `"LaborDay"` is May 1, not US Labor Day; the default is now `c("USLaborDay", "NewYearsDay", "ChristmasDay")`. `add_holidays` no longer reports a missing date as a holiday.
-- `preprocess()` step order reworked: feature creation (`add_date_features`, `add_holidays`) runs after the case and feature filters but ahead of every conversion, so derived features are encoded and scaled like any input column. `numeric_quant_n = 1` is now rejected, since one break bounds no bin, and `unique_len2factor = 1` disables the step, since a feature with one unique value is a constant.
-- **A tuning search space type-checks its values.** `tune_over()` values were bound- and enum-checked but never type-checked: the property's class is a union with `HyperparameterCandidates`, so S7 confirmed the wrapper and stopped there. `setup_LightGBM(ifw = tune_over(c("a", "b")))` was accepted, as was the same thing arriving over the wire, and it failed later inside the tuner. 129 of the package's 521 declared properties were affected; a `clean_*()` call in the relevant `setup_*()` masked it for some but not all.
-- `clean_int()` and `clean_posint()` reach inside a list as they already reached inside a search space, so a nested integer property takes `list(c(1, 2, 3))` the way every other integer argument takes `3`. Applied to `Ranger`'s `inbag` and `Custom` resamples, which had no coercion at their boundary. A rejected element is reported by position rather than as `X[[i]]`.
-- **A nested container property type-checks its elements.** `prop_array()` declares what one element is, but a list of vectors has no R class to say so, so the property is a plain `list` and S7 -- which enforces every other property's type before its validator runs -- had nothing to enforce. A spec declaring integer items accepted `list(c(1.5, 2.5))` and `list("a")`; bounds, arity and missingness were checked, type was not. Affects `Ranger`'s `inbag` and `split_select_weights`, and `Custom` resamples.
-- **A broadcast container accepts the bare element it documents.** `prop_array(broadcast = TRUE)` means "this element at every position", and the schema emitted both shapes, but the property's S7 class listed only the list -- so S7 rejected the bare form before the validator implementing broadcasting could run. `setup_Ranger(split_select_weights = c(0.3, 0.7))`, the documented "one vector applied to every tree", failed. The bare element is held to the same spec a listed one would be.
-- An empty nested container is rejected rather than silently accepted: `min_items` defaulting to 1 was compared with `> 1L`, so the default never fired, and the nested branch returned before the emptiness check every other container reaches. `NULL` remains the only way to leave a property unset.
-- **`setup_Resampler(stratify_var = )` works.** It names a column, but `resample()` passed the name on as if it were the column's values, so `as.numeric()` made it `NA` and every stratified resample died in `cut()` with `invalid number of intervals`. The name is now resolved against the data before `x` is narrowed to the outcome, which is the only point at which the frame is still there to resolve it in.
-- **`setup_Resampler(id_strat = )` takes a column name, not a vector of per-case IDs.** A name is one string that means the same thing to rtemis CLI/shell, and rtemislive; a per-case vector is true only of one dataset in one row order, and published a record field the size of the data. `resample()` now needs the data frame the column lives in. `train()` takes a named column to identify cases rather than describe them: it groups the resamples by it and excludes it from the features, so a subject ID does not reach the learner as a high-cardinality predictor.
-- New `setup_Resampler(type = "Custom", resamples = )`: resample on indices you supply, one integer vector of training cases per resample. The type was published and unreachable -- `setup_Resampler()` rejected it, `resample()` had no branch for it, and a config naming it read back an object that failed inside `resample()` on a missing property. Indices are positions in one dataset, so they stay in R and are not written to a config or record; the type and resample count are, since a run may assert it resampled that way. A config naming `"Custom"` is now rejected on read, rather than accepted and left in a state nothing can run.
-- `read()` reads a parquet whose strings are Arrow's `string_view` type, which is what polars writes and what its parquet writer gives no way to avoid. Every such file failed with `cannot handle Array of type <utf8_view>`: `arrow` reads the table and has no R converter for the view types. `string_view` and `binary_view` fields are now cast to `utf8` and `binary` before the conversion, a no-op for a file that read fine before.
+- Configs store the paths they are given, without resolving them against the working directory or expanding `~`.
+- `predict()` on a multiclass resampled classification returns an `n x k` probability matrix for `type = "avg"` and a list of them for `type = "all"`.
+- `predict(type = "metrics")` on a resampled model aggregates per case.
+- `predict()` on a `CalibratedClassificationRes` takes `type`.
+- LightGBM hyperparameters use LightGBM's own names: `bagging_fraction`, `bagging_freq`, and `boosting` replace `subsample`, `subsample_freq`, and `boosting_type`.
+- `setup_LightGBM(boosting = , data_sample_strategy = )` select DART and GOSS, with their parameters.
+- `setup_LightGBM()` exposes LightGBM's tree regularization, binning, missing-value, categorical, constraint, sampling, quantization, and determinism parameters.
+- `setup_LightGBM()` exposes objective parameters (`alpha`, `tweedie_variance_power`, `fair_c`, `poisson_max_delta_step`, `sigmoid`, `boost_from_average`, `reg_sqrt`), each applicable only under the objective that uses it.
+- `setup_LightCART()`, `setup_LightRF()`, and `setup_LightRuleFit()` expose the LightGBM parameters that apply to each.
+- `setup_LightRuleFit()` names its GLMNET-step parameters `alpha_glmnet` and `lambda_glmnet`.
+- Printing a `Hyperparameters` object summarizes unset, tunable, and fixed hyperparameters.
+- Property schemas carry `x-rtemis.group`, naming the declaration group of each hyperparameter.
+- `conformal()` returns prediction intervals or label sets with finite-sample coverage for any supervised model.
+- `setup_SplitConformal()`, `setup_CVPlus()`, and `setup_CQR()` configure split conformal, CV+, and conformalized quantile regression.
+- Conformal classification sets take `score` \{"APS", "LAC"\}.
+- `conformal_metrics()` reports coverage and interval width or set size.
+- `predict()` on a Ranger model leaves the caller's RNG state unchanged.
+- Execution configs take `shared_memory` \{"auto", "none", "always"\} to pass training data to local workers through 'mori'.
+- Execution configs take `n_workers_outer`, `n_workers_tuning`, and `n_workers_algorithm` to assign workers per level.
+- Execution configs take `warm_workers` to load rtemis in each worker as the pool starts.
+- Workers start once per `train()` call and are reused across dispatches; the execution graph times their startup in a `worker_pool` node.
+- Grid search results are identical across backends and worker counts; tuning results change for algorithms that draw random numbers.
+- 'parallelly' moves from Suggests to Imports; 'futurize' and 'future.apply' are no longer dependencies.
+- `preprocess()` modifies a data.table by reference and runs substantially faster.
+- `setup_Preprocessor(holidays = )` selects the holidays `add_holidays` flags.
+- `preprocess()` creates date and holiday features before encoding and scaling them.
+- `setup_Ranger(split_select_weights = )` accepts a single vector applied to every tree.
+- `setup_Resampler(id_strat = )` takes a column name; `train()` groups resamples by it and excludes it from the features.
+- `read()` reads Parquet files with Arrow `string_view` and `binary_view` columns.
 
 ## 1.3.5
 
-- **License: BSD 3-clause**, replacing GPL (>= 3). This is what the dependency work of this release was for: with `digest` replaced by `openssl` and `htmltools` moved to Suggests, no part of rtemis's own code calls into a copyleft package, and `rtemis.core` (relicensed to BSD 3-clause in 0.4.3) was the last GPL entry in `Imports`. What remains there is `data.table` (MPL-2.0), `future` (LGPL >= 2.1, which permits use under any license), `openssl` and `S7` (MIT). The GPL packages in `Suggests` - `glmnet`, `ranger`, `rpart`, `mgcv`, `earth`, `e1071`, `hal9001` and the rest - are loaded conditionally by the algorithms that need them and impose no obligation on this package or on code that uses it. Users who could not adopt a copyleft dependency can now use rtemis; users who could are unaffected.
-
-- **`train()` parallelizes outer resamples.** The third parallelization level was computed and never used, so a run with a non-parallelized algorithm and no tuning - exactly the case reserved for it - trained one fold at a time. 8 folds on 4 workers: 31.5s to 12.0s. The worker priority is unchanged (parallelized algorithm > tuning > outer resampling), and supplying a `progress` callback no longer forces sequential execution.
-- New `setup_ExecutionConfig(seed = )`: master seed for a run's computation RNG, separate from a `ResamplerConfig` seed, which governs the splits. Left unset, one is drawn and recorded, so an unseeded run can still be reproduced. One L'Ecuyer-CMRG substream per outer fold, assigned by fold index, so a run gives the same answer sequentially and in parallel, under either backend, at any worker count.
-- Outer folds are now independently seeded. Results for stochastic algorithms under `outer_resampling_config` change from 1.3.4.
-- `train()` no longer disturbs the caller's RNG when a seed is in effect, so a seeded run repeats without re-seeding. `set.seed(x); train(...)` stays deterministic either way.
-- A parallel run records the same execution graph as a sequential one: per-fold sub-logs are merged into `mod@session` rather than reduced to a fold node.
-- `default_n_workers()` returned `parallelly::availableCores()` with its mechanism name attached, so worker counts printed as `c(system = 7)`.
-
-- New `explain(model, newdata, background)`: per-case Shapley contributions, `sum(phi) + baseline == prediction` exactly, on the model's own additive scale. All 24 algorithms answer; 15 by an exact estimator that reads the model's own structure - TreeSHAP from `predict(type = "contrib")` and an exact single-tree enumeration, `phi_j = beta_j * (x_j - E[x_j])` for the linear family, native terms for GAM and MARS, the basis walk for HAL - and the rest by KernelSHAP via `shapr`. A `ConditionalSuperLearner` case is explained by the expert that predicted it.
-- New `setup_SHAP()`: `estimator` \{"auto", "exact", "kernel"\}, `perturbation` \{"interventional", "conditional"\}, `scale`, `background_n`, `n_coalitions`, `approach`, `seed`. `explain()` resolves what is left NULL and records what it resolved to, so two explanations are never silently incomparable.
-- New `explanation_methods()`: per algorithm, the estimator `"auto"` resolves to, whether it is exact, which value function it computes, and why. `exact` is `NA` where that depends on the fitted model rather than the algorithm.
-- New readers over an explanation: `shap_case()` for one case ordered as a waterfall reads, `shap_long()` one row per case per feature, `shap_by_level()` for the contribution of a categorical by the level each case has, and `get_varimp()` for `mean(|phi|)` per feature. `get_varimp(explain(mlp, ...))` gives an MLP the importance measure a torch network has none of.
-- `explain()` on a `SupervisedRes` takes `type` \{"avg", "all"\}. The fold average is exact for the fold-averaged prediction, given one background shared across folds.
-- Contributions are reported in the columns you supplied, not the encoded ones: a factor gets one value, summed over its one-hot or contrast columns. The space actually reached is on `@space`, since a decomposition stops it at the components.
-- New `reconstruct(decom, x)`: `Xhat = decode(encode(X))`, in input units and column order. `X - Xhat` is what the decomposition could not represent; `rowMeans()` of its square scores anomalous cases, `colMeans()` poorly captured features. Needs `invertible`: PCA, ICA, NMF.
-- New: `decomp()` scores what it fitted into `Decomposition@metrics`, and the run record gains a `metrics` block. `explained_variance_ratio = 1 - ||X - Xhat||^2 / ||X - colMeans(X)||^2`, `relative_reconstruction_error = ||X - Xhat|| / ||X||`, `reconstruction_rmse`, `max_abs_component_correlation`, and `effective_dimensionality = sum(v)^2 / sum(v^2)` over the component variances `v`. All reconstruction is in input units, so the numbers compare across algorithms and across configurations of one algorithm.
-- New `decomp_metrics(decom, x, new_data)`: the `oos_` versions, plus `reconstruction_gap = oos_relative_reconstruction_error - relative_reconstruction_error`.
-- New `decomposition_traits()`: per algorithm, `linear`, `can_apply`, `invertible`, `orthogonal`, `ordered`, `deterministic`, `preserves`, `nonneg`, `package`. `available_decomposition(traits = TRUE)` prints it.
-- New `applicable_metrics()`: which metrics apply to which algorithm, derived from the traits each metric requires rather than tabulated. An inapplicable metric is `NA`.
-- `Decomposition` and `Clustering` gain `@data_fingerprint`, so a `decomp()` or `cluster()` record's `provenance.data_training` states which data the run used. Only `train()` recorded it before, leaving the other two families' records unable to say what they had been run on. `decomp()` fingerprints `config@features` alone, since the columns it did not decompose are not data it used. `decomp_metrics()` compares `x` against it and reports a mismatch without raising.
-- **NMF** scores are each case's non-negative coefficients on the fitted basis `W`, solved with `NMF::fcnnls()`, not the projection `X %*% W`. Every NMF decomposition's values change.
-- `setup_NMF(method = )` reaches `NMF::nmf()`. It was dropped, so every fit ran the default.
-- NMF errors when `k` exceeds the rank of the fitted basis, where the scores are not identified.
-- **ICA** `apply_decomp()` reproduces the fit. Under `row_norm = TRUE` (the default) it divided each case by its standard deviation without subtracting its mean, so replaying a fit returned different components. ICA scores from `apply_decomp()` change.
-- `do_call()` reports the backend's own error.
-- `htmltools` is no longer a hard dependency. With the `digest` change below, rtemis's own code no longer calls into any GPL package, and `rtemis.core` is the only GPL package it Imports directly. `future` still reaches `digest`, `codetools`, `globals` and `parallelly` on its own account, so the installed tree is not GPL-free. The small amount of HTML the package builds - `check_data()`'s HTML rendering, the tooltips in `draw_protein()` - is built with rtemis.core's new `html_tag()` and friends, which emit markup as strings. `htmltools` moves to Suggests, needed only by `draw_leaflet()`, where `leaflet` and `htmlwidgets` (both MIT) require its objects and supply it themselves.
-- `data_fingerprint()` hashes with `openssl` rather than `digest`, so no part of rtemis's own code calls into a GPL dependency. The algorithms on offer change with it: `sha384`, `sha224`, `sha3-256`, `sha3-512`, `blake2b` and `blake2s` join `sha256` (still the default), `sha512`, `sha1` and `md5`, while the non-cryptographic ones `digest` supplied - `xxhash32`, `xxhash64`, `xxh3_64`, `xxh3_128`, `blake3`, `spookyhash`, `murmur32`, `crc32`, `crc32c` - have no `openssl` counterpart and are gone. `blake2b` and `blake2s` are the fast options in their place. Nothing shipped could hold a fingerprint yet, so no saved model is affected.
-- `DataFingerprint` gains `@encoding`, the exact byte recipe hashed - `file-bytes`, `arrow-ipc`, `r-serialize-v3` - and `same_data()` compares it in place of `@method`. `method` names the kind of identity asked for and means the same in any language; `"object"` names a family rather than a definition, so an R fingerprint and a Python one would both claim it while hashing different bytes, and comparing methods would report that as *different data* rather than *not comparable*. The token carries its format version, so bumping the pinned serialization version renames the encoding rather than silently changing the hashes it affects - v2 and v3 payloads coincide for a plain data.frame and diverge for any ALTREP column. R-to-R comparisons are unchanged.
-- `DataFingerprint` records `@language` and `@data_structure` -- what computed the digest and the form the data was held in -- in place of `@portability`, which claimed which runtimes could reproduce it. Measured against pyarrow, that claim was false for `arrow-ipc`: record batches are byte-identical, but R writes an empty `custom_metadata` map where pyarrow omits the field, so the digests differ. Agreement is reachable under three rules no specification states, so the class now records what happened rather than asserting what others could reproduce. `@language` and `@data_structure` are stored, so they are on the wire where `@portability` was not.
-- `data_fingerprint(method = "table")` accepts a matrix; `arrow::as_arrow_table()` has no method for one, so it failed with arrow's error where the other two methods worked. It is the only method under which one table held as a data.frame, data.table, tibble or matrix gives one hash.
-- `method = "object"` hashes about 2x faster: the serialization header is skipped by seeking a connection over the stream instead of dropping it with `bytes[-seq_len(offset)]`, which allocated a second copy of the whole stream and paid for the complement of the index it was given - around 0.36 s and 80 MB to remove 23 bytes. Hash values are unchanged.
-- Hashes from `method = "object"` are stable across locales, not only across R versions. Serialization writes a header naming the R that wrote the stream and the native encoding, none of which describes the data; the whole header is now dropped before hashing rather than the leading 14 bytes, so the same table fingerprints identically on a machine whose native encoding differs. This changes every "object" hash value.
-- New algorithm: **MLP**, a multilayer perceptron built and trained with `torch`, for regression, binary and multiclass classification. `setup_MLP()`. It is the general-purpose neural network the roster was missing: TabNet is a specific attention architecture rather than the baseline anyone reaching for "a neural net" expects.
-- The hidden architecture is given either way round. `hidden_units = c(256L, 128L, 64L)` states the widths; leaving it NULL generates them from `shape`, `shape_layers` and `shape_max_units`, so `setup_MLP()` with no arguments produces a sensible network for someone who does not know what to type. Setting both is an error naming both, never a silent override. The seven profiles - `funnel` (the default), `constant`, `triangle`, `long_funnel`, `diamond`, `hexagon`, `stairs` - are Talos's vocabulary by way of AutoPyTorch, and every one returns exactly `shape_layers` layers, which the reference implementation does not. `shape_max_units` defaults to four times the *encoded* input width, so embeddings and one-hot columns are counted as the network sees them.
-- `hidden_units` is tunable, one architecture per candidate: `setup_MLP(hidden_units = tune_over(c(64L, 32L), c(128L, 64L, 32L)))`. It is the first vector-valued hyperparameter in the package that can be searched, which 1.3.4's search-space type is what made possible.
-- Categorical features become learned embeddings, sized from each feature's cardinality unless `embedding_dim` fixes them, or one-hot columns under `embeddings = FALSE`. All the encoding is `setup_Preprocessor()` options rather than logic in the train method, and the fitted encoder is re-applied at `predict()`. Numeric features are always centered and scaled: unlike the tree models, an unscaled network fails quietly.
-- Early stopping runs against `dat_validation` and keeps the weights of the best validation epoch rather than the last. Without validation data the fit runs the full `max_epochs` and `patience` has no effect.
-- A fitted model saves and reloads. A `torch` module holds external pointers and an `.rds` written from one reloads as "external pointer is not valid", failing at the first prediction rather than at read, so the model stores its parameters serialized and rebuilds the module from its own recorded architecture.
-- `device` defaults to `cuda` where available and `cpu` otherwise, and `train()` names the device it resolved: `Training MLP Regression on CPU...`. `"mps"` is supported but never chosen automatically - measured on an M5 it is 1.1-3x slower than the CPU at every tabular size tried, and a `seed` reaches weight initialization and batch shuffling there but not dropout, so a seeded `mps` fit reproduces exactly until a dropout rate is non-zero, which warns.
-- `l1_penalty` and `weight_decay` are not interchangeable: `weight_decay` is the L2 term of the torch optimizer, decoupled from the gradient under `adamw`, and `l1_penalty` is accumulated over the linear weights and added to the loss.
-- `get_varimp()` returns NULL for MLP: a torch network has no native importance measure.
-- The architecture a run resolved is written back into `hidden_units`, so the run record reports it with `origin: "derived"` when it came from a shape and `origin: "tuned"` when it was searched, beside the `shape_*` settings that produced it.
-- Grid search works over a vector-valued hyperparameter. Reading a grid row with `as.list()` left a list column's value wrapped in a one-element list, so every cell of an architecture search was rejected by the property's own type check, and `print_tune_finding()` raised on a value with more than one element. A candidate that is itself a vector now prints parenthesized: `{8, (16, 8)} => 8`. Nothing shipped could reach either before MLP - 1.3.4 made vector-valued hyperparameters tunable but no property was one.
-- A hyperparameter being tuned prints beside the others rather than breaking the list open: `learning_rate: <tune> 0.001, 0.01`, where the type tag's slot carries `<tune>` in the tuner color. A long search elides and gives its size, `<tune> 4, 8, 16, 32, 64, 128, ... (8 values)`. Needs the `repr_ls()` in rtemis.core 0.4.2: against an earlier build the search space printed on its own line and the next hyperparameter ran on after it.
+- rtemis is licensed under BSD 3-clause, replacing GPL (>= 3).
+- `train()` parallelizes outer resampling.
+- Execution configs take `seed`, a master seed for computation separate from the resampling seed; an unset seed is drawn and recorded.
+- Each outer fold runs on its own RNG substream, so results match across sequential and parallel runs; results for stochastic algorithms under outer resampling change.
+- `train()` leaves the caller's RNG state unchanged when a seed is in effect.
+- A parallel run records the same execution graph as a sequential one.
+- `explain()` computes per-case Shapley contributions for every supervised algorithm, exactly where the model structure allows and by KernelSHAP through 'shapr' otherwise.
+- `setup_SHAP()` configures the explanation estimator, perturbation, scale, background, and coalitions.
+- `explanation_methods()` lists, per algorithm, the estimator `"auto"` selects and whether it is exact.
+- `shap_case()`, `shap_long()`, `shap_by_level()`, and `get_varimp()` read an explanation.
+- `explain()` on a `SupervisedRes` takes `type` \{"avg", "all"\}.
+- Shapley contributions are reported per input column, summed over encoded columns.
+- `reconstruct()` returns a decomposition's reconstruction of the data in input units, for PCA, ICA, and NMF.
+- `decomp()` stores reconstruction and component metrics in `Decomposition@metrics` and the run record.
+- `decomp_metrics()` computes out-of-sample decomposition metrics.
+- `decomposition_traits()` lists each decomposition algorithm's properties; `available_decomposition(traits = TRUE)` prints them.
+- `applicable_metrics()` lists which metrics apply to which decomposition algorithm.
+- `Decomposition` and `Clustering` record a data fingerprint, reported in run records.
+- NMF scores are each case's non-negative coefficients on the fitted basis; NMF results change.
+- `setup_NMF(method = )` selects the `NMF::nmf()` method.
+- ICA `apply_decomp()` reproduces the fitted components under `row_norm = TRUE`; ICA scores from `apply_decomp()` change.
+- `fitted_config()` returns a `Preprocessor`'s config with its learned values filled in.
+- 'htmltools' moves from Imports to Suggests, needed only by `draw_leaflet()`.
+- 'openssl' replaces 'digest' as a dependency.
+- `setup_MLP()` configures a multilayer perceptron through 'torch' for regression and classification.
+- `setup_MLP()` takes explicit `hidden_units` or generates them from `shape`, `shape_layers`, and `shape_max_units`; `hidden_units` is tunable, one architecture per candidate.
+- MLP encodes categorical features as learned embeddings or one-hot columns, and centers and scales numeric features.
+- MLP stops early on `dat_validation` and keeps the best epoch's weights.
+- A fitted MLP can be saved and reloaded.
+- MLP uses CUDA when available and the CPU otherwise; `device = "mps"` is supported on request.
+- Printed hyperparameters show search spaces inline, tagged `<tune>`.
 
 ## 1.3.4
 
-**Breaking changes**
-
-- Tuning is asked for explicitly: `setup_LightRF(max_depth = tune_over(3L, 4L, 5L))`. A bare vector is a value everywhere, so `max_depth = 3:5` is an error that names the replacement. Passing several values used to mean "search these", which held only while no hyperparameter was itself vector-valued - `hidden_units = c(48L, 24L)` is one architecture, and no rule about shape can tell that from two candidates. A search space is now its own type, `HyperparameterCandidates`, that the tuner, the tuning grid, the data-bound checks and the run record all read rather than infer. `tune_over()` takes one candidate per argument, or a single vector or list holding them, and needs at least two: a one-value search costs a full resampling pass and can only return the value it was given.
-- On the wire a search space is tagged - `"max_depth": {"candidates": [3, 4, 5]}` - and a value is anything else. Every tunable property's published schema changes to match: the second `oneOf` branch is an object rather than an array, carrying `minItems: 2` and `additionalProperties: false`, so the two-candidate minimum is part of the contract rather than only an R check. The point is that `[3, 4, 5]` could not be read without knowing the property's declared type, and `{"candidates": [3, 4, 5]}` can - which also lets a domain that is sampled rather than enumerated arrive later as a sibling key instead of a new shape.
-- Vector-valued hyperparameters may now be tuned at all: `@container` and `@tunable` were declared mutually exclusive, which is what would have kept a neural network's layer widths fixed. `@broadcast` and `@tunable` are exclusive instead, a narrower rule covering the one combination that cannot be written unambiguously.
-
-- `preprocess(factor2integer = TRUE)` records the levels it coded against, and `apply_preprocessor()` codes new data against those rather than against whatever levels the new data happens to carry. `as.integer()` on a factor returns a position in *that factor's* levels, so a validation, test or `predict()` frame whose factor has fewer levels, or the same levels in a different order, was coded differently from training and the model scored garbage, silently. `prepare_lgb_data()` is the only caller, so this fixes a real **LightGBM** defect for any model with a factor feature scored on independently constructed `newdata`. Training output is unchanged - capturing the levels at fit changes nothing about the fit, and the entire benefit lands on the replay. A value whose level was not seen in training takes the single index above the known levels, so a consumer sizes the feature at `length(levels) + 1L` categories; `NA` stays `NA`.
-- One-hot encoding is pinned the same way, and there the defect changed the *shape* of the design matrix rather than its values. `preprocess()` never recorded `one_hot_levels`, so every replay re-derived the columns from the data in front of it, and new data with a missing or reordered level produced a different number of columns, in a different order. **HAL**, **KNN**, **MARS**, **SPLS** and **SVM** each build a one-hot preprocessor at train time and replay it at `predict()`, and all five were exposed. A level unseen in training has no column to take, so its row is all-zero - the degradation that preserves the encoded width, and what `one_hot.data.table` already did.
-- `one_hot()` looks its level map up by feature name. The map was previously read with a full-frame column index while it holds one entry per factor, which is correct only when the factors are the leading columns of the frame and raises `subscript out of bounds` otherwise. A map entry with no matching column is now ignored rather than rejected, which is what a preprocessor learned on data that includes the outcome and applied to the features alone requires.
-- `factor2integer` codes are integer under both `factor2integer_startat0` settings; `TRUE`, the default, previously returned double. The codes themselves are unchanged. A category code indexes an embedding table or a LightGBM category, and a double cannot.
-- `scale` and `center` skip the columns `factor2integer` coded. Standardizing a category code yields a fraction of an index that no consumer can read back, and `setup_Preprocessor(factor2integer = TRUE, scale = TRUE)` previously did exactly that. This changes what `preprocess()` returns for that combination, and `scale_centers` / `scale_coefficients` now cover only the genuine numeric features.
+- Tuning requires `tune_over()`: `setup_LightRF(max_depth = tune_over(3L, 4L, 5L))`. A bare vector is a value, and `max_depth = 3:5` is an error naming the replacement.
+- Serialized search spaces are tagged objects, `{"candidates": [3, 4, 5]}`, with at least two candidates.
+- Vector-valued hyperparameters can be tuned.
+- `apply_preprocessor()` codes factors against the training levels for `factor2integer` and one-hot encoding, so predictions on new data use the training encoding.
+- `factor2integer` codes are integer.
+- `scale` and `center` skip columns coded by `factor2integer`.
 
 ## 1.3.3
 
-- New algorithm: **SuperLearner**, the cross-validated stacked ensemble of van der Laan, Polley & Hubbard, for regression and binary classification. `setup_SuperLearner()`; each base learner predicts every case from a fit that did not see it, and the meta learner is fitted on those predictions. A base learner holding a search space becomes one library entry per combination, so the ensemble's own cross-validation does the model selection and no inner tuning is needed. `discrete = TRUE` keeps the single lowest-risk entry. The cross-validated predictions and the resampler are kept on the fitted model, for a cross-fitting estimator to reuse.
-- New algorithm: **ModalityStacking**, the same machinery with each base learner bound to one group of features, for a wide `x` built by concatenating modalities. `setup_ModalityStacking(feature_groups = )` makes "one wide model or one model per modality" a one-argument comparison.
-- New algorithm: **ConditionalSuperLearner**, Valdes, Interian, Gennatas & van der Laan (2022), which selects a model from a library *conditional on the covariates* rather than combining them: an oracle routes each case to one of K experts. `setup_ConditionalSuperLearner()`; `n_iterations` tunable. `get_varimp()` returns the oracle's importance - which covariates decide *which model applies*. Multiclass aborts.
-- New algorithm: **NNLS**, non-negative least squares via `nnls`, for regression and binary classification. `setup_NNLS()`; `normalize = TRUE` scales the coefficients to sum to 1, making the fit a convex combination. It is the default stacking meta learner, and a poor general-purpose learner - no intercept, and a sign constraint.
-- A meta learner is a `Hyperparameters` subclass like any other algorithm, so it works wherever a supervised learner does: `train()`, outer resampling, `calibrate()`, `SuperConfig`, run records.
-- `schema.rtemis.org` publishes all four leaf pairs - `hyperparameters/{nnls,superlearner,modalitystacking,conditionalsuperlearner}/v1` with their `record.json`. A meta learner's leaf references the `hyperparameters` union it is itself part of, so a config nests its library.
-- New algorithm: **MARS**, Multivariate Adaptive Regression Splines via `earth`, for regression, binary and multiclass classification. `setup_MARS()`; `degree`, `nprune`, `penalty`, `nk` and the forward-pass controls tunable. Classification fits a binomial GLM on the MARS basis, so `predict()` returns probabilities rather than the raw fit. `get_varimp()` reports earth's three criteria - `importance` (the GCV criterion), `rss` (the same accumulation unpenalized), and `subset_proportion`, the fraction of pruning subsets that retain the feature. `pmethod = "cv"` selects the number of terms by cross-validation inside the fit and requires `nfold`; multiclass allows only `"backward"` or `"none"`. Missing values abort.
-- `train(x, weights = )` accepts the numeric vector its documentation describes; it previously aborted.
-- A `SuperConfig` or `SuperConfigLive` naming a `weights` column now resolves it: the values become the case weights and the column is dropped from the training, validation and test sets. It was previously passed on as a literal string.
-- A run record carries every property of the algorithm that produced it, including those inherited from an intermediate class, and records a list of configs as one block per element.
-- Reading a config no longer calls out to the `rtemis` CLI, and `options(rtemis.validate = )` / `options(rtemis.cli = )` are gone. `check_wire_keys()` and the `setup_*` functions enforce the same `PropertySpec`s the published schemas are generated from, so rtemis validates its own contract with no external tool and `train(outdir = )` never depends on what is on the `PATH`.
+- `setup_SuperLearner()` configures the cross-validated stacked ensemble of van der Laan, Polley & Hubbard for regression and binary classification.
+- `setup_ModalityStacking()` stacks base learners, each bound to one group of features.
+- `setup_ConditionalSuperLearner()` routes each case to one expert from a library through a learned oracle (Valdes, Interian, Gennatas & van der Laan, 2022).
+- `setup_NNLS()` configures non-negative least squares through 'nnls', the default stacking meta learner.
+- `setup_MARS()` configures Multivariate Adaptive Regression Splines through 'earth' for regression and classification.
+- `train(weights = )` accepts a numeric vector.
+- A `SuperConfig` `weights` column supplies case weights and is excluded from the features.
+- `read_config()` validates configs without calling the rtemis CLI; `options(rtemis.validate = )` and `options(rtemis.cli = )` are removed.
 
 ## 1.3.2
 
-**Breaking changes**
-
-- Isotonic calibration no longer returns probabilities of exactly 0 or 1. A block of uniformly labeled cases was previously fitted at the boundary, which asserts certainty and makes log loss infinite for a single case there whose label disagrees. Fitted values are now held at least `1 / (2 * n)` from each end, `n` being the number of calibration cases - the finest distinction that many cases can support. Only the saturated blocks move, so the map stays non-decreasing and rankings are unchanged. Regression fits are untouched.
-- `calibrate()`'s `hyperparameters` argument defaults to `NULL`, which selects the default calibrator (`setup_Isotonic()`), rather than naming it in the signature.
-
-- Hyperparameters that only apply under certain values of another are now declared as such rather than described in prose, and a grid search over them is **conditional**. `reduce_basis` applies only at `smoothness_orders` of 0, so `setup_HAL(smoothness_orders = c(0L, 1L, 2L), reduce_basis = c(0.1, 0.5))` - previously rejected - now searches the four combinations that differ rather than the six of the cross product: `reduce_basis` is left unset above order 0, and the combinations that duplicates makes identical are collapsed, so none is fit and ranked twice. A search no value of which puts the hyperparameter in effect is still an error.
-- New `tuning_grid()` returns the combinations a grid search would fit, one per row, so a search can be inspected before `train()` runs it. `tune_GridSearch()` fits exactly those rows, and reports the reduction at `verbosity >= 1`.
-- The published schemas carry the dependency in `x-rtemis.applies_when`, so a form can disable a hyperparameter that does not apply to the values already chosen rather than accept one the server would reject.
-- New algorithm: **SPLS**, Sparse Partial Least Squares via `spls`, for regression, binary and multiclass classification. `setup_SPLS()`; `k`, `eta` and `kappa` tunable. Takes no case weights, so `ifw = TRUE` aborts.
-- New algorithm: **KNN**, weighted k-Nearest Neighbors via `kknn`, for regression, binary and multiclass classification. `setup_KNN()`; `k`, `kernel` and `distance` tunable. Takes no case weights, so `ifw = TRUE` aborts; reports no variable importance, so `get_varimp()` returns `NULL`.
-- New algorithm: **BART**, Bayesian Additive Regression Trees via `stochtree`, for regression and binary classification. `setup_BART()`; the mean-forest prior and the variance forest tunable. Being a sampler, it is the first non-linear model with standard errors - `se()` returns the posterior standard deviation of the mean function - and `get_varimp()` reports two measures, `importance` (variable inclusion proportion) and `inclusion_sd`. Multiclass aborts; so does `ifw = TRUE` under `link = "cloglog"`, which `stochtree` cannot weight.
-- New algorithm: **MonotonicHAL**, a shape-constrained Highly Adaptive Lasso via `hal9001`, for regression and binary classification. `setup_MonotonicHAL()`; `smoothness_orders` and `reduce_basis` tunable. It is a separate algorithm from `HAL` rather than a set of defaults over it, because the three values that distinguish it are invariants and not choices: the interaction degree is 1, every basis function's coefficient is constrained non-negative so the fit is monotonic non-decreasing, and no basis-size guardrail is needed at degree 1. None is representable as a property, so no combination of arguments produces a non-monotonic fit. `penalized = FALSE` drops the lasso penalty, giving the non-parametric maximum likelihood estimate over the monotonic class. Multiclass aborts.
-- Available as a calibrator via `calibrate(mod, hyperparameters = setup_MonotonicHAL())`. It is not the default: at `smoothness_orders = 1` the non-negativity constraint that makes the map monotonic also makes it convex on the logit scale, which costs expected calibration error and Brier score whenever the correction needed is concave, and every configuration is several times slower than isotonic regression. `data-raw/benchmark_calibrators.R` reproduces the comparison across three calibration-set sizes.
-- New `available_calibration()`, beside `available_supervised()` and friends, listing the algorithms whose fit is constrained monotonic and which are therefore safe calibration maps. `calibrate()` still accepts any `Hyperparameters` object, since it trains one like any other model, but only these carry the guarantee.
-- The calibrator that actually ran is recorded on `CalibratedClassification@calibrator` and `CalibratedClassificationRes@calibrator`, shown by `print()`, and serialized by `to_json()`, so a run is reproducible from its output alone. `to_json()` on a `CalibratedClassificationRes` now also carries the calibrated metrics.
-- New algorithm: **HAL**, the Highly Adaptive Lasso via `hal9001`, for regression and binary classification. `setup_HAL()`; `max_degree`, `smoothness_orders` and `reduce_basis` tunable. `lambda` is selected by cross-validation inside the fit rather than by rtemis' tuner; `seed`, `nfolds` and `use_min` control that. `get_varimp()` reports `importance` (summed absolute coefficients per feature) and `max_coefficient`. Multiclass aborts.
-- The cost of a HAL fit grows as `C(n_features, max_degree)`, and is quadratic in the number of cases; an over-large basis does not fail - it runs until it exhausts memory. `train()` therefore projects the basis size first, reports it at `verbosity >= 1`, warns past a million, and aborts past `max_basis` (five million, and raised deliberately) naming the levers that reduce it. `max_degree` defaults to 2.
-- `plot_varimp(mod, measure = )` selects among the measures above; the first is the default.
-- `schema.rtemis.org` publishes all four leaf pairs - `hyperparameters/{spls,knn,bart,hal}/v1` with their `record.json` - joining the `algorithm` enum of the `hyperparameters` union, so their configs validate and describe like any other algorithm's.
+- Isotonic calibration keeps probabilities at least `1 / (2 * n)` from 0 and 1.
+- `calibrate(hyperparameters = NULL)` selects `setup_Isotonic()`.
+- Grid search leaves unset any hyperparameter that does not apply to the rest of a combination, and collapses duplicate combinations.
+- `tuning_grid()` returns the combinations a grid search would fit.
+- Published schemas declare hyperparameter dependencies in `x-rtemis.applies_when`.
+- `setup_SPLS()` configures Sparse Partial Least Squares through 'spls'.
+- `setup_KNN()` configures weighted k-Nearest Neighbors through 'kknn'.
+- `setup_BART()` configures Bayesian Additive Regression Trees through 'stochtree'; `se()` returns the posterior standard deviation of the mean function.
+- `setup_HAL()` configures the Highly Adaptive Lasso through 'hal9001'.
+- `train()` projects a HAL basis size before fitting, warns past one million, and aborts past `max_basis`.
+- `setup_MonotonicHAL()` configures a monotonic non-decreasing Highly Adaptive Lasso, usable as a calibrator.
+- `available_calibration()` lists the algorithms usable as calibration maps.
+- `CalibratedClassification@calibrator` and `CalibratedClassificationRes@calibrator` record the calibrator used.
+- `plot_varimp(measure = )` selects among a model's importance measures.
 
 ## 1.3.1
 
-**Breaking changes**
-
-- Predicted probabilities are always a matrix: one row per case, one column per class, binary carrying a single column labeled with the positive class. `predict()` on a `Classification` returns the same shape. Code taking one score per case should index it: `mod$predicted_prob_training[, 1L]`.
-- `algorithm` is gone as both a config property and a function argument - `train()`, `calibrate()`, `setup_SuperConfig()` and `setup_SuperConfigLive()` no longer take it. Name the algorithm through its `setup_*()`: `train(iris, hyperparameters = setup_LightRF())`. `train(iris)` still defaults to Ranger; `decomp(algorithm = )` and `cluster(algorithm = )` are unchanged.
-- Standard errors are computed on demand. `Regression@se_training` / `@se_validation` / `@se_test` and the `RegressionRes` equivalents are removed; use `se(mod, newdata)`, which returns `NULL` for an algorithm that has none. `to_json()` no longer reports `has_se`.
-- The `.list_to_*()` reconstructors reject a key the target config does not declare, naming it and suggesting the nearest valid property - `n` reports "did you mean `n_resamples`?".
-- `DecompositionConfig` and `ClusteringConfig` are reconstructed only from their canonical `{algorithm, config}` shape. Relatedly, `decomp(x, config)` now honors `config@features` instead of ignoring it.
-- `n_resamples` is declared per resampler type: `{"type": "KFold"}` is now a valid config, and LOOCV rejects a supplied value, being run state.
-- A classification result's `positive_class` is `NULL` rather than `NA` when the outcome is not binary.
-
-**Run records**
-
-- Every `train()`, `decomp()` and `cluster()` call given an `outdir` writes a `<prefix>.record.json` beside the saved model, stating what the run actually did: every field present and resolved, each with an `origin` (`user`, `default`, `derived`, `tuned`, or `unset`), plus a `provenance` block and a `DataFingerprint` of the data. `record(mod)` returns the same document as a list.
-- A record's top level is what was asked for; its `folds` array is what ran, one entry per model fitted, each carrying its resolved config and - when tuning ran - the candidate grid, per-resample scores and the winner.
-- Records state what the run *scored*: `metrics` and `metrics_sd` give each sample's headline row as a flat metric-to-value map, so `jq '.metrics.test.rsq'` answers "was this any good?" without R.
-- `Supervised` and `SupervisedRes` gain `@config`, `Decomposition` `@decompose_config`, and `Clustering` `@cluster_config` - the input each run was given. `read_config()` rejects a record fed where a config is expected.
-- A fitted model now reports the values its algorithm resolved at train time - LightGBM's `objective` and `nrounds`, LightRF's `feature_fraction`, GLMNET's `lambda` - where `mod@hyperparameters` previously reported `NULL`.
-- `schema.rtemis.org` publishes a `record.json` beside every `schema.json`, and each record is validated against its schema as it is written.
-
-**Metrics**
-
-- `RegressionMetrics` and `ClassificationMetrics` declare their tables with typed, bounded columns, validated on construction: a rate outside `[0, 1]`, an undeclared column, or a missing one is rejected with a message naming the field. `MetricsRes` and its subclasses are typed likewise, covering per-resample values and their mean and standard deviation.
-- Per-class metrics name their outcome level in a `level` column rather than in row names, so serialized metrics keep their labels.
-- New `confusion_long` (`reference`, `predicted`, `n`) is the declared property and what serializes; `metrics@confusion_matrix` is unchanged as a labeled `table`. `$` and `[[` on a metrics object now reach its properties as well as its metrics.
-- `classification_metrics(sample = )` and `regression_metrics(sample = )` default to `NULL` rather than `character()`, and accept only the sample names rtemis uses.
-- `schema.rtemis.org` publishes `regressionmetrics/r/v1`, `classificationmetrics/r/v1` and their resampled counterparts.
-
-**Declarations and schemas**
-
-- `to_json()` emits exactly what the schemas declare, walking a class's published properties, so a computed view or an R-only value can no longer reach the wire undeclared.
-- New `prop_factor()` declares a factor-valued property: a distinct R class, so a character vector assigned to a classification outcome is a type error; and `{levels, codes}` on the wire - the levels in order, and a 1-based index into them per case.
-- New declaration axes: `min_items` and `unique_items` for array length and distinctness, `default_on_null` for "apply the default for this task type", and `prop_computed()` for a derived view, omitted from schemas and written configs.
-- `data_dependent` is now a pure annotation and no longer suppresses serialization, so `id_strat`, tSNE's `Y_init` and DBSCAN's `weights` round-trip.
-- `data_bound` gains `"numeric_feature_names"`, declared by `DecompositionConfig@features`; `check_data_bounds()` now works with any config object rather than only `Hyperparameters`.
-- `setup_Preprocessor()` configs can be written and read: `preprocessor` joins the supported config families, with a new `.list_to_PreprocessorConfig()`.
-- Results-class properties that were `class_any` are now typed: `@y_*` and `@predicted_*`, `@type`, and `SupervisedSession@started` / `@finished`.
-- New `JSONSchema_to_S7()` builds a live S7 class from a schema generated by `S7_to_JSONSchema()`, completing the round trip with the same types, bounds, enums and validators.
-
-**Validation**
-
-- Hyperparameter constraints that depend on the training data are declared with `data_bound = ` rather than hand-written, and checked before any model is fit: `setup_CART(cost = )`, `setup_GLMNET(penalty_factor = , offset = )`, and `setup_Ranger(mtry = , case_weights = , class_weights = , always_split_variables = )`. An out-of-range value aborts once, naming the value and the dimension it must match, rather than surfacing as a run of failed tuning cells.
-- New internal generic `validate_hyperparameters(hyperparameters, x)` runs those checks, called before any tuning and again immediately before the algorithm runs.
-- `setup_LightRF(feature_fraction = )` defaults to `NULL`, meaning derive from the data - `sqrt(n_features)/n_features` for classification, `0.33` for regression.
+- Predicted probabilities are a matrix with one row per case and one column per class; binary outcomes carry a single column for the positive class.
+- `train()`, `calibrate()`, `setup_SuperConfig()`, and `setup_SuperConfigLive()` no longer take `algorithm`; the `setup_*()` function names the algorithm.
+- `se(mod, newdata)` computes standard errors on demand, replacing the `@se_*` properties of `Regression` and `RegressionRes`.
+- The `.list_to_*()` reconstructors reject undeclared keys and suggest the nearest valid property.
+- `decomp(x, config)` uses `config@features`.
+- A classification result's `positive_class` is `NULL` when the outcome is not binary.
+- `train()`, `decomp()`, and `cluster()` write a `<prefix>.record.json` run record to `outdir`, stating every resolved value with its origin, provenance, and a data fingerprint.
+- `record()` returns a run record; `write_record()` writes one.
+- Run records list each fitted model under `folds`, with its tuning results, and include headline metrics per sample.
+- `Supervised`, `SupervisedRes`, `Decomposition`, and `Clustering` store the config they were given; `read_config()` rejects a run record.
+- Fitted models report hyperparameter values resolved during training, such as LightGBM's `nrounds`.
+- Published schemas include a `record.json` beside each config schema.
+- `RegressionMetrics`, `ClassificationMetrics`, and their resampled counterparts have typed, validated tables and published schemas.
+- Per-class metrics name their outcome level in a `level` column.
+- Classification metrics carry `confusion_long`, a long-format confusion table.
+- `to_json()` emits the properties the published schemas declare.
+- Factor-valued properties serialize as `{levels, codes}`.
+- `write_config()` and `read_config()` support preprocessor configs.
+- `JSONSchema_to_S7()` builds an S7 class from a schema generated by `S7_to_JSONSchema()`.
+- Hyperparameters bounded by the training data are checked before any model is fit.
+- `setup_LightRF(feature_fraction = NULL)` derives the value from the data.
 
 ## 1.3.0
 
-- All configuration classes - execution, preprocessing, resampling, tuning, hyperparameters, clustering, decomposition, and the pipeline recipes - now declare their user-settable properties through the `prop_*` factories (`prop_boolean()`, `prop_integer()`, `prop_float()`, `prop_string()`), completing the rollout begun in the hyperparameter classes. Each such property carries a `PropertySpec` recording its type, bounds, enum, nullability, and description, so type checking, validation, and JSON Schema generation all derive from a single declaration instead of being written three times. Runtime and fitted-model properties (e.g. `Supervised@model`) keep their plain `class_*` declarations.
-- Optional (nullable) properties now enforce that `NULL` is the only "unset" value: a nullable property is declared `NULL | <class>` so S7 prototypes it to `NULL` rather than the base class's empty vector, and a zero-length value reaching validation is rejected with a corrective message (`must not be empty (use NULL to leave it unset)`). This keeps every downstream `!is.null()` guard meaningful.
-- Properties that are *not* user-settable configuration now say so at the declaration site, completing the picture above. `prop_state()` marks run state written during training or tuning (GLMNET's `lambda.min` / `lambda.1se`, LightGBM's `nrounds` / `best_iter`): never schematized, never serialized, re-derived on read. `prop_external()` marks a genuine config input whose R type the `prop_*` factories cannot express (tSNE's `Y_init`, Ranger's `inbag`, TabNet's `optimizer`, `id_strat`, the preprocessor's learned scaling values), optionally `data_dependent` when the value is tied to a particular dataset and so has no portable form. `prop_role()`, `role_prop_names()`, and `data_dependent_prop_names()` read them back.
-- New `S7_to_JSONSchema()` generates a JSON Schema directly from an S7 class, `S7_dispatcher_JSONSchema()` composes leaf schemas into a discriminated-union dispatcher, and `write_JSONSchema()` serializes a schema to file. These generate the `supervised`, `hyperparameters`, `resampler`, `decompose`, and `cluster` schemas consumed by the rtemis CLI and rtemis.server.
-- `S7_to_JSONSchema()` derives which properties take part from those roles instead of an `exclude` list: the `exclude` argument is replaced by `base`, naming the family base class whose inherited properties are machinery rather than config. A property declared `prop_external()` must have its schema fragment supplied via `extra`, which is now checked - previously a forgotten fragment silently dropped a key from the published contract. A property with no declared role remains an error. The generated schemas are unchanged.
-- `setup_Preprocessor(impute_type = )` takes the full set of choices (`"missRanger"`, `"micePMM"`, `"meanMode"`) as its default and matches on them, as the other enumerated setup arguments do, so the choices are visible in the signature and to callers that introspect formals.
+- Configuration classes declare typed, validated properties from which their JSON Schemas are generated.
+- Optional config properties use `NULL` as the only unset value and reject zero-length values.
+- `S7_to_JSONSchema()`, `S7_dispatcher_JSONSchema()`, and `write_JSONSchema()` generate and write JSON Schemas from S7 classes.
+- `setup_Preprocessor(impute_type = )` lists its choices in the signature.
 
 ## 1.2.8
 
-- New `session_timeline()` flattens a `SupervisedSession` execution graph into a timeline (Gantt) table -- one row per node in depth-first order with millisecond offsets, status, and tooltip text. It is the shared source for rtemis.draw's `plot()` method on `SupervisedSession` and rtemis.server's `job.result` `session` slice (rtemislive Timeline tab). `session_kind_colors()` (internal, exported) provides the matching fixed kind → color map so all renderers color steps identically.
-- Progress reporting now uses `rtemis.core::progress_lapply()` (new in rtemis.core 0.4.0) instead of `cli::cli_progress_along()` in `train()` outer resampling, sequential `tune_GridSearch()`, and `massGLM()`. Nested runs render a single breadcrumb status line (`Outer resamples 2/5 › Tuning 7/30 ETA 0:41`) with a color-pulsing spinner, and emit structured `level = "progress"` envelopes through the rtemis.core message sink for `rtemis.server`. The **cli** dependency is dropped.
-- Parallel tuning now reports progress through the same system: new `handler_rtemis()` bridges progressr `progression` conditions (relayed by future from workers) onto the rtemis progress renderer, and `tune_GridSearch()` wraps its future backend in `progressr::with_progress(handlers = handler_rtemis(...))` - previously, worker ticks were silent unless the user had activated progressr handlers themselves. The mirai backend polls task resolution and reports through the same renderer (replacing mirai's own cli collection bar).
-- `train(dat)` defaults to ranger instead of throwing an error.
-- `read` now uses preprocess to remove duplicates. renamed `make_unique` => `remove_duplicates`.
-- Breaking change: New `apply_preprocessor(preprocessor, new_data)` applies a trained `Preprocessor` to new data and returns the preprocessed data directly, analogous to `predict()` for models. It replaces `preprocess(x, Preprocessor)`; `preprocess(x, config)` now accepts only a `PreprocessorConfig`.
-- `preprocess()` now also accepts `setup_Preprocessor()` arguments directly for interactive use, e.g. `preprocess(x, scale = TRUE)`, creating the `PreprocessorConfig` internally. Calling `preprocess(x)` with no preprocessing parameters is an error.
+- `session_timeline()` flattens a `SupervisedSession` execution graph into a timeline table; `session_kind_colors()` provides a shared color map.
+- Progress reporting uses `rtemis.core::progress_lapply()`, including for parallel tuning; 'cli' is no longer a dependency.
+- `train(dat)` defaults to Ranger.
+- `read()` removes duplicates through `preprocess()`; its `make_unique` argument is renamed `remove_duplicates`.
+- `apply_preprocessor()` applies a trained `Preprocessor` to new data, replacing `preprocess(x, Preprocessor)`.
+- `preprocess()` accepts `setup_Preprocessor()` arguments directly, e.g. `preprocess(x, scale = TRUE)`.
 
 ## 1.2.7
 
 - Added `DecomposeConfig` and `ClusterConfig` pipeline-recipe classes with `setup_DecomposeConfig()` / `setup_ClusterConfig()`, mirroring `SuperConfig`: they bundle a data path, the algorithm config (`DecompositionConfig` / `ClusteringConfig`), and an output directory.
 - `decomp()` now accepts `DecomposeConfig` objects.
 - `cluster()` now accepts `ClusterConfig` objects.
-- Added `outdir` arg to `decomp()` and `cluster()`
+- Added `outdir` arg to `decomp()` and `cluster()`.
 - Added `read_config()` & `write_config()` with support for the new `supervised`, `decompose`, `cluster` schemas.
-- Switched from Makefile to justfile
 
 ## 1.2.6
 
@@ -396,7 +275,7 @@
 
 ## 1.2.1
 
-- Added the package name to S7 class definitions and regenerated docs for roxygen2 8.0.0.
+- Added the package name to S7 class definitions.
 - Exported additional internals required by `rtemis.server`.
 
 ## 1.2.0
@@ -407,7 +286,6 @@
   - New `to_json()` S7 generic to convert rtemis objects to JSON-serializable lists.
 - Add `verbosity` argument to `predict_super()`; remove `...`.
 - Add `names()` S7 method for `Theme` objects.
-- Updated to roxygen2 8.0.0
 
 ## 1.0.1
 

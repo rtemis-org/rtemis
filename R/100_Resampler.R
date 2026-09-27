@@ -635,6 +635,71 @@ setup_Custom <- function(resamples = NULL) {
 } # /rtemis::setup_Custom
 
 
+# %% setup_Resampler ----
+#' Setup a Resampler (Deprecated)
+#'
+#' `setup_Resampler()` is deprecated. Use [setup_KFold()], [setup_StratSub()],
+#' [setup_StratBoot()], [setup_Bootstrap()], [setup_LOOCV()], or [setup_Custom()].
+#' Only arguments relevant to the selected type are forwarded. Omitted arguments
+#' retain the selected setup function's default resolution.
+#'
+#' @inheritParams setup_KFold
+#' @inheritParams setup_StratSub
+#' @inheritParams setup_StratBoot
+#' @inheritParams setup_Custom
+#' @param type Character: Resampling method; matched without regard to case.
+#' @param verbosity Integer: Console verbosity. The deprecation warning is always
+#'   signaled and can be handled with `suppressWarnings()`.
+#'
+#' @details
+#' `id_strat` names a column in the input data; per-case ID vectors are not
+#' accepted. Arguments that do not apply to the selected type are ignored.
+#'
+#' @return A resampler configuration of the selected type.
+#' @aliases rtemis-deprecated
+#' @export
+#' @examples
+#' config <- suppressWarnings(setup_Resampler(5L, "KFold", seed = 2026L))
+#' config
+setup_Resampler <- function(
+  n_resamples = 10L,
+  type = c("KFold", "StratSub", "StratBoot", "Bootstrap", "LOOCV", "Custom"),
+  stratify_var = NULL,
+  train_p = .75,
+  strat_n_bins = 4L,
+  target_length = NULL,
+  id_strat = NULL,
+  seed = NULL,
+  verbosity = 1L,
+  resamples = NULL
+) {
+  type <- match_arg(
+    type,
+    c("KFold", "StratSub", "StratBoot", "Bootstrap", "LOOCV", "Custom")
+  )
+  rtemis.core::check_integer_scalar(verbosity)
+  replacement <- paste0("setup_", type)
+  base::.Deprecated(
+    new = replacement,
+    package = "rtemis",
+    old = "setup_Resampler"
+  )
+  setup <- switch(
+    type,
+    KFold = setup_KFold,
+    StratSub = setup_StratSub,
+    StratBoot = setup_StratBoot,
+    Bootstrap = setup_Bootstrap,
+    LOOCV = setup_LOOCV,
+    Custom = setup_Custom
+  )
+  supplied <- names(as.list(match.call())[-1L])
+  forwarded <- as.character(intersect(supplied, names(formals(setup))))
+  args <- mget(forwarded, envir = environment(), inherits = FALSE)
+  do.call(setup, args)
+} # /rtemis::setup_Resampler
+
+
 # %% Resampler ----
 #' Resampler
 #'
