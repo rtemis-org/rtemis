@@ -287,9 +287,10 @@ test_that("setup formals agree with class-owned resolution defaults", {
       }
       label <- paste0(entry[["setup"]], "(", nm, ") / ", cls@name)
       expect_true(nm %in% names(resolved[["values"]]), info = label)
-      if (identical(cls, SuperConfigPaths) && nm == "execution_config") {
-        # The portable recipe selects a backend; the R call also resolves
-        # workers and seed from the host. Check the call without sampling it.
+      if (nm == "execution_config") {
+        # Every pipeline document (supervised, decompose): the portable recipe
+        # selects a backend; the R call also resolves workers and seed from the
+        # host. Check the call without sampling it.
         expect_identical(fm[[nm]], quote(setup_FutureExecution()), info = label)
         expect_identical(resolved[["values"]][[nm]], list(backend = "future"))
         next

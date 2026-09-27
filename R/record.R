@@ -915,10 +915,13 @@ pipeline_record <- function(
   if (metrics_block) {
     out["metrics"] <- list(record_object(metrics))
   }
+  # Only the flat fields have an origin here: a nested block such as
+  # `execution_config` carries its own, and indexing by its name would add an
+  # unnamed null entry.
   c(
     out,
     list(
-      origin = own[["origin"]][own_names],
+      origin = own[["origin"]][intersect(own_names, names(own[["origin"]]))],
       provenance = S7_to_list(provenance_of(x, outcome = outcome))
     )
   )

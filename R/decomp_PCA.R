@@ -7,7 +7,12 @@
 #'
 #' @keywords internal
 #' @noRd
-method(decomp_, PCAConfig) <- function(config, x, verbosity = 1L) {
+method(decomp_, PCAConfig) <- function(
+  config,
+  x,
+  n_threads = 1L,
+  verbosity = 1L
+) {
   # Checks ----
   check_is_S7(config, PCAConfig)
   check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)

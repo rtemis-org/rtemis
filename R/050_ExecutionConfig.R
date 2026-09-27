@@ -297,6 +297,29 @@ execution_future_plan <- function(x) {
 } # /rtemis::execution_future_plan
 
 
+# %% execution_backend_label ----
+#' The execution backend as the resources line names it
+#'
+#' `serial` for the `none` backend, which dispatches nothing, and the future
+#' plan beside `future`, since the plan decides where the workers run.
+#'
+#' @param x `ExecutionConfig` object.
+#'
+#' @return Character.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+execution_backend_label <- function(x) {
+  switch(
+    x@backend,
+    none = "serial",
+    future = paste0("future (", execution_future_plan(x), ")"),
+    x@backend
+  )
+} # /rtemis::execution_backend_label
+
+
 # %% repr.ExecutionConfig ----
 method(repr, ExecutionConfig) <- function(x, pad = 0L, output_type = NULL) {
   out <- repr_S7name(S7_class(x)@name, pad = pad, output_type = output_type)

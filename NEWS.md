@@ -4,7 +4,8 @@
 
 - TabNet and MLP train and predict with the algorithm workers resolved from `execution_config` (`n_workers_algorithm`) rather than every core.
 - `train()` prints one resources line: the compute device in use (including an Apple silicon GPU), the execution backend, the worker ceiling, and each level's share.
-- UMAP runs with the default worker count, which respects the two-core limit of a CRAN check, rather than half the hardware threads.
+- `decomp()` and `setup_DecomposeConfig()` take `execution_config`: its seed seeds the fit, and a threaded algorithm runs on its workers; `decomposition_traits()` gains `threaded`.
+- UMAP runs on the execution config's algorithm threads, which respect the two-core limit of a CRAN check, rather than half the hardware threads.
 - `setup_SpectralRBF()`, `setup_SpectralLaplace()`, and `setup_SpectralLocal()` configure spectral clustering through 'kernlab', one per kernel; `setup_Nystrom()` enables the Nystrom approximation.
 - `setup_ASWCriterion()`, `setup_CHCriterion()`, and `setup_MultiASWCriterion()` configure how `setup_PAMK()` selects the number of clusters.
 - `setup_ClusterConfig()` and `setup_DecomposeConfig()` no longer take `algorithm`; the clustering or decomposition config names it, and `cluster()` and `decomp()` reject an `algorithm` that disagrees with a supplied config.

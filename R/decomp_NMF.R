@@ -110,7 +110,12 @@ nmf_scores <- function(basis, xm) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(decomp_, NMFConfig) <- function(config, x, verbosity = 1L) {
+method(decomp_, NMFConfig) <- function(
+  config,
+  x,
+  n_threads = 1L,
+  verbosity = 1L
+) {
   # Checks ----
   check_is_S7(config, NMFConfig)
   check_dependencies("NMF")

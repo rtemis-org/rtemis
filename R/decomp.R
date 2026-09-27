@@ -20,6 +20,11 @@
 #' selects the columns of `x` to decompose; `NULL` selects every numeric column,
 #' since a decomposition reads a numeric matrix. The returned object's config
 #' carries the resolved names, and `apply_decomp()` replays that selection.
+#' @param execution_config `ExecutionConfig` object: Execution settings, e.g.
+#' [setup_FutureExecution] or [setup_SerialExecution]. A decomposition dispatches
+#' no work to other processes: an algorithm whose `threaded` trait is TRUE (see
+#' [decomposition_traits]) runs on `n_workers_algorithm` threads, or on the
+#' config's worker count when that is unset. The config's `seed` seeds the fit.
 #' @param outdir Character, optional: Output directory. If not NULL, the returned
 #' `Decomposition` object is saved there as an `.rds` file, alongside a run
 #' record (`decomp_<algorithm>.record.json`) stating what the run resolved. See
@@ -36,6 +41,7 @@ decomp <- function(
   x,
   algorithm = "ICA",
   config = NULL,
+  execution_config = setup_FutureExecution(),
   outdir = NULL,
   verbosity = 1L
 ) {
@@ -55,6 +61,7 @@ decomp <- function(
     return(decomp(
       x = read(x@dat_path),
       config = x@decomposition_config,
+      execution_config = x@execution_config,
       outdir = x@outdir,
       verbosity = x@verbosity
     ))
@@ -80,6 +87,7 @@ decomp <- function(
     }
     algorithm <- config@algorithm
   }
+  check_is_S7(execution_config, ExecutionConfig)
 
   # Feature selection ----
   # `apply_decomp()` subsets new data by `config@features`, so the fit must use
@@ -108,12 +116,42 @@ decomp <- function(
     summarize_unsupervised(x)
   }
 
-  # Decompose ----
+  # Resources ----
+  # Nothing is dispatched, so the only level is the algorithm's: the threads a
+  # threaded backend runs on. The named share wins; otherwise the whole worker
+  # count, which is 1 under a CRAN check.
   algorithm <- get_decom_name(algorithm)
+  n_workers <- execution_n_workers(execution_config)
+  threaded <- decomposition_traits(algorithm)[["threaded"]]
+  n_threads <- if (!threaded) {
+    1L
+  } else {
+    execution_config@n_workers_algorithm %||% n_workers
+  }
+  msg_resources(
+    backend = execution_backend_label(execution_config),
+    n_workers = n_workers,
+    workers = list(algorithm = n_threads),
+    explicit = threaded && !is.null(execution_config@n_workers_algorithm),
+    device = "CPU",
+    verbosity = verbosity
+  )
+
+  # Decompose ----
   msg0("Decomposing with ", algorithm, "...", verbosity = verbosity)
 
-  # decomp_ -> list with elements 'decom' and 'transformed'
-  decom <- decomp_(config = config, x = x, verbosity = verbosity - 1L)
+  # decomp_ -> list with elements 'decom' and 'transformed'. Seeded from the
+  # execution config, which records the seed, so the fit reproduces from its
+  # record; the caller's random stream is restored afterwards.
+  decom <- with_seed(
+    execution_config@seed,
+    decomp_(
+      config = config,
+      x = x,
+      n_threads = n_threads,
+      verbosity = verbosity - 1L
+    )
+  )
 
   # Outro ----
   outro(start_time, verbosity = verbosity)
@@ -148,6 +186,7 @@ decomp <- function(
   # is the honest reading of "the caller did not choose one".
   input_args <- list(
     decomposition_config = config,
+    execution_config = execution_config,
     verbosity = max(0L, verbosity)
   )
   if (!is.null(outdir)) {

@@ -401,7 +401,7 @@
     "decompose": {
       "class": "DecomposeConfig",
       "title": "rtemis DecomposeConfig",
-      "description": "Language-independent config for an rtemis decomposition pipeline: a data reference, a `DecompositionConfig`, and an output directory."
+      "description": "Language-independent config for an rtemis decomposition pipeline: a data reference, a `DecompositionConfig`, an `ExecutionConfig`, and an output directory."
     },
     "cluster": {
       "class": "ClusterConfig",

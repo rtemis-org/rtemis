@@ -7,7 +7,12 @@
 #'
 #' @keywords internal
 #' @noRd
-method(decomp_, tSNEConfig) <- function(config, x, verbosity = 1L) {
+method(decomp_, tSNEConfig) <- function(
+  config,
+  x,
+  n_threads = 1L,
+  verbosity = 1L
+) {
   # Checks ----
   check_is_S7(config, tSNEConfig)
   check_dependencies("Rtsne")

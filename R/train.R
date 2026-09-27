@@ -634,12 +634,7 @@ train <- function(
       "n_workers_tuning"
     ),
     n_workers_algorithm = execution_config@n_workers_algorithm,
-    backend = switch(
-      backend,
-      none = "serial",
-      future = paste0("future (", execution_config@future_plan, ")"),
-      backend
-    ),
+    backend = execution_backend_label(execution_config),
     device = describe_device(hyperparameters),
     verbosity = verbosity
   )
@@ -1012,10 +1007,26 @@ train <- function(
       # on validation/test here and on new data at predict() time. `decomp()`
       # subsets `feat` by them, so the fit and the replay cannot disagree.
       decomposition_config@features <- decomp_features
+      # The decomposition runs in this process before the learner. It may use
+      # every worker as threads only when this call dispatches nothing; when
+      # tuning or folds claim the workers it runs on one thread, so the two
+      # never oversubscribe. Seeded from this call's seed, which within a fold
+      # is the fold's substream.
       decomposition <- decomp(
         x = feat,
         algorithm = decomposition_config@algorithm,
         config = decomposition_config,
+        execution_config = setup_SerialExecution(
+          n_workers_algorithm = execution_config@n_workers_algorithm %||%
+            if (
+              workers[["tuning"]] == 1L && workers[["outer_resampling"]] == 1L
+            ) {
+              n_workers
+            } else {
+              1L
+            },
+          seed = execution_config@seed
+        ),
         verbosity = verbosity
       )
       # Columns not decomposed are kept as-is, in front of the components.
@@ -1721,7 +1732,9 @@ get_n_workers <- function(
 #'
 #' @param backend Character: Execution backend label.
 #' @param n_workers Integer: Worker ceiling.
-#' @param workers Named list: `algorithm`, `tuning`, `outer_resampling`.
+#' @param workers Named list: `algorithm`, and `tuning` and `outer_resampling`
+#' for a workflow that has those levels; a level absent from the list is not
+#' printed.
 #' @param explicit Logical: Whether the caller named the shares.
 #' @param device Character: Compute device label.
 #' @param verbosity Integer: Verbosity level.
@@ -1752,10 +1765,12 @@ msg_resources <- function(
     "algorithm ",
     highlight(workers[["algorithm"]]),
     ngettext(workers[["algorithm"]], " thread", " threads"),
-    ", tuning ",
-    highlight(workers[["tuning"]]),
-    ", outer resampling ",
-    highlight(workers[["outer_resampling"]]),
+    if (!is.null(workers[["tuning"]])) {
+      paste0(", tuning ", highlight(workers[["tuning"]]))
+    },
+    if (!is.null(workers[["outer_resampling"]])) {
+      paste0(", outer resampling ", highlight(workers[["outer_resampling"]]))
+    },
     if (explicit) gray(" (as set)"),
     verbosity = verbosity
   )

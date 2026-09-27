@@ -87,3 +87,29 @@ test_that("a decompose document round-trips for an algorithm that cannot be appl
     )
   }
 })
+
+
+# %% execution config ----
+test_that("a decompose document carries its execution config through write and read", {
+  x <- setup_DecomposeConfig(
+    decomposition_config = setup_PCA(k = 2L),
+    execution_config = setup_SerialExecution(
+      n_workers_algorithm = 2L,
+      seed = 5L
+    )
+  )
+  file <- withr::local_tempfile(fileext = ".json")
+  write_config(x, file, verbosity = 0L)
+  xtoo <- read_config(file)
+  expect_s7_class(xtoo@execution_config, SerialExecutionConfig)
+  expect_identical(xtoo@execution_config@n_workers_algorithm, 2L)
+  expect_identical(xtoo@execution_config@seed, 5L)
+})
+
+test_that("a decompose document without an execution config reads with the default", {
+  x <- .list_to_DecomposeConfig(list(
+    decomposition_config = list(algorithm = "PCA", k = 2L)
+  ))
+  expect_s7_class(x@execution_config, ExecutionConfig)
+  expect_identical(x@execution_config@backend, "future")
+})

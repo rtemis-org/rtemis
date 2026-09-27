@@ -652,6 +652,7 @@ decom_algorithms <- data.frame(
     "local"
   ),
   nonneg = c(FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
+  threaded = c(FALSE, FALSE, FALSE, FALSE, FALSE, TRUE),
   package = c("fastICA", "vegan", "NMF", "stats", "Rtsne", "uwot"),
   stringsAsFactors = FALSE
 )
@@ -736,6 +737,9 @@ get_decom_setup_fn <- function(algorithm) {
 #'     `"global"`, `"local"`, or `"reconstruction"`.}
 #'   \item{`nonneg`}{Requires non-negative input and produces non-negative
 #'     factors.}
+#'   \item{`threaded`}{The fit runs on as many threads as the execution
+#'     config gives the algorithm (`n_workers_algorithm`, or the worker count).
+#'     Like `can_apply`, it states what rtemis implements.}
 #'   \item{`package`}{Package supplying the backend implementation.}
 #' }
 #'

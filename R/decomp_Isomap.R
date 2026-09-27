@@ -7,7 +7,12 @@
 #'
 #' @keywords internal
 #' @noRd
-method(decomp_, IsomapConfig) <- function(config, x, verbosity = 1L) {
+method(decomp_, IsomapConfig) <- function(
+  config,
+  x,
+  n_threads = 1L,
+  verbosity = 1L
+) {
   # Checks ----
   check_dependencies("vegan")
   check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)

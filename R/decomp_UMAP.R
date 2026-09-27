@@ -14,7 +14,12 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(decomp_, UMAPConfig) <- function(config, x, verbosity = 1L) {
+method(decomp_, UMAPConfig) <- function(
+  config,
+  x,
+  n_threads = 1L,
+  verbosity = 1L
+) {
   # Checks ----
   check_is_S7(config, UMAPConfig)
   check_dependencies("uwot")
@@ -23,9 +28,8 @@ method(decomp_, UMAPConfig) <- function(config, x, verbosity = 1L) {
   # Decompose ----
   msg("Decomposing with", config@algorithm, "...", verbosity = verbosity)
   # uwot otherwise uses half the hardware threads, ignoring the core limit a
-  # CRAN check sets; `default_n_workers()` honors it. The count is stored on the
-  # fit, which records none, so `apply_decomp_` uses the same one.
-  n_threads <- default_n_workers()
+  # CRAN check sets. The count is the execution config's algorithm share, and is
+  # stored on the fit, which records none, so `apply_decomp_` reuses it.
   args <- c(
     list(
       X = x,

@@ -215,6 +215,46 @@ for (family in names(configs)) {
     nested_record(x, x)
   )
 }
+# A decompose pipeline carries its execution config; the record is a real
+# `decomp()` run, written the way `decomp(outdir =)` writes it.
+decompose <- setup_DecomposeConfig(
+  decomposition_config = setup_PCA(k = 2L),
+  execution_config = setup_SerialExecution(n_workers_algorithm = 2L, seed = 1L)
+)
+cases[["decompose_input"]] <- check_document(
+  "decompose_input",
+  "decompose/r/v1/schema.json",
+  S7_to_list(decompose)
+)
+mutant <- S7_to_list(decompose)
+mutant[["execution_config"]][["backend"]] <- "threads"
+cases[["decompose_execution_wrong_backend"]] <- check_document(
+  "decompose_execution_wrong_backend",
+  "decompose/r/v1/schema.json",
+  mutant,
+  FALSE
+)
+decompose_record_file <- tempfile(fileext = ".json")
+write_record(
+  decomp(
+    iris[, 1:4],
+    config = setup_PCA(k = 2L),
+    execution_config = setup_SerialExecution(seed = 1L),
+    verbosity = 0L
+  ),
+  decompose_record_file,
+  verbosity = 0L
+)
+decompose_record <- structure(
+  paste(readLines(decompose_record_file, warn = FALSE), collapse = "\n"),
+  class = "json"
+)
+stopifnot(grepl('"execution_config"', decompose_record, fixed = TRUE))
+cases[["decompose_record"]] <- check_document(
+  "decompose_record",
+  "decompose/r/v1/record.json",
+  decompose_record
+)
 preprocessor <- setup_Preprocessor(
   scale = TRUE,
   scale_centers = c(candidates = 1.5)

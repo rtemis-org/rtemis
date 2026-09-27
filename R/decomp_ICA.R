@@ -47,7 +47,12 @@ ica_preprocess <- function(xm, center, row_norm) {
 #'
 #' @keywords internal
 #' @noRd
-method(decomp_, ICAConfig) <- function(config, x, verbosity = 1L) {
+method(decomp_, ICAConfig) <- function(
+  config,
+  x,
+  n_threads = 1L,
+  verbosity = 1L
+) {
   # Checks ----
   check_dependencies("fastICA")
   check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)

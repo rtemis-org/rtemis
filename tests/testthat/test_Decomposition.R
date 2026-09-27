@@ -318,14 +318,86 @@ test_that("decomp() UMAP succeeds", {
 })
 
 
-test_that("UMAP threads with the resolved worker count, at most two under a CRAN check", {
+test_that("UMAP threads with the execution config's algorithm share", {
+  skip_if_not_installed("uwot")
+  decom <- decomp(
+    x,
+    algorithm = "umap",
+    execution_config = setup_SerialExecution(n_workers_algorithm = 2L),
+    verbosity = 0L
+  )
+  expect_identical(decom@decom[["rtemis_n_threads"]], 2L)
+  expect_identical(nrow(apply_decomp(decom, x, verbosity = 0L)), nrow(x))
+})
+
+test_that("the default execution config gives UMAP at most two threads under a CRAN check", {
   skip_if_not_installed("uwot")
   # uwot's own default is half the hardware threads, whatever the core limit.
   withr::local_envvar(`_R_CHECK_LIMIT_CORES_` = "TRUE")
   decom <- decomp(x, algorithm = "umap", verbosity = 0L)
-  expect_identical(decom@decom[["rtemis_n_threads"]], default_n_workers())
   expect_lte(decom@decom[["rtemis_n_threads"]], 2L)
-  expect_identical(nrow(apply_decomp(decom, x, verbosity = 0L)), nrow(x))
+})
+
+test_that("decomp() prints one resources line, with threads only for a threaded algorithm", {
+  resources <- function(algorithm) {
+    paste(
+      gsub(
+        "\\033\\[[0-9;]*m",
+        "",
+        testthat::capture_messages(decomp(
+          x,
+          algorithm = algorithm,
+          execution_config = setup_SerialExecution(n_workers_algorithm = 2L),
+          verbosity = 1L
+        ))
+      ),
+      collapse = ""
+    )
+  }
+  expect_match(
+    resources("PCA"),
+    "// CPU | serial | 1 worker: algorithm 1 thread",
+    fixed = TRUE
+  )
+  skip_if_not_installed("uwot")
+  expect_match(
+    resources("UMAP"),
+    "// CPU | serial | 1 worker: algorithm 2 threads (as set)",
+    fixed = TRUE
+  )
+})
+
+test_that("decomp() seeds the fit from the execution config and restores the caller's stream", {
+  skip_if_not_installed("fastICA")
+  fit <- function(seed) {
+    decomp(
+      x,
+      algorithm = "ICA",
+      execution_config = setup_SerialExecution(seed = seed),
+      verbosity = 0L
+    )@transformed
+  }
+  expect_identical(fit(2026L), fit(2026L))
+  expect_false(isTRUE(all.equal(fit(2026L), fit(7L))))
+  set.seed(1)
+  fit(2026L)
+  after_fit <- stats::runif(1L)
+  set.seed(1)
+  expect_identical(after_fit, stats::runif(1L))
+})
+
+test_that("the run's input records the execution config it ran under", {
+  decom <- decomp(
+    x,
+    algorithm = "PCA",
+    execution_config = setup_SerialExecution(seed = 11L),
+    verbosity = 0L
+  )
+  expect_s7_class(
+    decom@decompose_config@execution_config,
+    SerialExecutionConfig
+  )
+  expect_identical(decom@decompose_config@execution_config@seed, 11L)
 })
 
 # t-SNE ----
@@ -443,4 +515,21 @@ test_that("decomp() takes the algorithm from config and refuses a disagreeing la
     verbosity = 0L
   )
   expect_identical(fit2@algorithm, "PCA")
+})
+
+
+test_that("the run record states the execution config once, with origins only for flat fields", {
+  decom <- decomp(
+    x,
+    algorithm = "PCA",
+    execution_config = setup_SerialExecution(seed = 3L),
+    verbosity = 0L
+  )
+  rec <- record(decom)
+  expect_identical(rec[["execution_config"]][["seed"]], 3L)
+  expect_identical(rec[["execution_config"]][["origin"]][["seed"]], "user")
+  # `execution_config` and `decomposition_config` carry their own origins; the
+  # document's covers its flat fields and nothing unnamed.
+  expect_setequal(names(rec[["origin"]]), c("dat_path", "outdir", "verbosity"))
+  expect_false(anyNA(names(rec[["origin"]])))
 })

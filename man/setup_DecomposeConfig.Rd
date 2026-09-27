@@ -7,6 +7,7 @@
 setup_DecomposeConfig(
   dat_path = NULL,
   decomposition_config = NULL,
+  execution_config = setup_FutureExecution(),
   outdir = "results/",
   verbosity = 1L
 )
@@ -19,6 +20,10 @@ recipe unbound; set it (or supply data) before \link{decomp}.}
 for the decomposition itself. Setup with a decomposition \verb{setup_*} function,
 e.g. \link{setup_PCA}. If NULL, \link{decomp} runs its default algorithm with default
 settings.}
+
+\item{execution_config}{\code{ExecutionConfig} object: Execution settings, e.g.
+\link{setup_FutureExecution}. Its workers are threads for an algorithm that uses
+them, and its seed seeds the fit.}
 
 \item{outdir}{Character: Output directory for results.}
 

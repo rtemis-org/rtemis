@@ -643,13 +643,18 @@ conformal <- new_generic(
 # %% decomp_ ----
 #' Generic for decomposition
 #'
+#' `n_threads` is the algorithm's share of the run's execution config, resolved
+#' by `decomp()`. A method whose backend threads passes it on and stores it on
+#' the fit so `apply_decomp_` reuses it; the others ignore it. Which algorithms
+#' use it is the `threaded` trait in `decom_algorithms`.
+#'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 decomp_ <- new_generic(
   "decomp_",
   "config",
-  function(config, x, verbosity = 1L) {
+  function(config, x, n_threads = 1L, verbosity = 1L) {
     force_supplied()
     S7_dispatch()
   }

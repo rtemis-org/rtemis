@@ -38,6 +38,9 @@ result without setting a seed.}
 \code{"global"}, \code{"local"}, or \code{"reconstruction"}.}
 \item{\code{nonneg}}{Requires non-negative input and produces non-negative
 factors.}
+\item{\code{threaded}}{The fit runs on as many threads as the execution
+config gives the algorithm (\code{n_workers_algorithm}, or the worker count).
+Like \code{can_apply}, it states what rtemis implements.}
 \item{\code{package}}{Package supplying the backend implementation.}
 }
 

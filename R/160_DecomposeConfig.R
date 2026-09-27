@@ -12,7 +12,8 @@
 #' @description
 #' Decomposition Pipeline Configuration Class. A portable, data-agnostic recipe
 #' for a decomposition pipeline: it bundles the input data path, the
-#' algorithm-specific `DecompositionConfig`, and the output directory, so the
+#' algorithm-specific `DecompositionConfig`, the `ExecutionConfig`, and the
+#' output directory, so the
 #' same config can be validated, shared, written to disk, or described without
 #' data and have a path bound later (e.g. by the `rtemis` CLI) before [decomp].
 #'
@@ -21,6 +22,12 @@
 DecomposeConfig <- schema_class(
   name = "DecomposeConfig",
   package = "rtemis",
+  defaults = list(
+    execution_config = DefaultPolicy(
+      kind = "literal",
+      value = list(backend = "future")
+    )
+  ),
   properties = list(
     dat_path = prop_string(
       NULL,
@@ -32,6 +39,10 @@ DecomposeConfig <- schema_class(
       DecompositionConfig,
       nullable = TRUE,
       description = "Decomposition algorithm and its settings, including the feature columns to decompose. Absent = the default algorithm with its default settings on all numeric columns."
+    ),
+    execution_config = prop_object(
+      ExecutionConfig,
+      description = "Execution backend, worker and thread counts, failure policy and seed. A decomposition dispatches no work to other processes, so its workers are threads for an algorithm that uses them."
     ),
     outdir = prop_string(
       "results/",
@@ -47,7 +58,7 @@ DecomposeConfig <- schema_class(
     role = "document",
     slug = "decompose",
     title = "rtemis DecomposeConfig",
-    description = "Language-independent config for an rtemis decomposition pipeline: a data reference, a `DecompositionConfig`, and an output directory.",
+    description = "Language-independent config for an rtemis decomposition pipeline: a data reference, a `DecompositionConfig`, an `ExecutionConfig`, and an output directory.",
     order = 5L,
     kind = "pipeline",
     record_provenance = "rtemis::Provenance",
@@ -105,6 +116,9 @@ method(print, DecomposeConfig) <- function(x, output_type = NULL, ...) {
 #' for the decomposition itself. Setup with a decomposition `setup_*` function,
 #' e.g. [setup_PCA]. If NULL, [decomp] runs its default algorithm with default
 #' settings.
+#' @param execution_config `ExecutionConfig` object: Execution settings, e.g.
+#' [setup_FutureExecution]. Its workers are threads for an algorithm that uses
+#' them, and its seed seeds the fit.
 #' @param outdir Character: Output directory for results.
 #' @param verbosity Integer [0, Inf): Verbosity level.
 #'
@@ -121,6 +135,7 @@ method(print, DecomposeConfig) <- function(x, output_type = NULL, ...) {
 setup_DecomposeConfig <- function(
   dat_path = NULL,
   decomposition_config = NULL,
+  execution_config = setup_FutureExecution(),
   outdir = "results/",
   verbosity = 1L
 ) {
@@ -141,6 +156,7 @@ setup_DecomposeConfig <- function(
   DecomposeConfig(
     dat_path = dat_path,
     decomposition_config = decomposition_config,
+    execution_config = execution_config,
     outdir = outdir,
     verbosity = as.integer(verbosity)
   )
@@ -155,7 +171,7 @@ setup_DecomposeConfig <- function(
 #' `decomposition_config` is rebuilt via `.list_to_DecompositionConfig`.
 #'
 #' @param x Named list carrying `DecomposeConfig` fields (e.g. `dat_path`,
-#'   `decomposition_config`, `outdir`).
+#'   `decomposition_config`, `execution_config`, `outdir`).
 #'
 #' @return `DecomposeConfig` object.
 #'
@@ -172,9 +188,14 @@ setup_DecomposeConfig <- function(
       .list_to_DecompositionConfig(x[["decomposition_config"]])
     }
   )
-  # `outdir` and `verbosity` carry non-NULL defaults in `setup_DecomposeConfig`;
-  # only override them when the config actually supplies a value, so a portable
-  # recipe that omits them keeps the defaults.
+  # `execution_config`, `outdir` and `verbosity` carry non-NULL defaults in
+  # `setup_DecomposeConfig`; only override them when the config actually
+  # supplies a value, so a portable recipe that omits them keeps the defaults.
+  if (!is.null(x[["execution_config"]])) {
+    args[["execution_config"]] <- .list_to_ExecutionConfig(
+      x[["execution_config"]]
+    )
+  }
   if (!is.null(x[["outdir"]])) {
     args[["outdir"]] <- x[["outdir"]]
   }

@@ -59,7 +59,8 @@ test_that("decom_algorithms is typed and well-formed", {
     "orthogonal",
     "ordered",
     "deterministic",
-    "nonneg"
+    "nonneg",
+    "threaded"
   )) {
     expect_type(traits[[column]], "logical")
     expect_false(anyNA(traits[[column]]))
