@@ -182,6 +182,9 @@ decomp_matrix <- function(decom, data) {
 #' @param decom Decomposition object.
 #' @param new_data Tabular data (data.frame, data.table, or tibble): New data to which the
 #'   decomposition will be applied.
+#' @param execution_config Optional `ExecutionConfig` object: Threads for an
+#'   algorithm whose `threaded` trait is TRUE are its `n_workers_algorithm`, or
+#'   its worker count. `NULL` uses the host's default worker count.
 #' @param verbosity Integer: Verbosity level
 #'
 #' @details
@@ -200,7 +203,38 @@ decomp_matrix <- function(decom, data) {
 #' @examples
 #' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")
 #' apply_decomp(iris_pca, exc(iris, "Species"))
-apply_decomp <- function(decom, new_data, verbosity = 1L) {
+apply_decomp <- function(
+  decom,
+  new_data,
+  execution_config = NULL,
+  verbosity = 1L
+) {
+  apply_decomposition(
+    decom,
+    new_data,
+    n_threads = algorithm_threads(execution_config),
+    verbosity = verbosity
+  )
+} # /rtemis::apply_decomp
+
+
+# %% apply_decomposition ----
+#' Apply a fitted decomposition with a resolved thread count
+#'
+#' `apply_decomp()` resolves the threads from an execution config; `train()`
+#' and `predict()` resolve them from their own context and call this.
+#'
+#' @param decom `Decomposition` object.
+#' @param new_data Tabular data.
+#' @param n_threads Integer: Threads for a threaded algorithm.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return data.frame, as `apply_decomp()`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+apply_decomposition <- function(decom, new_data, n_threads, verbosity = 1L) {
   check_is_S7(decom, Decomposition)
   if (!decom@algorithm %in% decom_algorithms_applicable) {
     rtemis.core::abort(
@@ -220,6 +254,7 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
     config = decom@config,
     decom = decom@decom,
     new_data = selected,
+    n_threads = n_threads,
     verbosity = verbosity
   ))
   if (is.null(kept) || ncol(kept) == 0L) {
@@ -227,7 +262,7 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
   } else {
     cbind(kept, transformed)
   }
-} # /rtemis::apply_decomp
+} # /rtemis::apply_decomposition
 
 
 # %% reconstruct.Decomposition ----
@@ -257,6 +292,9 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
 #' @param decom `Decomposition` object.
 #' @param x Tabular data (data.frame, data.table, or tibble): Data to
 #' reconstruct. Its columns must match those `decom` was fitted on.
+#' @param execution_config Optional `ExecutionConfig` object: Threads for
+#' encoding `x`, as in [apply_decomp]. `NULL` uses the host's default worker
+#' count.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return A data.frame with the same columns as `x`, holding the
@@ -270,7 +308,7 @@ apply_decomp <- function(decom, new_data, verbosity = 1L) {
 #' reconstructed <- reconstruct(iris_pca, x)
 #' # What the two components could not represent, per case:
 #' head(rowMeans((as.matrix(x) - as.matrix(reconstructed))^2))
-reconstruct <- function(decom, x, verbosity = 1L) {
+reconstruct <- function(decom, x, execution_config = NULL, verbosity = 1L) {
   check_is_S7(decom, Decomposition)
   traits <- decomposition_traits(decom@algorithm)
   if (!traits[["invertible"]]) {
@@ -302,6 +340,7 @@ reconstruct <- function(decom, x, verbosity = 1L) {
     config = decom@config,
     decom = decom@decom,
     new_data = selected,
+    n_threads = algorithm_threads(execution_config),
     verbosity = verbosity
   )
   reconstructed <- as.data.frame(reconstruct_(

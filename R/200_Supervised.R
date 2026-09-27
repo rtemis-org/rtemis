@@ -377,7 +377,12 @@ Supervised <- schema_class(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-supervised_features <- function(object, newdata, verbosity = 1L) {
+supervised_features <- function(
+  object,
+  newdata,
+  n_threads = 1L,
+  verbosity = 1L
+) {
   check_inherits(newdata, "data.frame")
 
   # Apply user-specified preprocessor if available
@@ -395,7 +400,12 @@ supervised_features <- function(object, newdata, verbosity = 1L) {
   # algorithm-specific preprocessor, which was fit on the decomposed features.
   if (!is.null(object@decomposition)) {
     newdata <- as.data.frame(
-      apply_decomp(object@decomposition, newdata, verbosity = verbosity)
+      apply_decomposition(
+        object@decomposition,
+        newdata,
+        n_threads = n_threads,
+        verbosity = verbosity
+      )
     )
   }
 
@@ -453,6 +463,8 @@ supervised_features <- function(object, newdata, verbosity = 1L) {
 #'
 #' @param object `Supervised` object.
 #' @param newdata tabular data: New data to predict.
+#' @param n_threads Integer: Threads for a backend that threads at prediction,
+#' resolved by the caller from where the prediction runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Output of `predict_super()` (raw predictions / probabilities).
@@ -460,18 +472,29 @@ supervised_features <- function(object, newdata, verbosity = 1L) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-predict_supervised_ <- function(object, newdata, verbosity = 1L) {
+predict_supervised_ <- function(
+  object,
+  newdata,
+  n_threads = 1L,
+  verbosity = 1L
+) {
   # Resolved before the call, not inside it. `predict_super()` is an S7 generic
   # with explicit formals, so its dispatch frame holds each argument as a
   # promise; an error raised while one is being forced leaves that promise
   # under evaluation, and any later walk of the stack that touches it (rlang's
   # `trace_back()` does) fails with "promise already under evaluation" instead
   # of reporting the original error.
-  features <- supervised_features(object, newdata, verbosity = verbosity)
+  features <- supervised_features(
+    object,
+    newdata,
+    n_threads = n_threads,
+    verbosity = verbosity
+  )
   predicted <- predict_super(
     model = object@model,
     newdata = features,
     type = object@type,
+    n_threads = n_threads,
     verbosity = verbosity
   )
   # Classification predictions are probabilities, and each backend reduces the
@@ -496,10 +519,25 @@ predict_supervised_ <- function(object, newdata, verbosity = 1L) {
 #'
 #' @param object `Supervised` object.
 #' @param newdata data.frame or similar: New data to predict.
+#' @param execution_config Optional `ExecutionConfig` object: Threads for a
+#' backend that threads at prediction are its `n_workers_algorithm`, or its
+#' worker count. `NULL` uses the host's default worker count -- the machine that
+#' predicts decides, not the one that trained.
 #'
 #' @noRd
-method(predict, Supervised) <- function(object, newdata, verbosity = 1L, ...) {
-  predict_supervised_(object, newdata, verbosity = verbosity)
+method(predict, Supervised) <- function(
+  object,
+  newdata,
+  execution_config = NULL,
+  verbosity = 1L,
+  ...
+) {
+  predict_supervised_(
+    object,
+    newdata,
+    n_threads = algorithm_threads(execution_config),
+    verbosity = verbosity
+  )
 } # /rtemis::predict.Supervised
 
 
@@ -1403,7 +1441,12 @@ CalibratedClassification <- new_class(
 
 
 # %% predict.CalibratedClassification ----
-method(predict, CalibratedClassification) <- function(object, newdata, ...) {
+method(predict, CalibratedClassification) <- function(
+  object,
+  newdata,
+  execution_config = NULL,
+  ...
+) {
   check_inherits(newdata, "data.frame")
   # Get the classification model's predicted probabilities, routing through the
   # parent `Supervised` predict method so the stored preprocessor, decomposition,
@@ -1413,7 +1456,11 @@ method(predict, CalibratedClassification) <- function(object, newdata, ...) {
   # helper instead.
   # Calibration maps one score per case, so the positive class's column is what
   # the calibration model was fitted on.
-  raw_prob <- positive_prob(predict_supervised_(object, newdata))
+  raw_prob <- positive_prob(predict_supervised_(
+    object,
+    newdata,
+    n_threads = algorithm_threads(execution_config)
+  ))
   # Get the calibration model's predicted probabilities
   predict(
     object@calibration_model,
@@ -2343,6 +2390,9 @@ method(print, SupervisedRes) <- function(
 #' the predictions of individual models, "all" returns the predictions of all models in a
 #' data.frame. "metrics" returns a list of data.frames with a) predictions from each model, b)
 #' the mean of the predictions, and c) the standard deviation of the predictions.
+#' @param execution_config Optional `ExecutionConfig` object: Threads for a
+#' backend that threads at prediction; `NULL` uses the host's default worker
+#' count.
 #' @param ... Not used.
 #'
 #' @keywords internal
@@ -2352,6 +2402,7 @@ method(predict, SupervisedRes) <- function(
   newdata,
   type = c("avg", "all", "metrics"),
   avg_fn = "mean",
+  execution_config = NULL,
   ...
 ) {
   check_inherits(newdata, "data.frame")
@@ -2361,7 +2412,7 @@ method(predict, SupervisedRes) <- function(
   # classification. Collected as a list rather than with `sapply()`, which
   # flattens a matrix into a column and so destroyed the class dimension.
   per_fold <- lapply(object@models, function(mod) {
-    predict(mod, newdata = newdata)
+    predict(mod, newdata = newdata, execution_config = execution_config)
   })
   switch(
     type,
@@ -2663,6 +2714,7 @@ method(predict, CalibratedClassificationRes) <- function(
   newdata,
   type = c("avg", "all", "metrics"),
   avg_fn = "mean",
+  execution_config = NULL,
   ...
 ) {
   check_inherits(newdata, "data.frame")
@@ -2685,7 +2737,8 @@ method(predict, CalibratedClassificationRes) <- function(
       #    take the positive class's column.
       raw_prob <- positive_prob(predict(
         base_mod,
-        newdata = newdata
+        newdata = newdata,
+        execution_config = execution_config
       ))
 
       # 2. Predict with calibration model
@@ -3452,11 +3505,6 @@ MLPModel <- new_class(
     type = class_character,
     y_levels = NULL | class_character,
     device = class_character,
-    # libtorch intra-op threads the fit ran with: the algorithm workers
-    # `train()` resolved, or the count libtorch already held if its backend
-    # refused a change. Prediction requests the same count, as a LightGBM
-    # booster keeps its `num_threads`.
-    n_threads = class_integer,
     epochs_trained = class_integer,
     best_epoch = class_integer,
     history = class_data.frame

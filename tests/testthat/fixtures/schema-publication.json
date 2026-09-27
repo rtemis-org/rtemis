@@ -406,7 +406,7 @@
     "cluster": {
       "class": "ClusterConfig",
       "title": "rtemis ClusterConfig",
-      "description": "Language-independent config for an rtemis clustering pipeline: a data reference, a `ClusteringConfig`, and an output directory."
+      "description": "Language-independent config for an rtemis clustering pipeline: a data reference, a `ClusteringConfig`, an `ExecutionConfig`, and an output directory."
     },
     "regressionmetrics": {
       "class": "RegressionMetrics",

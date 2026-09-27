@@ -123,11 +123,7 @@ decomp <- function(
   algorithm <- get_decom_name(algorithm)
   n_workers <- execution_n_workers(execution_config)
   threaded <- decomposition_traits(algorithm)[["threaded"]]
-  n_threads <- if (!threaded) {
-    1L
-  } else {
-    execution_config@n_workers_algorithm %||% n_workers
-  }
+  n_threads <- if (threaded) algorithm_threads(execution_config) else 1L
   msg_resources(
     backend = execution_backend_label(execution_config),
     n_workers = n_workers,

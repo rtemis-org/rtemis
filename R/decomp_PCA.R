@@ -47,6 +47,7 @@ method(apply_decomp_, PCAConfig) <- function(
   config,
   decom,
   new_data,
+  n_threads = 1L,
   verbosity = 1L
 ) {
   check_inherits(decom, "prcomp")

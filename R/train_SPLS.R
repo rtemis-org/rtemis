@@ -180,6 +180,7 @@ method(predict_super, class_spls) <- function(
   model,
   newdata,
   type = NULL,
+  n_threads = 1L,
   verbosity = 0L
 ) {
   predict(model, newx = as.matrix(newdata), type = "fit")[, 1L]
@@ -199,6 +200,7 @@ method(predict_super, class_splsda) <- function(
   model,
   newdata,
   type = NULL,
+  n_threads = 1L,
   verbosity = 0L
 ) {
   scores <- spls_scores(model, as.matrix(newdata))

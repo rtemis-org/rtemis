@@ -617,11 +617,6 @@ tSNEConfig <- schema_class(
     exaggeration_factor = prop_float(
       12,
       description = "Early-exaggeration factor."
-    ),
-    num_threads = prop_integer(
-      1L,
-      min = 0L,
-      description = "Number of threads (0 = all cores)."
     )
   ),
   publication = SchemaPublication(
@@ -658,7 +653,9 @@ tSNEConfig <- schema_class(
 #' @param final_momentum Numeric: Final momentum.
 #' @param eta Numeric: Eta.
 #' @param exaggeration_factor Numeric: Exaggeration factor.
-#' @param num_threads Integer [0, Inf): Number of threads.
+#' @param num_threads Optional Integer: Deprecated and ignored. Threads come
+#' from the execution config: set `n_workers_algorithm` in the
+#' `execution_config` passed to [decomp].
 #' @param features Optional Character vector: Names of at least 2 distinct
 #'   feature columns to decompose. `NULL` decomposes all numeric features.
 #'
@@ -690,7 +687,7 @@ setup_tSNE <- function(
   final_momentum = 0.8,
   eta = 200,
   exaggeration_factor = 12,
-  num_threads = 1L,
+  num_threads = NULL,
   features = NULL
 ) {
   apply_setup_defaults(tSNEConfig)
@@ -699,7 +696,14 @@ setup_tSNE <- function(
   max_iter <- clean_posint(max_iter)
   stop_lying_iter <- clean_int(stop_lying_iter)
   mom_switch_iter <- clean_int(mom_switch_iter)
-  num_threads <- clean_int(num_threads)
+  if (!is.null(num_threads)) {
+    .Deprecated(
+      msg = paste0(
+        "`setup_tSNE(num_threads =)` is deprecated and ignored: set ",
+        "`n_workers_algorithm` in the `execution_config` passed to `decomp()`."
+      )
+    )
+  }
   tSNEConfig(
     k = k,
     initial_dims = initial_dims,
@@ -721,7 +725,6 @@ setup_tSNE <- function(
     final_momentum = final_momentum,
     eta = eta,
     exaggeration_factor = exaggeration_factor,
-    num_threads = num_threads,
     features = features
   )
 } # /rtemis::setup_tSNE

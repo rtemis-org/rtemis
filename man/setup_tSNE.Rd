@@ -25,7 +25,7 @@ setup_tSNE(
   final_momentum = 0.8,
   eta = 200,
   exaggeration_factor = 12,
-  num_threads = 1L,
+  num_threads = NULL,
   features = NULL
 )
 }
@@ -70,7 +70,9 @@ setup_tSNE(
 
 \item{exaggeration_factor}{Numeric: Exaggeration factor.}
 
-\item{num_threads}{Integer [0, Inf): Number of threads.}
+\item{num_threads}{Optional Integer: Deprecated and ignored. Threads come
+from the execution config: set \code{n_workers_algorithm} in the
+\code{execution_config} passed to \link{decomp}.}
 
 \item{features}{Optional Character vector: Names of at least 2 distinct
 feature columns to decompose. \code{NULL} decomposes all numeric features.}

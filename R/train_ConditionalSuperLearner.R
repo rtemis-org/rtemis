@@ -107,6 +107,7 @@ csl_extended_data <- function(feat, experts, label) {
 #'
 #' @param oracle `Supervised` object: The fitted oracle.
 #' @param newdata data.frame: Features.
+#' @param n_threads Integer: Threads for an oracle that threads at prediction.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Character vector of expert names, one per case.
@@ -114,8 +115,18 @@ csl_extended_data <- function(feat, experts, label) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-csl_oracle_assign <- function(oracle, newdata, verbosity = 0L) {
-  probabilities <- predict(oracle, newdata, verbosity = verbosity)
+csl_oracle_assign <- function(
+  oracle,
+  newdata,
+  n_threads = 1L,
+  verbosity = 0L
+) {
+  probabilities <- predict_supervised_(
+    oracle,
+    newdata,
+    n_threads = n_threads,
+    verbosity = verbosity
+  )
   as.character(prob2categorical(
     probabilities,
     levels = levels(oracle@y_training),
@@ -478,12 +489,14 @@ method(predict_super, ConditionalSuperLearner) <- function(
   model,
   newdata,
   type = NULL,
+  n_threads = 1L,
   verbosity = 0L
 ) {
   check_inherits(newdata, "data.frame")
   assignments <- csl_oracle_assign(
     model@oracle,
     inc(newdata, model@xnames),
+    n_threads = n_threads,
     verbosity = verbosity - 1L
   )
   predicted <- numeric(NROW(newdata))
@@ -492,6 +505,7 @@ method(predict_super, ConditionalSuperLearner) <- function(
     predicted[rows] <- meta_predict(
       model@experts[[expert]],
       meta_features(newdata, rows, model@entry_features[[expert]]),
+      n_threads = n_threads,
       verbosity = verbosity - 1L
     )
   }

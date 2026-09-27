@@ -297,6 +297,31 @@ execution_future_plan <- function(x) {
 } # /rtemis::execution_future_plan
 
 
+# %% algorithm_threads ----
+#' Threads an algorithm may use
+#'
+#' The execution config's named algorithm share, or its worker count. With no
+#' config -- prediction, applying a fitted decomposition -- the host's default
+#' worker count, so the machine that runs the work decides, never the one that
+#' trained the model. `default_n_workers()` resolves to 1 under a CRAN check.
+#'
+#' @param execution_config Optional `ExecutionConfig` object.
+#'
+#' @return Integer.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+algorithm_threads <- function(execution_config = NULL) {
+  if (is.null(execution_config)) {
+    return(default_n_workers())
+  }
+  check_is_S7(execution_config, ExecutionConfig)
+  execution_config@n_workers_algorithm %||%
+    execution_n_workers(execution_config)
+} # /rtemis::algorithm_threads
+
+
 # %% execution_backend_label ----
 #' The execution backend as the resources line names it
 #'

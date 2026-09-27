@@ -4,13 +4,17 @@
 \alias{apply_decomp}
 \title{Apply Decomposition to New Data}
 \usage{
-apply_decomp(decom, new_data, verbosity = 1L)
+apply_decomp(decom, new_data, execution_config = NULL, verbosity = 1L)
 }
 \arguments{
 \item{decom}{Decomposition object.}
 
 \item{new_data}{Tabular data (data.frame, data.table, or tibble): New data to which the
 decomposition will be applied.}
+
+\item{execution_config}{Optional \code{ExecutionConfig} object: Threads for an
+algorithm whose \code{threaded} trait is TRUE are its \code{n_workers_algorithm}, or
+its worker count. \code{NULL} uses the host's default worker count.}
 
 \item{verbosity}{Integer: Verbosity level}
 }

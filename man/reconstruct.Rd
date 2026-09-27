@@ -4,13 +4,17 @@
 \alias{reconstruct}
 \title{Reconstruct Data from a Decomposition}
 \usage{
-reconstruct(decom, x, verbosity = 1L)
+reconstruct(decom, x, execution_config = NULL, verbosity = 1L)
 }
 \arguments{
 \item{decom}{\code{Decomposition} object.}
 
 \item{x}{Tabular data (data.frame, data.table, or tibble): Data to
 reconstruct. Its columns must match those \code{decom} was fitted on.}
+
+\item{execution_config}{Optional \code{ExecutionConfig} object: Threads for
+encoding \code{x}, as in \link{apply_decomp}. \code{NULL} uses the host's default worker
+count.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }

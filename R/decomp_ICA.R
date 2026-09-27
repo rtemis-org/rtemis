@@ -103,6 +103,7 @@ method(apply_decomp_, ICAConfig) <- function(
   config,
   decom,
   new_data,
+  n_threads = 1L,
   verbosity = 1L
 ) {
   xm <- ica_preprocess(

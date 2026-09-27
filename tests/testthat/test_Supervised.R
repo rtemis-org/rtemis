@@ -1526,14 +1526,6 @@ if (torch_available()) {
   test_that("train() TabNet Regression succeeds", {
     expect_s7_class(mod_r_tabnet, Regression)
   })
-  test_that("TabNet records the libtorch thread count it trained with", {
-    # The count libtorch held, not the one requested: see the MLP block.
-    expect_identical(
-      mod_r_tabnet@model[["rtemis_n_threads"]],
-      as.integer(torch::torch_get_num_threads())
-    )
-    expect_lte(mod_r_tabnet@model[["rtemis_n_threads"]], 2L)
-  })
 }
 
 ## {TabNet}[train]<Classification> ----
@@ -2221,10 +2213,17 @@ if (mlp_installed) {
 
   ## {MLP}[train]<Regression> libtorch threads ----
   # libtorch runs on every core unless told otherwise, which breaks the
-  # two-core limit on CRAN. The count is process-global, and the native backend
-  # (macOS) accepts one setting per process, so a fit records the count libtorch
-  # actually held rather than the one it asked for.
-  test_that("MLP requests the resolved algorithm workers and records libtorch's count", {
+  # two-core limit on CRAN. A fit asks for the algorithm workers `train()`
+  # resolved; a prediction asks for the count resolved where it runs -- never
+  # the training count, which belongs to another machine or workload.
+  test_that("MLP asks for the fit's workers when training and the predictor's when predicting", {
+    requested <- integer()
+    local_mocked_bindings(
+      set_torch_threads = function(n_threads, verbosity = 1L) {
+        requested <<- c(requested, as.integer(n_threads))
+        as.integer(n_threads)
+      }
+    )
     mod <- train(
       x = datr_train,
       hyperparameters = setup_MLP(
@@ -2236,13 +2235,20 @@ if (mlp_installed) {
       execution_config = setup_SerialExecution(n_workers_algorithm = 2L),
       verbosity = 0L
     )
-    expect_identical(mod@hyperparameters@n_workers, 2L)
-    expect_identical(
-      mod@model@n_threads,
-      as.integer(torch::torch_get_num_threads())
+    # The fit, then its own training-set prediction, both in the fit's context.
+    expect_gt(length(requested), 0L)
+    expect_true(all(requested == 2L))
+    requested <- integer()
+    predict(
+      mod,
+      features(datr_test),
+      execution_config = setup_SerialExecution(n_workers_algorithm = 1L),
+      verbosity = 0L
     )
-    # helper-torch.R pins the test process to at most two threads.
-    expect_lte(mod@model@n_threads, 2L)
+    expect_identical(requested, 1L)
+    requested <- integer()
+    predict(mod, features(datr_test), verbosity = 0L)
+    expect_identical(requested, default_n_workers())
   })
 
   ## {MLP}[train]<Regression> Generated architecture ----
@@ -2558,6 +2564,15 @@ if (mlp_installed) {
     expect_identical(
       describe_device(setup_LightGBM(device_type = "cuda")),
       "CUDA"
+    )
+    # A set lists each of its members' devices once.
+    expect_identical(
+      describe_device(as_HyperparametersSet(list(
+        a = setup_LightGBM(),
+        b = setup_LightGBM(device_type = "cuda"),
+        c = setup_LightGBM(learning_rate = 0.05)
+      ))),
+      "CPU, CUDA"
     )
     expect_identical(
       describe_device(setup_TabNet()),

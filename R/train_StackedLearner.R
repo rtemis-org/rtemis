@@ -27,6 +27,7 @@ level_one_matrix <- function(
   base_models,
   entry_features,
   newdata,
+  n_threads = 1L,
   verbosity = 0L
 ) {
   rows <- seq_len(NROW(newdata))
@@ -34,6 +35,7 @@ level_one_matrix <- function(
     meta_predict(
       base_models[[entry]],
       meta_features(newdata, rows, entry_features[[entry]]),
+      n_threads = n_threads,
       verbosity = verbosity
     )
   })
@@ -284,6 +286,7 @@ method(predict_super, StackedLearner) <- function(
   model,
   newdata,
   type = NULL,
+  n_threads = 1L,
   verbosity = 0L
 ) {
   check_inherits(newdata, "data.frame")
@@ -291,6 +294,7 @@ method(predict_super, StackedLearner) <- function(
     model@base_models,
     model@entry_features,
     newdata,
+    n_threads = n_threads,
     verbosity = verbosity - 1L
   )
   if (!is.null(model@discrete_winner)) {
@@ -299,6 +303,7 @@ method(predict_super, StackedLearner) <- function(
   meta_predict(
     model@meta_model,
     as.data.table(level_one),
+    n_threads = n_threads,
     verbosity = verbosity - 1L
   )
 } # /rtemis::predict_super.StackedLearner

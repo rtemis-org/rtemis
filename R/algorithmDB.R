@@ -652,7 +652,7 @@ decom_algorithms <- data.frame(
     "local"
   ),
   nonneg = c(FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
-  threaded = c(FALSE, FALSE, FALSE, FALSE, FALSE, TRUE),
+  threaded = c(FALSE, FALSE, FALSE, FALSE, TRUE, TRUE),
   package = c("fastICA", "vegan", "NMF", "stats", "Rtsne", "uwot"),
   stringsAsFactors = FALSE
 )

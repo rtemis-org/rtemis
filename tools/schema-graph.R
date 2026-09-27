@@ -255,6 +255,34 @@ cases[["decompose_record"]] <- check_document(
   "decompose/r/v1/record.json",
   decompose_record
 )
+cluster_config <- setup_ClusterConfig(
+  clustering_config = setup_KMeans(k = 3L),
+  execution_config = setup_SerialExecution(seed = 1L)
+)
+cases[["cluster_input"]] <- check_document(
+  "cluster_input",
+  "cluster/r/v1/schema.json",
+  S7_to_list(cluster_config)
+)
+cluster_record_file <- tempfile(fileext = ".json")
+write_record(
+  cluster(
+    iris[, 1:4],
+    config = setup_KMeans(k = 3L),
+    execution_config = setup_SerialExecution(seed = 1L),
+    verbosity = 0L
+  ),
+  cluster_record_file,
+  verbosity = 0L
+)
+cases[["cluster_record"]] <- check_document(
+  "cluster_record",
+  "cluster/r/v1/record.json",
+  structure(
+    paste(readLines(cluster_record_file, warn = FALSE), collapse = "\n"),
+    class = "json"
+  )
+)
 preprocessor <- setup_Preprocessor(
   scale = TRUE,
   scale_centers = c(candidates = 1.5)

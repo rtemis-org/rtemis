@@ -255,7 +255,9 @@ train_ <- new_generic(
 #' @param model Fitted model object.
 #' @param newdata tabular data: New data for prediction.
 #' @param type Character: Type of supervised learning ("Classification" or "Regression").
-#' @param ... Additional arguments (not currently used).
+#' @param n_threads Integer: Threads a backend that threads at prediction may
+#' use, resolved on the machine that predicts -- never the count the model was
+#' trained with, which belongs to another machine or another workload.
 #'
 #' @return Predictions (class probabilities for classification, numeric for regression).
 #'
@@ -265,7 +267,7 @@ train_ <- new_generic(
 predict_super <- new_generic(
   "predict_super",
   "model",
-  function(model, newdata, type = NULL, verbosity = 0L) {
+  function(model, newdata, type = NULL, n_threads = 1L, verbosity = 0L) {
     force_supplied()
     S7_dispatch()
   }
@@ -665,7 +667,8 @@ decomp_ <- new_generic(
 #' Generic for applying a fitted decomposition to new data
 #'
 #' Dispatches on the `DecompositionConfig` subclass. Implemented only for
-#' algorithms listed in `decom_algorithms_applicable`.
+#' algorithms listed in `decom_algorithms_applicable`. `n_threads` is resolved
+#' where the fit is applied, as for `predict_super()`.
 #'
 #' @author EDG
 #' @keywords internal
@@ -673,7 +676,7 @@ decomp_ <- new_generic(
 apply_decomp_ <- new_generic(
   "apply_decomp_",
   "config",
-  function(config, decom, new_data, verbosity = 1L) {
+  function(config, decom, new_data, n_threads = 1L, verbosity = 1L) {
     force_supplied()
     S7_dispatch()
   }

@@ -61,10 +61,7 @@ method(train_, TabNetHyperparameters) <- function(
   # categorical predictors internally thus, you don't need to make any treatment.
   config <- get_tabnet_config(hyperparameters)
   config[["verbose"]] <- verbosity > 0L
-  n_threads <- set_torch_threads(
-    prop(hyperparameters, "n_workers"),
-    verbosity = verbosity
-  )
+  set_torch_threads(prop(hyperparameters, "n_workers"), verbosity = verbosity)
   model <- tabnet::tabnet_fit(
     x = x,
     y = y,
@@ -72,8 +69,6 @@ method(train_, TabNetHyperparameters) <- function(
     weights = weights
   )
   check_inherits(model, "tabnet_fit")
-  # The count libtorch held for the fit; the backend object records none.
-  model[["rtemis_n_threads"]] <- n_threads
   list(model = model, preprocessor = prp)
 } # /rtemis::train_.TabNetHyperparameters
 
@@ -125,14 +120,11 @@ method(predict_super, class_tabnet_fit) <- function(
   model,
   newdata,
   type = NULL,
+  n_threads = 1L,
   verbosity = 0L
 ) {
   check_dependencies("torch", "tabnet")
-  # A fit that carries no thread count predicts single-threaded.
-  set_torch_threads(
-    model[["rtemis_n_threads"]] %||% 1L,
-    verbosity = verbosity
-  )
+  set_torch_threads(n_threads, verbosity = verbosity)
   if (type == "Regression") {
     predict(model, new_data = newdata)[[1]]
   } else if (type == "Classification") {

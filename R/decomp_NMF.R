@@ -125,11 +125,16 @@ method(decomp_, NMFConfig) <- function(
   msg("Decomposing with", config@algorithm, "...", verbosity = verbosity)
   xm <- as.matrix(x)
   # `NMF::nmf()` takes features in rows and cases in columns.
+  # Sequential (`.opt = "-p"`). With `nrun > 1`, NMF's default is to run in
+  # parallel, and its parallel setup requires the package to be attached, which
+  # a caller reaching it through `NMF::` has not done: every such run fails with
+  # "none of the packages are loaded".
   args <- list(
     x = t(xm),
     rank = config[["k"]],
     method = config[["method"]],
-    nrun = config[["nrun"]]
+    nrun = config[["nrun"]],
+    .opt = "-p"
   )
   decom <- do_call(NMF::nmf, args, verbosity = verbosity)
   list(decom = decom, transformed = nmf_scores(nmf_basis(decom), xm))
@@ -156,6 +161,7 @@ method(apply_decomp_, NMFConfig) <- function(
   config,
   decom,
   new_data,
+  n_threads = 1L,
   verbosity = 1L
 ) {
   check_dependencies("NMF")

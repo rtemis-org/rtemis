@@ -20,7 +20,10 @@ method(decomp_, tSNEConfig) <- function(
 
   # Decompose ----
   msg("Decomposing with", config@algorithm, "...", verbosity = verbosity)
-  args <- c(list(X = x, dims = config[["k"]]), config@config)
+  args <- c(
+    list(X = x, dims = config[["k"]], num_threads = n_threads),
+    config@config
+  )
   args[["k"]] <- NULL
   decom <- do_call(
     Rtsne::Rtsne,

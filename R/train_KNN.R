@@ -192,6 +192,7 @@ method(predict_super, class_train.kknn) <- function(
   model,
   newdata,
   type = NULL,
+  n_threads = 1L,
   verbosity = 0L
 ) {
   fitted <- kknn::kknn(

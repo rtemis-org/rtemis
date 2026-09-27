@@ -7,6 +7,7 @@
 setup_ClusterConfig(
   dat_path = NULL,
   clustering_config = NULL,
+  execution_config = setup_FutureExecution(),
   outdir = "results/",
   verbosity = 1L
 )
@@ -20,6 +21,9 @@ the clustering itself, naming the algorithm, its settings and the feature
 columns to cluster on. Setup with a clustering \verb{setup_*} function, e.g.
 \link{setup_KMeans}. If NULL, \link{cluster} runs its default algorithm with default
 settings.}
+
+\item{execution_config}{\code{ExecutionConfig} object: Execution settings, e.g.
+\link{setup_FutureExecution}. Its seed seeds the fit.}
 
 \item{outdir}{Character: Output directory for results.}
 

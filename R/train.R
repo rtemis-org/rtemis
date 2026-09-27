@@ -1012,19 +1012,18 @@ train <- function(
       # tuning or folds claim the workers it runs on one thread, so the two
       # never oversubscribe. Seeded from this call's seed, which within a fold
       # is the fold's substream.
+      decomposition_threads <- execution_config@n_workers_algorithm %||%
+        if (workers[["tuning"]] == 1L && workers[["outer_resampling"]] == 1L) {
+          n_workers
+        } else {
+          1L
+        }
       decomposition <- decomp(
         x = feat,
         algorithm = decomposition_config@algorithm,
         config = decomposition_config,
         execution_config = setup_SerialExecution(
-          n_workers_algorithm = execution_config@n_workers_algorithm %||%
-            if (
-              workers[["tuning"]] == 1L && workers[["outer_resampling"]] == 1L
-            ) {
-              n_workers
-            } else {
-              1L
-            },
+          n_workers_algorithm = decomposition_threads,
           seed = execution_config@seed
         ),
         verbosity = verbosity
@@ -1044,7 +1043,12 @@ train <- function(
       if (!is.null(dat_validation)) {
         val_outcome <- dat_validation[[ncols]]
         dat_validation <- as.data.frame(
-          apply_decomp(decomposition, features(dat_validation), verbosity = 0L)
+          apply_decomposition(
+            decomposition,
+            features(dat_validation),
+            n_threads = decomposition_threads,
+            verbosity = 0L
+          )
         )
         dat_validation[[outcome_nm]] <- val_outcome
       }
@@ -1052,7 +1056,12 @@ train <- function(
       if (!is.null(dat_test)) {
         test_outcome <- dat_test[[ncols]]
         dat_test <- as.data.frame(
-          apply_decomp(decomposition, features(dat_test), verbosity = 0L)
+          apply_decomposition(
+            decomposition,
+            features(dat_test),
+            n_threads = decomposition_threads,
+            verbosity = 0L
+          )
         )
         dat_test[[outcome_nm]] <- test_outcome
       }
@@ -1150,7 +1159,8 @@ train <- function(
     predicted_training <- predict_super(
       model = model,
       newdata = x_features,
-      type = type
+      type = type,
+      n_threads = hyperparameters@n_workers
     )
 
     if (type == "Classification") {
@@ -1178,7 +1188,8 @@ train <- function(
       predicted_validation <- predict_super(
         model = model,
         newdata = dat_validation_features,
-        type = type
+        type = type,
+        n_threads = hyperparameters@n_workers
       )
 
       if (type == "Classification") {
@@ -1203,7 +1214,8 @@ train <- function(
       predicted_test <- predict_super(
         model = model,
         newdata = dat_test_features,
-        type = type
+        type = type,
+        n_threads = hyperparameters@n_workers
       )
 
       if (type == "Classification") {
@@ -1785,7 +1797,7 @@ msg_resources <- function(
 #' algorithm chose it because the caller named none. Only the device in use is
 #' named.
 #'
-#' @param hyperparameters `Hyperparameters` object.
+#' @param hyperparameters `Hyperparameters` or `HyperparametersSet` object.
 #'
 #' @return Character, e.g. `"CPU"` or `"MPS (auto-selected)"`.
 #'
@@ -1793,6 +1805,18 @@ msg_resources <- function(
 #' @keywords internal
 #' @noRd
 describe_device <- function(hyperparameters) {
+  # A set is one algorithm under several configurations, so its members can
+  # name different devices; the label lists each one once.
+  if (S7_inherits(hyperparameters, HyperparametersSet)) {
+    return(paste(
+      unique(vapply(
+        hyperparameters@variants,
+        describe_device,
+        character(1L)
+      )),
+      collapse = ", "
+    ))
+  }
   device <- training_device(hyperparameters)
   if (is.null(device)) {
     return("CPU")

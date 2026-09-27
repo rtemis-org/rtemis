@@ -135,6 +135,7 @@ method(predict_super, class_lgb.Booster) <- function(
   model,
   newdata,
   type = NULL,
+  n_threads = 1L,
   verbosity = 0L
 ) {
   check_inherits(model, "lgb.Booster")
@@ -144,7 +145,13 @@ method(predict_super, class_lgb.Booster) <- function(
   # predict.Supervised before calling this method. See R/train.R and R/200_Supervised.R
 
   # Predict ----
-  predict(model, newdata = as.matrix(newdata))
+  # The booster keeps the `num_threads` it was trained with; prediction uses the
+  # count resolved where it runs.
+  predict(
+    model,
+    newdata = as.matrix(newdata),
+    params = list(num_threads = n_threads)
+  )
 } # /rtemis::predict_super.lgb.Booster
 
 
