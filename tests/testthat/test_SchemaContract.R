@@ -190,6 +190,11 @@
 .contract_no_schema <- "setup_SuperConfigLive"
 
 
+# %% .contract_deprecated ----
+# Compatibility wrappers delegate to the canonical setup functions above.
+.contract_deprecated <- "setup_Resampler"
+
+
 # %% .contract_schema ----
 # The schema the generator would emit for one entry, in either kind.
 .contract_schema <- function(entry, record = FALSE) {
@@ -316,17 +321,18 @@ test_that("setup formals agree with class-owned resolution defaults", {
 test_that("every setup_* export is classified", {
   # So a `setup_*` written years from now cannot escape the check above by
   # simply not being listed: it must be paired with the class it builds, or
-  # declared to have no schema.
+  # classified as a deprecated wrapper or declared to have no schema.
   setup_fns <- grep("^setup_", getNamespaceExports("rtemis"), value = TRUE)
   expect_gt(length(setup_fns), 0L)
   classified <- c(
     vapply(.contract_classes, `[[`, character(1L), "setup"),
-    .contract_no_schema
+    .contract_no_schema,
+    .contract_deprecated
   )
   expect_identical(
     sort(setdiff(setup_fns, classified)),
     character(),
-    info = "unclassified setup_*: add to .contract_classes or .contract_no_schema"
+    info = "unclassified setup_*: add to .contract_classes, .contract_no_schema, or .contract_deprecated"
   )
 })
 
@@ -413,12 +419,8 @@ test_that("no readOnly schema property is a setup_* formal", {
   # state field a `setup_*` accepts is one a user can write, so declaring it
   # read-only would misdescribe the document.
   #
-  # Only where one `setup_*` builds one class. Every registered family now
-  # has a dedicated constructor per leaf (resampler included, since
-  # `setup_Resampler(type = )` was split into `setup_KFold()`/`setup_StratSub()`/
-  # etc.), so this exclusion is defensive rather than load-bearing today: it
-  # protects against a future family sharing one constructor across variants,
-  # the way `setup_Resampler()` once did.
+  # Only dedicated setup functions participate: a shared constructor can
+  # accept an argument that is state-only for another variant.
   shared <- vapply(.contract_classes, `[[`, character(1L), "setup")
   shared <- names(Filter(function(n) n > 1L, table(shared)))
   for (entry in Filter(
