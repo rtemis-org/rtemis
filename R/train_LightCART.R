@@ -81,6 +81,10 @@ method(train_, LightCARTHyperparameters) <- function(
   # absent: it parses the empty value as 0 and fails its own range check
   # (`alpha = NULL` aborts with "Check failed: (alpha) > (0.0)"). So NULL means
   # "leave it to the backend", which is expressed by not sending it at all.
+  params <- c(
+    params,
+    lightgbm_device_params(hyperparameters, execution_config@device)
+  )
   params <- Filter(Negate(is.null), params)
 
   model <- lightgbm::lgb.train(

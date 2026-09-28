@@ -131,7 +131,7 @@ method(predict_super, NNLS) <- function(
   model,
   newdata,
   type = NULL,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   check_inherits(newdata, "data.frame")

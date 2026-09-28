@@ -194,9 +194,9 @@ test_that("tune_over takes candidates as arguments or as one vector", {
 
 
 test_that("a domain is rejected by a hyperparameter that is not tunable", {
-  # `device_type` declares no search space, so its type does not admit one.
-  err <- expect_error(setup_LightRF(device_type = tune_over("cpu", "gpu")))
-  expect_match(conditionMessage(err), "device_type", fixed = TRUE)
+  # `force_col_wise` declares no search space, so its type does not admit one.
+  err <- expect_error(setup_LightRF(force_col_wise = tune_over(TRUE, FALSE)))
+  expect_match(conditionMessage(err), "force_col_wise", fixed = TRUE)
   expect_match(conditionMessage(err), "HyperparameterCandidates", fixed = TRUE)
 })
 

@@ -45,7 +45,12 @@ mclust_Mclust <- function(args) {
 #'
 #' @keywords internal
 #' @noRd
-method(cluster_, GMMConfig) <- function(config, x, verbosity = 1L) {
+method(cluster_, GMMConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   # Checks ----
   check_is_S7(config, GMMConfig)
 

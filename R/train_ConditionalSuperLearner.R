@@ -107,7 +107,8 @@ csl_extended_data <- function(feat, experts, label) {
 #'
 #' @param oracle `Supervised` object: The fitted oracle.
 #' @param newdata data.frame: Features.
-#' @param n_threads Integer: Threads for an oracle that threads at prediction.
+#' @param execution_config Optional `ExecutionConfig`: Where the prediction
+#' runs; NULL means the host's defaults.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Character vector of expert names, one per case.
@@ -118,13 +119,13 @@ csl_extended_data <- function(feat, experts, label) {
 csl_oracle_assign <- function(
   oracle,
   newdata,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   probabilities <- predict_supervised_(
     oracle,
     newdata,
-    n_threads = n_threads,
+    execution_config = execution_config,
     verbosity = verbosity
   )
   as.character(prob2categorical(
@@ -283,6 +284,7 @@ method(train_, ConditionalSuperLearnerHyperparameters) <- function(
         predictions[test_rows, expert] <- meta_predict(
           fold_model,
           meta_features(x, test_rows, entry_features[[expert]]),
+          execution_config = execution_config,
           verbosity = verbosity - 2L
         )
       }
@@ -364,6 +366,7 @@ method(train_, ConditionalSuperLearnerHyperparameters) <- function(
     assignments <- csl_oracle_assign(
       oracle,
       inc(x, feature_names),
+      execution_config = execution_config,
       verbosity = verbosity - 2L
     )
     # The paper's objective, read off the cross-validated losses the oracle was
@@ -489,14 +492,14 @@ method(predict_super, ConditionalSuperLearner) <- function(
   model,
   newdata,
   type = NULL,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   check_inherits(newdata, "data.frame")
   assignments <- csl_oracle_assign(
     model@oracle,
     inc(newdata, model@xnames),
-    n_threads = n_threads,
+    execution_config = execution_config,
     verbosity = verbosity - 1L
   )
   predicted <- numeric(NROW(newdata))
@@ -505,7 +508,7 @@ method(predict_super, ConditionalSuperLearner) <- function(
     predicted[rows] <- meta_predict(
       model@experts[[expert]],
       meta_features(newdata, rows, model@entry_features[[expert]]),
-      n_threads = n_threads,
+      execution_config = execution_config,
       verbosity = verbosity - 1L
     )
   }

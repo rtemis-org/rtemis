@@ -395,7 +395,7 @@ method(predict_super, class_hal9001) <- function(
   model,
   newdata,
   type = NULL,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   # A binomial fit returns P(y == 1), which training coded as the second

@@ -42,6 +42,13 @@ ExecutionConfig <- schema_class(
       nullable = TRUE,
       description = "Threads for a self-parallelizing algorithm. Unset lets the worker ladder assign it."
     ),
+    # Where an algorithm computes. On the base because it composes with every
+    # backend: a serial run on a GPU is as ordinary as a parallel one on CPUs.
+    device = prop_object(
+      DeviceConfig,
+      nullable = TRUE,
+      description = "Compute device. Unset selects one per algorithm: cuda where the machine has it and the algorithm can use it, else the CPU. An algorithm that cannot use the requested device runs on the CPU."
+    ),
     warm_workers = prop_boolean(
       TRUE,
       description = "Load rtemis in every worker when the pool is built, rather than on each worker's first task."
@@ -322,6 +329,50 @@ algorithm_threads <- function(execution_config = NULL) {
 } # /rtemis::algorithm_threads
 
 
+# %% algorithm_execution_config ----
+#' The execution config for work that runs inside one fit
+#'
+#' A serial config carrying the run's device, seed and failure policy, with the
+#' thread count the worker ladder gave this work. `train()` hands it to the
+#' fit's own predictions and to its decomposition step: they run in the fit's
+#' process, so they may use its threads and must not dispatch. Built with the
+#' class constructor, so no seed is drawn.
+#'
+#' @param execution_config `ExecutionConfig` object: The run's config.
+#' @param n_threads Integer: Threads for the work.
+#'
+#' @return `SerialExecutionConfig` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+algorithm_execution_config <- function(execution_config, n_threads) {
+  SerialExecutionConfig(
+    n_workers_algorithm = as.integer(n_threads),
+    device = execution_config@device,
+    on_error = execution_config@on_error,
+    seed = execution_config@seed,
+    shared_memory = execution_config@shared_memory,
+    warm_workers = execution_config@warm_workers
+  )
+} # /rtemis::algorithm_execution_config
+
+
+# %% execution_device ----
+#' The device an execution config requests, or NULL
+#'
+#' @param execution_config Optional `ExecutionConfig` object.
+#'
+#' @return `DeviceConfig` object, or NULL for automatic selection.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+execution_device <- function(execution_config = NULL) {
+  if (is.null(execution_config)) NULL else execution_config@device
+} # /rtemis::execution_device
+
+
 # %% execution_backend_label ----
 #' The execution backend as the resources line names it
 #'
@@ -423,6 +474,7 @@ EXECUTION_SETUP <- c(
 #' Validate and resolve the settings every execution variant shares
 #'
 #' @param n_workers_outer,n_workers_tuning,n_workers_algorithm Optional Integer.
+#' @param device Optional `DeviceConfig`, Character, or list.
 #' @param on_error,shared_memory Character: Already matched by the caller.
 #' @param seed Optional Integer.
 #' @param warm_workers Logical.
@@ -434,6 +486,7 @@ EXECUTION_SETUP <- c(
 #' @noRd
 .execution_common <- function(
   n_workers_algorithm,
+  device,
   on_error,
   seed,
   shared_memory,
@@ -461,6 +514,7 @@ EXECUTION_SETUP <- c(
   }
   list(
     n_workers_algorithm = n_workers_algorithm,
+    device = as_device_config(device),
     on_error = on_error,
     seed = seed,
     shared_memory = shared_memory,
@@ -551,6 +605,18 @@ EXECUTION_SETUP <- c(
 #' automatic assignment.
 #' @param n_workers_algorithm Optional Integer [1, Inf): Threads for a self-parallelizing
 #' algorithm, overriding the automatic assignment.
+#' @param device Optional `DeviceConfig`: Compute device, as a type name --
+#' `"cpu"`, `"cuda"`, `"mps"` (the Apple silicon GPU) or `"opencl"` (a LightGBM
+#' GPU build) -- or [setup_CUDA] to name which GPUs. `NULL` selects one per
+#' algorithm: `"cuda"` where the machine has it and the algorithm can use it,
+#' else the CPU. An algorithm that cannot use the requested device runs on the
+#' CPU, and the run's resources line says so; a device the machine lacks is an
+#' error when an algorithm tries to use it. `"mps"` is never selected
+#' automatically: in rtemis benchmarks on an Apple M5 the CPU was faster for
+#' every network narrower than about 1024 units or trained in batches smaller
+#' than about 2048 cases, often by 2 to 5 times, and `"mps"` was faster by up to
+#' about 25% only with both and thousands of features. It also slows down across
+#' many fits in one R session, and a seed does not reach dropout on it.
 #' @param future_plan Character: Future plan to use. Defaults to
 #' `getOption("future.plan", "mirai_multisession")`.
 #' @param on_error Character \{"continue", "stop", "stop_outer"\}: Failure policy.
@@ -611,6 +677,7 @@ setup_FutureExecution <- function(
   n_workers_outer = NULL,
   n_workers_tuning = NULL,
   n_workers_algorithm = NULL,
+  device = NULL,
   future_plan = getOption("future.plan", "mirai_multisession"),
   on_error = c("continue", "stop", "stop_outer"),
   seed = NULL,
@@ -641,6 +708,7 @@ setup_FutureExecution <- function(
     c(
       .execution_common(
         n_workers_algorithm,
+        device,
         on_error,
         seed,
         shared_memory,
@@ -679,6 +747,7 @@ setup_MiraiExecution <- function(
   n_workers_outer = NULL,
   n_workers_tuning = NULL,
   n_workers_algorithm = NULL,
+  device = NULL,
   on_error = c("continue", "stop", "stop_outer"),
   seed = NULL,
   shared_memory = c("auto", "none", "always"),
@@ -694,6 +763,7 @@ setup_MiraiExecution <- function(
     c(
       .execution_common(
         n_workers_algorithm,
+        device,
         on_error,
         seed,
         shared_memory,
@@ -732,6 +802,7 @@ setup_MiraiExecution <- function(
 #' setup_SerialExecution()
 setup_SerialExecution <- function(
   n_workers_algorithm = NULL,
+  device = NULL,
   on_error = c("continue", "stop", "stop_outer"),
   seed = NULL,
   shared_memory = c("auto", "none", "always"),
@@ -745,6 +816,7 @@ setup_SerialExecution <- function(
     SerialExecutionConfig,
     .execution_common(
       n_workers_algorithm,
+      device,
       on_error,
       seed,
       shared_memory,
@@ -790,6 +862,7 @@ setup_SerialExecution <- function(
   # document with `unevaluatedProperties`, and the leaf declares no such
   # property to evaluate it.
   fn <- get(EXECUTION_SETUP[[backend]], envir = asNamespace("rtemis"))
+  args <- read_wire_objects(args, EXECUTION_CLASSES[[backend]])
   carried <- setdiff(names(args), names(formals(fn)))
   if (length(carried) > 0L) {
     rtemis.core::abort(

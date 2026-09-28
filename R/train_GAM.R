@@ -127,7 +127,7 @@ method(predict_super, class_gam) <- function(
   model,
   newdata,
   type = NULL,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   out <- predict(object = model, newdata = newdata, type = "response")

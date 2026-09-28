@@ -103,6 +103,8 @@ nmf_scores <- function(basis, xm) {
 #'
 #' @param x A numeric matrix or data frame to be decomposed.
 #' @param config `NMFConfig` object.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return A list containing the decomposition and transformed data.
@@ -113,7 +115,7 @@ nmf_scores <- function(basis, xm) {
 method(decomp_, NMFConfig) <- function(
   config,
   x,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   # Checks ----
@@ -151,6 +153,8 @@ method(decomp_, NMFConfig) <- function(
 #' @param config `NMFConfig` object.
 #' @param decom Fitted NMF object.
 #' @param new_data Tabular data: New data to project onto the basis.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Matrix of NMF component scores.
@@ -161,7 +165,7 @@ method(apply_decomp_, NMFConfig) <- function(
   config,
   decom,
   new_data,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   check_dependencies("NMF")
@@ -183,6 +187,8 @@ method(apply_decomp_, NMFConfig) <- function(
 #' @param decom Fitted NMF object.
 #' @param transformed Numeric matrix: Component scores, cases by components.
 #' @param x Tabular data: Unused; NMF applies no invertible preprocessing.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Numeric matrix: Reconstruction in input units, cases by features.
@@ -194,6 +200,7 @@ method(reconstruct_, NMFConfig) <- function(
   decom,
   transformed,
   x,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   check_dependencies("NMF")

@@ -3606,6 +3606,36 @@ family_shared_names <- function(base) {
 } # /rtemis::family_shared_names
 
 
+# %% family_shared_origin_names ----
+#' The base's shared fields a family record's `origin` covers
+#'
+#' Every shared field except an object-valued one (an execution config's
+#' `device`), which is a nested record carrying its own `origin`, as a nested
+#' config is everywhere else. The record schema and `config_record()` both read
+#' this, so writer and schema cannot disagree.
+#'
+#' @param base S7 class: The family base, or NULL.
+#'
+#' @return Character.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+family_shared_origin_names <- function(base) {
+  shared <- family_shared_names(base)
+  if (length(shared) == 0L) {
+    return(shared)
+  }
+  shared[vapply(
+    shared,
+    function(nm) {
+      is.null(get_spec_fields(base@properties[[nm]])[["target_class"]])
+    },
+    logical(1L)
+  )]
+} # /rtemis::family_shared_origin_names
+
+
 # %% family_prop_values ----
 #' The fields a family's dispatcher declares, as a serialized config carries them
 #'
@@ -5311,7 +5341,7 @@ S7_to_JSONSchema <- function(
     # base's shared settings -- which is what `config_record()` writes, from
     # this same `family_shared_names()`. Declaration order matches it.
     if (!is.null(base)) {
-      shared <- setdiff(family_shared_names(base), names(origin_props))
+      shared <- setdiff(family_shared_origin_names(base), names(origin_props))
       origin_props <- c(origin_props, base@properties[shared])
     }
     if (length(origin_props) > 0L) {
@@ -5445,13 +5475,19 @@ discriminator_value <- function(cls, discriminator) {
 #'   properties.
 #' @param skip Character: Property names the dispatcher emits itself (the
 #'   discriminator).
+#' @param reference_urls Optional named Character: Schema URL per qualified
+#'   class, for config-valued properties; see `schema_reference_urls()`.
 #'
 #' @return Named list of JSON Schema properties, in declaration order.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-base_schema_properties <- function(base, skip = character()) {
+base_schema_properties <- function(
+  base,
+  skip = character(),
+  reference_urls = NULL
+) {
   if (is.null(base)) {
     return(list())
   }
@@ -5464,7 +5500,11 @@ base_schema_properties <- function(base, skip = character()) {
   props <- base@properties[setdiff(names(base@properties), skip)]
   props <- Filter(function(p) !is.null(get_spec(p)), props)
   out <- lapply(props, function(p) {
-    prop_to_schema(p)
+    spec_to_schema(
+      get_spec(p),
+      identical(prop_role(p), "state"),
+      reference_urls = reference_urls
+    )
   })
   out
 } # /rtemis::base_schema_properties
@@ -5620,9 +5660,19 @@ S7_dispatcher_JSONSchema <- function(
     enum = variants,
     description = discriminator_description
   )))
+  # A shared config-valued field (an execution config's `device`) references
+  # the target family's record schema in a record, as a leaf's own does.
   properties <- c(
     properties,
-    base_schema_properties(base, skip = discriminator)
+    base_schema_properties(
+      base,
+      skip = discriminator,
+      reference_urls = schema_reference_urls(
+        schema_catalog(),
+        "https://schema.rtemis.org",
+        record = record
+      )
+    )
   )
   all_of <- lapply(variants, function(variant) {
     # `required` on the discriminator: a `properties`-only `if` is vacuously

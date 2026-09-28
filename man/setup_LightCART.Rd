@@ -13,7 +13,6 @@ setup_LightCART(
   min_data_per_group = 100L,
   linear_tree = FALSE,
   objective = NULL,
-  device_type = "cpu",
   force_col_wise = TRUE,
   feature_fraction = 1,
   feature_fraction_bynode = 1,
@@ -76,8 +75,6 @@ setup_LightCART(
 \item{linear_tree}{(Tunable) Logical: If TRUE, use linear trees.}
 
 \item{objective}{Optional Character: Objective function. NULL = set from outcome type.}
-
-\item{device_type}{Character \{"cpu", "gpu", "cuda"\}: Compute device.}
 
 \item{force_col_wise}{Logical: Force column-wise histogram building (CPU only).}
 

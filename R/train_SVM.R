@@ -233,7 +233,7 @@ method(predict_super, class_svm) <- function(
   model,
   newdata,
   type = NULL,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   if (type == "Classification") {

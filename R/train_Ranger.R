@@ -123,7 +123,7 @@ method(predict_super, class_ranger) <- function(
   model,
   newdata,
   type = NULL,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   check_inherits(model, "ranger")
@@ -141,7 +141,7 @@ method(predict_super, class_ranger) <- function(
       data = newdata,
       # ranger's own default reads R's `Ncpus` option, which a host can set to
       # every core; the prediction's resolved count is passed instead.
-      num.threads = n_threads,
+      num.threads = algorithm_threads(execution_config),
       type = "response",
       verbose = verbosity > 0L
     )

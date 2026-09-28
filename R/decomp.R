@@ -129,7 +129,12 @@ decomp <- function(
     n_workers = n_workers,
     workers = list(algorithm = n_threads),
     explicit = threaded && !is.null(execution_config@n_workers_algorithm),
-    device = "CPU",
+    device = device_label(
+      "cpu",
+      requested = execution_config@device,
+      algorithm = algorithm,
+      chooses = FALSE
+    ),
     verbosity = verbosity
   )
 
@@ -144,7 +149,7 @@ decomp <- function(
     decomp_(
       config = config,
       x = x,
-      n_threads = n_threads,
+      execution_config = execution_config,
       verbosity = verbosity - 1L
     )
   )

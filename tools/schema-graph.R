@@ -185,7 +185,12 @@ check_document <- function(label, path, value, expected = TRUE) {
 # %% Document corpus ----
 cases <- list()
 configs <- list(
-  execution = setup_MiraiExecution(n_workers = 2L, seed = 1L),
+  execution = setup_MiraiExecution(
+    n_workers = 2L,
+    device = setup_CUDA(ids = 0:1),
+    seed = 1L
+  ),
+  device = setup_CUDA(ids = 1L),
   clustering = setup_KMeans(k = 3L),
   decomposition = setup_PCA(k = 2L),
   resampler = setup_KFold(3L),
@@ -254,6 +259,30 @@ cases[["decompose_record"]] <- check_document(
   "decompose_record",
   "decompose/r/v1/record.json",
   decompose_record
+)
+# The device is a nested family: an unknown type, and GPU ids on a device that
+# has none, are both rejected by the schema itself.
+execution_wire <- S7_to_list(setup_SerialExecution(device = "cuda", seed = 1L))
+mutant <- execution_wire
+mutant[["device"]] <- list(type = "tpu")
+cases[["execution_device_unknown"]] <- check_document(
+  "execution_device_unknown",
+  "execution/r/v1/schema.json",
+  mutant,
+  FALSE
+)
+mutant <- execution_wire
+mutant[["device"]] <- list(type = "mps", ids = list(0L))
+cases[["execution_device_ids_on_mps"]] <- check_document(
+  "execution_device_ids_on_mps",
+  "execution/r/v1/schema.json",
+  mutant,
+  FALSE
+)
+cases[["execution_device_input"]] <- check_document(
+  "execution_device_input",
+  "execution/r/v1/schema.json",
+  execution_wire
 )
 cluster_config <- setup_ClusterConfig(
   clustering_config = setup_KMeans(k = 3L),

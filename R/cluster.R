@@ -126,7 +126,12 @@ cluster <- function(
     n_workers = execution_n_workers(execution_config),
     workers = list(algorithm = 1L),
     explicit = FALSE,
-    device = "CPU",
+    device = device_label(
+      "cpu",
+      requested = execution_config@device,
+      algorithm = algorithm,
+      chooses = FALSE
+    ),
     verbosity = verbosity
   )
 
@@ -139,7 +144,12 @@ cluster <- function(
   # reproduces from its record; the caller's random stream is restored after.
   clust <- with_seed(
     execution_config@seed,
-    cluster_(config = config, x = x, verbosity = verbosity)
+    cluster_(
+      config = config,
+      x = x,
+      execution_config = execution_config,
+      verbosity = verbosity
+    )
   )
 
   # Clusters ----

@@ -91,7 +91,7 @@ method(predict_super, class_glm) <- function(
   model,
   newdata,
   type = NULL,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   predict(model, newdata = newdata, type = "response")

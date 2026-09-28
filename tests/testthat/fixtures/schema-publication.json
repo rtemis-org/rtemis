@@ -375,6 +375,30 @@
           "description": "Conditional SuperLearner: an oracle routes each case to one of a library of experts."
         }
       ]
+    },
+    "device": {
+      "base_class": "DeviceConfig",
+      "title": "rtemis DeviceConfig",
+      "description": "Language-independent config for the compute device a run requests: a device type plus that type's own settings. An algorithm that cannot use the requested device runs on the CPU.",
+      "discriminator_description": "Device type.",
+      "algorithms": [
+        {
+          "class": "CPUDeviceConfig",
+          "description": "The CPU."
+        },
+        {
+          "class": "CUDADeviceConfig",
+          "description": "An NVIDIA GPU through CUDA."
+        },
+        {
+          "class": "MPSDeviceConfig",
+          "description": "The Apple silicon GPU through Metal Performance Shaders."
+        },
+        {
+          "class": "OpenCLDeviceConfig",
+          "description": "A GPU through OpenCL, used by a LightGBM build with GPU support."
+        }
+      ]
     }
   },
   "documents": {

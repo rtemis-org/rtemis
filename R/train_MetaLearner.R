@@ -219,8 +219,8 @@ meta_fit <- function(learner, dat, weights, execution_config, verbosity) {
 #'
 #' @param model `Supervised` object.
 #' @param newdata data.frame: Features, in the model's own column order.
-#' @param n_threads Integer: Threads for a base learner that threads at
-#' prediction.
+#' @param execution_config Optional `ExecutionConfig`: Where the prediction
+#' runs; NULL means the host's defaults.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Numeric vector.
@@ -228,11 +228,16 @@ meta_fit <- function(learner, dat, weights, execution_config, verbosity) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-meta_predict <- function(model, newdata, n_threads = 1L, verbosity = 0L) {
+meta_predict <- function(
+  model,
+  newdata,
+  execution_config = NULL,
+  verbosity = 0L
+) {
   predicted <- predict_supervised_(
     model,
     newdata,
-    n_threads = n_threads,
+    execution_config = execution_config,
     verbosity = verbosity
   )
   if (model@type == "Classification") {

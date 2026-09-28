@@ -7,6 +7,8 @@
 #'
 #' @param x A numeric matrix or data frame to be decomposed.
 #' @param config `UMAPConfig` object.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return A list containing the decomposition and transformed data.
@@ -17,7 +19,7 @@
 method(decomp_, UMAPConfig) <- function(
   config,
   x,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   # Checks ----
@@ -34,7 +36,7 @@ method(decomp_, UMAPConfig) <- function(
       X = x,
       n_components = config[["k"]],
       ret_model = TRUE,
-      n_threads = n_threads
+      n_threads = algorithm_threads(execution_config)
     ),
     config@config
   )
@@ -63,6 +65,8 @@ method(decomp_, UMAPConfig) <- function(
 #' @param config `UMAPConfig` object.
 #' @param decom Fitted uwot UMAP model (list).
 #' @param new_data Tabular data: New data to embed.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Matrix of UMAP embedding coordinates.
@@ -73,9 +77,13 @@ method(apply_decomp_, UMAPConfig) <- function(
   config,
   decom,
   new_data,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   check_dependencies("uwot")
-  uwot::umap_transform(X = new_data, model = decom, n_threads = n_threads)
+  uwot::umap_transform(
+    X = new_data,
+    model = decom,
+    n_threads = algorithm_threads(execution_config)
+  )
 } # /rtemis::apply_decomp_.UMAPConfig

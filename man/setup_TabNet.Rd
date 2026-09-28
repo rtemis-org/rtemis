@@ -31,7 +31,7 @@ setup_TabNet(
   num_shared_decoder = 1L,
   momentum = 0.02,
   pretraining_ratio = 0.5,
-  device = "auto",
+  device = NULL,
   importance_sample_size = NULL,
   early_stopping_monitor = "auto",
   early_stopping_tolerance = 0,
@@ -98,7 +98,10 @@ pretraining.}
 
 \item{pretraining_ratio}{(Tunable) Numeric [0, 1]: Pretraining ratio.}
 
-\item{device}{Character \{"auto", "cpu", "cuda"\}: Compute device.}
+\item{device}{Optional Character: Deprecated and ignored. Set the compute device in the
+\code{execution_config} passed to \link{train}, e.g. \code{setup_FutureExecution(device = "mps")}. Unset there, TabNet uses \code{"cuda"} where available and \code{"cpu"}
+otherwise; the Apple silicon GPU, slower than the CPU for TabNet at every size
+rtemis benchmarked, runs only when named.}
 
 \item{importance_sample_size}{(Tunable) Optional Integer [1, Inf): Importance sample size.}
 

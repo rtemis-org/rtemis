@@ -191,13 +191,16 @@ test_that("LightRF spec validators enforce bounds, enum, arity", {
   expect_error(setup_LightRF(feature_fraction = 0)) # exclusive min
   expect_error(setup_LightRF(feature_fraction = 1.1))
   expect_no_error(setup_LightRF(feature_fraction = 1)) # inclusive max
-  expect_error(setup_LightRF(device_type = "tpu"))
-  expect_no_error(setup_LightRF(device_type = "gpu"))
+  # The device moved to the execution config.
+  expect_warning(
+    setup_LightRF(device_type = "gpu"),
+    class = "deprecatedWarning"
+  )
   # Tunable props accept search vectors; every value is checked.
   expect_no_error(setup_LightRF(num_leaves = tune_over(1024L, 4096L)))
   expect_error(setup_LightRF(num_leaves = tune_over(1024L, 0L)))
   # Fixed props reject vectors.
-  expect_error(setup_LightRF(device_type = c("cpu", "gpu")))
+  expect_error(setup_LightRF(force_col_wise = c(TRUE, FALSE)))
 })
 
 test_that("LightRF tuned status derives from search values", {

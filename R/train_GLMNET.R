@@ -191,7 +191,7 @@ method(predict_super, class_glmnet) <- function(
   model,
   newdata,
   type = NULL,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   # Determine type
@@ -225,7 +225,7 @@ method(predict_super, class_cv.glmnet) <- function(
   model,
   newdata,
   type = NULL,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   # Determine type

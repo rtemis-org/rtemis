@@ -50,7 +50,7 @@ ica_preprocess <- function(xm, center, row_norm) {
 method(decomp_, ICAConfig) <- function(
   config,
   x,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   # Checks ----
@@ -93,6 +93,8 @@ method(decomp_, ICAConfig) <- function(
 #' @param config `ICAConfig` object.
 #' @param decom Fitted fastICA list (with `rtemis_center` appended).
 #' @param new_data Tabular data: New data to project onto the components.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Matrix of independent component scores.
@@ -103,7 +105,7 @@ method(apply_decomp_, ICAConfig) <- function(
   config,
   decom,
   new_data,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   xm <- ica_preprocess(
@@ -131,6 +133,8 @@ method(apply_decomp_, ICAConfig) <- function(
 #' @param decom Fitted fastICA list (with `rtemis_center` appended).
 #' @param transformed Numeric matrix: Component scores, cases by components.
 #' @param x Tabular data: The data being reconstructed, in input units.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Numeric matrix: Reconstruction in input units, cases by features.
@@ -142,6 +146,7 @@ method(reconstruct_, ICAConfig) <- function(
   decom,
   transformed,
   x,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   reconstructed <- as.matrix(transformed) %*% decom[["A"]]

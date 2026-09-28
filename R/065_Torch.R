@@ -26,12 +26,14 @@
 # no device is named.
 #
 # `mps` is last, so nothing selects it automatically -- `cpu` is always
-# available. Two measured reasons, both on an M5: it is 1.1-3x *slower* than the
-# CPU at every tabular size tried, the matrices being small enough that dispatch
-# dominates; and `torch_manual_seed()` does not reach its dropout, so a seeded
-# fit stops being reproducible the moment a dropout rate is non-zero. Asking for
-# it by name is supported, and `check_mps_reproducible()` reports the second
-# caveat when it bites.
+# available. Measured on an Apple M5 (2026-09-27, one fresh R process per
+# configuration): the CPU was faster for every network narrower than about 1024
+# units or trained in batches smaller than about 2048 cases, often 2-5x; `mps`
+# won only with both and thousands of features, by up to about 25%. It also
+# slows down across many fits in one R session. And `torch_manual_seed()` does
+# not reach its dropout, so a seeded fit stops being reproducible the moment a
+# dropout rate is non-zero. Asking for it by name is supported, and
+# `check_mps_reproducible()` reports the second caveat when it bites.
 TORCH_DEVICES <- c("cpu", "cuda", "mps")
 TORCH_DEVICE_PREFERENCE <- c("cuda", "cpu", "mps")
 
@@ -107,6 +109,62 @@ resolve_torch_device <- function(device = NULL, verbosity = 1L) {
   }
   device
 } # /rtemis::resolve_torch_device
+
+
+# %% torch_training_device ----
+#' The device a torch-backed algorithm runs on
+#'
+#' For the execution config's requested device: the requested type if libtorch
+#' can use it (an error, from `resolve_torch_device()`, if the machine lacks
+#' it), the CPU for a device libtorch cannot drive (`opencl`), and the automatic
+#' choice -- cuda, else cpu -- when none is requested. Free of side effects, so
+#' `training_device()` can call it to build the resources line.
+#'
+#' @param requested Optional `DeviceConfig` object.
+#'
+#' @return Character device type, or NULL when libtorch is not installed.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_training_device <- function(requested = NULL) {
+  if (
+    !requireNamespace("torch", quietly = TRUE) || !torch::torch_is_installed()
+  ) {
+    return(NULL)
+  }
+  type <- if (is.null(requested)) NULL else requested@type
+  if (identical(type, "opencl")) {
+    return("cpu")
+  }
+  resolve_torch_device(type, verbosity = 0L)
+} # /rtemis::torch_training_device
+
+
+# %% torch_device_name ----
+#' The torch device name for a resolved device type
+#'
+#' `"cuda:<id>"` for the first GPU a `CUDADeviceConfig` names, so a run can be
+#' placed on a GPU other than the first; the type itself otherwise.
+#'
+#' @param device Character: Resolved device type.
+#' @param requested Optional `DeviceConfig` object.
+#'
+#' @return Character.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_device_name <- function(device, requested = NULL) {
+  if (
+    identical(device, "cuda") &&
+      S7_inherits(requested, CUDADeviceConfig) &&
+      !is.null(requested@ids)
+  ) {
+    return(paste0("cuda:", requested@ids[[1L]]))
+  }
+  device
+} # /rtemis::torch_device_name
 
 
 # %% check_mps_reproducible ----

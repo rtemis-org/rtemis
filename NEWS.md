@@ -2,11 +2,16 @@
 
 ## 1.4.1
 
+- Model plotting and `present()` use rtemis.draw, including session timelines and SVG export; standalone Plotly `draw_*()` functions remain available.
+- Require R >= 4.4.0 for the rtemis.draw backend.
+
 - TabNet and MLP train and predict with the algorithm workers resolved from `execution_config` (`n_workers_algorithm`) rather than every core.
 - `train()` prints one resources line: the compute device in use (including an Apple silicon GPU), the execution backend, the worker ceiling, and each level's share.
 - `decomp()`, `cluster()`, `setup_DecomposeConfig()` and `setup_ClusterConfig()` take `execution_config`: its seed seeds the fit, and a threaded algorithm (UMAP, tSNE) runs on its workers; `decomposition_traits()` gains `threaded`.
 - `setup_tSNE(num_threads =)` is deprecated; tSNE takes its threads from the execution config.
 - NMF with `nrun` greater than 1 runs.
+- Execution configs take `device`: `"cpu"`, `"cuda"`, `"mps"` (Apple silicon GPU) or `"opencl"`, or `setup_CUDA(ids =)` to name GPUs. Unset uses CUDA where available and the CPU otherwise; the Apple silicon GPU runs only when named. An algorithm that cannot use the requested device runs on the CPU and the resources line says so.
+- `setup_LightGBM(device_type =)`, `setup_LightRF(device_type =)` and `setup_TabNet(device =)` are deprecated; set `device` in the execution config.
 - `predict()`, `apply_decomp()` and `reconstruct()` take `execution_config`; predictions use its threads, or the host's default worker count, never the count a model was trained with.
 - UMAP runs on the execution config's algorithm threads, which respect the two-core limit of a CRAN check, rather than half the hardware threads.
 - `setup_SpectralRBF()`, `setup_SpectralLaplace()`, and `setup_SpectralLocal()` configure spectral clustering through 'kernlab', one per kernel; `setup_Nystrom()` enables the Nystrom approximation.

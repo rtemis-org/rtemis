@@ -63,6 +63,10 @@
     list(SpectralLocalConfig, "setup_SpectralLocal")
   ),
   .contract_family(
+    DeviceConfig,
+    list(CUDADeviceConfig, "setup_CUDA")
+  ),
+  .contract_family(
     PAMKCriterionConfig,
     list(ASWCriterionConfig, "setup_ASWCriterion"),
     list(CHCriterionConfig, "setup_CHCriterion"),
@@ -179,6 +183,17 @@
   "Diagnostic",
   "Diagnostics",
   "DataProfile"
+)
+
+
+# %% .contract_by_name ----
+# Config variants with nothing to set, so no `setup_*`: authored by their type
+# name alone (`device = "mps"`), which `as_device_config()` turns into the
+# object.
+.contract_by_name <- c(
+  "CPUDeviceConfig",
+  "MPSDeviceConfig",
+  "OpenCLDeviceConfig"
 )
 
 
@@ -492,7 +507,7 @@ test_that("the independent class/setup mapping covers the catalog", {
     character(1L)
   )
   expect_identical(
-    sort(setdiff(registered, c(mapped, .contract_no_setup))),
+    sort(setdiff(registered, c(mapped, .contract_no_setup, .contract_by_name))),
     character(),
     info = "registered but untested: add to .contract_classes"
   )
@@ -506,6 +521,9 @@ test_that("the independent class/setup mapping covers the catalog", {
   # leaf declares at all.
   for (family in env[["families"]]) {
     for (algo in family[["algorithms"]]) {
+      if (algo[["cls"]]@name %in% .contract_by_name) {
+        next
+      }
       entry <- Filter(
         function(e) identical(e[["cls"]]@name, algo[["cls"]]@name),
         .contract_classes

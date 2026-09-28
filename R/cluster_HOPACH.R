@@ -24,7 +24,12 @@ hopach_overcollapse_msg <- paste0(
 #'
 #' @keywords internal
 #' @noRd
-method(cluster_, HOPACHConfig) <- function(config, x, verbosity = 1L) {
+method(cluster_, HOPACHConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   # Checks ----
   check_is_S7(config, HOPACHConfig)
 

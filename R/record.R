@@ -252,7 +252,7 @@ config_record <- function(input, resolved) {
   # `S7_to_JSONSchema()` declares exactly this union in the leaf's record
   # schema, from the same `family_shared_names()`, so writer and schema cannot
   # disagree; `test_RecordDocuments.R` validates a real record against it.
-  origin_names <- unique(c(flat, family_shared_names(base)))
+  origin_names <- unique(c(flat, family_shared_origin_names(base)))
   origin <- lapply(origin_names, function(nm) {
     prop_def <- props[[nm]]
     resolved_value <- S7_to_list(wire_value(prop(resolved, nm), prop_def))
@@ -796,15 +796,22 @@ nested_record <- function(input, resolved) {
   # The discriminator always leads: without it a dispatcher matches no branch,
   # and its `unevaluatedProperties` then rejects the very fields the leaf
   # declares. The base's shared fields follow, since the dispatcher's record
-  # declares them and the leaf's does not.
-  c(
-    family_prop_values(
-      resolved,
-      family_base(S7_class(resolved)),
-      discriminator
-    ),
-    leaf
+  # declares them and the leaf's does not. A shared field holding a config (an
+  # execution config's `device`) is a record of its own.
+  shared <- family_prop_values(
+    resolved,
+    family_base(S7_class(resolved)),
+    discriminator
   )
+  for (nm in names(shared)) {
+    if (S7_inherits(shared[[nm]])) {
+      shared[[nm]] <- nested_record(
+        if (is.null(input)) NULL else prop(input, nm),
+        prop(resolved, nm)
+      )
+    }
+  }
+  c(shared, leaf)
 } # /rtemis::nested_record
 
 

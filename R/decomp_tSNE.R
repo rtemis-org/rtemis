@@ -10,7 +10,7 @@
 method(decomp_, tSNEConfig) <- function(
   config,
   x,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   # Checks ----
@@ -21,7 +21,11 @@ method(decomp_, tSNEConfig) <- function(
   # Decompose ----
   msg("Decomposing with", config@algorithm, "...", verbosity = verbosity)
   args <- c(
-    list(X = x, dims = config[["k"]], num_threads = n_threads),
+    list(
+      X = x,
+      dims = config[["k"]],
+      num_threads = algorithm_threads(execution_config)
+    ),
     config@config
   )
   args[["k"]] <- NULL

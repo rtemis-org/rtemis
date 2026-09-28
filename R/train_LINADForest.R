@@ -238,7 +238,7 @@ method(predict_super, LINADForest) <- function(
   model,
   newdata,
   type = NULL,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   newdata <- as.data.frame(newdata)[, model@xnames, drop = FALSE]

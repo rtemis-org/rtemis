@@ -10,7 +10,7 @@
 method(decomp_, IsomapConfig) <- function(
   config,
   x,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   # Checks ----

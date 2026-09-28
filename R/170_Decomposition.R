@@ -212,21 +212,22 @@ apply_decomp <- function(
   apply_decomposition(
     decom,
     new_data,
-    n_threads = algorithm_threads(execution_config),
+    execution_config = execution_config,
     verbosity = verbosity
   )
 } # /rtemis::apply_decomp
 
 
 # %% apply_decomposition ----
-#' Apply a fitted decomposition with a resolved thread count
+#' Apply a fitted decomposition
 #'
-#' `apply_decomp()` resolves the threads from an execution config; `train()`
-#' and `predict()` resolve them from their own context and call this.
+#' The internal half of `apply_decomp()`, for callers that hold the pipeline's
+#' own execution config: `train()` and `predict()`.
 #'
 #' @param decom `Decomposition` object.
 #' @param new_data Tabular data.
-#' @param n_threads Integer: Threads for a threaded algorithm.
+#' @param execution_config Optional `ExecutionConfig`: Where the fit is
+#' applied; NULL means the host's defaults.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return data.frame, as `apply_decomp()`.
@@ -234,7 +235,12 @@ apply_decomp <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-apply_decomposition <- function(decom, new_data, n_threads, verbosity = 1L) {
+apply_decomposition <- function(
+  decom,
+  new_data,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   check_is_S7(decom, Decomposition)
   if (!decom@algorithm %in% decom_algorithms_applicable) {
     rtemis.core::abort(
@@ -254,7 +260,7 @@ apply_decomposition <- function(decom, new_data, n_threads, verbosity = 1L) {
     config = decom@config,
     decom = decom@decom,
     new_data = selected,
-    n_threads = n_threads,
+    execution_config = execution_config,
     verbosity = verbosity
   ))
   if (is.null(kept) || ncol(kept) == 0L) {
@@ -340,7 +346,7 @@ reconstruct <- function(decom, x, execution_config = NULL, verbosity = 1L) {
     config = decom@config,
     decom = decom@decom,
     new_data = selected,
-    n_threads = algorithm_threads(execution_config),
+    execution_config = execution_config,
     verbosity = verbosity
   )
   reconstructed <- as.data.frame(reconstruct_(
@@ -348,6 +354,7 @@ reconstruct <- function(decom, x, execution_config = NULL, verbosity = 1L) {
     decom = decom@decom,
     transformed = as.matrix(transformed),
     x = selected,
+    execution_config = execution_config,
     verbosity = verbosity
   ))
   names(reconstructed) <- names(selected)

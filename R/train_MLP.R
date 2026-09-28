@@ -572,7 +572,8 @@ mlp_preprocessor_config <- function(embeddings) {
 #' @param weights Numeric vector: Case weights.
 #' @param dat_validation Optional tabular data: Validation set for early
 #' stopping.
-#' @param execution_config `ExecutionConfig` object: Not used for MLP.
+#' @param execution_config `ExecutionConfig` object: Its `device` sets the
+#' compute device.
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @return Named list with `model` (`MLPModel`), `preprocessor` (the encoder,
@@ -696,9 +697,9 @@ method(train_, MLPHyperparameters) <- function(
   )
 
   # Train ----
-  device <- resolve_torch_device(
-    hyperparameters[["device"]],
-    verbosity = verbosity
+  device <- torch_device_name(
+    torch_training_device(execution_config@device),
+    execution_config@device
   )
   check_mps_reproducible(
     device,
@@ -877,15 +878,18 @@ method(predict_super, MLPModel) <- function(
   model,
   newdata,
   type = NULL,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   check_dependencies("torch")
-  set_torch_threads(n_threads, verbosity = verbosity)
+  set_torch_threads(algorithm_threads(execution_config), verbosity = verbosity)
+  requested <- execution_device(execution_config)
   output <- torch_forward(
     mlp_model_module(model),
     mlp_inputs(newdata, model@numeric_features, model@categorical_features),
-    device = model@device
+    # The prediction's device, not the one the model was trained on: the
+    # parameters are reloaded wherever the prediction runs.
+    device = torch_device_name(torch_training_device(requested), requested)
   )
   if (identical(model@type, "Regression")) {
     return(output[, 1L])
@@ -945,23 +949,21 @@ method(varimp_super, MLPModel) <- function(model) {
 # %% training_device.MLPHyperparameters ----
 #' The device an MLP fit will run on
 #'
-#' Resolved twice: once here so `train()` can name it in the line it prints
+#' Resolved twice: once here so `train()` can name it in its resources line
 #' before training starts, and once in `train_()` for real. Resolution is
 #' deterministic and free of side effects, so the two agree.
 #'
-#' NULL when `torch` is absent -- `train_()` is about to abort on the missing
+#' NULL when libtorch is absent -- `train_()` is about to abort on the missing
 #' dependency, and a message has no business raising a different error first.
 #'
 #' @param x `MLPHyperparameters` object.
+#' @param requested Optional `DeviceConfig` object.
 #'
 #' @return Character or NULL.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(training_device, MLPHyperparameters) <- function(x) {
-  if (!requireNamespace("torch", quietly = TRUE)) {
-    return(NULL)
-  }
-  resolve_torch_device(x[["device"]], verbosity = 0L)
+method(training_device, MLPHyperparameters) <- function(x, requested = NULL) {
+  torch_training_device(requested)
 } # /rtemis::training_device.MLPHyperparameters

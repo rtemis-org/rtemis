@@ -61,6 +61,13 @@ method(train_, TabNetHyperparameters) <- function(
   # categorical predictors internally thus, you don't need to make any treatment.
   config <- get_tabnet_config(hyperparameters)
   config[["verbose"]] <- verbosity > 0L
+  # Resolved here rather than by tabnet, whose "auto" picks mps on Apple
+  # silicon: see `training_device()`. Prediction runs on the same device, since
+  # the fitted network lives there.
+  config[["device"]] <- torch_device_name(
+    training_device(hyperparameters, execution_config@device),
+    execution_config@device
+  )
   set_torch_threads(prop(hyperparameters, "n_workers"), verbosity = verbosity)
   model <- tabnet::tabnet_fit(
     x = x,
@@ -76,34 +83,23 @@ method(train_, TabNetHyperparameters) <- function(
 # %% training_device.TabNetHyperparameters ----
 #' The device TabNet will train on
 #'
-#' `"auto"` is resolved the way tabnet resolves it (tabnet 0.9.1,
-#' `get_device_from_config()`): cuda, then mps, then cpu. So on Apple silicon an
-#' automatic TabNet fit runs on the GPU.
+#' Resolved by rtemis, as for MLP, rather than by tabnet, whose own `"auto"`
+#' prefers mps on Apple silicon -- slower than the CPU for TabNet at every size
+#' rtemis benchmarked. mps runs only when requested.
 #'
 #' @param x `TabNetHyperparameters` object.
+#' @param requested Optional `DeviceConfig` object.
 #'
 #' @return Character or NULL, when libtorch is not installed.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(training_device, TabNetHyperparameters) <- function(x) {
-  if (
-    !requireNamespace("torch", quietly = TRUE) || !torch::torch_is_installed()
-  ) {
-    return(NULL)
-  }
-  device <- x[["device"]]
-  if (!identical(device, "auto")) {
-    return(device)
-  }
-  if (torch::cuda_is_available()) {
-    "cuda"
-  } else if (torch::backends_mps_is_available()) {
-    "mps"
-  } else {
-    "cpu"
-  }
+method(training_device, TabNetHyperparameters) <- function(
+  x,
+  requested = NULL
+) {
+  torch_training_device(requested)
 } # /rtemis::training_device.TabNetHyperparameters
 
 
@@ -120,11 +116,11 @@ method(predict_super, class_tabnet_fit) <- function(
   model,
   newdata,
   type = NULL,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   check_dependencies("torch", "tabnet")
-  set_torch_threads(n_threads, verbosity = verbosity)
+  set_torch_threads(algorithm_threads(execution_config), verbosity = verbosity)
   if (type == "Regression") {
     predict(model, new_data = newdata)[[1]]
   } else if (type == "Classification") {

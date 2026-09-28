@@ -635,7 +635,7 @@ train <- function(
     ),
     n_workers_algorithm = execution_config@n_workers_algorithm,
     backend = execution_backend_label(execution_config),
-    device = describe_device(hyperparameters),
+    device = describe_device(hyperparameters, execution_config@device),
     verbosity = verbosity
   )
   hyperparameters@n_workers <- workers[["algorithm"]]
@@ -757,6 +757,7 @@ train <- function(
         # it. This is what makes `n_workers_outer = 4L, n_workers_algorithm = 2L` mean
         # four folds of two threads rather than four folds of one.
         n_workers_algorithm = execution_config@n_workers_algorithm,
+        device = execution_config@device,
         on_error = on_error,
         seed = execution_config@seed,
         warm_workers = execution_config@warm_workers
@@ -1018,14 +1019,15 @@ train <- function(
         } else {
           1L
         }
+      decomposition_execution <- algorithm_execution_config(
+        execution_config,
+        decomposition_threads
+      )
       decomposition <- decomp(
         x = feat,
         algorithm = decomposition_config@algorithm,
         config = decomposition_config,
-        execution_config = setup_SerialExecution(
-          n_workers_algorithm = decomposition_threads,
-          seed = execution_config@seed
-        ),
+        execution_config = decomposition_execution,
         verbosity = verbosity
       )
       # Columns not decomposed are kept as-is, in front of the components.
@@ -1046,7 +1048,7 @@ train <- function(
           apply_decomposition(
             decomposition,
             features(dat_validation),
-            n_threads = decomposition_threads,
+            execution_config = decomposition_execution,
             verbosity = 0L
           )
         )
@@ -1059,7 +1061,7 @@ train <- function(
           apply_decomposition(
             decomposition,
             features(dat_test),
-            n_threads = decomposition_threads,
+            execution_config = decomposition_execution,
             verbosity = 0L
           )
         )
@@ -1156,11 +1158,17 @@ train <- function(
       )
     }
 
+    # The fit's own predictions run in its process, on the algorithm workers the
+    # ladder gave it, never dispatching.
+    fit_execution <- algorithm_execution_config(
+      execution_config,
+      hyperparameters@n_workers
+    )
     predicted_training <- predict_super(
       model = model,
       newdata = x_features,
       type = type,
-      n_threads = hyperparameters@n_workers
+      execution_config = fit_execution
     )
 
     if (type == "Classification") {
@@ -1189,7 +1197,7 @@ train <- function(
         model = model,
         newdata = dat_validation_features,
         type = type,
-        n_threads = hyperparameters@n_workers
+        execution_config = fit_execution
       )
 
       if (type == "Classification") {
@@ -1215,7 +1223,7 @@ train <- function(
         model = model,
         newdata = dat_test_features,
         type = type,
-        n_threads = hyperparameters@n_workers
+        execution_config = fit_execution
       )
 
       if (type == "Classification") {
@@ -1793,37 +1801,82 @@ msg_resources <- function(
 # %% describe_device ----
 #' The compute device label for the resources line
 #'
-#' The device the algorithm will train on, with `(auto-selected)` when the
-#' algorithm chose it because the caller named none. Only the device in use is
-#' named.
+#' The device the algorithm will train on, from the execution config's request.
+#' See `device_label()` for the notes it carries.
 #'
 #' @param hyperparameters `Hyperparameters` or `HyperparametersSet` object.
+#' @param requested Optional `DeviceConfig` object: The execution config's
+#' device.
 #'
-#' @return Character, e.g. `"CPU"` or `"MPS (auto-selected)"`.
+#' @return Character, e.g. `"CPU"`, `"CUDA:1"` or `"MPS"`.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-describe_device <- function(hyperparameters) {
-  # A set is one algorithm under several configurations, so its members can
-  # name different devices; the label lists each one once.
+describe_device <- function(hyperparameters, requested = NULL) {
+  # A set is one algorithm under several configurations; the label lists each
+  # member's device once.
   if (S7_inherits(hyperparameters, HyperparametersSet)) {
     return(paste(
       unique(vapply(
         hyperparameters@variants,
         describe_device,
-        character(1L)
+        character(1L),
+        requested = requested
       )),
       collapse = ", "
     ))
   }
-  device <- training_device(hyperparameters)
-  if (is.null(device)) {
-    return("CPU")
-  }
-  # The torch-backed algorithms call it `device`; the LightGBM family,
-  # following its backend, `device_type`.
-  requested <- hyperparameters[["device"]] %||% hyperparameters[["device_type"]]
-  auto_selected <- is.null(requested) || identical(requested, "auto")
-  paste0(toupper(device), if (auto_selected) " (auto-selected)")
+  device <- training_device(hyperparameters, requested)
+  device_label(
+    device %||% "cpu",
+    requested = requested,
+    algorithm = hyperparameters@algorithm,
+    chooses = !is.null(device)
+  )
 } # /rtemis::describe_device
+
+
+# %% device_label ----
+#' Label a resolved device for the resources line
+#'
+#' Only the device in use is named. `(auto-selected)` marks a device the
+#' algorithm chose because none was requested; a request the algorithm cannot
+#' honor is named beside the CPU it runs on instead, so the line never implies a
+#' device the run did not use.
+#'
+#' @param device Character: Resolved device type.
+#' @param requested Optional `DeviceConfig` object.
+#' @param algorithm Character: Algorithm name.
+#' @param chooses Logical: Whether the algorithm selects a device itself when
+#' none is requested; an algorithm that only runs on the CPU does not.
+#'
+#' @return Character.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+device_label <- function(device, requested, algorithm, chooses) {
+  label <- toupper(device)
+  if (
+    identical(device, "cuda") &&
+      S7_inherits(requested, CUDADeviceConfig) &&
+      !is.null(requested@ids)
+  ) {
+    label <- paste0(label, ":", requested@ids[[1L]])
+  }
+  if (is.null(requested)) {
+    return(paste0(label, if (chooses) " (auto-selected)"))
+  }
+  if (!identical(requested@type, device)) {
+    return(paste0(
+      label,
+      " (",
+      toupper(requested@type),
+      " requested; ",
+      algorithm,
+      " cannot use it)"
+    ))
+  }
+  label
+} # /rtemis::device_label

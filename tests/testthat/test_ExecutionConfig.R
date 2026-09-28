@@ -29,6 +29,7 @@ testthat::test_that("the execution variants build and share the base", {
     c(
       "backend",
       "n_workers_algorithm",
+      "device",
       "warm_workers",
       "on_error",
       "seed",
@@ -231,6 +232,71 @@ testthat::test_that("the resources line states device, backend, ceiling and ever
   expect_match(
     explicit,
     "// CPU | serial | 1 worker: algorithm 1 thread, tuning 1, outer resampling 1 (as set)",
+    fixed = TRUE
+  )
+})
+
+
+# %% Device ----
+testthat::test_that("a device is written as a type name or an object and stored as the object", {
+  shortcut <- setup_SerialExecution(device = "mps", seed = 1L)
+  testthat::expect_s7_class(shortcut@device, MPSDeviceConfig)
+  explicit <- setup_SerialExecution(
+    device = setup_CUDA(ids = c(1L, 0L)),
+    seed = 1L
+  )
+  testthat::expect_identical(explicit@device@ids, c(1L, 0L))
+  testthat::expect_null(setup_SerialExecution(seed = 1L)@device)
+  testthat::expect_error(
+    setup_SerialExecution(device = "tpu", seed = 1L),
+    class = "rtemis_value_error"
+  )
+  # GPU ids exist only on a CUDA device, are zero-based and distinct.
+  testthat::expect_error(setup_CUDA(ids = -1L))
+  testthat::expect_error(setup_CUDA(ids = c(1L, 1L)))
+})
+
+testthat::test_that("an execution config carries its device through write and read", {
+  x <- setup_FutureExecution(
+    n_workers = 2L,
+    device = setup_CUDA(ids = 0:1),
+    seed = 3L
+  )
+  wire <- jsonlite::fromJSON(
+    jsonlite::toJSON(S7_to_list(x), auto_unbox = TRUE, null = "null"),
+    simplifyVector = FALSE
+  )
+  testthat::expect_identical(wire[["device"]][["type"]], "cuda")
+  xtoo <- getFromNamespace(".list_to_ExecutionConfig", "rtemis")(wire)
+  testthat::expect_s7_class(xtoo@device, CUDADeviceConfig)
+  testthat::expect_identical(xtoo@device@ids, 0:1)
+  testthat::expect_error(
+    getFromNamespace(".list_to_ExecutionConfig", "rtemis")(
+      list(backend = "none", device = list(type = "mps", ids = list(0L)))
+    ),
+    class = "rtemis_input_error"
+  )
+})
+
+testthat::test_that("a requested device an algorithm cannot use leaves it on the CPU, and the line says so", {
+  line <- paste(
+    gsub(
+      "\\033\\[[0-9;]*m",
+      "",
+      testthat::capture_messages(
+        decomp(
+          iris[, 1:4],
+          algorithm = "PCA",
+          execution_config = setup_SerialExecution(device = "mps", seed = 1L),
+          verbosity = 1L
+        )
+      )
+    ),
+    collapse = ""
+  )
+  testthat::expect_match(
+    line,
+    "// CPU (MPS requested; PCA cannot use it) | serial",
     fixed = TRUE
   )
 })

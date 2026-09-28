@@ -703,7 +703,7 @@ method(needs_tuning, Hyperparameters) <- function(x) {
 #'
 #' @keywords internal
 #' @noRd
-method(training_device, Hyperparameters) <- function(x) {
+method(training_device, Hyperparameters) <- function(x, requested = NULL) {
   NULL
 } # /rtemis::training_device.Hyperparameters
 
@@ -3876,11 +3876,6 @@ LightCARTHyperparameters <- schema_class(
   properties = c(
     list(
       algorithm = prop_algorithm("LightCART"),
-      device_type = prop_string(
-        "cpu",
-        enum = c("cpu", "gpu", "cuda"),
-        description = "Compute device."
-      ),
       force_col_wise = prop_boolean(
         TRUE,
         description = "Force column-wise histogram building (CPU only)."
@@ -3984,7 +3979,6 @@ LightCARTHyperparameters <- schema_class(
 #' @param min_data_per_group (Tunable) Integer [1, Inf): Minimum number of observations per categorical group.
 #' @param linear_tree (Tunable) Logical: If TRUE, use linear trees.
 #' @param objective Optional Character: Objective function. NULL = set from outcome type.
-#' @param device_type Character \{"cpu", "gpu", "cuda"\}: Compute device.
 #' @param force_col_wise Logical: Force column-wise histogram building (CPU only).
 #' @param feature_fraction (Tunable) Numeric (0, 1]: Fraction of features sampled per tree.
 #' @param feature_fraction_bynode (Tunable) Numeric (0, 1]: Fraction of features sampled
@@ -4085,7 +4079,6 @@ setup_LightCART <- function(
   min_data_per_group = 100L,
   linear_tree = FALSE,
   objective = NULL,
-  device_type = "cpu",
   force_col_wise = TRUE,
   feature_fraction = 1.0,
   feature_fraction_bynode = 1,
@@ -4146,7 +4139,6 @@ setup_LightCART <- function(
     min_data_per_group = min_data_per_group,
     linear_tree = linear_tree,
     objective = objective,
-    device_type = device_type,
     force_col_wise = force_col_wise,
     feature_fraction = feature_fraction,
     feature_fraction_bynode = feature_fraction_bynode,
@@ -4300,11 +4292,6 @@ LightRFHyperparameters <- schema_class(
         default_on_null = TRUE,
         description = "LightGBM objective. Unset sets it from the outcome type."
       ),
-      device_type = prop_string(
-        "cpu",
-        enum = c("cpu", "gpu", "cuda"),
-        description = "Compute device."
-      ),
       tree_learner = prop_string(
         "serial",
         enum = c("serial", "feature", "data", "voting"),
@@ -4454,7 +4441,9 @@ LightRFHyperparameters <- schema_class(
 #' @param reg_sqrt Optional Logical: Fit the square root of the outcome and square the
 #' prediction back, for a regression objective. NULL uses LightGBM's default of FALSE.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
-#' @param device_type Character \{"cpu", "gpu", "cuda"\}: Compute device.
+#' @param device_type Optional Character: Deprecated and ignored. Set the compute device in the
+#' `execution_config` passed to [train], e.g.
+#' `setup_FutureExecution(device = "cuda")`; `"gpu"` is `device = "opencl"` there.
 #' @param tree_learner Character \{"serial", "feature", "data", "voting"\}: Tree learner type.
 #' @param force_col_wise Logical: Use only with CPU - If TRUE, force col-wise histogram building.
 #'
@@ -4525,11 +4514,20 @@ setup_LightRF <- function(
   sigmoid = NULL,
   boost_from_average = NULL,
   reg_sqrt = NULL,
-  device_type = "cpu",
+  device_type = NULL,
   tree_learner = "serial",
   force_col_wise = TRUE
 ) {
   apply_setup_defaults(LightRFHyperparameters)
+  if (!is.null(device_type)) {
+    .Deprecated(
+      msg = paste0(
+        "`setup_LightRF(device_type =)` is deprecated and ignored: set the compute device ",
+        "in the `execution_config` passed to `train()`, e.g. ",
+        "`setup_FutureExecution(device = \"cuda\")`."
+      )
+    )
+  }
   nrounds <- clean_posint(nrounds)
   num_leaves <- clean_posint(num_leaves)
   max_depth <- clean_int(max_depth)
@@ -4594,7 +4592,6 @@ setup_LightRF <- function(
     sigmoid = sigmoid,
     boost_from_average = boost_from_average,
     reg_sqrt = reg_sqrt,
-    device_type = device_type,
     tree_learner = tree_learner,
     force_col_wise = force_col_wise
   )
@@ -4711,11 +4708,6 @@ LightGBMHyperparameters <- schema_class(
         nullable = TRUE,
         default_on_null = TRUE,
         description = "LightGBM objective. Unset sets it from the outcome type."
-      ),
-      device_type = prop_string(
-        "cpu",
-        enum = c("cpu", "gpu", "cuda"),
-        description = "Compute device."
       ),
       tree_learner = prop_string(
         "serial",
@@ -4925,7 +4917,9 @@ method(update, LightGBMHyperparameters) <- function(
 #' @param reg_sqrt Optional Logical: Fit the square root of the outcome and square the
 #' prediction back, for a regression objective. NULL uses LightGBM's default of FALSE.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
-#' @param device_type Character \{"cpu", "gpu", "cuda"\}: Compute device.
+#' @param device_type Optional Character: Deprecated and ignored. Set the compute device in the
+#' `execution_config` passed to [train], e.g.
+#' `setup_FutureExecution(device = "cuda")`; `"gpu"` is `device = "opencl"` there.
 #' @param tree_learner Character \{"serial", "feature", "data", "voting"\}: Tree learner type.
 #' @param force_col_wise Logical: Use only with CPU - If TRUE, force col-wise histogram building.
 #'
@@ -5013,11 +5007,20 @@ setup_LightGBM <- function(
   sigmoid = NULL,
   boost_from_average = NULL,
   reg_sqrt = NULL,
-  device_type = "cpu",
+  device_type = NULL,
   tree_learner = "serial",
   force_col_wise = TRUE
 ) {
   apply_setup_defaults(LightGBMHyperparameters)
+  if (!is.null(device_type)) {
+    .Deprecated(
+      msg = paste0(
+        "`setup_LightGBM(device_type =)` is deprecated and ignored: set the compute device ",
+        "in the `execution_config` passed to `train()`, e.g. ",
+        "`setup_FutureExecution(device = \"cuda\")`."
+      )
+    )
+  }
   max_nrounds <- clean_posint(max_nrounds)
   force_nrounds <- clean_posint(force_nrounds)
   early_stopping_rounds <- clean_posint(early_stopping_rounds)
@@ -5099,7 +5102,6 @@ setup_LightGBM <- function(
     sigmoid = sigmoid,
     boost_from_average = boost_from_average,
     reg_sqrt = reg_sqrt,
-    device_type = device_type,
     tree_learner = tree_learner,
     force_col_wise = force_col_wise,
     nrounds = force_nrounds
@@ -5159,11 +5161,6 @@ LightRuleFitHyperparameters <- schema_class(
   properties = c(
     list(
       algorithm = prop_algorithm("LightRuleFit"),
-      device_type = prop_string(
-        "cpu",
-        enum = c("cpu", "gpu", "cuda"),
-        description = "Compute device."
-      ),
       force_col_wise = prop_boolean(
         TRUE,
         description = "Force column-wise histogram building (CPU only)."
@@ -5342,7 +5339,6 @@ LightRuleFitHyperparameters <- schema_class(
 #' @param lambda_l1 (Tunable) Numeric [0, Inf): L1 regularization.
 #' @param lambda_l2 (Tunable) Numeric [0, Inf): L2 regularization.
 #' @param objective Optional Character: Objective function. NULL = set from outcome type.
-#' @param device_type Character \{"cpu", "gpu", "cuda"\}: Compute device.
 #' @param force_col_wise Logical: Force column-wise histogram building (CPU only).
 #' @param tree_learner Character \{"serial", "feature", "data", "voting"\}: Tree learner
 #' type.
@@ -5491,7 +5487,6 @@ setup_LightRuleFit <- function(
   lambda_l1 = 0,
   lambda_l2 = 0,
   objective = NULL,
-  device_type = "cpu",
   force_col_wise = TRUE,
   tree_learner = "serial",
   top_k = NULL,
@@ -5574,7 +5569,6 @@ setup_LightRuleFit <- function(
     lambda_l1 = lambda_l1,
     lambda_l2 = lambda_l2,
     objective = objective,
-    device_type = device_type,
     force_col_wise = force_col_wise,
     tree_learner = tree_learner,
     top_k = top_k,
@@ -6063,12 +6057,6 @@ MLPHyperparameters <- schema_class(
       description = "Training objective. Unset sets it from the outcome type."
     ),
     # Execution ----
-    device = prop_string(
-      NULL,
-      enum = TORCH_DEVICES,
-      nullable = TRUE,
-      description = "Compute device. On mps a seed does not reach dropout, so a fit using it is not reproducible; the run says so."
-    ),
     seed = prop_integer(
       NULL,
       nullable = TRUE,
@@ -6135,14 +6123,17 @@ MLPHyperparameters <- schema_class(
 #' always centered and scaled -- an unscaled network fails quietly rather than
 #' loudly -- and the fitted encoder is re-applied at predict time.
 #'
-#' **Device and reproducibility.** `device = NULL` picks `cuda` where available
-#' and `cpu` otherwise, and [train] names the one it resolved. `"mps"` is
-#' supported but never chosen automatically: on Apple silicon it is slower than
-#' the CPU for networks of the size tabular data calls for -- the matrices are
-#' small enough that dispatch dominates -- and a `seed` governs weight
-#' initialization and batch shuffling there but **not dropout**, so a seeded
-#' `mps` fit reproduces exactly until a dropout rate is non-zero. That
-#' combination warns.
+#' **Device and reproducibility.** The device is the execution config's: see the
+#' `device` argument of [setup_FutureExecution]. Unset picks `cuda` where
+#' available and `cpu` otherwise, and [train] names the one it resolved. `"mps"`,
+#' the Apple silicon GPU, runs only when named. In rtemis benchmarks on an Apple M5
+#' the CPU was faster for every network narrower than about 1024 units or
+#' trained in batches smaller than about 2048 cases, often by 2 to 5 times; with
+#' both, and thousands of features, `"mps"` was faster by up to about 25%. It
+#' also slows down across many fits in one R session. Try it for a wide network
+#' on wide data. A `seed` governs weight initialization and batch shuffling on
+#' `mps` but **not dropout**, so a seeded `mps` fit reproduces exactly until a
+#' dropout rate is non-zero. That combination warns.
 #'
 #' **Early stopping** needs a validation set: pass `dat_validation` to [train],
 #' and the fit keeps the weights of the best validation epoch rather than the
@@ -6192,7 +6183,6 @@ MLPHyperparameters <- schema_class(
 #' @param patience Integer [1, Inf): Epochs without validation improvement before stopping early.
 #' @param max_grad_norm (Tunable) Optional Numeric (0, Inf): Clip the gradient norm to this value before each step. NULL does not clip.
 #' @param loss Optional Character \{"mse", "l1", "smooth_l1", "cross_entropy"\}: Training objective. NULL sets it from the outcome type.
-#' @param device Optional Character \{"cpu", "cuda", "mps"\}: Compute device.
 #' @param seed Optional Integer: Random seed for weight initialization, dropout and batch shuffling.
 #' @param num_workers Integer [0, Inf): Subprocesses used to load batches.
 #' @param drop_last Logical: If TRUE, drop the last incomplete batch of each training epoch.
@@ -6237,7 +6227,6 @@ setup_MLP <- function(
   lr_scheduler = NULL,
   patience = 10L,
   loss = NULL,
-  device = NULL,
   seed = NULL,
   num_workers = 0L,
   drop_last = FALSE
@@ -6302,7 +6291,6 @@ setup_MLP <- function(
     patience = patience,
     max_grad_norm = max_grad_norm,
     loss = loss,
-    device = device,
     seed = seed,
     num_workers = num_workers,
     drop_last = drop_last,
@@ -6484,11 +6472,6 @@ TabNetHyperparameters <- schema_class(
       tunable = TRUE,
       description = "Ratio of features to mask during pretraining."
     ),
-    device = prop_string(
-      "auto",
-      enum = c("auto", "cpu", "cuda"),
-      description = "Compute device."
-    ),
     importance_sample_size = prop_integer(
       NULL,
       min = 1L,
@@ -6574,7 +6557,11 @@ TabNetHyperparameters <- schema_class(
 #' pretraining.
 #' @param momentum (Tunable) Numeric [0, Inf): Momentum.
 #' @param pretraining_ratio (Tunable) Numeric \[0, 1\]: Pretraining ratio.
-#' @param device Character \{"auto", "cpu", "cuda"\}: Compute device.
+#' @param device Optional Character: Deprecated and ignored. Set the compute device in the
+#' `execution_config` passed to [train], e.g. `setup_FutureExecution(device =
+#' "mps")`. Unset there, TabNet uses `"cuda"` where available and `"cpu"`
+#' otherwise; the Apple silicon GPU, slower than the CPU for TabNet at every size
+#' rtemis benchmarked, runs only when named.
 #' @param importance_sample_size (Tunable) Optional Integer [1, Inf): Importance sample size.
 #' @param early_stopping_monitor (Tunable) Character \{"auto", "valid_loss", "train_loss"\}: Early stopping monitor.
 #' @param early_stopping_tolerance (Tunable) Numeric [0, Inf): Minimum relative improvement to reset the patience
@@ -6619,7 +6606,7 @@ setup_TabNet <- function(
   num_shared_decoder = 1L,
   momentum = 0.02,
   pretraining_ratio = 0.5,
-  device = "auto",
+  device = NULL,
   importance_sample_size = NULL,
   early_stopping_monitor = "auto",
   early_stopping_tolerance = 0,
@@ -6629,6 +6616,15 @@ setup_TabNet <- function(
   ifw = FALSE
 ) {
   apply_setup_defaults(TabNetHyperparameters)
+  if (!is.null(device)) {
+    .Deprecated(
+      msg = paste0(
+        "`setup_TabNet(device =)` is deprecated and ignored: set the compute device ",
+        "in the `execution_config` passed to `train()`, e.g. ",
+        "`setup_FutureExecution(device = \"cuda\")`."
+      )
+    )
+  }
   batch_size <- clean_posint(batch_size)
   epochs <- clean_posint(epochs)
   decision_width <- clean_posint(decision_width)
@@ -6672,7 +6668,6 @@ setup_TabNet <- function(
     num_shared_decoder = num_shared_decoder,
     momentum = momentum,
     pretraining_ratio = pretraining_ratio,
-    device = device,
     importance_sample_size = importance_sample_size,
     early_stopping_monitor = early_stopping_monitor,
     early_stopping_tolerance = early_stopping_tolerance,

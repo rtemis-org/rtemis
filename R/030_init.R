@@ -255,9 +255,11 @@ train_ <- new_generic(
 #' @param model Fitted model object.
 #' @param newdata tabular data: New data for prediction.
 #' @param type Character: Type of supervised learning ("Classification" or "Regression").
-#' @param n_threads Integer: Threads a backend that threads at prediction may
-#' use, resolved on the machine that predicts -- never the count the model was
-#' trained with, which belongs to another machine or another workload.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' prediction runs. A method whose backend can use threads or a device resolves
+#' them with `algorithm_threads()` and `training_device()`; the rest have
+#' nothing to resolve. NULL means the host's defaults. It describes the
+#' prediction's machine and workload, never the ones the model was trained on.
 #'
 #' @return Predictions (class probabilities for classification, numeric for regression).
 #'
@@ -267,7 +269,13 @@ train_ <- new_generic(
 predict_super <- new_generic(
   "predict_super",
   "model",
-  function(model, newdata, type = NULL, n_threads = 1L, verbosity = 0L) {
+  function(
+    model,
+    newdata,
+    type = NULL,
+    execution_config = NULL,
+    verbosity = 0L
+  ) {
     force_supplied()
     S7_dispatch()
   }
@@ -645,10 +653,9 @@ conformal <- new_generic(
 # %% decomp_ ----
 #' Generic for decomposition
 #'
-#' `n_threads` is the algorithm's share of the run's execution config, resolved
-#' by `decomp()`. A method whose backend threads passes it on and stores it on
-#' the fit so `apply_decomp_` reuses it; the others ignore it. Which algorithms
-#' use it is the `threaded` trait in `decom_algorithms`.
+#' `execution_config` is where and with what the fit runs, as for `train_()`.
+#' A method whose backend threads reads its count with `algorithm_threads()`;
+#' which algorithms do is the `threaded` trait in `decom_algorithms`.
 #'
 #' @author EDG
 #' @keywords internal
@@ -656,7 +663,7 @@ conformal <- new_generic(
 decomp_ <- new_generic(
   "decomp_",
   "config",
-  function(config, x, n_threads = 1L, verbosity = 1L) {
+  function(config, x, execution_config = NULL, verbosity = 1L) {
     force_supplied()
     S7_dispatch()
   }
@@ -667,8 +674,8 @@ decomp_ <- new_generic(
 #' Generic for applying a fitted decomposition to new data
 #'
 #' Dispatches on the `DecompositionConfig` subclass. Implemented only for
-#' algorithms listed in `decom_algorithms_applicable`. `n_threads` is resolved
-#' where the fit is applied, as for `predict_super()`.
+#' algorithms listed in `decom_algorithms_applicable`. `execution_config`
+#' describes where the fit is applied, as for `predict_super()`.
 #'
 #' @author EDG
 #' @keywords internal
@@ -676,7 +683,7 @@ decomp_ <- new_generic(
 apply_decomp_ <- new_generic(
   "apply_decomp_",
   "config",
-  function(config, decom, new_data, n_threads = 1L, verbosity = 1L) {
+  function(config, decom, new_data, execution_config = NULL, verbosity = 1L) {
     force_supplied()
     S7_dispatch()
   }
@@ -703,13 +710,23 @@ apply_decomp_ <- new_generic(
 #' `x` already, and a method that silently reconstructed against the wrong
 #' cases would be wrong in a way nothing downstream could detect.
 #'
+#' `execution_config` describes where the reconstruction runs, as for
+#' `apply_decomp_()`.
+#'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 reconstruct_ <- new_generic(
   "reconstruct_",
   "config",
-  function(config, decom, transformed, x, verbosity = 1L) {
+  function(
+    config,
+    decom,
+    transformed,
+    x,
+    execution_config = NULL,
+    verbosity = 1L
+  ) {
     force_supplied()
     S7_dispatch()
   }
@@ -719,13 +736,15 @@ reconstruct_ <- new_generic(
 # %% cluster_ ----
 #' Generic for clustering
 #'
+#' `execution_config` is where and with what the fit runs, as for `train_()`.
+#'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 cluster_ <- new_generic(
   "cluster_",
   "config",
-  function(config, x, verbosity = 1L) {
+  function(config, x, execution_config = NULL, verbosity = 1L) {
     force_supplied()
     S7_dispatch()
   }
@@ -842,110 +861,6 @@ validate_hyperparameters <- new_generic(
 ) # /rtemis::validate_hyperparameters
 
 
-# %% plot_metric ----
-#' Plot Metric
-#'
-#' @description
-#' Plot metric for `SupervisedRes` objects.
-#'
-#' @param x `SupervisedRes` object.
-#' @param ... Additional arguments passed to the plotting function.
-#'
-#' @return plotly object
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-plot_metric <- new_generic("plot_metric", "x")
-
-
-# %% plot_roc ----
-#' Plot ROC curve
-#'
-#' @description
-#' This generic is used to plot the ROC curve for a model.
-#'
-#' @param x `Classification` or `ClassificationRes` object.
-#' @param ... Additional arguments passed to the plotting function.
-#'
-#' @return A plotly object containing the ROC curve.
-#'
-#' @author EDG
-#' @export
-#' @examples
-#' ir <- iris[51:150, ]
-#' ir[["Species"]] <- factor(ir[["Species"]])
-#' species_glm <- train(ir, hyperparameters = setup_GLM())
-#' plot_roc(species_glm)
-plot_roc <- new_generic("plot_roc", "x")
-
-
-# %% plot_varimp ----
-#' Plot Variable Importance
-#'
-#' @description
-#' Plot Variable Importance for Supervised objects.
-#'
-#' @param x `Supervised` or `SupervisedRes` object.
-#' @param ... Additional arguments passed to methods.
-#'
-#' @details
-#' This method calls [draw_varimp] internally.
-#' If you pass an integer to the `plot_top` argument, the method will plot this many top features.
-#' If you pass a number between 0 and 1 to the `plot_top` argument, the method will plot this
-#' fraction of top features.
-#'
-#' @return plotly object or invisible NULL if no variable importance is available.
-#'
-#' @author EDG
-#' @export
-#' @examplesIf interactive()
-#' ir <- set_outcome(iris, "Sepal.Length")
-#' seplen_cart <- train(ir, hyperparameters = setup_CART())
-#' plot_varimp(seplen_cart)
-#' # Plot horizontally
-#' plot_varimp(seplen_cart, orientation = "h")
-#' plot_varimp(seplen_cart, orientation = "h", plot_top = 3L)
-#' plot_varimp(seplen_cart, orientation = "h", plot_top = 0.5)
-#'
-#' @seealso [draw_varimp], which is called by this method
-plot_varimp <- new_generic("plot_varimp", "x")
-
-
-# %% plot_learning ----
-#' Plot a learning curve
-#'
-#' @description
-#' Plot loss against training progress for an algorithm that records it. The
-#' unit of progress is the algorithm's own -- epochs for a neural network,
-#' leaves for a Linear Additive Tree, boosting iterations for a gradient
-#' boosting machine -- and the point the model kept is marked.
-#'
-#' Both the training and the validation series are drawn where the algorithm
-#' records them. The pair is what shows overfitting: a validation curve alone
-#' cannot say whether a rising loss is overfitting or a fit that has yet to
-#' converge.
-#'
-#' @param x `Supervised` object.
-#' @param ... Additional arguments passed to methods.
-#'
-#' @return plotly object.
-#'
-#' @author EDG
-#' @export
-#' @examplesIf interactive()
-#' dat <- set_outcome(iris[, 1:4], "Sepal.Length")
-#' mod <- train(
-#'   dat[1:100, ],
-#'   dat_validation = dat[101:150, ],
-#'   hyperparameters = setup_LINAD(max_leaves = 12L)
-#' )
-#' plot_learning(mod)
-#'
-#' @seealso [get_learning_curve], which returns the same data untouched
-plot_learning <- new_generic("plot_learning", "x")
-
-
 # %% get_learning_curve ----
 #' Learning curve of a fitted model
 #'
@@ -1004,45 +919,6 @@ learning_curve_super <- new_generic(
 )
 
 
-# %% plot_true_pred ----
-#' Plot True vs. Predicted Values
-#'
-#' @description
-#' Plot True vs. Predicted Values for Supervised objects.
-#' For classification, it plots a confusion matrix.
-#' For regression, it plots a scatter plot of true vs. predicted values.
-#'
-#' @param x `Supervised` or `SupervisedRes` object.
-#' @param ... Additional arguments passed to methods.
-#'
-#' @return plotly object.
-#'
-#' @author EDG
-#' @export
-#' @examples
-#' x <- set_outcome(iris, "Sepal.Length")
-#' sepallength_glm <- train(x, hyperparameters = setup_GLM())
-#' plot_true_pred(sepallength_glm)
-plot_true_pred <- new_generic("plot_true_pred", "x")
-
-
-# %% plot_manhattan ----
-#' Manhattan plot
-#'
-#' @description
-#' Draw a Manhattan plot for `MassGLM` objects created with [massGLM].
-#'
-#' @param x `MassGLM` object.
-#' @param ... Additional arguments passed to methods.
-#'
-#' @return plotly object.
-#'
-#' @author EDG
-#' @export
-# example included in `plot_manhattan.MassGLM` method.
-plot_manhattan <- new_generic("plot_manhattan", "x")
-
-
 # %% describe ----
 #' Describe object
 #'
@@ -1082,26 +958,6 @@ describe <- new_generic("describe", "x", function(x, verbosity = 1L, ...) {
   force_supplied()
   S7_dispatch()
 })
-
-
-# %% present ----
-#' Present rtemis object
-#'
-#' @description
-#' This generic is used to present an rtemis object by printing to console and drawing plots.
-#'
-#' @param x `Supervised` or `SupervisedRes` object or list of such objects.
-#' @param ... Additional arguments passed to the plotting function.
-#'
-#' @return A plotly object.
-#'
-#' @author EDG
-#' @export
-#' @examplesIf interactive()
-#' ir <- set_outcome(iris, "Sepal.Length")
-#' seplen_lightrf <- train(ir, hyperparameters = setup_LightRF())
-#' present(seplen_lightrf)
-present <- new_generic("present", "x")
 
 
 # %% get_hyperparams_need_tuning ----
@@ -1705,18 +1561,25 @@ needs_tuning <- new_generic("needs_tuning", "x")
 # %% training_device ----
 #' The compute device an algorithm will train on, or NULL
 #'
-#' Answered before training starts so that `train()` can name it in its
-#' resources line. Must be free of side effects: it runs purely to build a
-#' message, and the algorithm resolves the device again for real.
+#' Answered before training starts, so `train()` can name it in its resources
+#' line, and again by the algorithm when it fits. Free of side effects beyond
+#' an error for a device the machine lacks.
 #'
-#' NULL for everything that runs on the CPU by definition. Algorithms that can
-#' leave the CPU register a method: the torch-backed ones, resolving an
-#' automatic choice the way their backend will, and the LightGBM family, which
-#' reports its `device_type`.
+#' `requested` is the execution config's `DeviceConfig`, or NULL for automatic
+#' selection. A method returns the device type it will use: the requested one if
+#' the algorithm can use it, the CPU if it cannot, or its automatic choice.
+#' NULL means the CPU by definition -- every algorithm without a method.
 #'
 #' @keywords internal
 #' @noRd
-training_device <- new_generic("training_device", "x")
+training_device <- new_generic(
+  "training_device",
+  "x",
+  function(x, requested = NULL) {
+    force_supplied()
+    S7_dispatch()
+  }
+)
 
 
 # %% get_factor_levels ----

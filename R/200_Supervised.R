@@ -370,6 +370,8 @@ Supervised <- schema_class(
 #'
 #' @param object `Supervised` object.
 #' @param newdata tabular data: New data.
+#' @param execution_config Optional `ExecutionConfig`: Where the stored
+#' decomposition is applied; NULL means the host's defaults.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return `newdata`, transformed.
@@ -380,7 +382,7 @@ Supervised <- schema_class(
 supervised_features <- function(
   object,
   newdata,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   check_inherits(newdata, "data.frame")
@@ -403,7 +405,7 @@ supervised_features <- function(
       apply_decomposition(
         object@decomposition,
         newdata,
-        n_threads = n_threads,
+        execution_config = execution_config,
         verbosity = verbosity
       )
     )
@@ -463,8 +465,8 @@ supervised_features <- function(
 #'
 #' @param object `Supervised` object.
 #' @param newdata tabular data: New data to predict.
-#' @param n_threads Integer: Threads for a backend that threads at prediction,
-#' resolved by the caller from where the prediction runs.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' prediction runs; NULL means the host's defaults.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Output of `predict_super()` (raw predictions / probabilities).
@@ -475,7 +477,7 @@ supervised_features <- function(
 predict_supervised_ <- function(
   object,
   newdata,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   # Resolved before the call, not inside it. `predict_super()` is an S7 generic
@@ -487,14 +489,14 @@ predict_supervised_ <- function(
   features <- supervised_features(
     object,
     newdata,
-    n_threads = n_threads,
+    execution_config = execution_config,
     verbosity = verbosity
   )
   predicted <- predict_super(
     model = object@model,
     newdata = features,
     type = object@type,
-    n_threads = n_threads,
+    execution_config = execution_config,
     verbosity = verbosity
   )
   # Classification predictions are probabilities, and each backend reduces the
@@ -521,8 +523,9 @@ predict_supervised_ <- function(
 #' @param newdata data.frame or similar: New data to predict.
 #' @param execution_config Optional `ExecutionConfig` object: Threads for a
 #' backend that threads at prediction are its `n_workers_algorithm`, or its
-#' worker count. `NULL` uses the host's default worker count -- the machine that
-#' predicts decides, not the one that trained.
+#' worker count, and its `device` the compute device for a model that can move.
+#' `NULL` uses the host's default worker count and selects the device
+#' automatically -- the machine that predicts decides, not the one that trained.
 #'
 #' @noRd
 method(predict, Supervised) <- function(
@@ -535,7 +538,7 @@ method(predict, Supervised) <- function(
   predict_supervised_(
     object,
     newdata,
-    n_threads = algorithm_threads(execution_config),
+    execution_config = execution_config,
     verbosity = verbosity
   )
 } # /rtemis::predict.Supervised
@@ -1459,7 +1462,7 @@ method(predict, CalibratedClassification) <- function(
   raw_prob <- positive_prob(predict_supervised_(
     object,
     newdata,
-    n_threads = algorithm_threads(execution_config)
+    execution_config = execution_config
   ))
   # Get the calibration model's predicted probabilities
   predict(
@@ -1563,144 +1566,6 @@ Regression <- schema_class(
 ) # /rtemis::Regression
 
 
-# %% plot_true_pred.Regression ----
-#' Plot True vs. Predicted for Regression
-#'
-#' @param x `Regression` object.
-#' @param what Character vector: What to plot. Can include "training", "validation", "test", or
-#' "all", which will plot all available.
-#' @param fit Character: Algorithm to use to draw fit line.
-#' @param theme `Theme` object.
-#' @param labelify Logical: If TRUE, labelify the axis labels.
-#' @param ... Additional arguments passed to the plotting function.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-method(plot_true_pred, Regression) <- function(
-  x,
-  what = "all",
-  fit = "glm",
-  theme = choose_theme(getOption("rtemis_theme")),
-  labelify = TRUE,
-  ...
-) {
-  if (length(what) == 1 && what == "all") {
-    what <- c("training", "validation", "test")
-  }
-  true <- paste0("y_", what)
-  true_l <- Filter(
-    Negate(is.null),
-    sapply(true, function(z) prop(x, z))
-  )
-  predicted <- paste0("predicted_", what)
-  predicted_l <- Filter(
-    Negate(is.null),
-    sapply(predicted, function(z) prop(x, z))
-  )
-  if (labelify) {
-    names(predicted_l) <- labelify(names(predicted_l))
-  }
-  draw_fit(
-    x = true_l,
-    y = predicted_l,
-    fit = fit,
-    theme = theme,
-    ...
-  )
-} # /rtemis::plot_true_pred.Regression
-
-
-# %% plot_true_pred.Classification ----
-#' Plot True vs. Predicted for Classification
-#'
-#' @param x `Classification` object.
-#' @param what Character vector: What to plot. "training", "validation", "test"
-#' @param xlab Optional Character: x axis label. If NULL, will be generated automatically.
-#' @param theme `Theme` object.
-#' @param ... Additional arguments passed to the plotting function.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-method(plot_true_pred, Classification) <- function(
-  x,
-  what = NULL,
-  xlab = NULL,
-  theme = choose_theme(getOption("rtemis_theme")),
-  ...
-) {
-  if (is.null(what)) {
-    if (!is.null(x@metrics_test)) {
-      what <- "test"
-    } else if (!is.null(x@metrics_validation)) {
-      what <- "validation"
-    } else {
-      what <- "training"
-    }
-  }
-  .confmat <- if (what == "training") {
-    x@metrics_training
-  } else if (what == "validation") {
-    x@metrics_validation
-  } else if (what == "test") {
-    x@metrics_test
-  }
-  if (is.null(xlab)) {
-    xlab <- labelify(paste("Predicted", what))
-  }
-  draw_confusion(
-    .confmat,
-    theme = theme,
-    xlab = xlab,
-    ...
-  )
-} # /rtemis::plot_true_pred.Classification
-
-
-# %% plot_roc.Classification ----
-method(plot_roc, Classification) <- function(
-  x,
-  what = NULL,
-  theme = choose_theme(getOption("rtemis_theme")),
-  palette = get_palette(getOption("rtemis_palette")),
-  filename = NULL,
-  ...
-) {
-  if (is.null(x@predicted_prob_training)) {
-    msg("No predicted probabilities available.")
-    return(invisible())
-  }
-  if (is.null(what)) {
-    what <- if (!is.null(x@metrics_test)) {
-      c("training", "test")
-    } else {
-      "training"
-    }
-  }
-  labelsl <- probl <- list()
-
-  if ("training" %in% what) {
-    labelsl[["Training"]] <- x@y_training
-    probl[["Training"]] <- x@predicted_prob_training
-  }
-  if ("test" %in% what && !is.null(x@predicted_prob_test)) {
-    labelsl[["Test"]] <- x@y_test
-    probl[["Test"]] <- x@predicted_prob_test
-  }
-
-  draw_roc(
-    true_labels = labelsl,
-    predicted_prob = probl,
-    theme = theme,
-    palette = palette,
-    legend_title = "Sample (AUC)",
-    filename = filename,
-    ...
-  )
-} # /rtemis::plot_ROC.Classification
-
-
 # %% make_Supervised ----
 make_Supervised <- function(
   algorithm = NULL,
@@ -1793,95 +1658,6 @@ write_Supervised <- function(
     rt_save(object, outdir, verbosity = verbosity)
   }
 } # /rtemis::write_Supervised
-
-
-# %% present.Regression ----
-# present method for Regression objects
-# Plot training + test metrics, if available, side by side using `plotly::subplot()`
-# & run `describe()` on the object
-method(present, Regression) <- function(
-  x,
-  what = c("training", "test"),
-  theme = choose_theme(getOption("rtemis_theme")),
-  filename = NULL,
-  ...
-) {
-  # Describe the model
-  describe(x)
-  # Plot True vs. Predicted
-  plot_true_pred(
-    x,
-    what = what,
-    theme = theme,
-    filename = filename,
-    ...
-  )
-} # /rtemis::present.Regression
-
-
-# %% present.Classification ----
-# present method for Classification objects
-# Plot training + test metrics if available, side by side
-method(present, Classification) <- function(
-  x,
-  what = c("training", "test"),
-  type = c("ROC", "confusion"),
-  theme = choose_theme(getOption("rtemis_theme")),
-  palette = get_palette(getOption("rtemis_palette")),
-  filename = NULL,
-  ...
-) {
-  type <- match.arg(type)
-
-  # Describe the model
-  describe(x)
-
-  if (type == "ROC") {
-    plot_roc(
-      x,
-      what = what,
-      theme = theme,
-      palette = palette,
-      filename = filename
-    )
-  } else if (type == "confusion") {
-    # Training set plot
-    if ("training" %in% what) {
-      plot_training <- plot_true_pred(
-        x,
-        what = "training",
-        theme = theme,
-        xlab = "Predicted Training"
-      )
-    } else {
-      plot_training <- NULL
-    }
-    # Test set plot
-    if ("test" %in% what && !is.null(x@y_test)) {
-      plot_test <- plot_true_pred(
-        x,
-        what = "test",
-        theme = theme,
-        xlab = "Predicted Test"
-      )
-    } else {
-      plot_test <- NULL
-    }
-
-    # Combined plot
-    # classification: confusion matrices side by side
-    plotly::subplot(
-      plot_training,
-      plot_test,
-      nrows = 1L,
-      shareX = FALSE,
-      shareY = FALSE,
-      titleX = TRUE,
-      titleY = TRUE,
-      margin = 0.01
-    )
-  }
-} # /rtemis::present.Classification
 
 
 # %% SupervisedRes ----
@@ -2940,259 +2716,6 @@ method(describe, SupervisedRes) <- function(x, verbosity = 1L) {
 }
 
 
-# %% present.SupervisedRes ----
-method(present, SupervisedRes) <- function(
-  x,
-  theme = choose_theme(getOption("rtemis_theme")),
-  ...
-) {
-  # Describe the model
-  describe(x)
-  # Plot the performance metrics
-  plot_metric(x, what = c("training", "test"), theme = theme, ...)
-} # /rtemis::present.SupervisedRes
-
-
-# %% plot_true_pred.RegressionRes ----
-# Plot true vs. predicted aggregated across resamples for either training, test, or both.
-#' Plot True vs. Predicted for RegressionRes
-#'
-#' @param x `RegressionRes` object.
-#' @param what Character vector: "all", "training", "test". Which set(s) to plot.
-#' @param fit Character: Algorithm to use to draw fit line.
-#' @param theme `Theme` object.
-#' @param labelify Logical: If TRUE, labelify the axis labels.
-#' @param ... Additional arguments passed to [draw_fit].
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-method(plot_true_pred, RegressionRes) <- function(
-  x,
-  what = "all",
-  fit = "glm",
-  theme = choose_theme(getOption("rtemis_theme")),
-  labelify = TRUE,
-  ...
-) {
-  if (length(what) == 1 && what == "all") {
-    what <- c("training", "test")
-  }
-  true <- paste0("y_", what)
-  true_l <- sapply(true, function(z) {
-    unlist(prop(x, z), use.names = FALSE)
-  })
-
-  predicted <- paste0("predicted_", what)
-  predicted_l <- sapply(predicted, function(z) {
-    unlist(prop(x, z), use.names = FALSE)
-  })
-  if (labelify) {
-    names(predicted_l) <- labelify(names(predicted_l))
-  }
-  draw_fit(
-    x = true_l,
-    y = predicted_l,
-    fit = fit,
-    theme = theme,
-    ...
-  )
-} # /rtemis::plot_true_pred.RegressionRes
-
-
-# %% plot_true_pred.ClassificationRes ----
-# Cannot be combined with plot_true_pred.RegressionRes
-# because scatter can overplot train & test, but confusion matrices must be subplots.
-#' Plot True vs. Predicted for ClassificationRes
-#'
-#' @param x `ClassificationRes` object.
-#' @param what Character vector: "all", "training", "test". Which set(s) to plot.
-#' @param theme `Theme` object.
-#' @param ... Additional arguments passed to [draw_confusion].
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-method(plot_true_pred, ClassificationRes) <- function(
-  x,
-  what = "all",
-  theme = choose_theme(getOption("rtemis_theme")),
-  ...
-) {
-  if (length(what) == 1 && what == "all") {
-    what <- c("training", "test")
-  }
-  true <- paste0("y_", what)
-  true_l <- sapply(true, function(z) {
-    unlist(prop(x, z), use.names = FALSE)
-  })
-
-  predicted <- paste0("predicted_", what)
-  predicted_l <- sapply(predicted, function(z) {
-    unlist(prop(x, z), use.names = FALSE)
-  })
-  # if (labelify) {
-  #   names(predicted_l) <- labelify(names(predicted_l))
-  # }
-  # => Do not pass filename to both training & testing, latter will overwrite; pass to subplot if
-  # plotting both
-  # Training
-  if ("training" %in% what) {
-    plt_training <- draw_confusion(
-      conf_table(true_l[["y_training"]], predicted_l[["predicted_training"]]),
-      xlab = "Predicted Training",
-      theme = theme,
-      ...
-    )
-  }
-  if ("test" %in% what) {
-    plt_test <- draw_confusion(
-      conf_table(true_l[["y_test"]], predicted_l[["predicted_test"]]),
-      xlab = "Predicted Test",
-      theme = theme,
-      ...
-    )
-  }
-
-  if (length(what) == 1) {
-    if (what == "training") {
-      return(plt_training)
-    } else {
-      return(plt_test)
-    }
-  } else {
-    return(plotly::subplot(
-      plt_training,
-      plt_test,
-      nrows = 1L,
-      shareX = FALSE,
-      shareY = FALSE
-    ))
-  }
-} # /rtemis::plot_true_pred.ClassificationRes
-
-
-# %% plot_roc.ClassificationRes ----
-#' Plot ROC for ClassificationRes
-#'
-#' @param x `ClassificationRes` object.
-#' @param what Character vector: "all", "training", "test". Which set(s) to plot.
-#' @param theme `Theme` object.
-#' @param col Character vector: Colors to use for the ROC curves.
-#' @param filename Character: Filename to save the plot to.
-#' @param ... Additional arguments passed to [draw_roc].
-#'
-#' @return plotly object.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-method(plot_roc, ClassificationRes) <- function(
-  x,
-  what = "all",
-  theme = choose_theme(getOption("rtemis_theme")),
-  palette = get_palette(getOption("rtemis_palette")),
-  filename = NULL,
-  ...
-) {
-  if (length(what) == 1 && what == "all") {
-    what <- c("training", "test")
-  }
-  labelsl <- probl <- list()
-
-  if ("training" %in% what) {
-    labelsl[["Training"]] <- unlist(x@y_training, use.names = FALSE)
-    probl[["Training"]] <- unlist(x@predicted_prob_training, use.names = FALSE)
-  }
-  if ("test" %in% what && !is.null(x@predicted_prob_test)) {
-    labelsl[["Test"]] <- unlist(x@y_test, use.names = FALSE)
-    probl[["Test"]] <- unlist(x@predicted_prob_test, use.names = FALSE)
-  }
-
-  draw_roc(
-    true_labels = labelsl,
-    predicted_prob = probl,
-    theme = theme,
-    palette = palette,
-    legend_title = "Sample (AUC)",
-    filename = filename,
-    ...
-  )
-} # /rtemis::plot_roc.ClassificationRes
-
-
-# %% plot_metric.SupervisedRes ----
-#' Plot Metric SupervisedRes
-#'
-#' Plot boxplot of performance metrics across resamples.
-#'
-#' @param x `SupervisedRes` object.
-#' @param what Character vector: "training", "test". What to print. If unset, prints both.
-#' @param metric Character: Metric to plot.
-#' @param ylab Character: Label for the y-axis.
-#' @param boxpoints Character:"all", "outliers" - How to display points in the boxplot.
-#' @param theme `Theme` object.
-#' @param ... Additional arguments passed to the plotting function.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-method(plot_metric, SupervisedRes) <- function(
-  x,
-  what = c("training", "test"),
-  metric = NULL,
-  ylab = labelify(metric),
-  boxpoints = "all",
-  theme = choose_theme(getOption("rtemis_theme")),
-  ...
-) {
-  what <- match.arg(what, several.ok = TRUE)
-  .class <- x@type == "Classification"
-
-  # Metric
-  if (is.null(metric)) {
-    if (.class) {
-      metric <- "balanced_accuracy"
-    } else {
-      metric <- "rsq"
-    }
-  }
-
-  xl <- list()
-  if ("training" %in% what) {
-    if (.class) {
-      xl[["Training"]] <- sapply(
-        x@metrics_training@res_metrics,
-        function(fold) {
-          fold[["overall"]][[metric]]
-        }
-      )
-    } else {
-      xl[["Training"]] <- sapply(
-        x@metrics_training@res_metrics,
-        function(fold) {
-          fold[[metric]]
-        }
-      )
-    }
-  }
-  if ("test" %in% what) {
-    if (.class) {
-      xl[["Test"]] <- sapply(x@metrics_test@res_metrics, function(fold) {
-        fold[["overall"]][[metric]]
-      })
-    } else {
-      xl[["Test"]] <- sapply(x@metrics_test@res_metrics, function(fold) {
-        fold[[metric]]
-      })
-    }
-  }
-
-  # Boxplot ----
-  draw_box(xl, theme = theme, ylab = ylab, boxpoints = boxpoints, ...)
-} # /rtemis::plot_metric.SupervisedRes
-
-
 # %% learning_curve_frame ----
 #' Assemble a learning curve in the shape every algorithm reports it in
 #'
@@ -3242,153 +2765,6 @@ method(get_learning_curve, Supervised) <- function(x) {
     S7_error_method_not_found = function(e) NULL
   )
 } # /rtemis::get_learning_curve.Supervised
-
-
-# %% plot_learning.Supervised ----
-method(plot_learning, Supervised) <- function(
-  x,
-  theme = choose_theme(getOption("rtemis_theme")),
-  ...
-) {
-  curve <- get_learning_curve(x)
-  if (is.null(curve)) {
-    rtemis.core::abort(
-      x@algorithm,
-      " records no learning curve. ",
-      "`plot_learning()` applies to algorithms that train in steps: ",
-      paste(early_stopping_algs, collapse = ", "),
-      ".",
-      class = c("rtemis_unsupported_error", "rtemis_input_error")
-    )
-  }
-  unit <- attr(curve, "unit")
-  selected <- attr(curve, "selected")
-  # An ensemble reports one curve per tree; the shared picture is their mean at
-  # each size, since the trees stop at different ones.
-  if (!is.null(curve[["tree"]])) {
-    curve <- stats::aggregate(
-      cbind(loss_training, loss_validation) ~ iteration,
-      curve,
-      mean,
-      na.rm = TRUE,
-      na.action = stats::na.pass
-    )
-  }
-  series <- list(
-    Training = curve[["loss_training"]],
-    Validation = curve[["loss_validation"]]
-  )
-  series <- Filter(function(values) any(!is.na(values)), series)
-  if (length(series) == 0L) {
-    rtemis.core::abort(
-      "The learning curve of this ",
-      x@algorithm,
-      " model holds no losses.",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
-  # A series that is NA everywhere but the kept step, so the choice reads off
-  # the same axes as the curve it was made from.
-  if (length(selected) == 1L && !is.na(selected)) {
-    series[["Selected"]] <- ifelse(
-      curve[["iteration"]] == selected,
-      series[[1L]],
-      NA_real_
-    )
-  }
-  draw_scatter(
-    x = lapply(series, function(values) curve[["iteration"]]),
-    y = series,
-    mode = "lines+markers",
-    main = paste(x@algorithm, "learning curve"),
-    xlab = labelify(unit),
-    ylab = "Loss",
-    rsq = FALSE,
-    theme = theme,
-    ...
-  )
-} # /rtemis::plot_learning.Supervised
-
-
-# %% plot_varimp.Supervised ----
-method(plot_varimp, Supervised) <- function(
-  x,
-  measure = NULL,
-  theme = choose_theme(getOption("rtemis_theme")),
-  filename = NULL,
-  ...
-) {
-  if (is.null(x@varimp)) {
-    msg("No variable importance available.")
-    return(invisible())
-  }
-  if (is.null(measure)) {
-    vi <- x@varimp@data[[2L]]
-  } else {
-    vi <- x@varimp@data[[measure]]
-  }
-  names(vi) <- x@varimp@data[["variable"]]
-  draw_varimp(vi, theme = theme, filename = filename, ...)
-} # /rtemis::plot_varimp.Supervised
-
-
-# %% plot_varimp.SupervisedRes ----
-method(plot_varimp, SupervisedRes) <- function(
-  x,
-  measure = NULL,
-  ylab = NULL,
-  summarize_fn = "mean",
-  show_top = 20L,
-  theme = choose_theme(getOption("rtemis_theme")),
-  filename = NULL,
-  ...
-) {
-  if (is.null(x@varimp)) {
-    msg("No variable importance available.")
-    return(invisible())
-  }
-  check_inherits(summarize_fn, "character")
-
-  # Extract named numeric vectors from each VariableImportance object.
-  # Not every variable gets a score in every resample, so rbindlist with fill.
-  varimp_list <- lapply(x@varimp, function(z) {
-    vi <- if (is.null(measure)) z@data[[2L]] else z@data[[measure]]
-    names(vi) <- z@data[["variable"]]
-    as.data.table(as.list(vi))
-  })
-
-  varimp <- rbindlist(varimp_list, use.names = TRUE, fill = TRUE)
-  # Missing scores (variable absent in a resample) treated as 0
-  setDF(varimp)
-  varimp[is.na(varimp)] <- 0
-  # Summarize and sort
-  varimp_summary <- apply(varimp, 2, summarize_fn)
-  varimp_sorted <- varimp_summary[order(-varimp_summary)]
-  if (length(varimp_sorted) > show_top) {
-    varimp_sorted <- varimp_sorted[seq_len(show_top)]
-  }
-  # ylab
-  if (is.null(ylab)) {
-    measure_name <- if (is.null(measure)) {
-      names(x@varimp[[1L]]@data)[2L]
-    } else {
-      measure
-    }
-    ylab <- paste0(
-      labelify(paste(summarize_fn, measure_name)),
-      "\n(across ",
-      desc(x@outer_resampler),
-      ")"
-    )
-  }
-  draw_varimp(
-    varimp_sorted,
-    theme = theme,
-    ylab = ylab,
-    filename = filename,
-    ...
-  )
-} # /rtemis::plot_varimp.SupervisedRes
 
 
 # %% make_SupervisedRes ----

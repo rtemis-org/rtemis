@@ -99,6 +99,10 @@ method(train_, LightGBMHyperparameters) <- function(
   # absent: it parses the empty value as 0 and fails its own range check
   # (`alpha = NULL` aborts with "Check failed: (alpha) > (0.0)"). So NULL means
   # "leave it to the backend", which is expressed by not sending it at all.
+  params <- c(
+    params,
+    lightgbm_device_params(hyperparameters, execution_config@device)
+  )
   params <- Filter(Negate(is.null), params)
 
   model <- lightgbm::lgb.train(
@@ -135,7 +139,7 @@ method(predict_super, class_lgb.Booster) <- function(
   model,
   newdata,
   type = NULL,
-  n_threads = 1L,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   check_inherits(model, "lgb.Booster")
@@ -150,7 +154,7 @@ method(predict_super, class_lgb.Booster) <- function(
   predict(
     model,
     newdata = as.matrix(newdata),
-    params = list(num_threads = n_threads)
+    params = list(num_threads = algorithm_threads(execution_config))
   )
 } # /rtemis::predict_super.lgb.Booster
 
@@ -325,19 +329,49 @@ method(explain_super, class_lgb.Booster) <- function(
 # %% lightgbm_training_device ----
 #' The device a LightGBM-family algorithm will train on
 #'
-#' LightGBM, LightRF, LightCART and LightRuleFit pass `device_type` to
-#' `lightgbm::lgb.train()` as given; there is no automatic choice to resolve.
+#' LightGBM, LightRF, LightCART and LightRuleFit run on the CPU, a CUDA GPU or an
+#' OpenCL GPU, each only with a LightGBM build compiled for it. No build can be
+#' detected from R, so the automatic choice is the CPU; a requested `mps` runs
+#' on the CPU.
 #'
 #' @param x Hyperparameters of one of the four classes.
+#' @param requested Optional `DeviceConfig` object.
 #'
-#' @return Character.
+#' @return Character device type.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-lightgbm_training_device <- function(x) {
-  x[["device_type"]]
+lightgbm_training_device <- function(x, requested = NULL) {
+  type <- if (is.null(requested)) "cpu" else requested@type
+  if (type %in% c("cpu", "cuda", "opencl")) type else "cpu"
 } # /rtemis::lightgbm_training_device
+
+
+# %% lightgbm_device_params ----
+#' LightGBM parameters selecting the compute device
+#'
+#' `device_type` in LightGBM's own spelling (`"gpu"` is its OpenCL build), and
+#' `gpu_device_id` for the first GPU a `CUDADeviceConfig` names.
+#'
+#' @param x Hyperparameters of a LightGBM-family class.
+#' @param requested Optional `DeviceConfig` object.
+#'
+#' @return Named list of LightGBM parameters.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_device_params <- function(x, requested = NULL) {
+  device <- lightgbm_training_device(x, requested)
+  params <- list(
+    device_type = switch(device, opencl = "gpu", device)
+  )
+  if (S7_inherits(requested, CUDADeviceConfig) && !is.null(requested@ids)) {
+    params[["gpu_device_id"]] <- requested@ids[[1L]]
+  }
+  params
+} # /rtemis::lightgbm_device_params
 
 
 # %% training_device.LightGBMHyperparameters ----
