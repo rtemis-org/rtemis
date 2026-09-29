@@ -9,6 +9,8 @@
 - `train()` prints one resources line: the compute device in use (including an Apple silicon GPU), the execution backend, the worker ceiling, and each level's share.
 - `decomp()`, `cluster()`, `setup_DecomposeConfig()` and `setup_ClusterConfig()` take `execution_config`: its seed seeds the fit, and a threaded algorithm (UMAP, tSNE) runs on its workers; `decomposition_traits()` gains `threaded`.
 - `setup_tSNE(num_threads =)` is deprecated; tSNE takes its threads from the execution config.
+- `setup_Autoencoder()` configures a torch autoencoder decomposition, denoising when `input_noise` or `input_dropout` is set; it applies to new data, so it can be `train()`'s decomposition step, and `reconstruct()` returns its reconstruction in the data's units.
+- `decomp_metrics()` takes `execution_config`.
 - NMF with `nrun` greater than 1 runs.
 - Execution configs take `device`: `"cpu"`, `"cuda"`, `"mps"` (Apple silicon GPU) or `"opencl"`, or `setup_CUDA(ids =)` to name GPUs. Unset uses CUDA where available and the CPU otherwise; the Apple silicon GPU runs only when named. An algorithm that cannot use the requested device runs on the CPU and the resources line says so.
 - `setup_LightGBM(device_type =)`, `setup_LightRF(device_type =)` and `setup_TabNet(device =)` are deprecated; set `device` in the execution config.

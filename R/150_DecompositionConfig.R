@@ -809,6 +809,243 @@ setup_Isomap <- function(
 } # /rtemis::setup_Isomap
 
 
+# %% AutoencoderBaseConfig ----
+#' @title AutoencoderBaseConfig
+#'
+#' @description
+#' Abstract, unpublished parent of the torch autoencoder configs. It holds the
+#' properties every autoencoder declares identically and the dispatched methods
+#' in `decomp_Autoencoder.R`; each leaf publishes the full property set flat,
+#' so no schema, form or generated model shows this class.
+#'
+#' The optimizer, schedule, layer and dropout settings come from the
+#' `torch_*_props()` factories `MLPHyperparameters` also splices, so the two
+#' families declare them once. Nothing here is tunable.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+AutoencoderBaseConfig <- schema_class(
+  name = "AutoencoderBaseConfig",
+  parent = DecompositionConfig,
+  package = "rtemis",
+  abstract = TRUE,
+  properties = c(
+    list(
+      k = prop_integer(
+        2L,
+        min = 1L,
+        description = "Number of components to extract: the width of the latent layer."
+      ),
+      hidden_units = prop_integer(
+        NULL,
+        min = 1L,
+        nullable = TRUE,
+        vector = TRUE,
+        min_items = 1L,
+        description = "Units in each hidden layer of the encoder, input side first; the decoder mirrors them. Unset uses one hidden layer whose width is the geometric mean of the number of features and k, at least 32 and at most 512, and never below k."
+      )
+    ),
+    torch_layer_props(tunable = FALSE),
+    torch_regularization_props(
+      tunable = FALSE,
+      input_dropout_description = "Dropout probability applied to the standardized input during training, a masking corruption that makes the model denoising. The reconstruction target stays uncorrupted."
+    ),
+    list(
+      input_noise = prop_float(
+        0,
+        min = 0,
+        description = "Standard deviation of the Gaussian noise added to the standardized input during training, which makes the model denoising. The reconstruction target stays uncorrupted. 0 adds none."
+      ),
+      loss = prop_string(
+        "mse",
+        enum = TORCH_REGRESSION_LOSSES,
+        description = "Reconstruction loss."
+      )
+    ),
+    torch_optimization_props(
+      tunable = FALSE,
+      patience_description = "Epochs without improvement of the held-out reconstruction loss before stopping early. Applies when validation_fraction is greater than 0.",
+      # A fixed batch size gives small data too few optimization steps: with
+      # 256 cases per batch, 150 cases train for one step per epoch.
+      batch_size = prop_integer(
+        NULL,
+        min = 1L,
+        nullable = TRUE,
+        description = "Cases per optimization step. Unset uses a tenth of the training cases, at least 16 and at most 256."
+      )
+    ),
+    list(
+      validation_fraction = prop_float(
+        0.1,
+        min = 0,
+        exclusive_max = 1,
+        description = "Fraction of the cases held out to decide early stopping and to select the weights of the best epoch. 0 holds out none and trains for max_epochs."
+      )
+    )
+  ),
+  validator = function(self) {
+    check_applies_when(self)
+  }
+) # /rtemis::AutoencoderBaseConfig
+
+
+# %% AutoencoderConfig ----
+#' @title AutoencoderConfig
+#'
+#' @description
+#' DecompositionConfig subclass for an autoencoder trained with `torch`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+AutoencoderConfig <- schema_class(
+  name = "AutoencoderConfig",
+  parent = AutoencoderBaseConfig,
+  properties = list(
+    algorithm = prop_algorithm("Autoencoder")
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Autoencoder (torch).",
+    order = 7L
+  )
+) # /rtemis::AutoencoderConfig
+
+
+# %% setup_Autoencoder ----
+#' Setup Autoencoder config.
+#'
+#' A fully connected autoencoder built and trained with `torch`: an encoder maps
+#' the features to `k` components through the hidden layers, and a decoder
+#' mirroring it maps the components back.
+#'
+#' @details
+#' **Architecture.** `hidden_units` gives the encoder's hidden widths from the
+#' input side, e.g. `c(64L, 16L)`; the decoder uses them in reverse, and both
+#' the latent layer and the output layer are linear. NULL uses one hidden
+#' layer of width `round(sqrt(p * k))` for `p` features, the geometric mean of
+#' the input and latent widths, held between 32 and 512 and never below `k`.
+#' `batch_size = NULL` uses a tenth of the training cases, held between 16 and
+#' 256, so small data still gets several optimization steps per epoch. The fit
+#' reports and records both values it used.
+#'
+#' **Inputs** are always centered and scaled with the training cases'
+#' statistics (a constant feature is only centered). [reconstruct] undoes this,
+#' so reconstructions and the reconstruction metrics are in the units of the
+#' data, comparable with any other decomposition's.
+#'
+#' **Denoising.** `input_noise` adds Gaussian noise of that standard deviation to
+#' the standardized inputs, and `input_dropout` zeroes each input with that
+#' probability, during training only. The model learns to reconstruct the
+#' uncorrupted input, which regularizes the components; [apply_decomp] and
+#' [reconstruct] never corrupt.
+#'
+#' **Early stopping.** `validation_fraction` of the cases, drawn at random, are
+#' held out; training stops after `patience` epochs without improvement of
+#' their reconstruction loss and keeps the weights of the best epoch. The
+#' components are then computed for every case, held-out ones included.
+#' `validation_fraction = 0` trains for `max_epochs`.
+#'
+#' **Reproducibility, threads and device** come from the execution config
+#' passed to [decomp]: its `seed` seeds torch as well as R, its algorithm
+#' threads are libtorch's thread count, and its `device` is the compute device.
+#' Unset, the device is `cuda` where available and `cpu` otherwise; `"mps"`
+#' runs only when named, and a seed does not reach dropout or noise there.
+#'
+#' The optimizer, schedule and early-stopping settings mean what they do in
+#' [setup_MLP].
+#'
+#' @param k Integer [1, Inf): Number of components, the width of the latent
+#' layer.
+#' @param hidden_units Optional Integer [1, Inf) vector: Units in each hidden
+#' layer of the encoder, input side first.
+#' @param activation Character \{"relu", "gelu", "silu", "elu", "selu", "leaky_relu", "tanh"\}: Activation applied after every hidden layer.
+#' @param norm Optional Character \{"batch_norm", "layer_norm"\}: Normalization applied in every hidden layer. NULL applies none.
+#' @param dropout Numeric [0, 1): Dropout probability applied after every hidden layer.
+#' @param input_dropout Numeric [0, 1): Probability of zeroing each standardized input during training.
+#' @param weight_decay Numeric [0, Inf): L2 penalty, decoupled from the gradient under the adamw optimizer.
+#' @param input_noise Numeric [0, Inf): Standard deviation of the Gaussian noise added to the standardized inputs during training.
+#' @param loss Character \{"mse", "l1", "smooth_l1"\}: Reconstruction loss.
+#' @param optimizer Character \{"adamw", "adam", "sgd", "rmsprop"\}: Optimization algorithm.
+#' @param lr Numeric (0, Inf): Learning rate.
+#' @param beta1 Optional Numeric [0, 1): Exponential decay rate of the first moment estimate. Applies to the adam and adamw optimizers.
+#' @param beta2 Optional Numeric [0, 1): Exponential decay rate of the second moment estimate. Applies to the adam and adamw optimizers.
+#' @param eps Optional Numeric (0, Inf): Term added to the denominator for numerical stability. Applies to the adam, adamw and rmsprop optimizers.
+#' @param momentum Optional Numeric [0, Inf): Momentum factor. Applies to the sgd and rmsprop optimizers.
+#' @param lr_scheduler Optional Character \{"step", "cosine_annealing", "one_cycle", "reduce_on_plateau"\}: Learning-rate schedule. NULL holds the learning rate fixed.
+#' @param batch_size Optional Integer [1, Inf): Cases per optimization step.
+#' @param max_epochs Integer [1, Inf): Largest number of passes over the training cases.
+#' @param patience Integer [1, Inf): Epochs without improvement of the held-out loss before stopping early.
+#' @param max_grad_norm Optional Numeric (0, Inf): Clip the gradient norm to this value before each step. NULL does not clip.
+#' @param validation_fraction Numeric [0, 1): Fraction of the cases held out for early stopping.
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to decompose. `NULL` decomposes all numeric features.
+#'
+#' @return AutoencoderConfig object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' ae_config <- setup_Autoencoder(k = 2L, hidden_units = 8L, input_noise = 0.1)
+#' ae_config
+setup_Autoencoder <- function(
+  k = 2L,
+  hidden_units = NULL,
+  activation = "relu",
+  norm = NULL,
+  dropout = 0,
+  input_dropout = 0,
+  weight_decay = 0,
+  input_noise = 0,
+  loss = "mse",
+  optimizer = "adamw",
+  lr = 1e-3,
+  beta1 = NULL,
+  beta2 = NULL,
+  eps = NULL,
+  momentum = NULL,
+  lr_scheduler = NULL,
+  batch_size = NULL,
+  max_epochs = 100L,
+  patience = 10L,
+  max_grad_norm = NULL,
+  validation_fraction = 0.1,
+  features = NULL
+) {
+  apply_setup_defaults(AutoencoderConfig)
+  k <- clean_posint(k)
+  hidden_units <- clean_posint(hidden_units)
+  batch_size <- clean_posint(batch_size)
+  max_epochs <- clean_posint(max_epochs)
+  patience <- clean_posint(patience)
+  AutoencoderConfig(
+    k = k,
+    hidden_units = hidden_units,
+    activation = activation,
+    norm = norm,
+    dropout = dropout,
+    input_dropout = input_dropout,
+    weight_decay = weight_decay,
+    input_noise = input_noise,
+    loss = loss,
+    optimizer = optimizer,
+    lr = lr,
+    beta1 = beta1,
+    beta2 = beta2,
+    eps = eps,
+    momentum = momentum,
+    lr_scheduler = lr_scheduler,
+    batch_size = batch_size,
+    max_epochs = max_epochs,
+    patience = patience,
+    max_grad_norm = max_grad_norm,
+    validation_fraction = validation_fraction,
+    features = features
+  )
+} # /rtemis::setup_Autoencoder
+
+
 # %% decom_can_apply ----
 #' Check whether a decomposition algorithm can be applied on new data
 #'

@@ -60,3 +60,6 @@ review/
 
 # Internal
 tests/testthat/_problems/
+
+# testthat failure snapshot written by a failing R CMD check
+tests/testthat/testthat-problems.rds

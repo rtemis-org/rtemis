@@ -31,8 +31,8 @@
 # units or trained in batches smaller than about 2048 cases, often 2-5x; `mps`
 # won only with both and thousands of features, by up to about 25%. It also
 # slows down across many fits in one R session. And `torch_manual_seed()` does
-# not reach its dropout, so a seeded fit stops being reproducible the moment a
-# dropout rate is non-zero. Asking for it by name is supported, and
+# not reach its dropout or its random normal draws, so a seeded fit stops being
+# reproducible the moment a dropout rate or a noise level is non-zero. Asking for it by name is supported, and
 # `check_mps_reproducible()` reports the second caveat when it bites.
 TORCH_DEVICES <- c("cpu", "cuda", "mps")
 TORCH_DEVICE_PREFERENCE <- c("cuda", "cpu", "mps")
@@ -68,6 +68,182 @@ TORCH_SCHEDULERS <- c(
 TORCH_REGRESSION_LOSSES <- c("mse", "l1", "smooth_l1")
 TORCH_CLASSIFICATION_LOSSES <- "cross_entropy"
 TORCH_LOSSES <- c(TORCH_REGRESSION_LOSSES, TORCH_CLASSIFICATION_LOSSES)
+
+
+# %% torch_layer_props ----
+#' Hidden-layer settings shared by the torch-backed configs
+#'
+#' Spliced into `MLPHyperparameters` and `AutoencoderBaseConfig`, which sit in
+#' different families, so no common parent can carry them. The declarations are
+#' published as they stand here, so a change moves every schema that splices
+#' them.
+#'
+#' @param tunable Logical: Whether the settings are tunable. Decomposition
+#' configs hold fixed values.
+#'
+#' @return Named list of properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_layer_props <- function(tunable) {
+  list(
+    activation = prop_string(
+      "relu",
+      enum = TORCH_ACTIVATIONS,
+      tunable = tunable,
+      description = "Activation applied after every hidden layer."
+    ),
+    norm = prop_string(
+      NULL,
+      enum = TORCH_NORMS,
+      nullable = TRUE,
+      tunable = tunable,
+      description = "Normalization applied in every hidden layer. Unset applies none."
+    )
+  )
+} # /rtemis::torch_layer_props
+
+
+# %% torch_regularization_props ----
+#' Dropout and L2 settings shared by the torch-backed configs
+#'
+#' @param tunable Logical: Whether the settings are tunable.
+#' @param input_dropout_description Character: What the input the dropout acts
+#' on is, which differs between a network with encoded categorical inputs and
+#' one on standardized numeric inputs.
+#'
+#' @return Named list of properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_regularization_props <- function(tunable, input_dropout_description) {
+  list(
+    dropout = prop_float(
+      0,
+      min = 0,
+      exclusive_max = 1,
+      tunable = tunable,
+      description = "Dropout probability applied after every hidden layer."
+    ),
+    input_dropout = prop_float(
+      0,
+      min = 0,
+      exclusive_max = 1,
+      tunable = tunable,
+      description = input_dropout_description
+    ),
+    weight_decay = prop_float(
+      0,
+      min = 0,
+      tunable = tunable,
+      description = "L2 penalty, decoupled from the gradient under the adamw optimizer."
+    )
+  )
+} # /rtemis::torch_regularization_props
+
+
+# %% torch_optimization_props ----
+#' Optimizer, schedule and epoch settings shared by the torch-backed configs
+#'
+#' Every one of them is an argument of `torch_fit()`, so any config trained by
+#' that loop declares the same block.
+#'
+#' @param tunable Logical: Whether the settings that can be searched are
+#' tunable. The optimizer-specific settings, the schedule and the patience are
+#' never tunable.
+#' @param patience_description Character: Where the validation data that early
+#' stopping needs comes from, which differs between the algorithms.
+#' @param batch_size Optional property: The batch size declaration, for an
+#' algorithm whose default differs. NULL declares a fixed default of 256.
+#'
+#' @return Named list of properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_optimization_props <- function(
+  tunable,
+  patience_description,
+  batch_size = NULL
+) {
+  list(
+    optimizer = prop_string(
+      "adamw",
+      enum = TORCH_OPTIMIZERS,
+      tunable = tunable,
+      description = "Optimization algorithm."
+    ),
+    lr = prop_float(
+      1e-3,
+      exclusive_min = 0,
+      tunable = tunable,
+      description = "Learning rate."
+    ),
+    beta1 = prop_float(
+      NULL,
+      min = 0,
+      exclusive_max = 1,
+      nullable = TRUE,
+      applies_when = list(optimizer = c("adamw", "adam")),
+      description = "Exponential decay rate of the first moment estimate. Unset leaves the torch default."
+    ),
+    beta2 = prop_float(
+      NULL,
+      min = 0,
+      exclusive_max = 1,
+      nullable = TRUE,
+      applies_when = list(optimizer = c("adamw", "adam")),
+      description = "Exponential decay rate of the second moment estimate. Unset leaves the torch default."
+    ),
+    eps = prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      applies_when = list(optimizer = c("adamw", "adam", "rmsprop")),
+      description = "Term added to the denominator for numerical stability. Unset leaves the torch default."
+    ),
+    momentum = prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      applies_when = list(optimizer = c("sgd", "rmsprop")),
+      description = "Momentum factor. Unset leaves the torch default."
+    ),
+    lr_scheduler = prop_string(
+      NULL,
+      enum = TORCH_SCHEDULERS,
+      nullable = TRUE,
+      description = "Learning-rate schedule, configured from the epoch budget. Unset holds the learning rate fixed."
+    ),
+    batch_size = batch_size %||%
+      prop_integer(
+        256L,
+        min = 1L,
+        tunable = tunable,
+        description = "Cases per optimization step."
+      ),
+    max_epochs = prop_integer(
+      100L,
+      min = 1L,
+      tunable = tunable,
+      description = "Largest number of passes over the training set."
+    ),
+    patience = prop_integer(
+      10L,
+      min = 1L,
+      description = patience_description
+    ),
+    max_grad_norm = prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      tunable = tunable,
+      description = "Clip the gradient norm to this value before each step. Unset does not clip."
+    )
+  )
+} # /rtemis::torch_optimization_props
 
 
 # %% resolve_torch_device ----
@@ -168,18 +344,20 @@ torch_device_name <- function(device, requested = NULL) {
 
 
 # %% check_mps_reproducible ----
-#' Report a seeded mps fit that dropout makes irreproducible
+#' Report a seeded mps fit that dropout or noise makes irreproducible
 #'
 #' On mps, weight initialization and batch shuffling follow
-#' `torch_manual_seed()`; dropout does not. So a seeded mps fit reproduces
-#' exactly until a dropout probability is non-zero, and then it does not, with
+#' `torch_manual_seed()`; dropout and `torch_randn()` on the device do not
+#' (probed 2026-09-29). So a seeded mps fit reproduces exactly until a dropout
+#' probability or a noise level is non-zero, and then it does not, with
 #' nothing to say so. Checked against the **resolved** device rather than the
 #' requested one, so that it still holds if the preference order ever puts mps
 #' where a caller gets it without naming it.
 #'
 #' @param device Character: The resolved device.
 #' @param seed Integer or NULL: The seed the caller asked for.
-#' @param dropout Numeric: Every dropout probability the run uses.
+#' @param dropout Numeric: Every dropout probability and noise level the run
+#' uses.
 #'
 #' @return NULL, invisibly.
 #'
@@ -189,7 +367,7 @@ torch_device_name <- function(device, requested = NULL) {
 check_mps_reproducible <- function(device, seed, dropout) {
   if (identical(device, "mps") && !is.null(seed) && any(dropout > 0)) {
     warn(
-      "`seed` does not reach dropout on the mps device, so this fit is not reproducible. Set device = \"cpu\" to reproduce it, or leave the dropout rates at 0."
+      "The seed does not reach dropout or noise on the mps device, so this fit is not reproducible. Use the cpu device to reproduce it, or leave the dropout and noise settings at 0."
     )
   }
   invisible(NULL)
@@ -353,6 +531,29 @@ torch_optimizer <- function(
     args
   )
 } # /rtemis::torch_optimizer
+
+
+# %% torch_betas ----
+#' The Adam-family moment decay rates to pass, or NULL
+#'
+#' NULL when neither rate is set, so torch's own defaults apply; otherwise both,
+#' with torch's default filling the one left unset, since `betas` is one
+#' argument.
+#'
+#' @param beta1,beta2 Numeric or NULL: Decay rates of the first and second
+#' moment estimates.
+#'
+#' @return Numeric vector of length 2, or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_betas <- function(beta1, beta2) {
+  if (is.null(beta1) && is.null(beta2)) {
+    return(NULL)
+  }
+  c(beta1 %||% 0.9, beta2 %||% 0.999)
+} # /rtemis::torch_betas
 
 
 # %% torch_scheduler ----
@@ -854,6 +1055,9 @@ torch_forward <- function(module, inputs, batch_size = 1024L, device = "cpu") {
 #' one saves and reloads with no special path; the architecture is rebuilt from
 #' the model's own recorded settings and the parameters loaded back into it.
 #'
+#' The module is moved to the CPU, so it is serialized after its last use on
+#' the training device.
+#'
 #' @param module `nn_module` object.
 #'
 #' @return Raw vector.
@@ -862,6 +1066,8 @@ torch_forward <- function(module, inputs, batch_size = 1024L, device = "cpu") {
 #' @keywords internal
 #' @noRd
 torch_state <- function(module) {
+  # From the CPU, so a fit made on a GPU restores on a machine without one.
+  module[["to"]](device = torch::torch_device("cpu"))
   torch::torch_serialize(module[["state_dict"]]())
 } # /rtemis::torch_state
 

@@ -3826,7 +3826,7 @@ wire_value <- function(value, prop) {
 #'
 #' The inverse of `wire_value()`, and the single wire -> R translation: every
 #' `.list_to_*()` reconstructor calls it, so a shape that needs rebuilding is
-#' handled once rather than per config kind. Three shapes differ between the
+#' handled once rather than per config kind. Four shapes differ between the
 #' wire and R, each decided by the property's own spec:
 #'
 #' - A **map** over a scalar leaf is a named atomic vector in R and a JSON
@@ -3836,6 +3836,8 @@ wire_value <- function(value, prop) {
 #' - A **domain** is tagged, since JSON has no function calls and so no
 #'   `tune_over()`. `{"candidates": [...]}` selects a search space only when
 #'   the property is declared tunable; ordinary maps may use that key.
+#' - A **float** written as a whole number parses as an integer and is
+#'   restored to a double.
 #'
 #' @param x Named list parsed from JSON.
 #' @param cls S7 class the list reconstructs.
@@ -3927,6 +3929,12 @@ from_wire <- function(x, cls) {
         x[[nm]],
         spec_to_schema(get_spec(props[[nm]]))
       )
+    }
+    # JSON has one number type, so a float written as a whole number (`0`,
+    # `1`) parses as an integer; the property holds the double it was written
+    # from.
+    if (identical(fields[["type"]], "number") && is.integer(x[[nm]])) {
+      x[[nm]] <- as.double(x[[nm]])
     }
   }
   x

@@ -188,6 +188,7 @@ Collate:
     'data_xt_example.R'
     'ddb.R'
     'decomp.R'
+    'decomp_Autoencoder.R'
     'decomp_ICA.R'
     'decomp_Isomap.R'
     'decomp_NMF.R'

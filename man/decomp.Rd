@@ -31,7 +31,10 @@ carries the resolved names, and \code{apply_decomp()} replays that selection.}
 \link{setup_FutureExecution} or \link{setup_SerialExecution}. A decomposition dispatches
 no work to other processes: an algorithm whose \code{threaded} trait is TRUE (see
 \link{decomposition_traits}) runs on \code{n_workers_algorithm} threads, or on the
-config's worker count when that is unset. The config's \code{seed} seeds the fit.}
+config's worker count when that is unset. Its \code{device} is the compute device
+of an algorithm that can use one (\link{setup_Autoencoder}); every other algorithm
+runs on the CPU. The config's \code{seed} seeds the fit, torch's generator
+included.}
 
 \item{outdir}{Character, optional: Output directory. If not NULL, the returned
 \code{Decomposition} object is saved there as an \code{.rds} file, alongside a run

@@ -14,7 +14,8 @@
   NMF = NMFConfig,
   UMAP = UMAPConfig,
   tSNE = tSNEConfig,
-  Isomap = IsomapConfig
+  Isomap = IsomapConfig,
+  Autoencoder = AutoencoderConfig
 )
 
 test_that("setup_* decomposition defaults do not drift from property defaults", {
@@ -48,6 +49,12 @@ test_that("decomposition config validators enforce bounds and enums", {
   expect_error(setup_UMAP(metric = "chebyshev"))
   expect_no_error(setup_tSNE(theta = 1)) # inclusive max
   expect_error(setup_tSNE(theta = 1.5))
+  expect_error(setup_Autoencoder(validation_fraction = 1)) # exclusive max
+  expect_error(setup_Autoencoder(loss = "cross_entropy")) # not a reconstruction
+  expect_error(setup_Autoencoder(hidden_units = integer()))
+  # An optimizer-specific setting under another optimizer is rejected, from the
+  # shared declaration the autoencoder and MLP both splice.
+  expect_error(setup_Autoencoder(optimizer = "sgd", beta1 = 0.8))
 })
 
 test_that("decomposition config setter routes and rejects unknown keys", {

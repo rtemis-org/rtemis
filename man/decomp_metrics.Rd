@@ -4,7 +4,13 @@
 \alias{decomp_metrics}
 \title{Decomposition Metrics}
 \usage{
-decomp_metrics(decom, x, new_data = NULL, verbosity = 1L)
+decomp_metrics(
+  decom,
+  x,
+  new_data = NULL,
+  execution_config = NULL,
+  verbosity = 1L
+)
 }
 \arguments{
 \item{decom}{\code{Decomposition} object.}
@@ -14,6 +20,10 @@ was fitted on.}
 
 \item{new_data}{Optional tabular data: Data the fit never saw. Its columns
 must match those \code{decom} was fitted on.}
+
+\item{execution_config}{Optional \code{ExecutionConfig} object: Threads and
+device for encoding and reconstructing, as in \link{apply_decomp}. \code{NULL} uses
+the host's default worker count.}
 
 \item{verbosity}{Integer: Verbosity level.}
 }

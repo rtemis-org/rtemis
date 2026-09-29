@@ -800,16 +800,7 @@ method(train_, MLPHyperparameters) <- function(
     optimizer = hyperparameters[["optimizer"]],
     lr = hyperparameters[["lr"]],
     weight_decay = hyperparameters[["weight_decay"]],
-    betas = if (
-      is.null(hyperparameters[["beta1"]]) && is.null(hyperparameters[["beta2"]])
-    ) {
-      NULL
-    } else {
-      c(
-        hyperparameters[["beta1"]] %||% 0.9,
-        hyperparameters[["beta2"]] %||% 0.999
-      )
-    },
+    betas = torch_betas(hyperparameters[["beta1"]], hyperparameters[["beta2"]]),
     eps = hyperparameters[["eps"]],
     momentum = hyperparameters[["momentum"]],
     lr_scheduler = hyperparameters[["lr_scheduler"]],

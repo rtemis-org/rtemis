@@ -29,6 +29,10 @@
         {
           "class": "IsomapConfig",
           "description": "Isomap."
+        },
+        {
+          "class": "AutoencoderConfig",
+          "description": "Autoencoder (torch)."
         }
       ]
     },

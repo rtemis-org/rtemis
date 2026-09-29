@@ -1,3 +1,4 @@
+accuracies
 AddTree
 AE
 ALTREP
@@ -5,14 +6,19 @@ APS
 ARFF
 argmin
 ASWCriterionConfig
+Autoencoder
+autoencoder
+AutoencoderConfig
 AutoPyTorch
 AY
 BARTHyperparameters
+benchmarked
 BH
 Barmode
 Bienenstock
 Calinski
 Candes
+CART's
 CARTHyperparameters
 CDN
 CHCriterionConfig
@@ -42,6 +48,7 @@ Doursat
 dtype
 DuckDB
 Duda
+ECharts
 EDG
 EEE
 EEI
@@ -69,6 +76,7 @@ Geman
 Gini
 GMM
 GMMConfig
+GPUs
 Harabasz
 HyperparametersSet
 goss
@@ -81,6 +89,7 @@ Hastie
 Hornik
 Hothorn
 Bioconductor
+libtorch's
 MJ
 MSS
 hessians
@@ -245,6 +254,7 @@ TunerConfig
 Tweedie
 UD
 UI
+uncorrupted
 Ungar
 USLaborDay
 UMAP

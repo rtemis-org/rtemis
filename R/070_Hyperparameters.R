@@ -5872,209 +5872,121 @@ MLP_SHAPES <- c(
 MLPHyperparameters <- schema_class(
   name = "MLPHyperparameters",
   parent = Hyperparameters,
-  properties = list(
-    algorithm = prop_algorithm("MLP"),
-    # Architecture ----
-    hidden_units = prop_integer(
-      NULL,
-      min = 1L,
-      nullable = TRUE,
-      tunable = TRUE,
-      vector = TRUE,
-      description = "Units in each hidden layer, one value per layer, so the length is the depth. Unset generates the widths from the shape settings."
+  properties = c(
+    list(
+      algorithm = prop_algorithm("MLP"),
+      # Architecture ----
+      hidden_units = prop_integer(
+        NULL,
+        min = 1L,
+        nullable = TRUE,
+        tunable = TRUE,
+        vector = TRUE,
+        description = "Units in each hidden layer, one value per layer, so the length is the depth. Unset generates the widths from the shape settings."
+      ),
+      shape = prop_string(
+        NULL,
+        enum = MLP_SHAPES,
+        nullable = TRUE,
+        tunable = TRUE,
+        description = "Profile of the generated hidden layer widths. Ignored when hidden_units is set."
+      ),
+      shape_layers = prop_integer(
+        NULL,
+        min = 1L,
+        nullable = TRUE,
+        tunable = TRUE,
+        description = "Number of hidden layers to generate. Ignored when hidden_units is set."
+      ),
+      shape_max_units = prop_integer(
+        NULL,
+        min = 1L,
+        nullable = TRUE,
+        tunable = TRUE,
+        description = "Widest generated hidden layer. Unset derives it from the encoded input width. Ignored when hidden_units is set."
+      )
     ),
-    shape = prop_string(
-      NULL,
-      enum = MLP_SHAPES,
-      nullable = TRUE,
-      tunable = TRUE,
-      description = "Profile of the generated hidden layer widths. Ignored when hidden_units is set."
-    ),
-    shape_layers = prop_integer(
-      NULL,
-      min = 1L,
-      nullable = TRUE,
-      tunable = TRUE,
-      description = "Number of hidden layers to generate. Ignored when hidden_units is set."
-    ),
-    shape_max_units = prop_integer(
-      NULL,
-      min = 1L,
-      nullable = TRUE,
-      tunable = TRUE,
-      description = "Widest generated hidden layer. Unset derives it from the encoded input width. Ignored when hidden_units is set."
-    ),
-    activation = prop_string(
-      "relu",
-      enum = TORCH_ACTIVATIONS,
-      tunable = TRUE,
-      description = "Activation applied after every hidden layer."
-    ),
-    norm = prop_string(
-      NULL,
-      enum = TORCH_NORMS,
-      nullable = TRUE,
-      tunable = TRUE,
-      description = "Normalization applied in every hidden layer. Unset applies none."
-    ),
-    norm_first = prop_boolean(
-      FALSE,
-      description = "Normalize before the activation rather than after it."
-    ),
-    bias = prop_boolean(
-      TRUE,
-      description = "Give every hidden layer and the output layer a bias term."
-    ),
-    residual = prop_boolean(
-      FALSE,
-      tunable = TRUE,
-      description = "Add a residual connection around every hidden layer, projected when the layer changes width."
+    torch_layer_props(tunable = TRUE),
+    list(
+      norm_first = prop_boolean(
+        FALSE,
+        description = "Normalize before the activation rather than after it."
+      ),
+      bias = prop_boolean(
+        TRUE,
+        description = "Give every hidden layer and the output layer a bias term."
+      ),
+      residual = prop_boolean(
+        FALSE,
+        tunable = TRUE,
+        description = "Add a residual connection around every hidden layer, projected when the layer changes width."
+      )
     ),
     # Regularization ----
-    dropout = prop_float(
-      0,
-      min = 0,
-      exclusive_max = 1,
+    torch_regularization_props(
       tunable = TRUE,
-      description = "Dropout probability applied after every hidden layer."
+      input_dropout_description = "Dropout probability applied to the encoded input."
     ),
-    input_dropout = prop_float(
-      0,
-      min = 0,
-      exclusive_max = 1,
-      tunable = TRUE,
-      description = "Dropout probability applied to the encoded input."
-    ),
-    weight_decay = prop_float(
-      0,
-      min = 0,
-      tunable = TRUE,
-      description = "L2 penalty, decoupled from the gradient under the adamw optimizer."
-    ),
-    l1_penalty = prop_float(
-      0,
-      min = 0,
-      tunable = TRUE,
-      description = "L1 penalty on the linear weights, added to the loss. Not interchangeable with weight_decay, which is L2."
-    ),
-    # Categorical embeddings ----
-    embeddings = prop_boolean(
-      TRUE,
-      description = "Represent each categorical feature by a learned embedding. Disabling it one-hot encodes them instead."
-    ),
-    embedding_dim = prop_integer(
-      NULL,
-      min = 1L,
-      nullable = TRUE,
-      tunable = TRUE,
-      description = "Width of every embedding. Unset sizes each from its feature's cardinality."
-    ),
-    embedding_dropout = prop_float(
-      0,
-      min = 0,
-      exclusive_max = 1,
-      tunable = TRUE,
-      description = "Dropout probability applied to the concatenated embeddings."
+    list(
+      l1_penalty = prop_float(
+        0,
+        min = 0,
+        tunable = TRUE,
+        description = "L1 penalty on the linear weights, added to the loss. Not interchangeable with weight_decay, which is L2."
+      ),
+      # Categorical embeddings ----
+      embeddings = prop_boolean(
+        TRUE,
+        description = "Represent each categorical feature by a learned embedding. Disabling it one-hot encodes them instead."
+      ),
+      embedding_dim = prop_integer(
+        NULL,
+        min = 1L,
+        nullable = TRUE,
+        tunable = TRUE,
+        description = "Width of every embedding. Unset sizes each from its feature's cardinality."
+      ),
+      embedding_dropout = prop_float(
+        0,
+        min = 0,
+        exclusive_max = 1,
+        tunable = TRUE,
+        description = "Dropout probability applied to the concatenated embeddings."
+      )
     ),
     # Optimization ----
-    optimizer = prop_string(
-      "adamw",
-      enum = TORCH_OPTIMIZERS,
+    torch_optimization_props(
       tunable = TRUE,
-      description = "Optimization algorithm."
+      patience_description = "Epochs without validation improvement before stopping early. Requires validation data; without it the fit runs the full epoch budget."
     ),
-    lr = prop_float(
-      1e-3,
-      exclusive_min = 0,
-      tunable = TRUE,
-      description = "Learning rate."
-    ),
-    beta1 = prop_float(
-      NULL,
-      min = 0,
-      exclusive_max = 1,
-      nullable = TRUE,
-      applies_when = list(optimizer = c("adamw", "adam")),
-      description = "Exponential decay rate of the first moment estimate. Unset leaves the torch default."
-    ),
-    beta2 = prop_float(
-      NULL,
-      min = 0,
-      exclusive_max = 1,
-      nullable = TRUE,
-      applies_when = list(optimizer = c("adamw", "adam")),
-      description = "Exponential decay rate of the second moment estimate. Unset leaves the torch default."
-    ),
-    eps = prop_float(
-      NULL,
-      exclusive_min = 0,
-      nullable = TRUE,
-      applies_when = list(optimizer = c("adamw", "adam", "rmsprop")),
-      description = "Term added to the denominator for numerical stability. Unset leaves the torch default."
-    ),
-    momentum = prop_float(
-      NULL,
-      min = 0,
-      nullable = TRUE,
-      applies_when = list(optimizer = c("sgd", "rmsprop")),
-      description = "Momentum factor. Unset leaves the torch default."
-    ),
-    lr_scheduler = prop_string(
-      NULL,
-      enum = TORCH_SCHEDULERS,
-      nullable = TRUE,
-      description = "Learning-rate schedule, configured from the epoch budget. Unset holds the learning rate fixed."
-    ),
-    batch_size = prop_integer(
-      256L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Cases per optimization step."
-    ),
-    max_epochs = prop_integer(
-      100L,
-      min = 1L,
-      tunable = TRUE,
-      description = "Largest number of passes over the training set."
-    ),
-    patience = prop_integer(
-      10L,
-      min = 1L,
-      description = "Epochs without validation improvement before stopping early. Requires validation data; without it the fit runs the full epoch budget."
-    ),
-    max_grad_norm = prop_float(
-      NULL,
-      exclusive_min = 0,
-      nullable = TRUE,
-      tunable = TRUE,
-      description = "Clip the gradient norm to this value before each step. Unset does not clip."
-    ),
-    loss = prop_string(
-      NULL,
-      enum = TORCH_LOSSES,
-      nullable = TRUE,
-      default_on_null = TRUE,
-      description = "Training objective. Unset sets it from the outcome type."
-    ),
-    # Execution ----
-    seed = prop_integer(
-      NULL,
-      nullable = TRUE,
-      description = "Random seed for weight initialization, dropout and batch shuffling. Unset leaves them drawn from the ambient RNG."
-    ),
-    num_workers = prop_integer(
-      0L,
-      min = 0L,
-      description = "Subprocesses used to load batches. 0 loads them in the main process."
-    ),
-    drop_last = prop_boolean(
-      FALSE,
-      description = "Drop the last incomplete batch of each training epoch."
-    ),
-    ifw = prop_boolean(
-      FALSE,
-      tunable = TRUE,
-      description = "Inverse Frequency Weighting in classification."
+    list(
+      loss = prop_string(
+        NULL,
+        enum = TORCH_LOSSES,
+        nullable = TRUE,
+        default_on_null = TRUE,
+        description = "Training objective. Unset sets it from the outcome type."
+      ),
+      # Execution ----
+      seed = prop_integer(
+        NULL,
+        nullable = TRUE,
+        description = "Random seed for weight initialization, dropout and batch shuffling. Unset leaves them drawn from the ambient RNG."
+      ),
+      num_workers = prop_integer(
+        0L,
+        min = 0L,
+        description = "Subprocesses used to load batches. 0 loads them in the main process."
+      ),
+      drop_last = prop_boolean(
+        FALSE,
+        description = "Drop the last incomplete batch of each training epoch."
+      ),
+      ifw = prop_boolean(
+        FALSE,
+        tunable = TRUE,
+        description = "Inverse Frequency Weighting in classification."
+      )
     )
   ),
   validator = function(self) {

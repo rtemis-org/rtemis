@@ -24,7 +24,10 @@
 #' [setup_FutureExecution] or [setup_SerialExecution]. A decomposition dispatches
 #' no work to other processes: an algorithm whose `threaded` trait is TRUE (see
 #' [decomposition_traits]) runs on `n_workers_algorithm` threads, or on the
-#' config's worker count when that is unset. The config's `seed` seeds the fit.
+#' config's worker count when that is unset. Its `device` is the compute device
+#' of an algorithm that can use one ([setup_Autoencoder]); every other algorithm
+#' runs on the CPU. The config's `seed` seeds the fit, torch's generator
+#' included.
 #' @param outdir Character, optional: Output directory. If not NULL, the returned
 #' `Decomposition` object is saved there as an `.rds` file, alongside a run
 #' record (`decomp_<algorithm>.record.json`) stating what the run resolved. See
@@ -88,6 +91,9 @@ decomp <- function(
     algorithm <- config@algorithm
   }
   check_is_S7(execution_config, ExecutionConfig)
+  # The config as given, for the run's input: what the run resolves from the
+  # data (`features`, an autoencoder's widths) is then reported as derived.
+  given_config <- config
 
   # Feature selection ----
   # `apply_decomp()` subsets new data by `config@features`, so the fit must use
@@ -124,16 +130,17 @@ decomp <- function(
   n_workers <- execution_n_workers(execution_config)
   threaded <- decomposition_traits(algorithm)[["threaded"]]
   n_threads <- if (threaded) algorithm_threads(execution_config) else 1L
+  device <- training_device(config, execution_config@device)
   msg_resources(
     backend = execution_backend_label(execution_config),
     n_workers = n_workers,
     workers = list(algorithm = n_threads),
     explicit = threaded && !is.null(execution_config@n_workers_algorithm),
     device = device_label(
-      "cpu",
+      device %||% "cpu",
       requested = execution_config@device,
       algorithm = algorithm,
-      chooses = FALSE
+      chooses = !is.null(device)
     ),
     verbosity = verbosity
   )
@@ -141,7 +148,8 @@ decomp <- function(
   # Decompose ----
   msg0("Decomposing with ", algorithm, "...", verbosity = verbosity)
 
-  # decomp_ -> list with elements 'decom' and 'transformed'. Seeded from the
+  # decomp_ -> list with elements 'decom' and 'transformed', and 'config' when
+  # the fit resolves settings from the data. Seeded from the
   # execution config, which records the seed, so the fit reproduces from its
   # record; the caller's random stream is restored afterwards.
   decom <- with_seed(
@@ -158,7 +166,7 @@ decomp <- function(
   outro(start_time, verbosity = verbosity)
   out <- Decomposition(
     algorithm = algorithm,
-    config = config,
+    config = decom[["config"]] %||% config,
     decom = decom[["decom"]],
     transformed = decom[["transformed"]]
   )
@@ -177,6 +185,7 @@ decomp <- function(
   out@metrics <- compute_decomposition_metrics(
     decom = out,
     x = x,
+    execution_config = execution_config,
     verbosity = verbosity
   )
 
@@ -186,7 +195,7 @@ decomp <- function(
   # NULL is rejected, and a record reporting the default with origin `default`
   # is the honest reading of "the caller did not choose one".
   input_args <- list(
-    decomposition_config = config,
+    decomposition_config = given_config,
     execution_config = execution_config,
     verbosity = max(0L, verbosity)
   )
@@ -212,3 +221,23 @@ decomp <- function(
   }
   out
 } # /rtemis::decomp
+
+
+# %% training_device.DecompositionConfig ----
+#' The device a decomposition fit runs on
+#'
+#' NULL, the CPU, for every algorithm without a method of its own: none of
+#' their backends selects a device. `decomp()` names the result in its
+#' resources line.
+#'
+#' @param x `DecompositionConfig` object.
+#' @param requested Optional `DeviceConfig` object.
+#'
+#' @return NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(training_device, DecompositionConfig) <- function(x, requested = NULL) {
+  NULL
+} # /rtemis::training_device.DecompositionConfig

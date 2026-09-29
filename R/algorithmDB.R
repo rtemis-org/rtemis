@@ -628,8 +628,9 @@ get_clust_setup_fn <- function(algorithm) {
 # coerces every cell to character, which is why `supervised_algorithms` carries
 # "TRUE"/"FALSE" strings.
 decom_algorithms <- data.frame(
-  name = c("ICA", "Isomap", "NMF", "PCA", "tSNE", "UMAP"),
+  name = c("Autoencoder", "ICA", "Isomap", "NMF", "PCA", "tSNE", "UMAP"),
   description = unname(schema_algorithm_descriptions(DecompositionConfig)[c(
+    "Autoencoder",
     "ICA",
     "Isomap",
     "NMF",
@@ -637,13 +638,14 @@ decom_algorithms <- data.frame(
     "tSNE",
     "UMAP"
   )]),
-  linear = c(TRUE, FALSE, TRUE, TRUE, FALSE, FALSE),
-  can_apply = c(TRUE, FALSE, TRUE, TRUE, FALSE, TRUE),
-  invertible = c(TRUE, FALSE, TRUE, TRUE, FALSE, FALSE),
-  orthogonal = c(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE),
-  ordered = c(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE),
-  deterministic = c(FALSE, TRUE, FALSE, TRUE, FALSE, FALSE),
+  linear = c(FALSE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE),
+  can_apply = c(TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, TRUE),
+  invertible = c(TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE),
+  orthogonal = c(FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE),
+  ordered = c(FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE),
+  deterministic = c(FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, FALSE),
   preserves = c(
+    "reconstruction",
     "variance",
     "global",
     "reconstruction",
@@ -651,9 +653,9 @@ decom_algorithms <- data.frame(
     "local",
     "local"
   ),
-  nonneg = c(FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
-  threaded = c(FALSE, FALSE, FALSE, FALSE, TRUE, TRUE),
-  package = c("fastICA", "vegan", "NMF", "stats", "Rtsne", "uwot"),
+  nonneg = c(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
+  threaded = c(TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE),
+  package = c("torch", "fastICA", "vegan", "NMF", "stats", "Rtsne", "uwot"),
   stringsAsFactors = FALSE
 )
 

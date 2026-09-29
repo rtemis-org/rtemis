@@ -221,6 +221,8 @@ component_scores <- function(transformed) {
 #' @param decom `Decomposition` object.
 #' @param x Tabular data: The data the decomposition was fitted on.
 #' @param new_data Optional tabular data: Data the fit never saw.
+#' @param execution_config Optional `ExecutionConfig` object: Where the
+#' encoding and reconstruction run.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return `DecompositionMetrics` object.
@@ -232,6 +234,7 @@ compute_decomposition_metrics <- function(
   decom,
   x,
   new_data = NULL,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   traits <- decomposition_traits(decom@algorithm)
@@ -269,6 +272,7 @@ compute_decomposition_metrics <- function(
           decom = decom@decom,
           transformed = transformed,
           x = xm,
+          execution_config = execution_config,
           verbosity = verbosity - 1L
         )
       )
@@ -292,6 +296,7 @@ compute_decomposition_metrics <- function(
       config = decom@config,
       decom = decom@decom,
       new_data = new_xm,
+      execution_config = execution_config,
       verbosity = verbosity - 1L
     ))
     oos <- reconstruction_scores(
@@ -301,6 +306,7 @@ compute_decomposition_metrics <- function(
         decom = decom@decom,
         transformed = new_transformed,
         x = new_xm,
+        execution_config = execution_config,
         verbosity = verbosity - 1L
       )
     )
@@ -423,6 +429,9 @@ warn_data_mismatch <- function(decom, x, verbosity = 1L) {
 #' was fitted on.
 #' @param new_data Optional tabular data: Data the fit never saw. Its columns
 #' must match those `decom` was fitted on.
+#' @param execution_config Optional `ExecutionConfig` object: Threads and
+#' device for encoding and reconstructing, as in [apply_decomp]. `NULL` uses
+#' the host's default worker count.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return `DecompositionMetrics` object.
@@ -433,7 +442,13 @@ warn_data_mismatch <- function(decom, x, verbosity = 1L) {
 #' x <- exc(iris, "Species")
 #' iris_pca <- decomp(x, algorithm = "PCA", verbosity = 0L)
 #' decomp_metrics(iris_pca, x, verbosity = 0L)
-decomp_metrics <- function(decom, x, new_data = NULL, verbosity = 1L) {
+decomp_metrics <- function(
+  decom,
+  x,
+  new_data = NULL,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   check_is_S7(decom, Decomposition)
   # Here rather than in `compute_decomposition_metrics()`: this is the boundary
   # a caller's data crosses. `decomp()` reaches that function with the data it
@@ -444,6 +459,7 @@ decomp_metrics <- function(decom, x, new_data = NULL, verbosity = 1L) {
     decom = decom,
     x = x,
     new_data = new_data,
+    execution_config = execution_config,
     verbosity = verbosity
   )
 } # /rtemis::decomp_metrics

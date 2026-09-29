@@ -260,6 +260,64 @@ cases[["decompose_record"]] <- check_document(
   "decompose/r/v1/record.json",
   decompose_record
 )
+# An autoencoder leaf publishes the settings its unpublished intermediate class
+# declares, including those spliced from the torch factories MLP shares. Each
+# mutant breaks one constraint of the leaf; the record is a real fit, whose
+# derived widths and batch size the record states.
+autoencoder_wire <- S7_to_list(setup_Autoencoder(
+  k = 2L,
+  hidden_units = c(8L, 4L),
+  input_noise = 0.1,
+  optimizer = "sgd",
+  momentum = 0.9
+))
+cases[["autoencoder_input"]] <- check_document(
+  "autoencoder_input",
+  "decomposition/r/v1/schema.json",
+  autoencoder_wire
+)
+autoencoder_mutants <- list(
+  autoencoder_validation_fraction_one = list(validation_fraction = 1),
+  autoencoder_classification_loss = list(loss = "cross_entropy"),
+  autoencoder_no_hidden_layers = list(hidden_units = list()),
+  autoencoder_momentum_under_adam = list(optimizer = "adam")
+)
+for (label in names(autoencoder_mutants)) {
+  mutant <- autoencoder_wire
+  mutant[names(autoencoder_mutants[[label]])] <- autoencoder_mutants[[label]]
+  cases[[label]] <- check_document(
+    label,
+    "decomposition/r/v1/schema.json",
+    mutant,
+    FALSE
+  )
+}
+if (
+  !requireNamespace("torch", quietly = TRUE) || !torch::torch_is_installed()
+) {
+  stop("The autoencoder record case needs torch with libtorch installed.")
+}
+autoencoder_record_file <- tempfile(fileext = ".json")
+write_record(
+  decomp(
+    iris[, 1:4],
+    config = setup_Autoencoder(max_epochs = 2L),
+    execution_config = setup_SerialExecution(seed = 1L),
+    verbosity = 0L
+  ),
+  autoencoder_record_file,
+  verbosity = 0L
+)
+autoencoder_record <- structure(
+  paste(readLines(autoencoder_record_file, warn = FALSE), collapse = "\n"),
+  class = "json"
+)
+stopifnot(grepl('"hidden_units": "derived"', autoencoder_record, fixed = TRUE))
+cases[["autoencoder_record"]] <- check_document(
+  "autoencoder_record",
+  "decompose/r/v1/record.json",
+  autoencoder_record
+)
 # The device is a nested family: an unknown type, and GPU ids on a device that
 # has none, are both rejected by the schema itself.
 execution_wire <- S7_to_list(setup_SerialExecution(device = "cuda", seed = 1L))

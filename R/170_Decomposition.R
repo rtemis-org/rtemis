@@ -445,5 +445,8 @@ check_decom_applicable <- function(decomposition_config) {
   }
   setup_fn <- get_decom_setup_fn(algorithm)
   check_wire_keys(params, names(formals(setup_fn)), label)
-  do.call(setup_fn, params)
+  do.call(
+    setup_fn,
+    from_wire(params, schema_algorithm_class(DecompositionConfig, algorithm))
+  )
 } # /rtemis::.list_to_DecompositionConfig

@@ -118,3 +118,22 @@ test_that("map defaults retain scalar storage types and nested values", {
     expect_identical(default_from_wire(wire, schema), entry[["value"]])
   }
 })
+
+
+test_that("a float written as a whole number reads back as a double", {
+  # JSON has one number type, and jsonlite parses `0` and `2` as integers.
+  wire <- function(x) {
+    jsonlite::fromJSON(
+      jsonlite::toJSON(S7_to_list(x), auto_unbox = TRUE, null = "null"),
+      simplifyVector = FALSE
+    )
+  }
+  mlp <- .list_to_Hyperparameters(wire(setup_MLP()))
+  expect_identical(mlp@dropout, 0)
+  ica <- .list_to_DecompositionConfig(wire(setup_ICA()))
+  expect_identical(ica@alpha, 1)
+  cmeans <- .list_to_ClusteringConfig(wire(setup_CMeans()))
+  expect_identical(cmeans@m, 2)
+  # An integer property keeps its type.
+  expect_identical(ica@k, 3L)
+})

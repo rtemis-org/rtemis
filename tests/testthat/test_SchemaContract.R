@@ -45,7 +45,8 @@
     list(NMFConfig, "setup_NMF"),
     list(UMAPConfig, "setup_UMAP"),
     list(tSNEConfig, "setup_tSNE"),
-    list(IsomapConfig, "setup_Isomap")
+    list(IsomapConfig, "setup_Isomap"),
+    list(AutoencoderConfig, "setup_Autoencoder")
   ),
   .contract_family(
     ClusteringConfig,
