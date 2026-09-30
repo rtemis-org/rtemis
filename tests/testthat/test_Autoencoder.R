@@ -260,6 +260,48 @@ test_that("the execution config's seed reproduces the fit, noise and holdout inc
 })
 
 
+test_that("module noise follows the seed and takes the tensor's shape and dtype", {
+  skip_if_no_torch()
+  like <- torch::torch_zeros(3L, 4L, dtype = torch::torch_float64())
+  draw <- function(seed) {
+    torch::torch_manual_seed(seed)
+    torch_seeded_randn(like)
+  }
+  noise <- draw(5L)
+  expect_identical(noise[["shape"]], c(3L, 4L))
+  expect_true(noise[["dtype"]] == torch::torch_float64())
+  expect_identical(as.array(noise), as.array(draw(5L)))
+  expect_false(identical(as.array(noise), as.array(draw(6L))))
+})
+
+
+test_that("a seeded fit on mps reproduces with input noise and variational sampling", {
+  skip_if_no_torch()
+  skip_if_not(torch::backends_mps_is_available(), "mps is not available")
+  on_mps <- setup_SerialExecution(
+    n_workers_algorithm = 1L,
+    device = "mps",
+    seed = 3L
+  )
+  fit <- function(config) {
+    decomp(
+      x,
+      config = config,
+      execution_config = on_mps,
+      verbosity = 0L
+    )@transformed
+  }
+  noisy <- quick(input_noise = 0.3)
+  expect_identical(fit(noisy), fit(noisy))
+  variational <- setup_VariationalAutoencoder(max_epochs = 5L)
+  expect_identical(fit(variational), fit(variational))
+  expect_message(
+    fit(quick(input_dropout = 0.1)),
+    "does not reach dropout"
+  )
+})
+
+
 test_that("denoising corrupts training: the same seed fits differently with noise", {
   skip_if_no_torch()
   clean <- decomp(
@@ -438,4 +480,171 @@ test_that("train() learns an autoencoder as its decomposition step and predict()
   predicted <- predict(mod, features(dat))
   expect_length(predicted, nrow(dat))
   expect_false(anyNA(predicted))
+})
+
+
+# Variational ----
+test_that("setup_VariationalAutoencoder() shares the autoencoder's settings and adds beta", {
+  config <- setup_VariationalAutoencoder(beta = 4)
+  expect_s7_class(config, VariationalAutoencoderConfig)
+  expect_s7_class(config, AutoencoderBaseConfig)
+  expect_identical(config@algorithm, "VariationalAutoencoder")
+  expect_identical(config[["beta"]], 4)
+  expect_identical(setup_VariationalAutoencoder()[["beta"]], 1)
+  expect_error(setup_VariationalAutoencoder(beta = -1))
+  expect_null(autoencoder_beta(setup_Autoencoder()))
+  expect_identical(autoencoder_beta(config), 4)
+  # Every shared setting is declared once, on the intermediate class.
+  shared <- setdiff(
+    names(AutoencoderBaseConfig@properties),
+    names(DecompositionConfig@properties)
+  )
+  expect_setequal(
+    setdiff(
+      names(VariationalAutoencoderConfig@properties),
+      names(DecompositionConfig@properties)
+    ),
+    c(shared, "beta")
+  )
+})
+
+
+test_that("the VAE objective is the summed reconstruction loss plus beta times the closed-form KL", {
+  skip_if_no_torch()
+  target <- torch::torch_tensor(matrix(c(1, 2, 3, 4, 5, 6), 2L))
+  reconstruction <- torch::torch_tensor(matrix(c(1.5, 2, 2, 4, 5, 7), 2L))
+  mu <- torch::torch_tensor(matrix(c(0.5, -1, 0, 2), 2L))
+  logvar <- torch::torch_tensor(matrix(c(0, log(2), -1, 0.5), 2L))
+  output <- list(reconstruction, mu, logvar)
+  m <- as.matrix(mu)
+  v <- as.matrix(logvar)
+  squared <- rowSums((as.matrix(reconstruction) - as.matrix(target))^2)
+  kl <- -0.5 * rowSums(1 + v - m^2 - exp(v))
+  for (beta in c(0, 1, 4)) {
+    expect_equal(
+      as.numeric(vae_objective("mse", beta)(output, target)),
+      squared + beta * kl,
+      tolerance = 1e-6,
+      info = beta
+    )
+  }
+  # A posterior equal to the prior costs nothing.
+  zeros <- torch::torch_zeros(2L, 2L)
+  expect_equal(
+    as.numeric(vae_objective("mse", 1)(list(target, zeros, zeros), target)),
+    c(0, 0)
+  )
+})
+
+
+test_that("a variational fit applies, reconstructs and reloads deterministically", {
+  skip_if_no_torch()
+  config <- setup_VariationalAutoencoder(max_epochs = 5L, input_noise = 0.2)
+  decom <- decomp(
+    x,
+    config = config,
+    execution_config = seeded(),
+    verbosity = 0L
+  )
+  expect_s7_class(decom@decom, AutoencoderFit)
+  expect_true(decom@decom@variational)
+  expect_identical(decom@decom@beta, 1)
+  expect_identical(
+    colnames(decom@transformed),
+    c("VariationalAutoencoder_1", "VariationalAutoencoder_2")
+  )
+  # The components are the latent means: no sampling outside training.
+  expect_identical(
+    as.matrix(apply_decomp(decom, x, verbosity = 0L)),
+    decom@transformed,
+    ignore_attr = TRUE
+  )
+  expect_identical(
+    as.matrix(reconstruct(decom, x, verbosity = 0L)),
+    as.matrix(reconstruct(decom, x, verbosity = 0L))
+  )
+  reconstructed <- as.matrix(reconstruct(decom, x, verbosity = 0L))
+  expect_equal(
+    norm(as.matrix(x) - reconstructed, "F") / norm(as.matrix(x), "F"),
+    decom@metrics[["relative_reconstruction_error"]]
+  )
+  file <- withr::local_tempfile(fileext = ".rds")
+  saveRDS(decom, file)
+  expect_identical(
+    as.matrix(apply_decomp(readRDS(file), x, verbosity = 0L)),
+    decom@transformed,
+    ignore_attr = TRUE
+  )
+  again <- decomp(
+    x,
+    config = config,
+    execution_config = seeded(),
+    verbosity = 0L
+  )
+  expect_identical(again@transformed, decom@transformed)
+})
+
+
+test_that("a variational reconstruction is in input units", {
+  skip_if_no_torch()
+  a <- c(1000, 0.01, 5, 1)
+  b <- c(-50, 3, 0, 1e4)
+  rescaled <- as.data.frame(sweep(sweep(as.matrix(x), 2L, a, "*"), 2L, b, "+"))
+  fit <- function(data) {
+    decom <- decomp(
+      data,
+      config = setup_VariationalAutoencoder(
+        max_epochs = 5L,
+        validation_fraction = 0
+      ),
+      execution_config = seeded(),
+      verbosity = 0L
+    )
+    as.matrix(reconstruct(decom, data, verbosity = 0L))
+  }
+  expected <- sweep(sweep(fit(x), 2L, a, "*"), 2L, b, "+")
+  expect_equal(fit(rescaled), expected, tolerance = 1e-4, ignore_attr = TRUE)
+})
+
+
+test_that("a larger beta pulls the latent means toward the prior", {
+  skip_if_no_torch()
+  skip_on_cran()
+  second_moment <- function(beta) {
+    mean(
+      decomp(
+        x,
+        config = setup_VariationalAutoencoder(beta = beta, max_epochs = 30L),
+        execution_config = seeded(),
+        verbosity = 0L
+      )@transformed^2
+    )
+  }
+  expect_lt(second_moment(4), second_moment(0.1))
+})
+
+
+test_that("a variational config round-trips through a document and serves train()", {
+  skip_if_no_torch()
+  config <- setup_DecomposeConfig(
+    dat_path = "data.csv",
+    decomposition_config = setup_VariationalAutoencoder(beta = 2, k = 3L),
+    outdir = "results/"
+  )
+  file <- withr::local_tempfile(fileext = ".json")
+  write_config(config, file, overwrite = TRUE, verbosity = 0L)
+  expect_identical(
+    read_config(file)@decomposition_config@config,
+    config@decomposition_config@config
+  )
+  dat <- iris[, c(2L, 3L, 4L, 1L)]
+  mod <- train(
+    dat,
+    decomposition_config = setup_VariationalAutoencoder(max_epochs = 5L),
+    hyperparameters = setup_GLMNET(alpha = 0, lambda = 0.01),
+    execution_config = seeded(),
+    verbosity = 0L
+  )
+  expect_s7_class(mod@decomposition@config, VariationalAutoencoderConfig)
+  expect_length(predict(mod, features(dat)), nrow(dat))
 })

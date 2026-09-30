@@ -4,12 +4,14 @@
 
 - Model plotting and `present()` use rtemis.draw, including session timelines and SVG export; standalone Plotly `draw_*()` functions remain available.
 - Require R >= 4.4.0 for the rtemis.draw backend.
+- `fit_predict()` trains one regression model from an algorithm name and setup arguments (`params`) and predicts new data; rtemis.draw uses it for `fit = "<algorithm>"` and `fit_params` in scatter plots.
 
 - TabNet and MLP train and predict with the algorithm workers resolved from `execution_config` (`n_workers_algorithm`) rather than every core.
 - `train()` prints one resources line: the compute device in use (including an Apple silicon GPU), the execution backend, the worker ceiling, and each level's share.
 - `decomp()`, `cluster()`, `setup_DecomposeConfig()` and `setup_ClusterConfig()` take `execution_config`: its seed seeds the fit, and a threaded algorithm (UMAP, tSNE) runs on its workers; `decomposition_traits()` gains `threaded`.
 - `setup_tSNE(num_threads =)` is deprecated; tSNE takes its threads from the execution config.
-- `setup_Autoencoder()` configures a torch autoencoder decomposition, denoising when `input_noise` or `input_dropout` is set; it applies to new data, so it can be `train()`'s decomposition step, and `reconstruct()` returns its reconstruction in the data's units.
+- `setup_Autoencoder()` configures a torch autoencoder decomposition, denoising when `input_noise` or `input_dropout` is set; it applies to new data, so it can be `train()`'s decomposition step, and `reconstruct()` returns its reconstruction in the units of the data.
+- `setup_VariationalAutoencoder()` configures a torch variational autoencoder decomposition; `beta` weighs the KL divergence (1 is the standard VAE, larger values a beta-VAE), and its components are the latent means.
 - `decomp_metrics()` takes `execution_config`.
 - NMF with `nrun` greater than 1 runs.
 - Execution configs take `device`: `"cpu"`, `"cuda"`, `"mps"` (Apple silicon GPU) or `"opencl"`, or `setup_CUDA(ids =)` to name GPUs. Unset uses CUDA where available and the CPU otherwise; the Apple silicon GPU runs only when named. An algorithm that cannot use the requested device runs on the CPU and the resources line says so.

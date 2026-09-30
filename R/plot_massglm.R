@@ -26,7 +26,10 @@
 plot_manhattan <- new_generic(
   "plot_manhattan",
   "x",
-  function(x, coefname = NULL, ...) S7_dispatch()
+  function(x, coefname = NULL, ...) {
+    force_supplied()
+    S7_dispatch()
+  }
 )
 
 

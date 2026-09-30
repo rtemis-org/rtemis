@@ -220,6 +220,7 @@ Collate:
     'draw_volcano.R'
     'draw_xt.R'
     'explain.R'
+    'fit_predict.R'
     'fmt.R'
     'ifw.R'
     'linad.R'

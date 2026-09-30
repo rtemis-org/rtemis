@@ -29,10 +29,12 @@
 # available. Measured on an Apple M5 (2026-09-27, one fresh R process per
 # configuration): the CPU was faster for every network narrower than about 1024
 # units or trained in batches smaller than about 2048 cases, often 2-5x; `mps`
-# won only with both and thousands of features, by up to about 25%. It also
-# slows down across many fits in one R session. And `torch_manual_seed()` does
-# not reach its dropout or its random normal draws, so a seeded fit stops being
-# reproducible the moment a dropout rate or a noise level is non-zero. Asking for it by name is supported, and
+# won only with both and thousands of features, by up to about 25%, and not at
+# all through `decomp()`'s autoencoders (2026-09-30). It also slows down across
+# many fits in one R session. And `torch_manual_seed()` does not reach its
+# dropout or its own random normal draws: module noise is drawn with
+# `torch_seeded_randn()`, and a seeded fit stops being reproducible the moment
+# a dropout rate is non-zero. Asking for it by name is supported, and
 # `check_mps_reproducible()` reports the second caveat when it bites.
 TORCH_DEVICES <- c("cpu", "cuda", "mps")
 TORCH_DEVICE_PREFERENCE <- c("cuda", "cpu", "mps")
@@ -343,21 +345,45 @@ torch_device_name <- function(device, requested = NULL) {
 } # /rtemis::torch_device_name
 
 
-# %% check_mps_reproducible ----
-#' Report a seeded mps fit that dropout or noise makes irreproducible
+# %% torch_seeded_randn ----
+#' Standard normal noise shaped like a tensor, drawn from the seeded generator
 #'
-#' On mps, weight initialization and batch shuffling follow
-#' `torch_manual_seed()`; dropout and `torch_randn()` on the device do not
+#' `torch_manual_seed()` reaches the CPU generator and CUDA's, but not the one
+#' that `torch_randn()` and `torch_randn_like()` use on mps (probed 2026-09-29
+#' and 2026-09-30). Drawing on the CPU and moving the draw to the tensor's
+#' device makes every module noise follow the seed on every device. Use this,
+#' never `torch_randn_like()`, for noise inside a module.
+#'
+#' @param like `torch_tensor`: Tensor whose shape, device and dtype the noise
+#' takes.
+#'
+#' @return `torch_tensor` of standard normal draws.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_seeded_randn <- function(like) {
+  torch::torch_randn(like[["size"]]())[["to"]](
+    device = like[["device"]],
+    dtype = like[["dtype"]]
+  )
+} # /rtemis::torch_seeded_randn
+
+
+# %% check_mps_reproducible ----
+#' Report a seeded mps fit that dropout makes irreproducible
+#'
+#' On mps, weight initialization, batch shuffling and module noise drawn with
+#' `torch_seeded_randn()` follow `torch_manual_seed()`; dropout does not
 #' (probed 2026-09-29). So a seeded mps fit reproduces exactly until a dropout
-#' probability or a noise level is non-zero, and then it does not, with
-#' nothing to say so. Checked against the **resolved** device rather than the
-#' requested one, so that it still holds if the preference order ever puts mps
-#' where a caller gets it without naming it.
+#' probability is non-zero, and then it does not, with nothing to say so.
+#' Checked against the **resolved** device rather than the requested one, so
+#' that it still holds if the preference order ever puts mps where a caller
+#' gets it without naming it.
 #'
 #' @param device Character: The resolved device.
 #' @param seed Integer or NULL: The seed the caller asked for.
-#' @param dropout Numeric: Every dropout probability and noise level the run
-#' uses.
+#' @param dropout Numeric: Every dropout probability the run uses.
 #'
 #' @return NULL, invisibly.
 #'
@@ -367,7 +393,7 @@ torch_device_name <- function(device, requested = NULL) {
 check_mps_reproducible <- function(device, seed, dropout) {
   if (identical(device, "mps") && !is.null(seed) && any(dropout > 0)) {
     warn(
-      "The seed does not reach dropout or noise on the mps device, so this fit is not reproducible. Use the cpu device to reproduce it, or leave the dropout and noise settings at 0."
+      "The seed does not reach dropout on the mps device, so this fit is not reproducible. Use the cpu device to reproduce it, or leave the dropout settings at 0."
     )
   }
   invisible(NULL)
@@ -771,6 +797,10 @@ torch_l1_norm <- function(parameters, names) {
 #' @param target_validation Optional `torch_tensor`: Validation outcome.
 #' @param weights_validation Optional `torch_tensor`: Validation case weights.
 #' @param loss Character: One of `TORCH_LOSSES`.
+#' @param objective Optional function of the module's output and the target
+#' batch, returning one loss per case: used in place of `loss` for a module
+#' whose output the named losses cannot score (a variational autoencoder's
+#' reconstruction, means and log variances).
 #' @param optimizer Character: One of `TORCH_OPTIMIZERS`.
 #' @param lr Numeric: Learning rate.
 #' @param weight_decay Numeric: L2 penalty.
@@ -808,6 +838,7 @@ torch_fit <- function(
   target_validation = NULL,
   weights_validation = NULL,
   loss = "mse",
+  objective = NULL,
   optimizer = "adamw",
   lr = 1e-3,
   weight_decay = 0,
@@ -829,7 +860,7 @@ torch_fit <- function(
   dev <- torch::torch_device(device)
   module[["to"]](device = dev)
   n_inputs <- length(inputs)
-  loss_fn <- torch_loss_module(loss)
+  loss_fn <- objective %||% torch_loss_module(loss)
   penalize <- l1_penalty > 0 && length(l1_parameters) > 0L
   train_loader <- torch_dataloader(
     inputs,

@@ -20,15 +20,15 @@ test_that("massGLM creates MassGLM object", {
 })
 
 # plot.MassGLM ----
-test_that("plot.MassGLM creates plotly object", {
+test_that("plot.MassGLM creates an rtemis.draw widget", {
   plt <- plot(massmod)
-  expect_s3_class(plt, "plotly")
+  expect_s3_class(plt, c("rtemis-draw", "htmlwidget"), exact = TRUE)
 })
 
 # plot_manhattan.MassGLM ----
-test_that("plot_manhattan.MassGLM creates plotly object", {
+test_that("plot_manhattan() on a MassGLM creates an rtemis.draw widget", {
   plt <- plot_manhattan(massmod)
-  expect_s3_class(plt, "plotly")
+  expect_s3_class(plt, c("rtemis-draw", "htmlwidget"), exact = TRUE)
 })
 
 

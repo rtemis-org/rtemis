@@ -32,6 +32,8 @@
 #' @field activation,norm Character: Layer settings; `norm` NULL for none.
 #' @field dropout,input_dropout,input_noise Numeric: Regularization settings.
 #' @field variational Logical: Whether the module is a variational autoencoder.
+#' @field beta Optional Numeric: KL weight a variational fit was trained with;
+#'   NULL for a plain one.
 #' @field center,scale Numeric: Training statistics the inputs are standardized
 #'   with, one per feature.
 #' @field device Character: Device the fit was trained on.
@@ -57,6 +59,7 @@ AutoencoderFit <- new_class(
     input_dropout = class_numeric,
     input_noise = class_numeric,
     variational = class_logical,
+    beta = NULL | class_numeric,
     center = class_numeric,
     scale = class_numeric,
     device = class_character,
@@ -73,6 +76,9 @@ AutoencoderFit <- new_class(
     if (any(self@scale <= 0)) {
       return("scale must be positive.")
     }
+    if (self@variational == is.null(self@beta)) {
+      return("beta is set exactly when the fit is variational.")
+    }
     NULL
   }
 ) # /rtemis::AutoencoderFit
@@ -88,6 +94,7 @@ method(repr, AutoencoderFit) <- function(x, pad = 0L, output_type = NULL) {
         hidden_units = x@hidden_units,
         k = x@k,
         variational = x@variational,
+        beta = x@beta,
         device = x@device,
         epochs_trained = x@epochs_trained,
         best_epoch = x@best_epoch
@@ -104,6 +111,69 @@ method(print, AutoencoderFit) <- function(x, output_type = NULL, ...) {
   cat(repr(x, output_type = output_type))
   invisible(x)
 } # /rtemis::print.AutoencoderFit
+
+
+# %% autoencoder_beta ----
+#' The KL weight of a variational autoencoder config, or NULL
+#'
+#' The one thing the fitting method needs to know about the leaf: NULL trains a
+#' plain autoencoder, a number a variational one with that weight. Dispatched,
+#' so the shared `decomp_()` method never tests for a class.
+#'
+#' @param config `AutoencoderBaseConfig` object.
+#'
+#' @return Numeric scalar, or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+autoencoder_beta <- new_generic("autoencoder_beta", "config")
+
+
+# %% autoencoder_beta.AutoencoderBaseConfig ----
+method(autoencoder_beta, AutoencoderBaseConfig) <- function(config) {
+  NULL
+} # /rtemis::autoencoder_beta.AutoencoderBaseConfig
+
+
+# %% autoencoder_beta.VariationalAutoencoderConfig ----
+method(autoencoder_beta, VariationalAutoencoderConfig) <- function(config) {
+  config[["beta"]]
+} # /rtemis::autoencoder_beta.VariationalAutoencoderConfig
+
+
+# %% vae_objective ----
+#' The per-case objective of a variational autoencoder
+#'
+#' For each case, the reconstruction loss summed over features plus `beta`
+#' times the KL divergence of the case's latent normal from the standard
+#' normal, in closed form `-0.5 * sum(1 + logvar - mu^2 - exp(logvar))` over
+#' the latent dimensions. Summed over features, not averaged, so `beta` weighs
+#' the prior against the whole reconstruction, as in the beta-VAE literature.
+#' `torch_fit()` takes the weighted mean over cases.
+#'
+#' @param loss Character: One of `TORCH_REGRESSION_LOSSES`.
+#' @param beta Numeric: KL weight.
+#'
+#' @return Function of the module's output, `list(reconstruction, mu, logvar)`,
+#' and the target, returning a tensor with one loss per case.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+vae_objective <- function(loss, beta) {
+  reconstruction_loss <- torch_loss_module(loss)
+  function(output, target) {
+    mu <- output[[2L]]
+    logvar <- output[[3L]]
+    reconstruction <- reconstruction_loss(output[[1L]], target)[["sum"]](
+      dim = 2L
+    )
+    kl <- -0.5 *
+      (1 + logvar - mu[["pow"]](2) - logvar[["exp"]]())[["sum"]](dim = 2L)
+    reconstruction + beta * kl
+  }
+} # /rtemis::vae_objective
 
 
 # %% autoencoder_hidden_units ----
@@ -253,6 +323,15 @@ autoencoder_matrix <- function(x, fit) {
 #' `mlp_module()` with `norm_first = FALSE`); the latent layer and the output
 #' layer are linear.
 #'
+#' A variational module's encoder holds the hidden layers and two linear heads,
+#' for the means and the log variances of the latent normal; called on its own
+#' it returns the means, which are the components. The full module returns
+#' `list(reconstruction, mu, logvar)`, decoding a reparameterized draw
+#' `mu + exp(logvar / 2) * noise` in training mode and `mu` in eval mode, so
+#' the validation loss and every output after training are deterministic.
+#' Every noise draw goes through `torch_seeded_randn()`, so a seeded fit
+#' reproduces on mps too.
+#'
 #' The corruption that makes the model denoising is applied by the full module
 #' to its input, and only in training mode: Gaussian noise of standard
 #' deviation `input_noise`, then dropout at `input_dropout`. Training passes the
@@ -271,6 +350,7 @@ autoencoder_matrix <- function(x, fit) {
 #' @param dropout Numeric: Dropout after every hidden layer.
 #' @param input_dropout Numeric: Masking probability on the training input.
 #' @param input_noise Numeric: Gaussian noise level on the training input.
+#' @param variational Logical: Whether to build a variational autoencoder.
 #'
 #' @return `nn_module` object.
 #'
@@ -285,7 +365,8 @@ autoencoder_module <- function(
   norm,
   dropout,
   input_dropout,
-  input_noise
+  input_noise,
+  variational = FALSE
 ) {
   layers <- function(widths) {
     blocks <- lapply(seq_len(length(widths) - 1L), function(i) {
@@ -298,6 +379,17 @@ autoencoder_module <- function(
     })
     unlist(blocks, recursive = FALSE)
   }
+  variational_encoder <- torch::nn_module(
+    classname = "VariationalEncoder",
+    initialize = function(widths, k) {
+      self$trunk <- do.call(torch::nn_sequential, layers(widths))
+      self$mu <- torch::nn_linear(widths[[length(widths)]], k)
+      self$logvar <- torch::nn_linear(widths[[length(widths)]], k)
+    },
+    forward = function(x) {
+      self[["mu"]](self[["trunk"]](x))
+    }
+  )
   generator <- torch::nn_module(
     classname = "Autoencoder",
     initialize = function(
@@ -305,19 +397,25 @@ autoencoder_module <- function(
       hidden_units,
       k,
       input_dropout,
-      input_noise
+      input_noise,
+      variational
     ) {
       self$input_noise <- input_noise
+      self$variational <- variational
       self$corrupt <- torch::nn_dropout(input_dropout)
       encoder_widths <- c(n_features, hidden_units)
       decoder_widths <- c(k, rev(hidden_units))
-      self$encoder <- do.call(
-        torch::nn_sequential,
-        c(
-          layers(encoder_widths),
-          list(torch::nn_linear(encoder_widths[[length(encoder_widths)]], k))
+      self$encoder <- if (variational) {
+        variational_encoder(encoder_widths, k)
+      } else {
+        do.call(
+          torch::nn_sequential,
+          c(
+            layers(encoder_widths),
+            list(torch::nn_linear(encoder_widths[[length(encoder_widths)]], k))
+          )
         )
-      )
+      }
       self$decoder <- do.call(
         torch::nn_sequential,
         c(
@@ -332,11 +430,23 @@ autoencoder_module <- function(
     forward = function(x) {
       if (self[["training"]]) {
         if (self[["input_noise"]] > 0) {
-          x <- x + self[["input_noise"]] * torch::torch_randn_like(x)
+          x <- x + self[["input_noise"]] * torch_seeded_randn(x)
         }
         x <- self[["corrupt"]](x)
       }
-      self[["decoder"]](self[["encoder"]](x))
+      if (!self[["variational"]]) {
+        return(self[["decoder"]](self[["encoder"]](x)))
+      }
+      encoder <- self[["encoder"]]
+      h <- encoder[["trunk"]](x)
+      mu <- encoder[["mu"]](h)
+      logvar <- encoder[["logvar"]](h)
+      z <- if (self[["training"]]) {
+        mu + (0.5 * logvar)[["exp"]]() * torch_seeded_randn(mu)
+      } else {
+        mu
+      }
+      list(self[["decoder"]](z), mu, logvar)
     }
   )
   generator(
@@ -344,7 +454,8 @@ autoencoder_module <- function(
     hidden_units = hidden_units,
     k = k,
     input_dropout = input_dropout,
-    input_noise = input_noise
+    input_noise = input_noise,
+    variational = variational
   )
 } # /rtemis::autoencoder_module
 
@@ -369,7 +480,8 @@ autoencoder_fit_module <- function(fit) {
       norm = fit@norm,
       dropout = fit@dropout,
       input_dropout = fit@input_dropout,
-      input_noise = fit@input_noise
+      input_noise = fit@input_noise,
+      variational = fit@variational
     ),
     fit@state
   )
@@ -524,11 +636,7 @@ method(decomp_, AutoencoderBaseConfig) <- function(
   check_mps_reproducible(
     device,
     seed = if (is.null(execution_config)) NULL else execution_config@seed,
-    dropout = c(
-      config[["dropout"]],
-      config[["input_dropout"]],
-      config[["input_noise"]]
-    )
+    dropout = c(config[["dropout"]], config[["input_dropout"]])
   )
 
   # Randomness ----
@@ -544,6 +652,8 @@ method(decomp_, AutoencoderBaseConfig) <- function(
 
   # Train ----
   msg("Training", config@algorithm, "on", device, "...", verbosity = verbosity)
+  beta <- autoencoder_beta(config)
+  variational <- !is.null(beta)
   module <- autoencoder_module(
     n_features = length(features),
     hidden_units = hidden_units,
@@ -552,7 +662,8 @@ method(decomp_, AutoencoderBaseConfig) <- function(
     norm = config[["norm"]],
     dropout = config[["dropout"]],
     input_dropout = config[["input_dropout"]],
-    input_noise = config[["input_noise"]]
+    input_noise = config[["input_noise"]],
+    variational = variational
   )
   training <- standardized[
     setdiff(seq_len(NROW(xm)), validation_index),
@@ -586,6 +697,7 @@ method(decomp_, AutoencoderBaseConfig) <- function(
       torch::torch_ones(length(validation_index), 1L)
     },
     loss = config[["loss"]],
+    objective = if (variational) vae_objective(config[["loss"]], beta),
     optimizer = config[["optimizer"]],
     lr = config[["lr"]],
     weight_decay = config[["weight_decay"]],
@@ -616,7 +728,8 @@ method(decomp_, AutoencoderBaseConfig) <- function(
     dropout = config[["dropout"]],
     input_dropout = config[["input_dropout"]],
     input_noise = config[["input_noise"]],
-    variational = FALSE,
+    variational = variational,
+    beta = beta,
     center = unname(center),
     scale = unname(scale),
     device = device,

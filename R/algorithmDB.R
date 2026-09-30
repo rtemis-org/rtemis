@@ -628,7 +628,16 @@ get_clust_setup_fn <- function(algorithm) {
 # coerces every cell to character, which is why `supervised_algorithms` carries
 # "TRUE"/"FALSE" strings.
 decom_algorithms <- data.frame(
-  name = c("Autoencoder", "ICA", "Isomap", "NMF", "PCA", "tSNE", "UMAP"),
+  name = c(
+    "Autoencoder",
+    "ICA",
+    "Isomap",
+    "NMF",
+    "PCA",
+    "tSNE",
+    "UMAP",
+    "VariationalAutoencoder"
+  ),
   description = unname(schema_algorithm_descriptions(DecompositionConfig)[c(
     "Autoencoder",
     "ICA",
@@ -636,14 +645,15 @@ decom_algorithms <- data.frame(
     "NMF",
     "PCA",
     "tSNE",
-    "UMAP"
+    "UMAP",
+    "VariationalAutoencoder"
   )]),
-  linear = c(FALSE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE),
-  can_apply = c(TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, TRUE),
-  invertible = c(TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE),
-  orthogonal = c(FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE),
-  ordered = c(FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE),
-  deterministic = c(FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, FALSE),
+  linear = c(FALSE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE, FALSE),
+  can_apply = c(TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, TRUE, TRUE),
+  invertible = c(TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE, TRUE),
+  orthogonal = c(FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
+  ordered = c(FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
+  deterministic = c(FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, FALSE, FALSE),
   preserves = c(
     "reconstruction",
     "variance",
@@ -651,11 +661,21 @@ decom_algorithms <- data.frame(
     "reconstruction",
     "variance",
     "local",
-    "local"
+    "local",
+    "reconstruction"
   ),
-  nonneg = c(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
-  threaded = c(TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE),
-  package = c("torch", "fastICA", "vegan", "NMF", "stats", "Rtsne", "uwot"),
+  nonneg = c(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE),
+  threaded = c(TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE),
+  package = c(
+    "torch",
+    "fastICA",
+    "vegan",
+    "NMF",
+    "stats",
+    "Rtsne",
+    "uwot",
+    "torch"
+  ),
   stringsAsFactors = FALSE
 )
 

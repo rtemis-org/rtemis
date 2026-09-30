@@ -261,7 +261,11 @@ UMAP
 UMAPConfig
 UMX
 UniProt
+VAE
 Valdes
+variational
+Variational
+VariationalAutoencoderConfig
 visNetwork
 VEE
 VEI

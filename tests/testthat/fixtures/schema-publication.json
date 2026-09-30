@@ -33,6 +33,10 @@
         {
           "class": "AutoencoderConfig",
           "description": "Autoencoder (torch)."
+        },
+        {
+          "class": "VariationalAutoencoderConfig",
+          "description": "Variational autoencoder (torch)."
         }
       ]
     },

@@ -46,7 +46,8 @@
     list(UMAPConfig, "setup_UMAP"),
     list(tSNEConfig, "setup_tSNE"),
     list(IsomapConfig, "setup_Isomap"),
-    list(AutoencoderConfig, "setup_Autoencoder")
+    list(AutoencoderConfig, "setup_Autoencoder"),
+    list(VariationalAutoencoderConfig, "setup_VariationalAutoencoder")
   ),
   .contract_family(
     ClusteringConfig,

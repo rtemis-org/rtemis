@@ -950,8 +950,14 @@ AutoencoderConfig <- schema_class(
 #' **Reproducibility, threads and device** come from the execution config
 #' passed to [decomp]: its `seed` seeds torch as well as R, its algorithm
 #' threads are libtorch's thread count, and its `device` is the compute device.
-#' Unset, the device is `cuda` where available and `cpu` otherwise; `"mps"`
-#' runs only when named, and a seed does not reach dropout or noise there.
+#' Unset, the device is `cuda` where available and `cpu` otherwise. `"mps"`,
+#' the Apple silicon GPU, runs only when named. In rtemis benchmarks on an Apple
+#' M5 the CPU fitted faster than `"mps"` in every configuration measured, up to
+#' 50,000 cases, 5,000 features, 1,024 hidden units and batches of 2,048, by
+#' 1.1 to 3.7 times; `"mps"` also slows down across many fits in one R
+#' session. A seed does not reach dropout on `"mps"`, so a seeded fit there
+#' reproduces only while `dropout` and `input_dropout` are 0, and warns
+#' otherwise.
 #'
 #' The optimizer, schedule and early-stopping settings mean what they do in
 #' [setup_MLP].
@@ -1044,6 +1050,132 @@ setup_Autoencoder <- function(
     features = features
   )
 } # /rtemis::setup_Autoencoder
+
+
+# %% VariationalAutoencoderConfig ----
+#' @title VariationalAutoencoderConfig
+#'
+#' @description
+#' DecompositionConfig subclass for a variational autoencoder trained with
+#' `torch`. It adds `beta`, the weight of the KL divergence, to the settings
+#' every autoencoder shares.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+VariationalAutoencoderConfig <- schema_class(
+  name = "VariationalAutoencoderConfig",
+  parent = AutoencoderBaseConfig,
+  properties = list(
+    algorithm = prop_algorithm("VariationalAutoencoder"),
+    beta = prop_float(
+      1,
+      min = 0,
+      description = "Weight of the KL divergence between each case's latent distribution and the standard normal prior, against the reconstruction loss summed over features. 1 is the standard variational autoencoder; larger values give a beta-VAE, whose components are closer to independent and reconstruct less."
+    )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Variational autoencoder (torch).",
+    order = 8L
+  )
+) # /rtemis::VariationalAutoencoderConfig
+
+
+# %% setup_VariationalAutoencoder ----
+#' Setup Variational Autoencoder config.
+#'
+#' A fully connected variational autoencoder built and trained with `torch`:
+#' the encoder maps each case to a normal distribution over `k` latent
+#' dimensions, and the decoder maps a draw from it back to the features.
+#'
+#' @details
+#' **Objective.** For each case, the reconstruction loss summed over features
+#' plus `beta` times the KL divergence of the case's latent distribution from
+#' the standard normal, summed over the `k` dimensions; the mean over cases is
+#' minimized. `beta = 1` is the standard variational autoencoder (with
+#' `loss = "mse"`, up to constants, the negative evidence lower bound of a
+#' unit-variance Gaussian decoder); `beta > 1` is a beta-VAE, trading
+#' reconstruction for components closer to independent; `beta = 0` drops the
+#' prior and leaves a noisy autoencoder.
+#'
+#' **Components** are the means of the latent distributions, so [decomp],
+#' [apply_decomp] and [reconstruct] are deterministic: sampling happens only in
+#' training. [reconstruct] decodes the means.
+#'
+#' Architecture, input standardization, denoising, early stopping, and the
+#' execution config's seed, threads and device work as in [setup_Autoencoder].
+#' The loss reported during training and for early stopping is the full
+#' objective, so it is not on the scale of [setup_Autoencoder]'s, which
+#' averages the reconstruction loss over features.
+#'
+#' @inheritParams setup_Autoencoder
+#' @param beta Numeric [0, Inf): Weight of the KL divergence from the prior.
+#'
+#' @return VariationalAutoencoderConfig object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' vae_config <- setup_VariationalAutoencoder(k = 2L, beta = 4)
+#' vae_config
+setup_VariationalAutoencoder <- function(
+  k = 2L,
+  hidden_units = NULL,
+  activation = "relu",
+  norm = NULL,
+  dropout = 0,
+  input_dropout = 0,
+  weight_decay = 0,
+  input_noise = 0,
+  loss = "mse",
+  optimizer = "adamw",
+  lr = 1e-3,
+  beta1 = NULL,
+  beta2 = NULL,
+  eps = NULL,
+  momentum = NULL,
+  lr_scheduler = NULL,
+  batch_size = NULL,
+  max_epochs = 100L,
+  patience = 10L,
+  max_grad_norm = NULL,
+  validation_fraction = 0.1,
+  beta = 1,
+  features = NULL
+) {
+  apply_setup_defaults(VariationalAutoencoderConfig)
+  k <- clean_posint(k)
+  hidden_units <- clean_posint(hidden_units)
+  batch_size <- clean_posint(batch_size)
+  max_epochs <- clean_posint(max_epochs)
+  patience <- clean_posint(patience)
+  VariationalAutoencoderConfig(
+    k = k,
+    hidden_units = hidden_units,
+    activation = activation,
+    norm = norm,
+    dropout = dropout,
+    input_dropout = input_dropout,
+    weight_decay = weight_decay,
+    input_noise = input_noise,
+    loss = loss,
+    optimizer = optimizer,
+    lr = lr,
+    beta1 = beta1,
+    beta2 = beta2,
+    eps = eps,
+    momentum = momentum,
+    lr_scheduler = lr_scheduler,
+    batch_size = batch_size,
+    max_epochs = max_epochs,
+    patience = patience,
+    max_grad_norm = max_grad_norm,
+    validation_fraction = validation_fraction,
+    beta = beta,
+    features = features
+  )
+} # /rtemis::setup_VariationalAutoencoder
 
 
 # %% decom_can_apply ----

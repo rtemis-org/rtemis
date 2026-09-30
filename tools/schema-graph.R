@@ -318,6 +318,51 @@ cases[["autoencoder_record"]] <- check_document(
   "decompose/r/v1/record.json",
   autoencoder_record
 )
+# The variational leaf shares every autoencoder setting and adds `beta`.
+vae_wire <- S7_to_list(setup_VariationalAutoencoder(
+  beta = 4,
+  input_noise = 0.1
+))
+cases[["vae_input"]] <- check_document(
+  "vae_input",
+  "decomposition/r/v1/schema.json",
+  vae_wire
+)
+mutant <- vae_wire
+mutant[["beta"]] <- -1
+cases[["vae_negative_beta"]] <- check_document(
+  "vae_negative_beta",
+  "decomposition/r/v1/schema.json",
+  mutant,
+  FALSE
+)
+mutant <- autoencoder_wire
+mutant[["beta"]] <- 4
+cases[["autoencoder_beta_undeclared"]] <- check_document(
+  "autoencoder_beta_undeclared",
+  "decomposition/r/v1/schema.json",
+  mutant,
+  FALSE
+)
+vae_record_file <- tempfile(fileext = ".json")
+write_record(
+  decomp(
+    iris[, 1:4],
+    config = setup_VariationalAutoencoder(max_epochs = 2L),
+    execution_config = setup_SerialExecution(seed = 1L),
+    verbosity = 0L
+  ),
+  vae_record_file,
+  verbosity = 0L
+)
+cases[["vae_record"]] <- check_document(
+  "vae_record",
+  "decompose/r/v1/record.json",
+  structure(
+    paste(readLines(vae_record_file, warn = FALSE), collapse = "\n"),
+    class = "json"
+  )
+)
 # The device is a nested family: an unknown type, and GPU ids on a device that
 # has none, are both rejected by the schema itself.
 execution_wire <- S7_to_list(setup_SerialExecution(device = "cuda", seed = 1L))

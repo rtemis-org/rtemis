@@ -492,8 +492,42 @@ testthat::test_that("a failed parallel fold aborts under 'stop_outer'", {
   skip_ci_parallel_integration()
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
+  # Canceling the other folds must leave the dispatcher idle before the pool is shut
+  # down: closing it mid-cancellation can deadlock inside nanonext.
+  await_idle <- mirai_await_idle
+  waits <- 0L
+  local_mocked_bindings(
+    mirai_await_idle = function(poll = 0.01) {
+      waits <<- waits + 1L
+      await_idle(poll)
+    }
+  )
   expect_error(fit_failing("stop_outer"), "Outer fold")
+  expect_gt(waits, 0L)
   expect_null(live[["worker_pool"]])
+})
+
+
+testthat::test_that("mirai_await_idle() returns only once nothing is queued or executing", {
+  testthat::skip_if_not_installed("mirai")
+  states <- list(
+    c(awaiting = 1L, executing = 2L),
+    c(awaiting = 0L, executing = 1L),
+    c(awaiting = 0L, executing = 0L)
+  )
+  polled <- 0L
+  local_mocked_bindings(
+    info = function(...) {
+      polled <<- polled + 1L
+      states[[polled]]
+    },
+    .package = "mirai"
+  )
+  mirai_await_idle(poll = 0)
+  expect_identical(polled, 3L)
+  # No daemons set: nothing to wait for.
+  local_mocked_bindings(info = function(...) NULL, .package = "mirai")
+  expect_null(mirai_await_idle(poll = 0))
 })
 
 

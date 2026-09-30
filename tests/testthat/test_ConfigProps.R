@@ -15,7 +15,8 @@
   UMAP = UMAPConfig,
   tSNE = tSNEConfig,
   Isomap = IsomapConfig,
-  Autoencoder = AutoencoderConfig
+  Autoencoder = AutoencoderConfig,
+  VariationalAutoencoder = VariationalAutoencoderConfig
 )
 
 test_that("setup_* decomposition defaults do not drift from property defaults", {
