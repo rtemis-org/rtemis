@@ -67,6 +67,7 @@
 # rtemis.core exports `gray()` (colored text); exclude grDevices::gray() to
 # avoid masking it, matching the previous local definition. Use
 # `grDevices::gray()` explicitly where the grayscale palette is needed.
+#' @importFrom utils tail
 #' @rawNamespace import(grDevices, except = gray)
 "_PACKAGE"
 

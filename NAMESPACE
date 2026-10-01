@@ -277,3 +277,4 @@ importFrom(rtemis.core,
   write_JSONSchema
 )
 importFrom(rtemis.draw,confusion_input)
+importFrom(utils,tail)
