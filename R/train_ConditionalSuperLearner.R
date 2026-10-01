@@ -107,6 +107,8 @@ csl_extended_data <- function(feat, experts, label) {
 #'
 #' @param oracle `Supervised` object: The fitted oracle.
 #' @param newdata data.frame: Features.
+#' @param execution_config Optional `ExecutionConfig`: Where the prediction
+#' runs; NULL means the host's defaults.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Character vector of expert names, one per case.
@@ -114,8 +116,18 @@ csl_extended_data <- function(feat, experts, label) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-csl_oracle_assign <- function(oracle, newdata, verbosity = 0L) {
-  probabilities <- predict(oracle, newdata, verbosity = verbosity)
+csl_oracle_assign <- function(
+  oracle,
+  newdata,
+  execution_config = NULL,
+  verbosity = 0L
+) {
+  probabilities <- predict_supervised_(
+    oracle,
+    newdata,
+    execution_config = execution_config,
+    verbosity = verbosity
+  )
   as.character(prob2categorical(
     probabilities,
     levels = levels(oracle@y_training),
@@ -272,6 +284,7 @@ method(train_, ConditionalSuperLearnerHyperparameters) <- function(
         predictions[test_rows, expert] <- meta_predict(
           fold_model,
           meta_features(x, test_rows, entry_features[[expert]]),
+          execution_config = execution_config,
           verbosity = verbosity - 2L
         )
       }
@@ -353,6 +366,7 @@ method(train_, ConditionalSuperLearnerHyperparameters) <- function(
     assignments <- csl_oracle_assign(
       oracle,
       inc(x, feature_names),
+      execution_config = execution_config,
       verbosity = verbosity - 2L
     )
     # The paper's objective, read off the cross-validated losses the oracle was
@@ -478,12 +492,14 @@ method(predict_super, ConditionalSuperLearner) <- function(
   model,
   newdata,
   type = NULL,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   check_inherits(newdata, "data.frame")
   assignments <- csl_oracle_assign(
     model@oracle,
     inc(newdata, model@xnames),
+    execution_config = execution_config,
     verbosity = verbosity - 1L
   )
   predicted <- numeric(NROW(newdata))
@@ -492,6 +508,7 @@ method(predict_super, ConditionalSuperLearner) <- function(
     predicted[rows] <- meta_predict(
       model@experts[[expert]],
       meta_features(newdata, rows, model@entry_features[[expert]]),
+      execution_config = execution_config,
       verbosity = verbosity - 1L
     )
   }

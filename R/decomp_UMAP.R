@@ -1,4 +1,4 @@
-# decom_UMAP.R
+# decomp_UMAP.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -7,6 +7,8 @@
 #'
 #' @param x A numeric matrix or data frame to be decomposed.
 #' @param config `UMAPConfig` object.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return A list containing the decomposition and transformed data.
@@ -14,7 +16,12 @@
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(decomp_, UMAPConfig) <- function(config, x, verbosity = 1L) {
+method(decomp_, UMAPConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   # Checks ----
   check_is_S7(config, UMAPConfig)
   check_dependencies("uwot")
@@ -22,8 +29,15 @@ method(decomp_, UMAPConfig) <- function(config, x, verbosity = 1L) {
 
   # Decompose ----
   msg("Decomposing with", config@algorithm, "...", verbosity = verbosity)
+  # uwot otherwise uses half the hardware threads, ignoring the core limit a
+  # CRAN check sets, so the execution config's algorithm share is passed.
   args <- c(
-    list(X = x, n_components = config[["k"]], ret_model = TRUE),
+    list(
+      X = x,
+      n_components = config[["k"]],
+      ret_model = TRUE,
+      n_threads = algorithm_threads(execution_config)
+    ),
     config@config
   )
   args[["k"]] <- NULL
@@ -51,6 +65,8 @@ method(decomp_, UMAPConfig) <- function(config, x, verbosity = 1L) {
 #' @param config `UMAPConfig` object.
 #' @param decom Fitted uwot UMAP model (list).
 #' @param new_data Tabular data: New data to embed.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Matrix of UMAP embedding coordinates.
@@ -61,8 +77,13 @@ method(apply_decomp_, UMAPConfig) <- function(
   config,
   decom,
   new_data,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   check_dependencies("uwot")
-  uwot::umap_transform(X = new_data, model = decom)
+  uwot::umap_transform(
+    X = new_data,
+    model = decom,
+    n_threads = algorithm_threads(execution_config)
+  )
 } # /rtemis::apply_decomp_.UMAPConfig

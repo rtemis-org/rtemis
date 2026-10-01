@@ -77,7 +77,7 @@ setup_LightGBM(
   sigmoid = NULL,
   boost_from_average = NULL,
   reg_sqrt = NULL,
-  device_type = "cpu",
+  device_type = NULL,
   tree_learner = "serial",
   force_col_wise = TRUE
 )
@@ -288,7 +288,9 @@ regression, binary or cross-entropy objective. NULL uses LightGBM's default of T
 \item{reg_sqrt}{Optional Logical: Fit the square root of the outcome and square the
 prediction back, for a regression objective. NULL uses LightGBM's default of FALSE.}
 
-\item{device_type}{Character \{"cpu", "gpu", "cuda"\}: Compute device.}
+\item{device_type}{Optional Character: Deprecated and ignored. Set the compute device in the
+\code{execution_config} passed to \link{train}, e.g.
+\code{setup_FutureExecution(device = "cuda")}; \code{"gpu"} is \code{device = "opencl"} there.}
 
 \item{tree_learner}{Character \{"serial", "feature", "data", "voting"\}: Tree learner type.}
 

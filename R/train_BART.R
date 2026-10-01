@@ -207,6 +207,7 @@ method(predict_super, class_bartmodel) <- function(
   model,
   newdata,
   type = NULL,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   # `scale = "probability"` returns P(y == 1), which training coded as the

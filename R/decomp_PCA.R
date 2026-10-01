@@ -1,4 +1,4 @@
-# decom_PCA.R
+# decomp_PCA.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -7,7 +7,12 @@
 #'
 #' @keywords internal
 #' @noRd
-method(decomp_, PCAConfig) <- function(config, x, verbosity = 1L) {
+method(decomp_, PCAConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   # Checks ----
   check_is_S7(config, PCAConfig)
   check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)
@@ -32,6 +37,8 @@ method(decomp_, PCAConfig) <- function(config, x, verbosity = 1L) {
 #' @param config `PCAConfig` object.
 #' @param decom Fitted `prcomp` object.
 #' @param new_data Tabular data: New data to project onto the principal components.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Matrix of principal component scores.
@@ -42,6 +49,7 @@ method(apply_decomp_, PCAConfig) <- function(
   config,
   decom,
   new_data,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   check_inherits(decom, "prcomp")
@@ -64,6 +72,8 @@ method(apply_decomp_, PCAConfig) <- function(
 #' @param transformed Numeric matrix: Component scores, cases by components.
 #' @param x Tabular data: Unused; PCA's preprocessing is recoverable from the
 #' fit.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Numeric matrix: Reconstruction in input units, cases by features.
@@ -75,6 +85,7 @@ method(reconstruct_, PCAConfig) <- function(
   decom,
   transformed,
   x,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   check_inherits(decom, "prcomp")

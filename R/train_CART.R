@@ -94,6 +94,7 @@ method(predict_super, class_rpart) <- function(
   model,
   newdata,
   type = NULL,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   if (type == "Classification") {

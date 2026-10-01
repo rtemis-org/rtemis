@@ -15,12 +15,14 @@ algorithm's settings and optionally \code{features}, e.g.
 A \code{DecompositionConfig} object (an algorithm-specific subclass).
 }
 \description{
-Internal function used by \code{rtemis.server} and \code{SuperConfig} deserialization
-to reconstruct a \code{DecompositionConfig} object from a named list. The list
-must carry an \code{algorithm} element naming a decomposition algorithm that can
-be applied on new data (see \code{decom_algorithms_applicable}); its siblings --
-the algorithm's settings and, optionally, \code{features} -- are passed to that
-algorithm's \verb{setup_*} function.
+Internal function used by \code{rtemis.server}, \code{read_config()}, and the
+\code{DecomposeConfig} and \code{SuperConfig} readers to reconstruct a
+\code{DecompositionConfig} object from a named list. The list must carry an
+\code{algorithm} element naming a decomposition algorithm; its siblings -- the
+algorithm's settings and, optionally, \code{features} -- are passed to that
+algorithm's \verb{setup_*} function. Whether the algorithm can be applied to new
+data is a requirement of the supervised pipeline, not of the document, so
+the \code{SuperConfig} reader checks it separately.
 }
 \examples{
 .list_to_DecompositionConfig(list(algorithm = "PCA", k = 3L))

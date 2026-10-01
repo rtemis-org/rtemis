@@ -24,14 +24,16 @@ has_method <- function(generic, algorithm) {
   )
 }
 
-# Every S7 class in the package that descends from `DecompositionConfig`, so a
-# new algorithm cannot be added without a traits row.
+# Every concrete S7 class in the package that descends from
+# `DecompositionConfig`, so a new algorithm cannot be added without a traits
+# row. Abstract intermediates (`AutoencoderBaseConfig`) share properties and
+# methods among leaves and are never an algorithm.
 decomposition_config_classes <- function() {
   ns <- asNamespace("rtemis")
   Filter(
     function(nm) {
       obj <- get(nm, envir = ns)
-      if (!inherits(obj, "S7_class")) {
+      if (!inherits(obj, "S7_class") || isTRUE(obj@abstract)) {
         return(FALSE)
       }
       parent <- obj@parent
@@ -59,7 +61,8 @@ test_that("decom_algorithms is typed and well-formed", {
     "orthogonal",
     "ordered",
     "deterministic",
-    "nonneg"
+    "nonneg",
+    "threaded"
   )) {
     expect_type(traits[[column]], "logical")
     expect_false(anyNA(traits[[column]]))

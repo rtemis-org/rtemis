@@ -628,31 +628,54 @@ get_clust_setup_fn <- function(algorithm) {
 # coerces every cell to character, which is why `supervised_algorithms` carries
 # "TRUE"/"FALSE" strings.
 decom_algorithms <- data.frame(
-  name = c("ICA", "Isomap", "NMF", "PCA", "tSNE", "UMAP"),
-  description = unname(schema_algorithm_descriptions(DecompositionConfig)[c(
+  name = c(
+    "Autoencoder",
     "ICA",
     "Isomap",
     "NMF",
     "PCA",
     "tSNE",
-    "UMAP"
+    "UMAP",
+    "VariationalAutoencoder"
+  ),
+  description = unname(schema_algorithm_descriptions(DecompositionConfig)[c(
+    "Autoencoder",
+    "ICA",
+    "Isomap",
+    "NMF",
+    "PCA",
+    "tSNE",
+    "UMAP",
+    "VariationalAutoencoder"
   )]),
-  linear = c(TRUE, FALSE, TRUE, TRUE, FALSE, FALSE),
-  can_apply = c(TRUE, FALSE, TRUE, TRUE, FALSE, TRUE),
-  invertible = c(TRUE, FALSE, TRUE, TRUE, FALSE, FALSE),
-  orthogonal = c(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE),
-  ordered = c(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE),
-  deterministic = c(FALSE, TRUE, FALSE, TRUE, FALSE, FALSE),
+  linear = c(FALSE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE, FALSE),
+  can_apply = c(TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, TRUE, TRUE),
+  invertible = c(TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE, TRUE),
+  orthogonal = c(FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
+  ordered = c(FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
+  deterministic = c(FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, FALSE, FALSE),
   preserves = c(
+    "reconstruction",
     "variance",
     "global",
     "reconstruction",
     "variance",
     "local",
-    "local"
+    "local",
+    "reconstruction"
   ),
-  nonneg = c(FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
-  package = c("fastICA", "vegan", "NMF", "stats", "Rtsne", "uwot"),
+  nonneg = c(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE),
+  threaded = c(TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE),
+  package = c(
+    "torch",
+    "fastICA",
+    "vegan",
+    "NMF",
+    "stats",
+    "Rtsne",
+    "uwot",
+    "torch"
+  ),
   stringsAsFactors = FALSE
 )
 
@@ -700,10 +723,6 @@ get_decom_desc <- function(algorithm) {
   decomdesc
 } # /rtemis::get_decom_desc
 
-get_decom_fn <- function(algorithm) {
-  paste0("decom_", get_decom_name(algorithm))
-} # /rtemis::get_decom_fn
-
 get_default_decomparams <- function(algorithm) {
   do.call(paste0("setup_", get_decom_name(algorithm)), list())
 } # /rtemis::get_default_decomparams
@@ -711,10 +730,6 @@ get_default_decomparams <- function(algorithm) {
 get_decom_setup_fn <- function(algorithm) {
   paste0("setup_", get_decom_name(algorithm))
 } # /rtemis::get_decom_setup_fn
-
-get_decom_predict_fn <- function(algorithm) {
-  paste0("predict_", get_decom_name(algorithm))
-} # /rtemis::get_decom_predict_fn
 
 
 # %% decomposition_traits ----
@@ -744,6 +759,9 @@ get_decom_predict_fn <- function(algorithm) {
 #'     `"global"`, `"local"`, or `"reconstruction"`.}
 #'   \item{`nonneg`}{Requires non-negative input and produces non-negative
 #'     factors.}
+#'   \item{`threaded`}{The fit runs on as many threads as the execution
+#'     config gives the algorithm (`n_workers_algorithm`, or the worker count).
+#'     Like `can_apply`, it states what rtemis implements.}
 #'   \item{`package`}{Package supplying the backend implementation.}
 #' }
 #'

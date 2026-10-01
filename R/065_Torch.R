@@ -26,12 +26,16 @@
 # no device is named.
 #
 # `mps` is last, so nothing selects it automatically -- `cpu` is always
-# available. Two measured reasons, both on an M5: it is 1.1-3x *slower* than the
-# CPU at every tabular size tried, the matrices being small enough that dispatch
-# dominates; and `torch_manual_seed()` does not reach its dropout, so a seeded
-# fit stops being reproducible the moment a dropout rate is non-zero. Asking for
-# it by name is supported, and `check_mps_reproducible()` reports the second
-# caveat when it bites.
+# available. Measured on an Apple M5 (2026-09-27, one fresh R process per
+# configuration): the CPU was faster for every network narrower than about 1024
+# units or trained in batches smaller than about 2048 cases, often 2-5x; `mps`
+# won only with both and thousands of features, by up to about 25%, and not at
+# all through `decomp()`'s autoencoders (2026-09-30). It also slows down across
+# many fits in one R session. And `torch_manual_seed()` does not reach its
+# dropout or its own random normal draws: module noise is drawn with
+# `torch_seeded_randn()`, and a seeded fit stops being reproducible the moment
+# a dropout rate is non-zero. Asking for it by name is supported, and
+# `check_mps_reproducible()` reports the second caveat when it bites.
 TORCH_DEVICES <- c("cpu", "cuda", "mps")
 TORCH_DEVICE_PREFERENCE <- c("cuda", "cpu", "mps")
 
@@ -66,6 +70,182 @@ TORCH_SCHEDULERS <- c(
 TORCH_REGRESSION_LOSSES <- c("mse", "l1", "smooth_l1")
 TORCH_CLASSIFICATION_LOSSES <- "cross_entropy"
 TORCH_LOSSES <- c(TORCH_REGRESSION_LOSSES, TORCH_CLASSIFICATION_LOSSES)
+
+
+# %% torch_layer_props ----
+#' Hidden-layer settings shared by the torch-backed configs
+#'
+#' Spliced into `MLPHyperparameters` and `AutoencoderBaseConfig`, which sit in
+#' different families, so no common parent can carry them. The declarations are
+#' published as they stand here, so a change moves every schema that splices
+#' them.
+#'
+#' @param tunable Logical: Whether the settings are tunable. Decomposition
+#' configs hold fixed values.
+#'
+#' @return Named list of properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_layer_props <- function(tunable) {
+  list(
+    activation = prop_string(
+      "relu",
+      enum = TORCH_ACTIVATIONS,
+      tunable = tunable,
+      description = "Activation applied after every hidden layer."
+    ),
+    norm = prop_string(
+      NULL,
+      enum = TORCH_NORMS,
+      nullable = TRUE,
+      tunable = tunable,
+      description = "Normalization applied in every hidden layer. Unset applies none."
+    )
+  )
+} # /rtemis::torch_layer_props
+
+
+# %% torch_regularization_props ----
+#' Dropout and L2 settings shared by the torch-backed configs
+#'
+#' @param tunable Logical: Whether the settings are tunable.
+#' @param input_dropout_description Character: What the input the dropout acts
+#' on is, which differs between a network with encoded categorical inputs and
+#' one on standardized numeric inputs.
+#'
+#' @return Named list of properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_regularization_props <- function(tunable, input_dropout_description) {
+  list(
+    dropout = prop_float(
+      0,
+      min = 0,
+      exclusive_max = 1,
+      tunable = tunable,
+      description = "Dropout probability applied after every hidden layer."
+    ),
+    input_dropout = prop_float(
+      0,
+      min = 0,
+      exclusive_max = 1,
+      tunable = tunable,
+      description = input_dropout_description
+    ),
+    weight_decay = prop_float(
+      0,
+      min = 0,
+      tunable = tunable,
+      description = "L2 penalty, decoupled from the gradient under the adamw optimizer."
+    )
+  )
+} # /rtemis::torch_regularization_props
+
+
+# %% torch_optimization_props ----
+#' Optimizer, schedule and epoch settings shared by the torch-backed configs
+#'
+#' Every one of them is an argument of `torch_fit()`, so any config trained by
+#' that loop declares the same block.
+#'
+#' @param tunable Logical: Whether the settings that can be searched are
+#' tunable. The optimizer-specific settings, the schedule and the patience are
+#' never tunable.
+#' @param patience_description Character: Where the validation data that early
+#' stopping needs comes from, which differs between the algorithms.
+#' @param batch_size Optional property: The batch size declaration, for an
+#' algorithm whose default differs. NULL declares a fixed default of 256.
+#'
+#' @return Named list of properties.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_optimization_props <- function(
+  tunable,
+  patience_description,
+  batch_size = NULL
+) {
+  list(
+    optimizer = prop_string(
+      "adamw",
+      enum = TORCH_OPTIMIZERS,
+      tunable = tunable,
+      description = "Optimization algorithm."
+    ),
+    lr = prop_float(
+      1e-3,
+      exclusive_min = 0,
+      tunable = tunable,
+      description = "Learning rate."
+    ),
+    beta1 = prop_float(
+      NULL,
+      min = 0,
+      exclusive_max = 1,
+      nullable = TRUE,
+      applies_when = list(optimizer = c("adamw", "adam")),
+      description = "Exponential decay rate of the first moment estimate. Unset leaves the torch default."
+    ),
+    beta2 = prop_float(
+      NULL,
+      min = 0,
+      exclusive_max = 1,
+      nullable = TRUE,
+      applies_when = list(optimizer = c("adamw", "adam")),
+      description = "Exponential decay rate of the second moment estimate. Unset leaves the torch default."
+    ),
+    eps = prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      applies_when = list(optimizer = c("adamw", "adam", "rmsprop")),
+      description = "Term added to the denominator for numerical stability. Unset leaves the torch default."
+    ),
+    momentum = prop_float(
+      NULL,
+      min = 0,
+      nullable = TRUE,
+      applies_when = list(optimizer = c("sgd", "rmsprop")),
+      description = "Momentum factor. Unset leaves the torch default."
+    ),
+    lr_scheduler = prop_string(
+      NULL,
+      enum = TORCH_SCHEDULERS,
+      nullable = TRUE,
+      description = "Learning-rate schedule, configured from the epoch budget. Unset holds the learning rate fixed."
+    ),
+    batch_size = batch_size %||%
+      prop_integer(
+        256L,
+        min = 1L,
+        tunable = tunable,
+        description = "Cases per optimization step."
+      ),
+    max_epochs = prop_integer(
+      100L,
+      min = 1L,
+      tunable = tunable,
+      description = "Largest number of passes over the training set."
+    ),
+    patience = prop_integer(
+      10L,
+      min = 1L,
+      description = patience_description
+    ),
+    max_grad_norm = prop_float(
+      NULL,
+      exclusive_min = 0,
+      nullable = TRUE,
+      tunable = tunable,
+      description = "Clip the gradient norm to this value before each step. Unset does not clip."
+    )
+  )
+} # /rtemis::torch_optimization_props
 
 
 # %% resolve_torch_device ----
@@ -109,15 +289,97 @@ resolve_torch_device <- function(device = NULL, verbosity = 1L) {
 } # /rtemis::resolve_torch_device
 
 
+# %% torch_training_device ----
+#' The device a torch-backed algorithm runs on
+#'
+#' For the execution config's requested device: the requested type if libtorch
+#' can use it (an error, from `resolve_torch_device()`, if the machine lacks
+#' it), the CPU for a device libtorch cannot drive (`opencl`), and the automatic
+#' choice -- cuda, else cpu -- when none is requested. Free of side effects, so
+#' `training_device()` can call it to build the resources line.
+#'
+#' @param requested Optional `DeviceConfig` object.
+#'
+#' @return Character device type, or NULL when libtorch is not installed.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_training_device <- function(requested = NULL) {
+  if (
+    !requireNamespace("torch", quietly = TRUE) || !torch::torch_is_installed()
+  ) {
+    return(NULL)
+  }
+  type <- if (is.null(requested)) NULL else requested@type
+  if (identical(type, "opencl")) {
+    return("cpu")
+  }
+  resolve_torch_device(type, verbosity = 0L)
+} # /rtemis::torch_training_device
+
+
+# %% torch_device_name ----
+#' The torch device name for a resolved device type
+#'
+#' `"cuda:<id>"` for the first GPU a `CUDADeviceConfig` names, so a run can be
+#' placed on a GPU other than the first; the type itself otherwise.
+#'
+#' @param device Character: Resolved device type.
+#' @param requested Optional `DeviceConfig` object.
+#'
+#' @return Character.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_device_name <- function(device, requested = NULL) {
+  if (
+    identical(device, "cuda") &&
+      S7_inherits(requested, CUDADeviceConfig) &&
+      !is.null(requested@ids)
+  ) {
+    return(paste0("cuda:", requested@ids[[1L]]))
+  }
+  device
+} # /rtemis::torch_device_name
+
+
+# %% torch_seeded_randn ----
+#' Standard normal noise shaped like a tensor, drawn from the seeded generator
+#'
+#' `torch_manual_seed()` reaches the CPU generator and CUDA's, but not the one
+#' that `torch_randn()` and `torch_randn_like()` use on mps (probed 2026-09-29
+#' and 2026-09-30). Drawing on the CPU and moving the draw to the tensor's
+#' device makes every module noise follow the seed on every device. Use this,
+#' never `torch_randn_like()`, for noise inside a module.
+#'
+#' @param like `torch_tensor`: Tensor whose shape, device and dtype the noise
+#' takes.
+#'
+#' @return `torch_tensor` of standard normal draws.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_seeded_randn <- function(like) {
+  torch::torch_randn(like[["size"]]())[["to"]](
+    device = like[["device"]],
+    dtype = like[["dtype"]]
+  )
+} # /rtemis::torch_seeded_randn
+
+
 # %% check_mps_reproducible ----
 #' Report a seeded mps fit that dropout makes irreproducible
 #'
-#' On mps, weight initialization and batch shuffling follow
-#' `torch_manual_seed()`; dropout does not. So a seeded mps fit reproduces
-#' exactly until a dropout probability is non-zero, and then it does not, with
-#' nothing to say so. Checked against the **resolved** device rather than the
-#' requested one, so that it still holds if the preference order ever puts mps
-#' where a caller gets it without naming it.
+#' On mps, weight initialization, batch shuffling and module noise drawn with
+#' `torch_seeded_randn()` follow `torch_manual_seed()`; dropout does not
+#' (probed 2026-09-29). So a seeded mps fit reproduces exactly until a dropout
+#' probability is non-zero, and then it does not, with nothing to say so.
+#' Checked against the **resolved** device rather than the requested one, so
+#' that it still holds if the preference order ever puts mps where a caller
+#' gets it without naming it.
 #'
 #' @param device Character: The resolved device.
 #' @param seed Integer or NULL: The seed the caller asked for.
@@ -131,7 +393,7 @@ resolve_torch_device <- function(device = NULL, verbosity = 1L) {
 check_mps_reproducible <- function(device, seed, dropout) {
   if (identical(device, "mps") && !is.null(seed) && any(dropout > 0)) {
     warn(
-      "`seed` does not reach dropout on the mps device, so this fit is not reproducible. Set device = \"cpu\" to reproduce it, or leave the dropout rates at 0."
+      "The seed does not reach dropout on the mps device, so this fit is not reproducible. Use the cpu device to reproduce it, or leave the dropout settings at 0."
     )
   }
   invisible(NULL)
@@ -295,6 +557,29 @@ torch_optimizer <- function(
     args
   )
 } # /rtemis::torch_optimizer
+
+
+# %% torch_betas ----
+#' The Adam-family moment decay rates to pass, or NULL
+#'
+#' NULL when neither rate is set, so torch's own defaults apply; otherwise both,
+#' with torch's default filling the one left unset, since `betas` is one
+#' argument.
+#'
+#' @param beta1,beta2 Numeric or NULL: Decay rates of the first and second
+#' moment estimates.
+#'
+#' @return Numeric vector of length 2, or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_betas <- function(beta1, beta2) {
+  if (is.null(beta1) && is.null(beta2)) {
+    return(NULL)
+  }
+  c(beta1 %||% 0.9, beta2 %||% 0.999)
+} # /rtemis::torch_betas
 
 
 # %% torch_scheduler ----
@@ -512,6 +797,10 @@ torch_l1_norm <- function(parameters, names) {
 #' @param target_validation Optional `torch_tensor`: Validation outcome.
 #' @param weights_validation Optional `torch_tensor`: Validation case weights.
 #' @param loss Character: One of `TORCH_LOSSES`.
+#' @param objective Optional function of the module's output and the target
+#' batch, returning one loss per case: used in place of `loss` for a module
+#' whose output the named losses cannot score (a variational autoencoder's
+#' reconstruction, means and log variances).
 #' @param optimizer Character: One of `TORCH_OPTIMIZERS`.
 #' @param lr Numeric: Learning rate.
 #' @param weight_decay Numeric: L2 penalty.
@@ -549,6 +838,7 @@ torch_fit <- function(
   target_validation = NULL,
   weights_validation = NULL,
   loss = "mse",
+  objective = NULL,
   optimizer = "adamw",
   lr = 1e-3,
   weight_decay = 0,
@@ -570,7 +860,7 @@ torch_fit <- function(
   dev <- torch::torch_device(device)
   module[["to"]](device = dev)
   n_inputs <- length(inputs)
-  loss_fn <- torch_loss_module(loss)
+  loss_fn <- objective %||% torch_loss_module(loss)
   penalize <- l1_penalty > 0 && length(l1_parameters) > 0L
   train_loader <- torch_dataloader(
     inputs,
@@ -796,6 +1086,9 @@ torch_forward <- function(module, inputs, batch_size = 1024L, device = "cpu") {
 #' one saves and reloads with no special path; the architecture is rebuilt from
 #' the model's own recorded settings and the parameters loaded back into it.
 #'
+#' The module is moved to the CPU, so it is serialized after its last use on
+#' the training device.
+#'
 #' @param module `nn_module` object.
 #'
 #' @return Raw vector.
@@ -804,6 +1097,8 @@ torch_forward <- function(module, inputs, batch_size = 1024L, device = "cpu") {
 #' @keywords internal
 #' @noRd
 torch_state <- function(module) {
+  # From the CPU, so a fit made on a GPU restores on a machine without one.
+  module[["to"]](device = torch::torch_device("cpu"))
   torch::torch_serialize(module[["state_dict"]]())
 } # /rtemis::torch_state
 
@@ -824,3 +1119,49 @@ torch_restore <- function(module, state) {
   module[["eval"]]()
   module
 } # /rtemis::torch_restore
+
+
+# %% set_torch_threads ----
+#' Set libtorch's intra-op thread count for this process
+#'
+#' libtorch otherwise runs on every core it sees, which oversubscribes a machine
+#' whose other cores are already rtemis workers and exceeds the two cores a CRAN
+#' check may use. Every torch fit and prediction calls this first, with the
+#' algorithm's resolved worker count.
+#'
+#' The count is process-global, and how often it can be set depends on
+#' libtorch's parallel backend: the OpenMP backend accepts any number of calls,
+#' while the native backend (the macOS build) accepts one, before any parallel
+#' work, and refuses every later call with a warning. So the count is set, not
+#' scoped, and the function returns the count libtorch holds afterwards -- the
+#' number a fit records, which can differ from the one requested. Once the
+#' backend has refused a change it is not asked again, so its warning is not
+#' repeated on every fit.
+#'
+#' @param n_threads Integer \[1, Inf): Threads requested.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Integer: The intra-op thread count libtorch holds.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+set_torch_threads <- function(n_threads, verbosity = 1L) {
+  n_threads <- as.integer(n_threads)
+  current <- as.integer(torch::torch_get_num_threads())
+  if (current != n_threads && !isTRUE(live[["torch_threads_fixed"]])) {
+    torch::torch_set_num_threads(n_threads)
+    current <- as.integer(torch::torch_get_num_threads())
+    if (current != n_threads) {
+      live[["torch_threads_fixed"]] <- TRUE
+      msg0(
+        "libtorch keeps ",
+        current,
+        " threads for this R session: its parallel backend accepts one ",
+        "thread setting per process.",
+        verbosity = verbosity
+      )
+    }
+  }
+  current
+} # /rtemis::set_torch_threads

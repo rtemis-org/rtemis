@@ -20,23 +20,47 @@ test_that("massGLM creates MassGLM object", {
 })
 
 # plot.MassGLM ----
-test_that("plot.MassGLM creates plotly object", {
+test_that("plot.MassGLM creates an rtemis.draw widget", {
   plt <- plot(massmod)
-  expect_s3_class(plt, "plotly")
+  expect_s3_class(plt, c("rtemis-draw", "htmlwidget"), exact = TRUE)
 })
 
 # plot_manhattan.MassGLM ----
-test_that("plot_manhattan.MassGLM creates plotly object", {
+test_that("plot_manhattan() on a MassGLM creates an rtemis.draw widget", {
   plt <- plot_manhattan(massmod)
-  expect_s3_class(plt, "plotly")
+  expect_s3_class(plt, c("rtemis-draw", "htmlwidget"), exact = TRUE)
 })
 
 
 # Sign colors ----
-test_that("the volcano and Manhattan plots agree on what a sign looks like", {
-  # Both plots color the same MassGLM object by the sign of the same
-  # coefficient, so a reader moving between them must not have to relearn the
-  # palette. They once used the same two colors with opposite meanings.
+test_that("every plot of a coefficient's sign agrees on what a sign looks like", {
+  # The volcano and Manhattan views color the same MassGLM coefficient by sign,
+  # and the plotly volcano and LINAD tables reuse the pair, so a reader moving
+  # between them must not have to relearn the palette. They once used the same
+  # two colors with opposite meanings. Colors are read back out of the drawn
+  # widgets, so re-inverting any one of them fails.
+  signs <- toupper(rtemis:::sign_colors())
+  series_colors <- function(widget) {
+    series <- widget[["x"]][["option"]][["series"]]
+    series <- Filter(function(s) !is.null(s[["name"]]), series)
+    colors <- vapply(series, function(s) s[["itemStyle"]][["color"]], "")
+    stats::setNames(toupper(colors), vapply(series, `[[`, "", "name"))
+  }
+  for (widget in list(
+    plot(massmod, coefname = "x1"),
+    plot_manhattan(massmod, coefname = "x1")
+  )) {
+    colors <- series_colors(widget)
+    expect_identical(
+      colors[["Significant negative"]],
+      signs[["negative"]]
+    )
+    expect_identical(
+      colors[["Significant positive"]],
+      signs[["positive"]]
+    )
+  }
+
   coefs <- massmod@summary[["Coefficient_x1"]]
   pvals <- massmod@summary[["p_value_x1"]]
   volcano <- draw_volcano(coefs, pvals, verbosity = 0L)
@@ -58,23 +82,6 @@ test_that("the volcano and Manhattan plots agree on what a sign looks like", {
       maxColorValue = 255
     ))
   }
-  expect_identical(
-    to_hex(traces[[1L]]),
-    toupper(unname(rtemis:::SIGN_COLORS[["negative"]]))
-  )
-  expect_identical(
-    to_hex(traces[[length(traces)]]),
-    toupper(unname(rtemis:::SIGN_COLORS[["positive"]]))
-  )
-
-  # And the Manhattan plot pairs them the same way round.
-  defaults <- formals(rtemis:::plot_manhattan.MassGLM)
-  expect_identical(
-    eval(defaults[["col_pos"]]),
-    rtemis:::SIGN_COLORS[["positive"]]
-  )
-  expect_identical(
-    eval(defaults[["col_neg"]]),
-    rtemis:::SIGN_COLORS[["negative"]]
-  )
+  expect_identical(to_hex(traces[[1L]]), signs[["negative"]])
+  expect_identical(to_hex(traces[[length(traces)]]), signs[["positive"]])
 })

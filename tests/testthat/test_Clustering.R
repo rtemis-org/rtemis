@@ -780,3 +780,58 @@ test_that("cluster() takes the algorithm from config and refuses a disagreeing l
   )
   expect_identical(fit2@algorithm, "KMeans")
 })
+
+
+# %% Execution config ----
+test_that("cluster() prints one resources line and runs on one thread", {
+  line <- paste(
+    gsub(
+      "\\033\\[[0-9;]*m",
+      "",
+      testthat::capture_messages(cluster(
+        x,
+        algorithm = "KMeans",
+        execution_config = setup_SerialExecution(n_workers_algorithm = 2L),
+        verbosity = 1L
+      ))
+    ),
+    collapse = ""
+  )
+  # No clustering backend threads, so a named share is not applied.
+  expect_match(
+    line,
+    "// CPU | serial | 1 worker: algorithm 1 thread",
+    fixed = TRUE
+  )
+  expect_no_match(line, "(as set)", fixed = TRUE)
+})
+
+test_that("cluster() seeds the fit from the execution config and restores the caller's stream", {
+  fit <- function(seed) {
+    cluster(
+      x,
+      algorithm = "KMeans",
+      config = setup_KMeans(k = 3L),
+      execution_config = setup_SerialExecution(seed = seed),
+      verbosity = 0L
+    )@clusters
+  }
+  expect_identical(fit(2026L), fit(2026L))
+  set.seed(1)
+  fit(2026L)
+  after_fit <- stats::runif(1L)
+  set.seed(1)
+  expect_identical(after_fit, stats::runif(1L))
+})
+
+test_that("the cluster record states the execution config once, with origins only for flat fields", {
+  cl <- cluster(
+    x,
+    algorithm = "KMeans",
+    execution_config = setup_SerialExecution(seed = 3L),
+    verbosity = 0L
+  )
+  rec <- record(cl)
+  expect_identical(rec[["execution_config"]][["seed"]], 3L)
+  expect_setequal(names(rec[["origin"]]), c("dat_path", "outdir", "verbosity"))
+})

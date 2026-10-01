@@ -185,7 +185,12 @@ check_document <- function(label, path, value, expected = TRUE) {
 # %% Document corpus ----
 cases <- list()
 configs <- list(
-  execution = setup_MiraiExecution(n_workers = 2L, seed = 1L),
+  execution = setup_MiraiExecution(
+    n_workers = 2L,
+    device = setup_CUDA(ids = 0:1),
+    seed = 1L
+  ),
+  device = setup_CUDA(ids = 1L),
   clustering = setup_KMeans(k = 3L),
   decomposition = setup_PCA(k = 2L),
   resampler = setup_KFold(3L),
@@ -215,6 +220,201 @@ for (family in names(configs)) {
     nested_record(x, x)
   )
 }
+# A decompose pipeline carries its execution config; the record is a real
+# `decomp()` run, written the way `decomp(outdir =)` writes it.
+decompose <- setup_DecomposeConfig(
+  decomposition_config = setup_PCA(k = 2L),
+  execution_config = setup_SerialExecution(n_workers_algorithm = 2L, seed = 1L)
+)
+cases[["decompose_input"]] <- check_document(
+  "decompose_input",
+  "decompose/r/v1/schema.json",
+  S7_to_list(decompose)
+)
+mutant <- S7_to_list(decompose)
+mutant[["execution_config"]][["backend"]] <- "threads"
+cases[["decompose_execution_wrong_backend"]] <- check_document(
+  "decompose_execution_wrong_backend",
+  "decompose/r/v1/schema.json",
+  mutant,
+  FALSE
+)
+decompose_record_file <- tempfile(fileext = ".json")
+write_record(
+  decomp(
+    iris[, 1:4],
+    config = setup_PCA(k = 2L),
+    execution_config = setup_SerialExecution(seed = 1L),
+    verbosity = 0L
+  ),
+  decompose_record_file,
+  verbosity = 0L
+)
+decompose_record <- structure(
+  paste(readLines(decompose_record_file, warn = FALSE), collapse = "\n"),
+  class = "json"
+)
+stopifnot(grepl('"execution_config"', decompose_record, fixed = TRUE))
+cases[["decompose_record"]] <- check_document(
+  "decompose_record",
+  "decompose/r/v1/record.json",
+  decompose_record
+)
+# An autoencoder leaf publishes the settings its unpublished intermediate class
+# declares, including those spliced from the torch factories MLP shares. Each
+# mutant breaks one constraint of the leaf; the record is a real fit, whose
+# derived widths and batch size the record states.
+autoencoder_wire <- S7_to_list(setup_Autoencoder(
+  k = 2L,
+  hidden_units = c(8L, 4L),
+  input_noise = 0.1,
+  optimizer = "sgd",
+  momentum = 0.9
+))
+cases[["autoencoder_input"]] <- check_document(
+  "autoencoder_input",
+  "decomposition/r/v1/schema.json",
+  autoencoder_wire
+)
+autoencoder_mutants <- list(
+  autoencoder_validation_fraction_one = list(validation_fraction = 1),
+  autoencoder_classification_loss = list(loss = "cross_entropy"),
+  autoencoder_no_hidden_layers = list(hidden_units = list()),
+  autoencoder_momentum_under_adam = list(optimizer = "adam")
+)
+for (label in names(autoencoder_mutants)) {
+  mutant <- autoencoder_wire
+  mutant[names(autoencoder_mutants[[label]])] <- autoencoder_mutants[[label]]
+  cases[[label]] <- check_document(
+    label,
+    "decomposition/r/v1/schema.json",
+    mutant,
+    FALSE
+  )
+}
+if (
+  !requireNamespace("torch", quietly = TRUE) || !torch::torch_is_installed()
+) {
+  stop("The autoencoder record case needs torch with libtorch installed.")
+}
+autoencoder_record_file <- tempfile(fileext = ".json")
+write_record(
+  decomp(
+    iris[, 1:4],
+    config = setup_Autoencoder(max_epochs = 2L),
+    execution_config = setup_SerialExecution(seed = 1L),
+    verbosity = 0L
+  ),
+  autoencoder_record_file,
+  verbosity = 0L
+)
+autoencoder_record <- structure(
+  paste(readLines(autoencoder_record_file, warn = FALSE), collapse = "\n"),
+  class = "json"
+)
+stopifnot(grepl('"hidden_units": "derived"', autoencoder_record, fixed = TRUE))
+cases[["autoencoder_record"]] <- check_document(
+  "autoencoder_record",
+  "decompose/r/v1/record.json",
+  autoencoder_record
+)
+# The variational leaf shares every autoencoder setting and adds `beta`.
+vae_wire <- S7_to_list(setup_VariationalAutoencoder(
+  beta = 4,
+  input_noise = 0.1
+))
+cases[["vae_input"]] <- check_document(
+  "vae_input",
+  "decomposition/r/v1/schema.json",
+  vae_wire
+)
+mutant <- vae_wire
+mutant[["beta"]] <- -1
+cases[["vae_negative_beta"]] <- check_document(
+  "vae_negative_beta",
+  "decomposition/r/v1/schema.json",
+  mutant,
+  FALSE
+)
+mutant <- autoencoder_wire
+mutant[["beta"]] <- 4
+cases[["autoencoder_beta_undeclared"]] <- check_document(
+  "autoencoder_beta_undeclared",
+  "decomposition/r/v1/schema.json",
+  mutant,
+  FALSE
+)
+vae_record_file <- tempfile(fileext = ".json")
+write_record(
+  decomp(
+    iris[, 1:4],
+    config = setup_VariationalAutoencoder(max_epochs = 2L),
+    execution_config = setup_SerialExecution(seed = 1L),
+    verbosity = 0L
+  ),
+  vae_record_file,
+  verbosity = 0L
+)
+cases[["vae_record"]] <- check_document(
+  "vae_record",
+  "decompose/r/v1/record.json",
+  structure(
+    paste(readLines(vae_record_file, warn = FALSE), collapse = "\n"),
+    class = "json"
+  )
+)
+# The device is a nested family: an unknown type, and GPU ids on a device that
+# has none, are both rejected by the schema itself.
+execution_wire <- S7_to_list(setup_SerialExecution(device = "cuda", seed = 1L))
+mutant <- execution_wire
+mutant[["device"]] <- list(type = "tpu")
+cases[["execution_device_unknown"]] <- check_document(
+  "execution_device_unknown",
+  "execution/r/v1/schema.json",
+  mutant,
+  FALSE
+)
+mutant <- execution_wire
+mutant[["device"]] <- list(type = "mps", ids = list(0L))
+cases[["execution_device_ids_on_mps"]] <- check_document(
+  "execution_device_ids_on_mps",
+  "execution/r/v1/schema.json",
+  mutant,
+  FALSE
+)
+cases[["execution_device_input"]] <- check_document(
+  "execution_device_input",
+  "execution/r/v1/schema.json",
+  execution_wire
+)
+cluster_config <- setup_ClusterConfig(
+  clustering_config = setup_KMeans(k = 3L),
+  execution_config = setup_SerialExecution(seed = 1L)
+)
+cases[["cluster_input"]] <- check_document(
+  "cluster_input",
+  "cluster/r/v1/schema.json",
+  S7_to_list(cluster_config)
+)
+cluster_record_file <- tempfile(fileext = ".json")
+write_record(
+  cluster(
+    iris[, 1:4],
+    config = setup_KMeans(k = 3L),
+    execution_config = setup_SerialExecution(seed = 1L),
+    verbosity = 0L
+  ),
+  cluster_record_file,
+  verbosity = 0L
+)
+cases[["cluster_record"]] <- check_document(
+  "cluster_record",
+  "cluster/r/v1/record.json",
+  structure(
+    paste(readLines(cluster_record_file, warn = FALSE), collapse = "\n"),
+    class = "json"
+  )
+)
 preprocessor <- setup_Preprocessor(
   scale = TRUE,
   scale_centers = c(candidates = 1.5)

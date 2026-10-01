@@ -201,6 +201,7 @@ method(predict_super, class_lmtree) <- function(
   model,
   newdata,
   type = NULL,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   as.numeric(stats::predict(
@@ -232,6 +233,7 @@ method(predict_super, class_glmtree) <- function(
   model,
   newdata,
   type = NULL,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   as.numeric(stats::predict(

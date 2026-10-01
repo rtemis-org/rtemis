@@ -14,7 +14,6 @@ setup_LightRuleFit(
   lambda_l1 = 0,
   lambda_l2 = 0,
   objective = NULL,
-  device_type = "cpu",
   force_col_wise = TRUE,
   tree_learner = "serial",
   top_k = NULL,
@@ -101,8 +100,6 @@ setup_LightRuleFit(
 \item{lambda_l2}{(Tunable) Numeric [0, Inf): L2 regularization.}
 
 \item{objective}{Optional Character: Objective function. NULL = set from outcome type.}
-
-\item{device_type}{Character \{"cpu", "gpu", "cuda"\}: Compute device.}
 
 \item{force_col_wise}{Logical: Force column-wise histogram building (CPU only).}
 

@@ -1,4 +1,4 @@
-# decom_ICA.R
+# decomp_ICA.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -47,7 +47,12 @@ ica_preprocess <- function(xm, center, row_norm) {
 #'
 #' @keywords internal
 #' @noRd
-method(decomp_, ICAConfig) <- function(config, x, verbosity = 1L) {
+method(decomp_, ICAConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   # Checks ----
   check_dependencies("fastICA")
   check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)
@@ -88,6 +93,8 @@ method(decomp_, ICAConfig) <- function(config, x, verbosity = 1L) {
 #' @param config `ICAConfig` object.
 #' @param decom Fitted fastICA list (with `rtemis_center` appended).
 #' @param new_data Tabular data: New data to project onto the components.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Matrix of independent component scores.
@@ -98,6 +105,7 @@ method(apply_decomp_, ICAConfig) <- function(
   config,
   decom,
   new_data,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   xm <- ica_preprocess(
@@ -125,6 +133,8 @@ method(apply_decomp_, ICAConfig) <- function(
 #' @param decom Fitted fastICA list (with `rtemis_center` appended).
 #' @param transformed Numeric matrix: Component scores, cases by components.
 #' @param x Tabular data: The data being reconstructed, in input units.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Numeric matrix: Reconstruction in input units, cases by features.
@@ -136,6 +146,7 @@ method(reconstruct_, ICAConfig) <- function(
   decom,
   transformed,
   x,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   reconstructed <- as.matrix(transformed) %*% decom[["A"]]

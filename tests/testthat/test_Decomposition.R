@@ -317,6 +317,109 @@ test_that("decomp() UMAP succeeds", {
   expect_s7_class(iris_umap, Decomposition)
 })
 
+
+test_that("UMAP fits on the execution config's threads and applies on the applier's", {
+  skip_if_not_installed("uwot")
+  # uwot's own default is half the hardware threads, whatever the core limit.
+  requested <- integer()
+  local_mocked_bindings(
+    umap_transform = function(X, model, n_threads, ...) {
+      requested <<- c(requested, as.integer(n_threads))
+      matrix(0, nrow = NROW(X), ncol = 2L)
+    },
+    .package = "uwot"
+  )
+  decom <- decomp(
+    x,
+    algorithm = "umap",
+    execution_config = setup_SerialExecution(n_workers_algorithm = 2L),
+    verbosity = 0L
+  )
+  apply_decomp(
+    decom,
+    x,
+    execution_config = setup_SerialExecution(n_workers_algorithm = 1L),
+    verbosity = 0L
+  )
+  expect_identical(requested, 1L)
+  apply_decomp(decom, x, verbosity = 0L)
+  expect_identical(requested, c(1L, default_n_workers()))
+})
+
+test_that("the default thread resolution is at most two under a CRAN check", {
+  # uwot's own default is half the hardware threads, whatever the core limit;
+  # every threaded fit and application resolves through this instead.
+  withr::local_envvar(`_R_CHECK_LIMIT_CORES_` = "TRUE")
+  expect_lte(algorithm_threads(), 2L)
+  expect_lte(algorithm_threads(setup_FutureExecution()), 2L)
+  expect_identical(
+    algorithm_threads(setup_SerialExecution(n_workers_algorithm = 3L)),
+    3L
+  )
+})
+
+test_that("decomp() prints one resources line, with threads only for a threaded algorithm", {
+  resources <- function(algorithm) {
+    paste(
+      gsub(
+        "\\033\\[[0-9;]*m",
+        "",
+        testthat::capture_messages(decomp(
+          x,
+          algorithm = algorithm,
+          execution_config = setup_SerialExecution(n_workers_algorithm = 2L),
+          verbosity = 1L
+        ))
+      ),
+      collapse = ""
+    )
+  }
+  expect_match(
+    resources("PCA"),
+    "// CPU | serial | 1 worker: algorithm 1 thread",
+    fixed = TRUE
+  )
+  skip_if_not_installed("uwot")
+  expect_match(
+    resources("UMAP"),
+    "// CPU | serial | 1 worker: algorithm 2 threads (as set)",
+    fixed = TRUE
+  )
+})
+
+test_that("decomp() seeds the fit from the execution config and restores the caller's stream", {
+  skip_if_not_installed("fastICA")
+  fit <- function(seed) {
+    decomp(
+      x,
+      algorithm = "ICA",
+      execution_config = setup_SerialExecution(seed = seed),
+      verbosity = 0L
+    )@transformed
+  }
+  expect_identical(fit(2026L), fit(2026L))
+  expect_false(isTRUE(all.equal(fit(2026L), fit(7L))))
+  set.seed(1)
+  fit(2026L)
+  after_fit <- stats::runif(1L)
+  set.seed(1)
+  expect_identical(after_fit, stats::runif(1L))
+})
+
+test_that("the run's input records the execution config it ran under", {
+  decom <- decomp(
+    x,
+    algorithm = "PCA",
+    execution_config = setup_SerialExecution(seed = 11L),
+    verbosity = 0L
+  )
+  expect_s7_class(
+    decom@decompose_config@execution_config,
+    SerialExecutionConfig
+  )
+  expect_identical(decom@decompose_config@execution_config@seed, 11L)
+})
+
 # t-SNE ----
 test_that("setup_tSNE() succeeds", {
   config <- setup_tSNE()
@@ -432,4 +535,43 @@ test_that("decomp() takes the algorithm from config and refuses a disagreeing la
     verbosity = 0L
   )
   expect_identical(fit2@algorithm, "PCA")
+})
+
+
+test_that("the run record states the execution config once, with origins only for flat fields", {
+  decom <- decomp(
+    x,
+    algorithm = "PCA",
+    execution_config = setup_SerialExecution(seed = 3L),
+    verbosity = 0L
+  )
+  rec <- record(decom)
+  expect_identical(rec[["execution_config"]][["seed"]], 3L)
+  expect_identical(rec[["execution_config"]][["origin"]][["seed"]], "user")
+  # `execution_config` and `decomposition_config` carry their own origins; the
+  # document's covers its flat fields and nothing unnamed.
+  expect_setequal(names(rec[["origin"]]), c("dat_path", "outdir", "verbosity"))
+  expect_false(anyNA(names(rec[["origin"]])))
+})
+
+
+test_that("NMF with several runs fits, sequentially", {
+  skip_if_not_installed("NMF")
+  # NMF's default for `nrun > 1` is a parallel setup that requires the package
+  # attached; reached through `NMF::` it failed with "none of the packages are
+  # loaded".
+  decom <- decomp(
+    x,
+    config = setup_NMF(k = 2L, nrun = 2L),
+    execution_config = setup_SerialExecution(seed = 2026L),
+    verbosity = 0L
+  )
+  expect_s7_class(decom, Decomposition)
+  expect_identical(nrow(decom@transformed), nrow(x))
+})
+
+test_that("setup_tSNE(num_threads =) is deprecated in favor of the execution config", {
+  expect_warning(setup_tSNE(num_threads = 2L), class = "deprecatedWarning")
+  expect_false("num_threads" %in% names(tSNEConfig@properties))
+  expect_no_warning(setup_tSNE())
 })

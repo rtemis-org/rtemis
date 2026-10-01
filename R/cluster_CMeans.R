@@ -7,7 +7,12 @@
 #'
 #' @keywords internal
 #' @noRd
-method(cluster_, CMeansConfig) <- function(config, x, verbosity = 1L) {
+method(cluster_, CMeansConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   # Dependencies ----
   check_dependencies("e1071")
 

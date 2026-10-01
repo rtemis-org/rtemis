@@ -497,7 +497,8 @@ spec_classes <- function(ns = "rtemis") {
 #' the class is named for what differs structurally (a path-based vs. an
 #' in-memory recipe) while the constructors carry their own names
 #' (`setup_SuperConfig`/`setup_SuperConfigLive`), which do not end in `Config`
-#' at all.
+#' at all. `CUDADeviceConfig` is documented by `setup_CUDA`: the device
+#' family's constructors drop the `Device` its class names carry.
 #'
 #' @param class_name Character: S7 class name.
 #'
@@ -514,7 +515,8 @@ doc_source_for_class <- function(class_name) {
     GridSearch = "setup_GridSearch",
     Preprocessor = "setup_Preprocessor",
     SuperConfigPaths = "setup_SuperConfig",
-    SuperConfigTabular = "setup_SuperConfigLive"
+    SuperConfigTabular = "setup_SuperConfigLive",
+    CUDADevice = "setup_CUDA"
   )
   out <- c(
     paste0("setup_", stripped),

@@ -219,6 +219,8 @@ meta_fit <- function(learner, dat, weights, execution_config, verbosity) {
 #'
 #' @param model `Supervised` object.
 #' @param newdata data.frame: Features, in the model's own column order.
+#' @param execution_config Optional `ExecutionConfig`: Where the prediction
+#' runs; NULL means the host's defaults.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Numeric vector.
@@ -226,8 +228,18 @@ meta_fit <- function(learner, dat, weights, execution_config, verbosity) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-meta_predict <- function(model, newdata, verbosity = 0L) {
-  predicted <- predict(model, newdata, verbosity = verbosity)
+meta_predict <- function(
+  model,
+  newdata,
+  execution_config = NULL,
+  verbosity = 0L
+) {
+  predicted <- predict_supervised_(
+    model,
+    newdata,
+    execution_config = execution_config,
+    verbosity = verbosity
+  )
   if (model@type == "Classification") {
     positive_prob(predicted)
   } else {

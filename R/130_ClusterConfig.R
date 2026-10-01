@@ -21,6 +21,12 @@
 ClusterConfig <- schema_class(
   name = "ClusterConfig",
   package = "rtemis",
+  defaults = list(
+    execution_config = DefaultPolicy(
+      kind = "literal",
+      value = list(backend = "future")
+    )
+  ),
   properties = list(
     dat_path = prop_string(
       NULL,
@@ -34,6 +40,10 @@ ClusterConfig <- schema_class(
       ClusteringConfig,
       nullable = TRUE,
       description = "Clustering algorithm and its settings, including the feature columns to cluster on. Absent = the default algorithm with its default settings on all numeric columns."
+    ),
+    execution_config = prop_object(
+      ExecutionConfig,
+      description = "Execution backend, worker and thread counts, failure policy and seed. A clustering dispatches no work to other processes, so its workers are threads for an algorithm that uses them."
     ),
     outdir = prop_string(
       "results/",
@@ -49,10 +59,11 @@ ClusterConfig <- schema_class(
     role = "document",
     slug = "cluster",
     title = "rtemis ClusterConfig",
-    description = "Language-independent config for an rtemis clustering pipeline: a data reference, a `ClusteringConfig`, and an output directory.",
+    description = "Language-independent config for an rtemis clustering pipeline: a data reference, a `ClusteringConfig`, an `ExecutionConfig`, and an output directory.",
     order = 6L,
     kind = "pipeline",
-    record_provenance = "rtemis::Provenance"
+    record_provenance = "rtemis::Provenance",
+    record_metrics = "rtemis::ClusteringMetrics"
   )
 ) # /rtemis::ClusterConfig
 
@@ -107,6 +118,8 @@ method(print, ClusterConfig) <- function(x, output_type = NULL, ...) {
 #' columns to cluster on. Setup with a clustering `setup_*` function, e.g.
 #' [setup_KMeans]. If NULL, [cluster] runs its default algorithm with default
 #' settings.
+#' @param execution_config `ExecutionConfig` object: Execution settings, e.g.
+#' [setup_FutureExecution]. Its seed seeds the fit.
 #' @param outdir Character: Output directory for results.
 #' @param verbosity Integer [0, Inf): Verbosity level.
 #'
@@ -123,6 +136,7 @@ method(print, ClusterConfig) <- function(x, output_type = NULL, ...) {
 setup_ClusterConfig <- function(
   dat_path = NULL,
   clustering_config = NULL,
+  execution_config = setup_FutureExecution(),
   outdir = "results/",
   verbosity = 1L
 ) {
@@ -143,6 +157,7 @@ setup_ClusterConfig <- function(
   ClusterConfig(
     dat_path = dat_path,
     clustering_config = clustering_config,
+    execution_config = execution_config,
     outdir = outdir,
     verbosity = as.integer(verbosity)
   )
@@ -174,9 +189,14 @@ setup_ClusterConfig <- function(
       .list_to_ClusteringConfig(x[["clustering_config"]])
     }
   )
-  # `outdir` and `verbosity` carry non-NULL defaults in `setup_ClusterConfig`;
-  # only override them when the config actually supplies a value, so a portable
-  # recipe that omits them keeps the defaults.
+  # `execution_config`, `outdir` and `verbosity` carry non-NULL defaults in
+  # `setup_ClusterConfig`; only override them when the config actually supplies
+  # a value, so a portable recipe that omits them keeps the defaults.
+  if (!is.null(x[["execution_config"]])) {
+    args[["execution_config"]] <- .list_to_ExecutionConfig(
+      x[["execution_config"]]
+    )
+  }
   if (!is.null(x[["outdir"]])) {
     args[["outdir"]] <- x[["outdir"]]
   }

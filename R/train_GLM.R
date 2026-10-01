@@ -91,6 +91,7 @@ method(predict_super, class_glm) <- function(
   model,
   newdata,
   type = NULL,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   predict(model, newdata = newdata, type = "response")

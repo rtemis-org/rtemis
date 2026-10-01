@@ -267,6 +267,7 @@ method(predict_super, LightRuleFit) <- function(
   model,
   newdata,
   type = NULL,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   check_inherits(newdata, "data.frame")

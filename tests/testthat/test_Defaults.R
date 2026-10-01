@@ -626,7 +626,6 @@ test_that("closed tables and structs reject undeclared wire fields clearly", {
 })
 
 
-
 test_that("a cell omitted from a table row decodes as missing", {
   # `jsonlite::toJSON()` drops an NA cell from a row-oriented data frame, so R's
   # own output omits the cells a nullable column leaves empty.

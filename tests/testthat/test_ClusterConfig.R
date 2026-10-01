@@ -73,3 +73,24 @@ test_that("a cluster document names its algorithm only inside clustering_config"
   expect_identical(x@clustering_config@algorithm, "KMeans")
   expect_identical(x@clustering_config@features, c("a", "b"))
 })
+
+
+# %% execution config ----
+test_that("a cluster document carries its execution config through write and read", {
+  x <- setup_ClusterConfig(
+    clustering_config = setup_KMeans(k = 3L),
+    execution_config = setup_SerialExecution(seed = 5L)
+  )
+  file <- withr::local_tempfile(fileext = ".json")
+  write_config(x, file, verbosity = 0L)
+  xtoo <- read_config(file)
+  expect_s7_class(xtoo@execution_config, SerialExecutionConfig)
+  expect_identical(xtoo@execution_config@seed, 5L)
+})
+
+test_that("a cluster document without an execution config reads with the default", {
+  x <- .list_to_ClusterConfig(list(
+    clustering_config = list(algorithm = "KMeans", k = 3L)
+  ))
+  expect_identical(x@execution_config@backend, "future")
+})

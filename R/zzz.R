@@ -16,7 +16,9 @@ live[["parallelized_learners"]] <- c(
   "LightRF",
   "LightRuleFit",
   "LINADForest",
-  "Ranger"
+  "MLP",
+  "Ranger",
+  "TabNet"
 )
 
 # vars

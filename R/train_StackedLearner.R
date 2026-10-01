@@ -16,6 +16,8 @@
 #' @param entry_features Named list of character vectors: Features each entry
 #'   sees, one per entry.
 #' @param newdata data.frame: Features.
+#' @param execution_config Optional `ExecutionConfig`: Where the prediction
+#' runs; NULL means the host's defaults.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Numeric matrix: cases x entries, columns named by entry.
@@ -27,6 +29,7 @@ level_one_matrix <- function(
   base_models,
   entry_features,
   newdata,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   rows <- seq_len(NROW(newdata))
@@ -34,6 +37,7 @@ level_one_matrix <- function(
     meta_predict(
       base_models[[entry]],
       meta_features(newdata, rows, entry_features[[entry]]),
+      execution_config = execution_config,
       verbosity = verbosity
     )
   })
@@ -180,6 +184,7 @@ method(train_, StackedLearnerHyperparameters) <- function(
         meta_predict(
           fold_model,
           meta_features(x, test_rows, columns),
+          execution_config = execution_config,
           verbosity = verbosity - 2L
         )
       },
@@ -284,6 +289,7 @@ method(predict_super, StackedLearner) <- function(
   model,
   newdata,
   type = NULL,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   check_inherits(newdata, "data.frame")
@@ -291,6 +297,7 @@ method(predict_super, StackedLearner) <- function(
     model@base_models,
     model@entry_features,
     newdata,
+    execution_config = execution_config,
     verbosity = verbosity - 1L
   )
   if (!is.null(model@discrete_winner)) {
@@ -299,6 +306,7 @@ method(predict_super, StackedLearner) <- function(
   meta_predict(
     model@meta_model,
     as.data.table(level_one),
+    execution_config = execution_config,
     verbosity = verbosity - 1L
   )
 } # /rtemis::predict_super.StackedLearner

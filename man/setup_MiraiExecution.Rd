@@ -9,6 +9,7 @@ setup_MiraiExecution(
   n_workers_outer = NULL,
   n_workers_tuning = NULL,
   n_workers_algorithm = NULL,
+  device = NULL,
   on_error = c("continue", "stop", "stop_outer"),
   seed = NULL,
   shared_memory = c("auto", "none", "always"),
@@ -27,6 +28,19 @@ automatic assignment.}
 
 \item{n_workers_algorithm}{Optional Integer [1, Inf): Threads for a self-parallelizing
 algorithm, overriding the automatic assignment.}
+
+\item{device}{Optional \code{DeviceConfig}: Compute device, as a type name --
+\code{"cpu"}, \code{"cuda"}, \code{"mps"} (the Apple silicon GPU) or \code{"opencl"} (a LightGBM
+GPU build) -- or \link{setup_CUDA} to name which GPUs. \code{NULL} selects one per
+algorithm: \code{"cuda"} where the machine has it and the algorithm can use it,
+else the CPU. An algorithm that cannot use the requested device runs on the
+CPU, and the run's resources line says so; a device the machine lacks is an
+error when an algorithm tries to use it. \code{"mps"} is never selected
+automatically: in rtemis benchmarks on an Apple M5 the CPU was faster for
+every network narrower than about 1024 units or trained in batches smaller
+than about 2048 cases, often by 2 to 5 times, and \code{"mps"} was faster by up to
+about 25\% only with both and thousands of features. It also slows down across
+many fits in one R session, and a seed does not reach dropout on it.}
 
 \item{on_error}{Character \{"continue", "stop", "stop_outer"\}: Failure policy.
 \code{"continue"} makes grid cells and unscorable hyperparameter combinations

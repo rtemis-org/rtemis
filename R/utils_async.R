@@ -367,6 +367,45 @@ worker_pool_stop <- function() {
 } # /rtemis::worker_pool_stop
 
 
+# %% mirai_await_idle ----
+#' Wait until the mirai dispatcher holds no task
+#'
+#' `mirai::stop_mirai()` resolves a task on the host immediately, while the
+#' in-process dispatcher goes on delivering the cancellation to the daemon running
+#' it and reassigning the freed daemon. Shutting the pool down in that window
+#' (`mirai::daemons(0L)`) can deadlock inside nanonext 1.10.3: closing the
+#' dispatcher's daemon socket waits for a pipe task that never completes (native
+#' stack in the private spec `rtemis/parallel-worker-tests`, 2026-09-29). Every
+#' shutdown after an idle dispatcher -- the end of every map that ran to
+#' completion -- is clean, so a map that cancels its tasks waits for that state
+#' before anything can shut the pool down.
+#'
+#' A daemon inside compiled code does not see the cancellation until the call
+#' returns, so the wait can last as long as one task. It needs no timeout of its
+#' own: a daemon that exits instead is dropped by the dispatcher, which is idle
+#' again.
+#'
+#' @param poll Numeric: Seconds between checks.
+#'
+#' @return NULL, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+mirai_await_idle <- function(poll = 0.01) {
+  repeat {
+    state <- mirai::info()
+    if (
+      is.null(state) ||
+        (state[["executing"]] == 0L && state[["awaiting"]] == 0L)
+    ) {
+      return(invisible(NULL))
+    }
+    Sys.sleep(poll)
+  }
+} # /rtemis::mirai_await_idle
+
+
 # %% worker_pool_available ----
 #' Is there a run-level pool this dispatch can use?
 #'
@@ -1082,13 +1121,16 @@ progress_plapply <- function(
       }
       # Cancel this map's outstanding tasks before propagating a failure. This releases
       # borrowed workers for the next dispatch and lets an owned pool shut down without
-      # waiting on abandoned work.
+      # waiting on abandoned work. A canceled mirai resolves at once on this side, but
+      # the dispatcher is still delivering the cancellations to the daemons, so the
+      # pool is shut down only once it reports itself idle: see `mirai_await_idle()`.
       reap <- function() {
         for (task in tasks) {
           if (mirai::unresolved(task)) {
             mirai::stop_mirai(task)
           }
         }
+        mirai_await_idle()
         invisible(NULL)
       }
     }

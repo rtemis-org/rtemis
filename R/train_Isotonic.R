@@ -124,6 +124,7 @@ method(predict_super, class_stepfun) <- function(
   model,
   newdata,
   type = NULL,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   model(newdata[[1]])

@@ -25,7 +25,10 @@
   out <- list()
   for (nm in ls(ns, all.names = TRUE)) {
     obj <- get(nm, envir = ns)
-    if (!inherits(obj, "S7_generic")) {
+    # `method<-` on another package's generic (rtemis.draw's
+    # `confusion_input()`) leaves a copy in this namespace; its body is that
+    # package's to force.
+    if (!inherits(obj, "S7_generic") || !identical(environment(obj), ns)) {
       next
     }
     extra <- setdiff(names(formals(obj)), c("...", attr(obj, "dispatch_args")))

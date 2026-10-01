@@ -118,7 +118,7 @@ test_that("two implementations' 'object' hashes are not comparable", {
 test_that("a fingerprint records what produced it", {
   # Recorded facts, not a claim about who else could reproduce the digest.
   # Whether a second implementation can is a question a specification answers,
-  # and none exists; see `plan/fingerprint-portability.md`.
+  # and none exists; `spec: rtemis/fingerprint-portability`.
   fp <- data_fingerprint(iris, method = "object")
   expect_identical(fp@language, "R")
   expect_identical(fp@data_structure, "data.frame")

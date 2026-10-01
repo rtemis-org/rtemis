@@ -248,6 +248,7 @@ method(predict_super, class_earth) <- function(
   model,
   newdata,
   type = NULL,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   newx <- mars_matrix(newdata)

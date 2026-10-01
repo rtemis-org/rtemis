@@ -21,7 +21,6 @@
 ^design$
 ^specs$
 ^background$
-^ARCHITECTURE\.md$
 ^AGENTS\.md$
 ^CLAUDE\.md$
 ^pkgdown$

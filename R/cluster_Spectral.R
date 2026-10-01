@@ -71,7 +71,12 @@ cluster_specc <- function(config, x, kernel_args, mod_sample, verbosity) {
 #'
 #' @keywords internal
 #' @noRd
-method(cluster_, SpectralRBFConfig) <- function(config, x, verbosity = 1L) {
+method(cluster_, SpectralRBFConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   check_is_S7(config, SpectralRBFConfig)
   sigma <- config[["sigma"]]
   if (is.null(sigma)) {
@@ -102,7 +107,12 @@ method(cluster_, SpectralRBFConfig) <- function(config, x, verbosity = 1L) {
 #'
 #' @keywords internal
 #' @noRd
-method(cluster_, SpectralLaplaceConfig) <- function(config, x, verbosity = 1L) {
+method(cluster_, SpectralLaplaceConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   check_is_S7(config, SpectralLaplaceConfig)
   sigma <- config[["sigma"]]
   cluster_specc(
@@ -127,7 +137,12 @@ method(cluster_, SpectralLaplaceConfig) <- function(config, x, verbosity = 1L) {
 #'
 #' @keywords internal
 #' @noRd
-method(cluster_, SpectralLocalConfig) <- function(config, x, verbosity = 1L) {
+method(cluster_, SpectralLocalConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   check_is_S7(config, SpectralLocalConfig)
   cluster_specc(
     config,

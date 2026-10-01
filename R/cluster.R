@@ -21,6 +21,10 @@
 #' clustering `setup_*` function. Its `features` selects the columns to cluster
 #' on; `NULL` selects every numeric column of `x`, since a clustering backend
 #' reads numbers. The returned object's config carries the resolved names.
+#' @param execution_config `ExecutionConfig` object: Execution settings, e.g.
+#' [setup_FutureExecution] or [setup_SerialExecution]. A clustering dispatches
+#' no work to other processes and no registered algorithm threads, so the fit
+#' runs on one thread; the config's `seed` seeds it.
 #' @param outdir Character, optional: Output directory. If not NULL, the returned
 #' `Clustering` object is saved there as an `.rds` file, alongside a run record
 #' (`cluster_<algorithm>.record.json`) stating what the run resolved. See
@@ -37,6 +41,7 @@ cluster <- function(
   x,
   algorithm = "KMeans",
   config = NULL,
+  execution_config = setup_FutureExecution(),
   outdir = NULL,
   verbosity = 1L
 ) {
@@ -56,6 +61,7 @@ cluster <- function(
     return(cluster(
       x = read(x@dat_path),
       config = x@clustering_config,
+      execution_config = x@execution_config,
       outdir = x@outdir,
       verbosity = x@verbosity
     ))
@@ -81,6 +87,7 @@ cluster <- function(
     }
     algorithm <- config@algorithm
   }
+  check_is_S7(execution_config, ExecutionConfig)
 
   # Feature selection ----
   # The config's `features` is the record's account of which columns were
@@ -110,13 +117,40 @@ cluster <- function(
     summarize_unsupervised(x)
   }
 
-  # Cluster ----
+  # Resources ----
+  # Nothing is dispatched and no clustering backend threads, so the algorithm
+  # runs on one thread whatever the config allows; the line states both.
   algorithm <- get_clust_name(algorithm)
+  msg_resources(
+    backend = execution_backend_label(execution_config),
+    n_workers = execution_n_workers(execution_config),
+    workers = list(algorithm = 1L),
+    explicit = FALSE,
+    device = device_label(
+      "cpu",
+      requested = execution_config@device,
+      algorithm = algorithm,
+      chooses = FALSE
+    ),
+    verbosity = verbosity
+  )
+
+  # Cluster ----
   msg0(
     bold(paste0("Clustering with ", algorithm, "...")),
     verbosity = verbosity
   )
-  clust <- cluster_(config = config, x = x, verbosity = verbosity)
+  # Seeded from the execution config, which records the seed, so the fit
+  # reproduces from its record; the caller's random stream is restored after.
+  clust <- with_seed(
+    execution_config@seed,
+    cluster_(
+      config = config,
+      x = x,
+      execution_config = execution_config,
+      verbosity = verbosity
+    )
+  )
 
   # Clusters ----
   clusters <- do_call(
@@ -186,6 +220,7 @@ cluster <- function(
   # is the honest reading of "the caller did not choose one".
   input_args <- list(
     clustering_config = config,
+    execution_config = execution_config,
     verbosity = max(0L, verbosity)
   )
   if (!is.null(outdir)) {

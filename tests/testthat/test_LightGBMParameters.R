@@ -152,10 +152,11 @@
     "machine_list_filename",
     "machines"
   ),
-  # Which GPU, not whether to use one: `device_type` is declared and selects
-  # the device class. Picking a board among several is machine configuration,
-  # and a config naming board 2 is not portable to the machine that has one.
-  `selects a specific GPU` = c(
+  # The device is execution, not a hyperparameter: the execution config's
+  # `device` sets `device_type`, and a CUDA device's `ids` set `gpu_device_id`.
+  # The rest pick a board or precision on a particular machine.
+  `set by the execution config's device, or machine configuration` = c(
+    "device_type",
     "gpu_platform_id",
     "gpu_device_id",
     "gpu_use_dp",

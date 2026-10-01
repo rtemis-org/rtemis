@@ -100,7 +100,7 @@ test_that("plot_learning() draws every algorithm that has a curve", {
     execution_config = setup_SerialExecution(seed = 1L),
     verbosity = 0L
   )
-  expect_s3_class(plot_learning(mod), "plotly")
+  expect_s3_class(plot_learning(mod), "htmlwidget")
 })
 
 

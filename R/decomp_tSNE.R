@@ -1,4 +1,4 @@
-# decom_tSNE.R
+# decomp_tSNE.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -7,7 +7,12 @@
 #'
 #' @keywords internal
 #' @noRd
-method(decomp_, tSNEConfig) <- function(config, x, verbosity = 1L) {
+method(decomp_, tSNEConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   # Checks ----
   check_is_S7(config, tSNEConfig)
   check_dependencies("Rtsne")
@@ -15,7 +20,14 @@ method(decomp_, tSNEConfig) <- function(config, x, verbosity = 1L) {
 
   # Decompose ----
   msg("Decomposing with", config@algorithm, "...", verbosity = verbosity)
-  args <- c(list(X = x, dims = config[["k"]]), config@config)
+  args <- c(
+    list(
+      X = x,
+      dims = config[["k"]],
+      num_threads = algorithm_threads(execution_config)
+    ),
+    config@config
+  )
   args[["k"]] <- NULL
   decom <- do_call(
     Rtsne::Rtsne,

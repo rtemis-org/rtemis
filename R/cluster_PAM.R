@@ -32,7 +32,12 @@ partition_clusters <- function(clust) {
 #'
 #' @keywords internal
 #' @noRd
-method(cluster_, PAMConfig) <- function(config, x, verbosity = 1L) {
+method(cluster_, PAMConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   # Checks ----
   check_is_S7(config, PAMConfig)
 
@@ -85,7 +90,12 @@ clustpredict_PAM <- function(clust, newdata = NULL) {
 #'
 #' @keywords internal
 #' @noRd
-method(cluster_, PAMKConfig) <- function(config, x, verbosity = 1L) {
+method(cluster_, PAMKConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   # Checks ----
   check_is_S7(config, PAMKConfig)
 

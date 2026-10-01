@@ -1816,11 +1816,9 @@ setup_SpectralLocal <- function(
   # list; its property declares the class, so the class's reader rebuilds it.
   # Read from the declaration rather than from a per-algorithm branch, so a
   # new object-valued setting needs nothing here.
-  params <- read_wire_objects(
-    params,
-    schema_algorithm_class(ClusteringConfig, algorithm)
-  )
-  do.call(setup_fn, params)
+  cls <- schema_algorithm_class(ClusteringConfig, algorithm)
+  params <- read_wire_objects(params, cls)
+  do.call(setup_fn, from_wire(params, cls))
 } # /rtemis::.list_to_ClusteringConfig
 
 

@@ -227,6 +227,7 @@ method(predict_super, LinearAdditiveTree) <- function(
   model,
   newdata,
   type = NULL,
+  execution_config = NULL,
   verbosity = 0L
 ) {
   newdata <- as.data.frame(newdata)[, model@xnames, drop = FALSE]

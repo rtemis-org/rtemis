@@ -71,6 +71,10 @@ testthat::skip_if_not_installed("jsonvalidate")
   d[["$id"]] <- NULL
   d[["properties"]][["$schema"]] <- NULL
   d <- .stub_external_refs(d)
+  # The dispatcher declares the base's shared fields, which can reference other
+  # families too (an execution config's `device`); its dispatch clauses are
+  # rewritten below, so only its properties are stubbed.
+  disp[["properties"]] <- .stub_external_refs(disp[["properties"]])
   disp[["$defs"]] <- stats::setNames(list(d), slug)
   disp[["$id"]] <- NULL
   disp[["allOf"]] <- lapply(disp[["allOf"]], function(clause) {
@@ -94,6 +98,11 @@ testthat::skip_if_not_installed("jsonvalidate")
   list(
     execution = setup_SerialExecution(seed = 1L),
     execution_parallel = setup_MiraiExecution(n_workers = 2L, seed = 1L),
+    execution_device = setup_SerialExecution(
+      device = setup_CUDA(ids = 0:1),
+      seed = 1L
+    ),
+    device = setup_CUDA(ids = 1L),
     clustering = setup_KMeans(k = 3L),
     clustering_nested = setup_PAMK(
       krange = 2:4,
@@ -138,14 +147,22 @@ testthat::test_that("every family's record validates against its own schema", {
     # -- and is derived from the document, not from the helpers that built it.
     #
     # Two exemptions, both structural: the discriminator is implied by the
-    # variant rather than chosen, and a nested config block carries an `origin`
-    # of its own.
+    # variant rather than chosen, and a nested config carries an `origin` of
+    # its own.
     record <- nested_record(obj, obj)
     fields <- setdiff(names(record), "origin")
     nested <- Filter(
       function(f) is.list(record[[f]]) && "origin" %in% names(record[[f]]),
       fields
     )
+    # A config-valued field is a record of its own whether or not it is set
+    # (an execution config's unset `device`), so the document's `origin`
+    # never covers it.
+    declared_configs <- names(Filter(
+      function(p) !is.null(get_spec_fields(p)[["target_class"]]),
+      cls@properties
+    ))
+    nested <- union(nested, intersect(fields, declared_configs))
     expect_setequal(
       names(record[["origin"]]),
       setdiff(fields, c(discriminator, nested))

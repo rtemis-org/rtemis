@@ -470,7 +470,9 @@ setup_SuperConfig <- function(
     decomposition_config = if (is.null(x[["decomposition_config"]])) {
       NULL
     } else {
-      .list_to_DecompositionConfig(x[["decomposition_config"]])
+      check_decom_applicable(
+        .list_to_DecompositionConfig(x[["decomposition_config"]])
+      )
     },
     hyperparameters = if (is.null(x[["hyperparameters"]])) {
       NULL

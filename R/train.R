@@ -483,18 +483,7 @@ train <- function(
   # Can only use algorithms whose output can be applied on new data: we need to apply the
   # transformation learned on the training data to validation and test sets.
   if (!is.null(decomposition_config)) {
-    check_is_S7(decomposition_config, DecompositionConfig)
-    if (!decomposition_config@algorithm %in% decom_algorithms_applicable) {
-      rtemis.core::abort(
-        "Decomposition algorithm '",
-        decomposition_config@algorithm,
-        "' cannot be applied on new data and is not supported in `train()`.\n",
-        "Supported decomposition algorithms: ",
-        paste(decom_algorithms_applicable, collapse = ", "),
-        ".",
-        class = "rtemis_unsupported_error"
-      )
-    }
+    check_decom_applicable(decomposition_config)
   }
 
   # execution_config must always be set
@@ -645,6 +634,8 @@ train <- function(
       "n_workers_tuning"
     ),
     n_workers_algorithm = execution_config@n_workers_algorithm,
+    backend = execution_backend_label(execution_config),
+    device = describe_device(hyperparameters, execution_config@device),
     verbosity = verbosity
   )
   hyperparameters@n_workers <- workers[["algorithm"]]
@@ -721,7 +712,7 @@ train <- function(
   # Folds run in parallel when the worker ladder assigned workers to this level,
   # which happens only when there is neither a parallelized algorithm nor tuning
   # to spend them on; otherwise the folds run one at a time and each spends the
-  # workers inside itself. See plan/parallelization.md.
+  # workers inside itself. spec: rtemis/parallelization.
   if (!is.null(outer_resampling_config)) {
     msg0(
       fmt("<> ", col = col_outer, bold = TRUE),
@@ -766,6 +757,7 @@ train <- function(
         # it. This is what makes `n_workers_outer = 4L, n_workers_algorithm = 2L` mean
         # four folds of two threads rather than four folds of one.
         n_workers_algorithm = execution_config@n_workers_algorithm,
+        device = execution_config@device,
         on_error = on_error,
         seed = execution_config@seed,
         warm_workers = execution_config@warm_workers
@@ -1016,10 +1008,26 @@ train <- function(
       # on validation/test here and on new data at predict() time. `decomp()`
       # subsets `feat` by them, so the fit and the replay cannot disagree.
       decomposition_config@features <- decomp_features
+      # The decomposition runs in this process before the learner. It may use
+      # every worker as threads only when this call dispatches nothing; when
+      # tuning or folds claim the workers it runs on one thread, so the two
+      # never oversubscribe. Seeded from this call's seed, which within a fold
+      # is the fold's substream.
+      decomposition_threads <- execution_config@n_workers_algorithm %||%
+        if (workers[["tuning"]] == 1L && workers[["outer_resampling"]] == 1L) {
+          n_workers
+        } else {
+          1L
+        }
+      decomposition_execution <- algorithm_execution_config(
+        execution_config,
+        decomposition_threads
+      )
       decomposition <- decomp(
         x = feat,
         algorithm = decomposition_config@algorithm,
         config = decomposition_config,
+        execution_config = decomposition_execution,
         verbosity = verbosity
       )
       # Columns not decomposed are kept as-is, in front of the components.
@@ -1037,7 +1045,12 @@ train <- function(
       if (!is.null(dat_validation)) {
         val_outcome <- dat_validation[[ncols]]
         dat_validation <- as.data.frame(
-          apply_decomp(decomposition, features(dat_validation), verbosity = 0L)
+          apply_decomposition(
+            decomposition,
+            features(dat_validation),
+            execution_config = decomposition_execution,
+            verbosity = 0L
+          )
         )
         dat_validation[[outcome_nm]] <- val_outcome
       }
@@ -1045,7 +1058,12 @@ train <- function(
       if (!is.null(dat_test)) {
         test_outcome <- dat_test[[ncols]]
         dat_test <- as.data.frame(
-          apply_decomp(decomposition, features(dat_test), verbosity = 0L)
+          apply_decomposition(
+            decomposition,
+            features(dat_test),
+            execution_config = decomposition_execution,
+            verbosity = 0L
+          )
         )
         dat_test[[outcome_nm]] <- test_outcome
       }
@@ -1071,16 +1089,11 @@ train <- function(
     check_case_weights(weights, NROW(x))
 
     # Train algorithm ----
-    # A torch-backed algorithm names the device it resolved, because "which
-    # device did that actually run on" is otherwise unanswerable from the log
-    # and the answer depends on the machine.
-    device <- training_device(hyperparameters)
-    on_device <- if (is.null(device)) "" else paste0(" on ", toupper(device))
+    # The device is named once per run, in the resources line.
     if (is_tuned(hyperparameters)) {
       msg0(
         "Training ",
         highlight(paste(algorithm, type)),
-        on_device,
         " with tuned hyperparameters...",
         verbosity = verbosity
       )
@@ -1088,7 +1101,6 @@ train <- function(
       msg0(
         "Training ",
         highlight(paste(algorithm, type)),
-        on_device,
         "...",
         verbosity = verbosity
       )
@@ -1146,10 +1158,17 @@ train <- function(
       )
     }
 
+    # The fit's own predictions run in its process, on the algorithm workers the
+    # ladder gave it, never dispatching.
+    fit_execution <- algorithm_execution_config(
+      execution_config,
+      hyperparameters@n_workers
+    )
     predicted_training <- predict_super(
       model = model,
       newdata = x_features,
-      type = type
+      type = type,
+      execution_config = fit_execution
     )
 
     if (type == "Classification") {
@@ -1177,7 +1196,8 @@ train <- function(
       predicted_validation <- predict_super(
         model = model,
         newdata = dat_validation_features,
-        type = type
+        type = type,
+        execution_config = fit_execution
       )
 
       if (type == "Classification") {
@@ -1202,7 +1222,8 @@ train <- function(
       predicted_test <- predict_super(
         model = model,
         newdata = dat_test_features,
-        type = type
+        type = type,
+        execution_config = fit_execution
       )
 
       if (type == "Classification") {
@@ -1565,9 +1586,16 @@ normalize_fold_result <- function(res) {
 #' @param n_workers_tuning Optional Integer: Workers for tuning, named by the caller.
 #' @param n_workers_algorithm Optional Integer: Threads for a self-parallelizing
 #' algorithm, named by the caller.
+#' @param backend Character: Execution backend label for the resources line.
+#' @param device Character: Compute device label for the resources line, from
+#' `describe_device()`.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @details
+#' Prints one line stating every resource the run may use: the compute device,
+#' the backend, the worker ceiling and each level's share, and whether the
+#' shares were set by the caller.
+#'
 #' With no level named, the function prioritizes parallelization levels as follows:
 #' 1. If algorithm is parallelized (e.g., LightGBM, Ranger): all workers go to algorithm
 #' 2. Else if tuning is needed: all workers go to tuning (inner resampling)
@@ -1589,6 +1617,8 @@ get_n_workers <- function(
   n_workers_outer = NULL,
   n_workers_tuning = NULL,
   n_workers_algorithm = NULL,
+  backend = "serial",
+  device = "CPU",
   verbosity = 1L
 ) {
   # Input validation
@@ -1645,15 +1675,12 @@ get_n_workers <- function(
       asked
     })
     names(out) <- names(named)
-    msg0(
-      bold("//"),
-      " Workers set explicitly: ",
-      gray("Algorithm: "),
-      highlight(out[["algorithm"]]),
-      gray("; Tuning: "),
-      highlight(out[["tuning"]]),
-      gray("; Outer Resampling: "),
-      highlight(out[["outer_resampling"]]),
+    msg_resources(
+      backend = backend,
+      n_workers = n_workers,
+      workers = out,
+      explicit = TRUE,
+      device = device,
       verbosity = verbosity
     )
     return(out)
@@ -1694,24 +1721,162 @@ get_n_workers <- function(
     workers_outer_resampling <- 1L
   }
 
-  msg0(
-    bold("//"),
-    " Max workers: ",
-    highlight(n_workers),
-    " { ",
-    gray("Algorithm: "),
-    highlight(workers_algorithm),
-    gray("; Tuning: "),
-    highlight(workers_tuning),
-    gray("; Outer Resampling: "),
-    highlight(workers_outer_resampling),
-    " }",
-    verbosity = verbosity
-  )
-
-  list(
+  out <- list(
     algorithm = workers_algorithm,
     tuning = workers_tuning,
     outer_resampling = workers_outer_resampling
   )
+  msg_resources(
+    backend = backend,
+    n_workers = n_workers,
+    workers = out,
+    explicit = FALSE,
+    device = device,
+    verbosity = verbosity
+  )
+  out
 } # /rtemis::get_n_workers
+
+
+# %% msg_resources ----
+#' Print the resources a run may use, on one line
+#'
+#' Device first, since it is what changes most between machines, then the
+#' backend, then the worker ceiling and each level's share:
+#'
+#' `// MPS (auto-selected) | mirai | 2 workers: algorithm 2 threads, tuning 1, outer resampling 1`
+#'
+#' The algorithm's share is threads inside one worker, so it can exceed the
+#' worker ceiling under serial execution. `(as set)` marks shares the caller
+#' named; otherwise the worker ladder assigned them.
+#'
+#' @param backend Character: Execution backend label.
+#' @param n_workers Integer: Worker ceiling.
+#' @param workers Named list: `algorithm`, and `tuning` and `outer_resampling`
+#' for a workflow that has those levels; a level absent from the list is not
+#' printed.
+#' @param explicit Logical: Whether the caller named the shares.
+#' @param device Character: Compute device label.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return NULL, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+msg_resources <- function(
+  backend,
+  n_workers,
+  workers,
+  explicit,
+  device = "CPU",
+  verbosity = 1L
+) {
+  sep <- gray(" | ")
+  msg0(
+    bold("//"),
+    " ",
+    highlight(device),
+    sep,
+    highlight(backend),
+    sep,
+    highlight(n_workers),
+    ngettext(n_workers, " worker: ", " workers: "),
+    "algorithm ",
+    highlight(workers[["algorithm"]]),
+    ngettext(workers[["algorithm"]], " thread", " threads"),
+    if (!is.null(workers[["tuning"]])) {
+      paste0(", tuning ", highlight(workers[["tuning"]]))
+    },
+    if (!is.null(workers[["outer_resampling"]])) {
+      paste0(", outer resampling ", highlight(workers[["outer_resampling"]]))
+    },
+    if (explicit) gray(" (as set)"),
+    verbosity = verbosity
+  )
+  invisible(NULL)
+} # /rtemis::msg_resources
+
+
+# %% describe_device ----
+#' The compute device label for the resources line
+#'
+#' The device the algorithm will train on, from the execution config's request.
+#' See `device_label()` for the notes it carries.
+#'
+#' @param hyperparameters `Hyperparameters` or `HyperparametersSet` object.
+#' @param requested Optional `DeviceConfig` object: The execution config's
+#' device.
+#'
+#' @return Character, e.g. `"CPU"`, `"CUDA:1"` or `"MPS"`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+describe_device <- function(hyperparameters, requested = NULL) {
+  # A set is one algorithm under several configurations; the label lists each
+  # member's device once.
+  if (S7_inherits(hyperparameters, HyperparametersSet)) {
+    return(paste(
+      unique(vapply(
+        hyperparameters@variants,
+        describe_device,
+        character(1L),
+        requested = requested
+      )),
+      collapse = ", "
+    ))
+  }
+  device <- training_device(hyperparameters, requested)
+  device_label(
+    device %||% "cpu",
+    requested = requested,
+    algorithm = hyperparameters@algorithm,
+    chooses = !is.null(device)
+  )
+} # /rtemis::describe_device
+
+
+# %% device_label ----
+#' Label a resolved device for the resources line
+#'
+#' Only the device in use is named. `(auto-selected)` marks a device the
+#' algorithm chose because none was requested; a request the algorithm cannot
+#' honor is named beside the CPU it runs on instead, so the line never implies a
+#' device the run did not use.
+#'
+#' @param device Character: Resolved device type.
+#' @param requested Optional `DeviceConfig` object.
+#' @param algorithm Character: Algorithm name.
+#' @param chooses Logical: Whether the algorithm selects a device itself when
+#' none is requested; an algorithm that only runs on the CPU does not.
+#'
+#' @return Character.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+device_label <- function(device, requested, algorithm, chooses) {
+  label <- toupper(device)
+  if (
+    identical(device, "cuda") &&
+      S7_inherits(requested, CUDADeviceConfig) &&
+      !is.null(requested@ids)
+  ) {
+    label <- paste0(label, ":", requested@ids[[1L]])
+  }
+  if (is.null(requested)) {
+    return(paste0(label, if (chooses) " (auto-selected)"))
+  }
+  if (!identical(requested@type, device)) {
+    return(paste0(
+      label,
+      " (",
+      toupper(requested@type),
+      " requested; ",
+      algorithm,
+      " cannot use it)"
+    ))
+  }
+  label
+} # /rtemis::device_label

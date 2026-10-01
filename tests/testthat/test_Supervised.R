@@ -2203,12 +2203,50 @@ if (mlp_installed) {
       hidden_units = c(16L, 8L),
       max_epochs = 5L,
       batch_size = 64L,
-      device = "cpu",
       seed = 2025L
     )
   )
   test_that("train() MLP Regression succeeds", {
     expect_s7_class(mod_r_mlp, Regression)
+  })
+
+  ## {MLP}[train]<Regression> libtorch threads ----
+  # libtorch runs on every core unless told otherwise, which breaks the
+  # two-core limit on CRAN. A fit asks for the algorithm workers `train()`
+  # resolved; a prediction asks for the count resolved where it runs -- never
+  # the training count, which belongs to another machine or workload.
+  test_that("MLP asks for the fit's workers when training and the predictor's when predicting", {
+    requested <- integer()
+    local_mocked_bindings(
+      set_torch_threads = function(n_threads, verbosity = 1L) {
+        requested <<- c(requested, as.integer(n_threads))
+        as.integer(n_threads)
+      }
+    )
+    mod <- train(
+      x = datr_train,
+      hyperparameters = setup_MLP(
+        hidden_units = 8L,
+        max_epochs = 2L,
+        seed = 2025L
+      ),
+      execution_config = setup_SerialExecution(n_workers_algorithm = 2L),
+      verbosity = 0L
+    )
+    # The fit, then its own training-set prediction, both in the fit's context.
+    expect_gt(length(requested), 0L)
+    expect_true(all(requested == 2L))
+    requested <- integer()
+    predict(
+      mod,
+      features(datr_test),
+      execution_config = setup_SerialExecution(n_workers_algorithm = 1L),
+      verbosity = 0L
+    )
+    expect_identical(requested, 1L)
+    requested <- integer()
+    predict(mod, features(datr_test), verbosity = 0L)
+    expect_identical(requested, default_n_workers())
   })
 
   ## {MLP}[train]<Regression> Generated architecture ----
@@ -2223,7 +2261,6 @@ if (mlp_installed) {
       shape_max_units = 16L,
       max_epochs = 5L,
       batch_size = 64L,
-      device = "cpu",
       seed = 2025L
     )
   )
@@ -2250,7 +2287,6 @@ if (mlp_installed) {
       hidden_units = tune_over(c(8L), c(16L, 8L)),
       max_epochs = 5L,
       batch_size = 64L,
-      device = "cpu",
       seed = 2025L
     ),
     execution_config = setup_SerialExecution()
@@ -2272,7 +2308,6 @@ if (mlp_installed) {
       hidden_units = c(16L, 8L),
       max_epochs = 5L,
       batch_size = 64L,
-      device = "cpu",
       seed = 2025L
     ),
     outer_resampling_config = setup_KFold(n_resamples = 3L)
@@ -2289,7 +2324,6 @@ if (mlp_installed) {
       hidden_units = c(16L, 8L),
       max_epochs = 30L,
       batch_size = 32L,
-      device = "cpu",
       seed = 2025L
     )
   )
@@ -2305,7 +2339,6 @@ if (mlp_installed) {
       hidden_units = c(16L, 8L),
       max_epochs = 5L,
       batch_size = 32L,
-      device = "cpu",
       seed = 2025L,
       ifw = TRUE
     )
@@ -2323,7 +2356,6 @@ if (mlp_installed) {
       lr = tune_over(1e-3, 1e-2),
       max_epochs = 5L,
       batch_size = 32L,
-      device = "cpu",
       seed = 2025L
     ),
     execution_config = setup_SerialExecution()
@@ -2339,7 +2371,6 @@ if (mlp_installed) {
       hidden_units = c(16L, 8L),
       max_epochs = 5L,
       batch_size = 32L,
-      device = "cpu",
       seed = 2025L
     ),
     outer_resampling_config = setup_KFold(n_resamples = 3L),
@@ -2357,7 +2388,6 @@ if (mlp_installed) {
       hidden_units = c(16L, 8L),
       max_epochs = 30L,
       batch_size = 32L,
-      device = "cpu",
       seed = 2025L
     )
   )
@@ -2377,7 +2407,6 @@ if (mlp_installed) {
       max_epochs = 100L,
       patience = 2L,
       batch_size = 64L,
-      device = "cpu",
       seed = 2025L
     )
   )
@@ -2396,7 +2425,6 @@ if (mlp_installed) {
         hidden_units = c(16L, 8L),
         max_epochs = 5L,
         batch_size = 64L,
-        device = "cpu",
         seed = 2025L
       ),
       verbosity = 0L
@@ -2463,7 +2491,6 @@ if (mlp_installed) {
         embeddings = FALSE,
         max_epochs = 5L,
         batch_size = 64L,
-        device = "cpu",
         seed = 2025L
       )
     )
@@ -2487,7 +2514,6 @@ if (mlp_installed) {
         norm = "layer_norm",
         max_epochs = 5L,
         batch_size = 64L,
-        device = "cpu",
         seed = 2025L
       )
     )
@@ -2495,12 +2521,107 @@ if (mlp_installed) {
   })
 
   ## {MLP} Device reporting ----
-  test_that("training_device() names the device only for a torch algorithm", {
-    # train() prints this in the line it already emits, so it has to be exact
-    # and side-effect-free: the algorithm resolves the device again for real.
-    expect_identical(training_device(setup_MLP(device = "cpu")), "cpu")
-    expect_identical(mod_r_mlp@model@device, "cpu")
+  test_that("training_device() resolves the execution config's device per algorithm", {
+    # train() prints this in its resources line, so it has to be exact and
+    # side-effect-free: the algorithm resolves the device again for real.
+    auto <- if (torch::cuda_is_available()) "cuda" else "cpu"
+    expect_identical(training_device(setup_MLP()), auto)
+    expect_identical(training_device(setup_TabNet()), auto)
+    expect_identical(mod_r_mlp@model@device, auto)
+    expect_identical(
+      training_device(setup_MLP(), as_device_config("cpu")),
+      "cpu"
+    )
+    # A device libtorch cannot drive runs on the CPU.
+    expect_identical(
+      training_device(setup_MLP(), as_device_config("opencl")),
+      "cpu"
+    )
+    if (torch::backends_mps_is_available()) {
+      expect_identical(
+        training_device(setup_TabNet(), as_device_config("mps")),
+        "mps"
+      )
+    }
+    # A device the machine lacks is an error.
+    if (!torch::cuda_is_available()) {
+      expect_error(
+        training_device(setup_MLP(), setup_CUDA()),
+        class = "rtemis_unsupported_error"
+      )
+    }
+    # CPU-only algorithms have no method: NULL whatever is requested.
     expect_null(training_device(setup_CART()))
+    expect_null(training_device(setup_CART(), setup_CUDA()))
+    # LightGBM builds cannot be detected, so its automatic choice is the CPU.
+    expect_identical(training_device(setup_LightGBM()), "cpu")
+    expect_identical(
+      training_device(setup_LightGBM(), setup_CUDA()),
+      "cuda"
+    )
+    expect_identical(
+      training_device(setup_LightGBM(), as_device_config("opencl")),
+      "opencl"
+    )
+    expect_identical(
+      training_device(setup_LightGBM(), as_device_config("mps")),
+      "cpu"
+    )
+  })
+
+  test_that("the device label names the device in use, how it was chosen, and an unusable request", {
+    expect_identical(describe_device(setup_CART()), "CPU")
+    expect_identical(
+      describe_device(setup_CART(), as_device_config("mps")),
+      "CPU (MPS requested; CART cannot use it)"
+    )
+    expect_identical(describe_device(setup_LightGBM()), "CPU (auto-selected)")
+    expect_identical(
+      describe_device(setup_LightGBM(), setup_CUDA(ids = 1L)),
+      "CUDA:1"
+    )
+    expect_identical(
+      describe_device(setup_MLP(), as_device_config("cpu")),
+      "CPU"
+    )
+    # A set lists each of its members' devices once.
+    expect_identical(
+      describe_device(
+        as_HyperparametersSet(list(
+          a = setup_LightGBM(),
+          b = setup_LightGBM(learning_rate = 0.05)
+        )),
+        as_device_config("opencl")
+      ),
+      "OPENCL"
+    )
+  })
+
+  test_that("LightGBM receives the execution config's device in its own spelling", {
+    params <- lightgbm_device_params(
+      setup_LightGBM(),
+      as_device_config("opencl")
+    )
+    expect_identical(params[["device_type"]], "gpu")
+    params <- lightgbm_device_params(
+      setup_LightGBM(),
+      setup_CUDA(ids = 2L)
+    )
+    expect_identical(params, list(device_type = "cuda", gpu_device_id = 2L))
+    expect_identical(
+      lightgbm_device_params(setup_LightGBM())[["device_type"]],
+      "cpu"
+    )
+  })
+
+  test_that("the released device arguments are deprecated in favor of the execution config", {
+    expect_warning(
+      setup_LightGBM(device_type = "gpu"),
+      class = "deprecatedWarning"
+    )
+    expect_warning(setup_TabNet(device = "cpu"), class = "deprecatedWarning")
+    expect_false("device_type" %in% names(LightGBMHyperparameters@properties))
+    expect_false("device" %in% names(MLPHyperparameters@properties))
   })
 
   ## {MLP}[predict]<Regression> /\\Error missing values ----
@@ -2540,7 +2661,6 @@ if (mlp_installed) {
         hidden_units = c(8L),
         max_epochs = 5L,
         batch_size = 64L,
-        device = "cpu",
         seed = 2025L
       ),
       verbosity = 0L
@@ -2558,8 +2678,7 @@ if (mlp_installed) {
         hyperparameters = setup_MLP(
           hidden_units = c(8L),
           loss = "cross_entropy",
-          max_epochs = 2L,
-          device = "cpu"
+          max_epochs = 2L
         )
       ),
       class = "rtemis_value_error"
@@ -2585,8 +2704,7 @@ if (mlp_installed) {
       list(
         hidden_units = c(8L),
         max_epochs = 3L,
-        batch_size = 64L,
-        device = "cpu"
+        batch_size = 64L
       )
     )
   )
@@ -3777,21 +3895,21 @@ test_that("describe.Regression returns character", {
 })
 
 ## {GLM}[plot_true_pred]<Supervised> ----
-test_that("plot_true_pred.Supervised creates a plotly object", {
+test_that("plot_true_pred.Supervised creates an ECharts htmlwidget", {
   p <- plot_true_pred(mod_r_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[plot_true_pred]<Regression> ----
-test_that("plot_true_pred creates a plotly object", {
+test_that("plot_true_pred creates an ECharts htmlwidget", {
   p <- plot_true_pred(mod_r_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[present]<Supervised> ----
-test_that("present.Supervised creates a plotly object", {
+test_that("present.Supervised creates an ECharts htmlwidget", {
   p <- present(mod_r_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[describe]<Classification> ----
@@ -3801,15 +3919,15 @@ test_that("describe.Classification returns character", {
 })
 
 ## {GLM}[plot_true_pred]<Classification> ----
-test_that("plot_true_pred.Classification creates a plotly object", {
+test_that("plot_true_pred.Classification creates an ECharts htmlwidget", {
   p <- plot_true_pred(mod_c_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[plot_true_pred]<Classification> ----
-test_that("plot_true_pred creates a plotly object", {
+test_that("plot_true_pred creates an ECharts htmlwidget", {
   p <- plot_true_pred(mod_c_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[draw_roc]<Classification> ----
@@ -3826,87 +3944,87 @@ test_that("draw_roc creates a plotly object", {
   )
   expect_s3_class(p, "plotly")
 })
-test_that("plot_roc.Classification creates a plotly object", {
+test_that("plot_roc.Classification creates an ECharts htmlwidget", {
   p <- plot_roc(mod_c_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {CART}[plot_roc]<ClassificationRes> Tuned ----
-test_that("plot_roc.ClassificationRes creates a plotly object", {
+test_that("plot_roc.ClassificationRes creates an ECharts htmlwidget", {
   p <- plot_roc(resmodt_c_cart)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[plot_metric]<SupervisedRes> ----
-test_that("plot_metric.SupervisedRes creates a plotly object", {
+test_that("plot_metric.SupervisedRes creates an ECharts htmlwidget", {
   p <- plot_metric(resmod_r_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[plot_metric]<SupervisedRes> ----
-test_that("plot_metric.SupervisedRes creates a plotly object", {
+test_that("plot_metric.SupervisedRes creates an ECharts htmlwidget", {
   p <- plot_metric(resmod_c_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[plot_true_pred]<RegressionRes> ----
-test_that("plot_true_pred RegressionRes creates a plotly object", {
+test_that("plot_true_pred RegressionRes creates an ECharts htmlwidget", {
   p <- plot_true_pred(resmod_r_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[plot_true_pred]<ClassificationRes> ----
-test_that("plot_true_pred ClassificationRes creates a plotly object", {
+test_that("plot_true_pred ClassificationRes creates an ECharts htmlwidget", {
   p <- plot_true_pred(resmod_c_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[present]<Supervised> ----
-test_that("present.Supervised creates a plotly object", {
+test_that("present.Supervised creates an ECharts htmlwidget", {
   p <- present(mod_r_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[present]<Supervised> ----
-test_that("present.Supervised creates a plotly object", {
+test_that("present.Supervised creates an ECharts htmlwidget", {
   p <- present(mod_c_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[present]<RegressionRes> ----
-test_that("present() RegressionRes object creates a plotly object", {
+test_that("present() RegressionRes object creates an ECharts htmlwidget", {
   p <- present(resmod_r_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[present]<ClassificationRes> ----
-test_that("present() ClassificationRes object creates a plotly object", {
+test_that("present() ClassificationRes object creates an ECharts htmlwidget", {
   p <- present(resmod_c_glm)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {Multi}[present]<RegressionRes> ----
-test_that("present() multiple RegressionRes objects creates a plotly object", {
+test_that("present() multiple RegressionRes objects creates an ECharts htmlwidget", {
   p <- present(list(resmod_r_glm, resmod_r_cart))
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {Multi}[present]<ClassificationRes> ----
-test_that("present() multiple ClassificationRes objects creates a plotly object", {
+test_that("present() multiple ClassificationRes objects creates an ECharts htmlwidget", {
   p <- present(list(resmod_c_glm, resmodt_c_cart))
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {Multi}[present]<Regression> ----
-test_that("present() multiple Regression objects creates a plotly object", {
+test_that("present() multiple Regression objects creates an ECharts htmlwidget", {
   p <- present(list(mod_r_glm, mod_r_cart))
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {CART}[plot_varimp]<RegressionRes> ----
-test_that("plot_varimp RegressionRes creates a plotly object", {
+test_that("plot_varimp RegressionRes creates an ECharts htmlwidget", {
   p <- plot_varimp(resmod_r_cart)
-  expect_s3_class(p, "plotly")
+  expect_s3_class(p, "htmlwidget")
 })
 
 ## {GLM}[train]<Supervised> Outdir ----
@@ -3974,8 +4092,8 @@ test_that("describe() list of Classification objects returns character", {
 
 ## {Multi}[present]<Classification> List ----
 plt <- present(x)
-test_that("present() list of Classification objects returns plotly object", {
-  expect_s3_class(plt, "plotly")
+test_that("present() list of Classification objects returns ECharts htmlwidget", {
+  expect_s3_class(plt, "htmlwidget")
 })
 
 ## {Multi}[describe]<Regression> List ----
@@ -3991,8 +4109,8 @@ test_that("describe() list of Regression objects returns character", {
 
 ## {Multi}[present]<Regression> List ----
 plt <- present(x)
-test_that("present() list of Regression objects returns plotly object", {
-  expect_s3_class(plt, "plotly")
+test_that("present() list of Regression objects returns ECharts htmlwidget", {
+  expect_s3_class(plt, "htmlwidget")
 })
 
 # Describe & present list of SupervisedRes----
@@ -4010,8 +4128,8 @@ test_that("describe() list of ClassificationRes objects returns character", {
 
 ## {Multi}[present]<ClassificationRes> List ----
 plt <- present(x)
-test_that("present() list of ClassificationRes objects returns plotly object", {
-  expect_s3_class(plt, "plotly")
+test_that("present() list of ClassificationRes objects returns ECharts htmlwidget", {
+  expect_s3_class(plt, "htmlwidget")
 })
 
 ## {Multi}[describe]<RegressionRes> List ----
@@ -4027,8 +4145,8 @@ test_that("describe() list of RegressionRes objects returns character", {
 
 ## {Multi}[present]<RegressionRes> List ----
 plt <- present(x)
-test_that("present() list of RegressionRes objects returns plotly object", {
-  expect_s3_class(plt, "plotly")
+test_that("present() list of RegressionRes objects returns ECharts htmlwidget", {
+  expect_s3_class(plt, "htmlwidget")
 })
 
 # --- CalibratedClassificationRes ------------------------------------------------------------------
@@ -4979,7 +5097,7 @@ test_that("a meta learner's record carries one block per library entry", {
   #
   # `record()` rather than `outdir`: writing a record validates it against the
   # *published* schemas, which will not know these algorithms until they are
-  # published (plan/superlearner.md, step 9).
+  # published (`spec: rtemis/superlearner`, step 9).
   payload <- record(mod_r_sl)[["hyperparameters"]]
   # Every property the leaf schema declares, inherited ones included: these come
   # from three different levels of the class hierarchy.

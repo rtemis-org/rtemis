@@ -7,7 +7,12 @@
 #'
 #' @keywords internal
 #' @noRd
-method(cluster_, KMeansConfig) <- function(config, x, verbosity = 1L) {
+method(cluster_, KMeansConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   # Dependencies ----
   check_dependencies("flexclust")
 
@@ -32,7 +37,12 @@ method(cluster_, KMeansConfig) <- function(config, x, verbosity = 1L) {
 #'
 #' @keywords internal
 #' @noRd
-method(cluster_, HardCLConfig) <- function(config, x, verbosity = 1L) {
+method(cluster_, HardCLConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   # Checks ----
   check_is_S7(config, HardCLConfig)
 
@@ -62,7 +72,12 @@ method(cluster_, HardCLConfig) <- function(config, x, verbosity = 1L) {
 #'
 #' @keywords internal
 #' @noRd
-method(cluster_, NeuralGasConfig) <- function(config, x, verbosity = 1L) {
+method(cluster_, NeuralGasConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   # Dependencies ----
   check_dependencies("flexclust")
 

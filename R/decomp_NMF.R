@@ -1,4 +1,4 @@
-# decom_NMF.R
+# decomp_NMF.R
 # ::rtemis::
 # 2025- EDG rtemis.org
 
@@ -103,6 +103,8 @@ nmf_scores <- function(basis, xm) {
 #'
 #' @param x A numeric matrix or data frame to be decomposed.
 #' @param config `NMFConfig` object.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return A list containing the decomposition and transformed data.
@@ -110,7 +112,12 @@ nmf_scores <- function(basis, xm) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-method(decomp_, NMFConfig) <- function(config, x, verbosity = 1L) {
+method(decomp_, NMFConfig) <- function(
+  config,
+  x,
+  execution_config = NULL,
+  verbosity = 1L
+) {
   # Checks ----
   check_is_S7(config, NMFConfig)
   check_dependencies("NMF")
@@ -120,11 +127,16 @@ method(decomp_, NMFConfig) <- function(config, x, verbosity = 1L) {
   msg("Decomposing with", config@algorithm, "...", verbosity = verbosity)
   xm <- as.matrix(x)
   # `NMF::nmf()` takes features in rows and cases in columns.
+  # Sequential (`.opt = "-p"`). With `nrun > 1`, NMF's default is to run in
+  # parallel, and its parallel setup requires the package to be attached, which
+  # a caller reaching it through `NMF::` has not done: every such run fails with
+  # "none of the packages are loaded".
   args <- list(
     x = t(xm),
     rank = config[["k"]],
     method = config[["method"]],
-    nrun = config[["nrun"]]
+    nrun = config[["nrun"]],
+    .opt = "-p"
   )
   decom <- do_call(NMF::nmf, args, verbosity = verbosity)
   list(decom = decom, transformed = nmf_scores(nmf_basis(decom), xm))
@@ -141,6 +153,8 @@ method(decomp_, NMFConfig) <- function(config, x, verbosity = 1L) {
 #' @param config `NMFConfig` object.
 #' @param decom Fitted NMF object.
 #' @param new_data Tabular data: New data to project onto the basis.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Matrix of NMF component scores.
@@ -151,6 +165,7 @@ method(apply_decomp_, NMFConfig) <- function(
   config,
   decom,
   new_data,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   check_dependencies("NMF")
@@ -172,6 +187,8 @@ method(apply_decomp_, NMFConfig) <- function(
 #' @param decom Fitted NMF object.
 #' @param transformed Numeric matrix: Component scores, cases by components.
 #' @param x Tabular data: Unused; NMF applies no invertible preprocessing.
+#' @param execution_config Optional `ExecutionConfig`: Where and with what the
+#' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Numeric matrix: Reconstruction in input units, cases by features.
@@ -183,6 +200,7 @@ method(reconstruct_, NMFConfig) <- function(
   decom,
   transformed,
   x,
+  execution_config = NULL,
   verbosity = 1L
 ) {
   check_dependencies("NMF")
