@@ -2,16 +2,30 @@
 # ::rtemis::
 # 2016- EDG rtemis.org
 
-# %% SIGN_COLORS ----
-# The package-wide meaning of a coefficient's sign: cool for negative, warm for
-# positive, neutral for neither. Every plot that colors by sign reads from here,
-# so the same hue means the same thing to a reader moving between a volcano
-# plot, a Manhattan plot, and a LINAD coefficient table.
-SIGN_COLORS <- c(
-  negative = rtemis_colors[["blue"]],
-  neutral = "#7F7F7F",
-  positive = rtemis_colors[["magenta"]]
-)
+# %% sign_colors ----
+#' Colors for a coefficient's sign
+#'
+#' The package-wide meaning of a coefficient's sign. Every plot that colors by
+#' sign reads from here, so the same hue means the same thing to a reader moving
+#' between a volcano plot, a Manhattan plot, and a LINAD coefficient table.
+#'
+#' The colors are read from the rtemis.draw significance defaults at call time:
+#' `plot()` and `plot_manhattan()` on a `MassGLM` draw through rtemis.draw, so
+#' that package owns the pair and every other rtemis plot follows it.
+#'
+#' @return Named character vector: `negative`, `neutral`, `positive`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+sign_colors <- function() {
+  config <- rtemis.draw::setup_SignificanceConfig()
+  c(
+    negative = config@negative_color,
+    neutral = config@neutral_color,
+    positive = config@positive_color
+  )
+} # /rtemis::sign_colors
 
 
 #' Simple Color Operations

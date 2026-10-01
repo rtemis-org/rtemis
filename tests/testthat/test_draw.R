@@ -591,7 +591,7 @@ test_that("draw_linad colors coefficients by the package-wide sign scale", {
   # The same two colors mean the same two signs here as in draw_volcano() and
   # plot_manhattan(), so the palette is read from one place rather than
   # restated per plot.
-  signs <- rtemis:::SIGN_COLORS
+  signs <- rtemis:::sign_colors()
   defaults <- formals(draw_linad)
   expect_identical(eval(defaults[["lo_col"]]), signs[["negative"]])
   expect_identical(eval(defaults[["hi_col"]]), signs[["positive"]])
