@@ -20,6 +20,7 @@
 - UMAP runs on the execution config's algorithm threads, which respect the two-core limit of a CRAN check, rather than half the hardware threads.
 - `setup_SpectralRBF()`, `setup_SpectralLaplace()`, and `setup_SpectralLocal()` configure spectral clustering through 'kernlab', one per kernel; `setup_Nystrom()` enables the Nystrom approximation.
 - `setup_ASWCriterion()`, `setup_CHCriterion()`, and `setup_MultiASWCriterion()` configure how `setup_PAMK()` selects the number of clusters.
+- `setup_DBSCAN(approx =)` is a nonnegative number, the approximation factor of the neighbor search (0, the default, searches exactly); it was declared logical, and `TRUE` ran as an approximation factor of 1.
 - `setup_ClusterConfig()` and `setup_DecomposeConfig()` no longer take `algorithm`; the clustering or decomposition config names it, and `cluster()` and `decomp()` reject an `algorithm` that disagrees with a supplied config.
 - Clustering configs take `features`, the columns to cluster on.
 - `cluster()` and `decomp()` use every numeric column when the config names no `features`, and record the columns used.

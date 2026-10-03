@@ -115,6 +115,15 @@ test_that("setup_DBSCAN() succeeds", {
   expect_s7_class(setup_DBSCAN(), DBSCANConfig)
 })
 
+# DBSCAN approx is a nonnegative number ----
+test_that("setup_DBSCAN() takes approx as a nonnegative number", {
+  # `dbscan::frNN(approx =)` is an approximation factor: TRUE would be
+  # coerced to 1, a coarse search rather than a switch.
+  expect_identical(setup_DBSCAN(approx = 0.5)@approx, 0.5)
+  expect_error(setup_DBSCAN(approx = TRUE))
+  expect_error(setup_DBSCAN(approx = -1))
+})
+
 # cluster DBSCAN ----
 test_that("cluster_DBSCAN() succeeds", {
   skip_if_not_installed("dbscan")
@@ -124,6 +133,13 @@ test_that("cluster_DBSCAN() succeeds", {
     config = setup_DBSCAN(eps = 0.5, min_points = 5L)
   )
   expect_s7_class(iris_dbscan, Clustering)
+  iris_dbscan_approx <- cluster(
+    x,
+    algorithm = "DBSCAN",
+    config = setup_DBSCAN(eps = 0.5, min_points = 5L, approx = 0.5),
+    verbosity = 0L
+  )
+  expect_s7_class(iris_dbscan_approx, Clustering)
 })
 
 # DBSCAN noise is not a cluster ----
