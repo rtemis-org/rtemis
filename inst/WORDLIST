@@ -17,6 +17,7 @@ BH
 Barmode
 Bienenstock
 Calinski
+canberra
 Candes
 CART's
 CARTHyperparameters
@@ -54,6 +55,8 @@ EEE
 EEI
 EEV
 Efron
+eigendecomposition
+eigenproblem
 elasticnet
 exchangeability
 EII
@@ -76,6 +79,7 @@ Geman
 Gini
 GMM
 GMMConfig
+Gower's
 GPUs
 Harabasz
 HyperparametersSet
@@ -89,7 +93,11 @@ Hastie
 Hornik
 Hothorn
 Bioconductor
+jaccard
+Kruskal's
+kulczynski
 libtorch's
+MDSConfig
 MJ
 MSS
 hessians
@@ -166,6 +174,7 @@ NMF
 NMFConfig
 NNLS
 NNLSHyperparameters
+nonmetric
 nvmax
 Nystrom
 NROW
@@ -180,6 +189,8 @@ PAMK
 PAMKConfig
 PAMKCriterionConfig
 PCAConfig
+PCoA
+PCoAConfig
 PJ
 PNAS
 pre
@@ -247,6 +258,7 @@ TabNet
 TabNet's
 TabNetHyperparameters
 Tibshirani
+Torgerson
 TreeSHAP
 Talos's
 Tunable

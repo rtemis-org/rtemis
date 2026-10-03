@@ -1779,10 +1779,15 @@ SupervisedRes <- schema_class(
       enum = SUPERVISED_TYPES,
       description = "Kind of supervised learning the models perform."
     ),
-    preprocessor_config = prop_object(
-      SupervisedPreprocessorConfig,
-      nullable = TRUE,
-      description = "Preprocessing settings requested for each resample."
+    preprocessor_config = prop_schema_choice(
+      prop_object(
+        SupervisedPreprocessorConfig,
+        nullable = TRUE,
+        description = "Preprocessing settings requested for each resample."
+      ),
+      schemas = list(
+        `rtemis-ml::PreprocessorConfig` = "https://schema.rtemis.org/preprocessor/python/v1/schema.json"
+      )
     ),
     decomposition_config = prop_object(
       DecompositionConfig,

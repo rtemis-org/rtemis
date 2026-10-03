@@ -37,6 +37,14 @@
         {
           "class": "VariationalAutoencoderConfig",
           "description": "Variational autoencoder (torch)."
+        },
+        {
+          "class": "MDSConfig",
+          "description": "Multidimensional Scaling."
+        },
+        {
+          "class": "PCoAConfig",
+          "description": "Principal Coordinates Analysis."
         }
       ]
     },

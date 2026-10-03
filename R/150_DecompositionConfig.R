@@ -1178,6 +1178,266 @@ setup_VariationalAutoencoder <- function(
 } # /rtemis::setup_VariationalAutoencoder
 
 
+# %% vegdist_methods ----
+# The distances MDS and PCoA compute with `vegan::vegdist()`. Each is a
+# function of two cases alone, so the distance from a new case to a training
+# case does not depend on the other cases it arrives with -- the property PCoA's
+# out-of-sample projection needs. vegdist's "gower", "mahalanobis" and "chisq"
+# use dataset-level ranges, covariance or totals and are left out of both
+# leaves, so that one vocabulary serves both; the count-based indices ("raup",
+# "morisita", "chao", "cao") assume integer abundances.
+vegdist_methods <- c(
+  "euclidean",
+  "manhattan",
+  "chord",
+  "bray",
+  "canberra",
+  "jaccard",
+  "kulczynski",
+  "hellinger"
+)
+
+# The subset that is defined only for non-negative data. vegdist warns rather
+# than errors on negative entries, so `check_vegdist_input()` enforces this.
+vegdist_methods_nonneg <- c(
+  "bray",
+  "canberra",
+  "jaccard",
+  "kulczynski",
+  "hellinger"
+)
+
+
+# The subset that is undefined for a case whose values are all zero, because it
+# normalizes each case by its sum or norm.
+vegdist_methods_nonzero <- c("chord", "kulczynski", "hellinger")
+
+
+# %% dist_method_prop ----
+# One declaration of `dist_method` for both distance-based leaves.
+dist_method_prop <- function() {
+  prop_string(
+    "euclidean",
+    enum = vegdist_methods,
+    description = paste(
+      "Dissimilarity between cases. \"euclidean\", \"manhattan\" and \"chord\"",
+      "accept any real values; \"bray\", \"canberra\", \"jaccard\",",
+      "\"kulczynski\" and \"hellinger\" require non-negative values.",
+      "\"chord\", \"kulczynski\" and \"hellinger\" are undefined for a case",
+      "whose values are all zero."
+    )
+  )
+} # /rtemis::dist_method_prop
+
+
+# %% MDSConfig ----
+#' @title MDSConfig
+#'
+#' @description
+#' DecompositionConfig subclass for stress-minimizing multidimensional scaling.
+#'
+#' @author EDG
+#' @noRd
+# monoMDS settings not exposed: the "hybrid" model, whose `threshold` would
+# apply under that one `model` value only; `weakties`, which applies to the
+# nonmetric models only (vegan's default, weak ties, is kept); the stress
+# formula (Kruskal's stress-1 is kept); `scaling` and `pc`, kept on so the
+# configuration is centered, scaled and rotated to its principal axes; and the
+# convergence tolerances.
+MDSConfig <- schema_class(
+  name = "MDSConfig",
+  parent = DecompositionConfig,
+  properties = list(
+    algorithm = prop_algorithm("MDS"),
+    k = prop_integer(
+      2L,
+      min = 1L,
+      description = "Number of components to extract."
+    ),
+    dist_method = dist_method_prop(),
+    model = prop_string(
+      "global",
+      enum = c("global", "local", "linear"),
+      description = paste(
+        "Relation fitted between dissimilarities and configuration distances.",
+        "\"global\" is nonmetric scaling: a single monotone regression over",
+        "all dissimilarities. \"local\" fits a separate monotone regression",
+        "for each case's dissimilarities. \"linear\" is metric scaling: a",
+        "linear regression."
+      )
+    ),
+    nstart = prop_integer(
+      20L,
+      min = 1L,
+      description = paste(
+        "Number of starting configurations; the fit with the lowest stress is",
+        "kept. The first start is the classical scaling configuration and the",
+        "rest are random."
+      )
+    ),
+    max_iter = prop_integer(
+      200L,
+      min = 1L,
+      description = "Maximum number of iterations per start."
+    )
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Multidimensional Scaling.",
+    order = 9L
+  )
+) # /rtemis::MDSConfig
+
+
+# %% setup_MDS ----
+#' Setup MDS config.
+#'
+#' Stress-minimizing multidimensional scaling with `vegan::monoMDS()`: finds `k`
+#' coordinates per case whose distances match the dissimilarities between cases
+#' as closely as possible, measured by Kruskal's stress-1. For classical
+#' (Torgerson) scaling, which solves an eigenproblem instead, see [setup_PCoA].
+#'
+#' @details
+#' Each start runs `vegan::monoMDS()` from its own initial configuration, and
+#' the one with the lowest stress is kept. The first start is the classical
+#' scaling solution, `stats::cmdscale()`; if that has fewer than `k` dimensions
+#' with positive eigenvalues, the missing ones are random. Every other start is
+#' uniform on \[-1, 1\]. The random values come from R's random number
+#' generator, so the execution config's seed reproduces the fit. The final configuration is centered, scaled and rotated to its principal
+#' axes, so its components are uncorrelated, but the first `j` components of a
+#' `k`-dimensional solution are not the `j`-dimensional solution.
+#'
+#' MDS cannot be applied to new data, so it cannot be used as the
+#' decomposition step in [train], and [reconstruct] does not apply.
+#'
+#' @param k Integer \[1, Inf): Number of components. (passed to `monoMDS` `k`)
+#' @param dist_method Character \{"euclidean", "manhattan", "chord", "bray",
+#' "canberra", "jaccard", "kulczynski", "hellinger"\}: Dissimilarity between
+#' cases, computed with `vegan::vegdist()`. "bray", "canberra", "jaccard",
+#' "kulczynski" and "hellinger" require non-negative data.
+#' @param model Character \{"global", "local", "linear"\}: "global" is nonmetric
+#' MDS (one monotone regression); "local" fits one monotone regression per case;
+#' "linear" is metric MDS. (passed to `monoMDS` `model`)
+#' @param nstart Integer \[1, Inf): Number of starting configurations. 1 starts
+#' from the classical scaling solution only.
+#' @param max_iter Integer \[1, Inf): Maximum number of iterations per start.
+#' (passed to `monoMDS` `maxit`)
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to decompose. `NULL` decomposes all numeric features.
+#'
+#' @return MDSConfig object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' mds_config <- setup_MDS(k = 2L, dist_method = "manhattan")
+#' mds_config
+setup_MDS <- function(
+  k = 2L,
+  dist_method = "euclidean",
+  model = "global",
+  nstart = 20L,
+  max_iter = 200L,
+  features = NULL
+) {
+  apply_setup_defaults(MDSConfig)
+  k <- clean_posint(k)
+  nstart <- clean_posint(nstart)
+  max_iter <- clean_posint(max_iter)
+  MDSConfig(
+    k = k,
+    dist_method = dist_method,
+    model = model,
+    nstart = nstart,
+    max_iter = max_iter,
+    features = features
+  )
+} # /rtemis::setup_MDS
+
+
+# %% PCoAConfig ----
+#' @title PCoAConfig
+#'
+#' @description
+#' DecompositionConfig subclass for Principal Coordinates Analysis.
+#'
+#' @author EDG
+#' @noRd
+PCoAConfig <- schema_class(
+  name = "PCoAConfig",
+  parent = DecompositionConfig,
+  properties = list(
+    algorithm = prop_algorithm("PCoA"),
+    k = prop_integer(
+      2L,
+      min = 1L,
+      description = paste(
+        "Number of components to extract. Must not exceed the number of",
+        "positive eigenvalues of the doubly centered squared dissimilarities."
+      )
+    ),
+    dist_method = dist_method_prop()
+  ),
+  publication = SchemaPublication(
+    role = "leaf",
+    description = "Principal Coordinates Analysis.",
+    order = 10L
+  )
+) # /rtemis::PCoAConfig
+
+
+# %% setup_PCoA ----
+#' Setup PCoA config.
+#'
+#' Principal coordinates analysis, also called classical or Torgerson
+#' multidimensional scaling: an eigendecomposition of the doubly centered
+#' squared dissimilarities between cases, with `stats::cmdscale()`. With
+#' `dist_method = "euclidean"` the components equal PCA scores of the centered,
+#' unscaled data, up to sign; other dissimilarities are what PCoA is for.
+#'
+#' @details
+#' PCoA applies to new data with Gower's (1968) out-of-sample formula, from the
+#' dissimilarities between each new case and the training cases, so it can be
+#' used as the decomposition step in [train]. Applying a fit to its own training
+#' data reproduces the fitted components. Because those dissimilarities are
+#' needed, the fit keeps the training feature matrix, and its size grows with
+#' the number of training cases.
+#'
+#' Dissimilarities other than "euclidean", "chord" and "hellinger" generally
+#' give some negative eigenvalues; only dimensions with positive eigenvalues are
+#' returned, and asking for more is an error that states how many there are.
+#' [reconstruct] does not apply.
+#'
+#' @param k Integer \[1, Inf): Number of components. (passed to `cmdscale` `k`)
+#' @param dist_method Character \{"euclidean", "manhattan", "chord", "bray",
+#' "canberra", "jaccard", "kulczynski", "hellinger"\}: Dissimilarity between
+#' cases, computed with `vegan::vegdist()`. "bray", "canberra", "jaccard",
+#' "kulczynski" and "hellinger" require non-negative data.
+#' @param features Optional Character vector: Names of at least 2 distinct
+#'   feature columns to decompose. `NULL` decomposes all numeric features.
+#'
+#' @return PCoAConfig object.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' pcoa_config <- setup_PCoA(k = 2L, dist_method = "bray")
+#' pcoa_config
+setup_PCoA <- function(
+  k = 2L,
+  dist_method = "euclidean",
+  features = NULL
+) {
+  apply_setup_defaults(PCoAConfig)
+  k <- clean_posint(k)
+  PCoAConfig(
+    k = k,
+    dist_method = dist_method,
+    features = features
+  )
+} # /rtemis::setup_PCoA
+
+
 # %% decom_can_apply ----
 #' Check whether a decomposition algorithm can be applied on new data
 #'

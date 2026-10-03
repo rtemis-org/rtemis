@@ -723,9 +723,14 @@ Resampler <- schema_class(
       prop_external(prop_integer(min = 1L, vector = TRUE)),
       description = "Training-row positions by resample identifier, using one-based indices. Repeated positions preserve bootstrap multiplicity."
     )),
-    config = prop_object(
-      ResamplerConfig,
-      description = "Settings used to draw the resamples."
+    config = prop_schema_choice(
+      prop_object(
+        ResamplerConfig,
+        description = "Settings used to draw the resamples."
+      ),
+      schemas = list(
+        `rtemis-ml::ResamplerConfig` = "https://schema.rtemis.org/resampler/python/v1/schema.json"
+      )
     )
   ),
   publication = SchemaPublication(

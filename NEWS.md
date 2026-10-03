@@ -12,6 +12,9 @@
 - `setup_tSNE(num_threads =)` is deprecated; tSNE takes its threads from the execution config.
 - `setup_Autoencoder()` configures a torch autoencoder decomposition, denoising when `input_noise` or `input_dropout` is set; it applies to new data, so it can be `train()`'s decomposition step, and `reconstruct()` returns its reconstruction in the units of the data.
 - `setup_VariationalAutoencoder()` configures a torch variational autoencoder decomposition; `beta` weighs the KL divergence (1 is the standard VAE, larger values a beta-VAE), and its components are the latent means.
+- `setup_PCoA()` configures principal coordinates analysis (classical multidimensional scaling) on a choice of dissimilarities; it applies to new data through Gower's out-of-sample formula, so it can be `train()`'s decomposition step, and does not reconstruct the input.
+- `setup_MDS()` configures metric or nonmetric multidimensional scaling through 'vegan' with multiple starts; it cannot be applied to new data and does not reconstruct the input.
+- `setup_SuperConfig()` and `setup_SuperConfigLive()` reject a decomposition that cannot be applied to new data, as reading a supervised config already did.
 - `decomp_metrics()` takes `execution_config`.
 - NMF with `nrun` greater than 1 runs.
 - Execution configs take `device`: `"cpu"`, `"cuda"`, `"mps"` (Apple silicon GPU) or `"opencl"`, or `setup_CUDA(ids =)` to name GPUs. Unset uses CUDA where available and the CPU otherwise; the Apple silicon GPU runs only when named. An algorithm that cannot use the requested device runs on the CPU and the resources line says so.
@@ -24,7 +27,7 @@
 - `setup_ClusterConfig()` and `setup_DecomposeConfig()` no longer take `algorithm`; the clustering or decomposition config names it, and `cluster()` and `decomp()` reject an `algorithm` that disagrees with a supplied config.
 - Clustering configs take `features`, the columns to cluster on.
 - `cluster()` and `decomp()` use every numeric column when the config names no `features`, and record the columns used.
-- Shared results identify implementation-specific configs by schema and read their typed settings without inserting omitted defaults.
+- Shared results identify implementation-specific learner, execution, preprocessing, and resampler configs by schema and read their typed settings without inserting omitted defaults.
 - Implementation-specific schema paths include the language namespace; shared result paths remain unqualified.
 - The defaults artifact format accepts producer-owned namespaces while retaining separate schema declarations and resolution policies.
 - `write_result()` and `read_result()` support portable result JSON with optional Parquet payloads, lazy loading, and integrity checks.

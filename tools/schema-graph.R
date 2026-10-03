@@ -363,6 +363,64 @@ cases[["vae_record"]] <- check_document(
     class = "json"
   )
 )
+# The distance-based leaves share one `dist_method` vocabulary, which leaves out
+# vegdist's dataset-level methods; each mutant breaks one constraint, and each
+# record is a real fit.
+for (alg in c("MDS", "PCoA")) {
+  key <- tolower(alg)
+  setup_fn <- get(paste0("setup_", alg))
+  wire <- S7_to_list(setup_fn(k = 3L, dist_method = "bray"))
+  cases[[paste0(key, "_input")]] <- check_document(
+    paste0(key, "_input"),
+    "decomposition/r/v1/schema.json",
+    wire
+  )
+  mutant <- wire
+  mutant[["dist_method"]] <- "gower"
+  label <- paste0(key, "_dataset_level_distance")
+  cases[[label]] <- check_document(
+    label,
+    "decomposition/r/v1/schema.json",
+    mutant,
+    FALSE
+  )
+  record_file <- tempfile(fileext = ".json")
+  write_record(
+    decomp(
+      iris[, 1:4],
+      config = setup_fn(k = 2L),
+      execution_config = setup_SerialExecution(seed = 1L),
+      verbosity = 0L
+    ),
+    record_file,
+    verbosity = 0L
+  )
+  cases[[paste0(key, "_record")]] <- check_document(
+    paste0(key, "_record"),
+    "decompose/r/v1/record.json",
+    structure(
+      paste(readLines(record_file, warn = FALSE), collapse = "\n"),
+      class = "json"
+    )
+  )
+}
+mds_wire <- S7_to_list(setup_MDS())
+mutant <- mds_wire
+mutant[["model"]] <- "hybrid"
+cases[["mds_hybrid_model"]] <- check_document(
+  "mds_hybrid_model",
+  "decomposition/r/v1/schema.json",
+  mutant,
+  FALSE
+)
+mutant <- S7_to_list(setup_PCoA())
+mutant[["nstart"]] <- 5L
+cases[["pcoa_nstart_undeclared"]] <- check_document(
+  "pcoa_nstart_undeclared",
+  "decomposition/r/v1/schema.json",
+  mutant,
+  FALSE
+)
 # The device is a nested family: an unknown type, and GPU ids on a device that
 # has none, are both rejected by the schema itself.
 execution_wire <- S7_to_list(setup_SerialExecution(device = "cuda", seed = 1L))

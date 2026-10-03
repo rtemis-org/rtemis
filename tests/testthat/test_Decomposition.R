@@ -287,7 +287,14 @@ test_that("reconstruct() agrees with the metrics' own reconstruction", {
 test_that("apply_decomp() on training data reproduces the fitted components", {
   # Fit and apply must be the same map, or a fit-on-train apply-to-both-splits
   # workflow silently compares two different embeddings.
-  for (config in list(setup_PCA(k = 3L), setup_ICA(k = 3L))) {
+  configs <- list(setup_PCA(k = 3L), setup_ICA(k = 3L))
+  if (requireNamespace("vegan", quietly = TRUE)) {
+    configs <- c(
+      configs,
+      list(setup_PCoA(k = 3L), setup_PCoA(k = 2L, dist_method = "bray"))
+    )
+  }
+  for (config in configs) {
     decom <- decomp(x, config = config, verbosity = 0L)
     expect_equal(
       as.matrix(apply_decomp(decom, x, verbosity = 0L)),
@@ -457,6 +464,195 @@ test_that("decomp() Isomap succeeds", {
   skip_if_not_installed("vegan")
   iris_isomap <- decomp(x, algorithm = "isomap", config = setup_Isomap())
   expect_s7_class(iris_isomap, Decomposition)
+})
+
+
+# PCoA ----
+test_that("setup_PCoA() succeeds", {
+  config <- setup_PCoA(dist_method = "bray")
+  expect_s7_class(config, PCoAConfig)
+  expect_identical(config[["dist_method"]], "bray")
+})
+
+test_that("decomp() PCoA returns k components, equal to PCA scores under euclidean", {
+  skip_if_not_installed("vegan")
+  decom <- decomp(x, config = setup_PCoA(k = 3L), verbosity = 0L)
+  expect_s7_class(decom, Decomposition)
+  expect_identical(dim(decom@transformed), c(nrow(x), 3L))
+  expect_identical(colnames(decom@transformed), paste0("PCoA_", 1:3))
+  scores <- stats::prcomp(x, center = TRUE, scale. = FALSE)[["x"]][, 1:3]
+  expect_equal(
+    abs(unname(as.matrix(decom@transformed))),
+    abs(unname(scores)),
+    tolerance = 1e-8
+  )
+})
+
+test_that("PCoA applied to new data under euclidean equals the PCA projection", {
+  # An independent implementation of the same map: Gower's formula on Euclidean
+  # distances is the projection onto the training principal axes.
+  skip_if_not_installed("vegan")
+  train_rows <- seq(1L, nrow(x), by = 2L)
+  decom <- decomp(
+    x[train_rows, ],
+    config = setup_PCoA(k = 2L),
+    verbosity = 0L
+  )
+  pca <- stats::prcomp(x[train_rows, ], center = TRUE, scale. = FALSE)
+  signs <- sign(colSums(
+    as.matrix(decom@transformed) * pca[["x"]][, 1:2]
+  ))
+  expected <- sweep(
+    stats::predict(pca, x[-train_rows, ])[, 1:2],
+    2L,
+    signs,
+    FUN = "*"
+  )
+  expect_equal(
+    unname(as.matrix(apply_decomp(decom, x[-train_rows, ], verbosity = 0L))),
+    unname(expected),
+    tolerance = 1e-8
+  )
+})
+
+test_that("PCoA applies each case independently of the batch it arrives in", {
+  # A fit on 60 cases applies to 150 in three chunks; each case's coordinates
+  # must not depend on the chunk or the other cases.
+  skip_if_not_installed("vegan")
+  decom <- decomp(
+    x[1:60, ],
+    config = setup_PCoA(k = 2L, dist_method = "bray"),
+    verbosity = 0L
+  )
+  all_cases <- as.matrix(apply_decomp(decom, x, verbosity = 0L))
+  some <- c(3L, 77L, 150L)
+  expect_equal(
+    as.matrix(apply_decomp(decom, x[some, ], verbosity = 0L)),
+    all_cases[some, ],
+    tolerance = 1e-12,
+    ignore_attr = TRUE
+  )
+})
+
+test_that("PCoA rejects more components than positive eigenvalues", {
+  skip_if_not_installed("vegan")
+  # Four Euclidean features span four dimensions.
+  expect_error(
+    decomp(x, config = setup_PCoA(k = 5L), verbosity = 0L),
+    "at most 4",
+    class = "rtemis_data_error"
+  )
+  expect_error(
+    decomp(x[1:3, ], config = setup_PCoA(k = 3L), verbosity = 0L),
+    class = "rtemis_data_error"
+  )
+})
+
+test_that("non-negative dissimilarities reject negative and all-zero cases", {
+  skip_if_not_installed("vegan")
+  scaled <- as.data.frame(scale(x))
+  expect_error(
+    decomp(scaled, config = setup_PCoA(dist_method = "bray"), verbosity = 0L),
+    "non-negative",
+    class = "rtemis_data_error"
+  )
+  zero <- rbind(x, setNames(as.data.frame(t(rep(0, 4L))), names(x)))
+  expect_error(
+    decomp(
+      zero,
+      config = setup_PCoA(dist_method = "hellinger"),
+      verbosity = 0L
+    ),
+    "rows 151",
+    class = "rtemis_data_error"
+  )
+  decom <- decomp(
+    x,
+    config = setup_PCoA(dist_method = "hellinger"),
+    verbosity = 0L
+  )
+  expect_error(
+    apply_decomp(decom, zero[151L, ], verbosity = 0L),
+    class = "rtemis_data_error"
+  )
+})
+
+test_that("train() learns PCoA as its decomposition step and predict() replays it", {
+  skip_if_not_installed("vegan")
+  dat <- iris[, c(2L, 3L, 4L, 1L)]
+  mod <- train(
+    dat,
+    decomposition_config = setup_PCoA(k = 2L, dist_method = "manhattan"),
+    hyperparameters = setup_GLMNET(alpha = 0, lambda = 0.01),
+    verbosity = 0L
+  )
+  expect_s7_class(mod@decomposition@config, PCoAConfig)
+  predicted <- predict(mod, features(dat))
+  expect_length(predicted, nrow(dat))
+  expect_false(anyNA(predicted))
+})
+
+
+# MDS ----
+test_that("setup_MDS() succeeds", {
+  config <- setup_MDS(model = "linear", nstart = 3L)
+  expect_s7_class(config, MDSConfig)
+  expect_identical(config[["nstart"]], 3L)
+})
+
+test_that("decomp() MDS returns k uncorrelated components", {
+  skip_if_not_installed("vegan")
+  decom <- decomp(
+    x,
+    config = setup_MDS(k = 3L, nstart = 3L),
+    verbosity = 0L
+  )
+  expect_s7_class(decom, Decomposition)
+  expect_identical(dim(decom@transformed), c(nrow(x), 3L))
+  expect_identical(colnames(decom@transformed), paste0("MDS_", 1:3))
+  # The orthogonal trait: monoMDS rotates the configuration to principal axes.
+  cp <- crossprod(scale(as.matrix(decom@transformed), scale = FALSE))
+  expect_lt(max(abs(cp[upper.tri(cp)])), 1e-8 * max(diag(cp)))
+})
+
+test_that("MDS keeps the lowest-stress start, and one start is deterministic", {
+  skip_if_not_installed("vegan")
+  fit <- function(nstart, seed = NULL) {
+    decomp(
+      x,
+      config = setup_MDS(nstart = nstart),
+      execution_config = setup_SerialExecution(seed = seed),
+      verbosity = 0L
+    )
+  }
+  one <- fit(1L)
+  expect_identical(one@transformed, fit(1L)@transformed)
+  # The first of several starts is the single start, so the best is no worse.
+  several <- fit(5L, seed = 2026L)
+  expect_lte(several@decom[["stress"]], one@decom[["stress"]])
+  expect_identical(several@transformed, fit(5L, seed = 2026L)@transformed)
+  for (model in c("local", "linear")) {
+    expect_s7_class(
+      decomp(
+        x,
+        config = setup_MDS(model = model, nstart = 1L, max_iter = 500L),
+        verbosity = 0L
+      ),
+      Decomposition
+    )
+  }
+})
+
+test_that("MDS warns when the best start reaches max_iter", {
+  skip_if_not_installed("vegan")
+  expect_message(
+    decomp(
+      x,
+      config = setup_MDS(nstart = 1L, max_iter = 1L),
+      verbosity = 0L
+    ),
+    "max_iter"
+  )
 })
 
 

@@ -319,6 +319,11 @@ setup_SuperConfig <- function(
   verbosity = 1L
 ) {
   apply_setup_defaults(SuperConfigPaths)
+  # `train()` applies the fitted decomposition to every set after the training
+  # one, so only an algorithm that applies to new data can stand here.
+  if (!is.null(decomposition_config)) {
+    check_decom_applicable(decomposition_config)
+  }
   # Validated, not resolved: a config is a portable recipe, so it stores the
   # path its author wrote rather than that path resolved against this machine's
   # working directory.
@@ -470,9 +475,7 @@ setup_SuperConfig <- function(
     decomposition_config = if (is.null(x[["decomposition_config"]])) {
       NULL
     } else {
-      check_decom_applicable(
-        .list_to_DecompositionConfig(x[["decomposition_config"]])
-      )
+      .list_to_DecompositionConfig(x[["decomposition_config"]])
     },
     hyperparameters = if (is.null(x[["hyperparameters"]])) {
       NULL
@@ -634,6 +637,9 @@ setup_SuperConfigLive <- function(
   outdir = NULL,
   verbosity = 1L
 ) {
+  if (!is.null(decomposition_config)) {
+    check_decom_applicable(decomposition_config)
+  }
   if (!is.null(outdir)) {
     outdir <- sanitize_path(
       outdir,
