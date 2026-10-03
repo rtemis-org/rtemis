@@ -137,7 +137,7 @@ Supervised <- schema_class(
         nullable = TRUE,
         description = "Algorithm settings used by the fitted model; the run record carries complete resolution details."
       ),
-      schemas = list(
+      additional_schemas = list(
         `rtemis-ml::Hyperparameters` = "https://schema.rtemis.org/hyperparameters/python/v1/schema.json"
       )
     ),
@@ -150,7 +150,7 @@ Supervised <- schema_class(
         ExecutionConfig,
         description = "Execution settings used by this implementation."
       ),
-      schemas = list(
+      additional_schemas = list(
         `rtemis-ml::ExecutionConfig` = "https://schema.rtemis.org/execution/python/v1/schema.json"
       )
     ),
@@ -1785,7 +1785,7 @@ SupervisedRes <- schema_class(
         nullable = TRUE,
         description = "Preprocessing settings requested for each resample."
       ),
-      schemas = list(
+      additional_schemas = list(
         `rtemis-ml::PreprocessorConfig` = "https://schema.rtemis.org/preprocessor/python/v1/schema.json"
       )
     ),
@@ -1806,7 +1806,7 @@ SupervisedRes <- schema_class(
         nullable = TRUE,
         description = "Requested algorithm settings or named variants; successful folds hold their selected settings."
       ),
-      schemas = list(
+      additional_schemas = list(
         `rtemis-ml::Hyperparameters` = "https://schema.rtemis.org/hyperparameters/python/v1/schema.json"
       )
     ),
@@ -1824,7 +1824,7 @@ SupervisedRes <- schema_class(
         ExecutionConfig,
         description = "Execution settings used by this implementation."
       ),
-      schemas = list(
+      additional_schemas = list(
         `rtemis-ml::ExecutionConfig` = "https://schema.rtemis.org/execution/python/v1/schema.json"
       )
     ),

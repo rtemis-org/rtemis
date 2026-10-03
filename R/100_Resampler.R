@@ -728,7 +728,7 @@ Resampler <- schema_class(
         ResamplerConfig,
         description = "Settings used to draw the resamples."
       ),
-      schemas = list(
+      additional_schemas = list(
         `rtemis-ml::ResamplerConfig` = "https://schema.rtemis.org/resampler/python/v1/schema.json"
       )
     )
