@@ -497,9 +497,9 @@ DBSCANConfig <- schema_class(
       enum = c("SUGGEST", "STD", "MIDPT", "FAIR", "SL_MIDPT", "SL_FAIR"),
       description = "Rule for splitting the k-d tree."
     ),
-    approx = prop_boolean(
-      FALSE,
-      description = "Use approximate nearest neighbor search."
+    approx = prop_float(
+      0,
+      description = "Use approximate nearest neighbor search. All NN up to a distance of a factor of `1 + approx` eps may be used."
     )
   ),
   publication = SchemaPublication(
@@ -539,7 +539,7 @@ setup_DBSCAN <- function(
   search = "kdtree",
   bucket_size = 100L,
   split_rule = "SUGGEST",
-  approx = FALSE,
+  approx = 0,
   features = NULL
 ) {
   apply_setup_defaults(DBSCANConfig)
