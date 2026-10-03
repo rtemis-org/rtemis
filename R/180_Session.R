@@ -962,7 +962,8 @@ session_nodes <- function(session) {
             meta,
             auto_unbox = TRUE,
             na = "null",
-            null = "null"
+            null = "null",
+            digits = NA
           ))
         }
       },

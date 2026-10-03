@@ -184,11 +184,21 @@ test_that("unnamed model score columns follow their producer's class order", {
   )
   expect_equal(unique(roc_plot_data(mod, "training")[["auc"]]), .875)
   ordinary <- roc_model_fixture()
-  ordinary@y_test <- factor(
+  reversed <- factor(
     as.character(ordinary@y_test),
     levels = c("yes", "no")
   )
-  ordinary@predicted_prob_test <- matrix(1 - c(.125, .875, .5, .5), ncol = 1)
+  expect_error(
+    ordinary@y_test <- reversed,
+    "supervised.levels.y_test",
+    fixed = TRUE
+  )
+  # Legacy objects can carry a test dictionary distinct from the producer's.
+  attr(ordinary, "y_test") <- reversed
+  attr(ordinary, "predicted_prob_test") <- matrix(
+    1 - c(.125, .875, .5, .5),
+    ncol = 1
+  )
   d <- roc_plot_data(ordinary, "test")
   expect_identical(unique(d[["class"]]), "yes")
   expect_equal(unique(d[["auc"]]), .875)

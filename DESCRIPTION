@@ -131,6 +131,7 @@ Collate:
     '015_ReferenceProps.R'
     '020_Props_read.R'
     '024_SchemaRules.R'
+    '024_ResultRules.R'
     '024_SemanticRules.R'
     '025_SchemaCatalog.R'
     '026_Defaults.R'

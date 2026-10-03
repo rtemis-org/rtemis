@@ -184,6 +184,12 @@ NonEmptyStrings <- new_class(
 #' @keywords internal
 #' @noRd
 validate_relation_declaration <- function(rule, cls, fail) {
+  if (
+    rule[["kind"]] %in%
+      c("RowCountMatches", "FactorLevelsMatch", "ProbabilityColumnsMatch")
+  ) {
+    return(validate_result_relation(rule, cls, fail))
+  }
   require_spec <- function(
     nm,
     types = PROP_TYPES,
@@ -272,6 +278,12 @@ validate_relation_declaration <- function(rule, cls, fail) {
 #' @keywords internal
 #' @noRd
 relation_rule_fails <- function(self, rule) {
+  if (
+    rule[["kind"]] %in%
+      c("RowCountMatches", "FactorLevelsMatch", "ProbabilityColumnsMatch")
+  ) {
+    return(result_relation_fails(self, rule))
+  }
   value <- function(nm) prop(self, nm)
   if (
     length(rule[["conditions"]]) &&
@@ -494,6 +506,12 @@ predicate_logic <- function(predicate) {
 #' @keywords internal
 #' @noRd
 relation_rule_logic <- function(rule) {
+  if (
+    rule[["kind"]] %in%
+      c("RowCountMatches", "FactorLevelsMatch", "ProbabilityColumnsMatch")
+  ) {
+    return(result_relation_logic(rule))
+  }
   op <- rule_logic_node
   v <- rule_logic_var
   present <- function(nm) op("!==", v(nm), NULL)

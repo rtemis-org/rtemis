@@ -53,6 +53,20 @@ test_that("ClusterConfig round-trips through write_config/read_config JSON", {
 })
 
 
+# %% write_config keeps number precision ----
+test_that("write_config() writes numbers at full precision", {
+  x <- setup_ClusterConfig(
+    clustering_config = setup_DBSCAN(eps = 0.123456789, approx = 1e-7)
+  )
+  file <- tempfile(fileext = ".json")
+  on.exit(unlink(file))
+  write_config(x, file, verbosity = 0L)
+  xtoo <- read_config(file)
+  expect_identical(xtoo@clustering_config@eps, 0.123456789)
+  expect_identical(xtoo@clustering_config@approx, 1e-7)
+})
+
+
 # %% one place for the algorithm ----
 test_that("a cluster document names its algorithm only inside clustering_config", {
   expect_false("algorithm" %in% names(ClusterConfig@properties))

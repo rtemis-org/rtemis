@@ -21,6 +21,7 @@
 - `setup_SpectralRBF()`, `setup_SpectralLaplace()`, and `setup_SpectralLocal()` configure spectral clustering through 'kernlab', one per kernel; `setup_Nystrom()` enables the Nystrom approximation.
 - `setup_ASWCriterion()`, `setup_CHCriterion()`, and `setup_MultiASWCriterion()` configure how `setup_PAMK()` selects the number of clusters.
 - `setup_DBSCAN(approx =)` is a nonnegative number, the approximation factor of the neighbor search (0, the default, searches exactly); it was declared logical, and `TRUE` ran as an approximation factor of 1.
+- `write_config()` and `write_record()` write numbers at full precision; they rounded to four significant digits, so `eps = 0.123456789` read back as `0.1235`.
 - `setup_ClusterConfig()` and `setup_DecomposeConfig()` no longer take `algorithm`; the clustering or decomposition config names it, and `cluster()` and `decomp()` reject an `algorithm` that disagrees with a supplied config.
 - Clustering configs take `features`, the columns to cluster on.
 - `cluster()` and `decomp()` use every numeric column when the config names no `features`, and record the columns used.
@@ -38,6 +39,12 @@
 - `VariableImportance` publishes a shared report schema with named numeric measures and null values for unavailable results.
 - `JSONSchema_to_S7()` reconstructs standalone inheritance and runtime-only properties from schema artifacts, and rejects a `parent` other than the one the schema declares.
 - Reading a table or object with a field its schema does not declare fails with an error naming the field.
+
+### Supervised result validation
+
+- Outcomes, predictions, and classification probabilities must have matching row counts within each sample.
+- Categorical outcomes and predictions must preserve the training class levels and their order; probability matrices require one column for binary classification or one per class for multiclass classification.
+- Shared result schemas publish these rules for consistent validation in Python, Rust, and browser consumers, including checks on external data references without loading their payloads.
 
 ## 1.4.0
 

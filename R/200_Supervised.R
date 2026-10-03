@@ -267,40 +267,89 @@ Supervised <- schema_class(
     slug = "supervisedresult",
     description = "Portable supervised learning result; native fitted state is held separately on the object."
   ),
-  rules = unlist(
-    lapply(
-      c(
-        "y_training",
-        "y_validation",
-        "y_test",
-        "predicted_training",
-        "predicted_validation",
-        "predicted_test",
-        "metrics_training",
-        "metrics_validation",
-        "metrics_test"
-      ),
-      function(nm) {
-        lapply(seq_along(SUPERVISED_TYPES), function(i) {
-          UnionSelectionRule(
-            id = paste0("supervised.", tolower(SUPERVISED_TYPES[[i]]), ".", nm),
-            message = paste0(
-              nm,
-              " must use the ",
-              tolower(SUPERVISED_TYPES[[i]]),
-              " representation selected by type."
-            ),
-            property = nm,
-            alternative = i,
-            when = SchemaPredicate(
-              property = "type",
-              equals = SUPERVISED_TYPES[[i]]
+  rules = c(
+    unlist(
+      lapply(
+        c(
+          "y_training",
+          "y_validation",
+          "y_test",
+          "predicted_training",
+          "predicted_validation",
+          "predicted_test",
+          "metrics_training",
+          "metrics_validation",
+          "metrics_test"
+        ),
+        function(nm) {
+          lapply(seq_along(SUPERVISED_TYPES), function(i) {
+            UnionSelectionRule(
+              id = paste0(
+                "supervised.",
+                tolower(SUPERVISED_TYPES[[i]]),
+                ".",
+                nm
+              ),
+              message = paste0(
+                nm,
+                " must use the ",
+                tolower(SUPERVISED_TYPES[[i]]),
+                " representation selected by type."
+              ),
+              property = nm,
+              alternative = i,
+              when = SchemaPredicate(
+                property = "type",
+                equals = SUPERVISED_TYPES[[i]]
+              )
             )
-          )
-        })
-      }
+          })
+        }
+      ),
+      recursive = FALSE
     ),
-    recursive = FALSE
+    unlist(
+      lapply(c("training", "validation", "test"), function(sample) {
+        observed <- paste0("y_", sample)
+        predicted <- paste0("predicted_", sample)
+        c(
+          list(
+            RowCountMatches(
+              id = paste0("supervised.rows.", sample),
+              left = observed,
+              right = predicted,
+              message = paste0(
+                observed,
+                " and ",
+                predicted,
+                " must have the same number of rows."
+              )
+            ),
+            FactorLevelsMatch(
+              id = paste0("supervised.levels.predicted_", sample),
+              left = predicted,
+              right = "y_training",
+              message = paste0(
+                predicted,
+                " must use the training class levels in the same order."
+              )
+            )
+          ),
+          if (sample != "training") {
+            list(FactorLevelsMatch(
+              id = paste0("supervised.levels.y_", sample),
+              left = observed,
+              right = "y_training",
+              message = paste0(
+                observed,
+                " must use the training class levels in the same order."
+              )
+            ))
+          }
+        )
+      }),
+      recursive = FALSE
+    )
   ),
   constructor = function(
     algorithm,
@@ -1177,14 +1226,47 @@ Classification <- schema_class(
     scope = "shared",
     description = "Portable classification result."
   ),
-  rules = list(RequireConditions(
-    id = "classification.type",
-    message = "type must identify classification.",
-    conditions = list(SchemaPredicate(
-      property = "type",
-      equals = "Classification"
-    ))
-  )),
+  rules = c(
+    list(RequireConditions(
+      id = "classification.type",
+      message = "type must identify classification.",
+      conditions = list(SchemaPredicate(
+        property = "type",
+        equals = "Classification"
+      ))
+    )),
+    unlist(
+      lapply(c("training", "validation", "test"), function(sample) {
+        probabilities <- paste0("predicted_prob_", sample)
+        c(
+          lapply(c("y_", "predicted_"), function(prefix) {
+            other <- paste0(prefix, sample)
+            RowCountMatches(
+              id = paste0("classification.rows.", probabilities, ".", other),
+              left = probabilities,
+              right = other,
+              message = paste0(
+                probabilities,
+                " and ",
+                other,
+                " must have the same number of rows."
+              )
+            )
+          }),
+          list(ProbabilityColumnsMatch(
+            id = paste0("classification.columns.", sample),
+            probabilities = probabilities,
+            outcome = "y_training",
+            message = paste0(
+              probabilities,
+              " must contain one column for binary classification or one column per training class for multiclass classification."
+            )
+          ))
+        )
+      }),
+      recursive = FALSE
+    )
+  ),
   constructor = function(
     algorithm = NULL,
     model = NULL,

@@ -160,7 +160,8 @@ write_config <- new_generic(
     auto_unbox = TRUE,
     pretty = TRUE,
     na = "null",
-    null = "null"
+    null = "null",
+    digits = NA
   ))
   write_lines(
     json_str,
@@ -409,7 +410,8 @@ write_record <- function(x, file, overwrite = FALSE, verbosity = 1L) {
     auto_unbox = TRUE,
     pretty = TRUE,
     na = "null",
-    null = "null"
+    null = "null",
+    digits = NA
   ))
   write_lines(
     json_str,

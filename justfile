@@ -154,6 +154,10 @@ schema-graph artifacts report:
 schema-rules report:
     {{ rscript }} tools/schema-rules.R "{{ report }}"
 
+[doc("Export supervised result relation cases for foreign evaluators")]
+result-rules report:
+    {{ rscript }} tools/result-rules.R "{{ report }}"
+
 # Check the full generated corpus and compare shipped artifacts without
 # modifying them. `checks-refresh` explicitly updates those package copies.
 [doc("Generate schemas + defaults + checks into a throwaway directory to assert the contracts")]
