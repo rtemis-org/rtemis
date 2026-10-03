@@ -190,7 +190,7 @@ test_that("unnamed model score columns follow their producer's class order", {
   )
   expect_error(
     ordinary@y_test <- reversed,
-    "supervised.levels.y_test",
+    "supervised.levels.y_test.y_training",
     fixed = TRUE
   )
   # Legacy objects can carry a test dictionary distinct from the producer's.

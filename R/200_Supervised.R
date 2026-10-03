@@ -315,7 +315,7 @@ Supervised <- schema_class(
         c(
           list(
             RowCountMatches(
-              id = paste0("supervised.rows.", sample),
+              id = paste0("supervised.rows.", observed, ".", predicted),
               left = observed,
               right = predicted,
               message = paste0(
@@ -326,7 +326,7 @@ Supervised <- schema_class(
               )
             ),
             FactorLevelsMatch(
-              id = paste0("supervised.levels.predicted_", sample),
+              id = paste0("supervised.levels.", predicted, ".y_training"),
               left = predicted,
               right = "y_training",
               message = paste0(
@@ -337,7 +337,7 @@ Supervised <- schema_class(
           ),
           if (sample != "training") {
             list(FactorLevelsMatch(
-              id = paste0("supervised.levels.y_", sample),
+              id = paste0("supervised.levels.", observed, ".y_training"),
               left = observed,
               right = "y_training",
               message = paste0(
@@ -1254,7 +1254,11 @@ Classification <- schema_class(
             )
           }),
           list(ProbabilityColumnsMatch(
-            id = paste0("classification.columns.", sample),
+            id = paste0(
+              "classification.columns.",
+              probabilities,
+              ".y_training"
+            ),
             probabilities = probabilities,
             outcome = "y_training",
             message = paste0(

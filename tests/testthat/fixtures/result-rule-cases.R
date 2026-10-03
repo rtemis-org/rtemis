@@ -80,7 +80,7 @@ result_rule_cases <- function() {
       predicted <- paste0("predicted_", sample)
       observed <- paste0("y_", sample)
       probability <- paste0("predicted_prob_", sample)
-      ids <- paste0("supervised.rows.", sample)
+      ids <- paste0("supervised.rows.", observed, ".", predicted)
       if (kind != "regression") {
         ids <- c(
           ids,
@@ -109,7 +109,7 @@ result_rule_cases <- function() {
         paste(kind, sample, "probability-width", sep = "."),
         kind,
         setNames(list(matrix(0.5, 4L, 2L)), probability),
-        paste0("classification.columns.", sample)
+        paste0("classification.columns.", probability, ".y_training")
       )
       add(
         paste(kind, sample, "null-probability", sep = "."),
@@ -126,7 +126,7 @@ result_rule_cases <- function() {
           )),
           predicted
         ),
-        paste0("supervised.levels.", predicted)
+        paste0("supervised.levels.", predicted, ".y_training")
       )
       if (sample != "training") {
         add(
@@ -139,7 +139,7 @@ result_rule_cases <- function() {
             )),
             observed
           ),
-          paste0("supervised.levels.", observed)
+          paste0("supervised.levels.", observed, ".y_training")
         )
       }
     }
@@ -172,7 +172,7 @@ result_rule_cases <- function() {
     "classification.changed-dictionary",
     "multiclass",
     list(predicted_training = factor(rep("d", 4), levels = c("a", "b", "d"))),
-    "supervised.levels.predicted_training"
+    "supervised.levels.predicted_training.y_training"
   )
   add(
     "classification.absent-outcome-keeps-prediction-check",
@@ -189,7 +189,7 @@ result_rule_cases <- function() {
     "regression.external-rows",
     "regression",
     list(predicted_training = ref("array", "v0", rows = 3L)),
-    "supervised.rows.training"
+    "supervised.rows.y_training.predicted_training"
   )
   add(
     "classification.external-selected-columns",
@@ -200,7 +200,7 @@ result_rule_cases <- function() {
     "classification.external-width",
     "multiclass",
     list(predicted_prob_training = ref("matrix", c("v2", "v0"))),
-    "classification.columns.training"
+    "classification.columns.predicted_prob_training.y_training"
   )
   add(
     "classification.external-rows",
@@ -222,7 +222,7 @@ result_rule_cases <- function() {
     "classification.external-levels",
     "multiclass",
     list(predicted_training = ref("factor", "v0", c("b", "a", "c"))),
-    "supervised.levels.predicted_training"
+    "supervised.levels.predicted_training.y_training"
   )
   add(
     "classification.both-external",
@@ -231,6 +231,36 @@ result_rule_cases <- function() {
       y_training = ref("factor", "v0", c("a", "b", "c")),
       predicted_training = ref("factor", "v0", c("a", "b", "c")),
       predicted_prob_training = ref("matrix", c("v2", "v0", "v6"))
+    )
+  )
+  for (lev in list(c("a", "b"), c("a", "b", "c", "d"))) {
+    add(
+      paste0("classification.dictionary-length-", length(lev)),
+      "multiclass",
+      list(predicted_training = factor(rep("a", 4L), levels = lev)),
+      "supervised.levels.predicted_training.y_training"
+    )
+  }
+  shared_args <- lapply(names(formals(Supervised)), function(nm) {
+    prop(regression, nm)
+  })
+  names(shared_args) <- names(formals(Supervised))
+  shared <- do.call(Supervised, shared_args)
+  cases <- c(
+    cases,
+    list(
+      list(
+        id = "supervised.valid",
+        base = shared,
+        changes = list(),
+        ids = character()
+      ),
+      list(
+        id = "supervised.prediction-rows",
+        base = shared,
+        changes = list(predicted_training = 1),
+        ids = "supervised.rows.y_training.predicted_training"
+      )
     )
   )
   cases

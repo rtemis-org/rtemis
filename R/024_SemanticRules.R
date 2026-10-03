@@ -184,12 +184,6 @@ NonEmptyStrings <- new_class(
 #' @keywords internal
 #' @noRd
 validate_relation_declaration <- function(rule, cls, fail) {
-  if (
-    rule[["kind"]] %in%
-      c("RowCountMatches", "FactorLevelsMatch", "ProbabilityColumnsMatch")
-  ) {
-    return(validate_result_relation(rule, cls, fail))
-  }
   require_spec <- function(
     nm,
     types = PROP_TYPES,
@@ -224,6 +218,9 @@ validate_relation_declaration <- function(rule, cls, fail) {
   }
   switch(
     rule[["kind"]],
+    RowCountMatches = ,
+    FactorLevelsMatch = ,
+    ProbabilityColumnsMatch = validate_result_relation(rule, cls, fail),
     CompareFields = {
       require_spec(rule[["left"]], c("integer", "number"))
       require_spec(rule[["right"]], c("integer", "number"))
@@ -278,12 +275,6 @@ validate_relation_declaration <- function(rule, cls, fail) {
 #' @keywords internal
 #' @noRd
 relation_rule_fails <- function(self, rule) {
-  if (
-    rule[["kind"]] %in%
-      c("RowCountMatches", "FactorLevelsMatch", "ProbabilityColumnsMatch")
-  ) {
-    return(result_relation_fails(self, rule))
-  }
   value <- function(nm) prop(self, nm)
   if (
     length(rule[["conditions"]]) &&
@@ -297,6 +288,9 @@ relation_rule_fails <- function(self, rule) {
   }
   switch(
     rule[["kind"]],
+    RowCountMatches = ,
+    FactorLevelsMatch = ,
+    ProbabilityColumnsMatch = result_relation_fails(self, rule),
     CompareFields = !is.null(value(rule[["left"]])) &&
       !is.null(value(rule[["right"]])) &&
       value(rule[["left"]]) > value(rule[["right"]]),
@@ -506,12 +500,6 @@ predicate_logic <- function(predicate) {
 #' @keywords internal
 #' @noRd
 relation_rule_logic <- function(rule) {
-  if (
-    rule[["kind"]] %in%
-      c("RowCountMatches", "FactorLevelsMatch", "ProbabilityColumnsMatch")
-  ) {
-    return(result_relation_logic(rule))
-  }
   op <- rule_logic_node
   v <- rule_logic_var
   present <- function(nm) op("!==", v(nm), NULL)
@@ -520,6 +508,9 @@ relation_rule_logic <- function(rule) {
   conditions <- lapply(rule[["conditions"]], predicate_logic)
   expr <- switch(
     rule[["kind"]],
+    RowCountMatches = ,
+    FactorLevelsMatch = ,
+    ProbabilityColumnsMatch = result_relation_logic(rule),
     CompareFields = op(
       "and",
       present(rule[["left"]]),

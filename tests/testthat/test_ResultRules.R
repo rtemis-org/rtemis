@@ -26,13 +26,12 @@ test_that("result relations enforce independent native boundary cases", {
     }
     covered <- union(covered, ids)
   }
-  required <- Filter(
-    function(rule) {
-      rule[["kind"]] %in%
-        c("RowCountMatches", "FactorLevelsMatch", "ProbabilityColumnsMatch")
-    },
-    schema_rules(Classification)
-  )
+  required <- S7_to_JSONSchema(
+    Classification,
+    id = "https://example.test/classification"
+  )[["x-rtemis"]][["validation"]][[
+    "rules"
+  ]]
   expect_setequal(covered, vapply(required, `[[`, character(1L), "id"))
 })
 

@@ -5,10 +5,12 @@
 suppressMessages(devtools::load_all(quiet = TRUE))
 args <- commandArgs(trailingOnly = TRUE)
 stopifnot(length(args) == 1L)
-source("tests/testthat/fixtures/result-rule-cases.R")
-cases <- lapply(result_rule_cases(), function(case) {
+oracle <- new.env(parent = asNamespace("rtemis"))
+sys.source("tests/testthat/fixtures/result-rule-cases.R", oracle)
+urls <- schema_reference_urls(schema_catalog(), "https://schema.rtemis.org")
+cases <- lapply(oracle[["result_rule_cases"]](), function(case) {
   cls <- S7_class(case[["base"]])
-  object <- result_rule_probe(case)
+  object <- oracle[["result_rule_probe"]](case)
   fields <- Filter(prop_published, cls@properties)
   document <- lapply(names(fields), function(nm) {
     wire_value(prop(object, nm), fields[[nm]])
@@ -19,11 +21,7 @@ cases <- lapply(result_rule_cases(), function(case) {
   stopifnot(identical(actual, case[["ids"]]))
   list(
     id = case[["id"]],
-    schema = paste0(
-      "https://schema.rtemis.org/",
-      tolower(cls@name),
-      "/v1/schema.json"
-    ),
+    schema = unname(urls[[paste0(cls@package, "::", cls@name)]]),
     document = S7_to_list(document),
     semantic_ids = I(actual)
   )

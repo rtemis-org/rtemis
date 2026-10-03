@@ -131,7 +131,7 @@ test_that("ordinary fallback counts missing pairs and rejects mismatched lengths
   shortened <- mod@predicted_test[-1L]
   expect_error(
     mod@predicted_test <- shortened,
-    "supervised.rows.test",
+    "supervised.rows.y_test.predicted_test",
     fixed = TRUE
   )
   # Bypass S7 to retain defensive coverage for malformed legacy objects.

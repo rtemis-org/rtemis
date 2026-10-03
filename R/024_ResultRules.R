@@ -187,6 +187,7 @@ result_relation_logic <- function(rule) {
   v <- rule_logic_var
   present <- function(path) op("!==", v(path), NULL)
   count <- function(x) op("reduce", x, op("+", v("accumulator"), 1L), 0L)
+  last <- function(x) op("reduce", x, v("current"), NULL)
   rows <- function(nm) {
     op(
       "if",
@@ -208,7 +209,31 @@ result_relation_logic <- function(rule) {
   if (rule[["kind"]] == "FactorLevelsMatch") {
     a <- paste0(rule[["left"]], ".levels")
     b <- paste0(rule[["right"]], ".levels")
-    return(op("and", present(a), present(b), op("!==", v(a), v(b))))
+    # Carry the dictionary and position into the reducer's local scope.
+    reduced <- op(
+      "reduce",
+      v(a),
+      list(
+        v("accumulator.0"),
+        op("+", v("accumulator.1"), 1L),
+        op(
+          "or",
+          v("accumulator.2"),
+          op(
+            "!==",
+            v("current"),
+            op("var", op("cat", "accumulator.0.", v("accumulator.1")))
+          )
+        )
+      ),
+      list(v(b), 0L, FALSE)
+    )
+    return(op(
+      "and",
+      present(a),
+      present(b),
+      op("or", op("!==", count(v(a)), count(v(b))), last(reduced))
+    ))
   }
   nm <- rule[["probabilities"]]
   lev <- paste0(rule[["outcome"]], ".levels")
@@ -227,7 +252,7 @@ result_relation_logic <- function(rule) {
     list(width, FALSE)
   )
   # Keep the expected width in the accumulator across row-local scopes.
-  failed <- op("reduce", reduced, v("current"), FALSE)
+  failed <- last(reduced)
   op(
     "and",
     present(nm),
