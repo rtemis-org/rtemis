@@ -33,7 +33,7 @@ Imports:
     parallel,
     parallelly,
     rtemis.core (>= 0.4.5),
-    rtemis.draw (>= 0.5.3),
+    rtemis.draw (>= 0.5.4),
     stats,
     S7,
     utils

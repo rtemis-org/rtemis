@@ -9,9 +9,9 @@
 #' sign reads from here, so the same hue means the same thing to a reader moving
 #' between a volcano plot, a Manhattan plot, and a LINAD coefficient table.
 #'
-#' The colors are read from the rtemis.draw significance defaults at call time:
-#' `plot()` and `plot_manhattan()` on a `MassGLM` draw through rtemis.draw, so
-#' that package owns the pair and every other rtemis plot follows it.
+#' The colors are rtemis.draw's default theme's, read at call time: `plot()`
+#' and `plot_manhattan()` on a `MassGLM` draw through rtemis.draw, so that
+#' package owns the pair and every other rtemis plot follows it.
 #'
 #' @return Named character vector: `negative`, `neutral`, `positive`.
 #'
@@ -19,11 +19,11 @@
 #' @keywords internal
 #' @noRd
 sign_colors <- function() {
-  config <- rtemis.draw::setup_SignificanceConfig()
+  theme <- rtemis.draw::theme_light()
   c(
-    negative = config@negative_color,
-    neutral = config@neutral_color,
-    positive = config@positive_color
+    negative = theme@negative_color,
+    neutral = theme@neutral_color,
+    positive = theme@positive_color
   )
 } # /rtemis::sign_colors
 
