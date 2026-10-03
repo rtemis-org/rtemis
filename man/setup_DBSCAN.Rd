@@ -12,7 +12,7 @@ setup_DBSCAN(
   search = "kdtree",
   bucket_size = 100L,
   split_rule = "SUGGEST",
-  approx = FALSE,
+  approx = 0,
   features = NULL
 )
 }
@@ -31,7 +31,11 @@ setup_DBSCAN(
 
 \item{split_rule}{Character \{"SUGGEST", "STD", "MIDPT", "FAIR", "SL_MIDPT", "SL_FAIR"\}: Rule for splitting the k-d tree.}
 
-\item{approx}{Logical: If TRUE, use approximate nearest neighbor search.}
+\item{approx}{Numeric [0, Inf): Approximation factor for the nearest neighbor
+search (\code{dbscan::frNN(approx =)}); 0 searches exactly. A positive value
+guarantees only the neighbors within \code{eps / (1 + approx)} and may omit
+others within \code{eps}, which can produce spurious clusters and noise points
+in exchange for speed.}
 
 \item{features}{Optional Character vector: Names of at least 2 distinct
 feature columns to cluster on. \code{NULL} clusters on all numeric features.}

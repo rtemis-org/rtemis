@@ -499,7 +499,13 @@ DBSCANConfig <- schema_class(
     ),
     approx = prop_float(
       0,
-      description = "Use approximate nearest neighbor search. All NN up to a distance of a factor of `1 + approx` eps may be used."
+      min = 0,
+      description = paste0(
+        "Approximation factor for the nearest neighbor search; 0 searches ",
+        "exactly. A positive value guarantees only the neighbors within ",
+        "eps / (1 + approx) and may omit others within eps, which can ",
+        "produce spurious clusters and noise points in exchange for speed."
+      )
     )
   ),
   publication = SchemaPublication(
@@ -520,7 +526,11 @@ DBSCANConfig <- schema_class(
 #' @param search Character \{"kdtree", "linear", "dist"\}: Nearest neighbor search strategy.
 #' @param bucket_size Integer [1, Inf): Size of buckets for k-d tree search.
 #' @param split_rule Character \{"SUGGEST", "STD", "MIDPT", "FAIR", "SL_MIDPT", "SL_FAIR"\}: Rule for splitting the k-d tree.
-#' @param approx Logical: If TRUE, use approximate nearest neighbor search.
+#' @param approx Numeric [0, Inf): Approximation factor for the nearest neighbor
+#'   search (`dbscan::frNN(approx =)`); 0 searches exactly. A positive value
+#'   guarantees only the neighbors within `eps / (1 + approx)` and may omit
+#'   others within `eps`, which can produce spurious clusters and noise points
+#'   in exchange for speed.
 #'
 #' @param features Optional Character vector: Names of at least 2 distinct
 #'   feature columns to cluster on. `NULL` clusters on all numeric features.
