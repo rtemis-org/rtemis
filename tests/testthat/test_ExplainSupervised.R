@@ -77,6 +77,25 @@ test_that("explain() decomposes a LightGBM regression exactly", {
 })
 
 
+# %% LightRF: regression ----
+test_that("explain() decomposes a LightRF regression on the prediction's scale", {
+  # LightGBM sums a random forest's trees in raw scores and contributions
+  # while predicting their average; the explanation must use the average.
+  mod <- train(
+    .regression_dat,
+    hyperparameters = setup_LightRF(nrounds = 20L, min_data_in_leaf = 3L),
+    verbosity = 0L
+  )
+  x <- explain(mod, .regression_dat[1:3, .explain_feats], verbosity = 0L)
+  expect_additive(x)
+  expect_equal(
+    as.numeric(x@predicted[, 1L]),
+    as.numeric(predict(mod, .regression_dat[1:3, .explain_feats])),
+    tolerance = 1e-6
+  )
+})
+
+
 # %% LightGBM: binary ----
 test_that("a binary explanation is on the margin, not the probability", {
   # Correction 6, as a test: `predict.Supervised` normalizes classification to

@@ -98,7 +98,7 @@ class_df_for_print <- function(df) {
 # Accuracy", auc -> "AUC", rsq -> "R^2"). labelify() uppercases the acronyms
 # via its capitalize_strings defaults; R-squared gets a Unicode superscript two.
 # Stored field names stay lowercase.
-CAP_METRICS <- c("mae", "mse", "rmse", "oos")
+CAP_METRICS <- c("mae", "mse", "rmse", "oos", "auc", "ppv", "npv")
 label_metrics <- function(x) {
   sub("^Rsq$", "R\u00b2", labelify(x, capitalize_strings = CAP_METRICS))
 }

@@ -4126,6 +4126,22 @@ test_that("describe() list of ClassificationRes objects returns character", {
   expect_type(out, "character")
 })
 
+## [desc]<ClassificationRes> metric ----
+test_that("desc() ClassificationRes reports the requested metric", {
+  out_f1 <- desc(resmod_c_glm, metric = "f1")
+  expect_match(out_f1, "Mean f1 was", fixed = TRUE)
+  expect_match(
+    out_f1,
+    ddSci(resmod_c_glm@metrics_test@mean_metrics[["f1"]]),
+    fixed = TRUE
+  )
+  expect_false(identical(out_f1, desc(resmod_c_glm)))
+  expect_error(
+    desc(resmod_c_glm, metric = "not_a_metric"),
+    class = "rtemis_value_error"
+  )
+})
+
 ## {Multi}[present]<ClassificationRes> List ----
 plt <- present(x)
 test_that("present() list of ClassificationRes objects returns ECharts htmlwidget", {

@@ -162,9 +162,10 @@
 
 # %% .contract_no_setup ----
 # Registered classes with no `setup_*` and no input form: the furniture of a
-# record, the results classes describing what a run produced, and the findings
-# `validate_config()` reports about a config. Nothing authors one, so none
-# states a user's intent and none is a config.
+# record, the results classes describing what a run produced, the findings
+# `validate_config()` reports about a config, and the review `review()` reports
+# about a trained model. Nothing authors one, so none states a user's intent
+# and none is a config.
 .contract_no_setup <- c(
   "Supervised",
   "Regression",
@@ -186,7 +187,9 @@
   "ClassificationMetricsRes",
   "Diagnostic",
   "Diagnostics",
-  "DataProfile"
+  "DataProfile",
+  "ReviewFinding",
+  "SupervisedReview"
 )
 
 
