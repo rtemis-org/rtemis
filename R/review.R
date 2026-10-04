@@ -794,8 +794,9 @@ review_sample_findings <- function(x, sample, context) {
           },
           context[["folds_better"]],
           " of ",
-          sample[["n_resamples"]],
-          " resamples outperformed their baseline. Resamples share training ",
+          length(fold_test),
+          " resamples in which the metric is defined outperformed their ",
+          "baseline. Resamples share training ",
           "cases, so their results are not independent, and no confidence ",
           "interval or test is computed from them."
         )
@@ -1444,7 +1445,8 @@ review_baseline_row <- function(
   skill = NA_real_,
   p_value = NA_real_,
   outcome = NA_character_,
-  resamples_better = NA_integer_
+  resamples_better = NA_integer_,
+  resamples_compared = NA_integer_
 ) {
   nan_to_na <- review_defined
   data.frame(
@@ -1461,7 +1463,8 @@ review_baseline_row <- function(
     skill = nan_to_na(skill),
     p_value = p_value,
     outcome = outcome,
-    resamples_better = resamples_better
+    resamples_better = resamples_better,
+    resamples_compared = resamples_compared
   )
 } # /rtemis::review_baseline_row
 
@@ -1615,7 +1618,8 @@ review_baseline_resampled <- function(
         NA_real_,
         NA_real_
       ),
-      resamples_better = count_better(model, baseline, higher_is_better)
+      resamples_better = count_better(model, baseline, higher_is_better),
+      resamples_compared = sum(available)
     )
   }
   if (x@type == "Classification") {

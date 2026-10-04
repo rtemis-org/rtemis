@@ -182,7 +182,7 @@ resample <- function(
   }
 
   # Update strat_n_bins ----
-  if (type == "StratSub" || type == "StratBoot") {
+  if (type %in% c("KFold", "StratSub", "StratBoot")) {
     actual_n_bins <- attr(res_part, "strat_n_bins")
     if (actual_n_bins != config@strat_n_bins) {
       if (verbosity > 0L) {
@@ -393,25 +393,17 @@ kfold <- function(
   if (is.null(stratify_var)) {
     stratify_var <- x
   }
-  stratify_var <- as.numeric(stratify_var)
-  # ->> update
-  max.bins <- length(unique(stratify_var))
-  if (max.bins < strat_n_bins) {
-    if (max.bins == 1) {
-      rtemis.core::abort(
-        "Only one unique value present in stratify_var.",
-        class = c("rtemis_value_error", "rtemis_input_error")
-      )
-    }
-    if (verbosity > 0L) {
-      msg0("Using max n bins possible = ", max.bins, ".")
-    }
-    strat_n_bins <- max.bins
+  strata <- strat_groups(stratify_var, strat_n_bins, verbosity)
+  if (strata[["n_groups"]] == 1L) {
+    rtemis.core::abort(
+      "Only one unique value present in stratify_var.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
   }
+  strat_n_bins <- strata[["n_bins"]] %||% strat_n_bins
 
   ids <- seq_along(x)
-  # cuts
-  cuts <- cut(stratify_var, breaks = strat_n_bins, labels = FALSE)
+  cuts <- strata[["groups"]]
   cut.bins <- sort(unique(cuts))
 
   # ids by cut
@@ -440,6 +432,54 @@ kfold <- function(
 } # /rtemis::kfold
 
 
+# %% strat_groups ----
+#' Strata for stratified resampling
+#'
+#' A categorical variable stratifies by its observed levels. A numeric
+#' variable is cut into `strat_n_bins` equal-width intervals, or one per
+#' distinct value when it has fewer.
+#'
+#' @param stratify_var Vector: Variable to stratify by.
+#' @param strat_n_bins Integer: Intervals for a numeric variable.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `groups` (integer stratum per case), `n_groups`, and
+#'   `n_bins`: the intervals a numeric variable was cut into, or NULL for a
+#'   categorical variable.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+strat_groups <- function(stratify_var, strat_n_bins, verbosity = 1L) {
+  if (
+    is.factor(stratify_var) ||
+      is.character(stratify_var) ||
+      is.logical(stratify_var)
+  ) {
+    groups <- as.integer(factor(stratify_var))
+    return(list(
+      groups = groups,
+      n_groups = length(unique(groups)),
+      n_bins = NULL
+    ))
+  }
+  stratify_var <- as.numeric(stratify_var)
+  n_unique <- length(unique(stratify_var))
+  if (n_unique < strat_n_bins) {
+    if (verbosity > 0L) {
+      msg0("Using max n bins possible = ", n_unique, ".")
+    }
+    strat_n_bins <- n_unique
+  }
+  groups <- cut(stratify_var, breaks = strat_n_bins, labels = FALSE)
+  list(
+    groups = groups,
+    n_groups = length(unique(groups)),
+    n_bins = strat_n_bins
+  )
+} # /rtemis::strat_groups
+
+
 #' Resample using Stratified Subsamples
 #'
 #' @inheritParams resample
@@ -464,16 +504,10 @@ strat_sub <- function(
   if (is.null(stratify_var)) {
     stratify_var <- x
   }
-  stratify_var <- as.numeric(stratify_var)
-  max.bins <- length(unique(stratify_var))
-  if (max.bins < strat_n_bins) {
-    if (verbosity > 0L) {
-      msg("Using max n bins possible =", max.bins)
-    }
-    strat_n_bins <- max.bins
-  }
+  strata <- strat_groups(stratify_var, strat_n_bins, verbosity)
+  strat_n_bins <- strata[["n_bins"]] %||% strat_n_bins
   ids <- seq_along(x)
-  cuts <- cut(stratify_var, breaks = strat_n_bins, labels = FALSE)
+  cuts <- strata[["groups"]]
   cut.bins <- sort(unique(cuts))
   idl <- lapply(seq_along(cut.bins), function(i) ids[cuts == cut.bins[i]])
   idl.length <- as.numeric(table(cuts))

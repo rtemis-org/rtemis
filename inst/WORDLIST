@@ -198,6 +198,7 @@ NystromConfig
 OOB
 ORCID
 overfits
+Pandoc
 parallelly
 PAMConfig
 PAMK
@@ -307,6 +308,7 @@ VVE
 VVI
 VVV
 WASM
+writeup
 XGBoost
 XLSX
 Zeileis

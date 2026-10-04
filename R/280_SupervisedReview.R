@@ -312,7 +312,8 @@ prop_review_value <- function(description) {
 #' performance and how it compares with a baseline, the tuning checked, the
 #' findings drawn from them, and what a review of metrics cannot establish.
 #'
-#' @field algorithm Character: Algorithm of the reviewed model.
+#' @field algorithm Character \{"GLM", "GAM", "GLMNET", "GLMTree", "SPLS", "MARS", "LinearSVM", "RadialSVM", "CART", "Ranger", "LightCART", "LightRF", "LightGBM", "LightRuleFit", "BART", "Isotonic", "MLP", "TabNet", "KNN", "HAL", "MonotonicHAL", "LINAD", "LINADForest", "NNLS", "SuperLearner", "ModalityStacking", "ConditionalSuperLearner"\}:
+#'   Algorithm of the reviewed model.
 #' @field type Character \{"Regression", "Classification"\}: Kind of supervised
 #'   learning.
 #' @field description Character: Methods-style description of the model, as
@@ -337,6 +338,7 @@ SupervisedReview <- schema_class(
   package = "rtemis",
   properties = list(
     algorithm = prop_string(
+      enum = names(schema_algorithm_descriptions(Hyperparameters)),
       description = "Algorithm identifier of the reviewed model."
     ),
     type = prop_string(
@@ -503,6 +505,9 @@ SupervisedReview <- schema_class(
         ),
         resamples_better = prop_review_count(
           "Resamples whose model value beats their own reference. Resampled models only."
+        ),
+        resamples_compared = prop_review_count(
+          "Resamples in which both the model value and the reference value are defined, out of which resamples_better is counted. Resampled models only."
         )
       ),
       nullable = TRUE,
@@ -809,8 +814,8 @@ review_baseline_lines <- function(x, indent) {
             "; better in ",
             b[["resamples_better"]][[i]],
             " of ",
-            x@sample[["n_resamples"]],
-            " resamples"
+            b[["resamples_compared"]][[i]],
+            " resamples compared"
           )
         }
       )

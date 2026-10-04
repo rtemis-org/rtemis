@@ -572,6 +572,35 @@ cases[["diagnostics_empty"]] <- check_document(
   "diagnostics/r/v1/schema.json",
   record_object(Diagnostics())
 )
+writeup_idx <- c(1:40, 51:90, 101:140)
+writeup_record <- record_object(writeup(train(
+  iris[writeup_idx, ],
+  dat_test = iris[-writeup_idx, ],
+  hyperparameters = setup_CART(maxdepth = tune_over(2L, 3L)),
+  verbosity = 0L
+)))
+cases[["writeup_record"]] <- check_document(
+  "writeup_record",
+  "supervisedwriteup/v1/schema.json",
+  writeup_record
+)
+mutant <- writeup_record
+mutant[["sections"]][[1L]][["part"]] <- "discussion"
+cases[["writeup_wrong_part"]] <- check_document(
+  "writeup_wrong_part",
+  "supervisedwriteup/v1/schema.json",
+  mutant,
+  FALSE
+)
+mutant <- writeup_record
+mutant[["review"]][["baseline"]][["resamples_compared"]] <- NULL
+mutant[["review"]][["algorithm"]] <- "NotAnAlgorithm"
+cases[["writeup_review_wrong_algorithm"]] <- check_document(
+  "writeup_review_wrong_algorithm",
+  "supervisedwriteup/v1/schema.json",
+  mutant,
+  FALSE
+)
 cases[["diagnostics_wrong"]] <- check_document(
   "diagnostics_wrong",
   "diagnostics/r/v1/schema.json",

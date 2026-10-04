@@ -1160,6 +1160,83 @@ ai_review <- new_generic(
   }
 )
 
+
+# %% writeup ----
+#' Write the Methods and Results sections for a trained model
+#'
+#' @description
+#' Describe a trained supervised model as the Methods and Results sections of
+#' a paper: the data, preprocessing, algorithm and settings, tuning, evaluation
+#' design, performance measures and statistical methods, and software, then
+#' the sample, performance with its uncertainty, the comparison with a
+#' baseline, and the hyperparameters tuning selected.
+#'
+#' @details
+#' The text is assembled from the model and its [review], so it states only
+#' what rtemis recorded. Every number in the text is read from the model or
+#' the review: the returned object holds each one in `@values` with the path of
+#' the field it came from, and the paragraphs in `@sections` are templates in
+#' which each number is a `{key}` token naming a row of `@values`. Statistical
+#' methods are those `review()` used, cited in `@references` together with R,
+#' rtemis and the packages that fitted the model, at the versions recorded
+#' when the model was trained.
+#'
+#' A Methods section also states the source of the data, the study design,
+#' how the outcome and predictors were measured, and anything done to the data
+#' before it was passed to rtemis. The model does not record these, so the
+#' writeup lists them in `@not_reported` for the author to add.
+#'
+#' Print the result to read it; [write_writeup] writes it as Markdown.
+#'
+#' @param x `Supervised` or `SupervisedRes` object: A trained model, as
+#'   returned by [train].
+#' @param confidence_level Optional Numeric (0, 1): Confidence level of the
+#'   intervals of a single-split model. NULL uses 0.95.
+#' @param ... Not used.
+#'
+#' @return `SupervisedWriteup` object.
+#'
+#' @references
+#' Clopper CJ, Pearson ES (1934). The use of confidence or fiducial limits
+#' illustrated in the case of the binomial. Biometrika, 26(4), 404-413.
+#'
+#' DeLong ER, DeLong DM, Clarke-Pearson DL (1988). Comparing the areas under
+#' two or more correlated receiver operating characteristic curves: a
+#' nonparametric approach. Biometrics, 44(3), 837-845.
+#'
+#' McNemar Q (1947). Note on the sampling error of the difference between
+#' correlated proportions or percentages. Psychometrika, 12(2), 153-157.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' idx <- c(1:40, 51:90, 101:140)
+#' mod <- train(
+#'   iris[idx, ],
+#'   dat_test = iris[-idx, ],
+#'   hyperparameters = setup_CART(),
+#'   verbosity = 0L
+#' )
+#' writeup(mod)
+#'
+#' # Resampled
+#' mod_res <- train(
+#'   iris,
+#'   hyperparameters = setup_CART(),
+#'   outer_resampling_config = setup_KFold(5L),
+#'   verbosity = 0L
+#' )
+#' writeup(mod_res)
+writeup <- new_generic(
+  "writeup",
+  "x",
+  function(x, confidence_level = NULL, ...) {
+    force_supplied()
+    S7_dispatch()
+  }
+)
+
 # %% get_hyperparams_need_tuning ----
 #' Get hyperparameters that need tuning.
 #'

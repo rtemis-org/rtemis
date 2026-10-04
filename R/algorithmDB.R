@@ -162,6 +162,75 @@ supervised_algorithms <- data.frame(
 )
 
 
+# %% SUPERVISED_BACKENDS ----
+# The packages that fit each supervised algorithm, cited by `writeup()`.
+# "stats" is part of R. An empty entry is an algorithm implemented in rtemis
+# (LINAD, LINADForest) or a meta learner, whose base learners name their own.
+# Each `train_` method checks the same packages with `check_dependencies()`;
+# `test_SupervisedWriteup.R` keeps the two in agreement.
+SUPERVISED_BACKENDS <- list(
+  BART = "stochtree",
+  CART = "rpart",
+  ConditionalSuperLearner = character(),
+  GAM = "mgcv",
+  GLM = "stats",
+  GLMNET = "glmnet",
+  GLMTree = "partykit",
+  HAL = "hal9001",
+  Isotonic = "stats",
+  MonotonicHAL = "hal9001",
+  KNN = "kknn",
+  LightCART = "lightgbm",
+  LightGBM = "lightgbm",
+  LightRF = "lightgbm",
+  LightRuleFit = c("lightgbm", "glmnet"),
+  LINAD = character(),
+  LINADForest = character(),
+  MARS = "earth",
+  MLP = "torch",
+  ModalityStacking = character(),
+  NNLS = "nnls",
+  Ranger = "ranger",
+  SuperLearner = character(),
+  LinearSVM = "e1071",
+  RadialSVM = "e1071",
+  SPLS = "spls",
+  TabNet = c("torch", "tabnet")
+)
+stopifnot(setequal(names(SUPERVISED_BACKENDS), supervised_algorithms[["name"]]))
+
+
+# %% SUPERVISED_INTERNAL_SELECTION ----
+# Algorithms whose fit selects a quantity from the data beyond the
+# hyperparameters it is given: a penalty by internal cross-validation (GLMNET,
+# HAL, MonotonicHAL, the lasso stage of LightRuleFit), a number of iterations
+# or epochs by early stopping (LightGBM, MLP, TabNet), a tree size on
+# validation cases (LINAD, LINADForest), model size by generalized
+# cross-validation (MARS), smoothing parameters (GAM), and ensemble weights
+# from cross-fitted predictions (the meta learners). `writeup()` describes the
+# selection where a `writeup_selection()` method exists and lists it as not
+# reported otherwise.
+SUPERVISED_INTERNAL_SELECTION <- c(
+  "ConditionalSuperLearner",
+  "GAM",
+  "GLMNET",
+  "HAL",
+  "LightGBM",
+  "LightRuleFit",
+  "LINAD",
+  "LINADForest",
+  "MARS",
+  "MLP",
+  "ModalityStacking",
+  "MonotonicHAL",
+  "SuperLearner",
+  "TabNet"
+)
+stopifnot(all(
+  SUPERVISED_INTERNAL_SELECTION %in% supervised_algorithms[["name"]]
+))
+
+
 # %% algorithm_trait ----
 #' Read one logical trait of a supervised algorithm
 #'

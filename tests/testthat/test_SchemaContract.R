@@ -191,7 +191,9 @@
   "ReviewFinding",
   "SupervisedReview",
   "AIReviewItem",
-  "AISupervisedReview"
+  "AISupervisedReview",
+  "WriteupSection",
+  "SupervisedWriteup"
 )
 
 

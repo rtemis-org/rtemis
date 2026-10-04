@@ -255,6 +255,8 @@ setup_GridSearch <- function(
 #'   member the winning combination came from. NULL for a single-object search.
 #' @field best_hyperparameters Named list of best hyperparameter values. Includes only
 #' hyperparameters that were tuned.
+#' @field searched_set Optional `HyperparametersSet`: The set searched over.
+#'   NULL for a single-object search.
 #'
 #' `hyperparameters` holds the **winning** configuration, which for a search
 #' over a `HyperparametersSet` is the member that won rather than the set. A
@@ -278,7 +280,8 @@ Tuner <- new_class(
     # `best_hyperparameters`: that list holds hyperparameter values, and
     # `.update_hyperparameters()` rejects any name that is not a settable
     # hyperparameter.
-    best_variant = NULL | class_character
+    best_variant = NULL | class_character,
+    searched_set = NULL | HyperparametersSet
   )
 ) # /rtemis::Tuner
 
@@ -307,7 +310,8 @@ GridSearch <- new_class(
     tuner_config,
     tuning_results,
     best_hyperparameters,
-    best_variant = NULL
+    best_variant = NULL,
+    searched_set = NULL
   ) {
     type <- "GridSearch"
     new_object(
@@ -317,7 +321,8 @@ GridSearch <- new_class(
         tuner_config = tuner_config,
         tuning_results = tuning_results,
         best_hyperparameters = best_hyperparameters,
-        best_variant = best_variant
+        best_variant = best_variant,
+        searched_set = searched_set
       )
     )
   }

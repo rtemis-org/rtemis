@@ -609,10 +609,16 @@ tune_GridSearch <- function(
     tuning_results = list(
       param_grid = param_grid,
       training = metrics_training_by_combo_id,
-      validation = metrics_validation_by_combo_id
+      validation = metrics_validation_by_combo_id,
+      # Combinations eligible before a randomized search sampled from them.
+      n_combinations = n_combinations_gated,
+      # The resampler as it ran, with settings resolved from the data, such
+      # as the number of stratification intervals.
+      resampler_config = res@config
     ),
     best_hyperparameters = best_param_combo,
-    best_variant = best_variant
+    best_variant = best_variant,
+    searched_set = if (is.null(members)) NULL else hyperparameters
   )
 } # /rtemis::tune_GridSearch
 
