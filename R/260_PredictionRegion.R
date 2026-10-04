@@ -13,9 +13,8 @@
 #
 # Both hierarchies are tagged, and they subclass on different axes: the result
 # by the *shape* of the region, the config by *how* it is constructed. An
-# interval and a label set share nothing but their provenance, which is why they
-# are two classes under an abstract base rather than one class whose half its
-# properties are always NULL.
+# interval and a label set share only their provenance, so they are two classes
+# under an abstract base.
 
 # %% Constants ----
 # What the user asks for: the construction, tagged on the config.
@@ -51,7 +50,7 @@ PREDICTION_REGION_TYPES <- c("Interval", "Set")
 #' Superclass for conformal prediction configuration.
 #'
 #' @details
-#' `alpha` is declared per subclass rather than here, as `n_resamples` is on
+#' `alpha` is declared per subclass, as `n_resamples` is on
 #' `ResamplerConfig`: `serializable_props()` writes `type` plus the leaf's own
 #' properties, so a shared property declared on the base would be dropped from
 #' every document.
@@ -183,10 +182,10 @@ prop_conformal_score <- function() {
 # %% prop_conformal_seed ----
 #' Random seed for the APS tie-break draw
 #'
-#' Resolved by the `setup_*` rather than at run time, as `ExecutionConfig`
-#' resolves its own, so that the value that ran is on the config and therefore
-#' in the record. APS is the only score that draws; the property is declared for
-#' every construction that can reach APS rather than gated, since which score
+#' Resolved by the `setup_*`, as `ExecutionConfig` resolves its own, so that the
+#' value that ran is on the config and therefore in the record. APS is the only
+#' score that draws; the property is declared, ungated, for every construction
+#' that can reach APS, since which score
 #' runs is resolved from the outcome and a gate on an unresolved value would
 #' misfire.
 #'
@@ -208,10 +207,8 @@ prop_conformal_seed <- function() {
 # %% resolve_conformal_seed ----
 #' Pin the seed the APS draw will use
 #'
-#' Resolved in the `setup_*` rather than at run time, as `ExecutionConfig`
-#' resolves its own and for the same reason: an unseeded region would otherwise
-#' be unreproducible, and "all outputs are auditable and reproducible" has to
-#' hold on the default path. Drawing from the current stream keeps
+#' Resolved in the `setup_*`, as `ExecutionConfig` resolves its own, so every
+#' region, including one built with defaults, is reproducible. Drawing from the current stream keeps
 #' `set.seed(1); conformal(...)` deterministic.
 #'
 #' @param seed Optional Integer: Requested seed.
@@ -270,10 +267,9 @@ SplitConformalConfig <- schema_class(
 #' `ConformalConfig` subclass for CV+ and its relatives.
 #'
 #' @details
-#' One leaf rather than one per relative. Jackknife+ is CV+ over leave-one-out
+#' One leaf covers all three relatives. Jackknife+ is CV+ over leave-one-out
 #' folds and cross-conformal is its set-valued counterpart; which of the three
-#' runs follows from the object -- its resampler and its outcome -- so making it
-#' the class would force a user to name the thing the object already decides.
+#' runs follows from the object -- its resampler and its outcome.
 #' The resolved method is recorded on the result.
 #'
 #' @author EDG
@@ -357,7 +353,7 @@ method(desc, ConformalConfig) <- function(x) {
 #' **`alpha` has a floor set by the calibration count.** A finite region needs
 #' `ceiling((n + 1) * (1 - alpha)) <= n`, so `alpha = 0.05` needs at least 19
 #' calibration cases and `alpha = 0.01` at least 99. `conformal()` aborts naming
-#' the count rather than returning an infinite region.
+#' the count.
 #'
 #' **`score` is the real choice, and only for a classification.** A regression
 #' has one score, `abs(y - yhat)`, which is what NULL resolves to.
@@ -425,14 +421,13 @@ setup_SplitConformal <- function(alpha = 0.1, score = NULL, seed = NULL) {
 #' two order statistics.
 #'
 #' **It delivers `1 - 2 * alpha` in the worst case**, not `1 - alpha`. The bound
-#' is conservative and observed coverage usually sits near `1 - alpha`, but the
-#' region states the guarantee it carries rather than letting a reader assume
-#' the tighter one.
+#' is conservative and observed coverage usually sits near `1 - alpha`; the
+#' region states the guarantee it carries.
 #'
 #' **The folds must partition the cases**, each case out-of-fold exactly once.
 #' `setup_KFold()` and `setup_LOOCV()` do; the subsampling and
 #' bootstrap types do not, and `conformal()` refuses them by checking the
-#' indices rather than the type name.
+#' indices.
 #'
 #' Which relative runs follows from the object: leave-one-out folds make it
 #' jackknife+, and a classification outcome makes it cross-conformal (Vovk,
@@ -524,9 +519,8 @@ setup_CQR <- function(alpha = 0.1) {
 #' is meaningless without knowing what calibrated it, two regions calibrated on
 #' different data are not comparable, and nothing in the numbers says so.
 #'
-#' `alpha` is deliberately absent: it is on `@config`, and a second copy is a
-#' second place for it to disagree. `@coverage` derives the guarantee from
-#' `@config@alpha` and `@method` instead of storing it.
+#' `alpha` is held once, on `@config`. `@coverage` derives the guarantee from
+#' `@config@alpha` and `@method`.
 #'
 #' @author EDG
 #' @noRd
@@ -552,7 +546,7 @@ PredictionRegion <- new_class(
     ),
     # The calibrated threshold. One number for a split construction and NULL for
     # the fold constructions, which compare a rank against every out-of-fold
-    # score rather than against a single quantile of them.
+    # score.
     q = NULL | class_numeric,
     n_calibration = class_integer,
     # Identity of the cases bounded, and of the data that calibrated the bound.
@@ -561,8 +555,7 @@ PredictionRegion <- new_class(
     calibration_fingerprint = NULL | DataFingerprint,
     # The guarantee the construction delivers: `1 - alpha` where the coverage
     # bound is exact, `1 - 2 * alpha` for the fold constructions, whose bound is
-    # the conservative one. Derived rather than stored, so it cannot contradict
-    # the config it is read from.
+    # the conservative one. Derived from the config, so the two always agree.
     coverage = new_property(
       getter = function(self) {
         alpha <- self@config@alpha
@@ -633,9 +626,8 @@ PredictionInterval <- new_class(
 #' `PredictionRegion` subclass holding a set of labels per case.
 #'
 #' @details
-#' A set may be empty -- no label is plausible at this level, which is
-#' information rather than failure and is never silently widened to the top-1
-#' label -- and may hold every class. `@predicted_prob` is the full probability
+#' A set may be empty -- no label is plausible at this level -- and may hold
+#' every class. `@predicted_prob` is the full probability
 #' matrix the sets were cut from, one column per class including the binary
 #' case, where `Classification` itself stores only the positive class's column.
 #'
@@ -746,8 +738,8 @@ method(`[[`, PredictionRegion) <- function(x, name) {
 #' Both, always. Printing the guarantee alone shows "80%" to a user who asked
 #' for `alpha = 0.1` and reads as a defect; printing the requested level alone
 #' would claim 90% coverage that a fold construction does not promise in the
-#' worst case. The two agree wherever the bound is exact, and the line says so
-#' by naming one number instead of two.
+#' worst case. The two agree wherever the bound is exact, and the line then
+#' names one number.
 #'
 #' @param x `PredictionRegion` object.
 #' @param output_type Character \{"ansi", "html", "plain"\}: Output type.

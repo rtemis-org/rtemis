@@ -109,12 +109,10 @@ SuperConfig <- new_class(
       # `generate_authoring.R` into `authoring/v1`, not by any schema a model is
       # ever handed -- see `PropertySpec@agent_writable`.
       #
-      # Nullable: a run that writes nothing to disk must be able to say so. A
-      # non-nullable field would have every record claim the default directory
-      # whatever the run did, and a record that names a directory nothing was
-      # written to is worse than one that names none. `setup_SuperConfig()`
-      # still defaults to "results/", so a portable recipe that omits the field
-      # keeps writing where it always did.
+      # Nullable: a run that writes nothing to disk records NULL, so a record
+      # names a directory only when the run wrote to it. `setup_SuperConfig()`
+      # defaults to "results/", so a portable recipe that omits the field
+      # writes there.
       outdir = prop_string(
         NULL,
         nullable = TRUE,
@@ -134,8 +132,8 @@ SuperConfig <- new_class(
 #' SuperConfigPaths Class
 #'
 #' @description
-#' Supervised Learning Configuration Class, data-agnostic: names file paths
-#' rather than carrying data. The portable, publishable, serializable shape --
+#' Supervised Learning Configuration Class, data-agnostic: names the file paths
+#' of the data. The portable, publishable, serializable shape --
 #' see [setup_SuperConfig].
 #'
 #' @author EDG
@@ -325,8 +323,8 @@ setup_SuperConfig <- function(
     check_decom_applicable(decomposition_config)
   }
   # Validated, not resolved: a config is a portable recipe, so it stores the
-  # path its author wrote rather than that path resolved against this machine's
-  # working directory.
+  # path as its author wrote it, unresolved against this machine's working
+  # directory.
   if (!is.null(dat_training_path)) {
     dat_training_path <- sanitize_path(
       dat_training_path,
@@ -413,9 +411,9 @@ setup_SuperConfig <- function(
   kind <- names(supported)[match(schema, supported)]
   if (is.na(kind)) {
     # A record is the same field vocabulary with every value resolved, so it
-    # would *read* as a config and quietly replace the defaults the caller
-    # expected to be live -- including values a run derived from data this call
-    # has never seen. Named rather than lumped in with an unknown URL.
+    # would *read* as a config and replace the defaults the caller expected to
+    # be live -- including values a run derived from data this call
+    # has never seen. The error names the record kind.
     record_kind <- names(.RTEMIS_RECORD_SCHEMAS)[
       match(schema, .RTEMIS_RECORD_SCHEMAS)
     ]
@@ -529,9 +527,8 @@ setup_SuperConfig <- function(
 #'
 #' @details
 #' Like `SuperConfigPaths`, but carries in-memory training/validation/test
-#' data instead of file paths. Used by `rtemislive` (uploads arrive over a WS
-#' frame, not as a file) and by future HPC submission paths that hand the
-#' data directly to a worker.
+#' data in place of file paths. Used by `rtemislive`, where uploads arrive over
+#' a WS frame.
 #' Not serializable to a config file -- in-memory data does not round-trip
 #' cleanly. Use `SuperConfigPaths` when you need on-disk reproducibility.
 #'

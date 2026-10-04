@@ -465,9 +465,8 @@ method(varimp_super, class_hal9001) <- function(model) {
 #' intercept -- the same structure `varimp_super()` walks.
 #'
 #' **A basis reading more than one feature is refused.** Splitting its value
-#' between those features is a within-term Shapley problem rather than a sum,
-#' and `setup_HAL()` defaults to `max_degree = 2L`, so this is the common case
-#' rather than an edge one. Only the *selected* bases are checked: a
+#' between those features is a within-term Shapley problem, and `setup_HAL()`
+#' defaults to `max_degree = 2L`, so this is the common case. Only the *selected* bases are checked: a
 #' higher-degree basis the lasso zeroed contributes nothing and cannot make the
 #' fit non-additive.
 #'

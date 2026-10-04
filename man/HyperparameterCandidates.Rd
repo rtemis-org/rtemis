@@ -12,16 +12,15 @@ HyperparameterCandidates(candidates = list(), from_vector = FALSE)
 \item{from_vector}{Logical: TRUE when the candidates were read out of a
 single bare vector. A vector is also how one value of a vector-valued
 hyperparameter is written, so that one combination cannot be inferred; this
-records it so the hyperparameter can reject it with a correction rather than
-silently take each element as a candidate.}
+records it so the hyperparameter can reject it with a correction.}
 }
 \value{
 \code{HyperparameterCandidates} object.
 }
 \description{
 Built by \code{\link[=tune_over]{tune_over()}} and stored in the hyperparameter it is assigned to, so
-that a search space is a distinct type rather than a vector that has to be
-told apart from a value by counting.
+that a search space is a distinct type, never inferred from a vector's
+length.
 }
 \examples{
 # Built by tune_over(), not directly.

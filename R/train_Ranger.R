@@ -133,8 +133,8 @@ method(predict_super, class_ranger) <- function(
   # `ranger::predict()` draws its C++ seed from the R stream when none is
   # given, so an unwrapped call advances the caller's RNG by one -- and a
   # construction that predicts once per fold advances it by the fold count.
-  # Preserved rather than seeded: ranger sees the same state it would have, so
-  # nothing about the prediction changes.
+  # The caller's state is preserved around the call: ranger sees the same state
+  # it would have, so the prediction is unchanged.
   predicted <- with_preserved_rng(
     predict(
       model,
@@ -161,8 +161,8 @@ method(predict_super, class_ranger) <- function(
 #' A quantile regression forest keeps the training outcomes reaching each
 #' terminal node, so one fitted forest answers every level and CQR needs no
 #' second fit. That store is what `quantreg = TRUE` builds; without it the
-#' forest holds node means and cannot answer at all, which is reported as the
-#' training setting it is rather than as a backend error.
+#' forest holds node means and cannot answer at all, and the error names that
+#' training setting.
 #'
 #' `keep_inbag` is not required here. It records which cases each tree was
 #' grown on, which quantiles of the *training* data need and quantiles of new

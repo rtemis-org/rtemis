@@ -15,6 +15,7 @@
 - `setup_PCoA()` configures principal coordinates analysis (classical multidimensional scaling) on a choice of dissimilarities; it applies to new data through Gower's out-of-sample formula, so it can be `train()`'s decomposition step, and does not reconstruct the input.
 - `setup_MDS()` configures metric or nonmetric multidimensional scaling through 'vegan' with multiple starts; it cannot be applied to new data and does not reconstruct the input.
 - `review()` assesses a trained supervised model, single-split or resampled: it reports sample sizes, every training and test metric, and comparisons with a baseline predictor, with confidence intervals and tests for a single split and a description of the variation between resamples for a resampled model, then notes small samples, many predictors, and signs of overfitting.
+- `ai_review()` asks a language model, through 'rtemis.llm', to write a summary, evaluation, next steps and caveats from a `review()`, statements citing the review's finding codes, checked against the review; the result keeps the review and records the model, settings, prompt and a hash of the review.
 - Metric labels print AUC, PPV and NPV in capitals.
 - LightRF predictions are no longer pulled toward 0 when some trees cannot split, as happens on small samples: such trees now predict their sample's center. Training reports how many trees could not split.
 - LightRF explanations (`explain()`) are on the scale of the model's predictions; their contributions were multiplied by the number of trees.

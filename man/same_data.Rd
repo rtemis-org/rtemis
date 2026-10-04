@@ -14,8 +14,7 @@ Logical.
 }
 \description{
 Two fingerprints are comparable only if they were produced the same way, so
-this is FALSE when \code{encoding} or \code{algorithm} differ -- an unequal comparison
-of incomparable values would be worse than no answer.
+this is FALSE when \code{encoding} or \code{algorithm} differ.
 }
 \examples{
 same_data(data_fingerprint(iris), data_fingerprint(iris))

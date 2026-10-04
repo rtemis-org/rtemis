@@ -61,8 +61,8 @@ method(train_, TabNetHyperparameters) <- function(
   # categorical predictors internally thus, you don't need to make any treatment.
   config <- get_tabnet_config(hyperparameters)
   config[["verbose"]] <- verbosity > 0L
-  # Resolved here rather than by tabnet, whose "auto" picks mps on Apple
-  # silicon: see `training_device()`. Prediction runs on the same device, since
+  # Resolved here; tabnet's own "auto" picks mps on Apple silicon: see
+  # `training_device()`. Prediction runs on the same device, since
   # the fitted network lives there.
   config[["device"]] <- torch_device_name(
     training_device(hyperparameters, execution_config@device),
@@ -83,9 +83,9 @@ method(train_, TabNetHyperparameters) <- function(
 # %% training_device.TabNetHyperparameters ----
 #' The device TabNet will train on
 #'
-#' Resolved by rtemis, as for MLP, rather than by tabnet, whose own `"auto"`
-#' prefers mps on Apple silicon -- slower than the CPU for TabNet at every size
-#' rtemis benchmarked. mps runs only when requested.
+#' Resolved by rtemis, as for MLP. tabnet's own `"auto"` prefers mps on Apple
+#' silicon, which is slower than the CPU for TabNet at every size rtemis
+#' benchmarked; mps runs only when requested.
 #'
 #' @param x `TabNetHyperparameters` object.
 #' @param requested Optional `DeviceConfig` object.

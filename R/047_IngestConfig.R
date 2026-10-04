@@ -5,17 +5,17 @@
 # How a data file is read and normalized to Parquet -- the first step of any
 # pipeline, and the only one that decides types.
 #
-# A family rather than one flat config, for the reason every other rtemis family
-# is one: a delimited file has a separator and a quote character, a spreadsheet
-# has a sheet number, and a Parquet has neither. A single config carrying all of
-# them offers a user settings that do nothing, and offers an agent settings it
+# A family, as elsewhere in rtemis: a delimited file has a separator and a quote
+# character, a spreadsheet has a sheet number, and a Parquet has neither. A
+# single config carrying all of them would offer a user settings that do
+# nothing, and offer an agent settings it
 # can put in a document that will never take effect. `format` is the
 # discriminator and the leaf holds what that format actually has.
 #
 # `format` has no default. It is not a preference -- it is what the file *is* --
 # so a config either states it, and can be checked against the file, or the
-# reader guesses and no one can tell what was read. Stating it is what makes a
-# mismatch a finding rather than a silent reinterpretation.
+# reader guesses and no one can tell what was read. Stating it makes a mismatch
+# a finding.
 
 # The dtypes a user can *declare*. `other` is the fallback for what nothing else
 # matches -- a BLOB, a struct -- and is a description, never a conversion
@@ -43,8 +43,7 @@ IngestConfig <- schema_class(
     # values a file happens to contain -- an all-integer column of codes reads
     # as a number, a column of "0"/"1" as an integer -- and the guess decides
     # what a learner is handed. Where the user knows, saying so beats every
-    # heuristic, and the record then reports what was declared rather than what
-    # was inferred.
+    # heuristic, and the record then reports what was declared.
     columns = prop_map(
       prop_string(INGEST_DTYPES[[1L]], enum = INGEST_DTYPES),
       nullable = TRUE,
@@ -282,7 +281,7 @@ INGEST_SETUP <- c(
 #
 # @param columns Optional Named vector: Declared column types, keyed by column
 # name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-# here is converted after reading rather than inferred.
+# here is converted to that type after reading.
 # @param character2factor Logical: If TRUE, read character columns as factors.
 # @param clean_colnames Logical: If TRUE, normalize column names.
 # @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -294,16 +293,15 @@ INGEST_SETUP <- c(
 #' Reading a delimited file -- the format that declares nothing, and therefore
 #' the one with the most to say.
 #'
-#' One constructor per format rather than one for all of them: a Parquet has no
-#' separator, so `sep` is not a setting it ignores, it is not a setting. R
-#' refusing an argument that does not exist says that better than any check
-#' could, and each format's own enums and defaults can then be documented
+#' One constructor per format: each takes exactly the settings its format has,
+#' so an argument from another format is rejected by R as unused, and each
+#' format's own enums and defaults can be documented
 #' against the class they belong to.
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
 #' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-#' here is converted after reading rather than inferred, which is what makes a
-#' known type beat a heuristic.
+#' here is converted to that type after reading, so a known type takes
+#' precedence over the reader's inference.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
 #' @param clean_colnames Logical: If TRUE, normalize column names.
 #' @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -352,8 +350,8 @@ setup_DelimitedIngest <- function(
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
 #' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-#' here is converted after reading rather than inferred, which is what makes a
-#' known type beat a heuristic.
+#' here is converted to that type after reading, so a known type takes
+#' precedence over the reader's inference.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
 #' @param clean_colnames Logical: If TRUE, normalize column names.
 #' @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -393,8 +391,8 @@ setup_ParquetIngest <- function(
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
 #' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-#' here is converted after reading rather than inferred, which is what makes a
-#' known type beat a heuristic.
+#' here is converted to that type after reading, so a known type takes
+#' precedence over the reader's inference.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
 #' @param clean_colnames Logical: If TRUE, normalize column names.
 #' @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -436,8 +434,8 @@ setup_XLSXIngest <- function(
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
 #' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-#' here is converted after reading rather than inferred, which is what makes a
-#' known type beat a heuristic.
+#' here is converted to that type after reading, so a known type takes
+#' precedence over the reader's inference.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
 #' @param clean_colnames Logical: If TRUE, normalize column names.
 #' @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -472,8 +470,8 @@ setup_RDSIngest <- function(
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
 #' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-#' here is converted after reading rather than inferred, which is what makes a
-#' known type beat a heuristic.
+#' here is converted to that type after reading, so a known type takes
+#' precedence over the reader's inference.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
 #' @param clean_colnames Logical: If TRUE, normalize column names.
 #' @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -508,8 +506,8 @@ setup_DTAIngest <- function(
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
 #' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-#' here is converted after reading rather than inferred, which is what makes a
-#' known type beat a heuristic.
+#' here is converted to that type after reading, so a known type takes
+#' precedence over the reader's inference.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
 #' @param clean_colnames Logical: If TRUE, normalize column names.
 #' @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -619,12 +617,11 @@ apply_declared_types <- function(x, columns) {
 #' The first step of any pipeline. A delimited file or a spreadsheet carries no
 #' usable type information; Parquet does. Ingesting once means nothing
 #' downstream infers a type a second time, and the decisions that were made are
-#' in the config rather than in a reader's defaults.
+#' in the config.
 #'
-#' The config's `format` is checked against the file. They disagreeing is an
-#' error rather than a silent reinterpretation: a config written for a delimited
-#' file says things a Parquet reader would ignore, and ignoring them is how a
-#' run does something other than what it was asked.
+#' The config's `format` is checked against the file, and a mismatch is an
+#' error: a config written for a delimited file sets options a Parquet reader
+#' would ignore.
 #'
 #' Returns a manifest describing what happened: the file in, the file out, a
 #' `DataFingerprint` of the data, the config, and which engine ran it. The
@@ -729,10 +726,7 @@ ingest <- function(
     verbosity = verbosity
   )
 
-  # Not yet a published record: what an ingest *node* records -- and whether it
-  # is its own record or a block in the run's -- is still open. Returned as a
-  # manifest so the information exists to shape it from, rather than a schema
-  # being invented ahead of the decision.
+  # Returned as a manifest; an ingest node has no published record schema.
   list(
     input = path,
     output = outfile,
@@ -752,7 +746,7 @@ ingest <- function(
 #'
 #' `format` picks the constructor, and every other key is one of its arguments
 #' -- so a key belonging to a different format fails there as an unused
-#' argument, naming it, rather than being dropped.
+#' argument, naming it.
 #'
 #' @param x Named list: The parsed document.
 #'

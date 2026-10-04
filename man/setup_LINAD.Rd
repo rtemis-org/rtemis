@@ -117,14 +117,12 @@ recovered exactly by the hyperparameter combinations given under Details.
 Every node carries a constant, as any decision tree's nodes do. \code{node_model}
 selects the model fitted at each node: \code{"constant"} for that constant alone,
 or a regularized linear model on top of it. That, with \code{max_leaves} and
-\code{gamma}, is what makes LINAD a generalization rather than a hybrid -- the
-familiar algorithms are points in its hyperparameter space, and everything
-between them is reachable too.
+\code{gamma}, makes LINAD a generalization: the familiar algorithms are points in
+its hyperparameter space, and everything between them is reachable too.
 }
 \section{What LINAD generalizes}{
 
-Each of the following is a special case of LINAD, recovered exactly rather
-than approximated:
+Each of the following is a special case of LINAD, recovered exactly:
 
 \describe{
 \item{A pure linear model}{\code{max_leaves = 1}. Nothing is split, so the model
@@ -140,8 +138,8 @@ colleagues, 2019; see References).}
 \code{max_leaves > 1} -- a tree whose nodes each carry a linear model.}
 }
 
-Every setting named above is tunable, so where a dataset belongs on that
-space is a question the data can answer rather than one to settle in advance:
+Every setting named above is tunable, so the data can select where a dataset
+belongs in that space:
 a linear generating process should select a full root fit and no splitting,
 while terminal nodes needing opposite-signed coefficients should select a
 split first. \code{root_learning_rate} is the dial for that first step -- at 0 the

@@ -21,7 +21,7 @@ directory.}
 
 \item{algorithm}{Character: Clustering algorithm. Not needed when \code{config} is
 supplied, which names its own; an explicit \code{algorithm} that disagrees with
-\code{config} is an error rather than a mislabeled run.}
+\code{config} is an error.}
 
 \item{config}{\code{ClusteringConfig}, optional: Algorithm-specific config from a
 clustering \verb{setup_*} function. Its \code{features} selects the columns to cluster

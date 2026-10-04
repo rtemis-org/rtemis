@@ -100,6 +100,7 @@ Suggests:
     reticulate,
     ROCR,
     rpart,
+    rtemis.llm (>= 0.8.7),
     Rtsne,
     seqinr,
     sf,
@@ -172,6 +173,8 @@ Collate:
     '260_PredictionRegion.R'
     '270_Diagnostics.R'
     '280_SupervisedReview.R'
+    '285_AISupervisedReview.R'
+    'ai_review.R'
     'algorithmDB.R'
     'bias_variance.R'
     'calibrate.R'

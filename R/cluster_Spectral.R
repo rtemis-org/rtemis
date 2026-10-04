@@ -159,7 +159,7 @@ method(cluster_, SpectralLocalConfig) <- function(
 #'
 #' The embedding is defined by an eigendecomposition of the training cases'
 #' affinity matrix, and 'kernlab' offers no out-of-sample extension of it, so
-#' new data is refused rather than silently ignored. One reading serves the
+#' new data is refused. One reading serves the
 #' three variants, each under the name its algorithm resolves to.
 #'
 #' @keywords internal

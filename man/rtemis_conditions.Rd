@@ -26,8 +26,7 @@ functions that signal them do not return when they error.
 }
 \description{
 Errors signalled by \pkg{rtemis} are classed R conditions, so they can be
-handled selectively with \code{\link[=tryCatch]{tryCatch()}} or \code{\link[=withCallingHandlers]{withCallingHandlers()}} rather than
-matched by message text. Each error carries a class vector ordered from the
+handled selectively with \code{\link[=tryCatch]{tryCatch()}} or \code{\link[=withCallingHandlers]{withCallingHandlers()}} by class. Each error carries a class vector ordered from the
 most specific failure mode to the most general, so a handler can catch
 narrowly (e.g. only type errors) or broadly (e.g. any invalid input).
 

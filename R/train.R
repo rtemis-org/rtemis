@@ -6,7 +6,7 @@
 #' Split a config's named weights column out of the data
 #'
 #' A config is a recipe over a data *path*, so it names the column holding the
-#' case weights rather than carrying their values. Training takes the values as a
+#' case weights. Training takes the values as a
 #' vector and expects the frame to hold features and the outcome only, so the
 #' column is read out here and dropped -- from the validation and test sets too,
 #' whose columns have to match the training features. Only the training set's
@@ -128,8 +128,8 @@ restore_weights_column <- function(model, column) {
 #' "error". Findings of severity "warning" are reported and training continues.
 #' Defaults to FALSE, except for a `SuperConfigTabular`, where it defaults to TRUE:
 #' that type binds its data in memory and is what a server hands a run it
-#' accepted on a client's behalf, so the check belongs to the type rather than
-#' to each caller remembering to ask for it. Pass FALSE explicitly to skip it.
+#' accepted on a client's behalf, so the check is that type's default. Pass
+#' FALSE explicitly to skip it.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used.
 #'
@@ -241,12 +241,10 @@ train <- function(
   # SuperConfigTabular dispatch ----
   if (S7_inherits(x, SuperConfigTabular)) {
     # Checked unless the caller said otherwise. A `SuperConfigTabular` carries its
-    # training data rather than a path to it, which is the shape a run submitted
-    # over the wire arrives in: the submitter is not the person who will read
-    # the failure, so a run that cannot answer the question asked has to be
-    # refused here rather than reported as a result. `missing()` rather than a
-    # different default in the signature, there being one signature for every
-    # dispatch.
+    # training data, the shape in which a run submitted over the wire arrives;
+    # its submitter does not read the run's output, so a run that cannot answer
+    # the question asked is refused here. `missing()` sets the default because
+    # every dispatch shares one signature.
     if (missing(preflight)) {
       preflight <- TRUE
     }
@@ -422,10 +420,9 @@ train <- function(
   # provenance block's `DataFingerprint`, not a path.
   input_config <- setup_SuperConfig(
     # `SuperConfigPaths` is a portable recipe over a data *path*, so it names a
-    # weights column rather than carrying the values; `weights` here is the
-    # vector itself, which has no place in such a document. The field is
-    # therefore left unset, and a weighted run is identifiable from its
-    # `DataFingerprint` rather than from this block.
+    # weights column; `weights` here is the vector itself, which such a
+    # document cannot hold. The field is therefore left unset, and a weighted
+    # run is identifiable from its `DataFingerprint`.
     weights = NULL,
     # Relevelling the outcome is all `positive_class` does to the run, so
     # nothing downstream would otherwise say it was asked for: two runs
@@ -439,19 +436,19 @@ train <- function(
     outer_resampling_config = outer_resampling_config,
     execution_config = execution_config,
     question = question,
-    # Passed rather than left to the `SuperConfigPaths` default ("results/"), which
-    # would have every record claim a directory the run never wrote to -- a live
-    # run writes nothing to disk at all.
+    # Passed explicitly, so a record names the directory the run wrote to; the
+    # `SuperConfigPaths` default ("results/") does not apply, and a live run
+    # writes nothing to disk.
     outdir = outdir,
     # A nested call passes `verbosity - 1L`, so this can be negative -- an
     # internal "quieter than silent" convention a config cannot express, its
-    # `verbosity` being bounded at 0. Clamped rather than propagated: it affects
-    # messages, never results.
+    # `verbosity` being bounded at 0. Clamped at 0: it affects messages, never
+    # results.
     verbosity = max(0L, verbosity)
   )
 
-  # A column named by `id_strat` identifies cases rather than describing them,
-  # so the learner must not see it: left in, it reaches the model as a
+  # A column named by `id_strat` identifies cases, so the learner must not see
+  # it: left in, it reaches the model as a
   # high-cardinality feature, and `check_supervised()` rejects the run outright
   # when the IDs are strings. Only `resample()` needs it, and only to read the
   # grouping off, so the frame carrying it is kept for that one call.
@@ -605,8 +602,8 @@ train <- function(
   ## Validate hyperparameters against data ----
   # Algorithm-specific constraints that depend on the data (e.g. Ranger's mtry
   # cannot exceed the number of features). Runs before tuning and outer
-  # resampling so an invalid search space fails here rather than as per-grid-cell
-  # failures, which `on_error = "continue"` would swallow. Tunable
+  # resampling, so an invalid search space fails here, before any grid cell
+  # runs; under `on_error = "continue"` per-cell failures would be skipped. Tunable
   # hyperparameters still hold their full search space at this point.
   validate_hyperparameters(hyperparameters, x)
 
@@ -641,10 +638,8 @@ train <- function(
   hyperparameters@n_workers <- workers[["algorithm"]]
   tuner <- NULL
 
-  # Narrowed to its own name rather than overwriting `backend`: the outer resampling loop
-  # further down needs the backend the user asked for, and a single `backend` variable
-  # meaning "tuning's backend" in one half of the function and "the run's backend" in the
-  # other is exactly how outer parallelization gets silently disabled.
+  # A separate name: the outer resampling loop further down needs the backend the user
+  # asked for, which `backend` keeps.
   tuning_backend <- if (workers[["tuning"]] == 1L) {
     "none"
   } else {
@@ -656,12 +651,12 @@ train <- function(
   # workers. The level that will dispatch is whichever the ladder gave workers to, and
   # only one ever does, so its share is the pool size; a run that spent them on the
   # algorithm dispatches nothing and starts no pool.
-  # Sizing it here rather than at the dispatch is what removes the per-fold cost: tuning
-  # dispatches *inside* the outer fold loop, so a pool owned by the dispatch is built and
-  # torn down once per fold, which on a short grid costs more than the parallelism saves.
+  # Sized here, once: tuning dispatches *inside* the outer fold loop, so a pool owned by
+  # each dispatch would be built and torn down once per fold, which on a short grid costs
+  # more than the parallelism saves.
   # A sequential fold recurses into `train()` with the run's own config and reaches this
   # again; `worker_pool_start()` finds the pool standing and hands back FALSE, so the fold
-  # borrows rather than nests.
+  # uses the standing pool.
   pool_started <- worker_pool_start(
     backend = backend,
     n_workers = max(workers[["tuning"]], workers[["outer_resampling"]]),
@@ -765,7 +760,7 @@ train <- function(
     } else {
       execution_config
     }
-    # `outer_resampler@resamples` rather than the `Resampler`: the fold only ever indexes
+    # The index list from `outer_resampler@resamples`: the fold only ever indexes
     # the list, an S7 object cannot be placed in shared memory, and the index list is
     # itself a meaningful share of the payload (1.7 MB at n = 50,000, k = 10).
     fold_resamples <- share_payload(
@@ -802,7 +797,7 @@ train <- function(
       question = question,
       # Failure policy (specs/observability.md section 7): under "stop"/"stop_outer" an
       # outer fold failure is fatal, so the fold re-raises and the dispatcher stops the
-      # run instead of finishing folds whose results are about to be discarded.
+      # run.
       fatal = !identical(on_error, "continue"),
       parallel = parallel_folds,
       verbosity = verbosity - 1L
@@ -929,8 +924,7 @@ train <- function(
         tuner@best_hyperparameters,
         tuned = 1L
       )
-      # Which member won, so the fitted model reports it rather than leaving a
-      # reader to infer it from the winning values.
+      # Which member won, so the fitted model reports it.
       hyperparameters@variant <- tuner@best_variant
       node_exit(tune_node, status = "ok")
     } # /Tune
@@ -1085,7 +1079,7 @@ train <- function(
       }
     } # /IFW
     # Whatever produced them, the weights reach every algorithm from here, so
-    # this is where their assumptions are checked rather than in each backend.
+    # their assumptions are checked here, once for every backend.
     check_case_weights(weights, NROW(x))
 
     # Train algorithm ----
@@ -1354,7 +1348,7 @@ train <- function(
     # top-level call has the input a record needs.
     # A resampled run records one entry per fold, so folds that resolved
     # different values (early stopping settles on a different `nrounds` each
-    # time) are each stated rather than collapsed.
+    # time) are each stated.
     if (is_root) {
       write_record(
         mod,
@@ -1393,7 +1387,7 @@ train <- function(
 #' nested `train()` builds the session that travels home as the fold's sub-log.
 #'
 #' @details
-#' Built by a factory rather than inline in `train()` because serializing a closure walks
+#' Built by a factory because serializing a closure walks
 #' its enclosing environments: a body defined in `train()`'s frame would ship that entire
 #' frame to every worker -- every dataset, config and intermediate it happens to hold.
 #' This frame holds only what a fold actually needs.
@@ -1402,7 +1396,7 @@ train <- function(
 #' is how a fold in a daemon knows not to fingerprint its slice of the data, attach an
 #' input config, or report a graph of its own.
 #'
-#' The session is detached explicitly rather than left to be absent, because "dispatched
+#' The session is detached explicitly, because "dispatched
 #' in parallel" does not imply "no session here": a forked worker
 #' (`future_plan = "multicore"`) inherits the host's `live` env wholesale, and a
 #' `multicore` plan on a host where forking is unavailable runs the body in process. In
@@ -1412,8 +1406,7 @@ train <- function(
 #'
 #' Under a tolerant failure policy a failure is captured and returned, so the host can
 #' warn about it and aggregate over the folds that survived. Under a fatal one it is
-#' recorded on the fold node and then re-raised, which is what lets the dispatcher stop
-#' the run rather than finish folds whose results are about to be discarded.
+#' recorded on the fold node and then re-raised, which lets the dispatcher stop the run.
 #'
 #' @param x Tabular data: Full training set; each fold slices its own rows.
 #' @param resamples List: Outer resample index vectors.

@@ -10,18 +10,17 @@
 #
 #   - `tunable` says whether a hyperparameter may be tuned *at all*, which no
 #     document shape can state: a document says what one config does, not what
-#     the algorithm permits. It no longer disambiguates shapes -- a search space
-#     is tagged `{"candidates": [...]}` and a broadcast value is an array, so
-#     the standard keywords tell those apart on their own.
+#     the algorithm permits. Shapes are told apart by the standard keywords: a
+#     search space is tagged `{"candidates": [...]}` and a broadcast value is
+#     an array.
 #   - `type` names the leaf type. JSON has one number type, so an integer
 #     property and a float property are otherwise indistinguishable once a
 #     default has been through a JSON encoder.
 #
-# A schema alone is not sufficient to rebuild a class: `default` is deliberately
-# not a schema keyword (`spec: rtemis/config-artifacts`), so defaults arrive
-# separately, from the artifact `data-raw/generate_defaults.R` publishes. That
-# split is the contract a port has to honor too, which is why `defaults` is an
-# argument here rather than something inferred.
+# A schema alone is not sufficient to rebuild a class: `default` is not a
+# schema keyword (`spec: rtemis/config-artifacts`), so defaults arrive
+# separately, from the artifact `data-raw/generate_defaults.R` publishes, and
+# `defaults` is an argument here. A port reads the two artifacts the same way.
 
 # %% schema_is_nullable ----
 #' Does a property schema admit null?
@@ -530,7 +529,7 @@ schema_to_spec <- function(
     ))
   }
   if (container == "struct") {
-    # A struct emits its object shape directly rather than as an array element.
+    # A struct emits its object shape directly.
     return(members_spec(
       x,
       x,
@@ -581,7 +580,8 @@ schema_to_spec <- function(
     # A nullable property lists `null` among its permitted values, `enum` being
     # stricter than the type union and otherwise rejecting it. That membership
     # is nullability, which `schema_is_nullable()` reads from the type -- so it
-    # is dropped here rather than coerced to the string "NULL". It arrives as a
+    # is dropped here, which keeps it out of the levels as the string "NULL".
+    # It arrives as a
     # `NULL` element under `simplifyVector = FALSE` and as `NA` under the
     # simplified parse; both mean the same thing here.
     values <- Filter(
@@ -591,7 +591,7 @@ schema_to_spec <- function(
     as.character(unlist(values))
   }
   # `minItems` / `uniqueItems` sit on the array form, which for a broadcast
-  # property is the trailing `oneOf` branch rather than `x` itself.
+  # property is the trailing `oneOf` branch.
   arity <- if (container == "array") {
     schema_array(x, broadcast, tunable)
   } else {

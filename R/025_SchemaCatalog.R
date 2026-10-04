@@ -317,7 +317,7 @@ schema_class <- function(
 #'
 #' Only families already declared when the document is declared can be
 #' checked, which is the case for a same-package reference in collation order;
-#' an unresolved target is skipped rather than guessed.
+#' an unresolved target is skipped.
 #'
 #' @param cls S7 class: The document class, with its inherited properties.
 #' @return NULL, invisibly; aborts with class `rtemis_schema_error`.
@@ -559,7 +559,7 @@ schema_publication_annotation <- function(cls) {
 #'
 #' A schema description is a sentence, but every caller uses it as a name
 #' inside its own sentence ("Ranger random forest was used for ..."), so the
-#' closing period is dropped here rather than at each call site.
+#' closing period is dropped here, once for every caller.
 #'
 #' @param base S7 class: Published family root.
 #' @return Named character vector keyed by discriminator value.

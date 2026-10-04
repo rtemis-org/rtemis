@@ -16,9 +16,8 @@ Named list, conforming to the family's \code{record.json}.
 }
 \description{
 The record of what ran: every config value resolved, an \code{origin} saying where
-each came from, and a provenance block. Derived rather than stored -- the
-object already holds both configs, and keeping a second representation on it
-would let the two drift.
+each came from, and a provenance block. Derived on demand from the configs
+the object already holds.
 }
 \examples{
 mod <- train(iris, hyperparameters = setup_CART())

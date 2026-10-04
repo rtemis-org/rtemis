@@ -20,9 +20,8 @@ write_record(x, file, overwrite = FALSE, verbosity = 1L)
 }
 \description{
 A record states what a run actually did: every value resolved, where each one
-came from, and what produced it. Deliberately a separate function rather than
-an argument to \link{write_config} -- the two artifacts answer different
-questions, and a caller should have to say which it wants.
+came from, and what produced it. A separate function from \link{write_config},
+since the two artifacts answer different questions.
 }
 \details{
 Three things distinguish a record from the config it came from:
@@ -56,8 +55,7 @@ since its resolved values would silently pin settings the new call should
 decide for itself.
 
 Unlike a config, a record is \strong{not compacted}: an unset field is written as
-an explicit \code{null} rather than omitted, so nothing in it falls back to a
-reader's defaults. That is the whole claim a record makes.
+an explicit \code{null}, so nothing in it falls back to a reader's defaults.
 }
 \examples{
 \dontrun{

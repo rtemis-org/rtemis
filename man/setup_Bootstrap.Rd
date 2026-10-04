@@ -13,8 +13,8 @@ setup_Bootstrap(n_resamples = 10L, id_strat = NULL, seed = NULL)
 subject IDs when the dataset contains repeated measurements. Cases sharing an ID stay in the
 same resample, so a case can only be present in the training or the test set, not both.
 Requires that \code{resample()} be given the data frame the column lives in. \link{train} takes the
-column to identify cases rather than describe them, so it groups the resamples by it and
-excludes it from the features.}
+column as a case identifier, so it groups the resamples by it and excludes it from the
+features.}
 
 \item{seed}{Optional Integer [0, Inf): Random seed.}
 }

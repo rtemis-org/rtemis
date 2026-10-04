@@ -332,9 +332,8 @@ se_super <- new_generic(
 # %% se ----
 #' Standard error of the fit
 #'
-#' Computed on demand from the fitted model rather than stored: only three of
-#' the twenty-four algorithms answer at all, so storing three per-case vectors
-#' on every regression result would carry a value almost none of them populate.
+#' Computed on demand from the fitted model, since only three of the twenty-four
+#' algorithms provide it.
 #'
 #' @param x `Supervised` object.
 #' @param newdata tabular data: Data to compute standard errors for.
@@ -368,7 +367,7 @@ se <- new_generic("se", "x", function(x, newdata, ...) {
 #' The contract. Returns an `n x length(quantiles)` numeric matrix, columns in
 #' the order `quantiles` were given. A backend that was fitted without whatever
 #' it needs to answer -- Ranger without `quantreg = TRUE` -- aborts naming the
-#' setting, rather than returning point predictions.
+#' setting.
 #'
 #' @param model Fitted model object.
 #' @param newdata tabular data: Cases to predict, already transformed.
@@ -414,7 +413,8 @@ quantile_super <- new_generic(
 #'   \item{`baseline`}{Named numeric, parallel to `phi`: `E[f(x)]`.}
 #'   \item{`predicted`}{`n x k` matrix on `scale`, which `phi` and `baseline`
 #'     must reconstruct.}
-#'   \item{`exact`}{TRUE if these are Shapley values rather than an estimate.}
+#'   \item{`exact`}{TRUE if these are exact Shapley values; FALSE for an
+#'     estimate.}
 #' }
 #'
 #' @param model Fitted model object.
@@ -463,8 +463,8 @@ explain_super <- new_generic(
 #' **`background` is what the contributions are measured against**, and most
 #' estimators cannot work without one. A contribution says how far a feature
 #' moved this case's prediction away from `E[f(x)]`, and that expectation is a
-#' property of the background data rather than of the model -- which does not
-#' store the data it was trained on. Pass the training features, or a
+#' property of the background data, and the model does not store the data it
+#' was trained on. Pass the training features, or a
 #' representative sample of them. The exceptions are the estimators that take
 #' their baseline from the model itself, such as the LightGBM family's; those
 #' ignore it, and everything else aborts without it.
@@ -705,10 +705,9 @@ apply_decomp_ <- new_generic(
 #'
 #' `x` is the data being reconstructed, in input units. Methods need it only
 #' when the backend's preprocessing is per-case and therefore not recoverable
-#' from the components -- ICA's `row_norm`. It is a required argument rather
-#' than an optional one because a caller computing reconstruction error holds
-#' `x` already, and a method that silently reconstructed against the wrong
-#' cases would be wrong in a way nothing downstream could detect.
+#' from the components -- ICA's `row_norm`. It is required, since a caller
+#' computing reconstruction error already holds `x`, and reconstruction against
+#' other cases would produce errors nothing downstream could detect.
 #'
 #' `execution_config` describes where the reconstruction runs, as for
 #' `apply_decomp_()`.
@@ -781,10 +780,9 @@ cluster_membership <- new_generic(
 #' **fitted** clusters -- excluding a noise label, and including a cluster that
 #' won no case -- which is not in general the number of distinct labels.
 #'
-#' The default method aborts rather than counting labels: label counting is
-#' correct only where a backend's non-noise labels enumerate its fitted
-#' clusters, so an algorithm that discovers `k` has to say where its count comes
-#' from instead of inheriting a guess.
+#' The default method aborts: label counting is correct only where a backend's
+#' non-noise labels enumerate its fitted clusters, so an algorithm that
+#' discovers `k` defines a method stating where its count comes from.
 #'
 #' @author EDG
 #' @keywords internal
@@ -829,8 +827,7 @@ get_metric <- new_generic("get_metric", "x")
 #' on `x`.
 #'
 #' Called by [train] before any tuning or resampling, so an invalid search
-#' space fails fast rather than surfacing as per-grid-cell failures that
-#' `on_error = "continue"` would swallow, and again immediately before
+#' space fails before any grid cell runs, and again immediately before
 #' `train_()` on the resolved hyperparameters, where the feature count reflects
 #' any preprocessing and decomposition.
 #'
@@ -865,7 +862,7 @@ validate_hyperparameters <- new_generic(
 #' Learning curve of a fitted model
 #'
 #' @description
-#' The loss recorded at every step of training, as data rather than a picture:
+#' The loss recorded at every step of training, as data:
 #' one row per step, with the training and validation loss where the algorithm
 #' records them.
 #'
@@ -899,7 +896,7 @@ get_learning_curve <- new_generic("get_learning_curve", "x")
 #' The per-algorithm half of [get_learning_curve]: dispatches on the fitted
 #' model class and returns the curve in one shape whatever the algorithm's own
 #' unit of progress is. A missing method means the algorithm records no curve,
-#' which `get_learning_curve()` reports as NULL rather than as a dispatch error.
+#' which `get_learning_curve()` reports as NULL.
 #'
 #' @param model Fitted model object.
 #'
@@ -1014,7 +1011,7 @@ describe <- new_generic("describe", "x", function(x, verbosity = 1L, ...) {
 #' The cases-per-predictor check counts the columns the learner received,
 #' after preprocessing and decomposition. Its threshold is a rule of thumb from
 #' logistic regression (events per variable; see References), reported for
-#' context rather than as a sample-size requirement for every algorithm.
+#' context.
 #'
 #' Preprocessing, decomposition and tuning inside `train()` are fitted on the
 #' training cases of each split and only applied to its test cases. Steps
@@ -1086,6 +1083,82 @@ review <- new_generic(
   }
 )
 
+
+# %% ai_review ----
+#' Write an assessment of a model review with a language model
+#'
+#' @description
+#' Ask a language model to write a summary, an evaluation, next steps and
+#' caveats from a [review] of a trained supervised model. Every statement cites
+#' the codes of the review findings it rests on, and the result keeps the
+#' review and a record of how the text was produced.
+#'
+#' @details
+#' The model receives the review as JSON and, if given, `context`: the
+#' question the model addresses, the costs of different errors, how its
+#' predictions will be used. It never receives the data. Without context, the
+#' assessment states that usefulness cannot be judged.
+#'
+#' The model answers in a declared structure whose codes are restricted to the
+#' review's findings, and the answer is checked: an answer that does not match
+#' the structure, or cites a code that is not a finding of the review, is an
+#' error. The returned object records the model, the provider, the
+#' temperature, the full prompt, a SHA-256 hash of the review sent and the
+#' time, so the assessment can be audited and, as far as the model allows,
+#' reproduced.
+#'
+#' The written assessment is an interpretation of the review, which remains
+#' the evidence; read them together.
+#'
+#' Requires the `rtemis.llm` package and access to a model.
+#'
+#' @param x `SupervisedReview`, `Supervised` or `SupervisedRes` object: A
+#'   review, or a trained model to review with default settings.
+#' @param llm `rtemis.llm` `LLM` or `Agent` object: The model to write the
+#'   assessment, for example from `rtemis.llm::create_Ollama()` or
+#'   `rtemis.llm::create_Anthropic()`.
+#' @param context Optional Character: Domain context for the assessment.
+#' @param temperature Optional Numeric [0, Inf): Sampling temperature for this
+#'   call. NULL uses the model's own setting.
+#' @param verbosity Integer: Verbosity level.
+#' @param ... Not used.
+#'
+#' @return `AISupervisedReview` object.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # Requires a running Ollama server with the model pulled.
+#' mod <- train(
+#'   iris,
+#'   hyperparameters = setup_CART(),
+#'   outer_resampling_config = setup_KFold(5L),
+#'   verbosity = 0L
+#' )
+#' llm <- rtemis.llm::create_Ollama(model_name = "gemma4:e4b")
+#' ai_review(
+#'   mod,
+#'   llm = llm,
+#'   context = "Teaching example; no decisions depend on the predictions."
+#' )
+#' }
+ai_review <- new_generic(
+  "ai_review",
+  "x",
+  function(
+    x,
+    llm,
+    context = NULL,
+    temperature = NULL,
+    verbosity = 1L,
+    ...
+  ) {
+    force_supplied()
+    S7_dispatch()
+  }
+)
 
 # %% get_hyperparams_need_tuning ----
 #' Get hyperparameters that need tuning.
@@ -1238,8 +1311,8 @@ to_json <- new_generic("to_json", "x")
 #' @keywords internal
 #' @noRd
 method(to_json, S7_object) <- function(x, ...) {
-  # Read one property at a time rather than `props(x)`, so an omitted computed
-  # property's getter is not evaluated only to be discarded.
+  # Read one property at a time, so an omitted computed property's getter is
+  # never evaluated.
   nms <- published_prop_names(S7_class(x))
   body <- lapply(nms, function(nm) .to_json_value(prop(x, nm)))
   names(body) <- nms
@@ -1781,8 +1854,7 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 #'
 #' Reports keep every published property, including observed state. Other
 #' objects keep every property `prop_serialized()` admits, so a flat config
-#' drops the same fields a config family does rather than emitting whatever it
-#' happens to hold. Config-family classes (`Hyperparameters`,
+#' drops the same fields a config family does. Config-family classes (`Hyperparameters`,
 #' `DecompositionConfig`, `ClusteringConfig`) override this to return their
 #' canonical public shape (`algorithm` + the computed parameter list + any base
 #' fields), so the per-algorithm properties they declare -- redundant with the
@@ -1812,8 +1884,8 @@ method(serializable_props, S7_object) <- function(x) {
       if (!is.null(artifact)) {
         return(nm %in% names(artifact[["properties"]]))
       }
-      # A property this object holds but does not declare cannot be judged;
-      # keep it rather than silently dropping data.
+      # A property this object holds but does not declare cannot be judged, so
+      # it is kept.
       is.null(declared[[nm]]) ||
         if (observed) {
           prop_published(declared[[nm]])

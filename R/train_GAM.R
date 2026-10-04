@@ -190,12 +190,11 @@ method(se_super, class_gam) <- function(model, newdata) {
 #' A GAM *is* an additive decomposition -- `train_GAM()` builds one smooth or
 #' parametric term per feature -- so `predict(type = "terms")` returns the
 #' quantity a Shapley value is defined as, and no coalition needs enumerating.
-#' The terms are re-centered on the supplied background so the baseline means
-#' what it does everywhere else, rather than being whatever mgcv centered on
-#' when the model was fitted.
+#' The terms are re-centered on the supplied background, so the baseline is the
+#' mean prediction over that background, as for every other estimator.
 #'
-#' Exact and already computed, which is why this beats the kernel estimator here
-#' on both counts.
+#' Exact, and computed by the fit itself, so it is both more accurate and faster
+#' than the kernel estimator here.
 #'
 #' @param model `gam` object.
 #' @param newdata tabular data: Cases to explain.

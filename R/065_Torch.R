@@ -7,7 +7,7 @@
 # loop requires only that calling it on a batch's input tensors returns something
 # the loss accepts. `train_MLP.R` is the first consumer.
 #
-# Numbered rather than named `utils_torch.R` because the vocabulary constants
+# Numbered because the vocabulary constants
 # below are read at class-definition time by `070_Hyperparameters.R`, which is
 # top-level code evaluated in collation order.
 #
@@ -377,9 +377,8 @@ torch_seeded_randn <- function(like) {
 #' `torch_seeded_randn()` follow `torch_manual_seed()`; dropout does not
 #' (probed 2026-09-29). So a seeded mps fit reproduces exactly until a dropout
 #' probability is non-zero, and then it does not, with nothing to say so.
-#' Checked against the **resolved** device rather than the requested one, so
-#' that it still holds if the preference order ever puts mps where a caller
-#' gets it without naming it.
+#' Checked against the **resolved** device, so that it also holds when the
+#' preference order selects mps without the caller naming it.
 #'
 #' @param device Character: The resolved device.
 #' @param seed Integer or NULL: The seed the caller asked for.
@@ -585,11 +584,9 @@ torch_betas <- function(beta1, beta2) {
 # %% torch_scheduler ----
 #' Build a learning-rate scheduler
 #'
-#' Each schedule configures itself from the run's own budget rather than from
-#' hyperparameters of its own: a scheduler-specific argument set would be five
-#' to eight properties, each gated on one enum value, for knobs nobody reaches
-#' for before `lr` and `max_epochs`. The derivations are documented on
-#' [setup_MLP].
+#' Each schedule configures itself from the run's own budget (`lr`,
+#' `max_epochs`, `steps_per_epoch`, `patience`). The derivations are documented
+#' on [setup_MLP].
 #'
 #' @param name Character or NULL: One of `TORCH_SCHEDULERS`, or NULL for none.
 #' @param optimizer `torch_Optimizer` object.
@@ -713,8 +710,7 @@ torch_batch_iterator <- function(dl, fn) {
 #' Build a dataloader over inputs, target and case weights
 #'
 #' A batch is the module's input tensors in order, then the target, then the
-#' weights -- so the loop splits it by counting the inputs rather than by
-#' knowing what they mean.
+#' weights -- so the loop splits it by counting the inputs.
 #'
 #' @param inputs List of `torch_tensor`: The module's inputs.
 #' @param target `torch_tensor`: Outcome.

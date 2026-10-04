@@ -24,12 +24,10 @@ LINADFOREST_JACKKNIFE_BLOCK <- 512L
 #' Resolve forest hyperparameters into the values the engine runs on
 #'
 #' The tree-level settings are LINAD's own. The two `mtry` values are resolved
-#' from the data here, and deliberately in one expression each: NULL means every
-#' feature today, and replacing that with a rule of `p` -- once the synthetic
-#' sweep says which rule -- is then a one-line change rather than a redesign.
+#' from the data here, in one expression each; NULL means every feature.
 #'
-#' `mtry_split` samples from the features the tree holds, not from every feature
-#' in the data, so it is capped by `mtry_tree` rather than by `p`.
+#' `mtry_split` samples from the features the tree holds, so it is capped by
+#' `mtry_tree`.
 #'
 #' @param hyperparameters `LINADForestHyperparameters` object.
 #' @param n_features Integer: Number of features in the training data.
@@ -53,9 +51,9 @@ linadforest_settings <- function(hyperparameters, n_features) {
 # %% linadforest_bags ----
 #' Bootstrap samples, one per tree
 #'
-#' Drawn through the package's own resampler rather than a bare `sample()`, so
-#' the bags are produced by the same machinery, and are described by the same
-#' vocabulary, as every other resampling in rtemis.
+#' Drawn through the package's own resampler, so the bags are produced by the
+#' same machinery, and described by the same vocabulary, as every other
+#' resampling in rtemis.
 #'
 #' @param y Vector: The outcome, used for its length alone.
 #' @param n_trees Integer: Number of bootstrap samples.
@@ -186,7 +184,7 @@ linadforest_tree <- function(
   }
   # The frame's leaf flags describe the fully grown tree; at the selected size
   # the terminal set is `steps[[n_leaves]]`, so they are brought into agreement
-  # here rather than left to mislead every later reader.
+  # here.
   tree@frame[["is_leaf"]] <- tree@frame[["node"]] %in%
     tree@steps[[tree@n_leaves]]
 
@@ -207,8 +205,8 @@ linadforest_tree <- function(
 #'
 #' A case is predicted by the trees that did not hold it, which is the forest's
 #' error estimate with no resampling and no held-out data. A case in every bag
-#' -- possible, if unlikely, at small `n_trees` -- has no such trees and is NA
-#' rather than silently predicted by trees that saw it.
+#' -- possible, if unlikely, at small `n_trees` -- has no such trees and is
+#' NA.
 #'
 #' @param oob List: One integer vector of row indices per tree.
 #' @param predictions List: One numeric vector per tree, aligned with `oob`.
@@ -322,7 +320,7 @@ linadforest_tree_predictions <- function(trees, newdata) {
 #' the variance below zero; it is clamped, as `ranger` clamps it.
 #'
 #' The covariance step pairs every new case with every training case, so it runs
-#' in blocks of new cases rather than allocating that product whole.
+#' in blocks of new cases, which bounds the memory it allocates.
 #'
 #' @param predictions Numeric matrix: New cases x trees.
 #' @param bag_counts Integer matrix: Training cases x trees.

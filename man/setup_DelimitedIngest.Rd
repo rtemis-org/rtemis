@@ -18,8 +18,8 @@ setup_DelimitedIngest(
 \arguments{
 \item{columns}{Optional Named vector: Declared column types, keyed by column
 name, in the \code{profile/r/v1} vocabulary -- \code{c(Age = "integer")}. A column named
-here is converted after reading rather than inferred, which is what makes a
-known type beat a heuristic.}
+here is converted to that type after reading, so a known type takes
+precedence over the reader's inference.}
 
 \item{character2factor}{Logical: If TRUE, read character columns as factors.}
 
@@ -43,10 +43,9 @@ used to read the file.}
 Reading a delimited file -- the format that declares nothing, and therefore
 the one with the most to say.
 
-One constructor per format rather than one for all of them: a Parquet has no
-separator, so \code{sep} is not a setting it ignores, it is not a setting. R
-refusing an argument that does not exist says that better than any check
-could, and each format's own enums and defaults can then be documented
+One constructor per format: each takes exactly the settings its format has,
+so an argument from another format is rejected by R as unused, and each
+format's own enums and defaults can be documented
 against the class they belong to.
 }
 \examples{

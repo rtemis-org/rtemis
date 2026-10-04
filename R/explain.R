@@ -14,15 +14,14 @@
 # at `aggregate_one_hot()`.
 #
 # How far back it can be carried depends on what preprocessing ran, so the
-# result is *verified against the target space* rather than inferred from which
-# options were enabled. A hop that does not land exactly on its target is not
-# taken, and the space actually reached is recorded on the explanation.
+# result is *verified against the target space*: a hop that does not land
+# exactly on its target is not taken, and the space reached is recorded on the
+# explanation.
 
 # %% one_hot_groups ----
 #' Columns encoding each one-hot expanded feature
 #'
-#' Reads the `Preprocessor`'s own record of what it expanded rather than
-#' parsing column names: `one_hot()` writes `paste0(feature, "_", level)`, and
+#' Reads the `Preprocessor`'s own record of what it expanded: `one_hot()` writes `paste0(feature, "_", level)`, and
 #' the levels are what `one_hot_levels` holds.
 #'
 #' @param cols Character: Column names of the contribution matrix.
@@ -135,14 +134,13 @@ aggregate_one_hot <- function(phi, one_hot_levels) {
 #' A decomposition stops the second hop. PCA, ICA and NMF are linear and their
 #' loadings could carry an attribution back to the inputs, but that is a
 #' different operation from summing an expansion, and the manifold methods
-#' admit none at all -- so components are where the attribution honestly ends.
+#' admit none at all, so attribution ends at the components.
 #'
-#' Verification rather than inference is deliberate. Preprocessing changes the
-#' column set in several ways besides one-hot expansion -- constants and named
-#' features are dropped, missingness indicators and date features are added --
-#' and reasoning about which combination is invertible is a standing
-#' opportunity to be wrong. Comparing the aggregated names against the space
-#' being claimed cannot be.
+#' The target space is verified by comparing the aggregated names with the
+#' space being claimed. Preprocessing changes the column set in several ways
+#' besides one-hot expansion -- constants and named features are dropped,
+#' missingness indicators and date features are added -- and the comparison
+#' covers every combination.
 #'
 #' @param phi Numeric matrix: Contributions in the fitted backend's own column
 #' space.
@@ -165,7 +163,7 @@ shap_aggregate <- function(phi, object, input_names = NULL) {
   }
   # The backend's columns must reduce to exactly the model's, in order. Failing
   # here means the internal preprocessor changed the column set in a way this
-  # does not model, and the encoded values are then the only honest answer.
+  # does not model, and the values are returned in the encoded space.
   if (!identical(colnames(at_model), object@xnames)) {
     return(list(phi = phi, space = "encoded"))
   }
@@ -222,8 +220,7 @@ shap_require_background <- function(background, estimator) {
 #'
 #' LinearSHAP is interventional by construction: it uses each feature's marginal
 #' mean and never the joint distribution. A conditional answer needs the
-#' covariance and is a different estimator, so asking for one here is refused
-#' rather than answered with the marginal numbers under a conditional label.
+#' covariance and is a different estimator, so a request for one is refused.
 #'
 #' @param estimator Character: Resolved estimator.
 #' @param perturbation Character: Resolved value function.
@@ -356,8 +353,8 @@ linear_shap <- function(
     baseline[[k]] <- intercept[[k]] + sum(beta * means)
     predicted[, k] <- as.numeric(design %*% beta) + intercept[[k]]
   }
-  # The reconstruction is checked against the model's own linear predictor
-  # rather than trusted. Coefficients can be read at the wrong regularization
+  # The reconstruction is checked against the model's own linear predictor.
+  # Coefficients can be read at the wrong regularization
   # path step, or in a different order than the design matrix, and either
   # produces contributions that are internally consistent and describe a
   # different model -- which no additivity check downstream could detect.
@@ -436,7 +433,7 @@ probe_linear_map <- function(margin_fn, base) {
 #' Recovers the map by probing, then hands it to `linear_shap()`, which checks
 #' the reconstruction against the model's own predictions. That check is what
 #' makes probing safe: a model that is *not* affine reconstructs badly and is
-#' refused, rather than being described by the tangent plane at one point.
+#' refused.
 #'
 #' @param design tabular data: Cases to explain.
 #' @param background tabular data: Reference cases.
@@ -550,8 +547,8 @@ additive_terms_shap <- function(
 #' Map each term of a formula-built model to the feature it reads
 #'
 #' A term label parses to the variables it mentions -- `s(age, k = 5)` to
-#' `age` -- so the map is read from the model's own labels rather than by
-#' matching names, which would confuse `s(ab)` with a feature called `a`.
+#' `age` -- so the map is read from the model's own labels; matching names
+#' would confuse `s(ab)` with a feature called `a`.
 #'
 #' @param term_labels Character: Column names of a `type = "terms"` matrix.
 #' @param feature_names Character: The model's features.
@@ -744,8 +741,8 @@ resolve_shap_estimator <- function(requested, algorithm) {
 # %% explain.Supervised ----
 #' Explain `Supervised`
 #'
-#' Per-case contributions for `newdata`, computed on demand rather than stored,
-#' for the reason `se()` gives: a quantity that is O(n x p), depends on
+#' Per-case contributions for `newdata`, computed on demand, for the reason
+#' `se()` gives: a quantity that is O(n x p), depends on
 #' `newdata` and on a background sample, and that most users never ask for, is
 #' computed when asked.
 #'
@@ -794,8 +791,7 @@ method(explain, Supervised) <- function(
   bg <- shap_background(x, background, config, verbosity = verbosity)
 
   computed <- if (identical(estimator, "KernelSHAP")) {
-    # Model-agnostic, so it does not dispatch: it reads a prediction function
-    # rather than a backend.
+    # Model-agnostic, so it does not dispatch: it reads a prediction function.
     kernel_shap(
       object = x,
       features = features,
@@ -806,7 +802,7 @@ method(explain, Supervised) <- function(
     )
   } else {
     # A missing method means the estimator is not written yet, which is a fact
-    # about this build rather than about the model. S7's dispatch error names a
+    # about this build. S7's dispatch error names a
     # backend class the user never chose, so it is translated into the algorithm
     # they did.
     tryCatch(
@@ -871,7 +867,7 @@ method(explain, Supervised) <- function(
   } else {
     encoded
   }
-  # Labeled here rather than per estimator, so a case is identified the same way
+  # Labeled here, once for every estimator, so a case is identified the same way
   # whichever one ran -- one of them builds its matrices from a design matrix
   # that carries the labels and another from a backend's output that does not.
   case_labels <- rownames(as.data.frame(newdata))
@@ -930,7 +926,7 @@ name_shap_outputs <- function(computed, x) {
   n_outputs <- length(computed[["phi"]])
   labels <- if (identical(x@type, "Regression")) {
     # The outcome's own name is not stored on a fitted model, so the entry is
-    # named for what it is rather than for the column it came from.
+    # named for what it is.
     "outcome"
   } else {
     levels <- levels(x@y_training)
@@ -973,8 +969,8 @@ name_shap_outputs <- function(computed, x) {
 #' `sum(phi_k) + b_k = f_k(x)` holds for each fold, averaging both sides gives
 #' `sum(phi_bar) + b_bar = f_bar(x)`: the averaged contributions decompose the
 #' averaged prediction **exactly**. What makes that true is a single
-#' `background` shared across folds, which is why one is taken here rather than
-#' per model.
+#' `background` shared across folds, which is why one is taken here for all
+#' models.
 #'
 #' `type` echoes [stats::predict()] on the same object deliberately -- same word,
 #' same concept -- and `explain()` on a single `Supervised` likewise has no
@@ -1033,14 +1029,13 @@ method(explain, SupervisedRes) <- function(
 # %% average_shap ----
 #' Average explanations across resamples
 #'
-#' Exact rather than approximate: each fold's contributions decompose that
+#' Exact: each fold's contributions decompose that
 #' fold's prediction, so their mean decomposes the mean prediction.
 #'
 #' The folds must agree on everything that gives the numbers meaning -- the
 #' feature space, the scale, the value function -- or their mean describes
 #' nothing. Models fitted to different resamples of one dataset by one algorithm
-#' always do; it is checked rather than assumed because the failure would be
-#' silent.
+#' always do; it is checked because a mismatch raises no error of its own.
 #'
 #' @param explanations List of `SHAP` objects.
 #'
@@ -1119,9 +1114,8 @@ average_shap <- function(explanations) {
 #' classifier with a link is the margin. The kernel estimator sees only what
 #' `predict()` returns, which is the probability -- and its contributions are
 #' additive **on that**, exactly, because it decomposes the function it was
-#' given rather than transforming a margin decomposition. So both scales are
-#' honest; they are simply not comparable, which is why the resolved one is
-#' recorded on every result.
+#' given. Each scale is exact on its own terms, and the two are not comparable,
+#' which is why the resolved one is recorded on every result.
 #'
 #' @param requested Optional Character: `SHAPConfig@scale`.
 #' @param type Character: "Regression" or "Classification".
@@ -1134,8 +1128,7 @@ average_shap <- function(explanations) {
 #' @noRd
 resolve_shap_scale <- function(requested, type, estimator) {
   # Regression has one scale -- the outcome's -- and "margin" is its name here.
-  # Asking for probabilities of a quantity that is not one is a mistake worth
-  # naming rather than ignoring.
+  # A request for probabilities in regression is an error.
   if (identical(type, "Regression")) {
     if (identical(requested, "probability")) {
       rtemis.core::abort(
@@ -1216,10 +1209,9 @@ supervised_outputs <- function(object, features) {
 #' Model-agnostic Shapley values, via shapr
 #'
 #' The fallback that makes `explain()` answer for every algorithm. It is handled
-#' here rather than as an `explain_super()` method because it is
-#' model-agnostic: it needs a prediction function, not a backend, so dispatching
-#' on the fitted object's class would be dispatching on something it does not
-#' read. That also means an algorithm sharing a backend class with another
+#' here, outside the `explain_super()` methods, because it is model-agnostic:
+#' it reads a prediction function, so it does not dispatch on the fitted
+#' object's class. That also means an algorithm sharing a backend class with another
 #' cannot shadow it.
 #'
 #' `perturbation` selects the value function directly: `"interventional"` is
@@ -1317,11 +1309,11 @@ kernel_shap <- function(
 #' average, in the outcome's own units.
 #'
 #' @details
-#' A better global measure than most native ones, for three reasons. It is on
-#' the scale of the outcome rather than of a splitting criterion, so the numbers
-#' mean something. It is comparable across algorithms, because every estimator
-#' here decomposes the same quantity. And it does not inherit the bias of
-#' impurity-based importance toward high-cardinality features.
+#' A global measure with three properties. It is on the scale of the outcome,
+#' so its values are interpretable in the outcome's units. It is comparable
+#' across algorithms, because every estimator here decomposes the same
+#' quantity. And it is free of the bias of impurity-based importance toward
+#' high-cardinality features.
 #'
 #' It also gives an importance to algorithms that have none of their own -- a
 #' torch network has no native measure, so `get_varimp()` on a fitted MLP
@@ -1363,13 +1355,13 @@ method(get_varimp, SHAP) <- function(x) {
 #' started, what each feature did to it, and where it ended.
 #'
 #' @details
-#' Shaped here rather than in a renderer, following `session_timeline()`: the
+#' Shaped here, following `session_timeline()`: the
 #' table is the shared input for rtemis.draw's chart and for rtemislive, so both
 #' show the same thing, and it is useful on its own without either.
 #'
 #' Features are ordered by the magnitude of their contribution, which is the
 #' order a waterfall reads in, and each carries the value it took for this case
-#' so the row says "age = 62, +0.4" rather than only "+0.4".
+#' so the row reads "age = 62, +0.4".
 #'
 #' @param x `SHAP` object.
 #' @param newdata tabular data: The cases `x` explains.
@@ -1442,7 +1434,7 @@ shap_case <- function(x, newdata, case = 1L, class = NULL) {
 #' The long form a beeswarm reads: a point per case per feature, positioned by
 #' its contribution and colored by the value the feature took.
 #'
-#' Shaped here rather than in a renderer, for the reason `shap_case()` gives.
+#' Shaped here, for the reason `shap_case()` gives.
 #'
 #' @param x `SHAP` object.
 #' @param newdata tabular data: The cases `x` explains.
@@ -1492,9 +1484,9 @@ shap_long <- function(x, newdata, class = NULL) {
 # %% shap_check_newdata ----
 #' Verify the data handed in is the data explained
 #'
-#' Contributions lined up against the wrong rows produce a plausible table
-#' describing nothing, so the fingerprint on the object is checked rather than
-#' the caller trusted.
+#' Contributions lined up against other rows would produce a plausible but
+#' meaningless table, so `newdata` is checked against the fingerprint on the
+#' object.
 #'
 #' @param x `SHAP` object.
 #' @param newdata tabular data.
@@ -1570,8 +1562,8 @@ shap_check_class <- function(x, class) {
 #' of those problems and shows the reference level like any other.
 #'
 #' `newdata` must be the data the explanation was computed on, which is checked
-#' against its fingerprint rather than assumed: contributions lined up against
-#' the wrong rows would produce a plausible table describing nothing.
+#' against its fingerprint: contributions lined up against other rows would
+#' produce a plausible but meaningless table.
 #'
 #' @param x `SHAP` object.
 #' @param newdata tabular data: The cases `x` explains.
@@ -1638,8 +1630,7 @@ shap_by_level <- function(x, newdata, features = NULL) {
         level = levels(levels),
         n = as.integer(table(levels)),
         mean = as.numeric(tapply(phi, levels, mean)),
-        # NA for a level with one case, which `sd()` cannot estimate; that is a
-        # fact about the data rather than a failure.
+        # NA for a level with one case, which `sd()` cannot estimate.
         sd = as.numeric(tapply(phi, levels, stats::sd)),
         mean_abs = as.numeric(tapply(abs(phi), levels, mean))
       )
@@ -1669,8 +1660,7 @@ shap_background <- function(x, background, config, verbosity = 1L) {
   check_inherits(background, "data.frame")
   # An attribution is relative to a background, and two explanations against
   # different backgrounds are not comparable. The model carries a fingerprint of
-  # what it was trained on, so a background that is not that data can be said
-  # out loud rather than left to be assumed.
+  # what it was trained on, so a background drawn from other data is reported.
   if (verbosity > 0L && !is.null(x@data_fingerprint)) {
     if (
       !identical(data_fingerprint(background)@hash, x@data_fingerprint@hash)

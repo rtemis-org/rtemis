@@ -4,10 +4,9 @@
 
 # %% decom_metrics ----
 # One row per metric. `requires` names the trait columns of `decom_algorithms`
-# that must all be TRUE for the metric to be defined, which is what makes
-# applicability *derived* rather than tabulated: a new algorithm's row of traits
-# determines its metrics with no edit here, and no metric-by-algorithm matrix
-# can fall out of step with the code.
+# that must all be TRUE for the metric to be defined, so applicability is
+# derived from traits: a new algorithm's row of traits determines its metrics
+# with no edit here.
 #
 # `requires` is a list column because a metric can name any number of traits,
 # including none.
@@ -161,7 +160,7 @@ reconstruction_scores <- function(x, reconstructed) {
   # The denominator of the explained variance ratio is the total sum of squares
   # about the column means, which is what an intercept-only "decomposition"
   # would leave. Zero when every column is constant, and the ratio is then
-  # undefined rather than infinite.
+  # undefined.
   centered_norm <- norm(sweep(x, 2L, colMeans(x), FUN = "-"), "F")
   data_norm <- norm(x, "F")
   list(
@@ -198,8 +197,8 @@ component_scores <- function(transformed) {
       correlations <- abs(stats::cor(transformed))
       max(correlations[upper.tri(correlations)])
     } else {
-      # With one component there is no pair to correlate. NA is the honest
-      # answer; 0 would claim the components are uncorrelated.
+      # With one component there is no pair to correlate, so the value is NA;
+      # 0 would state that the components are uncorrelated.
       NA_real_
     },
     # `isTRUE()` and not a bare `>`: a component whose variance is not finite
@@ -247,8 +246,8 @@ compute_decomposition_metrics <- function(
   transformed <- as.matrix(decom@transformed)
   # Every metric below reads the fit's own component matrix as `x`'s components,
   # which only the data the fit saw satisfies. The case count is the part of
-  # that contract this can check, and checking it is what turns a mismatch into
-  # a corrective error rather than a non-conformable subtraction two calls down.
+  # that contract this can check; a mismatch raises a corrective error here, at
+  # the boundary.
   if (nrow(xm) != nrow(transformed)) {
     rtemis.core::abort(
       "`x` has ",
@@ -450,10 +449,9 @@ decomp_metrics <- function(
   verbosity = 1L
 ) {
   check_is_S7(decom, Decomposition)
-  # Here rather than in `compute_decomposition_metrics()`: this is the boundary
-  # a caller's data crosses. `decomp()` reaches that function with the data it
-  # just fitted, so the comparison there could only ever hold, at the cost of
-  # hashing every fit's input a second time.
+  # Checked here, at the boundary a caller's data crosses. `decomp()` calls
+  # `compute_decomposition_metrics()` with the data it just fitted, where the
+  # comparison always holds.
   warn_data_mismatch(decom, x, verbosity = verbosity)
   compute_decomposition_metrics(
     decom = decom,

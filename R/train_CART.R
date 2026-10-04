@@ -253,8 +253,7 @@ cart_goes_left <- function(tree, i, x) {
 #' the average of both children weighted by the training coverage that reached
 #' them.
 #'
-#' Every node is visited once per coalition and returns a value for every case,
-#' rather than recursing per case.
+#' Every node is visited once per coalition and returns a value for every case.
 #'
 #' @param tree List: `cart_tree()` output.
 #' @param i Integer: Node row.
@@ -292,14 +291,12 @@ cart_coalition_value <- function(tree, i, x, known) {
 #'
 #' Shapley values by exact enumeration over the features the tree actually
 #' splits on, against the path-dependent value function. A feature the tree
-#' never split on receives exactly zero, so the enumeration is over that set
-#' rather than over every column -- which is what keeps `2^p` small for a tree
-#' of realistic size.
+#' never split on receives exactly zero, so the enumeration runs over that set,
+#' which keeps `2^p` small for a tree of realistic size.
 #'
 #' Exact, not an estimate: every coalition is evaluated, so there is no sampling
 #' and no convergence to check. The cost is `2^p` traversals, so a tree splitting
-#' on more than `CART_SHAP_MAX_FEATURES` features is refused rather than left to
-#' run.
+#' on more than `CART_SHAP_MAX_FEATURES` features is refused.
 #'
 #' A tree has no link function, so for a classification the contributions
 #' decompose the predicted **probability** directly -- as they do for NNLS, and

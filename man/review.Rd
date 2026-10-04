@@ -74,7 +74,7 @@ reported, since a better value may lie beyond it.
 The cases-per-predictor check counts the columns the learner received,
 after preprocessing and decomposition. Its threshold is a rule of thumb from
 logistic regression (events per variable; see References), reported for
-context rather than as a sample-size requirement for every algorithm.
+context.
 
 Preprocessing, decomposition and tuning inside \code{train()} are fitted on the
 training cases of each split and only applied to its test cases. Steps

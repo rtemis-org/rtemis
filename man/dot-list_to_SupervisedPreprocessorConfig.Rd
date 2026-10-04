@@ -15,9 +15,8 @@ A \code{SupervisedPreprocessorConfig} object.
 \description{
 As \code{.list_to_PreprocessorConfig()}, for the config a supervised document
 carries. A document naming one of \code{PREPROCESSOR_TRAIN_EXCLUDED} is rejected by
-\code{check_wire_keys()} as an unknown key, which is the whole point of the
-separate type: the operation is not a setting that is refused later, it is not
-a setting here at all.
+\code{check_wire_keys()} as an unknown key: the separate type does not declare
+those operations as settings.
 }
 \examples{
 .list_to_SupervisedPreprocessorConfig(list(scale = TRUE, center = TRUE))

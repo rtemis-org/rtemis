@@ -54,7 +54,7 @@ Regression is fit with \link[spls:spls]{spls::spls} and classification with
 accepts them and ignored by the other.
 
 \code{spls} provides no case weights, so \code{ifw} cannot be honored: enabling it
-makes training abort rather than silently fit an unweighted model.
+makes training abort.
 }
 \examples{
 spls_hyperparams <- setup_SPLS(k = 3L, eta = 0.7)

@@ -122,8 +122,8 @@ method(train_, LightRuleFitHyperparameters) <- function(
   }
 
   # Train Gradient Boosting using LightGBM ----
-  # Every hyperparameter this class shares with LightGBM, derived rather than
-  # listed -- see `LightRuleFit_lightgbm_params()`.
+  # Every hyperparameter this class shares with LightGBM, derived by
+  # `LightRuleFit_lightgbm_params()`.
   lgbm_parameters <- update(
     setup_LightGBM(),
     get_hyperparams(hyperparameters, LightRuleFit_lightgbm_params())

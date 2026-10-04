@@ -22,8 +22,7 @@
 #' and fails at first use after `readRDS()`, so the fit stores the serialized
 #' parameters and everything needed to rebuild the module around them, and
 #' `apply_decomp_()` and `reconstruct_()` rebuild it. Every architectural
-#' setting is stored here rather than read off the config, so the fit is
-#' readable on its own.
+#' setting is stored here, so the fit is readable on its own.
 #'
 #' @field state Raw: Serialized module parameters, from `torch_state()`.
 #' @field features Character: Input features, in the order the fit used.
@@ -558,7 +557,7 @@ autoencoder_device <- function(execution_config = NULL) {
 #'
 #' Drawn from R's random stream, which `decomp()` seeds from the execution
 #' config. Too few cases to hold out one while keeping one for training
-#' disables early stopping rather than failing.
+#' disables early stopping.
 #'
 #' @param n Integer: Number of cases.
 #' @param fraction Numeric \[0, 1): Fraction to hold out.

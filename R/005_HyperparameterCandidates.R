@@ -17,10 +17,9 @@
 # simply not the combinations meant -- LINAD's CART point is a conjunction of
 # four properties that gate nothing, so no product over them can name it.
 #
-# Only the enumerated kind of domain exists today. A domain a tuner samples
-# rather than enumerates -- a log-uniform range, say -- is a sibling of this
-# class rather than a variant of it, sharing no structure with a list of
-# values, which is why the class names the enumeration and not the idea.
+# The class represents an enumerated domain. A domain a tuner samples -- a
+# log-uniform range, say -- shares no structure with a list of values and
+# would be a sibling class, so the class name names the enumeration.
 #
 # A domain is a value like any other: it is stored in the property it was
 # assigned to, serialized by `to_json()`, and read back by the `.list_to_*()`
@@ -37,15 +36,14 @@
 #' The values a tuner may choose among for one hyperparameter
 #'
 #' Built by [tune_over()] and stored in the hyperparameter it is assigned to, so
-#' that a search space is a distinct type rather than a vector that has to be
-#' told apart from a value by counting.
+#' that a search space is a distinct type, never inferred from a vector's
+#' length.
 #'
 #' @param candidates List: The values to search over, one per element.
 #' @param from_vector Logical: TRUE when the candidates were read out of a
 #' single bare vector. A vector is also how one value of a vector-valued
 #' hyperparameter is written, so that one combination cannot be inferred; this
-#' records it so the hyperparameter can reject it with a correction rather than
-#' silently take each element as a candidate.
+#' records it so the hyperparameter can reject it with a correction.
 #'
 #' @return `HyperparameterCandidates` object.
 #'
@@ -76,7 +74,7 @@ HyperparameterCandidates <- new_class(
 # %% tune_over ----
 #' Mark the values to tune a hyperparameter over
 #'
-#' Declares that a hyperparameter should be *searched over* rather than set. It
+#' Declares that a hyperparameter is *searched over*. It
 #' is the only way to express a search space: a bare vector is always a value,
 #' so nothing has to be inferred from how many elements it happens to have.
 #'
@@ -94,8 +92,7 @@ HyperparameterCandidates <- new_class(
 #' For a **vector-valued** hyperparameter one candidate is itself a vector, so
 #' pass the candidates as separate arguments or as a list --
 #' `tune_over(list(c(12L, 6L), c(24L, 12L)))`. A single bare vector there would
-#' be one architecture rather than a search, and is an error saying so; nothing
-#' is guessed.
+#' be one architecture, and is an error saying so.
 #'
 #' Passing it to a hyperparameter that is not tunable is an error: that
 #' hyperparameter accepts a value only.
@@ -128,7 +125,7 @@ tune_over <- function(...) {
   # One argument holding the candidates. A list is unambiguous. A bare vector is
   # not, because that is also how a single value of a vector-valued
   # hyperparameter is written, so the reading is recorded and checked against
-  # the hyperparameter rather than assumed.
+  # the hyperparameter.
   if (is.list(args[[1L]])) {
     return(HyperparameterCandidates(candidates = args[[1L]]))
   }
@@ -186,8 +183,7 @@ clean_each <- function(x, cleaner, ...) {
 #'
 #' Shadows `rtemis.core::clean_int()` within this package. A `setup_*()` cleans
 #' its arguments before constructing its class, and by then a value may be
-#' wrapped in something; cleaning the wrapper rather than the values inside it
-#' would abort on the type. Two wrappers are reached into:
+#' wrapped, and the values inside the wrapper are cleaned. Two wrappers are reached into:
 #'
 #' - a domain, so `tune_over(3, 4, 5)` reaches an integer hyperparameter exactly
 #'   as `3L` does;
@@ -197,7 +193,7 @@ clean_each <- function(x, cleaner, ...) {
 #'
 #' Both matter because `10` is a double in R: writing `10L` everywhere is not
 #' something to ask of a user, and the property's declared type is integer, so
-#' the coercion belongs at this boundary rather than in the user's source.
+#' the coercion happens at this boundary.
 #'
 #' @param x Value, `HyperparameterCandidates` object, or list to coerce.
 #' @param ... Passed to `rtemis.core::clean_int()`.
@@ -252,7 +248,7 @@ clean_posint <- function(x, ...) {
 #'
 #' A domain's candidates, or the value itself when there is no domain. A check
 #' that must hold for whatever the tuner eventually picks is then written once
-#' over the values, rather than branching on whether tuning is in play.
+#' over the values, whether or not tuning is in play.
 #'
 #' Candidates are flattened, so this suits a scalar hyperparameter. A
 #' vector-valued one needs `@candidates` directly, since flattening would merge
@@ -306,7 +302,7 @@ is_wire_candidates <- function(x) {
 #' One line, so that `repr_ls()` prints it on the hyperparameter's own line
 #' alongside the values, and short, so that it fits there. The `<tune>` tag
 #' occupies the slot the type tag does for a value, in the tuner color: the
-#' hyperparameter holds a search space rather than a number.
+#' hyperparameter holds a search space.
 #'
 #' @param x `HyperparameterCandidates` object.
 #' @param limit Integer: Most candidates to show before eliding; -1 shows all.

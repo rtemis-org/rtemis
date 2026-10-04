@@ -47,18 +47,14 @@ mlp_ramp <- function(from, to, n) {
 # %% mlp_shape_units ----
 #' Generate hidden layer widths from a shape
 #'
-#' Every shape returns **exactly** `layers` widths. The reference implementation
-#' does not: it composes its segments and then warns that "layer count does not
-#' match" for `long_funnel`, `diamond`, `hexagon` and `stairs`. A resolver that
-#' silently returns the wrong depth under a tuner is a bad failure mode, so the
-#' segments here are sized to sum to `layers` by construction.
+#' Every shape returns **exactly** `layers` widths: the segments are sized to
+#' sum to `layers` by construction, for `long_funnel`, `diamond`, `hexagon` and
+#' `stairs` as for the rest.
 #'
 #' The narrowest generated layer is `max_units / layers`, not the network's
-#' output width. Tapering to the output width is what the reference does, and it
-#' puts a one-unit layer at the bottom of every regression funnel and a
-#' `n_classes`-unit layer at the bottom of every classification funnel -- a
-#' bottleneck rather than a taper. The chosen floor reproduces the common
-#' hand-written pattern instead: two layers from 200 give `200, 100`.
+#' output width, so a funnel tapers without a one-unit bottleneck. The floor
+#' reproduces the common hand-written pattern: two layers from 200 give
+#' `200, 100`.
 #'
 #' @param shape Character: One of `MLP_SHAPES`.
 #' @param layers Integer: Number of hidden layers.
@@ -230,7 +226,7 @@ mlp_matrix <- function(dat, columns, mode) {
 # %% mlp_inputs ----
 #' Build the module's input tensors from a design frame
 #'
-#' The categorical tensor is omitted rather than passed empty when there are no
+#' The categorical tensor is omitted when there are no
 #' categorical features, so the module's `forward` is called with one argument
 #' and the dataloader carries one tensor fewer.
 #'
@@ -472,8 +468,8 @@ mlp_module <- function(
 # %% mlp_model_module ----
 #' Rebuild a fitted model's module and load its parameters
 #'
-#' The architecture is read off the model rather than off the hyperparameters,
-#' so a model loaded from disk on its own predicts without them.
+#' The architecture is read off the model, so a model loaded from disk predicts
+#' without its hyperparameters.
 #'
 #' @param model `MLPModel` object.
 #'
@@ -855,7 +851,7 @@ method(train_, MLPHyperparameters) <- function(
 #'
 #' Rebuilds the module from the model's recorded architecture and loads its
 #' stored parameters: a `torch` module cannot be saved, so the model carries
-#' the parameters serialized rather than the live object.
+#' the parameters serialized.
 #'
 #' @param model `MLPModel` object.
 #' @param newdata tabular data: Data to predict on, already through the
@@ -901,7 +897,7 @@ method(predict_super, MLPModel) <- function(
 #' Learning curve of an MLP
 #'
 #' One step is one epoch. `torch_fit()` records both series and the epoch whose
-#' weights were restored, so this is a rename rather than a computation.
+#' weights were restored, so this renames them.
 #'
 #' @param model `MLPModel` object.
 #'
@@ -924,9 +920,8 @@ method(learning_curve_super, MLPModel) <- function(model) {
 # %% varimp_super.MLPModel ----
 #' Get variable importance from an MLP model
 #'
-#' A torch MLP has no native measure of variable importance. Permutation
-#' importance would be the real answer and belongs across algorithms rather than
-#' in one of them.
+#' A torch MLP has no native measure of variable importance; `explain()` gives a
+#' per-feature measure for every algorithm.
 #'
 #' @param model `MLPModel` object.
 #'

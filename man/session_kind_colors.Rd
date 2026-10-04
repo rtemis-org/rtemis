@@ -28,8 +28,7 @@ Exported so \code{rtemis.server} can attach the map to its \code{job.result} \co
 slice and announce it on the \code{ready} frame, which is what lets the rtemislive
 web UI color its timeline bars and its live progress panel without a
 hard-coded palette of its own - one definition, here, for every renderer.
-Not user-facing API: \verb{@keywords internal} marks it exported for mechanism
-rather than for use.
+Exported for rtemis interfaces and marked \verb{@keywords internal}.
 }
 \author{
 EDG

@@ -14,8 +14,8 @@ setup_RDSIngest(
 \arguments{
 \item{columns}{Optional Named vector: Declared column types, keyed by column
 name, in the \code{profile/r/v1} vocabulary -- \code{c(Age = "integer")}. A column named
-here is converted after reading rather than inferred, which is what makes a
-known type beat a heuristic.}
+here is converted to that type after reading, so a known type takes
+precedence over the reader's inference.}
 
 \item{character2factor}{Logical: If TRUE, read character columns as factors.}
 

@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# LINAD is implemented in this package rather than wrapped from a backend.
+# LINAD is implemented in this package.
 # The engine lives in `R/linad.R`; this file is the rtemis interface to it.
 
 # %% train_.LINADHyperparameters ----
@@ -201,7 +201,7 @@ method(train_, LINADHyperparameters) <- function(
   }
   # The frame's leaf flags describe the fully grown tree; at the selected size
   # the terminal set is `steps[[n_leaves]]`, so they are brought back into
-  # agreement here rather than left to mislead every later reader.
+  # agreement here.
   model@frame[["is_leaf"]] <- model@frame[["node"]] %in%
     model@steps[[model@n_leaves]]
 
@@ -273,16 +273,13 @@ method(learning_curve_super, LinearAdditiveTree) <- function(model) {
 # %% varimp_super.LinearAdditiveTree ----
 #' Variable importance from a Linear Additive Tree
 #'
-#' LINAD does two separable things to a feature, so it reports two measures
-#' rather than blending them:
+#' LINAD does two separable things to a feature, so it reports two measures:
 #'
 #' \describe{
 #'   \item{`importance`}{The feature's linear effect. Each leaf's coefficient is
 #'     multiplied by the feature's training standard deviation, which puts every
-#'     feature on the outcome's scale rather than on its own units, and averaged
-#'     over leaves weighted by the training cases each holds -- a coefficient in
-#'     a leaf of three cases should not count like one in a leaf of three
-#'     hundred. This is the default plotted measure.}
+#'     feature on the outcome's scale, and averaged over leaves weighted by the
+#'     training cases each holds. This is the default plotted measure.}
 #'   \item{`split_gain`}{The feature's partitioning effect: the loss reduction
 #'     summed over the internal nodes that split on it. A feature can carry a
 #'     large linear effect and never be split on, or the reverse, and averaging

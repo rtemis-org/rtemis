@@ -117,7 +117,7 @@ method(train_, GLMNETHyperparameters) <- function(
     NA_integer_
   }
   # A family the user set wins; NULL is resolved from the outcome. Written back
-  # rather than kept in a local, so that the family the model was trained with
+  # to the hyperparameters, so that the family the model was trained with
   # is among the hyperparameters `train()` adopts and the model reports.
   if (is.null(hyperparameters[["family"]])) {
     hyperparameters@family <- if (type == "Regression") {

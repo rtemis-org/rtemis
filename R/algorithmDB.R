@@ -252,8 +252,7 @@ supervised_multiclass <- c(
 # constant, and one-vs-one voting, respectively; and MARS and HAL are additive
 # in their features only when the fit selected no term reading two of them,
 # which for both is a search setting rather than a property of the algorithm.
-# Each is checked at explain time and refused with the reason, rather than
-# approximated.
+# Each is checked at explain time and refused with the reason.
 #
 # The three ensembles take the kernel estimator rather than a weighted sum of
 # their bases' explanations. The sum is exact for a linear meta-learner, but it
@@ -261,9 +260,8 @@ supervised_multiclass <- c(
 # are each locked to one value function -- LinearSHAP is interventional-only,
 # LightGBM's TreeSHAP conditional-only -- so a mixed library has none in common.
 #
-# Only seven algorithms are unconditionally exact. That is the honest shape of
-# this: exactness is usually a property of the fitted model, and this column's
-# job is to say which rather than to promise.
+# Only seven algorithms are unconditionally exact: exactness is usually a
+# property of the fitted model, and this column says which.
 #
 # Built column-wise so `exact` is `logical`, for the reason `decom_algorithms`
 # gives.
@@ -843,7 +841,7 @@ get_decom_setup_fn <- function(algorithm) {
 #' possible. Parametric tSNE exists and Isomap admits a Nystrom-style
 #' out-of-sample extension; neither is implemented here, so both are `FALSE`.
 #' The column's contract is that [apply_decomp] on a fitted result of this
-#' algorithm returns components rather than an error.
+#' algorithm returns components.
 #'
 #' @param algorithm Optional Character: Name of a decomposition algorithm,
 #' matched case-insensitively. `NULL` returns every algorithm.
@@ -927,8 +925,8 @@ available_clustering <- function(verbosity = 1L) {
 #' # Calibrate with one of them:
 #' # calibrate(mod, hyperparameters = setup_Isotonic())
 available_calibration <- function(verbosity = 1L) {
-  # Read the descriptions from the supervised table rather than restating
-  # them, so a calibrator is described the same way wherever it is listed.
+  # Read the descriptions from the supervised table, so a calibrator is
+  # described the same way wherever it is listed.
   idx <- match(calibration_algorithms, supervised_algorithms[["name"]])
   algs <- structure(
     supervised_algorithms[["description"]][idx],

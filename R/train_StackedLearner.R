@@ -148,7 +148,7 @@ method(train_, StackedLearnerHyperparameters) <- function(
 
   # Cross-fit ----
   # Every entry predicts each case from a fit that never saw it, so the meta
-  # learner is fitted on honest predictions rather than in-sample ones.
+  # learner is fitted on out-of-fold predictions.
   resampler <- resample(
     x,
     config = hyperparameters@inner_resampling_config,

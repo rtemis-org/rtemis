@@ -287,7 +287,7 @@ method(
 
   # Data ----
   # Every step below runs against a data.table, so a column is replaced or added
-  # by reference instead of the whole frame being copied. Entry costs one copy
+  # by reference, without copying the whole frame. Entry costs one copy
   # and exit costs none; the caller's structure is restored at the end and their
   # object is never written through.
   #
@@ -427,7 +427,7 @@ method(
   # than after them: the weekday and month factors are then one-hot encoded or
   # coded to integers like any other factor, and the year is scaled like any
   # other numeric. It runs *after* the case and feature filters, which judge the
-  # data as it was given rather than what was derived from it.
+  # data as given.
   if (config@add_date_features) {
     msg("Extracting date features...", verbosity = verbosity)
     # Find date columns

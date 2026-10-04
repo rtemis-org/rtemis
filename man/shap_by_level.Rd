@@ -37,8 +37,8 @@ model they are identical for every case at the same level. Grouping has none
 of those problems and shows the reference level like any other.
 
 \code{newdata} must be the data the explanation was computed on, which is checked
-against its fingerprint rather than assumed: contributions lined up against
-the wrong rows would produce a plausible table describing nothing.
+against its fingerprint: contributions lined up against other rows would
+produce a plausible but meaningless table.
 }
 \examples{
 x <- data.frame(

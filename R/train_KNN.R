@@ -117,9 +117,8 @@ method(train_, KNNHyperparameters) <- function(
 
   # Checks ----
   # Both routes to a weighted fit are rejected. `ifw` is checked in its own
-  # right rather than only through the `weights` it produces: a caller that
-  # reaches `train_()` directly, or a future path that resolves weights
-  # elsewhere, would otherwise fit an unweighted model while reporting
+  # right as well as through the `weights` it produces, so a caller reaching
+  # `train_()` directly cannot fit an unweighted model while reporting
   # `ifw = TRUE`.
   if (isTRUE(hyperparameters[["ifw"]])) {
     rtemis.core::abort(

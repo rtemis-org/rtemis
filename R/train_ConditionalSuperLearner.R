@@ -544,11 +544,9 @@ method(varimp_super, ConditionalSuperLearner) <- function(model) {
 #' prediction to explain *is* that expert's -- and explaining the expert is
 #' exact for it: `sum(phi) + E[f_k] = f_k(x) = f(x)`.
 #'
-#' This is what the algorithm is for. A conditional SuperLearner exists to hand
-#' each region of the covariate space to a model simple enough to suit it, so
-#' the per-case explanation is the simple model's, computed by whichever exact
-#' estimator that model has, rather than one expensive model-agnostic pass over
-#' the whole ensemble.
+#' A conditional SuperLearner hands each region of the covariate space to a
+#' model simple enough to suit it, so the per-case explanation is the simple
+#' model's, computed by whichever exact estimator that model has.
 #'
 #' **The baseline is per case**, being the expected prediction of the expert
 #' that handled it. Cases routed to different experts are each exact against
@@ -558,8 +556,8 @@ method(varimp_super, ConditionalSuperLearner) <- function(model) {
 #' the routing, and `setup_SHAP(estimator = "kernel")` explains the ensemble as
 #' a whole where that question is the one being asked.
 #'
-#' The value function is forced on every expert rather than left to each one's
-#' default, so a single `@perturbation` describes the whole result. An expert
+#' The value function is set on every expert, so a single `@perturbation`
+#' describes the whole result. An expert
 #' whose estimator cannot honor it aborts, naming the ensemble-level fallback.
 #'
 #' @param model `ConditionalSuperLearner` object.

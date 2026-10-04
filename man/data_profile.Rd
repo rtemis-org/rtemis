@@ -25,7 +25,7 @@ low-cardinality categorical columns, and the number of complete cases.
 }
 \details{
 One pass per column and no copy of the data, so profiling is cheap enough to
-do per validation rather than caching it.
+do per validation.
 }
 \examples{
 p <- data_profile(iris)

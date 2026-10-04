@@ -109,10 +109,8 @@ Supervised <- schema_class(
     model = prop_runtime(
       "Fitted model used by this implementation for prediction."
     ),
-    # No default: the kind of learning follows from the outcome, so there is no
-    # value a class definition could honestly supply. NULL is the unset value,
-    # and a constructor that failed to set it fails at first use rather than
-    # claiming to be one of the two.
+    # No default: the kind of learning follows from the outcome. NULL is the
+    # unset value, and a constructor that did not set it fails at first use.
     type = prop_string(
       NULL,
       enum = SUPERVISED_TYPES,
@@ -238,7 +236,7 @@ Supervised <- schema_class(
     # Provenance. `session_info` is a full `utils::sessionInfo()` -- the first
     # thing asked for when troubleshooting -- and `session` is the run timeline.
     # `data_fingerprint` identifies the training data itself, so that comparing
-    # models trained on different inputs is detectable rather than silent.
+    # models trained on different inputs is detectable.
     data_fingerprint = prop_object(
       DataFingerprint,
       nullable = TRUE,
@@ -254,8 +252,7 @@ Supervised <- schema_class(
     # The run's *input*, which nothing else here carries: the hyperparameters on
     # this object are the ones that ran, resolved, and only the input says what
     # was asked for. `record()` needs both to state where each value came from.
-    # Assigned by `train()` after construction rather than threaded through five
-    # constructors that have no use for it.
+    # Assigned by `train()` after construction.
     config = prop_runtime(
       "Native input configuration, which may contain in-memory data; portable settings are carried by the run record.",
       cls = SuperConfig
@@ -628,8 +625,7 @@ method(fitted, Supervised) <- function(object, ...) {
 method(se, Supervised) <- function(x, newdata, verbosity = 0L) {
   features <- supervised_features(x, newdata, verbosity = verbosity)
   # Only a few algorithms define `se_super()`. Anything else has no standard
-  # error, which is an answer rather than a failure -- so a missing method
-  # reads as NULL instead of propagating S7's dispatch error.
+  # error, so a missing method reads as NULL.
   tryCatch(
     se_super(model = x@model, newdata = features),
     S7_error_method_not_found = function(e) NULL
@@ -1388,8 +1384,7 @@ CalibratedClassification <- new_class(
     calibration_model = Supervised,
     # The algorithm that produced the calibration map. `calibrate()` may
     # substitute one calibrator for another, so this is read from the fitted
-    # model rather than from the requested hyperparameters -- it names what
-    # actually ran, which is what makes the run reproducible from its output.
+    # model, so it names what ran and the run is reproducible from its output.
     calibrator = new_property(
       getter = function(self) {
         self@calibration_model@algorithm
@@ -2276,8 +2271,8 @@ method(predict, SupervisedRes) <- function(
   type <- match_arg(type, c("avg", "all", "metrics"))
   # One element per resample, each in the shape a single model predicts: a
   # numeric vector for a regression, an `n x k` probability matrix for a
-  # classification. Collected as a list rather than with `sapply()`, which
-  # flattens a matrix into a column and so destroyed the class dimension.
+  # classification. Collected as a list: `sapply()` would flatten a matrix into
+  # a column and lose the class dimension.
   per_fold <- lapply(object@models, function(mod) {
     predict(mod, newdata = newdata, execution_config = execution_config)
   })
@@ -2289,9 +2284,8 @@ method(predict, SupervisedRes) <- function(
       predictions = fold_predictions(per_fold),
       # Per case across resamples: the ensemble's prediction and how much the
       # resamples disagreed about it. Averaging the other way round -- over
-      # cases within each resample -- describes the outcome's distribution
-      # rather than the prediction, which is not what a caller asking for
-      # prediction metrics wants.
+      # cases within each resample -- would describe the outcome's distribution
+      # instead of the prediction.
       mean = aggregate_fold_predictions(per_fold, "mean"),
       sd = aggregate_fold_predictions(per_fold, "sd")
     )
@@ -2350,7 +2344,7 @@ aggregate_fold_predictions <- function(per_fold, fn) {
   )
   # `apply()` drops the result to a vector when one class is left standing --
   # the binary case, where `prob_matrix()` stores a single column -- so the
-  # shape is restored rather than left to depend on the class count.
+  # shape is restored for every class count.
   out <- matrix(
     apply(stacked, c(1L, 2L), fn),
     nrow = nrow(first),
@@ -2858,9 +2852,8 @@ learning_curve_frame <- function(
 # %% get_learning_curve.Supervised ----
 method(get_learning_curve, Supervised) <- function(x) {
   # Only algorithms that train in steps define `learning_curve_super()`.
-  # Anything else records no curve, which is an answer rather than a failure --
-  # so a missing method reads as NULL instead of propagating S7's dispatch
-  # error, as `se()` does above.
+  # Anything else records no curve, so a missing method reads as NULL, as in
+  # `se()` above.
   tryCatch(
     learning_curve_super(model = x@model),
     S7_error_method_not_found = function(e) NULL
@@ -2950,11 +2943,10 @@ early_stopping_algs <- c("LightGBM", "LightRF", "LightRuleFit", "LINAD", "MLP")
 #'
 #' A `torch` module holds external pointers, so it cannot be saved: an `.rds`
 #' written from one reloads as "external pointer is not valid" and fails at the
-#' first prediction rather than at read. The parameters are therefore stored
+#' first prediction. The parameters are therefore stored
 #' serialized, as an ordinary raw vector, and `predict_super()` rebuilds the
-#' module from the recorded architecture and loads them back in. That is why
-#' every architectural setting appears here rather than being read off the
-#' hyperparameters: the model must be readable on its own.
+#' module from the recorded architecture and loads them back in. Every
+#' architectural setting is recorded here, so the model is readable on its own.
 #'
 #' @author EDG
 #' @noRd
@@ -3147,7 +3139,7 @@ method(print, StackedLearner) <- function(x, ...) {
 #'
 #' Flat by design. `frame` holds one row per node and `coefficients` one row of
 #' coefficients per node, in place of a nested structure -- routing is then a
-#' vectorized pass per internal node rather than a walk per case, and the whole
+#' vectorized pass per internal node, and the whole
 #' object serializes with no external references.
 #'
 #' A node's coefficients are the accumulated sum along its path, so prediction
@@ -3392,7 +3384,7 @@ LINADForest <- new_class(
         ))
       }
       # A tree holds a `mtry_tree` subset, so its features are a subset of the
-      # forest's rather than equal to them.
+      # forest's.
       outside <- setdiff(
         unlist(lapply(self@trees, function(tree) tree@xnames)),
         self@xnames

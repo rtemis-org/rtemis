@@ -12,8 +12,8 @@
 #' reproduce this exactly, and reconstructing has to undo it.
 #'
 #' The row statistics are returned because they cannot be recovered afterwards:
-#' they are per-case, so they belong to the data being transformed rather than
-#' to the fit, and `reconstruct_` needs them to get back to input units.
+#' they are per-case, so they belong to the data being transformed, and
+#' `reconstruct_` needs them to get back to input units.
 #'
 #' @param xm Numeric matrix: Data, cases by features.
 #' @param center Numeric vector: Column means learned at fit time.

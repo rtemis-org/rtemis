@@ -15,9 +15,9 @@
 #' The order statistic a conformal quantile is
 #'
 #' `ceiling((n + 1) * (1 - alpha))`, the rank whose calibration score bounds a
-#' fresh case's with probability at least `1 - alpha`. The `+ 1` is what makes
-#' the guarantee finite-sample rather than asymptotic: the fresh case is counted
-#' as if it were already in the calibration set.
+#' fresh case's with probability at least `1 - alpha`. The `+ 1` makes the
+#' guarantee hold in finite samples: the fresh case is counted as if it were
+#' already in the calibration set.
 #'
 #' @param n Integer: Number of calibration cases.
 #' @param alpha Numeric (0, 1): Miscoverage rate.
@@ -36,9 +36,8 @@ conformal_order <- function(n, alpha) {
 #' Refuse a calibration set too small for the requested `alpha`
 #'
 #' Below `ceiling(1 / alpha) - 1` cases the order statistic falls off the end of
-#' the calibration scores and the region is the whole outcome space. That is a
-#' valid answer and a useless one, so it is reported as the input problem it is
-#' rather than returned as an infinite interval a reader might plot.
+#' the calibration scores and the region is the whole outcome space, so the
+#' calibration set is reported as too small.
 #'
 #' @param n Integer: Number of calibration cases.
 #' @param alpha Numeric (0, 1): Miscoverage rate.
@@ -91,7 +90,7 @@ conformal_quantile <- function(scores, alpha) {
 #' Resolve which nonconformity score runs
 #'
 #' A regression has one, so NULL and "absolute" mean the same thing there and a
-#' set-valued score is a category error rather than a preference.
+#' set-valued score is an error.
 #'
 #' @param requested Optional Character: `ConformalConfig@score`.
 #' @param type Character: "Regression" or "Classification".
@@ -269,8 +268,8 @@ aps_matrix <- function(prob, u) {
 #' The APS draws for one call, from one seeded stream
 #'
 #' Every uniform a call needs comes out of a single seeded block, so the
-#' calibration draws and the test draws are distinct values from one stream
-#' rather than two identical vectors from one seed. LAC draws nothing.
+#' calibration draws and the test draws are distinct values from one stream.
+#' LAC draws nothing.
 #'
 #' @param sizes Integer: How many draws each consumer needs, in order.
 #' @param score Character: Resolved score.
@@ -345,8 +344,7 @@ candidate_scores <- function(prob, score, u = NULL) {
 #' Cut label sets from a candidate-score matrix
 #'
 #' A set may come out empty -- no label scores below the threshold -- which is
-#' the honest answer at this level and is returned as such rather than widened
-#' to the most probable label.
+#' the correct answer at this level and is returned as such.
 #'
 #' @param scores Numeric matrix: One row per case, one column per class.
 #' @param q Numeric: Threshold a label must not exceed.
@@ -486,11 +484,10 @@ conformal_calibration_predictions <- function(
 #' `calibrate()` takes the probabilities to fit the calibration map on as an
 #' argument, and `@predicted_prob_test` is a natural thing to hand it. Where it
 #' was handed exactly that, the test split fitted the probability calibrator and
-#' is no longer exchangeable with a fresh case, so conformalizing on it would
-#' return an interval whose guarantee does not hold and whose numbers show no
-#' symptom.
+#' is not exchangeable with a fresh case, so conformalizing on it would return
+#' an interval whose guarantee does not hold.
 #'
-#' Compared on the outcomes rather than the probabilities: the calibration map's
+#' Compared on the outcomes: the calibration map's
 #' training frame holds transformed scores, but its outcome column is the test
 #' split's labels unchanged.
 #'
@@ -528,7 +525,7 @@ check_conformal_stored_split <- function(x) {
 #' Conformal prediction region for a `Supervised`
 #'
 #' Split conformal, or CQR where the backend can answer a quantile query.
-#' Computed on demand rather than stored, for the reason `se()` gives: a
+#' Computed on demand, for the reason `se()` gives: a
 #' quantity that depends on `newdata` and on a calibration set, and that most
 #' users never ask for, is computed when asked.
 #'
@@ -657,7 +654,7 @@ method(conformal, Supervised) <- function(
 #' a wider interval than one it is confident about -- which split conformal, one
 #' number added to and subtracted from every prediction, cannot do.
 #'
-#' `calibration` is required rather than defaulted: the score needs the model's
+#' `calibration` is required: the score needs the model's
 #' quantiles *at the calibration cases*, which means querying the model, which
 #' means having their features -- and a `Supervised` stores its test predictions
 #' but not its test features.
@@ -719,9 +716,8 @@ conformal_cqr <- function(x, newdata, calibration, config, verbosity = 1L) {
   # `q` is negative when the model's band already over-covers, and CQR narrows
   # it by that much. A case whose own band is narrower than `2 * |q|` would come
   # back inverted, which is not an interval. It means the quantile model
-  # over-covers so severely that the correction swamps the band, so it is
-  # reported as that rather than left to the class validator, whose message
-  # describes the symptom and not the cause.
+  # over-covers so severely that the correction swamps the band, and the error
+  # says so.
   if (any(upper < lower)) {
     rtemis.core::abort(
       "The quantile model over-covers by more than the width of its own band ",
@@ -778,8 +774,7 @@ supervised_quantiles <- function(x, newdata, quantiles) {
   check_inherits(newdata, "data.frame")
   features <- supervised_features(x, newdata, verbosity = 0L)
   # A missing method means this algorithm cannot answer a quantile query from
-  # the model it fitted, which is a fact about the algorithm rather than a
-  # failure. S7's dispatch error names a backend class the user never chose, so
+  # the model it fitted. S7's dispatch error names a backend class the user never chose, so
   # it is translated into the algorithm they did.
   quantile_matrix <- tryCatch(
     quantile_super(
@@ -826,9 +821,9 @@ supervised_quantiles <- function(x, newdata, quantiles) {
 #' pools are the residuals of `n` distinct cases against models that did not see
 #' them. `Resampler@resamples` holds each fold's *training* indices, so the
 #' out-of-fold sets are their complements and the assumption is a property of
-#' the indices rather than of the resampler's name -- which is why it is
-#' checked rather than whitelisted: a `Custom` resampler that partitions is
-#' entitled to CV+, and a stratified subsample that does not is not.
+#' the indices, so it is checked on them: a `Custom` resampler that partitions
+#' qualifies for CV+, and a stratified subsample that does not partition does
+#' not.
 #'
 #' @param x `SupervisedRes` object.
 #'
@@ -1045,8 +1040,8 @@ cvplus_interval <- function(x, newdata, alpha) {
     seq_along(x@models),
     vapply(x@y_test, length, integer(1L), USE.NAMES = FALSE)
   )
-  # One column per fold: `predict()` on the resampled object averages them,
-  # which is the wrong operation here -- CV+ needs each fold's own prediction.
+  # One column per fold: CV+ needs each fold's own prediction, which
+  # `predict()` on the resampled object averages.
   fold_predictions <- vapply(
     x@models,
     function(model) {
@@ -1170,7 +1165,7 @@ cross_conformal_set <- function(x, newdata, alpha, score, classes, seed) {
     classes[below < m]
   })
   # Averaged over folds as `predict(type = "avg")` does, so the reported
-  # probabilities and the reported sets describe one model rather than two.
+  # probabilities and the reported sets describe one model.
   predicted_prob <- Reduce(`+`, fold_prob) / length(fold_prob)
   list(sets = sets, predicted_prob = predicted_prob, classes = classes)
 } # /rtemis::cross_conformal_set

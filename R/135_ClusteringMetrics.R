@@ -7,10 +7,10 @@
 # so a measure cannot exist as a value without a status or the reverse, and the
 # two vocabularies cannot drift.
 #
-# Why a status beside the value rather than `NA` alone: `NA` conflates a measure
-# that was computed and came out undefined, one the result cannot support, one
-# nobody asked for, and one whose prerequisites failed. A record exists to
-# answer "why is there no number here", and `NA` cannot.
+# A status sits beside the value because `NA` alone conflates a measure that
+# was computed and came out undefined, one the result cannot support, one
+# not requested, and one whose prerequisites failed. The status records
+# which of these applies.
 
 # %% CLUSTERING_MEASURE_STATUS ----
 # Five states, because there are four distinct reasons for absence and one for
@@ -141,7 +141,7 @@ ClusteringMetrics <- schema_class(
     values <- list(...)
     measures <- names(CLUSTERING_MEASURES)
     supplied <- values[intersect(names(values), measures)]
-    # A measure nobody supplied is unsupported by this result, which is the
+    # A measure not supplied is unsupported by this result, which is the
     # commonest case: entropy on a hard clustering, noise on an algorithm that
     # labels none. The absent value is a *typed* NA, since the table declares
     # each column's type and a bare logical NA is not one of them.
@@ -193,8 +193,7 @@ ClusteringMetrics <- schema_class(
 #'
 #' Every measure here is O(nk) over values already in hand, so `cluster()`
 #' computes them inline. Anything quadratic -- a silhouette over a full distance
-#' matrix -- would belong behind a function the user calls deliberately, not on
-#' every run.
+#' matrix -- belongs in a separate function the user calls explicitly.
 #'
 #' @param x `Clustering` object.
 #'

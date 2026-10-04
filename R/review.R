@@ -10,7 +10,7 @@
 # tests, better/worse verdicts -- is made only for a single split, whose test
 # cases are independent of a fixed fitted model. Resamples share training
 # cases, so their test results are dependent; a resampled model is described
-# by the distribution of its per-resample results instead.
+# by the distribution of its per-resample results.
 #
 # Every interval here is analytic, so a review draws no random numbers and the
 # same model always gets the same review.
@@ -136,9 +136,9 @@ review_mean_interval <- function(v, level) {
 #' Paired mean loss reduction over a baseline, with its t interval
 #'
 #' The per-case reduction is the baseline's loss minus the model's, so a
-#' positive value favors the model. Its paired t interval is an interval for
-#' the mean reduction, on the loss scale; it is not an interval for the skill
-#' score, whose denominator is itself estimated.
+#' positive value favors the model. The paired t interval is for the mean
+#' reduction, on the loss scale. The skill score is reported separately, as a
+#' point estimate.
 #'
 #' @param loss Numeric vector: Per-case loss of the model.
 #' @param loss_baseline Numeric vector: Per-case loss of the baseline.
@@ -596,8 +596,8 @@ review_performance <- function(folds, intervals, pooled) {
     )
   })
   out <- do.call(rbind, rows)
-  # Undefined values are NA -- never NaN or infinite, as R-squared is on a
-  # single test case -- so serialization and printing treat them alike.
+  # Undefined values, such as R-squared on a single test case, are stored as NA
+  # so serialization and printing treat them alike.
   numeric_columns <- vapply(out, is.numeric, logical(1L))
   out[numeric_columns] <- lapply(out[numeric_columns], review_defined)
   out
@@ -968,11 +968,10 @@ review_gap_finding <- function(
 # %% review_prediction_findings ----
 #' Constant predictions and never-predicted classes
 #'
-#' Observations about these test predictions. Constant predictions are an
-#' observation only with at least two test cases whose outcomes vary; for
-#' classification,
-#' constant labels with varying probabilities point at the decision
-#' threshold rather than at the scores.
+#' Observations about these test predictions. Constant predictions are
+#' reported when there are at least two test cases whose outcomes vary. For
+#' classification, constant labels with varying probabilities point to the
+#' decision threshold.
 #'
 #' @param y Test outcome, pooled.
 #' @param predicted Test predictions, pooled.

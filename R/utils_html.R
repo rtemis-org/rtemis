@@ -49,10 +49,10 @@ html_success <- function(..., bold = TRUE) {
 # %% twocol2html ----
 #' Render a two-column data.frame as an HTML table
 #'
-#' Built for tooltips that have to carry a table rather than a line of text.
+#' Built for tooltips that carry a table.
 #' `draw_linad()` puts one of these on every node so a reader can see how a
 #' coefficient changes from node to node -- including when it changes sign,
-#' which the per-cell background color is what makes visible at a glance.
+#' which the per-cell background color shows at a glance.
 #'
 #' The second column is right-aligned with tabular figures, so the digits line
 #' up down the column and a change in magnitude reads without being parsed.
@@ -68,7 +68,7 @@ html_success <- function(..., bold = TRUE) {
 #' `NROW(x)`. Supply one gradient computed across every table being shown, or
 #' the colors mean something different in each.
 #' @param caption Optional Character: Rendered above the header, for a quantity
-#' that belongs to the table as a whole rather than to either column. It sits
+#' that belongs to the table as a whole. It sits
 #' outside the scrolling element, so it stays visible while the rows scroll.
 #' @param caption_value Optional Character: The caption's own value, set below
 #' it as the table's headline number, with `caption` demoted to its label.
@@ -111,9 +111,9 @@ twocol2html <- function(
   border_col = NULL,
   digits = 3L
 ) {
-  # Read the text color off each cell's own background rather than fixing one
-  # for the table: cells span a full diverging gradient, so a single color is
-  # unreadable at one end whichever end it is chosen for.
+  # The text color is read off each cell's own background: cells span a full
+  # diverging gradient, so a single color for the table is unreadable at one
+  # end.
   if (is.null(value_font_col)) {
     value_font_col <- ifelse(
       col2grayscale(value_col, "decimal") > 0.5,
@@ -125,7 +125,7 @@ twocol2html <- function(
   value_col <- rep_len(value_col, NROW(x))
   # One label treatment for the whole panel. The caption's label and the two
   # column headers are the same kind of thing -- names for the values beneath
-  # them -- so they are set from one string rather than described twice.
+  # them -- so they are set from one string.
   label_css <- paste0(
     "font-size: 0.78em; font-weight: 600; letter-spacing: 0.08em; ",
     "text-transform: uppercase; opacity: 0.65"
@@ -149,10 +149,8 @@ twocol2html <- function(
       "</span></th>"
     )
   }
-  # The caption spans both columns. Sitting it in its own element above the
-  # table would align it with the first column instead of with the table.
-  # The caption sits outside the scrolling element rather than in the table, so
-  # a quantity belonging to the whole table stays visible while its rows are
+  # The caption spans both columns and sits outside the scrolling element, so a
+  # quantity belonging to the whole table stays visible while its rows are
   # scrolled. `em` sizes keep it proportional to `font_size` without parsing it.
   caption_block <- if (is.null(caption)) {
     ""

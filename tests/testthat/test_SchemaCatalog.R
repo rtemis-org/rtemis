@@ -46,7 +46,9 @@ test_that("class publication preserves the frozen publication inventory", {
       "supervisedres",
       "variableimportance",
       "reviewfinding",
-      "supervisedreview"
+      "supervisedreview",
+      "aireviewitem",
+      "aisupervisedreview"
     )
   )
   derived[["documents"]][c(
@@ -60,7 +62,9 @@ test_that("class publication preserves the frozen publication inventory", {
     "supervisedres",
     "variableimportance",
     "reviewfinding",
-    "supervisedreview"
+    "supervisedreview",
+    "aireviewitem",
+    "aisupervisedreview"
   )] <- NULL
   expect_identical(derived, original)
 })

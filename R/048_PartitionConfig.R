@@ -99,12 +99,10 @@ TimePartitionConfig <- schema_class(
   package = "rtemis",
   properties = list(
     method = prop_algorithm("time"),
-    # No default: a time split with no column to order by is not a request
-    # anything can act on, the same reason `IngestConfig@format` has none --
-    # but a config schema may not require a leaf property (only the
-    # discriminator may be required), so this stays nullable and
-    # `setup_TimePartition()` aborts on a NULL, the way `setup_Custom()`
-    # already does for `resamples`.
+    # No default: a time split needs a column to order by. A config schema
+    # requires only the discriminator, so this is nullable and
+    # `setup_TimePartition()` aborts on a NULL, as `setup_Custom()` does for
+    # `resamples`.
     column = prop_string(
       NULL,
       nullable = TRUE,
@@ -141,8 +139,7 @@ GroupPartitionConfig <- schema_class(
   package = "rtemis",
   properties = list(
     method = prop_algorithm("group"),
-    # See `TimePartitionConfig@column` for why this is nullable rather than
-    # required.
+    # Nullable for the same reason as `TimePartitionConfig@column`.
     column = prop_string(
       NULL,
       nullable = TRUE,
@@ -183,7 +180,7 @@ GroupPartitionConfig <- schema_class(
 #' A split already recorded in the data itself -- a column naming, per case,
 #' which side it belongs to. The right method when the partition was decided
 #' outside rtemis (a prior study, a regulatory submission) and must be
-#' reproduced exactly rather than re-derived.
+#' reproduced exactly.
 #'
 #' @author EDG
 #' @noRd
@@ -193,8 +190,7 @@ PredefinedPartitionConfig <- schema_class(
   package = "rtemis",
   properties = list(
     method = prop_algorithm("predefined"),
-    # See `TimePartitionConfig@column` for why this is nullable rather than
-    # required.
+    # Nullable for the same reason as `TimePartitionConfig@column`.
     column = prop_string(
       NULL,
       nullable = TRUE,
@@ -598,7 +594,7 @@ partition <- function(
 #'
 #' `method` picks the constructor, and every other key is one of its
 #' arguments -- so a key belonging to a different method fails there as an
-#' unused argument, naming it, rather than being dropped.
+#' unused argument, naming it.
 #'
 #' @param x Named list: The parsed document.
 #'

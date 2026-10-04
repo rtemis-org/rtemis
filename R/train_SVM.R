@@ -291,8 +291,7 @@ svm_margin <- function(model, newdata) {
 #'
 #' Only a binary or regression fit has one such function. Multiclass `e1071` is
 #' one-vs-one voting, which is not a linear decision function per class, and a
-#' non-linear kernel has none at all -- both are refused rather than described
-#' by a tangent plane.
+#' non-linear kernel has none at all -- both are refused.
 #'
 #' This method is never reached for a RadialSVM, even though it shares the
 #' backend class: the kernel estimator is model-agnostic and is handled in

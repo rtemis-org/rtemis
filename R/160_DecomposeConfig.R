@@ -141,8 +141,8 @@ setup_DecomposeConfig <- function(
 ) {
   apply_setup_defaults(DecomposeConfig)
   # Validated, not resolved: a config is a portable recipe, so it stores the
-  # path its author wrote rather than that path resolved against this machine's
-  # working directory.
+  # path as its author wrote it, unresolved against this machine's working
+  # directory.
   if (!is.null(dat_path)) {
     dat_path <- sanitize_path(dat_path, must_exist = FALSE, normalize = FALSE)
   }

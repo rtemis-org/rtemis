@@ -14,7 +14,7 @@ or vector read against the type the hyperparameter declares.}
 \code{HyperparameterCandidates} object.
 }
 \description{
-Declares that a hyperparameter should be \emph{searched over} rather than set. It
+Declares that a hyperparameter is \emph{searched over}. It
 is the only way to express a search space: a bare vector is always a value,
 so nothing has to be inferred from how many elements it happens to have.
 }
@@ -31,8 +31,7 @@ setup_MLP(hidden_units = tune_over(c(12L, 6L, 2L), c(14L, 12L, 6L, 2L)))
 For a \strong{vector-valued} hyperparameter one candidate is itself a vector, so
 pass the candidates as separate arguments or as a list --
 \code{tune_over(list(c(12L, 6L), c(24L, 12L)))}. A single bare vector there would
-be one architecture rather than a search, and is an error saying so; nothing
-is guessed.
+be one architecture, and is an error saying so.
 
 Passing it to a hyperparameter that is not tunable is an error: that
 hyperparameter accepts a value only.

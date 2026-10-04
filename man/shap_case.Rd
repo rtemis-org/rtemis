@@ -25,13 +25,13 @@ The three things a per-case explanation is: where the prediction would have
 started, what each feature did to it, and where it ended.
 }
 \details{
-Shaped here rather than in a renderer, following \code{session_timeline()}: the
+Shaped here, following \code{session_timeline()}: the
 table is the shared input for rtemis.draw's chart and for rtemislive, so both
 show the same thing, and it is useful on its own without either.
 
 Features are ordered by the magnitude of their contribution, which is the
 order a waterfall reads in, and each carries the value it took for this case
-so the row says "age = 62, +0.4" rather than only "+0.4".
+so the row reads "age = 62, +0.4".
 }
 \examples{
 x <- data.frame(age = rnorm(100), bmi = rnorm(100))

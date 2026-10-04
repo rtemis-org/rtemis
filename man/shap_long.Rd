@@ -24,7 +24,7 @@ The long form a beeswarm reads: a point per case per feature, positioned by
 its contribution and colored by the value the feature took.
 }
 \details{
-Shaped here rather than in a renderer, for the reason \code{shap_case()} gives.
+Shaped here, for the reason \code{shap_case()} gives.
 }
 \examples{
 x <- data.frame(age = rnorm(100), bmi = rnorm(100))

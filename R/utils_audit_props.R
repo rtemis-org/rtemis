@@ -24,7 +24,7 @@
 # %% DOC_TYPE_MAP ----
 # Documented type word -> `PropertySpec@type`. "Float" is not part of the
 # documented vocabulary (AGENTS.md says Numeric); it is mapped so that the
-# audit reports it as a vocabulary finding rather than an unparseable type.
+# audit reports it as a vocabulary finding.
 DOC_TYPE_MAP <- c(
   Logical = "boolean",
   Integer = "integer",
@@ -67,7 +67,7 @@ AUDIT_SEVERITY <- c(
 
 
 # %% AUDIT_RESULT_CLASSES ----
-# Classes whose declared properties are *outputs* rather than settable inputs.
+# Classes whose declared properties are *outputs*.
 # The audit compares a class's properties against the `@param` documentation of
 # its `setup_*` constructor; a results class has no such constructor and no
 # parameters, so there is nothing to compare and every property would report as
@@ -178,9 +178,8 @@ parse_roxygen_params <- function(r_dir) {
 #' The functions one roxygen block inherits parameter documentation from
 #'
 #' `@inheritParams` is how a `setup_*` that takes a subset of another's
-#' arguments documents them once. The audit reads roxygen source rather than
-#' installed `.Rd`, so it has to follow the tag itself or read a block that
-#' documents nothing.
+#' arguments documents them once. The audit reads roxygen source, so it follows
+#' the tag itself; the block alone documents nothing.
 #'
 #' @param block Character vector: Roxygen block with the `#'` prefix stripped.
 #'
@@ -423,7 +422,7 @@ parse_doc_type <- function(text) {
     }
     return(out)
   }
-  # Extracted positionally rather than by regex: a bracket expression matching
+  # Extracted positionally: a regex bracket expression matching
   # `]` and `)` is a portability trap across R's regex engines.
   n <- nchar(clean)
   if (n < 4L) {
@@ -619,8 +618,7 @@ audit_prop_docs <- function(r_dir, classes = NULL, aliases = PROP_DOC_ALIASES) {
       next
     }
     if (length(params) == 0L) {
-      # No documentation source at all: one finding for the class, rather than
-      # one per property, which would drown the per-property findings.
+      # No documentation source at all: one finding for the class.
       add(
         class_name,
         "(class)",

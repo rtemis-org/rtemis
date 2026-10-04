@@ -192,7 +192,7 @@ Creates a \code{PreprocessorConfig} object, which can be used in \link{preproces
 Steps run in this order, and the order is part of what each one does:
 \code{remove_constants} runs before the quantile cut because a constant has no
 quantiles, \code{factorNA2missing} before \code{impute} so that missing values in a
-categorical feature become a level rather than a mode, and \code{one_hot} last
+categorical feature become a level, and \code{one_hot} last
 among the encoders so that it sees every factor the earlier steps created.
 
 Feature \emph{creation} precedes feature \emph{transformation}: \code{add_date_features} and

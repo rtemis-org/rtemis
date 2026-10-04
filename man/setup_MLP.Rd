@@ -117,7 +117,7 @@ regression, binary and multiclass classification.
 \strong{Architecture.} Give the hidden layers directly with \code{hidden_units} --
 \code{c(256L, 128L, 64L)} is three layers of those widths -- or leave it NULL and
 let \code{shape}, \code{shape_layers} and \code{shape_max_units} generate them. Setting both
-is an error rather than a silent override. The generated profiles are
+is an error. The generated profiles are
 \code{funnel} (a linear taper from the widest layer down to a third of it),
 \code{constant}, \code{triangle} (a linear rise from the input width), \code{long_funnel},
 \code{diamond}, \code{hexagon} and \code{stairs}; the vocabulary is Talos's, by way of
@@ -137,9 +137,8 @@ rejected as such.
 
 \strong{Categorical features} are represented by learned embeddings, each sized
 \code{min(600, round(1.6 * cardinality^0.56))} unless \code{embedding_dim} fixes them
-all. \code{embeddings = FALSE} one-hot encodes instead. Numeric features are
-always centered and scaled -- an unscaled network fails quietly rather than
-loudly -- and the fitted encoder is re-applied at predict time.
+all. \code{embeddings = FALSE} one-hot encodes them. Numeric features are always
+centered and scaled, and the fitted encoder is re-applied at predict time.
 
 \strong{Device and reproducibility.} The device is the execution config's: see the
 \code{device} argument of \link{setup_FutureExecution}. Unset picks \code{cuda} where

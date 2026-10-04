@@ -8,8 +8,7 @@
 #' `NMF::nmf()` returns different classes depending on `nrun` and its options
 #' (a single fit, or a multi-run object wrapping the best one). `NMF::basis()`
 #' is defined for all of them, so the basis matrix -- the only part of the fit
-#' this package uses -- is what gets validated, rather than the class of the
-#' object carrying it.
+#' this package uses -- is what gets validated.
 #'
 #' @param decom Fitted NMF object, as returned by `NMF::nmf()`.
 #'

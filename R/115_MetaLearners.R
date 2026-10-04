@@ -2,8 +2,8 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# The meta learner `Hyperparameters` classes live here rather than in
-# `070_Hyperparameters.R` because they declare a `ResamplerConfig` property, and
+# The meta learner `Hyperparameters` classes live here, after
+# `100_Resampler.R`, because they declare a `ResamplerConfig` property, and
 # files are sourced in load order: `100_Resampler.R` has not run yet at 070.
 # Same reason `SuperConfig` sits at 190.
 
@@ -180,9 +180,8 @@ META_PARTITIONING_RESAMPLERS <- c("KFold", "LOOCV")
 #' The declarative `data_bound` checks, plus the one constraint the vocabulary
 #' cannot express: the inner resampler must partition the cases.
 #'
-#' A plain function rather than a method so a subclass with checks of its own can
-#' run these first. S7's `super()` would do the same job at the cost of naming
-#' the parent class at every call site.
+#' A plain function, so a subclass with checks of its own can run these first
+#' without naming the parent class at each call site.
 #'
 #' @param hyperparameters `MetaLearnerHyperparameters` object.
 #' @param x tabular data: Training data.
@@ -241,8 +240,7 @@ StackedLearnerHyperparameters <- new_class(
   parent = MetaLearnerHyperparameters,
   abstract = TRUE,
   properties = list(
-    # Declared here rather than on `MetaLearnerHyperparameters`, whose other
-    # subclass wants a different one: a stacked learner combines its library
+    # Declared here, on the subclass, because each subclass has its own default: a stacked learner combines its library
     # with non-negative least squares, and a conditional super learner routes
     # to it with a Ranger oracle. S7 constructs an inherited property with the
     # parent's default whatever a subclass redeclares, so the two defaults have
@@ -515,7 +513,7 @@ setup_ModalityStacking <- function(
 ) {
   apply_setup_defaults(ModalityStackingHyperparameters)
   # One learner for every group is the common case; broadcast it before naming
-  # so the names come from the groups rather than from a repeated algorithm.
+  # so the names come from the groups.
   if (S7_inherits(base_learners, Hyperparameters)) {
     n_groups <- if (is.null(feature_groups)) 2L else length(feature_groups)
     base_learners <- stats::setNames(

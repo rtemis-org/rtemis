@@ -149,7 +149,7 @@ set_preferred_plan <- function(
     return("sequential")
   }
 
-  # `multisession` on every platform, rather than forking where forking is available.
+  # `multisession` on every platform.
   # Forking is only safe in a process with one thread and nothing open across the boundary,
   # which a loaded R session -- threaded BLAS, graphics devices, event loops, connections --
   # frequently is not; R's own documentation restricts `mcparallel()` on those grounds. The
@@ -164,7 +164,7 @@ set_preferred_plan <- function(
     envir = envir
   )
   # `future` resolves to a sequential plan when this leaves it a single worker, so report
-  # the plan that was actually set rather than the one asked for.
+  # the plan that was set.
   identify_plan()
 } # /set_preferred_plan
 
@@ -174,9 +174,8 @@ set_preferred_plan <- function(
 #'
 #' A worker loads the package when it deserializes its first task, so left alone the cost
 #' falls on whichever dispatch happens to be first. Under outer resampling that is the
-#' first fold's tuning, where it reads as that fold being slower than the nine after it
-#' rather than as setup. Paying it here moves it inside the `worker_pool` node, where it
-#' is labeled and measured.
+#' first fold's tuning, where it would read as that fold being slower than the nine after
+#' it. Paying it here places it inside the `worker_pool` node, labeled and measured.
 #'
 #' @details
 #' One task per worker, each holding its worker for a moment, so the scheduler spreads
@@ -234,7 +233,7 @@ warm_workers <- function(backend, n_workers) {
 #' Start a worker pool for the duration of a run
 #'
 #' Establishes the run's workers once, so every `progress_plapply()` beneath this frame
-#' dispatches onto the same pool instead of building and tearing down its own.
+#' dispatches onto the same pool.
 #'
 #' @details
 #' Standing a pool up costs about a second -- processes spawned, \pkg{rtemis} loaded in
@@ -243,8 +242,7 @@ warm_workers <- function(backend, n_workers) {
 #' parallelism saves.
 #'
 #' The whole of that cost, spawning and loading both, is recorded as one `worker_pool`
-#' node so it appears in the execution graph as setup rather than inflating the first
-#' thing that dispatches.
+#' node so it appears in the execution graph as setup.
 #'
 #' The pool is recorded in `live[["worker_pool"]]`, which is what
 #' `worker_pool_available()` reads and what makes a second call here a no-op: an outer
@@ -312,7 +310,7 @@ worker_pool_start <- function(
   }
   # Spawning the processes is only half the cost; the other half is each one loading
   # rtemis, which it does on its first task. Both belong to setup, so both are paid and
-  # timed here rather than one of them landing in the first fold that tunes.
+  # timed here.
   if (warm) {
     warm_workers(backend, n_workers)
   }
@@ -533,11 +531,10 @@ share_payload <- function(
     return(obj)
   }
   # "auto" is best-effort, and as the default policy it is on the path of every parallel
-  # run, so a failure here degrades to the ordinary transport rather than ending the fit.
-  # Warned once per run, because a failure is a defect rather than a policy decision and
-  # a run that quietly stopped sharing is a run whose memory ceiling moved: the caller
-  # shares three payloads per dispatch and tuning dispatches once per outer fold, so
-  # warning at each would bury the first one.
+  # run, so a failure here degrades to the ordinary transport and the fit continues.
+  # Warned once per run, since a run that stops sharing changes its memory ceiling: the
+  # caller shares three payloads per dispatch and tuning dispatches once per outer fold,
+  # so warning at each would bury the first one.
   tryCatch(mori::share(obj), error = function(e) {
     if (is.null(live[["share_warned"]])) {
       live[["share_warned"]] <- TRUE
@@ -555,8 +552,7 @@ share_payload <- function(
 # %% format_bytes ----
 #' Human-readable byte count
 #'
-#' SI units, so a megabyte reads back as "1 MB" rather than as the 976.6 Kb the same
-#' number of bytes is in binary units.
+#' SI units: a megabyte reads "1 MB".
 #'
 #' @param bytes Numeric: Size in bytes.
 #'
@@ -587,7 +583,7 @@ format_bytes <- function(bytes) {
 #' the transport is cheaper at every size measured, so anything that can be shared is.
 #'
 #' `"always"` reports as sharing. Its one impossible case -- workers that are not on this
-#' machine -- is an error rather than a decision, and is raised by `share_payload()`.
+#' machine -- is an error, raised by `share_payload()`.
 #'
 #' @param obj Object to share, or NULL.
 #' @param mode Character \{"none", "auto", "always"\}: Sharing policy.
@@ -705,11 +701,11 @@ report_shared_memory <- function(
 #' actual computation runs on.
 #'
 #' @details
-#' The kind is restored explicitly rather than left to `.Random.seed[1L]`, which encodes
-#' it. Two reasons: with no prior `.Random.seed` there is no vector to encode anything, so
+#' The kind is restored explicitly, although `.Random.seed[1L]` encodes it, for two
+#' reasons: with no prior `.Random.seed` there is no vector to encode anything, so
 #' a generator switch inside `expr` would persist; and `RNGkind()` reports a cached value
 #' that is only reconciled with `.Random.seed` on the next draw, so a caller inspecting it
-#' in between would be told the wrong generator is active.
+#' in between would see a stale generator.
 #'
 #' Restoring the kind reinitializes `.Random.seed`, so the seed is restored after it.
 #' When the caller had no `.Random.seed` at all, the one `expr` forced into existence is
@@ -827,7 +823,7 @@ rng_set_substream <- function(stream) {
 #' frame to every worker -- the dispatcher's own bookkeeping, task handles and progress
 #' handle included, none of which a task needs and some of which cannot be serialized.
 #'
-#' Errors are captured and returned rather than raised, so every backend reports task
+#' Errors are captured and returned, so every backend reports task
 #' failure the same way.
 #'
 #' @param X Vector or list: Elements to iterate over.
@@ -859,8 +855,8 @@ make_task_runner <- function(X, FUN, seeds) {
 #' over `X` sequentially or across `future`/`mirai` workers, rendering the same rtemis
 #' progress line and emitting the same sink envelopes in every case.
 #'
-#' It lives in \pkg{rtemis} rather than \pkg{rtemis.core} because the backends pull in
-#' `future`/`mirai`, which \pkg{rtemis.core} must not depend on.
+#' It lives in \pkg{rtemis} because the backends pull in `future`/`mirai`, which
+#' \pkg{rtemis.core} does not depend on.
 #'
 #' @details
 #' **`FUN` must be self-contained.** Everything it needs arrives through `...` or its own
@@ -871,8 +867,7 @@ make_task_runner <- function(X, FUN, seeds) {
 #' that element's value, uniformly across backends -- `future::value()` would otherwise
 #' re-raise while `mirai` returns an error object. The caller owns the failure policy and
 #' inspects results with `inherits(res, "condition")`. Callers whose policy is fatal set
-#' `stop_on_error`, which re-raises the first failure instead of finishing work whose
-#' results are about to be discarded.
+#' `stop_on_error`, which re-raises the first failure and abandons the remaining work.
 #'
 #' **Results are always in the order of `X`**, whatever order tasks completed in.
 #'
@@ -880,7 +875,7 @@ make_task_runner <- function(X, FUN, seeds) {
 #' recount resolved tasks, so the counter stays accurate when tasks finish out of order.
 #' Waiting is event-driven -- no polling interval to tune.
 #'
-#' **Workers are built here only if nobody built them first.** With a run-level pool
+#' **Workers are built here only if none are running.** With a run-level pool
 #' standing (`worker_pool_start()`), this dispatches onto it and neither starts nor stops
 #' anything; without one it stands up its own workers for the call and releases them on
 #' the way out. Either way `n_workers` governs the submission window.
@@ -936,7 +931,7 @@ progress_plapply <- function(
     )
   }
   # The execution-graph node this loop runs inside, so its progress events graft onto
-  # the graph rather than reporting as a second root. Read once, here: the stack top
+  # the graph. Read once, here: the stack top
   # moves as the loop body enters nodes of its own.
   parent_node <- session_current_node()
   n <- length(X)
@@ -965,7 +960,7 @@ progress_plapply <- function(
   } else if (backend == "mirai") {
     check_dependencies("mirai")
   }
-  # A run-level pool, if one is standing, is dispatched onto rather than replaced. Read
+  # A run-level pool, if one is standing, is dispatched onto. Read
   # before the task body so both backend branches and the teardown agree on one answer.
   borrowed <- worker_pool_available(backend)
 
@@ -1067,7 +1062,7 @@ progress_plapply <- function(
       # a task still occupying a worker delays -- or returns its value to -- the next
       # dispatch onto that same pool. Either way the damage lands on whatever runs next,
       # as a `FutureInterruptError` in place of its value. Outstanding futures are
-      # therefore canceled explicitly before unwinding, rather than abandoned.
+      # therefore canceled explicitly before unwinding.
       # Canceling is only half of it: an interrupted forked worker stays in
       # `parallel:::children()` until someone takes its value, and future's core accounting
       # counts that orphan as a process it cannot attribute to any future -- it warns, and

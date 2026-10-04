@@ -13,12 +13,10 @@
 #' and `options(warn = 2)` around `do_call()` behave exactly as they would
 #' around a direct call. A warning is a condition and belongs to the caller,
 #' not to `verbosity`. What `verbosity` governs is the suggestion, which is
-#' rtemis output about the warning rather than the warning itself, and which is
-#' printed only when a pattern matches -- an unrecognized warning is left to
-#' speak for itself.
+#' rtemis output about the warning, printed only when a pattern matches.
 #'
-#' An error's suggestion is part of the error message rather than a separate
-#' print, so it survives at any `verbosity`.
+#' An error's suggestion is part of the error message, so it is shown at any
+#' `verbosity`.
 #'
 #' @param fn Function to call.
 #' @param args List of arguments to pass to function.
@@ -92,8 +90,7 @@ do_call <- function(
           }
           advised <<- c(advised, fnwarn)
           # The warning itself is deferred by R until the top-level call
-          # returns, so the advice quotes what it is advising on rather than
-          # arriving without an antecedent.
+          # returns, so the advice quotes the warning it refers to.
           info(
             highlight(fn_label),
             " warned: ",

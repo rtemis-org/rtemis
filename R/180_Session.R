@@ -461,8 +461,8 @@ session_emit_sink <- function(rec, phase, total = NULL) {
 #'
 #' The node a caller is currently running inside. Passed to
 #' [rtemis.core::progress_begin()] as `parent_id` so a progress loop grafts onto the
-#' execution graph instead of reporting as a second, unrelated root - the two streams
-#' share one wire and a consumer should be able to assemble one tree from them.
+#' execution graph: the two streams share one wire, and a consumer assembles one
+#' tree from them.
 #'
 #' @return Character `node_id`, or `NULL` when no session is active or none is open.
 #'
@@ -896,10 +896,9 @@ session_timeline <- function(session) {
 #' whatever offsets it wants to draw.
 #'
 #' `meta` is kind-specific -- `resample_id` on a grid cell, `error_message` and
-#' `error_class` on a failure -- so it travels as a JSON string rather than as
-#' flattened columns. Flattening would make the table's shape depend on which
-#' node kinds a run happened to produce, and would change every time a payload
-#' gains a key; one text column is lossless and stable, and both DuckDB and
+#' `error_class` on a failure -- so it travels as one JSON string column. The
+#' table's shape is then independent of which node kinds a run produced and of
+#' the keys each payload carries; the column is lossless, and both DuckDB and
 #' polars extract from it.
 #'
 #' @param session `SupervisedSession`: The session to flatten.
@@ -988,8 +987,7 @@ session_nodes <- function(session) {
 #' slice and announce it on the `ready` frame, which is what lets the rtemislive
 #' web UI color its timeline bars and its live progress panel without a
 #' hard-coded palette of its own - one definition, here, for every renderer.
-#' Not user-facing API: `@keywords internal` marks it exported for mechanism
-#' rather than for use.
+#' Exported for rtemis interfaces and marked `@keywords internal`.
 #'
 #' @param kinds Character vector or NULL: Node kinds to color, in display order,
 #'   e.g. `unique(session_timeline(session)[["kind"]])`. `NULL` returns the
@@ -1005,8 +1003,8 @@ session_kind_colors <- function(kinds = NULL) {
   rtemis.core::check_character(kinds, allow_null = TRUE)
   fixed <- c(
     train = "#808080",
-    # Setup rather than modeling work, and muted for the same reason: a bar the reader
-    # should be able to find and measure, but not one competing with the work itself.
+    # Setup work, muted for the same reason: a bar the reader can find and
+    # measure, visually subordinate to the modeling work.
     worker_pool = rtemis_colors[["juniper"]],
     outer_fold = col_outer,
     # The progress stream reports the loop over the folds, the graph reports each
@@ -1028,7 +1026,7 @@ session_kind_colors <- function(kinds = NULL) {
   cols <- fixed[kinds]
   names(cols) <- kinds
   # rep_len recycles the palette so more unmapped kinds than palette colors
-  # still get a (repeated) color rather than NA.
+  # each get a (repeated) color.
   cols[is.na(cols)] <- rep_len(unname(rtemis_colors), sum(is.na(cols)))
   cols
 } # /rtemis::session_kind_colors

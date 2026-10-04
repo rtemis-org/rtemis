@@ -14,8 +14,7 @@
 #
 # Findings follow the `Diagnostic` conventions: `code` is a stable identifier,
 # permanent once published; `plain` is authored once per code in
-# `REVIEW_PLAIN` and looked up, never composed at runtime or produced by a
-# model; `message` is the technical account.
+# `REVIEW_PLAIN` and looked up by code; `message` is the technical account.
 #
 # A finding fires on an exact condition, an interval, or a published rule of
 # thumb (cases per predictor). Where no defensible threshold exists -- how wide
@@ -49,7 +48,7 @@ REVIEW_CODES <- c(
 
 # %% REVIEW_SEVERITIES ----
 # - "warning" the evaluation is unreliable, or shows a problem with the model
-# - "note"    worth knowing; nothing is wrong
+# - "note"    information worth knowing
 REVIEW_SEVERITIES <- c("warning", "note")
 
 # %% REVIEW_BASELINE_OUTCOMES ----

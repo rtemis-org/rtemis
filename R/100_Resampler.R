@@ -29,9 +29,8 @@
 #' @details
 #' `n_resamples` is declared per subclass, not here: for every type but LOOCV it
 #' is ordinary config with a default, while LOOCV derives it from the data
-#' (`resample()` fills it in), which makes it run state. Declaring it twice over
-#' is what lets each leaf schema state its own contract instead of the
-#' dispatcher carrying a "required unless type is LOOCV" rule.
+#' (`resample()` fills it in), which makes it run state. Declaring it per leaf
+#' lets each leaf schema state its own contract.
 #'
 #' @author EDG
 #' @noRd
@@ -349,7 +348,7 @@ LOOCVConfig <- schema_class(
   properties = list(
     type = prop_algorithm("LOOCV"),
     # One resample per case, so only the data can say how many: `resample()`
-    # writes it. A user never supplies it, hence state rather than config.
+    # writes it, so it is run state.
     n_resamples = prop_state(prop_integer(
       NULL,
       min = 1L,
@@ -387,7 +386,7 @@ CustomConfig <- schema_class(
       description = "Training-case indices, one vector per resample."
     )),
     # Only the supplied resamples can say how many there are; `resample()`
-    # writes it. A user never supplies it, hence state rather than config.
+    # writes it, so it is run state.
     n_resamples = prop_state(prop_integer(
       NULL,
       min = 1L,
@@ -436,8 +435,8 @@ method(repr, CustomConfig) <- function(x, pad = 0L, output_type = NULL) {
 #' subject IDs when the dataset contains repeated measurements. Cases sharing an ID stay in the
 #' same resample, so a case can only be present in the training or the test set, not both.
 #' Requires that `resample()` be given the data frame the column lives in. [train] takes the
-#' column to identify cases rather than describe them, so it groups the resamples by it and
-#' excludes it from the features.
+#' column as a case identifier, so it groups the resamples by it and excludes it from the
+#' features.
 #' @param seed Optional Integer [0, Inf): Random seed.
 #'
 #' @return `KFoldConfig` object.
@@ -476,8 +475,8 @@ setup_KFold <- function(
 #' subject IDs when the dataset contains repeated measurements. Cases sharing an ID stay in the
 #' same resample, so a case can only be present in the training or the test set, not both.
 #' Requires that `resample()` be given the data frame the column lives in. [train] takes the
-#' column to identify cases rather than describe them, so it groups the resamples by it and
-#' excludes it from the features.
+#' column as a case identifier, so it groups the resamples by it and excludes it from the
+#' features.
 #' @param seed Optional Integer [0, Inf): Random seed.
 #'
 #' @return `StratSubConfig` object.
@@ -519,8 +518,8 @@ setup_StratSub <- function(
 #' subject IDs when the dataset contains repeated measurements. Cases sharing an ID stay in the
 #' same resample, so a case can only be present in the training or the test set, not both.
 #' Requires that `resample()` be given the data frame the column lives in. [train] takes the
-#' column to identify cases rather than describe them, so it groups the resamples by it and
-#' excludes it from the features.
+#' column as a case identifier, so it groups the resamples by it and excludes it from the
+#' features.
 #' @param seed Optional Integer [0, Inf): Random seed.
 #'
 #' @return `StratBootConfig` object.
@@ -560,8 +559,8 @@ setup_StratBoot <- function(
 #' subject IDs when the dataset contains repeated measurements. Cases sharing an ID stay in the
 #' same resample, so a case can only be present in the training or the test set, not both.
 #' Requires that `resample()` be given the data frame the column lives in. [train] takes the
-#' column to identify cases rather than describe them, so it groups the resamples by it and
-#' excludes it from the features.
+#' column as a case identifier, so it groups the resamples by it and excludes it from the
+#' features.
 #' @param seed Optional Integer [0, Inf): Random seed.
 #'
 #' @return `BootstrapConfig` object.
@@ -899,7 +898,7 @@ method(desc, Resampler) <- function(x) {
   constructor <- args[["constructor"]]
   args[["constructor"]] <- NULL
   # The variant is chosen, so its own properties are exactly what it accepts:
-  # `train_p` on a KFold is named rather than dropped.
+  # `train_p` on a KFold is named in the error.
   check_wire_keys(
     x,
     names(constructor@properties),

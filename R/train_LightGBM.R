@@ -235,8 +235,7 @@ method(varimp_super, class_lgb.Booster) <- function(model) {
 #' The booster's own contributions are path-dependent -- coalitions are weighted
 #' by the training coverage recorded in the trees -- which is a conditional
 #' value function, and it takes no background. An interventional answer needs
-#' one and is not what this returns, so it is refused rather than silently
-#' relabeled.
+#' a background and a different estimator, so it is refused.
 #'
 #' @param model `lgb.Booster` object.
 #' @param newdata tabular data: Cases to explain, already transformed.

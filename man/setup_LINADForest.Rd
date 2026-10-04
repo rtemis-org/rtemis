@@ -165,7 +165,7 @@ no resampling, reported by \code{print()}.
 
 \section{Defaults that differ from a single tree}{
 
-\code{learning_rate} is 1 rather than 0.1. A lone LINAD tree shrinks each node
+\code{learning_rate} defaults to 1, where a single tree uses 0.1. A lone LINAD tree shrinks each node
 update because nothing else controls its variance; in a forest the averaging
 does that, so each tree should be a strong learner -- the same reasoning that
 leaves a random forest's trees unpruned.

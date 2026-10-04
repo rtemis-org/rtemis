@@ -420,6 +420,7 @@ lda
 lgl
 lightAUC
 lightrf
+llm
 lmtree
 logcosh
 logrank

@@ -2,25 +2,21 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# The data half of `validate_config()`: what a schema cannot see, because it is
-# a fact about the dataset rather than about the document.
+# The data half of `validate_config()`: the checks a schema cannot express,
+# because they concern the dataset.
 #
-# Each check reads a `DataProfile` rather than the data. That is what makes the
-# same rule runnable outside R: the profile is a bounded document any language
-# can compute in one pass, so a rule expressed over its fields ports, while one
-# expressed over an R data.table does not. `missing_after_preprocessing()`
+# Each check reads a `DataProfile`, a bounded document any language can compute
+# in one pass, so a rule expressed over its fields runs outside R as well. `missing_after_preprocessing()`
 # reads the rows in one case -- a threshold on a standalone
 # `PreprocessorConfig` -- and says so where it is defined; a supervised config
 # cannot reach it.
 #
 # Each check is written over the *parts* a config carries -- a preprocessor, a
-# resampler, an algorithm, an outcome -- rather than over one config class. A
+# resampler, an algorithm, an outcome. A
 # `SuperConfig` carries all of them and gets every applicable check; a
 # standalone `PreprocessorConfig` carries one and gets the checks about it.
-# `config_parts()` is what makes that one code path instead of a branch per
-# family, and it is also what decides a check's scope: a check whose parts are
-# absent does not run, and reports nothing, rather than reporting on values it
-# had to invent.
+# `config_parts()` gives every family one code path and decides a check's
+# scope: a check whose parts are absent does not run.
 
 # %% config_parts ----
 #' Pull the validatable parts out of any rtemis config
@@ -70,7 +66,7 @@ config_parts <- function(config) {
     out[["preprocessor_config"]] <- config
     return(out)
   }
-  # Read by property name rather than by class. `SuperConfigPaths` and
+  # Read by property name. `SuperConfigPaths` and
   # `SuperConfigTabular` inherit the same blocks under the same names from
   # their shared `SuperConfig` parent and differ only in how the data reaches
   # them, so a test keyed on the concrete class would validate the portable
@@ -189,10 +185,8 @@ profile_field <- function(profile, column, field) {
 #'
 #' The profile describes the dataset as it is; the config says how it will be
 #' read. A `string` column under `character2factor` reaches the learner as a
-#' factor, so every check that branches on dtype has to ask for the effective
-#' one rather than the measured one -- otherwise the same file validates
-#' differently depending on which reader measured it, which is the profile
-#' describing the reader instead of the data.
+#' factor, so every check that branches on dtype uses the effective one, and the
+#' same file validates identically whichever reader measured it.
 #'
 #' Nothing else is translated. This is the one conversion a config can declare
 #' that changes a column's *kind*; the rest change values within a kind.
@@ -355,7 +349,7 @@ set_step <- function(x, step) {
 #'
 #' Data with a single column likewise has no outcome to resolve against
 #' features, so the outcome is left unresolved and every check that reads it is
-#' skipped rather than pointed at the only column there is.
+#' skipped.
 #'
 #' @param profile `DataProfile` object for the dataset.
 #' @param outcome Optional Character: Name of the outcome column.
@@ -427,8 +421,8 @@ SUPERVISED_FEATURE_DTYPES <- c("integer", "number", "categorical")
 #'   binary-classification setting, so it names a factor level; on a numeric
 #'   outcome rtemis infers regression and the setting is a statement about a
 #'   question the run is not asking. An algorithm that performs only one of the
-#'   two tasks says the same thing about itself. A warning rather than an error,
-#'   because the run completes -- the setting is ignored, not fatal.
+#'   two tasks says the same thing about itself. A warning, because the run
+#'   completes with the setting ignored.
 #'
 #' @param profile `DataProfile` object for the dataset.
 #' @param outcome_name Character or NULL: The outcome column.
@@ -466,12 +460,11 @@ check_outcome_type <- function(profile, outcome_name, parts) {
   }
   list(new_diagnostic(
     code = "OUTCOME_TYPE_MISMATCH",
-    # A warning, not an error: `train()` ignores `positive_class` on a numeric
-    # outcome and completes, so stopping the run would reject a config that
-    # works -- a portable recipe reused across a classification and a
-    # regression dataset is the ordinary way to reach this. What it costs is
-    # that the run answers the question the *data* poses rather than the one the
-    # config states, which the caller should see and decide about.
+    # A warning: `train()` ignores `positive_class` on a numeric outcome and
+    # completes. A portable recipe reused across a classification and a
+    # regression dataset reaches this routinely. The run answers the question
+    # the *data* poses, which can differ from the one the config states; the
+    # caller sees the warning and decides.
     severity = "warning",
     message = paste0(
       "Config declares ",
@@ -631,8 +624,8 @@ check_resample_min_class <- function(
   counts <- profile_level_counts(profile, outcome_name)
   if (NROW(counts) == 0L) {
     # The profile omits level counts above `PROFILE_MAX_LEVELS`, so this check
-    # cannot run rather than passing. Saying so is the point: a silent skip is
-    # indistinguishable from a clean result.
+    # cannot run, and it reports that, because a silent skip would read as a
+    # clean result.
     return(list(new_diagnostic(
       code = "RESAMPLE_MIN_CLASS",
       severity = "note",
@@ -699,8 +692,7 @@ check_resample_min_class <- function(
       )
     ),
     # Fewer parts than the rarest class has cases is the one repair that needs
-    # no judgment. Below two there is no fold count that works, so nothing is
-    # offered rather than something that fails differently.
+    # no judgment. Below two no fold count works, so no repair is offered.
     fix = if (min_class >= 2L) {
       list(list(
         op = "replace",
@@ -884,7 +876,7 @@ check_resample_n_rows <- function(resampler, n_rows, pointer) {
 #'
 #' Constants the config already removes are not reported: `remove_constants`
 #' drops all of them and `remove_features` drops the ones it names, so a config
-#' that has dealt with the problem is clean rather than repeatedly told about it.
+#' that removes them reports clean.
 #'
 #' @param profile `DataProfile` object for the dataset.
 #' @param feature_names Character: The predictor columns.
@@ -948,8 +940,8 @@ check_feature_constant <- function(profile, feature_names, parts) {
     # Naming the columns is deterministic; the union with what the config
     # already removes is what keeps the patch from discarding that list.
     #
-    # With no block to patch into, two operations rather than one carrying a
-    # constructed object: an expression language has no object constructor, so
+    # With no block to patch into, two operations, since an expression language
+    # has no object constructor:
     # this is the spelling a second implementation can also produce. RFC 6902
     # applies them in order, and the result is the same document.
     fix = if (is.null(pp)) {
@@ -981,7 +973,7 @@ check_feature_constant <- function(profile, feature_names, parts) {
 #'
 #' `check_supervised()` requires every predictor to be numeric or a factor and
 #' aborts otherwise, so a character or date predictor that reaches it is a
-#' guaranteed failure rather than a risk.
+#' guaranteed failure.
 #'
 #' What decides whether one reaches it is `SuperConfigPaths@character2factor`, which
 #' is a *reading* convention: it runs when the file is parsed, before any check.
@@ -991,8 +983,7 @@ check_feature_constant <- function(profile, feature_names, parts) {
 #' The preprocessor's own `character2factor` is a different setting and does not
 #' rescue anything here: `preprocess()` is fitted per fold, inside resampling,
 #' and `check_supervised()` has already run. Converting the column at that point
-#' is a change to the data rather than to the config, so there is no patch to
-#' offer either.
+#' changes the data, so no config patch applies.
 #'
 #' @param profile `DataProfile` object for the dataset.
 #' @param feature_names Character: The predictor columns.
@@ -1056,9 +1047,9 @@ check_feature_type <- function(profile, feature_names, parts) {
 #' those are the runs that complete while producing aliased coefficients -- a
 #' warning by the definition of the level. Everything else regularizes, selects,
 #' or cannot be rank-deficient, so the situation is worth recording and nothing
-#' is wrong: a note. Which remedy to reach for -- a regularized algorithm, a
-#' decomposition step, more rows -- is a choice this reports the numbers for
-#' rather than makes.
+#' is wrong: a note. The remedy -- a regularized algorithm, a decomposition
+#' step, more rows -- is the user's choice; this reports the numbers it rests
+#' on.
 #'
 #' @param profile `DataProfile` object for the dataset.
 #' @param feature_names Character: The predictor columns.
@@ -1185,7 +1176,7 @@ check_dim_p_gt_n <- function(profile, feature_names, parts) {
 #' so the answer depends on the joint missingness pattern, and carrying that
 #' would cost one entry per feature per missing-count bucket -- unbounded
 #' exactly where it matters, on wide data. `checks/v1` declares this case
-#' unevaluable rather than reproducing it.
+#' unevaluable.
 #'
 #' Mirrors `preprocess()`: cases first, at a fraction of the *feature* count
 #' (`train()` preprocesses `features(x)` and re-attaches the outcome), then
@@ -1264,8 +1255,7 @@ missing_after_preprocessing <- function(profile, dat, feature_names, pp) {
 #' `complete_cases` and `impute` resolve the gaps outright.
 #' `remove_features_thres` and `remove_cases_thres` drop what is missing above a
 #' threshold, so whether they resolve *these* gaps depends on the data --
-#' `missing_after_preprocessing()` simulates both rather than assuming either
-#' way.
+#' `missing_after_preprocessing()` simulates both.
 #'
 #' @param profile `DataProfile` object for the dataset.
 #' @param dat data.table: The dataset. Read only by

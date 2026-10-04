@@ -85,9 +85,8 @@ hp_prop_values <- function(self) {
 # %% resolve_data_bounds ----
 #' Resolve training-data dimensions referenced by `data_bound` declarations
 #'
-#' Every dimension is derived from `x` on each call; none is stored on an
-#' object, since all of them are facts about the data rather than about the
-#' config being checked.
+#' Every dimension is derived from `x` on each call, since each is a fact about
+#' the data.
 #'
 #' @param x tabular data: Training data.
 #' @param needed Character: Which dimensions to resolve. Only these are
@@ -176,8 +175,8 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
     }
     bound <- bounds[[nm]]
     dim_value <- dims[[bound]]
-    # n_classes is undefined for regression: the declaration simply does not
-    # apply rather than being an error.
+    # n_classes is undefined for regression, where the declaration does not
+    # apply.
     if (is.null(dim_value)) {
       next
     }
@@ -431,11 +430,10 @@ method(repr, Hyperparameters) <- function(
   # hyperparameter as its own property, which would otherwise print twice
   # (individually and inside `hyperparameters`).
   #
-  # Unset hyperparameters are named rather than listed one per line, and the
-  # tunable/fixed rosters are counted rather than enumerated. A class declaring
-  # its backend's whole surface has scores of each -- LightGBM prints 86 lines
-  # otherwise, 31 of them `NULL` -- and a value the user did not set is the one
-  # thing they did not need to read. Both remain reachable with `$`.
+  # Unset hyperparameters are listed by name on one line, and the tunable and
+  # fixed rosters are given as counts, so a class declaring its backend's whole
+  # surface (LightGBM: 86 hyperparameters) prints compactly. Both remain
+  # reachable with `$`.
   hyperparameters <- x@hyperparameters
   is_unset <- vapply(hyperparameters, is.null, logical(1L))
   display <- list(
@@ -799,8 +797,8 @@ method(tuning_grid, Hyperparameters) <- function(x) {
   # A domain is unwrapped into the candidates themselves: a scalar
   # hyperparameter's back into a vector, which is the shape `expand.grid()` and
   # every downstream reader already handle, and a vector-valued one's into a
-  # list, so that one grid cell holds one whole value rather than one element
-  # of it. The declaration decides which, never the shape of the candidates.
+  # list, so that one grid cell holds one whole value. The declaration decides
+  # which form applies.
   specs <- S7_class(x)@properties
   grid_params <- stats::setNames(
     lapply(names(grid_params), function(nm) {
@@ -828,8 +826,8 @@ method(tuning_grid, Hyperparameters) <- function(x) {
 #' A container tunable's candidates are a **list column** -- one grid cell holds
 #' one whole value, such as an entire architecture -- so `as.list()` over the row
 #' leaves that value inside a one-element list. Every other column is atomic and
-#' `as.list()` is already right. Unwrapping here rather than at each call site
-#' keeps the two readers of a grid row (the cell that is fitted, and the winning
+#' `as.list()` is already right. Unwrapping in this one function keeps the two
+#' readers of a grid row (the cell that is fitted, and the winning
 #' combination that is reported) reading it the same way.
 #'
 #' @param grid data.frame: The tuning grid.
@@ -1359,11 +1357,10 @@ setup_CART <- function(
 #' @description
 #' Hyperparameters subclass for GLMTree, model-based recursive partitioning.
 #'
-#' Two properties are rtemis' own rather than `partykit`'s: `regressors` names
-#' the features entering each leaf's model, `partitioning_variables` names those
-#' the tree may split on. `partykit` expresses both through a two-part formula,
-#' which a config cannot carry; naming them separately is the same choice made
-#' declaratively.
+#' Two properties are rtemis properties: `regressors` names the features
+#' entering each leaf's model, `partitioning_variables` names those the tree may
+#' split on. `partykit` expresses both through a two-part formula; declaring
+#' them as separate properties lets a config carry them.
 #'
 #' The rest are `mob_control()` settings, under their own names.
 #'
@@ -1513,7 +1510,7 @@ GLMTreeHyperparameters <- schema_class(
 #'
 #' \describe{
 #'   \item{It has a hypothesis-testing foundation}{Splits carry p-values, and
-#'     `alpha` is a meaningful dial rather than a tuning knob without units.}
+#'     `alpha` is a significance level with a direct interpretation.}
 #'   \item{It sees a slope change with no shift in the mean}{Which a tree
 #'     splitting on the response cannot: there is nothing in the mean to find.}
 #'   \item{It needs statistical power}{With few cases, many partitioning
@@ -1944,13 +1941,11 @@ LINADHyperparameters <- schema_class(
 #' Every node carries a constant, as any decision tree's nodes do. `node_model`
 #' selects the model fitted at each node: `"constant"` for that constant alone,
 #' or a regularized linear model on top of it. That, with `max_leaves` and
-#' `gamma`, is what makes LINAD a generalization rather than a hybrid -- the
-#' familiar algorithms are points in its hyperparameter space, and everything
-#' between them is reachable too.
+#' `gamma`, makes LINAD a generalization: the familiar algorithms are points in
+#' its hyperparameter space, and everything between them is reachable too.
 #'
 #' @section What LINAD generalizes:
-#' Each of the following is a special case of LINAD, recovered exactly rather
-#' than approximated:
+#' Each of the following is a special case of LINAD, recovered exactly:
 #'
 #' \describe{
 #'   \item{A pure linear model}{`max_leaves = 1`. Nothing is split, so the model
@@ -1966,8 +1961,8 @@ LINADHyperparameters <- schema_class(
 #'     `max_leaves > 1` -- a tree whose nodes each carry a linear model.}
 #' }
 #'
-#' Every setting named above is tunable, so where a dataset belongs on that
-#' space is a question the data can answer rather than one to settle in advance:
+#' Every setting named above is tunable, so the data can select where a dataset
+#' belongs in that space:
 #' a linear generating process should select a full root fit and no splitting,
 #' while terminal nodes needing opposite-signed coefficients should select a
 #' split first. `root_learning_rate` is the dial for that first step -- at 0 the
@@ -2356,7 +2351,7 @@ LINADForestHyperparameters <- schema_class(
 #' no resampling, reported by `print()`.
 #'
 #' @section Defaults that differ from a single tree:
-#' `learning_rate` is 1 rather than 0.1. A lone LINAD tree shrinks each node
+#' `learning_rate` defaults to 1, where a single tree uses 0.1. A lone LINAD tree shrinks each node
 #' update because nothing else controls its variance; in a forest the averaging
 #' does that, so each tree should be a strong learner -- the same reasoning that
 #' leaves a random forest's trees unpruned.
@@ -2870,9 +2865,8 @@ setup_HAL <- function(
 #' @description
 #' Hyperparameters subclass for the shape-constrained Highly Adaptive Lasso.
 #'
-#' This is a separate class from `HALHyperparameters` rather than a set of
-#' defaults over it, because the three values that distinguish it are
-#' invariants and not choices: the interaction degree is 1, the fit is
+#' This class is separate from `HALHyperparameters` because the three values
+#' that distinguish it are invariants: the interaction degree is 1, the fit is
 #' constrained monotonic non-decreasing in every feature, and no basis-size
 #' guardrail is needed at degree 1. None of the three is representable as a
 #' property, so no combination of this class's properties can produce a
@@ -3056,26 +3050,24 @@ setup_MonotonicHAL <- function(
 #'
 #' @details
 #' One backend behind four wrappers, so a property meaningful to any LightGBM
-#' fit is declared once and spliced into each class that can use it. A factory
-#' rather than a shared parent class, because S7 constructs an inherited property
-#' with the *parent's* default whatever a subclass redeclares -- so a base class
-#' could only ever hold properties no algorithm wants to default differently.
+#' fit is declared once and spliced into each class that can use it. The
+#' properties come from a factory because S7 constructs an inherited property
+#' with the *parent's* default whatever a subclass redeclares; a factory lets
+#' each class declare its own default.
 #' `prop_metrics_sample()` and `prop_conformal_alpha()` share declarations the
 #' same way.
 #'
 #' Every property here is nullable and unset by default, meaning "whatever
-#' LightGBM's own default is". That is deliberate: pinning rtemis defaults onto
-#' an objective almost nobody selects would publish values a backend upgrade
-#' could silently diverge from, and the four `train_*` functions drop NULL
-#' entries before the call, since LightGBM reads a NULL as an empty value and
-#' range-checks it (`alpha = NULL` aborts with `Check failed: (alpha) > (0.0)`).
+#' LightGBM's own default is", so the published defaults follow the installed
+#' backend. The four `train_*` functions drop NULL entries before the call,
+#' since LightGBM reads a NULL as an empty value and range-checks it
+#' (`alpha = NULL` aborts with `Check failed: (alpha) > (0.0)`).
 #'
 #' The parameters tied to an objective a user must *choose* are gated on
 #' `objective` with `applies_when`, so setting one without naming the objective
-#' it belongs to is an error rather than a value LightGBM ignores. The three
-#' that apply to the objectives rtemis resolves to on its own -- `sigmoid`,
-#' `boost_from_average`, `reg_sqrt` -- are left ungated, since gating them would
-#' make a user restate the objective rtemis had already chosen for them.
+#' it belongs to is an error. The three that apply to the objectives rtemis
+#' resolves on its own -- `sigmoid`, `boost_from_average`, `reg_sqrt` -- are
+#' ungated, so they can be set without restating the resolved objective.
 #'
 #' @param alpha Logical: Include `alpha`. FALSE on `LightRuleFit`, where the
 #' name is its GLMNET step's elastic-net mixing parameter.
@@ -3088,7 +3080,7 @@ setup_MonotonicHAL <- function(
 lightgbm_objective_props <- function(alpha = TRUE) {
   props <- list(
     # LightGBM spells the huber and quantile level `alpha` and admits no alias,
-    # so this is the backend's own name rather than a choice.
+    # so the property uses the backend's name.
     alpha = prop_float(
       NULL,
       exclusive_min = 0,
@@ -3155,12 +3147,10 @@ lightgbm_objective_props <- function(alpha = TRUE) {
 #' to the leaf values afterwards.
 #'
 #' @details
-#' Always in effect, so each carries LightGBM's own default as a real value
-#' rather than being left unset: a record saying `min_gain_to_split: 0` states
-#' what ran, where `null` would send a reader to the backend's documentation.
-#' The gated groups -- objective, DART, GOSS -- do the opposite, since a
-#' parameter that applies only under a mode has nothing to state until that mode
-#' is chosen.
+#' Always in effect, so each carries LightGBM's own default as its value, and a
+#' record such as `min_gain_to_split: 0` states what ran. The gated groups --
+#' objective, DART, GOSS -- are unset by default, since a parameter that
+#' applies only under a mode takes effect once that mode is chosen.
 #'
 #' `linear_lambda` is offered where `linear_tree` is, being the penalty on the
 #' linear models it fits at the leaves.
@@ -3243,11 +3233,10 @@ lightgbm_regularization_props <- function(
 #' missing.
 #'
 #' @details
-#' These are `lgb.Dataset` parameters rather than `lgb.train()` ones, and they
-#' reach the backend all the same: `lgb.train()` calls `data$update_params()`
-#' before `construct()`, and rtemis hands it an unconstructed dataset. Anything
-#' that forced construction earlier in `prepare_lgb_data()` would silently stop
-#' them taking effect.
+#' These are `lgb.Dataset` parameters. They reach the backend because
+#' `lgb.train()` calls `data$update_params()` before `construct()`, and rtemis
+#' passes it an unconstructed dataset; `prepare_lgb_data()` must leave the
+#' dataset unconstructed for them to take effect.
 #'
 #' @return Named list of S7 properties.
 #'
@@ -3440,9 +3429,8 @@ lightgbm_execution_props <- function(top_k = TRUE) {
 #'
 #' @details
 #' For the wrappers that bag: a LightCART fit is one tree on all of the data.
-#' The per-class rates are classification-only in the backend, which no property
-#' spec can gate on -- the outcome decides it, not a sibling property -- so they
-#' are documented rather than gated.
+#' The per-class rates apply to classification only. That depends on the
+#' outcome, which a property gate cannot read, so it is documented here.
 #'
 #' @return Named list of S7 properties.
 #'
@@ -3512,7 +3500,7 @@ lightgbm_feature_sampling_props <- function() {
 #'
 #' @description
 #' Trade split gain against a per-split and per-feature cost, so a model that
-#' must be cheap to evaluate can be fitted directly rather than pruned after.
+#' must be cheap to evaluate is fitted to that cost directly.
 #'
 #' @details
 #' Works in every boosting mode and in a single tree -- both mechanisms live in
@@ -3615,10 +3603,9 @@ lightgbm_quantized_props <- function() {
 #'
 #' @details
 #' Three of these are per-feature and carry `data_bound = "n_features"`, so a
-#' form builder knows their length is decided by the data rather than by the
-#' config. `interaction_constraints` is LightGBM's own bracketed-groups string,
-#' passed through as written -- the alternative would be a nested container whose
-#' shape rtemis would have to keep in step with the backend's parser.
+#' form builder knows the data decides their length. `interaction_constraints`
+#' is LightGBM's bracketed-groups string, passed through as written, so its
+#' grammar is the backend's.
 #'
 #' rtemis ships MonotonicHAL as a whole algorithm for monotonicity; these are
 #' LightGBM's own constraints, and the two are unrelated implementations of the
@@ -3720,7 +3707,7 @@ lightgbm_boosting_props <- function() {
 #'
 #' @details
 #' Gated on `boosting = "dart"`, so setting one without selecting DART is an
-#' error rather than a value LightGBM ignores. Every one is unset by default,
+#' error. Every one is unset by default,
 #' meaning LightGBM's own default.
 #'
 #' @return Named list of S7 properties.
@@ -3793,7 +3780,7 @@ lightgbm_dart_props <- function() {
 #' Gated on `data_sample_strategy = "goss"`. GOSS keeps every case with a large
 #' gradient and samples the rest, so the two rates are what it retains from each
 #' end; LightGBM requires their sum not to exceed 1, which the class validator
-#' checks rather than leaving to the backend.
+#' checks.
 #'
 #' @return Named list of S7 properties.
 #'
@@ -4202,8 +4189,8 @@ LightRFHyperparameters <- schema_class(
   properties = c(
     list(
       algorithm = prop_algorithm("LightRF"),
-      # Constants: these four are what make lightgbm train a random forest, so
-      # they belong to the class rather than to the user.
+      # Constants: these four make lightgbm train a random forest, so the class
+      # fixes them.
       boosting = prop_const(
         "rf",
         description = "Boosting type. 'rf' is what makes LightGBM a random forest."
@@ -5119,15 +5106,10 @@ LightRuleFit_glmnet_params <- c("alpha_glmnet", "lambda_glmnet")
 # %% LightRuleFit_lightgbm_params ----
 #' Hyperparameters forwarded to LightRuleFit's LightGBM step
 #'
-#' Derived rather than listed. A hand-written list is a second place to record
-#' which properties the two classes share, and it fell behind the moment the
-#' classes grew: 38 properties were declared on LightRuleFit and silently not
-#' forwarded, so setting one did nothing at all.
-#'
-#' The rule is what the list was always trying to say -- every property
-#' LightRuleFit shares with `LightGBMHyperparameters`, less the two that belong
-#' to the GLMNET step and the `ifw` switches, which `train_LightRuleFit()`
-#' resolves per step itself.
+#' Derived from the two class declarations: every property LightRuleFit shares
+#' with `LightGBMHyperparameters`, less the two that belong to the GLMNET step
+#' and the `ifw` switches, which `train_LightRuleFit()` resolves per step. A
+#' property added to both classes is forwarded without further change.
 #'
 #' @return Character vector of hyperparameter names.
 #'
@@ -5858,13 +5840,11 @@ MLP_SHAPES <- c(
 #'
 #' The hidden architecture is given in one of two mutually exclusive ways:
 #' `hidden_units` states the widths directly, or the `shape_*` trio generates
-#' them. Supplying both is rejected by `setup_MLP()` rather than silently
-#' resolved -- and by `setup_MLP()` rather than by this class's validator,
-#' because training resolves the widths *into* `hidden_units`, so a fitted
-#' object legitimately carries both and a class-level rule would reject the
-#' result of a valid run. Every path that builds one of these from user input
-#' goes through `setup_MLP()`, including `.list_to_Hyperparameters()`, so
-#' nothing escapes the check.
+#' them. `setup_MLP()` rejects supplying both. The check belongs to
+#' `setup_MLP()` and not to this class's validator: training resolves the widths
+#' into `hidden_units`, so a fitted object carries both. Every path that builds
+#' one of these from user input, including `.list_to_Hyperparameters()`, goes
+#' through `setup_MLP()`.
 #'
 #' @author EDG
 #' @keywords internal
@@ -6011,7 +5991,7 @@ MLPHyperparameters <- schema_class(
 #' **Architecture.** Give the hidden layers directly with `hidden_units` --
 #' `c(256L, 128L, 64L)` is three layers of those widths -- or leave it NULL and
 #' let `shape`, `shape_layers` and `shape_max_units` generate them. Setting both
-#' is an error rather than a silent override. The generated profiles are
+#' is an error. The generated profiles are
 #' `funnel` (a linear taper from the widest layer down to a third of it),
 #' `constant`, `triangle` (a linear rise from the input width), `long_funnel`,
 #' `diamond`, `hexagon` and `stairs`; the vocabulary is Talos's, by way of
@@ -6031,9 +6011,8 @@ MLPHyperparameters <- schema_class(
 #'
 #' **Categorical features** are represented by learned embeddings, each sized
 #' `min(600, round(1.6 * cardinality^0.56))` unless `embedding_dim` fixes them
-#' all. `embeddings = FALSE` one-hot encodes instead. Numeric features are
-#' always centered and scaled -- an unscaled network fails quietly rather than
-#' loudly -- and the fitted encoder is re-applied at predict time.
+#' all. `embeddings = FALSE` one-hot encodes them. Numeric features are always
+#' centered and scaled, and the fitted encoder is re-applied at predict time.
 #'
 #' **Device and reproducibility.** The device is the execution config's: see the
 #' `device` argument of [setup_FutureExecution]. Unset picks `cuda` where
@@ -7067,7 +7046,7 @@ SPLSHyperparameters <- schema_class(
 #' accepts them and ignored by the other.
 #'
 #' `spls` provides no case weights, so `ifw` cannot be honored: enabling it
-#' makes training abort rather than silently fit an unweighted model.
+#' makes training abort.
 #'
 #' @param k (Tunable) Integer [1, Inf): Number of latent components.
 #' @param eta (Tunable) Numeric [0, 1): Sparsity threshold. Higher values select fewer features.
@@ -7200,7 +7179,7 @@ KNNHyperparameters <- schema_class(
 #' attached, as a suggested package is.
 #'
 #' `kknn` provides no case weights, so `ifw` cannot be honored: enabling it
-#' makes training abort rather than silently fit an unweighted model.
+#' makes training abort.
 #'
 #' @param k (Tunable) Integer [1, Inf): Number of neighbors. Must be less than the number of training cases.
 #' @param kernel (Tunable) Character \{"rectangular", "triangular", "epanechnikov", "biweight", "triweight", "cos", "inv", "gaussian", "rank", "optimal"\}: Kernel used to weight neighbors by distance.
@@ -7379,7 +7358,7 @@ BARTHyperparameters <- schema_class(
 #' Factors are expanded by the backend, so no encoding is needed beforehand.
 #' Case weights scale the residual variance and are honored under the default
 #' `link = "probit"`, but `stochtree` rejects them under `"cloglog"`, so that
-#' combination makes training abort rather than silently fit an unweighted model.
+#' combination makes training abort.
 #'
 #' Because the fit is a posterior rather than a point estimate, `se()` returns
 #' the standard deviation of the retained draws, and `get_varimp()` reports two

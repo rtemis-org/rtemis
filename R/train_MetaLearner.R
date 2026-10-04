@@ -98,7 +98,7 @@ meta_entry_features <- function(hyperparameters, origin, feature_names) {
 #' Every meta learner needs the outcome on a numeric scale: a squared error, a
 #' level-one regression, a Brier score. Classification is coded 0/1 on the second
 #' factor level, matching rtemis's positive-class convention, and multiclass is
-#' rejected here rather than inside one of the V*K nested fits.
+#' rejected here, before the V*K nested fits.
 #'
 #' @param x tabular data: Training set.
 #' @param algorithm Character: Name used in the error message.
@@ -182,7 +182,7 @@ meta_features <- function(x, rows, columns) {
 # %% meta_fit ----
 #' Fit one library entry
 #'
-#' A nested `train()` rather than a direct `train_()`: the entry may still need
+#' A nested `train()`: the entry may still need
 #' tuning (a GLMNET resolving `lambda` by internal cross-validation), and
 #' `train()` is what handles that, along with the entry's own internal
 #' preprocessing.

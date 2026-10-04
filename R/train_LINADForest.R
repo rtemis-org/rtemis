@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# LINADForest is implemented in this package rather than wrapped from a backend.
+# LINADForest is implemented in this package.
 # The tree engine lives in `R/linad.R`, the bagging layer in `R/linad_forest.R`;
 # this file is the rtemis interface to them.
 
@@ -11,7 +11,7 @@
 #'
 #' Returns the closure `progress_plapply()` dispatches once per tree.
 #'
-#' Built by a factory rather than inline in `train_()` because serializing a
+#' Built by a factory because serializing a
 #' closure walks its enclosing environments: a body defined in `train_()`'s
 #' frame would ship that entire frame to every worker. This frame holds only
 #' what a tree needs.
@@ -168,8 +168,8 @@ method(train_, LINADForestHyperparameters) <- function(
     # count.
     seeds = rng_substreams(execution_config@seed, n_trees),
     label = "Trees",
-    # A forest quietly missing trees is worse than one that failed, so a tree
-    # failure stops the run rather than being aggregated over.
+    # A tree failure stops the run, so a forest is never fitted with trees
+    # missing.
     stop_on_error = TRUE,
     verbosity = verbosity
   )
@@ -217,9 +217,8 @@ method(train_, LINADForestHyperparameters) <- function(
 #' Predict from a LINADForest
 #'
 #' The mean over trees: of the fitted values for a regression, and of the
-#' probabilities for a classification. Averaging probabilities rather than the
-#' additive-scale values each tree was grown against is the bagging convention,
-#' and it keeps this method returning what its contract says it returns.
+#' probabilities for a classification. Averaging probabilities is the bagging
+#' convention and matches this method's contract.
 #'
 #' Each tree subsets `newdata` to the features it holds, so `mtry_tree` needs no
 #' code here at all.
@@ -250,10 +249,8 @@ method(predict_super, LINADForest) <- function(
 #' Variable importance from a LINADForest
 #'
 #' Each tree's two measures, averaged over the forest. A feature a tree did not
-#' hold contributes zero to that tree, which is what makes the average read as
-#' "the effect this feature had on the forest" rather than "on the trees that
-#' happened to draw it" -- the second would rate a rarely drawn feature by the
-#' few trees it reached.
+#' hold contributes zero to that tree, so the average reads as the effect this
+#' feature had on the forest.
 #'
 #' \describe{
 #'   \item{`importance`}{The feature's linear effect, averaged over trees.}
@@ -294,7 +291,7 @@ method(varimp_super, LINADForest) <- function(model, ...) {
 #' Learning curves of every tree in a LINADForest
 #'
 #' Each tree selects its own size on its own out-of-bag cases, so a forest has
-#' one curve per tree rather than one curve. The rows carry a `tree` column and
+#' one curve per tree. The rows carry a `tree` column and
 #' the spread of selected sizes is the interesting part.
 #'
 #' @param model `LINADForest` object.
@@ -324,8 +321,7 @@ method(learning_curve_super, LINADForest) <- function(model) {
 #'
 #' The infinitesimal jackknife of Wager, Hastie and Efron (2014), computed by
 #' `linadforest_jackknife()`. The spread of predictions across trees is a
-#' dispersion rather than a standard error of the fit, so it is not what is
-#' reported here.
+#' dispersion, a different quantity.
 #'
 #' The estimator is a covariance across bags, so it is NA for a single-tree
 #' forest and noisy for a small one -- the Monte-Carlo correction is the term

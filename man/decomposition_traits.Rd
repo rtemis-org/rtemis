@@ -48,7 +48,7 @@ Like \code{can_apply}, it states what rtemis implements.}
 possible. Parametric tSNE exists and Isomap admits a Nystrom-style
 out-of-sample extension; neither is implemented here, so both are \code{FALSE}.
 The column's contract is that \link{apply_decomp} on a fitted result of this
-algorithm returns components rather than an error.
+algorithm returns components.
 }
 \examples{
 decomposition_traits()

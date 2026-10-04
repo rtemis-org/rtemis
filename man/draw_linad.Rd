@@ -51,8 +51,7 @@ the space the layout reserves for it.}
 
 \item{node_gap}{Integer: Clear pixels to leave between two boxes on the same
 level. Separation is computed per pair from the two nodes' own widths, so a
-narrow node sits close to its neighbor instead of being spaced as though it
-were the widest node in the tree.}
+narrow node sits close to its neighbor.}
 
 \item{level_separation}{Optional Integer: Pixels between levels.}
 
@@ -94,15 +93,14 @@ means a coefficient's sign and nothing else.}
 \item{hover_col}{Optional Character: Border color marking the node the
 coefficient table belongs to. NULL uses the theme foreground.}
 
-\item{height}{Character: CSS height. A length rather than a percentage: a
-percentage of a container with no height of its own collapses.}
+\item{height}{Character: CSS height, as a length: a percentage of a
+container with no height of its own collapses.}
 
 \item{theme}{\code{Theme} object. Node fills, the coefficient table and the hover
-marker all follow it, chosen by the background's luminance rather than by
-theme name so that a custom theme is handled too. The two ends of the
-coefficient scale do not follow it: both ends read on either background, and
-a sign that changed color with the theme would be worse than one that did
-not.}
+marker all follow it, chosen by the background's luminance so that a custom
+theme is handled too. The two ends of the
+coefficient scale do not follow it: both ends read on either background, so
+a sign has the same color under every theme.}
 
 \item{verbosity}{Integer: If > 0, print messages.}
 }
@@ -122,7 +120,7 @@ is the model's central interpretive claim, and it is only visible by
 comparing the table at one node against the table at another. The color
 scale is therefore
 diverging and centered on zero, and computed once across every table, so a
-sign change reads as a color flip rather than as a number to be parsed.
+sign change reads as a color flip.
 
 Each node's label carries \code{node_value}, what the \strong{tree alone} predicts
 there, while the table on hover carries what the \strong{linear model} adds. The

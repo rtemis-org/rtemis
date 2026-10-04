@@ -10,7 +10,7 @@
 #' variants: `HardClustering`, which assigns each case to one cluster, or
 #' `SoftClustering`, which also carries a membership matrix. Membership-or-not
 #' partitions the space -- exhaustively and disjointly -- so it is the variant
-#' axis rather than a nullable property.
+#' axis.
 #'
 #' @field algorithm Character: Algorithm name.
 #' @field clust Any: Clustering object.
@@ -53,9 +53,8 @@ Clustering <- new_class(
 #'
 #' @description
 #' A clustering that assigns each case to one cluster and nothing more. Adds no
-#' properties; the variant exists so that the distinction is carried by the type
-#' rather than by an `is.null()` test, and so methods that only make sense for
-#' one kind can dispatch.
+#' properties; the variant carries the distinction in the type, so methods
+#' that apply to one kind can dispatch on it.
 #'
 #' @author EDG
 #' @keywords internal
@@ -133,8 +132,8 @@ SoftClustering <- new_class(
       return("@membership rows must sum to 1.")
     }
     # Assignment consistency. Rows with no valid column are unassigned (a noise
-    # sentinel) and are excluded rather than indexed, which would silently drop
-    # or NA them. `ties.method = "first"`: the default is "random", which would
+    # sentinel) and are excluded; indexing them would silently drop or NA
+    # them. `ties.method = "first"`: the default is "random", which would
     # make the check non-deterministic.
     assigned <- self@clusters
     scored <- which(assigned >= 1L & assigned <= ncol(m))

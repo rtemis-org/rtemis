@@ -17,7 +17,7 @@ Internal function used to reconstruct a \code{PreprocessorConfig} object from a
 named list, such as the result of parsing a JSON config conforming to the
 schema.rtemis.org preprocessor schema. Elements are passed to
 \link{setup_Preprocessor}; document metadata (\verb{$schema}) is dropped first, since
-it identifies the document rather than naming a parameter.
+it identifies the document.
 }
 \details{
 The learned values (\code{scale_centers}, \code{scale_coefficients}, \code{one_hot_levels},

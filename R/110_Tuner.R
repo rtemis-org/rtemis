@@ -275,9 +275,9 @@ Tuner <- new_class(
     best_hyperparameters = class_list,
     # Which member of a `HyperparametersSet` the winning combination came from,
     # or NULL when the search was over a single object. Kept beside
-    # `best_hyperparameters` rather than inside it: that list is hyperparameter
-    # values, and a variant name is not one -- `.update_hyperparameters()`
-    # rejects any name that is not a settable hyperparameter.
+    # `best_hyperparameters`: that list holds hyperparameter values, and
+    # `.update_hyperparameters()` rejects any name that is not a settable
+    # hyperparameter.
     best_variant = NULL | class_character
   )
 ) # /rtemis::Tuner

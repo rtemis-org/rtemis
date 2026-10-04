@@ -65,8 +65,7 @@ mars_matrix <- function(x) {
 # %% mars_response ----
 #' Response passed to earth
 #'
-#' Built here rather than left to `earth` so that no factor reaches the
-#' backend's contrasts lookup. Regression passes the outcome through; binary
+#' Built here so that no factor reaches the backend's contrasts lookup. Regression passes the outcome through; binary
 #' classification codes the second level as 1, which is the level rtemis
 #' predicts probabilities for; multiclass becomes a 0/1 indicator matrix, one
 #' column per level, which is what `contr.earth.response` would have produced.
@@ -287,13 +286,13 @@ method(predict_super, class_earth) <- function(
 #'   It ranks a feature that buys its fit with many terms higher than
 #'   `importance` does, and the two disagreeing is the signal worth reading.
 #' - `subset_proportion`: the fraction of pruning subsets that retain the
-#'   feature, in \[0, 1\]. A consistency measure rather than a magnitude one.
+#'   feature, in \[0, 1\]. A consistency measure.
 #'   Reported as a proportion because earth's own count scales with the number
 #'   of terms in the model, which makes the raw value incomparable across a
 #'   grid search over `nk` or `nprune`.
 #'
 #' There is one row per design-matrix column, so a one-hot encoded factor
-#' contributes one row per level rather than one per feature. Features the
+#' contributes one row per level. Features the
 #' pruned model dropped are kept with importance zero.
 #'
 #' @param model `earth` model.
@@ -331,15 +330,14 @@ method(varimp_super, class_earth) <- function(model) {
 #' `predict(type = "terms")` returns per-feature contributions and their
 #' re-centering on the background is the exact Shapley value.
 #'
-#' Two fits do not qualify, and both are refused rather than approximated:
+#' Two fits do not qualify, and both are refused:
 #'
 #' - **Classification.** `earth` fits a GLM over the basis, and
-#'   `predict(type = "terms")` returns the *earth* terms rather than the GLM's,
-#'   which do not reconstruct the link. The decomposition exists -- the link is
-#'   linear in the basis functions -- but it has to be built from the basis
-#'   matrix rather than read off, which is not done yet.
+#'   `predict(type = "terms")` returns the *earth* terms, which do not
+#'   reconstruct the link. The decomposition exists -- the link is linear in
+#'   the basis functions -- and requires building from the basis matrix.
 #' - **`degree > 1`.** An interaction term reads two features, and splitting its
-#'   value between them is a within-term Shapley problem rather than a sum.
+#'   value between them is a within-term Shapley problem.
 #'   Caught by the reconstruction check in `additive_terms_shap()`.
 #'
 #' @param model `earth` object.

@@ -7,9 +7,8 @@
 # so a result found later is interpretable without the session that made it.
 #
 # Declared with the `prop_*` factories like every other config class, so its
-# schema is generated rather than hand-written and a port reads it from the
-# published contract. It is `$ref`d by each `<family>/v1/record.json` rather
-# than restated in every one.
+# schema is generated and a port reads it from the published contract. It is
+# `$ref`d by each `<family>/v1/record.json`.
 #
 # Environment detail is *drawn from* `Supervised@session_info` and `@session`,
 # not duplicated: those hold the full `sessionInfo()` and the run timeline, and
