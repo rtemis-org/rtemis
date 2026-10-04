@@ -14,6 +14,10 @@
 - `setup_VariationalAutoencoder()` configures a torch variational autoencoder decomposition; `beta` weighs the KL divergence (1 is the standard VAE, larger values a beta-VAE), and its components are the latent means.
 - `setup_PCoA()` configures principal coordinates analysis (classical multidimensional scaling) on a choice of dissimilarities; it applies to new data through Gower's out-of-sample formula, so it can be `train()`'s decomposition step, and does not reconstruct the input.
 - `setup_MDS()` configures metric or nonmetric multidimensional scaling through 'vegan' with multiple starts; it cannot be applied to new data and does not reconstruct the input.
+- `review()` assesses a trained supervised model, single-split or resampled: it states sample sizes, every training and test metric with test intervals, and the performance of a baseline predictor, then reports whether the evaluation can be trusted given the number of cases and predictors, whether the model beats the baseline, and whether it overfits.
+- Metric labels print AUC, PPV and NPV in capitals.
+- LightRF predictions are no longer pulled toward 0 when some trees cannot split, as happens on small samples: such trees now predict their sample's center. Training reports how many trees could not split.
+- LightRF explanations (`explain()`) are on the scale of the model's predictions; their contributions were multiplied by the number of trees.
 - `setup_SuperConfig()` and `setup_SuperConfigLive()` reject a decomposition that cannot be applied to new data, as reading a supervised config already did.
 - `decomp_metrics()` takes `execution_config`.
 - NMF with `nrun` greater than 1 runs.

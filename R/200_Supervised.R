@@ -2759,14 +2759,24 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
     if (is.null(metric)) {
       metric <- "balanced_accuracy"
     }
+    check_character_scalar(metric)
+    available <- names(x@metrics_test@mean_metrics)
+    if (!metric %in% available) {
+      abort(
+        "metric must be one of the computed test metrics: ",
+        paste(available, collapse = ", "),
+        ".",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
     out <- paste(
       out,
       "Mean",
       labelify(metric, toLower = TRUE),
       "was",
-      ddSci(x@metrics_training@mean_metrics[["balanced_accuracy"]]),
+      ddSci(x@metrics_training@mean_metrics[[metric]]),
       "in the training set and",
-      ddSci(x@metrics_test@mean_metrics[["balanced_accuracy"]]),
+      ddSci(x@metrics_test@mean_metrics[[metric]]),
       "in the test set across "
     )
   } else if (type == "Regression") {

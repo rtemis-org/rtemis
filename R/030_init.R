@@ -960,6 +960,111 @@ describe <- new_generic("describe", "x", function(x, verbosity = 1L, ...) {
 })
 
 
+# %% review ----
+#' Review a trained supervised model
+#'
+#' @description
+#' Assess a trained model, reproducibly: whether its evaluation can be
+#' trusted given the sample size and the number of predictors, whether it
+#' performs better than a model that ignores the predictors, and whether it
+#' overfits.
+#'
+#' @details
+#' The review first states every value it rests on -- sample sizes, every
+#' training and test metric with its difference and test interval, the
+#' performance of a baseline predictor on the same test set, and the settings
+#' applied -- so a reader can judge for themselves. Its findings then cite
+#' those values.
+#'
+#' The baseline predicts the most common training class (classification) or
+#' the training mean (regression) for every test case. Intervals are analytic:
+#' Clopper-Pearson for proportions, per-class binomial variances for balanced
+#' accuracy, the DeLong method for AUC, and t intervals for mean losses and for paired
+#' loss differences against the baseline. A model is called better than the
+#' baseline when the lower end of its interval clears the baseline. Overfitting
+#' is reported when the training value of the headline metric (balanced
+#' accuracy, or mean squared error for regression) lies outside its test
+#' interval: the model fits its training cases better than chance in the test
+#' sample explains.
+#'
+#' For a resampled model, every metric is reported as its mean and standard
+#' deviation over the outer resamples, with the value of the headline metric
+#' in each resample. The out-of-sample predictions of all resamples are pooled for
+#' intervals and baseline comparisons, the baseline of each resample fit to
+#' its own training cases. Pooling is valid when every case is tested once, as with
+#' k-fold resampling; when test sets overlap, as with repeated or bootstrap
+#' resampling, no pooled interval is computed and the review describes the
+#' variation between resamples instead. A tuned hyperparameter selected at the
+#' edge of the values searched is reported, since the best value may lie
+#' beyond it.
+#'
+#' The number of predictors counts input columns, or decomposition components
+#' when a decomposition precedes the learner. A categorical predictor counts
+#' once, so this is a lower bound on the number of encoded columns.
+#'
+#' A review of metrics cannot establish whether a model is useful, nor detect
+#' leakage that happened before training; every review says so.
+#'
+#' @param x `Supervised` or `SupervisedRes` object: A trained model, as returned
+#'   by [train].
+#' @param confidence_level Optional Numeric (0, 1): Confidence level of every
+#'   interval. NULL uses 0.95.
+#' @param min_cases_per_predictor Optional Numeric (0, Inf): Training cases per
+#'   predictor -- minority-class cases for classification -- below which the
+#'   review warns. NULL uses 10, the events-per-variable rule of thumb for
+#'   regression models (see References).
+#' @param ... Not used.
+#'
+#' @return `SupervisedReview` object.
+#'
+#' @references
+#' Clopper CJ, Pearson ES (1934). The use of confidence or fiducial limits
+#' illustrated in the case of the binomial. Biometrika, 26(4), 404-413.
+#'
+#' DeLong ER, DeLong DM, Clarke-Pearson DL (1988). Comparing the areas under
+#' two or more correlated receiver operating characteristic curves: a
+#' nonparametric approach. Biometrics, 44(3), 837-845.
+#'
+#' Peduzzi P, Concato J, Kemper E, Holford TR, Feinstein AR (1996). A
+#' simulation study of the number of events per variable in logistic regression
+#' analysis. Journal of Clinical Epidemiology, 49(12), 1373-1379.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' idx <- c(1:40, 51:90, 101:140)
+#' mod <- train(
+#'   iris[idx, ],
+#'   dat_test = iris[-idx, ],
+#'   hyperparameters = setup_CART(),
+#'   verbosity = 0L
+#' )
+#' review(mod)
+#'
+#' # Resampled
+#' mod_res <- train(
+#'   iris,
+#'   hyperparameters = setup_CART(),
+#'   outer_resampling_config = setup_KFold(5L),
+#'   verbosity = 0L
+#' )
+#' review(mod_res)
+review <- new_generic(
+  "review",
+  "x",
+  function(
+    x,
+    confidence_level = NULL,
+    min_cases_per_predictor = NULL,
+    ...
+  ) {
+    force_supplied()
+    S7_dispatch()
+  }
+)
+
+
 # %% get_hyperparams_need_tuning ----
 #' Get hyperparameters that need tuning.
 #'

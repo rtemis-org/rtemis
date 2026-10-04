@@ -16,6 +16,8 @@ benchmarked
 BH
 Barmode
 Bienenstock
+Biometrics
+Biometrika
 Calinski
 canberra
 Candes
@@ -23,7 +25,9 @@ CART's
 CARTHyperparameters
 CDN
 CHCriterionConfig
+CJ
 CLI
+Clopper
 ClusteringConfig
 CMD
 CMeans
@@ -31,6 +35,7 @@ CMeansConfig
 ChristmasDay
 ClusterConfig
 CMRG
+Concato
 ConditionalSuperLearner
 ConditionalSuperLearnerHyperparameters
 Conformalized
@@ -41,7 +46,10 @@ CQR
 DataRef
 DBSCAN's
 DBSCANConfig
+DeLong
 Diffenderfer
+DL
+DM
 DTA
 DecomposeConfig
 DecompositionConfig
@@ -63,6 +71,8 @@ EII
 EVI
 EVV
 FASTA
+Feinstein
+fiducial
 finiteness
 GAMHyperparameters
 fpc
@@ -82,6 +92,7 @@ GMMConfig
 Gower's
 GPUs
 Harabasz
+Holford
 HyperparametersSet
 goss
 GOSS
@@ -94,6 +105,7 @@ Hornik
 Hothorn
 Bioconductor
 jaccard
+Kemper
 Kruskal's
 kulczynski
 libtorch's
@@ -175,6 +187,7 @@ NMFConfig
 NNLS
 NNLSHyperparameters
 nonmetric
+NPV
 nvmax
 Nystrom
 NROW
@@ -183,6 +196,7 @@ NeuralGasConfig
 NystromConfig
 OOB
 ORCID
+overfits
 parallelly
 PAMConfig
 PAMK
@@ -191,8 +205,10 @@ PAMKCriterionConfig
 PCAConfig
 PCoA
 PCoAConfig
+Peduzzi
 PJ
 PNAS
+PPV
 pre
 profilers
 PTM
@@ -213,6 +229,7 @@ rbf
 reassemblies
 redeclares
 redeclaring
+reproducibly
 rf
 RL
 ROCR

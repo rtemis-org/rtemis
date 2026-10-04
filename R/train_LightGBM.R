@@ -286,6 +286,14 @@ method(explain_super, class_lgb.Booster) <- function(
   contrib <- predict(model, newdata = features, type = "contrib")
   # The margin, which is what the contributions decompose.
   margin <- predict(model, newdata = features, type = "raw")
+  # A random forest (LightRF) averages its trees, but LightGBM's raw scores
+  # and contributions sum them (4.7.0): both come back multiplied by the
+  # number of iterations. Dividing restores the margin the model predicts
+  # with, and contributions that decompose it.
+  if (lightgbm_averages_trees(model)) {
+    contrib <- contrib / model$current_iter()
+    margin <- margin / model$current_iter()
+  }
 
   n_features <- NCOL(features)
   block <- n_features + 1L
@@ -324,6 +332,29 @@ method(explain_super, class_lgb.Booster) <- function(
     exact = TRUE
   )
 } # /rtemis::explain_super.lgb.Booster
+
+
+# %% lightgbm_averages_trees ----
+#' Does a LightGBM model average its trees?
+#'
+#' True for a random forest (`boosting = "rf"`), whose text model declares
+#' `average_output`. Read from the header of a one-iteration dump, which is
+#' small whatever the model's size.
+#'
+#' @param model `lgb.Booster`.
+#'
+#' @return Logical.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_averages_trees <- function(model) {
+  grepl(
+    "\naverage_output\n",
+    model$save_model_to_string(num_iteration = 1L),
+    fixed = TRUE
+  )
+} # /rtemis::lightgbm_averages_trees
 
 
 # %% lightgbm_training_device ----
