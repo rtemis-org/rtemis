@@ -277,9 +277,21 @@ method(varimp_super, class_glmnet) <- function(model) {
   # Exclude intercept
   coefs <- coefs[, 1][-1]
   VariableImportance(
-    data.table(
-      variable = names(coefs),
-      Coefficient = unname(coefs)
+    measures = list(
+      Coefficient = importance_measure(
+        names(coefs),
+        unname(coefs),
+        kind = "coefficient",
+        signed = TRUE,
+        scale_dependent = TRUE,
+        direction = "absolute",
+        description = paste0(
+          "Penalized coefficient of each predictor at the selected penalty, ",
+          "excluding the intercept, per unit of the predictor as received; ",
+          "glmnet reports coefficients on this scale whether or not it ",
+          "standardized internally. Zero for a predictor the penalty excluded."
+        )
+      )
     )
   )
 } # /rtemis::varimp_super.class_glmnet
@@ -300,9 +312,21 @@ method(varimp_super, class_cv.glmnet) <- function(model) {
   # Exclude intercept
   coefs <- coefs[, 1][-1]
   VariableImportance(
-    data.table(
-      variable = names(coefs),
-      Coefficient = unname(coefs)
+    measures = list(
+      Coefficient = importance_measure(
+        names(coefs),
+        unname(coefs),
+        kind = "coefficient",
+        signed = TRUE,
+        scale_dependent = TRUE,
+        direction = "absolute",
+        description = paste0(
+          "Penalized coefficient of each predictor at the selected penalty, ",
+          "excluding the intercept, per unit of the predictor as received; ",
+          "glmnet reports coefficients on this scale whether or not it ",
+          "standardized internally. Zero for a predictor the penalty excluded."
+        )
+      )
     )
   )
 } # /rtemis::varimp_super.class_cv.glmnet

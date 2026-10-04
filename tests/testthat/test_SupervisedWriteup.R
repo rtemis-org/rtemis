@@ -217,7 +217,7 @@ test_that("the rendered text states the numbers of the values table", {
   text <- repr(.wus[["bin"]], output_type = "plain")
   expect_match(
     text,
-    "comprised 70 cases and the test set 30 cases",
+    "comprised 70 training cases and 30 test cases, with 4 predictors.",
     fixed = TRUE
   )
   expect_false(grepl("{", text, fixed = TRUE))

@@ -45,12 +45,9 @@
 #' ranking of rules.
 #'
 #' Multinomial (multiclass) models have one coefficient per outcome class per
-#' rule; there is no single meaningful sign, so importance is the total
-#' absolute influence across classes (L1 norm of the coefficient row). This
-#' is direction-agnostic and, unlike picking the largest single-class
-#' coefficient, does not arbitrarily privilege one class. The per-class
-#' coefficients themselves are preserved separately (see `train_` and
-#' `varimp_super`), so no information is lost.
+#' rule, so importance is the sum of their absolute values (the L1 norm of the
+#' coefficient row). `varimp_super()` also reports each class's coefficients
+#' as their own measures.
 #'
 #' @param coef_matrix Numeric matrix: rules x coefficient sets, from
 #' `.rule_coefs`.
@@ -300,18 +297,69 @@ method(predict_super, LightRuleFit) <- function(
 #' @keywords internal
 #' @noRd
 method(varimp_super, LightRuleFit) <- function(model) {
-  # Column 2 (the default plotted measure) is the per-rule importance: the
-  # signed coefficient for single-coefficient models, the total absolute
-  # influence for multiclass (see `.rule_importance`). For multiclass, the
-  # signed per-class coefficients are appended as extra named columns, so
-  # `plot_varimp(measure = "<class>")` shows a single class.
   coef_matrix <- .rule_coefs(model@model_glmnet@model)
-  vi <- data.table(
-    variable = rownames(coef_matrix),
-    Coefficient = .rule_importance(coef_matrix)
-  )
-  if (NCOL(coef_matrix) > 1L) {
-    vi <- cbind(vi, as.data.table(coef_matrix))
+  rules <- rownames(coef_matrix)
+  multiclass <- NCOL(coef_matrix) > 1L
+  alpha <- model@model_glmnet@hyperparameters[["alpha"]]
+  penalty <- if (alpha == 1) {
+    "lasso"
+  } else if (alpha == 0) {
+    "ridge"
+  } else {
+    "elastic net"
   }
-  VariableImportance(vi)
+  indicator <- paste0(
+    "a rule is an indicator, so its coefficient does not depend on predictor ",
+    "units."
+  )
+  measures <- list(
+    Coefficient = importance_measure(
+      rules,
+      .rule_importance(coef_matrix),
+      kind = if (multiclass) "coefficient_magnitude" else "coefficient",
+      signed = !multiclass,
+      direction = if (multiclass) "larger" else "absolute",
+      description = if (multiclass) {
+        paste0(
+          "Sum over classes of the absolute ",
+          penalty,
+          " coefficients of each rule extracted from the boosted trees; ",
+          indicator
+        )
+      } else {
+        paste0(
+          "The ",
+          penalty,
+          " coefficient of each rule extracted from the boosted trees, on the ",
+          "scale of the linear predictor; ",
+          indicator
+        )
+      }
+    )
+  )
+  if (multiclass) {
+    # A class label is kept as the measure name unless it repeats a name
+    # already used, such as the aggregate's.
+    for (level in colnames(coef_matrix)) {
+      key <- level
+      if (key %in% names(measures)) {
+        key <- paste0(level, " (class)")
+      }
+      measures[[key]] <- importance_measure(
+        rules,
+        coef_matrix[, level],
+        kind = "coefficient",
+        signed = TRUE,
+        direction = "absolute",
+        description = paste0(
+          "The ",
+          penalty,
+          " coefficient of each rule for class ",
+          level,
+          ", on the scale of the linear predictor."
+        )
+      )
+    }
+  }
+  VariableImportance(measures = measures)
 } # /rtemis::varimp_super.LightRuleFit

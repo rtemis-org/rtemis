@@ -963,10 +963,21 @@ writeup_data <- function(ctx, w) {
   } else {
     ""
   }
-  size <- if (ctx[["resampled"]]) {
+  predictors <- if (!is.null(s[["n_predictors"]])) {
+    paste0(
+      writeup_value(
+        w,
+        "n_predictors",
+        s[["n_predictors"]],
+        "count",
+        "review.sample.n_predictors"
+      ),
+      " predictors"
+    )
+  }
+  cases <- if (ctx[["resampled"]]) {
     if (!is.null(ctx[["n_cases"]])) {
       paste0(
-        "The data comprised ",
         writeup_value(
           w,
           "n_cases",
@@ -974,12 +985,11 @@ writeup_data <- function(ctx, w) {
           "count",
           "data_fingerprint.n_rows"
         ),
-        " cases."
+        " cases"
       )
     }
   } else {
     paste0(
-      "The training set comprised ",
       writeup_value(
         w,
         "n_training",
@@ -987,10 +997,10 @@ writeup_data <- function(ctx, w) {
         "count",
         "review.sample.n_training"
       ),
-      " cases",
+      " training cases",
       if (ctx[["has_test"]]) {
         paste0(
-          " and the test set ",
+          " and ",
           writeup_value(
             w,
             "n_test",
@@ -998,11 +1008,23 @@ writeup_data <- function(ctx, w) {
             "count",
             "review.sample.n_test"
           ),
-          " cases"
+          " test cases"
         )
-      },
+      }
+    )
+  }
+  size <- if (!is.null(cases) && !is.null(predictors)) {
+    paste0(
+      "The data comprised ",
+      cases,
+      if (ctx[["has_test"]] && !ctx[["resampled"]]) ", with " else " and ",
+      predictors,
       "."
     )
+  } else if (!is.null(cases)) {
+    paste0("The data comprised ", cases, ".")
+  } else if (!is.null(predictors)) {
+    paste0("The data comprised ", predictors, ".")
   }
   outcome_sentence <- if (x@type == "Classification") {
     levels <- ctx[["levels"]]
@@ -1036,23 +1058,10 @@ writeup_data <- function(ctx, w) {
   } else {
     paste0("The outcome", outcome, " was continuous.")
   }
-  predictors <- if (!is.null(s[["n_predictors"]])) {
-    paste0(
-      "The data included ",
-      writeup_value(
-        w,
-        "n_predictors",
-        s[["n_predictors"]],
-        "count",
-        "review.sample.n_predictors"
-      ),
-      " predictors."
-    )
-  }
   writeup_section(
     "methods",
     "Data",
-    list(paste(c(size, outcome_sentence, predictors), collapse = " "))
+    list(paste(c(size, outcome_sentence), collapse = " "))
   )
 } # /rtemis::writeup_data
 

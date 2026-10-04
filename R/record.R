@@ -626,11 +626,11 @@ fold_record <- function(model, index, input = model@config) {
     if (is.null(input)) NULL else input@hyperparameters,
     model@hyperparameters
   )
-  # The grid, the per-resample metrics and the winner, as the Tuner holds them:
-  # a tuning decision must be re-examinable from the record alone.
+  # The grid, the per-resample metrics and the winner, the fields the tuning
+  # schema declares, so a tuning decision can be re-examined from the record.
   if (!is.null(model@tuner)) {
     out[["tuning"]] <- c(
-      model@tuner@tuning_results,
+      model@tuner@tuning_results[c("param_grid", "training", "validation")],
       list(best = model@tuner@best_hyperparameters)
     )
   }

@@ -162,9 +162,24 @@ method(predict_super, NNLS) <- function(
 #' @noRd
 method(varimp_super, NNLS) <- function(model) {
   VariableImportance(
-    data.table(
-      variable = model@xnames,
-      coefficient = unname(model@coefficients)
+    measures = list(
+      coefficient = importance_measure(
+        model@xnames,
+        unname(model@coefficients),
+        kind = "coefficient",
+        scale_dependent = TRUE,
+        description = paste0(
+          "Non-negative least squares coefficient of each predictor, per unit ",
+          "of the predictor as received",
+          if (model@normalize) {
+            paste0(
+              ", divided by the sum of the coefficients so that they sum to 1 ",
+              "(an all-zero solution is kept as zeros)"
+            )
+          },
+          "."
+        )
+      )
     )
   )
 } # /rtemis::varimp_super.NNLS

@@ -354,16 +354,67 @@ method(explain_super, class_svm) <- function(
 #' @keywords internal
 #' @noRd
 method(varimp_super, class_svm) <- function(model) {
-  # Only for linear kernel with binary classification
-  if (model[["kernel"]] == 0L && model[["nclasses"]] == 2) {
-    .coefs <- coef(model)
-    VariableImportance(
-      data.table(
-        variable = names(.coefs),
-        Coefficient = unname(.coefs)
-      )
+  # Only a linear kernel has one weight per predictor, and only a regression or
+  # binary classification has a single decision function.
+  if (model[["kernel"]] != 0L || model[["nclasses"]] > 2L) {
+    return(NULL)
+  }
+  .coefs <- coef(model)
+  weights <- .coefs[names(.coefs) != "(Intercept)"]
+  regression <- model[["type"]] %in% c(3L, 4L)
+  scaled <- rep_len(as.logical(model[["scaled"]]), length(weights))
+  per <- if (all(scaled)) {
+    "per standard deviation of the predictor"
+  } else if (!any(scaled)) {
+    "per unit of the predictor"
+  } else {
+    paste0(
+      "per standard deviation of the predictors e1071 scaled and per unit of ",
+      "the others (",
+      paste(names(weights)[!scaled], collapse = ", "),
+      ")"
+    )
+  }
+  if (regression) {
+    outcome <- if (!is.null(model[["y.scale"]])) {
+      "in standard deviations of the outcome"
+    } else {
+      "in outcome units"
+    }
+    description <- paste0(
+      "Slope of each predictor in the linear regression function (e1071), ",
+      outcome,
+      " ",
+      per,
+      "; the intercept is not included."
     )
   } else {
-    NULL
+    # The decision function is positive toward the first class in e1071's
+    # label order, which follows the training data; it is oriented here to
+    # the second outcome level, the positive class.
+    favored <- model[["levels"]][[model[["labels"]][[1L]]]]
+    if (!identical(favored, model[["levels"]][[2L]])) {
+      weights <- -weights
+    }
+    description <- paste0(
+      "Weight of each predictor in the linear decision function (e1071), ",
+      per,
+      ", with positive values toward class ",
+      model[["levels"]][[2L]],
+      "; the intercept is not included."
+    )
   }
+  VariableImportance(
+    measures = list(
+      Coefficient = importance_measure(
+        names(weights),
+        unname(weights),
+        kind = "coefficient",
+        signed = TRUE,
+        scale_dependent = !all(scaled),
+        direction = "absolute",
+        description = description
+      )
+    )
+  )
 } # /rtemis::varimp_super.svm

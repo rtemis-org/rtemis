@@ -122,10 +122,34 @@ method(predict_super, class_rpart) <- function(
 #' @noRd
 method(varimp_super, class_rpart) <- function(model) {
   vi <- model[["variable.importance"]]
+  # A tree with no split has no importance.
+  if (length(vi) == 0L) {
+    return(NULL)
+  }
+  impurity <- if (model[["method"]] == "class") {
+    if (identical(as.integer(model[["parms"]][["split"]]), 2L)) {
+      "information (entropy)"
+    } else {
+      "Gini index"
+    }
+  } else {
+    "sum of squares"
+  }
   VariableImportance(
-    data.table(
-      variable = names(vi),
-      importance = unname(vi)
+    measures = list(
+      importance = importance_measure(
+        names(vi),
+        unname(vi),
+        kind = "split_gain",
+        description = paste0(
+          "Reduction in node impurity (",
+          impurity,
+          ") summed over the splits on the predictor as the primary variable, ",
+          "plus the reduction times the adjusted agreement over the splits ",
+          "where it is a surrogate, on the training cases (rpart). Predictors ",
+          "in no split are omitted."
+        )
+      )
     )
   )
 } # /rtemis::varimp_super.rpart

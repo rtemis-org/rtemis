@@ -7,15 +7,27 @@
 get_varimp(x, ...)
 }
 \arguments{
-\item{x}{\code{Supervised} or \code{SupervisedRes} object.}
+\item{x}{\code{Supervised}, \code{SupervisedRes} or \code{SHAP} object.}
 
 \item{...}{Additional arguments passed to methods.}
 }
 \value{
-\code{VariableImportance} object or list of \code{VariableImportance} objects.
+\code{VariableImportance} object, a list of them (one per resample) for
+a \code{SupervisedRes}, or NULL when the algorithm reports no importance.
 }
 \description{
-Get variable importance
+The variable importance measures a fitted model reports, or the mean
+absolute contribution of each predictor in a \code{SHAP} explanation.
+}
+\details{
+A \code{VariableImportance} object holds its measures by name in \verb{@measures}.
+Each measure states what it quantifies (\verb{@kind}, for example split gain,
+permutation, or coefficient), the cases it was computed on
+(\verb{@computed_on}), whether its values can be negative (\verb{@signed}) or depend
+on the units of the predictors (\verb{@scale_dependent}), how it ranks
+predictors (\verb{@direction}), and what its values are for this model
+(\verb{@description}); \verb{@values} holds the value for each predictor.
+\link{varimp_table} combines the measures into one data.frame.
 }
 \examples{
 mod <- train(iris, hyperparameters = setup_LightRF())

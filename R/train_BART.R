@@ -254,17 +254,12 @@ method(se_super, class_bartmodel) <- function(model, newdata) {
 #' per posterior draw, and aggregated; the per-draw form is read here because
 #' it supports both measures.
 #'
-#' - `importance`: the **variable inclusion proportion**, the standard BART
-#'   importance measure. Within each retained draw, the share of that draw's
-#'   splitting rules that use the feature; reported as the mean across draws.
-#'   A proportion rather than the raw count `stochtree` returns, because a
-#'   count scales with `num_mcmc` and `keep_every`, so two runs differing only
-#'   in sampler budget would report importances differing by that factor.
-#' - `inclusion_sd`: the standard deviation of that proportion across draws.
-#'   BART's importance is a posterior quantity, so it has a spread as well as
-#'   a center: a feature the sampler uses consistently is separable from one
-#'   whose apparent importance rests on a handful of draws, and the two are
-#'   indistinguishable from the mean alone.
+#' - `importance`: the variable inclusion proportion. Within each retained
+#'   draw with at least one split, the share of that draw's splitting rules
+#'   that use the feature; reported as the mean over those draws. A
+#'   proportion, so that it does not scale with `num_mcmc` or `keep_every`.
+#' - `inclusion_sd`: the standard deviation of that proportion over the same
+#'   draws; NA when fewer than two draws have a split.
 #'
 #' The backend counts splits per column of its internal design matrix, so a
 #' factor -- which occupies several columns -- is summed back onto the feature
@@ -304,25 +299,73 @@ method(varimp_super, class_bartmodel) <- function(model) {
   by_feature <- by_feature[, draw_totals > 0, drop = FALSE]
   draw_totals <- draw_totals[draw_totals > 0]
   if (length(draw_totals) == 0L) {
-    return(VariableImportance(
-      data.table(
-        variable = xnames,
-        importance = rep(0, length(xnames)),
-        inclusion_sd = rep(0, length(xnames))
-      )
+    return(bart_varimp(
+      xnames,
+      rep(0, length(xnames)),
+      rep(NA_real_, length(xnames)),
+      n_draws = 0L
     ))
   }
   proportions <- sweep(by_feature, 2L, draw_totals, "/")
-  VariableImportance(
-    data.table(
-      variable = xnames,
-      importance = unname(rowMeans(proportions)),
-      # A single draw has a mean but no spread.
-      inclusion_sd = if (NCOL(proportions) > 1L) {
-        unname(apply(proportions, 1L, sd))
-      } else {
-        rep(0, length(xnames))
-      }
-    )
+  bart_varimp(
+    xnames,
+    unname(rowMeans(proportions)),
+    # A sample standard deviation needs two draws.
+    if (NCOL(proportions) > 1L) {
+      unname(apply(proportions, 1L, sd))
+    } else {
+      rep(NA_real_, length(xnames))
+    },
+    n_draws = NCOL(proportions)
   )
 } # /rtemis::varimp_super.class_bartmodel
+
+
+# %% bart_varimp ----
+#' BART variable importance from inclusion proportions
+#'
+#' @param xnames Character: Predictors.
+#' @param proportion Numeric: Mean inclusion proportion per predictor.
+#' @param sd Numeric: Its standard deviation over draws.
+#' @param n_draws Integer: Retained draws with at least one split.
+#'
+#' @return `VariableImportance` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+bart_varimp <- function(xnames, proportion, sd, n_draws) {
+  VariableImportance(
+    measures = list(
+      importance = importance_measure(
+        xnames,
+        proportion,
+        kind = "split_frequency",
+        description = if (n_draws > 0L) {
+          paste0(
+            "Variable inclusion proportion: within each retained posterior ",
+            "draw that has at least one split, the share of its splitting ",
+            "rules that use the predictor, averaged over those draws ",
+            "(stochtree)."
+          )
+        } else {
+          paste0(
+            "Variable inclusion proportion; no retained posterior draw has a ",
+            "split, so every predictor's proportion is 0."
+          )
+        }
+      ),
+      inclusion_sd = importance_measure(
+        xnames,
+        sd,
+        kind = "dispersion",
+        direction = "none",
+        description = paste0(
+          "Standard deviation of the variable inclusion proportion over the ",
+          "retained posterior draws that have at least one split; unavailable ",
+          "when fewer than two draws have one."
+        )
+      )
+    )
+  )
+} # /rtemis::bart_varimp

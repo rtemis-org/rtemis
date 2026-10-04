@@ -105,6 +105,22 @@ method(train_, RangerHyperparameters) <- function(
     na.action = hyperparameters@hyperparameters[["na_action"]]
   )
   check_inherits(model, "ranger")
+  # Settings that change what the importance measures, which the fitted
+  # forest does not record: ranger scales permutation importance only when
+  # local importance is off, and in holdout mode computes it on the held-out
+  # cases.
+  hp <- hyperparameters@hyperparameters
+  model[["rtemis_importance_scaled"]] <- identical(
+    hp[["importance"]],
+    "permutation"
+  ) &&
+    !isTRUE(hp[["local_importance"]]) &&
+    isTRUE(hp[["scale_permutation_importance"]])
+  model[["rtemis_holdout"]] <- isTRUE(hp[["holdout"]])
+  model[["rtemis_gain_regularized"]] <- !is.null(hp[[
+    "regularization_factor"
+  ]]) &&
+    any(hp[["regularization_factor"]] < 1)
   list(model = model, preprocessor = NULL)
 } # /rtemis::train_.RangerHyperparameters
 
@@ -201,6 +217,36 @@ method(quantile_super, class_ranger) <- function(model, newdata, quantiles) {
 } # /rtemis::quantile_super.class_ranger
 
 
+# %% ranger_split_criterion ----
+#' The split criterion of a fitted ranger forest, as words
+#'
+#' @param model `ranger` object.
+#'
+#' @return Character.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+ranger_split_criterion <- function(model) {
+  regression <- model[["treetype"]] == "Regression"
+  switch(
+    model[["splitrule"]] %||% if (regression) "variance" else "gini",
+    gini = "Gini index",
+    hellinger = "Hellinger distance",
+    variance = "variance of the outcome",
+    extratrees = if (regression) {
+      "variance of the outcome, at randomly drawn split points"
+    } else {
+      "Gini index, at randomly drawn split points"
+    },
+    maxstat = "maximally selected rank statistic",
+    beta = "beta log-likelihood",
+    poisson = "Poisson deviance",
+    model[["splitrule"]]
+  )
+} # /rtemis::ranger_split_criterion
+
+
 # %% varimp_super.class_ranger ----
 #' Get variable importance from Ranger model
 #'
@@ -210,11 +256,70 @@ method(quantile_super, class_ranger) <- function(model, newdata, quantiles) {
 #' @noRd
 method(varimp_super, class_ranger) <- function(model) {
   check_inherits(model, "ranger")
+  mode <- model[["importance.mode"]]
+  if (is.null(mode) || mode == "none") {
+    return(NULL)
+  }
   vi <- ranger::importance(model)
-  VariableImportance(
-    data.table(
-      variable = names(vi),
-      importance = unname(vi)
+  criterion <- ranger_split_criterion(model)
+  regularized <- if (isTRUE(model[["rtemis_gain_regularized"]])) {
+    paste0(
+      ", with the gain of splits on predictors new to the forest multiplied ",
+      "by the regularization factor"
+    )
+  } else {
+    ""
+  }
+  held_out <- isTRUE(model[["rtemis_holdout"]])
+  measure <- switch(
+    mode,
+    impurity = importance_measure(
+      names(vi),
+      unname(vi),
+      kind = "split_gain",
+      description = paste0(
+        "Decrease in the split criterion (",
+        criterion,
+        ") from splits on the predictor, summed over the splits of each tree ",
+        "on its sample of training cases and averaged over trees",
+        regularized,
+        " (ranger)."
+      )
+    ),
+    impurity_corrected = importance_measure(
+      names(vi),
+      unname(vi),
+      kind = "corrected_split_gain",
+      signed = TRUE,
+      description = paste0(
+        "Actual impurity reduction: the decrease in the split criterion (",
+        criterion,
+        ") from splits on the predictor, corrected by permuted copies of the ",
+        "predictors for the bias of impurity measures toward predictors with ",
+        "many split points; a small or negative value is a small estimated ",
+        "importance (ranger)."
+      )
+    ),
+    permutation = importance_measure(
+      names(vi),
+      unname(vi),
+      kind = "permutation",
+      computed_on = if (held_out) "held_out" else "out_of_bag",
+      signed = TRUE,
+      description = paste0(
+        "Increase in prediction error on ",
+        if (held_out) {
+          "the held-out cases (case weight 0)"
+        } else {
+          "each tree's out-of-bag cases"
+        },
+        " when the predictor's values are permuted, averaged over trees",
+        if (isTRUE(model[["rtemis_importance_scaled"]])) {
+          " and divided by its standard error"
+        },
+        " (ranger)."
+      )
     )
   )
+  VariableImportance(measures = list(importance = measure))
 } # /rtemis::varimp_super.class_ranger

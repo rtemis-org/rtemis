@@ -8,13 +8,200 @@
 # https://rconsortium.github.io/S7/articles/classes-objects.html?q=computed#computed-properties
 # https://utf8-icons.com/
 
+# %% IMPORTANCE_KINDS ----
+# What an importance measure quantifies:
+# - "split_gain"                loss or impurity reduction from splits on the
+#                               predictor
+# - "corrected_split_gain"      split gain corrected for the bias of impurity
+#                               measures by permuted pseudo-predictors
+# - "split_frequency"           share or count of splits using the predictor
+# - "split_cover"               cases reaching splits on the predictor
+# - "permutation"               increase in prediction error when the
+#                               predictor's values are permuted
+# - "coefficient"               a model coefficient
+# - "standardized_coefficient"  a coefficient times the predictor's standard
+#                               deviation
+# - "coefficient_magnitude"     absolute coefficients of the terms involving
+#                               the predictor, combined
+# - "partial_effect_variance"   variance of the predictor's term over cases
+# - "model_selection"           contribution to a model-selection criterion
+# - "contribution"              mean absolute contribution to predictions
+# - "ensemble_weight"           weight of a base learner in an ensemble
+# - "cross_validated_risk"      cross-validated loss of a base learner
+# - "dispersion"                spread of another measure over draws
+IMPORTANCE_KINDS <- c(
+  "split_gain",
+  "corrected_split_gain",
+  "split_frequency",
+  "split_cover",
+  "permutation",
+  "coefficient",
+  "standardized_coefficient",
+  "coefficient_magnitude",
+  "partial_effect_variance",
+  "model_selection",
+  "contribution",
+  "ensemble_weight",
+  "cross_validated_risk",
+  "dispersion"
+)
+
+# %% IMPORTANCE_DATA ----
+# The cases a measure is computed on.
+IMPORTANCE_DATA <- c(
+  "training",
+  "out_of_bag",
+  "held_out",
+  "cross_validation",
+  "explained_cases"
+)
+
+# %% IMPORTANCE_DIRECTIONS ----
+# How a measure ranks predictors: by larger values, by larger absolute
+# values, by smaller values, or not at all (a spread or a value without an
+# ordering by importance).
+IMPORTANCE_DIRECTIONS <- c("larger", "absolute", "smaller", "none")
+
+
+# %% ImportanceMeasure ----
+#' ImportanceMeasure
+#'
+#' @description
+#' One variable importance measure: what it quantifies and how to read it,
+#' and its value for each predictor or model term.
+#'
+#' @field kind Character \{"split_gain", "corrected_split_gain", "split_frequency", "split_cover", "permutation", "coefficient", "standardized_coefficient", "coefficient_magnitude", "partial_effect_variance", "model_selection", "contribution", "ensemble_weight", "cross_validated_risk", "dispersion"\}:
+#'   What the measure quantifies.
+#' @field computed_on Character \{"training", "out_of_bag", "held_out", "cross_validation", "explained_cases"\}:
+#'   The cases the measure is computed on.
+#' @field signed Logical: Whether values can be negative.
+#' @field scale_dependent Logical: Whether values depend on the units of the
+#'   predictors, so that magnitudes are comparable only across predictors on a
+#'   common scale.
+#' @field direction Character \{"larger", "absolute", "smaller", "none"\}: How
+#'   the measure ranks predictors.
+#' @field description Character: What the values are, for this model.
+#' @field values Named vector: The value for each predictor, model term, or
+#'   base learner, keyed by its name.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+ImportanceMeasure <- schema_class(
+  name = "ImportanceMeasure",
+  package = "rtemis",
+  properties = list(
+    kind = prop_string(
+      IMPORTANCE_KINDS[[1L]],
+      enum = IMPORTANCE_KINDS,
+      description = "What the measure quantifies: 'split_gain' loss or impurity reduction from splits on the predictor; 'corrected_split_gain' split gain corrected by permuted pseudo-predictors; 'split_frequency' share or count of splits using the predictor; 'split_cover' cases reaching splits on the predictor; 'permutation' increase in prediction error when the predictor is permuted; 'coefficient' a model coefficient; 'standardized_coefficient' a coefficient times the predictor's standard deviation; 'coefficient_magnitude' absolute coefficients of the terms involving the predictor, combined; 'partial_effect_variance' variance of the predictor's term over cases; 'model_selection' contribution to a model-selection criterion; 'contribution' mean absolute contribution to predictions; 'ensemble_weight' weight of a base learner in an ensemble; 'cross_validated_risk' cross-validated loss of a base learner; 'dispersion' spread of another measure over draws."
+    ),
+    computed_on = prop_string(
+      IMPORTANCE_DATA[[1L]],
+      enum = IMPORTANCE_DATA,
+      description = "The cases the measure is computed on: the training cases, the out-of-bag cases of each tree, cases held out from fitting, cross-validated predictions, or the cases an explanation was computed for."
+    ),
+    signed = prop_boolean(
+      FALSE,
+      description = "Whether values can be negative."
+    ),
+    scale_dependent = prop_boolean(
+      FALSE,
+      description = "Whether values depend on the units of the predictors, so that magnitudes are comparable only across predictors on a common scale."
+    ),
+    direction = prop_string(
+      IMPORTANCE_DIRECTIONS[[1L]],
+      enum = IMPORTANCE_DIRECTIONS,
+      description = "How the measure ranks predictors: 'larger' by larger values, 'absolute' by larger absolute values, 'smaller' by smaller values, 'none' it does not rank them."
+    ),
+    description = prop_string(
+      "",
+      description = "What the values are, for this model."
+    ),
+    values = prop_map(
+      prop_float(
+        NULL,
+        nullable = TRUE,
+        description = "Value of the measure; null when unavailable or not finite."
+      ),
+      description = "Value of the measure for each predictor, model term, or base learner, keyed by its name."
+    )
+  ),
+  publication = SchemaPublication(
+    role = "document",
+    slug = "importancemeasure",
+    title = "rtemis ImportanceMeasure",
+    description = "One variable importance measure of a fitted model: what it quantifies, the cases it is computed on, whether it is signed or depends on predictor units, how it ranks predictors, and its value for each predictor or model term.",
+    order = 34L,
+    kind = "report",
+    scope = "shared"
+  )
+) # /rtemis::ImportanceMeasure
+
+
+# %% .list_to_ImportanceMeasure ----
+#' Decode an importance measure from its wire form
+#' @param value Named list: Parsed measure.
+#' @return `ImportanceMeasure` object.
+#' @keywords internal
+#' @noRd
+.list_to_ImportanceMeasure <- function(value) {
+  value[["$schema"]] <- NULL
+  do.call(ImportanceMeasure, from_wire(value, ImportanceMeasure))
+} # /rtemis::.list_to_ImportanceMeasure
+
+
+# %% importance_measure ----
+#' Build an `ImportanceMeasure`
+#'
+#' @param variable Character vector: Predictors, model terms, or base
+#'   learners.
+#' @param value Numeric vector: One value per entry of `variable`.
+#' @param kind Character: One of `IMPORTANCE_KINDS`.
+#' @param computed_on Character: One of `IMPORTANCE_DATA`.
+#' @param signed Logical: Whether values can be negative.
+#' @param scale_dependent Logical: Whether values depend on predictor units.
+#' @param direction Character: One of `IMPORTANCE_DIRECTIONS`.
+#' @param description Character: What the values are.
+#'
+#' @return `ImportanceMeasure` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+importance_measure <- function(
+  variable,
+  value,
+  kind,
+  computed_on = "training",
+  signed = FALSE,
+  scale_dependent = FALSE,
+  direction = "larger",
+  description
+) {
+  value <- as.numeric(value)
+  value[!is.finite(value)] <- NA_real_
+  ImportanceMeasure(
+    kind = kind,
+    computed_on = computed_on,
+    signed = signed,
+    scale_dependent = scale_dependent,
+    direction = direction,
+    description = description,
+    values = stats::setNames(value, as.character(variable))
+  )
+} # /rtemis::importance_measure
+
+
 # %% VariableImportance ----
 #' VariableImportance
 #'
 #' @description
-#' Class for variable importance objects. Allows for one or more variable importance measures,
-#' stored in a data.table with columns "variable", and at least one
-#' more column with a descriptive name.
+#' The variable importance measures of a fitted model, keyed by name. Each
+#' measure carries what it quantifies and its value for each predictor or
+#' model term.
+#'
+#' @field measures Named list of `ImportanceMeasure` objects.
 #'
 #' @author EDG
 #' @keywords internal
@@ -23,55 +210,133 @@ VariableImportance <- schema_class(
   name = "VariableImportance",
   package = "rtemis",
   properties = list(
-    data = prop_table(
-      columns = list(
-        variable = prop_string(description = "Predictor or model term.")
-      ),
-      additional = prop_float(
-        NULL,
-        nullable = TRUE,
-        description = "Importance measure; null denotes an unavailable or nonfinite value."
-      ),
-      min_columns = 2L,
+    measures = prop_collection(
+      ImportanceMeasure,
+      container = "map",
       min_items = 1L,
-      description = "One row per predictor or model term, with a variable name and one or more named numeric importance measures."
+      description = "Importance measures, keyed by measure name."
     )
   ),
   publication = SchemaPublication(
     kind = "report",
     scope = "shared",
-    description = "Variable importance measures by predictor or model term."
+    description = "Variable importance measures of a fitted model, keyed by name, each with what it quantifies and its value for each predictor or model term."
   )
 ) # /rtemis::VariableImportance
 
 
+# %% VARIMP_TABLE_RESERVED ----
+# Column names a wide importance table uses for structure.
+VARIMP_TABLE_RESERVED <- c("variable", "fold")
+
+
+# %% varimp_column_names ----
+#' Column names for importance measures in a wide table
+#'
+#' A measure keeps its name unless it is a structural column name or repeats
+#' an earlier column, in which case " (measure)" is appended, and then a
+#' number, until it is distinct.
+#'
+#' @param measures Character: Measure names.
+#'
+#' @return Character, named by measure name.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+varimp_column_names <- function(measures) {
+  taken <- VARIMP_TABLE_RESERVED
+  columns <- vapply(
+    measures,
+    function(nm) {
+      column <- nm
+      if (column %in% taken) {
+        column <- paste0(nm, " (measure)")
+      }
+      i <- 2L
+      while (column %in% taken) {
+        column <- paste0(nm, " (measure ", i, ")")
+        i <- i + 1L
+      }
+      taken <<- c(taken, column)
+      column
+    },
+    character(1L)
+  )
+  stats::setNames(columns, measures)
+} # /rtemis::varimp_column_names
+
+
+# %% varimp_table ----
+#' Variable importance as one table
+#'
+#' @description
+#' Combine the variable importance measures of a model into one table: one
+#' row per predictor or model term and one column per measure.
+#'
+#' @details
+#' Columns follow the order of the measures. A predictor a measure does not
+#' cover is `NA` in that measure's column: some backends report only the
+#' predictors used in a split. A measure named `variable` or `fold`, or one
+#' repeating an earlier column, is labeled "<name> (measure)", since those
+#' column names carry the table's structure.
+#'
+#' The table holds the values only. What each measure quantifies, the cases it
+#' was computed on, and how it ranks predictors are on the measure itself:
+#' `get_varimp(model)@measures[["<name>"]]`.
+#'
+#' @param x `VariableImportance` object, as returned by [get_varimp].
+#'
+#' @return data.frame with a `variable` column and one numeric column per
+#'   measure.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' mod <- train(iris, hyperparameters = setup_CART(), verbosity = 0L)
+#' varimp_table(get_varimp(mod))
+varimp_table <- function(x) {
+  check_is_S7(x, VariableImportance)
+  measures <- x@measures
+  variables <- unique(unlist(lapply(measures, function(m) names(m@values))))
+  columns <- varimp_column_names(names(measures))
+  out <- data.frame(variable = variables)
+  for (nm in names(measures)) {
+    values <- measures[[nm]]@values
+    out[[columns[[nm]]]] <- unname(values[variables])
+  }
+  out
+} # /rtemis::varimp_table
+
+
 # %% repr.VariableImportance ----
 method(repr, VariableImportance) <- function(x, pad = 0L, output_type = NULL) {
-  # "N variable importance measures for M predictors"
-  n_m <- NCOL(x@data) - 1L
-  paste0(
-    repr_S7name("VariableImportance", pad = pad, output_type = output_type),
-    strrep(" ", pad),
-    fmt(n_m, col = highlight_col, bold = TRUE, output_type = output_type),
-    ngettext(
-      n_m,
-      " variable importance measure for ",
-      " variable importance measures for "
-    ),
-    fmt(
-      NROW(x@data),
-      col = highlight_col,
-      bold = TRUE,
-      output_type = output_type
-    ),
-    ngettext(NROW(x@data), " predictor", " predictors")
-  )
+  indent <- strrep(" ", pad + 2L)
+  out <- repr_S7name("VariableImportance", pad = pad, output_type = output_type)
+  for (nm in names(x@measures)) {
+    m <- x@measures[[nm]]
+    out <- paste0(
+      out,
+      indent,
+      fmt(nm, col = highlight_col, bold = TRUE, output_type = output_type),
+      " (",
+      m@kind,
+      ", ",
+      length(m@values),
+      ngettext(length(m@values), " entry", " entries"),
+      "): ",
+      m@description,
+      "\n"
+    )
+  }
+  out
 } # /rtemis::repr.VariableImportance
 
 
 # %% print.VariableImportance ----
 method(print, VariableImportance) <- function(x, output_type = NULL, ...) {
-  cat(repr(x, output_type = output_type), "\n")
+  cat(repr(x, output_type = output_type))
   invisible(x)
 } # /rtemis::print.VariableImportance
 
@@ -3103,7 +3368,9 @@ StackedLearner <- new_class(
     entry_features = class_list,
     y_levels = NULL | class_character,
     xnames = class_character,
-    type = class_character
+    type = class_character,
+    # Whether the cross-validated risk was weighted by case weights.
+    case_weighted = class_logical
   )
 ) # /rtemis::StackedLearner
 

@@ -341,11 +341,50 @@ method(varimp_super, LinearAdditiveTree) <- function(model, ...) {
     }
   }
 
+  linad_varimp(model@xnames, unname(importance), unname(gain))
+} # /rtemis::varimp_super.LinearAdditiveTree
+
+
+# %% linad_varimp ----
+#' LINAD variable importance measures
+#'
+#' @param xnames Character: Predictors.
+#' @param importance Numeric: Standardized coefficient measure.
+#' @param gain Numeric: Split gain measure.
+#' @param forest Logical: Whether the measures are averages over the trees of a
+#'   forest.
+#'
+#' @return `VariableImportance` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_varimp <- function(xnames, importance, gain, forest = FALSE) {
   VariableImportance(
-    data.table(
-      variable = model@xnames,
-      importance = unname(importance),
-      split_gain = unname(gain)
+    measures = list(
+      importance = importance_measure(
+        xnames,
+        importance,
+        kind = "standardized_coefficient",
+        description = paste0(
+          "Absolute leaf coefficient of the predictor times its training ",
+          "standard deviation, averaged over the leaves of the selected tree ",
+          "weighted by their training cases",
+          if (forest) " and then over the trees",
+          "; a factor's level columns are summed."
+        )
+      ),
+      split_gain = importance_measure(
+        xnames,
+        gain,
+        kind = "split_gain",
+        description = paste0(
+          "Reduction in training loss summed over the splits on the ",
+          "predictor that the selected tree reaches",
+          if (forest) ", averaged over the trees",
+          "."
+        )
+      )
     )
   )
-} # /rtemis::varimp_super.LinearAdditiveTree
+} # /rtemis::linad_varimp

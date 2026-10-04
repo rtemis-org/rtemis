@@ -265,7 +265,8 @@ method(train_, StackedLearnerHyperparameters) <- function(
     entry_features = entry_features,
     y_levels = outcome_info[["y_levels"]],
     xnames = names(x)[-NCOL(x)],
-    type = outcome_info[["type"]]
+    type = outcome_info[["type"]],
+    case_weighted = !is.null(weights)
   )
   list(model = model, preprocessor = NULL)
 } # /rtemis::train_.StackedLearnerHyperparameters
@@ -334,13 +335,48 @@ method(predict_super, StackedLearner) <- function(
 #' @keywords internal
 #' @noRd
 method(varimp_super, StackedLearner) <- function(model) {
-  vi <- data.table(
-    variable = model@cv_risk[["learner"]],
-    weight = model@cv_risk[["weight"]],
-    cv_risk = model@cv_risk[["cv_risk"]]
-  )
-  if (all(is.na(vi[["weight"]]))) {
-    vi[["weight"]] <- NULL
+  learners <- model@cv_risk[["learner"]]
+  measures <- list()
+  if (!all(is.na(model@cv_risk[["weight"]]))) {
+    meta <- model@meta_model
+    measures[["weight"]] <- importance_measure(
+      learners,
+      model@cv_risk[["weight"]],
+      kind = "ensemble_weight",
+      computed_on = "cross_validation",
+      description = if (!is.null(model@discrete_winner)) {
+        paste0(
+          "Selection weight: 1 for the base learner with the lowest ",
+          "cross-validated risk, which the discrete ensemble keeps, and 0 ",
+          "for the others."
+        )
+      } else {
+        paste0(
+          "Non-negative least squares coefficient of each base learner's ",
+          "cross-fitted predictions in the meta learner",
+          if (isTRUE(meta@model@normalize)) {
+            ", divided by the sum of the coefficients so that they sum to 1"
+          },
+          "."
+        )
+      }
+    )
   }
-  VariableImportance(vi)
+  measures[["cv_risk"]] <- importance_measure(
+    learners,
+    model@cv_risk[["cv_risk"]],
+    kind = "cross_validated_risk",
+    computed_on = "cross_validation",
+    direction = "smaller",
+    description = paste0(
+      "Mean squared error of each base learner's cross-fitted predictions ",
+      "against the outcome",
+      if (model@type == "Classification") {
+        " (predicted probability against the 0/1 outcome: the Brier score)"
+      },
+      if (isTRUE(model@case_weighted)) ", weighted by the case weights",
+      "."
+    )
+  )
+  VariableImportance(measures = measures)
 } # /rtemis::varimp_super.StackedLearner

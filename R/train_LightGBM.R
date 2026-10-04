@@ -215,8 +215,41 @@ method(varimp_super, class_lgb.Booster) <- function(model) {
   if (nrow(vi) == 0L) {
     return(NULL)
   }
-  names(vi)[1] <- "variable"
-  VariableImportance(vi)
+  omitted <- " Predictors in no split are omitted."
+  VariableImportance(
+    measures = list(
+      Gain = importance_measure(
+        vi[["Feature"]],
+        vi[["Gain"]],
+        kind = "split_gain",
+        description = paste0(
+          "Share of the total gain of all splits, over all trees, that comes ",
+          "from splits on the predictor, on the training cases (lightgbm).",
+          omitted
+        )
+      ),
+      Cover = importance_measure(
+        vi[["Feature"]],
+        vi[["Cover"]],
+        kind = "split_cover",
+        description = paste0(
+          "Share of the training cases reaching split nodes, summed over all ",
+          "splits of all trees, that reach splits on the predictor (lightgbm).",
+          omitted
+        )
+      ),
+      Frequency = importance_measure(
+        vi[["Feature"]],
+        vi[["Frequency"]],
+        kind = "split_frequency",
+        description = paste0(
+          "Share of all splits, over all trees, that use the predictor ",
+          "(lightgbm).",
+          omitted
+        )
+      )
+    )
+  )
 } # /rtemis::varimp_super.lgb.Booster
 
 

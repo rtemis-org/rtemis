@@ -274,19 +274,15 @@ method(predict_super, class_earth) <- function(
 # %% varimp_super.class_earth ----
 #' Get variable importance from MARS model
 #'
-#' `earth::evimp()` reports the three criteria described in the "Three
-#' Criteria" chapter of the earth vignette, all of them accumulated over the
-#' subsets the pruning pass evaluated:
+#' `earth::evimp()` reports three criteria over the subsets of the pruning
+#' pass, from size 2 to the size of the selected model. The change in a
+#' criterion from each subset to the next larger one is credited to every
+#' predictor in the larger subset:
 #'
-#' - `importance`: the GCV criterion, the drop in generalized cross-validation
-#'   error attributable to the feature, scaled by earth so the top feature is
-#'   100. The headline measure: GCV is what MARS itself optimizes, and it
-#'   charges each feature for the model complexity it adds.
-#' - `rss`: the same accumulation over residual sum of squares, so unpenalized.
-#'   It ranks a feature that buys its fit with many terms higher than
-#'   `importance` does, and the two disagreeing is the signal worth reading.
-#' - `subset_proportion`: the fraction of pruning subsets that retain the
-#'   feature, in \[0, 1\]. A consistency measure.
+#' - `importance`: the summed decrease in generalized cross-validation error.
+#' - `rss`: the summed decrease in the training residual sum of squares.
+#' - `subset_proportion`: the fraction of those subsets that contain the
+#'   feature, in \[0, 1\].
 #'   Reported as a proportion because earth's own count scales with the number
 #'   of terms in the model, which makes the raw value incomparable across a
 #'   grid search over `nk` or `nprune`.
@@ -310,14 +306,53 @@ method(varimp_super, class_earth) <- function(model) {
     # An intercept-only model evaluated no subsets, so no feature can be in one.
     rep(0, nrow(vi))
   }
+  # `col` indexes the design matrix, so it recovers the name without parsing
+  # evimp's "-unused" row-name suffix.
+  variable <- colnames(model[["dirs"]])[vi[, "col"]]
+  # evimp normalizes when the design has more than one column.
+  normalized <- nrow(vi) > 1L
+  criterion <- function(what) {
+    paste0(
+      "Decrease in ",
+      what,
+      " from each pruning-pass subset to the next larger one, from size 2 to ",
+      "the size of the selected model, summed over the subsets that contain ",
+      "the predictor",
+      if (normalized) {
+        paste0(
+          ", then transformed to 100 times its sign times the square root of ",
+          "its absolute value over the largest absolute value"
+        )
+      },
+      " (earth evimp). A predictor absent from the selected model can be ",
+      "credited by a smaller subset."
+    )
+  }
   VariableImportance(
-    data.table(
-      # `col` indexes the design matrix, so it recovers the name without
-      # parsing evimp's "-unused" row-name suffix.
-      variable = colnames(model[["dirs"]])[vi[, "col"]],
-      importance = unname(vi[, "gcv"]),
-      rss = unname(vi[, "rss"]),
-      subset_proportion = unname(subset_proportion)
+    measures = list(
+      importance = importance_measure(
+        variable,
+        unname(vi[, "gcv"]),
+        kind = "model_selection",
+        signed = TRUE,
+        description = criterion("generalized cross-validation error")
+      ),
+      rss = importance_measure(
+        variable,
+        unname(vi[, "rss"]),
+        kind = "model_selection",
+        signed = TRUE,
+        description = criterion("the training residual sum of squares")
+      ),
+      subset_proportion = importance_measure(
+        variable,
+        unname(subset_proportion),
+        kind = "model_selection",
+        description = paste0(
+          "Share of the pruning-pass subsets from size 2 to the size of the ",
+          "selected model that contain the predictor."
+        )
+      )
     )
   )
 } # /rtemis::varimp_super.class_earth

@@ -629,13 +629,18 @@ test_that("closed tables and structs reject undeclared wire fields clearly", {
 test_that("a cell omitted from a table row decodes as missing", {
   # `jsonlite::toJSON()` drops an NA cell from a row-oriented data frame, so R's
   # own output omits the cells a nullable column leaves empty.
-  property <- VariableImportance@properties[["data"]]
-  data <- data.frame(variable = c("a", "b"), Gain = c(0.75, NA))
+  property <- prop_table(
+    columns = list(
+      variable = prop_string(description = "Name."),
+      value = prop_float(NULL, nullable = TRUE, description = "Value.")
+    )
+  )
+  data <- data.frame(variable = c("a", "b"), value = c(0.75, NA))
   wire <- jsonlite::fromJSON(
     jsonlite::toJSON(data, auto_unbox = TRUE),
     simplifyVector = FALSE
   )
-  expect_false("Gain" %in% names(wire[[2L]]))
+  expect_false("value" %in% names(wire[[2L]]))
   expect_identical(
     default_from_wire(wire, spec_to_schema(get_spec(property))),
     data

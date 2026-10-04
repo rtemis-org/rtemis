@@ -466,7 +466,7 @@
     "variableimportance": {
       "class": "VariableImportance",
       "title": "rtemis VariableImportance",
-      "description": "Variable importance measures by predictor or model term."
+      "description": "Variable importance measures of a fitted model, keyed by name, each with what it quantifies and its value for each predictor or model term."
     },
     "dataref": {
       "class": "DataRef",
@@ -582,6 +582,11 @@
       "class": "SupervisedWriteup",
       "title": "rtemis SupervisedWriteup",
       "description": "Methods and Results sections describing a trained supervised model. Paragraphs are templates whose numbers are tokens naming rows of a values table, each with its formatted text and the field it was read from, and whose citations name rows of a references table; the review the writeup draws on and the information the model does not record are included."
+    },
+    "importancemeasure": {
+      "class": "ImportanceMeasure",
+      "title": "rtemis ImportanceMeasure",
+      "description": "One variable importance measure of a fitted model: what it quantifies, the cases it is computed on, whether it is signed or depends on predictor units, how it ranks predictors, and its value for each predictor or model term."
     }
   }
 }

@@ -852,13 +852,15 @@ test_that("get_varimp() LINAD reports both of its measures", {
   vi <- get_varimp(mod_r_linad)
   expect_s7_class(vi, VariableImportance)
   expect_identical(
-    names(vi@data),
+    names(varimp_table(vi)),
     c("variable", "importance", "split_gain")
   )
-  expect_setequal(vi@data[["variable"]], names(features(datr_train)))
+  expect_setequal(varimp_table(vi)[["variable"]], names(features(datr_train)))
   # The outcome is x[, 3] + x[, 5] plus a group effect, so those three carry the
   # linear signal and a measure that cannot see them is not measuring anything.
-  ranked <- vi@data[["variable"]][order(-vi@data[["importance"]])][1:3]
+  ranked <- varimp_table(vi)[["variable"]][order(
+    -varimp_table(vi)[["importance"]]
+  )][1:3]
   expect_setequal(ranked, c("V3", "V5", "g"))
 })
 
@@ -1088,10 +1090,10 @@ test_that("get_varimp() LINADForest reports both of its measures", {
   vi <- get_varimp(mod_r_linadforest)
   expect_s7_class(vi, VariableImportance)
   expect_identical(
-    names(vi@data),
+    names(varimp_table(vi)),
     c("variable", "importance", "split_gain")
   )
-  expect_setequal(vi@data[["variable"]], names(features(datr_train)))
+  expect_setequal(varimp_table(vi)[["variable"]], names(features(datr_train)))
 })
 
 ## {LINADForest}[train]<Regression> Feature sampling ----
@@ -1494,14 +1496,14 @@ test_that("train() LightRuleFit Multiclass Classification succeeds", {
   # Multiclass glmnet coefficients are a list (one per class); rule
   # importance is the total absolute influence and the signed per-class
   # coefficients are preserved as extra columns.
-  vi <- get_varimp(mod_c_lightrlft)@data
+  vi <- varimp_table(get_varimp(mod_c_lightrlft))
   cls <- levels(datc3_train[[ncol(datc3_train)]])
   expect_true(all(cls %in% names(vi)))
   expect_identical(names(vi)[[2L]], "Coefficient")
   expect_true(all(vi[["Coefficient"]] >= 0))
   expect_equal(
     vi[["Coefficient"]],
-    unname(rowSums(abs(as.matrix(vi[, cls, with = FALSE]))))
+    unname(rowSums(abs(as.matrix(vi[, cls, drop = FALSE]))))
   )
   # Per-class importance is individually plottable.
   expect_no_error(plot_varimp(mod_c_lightrlft, measure = cls[[1L]]))
@@ -1839,7 +1841,7 @@ test_that("get_varimp() SPLS Regression succeeds", {
   expect_s7_class(vi, VariableImportance)
   # One coefficient per design-matrix column: the factor `g` is one-hot encoded
   # before spls sees it.
-  expect_gte(nrow(vi@data), length(mod_r_spls@xnames))
+  expect_gte(nrow(varimp_table(vi)), length(mod_r_spls@xnames))
 })
 
 ## {SPLS}[train]<Regression> Algorithm name dispatch ----
@@ -2084,20 +2086,20 @@ test_that("get_varimp() MARS Regression reports earth's three criteria", {
   expect_s7_class(vi, VariableImportance)
   # Column 2 is what plot_varimp() shows by default, so the order is contract.
   expect_identical(
-    names(vi@data),
+    names(varimp_table(vi)),
     c("variable", "importance", "rss", "subset_proportion")
   )
   # One row per design-matrix column: the factor `g` is one-hot encoded before
   # earth sees it, so this exceeds the feature count.
-  expect_gte(nrow(vi@data), length(mod_r_mars@xnames))
-  expect_true(all(vi@data[["subset_proportion"]] >= 0))
-  expect_true(all(vi@data[["subset_proportion"]] <= 1))
+  expect_gte(nrow(varimp_table(vi)), length(mod_r_mars@xnames))
+  expect_true(all(varimp_table(vi)[["subset_proportion"]] >= 0))
+  expect_true(all(varimp_table(vi)[["subset_proportion"]] <= 1))
 })
 
 test_that("get_varimp() MARS recovers the features that drive the outcome", {
   skip_if_not_installed("earth")
   # datr is y = V3 + V5 + a `g` effect, so those must outrank the pure noise.
-  vi <- get_varimp(mod_r_mars)@data
+  vi <- varimp_table(get_varimp(mod_r_mars))
   top <- vi[["variable"]][order(vi[["importance"]], decreasing = TRUE)][1:3]
   expect_true(all(c("V3", "V5") %in% top))
 })
@@ -2106,12 +2108,12 @@ test_that("get_varimp() MARS subset_proportion is comparable across model sizes"
   skip_if_not_installed("earth")
   # earth's own count scales with the number of terms, so a grid search over
   # `nprune` would report two incomparable scales. The proportion does not.
-  small <- get_varimp(
+  small <- varimp_table(get_varimp(
     train(x = datr_train, hyperparameters = setup_MARS(nprune = 4L))
-  )@data
-  large <- get_varimp(
+  ))
+  large <- varimp_table(get_varimp(
     train(x = datr_train, hyperparameters = setup_MARS(nprune = 12L))
-  )@data
+  ))
   expect_true(all(small[["subset_proportion"]] <= 1))
   expect_true(all(large[["subset_proportion"]] <= 1))
   expect_identical(
@@ -3201,8 +3203,8 @@ test_that("get_varimp() BART Regression returns inclusion proportions", {
   skip_if_not_installed("stochtree")
   varimp_bart <- get_varimp(mod_r_bart)
   expect_s7_class(varimp_bart, VariableImportance)
-  expect_identical(varimp_bart@data[["variable"]], mod_r_bart@xnames)
-  expect_equal(sum(varimp_bart@data[["importance"]]), 1)
+  expect_identical(varimp_table(varimp_bart)[["variable"]], mod_r_bart@xnames)
+  expect_equal(sum(varimp_table(varimp_bart)[["importance"]]), 1)
 })
 
 test_that("get_varimp() BART reports inclusion spread beside the mean", {
@@ -3210,11 +3212,10 @@ test_that("get_varimp() BART reports inclusion spread beside the mean", {
   varimp_bart <- get_varimp(mod_r_bart)
   # Two measures, so `plot_varimp(measure = )` has something to select.
   expect_identical(
-    names(varimp_bart@data),
+    names(varimp_table(varimp_bart)),
     c("variable", "importance", "inclusion_sd")
   )
-  expect_true(all(varimp_bart@data[["inclusion_sd"]] >= 0))
-  # The spread is across draws, so it must vanish when there is only one.
+  expect_true(all(varimp_table(varimp_bart)[["inclusion_sd"]] >= 0))
   varimp_one_draw <- get_varimp(train(
     x = datr_train,
     hyperparameters = setup_BART(
@@ -3224,7 +3225,8 @@ test_that("get_varimp() BART reports inclusion spread beside the mean", {
       seed = 2026L
     )
   ))
-  expect_true(all(varimp_one_draw@data[["inclusion_sd"]] == 0))
+  # One draw has a proportion but no sample standard deviation.
+  expect_true(all(is.na(varimp_table(varimp_one_draw)[["inclusion_sd"]])))
 })
 
 test_that("get_varimp() BART is invariant to sampler budget", {
@@ -3240,11 +3242,11 @@ test_that("get_varimp() BART is invariant to sampler budget", {
       seed = 2026L
     )
   ))
-  expect_equal(sum(varimp_long@data[["importance"]]), 1)
+  expect_equal(sum(varimp_table(varimp_long)[["importance"]]), 1)
   # Same data and prior, four times the draws: the ranking must not move.
   expect_identical(
-    order(varimp_long@data[["importance"]]),
-    order(get_varimp(mod_r_bart)@data[["importance"]])
+    order(varimp_table(varimp_long)[["importance"]]),
+    order(varimp_table(get_varimp(mod_r_bart))[["importance"]])
   )
 })
 
@@ -3513,8 +3515,8 @@ test_that("get_varimp() HAL Regression aggregates coefficients per feature", {
   skip_if_not_installed("hal9001")
   varimp_hal <- get_varimp(mod_r_hal)
   expect_s7_class(varimp_hal, VariableImportance)
-  expect_gt(nrow(varimp_hal@data), length(mod_r_hal@xnames))
-  expect_true(all(varimp_hal@data[["importance"]] >= 0))
+  expect_gt(nrow(varimp_table(varimp_hal)), length(mod_r_hal@xnames))
+  expect_true(all(varimp_table(varimp_hal)[["importance"]] >= 0))
 })
 
 test_that("get_varimp() HAL reports the peak coefficient beside the sum", {
@@ -3522,12 +3524,13 @@ test_that("get_varimp() HAL reports the peak coefficient beside the sum", {
   varimp_hal <- get_varimp(mod_r_hal)
   # Two measures, so `plot_varimp(measure = )` has something to select.
   expect_identical(
-    names(varimp_hal@data),
+    names(varimp_table(varimp_hal)),
     c("variable", "importance", "max_coefficient")
   )
   # A sum over the same terms the maximum is taken over cannot be smaller.
   expect_true(all(
-    varimp_hal@data[["importance"]] >= varimp_hal@data[["max_coefficient"]]
+    varimp_table(varimp_hal)[["importance"]] >=
+      varimp_table(varimp_hal)[["max_coefficient"]]
   ))
 })
 
@@ -3545,8 +3548,8 @@ test_that("get_varimp() HAL recovers the features the outcome was built from", {
     )
   ))
   importance <- setNames(
-    varimp_hal@data[["importance"]],
-    varimp_hal@data[["variable"]]
+    varimp_table(varimp_hal)[["importance"]],
+    varimp_table(varimp_hal)[["variable"]]
   )
   expect_gt(
     min(importance[c("V3", "V5")]),
@@ -4549,7 +4552,10 @@ test_that("train() NNLS recovers a non-negative convex combination", {
   expect_equal(sum(coefficients), 1, tolerance = 1e-8)
   expect_equal(unname(coefficients), c(0.75, 0.25), tolerance = 1e-6)
   # The coefficients are the model, so they are what varimp reports.
-  expect_identical(get_varimp(mod_r_nnls)@data[["variable"]], c("p1", "p2"))
+  expect_identical(
+    varimp_table(get_varimp(mod_r_nnls))[["variable"]],
+    c("p1", "p2")
+  )
 })
 
 
@@ -4707,7 +4713,7 @@ test_that("SuperLearner matches or beats its worst library entry", {
 
 
 test_that("SuperLearner varimp names library entries, not features", {
-  vi <- get_varimp(mod_r_sl)@data
+  vi <- varimp_table(get_varimp(mod_r_sl))
   expect_identical(vi[["variable"]], c("GLM", "CART"))
   # Column 2 is what `plot_varimp()` shows by default.
   expect_identical(names(vi)[[2L]], "weight")
@@ -5044,7 +5050,7 @@ test_that("the Conditional SuperLearner records its iterations", {
 
 test_that("the Conditional SuperLearner reports the oracle's varimp", {
   # Which covariates decide *which model applies*: V5, by construction.
-  vi <- get_varimp(mod_r_csl)@data
+  vi <- varimp_table(get_varimp(mod_r_csl))
   expect_identical(vi[["variable"]][[which.max(vi[[2L]])]], "V5")
 })
 

@@ -758,7 +758,7 @@ test_that("Split-gain importance counts only splits the selected tree reaches", 
     shrunk <- mod
     shrunk@model@n_leaves <- k
     importance <- varimp_super(shrunk@model)
-    sum(S7::prop(importance, S7::prop_names(importance)[[1L]])[["split_gain"]])
+    sum(varimp_table(importance)[["split_gain"]])
   }
   # One leaf reaches no split at all.
   expect_equal(total_gain(1L), 0)

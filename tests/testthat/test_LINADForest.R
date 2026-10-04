@@ -298,7 +298,7 @@ test_that("a bag that misses a factor level still fits and predicts", {
     verbosity = 0L
   )
   expect_length(stats::predict(model, rare), n)
-  expect_identical(nrow(rtemis::get_varimp(model)@data), 3L)
+  expect_identical(nrow(varimp_table(rtemis::get_varimp(model))), 3L)
 })
 
 

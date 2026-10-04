@@ -272,17 +272,16 @@ method(varimp_super, LINADForest) <- function(model, ...) {
   names(importance) <- model@xnames
   names(split_gain) <- model@xnames
   for (tree in model@trees) {
-    per_tree <- varimp_super(tree)@data
+    per_tree <- varimp_table(varimp_super(tree))
     at <- match(per_tree[["variable"]], model@xnames)
     importance[at] <- importance[at] + per_tree[["importance"]]
     split_gain[at] <- split_gain[at] + per_tree[["split_gain"]]
   }
-  VariableImportance(
-    data.table(
-      variable = model@xnames,
-      importance = unname(importance) / n_trees,
-      split_gain = unname(split_gain) / n_trees
-    )
+  linad_varimp(
+    model@xnames,
+    unname(importance) / n_trees,
+    unname(split_gain) / n_trees,
+    forest = TRUE
   )
 } # /rtemis::varimp_super.LINADForest
 

@@ -176,6 +176,7 @@
   "Resampler",
   "Implementation",
   "VariableImportance",
+  "ImportanceMeasure",
   "Provenance",
   "DataFingerprint",
   "DataRef",

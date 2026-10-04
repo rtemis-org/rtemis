@@ -1306,26 +1306,20 @@ kernel_shap <- function(
 #' Variable importance from per-case contributions
 #'
 #' `mean(|phi|)` per feature: how much that feature moved the prediction on
-#' average, in the outcome's own units.
+#' average, on the scale of the model output the explanation decomposes.
 #'
 #' @details
-#' A global measure with three properties. It is on the scale of the outcome,
-#' so its values are interpretable in the outcome's units. It is comparable
-#' across algorithms, because every estimator here decomposes the same
-#' quantity. And it is free of the bias of impurity-based importance toward
-#' high-cardinality features.
-#'
-#' It also gives an importance to algorithms that have none of their own -- a
-#' torch network has no native measure, so `get_varimp()` on a fitted MLP
-#' returns NULL, while `get_varimp(explain(model, newdata, background))` does
-#' not. No torch-specific code was needed for that.
+#' The measure is on the scale of the model output the explanation
+#' decomposes, and every estimator here decomposes the same quantity, so it is
+#' comparable across algorithms. It gives an importance to algorithms with
+#' none of their own: `get_varimp()` on a fitted MLP returns NULL, and
+#' `get_varimp(explain(model, newdata, background))` returns this measure.
 #'
 #' One row per feature. Which *level* of a categorical drives its importance is
 #' a different question, and [shap_by_level] answers it.
 #'
-#' The magnitude is what is averaged, so contributions that cancel across cases
-#' do not vanish: a feature that pushes half the cases up and half down is
-#' important, and a signed mean would call it irrelevant.
+#' The absolute value is averaged, so contributions of opposite sign in
+#' different cases add rather than cancel.
 #'
 #' @param x `SHAP` object.
 #'
@@ -1335,16 +1329,21 @@ kernel_shap <- function(
 #' @keywords internal
 #' @noRd
 method(get_varimp, SHAP) <- function(x) {
+  # One measure per class, named for it; a regression or binary outcome has
+  # one, whose name is the outcome's or the positive class's.
   measures <- lapply(x@phi, function(contributions) {
-    colMeans(abs(contributions))
+    importance_measure(
+      x@feature_names,
+      unname(colMeans(abs(contributions))),
+      kind = "contribution",
+      computed_on = "explained_cases",
+      description = paste0(
+        "Mean absolute SHAP value of the predictor over the explained cases, ",
+        "on the scale of the model output the explanation decomposes."
+      )
+    )
   })
-  # One measure column per class, named for it; a regression or binary outcome
-  # has one, whose name is the outcome's or the positive class's.
-  importance <- data.table(variable = x@feature_names)
-  for (label in names(measures)) {
-    importance[, (label) := unname(measures[[label]])]
-  }
-  VariableImportance(importance)
+  VariableImportance(measures = measures)
 } # /rtemis::get_varimp.SHAP
 
 

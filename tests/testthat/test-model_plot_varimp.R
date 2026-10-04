@@ -18,8 +18,7 @@ varimp_model_fixture <- function(resampled = FALSE, classification = FALSE) {
     y_test = y,
     predicted_test = y
   )
-  vi <- utils::getFromNamespace("VariableImportance", "rtemis")
-  mod@varimp <- vi(data.table::data.table(
+  mod@varimp <- .varimp_from_table(data.table::data.table(
     variable = c("b", "a"),
     gain = c(2, 8),
     other = c(4, -3)
@@ -50,7 +49,11 @@ varimp_model_fixture <- function(resampled = FALSE, classification = FALSE) {
     predicted_test = list(y, y),
     varimp = list(
       mod@varimp,
-      vi(data.table::data.table(variable = "a", other = 5, gain = 4))
+      .varimp_from_table(data.table::data.table(
+        variable = "a",
+        other = 5,
+        gain = 4
+      ))
     )
   )
 }
@@ -87,7 +90,7 @@ test_that("draw-owned importance dispatch works for both supervised families", {
 
 test_that("fold extraction aligns named measures and retains unavailable folds", {
   mod <- varimp_model_fixture(TRUE)
-  vi <- utils::getFromNamespace("VariableImportance", "rtemis")
+  vi <- .varimp_from_table
   mod@varimp <- list(
     mod@varimp[[1L]],
     vi(data.table::data.table(variable = "a", another = 20))
@@ -114,7 +117,7 @@ test_that("fold extraction aligns named measures and retains unavailable folds",
 
 test_that("only verified sparse producer measures imply structural zeros", {
   mod <- varimp_model_fixture(TRUE)
-  vi <- utils::getFromNamespace("VariableImportance", "rtemis")
+  vi <- .varimp_from_table
   for (case in list(
     c("CART", "importance"),
     c("LightGBM", "Gain"),
@@ -176,7 +179,7 @@ test_that("model distributions preserve producer omissions and legacy dispatch",
     expect_identical(before, mod@varimp)
     # Known sparse measures add only the absent row, preserving explicit NA
     # and entire unavailable folds. List names do not reorder producer IDs.
-    vi <- utils::getFromNamespace("VariableImportance", "rtemis")
+    vi <- .varimp_from_table
     mod@algorithm <- "CART"
     mod@varimp <- list(
       B = vi(data.table::data.table(

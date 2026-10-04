@@ -86,10 +86,25 @@ force_supplied <- function() {
 # %% get_varimp ----
 #' Get variable importance
 #'
-#' @param x `Supervised` or `SupervisedRes` object.
+#' @description
+#' The variable importance measures a fitted model reports, or the mean
+#' absolute contribution of each predictor in a `SHAP` explanation.
+#'
+#' @details
+#' A `VariableImportance` object holds its measures by name in `@measures`.
+#' Each measure states what it quantifies (`@kind`, for example split gain,
+#' permutation, or coefficient), the cases it was computed on
+#' (`@computed_on`), whether its values can be negative (`@signed`) or depend
+#' on the units of the predictors (`@scale_dependent`), how it ranks
+#' predictors (`@direction`), and what its values are for this model
+#' (`@description`); `@values` holds the value for each predictor.
+#' [varimp_table] combines the measures into one data.frame.
+#'
+#' @param x `Supervised`, `SupervisedRes` or `SHAP` object.
 #' @param ... Additional arguments passed to methods.
 #'
-#' @return `VariableImportance` object or list of `VariableImportance` objects.
+#' @return `VariableImportance` object, a list of them (one per resample) for
+#'   a `SupervisedRes`, or NULL when the algorithm reports no importance.
 #'
 #' @author EDG
 #' @export

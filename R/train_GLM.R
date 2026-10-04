@@ -105,20 +105,23 @@ method(predict_super, class_glm) <- function(
 #'
 #' @keywords internal
 #' @noRd
-method(varimp_super, class_glm) <- function(
-  model,
-  type = c("coefficients", "p-value")
-) {
-  type <- match.arg(type)
-  .coef <- if (type == "coefficients") {
-    coef(model)
-  } else if (type == "p-value") {
-    summary(model)[["coefficients"]][, 4]
-  }
+method(varimp_super, class_glm) <- function(model) {
+  .coef <- coef(model)
   VariableImportance(
-    data.table(
-      variable = names(.coef),
-      Coefficient = unname(.coef)
+    measures = list(
+      Coefficient = importance_measure(
+        names(.coef),
+        unname(.coef),
+        kind = "coefficient",
+        signed = TRUE,
+        scale_dependent = TRUE,
+        direction = "absolute",
+        description = paste0(
+          "Estimated coefficient of each model term, including the intercept, ",
+          "on the scale of the linear predictor, per unit of the term as the ",
+          "model received it."
+        )
+      )
     )
   )
 } # /rtemis::varimp_super.glm

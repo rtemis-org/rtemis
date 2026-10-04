@@ -438,17 +438,44 @@ method(varimp_super, class_hal9001) <- function(model) {
   coefs <- as.numeric(model[["coefs"]])[-1L][seq_along(basis_list)]
   importance <- setNames(numeric(length(xnames)), xnames)
   max_coefficient <- importance
-  for (i in which(coefs != 0)) {
+  selected <- which(coefs != 0)
+  for (i in selected) {
     cols <- unique(basis_list[[i]][["cols"]])
     abs_coef <- abs(coefs[i])
     importance[cols] <- importance[cols] + abs_coef
     max_coefficient[cols] <- pmax(max_coefficient[cols], abs_coef)
   }
+  # A zero-order basis function is an indicator, so its coefficient is in
+  # outcome units; a higher order multiplies by the predictor's distance from
+  # a knot, so the coefficient is per unit of the predictor.
+  scale_dependent <- any(vapply(
+    basis_list[selected],
+    function(b) any(b[["orders"]] > 0L),
+    logical(1L)
+  ))
   VariableImportance(
-    data.table(
-      variable = xnames,
-      importance = unname(importance),
-      max_coefficient = unname(max_coefficient)
+    measures = list(
+      importance = importance_measure(
+        xnames,
+        unname(importance),
+        kind = "coefficient_magnitude",
+        scale_dependent = scale_dependent,
+        description = paste0(
+          "Sum of the absolute lasso coefficients of the selected basis ",
+          "functions involving the predictor; a basis function involving ",
+          "several predictors counts toward each."
+        )
+      ),
+      max_coefficient = importance_measure(
+        xnames,
+        unname(max_coefficient),
+        kind = "coefficient_magnitude",
+        scale_dependent = scale_dependent,
+        description = paste0(
+          "Largest absolute lasso coefficient among the selected basis ",
+          "functions involving the predictor."
+        )
+      )
     )
   )
 } # /rtemis::varimp_super.class_hal9001

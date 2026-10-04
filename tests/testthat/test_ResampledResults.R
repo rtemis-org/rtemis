@@ -15,7 +15,7 @@ test_that("nested result containers preserve types, names and missing positions"
       ))
     )
   )
-  importance <- VariableImportance(data.frame(variable = "x", score = 0.5))
+  importance <- .varimp_from_table(data.frame(variable = "x", score = 0.5))
   obj <- Demo(
     outcomes = list(
       first = factor(c("b", NA), levels = c("b", "a")),
