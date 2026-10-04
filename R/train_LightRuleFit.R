@@ -144,6 +144,17 @@ method(train_, LightRuleFitHyperparameters) <- function(
     xnames = names(x),
     factor_levels = get_factor_levels(x)
   )
+  # A tree with no split yields an empty rule, which selects no subset.
+  lgbm_rules <- lgbm_rules[nzchar(lgbm_rules)]
+  if (length(lgbm_rules) == 0L) {
+    rtemis.core::abort(
+      "The boosting stage made no split on these ",
+      NROW(x),
+      " cases, so there are no rules to select. Lower `min_data_in_leaf` ",
+      "or `min_sum_hessian_in_leaf`, or provide more cases.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
 
   # Match cases x rules ----
   cases_by_rules <- match_cases_by_rules(x, lgbm_rules, verbosity = verbosity)
@@ -248,7 +259,18 @@ method(train_, LightRuleFitHyperparameters) <- function(
       n_nonzero_rules = length(nonzero_index)
     )
   )
-  list(model = model, preprocessor = NULL)
+  # The boosting and lasso stages are fitted with their own hyperparameters,
+  # which record the values they resolved; this records them on the
+  # LightRuleFit settings they came from.
+  lgbm_resolved <- mod_lgbm@hyperparameters
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    c(
+      lgbm_resolved@hyperparameters[LightRuleFit_lightgbm_params()],
+      list(lambda_glmnet = mod_glmnet@hyperparameters[["lambda"]])
+    )
+  )
+  list(model = model, preprocessor = NULL, hyperparameters = hyperparameters)
 } # /rtemis::train_.LightRuleFitHyperparameters
 
 

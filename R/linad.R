@@ -2815,10 +2815,9 @@ linad_unscale <- function(coefficients, scaling) {
 #' "constant")` gives a tree with constant nodes *including its root*, rather
 #' than an Additive Tree with one stray linear model at the top.
 #'
-#' Resolved values are deliberately not written back into the `Hyperparameters`
-#' object. A gated property must be NULL when its gate is shut, so writing
-#' `nvmax` back into a ridge fit would produce an object its own validator
-#' rejects.
+#' `train_()` records the resolved values on the hyperparameters it returns
+#' through `record_backend_values()`, which leaves a gated property NULL when
+#' its gate is shut: `nvmax` is not recorded for a ridge fit.
 #'
 #' @param hyperparameters `LINADHyperparameters` object.
 #'

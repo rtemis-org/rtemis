@@ -103,7 +103,7 @@ pretraining.}
 otherwise; the Apple silicon GPU, slower than the CPU for TabNet at every size
 rtemis benchmarked, runs only when named.}
 
-\item{importance_sample_size}{(Tunable) Optional Integer [1, Inf): Importance sample size.}
+\item{importance_sample_size}{(Tunable) Optional Integer [1, Inf): Training cases drawn to compute feature importance. Unset draws as many as there are training cases, at most 100,000.}
 
 \item{early_stopping_monitor}{(Tunable) Character \{"auto", "valid_loss", "train_loss"\}: Early stopping monitor.}
 

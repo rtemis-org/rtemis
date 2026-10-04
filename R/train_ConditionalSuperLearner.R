@@ -467,7 +467,8 @@ method(train_, ConditionalSuperLearnerHyperparameters) <- function(
     xnames = feature_names,
     type = type
   )
-  list(model = model, preprocessor = NULL)
+  hyperparameters <- record_backend_values(hyperparameters, list(loss = loss))
+  list(model = model, preprocessor = NULL, hyperparameters = hyperparameters)
 } # /rtemis::train_.ConditionalSuperLearnerHyperparameters
 
 

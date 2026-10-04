@@ -251,6 +251,7 @@ Collate:
     'record.R'
     'reexports.R'
     'resample.R'
+    'resolve_hyperparameters.R'
     'result_storage.R'
     'review.R'
     'rtemis-package.R'

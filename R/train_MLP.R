@@ -152,15 +152,10 @@ mlp_hidden_units <- function(
     )
     return(as.integer(hidden_units))
   }
-  shape <- shape %||% "funnel"
-  layers <- as.integer(shape_layers %||% 3L)
-  # Four times the input width, held between 64 and 512, and never below the
-  # input width itself -- the floor the reference implementation also applies.
-  # The multiplier and the bounds are a judgment call, not a result.
-  max_units <- as.integer(
-    shape_max_units %||%
-      max(as.integer(in_feat), min(512L, max(64L, 4L * in_feat)))
-  )
+  settings <- mlp_shape_settings(shape, shape_layers, shape_max_units, in_feat)
+  shape <- settings[["shape"]]
+  layers <- settings[["shape_layers"]]
+  max_units <- settings[["shape_max_units"]]
   units <- mlp_shape_units(shape, layers, max_units, in_feat)
   msg0(
     "Hidden layers, generated from shape '",
@@ -176,6 +171,68 @@ mlp_hidden_units <- function(
   )
   units
 } # /rtemis::mlp_hidden_units
+
+
+# %% mlp_shape_settings ----
+#' The shape settings that generate hidden widths, with unset ones resolved
+#'
+#' An unset shape is "funnel" with 3 layers, and an unset maximum width is
+#' four times the input width, held between 64 and 512 and never below the
+#' input width.
+#'
+#' @param shape Character or NULL: Profile.
+#' @param shape_layers Integer or NULL: Layers.
+#' @param shape_max_units Integer or NULL: Widest layer.
+#' @param in_feat Integer: Encoded input width.
+#'
+#' @return Named list with `shape`, `shape_layers` and `shape_max_units`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+mlp_shape_settings <- function(shape, shape_layers, shape_max_units, in_feat) {
+  list(
+    shape = shape %||% "funnel",
+    shape_layers = as.integer(shape_layers %||% 3L),
+    shape_max_units = as.integer(
+      shape_max_units %||%
+        max(as.integer(in_feat), min(512L, max(64L, 4L * in_feat)))
+    )
+  )
+} # /rtemis::mlp_shape_settings
+
+
+# %% torch_optimizer_defaults ----
+#' torch's defaults for the optimizer settings an MLP leaves unset
+#'
+#' Read from the optimizer constructor's formals, so they are the values the
+#' installed torch applies.
+#'
+#' @param optimizer Character: One of `TORCH_OPTIMIZERS`.
+#'
+#' @return Named list with `beta1`, `beta2`, `eps` and `momentum`; an entry is
+#'   NULL where the optimizer has no such setting.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_optimizer_defaults <- function(optimizer) {
+  constructor <- switch(
+    optimizer,
+    adamw = torch::optim_adamw,
+    adam = torch::optim_adam,
+    sgd = torch::optim_sgd,
+    rmsprop = torch::optim_rmsprop
+  )
+  defaults <- formals(constructor)
+  betas <- eval(defaults[["betas"]])
+  list(
+    beta1 = if (length(betas) == 2L) betas[[1L]],
+    beta2 = if (length(betas) == 2L) betas[[2L]],
+    eps = eval(defaults[["eps"]]),
+    momentum = eval(defaults[["momentum"]])
+  )
+} # /rtemis::torch_optimizer_defaults
 
 
 # %% mlp_embedding_dim ----
@@ -841,7 +898,25 @@ method(train_, MLPHyperparameters) <- function(
   # against this one field by field, so a NULL that became a vector reads as
   # `origin: "derived"` with no second property to carry it. The `shape_*`
   # settings stay beside it and say where the widths came from.
+  widths_generated <- is.null(hyperparameters[["hidden_units"]])
   hyperparameters@hidden_units <- hidden_units
+  # The settings rtemis or torch chose for the ones left unset; the shape
+  # settings only when they generated the widths.
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    c(
+      list(loss = loss),
+      if (widths_generated) {
+        mlp_shape_settings(
+          hyperparameters[["shape"]],
+          hyperparameters[["shape_layers"]],
+          hyperparameters[["shape_max_units"]],
+          length(numeric_features) + sum(embedding_dims)
+        )
+      },
+      torch_optimizer_defaults(hyperparameters[["optimizer"]])
+    )
+  )
   list(model = model, preprocessor = prp, hyperparameters = hyperparameters)
 } # /rtemis::train_.MLPHyperparameters
 

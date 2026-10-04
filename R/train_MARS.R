@@ -224,7 +224,21 @@ method(train_, MARSHyperparameters) <- function(
   args <- args[!vapply(args, is.null, logical(1L))]
   model <- do.call(earth::earth, args)
   check_inherits(model, "earth")
-  list(model = model, preprocessor = design[["preprocessor"]])
+  # earth evaluates `penalty` and `nk` and keeps them on the fit; an unset
+  # `nprune` keeps every term of the forward pass as a candidate.
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    list(
+      penalty = as.numeric(model[["penalty"]]),
+      nk = as.integer(model[["nk"]]),
+      nprune = NROW(model[["dirs"]])
+    )
+  )
+  list(
+    model = model,
+    preprocessor = design[["preprocessor"]],
+    hyperparameters = hyperparameters
+  )
 } # /rtemis::train_.MARSHyperparameters
 
 

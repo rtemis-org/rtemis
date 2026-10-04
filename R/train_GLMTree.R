@@ -175,7 +175,17 @@ method(train_, GLMTreeHyperparameters) <- function(
       "."
     )
   }
-  list(model = model, preprocessor = NULL)
+  # partykit sets an unset minimum node size to ten observations per
+  # coefficient of the node model.
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    list(
+      minsize = as.integer(ceiling(
+        10L * length(stats::coef(model, node = 1L))
+      ))
+    )
+  )
+  list(model = model, preprocessor = NULL, hyperparameters = hyperparameters)
 } # /rtemis::train_.GLMTreeHyperparameters
 
 

@@ -273,6 +273,28 @@ hal_fit <- function(
 } # /rtemis::hal_fit
 
 
+# %% hal_default_knots ----
+#' Knots per degree hal9001 generates when `num_knots` is unset
+#'
+#' Evaluates `fit_hal()`'s own default expression for `num_knots`.
+#'
+#' @param max_degree Integer: Highest interaction degree.
+#' @param smoothness_orders Integer: Smoothness of the basis functions.
+#'
+#' @return Integer vector, one entry per degree.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+hal_default_knots <- function(max_degree, smoothness_orders) {
+  as.integer(eval(
+    formals(hal9001::fit_hal)[["num_knots"]],
+    list(max_degree = max_degree, smoothness_orders = smoothness_orders),
+    asNamespace("hal9001")
+  ))
+} # /rtemis::hal_default_knots
+
+
 # %% train_.HALHyperparameters ----
 #' Train a Highly Adaptive Lasso model
 #'
@@ -377,7 +399,20 @@ method(train_, HALHyperparameters) <- function(
     nfolds = hyperparameters[["nfolds"]],
     seed = hyperparameters[["seed"]]
   )
-  list(model = model, preprocessor = design[["preprocessor"]])
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    list(
+      num_knots = hal_default_knots(
+        hyperparameters[["max_degree"]],
+        hyperparameters[["smoothness_orders"]]
+      )
+    )
+  )
+  list(
+    model = model,
+    preprocessor = design[["preprocessor"]],
+    hyperparameters = hyperparameters
+  )
 } # /rtemis::train_.HALHyperparameters
 
 

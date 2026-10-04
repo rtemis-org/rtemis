@@ -209,7 +209,8 @@ method(train_, LINADForestHyperparameters) <- function(
   }
 
   check_is_S7(model, LINADForest)
-  list(model = model, preprocessor = NULL)
+  hyperparameters <- record_backend_values(hyperparameters, settings)
+  list(model = model, preprocessor = NULL, hyperparameters = hyperparameters)
 } # /rtemis::train_.LINADForestHyperparameters
 
 

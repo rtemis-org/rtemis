@@ -76,7 +76,18 @@ method(train_, TabNetHyperparameters) <- function(
     weights = weights
   )
   check_inherits(model, "tabnet_fit")
-  list(model = model, preprocessor = prp)
+  # tabnet resolves unset widths into the fitted network's configuration.
+  fitted_config <- model[["fit"]][["config"]]
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    list(
+      decision_width = as.integer(fitted_config[["n_d"]]),
+      attention_width = as.integer(fitted_config[["n_a"]]),
+      # tabnet computes importance on this many training cases.
+      importance_sample_size = as.integer(min(100000L, NROW(x)))
+    )
+  )
+  list(model = model, preprocessor = prp, hyperparameters = hyperparameters)
 } # /rtemis::train_.TabNetHyperparameters
 
 

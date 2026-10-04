@@ -121,7 +121,25 @@ method(train_, RangerHyperparameters) <- function(
     "regularization_factor"
   ]]) &&
     any(hp[["regularization_factor"]] < 1)
-  list(model = model, preprocessor = NULL)
+  # ranger resolves these when they are unset: `mtry`, `min.node.size` and
+  # `splitrule` are on the fitted forest, and unordered factors are
+  # partitioned only by extratrees.
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    list(
+      mtry = as.integer(model[["mtry"]]),
+      min_node_size = as.integer(model[["min.node.size"]]),
+      splitrule = model[["splitrule"]],
+      respect_unordered_factors = if (
+        identical(model[["splitrule"]], "extratrees")
+      ) {
+        "partition"
+      } else {
+        "ignore"
+      }
+    )
+  )
+  list(model = model, preprocessor = NULL, hyperparameters = hyperparameters)
 } # /rtemis::train_.RangerHyperparameters
 
 #' Predict from Ranger model

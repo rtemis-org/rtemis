@@ -123,6 +123,10 @@ method(train_, LightRFHyperparameters) <- function(
   # `hyperparameters` is returned because this method resolved values into
   # it (R copied the caller's object, so the caller cannot see them).
   # `train()` adopts them, and the fitted model reports what it used.
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    lightgbm_backend_values(hyperparameters, model)
+  )
   list(model = model, preprocessor = prp, hyperparameters = hyperparameters)
 } # /rtemis::train_.LightRFHyperparameters
 

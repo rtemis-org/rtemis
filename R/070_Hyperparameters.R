@@ -6368,7 +6368,7 @@ TabNetHyperparameters <- schema_class(
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Sample size for importance calculation."
+      description = "Training cases drawn to compute feature importance. Unset draws as many as there are training cases, at most 100,000."
     ),
     early_stopping_monitor = prop_string(
       "auto",
@@ -6453,7 +6453,7 @@ TabNetHyperparameters <- schema_class(
 #' "mps")`. Unset there, TabNet uses `"cuda"` where available and `"cpu"`
 #' otherwise; the Apple silicon GPU, slower than the CPU for TabNet at every size
 #' rtemis benchmarked, runs only when named.
-#' @param importance_sample_size (Tunable) Optional Integer [1, Inf): Importance sample size.
+#' @param importance_sample_size (Tunable) Optional Integer [1, Inf): Training cases drawn to compute feature importance. Unset draws as many as there are training cases, at most 100,000.
 #' @param early_stopping_monitor (Tunable) Character \{"auto", "valid_loss", "train_loss"\}: Early stopping monitor.
 #' @param early_stopping_tolerance (Tunable) Numeric [0, Inf): Minimum relative improvement to reset the patience
 #' counter.

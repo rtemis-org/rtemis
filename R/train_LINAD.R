@@ -206,7 +206,8 @@ method(train_, LINADHyperparameters) <- function(
     model@steps[[model@n_leaves]]
 
   check_is_S7(model, LinearAdditiveTree)
-  list(model = model, preprocessor = NULL)
+  hyperparameters <- record_backend_values(hyperparameters, settings)
+  list(model = model, preprocessor = NULL, hyperparameters = hyperparameters)
 } # /rtemis::train_.LINADHyperparameters
 
 
