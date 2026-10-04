@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# %% Interval helpers, each against an independent computation ----
+# %% Statistical helpers, each against an independent computation ----
 test_that("review_binom_interval() is the Clopper-Pearson interval", {
   # The beta-quantile form of Clopper-Pearson, written out independently of
   # binom.test().
@@ -25,11 +25,11 @@ test_that("review_balanced_accuracy_interval() matches the hand computation", {
   ba <- mean(hits / totals)
   expected <- ba + c(-1, 1) * stats::qnorm(0.975) * se
   expect_equal(review_balanced_accuracy_interval(hits, totals, 0.95), expected)
-  # A class absent from the test set does not enter the mean.
-  expect_equal(
-    review_balanced_accuracy_interval(c(hits, 0L), c(totals, 0L), 0.95),
-    expected
-  )
+  # Balanced accuracy averages over every class: one absent from the test set
+  # leaves it undefined rather than redefined over the classes present.
+  expect_true(all(is.na(
+    review_balanced_accuracy_interval(c(hits, 0L), c(totals, 0L), 0.95)
+  )))
   # Perfect recall keeps a nonzero width.
   perfect <- review_balanced_accuracy_interval(c(10L, 10L), c(10L, 10L), 0.95)
   expect_identical(perfect[[2L]], 1)
@@ -57,28 +57,70 @@ test_that("review_auc_delong() matches a pairwise-kernel DeLong computation", {
   ))))
 })
 
-test_that("review_skill() is a paired t interval on the per-case reduction", {
+test_that("review_auc_delong() gives no interval at complete separation", {
+  separated <- c(TRUE, TRUE, FALSE, FALSE)
+  perfect <- review_auc_delong(c(0.9, 0.8, 0.2, 0.1), separated, 0.95)
+  reversed <- review_auc_delong(c(0.1, 0.2, 0.8, 0.9), separated, 0.95)
+  expect_identical(perfect[[1L]], 1)
+  expect_identical(reversed[[1L]], 0)
+  expect_true(all(is.na(perfect[2:3])))
+  expect_true(all(is.na(reversed[2:3])))
+})
+
+test_that("review_mean_interval() is undefined without spread", {
+  expect_true(all(is.na(review_mean_interval(c(2, 2, 2), 0.95))))
+  expect_true(all(is.na(review_mean_interval(1, 0.95))))
+  v <- c(1, 4, 2, 8)
+  expect_equal(
+    review_mean_interval(v, 0.9),
+    as.numeric(stats::t.test(v, conf.level = 0.9)[["conf.int"]])
+  )
+})
+
+test_that("review_loss_difference() is the paired t interval of the loss reduction", {
   set.seed(2026)
   loss_baseline <- rexp(40L)
   loss <- loss_baseline * runif(40L, 0.3, 1.1)
   tt <- stats::t.test(loss_baseline, loss, paired = TRUE, conf.level = 0.9)
-  scale <- mean(loss_baseline)
-  expected <- c(
-    1 - mean(loss) / scale,
-    as.numeric(tt[["conf.int"]]) / scale
+  expect_equal(
+    review_loss_difference(loss, loss_baseline, 0.9),
+    c(mean(loss_baseline - loss), as.numeric(tt[["conf.int"]]))
   )
-  expect_equal(review_skill(loss, loss_baseline, 0.9), expected)
-  expect_true(all(is.na(review_skill(loss, rep(0, 40L), 0.9))))
-  # A skill cannot exceed 1: the upper bound is clipped.
-  expect_lte(review_skill(rep(0, 3L), c(1, 10, 100), 0.95)[[3L]], 1)
+  # Proportional losses: the skill ratio is exactly 0.5 for every case, and
+  # the interval is of the mean reduction, on the loss scale -- not of the
+  # ratio.
+  difference <- review_loss_difference(c(0.5, 5, 50), c(1, 10, 100), 0.95)
+  expect_equal(difference[[1L]], mean(c(0.5, 5, 50)))
+  expect_lt(difference[[2L]], 0)
 })
 
-
-test_that("review_baseline_outcome() distinguishes better, worse and neither", {
-  expect_identical(review_baseline_outcome(c(0.6, 0.8), 0.5), "better")
-  expect_identical(review_baseline_outcome(c(0.2, 0.4), 0.5), "worse")
+test_that("review_mcnemar() pairs the two predictors' results case by case", {
+  # 100 cases: the baseline is right on 50, the model on 56, and the model
+  # corrects six baseline errors without introducing any.
+  baseline_correct <- rep(c(TRUE, FALSE), each = 50L)
+  model_correct <- baseline_correct
+  model_correct[51:56] <- TRUE
+  test <- review_mcnemar(model_correct, baseline_correct)
+  expect_identical(test[["b"]], 6L)
+  expect_identical(test[["c"]], 0L)
+  # Exact: P(6 of 6 discordant pairs favor the model) = 2^-6, doubled.
+  expect_equal(test[["p_value"]], 2 * 0.5^6)
+  # The unpaired one-sample binomial test against 0.5 misses the pairing.
+  unpaired <- stats::binom.test(56L, 100L, p = 0.5)[["p.value"]]
+  expect_gt(unpaired, 0.05)
+  expect_lt(test[["p_value"]], 0.05)
+  # No discordant cases: no evidence of a difference.
   expect_identical(
-    review_baseline_outcome(c(0.4, 0.6), 0.5),
+    review_mcnemar(baseline_correct, baseline_correct)[["p_value"]],
+    1
+  )
+})
+
+test_that("review_interval_outcome() distinguishes better, worse and neither", {
+  expect_identical(review_interval_outcome(c(0.6, 0.8), 0.5), "better")
+  expect_identical(review_interval_outcome(c(0.2, 0.4), 0.5), "worse")
+  expect_identical(
+    review_interval_outcome(c(0.4, 0.6), 0.5),
     "indistinguishable"
   )
   better <- review_baseline_finding("BASELINE_AUC", "better", "AUC", "0.5")
@@ -93,8 +135,11 @@ test_that("review_baseline_outcome() distinguishes better, worse and neither", {
   expect_match(better@message, "is better than", fixed = TRUE)
   expect_identical(worse@severity, "warning")
   expect_match(worse@message, "is worse than", fixed = TRUE)
-  expect_identical(neither@severity, "warning")
-  expect_match(neither@message, "cannot be distinguished", fixed = TRUE)
+  expect_match(
+    neither@message,
+    "does not provide clear evidence of a difference",
+    fixed = TRUE
+  )
 })
 
 
@@ -153,7 +198,6 @@ test_that("the review states every training and test metric and the baseline", {
       .perf(rev_iris, metric, "difference"),
       overall_training[[metric]] - overall_test[[metric]]
     )
-    # A single split has no spread over resamples and no pooled value.
     expect_true(is.na(.perf(rev_iris, metric, "test_sd")))
     expect_true(is.na(.perf(rev_iris, metric, "pooled")))
   }
@@ -161,14 +205,33 @@ test_that("the review states every training and test metric and the baseline", {
   expect_identical(sample[["n_training"]], 120L)
   expect_identical(sample[["n_test"]], 30L)
   expect_identical(sample[["n_predictors"]], 4L)
+  expect_identical(sample[["n_learner_columns"]], 4L)
   expect_null(sample[["n_resamples"]])
   expect_identical(rev_iris@class_counts[["training"]], rep(40L, 3L))
   expect_identical(rev_iris@class_counts[["test"]], rep(10L, 3L))
   # The training majority is the first level on a tie; its share of the test
   # set is the baseline accuracy.
   expect_equal(.base(rev_iris, "accuracy", "baseline"), 1 / 3)
+  expect_identical(.base(rev_iris, "accuracy", "reference"), "majority_class")
+  expect_identical(.base(rev_iris, "accuracy", "method"), "exact_mcnemar")
   expect_equal(.base(rev_iris, "balanced_accuracy", "baseline"), 1 / 3)
+  expect_identical(.base(rev_iris, "balanced_accuracy", "reference"), "chance")
   expect_identical(.base(rev_iris, "accuracy", "outcome"), "better")
+})
+
+test_that("accuracy against the majority class uses the paired McNemar test", {
+  y <- mod_iris@y_test
+  majority <- levels(y)[[1L]]
+  test <- review_mcnemar(
+    mod_iris@predicted_test == y,
+    y == majority
+  )
+  expect_equal(.base(rev_iris, "accuracy", "p_value"), test[["p_value"]])
+  expect_match(
+    .finding(rev_iris, "BASELINE_ACCURACY")@message,
+    "exact McNemar",
+    fixed = TRUE
+  )
 })
 
 test_that("a model clearly better than its baseline gets notes, not warnings", {
@@ -186,17 +249,20 @@ test_that("a model clearly better than its baseline gets notes, not warnings", {
 })
 
 test_that("min_cases_per_predictor decides FEW_CASES_PER_PREDICTOR", {
-  # 40 cases in the smallest class over 4 predictors is exactly 10.
+  # 40 cases in the smallest class over 4 learner columns is exactly 10.
   expect_false("FEW_CASES_PER_PREDICTOR" %in% review_codes(rev_iris))
   stricter <- review(mod_iris, min_cases_per_predictor = 10.5)
   expect_true(all(
     c("FEW_CASES_PER_PREDICTOR", "PRESELECTION_RISK") %in%
       review_codes(stricter)
   ))
+  few <- .finding(stricter, "FEW_CASES_PER_PREDICTOR")
+  expect_identical(few@severity, "note")
+  expect_match(few@message, "rule of thumb", fixed = TRUE)
   expect_identical(stricter@min_cases_per_predictor, 10.5)
 })
 
-test_that("review() validates its settings", {
+test_that("review() validates its settings and draws no random numbers", {
   expect_error(
     review(mod_iris, confidence_level = 1),
     class = "rtemis_input_error"
@@ -205,6 +271,15 @@ test_that("review() validates its settings", {
     review(mod_iris, min_cases_per_predictor = 0),
     class = "rtemis_input_error"
   )
+  set.seed(1)
+  before <- .Random.seed
+  review(mod_iris)
+  expect_identical(.Random.seed, before)
+})
+
+test_that("an unrounded confidence level is printed as given", {
+  out <- repr(review(mod_iris, confidence_level = 0.999), output_type = "plain")
+  expect_match(out, "99.9% CI", fixed = TRUE)
 })
 
 test_that("constant predictions and never-predicted classes are found", {
@@ -232,6 +307,76 @@ test_that("constant predictions and never-predicted classes are found", {
   )
 })
 
+test_that("a class absent from the test set leaves balanced accuracy undefined", {
+  mod <- train(
+    iris[idx, ],
+    dat_test = iris[41:50, ],
+    hyperparameters = setup_CART(),
+    verbosity = 0L
+  )
+  out <- review(mod)
+  codes <- review_codes(out)
+  expect_true("ABSENT_TEST_CLASSES" %in% codes)
+  expect_match(
+    .finding(out, "ABSENT_TEST_CLASSES")@message,
+    "'versicolor', 'virginica'",
+    fixed = TRUE
+  )
+  # The model's own metric is unavailable, and the review does not substitute
+  # a different one.
+  expect_true(is.na(.perf(out, "balanced_accuracy", "test")))
+  expect_true(is.na(.perf(out, "balanced_accuracy", "lower")))
+  expect_true(is.na(.base(out, "balanced_accuracy", "model")))
+  expect_false(any(
+    c("BASELINE_BALANCED_ACCURACY", "TEST_PRECISION") %in% codes
+  ))
+  # Every test case is setosa, so identical predictions say nothing.
+  expect_false("CONSTANT_PREDICTIONS" %in% codes)
+})
+
+test_that("one test case gives no intervals and no constant-prediction finding", {
+  mod <- train(
+    mtcars[1:25, c("wt", "mpg")],
+    dat_test = mtcars[26, c("wt", "mpg")],
+    hyperparameters = setup_GLM(),
+    verbosity = 0L
+  )
+  out <- review(mod)
+  codes <- review_codes(out)
+  expect_false(any(
+    c("TEST_PRECISION", "CONSTANT_PREDICTIONS", "BASELINE_MSE") %in% codes
+  ))
+  expect_true(all(is.na(out@performance[["lower"]])))
+  # R-squared on one case is undefined, not infinite.
+  expect_true(is.na(.perf(out, "rsq", "test")))
+  # Past the model's own description, nothing undefined is printed.
+  printed <- sub("^.*?\n.*?\n", "", repr(out, output_type = "plain"))
+  expect_false(grepl("NA|Inf", printed))
+})
+
+test_that("an AUC without a usable interval gets no verdict", {
+  d <- iris[51:150, c("Petal.Length", "Species")]
+  d[["Species"]] <- factor(d[["Species"]])
+  mod <- train(
+    d[c(1:40, 51:90), ],
+    dat_test = d[c(41:50, 91:100), ],
+    hyperparameters = setup_GLM(),
+    verbosity = 0L
+  )
+  prob <- positive_prob(mod@predicted_prob_test)
+  positive <- mod@y_test == levels(mod@y_test)[[mod@binclasspos]]
+  auc <- review_auc_delong(prob, positive, 0.95)
+  out <- review(mod)
+  expect_identical(
+    is.na(.base(out, "auc", "outcome")),
+    !review_finite(auc)
+  )
+  expect_identical(
+    "BASELINE_AUC" %in% review_codes(out),
+    review_finite(auc)
+  )
+})
+
 test_that("a model without a test set is reported as unassessed", {
   mod <- train(iris, hyperparameters = setup_CART(), verbosity = 0L)
   out <- review(mod)
@@ -256,19 +401,17 @@ test_that("an overfit model on pure noise is flagged and does not beat baseline"
   out <- review(mod)
   gap <- .finding(out, "GENERALIZATION_GAP")
   expect_identical(gap@severity, "warning")
+  # An observation with possible explanations, not a diagnosis.
+  expect_match(gap@message, "may indicate overfitting", fixed = TRUE)
   # Untuned, so the suggestion is to tune.
   expect_match(gap@suggestion, "^Tune")
-  expect_identical(
-    .finding(out, "BASELINE_BALANCED_ACCURACY")@severity,
-    "warning"
-  )
   expect_false(identical(
     .base(out, "balanced_accuracy", "outcome"),
     "better"
   ))
 })
 
-test_that("p > n is reported, replaces the gap finding, and follows the trait", {
+test_that("p > n is reported alongside, not instead of, other findings", {
   testthat::skip_if_not_installed("glmnet")
   set.seed(2026)
   n <- 60L
@@ -285,28 +428,31 @@ test_that("p > n is reported, replaces the gap finding, and follows the trait", 
   codes <- review_codes(out)
   expect_true(all(c("DIM_P_GT_N", "PRESELECTION_RISK") %in% codes))
   expect_false("FEW_CASES_PER_PREDICTOR" %in% codes)
-  expect_false("GENERALIZATION_GAP" %in% codes)
   expected <- if (isFALSE(algorithm_handles_p_gt_n(mod@algorithm))) {
     "warning"
   } else {
     "note"
   }
   expect_identical(.finding(out, "DIM_P_GT_N")@severity, expected)
-  # Sample and dimensionality findings come before anything else.
-  first_other <- min(which(
-    !codes %in%
-      c(
-        "SINGLE_SPLIT",
-        "TEST_PRECISION",
-        "DIM_P_GT_N",
-        "FEW_CASES_PER_PREDICTOR",
-        "PRESELECTION_RISK"
-      )
-  ))
-  expect_gt(
-    first_other,
-    max(which(codes %in% c("DIM_P_GT_N", "PRESELECTION_RISK")))
+})
+
+test_that("predictor counts follow a partial decomposition", {
+  mod <- train(
+    iris,
+    hyperparameters = setup_CART(),
+    decomposition_config = setup_PCA(
+      k = 1L,
+      features = c("Sepal.Length", "Sepal.Width")
+    ),
+    verbosity = 0L
   )
+  # The learner receives the two retained predictors and one component.
+  expect_identical(length(mod@xnames), 3L)
+  out <- review(mod)
+  expect_identical(out@sample[["n_predictors"]], 4L)
+  expect_identical(out@sample[["n_learner_columns"]], 3L)
+  expect_identical(out@sample[["n_components"]], 1L)
+  expect_equal(out@sample[["cases_per_predictor"]], 50 / 3)
 })
 
 test_that("binary probability comparisons agree with the model's own metrics", {
@@ -332,13 +478,20 @@ test_that("binary probability comparisons agree with the model's own metrics", {
   expect_equal(.base(out, "auc", "model_lower"), auc[[2L]])
   prevalence <- mean(mod@y_training == positive_level)
   y01 <- as.numeric(mod@y_test == positive_level)
-  expect_equal(
-    .base(out, "brier_score", "baseline"),
-    mean((y01 - prevalence)^2)
-  )
+  loss_baseline <- (y01 - prevalence)^2
+  expect_equal(.base(out, "brier_score", "baseline"), mean(loss_baseline))
+  expect_identical(.base(out, "brier_score", "method"), "paired_t")
   expect_equal(
     .base(out, "brier_score", "skill"),
-    1 - overall_test[["brier_score"]] / mean((y01 - prevalence)^2)
+    1 - overall_test[["brier_score"]] / mean(loss_baseline)
+  )
+  expect_equal(
+    c(
+      .base(out, "brier_score", "difference"),
+      .base(out, "brier_score", "difference_lower"),
+      .base(out, "brier_score", "difference_upper")
+    ),
+    review_loss_difference((y01 - prob)^2, loss_baseline, 0.95)
   )
   expect_true(all(c("BASELINE_AUC", "BASELINE_BRIER") %in% review_codes(out)))
 })
@@ -375,12 +528,16 @@ test_that("every review code carries its plain text", {
 
 test_that("repr prints one row per metric, then the baseline and findings", {
   out <- repr(rev_iris, output_type = "plain")
-  expect_lt(regexpr("Performance", out), regexpr("Baseline", out))
-  expect_lt(regexpr("Baseline", out), regexpr("Findings", out))
+  expect_lt(regexpr("Performance", out), regexpr("Baseline comparisons", out))
+  expect_lt(regexpr("Baseline comparisons", out), regexpr("Findings", out))
   expect_lt(regexpr("Findings", out), regexpr("Limitations", out))
+  expect_match(out, "Training - test", fixed = TRUE)
   expect_match(out, "Balanced Accuracy\\s+0\\.\\d{3}\\s+1\\.000\\s+-0\\.\\d{3}")
-  expect_match(out, "SINGLE_SPLIT", fixed = TRUE)
+  # Each comparison names its reference.
+  expect_match(out, "(most common training class)", fixed = TRUE)
+  expect_match(out, "(chance level)", fixed = TRUE)
 })
+
 
 # %% .review_validator ----
 # The generated SupervisedReview schema with the real ReviewFinding schema
@@ -398,8 +555,6 @@ test_that("repr prints one row per metric, then the baseline and findings", {
   finding_schema <- validator(ReviewFinding)
   finding_schema[["properties"]][["$schema"]] <- NULL
   review_schema <- validator(SupervisedReview)
-  # Inline the real finding schema wherever the review references it, so the
-  # findings are checked against their own contract rather than a stand-in.
   inline <- function(node) {
     if (!is.list(node)) {
       return(node)
@@ -411,10 +566,9 @@ test_that("repr prints one row per metric, then the baseline and findings", {
     }
     lapply(node, inline)
   }
-  review_schema <- inline(review_schema)
   jsonvalidate::json_validator(
     jsonlite::toJSON(
-      review_schema,
+      inline(review_schema),
       auto_unbox = TRUE,
       null = "null",
       digits = NA
@@ -439,12 +593,18 @@ test_that("a review record validates against its published schema", {
   validate <- .review_validator()
   doc <- record_object(rev_iris)
   expect_true(validate(.review_json(doc), verbose = TRUE))
-  # Negative cases: a severity or baseline outcome outside its vocabulary.
+  # Negative cases: values outside their vocabularies.
   bad <- doc
   bad[["findings"]][[1L]][["severity"]] <- "fatal"
   expect_false(validate(.review_json(bad)))
   bad <- doc
   bad[["baseline"]][["outcome"]][[1L]] <- "excellent"
+  expect_false(validate(.review_json(bad)))
+  bad <- doc
+  bad[["baseline"]][["method"]][[1L]] <- "bootstrap"
+  expect_false(validate(.review_json(bad)))
+  bad <- doc
+  bad[["baseline"]][["reference"]][[1L]] <- "oracle"
   expect_false(validate(.review_json(bad)))
 })
 
@@ -493,28 +653,65 @@ test_that("a resampled review states fold means and SDs", {
   expect_match(out, "Accuracy\\s+0\\.\\d{3} \\(0\\.\\d{3}\\)")
 })
 
-test_that("pooled out-of-sample estimates are computed from the fold predictions", {
+test_that("a resampled review makes no interval, test or verdict", {
+  # Resamples share training cases; their results are dependent.
+  expect_true(all(is.na(rev_res@performance[["lower"]])))
+  expect_true(all(is.na(rev_res@baseline[["model_lower"]])))
+  expect_true(all(is.na(rev_res@baseline[["difference_lower"]])))
+  expect_true(all(is.na(rev_res@baseline[["p_value"]])))
+  expect_true(all(is.na(rev_res@baseline[["outcome"]])))
+  expect_true(all(rev_res@baseline[["method"]] == "descriptive"))
+  codes <- review_codes(rev_res)
+  expect_true("FOLD_VARIATION" %in% codes)
+  expect_false(any(
+    c(
+      "SINGLE_SPLIT",
+      "NO_TEST_SET",
+      "TEST_PRECISION",
+      "GENERALIZATION_GAP",
+      "BASELINE_ACCURACY",
+      "BASELINE_BALANCED_ACCURACY",
+      "BASELINE_AUC",
+      "BASELINE_BRIER"
+    ) %in%
+      codes
+  ))
+  expect_match(
+    .finding(rev_res, "FOLD_VARIATION")@message,
+    "not independent",
+    fixed = TRUE
+  )
+})
+
+test_that("pooled values are descriptive and exclude AUC", {
   y <- do.call(c, lapply(mod_res@models, function(m) m@y_test))
   predicted <- do.call(c, lapply(mod_res@models, function(m) m@predicted_test))
-  prob <- unlist(lapply(
-    mod_res@models,
-    function(m) positive_prob(m@predicted_prob_test)
-  ))
   expect_equal(.perf(rev_res, "accuracy", "pooled"), mean(y == predicted))
-  expect_equal(.base(rev_res, "accuracy", "model"), mean(y == predicted))
-  positive_level <- levels(y)[[mod_res@models[[1L]]@binclasspos]]
-  pos <- prob[y == positive_level]
-  neg <- prob[y != positive_level]
-  auc <- mean(outer(pos, neg, function(a, b) (a > b) + 0.5 * (a == b)))
-  expect_equal(.perf(rev_res, "auc", "pooled"), auc)
-  # Each resample's baseline comes from its own training cases.
-  baseline <- unlist(lapply(mod_res@models, function(m) {
-    majority <- names(which.max(table(m@y_training)))
-    rep(majority, length(m@y_test))
-  }))
+  expect_true(is.na(.perf(rev_res, "auc", "pooled")))
+})
+
+test_that("each resample is compared with its own baseline", {
+  baseline_accuracy <- vapply(
+    mod_res@models,
+    function(m) {
+      majority <- names(which.max(table(m@y_training)))
+      mean(as.character(m@y_test) == majority)
+    },
+    numeric(1L)
+  )
+  model_accuracy <- vapply(
+    mod_res@models,
+    function(m) m@metrics_test[["overall"]][["accuracy"]],
+    numeric(1L)
+  )
+  expect_equal(.base(rev_res, "accuracy", "baseline"), mean(baseline_accuracy))
   expect_equal(
-    .base(rev_res, "accuracy", "baseline"),
-    mean(as.character(y) == baseline)
+    .base(rev_res, "accuracy", "difference"),
+    mean(model_accuracy - baseline_accuracy)
+  )
+  expect_identical(
+    .base(rev_res, "accuracy", "resamples_better"),
+    sum(model_accuracy > baseline_accuracy)
   )
   better <- sum(vapply(
     mod_res@models,
@@ -527,18 +724,22 @@ test_that("pooled out-of-sample estimates are computed from the fold predictions
   )
 })
 
-test_that("a k-fold review reports variation and pooled precision, not a single split", {
-  codes <- review_codes(rev_res)
-  expect_true(all(
-    c("TEST_PRECISION", "FOLD_VARIATION", "BASELINE_BALANCED_ACCURACY") %in%
-      codes
-  ))
-  expect_false(any(
-    c("SINGLE_SPLIT", "NO_TEST_SET", "OVERLAPPING_TEST_SETS") %in% codes
-  ))
+test_that("resampled AUC is the mean of fold AUCs, unaffected by fold-specific score scales", {
+  # An increasing transformation of one fold's scores leaves that fold's AUC
+  # unchanged; a pooled AUC would change, the mean of fold AUCs does not.
+  transformed <- mod_res
+  models <- transformed@models
+  models[[1L]]@predicted_prob_test <- models[[1L]]@predicted_prob_test^3
+  transformed@models <- models
+  out <- review(transformed)
+  expect_equal(.base(out, "auc", "model"), .base(rev_res, "auc", "model"))
+  expect_equal(
+    .base(rev_res, "auc", "model"),
+    mod_res@metrics_test@mean_metrics[["auc"]]
+  )
 })
 
-test_that("overlapping test sets get no pooled intervals or tested comparisons", {
+test_that("bootstrap resamples count each case once", {
   set.seed(2026)
   n <- 60L
   x1 <- rnorm(n)
@@ -550,17 +751,10 @@ test_that("overlapping test sets get no pooled intervals or tested comparisons",
     verbosity = 0L
   )
   out <- review(mod)
-  codes <- review_codes(out)
-  expect_true(all(c("OVERLAPPING_TEST_SETS", "FOLD_VARIATION") %in% codes))
-  expect_false(any(
-    c("TEST_PRECISION", "BASELINE_MSE", "GENERALIZATION_GAP") %in% codes
-  ))
+  expect_true("FOLD_VARIATION" %in% review_codes(out))
+  # Overlapping test sets: nothing is pooled.
   expect_true(all(is.na(out@performance[["pooled"]])))
-  expect_true(all(is.na(out@performance[["lower"]])))
-  expect_true(all(is.na(out@baseline[["skill_lower"]])))
-  expect_true(all(is.na(out@baseline[["outcome"]])))
   expect_lt(out@sample[["n_test_cases"]], out@sample[["n_test"]])
-  # A bootstrap resample's repeated draws count as one case each.
   unique_cases <- vapply(
     mod@outer_resampler@resamples[mod@resample_ids],
     function(idx) length(unique(idx)),
@@ -581,12 +775,13 @@ test_that("a resampled regression baseline uses each resample's training mean", 
     verbosity = 0L
   )
   out <- review(mod)
-  y <- unlist(lapply(mod@models, function(m) m@y_test))
-  baseline <- unlist(lapply(mod@models, function(m) {
-    rep(mean(m@y_training), length(m@y_test))
-  }))
-  expect_equal(.base(out, "mse", "baseline"), mean((y - baseline)^2))
-  expect_identical(.finding(out, "BASELINE_MSE")@severity, "note")
+  baseline_mse <- vapply(
+    mod@models,
+    function(m) mean((m@y_test - mean(m@y_training))^2),
+    numeric(1L)
+  )
+  expect_equal(.base(out, "mse", "baseline"), mean(baseline_mse))
+  expect_identical(.base(out, "mse", "resamples_better"), 4L)
 })
 
 test_that("a tuned value at an extendable grid edge is reported", {
@@ -616,7 +811,6 @@ test_that("a tuned value at an extendable grid edge is reported", {
 })
 
 test_that("a single-split tuned model states its selected value", {
-  idx <- c(1:40, 51:90, 101:140)
   mod <- train(
     iris[idx, ],
     dat_test = iris[-idx, ],
@@ -630,7 +824,6 @@ test_that("a single-split tuned model states its selected value", {
   )
   expect_identical(.tune(out, "maxdepth", "n_values"), 3L)
 })
-
 
 test_that("a resampled review record validates against its published schema", {
   testthat::skip_if_not_installed("jsonvalidate")

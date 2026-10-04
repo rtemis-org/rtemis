@@ -14,9 +14,9 @@ by \link{train}.}
 interval. NULL uses 0.95.}
 
 \item{min_cases_per_predictor}{Optional Numeric (0, Inf): Training cases per
-predictor -- minority-class cases for classification -- below which the
-review warns. NULL uses 10, the events-per-variable rule of thumb for
-regression models (see References).}
+learner column -- minority-class cases for classification -- below which
+the review notes a shortfall. NULL uses 10, an events-per-variable rule of
+thumb from logistic regression (see References).}
 
 \item{...}{Not used.}
 }
@@ -31,43 +31,58 @@ is deterministic: it draws no random numbers.
 }
 \details{
 The review holds every value it rests on, so a reader can judge for
-themselves: \verb{@sample} (sample sizes and predictors), \verb{@class_counts},
-\verb{@performance} (one row per metric: training, test, their difference, the
-spread over resamples, the pooled value and its interval), \verb{@baseline} (one
-row per comparison with the baseline predictor) and \verb{@tuning} (tuned
-hyperparameters against their search range). Its findings state what it
-concludes. Printing shows a summary: one row per metric -- mean (SD) over
-resamples for a resampled model -- the baseline comparisons, the findings
-and the limitations.
+themselves: \verb{@sample} (sample sizes, input predictors and the columns the
+learner received), \verb{@class_counts}, \verb{@performance} (one row per metric:
+training, test, training minus test, the spread over resamples, and the
+test interval or pooled value), \verb{@baseline} (one row per comparison with a
+reference that ignores the predictors, naming the reference and the method)
+and \verb{@tuning} (tuned hyperparameters against their search range). Its
+findings state what it observes. Printing shows a summary: one row per
+metric -- mean (SD) over resamples for a resampled model -- the baseline
+comparisons, the findings and the limitations.
 
-The baseline predicts the most common training class (classification) or
-the training mean (regression) for every test case. Intervals are analytic:
-Clopper-Pearson for proportions, per-class binomial variances for balanced
-accuracy, the DeLong method for AUC, and t intervals for mean losses and for paired
-loss differences against the baseline. A model is called better than the
-baseline when the lower end of its interval clears the baseline. Overfitting
-is reported when the training value of the headline metric (balanced
-accuracy, or mean squared error for regression) lies outside its test
-interval: training performance exceeds test performance by more than the
-uncertainty of the test estimate explains.
+\strong{Single split.} The test cases are independent of the fitted model, so
+the review computes confidence intervals and two-sided comparisons at
+\code{confidence_level}. Accuracy is compared with always predicting the most
+common training class by the exact McNemar test, which pairs the two
+predictors' results case by case. Balanced accuracy and AUC are compared
+with their chance levels (1/K, 0.5) through their intervals:
+per-class binomial variances for balanced accuracy, the DeLong method for
+AUC. The Brier score, MSE and MAE are compared with a constant baseline
+(training proportion, training mean) through a paired t interval of the
+per-case loss reduction; the skill score is reported as a point estimate.
+An interval that cannot be computed -- too few cases, a class absent from
+the test set, an AUC of 0 or 1 -- is left unset and no verdict is made from
+it. A training value of the headline metric (balanced accuracy, or mean
+squared error for regression) outside its test interval is reported as a
+diagnostic sign of possible overfitting; it is not a test of the
+train-test difference.
 
-For a resampled model, every metric is reported as its mean and standard
-deviation over the outer resamples. The out-of-sample predictions of all
-resamples are pooled for intervals and baseline comparisons, with the
-baseline of each resample fit to its own training data. Pooling requires
-each case to be tested once, as with k-fold resampling; when test sets
-overlap, as with repeated or bootstrap resampling, no pooled interval is
-computed and the review reports the variation between resamples instead.
+\strong{Resampled models.} Resamples share training cases, so their test
+results are dependent, and the review makes no interval or test from them.
+Every metric is reported as its mean and standard deviation over the outer
+resamples, each baseline is fit to the training data of its resample, and
+the review counts the resamples in which the model beat its baseline. When
+every case is tested once, as with k-fold resampling, pooled out-of-sample
+values are reported as descriptions for metrics that average over cases;
+AUC is not pooled, since it would rank scores from different fitted models
+together.
+
 A tuned hyperparameter selected at the edge of the values searched is
 reported, since a better value may lie beyond it.
 
-The number of predictors counts input columns, or decomposition components
-when a decomposition precedes the learner. A categorical predictor counts
-once, so this is a lower bound on the number of encoded columns.
+The cases-per-predictor check counts the columns the learner received,
+after preprocessing and decomposition. Its threshold is a rule of thumb from
+logistic regression (events per variable; see References), reported for
+context rather than as a sample-size requirement for every algorithm.
 
-Performance metrics cannot establish whether a model is useful, and the
-fitted model cannot show leakage that happened before training; every
-review states both.
+Preprocessing, decomposition and tuning inside \code{train()} are fitted on the
+training cases of each split and only applied to its test cases. Steps
+taken before the data is passed to \code{train()} -- selecting predictors or
+transforming cases using all the data, or choosing among models by their
+test performance -- can bias evaluation, and the fitted model cannot show
+whether they happened. Performance metrics also cannot establish whether a
+model is useful. Every review states both.
 }
 \examples{
 idx <- c(1:40, 51:90, 101:140)
@@ -95,6 +110,9 @@ illustrated in the case of the binomial. Biometrika, 26(4), 404-413.
 DeLong ER, DeLong DM, Clarke-Pearson DL (1988). Comparing the areas under
 two or more correlated receiver operating characteristic curves: a
 nonparametric approach. Biometrics, 44(3), 837-845.
+
+McNemar Q (1947). Note on the sampling error of the difference between
+correlated proportions or percentages. Psychometrika, 12(2), 153-157.
 
 Peduzzi P, Concato J, Kemper E, Holford TR, Feinstein AR (1996). A
 simulation study of the number of events per variable in logistic regression

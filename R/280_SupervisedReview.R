@@ -31,7 +31,7 @@ REVIEW_CODES <- c(
   "NO_TEST_SET",
   "SINGLE_SPLIT",
   "TEST_PRECISION",
-  "OVERLAPPING_TEST_SETS",
+  "ABSENT_TEST_CLASSES",
   "FOLD_VARIATION",
   "DIM_P_GT_N",
   "FEW_CASES_PER_PREDICTOR",
@@ -58,15 +58,38 @@ REVIEW_SEVERITIES <- c("warning", "note")
 # "worse", and an interval containing the baseline is "indistinguishable".
 REVIEW_BASELINE_OUTCOMES <- c("better", "worse", "indistinguishable")
 
+# %% REVIEW_BASELINE_REFERENCES ----
+# What a baseline comparison is against: the most common training class, the
+# chance level of a metric (1/K for balanced accuracy, 0.5 for AUC), the
+# training proportion of the positive class as a constant probability, or the
+# training mean.
+REVIEW_BASELINE_REFERENCES <- c(
+  "majority_class",
+  "chance",
+  "training_prevalence",
+  "training_mean"
+)
+
+# %% REVIEW_BASELINE_METHODS ----
+# How a comparison was made: the exact McNemar test of paired correctness, the
+# metric's confidence interval against a fixed reference, a paired t interval
+# of the per-case loss reduction, or a description without inference.
+REVIEW_BASELINE_METHODS <- c(
+  "exact_mcnemar",
+  "interval_vs_reference",
+  "paired_t",
+  "descriptive"
+)
+
 # %% REVIEW_PLAIN ----
 # The plain-language text for each code, written by hand for a reader with no
 # statistics background. It says what the check is about and why it matters;
 # the values are in the review's tables and the technical account in the message.
 REVIEW_PLAIN <- c(
   NO_TEST_SET = paste0(
-    "The model was evaluated only on the cases it was trained on. Performance ",
-    "on training cases overstates performance on new cases, so it says little ",
-    "about how the model will generalize."
+    "The model was evaluated only on the cases it was trained on. ",
+    "Performance on training cases usually overstates performance on new ",
+    "cases, so it says little about how the model will generalize."
   ),
   SINGLE_SPLIT = paste0(
     "The data was split once into training and test cases. A different split ",
@@ -77,40 +100,40 @@ REVIEW_PLAIN <- c(
   TEST_PRECISION = paste0(
     "Performance measured on a limited number of test cases is an estimate. ",
     "The confidence interval shows the range of performance consistent with ",
-    "the test results; fewer test cases give a wider interval."
+    "the test results; other things equal, fewer test cases give a wider ",
+    "interval."
   ),
-  OVERLAPPING_TEST_SETS = paste0(
-    "Some cases were tested more than once, as with repeated or bootstrap ",
-    "resampling. Repeated predictions of the same case are not independent, ",
-    "so no confidence interval is computed from them; the review reports how ",
-    "much performance varies between resamples instead."
+  ABSENT_TEST_CLASSES = paste0(
+    "Some outcome classes have no test cases, so performance on those ",
+    "classes, and metrics that average over every class, cannot be assessed."
   ),
   FOLD_VARIATION = paste0(
     "The data was split several times, each time training on one part and ",
     "testing on the rest. The variation in performance between splits shows ",
     "how much the estimate depends on which cases were used for training and ",
-    "testing."
+    "testing. The splits share training cases, so their results are not ",
+    "independent and are described rather than tested."
   ),
   DIM_P_GT_N = paste0(
-    "The model uses more predictors than there are training cases. In this ",
-    "situation a model can fit the training cases almost perfectly even when ",
-    "the predictors carry no information about the outcome, so only ",
+    "The model received more predictors than there are training cases. In ",
+    "this situation a model can fit the training cases almost perfectly even ",
+    "when the predictors carry no information about the outcome, so only ",
     "performance on held-out cases is informative."
   ),
   FEW_CASES_PER_PREDICTOR = paste0(
-    "There are few training cases for each predictor. With so little data ",
-    "per predictor, a model readily fits patterns that occur by chance and do ",
-    "not hold in new cases."
+    "There are few training cases for each predictor. With little data per ",
+    "predictor, a model can fit patterns that occur by chance and do not hold ",
+    "in new cases. The threshold is a rule of thumb, not a requirement."
   ),
   PRESELECTION_RISK = paste0(
     "With many predictors and few cases, predictors are often selected before ",
-    "training. If that selection used all the cases, the test cases ",
-    "influenced the model and every performance estimate is optimistic. ",
-    "Selection has to use the training cases only."
+    "modeling. Selection done by rtemis as part of training uses the training ",
+    "cases only; selection done on all the data before it was passed to ",
+    "rtemis biases evaluation, and the review cannot determine whether that ",
+    "happened."
   ),
   CONSTANT_PREDICTIONS = paste0(
-    "The model made the same prediction for every test case, so it does not ",
-    "distinguish between cases."
+    "The model made the same prediction for every test case."
   ),
   CLASS_NEVER_PREDICTED = paste0(
     "Some outcome classes occur among the test cases but were never ",
@@ -118,20 +141,21 @@ REVIEW_PLAIN <- c(
     "the common classes maximizes accuracy."
   ),
   BASELINE_ACCURACY = paste0(
-    "Compares the proportion of correct predictions with the proportion ",
-    "obtained by always predicting the most common class in the training ",
-    "data. When one class is much larger than the others, that rule alone is ",
+    "Compares the proportion of correct predictions with that of always ",
+    "predicting the most common class in the training data, case by case. ",
+    "When one class is much larger than the others, that rule alone is ",
     "correct for most cases."
   ),
   BASELINE_BALANCED_ACCURACY = paste0(
     "Balanced accuracy is the average, over classes, of the proportion of ",
     "each class predicted correctly, so a rare class counts as much as a ",
-    "common one. Always predicting the same class gives one divided by the ",
-    "number of classes."
+    "common one. Its chance level, reached by any constant prediction, is one ",
+    "divided by the number of classes."
   ),
   BASELINE_AUC = paste0(
     "AUC measures how well the predicted probabilities rank cases of the ",
-    "positive class above cases of the other class. Random scores give 0.5."
+    "positive class above cases of the other class. Its chance level, ",
+    "reached by random scores, is 0.5."
   ),
   BASELINE_BRIER = paste0(
     "Compares the predicted probabilities with a constant forecast: the ",
@@ -144,10 +168,11 @@ REVIEW_PLAIN <- c(
     "training mean for every case."
   ),
   GENERALIZATION_GAP = paste0(
-    "The model performs better on its training cases than on new cases, by ",
-    "more than the uncertainty of the test estimate explains. This is ",
-    "overfitting: the model has fit patterns specific to its training cases. ",
-    "Constraining model complexity usually reduces it."
+    "The model performs better on its training cases than on held-out cases, ",
+    "by more than the uncertainty of the test estimate explains. This may ",
+    "indicate overfitting -- fitting patterns specific to the training cases ",
+    "-- and differences between the training and test cases may also ",
+    "contribute. Constraining model complexity usually reduces overfitting."
   ),
   TUNING_GRID_EDGE = paste0(
     "The selected value of a tuned hyperparameter was the smallest or largest ",
@@ -167,11 +192,12 @@ REVIEW_LIMITATIONS <- c(
     "performance metrics cannot establish this."
   ),
   paste0(
-    "If any step before training used all the data, including the cases ",
-    "later used for testing -- selecting predictors, choosing preprocessing ",
-    "settings, or removing outliers -- information from those cases leaked ",
-    "into the model and every estimate here is optimistic. The fitted model ",
-    "cannot show whether this happened."
+    "Preprocessing, decomposition and tuning done by rtemis are fitted on the ",
+    "training cases of each split and only applied to its test cases. Steps ",
+    "taken before the data was passed to rtemis -- selecting or filtering ",
+    "predictors, transforming or removing cases using all the data, or ",
+    "choosing among models by their test performance -- can bias evaluation; ",
+    "this review cannot determine whether that happened."
   ),
   paste0(
     "Performance estimates apply to cases from the population the data was ",
@@ -187,7 +213,7 @@ REVIEW_LIMITATIONS <- c(
 #' One finding from `review()`: a stable code, how much it matters, the
 #' technical and plain-language accounts, and a suggestion where one exists.
 #'
-#' @field code Character \{CODES\}:
+#' @field code Character \{"NO_TEST_SET", "SINGLE_SPLIT", "TEST_PRECISION", "ABSENT_TEST_CLASSES", "FOLD_VARIATION", "DIM_P_GT_N", "FEW_CASES_PER_PREDICTOR", "PRESELECTION_RISK", "CONSTANT_PREDICTIONS", "CLASS_NEVER_PREDICTED", "BASELINE_ACCURACY", "BASELINE_BALANCED_ACCURACY", "BASELINE_AUC", "BASELINE_BRIER", "BASELINE_MSE", "GENERALIZATION_GAP", "TUNING_GRID_EDGE"\}:
 #'   Stable identifier for the kind of finding. Permanent once published.
 #' @field severity Character \{"warning", "note"\}: How much the finding
 #'   matters.
@@ -332,7 +358,7 @@ SupervisedReview <- schema_class(
     min_cases_per_predictor = prop_float(
       10,
       exclusive_min = 0,
-      description = "Training cases per predictor (minority-class cases for classification) below which the review warns."
+      description = "Training cases per learner column (minority-class cases for classification) below which the review notes a rule-of-thumb shortfall."
     ),
     sample = prop_state(prop_struct(
       members = list(
@@ -353,11 +379,14 @@ SupervisedReview <- schema_class(
           "Requested outer resamples. Unset for a single split."
         ),
         n_predictors = prop_review_count(
-          "Predictors, counted as input columns before any encoding.",
+          "Input predictors: the training data's columns other than the outcome. Unset when the training data has no fingerprint."
+        ),
+        n_learner_columns = prop_review_count(
+          "Columns the learner received after preprocessing and decomposition: retained predictors plus components, before any encoding inside the algorithm; for resampled models, at the resample with the fewest cases per column.",
           nullable = FALSE
         ),
         n_components = prop_review_count(
-          "Components a decomposition passes to the learner. Unset without a decomposition."
+          "Components the fitted decomposition produced. Unset without a decomposition."
         ),
         decomposition = prop_string(
           NULL,
@@ -367,7 +396,7 @@ SupervisedReview <- schema_class(
         cases_per_predictor = prop_float(
           0,
           min = 0,
-          description = "Training cases (minority-class cases for classification) per predictor seen by the learner, in the smallest training set."
+          description = "Training cases (minority-class cases for classification) per learner column, at the resample with the fewest."
         )
       ),
       required = c(
@@ -377,6 +406,7 @@ SupervisedReview <- schema_class(
         "n_resamples",
         "n_resamples_requested",
         "n_predictors",
+        "n_learner_columns",
         "n_components",
         "decomposition",
         "cases_per_predictor"
@@ -416,13 +446,13 @@ SupervisedReview <- schema_class(
           "Training minus test value (of the means, for resampled models)."
         ),
         pooled = prop_review_value(
-          "Value over all out-of-sample predictions pooled across resamples. Unset for a single split, or when test sets overlap."
+          "Value over all out-of-sample predictions pooled across resamples, descriptive. Set for resampled models whose test sets do not overlap, for metrics that average over cases; unset for AUC, which would rank scores from different fitted models together."
         ),
         lower = prop_review_value(
-          "Lower end of the interval of the out-of-sample estimate (the test value for a single split, the pooled value for resampled models). Unset where no interval is computed."
+          "Lower end of the confidence interval of the test value. Set for a single split only: resamples share training cases, so their results are not independent."
         ),
         upper = prop_review_value(
-          "Upper end of the interval of the out-of-sample estimate."
+          "Upper end of the confidence interval of the test value."
         )
       ),
       min_items = 1L,
@@ -431,42 +461,53 @@ SupervisedReview <- schema_class(
     baseline = prop_state(prop_table(
       columns = list(
         metric = prop_string(description = "Metric compared."),
+        reference = prop_string(
+          enum = REVIEW_BASELINE_REFERENCES,
+          description = "What the model is compared with: 'majority_class' always predicts the most common training class; 'chance' is the metric's chance level (1/K for balanced accuracy, 0.5 for AUC); 'training_prevalence' gives every case the training proportion of the positive class as its probability; 'training_mean' predicts the training mean. For resampled models each resample's reference is fit to its own training data."
+        ),
+        method = prop_string(
+          enum = REVIEW_BASELINE_METHODS,
+          description = "How the comparison was made: 'exact_mcnemar' tests paired correctness; 'interval_vs_reference' compares the metric's confidence interval with the reference; 'paired_t' is a t interval of the per-case loss reduction; 'descriptive' reports values without inference, as for resampled models."
+        ),
         model = prop_review_value(
-          "Model value: the test value for a single split, the pooled out-of-sample value for resampled models."
+          "Model value: the test value for a single split, the mean over resamples otherwise."
         ),
         model_lower = prop_review_value(
-          "Lower end of the interval of the model value. Unset where none is computed."
+          "Lower end of the confidence interval of the model value. Single split only."
         ),
         model_upper = prop_review_value(
-          "Upper end of the interval of the model value."
+          "Upper end of the confidence interval of the model value."
         ),
         baseline = prop_review_value(
-          "Baseline value: the most common training class for classification, the training mean for regression, fit per resample for resampled models."
+          "Reference value: on the test cases for a single split, the mean over resamples otherwise."
+        ),
+        difference = prop_review_value(
+          "Improvement of the model over the reference, positive when it favors the model: model minus reference for accuracy-type metrics, reference loss minus model loss for loss metrics; the mean over resamples for resampled models."
+        ),
+        difference_lower = prop_review_value(
+          "Lower end of the confidence interval of the difference. Set for 'interval_vs_reference' and 'paired_t' comparisons."
+        ),
+        difference_upper = prop_review_value(
+          "Upper end of the confidence interval of the difference."
         ),
         skill = prop_review_value(
-          "Skill score, one minus the model's mean loss over the baseline's. Set for loss metrics only."
-        ),
-        skill_lower = prop_review_value(
-          "Lower end of the interval of the skill score."
-        ),
-        skill_upper = prop_review_value(
-          "Upper end of the interval of the skill score."
+          "Skill score, one minus the model's mean loss over the reference's, as a point estimate. Loss metrics only."
         ),
         p_value = prop_review_value(
-          "One-sided p-value of the model exceeding the baseline. Set for accuracy only."
+          "Two-sided p-value of the exact McNemar test. 'exact_mcnemar' comparisons only."
         ),
         outcome = prop_string(
           NULL,
           enum = REVIEW_BASELINE_OUTCOMES,
           nullable = TRUE,
-          description = "How the model compares with the baseline, read from the interval. Unset where the comparison is not tested."
+          description = "Two-sided verdict at the review's confidence level. Unset when no inference is made or the interval is unavailable."
         ),
         resamples_better = prop_review_count(
-          "Resamples whose test value beats their own baseline. Set for the headline metric of resampled models."
+          "Resamples whose model value beats their own reference. Resampled models only."
         )
       ),
       nullable = TRUE,
-      description = "One row per comparison with the baseline. Unset without a test set."
+      description = "One row per comparison with a reference that ignores the predictors. Unset without a test set."
     )),
     tuning = prop_state(prop_table(
       columns = list(
@@ -596,60 +637,58 @@ review_sample_line <- function(x) {
       " training cases per resample"
     )
   } else if (!is.null(s[["n_test"]])) {
-    paste0(s[["n_training"]], " training and ", s[["n_test"]], " test cases")
+    paste0(
+      s[["n_training"]],
+      " training and ",
+      s[["n_test"]],
+      ngettext(s[["n_test"]], " test case", " test cases")
+    )
   } else {
     paste0(s[["n_training"]], " training cases, no test set")
   }
+  columns <- s[["n_learner_columns"]]
+  # The learner's columns are worth naming only when they differ from the
+  # input predictors: after a decomposition, or when the input is unknown.
+  same <- identical(s[["n_predictors"]], columns) &&
+    is.null(s[["n_components"]])
+  unit <- if (same) "predictor" else "learner column"
   predictors <- paste0(
-    s[["n_predictors"]],
-    ngettext(s[["n_predictors"]], " predictor", " predictors"),
-    if (!is.null(s[["n_components"]])) {
+    if (!is.null(s[["n_predictors"]])) {
       paste0(
-        ", ",
-        s[["n_components"]],
-        " components from ",
-        s[["decomposition"]]
+        s[["n_predictors"]],
+        ngettext(s[["n_predictors"]], " predictor", " predictors"),
+        if (!same) ", "
+      )
+    },
+    if (!same) {
+      paste0(
+        columns,
+        ngettext(columns, " learner column", " learner columns"),
+        if (!is.null(s[["n_components"]])) {
+          paste0(
+            " including ",
+            s[["n_components"]],
+            ngettext(s[["n_components"]], " component", " components"),
+            " from ",
+            s[["decomposition"]]
+          )
+        }
       )
     },
     " (",
     ddSci(s[["cases_per_predictor"]], decimal_places = 1L),
     if (x@type == "Classification") " minority-class" else "",
-    " training cases per predictor)"
+    " training cases per ",
+    unit,
+    ")"
   )
   paste0(cases, "; ", predictors, ".")
 } # /rtemis::review_sample_line
 
 
-# %% review_performance_lines ----
-# One row per metric: training, test, difference; "mean (SD)" when resampled.
-review_performance_lines <- function(x, indent) {
-  p <- x@performance
-  resampled <- !is.null(x@sample[["n_resamples"]])
-  cell <- function(value, sd) {
-    if (resampled && !is.na(value)) {
-      paste0(fmt_review_cell(value), " (", fmt_review_cell(sd), ")")
-    } else {
-      fmt_review_cell(value)
-    }
-  }
-  rows <- lapply(seq_len(NROW(p)), function(i) {
-    c(
-      label_metrics(p[["metric"]][[i]]),
-      cell(p[["training"]][[i]], p[["training_sd"]][[i]]),
-      cell(p[["test"]][[i]], p[["test_sd"]][[i]]),
-      fmt_review_cell(p[["difference"]][[i]])
-    )
-  })
-  has_test <- !all(is.na(p[["test"]]))
-  header <- if (has_test) {
-    c("", "Training", "Test", "Difference")
-  } else {
-    c("", "Training", "", "")
-  }
-  table <- do.call(rbind, c(list(header), rows))
-  if (!has_test) {
-    table <- table[, 1:2, drop = FALSE]
-  }
+# %% review_text_table ----
+# Left-align the first column, right-align the rest, two spaces apart.
+review_text_table <- function(table, indent) {
   widths <- apply(table, 2L, function(col) max(nchar(col)))
   apply(table, 1L, function(row) {
     cells <- vapply(
@@ -664,21 +703,68 @@ review_performance_lines <- function(x, indent) {
       paste0("  ", cells, collapse = "")
     )
   })
+} # /rtemis::review_text_table
+
+
+# %% review_performance_lines ----
+# One row per metric: training, test, training minus test; "mean (SD)" when
+# resampled.
+review_performance_lines <- function(x, indent) {
+  p <- x@performance
+  resampled <- !is.null(x@sample[["n_resamples"]])
+  cell <- function(value, sd) {
+    if (resampled && !is.na(value) && !is.na(sd)) {
+      paste0(fmt_review_cell(value), " (", fmt_review_cell(sd), ")")
+    } else {
+      fmt_review_cell(value)
+    }
+  }
+  has_test <- !all(is.na(p[["test"]]))
+  rows <- lapply(seq_len(NROW(p)), function(i) {
+    c(
+      label_metrics(p[["metric"]][[i]]),
+      cell(p[["training"]][[i]], p[["training_sd"]][[i]]),
+      if (has_test) {
+        c(
+          cell(p[["test"]][[i]], p[["test_sd"]][[i]]),
+          fmt_review_cell(p[["difference"]][[i]])
+        )
+      }
+    )
+  })
+  header <- if (has_test) {
+    c("", "Training", "Test", "Training - test")
+  } else {
+    c("", "Training")
+  }
+  review_text_table(do.call(rbind, c(list(header), rows)), indent)
 } # /rtemis::review_performance_lines
 
 
+# %% REVIEW_REFERENCE_TEXT ----
+# How each baseline reference reads in a printed summary.
+REVIEW_REFERENCE_TEXT <- c(
+  majority_class = "most common training class",
+  chance = "chance level",
+  training_prevalence = "training proportion as probability",
+  training_mean = "training mean"
+)
+
+
 # %% review_baseline_lines ----
-# One line per comparison: model against baseline, the interval, the outcome.
+# One line per comparison: model against its reference, the interval, the
+# verdict or, for resampled models, the resamples where the model did better.
 review_baseline_lines <- function(x, indent) {
   b <- x@baseline
-  level <- paste0(round(x@confidence_level * 100), "% CI ")
+  level <- fmt_review_level(x@confidence_level)
   interval <- function(lower, upper) {
-    if (is.na(lower)) {
+    if (is.na(lower) || is.na(upper)) {
       ""
     } else {
       paste0(
         " (",
         level,
+        " CI ",
         fmt_review_cell(lower),
         " to ",
         fmt_review_cell(upper),
@@ -686,8 +772,10 @@ review_baseline_lines <- function(x, indent) {
       )
     }
   }
+  # A comparison with neither value defined has nothing to print.
+  shown <- which(!(is.na(b[["model"]]) & is.na(b[["baseline"]])))
   vapply(
-    seq_len(NROW(b)),
+    shown,
     function(i) {
       paste0(
         indent,
@@ -698,26 +786,32 @@ review_baseline_lines <- function(x, indent) {
         interval(b[["model_lower"]][[i]], b[["model_upper"]][[i]]),
         " vs ",
         fmt_review_cell(b[["baseline"]][[i]]),
-        if (!is.na(b[["skill"]][[i]])) {
+        " (",
+        REVIEW_REFERENCE_TEXT[[b[["reference"]][[i]]]],
+        ")",
+        if (b[["method"]][[i]] == "paired_t") {
           paste0(
-            ", skill ",
-            fmt_review_cell(b[["skill"]][[i]]),
-            interval(b[["skill_lower"]][[i]], b[["skill_upper"]][[i]])
+            "; loss reduction ",
+            fmt_review_cell(b[["difference"]][[i]]),
+            interval(b[["difference_lower"]][[i]], b[["difference_upper"]][[i]])
           )
         },
         if (!is.na(b[["p_value"]][[i]])) {
-          paste0(", p = ", ddSci(b[["p_value"]][[i]], decimal_places = 3L))
+          paste0(
+            "; McNemar p = ",
+            ddSci(b[["p_value"]][[i]], decimal_places = 3L)
+          )
         },
         if (!is.na(b[["outcome"]][[i]])) {
           paste0(": ", b[["outcome"]][[i]])
         },
         if (!is.na(b[["resamples_better"]][[i]])) {
           paste0(
-            "; ",
+            "; better in ",
             b[["resamples_better"]][[i]],
             " of ",
             x@sample[["n_resamples"]],
-            " resamples better"
+            " resamples"
           )
         }
       )
@@ -731,8 +825,8 @@ review_baseline_lines <- function(x, indent) {
 #' repr SupervisedReview
 #'
 #' A summary: the sample in one sentence, one row per metric, one line per
-#' baseline comparison, the findings and the limitations. Every value behind
-#' them is on the object.
+#' baseline comparison, the tuned hyperparameters, the findings and the
+#' limitations. Every value behind them is on the object.
 #'
 #' @author EDG
 #' @keywords internal
@@ -778,22 +872,15 @@ method(repr, SupervisedReview) <- function(x, pad = 0L, output_type = NULL) {
 
   # Baseline ----
   if (!is.null(x@baseline)) {
-    predictor <- if (x@type == "Classification") {
-      if (resampled) {
-        "always predicting the most common class in each resample's training data"
-      } else {
-        "always predicting the most common class in the training data"
-      }
-    } else {
-      if (resampled) {
-        "predicting the mean outcome of each resample's training data"
-      } else {
-        "predicting the mean outcome of the training data"
-      }
-    }
     out <- paste0(
       out,
-      heading(paste0("Baseline: ", predictor)),
+      heading(
+        if (resampled) {
+          "Baseline comparisons, mean over resamples"
+        } else {
+          "Baseline comparisons"
+        }
+      ),
       paste(review_baseline_lines(x, indent), collapse = "\n"),
       "\n"
     )
@@ -830,17 +917,7 @@ method(repr, SupervisedReview) <- function(x, pad = 0L, output_type = NULL) {
       },
       character(1L)
     )
-    out <- paste0(
-      out,
-      heading("Tuning"),
-      paste(
-        lines,
-        collapse = "
-"
-      ),
-      "
-"
-    )
+    out <- paste0(out, heading("Tuning"), paste(lines, collapse = "\n"), "\n")
   }
 
   # Findings ----
