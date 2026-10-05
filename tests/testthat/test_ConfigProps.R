@@ -15,6 +15,8 @@
   UMAP = UMAPConfig,
   tSNE = tSNEConfig,
   Isomap = IsomapConfig,
+  MDS = MDSConfig,
+  PCoA = PCoAConfig,
   Autoencoder = AutoencoderConfig,
   VariationalAutoencoder = VariationalAutoencoderConfig
 )
@@ -50,6 +52,11 @@ test_that("decomposition config validators enforce bounds and enums", {
   expect_error(setup_UMAP(metric = "chebyshev"))
   expect_no_error(setup_tSNE(theta = 1)) # inclusive max
   expect_error(setup_tSNE(theta = 1.5))
+  # Dataset-level vegdist methods are left out of the shared vocabulary.
+  expect_error(setup_PCoA(dist_method = "gower"))
+  expect_error(setup_MDS(dist_method = "mahalanobis"))
+  expect_error(setup_MDS(model = "hybrid"))
+  expect_error(setup_MDS(nstart = 0L))
   expect_error(setup_Autoencoder(validation_fraction = 1)) # exclusive max
   expect_error(setup_Autoencoder(loss = "cross_entropy")) # not a reconstruction
   expect_error(setup_Autoencoder(hidden_units = integer()))

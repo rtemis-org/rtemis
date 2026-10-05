@@ -65,7 +65,7 @@ method(cluster_, HOPACHConfig) <- function(
   )
   # `hopach()` returns a bare list, so there is no class to check. Assert the
   # structure `clustpredict_HOPACH()` reads instead, so a backend that changes
-  # its return shape fails here rather than one function later.
+  # its return shape fails here.
   if (!is.list(clust) || is.null(clust[["clustering"]][["labels"]])) {
     rtemis.core::abort(
       "hopach::hopach() did not return a clustering.",
@@ -89,7 +89,7 @@ method(cluster_, HOPACHConfig) <- function(
 # %% cluster_k.HOPACHConfig ----
 # `hopach()` reports the size of the level it selected, which is the fitted
 # count. Its labels are level-path codes remapped by `clustpredict_HOPACH()`,
-# so counting them would be counting the remapping rather than the fit.
+# so their count describes the remapping.
 #
 #' @keywords internal
 #' @noRd
@@ -106,7 +106,7 @@ method(cluster_k, HOPACHConfig) <- function(config, clust) {
 #' @noRd
 clustpredict_HOPACH <- function(clust, newdata = NULL) {
   # HOPACH fits a tree over the training elements and exposes no way to place
-  # an unseen case in it, so new data is refused rather than silently ignored.
+  # an unseen case in it, so new data is refused.
   if (!is.null(newdata)) {
     rtemis.core::abort(
       "HOPACH cannot assign new data to fitted clusters.",
@@ -116,8 +116,8 @@ clustpredict_HOPACH <- function(clust, newdata = NULL) {
   labels <- clust[["clustering"]][["labels"]]
   # HOPACH labels encode a path down the tree (11, 21, 211, ...) and arrive as
   # numeric or integer depending on the depth reached, so they are neither 1:k
-  # nor of the type `Clustering@clusters` declares. `unique()` rather than
-  # `sort(unique())`: HOPACH orders its clusters, and label order is that
-  # ordering, which sorting would discard.
+  # nor of the type `Clustering@clusters` declares. `unique()` keeps label
+  # order, which is HOPACH's ordering of its clusters; sorting would discard
+  # it.
   as.integer(match(labels, unique(labels)))
 } # /rtemis::clustpredict_HOPACH

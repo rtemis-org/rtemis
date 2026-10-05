@@ -12,12 +12,6 @@
 # vocabularies, and the serialization helpers all live in `065_Torch.R` and know
 # nothing about this algorithm. What is here is the MLP itself: how the hidden
 # widths are decided, how the design frame becomes tensors, and the module.
-#
-# Inside the module, a field is **read** with `[[` and **written** with `$`.
-# Both halves matter: `$<-` on an `nn_module` is what registers a submodule or a
-# parameter with torch, and `[[<-` would bypass that; `$` on the read side reads
-# to static analysis as a call to a free function of the field's name, which
-# `object_usage_linter` reports as an unbound global.
 
 # %% mlp_ramp ----
 #' Interpolate a layer width linearly over `n` layers
@@ -47,18 +41,14 @@ mlp_ramp <- function(from, to, n) {
 # %% mlp_shape_units ----
 #' Generate hidden layer widths from a shape
 #'
-#' Every shape returns **exactly** `layers` widths. The reference implementation
-#' does not: it composes its segments and then warns that "layer count does not
-#' match" for `long_funnel`, `diamond`, `hexagon` and `stairs`. A resolver that
-#' silently returns the wrong depth under a tuner is a bad failure mode, so the
-#' segments here are sized to sum to `layers` by construction.
+#' Every shape returns **exactly** `layers` widths: the segments are sized to
+#' sum to `layers` by construction, for `long_funnel`, `diamond`, `hexagon` and
+#' `stairs` as for the rest.
 #'
 #' The narrowest generated layer is `max_units / layers`, not the network's
-#' output width. Tapering to the output width is what the reference does, and it
-#' puts a one-unit layer at the bottom of every regression funnel and a
-#' `n_classes`-unit layer at the bottom of every classification funnel -- a
-#' bottleneck rather than a taper. The chosen floor reproduces the common
-#' hand-written pattern instead: two layers from 200 give `200, 100`.
+#' output width, so a funnel tapers without a one-unit bottleneck. The floor
+#' reproduces the common hand-written pattern: two layers from 200 give
+#' `200, 100`.
 #'
 #' @param shape Character: One of `MLP_SHAPES`.
 #' @param layers Integer: Number of hidden layers.
@@ -156,15 +146,10 @@ mlp_hidden_units <- function(
     )
     return(as.integer(hidden_units))
   }
-  shape <- shape %||% "funnel"
-  layers <- as.integer(shape_layers %||% 3L)
-  # Four times the input width, held between 64 and 512, and never below the
-  # input width itself -- the floor the reference implementation also applies.
-  # The multiplier and the bounds are a judgment call, not a result.
-  max_units <- as.integer(
-    shape_max_units %||%
-      max(as.integer(in_feat), min(512L, max(64L, 4L * in_feat)))
-  )
+  settings <- mlp_shape_settings(shape, shape_layers, shape_max_units, in_feat)
+  shape <- settings[["shape"]]
+  layers <- settings[["shape_layers"]]
+  max_units <- settings[["shape_max_units"]]
   units <- mlp_shape_units(shape, layers, max_units, in_feat)
   msg0(
     "Hidden layers, generated from shape '",
@@ -180,6 +165,68 @@ mlp_hidden_units <- function(
   )
   units
 } # /rtemis::mlp_hidden_units
+
+
+# %% mlp_shape_settings ----
+#' The shape settings that generate hidden widths, with unset ones resolved
+#'
+#' An unset shape is "funnel" with 3 layers, and an unset maximum width is
+#' four times the input width, held between 64 and 512 and never below the
+#' input width.
+#'
+#' @param shape Character or NULL: Profile.
+#' @param shape_layers Integer or NULL: Layers.
+#' @param shape_max_units Integer or NULL: Widest layer.
+#' @param in_feat Integer: Encoded input width.
+#'
+#' @return Named list with `shape`, `shape_layers` and `shape_max_units`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+mlp_shape_settings <- function(shape, shape_layers, shape_max_units, in_feat) {
+  list(
+    shape = shape %||% "funnel",
+    shape_layers = as.integer(shape_layers %||% 3L),
+    shape_max_units = as.integer(
+      shape_max_units %||%
+        max(as.integer(in_feat), min(512L, max(64L, 4L * in_feat)))
+    )
+  )
+} # /rtemis::mlp_shape_settings
+
+
+# %% torch_optimizer_defaults ----
+#' torch's defaults for the optimizer settings an MLP leaves unset
+#'
+#' Read from the optimizer constructor's formals, so they are the values the
+#' installed torch applies.
+#'
+#' @param optimizer Character: One of `TORCH_OPTIMIZERS`.
+#'
+#' @return Named list with `beta1`, `beta2`, `eps` and `momentum`; an entry is
+#'   NULL where the optimizer has no such setting.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+torch_optimizer_defaults <- function(optimizer) {
+  constructor <- switch(
+    optimizer,
+    adamw = torch::optim_adamw,
+    adam = torch::optim_adam,
+    sgd = torch::optim_sgd,
+    rmsprop = torch::optim_rmsprop
+  )
+  defaults <- formals(constructor)
+  betas <- eval(defaults[["betas"]])
+  list(
+    beta1 = if (length(betas) == 2L) betas[[1L]],
+    beta2 = if (length(betas) == 2L) betas[[2L]],
+    eps = eval(defaults[["eps"]]),
+    momentum = eval(defaults[["momentum"]])
+  )
+} # /rtemis::torch_optimizer_defaults
 
 
 # %% mlp_embedding_dim ----
@@ -230,7 +277,7 @@ mlp_matrix <- function(dat, columns, mode) {
 # %% mlp_inputs ----
 #' Build the module's input tensors from a design frame
 #'
-#' The categorical tensor is omitted rather than passed empty when there are no
+#' The categorical tensor is omitted when there are no
 #' categorical features, so the module's `forward` is called with one argument
 #' and the dataloader carries one tensor fewer.
 #'
@@ -361,37 +408,37 @@ mlp_module <- function(
       input_dropout,
       embedding_dropout
     ) {
-      self$n_numeric <- n_numeric
-      self$n_categorical <- length(embedding_sizes)
-      self$n_layers <- length(hidden_units)
-      self$norm_first <- norm_first
-      self$residual <- residual
+      self[["n_numeric"]] <- n_numeric
+      self[["n_categorical"]] <- length(embedding_sizes)
+      self[["n_layers"]] <- length(hidden_units)
+      self[["norm_first"]] <- norm_first
+      self[["residual"]] <- residual
       if (self[["n_categorical"]] > 0L) {
-        self$embeddings <- torch::nn_module_list(lapply(
+        self[["embeddings"]] <- torch::nn_module_list(lapply(
           seq_along(embedding_sizes),
           function(i) {
             torch::nn_embedding(embedding_sizes[[i]], embedding_dims[[i]])
           }
         ))
       }
-      self$embedding_dropout <- torch::nn_dropout(embedding_dropout)
-      self$input_dropout <- torch::nn_dropout(input_dropout)
+      self[["embedding_dropout"]] <- torch::nn_dropout(embedding_dropout)
+      self[["input_dropout"]] <- torch::nn_dropout(input_dropout)
       widths <- c(n_numeric + sum(embedding_dims), hidden_units)
-      self$linears <- torch::nn_module_list(lapply(
+      self[["linears"]] <- torch::nn_module_list(lapply(
         seq_len(self[["n_layers"]]),
         function(i) {
           torch::nn_linear(widths[[i]], widths[[i + 1L]], bias = bias)
         }
       ))
-      self$norms <- torch::nn_module_list(lapply(
+      self[["norms"]] <- torch::nn_module_list(lapply(
         hidden_units,
         function(width) torch_norm_module(norm, width)
       ))
-      self$activations <- torch::nn_module_list(lapply(
+      self[["activations"]] <- torch::nn_module_list(lapply(
         hidden_units,
         function(width) torch_activation_module(activation)
       ))
-      self$dropouts <- torch::nn_module_list(lapply(
+      self[["dropouts"]] <- torch::nn_module_list(lapply(
         hidden_units,
         function(width) torch::nn_dropout(dropout)
       ))
@@ -399,7 +446,7 @@ mlp_module <- function(
       # tapering shape gets a bias-free projection on every layer that changes
       # width. Without it, every shape but `constant` would be a run-time shape
       # error whenever `residual` is set.
-      self$shortcuts <- torch::nn_module_list(lapply(
+      self[["shortcuts"]] <- torch::nn_module_list(lapply(
         seq_len(self[["n_layers"]]),
         function(i) {
           if (!residual || widths[[i]] == widths[[i + 1L]]) {
@@ -409,7 +456,7 @@ mlp_module <- function(
           }
         }
       ))
-      self$head <- torch::nn_linear(
+      self[["head"]] <- torch::nn_linear(
         widths[[length(widths)]],
         out_features,
         bias = bias
@@ -472,8 +519,8 @@ mlp_module <- function(
 # %% mlp_model_module ----
 #' Rebuild a fitted model's module and load its parameters
 #'
-#' The architecture is read off the model rather than off the hyperparameters,
-#' so a model loaded from disk on its own predicts without them.
+#' The architecture is read off the model, so a model loaded from disk predicts
+#' without its hyperparameters.
 #'
 #' @param model `MLPModel` object.
 #'
@@ -845,7 +892,25 @@ method(train_, MLPHyperparameters) <- function(
   # against this one field by field, so a NULL that became a vector reads as
   # `origin: "derived"` with no second property to carry it. The `shape_*`
   # settings stay beside it and say where the widths came from.
+  widths_generated <- is.null(hyperparameters[["hidden_units"]])
   hyperparameters@hidden_units <- hidden_units
+  # The settings rtemis or torch chose for the ones left unset; the shape
+  # settings only when they generated the widths.
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    c(
+      list(loss = loss),
+      if (widths_generated) {
+        mlp_shape_settings(
+          hyperparameters[["shape"]],
+          hyperparameters[["shape_layers"]],
+          hyperparameters[["shape_max_units"]],
+          length(numeric_features) + sum(embedding_dims)
+        )
+      },
+      torch_optimizer_defaults(hyperparameters[["optimizer"]])
+    )
+  )
   list(model = model, preprocessor = prp, hyperparameters = hyperparameters)
 } # /rtemis::train_.MLPHyperparameters
 
@@ -855,7 +920,7 @@ method(train_, MLPHyperparameters) <- function(
 #'
 #' Rebuilds the module from the model's recorded architecture and loads its
 #' stored parameters: a `torch` module cannot be saved, so the model carries
-#' the parameters serialized rather than the live object.
+#' the parameters serialized.
 #'
 #' @param model `MLPModel` object.
 #' @param newdata tabular data: Data to predict on, already through the
@@ -901,7 +966,7 @@ method(predict_super, MLPModel) <- function(
 #' Learning curve of an MLP
 #'
 #' One step is one epoch. `torch_fit()` records both series and the epoch whose
-#' weights were restored, so this is a rename rather than a computation.
+#' weights were restored, so this renames them.
 #'
 #' @param model `MLPModel` object.
 #'
@@ -924,9 +989,8 @@ method(learning_curve_super, MLPModel) <- function(model) {
 # %% varimp_super.MLPModel ----
 #' Get variable importance from an MLP model
 #'
-#' A torch MLP has no native measure of variable importance. Permutation
-#' importance would be the real answer and belongs across algorithms rather than
-#' in one of them.
+#' A torch MLP has no native measure of variable importance; `explain()` gives a
+#' per-feature measure for every algorithm.
 #'
 #' @param model `MLPModel` object.
 #'

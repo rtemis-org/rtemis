@@ -287,7 +287,7 @@ method(
 
   # Data ----
   # Every step below runs against a data.table, so a column is replaced or added
-  # by reference instead of the whole frame being copied. Entry costs one copy
+  # by reference, without copying the whole frame. Entry costs one copy
   # and exit costs none; the caller's structure is restored at the end and their
   # object is never written through.
   #
@@ -335,7 +335,7 @@ method(
       "features...",
       verbosity = verbosity
     )
-    values$remove_features <- config@remove_features
+    values[["remove_features"]] <- config@remove_features
     present <- intersect(names(x), config@remove_features)
     if (length(present) > 0L) {
       data.table::set(x, j = present, value = NULL)
@@ -427,7 +427,7 @@ method(
   # than after them: the weekday and month factors are then one-hot encoded or
   # coded to integers like any other factor, and the year is scaled like any
   # other numeric. It runs *after* the case and feature filters, which judge the
-  # data as it was given rather than what was derived from it.
+  # data as given.
   if (config@add_date_features) {
     msg("Extracting date features...", verbosity = verbosity)
     # Find date columns
@@ -736,7 +736,7 @@ method(
       )
     }
     if (length(learned_levels) > 0L) {
-      values$factor2integer_levels <- learned_levels
+      values[["factor2integer_levels"]] <- learned_levels
     }
   }
 
@@ -856,8 +856,8 @@ method(
       )
 
       # Collect scale and center values
-      values$scale_centers <- attr(x_num_scaled, "scaled:center")
-      values$scale_coefficients <- attr(x_num_scaled, "scaled:scale")
+      values[["scale_centers"]] <- attr(x_num_scaled, "scaled:center")
+      values[["scale_coefficients"]] <- attr(x_num_scaled, "scaled:scale")
 
       # Insert into original dataset
       for (k in seq_along(numeric_names)) {
@@ -889,7 +889,7 @@ method(
       learned_levels[[nm]] <- feature_levels
     }
     if (length(learned_levels) > 0L) {
-      values$one_hot_levels <- learned_levels
+      values[["one_hot_levels"]] <- learned_levels
     }
     # The data.table method assembles a new table, which becomes the working
     # one; it is the native encoder this pipeline exists to reach.
@@ -933,7 +933,7 @@ method(
 
   if (!is.null(dat_validation)) {
     msg("Applying preprocessing to validation data...", verbosity = verbosity)
-    preprocessed$validation <- apply_preprocessor(
+    preprocessed[["validation"]] <- apply_preprocessor(
       preprocessor = Preprocessor(
         config = config,
         preprocessed = list(),
@@ -949,7 +949,7 @@ method(
   }
   if (!is.null(dat_test)) {
     msg("Applying preprocessing to test data...", verbosity = verbosity)
-    preprocessed$test <- apply_preprocessor(
+    preprocessed[["test"]] <- apply_preprocessor(
       preprocessor = Preprocessor(
         config = config,
         preprocessed = list(),
@@ -1510,7 +1510,7 @@ dt_set_one_hot <- function(x, xname = NULL, verbosity = 1L) {
 #' @examples
 #' x <- data.frame(matrix(FALSE, 10, 3))
 #' colnames(x) <- c("Dx1", "Dx2", "Dx3")
-#' x$Dx1[1:3] <- x$Dx2[4:6] <- x$Dx3[7:10] <- TRUE
+#' x[["Dx1"]][1:3] <- x[["Dx2"]][4:6] <- x[["Dx3"]][7:10] <- TRUE
 #' one_hot2factor(x)
 one_hot2factor <- function(x, labels = colnames(x)) {
   if (NCOL(x) == 1) {

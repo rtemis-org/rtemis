@@ -259,27 +259,33 @@ test_that("schema-selected references preserve types and explicit wire identity"
     expect_error(from_wire(invalid, Holder), "declared contract")
   }
   expect_error(
-    prop_schema_choice(prop_string(), list(`test::Config` = identity)),
+    prop_schema_choice(
+      prop_string(),
+      additional_schemas = list(`test::Config` = identity)
+    ),
     "scalar reference"
   )
   expect_error(
     prop_schema_choice(
       prop_collection(Hyperparameters),
-      list(`test::Config` = identity)
+      additional_schemas = list(`test::Config` = identity)
     ),
     "scalar reference"
   )
   expect_error(
     prop_schema_choice(
       prop_object(Hyperparameters),
-      list(`test::Config` = "unknown")
+      additional_schemas = list(`test::Config` = "unknown")
     ),
     "schema_urls|schema URLs"
   )
   expect_error(
     prop_schema_choice(
       prop_object(Hyperparameters),
-      list(`test::Config` = identity, `test::Other` = identity)
+      additional_schemas = list(
+        `test::Config` = identity,
+        `test::Other` = identity
+      )
     ),
     "unique"
   )

@@ -20,7 +20,7 @@ path, algorithm config, and output directory.}
 
 \item{algorithm}{Character: Decomposition algorithm. Not needed when \code{config}
 is supplied, which names its own; an explicit \code{algorithm} that disagrees
-with \code{config} is an error rather than a mislabeled run.}
+with \code{config} is an error.}
 
 \item{config}{DecompositionConfig: Algorithm-specific config. Its \code{features}
 selects the columns of \code{x} to decompose; \code{NULL} selects every numeric column,

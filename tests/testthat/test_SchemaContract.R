@@ -46,6 +46,8 @@
     list(UMAPConfig, "setup_UMAP"),
     list(tSNEConfig, "setup_tSNE"),
     list(IsomapConfig, "setup_Isomap"),
+    list(MDSConfig, "setup_MDS"),
+    list(PCoAConfig, "setup_PCoA"),
     list(AutoencoderConfig, "setup_Autoencoder"),
     list(VariationalAutoencoderConfig, "setup_VariationalAutoencoder")
   ),
@@ -160,8 +162,9 @@
 
 # %% .contract_no_setup ----
 # Registered classes with no `setup_*` and no input form: the furniture of a
-# record, the results classes describing what a run produced, and the findings
-# `validate_config()` reports about a config. Nothing authors one, so none
+# record, the results classes describing what a run produced, the findings
+# `validate_config()` reports about a config, and the reviews `review()` and
+# `ai_review()` report about a trained model. Nothing authors one, so none
 # states a user's intent and none is a config.
 .contract_no_setup <- c(
   "Supervised",
@@ -173,6 +176,7 @@
   "Resampler",
   "Implementation",
   "VariableImportance",
+  "ImportanceMeasure",
   "Provenance",
   "DataFingerprint",
   "DataRef",
@@ -184,7 +188,13 @@
   "ClassificationMetricsRes",
   "Diagnostic",
   "Diagnostics",
-  "DataProfile"
+  "DataProfile",
+  "ReviewFinding",
+  "SupervisedReview",
+  "AIReviewItem",
+  "AISupervisedReview",
+  "WriteupSection",
+  "SupervisedWriteup"
 )
 
 
@@ -469,21 +479,27 @@ test_that("no readOnly schema property is a setup_* formal", {
 # %% .catalog_entries ----
 .catalog_entries <- function(catalog) {
   c(
-    unlist(lapply(catalog$families, `[[`, "algorithms"), recursive = FALSE),
-    catalog$flat_configs
+    unlist(
+      lapply(catalog[["families"]], `[[`, "algorithms"),
+      recursive = FALSE
+    ),
+    catalog[["flat_configs"]]
   )
 }
 
 
 test_that("catalog family discriminators agree with the record writer", {
-  for (family in schema_catalog()$families) {
-    for (leaf in family$algorithms) {
-      expect_identical(family_base(leaf$cls), family$base_class)
+  for (family in schema_catalog()[["families"]]) {
+    for (leaf in family[["algorithms"]]) {
+      expect_identical(family_base(leaf[["cls"]]), family[["base_class"]])
       expect_identical(
-        schema_publication(family_base(leaf$cls))@discriminator,
-        family$discriminator
+        schema_publication(family_base(leaf[["cls"]]))@discriminator,
+        family[["discriminator"]]
       )
-      expect_identical(family_discriminator(leaf$cls), family$discriminator)
+      expect_identical(
+        family_discriminator(leaf[["cls"]]),
+        family[["discriminator"]]
+      )
     }
   }
 })
@@ -543,8 +559,8 @@ test_that("the independent class/setup mapping covers the catalog", {
 test_that("every generated class clause satisfies the config contract", {
   for (entry in .catalog_entries(schema_catalog())) {
     expect_no_error(rtemis.core::assert_config_contract(
-      list(allOf = class_rule_clauses(entry$cls)),
-      id = entry$cls@name
+      list(allOf = class_rule_clauses(entry[["cls"]])),
+      id = entry[["cls"]]@name
     ))
   }
 })
@@ -607,10 +623,157 @@ test_that("every generated class clause satisfies the config contract", {
 }
 
 
+test_that("every hyperparameters leaf declares its primary hyperparameters", {
+  # The writeup's main table and the reporting/v1 artifact read these; each
+  # name is a setting the leaf's schema publishes.
+  family <- schema_catalog()[["families"]][["hyperparameters"]]
+  for (leaf in family[["algorithms"]]) {
+    reporting <- schema_reporting(leaf[["cls"]])
+    expect_false(is.null(reporting), info = leaf[["cls"]]@name)
+    published <- names(
+      .contract_schema(list(
+        cls = leaf[["cls"]],
+        base = family[["base_class"]]
+      ))[[
+        "properties"
+      ]]
+    )
+    expect_true(
+      all(reporting[["primary"]] %in% published),
+      info = leaf[["cls"]]@name
+    )
+  }
+  # Reporting does not inherit.
+  expect_null(schema_reporting(Hyperparameters))
+})
+
+
+test_that("reporting metadata names distinct settings of the class", {
+  expect_error(
+    validate_reporting(list(primary = "not_a_property"), GLMNETHyperparameters),
+    "must be declared settings",
+    class = "rtemis_schema_error"
+  )
+  # Run state is observed by the fit, not a setting.
+  expect_error(
+    validate_reporting(list(primary = "lambda.min"), GLMNETHyperparameters),
+    "must be declared settings",
+    class = "rtemis_schema_error"
+  )
+  expect_error(
+    validate_reporting(
+      list(primary = c("alpha", "alpha")),
+      GLMNETHyperparameters
+    ),
+    "distinct property names",
+    class = "rtemis_schema_error"
+  )
+  expect_error(
+    validate_reporting(list(key = "alpha"), GLMNETHyperparameters),
+    "distinct property names",
+    class = "rtemis_schema_error"
+  )
+  # A matrix of names would publish a nested array.
+  expect_error(
+    validate_reporting(
+      list(primary = matrix(c("alpha", "lambda"), nrow = 1L)),
+      GLMNETHyperparameters
+    ),
+    "distinct property names",
+    class = "rtemis_schema_error"
+  )
+})
+
+
+test_that("a subclass does not inherit its parent's reporting declaration", {
+  parent <- schema_class(
+    name = "ReportingParent",
+    package = "rtemis",
+    properties = list(x = prop_integer(1L, description = "A setting.")),
+    reporting = list(primary = "x")
+  )
+  child <- schema_class(
+    name = "ReportingChild",
+    package = "rtemis",
+    parent = parent
+  )
+  expect_identical(schema_reporting(parent), list(primary = "x"))
+  expect_null(schema_reporting(child))
+})
+
+
+test_that("unset_meaning() reads the whole Unset sentence", {
+  # A decimal point inside the sentence does not end it.
+  expect_identical(
+    unset_meaning(LINADHyperparameters, "lambda"),
+    "Unset uses 0.05."
+  )
+  expect_null(unset_meaning(LINADHyperparameters, "learning_rate"))
+  # A following sentence that begins with a number or a sign is not part of
+  # it.
+  expect_identical(
+    unset_sentence("Penalty. Unset uses 2. 0 removes it, -1 too."),
+    "Unset uses 2."
+  )
+  expect_identical(
+    unset_sentence("Penalty. Unset uses 2. -1 removes it."),
+    "Unset uses 2."
+  )
+  expect_identical(
+    unset_meaning(MARSHyperparameters, "penalty"),
+    "Unset uses 3 when degree is greater than 1 and 2 otherwise."
+  )
+})
+
+
+test_that("every nullable hyperparameter states what unset means", {
+  # A writeup's supplement table prints this sentence for a hyperparameter the
+  # fit left unset. Run state is observed by the run and is exempt.
+  for (entry in .catalog_entries(schema_catalog())) {
+    cls <- entry[["cls"]]
+    ancestors <- vapply(schema_class_ancestors(cls), function(a) a@name, "")
+    if (!"Hyperparameters" %in% ancestors) {
+      next
+    }
+    for (nm in names(cls@properties)) {
+      fields <- get_spec_fields(cls@properties[[nm]])
+      if (
+        is.null(fields) ||
+          !isTRUE(fields[["nullable"]]) ||
+          identical(prop_role(cls@properties[[nm]]), "state")
+      ) {
+        next
+      }
+      expect_false(
+        is.null(unset_meaning(cls, nm)),
+        info = paste0(cls@name, "@", nm, ": ", fields[["description"]])
+      )
+    }
+  }
+})
+
+
+test_that("every class declaring an applies_when gate enforces it", {
+  # A gate is enforced only through `check_applies_when()` in a validator of
+  # the class or an ancestor; a declared gate without one publishes a rule the
+  # R class never checks.
+  for (entry in .catalog_entries(schema_catalog())) {
+    if (!length(applies_when_spec_names(entry[["cls"]]))) {
+      next
+    }
+    enforcing <- Filter(
+      function(k) .spec_driven_validator(schema_native_validator(k)),
+      .validator_classes(entry[["cls"]])
+    )
+    expect_true(length(enforcing) > 0L, info = entry[["cls"]]@name)
+  }
+})
+
+
 test_that("published classes have no opaque native validators", {
   carriers <- unique(unlist(lapply(
     .catalog_entries(schema_catalog()),
-    function(entry) .hand_written_validators(entry$cls)
+    function(entry) .hand_written_validators(entry[["cls"]])
   )))
   expect_length(carriers, 0L)
 })

@@ -1,5 +1,32 @@
 # rtemis news
 
+## 1.4.2
+
+- `setup_PCoA()` configures principal coordinates analysis (classical multidimensional scaling) on a choice of dissimilarities; it applies to new data through Gower's out-of-sample formula, so it can be `train()`'s decomposition step, and does not reconstruct the input.
+- `setup_MDS()` configures metric or nonmetric multidimensional scaling through 'vegan' with multiple starts; it cannot be applied to new data and does not reconstruct the input.
+- `review()` assesses a trained supervised model, single-split or resampled: it reports sample sizes, every training and test metric, and comparisons with a baseline predictor, with confidence intervals and tests for a single split and a description of the variation between resamples for a resampled model, then notes small samples, many predictors, and signs of overfitting.
+- `ai_review()` asks a language model, through 'rtemis.llm', to write a summary, evaluation, next steps and caveats from a `review()`, statements citing the review's finding codes, checked against the review; the result keeps the review and records the model, settings, prompt and a hash of the review.
+- A fitted model records the value its backend chose for a hyperparameter left unset, so the model and its record state every value the fit used: for example `mtry` for ranger, `nk` for MARS, the loss and optimizer settings for MLP, and the engine settings for LINAD.
+- LightRuleFit stops with a corrective error when its boosting stage makes no split.
+- `setup_TabNet()` rejects `importance_sample_size` when `skip_importance` is TRUE.
+- `setup_CART(cost =)` and `setup_Ranger(class_weights =)` reach their backends; class weights named by class are matched to the outcome's levels.
+- `setup_Ranger()` drops `case_weights`, which ranger did not receive; per-case weights are passed with `train(weights =)`.
+- `setup_GLMNET()` drops `offset`, which failed at prediction and under resampling.
+- `setup_LINAD()` and `setup_LINADForest()` take `root_forward_stop` and `root_node_test`, the root model's stopping rule and slopes test; unset uses the node-level value.
+- Variable importance (`get_varimp()`) holds one measure per name, each stating what it quantifies (split gain, permutation, coefficient, ...), the cases it was computed on, whether it is signed or depends on predictor units, how it ranks predictors, and a description for the fitted model; the measures replace the single table in `@data`, and `varimp_table()` combines them into one data.frame. `plot_varimp()` ranks bars by the measure's direction (a cross-validated risk smallest first). Linear SVM weights are oriented toward the positive class, and a forest fitted with `importance = "none"` has no importance.
+- `writeup()` writes the Methods and Results sections for a trained supervised model from the model and its `review()`, every number traceable to the field it was read from, with references to R, rtemis, the fitting packages and the statistical methods, a main hyperparameter table (primary hyperparameters and every one tuned, specified or resolved during fitting; `include_hyperparameters` replaces the primary list) and a supplementary table of every hyperparameter with its value, how it was chosen and the values tried, and a list of what the model does not record; `write_writeup()` saves it as Markdown.
+- Stratified resampling (`setup_KFold()`, `setup_StratSub()`, `setup_StratBoot()`) stratifies a categorical variable by its levels; with more than four levels it grouped adjacent levels together.
+- Metric labels print AUC, PPV and NPV in capitals.
+- LightRF predictions are no longer pulled toward 0 when some trees cannot split, as happens on small samples: such trees now predict their sample's center. Training reports how many trees could not split.
+- `setup_SuperConfig()` and `setup_SuperConfigLive()` reject a decomposition that cannot be applied to new data, as reading a supervised config already did.
+- Shared results identify implementation-specific learner, execution, preprocessing, and resampler configs by schema and read their typed settings without inserting omitted defaults.
+- `write_config()` and `write_record()` write numbers with 15 significant digits instead of rounding to four decimal places.
+
+### Supervised result validation
+
+- Outcomes, predictions, and classification probabilities must have matching row counts within each sample.
+- Categorical outcomes and predictions must preserve the training class levels and their order; probability matrices require one column for binary classification or one per class for multiclass classification.
+
 ## 1.4.1
 
 - Model plotting and `present()` use rtemis.draw, including session timelines and SVG export; standalone Plotly `draw_*()` functions remain available.

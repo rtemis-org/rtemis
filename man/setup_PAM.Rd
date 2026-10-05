@@ -39,7 +39,7 @@ via the 'cluster' package.
 }
 \details{
 PAM is the medoid-based counterpart of k-means: each cluster is represented
-by one of the cases rather than by a mean, which makes it usable with
+by one of the cases, which makes it usable with
 non-Euclidean dissimilarities and less sensitive to outliers.
 
 Argument names are rtemis' own. They map to \code{cluster::pam()} as:

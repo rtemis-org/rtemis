@@ -110,8 +110,8 @@
 #' @author EDG
 #' @export
 #' @examplesIf interactive()
-#' draw_scatter(iris$Sepal.Length, iris$Petal.Length,
-#'   fit = "gam", se_fit = TRUE, group = iris$Species
+#' draw_scatter(iris[["Sepal.Length"]], iris[["Petal.Length"]],
+#'   fit = "gam", se_fit = TRUE, group = iris[["Species"]]
 #' )
 draw_scatter <- function(
   x,
@@ -437,8 +437,8 @@ draw_scatter <- function(
       )
       fitted[[i]] <- fitted(mod)
       if (se_fit) {
-        # Computed from the model rather than read off it: standard errors are
-        # a property of a fit and its data, not something every result carries.
+        # Computed from the model: standard errors are a property of a fit and
+        # its data.
         se[[i]] <- se(mod, data.frame(x = x[[i]]))
       }
       if (include_fit_name) {

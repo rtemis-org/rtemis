@@ -551,13 +551,15 @@ from_wire_object <- function(value, target) {
 # %% prop_schema_choice ----
 #' Add explicitly identified implementation contracts to an object reference
 #' @param prop S7 property: A scalar class reference, optionally with an inline alternative.
-#' @param schemas Named List: Canonical schema URLs keyed by qualified class identity.
+#' @param additional_schemas Named List: Additional canonical schema URLs keyed by
+#'   qualified class identity. The native class referenced by `prop` is included
+#'   automatically from its publication metadata; do not repeat it here.
 #' @return S7 property with schema-selected typed alternatives.
 #' @keywords internal
 #' @noRd
-prop_schema_choice <- function(prop, schemas) {
+prop_schema_choice <- function(prop, additional_schemas) {
   fields <- get_spec_fields(prop)
-  fields[["schema_choices"]] <- schemas
+  fields[["schema_choices"]] <- additional_schemas
   make_prop(do.call(PropertySpec, fields))
 }
 

@@ -19,15 +19,13 @@
 # `fix` is an RFC 6902 JSON Patch against the config the finding is about, and
 # is present only where a deterministic fix exists -- one an implementation can
 # apply without choosing anything. Where the remedy is a judgment call (which
-# fold count, which algorithm), the field is absent, because a patch that
-# guesses is worse than none.
+# fold count, which algorithm), the field is absent.
 
 # %% DIAGNOSTIC_CODES ----
 # The diagnostic vocabulary. One schema code plus the eight data checks.
 #
 # `SCHEMA_INVALID` is the whole schema half: `read_config()`'s reconstruction
-# either succeeds or names what is wrong, so the finding is that condition
-# wrapped rather than a second, parallel validator.
+# either succeeds or names what is wrong, so the finding wraps that condition.
 DIAGNOSTIC_CODES <- c(
   "SCHEMA_INVALID",
   "OUTCOME_MISSING",
@@ -55,9 +53,8 @@ DIAGNOSTIC_SEVERITIES <- c("error", "warning", "note")
 # field, class or function. The technical account is `Diagnostic@message`, and
 # the numbers are `Diagnostic@evidence`; neither belongs here.
 #
-# Stored rather than generated. A sentence assembled at runtime drifts with the
-# code that assembles it, and one produced by a model is a claim nothing checked
-# -- which is the whole reason this text is data.
+# Stored as data, so each text is fixed and reviewed with the code that owns
+# its code.
 DIAGNOSTIC_PLAIN <- c(
   SCHEMA_INVALID = paste0(
     "This setup could not be read. Something in it does not match what rtemis ",
@@ -117,7 +114,7 @@ DIAGNOSTIC_PLAIN <- c(
 )
 
 # Every code carries its text, and no text is orphaned. Checked at load, so a
-# code added without its line fails here rather than at the first finding.
+# code added without its line fails here, at load.
 stopifnot(setequal(names(DIAGNOSTIC_PLAIN), DIAGNOSTIC_CODES))
 
 
@@ -204,7 +201,7 @@ Diagnostic <- schema_class(
 #'
 #' The single constructor every check calls, so `plain` cannot be composed at a
 #' call site: it is looked up from `DIAGNOSTIC_PLAIN` by code, which is what
-#' makes it authored data rather than runtime output.
+#' makes it authored data.
 #'
 #' @param code Character: One of `DIAGNOSTIC_CODES`.
 #' @param severity Character \{"error", "warning", "note"\}: Severity.

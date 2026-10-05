@@ -15,7 +15,7 @@
 #' path, algorithm config, and output directory.
 #' @param algorithm Character: Decomposition algorithm. Not needed when `config`
 #' is supplied, which names its own; an explicit `algorithm` that disagrees
-#' with `config` is an error rather than a mislabeled run.
+#' with `config` is an error.
 #' @param config DecompositionConfig: Algorithm-specific config. Its `features`
 #' selects the columns of `x` to decompose; `NULL` selects every numeric column,
 #' since a decomposition reads a numeric matrix. The returned object's config
@@ -72,8 +72,7 @@ decomp <- function(
 
   # Checks ----
   # A supplied config names its algorithm; `algorithm` then serves only to catch
-  # a caller naming a different one, which would otherwise run under the wrong
-  # label with the wrong settings.
+  # a caller naming a different one.
   if (is.null(config)) {
     config <- get_default_decomparams(algorithm)
   } else {
@@ -172,7 +171,7 @@ decomp <- function(
   )
 
   # Data identity ----
-  # Fingerprinted through `decomp_matrix()` rather than from `x` directly, so
+  # Fingerprinted through `decomp_matrix()`, so
   # that a later `decomp_metrics()` call reducing the caller's frame the same way
   # arrives at the same hash. Feeds the record's provenance block.
   out@data_fingerprint <- data_fingerprint(decomp_matrix(out, x))
@@ -192,8 +191,8 @@ decomp <- function(
   # The run's input recipe, so a record can say what was asked for. `dat_path`
   # stays unset for an in-memory call -- data identity is provenance's job.
   # `outdir` is omitted when unset so the config's own default applies; passing
-  # NULL is rejected, and a record reporting the default with origin `default`
-  # is the honest reading of "the caller did not choose one".
+  # NULL is rejected, and the record reports the default with origin
+  # `default`, meaning the caller did not choose one.
   input_args <- list(
     decomposition_config = given_config,
     execution_config = execution_config,

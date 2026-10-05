@@ -15,12 +15,11 @@
 #   2. Is it the right config for *this* data? -- answered by the checks in
 #      `validate_data.R`, which the schema question gates: a config that will
 #      not reconstruct has no fields to check anything against, so a
-#      `SCHEMA_INVALID` finding is returned alone rather than followed by seven
-#      findings derived from a half-read document.
+#      `SCHEMA_INVALID` finding is returned alone.
 #
 # The output is a `Diagnostics`, empty when there is nothing to say. It reports
-# rather than throws, because the caller is usually assembling a plan and wants
-# every problem at once, not the first one.
+# findings as values, so a caller assembling a plan receives every problem at
+# once.
 
 # %% validate_config ----
 #' Validate an rtemis config, against the schema and optionally against data
@@ -94,8 +93,7 @@ validate_config <- function(
       )
     }
     # `abort()` echoes the error to the console before throwing it. This call
-    # reports rather than throws, so the echo is muffled: a finding returned in
-    # a `Diagnostics` must not also arrive as console output.
+    # returns its finding in a `Diagnostics`, so the echo is muffled.
     schema_result <- withCallingHandlers(
       tryCatch(.config_from_list(config), error = function(e) e),
       message = function(m) invokeRestart("muffleMessage")
@@ -120,12 +118,9 @@ validate_config <- function(
     return(Diagnostics())
   }
   check_tabular(data)
-  # A config that names its outcome answers the question, so the caller need
-  # not. `outcome` stays an override -- checking a config against a frame whose
-  # outcome differs is a real question -- but the default now comes from the
-  # document rather than from the last-column convention. Without this,
-  # `SuperConfig@outcome` would be decorative here while the Rust evaluator
-  # reads it, and the two would disagree on the same input.
+  # A config that names its outcome supplies the default, matching the Rust
+  # evaluator, which reads `SuperConfig@outcome`. `outcome` overrides it, for
+  # checking a config against a frame whose outcome differs.
   if (is.null(outcome) && prop_exists(resolved, "outcome")) {
     outcome <- resolved@outcome
   }
@@ -153,7 +148,7 @@ validate_config <- function(
 #' was wanted, which is the caller's judgment to make, not this function's.
 #'
 #' The config is reassembled here because the inner [train] holds its
-#' configuration as separate arguments rather than as one object. Every property
+#' configuration as separate arguments. Every property
 #' `config_parts()` reads has to be carried across, or this reports something
 #' different from what `validate_config()` reports on the same run --
 #' `positive_class` is one such property, being what `declared_task()` reads to

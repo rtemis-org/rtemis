@@ -9,10 +9,6 @@
 #
 # The methods are defined on `AutoencoderBaseConfig`, so every autoencoder leaf
 # inherits them through S7 dispatch.
-#
-# Inside the module, a field is **read** with `[[` and **written** with `$`, as
-# in `train_MLP.R`: `$<-` registers a submodule with torch, and `$` on the read
-# side reads to static analysis as a call to an unbound function.
 
 # %% AutoencoderFit ----
 #' @title AutoencoderFit
@@ -22,8 +18,7 @@
 #' and fails at first use after `readRDS()`, so the fit stores the serialized
 #' parameters and everything needed to rebuild the module around them, and
 #' `apply_decomp_()` and `reconstruct_()` rebuild it. Every architectural
-#' setting is stored here rather than read off the config, so the fit is
-#' readable on its own.
+#' setting is stored here, so the fit is readable on its own.
 #'
 #' @field state Raw: Serialized module parameters, from `torch_state()`.
 #' @field features Character: Input features, in the order the fit used.
@@ -382,9 +377,9 @@ autoencoder_module <- function(
   variational_encoder <- torch::nn_module(
     classname = "VariationalEncoder",
     initialize = function(widths, k) {
-      self$trunk <- do.call(torch::nn_sequential, layers(widths))
-      self$mu <- torch::nn_linear(widths[[length(widths)]], k)
-      self$logvar <- torch::nn_linear(widths[[length(widths)]], k)
+      self[["trunk"]] <- do.call(torch::nn_sequential, layers(widths))
+      self[["mu"]] <- torch::nn_linear(widths[[length(widths)]], k)
+      self[["logvar"]] <- torch::nn_linear(widths[[length(widths)]], k)
     },
     forward = function(x) {
       self[["mu"]](self[["trunk"]](x))
@@ -400,12 +395,12 @@ autoencoder_module <- function(
       input_noise,
       variational
     ) {
-      self$input_noise <- input_noise
-      self$variational <- variational
-      self$corrupt <- torch::nn_dropout(input_dropout)
+      self[["input_noise"]] <- input_noise
+      self[["variational"]] <- variational
+      self[["corrupt"]] <- torch::nn_dropout(input_dropout)
       encoder_widths <- c(n_features, hidden_units)
       decoder_widths <- c(k, rev(hidden_units))
-      self$encoder <- if (variational) {
+      self[["encoder"]] <- if (variational) {
         variational_encoder(encoder_widths, k)
       } else {
         do.call(
@@ -416,7 +411,7 @@ autoencoder_module <- function(
           )
         )
       }
-      self$decoder <- do.call(
+      self[["decoder"]] <- do.call(
         torch::nn_sequential,
         c(
           layers(decoder_widths),
@@ -558,7 +553,7 @@ autoencoder_device <- function(execution_config = NULL) {
 #'
 #' Drawn from R's random stream, which `decomp()` seeds from the execution
 #' config. Too few cases to hold out one while keeping one for training
-#' disables early stopping rather than failing.
+#' disables early stopping.
 #'
 #' @param n Integer: Number of cases.
 #' @param fraction Numeric \[0, 1): Fraction to hold out.

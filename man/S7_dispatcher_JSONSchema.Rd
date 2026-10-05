@@ -28,7 +28,7 @@ variant (e.g. "algorithm", "type").}
 
 \item{base}{Optional S7 class: The family base class. Its own
 \verb{prop_*}-declared properties are shared by every variant, so they are
-emitted here rather than on any leaf (see Details).}
+emitted here, once (see Details).}
 
 \item{title}{Optional Character: Schema title.}
 
@@ -40,8 +40,7 @@ so every family states it the same way.}
 discriminator property.}
 
 \item{record}{Logical: If TRUE, dispatch to the variants' \strong{record}
-schemas (\verb{<family>/<variant>/v1/record.json}) rather than their input
-schemas, and require every property the dispatcher itself declares. The
+schemas (\verb{<family>/<variant>/v1/record.json}), and require every property the dispatcher itself declares. The
 discriminator is required either way.}
 
 \item{instance_schema_url}{Character or NULL: If set, adds a \verb{$schema}
@@ -69,10 +68,8 @@ The leaf URLs are derived from \code{id}: for a dispatcher
 One shape, matching how every family serializes (\code{dispatched_props()}): the
 variant's settings are \strong{siblings of the discriminator}. A document holding
 only the discriminator is that variant with every default, so "nothing set"
-is said by absence, as a delta config says everything else. There is no
-settings object a writer must remember to leave empty -- that construct was
-the one observed models could not reliably emit (\code{""} arrived where \code{{}}
-was meant, and the repair that followed invented a setting nobody chose).
+is said by absence, as a delta config says everything else, and a writer
+has no empty settings object to emit.
 
 Each \code{then} is exactly the leaf \verb{$ref}, applied to the whole object; readers
 key on that. \code{additionalProperties} is evaluated per schema and would not

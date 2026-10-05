@@ -114,7 +114,7 @@ model_problem <- function(dat, outcome_name, n_needed, seed) {
 # perfectly, which makes the GLM diverge and leaves no miscalibration to fix.
 iris_binary <- function() {
   d <- iris[51:150, c("Sepal.Length", "Sepal.Width", "Species")]
-  d$Species <- factor(d$Species)
+  d[["Species"]] <- factor(d[["Species"]])
   d
 }
 

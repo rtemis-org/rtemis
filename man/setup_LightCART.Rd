@@ -103,11 +103,11 @@ of loss reduction.}
 
 \item{cegb_penalty_feature_lazy}{Optional List: Per-feature cost charged the first
 time a case uses it, in [0, Inf). One vector applied to every tree, or one vector
-per tree.}
+per tree. NULL charges no cost.}
 
 \item{cegb_penalty_feature_coupled}{Optional List: Per-feature cost charged the first
 time any case uses it, in [0, Inf). One vector applied to every tree, or one vector
-per tree.}
+per tree. NULL charges no cost.}
 
 \item{use_quantized_grad}{Logical: Discretize gradients before finding splits. Faster,
 and changes the fit.}
@@ -123,20 +123,20 @@ LightGBM's default of FALSE.}
 to nearest. Requires \code{use_quantized_grad = TRUE}. NULL uses LightGBM's default of TRUE.}
 
 \item{monotone_constraints}{Optional Integer [-1, 1] vector: Per-feature
-monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature.}
+monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature. NULL constrains no feature.}
 
 \item{monotone_constraints_method}{Optional Character \{"basic", "intermediate",
-"advanced"\}: How monotonicity is enforced. Requires \code{monotone_constraints}.}
+"advanced"\}: How monotonicity is enforced. Requires \code{monotone_constraints}. NULL uses LightGBM's default, "basic".}
 
 \item{monotone_penalty}{(Tunable) Optional Numeric [0, Inf): Depth penalty on splits
 that would break monotonicity. Requires \code{monotone_constraints}. NULL uses LightGBM's
 default of 0.}
 
 \item{interaction_constraints}{Optional Character: Feature groups permitted to interact,
-in LightGBM's own bracketed form, e.g. "[0,1],[2,3]".}
+in LightGBM's own bracketed form, e.g. "[0,1],[2,3]". NULL permits every interaction.}
 
 \item{feature_contri}{Optional Numeric vector: Per-feature multiplier on split gain,
-one value per feature.}
+one value per feature. NULL uses 1 for every feature.}
 
 \item{min_data_in_leaf}{(Tunable) Integer [0, Inf): Minimum number of cases in a leaf.}
 
@@ -195,11 +195,13 @@ LightGBM's default of 0.7.}
 \item{sigmoid}{(Tunable) Optional Numeric (0, Inf): Sigmoid slope, for a binary or
 one-vs-all objective. NULL uses LightGBM's default of 1.}
 
-\item{boost_from_average}{Optional Logical: Start from the outcome's mean, for a
-regression, binary or cross-entropy objective. NULL uses LightGBM's default of TRUE.}
+\item{boost_from_average}{Optional Logical: Start boosting from the constant score that
+best fits the outcome under the objective, such as its mean for regression. NULL uses
+LightGBM's default of TRUE.}
 
 \item{reg_sqrt}{Optional Logical: Fit the square root of the outcome and square the
-prediction back, for a regression objective. NULL uses LightGBM's default of FALSE.}
+prediction back, for the "regression", "regression_l1", "fair", "quantile" or "mape"
+objective. NULL uses LightGBM's default of FALSE.}
 
 \item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 }

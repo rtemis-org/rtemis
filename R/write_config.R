@@ -23,8 +23,7 @@
 #' fall back to their `setup_*` defaults when read, so a config stays valid as
 #' those defaults improve. That is the opposite of a **record**, which states
 #' what one run actually did, with every value resolved -- see [write_record].
-#' The two are separate functions rather than one with a flag, because a caller
-#' should have to say which artifact they want.
+#' The two are separate functions, so a caller names the artifact they want.
 #'
 #' @param x A `SuperConfig`, `DecomposeConfig`, `ClusterConfig`,
 #'   `DecompositionConfig`, `ClusteringConfig`, or `PreprocessorConfig` object.
@@ -73,8 +72,7 @@ write_config <- new_generic(
 #' @keywords internal
 #' @noRd
 # Record counterparts, keyed the same way. A record is the same field
-# vocabulary with every value resolved, so it is a sibling document rather than
-# a different family.
+# vocabulary with every value resolved, so it is a sibling document.
 .RTEMIS_RECORD_SCHEMAS <- c(
   supervised = "https://schema.rtemis.org/supervised/r/v1/record.json",
   decompose = "https://schema.rtemis.org/decompose/r/v1/record.json",
@@ -138,7 +136,7 @@ write_config <- new_generic(
 #' @param overwrite Logical: If TRUE, overwrite an existing file.
 #' @param verbosity Integer: Verbosity level.
 #' @param keep_null Character: Names of top-level payload elements to emit as
-#'   JSON `null` rather than drop when NULL. See `.compact_config()`.
+#'   JSON `null` when NULL. See `.compact_config()`.
 #'
 #' @return NULL, invisibly.
 #'
@@ -160,7 +158,8 @@ write_config <- new_generic(
     auto_unbox = TRUE,
     pretty = TRUE,
     na = "null",
-    null = "null"
+    null = "null",
+    digits = NA
   ))
   write_lines(
     json_str,
@@ -335,9 +334,8 @@ method(write_config, ClusteringConfig) <- function(
 #' Write a run record to a JSON file
 #'
 #' A record states what a run actually did: every value resolved, where each one
-#' came from, and what produced it. Deliberately a separate function rather than
-#' an argument to [write_config] -- the two artifacts answer different
-#' questions, and a caller should have to say which it wants.
+#' came from, and what produced it. A separate function from [write_config],
+#' since the two artifacts answer different questions.
 #'
 #' Three things distinguish a record from the config it came from:
 #'
@@ -369,8 +367,7 @@ method(write_config, ClusteringConfig) <- function(
 #' decide for itself.
 #'
 #' Unlike a config, a record is **not compacted**: an unset field is written as
-#' an explicit `null` rather than omitted, so nothing in it falls back to a
-#' reader's defaults. That is the whole claim a record makes.
+#' an explicit `null`, so nothing in it falls back to a reader's defaults.
 #'
 #' @param x Fitted model object, or a record list from [record].
 #' @param file Character: Path to write to.
@@ -389,10 +386,9 @@ method(write_config, ClusteringConfig) <- function(
 write_record <- function(x, file, overwrite = FALSE, verbosity = 1L) {
   check_dependencies("jsonlite")
   payload <- if (is.list(x) && !S7_inherits(x)) x else record(x)
-  # The execution graph is a table, so it goes beside the record rather than
-  # into it, and the record names it. Written here rather than in `record()`
-  # because a reference is to a file, and `record()` produces a document with no
-  # file to point at.
+  # The execution graph is a table, so it goes beside the record and the record
+  # names it. Written here because a reference is to a file, and `record()`
+  # produces a document with no file to point at.
   if ("session" %in% names(payload)) {
     ref <- write_session_sidecar(
       x,
@@ -409,7 +405,8 @@ write_record <- function(x, file, overwrite = FALSE, verbosity = 1L) {
     auto_unbox = TRUE,
     pretty = TRUE,
     na = "null",
-    null = "null"
+    null = "null",
+    digits = NA
   ))
   write_lines(
     json_str,
@@ -451,8 +448,7 @@ session_sidecar_path <- function(file) {
 #' @details
 #' Returns the `DataRef` the record carries, or NULL when the object has no
 #' session to write -- a pipeline result, or a model from before sessions were
-#' recorded. NULL rather than an empty reference: a reference to a file that
-#' does not exist is worse than saying there is none.
+#' recorded.
 #'
 #' The digest is over the file's bytes. Two implementations would need a
 #' canonical logical form to agree on a digest for one table; a sidecar is
@@ -507,9 +503,8 @@ write_session_sidecar <- function(x, file, overwrite = FALSE, verbosity = 1L) {
 #' Write a data.frame to Parquet
 #'
 #' Through nanoparquet, which writes the Parquet types directly and carries no
-#' Arrow C++ dependency. An Import rather than a Suggest, because a record that
-#' names a file it could not write is not something a caller should be able to
-#' produce by having installed less.
+#' Arrow C++ dependency. An Import, so every installation can write the files a
+#' record names.
 #'
 #' @param x data.frame: The table.
 #' @param path Character: Where to write it.

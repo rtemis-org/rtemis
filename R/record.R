@@ -35,7 +35,7 @@
 #' config a run was given against the one it resolved separates `derived` and
 #' `tuned` by observation, but `setup_*()` applies its own defaults before
 #' anything else sees the config, so "the caller asked for `backend = "future"`"
-#' and "`future` is what this function uses when nobody asks" arrive identical.
+#' and "`future` is this function's default" arrive identical.
 #' Only the function itself can tell them apart, and only while its own call is
 #' still on the stack.
 #'
@@ -76,9 +76,8 @@ supplied_origins <- function() {
 #' Origins a config states about its own fields
 #'
 #' Attached by the `setup_*()` that built the object, read by `config_record()`.
-#' An attribute rather than a property: it is bookkeeping *about* the config,
-#' not part of it, and a property would publish it in the schema, in the wire
-#' shape, and among the record's own fields.
+#' Stored as an attribute: it is bookkeeping *about* the config, and an
+#' attribute stays out of the schema, the wire shape and the record's fields.
 #'
 #' Absent when the object was built some other way, or rebuilt by something that
 #' did not carry it forward. The record then infers from the declared defaults,
@@ -146,6 +145,13 @@ value_origin <- function(
     # supply.
     return("unset")
   }
+  if (state && identical(input, resolved)) {
+    # Run state that already held its value when the run started, as when a
+    # setup function fills it from another setting (LightGBM's `nrounds` from
+    # `force_nrounds`): the setting is the authored choice, and this field
+    # records what the run used.
+    return("derived")
+  }
   if (!identical(input, resolved)) {
     # NULL meaning "apply the default for this task type" is a restatement of
     # what was asked for, not something measured or searched -- so resolving it
@@ -157,8 +163,7 @@ value_origin <- function(
     # space narrowing to one value, or a NULL that means "determine by tuning",
     # is tuning; anything else the run worked out from the data.
     # `input` is a wire value: `config_record()` runs it through `wire_value()`
-    # before comparing, so a search space arrives tagged rather than as the R
-    # object.
+    # before comparing, so a search space arrives tagged.
     searched <- !is.null(spec) &&
       ((spec@tunable && is_wire_candidates(input)) ||
         (spec@tune_on_null && is.null(input)))
@@ -196,9 +201,9 @@ config_record <- function(input, resolved) {
   cls <- S7_class(resolved)
   # The fields the *record schema* declares, which is what `origin` must cover:
   # a family leaf's inherited machinery is subtracted by `S7_to_JSONSchema()`'s
-  # `base`, so it is subtracted here too. `serializable_props()` is the wrong
-  # level -- for a family it also carries the discriminator and the base's
-  # shared fields, which the dispatcher declares and the leaf record does not.
+  # `base`, so it is subtracted here too. For a family, `serializable_props()`
+  # also carries the discriminator and the base's shared fields, which the
+  # dispatcher declares and the leaf record does not.
   base <- family_base(cls)
   names_ <- record_names(cls, base)
   props <- cls@properties
@@ -312,8 +317,8 @@ config_record <- function(input, resolved) {
   # settings are all inherited from its family base declares none of its own --
   # and a record carrying an empty one would not validate against it.
   if (length(origin) == 0L) {
-    # Named even when empty, so `names()` gives `character(0)` rather than NULL
-    # and a caller comparing field sets does not have to special-case it.
+    # Named even when empty, so `names()` gives `character(0)` and a caller
+    # comparing field sets needs no special case.
     names(out) <- names(out) %||% character()
     return(out)
   }
@@ -368,9 +373,8 @@ family_base <- function(cls) {
 # %% record_values ----
 #' The field names a record carries for one config class
 #'
-#' Unlike a written config, a record keeps every field: an unset one is stated
-#' as `null` rather than omitted, so nothing in it falls back to a reader's
-#' defaults.
+#' A record keeps every field: an unset one is stated as `null`, so nothing in
+#' it falls back to a reader's defaults.
 #'
 #' It also keeps **run state**, which a config drops. `lambda.min` and the
 #' `nrounds` early stopping settled on are precisely what a record exists to
@@ -414,7 +418,7 @@ record_names <- function(cls, base) {
   )
   # `S7_to_list()` because a value may itself be a config object -- a
   # `GridSearchConfig` holds a `ResamplerConfig` -- and a record is JSON, not
-  # objects. Applied per value rather than to the whole list so NULLs survive.
+  # objects. Applied per value so NULLs survive.
   keep
 } # /rtemis::record_names
 
@@ -424,8 +428,7 @@ record_names <- function(cls, base) {
 #'
 #' Drawn from what the model already carries -- `@session` for timing,
 #' `@session_info` for the environment, `@data_fingerprint` for data identity --
-#' rather than recomputed, so a record cannot disagree with the object it came
-#' from. Only what a record needs to be read on its own is promoted; the full
+#' so a record always agrees with the object it came from. Only what a record needs to be read on its own is promoted; the full
 #' `sessionInfo()` stays where it is.
 #'
 #' @param x `Supervised` or `SupervisedRes` object.
@@ -491,9 +494,8 @@ iso8601 <- function(x) {
 #' Derive a run record from a fitted model
 #'
 #' The record of what ran: every config value resolved, an `origin` saying where
-#' each came from, and a provenance block. Derived rather than stored -- the
-#' object already holds both configs, and keeping a second representation on it
-#' would let the two drift.
+#' each came from, and a provenance block. Derived on demand from the configs
+#' the object already holds.
 #'
 #' @param x Fitted model object.
 #' @param ... Passed to methods.
@@ -531,7 +533,7 @@ method(record, SupervisedRes) <- function(x, outcome = "completed") {
 #' fitted. They are separate because a resampled run resolves different values
 #' in each fold -- early stopping picks a different `nrounds` every time -- so a
 #' single resolved value at the top would be a claim the run never made. A
-#' single fit is one fold rather than a second shape.
+#' single fit is one fold.
 #'
 #' @param x `Supervised` or `SupervisedRes` object.
 #' @param folds List of `Supervised` objects: the models actually fitted.
@@ -631,11 +633,11 @@ fold_record <- function(model, index, input = model@config) {
     if (is.null(input)) NULL else input@hyperparameters,
     model@hyperparameters
   )
-  # The grid, the per-resample metrics and the winner, as the Tuner holds them:
-  # a tuning decision must be re-examinable from the record alone.
+  # The grid, the per-resample metrics and the winner, the fields the tuning
+  # schema declares, so a tuning decision can be re-examined from the record.
   if (!is.null(model@tuner)) {
     out[["tuning"]] <- c(
-      model@tuner@tuning_results,
+      model@tuner@tuning_results[c("param_grid", "training", "validation")],
       list(best = model@tuner@best_hyperparameters)
     )
   }
@@ -656,10 +658,9 @@ SUPERVISED_SAMPLES <- c("training", "validation", "test")
 # %% record_object ----
 #' An S7 object as a record block
 #'
-#' Every **published** property, run state included. `serializable_props()` is
-#' the wrong filter here for the same reason it was wrong for hyperparameters:
-#' it answers what a *config* carries, and a config drops state because it is
-#' re-derived on read. A record exists to report exactly what the run wrote.
+#' Writes every published property of `x`, including run state, so the record
+#' reports exactly what the run produced. Nested S7 objects, alone or in
+#' collections, are written the same way.
 #'
 #' @param x S7 object, or NULL.
 #'
@@ -915,10 +916,10 @@ pipeline_record <- function(
   out[[block]] <- nested_record(prop(input, block), resolved)
   # Only families whose record schema declares a `metrics` block get the key,
   # and those declare it *required*: a run that failed before scoring writes an
-  # explicit null rather than omitting it. `out[["metrics"]] <- NULL` would
-  # delete the element, so the single-bracket form is what stores the null.
-  # `record_object()` rather than `S7_to_list()`, because a metrics class
-  # declares everything it holds as run state and the latter drops exactly that.
+  # explicit null. `out[["metrics"]] <- NULL` would delete the element, so the
+  # single-bracket form stores the null. `record_object()` writes the metrics,
+  # since a metrics class declares everything it holds as run state, which
+  # `S7_to_list()` drops.
   if (metrics_block) {
     out["metrics"] <- list(record_object(metrics))
   }

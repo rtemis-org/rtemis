@@ -368,6 +368,6 @@ materialize_arrow_views <- function(x) {
   # The cast reaches the data through a schema built from scratch, which carries
   # no key-value metadata; converting to a data.frame reads the "r" entry to
   # restore R attributes, so the file's metadata has to be carried across.
-  target_schema$metadata <- get("metadata", envir = schema)
+  assign("metadata", get("metadata", envir = schema), envir = target_schema)
   arrow::as_arrow_table(x, schema = target_schema)
 } # /rtemis::materialize_arrow_views

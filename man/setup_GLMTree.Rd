@@ -85,7 +85,7 @@ its strengths and its limits:
 
 \describe{
 \item{It has a hypothesis-testing foundation}{Splits carry p-values, and
-\code{alpha} is a meaningful dial rather than a tuning knob without units.}
+\code{alpha} is a significance level with a direct interpretation.}
 \item{It sees a slope change with no shift in the mean}{Which a tree
 splitting on the response cannot: there is nothing in the mean to find.}
 \item{It needs statistical power}{With few cases, many partitioning

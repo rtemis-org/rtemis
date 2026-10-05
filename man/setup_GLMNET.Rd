@@ -7,7 +7,6 @@
 setup_GLMNET(
   alpha = 1,
   family = NULL,
-  offset = NULL,
   which_lambda_cv = "lambda.1se",
   nlambda = 100L,
   lambda = NULL,
@@ -22,15 +21,13 @@ setup_GLMNET(
 
 \item{family}{Optional Character \{"gaussian", "binomial", "poisson", "multinomial", "cox", "mgaussian"\}: Family. NULL = set from outcome type.}
 
-\item{offset}{Optional Numeric vector: Offset, one value per case.}
-
 \item{which_lambda_cv}{Character \{"lambda.1se", "lambda.min"\}: Which lambda to use for prediction.}
 
 \item{nlambda}{Integer [1, Inf): Number of lambda values.}
 
 \item{lambda}{Optional Numeric [0, Inf) vector: Lambda values. NULL = determined by cv.glmnet during tuning.}
 
-\item{penalty_factor}{Optional Numeric [0, Inf) vector: Penalty factor for each feature.}
+\item{penalty_factor}{Optional Numeric [0, Inf) vector: Penalty factor for each design-matrix column (factors expanded to indicator columns). NULL uses 1 for every column.}
 
 \item{standardize}{Logical: If TRUE, standardize features.}
 

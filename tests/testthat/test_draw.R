@@ -19,7 +19,7 @@ test_that("draw_3Dscatter creates a plotly object and saves file", {
   # Create the plot with file output
   p <- draw_3Dscatter(
     iris,
-    group = iris$Species,
+    group = iris[["Species"]],
     theme = theme_darkgraygrid(),
     filename = temp_file
   )
@@ -33,7 +33,7 @@ test_that("draw_3Dscatter creates a plotly object and saves file", {
 
     # Test that the file has content (not empty)
     file_info <- file.info(temp_file)
-    expect_true(file_info$size > 0)
+    expect_true(file_info[["size"]] > 0)
 
     # Test that it's a valid PDF file (starts with PDF header)
     file_content <- readBin(temp_file, "raw", n = 4)

@@ -199,10 +199,10 @@ summarize_unsupervised <- function(x) {
 #' none: every numeric column of `x`. `cluster()`, `decomp()` and the
 #' decomposition step inside `train()` all resolve it here, so the fit, the run
 #' record and `checks/v1` name the same columns, and the published schemas'
-#' "null = all numeric features" is one rule rather than three.
+#' "null = all numeric features" is one rule.
 #'
-#' Resolved from the data rather than declared, so no default policy can
-#' express it: which columns are numeric is a fact about the dataset.
+#' Resolved from the data, so no default policy can express it: which columns
+#' are numeric is a fact about the dataset.
 #'
 #' @param x data.frame: The features to run on; no outcome column.
 #' @param what Character: What is being fit, for the error message.

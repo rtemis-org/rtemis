@@ -21,7 +21,7 @@
 # metrics do not average into an estimate of one model.
 #
 # `remove_features` names its columns, so every fold drops the same ones, and
-# `remove_constants` is a requirement of fitting rather than a cleaning choice.
+# `remove_constants` is a requirement of fitting.
 # Both stay.
 PREPROCESSOR_TRAIN_EXCLUDED <- c(
   "complete_cases",
@@ -269,10 +269,9 @@ PreprocessorConfig <- schema_class(
 #' cannot replay at predict time or would learn differently in every fold. See
 #' `PREPROCESSOR_TRAIN_EXCLUDED`.
 #'
-#' A sibling of `PreprocessorConfig` rather than a subclass: an S7 subclass
-#' satisfies its parent's type, so inheritance in either direction would let the
-#' wider config pass where only this one belongs, which is the whole point of
-#' the distinction.
+#' A sibling of `PreprocessorConfig`: an S7 subclass satisfies its parent's
+#' type, so inheritance in either direction would let the wider config pass
+#' where only this one belongs.
 #'
 #' @author EDG
 #' @noRd
@@ -304,7 +303,7 @@ AnyPreprocessorConfig <- PreprocessorConfig | SupervisedPreprocessorConfig
 #'
 #' `SupervisedPreprocessorConfig` does not carry
 #' `PREPROCESSOR_TRAIN_EXCLUDED`, so code shared with `preprocess()` reads those
-#' four through this rather than branching on class. The value returned for an
+#' four through this. The value returned for an
 #' absent property is the default the shared property list declares, which is
 #' the "off" value for all four -- so a supervised config behaves exactly as one
 #' that left them unset, and there is no second table of off-values to drift.
@@ -382,8 +381,8 @@ method(print, PreprocessorConfig) <- function(
 
 
 # %% SupervisedPreprocessorConfig accessors ----
-# The sibling class reads its properties the same way. Written out rather than
-# copied from the methods above: `method()` retrieves S7 generics only, and
+# The sibling class reads its properties the same way, written out: `method()`
+# retrieves S7 generics only, and
 # `names`, `$`, `.DollarNames` and `[[` are base generics.
 method(names, SupervisedPreprocessorConfig) <- function(x) {
   names(props(x))
@@ -533,7 +532,7 @@ method(repr, SupervisedPreprocessorConfig) <- function(
 #' Steps run in this order, and the order is part of what each one does:
 #' `remove_constants` runs before the quantile cut because a constant has no
 #' quantiles, `factorNA2missing` before `impute` so that missing values in a
-#' categorical feature become a level rather than a mode, and `one_hot` last
+#' categorical feature become a level, and `one_hot` last
 #' among the encoders so that it sees every factor the earlier steps created.
 #'
 #' Feature *creation* precedes feature *transformation*: `add_date_features` and
@@ -967,7 +966,7 @@ method(preprocessed, Preprocessor) <- function(x) {
 #' named list, such as the result of parsing a JSON config conforming to the
 #' schema.rtemis.org preprocessor schema. Elements are passed to
 #' [setup_Preprocessor]; document metadata (`$schema`) is dropped first, since
-#' it identifies the document rather than naming a parameter.
+#' it identifies the document.
 #'
 #' The learned values (`scale_centers`, `scale_coefficients`, `one_hot_levels`,
 #' `factor2integer_levels`) are `data_dependent` settable inputs: a
@@ -997,9 +996,8 @@ method(preprocessed, Preprocessor) <- function(x) {
 #'
 #' As `.list_to_PreprocessorConfig()`, for the config a supervised document
 #' carries. A document naming one of `PREPROCESSOR_TRAIN_EXCLUDED` is rejected by
-#' `check_wire_keys()` as an unknown key, which is the whole point of the
-#' separate type: the operation is not a setting that is refused later, it is not
-#' a setting here at all.
+#' `check_wire_keys()` as an unknown key: the separate type does not declare
+#' those operations as settings.
 #'
 #' @param x Named list of `setup_SupervisedPreprocessor` parameters.
 #'

@@ -121,6 +121,10 @@ method(train_, LightGBMHyperparameters) <- function(
   # `hyperparameters` is returned because this method resolved values into
   # it (R copied the caller's object, so the caller cannot see them).
   # `train()` adopts them, and the fitted model reports what it used.
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    lightgbm_backend_values(hyperparameters, model)
+  )
   list(model = model, preprocessor = prp, hyperparameters = hyperparameters)
 } # /rtemis::train_.LightGBMHyperparameters
 
@@ -215,8 +219,41 @@ method(varimp_super, class_lgb.Booster) <- function(model) {
   if (nrow(vi) == 0L) {
     return(NULL)
   }
-  names(vi)[1] <- "variable"
-  VariableImportance(vi)
+  omitted <- " Predictors in no split are omitted."
+  VariableImportance(
+    measures = list(
+      Gain = importance_measure(
+        vi[["Feature"]],
+        vi[["Gain"]],
+        kind = "split_gain",
+        description = paste0(
+          "Share of the total gain of all splits, over all trees, that comes ",
+          "from splits on the predictor, on the training cases (lightgbm).",
+          omitted
+        )
+      ),
+      Cover = importance_measure(
+        vi[["Feature"]],
+        vi[["Cover"]],
+        kind = "split_cover",
+        description = paste0(
+          "Share of the training cases reaching split nodes, summed over all ",
+          "splits of all trees, that reach splits on the predictor (lightgbm).",
+          omitted
+        )
+      ),
+      Frequency = importance_measure(
+        vi[["Feature"]],
+        vi[["Frequency"]],
+        kind = "split_frequency",
+        description = paste0(
+          "Share of all splits, over all trees, that use the predictor ",
+          "(lightgbm).",
+          omitted
+        )
+      )
+    )
+  )
 } # /rtemis::varimp_super.lgb.Booster
 
 
@@ -235,8 +272,7 @@ method(varimp_super, class_lgb.Booster) <- function(model) {
 #' The booster's own contributions are path-dependent -- coalitions are weighted
 #' by the training coverage recorded in the trees -- which is a conditional
 #' value function, and it takes no background. An interventional answer needs
-#' one and is not what this returns, so it is refused rather than silently
-#' relabeled.
+#' a background and a different estimator, so it is refused.
 #'
 #' @param model `lgb.Booster` object.
 #' @param newdata tabular data: Cases to explain, already transformed.
@@ -286,6 +322,14 @@ method(explain_super, class_lgb.Booster) <- function(
   contrib <- predict(model, newdata = features, type = "contrib")
   # The margin, which is what the contributions decompose.
   margin <- predict(model, newdata = features, type = "raw")
+  # A random forest (LightRF) averages its trees, but LightGBM's raw scores
+  # and contributions sum them (4.7.0): both come back multiplied by the
+  # number of iterations. Dividing restores the margin the model predicts
+  # with, and contributions that decompose it.
+  if (lightgbm_averages_trees(model)) {
+    contrib <- contrib / model[["current_iter"]]()
+    margin <- margin / model[["current_iter"]]()
+  }
 
   n_features <- NCOL(features)
   block <- n_features + 1L
@@ -324,6 +368,29 @@ method(explain_super, class_lgb.Booster) <- function(
     exact = TRUE
   )
 } # /rtemis::explain_super.lgb.Booster
+
+
+# %% lightgbm_averages_trees ----
+#' Does a LightGBM model average its trees?
+#'
+#' True for a random forest (`boosting = "rf"`), whose text model declares
+#' `average_output`. Read from the header of a one-iteration dump, which is
+#' small whatever the model's size.
+#'
+#' @param model `lgb.Booster`.
+#'
+#' @return Logical.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+lightgbm_averages_trees <- function(model) {
+  grepl(
+    "\naverage_output\n",
+    model[["save_model_to_string"]](num_iteration = 1L),
+    fixed = TRUE
+  )
+} # /rtemis::lightgbm_averages_trees
 
 
 # %% lightgbm_training_device ----

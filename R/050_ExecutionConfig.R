@@ -132,8 +132,7 @@ SerialExecutionConfig <- schema_class(
 #' many workers run at once, not whether the caller blocks -- `train()` blocks
 #' under every backend.
 #'
-#' Exists so the one surviving cross-field rule is declared once instead of on
-#' each concrete backend.
+#' Declares the cross-field rule shared by every concrete backend.
 #'
 #' @author EDG
 #' @noRd
@@ -250,8 +249,7 @@ MiraiExecutionConfig <- schema_class(
 #'
 #' Declared on `ParallelExecutionConfig` because only a parallel backend has a
 #' pool. Serial execution runs in the calling process, which is one worker, and
-#' says so here rather than by carrying a property fixed at 1 that a form would
-#' then offer.
+#' says so here.
 #'
 #' @param x `ExecutionConfig` object.
 #'
@@ -400,8 +398,7 @@ execution_backend_label <- function(x) {
 method(repr, ExecutionConfig) <- function(x, pad = 0L, output_type = NULL) {
   out <- repr_S7name(S7_class(x)@name, pad = pad, output_type = output_type)
   .props <- props(x)
-  # An unset level is the ordinary case and says nothing the reader does not already
-  # know from `n_workers`; a set one is the whole point and stays.
+  # An unset level follows `n_workers` and is omitted; a set one is shown.
   for (level in c(
     "n_workers_outer",
     "n_workers_tuning",
@@ -497,15 +494,13 @@ EXECUTION_SETUP <- c(
     n_workers_algorithm <- clean_int(n_workers_algorithm)
     check_pos_integer_scalar(n_workers_algorithm)
   }
-  # "always" is a demand, so an unusable request is an error here rather than a surprise
-  # at dispatch. "auto" is best-effort: a missing mori is one more reason it cannot
+  # "always" is a demand, so an unusable request is an error here, before dispatch. "auto" is best-effort: a missing mori is one more reason it cannot
   # share, not a mistake to correct.
   if (shared_memory == "always") {
     check_dependencies("mori")
   }
-  # Resolved here rather than at run time so it is recorded on the config, and
-  # therefore in the run record: an unseeded run would otherwise be unreproducible, and
-  # "all runs are auditable & reproducible" has to hold for the default path too.
+  # Resolved here so it is recorded on the config, and therefore in the run record, and
+  # every run, including one with defaults, is reproducible.
   # Drawing from the current stream keeps `set.seed(1); train(...)` deterministic.
   seed <- if (is.null(seed)) {
     sample.int(.Machine[["integer.max"]], 1L)
@@ -633,11 +628,10 @@ EXECUTION_SETUP <- c(
 #' the training data through OS shared memory instead of serializing a copy to each.
 #' `"auto"` is the default: it shares whenever it can -- workers parallel and on this
 #' machine, \pkg{mori} installed -- and quietly does not when it cannot, falling back to
-#' the ordinary transport. `"none"` disables it. `"always"` is a demand rather than a
-#' preference: it shares even when the run is sequential, which is what allows a run to
-#' be compared against its own shared counterpart, and raises rather than degrades when
-#' the request cannot be honored -- which is what a caller relying on sharing to stay
-#' inside a memory budget needs.
+#' the ordinary transport. `"none"` disables it. `"always"` is a demand: it shares even
+#' when the run is sequential, so a run can be compared against its own shared
+#' counterpart, and raises an error when the request cannot be met, for a caller relying
+#' on sharing to stay inside a memory budget.
 #' @param warm_workers Logical: Load \pkg{rtemis} in every worker as the pool is built,
 #' rather than leaving each worker to load it on its first task.
 #'

@@ -34,14 +34,13 @@ and what remains is predicting \code{newdata} under each fold's model and taking
 two order statistics.
 
 \strong{It delivers \code{1 - 2 * alpha} in the worst case}, not \code{1 - alpha}. The bound
-is conservative and observed coverage usually sits near \code{1 - alpha}, but the
-region states the guarantee it carries rather than letting a reader assume
-the tighter one.
+is conservative and observed coverage usually sits near \code{1 - alpha}; the
+region states the guarantee it carries.
 
 \strong{The folds must partition the cases}, each case out-of-fold exactly once.
 \code{setup_KFold()} and \code{setup_LOOCV()} do; the subsampling and
 bootstrap types do not, and \code{conformal()} refuses them by checking the
-indices rather than the type name.
+indices.
 
 Which relative runs follows from the object: leave-one-out folds make it
 jackknife+, and a classification outcome makes it cross-conformal (Vovk,

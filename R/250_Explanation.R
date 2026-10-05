@@ -14,8 +14,8 @@
 # Both hierarchies are tagged by `@type`, and they subclass on different axes:
 # the result by *kind* of explanation, the config by *how* it is estimated. A
 # result carrying no kind tag would make a second kind of explanation a
-# breaking change for every reader, which is why `SHAP` sits under an abstract
-# `Explanation` rather than standing alone.
+# breaking change for every reader, so `SHAP` sits under an abstract
+# `Explanation`.
 
 # %% Constants ----
 # Kinds of explanation. One today; the tag is what lets a second arrive without
@@ -30,7 +30,7 @@ SHAP_ESTIMATORS <- c("auto", "exact", "kernel")
 # The concrete estimators, as recorded on a result. `TreeSHAP` covers CART as
 # well as the LightGBM family: TreeSHAP over a single tree is a tree traversal
 # and is exact, so it needs no name of its own. A decision *path* is a different
-# kind of explanation rather than another way of estimating this one.
+# kind of explanation.
 SHAP_RESOLVED_ESTIMATORS <- c(
   "TreeSHAP",
   "LinearSHAP",
@@ -39,14 +39,14 @@ SHAP_RESOLVED_ESTIMATORS <- c(
   "MARSBasis",
   "HALBasis",
   "Isotonic",
-  # Delegating rather than computing: the expert that predicted a case explains
+  # Delegating: the expert that predicted a case explains
   # it, with whichever estimator that expert's own algorithm has.
   "ExpertSHAP"
 )
 
 # The value function each estimator computes when `perturbation` is left NULL.
 #
-# Per estimator rather than one package-wide default, because the exact tier is
+# Per estimator, because the exact tier is
 # only free where the backend already computes it: LightGBM's
 # `predict(type = "contrib")` is path-dependent, weighting by training coverage,
 # and offers no background argument -- so an interventional default would make
@@ -79,7 +79,7 @@ SHAP_SCALES <- c("margin", "probability")
 
 # Which feature space a contribution matrix is indexed by. `supervised_features()`
 # passes through all three in order, and only the first two are ever reported:
-# "encoded" values are reachable on the result rather than returned.
+# "encoded" values are reachable on the result.
 EXPLANATION_SPACES <- c("input", "model", "encoded")
 
 # Exact TreeSHAP over a single tree enumerates every coalition of the features
@@ -198,12 +198,10 @@ method(print, ExplanationConfig) <- function(
 #' `ExplanationConfig` subclass for Shapley additive explanations.
 #'
 #' @details
-#' One leaf rather than one per estimator. Every registered algorithm answers
+#' One leaf covers every estimator. Every registered algorithm answers
 #' `explain()`, with the exact estimator used wherever one exists, so the
-#' estimator is normally resolved rather than chosen: making it the class would
-#' force a user to name the very thing they were relying on the package to pick.
-#' `@estimator` is the override, and the kernel-only settings are gated by
-#' `applies_when` rather than split into a second class.
+#' estimator is normally resolved by the package. `@estimator` is the override,
+#' and the kernel-only settings are gated by `applies_when`.
 #'
 #' @author EDG
 #' @noRd
@@ -294,8 +292,8 @@ method(desc, ExplanationConfig) <- function(x) {
 #' Configure per-case Shapley additive explanations for `explain()`.
 #'
 #' @details
-#' Three choices here are semantics rather than tuning, and each is recorded on
-#' the returned explanation so that two of them can never be silently compared.
+#' Three choices here define what is computed, and each is recorded on the
+#' returned explanation, so explanations computed differently are told apart.
 #'
 #' **`perturbation` is the question being asked.** `"interventional"` breaks the
 #' dependence between features, attributing to what the model *uses*: a feature
@@ -401,7 +399,7 @@ Explanation <- new_class(
     algorithm = class_character,
     config = ExplanationConfig,
     # Which of the three spaces `supervised_features()` passes through the
-    # numbers are indexed by. Reported rather than assumed: how far back an
+    # numbers are indexed by, reported per explanation: how far back an
     # attribution can be carried depends on what preprocessing ran, so a claim
     # about the space has to be made per explanation.
     space = prop_string(

@@ -43,8 +43,8 @@ estimator used by the kernel estimator.}
 Configure per-case Shapley additive explanations for \code{explain()}.
 }
 \details{
-Three choices here are semantics rather than tuning, and each is recorded on
-the returned explanation so that two of them can never be silently compared.
+Three choices here define what is computed, and each is recorded on the
+returned explanation, so explanations computed differently are told apart.
 
 \strong{\code{perturbation} is the question being asked.} \code{"interventional"} breaks the
 dependence between features, attributing to what the model \emph{uses}: a feature

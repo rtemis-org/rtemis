@@ -63,9 +63,8 @@ long_to_confusion <- function(long) {
 #' @noRd
 prop_confusion_long <- function() {
   prop_state(prop_table(
-    # Every cell is populated for every case pair, so unlike a metric none of
-    # these is nullable. Their defaults are unused, a column spec describing a
-    # cell rather than a value.
+    # Every cell is populated for every case pair, so none of these is
+    # nullable. Their defaults are unused.
     columns = list(
       reference = prop_string("", description = "True outcome level."),
       predicted = prop_string("", description = "Predicted outcome level."),
@@ -98,7 +97,7 @@ class_df_for_print <- function(df) {
 # Accuracy", auc -> "AUC", rsq -> "R^2"). labelify() uppercases the acronyms
 # via its capitalize_strings defaults; R-squared gets a Unicode superscript two.
 # Stored field names stay lowercase.
-CAP_METRICS <- c("mae", "mse", "rmse", "oos")
+CAP_METRICS <- c("mae", "mse", "rmse", "oos", "auc", "ppv", "npv")
 label_metrics <- function(x) {
   sub("^Rsq$", "R\u00b2", labelify(x, capitalize_strings = CAP_METRICS))
 }
@@ -116,9 +115,9 @@ label_metric_df <- function(df) {
 #'
 #' Every metric column is nullable. A metric can be genuinely undefined for a
 #' sample -- F1 when precision and recall are both zero, sensitivity for a class
-#' with no cases, AUC when its backend fails -- and NA is the honest answer
-#' rather than a reason to reject the whole object. Distinct from a column being
-#' *absent*, which says the metric was not computed for this task at all.
+#' with no cases, AUC when its backend fails -- and is then stored as NA in a
+#' valid object. An *absent* column says the metric was not computed for this
+#' task at all.
 #'
 #' @param min Numeric, optional: Lower bound.
 #' @param max Numeric, optional: Upper bound.
@@ -192,7 +191,7 @@ CLASSIFICATION_OVERALL_REQUIRED <- c("balanced_accuracy", "f1", "accuracy")
 
 # %% METRICS_SAMPLES ----
 # Which sample a metrics object describes. A closed set: rtemis names the
-# samples itself, so a value outside it is a typo rather than a new case.
+# samples itself, so a value outside it is rejected.
 METRICS_SAMPLES <- c(
   "Training",
   "Validation",
@@ -298,7 +297,7 @@ RegressionMetrics <- schema_class(
   properties = list(
     # A one-row table. Every metric is nullable: a metric can be genuinely
     # undefined for a sample (R-squared when the outcome has no variance), and
-    # NA is the honest answer rather than a reason to reject the object.
+    # is then stored as NA in a valid object.
     metrics = prop_state(prop_table(
       columns = regression_metric_columns(),
       nullable = TRUE,
@@ -384,8 +383,7 @@ ClassificationMetrics <- schema_class(
   properties = list(
     confusion_long = prop_confusion_long(),
     # The wide `table` R users and the plotting code expect, rebuilt from the
-    # stored long form. Recoverable from a published field, so it is a view
-    # rather than a second stored representation that could disagree.
+    # stored long form. Derived from a published field, so it is a view.
     confusion_matrix = prop_computed(new_property(
       class = class_table,
       getter = function(self) long_to_confusion(self@confusion_long)

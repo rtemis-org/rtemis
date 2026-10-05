@@ -212,10 +212,9 @@ check_supervised_inputs <- function(x, y = NULL) {
 set_outcome <- function(dat, outcome_column) {
   check_character_scalar(outcome_column)
   # `match()`, not `grep()`: a column name is a name, not a pattern. `grep()`
-  # matched it as a regular expression and as a substring, so `set_outcome(dat,
-  # "age")` moved both `age` and `age_group` to the end and left `age_group` as
-  # the outcome -- the wrong target, silently, on data that looks fine. A `.` in
-  # a name (`Sepal.Length`) was a wildcard for the same reason.
+  # matches a regular expression as a substring, so "age" would also select
+  # `age_group` and make it the outcome, and the `.` in `Sepal.Length` would be
+  # a wildcard.
   id <- match(outcome_column, names(dat))
   if (is.na(id)) {
     rtemis.core::abort(

@@ -178,7 +178,7 @@ test_that("LightRF back-compat access patterns work", {
   # Individual props are validated and typed.
   expect_identical(h@nrounds, 500L)
   # `$` and `[[` route through the computed hyperparameters list.
-  expect_identical(h$num_leaves, 4096L)
+  expect_identical(h[["num_leaves"]], 4096L)
   expect_identical(h[["bagging_fraction"]], 0.623)
   # The computed list includes the unsettable RF constants.
   expect_identical(h@hyperparameters[["boosting"]], "rf")
@@ -209,7 +209,7 @@ test_that("LightRF tuned status derives from search values", {
   # clean_posint reaches inside a domain, so every candidate is upgraded from
   # double to integer exactly as a single value would be.
   expect_identical(
-    setup_LightRF(nrounds = tune_over(500, 1000))$nrounds@candidates,
+    setup_LightRF(nrounds = tune_over(500, 1000))[["nrounds"]]@candidates,
     list(500L, 1000L)
   )
 })
@@ -227,7 +227,7 @@ test_that("LightRF hyperparameters setter writes through to props", {
     list(nrounds = 750L),
     tuned = 1L
   )
-  expect_identical(h2$nrounds, 750L)
+  expect_identical(h2[["nrounds"]], 750L)
   expect_identical(h2@tuned, 1L)
   expect_true(is_tuned(h2))
 })
@@ -280,15 +280,15 @@ test_that("tune-on-null hyperparameters drive the tuned status", {
   # LightGBM: NULL nrounds means "determine by early stopping".
   expect_identical(setup_LightGBM()@tuned, 0L)
   expect_identical(setup_LightGBM(force_nrounds = 100L)@tuned, -1L)
-  expect_identical(setup_LightGBM(force_nrounds = 100L)$nrounds, 100L)
+  expect_identical(setup_LightGBM(force_nrounds = 100L)[["nrounds"]], 100L)
 })
 
 test_that("update() converts the grid NULL sentinel back to NULL", {
   # expand_grid() encodes NULL search entries as the string "null".
   h <- update(setup_GLMNET(), list(lambda = "null"))
-  expect_null(h$lambda)
+  expect_null(h[["lambda"]])
   h <- update(setup_LightGBM(), list(nrounds = "null"))
-  expect_null(h$nrounds)
+  expect_null(h[["nrounds"]])
 })
 
 # %% Constants ----
@@ -312,12 +312,12 @@ test_that("LightRuleFit rejects ifw combined with per-step ifw", {
 test_that("vector-valued hyperparameters accept vectors", {
   # penalty_factor is one value per feature, not a set of search values.
   h <- setup_GLMNET(penalty_factor = c(1, 1, 0.5))
-  expect_length(h$penalty_factor, 3L)
+  expect_length(h[["penalty_factor"]], 3L)
   expect_false("penalty_factor" %in% h@tunable_hyperparameters)
   # Element-wise constraints still apply.
   expect_error(setup_GLMNET(penalty_factor = c(1, -1)))
   # CART cost is per-feature.
-  expect_length(setup_CART(cost = c(1, 2))$cost, 2L)
+  expect_length(setup_CART(cost = c(1, 2))[["cost"]], 2L)
 })
 
 # LightGBMHyperparameters ----
@@ -805,7 +805,7 @@ test_that("setup_MonotonicHAL() with search values needs tuning", {
 
 test_that("setup_HAL() keeps the length of num_knots", {
   expect_length(
-    setup_HAL(max_degree = 3L, num_knots = c(30L, 20L, 10L))$num_knots,
+    setup_HAL(max_degree = 3L, num_knots = c(30L, 20L, 10L))[["num_knots"]],
     3L
   )
 })

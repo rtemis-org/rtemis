@@ -36,7 +36,7 @@ S7_to_JSONSchema(
 
 \item{base}{S7 class or NULL: The family base class, whose inherited
 properties are machinery (\code{tuned}, \code{resampled}, the computed payload list)
-rather than config, and are omitted. NULL for a flat config that has no
+and are omitted. NULL for a flat config that has no
 family base.}
 
 \item{required}{Character: Names of required properties. Default NULL: all
@@ -46,7 +46,7 @@ optional, so omitted fields fall back to their \verb{setup_*} defaults on read
 \item{record}{Logical: If TRUE, emit the \strong{record} form of the schema: the
 same properties, but every one required. A record states what a run
 actually used, so nothing in it may fall back to a reader's defaults -- an
-unset value is written as an explicit \code{null} rather than omitted. The
+unset value is written as an explicit \code{null}. The
 difference between an input schema and a record schema is exactly this;
 membership is identical.}
 
@@ -78,7 +78,7 @@ these metrics schemas from each fold's own \code{metrics}.}
 
 \item{metrics_ref}{Character or NULL: If set (and \code{record} is TRUE), adds a
 required, nullable \code{metrics} property referencing that one schema. For a
-run whose result is a single metrics object rather than a per-sample map;
+run whose result is a single metrics object;
 mutually exclusive with \code{metrics_refs}.}
 
 \item{reference_urls}{Optional named character: Publication URLs keyed by
@@ -103,8 +103,8 @@ by their declared role (see \code{prop_role()}), not by a list kept here:
 being marked \code{readOnly}, while \code{"computed"} and \code{"r_only"} properties are
 omitted -- the first because everything it derives from is published, the
 second because it has no wire form at all. A spec-less property with no role
-is an error, so a class that drifts from the factory vocabulary fails loudly
-instead of emitting a wrong schema.
+is an error, so a class that drifts from the factory vocabulary fails schema
+generation.
 }
 \examples{
 \dontrun{

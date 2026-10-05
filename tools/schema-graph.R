@@ -363,6 +363,64 @@ cases[["vae_record"]] <- check_document(
     class = "json"
   )
 )
+# The distance-based leaves share one `dist_method` vocabulary, which leaves out
+# vegdist's dataset-level methods; each mutant breaks one constraint, and each
+# record is a real fit.
+for (alg in c("MDS", "PCoA")) {
+  key <- tolower(alg)
+  setup_fn <- get(paste0("setup_", alg))
+  wire <- S7_to_list(setup_fn(k = 3L, dist_method = "bray"))
+  cases[[paste0(key, "_input")]] <- check_document(
+    paste0(key, "_input"),
+    "decomposition/r/v1/schema.json",
+    wire
+  )
+  mutant <- wire
+  mutant[["dist_method"]] <- "gower"
+  label <- paste0(key, "_dataset_level_distance")
+  cases[[label]] <- check_document(
+    label,
+    "decomposition/r/v1/schema.json",
+    mutant,
+    FALSE
+  )
+  record_file <- tempfile(fileext = ".json")
+  write_record(
+    decomp(
+      iris[, 1:4],
+      config = setup_fn(k = 2L),
+      execution_config = setup_SerialExecution(seed = 1L),
+      verbosity = 0L
+    ),
+    record_file,
+    verbosity = 0L
+  )
+  cases[[paste0(key, "_record")]] <- check_document(
+    paste0(key, "_record"),
+    "decompose/r/v1/record.json",
+    structure(
+      paste(readLines(record_file, warn = FALSE), collapse = "\n"),
+      class = "json"
+    )
+  )
+}
+mds_wire <- S7_to_list(setup_MDS())
+mutant <- mds_wire
+mutant[["model"]] <- "hybrid"
+cases[["mds_hybrid_model"]] <- check_document(
+  "mds_hybrid_model",
+  "decomposition/r/v1/schema.json",
+  mutant,
+  FALSE
+)
+mutant <- S7_to_list(setup_PCoA())
+mutant[["nstart"]] <- 5L
+cases[["pcoa_nstart_undeclared"]] <- check_document(
+  "pcoa_nstart_undeclared",
+  "decomposition/r/v1/schema.json",
+  mutant,
+  FALSE
+)
 # The device is a nested family: an unknown type, and GPU ids on a device that
 # has none, are both rejected by the schema itself.
 execution_wire <- S7_to_list(setup_SerialExecution(device = "cuda", seed = 1L))
@@ -513,6 +571,35 @@ cases[["diagnostics_empty"]] <- check_document(
   "diagnostics_empty",
   "diagnostics/r/v1/schema.json",
   record_object(Diagnostics())
+)
+writeup_idx <- c(1:40, 51:90, 101:140)
+writeup_record <- record_object(writeup(train(
+  iris[writeup_idx, ],
+  dat_test = iris[-writeup_idx, ],
+  hyperparameters = setup_CART(maxdepth = tune_over(2L, 3L)),
+  verbosity = 0L
+)))
+cases[["writeup_record"]] <- check_document(
+  "writeup_record",
+  "supervisedwriteup/v1/schema.json",
+  writeup_record
+)
+mutant <- writeup_record
+mutant[["sections"]][[1L]][["part"]] <- "discussion"
+cases[["writeup_wrong_part"]] <- check_document(
+  "writeup_wrong_part",
+  "supervisedwriteup/v1/schema.json",
+  mutant,
+  FALSE
+)
+mutant <- writeup_record
+mutant[["review"]][["baseline"]][["resamples_compared"]] <- NULL
+mutant[["review"]][["algorithm"]] <- "NotAnAlgorithm"
+cases[["writeup_review_wrong_algorithm"]] <- check_document(
+  "writeup_review_wrong_algorithm",
+  "supervisedwriteup/v1/schema.json",
+  mutant,
+  FALSE
 )
 cases[["diagnostics_wrong"]] <- check_document(
   "diagnostics_wrong",

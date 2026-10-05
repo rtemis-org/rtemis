@@ -122,6 +122,7 @@ schema-artifacts out:
     {{ rscript }} data-raw/generate_defaults.R "{{ out }}"
     {{ rscript }} tools/defaults-conformance.R "{{ out }}/defaults/v1/corpus.json"
     {{ rscript }} data-raw/generate_authoring.R "{{ out }}"
+    {{ rscript }} data-raw/generate_reporting.R "{{ out }}"
     {{ rscript }} data-raw/generate_checks.R "{{ out }}"
     {{ rscript }} data-raw/generate_checks_corpus.R "{{ out }}"
     {{ rscript }} data-raw/generate_profile_fixture.R "{{ out }}"
@@ -153,6 +154,10 @@ schema-graph artifacts report:
 [doc("Export class-rule boundary cases for an independent JSONLogic evaluator")]
 schema-rules report:
     {{ rscript }} tools/schema-rules.R "{{ report }}"
+
+[doc("Export supervised result relation cases for foreign evaluators")]
+result-rules report:
+    {{ rscript }} tools/result-rules.R "{{ report }}"
 
 # Check the full generated corpus and compare shipped artifacts without
 # modifying them. `checks-refresh` explicitly updates those package copies.

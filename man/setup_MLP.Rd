@@ -42,11 +42,11 @@ setup_MLP(
 \arguments{
 \item{hidden_units}{(Tunable) Optional Integer [1, Inf) vector: Units in each hidden layer, one value per layer. NULL generates the widths from the shape settings.}
 
-\item{shape}{(Tunable) Optional Character \{"funnel", "constant", "triangle", "long_funnel", "diamond", "hexagon", "stairs"\}: Profile of the generated hidden layer widths. Ignored when hidden_units is set.}
+\item{shape}{(Tunable) Optional Character \{"funnel", "constant", "triangle", "long_funnel", "diamond", "hexagon", "stairs"\}: Profile of the generated hidden layer widths. Ignored when \code{hidden_units} is set. NULL uses "funnel" where \code{hidden_units} is NULL.}
 
-\item{shape_layers}{(Tunable) Optional Integer [1, Inf): Number of hidden layers to generate. Ignored when hidden_units is set.}
+\item{shape_layers}{(Tunable) Optional Integer [1, Inf): Number of hidden layers to generate. Ignored when \code{hidden_units} is set. NULL uses 3 where \code{hidden_units} is NULL.}
 
-\item{shape_max_units}{(Tunable) Optional Integer [1, Inf): Widest generated hidden layer. NULL derives it from the encoded input width.}
+\item{shape_max_units}{(Tunable) Optional Integer [1, Inf): Widest generated hidden layer. Ignored when \code{hidden_units} is set. NULL derives it from the encoded input width where \code{hidden_units} is NULL.}
 
 \item{activation}{(Tunable) Character \{"relu", "gelu", "silu", "elu", "selu", "leaky_relu", "tanh"\}: Activation applied after every hidden layer.}
 
@@ -117,7 +117,7 @@ regression, binary and multiclass classification.
 \strong{Architecture.} Give the hidden layers directly with \code{hidden_units} --
 \code{c(256L, 128L, 64L)} is three layers of those widths -- or leave it NULL and
 let \code{shape}, \code{shape_layers} and \code{shape_max_units} generate them. Setting both
-is an error rather than a silent override. The generated profiles are
+is an error. The generated profiles are
 \code{funnel} (a linear taper from the widest layer down to a third of it),
 \code{constant}, \code{triangle} (a linear rise from the input width), \code{long_funnel},
 \code{diamond}, \code{hexagon} and \code{stairs}; the vocabulary is Talos's, by way of
@@ -137,9 +137,8 @@ rejected as such.
 
 \strong{Categorical features} are represented by learned embeddings, each sized
 \code{min(600, round(1.6 * cardinality^0.56))} unless \code{embedding_dim} fixes them
-all. \code{embeddings = FALSE} one-hot encodes instead. Numeric features are
-always centered and scaled -- an unscaled network fails quietly rather than
-loudly -- and the fitted encoder is re-applied at predict time.
+all. \code{embeddings = FALSE} one-hot encodes them. Numeric features are always
+centered and scaled, and the fitted encoder is re-applied at predict time.
 
 \strong{Device and reproducibility.} The device is the execution config's: see the
 \code{device} argument of \link{setup_FutureExecution}. Unset picks \code{cuda} where

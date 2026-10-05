@@ -86,10 +86,25 @@ force_supplied <- function() {
 # %% get_varimp ----
 #' Get variable importance
 #'
-#' @param x `Supervised` or `SupervisedRes` object.
+#' @description
+#' The variable importance measures a fitted model reports, or the mean
+#' absolute contribution of each predictor in a `SHAP` explanation.
+#'
+#' @details
+#' A `VariableImportance` object holds its measures by name in `@measures`.
+#' Each measure states what it quantifies (`@kind`, for example split gain,
+#' permutation, or coefficient), the cases it was computed on
+#' (`@computed_on`), whether its values can be negative (`@signed`) or depend
+#' on the units of the predictors (`@scale_dependent`), how it ranks
+#' predictors (`@direction`), and what its values are for this model
+#' (`@description`); `@values` holds the value for each predictor.
+#' [varimp_table] combines the measures into one data.frame.
+#'
+#' @param x `Supervised`, `SupervisedRes` or `SHAP` object.
 #' @param ... Additional arguments passed to methods.
 #'
-#' @return `VariableImportance` object or list of `VariableImportance` objects.
+#' @return `VariableImportance` object, a list of them (one per resample) for
+#'   a `SupervisedRes`, or NULL when the algorithm reports no importance.
 #'
 #' @author EDG
 #' @export
@@ -332,9 +347,8 @@ se_super <- new_generic(
 # %% se ----
 #' Standard error of the fit
 #'
-#' Computed on demand from the fitted model rather than stored: only three of
-#' the twenty-four algorithms answer at all, so storing three per-case vectors
-#' on every regression result would carry a value almost none of them populate.
+#' Computed on demand from the fitted model, since only three of the twenty-four
+#' algorithms provide it.
 #'
 #' @param x `Supervised` object.
 #' @param newdata tabular data: Data to compute standard errors for.
@@ -368,7 +382,7 @@ se <- new_generic("se", "x", function(x, newdata, ...) {
 #' The contract. Returns an `n x length(quantiles)` numeric matrix, columns in
 #' the order `quantiles` were given. A backend that was fitted without whatever
 #' it needs to answer -- Ranger without `quantreg = TRUE` -- aborts naming the
-#' setting, rather than returning point predictions.
+#' setting.
 #'
 #' @param model Fitted model object.
 #' @param newdata tabular data: Cases to predict, already transformed.
@@ -414,7 +428,8 @@ quantile_super <- new_generic(
 #'   \item{`baseline`}{Named numeric, parallel to `phi`: `E[f(x)]`.}
 #'   \item{`predicted`}{`n x k` matrix on `scale`, which `phi` and `baseline`
 #'     must reconstruct.}
-#'   \item{`exact`}{TRUE if these are Shapley values rather than an estimate.}
+#'   \item{`exact`}{TRUE if these are exact Shapley values; FALSE for an
+#'     estimate.}
 #' }
 #'
 #' @param model Fitted model object.
@@ -463,8 +478,8 @@ explain_super <- new_generic(
 #' **`background` is what the contributions are measured against**, and most
 #' estimators cannot work without one. A contribution says how far a feature
 #' moved this case's prediction away from `E[f(x)]`, and that expectation is a
-#' property of the background data rather than of the model -- which does not
-#' store the data it was trained on. Pass the training features, or a
+#' property of the background data, and the model does not store the data it
+#' was trained on. Pass the training features, or a
 #' representative sample of them. The exceptions are the estimators that take
 #' their baseline from the model itself, such as the LightGBM family's; those
 #' ignore it, and everything else aborts without it.
@@ -705,10 +720,9 @@ apply_decomp_ <- new_generic(
 #'
 #' `x` is the data being reconstructed, in input units. Methods need it only
 #' when the backend's preprocessing is per-case and therefore not recoverable
-#' from the components -- ICA's `row_norm`. It is a required argument rather
-#' than an optional one because a caller computing reconstruction error holds
-#' `x` already, and a method that silently reconstructed against the wrong
-#' cases would be wrong in a way nothing downstream could detect.
+#' from the components -- ICA's `row_norm`. It is required, since a caller
+#' computing reconstruction error already holds `x`, and reconstruction against
+#' other cases would produce errors nothing downstream could detect.
 #'
 #' `execution_config` describes where the reconstruction runs, as for
 #' `apply_decomp_()`.
@@ -781,10 +795,9 @@ cluster_membership <- new_generic(
 #' **fitted** clusters -- excluding a noise label, and including a cluster that
 #' won no case -- which is not in general the number of distinct labels.
 #'
-#' The default method aborts rather than counting labels: label counting is
-#' correct only where a backend's non-noise labels enumerate its fitted
-#' clusters, so an algorithm that discovers `k` has to say where its count comes
-#' from instead of inheriting a guess.
+#' The default method aborts: label counting is correct only where a backend's
+#' non-noise labels enumerate its fitted clusters, so an algorithm that
+#' discovers `k` defines a method stating where its count comes from.
 #'
 #' @author EDG
 #' @keywords internal
@@ -829,8 +842,7 @@ get_metric <- new_generic("get_metric", "x")
 #' on `x`.
 #'
 #' Called by [train] before any tuning or resampling, so an invalid search
-#' space fails fast rather than surfacing as per-grid-cell failures that
-#' `on_error = "continue"` would swallow, and again immediately before
+#' space fails before any grid cell runs, and again immediately before
 #' `train_()` on the resolved hyperparameters, where the feature count reflects
 #' any preprocessing and decomposition.
 #'
@@ -865,7 +877,7 @@ validate_hyperparameters <- new_generic(
 #' Learning curve of a fitted model
 #'
 #' @description
-#' The loss recorded at every step of training, as data rather than a picture:
+#' The loss recorded at every step of training, as data:
 #' one row per step, with the training and validation loss where the algorithm
 #' records them.
 #'
@@ -899,7 +911,7 @@ get_learning_curve <- new_generic("get_learning_curve", "x")
 #' The per-algorithm half of [get_learning_curve]: dispatches on the fitted
 #' model class and returns the curve in one shape whatever the algorithm's own
 #' unit of progress is. A missing method means the algorithm records no curve,
-#' which `get_learning_curve()` reports as NULL rather than as a dispatch error.
+#' which `get_learning_curve()` reports as NULL.
 #'
 #' @param model Fitted model object.
 #'
@@ -959,6 +971,299 @@ describe <- new_generic("describe", "x", function(x, verbosity = 1L, ...) {
   S7_dispatch()
 })
 
+
+# %% review ----
+#' Review a trained supervised model
+#'
+#' @description
+#' Assess a trained model: whether its evaluation can be trusted given the
+#' sample size and the number of predictors, whether it performs better than a
+#' baseline that ignores the predictors, and whether it overfits. The review
+#' is deterministic: it draws no random numbers.
+#'
+#' @details
+#' The review holds every value it rests on, so a reader can judge for
+#' themselves: `@sample` (sample sizes, input predictors and the columns the
+#' learner received), `@class_counts`, `@performance` (one row per metric:
+#' training, test, training minus test, the spread over resamples, and the
+#' test interval or pooled value), `@baseline` (one row per comparison with a
+#' reference that ignores the predictors, naming the reference and the method)
+#' and `@tuning` (tuned hyperparameters against their search range). Its
+#' findings state what it observes. Printing shows a summary: one row per
+#' metric -- mean (SD) over resamples for a resampled model -- the baseline
+#' comparisons, the findings and the limitations.
+#'
+#' **Single split.** The test cases are independent of the fitted model, so
+#' the review computes confidence intervals and two-sided comparisons at
+#' `confidence_level`. Accuracy is compared with always predicting the most
+#' common training class by the exact McNemar test, which pairs the two
+#' predictors' results case by case. Balanced accuracy and AUC are compared
+#' with their chance levels (1/K, 0.5) through their intervals:
+#' per-class binomial variances for balanced accuracy, the DeLong method for
+#' AUC. The Brier score, MSE and MAE are compared with a constant baseline
+#' (training proportion, training mean) through a paired t interval of the
+#' per-case loss reduction; the skill score is reported as a point estimate.
+#' An interval that cannot be computed -- too few cases, a class absent from
+#' the test set, an AUC of 0 or 1 -- is left unset and no verdict is made from
+#' it. A training value of the headline metric (balanced accuracy, or mean
+#' squared error for regression) outside its test interval is reported as a
+#' diagnostic sign of possible overfitting; it is not a test of the
+#' train-test difference.
+#'
+#' **Resampled models.** Resamples share training cases, so their test
+#' results are dependent, and the review makes no interval or test from them.
+#' Every metric is reported as its mean and standard deviation over the outer
+#' resamples, each baseline is fit to the training data of its resample, and
+#' the review counts the resamples in which the model beat its baseline. When
+#' every case is tested once, as with k-fold resampling, pooled out-of-sample
+#' values are reported as descriptions for metrics that average over cases;
+#' AUC is not pooled, since it would rank scores from different fitted models
+#' together.
+#'
+#' A tuned hyperparameter selected at the edge of the values searched is
+#' reported, since a better value may lie beyond it.
+#'
+#' The cases-per-predictor check counts the columns the learner received,
+#' after preprocessing and decomposition. Its threshold is a rule of thumb from
+#' logistic regression (events per variable; see References), reported for
+#' context.
+#'
+#' Preprocessing, decomposition and tuning inside `train()` are fitted on the
+#' training cases of each split and only applied to its test cases. Steps
+#' taken before the data is passed to `train()` -- selecting predictors or
+#' transforming cases using all the data, or choosing among models by their
+#' test performance -- can bias evaluation, and the fitted model cannot show
+#' whether they happened. Performance metrics also cannot establish whether a
+#' model is useful. Every review states both.
+#'
+#' @param x `Supervised` or `SupervisedRes` object: A trained model, as returned
+#'   by [train].
+#' @param confidence_level Optional Numeric (0, 1): Confidence level of every
+#'   interval. NULL uses 0.95.
+#' @param min_cases_per_predictor Optional Numeric (0, Inf): Training cases per
+#'   learner column -- minority-class cases for classification -- below which
+#'   the review notes a shortfall. NULL uses 10, an events-per-variable rule of
+#'   thumb from logistic regression (see References).
+#' @param ... Not used.
+#'
+#' @return `SupervisedReview` object, whose tables are data.frames.
+#'
+#' @references
+#' Clopper CJ, Pearson ES (1934). The use of confidence or fiducial limits
+#' illustrated in the case of the binomial. Biometrika, 26(4), 404-413.
+#'
+#' DeLong ER, DeLong DM, Clarke-Pearson DL (1988). Comparing the areas under
+#' two or more correlated receiver operating characteristic curves: a
+#' nonparametric approach. Biometrics, 44(3), 837-845.
+#'
+#' McNemar Q (1947). Note on the sampling error of the difference between
+#' correlated proportions or percentages. Psychometrika, 12(2), 153-157.
+#'
+#' Peduzzi P, Concato J, Kemper E, Holford TR, Feinstein AR (1996). A
+#' simulation study of the number of events per variable in logistic regression
+#' analysis. Journal of Clinical Epidemiology, 49(12), 1373-1379.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' idx <- c(1:40, 51:90, 101:140)
+#' mod <- train(
+#'   iris[idx, ],
+#'   dat_test = iris[-idx, ],
+#'   hyperparameters = setup_CART(),
+#'   verbosity = 0L
+#' )
+#' review(mod)
+#'
+#' # Resampled
+#' mod_res <- train(
+#'   iris,
+#'   hyperparameters = setup_CART(),
+#'   outer_resampling_config = setup_KFold(5L),
+#'   verbosity = 0L
+#' )
+#' review(mod_res)
+review <- new_generic(
+  "review",
+  "x",
+  function(
+    x,
+    confidence_level = NULL,
+    min_cases_per_predictor = NULL,
+    ...
+  ) {
+    force_supplied()
+    S7_dispatch()
+  }
+)
+
+
+# %% ai_review ----
+#' Write an assessment of a model review with a language model
+#'
+#' @description
+#' Ask a language model to write a summary, an evaluation, next steps and
+#' caveats from a [review] of a trained supervised model. Every statement cites
+#' the codes of the review findings it rests on, and the result keeps the
+#' review and a record of how the text was produced.
+#'
+#' @details
+#' The model receives the review as JSON and, if given, `context`: the
+#' question the model addresses, the costs of different errors, how its
+#' predictions will be used. It never receives the data. Without context, the
+#' assessment states that usefulness cannot be judged.
+#'
+#' The model answers in a declared structure whose codes are restricted to the
+#' review's findings, and the answer is checked: an answer that does not match
+#' the structure, or cites a code that is not a finding of the review, is an
+#' error. The returned object records the model, the provider, the
+#' temperature, the full prompt, a SHA-256 hash of the review sent and the
+#' time, so the assessment can be audited and, as far as the model allows,
+#' reproduced.
+#'
+#' The written assessment is an interpretation of the review, which remains
+#' the evidence; read them together.
+#'
+#' Requires the `rtemis.llm` package and access to a model.
+#'
+#' @param x `SupervisedReview`, `Supervised` or `SupervisedRes` object: A
+#'   review, or a trained model to review with default settings.
+#' @param llm `rtemis.llm` `LLM` or `Agent` object: The model to write the
+#'   assessment, for example from `rtemis.llm::create_Ollama()` or
+#'   `rtemis.llm::create_Anthropic()`.
+#' @param context Optional Character: Domain context for the assessment.
+#' @param temperature Optional Numeric [0, Inf): Sampling temperature for this
+#'   call. NULL uses the model's own setting.
+#' @param verbosity Integer: Verbosity level.
+#' @param ... Not used.
+#'
+#' @return `AISupervisedReview` object.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # Requires a running Ollama server with the model pulled.
+#' mod <- train(
+#'   iris,
+#'   hyperparameters = setup_CART(),
+#'   outer_resampling_config = setup_KFold(5L),
+#'   verbosity = 0L
+#' )
+#' llm <- rtemis.llm::create_Ollama(model_name = "gemma4:e4b")
+#' ai_review(
+#'   mod,
+#'   llm = llm,
+#'   context = "Teaching example; no decisions depend on the predictions."
+#' )
+#' }
+ai_review <- new_generic(
+  "ai_review",
+  "x",
+  function(
+    x,
+    llm,
+    context = NULL,
+    temperature = NULL,
+    verbosity = 1L,
+    ...
+  ) {
+    force_supplied()
+    S7_dispatch()
+  }
+)
+
+
+# %% writeup ----
+#' Write the Methods and Results sections for a trained model
+#'
+#' @description
+#' Describe a trained supervised model as the Methods and Results sections of
+#' a paper: the data, preprocessing, algorithm and settings, tuning, evaluation
+#' design, performance measures and statistical methods, and software, then
+#' the sample, performance with its uncertainty, the comparison with a
+#' baseline, and the hyperparameters tuning selected.
+#'
+#' Two tables report the hyperparameters. The main table lists the algorithm's
+#' primary hyperparameters, every hyperparameter that was tuned or specified,
+#' and the values selected during fitting (such as a number of boosting rounds
+#' chosen by early stopping); the supplementary table lists every
+#' hyperparameter that applied to the fit, its value, how it was chosen and the
+#' values tuning evaluated. A hyperparameter left unset is reported with what
+#' that means for the fit. `@hyperparameters` holds the rows of both tables.
+#'
+#' @details
+#' The text is assembled from the model and its [review], so it states only
+#' what rtemis recorded. Every number in the text is read from the model or
+#' the review: the returned object holds each one in `@values` with the path of
+#' the field it came from, and the paragraphs in `@sections` are templates in
+#' which each number is a `{key}` token naming a row of `@values`. Statistical
+#' methods are those `review()` used, cited in `@references` together with R,
+#' rtemis and the packages that fitted the model, at the versions recorded
+#' when the model was trained.
+#'
+#' A Methods section also states the source of the data, the study design,
+#' how the outcome and predictors were measured, and anything done to the data
+#' before it was passed to rtemis. The model does not record these, so the
+#' writeup lists them in `@not_reported` for the author to add.
+#'
+#' Print the result to read it; [write_writeup] writes it as Markdown.
+#'
+#' @param x `Supervised` or `SupervisedRes` object: A trained model, as
+#'   returned by [train].
+#' @param confidence_level Optional Numeric (0, 1): Confidence level of the
+#'   intervals of a single-split model. NULL uses 0.95.
+#' @param include_hyperparameters Optional Character: Hyperparameters the main
+#'   hyperparameter table lists in place of the algorithm's primary
+#'   hyperparameters, beside those that were tuned or specified and the values
+#'   selected during fitting. NULL uses the primary hyperparameters;
+#'   `character(0)` adds none.
+#' @param ... Not used.
+#'
+#' @return `SupervisedWriteup` object.
+#'
+#' @references
+#' Clopper CJ, Pearson ES (1934). The use of confidence or fiducial limits
+#' illustrated in the case of the binomial. Biometrika, 26(4), 404-413.
+#'
+#' DeLong ER, DeLong DM, Clarke-Pearson DL (1988). Comparing the areas under
+#' two or more correlated receiver operating characteristic curves: a
+#' nonparametric approach. Biometrics, 44(3), 837-845.
+#'
+#' McNemar Q (1947). Note on the sampling error of the difference between
+#' correlated proportions or percentages. Psychometrika, 12(2), 153-157.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' idx <- c(1:40, 51:90, 101:140)
+#' mod <- train(
+#'   iris[idx, ],
+#'   dat_test = iris[-idx, ],
+#'   hyperparameters = setup_CART(),
+#'   verbosity = 0L
+#' )
+#' writeup(mod)
+#'
+#' # Resampled
+#' mod_res <- train(
+#'   iris,
+#'   hyperparameters = setup_CART(),
+#'   outer_resampling_config = setup_KFold(5L),
+#'   verbosity = 0L
+#' )
+#' writeup(mod_res)
+writeup <- new_generic(
+  "writeup",
+  "x",
+  function(x, confidence_level = NULL, include_hyperparameters = NULL, ...) {
+    force_supplied()
+    S7_dispatch()
+  }
+)
 
 # %% get_hyperparams_need_tuning ----
 #' Get hyperparameters that need tuning.
@@ -1111,8 +1416,8 @@ to_json <- new_generic("to_json", "x")
 #' @keywords internal
 #' @noRd
 method(to_json, S7_object) <- function(x, ...) {
-  # Read one property at a time rather than `props(x)`, so an omitted computed
-  # property's getter is not evaluated only to be discarded.
+  # Read one property at a time, so an omitted computed property's getter is
+  # never evaluated.
   nms <- published_prop_names(S7_class(x))
   body <- lapply(nms, function(nm) .to_json_value(prop(x, nm)))
   names(body) <- nms
@@ -1481,7 +1786,7 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' # --- Calibrate Classification ---
 #' dat <- iris[51:150, ]
 #' res <- resample(dat)
-#' dat$Species <- factor(dat$Species)
+#' dat[["Species"]] <- factor(dat[["Species"]])
 #' dat_train <- dat[res[[1]], ]
 #' dat_test <- dat[-res[[1]], ]
 #'
@@ -1496,8 +1801,8 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' # in this case using the training data, but it could be a separate calibration dataset.
 #' mod_c_glm_cal <- calibrate(
 #'   mod_c_glm,
-#'   predicted_probabilities = mod_c_glm$predicted_prob_training[, 1L],
-#'   true_labels = mod_c_glm$y_training
+#'   predicted_probabilities = mod_c_glm[["predicted_prob_training"]][, 1L],
+#'   true_labels = mod_c_glm[["y_training"]]
 #' )
 #' mod_c_glm_cal
 #'
@@ -1654,8 +1959,7 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 #'
 #' Reports keep every published property, including observed state. Other
 #' objects keep every property `prop_serialized()` admits, so a flat config
-#' drops the same fields a config family does rather than emitting whatever it
-#' happens to hold. Config-family classes (`Hyperparameters`,
+#' drops the same fields a config family does. Config-family classes (`Hyperparameters`,
 #' `DecompositionConfig`, `ClusteringConfig`) override this to return their
 #' canonical public shape (`algorithm` + the computed parameter list + any base
 #' fields), so the per-algorithm properties they declare -- redundant with the
@@ -1685,8 +1989,8 @@ method(serializable_props, S7_object) <- function(x) {
       if (!is.null(artifact)) {
         return(nm %in% names(artifact[["properties"]]))
       }
-      # A property this object holds but does not declare cannot be judged;
-      # keep it rather than silently dropping data.
+      # A property this object holds but does not declare cannot be judged, so
+      # it is kept.
       is.null(declared[[nm]]) ||
         if (observed) {
           prop_published(declared[[nm]])

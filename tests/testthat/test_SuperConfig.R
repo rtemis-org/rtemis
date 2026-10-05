@@ -219,6 +219,26 @@ test_that("a supervised document refuses a decomposition that cannot be applied 
     )),
     class = "rtemis_unsupported_error"
   )
+  # The reader builds the config through `setup_SuperConfig()`, which is where
+  # the check lives, so an R-authored config is refused at the same point.
+  expect_error(
+    setup_SuperConfig(
+      dat_training_path = "~/Data/iris.csv",
+      decomposition_config = setup_MDS()
+    ),
+    class = "rtemis_unsupported_error"
+  )
+  expect_error(
+    setup_SuperConfigLive(iris, decomposition_config = setup_tSNE()),
+    class = "rtemis_unsupported_error"
+  )
+  expect_s7_class(
+    setup_SuperConfig(
+      dat_training_path = "~/Data/iris.csv",
+      decomposition_config = setup_PCoA()
+    ),
+    SuperConfigPaths
+  )
 })
 
 

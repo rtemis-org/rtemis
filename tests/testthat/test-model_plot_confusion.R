@@ -128,7 +128,14 @@ test_that("ordinary fallback counts missing pairs and rejects mismatched lengths
   )[["panels"]][[1L]]
   expect_equal(p[["total"]], 3)
   expect_equal(p[["omitted"]], 1)
-  mod@predicted_test <- mod@predicted_test[-1L]
+  shortened <- mod@predicted_test[-1L]
+  expect_error(
+    mod@predicted_test <- shortened,
+    "supervised.rows.y_test.predicted_test",
+    fixed = TRUE
+  )
+  # Bypass S7 to retain defensive coverage for malformed legacy objects.
+  attr(mod, "predicted_test") <- shortened
   expect_error(classification_plot_data(mod), "equally sized")
 })
 

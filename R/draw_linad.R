@@ -4,8 +4,7 @@
 
 # %% Node geometry ----
 # vis.js's padding inside a box, in pixels. Generous on the horizontal, because
-# a node holds two lines of different sizes and needs room to read as a card
-# rather than as text with a rectangle around it.
+# a node holds two lines of different sizes and needs room to read as a card.
 LINAD_NODE_MARGIN_X <- 14L
 LINAD_NODE_MARGIN_Y <- 9L
 
@@ -22,9 +21,8 @@ LINAD_NODE_PADDING <- 2L * LINAD_NODE_MARGIN_X + LINAD_NODE_BORDER
 # %% linad_palette ----
 #' Node and table colors for a light or a dark theme
 #'
-#' Split by the background's perceived luminance rather than by theme name, so
-#' any theme -- including one a user writes -- lands on a coherent set instead
-#' of on whichever set happened to be hard-coded.
+#' Split by the background's perceived luminance, so any theme, including one a
+#' user writes, lands on a coherent set.
 #'
 #' Hue is reserved for a coefficient's sign. Everything here is therefore
 #' achromatic except for the terminal-node fill.
@@ -136,7 +134,7 @@ linad_minus <- function(x) {
 # %% linad_node_rule ----
 #' The split condition leading into a node, as text
 #'
-#' Read off the frame rather than rebuilt from stored rule strings: the frame
+#' Read off the frame: the frame
 #' carries `parent`, `left`, `split_feature`, `split_value` and `split_levels`,
 #' so which side a node is on and what condition put it there are both known.
 #'
@@ -183,19 +181,17 @@ linad_node_rule <- function(frame, node) {
 #' whose label makes it wide overlaps its siblings regardless -- measured at 12
 #' overlapping pairs on a 23-node tree, unchanged by turning the layout's
 #' optimizations off and barely changed by raising `nodeSpacing` to 500.
-#' Computing the coordinates here and handing vis.js fixed positions is what
-#' makes overlap impossible rather than unlikely.
+#' Computing the coordinates here and handing vis.js fixed positions makes
+#' overlap impossible.
 #'
-#' Separation is **per pair**, from the two nodes' own widths, rather than one
-#' spacing applied to every pair. A uniform spacing has to be as wide as the
-#' widest node in the tree, which leaves every narrow node marooned in the gap
-#' its widest sibling needed.
+#' Separation is **per pair**, from the two nodes' own widths, so a narrow node
+#' sits close to its neighbors.
 #'
 #' Leaves are placed left to right in traversal order, each parent is centered
 #' over its children, and then every level is swept once to push apart any pair
 #' closer than the two half-widths plus `gap`. The sweep is what carries the
-#' guarantee: centering a parent can pull it into a neighbor, so separation has
-#' to be enforced after centering rather than assumed from it.
+#' guarantee: centering a parent can pull it into a neighbor, so separation is
+#' enforced after centering.
 #'
 #' @param frame data.table: The tree frame.
 #' @param shown Integer vector: Node ids being drawn.
@@ -315,7 +311,7 @@ linad_label_width <- function(labels, font_size, cap) {
 #'
 #' A leaf's coefficients are the accumulated sum along its path, so the table
 #' shows what the model uses but not where any of it came from. Two facts
-#' answer that, and both are read off the fitted model rather than recomputed:
+#' answer that, and both are read off the fitted model:
 #'
 #' - a **global** term has one coefficient shared by every leaf, because
 #'   `global_features` said only the root may set it;
@@ -381,7 +377,7 @@ linad_term_marks <- function(model, shown) {
 #' comparing the table at one node against the table at another. The color
 #' scale is therefore
 #' diverging and centered on zero, and computed once across every table, so a
-#' sign change reads as a color flip rather than as a number to be parsed.
+#' sign change reads as a color flip.
 #'
 #' Each node's label carries `node_value`, what the **tree alone** predicts
 #' there, while the table on hover carries what the **linear model** adds. The
@@ -413,8 +409,7 @@ linad_term_marks <- function(model, shown) {
 #' the space the layout reserves for it.
 #' @param node_gap Integer: Clear pixels to leave between two boxes on the same
 #' level. Separation is computed per pair from the two nodes' own widths, so a
-#' narrow node sits close to its neighbor instead of being spaced as though it
-#' were the widest node in the tree.
+#' narrow node sits close to its neighbor.
 #' @param level_separation Optional Integer: Pixels between levels.
 #' @param font_size Integer: Label font size in pixels.
 #' @param node_labels Logical: If TRUE, label nodes with their rule.
@@ -442,14 +437,13 @@ linad_term_marks <- function(model, shown) {
 #' means a coefficient's sign and nothing else.
 #' @param hover_col Optional Character: Border color marking the node the
 #' coefficient table belongs to. NULL uses the theme foreground.
-#' @param height Character: CSS height. A length rather than a percentage: a
-#' percentage of a container with no height of its own collapses.
+#' @param height Character: CSS height, as a length: a percentage of a
+#' container with no height of its own collapses.
 #' @param theme `Theme` object. Node fills, the coefficient table and the hover
-#' marker all follow it, chosen by the background's luminance rather than by
-#' theme name so that a custom theme is handled too. The two ends of the
-#' coefficient scale do not follow it: both ends read on either background, and
-#' a sign that changed color with the theme would be worse than one that did
-#' not.
+#' marker all follow it, chosen by the background's luminance so that a custom
+#' theme is handled too. The two ends of the
+#' coefficient scale do not follow it: both ends read on either background, so
+#' a sign has the same color under every theme.
 #' @param verbosity Integer: If > 0, print messages.
 #'
 #' @return `visNetwork` htmlwidget.
@@ -458,7 +452,7 @@ linad_term_marks <- function(model, shown) {
 #' @export
 #' @examplesIf interactive() && requireNamespace("visNetwork", quietly = TRUE)
 #' x <- data.frame(a = rnorm(300), b = rnorm(300))
-#' x$y <- 2 * x$a + ifelse(x$b < 0, -3, 3) + rnorm(300)
+#' x[["y"]] <- 2 * x[["a"]] + ifelse(x[["b"]] < 0, -3, 3) + rnorm(300)
 #' mod <- train(x, hyperparameters = setup_LINAD(max_leaves = 5L))
 #' draw_linad(mod)
 draw_linad <- function(
@@ -553,7 +547,7 @@ draw_linad <- function(
   shown <- frame[["node"]][linad_selected_nodes(frame, terminal)]
 
   # Coefficient tables ----
-  # Column 1 is dropped rather than shown. It is not a fitted intercept -- the
+  # Column 1 is dropped. It is not a fitted intercept -- the
   # node models are fitted without one, on a centered design -- but
   # `constant - center'slopes`, the algebraic cost of re-expressing the fit in
   # the uncentered form prediction needs. So it is the model's value at x = 0,
@@ -667,9 +661,8 @@ draw_linad <- function(
       paste0("<i>", cases, "</i>")
     }
   }
-  # A rule too wide for a node is broken after the feature name rather than
-  # left to vis.js, which wraps on whatever space it reaches and so splits the
-  # operator from the value it applies to. Every rule is `feature <op> value`
+  # A rule too wide for a node is broken after the feature name; vis.js wraps on
+  # whatever space it reaches and would split the operator from its value. Every rule is `feature <op> value`
   # or `feature = levels`, so the first space is always the right break.
   too_wide <- nchar(rule) * font_size * 0.62 > node_width
   rule <- ifelse(too_wide, sub(" ", "\n", rule, fixed = TRUE), rule)
@@ -692,9 +685,9 @@ draw_linad <- function(
     x = coordinates[["x"]],
     y = coordinates[["y"]],
     title = tooltips,
-    # Colors go in as an object per node rather than one string, because a
-    # string makes vis.js derive the hover state from it and the hover border
-    # could then never differ from the fill. The resting border matches the
+    # Colors go in as an object per node, because from a single string vis.js
+    # derives the hover state, and the hover border would always match the
+    # fill. The resting border matches the
     # background, so it is invisible until hover flips it to `hover_col` --
     # which is what ties the floating coefficient table to the node it
     # describes.
@@ -735,8 +728,8 @@ draw_linad <- function(
   # fixed pixel width and the plot ignores the space it is given -- a sizing
   # default, not a consequence of the positions being precomputed: those are
   # canvas-space, so refitting only ever changes zoom and pan. Height stays a
-  # length rather than a percentage, since a percentage of a container with no
-  # height of its own collapses to nothing.
+  # length, since a percentage of a container with no height of its own
+  # collapses to nothing.
   plt <- visNetwork::visNetwork(
     nodes,
     edges,
@@ -750,7 +743,7 @@ draw_linad <- function(
   plt <- visNetwork::visPhysics(plt, enabled = FALSE)
   # Two tiers of type. `mod = ""` keeps the eyebrow upright: the tag selects a
   # style slot, it does not have to mean italic. The eyebrow is set against the
-  # node fill with alpha rather than a fixed gray, so it recedes by the same
+  # node fill with alpha, so it recedes by the same
   # amount on the root, an internal node and a leaf, which are three different
   # colors.
   plt <- visNetwork::visNodes(

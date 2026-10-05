@@ -7,7 +7,7 @@
 # input or drifted undocumented. A path alone does not establish this -- the
 # file at that path can change -- so a `DataFingerprint` pairs a content hash
 # with the cheap structural facts (dimensions, column names) that make a mismatch
-# *diagnosable* rather than merely detectable.
+# *diagnosable*.
 #
 # Three hash methods, answering three different questions:
 # - "file"    raw bytes of the source file. Answers "the same file?", and is
@@ -27,12 +27,8 @@
 # recipe must be the same, and so must the function applied to it. See
 # `DATA_HASH_ENCODINGS`.
 #
-# `language` and `data_structure` record what produced the digest rather than
-# claiming who could reproduce it. Every other property here is measured from
-# the data, and these two are as well: a claim about reproducibility across
-# implementations can only be made good by a specification, and until one
-# exists a recorded fact is worth more than an assertion. They are what makes a
-# difference *diagnosable* -- two "object" digests over one dataset held as a
+# `language` and `data_structure` record what produced the digest, measured like
+# every other property here. They make a difference *diagnosable* -- two "object" digests over one dataset held as a
 # data.frame and as a data.table differ, and the pair of values says so.
 
 # %% Constants ----
@@ -68,12 +64,11 @@ DATA_HASH_SERIALIZE_VERSION <- 3L
 # `encoding` names the exact byte recipe, which is what two digests must share
 # to be comparable at all: "object" is a family, not a definition, so an R
 # fingerprint and a Python one would both say "object" while hashing entirely
-# different bytes. Comparing encodings makes that "not comparable" instead of a
-# confident "different data".
+# different bytes. Comparing encodings reports that case as not comparable.
 #
 # A token carries its format version where the format has one, so bumping
 # `DATA_HASH_SERIALIZE_VERSION` renames the encoding and the fingerprints it
-# affects report as not comparable rather than as different data. Which ones it
+# affects report as not comparable. Which ones it
 # affects is not obvious: v2 and v3 payloads coincide for a plain data.frame
 # and diverge for any ALTREP column, which v3 writes compactly -- exactly the
 # kind of silent, input-dependent change the token exists to make visible.
@@ -85,8 +80,8 @@ DATA_HASH_ENCODINGS <- c(
 
 # The language this build hashes in, recorded on every fingerprint it writes.
 # A constant here and a stored property there: a fingerprint read back from
-# another implementation carries that implementation's value, which is the
-# whole reason the field is on the wire rather than assumed.
+# another implementation carries that implementation's value, so the field is
+# carried on the wire.
 DATA_HASH_LANGUAGE <- "R"
 
 # Characters of the hash shown in `repr()`. Enough to compare at a glance.
@@ -101,8 +96,8 @@ DATA_HASH_DISPLAY_CHARS <- 12L
 #' needed to diagnose a mismatch. Created by `data_fingerprint()`.
 #'
 #' Every property but `method`, `algorithm` and `source` is measured from the
-#' data rather than chosen, so this class is documented here with `@field`
-#' rather than through a `setup_*` function.
+#' data, so this class is documented here with `@field`; it has no `setup_*`
+#' function.
 #'
 #' @field method Character \{"file", "object", "table"\}: What was hashed.
 #' @field algorithm Character \{"sha256", "sha512", "sha384", "sha224", "sha3-256", "sha3-512", "blake2b", "blake2s", "sha1", "md5"\}: Hash algorithm.
@@ -133,8 +128,8 @@ DataFingerprint <- schema_class(
       enum = DATA_HASH_ALGORITHMS,
       description = "Hash algorithm, recorded so a hash is verifiable rather than merely comparable."
     ),
-    # Stored rather than computed, because a computed property is absent from
-    # the wire and this is the one field a foreign reader cannot do without: it
+    # Stored, because a computed property is absent from the wire and a foreign
+    # reader needs this field: it
     # is recoverable from `method` only by an implementation that already knows
     # which language wrote the record. Left free-form for the same reason -- a
     # token from another implementation must be readable here, not rejected,
@@ -180,7 +175,7 @@ DataFingerprint <- schema_class(
     # digests over one dataset disagree. It does not account for every such
     # difference -- two plain data.frames can hash differently when their
     # attributes are stored in a different order -- so it narrows a mismatch
-    # rather than explaining it. Under "table" it is recorded but cannot be the
+    # without explaining it. Under "table" it is recorded but cannot be the
     # cause: that encoding hashes one canonical form whatever the container.
     data_structure = prop_string(
       "",
@@ -386,7 +381,7 @@ data_fingerprint <- function(
 # %% .hash_file ----
 #' Hash the raw bytes of a file
 #'
-#' Hashes a connection rather than the file's contents: `openssl` streams it in
+#' Hashes a connection: `openssl` streams it in
 #' chunks, so a file larger than memory is fingerprintable.
 #'
 #' @param path Character: File path.
@@ -452,11 +447,10 @@ data_fingerprint <- function(
 #'
 #' The serialization version is pinned (see `DATA_HASH_SERIALIZE_VERSION`) and
 #' the header skipped (see `.serialization_offset()`), so the hash depends on
-#' the object alone rather than on the R that hashed it.
+#' the object alone, whichever R hashed it.
 #'
-#' The header is skipped by seeking a connection over the stream rather than by
-#' dropping the bytes from it. Both give the same digest, but `bytes[-seq_len()]`
-#' allocates a second copy of the whole stream, and negative indexing pays for
+#' The header is skipped by seeking a connection over the stream. Dropping the
+#' bytes gives the same digest, but `bytes[-seq_len()]` allocates a second copy of the whole stream, and negative indexing pays for
 #' the complement of the index it was given: on an 80 MB frame that is around
 #' 0.36 s and 80 MB to remove 23 bytes, which is most of the cost of
 #' fingerprinting. `openssl` reads a connection from its current position, so
@@ -531,23 +525,21 @@ data_fingerprint <- function(
   # `as_arrow_table()` has no method for a matrix, which the other two methods
   # take without complaint -- and `decomp()` fingerprints one. The conversion is
   # exact: a matrix and the data.frame of it produce the same Arrow table and so
-  # the same digest, so this keeps the three methods interchangeable for a given
-  # input rather than rejecting it with arrow's own error.
+  # the same digest, so the three methods stay interchangeable for a given
+  # input.
   if (!is.data.frame(x)) {
     x <- as.data.frame(x)
   }
   tbl <- arrow::as_arrow_table(x)
   # arrow stores R attributes and class under the schema metadata key "r" so it
   # can round-trip data.table/tibble-ness. That metadata differs between a
-  # data.frame and a data.table holding identical data, which would make this
-  # method hash them differently -- defeating its whole purpose. Strip it, so
+  # data.frame and a data.table holding identical data, so it is cleared and
   # only the logical table is hashed.
-  # (`$` and not `[[`: an arrow Table is an R6 object whose `metadata` is an
-  # active binding; `[[<-` would try to drop a *column* of that name.)
-  # This leaves an empty `custom_metadata` map rather than removing the field,
-  # which is part of the byte recipe another implementation has to match; see
-  # the details above before changing how the metadata is cleared.
-  tbl$metadata <- NULL
+  # `metadata` is an active binding of the R6 Table, set with `assign()`;
+  # `[[<-` on a Table addresses a column of that name.
+  # Clearing leaves an empty `custom_metadata` map, which is part of the byte
+  # recipe another implementation matches; see the details above.
+  assign("metadata", NULL, envir = tbl)
   buffer <- arrow::write_to_raw(tbl, format = "stream")
   .hash_bytes(buffer, algorithm)
 } # /rtemis::.hash_table
@@ -557,8 +549,7 @@ data_fingerprint <- function(
 #' Do two fingerprints identify the same dataset?
 #'
 #' Two fingerprints are comparable only if they were produced the same way, so
-#' this is FALSE when `encoding` or `algorithm` differ -- an unequal comparison
-#' of incomparable values would be worse than no answer.
+#' this is FALSE when `encoding` or `algorithm` differ.
 #'
 #' @param x,y `DataFingerprint` objects.
 #'
@@ -575,7 +566,7 @@ same_data <- function(x, y) {
       class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
-  # `encoding` rather than `method`: two implementations both call R's
+  # Compared by `encoding`: two implementations both call R's
   # `serialize()` and Python's `pickle` "object", so matching methods do not
   # make matching digests, while matching encodings do.
   identical(x@encoding, y@encoding) &&
@@ -649,8 +640,7 @@ fingerprint_diff <- function(x, y) {
     return("same shape and column names, different values")
   }
   # The container is the cheapest of those representation differences to check
-  # and the most common, so name it when it differs rather than leaving a reader
-  # to find it. It narrows the search; it does not close it, since two frames of
+  # and the most common, so it is named when it differs. It narrows the search; it does not close it, since two frames of
   # the same class still differ by attribute order or storage mode.
   if (!identical(x@data_structure, y@data_structure)) {
     return(paste0(
@@ -673,13 +663,11 @@ fingerprint_diff <- function(x, y) {
 #' Comparing metrics across models trained on different inputs can be a silent
 #' failure -- the numbers look comparable and may not be. Every model that
 #' carries a fingerprint is compared against the first; models without one
-#' (trained before fingerprinting, or as a nested sub-model) are skipped rather
-#' than reported, so the check degrades quietly instead of crying wolf.
+#' (trained before fingerprinting, or as a nested sub-model) are skipped.
 #'
-#' Printed rather than a real R warning, and never an error: comparing models
-#' across different data is frequently deliberate -- feature selection,
-#' ablations, differing preprocessing -- so it must not be escalatable to a
-#' failure in a legitimate workflow. It reports a fact; the user judges it.
+#' Printed as a message, never as an R warning or an error: comparing models
+#' across different data is often deliberate -- feature selection, ablations,
+#' differing preprocessing. It reports a fact; the user judges it.
 #'
 #' @param models List of `Supervised` / `SupervisedRes` objects.
 #'

@@ -13,13 +13,12 @@
 # Every data check rtemis performs reads summary statistics -- row count, column
 # types, distinct counts, missing counts, outcome level counts -- and each is a
 # single pass in any language. Publishing the description means the rtemis CLI
-# computes it in polars and evaluates the same rules, instead of paying ~570ms
-# to start R for a check that takes under a millisecond.
+# computes it in polars and evaluates the same rules without starting R
+# (~570 ms) for a check that takes under a millisecond.
 #
 # Two shapes are deliberate:
 #
-# - **Arrays of records, not maps.** `columns` is a table with a `name` column
-#   rather than an object keyed by name. Small expression languages iterate
+# - **Arrays of records.** `columns` is a table with a `name` column. Small expression languages iterate
 #   arrays and cannot iterate objects, so a rule asking "which columns never
 #   vary" is a `filter` over this and is not expressible over a map.
 # - **Levels in long form**, one row per (column, level), as
@@ -64,7 +63,7 @@
 # `sc:Text`, and only the enumeration reference tells them apart. A serializer
 # reading Croissant back must consult that reference, not `dataType` alone.
 # `PROFILE_MAX_LEVELS` also means a categorical may arrive with no level counts
-# at all, which is a deliberate omission rather than an empty domain.
+# at all, which marks an omission, not an empty domain.
 PROFILE_DTYPES <- c(
   "number",
   "integer",
@@ -99,8 +98,7 @@ PROFILE_MAX_LEVELS <- 64L
 #' [data_profile].
 #'
 #' Enough to answer every data check rtemis makes about a config, and small
-#' enough to travel: bounded by the number of columns rather than the number of
-#' rows, with one exception under the control of `PROFILE_MAX_LEVELS`.
+#' enough to travel: bounded by the number of columns, with one exception under the control of `PROFILE_MAX_LEVELS`.
 #'
 #' @field n_rows Integer [0, Inf): Number of rows (cases).
 #' @field columns Optional List vector: One row per column of the dataset, as a
@@ -108,16 +106,15 @@ PROFILE_MAX_LEVELS <- 64L
 #'   values) and `n_missing`.
 #' @field level_counts Optional List vector: One row per (`column`, `level`)
 #'   with its count `n`, as a `data.frame`, for categorical *and string* columns
-#'   of at most `PROFILE_MAX_LEVELS` levels. Observed levels only -- named
-#'   `level_counts` rather than `levels` because R's `levels()` means the
-#'   *declared* set, and Croissant's `sc:Enumeration` likewise describes a
-#'   complete domain, while this is what the rows actually contain.
+#'   of at most `PROFILE_MAX_LEVELS` levels. Observed levels only: R's
+#'   `levels()` and Croissant's `sc:Enumeration` describe a declared domain,
+#'   and `level_counts` describes what the rows contain.
 #'
 #'   String columns are included because whether a column of labels arrives as
 #'   `factor` or `character` is a property of how it was read, not of the data:
 #'   the level set is the same either way, and a config that declares
-#'   `character2factor` turns one into the other. Withholding the counts would
-#'   make the profile describe the reader rather than the dataset.
+#'   `character2factor` turns one into the other, so the profile describes the
+#'   dataset whichever reader produced it.
 #' @field n_complete_cases Integer [0, Inf): Rows with no missing value in any
 #'   column.
 #' @field n_duplicates Optional Integer [0, Inf): Rows that repeat an earlier
@@ -205,8 +202,7 @@ DataProfile <- schema_class(
 #'
 #' The R half of the vocabulary. A second implementation maps its own types onto
 #' the same tokens; what must not happen is a token appearing here that
-#' `PROFILE_DTYPES` does not declare, which is why the fallback is "other"
-#' rather than the class name.
+#' `PROFILE_DTYPES` does not declare, which is why the fallback is "other".
 #'
 #' @param x Vector: One column.
 #'
@@ -248,7 +244,7 @@ profile_dtype <- function(x) {
 #' low-cardinality categorical columns, and the number of complete cases.
 #'
 #' One pass per column and no copy of the data, so profiling is cheap enough to
-#' do per validation rather than caching it.
+#' do per validation.
 #'
 #' @param x tabular data: The dataset.
 #' @param n_duplicates Logical: If TRUE, count rows that repeat an earlier row.
@@ -284,8 +280,8 @@ data_profile <- function(x, n_duplicates = TRUE, fingerprint = FALSE) {
   )
   rownames(columns) <- NULL
 
-  # Long form, and only where the level set is small enough to be a description
-  # rather than a copy of the column.
+  # Long form, and only where the level set is small enough to describe the
+  # column compactly.
   # String as well as categorical: the level set of a column of labels does not
   # depend on whether the reader gave it as `factor` or `character`, and
   # `character2factor` turns one into the other. A check that has to know the

@@ -273,6 +273,28 @@ hal_fit <- function(
 } # /rtemis::hal_fit
 
 
+# %% hal_default_knots ----
+#' Knots per degree hal9001 generates when `num_knots` is unset
+#'
+#' Evaluates `fit_hal()`'s own default expression for `num_knots`.
+#'
+#' @param max_degree Integer: Highest interaction degree.
+#' @param smoothness_orders Integer: Smoothness of the basis functions.
+#'
+#' @return Integer vector, one entry per degree.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+hal_default_knots <- function(max_degree, smoothness_orders) {
+  as.integer(eval(
+    formals(hal9001::fit_hal)[["num_knots"]],
+    list(max_degree = max_degree, smoothness_orders = smoothness_orders),
+    asNamespace("hal9001")
+  ))
+} # /rtemis::hal_default_knots
+
+
 # %% train_.HALHyperparameters ----
 #' Train a Highly Adaptive Lasso model
 #'
@@ -377,7 +399,22 @@ method(train_, HALHyperparameters) <- function(
     nfolds = hyperparameters[["nfolds"]],
     seed = hyperparameters[["seed"]]
   )
-  list(model = model, preprocessor = design[["preprocessor"]])
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    list(
+      num_knots = hal_default_knots(
+        hyperparameters[["max_degree"]],
+        hyperparameters[["smoothness_orders"]]
+      ),
+      # Applies to zero-order bases, where hal9001 sets it to 1/sqrt(n).
+      reduce_basis = model[["reduce_basis"]]
+    )
+  )
+  list(
+    model = model,
+    preprocessor = design[["preprocessor"]],
+    hyperparameters = hyperparameters
+  )
 } # /rtemis::train_.HALHyperparameters
 
 
@@ -438,17 +475,44 @@ method(varimp_super, class_hal9001) <- function(model) {
   coefs <- as.numeric(model[["coefs"]])[-1L][seq_along(basis_list)]
   importance <- setNames(numeric(length(xnames)), xnames)
   max_coefficient <- importance
-  for (i in which(coefs != 0)) {
+  selected <- which(coefs != 0)
+  for (i in selected) {
     cols <- unique(basis_list[[i]][["cols"]])
     abs_coef <- abs(coefs[i])
     importance[cols] <- importance[cols] + abs_coef
     max_coefficient[cols] <- pmax(max_coefficient[cols], abs_coef)
   }
+  # A zero-order basis function is an indicator, so its coefficient is in
+  # outcome units; a higher order multiplies by the predictor's distance from
+  # a knot, so the coefficient is per unit of the predictor.
+  scale_dependent <- any(vapply(
+    basis_list[selected],
+    function(b) any(b[["orders"]] > 0L),
+    logical(1L)
+  ))
   VariableImportance(
-    data.table(
-      variable = xnames,
-      importance = unname(importance),
-      max_coefficient = unname(max_coefficient)
+    measures = list(
+      importance = importance_measure(
+        xnames,
+        unname(importance),
+        kind = "coefficient_magnitude",
+        scale_dependent = scale_dependent,
+        description = paste0(
+          "Sum of the absolute lasso coefficients of the selected basis ",
+          "functions involving the predictor; a basis function involving ",
+          "several predictors counts toward each."
+        )
+      ),
+      max_coefficient = importance_measure(
+        xnames,
+        unname(max_coefficient),
+        kind = "coefficient_magnitude",
+        scale_dependent = scale_dependent,
+        description = paste0(
+          "Largest absolute lasso coefficient among the selected basis ",
+          "functions involving the predictor."
+        )
+      )
     )
   )
 } # /rtemis::varimp_super.class_hal9001
@@ -465,9 +529,8 @@ method(varimp_super, class_hal9001) <- function(model) {
 #' intercept -- the same structure `varimp_super()` walks.
 #'
 #' **A basis reading more than one feature is refused.** Splitting its value
-#' between those features is a within-term Shapley problem rather than a sum,
-#' and `setup_HAL()` defaults to `max_degree = 2L`, so this is the common case
-#' rather than an edge one. Only the *selected* bases are checked: a
+#' between those features is a within-term Shapley problem, and `setup_HAL()`
+#' defaults to `max_degree = 2L`, so this is the common case. Only the *selected* bases are checked: a
 #' higher-degree basis the lasso zeroed contributes nothing and cannot make the
 #' fit non-additive.
 #'

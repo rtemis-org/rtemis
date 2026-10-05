@@ -175,7 +175,17 @@ method(train_, GLMTreeHyperparameters) <- function(
       "."
     )
   }
-  list(model = model, preprocessor = NULL)
+  # partykit sets an unset minimum node size to ten observations per
+  # coefficient of the node model.
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    list(
+      minsize = as.integer(ceiling(
+        10L * length(stats::coef(model, node = 1L))
+      ))
+    )
+  )
+  list(model = model, preprocessor = NULL, hyperparameters = hyperparameters)
 } # /rtemis::train_.GLMTreeHyperparameters
 
 
@@ -216,9 +226,9 @@ method(predict_super, class_lmtree) <- function(
 #' Predict from a GLMTree classification
 #'
 #' `type = "response"` gives the probability of the **second** factor level,
-#' which is rtemis' convention, so nothing is negated here. Verified rather than
-#' assumed: `glmtree()` codes a factor outcome with the first level as the
-#' reference, so the fitted probability is of the other one.
+#' which is rtemis' convention, so nothing is negated here: `glmtree()` codes a
+#' factor outcome with the first level as the reference, so the fitted
+#' probability is of the other one.
 #'
 #' @param model `glmtree` model.
 #' @param newdata tabular data: Data to predict on.
@@ -254,7 +264,7 @@ method(predict_super, class_glmtree) <- function(
 #' models to one number per feature -- a large coefficient in one leaf and its
 #' negative in another is a real effect, and averaging reports nothing.
 #'
-#' NULL is therefore the honest answer, and `explain()` is the route to a
+#' The method therefore returns NULL, and `explain()` is the route to a
 #' per-feature measure: `get_varimp(explain(mod, newdata))`.
 #'
 #' @param model `lmtree` model.

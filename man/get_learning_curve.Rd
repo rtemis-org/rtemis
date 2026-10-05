@@ -16,7 +16,7 @@ data.frame with columns \code{iteration}, \code{loss_training} and
 \code{loss_validation}, carrying attributes \code{unit} and \code{selected}; or NULL.
 }
 \description{
-The loss recorded at every step of training, as data rather than a picture:
+The loss recorded at every step of training, as data:
 one row per step, with the training and validation loss where the algorithm
 records them.
 

@@ -63,7 +63,7 @@ method(cluster_, GMMConfig) <- function(
   # Cluster ----
   msg("Clustering with", config@algorithm, "...", verbosity = verbosity)
   # NULL means "choose by BIC" for both of these, which is the backend's own
-  # default, so an unset value is passed through rather than pruned.
+  # default, so an unset value is passed through.
   clust <- mclust_Mclust(list(
     data = x,
     G = config[["k"]],
@@ -106,9 +106,8 @@ method(cluster_membership, GMMConfig) <- function(config, clust) {
 #' @keywords internal
 #' @noRd
 clustpredict_GMM <- function(clust, newdata = NULL) {
-  # `predict.Mclust()` exists, but reaching it needs the same namespace dance as
-  # the fit and rtemis has no path that asks for it yet, so new data is refused
-  # rather than half-supported.
+  # New data is refused. Assigning it would call `predict.Mclust()`, which
+  # needs the same namespace handling as the fit.
   if (!is.null(newdata)) {
     rtemis.core::abort(
       "GMM cannot assign new data to fitted clusters.",

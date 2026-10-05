@@ -42,7 +42,7 @@ method(cluster_, CMeansConfig) <- function(
 # `cmeans()` returns memberships with column j holding cluster j's weight, and
 # `$cluster` is the argmax of that matrix, so the backend's order is already
 # rtemis' label order and no permutation is needed. `SoftClustering`'s validator
-# re-checks that correspondence rather than trusting this comment.
+# checks that correspondence.
 #
 #' @keywords internal
 #' @noRd

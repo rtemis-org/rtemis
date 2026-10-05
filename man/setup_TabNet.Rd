@@ -46,7 +46,7 @@ setup_TabNet(
 
 \item{penalty}{(Tunable) Numeric [0, Inf): Regularization penalty.}
 
-\item{clip_value}{(Tunable) Optional Numeric: Clip value.}
+\item{clip_value}{(Tunable) Optional Numeric: Gradient clip value. NULL clips no gradients.}
 
 \item{loss}{(Tunable) Character: Loss function.}
 
@@ -54,9 +54,9 @@ setup_TabNet(
 
 \item{drop_last}{(Tunable) Logical: If TRUE, drop last batch.}
 
-\item{decision_width}{(Tunable) Optional Integer [1, Inf): Decision width.}
+\item{decision_width}{(Tunable) Optional Integer [1, Inf): Decision prediction layer width. NULL uses \code{attention_width}, or 8 where both are NULL.}
 
-\item{attention_width}{(Tunable) Optional Integer [1, Inf): Attention width.}
+\item{attention_width}{(Tunable) Optional Integer [1, Inf): Attention embedding width. NULL uses \code{decision_width}, or 8 where both are NULL.}
 
 \item{num_steps}{(Tunable) Integer [1, Inf): Number of steps.}
 
@@ -103,7 +103,7 @@ pretraining.}
 otherwise; the Apple silicon GPU, slower than the CPU for TabNet at every size
 rtemis benchmarked, runs only when named.}
 
-\item{importance_sample_size}{(Tunable) Optional Integer [1, Inf): Importance sample size.}
+\item{importance_sample_size}{(Tunable) Optional Integer [1, Inf): Cases drawn, with replacement, from the training cases left after the validation split to compute feature importance. Unset draws as many as there are such cases, at most 100,000. Applies only when \code{skip_importance} is FALSE.}
 
 \item{early_stopping_monitor}{(Tunable) Character \{"auto", "valid_loss", "train_loss"\}: Early stopping monitor.}
 

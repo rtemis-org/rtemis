@@ -80,7 +80,7 @@ property, is shown by \code{print()}, and is serialized by \code{to_json()}.
 # --- Calibrate Classification ---
 dat <- iris[51:150, ]
 res <- resample(dat)
-dat$Species <- factor(dat$Species)
+dat[["Species"]] <- factor(dat[["Species"]])
 dat_train <- dat[res[[1]], ]
 dat_test <- dat[-res[[1]], ]
 
@@ -95,8 +95,8 @@ mod_c_glm <- train(
 # in this case using the training data, but it could be a separate calibration dataset.
 mod_c_glm_cal <- calibrate(
   mod_c_glm,
-  predicted_probabilities = mod_c_glm$predicted_prob_training[, 1L],
-  true_labels = mod_c_glm$y_training
+  predicted_probabilities = mod_c_glm[["predicted_prob_training"]][, 1L],
+  true_labels = mod_c_glm[["y_training"]]
 )
 mod_c_glm_cal
 

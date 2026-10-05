@@ -65,8 +65,7 @@ mars_matrix <- function(x) {
 # %% mars_response ----
 #' Response passed to earth
 #'
-#' Built here rather than left to `earth` so that no factor reaches the
-#' backend's contrasts lookup. Regression passes the outcome through; binary
+#' Built here so that no factor reaches the backend's contrasts lookup. Regression passes the outcome through; binary
 #' classification codes the second level as 1, which is the level rtemis
 #' predicts probabilities for; multiclass becomes a 0/1 indicator matrix, one
 #' column per level, which is what `contr.earth.response` would have produced.
@@ -225,7 +224,22 @@ method(train_, MARSHyperparameters) <- function(
   args <- args[!vapply(args, is.null, logical(1L))]
   model <- do.call(earth::earth, args)
   check_inherits(model, "earth")
-  list(model = model, preprocessor = design[["preprocessor"]])
+  # earth evaluates `penalty` and `nk` and keeps them on the fit. An unset
+  # `nprune` sets no limit, so every term of the forward pass is a candidate;
+  # it stays unset, since the number of those terms is a property of this
+  # sample, not a setting.
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    list(
+      penalty = as.numeric(model[["penalty"]]),
+      nk = as.integer(model[["nk"]])
+    )
+  )
+  list(
+    model = model,
+    preprocessor = design[["preprocessor"]],
+    hyperparameters = hyperparameters
+  )
 } # /rtemis::train_.MARSHyperparameters
 
 
@@ -275,25 +289,21 @@ method(predict_super, class_earth) <- function(
 # %% varimp_super.class_earth ----
 #' Get variable importance from MARS model
 #'
-#' `earth::evimp()` reports the three criteria described in the "Three
-#' Criteria" chapter of the earth vignette, all of them accumulated over the
-#' subsets the pruning pass evaluated:
+#' `earth::evimp()` reports three criteria over the subsets of the pruning
+#' pass, from size 2 to the size of the selected model. The change in a
+#' criterion from each subset to the next larger one is credited to every
+#' predictor in the larger subset:
 #'
-#' - `importance`: the GCV criterion, the drop in generalized cross-validation
-#'   error attributable to the feature, scaled by earth so the top feature is
-#'   100. The headline measure: GCV is what MARS itself optimizes, and it
-#'   charges each feature for the model complexity it adds.
-#' - `rss`: the same accumulation over residual sum of squares, so unpenalized.
-#'   It ranks a feature that buys its fit with many terms higher than
-#'   `importance` does, and the two disagreeing is the signal worth reading.
-#' - `subset_proportion`: the fraction of pruning subsets that retain the
-#'   feature, in \[0, 1\]. A consistency measure rather than a magnitude one.
+#' - `importance`: the summed decrease in generalized cross-validation error.
+#' - `rss`: the summed decrease in the training residual sum of squares.
+#' - `subset_proportion`: the fraction of those subsets that contain the
+#'   feature, in \[0, 1\].
 #'   Reported as a proportion because earth's own count scales with the number
 #'   of terms in the model, which makes the raw value incomparable across a
 #'   grid search over `nk` or `nprune`.
 #'
 #' There is one row per design-matrix column, so a one-hot encoded factor
-#' contributes one row per level rather than one per feature. Features the
+#' contributes one row per level. Features the
 #' pruned model dropped are kept with importance zero.
 #'
 #' @param model `earth` model.
@@ -311,14 +321,53 @@ method(varimp_super, class_earth) <- function(model) {
     # An intercept-only model evaluated no subsets, so no feature can be in one.
     rep(0, nrow(vi))
   }
+  # `col` indexes the design matrix, so it recovers the name without parsing
+  # evimp's "-unused" row-name suffix.
+  variable <- colnames(model[["dirs"]])[vi[, "col"]]
+  # evimp normalizes when the design has more than one column.
+  normalized <- nrow(vi) > 1L
+  criterion <- function(what) {
+    paste0(
+      "Decrease in ",
+      what,
+      " from each pruning-pass subset to the next larger one, from size 2 to ",
+      "the size of the selected model, summed over the subsets that contain ",
+      "the predictor",
+      if (normalized) {
+        paste0(
+          ", then transformed to 100 times its sign times the square root of ",
+          "its absolute value over the largest absolute value"
+        )
+      },
+      " (earth evimp). A predictor absent from the selected model can be ",
+      "credited by a smaller subset."
+    )
+  }
   VariableImportance(
-    data.table(
-      # `col` indexes the design matrix, so it recovers the name without
-      # parsing evimp's "-unused" row-name suffix.
-      variable = colnames(model[["dirs"]])[vi[, "col"]],
-      importance = unname(vi[, "gcv"]),
-      rss = unname(vi[, "rss"]),
-      subset_proportion = unname(subset_proportion)
+    measures = list(
+      importance = importance_measure(
+        variable,
+        unname(vi[, "gcv"]),
+        kind = "model_selection",
+        signed = TRUE,
+        description = criterion("generalized cross-validation error")
+      ),
+      rss = importance_measure(
+        variable,
+        unname(vi[, "rss"]),
+        kind = "model_selection",
+        signed = TRUE,
+        description = criterion("the training residual sum of squares")
+      ),
+      subset_proportion = importance_measure(
+        variable,
+        unname(subset_proportion),
+        kind = "model_selection",
+        description = paste0(
+          "Share of the pruning-pass subsets from size 2 to the size of the ",
+          "selected model that contain the predictor."
+        )
+      )
     )
   )
 } # /rtemis::varimp_super.class_earth
@@ -331,15 +380,14 @@ method(varimp_super, class_earth) <- function(model) {
 #' `predict(type = "terms")` returns per-feature contributions and their
 #' re-centering on the background is the exact Shapley value.
 #'
-#' Two fits do not qualify, and both are refused rather than approximated:
+#' Two fits do not qualify, and both are refused:
 #'
 #' - **Classification.** `earth` fits a GLM over the basis, and
-#'   `predict(type = "terms")` returns the *earth* terms rather than the GLM's,
-#'   which do not reconstruct the link. The decomposition exists -- the link is
-#'   linear in the basis functions -- but it has to be built from the basis
-#'   matrix rather than read off, which is not done yet.
+#'   `predict(type = "terms")` returns the *earth* terms, which do not
+#'   reconstruct the link. The decomposition exists -- the link is linear in
+#'   the basis functions -- and requires building from the basis matrix.
 #' - **`degree > 1`.** An interaction term reads two features, and splitting its
-#'   value between them is a within-term Shapley problem rather than a sum.
+#'   value between them is a within-term Shapley problem.
 #'   Caught by the reconstruction check in `additive_terms_shap()`.
 #'
 #' @param model `earth` object.

@@ -859,7 +859,7 @@ PAMConfig <- schema_class(
 #' via the 'cluster' package.
 #'
 #' PAM is the medoid-based counterpart of k-means: each cluster is represented
-#' by one of the cases rather than by a mean, which makes it usable with
+#' by one of the cases, which makes it usable with
 #' non-Euclidean dissimilarities and less sensitive to outliers.
 #'
 #' Argument names are rtemis' own. They map to `cluster::pam()` as:
@@ -1150,10 +1150,8 @@ PAMKConfig <- schema_class(
         "has nothing to choose between."
       )
     ),
-    # The criterion is a variant of its own family rather than a name beside
-    # a setting that applies to only one of the names: a setting that applies
-    # only under another setting's value is the sign the pair belongs in one
-    # object.
+    # The criterion is a variant of its own family, so each criterion carries
+    # exactly the settings that apply to it.
     criterion = prop_object(
       PAMKCriterionConfig,
       default = setup_ASWCriterion(),
@@ -1333,7 +1331,7 @@ GMMConfig <- schema_class(
 #' A GMM is the model-based counterpart of the prototype methods: each cluster
 #' is a Gaussian component with its own mean and covariance, so clusters may be
 #' elongated, differently oriented and differently sized, and every case gets a
-#' posterior probability for each component rather than only a label. The
+#' posterior probability for each component as well as a label. The
 #' result is therefore a soft clustering.
 #'
 #' Both the number of components and the covariance parameterization are
@@ -1824,8 +1822,8 @@ setup_SpectralLocal <- function(
   check_wire_keys(params, names(formals(setup_fn)), label)
   # A setting that is itself an object (`criterion`, `nystrom`) arrives as a
   # list; its property declares the class, so the class's reader rebuilds it.
-  # Read from the declaration rather than from a per-algorithm branch, so a
-  # new object-valued setting needs nothing here.
+  # Read from the declaration, so a new object-valued setting needs nothing
+  # here.
   cls <- schema_algorithm_class(ClusteringConfig, algorithm)
   params <- read_wire_objects(params, cls)
   do.call(setup_fn, from_wire(params, cls))

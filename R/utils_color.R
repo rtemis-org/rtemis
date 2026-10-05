@@ -563,11 +563,11 @@ colorgrad <- function(
       hi <- "#80DF80"
     } else {
       cols <- colorvec(cols = colors)
-      lo <- cols$lo
-      lomid <- cols$lomid
-      mid <- cols$mid
-      midhi <- cols$midhi
-      hi <- cols$hi
+      lo <- cols[["lo"]]
+      lomid <- cols[["lomid"]]
+      mid <- cols[["mid"]]
+      midhi <- cols[["midhi"]]
+      hi <- cols[["hi"]]
     }
   }
 

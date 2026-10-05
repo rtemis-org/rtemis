@@ -25,12 +25,11 @@ Named list: the ingest manifest.
 The first step of any pipeline. A delimited file or a spreadsheet carries no
 usable type information; Parquet does. Ingesting once means nothing
 downstream infers a type a second time, and the decisions that were made are
-in the config rather than in a reader's defaults.
+in the config.
 
-The config's \code{format} is checked against the file. They disagreeing is an
-error rather than a silent reinterpretation: a config written for a delimited
-file says things a Parquet reader would ignore, and ignoring them is how a
-run does something other than what it was asked.
+The config's \code{format} is checked against the file, and a mismatch is an
+error: a config written for a delimited file sets options a Parquet reader
+would ignore.
 
 Returns a manifest describing what happened: the file in, the file out, a
 \code{DataFingerprint} of the data, the config, and which engine ran it. The

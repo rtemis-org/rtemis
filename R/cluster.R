@@ -16,7 +16,7 @@
 #' directory.
 #' @param algorithm Character: Clustering algorithm. Not needed when `config` is
 #' supplied, which names its own; an explicit `algorithm` that disagrees with
-#' `config` is an error rather than a mislabeled run.
+#' `config` is an error.
 #' @param config `ClusteringConfig`, optional: Algorithm-specific config from a
 #' clustering `setup_*` function. Its `features` selects the columns to cluster
 #' on; `NULL` selects every numeric column of `x`, since a clustering backend
@@ -69,8 +69,7 @@ cluster <- function(
 
   # Checks ----
   # A supplied config names its algorithm; `algorithm` then serves only to catch
-  # a caller naming a different one, which would otherwise run under the wrong
-  # label with the wrong settings.
+  # a caller naming a different one.
   if (is.null(config)) {
     config <- get_default_clusterparams(algorithm)
   } else {
@@ -201,7 +200,7 @@ cluster <- function(
   }
 
   # Cheap measures only, computed inline as `decomp()` does. See
-  # `compute_clustering_metrics()` on what is deliberately not here.
+  # `compute_clustering_metrics()` for the measures computed.
   out@metrics <- compute_clustering_metrics(out)
 
   # `cluster()` fits every column it is given, so the input frame is the data
@@ -216,8 +215,8 @@ cluster <- function(
 
   # See `decomp()`: the run's input, which `@config` alone cannot supply.
   # `outdir` is omitted when unset so the config's own default applies; passing
-  # NULL is rejected, and a record reporting the default with origin `default`
-  # is the honest reading of "the caller did not choose one".
+  # NULL is rejected, and the record reports the default with origin
+  # `default`, meaning the caller did not choose one.
   input_args <- list(
     clustering_config = config,
     execution_config = execution_config,

@@ -144,7 +144,7 @@ method(cluster_, PAMKConfig) <- function(
 
 # %% cluster_k.PAMKConfig ----
 # `pamk()` reports the number of clusters its criterion selected. Taken from
-# there rather than from the labels, so the two cannot disagree.
+# there.
 #
 #' @keywords internal
 #' @noRd

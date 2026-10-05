@@ -162,6 +162,75 @@ supervised_algorithms <- data.frame(
 )
 
 
+# %% SUPERVISED_BACKENDS ----
+# The packages that fit each supervised algorithm, cited by `writeup()`.
+# "stats" is part of R. An empty entry is an algorithm implemented in rtemis
+# (LINAD, LINADForest) or a meta learner, whose base learners name their own.
+# Each `train_` method checks the same packages with `check_dependencies()`;
+# `test_SupervisedWriteup.R` keeps the two in agreement.
+SUPERVISED_BACKENDS <- list(
+  BART = "stochtree",
+  CART = "rpart",
+  ConditionalSuperLearner = character(),
+  GAM = "mgcv",
+  GLM = "stats",
+  GLMNET = "glmnet",
+  GLMTree = "partykit",
+  HAL = "hal9001",
+  Isotonic = "stats",
+  MonotonicHAL = "hal9001",
+  KNN = "kknn",
+  LightCART = "lightgbm",
+  LightGBM = "lightgbm",
+  LightRF = "lightgbm",
+  LightRuleFit = c("lightgbm", "glmnet"),
+  LINAD = character(),
+  LINADForest = character(),
+  MARS = "earth",
+  MLP = "torch",
+  ModalityStacking = character(),
+  NNLS = "nnls",
+  Ranger = "ranger",
+  SuperLearner = character(),
+  LinearSVM = "e1071",
+  RadialSVM = "e1071",
+  SPLS = "spls",
+  TabNet = c("torch", "tabnet")
+)
+stopifnot(setequal(names(SUPERVISED_BACKENDS), supervised_algorithms[["name"]]))
+
+
+# %% SUPERVISED_INTERNAL_SELECTION ----
+# Algorithms whose fit selects a quantity from the data beyond the
+# hyperparameters it is given: a penalty by internal cross-validation (GLMNET,
+# HAL, MonotonicHAL, the lasso stage of LightRuleFit), a number of iterations
+# or epochs by early stopping (LightGBM, MLP, TabNet), a tree size on
+# validation cases (LINAD, LINADForest), model size by generalized
+# cross-validation (MARS), smoothing parameters (GAM), and ensemble weights
+# from cross-fitted predictions (the meta learners). `writeup()` describes the
+# selection where a `writeup_selection()` method exists and lists it as not
+# reported otherwise.
+SUPERVISED_INTERNAL_SELECTION <- c(
+  "ConditionalSuperLearner",
+  "GAM",
+  "GLMNET",
+  "HAL",
+  "LightGBM",
+  "LightRuleFit",
+  "LINAD",
+  "LINADForest",
+  "MARS",
+  "MLP",
+  "ModalityStacking",
+  "MonotonicHAL",
+  "SuperLearner",
+  "TabNet"
+)
+stopifnot(all(
+  SUPERVISED_INTERNAL_SELECTION %in% supervised_algorithms[["name"]]
+))
+
+
 # %% algorithm_trait ----
 #' Read one logical trait of a supervised algorithm
 #'
@@ -252,8 +321,7 @@ supervised_multiclass <- c(
 # constant, and one-vs-one voting, respectively; and MARS and HAL are additive
 # in their features only when the fit selected no term reading two of them,
 # which for both is a search setting rather than a property of the algorithm.
-# Each is checked at explain time and refused with the reason, rather than
-# approximated.
+# Each is checked at explain time and refused with the reason.
 #
 # The three ensembles take the kernel estimator rather than a weighted sum of
 # their bases' explanations. The sum is exact for a linear meta-learner, but it
@@ -261,9 +329,8 @@ supervised_multiclass <- c(
 # are each locked to one value function -- LinearSHAP is interventional-only,
 # LightGBM's TreeSHAP conditional-only -- so a mixed library has none in common.
 #
-# Only seven algorithms are unconditionally exact. That is the honest shape of
-# this: exactness is usually a property of the fitted model, and this column's
-# job is to say which rather than to promise.
+# Only seven algorithms are unconditionally exact: exactness is usually a
+# property of the fitted model, and this column says which.
 #
 # Built column-wise so `exact` is `logical`, for the reason `decom_algorithms`
 # gives.
@@ -632,8 +699,10 @@ decom_algorithms <- data.frame(
     "Autoencoder",
     "ICA",
     "Isomap",
+    "MDS",
     "NMF",
     "PCA",
+    "PCoA",
     "tSNE",
     "UMAP",
     "VariationalAutoencoder"
@@ -642,36 +711,108 @@ decom_algorithms <- data.frame(
     "Autoencoder",
     "ICA",
     "Isomap",
+    "MDS",
     "NMF",
     "PCA",
+    "PCoA",
     "tSNE",
     "UMAP",
     "VariationalAutoencoder"
   )]),
-  linear = c(FALSE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE, FALSE),
-  can_apply = c(TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, TRUE, TRUE),
-  invertible = c(TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE, TRUE),
-  orthogonal = c(FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
-  ordered = c(FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
-  deterministic = c(FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, FALSE, FALSE),
+  linear = c(FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE),
+  can_apply = c(TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE, FALSE, TRUE, TRUE),
+  invertible = c(
+    TRUE,
+    TRUE,
+    FALSE,
+    FALSE,
+    TRUE,
+    TRUE,
+    FALSE,
+    FALSE,
+    FALSE,
+    TRUE
+  ),
+  orthogonal = c(
+    FALSE,
+    FALSE,
+    FALSE,
+    TRUE,
+    FALSE,
+    TRUE,
+    TRUE,
+    FALSE,
+    FALSE,
+    FALSE
+  ),
+  ordered = c(
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    TRUE,
+    TRUE,
+    FALSE,
+    FALSE,
+    FALSE
+  ),
+  deterministic = c(
+    FALSE,
+    FALSE,
+    TRUE,
+    FALSE,
+    FALSE,
+    TRUE,
+    TRUE,
+    FALSE,
+    FALSE,
+    FALSE
+  ),
   preserves = c(
     "reconstruction",
     "variance",
     "global",
+    "global",
     "reconstruction",
     "variance",
+    "global",
     "local",
     "local",
     "reconstruction"
   ),
-  nonneg = c(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE),
-  threaded = c(TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE),
+  nonneg = c(
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    TRUE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE
+  ),
+  threaded = c(
+    TRUE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    TRUE,
+    TRUE,
+    TRUE
+  ),
   package = c(
     "torch",
     "fastICA",
     "vegan",
+    "vegan",
     "NMF",
     "stats",
+    "vegan",
     "Rtsne",
     "uwot",
     "torch"
@@ -769,7 +910,7 @@ get_decom_setup_fn <- function(algorithm) {
 #' possible. Parametric tSNE exists and Isomap admits a Nystrom-style
 #' out-of-sample extension; neither is implemented here, so both are `FALSE`.
 #' The column's contract is that [apply_decomp] on a fitted result of this
-#' algorithm returns components rather than an error.
+#' algorithm returns components.
 #'
 #' @param algorithm Optional Character: Name of a decomposition algorithm,
 #' matched case-insensitively. `NULL` returns every algorithm.
@@ -853,8 +994,8 @@ available_clustering <- function(verbosity = 1L) {
 #' # Calibrate with one of them:
 #' # calibrate(mod, hyperparameters = setup_Isotonic())
 available_calibration <- function(verbosity = 1L) {
-  # Read the descriptions from the supervised table rather than restating
-  # them, so a calibrator is described the same way wherever it is listed.
+  # Read the descriptions from the supervised table, so a calibrator is
+  # described the same way wherever it is listed.
   idx <- match(calibration_algorithms, supervised_algorithms[["name"]])
   algs <- structure(
     supervised_algorithms[["description"]][idx],

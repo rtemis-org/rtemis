@@ -77,7 +77,10 @@ extract_varimp_plot_data <- function(x) {
     )
   }
   if (!is.list(importance)) {
-    return(list(data = rtemis.draw::varimp_data(importance@data), folds = NULL))
+    return(list(
+      data = rtemis.draw::varimp_data(varimp_table(importance)),
+      folds = NULL
+    ))
   }
   folds <- x@resample_ids
   if (length(folds) != length(importance)) {
@@ -91,7 +94,7 @@ extract_varimp_plot_data <- function(x) {
     if (is.null(value)) {
       return(NULL)
     }
-    data <- rtemis.draw::varimp_data(value@data)
+    data <- rtemis.draw::varimp_data(varimp_table(value))
     if ("fold" %in% names(data)) {
       abort(
         "Reserve `fold` for resample IDs; rename the importance measure `fold`.",
@@ -115,8 +118,53 @@ extract_varimp_plot_data <- function(x) {
 }
 
 
+# %% varimp_measure_descriptors ----
+#' The descriptors of one measure in a model's importance
+#'
+#' @param x `Supervised` or `SupervisedRes` object.
+#' @param column Character: The measure's column in the wide table.
+#'
+#' @return List of `ImportanceMeasure` objects, one per importance result that
+#'   has the measure.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+varimp_measure_descriptors <- function(x, column) {
+  results <- x@varimp
+  if (S7_inherits(results, VariableImportance)) {
+    results <- list(results)
+  }
+  results <- Filter(Negate(is.null), results)
+  unlist(
+    lapply(results, function(vi) {
+      columns <- varimp_column_names(names(vi@measures))
+      unname(vi@measures[names(columns)[columns == column]])
+    }),
+    recursive = FALSE
+  )
+} # /rtemis::varimp_measure_descriptors
+
+
+# %% VARIMP_RANKING ----
+# How each measure direction ranks bars: by signed value or magnitude, and
+# whether larger first.
+VARIMP_RANKING <- list(
+  larger = list(rank_by = "signed", decreasing = TRUE),
+  absolute = list(rank_by = "magnitude", decreasing = TRUE),
+  smaller = list(rank_by = "signed", decreasing = FALSE),
+  none = list(rank_by = "signed", decreasing = TRUE)
+)
+
+
 # %% draw_model_varimp ----
 #' Render a model's importance records
+#'
+#' Bars are ranked as the measure's `direction` declares -- larger values
+#' first, larger magnitudes first, or smaller values first -- unless `rank_by`
+#' or `decreasing` is given. A measure that does not rank predictors (a
+#' spread) is drawn in decreasing order and titled as descriptive.
+#'
 #' @inheritParams plot_varimp
 #' @param measure Optional Character: Named importance measure.
 #' @param absent Optional Character: Override the producer's omission contract.
@@ -136,6 +184,31 @@ draw_model_varimp <- function(
     setdiff(names(records[["data"]]), c("variable", "fold"))[[1L]]
   check_character_scalar(measure)
   check_enum(measure, setdiff(names(records[["data"]]), c("variable", "fold")))
+  descriptors <- varimp_measure_descriptors(x, measure)
+  directions <- unique(vapply(
+    descriptors,
+    function(m) m@direction,
+    character(1L)
+  ))
+  kinds <- unique(vapply(descriptors, function(m) m@kind, character(1L)))
+  if (length(directions) > 1L || length(kinds) > 1L) {
+    abort(
+      "Measure '",
+      measure,
+      "' has different kinds or directions across resamples, so its values ",
+      "cannot be drawn together. Choose another measure.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  direction <- if (length(directions) == 1L) directions else "absolute"
+  dots <- list(...)
+  ranking <- VARIMP_RANKING[[direction]]
+  for (nm in names(ranking)) {
+    dots[[nm]] <- dots[[nm]] %||% ranking[[nm]]
+  }
+  if (missing(title) && direction == "none") {
+    title <- paste0(x@algorithm, " ", measure, " (descriptive, not a ranking)")
+  }
   # These specific measures sum split contributions; their native producers
   # emit only credited variables. Unknown measures get no zero assumption.
   sparse_measures <- switch(
@@ -145,12 +218,17 @@ draw_model_varimp <- function(
     character()
   )
   absent <- absent %||% if (measure %in% sparse_measures) "zero" else "missing"
-  rtemis.draw::draw_varimp(
-    records[["data"]],
-    measure = measure,
-    absent = absent,
-    folds = records[["folds"]],
-    title = title,
-    ...
+  do.call(
+    rtemis.draw::draw_varimp,
+    c(
+      list(
+        records[["data"]],
+        measure = measure,
+        absent = absent,
+        folds = records[["folds"]],
+        title = title
+      ),
+      dots
+    )
   )
 }

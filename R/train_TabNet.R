@@ -61,8 +61,8 @@ method(train_, TabNetHyperparameters) <- function(
   # categorical predictors internally thus, you don't need to make any treatment.
   config <- get_tabnet_config(hyperparameters)
   config[["verbose"]] <- verbosity > 0L
-  # Resolved here rather than by tabnet, whose "auto" picks mps on Apple
-  # silicon: see `training_device()`. Prediction runs on the same device, since
+  # Resolved here; tabnet's own "auto" picks mps on Apple silicon: see
+  # `training_device()`. Prediction runs on the same device, since
   # the fitted network lives there.
   config[["device"]] <- torch_device_name(
     training_device(hyperparameters, execution_config@device),
@@ -76,16 +76,27 @@ method(train_, TabNetHyperparameters) <- function(
     weights = weights
   )
   check_inherits(model, "tabnet_fit")
-  list(model = model, preprocessor = prp)
+  # tabnet resolves unset widths into the fitted network's configuration.
+  # `importance_sample_size` stays unset where unset: its count follows the
+  # number of training cases.
+  fitted_config <- model[["fit"]][["config"]]
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    list(
+      decision_width = as.integer(fitted_config[["n_d"]]),
+      attention_width = as.integer(fitted_config[["n_a"]])
+    )
+  )
+  list(model = model, preprocessor = prp, hyperparameters = hyperparameters)
 } # /rtemis::train_.TabNetHyperparameters
 
 
 # %% training_device.TabNetHyperparameters ----
 #' The device TabNet will train on
 #'
-#' Resolved by rtemis, as for MLP, rather than by tabnet, whose own `"auto"`
-#' prefers mps on Apple silicon -- slower than the CPU for TabNet at every size
-#' rtemis benchmarked. mps runs only when requested.
+#' Resolved by rtemis, as for MLP. tabnet's own `"auto"` prefers mps on Apple
+#' silicon, which is slower than the CPU for TabNet at every size rtemis
+#' benchmarked; mps runs only when requested.
 #'
 #' @param x `TabNetHyperparameters` object.
 #' @param requested Optional `DeviceConfig` object.

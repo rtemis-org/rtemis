@@ -234,10 +234,25 @@ method(predict_super, class_splsda) <- function(
 #' @noRd
 method(varimp_super, class_spls) <- function(model) {
   coefs <- coef(model)
+  # spls divides each predictor by its standard deviation unless `scale_x` is
+  # off, which leaves `normx` at 1.
+  unscaled <- all(model[["normx"]] == 1)
   VariableImportance(
-    data.table(
-      variable = rownames(coefs),
-      Coefficient = unname(coefs[, 1L])
+    measures = list(
+      Coefficient = importance_measure(
+        rownames(coefs),
+        unname(coefs[, 1L]),
+        kind = "coefficient",
+        signed = TRUE,
+        scale_dependent = unscaled,
+        direction = "absolute",
+        description = paste0(
+          "Coefficient of each predictor in the sparse partial least squares ",
+          "fit (spls), per ",
+          if (unscaled) "unit" else "standard deviation",
+          " of the predictor; zero for a predictor the sparsity excluded."
+        )
+      )
     )
   )
 } # /rtemis::varimp_super.class_spls
@@ -259,10 +274,25 @@ method(varimp_super, class_splsda) <- function(model) {
   if (NCOL(coefs) > 1L) {
     return(NULL)
   }
+  # splsda scales the predictors itself and passes them to an inner spls()
+  # fit that does not scale again, so the scaling is the outer fit's.
+  unscaled <- all(model[["normx"]] == 1)
   VariableImportance(
-    data.table(
-      variable = rownames(coefs),
-      Coefficient = unname(coefs[, 1L])
+    measures = list(
+      Coefficient = importance_measure(
+        rownames(coefs),
+        unname(coefs[, 1L]),
+        kind = "coefficient",
+        signed = TRUE,
+        scale_dependent = unscaled,
+        direction = "absolute",
+        description = paste0(
+          "Coefficient of each predictor in the sparse partial least squares ",
+          "fit to the coded outcome that splsda passes to its classifier, per ",
+          if (unscaled) "unit" else "standard deviation",
+          " of the predictor; zero for a predictor the sparsity excluded."
+        )
+      )
     )
   )
 } # /rtemis::varimp_super.class_splsda

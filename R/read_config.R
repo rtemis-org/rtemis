@@ -143,18 +143,12 @@ read_config <- function(file) {
 # %% check_is_S7 ----
 #' Check that a value is an instance of a given S7 class
 #'
-#' Called over 60 times across the package (`train()`, `tune()`, `resample()`,
-#' `preprocess()`, `decomp()`, `cluster()`, `explain()`, every `draw_*()`, and
-#' more) to guard an argument documented as one S7 class before using it as
-#' one -- and, until this definition, the function itself did not exist:
-#' every one of those call sites would have failed with "object 'check_is_S7'
-#' not found" instead of the intended type error, the moment any of them
-#' actually received a wrong-type argument. `S7_inherits()` rather than base
-#' R's `inherits()`, which `rtemis.core::check_inherits()` already wraps and
-#' which is not a safe substitute here: every call site passes an S7 class
-#' *object* (`IngestConfig`, `Theme`, ...) as `cls`, not a character class
-#' name, and `inherits(x, an_S7_class_object)` is not the check any of them
-#' intended.
+#' Guards an argument documented as one S7 class before it is used as one,
+#' across the package (`train()`, `tune()`, `resample()`, `preprocess()`,
+#' `decomp()`, `cluster()`, `explain()`, every `draw_*()`, and more). Uses
+#' `S7_inherits()`: every call site passes an S7 class *object* (`IngestConfig`,
+#' `Theme`, ...) as `cls`, and base R's `inherits()`, which
+#' `rtemis.core::check_inherits()` wraps, expects a character class name.
 #'
 #' @param x Object to check.
 #' @param cls S7 class object to check against.
@@ -198,7 +192,7 @@ check_is_S7 <- function(
 
 
 # %% check_no_settings_key ----
-#' Refuse settings nested under a key instead of beside the discriminator
+#' Refuse settings nested under a key below the discriminator
 #'
 #' Every dispatched family serializes its settings as siblings of the
 #' discriminator: `{"algorithm": "Ranger", "num_trees": 500}`. A document that
@@ -247,13 +241,9 @@ check_no_settings_key <- function(x, key, discriminator, label) {
 #' Reject wire keys a config does not declare
 #'
 #' Every `.list_to_*()` reconstructor calls this before building its object, so
-#' a mistyped or stale key is named rather than dropped. Silence here is the
-#' worst outcome: a config that looks accepted but trains something else.
-#'
-#' Some reconstructors already errored, because `do.call(setup_*, x)` rejects an
-#' unused argument -- but with R's "unused argument (bogus = 1)", which names no
-#' config and suggests nothing. Routing every family through one check makes the
-#' message uniform and lets it point at the intended key.
+#' a mistyped or stale key is named in an error: a dropped key would leave a
+#' config that looks accepted but trains something else. One check for every
+#' family gives one message, which names the config and the intended key.
 #'
 #' `$`-prefixed metadata is always allowed: it identifies the document, not a
 #' field, and `.drop_meta_keys()` removes it downstream.

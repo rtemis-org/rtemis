@@ -59,6 +59,8 @@ method(train_, CARTHyperparameters) <- function(
     as.formula(make_formula(x)),
     data = x,
     weights = weights,
+    # rpart's own default where unset: unit cost for every feature.
+    cost = hyperparameters[["cost"]] %||% rep(1, NCOL(features(x))),
     control = rpart::rpart.control(
       minsplit = hyperparameters[["minsplit"]],
       minbucket = hyperparameters[["minbucket"]],
@@ -122,10 +124,34 @@ method(predict_super, class_rpart) <- function(
 #' @noRd
 method(varimp_super, class_rpart) <- function(model) {
   vi <- model[["variable.importance"]]
+  # A tree with no split has no importance.
+  if (length(vi) == 0L) {
+    return(NULL)
+  }
+  impurity <- if (model[["method"]] == "class") {
+    if (identical(as.integer(model[["parms"]][["split"]]), 2L)) {
+      "information (entropy)"
+    } else {
+      "Gini index"
+    }
+  } else {
+    "sum of squares"
+  }
   VariableImportance(
-    data.table(
-      variable = names(vi),
-      importance = unname(vi)
+    measures = list(
+      importance = importance_measure(
+        names(vi),
+        unname(vi),
+        kind = "split_gain",
+        description = paste0(
+          "Reduction in node impurity (",
+          impurity,
+          ") summed over the splits on the predictor as the primary variable, ",
+          "plus the reduction times the adjusted agreement over the splits ",
+          "where it is a surrogate, on the training cases (rpart). Predictors ",
+          "in no split are omitted."
+        )
+      )
     )
   )
 } # /rtemis::varimp_super.rpart
@@ -134,14 +160,14 @@ method(varimp_super, class_rpart) <- function(model) {
 # %% cart_tree ----
 #' Read an `rpart` tree into a routing-ready structure
 #'
-#' `model$splits` holds one row per *candidate* split -- the primary, then this
+#' `model[["splits"]]` holds one row per *candidate* split -- the primary, then this
 #' node's competitors, then its surrogates -- so a node's own split is found by
 #' accumulating `1 + ncompete + nsurrogate` over the frame in order. Getting
 #' that offset wrong routes cases to the wrong leaves and produces attributions
 #' that look entirely reasonable, which is why `explain_super()` checks the
 #' routing against the model's own predictions before returning anything.
 #'
-#' A categorical split stores a row index into `model$csplit`, whose codes are
+#' A categorical split stores a row index into `model[["csplit"]]`, whose codes are
 #' 1 (left), 3 (right) and 2 (level not present).
 #'
 #' @param model `rpart` object.
@@ -253,8 +279,7 @@ cart_goes_left <- function(tree, i, x) {
 #' the average of both children weighted by the training coverage that reached
 #' them.
 #'
-#' Every node is visited once per coalition and returns a value for every case,
-#' rather than recursing per case.
+#' Every node is visited once per coalition and returns a value for every case.
 #'
 #' @param tree List: `cart_tree()` output.
 #' @param i Integer: Node row.
@@ -292,14 +317,12 @@ cart_coalition_value <- function(tree, i, x, known) {
 #'
 #' Shapley values by exact enumeration over the features the tree actually
 #' splits on, against the path-dependent value function. A feature the tree
-#' never split on receives exactly zero, so the enumeration is over that set
-#' rather than over every column -- which is what keeps `2^p` small for a tree
-#' of realistic size.
+#' never split on receives exactly zero, so the enumeration runs over that set,
+#' which keeps `2^p` small for a tree of realistic size.
 #'
 #' Exact, not an estimate: every coalition is evaluated, so there is no sampling
 #' and no convergence to check. The cost is `2^p` traversals, so a tree splitting
-#' on more than `CART_SHAP_MAX_FEATURES` features is refused rather than left to
-#' run.
+#' on more than `CART_SHAP_MAX_FEATURES` features is refused.
 #'
 #' A tree has no link function, so for a classification the contributions
 #' decompose the predicted **probability** directly -- as they do for NNLS, and

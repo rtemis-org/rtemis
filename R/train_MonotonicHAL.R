@@ -210,5 +210,20 @@ method(train_, MonotonicHALHyperparameters) <- function(
   )
   # `predict_super` and `varimp_super` dispatch on `class_hal9001`, which
   # `train_HAL.R` registers; the fitted class is the same.
-  list(model = model, preprocessor = design[["preprocessor"]])
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    list(
+      num_knots = hal_default_knots(
+        MONOTONIC_HAL_MAX_DEGREE,
+        hyperparameters[["smoothness_orders"]]
+      ),
+      # Applies to zero-order bases, where hal9001 sets it to 1/sqrt(n).
+      reduce_basis = model[["reduce_basis"]]
+    )
+  )
+  list(
+    model = model,
+    preprocessor = design[["preprocessor"]],
+    hyperparameters = hyperparameters
+  )
 } # /rtemis::train_.MonotonicHALHyperparameters

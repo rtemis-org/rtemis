@@ -8,13 +8,200 @@
 # https://rconsortium.github.io/S7/articles/classes-objects.html?q=computed#computed-properties
 # https://utf8-icons.com/
 
+# %% IMPORTANCE_KINDS ----
+# What an importance measure quantifies:
+# - "split_gain"                loss or impurity reduction from splits on the
+#                               predictor
+# - "corrected_split_gain"      split gain corrected for the bias of impurity
+#                               measures by permuted pseudo-predictors
+# - "split_frequency"           share or count of splits using the predictor
+# - "split_cover"               cases reaching splits on the predictor
+# - "permutation"               increase in prediction error when the
+#                               predictor's values are permuted
+# - "coefficient"               a model coefficient
+# - "standardized_coefficient"  a coefficient times the predictor's standard
+#                               deviation
+# - "coefficient_magnitude"     absolute coefficients of the terms involving
+#                               the predictor, combined
+# - "partial_effect_variance"   variance of the predictor's term over cases
+# - "model_selection"           contribution to a model-selection criterion
+# - "contribution"              mean absolute contribution to predictions
+# - "ensemble_weight"           weight of a base learner in an ensemble
+# - "cross_validated_risk"      cross-validated loss of a base learner
+# - "dispersion"                spread of another measure over draws
+IMPORTANCE_KINDS <- c(
+  "split_gain",
+  "corrected_split_gain",
+  "split_frequency",
+  "split_cover",
+  "permutation",
+  "coefficient",
+  "standardized_coefficient",
+  "coefficient_magnitude",
+  "partial_effect_variance",
+  "model_selection",
+  "contribution",
+  "ensemble_weight",
+  "cross_validated_risk",
+  "dispersion"
+)
+
+# %% IMPORTANCE_DATA ----
+# The cases a measure is computed on.
+IMPORTANCE_DATA <- c(
+  "training",
+  "out_of_bag",
+  "held_out",
+  "cross_validation",
+  "explained_cases"
+)
+
+# %% IMPORTANCE_DIRECTIONS ----
+# How a measure ranks predictors: by larger values, by larger absolute
+# values, by smaller values, or not at all (a spread or a value without an
+# ordering by importance).
+IMPORTANCE_DIRECTIONS <- c("larger", "absolute", "smaller", "none")
+
+
+# %% ImportanceMeasure ----
+#' ImportanceMeasure
+#'
+#' @description
+#' One variable importance measure: what it quantifies and how to read it,
+#' and its value for each predictor or model term.
+#'
+#' @field kind Character \{"split_gain", "corrected_split_gain", "split_frequency", "split_cover", "permutation", "coefficient", "standardized_coefficient", "coefficient_magnitude", "partial_effect_variance", "model_selection", "contribution", "ensemble_weight", "cross_validated_risk", "dispersion"\}:
+#'   What the measure quantifies.
+#' @field computed_on Character \{"training", "out_of_bag", "held_out", "cross_validation", "explained_cases"\}:
+#'   The cases the measure is computed on.
+#' @field signed Logical: Whether values can be negative.
+#' @field scale_dependent Logical: Whether values depend on the units of the
+#'   predictors, so that magnitudes are comparable only across predictors on a
+#'   common scale.
+#' @field direction Character \{"larger", "absolute", "smaller", "none"\}: How
+#'   the measure ranks predictors.
+#' @field description Character: What the values are, for this model.
+#' @field values Named vector: The value for each predictor, model term, or
+#'   base learner, keyed by its name.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+ImportanceMeasure <- schema_class(
+  name = "ImportanceMeasure",
+  package = "rtemis",
+  properties = list(
+    kind = prop_string(
+      IMPORTANCE_KINDS[[1L]],
+      enum = IMPORTANCE_KINDS,
+      description = "What the measure quantifies: 'split_gain' loss or impurity reduction from splits on the predictor; 'corrected_split_gain' split gain corrected by permuted pseudo-predictors; 'split_frequency' share or count of splits using the predictor; 'split_cover' cases reaching splits on the predictor; 'permutation' increase in prediction error when the predictor is permuted; 'coefficient' a model coefficient; 'standardized_coefficient' a coefficient times the predictor's standard deviation; 'coefficient_magnitude' absolute coefficients of the terms involving the predictor, combined; 'partial_effect_variance' variance of the predictor's term over cases; 'model_selection' contribution to a model-selection criterion; 'contribution' mean absolute contribution to predictions; 'ensemble_weight' weight of a base learner in an ensemble; 'cross_validated_risk' cross-validated loss of a base learner; 'dispersion' spread of another measure over draws."
+    ),
+    computed_on = prop_string(
+      IMPORTANCE_DATA[[1L]],
+      enum = IMPORTANCE_DATA,
+      description = "The cases the measure is computed on: the training cases, the out-of-bag cases of each tree, cases held out from fitting, cross-validated predictions, or the cases an explanation was computed for."
+    ),
+    signed = prop_boolean(
+      FALSE,
+      description = "Whether values can be negative."
+    ),
+    scale_dependent = prop_boolean(
+      FALSE,
+      description = "Whether values depend on the units of the predictors, so that magnitudes are comparable only across predictors on a common scale."
+    ),
+    direction = prop_string(
+      IMPORTANCE_DIRECTIONS[[1L]],
+      enum = IMPORTANCE_DIRECTIONS,
+      description = "How the measure ranks predictors: 'larger' by larger values, 'absolute' by larger absolute values, 'smaller' by smaller values, 'none' it does not rank them."
+    ),
+    description = prop_string(
+      "",
+      description = "What the values are, for this model."
+    ),
+    values = prop_map(
+      prop_float(
+        NULL,
+        nullable = TRUE,
+        description = "Value of the measure; null when unavailable or not finite."
+      ),
+      description = "Value of the measure for each predictor, model term, or base learner, keyed by its name."
+    )
+  ),
+  publication = SchemaPublication(
+    role = "document",
+    slug = "importancemeasure",
+    title = "rtemis ImportanceMeasure",
+    description = "One variable importance measure of a fitted model: what it quantifies, the cases it is computed on, whether it is signed or depends on predictor units, how it ranks predictors, and its value for each predictor or model term.",
+    order = 34L,
+    kind = "report",
+    scope = "shared"
+  )
+) # /rtemis::ImportanceMeasure
+
+
+# %% .list_to_ImportanceMeasure ----
+#' Decode an importance measure from its wire form
+#' @param value Named list: Parsed measure.
+#' @return `ImportanceMeasure` object.
+#' @keywords internal
+#' @noRd
+.list_to_ImportanceMeasure <- function(value) {
+  value[["$schema"]] <- NULL
+  do.call(ImportanceMeasure, from_wire(value, ImportanceMeasure))
+} # /rtemis::.list_to_ImportanceMeasure
+
+
+# %% importance_measure ----
+#' Build an `ImportanceMeasure`
+#'
+#' @param variable Character vector: Predictors, model terms, or base
+#'   learners.
+#' @param value Numeric vector: One value per entry of `variable`.
+#' @param kind Character: One of `IMPORTANCE_KINDS`.
+#' @param computed_on Character: One of `IMPORTANCE_DATA`.
+#' @param signed Logical: Whether values can be negative.
+#' @param scale_dependent Logical: Whether values depend on predictor units.
+#' @param direction Character: One of `IMPORTANCE_DIRECTIONS`.
+#' @param description Character: What the values are.
+#'
+#' @return `ImportanceMeasure` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+importance_measure <- function(
+  variable,
+  value,
+  kind,
+  computed_on = "training",
+  signed = FALSE,
+  scale_dependent = FALSE,
+  direction = "larger",
+  description
+) {
+  value <- as.numeric(value)
+  value[!is.finite(value)] <- NA_real_
+  ImportanceMeasure(
+    kind = kind,
+    computed_on = computed_on,
+    signed = signed,
+    scale_dependent = scale_dependent,
+    direction = direction,
+    description = description,
+    values = stats::setNames(value, as.character(variable))
+  )
+} # /rtemis::importance_measure
+
+
 # %% VariableImportance ----
 #' VariableImportance
 #'
 #' @description
-#' Class for variable importance objects. Allows for one or more variable importance measures,
-#' stored in a data.table with columns "variable", and at least one
-#' more column with a descriptive name.
+#' The variable importance measures of a fitted model, keyed by name. Each
+#' measure carries what it quantifies and its value for each predictor or
+#' model term.
+#'
+#' @field measures Named list of `ImportanceMeasure` objects.
 #'
 #' @author EDG
 #' @keywords internal
@@ -23,55 +210,133 @@ VariableImportance <- schema_class(
   name = "VariableImportance",
   package = "rtemis",
   properties = list(
-    data = prop_table(
-      columns = list(
-        variable = prop_string(description = "Predictor or model term.")
-      ),
-      additional = prop_float(
-        NULL,
-        nullable = TRUE,
-        description = "Importance measure; null denotes an unavailable or nonfinite value."
-      ),
-      min_columns = 2L,
+    measures = prop_collection(
+      ImportanceMeasure,
+      container = "map",
       min_items = 1L,
-      description = "One row per predictor or model term, with a variable name and one or more named numeric importance measures."
+      description = "Importance measures, keyed by measure name."
     )
   ),
   publication = SchemaPublication(
     kind = "report",
     scope = "shared",
-    description = "Variable importance measures by predictor or model term."
+    description = "Variable importance measures of a fitted model, keyed by name, each with what it quantifies and its value for each predictor or model term."
   )
 ) # /rtemis::VariableImportance
 
 
+# %% VARIMP_TABLE_RESERVED ----
+# Column names a wide importance table uses for structure.
+VARIMP_TABLE_RESERVED <- c("variable", "fold")
+
+
+# %% varimp_column_names ----
+#' Column names for importance measures in a wide table
+#'
+#' A measure keeps its name unless it is a structural column name or repeats
+#' an earlier column, in which case " (measure)" is appended, and then a
+#' number, until it is distinct.
+#'
+#' @param measures Character: Measure names.
+#'
+#' @return Character, named by measure name.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+varimp_column_names <- function(measures) {
+  taken <- VARIMP_TABLE_RESERVED
+  columns <- vapply(
+    measures,
+    function(nm) {
+      column <- nm
+      if (column %in% taken) {
+        column <- paste0(nm, " (measure)")
+      }
+      i <- 2L
+      while (column %in% taken) {
+        column <- paste0(nm, " (measure ", i, ")")
+        i <- i + 1L
+      }
+      taken <<- c(taken, column)
+      column
+    },
+    character(1L)
+  )
+  stats::setNames(columns, measures)
+} # /rtemis::varimp_column_names
+
+
+# %% varimp_table ----
+#' Variable importance as one table
+#'
+#' @description
+#' Combine the variable importance measures of a model into one table: one
+#' row per predictor or model term and one column per measure.
+#'
+#' @details
+#' Columns follow the order of the measures. A predictor a measure does not
+#' cover is `NA` in that measure's column: some backends report only the
+#' predictors used in a split. A measure named `variable` or `fold`, or one
+#' repeating an earlier column, is labeled "<name> (measure)", since those
+#' column names carry the table's structure.
+#'
+#' The table holds the values only. What each measure quantifies, the cases it
+#' was computed on, and how it ranks predictors are on the measure itself:
+#' `get_varimp(model)@measures[["<name>"]]`.
+#'
+#' @param x `VariableImportance` object, as returned by [get_varimp].
+#'
+#' @return data.frame with a `variable` column and one numeric column per
+#'   measure.
+#'
+#' @author EDG
+#' @export
+#'
+#' @examples
+#' mod <- train(iris, hyperparameters = setup_CART(), verbosity = 0L)
+#' varimp_table(get_varimp(mod))
+varimp_table <- function(x) {
+  check_is_S7(x, VariableImportance)
+  measures <- x@measures
+  variables <- unique(unlist(lapply(measures, function(m) names(m@values))))
+  columns <- varimp_column_names(names(measures))
+  out <- data.frame(variable = variables)
+  for (nm in names(measures)) {
+    values <- measures[[nm]]@values
+    out[[columns[[nm]]]] <- unname(values[variables])
+  }
+  out
+} # /rtemis::varimp_table
+
+
 # %% repr.VariableImportance ----
 method(repr, VariableImportance) <- function(x, pad = 0L, output_type = NULL) {
-  # "N variable importance measures for M predictors"
-  n_m <- NCOL(x@data) - 1L
-  paste0(
-    repr_S7name("VariableImportance", pad = pad, output_type = output_type),
-    strrep(" ", pad),
-    fmt(n_m, col = highlight_col, bold = TRUE, output_type = output_type),
-    ngettext(
-      n_m,
-      " variable importance measure for ",
-      " variable importance measures for "
-    ),
-    fmt(
-      NROW(x@data),
-      col = highlight_col,
-      bold = TRUE,
-      output_type = output_type
-    ),
-    ngettext(NROW(x@data), " predictor", " predictors")
-  )
+  indent <- strrep(" ", pad + 2L)
+  out <- repr_S7name("VariableImportance", pad = pad, output_type = output_type)
+  for (nm in names(x@measures)) {
+    m <- x@measures[[nm]]
+    out <- paste0(
+      out,
+      indent,
+      fmt(nm, col = highlight_col, bold = TRUE, output_type = output_type),
+      " (",
+      m@kind,
+      ", ",
+      length(m@values),
+      ngettext(length(m@values), " entry", " entries"),
+      "): ",
+      m@description,
+      "\n"
+    )
+  }
+  out
 } # /rtemis::repr.VariableImportance
 
 
 # %% print.VariableImportance ----
 method(print, VariableImportance) <- function(x, output_type = NULL, ...) {
-  cat(repr(x, output_type = output_type), "\n")
+  cat(repr(x, output_type = output_type))
   invisible(x)
 } # /rtemis::print.VariableImportance
 
@@ -109,10 +374,8 @@ Supervised <- schema_class(
     model = prop_runtime(
       "Fitted model used by this implementation for prediction."
     ),
-    # No default: the kind of learning follows from the outcome, so there is no
-    # value a class definition could honestly supply. NULL is the unset value,
-    # and a constructor that failed to set it fails at first use rather than
-    # claiming to be one of the two.
+    # No default: the kind of learning follows from the outcome. NULL is the
+    # unset value, and a constructor that did not set it fails at first use.
     type = prop_string(
       NULL,
       enum = SUPERVISED_TYPES,
@@ -137,7 +400,7 @@ Supervised <- schema_class(
         nullable = TRUE,
         description = "Algorithm settings used by the fitted model; the run record carries complete resolution details."
       ),
-      schemas = list(
+      additional_schemas = list(
         `rtemis-ml::Hyperparameters` = "https://schema.rtemis.org/hyperparameters/python/v1/schema.json"
       )
     ),
@@ -150,7 +413,7 @@ Supervised <- schema_class(
         ExecutionConfig,
         description = "Execution settings used by this implementation."
       ),
-      schemas = list(
+      additional_schemas = list(
         `rtemis-ml::ExecutionConfig` = "https://schema.rtemis.org/execution/python/v1/schema.json"
       )
     ),
@@ -238,7 +501,7 @@ Supervised <- schema_class(
     # Provenance. `session_info` is a full `utils::sessionInfo()` -- the first
     # thing asked for when troubleshooting -- and `session` is the run timeline.
     # `data_fingerprint` identifies the training data itself, so that comparing
-    # models trained on different inputs is detectable rather than silent.
+    # models trained on different inputs is detectable.
     data_fingerprint = prop_object(
       DataFingerprint,
       nullable = TRUE,
@@ -254,8 +517,7 @@ Supervised <- schema_class(
     # The run's *input*, which nothing else here carries: the hyperparameters on
     # this object are the ones that ran, resolved, and only the input says what
     # was asked for. `record()` needs both to state where each value came from.
-    # Assigned by `train()` after construction rather than threaded through five
-    # constructors that have no use for it.
+    # Assigned by `train()` after construction.
     config = prop_runtime(
       "Native input configuration, which may contain in-memory data; portable settings are carried by the run record.",
       cls = SuperConfig
@@ -267,40 +529,89 @@ Supervised <- schema_class(
     slug = "supervisedresult",
     description = "Portable supervised learning result; native fitted state is held separately on the object."
   ),
-  rules = unlist(
-    lapply(
-      c(
-        "y_training",
-        "y_validation",
-        "y_test",
-        "predicted_training",
-        "predicted_validation",
-        "predicted_test",
-        "metrics_training",
-        "metrics_validation",
-        "metrics_test"
-      ),
-      function(nm) {
-        lapply(seq_along(SUPERVISED_TYPES), function(i) {
-          UnionSelectionRule(
-            id = paste0("supervised.", tolower(SUPERVISED_TYPES[[i]]), ".", nm),
-            message = paste0(
-              nm,
-              " must use the ",
-              tolower(SUPERVISED_TYPES[[i]]),
-              " representation selected by type."
-            ),
-            property = nm,
-            alternative = i,
-            when = SchemaPredicate(
-              property = "type",
-              equals = SUPERVISED_TYPES[[i]]
+  rules = c(
+    unlist(
+      lapply(
+        c(
+          "y_training",
+          "y_validation",
+          "y_test",
+          "predicted_training",
+          "predicted_validation",
+          "predicted_test",
+          "metrics_training",
+          "metrics_validation",
+          "metrics_test"
+        ),
+        function(nm) {
+          lapply(seq_along(SUPERVISED_TYPES), function(i) {
+            UnionSelectionRule(
+              id = paste0(
+                "supervised.",
+                tolower(SUPERVISED_TYPES[[i]]),
+                ".",
+                nm
+              ),
+              message = paste0(
+                nm,
+                " must use the ",
+                tolower(SUPERVISED_TYPES[[i]]),
+                " representation selected by type."
+              ),
+              property = nm,
+              alternative = i,
+              when = SchemaPredicate(
+                property = "type",
+                equals = SUPERVISED_TYPES[[i]]
+              )
             )
-          )
-        })
-      }
+          })
+        }
+      ),
+      recursive = FALSE
     ),
-    recursive = FALSE
+    unlist(
+      lapply(c("training", "validation", "test"), function(sample) {
+        observed <- paste0("y_", sample)
+        predicted <- paste0("predicted_", sample)
+        c(
+          list(
+            RowCountMatches(
+              id = paste0("supervised.rows.", observed, ".", predicted),
+              left = observed,
+              right = predicted,
+              message = paste0(
+                observed,
+                " and ",
+                predicted,
+                " must have the same number of rows."
+              )
+            ),
+            FactorLevelsMatch(
+              id = paste0("supervised.levels.", predicted, ".y_training"),
+              left = predicted,
+              right = "y_training",
+              message = paste0(
+                predicted,
+                " must use the training class levels in the same order."
+              )
+            )
+          ),
+          if (sample != "training") {
+            list(FactorLevelsMatch(
+              id = paste0("supervised.levels.", observed, ".y_training"),
+              left = observed,
+              right = "y_training",
+              message = paste0(
+                observed,
+                " must use the training class levels in the same order."
+              )
+            ))
+          }
+        )
+      }),
+      recursive = FALSE
+    )
   ),
   constructor = function(
     algorithm,
@@ -579,8 +890,7 @@ method(fitted, Supervised) <- function(object, ...) {
 method(se, Supervised) <- function(x, newdata, verbosity = 0L) {
   features <- supervised_features(x, newdata, verbosity = verbosity)
   # Only a few algorithms define `se_super()`. Anything else has no standard
-  # error, which is an answer rather than a failure -- so a missing method
-  # reads as NULL instead of propagating S7's dispatch error.
+  # error, so a missing method reads as NULL.
   tryCatch(
     se_super(model = x@model, newdata = features),
     S7_error_method_not_found = function(e) NULL
@@ -1177,14 +1487,51 @@ Classification <- schema_class(
     scope = "shared",
     description = "Portable classification result."
   ),
-  rules = list(RequireConditions(
-    id = "classification.type",
-    message = "type must identify classification.",
-    conditions = list(SchemaPredicate(
-      property = "type",
-      equals = "Classification"
-    ))
-  )),
+  rules = c(
+    list(RequireConditions(
+      id = "classification.type",
+      message = "type must identify classification.",
+      conditions = list(SchemaPredicate(
+        property = "type",
+        equals = "Classification"
+      ))
+    )),
+    unlist(
+      lapply(c("training", "validation", "test"), function(sample) {
+        probabilities <- paste0("predicted_prob_", sample)
+        c(
+          lapply(c("y_", "predicted_"), function(prefix) {
+            other <- paste0(prefix, sample)
+            RowCountMatches(
+              id = paste0("classification.rows.", probabilities, ".", other),
+              left = probabilities,
+              right = other,
+              message = paste0(
+                probabilities,
+                " and ",
+                other,
+                " must have the same number of rows."
+              )
+            )
+          }),
+          list(ProbabilityColumnsMatch(
+            id = paste0(
+              "classification.columns.",
+              probabilities,
+              ".y_training"
+            ),
+            probabilities = probabilities,
+            outcome = "y_training",
+            message = paste0(
+              probabilities,
+              " must contain one column for binary classification or one column per training class for multiclass classification."
+            )
+          ))
+        )
+      }),
+      recursive = FALSE
+    )
+  ),
   constructor = function(
     algorithm = NULL,
     model = NULL,
@@ -1302,8 +1649,7 @@ CalibratedClassification <- new_class(
     calibration_model = Supervised,
     # The algorithm that produced the calibration map. `calibrate()` may
     # substitute one calibrator for another, so this is read from the fitted
-    # model rather than from the requested hyperparameters -- it names what
-    # actually ran, which is what makes the run reproducible from its output.
+    # model, so it names what ran and the run is reproducible from its output.
     calibrator = new_property(
       getter = function(self) {
         self@calibration_model@algorithm
@@ -1693,10 +2039,15 @@ SupervisedRes <- schema_class(
       enum = SUPERVISED_TYPES,
       description = "Kind of supervised learning the models perform."
     ),
-    preprocessor_config = prop_object(
-      SupervisedPreprocessorConfig,
-      nullable = TRUE,
-      description = "Preprocessing settings requested for each resample."
+    preprocessor_config = prop_schema_choice(
+      prop_object(
+        SupervisedPreprocessorConfig,
+        nullable = TRUE,
+        description = "Preprocessing settings requested for each resample."
+      ),
+      additional_schemas = list(
+        `rtemis-ml::PreprocessorConfig` = "https://schema.rtemis.org/preprocessor/python/v1/schema.json"
+      )
     ),
     decomposition_config = prop_object(
       DecompositionConfig,
@@ -1715,7 +2066,7 @@ SupervisedRes <- schema_class(
         nullable = TRUE,
         description = "Requested algorithm settings or named variants; successful folds hold their selected settings."
       ),
-      schemas = list(
+      additional_schemas = list(
         `rtemis-ml::Hyperparameters` = "https://schema.rtemis.org/hyperparameters/python/v1/schema.json"
       )
     ),
@@ -1733,7 +2084,7 @@ SupervisedRes <- schema_class(
         ExecutionConfig,
         description = "Execution settings used by this implementation."
       ),
-      schemas = list(
+      additional_schemas = list(
         `rtemis-ml::ExecutionConfig` = "https://schema.rtemis.org/execution/python/v1/schema.json"
       )
     ),
@@ -2185,8 +2536,8 @@ method(predict, SupervisedRes) <- function(
   type <- match_arg(type, c("avg", "all", "metrics"))
   # One element per resample, each in the shape a single model predicts: a
   # numeric vector for a regression, an `n x k` probability matrix for a
-  # classification. Collected as a list rather than with `sapply()`, which
-  # flattens a matrix into a column and so destroyed the class dimension.
+  # classification. Collected as a list: `sapply()` would flatten a matrix into
+  # a column and lose the class dimension.
   per_fold <- lapply(object@models, function(mod) {
     predict(mod, newdata = newdata, execution_config = execution_config)
   })
@@ -2198,9 +2549,8 @@ method(predict, SupervisedRes) <- function(
       predictions = fold_predictions(per_fold),
       # Per case across resamples: the ensemble's prediction and how much the
       # resamples disagreed about it. Averaging the other way round -- over
-      # cases within each resample -- describes the outcome's distribution
-      # rather than the prediction, which is not what a caller asking for
-      # prediction metrics wants.
+      # cases within each resample -- would describe the outcome's distribution
+      # instead of the prediction.
       mean = aggregate_fold_predictions(per_fold, "mean"),
       sd = aggregate_fold_predictions(per_fold, "sd")
     )
@@ -2259,7 +2609,7 @@ aggregate_fold_predictions <- function(per_fold, fn) {
   )
   # `apply()` drops the result to a vector when one class is left standing --
   # the binary case, where `prob_matrix()` stores a single column -- so the
-  # shape is restored rather than left to depend on the class count.
+  # shape is restored for every class count.
   out <- matrix(
     apply(stacked, c(1L, 2L), fn),
     nrow = nrow(first),
@@ -2668,14 +3018,24 @@ method(desc, SupervisedRes) <- function(x, metric = NULL) {
     if (is.null(metric)) {
       metric <- "balanced_accuracy"
     }
+    check_character_scalar(metric)
+    available <- names(x@metrics_test@mean_metrics)
+    if (!metric %in% available) {
+      abort(
+        "metric must be one of the computed test metrics: ",
+        paste(available, collapse = ", "),
+        ".",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
     out <- paste(
       out,
       "Mean",
       labelify(metric, toLower = TRUE),
       "was",
-      ddSci(x@metrics_training@mean_metrics[["balanced_accuracy"]]),
+      ddSci(x@metrics_training@mean_metrics[[metric]]),
       "in the training set and",
-      ddSci(x@metrics_test@mean_metrics[["balanced_accuracy"]]),
+      ddSci(x@metrics_test@mean_metrics[[metric]]),
       "in the test set across "
     )
   } else if (type == "Regression") {
@@ -2757,9 +3117,8 @@ learning_curve_frame <- function(
 # %% get_learning_curve.Supervised ----
 method(get_learning_curve, Supervised) <- function(x) {
   # Only algorithms that train in steps define `learning_curve_super()`.
-  # Anything else records no curve, which is an answer rather than a failure --
-  # so a missing method reads as NULL instead of propagating S7's dispatch
-  # error, as `se()` does above.
+  # Anything else records no curve, so a missing method reads as NULL, as in
+  # `se()` above.
   tryCatch(
     learning_curve_super(model = x@model),
     S7_error_method_not_found = function(e) NULL
@@ -2849,11 +3208,10 @@ early_stopping_algs <- c("LightGBM", "LightRF", "LightRuleFit", "LINAD", "MLP")
 #'
 #' A `torch` module holds external pointers, so it cannot be saved: an `.rds`
 #' written from one reloads as "external pointer is not valid" and fails at the
-#' first prediction rather than at read. The parameters are therefore stored
+#' first prediction. The parameters are therefore stored
 #' serialized, as an ordinary raw vector, and `predict_super()` rebuilds the
-#' module from the recorded architecture and loads them back in. That is why
-#' every architectural setting appears here rather than being read off the
-#' hyperparameters: the model must be readable on its own.
+#' module from the recorded architecture and loads them back in. Every
+#' architectural setting is recorded here, so the model is readable on its own.
 #'
 #' @author EDG
 #' @noRd
@@ -3010,7 +3368,9 @@ StackedLearner <- new_class(
     entry_features = class_list,
     y_levels = NULL | class_character,
     xnames = class_character,
-    type = class_character
+    type = class_character,
+    # Whether the cross-validated risk was weighted by case weights.
+    case_weighted = class_logical
   )
 ) # /rtemis::StackedLearner
 
@@ -3046,14 +3406,14 @@ method(print, StackedLearner) <- function(x, ...) {
 #'
 #' Flat by design. `frame` holds one row per node and `coefficients` one row of
 #' coefficients per node, in place of a nested structure -- routing is then a
-#' vectorized pass per internal node rather than a walk per case, and the whole
+#' vectorized pass per internal node, and the whole
 #' object serializes with no external references.
 #'
 #' A node's coefficients are the accumulated sum along its path, so prediction
 #' is one dot product per case. There is no separate initialization term: the
 #' root model's intercept is it.
 #'
-#' `frame$node_value` is what the **tree alone** predicts at a node -- the model
+#' `frame[["node_value"]]` is what the **tree alone** predicts at a node -- the model
 #' with its slopes zeroed -- so the fit reads as a piecewise-constant tree plus a
 #' piecewise-linear correction, and the two parts can be shown separately. The
 #' root's is the constant that alone minimizes the loss; a child's is its
@@ -3291,7 +3651,7 @@ LINADForest <- new_class(
         ))
       }
       # A tree holds a `mtry_tree` subset, so its features are a subset of the
-      # forest's rather than equal to them.
+      # forest's.
       outside <- setdiff(
         unlist(lapply(self@trees, function(tree) tree@xnames)),
         self@xnames

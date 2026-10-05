@@ -140,7 +140,7 @@ tune_GridSearch <- function(
   )
 
   # Grid cells ----
-  # `res@resamples` rather than the `Resampler`: the cell only ever indexes the list, an
+  # `res@resamples`, the index list: the cell only indexes the list, an
   # S7 object cannot be placed in shared memory, and the index list is itself a
   # meaningful share of the payload (1.7 MB at n = 50,000, k = 10).
   resamples <- share_payload(
@@ -513,8 +513,8 @@ tune_GridSearch <- function(
   # validation fold missing a class scores NaN, and `mean()` carries that NaN to the
   # combination -- reachable with small multiclass data long before anything errors.
   #
-  # Warned rather than fatal: aborting would turn runs that presently return a model into
-  # errors. What must not survive is the silence.
+  # The condition is a warning: the run returns a model, and the warning reports that the
+  # tuned hyperparameters were set to NA.
   if (length(best_row) == 0L) {
     n_failed <- sum(vapply(
       grid_run,
@@ -573,9 +573,8 @@ tune_GridSearch <- function(
       ]
     }
     if (length(shown_columns) == 0L) {
-      # A member can win by being a whole configuration rather than by a value
-      # search -- the point of a set -- and then there is no combination to
-      # report beyond its name, already in the line above.
+      # A member of a set can win as a whole configuration, with no value
+      # search; its name, in the line above, is then the whole combination.
       msg(paste0("  ", gray("no hyperparameters searched within this variant")))
     } else {
       print_tune_finding(
@@ -610,10 +609,16 @@ tune_GridSearch <- function(
     tuning_results = list(
       param_grid = param_grid,
       training = metrics_training_by_combo_id,
-      validation = metrics_validation_by_combo_id
+      validation = metrics_validation_by_combo_id,
+      # Combinations eligible before a randomized search sampled from them.
+      n_combinations = n_combinations_gated,
+      # The resampler as it ran, with settings resolved from the data, such
+      # as the number of stratification intervals.
+      resampler_config = res@config
     ),
     best_hyperparameters = best_param_combo,
-    best_variant = best_variant
+    best_variant = best_variant,
+    searched_set = if (is.null(members)) NULL else hyperparameters
   )
 } # /rtemis::tune_GridSearch
 
@@ -649,7 +654,7 @@ tune_GridSearch <- function(
 #' @param weights Optional vector of case weights.
 #' @param algorithm Character: Algorithm name, for the algorithm-specific collection.
 #' @param save_mods Logical: If TRUE, the fitted model rides back with the result.
-#' @param fatal Logical: If TRUE, a cell failure is raised rather than returned.
+#' @param fatal Logical: If TRUE, a cell failure is raised; otherwise returned.
 #' @param verbosity Integer: Verbosity level.
 #'
 #' @return Function of `(index)` returning the cell result list.
@@ -740,7 +745,7 @@ make_grid_cell_runner <- function(
     # Failure policy (specs/observability.md section 7): under a tolerant policy a
     # grid-cell failure is captured and returned as a marker (non-fatal); otherwise it
     # propagates. Timestamps bracket the actual cell run so the host can record real
-    # durations on the synthesized grid_cell nodes (rather than a zero-width interval).
+    # durations on the synthesized grid_cell nodes.
     cell_t_start <- Sys.time()
     mod1 <- if (fatal) {
       run_cell()

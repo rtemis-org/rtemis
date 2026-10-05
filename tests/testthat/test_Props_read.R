@@ -18,11 +18,11 @@ schema_classes <- function() {
   catalog <- schema_catalog()
   entries <- c(
     unlist(
-      lapply(catalog$families, function(family) family$algorithms),
+      lapply(catalog[["families"]], function(family) family[["algorithms"]]),
       recursive = FALSE
     ),
-    catalog$flat_configs,
-    catalog$inline
+    catalog[["flat_configs"]],
+    catalog[["inline"]]
   )
   classes <- lapply(entries, `[[`, "cls")
   stats::setNames(

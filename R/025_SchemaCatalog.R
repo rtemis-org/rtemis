@@ -189,6 +189,10 @@ method(repr, SchemaPublication) <- function(x, output_type = NULL, ...) {
 #' @param publication Optional `SchemaPublication`: This class's publication metadata.
 #' @param rules List of `SchemaRule` objects: Invariants declared by this class.
 #' @param defaults Optional List: Named DefaultPolicy overrides for this class.
+#' @param reporting Optional List: Reporting metadata for this class, published
+#'   in the `reporting/v1` artifact. `primary` is a character vector of the
+#'   class's settings a writeup's main hyperparameter table lists for every
+#'   fit (`schema_reporting()`).
 #' @return S7 class with validated, non-inheriting metadata.
 #' @keywords internal
 #' @noRd
@@ -196,7 +200,8 @@ schema_class <- function(
   ...,
   publication = NULL,
   rules = list(),
-  defaults = NULL
+  defaults = NULL,
+  reporting = NULL
 ) {
   if (!is.null(publication)) {
     check_is_S7(publication, SchemaPublication)
@@ -238,6 +243,9 @@ schema_class <- function(
   }
   validate_default_policies(cls)
   validate_inherited_property_contracts(cls)
+  if (!is.null(reporting)) {
+    attr(cls, "rtemis_reporting") <- validate_reporting(reporting, cls)
+  }
   if (length(declared_rules)) {
     attr(cls, "rtemis_rules") <- declared_rules
     attr(cls, "rtemis_native_validator") <- original_validator
@@ -317,7 +325,7 @@ schema_class <- function(
 #'
 #' Only families already declared when the document is declared can be
 #' checked, which is the case for a same-package reference in collation order;
-#' an unresolved target is skipped rather than guessed.
+#' an unresolved target is skipped.
 #'
 #' @param cls S7 class: The document class, with its inherited properties.
 #' @return NULL, invisibly; aborts with class `rtemis_schema_error`.
@@ -483,6 +491,67 @@ schema_publication <- function(cls) {
 }
 
 
+# %% validate_reporting ----
+#' Validate a class's reporting metadata
+#'
+#' @param reporting List: As passed to `schema_class(reporting = )`.
+#' @param cls S7 class: Declaring class.
+#' @return `reporting`, with `primary` as a character vector.
+#' @keywords internal
+#' @noRd
+validate_reporting <- function(reporting, cls) {
+  if (
+    !is.list(reporting) ||
+      !identical(names(reporting), "primary") ||
+      !is.character(reporting[["primary"]]) ||
+      !is.null(dim(reporting[["primary"]])) ||
+      anyNA(reporting[["primary"]]) ||
+      anyDuplicated(reporting[["primary"]])
+  ) {
+    rtemis.core::abort(
+      "Class reporting of ",
+      cls@name,
+      " must be list(primary = <distinct property names>).",
+      class = "rtemis_schema_error"
+    )
+  }
+  primary <- reporting[["primary"]]
+  settings <- names(cls@properties)[vapply(
+    cls@properties,
+    function(p) {
+      !is.null(get_spec_fields(p)) && !identical(prop_role(p), "state")
+    },
+    logical(1L)
+  )]
+  unknown <- setdiff(primary, settings)
+  if (length(unknown)) {
+    rtemis.core::abort(
+      "Primary hyperparameters of ",
+      cls@name,
+      " must be declared settings of the class: ",
+      paste(unknown, collapse = ", "),
+      ".",
+      class = "rtemis_schema_error"
+    )
+  }
+  list(primary = primary)
+} # /rtemis::validate_reporting
+
+
+# %% schema_reporting ----
+#' Read a class's reporting metadata
+#'
+#' Reporting does not inherit: each published class declares its own.
+#'
+#' @param cls S7 class.
+#' @return List with `primary`, or NULL when the class declares none.
+#' @keywords internal
+#' @noRd
+schema_reporting <- function(cls) {
+  attr(cls, "rtemis_reporting", exact = TRUE)
+} # /rtemis::schema_reporting
+
+
 # %% schema_native_validator ----
 #' Read validation authored outside the portable rule declarations
 #' @param cls S7 class: Declaring class, without inherited validators.
@@ -559,7 +628,7 @@ schema_publication_annotation <- function(cls) {
 #'
 #' A schema description is a sentence, but every caller uses it as a name
 #' inside its own sentence ("Ranger random forest was used for ..."), so the
-#' closing period is dropped here rather than at each call site.
+#' closing period is dropped here, once for every caller.
 #'
 #' @param base S7 class: Published family root.
 #' @return Named character vector keyed by discriminator value.

@@ -39,8 +39,8 @@ g <- factor(sample(c("A", "B"), n, replace = TRUE))
 y <- x[, 3] + x[, 5] + ifelse(g == "A", 2, -1) + rnorm(n)
 datr <- data.table(x, g, y)
 resr <- resample(datr)
-datr_train <- datr[resr$Fold_1, ]
-datr_test <- datr[-resr$Fold_1, ]
+datr_train <- datr[resr[["Fold_1"]], ]
+datr_test <- datr[-resr[["Fold_1"]], ]
 
 ## Classification Data ----
 ### Binary ----
@@ -48,16 +48,16 @@ datc2 <- data.frame(
   gn = factor(sample(c("alpha", "beta", "gamma"), 100, replace = TRUE)),
   iris[51:150, ]
 )
-datc2$Species <- factor(datc2$Species)
+datc2[["Species"]] <- factor(datc2[["Species"]])
 resc2 <- resample(datc2)
-datc2_train <- datc2[resc2$Fold_1, ]
-datc2_test <- datc2[-resc2$Fold_1, ]
+datc2_train <- datc2[resc2[["Fold_1"]], ]
+datc2_test <- datc2[-resc2[["Fold_1"]], ]
 
 ### 3-class ----
 datc3 <- iris
 resc3 <- resample(datc3)
-datc3_train <- datc3[resc3$Fold_1, ]
-datc3_test <- datc3[-resc3$Fold_1, ]
+datc3_train <- datc3[resc3[["Fold_1"]], ]
+datc3_test <- datc3[-resc3[["Fold_1"]], ]
 
 ### Synthetic binary data where positive class is 10% of the data ----
 # set.seed(2025)
@@ -852,13 +852,15 @@ test_that("get_varimp() LINAD reports both of its measures", {
   vi <- get_varimp(mod_r_linad)
   expect_s7_class(vi, VariableImportance)
   expect_identical(
-    names(vi@data),
+    names(varimp_table(vi)),
     c("variable", "importance", "split_gain")
   )
-  expect_setequal(vi@data[["variable"]], names(features(datr_train)))
+  expect_setequal(varimp_table(vi)[["variable"]], names(features(datr_train)))
   # The outcome is x[, 3] + x[, 5] plus a group effect, so those three carry the
   # linear signal and a measure that cannot see them is not measuring anything.
-  ranked <- vi@data[["variable"]][order(-vi@data[["importance"]])][1:3]
+  ranked <- varimp_table(vi)[["variable"]][order(
+    -varimp_table(vi)[["importance"]]
+  )][1:3]
   expect_setequal(ranked, c("V3", "V5", "g"))
 })
 
@@ -1088,10 +1090,10 @@ test_that("get_varimp() LINADForest reports both of its measures", {
   vi <- get_varimp(mod_r_linadforest)
   expect_s7_class(vi, VariableImportance)
   expect_identical(
-    names(vi@data),
+    names(varimp_table(vi)),
     c("variable", "importance", "split_gain")
   )
-  expect_setequal(vi@data[["variable"]], names(features(datr_train)))
+  expect_setequal(varimp_table(vi)[["variable"]], names(features(datr_train)))
 })
 
 ## {LINADForest}[train]<Regression> Feature sampling ----
@@ -1226,8 +1228,8 @@ mod_r_lightcartlin <- train(
 test_that("train() LightCART Regression with linear_tree succeeds", {
   expect_s7_class(mod_r_lightcartlin, Regression)
   expect_identical(
-    mod_r_lightcartlin@hyperparameters$linear_tree,
-    mod_r_lightcartlin@model$params$linear_tree
+    mod_r_lightcartlin@hyperparameters[["linear_tree"]],
+    mod_r_lightcartlin@model[["params"]][["linear_tree"]]
   )
 })
 
@@ -1335,7 +1337,7 @@ test_that("predicted probabilities are a matrix whatever the class count", {
   expect_true(is.matrix(multi@predicted_prob_training))
   expect_identical(
     colnames(multi@predicted_prob_training),
-    levels(iris$Species)
+    levels(iris[["Species"]])
   )
 })
 
@@ -1462,11 +1464,11 @@ mod_r_lightrlft_l1l2 <- train(
 test_that("train() LightRuleFit Regression with l1, l2 params passed", {
   expect_s7_class(mod_r_lightrlft_l1l2, Regression)
   expect_identical(
-    mod_r_lightrlft_l1l2@model@model_lightgbm@model$params$lambda_l1,
+    mod_r_lightrlft_l1l2@model@model_lightgbm@model[["params"]][["lambda_l1"]],
     10
   )
   expect_identical(
-    mod_r_lightrlft_l1l2@model@model_lightgbm@model$params$lambda_l2,
+    mod_r_lightrlft_l1l2@model@model_lightgbm@model[["params"]][["lambda_l2"]],
     10
   )
 })
@@ -1494,14 +1496,14 @@ test_that("train() LightRuleFit Multiclass Classification succeeds", {
   # Multiclass glmnet coefficients are a list (one per class); rule
   # importance is the total absolute influence and the signed per-class
   # coefficients are preserved as extra columns.
-  vi <- get_varimp(mod_c_lightrlft)@data
+  vi <- varimp_table(get_varimp(mod_c_lightrlft))
   cls <- levels(datc3_train[[ncol(datc3_train)]])
   expect_true(all(cls %in% names(vi)))
   expect_identical(names(vi)[[2L]], "Coefficient")
   expect_true(all(vi[["Coefficient"]] >= 0))
   expect_equal(
     vi[["Coefficient"]],
-    unname(rowSums(abs(as.matrix(vi[, cls, with = FALSE]))))
+    unname(rowSums(abs(as.matrix(vi[, cls, drop = FALSE]))))
   )
   # Per-class importance is individually plottable.
   expect_no_error(plot_varimp(mod_c_lightrlft, measure = cls[[1L]]))
@@ -1820,15 +1822,19 @@ test_that("predict() SPLS Classification returns second-level probabilities", {
   # A flipped column would still be a valid probability, so check it tracks the
   # outcome rather than its complement.
   expect_gt(
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[2L]
+    ]),
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[1L]
+    ])
   )
 })
 
 test_that("predict() SPLS Multiclass returns one column per class", {
   skip_if_not_installed("spls")
   predicted_prob <- predict(modt_c3_spls, features(datc3_test))
-  expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
+  expect_identical(NCOL(predicted_prob), nlevels(datc3_test[["Species"]]))
   expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
 })
 
@@ -1839,7 +1845,7 @@ test_that("get_varimp() SPLS Regression succeeds", {
   expect_s7_class(vi, VariableImportance)
   # One coefficient per design-matrix column: the factor `g` is one-hot encoded
   # before spls sees it.
-  expect_gte(nrow(vi@data), length(mod_r_spls@xnames))
+  expect_gte(nrow(varimp_table(vi)), length(mod_r_spls@xnames))
 })
 
 ## {SPLS}[train]<Regression> Algorithm name dispatch ----
@@ -2064,15 +2070,19 @@ test_that("predict() MARS Classification returns second-level probabilities", {
   # A flipped column would still be a valid probability, so check it tracks the
   # outcome rather than its complement.
   expect_gt(
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[2L]
+    ]),
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[1L]
+    ])
   )
 })
 
 test_that("predict() MARS Multiclass returns one column per class", {
   skip_if_not_installed("earth")
   predicted_prob <- predict(modt_c3_mars, features(datc3_test))
-  expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
+  expect_identical(NCOL(predicted_prob), nlevels(datc3_test[["Species"]]))
   # The per-class GLMs are independent, so predict_super() normalizes them.
   expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
 })
@@ -2084,20 +2094,20 @@ test_that("get_varimp() MARS Regression reports earth's three criteria", {
   expect_s7_class(vi, VariableImportance)
   # Column 2 is what plot_varimp() shows by default, so the order is contract.
   expect_identical(
-    names(vi@data),
+    names(varimp_table(vi)),
     c("variable", "importance", "rss", "subset_proportion")
   )
   # One row per design-matrix column: the factor `g` is one-hot encoded before
   # earth sees it, so this exceeds the feature count.
-  expect_gte(nrow(vi@data), length(mod_r_mars@xnames))
-  expect_true(all(vi@data[["subset_proportion"]] >= 0))
-  expect_true(all(vi@data[["subset_proportion"]] <= 1))
+  expect_gte(nrow(varimp_table(vi)), length(mod_r_mars@xnames))
+  expect_true(all(varimp_table(vi)[["subset_proportion"]] >= 0))
+  expect_true(all(varimp_table(vi)[["subset_proportion"]] <= 1))
 })
 
 test_that("get_varimp() MARS recovers the features that drive the outcome", {
   skip_if_not_installed("earth")
   # datr is y = V3 + V5 + a `g` effect, so those must outrank the pure noise.
-  vi <- get_varimp(mod_r_mars)@data
+  vi <- varimp_table(get_varimp(mod_r_mars))
   top <- vi[["variable"]][order(vi[["importance"]], decreasing = TRUE)][1:3]
   expect_true(all(c("V3", "V5") %in% top))
 })
@@ -2106,12 +2116,12 @@ test_that("get_varimp() MARS subset_proportion is comparable across model sizes"
   skip_if_not_installed("earth")
   # earth's own count scales with the number of terms, so a grid search over
   # `nprune` would report two incomparable scales. The proportion does not.
-  small <- get_varimp(
+  small <- varimp_table(get_varimp(
     train(x = datr_train, hyperparameters = setup_MARS(nprune = 4L))
-  )@data
-  large <- get_varimp(
+  ))
+  large <- varimp_table(get_varimp(
     train(x = datr_train, hyperparameters = setup_MARS(nprune = 12L))
-  )@data
+  ))
   expect_true(all(small[["subset_proportion"]] <= 1))
   expect_true(all(large[["subset_proportion"]] <= 1))
   expect_identical(
@@ -2462,15 +2472,17 @@ if (mlp_installed) {
     # the outcome rather than its complement.
     expect_gt(
       mean(predicted_prob[
-        datc2_test$Species == levels(datc2_test$Species)[2L]
+        datc2_test[["Species"]] == levels(datc2_test[["Species"]])[2L]
       ]),
-      mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+      mean(predicted_prob[
+        datc2_test[["Species"]] == levels(datc2_test[["Species"]])[1L]
+      ])
     )
   })
 
   test_that("predict() MLP Multiclass returns one column per class", {
     predicted_prob <- predict(modt_c3_mlp, features(datc3_test))
-    expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
+    expect_identical(NCOL(predicted_prob), nlevels(datc3_test[["Species"]]))
     expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
   })
 
@@ -2861,15 +2873,19 @@ test_that("predict() KNN Classification returns second-level probabilities", {
   # A flipped column would still be a valid probability, so check it tracks the
   # outcome rather than its complement.
   expect_gt(
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[2L]
+    ]),
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[1L]
+    ])
   )
 })
 
 test_that("predict() KNN Multiclass returns one column per class", {
   skip_if_not_installed("kknn")
   predicted_prob <- predict(modt_c3_knn, features(datc3_test))
-  expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
+  expect_identical(NCOL(predicted_prob), nlevels(datc3_test[["Species"]]))
   expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
 })
 
@@ -3178,8 +3194,12 @@ test_that("predict() BART Classification returns second-level probabilities", {
   # A flipped column would still be a valid probability, so check it tracks the
   # outcome rather than its complement.
   expect_gt(
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[2L]
+    ]),
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[1L]
+    ])
   )
 })
 
@@ -3201,8 +3221,8 @@ test_that("get_varimp() BART Regression returns inclusion proportions", {
   skip_if_not_installed("stochtree")
   varimp_bart <- get_varimp(mod_r_bart)
   expect_s7_class(varimp_bart, VariableImportance)
-  expect_identical(varimp_bart@data[["variable"]], mod_r_bart@xnames)
-  expect_equal(sum(varimp_bart@data[["importance"]]), 1)
+  expect_identical(varimp_table(varimp_bart)[["variable"]], mod_r_bart@xnames)
+  expect_equal(sum(varimp_table(varimp_bart)[["importance"]]), 1)
 })
 
 test_that("get_varimp() BART reports inclusion spread beside the mean", {
@@ -3210,11 +3230,10 @@ test_that("get_varimp() BART reports inclusion spread beside the mean", {
   varimp_bart <- get_varimp(mod_r_bart)
   # Two measures, so `plot_varimp(measure = )` has something to select.
   expect_identical(
-    names(varimp_bart@data),
+    names(varimp_table(varimp_bart)),
     c("variable", "importance", "inclusion_sd")
   )
-  expect_true(all(varimp_bart@data[["inclusion_sd"]] >= 0))
-  # The spread is across draws, so it must vanish when there is only one.
+  expect_true(all(varimp_table(varimp_bart)[["inclusion_sd"]] >= 0))
   varimp_one_draw <- get_varimp(train(
     x = datr_train,
     hyperparameters = setup_BART(
@@ -3224,7 +3243,8 @@ test_that("get_varimp() BART reports inclusion spread beside the mean", {
       seed = 2026L
     )
   ))
-  expect_true(all(varimp_one_draw@data[["inclusion_sd"]] == 0))
+  # One draw has a proportion but no sample standard deviation.
+  expect_true(all(is.na(varimp_table(varimp_one_draw)[["inclusion_sd"]])))
 })
 
 test_that("get_varimp() BART is invariant to sampler budget", {
@@ -3240,11 +3260,11 @@ test_that("get_varimp() BART is invariant to sampler budget", {
       seed = 2026L
     )
   ))
-  expect_equal(sum(varimp_long@data[["importance"]]), 1)
+  expect_equal(sum(varimp_table(varimp_long)[["importance"]]), 1)
   # Same data and prior, four times the draws: the ranking must not move.
   expect_identical(
-    order(varimp_long@data[["importance"]]),
-    order(get_varimp(mod_r_bart)@data[["importance"]])
+    order(varimp_table(varimp_long)[["importance"]]),
+    order(varimp_table(get_varimp(mod_r_bart))[["importance"]])
   )
 })
 
@@ -3500,8 +3520,12 @@ test_that("predict() HAL Classification returns second-level probabilities", {
   # A flipped column would still be a valid probability, so check it tracks the
   # outcome rather than its complement.
   expect_gt(
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[2L]
+    ]),
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[1L]
+    ])
   )
 })
 
@@ -3513,8 +3537,8 @@ test_that("get_varimp() HAL Regression aggregates coefficients per feature", {
   skip_if_not_installed("hal9001")
   varimp_hal <- get_varimp(mod_r_hal)
   expect_s7_class(varimp_hal, VariableImportance)
-  expect_gt(nrow(varimp_hal@data), length(mod_r_hal@xnames))
-  expect_true(all(varimp_hal@data[["importance"]] >= 0))
+  expect_gt(nrow(varimp_table(varimp_hal)), length(mod_r_hal@xnames))
+  expect_true(all(varimp_table(varimp_hal)[["importance"]] >= 0))
 })
 
 test_that("get_varimp() HAL reports the peak coefficient beside the sum", {
@@ -3522,12 +3546,13 @@ test_that("get_varimp() HAL reports the peak coefficient beside the sum", {
   varimp_hal <- get_varimp(mod_r_hal)
   # Two measures, so `plot_varimp(measure = )` has something to select.
   expect_identical(
-    names(varimp_hal@data),
+    names(varimp_table(varimp_hal)),
     c("variable", "importance", "max_coefficient")
   )
   # A sum over the same terms the maximum is taken over cannot be smaller.
   expect_true(all(
-    varimp_hal@data[["importance"]] >= varimp_hal@data[["max_coefficient"]]
+    varimp_table(varimp_hal)[["importance"]] >=
+      varimp_table(varimp_hal)[["max_coefficient"]]
   ))
 })
 
@@ -3545,8 +3570,8 @@ test_that("get_varimp() HAL recovers the features the outcome was built from", {
     )
   ))
   importance <- setNames(
-    varimp_hal@data[["importance"]],
-    varimp_hal@data[["variable"]]
+    varimp_table(varimp_hal)[["importance"]],
+    varimp_table(varimp_hal)[["variable"]]
   )
   expect_gt(
     min(importance[c("V3", "V5")]),
@@ -3860,12 +3885,12 @@ test_that("predict() ClassificationRes gives binary and multiclass one shape", {
 ## {LightRF}[calibrate]<Classification> ----
 # Calibrate mod_c_lightrf trained above
 model <- mod_c_lightrf
-predicted_probabilities <- model$predicted_prob_training
-true_labels <- model$y_training
+predicted_probabilities <- model[["predicted_prob_training"]]
+true_labels <- model[["y_training"]]
 mod_c_lightrf_cal <- calibrate(
   mod_c_lightrf,
-  predicted_probabilities = mod_c_lightrf$predicted_prob_training,
-  true_labels = mod_c_lightrf$y_training
+  predicted_probabilities = mod_c_lightrf[["predicted_prob_training"]],
+  true_labels = mod_c_lightrf[["y_training"]]
 )
 test_that("calibrate() succeeds on Classification", {
   expect_s7_class(mod_c_lightrf_cal, CalibratedClassification)
@@ -4124,6 +4149,22 @@ x <- list(
 out <- describe(x)
 test_that("describe() list of ClassificationRes objects returns character", {
   expect_type(out, "character")
+})
+
+## [desc]<ClassificationRes> metric ----
+test_that("desc() ClassificationRes reports the requested metric", {
+  out_f1 <- desc(resmod_c_glm, metric = "f1")
+  expect_match(out_f1, "Mean f1 was", fixed = TRUE)
+  expect_match(
+    out_f1,
+    ddSci(resmod_c_glm@metrics_test@mean_metrics[["f1"]]),
+    fixed = TRUE
+  )
+  expect_false(identical(out_f1, desc(resmod_c_glm)))
+  expect_error(
+    desc(resmod_c_glm, metric = "not_a_metric"),
+    class = "rtemis_value_error"
+  )
 })
 
 ## {Multi}[present]<ClassificationRes> List ----
@@ -4533,7 +4574,10 @@ test_that("train() NNLS recovers a non-negative convex combination", {
   expect_equal(sum(coefficients), 1, tolerance = 1e-8)
   expect_equal(unname(coefficients), c(0.75, 0.25), tolerance = 1e-6)
   # The coefficients are the model, so they are what varimp reports.
-  expect_identical(get_varimp(mod_r_nnls)@data[["variable"]], c("p1", "p2"))
+  expect_identical(
+    varimp_table(get_varimp(mod_r_nnls))[["variable"]],
+    c("p1", "p2")
+  )
 })
 
 
@@ -4691,7 +4735,7 @@ test_that("SuperLearner matches or beats its worst library entry", {
 
 
 test_that("SuperLearner varimp names library entries, not features", {
-  vi <- get_varimp(mod_r_sl)@data
+  vi <- varimp_table(get_varimp(mod_r_sl))
   expect_identical(vi[["variable"]], c("GLM", "CART"))
   # Column 2 is what `plot_varimp()` shows by default.
   expect_identical(names(vi)[[2L]], "weight")
@@ -4767,11 +4811,11 @@ test_that("a base learner's search space becomes library entries, untuned", {
   # Each entry is trained at one setting, not tuned: the ensemble's own
   # cross-validation is what chooses between them.
   expect_identical(
-    mod@model@base_models[["CART_1"]]@hyperparameters$maxdepth,
+    mod@model@base_models[["CART_1"]]@hyperparameters[["maxdepth"]],
     2L
   )
   expect_identical(
-    mod@model@base_models[["CART_2"]]@hyperparameters$maxdepth,
+    mod@model@base_models[["CART_2"]]@hyperparameters[["maxdepth"]],
     20L
   )
   expect_null(mod@model@base_models[["CART_1"]]@tuner)
@@ -5028,7 +5072,7 @@ test_that("the Conditional SuperLearner records its iterations", {
 
 test_that("the Conditional SuperLearner reports the oracle's varimp", {
   # Which covariates decide *which model applies*: V5, by construction.
-  vi <- get_varimp(mod_r_csl)@data
+  vi <- varimp_table(get_varimp(mod_r_csl))
   expect_identical(vi[["variable"]][[which.max(vi[[2L]])]], "V5")
 })
 

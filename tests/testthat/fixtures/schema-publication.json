@@ -37,6 +37,14 @@
         {
           "class": "VariationalAutoencoderConfig",
           "description": "Variational autoencoder (torch)."
+        },
+        {
+          "class": "MDSConfig",
+          "description": "Multidimensional Scaling."
+        },
+        {
+          "class": "PCoAConfig",
+          "description": "Principal Coordinates Analysis."
         }
       ]
     },
@@ -410,10 +418,55 @@
     }
   },
   "documents": {
+    "classification": {
+      "class": "Classification",
+      "title": "rtemis Classification",
+      "description": "Portable classification result."
+    },
+    "classificationres": {
+      "class": "ClassificationRes",
+      "title": "rtemis ClassificationRes",
+      "description": "Portable classification results aggregated over successful resamples."
+    },
+    "implementation": {
+      "class": "Implementation",
+      "title": "rtemis Implementation",
+      "description": "Package and language identity of the implementation that executed a run."
+    },
     "provenance": {
       "class": "Provenance",
       "title": "rtemis Provenance",
       "description": "What produced a run record: package and language versions, platform, timing, how the run ended, and a fingerprint of each dataset used. Referenced by every `<family>/v1/record.json`."
+    },
+    "regression": {
+      "class": "Regression",
+      "title": "rtemis Regression",
+      "description": "Portable regression result."
+    },
+    "regressionres": {
+      "class": "RegressionRes",
+      "title": "rtemis RegressionRes",
+      "description": "Portable regression results aggregated over successful resamples."
+    },
+    "resamplerresult": {
+      "class": "Resampler",
+      "title": "rtemis Resampler",
+      "description": "Observed resampling splits and the settings used to draw them."
+    },
+    "supervisedresult": {
+      "class": "Supervised",
+      "title": "rtemis Supervised",
+      "description": "Portable supervised learning result; native fitted state is held separately on the object."
+    },
+    "supervisedres": {
+      "class": "SupervisedRes",
+      "title": "rtemis SupervisedRes",
+      "description": "Portable supervised results aggregated over successful resamples."
+    },
+    "variableimportance": {
+      "class": "VariableImportance",
+      "title": "rtemis VariableImportance",
+      "description": "Variable importance measures of a fitted model, keyed by name, each with what it quantifies and its value for each predictor or model term."
     },
     "dataref": {
       "class": "DataRef",
@@ -499,6 +552,41 @@
       "class": "SupervisedPreprocessorConfig",
       "title": "rtemis SupervisedPreprocessorConfig",
       "description": "Language-independent config for the preprocessing a supervised run can fit: the preprocessing config without the operations a fitted preprocessor cannot replay at predict time (`complete_cases`, `remove_duplicates`, `remove_cases_thres`) or would learn differently in every resample (`remove_features_thres`). Those belong to `preprocessor`, applied to a dataset before training."
+    },
+    "reviewfinding": {
+      "class": "ReviewFinding",
+      "title": "rtemis ReviewFinding",
+      "description": "One finding from reviewing a trained supervised model: a stable code, how much it matters, the technical and plain-language accounts of it, and a suggestion where one exists."
+    },
+    "supervisedreview": {
+      "class": "SupervisedReview",
+      "title": "rtemis SupervisedReview",
+      "description": "A review of a trained supervised model: the sample, one row per performance metric with intervals, comparisons with a baseline predictor, tuned hyperparameters checked against their search range, findings drawn from them, and what a review of metrics cannot establish."
+    },
+    "aireviewitem": {
+      "class": "AIReviewItem",
+      "title": "rtemis AIReviewItem",
+      "description": "One statement of a language-model assessment of a supervised model review, with the codes of the review findings it rests on."
+    },
+    "aisupervisedreview": {
+      "class": "AISupervisedReview",
+      "title": "rtemis AISupervisedReview",
+      "description": "A language model's written assessment of a supervised model review: a summary, an evaluation and next steps whose statements cite the review's finding codes, and caveats, with the review itself and a record of the model, settings, prompt and review hash that produced it."
+    },
+    "writeupsection": {
+      "class": "WriteupSection",
+      "title": "rtemis WriteupSection",
+      "description": "One subsection of a writeup of a trained supervised model: the section it belongs to, its heading, and its paragraphs as templates whose numbers and citations are tokens."
+    },
+    "supervisedwriteup": {
+      "class": "SupervisedWriteup",
+      "title": "rtemis SupervisedWriteup",
+      "description": "Methods and Results sections describing a trained supervised model. Paragraphs are templates whose numbers are tokens naming rows of a values table, each with its formatted text and the field it was read from, and whose citations name rows of a references table; the review the writeup draws on and the information the model does not record are included."
+    },
+    "importancemeasure": {
+      "class": "ImportanceMeasure",
+      "title": "rtemis ImportanceMeasure",
+      "description": "One variable importance measure of a fitted model: what it quantifies, the cases it is computed on, whether it is signed or depends on predictor units, how it ranks predictors, and its value for each predictor or model term."
     }
   }
 }

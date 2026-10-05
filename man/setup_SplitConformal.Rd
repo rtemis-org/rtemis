@@ -33,7 +33,7 @@ exchangeable.
 \strong{\code{alpha} has a floor set by the calibration count.} A finite region needs
 \code{ceiling((n + 1) * (1 - alpha)) <= n}, so \code{alpha = 0.05} needs at least 19
 calibration cases and \code{alpha = 0.01} at least 99. \code{conformal()} aborts naming
-the count rather than returning an infinite region.
+the count.
 
 \strong{\code{score} is the real choice, and only for a classification.} A regression
 has one score, \code{abs(y - yhat)}, which is what NULL resolves to.

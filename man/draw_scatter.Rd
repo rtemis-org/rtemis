@@ -308,8 +308,8 @@ Draw interactive scatter plots using \code{plotly}.
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
-draw_scatter(iris$Sepal.Length, iris$Petal.Length,
-  fit = "gam", se_fit = TRUE, group = iris$Species
+draw_scatter(iris[["Sepal.Length"]], iris[["Petal.Length"]],
+  fit = "gam", se_fit = TRUE, group = iris[["Species"]]
 )
 \dontshow{\}) # examplesIf}
 }

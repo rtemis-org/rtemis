@@ -16,11 +16,10 @@
 # without the growth loop above them changing.
 
 # %% LINAD_NUGGET ----
-# Relative ridge added to every Gram diagonal before factorization. A leaf with
-# a constant column is ordinary rather than exceptional, so the solve has to
-# survive rank deficiency; at 1e-9 of the mean diagonal this moves a
-# well-conditioned answer by far less than the convergence tolerance of the
-# iterative solvers it replaces.
+# Relative ridge added to every Gram diagonal before factorization. Leaves with
+# a constant column are common, so the solve must survive rank deficiency; at
+# 1e-9 of the mean diagonal the ridge moves a well-conditioned answer by far
+# less than the convergence tolerance of an iterative solver.
 LINAD_NUGGET <- 1e-9
 
 
@@ -29,8 +28,8 @@ LINAD_NUGGET <- 1e-9
 # weight is dropped from that node's leaf-model fit. Under `gamma`, weight
 # decays as `gamma^depth`, so this is what stops a deep node from carrying the
 # whole dataset for the sake of contributions no double can represent. At
-# `gamma = 0` it excludes exactly the node's non-members, which is what makes
-# the hard partition a special case rather than a separate code path.
+# `gamma = 0` it excludes exactly the node's non-members, so the hard partition
+# is a special case of the same code path.
 LINAD_WEIGHT_TOLERANCE <- 1e-8
 
 
@@ -46,7 +45,7 @@ LINAD_BASELINE_MAX <- 10
 #' `G = X'WX` and `Xty = X'Wy` over the rows in `idx`, the sufficient statistics
 #' for every weighted least-squares fit LINAD performs.
 #'
-#' Subsetting rows rather than zero-weighting them is what keeps a deep node
+#' Subsetting rows, where zero-weighting would keep them, makes a deep node
 #' cheap: a leaf holding 30 of 1000 cases costs 30 rows, not 1000.
 #'
 #' `sg` and `sh` are the weighted first and second derivative totals Equation 20
@@ -98,19 +97,16 @@ linad_gram <- function(xm, y, w, idx = NULL, derivatives = NULL) {
 #' The rows a node fits on
 #'
 #' A case whose soft weight has decayed past `LINAD_WEIGHT_TOLERANCE` of the
-#' node's largest contributes nothing a double can represent, and dropping it is
-#' what keeps a deep node's fit proportional to its own size rather than to the
-#' whole dataset.
+#' node's largest contributes nothing a double can represent; dropping it keeps
+#' a deep node's fit proportional to its own size.
 #'
-#' Computed once per node, from the **node's** weights rather than from each
-#' child's, and handed to the split search and to the commit alike. A rule
-#' applied to one and not the other would have the search score a model fitted
-#' on a different set of rows, which is the defect family this engine has been
-#' bitten by most.
+#' Computed once per node, from the **node's** weights, and handed to the split
+#' search and to the commit alike, so the search scores a model fitted on the
+#' same rows the commit uses.
 #'
 #' At `gamma = 0` a node's weight vector is already exactly zero off its own
 #' cases, so this returns the node's members and the hard partition stays a
-#' special case rather than a separate path.
+#' special case.
 #'
 #' @param w Numeric vector: The node's weights.
 #'
@@ -233,11 +229,11 @@ linad_ridge_edf <- function(G, penalty, intercept = TRUE) {
 #' centered and intercept-free, so there is no level to profile out and no
 #' column standardization: the growth loop already standardizes globally.
 #'
-#' Written natively rather than delegated because the exhaustive search fits a
-#' child model per candidate and cannot call a coordinate-descent package
-#' thousands of times per node. One implementation reached from both routes is
-#' also the only way the search and the commit can be made to agree: a Gram
-#' surrogate that ignored `alpha` would score a model the commit never builds.
+#' Written natively because the exhaustive search fits a child model per
+#' candidate, thousands of times per node, which a coordinate-descent package
+#' call per fit cannot sustain. One implementation reached from both routes
+#' makes the search and the commit agree: both score and build the same model,
+#' `alpha` included.
 #'
 #' At `alpha = 0` the update reduces to `(S + lambda sw I) b = Sxr`, which is
 #' exactly what `linad_chol_solve()` solves, so the elastic net and the ridge
@@ -485,9 +481,8 @@ linad_forward <- function(
 #' error, and half the log odds for the exponential-family logistic loss on
 #' `{-1, +1}`, which is where `sum w y / (1 + exp(2yc))` vanishes.
 #'
-#' This is what `root_learning_rate` shrinks the root model *towards*. Shrinking
-#' it towards zero instead would mean shrinking towards predicting nothing, which
-#' for an outcome centered anywhere but the origin is worse than useless.
+#' This is what `root_learning_rate` shrinks the root model *towards*, so
+#' shrinkage moves predictions towards the outcome's center, wherever it lies.
 #'
 #' @param y Numeric vector: Outcome; `{-1, +1}` for classification.
 #' @param w Numeric vector: Case weights.
@@ -522,11 +517,10 @@ linad_baseline <- function(y, w, type) {
 #' Newton step, the ratio of the weighted first to the weighted second
 #' derivative.
 #'
-#' `constant_rule = "least_squares"` takes the weighted mean in both cases
-#' instead, which is what an intercept-only least-squares fit returns. The two
-#' are indistinguishable on the data tried so far -- mean holdout AUC 0.8714
-#' against 0.8712 over 288 classification fits -- so which is better is a
-#' question for the full rerun rather than for reading, and both ship.
+#' `constant_rule = "least_squares"` takes the weighted mean in both cases,
+#' which is what an intercept-only least-squares fit returns. The two performed
+#' alike in benchmarks (mean holdout AUC 0.8714 and 0.8712 over 288
+#' classification fits), and both are available.
 #'
 #' This is the tree's own contribution at the node. Everything the linear model
 #' adds is a slope, so the two parts of the fit stay separable all the way to
@@ -685,7 +679,7 @@ linad_node_test <- function(rss_constant, rss_linear, sw, n_terms, rule) {
 #' The single slope fitter. `linad_solve()` reaches it with statistics formed
 #' from the node's rows and `linad_gram_solve()` with statistics the exhaustive
 #' search accumulated, so a candidate is scored by the model the node will
-#' actually receive rather than by one that merely agrees with it.
+#' receive.
 #'
 #' The design is centered on the node's weighted column means and carries no
 #' intercept: the node's constant already holds the level, and on a centered
@@ -1030,9 +1024,9 @@ linad_cut_positions <- function(
 #'
 #' Splits are searched on the **original** features, so a factor splits on a set
 #' of levels and the rule reads naturally, while the leaf models use the encoded
-#' design matrix. The two indexings are kept apart deliberately: conflating them
-#' is what made the legacy optimized search name the wrong feature whenever a
-#' factor preceded the split feature.
+#' design matrix. The two indexings are kept separate: a factor's encoded
+#' columns shift every later position, so an encoded index does not name the
+#' original feature at the same position.
 #'
 #' @param x data.frame: Features, before encoding.
 #' @param n_bins Optional Integer: Discretize each numeric feature into this
@@ -1090,10 +1084,9 @@ linad_context <- function(x, n_bins = NULL, bin_type = "frequency") {
 #' Resolve which features a split search scans
 #'
 #' A restriction arrives as a list of two integer vectors, one indexing
-#' `context$numeric_names` and one `context$factor_names`, rather than as a
-#' narrowed context. The context holds each feature's sort order and break
-#' positions, and rebuilding it per node is precisely the cost it exists to
-#' avoid.
+#' `context[["numeric_names"]]` and one `context[["factor_names"]]`. The context, which
+#' holds each feature's sort order and break positions, is built once and
+#' shared by every node.
 #'
 #' @param context List: `linad_context()` output.
 #' @param features Optional List: `numeric` and `factor` integer vectors.
@@ -1133,9 +1126,9 @@ linad_scan_features <- function(context, features = NULL) {
 #' moves the whole encoded group together -- roles are assigned to source
 #' features, never to unrelated indicator columns.
 #'
-#' Names are matched rather than required: `validate_hyperparameters()` has
-#' already refused names absent from the training data, and a LINADForest tree
-#' holding a `mtry_tree` subset legitimately sees only some of them.
+#' Names are matched against the features present: `validate_hyperparameters()`
+#' has already rejected names absent from the training data, and a LINADForest
+#' tree holding a `mtry_tree` subset sees only some of them.
 #'
 #' @param context List: `linad_context()` output.
 #' @param design_assign Integer vector: `attr(model.matrix(), "assign")`, one
@@ -1233,8 +1226,8 @@ linad_slope_gain <- function(sw, sx, sxx, sxy, sy) {
 #' every candidate cut at once.
 #'
 #' A factor's levels are ordered by their weighted mean residual and then
-#' scanned the same way, which is exact for squared error rather than a
-#' heuristic over the `2^(k-1) - 1` partitions.
+#' scanned the same way, which is exact for squared error over the
+#' `2^(k-1) - 1` partitions.
 #'
 #' `min_cases_child` counts the node's own members, not all rows: under soft
 #' weighting every case carries some weight everywhere, so a row count would not
@@ -1506,8 +1499,8 @@ linad_child <- function(state, node, r, derivatives, idx, weights, active) {
   # with zero slopes, which is what the solve returns. Degeneracy is handled
   # below, where a NULL or non-finite fit falls back to a zero update.
   if (!is.null(model) && length(idx) > 0L) {
-    # Every case with weight left, not just the node's own. This is what makes
-    # `gamma` a hyperparameter rather than a formality: at 0 the active set is
+    # Every case with weight left, not just the node's own. This is what gives
+    # `gamma` its effect: at 0 the active set is
     # exactly the node's cases and the fit is the hard-partition one, and as it
     # rises each leaf model is pulled toward what the rest of the data supports.
     fit <- linad_solve(
@@ -1575,7 +1568,7 @@ linad_node_loss <- function(state, coefficients, idx) {
 #'
 #' `mtry` features without replacement from those the tree may split on,
 #' returned in the two-vector form `linad_scan_features()` reads. The draw is
-#' made **within** `allowed` rather than over every feature, so `split_features`
+#' made **within** `allowed`, so `split_features`
 #' and `mtry_split` compose: the first says which partitions are admissible, the
 #' second how many of them one node considers.
 #'
@@ -1707,7 +1700,7 @@ linad_improves <- function(proposal) {
 #' line-searches the step, and scores the result -- but commits nothing. The
 #' growth loop expands every frontier node speculatively and then commits only
 #' the best proposal, which is the one-step lookahead of Figure 2 and the reason
-#' a LINAD tree's split order is a global argmax rather than a traversal.
+#' a LINAD tree's split order is a global argmax over the frontier.
 #'
 #' @param state List: Fit state.
 #' @param node List: The node to expand.
@@ -1825,9 +1818,8 @@ linad_propose <- function(state, node, features = NULL) {
 #' features `split_features` admits.
 #'
 #' A node is expanded once and its proposal cached, so a feature sample that
-#' finds nothing worth splitting on would close that node for good -- an
-#' artifact of the caching rather than a property of the method, and invisible
-#' in the output. One retry over every admissible feature keeps `mtry_split` a
+#' finds nothing worth splitting on would close that node for good, an artifact
+#' of the caching. One retry over every admissible feature keeps `mtry_split` a
 #' choice of *which* split is made and never of *whether* the node can split at
 #' all: a node closes only where no admissible feature improves the loss.
 #'
@@ -1864,11 +1856,9 @@ linad_expand <- function(state, node) {
 # %% linad_steps ----
 #' Resolve the line-search step for a pair of children
 #'
-#' `line_search` decides the scope, which is one of the places the manuscript and
-#' the implementation it was written from disagree. Equation 27 and Algorithm 1
-#' line 30 estimate a single step over the whole expansion; the original code
-#' estimates one per child. Both are available so the question can be settled on
-#' data rather than by reading.
+#' `line_search` decides the scope. Equation 27 and Algorithm 1 line 30 estimate
+#' a single step over the whole expansion; the reference implementation
+#' estimates one per child. Both are available.
 #'
 #' **The step is estimated over every case, weighted by the soft membership
 #' weights**, not over the node's own cases. That is Eq 15's expectation, and it
@@ -1945,9 +1935,7 @@ linad_steps <- function(state, node, f, goes_left, left, right) {
 #'
 #' A node's function value is never stored. It is always recomputed as
 #' `xm %*% coef`, so the fitted values and the coefficients a prediction will
-#' use are the same object by construction rather than by agreement -- the
-#' legacy implementation kept them separately and they diverged for
-#' classification.
+#' use are the same object by construction.
 #'
 #' @param x data.frame: Features, unencoded, used for splits.
 #' @param xm Numeric matrix: Intercept-augmented design matrix, used for models.
@@ -2034,11 +2022,9 @@ linad_fit <- function(
   # for a regression and half the log odds for a classification, and
   # `root_learning_rate` shrinks only the slopes around it.
   #
-  # That separation is the whole point: nothing special-cases the intercept any
-  # more. Shrinking the slopes cannot disturb the level, which is what used to
-  # drag a shrunk root towards predicting zero.
-  # At a rate of 0 the root's slopes are discarded whatever they are, so the fit
-  # is skipped rather than computed and thrown away.
+  # Shrinking the slopes leaves the level unchanged, so a shrunk root still
+  # predicts around the mean. At a rate of 0 the root's slopes are discarded,
+  # so the fit is skipped.
   root_fit <- if (settings[["root_learning_rate"]] == 0) {
     NULL
   } else {
@@ -2051,17 +2037,22 @@ linad_fit <- function(
       settings[["root_lambda"]],
       settings[["root_alpha"]],
       settings[["root_nvmax"]],
-      forward_stop = settings[["forward_stop"]],
+      forward_stop = settings[["root_forward_stop"]],
       derivatives = NULL,
       type = "Regression",
       max_step = settings[["line_search_max"]],
-      node_test = settings[["node_test"]],
+      # As at the nodes, the slopes test applies to the shrinking models;
+      # forward selection prices each term through `root_forward_stop`.
+      node_test = if (settings[["root_model"]] %in% c("ridge", "elasticnet")) {
+        settings[["root_node_test"]]
+      } else {
+        "none"
+      },
       allowed = roles[["linear"]]
     )
   }
-  # Taken from the outcome rather than from the fit, which is run as a
-  # regression and would otherwise make an intercept-only classification
-  # predict the mean of the -1/+1 labels instead of the prevalence.
+  # Taken from the outcome: the fit runs as a regression on -1/+1 labels, whose
+  # mean is not the prevalence an intercept-only classifier must predict.
   root_constant <- linad_baseline(y, case_weights, type)
   root_slopes <- if (is.null(root_fit)) {
     rep(0, ncol(xm_scaled) - 1L)
@@ -2354,8 +2345,8 @@ linad_selected_nodes <- function(frame, terminal) {
 #' are finite, that the leaf flags match the selected size, and that the
 #' sequence of tree sizes is unbroken.
 #'
-#' Returns the violations rather than raising, so a caller can assert on it in a
-#' test or report it across a benchmark. Cheap enough to run on every fit.
+#' Returns the violations, so a caller can assert on them in a test or report
+#' them across a benchmark. Cheap enough to run on every fit.
 #'
 #' These are properties an accuracy measurement cannot see: a tree that wastes
 #' leaves is a worse number, not a visible fault.
@@ -2483,7 +2474,7 @@ linad_check_tree <- function(model, min_cases_child = NULL) {
   }
   # Feature roles, as the fitted model records them: a coefficient outside the
   # linear set was never fitted, and a global one is the same in every node by
-  # construction rather than by coincidence.
+  # construction.
   roles <- linad_roles(
     list(numeric_names = character(), factor_names = character()),
     model@design_assign,
@@ -2706,8 +2697,7 @@ linad_select_leaves <- function(model, x, xm, y, type, smooth = FALSE) {
 #' reader is meant to look at.
 #'
 #' LINAD is therefore one of the algorithms that keeps its features unencoded
-#' through the pipeline and encodes here, rather than returning a `Preprocessor`
-#' from `train_()`. It needs both forms at once: splits are searched and routed
+#' through the pipeline and encodes them here. It needs both forms at once: splits are searched and routed
 #' on the original features, so a factor splits on a set of levels, while the
 #' models need numbers. A one-hot `Preprocessor` would deliver only the encoded
 #' frame to `predict_super()` and the level sets would have nothing to route on.
@@ -2744,8 +2734,8 @@ linad_design_matrix <- function(x, xlev = NULL) {
       x[[feature]] <- values
     }
   }
-  # Reference coding, named rather than taken from `getOption("contrasts")`.
-  # The option is process-global and mutable, so a model fitted under one
+  # Reference coding, named explicitly: `getOption("contrasts")` is
+  # process-global and mutable, so a model fitted under one
   # setting and predicted under another would be multiplied against a design
   # built from a different basis, positionally and silently.
   factors <- names(x)[vapply(
@@ -2826,15 +2816,14 @@ linad_unscale <- function(coefficients, scaling) {
 #' Resolve hyperparameters into the values the engine runs on
 #'
 #' Optional hyperparameters are NULL until here. Two kinds of NULL are resolved:
-#' a parameter left unset takes its default, and a `first_*` parameter left
+#' a parameter left unset takes its default, and a `root_*` parameter left
 #' unset inherits the node-level value -- so `setup_LINAD(node_model =
 #' "constant")` gives a tree with constant nodes *including its root*, rather
 #' than an Additive Tree with one stray linear model at the top.
 #'
-#' Resolved values are deliberately not written back into the `Hyperparameters`
-#' object. A gated property must be NULL when its gate is shut, so writing
-#' `nvmax` back into a ridge fit would produce an object its own validator
-#' rejects.
+#' `train_()` records the resolved values on the hyperparameters it returns
+#' through `record_backend_values()`, which leaves a gated property NULL when
+#' its gate is shut: `nvmax` is not recorded for a ridge fit.
 #'
 #' @param hyperparameters `LINADHyperparameters` object.
 #'
@@ -2852,6 +2841,8 @@ linad_settings <- function(hyperparameters) {
   nvmax <- value_or("nvmax", 3L)
   lambda <- value_or("lambda", 0.05)
   alpha <- value_or("alpha", 1)
+  forward_stop <- value_or("forward_stop", "bic")
+  node_test <- value_or("node_test", "none")
   list(
     max_leaves = hyperparameters[["max_leaves"]],
     force_max_leaves = hyperparameters[["force_max_leaves"]],
@@ -2868,10 +2859,12 @@ linad_settings <- function(hyperparameters) {
     root_nvmax = value_or("root_nvmax", nvmax),
     root_lambda = value_or("root_lambda", lambda),
     root_alpha = value_or("root_alpha", alpha),
+    root_forward_stop = value_or("root_forward_stop", forward_stop),
+    root_node_test = value_or("root_node_test", node_test),
     root_learning_rate = hyperparameters[["root_learning_rate"]],
-    forward_stop = value_or("forward_stop", "bic"),
+    forward_stop = forward_stop,
     patience = hyperparameters[["patience"]],
-    node_test = value_or("node_test", "none"),
+    node_test = node_test,
     split_search = hyperparameters[["split_search"]],
     split_criterion = value_or("split_criterion", "mean"),
     # A single tree scans every feature at every split; `LINADForest` overrides
@@ -2910,8 +2903,7 @@ linad_settings <- function(hyperparameters) {
 #' are the centered cross-products, and `X_c'W(r - c) = X_c'Wr` for any constant
 #' `c`, since the centered columns are weight-orthogonal to the intercept. So
 #' the same two pieces `linad_solve()` fits are available here, and both routes
-#' call `linad_constant_from_sums()` and `linad_slopes()` rather than agreeing
-#' by construction.
+#' call `linad_constant_from_sums()` and `linad_slopes()`.
 #'
 #' @param G Numeric matrix: `X'WX`.
 #' @param Xty Numeric vector: `X'Wy`.
@@ -3018,9 +3010,9 @@ linad_gram_loss <- function(G, Xty, syy, b) {
 # %% linad_sweep ----
 #' Split search scored by the loss after fitting both child models
 #'
-#' Section 5.1's second strategy: rather than taking the best squared-error
-#' split of the gradient and fitting models afterwards, score every candidate
-#' split by what the two child models actually achieve. The manuscript describes
+#' Section 5.1's second strategy: score every candidate split by what the two
+#' child models achieve, where the default strategy takes the best
+#' squared-error split of the gradient and fits models afterwards. The manuscript describes
 #' it, notes it "significantly increases the computational demands", and leaves
 #' it out of the experiments.
 #'

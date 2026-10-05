@@ -23,7 +23,7 @@
 #
 # Declared with the `prop_*` factories like every other class, so its schema is
 # generated and a port reads it from the published contract. `$ref`d wherever a
-# record names a sidecar, rather than restated per field.
+# record names a sidecar.
 
 # %% DATA_ENCODINGS ----
 # How a referenced file is written. Parquet for a table, because a record is

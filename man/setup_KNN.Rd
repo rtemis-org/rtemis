@@ -32,7 +32,7 @@ off the search path, which is not reachable when \code{kknn} is loaded but not
 attached, as a suggested package is.
 
 \code{kknn} provides no case weights, so \code{ifw} cannot be honored: enabling it
-makes training abort rather than silently fit an unweighted model.
+makes training abort.
 }
 \examples{
 knn_hyperparams <- setup_KNN(k = 11L, kernel = "rectangular")

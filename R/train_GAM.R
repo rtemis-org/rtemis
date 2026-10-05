@@ -142,30 +142,34 @@ method(predict_super, class_gam) <- function(
 # %% varimp_super.class_gam ----
 #' Get variable importance from GAM model
 #'
-#' Variable importance for GAM is estimated as the variance of each predictor's partial effect,
-#' obtained via predict(model, type = "terms"). This measures each smooth term's contribution to
-#' the variance of the fitted values. Values are normalized to sum to one, representing each
-#' predictor's proportion of total predicted variance. This approach is computationally efficient
-#' (no refitting required) and analogous to importance measures in tree-based methods. It assumes
-#' approximate uncorrelatedness of partial effects, which penalized smooths tend to satisfy. For
-#' models with high concurvity, consider hierarchical partitioning of R² (e.g. via the gam.hp
-#' package) as an alternative.
+#' The variance over the training cases of each term's contribution to the
+#' linear predictor, from `predict(model, type = "terms")`, divided by the sum
+#' of the term variances. The variance of the linear predictor also contains
+#' the covariances between terms, so for correlated terms these shares do not
+#' partition it.
 #'
 #' @param model mgcv gam model.
 #'
 #' @keywords internal
 #' @noRd
-method(varimp_super, class_gam) <- function(
-  model,
-  type = c("partial_effect", "F-test")
-) {
+method(varimp_super, class_gam) <- function(model) {
   peff <- predict(model, type = "terms")
   vi <- apply(peff, 2, var)
-  npeff <- vi / sum(vi) # normalized importance
+  npeff <- vi / sum(vi)
   VariableImportance(
-    data.table(
-      variable = names(npeff),
-      Partial_Effect_Variance = unname(npeff)
+    measures = list(
+      Partial_Effect_Variance = importance_measure(
+        names(npeff),
+        unname(npeff),
+        kind = "partial_effect_variance",
+        description = paste0(
+          "Variance over the training cases of the term's contribution to the ",
+          "linear predictor (mgcv term contributions), divided by the sum of ",
+          "the term variances; covariances between terms are not included, ",
+          "so the shares do not partition the variance of the linear ",
+          "predictor."
+        )
+      )
     )
   )
 } # /rtemis::varimp_super.gam
@@ -190,12 +194,11 @@ method(se_super, class_gam) <- function(model, newdata) {
 #' A GAM *is* an additive decomposition -- `train_GAM()` builds one smooth or
 #' parametric term per feature -- so `predict(type = "terms")` returns the
 #' quantity a Shapley value is defined as, and no coalition needs enumerating.
-#' The terms are re-centered on the supplied background so the baseline means
-#' what it does everywhere else, rather than being whatever mgcv centered on
-#' when the model was fitted.
+#' The terms are re-centered on the supplied background, so the baseline is the
+#' mean prediction over that background, as for every other estimator.
 #'
-#' Exact and already computed, which is why this beats the kernel estimator here
-#' on both counts.
+#' Exact, and computed by the fit itself, so it is both more accurate and faster
+#' than the kernel estimator here.
 #'
 #' @param model `gam` object.
 #' @param newdata tabular data: Cases to explain.

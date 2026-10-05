@@ -74,7 +74,7 @@ one with the link named by \code{link}. Multiclass classification is not support
 Factors are expanded by the backend, so no encoding is needed beforehand.
 Case weights scale the residual variance and are honored under the default
 \code{link = "probit"}, but \code{stochtree} rejects them under \code{"cloglog"}, so that
-combination makes training abort rather than silently fit an unweighted model.
+combination makes training abort.
 
 Because the fit is a posterior rather than a point estimate, \code{se()} returns
 the standard deviation of the retained draws, and \code{get_varimp()} reports two

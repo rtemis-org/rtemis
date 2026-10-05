@@ -1090,8 +1090,8 @@ test_that("data_bound is surfaced in the generated schema description", {
     "Cannot exceed the number of features"
   )
   expect_match(
-    prop_schema(RangerHyperparameters, "case_weights")[["description"]],
-    "Must have one value per case"
+    prop_schema(CMeansConfig, "weights")[["description"]],
+    "must have one value per case"
   )
   expect_match(
     prop_schema(RangerHyperparameters, "always_split_variables")[[

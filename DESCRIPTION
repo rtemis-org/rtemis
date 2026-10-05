@@ -1,7 +1,7 @@
 Package: rtemis
-Version: 1.4.1
+Version: 1.4.2
 Title: Advanced Machine Learning and Visualization
-Date: 2026-09-16
+Date: 2026-10-05
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
     email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
 Description: Schema-driven machine learning and visualization package with an 'S7' backend 
@@ -100,6 +100,7 @@ Suggests:
     reticulate,
     ROCR,
     rpart,
+    rtemis.llm (>= 0.8.7),
     Rtsne,
     seqinr,
     sf,
@@ -131,6 +132,7 @@ Collate:
     '015_ReferenceProps.R'
     '020_Props_read.R'
     '024_SchemaRules.R'
+    '024_ResultRules.R'
     '024_SemanticRules.R'
     '025_SchemaCatalog.R'
     '026_Defaults.R'
@@ -170,6 +172,10 @@ Collate:
     '250_Explanation.R'
     '260_PredictionRegion.R'
     '270_Diagnostics.R'
+    '280_SupervisedReview.R'
+    '285_AISupervisedReview.R'
+    '290_SupervisedWriteup.R'
+    'ai_review.R'
     'algorithmDB.R'
     'bias_variance.R'
     'calibrate.R'
@@ -191,9 +197,12 @@ Collate:
     'decomp_Autoencoder.R'
     'decomp_ICA.R'
     'decomp_Isomap.R'
+    'decomp_MDS.R'
     'decomp_NMF.R'
     'decomp_PCA.R'
+    'decomp_PCoA.R'
     'decomp_UMAP.R'
+    'decomp_dist.R'
     'decomp_metrics.R'
     'decomp_tSNE.R'
     'draw_3Dscatter.R'
@@ -242,7 +251,9 @@ Collate:
     'record.R'
     'reexports.R'
     'resample.R'
+    'resolve_hyperparameters.R'
     'result_storage.R'
+    'review.R'
     'rtemis-package.R'
     'rtemis_color_system.R'
     'theme.R'
@@ -302,5 +313,7 @@ Collate:
     'validate_config.R'
     'validate_data.R'
     'write_config.R'
+    'writeup.R'
+    'writeup_hyperparameters.R'
     'zzz.R'
     'zzz_model_plots.R'

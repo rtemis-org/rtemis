@@ -2,8 +2,45 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# LINAD is implemented in this package rather than wrapped from a backend.
+# LINAD is implemented in this package.
 # The engine lives in `R/linad.R`; this file is the rtemis interface to it.
+
+# %% linad_consumed_settings ----
+#' The resolved LINAD settings the fit uses
+#'
+#' The root settings apply to the root model's kind (the subset size and
+#' stopping rule to forward selection, the penalty to forward, ridge and
+#' elastic-net fits, the mixing to elastic net, the slopes test to ridge and
+#' elastic net) and not at all when `root_learning_rate` is 0, which skips the
+#' root. Smoothing the validation curve applies only when the fit selected its
+#' leaves on validation cases.
+#'
+#' @param settings Named list: From `linad_settings()`.
+#' @param selects_on_validation Logical: Whether the fit selected its leaves on
+#'   validation cases.
+#'
+#' @return Named list: `settings` without the ones the fit does not use.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_consumed_settings <- function(settings, selects_on_validation) {
+  root <- settings[["root_model"]]
+  root_fitted <- !identical(as.numeric(settings[["root_learning_rate"]]), 0)
+  unused <- c(
+    if (!root_fitted) "root_model",
+    if (!root_fitted || !identical(root, "forward")) "root_nvmax",
+    if (!root_fitted || !root %in% c("forward", "ridge", "elasticnet")) {
+      "root_lambda"
+    },
+    if (!root_fitted || !identical(root, "elasticnet")) "root_alpha",
+    if (!root_fitted || !identical(root, "forward")) "root_forward_stop",
+    if (!root_fitted || !root %in% c("ridge", "elasticnet")) "root_node_test",
+    if (!selects_on_validation) "smooth_validation_curve"
+  )
+  settings[setdiff(names(settings), unused)]
+} # /rtemis::linad_consumed_settings
+
 
 # %% train_.LINADHyperparameters ----
 #' Train a Linear Additive Tree
@@ -201,12 +238,19 @@ method(train_, LINADHyperparameters) <- function(
   }
   # The frame's leaf flags describe the fully grown tree; at the selected size
   # the terminal set is `steps[[n_leaves]]`, so they are brought back into
-  # agreement here rather than left to mislead every later reader.
+  # agreement here.
   model@frame[["is_leaf"]] <- model@frame[["node"]] %in%
     model@steps[[model@n_leaves]]
 
   check_is_S7(model, LinearAdditiveTree)
-  list(model = model, preprocessor = NULL)
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    linad_consumed_settings(
+      settings,
+      selects_on_validation = !is.null(model@leaf_curve)
+    )
+  )
+  list(model = model, preprocessor = NULL, hyperparameters = hyperparameters)
 } # /rtemis::train_.LINADHyperparameters
 
 
@@ -273,16 +317,13 @@ method(learning_curve_super, LinearAdditiveTree) <- function(model) {
 # %% varimp_super.LinearAdditiveTree ----
 #' Variable importance from a Linear Additive Tree
 #'
-#' LINAD does two separable things to a feature, so it reports two measures
-#' rather than blending them:
+#' LINAD does two separable things to a feature, so it reports two measures:
 #'
 #' \describe{
 #'   \item{`importance`}{The feature's linear effect. Each leaf's coefficient is
 #'     multiplied by the feature's training standard deviation, which puts every
-#'     feature on the outcome's scale rather than on its own units, and averaged
-#'     over leaves weighted by the training cases each holds -- a coefficient in
-#'     a leaf of three cases should not count like one in a leaf of three
-#'     hundred. This is the default plotted measure.}
+#'     feature on the outcome's scale, and averaged over leaves weighted by the
+#'     training cases each holds. This is the default plotted measure.}
 #'   \item{`split_gain`}{The feature's partitioning effect: the loss reduction
 #'     summed over the internal nodes that split on it. A feature can carry a
 #'     large linear effect and never be split on, or the reverse, and averaging
@@ -344,11 +385,50 @@ method(varimp_super, LinearAdditiveTree) <- function(model, ...) {
     }
   }
 
+  linad_varimp(model@xnames, unname(importance), unname(gain))
+} # /rtemis::varimp_super.LinearAdditiveTree
+
+
+# %% linad_varimp ----
+#' LINAD variable importance measures
+#'
+#' @param xnames Character: Predictors.
+#' @param importance Numeric: Standardized coefficient measure.
+#' @param gain Numeric: Split gain measure.
+#' @param forest Logical: Whether the measures are averages over the trees of a
+#'   forest.
+#'
+#' @return `VariableImportance` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_varimp <- function(xnames, importance, gain, forest = FALSE) {
   VariableImportance(
-    data.table(
-      variable = model@xnames,
-      importance = unname(importance),
-      split_gain = unname(gain)
+    measures = list(
+      importance = importance_measure(
+        xnames,
+        importance,
+        kind = "standardized_coefficient",
+        description = paste0(
+          "Absolute leaf coefficient of the predictor times its training ",
+          "standard deviation, averaged over the leaves of the selected tree ",
+          "weighted by their training cases",
+          if (forest) " and then over the trees",
+          "; a factor's level columns are summed."
+        )
+      ),
+      split_gain = importance_measure(
+        xnames,
+        gain,
+        kind = "split_gain",
+        description = paste0(
+          "Reduction in training loss summed over the splits on the ",
+          "predictor that the selected tree reaches",
+          if (forest) ", averaged over the trees",
+          "."
+        )
+      )
     )
   )
-} # /rtemis::varimp_super.LinearAdditiveTree
+} # /rtemis::linad_varimp

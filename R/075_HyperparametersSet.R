@@ -29,10 +29,8 @@
 #' Several `Hyperparameters` objects searched as one space: each member is
 #' expanded and gated on its own, and the tuner selects across their union.
 #'
-#' Members share an algorithm. That is checked on `algorithm` rather than on the
-#' class or on which `setup_*` produced them, so a future constructor exposing a
-#' subset of one algorithm's hyperparameters would compose with this without the
-#' validator knowing it exists.
+#' Members share an algorithm, checked on `algorithm`, so any constructor that
+#' produces that algorithm's hyperparameters composes with a set.
 #'
 #' **A set of one is useful and is not a degenerate case.** It is how a run names
 #' its configuration: `list(baseline = setup_LINAD(...))` records `"baseline"` as
@@ -140,14 +138,12 @@ HyperparametersSet <- schema_class(
 #' passes `list(setup_LINAD(...), setup_LINAD(...))`; everything inside sees a
 #' `HyperparametersSet`.
 #'
-#' Coercing here rather than teaching the internals to accept a list is what
-#' avoids a `class_list` method on `needs_tuning()` and its siblings. Those are
-#' S7 generics, and claiming the bare `list` type for one meaning across the
-#' package would reach every future caller that passes an ordinary list.
+#' Coercing here keeps `needs_tuning()` and its siblings free of a `class_list`
+#' method: those are S7 generics, and a method on the bare `list` type would
+#' apply to every caller passing an ordinary list.
 #'
-#' The errors are raised here rather than left to the validator because this is
-#' where a user's mistake is: the validator's messages are a backstop for
-#' internal construction.
+#' The errors are raised here, where a user's input arrives; the validator's
+#' messages cover internal construction.
 #'
 #' @param x List of `Hyperparameters` objects, optionally named, or a
 #' `HyperparametersSet`, which is returned unchanged.
@@ -317,10 +313,9 @@ method(needs_tuning, HyperparametersSet) <- function(x) {
 #'
 #' A grid row has to specify a configuration **completely**, because it is
 #' applied to a member with `update()` and whatever it does not mention keeps
-#' whatever the member already had -- which is right, but only if the row says
-#' so explicitly rather than by omission. Two members tuning different
-#' hyperparameters would otherwise produce a grid where a column means "not
-#' varied here" in some rows and "varied to this" in others.
+#' whatever the member already had, so the row states every value explicitly.
+#' Two members tuning different hyperparameters then share a grid in which
+#' every column means the same thing in every row.
 #'
 #' NA is the fill for a member holding the hyperparameter unset, because
 #' `.update_hyperparameters()` already reads NA back as NULL. That is the same
@@ -344,7 +339,7 @@ member_grid_fill <- function(member, name, n) {
   spec <- get_spec(S7_class(member)@properties[[name]])
   if (!is.null(spec) && spec@container != "none") {
     # A container hyperparameter is a list column: one cell holds one whole
-    # value rather than one element of it.
+    # value.
     return(rep(list(value), n))
   }
   rep(value, n)
@@ -410,8 +405,8 @@ method(tuning_grid, HyperparametersSet) <- function(x) {
 #' @param x `Hyperparameters` or `HyperparametersSet` object.
 #'
 #' @return Named list of `Hyperparameters`, or NULL when `x` is a single object
-#' -- NULL rather than a list of one, so a caller can tell the two apart and
-#' leave `variant` unset on a fit that came from neither.
+#' -- so a caller can tell the two apart and leave `variant` unset on a fit
+#' that came from neither.
 #'
 #' @author EDG
 #' @keywords internal
@@ -559,9 +554,8 @@ method(to_json, HyperparametersSet) <- function(x, ...) {
 #' data-dependent bounds -- a member whose `mtry` exceeds the feature count is
 #' not made acceptable by sitting beside one that does not.
 #'
-#' Checked before tuning rather than when a member is reached, so an
-#' unsatisfiable member is reported as the mistake it is rather than as one grid
-#' cell failing among many. The message names the member, since "mtry cannot
+#' Checked before tuning, so an unsatisfiable member is reported as such, before
+#' any grid cell runs. The message names the member, since "mtry cannot
 #' exceed the number of features" is not actionable when four configurations
 #' were supplied.
 #'
@@ -600,8 +594,7 @@ method(validate_hyperparameters, HyperparametersSet) <- function(
 #'
 #' The three entry points into tuning -- `train()`, `tune()` and
 #' `tune_GridSearch()` -- each type-checked `Hyperparameters`. A set is a valid
-#' input to all three, so the check is named once rather than branched three
-#' times.
+#' input to all three, so the check is named once.
 #'
 #' @param hyperparameters `Hyperparameters` or `HyperparametersSet` object.
 #'

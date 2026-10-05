@@ -5,8 +5,7 @@
 #' ROC curve coordinates
 #'
 #' Compute the points of one or more ROC curves from true labels and predicted
-#' probabilities, returning tidy `(class, fpr, tpr, auc)` rows rather than a
-#' plot. This is the shared engine behind [draw_roc] and is reused anywhere the
+#' probabilities, returning tidy `(class, fpr, tpr, auc)` rows. This is the shared engine behind [draw_roc] and is reused anywhere the
 #' curve data is needed without plotly (e.g. shipping the curve to a client).
 #'
 #' Binary problems yield a single curve for the positive class (the second

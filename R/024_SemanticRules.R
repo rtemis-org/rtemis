@@ -218,6 +218,9 @@ validate_relation_declaration <- function(rule, cls, fail) {
   }
   switch(
     rule[["kind"]],
+    RowCountMatches = ,
+    FactorLevelsMatch = ,
+    ProbabilityColumnsMatch = validate_result_relation(rule, cls, fail),
     CompareFields = {
       require_spec(rule[["left"]], c("integer", "number"))
       require_spec(rule[["right"]], c("integer", "number"))
@@ -285,6 +288,9 @@ relation_rule_fails <- function(self, rule) {
   }
   switch(
     rule[["kind"]],
+    RowCountMatches = ,
+    FactorLevelsMatch = ,
+    ProbabilityColumnsMatch = result_relation_fails(self, rule),
     CompareFields = !is.null(value(rule[["left"]])) &&
       !is.null(value(rule[["right"]])) &&
       value(rule[["left"]]) > value(rule[["right"]]),
@@ -502,6 +508,9 @@ relation_rule_logic <- function(rule) {
   conditions <- lapply(rule[["conditions"]], predicate_logic)
   expr <- switch(
     rule[["kind"]],
+    RowCountMatches = ,
+    FactorLevelsMatch = ,
+    ProbabilityColumnsMatch = result_relation_logic(rule),
     CompareFields = op(
       "and",
       present(rule[["left"]]),

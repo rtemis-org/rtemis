@@ -25,7 +25,7 @@ Setup a \code{GMMConfig} object for Gaussian Mixture Model clustering, via the
 A GMM is the model-based counterpart of the prototype methods: each cluster
 is a Gaussian component with its own mean and covariance, so clusters may be
 elongated, differently oriented and differently sized, and every case gets a
-posterior probability for each component rather than only a label. The
+posterior probability for each component as well as a label. The
 result is therefore a soft clustering.
 
 Both the number of components and the covariance parameterization are

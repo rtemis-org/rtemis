@@ -111,8 +111,12 @@ test_that("ClassificationMetricsRes() succeeds", {
 test_that("per-class metrics name their level in a column, not a row name", {
   # Row names have no row-oriented JSON form: carried as row names, the class
   # labels would be dropped on serialization, leaving unlabelled metrics.
-  m <- classification_metrics(iris$Species, iris$Species, sample = "Training")
-  expect_identical(m[["class"]][["level"]], levels(iris$Species))
+  m <- classification_metrics(
+    iris[["Species"]],
+    iris[["Species"]],
+    sample = "Training"
+  )
+  expect_identical(m[["class"]][["level"]], levels(iris[["Species"]]))
   expect_identical(rownames(m[["class"]]), as.character(seq_len(3L)))
 })
 
@@ -120,7 +124,7 @@ test_that("per-class metrics name their level in a column, not a row name", {
 test_that("positive_class is NULL, not NA, when there is no positive class", {
   # NULL is the only "unset" value; a bare NA would also make the field logical
   # for multiclass and character for binary.
-  multi <- classification_metrics(iris$Species, iris$Species)
+  multi <- classification_metrics(iris[["Species"]], iris[["Species"]])
   expect_null(multi[["positive_class"]])
   # Declared nullable and optional, so present-and-null is how it is spelled;
   # `list(x = NULL)` keeps the element rather than dropping it.
@@ -133,7 +137,7 @@ test_that("positive_class is NULL, not NA, when there is no positive class", {
 
 test_that("overall carries only the columns its task defines", {
   # Every column is declared; which are present says what was computed.
-  multi <- classification_metrics(iris$Species, iris$Species)
+  multi <- classification_metrics(iris[["Species"]], iris[["Species"]])
   expect_identical(
     names(multi[["overall"]]),
     c("balanced_accuracy", "f1", "accuracy")
@@ -148,7 +152,7 @@ test_that("overall carries only the columns its task defines", {
 
 
 test_that("the typed metrics reject a malformed table", {
-  m <- classification_metrics(iris$Species, iris$Species)
+  m <- classification_metrics(iris[["Species"]], iris[["Species"]])
   bad <- m@metrics
   bad[["overall"]][["accuracy"]] <- 1.5
   expect_error(set_props(m, metrics = bad), "must be <= 1")
@@ -166,7 +170,7 @@ test_that("the typed metrics reject a malformed table", {
 
 
 test_that("confusion_long is the stored, row-oriented confusion matrix", {
-  m <- classification_metrics(iris$Species, iris$Species)
+  m <- classification_metrics(iris[["Species"]], iris[["Species"]])
   long <- m[["confusion_long"]]
   expect_identical(names(long), c("reference", "predicted", "n"))
   expect_identical(nrow(long), 9L)
@@ -176,7 +180,7 @@ test_that("confusion_long is the stored, row-oriented confusion matrix", {
   # The long form is what the class stores and publishes: a `table`'s column
   # names are the outcome levels, so no schema can declare them.
   expect_identical(
-    prop_role(ClassificationMetrics@properties$confusion_long),
+    prop_role(ClassificationMetrics@properties[["confusion_long"]]),
     "state"
   )
   expect_identical(
@@ -187,7 +191,7 @@ test_that("confusion_long is the stored, row-oriented confusion matrix", {
 
 
 test_that("confusion_matrix is derived from the long form, labels and all", {
-  true <- iris$Species
+  true <- iris[["Species"]]
   set.seed(2026L)
   predicted <- factor(sample(levels(true), 150L, replace = TRUE))
   m <- classification_metrics(true, predicted)
@@ -197,14 +201,18 @@ test_that("confusion_matrix is derived from the long form, labels and all", {
   # wide view is indistinguishable from the table that was handed in.
   expect_identical(m@confusion_matrix, expected)
   expect_identical(
-    prop_role(ClassificationMetrics@properties$confusion_matrix),
+    prop_role(ClassificationMetrics@properties[["confusion_matrix"]]),
     "computed"
   )
 })
 
 
 test_that("a metrics object serializes without the wide confusion matrix", {
-  m <- classification_metrics(iris$Species, iris$Species, sample = "Training")
+  m <- classification_metrics(
+    iris[["Species"]],
+    iris[["Species"]],
+    sample = "Training"
+  )
   j <- to_json(m)
   # A `table` has no `asJSON` method; the long form is what travels, and it is
   # the declared property rather than a conversion each consumer repeats.
@@ -217,9 +225,13 @@ test_that("a metrics object serializes without the wide confusion matrix", {
 
 
 test_that("accessors reach properties as well as metrics members", {
-  # Reaching only into `@metrics` left the confusion matrix -- a property in its
-  # own right -- unreachable by the accessor that reaches everything else.
-  m <- classification_metrics(iris$Species, iris$Species, sample = "Training")
+  # `$` and `[[` reach the object's properties, including the confusion matrix,
+  # and the members of `@metrics`.
+  m <- classification_metrics(
+    iris[["Species"]],
+    iris[["Species"]],
+    sample = "Training"
+  )
   expect_identical(m$confusion_matrix, m@confusion_matrix)
   expect_identical(m[["confusion_matrix"]], m@confusion_matrix)
   expect_identical(m$sample, "Training")

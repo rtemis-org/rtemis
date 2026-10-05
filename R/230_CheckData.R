@@ -244,8 +244,8 @@ method(repr, CheckData) <- function(
     sep = "\n"
   )
 
-  # Skipped scan (`get_duplicates = FALSE`): nothing was counted, so nothing is
-  # reported rather than a count of zero.
+  # Skipped scan (`get_duplicates = FALSE`): nothing was counted, so no count
+  # is reported.
   if (!is.null(n_duplicates)) {
     out <- paste(
       out,

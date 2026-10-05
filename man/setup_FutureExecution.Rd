@@ -62,11 +62,10 @@ every run is reproducible and the seed it used is auditable. Distinct from a
 the training data through OS shared memory instead of serializing a copy to each.
 \code{"auto"} is the default: it shares whenever it can -- workers parallel and on this
 machine, \pkg{mori} installed -- and quietly does not when it cannot, falling back to
-the ordinary transport. \code{"none"} disables it. \code{"always"} is a demand rather than a
-preference: it shares even when the run is sequential, which is what allows a run to
-be compared against its own shared counterpart, and raises rather than degrades when
-the request cannot be honored -- which is what a caller relying on sharing to stay
-inside a memory budget needs.}
+the ordinary transport. \code{"none"} disables it. \code{"always"} is a demand: it shares even
+when the run is sequential, so a run can be compared against its own shared
+counterpart, and raises an error when the request cannot be met, for a caller relying
+on sharing to stay inside a memory budget.}
 
 \item{warm_workers}{Logical: Load \pkg{rtemis} in every worker as the pool is built,
 rather than leaving each worker to load it on its first task.}

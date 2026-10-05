@@ -77,6 +77,25 @@ test_that("explain() decomposes a LightGBM regression exactly", {
 })
 
 
+# %% LightRF: regression ----
+test_that("explain() decomposes a LightRF regression on the prediction's scale", {
+  # LightGBM sums a random forest's trees in raw scores and contributions
+  # while predicting their average; the explanation must use the average.
+  mod <- train(
+    .regression_dat,
+    hyperparameters = setup_LightRF(nrounds = 20L, min_data_in_leaf = 3L),
+    verbosity = 0L
+  )
+  x <- explain(mod, .regression_dat[1:3, .explain_feats], verbosity = 0L)
+  expect_additive(x)
+  expect_equal(
+    as.numeric(x@predicted[, 1L]),
+    as.numeric(predict(mod, .regression_dat[1:3, .explain_feats])),
+    tolerance = 1e-6
+  )
+})
+
+
 # %% LightGBM: binary ----
 test_that("a binary explanation is on the margin, not the probability", {
   # Correction 6, as a test: `predict.Supervised` normalizes classification to
@@ -1469,8 +1488,8 @@ test_that("mean |phi| ranks the features by how much they moved predictions", {
   expect_s7_class(importance, VariableImportance)
   # One row per feature: which *level* of a categorical drives it is
   # `shap_by_level()`'s question, not this one.
-  expect_identical(importance@data[["variable"]], .vi_feats)
-  values <- importance@data[["outcome"]]
+  expect_identical(varimp_table(importance)[["variable"]], .vi_feats)
+  values <- varimp_table(importance)[["outcome"]]
   expect_gt(values[[1L]], values[[2L]])
   expect_gt(values[[2L]], values[[3L]])
 })
@@ -1489,7 +1508,7 @@ test_that("importance is the magnitude, so cancelling contributions still count"
   )
   signed <- mean(x@phi[["outcome"]][, "strong"])
   expect_lt(abs(signed), 1e-8)
-  expect_gt(get_varimp(x)@data[["outcome"]][[1L]], 1)
+  expect_gt(varimp_table(get_varimp(x))[["outcome"]][[1L]], 1)
 })
 
 
@@ -1507,7 +1526,7 @@ test_that("a multiclass explanation gives one importance measure per class", {
   )
   importance <- get_varimp(x)
   expect_named(
-    importance@data,
+    varimp_table(importance),
     c("variable", levels(mod@y_training))
   )
 })
@@ -1528,10 +1547,10 @@ test_that("SHAP gives an importance to an algorithm that has none of its own", {
   )
   importance <- get_varimp(x)
   expect_s7_class(importance, VariableImportance)
-  expect_identical(importance@data[["variable"]], .vi_feats)
+  expect_identical(varimp_table(importance)[["variable"]], .vi_feats)
   expect_gt(
-    importance@data[["outcome"]][[1L]],
-    importance@data[["outcome"]][[3L]]
+    varimp_table(importance)[["outcome"]][[1L]],
+    varimp_table(importance)[["outcome"]][[3L]]
   )
 })
 

@@ -39,8 +39,8 @@ be the entire reason for one case.
 \strong{\code{background} is what the contributions are measured against}, and most
 estimators cannot work without one. A contribution says how far a feature
 moved this case's prediction away from \code{E[f(x)]}, and that expectation is a
-property of the background data rather than of the model -- which does not
-store the data it was trained on. Pass the training features, or a
+property of the background data, and the model does not store the data it
+was trained on. Pass the training features, or a
 representative sample of them. The exceptions are the estimators that take
 their baseline from the model itself, such as the LightGBM family's; those
 ignore it, and everything else aborts without it.

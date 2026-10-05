@@ -6,7 +6,7 @@
 #' Build the per-resample body
 #'
 #' Returns the closure `progress_plapply()` dispatches once per resample. Built
-#' by a factory rather than inline so serializing it does not ship the calling
+#' by a factory so serializing it does not ship the calling
 #' frame -- the training data, the test set and every intermediate -- to each
 #' worker.
 #'
@@ -129,7 +129,7 @@ make_bias_variance_runner <- function(
 #' set.seed(2026)
 #' n <- 200L
 #' features <- data.frame(a = rnorm(n), b = rnorm(n))
-#' dat <- data.frame(features, y = 2 * features$a + rnorm(n))
+#' dat <- data.frame(features, y = 2 * features[["a"]] + rnorm(n))
 #' bv <- bias_variance(
 #'   dat,
 #'   hyperparameters = setup_CART(),
@@ -152,12 +152,10 @@ bias_variance <- function(
   check_is_S7(execution_config, ExecutionConfig)
   if (needs_tuning(hyperparameters)) {
     # Some algorithms tune by default -- `setup_GLMNET()` searches `lambda` --
-    # so this is reachable without asking for it, and the message has to say
-    # what to do. Allowing it is not a smaller decision than it looks: each
-    # resample would run its own inner search, multiplying the cost by the grid,
-    # and the quantity measured becomes the variability of a *tuning procedure*
-    # rather than of a model. That is a legitimate thing to want and a different
-    # thing to report, so it is opted into by fixing the values, not by default.
+    # so this is reachable without asking for it, and the message says what to
+    # do. With tuning, each resample would run its own inner search and the
+    # quantity measured would be the variability of a *tuning procedure*; this
+    # function measures one fixed model.
     rtemis.core::abort(
       "bias_variance() measures one fixed model, but these hyperparameters define a search space. ",
       "Set the tunable values to single values, e.g. setup_GLMNET(lambda = 0.1).",
