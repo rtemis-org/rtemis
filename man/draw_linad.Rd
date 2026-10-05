@@ -141,7 +141,7 @@ renders hover labels as SVG and cannot express a table at all.
 \examples{
 \dontshow{if (interactive() && requireNamespace("visNetwork", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 x <- data.frame(a = rnorm(300), b = rnorm(300))
-x$y <- 2 * x$a + ifelse(x$b < 0, -3, 3) + rnorm(300)
+x[["y"]] <- 2 * x[["a"]] + ifelse(x[["b"]] < 0, -3, 3) + rnorm(300)
 mod <- train(x, hyperparameters = setup_LINAD(max_leaves = 5L))
 draw_linad(mod)
 \dontshow{\}) # examplesIf}

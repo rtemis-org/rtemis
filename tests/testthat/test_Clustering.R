@@ -531,7 +531,7 @@ test_that("CMeans yields a SoftClustering carrying its membership matrix", {
   m <- cl@membership
   expect_true(is.matrix(m) && is.numeric(m))
   expect_identical(dim(m), c(nrow(x), 3L))
-  expect_true(all(abs(rowSums(m) - 1) <= sqrt(.Machine$double.eps)))
+  expect_true(all(abs(rowSums(m) - 1) <= sqrt(.Machine[["double.eps"]])))
   # The hard labels are the argmax of the matrix, which is the correspondence
   # `@membership` column j <-> cluster j rests on.
   expect_identical(

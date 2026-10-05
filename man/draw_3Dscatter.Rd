@@ -171,7 +171,7 @@ Note that \code{draw_3Dscatter} uses the theme's \code{plot_bg} as \code{grid_co
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
-draw_3Dscatter(iris, group = iris$Species, theme = theme_darkgraygrid())
+draw_3Dscatter(iris, group = iris[["Species"]], theme = theme_darkgraygrid())
 \dontshow{\}) # examplesIf}
 }
 \author{

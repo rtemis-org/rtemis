@@ -198,8 +198,8 @@ testthat::test_that("every dispatched family has a record document under test", 
   expect_setequal(
     unique(covered),
     unname(vapply(
-      schema_catalog()$families,
-      function(f) f$base_class@name,
+      schema_catalog()[["families"]],
+      function(f) f[["base_class"]]@name,
       character(1L)
     ))
   )

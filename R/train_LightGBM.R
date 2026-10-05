@@ -327,8 +327,8 @@ method(explain_super, class_lgb.Booster) <- function(
   # number of iterations. Dividing restores the margin the model predicts
   # with, and contributions that decompose it.
   if (lightgbm_averages_trees(model)) {
-    contrib <- contrib / model$current_iter()
-    margin <- margin / model$current_iter()
+    contrib <- contrib / model[["current_iter"]]()
+    margin <- margin / model[["current_iter"]]()
   }
 
   n_features <- NCOL(features)
@@ -387,7 +387,7 @@ method(explain_super, class_lgb.Booster) <- function(
 lightgbm_averages_trees <- function(model) {
   grepl(
     "\naverage_output\n",
-    model$save_model_to_string(num_iteration = 1L),
+    model[["save_model_to_string"]](num_iteration = 1L),
     fixed = TRUE
   )
 } # /rtemis::lightgbm_averages_trees

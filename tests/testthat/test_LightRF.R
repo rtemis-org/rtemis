@@ -39,7 +39,7 @@ testthat::skip_if_not_installed("lightgbm")
 }
 
 .n_single <- function(model) {
-  txt <- model$save_model_to_string()
+  txt <- model[["save_model_to_string"]]()
   n_leaves <- as.integer(regmatches(
     txt,
     gregexpr("(?<=\\nnum_leaves=)[0-9]+", txt, perl = TRUE)

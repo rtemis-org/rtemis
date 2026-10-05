@@ -166,7 +166,7 @@ method(train_, LightRFHyperparameters) <- function(
 #' @keywords internal
 #' @noRd
 score_unsplit_lightrf_trees <- function(model, data, params, verbosity = 1L) {
-  txt <- model$save_model_to_string()
+  txt <- model[["save_model_to_string"]]()
   parts <- strsplit(txt, "\n(?=Tree=)", perl = TRUE)[[1L]]
   is_tree <- startsWith(parts, "Tree=")
   single <- is_tree & grepl("\nnum_leaves=1\n", parts, perl = TRUE)
@@ -210,7 +210,7 @@ score_unsplit_lightrf_trees <- function(model, data, params, verbosity = 1L) {
     nrounds = 1L,
     verbose = -1L
   )
-  stump_txt <- stump$save_model_to_string()
+  stump_txt <- stump[["save_model_to_string"]]()
   initial <- regmatches(
     stump_txt,
     gregexpr("(?<=\\nleaf_value=)[^\\n]+", stump_txt, perl = TRUE)

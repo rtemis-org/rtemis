@@ -60,7 +60,7 @@ calibration_hyperparameters <- function(hyperparameters) {
 #'   iris[51:150, ]
 #' )
 #' res <- resample(datc2)
-#' datc2$Species <- factor(datc2$Species)
+#' datc2[["Species"]] <- factor(datc2[["Species"]])
 #' datc2_train <- datc2[res[[1]], ]
 #' datc2_test <- datc2[-res[[1]], ]
 #' mod_c_glm <- train(
@@ -70,8 +70,8 @@ calibration_hyperparameters <- function(hyperparameters) {
 #' )
 #' mod_c_glm_cal <- calibrate(
 #'   mod_c_glm,
-#'   predicted_probabilities = mod_c_glm$predicted_prob_training[, 1L],
-#'   true_labels = mod_c_glm$y_training
+#'   predicted_probabilities = mod_c_glm[["predicted_prob_training"]][, 1L],
+#'   true_labels = mod_c_glm[["y_training"]]
 #' )
 #' mod_c_glm_cal
 method(calibrate, Classification) <- function(

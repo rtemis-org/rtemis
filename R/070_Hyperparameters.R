@@ -3306,7 +3306,7 @@ lightgbm_regularization_props <- function(
 #'
 #' @details
 #' These are `lgb.Dataset` parameters. They reach the backend because
-#' `lgb.train()` calls `data$update_params()` before `construct()`, and rtemis
+#' `lgb.train()` calls `data[["update_params"]]()` before `construct()`, and rtemis
 #' passes it an unconstructed dataset; `prepare_lgb_data()` must leave the
 #' dataset unconstructed for them to take effect.
 #'

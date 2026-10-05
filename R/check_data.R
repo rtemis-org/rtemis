@@ -21,14 +21,14 @@
 #' @examples
 #' n <- 1000
 #' x <- rnormmat(n, 50, return_df = TRUE)
-#' x$char1 <- sample(letters, n, TRUE)
-#' x$char2 <- sample(letters, n, TRUE)
-#' x$fct <- factor(sample(letters, n, TRUE))
+#' x[["char1"]] <- sample(letters, n, TRUE)
+#' x[["char2"]] <- sample(letters, n, TRUE)
+#' x[["fct"]] <- factor(sample(letters, n, TRUE))
 #' x <- rbind(x, x[1, ])
-#' x$const <- 99L
+#' x[["const"]] <- 99L
 #' x[sample(nrow(x), 20), 3] <- NA
 #' x[sample(nrow(x), 20), 10] <- NA
-#' x$fct[30:35] <- NA
+#' x[["fct"]][30:35] <- NA
 #' check_data(x)
 check_data <- function(
   x,

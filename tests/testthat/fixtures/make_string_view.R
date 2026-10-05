@@ -19,11 +19,18 @@ library(arrow)
 fixture <- file.path("tests", "testthat", "fixtures", "string_view.parquet")
 stopifnot(file.exists(fixture))
 
+# Type name of the second column of a parquet file, read without converting to
+# a data.frame. `[[` on a Schema selects a field; the Field's `type` and the
+# type's `ToString` are R6 members, read with `get()`.
+second_type <- function(file) {
+  fields <- infer_schema(read_parquet(file, as_data_frame = FALSE))
+  get("type", envir = fields[[2L]])
+}
+type_name <- function(type) get("ToString", envir = type)()
+
 # Lift the `string_view` type off the current fixture.
-string_view <- read_parquet(fixture, as_data_frame = FALSE)$schema$field(
-  1L
-)$type
-stopifnot(string_view$ToString() == "string_view")
+string_view <- second_type(fixture)
+stopifnot(type_name(string_view) == "string_view")
 
 x <- data.frame(
   id = c(1L, 2L, 3L, 4L, 5L),
@@ -33,7 +40,10 @@ x <- data.frame(
   stringsAsFactors = FALSE
 )
 
-tbl <- as_arrow_table(x)$cast(schema(
+# Conversion from R has no `string_view` path; the Table's `cast` method
+# converts after the table is built.
+cast <- get("cast", envir = as_arrow_table(x))
+tbl <- cast(schema(
   field("id", int32()),
   field("name", string_view),
   field("score", float64()),
@@ -42,9 +52,4 @@ tbl <- as_arrow_table(x)$cast(schema(
 write_parquet(tbl, fixture, compression = "uncompressed")
 
 # The written file must still carry the view type, or the test guards nothing.
-stopifnot(
-  read_parquet(fixture, as_data_frame = FALSE)$schema$field(
-    1L
-  )$type$ToString() ==
-    "string_view"
-)
+stopifnot(type_name(second_type(fixture)) == "string_view")

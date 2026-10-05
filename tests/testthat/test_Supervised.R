@@ -39,8 +39,8 @@ g <- factor(sample(c("A", "B"), n, replace = TRUE))
 y <- x[, 3] + x[, 5] + ifelse(g == "A", 2, -1) + rnorm(n)
 datr <- data.table(x, g, y)
 resr <- resample(datr)
-datr_train <- datr[resr$Fold_1, ]
-datr_test <- datr[-resr$Fold_1, ]
+datr_train <- datr[resr[["Fold_1"]], ]
+datr_test <- datr[-resr[["Fold_1"]], ]
 
 ## Classification Data ----
 ### Binary ----
@@ -48,16 +48,16 @@ datc2 <- data.frame(
   gn = factor(sample(c("alpha", "beta", "gamma"), 100, replace = TRUE)),
   iris[51:150, ]
 )
-datc2$Species <- factor(datc2$Species)
+datc2[["Species"]] <- factor(datc2[["Species"]])
 resc2 <- resample(datc2)
-datc2_train <- datc2[resc2$Fold_1, ]
-datc2_test <- datc2[-resc2$Fold_1, ]
+datc2_train <- datc2[resc2[["Fold_1"]], ]
+datc2_test <- datc2[-resc2[["Fold_1"]], ]
 
 ### 3-class ----
 datc3 <- iris
 resc3 <- resample(datc3)
-datc3_train <- datc3[resc3$Fold_1, ]
-datc3_test <- datc3[-resc3$Fold_1, ]
+datc3_train <- datc3[resc3[["Fold_1"]], ]
+datc3_test <- datc3[-resc3[["Fold_1"]], ]
 
 ### Synthetic binary data where positive class is 10% of the data ----
 # set.seed(2025)
@@ -1228,8 +1228,8 @@ mod_r_lightcartlin <- train(
 test_that("train() LightCART Regression with linear_tree succeeds", {
   expect_s7_class(mod_r_lightcartlin, Regression)
   expect_identical(
-    mod_r_lightcartlin@hyperparameters$linear_tree,
-    mod_r_lightcartlin@model$params$linear_tree
+    mod_r_lightcartlin@hyperparameters[["linear_tree"]],
+    mod_r_lightcartlin@model[["params"]][["linear_tree"]]
   )
 })
 
@@ -1337,7 +1337,7 @@ test_that("predicted probabilities are a matrix whatever the class count", {
   expect_true(is.matrix(multi@predicted_prob_training))
   expect_identical(
     colnames(multi@predicted_prob_training),
-    levels(iris$Species)
+    levels(iris[["Species"]])
   )
 })
 
@@ -1464,11 +1464,11 @@ mod_r_lightrlft_l1l2 <- train(
 test_that("train() LightRuleFit Regression with l1, l2 params passed", {
   expect_s7_class(mod_r_lightrlft_l1l2, Regression)
   expect_identical(
-    mod_r_lightrlft_l1l2@model@model_lightgbm@model$params$lambda_l1,
+    mod_r_lightrlft_l1l2@model@model_lightgbm@model[["params"]][["lambda_l1"]],
     10
   )
   expect_identical(
-    mod_r_lightrlft_l1l2@model@model_lightgbm@model$params$lambda_l2,
+    mod_r_lightrlft_l1l2@model@model_lightgbm@model[["params"]][["lambda_l2"]],
     10
   )
 })
@@ -1822,15 +1822,19 @@ test_that("predict() SPLS Classification returns second-level probabilities", {
   # A flipped column would still be a valid probability, so check it tracks the
   # outcome rather than its complement.
   expect_gt(
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[2L]
+    ]),
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[1L]
+    ])
   )
 })
 
 test_that("predict() SPLS Multiclass returns one column per class", {
   skip_if_not_installed("spls")
   predicted_prob <- predict(modt_c3_spls, features(datc3_test))
-  expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
+  expect_identical(NCOL(predicted_prob), nlevels(datc3_test[["Species"]]))
   expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
 })
 
@@ -2066,15 +2070,19 @@ test_that("predict() MARS Classification returns second-level probabilities", {
   # A flipped column would still be a valid probability, so check it tracks the
   # outcome rather than its complement.
   expect_gt(
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[2L]
+    ]),
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[1L]
+    ])
   )
 })
 
 test_that("predict() MARS Multiclass returns one column per class", {
   skip_if_not_installed("earth")
   predicted_prob <- predict(modt_c3_mars, features(datc3_test))
-  expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
+  expect_identical(NCOL(predicted_prob), nlevels(datc3_test[["Species"]]))
   # The per-class GLMs are independent, so predict_super() normalizes them.
   expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
 })
@@ -2464,15 +2472,17 @@ if (mlp_installed) {
     # the outcome rather than its complement.
     expect_gt(
       mean(predicted_prob[
-        datc2_test$Species == levels(datc2_test$Species)[2L]
+        datc2_test[["Species"]] == levels(datc2_test[["Species"]])[2L]
       ]),
-      mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+      mean(predicted_prob[
+        datc2_test[["Species"]] == levels(datc2_test[["Species"]])[1L]
+      ])
     )
   })
 
   test_that("predict() MLP Multiclass returns one column per class", {
     predicted_prob <- predict(modt_c3_mlp, features(datc3_test))
-    expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
+    expect_identical(NCOL(predicted_prob), nlevels(datc3_test[["Species"]]))
     expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
   })
 
@@ -2863,15 +2873,19 @@ test_that("predict() KNN Classification returns second-level probabilities", {
   # A flipped column would still be a valid probability, so check it tracks the
   # outcome rather than its complement.
   expect_gt(
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[2L]
+    ]),
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[1L]
+    ])
   )
 })
 
 test_that("predict() KNN Multiclass returns one column per class", {
   skip_if_not_installed("kknn")
   predicted_prob <- predict(modt_c3_knn, features(datc3_test))
-  expect_identical(NCOL(predicted_prob), nlevels(datc3_test$Species))
+  expect_identical(NCOL(predicted_prob), nlevels(datc3_test[["Species"]]))
   expect_equal(unname(rowSums(predicted_prob)), rep(1, nrow(datc3_test)))
 })
 
@@ -3180,8 +3194,12 @@ test_that("predict() BART Classification returns second-level probabilities", {
   # A flipped column would still be a valid probability, so check it tracks the
   # outcome rather than its complement.
   expect_gt(
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[2L]
+    ]),
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[1L]
+    ])
   )
 })
 
@@ -3502,8 +3520,12 @@ test_that("predict() HAL Classification returns second-level probabilities", {
   # A flipped column would still be a valid probability, so check it tracks the
   # outcome rather than its complement.
   expect_gt(
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[2L]]),
-    mean(predicted_prob[datc2_test$Species == levels(datc2_test$Species)[1L]])
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[2L]
+    ]),
+    mean(predicted_prob[
+      datc2_test[["Species"]] == levels(datc2_test[["Species"]])[1L]
+    ])
   )
 })
 
@@ -3863,12 +3885,12 @@ test_that("predict() ClassificationRes gives binary and multiclass one shape", {
 ## {LightRF}[calibrate]<Classification> ----
 # Calibrate mod_c_lightrf trained above
 model <- mod_c_lightrf
-predicted_probabilities <- model$predicted_prob_training
-true_labels <- model$y_training
+predicted_probabilities <- model[["predicted_prob_training"]]
+true_labels <- model[["y_training"]]
 mod_c_lightrf_cal <- calibrate(
   mod_c_lightrf,
-  predicted_probabilities = mod_c_lightrf$predicted_prob_training,
-  true_labels = mod_c_lightrf$y_training
+  predicted_probabilities = mod_c_lightrf[["predicted_prob_training"]],
+  true_labels = mod_c_lightrf[["y_training"]]
 )
 test_that("calibrate() succeeds on Classification", {
   expect_s7_class(mod_c_lightrf_cal, CalibratedClassification)
@@ -4789,11 +4811,11 @@ test_that("a base learner's search space becomes library entries, untuned", {
   # Each entry is trained at one setting, not tuned: the ensemble's own
   # cross-validation is what chooses between them.
   expect_identical(
-    mod@model@base_models[["CART_1"]]@hyperparameters$maxdepth,
+    mod@model@base_models[["CART_1"]]@hyperparameters[["maxdepth"]],
     2L
   )
   expect_identical(
-    mod@model@base_models[["CART_2"]]@hyperparameters$maxdepth,
+    mod@model@base_models[["CART_2"]]@hyperparameters[["maxdepth"]],
     20L
   )
   expect_null(mod@model@base_models[["CART_1"]]@tuner)

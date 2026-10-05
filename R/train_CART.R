@@ -160,14 +160,14 @@ method(varimp_super, class_rpart) <- function(model) {
 # %% cart_tree ----
 #' Read an `rpart` tree into a routing-ready structure
 #'
-#' `model$splits` holds one row per *candidate* split -- the primary, then this
+#' `model[["splits"]]` holds one row per *candidate* split -- the primary, then this
 #' node's competitors, then its surrogates -- so a node's own split is found by
 #' accumulating `1 + ncompete + nsurrogate` over the frame in order. Getting
 #' that offset wrong routes cases to the wrong leaves and produces attributions
 #' that look entirely reasonable, which is why `explain_super()` checks the
 #' routing against the model's own predictions before returning anything.
 #'
-#' A categorical split stores a row index into `model$csplit`, whose codes are
+#' A categorical split stores a row index into `model[["csplit"]]`, whose codes are
 #' 1 (left), 3 (right) and 2 (level not present).
 #'
 #' @param model `rpart` object.

@@ -366,7 +366,7 @@ writeup_hp_summaries <- function(values, identities) {
 # %% writeup_hp_tried ----
 #' Values a hyperparameter took in the configurations tuning evaluated
 #'
-#' Read from each tuner's evaluated grid (`tuning_results$param_grid`): the
+#' Read from each tuner's evaluated grid (`tuning_results[["param_grid"]]`): the
 #' grid's column for a searched hyperparameter, or, for a hyperparameter set,
 #' the value each evaluated member gives it. An unset value is an alternative
 #' of its own.

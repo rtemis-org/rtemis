@@ -9,10 +9,6 @@
 #
 # The methods are defined on `AutoencoderBaseConfig`, so every autoencoder leaf
 # inherits them through S7 dispatch.
-#
-# Inside the module, a field is **read** with `[[` and **written** with `$`, as
-# in `train_MLP.R`: `$<-` registers a submodule with torch, and `$` on the read
-# side reads to static analysis as a call to an unbound function.
 
 # %% AutoencoderFit ----
 #' @title AutoencoderFit
@@ -381,9 +377,9 @@ autoencoder_module <- function(
   variational_encoder <- torch::nn_module(
     classname = "VariationalEncoder",
     initialize = function(widths, k) {
-      self$trunk <- do.call(torch::nn_sequential, layers(widths))
-      self$mu <- torch::nn_linear(widths[[length(widths)]], k)
-      self$logvar <- torch::nn_linear(widths[[length(widths)]], k)
+      self[["trunk"]] <- do.call(torch::nn_sequential, layers(widths))
+      self[["mu"]] <- torch::nn_linear(widths[[length(widths)]], k)
+      self[["logvar"]] <- torch::nn_linear(widths[[length(widths)]], k)
     },
     forward = function(x) {
       self[["mu"]](self[["trunk"]](x))
@@ -399,12 +395,12 @@ autoencoder_module <- function(
       input_noise,
       variational
     ) {
-      self$input_noise <- input_noise
-      self$variational <- variational
-      self$corrupt <- torch::nn_dropout(input_dropout)
+      self[["input_noise"]] <- input_noise
+      self[["variational"]] <- variational
+      self[["corrupt"]] <- torch::nn_dropout(input_dropout)
       encoder_widths <- c(n_features, hidden_units)
       decoder_widths <- c(k, rev(hidden_units))
-      self$encoder <- if (variational) {
+      self[["encoder"]] <- if (variational) {
         variational_encoder(encoder_widths, k)
       } else {
         do.call(
@@ -415,7 +411,7 @@ autoencoder_module <- function(
           )
         )
       }
-      self$decoder <- do.call(
+      self[["decoder"]] <- do.call(
         torch::nn_sequential,
         c(
           layers(decoder_widths),

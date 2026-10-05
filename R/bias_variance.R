@@ -129,7 +129,7 @@ make_bias_variance_runner <- function(
 #' set.seed(2026)
 #' n <- 200L
 #' features <- data.frame(a = rnorm(n), b = rnorm(n))
-#' dat <- data.frame(features, y = 2 * features$a + rnorm(n))
+#' dat <- data.frame(features, y = 2 * features[["a"]] + rnorm(n))
 #' bv <- bias_variance(
 #'   dat,
 #'   hyperparameters = setup_CART(),

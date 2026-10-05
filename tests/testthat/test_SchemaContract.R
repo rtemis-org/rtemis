@@ -479,21 +479,27 @@ test_that("no readOnly schema property is a setup_* formal", {
 # %% .catalog_entries ----
 .catalog_entries <- function(catalog) {
   c(
-    unlist(lapply(catalog$families, `[[`, "algorithms"), recursive = FALSE),
-    catalog$flat_configs
+    unlist(
+      lapply(catalog[["families"]], `[[`, "algorithms"),
+      recursive = FALSE
+    ),
+    catalog[["flat_configs"]]
   )
 }
 
 
 test_that("catalog family discriminators agree with the record writer", {
-  for (family in schema_catalog()$families) {
-    for (leaf in family$algorithms) {
-      expect_identical(family_base(leaf$cls), family$base_class)
+  for (family in schema_catalog()[["families"]]) {
+    for (leaf in family[["algorithms"]]) {
+      expect_identical(family_base(leaf[["cls"]]), family[["base_class"]])
       expect_identical(
-        schema_publication(family_base(leaf$cls))@discriminator,
-        family$discriminator
+        schema_publication(family_base(leaf[["cls"]]))@discriminator,
+        family[["discriminator"]]
       )
-      expect_identical(family_discriminator(leaf$cls), family$discriminator)
+      expect_identical(
+        family_discriminator(leaf[["cls"]]),
+        family[["discriminator"]]
+      )
     }
   }
 })
@@ -553,8 +559,8 @@ test_that("the independent class/setup mapping covers the catalog", {
 test_that("every generated class clause satisfies the config contract", {
   for (entry in .catalog_entries(schema_catalog())) {
     expect_no_error(rtemis.core::assert_config_contract(
-      list(allOf = class_rule_clauses(entry$cls)),
-      id = entry$cls@name
+      list(allOf = class_rule_clauses(entry[["cls"]])),
+      id = entry[["cls"]]@name
     ))
   }
 })
@@ -620,18 +626,21 @@ test_that("every generated class clause satisfies the config contract", {
 test_that("every hyperparameters leaf declares its primary hyperparameters", {
   # The writeup's main table and the reporting/v1 artifact read these; each
   # name is a setting the leaf's schema publishes.
-  family <- schema_catalog()$families[["hyperparameters"]]
-  for (leaf in family$algorithms) {
-    reporting <- schema_reporting(leaf$cls)
-    expect_false(is.null(reporting), info = leaf$cls@name)
+  family <- schema_catalog()[["families"]][["hyperparameters"]]
+  for (leaf in family[["algorithms"]]) {
+    reporting <- schema_reporting(leaf[["cls"]])
+    expect_false(is.null(reporting), info = leaf[["cls"]]@name)
     published <- names(
-      .contract_schema(list(cls = leaf$cls, base = family$base_class))[[
+      .contract_schema(list(
+        cls = leaf[["cls"]],
+        base = family[["base_class"]]
+      ))[[
         "properties"
       ]]
     )
     expect_true(
       all(reporting[["primary"]] %in% published),
-      info = leaf$cls@name
+      info = leaf[["cls"]]@name
     )
   }
   # Reporting does not inherit.
@@ -721,7 +730,7 @@ test_that("every nullable hyperparameter states what unset means", {
   # A writeup's supplement table prints this sentence for a hyperparameter the
   # fit left unset. Run state is observed by the run and is exempt.
   for (entry in .catalog_entries(schema_catalog())) {
-    cls <- entry$cls
+    cls <- entry[["cls"]]
     ancestors <- vapply(schema_class_ancestors(cls), function(a) a@name, "")
     if (!"Hyperparameters" %in% ancestors) {
       next
@@ -749,14 +758,14 @@ test_that("every class declaring an applies_when gate enforces it", {
   # the class or an ancestor; a declared gate without one publishes a rule the
   # R class never checks.
   for (entry in .catalog_entries(schema_catalog())) {
-    if (!length(applies_when_spec_names(entry$cls))) {
+    if (!length(applies_when_spec_names(entry[["cls"]]))) {
       next
     }
     enforcing <- Filter(
       function(k) .spec_driven_validator(schema_native_validator(k)),
-      .validator_classes(entry$cls)
+      .validator_classes(entry[["cls"]])
     )
-    expect_true(length(enforcing) > 0L, info = entry$cls@name)
+    expect_true(length(enforcing) > 0L, info = entry[["cls"]]@name)
   }
 })
 
@@ -764,7 +773,7 @@ test_that("every class declaring an applies_when gate enforces it", {
 test_that("published classes have no opaque native validators", {
   carriers <- unique(unlist(lapply(
     .catalog_entries(schema_catalog()),
-    function(entry) .hand_written_validators(entry$cls)
+    function(entry) .hand_written_validators(entry[["cls"]])
   )))
   expect_length(carriers, 0L)
 })

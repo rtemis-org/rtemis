@@ -14,12 +14,6 @@
 # `torch` is a Suggests-gated backend reached by `::`, so every torch object is
 # built inside a function. A module generator or a device at the top level of
 # this file would make the package unloadable without the backend installed.
-#
-# A method on a torch object is reached with `[[` and then called --
-# `module[["to"]](device = dev)`, not `module$to(device = dev)`. A torch object
-# is an environment, and `$` on one reads to static analysis as a call to a
-# free function of the method's name, which `object_usage_linter` reports as an
-# unbound global. Keep the convention: a `$` call here fails `just lint`.
 
 # %% TORCH_DEVICES ----
 # Compute devices, and the order `resolve_torch_device()` prefers them in when
@@ -754,7 +748,7 @@ torch_dataloader <- function(
 #' An L1 penalty has no torch optimizer argument -- `weight_decay` is L2 and,
 #' under AdamW, decoupled -- so it is accumulated here and added to the loss.
 #'
-#' @param parameters Named list of `torch_tensor`: `module$parameters`.
+#' @param parameters Named list of `torch_tensor`: `module[["parameters"]]`.
 #' @param names Character vector: Which of them to penalize.
 #'
 #' @return `torch_tensor` scalar.

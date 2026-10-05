@@ -11,14 +11,14 @@ test_that("check_data() succeeds", {
   )
   x_cd <- check_data(x, get_na_case_pct = TRUE, get_na_feature_pct = TRUE)
   expect_s7_class(x_cd, CheckData)
-  expect_equal(x_cd$n_na, 3)
-  expect_equal(x_cd$n_cols_anyna, 2)
-  expect_equal(nrow(x_cd$na_feature_pct), 2)
-  expect_equal(x_cd$na_feature_pct$Feature, c("a", "c"))
-  expect_equal(x_cd$na_feature_pct$Pct_NA, c(0.25, 0.5))
-  expect_equal(nrow(x_cd$na_case_pct), 2)
-  expect_equal(x_cd$na_case_pct$Case, c(2, 4))
-  expect_equal(x_cd$na_case_pct$Pct_NA, c(1 / 3, 2 / 3))
+  expect_equal(x_cd[["n_na"]], 3)
+  expect_equal(x_cd[["n_cols_anyna"]], 2)
+  expect_equal(nrow(x_cd[["na_feature_pct"]]), 2)
+  expect_equal(x_cd[["na_feature_pct"]][["Feature"]], c("a", "c"))
+  expect_equal(x_cd[["na_feature_pct"]][["Pct_NA"]], c(0.25, 0.5))
+  expect_equal(nrow(x_cd[["na_case_pct"]]), 2)
+  expect_equal(x_cd[["na_case_pct"]][["Case"]], c(2, 4))
+  expect_equal(x_cd[["na_case_pct"]][["Pct_NA"]], c(1 / 3, 2 / 3))
 })
 
 
@@ -77,9 +77,9 @@ test_that("check_data() counts distinct values per column", {
   )
   cd <- check_data(x)
   # One entry per column, in column order, named for the column.
-  expect_named(cd$n_distinct_per_col, names(x))
-  expect_type(cd$n_distinct_per_col, "integer")
-  expect_equal(unname(cd$n_distinct_per_col), c(3L, 2L, 1L, 2L))
+  expect_named(cd[["n_distinct_per_col"]], names(x))
+  expect_type(cd[["n_distinct_per_col"]], "integer")
+  expect_equal(unname(cd[["n_distinct_per_col"]]), c(3L, 2L, 1L, 2L))
 })
 
 
@@ -91,12 +91,12 @@ test_that("n_distinct_per_col ignores NA and counts unused factor levels", {
     unused = factor(c("x", "x", "y"), levels = c("x", "y", "z"))
   )
   cd <- check_data(x)
-  expect_equal(unname(cd$n_distinct_per_col), c(2L, 2L))
+  expect_equal(unname(cd[["n_distinct_per_col"]]), c(2L, 2L))
 })
 
 
 test_that("n_distinct_per_col agrees with n_constant", {
   x <- data.frame(a = 1:5, b = rep("k", 5L), c = c(1, 1, 1, 1, 2))
   cd <- check_data(x)
-  expect_equal(sum(cd$n_distinct_per_col == 1L), cd$n_constant)
+  expect_equal(sum(cd[["n_distinct_per_col"]] == 1L), cd[["n_constant"]])
 })

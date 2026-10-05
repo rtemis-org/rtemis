@@ -533,15 +533,13 @@ data_fingerprint <- function(
   tbl <- arrow::as_arrow_table(x)
   # arrow stores R attributes and class under the schema metadata key "r" so it
   # can round-trip data.table/tibble-ness. That metadata differs between a
-  # data.frame and a data.table holding identical data, which would make this
-  # method hash them differently -- defeating its whole purpose. Strip it, so
+  # data.frame and a data.table holding identical data, so it is cleared and
   # only the logical table is hashed.
-  # (`$` and not `[[`: an arrow Table is an R6 object whose `metadata` is an
-  # active binding; `[[<-` would try to drop a *column* of that name.)
-  # This leaves an empty `custom_metadata` map rather than removing the field,
-  # which is part of the byte recipe another implementation has to match; see
-  # the details above before changing how the metadata is cleared.
-  tbl$metadata <- NULL
+  # `metadata` is an active binding of the R6 Table, set with `assign()`;
+  # `[[<-` on a Table addresses a column of that name.
+  # Clearing leaves an empty `custom_metadata` map, which is part of the byte
+  # recipe another implementation matches; see the details above.
+  assign("metadata", NULL, envir = tbl)
   buffer <- arrow::write_to_raw(tbl, format = "stream")
   .hash_bytes(buffer, algorithm)
 } # /rtemis::.hash_table

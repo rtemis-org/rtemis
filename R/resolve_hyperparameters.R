@@ -92,7 +92,7 @@ record_backend_values <- function(hyperparameters, values) {
 #' @keywords internal
 #' @noRd
 lightgbm_model_parameters <- function(model) {
-  text <- model$save_model_to_string()
+  text <- model[["save_model_to_string"]]()
   start <- regexpr("\nparameters:\n", text, fixed = TRUE)
   if (start < 0L) {
     return(character())

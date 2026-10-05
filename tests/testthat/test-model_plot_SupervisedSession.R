@@ -37,7 +37,7 @@ test_that("plot.SupervisedSession returns an htmlwidget", {
 
 test_that("plot.SupervisedSession makes one category row per node in DFS order", {
   w <- plot(make_session())
-  rows <- unlist(w$x$option$yAxis$data)
+  rows <- unlist(w[["x"]][["option"]][["yAxis"]][["data"]])
   expect_length(rows, 6L)
   # Depth-first: train, tune, its two grid cells, then train_algo, predict.
   expect_match(rows[[1]], "train CART Classification")
@@ -52,8 +52,8 @@ test_that("plot.SupervisedSession makes one category row per node in DFS order",
 test_that("plot.SupervisedSession groups series by event kind", {
   w <- plot(make_session())
   series_names <- vapply(
-    w$x$option$series,
-    function(s) s$name %||% "",
+    w[["x"]][["option"]][["series"]],
+    function(s) s[["name"]] %||% "",
     character(1L)
   )
   # One series per kind present (not by status).
@@ -66,13 +66,16 @@ test_that("plot.SupervisedSession groups series by event kind", {
 
 test_that("plot.SupervisedSession outlines failed bars via the border flag", {
   w <- plot(make_session())
-  gc <- Filter(function(s) identical(s$name, "grid_cell"), w$x$option$series)[[
+  gc <- Filter(
+    function(s) identical(s[["name"]], "grid_cell"),
+    w[["x"]][["option"]][["series"]]
+  )[[
     1
   ]]
   # The error grid_cell (#2) carries a truthy 4th value; the ok one does not.
   flags <- vapply(
-    gc$data,
-    function(d) as.numeric(d$value[[4]] %||% 0),
+    gc[["data"]],
+    function(d) as.numeric(d[["value"]][[4]] %||% 0),
     numeric(1L)
   )
   expect_true(any(flags == 1)) # the errored cell
@@ -85,8 +88,8 @@ test_that("plot.SupervisedSession positions bars by elapsed milliseconds", {
   # Collect [row, start, end] (first 3 dims; failed bars carry a 4th flag).
   vals <- do.call(
     rbind,
-    lapply(w$x$option$series, function(s) {
-      do.call(rbind, lapply(s$data, function(d) unlist(d$value)[1:3]))
+    lapply(w[["x"]][["option"]][["series"]], function(s) {
+      do.call(rbind, lapply(s[["data"]], function(d) unlist(d[["value"]])[1:3]))
     })
   )
   # Root "train" spans 0 -> 2000 ms.

@@ -3413,7 +3413,7 @@ method(print, StackedLearner) <- function(x, ...) {
 #' is one dot product per case. There is no separate initialization term: the
 #' root model's intercept is it.
 #'
-#' `frame$node_value` is what the **tree alone** predicts at a node -- the model
+#' `frame[["node_value"]]` is what the **tree alone** predicts at a node -- the model
 #' with its slopes zeroed -- so the fit reads as a piecewise-constant tree plus a
 #' piecewise-linear correction, and the two parts can be shown separately. The
 #' root's is the constant that alone minimizes the loss; a child's is its

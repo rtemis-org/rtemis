@@ -12,12 +12,6 @@
 # vocabularies, and the serialization helpers all live in `065_Torch.R` and know
 # nothing about this algorithm. What is here is the MLP itself: how the hidden
 # widths are decided, how the design frame becomes tensors, and the module.
-#
-# Inside the module, a field is **read** with `[[` and **written** with `$`.
-# Both halves matter: `$<-` on an `nn_module` is what registers a submodule or a
-# parameter with torch, and `[[<-` would bypass that; `$` on the read side reads
-# to static analysis as a call to a free function of the field's name, which
-# `object_usage_linter` reports as an unbound global.
 
 # %% mlp_ramp ----
 #' Interpolate a layer width linearly over `n` layers
@@ -414,37 +408,37 @@ mlp_module <- function(
       input_dropout,
       embedding_dropout
     ) {
-      self$n_numeric <- n_numeric
-      self$n_categorical <- length(embedding_sizes)
-      self$n_layers <- length(hidden_units)
-      self$norm_first <- norm_first
-      self$residual <- residual
+      self[["n_numeric"]] <- n_numeric
+      self[["n_categorical"]] <- length(embedding_sizes)
+      self[["n_layers"]] <- length(hidden_units)
+      self[["norm_first"]] <- norm_first
+      self[["residual"]] <- residual
       if (self[["n_categorical"]] > 0L) {
-        self$embeddings <- torch::nn_module_list(lapply(
+        self[["embeddings"]] <- torch::nn_module_list(lapply(
           seq_along(embedding_sizes),
           function(i) {
             torch::nn_embedding(embedding_sizes[[i]], embedding_dims[[i]])
           }
         ))
       }
-      self$embedding_dropout <- torch::nn_dropout(embedding_dropout)
-      self$input_dropout <- torch::nn_dropout(input_dropout)
+      self[["embedding_dropout"]] <- torch::nn_dropout(embedding_dropout)
+      self[["input_dropout"]] <- torch::nn_dropout(input_dropout)
       widths <- c(n_numeric + sum(embedding_dims), hidden_units)
-      self$linears <- torch::nn_module_list(lapply(
+      self[["linears"]] <- torch::nn_module_list(lapply(
         seq_len(self[["n_layers"]]),
         function(i) {
           torch::nn_linear(widths[[i]], widths[[i + 1L]], bias = bias)
         }
       ))
-      self$norms <- torch::nn_module_list(lapply(
+      self[["norms"]] <- torch::nn_module_list(lapply(
         hidden_units,
         function(width) torch_norm_module(norm, width)
       ))
-      self$activations <- torch::nn_module_list(lapply(
+      self[["activations"]] <- torch::nn_module_list(lapply(
         hidden_units,
         function(width) torch_activation_module(activation)
       ))
-      self$dropouts <- torch::nn_module_list(lapply(
+      self[["dropouts"]] <- torch::nn_module_list(lapply(
         hidden_units,
         function(width) torch::nn_dropout(dropout)
       ))
@@ -452,7 +446,7 @@ mlp_module <- function(
       # tapering shape gets a bias-free projection on every layer that changes
       # width. Without it, every shape but `constant` would be a run-time shape
       # error whenever `residual` is set.
-      self$shortcuts <- torch::nn_module_list(lapply(
+      self[["shortcuts"]] <- torch::nn_module_list(lapply(
         seq_len(self[["n_layers"]]),
         function(i) {
           if (!residual || widths[[i]] == widths[[i + 1L]]) {
@@ -462,7 +456,7 @@ mlp_module <- function(
           }
         }
       ))
-      self$head <- torch::nn_linear(
+      self[["head"]] <- torch::nn_linear(
         widths[[length(widths)]],
         out_features,
         bias = bias

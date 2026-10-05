@@ -128,7 +128,7 @@ SoftClustering <- new_class(
     }
     # An engineering tolerance, not a theorem: both current backends return
     # exact sums, but one accumulating in log space would not.
-    if (any(abs(row_sums - 1) > sqrt(.Machine$double.eps))) {
+    if (any(abs(row_sums - 1) > sqrt(.Machine[["double.eps"]]))) {
       return("@membership rows must sum to 1.")
     }
     # Assignment consistency. Rows with no valid column are unassigned (a noise

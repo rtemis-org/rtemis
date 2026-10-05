@@ -32,8 +32,8 @@ testthat::test_that("integer-typed args accept friendly numeric input", {
 
 # Preprocessor: preprocess(PreprocessorConfig) ----
 res <- resample(iris, setup_KFold(seed = 2025))
-iris_train <- iris[res$Fold_1, ]
-iris_test <- iris[-res$Fold_1, ]
+iris_train <- iris[res[["Fold_1"]], ]
+iris_test <- iris[-res[["Fold_1"]], ]
 iris_Pre <- preprocess(
   iris_train,
   setup_Preprocessor(remove_duplicates = TRUE, scale = TRUE, center = TRUE)
@@ -60,7 +60,7 @@ test_that("preprocess(x, PreprocessorConfig) succeeds", {
 })
 
 test_that("preprocess(x, PreprocessorConfig) and apply_preprocessor() give same test set", {
-  expect_equal(iris_Pre_too@preprocessed$test, iris_test_pre)
+  expect_equal(iris_Pre_too@preprocessed[["test"]], iris_test_pre)
 })
 
 # Preprocessor: preprocess(x, ...) with setup_Preprocessor arguments ----

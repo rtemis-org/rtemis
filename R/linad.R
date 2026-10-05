@@ -1084,7 +1084,7 @@ linad_context <- function(x, n_bins = NULL, bin_type = "frequency") {
 #' Resolve which features a split search scans
 #'
 #' A restriction arrives as a list of two integer vectors, one indexing
-#' `context$numeric_names` and one `context$factor_names`. The context, which
+#' `context[["numeric_names"]]` and one `context[["factor_names"]]`. The context, which
 #' holds each feature's sort order and break positions, is built once and
 #' shared by every node.
 #'

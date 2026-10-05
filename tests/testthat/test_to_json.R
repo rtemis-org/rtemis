@@ -72,7 +72,7 @@ test_that("to_json(Regression) drops NULL fields cleanly", {
 
 # Supervised (Classification) ----
 datc <- data.frame(iris[51:150, ])
-datc$Species <- factor(datc$Species)
+datc[["Species"]] <- factor(datc[["Species"]])
 mod_c_glm <- train(x = datc, hyperparameters = setup_GLM())
 
 test_that("to_json(Classification) includes binclasspos", {

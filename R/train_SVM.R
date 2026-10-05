@@ -241,7 +241,7 @@ method(predict_super, class_svm) <- function(
       predict(model, newdata = newdata, probability = TRUE),
       "probabilities"
     )
-    if (length(model$levels) == 2) {
+    if (length(model[["levels"]]) == 2) {
       predicted_prob[, 2]
     } else {
       predicted_prob
