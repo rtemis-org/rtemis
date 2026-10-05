@@ -38,7 +38,7 @@ method(train_, RangerHyperparameters) <- function(
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-  # Data-dependent constraints (mtry, case_weights, class_weights,
+  # Data-dependent constraints (mtry, class_weights,
   # always_split_variables) are declared via `data_bound` on the properties and
   # checked by train() via validate_hyperparameters(), before tuning and again
   # before this call.
@@ -50,6 +50,19 @@ method(train_, RangerHyperparameters) <- function(
     verbosity = verbosity
   )
   type <- supervised_type(x)
+  # ranger takes class weights in the order of the outcome's levels.
+  class_weights <- hyperparameters@hyperparameters[["class_weights"]]
+  if (type == "Classification" && !is.null(names(class_weights))) {
+    if (!setequal(names(class_weights), levels(outcome(x)))) {
+      rtemis.core::abort(
+        "`class_weights` names must be the outcome's levels: ",
+        paste(levels(outcome(x)), collapse = ", "),
+        ".",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+    class_weights <- class_weights[levels(outcome(x))]
+  }
 
   # Train ----
   model <- ranger::ranger(
@@ -67,6 +80,7 @@ method(train_, RangerHyperparameters) <- function(
     replace = hyperparameters@hyperparameters[["replace"]],
     sample.fraction = hyperparameters@hyperparameters[["sample_fraction"]],
     case.weights = weights,
+    class.weights = if (type == "Classification") class_weights,
     splitrule = hyperparameters@hyperparameters[["splitrule"]],
     num.random.splits = hyperparameters@hyperparameters[["num_random_splits"]],
     alpha = hyperparameters@hyperparameters[["alpha"]],
@@ -130,6 +144,8 @@ method(train_, RangerHyperparameters) <- function(
       mtry = as.integer(model[["mtry"]]),
       min_node_size = as.integer(model[["min.node.size"]]),
       splitrule = model[["splitrule"]],
+      # ranger's terminal-node minimum outside survival forests.
+      min_bucket = 1L,
       respect_unordered_factors = if (
         identical(model[["splitrule"]], "extratrees")
       ) {

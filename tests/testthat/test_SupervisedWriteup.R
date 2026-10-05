@@ -73,12 +73,21 @@ test_that("every token names a row, and every row is rendered", {
     ]]
     keys <- unique(substr(tokens, 2L, nchar(tokens) - 1L))
     expect_true(all(keys %in% w@values[["key"]]))
-    # Rows not in a paragraph are cells of the performance table.
+    # Rows not in a paragraph are cells of the performance table or of the
+    # hyperparameter tables.
     table_only <- setdiff(w@values[["key"]], keys)
     expect_true(all(grepl(
-      "^table_(training|training_sd|test|test_sd|lower|upper)_",
+      "^table_(training|training_sd|test|test_sd|lower|upper|hp)_",
       table_only
     )))
+    cells <- c(w@hyperparameters[["value"]], w@hyperparameters[["tried"]])
+    cell_tokens <- unlist(regmatches(
+      cells,
+      gregexpr(WRITEUP_VALUE_TOKEN, cells)
+    ))
+    expect_true(all(
+      substr(cell_tokens, 2L, nchar(cell_tokens) - 1L) %in% w@values[["key"]]
+    ))
     expect_false(anyDuplicated(w@values[["key"]]) > 0L)
   }
 })
@@ -176,6 +185,13 @@ test_that("formatting follows the value kind", {
   expect_identical(fmt_writeup_value(0.0123, "p_value"), "p = 0.012")
   expect_identical(fmt_writeup_value(0.95, "percent"), "95")
   expect_identical(fmt_writeup_value(0.975, "percent"), "97.5")
+  # A setting is written in full.
+  expect_identical(
+    fmt_writeup_value(0.123456789012345678, "exact"),
+    "0.123456789012346"
+  )
+  expect_identical(fmt_writeup_value(1e-08, "exact"), "1e-08")
+  expect_identical(fmt_writeup_value(0.05, "exact"), "0.05")
 })
 
 
@@ -589,4 +605,471 @@ test_that("a writeup record validates against its published schema", {
   bad <- doc
   bad[["algorithm"]] <- "NotAnAlgorithm"
   expect_false(validate(as_json(bad)))
+  bad <- doc
+  bad[["hyperparameters"]][["source"]][[1L]] <- "guessed"
+  expect_false(validate(as_json(bad)))
+})
+
+
+# %% Hyperparameter tables ----
+.hp_row <- function(w, name) {
+  w@hyperparameters[w@hyperparameters[["name"]] == name, , drop = FALSE]
+}
+.render_cell <- function(w, cell) {
+  render_writeup_template(cell, w@values, writeup_ref_numbers(w))
+}
+# Sources of the tokens of a cell.
+.cell_sources <- function(w, cell) {
+  tokens <- regmatches(cell, gregexpr(WRITEUP_VALUE_TOKEN, cell))[[1L]]
+  keys <- substr(tokens, 2L, nchar(tokens) - 1L)
+  w@values[["source"]][match(keys, w@values[["key"]])]
+}
+# One fit's entry for writeup_hp_cell().
+.fit_value <- function(value, source = "default", applies = TRUE) {
+  list(
+    value = value,
+    identity = as.character(jsonlite::toJSON(value, null = "null")),
+    source = source,
+    applies = applies
+  )
+}
+
+test_that("table cells hold no number outside a token", {
+  for (w in .wus) {
+    cells <- c(w@hyperparameters[["value"]], w@hyperparameters[["tried"]])
+    stripped <- gsub(WRITEUP_VALUE_TOKEN, "", cells)
+    expect_false(any(grepl("[0-9]", stripped)), info = w@algorithm)
+  }
+})
+
+test_that("the main table lists primary, tuned and specified hyperparameters", {
+  w <- .wus[["bin"]]
+  maxdepth <- .hp_row(w, "maxdepth")
+  expect_true(maxdepth[["main"]])
+  expect_identical(maxdepth[["source"]], "tuned")
+  expect_identical(
+    .render_cell(w, maxdepth[["value"]]),
+    as.character(.mod_bin@hyperparameters[["maxdepth"]])
+  )
+  expect_identical(.render_cell(w, maxdepth[["tried"]]), "1; 2; 3")
+  expect_identical(
+    unique(.cell_sources(w, maxdepth[["tried"]])),
+    "derived: distinct values of tuner.tuning_results.param_grid.maxdepth"
+  )
+  expect_identical(
+    .cell_sources(w, maxdepth[["value"]]),
+    "hyperparameters.maxdepth"
+  )
+  # Primary for CART, at its default.
+  cp <- .hp_row(w, "cp")
+  expect_true(cp[["main"]])
+  expect_identical(cp[["source"]], "default")
+  # Neither primary, tuned nor specified.
+  expect_false(.hp_row(w, "maxcompete")[["main"]])
+  # GLM declares no primary hyperparameter and was given none.
+  expect_false(any(.wus[["reg"]]@hyperparameters[["main"]]))
+  model <- .section(.wus[["bin"]], "Model")
+  expect_match(model, "Table {table_hyperparameters} lists", fixed = TRUE)
+  expect_false(grepl("default", model))
+})
+
+test_that("a value the backend chose is the fitted backend's", {
+  skip_if_not_installed("ranger")
+  set.seed(3)
+  mod <- train(
+    iris,
+    hyperparameters = setup_Ranger(num_trees = 20L),
+    verbosity = 0L
+  )
+  w <- writeup(mod)
+  mtry <- .hp_row(w, "mtry")
+  expect_identical(mtry[["source"]], "resolved")
+  expect_identical(.cell_sources(w, mtry[["value"]]), "hyperparameters.mtry")
+  # A value the user supplied.
+  expect_identical(.hp_row(w, "num_trees")[["source"]], "specified")
+  expect_identical(
+    .render_cell(w, mtry[["value"]]),
+    as.character(mod@model[["mtry"]])
+  )
+})
+
+test_that("hyperparameters that do not apply are omitted and named", {
+  skip_if_not_installed("lightgbm")
+  mod <- train(
+    mtcars,
+    hyperparameters = setup_LightGBM(force_nrounds = 10L),
+    verbosity = 0L
+  )
+  w <- writeup(mod)
+  drop_rate <- .hp_row(w, "drop_rate")
+  expect_false(drop_rate[["applies"]])
+  expect_false("drop_rate" %in% writeup_hp_table_rows(w, main = FALSE)[, 1L])
+  expect_match(
+    writeup_hp_table_caption(w, main = FALSE),
+    "Not applicable under this configuration:.*drop_rate"
+  )
+})
+
+test_that("an unset hyperparameter reads unset, with its declared meaning", {
+  w <- .wus[["bin"]]
+  prune_cp <- .hp_row(w, "prune_cp")
+  expect_identical(prune_cp[["source"]], "unset")
+  rows <- writeup_hp_table_rows(w, main = FALSE)
+  expect_identical(unname(rows[rows[, 1L] == "prune_cp", 2L]), "unset")
+  expect_true(
+    paste0("prune_cp: ", unset_meaning(CARTHyperparameters, "prune_cp")) %in%
+      attr(rows, "notes")
+  )
+})
+
+test_that("a value that differs between resamples is listed with its count", {
+  render <- function(fit_values, ...) {
+    w <- writeup_collector()
+    cell <- writeup_hp_cell(
+      w,
+      "table_hp_x",
+      fit_values,
+      "models[].hyperparameters.x",
+      ...
+    )
+    render_writeup_template(cell, writeup_values_table(w), integer())
+  }
+  expect_identical(
+    render(list(.fit_value(2L), .fit_value(3L), .fit_value(2L))),
+    "2 (2); 3 (1)"
+  )
+  # One value chosen two ways, and a resample in which it had no effect.
+  expect_identical(
+    render(list(
+      .fit_value(20L, "default"),
+      .fit_value(1L, "specified"),
+      .fit_value(20L, "default"),
+      .fit_value(NULL, "unset", applies = FALSE)
+    )),
+    "20 (2, default); 1 (1, specified); not applicable (1)"
+  )
+  # Configurations that share a summary are told apart by their settings.
+  kfold <- function(n) {
+    v <- setup_KFold(n_resamples = n)
+    list(
+      value = v,
+      identity = as.character(jsonlite::toJSON(S7_to_list(v), null = "null")),
+      source = "specified",
+      applies = TRUE
+    )
+  }
+  configs <- render(list(kfold(2L), kfold(3L)), object_valued = TRUE)
+  parts <- strsplit(configs, "; ", fixed = TRUE)[[1L]]
+  expect_length(parts, 2L)
+  expect_false(identical(parts[[1L]], parts[[2L]]))
+  expect_match(parts[[1L]], "\\(1\\)$")
+})
+
+test_that("values tried are those the evaluated configurations gave", {
+  set.seed(5)
+  mod <- train(
+    iris,
+    hyperparameters = setup_CART(maxdepth = tune_over(1L, 2L, 3L)),
+    tuner_config = setup_GridSearch(
+      search_type = "randomized",
+      randomize_p = 0.5
+    ),
+    verbosity = 0L
+  )
+  w <- writeup(mod)
+  tried <- strsplit(
+    .render_cell(w, .hp_row(w, "maxdepth")[["tried"]]),
+    "; ",
+    fixed = TRUE
+  )[[1L]]
+  expect_setequal(
+    tried,
+    as.character(unique(mod@tuner@tuning_results[["param_grid"]][["maxdepth"]]))
+  )
+  # A hyperparameter set: the value each evaluated member gives, unset
+  # included.
+  set_mod <- train(
+    iris,
+    hyperparameters = list(
+      a = setup_CART(prune_cp = NULL),
+      b = setup_CART(prune_cp = 0.1)
+    ),
+    verbosity = 0L
+  )
+  ws <- writeup(set_mod)
+  prune_cp <- .hp_row(ws, "prune_cp")
+  expect_setequal(
+    strsplit(.render_cell(ws, prune_cp[["tried"]]), "; ", fixed = TRUE)[[1L]],
+    c("unset", "0.1")
+  )
+  expect_true(
+    "config.hyperparameters.variants.b.prune_cp" %in%
+      .cell_sources(ws, prune_cp[["tried"]])
+  )
+  # The value is that of the member the fit came from.
+  winner <- set_mod@hyperparameters@variant
+  expect_identical(
+    prune_cp[["source"]],
+    if (identical(winner, "a")) "unset" else "specified"
+  )
+})
+
+test_that("a resampled model's cell counts every resample's value", {
+  set.seed(6)
+  mod <- train(
+    iris,
+    hyperparameters = setup_CART(maxdepth = tune_over(1L, 2L, 3L)),
+    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    verbosity = 0L
+  )
+  w <- writeup(mod)
+  selected <- vapply(
+    mod@models,
+    function(m) m@hyperparameters[["maxdepth"]],
+    integer(1L)
+  )
+  counts <- table(selected)
+  expected <- if (length(counts) == 1L) {
+    names(counts)
+  } else {
+    paste0(names(counts), " (", as.integer(counts), ")")
+  }
+  rendered <- .render_cell(w, .hp_row(w, "maxdepth")[["value"]])
+  expect_setequal(strsplit(rendered, "; ", fixed = TRUE)[[1L]], expected)
+})
+
+# Hyperparameter rows of a resampled model whose first fit is altered, and a
+# writeup holding them, for the aggregation and rendering cases a single
+# search does not produce.
+.altered_rows <- function(alter) {
+  x <- .mod_res
+  ctx <- writeup_context(x, review(x))
+  ctx[["fits"]][[1L]]@hyperparameters <- alter(
+    ctx[["fits"]][[1L]]@hyperparameters
+  )
+  w <- writeup_collector()
+  rows <- writeup_hyperparameters(ctx, w)
+  wu <- .wus[["res"]]
+  wu@values <- writeup_values_table(w)
+  wu@hyperparameters <- rows
+  list(rows = rows, writeup = wu)
+}
+
+test_that("a value chosen differently in one resample makes the row varied", {
+  out <- .altered_rows(function(hp) {
+    hp@cp <- 0.5
+    hp
+  })
+  cp <- out[["rows"]][out[["rows"]][["name"]] == "cp", ]
+  expect_identical(cp[["source"]], "varied")
+  expect_setequal(
+    strsplit(.render_cell(out[["writeup"]], cp[["value"]]), "; ")[[1L]],
+    c("0.5 (1, resolved during fitting)", "0.01 (4, default)")
+  )
+  # An unset value beside a set one: each reads as itself, and the meaning is
+  # listed under the table.
+  out <- .altered_rows(function(hp) {
+    hp@prune_cp <- 0.1
+    hp
+  })
+  rows <- writeup_hp_table_rows(out[["writeup"]], main = FALSE)
+  cell <- unname(rows[rows[, 1L] == "prune_cp", 2L])
+  expect_setequal(
+    strsplit(cell, "; ")[[1L]],
+    c("0.1 (1, resolved during fitting)", "unset (4, unset)")
+  )
+  expect_true(
+    paste0("prune_cp: ", unset_meaning(CARTHyperparameters, "prune_cp")) %in%
+      attr(rows, "notes")
+  )
+})
+
+test_that("an unset alternative tuning evaluated has its meaning listed", {
+  set.seed(5)
+  mod <- train(
+    iris,
+    hyperparameters = list(
+      a = setup_CART(prune_cp = 0.01),
+      b = setup_CART(prune_cp = NULL)
+    ),
+    tuner_config = setup_GridSearch(resampler_config = setup_KFold(2L)),
+    execution_config = setup_SerialExecution(seed = 5L),
+    verbosity = 0L
+  )
+  # The selected member sets prune_cp, so only the tried cell holds unset.
+  expect_identical(mod@hyperparameters@variant, "a")
+  w <- writeup(mod)
+  prune_cp <- .hp_row(w, "prune_cp")
+  expect_match(.render_cell(w, prune_cp[["tried"]]), "unset", fixed = TRUE)
+  expect_true(
+    paste0("prune_cp: ", unset_meaning(CARTHyperparameters, "prune_cp")) %in%
+      attr(writeup_hp_table_rows(w, main = FALSE), "notes")
+  )
+})
+
+test_that("one value chosen two ways is listed once per way", {
+  w <- writeup_collector()
+  cell <- writeup_hp_cell(
+    w,
+    "table_hp_x",
+    list(.fit_value(2L, "default"), .fit_value(2L, "specified")),
+    "models[].hyperparameters.x"
+  )
+  expect_identical(
+    render_writeup_template(cell, writeup_values_table(w), integer()),
+    "2 (1, default); 2 (1, specified)"
+  )
+})
+
+test_that("a set's pairing uses the member the fit came from", {
+  set.seed(5)
+  mod <- train(
+    iris,
+    hyperparameters = list(a = setup_CART(cp = 1), b = setup_CART(cp = 0.01)),
+    tuner_config = setup_GridSearch(resampler_config = setup_KFold(2L)),
+    verbosity = 0L
+  )
+  # cp = 1 grows no split, so b wins.
+  expect_identical(mod@hyperparameters@variant, "b")
+  w <- writeup(mod)
+  # 0.01 is CART's default; compared with member a it would read resolved.
+  expect_identical(.hp_row(w, "cp")[["source"]], "default")
+  # Without a config, the set is read from the tuner.
+  bare <- mod
+  bare@config <- NULL
+  wb <- writeup(bare)
+  expect_true(all(startsWith(
+    .cell_sources(wb, .hp_row(wb, "cp")[["tried"]]),
+    "tuner.searched_set.variants."
+  )))
+})
+
+test_that("a set of config-valued hyperparameters is written up", {
+  sl <- function(n) {
+    setup_SuperLearner(
+      base_learners = list(cart = setup_CART(), glm = setup_GLM()),
+      meta_learner = setup_NNLS(),
+      inner_resampling_config = setup_KFold(n_resamples = n)
+    )
+  }
+  set.seed(8)
+  # Few predictors, so the GLM is full rank on the inner folds' cases.
+  mod <- train(
+    mtcars[, c("wt", "hp", "mpg")],
+    hyperparameters = list(two = sl(2L), three = sl(3L)),
+    tuner_config = setup_GridSearch(resampler_config = setup_KFold(2L)),
+    verbosity = 0L
+  )
+  w <- writeup(mod)
+  tried <- strsplit(
+    .render_cell(w, .hp_row(w, "inner_resampling_config")[["tried"]]),
+    "; ",
+    fixed = TRUE
+  )[[1L]]
+  # Two configurations that share the summary KFold, told apart by settings.
+  expect_length(tried, 2L)
+  expect_false(identical(tried[[1L]], tried[[2L]]))
+  # The same learners in both members: no values tried.
+  expect_identical(.hp_row(w, "base_learners")[["tried"]], "")
+  # Grouping in the value cell is by configuration, not by summary: a second
+  # fit with the other inner resampler.
+  ctx <- writeup_context(mod, review(mod))
+  other <- ctx[["fits"]][[1L]]
+  n <- other@hyperparameters@inner_resampling_config@n_resamples
+  other@hyperparameters@inner_resampling_config <- setup_KFold(
+    n_resamples = if (n == 2L) 3L else 2L
+  )
+  ctx[["fits"]] <- c(ctx[["fits"]], list(other))
+  cw <- writeup_collector()
+  rows <- writeup_hyperparameters(ctx, cw)
+  cell <- render_writeup_template(
+    rows[["value"]][rows[["name"]] == "inner_resampling_config"],
+    writeup_values_table(cw),
+    integer()
+  )
+  parts <- strsplit(cell, "; ", fixed = TRUE)[[1L]]
+  expect_length(parts, 2L)
+  expect_false(identical(parts[[1L]], parts[[2L]]))
+})
+
+test_that("a tuned unset hidden_units makes the width settings apply", {
+  skip_if_not_installed("torch")
+  skip_if_not(torch::torch_is_installed())
+  mod <- train(
+    iris,
+    hyperparameters = setup_MLP(
+      hidden_units = tune_over(NULL, c(8L, 4L)),
+      max_epochs = 1L,
+      batch_size = 32L
+    ),
+    tuner_config = setup_GridSearch(resampler_config = setup_KFold(2L)),
+    execution_config = setup_SerialExecution(seed = 5L),
+    verbosity = 0L
+  )
+  w <- writeup(mod)
+  widths_generated <- is.null(mod@tuner@best_hyperparameters[["hidden_units"]])
+  for (nm in c("shape", "shape_layers", "shape_max_units")) {
+    expect_identical(.hp_row(w, nm)[["applies"]], widths_generated, info = nm)
+  }
+})
+
+test_that("applicability follows the backend's rules as well as the gates", {
+  # MLP widths: generated only when hidden_units is unset.
+  given <- setup_MLP(hidden_units = c(8L, 4L))
+  expect_false(hyperparameter_applies(given, "shape", given@hyperparameters))
+  generated <- setup_MLP()
+  expect_true(
+    hyperparameter_applies(generated, "shape", generated@hyperparameters)
+  )
+  skip_if_not_installed("lightgbm")
+  regression <- train(
+    mtcars,
+    hyperparameters = setup_LightGBM(force_nrounds = 5L),
+    verbosity = 0L
+  )
+  expect_false(.hp_row(writeup(regression), "sigmoid")[["applies"]])
+  expect_true(.hp_row(writeup(regression), "reg_sqrt")[["applies"]])
+})
+
+test_that("include_hyperparameters replaces the primary list", {
+  w <- writeup(.mod_bin, include_hyperparameters = "minsplit")
+  main <- w@hyperparameters[["name"]][w@hyperparameters[["main"]]]
+  # The tuned hyperparameter stays; cp, primary by declaration, leaves.
+  expect_setequal(main, c("minsplit", "maxdepth"))
+  none <- writeup(.mod_bin, include_hyperparameters = character())
+  expect_identical(
+    none@hyperparameters[["name"]][none@hyperparameters[["main"]]],
+    "maxdepth"
+  )
+  expect_false(none@primary_listed)
+  expect_null(none@include_hyperparameters)
+  expect_match(
+    writeup_hp_table_caption(none),
+    "^Table 1\\. Every hyperparameter that was tuned or specified"
+  )
+  expect_match(
+    writeup_hp_table_caption(.wus[["bin"]]),
+    "^Table 1\\. The primary hyperparameters of the algorithm"
+  )
+  expect_error(
+    writeup(.mod_bin, include_hyperparameters = "not_a_hyperparameter"),
+    "names no hyperparameter",
+    class = "rtemis_value_error"
+  )
+})
+
+test_that("the Markdown carries both hyperparameter tables", {
+  path <- tempfile(fileext = ".md")
+  write_writeup(.wus[["bin"]], path, verbosity = 0L)
+  md <- readLines(path)
+  expect_true(any(grepl("^Table 1\\. The primary hyperparameters", md)))
+  expect_true(any(grepl("^Table 2\\. Performance", md)))
+  expect_true("## Supplementary material" %in% md)
+  expect_true(any(grepl("^Table S1\\.", md)))
+  expect_true(any(grepl("^- prune_cp: Unset prunes nothing", md)))
+  # The unrecorded items, as print shows them.
+  expect_true("## Not recorded by the model" %in% md)
+  expect_true(all(
+    paste0("- ", .wus[["bin"]]@not_reported) %in% md
+  ))
 })

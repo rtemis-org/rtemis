@@ -216,7 +216,9 @@ method(train_, MonotonicHALHyperparameters) <- function(
       num_knots = hal_default_knots(
         MONOTONIC_HAL_MAX_DEGREE,
         hyperparameters[["smoothness_orders"]]
-      )
+      ),
+      # Applies to zero-order bases, where hal9001 sets it to 1/sqrt(n).
+      reduce_basis = model[["reduce_basis"]]
     )
   )
   list(

@@ -224,14 +224,15 @@ method(train_, MARSHyperparameters) <- function(
   args <- args[!vapply(args, is.null, logical(1L))]
   model <- do.call(earth::earth, args)
   check_inherits(model, "earth")
-  # earth evaluates `penalty` and `nk` and keeps them on the fit; an unset
-  # `nprune` keeps every term of the forward pass as a candidate.
+  # earth evaluates `penalty` and `nk` and keeps them on the fit. An unset
+  # `nprune` sets no limit, so every term of the forward pass is a candidate;
+  # it stays unset, since the number of those terms is a property of this
+  # sample, not a setting.
   hyperparameters <- record_backend_values(
     hyperparameters,
     list(
       penalty = as.numeric(model[["penalty"]]),
-      nk = as.integer(model[["nk"]]),
-      nprune = NROW(model[["dirs"]])
+      nk = as.integer(model[["nk"]])
     )
   )
   list(

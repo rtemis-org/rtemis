@@ -122,6 +122,7 @@ schema-artifacts out:
     {{ rscript }} data-raw/generate_defaults.R "{{ out }}"
     {{ rscript }} tools/defaults-conformance.R "{{ out }}/defaults/v1/corpus.json"
     {{ rscript }} data-raw/generate_authoring.R "{{ out }}"
+    {{ rscript }} data-raw/generate_reporting.R "{{ out }}"
     {{ rscript }} data-raw/generate_checks.R "{{ out }}"
     {{ rscript }} data-raw/generate_checks_corpus.R "{{ out }}"
     {{ rscript }} data-raw/generate_profile_fixture.R "{{ out }}"

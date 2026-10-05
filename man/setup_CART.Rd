@@ -30,7 +30,7 @@ setup_CART(
 
 \item{minbucket}{(Tunable) Integer [1, Inf): Minimum number of observations in a terminal node.}
 
-\item{prune_cp}{(Tunable) Optional Numeric [0, Inf): Complexity for cost-complexity pruning after tree is built.}
+\item{prune_cp}{(Tunable) Optional Numeric [0, Inf): Complexity for cost-complexity pruning after tree is built. NULL prunes nothing after the tree is built.}
 
 \item{method}{Character \{"auto", "anova", "class", "poisson", "exp"\}: Splitting method.}
 
@@ -46,7 +46,7 @@ setup_CART(
 
 \item{xval}{Integer [0, Inf): Number of cross-validation folds.}
 
-\item{cost}{Optional Numeric (0, Inf) vector: One for each feature.}
+\item{cost}{Optional Numeric (0, Inf) vector: One for each feature. NULL uses 1 for every feature.}
 
 \item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 }

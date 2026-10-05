@@ -314,5 +314,6 @@ Collate:
     'validate_data.R'
     'write_config.R'
     'writeup.R'
+    'writeup_hyperparameters.R'
     'zzz.R'
     'zzz_model_plots.R'

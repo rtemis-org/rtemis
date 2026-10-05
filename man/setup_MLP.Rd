@@ -42,11 +42,11 @@ setup_MLP(
 \arguments{
 \item{hidden_units}{(Tunable) Optional Integer [1, Inf) vector: Units in each hidden layer, one value per layer. NULL generates the widths from the shape settings.}
 
-\item{shape}{(Tunable) Optional Character \{"funnel", "constant", "triangle", "long_funnel", "diamond", "hexagon", "stairs"\}: Profile of the generated hidden layer widths. Ignored when hidden_units is set.}
+\item{shape}{(Tunable) Optional Character \{"funnel", "constant", "triangle", "long_funnel", "diamond", "hexagon", "stairs"\}: Profile of the generated hidden layer widths. Ignored when \code{hidden_units} is set. NULL uses "funnel" where \code{hidden_units} is NULL.}
 
-\item{shape_layers}{(Tunable) Optional Integer [1, Inf): Number of hidden layers to generate. Ignored when hidden_units is set.}
+\item{shape_layers}{(Tunable) Optional Integer [1, Inf): Number of hidden layers to generate. Ignored when \code{hidden_units} is set. NULL uses 3 where \code{hidden_units} is NULL.}
 
-\item{shape_max_units}{(Tunable) Optional Integer [1, Inf): Widest generated hidden layer. NULL derives it from the encoded input width.}
+\item{shape_max_units}{(Tunable) Optional Integer [1, Inf): Widest generated hidden layer. Ignored when \code{hidden_units} is set. NULL derives it from the encoded input width where \code{hidden_units} is NULL.}
 
 \item{activation}{(Tunable) Character \{"relu", "gelu", "silu", "elu", "selu", "leaky_relu", "tanh"\}: Activation applied after every hidden layer.}
 

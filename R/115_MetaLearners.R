@@ -274,6 +274,7 @@ SuperLearnerHyperparameters <- schema_class(
   properties = list(
     algorithm = prop_algorithm("SuperLearner")
   ),
+  reporting = list(primary = c("base_learners", "meta_learner")),
   publication = SchemaPublication(
     role = "leaf",
     description = "SuperLearner: cross-validated stacked ensemble.",
@@ -377,7 +378,14 @@ ModalityStackingHyperparameters <- schema_class(
       nullable = TRUE,
       data_bound = "feature_names",
       data_dependent = TRUE,
-      description = "Features each base learner sees, keyed by base learner name."
+      description = "Features each base learner sees, keyed by base learner name. Unset is accepted in a recipe and rejected by training."
+    )
+  ),
+  reporting = list(
+    primary = c(
+      "base_learners",
+      "meta_learner",
+      "feature_groups"
     )
   ),
   publication = SchemaPublication(
@@ -577,6 +585,15 @@ ConditionalSuperLearnerHyperparameters <- schema_class(
       10L,
       min = 1L,
       description = "Fewest cases an expert's region may hold before the expert keeps its previous fit instead of being refitted."
+    )
+  ),
+  reporting = list(
+    primary = c(
+      "base_learners",
+      "meta_learner",
+      "n_iterations",
+      "loss",
+      "min_region_size"
     )
   ),
   publication = SchemaPublication(

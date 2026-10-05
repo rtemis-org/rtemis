@@ -691,13 +691,16 @@ review_sample_line <- function(x) {
 
 
 # %% review_text_table ----
-# Left-align the first column, right-align the rest, two spaces apart.
-review_text_table <- function(table, indent) {
+# Left-align the first column and right-align the rest (every column with
+# `align_left`), two spaces apart.
+review_text_table <- function(table, indent, align_left = FALSE) {
   widths <- apply(table, 2L, function(col) max(nchar(col)))
   apply(table, 1L, function(row) {
     cells <- vapply(
       seq_along(row)[-1L],
-      function(k) formatC(row[[k]], width = widths[[k]]),
+      function(k) {
+        formatC(row[[k]], width = if (align_left) -widths[[k]] else widths[[k]])
+      },
       character(1L)
     )
     paste0(

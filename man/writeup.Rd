@@ -4,7 +4,7 @@
 \alias{writeup}
 \title{Write the Methods and Results sections for a trained model}
 \usage{
-writeup(x, confidence_level = NULL, ...)
+writeup(x, confidence_level = NULL, include_hyperparameters = NULL, ...)
 }
 \arguments{
 \item{x}{\code{Supervised} or \code{SupervisedRes} object: A trained model, as
@@ -12,6 +12,12 @@ returned by \link{train}.}
 
 \item{confidence_level}{Optional Numeric (0, 1): Confidence level of the
 intervals of a single-split model. NULL uses 0.95.}
+
+\item{include_hyperparameters}{Optional Character: Hyperparameters the main
+hyperparameter table lists in place of the algorithm's primary
+hyperparameters, beside those that were tuned or specified and the values
+selected during fitting. NULL uses the primary hyperparameters;
+\code{character(0)} adds none.}
 
 \item{...}{Not used.}
 }
@@ -24,6 +30,14 @@ a paper: the data, preprocessing, algorithm and settings, tuning, evaluation
 design, performance measures and statistical methods, and software, then
 the sample, performance with its uncertainty, the comparison with a
 baseline, and the hyperparameters tuning selected.
+
+Two tables report the hyperparameters. The main table lists the algorithm's
+primary hyperparameters, every hyperparameter that was tuned or specified,
+and the values selected during fitting (such as a number of boosting rounds
+chosen by early stopping); the supplementary table lists every
+hyperparameter that applied to the fit, its value, how it was chosen and the
+values tuning evaluated. A hyperparameter left unset is reported with what
+that means for the fit. \verb{@hyperparameters} holds the rows of both tables.
 }
 \details{
 The text is assembled from the model and its \link{review}, so it states only

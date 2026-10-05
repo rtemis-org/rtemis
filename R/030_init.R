@@ -1186,6 +1186,14 @@ ai_review <- new_generic(
 #' the sample, performance with its uncertainty, the comparison with a
 #' baseline, and the hyperparameters tuning selected.
 #'
+#' Two tables report the hyperparameters. The main table lists the algorithm's
+#' primary hyperparameters, every hyperparameter that was tuned or specified,
+#' and the values selected during fitting (such as a number of boosting rounds
+#' chosen by early stopping); the supplementary table lists every
+#' hyperparameter that applied to the fit, its value, how it was chosen and the
+#' values tuning evaluated. A hyperparameter left unset is reported with what
+#' that means for the fit. `@hyperparameters` holds the rows of both tables.
+#'
 #' @details
 #' The text is assembled from the model and its [review], so it states only
 #' what rtemis recorded. Every number in the text is read from the model or
@@ -1207,6 +1215,11 @@ ai_review <- new_generic(
 #'   returned by [train].
 #' @param confidence_level Optional Numeric (0, 1): Confidence level of the
 #'   intervals of a single-split model. NULL uses 0.95.
+#' @param include_hyperparameters Optional Character: Hyperparameters the main
+#'   hyperparameter table lists in place of the algorithm's primary
+#'   hyperparameters, beside those that were tuned or specified and the values
+#'   selected during fitting. NULL uses the primary hyperparameters;
+#'   `character(0)` adds none.
 #' @param ... Not used.
 #'
 #' @return `SupervisedWriteup` object.
@@ -1246,7 +1259,7 @@ ai_review <- new_generic(
 writeup <- new_generic(
   "writeup",
   "x",
-  function(x, confidence_level = NULL, ...) {
+  function(x, confidence_level = NULL, include_hyperparameters = NULL, ...) {
     force_supplied()
     S7_dispatch()
   }

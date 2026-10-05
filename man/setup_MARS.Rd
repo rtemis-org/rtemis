@@ -29,7 +29,7 @@ setup_MARS(
 
 \item{nk}{(Tunable) Optional Integer [1, Inf): Maximum number of terms, including the intercept, created by the forward pass. NULL lets earth derive it from the number of features.}
 
-\item{nprune}{(Tunable) Optional Integer [1, Inf): Maximum number of terms, including the intercept, retained after pruning. NULL keeps every term the forward pass created.}
+\item{nprune}{(Tunable) Optional Integer [1, Inf): Maximum number of terms, including the intercept, retained after pruning. NULL places no cap on the terms retained, which pruning still selects by \code{pmethod}.}
 
 \item{thresh}{(Tunable) Numeric [0, 1): Forward pass stopping threshold: stop once adding a term changes R-squared by less than this.}
 

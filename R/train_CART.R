@@ -59,6 +59,8 @@ method(train_, CARTHyperparameters) <- function(
     as.formula(make_formula(x)),
     data = x,
     weights = weights,
+    # rpart's own default where unset: unit cost for every feature.
+    cost = hyperparameters[["cost"]] %||% rep(1, NCOL(features(x))),
     control = rpart::rpart.control(
       minsplit = hyperparameters[["minsplit"]],
       minbucket = hyperparameters[["minbucket"]],

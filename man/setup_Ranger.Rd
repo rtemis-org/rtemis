@@ -15,7 +15,6 @@ setup_Ranger(
   max_depth = NULL,
   replace = TRUE,
   sample_fraction = ifelse(replace, 1, 0.632),
-  case_weights = NULL,
   class_weights = NULL,
   splitrule = NULL,
   num_random_splits = 1L,
@@ -56,7 +55,7 @@ setup_Ranger(
 
 \item{min_node_size}{(Tunable) Optional Integer [1, Inf): Minimal node size. If NULL, ranger uses 1 for classification, 5 for regression, 3 for survival, and 10 for probability.}
 
-\item{min_bucket}{Optional Integer [1, Inf): Minimal number of samples in a terminal node. Survival only. Deprecated in favor of \code{min_node_size}.}
+\item{min_bucket}{Optional Integer [1, Inf): Fewest cases a terminal node may hold; no split creates a smaller node. Unset uses ranger's default of 1.}
 
 \item{max_depth}{(Tunable) Optional Integer [0, Inf): Maximal tree depth. NULL or 0 means unlimited depth, 1 means tree stumps.}
 
@@ -64,9 +63,7 @@ setup_Ranger(
 
 \item{sample_fraction}{(Tunable) Numeric (0, 1]: Fraction of observations to sample. Default is 1 with replacement and 0.632 without.}
 
-\item{case_weights}{Optional Numeric [0, Inf) vector: Per-observation sampling weights; larger weights raise selection probability in each tree's sample.}
-
-\item{class_weights}{Optional Numeric [0, Inf) vector: Per-class weights for classification. Length equal to the number of classes, named by class label.}
+\item{class_weights}{Optional Numeric [0, Inf) vector: Per-class weights for classification. Length equal to the number of classes, named by class label. NULL weights every class equally.}
 
 \item{splitrule}{(Tunable) Optional Character: Splitting rule. Classification: "gini", "extratrees", "hellinger"; regression: "variance", "extratrees", "maxstat", "beta"; survival: "logrank", "extratrees", "C", "maxstat".}
 
@@ -78,9 +75,9 @@ setup_Ranger(
 
 \item{poisson_tau}{Numeric (0, Inf): Tau parameter, for the "poisson" regression splitrule.}
 
-\item{split_select_weights}{Optional List: Per-feature probabilities of being selected for splitting, in [0, 1]. One vector applied to every tree, or a list of length \code{num_trees} with one vector per tree.}
+\item{split_select_weights}{Optional List: Per-feature probabilities of being selected for splitting, in [0, 1]. One vector applied to every tree, or a list of length \code{num_trees} with one vector per tree. NULL gives every feature the same probability.}
 
-\item{always_split_variables}{Optional Character vector: Names of variables to always include as split candidates, in addition to the \code{mtry} variables.}
+\item{always_split_variables}{Optional Character vector: Names of variables to always include as split candidates, in addition to the \code{mtry} variables. NULL adds none.}
 
 \item{respect_unordered_factors}{Optional Character \{"partition", "ignore", "order"\}: Handling of unordered factors. "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response.}
 
@@ -94,13 +91,13 @@ setup_Ranger(
 
 \item{keep_inbag}{Logical: If TRUE, record how often each observation is in-bag per tree.}
 
-\item{inbag}{Optional List: Manually set in-bag counts; a list of length \code{num_trees}, each a per-case count vector. Can be used for stratified sampling.}
+\item{inbag}{Optional List: Manually set in-bag counts; a list of length \code{num_trees}, each a per-case count vector. Can be used for stratified sampling. NULL draws each tree's sample by \code{replace} and \code{sample_fraction}, with the training case weights as sampling weights where \link{train} supplies them.}
 
 \item{holdout}{Logical: If TRUE, use hold-out mode: hold out samples with case weight 0 and use them for variable importance and prediction error.}
 
 \item{quantreg}{Logical: If TRUE, prepare quantile prediction (quantile regression forests). Regression only; set \code{keep_inbag = TRUE} for out-of-bag quantile prediction.}
 
-\item{time_interest}{Optional Numeric vector: Time points of interest for survival prediction. Survival only. Deprecated.}
+\item{time_interest}{Optional Numeric vector: Time points of interest for survival prediction. Survival only. NULL uses the observed event times.}
 
 \item{oob_error}{Logical: If TRUE, compute the OOB prediction error. Set to FALSE to save time if only the forest is needed.}
 

@@ -5,6 +5,43 @@
 # LINAD is implemented in this package.
 # The engine lives in `R/linad.R`; this file is the rtemis interface to it.
 
+# %% linad_consumed_settings ----
+#' The resolved LINAD settings the fit uses
+#'
+#' The root settings apply to the root model's kind (the subset size and
+#' stopping rule to forward selection, the penalty to forward, ridge and
+#' elastic-net fits, the mixing to elastic net, the slopes test to ridge and
+#' elastic net) and not at all when `root_learning_rate` is 0, which skips the
+#' root. Smoothing the validation curve applies only when the fit selected its
+#' leaves on validation cases.
+#'
+#' @param settings Named list: From `linad_settings()`.
+#' @param selects_on_validation Logical: Whether the fit selected its leaves on
+#'   validation cases.
+#'
+#' @return Named list: `settings` without the ones the fit does not use.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_consumed_settings <- function(settings, selects_on_validation) {
+  root <- settings[["root_model"]]
+  root_fitted <- !identical(as.numeric(settings[["root_learning_rate"]]), 0)
+  unused <- c(
+    if (!root_fitted) "root_model",
+    if (!root_fitted || !identical(root, "forward")) "root_nvmax",
+    if (!root_fitted || !root %in% c("forward", "ridge", "elasticnet")) {
+      "root_lambda"
+    },
+    if (!root_fitted || !identical(root, "elasticnet")) "root_alpha",
+    if (!root_fitted || !identical(root, "forward")) "root_forward_stop",
+    if (!root_fitted || !root %in% c("ridge", "elasticnet")) "root_node_test",
+    if (!selects_on_validation) "smooth_validation_curve"
+  )
+  settings[setdiff(names(settings), unused)]
+} # /rtemis::linad_consumed_settings
+
+
 # %% train_.LINADHyperparameters ----
 #' Train a Linear Additive Tree
 #'
@@ -206,7 +243,13 @@ method(train_, LINADHyperparameters) <- function(
     model@steps[[model@n_leaves]]
 
   check_is_S7(model, LinearAdditiveTree)
-  hyperparameters <- record_backend_values(hyperparameters, settings)
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    linad_consumed_settings(
+      settings,
+      selects_on_validation = !is.null(model@leaf_curve)
+    )
+  )
   list(model = model, preprocessor = NULL, hyperparameters = hyperparameters)
 } # /rtemis::train_.LINADHyperparameters
 

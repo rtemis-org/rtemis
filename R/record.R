@@ -145,6 +145,13 @@ value_origin <- function(
     # supply.
     return("unset")
   }
+  if (state && identical(input, resolved)) {
+    # Run state that already held its value when the run started, as when a
+    # setup function fills it from another setting (LightGBM's `nrounds` from
+    # `force_nrounds`): the setting is the authored choice, and this field
+    # records what the run used.
+    return("derived")
+  }
   if (!identical(input, resolved)) {
     # NULL meaning "apply the default for this task type" is a restatement of
     # what was asked for, not something measured or searched -- so resolving it

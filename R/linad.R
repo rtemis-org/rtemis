@@ -2037,11 +2037,17 @@ linad_fit <- function(
       settings[["root_lambda"]],
       settings[["root_alpha"]],
       settings[["root_nvmax"]],
-      forward_stop = settings[["forward_stop"]],
+      forward_stop = settings[["root_forward_stop"]],
       derivatives = NULL,
       type = "Regression",
       max_step = settings[["line_search_max"]],
-      node_test = settings[["node_test"]],
+      # As at the nodes, the slopes test applies to the shrinking models;
+      # forward selection prices each term through `root_forward_stop`.
+      node_test = if (settings[["root_model"]] %in% c("ridge", "elasticnet")) {
+        settings[["root_node_test"]]
+      } else {
+        "none"
+      },
       allowed = roles[["linear"]]
     )
   }
@@ -2810,7 +2816,7 @@ linad_unscale <- function(coefficients, scaling) {
 #' Resolve hyperparameters into the values the engine runs on
 #'
 #' Optional hyperparameters are NULL until here. Two kinds of NULL are resolved:
-#' a parameter left unset takes its default, and a `first_*` parameter left
+#' a parameter left unset takes its default, and a `root_*` parameter left
 #' unset inherits the node-level value -- so `setup_LINAD(node_model =
 #' "constant")` gives a tree with constant nodes *including its root*, rather
 #' than an Additive Tree with one stray linear model at the top.
@@ -2835,6 +2841,8 @@ linad_settings <- function(hyperparameters) {
   nvmax <- value_or("nvmax", 3L)
   lambda <- value_or("lambda", 0.05)
   alpha <- value_or("alpha", 1)
+  forward_stop <- value_or("forward_stop", "bic")
+  node_test <- value_or("node_test", "none")
   list(
     max_leaves = hyperparameters[["max_leaves"]],
     force_max_leaves = hyperparameters[["force_max_leaves"]],
@@ -2851,10 +2859,12 @@ linad_settings <- function(hyperparameters) {
     root_nvmax = value_or("root_nvmax", nvmax),
     root_lambda = value_or("root_lambda", lambda),
     root_alpha = value_or("root_alpha", alpha),
+    root_forward_stop = value_or("root_forward_stop", forward_stop),
+    root_node_test = value_or("root_node_test", node_test),
     root_learning_rate = hyperparameters[["root_learning_rate"]],
-    forward_stop = value_or("forward_stop", "bic"),
+    forward_stop = forward_stop,
     patience = hyperparameters[["patience"]],
-    node_test = value_or("node_test", "none"),
+    node_test = node_test,
     split_search = hyperparameters[["split_search"]],
     split_criterion = value_or("split_criterion", "mean"),
     # A single tree scans every feature at every split; `LINADForest` overrides

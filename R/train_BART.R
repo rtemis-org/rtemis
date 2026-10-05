@@ -186,17 +186,7 @@ method(train_, BARTHyperparameters) <- function(
   # matrix back to a feature by position but not by name, and `varimp_super()`
   # receives the model alone, so the names are stashed here.
   model[["rtemis_xnames"]] <- names(features(x))
-  # stochtree samples from every covariate of its design when the subsample
-  # size is unset.
-  hyperparameters <- record_backend_values(
-    hyperparameters,
-    list(
-      num_features_subsample = as.integer(
-        model[["model_params"]][["num_covariates"]]
-      )
-    )
-  )
-  list(model = model, preprocessor = NULL, hyperparameters = hyperparameters)
+  list(model = model, preprocessor = NULL)
 } # /rtemis::train_.BARTHyperparameters
 
 

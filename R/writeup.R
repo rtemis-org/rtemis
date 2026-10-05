@@ -14,14 +14,24 @@
 # spec: rtemis/writeup
 
 # %% writeup.Supervised ----
-method(writeup, Supervised) <- function(x, confidence_level = NULL, ...) {
-  writeup_supervised(x, confidence_level)
+method(writeup, Supervised) <- function(
+  x,
+  confidence_level = NULL,
+  include_hyperparameters = NULL,
+  ...
+) {
+  writeup_supervised(x, confidence_level, include_hyperparameters)
 } # /rtemis::writeup.Supervised
 
 
 # %% writeup.SupervisedRes ----
-method(writeup, SupervisedRes) <- function(x, confidence_level = NULL, ...) {
-  writeup_supervised(x, confidence_level)
+method(writeup, SupervisedRes) <- function(
+  x,
+  confidence_level = NULL,
+  include_hyperparameters = NULL,
+  ...
+) {
+  writeup_supervised(x, confidence_level, include_hyperparameters)
 } # /rtemis::writeup.SupervisedRes
 
 
@@ -30,17 +40,30 @@ method(writeup, SupervisedRes) <- function(x, confidence_level = NULL, ...) {
 #'
 #' @param x `Supervised` or `SupervisedRes` object.
 #' @param confidence_level Optional Numeric (0, 1): Confidence level.
+#' @param include_hyperparameters Optional Character: Hyperparameters the main
+#'   table lists in place of the algorithm's primary hyperparameters.
 #'
 #' @return `SupervisedWriteup` object.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-writeup_supervised <- function(x, confidence_level) {
+writeup_supervised <- function(
+  x,
+  confidence_level,
+  include_hyperparameters = NULL
+) {
   rv <- review(x, confidence_level = confidence_level)
   ctx <- writeup_context(x, rv)
+  check_include_hyperparameters(include_hyperparameters, ctx)
   w <- writeup_collector()
   ctx[["selection"]] <- writeup_selection(ctx[["member"]], ctx, w)
+  ctx[["include_hyperparameters"]] <- include_hyperparameters
+  ctx[["hyperparameter_rows"]] <- writeup_hyperparameters(
+    ctx,
+    w,
+    include_hyperparameters
+  )
   sections <- Filter(
     Negate(is.null),
     list(
@@ -64,6 +87,11 @@ writeup_supervised <- function(x, confidence_level) {
     values = writeup_values_table(w),
     sections = sections,
     references = writeup_references_table(w, sections),
+    hyperparameters = ctx[["hyperparameter_rows"]],
+    primary_listed = is.null(include_hyperparameters),
+    include_hyperparameters = if (length(include_hyperparameters) > 0L) {
+      include_hyperparameters
+    },
     not_reported = c(writeup_not_reported(ctx), w[["not_reported"]])
   )
 } # /rtemis::writeup_supervised
@@ -1186,25 +1214,49 @@ writeup_setting_value <- function(w, key, value, source) {
 } # /rtemis::writeup_setting_value
 
 
-# %% writeup_default_hyperparameters ----
-#' Default hyperparameter values of an algorithm
+# %% unset_meaning ----
+#' What an unset hyperparameter means
 #'
-#' @param algorithm Character: Algorithm name.
+#' Reads the sentence of a property's description that begins "Unset", which
+#' every nullable hyperparameter declares (`test_SchemaContract.R`).
 #'
-#' @return Named list of default values, or NULL when the algorithm's setup
-#'   function needs arguments.
+#' @param cls S7 class: Hyperparameters class declaring the property.
+#' @param name Character: Property name.
+#'
+#' @return Character scalar, or NULL when the description has no such
+#'   sentence.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-writeup_default_hyperparameters <- function(algorithm) {
-  setup <- get0(paste0("setup_", algorithm), mode = "function")
-  if (is.null(setup)) {
-    return(NULL)
-  }
-  default <- tryCatch(setup(), error = function(e) NULL)
-  if (is.null(default)) NULL else default@hyperparameters
-} # /rtemis::writeup_default_hyperparameters
+unset_meaning <- function(cls, name) {
+  description <- get_spec_fields(cls@properties[[name]])[["description"]]
+  if (is.null(description)) NULL else unset_sentence(description)
+} # /rtemis::unset_meaning
+
+
+# %% unset_sentence ----
+#' The sentence of a description that begins "Unset"
+#'
+#' A sentence ends at a period followed by a space and a capital letter, a
+#' digit or a minus sign, so decimal values such as 0.05 stay within it.
+#'
+#' @param description Character scalar.
+#'
+#' @return Character scalar, or NULL when there is no such sentence.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+unset_sentence <- function(description) {
+  sentences <- strsplit(
+    description,
+    "(?<=\\.) (?=[A-Z0-9-])",
+    perl = TRUE
+  )[[1L]]
+  meaning <- sentences[startsWith(sentences, "Unset ")]
+  if (length(meaning) == 0L) NULL else meaning[[1L]]
+} # /rtemis::unset_sentence
 
 
 # %% writeup_model ----
@@ -1236,58 +1288,7 @@ writeup_model <- function(ctx, w) {
     },
     "."
   )
-  settings <- NULL
-  if (!ctx[["is_set"]]) {
-    hp <- ctx[["search_space"]]
-    values <- hp@hyperparameters
-    defaults <- writeup_default_hyperparameters(algorithm)
-    untuned <- if (is.null(ctx[["tuner"]])) {
-      "Hyperparameters were"
-    } else {
-      "Hyperparameters that were not tuned were"
-    }
-    names <- hp@tunable_hyperparameters
-    names <- names[vapply(
-      names,
-      function(nm) {
-        v <- values[[nm]]
-        !is.null(v) &&
-          !is_candidates(v) &&
-          length(v) == 1L &&
-          (is.null(defaults) || !identical(v, defaults[[nm]]))
-      },
-      logical(1L)
-    )]
-    settings <- if (length(names) > 0L) {
-      paste0(
-        untuned,
-        if (is.null(defaults)) {
-          " set to "
-        } else {
-          " at their rtemis defaults, except "
-        },
-        writeup_list(vapply(
-          names,
-          function(nm) {
-            paste0(
-              writeup_code(nm),
-              " = ",
-              writeup_setting_value(
-                w,
-                writeup_key("hp", nm),
-                values[[nm]],
-                paste0(ctx[["space_root"]], ".", nm)
-              )
-            )
-          },
-          character(1L)
-        )),
-        "."
-      )
-    } else if (!is.null(defaults)) {
-      paste0(untuned, " at their rtemis defaults.")
-    }
-  }
+  settings <- writeup_hp_sentence(ctx, w)
   writeup_section(
     "methods",
     "Model",
@@ -2090,7 +2091,7 @@ writeup_results_performance <- function(ctx, w) {
   table <- writeup_value(
     w,
     "table_performance",
-    1L,
+    if (any(ctx[["hyperparameter_rows"]][["main"]])) 2L else 1L,
     "integer",
     "writeup: table number"
   )

@@ -2,14 +2,18 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# Recording the values a backend chose for hyperparameters left unset.
+# Recording the effective backend choices for eligible unset hyperparameters.
 #
-# A hyperparameter left NULL is passed to the backend as "choose", and the
-# backend applies its own rule (ranger's `mtry` from the number of predictors,
-# earth's `nk` from the design width). A `train_` method reads the value the
-# backend used from the fitted object and records it on the hyperparameters it
-# returns, so the fitted model, its record and its writeup state every value
-# the fit used. The record reports such a value with origin "derived".
+# Some hyperparameters left NULL are resolved by the backend or by rtemis
+# (ranger's `mtry` from the number of predictors, earth's `nk` from the design
+# width, an MLP's loss from the outcome type); others mean that an option is
+# not used (no scheduler, no constraint). For the first kind, a `train_` method
+# records the value the fit used -- read from the fitted object, or from the
+# installed backend's resolution rule -- on the hyperparameters it returns, so
+# the fitted model, its record and its writeup state it. The fold record
+# reports such a value with origin "derived", except for a property declared
+# `default_on_null` (a task-type default such as LightGBM's `objective` or an
+# MLP's `loss`), which `value_origin()` reports as "default".
 #
 # spec: rtemis/writeup
 
@@ -43,7 +47,8 @@ hyperparameter_in_effect <- function(hyperparameters, name) {
 #' Record the values a backend chose for unset hyperparameters
 #'
 #' Each value is recorded only where the hyperparameter is unset, declared by
-#' the class, and in effect.
+#' the class as a setting (run state has its own observation paths), and in
+#' effect.
 #'
 #' @param hyperparameters `Hyperparameters` object: As passed to the backend.
 #' @param values Named list: Value the backend used, by hyperparameter name.
@@ -61,6 +66,7 @@ record_backend_values <- function(hyperparameters, values) {
     if (
       is.null(value) ||
         !nm %in% names(properties) ||
+        identical(prop_role(properties[[nm]]), "state") ||
         !is.null(prop(hyperparameters, nm)) ||
         !hyperparameter_in_effect(hyperparameters, nm)
     ) {
@@ -102,6 +108,37 @@ lightgbm_model_parameters <- function(model) {
 } # /rtemis::lightgbm_model_parameters
 
 
+# %% LIGHTGBM_OBJECTIVE_PARAMETERS ----
+# LightGBM parameters used only under some objectives, which rtemis leaves
+# ungated because the objective itself may be resolved from the outcome. The
+# model text writes them under every objective, so they are recorded only
+# under the objectives listed here, the ones whose fit they change (LightGBM
+# 4.7.0 objective implementations; `test_ResolvedHyperparameters.R` checks
+# each list against fitted predictions). Huber, Poisson, gamma and Tweedie
+# regression switch the square-root transform off.
+LIGHTGBM_OBJECTIVES <- c(
+  "regression",
+  "regression_l1",
+  "huber",
+  "fair",
+  "poisson",
+  "quantile",
+  "mape",
+  "gamma",
+  "tweedie",
+  "binary",
+  "multiclass",
+  "multiclassova",
+  "cross_entropy",
+  "cross_entropy_lambda"
+)
+LIGHTGBM_OBJECTIVE_PARAMETERS <- list(
+  sigmoid = c("binary", "multiclassova", "lambdarank"),
+  reg_sqrt = c("regression", "regression_l1", "fair", "quantile", "mape"),
+  boost_from_average = LIGHTGBM_OBJECTIVES
+)
+
+
 # %% lightgbm_backend_values ----
 #' Values a fitted LightGBM model used for the unset hyperparameters
 #'
@@ -119,6 +156,14 @@ lightgbm_model_parameters <- function(model) {
 #' @noRd
 lightgbm_backend_values <- function(hyperparameters, model) {
   parameters <- lightgbm_model_parameters(model)
+  objective <- strsplit(parameters[["objective"]] %||% "", " ", fixed = TRUE)[[
+    1L
+  ]][1L]
+  for (nm in names(LIGHTGBM_OBJECTIVE_PARAMETERS)) {
+    if (!isTRUE(objective %in% LIGHTGBM_OBJECTIVE_PARAMETERS[[nm]])) {
+      parameters <- parameters[names(parameters) != nm]
+    }
+  }
   properties <- S7_class(hyperparameters)@properties
   unset <- names(properties)[vapply(
     names(properties),

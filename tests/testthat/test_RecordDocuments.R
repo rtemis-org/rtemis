@@ -204,3 +204,37 @@ testthat::test_that("every dispatched family has a record document under test", 
     ))
   )
 })
+
+
+testthat::test_that("a fitted model's hyperparameter records validate, run state included", {
+  testthat::skip_if_not_installed("lightgbm")
+  # LightGBM's `nrounds` is run state that the setup fills from
+  # `force_nrounds`: the records report it as derived, and the schema permits
+  # no authored origin for it.
+  model <- train(
+    mtcars,
+    hyperparameters = setup_LightGBM(force_nrounds = 10L),
+    verbosity = 0L
+  )
+  cls <- S7_class(model@hyperparameters)
+  base <- family_base(cls)
+  validator <- .record_bundle(
+    base,
+    cls,
+    family_discriminator(model@hyperparameters),
+    tolower(base@name)
+  )
+  as_json <- function(x) {
+    jsonlite::toJSON(x, auto_unbox = TRUE, null = "null", digits = NA)
+  }
+  rec <- record(model)
+  for (doc in list(
+    rec[["hyperparameters"]],
+    rec[["folds"]][[1L]][["hyperparameters"]]
+  )) {
+    expect_identical(doc[["origin"]][["nrounds"]], "derived")
+    expect_true(isTRUE(validator(as_json(doc))))
+    doc[["origin"]][["nrounds"]] <- "user"
+    expect_false(isTRUE(validator(as_json(doc))))
+  }
+})

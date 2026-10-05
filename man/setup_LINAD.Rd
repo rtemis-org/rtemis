@@ -36,7 +36,9 @@ setup_LINAD(
   split_features = NULL,
   linear_features = NULL,
   global_features = NULL,
-  line_search_max = 1000
+  line_search_max = 1000,
+  root_forward_stop = NULL,
+  root_node_test = NULL
 )
 }
 \arguments{
@@ -46,15 +48,15 @@ setup_LINAD(
 
 \item{min_cases_leaf}{(Tunable) Integer [1, Inf): Fewest cases a split must leave on each side.}
 
-\item{min_cases_node_model}{(Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when \code{node_model} is not "constant".}
+\item{min_cases_node_model}{(Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when \code{node_model} is not "constant". NULL uses 10.}
 
-\item{nvmax}{(Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when \code{node_model} is "forward".}
+\item{nvmax}{(Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when \code{node_model} is "forward". NULL uses 3.}
 
-\item{forward_stop}{(Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when \code{node_model} is "forward".}
+\item{forward_stop}{(Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when \code{node_model} is "forward". NULL uses "bic".}
 
-\item{lambda}{(Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when \code{node_model} is "forward", "ridge" or "elasticnet".}
+\item{lambda}{(Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when \code{node_model} is "forward", "ridge" or "elasticnet". NULL uses 0.05.}
 
-\item{alpha}{(Tunable) Optional Numeric [0, 1]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when \code{node_model} is "elasticnet".}
+\item{alpha}{(Tunable) Optional Numeric [0, 1]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when \code{node_model} is "elasticnet". NULL uses 1.}
 
 \item{learning_rate}{(Tunable) Numeric (0, 1]: Shrinkage applied to every functional update.}
 
@@ -66,7 +68,7 @@ setup_LINAD(
 
 \item{root_learning_rate}{(Tunable) Numeric [0, 1]: Shrinkage applied to the root model's slopes.}
 
-\item{n_cuts}{(Tunable) Optional Integer [2, Inf): Cut points tried per feature; \code{split_bin_type} decides their spacing. Applies only when \code{split_search} is "exhaustive".}
+\item{n_cuts}{(Tunable) Optional Integer [2, Inf): Cut points tried per feature; \code{split_bin_type} decides their spacing. Applies only when \code{split_search} is "exhaustive". NULL uses 20.}
 
 \item{gamma}{(Tunable) Numeric [0, 1]: Weight a case retains in the branch it does not belong to. 0 is a hard partition.}
 
@@ -74,9 +76,9 @@ setup_LINAD(
 
 \item{split_bin_type}{(Tunable) Character \{"frequency", "width"\}: How bin edges are placed.}
 
-\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when \code{node_model} is "ridge" or "elasticnet"; forward selection uses \code{forward_stop}.}
+\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when \code{node_model} is "ridge" or "elasticnet"; forward selection uses \code{forward_stop}. NULL uses "none".}
 
-\item{split_criterion}{(Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when \code{split_search} is "stump".}
+\item{split_criterion}{(Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when \code{split_search} is "stump". NULL uses "mean".}
 
 \item{line_search}{(Tunable) Character \{"expansion", "child", "none"\}: Scope of the Newton step for each update.}
 
@@ -84,11 +86,11 @@ setup_LINAD(
 
 \item{ifw}{(Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.}
 
-\item{patience}{(Tunable) Optional Integer [1, Inf): Expansions without validation improvement before growth stops. Requires a validation set.}
+\item{patience}{(Tunable) Optional Integer [1, Inf): Expansions without validation improvement before growth stops. Requires a validation set. NULL disables patience-based early stopping.}
 
 \item{force_max_leaves}{Logical: If TRUE, keep every leaf grown instead of selecting a size on the validation set.}
 
-\item{smooth_validation_curve}{Optional Logical: If TRUE, smooth the validation curve before reading its minimum. Applies only when \code{force_max_leaves} is FALSE.}
+\item{smooth_validation_curve}{Optional Logical: If TRUE, smooth the validation curve before reading its minimum. Applies only when \code{force_max_leaves} is FALSE. NULL does not smooth.}
 
 \item{node_model}{Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node. "constant" is the intercept-only model every decision tree node carries; the others add a regularized linear model on top of it.}
 
@@ -103,6 +105,10 @@ setup_LINAD(
 \item{global_features}{Optional Character vector: Linear features whose slope is shared by every leaf. Must be a subset of \code{linear_features} where that is set. NULL imposes no constraint, so no coefficient is pinned.}
 
 \item{line_search_max}{Numeric (0, Inf): Largest absolute step the line search may take.}
+
+\item{root_forward_stop}{(Tunable) Optional Character \{"bic", "aic", "none"\}: \code{forward_stop} for the root model. NULL uses \code{forward_stop}, or "bic" where that is NULL. Applies only when the root model is "forward".}
+
+\item{root_node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: \code{node_test} for the root model. NULL uses \code{node_test}, or "none" where that is NULL. Applies only when the root model is "ridge" or "elasticnet".}
 }
 \value{
 LINADHyperparameters object.

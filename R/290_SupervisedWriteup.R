@@ -21,6 +21,7 @@ WRITEUP_PARTS <- c("methods", "results")
 # How a value is formatted in text:
 # - "count"    whole number of cases or items, with thousands separators
 # - "integer"  whole-number setting, written in full
+# - "exact"    real-valued setting, written in full (15 significant digits)
 # - "metric"   performance metric, three decimals
 # - "quantity" other real number, three significant digits
 # - "p_value"  "p = 0.012", or "p < 0.001"
@@ -30,11 +31,40 @@ WRITEUP_PARTS <- c("methods", "results")
 WRITEUP_VALUE_KINDS <- c(
   "count",
   "integer",
+  "exact",
   "metric",
   "quantity",
   "p_value",
   "percent",
   "text"
+)
+
+# %% WRITEUP_HP_SOURCES ----
+# How a hyperparameter's value was chosen, from the record's origin:
+# - "specified" supplied by the user
+# - "default"   the declared default
+# - "resolved"  determined during fitting, from the data or by the backend
+# - "tuned"     selected by tuning from the values tried
+# - "unset"     left unset; the description states what the fit did
+# - "varied"    chosen differently in different resamples; the value cell
+#               states how each value was chosen
+WRITEUP_HP_SOURCES <- c(
+  "specified",
+  "default",
+  "resolved",
+  "tuned",
+  "unset",
+  "varied"
+)
+
+# %% WRITEUP_HP_SOURCE_LABELS ----
+WRITEUP_HP_SOURCE_LABELS <- c(
+  specified = "specified",
+  default = "default",
+  resolved = "resolved during fitting",
+  tuned = "tuning",
+  unset = "unset",
+  varied = "varied between resamples"
 )
 
 # %% WRITEUP_VALUE_TOKEN ----
@@ -121,6 +151,12 @@ WriteupSection <- schema_class(
 #' @field values data.frame: One row per number in the text.
 #' @field sections List of `WriteupSection` objects, in order.
 #' @field references data.frame: One row per cited work.
+#' @field hyperparameters data.frame: One row per hyperparameter: the rows of
+#'   the main and supplementary hyperparameter tables.
+#' @field primary_listed Logical: Whether the main table lists the algorithm's
+#'   primary hyperparameters.
+#' @field include_hyperparameters Optional Character vector: Hyperparameters the main
+#'   table lists in place of the algorithm's primary hyperparameters.
 #' @field not_reported Character vector: Information a Methods section
 #'   usually states that the model does not record.
 #'
@@ -155,7 +191,7 @@ SupervisedWriteup <- schema_class(
         ),
         kind = prop_string(
           enum = WRITEUP_VALUE_KINDS,
-          description = "How the value is formatted: 'count' a whole number with thousands separators; 'integer' a whole-number setting in full; 'metric' three decimals; 'quantity' three significant digits; 'p_value' as 'p = 0.012' or 'p < 0.001'; 'percent' a proportion as a percentage with at most one decimal; 'text' a value that is text, such as a software version, an outcome level or a hyperparameter setting."
+          description = "How the value is formatted: 'count' a whole number with thousands separators; 'integer' a whole-number setting in full; 'exact' a real-valued setting in full, to 15 significant digits; 'metric' three decimals; 'quantity' three significant digits; 'p_value' as 'p = 0.012' or 'p < 0.001'; 'percent' a proportion as a percentage with at most one decimal; 'text' a value that is text, such as a software version, an outcome level or a hyperparameter setting."
         ),
         text = prop_string(
           description = "The value as it appears in the text."
@@ -184,6 +220,40 @@ SupervisedWriteup <- schema_class(
       ),
       description = "One row per cited work, in order of first citation."
     )),
+    hyperparameters = prop_state(prop_table(
+      columns = list(
+        name = prop_string(description = "Hyperparameter name."),
+        main = prop_boolean(
+          FALSE,
+          description = "Whether the main hyperparameter table lists it: a primary hyperparameter of the algorithm (or one named by include_hyperparameters in their place), one that was tuned or specified, or run state selected during fitting."
+        ),
+        applies = prop_boolean(
+          TRUE,
+          description = "Whether it had an effect on at least one fit, under the values of the hyperparameters that gate it and the algorithm's rules for its backend. One that had none is named in the supplement table's caption and has no value."
+        ),
+        value = prop_string(
+          description = "Value cell: a template whose values are tokens naming rows of the values table. Where resamples differ, it lists each distinct value with the number of resamples that used it (and how it was chosen, when that differs), and the number of resamples in which the hyperparameter had no effect."
+        ),
+        tried = prop_string(
+          description = "Values the configurations evaluated in tuning gave it, read from the tuning grid, as a template of tokens; an unset alternative reads unset. Empty when the evaluated configurations did not vary it."
+        ),
+        source = prop_string(
+          enum = WRITEUP_HP_SOURCES,
+          description = "How the value was chosen: 'specified' by the user; 'default' the declared default; 'resolved' during fitting, from the data or by the backend; 'tuned' by tuning; 'unset' left unset, the value cell stating what that means; 'varied' differently in different resamples, the value cell stating how for each value."
+        )
+      ),
+      description = "One row per hyperparameter of the model, in declaration order: the rows of the main and supplementary hyperparameter tables."
+    )),
+    primary_listed = prop_boolean(
+      TRUE,
+      description = "Whether the main table lists the algorithm's primary hyperparameters. False when the writeup was asked for other hyperparameters (include_hyperparameters) or for none."
+    ),
+    include_hyperparameters = prop_string(
+      NULL,
+      vector = TRUE,
+      nullable = TRUE,
+      description = "Hyperparameters the main table lists in place of the algorithm's primary hyperparameters, as the writeup was asked. Unset when it lists the primary hyperparameters or none beside those tuned or specified and the values selected during fitting."
+    ),
     not_reported = prop_string(
       "",
       vector = TRUE,
@@ -197,6 +267,9 @@ SupervisedWriteup <- schema_class(
     values,
     sections,
     references,
+    hyperparameters,
+    primary_listed,
+    include_hyperparameters,
     not_reported
   ) {
     new_object(
@@ -207,6 +280,9 @@ SupervisedWriteup <- schema_class(
       values = values,
       sections = sections,
       references = references,
+      hyperparameters = hyperparameters,
+      primary_listed = primary_listed,
+      include_hyperparameters = include_hyperparameters,
       not_reported = not_reported
     )
   },
@@ -238,6 +314,7 @@ fmt_writeup_value <- function(value, kind) {
     kind,
     count = formatC(value, format = "d", big.mark = ","),
     integer = formatC(value, format = "d"),
+    exact = trimws(formatC(value, digits = 15L, format = "g")),
     metric = sprintf("%.3f", value),
     quantity = trimws(formatC(signif(value, 3L), digits = 3L, format = "fg")),
     p_value = if (value < 0.001) "p < 0.001" else sprintf("p = %.3f", value),
@@ -404,6 +481,156 @@ writeup_table_caption <- function(x) {
 } # /rtemis::writeup_table_caption
 
 
+# %% writeup_hp_table_rows ----
+#' A hyperparameter table as rows of text
+#'
+#' @param x `SupervisedWriteup` object.
+#' @param main Logical: The main table (TRUE) or the supplementary table.
+#'
+#' @return Character matrix, header row first, or NULL when the table has no
+#'   rows. A value left unset reads "unset" in its cell, and attribute `notes`
+#'   holds what that means for each such hyperparameter, as "name: meaning".
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+writeup_hp_table_rows <- function(x, main = TRUE) {
+  rows <- x@hyperparameters
+  if (NROW(rows) == 0L) {
+    return(NULL)
+  }
+  keep <- rows[["applies"]] & (!main | rows[["main"]])
+  rows <- rows[keep, , drop = FALSE]
+  if (NROW(rows) == 0L) {
+    return(NULL)
+  }
+  ref_numbers <- writeup_ref_numbers(x)
+  render <- function(cells) {
+    vapply(
+      cells,
+      render_writeup_template,
+      character(1L),
+      values = x@values,
+      ref_numbers = ref_numbers,
+      USE.NAMES = FALSE
+    )
+  }
+  has_tried <- any(nzchar(rows[["tried"]]))
+  values <- render(rows[["value"]])
+  meaning <- x@values[["text"]][match(
+    writeup_key("table_hp", rows[["name"]], "meaning"),
+    x@values[["key"]]
+  )]
+  unset <- !is.na(meaning)
+  notes <- if (any(unset)) {
+    paste0(rows[["name"]][unset], ": ", meaning[unset])
+  } else {
+    character()
+  }
+  header <- c(
+    "Hyperparameter",
+    "Value",
+    if (!main) "Chosen by",
+    if (has_tried) "Values tried"
+  )
+  body <- cbind(
+    rows[["name"]],
+    values,
+    if (!main) {
+      ifelse(
+        rows[["source"]] == "unset",
+        "",
+        unname(WRITEUP_HP_SOURCE_LABELS[rows[["source"]]])
+      )
+    },
+    if (has_tried) render(rows[["tried"]])
+  )
+  out <- rbind(header, body, deparse.level = 0L)
+  attr(out, "notes") <- notes
+  out
+} # /rtemis::writeup_hp_table_rows
+
+
+# %% writeup_hp_table_caption ----
+writeup_hp_table_caption <- function(x, main = TRUE) {
+  text <- function(key) x@values[["text"]][match(key, x@values[["key"]])]
+  resampled <- !is.null(x@review@sample[["n_resamples"]])
+  rows <- x@hyperparameters
+  per_resample <- if (resampled) {
+    " Where resamples differ, each value is listed with the number of resamples that used it, and resamples in which a hyperparameter had no effect are counted as not applicable."
+  }
+  if (main) {
+    scope <- writeup_hp_main_scope(
+      if (x@primary_listed) NULL else x@include_hyperparameters %||% character()
+    )
+    return(paste0(
+      "Table ",
+      text("table_hyperparameters"),
+      ". ",
+      toupper(substr(scope, 1L, 1L)),
+      substr(scope, 2L, nchar(scope)),
+      ".",
+      per_resample
+    ))
+  }
+  omitted <- rows[["name"]][!rows[["applies"]]]
+  paste0(
+    "Table S",
+    text("table_hyperparameters_supplement"),
+    ". Every hyperparameter that applied to the fit, its value, how it was chosen and the values tuning evaluated.",
+    per_resample,
+    if (length(omitted) > 0L) {
+      paste0(
+        " Not applicable under this configuration: ",
+        paste(omitted, collapse = ", "),
+        "."
+      )
+    }
+  )
+} # /rtemis::writeup_hp_table_caption
+
+
+# %% writeup_md_table ----
+#' A hyperparameter table as Markdown lines
+#'
+#' @param x `SupervisedWriteup` object.
+#' @param rows Character matrix from `writeup_hp_table_rows()`, or NULL.
+#' @param main Logical: The main table (TRUE) or the supplementary table.
+#'
+#' @return Character vector of lines, empty when `rows` is NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+writeup_md_table <- function(x, rows, main) {
+  if (is.null(rows)) {
+    return(character())
+  }
+  md_row <- function(cells) {
+    paste0(
+      "| ",
+      paste(gsub("|", "\\|", cells, fixed = TRUE), collapse = " | "),
+      " |"
+    )
+  }
+  c(
+    "",
+    writeup_hp_table_caption(x, main),
+    "",
+    md_row(rows[1L, ]),
+    paste0("|", paste(rep("---", NCOL(rows)), collapse = "|"), "|"),
+    vapply(
+      seq_len(NROW(rows))[-1L],
+      function(i) md_row(rows[i, ]),
+      character(1L)
+    ),
+    if (length(attr(rows, "notes")) > 0L) {
+      c("", paste0("- ", attr(rows, "notes")))
+    }
+  )
+} # /rtemis::writeup_md_table
+
+
 # %% writeup_markdown ----
 #' Render a writeup as Markdown
 #'
@@ -442,6 +669,9 @@ writeup_markdown <- function(x) {
         )
       )
     }
+    if (part == "methods") {
+      out <- c(out, writeup_md_table(x, writeup_hp_table_rows(x), TRUE))
+    }
     if (part == "results") {
       rows <- writeup_table_rows(x)
       out <- c(
@@ -466,6 +696,24 @@ writeup_markdown <- function(x) {
     "",
     paste0(ref_numbers, ". ", x@references[["citation"]])
   )
+  supplement <- writeup_hp_table_rows(x, main = FALSE)
+  if (!is.null(supplement)) {
+    out <- c(
+      out,
+      "",
+      "## Supplementary material",
+      writeup_md_table(x, supplement, FALSE)
+    )
+  }
+  if (length(x@not_reported) > 0L && any(nzchar(x@not_reported))) {
+    out <- c(
+      out,
+      "",
+      "## Not recorded by the model",
+      "",
+      paste0("- ", x@not_reported[nzchar(x@not_reported)])
+    )
+  }
   paste0(paste(out, collapse = "\n"), "\n")
 } # /rtemis::writeup_markdown
 
@@ -498,6 +746,28 @@ method(repr, SupervisedWriteup) <- function(x, pad = 0L, output_type = NULL) {
       "\n"
     )
   }
+  hp_table <- function(main) {
+    rows <- writeup_hp_table_rows(x, main)
+    if (is.null(rows)) {
+      return("")
+    }
+    notes <- attr(rows, "notes")
+    paste0(
+      "\n",
+      wrap(writeup_hp_table_caption(x, main), "    "),
+      paste(
+        review_text_table(rows, paste0(indent, "  "), align_left = TRUE),
+        collapse = "\n"
+      ),
+      "\n",
+      if (length(notes) > 0L) {
+        paste0(
+          "\n",
+          paste(vapply(notes, wrap, character(1L), "    "), collapse = "")
+        )
+      }
+    )
+  }
   out <- repr_S7name("SupervisedWriteup", pad = pad, output_type = output_type)
   for (part in WRITEUP_PARTS) {
     out <- paste0(
@@ -515,6 +785,9 @@ method(repr, SupervisedWriteup) <- function(x, pad = 0L, output_type = NULL) {
           wrap(render_writeup_template(p, x@values, ref_numbers), "    ")
         )
       }
+    }
+    if (part == "methods") {
+      out <- paste0(out, hp_table(TRUE))
     }
     if (part == "results") {
       out <- paste0(
@@ -535,6 +808,9 @@ method(repr, SupervisedWriteup) <- function(x, pad = 0L, output_type = NULL) {
       out,
       wrap(paste0("[", i, "] ", x@references[["citation"]][[i]]), "  ")
     )
+  }
+  if (!is.null(writeup_hp_table_rows(x, main = FALSE))) {
+    out <- paste0(out, heading("Supplementary material"), hp_table(FALSE))
   }
   if (length(x@not_reported) > 0L && any(nzchar(x@not_reported))) {
     out <- paste0(out, heading("Not recorded by the model"))

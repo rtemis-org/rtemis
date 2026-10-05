@@ -209,7 +209,18 @@ method(train_, LINADForestHyperparameters) <- function(
   }
 
   check_is_S7(model, LINADForest)
-  hyperparameters <- record_backend_values(hyperparameters, settings)
+  # A tree selects its size on its out-of-bag cases when it has enough of them.
+  # `mtry_tree` and `mtry_split` stay unset where unset, meaning every feature.
+  selects_on_validation <- any(vapply(
+    trees,
+    function(tree) !is.null(tree@leaf_curve),
+    logical(1L)
+  ))
+  consumed <- linad_consumed_settings(settings, selects_on_validation)
+  hyperparameters <- record_backend_values(
+    hyperparameters,
+    consumed[setdiff(names(consumed), c("mtry_tree", "mtry_split"))]
+  )
   list(model = model, preprocessor = NULL, hyperparameters = hyperparameters)
 } # /rtemis::train_.LINADForestHyperparameters
 

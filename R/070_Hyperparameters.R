@@ -876,6 +876,7 @@ GLMHyperparameters <- schema_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
+  reporting = list(primary = character()),
   publication = SchemaPublication(
     role = "leaf",
     description = "GLM (generalized linear model).",
@@ -930,6 +931,7 @@ GAMHyperparameters <- schema_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
+  reporting = list(primary = c("k")),
   publication = SchemaPublication(
     role = "leaf",
     description = "GAM (generalized additive model).",
@@ -995,7 +997,7 @@ MARSHyperparameters <- schema_class(
       min = -1,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Generalized Cross Validation penalty per knot. Unset uses 3 when degree is greater than 1 and 2 otherwise. 0 penalizes terms but not knots, and -1 removes the penalty."
+      description = "Generalized Cross Validation penalty per knot. Unset uses 3 when degree is greater than 1 and 2 otherwise. A value of 0 penalizes terms but not knots, and -1 removes the penalty."
     ),
     nk = prop_integer(
       NULL,
@@ -1009,7 +1011,7 @@ MARSHyperparameters <- schema_class(
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Maximum number of terms, including the intercept, retained after pruning. Unset keeps every term the forward pass created."
+      description = "Maximum number of terms, including the intercept, retained after pruning. Unset places no cap on the terms retained, which pruning still selects by pmethod."
     ),
     thresh = prop_float(
       0.001,
@@ -1081,6 +1083,7 @@ MARSHyperparameters <- schema_class(
       SchemaPredicate(property = "nfold", maximum = 1)
     )
   )),
+  reporting = list(primary = c("degree", "penalty", "nk", "nprune")),
   publication = SchemaPublication(
     role = "leaf",
     description = "Multivariate Adaptive Regression Splines (earth).",
@@ -1104,7 +1107,7 @@ MARSHyperparameters <- schema_class(
 #' @param degree (Tunable) Integer [1, Inf): Maximum degree of interaction. 1 builds an additive model with no interaction terms.
 #' @param penalty (Tunable) Optional Numeric [-1, Inf): Generalized Cross Validation penalty per knot. NULL uses 3 when `degree` is greater than 1 and 2 otherwise.
 #' @param nk (Tunable) Optional Integer [1, Inf): Maximum number of terms, including the intercept, created by the forward pass. NULL lets earth derive it from the number of features.
-#' @param nprune (Tunable) Optional Integer [1, Inf): Maximum number of terms, including the intercept, retained after pruning. NULL keeps every term the forward pass created.
+#' @param nprune (Tunable) Optional Integer [1, Inf): Maximum number of terms, including the intercept, retained after pruning. NULL places no cap on the terms retained, which pruning still selects by `pmethod`.
 #' @param thresh (Tunable) Numeric [0, 1): Forward pass stopping threshold: stop once adding a term changes R-squared by less than this.
 #' @param minspan (Tunable) Integer (-Inf, Inf): Minimum number of observations between knots. 0 derives the value internally, and a negative value instead sets the maximum number of equally spaced knots per feature.
 #' @param endspan (Tunable) Integer [0, Inf): Minimum number of observations before the first and after the final knot. 0 derives the value internally.
@@ -1216,7 +1219,7 @@ CARTHyperparameters <- schema_class(
       min = 0,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Complexity for cost-complexity pruning after the tree is built."
+      description = "Complexity for cost-complexity pruning after the tree is built. Unset prunes nothing after the tree is built."
     ),
     method = prop_string(
       "auto",
@@ -1260,12 +1263,21 @@ CARTHyperparameters <- schema_class(
       nullable = TRUE,
       vector = TRUE,
       data_bound = "n_features",
-      description = "Variable costs."
+      description = "Cost of each feature: a split's improvement is divided by its feature's cost. Unset uses 1 for every feature."
     ),
     ifw = prop_boolean(
       FALSE,
       tunable = TRUE,
       description = "Inverse Frequency Weighting in classification."
+    )
+  ),
+  reporting = list(
+    primary = c(
+      "cp",
+      "maxdepth",
+      "minsplit",
+      "minbucket",
+      "prune_cp"
     )
   ),
   publication = SchemaPublication(
@@ -1287,7 +1299,7 @@ CARTHyperparameters <- schema_class(
 #' @param maxdepth (Tunable) Integer \[1, 30\]: Maximum depth of tree.
 #' @param minsplit (Tunable) Integer [1, Inf): Minimum number of observations in a node to split.
 #' @param minbucket (Tunable) Integer [1, Inf): Minimum number of observations in a terminal node.
-#' @param prune_cp (Tunable) Optional Numeric [0, Inf): Complexity for cost-complexity pruning after tree is built.
+#' @param prune_cp (Tunable) Optional Numeric [0, Inf): Complexity for cost-complexity pruning after tree is built. NULL prunes nothing after the tree is built.
 #' @param method Character \{"auto", "anova", "class", "poisson", "exp"\}: Splitting method.
 #' @param model Logical: If TRUE, keep a copy of the model frame.
 #' @param maxcompete Integer [0, Inf): Maximum number of competitive splits.
@@ -1295,7 +1307,7 @@ CARTHyperparameters <- schema_class(
 #' @param usesurrogate Integer \[0, 2\]: Number of surrogate splits to use.
 #' @param surrogatestyle Integer \[0, 1\]: Type of surrogate splits.
 #' @param xval Integer [0, Inf): Number of cross-validation folds.
-#' @param cost Optional Numeric (0, Inf) vector: One for each feature.
+#' @param cost Optional Numeric (0, Inf) vector: One for each feature. NULL uses 1 for every feature.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return CARTHyperparameters object.
@@ -1481,6 +1493,7 @@ GLMTreeHyperparameters <- schema_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
+  reporting = list(primary = c("alpha", "minsize", "maxdepth")),
   publication = SchemaPublication(
     role = "leaf",
     description = "Model-Based Recursive Partitioning: a tree with a GLM in each leaf.",
@@ -1663,7 +1676,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Expansions without validation improvement before growth stops, as gradient boosting stops on rounds. Needs a validation set; without one the tree grows to max_leaves. Stopping only bounds growth -- the size is still the one that minimizes validation loss over the curve reached. Defaults to growing to max_leaves."
+      description = "Expansions without validation improvement before growth stops, as gradient boosting stops on rounds. Needs a validation set. Stopping only bounds growth -- the size is still the one that minimizes validation loss over the curve reached. Unset disables patience-based early stopping."
     ),
     force_max_leaves = prop_boolean(
       FALSE,
@@ -1673,7 +1686,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       NULL,
       nullable = TRUE,
       applies_when = list(force_max_leaves = FALSE),
-      description = "Smooth the validation curve before reading its minimum. Steadier when the validation set is small."
+      description = "Smooth the validation curve before reading its minimum. Steadier when the validation set is small. Unset does not smooth."
     ),
     min_cases_split = prop_integer(
       2L,
@@ -1695,7 +1708,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       applies_when = list(
         node_model = c("forward", "ridge", "elasticnet")
       ),
-      description = "Fewest cases needed to fit a linear model at a node. Below it the node inherits its parent unchanged."
+      description = "Fewest cases needed to fit a linear model at a node. Below it the node inherits its parent unchanged. Unset uses 10."
     ),
     # Leaf model ----
     node_model = prop_string(
@@ -1709,7 +1722,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(node_model = "forward"),
-      description = "Most terms forward selection may add beside the intercept. A ceiling: the search stops earlier when forward_stop says a term does not pay for itself. Capped at the width of the design. Defaults to 3 where it applies."
+      description = "Most terms forward selection may add beside the intercept. A ceiling: the search stops earlier when forward_stop says a term does not pay for itself. Capped at the width of the design. Unset uses 3."
     ),
     forward_stop = prop_string(
       NULL,
@@ -1717,7 +1730,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(node_model = "forward"),
-      description = "Cost a term must earn to be added: the Bayesian or Akaike criterion, or none to always add nvmax terms. Shrinkage alone cannot stop the search, since every added term reduces the residual sum of squares. Defaults to bic where it applies."
+      description = "Cost a term must earn to be added: the Bayesian or Akaike criterion, or none to always add nvmax terms. Shrinkage alone cannot stop the search, since every added term reduces the residual sum of squares. Unset uses bic."
     ),
     lambda = prop_float(
       NULL,
@@ -1727,7 +1740,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       applies_when = list(
         node_model = c("forward", "ridge", "elasticnet")
       ),
-      description = "L2 penalty on the node models, on a standardized design so one value means the same at every node. Under forward selection it penalizes the fit and the search alike, so a feature that only looks good unpenalized does not win. Defaults to 0.05 where it applies."
+      description = "L2 penalty on the node models, on a standardized design so one value means the same at every node. Under forward selection it penalizes the fit and the search alike, so a feature that only looks good unpenalized does not win. Unset uses 0.05."
     ),
     alpha = prop_float(
       NULL,
@@ -1736,7 +1749,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(node_model = "elasticnet"),
-      description = "Elastic-net mixing: 0 is ridge, 1 is lasso."
+      description = "Elastic-net mixing: 0 is ridge, 1 is lasso. Unset uses 1."
     ),
     learning_rate = prop_float(
       learning_rate,
@@ -1774,6 +1787,20 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       tunable = TRUE,
       description = "alpha for the root model. Unset uses alpha. Ignored unless the root model is an elastic net."
     ),
+    root_forward_stop = prop_string(
+      NULL,
+      enum = c("bic", "aic", "none"),
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "forward_stop for the root model. Unset uses forward_stop, or bic where forward_stop is unset. Ignored unless the root model is forward selection."
+    ),
+    root_node_test = prop_string(
+      NULL,
+      enum = c("none", "aic", "bic"),
+      nullable = TRUE,
+      tunable = TRUE,
+      description = "node_test for the root model. Unset uses node_test, or none where node_test is unset. Ignored unless the root model is ridge or elasticnet."
+    ),
     root_learning_rate = prop_float(
       1,
       min = 0,
@@ -1788,7 +1815,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(node_model = c("ridge", "elasticnet")),
-      description = "Cost a node's slopes must earn over the constant alone, so that a node carries coefficients only where the data supports them and a plain constant otherwise. The constant is nested in the linear model, so on the node's own cases the slopes always fit better and no comparison is possible without a cost; aic charges 2 per nonzero slope and bic log(n). Forward selection has the same criterion per term in forward_stop, which subsumes this one, so this is the shrinking models' equivalent. Defaults to none where it applies."
+      description = "Cost a node's slopes must earn over the constant alone, so that a node carries coefficients only where the data supports them and a plain constant otherwise. The constant is nested in the linear model, so on the node's own cases the slopes always fit better and no comparison is possible without a cost; aic charges 2 per nonzero slope and bic log(n). Forward selection has the same criterion per term in forward_stop, which subsumes this one, so this is the shrinking models' equivalent. Unset uses none."
     ),
     split_criterion = prop_string(
       NULL,
@@ -1796,7 +1823,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(split_search = "stump"),
-      description = "What the stump search scores a candidate side by: the level its fit explains, or its level and its slope in the split variable. linear finds a change of slope in the split variable, such as a parabola's vertex, which a level criterion cannot see; it can also chase the slope of the wrong variable where the change belongs to another. Defaults to mean where it applies."
+      description = "What the stump search scores a candidate side by: the level its fit explains, or its level and its slope in the split variable. linear finds a change of slope in the split variable, such as a parabola's vertex, which a level criterion cannot see; it can also chase the slope of the wrong variable where the change belongs to another. Unset uses mean."
     ),
     split_search = prop_string(
       "stump",
@@ -1822,7 +1849,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(split_search = "exhaustive"),
-      description = "Number of cut points tried per feature by the exhaustive search. split_bin_type decides how they are spaced."
+      description = "Number of cut points tried per feature by the exhaustive search. split_bin_type decides how they are spaced. Unset uses 20."
     ),
     # Feature roles ----
     # Two independent axes: whether a feature may define a partition, and
@@ -1921,6 +1948,17 @@ LINADHyperparameters <- schema_class(
     superset = "linear_features",
     message = "global_features must be a subset of linear_features when both are set."
   )),
+  reporting = list(
+    primary = c(
+      "max_leaves",
+      "node_model",
+      "learning_rate",
+      "gamma",
+      "lambda",
+      "nvmax",
+      "min_cases_leaf"
+    )
+  ),
   publication = SchemaPublication(
     role = "leaf",
     description = "Linear Additive Tree.",
@@ -2113,29 +2151,31 @@ LINADHyperparameters <- schema_class(
 #' best choice among them, so each is tunable.
 #'
 #' @param max_leaves (Tunable) Integer [1, Inf): Largest number of terminal nodes to grow.
-#' @param patience (Tunable) Optional Integer [1, Inf): Expansions without validation improvement before growth stops. Requires a validation set.
+#' @param patience (Tunable) Optional Integer [1, Inf): Expansions without validation improvement before growth stops. Requires a validation set. NULL disables patience-based early stopping.
 #' @param force_max_leaves Logical: If TRUE, keep every leaf grown instead of selecting a size on the validation set.
-#' @param smooth_validation_curve Optional Logical: If TRUE, smooth the validation curve before reading its minimum. Applies only when `force_max_leaves` is FALSE.
+#' @param smooth_validation_curve Optional Logical: If TRUE, smooth the validation curve before reading its minimum. Applies only when `force_max_leaves` is FALSE. NULL does not smooth.
 #' @param min_cases_split (Tunable) Integer [2, Inf): Fewest cases a node may hold and still be considered for splitting.
 #' @param min_cases_leaf (Tunable) Integer [1, Inf): Fewest cases a split must leave on each side.
-#' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` is not "constant".
+#' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` is not "constant". NULL uses 10.
 #' @param node_model Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node. "constant" is the intercept-only model every decision tree node carries; the others add a regularized linear model on top of it.
-#' @param nvmax (Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when `node_model` is "forward".
-#' @param forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when `node_model` is "forward".
-#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when `node_model` is "forward", "ridge" or "elasticnet".
-#' @param alpha (Tunable) Optional Numeric \[0, 1\]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when `node_model` is "elasticnet".
+#' @param nvmax (Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when `node_model` is "forward". NULL uses 3.
+#' @param forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when `node_model` is "forward". NULL uses "bic".
+#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when `node_model` is "forward", "ridge" or "elasticnet". NULL uses 0.05.
+#' @param alpha (Tunable) Optional Numeric \[0, 1\]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when `node_model` is "elasticnet". NULL uses 1.
 #' @param learning_rate (Tunable) Numeric (0, 1\]: Shrinkage applied to every functional update.
 #' @param root_model Optional Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at the root. NULL uses `node_model`.
 #' @param root_nvmax (Tunable) Optional Integer [1, Inf): `nvmax` for the root model. NULL uses `nvmax`.
 #' @param root_lambda (Tunable) Optional Numeric [0, Inf): `lambda` for the root model. NULL uses `lambda`.
 #' @param root_alpha (Tunable) Optional Numeric \[0, 1\]: `alpha` for the root model. NULL uses `alpha`.
+#' @param root_forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: `forward_stop` for the root model. NULL uses `forward_stop`, or "bic" where that is NULL. Applies only when the root model is "forward".
+#' @param root_node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: `node_test` for the root model. NULL uses `node_test`, or "none" where that is NULL. Applies only when the root model is "ridge" or "elasticnet".
 #' @param root_learning_rate (Tunable) Numeric \[0, 1\]: Shrinkage applied to the root model's slopes.
 #' @param split_search Character \{"stump", "exhaustive"\}: How a split is chosen.
 #' @param split_binning (Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits. Applies to both split searches.
 #' @param split_bin_type (Tunable) Character \{"frequency", "width"\}: How bin edges are placed.
-#' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when `node_model` is "ridge" or "elasticnet"; forward selection uses `forward_stop`.
-#' @param split_criterion (Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when `split_search` is "stump".
-#' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature; `split_bin_type` decides their spacing. Applies only when `split_search` is "exhaustive".
+#' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when `node_model` is "ridge" or "elasticnet"; forward selection uses `forward_stop`. NULL uses "none".
+#' @param split_criterion (Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when `split_search` is "stump". NULL uses "mean".
+#' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature; `split_bin_type` decides their spacing. Applies only when `split_search` is "exhaustive". NULL uses 20.
 #' @param split_features Optional Character vector: Features that may define a split. NULL imposes no constraint, so every feature may.
 #' @param linear_features Optional Character vector: Features that get a slope in the node models. NULL imposes no constraint, so every feature does.
 #' @param global_features Optional Character vector: Linear features whose slope is shared by every leaf. Must be a subset of `linear_features` where that is set. NULL imposes no constraint, so no coefficient is pinned.
@@ -2196,7 +2236,10 @@ setup_LINAD <- function(
   split_features = NULL,
   linear_features = NULL,
   global_features = NULL,
-  line_search_max = 1000
+  line_search_max = 1000,
+  # Last: positional calls bind every argument above at a fixed position.
+  root_forward_stop = NULL,
+  root_node_test = NULL
 ) {
   apply_setup_defaults(LINADHyperparameters)
   max_leaves <- clean_int(max_leaves)
@@ -2225,6 +2268,8 @@ setup_LINAD <- function(
     root_nvmax = root_nvmax,
     root_lambda = root_lambda,
     root_alpha = root_alpha,
+    root_forward_stop = root_forward_stop,
+    root_node_test = root_node_test,
     root_learning_rate = root_learning_rate,
     split_search = split_search,
     split_binning = split_binning,
@@ -2297,6 +2342,20 @@ LINADForestHyperparameters <- schema_class(
     superset = "linear_features",
     message = "global_features must be a subset of linear_features when both are set."
   )),
+  reporting = list(
+    primary = c(
+      "n_trees",
+      "mtry_tree",
+      "mtry_split",
+      "max_leaves",
+      "node_model",
+      "learning_rate",
+      "gamma",
+      "lambda",
+      "nvmax",
+      "min_cases_leaf"
+    )
+  ),
   publication = SchemaPublication(
     role = "leaf",
     description = "Bagged ensemble of Linear Additive Trees.",
@@ -2367,29 +2426,31 @@ LINADForestHyperparameters <- schema_class(
 #' @param mtry_split (Tunable) Optional Integer [1, Inf): Features sampled at each split search. NULL scans every feature the tree holds.
 #' @param mtry_tree (Tunable) Optional Integer [1, Inf): Features available to a whole tree. NULL gives every tree every feature.
 #' @param max_leaves (Tunable) Integer [1, Inf): Largest number of terminal nodes to grow in each tree.
-#' @param patience (Tunable) Optional Integer [1, Inf): Expansions without validation improvement before growth stops. Requires a validation set.
+#' @param patience (Tunable) Optional Integer [1, Inf): Expansions without validation improvement before growth stops. Requires a validation set. NULL disables patience-based early stopping.
 #' @param force_max_leaves Logical: If TRUE, grow every tree to `max_leaves` instead of selecting a size on its out-of-bag cases.
-#' @param smooth_validation_curve Optional Logical: If TRUE, smooth the out-of-bag curve before reading its minimum. Applies only when `force_max_leaves` is FALSE.
+#' @param smooth_validation_curve Optional Logical: If TRUE, smooth the out-of-bag curve before reading its minimum. Applies only when `force_max_leaves` is FALSE. NULL does not smooth.
 #' @param min_cases_split (Tunable) Integer [2, Inf): Fewest cases a node may hold and still be considered for splitting.
 #' @param min_cases_leaf (Tunable) Integer [1, Inf): Fewest cases a split must leave on each side.
-#' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` fits one.
+#' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` fits one. NULL uses 10.
 #' @param node_model Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node.
-#' @param nvmax (Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when `node_model` is "forward".
-#' @param forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when `node_model` is "forward".
-#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the node models. Applies only when `node_model` is "forward", "ridge" or "elasticnet".
-#' @param alpha (Tunable) Optional Numeric \[0, 1\]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when `node_model` is "elasticnet".
+#' @param nvmax (Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when `node_model` is "forward". NULL uses 3.
+#' @param forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when `node_model` is "forward". NULL uses "bic".
+#' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the node models. Applies only when `node_model` is "forward", "ridge" or "elasticnet". NULL uses 0.05.
+#' @param alpha (Tunable) Optional Numeric \[0, 1\]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when `node_model` is "elasticnet". NULL uses 1.
 #' @param learning_rate (Tunable) Numeric (0, 1\]: Shrinkage applied to every functional update.
 #' @param root_model Optional Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each tree's root. NULL uses `node_model`.
 #' @param root_nvmax (Tunable) Optional Integer [1, Inf): `nvmax` for the root model. NULL uses `nvmax`.
 #' @param root_lambda (Tunable) Optional Numeric [0, Inf): `lambda` for the root model. NULL uses `lambda`.
 #' @param root_alpha (Tunable) Optional Numeric \[0, 1\]: `alpha` for the root model. NULL uses `alpha`.
+#' @param root_forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: `forward_stop` for the root model. NULL uses `forward_stop`, or "bic" where that is NULL. Applies only when the root model is "forward".
+#' @param root_node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: `node_test` for the root model. NULL uses `node_test`, or "none" where that is NULL. Applies only when the root model is "ridge" or "elasticnet".
 #' @param root_learning_rate (Tunable) Numeric \[0, 1\]: Shrinkage applied to the root model's slopes.
 #' @param split_search Character \{"stump", "exhaustive"\}: How a split is chosen.
 #' @param split_binning (Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits.
 #' @param split_bin_type (Tunable) Character \{"frequency", "width"\}: How bin edges are placed.
-#' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when `node_model` is "ridge" or "elasticnet"; forward selection uses `forward_stop`.
-#' @param split_criterion (Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when `split_search` is "stump".
-#' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature. Applies only when `split_search` is "exhaustive".
+#' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when `node_model` is "ridge" or "elasticnet"; forward selection uses `forward_stop`. NULL uses "none".
+#' @param split_criterion (Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when `split_search` is "stump". NULL uses "mean".
+#' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature. Applies only when `split_search` is "exhaustive". NULL uses 20.
 #' @param split_features Optional Character vector: Features that may define a split. NULL imposes no constraint, so every feature may. `mtry_split` samples within this set.
 #' @param linear_features Optional Character vector: Features that get a slope in the node models. NULL imposes no constraint, so every feature does.
 #' @param global_features Optional Character vector: Linear features whose slope is shared by every leaf of a tree. Must be a subset of `linear_features` where that is set. NULL imposes no constraint.
@@ -2448,7 +2509,10 @@ setup_LINADForest <- function(
   split_features = NULL,
   linear_features = NULL,
   global_features = NULL,
-  line_search_max = 1000
+  line_search_max = 1000,
+  # Last: positional calls bind every argument above at a fixed position.
+  root_forward_stop = NULL,
+  root_node_test = NULL
 ) {
   apply_setup_defaults(LINADForestHyperparameters)
   n_trees <- clean_int(n_trees)
@@ -2483,6 +2547,8 @@ setup_LINADForest <- function(
     root_nvmax = root_nvmax,
     root_lambda = root_lambda,
     root_alpha = root_alpha,
+    root_forward_stop = root_forward_stop,
+    root_node_test = root_node_test,
     root_learning_rate = root_learning_rate,
     split_search = split_search,
     split_binning = split_binning,
@@ -2539,13 +2605,6 @@ GLMNETHyperparameters <- schema_class(
       default_on_null = TRUE,
       description = "GLM family. Unset sets it from the outcome type."
     ),
-    offset = prop_float(
-      NULL,
-      nullable = TRUE,
-      vector = TRUE,
-      data_bound = "n_cases",
-      description = "Offset."
-    ),
     which_lambda_cv = prop_string(
       "lambda.1se",
       enum = c("lambda.1se", "lambda.min"),
@@ -2569,7 +2628,7 @@ GLMNETHyperparameters <- schema_class(
       min = 0,
       nullable = TRUE,
       vector = TRUE,
-      description = "Penalty factor, one per feature."
+      description = "Penalty factor, one per design-matrix column (factors expanded to indicator columns). Unset uses 1 for every column."
     ),
     standardize = prop_boolean(
       TRUE,
@@ -2598,6 +2657,7 @@ GLMNETHyperparameters <- schema_class(
       description = "Largest lambda within one standard error of the minimum."
     ))
   ),
+  reporting = list(primary = c("alpha", "lambda")),
   publication = SchemaPublication(
     role = "leaf",
     description = "Elastic net (glmnet).",
@@ -2615,11 +2675,10 @@ GLMNETHyperparameters <- schema_class(
 #'
 #' @param alpha (Tunable) Numeric \[0, 1\]: Elastic net mixing parameter.
 #' @param family Optional Character \{"gaussian", "binomial", "poisson", "multinomial", "cox", "mgaussian"\}: Family. NULL = set from outcome type.
-#' @param offset Optional Numeric vector: Offset, one value per case.
 #' @param which_lambda_cv Character \{"lambda.1se", "lambda.min"\}: Which lambda to use for prediction.
 #' @param nlambda Integer [1, Inf): Number of lambda values.
 #' @param lambda Optional Numeric [0, Inf) vector: Lambda values. NULL = determined by cv.glmnet during tuning.
-#' @param penalty_factor Optional Numeric [0, Inf) vector: Penalty factor for each feature.
+#' @param penalty_factor Optional Numeric [0, Inf) vector: Penalty factor for each design-matrix column (factors expanded to indicator columns). NULL uses 1 for every column.
 #' @param standardize Logical: If TRUE, standardize features.
 #' @param intercept Logical: If TRUE, include intercept.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
@@ -2636,7 +2695,6 @@ setup_GLMNET <- function(
   alpha = 1,
   # fixed
   family = NULL,
-  offset = NULL,
   which_lambda_cv = "lambda.1se",
   nlambda = 100L,
   lambda = NULL,
@@ -2650,7 +2708,6 @@ setup_GLMNET <- function(
   GLMNETHyperparameters(
     alpha = alpha,
     family = family,
-    offset = offset,
     which_lambda_cv = which_lambda_cv,
     nlambda = nlambda,
     lambda = lambda,
@@ -2757,6 +2814,14 @@ HALHyperparameters <- schema_class(
       id = "hal.knots-order",
       property = "num_knots",
       message = "num_knots must be non-increasing across interaction degrees."
+    )
+  ),
+  reporting = list(
+    primary = c(
+      "max_degree",
+      "smoothness_orders",
+      "num_knots",
+      "reduce_basis"
     )
   ),
   publication = SchemaPublication(
@@ -2943,6 +3008,13 @@ MonotonicHALHyperparameters <- schema_class(
     # as an `applies_when` gate.
     check_applies_when(self)
   },
+  reporting = list(
+    primary = c(
+      "smoothness_orders",
+      "num_knots",
+      "reduce_basis"
+    )
+  ),
   publication = SchemaPublication(
     role = "leaf",
     description = "Monotonic Highly Adaptive Lasso (hal9001).",
@@ -3124,12 +3196,12 @@ lightgbm_objective_props <- function(alpha = TRUE) {
     boost_from_average = prop_boolean(
       NULL,
       nullable = TRUE,
-      description = "Start from the outcome's mean, for a regression, binary or cross-entropy objective. Unset uses LightGBM's default of true."
+      description = "Start boosting from the constant score that best fits the outcome under the objective, such as its mean for regression. Unset uses LightGBM's default of true."
     ),
     reg_sqrt = prop_boolean(
       NULL,
       nullable = TRUE,
-      description = "Fit the square root of the outcome and square the prediction back, for a regression objective. Unset uses LightGBM's default of false."
+      description = "Fit the square root of the outcome and square the prediction back, for the regression, regression_l1, fair, quantile or mape objective. Unset uses LightGBM's default of false."
     )
   )
   if (!alpha) {
@@ -3534,13 +3606,13 @@ lightgbm_cegb_props <- function() {
         prop_float(0, min = 0, vector = TRUE, data_bound = "n_features"),
         nullable = TRUE,
         broadcast = TRUE,
-        description = "Per-feature cost charged the first time a case uses it, one value per feature."
+        description = "Per-feature cost charged the first time a case uses it, one value per feature. Unset charges no cost."
       ),
       cegb_penalty_feature_coupled = prop_array(
         prop_float(0, min = 0, vector = TRUE, data_bound = "n_features"),
         nullable = TRUE,
         broadcast = TRUE,
-        description = "Per-feature cost charged the first time any case uses it, one value per feature."
+        description = "Per-feature cost charged the first time any case uses it, one value per feature. Unset charges no cost."
       )
     ),
     "cegb"
@@ -3626,14 +3698,14 @@ lightgbm_constraint_props <- function() {
         nullable = TRUE,
         vector = TRUE,
         data_bound = "n_features",
-        description = "Per-feature monotonicity: 1 increasing, -1 decreasing, 0 unconstrained."
+        description = "Per-feature monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. Unset constrains no feature."
       ),
       monotone_constraints_method = prop_string(
         NULL,
         enum = c("basic", "intermediate", "advanced"),
         nullable = TRUE,
         applies_when = list(monotone_constraints = c(-1L, 1L)),
-        description = "How monotonicity is enforced: 'basic' is fastest, 'advanced' least restrictive."
+        description = "How monotonicity is enforced: 'basic' is fastest, 'advanced' least restrictive. Unset uses LightGBM's default, basic."
       ),
       monotone_penalty = prop_float(
         NULL,
@@ -3646,14 +3718,14 @@ lightgbm_constraint_props <- function() {
       interaction_constraints = prop_string(
         NULL,
         nullable = TRUE,
-        description = "Feature groups permitted to interact, in LightGBM's own bracketed form, e.g. \"[0,1],[2,3]\"."
+        description = "Feature groups permitted to interact, in LightGBM's own bracketed form, e.g. \"[0,1],[2,3]\". Unset permits every interaction."
       ),
       feature_contri = prop_float(
         NULL,
         nullable = TRUE,
         vector = TRUE,
         data_bound = "n_features",
-        description = "Per-feature multiplier on split gain, one value per feature."
+        description = "Per-feature multiplier on split gain, one value per feature. Unset uses 1 for every feature."
       )
     ),
     "constraints"
@@ -3943,6 +4015,15 @@ LightCARTHyperparameters <- schema_class(
   validator = function(self) {
     check_applies_when(self)
   },
+  reporting = list(
+    primary = c(
+      "num_leaves",
+      "max_depth",
+      "min_data_in_leaf",
+      "lambda_l1",
+      "lambda_l2"
+    )
+  ),
   publication = SchemaPublication(
     role = "leaf",
     description = "Single LightGBM tree (CART mode).",
@@ -3983,10 +4064,10 @@ LightCARTHyperparameters <- schema_class(
 #' of loss reduction.
 #' @param cegb_penalty_feature_lazy Optional List: Per-feature cost charged the first
 #' time a case uses it, in \[0, Inf). One vector applied to every tree, or one vector
-#' per tree.
+#' per tree. NULL charges no cost.
 #' @param cegb_penalty_feature_coupled Optional List: Per-feature cost charged the first
 #' time any case uses it, in \[0, Inf). One vector applied to every tree, or one vector
-#' per tree.
+#' per tree. NULL charges no cost.
 #' @param use_quantized_grad Logical: Discretize gradients before finding splits. Faster,
 #' and changes the fit.
 #' @param num_grad_quant_bins (Tunable) Optional Integer [2, Inf): Bins the gradients are
@@ -3997,16 +4078,16 @@ LightCARTHyperparameters <- schema_class(
 #' @param stochastic_rounding Optional Logical: Round gradients stochastically rather than
 #' to nearest. Requires `use_quantized_grad = TRUE`. NULL uses LightGBM's default of TRUE.
 #' @param monotone_constraints Optional Integer \[-1, 1\] vector: Per-feature
-#' monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature.
+#' monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature. NULL constrains no feature.
 #' @param monotone_constraints_method Optional Character \{"basic", "intermediate",
-#' "advanced"\}: How monotonicity is enforced. Requires `monotone_constraints`.
+#' "advanced"\}: How monotonicity is enforced. Requires `monotone_constraints`. NULL uses LightGBM's default, "basic".
 #' @param monotone_penalty (Tunable) Optional Numeric [0, Inf): Depth penalty on splits
 #' that would break monotonicity. Requires `monotone_constraints`. NULL uses LightGBM's
 #' default of 0.
 #' @param interaction_constraints Optional Character: Feature groups permitted to interact,
-#' in LightGBM's own bracketed form, e.g. "\[0,1\],\[2,3\]".
+#' in LightGBM's own bracketed form, e.g. "\[0,1\],\[2,3\]". NULL permits every interaction.
 #' @param feature_contri Optional Numeric vector: Per-feature multiplier on split gain,
-#' one value per feature.
+#' one value per feature. NULL uses 1 for every feature.
 #' @param min_data_in_leaf (Tunable) Integer [0, Inf): Minimum number of cases in a leaf.
 #' @param min_sum_hessian_in_leaf (Tunable) Numeric [0, Inf): Minimum sum of hessians in a
 #' leaf: the smooth counterpart of a case count.
@@ -4044,10 +4125,12 @@ LightCARTHyperparameters <- schema_class(
 #' LightGBM's default of 0.7.
 #' @param sigmoid (Tunable) Optional Numeric (0, Inf): Sigmoid slope, for a binary or
 #' one-vs-all objective. NULL uses LightGBM's default of 1.
-#' @param boost_from_average Optional Logical: Start from the outcome's mean, for a
-#' regression, binary or cross-entropy objective. NULL uses LightGBM's default of TRUE.
+#' @param boost_from_average Optional Logical: Start boosting from the constant score that
+#' best fits the outcome under the objective, such as its mean for regression. NULL uses
+#' LightGBM's default of TRUE.
 #' @param reg_sqrt Optional Logical: Fit the square root of the outcome and square the
-#' prediction back, for a regression objective. NULL uses LightGBM's default of FALSE.
+#' prediction back, for the "regression", "regression_l1", "fair", "quantile" or "mape"
+#' objective. NULL uses LightGBM's default of FALSE.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
 #' @return LightCARTHyperparameters object.
@@ -4308,6 +4391,16 @@ LightRFHyperparameters <- schema_class(
   validator = function(self) {
     check_applies_when(self)
   },
+  reporting = list(
+    primary = c(
+      "nrounds",
+      "num_leaves",
+      "max_depth",
+      "min_data_in_leaf",
+      "feature_fraction",
+      "bagging_fraction"
+    )
+  ),
   publication = SchemaPublication(
     role = "leaf",
     description = "LightGBM random forest.",
@@ -4362,10 +4455,10 @@ LightRFHyperparameters <- schema_class(
 #' of loss reduction.
 #' @param cegb_penalty_feature_lazy Optional List: Per-feature cost charged the first
 #' time a case uses it, in \[0, Inf). One vector applied to every tree, or one vector
-#' per tree.
+#' per tree. NULL charges no cost.
 #' @param cegb_penalty_feature_coupled Optional List: Per-feature cost charged the first
 #' time any case uses it, in \[0, Inf). One vector applied to every tree, or one vector
-#' per tree.
+#' per tree. NULL charges no cost.
 #' @param use_quantized_grad Logical: Discretize gradients before finding splits. Faster,
 #' and changes the fit.
 #' @param num_grad_quant_bins (Tunable) Optional Integer [2, Inf): Bins the gradients are
@@ -4376,16 +4469,16 @@ LightRFHyperparameters <- schema_class(
 #' @param stochastic_rounding Optional Logical: Round gradients stochastically rather than
 #' to nearest. Requires `use_quantized_grad = TRUE`. NULL uses LightGBM's default of TRUE.
 #' @param monotone_constraints Optional Integer \[-1, 1\] vector: Per-feature
-#' monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature.
+#' monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature. NULL constrains no feature.
 #' @param monotone_constraints_method Optional Character \{"basic", "intermediate",
-#' "advanced"\}: How monotonicity is enforced. Requires `monotone_constraints`.
+#' "advanced"\}: How monotonicity is enforced. Requires `monotone_constraints`. NULL uses LightGBM's default, "basic".
 #' @param monotone_penalty (Tunable) Optional Numeric [0, Inf): Depth penalty on splits
 #' that would break monotonicity. Requires `monotone_constraints`. NULL uses LightGBM's
 #' default of 0.
 #' @param interaction_constraints Optional Character: Feature groups permitted to interact,
-#' in LightGBM's own bracketed form, e.g. "\[0,1\],\[2,3\]".
+#' in LightGBM's own bracketed form, e.g. "\[0,1\],\[2,3\]". NULL permits every interaction.
 #' @param feature_contri Optional Numeric vector: Per-feature multiplier on split gain,
-#' one value per feature.
+#' one value per feature. NULL uses 1 for every feature.
 #' @param min_data_in_leaf (Tunable) Integer [0, Inf): Minimum number of cases in a leaf.
 #' @param min_sum_hessian_in_leaf (Tunable) Numeric [0, Inf): Minimum sum of hessians in a
 #' leaf: the smooth counterpart of a case count.
@@ -4423,10 +4516,12 @@ LightRFHyperparameters <- schema_class(
 #' LightGBM's default of 0.7.
 #' @param sigmoid (Tunable) Optional Numeric (0, Inf): Sigmoid slope, for a binary or
 #' one-vs-all objective. NULL uses LightGBM's default of 1.
-#' @param boost_from_average Optional Logical: Start from the outcome's mean, for a
-#' regression, binary or cross-entropy objective. NULL uses LightGBM's default of TRUE.
+#' @param boost_from_average Optional Logical: Start boosting from the constant score that
+#' best fits the outcome under the objective, such as its mean for regression. NULL uses
+#' LightGBM's default of TRUE.
 #' @param reg_sqrt Optional Logical: Fit the square root of the outcome and square the
-#' prediction back, for a regression objective. NULL uses LightGBM's default of FALSE.
+#' prediction back, for the "regression", "regression_l1", "fair", "quantile" or "mape"
+#' objective. NULL uses LightGBM's default of FALSE.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #' @param device_type Optional Character: Deprecated and ignored. Set the compute device in the
 #' `execution_config` passed to [train], e.g.
@@ -4611,7 +4706,7 @@ LightGBMHyperparameters <- schema_class(
         NULL,
         min = 1L,
         nullable = TRUE,
-        description = "Use this many boosting rounds; disables the search for nrounds."
+        description = "Use this many boosting rounds; disables the search for nrounds. Unset selects nrounds during tuning from the best iteration each tuning fit reports, up to max_nrounds: the fits stop early on their validation cases except under dart boosting, and a fit that reports no best iteration counts as 100 rounds."
       ),
       early_stopping_rounds = prop_integer(
         10L,
@@ -4740,6 +4835,18 @@ LightGBMHyperparameters <- schema_class(
   ),
   validator = function(self) check_applies_when(self),
   rules = lightgbm_sampling_rules(),
+  reporting = list(
+    primary = c(
+      "learning_rate",
+      "num_leaves",
+      "max_depth",
+      "min_data_in_leaf",
+      "feature_fraction",
+      "bagging_fraction",
+      "lambda_l1",
+      "lambda_l2"
+    )
+  ),
   publication = SchemaPublication(
     role = "leaf",
     description = "LightGBM gradient boosting.",
@@ -4772,7 +4879,7 @@ method(update, LightGBMHyperparameters) <- function(
 #' `force_nrounds` is set.
 #'
 #' @param max_nrounds Integer [1, Inf): Maximum number of boosting rounds.
-#' @param force_nrounds Optional Integer [1, Inf): Use this many boosting rounds. Disables search for nrounds.
+#' @param force_nrounds Optional Integer [1, Inf): Use this many boosting rounds. Disables search for nrounds. NULL selects `nrounds` during tuning from the best iteration each tuning fit reports, up to `max_nrounds`: the fits stop early on their validation cases except under "dart" boosting, and a fit that reports no best iteration counts as 100 rounds.
 #' @param early_stopping_rounds Integer [1, Inf): Number of rounds without improvement to stop training.
 #' @param num_leaves (Tunable) Integer [1, Inf): Maximum number of leaves in one tree.
 #' @param max_depth (Tunable) Integer: Maximum depth of trees. -1 = no limit.
@@ -4811,10 +4918,10 @@ method(update, LightGBMHyperparameters) <- function(
 #' of loss reduction.
 #' @param cegb_penalty_feature_lazy Optional List: Per-feature cost charged the first
 #' time a case uses it, in \[0, Inf). One vector applied to every tree, or one vector
-#' per tree.
+#' per tree. NULL charges no cost.
 #' @param cegb_penalty_feature_coupled Optional List: Per-feature cost charged the first
 #' time any case uses it, in \[0, Inf). One vector applied to every tree, or one vector
-#' per tree.
+#' per tree. NULL charges no cost.
 #' @param use_quantized_grad Logical: Discretize gradients before finding splits. Faster,
 #' and changes the fit.
 #' @param num_grad_quant_bins (Tunable) Optional Integer [2, Inf): Bins the gradients are
@@ -4825,16 +4932,16 @@ method(update, LightGBMHyperparameters) <- function(
 #' @param stochastic_rounding Optional Logical: Round gradients stochastically rather than
 #' to nearest. Requires `use_quantized_grad = TRUE`. NULL uses LightGBM's default of TRUE.
 #' @param monotone_constraints Optional Integer \[-1, 1\] vector: Per-feature
-#' monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature.
+#' monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature. NULL constrains no feature.
 #' @param monotone_constraints_method Optional Character \{"basic", "intermediate",
-#' "advanced"\}: How monotonicity is enforced. Requires `monotone_constraints`.
+#' "advanced"\}: How monotonicity is enforced. Requires `monotone_constraints`. NULL uses LightGBM's default, "basic".
 #' @param monotone_penalty (Tunable) Optional Numeric [0, Inf): Depth penalty on splits
 #' that would break monotonicity. Requires `monotone_constraints`. NULL uses LightGBM's
 #' default of 0.
 #' @param interaction_constraints Optional Character: Feature groups permitted to interact,
-#' in LightGBM's own bracketed form, e.g. "\[0,1\],\[2,3\]".
+#' in LightGBM's own bracketed form, e.g. "\[0,1\],\[2,3\]". NULL permits every interaction.
 #' @param feature_contri Optional Numeric vector: Per-feature multiplier on split gain,
-#' one value per feature.
+#' one value per feature. NULL uses 1 for every feature.
 #' @param min_data_in_leaf (Tunable) Integer [0, Inf): Minimum number of cases in a leaf.
 #' @param min_sum_hessian_in_leaf (Tunable) Numeric [0, Inf): Minimum sum of hessians in a
 #' leaf: the smooth counterpart of a case count.
@@ -4899,10 +5006,12 @@ method(update, LightGBMHyperparameters) <- function(
 #' LightGBM's default of 0.7.
 #' @param sigmoid (Tunable) Optional Numeric (0, Inf): Sigmoid slope, for a binary or
 #' one-vs-all objective. NULL uses LightGBM's default of 1.
-#' @param boost_from_average Optional Logical: Start from the outcome's mean, for a
-#' regression, binary or cross-entropy objective. NULL uses LightGBM's default of TRUE.
+#' @param boost_from_average Optional Logical: Start boosting from the constant score that
+#' best fits the outcome under the objective, such as its mean for regression. NULL uses
+#' LightGBM's default of TRUE.
 #' @param reg_sqrt Optional Logical: Fit the square root of the outcome and square the
-#' prediction back, for a regression objective. NULL uses LightGBM's default of FALSE.
+#' prediction back, for the "regression", "regression_l1", "fair", "quantile" or "mape"
+#' objective. NULL uses LightGBM's default of FALSE.
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #' @param device_type Optional Character: Deprecated and ignored. Set the compute device in the
 #' `execution_config` passed to [train], e.g.
@@ -5297,6 +5406,16 @@ LightRuleFitHyperparameters <- schema_class(
       )
     )
   ),
+  reporting = list(
+    primary = c(
+      "nrounds",
+      "num_leaves",
+      "max_depth",
+      "learning_rate",
+      "alpha_glmnet",
+      "lambda_glmnet"
+    )
+  ),
   publication = SchemaPublication(
     role = "leaf",
     description = "LightRuleFit (LightGBM rules + GLMNET).",
@@ -5357,10 +5476,10 @@ LightRuleFitHyperparameters <- schema_class(
 #' of loss reduction.
 #' @param cegb_penalty_feature_lazy Optional List: Per-feature cost charged the first
 #' time a case uses it, in \[0, Inf). One vector applied to every tree, or one vector
-#' per tree.
+#' per tree. NULL charges no cost.
 #' @param cegb_penalty_feature_coupled Optional List: Per-feature cost charged the first
 #' time any case uses it, in \[0, Inf). One vector applied to every tree, or one vector
-#' per tree.
+#' per tree. NULL charges no cost.
 #' @param use_quantized_grad Logical: Discretize gradients before finding splits. Faster,
 #' and changes the fit.
 #' @param num_grad_quant_bins (Tunable) Optional Integer [2, Inf): Bins the gradients are
@@ -5371,16 +5490,16 @@ LightRuleFitHyperparameters <- schema_class(
 #' @param stochastic_rounding Optional Logical: Round gradients stochastically rather than
 #' to nearest. Requires `use_quantized_grad = TRUE`. NULL uses LightGBM's default of TRUE.
 #' @param monotone_constraints Optional Integer \[-1, 1\] vector: Per-feature
-#' monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature.
+#' monotonicity: 1 increasing, -1 decreasing, 0 unconstrained. One value per feature. NULL constrains no feature.
 #' @param monotone_constraints_method Optional Character \{"basic", "intermediate",
-#' "advanced"\}: How monotonicity is enforced. Requires `monotone_constraints`.
+#' "advanced"\}: How monotonicity is enforced. Requires `monotone_constraints`. NULL uses LightGBM's default, "basic".
 #' @param monotone_penalty (Tunable) Optional Numeric [0, Inf): Depth penalty on splits
 #' that would break monotonicity. Requires `monotone_constraints`. NULL uses LightGBM's
 #' default of 0.
 #' @param interaction_constraints Optional Character: Feature groups permitted to interact,
-#' in LightGBM's own bracketed form, e.g. "\[0,1\],\[2,3\]".
+#' in LightGBM's own bracketed form, e.g. "\[0,1\],\[2,3\]". NULL permits every interaction.
 #' @param feature_contri Optional Numeric vector: Per-feature multiplier on split gain,
-#' one value per feature.
+#' one value per feature. NULL uses 1 for every feature.
 #' @param min_data_in_leaf (Tunable) Integer [0, Inf): Minimum number of cases in a leaf.
 #' @param min_sum_hessian_in_leaf (Tunable) Numeric [0, Inf): Minimum sum of hessians in a
 #' leaf: the smooth counterpart of a case count.
@@ -5440,10 +5559,12 @@ LightRuleFitHyperparameters <- schema_class(
 #' LightGBM's default of 0.7.
 #' @param sigmoid (Tunable) Optional Numeric (0, Inf): Sigmoid slope, for a binary or
 #' one-vs-all objective. NULL uses LightGBM's default of 1.
-#' @param boost_from_average Optional Logical: Start from the outcome's mean, for a
-#' regression, binary or cross-entropy objective. NULL uses LightGBM's default of TRUE.
+#' @param boost_from_average Optional Logical: Start boosting from the constant score that
+#' best fits the outcome under the objective, such as its mean for regression. NULL uses
+#' LightGBM's default of TRUE.
 #' @param reg_sqrt Optional Logical: Fit the square root of the outcome and square the
-#' prediction back, for a regression objective. NULL uses LightGBM's default of FALSE.
+#' prediction back, for the "regression", "regression_l1", "fair", "quantile" or "mape"
+#' objective. NULL uses LightGBM's default of FALSE.
 #' @param ifw_lightgbm (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in the LightGBM
 #' step.
 #' @param alpha_glmnet (Tunable) Numeric \[0, 1\]: Alpha for GLMNET.
@@ -5641,6 +5762,7 @@ IsotonicHyperparameters <- schema_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
+  reporting = list(primary = character()),
   publication = SchemaPublication(
     role = "leaf",
     description = "Isotonic regression.",
@@ -5702,6 +5824,7 @@ LinearSVMHyperparameters <- schema_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
+  reporting = list(primary = c("cost")),
   publication = SchemaPublication(
     role = "leaf",
     description = "SVM with linear kernel (e1071).",
@@ -5775,6 +5898,7 @@ RadialSVMHyperparameters <- schema_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
+  reporting = list(primary = c("cost", "gamma")),
   publication = SchemaPublication(
     role = "leaf",
     description = "SVM with radial kernel (e1071).",
@@ -5869,21 +5993,21 @@ MLPHyperparameters <- schema_class(
         enum = MLP_SHAPES,
         nullable = TRUE,
         tunable = TRUE,
-        description = "Profile of the generated hidden layer widths. Ignored when hidden_units is set."
+        description = "Profile of the generated hidden layer widths. Ignored when hidden_units is set. Unset uses funnel where hidden_units is unset."
       ),
       shape_layers = prop_integer(
         NULL,
         min = 1L,
         nullable = TRUE,
         tunable = TRUE,
-        description = "Number of hidden layers to generate. Ignored when hidden_units is set."
+        description = "Number of hidden layers to generate. Ignored when hidden_units is set. Unset uses 3 where hidden_units is unset."
       ),
       shape_max_units = prop_integer(
         NULL,
         min = 1L,
         nullable = TRUE,
         tunable = TRUE,
-        description = "Widest generated hidden layer. Unset derives it from the encoded input width. Ignored when hidden_units is set."
+        description = "Widest generated hidden layer. Ignored when hidden_units is set. Unset derives it from the encoded input width where hidden_units is unset."
       )
     ),
     torch_layer_props(tunable = TRUE),
@@ -5972,6 +6096,21 @@ MLPHyperparameters <- schema_class(
   validator = function(self) {
     check_applies_when(self)
   },
+  reporting = list(
+    primary = c(
+      "hidden_units",
+      "shape",
+      "shape_layers",
+      "shape_max_units",
+      "activation",
+      "dropout",
+      "weight_decay",
+      "optimizer",
+      "lr",
+      "batch_size",
+      "max_epochs"
+    )
+  ),
   publication = SchemaPublication(
     role = "leaf",
     description = "Multilayer perceptron (torch).",
@@ -6047,9 +6186,9 @@ MLPHyperparameters <- schema_class(
 #' `get_varimp()` returns NULL: a torch MLP has no native importance measure.
 #'
 #' @param hidden_units (Tunable) Optional Integer [1, Inf) vector: Units in each hidden layer, one value per layer. NULL generates the widths from the shape settings.
-#' @param shape (Tunable) Optional Character \{"funnel", "constant", "triangle", "long_funnel", "diamond", "hexagon", "stairs"\}: Profile of the generated hidden layer widths. Ignored when hidden_units is set.
-#' @param shape_layers (Tunable) Optional Integer [1, Inf): Number of hidden layers to generate. Ignored when hidden_units is set.
-#' @param shape_max_units (Tunable) Optional Integer [1, Inf): Widest generated hidden layer. NULL derives it from the encoded input width.
+#' @param shape (Tunable) Optional Character \{"funnel", "constant", "triangle", "long_funnel", "diamond", "hexagon", "stairs"\}: Profile of the generated hidden layer widths. Ignored when `hidden_units` is set. NULL uses "funnel" where `hidden_units` is NULL.
+#' @param shape_layers (Tunable) Optional Integer [1, Inf): Number of hidden layers to generate. Ignored when `hidden_units` is set. NULL uses 3 where `hidden_units` is NULL.
+#' @param shape_max_units (Tunable) Optional Integer [1, Inf): Widest generated hidden layer. Ignored when `hidden_units` is set. NULL derives it from the encoded input width where `hidden_units` is NULL.
 #' @param activation (Tunable) Character \{"relu", "gelu", "silu", "elu", "selu", "leaky_relu", "tanh"\}: Activation applied after every hidden layer.
 #' @param norm (Tunable) Optional Character \{"batch_norm", "layer_norm"\}: Normalization applied in every hidden layer. NULL applies none.
 #' @param norm_first Logical: If TRUE, normalize before the activation rather than after it.
@@ -6222,7 +6361,7 @@ TabNetHyperparameters <- schema_class(
       NULL,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Gradient clip value."
+      description = "Gradient clip value. Unset clips no gradients."
     ),
     loss = prop_string(
       "auto",
@@ -6245,14 +6384,14 @@ TabNetHyperparameters <- schema_class(
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Decision prediction layer width."
+      description = "Decision prediction layer width. Unset uses attention_width, or 8 where both are unset."
     ),
     attention_width = prop_integer(
       NULL,
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Attention embedding width."
+      description = "Attention embedding width. Unset uses decision_width, or 8 where both are unset."
     ),
     num_steps = prop_integer(
       3L,
@@ -6368,7 +6507,8 @@ TabNetHyperparameters <- schema_class(
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Training cases drawn to compute feature importance. Unset draws as many as there are training cases, at most 100,000."
+      applies_when = list(skip_importance = FALSE),
+      description = "Cases drawn, with replacement, from the training cases left after the validation split to compute feature importance. Unset draws as many as there are such cases, at most 100,000."
     ),
     early_stopping_monitor = prop_string(
       "auto",
@@ -6403,6 +6543,19 @@ TabNetHyperparameters <- schema_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
+  validator = function(self) check_applies_when(self),
+  reporting = list(
+    primary = c(
+      "decision_width",
+      "attention_width",
+      "num_steps",
+      "feature_reusage",
+      "penalty",
+      "learn_rate",
+      "batch_size",
+      "epochs"
+    )
+  ),
   publication = SchemaPublication(
     role = "leaf",
     description = "TabNet neural network.",
@@ -6420,12 +6573,12 @@ TabNetHyperparameters <- schema_class(
 #'
 #' @param batch_size (Tunable) Integer [1, Inf): Batch size.
 #' @param penalty (Tunable) Numeric [0, Inf): Regularization penalty.
-#' @param clip_value (Tunable) Optional Numeric: Clip value.
+#' @param clip_value (Tunable) Optional Numeric: Gradient clip value. NULL clips no gradients.
 #' @param loss (Tunable) Character: Loss function.
 #' @param epochs (Tunable) Integer [1, Inf): Number of epochs.
 #' @param drop_last (Tunable) Logical: If TRUE, drop last batch.
-#' @param decision_width (Tunable) Optional Integer [1, Inf): Decision width.
-#' @param attention_width (Tunable) Optional Integer [1, Inf): Attention width.
+#' @param decision_width (Tunable) Optional Integer [1, Inf): Decision prediction layer width. NULL uses `attention_width`, or 8 where both are NULL.
+#' @param attention_width (Tunable) Optional Integer [1, Inf): Attention embedding width. NULL uses `decision_width`, or 8 where both are NULL.
 #' @param num_steps (Tunable) Integer [1, Inf): Number of steps.
 #' @param feature_reusage (Tunable) Numeric [0, Inf): Feature reusage.
 #' @param mask_type (Tunable) Character \{"sparsemax", "entmax"\}: Mask type.
@@ -6453,7 +6606,7 @@ TabNetHyperparameters <- schema_class(
 #' "mps")`. Unset there, TabNet uses `"cuda"` where available and `"cpu"`
 #' otherwise; the Apple silicon GPU, slower than the CPU for TabNet at every size
 #' rtemis benchmarked, runs only when named.
-#' @param importance_sample_size (Tunable) Optional Integer [1, Inf): Training cases drawn to compute feature importance. Unset draws as many as there are training cases, at most 100,000.
+#' @param importance_sample_size (Tunable) Optional Integer [1, Inf): Cases drawn, with replacement, from the training cases left after the validation split to compute feature importance. Unset draws as many as there are such cases, at most 100,000. Applies only when `skip_importance` is FALSE.
 #' @param early_stopping_monitor (Tunable) Character \{"auto", "valid_loss", "train_loss"\}: Early stopping monitor.
 #' @param early_stopping_tolerance (Tunable) Numeric [0, Inf): Minimum relative improvement to reset the patience
 #' counter.
@@ -6638,7 +6791,7 @@ RangerHyperparameters <- schema_class(
       NULL,
       min = 1L,
       nullable = TRUE,
-      description = "Minimal number of samples in a terminal node (survival only)."
+      description = "Fewest cases a terminal node may hold; no split creates a smaller node. Unset uses ranger's default of 1."
     ),
     max_depth = prop_integer(
       NULL,
@@ -6659,21 +6812,13 @@ RangerHyperparameters <- schema_class(
       tunable = TRUE,
       description = "Fraction of observations to sample per tree."
     ),
-    case_weights = prop_float(
-      NULL,
-      min = 0,
-      nullable = TRUE,
-      vector = TRUE,
-      data_bound = "n_cases",
-      description = "Per-observation sampling weights."
-    ),
     class_weights = prop_float(
       NULL,
       min = 0,
       nullable = TRUE,
       vector = TRUE,
       data_bound = "n_classes",
-      description = "Per-class weights (classification only)."
+      description = "Per-class weights (classification only). Unset weights every class equally."
     ),
     splitrule = prop_string(
       NULL,
@@ -6710,14 +6855,14 @@ RangerHyperparameters <- schema_class(
       prop_float(0, min = 0, max = 1, vector = TRUE, data_bound = "n_features"),
       nullable = TRUE,
       broadcast = TRUE,
-      description = "Per-feature split-selection probabilities: one vector applied to every tree, or one vector per tree."
+      description = "Per-feature split-selection probabilities: one vector applied to every tree, or one vector per tree. Unset gives every feature the same probability."
     ),
     always_split_variables = prop_string(
       NULL,
       nullable = TRUE,
       vector = TRUE,
       data_bound = "feature_names",
-      description = "Variables always included as split candidates."
+      description = "Variables always included as split candidates. Unset adds none."
     ),
     respect_unordered_factors = prop_string(
       NULL,
@@ -6750,7 +6895,7 @@ RangerHyperparameters <- schema_class(
     inbag = prop_array(
       prop_integer(0L, min = 0L, vector = TRUE, data_bound = "n_cases"),
       nullable = TRUE,
-      description = "Manually set in-bag counts: one per-case count vector per tree."
+      description = "Manually set in-bag counts: one per-case count vector per tree. Unset draws each tree's sample by replace and sample_fraction, with the training case weights as sampling weights where training supplies them."
     ),
     holdout = prop_boolean(
       FALSE,
@@ -6764,7 +6909,7 @@ RangerHyperparameters <- schema_class(
       NULL,
       nullable = TRUE,
       vector = TRUE,
-      description = "Time points of interest for survival prediction."
+      description = "Time points of interest for survival prediction. Unset uses the observed event times."
     ),
     oob_error = prop_boolean(
       TRUE,
@@ -6798,6 +6943,16 @@ RangerHyperparameters <- schema_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
+  reporting = list(
+    primary = c(
+      "num_trees",
+      "mtry",
+      "min_node_size",
+      "max_depth",
+      "splitrule",
+      "sample_fraction"
+    )
+  ),
   publication = SchemaPublication(
     role = "leaf",
     description = "Ranger random forest.",
@@ -6819,29 +6974,28 @@ RangerHyperparameters <- schema_class(
 #' @param write_forest Logical: If TRUE, save the forest object (required for prediction). Set to FALSE to reduce memory if no prediction is intended.
 #' @param probability Logical: If TRUE, grow a probability forest. Classification only.
 #' @param min_node_size (Tunable) Optional Integer [1, Inf): Minimal node size. If NULL, ranger uses 1 for classification, 5 for regression, 3 for survival, and 10 for probability.
-#' @param min_bucket Optional Integer [1, Inf): Minimal number of samples in a terminal node. Survival only. Deprecated in favor of `min_node_size`.
+#' @param min_bucket Optional Integer [1, Inf): Fewest cases a terminal node may hold; no split creates a smaller node. Unset uses ranger's default of 1.
 #' @param max_depth (Tunable) Optional Integer [0, Inf): Maximal tree depth. NULL or 0 means unlimited depth, 1 means tree stumps.
 #' @param replace (Tunable) Logical: If TRUE, sample with replacement.
 #' @param sample_fraction (Tunable) Numeric (0, 1]: Fraction of observations to sample. Default is 1 with replacement and 0.632 without.
-#' @param case_weights Optional Numeric [0, Inf) vector: Per-observation sampling weights; larger weights raise selection probability in each tree's sample.
-#' @param class_weights Optional Numeric [0, Inf) vector: Per-class weights for classification. Length equal to the number of classes, named by class label.
+#' @param class_weights Optional Numeric [0, Inf) vector: Per-class weights for classification. Length equal to the number of classes, named by class label. NULL weights every class equally.
 #' @param splitrule (Tunable) Optional Character: Splitting rule. Classification: "gini", "extratrees", "hellinger"; regression: "variance", "extratrees", "maxstat", "beta"; survival: "logrank", "extratrees", "C", "maxstat".
 #' @param num_random_splits (Tunable) Integer [1, Inf): Number of random splits per candidate variable, for the "extratrees" splitrule.
 #' @param alpha (Tunable) Numeric \[0, 1\]: Significance threshold to allow splitting, for the "maxstat" splitrule.
 #' @param minprop (Tunable) Numeric \[0, 1\]: Lower quantile of the covariate distribution considered for splitting, for the "maxstat" splitrule.
 #' @param poisson_tau Numeric (0, Inf): Tau parameter, for the "poisson" regression splitrule.
-#' @param split_select_weights Optional List: Per-feature probabilities of being selected for splitting, in \[0, 1\]. One vector applied to every tree, or a list of length `num_trees` with one vector per tree.
-#' @param always_split_variables Optional Character vector: Names of variables to always include as split candidates, in addition to the `mtry` variables.
+#' @param split_select_weights Optional List: Per-feature probabilities of being selected for splitting, in \[0, 1\]. One vector applied to every tree, or a list of length `num_trees` with one vector per tree. NULL gives every feature the same probability.
+#' @param always_split_variables Optional Character vector: Names of variables to always include as split candidates, in addition to the `mtry` variables. NULL adds none.
 #' @param respect_unordered_factors Optional Character \{"partition", "ignore", "order"\}: Handling of unordered factors. "partition" considers all 2-partitions, "ignore" orders levels by first occurrence, "order" orders levels by mean response.
 #' @param scale_permutation_importance Logical: If TRUE, scale permutation importance by its standard error. Permutation importance only.
 #' @param local_importance Logical: If TRUE, compute local (per-observation) permutation importance.
 #' @param regularization_factor (Tunable) Numeric [0, Inf): Regularization factor penalizing variables with many split points. Requires `splitrule = "variance"`.
 #' @param regularization_usedepth Logical: If TRUE, apply the regularization factor with node depth. Requires `regularization_factor`.
 #' @param keep_inbag Logical: If TRUE, record how often each observation is in-bag per tree.
-#' @param inbag Optional List: Manually set in-bag counts; a list of length `num_trees`, each a per-case count vector. Can be used for stratified sampling.
+#' @param inbag Optional List: Manually set in-bag counts; a list of length `num_trees`, each a per-case count vector. Can be used for stratified sampling. NULL draws each tree's sample by `replace` and `sample_fraction`, with the training case weights as sampling weights where [train] supplies them.
 #' @param holdout Logical: If TRUE, use hold-out mode: hold out samples with case weight 0 and use them for variable importance and prediction error.
 #' @param quantreg Logical: If TRUE, prepare quantile prediction (quantile regression forests). Regression only; set `keep_inbag = TRUE` for out-of-bag quantile prediction.
-#' @param time_interest Optional Numeric vector: Time points of interest for survival prediction. Survival only. Deprecated.
+#' @param time_interest Optional Numeric vector: Time points of interest for survival prediction. Survival only. NULL uses the observed event times.
 #' @param oob_error Logical: If TRUE, compute the OOB prediction error. Set to FALSE to save time if only the forest is needed.
 #' @param save_memory Logical: If TRUE, use the memory-saving (slower) splitting mode. Use only if you encounter memory problems.
 #' @param verbose Logical: If TRUE, show computation status and estimated runtime.
@@ -6868,7 +7022,6 @@ setup_Ranger <- function(
   max_depth = NULL,
   replace = TRUE,
   sample_fraction = ifelse(replace, 1, 0.632),
-  case_weights = NULL,
   class_weights = NULL,
   splitrule = NULL,
   num_random_splits = 1L,
@@ -6917,7 +7070,6 @@ setup_Ranger <- function(
     max_depth = max_depth,
     replace = replace,
     sample_fraction = sample_fraction,
-    case_weights = case_weights,
     class_weights = class_weights,
     splitrule = splitrule,
     num_random_splits = num_random_splits,
@@ -7027,6 +7179,7 @@ SPLSHyperparameters <- schema_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
+  reporting = list(primary = c("k", "eta")),
   publication = SchemaPublication(
     role = "leaf",
     description = "Sparse Partial Least Squares.",
@@ -7158,6 +7311,7 @@ KNNHyperparameters <- schema_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
+  reporting = list(primary = c("k", "kernel", "distance")),
   publication = SchemaPublication(
     role = "leaf",
     description = "k-Nearest Neighbors (kknn).",
@@ -7337,6 +7491,19 @@ BARTHyperparameters <- schema_class(
     conditions = list(SchemaPredicate(property = "num_gfr", minimum = 1)),
     message = "num_chains cannot exceed num_gfr when num_gfr is greater than 0."
   )),
+  reporting = list(
+    primary = c(
+      "num_trees",
+      "alpha",
+      "beta",
+      "num_gfr",
+      "num_burnin",
+      "num_mcmc",
+      "num_chains",
+      "max_depth",
+      "min_samples_leaf"
+    )
+  ),
   publication = SchemaPublication(
     role = "leaf",
     description = "Bayesian Additive Regression Trees (stochtree).",
@@ -7484,6 +7651,7 @@ NNLSHyperparameters <- schema_class(
       description = "Inverse Frequency Weighting in classification."
     )
   ),
+  reporting = list(primary = c("normalize")),
   publication = SchemaPublication(
     role = "leaf",
     description = "Non-negative least squares (nnls).",
