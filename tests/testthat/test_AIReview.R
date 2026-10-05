@@ -272,3 +272,27 @@ test_that("an AI review record validates against its published schema", {
   bad[["evaluation"]][[1L]][["codes"]] <- list("NOT_A_CODE")
   expect_false(validate(as_json(bad)))
 })
+
+
+# %% Markdown ----
+test_that("Markdown shows the assessment, its codes, then the review", {
+  llm <- .llm()
+  .stub_generate(.answer())
+  out <- ai_review(.rev, llm = llm, verbosity = 0L)
+  md_text <- to_markdown(out)
+  md <- strsplit(md_text, "\n", fixed = TRUE)[[1L]]
+  expect_identical(md[[1L]], paste0("*", ai_review_byline(out), "*"))
+  expect_identical(
+    md[startsWith(md, "## ")],
+    c("## Summary", "## Evaluation", "## Next steps", "## Caveats", "## Review")
+  )
+  expect_true(any(grepl("[`BASELINE_ACCURACY`]", md, fixed = TRUE)))
+  expect_true(any(grepl("[`SINGLE_SPLIT`]", md, fixed = TRUE)))
+  # The review follows, one heading level lower.
+  expect_match(
+    md_text,
+    paste(review_markdown(.rev, level = 3L), collapse = "\n"),
+    fixed = TRUE
+  )
+  expect_true("### Findings" %in% md)
+})

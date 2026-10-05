@@ -713,10 +713,10 @@ review_text_table <- function(table, indent, align_left = FALSE) {
 } # /rtemis::review_text_table
 
 
-# %% review_performance_lines ----
-# One row per metric: training, test, training minus test; "mean (SD)" when
-# resampled.
-review_performance_lines <- function(x, indent) {
+# %% review_performance_rows ----
+# Character matrix, header first, then one row per metric: training, test,
+# training minus test; "mean (SD)" when resampled.
+review_performance_rows <- function(x) {
   p <- x@performance
   resampled <- !is.null(x@sample[["n_resamples"]])
   cell <- function(value, sd) {
@@ -744,8 +744,22 @@ review_performance_lines <- function(x, indent) {
   } else {
     c("", "Training")
   }
-  review_text_table(do.call(rbind, c(list(header), rows)), indent)
-} # /rtemis::review_performance_lines
+  do.call(rbind, c(list(header), rows))
+} # /rtemis::review_performance_rows
+
+
+# %% review_performance_title ----
+review_performance_title <- function(x) {
+  if (is.null(x@sample[["n_resamples"]])) {
+    "Performance"
+  } else {
+    paste0(
+      "Performance, mean (SD) over ",
+      x@sample[["n_resamples"]],
+      " resamples"
+    )
+  }
+} # /rtemis::review_performance_title
 
 
 # %% REVIEW_REFERENCE_TEXT ----
@@ -758,10 +772,10 @@ REVIEW_REFERENCE_TEXT <- c(
 )
 
 
-# %% review_baseline_lines ----
-# One line per comparison: model against its reference, the interval, the
+# %% review_baseline_text ----
+# One sentence per comparison: model against its reference, the interval, the
 # verdict or, for resampled models, the resamples where the model did better.
-review_baseline_lines <- function(x, indent) {
+review_baseline_text <- function(x) {
   b <- x@baseline
   level <- fmt_review_level(x@confidence_level)
   interval <- function(lower, upper) {
@@ -785,8 +799,6 @@ review_baseline_lines <- function(x, indent) {
     shown,
     function(i) {
       paste0(
-        indent,
-        "  ",
         label_metrics(b[["metric"]][[i]]),
         " ",
         fmt_review_cell(b[["model"]][[i]]),
@@ -825,7 +837,52 @@ review_baseline_lines <- function(x, indent) {
     },
     character(1L)
   )
-} # /rtemis::review_baseline_lines
+} # /rtemis::review_baseline_text
+
+
+# %% review_baseline_title ----
+review_baseline_title <- function(x) {
+  if (is.null(x@sample[["n_resamples"]])) {
+    "Baseline comparisons"
+  } else {
+    "Baseline comparisons, mean over resamples"
+  }
+} # /rtemis::review_baseline_title
+
+
+# %% review_tuning_text ----
+# One sentence per tuned hyperparameter: the range searched and, for a single
+# split, the value selected; for resamples, how many selected an extendable
+# edge of the range.
+review_tuning_text <- function(x, name = identity) {
+  t <- x@tuning
+  vapply(
+    seq_len(NROW(t)),
+    function(i) {
+      paste0(
+        name(t[["hyperparameter"]][[i]]),
+        ": searched ",
+        fmt_review_setting(t[["min"]][[i]]),
+        " to ",
+        fmt_review_setting(t[["max"]][[i]]),
+        " (",
+        t[["n_values"]][[i]],
+        " values), ",
+        if (!is.null(x@sample[["n_resamples"]])) {
+          paste0(
+            t[["n_at_edge"]][[i]],
+            " of ",
+            x@sample[["n_resamples"]],
+            " resamples at an extendable edge"
+          )
+        } else {
+          paste0("selected ", fmt_review_setting(t[["selected"]][[i]]))
+        }
+      )
+    },
+    character(1L)
+  )
+} # /rtemis::review_tuning_text
 
 
 # %% repr.SupervisedReview ----
@@ -848,7 +905,6 @@ method(repr, SupervisedReview) <- function(x, pad = 0L, output_type = NULL) {
       "\n"
     )
   }
-  resampled <- !is.null(x@sample[["n_resamples"]])
   out <- paste0(
     repr_S7name("SupervisedReview", pad = pad, output_type = output_type),
     indent,
@@ -862,18 +918,11 @@ method(repr, SupervisedReview) <- function(x, pad = 0L, output_type = NULL) {
   # Performance ----
   out <- paste0(
     out,
-    heading(
-      if (resampled) {
-        paste0(
-          "Performance, mean (SD) over ",
-          x@sample[["n_resamples"]],
-          " resamples"
-        )
-      } else {
-        "Performance"
-      }
+    heading(review_performance_title(x)),
+    paste(
+      review_text_table(review_performance_rows(x), indent),
+      collapse = "\n"
     ),
-    paste(review_performance_lines(x, indent), collapse = "\n"),
     "\n"
   )
 
@@ -881,50 +930,20 @@ method(repr, SupervisedReview) <- function(x, pad = 0L, output_type = NULL) {
   if (!is.null(x@baseline)) {
     out <- paste0(
       out,
-      heading(
-        if (resampled) {
-          "Baseline comparisons, mean over resamples"
-        } else {
-          "Baseline comparisons"
-        }
-      ),
-      paste(review_baseline_lines(x, indent), collapse = "\n"),
+      heading(review_baseline_title(x)),
+      paste0(indent, "  ", review_baseline_text(x), collapse = "\n"),
       "\n"
     )
   }
 
   # Tuning ----
   if (!is.null(x@tuning)) {
-    t <- x@tuning
-    lines <- vapply(
-      seq_len(NROW(t)),
-      function(i) {
-        paste0(
-          indent,
-          "  ",
-          t[["hyperparameter"]][[i]],
-          ": searched ",
-          fmt_review_setting(t[["min"]][[i]]),
-          " to ",
-          fmt_review_setting(t[["max"]][[i]]),
-          " (",
-          t[["n_values"]][[i]],
-          " values), ",
-          if (resampled) {
-            paste0(
-              t[["n_at_edge"]][[i]],
-              " of ",
-              x@sample[["n_resamples"]],
-              " resamples at an extendable edge"
-            )
-          } else {
-            paste0("selected ", fmt_review_setting(t[["selected"]][[i]]))
-          }
-        )
-      },
-      character(1L)
+    out <- paste0(
+      out,
+      heading("Tuning"),
+      paste0(indent, "  ", review_tuning_text(x), collapse = "\n"),
+      "\n"
     )
-    out <- paste0(out, heading("Tuning"), paste(lines, collapse = "\n"), "\n")
   }
 
   # Findings ----
@@ -986,3 +1005,87 @@ method(print, SupervisedReview) <- function(
   cat(repr(x, pad = pad, output_type = output_type))
   invisible(x)
 } # /rtemis::print.SupervisedReview
+
+
+# %% review_markdown ----
+#' Render a review as Markdown
+#'
+#' The content and order of print: the description and sample, then
+#' performance, baseline comparisons, tuning, findings and limitations, each
+#' under a heading at `level`.
+#'
+#' @param x `SupervisedReview` object.
+#' @param level Integer: Heading level of the sections.
+#'
+#' @return Character vector of lines.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+review_markdown <- function(x, level) {
+  section <- function(title, body) c("", md_heading(title, level), "", body)
+  performance <- review_performance_rows(x)
+  performance[1L, 1L] <- "Metric"
+  out <- c(
+    x@description,
+    "",
+    review_sample_line(x),
+    section(
+      review_performance_title(x),
+      md_table(
+        performance,
+        align = c("left", rep("right", NCOL(performance) - 1L))
+      )
+    )
+  )
+  if (!is.null(x@baseline)) {
+    out <- c(
+      out,
+      section(review_baseline_title(x), paste0("- ", review_baseline_text(x)))
+    )
+  }
+  if (!is.null(x@tuning)) {
+    out <- c(
+      out,
+      section(
+        "Tuning",
+        paste0(
+          "- ",
+          review_tuning_text(x, name = function(nm) paste0("`", nm, "`"))
+        )
+      )
+    )
+  }
+  findings <- if (length(x@findings) == 0L) {
+    "No findings."
+  } else {
+    unlist(lapply(x@findings, function(f) {
+      c(
+        paste0("- **`", f@code, "`** (", f@severity, "): ", f@message),
+        if (!is.null(f@suggestion)) {
+          paste0("  - *Suggestion:* ", f@suggestion)
+        }
+      )
+    }))
+  }
+  c(
+    out,
+    section("Findings", findings),
+    section("Limitations", paste0("- ", x@limitations))
+  )
+} # /rtemis::review_markdown
+
+
+# %% to_markdown.SupervisedReview ----
+#' Render a review as Markdown
+#'
+#' @param x `SupervisedReview` object.
+#'
+#' @return Character scalar.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(to_markdown, SupervisedReview) <- function(x, ...) {
+  paste0(paste(review_markdown(x, level = 2L), collapse = "\n"), "\n")
+} # /rtemis::to_markdown.SupervisedReview

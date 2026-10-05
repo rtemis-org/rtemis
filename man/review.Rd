@@ -83,6 +83,8 @@ transforming cases using all the data, or choosing among models by their
 test performance -- can bias evaluation, and the fitted model cannot show
 whether they happened. Performance metrics also cannot establish whether a
 model is useful. Every review states both.
+
+Print the result to read it; \link{write_text} writes it as Markdown.
 }
 \examples{
 idx <- c(1:40, 51:90, 101:140)

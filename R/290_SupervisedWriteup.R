@@ -606,24 +606,11 @@ writeup_md_table <- function(x, rows, main) {
   if (is.null(rows)) {
     return(character())
   }
-  md_row <- function(cells) {
-    paste0(
-      "| ",
-      paste(gsub("|", "\\|", cells, fixed = TRUE), collapse = " | "),
-      " |"
-    )
-  }
   c(
     "",
     writeup_hp_table_caption(x, main),
     "",
-    md_row(rows[1L, ]),
-    paste0("|", paste(rep("---", NCOL(rows)), collapse = "|"), "|"),
-    vapply(
-      seq_len(NROW(rows))[-1L],
-      function(i) md_row(rows[i, ]),
-      character(1L)
-    ),
+    md_table(rows),
     if (length(attr(rows, "notes")) > 0L) {
       c("", paste0("- ", attr(rows, "notes")))
     }
@@ -631,8 +618,12 @@ writeup_md_table <- function(x, rows, main) {
 } # /rtemis::writeup_md_table
 
 
-# %% writeup_markdown ----
+# %% to_markdown.SupervisedWriteup ----
 #' Render a writeup as Markdown
+#'
+#' Methods and Results with their tables, the numbered references, the
+#' supplementary hyperparameter table and the unrecorded items, in the order
+#' print shows them.
 #'
 #' @param x `SupervisedWriteup` object.
 #'
@@ -641,9 +632,8 @@ writeup_md_table <- function(x, rows, main) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-writeup_markdown <- function(x) {
+method(to_markdown, SupervisedWriteup) <- function(x, ...) {
   ref_numbers <- writeup_ref_numbers(x)
-  md_row <- function(cells) paste0("| ", paste(cells, collapse = " | "), " |")
   out <- character()
   for (part in WRITEUP_PARTS) {
     out <- c(
@@ -679,13 +669,7 @@ writeup_markdown <- function(x) {
         "",
         writeup_table_caption(x),
         "",
-        md_row(rows[1L, ]),
-        paste0("|", paste(rep("---", NCOL(rows)), collapse = "|"), "|"),
-        vapply(
-          seq_len(NROW(rows))[-1L],
-          function(i) md_row(rows[i, ]),
-          character(1L)
-        )
+        md_table(rows)
       )
     }
     out <- c(out, "")
@@ -715,7 +699,7 @@ writeup_markdown <- function(x) {
     )
   }
   paste0(paste(out, collapse = "\n"), "\n")
-} # /rtemis::writeup_markdown
+} # /rtemis::to_markdown.SupervisedWriteup
 
 
 # %% repr.SupervisedWriteup ----
@@ -841,51 +825,3 @@ method(print, SupervisedWriteup) <- function(
   cat(repr(x, pad = pad, output_type = output_type))
   invisible(x)
 } # /rtemis::print.SupervisedWriteup
-
-
-# %% write_writeup ----
-#' Write a writeup to a Markdown file
-#'
-#' @description
-#' Writes the Methods and Results sections of a [writeup], the performance
-#' table and the numbered references as Markdown, ready to convert with Pandoc
-#' or Quarto or to paste into a manuscript.
-#'
-#' @param x `SupervisedWriteup` object, as returned by [writeup].
-#' @param file Character: Path of the Markdown file to write.
-#' @param overwrite Logical: If TRUE, replace an existing file.
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @return The path of the file written, invisibly.
-#'
-#' @author EDG
-#' @export
-#'
-#' @examples
-#' idx <- c(1:40, 51:90, 101:140)
-#' mod <- train(
-#'   iris[idx, ],
-#'   dat_test = iris[-idx, ],
-#'   hyperparameters = setup_CART(),
-#'   verbosity = 0L
-#' )
-#' path <- file.path(tempdir(), "writeup.md")
-#' write_writeup(writeup(mod), path)
-write_writeup <- function(x, file, overwrite = FALSE, verbosity = 1L) {
-  check_is_S7(x, SupervisedWriteup)
-  rtemis.core::check_character_scalar(file)
-  rtemis.core::check_logical_scalar(overwrite)
-  if (file.exists(file) && !overwrite) {
-    rtemis.core::abort(
-      "File ",
-      file,
-      " exists. Set `overwrite = TRUE` to replace it.",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
-  writeLines(writeup_markdown(x), file, sep = "", useBytes = FALSE)
-  if (verbosity > 0L) {
-    msg0("Wrote writeup to ", file, ".")
-  }
-  invisible(file)
-} # /rtemis::write_writeup
