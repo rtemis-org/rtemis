@@ -1,17 +1,7 @@
 # rtemis news
 
-## 1.4.1
+## 1.4.2
 
-- Model plotting and `present()` use rtemis.draw, including session timelines and SVG export; standalone Plotly `draw_*()` functions remain available.
-- Require R >= 4.4.0 for the rtemis.draw backend.
-- `fit_predict()` trains one regression model from an algorithm name and setup arguments (`params`) and predicts new data; rtemis.draw uses it for `fit = "<algorithm>"` and `fit_params` in scatter plots.
-
-- TabNet and MLP train and predict with the algorithm workers resolved from `execution_config` (`n_workers_algorithm`) rather than every core.
-- `train()` prints one resources line: the compute device in use (including an Apple silicon GPU), the execution backend, the worker ceiling, and each level's share.
-- `decomp()`, `cluster()`, `setup_DecomposeConfig()` and `setup_ClusterConfig()` take `execution_config`: its seed seeds the fit, and a threaded algorithm (UMAP, tSNE) runs on its workers; `decomposition_traits()` gains `threaded`.
-- `setup_tSNE(num_threads =)` is deprecated; tSNE takes its threads from the execution config.
-- `setup_Autoencoder()` configures a torch autoencoder decomposition, denoising when `input_noise` or `input_dropout` is set; it applies to new data, so it can be `train()`'s decomposition step, and `reconstruct()` returns its reconstruction in the units of the data.
-- `setup_VariationalAutoencoder()` configures a torch variational autoencoder decomposition; `beta` weighs the KL divergence (1 is the standard VAE, larger values a beta-VAE), and its components are the latent means.
 - `setup_PCoA()` configures principal coordinates analysis (classical multidimensional scaling) on a choice of dissimilarities; it applies to new data through Gower's out-of-sample formula, so it can be `train()`'s decomposition step, and does not reconstruct the input.
 - `setup_MDS()` configures metric or nonmetric multidimensional scaling through 'vegan' with multiple starts; it cannot be applied to new data and does not reconstruct the input.
 - `review()` assesses a trained supervised model, single-split or resampled: it reports sample sizes, every training and test metric, and comparisons with a baseline predictor, with confidence intervals and tests for a single split and a description of the variation between resamples for a resampled model, then notes small samples, many predictors, and signs of overfitting.
@@ -28,8 +18,27 @@
 - Stratified resampling (`setup_KFold()`, `setup_StratSub()`, `setup_StratBoot()`) stratifies a categorical variable by its levels; with more than four levels it grouped adjacent levels together.
 - Metric labels print AUC, PPV and NPV in capitals.
 - LightRF predictions are no longer pulled toward 0 when some trees cannot split, as happens on small samples: such trees now predict their sample's center. Training reports how many trees could not split.
-- LightRF explanations (`explain()`) are on the scale of the model's predictions; their contributions were multiplied by the number of trees.
 - `setup_SuperConfig()` and `setup_SuperConfigLive()` reject a decomposition that cannot be applied to new data, as reading a supervised config already did.
+- Shared results identify implementation-specific learner, execution, preprocessing, and resampler configs by schema and read their typed settings without inserting omitted defaults.
+- `write_config()` and `write_record()` write numbers with 15 significant digits instead of rounding to four decimal places.
+
+### Supervised result validation
+
+- Outcomes, predictions, and classification probabilities must have matching row counts within each sample.
+- Categorical outcomes and predictions must preserve the training class levels and their order; probability matrices require one column for binary classification or one per class for multiclass classification.
+
+## 1.4.1
+
+- Model plotting and `present()` use rtemis.draw, including session timelines and SVG export; standalone Plotly `draw_*()` functions remain available.
+- Require R >= 4.4.0 for the rtemis.draw backend.
+- `fit_predict()` trains one regression model from an algorithm name and setup arguments (`params`) and predicts new data; rtemis.draw uses it for `fit = "<algorithm>"` and `fit_params` in scatter plots.
+
+- TabNet and MLP train and predict with the algorithm workers resolved from `execution_config` (`n_workers_algorithm`) rather than every core.
+- `train()` prints one resources line: the compute device in use (including an Apple silicon GPU), the execution backend, the worker ceiling, and each level's share.
+- `decomp()`, `cluster()`, `setup_DecomposeConfig()` and `setup_ClusterConfig()` take `execution_config`: its seed seeds the fit, and a threaded algorithm (UMAP, tSNE) runs on its workers; `decomposition_traits()` gains `threaded`.
+- `setup_tSNE(num_threads =)` is deprecated; tSNE takes its threads from the execution config.
+- `setup_Autoencoder()` configures a torch autoencoder decomposition, denoising when `input_noise` or `input_dropout` is set; it applies to new data, so it can be `train()`'s decomposition step, and `reconstruct()` returns its reconstruction in the units of the data.
+- `setup_VariationalAutoencoder()` configures a torch variational autoencoder decomposition; `beta` weighs the KL divergence (1 is the standard VAE, larger values a beta-VAE), and its components are the latent means.
 - `decomp_metrics()` takes `execution_config`.
 - NMF with `nrun` greater than 1 runs.
 - Execution configs take `device`: `"cpu"`, `"cuda"`, `"mps"` (Apple silicon GPU) or `"opencl"`, or `setup_CUDA(ids =)` to name GPUs. Unset uses CUDA where available and the CPU otherwise; the Apple silicon GPU runs only when named. An algorithm that cannot use the requested device runs on the CPU and the resources line says so.
@@ -42,7 +51,7 @@
 - `setup_ClusterConfig()` and `setup_DecomposeConfig()` no longer take `algorithm`; the clustering or decomposition config names it, and `cluster()` and `decomp()` reject an `algorithm` that disagrees with a supplied config.
 - Clustering configs take `features`, the columns to cluster on.
 - `cluster()` and `decomp()` use every numeric column when the config names no `features`, and record the columns used.
-- Shared results identify implementation-specific learner, execution, preprocessing, and resampler configs by schema and read their typed settings without inserting omitted defaults.
+- Shared results identify implementation-specific configs by schema and read their typed settings without inserting omitted defaults.
 - Implementation-specific schema paths include the language namespace; shared result paths remain unqualified.
 - The defaults artifact format accepts producer-owned namespaces while retaining separate schema declarations and resolution policies.
 - `write_result()` and `read_result()` support portable result JSON with optional Parquet payloads, lazy loading, and integrity checks.
@@ -56,13 +65,6 @@
 - `VariableImportance` publishes a shared report schema with named numeric measures and null values for unavailable results.
 - `JSONSchema_to_S7()` reconstructs standalone inheritance and runtime-only properties from schema artifacts, and rejects a `parent` other than the one the schema declares.
 - Reading a table or object with a field its schema does not declare fails with an error naming the field.
-
-- `write_config()` and `write_record()` write numbers with 15 significant digits instead of rounding to four decimal places.
-
-### Supervised result validation
-
-- Outcomes, predictions, and classification probabilities must have matching row counts within each sample.
-- Categorical outcomes and predictions must preserve the training class levels and their order; probability matrices require one column for binary classification or one per class for multiclass classification.
 
 ## 1.4.0
 
