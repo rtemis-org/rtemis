@@ -47,7 +47,7 @@ time, so the assessment can be audited and, as far as the model allows,
 reproduced.
 
 The written assessment is an interpretation of the review, which remains
-the evidence; read them together.
+the evidence; read them together. \link{write_text} writes both as Markdown.
 
 Requires the \code{rtemis.llm} package and access to a model.
 }

@@ -174,6 +174,24 @@ AISupervisedReview <- schema_class(
 ) # /rtemis::AISupervisedReview
 
 
+# %% ai_review_byline ----
+# Who wrote the assessment, from which review, and when.
+ai_review_byline <- function(x) {
+  p <- x@provenance
+  paste0(
+    "Written by ",
+    p[["model"]],
+    " (",
+    p[["provider"]],
+    ") from the review of ",
+    x@review@algorithm,
+    ", ",
+    p[["created"]],
+    ". An interpretation; the review holds the evidence."
+  )
+} # /rtemis::ai_review_byline
+
+
 # %% repr_ai_review_items ----
 # One bullet per item, its cited codes in brackets.
 repr_ai_review_items <- function(items, indent, output_type) {
@@ -218,25 +236,10 @@ method(repr, AISupervisedReview) <- function(
       "\n"
     )
   }
-  p <- x@provenance
   out <- paste0(
     repr_S7name("AISupervisedReview", pad = pad, output_type = output_type),
     indent,
-    fmt(
-      paste0(
-        "Written by ",
-        p[["model"]],
-        " (",
-        p[["provider"]],
-        ") from the review of ",
-        x@review@algorithm,
-        ", ",
-        p[["created"]],
-        ". An interpretation; the review holds the evidence."
-      ),
-      muted = TRUE,
-      output_type = output_type
-    ),
+    fmt(ai_review_byline(x), muted = TRUE, output_type = output_type),
     "\n",
     heading("Summary"),
     indent,
@@ -297,3 +300,52 @@ method(print, AISupervisedReview) <- function(
   cat(repr(x, pad = pad, output_type = output_type))
   invisible(x)
 } # /rtemis::print.AISupervisedReview
+
+
+# %% to_markdown.AISupervisedReview ----
+#' Render an AI review as Markdown
+#'
+#' The byline, summary, evaluation, next steps and caveats, each item followed
+#' by the finding codes it cites, then the review the assessment rests on,
+#' whose sections are one heading level lower.
+#'
+#' @param x `AISupervisedReview` object.
+#'
+#' @return Character scalar.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+method(to_markdown, AISupervisedReview) <- function(x, ...) {
+  section <- function(title, body) c("", md_heading(title, 2L), "", body)
+  items <- function(items) {
+    vapply(
+      items,
+      function(item) {
+        paste0(
+          "- ",
+          item@text,
+          if (length(item@codes) > 0L) {
+            paste0(" [", paste0("`", item@codes, "`", collapse = ", "), "]")
+          }
+        )
+      },
+      character(1L)
+    )
+  }
+  out <- c(
+    paste0("*", ai_review_byline(x), "*"),
+    section("Summary", x@summary)
+  )
+  if (length(x@evaluation) > 0L) {
+    out <- c(out, section("Evaluation", items(x@evaluation)))
+  }
+  if (length(x@next_steps) > 0L) {
+    out <- c(out, section("Next steps", items(x@next_steps)))
+  }
+  if (length(x@caveats) > 0L) {
+    out <- c(out, section("Caveats", paste0("- ", x@caveats)))
+  }
+  out <- c(out, section("Review", review_markdown(x@review, level = 3L)))
+  paste0(paste(out, collapse = "\n"), "\n")
+} # /rtemis::to_markdown.AISupervisedReview

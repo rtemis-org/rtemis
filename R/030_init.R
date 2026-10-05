@@ -1036,6 +1036,8 @@ describe <- new_generic("describe", "x", function(x, verbosity = 1L, ...) {
 #' whether they happened. Performance metrics also cannot establish whether a
 #' model is useful. Every review states both.
 #'
+#' Print the result to read it; [write_text] writes it as Markdown.
+#'
 #' @param x `Supervised` or `SupervisedRes` object: A trained model, as returned
 #'   by [train].
 #' @param confidence_level Optional Numeric (0, 1): Confidence level of every
@@ -1123,7 +1125,7 @@ review <- new_generic(
 #' reproduced.
 #'
 #' The written assessment is an interpretation of the review, which remains
-#' the evidence; read them together.
+#' the evidence; read them together. [write_text] writes both as Markdown.
 #'
 #' Requires the `rtemis.llm` package and access to a model.
 #'
@@ -1209,7 +1211,7 @@ ai_review <- new_generic(
 #' before it was passed to rtemis. The model does not record these, so the
 #' writeup lists them in `@not_reported` for the author to add.
 #'
-#' Print the result to read it; [write_writeup] writes it as Markdown.
+#' Print the result to read it; [write_text] writes it as Markdown.
 #'
 #' @param x `Supervised` or `SupervisedRes` object: A trained model, as
 #'   returned by [train].
@@ -1452,6 +1454,34 @@ method(to_json, S7_object) <- function(x, ...) {
   }
   v
 } # /rtemis::.to_json_value
+
+
+# %% to_markdown ----
+#' Render a report as Markdown
+#'
+#' Render a writeup, review or AI review as Markdown, the text [write_text]
+#' writes to a file and rtemislive displays. Top-level sections are `##`
+#' headings, so the text can be placed under a title of the reader's choosing.
+#'
+#' @param x `SupervisedWriteup`, `SupervisedReview` or `AISupervisedReview`
+#'   object.
+#' @param ... Not used.
+#'
+#' @return Character scalar ending in a newline.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+#' @examples
+#' idx <- c(1:40, 51:90, 101:140)
+#' mod <- train(
+#'   iris[idx, ],
+#'   dat_test = iris[-idx, ],
+#'   hyperparameters = setup_CART(),
+#'   verbosity = 0L
+#' )
+#' cat(to_markdown(review(mod)))
+to_markdown <- new_generic("to_markdown", "x")
 
 
 # %% inc ----

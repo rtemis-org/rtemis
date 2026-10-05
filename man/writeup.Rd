@@ -54,7 +54,7 @@ how the outcome and predictors were measured, and anything done to the data
 before it was passed to rtemis. The model does not record these, so the
 writeup lists them in \verb{@not_reported} for the author to add.
 
-Print the result to read it; \link{write_writeup} writes it as Markdown.
+Print the result to read it; \link{write_text} writes it as Markdown.
 }
 \examples{
 idx <- c(1:40, 51:90, 101:140)

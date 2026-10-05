@@ -830,3 +830,104 @@ test_that("a resampled review record validates against its published schema", {
   validate <- .review_validator()
   expect_true(validate(.review_json(record_object(rev_res)), verbose = TRUE))
 })
+
+
+# %% Markdown ----
+.md_lines <- function(x) strsplit(to_markdown(x), "\n", fixed = TRUE)[[1L]]
+
+test_that("Markdown states the review's sections in print order", {
+  for (rev in list(rev_iris, rev_res)) {
+    md <- .md_lines(rev)
+    headings <- md[startsWith(md, "## ")]
+    expect_identical(
+      headings,
+      paste0(
+        "## ",
+        c(
+          review_performance_title(rev),
+          review_baseline_title(rev),
+          "Findings",
+          "Limitations"
+        )
+      )
+    )
+    expect_identical(md[[1L]], rev@description)
+    expect_true(review_sample_line(rev) %in% md)
+    expect_true(endsWith(to_markdown(rev), "\n"))
+  }
+})
+
+test_that("Markdown tables and lists carry the values print shows", {
+  for (rev in list(rev_iris, rev_res)) {
+    md <- .md_lines(rev)
+    printed <- repr(rev, output_type = "plain")
+    rows <- review_performance_rows(rev)
+    for (i in seq_len(NROW(rows))[-1L]) {
+      expect_true(
+        paste0("| ", paste(rows[i, ], collapse = " | "), " |") %in% md
+      )
+      for (cell in rows[i, ][nzchar(rows[i, ])]) {
+        expect_match(printed, cell, fixed = TRUE)
+      }
+    }
+    for (line in review_baseline_text(rev)) {
+      expect_true(paste0("- ", line) %in% md)
+      expect_match(printed, line, fixed = TRUE)
+    }
+    for (f in rev@findings) {
+      expect_true(
+        paste0("- **`", f@code, "`** (", f@severity, "): ", f@message) %in% md
+      )
+    }
+    expect_true(all(paste0("- ", rev@limitations) %in% md))
+  }
+})
+
+test_that("Markdown of a tuned review lists the tuned hyperparameters", {
+  mod <- train(
+    iris[idx, ],
+    dat_test = iris[-idx, ],
+    hyperparameters = setup_CART(maxdepth = tune_over(2L, 3L, 4L)),
+    verbosity = 0L
+  )
+  rev <- review(mod)
+  md <- .md_lines(rev)
+  expect_true("## Tuning" %in% md)
+  tuning <- md[startsWith(md, "- `maxdepth`: searched 2 to 4 (3 values)")]
+  expect_length(tuning, 1L)
+  expect_match(
+    tuning,
+    paste0("selected ", rev@tuning[["selected"]][[1L]], "$")
+  )
+})
+
+
+# %% write_text ----
+test_that("write_text writes a review and selects the format by extension", {
+  path <- tempfile(fileext = ".md")
+  expect_identical(write_text(rev_iris, path, verbosity = 0L), path)
+  expect_identical(
+    paste0(paste(readLines(path), collapse = "\n"), "\n"),
+    to_markdown(rev_iris)
+  )
+  txt <- tempfile(fileext = ".txt")
+  expect_error(
+    write_text(rev_iris, txt, verbosity = 0L),
+    "Cannot select a format",
+    class = "rtemis_value_error"
+  )
+  expect_false(file.exists(txt))
+  write_text(rev_iris, txt, format = "markdown", verbosity = 0L)
+  expect_identical(readLines(txt), readLines(path))
+  expect_error(
+    write_text(rev_iris, tempfile(fileext = ".md"), format = "html"),
+    class = "rtemis_value_error"
+  )
+})
+
+test_that("write_text accepts only reports", {
+  expect_error(
+    write_text(mod_iris, tempfile(fileext = ".md"), verbosity = 0L),
+    "Can't find method"
+  )
+})

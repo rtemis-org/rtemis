@@ -533,9 +533,9 @@ test_that("k-fold records the intervals a numeric outcome was cut into", {
 
 
 # %% Output ----
-test_that("write_writeup writes Markdown and refuses to overwrite", {
+test_that("write_text writes a writeup as Markdown and refuses to overwrite", {
   path <- tempfile(fileext = ".md")
-  write_writeup(.wus[["bin"]], path, verbosity = 0L)
+  write_text(.wus[["bin"]], path, verbosity = 0L)
   md <- readLines(path)
   expect_identical(md[[1L]], "## Methods")
   expect_true("## Results" %in% md)
@@ -543,11 +543,11 @@ test_that("write_writeup writes Markdown and refuses to overwrite", {
   expect_true(any(grepl("^\\| Metric \\| Training \\| Test \\|", md)))
   expect_false(any(grepl("{", md, fixed = TRUE)))
   expect_error(
-    write_writeup(.wus[["bin"]], path, verbosity = 0L),
+    write_text(.wus[["bin"]], path, verbosity = 0L),
     "exists",
     class = "rtemis_value_error"
   )
-  write_writeup(.wus[["bin"]], path, overwrite = TRUE, verbosity = 0L)
+  write_text(.wus[["bin"]], path, overwrite = TRUE, verbosity = 0L)
 })
 
 
@@ -1060,7 +1060,7 @@ test_that("include_hyperparameters replaces the primary list", {
 
 test_that("the Markdown carries both hyperparameter tables", {
   path <- tempfile(fileext = ".md")
-  write_writeup(.wus[["bin"]], path, verbosity = 0L)
+  write_text(.wus[["bin"]], path, verbosity = 0L)
   md <- readLines(path)
   expect_true(any(grepl("^Table 1\\. The primary hyperparameters", md)))
   expect_true(any(grepl("^Table 2\\. Performance", md)))
