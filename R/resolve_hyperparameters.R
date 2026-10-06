@@ -97,7 +97,9 @@ lightgbm_model_parameters <- function(model) {
   if (start < 0L) {
     return(character())
   }
-  block <- substring(text, start + nchar("\nparameters:\n"))
+  # `last` is explicit: R < 4.6 defaults it to 1e6 characters, which cuts the
+  # parameter block off the end of a large model's text.
+  block <- substring(text, start + nchar("\nparameters:\n"), nchar(text))
   block <- sub("\nend of parameters.*", "", block)
   lines <- strsplit(block, "\n", fixed = TRUE)[[1L]]
   lines <- lines[grepl("^\\[[a-z_0-9]+: .*\\]$", lines)]

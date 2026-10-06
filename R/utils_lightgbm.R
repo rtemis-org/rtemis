@@ -217,7 +217,7 @@ lgbtree2rules <- function(x, xnames, factor_levels, right_cat_type = "in") {
     factor_levels = factor_levels
   )
   # remove root node "TRUE & "
-  substr(tree[["leafs"]], 8, 99999)
+  substr(tree[["leafs"]], 8L, nchar(tree[["leafs"]]))
 } # /rtemis::lgbtree2rules
 
 

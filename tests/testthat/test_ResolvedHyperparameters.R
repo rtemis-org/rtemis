@@ -118,6 +118,22 @@ test_that("LightGBM records the parameters its model ran with, where its objecti
   expect_identical(fold[["origin"]][["nrounds"]], "derived")
 })
 
+test_that("LightGBM parameters are read from a model text longer than 1e6 characters", {
+  # The parameter block follows the trees, so in a large model it starts past
+  # character 1e6, where `substring()` stops by default under R < 4.6.
+  text <- paste0(
+    "tree\n",
+    strrep("x", 1e6),
+    "\nparameters:\n[objective: multiclass]\n[num_class: 3]\n",
+    "\nend of parameters\n"
+  )
+  model <- list(save_model_to_string = function() text)
+  expect_identical(
+    lightgbm_model_parameters(model),
+    c(objective = "multiclass", num_class = "3")
+  )
+})
+
 test_that("each objective-specific LightGBM parameter changes the fit exactly under its listed objectives", {
   skip_if_not_installed("lightgbm")
   skip_on_cran()
