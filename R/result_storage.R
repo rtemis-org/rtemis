@@ -39,6 +39,11 @@ result_walk <- function(x, transform, fields = NULL, native = FALSE) {
   if (
     !is.null(fields[["items"]]) && fields[["container"]] %in% c("array", "map")
   ) {
+    # Atomic containers hold no nested payload references and retain their
+    # native vector type during materialization.
+    if (native && is.atomic(x)) {
+      return(x)
+    }
     out <- lapply(
       x,
       result_walk,
