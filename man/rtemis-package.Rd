@@ -6,8 +6,7 @@
 \alias{rtemis-package}
 \title{\pkg{rtemis}: Advanced Machine Learning and Visualization}
 \description{
-Schema-driven machine learning for validated, observable, auditable, and reproducible
-machine learning workflows.
+Advanced Machine Learning & Visualization made efficient, accessible, reproducible
 }
 \section{Online Documentation and Vignettes}{
 
