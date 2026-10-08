@@ -5,7 +5,7 @@
 # %% storage_fixture ----
 #' Construct a small artifact-only report from source declarations
 #' @param directory Character: Temporary registry directory.
-#' @return Typed report with array, matrix and categorical values.
+#' @return Typed report with array, map, matrix and categorical values.
 #' @keywords internal
 #' @noRd
 storage_fixture <- function(directory) {
@@ -14,6 +14,7 @@ storage_fixture <- function(directory) {
     package = "rtemis",
     properties = list(
       values = prop_external(prop_array(prop_float(NULL, nullable = TRUE))),
+      scores = prop_map(prop_float(NULL, nullable = TRUE)),
       indices = prop_external(prop_integer(min = 1L, vector = TRUE)),
       categories = prop_external(prop_factor(allow_missing = TRUE)),
       probabilities = prop_external(prop_matrix(
@@ -78,6 +79,7 @@ storage_fixture <- function(directory) {
   graph <- default_artifact_graph(schemas, defaults)
   report <- Report(
     values = c(1, NA, 3),
+    scores = c(first = 0.75, second = NA_real_),
     indices = c(1L, 2L, 3L),
     categories = factor(c("b", NA, "a"), levels = c("b", "a", "unused")),
     probabilities = matrix(c(0.1, NA, 0.3, 0.9, NA, 0.7), ncol = 2L)
