@@ -96,6 +96,10 @@ test:
     {{ rscript }} -e "testthat::test_local(stop_on_failure = TRUE)"
     @just _msg "Done"
 
+# Measure local test coverage, including tests skipped on CRAN
+coverage-local output="coverage/local":
+    {{rscript}} tools/coverage-local.R {{quote(output)}}
+
 # A filtered run takes minutes, so it wants to be started once, in the
 # background, and waited on -- `<out>/verdict` is written only when the run
 # ends, which makes its existence the completion signal, and `<out>/log` holds
