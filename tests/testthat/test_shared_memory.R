@@ -29,7 +29,6 @@ testthat::test_that("future plans are classified by locality", {
   expect_true(workers_are_local("future", "multisession"))
   expect_true(workers_are_local("future", "multicore"))
   expect_true(workers_are_local("future", "future.mirai::mirai_multisession"))
-  expect_false(workers_are_local("future", "remote"))
   # `cluster` accepts remote hostnames and its name alone does not say which, so it
   # cannot be assumed local.
   expect_false(workers_are_local("future", "cluster"))
@@ -86,7 +85,13 @@ testthat::test_that("'auto' declines only when sharing cannot apply", {
     n_workers = 4L
   ))
   # Shared memory is local RAM.
-  expect_true(declines(big_payload, "auto", "future", "remote", n_workers = 4L))
+  expect_true(declines(
+    big_payload,
+    "auto",
+    "future",
+    "cluster",
+    n_workers = 4L
+  ))
 })
 
 testthat::test_that("'always' shares even where 'auto' would not", {
@@ -123,7 +128,7 @@ testthat::test_that("'always' errors when workers are not local", {
       big_payload,
       "always",
       "future",
-      "remote",
+      "cluster",
       n_workers = 4L
     ),
     class = "rtemis_value_error"

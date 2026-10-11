@@ -130,6 +130,53 @@ testthat::test_that("progress_plapply() re-raises under stop_on_error", {
 # One task per element, so `n_workers` never has to divide the task count.
 backends <- c(mirai = "mirai", future = "future")
 
+# Every `task-<i>` tag reachable from the calling task's frames: their variables, the
+# enclosing environments of any closure among them, and lists nested inside either.
+# Package, namespace and global environments are skipped, so what remains is what the
+# task brought to the worker. Its own enclosure is the global environment, which
+# serialization passes by reference, so the function carries no tags of its own.
+reachable_task_tags <- function(task) {
+  seen <- new.env()
+  found <- character()
+  visit_env <- function(e) {
+    if (
+      identical(e, emptyenv()) ||
+        identical(e, globalenv()) ||
+        isNamespace(e) ||
+        nzchar(environmentName(e))
+    ) {
+      return(invisible(NULL))
+    }
+    key <- format(e)
+    if (!is.null(seen[[key]])) {
+      return(invisible(NULL))
+    }
+    assign(key, TRUE, envir = seen)
+    for (name in setdiff(ls(e, all.names = TRUE), "...")) {
+      tryCatch(visit(get(name, envir = e)), error = function(err) NULL)
+    }
+    visit_env(parent.env(e))
+  }
+  visit <- function(v) {
+    if (is.environment(v)) {
+      visit_env(v)
+    } else if (is.function(v)) {
+      if (!is.primitive(v)) visit_env(environment(v))
+    } else if (is.list(v)) {
+      for (el in v) {
+        visit(el)
+      }
+    } else if (is.character(v)) {
+      found <<- c(found, grep("^task-[0-9]+$", v, value = TRUE))
+    }
+  }
+  for (frame in sys.frames()) {
+    visit_env(frame)
+  }
+  paste(sort(unique(found)), collapse = ",")
+}
+environment(reachable_task_tags) <- globalenv()
+
 for (backend_name in names(backends)) {
   backend <- backends[[backend_name]]
 
@@ -218,6 +265,46 @@ for (backend_name in names(backends)) {
         ),
         "boom"
       )
+    }
+  )
+
+  testthat::test_that(
+    paste0(
+      "progress_plapply() keeps NULL results in their slots (",
+      backend,
+      ")"
+    ),
+    {
+      skip_ci_parallel_integration()
+      testthat::skip_on_cran()
+      testthat::skip_if_not_installed(backend)
+      out <- progress_plapply(
+        1:3,
+        function(i) if (i == 2L) NULL else i,
+        backend = backend,
+        n_workers = 2L,
+        verbosity = 0L
+      )
+      expect_identical(out, list(1L, NULL, 3L))
+    }
+  )
+
+  testthat::test_that(
+    paste0("each task can reach only its own element (", backend, ")"),
+    {
+      skip_ci_parallel_integration()
+      testthat::skip_on_cran()
+      testthat::skip_if_not_installed(backend)
+      tasks <- lapply(1:4, function(i) list(tag = paste0("task-", i)))
+      out <- progress_plapply(
+        tasks,
+        reachable_task_tags,
+        seeds = rng_substreams(2026L, 4L),
+        backend = backend,
+        n_workers = 2L,
+        verbosity = 0L
+      )
+      expect_identical(out, as.list(paste0("task-", 1:4)))
     }
   )
 }
@@ -712,7 +799,7 @@ testthat::test_that("share_decision() gives the first applicable reason", {
   # "always" is decided before 'mori' is looked for, so it shares here whether
   # or not the package is installed -- locality still binds.
   expect_true(share_decision(small, "always", "mirai", NULL, 4L)[["share"]])
-  expect_false(share_decision(big, "auto", "future", "remote", 4L)[["share"]])
+  expect_false(share_decision(big, "auto", "future", "cluster", 4L)[["share"]])
 })
 
 

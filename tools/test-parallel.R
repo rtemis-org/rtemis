@@ -166,7 +166,7 @@ for (package in c("rtemis", "mirai")) {
       "progress_plapply"
     )
   } else {
-    c("daemons", "mirai_map", "call_mirai", "stop_mirai")
+    c("daemons", "everywhere", "mirai", "call_mirai", "stop_mirai")
   }
   for (name in functions) {
     label <- paste(package, name, sep = "::")

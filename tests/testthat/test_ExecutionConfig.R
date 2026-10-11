@@ -30,7 +30,6 @@ testthat::test_that("the execution variants build and share the base", {
       "backend",
       "n_workers_algorithm",
       "device",
-      "warm_workers",
       "on_error",
       "seed",
       "shared_memory"
@@ -38,6 +37,11 @@ testthat::test_that("the execution variants build and share the base", {
   )
   expect_false("future_plan" %in% names(props(MiraiExecutionConfig())))
   expect_true("future_plan" %in% names(props(FutureExecutionConfig())))
+  # Only rtemis-owned mirai daemons persist for the run, so only that variant
+  # can load rtemis in each worker ahead of its first task.
+  expect_true("warm_workers" %in% names(props(MiraiExecutionConfig())))
+  expect_false("warm_workers" %in% names(props(FutureExecutionConfig())))
+  expect_false("warm_workers" %in% names(props(SerialExecutionConfig())))
   # The base is abstract: a backend is not a setting on one flat class.
   expect_error(ExecutionConfig())
 })
@@ -133,6 +137,29 @@ testthat::test_that("a serial config offers no dispatch level to set", {
   expect_error(
     rtemis:::.list_to_ExecutionConfig(list(backend = "none", n_workers = 1L)),
     "cannot carry"
+  )
+})
+
+
+testthat::test_that("only a mirai config carries warm_workers", {
+  expect_false("warm_workers" %in% names(formals(setup_FutureExecution)))
+  expect_false("warm_workers" %in% names(formals(setup_SerialExecution)))
+  for (backend in c("none", "future")) {
+    expect_error(
+      rtemis:::.list_to_ExecutionConfig(list(
+        backend = backend,
+        warm_workers = TRUE
+      )),
+      "cannot carry"
+    )
+  }
+  testthat::skip_if_not_installed("mirai")
+  expect_false(
+    setup_MiraiExecution(n_workers = 2L, warm_workers = FALSE)@warm_workers
+  )
+  expect_error(
+    setup_MiraiExecution(n_workers = 2L, warm_workers = "yes"),
+    class = "rtemis_type_error"
   )
 })
 

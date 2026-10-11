@@ -64,7 +64,8 @@ counterpart, and raises an error when the request cannot be met, for a caller re
 on sharing to stay inside a memory budget.}
 
 \item{warm_workers}{Logical: Load \pkg{rtemis} in every worker as the pool is built,
-rather than leaving each worker to load it on its first task.}
+rather than leaving each worker to load it on its first task. Either way the result is
+the same; TRUE records the loading time in the run's worker-pool setup step.}
 }
 \value{
 \code{MiraiExecutionConfig} object.

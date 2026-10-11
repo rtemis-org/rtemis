@@ -9,8 +9,7 @@ setup_SerialExecution(
   device = NULL,
   on_error = c("continue", "stop", "stop_outer"),
   seed = NULL,
-  shared_memory = c("auto", "none", "always"),
-  warm_workers = TRUE
+  shared_memory = c("auto", "none", "always")
 )
 }
 \arguments{
@@ -50,9 +49,6 @@ the ordinary transport. \code{"none"} disables it. \code{"always"} is a demand: 
 when the run is sequential, so a run can be compared against its own shared
 counterpart, and raises an error when the request cannot be met, for a caller relying
 on sharing to stay inside a memory budget.}
-
-\item{warm_workers}{Logical: Load \pkg{rtemis} in every worker as the pool is built,
-rather than leaving each worker to load it on its first task.}
 }
 \value{
 \code{SerialExecutionConfig} object.
