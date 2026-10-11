@@ -30,3 +30,4 @@
 ^.*\.pdf$
 ^CRAN-SUBMISSION$
 ^inst/WORDLIST$
+^coverage$

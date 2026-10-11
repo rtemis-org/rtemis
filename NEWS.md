@@ -22,6 +22,7 @@
 - `setup_SuperConfig()` and `setup_SuperConfigLive()` reject a decomposition that cannot be applied to new data, as reading a supervised config already did.
 - Shared results identify implementation-specific learner, execution, preprocessing, and resampler configs by schema and read their typed settings without inserting omitted defaults.
 - `write_config()` and `write_record()` write numbers with 15 significant digits instead of rounding to four decimal places.
+- Each parallel task receives only its own resample or bag; LINADForest and `bias_variance()` pass training data to local workers through shared memory.
 
 ### Supervised result validation
 
@@ -147,7 +148,7 @@
 - `predict()` on a Ranger model leaves the caller's RNG state unchanged.
 - Execution configs take `shared_memory` \{"auto", "none", "always"\} to pass training data to local workers through 'mori'.
 - Execution configs take `n_workers_outer`, `n_workers_tuning`, and `n_workers_algorithm` to assign workers per level.
-- Execution configs take `warm_workers` to load rtemis in each worker as the pool starts.
+- `setup_MiraiExecution()` takes `warm_workers` to load rtemis in each worker as the pool starts.
 - Workers start once per `train()` call and are reused across dispatches; the execution graph times their startup in a `worker_pool` node.
 - Grid search results are identical across backends and worker counts; tuning results change for algorithms that draw random numbers.
 - 'parallelly' moves from Suggests to Imports; 'futurize' and 'future.apply' are no longer dependencies.

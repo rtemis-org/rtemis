@@ -140,16 +140,6 @@ tune_GridSearch <- function(
   )
 
   # Grid cells ----
-  # `res@resamples`, the index list: the cell only indexes the list, an
-  # S7 object cannot be placed in shared memory, and the index list is itself a
-  # meaningful share of the payload (1.7 MB at n = 50,000, k = 10).
-  resamples <- share_payload(
-    res@resamples,
-    mode = shared_memory,
-    backend = backend,
-    future_plan = future_plan,
-    n_workers = n_workers
-  )
   x_shared <- share_payload(
     x,
     mode = shared_memory,
@@ -166,7 +156,6 @@ tune_GridSearch <- function(
   )
   run_grid_cell <- make_grid_cell_runner(
     x = x_shared,
-    resamples = resamples,
     res_param_grid = res_param_grid,
     hyperparameters = hyperparameters,
     members = members,
@@ -185,8 +174,15 @@ tune_GridSearch <- function(
   # One dispatcher for every backend, shared with outer resampling. Cells receive one RNG
   # substream each, keyed by cell index, so a grid search gives the same answer under
   # "none", "future" and "mirai" at any worker count.
+  # Each cell receives its own resample and no other.
+  cells <- lapply(seq_len(n_res_x_comb), function(index) {
+    list(
+      index = index,
+      resample = res@resamples[[res_param_grid[index, "resample_id"]]]
+    )
+  })
   grid_run <- progress_plapply(
-    seq_len(n_res_x_comb),
+    cells,
     run_grid_cell,
     backend = backend,
     n_workers = n_workers,
@@ -630,7 +626,7 @@ tune_GridSearch <- function(
 #' combination x inner resample) cell.
 #'
 #' @details
-#' Built by a factory, and taking only `index`, for two reasons. Serializing a closure
+#' Built by a factory, and taking only the cell, for two reasons. Serializing a closure
 #' walks its enclosing environments, so a body defined in `tune_GridSearch()`'s frame
 #' would ship that whole frame to every worker. And a body taking `...` could not be fed
 #' through `progress_plapply()`, whose own `verbosity`, `label` and `kind` parameters
@@ -641,7 +637,6 @@ tune_GridSearch <- function(
 #' run.
 #'
 #' @param x Tabular data: Training set; each cell slices its own rows.
-#' @param resamples List: Inner resample index vectors.
 #' @param res_param_grid data.frame: One row per cell, `resample_id` plus the
 #' hyperparameter values.
 #' @param hyperparameters `Hyperparameters` or `HyperparametersSet` object.
@@ -657,14 +652,14 @@ tune_GridSearch <- function(
 #' @param fatal Logical: If TRUE, a cell failure is raised; otherwise returned.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return Function of `(index)` returning the cell result list.
+#' @return Function of `(cell)`, where `cell` is a list with the row number `index` of
+#' `res_param_grid` and its training indices `resample`, returning the cell result list.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 make_grid_cell_runner <- function(
   x,
-  resamples,
   res_param_grid,
   hyperparameters,
   members,
@@ -677,7 +672,6 @@ make_grid_cell_runner <- function(
   verbosity
 ) {
   force(x)
-  force(resamples)
   force(res_param_grid)
   force(hyperparameters)
   force(members)
@@ -688,7 +682,9 @@ make_grid_cell_runner <- function(
   force(save_mods)
   force(fatal)
   force(verbosity)
-  function(index) {
+  function(cell) {
+    index <- cell[["index"]]
+    res1 <- cell[["resample"]]
     if (verbosity > 1L) {
       info(
         "Running grid line #",
@@ -699,7 +695,6 @@ make_grid_cell_runner <- function(
         caller = "tune_GridSearch"
       )
     }
-    res1 <- resamples[[res_param_grid[index, "resample_id"]]]
     dat_train1 <- x[res1, ]
     weights1 <- weights[res1]
     dat_valid1 <- x[-res1, ]

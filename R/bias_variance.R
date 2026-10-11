@@ -8,35 +8,33 @@
 #' Returns the closure `progress_plapply()` dispatches once per resample. Built
 #' by a factory so serializing it does not ship the calling
 #' frame -- the training data, the test set and every intermediate -- to each
-#' worker.
+#' worker. Each resample's training indices arrive as its argument.
 #'
 #' @param x tabular data: Training set.
-#' @param resamples List: Training index vectors, one per resample.
 #' @param hyperparameters `Hyperparameters` object.
 #' @param features tabular data: Test-set features to predict.
 #' @param execution_config `ExecutionConfig` object: Config each nested `train()`
 #' runs under.
 #'
-#' @return Function of `(i)` returning a numeric vector of predictions.
+#' @return Function of `(resample)`, where `resample` is one integer vector of training
+#' indices, returning a numeric vector of predictions.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 make_bias_variance_runner <- function(
   x,
-  resamples,
   hyperparameters,
   features,
   execution_config
 ) {
   force(x)
-  force(resamples)
   force(hyperparameters)
   force(features)
   force(execution_config)
-  function(i) {
+  function(resample) {
     model <- train(
-      x[resamples[[i]], , drop = FALSE],
+      x[resample, , drop = FALSE],
       hyperparameters = hyperparameters,
       execution_config = execution_config,
       verbosity = 0L
@@ -288,21 +286,28 @@ bias_variance <- function(
   } else {
     execution_config
   }
+  future_plan <- resolve_future_plan(
+    execution_config@backend,
+    execution_future_plan(execution_config)
+  )
   predictions <- progress_plapply(
-    seq_len(n_resamples),
+    resampler@resamples,
     make_bias_variance_runner(
-      x = x,
-      resamples = resampler@resamples,
+      # Every resample slices its rows from the training set, so it is shared.
+      x = share_payload(
+        x,
+        mode = execution_config@shared_memory,
+        backend = execution_config@backend,
+        future_plan = future_plan,
+        n_workers = execution_n_workers(execution_config)
+      ),
       hyperparameters = hyperparameters,
       features = test_features,
       execution_config = inner_config
     ),
     backend = execution_config@backend,
     n_workers = execution_n_workers(execution_config),
-    future_plan = resolve_future_plan(
-      execution_config@backend,
-      execution_future_plan(execution_config)
-    ),
+    future_plan = future_plan,
     # One substream per resample, by index, so the estimate does not depend on
     # the worker count.
     seeds = rng_substreams(execution_config@seed, n_resamples),

@@ -661,14 +661,14 @@ train <- function(
     backend = backend,
     n_workers = max(workers[["tuning"]], workers[["outer_resampling"]]),
     future_plan = future_plan,
-    warm = execution_config@warm_workers,
+    warm = execution_warm_workers(execution_config),
     envir = environment(),
     verbosity = verbosity
   )
   on.exit(if (pool_started) worker_pool_stop(), add = TRUE)
 
   # Reported here, once, and only by the run the user started: the individual
-  # `share_payload()` calls are silent, and there are three of them per dispatch site
+  # `share_payload()` calls are silent, and there are two of them per dispatch site
   # with tuning dispatching once per outer fold.
   if (is_root) {
     # One warning per run if a share fails; this is where a run begins.
@@ -754,22 +754,11 @@ train <- function(
         n_workers_algorithm = execution_config@n_workers_algorithm,
         device = execution_config@device,
         on_error = on_error,
-        seed = execution_config@seed,
-        warm_workers = execution_config@warm_workers
+        seed = execution_config@seed
       )
     } else {
       execution_config
     }
-    # The index list from `outer_resampler@resamples`: the fold only ever indexes
-    # the list, an S7 object cannot be placed in shared memory, and the index list is
-    # itself a meaningful share of the payload (1.7 MB at n = 50,000, k = 10).
-    fold_resamples <- share_payload(
-      outer_resampler@resamples,
-      mode = execution_config@shared_memory,
-      backend = execution_config@backend,
-      future_plan = future_plan,
-      n_workers = outer_workers
-    )
     x_shared <- share_payload(
       x,
       mode = execution_config@shared_memory,
@@ -786,7 +775,6 @@ train <- function(
     )
     run_outer_fold <- make_outer_fold_runner(
       x = x_shared,
-      resamples = fold_resamples,
       n_outer = n_outer,
       preprocessor_config = preprocessor_config,
       decomposition_config = decomposition_config,
@@ -802,8 +790,12 @@ train <- function(
       parallel = parallel_folds,
       verbosity = verbosity - 1L
     )
+    # Each fold receives its own resample and no other.
+    folds <- lapply(seq_len(n_outer), function(i) {
+      list(fold = i, resample = outer_resampler@resamples[[i]])
+    })
     fold_results <- progress_plapply(
-      seq_len(n_outer),
+      folds,
       run_outer_fold,
       backend = if (parallel_folds) execution_config@backend else "none",
       n_workers = outer_workers,
@@ -1409,7 +1401,6 @@ train <- function(
 #' recorded on the fold node and then re-raised, which lets the dispatcher stop the run.
 #'
 #' @param x Tabular data: Full training set; each fold slices its own rows.
-#' @param resamples List: Outer resample index vectors.
 #' @param n_outer Integer [1, Inf): Number of outer resamples.
 #' @param preprocessor_config Optional `SupervisedPreprocessorConfig` object.
 #' @param decomposition_config Optional `DecompositionConfig` object.
@@ -1425,15 +1416,15 @@ train <- function(
 #' its own session for the host to graft.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return Function of `(i)` returning a list with `model`, `failed`, `error`, `t_start`,
-#' `t_end`.
+#' @return Function of `(task)`, where `task` is a list with the fold number `fold` and its
+#' training indices `resample`, returning a list with `model`, `failed`, `error`,
+#' `t_start`, `t_end`.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 make_outer_fold_runner <- function(
   x,
-  resamples,
   n_outer,
   preprocessor_config,
   decomposition_config,
@@ -1447,7 +1438,6 @@ make_outer_fold_runner <- function(
   verbosity
 ) {
   force(x)
-  force(resamples)
   force(n_outer)
   force(preprocessor_config)
   force(decomposition_config)
@@ -1459,7 +1449,9 @@ make_outer_fold_runner <- function(
   force(fatal)
   force(parallel)
   force(verbosity)
-  function(i) {
+  function(task) {
+    i <- task[["fold"]]
+    res_i <- task[["resample"]]
     if (parallel) {
       saved_session <- live[["session"]]
       live[["session"]] <- NULL
@@ -1472,7 +1464,6 @@ make_outer_fold_runner <- function(
       label = paste0(i, "/", n_outer),
       meta = list(fold = i)
     )
-    res_i <- resamples[[i]]
     t_start <- Sys.time()
     model <- tryCatch(
       train(

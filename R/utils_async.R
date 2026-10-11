@@ -8,8 +8,6 @@ ALLOWED_PLANS <- c(
   "multicore",
   "multisession",
   "cluster",
-  "remote",
-  "transparent",
   "future.mirai::mirai_multisession", # what user sets
   "mirai_multisession" # what future::plan() returns
 )
@@ -170,7 +168,7 @@ set_preferred_plan <- function(
 
 
 # %% warm_workers ----
-#' Load \pkg{rtemis} in every worker
+#' Load \pkg{rtemis} in every mirai daemon
 #'
 #' A worker loads the package when it deserializes its first task, so left alone the cost
 #' falls on whichever dispatch happens to be first. Under outer resampling that is the
@@ -178,53 +176,25 @@ set_preferred_plan <- function(
 #' it. Paying it here places it inside the `worker_pool` node, labeled and measured.
 #'
 #' @details
-#' One task per worker, each holding its worker for a moment, so the scheduler spreads
-#' them rather than reusing the one that finished first. The tasks are self-contained --
-#' `loadNamespace()` is base -- so nothing is captured from this frame.
+#' Applies to the mirai backend only, whose daemons \pkg{rtemis} starts itself and which
+#' persist until `worker_pool_stop()`. `mirai::everywhere()` evaluates the load once on
+#' every connected daemon. A future plan guarantees neither which worker evaluates a
+#' future nor that a worker outlives it, so the future backend loads on each worker's
+#' first task.
 #'
-#' Failures are swallowed. A pool that cannot be warmed is still a usable pool: the load
-#' simply happens on the first real task, exactly as it did before.
-#'
-#' @param backend Character \{"future", "mirai"\}: Execution backend.
-#' @param n_workers Integer [1, Inf): Number of workers to warm.
+#' Failures are swallowed: a daemon that was not warmed loads the package on its first
+#' task.
 #'
 #' @return Invisible NULL.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-warm_workers <- function(backend, n_workers) {
-  if (backend == "future") {
-    tasks <- lapply(seq_len(n_workers), function(i) {
-      future::future(
-        {
-          loadNamespace("rtemis")
-          Sys.sleep(0.05)
-          TRUE
-        },
-        seed = TRUE,
-        globals = FALSE
-      )
-    })
-    for (task in tasks) {
-      tryCatch(future::value(task), error = function(e) NULL)
-    }
-  } else {
-    tryCatch(
-      {
-        tasks <- mirai::mirai_map(
-          seq_len(n_workers),
-          function(i) {
-            loadNamespace("rtemis")
-            Sys.sleep(0.05)
-            TRUE
-          }
-        )
-        mirai::call_mirai(tasks)
-      },
-      error = function(e) NULL
-    )
-  }
+warm_workers <- function() {
+  tryCatch(
+    mirai::call_mirai(mirai::everywhere(loadNamespace("rtemis"))),
+    error = function(e) NULL
+  )
   invisible(NULL)
 } # /rtemis::warm_workers
 
@@ -241,8 +211,9 @@ warm_workers <- function(backend, n_workers) {
 #' dispatches inside the fold loop, and on a short grid the setup outweighs what the
 #' parallelism saves.
 #'
-#' The whole of that cost, spawning and loading both, is recorded as one `worker_pool`
-#' node so it appears in the execution graph as setup.
+#' The cost is recorded as one `worker_pool` node so it appears in the execution graph as
+#' setup. It covers spawning the workers under both backends, and loading \pkg{rtemis} in
+#' each daemon under the mirai backend when `warm` is TRUE.
 #'
 #' The pool is recorded in `live[["worker_pool"]]`, which is what
 #' `worker_pool_available()` reads and what makes a second call here a no-op: an outer
@@ -255,10 +226,10 @@ warm_workers <- function(backend, n_workers) {
 #' @param backend Character \{"none", "future", "mirai"\}: Execution backend.
 #' @param n_workers Integer [1, Inf): Pool size. A value of 1 starts no pool.
 #' @param future_plan Optional Character: Future plan, when `backend` is `"future"`.
-#' @param warm Logical: If TRUE, load \pkg{rtemis} in every worker before returning, so
-#' the whole setup cost falls inside this node. FALSE leaves each worker to load on its
-#' first task, which is cheaper overall by about one dispatch and charges the difference
-#' to whatever dispatches first. Exposed so the two can be measured against each other.
+#' @param warm Logical: If TRUE and `backend` is `"mirai"`, load \pkg{rtemis} in every
+#' daemon before returning, so the whole setup cost falls inside this node. FALSE leaves
+#' each daemon to load on its first task, which charges that cost to whatever dispatches
+#' first. The future backend always loads on each worker's first task.
 #' @param envir Environment: Frame the future plan is scoped to.
 #' @param verbosity Integer: Verbosity level.
 #'
@@ -307,12 +278,9 @@ worker_pool_start <- function(
   } else {
     check_dependencies("mirai")
     mirai::daemons(n_workers, dispatcher = TRUE)
-  }
-  # Spawning the processes is only half the cost; the other half is each one loading
-  # rtemis, which it does on its first task. Both belong to setup, so both are paid and
-  # timed here.
-  if (warm) {
-    warm_workers(backend, n_workers)
+    if (warm) {
+      warm_workers()
+    }
   }
   live[["worker_pool"]] <- list(backend = backend, n_workers = n_workers)
   session_add_node(
@@ -431,7 +399,6 @@ LOCAL_PLANS <- c(
   "sequential",
   "multicore",
   "multisession",
-  "transparent",
   "future.mirai::mirai_multisession",
   "mirai_multisession"
 )
@@ -446,8 +413,8 @@ LOCAL_PLANS <- c(
 #' @details
 #' The mirai backend is always local here: `progress_plapply()` starts its own daemons
 #' with `mirai::daemons(n_workers)` and never connects to remote ones. For the future
-#' backend the answer comes from the plan name; anything not in `LOCAL_PLANS` -- `remote`,
-#' and `cluster`, which may or may not be -- counts as not local.
+#' backend the answer comes from the plan name; anything not in `LOCAL_PLANS`, including
+#' `cluster`, counts as not local.
 #'
 #' @param backend Character \{"none", "future", "mirai"\}: Execution backend.
 #' @param future_plan Optional Character: Future plan, when `backend` is `"future"`.
@@ -489,8 +456,8 @@ workers_are_local <- function(backend, future_plan) {
 #' once per payload per dispatch. `share_decision()` holds the policy both consult.
 #'
 #' **The caller must keep the returned value alive until the workers have mapped it.**
-#' Both call sites do so by capturing it in the task-runner factory's frame, which lives
-#' until `progress_plapply()` has collected every task.
+#' Every call site does so by capturing it in its task-runner factory's frame, which
+#' lives until `progress_plapply()` has collected every task.
 #'
 #' @param obj Object to share. `NULL` passes through untouched.
 #' @param mode Character \{"none", "auto", "always"\}: Sharing policy.
@@ -533,8 +500,8 @@ share_payload <- function(
   # "auto" is best-effort, and as the default policy it is on the path of every parallel
   # run, so a failure here degrades to the ordinary transport and the fit continues.
   # Warned once per run, since a run that stops sharing changes its memory ceiling: the
-  # caller shares three payloads per dispatch and tuning dispatches once per outer fold,
-  # so warning at each would bury the first one.
+  # caller shares more than one payload per dispatch and tuning dispatches once per outer
+  # fold, so warning at each would bury the first one.
   tryCatch(mori::share(obj), error = function(e) {
     if (is.null(live[["share_warned"]])) {
       live[["share_warned"]] <- TRUE
@@ -638,9 +605,9 @@ share_decision <- function(obj, mode, backend, future_plan, n_workers) {
 #' on the default policy has nothing to say about a feature it is not using.
 #'
 #' @details
-#' The individual `share_payload()` calls are silent. There are three payloads per
+#' The individual `share_payload()` calls are silent. There are two payloads per
 #' dispatch site and tuning dispatches once per outer fold, so a message at each would be
-#' thirty lines on a ten-fold run, all of them saying the same thing.
+#' twenty lines on a ten-fold run, all of them saying the same thing.
 #'
 #' @param obj Object the report is about: the training data.
 #' @param mode Character \{"none", "auto", "always"\}: Sharing policy.
@@ -814,36 +781,31 @@ rng_set_substream <- function(stream) {
 # %% make_task_runner ----
 #' Build the per-task body dispatched to workers
 #'
-#' Returns a closure that runs element `.index` of `X`, first installing that index's RNG
-#' substream when one was supplied.
+#' Returns a closure that installs a task's RNG substream, when one is supplied, and
+#' applies `FUN` to the task's element.
 #'
 #' Serializing a closure walks its enclosing environments, so the body is built here, in
-#' a factory whose frame holds only `X`, `FUN`, and `seeds` and whose parent is the
-#' \pkg{rtemis} namespace. Defining it inside `progress_plapply()` would ship that whole
-#' frame to every worker -- the dispatcher's own bookkeeping, task handles and progress
-#' handle included, none of which a task needs and some of which cannot be serialized.
+#' a factory whose frame holds only `FUN` and whose parent is the \pkg{rtemis} namespace.
+#' Defining it inside `progress_plapply()` would ship that whole frame to every worker --
+#' the dispatcher's own bookkeeping, task handles and progress handle included, none of
+#' which a task needs and some of which cannot be serialized. The element and the
+#' substream arrive as arguments, so each task carries its own and no other.
 #'
 #' Errors are captured and returned, so every backend reports task
 #' failure the same way.
 #'
-#' @param X Vector or list: Elements to iterate over.
 #' @param FUN Function: Applied to one element of `X`.
-#' @param seeds Optional List: One RNG substream per element of `X`.
 #'
-#' @return Function of `(.index, ...)`.
+#' @return Function of `(x, seed, ...)`.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-make_task_runner <- function(X, FUN, seeds) {
-  force(X)
+make_task_runner <- function(FUN) {
   force(FUN)
-  force(seeds)
-  function(.index, ...) {
-    if (!is.null(seeds)) {
-      rng_set_substream(seeds[[.index]])
-    }
-    tryCatch(FUN(X[[.index]], ...), error = function(e) e)
+  function(x, seed, ...) {
+    rng_set_substream(seed)
+    tryCatch(FUN(x, ...), error = function(e) e)
   }
 } # /rtemis::make_task_runner
 
@@ -859,9 +821,33 @@ make_task_runner <- function(X, FUN, seeds) {
 #' \pkg{rtemis.core} does not depend on.
 #'
 #' @details
-#' **`FUN` must be self-contained.** Everything it needs arrives through `...` or its own
-#' enclosing environment, both of which are serialized to workers. Nothing is captured
-#' from the caller's frame.
+#' **`FUN` must be self-contained.** Everything it needs arrives through its element of
+#' `X`, through `...`, or through its own enclosing environment. Nothing is captured from
+#' the caller's frame.
+#'
+#' **Each task carries its own element and no other.** Task `i` receives `X[[i]]` and
+#' `seeds[[i]]`, while `FUN` and `...` travel with every task. Data that differs by task
+#' -- a resample, a bag -- therefore belongs in `X`, and data every task reads belongs in
+#' `FUN`'s enclosing environment, where `share_payload()` can place it in shared memory.
+#'
+#' **Built on each backend's task primitives, not on its map function.** The map
+#' functions -- `future.apply::future_lapply()` and `futurize::futurize()`, and
+#' `mirai::mirai_map()` -- report progress through their own channels (\pkg{progressr},
+#' \pkg{cli}) and hand back all values together. This function collects tasks one at a
+#' time, in index order, so the host renders the rtemis progress line, names the tasks
+#' still running, emits one sink envelope per event into the execution graph, and stops
+#' at the first failure under `stop_on_error`. One loop serves the future backend and the
+#' native mirai backend. Replacing it with a map function loses all four. Everything else
+#' uses the backend's own API: `future::future()`, `future::resolved()`,
+#' `future::value()` and `future::cancel()`; `mirai::mirai()`, `mirai::unresolved()`,
+#' `mirai::call_mirai()` and `mirai::stop_mirai()`.
+#'
+#' **RNG substreams use the backend's mechanism where one exists.** Under future,
+#' `future(seed = seeds[[i]])` installs task `i`'s substream. mirai's `daemons(seed =)`
+#' assigns one stream per mirai from the pool's seed in creation order, so a stream
+#' depends on every mirai created on that pool before it; under mirai and sequential
+#' execution the task therefore installs its own substream. Either way task `i` draws
+#' from substream `i`, and results are identical across backends and worker counts.
 #'
 #' **Errors never propagate out of a task.** A condition raised by `FUN` is returned as
 #' that element's value, uniformly across backends -- `future::value()` would otherwise
@@ -880,7 +866,8 @@ make_task_runner <- function(X, FUN, seeds) {
 #' anything; without one it stands up its own workers for the call and releases them on
 #' the way out. Either way `n_workers` governs the submission window.
 #'
-#' @param X Vector or list: Elements to iterate over, as in [lapply()].
+#' @param X Vector or list: Elements to iterate over, as in [lapply()]. Element `i` is
+#' sent to task `i` only.
 #' @param FUN Function: Applied to each element of `X`.
 #' @param ... Additional arguments passed to `FUN`.
 #' @param backend Character \{"none", "future", "mirai"\}: Execution backend. `"none"`
@@ -965,7 +952,7 @@ progress_plapply <- function(
   borrowed <- worker_pool_available(backend)
 
   # Task body ----
-  run_one <- make_task_runner(X, FUN, seeds)
+  run_one <- make_task_runner(FUN)
 
   # Execution ----
   # Wrapped so a seeded run leaves the caller's RNG exactly as it found it: the run's
@@ -978,7 +965,7 @@ progress_plapply <- function(
       out <- progress_lapply(
         seq_len(n),
         function(.index, ...) {
-          res <- run_one(.index, ...)
+          res <- run_one(X[[.index]], seeds[[.index]], ...)
           if (stop_on_error && inherits(res, "condition")) {
             stop(res)
           }
@@ -1008,6 +995,19 @@ progress_plapply <- function(
         ")."
       )
     }
+    # One argument list per task: its own element and the substream `run_one` installs,
+    # plus `FUN` and `...`, which every task shares. `task_expr` is evaluated on the
+    # worker, where `task_args()` binds every name it uses.
+    dots <- list(...)
+    task_expr <- quote(do.call(run_one, c(list(x, seed), dots)))
+    task_args <- function(index, seed) {
+      list(
+        run_one = run_one,
+        x = X[[index]],
+        seed = seed,
+        dots = dots
+      )
+    }
     if (backend == "future") {
       if (!borrowed) {
         future_plan <- set_preferred_plan(
@@ -1017,7 +1017,6 @@ progress_plapply <- function(
           verbosity = verbosity
         )
       }
-      dots <- list(...)
       tasks <- vector("list", n)
       submitted <- 0L
       # `future()` blocks when every worker is busy, so tasks are submitted in a window
@@ -1026,13 +1025,14 @@ progress_plapply <- function(
       submit_upto <- function(k) {
         while (submitted < k) {
           submitted <<- submitted + 1L
-          index <- submitted
-          tasks[[index]] <<- future::future(
-            do.call(run_one, c(list(index), dots)),
-            # `seed = TRUE` hands future its own L'Ecuyer stream, which silences its RNG
-            # check; `run_one` then installs ours over it when `seeds` is supplied.
-            seed = TRUE,
-            globals = list(run_one = run_one, index = index, dots = dots)
+          tasks[[submitted]] <<- future::future(
+            task_expr,
+            substitute = FALSE,
+            # future installs the task's substream on the worker before evaluating it.
+            # Unseeded, `TRUE` draws a stream from this session's RNG, which also
+            # satisfies future's check for undeclared random number use.
+            seed = seeds[[submitted]] %||% TRUE,
+            globals = task_args(submitted, seed = NULL)
           )
         }
         invisible(NULL)
@@ -1044,14 +1044,16 @@ progress_plapply <- function(
       resolved_tasks <- function(from) {
         done <- logical(n)
         done[seq_len(from)] <- TRUE
-        for (k in seq_len(submitted - from)) {
-          done[from + k] <- future::resolved(tasks[[from + k]])
-        }
+        pending <- from + seq_len(submitted - from)
+        done[pending] <- future::resolved(tasks[pending])
         done
       }
       await <- function(j) {
         submit_upto(j)
         value <- tryCatch(future::value(tasks[[j]]), error = function(e) e)
+        # A collected future still holds its globals and result; releasing it lets them
+        # be garbage-collected while the rest of the run proceeds.
+        tasks[j] <<- list(NULL)
         # Task j is done, so a worker is free: refill the window without blocking.
         submit_upto(min(n, j + n_workers))
         value
@@ -1067,18 +1069,22 @@ progress_plapply <- function(
       # `parallel:::children()` until someone takes its value, and future's core accounting
       # counts that orphan as a process it cannot attribute to any future -- it warns, and
       # undercounts the cores left, until a later multicore run has a task handed back as
-      # interrupted. Cancel every task first so they wind down concurrently, then collect,
-      # with `signal = FALSE` so the interrupts are not re-raised here on top of the
-      # caller's own error.
+      # interrupted. Every task is canceled first so they wind down concurrently, then
+      # collected with `signal = FALSE` so the interrupts are not re-raised here on top of
+      # the caller's own error.
+      # Collection is one future at a time: `future::value()` on a list raises the first
+      # canceled future's `FutureInterruptError` even with `signal = FALSE`, leaving the
+      # futures after it uncollected and their workers occupied.
       reap <- function() {
-        for (k in seq_len(submitted)) {
-          tryCatch(future::cancel(tasks[[k]]), error = function(e) NULL)
-        }
-        for (k in seq_len(submitted)) {
-          tryCatch(
-            future::value(tasks[[k]], signal = FALSE),
-            error = function(e) NULL
-          )
+        outstanding <- tasks[seq_len(submitted)]
+        tryCatch(future::cancel(outstanding), error = function(e) NULL)
+        for (task in outstanding) {
+          if (!is.null(task)) {
+            tryCatch(
+              future::value(task, signal = FALSE),
+              error = function(e) NULL
+            )
+          }
         }
         invisible(NULL)
       }
@@ -1087,25 +1093,27 @@ progress_plapply <- function(
         mirai::daemons(n_workers, dispatcher = TRUE)
         on.exit(mirai::daemons(0L), add = TRUE)
       }
-      tasks <- mirai::mirai_map(
-        .x = seq_len(n),
-        .f = run_one,
-        .args = list(...)
-      )
-      # `mirai_map()` submits every task up front, so unlike the future backend there is no
+      tasks <- lapply(seq_len(n), function(index) {
+        # mirai seeds by creation order on the pool, so the task installs its own substream.
+        mirai::mirai(
+          .expr = task_expr,
+          .args = task_args(index, seed = seeds[[index]])
+        )
+      })
+      # Every task is submitted up front, so unlike the future backend there is no
       # submission window to bound the scan; skipping the collected prefix is what keeps it
       # from re-reading values the drain loop already holds.
       resolved_tasks <- function(from) {
         done <- logical(n)
         done[seq_len(from)] <- TRUE
-        for (k in seq_len(n - from)) {
-          done[from + k] <- !mirai::unresolved(tasks[[from + k]])
-        }
+        pending <- from + seq_len(n - from)
+        done[pending] <- !vapply(tasks[pending], mirai::unresolved, logical(1L))
         done
       }
       await <- function(j) {
         mirai::call_mirai(tasks[[j]])
         value <- tasks[[j]][["data"]]
+        tasks[j] <<- list(NULL)
         # mirai reports a worker-side failure as a `miraiError`; normalize it to a plain
         # condition so callers can test every backend's failures the same way.
         if (inherits(value, "miraiError")) {
@@ -1114,17 +1122,13 @@ progress_plapply <- function(
           value
         }
       }
-      # Cancel this map's outstanding tasks before propagating a failure. This releases
-      # borrowed workers for the next dispatch and lets an owned pool shut down without
-      # waiting on abandoned work. A canceled mirai resolves at once on this side, but
-      # the dispatcher is still delivering the cancellations to the daemons, so the
+      # Cancel this dispatch's outstanding tasks before propagating a failure. This
+      # releases borrowed workers for the next dispatch and lets an owned pool shut down
+      # without waiting on abandoned work. A canceled mirai resolves at once on this side,
+      # but the dispatcher is still delivering the cancellations to the daemons, so the
       # pool is shut down only once it reports itself idle: see `mirai_await_idle()`.
       reap <- function() {
-        for (task in tasks) {
-          if (mirai::unresolved(task)) {
-            mirai::stop_mirai(task)
-          }
-        }
+        mirai::stop_mirai(Filter(Negate(is.null), tasks))
         mirai_await_idle()
         invisible(NULL)
       }
@@ -1148,7 +1152,8 @@ progress_plapply <- function(
     )
     out <- vector("list", n)
     for (j in seq_len(n)) {
-      out[[j]] <- await(j)
+      # `[<-` with a list keeps a NULL result in its slot; `[[<-` would delete the slot.
+      out[j] <- list(await(j))
       if (stop_on_error && inherits(out[[j]], "condition")) {
         reap()
         stop(out[[j]])

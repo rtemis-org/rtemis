@@ -14,7 +14,7 @@
 #' Built by a factory because serializing a
 #' closure walks its enclosing environments: a body defined in `train_()`'s
 #' frame would ship that entire frame to every worker. This frame holds only
-#' what a tree needs.
+#' what every tree reads; each tree's bag arrives as its argument.
 #'
 #' @param x data.frame: Features, unencoded.
 #' @param y Numeric vector: Outcome; `{-1, +1}` for classification.
@@ -22,9 +22,9 @@
 #' @param type Character: "Regression" or "Classification".
 #' @param y_levels Optional Character: Outcome levels for a classification.
 #' @param settings List: `linadforest_settings()` output.
-#' @param bags List: One integer vector of row indices per tree.
 #'
-#' @return Function of `(b)` returning one `linadforest_tree()` result.
+#' @return Function of `(bag)`, where `bag` is the integer vector of row indices of
+#' one tree's bootstrap sample, returning one `linadforest_tree()` result.
 #'
 #' @author EDG
 #' @keywords internal
@@ -35,8 +35,7 @@ make_linadforest_tree_runner <- function(
   case_weights,
   type,
   y_levels,
-  settings,
-  bags
+  settings
 ) {
   force(x)
   force(y)
@@ -44,8 +43,7 @@ make_linadforest_tree_runner <- function(
   force(type)
   force(y_levels)
   force(settings)
-  force(bags)
-  function(b) {
+  function(bag) {
     linadforest_tree(
       x = x,
       y = y,
@@ -53,7 +51,7 @@ make_linadforest_tree_runner <- function(
       type = type,
       y_levels = y_levels,
       settings = settings,
-      bag = bags[[b]]
+      bag = bag
     )
   }
 } # /rtemis::make_linadforest_tree_runner
@@ -146,23 +144,35 @@ method(train_, LINADForestHyperparameters) <- function(
   # Train ----
   n_trees <- settings[["n_trees"]]
   bags <- linadforest_bags(y, n_trees, seed = execution_config@seed)
+  future_plan <- resolve_future_plan(
+    execution_config@backend,
+    execution_future_plan(execution_config)
+  )
+  # Every tree reads all of the data, so it is shared; each tree receives only
+  # its own bag.
+  share <- function(obj) {
+    share_payload(
+      obj,
+      mode = execution_config@shared_memory,
+      backend = execution_config@backend,
+      future_plan = future_plan,
+      n_workers = hyperparameters@n_workers
+    )
+  }
   grown <- progress_plapply(
-    seq_len(n_trees),
+    # Unnamed, so the trees are stored as an unnamed list.
+    unname(bags),
     make_linadforest_tree_runner(
-      x = features,
-      y = y,
-      case_weights = weights,
+      x = share(features),
+      y = share(y),
+      case_weights = share(weights),
       type = type,
       y_levels = y_levels,
-      settings = settings,
-      bags = bags
+      settings = settings
     ),
     backend = execution_config@backend,
     n_workers = hyperparameters@n_workers,
-    future_plan = resolve_future_plan(
-      execution_config@backend,
-      execution_future_plan(execution_config)
-    ),
+    future_plan = future_plan,
     # One independent RNG substream per tree, assigned by tree index, so the
     # feature sampling is the same sequentially and in parallel at any worker
     # count.

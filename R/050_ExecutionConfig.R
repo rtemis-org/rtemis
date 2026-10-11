@@ -49,10 +49,6 @@ ExecutionConfig <- schema_class(
       nullable = TRUE,
       description = "Compute device. Unset selects one per algorithm: cuda where the machine has it and the algorithm can use it, else the CPU. An algorithm that cannot use the requested device runs on the CPU."
     ),
-    warm_workers = prop_boolean(
-      TRUE,
-      description = "Load rtemis in every worker when the pool is built, rather than on each worker's first task."
-    ),
     on_error = prop_string(
       "continue",
       enum = c("continue", "stop", "stop_outer"),
@@ -225,7 +221,11 @@ FutureExecutionConfig <- schema_class(
 #' MiraiExecutionConfig Class
 #'
 #' @description
-#' Dispatch through \pkg{mirai}.
+#' Dispatch through \pkg{mirai}. rtemis starts the daemons and they persist for
+#' the run, so `warm_workers`, which loads rtemis in each daemon as the pool
+#' starts, is declared on this variant. A \pkg{future} plan guarantees neither
+#' which worker evaluates a task nor that a worker outlives it, so the future
+#' variant has no such property.
 #'
 #' @author EDG
 #' @noRd
@@ -234,7 +234,11 @@ MiraiExecutionConfig <- schema_class(
   parent = ParallelExecutionConfig,
   package = "rtemis",
   properties = list(
-    backend = prop_algorithm("mirai")
+    backend = prop_algorithm("mirai"),
+    warm_workers = prop_boolean(
+      TRUE,
+      description = "Load rtemis in every worker when the pool is built, rather than on each worker's first task."
+    )
   ),
   publication = SchemaPublication(
     role = "leaf",
@@ -302,6 +306,24 @@ execution_future_plan <- function(x) {
 } # /rtemis::execution_future_plan
 
 
+# %% execution_warm_workers ----
+#' Whether an execution config loads rtemis in its workers as the pool starts
+#'
+#' Only `MiraiExecutionConfig` declares `warm_workers`; every other backend
+#' loads rtemis on each worker's first task.
+#'
+#' @param x `ExecutionConfig` object.
+#'
+#' @return Logical.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+execution_warm_workers <- function(x) {
+  S7_inherits(x, MiraiExecutionConfig) && x@warm_workers
+} # /rtemis::execution_warm_workers
+
+
 # %% algorithm_threads ----
 #' Threads an algorithm may use
 #'
@@ -350,8 +372,7 @@ algorithm_execution_config <- function(execution_config, n_threads) {
     device = execution_config@device,
     on_error = execution_config@on_error,
     seed = execution_config@seed,
-    shared_memory = execution_config@shared_memory,
-    warm_workers = execution_config@warm_workers
+    shared_memory = execution_config@shared_memory
   )
 } # /rtemis::algorithm_execution_config
 
@@ -474,7 +495,6 @@ EXECUTION_SETUP <- c(
 #' @param device Optional `DeviceConfig`, Character, or list.
 #' @param on_error,shared_memory Character: Already matched by the caller.
 #' @param seed Optional Integer.
-#' @param warm_workers Logical.
 #'
 #' @return Named list of resolved shared settings.
 #'
@@ -486,10 +506,8 @@ EXECUTION_SETUP <- c(
   device,
   on_error,
   seed,
-  shared_memory,
-  warm_workers
+  shared_memory
 ) {
-  check_logical_scalar(warm_workers)
   if (!is.null(n_workers_algorithm)) {
     n_workers_algorithm <- clean_int(n_workers_algorithm)
     check_pos_integer_scalar(n_workers_algorithm)
@@ -512,8 +530,7 @@ EXECUTION_SETUP <- c(
     device = as_device_config(device),
     on_error = on_error,
     seed = seed,
-    shared_memory = shared_memory,
-    warm_workers = warm_workers
+    shared_memory = shared_memory
   )
 } # /rtemis::.execution_common
 
@@ -632,8 +649,6 @@ EXECUTION_SETUP <- c(
 #' when the run is sequential, so a run can be compared against its own shared
 #' counterpart, and raises an error when the request cannot be met, for a caller relying
 #' on sharing to stay inside a memory budget.
-#' @param warm_workers Logical: Load \pkg{rtemis} in every worker as the pool is built,
-#' rather than leaving each worker to load it on its first task.
 #'
 #' @details
 #' **Worker levels**
@@ -675,8 +690,7 @@ setup_FutureExecution <- function(
   future_plan = getOption("future.plan", "mirai_multisession"),
   on_error = c("continue", "stop", "stop_outer"),
   seed = NULL,
-  shared_memory = c("auto", "none", "always"),
-  warm_workers = TRUE
+  shared_memory = c("auto", "none", "always")
 ) {
   # Captured before anything is filled in: this function's defaults are not the
   # class's, so a record comparing the two would report the pool it sized and
@@ -705,8 +719,7 @@ setup_FutureExecution <- function(
         device,
         on_error,
         seed,
-        shared_memory,
-        warm_workers
+        shared_memory
       ),
       .execution_dispatch(n_workers, n_workers_outer, n_workers_tuning),
       list(future_plan = future_plan)
@@ -725,6 +738,9 @@ setup_FutureExecution <- function(
 #' equivalent of a `future_plan`, which is why it is not an argument here.
 #'
 #' @inheritParams setup_FutureExecution
+#' @param warm_workers Logical: Load \pkg{rtemis} in every worker as the pool is built,
+#' rather than leaving each worker to load it on its first task. Either way the result is
+#' the same; TRUE records the loading time in the run's worker-pool setup step.
 #'
 #' @details
 #' See [setup_FutureExecution] for how the three worker levels are assigned and
@@ -751,6 +767,7 @@ setup_MiraiExecution <- function(
   apply_setup_defaults(MiraiExecutionConfig)
   on_error <- match.arg(on_error)
   shared_memory <- match.arg(shared_memory)
+  check_logical_scalar(warm_workers)
   check_dependencies("mirai")
   out <- do.call(
     MiraiExecutionConfig,
@@ -760,10 +777,10 @@ setup_MiraiExecution <- function(
         device,
         on_error,
         seed,
-        shared_memory,
-        warm_workers
+        shared_memory
       ),
-      .execution_dispatch(n_workers, n_workers_outer, n_workers_tuning)
+      .execution_dispatch(n_workers, n_workers_outer, n_workers_tuning),
+      list(warm_workers = warm_workers)
     )
   )
   config_origins(out) <- origins
@@ -799,8 +816,7 @@ setup_SerialExecution <- function(
   device = NULL,
   on_error = c("continue", "stop", "stop_outer"),
   seed = NULL,
-  shared_memory = c("auto", "none", "always"),
-  warm_workers = TRUE
+  shared_memory = c("auto", "none", "always")
 ) {
   origins <- supplied_origins()
   apply_setup_defaults(SerialExecutionConfig)
@@ -813,8 +829,7 @@ setup_SerialExecution <- function(
       device,
       on_error,
       seed,
-      shared_memory,
-      warm_workers
+      shared_memory
     )
   )
   config_origins(out) <- origins

@@ -1,7 +1,7 @@
 Package: rtemis
 Version: 1.4.2
 Title: Advanced Machine Learning and Visualization
-Date: 2026-10-05
+Date: 2026-10-10
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
     email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
 Description: Schema-driven machine learning and visualization package with an 'S7' backend 
@@ -124,7 +124,7 @@ Language: en-US
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 LazyData: true
-Config/roxygen2/version: 8.1.0
+Config/roxygen2/version: 8.1.1
 Collate:
     '005_HyperparameterCandidates.R'
     '009_DefaultPolicy.R'
