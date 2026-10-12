@@ -47,7 +47,7 @@ method(train_, GAMHyperparameters) <- function(
 
   type <- supervised_type(x)
   n_classes <- if (type == "Classification") {
-    nlevels(x[, ncol(x)])
+    nlevels(outcome(x))
   } else {
     NA
   }
