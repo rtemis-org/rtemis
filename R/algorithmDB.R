@@ -316,9 +316,10 @@ supervised_multiclass <- c(
 # to compute, which is the opposite of `varimp_super()`'s arrangement.
 #
 # `exact` is NA where exactness is a property of the *fitted* model rather than
-# of the algorithm: SPLS and LinearSVM have a single linear map only for a
-# regression or binary fit -- a multiclass one is scores identified up to a
-# constant, and one-vs-one voting, respectively; and MARS and HAL are additive
+# of the algorithm: SPLS, LinearSVM and GAM have a single additive map only for
+# a regression or binary fit -- a multiclass one is scores identified up to a
+# constant, one-vs-one voting, and one linear predictor per non-reference
+# class, respectively; and MARS and HAL are additive
 # in their features only when the fit selected no term reading two of them,
 # which for both is a search setting rather than a property of the algorithm.
 # Each is checked at explain time and refused with the reason.
@@ -329,7 +330,7 @@ supervised_multiclass <- c(
 # are each locked to one value function -- LinearSHAP is interventional-only,
 # LightGBM's TreeSHAP conditional-only -- so a mixed library has none in common.
 #
-# Only seven algorithms are unconditionally exact: exactness is usually a
+# Only eight algorithms are unconditionally exact: exactness is usually a
 # property of the fitted model, and this column says which.
 #
 # Built column-wise so `exact` is `logical`, for the reason `decom_algorithms`
@@ -397,7 +398,7 @@ explanation_algorithms <- data.frame(
     FALSE,
     TRUE,
     NA,
-    TRUE,
+    NA,
     TRUE,
     TRUE,
     FALSE,
@@ -426,7 +427,7 @@ explanation_algorithms <- data.frame(
     "No additive structure to read; the posterior gives a better uncertainty story than SHAP does.",
     "TreeSHAP over a single tree is a short traversal and is exact.",
     "An oracle routes each case to one expert, which predicts it alone -- so the expert explains it, exactly, with its own estimator.",
-    "predict(type = 'terms') already returns the additive decomposition.",
+    "predict(type = 'terms') returns the additive decomposition for a regression or binary fit; a multiclass fit has one linear predictor per non-reference class.",
     "Coefficients give phi_j = beta_j * (x_j - E[x_j]) in closed form.",
     "Coefficients give phi_j = beta_j * (x_j - E[x_j]) in closed form.",
     "Linear within a leaf, but the tree routes on the same features, so a leaf's coefficients account for only part of what the model did.",
@@ -442,10 +443,10 @@ explanation_algorithms <- data.frame(
     "One tree is linear within a leaf and already only partly readable from its coefficients; a mean over trees, each routing on the same features, is no more additive in them.",
     "Additive in its basis functions for a regression fit; classification adds a GLM over them, and an interaction term reads two features.",
     "A network has no additive structure to read; Expected Gradients would be cheaper but is deferred.",
-    "A weighted sum of base explanations would be exact for a linear meta-learner, but needs every base to answer the same question; see the plan.",
+    "A weighted sum of base explanations is exact for a linear meta-learner only when every base computes the same value function, and each exact estimator computes one value function.",
     "Coefficients give phi_j = beta_j * (x_j - E[x_j]) in closed form.",
-    "TreeSHAP over ranger's forest is possible but unimplemented; see the plan's open question 2.",
-    "A weighted sum of base explanations would be exact for a linear meta-learner, but needs every base to answer the same question; see the plan.",
+    "TreeSHAP covers rpart and LightGBM trees; a ranger forest is explained with the kernel estimator.",
+    "A weighted sum of base explanations is exact for a linear meta-learner only when every base computes the same value function, and each exact estimator computes one value function.",
     "The decision function is linear for a regression or binary fit; multiclass is one-vs-one voting.",
     "The kernel makes the decision function nonlinear in the features.",
     "Linear in the features for regression and binary; multiclass scores are identified only up to a constant.",

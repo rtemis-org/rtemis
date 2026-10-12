@@ -23,6 +23,18 @@
 - Shared results identify implementation-specific learner, execution, preprocessing, and resampler configs by schema and read their typed settings without inserting omitted defaults.
 - `write_config()` and `write_record()` write numbers with 15 significant digits instead of rounding to four decimal places.
 - Each parallel task receives only its own resample or bag; LINADForest and `bias_variance()` pass training data to local workers through shared memory.
+- GAM classification trains on a data.table, which failed for every outcome, and on a multiclass outcome, using mgcv's multinomial family. A multiclass GAM reports no variable importance or standard errors, and `explain()` refuses its GAMTerms estimator; `explanation_methods()` reports GAM's exactness as dependent on the fit.
+- LinearSVM and RadialSVM probabilities are those of the positive class for a binary outcome and follow the outcome's level order for a multiclass one. Binary probabilities were those of the negative class when the first training case belonged to the positive class.
+- `setup_GridSearch()` with `maximize` unset maximizes every metric for which a higher value is better (accuracy, balanced accuracy, sensitivity, specificity, PPV, NPV, F1, AUC, R², concordance) and minimizes the others; it minimized AUC, sensitivity, specificity, PPV, NPV and F1.
+- `se()` is exported: standard errors of the fit for GLM, GAM, BART and LINADForest models.
+- `get_metrics()` returns the metrics a supervised model, resampled model, clustering or decomposition stores for one sample; `calibrated = TRUE` selects a calibrated classifier's calibrated metrics.
+- `$` and `[[` read the properties of resampled models and resampled metrics, with tab completion, and `[[` reads any property of a decomposition, as `$` does. On models, clusterings and decompositions, a name that is not a property raises an error listing the properties.
+- `plot_varimp()` draws a `SHAP` explanation's mean absolute contributions.
+- Imputation fitted on training data is applied to new data: `apply_preprocessor()`, and `train()` on validation, test and resampled test data, impute with what was learned from the training data rather than from the new data.
+  - Mean and mode imputation (`impute_type = "meanMode"`) stores the value imputed into every feature in the new config properties `impute_numeric_values` and `impute_level_values`.
+  - missRanger imputation keeps its fitted random forests in the `Preprocessor` (`@imputer`) and applies them with `predict()`; features with no missing training values take a mean or mode value on new data. All `impute_missRanger_params` reach missRanger, which received only `pmm.k`.
+  - micePMM imputation is available to `preprocess()` only: `setup_SupervisedPreprocessor()` does not offer it, and `apply_preprocessor()` refuses a preprocessor that uses it.
+  - `setup_SupervisedPreprocessor()` imputes with mean and mode values by default (`impute_type = "meanMode"`); missRanger, fitted on every training set of a `train()` run, is chosen explicitly. The Imputation sections of `setup_SupervisedPreprocessor()` and `setup_Preprocessor()` describe each method's cost and limits.
 
 ### Supervised result validation
 

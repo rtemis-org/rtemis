@@ -7,10 +7,12 @@
 setup_SupervisedPreprocessor(
   missingness = FALSE,
   impute = FALSE,
-  impute_type = c("missRanger", "micePMM", "meanMode"),
+  impute_type = c("meanMode", "missRanger"),
   impute_missRanger_params = list(pmm.k = 3, maxiter = 10, num.trees = 500),
   impute_discrete = "get_mode",
   impute_continuous = "mean",
+  impute_numeric_values = NULL,
+  impute_level_values = NULL,
   integer2factor = FALSE,
   integer2numeric = FALSE,
   logical2factor = FALSE,
@@ -51,8 +53,12 @@ feature with missing values, indicating which cases were missing data.}
 \item{impute}{Logical: If TRUE, impute missing cases. See \code{impute_discrete} and
 \code{impute_continuous}.}
 
-\item{impute_type}{Character \{"missRanger", "micePMM", "meanMode"\}: Package to use for
-imputation.}
+\item{impute_type}{Character \{"meanMode", "missRanger"\}: Imputation
+method. "meanMode" imputes the values that \code{impute_discrete} and
+\code{impute_continuous} compute on the training data. "missRanger" fits one
+random forest per feature with missing values, applied to validation, test
+and new data with \code{predict()}; it multiplies the memory and computation of
+a \link{train} run. See the Imputation section.}
 
 \item{impute_missRanger_params}{List: Parameters passed to
 \code{missRanger::missRanger}, e.g. "pmm.k", "maxiter", "num.trees". \code{pmm.k}
@@ -61,10 +67,28 @@ faster imputation especially in large datasets. Set \code{pmm.k = 0} to
 disable predictive mean matching.}
 
 \item{impute_discrete}{Character: Name of function that returns single value: How to impute
-discrete variables for \code{impute_type = "meanMode"}.}
+discrete variables for \code{impute_type = "meanMode"}, and for features with no
+missing training values for \code{impute_type = "missRanger"}.}
 
 \item{impute_continuous}{Character: Name of function that returns single value: How to impute
-continuous variables for \code{impute_type = "meanMode"}.}
+continuous variables for \code{impute_type = "meanMode"}, and for features with
+no missing training values for \code{impute_type = "missRanger"}.}
+
+\item{impute_numeric_values}{Optional Named vector: Value imputed into
+numeric or logical features, keyed by feature name; a logical feature
+takes 1 as TRUE and 0 as FALSE. Covers every such feature for
+\code{impute_type = "meanMode"} and features with no missing training values
+for \code{impute_type = "missRanger"}. Used in place of the value
+\code{impute_discrete} or \code{impute_continuous} computes. \link{preprocess} stores the
+values it uses in the \code{Preprocessor}, and \link{apply_preprocessor} imputes new
+data with them.}
+
+\item{impute_level_values}{Optional Named vector: Value imputed into factor
+or character features, keyed by feature name. Covers every such feature
+for \code{impute_type = "meanMode"} and features with no missing training
+values for \code{impute_type = "missRanger"}. Used in place of the value
+\code{impute_discrete} computes. \link{preprocess} stores the values it uses in the
+\code{Preprocessor}, and \link{apply_preprocessor} imputes new data with them.}
 
 \item{integer2factor}{Logical: If TRUE, convert all integers to factors. This includes
 \code{bit64::integer64} columns.}
@@ -184,9 +208,50 @@ subset, so the folds would train over different feature spaces and their
 metrics would not average into an estimate of one model. Name the columns
 with \code{remove_features} instead, which drops the same ones in every fold.
 
-All four are available in \link{setup_Preprocessor}, for \link{preprocess} on a dataset
-in hand, where the outcome is still attached and what was dropped is visible.
+\code{impute_type = "micePMM"} imputes only the data 'mice' is run on, so a
+fitted preprocessor cannot apply it to validation, test or new data.
+The default \code{impute_type} is "meanMode"; see the Imputation section.
+
+All four operations and micePMM imputation are available in
+\link{setup_Preprocessor}, for \link{preprocess} on a dataset in hand, where the
+outcome is still attached and what was dropped is visible.
 }
+\section{Imputation}{
+
+The preferred way to handle missing values is an algorithm that accepts
+them, which needs no imputation: the tree-based CART, LightCART, LightGBM,
+LightRF, LightRuleFit and Ranger. For an algorithm that requires complete
+data, such as GLM or GLMNET, use \code{impute_type = "meanMode"}, the default: it
+stores one value per feature, computed on the training data, and adds
+little memory or computation.
+
+\code{impute_type = "missRanger"} fits one random forest per feature with missing
+values. \link{train} fits the preprocessor on every training set it uses: once
+per outer resample, and, when hyperparameters are tuned, once per tuning
+resample and hyperparameter combination as well. For example, 10 outer
+resamples with 5-fold tuning over 20 combinations fit missRanger
+10 x (5 x 20 + 1) = 1010 times. Each fitted model, one per outer resample,
+keeps its forests and a copy of its training data, which \code{predict()} draws
+starting values from. Choose it only where a multivariate imputation is
+needed, and reduce \code{num.trees} and \code{maxiter} in \code{impute_missRanger_params}
+for large data.
+
+A fitted missRanger imputer has three further properties:
+\itemize{
+\item It is an R object, held by the fitted model. A config or record written to
+JSON carries the method and its parameters, not the forests, so a model
+rebuilt from JSON cannot impute new data with them.
+\item It has a forest only for features with missing values in the training
+data. Other features take a mean or mode value, computed on the training
+data, when they are missing in new data.
+\item \code{predict()} stops on a factor level of an imputed feature that is absent
+from the training data.
+}
+
+\code{impute_type = "micePMM"} imputes only the data 'mice' is run on and is
+available in \link{setup_Preprocessor} only.
+}
+
 \examples{
 preproc_config <- setup_SupervisedPreprocessor(impute = TRUE)
 preproc_config

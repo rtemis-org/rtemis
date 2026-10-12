@@ -20,7 +20,8 @@ schema.rtemis.org preprocessor schema. Elements are passed to
 it identifies the document.
 }
 \details{
-The learned values (\code{scale_centers}, \code{scale_coefficients}, \code{one_hot_levels},
+The learned values (\code{impute_numeric_values}, \code{impute_level_values},
+\code{scale_centers}, \code{scale_coefficients}, \code{one_hot_levels},
 \code{factor2integer_levels}) are \code{data_dependent} settable inputs: a
 user-authored config typically carries none, and the \verb{setup_*} defaults leave
 them unset. A config that does carry them -- a fitted preprocessor written

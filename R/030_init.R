@@ -347,19 +347,29 @@ se_super <- new_generic(
 # %% se ----
 #' Standard error of the fit
 #'
-#' Computed on demand from the fitted model, since only three of the twenty-four
-#' algorithms provide it.
+#' Computes standard errors of the fit for `newdata` from the fitted model,
+#' after applying the model's stored preprocessing.
+#'
+#' @details
+#' Available for GLM and GAM, which report the standard error of the linear
+#' predictor, for BART, which reports the posterior standard deviation of the
+#' mean function, and for LINADForest, which reports the infinitesimal
+#' jackknife estimate. A multiclass GAM and every other algorithm return NULL.
 #'
 #' @param x `Supervised` object.
-#' @param newdata tabular data: Data to compute standard errors for.
+#' @param newdata tabular data: Features to compute standard errors for.
 #' @param ... Additional arguments passed to methods.
 #'
-#' @return Numeric vector of standard errors, or NULL when the algorithm has
-#'   none.
+#' @return Numeric vector of standard errors, one per case, or NULL when the
+#'   algorithm reports none.
 #'
 #' @author EDG
-#' @keywords internal
-#' @noRd
+#' @export
+#' @examples
+#' x <- data.frame(age = rnorm(100), bmi = rnorm(100))
+#' x[["y"]] <- x[["age"]] * 2 + rnorm(100, sd = 0.3)
+#' mod <- train(x, hyperparameters = setup_GLM(), verbosity = 0L)
+#' se(mod, features(x)[1:5, ])
 se <- new_generic("se", "x", function(x, newdata, ...) {
   force_supplied()
   S7_dispatch()
@@ -820,6 +830,67 @@ cluster_k <- new_generic(
 #' @keywords internal
 #' @noRd
 desc <- new_generic("desc", "x")
+
+
+# %% get_metrics ----
+#' Get metrics
+#'
+#' @description
+#' The performance metrics stored on a fitted model, clustering, or
+#' decomposition, for one sample.
+#'
+#' @details
+#' A `Supervised` model stores metrics for the training sample, and for the
+#' validation and test samples when [train] received `dat_validation` and
+#' `dat_test`. A `SupervisedRes` model stores per-resample metrics for the
+#' training and test samples of each outer resample, with their mean and
+#' standard deviation. A calibrated classifier also stores the metrics of its
+#' calibrated predictions, selected with `calibrated = TRUE`.
+#'
+#' A `Clustering` or `Decomposition` stores metrics for the data it was fitted
+#' on, which `sample = NULL` and `sample = "training"` both select. For a
+#' decomposition, [decomp_metrics] computes the metrics of new data.
+#'
+#' Requesting a sample the object does not store raises an error that names the
+#' samples it does store.
+#'
+#' The returned object supports `$` and `[[`: for example,
+#' `get_metrics(mod, "test")$rsq`.
+#'
+#' @param x `Supervised`, `SupervisedRes`, `Clustering`, or `Decomposition`
+#'   object.
+#' @param sample Optional Character \{"training", "validation", "test"\}: The
+#'   sample whose metrics to return. Required for `Supervised` and
+#'   `SupervisedRes` objects.
+#' @param calibrated Logical: If TRUE, return the metrics of the calibrated
+#'   predictions of a calibrated classifier.
+#'
+#' @return `Metrics` object for a `Supervised` model; `MetricsRes` object for a
+#'   `SupervisedRes` model; `ClusteringMetrics` or `DecompositionMetrics`
+#'   object, or NULL when the object holds no metrics, for a `Clustering` or
+#'   `Decomposition`.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' x <- data.frame(age = rnorm(100), bmi = rnorm(100))
+#' x[["y"]] <- x[["age"]] * 2 + rnorm(100, sd = 0.3)
+#' mod <- train(
+#'   x[1:80, ],
+#'   dat_test = x[81:100, ],
+#'   hyperparameters = setup_GLM(),
+#'   verbosity = 0L
+#' )
+#' get_metrics(mod, "training")
+#' get_metrics(mod, "test")$rsq
+get_metrics <- new_generic(
+  "get_metrics",
+  "x",
+  function(x, sample = NULL, calibrated = FALSE) {
+    force_supplied()
+    S7_dispatch()
+  }
+)
 
 
 # %% get_metric ----

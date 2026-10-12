@@ -20,8 +20,8 @@ test_that("explanation_algorithms is typed and well-formed", {
   expect_type(methods_table[["estimator"]], "character")
   expect_type(methods_table[["rationale"]], "character")
   # NA means exactness is a property of the *fitted* model rather than of the
-  # algorithm: two with a single linear map for a regression or binary outcome
-  # but none for a multiclass one, three additive only when the fit selected no
+  # algorithm: three with a single additive map for a regression or binary
+  # outcome but none for a multiclass one, three additive only when the fit selected no
   # term reading two features, and one that is exact when the experts it routed
   # to are. Listed so a new NA has to be added here on purpose rather than
   # standing in for an unauthored row.
@@ -31,6 +31,7 @@ test_that("explanation_algorithms is typed and well-formed", {
     c(
       "SPLS",
       "LinearSVM",
+      "GAM",
       "MARS",
       "HAL",
       "MonotonicHAL",
@@ -103,19 +104,21 @@ test_that("the exact tier is the algorithms with additive structure to read", {
   exact <- methods_table[["name"]][
     !is.na(methods_table[["exact"]]) & methods_table[["exact"]]
   ]
-  # Linear models, additive models, and trees: each carries a decomposition the
-  # estimator reads rather than samples, for every fit of it.
+  # Linear models and trees: each carries a decomposition the estimator reads
+  # rather than samples, for every fit of it.
   expect_true(all(
-    c("GLM", "GLMNET", "NNLS", "LightGBM", "CART", "GAM") %in% exact
+    c("GLM", "GLMNET", "NNLS", "LightGBM", "CART") %in% exact
   ))
   # A network, a kernel machine and a neighborhood method carry none, ever.
   expect_false(any(c("MLP", "RadialSVM", "KNN", "TabNet") %in% exact))
-  # MARS and HAL carry one for some fits and not others, which is what NA says:
-  # a term reading two features cannot be split by summing, and both default to
-  # a search that allows one.
+  # MARS, HAL and GAM carry one for some fits and not others, which is what NA
+  # says: a term reading two features cannot be split by summing, and MARS and
+  # HAL default to a search that allows one; a multiclass GAM has one linear
+  # predictor per non-reference class.
   expect_true(all(is.na(
     explanation_methods()[["exact"]][
-      explanation_methods()[["name"]] %in% c("MARS", "HAL", "MonotonicHAL")
+      explanation_methods()[["name"]] %in%
+        c("MARS", "HAL", "MonotonicHAL", "GAM")
     ]
   )))
   # Unconditional exactness is the minority, which is the honest shape of this.

@@ -7,7 +7,8 @@
 plot_varimp(x, ...)
 }
 \arguments{
-\item{x}{\code{rtemis::Supervised} or \code{rtemis::SupervisedRes}: Fitted model result.}
+\item{x}{\code{rtemis::Supervised}, \code{rtemis::SupervisedRes} or \code{rtemis::SHAP}:
+Fitted model result or explanation.}
 
 \item{...}{Additional arguments to \code{\link[rtemis.draw:draw_varimp]{rtemis.draw::draw_varimp()}}, including \code{measure},
 \code{type}, \code{top_n}, \code{rank_by}, \code{decreasing}, \code{bar_width}, \code{summary}, \code{absent},
@@ -18,8 +19,9 @@ the model and cannot be overridden.}
 htmlwidget: ECharts importance bars or fold distributions.
 }
 \description{
-Draw importance recorded by a rtemis \code{Supervised} or \code{SupervisedRes} object
-using \code{\link[rtemis.draw:draw_varimp]{rtemis.draw::draw_varimp()}}.
+Draw importance recorded by a rtemis \code{Supervised} or \code{SupervisedRes} object,
+or computed from a \code{SHAP} explanation by \link{get_varimp}, using
+\code{\link[rtemis.draw:draw_varimp]{rtemis.draw::draw_varimp()}}.
 }
 \details{
 Named measures and variable identities are preserved. Resampled records
@@ -39,6 +41,9 @@ scores overlaid. Summary bars remain the default. Both views share selection,
 ranking, and the producer's missing-score contract. Ordinary models have no
 fold distribution and require the bar view.
 
+A \code{SHAP} explanation is drawn from the mean absolute contribution of each
+feature, with one measure per class for a multiclass outcome.
+
 Models without any importance records produce an informative error.
 The default title names the algorithm; \code{title = NULL} omits it.
 See \code{\link[rtemis.draw:draw_varimp]{rtemis.draw::draw_varimp()}} for selection, ranking, and missing-score semantics.
@@ -50,5 +55,7 @@ model <- train(
   hyperparameters = setup_GLM(), verbosity = 0L
 )
 plot_varimp(model)
+features <- mtcars[, c("wt", "hp")]
+plot_varimp(explain(model, features, background = features, verbosity = 0L))
 \dontshow{\}) # examplesIf}
 }

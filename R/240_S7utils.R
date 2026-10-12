@@ -106,3 +106,55 @@ method(print, BiasVariance) <- function(x, ...) {
   cat(repr(x))
   invisible(x)
 } # /rtemis::print.BiasVariance
+
+
+# %% prop_by_name ----
+#' Read an S7 property by name
+#'
+#' The `$` and `[[` methods of result objects read properties through this
+#' function, so that both operators accept exactly the property names, which
+#' `.DollarNames` also completes.
+#'
+#' @param x S7 object.
+#' @param name Character: Property name.
+#'
+#' @return The value of the property.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_by_name <- function(x, name) {
+  available <- prop_names(x)
+  if (!is.character(name) || length(name) != 1L || !name %in% available) {
+    abort(
+      "No property named ",
+      shQuote(paste(format(name), collapse = " ")),
+      " in ",
+      S7_class(x)@name,
+      " object. Available properties: ",
+      paste(available, collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  prop(x, name)
+} # /rtemis::prop_by_name
+
+
+# %% prop_names_matching ----
+#' Property names matching a pattern
+#'
+#' The `.DollarNames` methods of result objects complete property names
+#' through this function.
+#'
+#' @param x S7 object.
+#' @param pattern Character: Regular expression.
+#'
+#' @return Character vector of property names.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prop_names_matching <- function(x, pattern = "") {
+  grep(pattern, prop_names(x), value = TRUE)
+} # /rtemis::prop_names_matching

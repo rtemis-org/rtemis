@@ -209,3 +209,25 @@ test_that("model distributions preserve producer omissions and legacy dispatch",
     "fold.*column"
   )
 })
+
+
+test_that("a SHAP explanation plots its mean absolute contributions", {
+  x <- data.frame(age = rnorm(60), bmi = rnorm(60))
+  x[["y"]] <- x[["age"]] * 2 + rnorm(60, sd = 0.3)
+  mod <- train(x, hyperparameters = setup_GLM(), verbosity = 0L)
+  shap <- explain(
+    mod,
+    features(x)[1:10, ],
+    background = features(x),
+    verbosity = 0L
+  )
+  records <- varimp_plot_data(shap)
+  expect_null(records[["folds"]])
+  expect_identical(records[["data"]][["variable"]], c("age", "bmi"))
+  expect_equal(
+    records[["data"]][[names(shap@phi)]],
+    unname(colMeans(abs(shap@phi[[1L]])))
+  )
+  option <- plot_varimp(shap)[["x"]][["option"]]
+  expect_setequal(option[["yAxis"]][["data"]], c("age", "bmi"))
+})

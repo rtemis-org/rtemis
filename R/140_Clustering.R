@@ -157,25 +157,36 @@ SoftClustering <- new_class(
 
 
 # %% `$`.Clustering ----
-# Make Clustering props `$`-accessible
 method(`$`, Clustering) <- function(x, name) {
-  prop(x, name)
+  prop_by_name(x, name)
 }
 
 
 # %% `.DollarNames`.Clustering ----
-# `$`-autocomplete Clustering props
 method(`.DollarNames`, Clustering) <- function(x, pattern = "") {
-  prop_names <- names(props(x))
-  grep(pattern, prop_names, value = TRUE)
+  prop_names_matching(x, pattern)
 }
 
 
 # %% `[[`.Clustering ----
-# Make Clustering props `[[`-accessible
-method(`[[`, Clustering) <- function(x, index) {
-  prop(x, index)
+method(`[[`, Clustering) <- function(x, name) {
+  prop_by_name(x, name)
 }
+
+
+# %% get_metrics.Clustering ----
+method(get_metrics, Clustering) <- function(
+  x,
+  sample = NULL,
+  calibrated = FALSE
+) {
+  stored_fit_metrics(
+    x,
+    sample = sample,
+    calibrated = calibrated,
+    new_data_hint = ""
+  )
+} # /rtemis::get_metrics.Clustering
 
 
 # %% repr.Clustering ----

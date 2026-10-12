@@ -703,6 +703,71 @@ method(print, MetricsRes) <- function(
 } # /rtemis::print.MetricsRes
 
 
+# %% stored_fit_metrics ----
+#' Metrics stored on an unsupervised result
+#'
+#' Implements `get_metrics()` for `Clustering` and `Decomposition` objects,
+#' which store metrics for the data they were fitted on only.
+#'
+#' @param x `Clustering` or `Decomposition` object.
+#' @param sample Optional Character: NULL or "training".
+#' @param calibrated Logical: Must be FALSE.
+#' @param new_data_hint Character: Sentence naming how to compute metrics of
+#'   new data, appended to the error for any other sample.
+#'
+#' @return `ClusteringMetrics` or `DecompositionMetrics` object, or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+stored_fit_metrics <- function(x, sample, calibrated, new_data_hint = "") {
+  check_logical_scalar(calibrated)
+  class_name <- S7_class(x)@name
+  if (calibrated) {
+    abort(
+      "`calibrated = TRUE` applies to calibrated classifiers only; this is a ",
+      class_name,
+      " object.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  if (!is.null(sample)) {
+    check_character_scalar(sample)
+    if (sample != "training") {
+      abort(
+        "A ",
+        class_name,
+        " object stores metrics for the data it was fitted on only: use ",
+        "`sample = NULL` or `sample = \"training\"`. Received: ",
+        shQuote(sample),
+        ".",
+        new_data_hint,
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+  }
+  x@metrics
+} # /rtemis::stored_fit_metrics
+
+
+# %% `$`.MetricsRes ----
+method(`$`, MetricsRes) <- function(x, name) {
+  prop_by_name(x, name)
+}
+
+
+# %% `.DollarNames`.MetricsRes ----
+method(`.DollarNames`, MetricsRes) <- function(x, pattern = "") {
+  prop_names_matching(x, pattern)
+}
+
+
+# %% `[[`.MetricsRes ----
+method(`[[`, MetricsRes) <- function(x, name) {
+  prop_by_name(x, name)
+}
+
+
 # %% RegressionMetricsRes ----
 #' @author EDG
 #' @noRd

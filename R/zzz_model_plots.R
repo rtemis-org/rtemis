@@ -14,8 +14,10 @@ method(plot_session, SupervisedRes) <- draw_object_session
 method(plot_learning, Supervised) <- draw_model_learning_curve
 method(varimp_plot_data, Supervised) <- extract_varimp_plot_data
 method(varimp_plot_data, SupervisedRes) <- extract_varimp_plot_data
+method(varimp_plot_data, SHAP) <- extract_varimp_plot_data
 method(plot_varimp, Supervised) <- draw_model_varimp
 method(plot_varimp, SupervisedRes) <- draw_model_varimp
+method(plot_varimp, SHAP) <- draw_model_varimp
 method(metric_plot_data, SupervisedRes) <- extract_metric_plot_data
 method(plot_metric, SupervisedRes) <- draw_model_metric
 method(present, Regression) <- present_regression

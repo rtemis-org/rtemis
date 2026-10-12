@@ -398,6 +398,61 @@ test_that("train() GAM Classification with IFW succeeds", {
   expect_s7_class(mod_c_gam_ifw, Classification)
 })
 
+## {GAM}[train]<Classification> data.table ----
+test_that("train() GAM binary Classification accepts a data.table", {
+  mod <- train(
+    x = as.data.table(datc2_train),
+    dat_test = as.data.table(datc2_test),
+    hyperparameters = setup_GAM(),
+    verbosity = 0L
+  )
+  expect_s7_class(mod, Classification)
+  expect_identical(mod@model[["family"]][["family"]], "binomial")
+  expect_identical(ncol(mod@predicted_prob_test), 1L)
+})
+
+## {GAM}[train]<Classification> Multiclass data.table ----
+# Three classes with overlapping distributions: a separable outcome such as
+# iris drives the multinomial fit to infinite coefficients.
+set.seed(2026)
+datc3_gam <- data.table(
+  a = rnorm(300),
+  b = rnorm(300),
+  g = factor(sample(c("u", "v"), 300, replace = TRUE))
+)
+datc3_gam_lp <- cbind(
+  0,
+  sin(datc3_gam[["a"]]) + 0.5 * datc3_gam[["b"]],
+  -datc3_gam[["a"]] + 0.3 * datc3_gam[["b"]]
+)
+datc3_gam[["y"]] <- factor(
+  apply(exp(datc3_gam_lp), 1L, function(p) {
+    sample(c("c1", "c2", "c3"), 1L, prob = p)
+  }),
+  levels = c("c1", "c2", "c3")
+)
+resc3_gam <- resample(datc3_gam)
+datc3_gam_train <- datc3_gam[resc3_gam[["Fold_1"]], ]
+datc3_gam_test <- datc3_gam[-resc3_gam[["Fold_1"]], ]
+mod_c3_gam <- train(
+  x = datc3_gam_train,
+  dat_test = datc3_gam_test,
+  hyperparameters = setup_GAM(),
+  verbosity = 0L
+)
+test_that("train() GAM multiclass Classification accepts a data.table", {
+  expect_s7_class(mod_c3_gam, Classification)
+  expect_identical(mod_c3_gam@model[["family"]][["family"]], "multinom")
+  prob <- mod_c3_gam@predicted_prob_test
+  expect_identical(colnames(prob), c("c1", "c2", "c3"))
+  expect_equal(unname(rowSums(prob)), rep(1, nrow(prob)))
+  expect_identical(
+    predict(mod_c3_gam, features(datc3_gam_test)),
+    prob
+  )
+  expect_null(get_varimp(mod_c3_gam))
+})
+
 # --- LinearSVM ------------------------------------------------------------------------------------
 ## {LinearSVM}[train]<Regression> ----
 mod_r_svml <- train(
@@ -555,6 +610,45 @@ modt_c3_radialsvm <- train(
 )
 test_that("train() RadialSVM Multiclass Classification succeeds", {
   expect_s7_class(modt_c3_radialsvm, Classification)
+})
+
+## {SVM}[predict]<Classification> probability columns ----
+# e1071 orders its probability columns by first appearance of each class in the
+# training data. Training data that open with a case of the positive class, the
+# second level, place that class in the first column.
+test_that("SVM binary probabilities are the positive class's", {
+  dat <- iris[51:150, ]
+  dat[["Species"]] <- factor(dat[["Species"]])
+  dat <- dat[c(51L, 1:50, 52:100), ]
+  expect_identical(as.character(dat[["Species"]][1L]), "virginica")
+  for (hyperparameters in list(setup_LinearSVM(), setup_RadialSVM())) {
+    mod <- train(dat, hyperparameters = hyperparameters, verbosity = 0L)
+    prob <- mod@predicted_prob_training
+    expect_identical(colnames(prob), "virginica")
+    expected <- attr(
+      predict(mod@model, newdata = features(dat), probability = TRUE),
+      "probabilities"
+    )[, "virginica"]
+    expect_equal(unname(prob[, 1L]), unname(expected))
+    expect_gt(mod@metrics_training[["overall"]][["auc"]], 0.9)
+  }
+})
+
+test_that("SVM multiclass probabilities follow level order", {
+  dat <- iris[c(101:150, 1:100), ]
+  expect_identical(as.character(dat[["Species"]][1L]), "virginica")
+  mod <- train(dat, hyperparameters = setup_RadialSVM(), verbosity = 0L)
+  prob <- mod@predicted_prob_training
+  expect_identical(colnames(prob), levels(iris[["Species"]]))
+  expected <- attr(
+    predict(mod@model, newdata = features(dat), probability = TRUE),
+    "probabilities"
+  )[, levels(iris[["Species"]])]
+  expect_equal(unname(prob), unname(expected))
+  expect_gt(
+    mean(colnames(prob)[max.col(prob)] == as.character(dat[["Species"]])),
+    0.9
+  )
 })
 
 # --- CART -----------------------------------------------------------------------------------------

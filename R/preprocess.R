@@ -223,8 +223,57 @@ is_integer_column <- function(x) {
 } # /rtemis::is_integer_column
 
 
+# %% impute_fill ----
+#' Fill a column's missing entries with one value, keeping the column's type
+#'
+#' The value's type follows the column where the value allows it: a whole
+#' number fills an integer column as an integer, 0 or 1 fills a logical column
+#' as a logical, and a level absent from a factor's levels is added to them.
+#' Otherwise the column widens to the value's type, as base R subassignment
+#' does. One rule for training and new data, so that a value read back from a
+#' config fills a column exactly as the value computed from the training data
+#' did.
+#'
+#' @param column Vector: Column with missing entries.
+#' @param value Scalar: Value to impute.
+#'
+#' @return The column with its missing entries filled.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+impute_fill <- function(column, value) {
+  if (is.factor(column)) {
+    value <- as.character(value)
+    if (!value %in% levels(column)) {
+      levels(column) <- c(levels(column), value)
+    }
+  } else if (is.character(column)) {
+    value <- as.character(value)
+  } else if (is.integer(column) && value == round(value)) {
+    value <- as.integer(value)
+  } else if (is.logical(column) && value %in% c(0, 1)) {
+    value <- as.logical(value)
+  } else {
+    value <- as.numeric(value)
+  }
+  column[is.na(column)] <- value
+  column
+} # /rtemis::impute_fill
+
+
 # %% dt_impute_columns ----
-#' Fill a working table's missing values, one column at a time
+#' Impute a working table's missing values, one column at a time
+#'
+#' Every selected column receives one imputation value: the value `values`
+#' carries for it, or else the value `fn` computes from the column. The value is
+#' determined for every selected column, including columns with no missing
+#' entries, so that a preprocessor fitted on training data imputes new data with
+#' the training values. Factor and character columns take their value from and
+#' report it to `values[["level"]]`; numeric and logical columns use
+#' `values[["numeric"]]`, a logical value stored as 1 for true and 0 for false.
+#' A column whose computed value is missing, such as an entirely missing
+#' column, receives none.
 #'
 #' Each column is replaced whole rather than assigned into at the missing
 #' positions: a partial `set()` coerces the value into the column's existing
@@ -236,28 +285,196 @@ is_integer_column <- function(x) {
 #' @param x data.table: Working table. Modified in place.
 #' @param fn Character: Name of a function returning one value from a vector.
 #' @param select Function: Predicate choosing the columns `fn` applies to.
+#' @param values List with optional named vectors `numeric` and `level`:
+#'   Values to impute, keyed by column name.
+#' @param columns Character: Names of the columns considered.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return Invisible NULL. Called for its effect on `x`.
+#' @return List with named vectors `numeric` and `level`: The value used for
+#'   each selected column.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-dt_impute_columns <- function(x, fn, select, verbosity = 1L) {
-  for (nm in names(x)) {
+dt_impute_columns <- function(
+  x,
+  fn,
+  select,
+  values = list(),
+  columns = names(x),
+  verbosity = 1L
+) {
+  used <- list(numeric = numeric(), level = character())
+  for (nm in intersect(names(x), columns)) {
     column <- x[[nm]]
-    if (!select(column) || !anyNA(column)) {
+    if (!select(column)) {
       next
     }
-    column[is.na(column)] <- do_call(
-      fn,
-      list(column, na.rm = TRUE),
+    kind <- if (is.factor(column) || is.character(column)) {
+      "level"
+    } else {
+      "numeric"
+    }
+    value <- if (nm %in% names(values[[kind]])) {
+      values[[kind]][[nm]]
+    } else if (all(is.na(column))) {
+      NA
+    } else {
+      do_call(fn, list(column, na.rm = TRUE), verbosity = verbosity)
+    }
+    if (length(value) != 1L) {
+      rtemis.core::abort(
+        "Imputation function '",
+        fn,
+        "' returned ",
+        length(value),
+        " values for feature '",
+        nm,
+        "'.\nUse a function that returns a single value from a vector.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+    if (is.na(value)) {
+      next
+    }
+    used[[kind]][[nm]] <- if (kind == "level") {
+      as.character(value)
+    } else {
+      as.numeric(value)
+    }
+    if (anyNA(column)) {
+      data.table::set(x, j = nm, value = impute_fill(column, value))
+    }
+  }
+  used
+} # /rtemis::dt_impute_columns
+
+
+# %% impute_mean_mode ----
+#' Mean and mode imputation of a working table
+#'
+#' Discrete columns first: `is_discrete()` claims integer and logical, so those
+#' columns take `impute_discrete` and the continuous pass selects only double
+#' columns.
+#'
+#' @param x data.table: Working table. Modified in place.
+#' @param config `PreprocessorConfig` or `SupervisedPreprocessorConfig` object.
+#' @param columns Character: Names of the columns considered.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with named vectors `numeric` and `level`, NULL where empty: The
+#'   value used for each column.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+impute_mean_mode <- function(x, config, columns = names(x), verbosity = 1L) {
+  supplied <- list(
+    numeric = config@impute_numeric_values,
+    level = config@impute_level_values
+  )
+  discrete <- dt_impute_columns(
+    x,
+    config@impute_discrete,
+    is_discrete,
+    supplied,
+    columns,
+    verbosity
+  )
+  continuous <- dt_impute_columns(
+    x,
+    config@impute_continuous,
+    function(column) is.numeric(column) && !is_discrete(column),
+    supplied,
+    columns,
+    verbosity
+  )
+  list(
+    numeric = iflengthy(c(discrete[["numeric"]], continuous[["numeric"]])),
+    level = iflengthy(c(discrete[["level"]], continuous[["level"]]))
+  )
+} # /rtemis::impute_mean_mode
+
+
+# %% impute_missranger ----
+#' Impute a working table with missRanger, fitting or applying the imputer
+#'
+#' Fitting runs `missRanger()` with `keep_forests = TRUE`, which keeps one
+#' random forest per feature with missing training values, and the training
+#' data `predict()` draws its initial values from. Applying calls `predict()`.
+#'
+#' A feature with no missing training values has no forest, and `predict()`
+#' stops on a missing value in it. Such features take a mean or mode value
+#' instead (`impute_discrete`, `impute_continuous`), computed on the training
+#' data and filled in before `predict()` runs.
+#'
+#' @param x data.table: Working table.
+#' @param config `PreprocessorConfig` or `SupervisedPreprocessorConfig` object.
+#' @param imputer Optional `missRanger` object: Fitted imputer to apply.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return List with `data` (the imputed data.table), `imputer` (the
+#'   `missRanger` object, without its copy of the imputed training data), and
+#'   `numeric_values` and `level_values` (the mean or mode values, NULL where
+#'   empty).
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+impute_missranger <- function(x, config, imputer = NULL, verbosity = 1L) {
+  params <- config@impute_missRanger_params
+  if (is.null(imputer)) {
+    if (verbosity > 0L) {
+      if (isTRUE(params[["pmm.k"]] > 0)) {
+        msg(
+          "Imputing missing values using predictive mean matching with missRanger..."
+        )
+      } else {
+        msg("Imputing missing values using missRanger...")
+      }
+    }
+    complete <- names(x)[!vapply(x, anyNA, logical(1L))]
+    fallback <- impute_mean_mode(x, config, complete, verbosity)
+    # missRanger rebuilds the frame, so it is handed a data.frame and its
+    # result is adopted as the working table. `setDT()` is by reference, which
+    # is safe on an object it just created.
+    imputer <- do.call(
+      missRanger::missRanger,
+      c(
+        list(
+          data = data.table::setDF(x),
+          keep_forests = TRUE,
+          verbose = as.integer(verbosity > 0L)
+        ),
+        params
+      )
+    )
+    x <- data.table::setDT(imputer[["data"]])
+    imputer[["data"]] <- NULL
+  } else {
+    msg(
+      "Imputing missing values with the fitted missRanger imputer...",
       verbosity = verbosity
     )
-    data.table::set(x, j = nm, value = column)
+    fallback <- impute_mean_mode(
+      x,
+      config,
+      setdiff(names(x), imputer[["to_impute"]]),
+      verbosity
+    )
+    x <- data.table::setDT(stats::predict(
+      imputer,
+      data.table::setDF(x),
+      verbose = as.integer(verbosity > 0L)
+    ))
   }
-  invisible(NULL)
-} # /rtemis::dt_impute_columns
+  list(
+    data = x,
+    imputer = imputer,
+    numeric_values = fallback[["numeric"]],
+    level_values = fallback[["level"]]
+  )
+} # /rtemis::impute_missranger
 
 
 # %% preprocess(x, AnyPreprocessorConfig, ...) ----
@@ -273,11 +490,51 @@ method(
   dat_test = NULL,
   verbosity = 1L
 ) {
+  preprocess_data(
+    x,
+    config = config,
+    dat_validation = dat_validation,
+    dat_test = dat_test,
+    verbosity = verbosity
+  )
+} # /rtemis::preprocess(PreprocessorConfig, ...)
+
+
+# %% preprocess_data ----
+#' Preprocess a dataset, fitting or applying a missRanger imputer
+#'
+#' The body of `preprocess()`, with the fitted missRanger imputer as an
+#' argument: the imputer is an R object that a config cannot carry, so
+#' `apply_preprocessor()` passes it here alongside the fitted config.
+#'
+#' @param x tabular data: Data to preprocess.
+#' @param config `PreprocessorConfig` or `SupervisedPreprocessorConfig` object.
+#' @param dat_validation Optional tabular data: Validation data.
+#' @param dat_test Optional tabular data: Test data.
+#' @param imputer Optional `missRanger` object: Fitted imputer applied with
+#'   `predict()` in place of fitting one on `x`.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return `Preprocessor` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+preprocess_data <- function(
+  x,
+  config,
+  dat_validation = NULL,
+  dat_test = NULL,
+  imputer = NULL,
+  verbosity = 1L
+) {
   # -> Preprocessor
   # Intro ----
   start_time <- intro(verbosity = verbosity - 1L)
   # Init values list for Preprocessor output.
   values <- list(
+    impute_numeric_values = NULL,
+    impute_level_values = NULL,
     scale_centers = NULL,
     scale_coefficients = NULL,
     one_hot_levels = NULL,
@@ -760,23 +1017,11 @@ method(
     if (config@impute_type == "missRanger") {
       # '- missRanger ----
       check_dependencies("missRanger")
-      if (verbosity > 0L) {
-        if (config@impute_missRanger_params[["pmm.k"]] > 0) {
-          msg(
-            "Imputing missing values using predictive mean matching with missRanger..."
-          )
-        } else {
-          msg("Imputing missing values using missRanger...")
-        }
-      }
-      # The external imputers rebuild the frame, so they are handed a
-      # data.frame and their result is adopted as the working table. `setDT()`
-      # is by reference, which is safe on an object they just created.
-      x <- data.table::setDT(missRanger::missRanger(
-        data.table::setDF(x),
-        pmm.k = config@impute_missRanger_params[["pmm.k"]],
-        verbose = verbosity
-      ))
+      imputed <- impute_missranger(x, config, imputer, verbosity)
+      x <- imputed[["data"]]
+      imputer <- imputed[["imputer"]]
+      values[["impute_numeric_values"]] <- imputed[["numeric_values"]]
+      values[["impute_level_values"]] <- imputed[["level_values"]]
     } else if (config@impute_type == "micePMM") {
       check_dependencies("mice")
       msg(
@@ -786,7 +1031,8 @@ method(
       x <- data.table::setDT(mice::complete(mice::mice(
         data.table::setDF(x),
         m = 1,
-        method = "pmm"
+        method = "pmm",
+        printFlag = verbosity > 0L
       )))
     } else {
       # '- mean/mode ----
@@ -798,10 +1044,9 @@ method(
         "(continuous)...",
         verbosity = verbosity
       )
-      # Discrete first: `is_discrete()` claims integer, so an integer column is
-      # imputed with the discrete function and never meets the continuous one.
-      dt_impute_columns(x, config@impute_discrete, is_discrete, verbosity)
-      dt_impute_columns(x, config@impute_continuous, is.numeric, verbosity)
+      used <- impute_mean_mode(x, config, verbosity = verbosity)
+      values[["impute_numeric_values"]] <- used[["numeric"]]
+      values[["impute_level_values"]] <- used[["level"]]
     }
   }
 
@@ -931,18 +1176,22 @@ method(
 
   preprocessed <- list(training = x)
 
+  fitted <- Preprocessor(
+    config = config,
+    preprocessed = list(),
+    impute_numeric_values = values[["impute_numeric_values"]],
+    impute_level_values = values[["impute_level_values"]],
+    scale_centers = values[["scale_centers"]],
+    scale_coefficients = values[["scale_coefficients"]],
+    one_hot_levels = values[["one_hot_levels"]],
+    factor2integer_levels = values[["factor2integer_levels"]],
+    remove_features = values[["remove_features"]],
+    imputer = imputer
+  )
   if (!is.null(dat_validation)) {
     msg("Applying preprocessing to validation data...", verbosity = verbosity)
     preprocessed[["validation"]] <- apply_preprocessor(
-      preprocessor = Preprocessor(
-        config = config,
-        preprocessed = list(),
-        scale_centers = values[["scale_centers"]],
-        scale_coefficients = values[["scale_coefficients"]],
-        one_hot_levels = values[["one_hot_levels"]],
-        factor2integer_levels = values[["factor2integer_levels"]],
-        remove_features = values[["remove_features"]]
-      ),
+      preprocessor = fitted,
       new_data = dat_validation,
       verbosity = verbosity
     )
@@ -950,34 +1199,19 @@ method(
   if (!is.null(dat_test)) {
     msg("Applying preprocessing to test data...", verbosity = verbosity)
     preprocessed[["test"]] <- apply_preprocessor(
-      preprocessor = Preprocessor(
-        config = config,
-        preprocessed = list(),
-        scale_centers = values[["scale_centers"]],
-        scale_coefficients = values[["scale_coefficients"]],
-        one_hot_levels = values[["one_hot_levels"]],
-        factor2integer_levels = values[["factor2integer_levels"]],
-        remove_features = values[["remove_features"]]
-      ),
+      preprocessor = fitted,
       new_data = dat_test,
       verbosity = verbosity
     )
   }
   outro(start_time, verbosity = verbosity - 1L)
-  Preprocessor(
-    config = config,
-    preprocessed = if (length(preprocessed) == 1) {
-      preprocessed[[1]]
-    } else {
-      preprocessed
-    },
-    scale_centers = values[["scale_centers"]],
-    scale_coefficients = values[["scale_coefficients"]],
-    one_hot_levels = values[["one_hot_levels"]],
-    factor2integer_levels = values[["factor2integer_levels"]],
-    remove_features = values[["remove_features"]]
-  )
-} # /rtemis::preprocess(PreprocessorConfig, ...)
+  fitted@preprocessed <- if (length(preprocessed) == 1) {
+    preprocessed[[1]]
+  } else {
+    preprocessed
+  }
+  fitted
+} # /rtemis::preprocess_data
 
 
 # %% preprocess(x, missing, ...) ----
@@ -1015,8 +1249,16 @@ method(
 #' Apply trained Preprocessor to new data
 #'
 #' Apply a trained `Preprocessor` to new data, reusing the values learned from the training
-#' data. For example, the same scale centers and coefficients, one-hot levels, and removed
-#' features will be applied to the new data.
+#' data. For example, the same mean and mode imputation values, scale centers and
+#' coefficients, one-hot levels, and removed features will be applied to the new data.
+#'
+#' @details
+#' Imputation follows the preprocessor's `impute_type`. "meanMode" imputes the
+#' stored training values. "missRanger" applies the forests fitted on the
+#' training data with `predict()`, and imputes a feature that had no missing
+#' training values with its stored mean or mode; `predict()` stops on a factor
+#' level of an imputed feature that is absent from the training data. A
+#' preprocessor using "micePMM" cannot be applied to new data and is refused.
 #'
 #' @param preprocessor `Preprocessor`: Trained preprocessor, i.e. the output of [preprocess].
 #' @param new_data Tabular data, i.e. data.frame, data.table, or tbl_df (tibble):
@@ -1041,9 +1283,19 @@ method(
 apply_preprocessor <- function(preprocessor, new_data, verbosity = 1L) {
   # -> data.frame or data.table
   check_is_S7(preprocessor, Preprocessor)
-  preprocessed(preprocess(
+  config <- preprocessor@config
+  if (config@impute && config@impute_type == "micePMM") {
+    rtemis.core::abort(
+      "A preprocessor that imputes with micePMM cannot be applied to new data: ",
+      "mice fits no model that imputes cases outside the data it was run on.\n",
+      "Use `impute_type = \"missRanger\"` or `impute_type = \"meanMode\"`.",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  preprocessed(preprocess_data(
     new_data,
     fitted_config(preprocessor),
+    imputer = preprocessor@imputer,
     verbosity = verbosity
   ))
 } # /rtemis::apply_preprocessor
@@ -1077,6 +1329,8 @@ apply_preprocessor <- function(preprocessor, new_data, verbosity = 1L) {
 fitted_config <- function(preprocessor) {
   config <- preprocessor@config
   for (nm in c(
+    "impute_numeric_values",
+    "impute_level_values",
     "scale_centers",
     "scale_coefficients",
     "one_hot_levels",
