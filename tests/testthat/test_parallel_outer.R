@@ -310,6 +310,61 @@ for (backend_name in names(backends)) {
 }
 
 
+# %% progress_plapply: workers after an abandoned dispatch ----
+# Plans differ in what canceling a running future leaves behind -- a busy worker, an
+# orphaned fork -- so each is checked.
+for (abandon_plan in c(
+  "multisession",
+  "multicore",
+  "future.mirai::mirai_multisession"
+)) {
+  testthat::test_that(
+    paste0(
+      "stop_on_error leaves every future worker free (",
+      abandon_plan,
+      ")"
+    ),
+    {
+      skip_ci_parallel_integration()
+      testthat::skip_on_cran()
+      testthat::skip_if_not_installed("future")
+      if (abandon_plan == "multicore") {
+        testthat::skip_if_not(
+          future::supportsMulticore(),
+          "forking is unavailable"
+        )
+      }
+      if (startsWith(abandon_plan, "future.mirai::")) {
+        testthat::skip_if_not_installed("future.mirai")
+      }
+      # A plan the caller set outlives the dispatch, so a task left running would
+      # still occupy its worker when the call returns.
+      old_plan <- future::plan(abandon_plan, workers = 2L)
+      withr::defer(future::plan(old_plan))
+      expect_error(
+        progress_plapply(
+          1:2,
+          function(i) {
+            if (i == 1L) {
+              Sys.sleep(0.5)
+              stop("boom")
+            }
+            Sys.sleep(30)
+            i
+          },
+          backend = "future",
+          n_workers = 2L,
+          stop_on_error = TRUE,
+          verbosity = 0L
+        ),
+        "boom"
+      )
+      expect_equal(future::nbrOfFreeWorkers(), 2)
+    }
+  )
+}
+
+
 # %% train() with parallel outer resampling ----
 # CART is not a parallelized learner and needs no tuning, so the worker ladder assigns
 # every worker to the outer folds -- the branch this file exercises. `xval` makes rpart's

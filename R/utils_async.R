@@ -839,8 +839,8 @@ make_task_runner <- function(FUN) {
 #' at the first failure under `stop_on_error`. One loop serves the future backend and the
 #' native mirai backend. Replacing it with a map function loses all four. Everything else
 #' uses the backend's own API: `future::future()`, `future::resolved()`,
-#' `future::value()` and `future::cancel()`; `mirai::mirai()`, `mirai::unresolved()`,
-#' `mirai::call_mirai()` and `mirai::stop_mirai()`.
+#' `future::value()`, `future::cancel()` and `future::resolve()`; `mirai::mirai()`,
+#' `mirai::unresolved()`, `mirai::call_mirai()` and `mirai::stop_mirai()`.
 #'
 #' **RNG substreams use the backend's mechanism where one exists.** Under future,
 #' `future(seed = seeds[[i]])` installs task `i`'s substream. mirai's `daemons(seed =)`
@@ -1070,18 +1070,19 @@ progress_plapply <- function(
       # counts that orphan as a process it cannot attribute to any future -- it warns, and
       # undercounts the cores left, until a later multicore run has a task handed back as
       # interrupted. Every task is canceled first so they wind down concurrently, then
-      # collected with `signal = FALSE` so the interrupts are not re-raised here on top of
-      # the caller's own error.
-      # Collection is one future at a time: `future::value()` on a list raises the first
-      # canceled future's `FutureInterruptError` even with `signal = FALSE`, leaving the
-      # futures after it uncollected and their workers occupied.
+      # `future::resolve(result = TRUE)` brings in each result, which releases its worker;
+      # a backend that cannot cancel returns the task's value instead.
+      # Results are brought in one future at a time: on a list, `resolve(result = TRUE)`
+      # raises the first canceled future's `FutureInterruptError`, leaving the futures
+      # after it unresolved and their workers occupied, and `resolve()` without `result`
+      # waits for resolution but leaves the results, and the workers, where they are.
       reap <- function() {
         outstanding <- tasks[seq_len(submitted)]
         tryCatch(future::cancel(outstanding), error = function(e) NULL)
         for (task in outstanding) {
           if (!is.null(task)) {
             tryCatch(
-              future::value(task, signal = FALSE),
+              future::resolve(task, result = TRUE),
               error = function(e) NULL
             )
           }
