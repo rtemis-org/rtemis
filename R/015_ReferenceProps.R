@@ -108,7 +108,7 @@ make_reference_prop <- function(spec) {
   p <- new_property(
     class = if (spec@nullable) NULL | cls else cls,
     default = if (spec@default_present || spec@nullable) {
-      spec@default
+      quote_complex_default(spec@default)
     } else {
       quote(
         rtemis.core::abort(

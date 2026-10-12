@@ -1654,6 +1654,21 @@ validate_value <- function(value, fields) {
 } # /rtemis::validate_value
 
 
+quote_complex_default <- function(default) {
+  if (
+    is.null(default) ||
+      is.call(default) ||
+      is.symbol(default) ||
+      (is.atomic(default) &&
+        length(default) == 1L &&
+        is.null(attributes(default)))
+  ) {
+    return(default)
+  }
+  call("identity", default)
+}
+
+
 # %% make_prop ----
 #' Build an S7 property from a PropertySpec
 #'
@@ -1678,7 +1693,7 @@ make_prop <- function(spec) {
     p <- new_property(
       class = if (spec@nullable) NULL | base_class else base_class,
       default = if (spec@default_present) {
-        spec@default
+        quote_complex_default(spec@default)
       } else {
         quote(
           rtemis.core::abort(
@@ -1737,7 +1752,7 @@ make_prop <- function(spec) {
   p <- new_property(
     class = if (spec@nullable) NULL | base_class else base_class,
     default = if (spec@default_present || spec@nullable) {
-      spec@default
+      quote_complex_default(spec@default)
     } else {
       quote(
         rtemis.core::abort(
