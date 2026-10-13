@@ -12,8 +12,8 @@ setup_Preprocessor(
   impute = FALSE,
   impute_type = c("missRanger", "micePMM", "meanMode"),
   impute_missRanger_params = list(pmm.k = 3, maxiter = 10, num.trees = 500),
-  impute_discrete = "get_mode",
-  impute_continuous = "mean",
+  impute_numeric = c("mean", "median"),
+  impute_categorical = "mode",
   impute_numeric_values = NULL,
   impute_level_values = NULL,
   integer2factor = FALSE,
@@ -64,14 +64,13 @@ this fraction of missing features. 1 removes only fully-missing cases. Not avail
 \item{missingness}{Logical: If TRUE, generate new boolean columns for each
 feature with missing values, indicating which cases were missing data.}
 
-\item{impute}{Logical: If TRUE, impute missing cases. See \code{impute_discrete} and
-\code{impute_continuous}.}
+\item{impute}{Logical: If TRUE, impute missing cases. See \code{impute_type}.}
 
 \item{impute_type}{Character \{"missRanger", "micePMM", "meanMode"\}:
 Imputation method. "missRanger" fits one random forest per feature with
 missing values, kept in the \code{Preprocessor} and applied to new data by
-\link{apply_preprocessor}. "meanMode" imputes the values that \code{impute_discrete}
-and \code{impute_continuous} compute on the training data. "micePMM" imputes by
+\link{apply_preprocessor}. "meanMode" imputes the values that \code{impute_numeric}
+and \code{impute_categorical} compute on the training data. "micePMM" imputes by
 predictive mean matching with 'mice', which imputes only the data it is
 run on: a \code{Preprocessor} using it cannot be applied to new data. See the
 Imputation section.}
@@ -82,20 +81,29 @@ greater than 0 results in predictive mean matching. Reduce \code{num.trees} for
 faster imputation especially in large datasets. Set \code{pmm.k = 0} to
 disable predictive mean matching.}
 
-\item{impute_discrete}{Character: Name of function that returns single value: How to impute
-discrete variables for \code{impute_type = "meanMode"}, and for features with no
-missing training values for \code{impute_type = "missRanger"}.}
+\item{impute_numeric}{Character \{"mean", "median"\}: Statistic imputed into
+numeric and logical features for \code{impute_type = "meanMode"}, and into such
+features with no missing training values for \code{impute_type = "missRanger"}.
+Integer and \code{bit64::integer64} features take the statistic rounded half to
+even, so they remain integer. Logical features take the statistic of their
+0/1 values rounded half to even: the more frequent value, FALSE on a tie.
+Integer features that code categories belong in factors: see
+\code{integer2factor}.}
 
-\item{impute_continuous}{Character: Name of function that returns single value: How to impute
-continuous variables for \code{impute_type = "meanMode"}, and for features with
-no missing training values for \code{impute_type = "missRanger"}.}
+\item{impute_categorical}{Character \{"mode"\}: Statistic imputed into factor
+and character features for \code{impute_type = "meanMode"}, and into such
+features with no missing training values for \code{impute_type = "missRanger"}.
+"mode" is the most frequent value. A tie goes to the first tied level of a
+factor and to the first tied value in Unicode code point order of a
+character feature.}
 
 \item{impute_numeric_values}{Optional Named vector: Value imputed into
 numeric or logical features, keyed by feature name; a logical feature
 takes 1 as TRUE and 0 as FALSE. Covers every such feature for
 \code{impute_type = "meanMode"} and features with no missing training values
 for \code{impute_type = "missRanger"}. Used in place of the value
-\code{impute_discrete} or \code{impute_continuous} computes. \link{preprocess} stores the
+\code{impute_numeric} computes. A value for an integer feature must be a whole
+number, and a value for a logical feature 0 or 1. \link{preprocess} stores the
 values it uses in the \code{Preprocessor}, and \link{apply_preprocessor} imputes new
 data with them.}
 
@@ -103,7 +111,7 @@ data with them.}
 or character features, keyed by feature name. Covers every such feature
 for \code{impute_type = "meanMode"} and features with no missing training
 values for \code{impute_type = "missRanger"}. Used in place of the value
-\code{impute_discrete} computes. \link{preprocess} stores the values it uses in the
+\code{impute_categorical} computes. \link{preprocess} stores the values it uses in the
 \code{Preprocessor}, and \link{apply_preprocessor} imputes new data with them.}
 
 \item{integer2factor}{Logical: If TRUE, convert all integers to factors. This includes
@@ -215,14 +223,17 @@ Creates a \code{PreprocessorConfig} object, which can be used in \link{preproces
 \section{Imputation}{
 
 "meanMode" stores one value per feature, computed on the data \code{preprocess()}
-is given, and \link{apply_preprocessor} imputes new data with those values.
+is given, and \link{apply_preprocessor} imputes new data with those values. Each
+value has its feature's type: an integer feature receives an integer, a
+logical feature a logical, and a factor one of its levels.
 
 "missRanger" fits one random forest per feature with missing values and
 keeps the forests, and a copy of the data \code{predict()} draws starting values
 from, in the \code{Preprocessor}, which therefore grows with the data. The
 forests are an R object: a config written to JSON carries the method and its
 parameters, not the forests. A feature with no missing values in the data
-has no forest and takes a mean or mode value when it is missing in new data.
+has no forest and takes its \code{impute_numeric} or \code{impute_categorical} value
+when it is missing in new data.
 \code{predict()} stops on a factor level of an imputed feature that is absent
 from the data the forests were fitted on.
 
