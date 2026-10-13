@@ -66,6 +66,8 @@ artifact through \code{defaults} to reconstruct these references. Independently
 supplied S7 reference classes can be passed through \code{refs}.
 Reconstructed constructors use declaration defaults; input resolution policies
 remain separate metadata on the class.
+Complex defaults are reconstructed from their serialized values for each
+instance, including references handled by \code{decode_reference}.
 }
 \examples{
 # A schema as `S7_to_JSONSchema()` emits it: standard keywords carry the

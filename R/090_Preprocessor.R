@@ -208,7 +208,7 @@ PREPROCESSOR_TRAIN_EXCLUDED <- c(
     description = "Add date-derived features."
   ),
   date_features = prop_string(
-    c("weekday", "month", "year"),
+    quote(c("weekday", "month", "year")),
     enum = c("weekday", "month", "year"),
     vector = TRUE,
     description = "Date features to add."
@@ -222,7 +222,7 @@ PREPROCESSOR_TRAIN_EXCLUDED <- c(
   # `timeDate::listHolidays()` where they are used, so the set stays accurate
   # for the installed version.
   holidays = prop_string(
-    c("USLaborDay", "NewYearsDay", "ChristmasDay"),
+    quote(c("USLaborDay", "NewYearsDay", "ChristmasDay")),
     vector = TRUE,
     unique_items = TRUE,
     description = "Holidays to flag, named as timeDate holiday functions."

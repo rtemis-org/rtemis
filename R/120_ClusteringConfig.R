@@ -1138,7 +1138,7 @@ PAMKConfig <- schema_class(
   properties = list(
     algorithm = prop_algorithm("PAMK"),
     krange = prop_integer(
-      2:10,
+      quote(2:10),
       min = 1L,
       vector = TRUE,
       unique_items = TRUE,
@@ -1154,7 +1154,7 @@ PAMKConfig <- schema_class(
     # exactly the settings that apply to it.
     criterion = prop_object(
       PAMKCriterionConfig,
-      default = setup_ASWCriterion(),
+      default = quote(setup_ASWCriterion()),
       description = paste0(
         "Criterion used to choose the number of clusters, with that ",
         "criterion's own settings. Absent = average silhouette width over ",

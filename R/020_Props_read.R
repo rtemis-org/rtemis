@@ -652,6 +652,8 @@ schema_to_spec <- function(
 #' supplied S7 reference classes can be passed through `refs`.
 #' Reconstructed constructors use declaration defaults; input resolution policies
 #' remain separate metadata on the class.
+#' Complex defaults are reconstructed from their serialized values for each
+#' instance, including references handled by `decode_reference`.
 #'
 #' @param schema Named list: A JSON Schema, as produced by [S7_to_JSONSchema]
 #' or parsed from the published tree with `jsonlite::fromJSON(simplifyVector =
@@ -843,12 +845,31 @@ JSONSchema_to_S7 <- function(
   })
   names(specs) <- spec_names
 
+  default_values <- list()
+  decode_default <- function(nm) {
+    default_from_wire(default_values[[nm]], props[[nm]], decode_reference)
+  }
   properties <- lapply(names(props), function(nm) {
     if (is_ref[[nm]]) {
       cls <- refs[[nm]]
       return(if (schema_is_nullable(props[[nm]])) NULL | cls else cls)
     }
-    prop <- make_prop(specs[[nm]])
+    default <- specs[[nm]]@default
+    # Reconstruct complex artifact defaults from serialized data per instance.
+    # Scalars and plain empty vectors can be passed directly to S7.
+    if (
+      !is.null(default) &&
+        !(is.null(attributes(default)) &&
+          ((is.atomic(default) && length(default) == 1L) ||
+            (is.vector(default) && length(default) == 0L)))
+    ) {
+      default_values[[nm]] <<- default_wire_value(
+        default,
+        spec_fields(specs[[nm]])
+      )
+      default <- as.call(list(decode_default, nm))
+    }
+    prop <- make_prop(specs[[nm]], default = default)
     if (
       !is.null(decode_reference) &&
         is.null(prop[["getter"]]) &&

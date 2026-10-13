@@ -2,6 +2,8 @@
 
 ## 1.4.2
 
+- Updates for compatibility with S7 > 0.2.2.
+
 - `setup_PCoA()` configures principal coordinates analysis (classical multidimensional scaling) on a choice of dissimilarities; it applies to new data through Gower's out-of-sample formula, so it can be `train()`'s decomposition step, and does not reconstruct the input.
 - `setup_MDS()` configures metric or nonmetric multidimensional scaling through 'vegan' with multiple starts; it cannot be applied to new data and does not reconstruct the input.
 - `review()` assesses a trained supervised model, single-split or resampled: it reports sample sizes, every training and test metric, and comparisons with a baseline predictor, with confidence intervals and tests for a single split and a description of the variation between resamples for a resampled model, then notes small samples, many predictors, and signs of overfitting.
