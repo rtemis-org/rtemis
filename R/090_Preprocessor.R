@@ -31,11 +31,21 @@ PREPROCESSOR_TRAIN_EXCLUDED <- c(
 )
 
 
+# %% SUPERVISED_IMPUTE_TYPES ----
+# The imputation methods a fitted preprocessor can apply to new data, which are
+# the ones `SupervisedPreprocessorConfig` offers, the first being its default.
+# meanMode stores its values and missRanger its fitted forests; micePMM fits no
+# model that imputes cases outside the data it ran on, so it is available to
+# `preprocess()` only.
+SUPERVISED_IMPUTE_TYPES <- c("meanMode", "missRanger")
+
+
 # %% .preprocessor_properties ----
 # Declared once, in this order, and read by both preprocessor classes.
 # `SupervisedPreprocessorConfig` is this list minus `PREPROCESSOR_TRAIN_EXCLUDED`,
-# so a property added here reaches both classes and the order the schema
-# publishes stays the order it is written in.
+# with `impute_type` restricted to `SUPERVISED_IMPUTE_TYPES`, so a property
+# added here reaches both classes and the order the schema publishes stays the
+# order it is written in.
 .preprocessor_properties <- list(
   complete_cases = prop_boolean(
     FALSE,
@@ -81,6 +91,19 @@ PREPROCESSOR_TRAIN_EXCLUDED <- c(
   impute_continuous = prop_string(
     "mean",
     description = "Function name to impute continuous features."
+  ),
+  # Settable and run-written, as `scale_centers` below.
+  impute_numeric_values = prop_map(
+    prop_float(0),
+    nullable = TRUE,
+    data_dependent = TRUE,
+    description = "Per-feature value imputed into a numeric or logical feature, keyed by feature name: every such feature when impute_type is \"meanMode\", and a feature with no missing training values when impute_type is \"missRanger\". A logical feature takes 1 as true and 0 as false. A feature with no entry takes the value computed from the data being preprocessed."
+  ),
+  impute_level_values = prop_map(
+    prop_string(""),
+    nullable = TRUE,
+    data_dependent = TRUE,
+    description = "Per-feature value imputed into a categorical or text feature, keyed by feature name: every such feature when impute_type is \"meanMode\", and a feature with no missing training values when impute_type is \"missRanger\". A feature with no entry takes the value computed from the data being preprocessed."
   ),
   integer2factor = prop_boolean(
     FALSE,
@@ -267,7 +290,7 @@ PreprocessorConfig <- schema_class(
 #' SupervisedPreprocessorConfig class. The preprocessing a `train()` run can
 #' fit: `PreprocessorConfig` without the operations a fitted preprocessor
 #' cannot replay at predict time or would learn differently in every fold. See
-#' `PREPROCESSOR_TRAIN_EXCLUDED`.
+#' `PREPROCESSOR_TRAIN_EXCLUDED` and `SUPERVISED_IMPUTE_TYPES`.
 #'
 #' A sibling of `PreprocessorConfig`: an S7 subclass satisfies its parent's
 #' type, so inheritance in either direction would let the wider config pass
@@ -278,14 +301,22 @@ PreprocessorConfig <- schema_class(
 SupervisedPreprocessorConfig <- schema_class(
   name = "SupervisedPreprocessorConfig",
   package = "rtemis",
-  properties = .preprocessor_properties[
-    setdiff(names(.preprocessor_properties), PREPROCESSOR_TRAIN_EXCLUDED)
-  ],
+  properties = local({
+    properties <- .preprocessor_properties[
+      setdiff(names(.preprocessor_properties), PREPROCESSOR_TRAIN_EXCLUDED)
+    ]
+    properties[["impute_type"]] <- prop_string(
+      "meanMode",
+      enum = SUPERVISED_IMPUTE_TYPES,
+      description = "Imputation method."
+    )
+    properties
+  }),
   publication = SchemaPublication(
     role = "document",
     slug = "supervisedpreprocessor",
     title = "rtemis SupervisedPreprocessorConfig",
-    description = "Language-independent config for the preprocessing a supervised run can fit: the preprocessing config without the operations a fitted preprocessor cannot replay at predict time (`complete_cases`, `remove_duplicates`, `remove_cases_thres`) or would learn differently in every resample (`remove_features_thres`). Those belong to `preprocessor`, applied to a dataset before training.",
+    description = "Language-independent config for the preprocessing a supervised run can fit: the preprocessing config without the operations a fitted preprocessor cannot replay at predict time (`complete_cases`, `remove_duplicates`, `remove_cases_thres`) or would learn differently in every resample (`remove_features_thres`), and without micePMM imputation, which imputes only the data it is run on. Those belong to `preprocessor`, applied to a dataset before training.",
     order = 17L,
     kind = "config"
   )
@@ -447,17 +478,39 @@ method(repr, SupervisedPreprocessorConfig) <- function(
 #' feature with missing values, indicating which cases were missing data.
 #' @param impute Logical: If TRUE, impute missing cases. See `impute_discrete` and
 #' `impute_continuous`.
-#' @param impute_type Character \{"missRanger", "micePMM", "meanMode"\}: Package to use for
-#'   imputation.
+#' @param impute_type Character \{"missRanger", "micePMM", "meanMode"\}:
+#'   Imputation method. "missRanger" fits one random forest per feature with
+#'   missing values, kept in the `Preprocessor` and applied to new data by
+#'   [apply_preprocessor]. "meanMode" imputes the values that `impute_discrete`
+#'   and `impute_continuous` compute on the training data. "micePMM" imputes by
+#'   predictive mean matching with 'mice', which imputes only the data it is
+#'   run on: a `Preprocessor` using it cannot be applied to new data. See the
+#'   Imputation section.
 #' @param impute_missRanger_params List: Parameters passed to
 #'   `missRanger::missRanger`, e.g. "pmm.k", "maxiter", "num.trees". `pmm.k`
 #'   greater than 0 results in predictive mean matching. Reduce `num.trees` for
 #'   faster imputation especially in large datasets. Set `pmm.k = 0` to
 #'   disable predictive mean matching.
 #' @param impute_discrete Character: Name of function that returns single value: How to impute
-#'   discrete variables for `impute_type = "meanMode"`.
+#'   discrete variables for `impute_type = "meanMode"`, and for features with no
+#'   missing training values for `impute_type = "missRanger"`.
 #' @param impute_continuous Character: Name of function that returns single value: How to impute
-#'   continuous variables for `impute_type = "meanMode"`.
+#'   continuous variables for `impute_type = "meanMode"`, and for features with
+#'   no missing training values for `impute_type = "missRanger"`.
+#' @param impute_numeric_values Optional Named vector: Value imputed into
+#'   numeric or logical features, keyed by feature name; a logical feature
+#'   takes 1 as TRUE and 0 as FALSE. Covers every such feature for
+#'   `impute_type = "meanMode"` and features with no missing training values
+#'   for `impute_type = "missRanger"`. Used in place of the value
+#'   `impute_discrete` or `impute_continuous` computes. [preprocess] stores the
+#'   values it uses in the `Preprocessor`, and [apply_preprocessor] imputes new
+#'   data with them.
+#' @param impute_level_values Optional Named vector: Value imputed into factor
+#'   or character features, keyed by feature name. Covers every such feature
+#'   for `impute_type = "meanMode"` and features with no missing training
+#'   values for `impute_type = "missRanger"`. Used in place of the value
+#'   `impute_discrete` computes. [preprocess] stores the values it uses in the
+#'   `Preprocessor`, and [apply_preprocessor] imputes new data with them.
 #' @param integer2factor Logical: If TRUE, convert all integers to factors. This includes
 #'   `bit64::integer64` columns.
 #' @param integer2numeric Logical: If TRUE, convert all integers to numeric
@@ -527,6 +580,25 @@ method(repr, SupervisedPreprocessorConfig) <- function(
 #'   that unprefixed names are not US holidays: "LaborDay" is May 1.
 #' @param exclude Optional Integer vector: Exclude these columns from preprocessing.
 #'
+#' @section Imputation:
+#' "meanMode" stores one value per feature, computed on the data `preprocess()`
+#' is given, and [apply_preprocessor] imputes new data with those values.
+#'
+#' "missRanger" fits one random forest per feature with missing values and
+#' keeps the forests, and a copy of the data `predict()` draws starting values
+#' from, in the `Preprocessor`, which therefore grows with the data. The
+#' forests are an R object: a config written to JSON carries the method and its
+#' parameters, not the forests. A feature with no missing values in the data
+#' has no forest and takes a mean or mode value when it is missing in new data.
+#' `predict()` stops on a factor level of an imputed feature that is absent
+#' from the data the forests were fitted on.
+#'
+#' "micePMM" imputes the data it is run on and fits no model for new data;
+#' [apply_preprocessor] refuses a `Preprocessor` that uses it.
+#'
+#' For preprocessing inside [train], see the Imputation section of
+#' [setup_SupervisedPreprocessor].
+#'
 #' @section Order of Operations:
 #'
 #' Steps run in this order, and the order is part of what each one does:
@@ -588,6 +660,8 @@ setup_Preprocessor <- function(
   ),
   impute_discrete = "get_mode",
   impute_continuous = "mean",
+  impute_numeric_values = NULL,
+  impute_level_values = NULL,
   integer2factor = FALSE,
   integer2numeric = FALSE,
   logical2factor = FALSE,
@@ -660,6 +734,8 @@ setup_Preprocessor <- function(
     impute_missRanger_params = impute_missRanger_params,
     impute_discrete = impute_discrete,
     impute_continuous = impute_continuous,
+    impute_numeric_values = impute_numeric_values,
+    impute_level_values = impute_level_values,
     integer2factor = integer2factor,
     integer2numeric = integer2numeric,
     logical2factor = logical2factor,
@@ -699,6 +775,8 @@ setup_Preprocessor <- function(
 
 # Note:
 # data_dependent_props <- c(
+#   "impute_numeric_values", # Named vector with numeric imputation values.
+#   "impute_level_values", # Named vector with categorical imputation values.
 #   "scale_centers", # Named vector with feature scaling centers.
 #   "scale_coefficients", # Named vector with feature scaling coefficients.
 #   "one_hot_levels", # Named list of the form "feature_name" = "levels".
@@ -726,10 +804,54 @@ setup_Preprocessor <- function(
 #' metrics would not average into an estimate of one model. Name the columns
 #' with `remove_features` instead, which drops the same ones in every fold.
 #'
-#' All four are available in [setup_Preprocessor], for [preprocess] on a dataset
-#' in hand, where the outcome is still attached and what was dropped is visible.
+#' `impute_type = "micePMM"` imputes only the data 'mice' is run on, so a
+#' fitted preprocessor cannot apply it to validation, test or new data.
+#' The default `impute_type` is "meanMode"; see the Imputation section.
+#'
+#' All four operations and micePMM imputation are available in
+#' [setup_Preprocessor], for [preprocess] on a dataset in hand, where the
+#' outcome is still attached and what was dropped is visible.
 #'
 #' @inheritParams setup_Preprocessor
+#' @param impute_type Character \{"meanMode", "missRanger"\}: Imputation
+#'   method. "meanMode" imputes the values that `impute_discrete` and
+#'   `impute_continuous` compute on the training data. "missRanger" fits one
+#'   random forest per feature with missing values, applied to validation, test
+#'   and new data with `predict()`; it multiplies the memory and computation of
+#'   a [train] run. See the Imputation section.
+#'
+#' @section Imputation:
+#' The preferred way to handle missing values is an algorithm that accepts
+#' them, which needs no imputation: the tree-based CART, LightCART, LightGBM,
+#' LightRF, LightRuleFit and Ranger. For an algorithm that requires complete
+#' data, such as GLM or GLMNET, use `impute_type = "meanMode"`, the default: it
+#' stores one value per feature, computed on the training data, and adds
+#' little memory or computation.
+#'
+#' `impute_type = "missRanger"` fits one random forest per feature with missing
+#' values. [train] fits the preprocessor on every training set it uses: once
+#' per outer resample, and, when hyperparameters are tuned, once per tuning
+#' resample and hyperparameter combination as well. For example, 10 outer
+#' resamples with 5-fold tuning over 20 combinations fit missRanger
+#' 10 x (5 x 20 + 1) = 1010 times. Each fitted model, one per outer resample,
+#' keeps its forests and a copy of its training data, which `predict()` draws
+#' starting values from. Choose it only where a multivariate imputation is
+#' needed, and reduce `num.trees` and `maxiter` in `impute_missRanger_params`
+#' for large data.
+#'
+#' A fitted missRanger imputer has three further properties:
+#'
+#' - It is an R object, held by the fitted model. A config or record written to
+#'   JSON carries the method and its parameters, not the forests, so a model
+#'   rebuilt from JSON cannot impute new data with them.
+#' - It has a forest only for features with missing values in the training
+#'   data. Other features take a mean or mode value, computed on the training
+#'   data, when they are missing in new data.
+#' - `predict()` stops on a factor level of an imputed feature that is absent
+#'   from the training data.
+#'
+#' `impute_type = "micePMM"` imputes only the data 'mice' is run on and is
+#' available in [setup_Preprocessor] only.
 #'
 #' @return `SupervisedPreprocessorConfig` object.
 #'
@@ -741,7 +863,7 @@ setup_Preprocessor <- function(
 setup_SupervisedPreprocessor <- function(
   missingness = FALSE,
   impute = FALSE,
-  impute_type = c("missRanger", "micePMM", "meanMode"),
+  impute_type = c("meanMode", "missRanger"),
   impute_missRanger_params = list(
     pmm.k = 3,
     maxiter = 10,
@@ -749,6 +871,8 @@ setup_SupervisedPreprocessor <- function(
   ),
   impute_discrete = "get_mode",
   impute_continuous = "mean",
+  impute_numeric_values = NULL,
+  impute_level_values = NULL,
   integer2factor = FALSE,
   integer2numeric = FALSE,
   logical2factor = FALSE,
@@ -786,10 +910,7 @@ setup_SupervisedPreprocessor <- function(
   # would report it as the caller's.
   origins <- supplied_origins()
   apply_setup_defaults(SupervisedPreprocessorConfig)
-  impute_type <- match_arg(
-    impute_type,
-    c("missRanger", "micePMM", "meanMode")
-  )
+  impute_type <- match_arg(impute_type, SUPERVISED_IMPUTE_TYPES)
   numeric_cut_n <- clean_int(numeric_cut_n)
   numeric_quant_n <- clean_int(numeric_quant_n)
   unique_len2factor <- clean_int(unique_len2factor)
@@ -809,6 +930,8 @@ setup_SupervisedPreprocessor <- function(
     impute_missRanger_params = impute_missRanger_params,
     impute_discrete = impute_discrete,
     impute_continuous = impute_continuous,
+    impute_numeric_values = impute_numeric_values,
+    impute_level_values = impute_level_values,
     integer2factor = integer2factor,
     integer2numeric = integer2numeric,
     logical2factor = logical2factor,
@@ -859,6 +982,9 @@ setup_SupervisedPreprocessor <- function(
 #' `dat_validation` and/or `dat_test` arguments, this will be a named list.
 #' @field values List: Data-dependent preprocessing values to be used for validation and test set
 #' preprocessing.
+#' @field imputer Optional `missRanger` object: Imputer fitted on the training
+#' data when `impute_type` is "missRanger", applied to new data with `predict()`.
+#' An R object, so it is not part of the config or a record.
 #'
 #' @author EDG
 #' @noRd
@@ -870,22 +996,29 @@ Preprocessor <- new_class(
     # fitted object reports the vocabulary the run was actually given.
     config = AnyPreprocessorConfig,
     preprocessed = class_data.frame | class_list,
-    values = class_list
+    values = class_list,
+    imputer = class_any
   ),
   constructor = function(
     config,
     preprocessed,
+    impute_numeric_values = NULL,
+    impute_level_values = NULL,
     scale_centers = NULL,
     scale_coefficients = NULL,
     one_hot_levels = NULL,
     factor2integer_levels = NULL,
-    remove_features = NULL
+    remove_features = NULL,
+    imputer = NULL
   ) {
     new_object(
       S7_object(),
       config = config,
       preprocessed = preprocessed,
+      imputer = imputer,
       values = list(
+        impute_numeric_values = impute_numeric_values,
+        impute_level_values = impute_level_values,
         scale_centers = scale_centers,
         scale_coefficients = scale_coefficients,
         one_hot_levels = one_hot_levels,
@@ -968,7 +1101,8 @@ method(preprocessed, Preprocessor) <- function(x) {
 #' [setup_Preprocessor]; document metadata (`$schema`) is dropped first, since
 #' it identifies the document.
 #'
-#' The learned values (`scale_centers`, `scale_coefficients`, `one_hot_levels`,
+#' The learned values (`impute_numeric_values`, `impute_level_values`,
+#' `scale_centers`, `scale_coefficients`, `one_hot_levels`,
 #' `factor2integer_levels`) are `data_dependent` settable inputs: a
 #' user-authored config typically carries none, and the `setup_*` defaults leave
 #' them unset. A config that does carry them -- a fitted preprocessor written

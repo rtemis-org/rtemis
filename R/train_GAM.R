@@ -76,21 +76,16 @@ method(train_, GAMHyperparameters) <- function(
   } else {
     ""
   }
-  formula <- as.formula(
+  rhs <- gsub(
+    " \\+ $",
+    "",
     gsub(
-      " \\+ $",
+      "^ \\+ ",
       "",
-      paste(
-        outcome_name(x),
-        "~",
-        gsub(
-          "^ \\+ ",
-          "",
-          paste(spline_features, categorical_features, sep = " + ")
-        )
-      )
+      paste(spline_features, categorical_features, sep = " + ")
     )
   )
+  formula <- as.formula(paste(outcome_name(x), "~", rhs))
 
   # Train ----
   family <- if (type == "Regression") {
@@ -99,8 +94,20 @@ method(train_, GAMHyperparameters) <- function(
     if (n_classes == 2) {
       binomial()
     } else {
-      mgcv::multinom()
+      mgcv::multinom(K = n_classes - 1L)
     }
+  }
+  if (type == "Classification" && n_classes > 2) {
+    # mgcv's multinom family takes the outcome coded 0 to K - 1, the first
+    # level being the reference, and one formula per remaining level, each
+    # with the same terms.
+    formula <- c(
+      list(formula),
+      rep(list(as.formula(paste("~", rhs))), n_classes - 2L)
+    )
+    y <- outcome(x)
+    x <- as.data.frame(x)
+    x[[outcome_name(x)]] <- as.integer(y) - 1L
   }
 
   model <- mgcv::gam(
@@ -116,6 +123,9 @@ method(train_, GAMHyperparameters) <- function(
 
 # %% predict_super.class_gam ----
 #' Predict from GAM model
+#'
+#' A multiclass fit returns one probability column per outcome level, in level
+#' order.
 #'
 #' @param model GAM model.
 #' @param newdata tabular data: Data to predict on.
@@ -148,11 +158,17 @@ method(predict_super, class_gam) <- function(
 #' the covariances between terms, so for correlated terms these shares do not
 #' partition it.
 #'
+#' A multiclass fit has one linear predictor per non-reference class and no
+#' single partial effect per term, so it returns NULL.
+#'
 #' @param model mgcv gam model.
 #'
 #' @keywords internal
 #' @noRd
 method(varimp_super, class_gam) <- function(model) {
+  if (identical(model[["family"]][["family"]], "multinom")) {
+    return(NULL)
+  }
   peff <- predict(model, type = "terms")
   vi <- apply(peff, 2, var)
   npeff <- vi / sum(vi)
@@ -178,12 +194,18 @@ method(varimp_super, class_gam) <- function(model) {
 # %% se_super.class_gam ----
 #' Get Standard Errors from GAM model
 #'
+#' Standard errors of the linear predictor. A multiclass fit has one linear
+#' predictor per non-reference class and returns NULL.
+#'
 #' @param model mgcv gam model.
 #' @param newdata tabular data: Data to predict on.
 #'
 #' @keywords internal
 #' @noRd
 method(se_super, class_gam) <- function(model, newdata) {
+  if (identical(model[["family"]][["family"]], "multinom")) {
+    return(NULL)
+  }
   predict(model, newdata = newdata, se.fit = TRUE)[["se.fit"]]
 } # /rtemis::se_super.gam
 
@@ -198,7 +220,8 @@ method(se_super, class_gam) <- function(model, newdata) {
 #' mean prediction over that background, as for every other estimator.
 #'
 #' Exact, and computed by the fit itself, so it is both more accurate and faster
-#' than the kernel estimator here.
+#' than the kernel estimator here. Applies to regression and binary fits; a
+#' multiclass fit is refused.
 #'
 #' @param model `gam` object.
 #' @param newdata tabular data: Cases to explain.
@@ -238,6 +261,14 @@ method(explain_super, class_gam) <- function(
       "interventional answer.\n",
       "Use `setup_SHAP(perturbation = \"interventional\")`, or ",
       "`setup_SHAP(estimator = \"kernel\", perturbation = \"conditional\")`.",
+      class = c("rtemis_unsupported_error", "rtemis_input_error")
+    )
+  }
+  if (identical(model[["family"]][["family"]], "multinom")) {
+    rtemis.core::abort(
+      "GAMTerms is not available for multiclass GAM: the fitted model has one ",
+      "linear predictor per non-reference class, not one per class.\n",
+      "Use `setup_SHAP(estimator = \"kernel\")`.",
       class = c("rtemis_unsupported_error", "rtemis_input_error")
     )
   }

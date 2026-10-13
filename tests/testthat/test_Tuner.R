@@ -281,3 +281,34 @@ test_that("candidates print on the hyperparameter's own line", {
   )
   expect_match(out, "max_depth: <tune> 3, 4, 5\n", fixed = TRUE)
 })
+
+
+test_that("an unset maximize follows the metric's direction", {
+  set.seed(2026)
+  n <- 120L
+  dat <- data.frame(a = rnorm(n), b = rnorm(n))
+  dat[["y"]] <- factor(ifelse(dat[["a"]] + rnorm(n) > 0, "neg", "pos"))
+  for (case in list(c("auc", "TRUE"), c("brier_score", "FALSE"))) {
+    mod <- train(
+      dat,
+      hyperparameters = setup_CART(maxdepth = tune_over(1L, 3L)),
+      tuner_config = setup_GridSearch(
+        resampler_config = setup_KFold(n_resamples = 2L),
+        metric = case[[1L]]
+      ),
+      verbosity = 0L
+    )
+    maximize <- as.logical(case[[2L]])
+    expect_identical(mod@tuner@tuner_config[["maximize"]], maximize)
+    validation <- mod@tuner@tuning_results[["validation"]]
+    grid <- mod@tuner@tuning_results[["param_grid"]]
+    select_fn <- if (maximize) which.max else which.min
+    best_id <- validation[["param_combo_id"]][[
+      select_fn(validation[[case[[1L]]]])
+    ]]
+    expect_equal(
+      mod@hyperparameters@hyperparameters[["maxdepth"]],
+      grid[["maxdepth"]][grid[["param_combo_id"]] == best_id]
+    )
+  }
+})

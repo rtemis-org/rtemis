@@ -19,8 +19,16 @@ Preprocessed data, in the same structure as \code{new_data}.
 }
 \description{
 Apply a trained \code{Preprocessor} to new data, reusing the values learned from the training
-data. For example, the same scale centers and coefficients, one-hot levels, and removed
-features will be applied to the new data.
+data. For example, the same mean and mode imputation values, scale centers and
+coefficients, one-hot levels, and removed features will be applied to the new data.
+}
+\details{
+Imputation follows the preprocessor's \code{impute_type}. "meanMode" imputes the
+stored training values. "missRanger" applies the forests fitted on the
+training data with \code{predict()}, and imputes a feature that had no missing
+training values with its stored mean or mode; \code{predict()} stops on a factor
+level of an imputed feature that is absent from the training data. A
+preprocessor using "micePMM" cannot be applied to new data and is refused.
 }
 \examples{
 res <- resample(iris, setup_KFold(seed = 2026))

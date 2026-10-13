@@ -777,6 +777,29 @@ test_that("a GAM's own terms are its Shapley values", {
 })
 
 
+test_that("a multiclass GAM is refused GAMTerms", {
+  # One linear predictor per non-reference class has no additive map per
+  # class to read.
+  dat <- within(
+    .terms_dat,
+    y <- factor(c("c1", "c2", "c3")[
+      as.integer(cut(sin(a) + rnorm(.terms_n, sd = 0.8), 3L))
+    ])
+  )
+  mod <- train(dat, hyperparameters = setup_GAM(), verbosity = 0L)
+  expect_error(
+    explain(
+      mod,
+      dat[1:3, .terms_feats],
+      background = dat[, .terms_feats],
+      verbosity = 0L
+    ),
+    "multiclass GAM",
+    class = "rtemis_unsupported_error"
+  )
+})
+
+
 test_that("a GAM baseline is the background's mean prediction", {
   # Re-centered on the supplied background rather than on whatever mgcv
   # centered its smooths on, so a baseline means the same thing here as for

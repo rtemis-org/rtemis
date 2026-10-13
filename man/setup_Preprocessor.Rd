@@ -14,6 +14,8 @@ setup_Preprocessor(
   impute_missRanger_params = list(pmm.k = 3, maxiter = 10, num.trees = 500),
   impute_discrete = "get_mode",
   impute_continuous = "mean",
+  impute_numeric_values = NULL,
+  impute_level_values = NULL,
   integer2factor = FALSE,
   integer2numeric = FALSE,
   logical2factor = FALSE,
@@ -65,8 +67,14 @@ feature with missing values, indicating which cases were missing data.}
 \item{impute}{Logical: If TRUE, impute missing cases. See \code{impute_discrete} and
 \code{impute_continuous}.}
 
-\item{impute_type}{Character \{"missRanger", "micePMM", "meanMode"\}: Package to use for
-imputation.}
+\item{impute_type}{Character \{"missRanger", "micePMM", "meanMode"\}:
+Imputation method. "missRanger" fits one random forest per feature with
+missing values, kept in the \code{Preprocessor} and applied to new data by
+\link{apply_preprocessor}. "meanMode" imputes the values that \code{impute_discrete}
+and \code{impute_continuous} compute on the training data. "micePMM" imputes by
+predictive mean matching with 'mice', which imputes only the data it is
+run on: a \code{Preprocessor} using it cannot be applied to new data. See the
+Imputation section.}
 
 \item{impute_missRanger_params}{List: Parameters passed to
 \code{missRanger::missRanger}, e.g. "pmm.k", "maxiter", "num.trees". \code{pmm.k}
@@ -75,10 +83,28 @@ faster imputation especially in large datasets. Set \code{pmm.k = 0} to
 disable predictive mean matching.}
 
 \item{impute_discrete}{Character: Name of function that returns single value: How to impute
-discrete variables for \code{impute_type = "meanMode"}.}
+discrete variables for \code{impute_type = "meanMode"}, and for features with no
+missing training values for \code{impute_type = "missRanger"}.}
 
 \item{impute_continuous}{Character: Name of function that returns single value: How to impute
-continuous variables for \code{impute_type = "meanMode"}.}
+continuous variables for \code{impute_type = "meanMode"}, and for features with
+no missing training values for \code{impute_type = "missRanger"}.}
+
+\item{impute_numeric_values}{Optional Named vector: Value imputed into
+numeric or logical features, keyed by feature name; a logical feature
+takes 1 as TRUE and 0 as FALSE. Covers every such feature for
+\code{impute_type = "meanMode"} and features with no missing training values
+for \code{impute_type = "missRanger"}. Used in place of the value
+\code{impute_discrete} or \code{impute_continuous} computes. \link{preprocess} stores the
+values it uses in the \code{Preprocessor}, and \link{apply_preprocessor} imputes new
+data with them.}
+
+\item{impute_level_values}{Optional Named vector: Value imputed into factor
+or character features, keyed by feature name. Covers every such feature
+for \code{impute_type = "meanMode"} and features with no missing training
+values for \code{impute_type = "missRanger"}. Used in place of the value
+\code{impute_discrete} computes. \link{preprocess} stores the values it uses in the
+\code{Preprocessor}, and \link{apply_preprocessor} imputes new data with them.}
 
 \item{integer2factor}{Logical: If TRUE, convert all integers to factors. This includes
 \code{bit64::integer64} columns.}
@@ -186,6 +212,27 @@ that unprefixed names are not US holidays: "LaborDay" is May 1.}
 \description{
 Creates a \code{PreprocessorConfig} object, which can be used in \link{preprocess}.
 }
+\section{Imputation}{
+
+"meanMode" stores one value per feature, computed on the data \code{preprocess()}
+is given, and \link{apply_preprocessor} imputes new data with those values.
+
+"missRanger" fits one random forest per feature with missing values and
+keeps the forests, and a copy of the data \code{predict()} draws starting values
+from, in the \code{Preprocessor}, which therefore grows with the data. The
+forests are an R object: a config written to JSON carries the method and its
+parameters, not the forests. A feature with no missing values in the data
+has no forest and takes a mean or mode value when it is missing in new data.
+\code{predict()} stops on a factor level of an imputed feature that is absent
+from the data the forests were fitted on.
+
+"micePMM" imputes the data it is run on and fits no model for new data;
+\link{apply_preprocessor} refuses a \code{Preprocessor} that uses it.
+
+For preprocessing inside \link{train}, see the Imputation section of
+\link{setup_SupervisedPreprocessor}.
+}
+
 \section{Order of Operations}{
 
 

@@ -32,7 +32,10 @@ combinations. Required when \code{search_type} is \code{"randomized"}; must be l
 it from the outcome type.}
 
 \item{maximize}{Optional Logical: If TRUE, maximize \code{metric}, otherwise
-minimize it. NULL sets it from the metric.}
+minimize it. NULL maximizes \code{accuracy}, \code{balanced_accuracy}, \code{sensitivity},
+\code{specificity}, \code{ppv}, \code{npv}, \code{f1}, \code{auc}, \code{rsq} and \code{Concordance}, and
+minimizes every other metric, including \code{mae}, \code{mse}, \code{rmse} and
+\code{brier_score}.}
 }
 \value{
 A \code{GridSearchConfig} object.

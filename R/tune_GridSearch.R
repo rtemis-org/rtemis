@@ -2,6 +2,24 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
+# %% MAXIMIZED_METRICS ----
+# Tuning metrics for which a higher value is better. `tune_GridSearch()`
+# maximizes these and minimizes every other metric when the tuner config leaves
+# `maximize` unset.
+MAXIMIZED_METRICS <- c(
+  "accuracy",
+  "balanced_accuracy",
+  "sensitivity",
+  "specificity",
+  "ppv",
+  "npv",
+  "f1",
+  "auc",
+  "rsq",
+  "Concordance"
+)
+
+
 # %% tune_GridSearch ----
 #' \pkg{rtemis} internal: Grid Search for Hyperparameter Tuning of \pkg{rtemis} Learners
 #'
@@ -215,8 +233,7 @@ tune_GridSearch <- function(
     tuner_config@config[["metric"]] <- metric
   }
   if (is.null(maximize)) {
-    maximize <- metric %in%
-      c("accuracy", "balanced_accuracy", "rsq", "r")
+    maximize <- metric %in% MAXIMIZED_METRICS
     tuner_config@config[["maximize"]] <- maximize
   }
   select_fn <- if (maximize) which.max else which.min

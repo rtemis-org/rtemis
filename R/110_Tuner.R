@@ -209,7 +209,10 @@ GridSearchConfig <- schema_class(
 #' @param metric Optional Character: Metric to minimize or maximize. NULL sets
 #' it from the outcome type.
 #' @param maximize Optional Logical: If TRUE, maximize `metric`, otherwise
-#' minimize it. NULL sets it from the metric.
+#' minimize it. NULL maximizes `accuracy`, `balanced_accuracy`, `sensitivity`,
+#' `specificity`, `ppv`, `npv`, `f1`, `auc`, `rsq` and `Concordance`, and
+#' minimizes every other metric, including `mae`, `mse`, `rmse` and
+#' `brier_score`.
 #'
 #' @return A `GridSearchConfig` object.
 #'

@@ -5,8 +5,9 @@
 # %% plot_varimp ----
 #' Plot a Model's Variable Importance
 #'
-#' Draw importance recorded by a rtemis `Supervised` or `SupervisedRes` object
-#' using [rtemis.draw::draw_varimp()].
+#' Draw importance recorded by a rtemis `Supervised` or `SupervisedRes` object,
+#' or computed from a `SHAP` explanation by [get_varimp], using
+#' [rtemis.draw::draw_varimp()].
 #'
 #' @details
 #' Named measures and variable identities are preserved. Resampled records
@@ -26,11 +27,15 @@
 #' ranking, and the producer's missing-score contract. Ordinary models have no
 #' fold distribution and require the bar view.
 #'
+#' A `SHAP` explanation is drawn from the mean absolute contribution of each
+#' feature, with one measure per class for a multiclass outcome.
+#'
 #' Models without any importance records produce an informative error.
 #' The default title names the algorithm; `title = NULL` omits it.
 #' See [rtemis.draw::draw_varimp()] for selection, ranking, and missing-score semantics.
 #'
-#' @param x `rtemis::Supervised` or `rtemis::SupervisedRes`: Fitted model result.
+#' @param x `rtemis::Supervised`, `rtemis::SupervisedRes` or `rtemis::SHAP`:
+#'   Fitted model result or explanation.
 #' @param ... Additional arguments to [rtemis.draw::draw_varimp()], including `measure`,
 #'   `type`, `top_n`, `rank_by`, `decreasing`, `bar_width`, `summary`, `absent`,
 #'   and `title`. Fold IDs come from
@@ -43,6 +48,8 @@
 #'   hyperparameters = setup_GLM(), verbosity = 0L
 #' )
 #' plot_varimp(model)
+#' features <- mtcars[, c("wt", "hp")]
+#' plot_varimp(explain(model, features, background = features, verbosity = 0L))
 plot_varimp <- new_generic("plot_varimp", "x")
 
 
@@ -55,18 +62,37 @@ plot_varimp <- new_generic("plot_varimp", "x")
 varimp_plot_data <- new_generic("varimp_plot_data", "x")
 
 
+# %% varimp_results ----
+#' Importance results a plot draws
+#'
+#' @param x `Supervised`, `SupervisedRes` or `SHAP` object.
+#'
+#' @return `VariableImportance`, a list of them (one per resample), or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+varimp_results <- function(x) {
+  if (S7_inherits(x, SHAP)) {
+    return(get_varimp(x))
+  }
+  x@varimp
+} # /rtemis::varimp_results
+
+
 # %% extract_varimp_plot_data ----
 #' Extract ordinary or resampled model importance
 #'
-#' Registered on ordinary and resampled result classes. The resampled class stores
-#' importance in `resample_ids` order; list names are not used to reorder it.
+#' Registered on ordinary and resampled result classes and on `SHAP`. The
+#' resampled class stores importance in `resample_ids` order; list names are not
+#' used to reorder it.
 #'
 #' @inheritParams plot_varimp
 #' @return Named list: Plain `data` records and optional complete `folds` IDs.
 #' @keywords internal
 #' @noRd
 extract_varimp_plot_data <- function(x) {
-  importance <- x@varimp
+  importance <- varimp_results(x)
   if (
     is.null(importance) ||
       (is.list(importance) && all(vapply(importance, is.null, logical(1L))))
@@ -121,7 +147,7 @@ extract_varimp_plot_data <- function(x) {
 # %% varimp_measure_descriptors ----
 #' The descriptors of one measure in a model's importance
 #'
-#' @param x `Supervised` or `SupervisedRes` object.
+#' @param x `Supervised`, `SupervisedRes` or `SHAP` object.
 #' @param column Character: The measure's column in the wide table.
 #'
 #' @return List of `ImportanceMeasure` objects, one per importance result that
@@ -131,7 +157,7 @@ extract_varimp_plot_data <- function(x) {
 #' @keywords internal
 #' @noRd
 varimp_measure_descriptors <- function(x, column) {
-  results <- x@varimp
+  results <- varimp_results(x)
   if (S7_inherits(results, VariableImportance)) {
     results <- list(results)
   }
@@ -210,13 +236,18 @@ draw_model_varimp <- function(
     title <- paste0(x@algorithm, " ", measure, " (descriptive, not a ranking)")
   }
   # These specific measures sum split contributions; their native producers
-  # emit only credited variables. Unknown measures get no zero assumption.
-  sparse_measures <- switch(
-    x@algorithm,
-    CART = "importance",
-    LightGBM = c("Gain", "Cover", "Frequency"),
+  # emit only credited variables. Unknown measures get no zero assumption. A
+  # SHAP measure is named for its class and holds a value for every feature.
+  sparse_measures <- if (S7_inherits(x, SHAP)) {
     character()
-  )
+  } else {
+    switch(
+      x@algorithm,
+      CART = "importance",
+      LightGBM = c("Gain", "Cover", "Frequency"),
+      character()
+    )
+  }
   absent <- absent %||% if (measure %in% sparse_measures) "zero" else "missing"
   do.call(
     rtemis.draw::draw_varimp,
