@@ -129,7 +129,7 @@ test_that("meanMode stores the value imputed into every feature", {
   # Including `full`, which has no missing training entry: new data may.
   expect_identical(
     impute_pre@values[["impute_numeric_values"]],
-    c(i = 1, l = 1, d = 2, full = 25)
+    c(d = 2, i = 2, l = 1, full = 25)
   )
   expect_identical(
     impute_pre@values[["impute_level_values"]],
@@ -140,7 +140,7 @@ test_that("meanMode stores the value imputed into every feature", {
 test_that("apply_preprocessor imputes new data with the training values", {
   out <- apply_preprocessor(impute_pre, impute_new, verbosity = 0L)
   expect_identical(out[["d"]], c(2, 100, 100))
-  expect_identical(out[["i"]], c(1L, 7L, 7L))
+  expect_identical(out[["i"]], c(2L, 7L, 7L))
   expect_identical(out[["l"]], c(TRUE, FALSE, FALSE))
   # A training level absent from the new data's levels is added to them.
   expect_identical(as.character(out[["f"]]), c("b", "a", "a"))
@@ -509,22 +509,122 @@ test_that("preprocess output carries no row names", {
 })
 
 
-test_that("imputation widens a column rather than truncating into it", {
-  # A partial data.table assignment coerces the value into the column's
-  # existing type, so a mean imputed into an integer column would land as a
-  # truncated integer with a warning. Whole columns are replaced instead.
-  x <- data.frame(i = c(1L, 2L, 10L, NA))
-  out <- preprocessed(preprocess(
-    x,
+# Every column has a tie or a non-integer statistic, so each assertion fixes the
+# rounding or tie rule as well as the type.
+impute_typed <- data.frame(
+  i = c(1L, 2L, 3L, 4L, NA),
+  j = c(1L, 1L, 2L, 8L, NA),
+  l = c(TRUE, FALSE, TRUE, FALSE, NA),
+  f = factor(c("b", "a", "b", "a", NA), levels = c("b", "a")),
+  ch = c("b", "B", "b", "B", NA),
+  d = c(1, 2, 3, 4, NA),
+  stringsAsFactors = FALSE
+)
+impute_typed_out <- function(impute_numeric) {
+  preprocess(
+    impute_typed,
     setup_Preprocessor(
       impute = TRUE,
       impute_type = "meanMode",
-      impute_discrete = "mean"
+      impute_numeric = impute_numeric
     ),
     verbosity = 0L
+  )
+}
+
+test_that("meanMode imputes every column with a value of its own type", {
+  for (stat in c("mean", "median")) {
+    out <- preprocessed(impute_typed_out(stat))
+    for (nm in names(impute_typed)) {
+      expect_identical(class(out[[nm]]), class(impute_typed[[nm]]), info = nm)
+    }
+    expect_identical(levels(out[["f"]]), c("b", "a"))
+  }
+})
+
+test_that("integer columns take the statistic rounded half to even", {
+  # i: mean and median 2.5 -> 2. j: mean 3, median 1.5 -> 2; its mode, 1,
+  # is neither.
+  mean_pre <- impute_typed_out("mean")
+  median_pre <- impute_typed_out("median")
+  expect_identical(preprocessed(mean_pre)[["i"]][[5L]], 2L)
+  expect_identical(preprocessed(mean_pre)[["j"]][[5L]], 3L)
+  expect_identical(preprocessed(median_pre)[["j"]][[5L]], 2L)
+  expect_identical(preprocessed(mean_pre)[["d"]][[5L]], 2.5)
+  expect_identical(
+    mean_pre@values[["impute_numeric_values"]],
+    c(i = 2, j = 3, l = 0, d = 2.5)
+  )
+})
+
+test_that("ties go to FALSE, the first level, and the first code point", {
+  # Alphabetical order would choose "a" for f; a locale collation would choose
+  # "b" for ch.
+  for (stat in c("mean", "median")) {
+    pre <- impute_typed_out(stat)
+    out <- preprocessed(pre)
+    expect_false(out[["l"]][[5L]])
+    expect_identical(as.character(out[["f"]][[5L]]), "b")
+    expect_identical(out[["ch"]][[5L]], "B")
+    expect_identical(
+      pre@values[["impute_level_values"]],
+      c(f = "b", ch = "B")
+    )
+  }
+})
+
+test_that("integer64 columns remain integer64", {
+  skip_if_not_installed("bit64")
+  x <- data.frame(k = bit64::as.integer64(c(1, 2, 3, 4)))
+  x[["k"]][[4L]] <- NA
+  out <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(impute = TRUE, impute_type = "meanMode"),
+    verbosity = 0L
   ))
-  expect_type(out[["i"]], "double")
-  expect_equal(out[["i"]], c(1, 2, 10, 13 / 3))
+  expect_s3_class(out[["k"]], "integer64")
+  expect_identical(as.integer(out[["k"]]), c(1L, 2L, 3L, 2L))
+})
+
+test_that("a supplied value that the column's type cannot hold is rejected", {
+  impute_with <- function(values) {
+    preprocess(
+      impute_typed,
+      setup_Preprocessor(
+        impute = TRUE,
+        impute_type = "meanMode",
+        impute_numeric_values = values
+      ),
+      verbosity = 0L
+    )
+  }
+  expect_error(
+    impute_with(c(i = 2.5)),
+    "not a whole number.*integer2numeric",
+    class = "rtemis_value_error"
+  )
+  expect_error(
+    impute_with(c(i = 3e9)),
+    "integer range",
+    class = "rtemis_value_error"
+  )
+  expect_error(
+    impute_with(c(l = 0.5)),
+    "not 0 or 1",
+    class = "rtemis_value_error"
+  )
+  # A whole number fills an integer column as an integer.
+  expect_identical(preprocessed(impute_with(c(i = 9)))[["i"]][[5L]], 9L)
+})
+
+test_that("impute_numeric and impute_categorical accept only their statistics", {
+  expect_identical(setup_Preprocessor()@impute_numeric, "mean")
+  expect_identical(
+    setup_SupervisedPreprocessor(impute_numeric = "median")@impute_numeric,
+    "median"
+  )
+  expect_error(setup_Preprocessor(impute_numeric = "mode"))
+  expect_error(setup_Preprocessor(impute_categorical = "mean"))
 })
 
 

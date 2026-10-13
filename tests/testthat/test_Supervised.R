@@ -1531,6 +1531,18 @@ test_that("train() LightGBM Classification succeeds", {
   expect_s7_class(mod_c_lightgbm, Classification)
 })
 
+test_that("`$` and `[[` read Tuner properties by name", {
+  tuner <- mod_c_lightgbm$tuner
+  expect_s7_class(tuner, GridSearch)
+  expect_identical(tuner$best_hyperparameters, tuner@best_hyperparameters)
+  expect_identical(tuner[["tuning_results"]], tuner@tuning_results)
+  expect_true(
+    "best_hyperparameters" %in% utils::.DollarNames(tuner, "^best")
+  )
+  expect_error(tuner$best, class = "rtemis_value_error")
+  expect_error(tuner[["results"]], class = "rtemis_value_error")
+})
+
 ## {LightGBM}[train]<Classification> Multiclass ----
 modt_c3_lightgbm <- train(
   x = datc3_train,
@@ -1551,7 +1563,7 @@ mod_r_lightrlft_l1l2 <- train(
     nrounds = 50L,
     lambda_l1 = 10,
     lambda_l2 = 10,
-    lambda = 0.01
+    lambda_glmnet = 0.01
   )
 )
 
@@ -1565,6 +1577,25 @@ test_that("train() LightRuleFit Regression with l1, l2 params passed", {
     mod_r_lightrlft_l1l2@model@model_lightgbm@model[["params"]][["lambda_l2"]],
     10
   )
+})
+
+test_that("`$` and `[[` read LightRuleFit properties by name", {
+  rulefit <- mod_r_lightrlft_l1l2$model
+  expect_s7_class(rulefit, LightRuleFit)
+  expect_identical(rulefit$rules_selected, rulefit@rules_selected)
+  expect_identical(rulefit[["model_glmnet"]], rulefit@model_glmnet)
+  expect_identical(
+    rulefit$model_lightgbm$metrics_training,
+    rulefit@model_lightgbm@metrics_training
+  )
+  expect_true(
+    all(
+      c("rules", "rules_coefs", "rules_index") %in%
+        utils::.DollarNames(rulefit, "^rules_?")
+    )
+  )
+  expect_error(rulefit$rule, class = "rtemis_value_error")
+  expect_error(rulefit[["coefs"]], class = "rtemis_value_error")
 })
 
 ## {LightRuleFit}[train]<Classification> ----
@@ -4049,20 +4080,6 @@ test_that("plot_true_pred creates an ECharts htmlwidget", {
   expect_s3_class(p, "htmlwidget")
 })
 
-## {GLM}[draw_roc]<Classification> ----
-test_that("draw_roc creates a plotly object", {
-  p <- draw_roc(
-    true_labels = list(
-      Training = mod_c_glm@y_training,
-      Test = mod_c_glm@y_test
-    ),
-    predicted_prob = list(
-      Training = mod_c_glm@predicted_prob_training,
-      Test = mod_c_glm@predicted_prob_test
-    )
-  )
-  expect_s3_class(p, "plotly")
-})
 test_that("plot_roc.Classification creates an ECharts htmlwidget", {
   p <- plot_roc(mod_c_glm)
   expect_s3_class(p, "htmlwidget")

@@ -595,41 +595,6 @@ get_default_hyperparameters <- function(algorithm) {
 } # /rtemis::get_default_hyperparameters
 
 
-#' Resolve a `fit` name and optional hyperparameters
-#'
-#' The `draw_*(fit = )` argument names an algorithm as a string, following the
-#' plotting convention, so those functions need a name-to-`Hyperparameters`
-#' bridge that the rest of the API does not.
-#'
-#' @param fit Character: Algorithm name.
-#' @param fit_params Optional `Hyperparameters` object: Hyperparameters for
-#' `fit`.
-#'
-#' @return `Hyperparameters` object.
-#'
-#' @author EDG
-#'
-#' @keywords internal
-#' @noRd
-resolve_fit_hyperparameters <- function(fit, fit_params) {
-  if (is.null(fit_params)) {
-    return(get_default_hyperparameters(fit))
-  }
-  check_is_S7(fit_params, Hyperparameters)
-  if (tolower(fit) != tolower(fit_params@algorithm)) {
-    rtemis.core::abort(
-      "`fit` is '",
-      fit,
-      "', but `fit_params` defines hyperparameters for ",
-      fit_params@algorithm,
-      ".",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
-  fit_params
-} # /rtemis::resolve_fit_hyperparameters
-
-
 # Clustering ----
 clust_algorithms <- local({
   descriptions <- schema_algorithm_descriptions(ClusteringConfig)
@@ -1038,58 +1003,3 @@ available_decomposition <- function(verbosity = 1L, traits = FALSE) {
   }
   invisible(algs)
 }
-
-# Draw ----
-draw_fns <- data.frame(
-  rbind(
-    c("draw_3DScatter", "3D Scatter Plot"),
-    c("draw_bar", "Bar Plot"),
-    c("draw_box", "Box Plot"),
-    c("draw_calibration", "Calibration Plot"),
-    c("draw_confusion", "Confusion Matrix"),
-    c("draw_dist", "Density and Histogram Plots"),
-    c("draw_fit", "Scatter Plot with Fit Line alias"),
-    c("draw_graphD3", "Network Graph using networkD3"),
-    c("draw_graphjs", "Network Graph using graphjs"),
-    c("draw_heat", "Heatmap using plotly"),
-    c("draw_heatmap", "Heatmap using heatmaply"),
-    c("draw_leafleat", "Choropleth Map using leaflet"),
-    c("draw_pie", "Pie Chart"),
-    c("draw_protein", "Amino Acid Annotation Plot"),
-    c("draw_roc", "ROC Curve"),
-    c("draw_scatter", "Scatter Plot"),
-    c("draw_spectrogram", "Spectrogram"),
-    c("draw_table", "Table using plotly"),
-    c("draw_ts", "Time Series Plot"),
-    c("draw_varimp", "Barplot for Variable Importance alias"),
-    c("draw_volcano", "Volcano Plot"),
-    c("draw_xt", "Time Series Line Plot")
-  )
-)
-colnames(draw_fns) <- c("Function Name", "Description")
-
-
-#' Available Draw Functions
-#'
-#' Print available draw functions for visualization.
-#'
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @return Named list of draw function descriptions, invisibly.
-#'
-#' @author EDG
-#' @export
-#' @examples
-#' available_draw()
-available_draw <- function(verbosity = 1L) {
-  fns <- structure(
-    draw_fns[, 2],
-    names = draw_fns[, 1],
-    class = "list"
-  )
-  if (verbosity > 0L) {
-    cat("Available draw functions:\n")
-    printls(fns, print_class = FALSE, limit = -1L)
-  }
-  invisible(fns)
-} # /rtemis::available_draw

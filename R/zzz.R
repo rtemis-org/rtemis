@@ -35,16 +35,6 @@ utils::globalVariables("self")
   .schema_catalog_cache[["ready"]] <- TRUE
   # S7
   S7::methods_register()
-  # Set default options if not already set by user
-  if (is.null(getOption("rtemis_theme"))) {
-    options(rtemis_theme = "whitegrid")
-  }
-  if (is.null(getOption("rtemis_palette"))) {
-    options(rtemis_palette = "rtms")
-  }
-  if (is.null(getOption("rtemis_font"))) {
-    options(rtemis_font = "Helvetica")
-  }
 }
 
 .onAttach <- function(libname, pkgname) {
@@ -73,16 +63,6 @@ utils::globalVariables("self")
           rtemis_colors[["red"]]
         )
       ),
-      bold("\n  Defaults"),
-      "\n  \u2502   ",
-      gray("Theme: "),
-      getOption("rtemis_theme", "whitegrid"),
-      "\n  \u2502    ",
-      gray("Font: "),
-      getOption("rtemis_font", "Helvetica"),
-      "\n  \u2514 ",
-      gray("Palette: "),
-      getOption("rtemis_palette", "rtms"),
       bold("\n  Resources"),
       "\n  \u2502    ",
       gray("Docs:"),

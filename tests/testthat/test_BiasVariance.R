@@ -67,6 +67,17 @@ test_that("bias_variance() returns one estimate per test case", {
   expect_equal(result@mean_bias_squared, mean(result@bias_squared))
 })
 
+test_that("`$` and `[[` read BiasVariance properties by name", {
+  expect_identical(.cart$mean_variance, .cart@mean_variance)
+  expect_identical(.cart[["bias_squared"]], .cart@bias_squared)
+  expect_identical(
+    utils::.DollarNames(.cart, "^mean_"),
+    c("mean_bias_squared", "mean_variance")
+  )
+  expect_error(.cart$mean_bias, class = "rtemis_value_error")
+  expect_error(.cart[["variances"]], class = "rtemis_value_error")
+})
+
 
 # %% The decomposition behaves as theory says ----
 test_that("a correctly specified model has almost no bias and almost no variance", {
