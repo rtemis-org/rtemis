@@ -297,6 +297,24 @@ method(desc, Tuner) <- function(x) {
 } # /rtemis::describe.Tuner
 
 
+# %% `$`.Tuner ----
+method(`$`, Tuner) <- function(x, name) {
+  prop_by_name(x, name)
+}
+
+
+# %% `.DollarNames`.Tuner ----
+method(`.DollarNames`, Tuner) <- function(x, pattern = "") {
+  prop_names_matching(x, pattern)
+}
+
+
+# %% `[[`.Tuner ----
+method(`[[`, Tuner) <- function(x, name) {
+  prop_by_name(x, name)
+}
+
+
 # %% GridSearch ----
 #' GridSearch Class
 #'

@@ -18,6 +18,36 @@ LINAD_NODE_BORDER <- 1L
 LINAD_NODE_PADDING <- 2L * LINAD_NODE_MARGIN_X + LINAD_NODE_BORDER
 
 
+# %% linad_theme ----
+#' Background and foreground colors of a theme
+#'
+#' @param theme Optional `rtemis.draw::Theme`: NULL uses
+#' `rtemis.draw::theme_light()`.
+#'
+#' @return Named list: `bg` and `fg`, each a `#RRGGBBAA` color.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+linad_theme <- function(theme = NULL) {
+  if (is.null(theme)) {
+    theme <- rtemis.draw::theme_light()
+  }
+  check_is_S7(theme, rtemis.draw::Theme)
+  if (is.null(theme@background_color) || is.null(theme@text_style@color)) {
+    rtemis.core::abort(
+      "`theme` must set `background_color` and a text color; ",
+      "use rtemis.draw::theme_light() or rtemis.draw::theme_dark().",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  list(
+    bg = css2hex(theme@background_color),
+    fg = css2hex(theme@text_style@color)
+  )
+} # /rtemis::linad_theme
+
+
 # %% linad_palette ----
 #' Node and table colors for a light or a dark theme
 #'
@@ -31,15 +61,15 @@ LINAD_NODE_PADDING <- 2L * LINAD_NODE_MARGIN_X + LINAD_NODE_BORDER
 #' table is a mid-gray panel over mid-gray nodes and would otherwise have no
 #' edge at all.
 #'
-#' @param theme `Theme` object.
+#' @param colors Named list: `bg` and `fg`, from `linad_theme()`.
 #'
 #' @return Named list of colors.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-linad_palette <- function(theme) {
-  if (col2grayscale(theme[["bg"]], "decimal") < 0.5) {
+linad_palette <- function(colors) {
+  if (col2grayscale(colors[["bg"]], "decimal") < 0.5) {
     list(
       root = "#7F7F7F",
       node = "#404040",
@@ -48,7 +78,7 @@ linad_palette <- function(theme) {
       header_bg = "#404040",
       table_fg = "#FFFFFF",
       empty = "#525252",
-      border = theme[["fg"]]
+      border = colors[["fg"]]
     )
   } else {
     list(
@@ -59,7 +89,7 @@ linad_palette <- function(theme) {
       header_bg = "#C6C6C6",
       table_fg = "#000000",
       empty = "#D2D2D2",
-      border = theme[["fg"]]
+      border = colors[["fg"]]
     )
   }
 } # /rtemis::linad_palette
@@ -95,7 +125,13 @@ linad_diverging <- function(
   hi_col,
   n = 201L
 ) {
-  gradient <- colorgrad(n = n, lo = lo_col, mid = mid_col, hi = hi_col)
+  # An odd `n` puts zero at the gradient's middle color.
+  n <- n + (1L - n %% 2L)
+  midpoint <- (n + 1L) %/% 2L
+  gradient <- c(
+    colorRampPalette(c(lo_col, mid_col))(midpoint),
+    colorRampPalette(c(mid_col, hi_col))(n - midpoint + 1L)[-1L]
+  )
   finite <- x[is.finite(x)]
   # `max()` of nothing is -Inf with a warning, and a tree whose nodes all fit
   # constants brings nothing here at all.
@@ -422,8 +458,8 @@ linad_term_marks <- function(model, shown) {
 #' @param show_node_value Logical: If TRUE, include the node's own value in its
 #' label.
 #' @param lo_col Character: Color for the most negative coefficient. Defaults
-#' to the package-wide negative color, the same one `draw_volcano()` and
-#' `plot_manhattan()` use.
+#' to the package-wide negative color, the same one `plot()` and
+#' `plot_manhattan()` use on a `MassGLM`.
 #' @param mid_col Optional Character: Color at zero. NULL uses the coefficient
 #' table's own background, so a coefficient of no consequence shows as no cell
 #' at all.
@@ -439,9 +475,11 @@ linad_term_marks <- function(model, shown) {
 #' coefficient table belongs to. NULL uses the theme foreground.
 #' @param height Character: CSS height, as a length: a percentage of a
 #' container with no height of its own collapses.
-#' @param theme `Theme` object. Node fills, the coefficient table and the hover
-#' marker all follow it, chosen by the background's luminance so that a custom
-#' theme is handled too. The two ends of the
+#' @param theme Optional [rtemis.draw::Theme]: Its background and text colors
+#' set the canvas and the foreground. Node fills, the coefficient table and the
+#' hover marker all follow them, chosen by the background's luminance so that a
+#' custom theme is handled too. NULL uses [rtemis.draw::theme_light()]. The two
+#' ends of the
 #' coefficient scale do not follow it: both ends read on either background, so
 #' a sign has the same color under every theme.
 #' @param verbosity Integer: If > 0, print messages.
@@ -477,16 +515,16 @@ draw_linad <- function(
   leaf_col = NULL,
   hover_col = NULL,
   height = "600px",
-  theme = choose_theme(getOption("rtemis_theme")),
+  theme = NULL,
   verbosity = 1L
 ) {
   # Dependencies ----
   check_dependencies("visNetwork")
 
   # Arguments ----
-  check_is_S7(theme, Theme)
+  theme_colors <- linad_theme(theme)
   direction <- match.arg(direction, c("UD", "DU", "LR", "RL"))
-  palette <- linad_palette(theme)
+  palette <- linad_palette(theme_colors)
   if (is.null(root_col)) {
     root_col <- palette[["root"]]
   }
@@ -502,7 +540,7 @@ draw_linad <- function(
     mid_col <- palette[["table_bg"]]
   }
   if (is.null(hover_col)) {
-    hover_col <- theme[["fg"]]
+    hover_col <- theme_colors[["fg"]]
   }
   if (is.null(level_separation)) {
     # Room for a wrapped rule plus the node value and the case count.
@@ -735,7 +773,7 @@ draw_linad <- function(
     edges,
     width = "100%",
     height = height,
-    background = theme[["bg"]]
+    background = theme_colors[["bg"]]
   )
   # No `visHierarchicalLayout()`: the coordinates are already computed, and
   # vis.js's layout would recompute them into overlapping positions. Physics off
@@ -750,15 +788,15 @@ draw_linad <- function(
     plt,
     font = list(
       multi = "html",
-      color = theme[["fg"]],
+      color = theme_colors[["fg"]],
       size = font_size,
       bold = list(
-        color = adjustcolor(theme[["fg"]], 0.85),
+        color = adjustcolor(theme_colors[["fg"]], 0.85),
         size = font_size - 2L,
         mod = "bold"
       ),
       ital = list(
-        color = adjustcolor(theme[["fg"]], 0.6),
+        color = adjustcolor(theme_colors[["fg"]], 0.6),
         size = font_size - 2L,
         mod = ""
       )
@@ -782,7 +820,7 @@ draw_linad <- function(
   # root's edges into bands wide enough to obscure the nodes they connect.
   plt <- visNetwork::visEdges(
     plt,
-    color = list(color = theme[["fg"]]),
+    color = list(color = theme_colors[["fg"]]),
     scaling = list(min = 1, max = 6),
     arrows = list(to = list(enabled = TRUE, scaleFactor = 0.4)),
     arrowStrikethrough = FALSE,

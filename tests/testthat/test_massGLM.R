@@ -35,10 +35,9 @@ test_that("plot_manhattan() on a MassGLM creates an rtemis.draw widget", {
 # Sign colors ----
 test_that("every plot of a coefficient's sign agrees on what a sign looks like", {
   # The volcano and Manhattan views color the same MassGLM coefficient by sign,
-  # and the plotly volcano and LINAD tables reuse the pair, so a reader moving
-  # between them must not have to relearn the palette. They once used the same
-  # two colors with opposite meanings. Colors are read back out of the drawn
-  # widgets, so re-inverting any one of them fails.
+  # and the LINAD tables reuse the pair, so a reader moving between them reads
+  # one palette. Colors are read back out of the drawn widgets, so inverting
+  # any one of them fails.
   signs <- toupper(rtemis:::sign_colors())
   series_colors <- function(widget) {
     series <- widget[["x"]][["option"]][["series"]]
@@ -60,28 +59,4 @@ test_that("every plot of a coefficient's sign agrees on what a sign looks like",
       signs[["positive"]]
     )
   }
-
-  coefs <- massmod@summary[["Coefficient_x1"]]
-  pvals <- massmod@summary[["p_value_x1"]]
-  volcano <- draw_volcano(coefs, pvals, verbosity = 0L)
-  traces <- Filter(
-    Negate(is.null),
-    lapply(volcano[["x"]][["attrs"]], function(a) a[["marker"]][["color"]])
-  )
-  # Groups go in as Low, NS, High, so the first and last traces are the
-  # negative and positive ends.
-  to_hex <- function(x) {
-    channels <- as.integer(strsplit(
-      gsub("^rgba\\(|,[^,]*\\)$", "", x),
-      ","
-    )[[1L]])
-    toupper(grDevices::rgb(
-      channels[[1L]],
-      channels[[2L]],
-      channels[[3L]],
-      maxColorValue = 255
-    ))
-  }
-  expect_identical(to_hex(traces[[1L]]), signs[["negative"]])
-  expect_identical(to_hex(traces[[length(traces)]]), signs[["positive"]])
 })

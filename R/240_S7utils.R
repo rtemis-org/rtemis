@@ -60,10 +60,21 @@ BiasVariance <- new_class(
   )
 )
 
+# %% `$`.BiasVariance ----
+method(`$`, BiasVariance) <- function(x, name) {
+  prop_by_name(x, name)
+}
+
+
+# %% `.DollarNames`.BiasVariance ----
+method(`.DollarNames`, BiasVariance) <- function(x, pattern = "") {
+  prop_names_matching(x, pattern)
+}
+
+
 # %% `[[`.BiasVariance ----
-# Make BiasVariance props `[[`- accessible ----
 method(`[[`, BiasVariance) <- function(x, name) {
-  prop(x, name)
+  prop_by_name(x, name)
 }
 
 

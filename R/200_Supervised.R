@@ -278,7 +278,7 @@ varimp_column_names <- function(measures) {
 #' Columns follow the order of the measures. A predictor a measure does not
 #' cover is `NA` in that measure's column: some backends report only the
 #' predictors used in a split. A measure named `variable` or `fold`, or one
-#' repeating an earlier column, is labeled "<name> (measure)", since those
+#' repeating an earlier column, is labeled "`<name> (measure)`", since those
 #' column names carry the table's structure.
 #'
 #' The table holds the values only. What each measure quantifies, the cases it
@@ -1989,7 +1989,6 @@ write_Supervised <- function(
   object,
   outdir = NULL,
   save_mod = FALSE,
-  theme = choose_theme(getOption("rtemis_theme")),
   verbosity = 1L
 ) {
   if (verbosity > 0L) {
@@ -3284,6 +3283,25 @@ LightRuleFit <- new_class(
     complexity_metrics = class_data.frame
   )
 ) # /rtemis::LightRuleFit
+
+
+# %% `$`.LightRuleFit ----
+method(`$`, LightRuleFit) <- function(x, name) {
+  prop_by_name(x, name)
+}
+
+
+# %% `.DollarNames`.LightRuleFit ----
+method(`.DollarNames`, LightRuleFit) <- function(x, pattern = "") {
+  prop_names_matching(x, pattern)
+}
+
+
+# %% `[[`.LightRuleFit ----
+method(`[[`, LightRuleFit) <- function(x, name) {
+  prop_by_name(x, name)
+}
+
 
 # ConditionalSuperLearner ----
 #' ConditionalSuperLearner

@@ -223,19 +223,150 @@ is_integer_column <- function(x) {
 } # /rtemis::is_integer_column
 
 
-# %% impute_fill ----
-#' Fill a column's missing entries with one value, keeping the column's type
+# %% impute_kind ----
+#' Imputation kind of a column
 #'
-#' The value's type follows the column where the value allows it: a whole
-#' number fills an integer column as an integer, 0 or 1 fills a logical column
-#' as a logical, and a level absent from a factor's levels is added to them.
-#' Otherwise the column widens to the value's type, as base R subassignment
-#' does. One rule for training and new data, so that a value read back from a
-#' config fills a column exactly as the value computed from the training data
-#' did.
+#' Factor and character columns are categorical and take the
+#' `impute_categorical` statistic. Numeric columns, including integer and
+#' `bit64::integer64` columns, and logical columns take the `impute_numeric`
+#' statistic. Columns of any other type, such as dates, are not imputed.
+#'
+#' @param column Vector: Column.
+#'
+#' @return Character \{"level", "numeric"\}, the element of the imputation
+#'   value lists that holds the column's value, or NULL for a column that is not
+#'   imputed.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+impute_kind <- function(column) {
+  if (is.factor(column) || is.character(column)) {
+    "level"
+  } else if (is.numeric(column) || is.logical(column)) {
+    "numeric"
+  } else {
+    NULL
+  }
+} # /rtemis::impute_kind
+
+
+# %% impute_statistic ----
+#' Compute the value imputed into a column
+#'
+#' Categorical columns take the mode. A tie goes to the first tied level of a
+#' factor and to the first tied value in code point order of a character
+#' column; radix sorting orders strings by bytes, which is code point order in
+#' UTF-8, independently of the locale. Numeric and logical columns take the mean
+#' or median of their observed values; integer, `bit64::integer64` and logical
+#' columns take it rounded half to even, so the value has the column's type. For
+#' a logical column this is the more frequent value, FALSE on a tie.
+#'
+#' @param column Vector: Column with at least one observed value, of a type
+#'   `impute_kind()` assigns a kind.
+#' @param numeric Character \{"mean", "median"\}: Statistic for numeric and
+#'   logical columns.
+#' @param categorical Character \{"mode"\}: Statistic for factor and character
+#'   columns.
+#'
+#' @return Character scalar for a factor or character column, numeric scalar
+#'   otherwise.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+impute_statistic <- function(column, numeric, categorical) {
+  if (is.factor(column) || is.character(column)) {
+    observed <- if (is.factor(column)) {
+      levels(column)
+    } else {
+      column <- enc2utf8(column)
+      sort(unique(column[!is.na(column)]), method = "radix")
+    }
+    counts <- tabulate(match(column, observed), nbins = length(observed))
+    return(switch(categorical, mode = observed[[which.max(counts)]]))
+  }
+  observed <- as.numeric(column[!is.na(column)])
+  value <- switch(
+    numeric,
+    mean = mean(observed),
+    median = stats::median(observed)
+  )
+  if (is_integer_column(column) || is.logical(column)) {
+    round(value)
+  } else {
+    value
+  }
+} # /rtemis::impute_statistic
+
+
+# %% impute_cast ----
+#' Cast an imputation value to its column's type
+#'
+#' A computed value always has its column's type; a supplied value must
+#' represent one exactly. An integer column takes a whole number, within the
+#' integer range for an integer vector, and a logical column takes 0 or 1. The
+#' column's type never changes.
+#'
+#' @param column Vector: Column the value is imputed into.
+#' @param value Scalar: Value to impute.
+#' @param name Character: Column name, for the error message.
+#'
+#' @return `value` as a length-one vector of the column's type; character for a
+#'   factor column.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+impute_cast <- function(column, value, name) {
+  if (is.factor(column) || is.character(column)) {
+    return(as.character(value))
+  }
+  if (is.logical(column)) {
+    if (!isTRUE(value %in% c(0, 1))) {
+      rtemis.core::abort(
+        "Imputation value ",
+        format(value),
+        " for logical feature '",
+        name,
+        "' is not 0 or 1.\n",
+        "Set its entry in `impute_numeric_values` to 1 for TRUE or 0 for FALSE.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+    return(as.logical(value))
+  }
+  if (is_integer_column(column)) {
+    in_range <- isTRUE(value == round(value)) &&
+      (!is.integer(column) || abs(value) <= .Machine[["integer.max"]])
+    if (!in_range) {
+      rtemis.core::abort(
+        "Imputation value ",
+        format(value),
+        " for integer feature '",
+        name,
+        "' is not a whole number in the integer range.\n",
+        "Supply a whole number in `impute_numeric_values`, ",
+        "or convert integer features to numeric with `integer2numeric = TRUE`.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+    return(
+      if (is.integer(column)) as.integer(value) else bit64::as.integer64(value)
+    )
+  }
+  as.numeric(value)
+} # /rtemis::impute_cast
+
+
+# %% impute_fill ----
+#' Fill a column's missing entries with one value of the column's type
+#'
+#' A factor lacking the value as a level gains it. The whole column is
+#' returned, for replacement with `data.table::set()`.
 #'
 #' @param column Vector: Column with missing entries.
-#' @param value Scalar: Value to impute.
+#' @param value Scalar: Value returned by `impute_cast()` for the column.
 #'
 #' @return The column with its missing entries filled.
 #'
@@ -243,155 +374,69 @@ is_integer_column <- function(x) {
 #' @keywords internal
 #' @noRd
 impute_fill <- function(column, value) {
-  if (is.factor(column)) {
-    value <- as.character(value)
-    if (!value %in% levels(column)) {
-      levels(column) <- c(levels(column), value)
-    }
-  } else if (is.character(column)) {
-    value <- as.character(value)
-  } else if (is.integer(column) && value == round(value)) {
-    value <- as.integer(value)
-  } else if (is.logical(column) && value %in% c(0, 1)) {
-    value <- as.logical(value)
-  } else {
-    value <- as.numeric(value)
+  if (is.factor(column) && !value %in% levels(column)) {
+    levels(column) <- c(levels(column), value)
   }
   column[is.na(column)] <- value
   column
 } # /rtemis::impute_fill
 
 
-# %% dt_impute_columns ----
-#' Impute a working table's missing values, one column at a time
-#'
-#' Every selected column receives one imputation value: the value `values`
-#' carries for it, or else the value `fn` computes from the column. The value is
-#' determined for every selected column, including columns with no missing
-#' entries, so that a preprocessor fitted on training data imputes new data with
-#' the training values. Factor and character columns take their value from and
-#' report it to `values[["level"]]`; numeric and logical columns use
-#' `values[["numeric"]]`, a logical value stored as 1 for true and 0 for false.
-#' A column whose computed value is missing, such as an entirely missing
-#' column, receives none.
-#'
-#' Each column is replaced whole rather than assigned into at the missing
-#' positions: a partial `set()` coerces the value into the column's existing
-#' type, so a mean imputed into an integer column would be truncated where a
-#' data.frame subassignment widens the column. `impute_discrete` and
-#' `impute_continuous` are free-text function names, so the value's type is not
-#' knowable here.
-#'
-#' @param x data.table: Working table. Modified in place.
-#' @param fn Character: Name of a function returning one value from a vector.
-#' @param select Function: Predicate choosing the columns `fn` applies to.
-#' @param values List with optional named vectors `numeric` and `level`:
-#'   Values to impute, keyed by column name.
-#' @param columns Character: Names of the columns considered.
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @return List with named vectors `numeric` and `level`: The value used for
-#'   each selected column.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-dt_impute_columns <- function(
-  x,
-  fn,
-  select,
-  values = list(),
-  columns = names(x),
-  verbosity = 1L
-) {
-  used <- list(numeric = numeric(), level = character())
-  for (nm in intersect(names(x), columns)) {
-    column <- x[[nm]]
-    if (!select(column)) {
-      next
-    }
-    kind <- if (is.factor(column) || is.character(column)) {
-      "level"
-    } else {
-      "numeric"
-    }
-    value <- if (nm %in% names(values[[kind]])) {
-      values[[kind]][[nm]]
-    } else if (all(is.na(column))) {
-      NA
-    } else {
-      do_call(fn, list(column, na.rm = TRUE), verbosity = verbosity)
-    }
-    if (length(value) != 1L) {
-      rtemis.core::abort(
-        "Imputation function '",
-        fn,
-        "' returned ",
-        length(value),
-        " values for feature '",
-        nm,
-        "'.\nUse a function that returns a single value from a vector.",
-        class = c("rtemis_value_error", "rtemis_input_error")
-      )
-    }
-    if (is.na(value)) {
-      next
-    }
-    used[[kind]][[nm]] <- if (kind == "level") {
-      as.character(value)
-    } else {
-      as.numeric(value)
-    }
-    if (anyNA(column)) {
-      data.table::set(x, j = nm, value = impute_fill(column, value))
-    }
-  }
-  used
-} # /rtemis::dt_impute_columns
-
-
 # %% impute_mean_mode ----
-#' Mean and mode imputation of a working table
+#' Impute a working table's missing values, one value per column
 #'
-#' Discrete columns first: `is_discrete()` claims integer and logical, so those
-#' columns take `impute_discrete` and the continuous pass selects only double
-#' columns.
+#' Every column `impute_kind()` assigns a kind receives one value: the value
+#' `config` supplies for it, or else the value `impute_statistic()` computes
+#' from the column. The value is determined for every such column, including
+#' columns with no missing entries, so that a preprocessor fitted on training
+#' data imputes new data with the training values. A column with no observed
+#' values and no supplied value receives none.
 #'
 #' @param x data.table: Working table. Modified in place.
 #' @param config `PreprocessorConfig` or `SupervisedPreprocessorConfig` object.
 #' @param columns Character: Names of the columns considered.
-#' @param verbosity Integer: Verbosity level.
 #'
 #' @return List with named vectors `numeric` and `level`, NULL where empty: The
-#'   value used for each column.
+#'   value used for each column, a logical value stored as 1 for TRUE and 0 for
+#'   FALSE.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-impute_mean_mode <- function(x, config, columns = names(x), verbosity = 1L) {
+impute_mean_mode <- function(x, config, columns = names(x)) {
   supplied <- list(
     numeric = config@impute_numeric_values,
     level = config@impute_level_values
   )
-  discrete <- dt_impute_columns(
-    x,
-    config@impute_discrete,
-    is_discrete,
-    supplied,
-    columns,
-    verbosity
-  )
-  continuous <- dt_impute_columns(
-    x,
-    config@impute_continuous,
-    function(column) is.numeric(column) && !is_discrete(column),
-    supplied,
-    columns,
-    verbosity
-  )
+  used <- list(numeric = numeric(), level = character())
+  for (nm in intersect(names(x), columns)) {
+    column <- x[[nm]]
+    kind <- impute_kind(column)
+    if (is.null(kind)) {
+      next
+    }
+    is_supplied <- nm %in% names(supplied[[kind]])
+    if (!is_supplied && all(is.na(column))) {
+      next
+    }
+    value <- if (is_supplied) {
+      supplied[[kind]][[nm]]
+    } else {
+      impute_statistic(
+        column,
+        numeric = config@impute_numeric,
+        categorical = config@impute_categorical
+      )
+    }
+    filler <- impute_cast(column, value, nm)
+    used[[kind]][[nm]] <- if (kind == "level") filler else as.numeric(value)
+    if (anyNA(column)) {
+      data.table::set(x, j = nm, value = impute_fill(column, filler))
+    }
+  }
   list(
-    numeric = iflengthy(c(discrete[["numeric"]], continuous[["numeric"]])),
-    level = iflengthy(c(discrete[["level"]], continuous[["level"]]))
+    numeric = iflengthy(used[["numeric"]]),
+    level = iflengthy(used[["level"]])
   )
 } # /rtemis::impute_mean_mode
 
@@ -404,9 +449,9 @@ impute_mean_mode <- function(x, config, columns = names(x), verbosity = 1L) {
 #' data `predict()` draws its initial values from. Applying calls `predict()`.
 #'
 #' A feature with no missing training values has no forest, and `predict()`
-#' stops on a missing value in it. Such features take a mean or mode value
-#' instead (`impute_discrete`, `impute_continuous`), computed on the training
-#' data and filled in before `predict()` runs.
+#' stops on a missing value in it. Such features take their `impute_numeric`
+#' or `impute_categorical` value instead, computed on the training data and
+#' filled in before `predict()` runs.
 #'
 #' @param x data.table: Working table.
 #' @param config `PreprocessorConfig` or `SupervisedPreprocessorConfig` object.
@@ -434,7 +479,7 @@ impute_missranger <- function(x, config, imputer = NULL, verbosity = 1L) {
       }
     }
     complete <- names(x)[!vapply(x, anyNA, logical(1L))]
-    fallback <- impute_mean_mode(x, config, complete, verbosity)
+    fallback <- impute_mean_mode(x, config, complete)
     # missRanger rebuilds the frame, so it is handed a data.frame and its
     # result is adopted as the working table. `setDT()` is by reference, which
     # is safe on an object it just created.
@@ -459,8 +504,7 @@ impute_missranger <- function(x, config, imputer = NULL, verbosity = 1L) {
     fallback <- impute_mean_mode(
       x,
       config,
-      setdiff(names(x), imputer[["to_impute"]]),
-      verbosity
+      setdiff(names(x), imputer[["to_impute"]])
     )
     x <- data.table::setDT(stats::predict(
       imputer,
@@ -1037,14 +1081,14 @@ preprocess_data <- function(
     } else {
       # '- mean/mode ----
       msg(
-        "Imputing missing values using",
-        config@impute_discrete,
-        "(discrete) and",
-        config@impute_continuous,
-        "(continuous)...",
+        "Imputing missing values using the",
+        config@impute_numeric,
+        "(numeric) and",
+        config@impute_categorical,
+        "(categorical)...",
         verbosity = verbosity
       )
-      used <- impute_mean_mode(x, config, verbosity = verbosity)
+      used <- impute_mean_mode(x, config)
       values[["impute_numeric_values"]] <- used[["numeric"]]
       values[["impute_level_values"]] <- used[["level"]]
     }

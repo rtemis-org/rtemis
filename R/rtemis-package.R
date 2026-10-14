@@ -11,17 +11,11 @@
 #' @section Online Documentation and Vignettes:
 #' <https://docs.rtemis.org/r/ml>
 #'
-#' @section System Setup:
-#' There are some options you can define in your .Rprofile (usually found in your home directory),
-#' so you do not have to define each time you execute a function.
-#' \describe{
-#'     \item{rtemis_theme}{General plotting theme; set to e.g. "whiteigrid" or "darkgraygrid"}
-#'     \item{rtemis_font}{Font family to use in plots.}
-#'     \item{rtemis_palette}{Name of default palette to use in plots. See options by running `get_palette()`}
-#' }
 #' @section Visualization:
-#' Graphics are handled using the `draw` family, which produces interactive plots primarily using
-#' `plotly` and other packages.
+#' Model plots (`plot_true_pred()`, `plot_roc()`, `plot_varimp()`, `plot_metric()`,
+#' `plot_learning()`, `plot_session()`, `plot_manhattan()`) and `present()` render
+#' interactive charts through 'rtemis.draw', which also provides the `draw_*()` functions for
+#' data. `draw_linad()` draws a LINAD tree.
 #'
 #' @section Supervised Learning:
 #' By convention, the last column of the data is the outcome variable, and all other columns are

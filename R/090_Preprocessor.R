@@ -84,13 +84,15 @@ SUPERVISED_IMPUTE_TYPES <- c("meanMode", "missRanger")
       value = list(pmm.k = 3, maxiter = 10, num.trees = 500)
     )
   ),
-  impute_discrete = prop_string(
-    "get_mode",
-    description = "Function name to impute discrete features."
-  ),
-  impute_continuous = prop_string(
+  impute_numeric = prop_string(
     "mean",
-    description = "Function name to impute continuous features."
+    enum = c("mean", "median"),
+    description = "Statistic imputed into a numeric or logical feature: every such feature when impute_type is \"meanMode\", and a feature with no missing training values when impute_type is \"missRanger\". An integer feature takes the statistic rounded half to even, so it remains integer. A logical feature, with false as 0 and true as 1, takes the statistic rounded half to even: its more frequent value, and false on a tie."
+  ),
+  impute_categorical = prop_string(
+    "mode",
+    enum = "mode",
+    description = "Statistic imputed into a categorical or text feature: every such feature when impute_type is \"meanMode\", and a feature with no missing training values when impute_type is \"missRanger\". \"mode\" is the most frequent value; a tie goes to the first tied level of a categorical feature and to the first tied value in Unicode code point order of a text feature."
   ),
   # Settable and run-written, as `scale_centers` below.
   impute_numeric_values = prop_map(
@@ -476,13 +478,12 @@ method(repr, SupervisedPreprocessorConfig) <- function(
 #' features. Not available inside [train]: each resample would learn its own set, so the folds would train on different features. Name the columns with `remove_features` instead, or drop them beforehand with [preprocess].
 #' @param missingness Logical: If TRUE, generate new boolean columns for each
 #' feature with missing values, indicating which cases were missing data.
-#' @param impute Logical: If TRUE, impute missing cases. See `impute_discrete` and
-#' `impute_continuous`.
+#' @param impute Logical: If TRUE, impute missing cases. See `impute_type`.
 #' @param impute_type Character \{"missRanger", "micePMM", "meanMode"\}:
 #'   Imputation method. "missRanger" fits one random forest per feature with
 #'   missing values, kept in the `Preprocessor` and applied to new data by
-#'   [apply_preprocessor]. "meanMode" imputes the values that `impute_discrete`
-#'   and `impute_continuous` compute on the training data. "micePMM" imputes by
+#'   [apply_preprocessor]. "meanMode" imputes the values that `impute_numeric`
+#'   and `impute_categorical` compute on the training data. "micePMM" imputes by
 #'   predictive mean matching with 'mice', which imputes only the data it is
 #'   run on: a `Preprocessor` using it cannot be applied to new data. See the
 #'   Imputation section.
@@ -491,25 +492,34 @@ method(repr, SupervisedPreprocessorConfig) <- function(
 #'   greater than 0 results in predictive mean matching. Reduce `num.trees` for
 #'   faster imputation especially in large datasets. Set `pmm.k = 0` to
 #'   disable predictive mean matching.
-#' @param impute_discrete Character: Name of function that returns single value: How to impute
-#'   discrete variables for `impute_type = "meanMode"`, and for features with no
-#'   missing training values for `impute_type = "missRanger"`.
-#' @param impute_continuous Character: Name of function that returns single value: How to impute
-#'   continuous variables for `impute_type = "meanMode"`, and for features with
-#'   no missing training values for `impute_type = "missRanger"`.
+#' @param impute_numeric Character \{"mean", "median"\}: Statistic imputed into
+#'   numeric and logical features for `impute_type = "meanMode"`, and into such
+#'   features with no missing training values for `impute_type = "missRanger"`.
+#'   Integer and `bit64::integer64` features take the statistic rounded half to
+#'   even, so they remain integer. Logical features take the statistic of their
+#'   0/1 values rounded half to even: the more frequent value, FALSE on a tie.
+#'   Integer features that code categories belong in factors: see
+#'   `integer2factor`.
+#' @param impute_categorical Character \{"mode"\}: Statistic imputed into factor
+#'   and character features for `impute_type = "meanMode"`, and into such
+#'   features with no missing training values for `impute_type = "missRanger"`.
+#'   "mode" is the most frequent value. A tie goes to the first tied level of a
+#'   factor and to the first tied value in Unicode code point order of a
+#'   character feature.
 #' @param impute_numeric_values Optional Named vector: Value imputed into
 #'   numeric or logical features, keyed by feature name; a logical feature
 #'   takes 1 as TRUE and 0 as FALSE. Covers every such feature for
 #'   `impute_type = "meanMode"` and features with no missing training values
 #'   for `impute_type = "missRanger"`. Used in place of the value
-#'   `impute_discrete` or `impute_continuous` computes. [preprocess] stores the
+#'   `impute_numeric` computes. A value for an integer feature must be a whole
+#'   number, and a value for a logical feature 0 or 1. [preprocess] stores the
 #'   values it uses in the `Preprocessor`, and [apply_preprocessor] imputes new
 #'   data with them.
 #' @param impute_level_values Optional Named vector: Value imputed into factor
 #'   or character features, keyed by feature name. Covers every such feature
 #'   for `impute_type = "meanMode"` and features with no missing training
 #'   values for `impute_type = "missRanger"`. Used in place of the value
-#'   `impute_discrete` computes. [preprocess] stores the values it uses in the
+#'   `impute_categorical` computes. [preprocess] stores the values it uses in the
 #'   `Preprocessor`, and [apply_preprocessor] imputes new data with them.
 #' @param integer2factor Logical: If TRUE, convert all integers to factors. This includes
 #'   `bit64::integer64` columns.
@@ -582,14 +592,17 @@ method(repr, SupervisedPreprocessorConfig) <- function(
 #'
 #' @section Imputation:
 #' "meanMode" stores one value per feature, computed on the data `preprocess()`
-#' is given, and [apply_preprocessor] imputes new data with those values.
+#' is given, and [apply_preprocessor] imputes new data with those values. Each
+#' value has its feature's type: an integer feature receives an integer, a
+#' logical feature a logical, and a factor one of its levels.
 #'
 #' "missRanger" fits one random forest per feature with missing values and
 #' keeps the forests, and a copy of the data `predict()` draws starting values
 #' from, in the `Preprocessor`, which therefore grows with the data. The
 #' forests are an R object: a config written to JSON carries the method and its
 #' parameters, not the forests. A feature with no missing values in the data
-#' has no forest and takes a mean or mode value when it is missing in new data.
+#' has no forest and takes its `impute_numeric` or `impute_categorical` value
+#' when it is missing in new data.
 #' `predict()` stops on a factor level of an imputed feature that is absent
 #' from the data the forests were fitted on.
 #'
@@ -658,8 +671,8 @@ setup_Preprocessor <- function(
     maxiter = 10,
     num.trees = 500
   ),
-  impute_discrete = "get_mode",
-  impute_continuous = "mean",
+  impute_numeric = c("mean", "median"),
+  impute_categorical = "mode",
   impute_numeric_values = NULL,
   impute_level_values = NULL,
   integer2factor = FALSE,
@@ -706,6 +719,7 @@ setup_Preprocessor <- function(
     impute_type,
     c("missRanger", "micePMM", "meanMode")
   )
+  impute_numeric <- match_arg(impute_numeric, c("mean", "median"))
   # Integer-typed properties; clean friendly numeric input (`exclude` is
   # vector-valued, which `clean_int()` handles elementwise).
   numeric_cut_n <- clean_int(numeric_cut_n)
@@ -732,8 +746,8 @@ setup_Preprocessor <- function(
     impute = impute,
     impute_type = impute_type,
     impute_missRanger_params = impute_missRanger_params,
-    impute_discrete = impute_discrete,
-    impute_continuous = impute_continuous,
+    impute_numeric = impute_numeric,
+    impute_categorical = impute_categorical,
     impute_numeric_values = impute_numeric_values,
     impute_level_values = impute_level_values,
     integer2factor = integer2factor,
@@ -814,8 +828,8 @@ setup_Preprocessor <- function(
 #'
 #' @inheritParams setup_Preprocessor
 #' @param impute_type Character \{"meanMode", "missRanger"\}: Imputation
-#'   method. "meanMode" imputes the values that `impute_discrete` and
-#'   `impute_continuous` compute on the training data. "missRanger" fits one
+#'   method. "meanMode" imputes the values that `impute_numeric` and
+#'   `impute_categorical` compute on the training data. "missRanger" fits one
 #'   random forest per feature with missing values, applied to validation, test
 #'   and new data with `predict()`; it multiplies the memory and computation of
 #'   a [train] run. See the Imputation section.
@@ -845,8 +859,8 @@ setup_Preprocessor <- function(
 #'   JSON carries the method and its parameters, not the forests, so a model
 #'   rebuilt from JSON cannot impute new data with them.
 #' - It has a forest only for features with missing values in the training
-#'   data. Other features take a mean or mode value, computed on the training
-#'   data, when they are missing in new data.
+#'   data. Other features take their `impute_numeric` or `impute_categorical`
+#'   value, computed on the training data, when they are missing in new data.
 #' - `predict()` stops on a factor level of an imputed feature that is absent
 #'   from the training data.
 #'
@@ -869,8 +883,8 @@ setup_SupervisedPreprocessor <- function(
     maxiter = 10,
     num.trees = 500
   ),
-  impute_discrete = "get_mode",
-  impute_continuous = "mean",
+  impute_numeric = c("mean", "median"),
+  impute_categorical = "mode",
   impute_numeric_values = NULL,
   impute_level_values = NULL,
   integer2factor = FALSE,
@@ -911,6 +925,7 @@ setup_SupervisedPreprocessor <- function(
   origins <- supplied_origins()
   apply_setup_defaults(SupervisedPreprocessorConfig)
   impute_type <- match_arg(impute_type, SUPERVISED_IMPUTE_TYPES)
+  impute_numeric <- match_arg(impute_numeric, c("mean", "median"))
   numeric_cut_n <- clean_int(numeric_cut_n)
   numeric_quant_n <- clean_int(numeric_quant_n)
   unique_len2factor <- clean_int(unique_len2factor)
@@ -928,8 +943,8 @@ setup_SupervisedPreprocessor <- function(
     impute = impute,
     impute_type = impute_type,
     impute_missRanger_params = impute_missRanger_params,
-    impute_discrete = impute_discrete,
-    impute_continuous = impute_continuous,
+    impute_numeric = impute_numeric,
+    impute_categorical = impute_categorical,
     impute_numeric_values = impute_numeric_values,
     impute_level_values = impute_level_values,
     integer2factor = integer2factor,

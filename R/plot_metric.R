@@ -145,9 +145,10 @@ extract_metric_plot_data <- function(x, what = "all", metric = NULL) {
 #' @keywords internal
 #' @noRd
 draw_model_metric <- function(x, what = "all", metric = NULL, ...) {
-  rtemis.draw::draw_metric(
-    metric_plot_data(x, what = what, metric = metric),
-    ...
+  data <- metric_plot_data(x, what = what, metric = metric)
+  do.call(
+    rtemis.draw::draw_metric,
+    c(list(data), split_palette(list(...), unique(data[["split"]])))
   )
 }
 

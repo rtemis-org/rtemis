@@ -145,9 +145,9 @@ read_config <- function(file) {
 #'
 #' Guards an argument documented as one S7 class before it is used as one,
 #' across the package (`train()`, `tune()`, `resample()`, `preprocess()`,
-#' `decomp()`, `cluster()`, `explain()`, every `draw_*()`, and more). Uses
+#' `decomp()`, `cluster()`, `explain()`, `draw_linad()`, and more). Uses
 #' `S7_inherits()`: every call site passes an S7 class *object* (`IngestConfig`,
-#' `Theme`, ...) as `cls`, and base R's `inherits()`, which
+#' `rtemis.draw::Theme`, ...) as `cls`, and base R's `inherits()`, which
 #' `rtemis.core::check_inherits()` wraps, expects a character class name.
 #'
 #' @param x Object to check.

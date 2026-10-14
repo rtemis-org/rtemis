@@ -1,7 +1,7 @@
 Package: rtemis
 Version: 1.4.2
 Title: Advanced Machine Learning and Visualization
-Date: 2026-10-10
+Date: 2026-10-13
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
     email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
 Description: Schema-driven machine learning and visualization package with an 'S7' backend 
@@ -33,7 +33,7 @@ Imports:
     parallel,
     parallelly,
     rtemis.core (>= 0.4.5),
-    rtemis.draw (>= 0.5.4),
+    rtemis.draw (>= 0.5.3),
     stats,
     S7,
     utils
@@ -42,10 +42,8 @@ Suggests:
     bit64,
     car,
     cluster,
-    colorspace,
     DBI,
     dbscan,
-    dendextend (>= 0.18.0),
     duckdb,
     e1071,
     earth,
@@ -54,26 +52,18 @@ Suggests:
     flexclust,
     fpc,
     future.mirai,
-    geojsonio,
-    geosphere,
-    ggplot2,
     glmnet,
-    glue,
     grid,
     gsubfn,
     hal9001,
     haven,
-    heatmaply,
     hopach,
     htmltools,
-    htmlwidgets,
-    igraph,
     jsonlite,
     jsonvalidate,
     kernlab,
     kknn,
     later,
-    leaflet,
     leaps,
     lightAUC,
     lightgbm,
@@ -85,32 +75,23 @@ Suggests:
     missRanger,
     mori,
     nanonext,
-    networkD3,
     NMF,
     nnls,
-    openxlsx,
     partykit,
-    plotly,
     pROC,
-    psych,
-    pvclust,
     ranger,
-    reactable,
     readxl,
-    reticulate,
     ROCR,
     rpart,
     rtemis.llm (>= 0.8.7),
     Rtsne,
     seqinr,
-    sf,
     shapr,
     spls,
     stochtree,
     survival,
     tabnet,
     testthat (>= 3.0.0),
-    threejs,
     tibble,
     timeDate,
     torch,
@@ -123,7 +104,6 @@ Encoding: UTF-8
 Language: en-US
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
-LazyData: true
 Config/roxygen2/version: 8.1.1
 Collate:
     '005_HyperparameterCandidates.R'
@@ -166,7 +146,6 @@ Collate:
     '190_SuperConfig.R'
     '200_Supervised.R'
     '210_MassUni.R'
-    '220_Themes.R'
     '230_CheckData.R'
     '240_S7utils.R'
     '250_Explanation.R'
@@ -191,7 +170,6 @@ Collate:
     'cluster_flexclust.R'
     'conditions.R'
     'conformal.R'
-    'data_xt_example.R'
     'ddb.R'
     'decomp.R'
     'decomp_Autoencoder.R'
@@ -205,29 +183,7 @@ Collate:
     'decomp_dist.R'
     'decomp_metrics.R'
     'decomp_tSNE.R'
-    'draw_3Dscatter.R'
-    'draw_bar.R'
-    'draw_box.R'
-    'draw_calibration.R'
-    'draw_confusion.R'
-    'draw_dist.R'
-    'draw_graphd3.R'
-    'draw_graphjs.R'
-    'draw_heatmap.R'
-    'draw_leaflet.R'
     'draw_linad.R'
-    'draw_pie.R'
-    'draw_protein.R'
-    'draw_pvals.R'
-    'draw_roc.R'
-    'draw_scatter.R'
-    'draw_spectrogram.R'
-    'draw_survfit.R'
-    'draw_table.R'
-    'draw_ts.R'
-    'draw_varimp.R'
-    'draw_volcano.R'
-    'draw_xt.R'
     'explain.R'
     'fit_predict.R'
     'fmt.R'
@@ -254,9 +210,9 @@ Collate:
     'resolve_hyperparameters.R'
     'result_storage.R'
     'review.R'
+    'roc_curve.R'
     'rtemis-package.R'
     'rtemis_color_system.R'
-    'theme.R'
     'train.R'
     'train_BART.R'
     'train_CART.R'
@@ -301,16 +257,11 @@ Collate:
     'utils_io.R'
     'utils_lightgbm.R'
     'utils_markdown.R'
-    'utils_palettes.R'
-    'utils_plot.R'
-    'utils_plotly.R'
     'utils_print.R'
     'utils_rt.R'
     'utils_rules.R'
     'utils_strings.R'
     'utils_supervised.R'
-    'utils_uniprot.R'
-    'utils_xt.R'
     'validate_config.R'
     'validate_data.R'
     'write_config.R'

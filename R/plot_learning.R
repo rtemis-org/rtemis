@@ -56,5 +56,20 @@ draw_model_learning_curve <- function(
       class = c("rtemis_unsupported_error", "rtemis_input_error")
     )
   }
-  rtemis.draw::draw_learning_curve(curve, title = title, ...)
+  # Series follow draw_learning_curve(): each recorded loss, then the selected
+  # step's marker.
+  recorded <- vapply(
+    c("loss_training", "loss_validation"),
+    function(column) column %in% names(curve) && any(!is.na(curve[[column]])),
+    logical(1L)
+  )
+  args <- split_palette(
+    list(...),
+    c("training", "validation")[recorded],
+    extra = sign_colors()[["neutral"]]
+  )
+  do.call(
+    rtemis.draw::draw_learning_curve,
+    c(list(curve, title = title), args)
+  )
 }

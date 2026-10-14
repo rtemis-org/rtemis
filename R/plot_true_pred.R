@@ -146,10 +146,11 @@ extract_regression_plot_data <- function(x, what = "all", labelify = TRUE) {
 #' @noRd
 draw_regression_predictions <- function(x, what = "all", labelify = TRUE, ...) {
   data <- regression_plot_data(x, what = what, labelify = labelify)
-  rtemis.draw::draw_fit(
-    data[["true"]],
-    data[["predicted"]],
-    group = data[["sample"]],
-    ...
+  do.call(
+    rtemis.draw::draw_fit,
+    c(
+      list(data[["true"]], data[["predicted"]], group = data[["sample"]]),
+      split_palette(list(...), unique(data[["sample"]]))
+    )
   )
 }
