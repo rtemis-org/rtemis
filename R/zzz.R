@@ -34,7 +34,11 @@ utils::globalVariables("self")
 .onLoad <- function(libname, pkgname) {
   .schema_catalog_cache[["ready"]] <- TRUE
   # S7
-  S7::methods_register()
+  if ("S7_on_load" %in% getNamespaceExports("S7")) {
+    S7::S7_on_load()
+  } else {
+    S7::methods_register()
+  }
   # Set default options if not already set by user
   if (is.null(getOption("rtemis_theme"))) {
     options(rtemis_theme = "whitegrid")
@@ -109,5 +113,11 @@ utils::globalVariables("self")
         utils::sessionInfo()[[2]]
       )
     )
+  }
+}
+
+.onUnload <- function(libpath) {
+  if ("S7_on_unload" %in% getNamespaceExports("S7")) {
+    S7::S7_on_unload()
   }
 }
