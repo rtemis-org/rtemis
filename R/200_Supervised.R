@@ -3855,7 +3855,7 @@ stored_supervised_metrics <- function(x, sample, calibrated, samples) {
       "`sample` is required for a ",
       class_name,
       " object. This object stores metrics for: ",
-      paste(shQuote(stored), collapse = ", "),
+      paste(encodeString(stored, quote = "'"), collapse = ", "),
       ".",
       class = c("rtemis_value_error", "rtemis_input_error")
     )
@@ -3864,11 +3864,11 @@ stored_supervised_metrics <- function(x, sample, calibrated, samples) {
   if (!sample %in% samples) {
     abort(
       "`sample` must be one of ",
-      paste(shQuote(samples), collapse = ", "),
+      paste(encodeString(samples, quote = "'"), collapse = ", "),
       " for a ",
       class_name,
       " object. Received: ",
-      shQuote(sample),
+      encodeString(sample, quote = "'"),
       ".",
       class = c("rtemis_value_error", "rtemis_input_error")
     )
@@ -3882,7 +3882,7 @@ stored_supervised_metrics <- function(x, sample, calibrated, samples) {
       " metrics: train() received no `dat_",
       sample,
       "`. It stores metrics for: ",
-      paste(shQuote(stored), collapse = ", "),
+      paste(encodeString(stored, quote = "'"), collapse = ", "),
       ".",
       class = c("rtemis_value_error", "rtemis_input_error")
     )
