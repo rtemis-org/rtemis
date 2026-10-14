@@ -139,7 +139,7 @@ prop_by_name <- function(x, name) {
   if (!is.character(name) || length(name) != 1L || !name %in% available) {
     abort(
       "No property named ",
-      shQuote(paste(format(name), collapse = " ")),
+      encodeString(paste(format(name), collapse = " "), quote = "'"),
       " in ",
       S7_class(x)@name,
       " object. Available properties: ",
