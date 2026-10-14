@@ -19,9 +19,11 @@ test_that("learning methods dispatch on fitted regression and classification obj
     expect_s3_class(drawing, "htmlwidget")
     expect_identical(
       drawing[["x"]],
-      rtemis.draw::draw_learning_curve(curve, title = "LINAD learning curve")[[
-        "x"
-      ]]
+      rtemis.draw::draw_learning_curve(
+        curve,
+        title = "LINAD learning curve",
+        palette = c("#6CA3A0", "#808080")
+      )[["x"]]
     )
     expect_identical(
       drawing[["x"]][["option"]][["xAxis"]][["name"]],

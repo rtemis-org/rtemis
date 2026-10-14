@@ -124,5 +124,32 @@ draw_classification_predictions <- function(
   labelify = TRUE,
   ...
 ) {
-  rtemis.draw::draw_confusion(classification_plot_data(x, what, labelify), ...)
+  args <- list(...)
+  colors <- confusion_colors()
+  args[["correct_color"]] <- args[["correct_color"]] %||% colors[["correct"]]
+  args[["incorrect_color"]] <- args[["incorrect_color"]] %||%
+    colors[["incorrect"]]
+  do.call(
+    rtemis.draw::draw_confusion,
+    c(list(classification_plot_data(x, what, labelify)), args)
+  )
+}
+
+
+# %% draw_classification_default ----
+#' Draw the default view of a classification model
+#'
+#' Registered as the `plot()` method for `Classification`.
+#' @inheritParams classification_plot_data
+#' @param ... Additional named settings for [rtemis.draw::draw_confusion()].
+#' @return An ECharts htmlwidget with one confusion panel per sample.
+#' @keywords internal
+#' @noRd
+draw_classification_default <- function(
+  x,
+  what = "all",
+  labelify = TRUE,
+  ...
+) {
+  draw_classification_predictions(x, what = what, labelify = labelify, ...)
 }

@@ -35,6 +35,87 @@ sign_colors <- function() {
 } # /rtemis::sign_colors
 
 
+# %% split_colors ----
+#' Data split colors
+#'
+#' Fixed color map for the training, validation and test data splits, so a
+#' split has the same color in every model plot: training teal, validation
+#' purple, test magenta. A plot that shows one split keeps that split's color.
+#'
+#' @param splits Optional Character: Split names, in display order, matched
+#'   case-insensitively against "training", "validation" and "test". `NULL`
+#'   returns the whole map.
+#'
+#' @return Named character vector of hex colors, one per element of `splits`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+split_colors <- function(splits = NULL) {
+  rtemis.core::check_character(splits, allow_null = TRUE)
+  fixed <- c(
+    training = rtemis_colors[["teal"]],
+    validation = rtemis_colors[["purple"]],
+    test = rtemis_colors[["magenta"]]
+  )
+  if (is.null(splits)) {
+    return(fixed)
+  }
+  key <- tolower(splits)
+  unknown <- setdiff(key, names(fixed))
+  if (length(unknown)) {
+    abort(
+      "Name splits as training, validation, or test; received: ",
+      paste(unknown, collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  stats::setNames(unname(fixed[key]), splits)
+} # /rtemis::split_colors
+
+
+# %% split_palette ----
+#' Add split colors to drawing arguments
+#'
+#' Sets `palette` to the colors of `splits` unless the caller supplies one.
+#'
+#' @param args List: Named drawing arguments.
+#' @param splits Character: Split names, in series order.
+#' @param extra Optional Character: Colors for series that follow the splits.
+#'
+#' @return List: `args`, with `palette` set.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+split_palette <- function(args, splits, extra = NULL) {
+  if (is.null(args[["palette"]])) {
+    args[["palette"]] <- c(unname(split_colors(splits)), extra)
+  }
+  args
+} # /rtemis::split_palette
+
+
+# %% confusion_colors ----
+#' Colors for correct and incorrect predictions
+#'
+#' Confusion matrices shade correct predictions toward blue and incorrect
+#' predictions toward orange. The pair stays distinct under color-vision
+#' deficiencies and from every `split_colors()` hue. It is rtemis.draw's sign
+#' pair from version 0.5.4; the hexes are fixed here so that model plots use
+#' them with any supported rtemis.draw version.
+#'
+#' @return Named character vector: `correct`, `incorrect`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+confusion_colors <- function() {
+  c(correct = "#2D83D3", incorrect = "#C55E28")
+} # /rtemis::confusion_colors
+
+
 # %% col2grayscale ----
 #' Color to grayscale
 #'

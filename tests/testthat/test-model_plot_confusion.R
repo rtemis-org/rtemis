@@ -57,7 +57,11 @@ test_that("ordinary classification uses stored counts, best sample, and draw-own
   )
   expect_identical(
     plot_true_pred(mod)[["x"]],
-    rtemis.draw::draw_confusion(data)[["x"]]
+    rtemis.draw::draw_confusion(
+      data,
+      correct_color = "#2D83D3",
+      incorrect_color = "#C55E28"
+    )[["x"]]
   )
   expect_identical(
     S7::method(rtemis::plot_true_pred, S7::S7_class(mod)),

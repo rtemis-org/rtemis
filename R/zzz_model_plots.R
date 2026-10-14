@@ -20,9 +20,12 @@ method(plot_varimp, SupervisedRes) <- draw_model_varimp
 method(plot_varimp, SHAP) <- draw_model_varimp
 method(metric_plot_data, SupervisedRes) <- extract_metric_plot_data
 method(plot_metric, SupervisedRes) <- draw_model_metric
-method(present, Regression) <- present_regression
-method(present, Classification) <- present_classification
-method(present, SupervisedRes) <- present_resampled
+method(plot, Regression) <- draw_regression_predictions
+method(plot, Classification) <- draw_classification_default
+method(plot, SupervisedRes) <- draw_model_metric
+method(present, Regression) <- present_model
+method(present, Classification) <- present_model
+method(present, SupervisedRes) <- present_model
 method(massglm_plot_data, MassGLM) <- extract_massglm_plot_data
 method(plot_manhattan, MassGLM) <- draw_massglm_manhattan
 method(plot, MassGLM) <- draw_massglm_volcano
