@@ -2,6 +2,8 @@
 
 ## 1.4.2
 
+- Updates for compatibility with S7 > 0.2.2.
+
 - The standalone Plotly, networkD3, threejs and leaflet `draw_*()` functions move to the 'rtemis.dplot' package on r-universe, with their themes (`theme_*()`, `choose_theme()`, `available_themes()`), palettes (`get_palette()`), color utilities (`col2grayscale()`, `color_adjust()`, `previewcolor()`), `available_draw()`, `uniprot_get()`, `xtdescribe()`, the `xt_example` data and the `rtemis_theme`, `rtemis_palette` and `rtemis_font` options. 'rtemis.draw' provides their replacements. rtemis keeps `draw_linad()`, which takes an 'rtemis.draw' `Theme`, and `roc_curve()`.
 - `setup_PCoA()` configures principal coordinates analysis (classical multidimensional scaling) on a choice of dissimilarities; it applies to new data through Gower's out-of-sample formula, so it can be `train()`'s decomposition step, and does not reconstruct the input.
 - `setup_MDS()` configures metric or nonmetric multidimensional scaling through 'vegan' with multiple starts; it cannot be applied to new data and does not reconstruct the input.

@@ -43,7 +43,7 @@ SumBound <- new_class(
   parent = SchemaRule,
   properties = list(
     properties = prop_string(
-      c("left", "right"),
+      quote(c("left", "right")),
       vector = TRUE,
       min_items = 2L,
       unique_items = TRUE,

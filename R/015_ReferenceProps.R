@@ -97,10 +97,11 @@ validate_reference_value <- function(value, fields) {
 # %% make_reference_prop ----
 #' Build an S7 property from a class-reference declaration
 #' @param spec `PropertySpec`: Reference declaration.
+#' @param default Literal or quoted constructor expression.
 #' @return S7 property.
 #' @keywords internal
 #' @noRd
-make_reference_prop <- function(spec) {
+make_reference_prop <- function(spec, default = spec@default) {
   fields <- spec_fields(spec)
   # Target identity is validated without loading or constructing that class.
   # This allows the same declaration to represent forward and recursive refs.
@@ -108,7 +109,7 @@ make_reference_prop <- function(spec) {
   p <- new_property(
     class = if (spec@nullable) NULL | cls else cls,
     default = if (spec@default_present || spec@nullable) {
-      spec@default
+      default
     } else {
       quote(
         rtemis.core::abort(
@@ -127,7 +128,8 @@ make_reference_prop <- function(spec) {
 # %% prop_object ----
 #' Declare a property holding an S7 object
 #' @param cls S7 class: Required object type, including its subclasses.
-#' @param default Optional: Literal or constructor expression evaluated per instance.
+#' @param default Optional: Literal or quoted constructor expression. Expressions
+#'   are evaluated once for declaration validation and metadata, then per instance.
 #' @param nullable Logical: Whether NULL is accepted.
 #' @param description Character: Description for schema consumers.
 #' @return S7 property carrying a PropertySpec.
@@ -139,6 +141,11 @@ prop_object <- function(
   nullable = FALSE,
   description = ""
 ) {
+  default_value <- if (is.language(default)) {
+    eval(default, parent.frame())
+  } else {
+    default
+  }
   if (
     !inherits(cls, "S7_class") || is.null(cls@package) || !nzchar(cls@package)
   ) {
@@ -147,24 +154,26 @@ prop_object <- function(
       class = "rtemis_type_error"
     )
   }
-  make_prop(PropertySpec(
+  spec <- PropertySpec(
     type = "object",
     target_class = paste0(cls@package, "::", cls@name),
-    default = default,
-    default_present = !is.null(default) || nullable,
+    default = default_value,
+    default_present = !is.null(default_value) || nullable,
     nullable = nullable,
     tunable = FALSE,
     container = "none",
     broadcast = FALSE,
     description = description
-  ))
+  )
+  make_prop(spec, default = default)
 }
 
 
 # %% prop_collection ----
 #' Declare a homogeneous collection of S7 objects
 #' @param cls S7 class: Required type of every element.
-#' @param default Optional: Literal or constructor expression evaluated per instance.
+#' @param default Optional: Literal or quoted constructor expression. Expressions
+#'   are evaluated once for declaration validation and metadata, then per instance.
 #' @param container Character \{"array", "map"\}: Positional array or named map.
 #' @param nullable Logical: Whether NULL is accepted.
 #' @param min_items Integer [0, Inf): Minimum collection size.
@@ -187,6 +196,11 @@ prop_collection <- function(
   key_not_pattern = NULL,
   description = ""
 ) {
+  default_value <- if (is.language(default)) {
+    eval(default, parent.frame())
+  } else {
+    default
+  }
   if (
     !inherits(cls, "S7_class") || is.null(cls@package) || !nzchar(cls@package)
   ) {
@@ -206,11 +220,11 @@ prop_collection <- function(
       class = "rtemis_value_error"
     )
   }
-  make_prop(PropertySpec(
+  spec <- PropertySpec(
     type = "object",
     target_class = paste0(cls@package, "::", cls@name),
-    default = default,
-    default_present = !is.null(default) || nullable,
+    default = default_value,
+    default_present = !is.null(default_value) || nullable,
     nullable = nullable,
     tunable = FALSE,
     container = container,
@@ -221,7 +235,8 @@ prop_collection <- function(
     key_pattern = key_pattern,
     key_not_pattern = key_not_pattern,
     description = description
-  ))
+  )
+  make_prop(spec, default = default)
 }
 
 
