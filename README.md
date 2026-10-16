@@ -13,7 +13,7 @@
 - **Auditable outputs**: records state every resolved value and its origin; `review()` assesses a trained model, and `writeup()` drafts its Methods and Results with every number traceable to its source.
 - **Algorithms**: a broad set of supervised learners, including native SuperLearner, RuleFit, and Linear Additive Trees, alongside clustering and decomposition methods, including torch autoencoders.
 - **Explanation and uncertainty**: Shapley values (`explain()`), calibration, and conformal prediction.
-- **Parallel execution** through future or mirai, and model visualization through [rtemis.draw](https://github.com/rtemis-org/rtemis.draw).
+- **Parallel execution** through future or mirai, and model visualization through [rtemis.draw](https://github.com/rtemis-org/draw).
 - Accepts `data.frame`, `data.table`, and `tibble` inputs.
 
 ![rtemis console ascii](https://www.rtemis.org/rtemis-splash.webp)
