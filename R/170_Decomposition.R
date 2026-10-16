@@ -429,7 +429,7 @@ check_decom_applicable <- function(decomposition_config) {
     )
   }
   # Normalize casing and drop `algorithm` before forwarding to the setup fn.
-  algorithm <- get_decom_name(algorithm)
+  algorithm <- .get_decom_name(algorithm)
   # One shape: `{algorithm, k, ..., features?}`, which is what the published
   # schema declares. `.drop_meta_keys()` removes document metadata (e.g.
   # `$schema`), which is not a setup arg.

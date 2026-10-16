@@ -443,9 +443,13 @@ setup_SuperConfig <- function(
 # %% .list_to_SuperConfig ----
 #' Convert a list to a `SuperConfig` object
 #'
-#' Internal function used by [read_config] to reconstruct a `SuperConfig` from a
-#' named list, such as the result of parsing a JSON config. Nested config
-#' objects are rebuilt via their respective `.list_to_*` / `setup_*` functions.
+#' Reconstructs a `SuperConfig` from a named list, such as the result of
+#' parsing a JSON config; [read_config] uses it for supervised documents. Nested
+#' config objects are rebuilt via their respective `.list_to_*` / `setup_*`
+#' functions.
+#'
+#' Exported for `rtemis.server`, which reconstructs supervised configs received
+#' over the wire.
 #'
 #' @param x Named list carrying `SuperConfig` fields (e.g. `hyperparameters`,
 #'   `decomposition_config`, `outer_resampling_config`).
@@ -454,7 +458,13 @@ setup_SuperConfig <- function(
 #'
 #' @author EDG
 #' @keywords internal
-#' @noRd
+#' @export
+#' @examples
+#' .list_to_SuperConfig(list(
+#'   dat_training_path = "train.csv",
+#'   outcome = "y",
+#'   hyperparameters = list(algorithm = "GLMNET", alpha = 1)
+#' ))
 .list_to_SuperConfig <- function(x) {
   check_wire_keys(x, names(SuperConfigPaths@properties), "supervised config")
   args <- list(

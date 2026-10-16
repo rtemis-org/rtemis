@@ -1021,11 +1021,15 @@ learning_curve_super <- new_generic(
 #' @export
 #' @examples
 #' # --- For `Supervised` objects ---
-#' species_lightrf <- train(iris, hyperparameters = setup_LightRF())
-#' describe(species_lightrf)
+#' species_cart <- train(iris, hyperparameters = setup_CART())
+#' describe(species_cart)
 #'
 #' # --- For `SupervisedRes` objects ---
-#' mod <- train(iris, hyperparameters = setup_CART(), outer_resampling_config = setup_KFold())
+#' mod <- train(
+#'   iris,
+#'   hyperparameters = setup_CART(),
+#'   outer_resampling_config = setup_KFold(n_resamples = 3L)
+#' )
 #' describe(mod)
 #'
 #' # --- For factors ---

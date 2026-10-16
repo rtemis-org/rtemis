@@ -115,6 +115,10 @@ test-filter filter out="/tmp/rtemis-test":
     @cat {{ out }}/verdict 2>/dev/null || { echo "no verdict -- the run died, see {{ out }}/log"; exit 1; }
     @grep -q '^failed=0 error=0 ' {{ out }}/verdict || exit 1
 
+[doc("Time every test under CRAN check settings, tables to <out>")]
+test-timing out:
+    {{ rscript }} tools/test-timing.R "{{ out }}"
+
 [doc("Run opt-in parallel tests with a process deadline and persistent diagnostics")]
 test-parallel out="/tmp/rtemis-parallel-diagnostic" timeout="180" filter="^parallel_outer$":
     {{ rscript }} tools/test-parallel.R {{quote(out)}} {{quote(timeout)}} {{quote(filter)}}

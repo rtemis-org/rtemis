@@ -225,7 +225,7 @@ restore_weights_column <- function(model, column) {
 #' iris_c_lightRF <- train(
 #'    iris,
 #'    hyperparameters = setup_LightRF(),
-#'    outer_resampling_config = setup_KFold(),
+#'    outer_resampling_config = setup_KFold(n_resamples = 3L)
 #' )
 #' }
 train <- function(

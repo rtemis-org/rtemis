@@ -510,7 +510,7 @@ explanation_methods <- function(algorithm = NULL) {
     return(explanation_algorithms)
   }
   methods <- explanation_algorithms[
-    explanation_algorithms[["name"]] == get_alg_name(algorithm),
+    explanation_algorithms[["name"]] == .get_alg_name(algorithm),
     ,
     drop = FALSE
   ]
@@ -529,7 +529,27 @@ calibration_algorithms <- c(
   "MonotonicHAL"
 )
 
-get_alg_name <- function(algorithm) {
+
+# %% .get_alg_name ----
+#' Resolve a supervised algorithm name
+#'
+#' Matches `algorithm` case-insensitively against the supervised algorithm
+#' catalog and returns the canonical name, which names the algorithm's
+#' `setup_<name>()` function.
+#'
+#' Exported for `rtemis.server`, which resolves algorithm names received over the
+#' wire.
+#'
+#' @param algorithm Character: Algorithm name, in any letter case.
+#'
+#' @return Character: Canonical algorithm name.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+#' @examples
+#' .get_alg_name("lightgbm")
+.get_alg_name <- function(algorithm) {
   algname <- supervised_algorithms[["name"]][
     tolower(algorithm) == tolower(supervised_algorithms[["name"]])
   ]
@@ -541,7 +561,34 @@ get_alg_name <- function(algorithm) {
     )
   }
   algname
-}
+} # /rtemis::.get_alg_name
+
+
+# %% .supervised_algorithms ----
+#' Supervised algorithm catalog
+#'
+#' Returns the supervised algorithm catalog: one row per algorithm, with its
+#' canonical name, description, supported tasks, and data traits.
+#'
+#' Exported for `rtemis.server`, which serves the catalog to its clients.
+#'
+#' @return data.frame with columns `name` and `description` (character), and
+#'   `classification`, `regression`, `survival`, `handles_missing_data`, and
+#'   `handles_p_greater_than_n` (logical). A data trait is `NA` for a meta
+#'   learner, whose traits are those of its base learners.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+#' @examples
+#' .supervised_algorithms()[, c("name", "classification", "regression")]
+.supervised_algorithms <- function() {
+  out <- supervised_algorithms
+  trait_columns <- setdiff(names(out), c("name", "description"))
+  out[trait_columns] <- lapply(out[trait_columns], as.logical)
+  out
+} # /rtemis::.supervised_algorithms
+
 
 #' Get algorithm description
 #'
@@ -581,17 +628,17 @@ desc_abb_alg <- function(algorithm) {
   paste0(
     desc_alg(algorithm),
     " (",
-    get_alg_name(algorithm),
+    .get_alg_name(algorithm),
     ")"
   )
 } # /rtemis::desc_abb_alg
 
 get_train_fn <- function(algorithm) {
-  paste0("train_", get_alg_name(algorithm))
+  paste0("train_", .get_alg_name(algorithm))
 } # /rtemis::get_train_fn
 
 get_default_hyperparameters <- function(algorithm) {
-  do.call(paste0("setup_", get_alg_name(algorithm)), list())
+  do.call(paste0("setup_", .get_alg_name(algorithm)), list())
 } # /rtemis::get_default_hyperparameters
 
 
@@ -602,7 +649,27 @@ clust_algorithms <- local({
   data.frame(name = names(descriptions), description = unname(descriptions))
 })
 
-get_clust_name <- function(algorithm) {
+
+# %% .get_clust_name ----
+#' Resolve a clustering algorithm name
+#'
+#' Matches `algorithm` case-insensitively against the clustering algorithm
+#' catalog and returns the canonical name, which names the algorithm's
+#' `setup_<name>()` function.
+#'
+#' Exported for `rtemis.server`, which resolves algorithm names received over the
+#' wire.
+#'
+#' @param algorithm Character: Algorithm name, in any letter case.
+#'
+#' @return Character: Canonical algorithm name.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+#' @examples
+#' .get_clust_name("kmeans")
+.get_clust_name <- function(algorithm) {
   clustname <- clust_algorithms[, 1][
     tolower(algorithm) == tolower(clust_algorithms[, 1])
   ]
@@ -614,7 +681,8 @@ get_clust_name <- function(algorithm) {
     )
   }
   clustname
-} # /rtemis::get_clust_name
+} # /rtemis::.get_clust_name
+
 
 get_clust_desc <- function(algorithm) {
   clustdesc <- clust_algorithms[, 2][
@@ -631,19 +699,19 @@ get_clust_desc <- function(algorithm) {
 } # /rtemis::get_clust_desc
 
 get_clust_fn <- function(algorithm) {
-  paste0("cluster_", get_clust_name(algorithm))
+  paste0("cluster_", .get_clust_name(algorithm))
 } # /rtemis::get_clust_fn
 
 get_default_clusterparams <- function(algorithm) {
-  do.call(paste0("setup_", get_clust_name(algorithm)), list())
+  do.call(paste0("setup_", .get_clust_name(algorithm)), list())
 }
 
 get_clustpredict_fn <- function(algorithm) {
-  paste0("clustpredict_", get_clust_name(algorithm))
+  paste0("clustpredict_", .get_clust_name(algorithm))
 }
 
 get_clust_setup_fn <- function(algorithm) {
-  paste0("setup_", get_clust_name(algorithm))
+  paste0("setup_", .get_clust_name(algorithm))
 } # /rtemis::get_clust_setup_fn
 
 
@@ -802,7 +870,27 @@ decom_algorithms_invertible <- decom_algorithms[["name"]][
   decom_algorithms[["invertible"]]
 ]
 
-get_decom_name <- function(algorithm) {
+
+# %% .get_decom_name ----
+#' Resolve a decomposition algorithm name
+#'
+#' Matches `algorithm` case-insensitively against the decomposition algorithm
+#' catalog and returns the canonical name, which names the algorithm's
+#' `setup_<name>()` function.
+#'
+#' Exported for `rtemis.server`, which resolves algorithm names received over the
+#' wire.
+#'
+#' @param algorithm Character: Algorithm name, in any letter case.
+#'
+#' @return Character: Canonical algorithm name.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+#' @examples
+#' .get_decom_name("pca")
+.get_decom_name <- function(algorithm) {
   decomname <- decom_algorithms[["name"]][
     tolower(algorithm) == tolower(decom_algorithms[["name"]])
   ]
@@ -814,7 +902,8 @@ get_decom_name <- function(algorithm) {
     )
   }
   decomname
-} # /rtemis::get_decom_name
+} # /rtemis::.get_decom_name
+
 
 get_decom_desc <- function(algorithm) {
   decomdesc <- decom_algorithms[["description"]][
@@ -831,11 +920,11 @@ get_decom_desc <- function(algorithm) {
 } # /rtemis::get_decom_desc
 
 get_default_decomparams <- function(algorithm) {
-  do.call(paste0("setup_", get_decom_name(algorithm)), list())
+  do.call(paste0("setup_", .get_decom_name(algorithm)), list())
 } # /rtemis::get_default_decomparams
 
 get_decom_setup_fn <- function(algorithm) {
-  paste0("setup_", get_decom_name(algorithm))
+  paste0("setup_", .get_decom_name(algorithm))
 } # /rtemis::get_decom_setup_fn
 
 
@@ -895,7 +984,7 @@ decomposition_traits <- function(algorithm = NULL) {
     return(decom_algorithms)
   }
   traits <- decom_algorithms[
-    decom_algorithms[["name"]] == get_decom_name(algorithm),
+    decom_algorithms[["name"]] == .get_decom_name(algorithm),
     ,
     drop = FALSE
   ]
