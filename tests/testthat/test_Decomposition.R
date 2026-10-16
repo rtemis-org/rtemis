@@ -260,7 +260,12 @@ test_that("reconstruct() passes through columns the fit did not decompose", {
 
 test_that("reconstruct() refuses algorithms with no inverse", {
   skip_if_not_installed("uwot")
-  decom <- decomp(x, algorithm = "umap", verbosity = 0L)
+  decom <- decomp(
+    x,
+    algorithm = "umap",
+    config = setup_UMAP(n_epochs = 50L),
+    verbosity = 0L
+  )
   expect_error(
     reconstruct(decom, x, verbosity = 0L),
     class = "rtemis_unsupported_error"
@@ -308,6 +313,7 @@ test_that("apply_decomp() on training data reproduces the fitted components", {
 
 
 # UMAP ----
+# Fits whose embedding quality is not under test run 50 optimization epochs.
 test_that("setup_UMAP() succeeds", {
   config <- setup_UMAP()
   expect_s7_class(config, UMAPConfig)
@@ -315,11 +321,15 @@ test_that("setup_UMAP() succeeds", {
 
 test_that("decomp() UMAP succeeds", {
   skip_if_not_installed("uwot")
-  iris_umap <- decomp(x, algorithm = "umap", config = setup_UMAP())
   iris_umap <- decomp(
     x,
     algorithm = "umap",
-    config = setup_UMAP(n_neighbors = 20L)
+    config = setup_UMAP(n_epochs = 50L)
+  )
+  iris_umap <- decomp(
+    x,
+    algorithm = "umap",
+    config = setup_UMAP(n_neighbors = 20L, n_epochs = 50L)
   )
   expect_s7_class(iris_umap, Decomposition)
 })
@@ -339,6 +349,7 @@ test_that("UMAP fits on the execution config's threads and applies on the applie
   decom <- decomp(
     x,
     algorithm = "umap",
+    config = setup_UMAP(n_epochs = 50L),
     execution_config = setup_SerialExecution(n_workers_algorithm = 2L),
     verbosity = 0L
   )

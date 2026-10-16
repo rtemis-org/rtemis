@@ -14,18 +14,18 @@ local({
   dir.create(output, recursive = TRUE, showWarnings = FALSE)
   output <- normalizePath(output, mustWork = TRUE)
 
-  # Retain the test log before removing the temporary instrumented installation.
+  # Retain the test logs, one per test group script, before removing the
+  # temporary instrumented installation.
   library_path <- tempfile("rtemis-coverage-library-")
   on.exit(unlink(library_path, recursive = TRUE), add = TRUE)
-  test_log <- file.path(
-    library_path,
-    "rtemis",
-    "rtemis-tests",
-    "testthat.Rout"
+  test_dir <- file.path(library_path, "rtemis", "rtemis-tests")
+  test_logs <- file.path(
+    test_dir,
+    paste0("testthat-", c("general", "supervised", "fitting"), ".Rout")
   )
   on.exit(
     {
-      for (path in c(test_log, paste0(test_log, ".fail"))) {
+      for (path in c(test_logs, paste0(test_logs, ".fail"))) {
         if (file.exists(path)) {
           file.copy(path, file.path(output, basename(path)), overwrite = TRUE)
         }
@@ -60,15 +60,29 @@ local({
   print(coverage)
 
   # CheckReporter records skipped dependency and platform tests in its summary.
-  summary <- grep("^\\[ FAIL ", readLines(test_log, warn = FALSE), value = TRUE)
-  if (!length(summary)) {
-    rtemis.core::abort("Inspect testthat.Rout: the test summary is missing.")
-  }
-  summary <- tail(summary, 1L)
-  cat(summary, "\nCoverage artifacts: ", output, "\n", sep = "")
-  if (!grepl("\\| SKIP 0 \\|", summary)) {
-    rtemis.core::abort(
-      "Resolve the skipped tests reported in testthat.Rout and rerun local coverage."
+  for (test_log in test_logs) {
+    log_name <- basename(test_log)
+    summary <- grep(
+      "^\\[ FAIL ",
+      readLines(test_log, warn = FALSE),
+      value = TRUE
     )
+    if (!length(summary)) {
+      rtemis.core::abort(
+        "Inspect ",
+        log_name,
+        ": the test summary is missing."
+      )
+    }
+    summary <- tail(summary, 1L)
+    cat(log_name, ": ", summary, "\n", sep = "")
+    if (!grepl("\\| SKIP 0 \\|", summary)) {
+      rtemis.core::abort(
+        "Resolve the skipped tests reported in ",
+        log_name,
+        " and rerun local coverage."
+      )
+    }
   }
+  cat("Coverage artifacts: ", output, "\n", sep = "")
 })

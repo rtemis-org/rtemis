@@ -2677,8 +2677,8 @@ prop_const <- function(value, description = "") {
 tune_on_null_spec_names <- function(x) {
   names(Filter(
     function(p) {
-      s <- get_spec(p)
-      !is.null(s) && s@tune_on_null
+      fields <- get_spec_fields(p)
+      !is.null(fields) && fields[["tune_on_null"]]
     },
     x@properties
   ))
@@ -3324,7 +3324,7 @@ data_dependent_prop_names <- function(x) {
 # %% prop_data_bound ----
 #' Training-data dimension an S7 property is constrained by, or NULL
 #'
-#' Reads `data_bound` from the property's `PropertySpec`.
+#' Reads `data_bound` from the property's stored spec fields.
 #'
 #' @param prop S7 property (an element of `Class@properties`).
 #'
@@ -3334,9 +3334,9 @@ data_dependent_prop_names <- function(x) {
 #' @keywords internal
 #' @noRd
 prop_data_bound <- function(prop) {
-  spec <- get_spec(prop)
-  if (!is.null(spec)) {
-    return(spec@data_bound)
+  fields <- get_spec_fields(prop)
+  if (!is.null(fields)) {
+    return(fields[["data_bound"]])
   }
   prop[["data_bound"]]
 } # /rtemis::prop_data_bound

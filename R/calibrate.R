@@ -25,6 +25,26 @@ calibration_hyperparameters <- function(hyperparameters) {
 } # /rtemis::calibration_hyperparameters
 
 
+# %% calibration_execution ----
+#' Resolve the execution config calibration models are trained under
+#'
+#' @param execution_config Optional `ExecutionConfig` object.
+#'
+#' @return `ExecutionConfig` object: `execution_config`, or a serial config
+#'   when NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+calibration_execution <- function(execution_config) {
+  if (is.null(execution_config)) {
+    return(setup_SerialExecution())
+  }
+  check_is_S7(execution_config, ExecutionConfig)
+  execution_config
+} # /rtemis::calibration_execution
+
+
 # %% calibrate.Classification ----
 #' Calibrate Binary Classification Models
 #'
@@ -45,6 +65,8 @@ calibration_hyperparameters <- function(hyperparameters) {
 #' @param true_labels Factor: True class labels.
 #' @param hyperparameters Optional `Hyperparameters` object: Setup using one of
 #' `setup_*` functions. NULL uses [setup_Isotonic].
+#' @param execution_config Optional `ExecutionConfig` object: Config the
+#' calibration model is trained under. NULL trains it serially.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used
 #'
@@ -79,11 +101,13 @@ method(calibrate, Classification) <- function(
   predicted_probabilities,
   true_labels,
   hyperparameters = NULL,
+  execution_config = NULL,
   verbosity = 1L,
   ...
 ) {
   # Check inputs
   hyperparameters <- calibration_hyperparameters(hyperparameters)
+  execution_config <- calibration_execution(execution_config)
   predicted_probabilities <- positive_prob(predicted_probabilities)
   check_float01inc(predicted_probabilities)
   check_inherits(true_labels, "factor")
@@ -112,6 +136,7 @@ method(calibrate, Classification) <- function(
     dat,
     dat_test = dat_test,
     hyperparameters = hyperparameters,
+    execution_config = execution_config,
     verbosity = verbosity
   )
 
@@ -135,6 +160,8 @@ method(calibrate, Classification) <- function(
 #' @param hyperparameters Optional `Hyperparameters` object: Setup using one of
 #' `setup_*` functions. NULL uses [setup_Isotonic].
 #' @param resampler_config `ResamplerConfig` object: Configuration for resampling during calibration model training.
+#' @param execution_config Optional `ExecutionConfig` object: Config the
+#' calibration models are trained under. NULL trains them serially.
 #' @param train_verbosity Integer: Verbosity level for training calibration models.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Not used
@@ -149,12 +176,14 @@ method(calibrate, ClassificationRes) <- function(
   resampler_config = setup_KFold(
     n_resamples = 5L
   ),
+  execution_config = NULL,
   train_verbosity = 0L,
   verbosity = 1L,
   ...
 ) {
   # Check inputs
   hyperparameters <- calibration_hyperparameters(hyperparameters)
+  execution_config <- calibration_execution(execution_config)
   check_is_S7(resampler_config, ResamplerConfig)
   verbosity <- clean_int(verbosity)
 
@@ -186,6 +215,7 @@ method(calibrate, ClassificationRes) <- function(
         dat,
         hyperparameters = hyperparameters,
         outer_resampling_config = resampler_config,
+        execution_config = execution_config,
         verbosity = train_verbosity
       )
     }

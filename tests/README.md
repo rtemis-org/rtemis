@@ -1,5 +1,15 @@
 # Test execution modes
 
+`R CMD check` runs one script per CI group: `testthat-general.R`,
+`testthat-supervised.R`, and `testthat-fitting.R`. The check log reports the
+elapsed time of each script. A script runs its group when `RTEMIS_TEST_GROUP`
+is unset, `all`, or names that group, and exits otherwise; `tests/ci/test-groups.R`
+assigns test files to groups. Outside CI, each script also reports every test
+that takes at least 2 s in its `.Rout` file, which win-builder returns with the
+check directory. `just test-timing <out>` writes per-test and per-file times
+under CRAN settings; its per-file `setup` column is the time spent outside
+`test_that()` blocks.
+
 `just check` builds the package and runs `R CMD check` against the installed
 package. `just test` and `just test-filter` use `testthat::test_local()` against
 source. These modes do not necessarily run the same worker cases:

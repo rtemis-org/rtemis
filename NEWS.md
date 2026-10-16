@@ -23,6 +23,8 @@
 - `setup_SuperConfig()` and `setup_SuperConfigLive()` reject a decomposition that cannot be applied to new data, as reading a supervised config already did.
 - Shared results identify implementation-specific learner, execution, preprocessing, and resampler configs by schema and read their typed settings without inserting omitted defaults.
 - `write_config()` and `write_record()` write numbers with 15 significant digits instead of rounding to four decimal places.
+- `calibrate()` takes `execution_config`; calibration models train serially when it is unset.
+- `train()` and the `setup_*()` functions spend less time reading property declarations and default policies; a single CART fit on `iris` takes about a third of the time.
 - Each parallel task receives only its own resample or bag; LINADForest and `bias_variance()` pass training data to local workers through shared memory.
 - GAM classification trains on a data.table, which failed for every outcome, and on a multiclass outcome, using mgcv's multinomial family. A multiclass GAM reports no variable importance or standard errors, and `explain()` refuses its GAMTerms estimator; `explanation_methods()` reports GAM's exactness as dependent on the fit.
 - LinearSVM and RadialSVM probabilities are those of the positive class for a binary outcome and follow the outcome's level order for a multiclass one. Binary probabilities were those of the negative class when the first training case belonged to the positive class.

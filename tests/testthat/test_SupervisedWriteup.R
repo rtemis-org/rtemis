@@ -305,6 +305,9 @@ test_that("a hyperparameter set is described by its configurations", {
       a = setup_CART(cp = 0.001, maxdepth = 2L),
       b = setup_CART(cp = 0.1, maxdepth = tune_over(4L, 6L))
     ),
+    tuner_config = setup_GridSearch(
+      resampler_config = setup_KFold(n_resamples = 2L)
+    ),
     verbosity = 0L
   ))
   text <- .section(single, "Hyperparameter tuning")
@@ -324,6 +327,9 @@ test_that("a hyperparameter set is described by its configurations", {
     hyperparameters = list(
       shallow = setup_CART(maxdepth = 2L),
       deep = setup_CART(maxdepth = 6L)
+    ),
+    tuner_config = setup_GridSearch(
+      resampler_config = setup_KFold(n_resamples = 2L)
     ),
     outer_resampling_config = setup_KFold(n_resamples = 3L),
     verbosity = 0L
@@ -819,6 +825,9 @@ test_that("a resampled model's cell counts every resample's value", {
   mod <- train(
     iris,
     hyperparameters = setup_CART(maxdepth = tune_over(1L, 2L, 3L)),
+    tuner_config = setup_GridSearch(
+      resampler_config = setup_KFold(n_resamples = 2L)
+    ),
     outer_resampling_config = setup_KFold(n_resamples = 3L),
     verbosity = 0L
   )

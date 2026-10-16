@@ -643,7 +643,9 @@ test_that("the conditional SuperLearner records its oracle loss", {
     mtcars,
     hyperparameters = setup_ConditionalSuperLearner(
       base_learners = list(glm = setup_GLM(), cart = setup_CART()),
-      meta_learner = setup_CART()
+      meta_learner = setup_CART(),
+      inner_resampling_config = setup_KFold(n_resamples = 3L),
+      n_iterations = 2L
     ),
     verbosity = 0L
   )

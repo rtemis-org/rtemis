@@ -205,7 +205,7 @@ test_that("component metrics are defined for a non-invertible embedding", {
   decom <- decomp(
     x,
     algorithm = "UMAP",
-    config = setup_UMAP(k = 2L),
+    config = setup_UMAP(k = 2L, n_epochs = 50L),
     verbosity = 0L
   )
   expect_false(is.na(decom@metrics[["max_abs_component_correlation"]]))

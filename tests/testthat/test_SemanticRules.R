@@ -3,6 +3,8 @@
 # 2026- EDG rtemis.org
 
 test_that("typed rules preserve native validation across boundary and candidate cases", {
+  # Depends only on the package source; CI runs it.
+  skip_on_cran()
   oracle <- new.env(parent = asNamespace("rtemis"))
   sys.source(test_path("fixtures", "schema-native-validators.R"), oracle)
   sys.source(test_path("fixtures", "schema-rule-cases.R"), oracle)

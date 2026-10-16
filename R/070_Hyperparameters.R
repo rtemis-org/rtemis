@@ -204,8 +204,8 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
         }
         next
       }
-      spec <- get_spec(specs[[nm]])
-      is_vector <- !is.null(spec) && spec@container != "none"
+      fields <- get_spec_fields(specs[[nm]])
+      is_vector <- !is.null(fields) && fields[["container"]] != "none"
       # A `broadcast` declaration admits a bare scalar in place of the whole
       # container -- "this value for every element" -- and the published
       # schema offers exactly that shape (`oneOf: [number, array]`). Reading
@@ -213,7 +213,9 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
       # `CMeansConfig@weights` broadcasts and defaults to the scalar 1, so
       # every CMeans run on more than one case failed here, with a message
       # telling the caller to supply what the scalar already meant.
-      broadcast_scalar <- is_vector && spec@broadcast && length(value) == 1L
+      broadcast_scalar <- is_vector &&
+        fields[["broadcast"]] &&
+        length(value) == 1L
       if (is_vector) {
         # A broadcast scalar has nothing to check: it stands for a value per
         # element, and its own magnitude is unrelated to the dimension --
@@ -806,8 +808,8 @@ method(tuning_grid, Hyperparameters) <- function(x) {
       if (!is_candidates(value)) {
         return(value)
       }
-      spec <- get_spec(specs[[nm]])
-      if (!is.null(spec) && spec@container != "none") {
+      fields <- get_spec_fields(specs[[nm]])
+      if (!is.null(fields) && fields[["container"]] != "none") {
         value@candidates
       } else {
         unlist(value@candidates, use.names = FALSE)

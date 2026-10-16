@@ -1836,6 +1836,9 @@ method(get_factor_names, class_data.frame) <- function(x) {
 #' @param hyperparameters Optional `Hyperparameters` object: Setup using one of
 #' `setup_*` functions. Defines the algorithm used to train the calibration
 #' model. NULL uses [setup_Isotonic].
+#' @param execution_config Optional `ExecutionConfig` object: Setup using
+#' [setup_SerialExecution], [setup_FutureExecution] or [setup_MiraiExecution].
+#' The calibration models are trained under it. NULL trains them serially.
 #' @param verbosity Integer: Verbosity level.
 #' @param ... Additional arguments passed to specific methods.
 #'
@@ -1929,6 +1932,7 @@ calibrate <- new_generic(
   function(
     x,
     hyperparameters = NULL,
+    execution_config = NULL,
     verbosity = 1L,
     ...
   ) {

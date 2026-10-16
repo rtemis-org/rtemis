@@ -4,7 +4,13 @@
 \alias{calibrate}
 \title{Calibrate \code{Classification} & \code{ClassificationRes} Models}
 \usage{
-calibrate(x, hyperparameters = NULL, verbosity = 1L, ...)
+calibrate(
+  x,
+  hyperparameters = NULL,
+  execution_config = NULL,
+  verbosity = 1L,
+  ...
+)
 }
 \arguments{
 \item{x}{\code{Classification} or \code{ClassificationRes} object to calibrate.}
@@ -12,6 +18,10 @@ calibrate(x, hyperparameters = NULL, verbosity = 1L, ...)
 \item{hyperparameters}{Optional \code{Hyperparameters} object: Setup using one of
 \verb{setup_*} functions. Defines the algorithm used to train the calibration
 model. NULL uses \link{setup_Isotonic}.}
+
+\item{execution_config}{Optional \code{ExecutionConfig} object: Setup using
+\link{setup_SerialExecution}, \link{setup_FutureExecution} or \link{setup_MiraiExecution}.
+The calibration models are trained under it. NULL trains them serially.}
 
 \item{verbosity}{Integer: Verbosity level.}
 

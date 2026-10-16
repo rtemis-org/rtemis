@@ -25,8 +25,18 @@ prop_default <- function(property, policy) {
 }
 
 
+# Policies of the classes bound in this namespace, by class name. Each load of
+# the package creates a new namespace and so a new, empty cache.
+.default_policy_cache <- new.env(parent = emptyenv())
+
+
 # %% class_default_policies ----
 #' Read inherited input policies without constructing an instance
+#'
+#' The policies of a class are a function of its declaration. They are computed
+#' once for each class bound in the package namespace, and on every call for
+#' any other class, such as a class defined at run time.
+#'
 #' @param cls S7 class: Class to inspect.
 #' @return Named list of DefaultPolicy objects.
 #' @keywords internal
@@ -36,6 +46,27 @@ class_default_policies <- function(cls) {
   if (!is.null(artifact_policies)) {
     return(artifact_policies)
   }
+  # The binding test compares by reference first, so it costs nothing for the
+  # namespace's own class object.
+  bound <- identical(get0(cls@name, envir = topenv(), inherits = FALSE), cls)
+  if (bound && !is.null(.default_policy_cache[[cls@name]])) {
+    return(.default_policy_cache[[cls@name]])
+  }
+  out <- compute_class_default_policies(cls)
+  if (bound) {
+    .default_policy_cache[[cls@name]] <- out
+  }
+  out
+}
+
+
+# %% compute_class_default_policies ----
+#' Derive a class's input policies from its declaration
+#' @param cls S7 class: Class to inspect.
+#' @return Named list of DefaultPolicy objects.
+#' @keywords internal
+#' @noRd
+compute_class_default_policies <- function(cls) {
   artifact_kind <- attr(cls, "rtemis_artifact_schema")[["x-rtemis"]][[
     "publication"
   ]][["kind"]]

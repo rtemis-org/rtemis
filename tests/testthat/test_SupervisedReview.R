@@ -791,6 +791,9 @@ test_that("a tuned value at an extendable grid edge is reported", {
       maxdepth = tune_over(1L, 2L, 3L),
       cp = tune_over(0.001, 0.01)
     ),
+    tuner_config = setup_GridSearch(
+      resampler_config = setup_KFold(n_resamples = 2L)
+    ),
     outer_resampling_config = setup_KFold(3L),
     verbosity = 0L
   )

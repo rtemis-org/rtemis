@@ -238,6 +238,8 @@ test_that("sequential with >1 worker throws error", {
 
 ## {GLMNET}[train]<Regression> auto-lambda grid search using mirai ----
 test_that("train() GLMNET Regression with auto-lambda grid search using mirai succeeds", {
+  # Worker startup dominates this test; CI runs it.
+  skip_on_cran()
   skip_if_not_installed("mirai")
   modt_r_glmnet <- train(
     x = datr_train,
@@ -1724,7 +1726,7 @@ test_that("train() Ranger Regression with grid search succeeds", {
 ## {Ranger}[train]<RegressionRes> ----
 resmod_r_ranger <- train(
   x = datr,
-  hyperparameters = setup_Ranger(num_trees = 5000L),
+  hyperparameters = setup_Ranger(num_trees = 100L),
   outer_resampling_config = setup_KFold(n_resamples = 3L)
 )
 test_that("train() Res Ranger Regression succeeds", {
@@ -3490,16 +3492,22 @@ test_that("train() BART Regression with missing data throws error", {
 
 
 # --- HAL ------------------------------------------------------------------------------------------
-# The basis grows as C(n_features, max_degree), so every fit below stays at
-# max_degree = 1 to keep runtime down. The internal cross-validation that
-# selects lambda draws folds at random, so every fit fixes `seed`.
+# The basis grows as C(n_features, max_degree) and with the number of knots, so
+# every fit below stays at max_degree = 1 with ten knots per feature, and selects
+# lambda by three-fold internal cross-validation. That cross-validation draws
+# folds at random, so every fit fixes `seed`.
 ## {HAL}[train]<Regression> ----
 mod_r_hal <- fit_if_installed(
   "hal9001",
   train(
     x = datr_train,
     dat_test = datr_test,
-    hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L)
+    hyperparameters = setup_HAL(
+      max_degree = 1L,
+      num_knots = 10L,
+      nfolds = 3L,
+      seed = 2026L
+    )
   )
 )
 test_that("train() HAL Regression succeeds", {
@@ -3515,6 +3523,8 @@ modt_r_hal <- fit_if_installed(
     dat_test = datr_test,
     hyperparameters = setup_HAL(
       max_degree = 1L,
+      num_knots = 10L,
+      nfolds = 3L,
       smoothness_orders = tune_over(0L, 1L),
       seed = 2026L
     ),
@@ -3531,7 +3541,12 @@ resmod_r_hal <- fit_if_installed(
   "hal9001",
   train(
     x = datr,
-    hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L),
+    hyperparameters = setup_HAL(
+      max_degree = 1L,
+      num_knots = 10L,
+      nfolds = 3L,
+      seed = 2026L
+    ),
     outer_resampling_config = setup_KFold(n_resamples = 3L)
   )
 )
@@ -3546,7 +3561,12 @@ mod_c_hal <- fit_if_installed(
   train(
     x = datc2_train,
     dat_test = datc2_test,
-    hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L)
+    hyperparameters = setup_HAL(
+      max_degree = 1L,
+      num_knots = 10L,
+      nfolds = 3L,
+      seed = 2026L
+    )
   )
 )
 test_that("train() HAL Classification succeeds", {
@@ -3562,6 +3582,8 @@ modt_c_hal <- fit_if_installed(
     dat_test = datc2_test,
     hyperparameters = setup_HAL(
       max_degree = 1L,
+      num_knots = 10L,
+      nfolds = 3L,
       smoothness_orders = tune_over(0L, 1L),
       seed = 2026L
     ),
@@ -3578,7 +3600,12 @@ resmod_c_hal <- fit_if_installed(
   "hal9001",
   train(
     x = datc2,
-    hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L),
+    hyperparameters = setup_HAL(
+      max_degree = 1L,
+      num_knots = 10L,
+      nfolds = 3L,
+      seed = 2026L
+    ),
     outer_resampling_config = setup_KFold(n_resamples = 3L),
     execution_config = setup_SerialExecution()
   )
@@ -3595,7 +3622,13 @@ mod_c_hal_ifw <- fit_if_installed(
   train(
     x = datc2_train,
     dat_test = datc2_test,
-    hyperparameters = setup_HAL(max_degree = 1L, ifw = TRUE, seed = 2026L)
+    hyperparameters = setup_HAL(
+      max_degree = 1L,
+      num_knots = 10L,
+      nfolds = 3L,
+      ifw = TRUE,
+      seed = 2026L
+    )
   )
 )
 test_that("train() HAL Classification with IFW succeeds", {
@@ -3611,12 +3644,22 @@ test_that("train() HAL seeds the internal cross-validation reproducibly", {
   set.seed(1L)
   first <- train(
     x = datr_train,
-    hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L)
+    hyperparameters = setup_HAL(
+      max_degree = 1L,
+      num_knots = 10L,
+      nfolds = 3L,
+      seed = 2026L
+    )
   )
   set.seed(99L)
   second <- train(
     x = datr_train,
-    hyperparameters = setup_HAL(max_degree = 1L, seed = 2026L)
+    hyperparameters = setup_HAL(
+      max_degree = 1L,
+      num_knots = 10L,
+      nfolds = 3L,
+      seed = 2026L
+    )
   )
   expect_identical(
     first@model[["lambda_star"]],
@@ -3690,6 +3733,8 @@ test_that("get_varimp() HAL recovers the features the outcome was built from", {
     x = datr_train,
     hyperparameters = setup_HAL(
       max_degree = 1L,
+      num_knots = 10L,
+      nfolds = 3L,
       smoothness_orders = 0L,
       seed = 2026L
     )
@@ -3710,7 +3755,7 @@ test_that("get_varimp() HAL recovers the features the outcome was built from", {
 mod_r_hal_byname <- fit_if_installed(
   "hal9001",
   train(
-    x = datr_train,
+    x = datr_train[1:60, ],
     hyperparameters = get_default_hyperparameters("hal")
   )
 )
@@ -3799,7 +3844,11 @@ mod_r_monotonichal <- fit_if_installed(
   train(
     x = datr_train,
     dat_test = datr_test,
-    hyperparameters = setup_MonotonicHAL(seed = 2026L)
+    hyperparameters = setup_MonotonicHAL(
+      num_knots = 10L,
+      nfolds = 3L,
+      seed = 2026L
+    )
   )
 )
 test_that("train() MonotonicHAL Regression succeeds", {
@@ -3812,7 +3861,11 @@ resmod_r_monotonichal <- fit_if_installed(
   "hal9001",
   train(
     x = datr,
-    hyperparameters = setup_MonotonicHAL(seed = 2026L),
+    hyperparameters = setup_MonotonicHAL(
+      num_knots = 10L,
+      nfolds = 3L,
+      seed = 2026L
+    ),
     outer_resampling_config = setup_KFold(n_resamples = 3L)
   )
 )
@@ -3827,7 +3880,11 @@ mod_c_monotonichal <- fit_if_installed(
   train(
     x = datc2_train,
     dat_test = datc2_test,
-    hyperparameters = setup_MonotonicHAL(seed = 2026L)
+    hyperparameters = setup_MonotonicHAL(
+      num_knots = 10L,
+      nfolds = 3L,
+      seed = 2026L
+    )
   )
 )
 test_that("train() MonotonicHAL Classification succeeds", {
@@ -3843,6 +3900,8 @@ modt_c_monotonichal <- fit_if_installed(
     dat_test = datc2_test,
     hyperparameters = setup_MonotonicHAL(
       smoothness_orders = tune_over(0L, 1L),
+      num_knots = 10L,
+      nfolds = 3L,
       seed = 2026L
     ),
     execution_config = setup_SerialExecution()
@@ -3858,7 +3917,11 @@ resmod_c_monotonichal <- fit_if_installed(
   "hal9001",
   train(
     x = datc2,
-    hyperparameters = setup_MonotonicHAL(seed = 2026L),
+    hyperparameters = setup_MonotonicHAL(
+      num_knots = 10L,
+      nfolds = 3L,
+      seed = 2026L
+    ),
     outer_resampling_config = setup_KFold(n_resamples = 3L),
     execution_config = setup_SerialExecution()
   )
@@ -3875,7 +3938,11 @@ test_that("train() MonotonicHAL rejects multiclass classification", {
   expect_error(
     train(
       x = datc3_train,
-      hyperparameters = setup_MonotonicHAL(seed = 2026L),
+      hyperparameters = setup_MonotonicHAL(
+        num_knots = 10L,
+        nfolds = 3L,
+        seed = 2026L
+      ),
       verbosity = 0L
     ),
     "multiclass"
@@ -3896,7 +3963,11 @@ test_that("MonotonicHAL predictions are non-decreasing in the feature", {
   )
   mod <- train(
     data.table(score = score, labels = labels),
-    hyperparameters = setup_MonotonicHAL(seed = 2026L),
+    hyperparameters = setup_MonotonicHAL(
+      num_knots = 10L,
+      nfolds = 3L,
+      seed = 2026L
+    ),
     verbosity = 0L
   )
   predicted <- predict(mod, data.frame(score = seq(0, 1, length.out = 200L)))
@@ -4383,7 +4454,11 @@ test_that("a fitted model reports the values its algorithm resolved", {
 })
 
 test_that("resolved values survive for every algorithm that resolves one", {
-  mod <- train(iris, hyperparameters = setup_LightGBM(), verbosity = 0L)
+  mod <- train(
+    iris,
+    hyperparameters = setup_LightGBM(learning_rate = 0.1),
+    verbosity = 0L
+  )
   expect_identical(mod@hyperparameters[["objective"]], "multiclass")
   # `nrounds` is resolved from `max_nrounds` / early stopping, so a fitted
   # model must report the count it actually ran.
@@ -4508,7 +4583,7 @@ test_that("each fold's resolved values are recorded separately", {
   # them to one value would state something no fold did.
   mod <- train(
     iris,
-    hyperparameters = setup_LightGBM(),
+    hyperparameters = setup_LightGBM(learning_rate = 0.1),
     outer_resampling_config = setup_KFold(n_resamples = 3L),
     verbosity = 0L
   )
@@ -5044,6 +5119,8 @@ test_that("ModalityStacking accepts a group holding a single feature", {
 # a data.table, so this pins the other two classes to the same predictions.
 test_that("meta learners give identical predictions for every tabular class", {
   skip_if_not_installed("tibble")
+  # Indexing does not depend on the number of cases, so 100 suffice.
+  training <- datr_train[1:100, ]
   newdata <- datr_test[, -NCOL(datr_test), with = FALSE]
   as_class <- list(
     data.table = function(d) data.table::as.data.table(d),
@@ -5078,7 +5155,7 @@ test_that("meta learners give identical predictions for every tabular class", {
   for (spec_name in names(specs)) {
     predicted <- lapply(as_class, function(convert) {
       mod <- train(
-        x = convert(datr_train),
+        x = convert(training),
         hyperparameters = specs[[spec_name]](),
         verbosity = 0L
       )

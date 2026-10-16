@@ -35,6 +35,7 @@ vignettes/*.pdf
 .lintr
 cran-comments.md
 *.pdf
+CRAN-SUBMISSION
 
 # Assistants
 AGENTS.md

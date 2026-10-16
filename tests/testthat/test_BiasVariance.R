@@ -104,7 +104,7 @@ test_that("growing a tree deeper trades bias for variance", {
 test_that("bagging cuts a tree's variance and leaves its bias", {
   # What a random forest is *for*, stated as a measurement.
   tree <- .cart
-  forest <- .bv(setup_Ranger())
+  forest <- .bv(setup_Ranger(num_trees = 100L))
   expect_lt(forest@mean_variance, tree@mean_variance / 2)
 })
 
@@ -125,6 +125,8 @@ test_that("bias_variance() is reproducible, and parallel matches sequential", {
   again <- .bv(setup_CART())
   expect_identical(once@variance, again@variance)
   expect_identical(once@bias_squared, again@bias_squared)
+  # Worker startup dominates this comparison; CI runs it.
+  skip_on_cran()
   skip_if_not_installed("mirai")
   parallel <- .bv(
     setup_CART(),

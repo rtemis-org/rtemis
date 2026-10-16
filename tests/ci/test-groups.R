@@ -40,3 +40,38 @@ ci_test_filter <- function(group, path) {
   }
   paste(utils::glob2rx(selected), collapse = "|")
 }
+
+
+# %% run_test_group ----
+# Runs one CI group under `R CMD check`, which times each script in `tests/`
+# separately, so the check log reports the time of every group. The group runs
+# when `RTEMIS_TEST_GROUP` is unset, `all`, or names it. Outside CI, a
+# `SlowReporter` lists every test that takes at least 2 s in
+# `tests/testthat-<group>.Rout`.
+run_test_group <- function(group) {
+  selected <- Sys.getenv("RTEMIS_TEST_GROUP", "all")
+  ci_test_filter(selected, "testthat") # errors on an unknown group
+  if (!selected %in% c("all", group)) {
+    message(
+      "Skipping CI group '",
+      group,
+      "': RTEMIS_TEST_GROUP is '",
+      selected,
+      "'."
+    )
+    return(invisible(NULL))
+  }
+  reporter <- if (identical(Sys.getenv("CI"), "true")) {
+    "progress"
+  } else {
+    testthat::MultiReporter$new(list(
+      testthat::CheckReporter$new(),
+      testthat::SlowReporter$new(min_time = 2)
+    ))
+  }
+  testthat::test_check(
+    "rtemis",
+    filter = ci_test_filter(group, "testthat"),
+    reporter = reporter
+  )
+}

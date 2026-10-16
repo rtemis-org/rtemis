@@ -32,6 +32,9 @@ set.seed(2026)
   y <- factor(c("a", "b", "c")[as.integer(cut(age, 3L))])
 )
 
+# LightGBM fits set `force_nrounds`, which fixes the number of boosting rounds
+# and skips the cross-validated search for it. Every assertion below holds for
+# any fitted ensemble.
 
 # Every entry of `phi` must reconstruct its own column of `predicted`. The
 # baseline is per case, so it is indexed by column rather than by name -- for
@@ -54,7 +57,7 @@ expect_additive <- function(x, tolerance = 1e-10) {
 test_that("explain() decomposes a LightGBM regression exactly", {
   mod <- train(
     .regression_dat,
-    hyperparameters = setup_LightGBM(),
+    hyperparameters = setup_LightGBM(force_nrounds = 100L),
     verbosity = 0L
   )
   x <- explain(mod, .regression_dat[1:3, .explain_feats], verbosity = 0L)
@@ -100,7 +103,11 @@ test_that("explain() decomposes a LightRF regression on the prediction's scale",
 test_that("a binary explanation is on the margin, not the probability", {
   # Correction 6, as a test: `predict.Supervised` normalizes classification to
   # probabilities via `prob_matrix()`, and contributions live on the margin.
-  mod <- train(.binary_dat, hyperparameters = setup_LightGBM(), verbosity = 0L)
+  mod <- train(
+    .binary_dat,
+    hyperparameters = setup_LightGBM(force_nrounds = 100L),
+    verbosity = 0L
+  )
   x <- explain(mod, .binary_dat[1:3, .explain_feats], verbosity = 0L)
   expect_identical(x@scale, "margin")
   expect_additive(x)
@@ -126,7 +133,11 @@ test_that("a binary explanation is named for the positive class", {
   # The same rule `prob_matrix()` uses, so a SHAP's classes and a predicted
   # probability matrix's columns agree. The negative class's contributions are
   # the exact negation, so storing them would store one thing twice.
-  mod <- train(.binary_dat, hyperparameters = setup_LightGBM(), verbosity = 0L)
+  mod <- train(
+    .binary_dat,
+    hyperparameters = setup_LightGBM(force_nrounds = 100L),
+    verbosity = 0L
+  )
   x <- explain(mod, .binary_dat[1:3, .explain_feats], verbosity = 0L)
   expect_length(x@phi, 1L)
   expect_named(x@phi, levels(mod@y_training)[[mod@binclasspos]])
@@ -137,7 +148,7 @@ test_that("a binary explanation is named for the positive class", {
 test_that("a multiclass explanation is one matrix per class, each additive", {
   mod <- train(
     .multiclass_dat,
-    hyperparameters = setup_LightGBM(),
+    hyperparameters = setup_LightGBM(force_nrounds = 100L),
     verbosity = 0L
   )
   x <- explain(mod, .multiclass_dat[1:3, .explain_feats], verbosity = 0L)
@@ -153,17 +164,17 @@ test_that("regression, binary and multiclass differ only in length", {
   models <- list(
     regression = train(
       .regression_dat,
-      hyperparameters = setup_LightGBM(),
+      hyperparameters = setup_LightGBM(force_nrounds = 100L),
       verbosity = 0L
     ),
     binary = train(
       .binary_dat,
-      hyperparameters = setup_LightGBM(),
+      hyperparameters = setup_LightGBM(force_nrounds = 100L),
       verbosity = 0L
     ),
     multiclass = train(
       .multiclass_dat,
-      hyperparameters = setup_LightGBM(),
+      hyperparameters = setup_LightGBM(force_nrounds = 100L),
       verbosity = 0L
     )
   )
@@ -190,7 +201,11 @@ test_that("a factor predictor gets one contribution, not one per level", {
     dx = factor(sample(c("A", "B", "C"), .n, TRUE))
   )
   dat[["y"]] <- dat[["age"]] * 2 + as.integer(dat[["dx"]]) + rnorm(.n, sd = 0.3)
-  mod <- train(dat, hyperparameters = setup_LightGBM(), verbosity = 0L)
+  mod <- train(
+    dat,
+    hyperparameters = setup_LightGBM(force_nrounds = 100L),
+    verbosity = 0L
+  )
   x <- explain(mod, dat[1:3, c("age", "dx")], verbosity = 0L)
   expect_identical(x@feature_names, c("age", "dx"))
   expect_identical(x@space, "input")
@@ -205,7 +220,7 @@ test_that("a factor predictor gets one contribution, not one per level", {
 test_that("estimator, value function and scale are resolved and recorded", {
   mod <- train(
     .regression_dat,
-    hyperparameters = setup_LightGBM(),
+    hyperparameters = setup_LightGBM(force_nrounds = 100L),
     verbosity = 0L
   )
   x <- explain(mod, .regression_dat[1:3, .explain_feats], verbosity = 0L)
@@ -227,7 +242,7 @@ test_that("estimator, value function and scale are resolved and recorded", {
 test_that("explain() records what it explained and what it explained against", {
   mod <- train(
     .regression_dat,
-    hyperparameters = setup_LightGBM(),
+    hyperparameters = setup_LightGBM(force_nrounds = 100L),
     verbosity = 0L
   )
   newdata <- .regression_dat[1:3, .explain_feats]
@@ -271,7 +286,7 @@ test_that("an interventional TreeSHAP is refused rather than relabeled", {
   # decision exists to prevent.
   mod <- train(
     .regression_dat,
-    hyperparameters = setup_LightGBM(),
+    hyperparameters = setup_LightGBM(force_nrounds = 100L),
     verbosity = 0L
   )
   expect_error(
@@ -289,7 +304,7 @@ test_that("an interventional TreeSHAP is refused rather than relabeled", {
 test_that("the probability scale is refused, differently, per outcome type", {
   regression <- train(
     .regression_dat,
-    hyperparameters = setup_LightGBM(),
+    hyperparameters = setup_LightGBM(force_nrounds = 100L),
     verbosity = 0L
   )
   # Not a thing a regression has.
@@ -304,7 +319,7 @@ test_that("the probability scale is refused, differently, per outcome type", {
   )
   classification <- train(
     .binary_dat,
-    hyperparameters = setup_LightGBM(),
+    hyperparameters = setup_LightGBM(force_nrounds = 100L),
     verbosity = 0L
   )
   # A thing a classification has, which is not implemented yet.
@@ -1538,7 +1553,7 @@ test_that("importance is the magnitude, so cancelling contributions still count"
 test_that("a multiclass explanation gives one importance measure per class", {
   mod <- train(
     .multiclass_dat,
-    hyperparameters = setup_LightGBM(),
+    hyperparameters = setup_LightGBM(force_nrounds = 100L),
     verbosity = 0L
   )
   x <- explain(
@@ -1706,24 +1721,34 @@ test_that("a one-predictor model gives the whole deviation to its predictor", {
 
 
 # %% ConditionalSuperLearner ----
+# Two regimes an oracle can separate: the effect of `a` flips with `b`. One
+# fit serves both tests below.
+set.seed(9L)
+.routed_n <- 150L
+.routed_dat <- data.frame(a = rnorm(.routed_n), b = rnorm(.routed_n))
+.routed_dat[["y"]] <- ifelse(
+  .routed_dat[["b"]] > 0,
+  3 * .routed_dat[["a"]],
+  -3 * .routed_dat[["a"]]
+) +
+  rnorm(.routed_n, sd = 0.3)
+.routed_feats <- c("a", "b")
+.routed_mod <- train(
+  .routed_dat,
+  hyperparameters = setup_ConditionalSuperLearner(
+    base_learners = list(setup_GLM(), setup_GLM()),
+    inner_resampling_config = setup_KFold(n_resamples = 3L, seed = 2026L)
+  ),
+  verbosity = 0L
+)
+
 test_that("a routed case is explained by the expert that predicted it", {
   # The oracle sends each case to one expert, which predicts it alone, so the
   # expert's explanation *is* the ensemble's for that case -- exactly, and by
   # the expert's own estimator rather than a pass over the whole ensemble.
-  set.seed(9L)
-  n <- 150L
-  dat <- data.frame(a = rnorm(n), b = rnorm(n))
-  # Two regimes an oracle can separate: the effect of `a` flips with `b`.
-  dat[["y"]] <- ifelse(dat[["b"]] > 0, 3 * dat[["a"]], -3 * dat[["a"]]) +
-    rnorm(n, sd = 0.3)
-  feats <- c("a", "b")
-  mod <- train(
-    dat,
-    hyperparameters = setup_ConditionalSuperLearner(
-      base_learners = list(setup_GLM(), setup_GLM())
-    ),
-    verbosity = 0L
-  )
+  dat <- .routed_dat
+  feats <- .routed_feats
+  mod <- .routed_mod
   x <- explain(mod, dat[1:3, feats], background = dat[, feats], verbosity = 0L)
   expect_identical(x@estimator, "ExpertSHAP")
   # Both experts are GLMs, so both explanations are exact and so is the whole.
@@ -1740,19 +1765,9 @@ test_that("a routed case is explained by the expert that predicted it", {
 test_that("a routed explanation's baseline is its own expert's", {
   # The reason `@baseline` is per case: cases routed to different experts are
   # each exact against a different expected prediction.
-  set.seed(9L)
-  n <- 150L
-  dat <- data.frame(a = rnorm(n), b = rnorm(n))
-  dat[["y"]] <- ifelse(dat[["b"]] > 0, 3 * dat[["a"]], -3 * dat[["a"]]) +
-    rnorm(n, sd = 0.3)
-  feats <- c("a", "b")
-  mod <- train(
-    dat,
-    hyperparameters = setup_ConditionalSuperLearner(
-      base_learners = list(setup_GLM(), setup_GLM())
-    ),
-    verbosity = 0L
-  )
+  dat <- .routed_dat
+  feats <- .routed_feats
+  mod <- .routed_mod
   # Enough cases that the oracle routes to more than one expert; three would
   # not reliably reach a second.
   x <- explain(mod, dat[, feats], background = dat[, feats], verbosity = 0L)
@@ -1768,7 +1783,7 @@ test_that("a constant baseline still fills a row per case", {
   # One shape for both kinds of estimator, so no consumer branches on it.
   mod <- train(
     .regression_dat,
-    hyperparameters = setup_LightGBM(),
+    hyperparameters = setup_LightGBM(force_nrounds = 100L),
     verbosity = 0L
   )
   x <- explain(mod, .regression_dat[1:3, .explain_feats], verbosity = 0L)
@@ -1937,7 +1952,7 @@ test_that("collapse_by_term sums design columns into their term", {
 test_that("explain() inherits predict()'s strictness about columns", {
   mod <- train(
     .regression_dat,
-    hyperparameters = setup_LightGBM(),
+    hyperparameters = setup_LightGBM(force_nrounds = 100L),
     verbosity = 0L
   )
   # Predictors only, in training order -- the same contract `predict()` states.
