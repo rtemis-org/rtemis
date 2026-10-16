@@ -4,10 +4,11 @@
 
 #' Describe and Plot Fitted Models
 #'
-#' Ordinary regression
-#' presents true/predicted values; ordinary classification presents ROC curves
-#' or confusion panels. Resampled models present stored metric distributions.
-#' Descriptions use `describe()` unless `verbosity = 0`.
+#' A single model prints its `describe()` output, unless `verbosity = 0`, and
+#' returns its default `plot()` view: true/predicted values for regression,
+#' confusion matrices for classification, and stored metric distributions for
+#' resampled models. [plot_roc()] draws ROC curves for classification models
+#' with predicted probabilities.
 #'
 #' A nonempty homogeneous list compares models of the same task and sampling
 #' kind. Ordinary models use grouped metric bars. Resampled models use one
@@ -20,12 +21,30 @@
 #' names, made unique in that order. The existing rtemis data-fingerprint
 #' mismatch notice is retained, including when descriptions are disabled.
 #'
+#' @section Default plots:
+#' `plot()` on a fitted model draws the view `present()` returns, without the
+#' description:
+#'
+#' - `Regression`: [plot_true_pred()] for all available samples.
+#' - `Classification`: confusion matrices for all available samples, as drawn
+#'   by [plot_true_pred()].
+#' - `RegressionRes` and `ClassificationRes`: [plot_metric()] for all
+#'   available samples.
+#'
+#' Arguments after `x` are passed to the corresponding `plot_*()` method, for
+#' example `plot(model, what = "test")` or `plot(model, metric = "rmse")`.
+#'
+#' Model plots color each data split the same way: training teal, validation
+#' purple, test magenta. A supplied `palette` replaces these
+#' colors. Confusion matrices shade correct predictions blue and incorrect
+#' predictions orange.
+#'
 #' @param x rtemis model or List: Fitted ordinary/resampled models.
 #' @param ... Arguments for the selected presentation: `what`, `verbosity`, and
-#'   drawing arguments. Classification accepts `type = "roc"` or `"confusion"`.
+#'   drawing arguments. Resampled models accept `metric`.
 #'   Lists accept `metric`, `model_names`, `what`, `ylim`, `boxpoints`,
 #'   `quartiles`, `whisker`, `palette`, `theme`, `width`, `height`, and `filename`.
-#'   Single models forward drawing arguments to their plot_* method. Comparison
+#'   Single models forward drawing arguments to their `plot()` method. Comparison
 #'   lists use training/test samples; individual ordinary models also support
 #'   validation. Explicit `ylim` is a finite increasing pair for comparisons.
 #' @return htmlwidget: One chart or one complete [rtemis.draw::draw_panels()] figure.
@@ -34,62 +53,26 @@
 #' model <- train(mtcars[, c("wt", "mpg")],
 #'   hyperparameters = setup_GLM(), verbosity = 0L)
 #' present(model, verbosity = 0L)
+#' plot(model)
 present <- new_generic("present", "x")
 
-#' Describe and plot one regression model
+
+# %% present_model ----
+#' Describe and plot one model
 #' @inheritParams present
-#' @param what Character: Samples to draw.
 #' @param verbosity Integer `[0, Inf)`: Description verbosity.
-#' @return htmlwidget: True/predicted visualization.
+#' @param ... Arguments for the model's `plot()` method.
+#' @return htmlwidget: The model's default visualization.
 #' @keywords internal
 #' @noRd
-present_regression <- function(x, what = "all", verbosity = 1L, ...) {
+present_model <- function(x, verbosity = 1L, ...) {
   present_description(x, verbosity)
-  plot_true_pred(x, what = what, ...)
+  plot(x, ...)
 }
 
-#' Describe and plot one classification model
-#' @inheritParams present_regression
-#' @param type Character: ROC or confusion view, case insensitive.
-#' @return htmlwidget: Classification visualization.
-#' @keywords internal
-#' @noRd
-present_classification <- function(
-  x,
-  what = "all",
-  type = "roc",
-  verbosity = 1L,
-  ...
-) {
-  check_character_scalar(type)
-  type <- match_arg(tolower(type), c("roc", "confusion"))
-  present_description(x, verbosity)
-  if (type == "roc") {
-    plot_roc(x, what = what, ...)
-  } else {
-    plot_true_pred(x, what = what, ...)
-  }
-}
-
-#' Describe and plot one resampled model
-#' @inheritParams present_regression
-#' @param metric Optional Character: Stored metric name.
-#' @return htmlwidget: Metric distributions.
-#' @keywords internal
-#' @noRd
-present_resampled <- function(
-  x,
-  what = "all",
-  metric = NULL,
-  verbosity = 1L,
-  ...
-) {
-  present_description(x, verbosity)
-  plot_metric(x, what = what, metric = metric, ...)
-}
 
 #' Print an optional model description
-#' @inheritParams present_regression
+#' @inheritParams present_model
 #' @param metric Optional Character: Metric used in a list description.
 #' @return NULL, invisibly.
 #' @keywords internal
@@ -321,7 +304,7 @@ method(comparison_drawing, class_list) <- function(
       rtemis.draw::setup_BarConfig(
         x = "model",
         y = names(values),
-        palette = palette,
+        palette = palette %||% unname(split_colors(names(values))),
         ylab = labelify(x[["metric"]])
       ),
       data = chart_data
@@ -397,7 +380,7 @@ method(comparison_drawing, class_list) <- function(
 #' Describe and compare a list of fitted models
 #' @inheritParams comparison_data
 #' @inheritParams comparison_drawing
-#' @inheritParams present_regression
+#' @inheritParams present_model
 #' @return htmlwidget: Model comparison.
 #' @keywords internal
 #' @noRd

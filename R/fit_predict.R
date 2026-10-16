@@ -115,7 +115,7 @@ fit_predict <- function(
 #' @keywords internal
 #' @noRd
 fit_params_hyperparameters <- function(algorithm, params) {
-  setup_name <- paste0("setup_", get_alg_name(algorithm))
+  setup_name <- paste0("setup_", .get_alg_name(algorithm))
   if (length(params) == 0L) {
     return(do.call(setup_name, list()))
   }

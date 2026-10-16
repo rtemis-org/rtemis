@@ -1,0 +1,40 @@
+# Times every test under CRAN check settings on Windows and uploads the
+# per-test and per-file tables (tools/test-timing.R).
+
+on:
+  workflow_dispatch:
+
+name: test-timing
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  timing:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-pandoc@v2
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+          extra-repositories: https://rtemis-org.r-universe.dev
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: local::.
+          needs: check
+          cache: always
+      - name: Time tests
+        run: Rscript tools/test-timing.R test-timing
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-timing-windows
+          path: test-timing

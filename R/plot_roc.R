@@ -268,5 +268,11 @@ draw_model_roc <- function(
   ...
 ) {
   data <- roc_plot_data(x, what, variant, positive, labelify)
-  rtemis.draw::draw_roc(data, variant = variant, ...)
+  args <- list(...)
+  # Binary curves are colored by split; multiclass curves by class, with the
+  # split distinguished by line type.
+  if (length(unique(data[["class"]])) == 1L) {
+    args <- split_palette(args, unique(data[["split"]]))
+  }
+  do.call(rtemis.draw::draw_roc, c(list(data, variant = variant), args))
 }

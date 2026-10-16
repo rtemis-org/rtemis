@@ -209,7 +209,10 @@ GridSearchConfig <- schema_class(
 #' @param metric Optional Character: Metric to minimize or maximize. NULL sets
 #' it from the outcome type.
 #' @param maximize Optional Logical: If TRUE, maximize `metric`, otherwise
-#' minimize it. NULL sets it from the metric.
+#' minimize it. NULL maximizes `accuracy`, `balanced_accuracy`, `sensitivity`,
+#' `specificity`, `ppv`, `npv`, `f1`, `auc`, `rsq` and `Concordance`, and
+#' minimizes every other metric, including `mae`, `mse`, `rmse` and
+#' `brier_score`.
 #'
 #' @return A `GridSearchConfig` object.
 #'
@@ -292,6 +295,24 @@ method(desc, Tuner) <- function(x) {
     paste(x@tuner_config[["search_type"]], "grid search")
   }
 } # /rtemis::describe.Tuner
+
+
+# %% `$`.Tuner ----
+method(`$`, Tuner) <- function(x, name) {
+  prop_by_name(x, name)
+}
+
+
+# %% `.DollarNames`.Tuner ----
+method(`.DollarNames`, Tuner) <- function(x, pattern = "") {
+  prop_names_matching(x, pattern)
+}
+
+
+# %% `[[`.Tuner ----
+method(`[[`, Tuner) <- function(x, name) {
+  prop_by_name(x, name)
+}
 
 
 # %% GridSearch ----

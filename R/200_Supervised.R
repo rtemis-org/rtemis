@@ -278,7 +278,7 @@ varimp_column_names <- function(measures) {
 #' Columns follow the order of the measures. A predictor a measure does not
 #' cover is `NA` in that measure's column: some backends report only the
 #' predictors used in a split. A measure named `variable` or `fold`, or one
-#' repeating an earlier column, is labeled "<name> (measure)", since those
+#' repeating an earlier column, is labeled "`<name> (measure)`", since those
 #' column names carry the table's structure.
 #'
 #' The table holds the values only. What each measure quantifies, the cases it
@@ -899,24 +899,20 @@ method(se, Supervised) <- function(x, newdata, verbosity = 0L) {
 
 
 # %% `$`.Supervised ----
-# Make Supervised props `$`- accessible
 method(`$`, Supervised) <- function(x, name) {
-  prop(x, name)
+  prop_by_name(x, name)
 }
 
 
 # %% `.DollarNames`.Supervised ----
-# `$`-autocomplete Supervised props
 method(`.DollarNames`, Supervised) <- function(x, pattern = "") {
-  all_names <- names(props(x))
-  grep(pattern, all_names, value = TRUE)
+  prop_names_matching(x, pattern)
 }
 
 
 # %% `[[`.Supervised ----
-# Make Supervised props `[[`- accessible ----
 method(`[[`, Supervised) <- function(x, name) {
-  prop(x, name)
+  prop_by_name(x, name)
 }
 
 
@@ -1993,7 +1989,6 @@ write_Supervised <- function(
   object,
   outdir = NULL,
   save_mod = FALSE,
-  theme = choose_theme(getOption("rtemis_theme")),
   verbosity = 1L
 ) {
   if (verbosity > 0L) {
@@ -2504,6 +2499,24 @@ method(print, SupervisedRes) <- function(
   cat(repr(x, output_type = output_type))
   invisible(x)
 } # /rtemis::print.SupervisedRes
+
+
+# %% `$`.SupervisedRes ----
+method(`$`, SupervisedRes) <- function(x, name) {
+  prop_by_name(x, name)
+}
+
+
+# %% `.DollarNames`.SupervisedRes ----
+method(`.DollarNames`, SupervisedRes) <- function(x, pattern = "") {
+  prop_names_matching(x, pattern)
+}
+
+
+# %% `[[`.SupervisedRes ----
+method(`[[`, SupervisedRes) <- function(x, name) {
+  prop_by_name(x, name)
+}
 
 
 # %% predict.SupervisedRes ----
@@ -3271,6 +3284,25 @@ LightRuleFit <- new_class(
   )
 ) # /rtemis::LightRuleFit
 
+
+# %% `$`.LightRuleFit ----
+method(`$`, LightRuleFit) <- function(x, name) {
+  prop_by_name(x, name)
+}
+
+
+# %% `.DollarNames`.LightRuleFit ----
+method(`.DollarNames`, LightRuleFit) <- function(x, pattern = "") {
+  prop_names_matching(x, pattern)
+}
+
+
+# %% `[[`.LightRuleFit ----
+method(`[[`, LightRuleFit) <- function(x, name) {
+  prop_by_name(x, name)
+}
+
+
 # ConditionalSuperLearner ----
 #' ConditionalSuperLearner
 #'
@@ -3750,35 +3782,143 @@ method(print, LightRuleFit) <- function(x, ...) {
 } # /rtemis::print.LightRuleFit
 
 
-# get_metric Regression ----
+# %% get_metric.Regression ----
 method(get_metric, Regression) <- function(x, set, metric) {
-  prop(prop(x, paste0("metrics_", set)), "metrics")[[metric]]
-} # /get_metric.Regression
+  get_metrics(x, set)@metrics[[metric]]
+} # /rtemis::get_metric.Regression
 
-# get_metric Classification ----
+
+# %% get_metric.Classification ----
 method(get_metric, Classification) <- function(x, set, metric) {
-  prop(prop(x, paste0("metrics_", set)), "metrics")[["overall"]][[metric]]
-} # /get_metric.Classification
+  get_metrics(x, set)@metrics[["overall"]][[metric]]
+} # /rtemis::get_metric.Classification
 
-# get_metric RegressionRes ----
+
+# %% get_metric.RegressionRes ----
 method(get_metric, RegressionRes) <- function(x, set, metric) {
-  sapply(
-    prop(prop(x, paste0("metrics_", set)), "res_metrics"),
-    function(r) {
-      r[[metric]]
-    }
+  vapply(
+    get_metrics(x, set)@res_metrics,
+    function(r) r@metrics[[metric]],
+    numeric(1L)
   )
 } # /rtemis::get_metric.RegressionRes
 
-# get_metric ClassificationRes ----
+
+# %% get_metric.ClassificationRes ----
 method(get_metric, ClassificationRes) <- function(x, set, metric) {
-  sapply(
-    prop(prop(x, paste0("metrics_", set)), "res_metrics"),
-    function(r) {
-      r[["overall"]][[metric]]
-    }
+  vapply(
+    get_metrics(x, set)@res_metrics,
+    function(r) r@metrics[["overall"]][[metric]],
+    numeric(1L)
   )
 } # /rtemis::get_metric.ClassificationRes
+
+
+# %% stored_supervised_metrics ----
+#' Metrics stored on a supervised model for one sample
+#'
+#' Implements `get_metrics()` for `Supervised` and `SupervisedRes` models.
+#'
+#' @param x `Supervised` or `SupervisedRes` object.
+#' @param sample Optional Character: Sample name.
+#' @param calibrated Logical: If TRUE, read the calibrated metrics.
+#' @param samples Character: Samples the class of `x` can store.
+#'
+#' @return `Metrics` or `MetricsRes` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+stored_supervised_metrics <- function(x, sample, calibrated, samples) {
+  check_logical_scalar(calibrated)
+  suffix <- if (calibrated) "_calibrated" else ""
+  stored <- samples[vapply(
+    samples,
+    function(s) {
+      name <- paste0("metrics_", s, suffix)
+      prop_exists(x, name) && !is.null(prop(x, name))
+    },
+    logical(1L)
+  )]
+  class_name <- S7_class(x)@name
+  if (calibrated && length(stored) == 0L) {
+    abort(
+      "`calibrated = TRUE` requires a calibrated classifier; this is a ",
+      class_name,
+      " object. Use calibrate() to calibrate a Classification or ",
+      "ClassificationRes model.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  if (is.null(sample)) {
+    abort(
+      "`sample` is required for a ",
+      class_name,
+      " object. This object stores metrics for: ",
+      paste(encodeString(stored, quote = "'"), collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  check_character_scalar(sample)
+  if (!sample %in% samples) {
+    abort(
+      "`sample` must be one of ",
+      paste(encodeString(samples, quote = "'"), collapse = ", "),
+      " for a ",
+      class_name,
+      " object. Received: ",
+      encodeString(sample, quote = "'"),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  if (!sample %in% stored) {
+    abort(
+      "This ",
+      class_name,
+      " object stores no ",
+      sample,
+      " metrics: train() received no `dat_",
+      sample,
+      "`. It stores metrics for: ",
+      paste(encodeString(stored, quote = "'"), collapse = ", "),
+      ".",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  prop(x, paste0("metrics_", sample, suffix))
+} # /rtemis::stored_supervised_metrics
+
+
+# %% get_metrics.Supervised ----
+method(get_metrics, Supervised) <- function(
+  x,
+  sample = NULL,
+  calibrated = FALSE
+) {
+  stored_supervised_metrics(
+    x,
+    sample = sample,
+    calibrated = calibrated,
+    samples = c("training", "validation", "test")
+  )
+} # /rtemis::get_metrics.Supervised
+
+
+# %% get_metrics.SupervisedRes ----
+method(get_metrics, SupervisedRes) <- function(
+  x,
+  sample = NULL,
+  calibrated = FALSE
+) {
+  stored_supervised_metrics(
+    x,
+    sample = sample,
+    calibrated = calibrated,
+    samples = c("training", "test")
+  )
+} # /rtemis::get_metrics.SupervisedRes
 
 
 # Describe list of Supervised/Res ----

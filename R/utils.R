@@ -237,20 +237,6 @@ is_constant <- function(x, skip_missing = FALSE) {
 } # /rtemis::is_constant
 
 
-#' Check if variable is discrete (factor or integer)
-#'
-#' @param x Input
-#'
-#' @return Logical.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-is_discrete <- function(x) {
-  is.factor(x) || is.integer(x) || is.logical(x) || is.character(x)
-} # /rtemis::is_discrete
-
-
 #' Return object if it has length > 0
 #'
 #' Returns the input object if it has length > 0, else NULL

@@ -45,34 +45,36 @@ Decomposition <- new_class(
 
 
 # %% `$`.Decomposition ----
-# Make Decomposition properties `$`-accessible
 method(`$`, Decomposition) <- function(x, name) {
-  prop_names <- names(props(x))
-  if (name %in% prop_names) {
-    prop(x, name)
-  } else {
-    rtemis.core::abort(
-      "No property named '",
-      name,
-      "' in Decomposition object.",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
+  prop_by_name(x, name)
 }
 
 
 # %% `.DollarNames`.Decomposition ----
 method(`.DollarNames`, Decomposition) <- function(x, pattern = "") {
-  prop_names <- names(props(x))
-  grep(pattern, prop_names, value = TRUE)
+  prop_names_matching(x, pattern)
 }
 
 
 # %% `[[`.Decomposition ----
-# Make Decomposition@transformed `[[`-accessible
-method(`[[`, Decomposition) <- function(x, index) {
-  props(x, "transformed")[[index]]
+method(`[[`, Decomposition) <- function(x, name) {
+  prop_by_name(x, name)
 }
+
+
+# %% get_metrics.Decomposition ----
+method(get_metrics, Decomposition) <- function(
+  x,
+  sample = NULL,
+  calibrated = FALSE
+) {
+  stored_fit_metrics(
+    x,
+    sample = sample,
+    calibrated = calibrated,
+    new_data_hint = " Use decomp_metrics() to compute the metrics of new data."
+  )
+} # /rtemis::get_metrics.Decomposition
 
 
 # %% repr.Decomposition ----
@@ -427,7 +429,7 @@ check_decom_applicable <- function(decomposition_config) {
     )
   }
   # Normalize casing and drop `algorithm` before forwarding to the setup fn.
-  algorithm <- get_decom_name(algorithm)
+  algorithm <- .get_decom_name(algorithm)
   # One shape: `{algorithm, k, ..., features?}`, which is what the published
   # schema declares. `.drop_meta_keys()` removes document metadata (e.g.
   # `$schema`), which is not a setup arg.

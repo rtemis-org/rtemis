@@ -237,14 +237,16 @@ method(predict_super, class_svm) <- function(
   verbosity = 0L
 ) {
   if (type == "Classification") {
+    # e1071 orders the probability columns by first appearance of each class in
+    # the training data, so columns are selected by level name.
     predicted_prob <- attr(
       predict(model, newdata = newdata, probability = TRUE),
       "probabilities"
     )
     if (length(model[["levels"]]) == 2) {
-      predicted_prob[, 2]
+      predicted_prob[, model[["levels"]][[2L]]]
     } else {
-      predicted_prob
+      predicted_prob[, model[["levels"]], drop = FALSE]
     }
   } else {
     predict(model, newdata = newdata)

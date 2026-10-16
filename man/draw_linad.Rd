@@ -26,7 +26,7 @@ draw_linad(
   leaf_col = NULL,
   hover_col = NULL,
   height = "600px",
-  theme = choose_theme(getOption("rtemis_theme")),
+  theme = NULL,
   verbosity = 1L
 )
 }
@@ -71,8 +71,8 @@ with neither was inherited from the parent unchanged. The root carries no
 marks: it has no parent to differ from.}
 
 \item{lo_col}{Character: Color for the most negative coefficient. Defaults
-to the package-wide negative color, the same one \code{draw_volcano()} and
-\code{plot_manhattan()} use.}
+to the package-wide negative color, the same one \code{plot()} and
+\code{plot_manhattan()} use on a \code{MassGLM}.}
 
 \item{mid_col}{Optional Character: Color at zero. NULL uses the coefficient
 table's own background, so a coefficient of no consequence shows as no cell
@@ -96,9 +96,11 @@ coefficient table belongs to. NULL uses the theme foreground.}
 \item{height}{Character: CSS height, as a length: a percentage of a
 container with no height of its own collapses.}
 
-\item{theme}{\code{Theme} object. Node fills, the coefficient table and the hover
-marker all follow it, chosen by the background's luminance so that a custom
-theme is handled too. The two ends of the
+\item{theme}{Optional \link[rtemis.draw:Theme]{rtemis.draw::Theme}: Its background and text colors
+set the canvas and the foreground. Node fills, the coefficient table and the
+hover marker all follow them, chosen by the background's luminance so that a
+custom theme is handled too. NULL uses \code{\link[rtemis.draw:theme_light]{rtemis.draw::theme_light()}}. The two
+ends of the
 coefficient scale do not follow it: both ends read on either background, so
 a sign has the same color under every theme.}
 

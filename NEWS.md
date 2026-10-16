@@ -4,6 +4,7 @@
 
 - Updates for compatibility with S7 > 0.2.2.
 
+- The standalone Plotly, networkD3, threejs and leaflet `draw_*()` functions move to the 'rtemis.dplot' package on r-universe, with their themes (`theme_*()`, `choose_theme()`, `available_themes()`), palettes (`get_palette()`), color utilities (`col2grayscale()`, `color_adjust()`, `previewcolor()`), `available_draw()`, `uniprot_get()`, `xtdescribe()`, the `xt_example` data and the `rtemis_theme`, `rtemis_palette` and `rtemis_font` options. 'rtemis.draw' provides their replacements. rtemis keeps `draw_linad()`, which takes an 'rtemis.draw' `Theme`, and `roc_curve()`.
 - `setup_PCoA()` configures principal coordinates analysis (classical multidimensional scaling) on a choice of dissimilarities; it applies to new data through Gower's out-of-sample formula, so it can be `train()`'s decomposition step, and does not reconstruct the input.
 - `setup_MDS()` configures metric or nonmetric multidimensional scaling through 'vegan' with multiple starts; it cannot be applied to new data and does not reconstruct the input.
 - `review()` assesses a trained supervised model, single-split or resampled: it reports sample sizes, every training and test metric, and comparisons with a baseline predictor, with confidence intervals and tests for a single split and a description of the variation between resamples for a resampled model, then notes small samples, many predictors, and signs of overfitting.
@@ -25,6 +26,21 @@
 - Shared results identify implementation-specific learner, execution, preprocessing, and resampler configs by schema and read their typed settings without inserting omitted defaults.
 - `write_config()` and `write_record()` write numbers with 15 significant digits instead of rounding to four decimal places.
 - Each parallel task receives only its own resample or bag; LINADForest and `bias_variance()` pass training data to local workers through shared memory.
+- GAM classification trains on a data.table, which failed for every outcome, and on a multiclass outcome, using mgcv's multinomial family. A multiclass GAM reports no variable importance or standard errors, and `explain()` refuses its GAMTerms estimator; `explanation_methods()` reports GAM's exactness as dependent on the fit.
+- LinearSVM and RadialSVM probabilities are those of the positive class for a binary outcome and follow the outcome's level order for a multiclass one. Binary probabilities were those of the negative class when the first training case belonged to the positive class.
+- `setup_GridSearch()` with `maximize` unset maximizes every metric for which a higher value is better (accuracy, balanced accuracy, sensitivity, specificity, PPV, NPV, F1, AUC, R², concordance) and minimizes the others; it minimized AUC, sensitivity, specificity, PPV, NPV and F1.
+- `se()` is exported: standard errors of the fit for GLM, GAM, BART and LINADForest models.
+- `get_metrics()` returns the metrics a supervised model, resampled model, clustering or decomposition stores for one sample; `calibrated = TRUE` selects a calibrated classifier's calibrated metrics.
+- `$` and `[[` read the properties of resampled models, resampled metrics, tuners, LightRuleFit models and `bias_variance()` results, with tab completion, and `[[` reads any property of a decomposition, as `$` does. On these objects and on models and clusterings, a name that is not a property raises an error listing the properties.
+- `plot_varimp()` draws a `SHAP` explanation's mean absolute contributions.
+- `plot()` draws a fitted supervised model's default view: true against predicted values for regression, confusion matrices for classification, and metric distributions for resampled models. `present()` prints the model's description and returns the same view; `plot_roc()` draws ROC curves.
+- Model plots color each data split the same way: training teal, validation purple, test magenta. Confusion matrices shade correct predictions blue and incorrect predictions orange.
+- Imputation fitted on training data is applied to new data: `apply_preprocessor()`, and `train()` on validation, test and resampled test data, impute with what was learned from the training data rather than from the new data.
+  - Mean and mode imputation (`impute_type = "meanMode"`) stores the value imputed into every feature in the new config properties `impute_numeric_values` and `impute_level_values`.
+  - Mean and mode imputation keeps each feature's type. `impute_numeric` ("mean" or "median") and `impute_categorical` ("mode") replace `impute_discrete` and `impute_continuous`. Integer features take the mean or median rounded half to even, logical features their more frequent value (FALSE on a tie), and factor and character features their mode, a tie going to the first level or the first value in code point order. Integer features took their mode, a tie going to the value appearing last. A supplied value that a feature's type cannot hold is an error.
+  - missRanger imputation keeps its fitted random forests in the `Preprocessor` (`@imputer`) and applies them with `predict()`; features with no missing training values take a mean or mode value on new data. All `impute_missRanger_params` reach missRanger, which received only `pmm.k`.
+  - micePMM imputation is available to `preprocess()` only: `setup_SupervisedPreprocessor()` does not offer it, and `apply_preprocessor()` refuses a preprocessor that uses it.
+  - `setup_SupervisedPreprocessor()` imputes with mean and mode values by default (`impute_type = "meanMode"`); missRanger, fitted on every training set of a `train()` run, is chosen explicitly. The Imputation sections of `setup_SupervisedPreprocessor()` and `setup_Preprocessor()` describe each method's cost and limits.
 
 ### Supervised result validation
 

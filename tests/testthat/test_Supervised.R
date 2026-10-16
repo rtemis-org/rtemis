@@ -398,6 +398,61 @@ test_that("train() GAM Classification with IFW succeeds", {
   expect_s7_class(mod_c_gam_ifw, Classification)
 })
 
+## {GAM}[train]<Classification> data.table ----
+test_that("train() GAM binary Classification accepts a data.table", {
+  mod <- train(
+    x = as.data.table(datc2_train),
+    dat_test = as.data.table(datc2_test),
+    hyperparameters = setup_GAM(),
+    verbosity = 0L
+  )
+  expect_s7_class(mod, Classification)
+  expect_identical(mod@model[["family"]][["family"]], "binomial")
+  expect_identical(ncol(mod@predicted_prob_test), 1L)
+})
+
+## {GAM}[train]<Classification> Multiclass data.table ----
+# Three classes with overlapping distributions: a separable outcome such as
+# iris drives the multinomial fit to infinite coefficients.
+set.seed(2026)
+datc3_gam <- data.table(
+  a = rnorm(300),
+  b = rnorm(300),
+  g = factor(sample(c("u", "v"), 300, replace = TRUE))
+)
+datc3_gam_lp <- cbind(
+  0,
+  sin(datc3_gam[["a"]]) + 0.5 * datc3_gam[["b"]],
+  -datc3_gam[["a"]] + 0.3 * datc3_gam[["b"]]
+)
+datc3_gam[["y"]] <- factor(
+  apply(exp(datc3_gam_lp), 1L, function(p) {
+    sample(c("c1", "c2", "c3"), 1L, prob = p)
+  }),
+  levels = c("c1", "c2", "c3")
+)
+resc3_gam <- resample(datc3_gam)
+datc3_gam_train <- datc3_gam[resc3_gam[["Fold_1"]], ]
+datc3_gam_test <- datc3_gam[-resc3_gam[["Fold_1"]], ]
+mod_c3_gam <- train(
+  x = datc3_gam_train,
+  dat_test = datc3_gam_test,
+  hyperparameters = setup_GAM(),
+  verbosity = 0L
+)
+test_that("train() GAM multiclass Classification accepts a data.table", {
+  expect_s7_class(mod_c3_gam, Classification)
+  expect_identical(mod_c3_gam@model[["family"]][["family"]], "multinom")
+  prob <- mod_c3_gam@predicted_prob_test
+  expect_identical(colnames(prob), c("c1", "c2", "c3"))
+  expect_equal(unname(rowSums(prob)), rep(1, nrow(prob)))
+  expect_identical(
+    predict(mod_c3_gam, features(datc3_gam_test)),
+    prob
+  )
+  expect_null(get_varimp(mod_c3_gam))
+})
+
 # --- LinearSVM ------------------------------------------------------------------------------------
 ## {LinearSVM}[train]<Regression> ----
 mod_r_svml <- train(
@@ -555,6 +610,45 @@ modt_c3_radialsvm <- train(
 )
 test_that("train() RadialSVM Multiclass Classification succeeds", {
   expect_s7_class(modt_c3_radialsvm, Classification)
+})
+
+## {SVM}[predict]<Classification> probability columns ----
+# e1071 orders its probability columns by first appearance of each class in the
+# training data. Training data that open with a case of the positive class, the
+# second level, place that class in the first column.
+test_that("SVM binary probabilities are the positive class's", {
+  dat <- iris[51:150, ]
+  dat[["Species"]] <- factor(dat[["Species"]])
+  dat <- dat[c(51L, 1:50, 52:100), ]
+  expect_identical(as.character(dat[["Species"]][1L]), "virginica")
+  for (hyperparameters in list(setup_LinearSVM(), setup_RadialSVM())) {
+    mod <- train(dat, hyperparameters = hyperparameters, verbosity = 0L)
+    prob <- mod@predicted_prob_training
+    expect_identical(colnames(prob), "virginica")
+    expected <- attr(
+      predict(mod@model, newdata = features(dat), probability = TRUE),
+      "probabilities"
+    )[, "virginica"]
+    expect_equal(unname(prob[, 1L]), unname(expected))
+    expect_gt(mod@metrics_training[["overall"]][["auc"]], 0.9)
+  }
+})
+
+test_that("SVM multiclass probabilities follow level order", {
+  dat <- iris[c(101:150, 1:100), ]
+  expect_identical(as.character(dat[["Species"]][1L]), "virginica")
+  mod <- train(dat, hyperparameters = setup_RadialSVM(), verbosity = 0L)
+  prob <- mod@predicted_prob_training
+  expect_identical(colnames(prob), levels(iris[["Species"]]))
+  expected <- attr(
+    predict(mod@model, newdata = features(dat), probability = TRUE),
+    "probabilities"
+  )[, levels(iris[["Species"]])]
+  expect_equal(unname(prob), unname(expected))
+  expect_gt(
+    mean(colnames(prob)[max.col(prob)] == as.character(dat[["Species"]])),
+    0.9
+  )
 })
 
 # --- CART -----------------------------------------------------------------------------------------
@@ -1437,6 +1531,18 @@ test_that("train() LightGBM Classification succeeds", {
   expect_s7_class(mod_c_lightgbm, Classification)
 })
 
+test_that("`$` and `[[` read Tuner properties by name", {
+  tuner <- mod_c_lightgbm$tuner
+  expect_s7_class(tuner, GridSearch)
+  expect_identical(tuner$best_hyperparameters, tuner@best_hyperparameters)
+  expect_identical(tuner[["tuning_results"]], tuner@tuning_results)
+  expect_true(
+    "best_hyperparameters" %in% utils::.DollarNames(tuner, "^best")
+  )
+  expect_error(tuner$best, class = "rtemis_value_error")
+  expect_error(tuner[["results"]], class = "rtemis_value_error")
+})
+
 ## {LightGBM}[train]<Classification> Multiclass ----
 modt_c3_lightgbm <- train(
   x = datc3_train,
@@ -1457,7 +1563,7 @@ mod_r_lightrlft_l1l2 <- train(
     nrounds = 50L,
     lambda_l1 = 10,
     lambda_l2 = 10,
-    lambda = 0.01
+    lambda_glmnet = 0.01
   )
 )
 
@@ -1471,6 +1577,25 @@ test_that("train() LightRuleFit Regression with l1, l2 params passed", {
     mod_r_lightrlft_l1l2@model@model_lightgbm@model[["params"]][["lambda_l2"]],
     10
   )
+})
+
+test_that("`$` and `[[` read LightRuleFit properties by name", {
+  rulefit <- mod_r_lightrlft_l1l2$model
+  expect_s7_class(rulefit, LightRuleFit)
+  expect_identical(rulefit$rules_selected, rulefit@rules_selected)
+  expect_identical(rulefit[["model_glmnet"]], rulefit@model_glmnet)
+  expect_identical(
+    rulefit$model_lightgbm$metrics_training,
+    rulefit@model_lightgbm@metrics_training
+  )
+  expect_true(
+    all(
+      c("rules", "rules_coefs", "rules_index") %in%
+        utils::.DollarNames(rulefit, "^rules_?")
+    )
+  )
+  expect_error(rulefit$rule, class = "rtemis_value_error")
+  expect_error(rulefit[["coefs"]], class = "rtemis_value_error")
 })
 
 ## {LightRuleFit}[train]<Classification> ----
@@ -1861,7 +1986,7 @@ mod_r_spls_byname <- fit_if_installed(
 test_that("train() SPLS from its algorithm name succeeds", {
   skip_if_not_installed("spls")
   expect_s7_class(mod_r_spls_byname, Regression)
-  expect_identical(get_alg_name("spls"), "SPLS")
+  expect_identical(.get_alg_name("spls"), "SPLS")
 })
 
 ## {SPLS}[train]<Regression> /\Error k > n features ----
@@ -2143,7 +2268,7 @@ mod_r_mars_byname <- fit_if_installed(
 test_that("train() MARS from its algorithm name succeeds", {
   skip_if_not_installed("earth")
   expect_s7_class(mod_r_mars_byname, Regression)
-  expect_identical(get_alg_name("mars"), "MARS")
+  expect_identical(.get_alg_name("mars"), "MARS")
 })
 
 ## {MARS}[train]<Classification> /\Error multiclass pmethod ----
@@ -2722,7 +2847,7 @@ if (mlp_installed) {
   )
   test_that("train() MLP from its algorithm name succeeds", {
     expect_s7_class(mod_r_mlp_byname, Regression)
-    expect_identical(get_alg_name("mlp"), "MLP")
+    expect_identical(.get_alg_name("mlp"), "MLP")
   })
 }
 
@@ -2909,7 +3034,7 @@ mod_r_knn_byname <- fit_if_installed(
 test_that("train() KNN from its algorithm name succeeds", {
   skip_if_not_installed("kknn")
   expect_s7_class(mod_r_knn_byname, Regression)
-  expect_identical(get_alg_name("knn"), "KNN")
+  expect_identical(.get_alg_name("knn"), "KNN")
 })
 
 ## {KNN}[train]<Regression> /\Error k >= n cases ----
@@ -3281,7 +3406,7 @@ mod_r_bart_byname <- fit_if_installed(
 test_that("train() BART from its algorithm name succeeds", {
   skip_if_not_installed("stochtree")
   expect_s7_class(mod_r_bart_byname, Regression)
-  expect_identical(get_alg_name("bart"), "BART")
+  expect_identical(.get_alg_name("bart"), "BART")
 })
 
 ## {BART}[train]<Classification> /\Error multiclass unsupported ----
@@ -3592,7 +3717,7 @@ mod_r_hal_byname <- fit_if_installed(
 test_that("train() HAL from its algorithm name succeeds", {
   skip_if_not_installed("hal9001")
   expect_s7_class(mod_r_hal_byname, Regression)
-  expect_identical(get_alg_name("hal"), "HAL")
+  expect_identical(.get_alg_name("hal"), "HAL")
 })
 
 ## {HAL}[train]<Classification> /\Error multiclass unsupported ----
@@ -3955,20 +4080,6 @@ test_that("plot_true_pred creates an ECharts htmlwidget", {
   expect_s3_class(p, "htmlwidget")
 })
 
-## {GLM}[draw_roc]<Classification> ----
-test_that("draw_roc creates a plotly object", {
-  p <- draw_roc(
-    true_labels = list(
-      Training = mod_c_glm@y_training,
-      Test = mod_c_glm@y_test
-    ),
-    predicted_prob = list(
-      Training = mod_c_glm@predicted_prob_training,
-      Test = mod_c_glm@predicted_prob_test
-    )
-  )
-  expect_s3_class(p, "plotly")
-})
 test_that("plot_roc.Classification creates an ECharts htmlwidget", {
   p <- plot_roc(mod_c_glm)
   expect_s3_class(p, "htmlwidget")
@@ -4824,7 +4935,7 @@ test_that("a base learner's search space becomes library entries, untuned", {
 
 ## {SuperLearner}[train]<Regression> Algorithm name dispatch ----
 test_that("train() SuperLearner from its algorithm name succeeds", {
-  expect_identical(get_alg_name("superlearner"), "SuperLearner")
+  expect_identical(.get_alg_name("superlearner"), "SuperLearner")
   expect_s7_class(
     get_default_hyperparameters("superlearner"),
     SuperLearnerHyperparameters

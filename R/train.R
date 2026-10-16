@@ -156,6 +156,13 @@ restore_weights_column <- function(model, column) {
 #' the learned parameters are stored in the returned Supervised or SupervisedRes object, and the
 #' preprocessing is applied on validation and test data.
 #'
+#' For missing values, prefer an algorithm that accepts them, such as LightGBM, LightRF, Ranger
+#' or CART. For an algorithm that requires complete data, impute with
+#' `setup_SupervisedPreprocessor(impute = TRUE)`, which uses mean and mode imputation by
+#' default. missRanger imputation is fitted on every training set, including every tuning
+#' resample, and multiplies the memory and computation of a run; see the Imputation section of
+#' [setup_SupervisedPreprocessor].
+#'
 #' **Binary Classification**
 #'
 #' For binary classification, the outcome should be a factor where *the 2nd level
@@ -218,7 +225,7 @@ restore_weights_column <- function(model, column) {
 #' iris_c_lightRF <- train(
 #'    iris,
 #'    hyperparameters = setup_LightRF(),
-#'    outer_resampling_config = setup_KFold(),
+#'    outer_resampling_config = setup_KFold(n_resamples = 3L)
 #' )
 #' }
 train <- function(

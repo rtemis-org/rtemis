@@ -116,7 +116,7 @@ read_config <- function(file) {
 #' standalone preprocessor config file carries its own. Those `$`-prefixed keys
 #' are document metadata, not `setup_*` arguments, so they are stripped before a
 #' parsed list is forwarded via `do.call()`. Anything else unknown still reaches
-#' the `setup_*` function and fails there, as it should.
+#' the `setup_*` function and fails there.
 #'
 #' Exported for `rtemis.server`, which applies the same rule to the config
 #' blocks it receives over the wire.
@@ -128,7 +128,6 @@ read_config <- function(file) {
 #' @author EDG
 #' @keywords internal
 #' @export
-#' @noRd
 #' @examples
 #' .drop_meta_keys(list(`$schema` = "https://schema.rtemis.org/preprocessor/r/v1/schema.json",
 #'                      remove_duplicates = TRUE))
@@ -145,9 +144,9 @@ read_config <- function(file) {
 #'
 #' Guards an argument documented as one S7 class before it is used as one,
 #' across the package (`train()`, `tune()`, `resample()`, `preprocess()`,
-#' `decomp()`, `cluster()`, `explain()`, every `draw_*()`, and more). Uses
+#' `decomp()`, `cluster()`, `explain()`, `draw_linad()`, and more). Uses
 #' `S7_inherits()`: every call site passes an S7 class *object* (`IngestConfig`,
-#' `Theme`, ...) as `cls`, and base R's `inherits()`, which
+#' `rtemis.draw::Theme`, ...) as `cls`, and base R's `inherits()`, which
 #' `rtemis.core::check_inherits()` wraps, expects a character class name.
 #'
 #' @param x Object to check.

@@ -14,21 +14,12 @@ machine learning workflows.
 \url{https://docs.rtemis.org/r/ml}
 }
 
-\section{System Setup}{
-
-There are some options you can define in your .Rprofile (usually found in your home directory),
-so you do not have to define each time you execute a function.
-\describe{
-\item{rtemis_theme}{General plotting theme; set to e.g. "whiteigrid" or "darkgraygrid"}
-\item{rtemis_font}{Font family to use in plots.}
-\item{rtemis_palette}{Name of default palette to use in plots. See options by running \code{get_palette()}}
-}
-}
-
 \section{Visualization}{
 
-Graphics are handled using the \code{draw} family, which produces interactive plots primarily using
-\code{plotly} and other packages.
+Model plots (\code{plot_true_pred()}, \code{plot_roc()}, \code{plot_varimp()}, \code{plot_metric()},
+\code{plot_learning()}, \code{plot_session()}, \code{plot_manhattan()}) and \code{present()} render
+interactive charts through 'rtemis.draw', which also provides the \verb{draw_*()} functions for
+data. \code{draw_linad()} draws a LINAD tree.
 }
 
 \section{Supervised Learning}{

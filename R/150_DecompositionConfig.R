@@ -1449,5 +1449,5 @@ setup_PCoA <- function(
 #' @keywords internal
 #' @noRd
 decom_can_apply <- function(algorithm) {
-  get_decom_name(algorithm) %in% decom_algorithms_applicable
+  .get_decom_name(algorithm) %in% decom_algorithms_applicable
 } # /rtemis::decom_can_apply

@@ -10,10 +10,10 @@ present(x, ...)
 \item{x}{rtemis model or List: Fitted ordinary/resampled models.}
 
 \item{...}{Arguments for the selected presentation: \code{what}, \code{verbosity}, and
-drawing arguments. Classification accepts \code{type = "roc"} or \code{"confusion"}.
+drawing arguments. Resampled models accept \code{metric}.
 Lists accept \code{metric}, \code{model_names}, \code{what}, \code{ylim}, \code{boxpoints},
 \code{quartiles}, \code{whisker}, \code{palette}, \code{theme}, \code{width}, \code{height}, and \code{filename}.
-Single models forward drawing arguments to their plot_* method. Comparison
+Single models forward drawing arguments to their \code{plot()} method. Comparison
 lists use training/test samples; individual ordinary models also support
 validation. Explicit \code{ylim} is a finite increasing pair for comparisons.}
 }
@@ -21,10 +21,11 @@ validation. Explicit \code{ylim} is a finite increasing pair for comparisons.}
 htmlwidget: One chart or one complete \code{\link[rtemis.draw:draw_panels]{rtemis.draw::draw_panels()}} figure.
 }
 \description{
-Ordinary regression
-presents true/predicted values; ordinary classification presents ROC curves
-or confusion panels. Resampled models present stored metric distributions.
-Descriptions use \code{describe()} unless \code{verbosity = 0}.
+A single model prints its \code{describe()} output, unless \code{verbosity = 0}, and
+returns its default \code{plot()} view: true/predicted values for regression,
+confusion matrices for classification, and stored metric distributions for
+resampled models. \code{\link[=plot_roc]{plot_roc()}} draws ROC curves for classification models
+with predicted probabilities.
 }
 \details{
 A nonempty homogeneous list compares models of the same task and sampling
@@ -38,10 +39,32 @@ Comparison labels use \code{model_names}, complete list names, or algorithm
 names, made unique in that order. The existing rtemis data-fingerprint
 mismatch notice is retained, including when descriptions are disabled.
 }
+\section{Default plots}{
+
+\code{plot()} on a fitted model draws the view \code{present()} returns, without the
+description:
+\itemize{
+\item \code{Regression}: \code{\link[=plot_true_pred]{plot_true_pred()}} for all available samples.
+\item \code{Classification}: confusion matrices for all available samples, as drawn
+by \code{\link[=plot_true_pred]{plot_true_pred()}}.
+\item \code{RegressionRes} and \code{ClassificationRes}: \code{\link[=plot_metric]{plot_metric()}} for all
+available samples.
+}
+
+Arguments after \code{x} are passed to the corresponding \verb{plot_*()} method, for
+example \code{plot(model, what = "test")} or \code{plot(model, metric = "rmse")}.
+
+Model plots color each data split the same way: training teal, validation
+purple, test magenta. A supplied \code{palette} replaces these
+colors. Confusion matrices shade correct predictions blue and incorrect
+predictions orange.
+}
+
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 model <- train(mtcars[, c("wt", "mpg")],
   hyperparameters = setup_GLM(), verbosity = 0L)
 present(model, verbosity = 0L)
+plot(model)
 \dontshow{\}) # examplesIf}
 }

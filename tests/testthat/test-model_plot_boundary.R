@@ -36,8 +36,8 @@ test_that("the exported MassGLM method has a standard deprecation path", {
   expect_identical(plot.MassGLM(model)[["x"]], graphics::plot(model)[["x"]])
 })
 
-test_that("Plotly data drawing APIs remain available", {
-  skip_if_not_installed("plotly")
-  expect_s3_class(draw_scatter(1:3, 1:3), "plotly")
-  expect_s3_class(rtemis.draw::draw_scatter(1:3, 1:3), "htmlwidget")
+test_that("data drawing functions come from rtemis.draw", {
+  # rtemis exports model plots; its only draw_*() function draws a LINAD model.
+  exports <- getNamespaceExports("rtemis")
+  expect_identical(grep("^draw_", exports, value = TRUE), "draw_linad")
 })

@@ -29,40 +29,67 @@ present_model_fixture <- function(
   )
 }
 
-test_that("single-model presentation preserves descriptions and registered methods", {
+test_that("single-model presentation describes and returns the plot() view", {
   for (classification in c(FALSE, TRUE)) {
     for (resamples in list(NULL, 2L)) {
       m <- present_model_fixture(classification, resamples)
-      legacy <- S7::method(rtemis::present, S7::S7_class(m))
       expect_identical(present, rtemis::present)
       expect_s3_class(present(m, verbosity = 0L), "htmlwidget")
-      expect_identical(legacy, S7::method(rtemis::present, S7::S7_class(m)))
+      expect_identical(
+        present(m, verbosity = 0L)[["x"]],
+        graphics::plot(m)[["x"]]
+      )
       expect_output(
         present(m, verbosity = 1L),
         if (classification) "CART" else "GLM"
       )
-      if (classification && is.null(resamples)) {
-        expect_identical(
-          present(m, type = "confusion", verbosity = 0L)[["x"]],
-          plot_true_pred(m, what = "all")[["x"]]
-        )
-        expect_identical(
-          present(m, type = "ROC", verbosity = 0L)[["x"]],
-          plot_roc(m, what = "all")[["x"]]
-        )
-        m@y_test <- NULL
-        m@predicted_test <- NULL
-        m@metrics_test <- NULL
-        m@predicted_prob_test <- NULL
-        expect_s3_class(
-          present(m, type = "confusion", verbosity = 0L),
-          "htmlwidget"
-        )
-        expect_error(present(m, type = "bad", verbosity = 0L))
-      }
       expect_error(present(m, verbosity = -1L), "nonnegative")
     }
   }
+})
+
+test_that("plot() draws each model's default view", {
+  r <- present_model_fixture()
+  expect_identical(
+    graphics::plot(r)[["x"]],
+    plot_true_pred(r, what = "all")[["x"]]
+  )
+  expect_identical(
+    graphics::plot(r, what = "test")[["x"]],
+    plot_true_pred(r, what = "test")[["x"]]
+  )
+  res <- present_model_fixture(resamples = 2L)
+  expect_identical(
+    graphics::plot(res)[["x"]],
+    plot_metric(res, what = "all")[["x"]]
+  )
+  expect_identical(
+    graphics::plot(res, metric = "rmse")[["x"]],
+    plot_metric(res, what = "all", metric = "rmse")[["x"]]
+  )
+  cls_res <- present_model_fixture(TRUE, 2L)
+  expect_identical(
+    graphics::plot(cls_res)[["x"]],
+    plot_metric(cls_res, what = "all")[["x"]]
+  )
+})
+
+test_that("classification plot() draws confusion matrices without probabilities", {
+  m <- present_model_fixture(TRUE)
+  confusion <- plot_true_pred(m, what = "all")[["x"]]
+  expect_identical(graphics::plot(m)[["x"]], confusion)
+  expect_false(identical(confusion, plot_roc(m, what = "all")[["x"]]))
+  m@predicted_prob_training <- NULL
+  m@predicted_prob_test <- NULL
+  expect_identical(graphics::plot(m)[["x"]], confusion)
+  expect_error(plot_roc(m), "probabilities")
+  m@y_test <- NULL
+  m@predicted_test <- NULL
+  m@metrics_test <- NULL
+  expect_identical(
+    graphics::plot(m)[["x"]],
+    plot_true_pred(m, what = "training")[["x"]]
+  )
 })
 
 test_that("ordinary comparisons use stored metrics and unique aligned labels", {

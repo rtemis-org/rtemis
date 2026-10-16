@@ -7,6 +7,10 @@ specs/
 plan/
 design/
 background/
+review/
+tests/testthat/_problems/
+tests/testthat/testthat-problems.rds
+coverage/
 
 # Mac OS
 .DS_Store
@@ -15,38 +19,21 @@ background/
 .vscode
 *.code-workspace
 
-# R History files
+# R
 .Rhistory
 .Rapp.history
-
-# Output files from R CMD build
+revdep/
 /*.tar.gz
-
-# Output files from R CMD check
 /*.Rcheck/
-
-# pkgdown
 _pkgdown.yml
 pkgdown/
-
-# Air
 air.toml
-
-# produced vignettes
 vignettes/*.html
 vignettes/*.pdf
-
-# Temporary files created by R markdown
 *.utf8.md
 *.knit.md
-
-# lintr
 .lintr
-
-# CRAN
 cran-comments.md
-
-# Manual
 *.pdf
 
 # Assistants
@@ -54,15 +41,3 @@ AGENTS.md
 CLAUDE.md
 .claude/
 SKILL.md
-
-# Review notes and session prompts (local only)
-review/
-
-# Internal
-tests/testthat/_problems/
-
-# testthat failure snapshot written by a failing R CMD check
-tests/testthat/testthat-problems.rds
-
-# Local coverage reports
-coverage/

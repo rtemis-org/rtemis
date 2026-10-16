@@ -1810,7 +1810,7 @@ setup_SpectralLocal <- function(
       class = c("rtemis_null_input", "rtemis_input_error")
     )
   }
-  algorithm <- get_clust_name(algorithm)
+  algorithm <- .get_clust_name(algorithm)
   # One shape: `{algorithm, k, ...}`, which is what the published schema
   # declares. `.drop_meta_keys()` removes document metadata (e.g. `$schema`),
   # which is not a setup arg.

@@ -100,6 +100,207 @@ test_that("impute meanMode works", {
   expect_false(anyNA(xp))
 })
 
+# Training data hold a missing entry in every imputable type; new data hold
+# missing entries and values unlike the training data, so values computed from
+# them would differ from the training values.
+impute_train <- data.frame(
+  d = c(1, 2, 3, NA),
+  i = c(1L, 1L, 5L, NA),
+  l = c(TRUE, TRUE, FALSE, NA),
+  f = factor(c("a", "b", "b", NA)),
+  ch = c("x", "x", "y", NA),
+  full = c(10, 20, 30, 40)
+)
+impute_new <- data.frame(
+  d = c(NA, 100, 100),
+  i = c(NA, 7L, 7L),
+  l = c(NA, FALSE, FALSE),
+  f = factor(c(NA, "a", "a")),
+  ch = c(NA, "z", "z"),
+  full = c(NA, 1, 1)
+)
+impute_pre <- preprocess(
+  impute_train,
+  setup_Preprocessor(impute = TRUE, impute_type = "meanMode"),
+  verbosity = 0L
+)
+
+test_that("meanMode stores the value imputed into every feature", {
+  # Including `full`, which has no missing training entry: new data may.
+  expect_identical(
+    impute_pre@values[["impute_numeric_values"]],
+    c(d = 2, i = 2, l = 1, full = 25)
+  )
+  expect_identical(
+    impute_pre@values[["impute_level_values"]],
+    c(f = "b", ch = "x")
+  )
+})
+
+test_that("apply_preprocessor imputes new data with the training values", {
+  out <- apply_preprocessor(impute_pre, impute_new, verbosity = 0L)
+  expect_identical(out[["d"]], c(2, 100, 100))
+  expect_identical(out[["i"]], c(2L, 7L, 7L))
+  expect_identical(out[["l"]], c(TRUE, FALSE, FALSE))
+  # A training level absent from the new data's levels is added to them.
+  expect_identical(as.character(out[["f"]]), c("b", "a", "a"))
+  expect_identical(out[["ch"]], c("x", "z", "z"))
+  expect_identical(out[["full"]], c(25, 1, 1))
+})
+
+test_that("supplied imputation values replace the computed ones", {
+  pre <- preprocess(
+    impute_train,
+    setup_Preprocessor(
+      impute = TRUE,
+      impute_type = "meanMode",
+      impute_numeric_values = c(d = -1),
+      impute_level_values = c(f = "a")
+    ),
+    verbosity = 0L
+  )
+  out <- preprocessed(pre)
+  expect_identical(out[["d"]], c(1, 2, 3, -1))
+  expect_identical(as.character(out[["f"]]), c("a", "b", "b", "a"))
+  expect_identical(pre@values[["impute_numeric_values"]][["d"]], -1)
+})
+
+test_that("imputation values survive the config's wire form", {
+  fitted <- fitted_config(impute_pre)
+  wire <- jsonlite::fromJSON(
+    jsonlite::toJSON(
+      list(
+        impute = TRUE,
+        impute_type = "meanMode",
+        impute_numeric_values = as.list(fitted@impute_numeric_values),
+        impute_level_values = as.list(fitted@impute_level_values)
+      ),
+      auto_unbox = TRUE,
+      digits = NA
+    ),
+    simplifyVector = FALSE
+  )
+  restored <- .list_to_PreprocessorConfig(wire)
+  expect_identical(
+    restored@impute_numeric_values,
+    fitted@impute_numeric_values
+  )
+  expect_identical(restored@impute_level_values, fitted@impute_level_values)
+  expect_identical(
+    preprocessed(preprocess(impute_new, restored, verbosity = 0L)),
+    apply_preprocessor(impute_pre, impute_new, verbosity = 0L)
+  )
+})
+
+test_that("missRanger imputes new data with the forests fitted on training", {
+  skip_if_not_installed("missRanger")
+  set.seed(2026)
+  x <- iris
+  x[sample(150, 30), "Sepal.Length"] <- NA
+  x[sample(150, 20), "Species"] <- NA
+  pre <- preprocess(
+    x,
+    setup_Preprocessor(
+      impute = TRUE,
+      impute_type = "missRanger",
+      impute_missRanger_params = list(pmm.k = 3, maxiter = 5, num.trees = 50)
+    ),
+    verbosity = 0L
+  )
+  expect_false(anyNA(preprocessed(pre)))
+  expect_s3_class(pre@imputer, "missRanger")
+  expect_setequal(pre@imputer[["to_impute"]], c("Sepal.Length", "Species"))
+  # Features complete in training have no forest and store a mean or mode.
+  expect_identical(
+    names(pre@values[["impute_numeric_values"]]),
+    c("Sepal.Width", "Petal.Length", "Petal.Width")
+  )
+  expect_identical(
+    pre@values[["impute_numeric_values"]][["Petal.Width"]],
+    mean(iris[["Petal.Width"]])
+  )
+  new <- iris[c(1, 51, 101), ]
+  new[1, "Sepal.Length"] <- NA
+  new[2, "Species"] <- NA
+  new[3, "Petal.Width"] <- NA
+  out <- apply_preprocessor(pre, new, verbosity = 0L)
+  expect_false(anyNA(out))
+  expect_identical(out[3, "Petal.Width"], mean(iris[["Petal.Width"]]))
+  expect_identical(out[2:3, "Sepal.Length"], new[2:3, "Sepal.Length"])
+})
+
+test_that("train() applies the missRanger imputer fitted on each training set", {
+  skip_if_not_installed("missRanger")
+  set.seed(2026)
+  dat <- data.frame(a = rnorm(60), b = rnorm(60))
+  dat[["y"]] <- dat[["a"]] + rnorm(60)
+  dat[sample(60, 10), "a"] <- NA
+  mod <- train(
+    dat,
+    preprocessor_config = setup_SupervisedPreprocessor(
+      impute = TRUE,
+      impute_type = "missRanger",
+      impute_missRanger_params = list(pmm.k = 3, maxiter = 5, num.trees = 50)
+    ),
+    hyperparameters = setup_GLM(),
+    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    execution_config = setup_SerialExecution(),
+    verbosity = 0L
+  )
+  for (fold in mod@models) {
+    expect_s3_class(fold@preprocessor@imputer, "missRanger")
+    expect_false(anyNA(fold@predicted_test))
+  }
+})
+
+test_that("micePMM is limited to preprocessing the data in hand", {
+  expect_error(
+    setup_SupervisedPreprocessor(impute = TRUE, impute_type = "micePMM")
+  )
+  skip_if_not_installed("mice")
+  x <- iris
+  x[1:5, "Sepal.Length"] <- NA
+  pre <- preprocess(
+    x,
+    setup_Preprocessor(impute = TRUE, impute_type = "micePMM"),
+    verbosity = 0L
+  )
+  expect_false(anyNA(preprocessed(pre)))
+  expect_error(
+    apply_preprocessor(pre, x, verbosity = 0L),
+    "micePMM",
+    class = "rtemis_unsupported_error"
+  )
+})
+
+test_that("train() imputes test data with the training values", {
+  set.seed(2026)
+  dat <- data.frame(a = rnorm(60), b = rnorm(60))
+  dat[["y"]] <- dat[["a"]] + rnorm(60)
+  dat[c(5, 50), "a"] <- NA
+  mod <- train(
+    dat[1:40, ],
+    dat_test = dat[41:60, ],
+    preprocessor_config = setup_SupervisedPreprocessor(
+      impute = TRUE,
+      impute_type = "meanMode"
+    ),
+    hyperparameters = setup_GLM(),
+    verbosity = 0L
+  )
+  expect_identical(
+    mod@preprocessor@values[["impute_numeric_values"]][["a"]],
+    mean(dat[1:40, "a"], na.rm = TRUE)
+  )
+  expect_equal(
+    unname(predict(mod, features(dat[50, ]))),
+    unname(predict(
+      mod,
+      data.frame(a = mean(dat[1:40, "a"], na.rm = TRUE), b = dat[50, "b"])
+    ))
+  )
+})
+
 # Test one_hot ----
 n <- 10
 x <- rnormmat(n, 5, seed = 2025)
@@ -308,22 +509,122 @@ test_that("preprocess output carries no row names", {
 })
 
 
-test_that("imputation widens a column rather than truncating into it", {
-  # A partial data.table assignment coerces the value into the column's
-  # existing type, so a mean imputed into an integer column would land as a
-  # truncated integer with a warning. Whole columns are replaced instead.
-  x <- data.frame(i = c(1L, 2L, 10L, NA))
-  out <- preprocessed(preprocess(
-    x,
+# Every column has a tie or a non-integer statistic, so each assertion fixes the
+# rounding or tie rule as well as the type.
+impute_typed <- data.frame(
+  i = c(1L, 2L, 3L, 4L, NA),
+  j = c(1L, 1L, 2L, 8L, NA),
+  l = c(TRUE, FALSE, TRUE, FALSE, NA),
+  f = factor(c("b", "a", "b", "a", NA), levels = c("b", "a")),
+  ch = c("b", "B", "b", "B", NA),
+  d = c(1, 2, 3, 4, NA),
+  stringsAsFactors = FALSE
+)
+impute_typed_out <- function(impute_numeric) {
+  preprocess(
+    impute_typed,
     setup_Preprocessor(
       impute = TRUE,
       impute_type = "meanMode",
-      impute_discrete = "mean"
+      impute_numeric = impute_numeric
     ),
     verbosity = 0L
+  )
+}
+
+test_that("meanMode imputes every column with a value of its own type", {
+  for (stat in c("mean", "median")) {
+    out <- preprocessed(impute_typed_out(stat))
+    for (nm in names(impute_typed)) {
+      expect_identical(class(out[[nm]]), class(impute_typed[[nm]]), info = nm)
+    }
+    expect_identical(levels(out[["f"]]), c("b", "a"))
+  }
+})
+
+test_that("integer columns take the statistic rounded half to even", {
+  # i: mean and median 2.5 -> 2. j: mean 3, median 1.5 -> 2; its mode, 1,
+  # is neither.
+  mean_pre <- impute_typed_out("mean")
+  median_pre <- impute_typed_out("median")
+  expect_identical(preprocessed(mean_pre)[["i"]][[5L]], 2L)
+  expect_identical(preprocessed(mean_pre)[["j"]][[5L]], 3L)
+  expect_identical(preprocessed(median_pre)[["j"]][[5L]], 2L)
+  expect_identical(preprocessed(mean_pre)[["d"]][[5L]], 2.5)
+  expect_identical(
+    mean_pre@values[["impute_numeric_values"]],
+    c(i = 2, j = 3, l = 0, d = 2.5)
+  )
+})
+
+test_that("ties go to FALSE, the first level, and the first code point", {
+  # Alphabetical order would choose "a" for f; a locale collation would choose
+  # "b" for ch.
+  for (stat in c("mean", "median")) {
+    pre <- impute_typed_out(stat)
+    out <- preprocessed(pre)
+    expect_false(out[["l"]][[5L]])
+    expect_identical(as.character(out[["f"]][[5L]]), "b")
+    expect_identical(out[["ch"]][[5L]], "B")
+    expect_identical(
+      pre@values[["impute_level_values"]],
+      c(f = "b", ch = "B")
+    )
+  }
+})
+
+test_that("integer64 columns remain integer64", {
+  skip_if_not_installed("bit64")
+  x <- data.frame(k = bit64::as.integer64(c(1, 2, 3, 4)))
+  x[["k"]][[4L]] <- NA
+  out <- preprocessed(preprocess(
+    x,
+    setup_Preprocessor(impute = TRUE, impute_type = "meanMode"),
+    verbosity = 0L
   ))
-  expect_type(out[["i"]], "double")
-  expect_equal(out[["i"]], c(1, 2, 10, 13 / 3))
+  expect_s3_class(out[["k"]], "integer64")
+  expect_identical(as.integer(out[["k"]]), c(1L, 2L, 3L, 2L))
+})
+
+test_that("a supplied value that the column's type cannot hold is rejected", {
+  impute_with <- function(values) {
+    preprocess(
+      impute_typed,
+      setup_Preprocessor(
+        impute = TRUE,
+        impute_type = "meanMode",
+        impute_numeric_values = values
+      ),
+      verbosity = 0L
+    )
+  }
+  expect_error(
+    impute_with(c(i = 2.5)),
+    "not a whole number.*integer2numeric",
+    class = "rtemis_value_error"
+  )
+  expect_error(
+    impute_with(c(i = 3e9)),
+    "integer range",
+    class = "rtemis_value_error"
+  )
+  expect_error(
+    impute_with(c(l = 0.5)),
+    "not 0 or 1",
+    class = "rtemis_value_error"
+  )
+  # A whole number fills an integer column as an integer.
+  expect_identical(preprocessed(impute_with(c(i = 9)))[["i"]][[5L]], 9L)
+})
+
+test_that("impute_numeric and impute_categorical accept only their statistics", {
+  expect_identical(setup_Preprocessor()@impute_numeric, "mean")
+  expect_identical(
+    setup_SupervisedPreprocessor(impute_numeric = "median")@impute_numeric,
+    "median"
+  )
+  expect_error(setup_Preprocessor(impute_numeric = "mode"))
+  expect_error(setup_Preprocessor(impute_categorical = "mean"))
 })
 
 
@@ -984,9 +1285,12 @@ test_that("setup_SupervisedPreprocessor formals track setup_Preprocessor", {
     names(supervised),
     setdiff(names(full), PREPROCESSOR_TRAIN_EXCLUDED)
   )
-  for (nm in names(supervised)) {
+  # `impute_type` offers only the methods a fitted preprocessor can apply to
+  # new data.
+  for (nm in setdiff(names(supervised), "impute_type")) {
     expect_identical(supervised[[nm]], full[[nm]], info = nm)
   }
+  expect_identical(eval(supervised[["impute_type"]]), SUPERVISED_IMPUTE_TYPES)
 })
 
 
@@ -1027,4 +1331,20 @@ test_that("a supervised document cannot name an excluded operation", {
     .list_to_SupervisedPreprocessorConfig(list(remove_duplicates = TRUE)),
     "remove_duplicates"
   )
+})
+
+
+# %% write_config.PreprocessorConfig & read_config ----
+test_that("PreprocessorConfig round-trips through write_config/read_config", {
+  x <- setup_Preprocessor(scale = TRUE, center = TRUE, remove_duplicates = TRUE)
+  file <- withr::local_tempfile(fileext = ".json")
+  write_config(x, file, verbosity = 0L)
+  xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
+  expect_identical(
+    xl[["$schema"]],
+    "https://schema.rtemis.org/preprocessor/r/v1/schema.json"
+  )
+  xtoo <- read_config(file)
+  expect_s7_class(xtoo, PreprocessorConfig)
+  expect_identical(S7::props(xtoo), S7::props(x))
 })

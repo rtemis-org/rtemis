@@ -143,7 +143,7 @@ RSCRIPT
 STATUS=$?
 
 if [ "$STATUS" -eq 0 ]; then
-    msg "Done: all Rd files have \\value and \\examples."
+    msg "All Rd files have \\value and \\examples."
 else
     msg "Some Rd files are missing sections (exit $STATUS)." "1;38;2;220;60;60"
 fi

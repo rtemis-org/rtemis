@@ -21,7 +21,7 @@ row per predictor or model term and one column per measure.
 Columns follow the order of the measures. A predictor a measure does not
 cover is \code{NA} in that measure's column: some backends report only the
 predictors used in a split. A measure named \code{variable} or \code{fold}, or one
-repeating an earlier column, is labeled "\if{html}{\out{<name>}} (measure)", since those
+repeating an earlier column, is labeled "\verb{<name> (measure)}", since those
 column names carry the table's structure.
 
 The table holds the values only. What each measure quantifies, the cases it

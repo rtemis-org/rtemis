@@ -74,7 +74,7 @@ cluster <- function(
     config <- get_default_clusterparams(algorithm)
   } else {
     check_is_S7(config, ClusteringConfig)
-    if (!missing(algorithm) && get_clust_name(algorithm) != config@algorithm) {
+    if (!missing(algorithm) && .get_clust_name(algorithm) != config@algorithm) {
       rtemis.core::abort(
         "`algorithm` is \"",
         algorithm,
@@ -119,7 +119,7 @@ cluster <- function(
   # Resources ----
   # Nothing is dispatched and no clustering backend threads, so the algorithm
   # runs on one thread whatever the config allows; the line states both.
-  algorithm <- get_clust_name(algorithm)
+  algorithm <- .get_clust_name(algorithm)
   msg_resources(
     backend = execution_backend_label(execution_config),
     n_workers = execution_n_workers(execution_config),

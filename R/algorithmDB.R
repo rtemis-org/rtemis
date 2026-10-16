@@ -316,9 +316,10 @@ supervised_multiclass <- c(
 # to compute, which is the opposite of `varimp_super()`'s arrangement.
 #
 # `exact` is NA where exactness is a property of the *fitted* model rather than
-# of the algorithm: SPLS and LinearSVM have a single linear map only for a
-# regression or binary fit -- a multiclass one is scores identified up to a
-# constant, and one-vs-one voting, respectively; and MARS and HAL are additive
+# of the algorithm: SPLS, LinearSVM and GAM have a single additive map only for
+# a regression or binary fit -- a multiclass one is scores identified up to a
+# constant, one-vs-one voting, and one linear predictor per non-reference
+# class, respectively; and MARS and HAL are additive
 # in their features only when the fit selected no term reading two of them,
 # which for both is a search setting rather than a property of the algorithm.
 # Each is checked at explain time and refused with the reason.
@@ -329,7 +330,7 @@ supervised_multiclass <- c(
 # are each locked to one value function -- LinearSHAP is interventional-only,
 # LightGBM's TreeSHAP conditional-only -- so a mixed library has none in common.
 #
-# Only seven algorithms are unconditionally exact: exactness is usually a
+# Only eight algorithms are unconditionally exact: exactness is usually a
 # property of the fitted model, and this column says which.
 #
 # Built column-wise so `exact` is `logical`, for the reason `decom_algorithms`
@@ -397,7 +398,7 @@ explanation_algorithms <- data.frame(
     FALSE,
     TRUE,
     NA,
-    TRUE,
+    NA,
     TRUE,
     TRUE,
     FALSE,
@@ -426,7 +427,7 @@ explanation_algorithms <- data.frame(
     "No additive structure to read; the posterior gives a better uncertainty story than SHAP does.",
     "TreeSHAP over a single tree is a short traversal and is exact.",
     "An oracle routes each case to one expert, which predicts it alone -- so the expert explains it, exactly, with its own estimator.",
-    "predict(type = 'terms') already returns the additive decomposition.",
+    "predict(type = 'terms') returns the additive decomposition for a regression or binary fit; a multiclass fit has one linear predictor per non-reference class.",
     "Coefficients give phi_j = beta_j * (x_j - E[x_j]) in closed form.",
     "Coefficients give phi_j = beta_j * (x_j - E[x_j]) in closed form.",
     "Linear within a leaf, but the tree routes on the same features, so a leaf's coefficients account for only part of what the model did.",
@@ -442,10 +443,10 @@ explanation_algorithms <- data.frame(
     "One tree is linear within a leaf and already only partly readable from its coefficients; a mean over trees, each routing on the same features, is no more additive in them.",
     "Additive in its basis functions for a regression fit; classification adds a GLM over them, and an interaction term reads two features.",
     "A network has no additive structure to read; Expected Gradients would be cheaper but is deferred.",
-    "A weighted sum of base explanations would be exact for a linear meta-learner, but needs every base to answer the same question; see the plan.",
+    "A weighted sum of base explanations is exact for a linear meta-learner only when every base computes the same value function, and each exact estimator computes one value function.",
     "Coefficients give phi_j = beta_j * (x_j - E[x_j]) in closed form.",
-    "TreeSHAP over ranger's forest is possible but unimplemented; see the plan's open question 2.",
-    "A weighted sum of base explanations would be exact for a linear meta-learner, but needs every base to answer the same question; see the plan.",
+    "TreeSHAP covers rpart and LightGBM trees; a ranger forest is explained with the kernel estimator.",
+    "A weighted sum of base explanations is exact for a linear meta-learner only when every base computes the same value function, and each exact estimator computes one value function.",
     "The decision function is linear for a regression or binary fit; multiclass is one-vs-one voting.",
     "The kernel makes the decision function nonlinear in the features.",
     "Linear in the features for regression and binary; multiclass scores are identified only up to a constant.",
@@ -509,7 +510,7 @@ explanation_methods <- function(algorithm = NULL) {
     return(explanation_algorithms)
   }
   methods <- explanation_algorithms[
-    explanation_algorithms[["name"]] == get_alg_name(algorithm),
+    explanation_algorithms[["name"]] == .get_alg_name(algorithm),
     ,
     drop = FALSE
   ]
@@ -528,7 +529,27 @@ calibration_algorithms <- c(
   "MonotonicHAL"
 )
 
-get_alg_name <- function(algorithm) {
+
+# %% .get_alg_name ----
+#' Resolve a supervised algorithm name
+#'
+#' Matches `algorithm` case-insensitively against the supervised algorithm
+#' catalog and returns the canonical name, which names the algorithm's
+#' `setup_<name>()` function.
+#'
+#' Exported for `rtemis.server`, which resolves algorithm names received over the
+#' wire.
+#'
+#' @param algorithm Character: Algorithm name, in any letter case.
+#'
+#' @return Character: Canonical algorithm name.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+#' @examples
+#' .get_alg_name("lightgbm")
+.get_alg_name <- function(algorithm) {
   algname <- supervised_algorithms[["name"]][
     tolower(algorithm) == tolower(supervised_algorithms[["name"]])
   ]
@@ -540,7 +561,34 @@ get_alg_name <- function(algorithm) {
     )
   }
   algname
-}
+} # /rtemis::.get_alg_name
+
+
+# %% .supervised_algorithms ----
+#' Supervised algorithm catalog
+#'
+#' Returns the supervised algorithm catalog: one row per algorithm, with its
+#' canonical name, description, supported tasks, and data traits.
+#'
+#' Exported for `rtemis.server`, which serves the catalog to its clients.
+#'
+#' @return data.frame with columns `name` and `description` (character), and
+#'   `classification`, `regression`, `survival`, `handles_missing_data`, and
+#'   `handles_p_greater_than_n` (logical). A data trait is `NA` for a meta
+#'   learner, whose traits are those of its base learners.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+#' @examples
+#' .supervised_algorithms()[, c("name", "classification", "regression")]
+.supervised_algorithms <- function() {
+  out <- supervised_algorithms
+  trait_columns <- setdiff(names(out), c("name", "description"))
+  out[trait_columns] <- lapply(out[trait_columns], as.logical)
+  out
+} # /rtemis::.supervised_algorithms
+
 
 #' Get algorithm description
 #'
@@ -580,53 +628,18 @@ desc_abb_alg <- function(algorithm) {
   paste0(
     desc_alg(algorithm),
     " (",
-    get_alg_name(algorithm),
+    .get_alg_name(algorithm),
     ")"
   )
 } # /rtemis::desc_abb_alg
 
 get_train_fn <- function(algorithm) {
-  paste0("train_", get_alg_name(algorithm))
+  paste0("train_", .get_alg_name(algorithm))
 } # /rtemis::get_train_fn
 
 get_default_hyperparameters <- function(algorithm) {
-  do.call(paste0("setup_", get_alg_name(algorithm)), list())
+  do.call(paste0("setup_", .get_alg_name(algorithm)), list())
 } # /rtemis::get_default_hyperparameters
-
-
-#' Resolve a `fit` name and optional hyperparameters
-#'
-#' The `draw_*(fit = )` argument names an algorithm as a string, following the
-#' plotting convention, so those functions need a name-to-`Hyperparameters`
-#' bridge that the rest of the API does not.
-#'
-#' @param fit Character: Algorithm name.
-#' @param fit_params Optional `Hyperparameters` object: Hyperparameters for
-#' `fit`.
-#'
-#' @return `Hyperparameters` object.
-#'
-#' @author EDG
-#'
-#' @keywords internal
-#' @noRd
-resolve_fit_hyperparameters <- function(fit, fit_params) {
-  if (is.null(fit_params)) {
-    return(get_default_hyperparameters(fit))
-  }
-  check_is_S7(fit_params, Hyperparameters)
-  if (tolower(fit) != tolower(fit_params@algorithm)) {
-    rtemis.core::abort(
-      "`fit` is '",
-      fit,
-      "', but `fit_params` defines hyperparameters for ",
-      fit_params@algorithm,
-      ".",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
-  }
-  fit_params
-} # /rtemis::resolve_fit_hyperparameters
 
 
 # Clustering ----
@@ -636,7 +649,27 @@ clust_algorithms <- local({
   data.frame(name = names(descriptions), description = unname(descriptions))
 })
 
-get_clust_name <- function(algorithm) {
+
+# %% .get_clust_name ----
+#' Resolve a clustering algorithm name
+#'
+#' Matches `algorithm` case-insensitively against the clustering algorithm
+#' catalog and returns the canonical name, which names the algorithm's
+#' `setup_<name>()` function.
+#'
+#' Exported for `rtemis.server`, which resolves algorithm names received over the
+#' wire.
+#'
+#' @param algorithm Character: Algorithm name, in any letter case.
+#'
+#' @return Character: Canonical algorithm name.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+#' @examples
+#' .get_clust_name("kmeans")
+.get_clust_name <- function(algorithm) {
   clustname <- clust_algorithms[, 1][
     tolower(algorithm) == tolower(clust_algorithms[, 1])
   ]
@@ -648,7 +681,8 @@ get_clust_name <- function(algorithm) {
     )
   }
   clustname
-} # /rtemis::get_clust_name
+} # /rtemis::.get_clust_name
+
 
 get_clust_desc <- function(algorithm) {
   clustdesc <- clust_algorithms[, 2][
@@ -665,19 +699,19 @@ get_clust_desc <- function(algorithm) {
 } # /rtemis::get_clust_desc
 
 get_clust_fn <- function(algorithm) {
-  paste0("cluster_", get_clust_name(algorithm))
+  paste0("cluster_", .get_clust_name(algorithm))
 } # /rtemis::get_clust_fn
 
 get_default_clusterparams <- function(algorithm) {
-  do.call(paste0("setup_", get_clust_name(algorithm)), list())
+  do.call(paste0("setup_", .get_clust_name(algorithm)), list())
 }
 
 get_clustpredict_fn <- function(algorithm) {
-  paste0("clustpredict_", get_clust_name(algorithm))
+  paste0("clustpredict_", .get_clust_name(algorithm))
 }
 
 get_clust_setup_fn <- function(algorithm) {
-  paste0("setup_", get_clust_name(algorithm))
+  paste0("setup_", .get_clust_name(algorithm))
 } # /rtemis::get_clust_setup_fn
 
 
@@ -836,7 +870,27 @@ decom_algorithms_invertible <- decom_algorithms[["name"]][
   decom_algorithms[["invertible"]]
 ]
 
-get_decom_name <- function(algorithm) {
+
+# %% .get_decom_name ----
+#' Resolve a decomposition algorithm name
+#'
+#' Matches `algorithm` case-insensitively against the decomposition algorithm
+#' catalog and returns the canonical name, which names the algorithm's
+#' `setup_<name>()` function.
+#'
+#' Exported for `rtemis.server`, which resolves algorithm names received over the
+#' wire.
+#'
+#' @param algorithm Character: Algorithm name, in any letter case.
+#'
+#' @return Character: Canonical algorithm name.
+#'
+#' @author EDG
+#' @keywords internal
+#' @export
+#' @examples
+#' .get_decom_name("pca")
+.get_decom_name <- function(algorithm) {
   decomname <- decom_algorithms[["name"]][
     tolower(algorithm) == tolower(decom_algorithms[["name"]])
   ]
@@ -848,7 +902,8 @@ get_decom_name <- function(algorithm) {
     )
   }
   decomname
-} # /rtemis::get_decom_name
+} # /rtemis::.get_decom_name
+
 
 get_decom_desc <- function(algorithm) {
   decomdesc <- decom_algorithms[["description"]][
@@ -865,11 +920,11 @@ get_decom_desc <- function(algorithm) {
 } # /rtemis::get_decom_desc
 
 get_default_decomparams <- function(algorithm) {
-  do.call(paste0("setup_", get_decom_name(algorithm)), list())
+  do.call(paste0("setup_", .get_decom_name(algorithm)), list())
 } # /rtemis::get_default_decomparams
 
 get_decom_setup_fn <- function(algorithm) {
-  paste0("setup_", get_decom_name(algorithm))
+  paste0("setup_", .get_decom_name(algorithm))
 } # /rtemis::get_decom_setup_fn
 
 
@@ -929,7 +984,7 @@ decomposition_traits <- function(algorithm = NULL) {
     return(decom_algorithms)
   }
   traits <- decom_algorithms[
-    decom_algorithms[["name"]] == get_decom_name(algorithm),
+    decom_algorithms[["name"]] == .get_decom_name(algorithm),
     ,
     drop = FALSE
   ]
@@ -1037,58 +1092,3 @@ available_decomposition <- function(verbosity = 1L, traits = FALSE) {
   }
   invisible(algs)
 }
-
-# Draw ----
-draw_fns <- data.frame(
-  rbind(
-    c("draw_3DScatter", "3D Scatter Plot"),
-    c("draw_bar", "Bar Plot"),
-    c("draw_box", "Box Plot"),
-    c("draw_calibration", "Calibration Plot"),
-    c("draw_confusion", "Confusion Matrix"),
-    c("draw_dist", "Density and Histogram Plots"),
-    c("draw_fit", "Scatter Plot with Fit Line alias"),
-    c("draw_graphD3", "Network Graph using networkD3"),
-    c("draw_graphjs", "Network Graph using graphjs"),
-    c("draw_heat", "Heatmap using plotly"),
-    c("draw_heatmap", "Heatmap using heatmaply"),
-    c("draw_leafleat", "Choropleth Map using leaflet"),
-    c("draw_pie", "Pie Chart"),
-    c("draw_protein", "Amino Acid Annotation Plot"),
-    c("draw_roc", "ROC Curve"),
-    c("draw_scatter", "Scatter Plot"),
-    c("draw_spectrogram", "Spectrogram"),
-    c("draw_table", "Table using plotly"),
-    c("draw_ts", "Time Series Plot"),
-    c("draw_varimp", "Barplot for Variable Importance alias"),
-    c("draw_volcano", "Volcano Plot"),
-    c("draw_xt", "Time Series Line Plot")
-  )
-)
-colnames(draw_fns) <- c("Function Name", "Description")
-
-
-#' Available Draw Functions
-#'
-#' Print available draw functions for visualization.
-#'
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @return Named list of draw function descriptions, invisibly.
-#'
-#' @author EDG
-#' @export
-#' @examples
-#' available_draw()
-available_draw <- function(verbosity = 1L) {
-  fns <- structure(
-    draw_fns[, 2],
-    names = draw_fns[, 1],
-    class = "list"
-  )
-  if (verbosity > 0L) {
-    cat("Available draw functions:\n")
-    printls(fns, print_class = FALSE, limit = -1L)
-  }
-  invisible(fns)
-} # /rtemis::available_draw
