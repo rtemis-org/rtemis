@@ -2,6 +2,9 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
+# Tests that sweep every published class check the schema contract, which
+# depends only on the package source. They run in CI and skip on CRAN.
+
 # The input-schema contract, checked from the package side.
 #
 #   A schema states what is true of the data. It never states what any
@@ -260,6 +263,7 @@
 
 
 test_that("every setup_* backing a schema takes no mandatory argument", {
+  skip_on_cran()
   # The premise of the whole contract. A config schema requires nothing because
   # a user is never obliged to supply anything -- if that stops being true for
   # some argument, the schema and the API have silently diverged and a document
@@ -291,6 +295,7 @@ test_that("every setup_* backing a schema takes no mandatory argument", {
 
 
 test_that("setup formals agree with class-owned resolution defaults", {
+  skip_on_cran()
   ns <- asNamespace("rtemis")
   uses_defaults <- Filter(
     function(nm) {
@@ -347,6 +352,7 @@ test_that("setup formals agree with class-owned resolution defaults", {
 
 
 test_that("every setup_* export is classified", {
+  skip_on_cran()
   # So a `setup_*` written years from now cannot escape the check above by
   # simply not being listed: it must be paired with the class it builds, or
   # classified as a deprecated wrapper or declared to have no schema.
@@ -366,6 +372,7 @@ test_that("every setup_* export is classified", {
 
 
 test_that("config schemas declare no required beyond a discriminator", {
+  skip_on_cran()
   for (entry in .contract_classes) {
     schema <- .contract_schema(entry)
     stray <- setdiff(
@@ -378,6 +385,7 @@ test_that("config schemas declare no required beyond a discriminator", {
 
 
 test_that("config schemas emit no default keyword", {
+  skip_on_cran()
   # Defaults are API policy and live in defaults/v1/defaults.json, versioned
   # independently. A schema is immutable once published, so a default in one
   # would pin an artifact to a package version.
@@ -393,6 +401,7 @@ test_that("config schemas emit no default keyword", {
 
 
 test_that("config schemas have no conditional demand for a key", {
+  skip_on_cran()
   # A `then` may constrain a value but may not demand a key an implementation
   # could supply. The generator asserts this over the whole document; here it
   # is the class-level `allOf` that the catalog contributes.
@@ -408,6 +417,7 @@ test_that("config schemas have no conditional demand for a key", {
 
 
 test_that("record schemas do require every non-constant property", {
+  skip_on_cran()
   # The converse, so the two kinds cannot quietly converge: a record asserts
   # what ran, and nothing in it may fall back to a reader's defaults.
   for (entry in .contract_classes) {
@@ -423,6 +433,7 @@ test_that("record schemas do require every non-constant property", {
 
 
 test_that("every authored schema property is a setup_* formal", {
+  skip_on_cran()
   # The "every document the schema accepts is accepted by
   # `do.call(setup_*, doc)`" direction, checked structurally rather than by
   # fuzzing: a schema that declares a field the setup function cannot take
@@ -443,6 +454,7 @@ test_that("every authored schema property is a setup_* formal", {
 
 
 test_that("no readOnly schema property is a setup_* formal", {
+  skip_on_cran()
   # The converse, and what makes `readOnly` true rather than decorative: a
   # state field a `setup_*` accepts is one a user can write, so declaring it
   # read-only would misdescribe the document.
@@ -489,6 +501,7 @@ test_that("no readOnly schema property is a setup_* formal", {
 
 
 test_that("catalog family discriminators agree with the record writer", {
+  skip_on_cran()
   for (family in schema_catalog()[["families"]]) {
     for (leaf in family[["algorithms"]]) {
       expect_identical(family_base(leaf[["cls"]]), family[["base_class"]])
@@ -506,6 +519,7 @@ test_that("catalog family discriminators agree with the record writer", {
 
 
 test_that("the independent class/setup mapping covers the catalog", {
+  skip_on_cran()
   # `.contract_classes` is written out here rather than read from the catalog,
   # so that the checks above still run in a built package. This is what keeps
   # the two in step.
@@ -557,6 +571,7 @@ test_that("the independent class/setup mapping covers the catalog", {
 
 
 test_that("every generated class clause satisfies the config contract", {
+  skip_on_cran()
   for (entry in .catalog_entries(schema_catalog())) {
     expect_no_error(rtemis.core::assert_config_contract(
       list(allOf = class_rule_clauses(entry[["cls"]])),
@@ -624,6 +639,7 @@ test_that("every generated class clause satisfies the config contract", {
 
 
 test_that("every hyperparameters leaf declares its primary hyperparameters", {
+  skip_on_cran()
   # The writeup's main table and the reporting/v1 artifact read these; each
   # name is a setting the leaf's schema publishes.
   family <- schema_catalog()[["families"]][["hyperparameters"]]
@@ -727,6 +743,7 @@ test_that("unset_meaning() reads the whole Unset sentence", {
 
 
 test_that("every nullable hyperparameter states what unset means", {
+  skip_on_cran()
   # A writeup's supplement table prints this sentence for a hyperparameter the
   # fit left unset. Run state is observed by the run and is exempt.
   for (entry in .catalog_entries(schema_catalog())) {
@@ -754,6 +771,7 @@ test_that("every nullable hyperparameter states what unset means", {
 
 
 test_that("every class declaring an applies_when gate enforces it", {
+  skip_on_cran()
   # A gate is enforced only through `check_applies_when()` in a validator of
   # the class or an ancestor; a declared gate without one publishes a rule the
   # R class never checks.
@@ -771,6 +789,7 @@ test_that("every class declaring an applies_when gate enforces it", {
 
 
 test_that("published classes have no opaque native validators", {
+  skip_on_cran()
   carriers <- unique(unlist(lapply(
     .catalog_entries(schema_catalog()),
     function(entry) .hand_written_validators(entry[["cls"]])
@@ -791,6 +810,7 @@ test_that("published classes have no opaque native validators", {
 # carries and must subtract the same family base the generator does. A class
 # with an intermediate ancestor is where that goes wrong.
 test_that("a record carries exactly the keys its record schema requires", {
+  skip_on_cran()
   for (entry in .contract_classes) {
     cls <- entry[["cls"]]
     setup <- get(entry[["setup"]], envir = asNamespace("rtemis"))

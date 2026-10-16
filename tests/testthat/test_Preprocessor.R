@@ -1332,3 +1332,19 @@ test_that("a supervised document cannot name an excluded operation", {
     "remove_duplicates"
   )
 })
+
+
+# %% write_config.PreprocessorConfig & read_config ----
+test_that("PreprocessorConfig round-trips through write_config/read_config", {
+  x <- setup_Preprocessor(scale = TRUE, center = TRUE, remove_duplicates = TRUE)
+  file <- withr::local_tempfile(fileext = ".json")
+  write_config(x, file, verbosity = 0L)
+  xl <- jsonlite::fromJSON(file, simplifyVector = FALSE)
+  expect_identical(
+    xl[["$schema"]],
+    "https://schema.rtemis.org/preprocessor/r/v1/schema.json"
+  )
+  xtoo <- read_config(file)
+  expect_s7_class(xtoo, PreprocessorConfig)
+  expect_identical(S7::props(xtoo), S7::props(x))
+})

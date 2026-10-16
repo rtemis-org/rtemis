@@ -171,7 +171,7 @@ exactly.
 iris_c_lightRF <- train(
    iris,
    hyperparameters = setup_LightRF(),
-   outer_resampling_config = setup_KFold(),
+   outer_resampling_config = setup_KFold(n_resamples = 3L)
 )
 }
 }

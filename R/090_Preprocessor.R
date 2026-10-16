@@ -81,7 +81,7 @@ SUPERVISED_IMPUTE_TYPES <- c("meanMode", "missRanger")
     ),
     DefaultPolicy(
       kind = "literal",
-      value = list(pmm.k = 3, maxiter = 10, num.trees = 500)
+      value = list(pmm.k = 3L, maxiter = 10L, num.trees = 500L)
     )
   ),
   impute_numeric = prop_string(
@@ -667,9 +667,9 @@ setup_Preprocessor <- function(
   impute = FALSE,
   impute_type = c("missRanger", "micePMM", "meanMode"),
   impute_missRanger_params = list(
-    pmm.k = 3,
-    maxiter = 10,
-    num.trees = 500
+    pmm.k = 3L,
+    maxiter = 10L,
+    num.trees = 500L
   ),
   impute_numeric = c("mean", "median"),
   impute_categorical = "mode",
@@ -879,9 +879,9 @@ setup_SupervisedPreprocessor <- function(
   impute = FALSE,
   impute_type = c("meanMode", "missRanger"),
   impute_missRanger_params = list(
-    pmm.k = 3,
-    maxiter = 10,
-    num.trees = 500
+    pmm.k = 3L,
+    maxiter = 10L,
+    num.trees = 500L
   ),
   impute_numeric = c("mean", "median"),
   impute_categorical = "mode",

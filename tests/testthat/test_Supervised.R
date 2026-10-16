@@ -1986,7 +1986,7 @@ mod_r_spls_byname <- fit_if_installed(
 test_that("train() SPLS from its algorithm name succeeds", {
   skip_if_not_installed("spls")
   expect_s7_class(mod_r_spls_byname, Regression)
-  expect_identical(get_alg_name("spls"), "SPLS")
+  expect_identical(.get_alg_name("spls"), "SPLS")
 })
 
 ## {SPLS}[train]<Regression> /\Error k > n features ----
@@ -2268,7 +2268,7 @@ mod_r_mars_byname <- fit_if_installed(
 test_that("train() MARS from its algorithm name succeeds", {
   skip_if_not_installed("earth")
   expect_s7_class(mod_r_mars_byname, Regression)
-  expect_identical(get_alg_name("mars"), "MARS")
+  expect_identical(.get_alg_name("mars"), "MARS")
 })
 
 ## {MARS}[train]<Classification> /\Error multiclass pmethod ----
@@ -2847,7 +2847,7 @@ if (mlp_installed) {
   )
   test_that("train() MLP from its algorithm name succeeds", {
     expect_s7_class(mod_r_mlp_byname, Regression)
-    expect_identical(get_alg_name("mlp"), "MLP")
+    expect_identical(.get_alg_name("mlp"), "MLP")
   })
 }
 
@@ -3034,7 +3034,7 @@ mod_r_knn_byname <- fit_if_installed(
 test_that("train() KNN from its algorithm name succeeds", {
   skip_if_not_installed("kknn")
   expect_s7_class(mod_r_knn_byname, Regression)
-  expect_identical(get_alg_name("knn"), "KNN")
+  expect_identical(.get_alg_name("knn"), "KNN")
 })
 
 ## {KNN}[train]<Regression> /\Error k >= n cases ----
@@ -3406,7 +3406,7 @@ mod_r_bart_byname <- fit_if_installed(
 test_that("train() BART from its algorithm name succeeds", {
   skip_if_not_installed("stochtree")
   expect_s7_class(mod_r_bart_byname, Regression)
-  expect_identical(get_alg_name("bart"), "BART")
+  expect_identical(.get_alg_name("bart"), "BART")
 })
 
 ## {BART}[train]<Classification> /\Error multiclass unsupported ----
@@ -3717,7 +3717,7 @@ mod_r_hal_byname <- fit_if_installed(
 test_that("train() HAL from its algorithm name succeeds", {
   skip_if_not_installed("hal9001")
   expect_s7_class(mod_r_hal_byname, Regression)
-  expect_identical(get_alg_name("hal"), "HAL")
+  expect_identical(.get_alg_name("hal"), "HAL")
 })
 
 ## {HAL}[train]<Classification> /\Error multiclass unsupported ----
@@ -4935,7 +4935,7 @@ test_that("a base learner's search space becomes library entries, untuned", {
 
 ## {SuperLearner}[train]<Regression> Algorithm name dispatch ----
 test_that("train() SuperLearner from its algorithm name succeeds", {
-  expect_identical(get_alg_name("superlearner"), "SuperLearner")
+  expect_identical(.get_alg_name("superlearner"), "SuperLearner")
   expect_s7_class(
     get_default_hyperparameters("superlearner"),
     SuperLearnerHyperparameters

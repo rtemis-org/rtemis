@@ -2,6 +2,9 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
+# Tests that sweep every published class check the schema contract, which
+# depends only on the package source. They run in CI and skip on CRAN.
+
 # Shared invariants for the DecompositionConfig / ClusteringConfig families,
 # migrated to the prop_* factories (see 150_DecompositionConfig.R,
 # 120_ClusteringConfig.R). Mirrors the Hyperparameters drift/serialization
@@ -544,6 +547,7 @@ test_that("settings nested under a settings key are refused with the fix", {
 
 # %% x-rtemis annotations ----
 test_that("x-rtemis agrees with the standard keywords, for every property", {
+  skip_on_cran()
   targets <- schema_reference_urls(
     schema_catalog(),
     "https://schema.rtemis.org"

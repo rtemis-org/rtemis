@@ -2,6 +2,9 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
+# Tests that sweep every published class check the schema contract, which
+# depends only on the package source. They run in CI and skip on CRAN.
+
 # The acceptance test for the whole props/schema layer: every class that
 # declares properties with the `prop_*` factories is emitted as a JSON Schema,
 # read back with `JSONSchema_to_S7()`, and compared spec by spec. A declaration
@@ -57,6 +60,7 @@ via_json <- function(x) {
 
 # %% JSONSchema_to_S7() round-trips every declared class ----
 test_that("every published property preserves its schema constraints on read", {
+  skip_on_cran()
   classes <- schema_classes()
   expect_gt(length(classes), 20L)
 

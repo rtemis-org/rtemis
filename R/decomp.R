@@ -77,7 +77,7 @@ decomp <- function(
     config <- get_default_decomparams(algorithm)
   } else {
     check_is_S7(config, DecompositionConfig)
-    if (!missing(algorithm) && get_decom_name(algorithm) != config@algorithm) {
+    if (!missing(algorithm) && .get_decom_name(algorithm) != config@algorithm) {
       rtemis.core::abort(
         "`algorithm` is \"",
         algorithm,
@@ -125,7 +125,7 @@ decomp <- function(
   # Nothing is dispatched, so the only level is the algorithm's: the threads a
   # threaded backend runs on. The named share wins; otherwise the whole worker
   # count, which is 1 under a CRAN check.
-  algorithm <- get_decom_name(algorithm)
+  algorithm <- .get_decom_name(algorithm)
   n_workers <- execution_n_workers(execution_config)
   threaded <- decomposition_traits(algorithm)[["threaded"]]
   n_threads <- if (threaded) algorithm_threads(execution_config) else 1L

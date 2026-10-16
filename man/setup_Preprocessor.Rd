@@ -11,7 +11,7 @@ setup_Preprocessor(
   missingness = FALSE,
   impute = FALSE,
   impute_type = c("missRanger", "micePMM", "meanMode"),
-  impute_missRanger_params = list(pmm.k = 3, maxiter = 10, num.trees = 500),
+  impute_missRanger_params = list(pmm.k = 3L, maxiter = 10L, num.trees = 500L),
   impute_numeric = c("mean", "median"),
   impute_categorical = "mode",
   impute_numeric_values = NULL,
