@@ -892,7 +892,15 @@ JSONSchema_to_S7 <- function(
         class = "rtemis_schema_error"
       )
     }
-    properties[[nm]] <- prop_runtime(runtime[[nm]][["description"]])
+    runtime_class <- if (!is.null(parent) && nm %in% names(parent@properties)) {
+      parent@properties[[nm]][["class"]]
+    } else {
+      class_any
+    }
+    properties[[nm]] <- prop_runtime(
+      runtime[[nm]][["description"]],
+      cls = runtime_class
+    )
   }
 
   rules <- lapply(

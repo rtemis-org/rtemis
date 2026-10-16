@@ -58,6 +58,31 @@ via_json <- function(x) {
 }
 
 
+test_that("runtime properties retain their supplied parent type", {
+  schema <- list(
+    title = "RuntimeChild",
+    properties = list(),
+    `x-rtemis` = list(
+      runtime_properties = list(
+        state = list(kind = "opaque", description = "Native fitted state.")
+      )
+    )
+  )
+  restored <- JSONSchema_to_S7(
+    schema,
+    parent = new_class(
+      name = "RuntimeParent",
+      properties = list(state = new_property(class = NULL | class_character))
+    )
+  )
+  expect_identical(
+    restored@properties$state$class,
+    restored@parent@properties$state$class
+  )
+  expect_null(restored()@state)
+  expect_identical(restored(state = "ready")@state, "ready")
+})
+
 # %% JSONSchema_to_S7() round-trips every declared class ----
 test_that("every published property preserves its schema constraints on read", {
   skip_on_cran()
