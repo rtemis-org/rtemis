@@ -395,6 +395,9 @@ test_that("decomp() prints one resources line, with threads only for a threaded 
     "// CPU | serial | 1 worker: algorithm 1 thread",
     fixed = TRUE
   )
+  # The UMAP fit's garbage collections dominate this half; the test of UMAP's
+  # thread use runs a threaded fit on CRAN.
+  skip_on_cran()
   skip_if_not_installed("uwot")
   expect_match(
     resources("UMAP"),

@@ -199,6 +199,8 @@ test_that(
   ),
   {
     # for local testing only, can't assume multisession or multicore are available
+    # Worker startup dominates this test; CI runs it.
+    skip_on_cran()
     skip_if_not_installed("futurize")
     # Simulate user has set plan to multisession with 2 workers
     # with(future::plan("multisession", workers = 2L), local = TRUE)

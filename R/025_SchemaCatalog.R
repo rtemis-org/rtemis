@@ -782,7 +782,8 @@ schema_record_arguments <- function(cls, catalog, base_url) {
 #' class identity, and a family root does not opt descendants into publication.
 #'
 #' @param classes Optional named list: S7 classes to inspect; otherwise the
-#' package namespace is inspected.
+#' namespace bindings named in `.published_class_names`, or, while the
+#' namespace is being built, every namespace binding.
 #' @return Named list with derived family and standalone publication entries.
 #' @keywords internal
 #' @noRd
@@ -795,7 +796,12 @@ schema_catalog <- function(classes = NULL) {
   }
   if (is.null(classes)) {
     ns <- asNamespace("rtemis")
-    classes <- mget(ls(ns, all.names = TRUE), ns, inherits = FALSE)
+    names <- if (exists(".published_class_names", ns, inherits = FALSE)) {
+      ns[[".published_class_names"]]
+    } else {
+      ls(ns, all.names = TRUE)
+    }
+    classes <- mget(names, ns, inherits = FALSE)
   }
   classes <- Filter(
     function(cls) {

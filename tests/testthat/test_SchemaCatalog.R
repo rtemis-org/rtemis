@@ -358,3 +358,13 @@ test_that("class closures enclose the namespace, not a definition frame", {
   probe <- S7::new_class("PromiseProbe", validator = caller())
   expect_identical(enclosing_frames(probe, environment()), "validator")
 })
+
+
+test_that("the catalog of published bindings equals a scan of every binding", {
+  skip_on_cran()
+  ns <- asNamespace("rtemis")
+  expect_identical(
+    schema_catalog(),
+    schema_catalog(mget(ls(ns, all.names = TRUE), ns, inherits = FALSE))
+  )
+})

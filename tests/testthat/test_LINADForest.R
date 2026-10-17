@@ -101,7 +101,9 @@ test_that("a forest is reproducible, and parallel dispatch does not change it", 
     stats::predict(again, .x)
   )
   # One substream per tree, assigned by tree index, so the trees do not depend
-  # on which worker picked them up.
+  # on which worker picked them up. Worker startup dominates this comparison;
+  # CI runs it.
+  skip_on_cran()
   skip_if_not_installed("mirai")
   parallel <- fit(2L, "mirai")
   expect_equal(

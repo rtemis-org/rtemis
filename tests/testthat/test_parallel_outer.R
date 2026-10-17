@@ -50,6 +50,8 @@ testthat::test_that("with_preserved_rng() restores kind and seed", {
 
 # %% set_preferred_plan ----
 testthat::test_that("an unrequested plan is never a forking one", {
+  # Worker startup dominates this test; CI runs it.
+  testthat::skip_on_cran()
   skip_ci_parallel_integration()
   testthat::skip_if_not_installed("future")
   # Forking is only safe in a process that has stayed single-threaded, which a loaded R
