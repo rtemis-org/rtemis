@@ -831,9 +831,9 @@ make_task_runner <- function(FUN) {
 #' `FUN`'s enclosing environment, where `share_payload()` can place it in shared memory.
 #'
 #' **Built on each backend's task primitives, not on its map function.** The map
-#' functions -- `future.apply::future_lapply()` and `futurize::futurize()`, and
-#' `mirai::mirai_map()` -- report progress through their own channels (\pkg{progressr},
-#' \pkg{cli}) and hand back all values together. This function collects tasks one at a
+#' functions -- `future.apply::future_lapply()` and `mirai::mirai_map()` -- report
+#' progress through their own channels (\pkg{progressr}, \pkg{cli}) and hand back
+#' all values together. This function collects tasks one at a
 #' time, in index order, so the host renders the rtemis progress line, names the tasks
 #' still running, emits one sink envelope per event into the execution graph, and stops
 #' at the first failure under `stop_on_error`. One loop serves the future backend and the

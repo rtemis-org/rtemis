@@ -73,9 +73,9 @@ log_loss_of <- function(p, y) {
   -mean(y * log(pc) + (1 - y) * log(1 - pc))
 }
 
-# Fit a calibrator on (score, labels) and return the calibrated probabilities.
-calibrated_probs <- function(hyperparameters, dat, newscore = NULL) {
-  mod <- train(
+# Fit a calibrator on (score, labels).
+calibrator_fit <- function(hyperparameters, dat) {
+  train(
     data.table(
       predicted_probabilities = dat[["score"]],
       true_labels = dat[["labels"]]
@@ -83,11 +83,40 @@ calibrated_probs <- function(hyperparameters, dat, newscore = NULL) {
     hyperparameters = hyperparameters,
     verbosity = 0L
   )
-  newscore <- if (is.null(newscore)) dat[["score"]] else newscore
+}
+
+# Calibrated probabilities of a fitted calibrator at `newscore`.
+calibrated_at <- function(mod, newscore) {
   as.numeric(rtemis:::positive_prob(predict(
     mod,
     data.frame(predicted_probabilities = newscore)
   )))
+}
+
+# Fit a calibrator on (score, labels) and return the calibrated probabilities.
+calibrated_probs <- function(hyperparameters, dat, newscore = NULL) {
+  calibrated_at(
+    calibrator_fit(hyperparameters, dat),
+    if (is.null(newscore)) dat[["score"]] else newscore
+  )
+}
+
+# MonotonicHAL calibrated probabilities on `miscalibrated_scores()`, from one
+# fit per smoothness order, made on first use and shared by the property tests.
+# The default configuration is smoothness order 1.
+.mhal_fits <- new.env(parent = emptyenv())
+mhal_probs <- function(order = 1L, newscore = NULL) {
+  key <- as.character(order)
+  if (is.null(.mhal_fits[[key]])) {
+    .mhal_fits[[key]] <- calibrator_fit(
+      setup_MonotonicHAL(smoothness_orders = order, seed = 2026L),
+      miscalibrated_scores()
+    )
+  }
+  calibrated_at(
+    .mhal_fits[[key]],
+    if (is.null(newscore)) miscalibrated_scores()[["score"]] else newscore
+  )
 }
 
 
@@ -108,11 +137,7 @@ test_that("MonotonicHAL calibration is monotonic on a dense grid", {
   pad <- 0.05 * (hi - lo)
   grid <- seq(lo - pad, hi + pad, length.out = 1000L)
   for (order in c(0L, 1L)) {
-    calibrated <- calibrated_probs(
-      setup_MonotonicHAL(smoothness_orders = order, seed = 2026L),
-      dat,
-      grid
-    )
+    calibrated <- mhal_probs(order, grid)
     expect_true(all(diff(calibrated) >= -1e-10))
   }
 })
@@ -124,10 +149,7 @@ test_that("MonotonicHAL calibration inverts no ranks on observed scores", {
   # and flat stretches are the point -- so only strict decreases fail.
   dat <- miscalibrated_scores()
   for (order in c(0L, 1L)) {
-    calibrated <- calibrated_probs(
-      setup_MonotonicHAL(smoothness_orders = order, seed = 2026L),
-      dat
-    )
+    calibrated <- mhal_probs(order)
     ordered <- calibrated[order(dat[["score"]])]
     expect_true(all(diff(ordered) >= -1e-10))
   }
@@ -143,15 +165,16 @@ test_that("MonotonicHAL calibration does not degrade AUC", {
   dat <- miscalibrated_scores()
   baseline <- auc_of(dat[["score"]], dat[["y"]])
   for (order in c(0L, 1L)) {
-    calibrated <- calibrated_probs(
-      setup_MonotonicHAL(smoothness_orders = order, seed = 2026L),
-      dat
-    )
+    calibrated <- mhal_probs(order)
     expect_gte(auc_of(calibrated, dat[["y"]]), baseline - 0.01)
   }
   # At the default order the map is strictly increasing, so ranks survive
   # intact and AUC is carried through exactly.
-  default_cal <- calibrated_probs(setup_MonotonicHAL(seed = 2026L), dat)
+  expect_identical(
+    setup_MonotonicHAL(seed = 2026L),
+    setup_MonotonicHAL(smoothness_orders = 1L, seed = 2026L)
+  )
+  default_cal <- mhal_probs()
   expect_equal(auc_of(default_cal, dat[["y"]]), baseline, tolerance = 1e-8)
 })
 
@@ -159,7 +182,7 @@ test_that("MonotonicHAL calibration does not degrade AUC", {
 test_that("MonotonicHAL calibration improves Brier score and log loss", {
   skip_if_not_installed("hal9001")
   dat <- miscalibrated_scores()
-  calibrated <- calibrated_probs(setup_MonotonicHAL(seed = 2026L), dat)
+  calibrated <- mhal_probs()
   expect_lt(
     brier_of(calibrated, dat[["y"]]),
     brier_of(dat[["score"]], dat[["y"]])
@@ -179,8 +202,10 @@ test_that("Neither calibrator returns an exact 0 or 1", {
   # otherwise fit a uniformly-labelled block at exactly 0 or 1 and is bounded
   # away from both. This is a regression test for that failure mode.
   dat <- miscalibrated_scores()
-  for (hp in list(setup_MonotonicHAL(seed = 2026L), setup_Isotonic())) {
-    calibrated <- calibrated_probs(hp, dat)
+  for (calibrated in list(
+    mhal_probs(),
+    calibrated_probs(setup_Isotonic(), dat)
+  )) {
     expect_true(all(calibrated > 0))
     expect_true(all(calibrated < 1))
   }

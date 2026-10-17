@@ -67,6 +67,9 @@
 
 
 test_that("every explicit-formals generic forces its supplied arguments", {
+  # Reads every generic in the namespace, which the rest of the test process
+  # then holds in memory; the check depends only on the package source.
+  skip_on_cran()
   # Read from the generic's body rather than by raising an error through each
   # one: that would need a dispatchable fixture per generic, and what has to be
   # true is a property of the body.

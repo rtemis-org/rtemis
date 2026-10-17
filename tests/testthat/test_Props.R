@@ -318,8 +318,7 @@ prop_accepts <- function(property, value) {
 
 testthat::test_that("every declared type, bound and enum is enforced", {
   ns <- asNamespace("rtemis")
-  objs <- mget(ls(ns, all.names = TRUE), envir = ns, inherits = FALSE)
-  classes <- Filter(function(o) inherits(o, "S7_class"), objs)
+  classes <- mget(ns[[".class_names"]], envir = ns, inherits = FALSE)
 
   unenforced <- character()
   n_checked <- 0L

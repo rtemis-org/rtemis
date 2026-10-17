@@ -136,7 +136,7 @@ test_that("predict() GLM Regression succeeds", {
 resmod_r_glm <- train(
   x = datr,
   hyperparameters = setup_GLM(),
-  outer_resampling_config = setup_KFold(n_resamples = 3L)
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds())
 )
 test_that("train() Res GLM Regression succeeds", {
   expect_s7_class(resmod_r_glm, RegressionRes)
@@ -166,7 +166,7 @@ test_that("train() GLM Classification with IFW succeeds", {
 resmod_c_glm <- train(
   x = datc2,
   hyperparameters = setup_GLM(),
-  outer_resampling_config = setup_KFold(n_resamples = 3L)
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds())
 )
 test_that("train() GLM ClassificationRes succeeds", {
   expect_s7_class(resmod_c_glm, ClassificationRes)
@@ -201,7 +201,6 @@ test_that(
     # for local testing only, can't assume multisession or multicore are available
     # Worker startup dominates this test; CI runs it.
     skip_on_cran()
-    skip_if_not_installed("futurize")
     # Simulate user has set plan to multisession with 2 workers
     # with(future::plan("multisession", workers = 2L), local = TRUE)
     # Simulate user has set plan to sequential
@@ -230,7 +229,6 @@ test_that(
 
 ## {GLMNET}[train]<Regression> /\Error sequential with >1 worker ----
 test_that("sequential with >1 worker throws error", {
-  skip_if_not_installed("futurize")
   expect_error(
     modt_r_glmnet <- train(
       x = datr_train,
@@ -275,7 +273,7 @@ test_that("train() Res-GLMNET Regression with auto-lambda + alpha grid search su
   resmodt_r_glmnet <- train(
     x = datr_train,
     hyperparameters = setup_GLMNET(alpha = tune_over(0.5, 1)),
-    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
     execution_config = setup_SerialExecution(),
     tuner_config = tuner_2fold
   )
@@ -388,7 +386,7 @@ test_that("predict() GAM Regression works", {
 resmod_r_gam <- train(
   x = datr,
   hyperparameters = setup_GAM(),
-  outer_resampling_config = setup_KFold(n_resamples = 3L)
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds())
 )
 
 ## {GAM}[train]<Classification> ----
@@ -493,7 +491,7 @@ test_that("train() LinearSVM Regression with tuning succeeds", {
 resmod_r_svml <- train(
   x = datr,
   hyperparameters = setup_LinearSVM(),
-  outer_resampling_config = setup_KFold(n_resamples = 3L)
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds())
 )
 test_that("train() Res LinearSVM Regression succeeds", {
   expect_s7_class(resmod_r_svml, RegressionRes)
@@ -523,7 +521,7 @@ test_that("train() LinearSVM Multiclass Classification succeeds", {
 resmod_c_linearsvm <- train(
   x = datc2,
   hyperparameters = setup_LinearSVM(),
-  outer_resampling_config = setup_KFold(n_resamples = 3L),
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
   execution_config = setup_SerialExecution()
 )
 test_that("train() Res LinearSVM Classification succeeds", {
@@ -556,7 +554,7 @@ test_that("train() RadialSVM Regression with tuning succeeds", {
 resmod_r_svmr <- train(
   x = datr,
   hyperparameters = setup_RadialSVM(),
-  outer_resampling_config = setup_KFold(n_resamples = 3L),
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
   execution_config = setup_SerialExecution()
 )
 test_that("train() Res RadialSVM Regression succeeds", {
@@ -567,7 +565,7 @@ test_that("train() Res RadialSVM Regression succeeds", {
 resmodt_r_svmr <- train(
   x = datr,
   hyperparameters = setup_RadialSVM(cost = tune_over(1, 10)),
-  outer_resampling_config = setup_KFold(n_resamples = 3L),
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
   execution_config = setup_SerialExecution(),
   tuner_config = tuner_2fold
 )
@@ -601,7 +599,7 @@ test_that("train() RadialSVM Classification with tuning succeeds", {
 resmod_c_radialsvm <- train(
   x = datc2,
   hyperparameters = setup_RadialSVM(),
-  outer_resampling_config = setup_KFold(n_resamples = 3L),
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
   execution_config = setup_SerialExecution()
 )
 test_that("train() Res RadialSVM Classification succeeds", {
@@ -612,7 +610,7 @@ test_that("train() Res RadialSVM Classification succeeds", {
 resmodt_c_radialsvm <- train(
   x = datc2,
   hyperparameters = setup_RadialSVM(cost = tune_over(1, 10)),
-  outer_resampling_config = setup_KFold(n_resamples = 3L),
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
   execution_config = setup_SerialExecution(),
   tuner_config = tuner_2fold
 )
@@ -710,7 +708,7 @@ test_that("tuned is set correctly", {
 resmod_r_cart <- train(
   x = datr,
   hyperparameters = setup_CART(),
-  outer_resampling_config = setup_KFold(3L),
+  outer_resampling_config = setup_KFold(outer_folds()),
   execution_config = setup_SerialExecution()
 )
 test_that("train() RegressionRes succeeds", {
@@ -724,7 +722,7 @@ resmodt_r_cart <- train(
     maxdepth = tune_over(1:2),
     prune_cp = tune_over(.001, .01)
   ),
-  outer_resampling_config = setup_KFold(3),
+  outer_resampling_config = setup_KFold(outer_folds()),
   execution_config = setup_SerialExecution(),
   tuner_config = tuner_2fold
 )
@@ -736,7 +734,7 @@ test_that("train() RegressionRes succeeds", {
 resmod_r_cart <- train(
   x = datr,
   hyperparameters = setup_CART(prune_cp = tune_over(.001, .01)),
-  outer_resampling_config = setup_KFold(3L),
+  outer_resampling_config = setup_KFold(outer_folds()),
   execution_config = setup_SerialExecution(),
   tuner_config = tuner_2fold
 )
@@ -790,7 +788,7 @@ resmodt_c_cart <- train(
   hyperparameters = setup_CART(
     maxdepth = tune_over(1L, 2L)
   ),
-  outer_resampling_config = setup_KFold(n_resamples = 3L),
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
   execution_config = setup_SerialExecution(),
   tuner_config = tuner_2fold
 )
@@ -878,7 +876,7 @@ test_that("train() GLMTree RegressionRes succeeds", {
     train(
       x = datr,
       hyperparameters = setup_GLMTree(),
-      outer_resampling_config = setup_KFold(3L),
+      outer_resampling_config = setup_KFold(outer_folds()),
       execution_config = setup_SerialExecution(),
       verbosity = 0L
     ),
@@ -1029,7 +1027,7 @@ test_that("train() LINAD Regression with grid search succeeds", {
 resmod_r_linad <- train(
   x = datr,
   hyperparameters = setup_LINAD(max_leaves = 4L, force_max_leaves = TRUE),
-  outer_resampling_config = setup_KFold(3L),
+  outer_resampling_config = setup_KFold(outer_folds()),
   execution_config = setup_SerialExecution(),
   verbosity = 0L
 )
@@ -1078,7 +1076,7 @@ test_that("train() LINAD ClassificationRes succeeds", {
     train(
       x = datc2,
       hyperparameters = setup_LINAD(max_leaves = 3L, force_max_leaves = TRUE),
-      outer_resampling_config = setup_KFold(3L),
+      outer_resampling_config = setup_KFold(outer_folds()),
       execution_config = setup_SerialExecution(),
       verbosity = 0L
     ),
@@ -1248,7 +1246,7 @@ test_that("train() LINADForest RegressionRes succeeds", {
         max_leaves = 3L,
         force_max_leaves = TRUE
       ),
-      outer_resampling_config = setup_KFold(3L),
+      outer_resampling_config = setup_KFold(outer_folds()),
       execution_config = setup_SerialExecution(),
       verbosity = 0L
     ),
@@ -1416,7 +1414,7 @@ resmodt_r_lightrf <- train(
     nrounds = 20L,
     lambda_l1 = tune_over(0, 10)
   ),
-  outer_resampling_config = setup_KFold(n_resamples = 3L),
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
   execution_config = setup_SerialExecution(),
   tuner_config = tuner_2fold
 )
@@ -1490,7 +1488,7 @@ test_that("train() LightRF Binary Classification with tuning succeeds", {
 resmod_c_lightrf <- train(
   x = datc2,
   hyperparameters = setup_LightRF(nrounds = 20L),
-  outer_resampling_config = setup_KFold(n_resamples = 3L),
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
   execution_config = setup_SerialExecution()
 )
 test_that("train() LightRF ClassificationRes succeeds", {
@@ -1533,7 +1531,7 @@ test_that("train() LightGBM Regression with autotune nrounds succeeds", {
 resmodt_r_lightgbm <- train(
   x = datr_train,
   hyperparameters = setup_LightGBM(max_nrounds = 50L),
-  outer_resampling_config = setup_KFold(n_resamples = 3L),
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
   execution_config = setup_SerialExecution()
 )
 test_that("train() Res LightGBM Regression with autotune nrounds succeeds", {
@@ -1754,7 +1752,7 @@ test_that("train() Ranger Regression with grid search succeeds", {
 resmod_r_ranger <- train(
   x = datr,
   hyperparameters = setup_Ranger(num_trees = 100L),
-  outer_resampling_config = setup_KFold(n_resamples = 3L)
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds())
 )
 test_that("train() Res Ranger Regression succeeds", {
   expect_s7_class(resmod_r_ranger, RegressionRes)
@@ -1786,7 +1784,7 @@ test_that("train() Ranger Classification with grid search succeeds", {
 resmod_c_ranger <- train(
   x = datc2,
   hyperparameters = setup_Ranger(num_trees = 10L),
-  outer_resampling_config = setup_KFold(n_resamples = 3L),
+  outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
   execution_config = setup_SerialExecution()
 )
 test_that("train() Res Ranger Classification succeeds", {
@@ -1874,7 +1872,7 @@ resmod_r_spls <- fit_if_installed(
   train(
     x = datr,
     hyperparameters = setup_SPLS(k = 2L, eta = 0.3),
-    outer_resampling_config = setup_KFold(n_resamples = 3L)
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds())
   )
 )
 test_that("train() Res SPLS Regression succeeds", {
@@ -1932,7 +1930,7 @@ resmod_c_spls <- fit_if_installed(
   train(
     x = datc2,
     hyperparameters = setup_SPLS(k = 2L, eta = 0.3),
-    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
     execution_config = setup_SerialExecution()
   )
 )
@@ -2127,7 +2125,7 @@ resmod_r_mars <- fit_if_installed(
   train(
     x = datr,
     hyperparameters = setup_MARS(degree = 1L, nprune = 8L),
-    outer_resampling_config = setup_KFold(n_resamples = 3L)
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds())
   )
 )
 test_that("train() Res MARS Regression succeeds", {
@@ -2185,7 +2183,7 @@ resmod_c_mars <- fit_if_installed(
   train(
     x = datc2,
     hyperparameters = setup_MARS(degree = 1L, nprune = 6L),
-    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
     execution_config = setup_SerialExecution()
   )
 )
@@ -2482,7 +2480,7 @@ if (mlp_installed) {
       batch_size = 64L,
       seed = 2025L
     ),
-    outer_resampling_config = setup_KFold(n_resamples = 3L)
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds())
   )
   test_that("train() Res MLP Regression succeeds", {
     expect_s7_class(resmod_r_mlp, RegressionRes)
@@ -2546,7 +2544,7 @@ if (mlp_installed) {
       batch_size = 32L,
       seed = 2025L
     ),
-    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
     execution_config = setup_SerialExecution()
   )
   test_that("train() Res MLP Classification succeeds", {
@@ -2929,7 +2927,7 @@ resmod_r_knn <- fit_if_installed(
   train(
     x = datr,
     hyperparameters = setup_KNN(k = 5L),
-    outer_resampling_config = setup_KFold(n_resamples = 3L)
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds())
   )
 )
 test_that("train() Res KNN Regression succeeds", {
@@ -2994,7 +2992,7 @@ resmod_c_knn <- fit_if_installed(
   train(
     x = datc2,
     hyperparameters = setup_KNN(k = 5L),
-    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
     execution_config = setup_SerialExecution()
   )
 )
@@ -3185,7 +3183,7 @@ resmod_r_bart <- fit_if_installed(
       num_mcmc = 10L,
       seed = 2026L
     ),
-    outer_resampling_config = setup_KFold(n_resamples = 3L)
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds())
   )
 )
 test_that("train() Res BART Regression succeeds", {
@@ -3290,7 +3288,7 @@ resmod_c_bart <- fit_if_installed(
       num_mcmc = 10L,
       seed = 2026L
     ),
-    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
     execution_config = setup_SerialExecution()
   )
 )
@@ -3590,7 +3588,7 @@ resmod_r_hal <- fit_if_installed(
       nfolds = 3L,
       seed = 2026L
     ),
-    outer_resampling_config = setup_KFold(n_resamples = 3L)
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds())
   )
 )
 test_that("train() Res HAL Regression succeeds", {
@@ -3650,7 +3648,7 @@ resmod_c_hal <- fit_if_installed(
       nfolds = 3L,
       seed = 2026L
     ),
-    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
     execution_config = setup_SerialExecution()
   )
 )
@@ -3911,7 +3909,7 @@ resmod_r_monotonichal <- fit_if_installed(
       nfolds = 3L,
       seed = 2026L
     ),
-    outer_resampling_config = setup_KFold(n_resamples = 3L)
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds())
   )
 )
 test_that("train() Res MonotonicHAL Regression succeeds", {
@@ -3968,7 +3966,7 @@ resmod_c_monotonichal <- fit_if_installed(
       nfolds = 3L,
       seed = 2026L
     ),
-    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
     execution_config = setup_SerialExecution()
   )
 )
@@ -4301,7 +4299,7 @@ test_that("train saves SupervisedRes model to rds successfully", {
   resmod_r_glm <- train(
     x = datr,
     hyperparameters = setup_GLM(),
-    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
     outdir = outdir
   )
   expect_true(file.exists(file.path(outdir, "train_GLM.rds")))
@@ -4642,11 +4640,11 @@ test_that("each fold's resolved values are recorded separately", {
   mod <- train(
     iris,
     hyperparameters = setup_LightGBM(learning_rate = 0.1),
-    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
     verbosity = 0L
   )
   rec <- record(mod)
-  expect_length(rec[["folds"]], 3L)
+  expect_length(rec[["folds"]], outer_folds())
   # Asked for: nothing -- "determine by early stopping".
   expect_null(rec[["hyperparameters"]][["nrounds"]])
   ran <- vapply(
@@ -4654,7 +4652,7 @@ test_that("each fold's resolved values are recorded separately", {
     function(f) f[["hyperparameters"]][["nrounds"]],
     numeric(1L)
   )
-  expect_length(ran, 3L)
+  expect_length(ran, outer_folds())
   expect_true(all(ran > 0))
   # Each fold says how its value came about.
   expect_identical(
@@ -5526,7 +5524,7 @@ test_that("SuperConfig's outcome and features decide what is trained on", {
     outcome = "y",
     features = c("age", "los"),
     hyperparameters = setup_LightRF(nrounds = 20L),
-    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
     outdir = NULL,
     verbosity = 0L
   )
@@ -5555,7 +5553,7 @@ test_that("an outcome that is not the last column is moved, not assumed", {
     dat_training_path = path,
     outcome = "target",
     hyperparameters = setup_LightRF(nrounds = 20L),
-    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    outer_resampling_config = setup_KFold(n_resamples = outer_folds()),
     outdir = NULL,
     verbosity = 0L
   ))

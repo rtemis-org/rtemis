@@ -363,6 +363,11 @@ test_that("class closures enclose the namespace, not a definition frame", {
 test_that("the catalog of published bindings equals a scan of every binding", {
   skip_on_cran()
   ns <- asNamespace("rtemis")
+  bindings <- mget(ls(ns, all.names = TRUE), ns, inherits = FALSE)
+  expect_setequal(
+    ns[[".class_names"]],
+    names(Filter(function(x) inherits(x, "S7_class"), bindings))
+  )
   expect_identical(
     schema_catalog(),
     schema_catalog(mget(ls(ns, all.names = TRUE), ns, inherits = FALSE))

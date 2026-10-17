@@ -460,6 +460,9 @@ parse_doc_type <- function(text) {
 # %% spec_classes ----
 #' All S7 classes in a namespace that declare `prop_*` properties
 #'
+#' Searches the bindings named in the namespace's `.class_names` when it has
+#' one, and every binding otherwise.
+#'
 #' @param ns Character: Namespace to search.
 #'
 #' @return Named list of S7 classes.
@@ -469,7 +472,11 @@ parse_doc_type <- function(text) {
 #' @noRd
 spec_classes <- function(ns = "rtemis") {
   namespace <- asNamespace(ns)
-  nms <- ls(namespace, all.names = FALSE)
+  nms <- if (exists(".class_names", envir = namespace, inherits = FALSE)) {
+    grep("^[.]", namespace[[".class_names"]], value = TRUE, invert = TRUE)
+  } else {
+    ls(namespace, all.names = FALSE)
+  }
   out <- list()
   for (nm in nms) {
     obj <- tryCatch(get(nm, envir = namespace), error = function(e) NULL)

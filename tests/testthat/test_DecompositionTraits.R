@@ -45,7 +45,7 @@ decomposition_config_classes <- function() {
       }
       FALSE
     },
-    ls(ns, all.names = TRUE)
+    ns[[".class_names"]]
   )
 }
 
