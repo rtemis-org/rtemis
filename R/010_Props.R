@@ -2648,7 +2648,6 @@ prop_const <- function(value, description = "") {
     data_dependent = FALSE,
     description = description
   )
-  force(value)
   p <- new_property(
     class = switch(
       type,
@@ -2657,11 +2656,31 @@ prop_const <- function(value, description = "") {
       number = class_numeric,
       string = class_character
     ),
-    getter = function(self) value
+    getter = constant_getter(value)
   )
   p[["spec"]] <- spec_fields(spec)
   p
 } # /rtemis::prop_const
+
+
+# %% constant_getter ----
+#' Build the getter of a constant property
+#'
+#' A factory, so that the getter's environment holds the value and nothing
+#' else; a closure written in `prop_const()` would enclose its `PropertySpec`
+#' and write a copy of it to the lazy-load database with every class.
+#'
+#' @param value Scalar: The constant value.
+#'
+#' @return Function of `self` returning `value`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+constant_getter <- function(value) {
+  force(value)
+  function(self) value
+} # /rtemis::constant_getter
 
 
 # %% tune_on_null_spec_names ----
@@ -3465,7 +3484,7 @@ prop_algorithm <- function(algorithm) {
       class = "rtemis_value_error"
     )
   }
-  p <- new_property(class_character, getter = function(self) algorithm)
+  p <- new_property(class_character, getter = constant_getter(algorithm))
   p[["discriminator"]] <- algorithm
   p
 } # /rtemis::prop_algorithm

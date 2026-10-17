@@ -661,7 +661,7 @@ Supervised <- schema_class(
       varimp = varimp,
       question = question,
       data_fingerprint = data_fingerprint,
-      session_info = utils::sessionInfo(),
+      session_info = session_info(),
       session = NULL
     )
   }
@@ -2271,7 +2271,7 @@ SupervisedRes <- schema_class(
       varimp = varimp,
       question = question,
       data_fingerprint = data_fingerprint,
-      session_info = utils::sessionInfo(),
+      session_info = session_info(),
       session = NULL
     )
   }

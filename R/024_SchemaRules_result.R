@@ -1,4 +1,4 @@
-# 024_ResultRules.R
+# 024_SchemaRules_result.R
 # ::rtemis::
 # 2026- EDG rtemis.org
 
@@ -7,7 +7,6 @@
 #' @field left,right Character: Array, factor, or matrix property names.
 #' @keywords internal
 #' @noRd
-#' @include 024_SchemaRules.R
 RowCountMatches <- new_class(
   "RowCountMatches",
   package = "rtemis",

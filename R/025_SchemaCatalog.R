@@ -182,6 +182,29 @@ method(repr, SchemaPublication) <- function(x, output_type = NULL, ...) {
 }
 
 
+# %% class_rule_validator ----
+#' Validate an object with a class's native validator and declared rules
+#'
+#' @param original_validator Optional Function: The validator passed to
+#'   `schema_class()`.
+#' @param declared_rules List: Rule fields from `schema_rule_fields()`.
+#' @return Function of `self` returning a character vector of problems, or
+#'   `NULL`. Its environment holds only the two arguments.
+#' @keywords internal
+#' @noRd
+class_rule_validator <- function(original_validator, declared_rules) {
+  # Forcing the arguments drops the promises that refer to the caller's frame.
+  force(original_validator)
+  force(declared_rules)
+  function(self) {
+    c(
+      if (!is.null(original_validator)) original_validator(self),
+      validate_class_rules(self, declared_rules)
+    )
+  }
+}
+
+
 # %% schema_class ----
 #' Define an S7 class with its own publication contract
 #'
@@ -216,14 +239,15 @@ schema_class <- function(
   args <- list(...)
   original_validator <- args[["validator"]]
   if (length(declared_rules)) {
-    args[["validator"]] <- function(self) {
-      c(
-        if (!is.null(original_validator)) original_validator(self),
-        validate_class_rules(self, declared_rules)
-      )
-    }
+    args[["validator"]] <- class_rule_validator(
+      original_validator,
+      declared_rules
+    )
   }
-  cls <- do.call(new_class, args)
+  # The caller's frame becomes the environment of the S7 constructor. Called
+  # from this frame, the constructor would enclose `args` and `cls`, and the
+  # lazy-load database would store a copy of both with every class.
+  cls <- do.call(new_class, args, envir = parent.frame())
   if (!is.null(defaults)) {
     if (
       !is.list(defaults) ||

@@ -289,3 +289,72 @@ test_that("implementation paths are language-qualified and shared paths are stab
   expect_true(all(names(entries) %in% unname(urls)))
   expect_false(any(grepl("/hyperparameters/v1/", names(entries), fixed = TRUE)))
 })
+
+
+test_that("class closures enclose the namespace, not a definition frame", {
+  skip_on_cran()
+  ns <- asNamespace("rtemis")
+  # Serialized size, writing source-reference files as a name: a package
+  # loaded from source keeps them, an installed package does not.
+  serialized_size <- function(x) {
+    length(serialize(x, NULL, refhook = function(r) {
+      if (inherits(r, "srcfile")) "srcfile"
+    }))
+  }
+  # Names the closures of `cls` whose environment is neither `home` nor a
+  # child of `home`; binds an S7 class other than the parent class that S7
+  # binds for a subclass constructor, as a definition frame binds the class
+  # it defines; or serializes larger than its bindings, as when an unforced
+  # promise refers to the frame that created the closure.
+  enclosing_frames <- function(cls, home) {
+    closures <- c(
+      list(constructor = cls@constructor, validator = cls@validator),
+      unlist(
+        lapply(cls@properties, function(p) p[c("getter", "setter")]),
+        recursive = FALSE
+      )
+    )
+    closures <- Filter(is.function, closures)
+    parent_name <- if (inherits(cls@parent, "S7_class")) cls@parent@name
+    bad <- vapply(
+      names(closures),
+      function(nm) {
+        e <- environment(closures[[nm]])
+        if (identical(e, home)) {
+          return(FALSE)
+        }
+        if (!identical(parent.env(e), home)) {
+          return(TRUE)
+        }
+        bindings <- mget(ls(e, all.names = TRUE), envir = e)
+        bound <- names(Filter(function(x) inherits(x, "S7_class"), bindings))
+        allowed <- if (nm == "constructor") parent_name
+        length(setdiff(bound, allowed)) > 0L ||
+          serialized_size(e) > serialized_size(bindings) + 1e4
+      },
+      logical(1L)
+    )
+    names(closures)[bad]
+  }
+  classes <- Filter(
+    function(x) inherits(x, "S7_class"),
+    mget(ls(ns, all.names = TRUE), envir = ns)
+  )
+  frames <- Filter(length, lapply(classes, enclosing_frames, home = ns))
+  expect_identical(names(frames), character())
+
+  # A class created inside a function frame encloses that frame.
+  definer <- function() {
+    payload <- seq_len(1e5) + 0
+    S7::new_class("FrameProbe", properties = list(x = S7::class_integer))
+  }
+  expect_identical(enclosing_frames(definer(), environment()), "constructor")
+  # An unforced argument of a closure factory refers to its caller's frame.
+  validator_of <- function(v) function(self) v
+  caller <- function() {
+    payload <- seq_len(1e5) + 0
+    validator_of(NULL)
+  }
+  probe <- S7::new_class("PromiseProbe", validator = caller())
+  expect_identical(enclosing_frames(probe, environment()), "validator")
+})

@@ -16,6 +16,41 @@
 # read on its own -- the versions that decide whether a result is reproducible,
 # and the timing that says what was run.
 
+# %% session_info ----
+#' Session information of the current R process
+#'
+#' Returns `utils::sessionInfo()`, computed once for each state of the session:
+#' the attached and loaded packages with their versions, the locale, and the
+#' time zone. Objects created in the same state share one `sessionInfo` object.
+#'
+#' @return `sessionInfo` object.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+session_info <- function() {
+  namespaces <- loadedNamespaces()
+  key <- list(
+    search(),
+    namespaces,
+    vapply(
+      namespaces,
+      function(ns) as.character(getNamespaceVersion(ns)),
+      character(1L)
+    ),
+    Sys.getlocale(),
+    Sys.timezone()
+  )
+  if (!identical(.session_info_cache[["key"]], key)) {
+    .session_info_cache[["value"]] <- utils::sessionInfo()
+    .session_info_cache[["key"]] <- key
+  }
+  .session_info_cache[["value"]]
+} # /rtemis::session_info
+
+.session_info_cache <- new.env(parent = emptyenv())
+
+
 # %% RUN_OUTCOMES ----
 # How a run ended. A canceled or failed run still gets a record: "all runs are
 # observable" does not hold if only the successful ones are written down.

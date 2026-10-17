@@ -3,8 +3,6 @@
 # 2026- EDG rtemis.org
 
 #' @importFrom rtemis.draw confusion_input
-#' @include plot.SupervisedSession.R plot_learning.R plot_varimp.R plot_metric.R
-#' @include present.R plot_massglm.R plot_true_pred.R plot_confusion.R plot_roc.R
 NULL
 
 # %% Model plotting methods ----
