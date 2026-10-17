@@ -74,6 +74,12 @@ datc3_test <- datc3[-resc3[["Fold_1"]], ]
 # datc2_train <- datc2[resc2$Fold_1, ]
 # datc2_test <- datc2[-resc2$Fold_1, ]
 
+## Tuning ----
+# Tuned fits search on two inner folds; the fold count is not under test here.
+tuner_2fold <- setup_GridSearch(
+  resampler_config = setup_KFold(n_resamples = 2L)
+)
+
 # Utils ----
 test_that("class_imbalance() works", {
   expect_type(class_imbalance(outcome(datc2)), "double")
@@ -256,7 +262,8 @@ test_that("train() GLMNET Regression with auto-lambda + alpha grid search succee
     x = datr_train,
     dat_test = datr_test,
     hyperparameters = setup_GLMNET(alpha = tune_over(0, 1)),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
   expect_s7_class(modt_r_glmnet, Regression)
 })
@@ -267,7 +274,8 @@ test_that("train() Res-GLMNET Regression with auto-lambda + alpha grid search su
     x = datr_train,
     hyperparameters = setup_GLMNET(alpha = tune_over(0.5, 1)),
     outer_resampling_config = setup_KFold(n_resamples = 3L),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
   expect_s7_class(resmodt_r_glmnet, RegressionRes)
 })
@@ -360,7 +368,8 @@ test_that("train() GAM Regression with only parametric terms succeeds.", {
 modt_r_gam <- train(
   x = datr_train,
   dat_test = datr_test,
-  hyperparameters = setup_GAM(k = tune_over(3, 5, 7))
+  hyperparameters = setup_GAM(k = tune_over(3, 5, 7)),
+  tuner_config = tuner_2fold
 )
 test_that("train() GAM Regression with grid_search() succeeds", {
   expect_s7_class(modt_r_gam, Regression)
@@ -471,7 +480,8 @@ modt_r_svml <- train(
   x = datr_train,
   dat_test = datr_test,
   hyperparameters = setup_LinearSVM(cost = tune_over(1, 10)),
-  execution_config = setup_SerialExecution()
+  execution_config = setup_SerialExecution(),
+  tuner_config = tuner_2fold
 )
 test_that("train() LinearSVM Regression with tuning succeeds", {
   expect_s7_class(modt_r_svml, Regression)
@@ -533,7 +543,8 @@ test_that("train() RadialSVM Regression succeeds", {
 modt_r_svmr <- train(
   x = datr_train,
   dat_test = datr_test,
-  hyperparameters = setup_RadialSVM(cost = tune_over(1, 10, 100))
+  hyperparameters = setup_RadialSVM(cost = tune_over(1, 10, 100)),
+  tuner_config = tuner_2fold
 )
 test_that("train() RadialSVM Regression with tuning succeeds", {
   expect_s7_class(modt_r_svmr, Regression)
@@ -555,7 +566,8 @@ resmodt_r_svmr <- train(
   x = datr,
   hyperparameters = setup_RadialSVM(cost = tune_over(1, 10)),
   outer_resampling_config = setup_KFold(n_resamples = 3L),
-  execution_config = setup_SerialExecution()
+  execution_config = setup_SerialExecution(),
+  tuner_config = tuner_2fold
 )
 test_that("train() Res RadialSVM Regression with tuning succeeds", {
   expect_s7_class(resmodt_r_svmr, RegressionRes)
@@ -576,7 +588,8 @@ modt_c_radialsvm <- train(
   x = datc2_train,
   dat_test = datc2_test,
   hyperparameters = setup_RadialSVM(cost = tune_over(1, 10)),
-  execution_config = setup_SerialExecution()
+  execution_config = setup_SerialExecution(),
+  tuner_config = tuner_2fold
 )
 test_that("train() RadialSVM Classification with tuning succeeds", {
   expect_s7_class(modt_c_radialsvm, Classification)
@@ -598,7 +611,8 @@ resmodt_c_radialsvm <- train(
   x = datc2,
   hyperparameters = setup_RadialSVM(cost = tune_over(1, 10)),
   outer_resampling_config = setup_KFold(n_resamples = 3L),
-  execution_config = setup_SerialExecution()
+  execution_config = setup_SerialExecution(),
+  tuner_config = tuner_2fold
 )
 test_that("train() Res RadialSVM Classification with tuning succeeds", {
   expect_s7_class(resmodt_c_radialsvm, ClassificationRes)
@@ -678,7 +692,8 @@ modt_r_cart <- train(
   datr_train,
   dat_test = datr_test,
   hyperparameters = setup_CART(maxdepth = tune_over(2:3)),
-  execution_config = setup_SerialExecution()
+  execution_config = setup_SerialExecution(),
+  tuner_config = tuner_2fold
 )
 test_that("train() Regression with grid_search() succeeds", {
   expect_s7_class(modt_r_cart, Regression)
@@ -708,7 +723,8 @@ resmodt_r_cart <- train(
     prune_cp = tune_over(.001, .01)
   ),
   outer_resampling_config = setup_KFold(3),
-  execution_config = setup_SerialExecution()
+  execution_config = setup_SerialExecution(),
+  tuner_config = tuner_2fold
 )
 test_that("train() RegressionRes succeeds", {
   expect_s7_class(resmodt_r_cart, RegressionRes)
@@ -719,7 +735,8 @@ resmod_r_cart <- train(
   x = datr,
   hyperparameters = setup_CART(prune_cp = tune_over(.001, .01)),
   outer_resampling_config = setup_KFold(3L),
-  execution_config = setup_SerialExecution()
+  execution_config = setup_SerialExecution(),
+  tuner_config = tuner_2fold
 )
 test_that("train() RegressionRes succeeds", {
   expect_s7_class(resmod_r_cart, RegressionRes)
@@ -731,7 +748,8 @@ test_that("train() RegressionRes succeeds", {
 modt_c_cart <- train(
   x = datc2_train,
   dat_test = datc2_test,
-  hyperparameters = setup_CART(maxdepth = tune_over(1:2))
+  hyperparameters = setup_CART(maxdepth = tune_over(1:2)),
+  tuner_config = tuner_2fold
 )
 test_that("train() CART Classification succeeds", {
   expect_s7_class(modt_c_cart, Classification)
@@ -756,7 +774,8 @@ modt_c_cart_tuned <- train(
   hyperparameters = setup_CART(
     maxdepth = tune_over(1L, 2L)
   ),
-  execution_config = setup_SerialExecution()
+  execution_config = setup_SerialExecution(),
+  tuner_config = tuner_2fold
 )
 test_that("train() Classification with grid_search() succeeds", {
   expect_s7_class(modt_c_cart_tuned, Classification)
@@ -770,7 +789,8 @@ resmodt_c_cart <- train(
     maxdepth = tune_over(1L, 2L)
   ),
   outer_resampling_config = setup_KFold(n_resamples = 3L),
-  execution_config = setup_SerialExecution()
+  execution_config = setup_SerialExecution(),
+  tuner_config = tuner_2fold
 )
 test_that("train() CART ClassificationRes succeeds", {
   expect_s7_class(resmodt_c_cart, ClassificationRes)
@@ -995,7 +1015,8 @@ modt_r_linad <- train(
     force_max_leaves = TRUE
   ),
   execution_config = setup_SerialExecution(),
-  verbosity = 0L
+  verbosity = 0L,
+  tuner_config = tuner_2fold
 )
 test_that("train() LINAD Regression with grid search succeeds", {
   expect_s7_class(modt_r_linad, Regression)
@@ -1379,7 +1400,8 @@ modt_r_lightrf <- train(
     nrounds = 20L,
     lambda_l1 = tune_over(0, .1)
   ),
-  execution_config = setup_SerialExecution()
+  execution_config = setup_SerialExecution(),
+  tuner_config = tuner_2fold
 )
 test_that("train() LightRF Regression with l1 tuning succeeds", {
   expect_s7_class(modt_r_lightrf, Regression)
@@ -1393,7 +1415,8 @@ resmodt_r_lightrf <- train(
     lambda_l1 = tune_over(0, 10)
   ),
   outer_resampling_config = setup_KFold(n_resamples = 3L),
-  execution_config = setup_SerialExecution()
+  execution_config = setup_SerialExecution(),
+  tuner_config = tuner_2fold
 )
 test_that("train() Res LightRF Regression with l1 tuning succeeds", {
   expect_s7_class(resmodt_r_lightrf, RegressionRes)
@@ -1454,7 +1477,8 @@ test_that("the probability-based metrics survive the binary matrix", {
 modt_c_lightrf <- train(
   x = datc2_train,
   dat_test = datc2_test,
-  hyperparameters = setup_LightRF(nrounds = 20L, max_depth = tune_over(-1, 5))
+  hyperparameters = setup_LightRF(nrounds = 20L, max_depth = tune_over(-1, 5)),
+  tuner_config = tuner_2fold
 )
 test_that("train() LightRF Binary Classification with tuning succeeds", {
   expect_s7_class(modt_c_lightrf, Classification)
@@ -1717,7 +1741,8 @@ modt_r_ranger <- train(
   x = datr_train,
   dat_test = datr_test,
   hyperparameters = setup_Ranger(num_trees = 50L, mtry = tune_over(3, 6)),
-  execution_config = setup_SerialExecution()
+  execution_config = setup_SerialExecution(),
+  tuner_config = tuner_2fold
 )
 test_that("train() Ranger Regression with grid search succeeds", {
   expect_s7_class(modt_r_ranger, Regression)
@@ -1748,7 +1773,8 @@ modt_c_ranger <- train(
   x = datc2_train,
   dat_test = datc2_test,
   hyperparameters = setup_Ranger(num_trees = 10L, mtry = tune_over(2, 4)),
-  execution_config = setup_SerialExecution()
+  execution_config = setup_SerialExecution(),
+  tuner_config = tuner_2fold
 )
 test_that("train() Ranger Classification with grid search succeeds", {
   expect_s7_class(modt_c_ranger, Classification)
@@ -1799,7 +1825,8 @@ test_that("train() Ranger aborts when any search value of mtry is out of range",
       hyperparameters = setup_Ranger(
         num_trees = 10L,
         mtry = tune_over(3L, 100L)
-      )
+      ),
+      tuner_config = tuner_2fold
     ),
     class = "rtemis_range_error"
   )
@@ -1830,7 +1857,8 @@ modt_r_spls <- fit_if_installed(
       k = tune_over(1L, 2L),
       eta = tune_over(0.3, 0.6)
     ),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
 )
 test_that("train() SPLS Regression with grid search succeeds", {
@@ -1887,7 +1915,8 @@ modt_c_spls <- fit_if_installed(
     x = datc2_train,
     dat_test = datc2_test,
     hyperparameters = setup_SPLS(k = tune_over(1L, 2L), eta = 0.3),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
 )
 test_that("train() SPLS Classification with grid search succeeds", {
@@ -2010,7 +2039,8 @@ test_that("train() SPLS aborts when any search value of k is out of range", {
     train(
       x = datr_train,
       dat_test = datr_test,
-      hyperparameters = setup_SPLS(k = tune_over(2L, 100L))
+      hyperparameters = setup_SPLS(k = tune_over(2L, 100L)),
+      tuner_config = tuner_2fold
     ),
     class = "rtemis_range_error"
   )
@@ -2064,7 +2094,8 @@ modt_r_mars <- fit_if_installed(
     x = datr_train,
     dat_test = datr_test,
     hyperparameters = setup_MARS(degree = tune_over(1L, 2L), nprune = 8L),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
 )
 test_that("train() MARS Regression with grid search succeeds", {
@@ -2137,7 +2168,8 @@ modt_c_mars <- fit_if_installed(
     x = datc2_train,
     dat_test = datc2_test,
     hyperparameters = setup_MARS(degree = 1L, nprune = tune_over(4L, 6L)),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
 )
 test_that("train() MARS Classification with grid search succeeds", {
@@ -2426,7 +2458,8 @@ if (mlp_installed) {
       batch_size = 64L,
       seed = 2025L
     ),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
   test_that("train() MLP Regression with grid search succeeds", {
     expect_s7_class(modt_r_mlp, Regression)
@@ -2495,7 +2528,8 @@ if (mlp_installed) {
       batch_size = 32L,
       seed = 2025L
     ),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
   test_that("train() MLP Classification with grid search succeeds", {
     expect_s7_class(modt_c_mlp, Classification)
@@ -2878,7 +2912,8 @@ modt_r_knn <- fit_if_installed(
       k = tune_over(3L, 9L),
       kernel = tune_over("rectangular", "optimal")
     ),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
 )
 test_that("train() KNN Regression with grid search succeeds", {
@@ -2942,7 +2977,8 @@ modt_c_knn <- fit_if_installed(
     x = datc2_train,
     dat_test = datc2_test,
     hyperparameters = setup_KNN(k = tune_over(3L, 9L)),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
 )
 test_that("train() KNN Classification with grid search succeeds", {
@@ -3060,7 +3096,8 @@ test_that("train() KNN aborts when any search value of k is out of range", {
     train(
       x = datr_train,
       dat_test = datr_test,
-      hyperparameters = setup_KNN(k = tune_over(5L, nrow(datr_train)))
+      hyperparameters = setup_KNN(k = tune_over(5L, nrow(datr_train))),
+      tuner_config = tuner_2fold
     ),
     class = "rtemis_range_error"
   )
@@ -3126,7 +3163,8 @@ modt_r_bart <- fit_if_installed(
       num_mcmc = 10L,
       seed = 2026L
     ),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
 )
 test_that("train() BART Regression with grid search succeeds", {
@@ -3230,7 +3268,8 @@ modt_c_bart <- fit_if_installed(
       num_mcmc = 10L,
       seed = 2026L
     ),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
 )
 test_that("train() BART Classification with grid search succeeds", {
@@ -3472,7 +3511,8 @@ test_that("train() BART aborts when any search value of num_features_subsample i
         num_gfr = 2L,
         num_mcmc = 5L,
         num_features_subsample = tune_over(3L, 100L)
-      )
+      ),
+      tuner_config = tuner_2fold
     ),
     class = "rtemis_range_error"
   )
@@ -3528,7 +3568,8 @@ modt_r_hal <- fit_if_installed(
       smoothness_orders = tune_over(0L, 1L),
       seed = 2026L
     ),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
 )
 test_that("train() HAL Regression with grid search succeeds", {
@@ -3587,7 +3628,8 @@ modt_c_hal <- fit_if_installed(
       smoothness_orders = tune_over(0L, 1L),
       seed = 2026L
     ),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
 )
 test_that("train() HAL Classification with grid search succeeds", {
@@ -3789,7 +3831,8 @@ test_that("train() HAL aborts when any search value of max_degree is out of rang
   expect_error(
     train(
       x = datr_train,
-      hyperparameters = setup_HAL(max_degree = tune_over(1L, 100L))
+      hyperparameters = setup_HAL(max_degree = tune_over(1L, 100L)),
+      tuner_config = tuner_2fold
     ),
     class = "rtemis_range_error"
   )
@@ -3904,7 +3947,8 @@ modt_c_monotonichal <- fit_if_installed(
       nfolds = 3L,
       seed = 2026L
     ),
-    execution_config = setup_SerialExecution()
+    execution_config = setup_SerialExecution(),
+    tuner_config = tuner_2fold
   )
 )
 test_that("train() MonotonicHAL Classification with grid search succeeds", {
@@ -4440,12 +4484,24 @@ test_that("train() with preprocessor creates a model with the preprocessor", {
 
 
 # %% Resolved hyperparameters reach the fitted model ----
+# One default LightRF fit on iris serves the tests below that read what it
+# resolved, stored and recorded; it is fit on first use.
+.lightrf_iris <- local({
+  fit <- NULL
+  function() {
+    if (is.null(fit)) {
+      fit <<- train(iris, hyperparameters = setup_LightRF(), verbosity = 0L)
+    }
+    fit
+  }
+})
+
 # "All runs are observable": a model that trained with an `objective` it chose
 # from the outcome type must say so. R copies `hyperparameters` into `train_()`,
 # so a method that resolves a value has to return it or the caller keeps the
 # unresolved object.
 test_that("a fitted model reports the values its algorithm resolved", {
-  mod <- train(iris, hyperparameters = setup_LightRF(), verbosity = 0L)
+  mod <- .lightrf_iris()
   # NULL means "decide from the outcome type" in the config; on a fitted model
   # it would mean the record cannot say what was run.
   expect_identical(mod@hyperparameters[["objective"]], "multiclass")
@@ -4476,7 +4532,7 @@ test_that("resolved values survive for every algorithm that resolves one", {
 # resolved hyperparameters say what ran, the stored config says what was asked
 # for. Neither is derivable from the other.
 test_that("train() stores the input config alongside the resolved one", {
-  mod <- train(iris, hyperparameters = setup_LightRF(), verbosity = 0L)
+  mod <- .lightrf_iris()
   expect_s7_class(mod@config, SuperConfig)
   # The distinction that makes `origin` computable: NULL in, resolved out.
   expect_null(mod@config@hyperparameters[["objective"]])
@@ -4550,7 +4606,7 @@ test_that("a record is rejected where a config is expected", {
 })
 
 test_that("a record reports what ran, not what was asked for", {
-  mod <- train(iris, hyperparameters = setup_LightRF(), verbosity = 0L)
+  mod <- .lightrf_iris()
   rec <- record(mod)
   # Top level is what was *asked for*: NULL, meaning "decide from the outcome".
   expect_null(rec[["hyperparameters"]][["objective"]])
@@ -4648,7 +4704,8 @@ test_that("a record publishes a search space as the bare tag it reads back", {
   mod <- train(
     iris,
     hyperparameters = setup_CART(maxdepth = tune_over(2L, 4L)),
-    verbosity = 0L
+    verbosity = 0L,
+    tuner_config = tuner_2fold
   )
   hp <- record(mod)[["hyperparameters"]]
   expect_true(is_wire_candidates(hp[["maxdepth"]]))
@@ -4671,7 +4728,8 @@ test_that("a fold's origins are paired against the run's input", {
       n_resamples = 2L,
       seed = 2026L
     ),
-    verbosity = 0L
+    verbosity = 0L,
+    tuner_config = tuner_2fold
   )
   origin <- record(mod)[["folds"]][[1L]][["hyperparameters"]][["origin"]]
   expect_identical(origin[["maxdepth"]], "tuned")
@@ -4988,7 +5046,8 @@ test_that("a base learner's search space becomes library entries, untuned", {
       ),
       inner_resampling_config = meta_res
     ),
-    verbosity = 0L
+    verbosity = 0L,
+    tuner_config = tuner_2fold
   )
   expect_identical(
     names(mod@model@base_models),
@@ -5464,7 +5523,7 @@ test_that("SuperConfig's outcome and features decide what is trained on", {
     dat_training_path = path,
     outcome = "y",
     features = c("age", "los"),
-    hyperparameters = setup_LightRF(),
+    hyperparameters = setup_LightRF(nrounds = 20L),
     outer_resampling_config = setup_KFold(n_resamples = 3L),
     outdir = NULL,
     verbosity = 0L
@@ -5493,7 +5552,7 @@ test_that("an outcome that is not the last column is moved, not assumed", {
   mod <- train(setup_SuperConfig(
     dat_training_path = path,
     outcome = "target",
-    hyperparameters = setup_LightRF(),
+    hyperparameters = setup_LightRF(nrounds = 20L),
     outer_resampling_config = setup_KFold(n_resamples = 3L),
     outdir = NULL,
     verbosity = 0L

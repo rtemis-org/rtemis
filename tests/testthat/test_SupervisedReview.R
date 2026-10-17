@@ -818,6 +818,9 @@ test_that("a single-split tuned model states its selected value", {
     iris[idx, ],
     dat_test = iris[-idx, ],
     hyperparameters = setup_CART(maxdepth = tune_over(2L, 3L, 4L)),
+    tuner_config = setup_GridSearch(
+      resampler_config = setup_KFold(n_resamples = 2L)
+    ),
     verbosity = 0L
   )
   out <- review(mod)
@@ -891,6 +894,9 @@ test_that("Markdown of a tuned review lists the tuned hyperparameters", {
     iris[idx, ],
     dat_test = iris[-idx, ],
     hyperparameters = setup_CART(maxdepth = tune_over(2L, 3L, 4L)),
+    tuner_config = setup_GridSearch(
+      resampler_config = setup_KFold(n_resamples = 2L)
+    ),
     verbosity = 0L
   )
   rev <- review(mod)

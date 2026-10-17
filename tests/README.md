@@ -4,7 +4,10 @@
 `testthat-supervised.R`, and `testthat-fitting.R`. The check log reports the
 elapsed time of each script. A script runs its group when `RTEMIS_TEST_GROUP`
 is unset, `all`, or names that group, and exits otherwise; `tests/ci/test-groups.R`
-assigns test files to groups. Outside CI, each script also reports every test
+assigns test files to groups. Each CI job deletes the other groups' scripts
+before checking, so its log lists only the script it runs. R CMD check prints a
+script's elapsed time when the script ends, so a running script's line shows
+no time. Outside CI, each script also reports every test
 that takes at least 2 s in its `.Rout` file, which win-builder returns with the
 check directory. `just test-timing <out>` writes per-test and per-file times
 under CRAN settings; its per-file `setup` column is the time spent outside

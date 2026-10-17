@@ -5,6 +5,22 @@
 # Data ----
 x <- iris[, -5]
 
+# Fits shared by the tests that need a fitted decomposition but test neither the
+# fit's settings nor its output. Each is fit on first use, after the calling
+# test's `skip_if_not_installed()`. uwot runs four full garbage collections per
+# fit, so a UMAP fit costs about a second once the namespace is loaded.
+.shared_fit <- function(config) {
+  fit <- NULL
+  function() {
+    if (is.null(fit)) {
+      fit <<- decomp(x, config = config, verbosity = 0L)
+    }
+    fit
+  }
+}
+.umap_fit <- .shared_fit(setup_UMAP(n_neighbors = 20L, n_epochs = 50L))
+.nmf_fit <- .shared_fit(setup_NMF(k = 3L))
+
 # PCA ----
 test_that("setup_PCA() succeeds", {
   config <- setup_PCA()
@@ -37,13 +53,12 @@ test_that("setup_NMF() succeeds", {
 
 test_that("decomp() NMF succeeds", {
   skip_if_not_installed("NMF")
-  iris_nmf <- decomp(x, algorithm = "nmf", config = setup_NMF())
-  expect_s7_class(iris_nmf, Decomposition)
+  expect_s7_class(.nmf_fit(), Decomposition)
 })
 
 test_that("NMF scores are non-negative and reproduce on their own data", {
   skip_if_not_installed("NMF")
-  iris_nmf <- decomp(x, algorithm = "nmf", config = setup_NMF(k = 3L))
+  iris_nmf <- .nmf_fit()
   transformed <- iris_nmf@transformed
   expect_true(all(transformed >= 0))
   expect_identical(dim(transformed), c(nrow(x), 3L))
@@ -58,7 +73,7 @@ test_that("NMF scores are non-negative and reproduce on their own data", {
 
 test_that("NMF scores reconstruct the data through the basis", {
   skip_if_not_installed("NMF")
-  iris_nmf <- decomp(x, algorithm = "nmf", config = setup_NMF(k = 3L))
+  iris_nmf <- .nmf_fit()
   basis <- NMF::basis(iris_nmf@decom)
   reconstructed <- iris_nmf@transformed %*% t(basis)
   # The scores solve the least squares problem on this basis, so the
@@ -260,14 +275,8 @@ test_that("reconstruct() passes through columns the fit did not decompose", {
 
 test_that("reconstruct() refuses algorithms with no inverse", {
   skip_if_not_installed("uwot")
-  decom <- decomp(
-    x,
-    algorithm = "umap",
-    config = setup_UMAP(n_epochs = 50L),
-    verbosity = 0L
-  )
   expect_error(
-    reconstruct(decom, x, verbosity = 0L),
+    reconstruct(.umap_fit(), x, verbosity = 0L),
     class = "rtemis_unsupported_error"
   )
 })
@@ -313,7 +322,6 @@ test_that("apply_decomp() on training data reproduces the fitted components", {
 
 
 # UMAP ----
-# Fits whose embedding quality is not under test run 50 optimization epochs.
 test_that("setup_UMAP() succeeds", {
   config <- setup_UMAP()
   expect_s7_class(config, UMAPConfig)
@@ -321,17 +329,7 @@ test_that("setup_UMAP() succeeds", {
 
 test_that("decomp() UMAP succeeds", {
   skip_if_not_installed("uwot")
-  iris_umap <- decomp(
-    x,
-    algorithm = "umap",
-    config = setup_UMAP(n_epochs = 50L)
-  )
-  iris_umap <- decomp(
-    x,
-    algorithm = "umap",
-    config = setup_UMAP(n_neighbors = 20L, n_epochs = 50L)
-  )
-  expect_s7_class(iris_umap, Decomposition)
+  expect_s7_class(.umap_fit(), Decomposition)
 })
 
 

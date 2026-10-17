@@ -34,7 +34,24 @@ set.seed(2026)
 
 # LightGBM fits set `force_nrounds`, which fixes the number of boosting rounds
 # and skips the cross-validated search for it. Every assertion below holds for
-# any fitted ensemble.
+# any fitted ensemble. Tests that only read a LightGBM model share one per
+# outcome type, fit on first use.
+.shared_fit <- function(dat) {
+  fit <- NULL
+  function() {
+    if (is.null(fit)) {
+      fit <<- train(
+        dat,
+        hyperparameters = setup_LightGBM(force_nrounds = 100L),
+        verbosity = 0L
+      )
+    }
+    fit
+  }
+}
+.lgb_regression <- .shared_fit(.regression_dat)
+.lgb_binary <- .shared_fit(.binary_dat)
+.lgb_multiclass <- .shared_fit(.multiclass_dat)
 
 # Every entry of `phi` must reconstruct its own column of `predicted`. The
 # baseline is per case, so it is indexed by column rather than by name -- for
@@ -55,11 +72,7 @@ expect_additive <- function(x, tolerance = 1e-10) {
 
 # %% LightGBM: regression ----
 test_that("explain() decomposes a LightGBM regression exactly", {
-  mod <- train(
-    .regression_dat,
-    hyperparameters = setup_LightGBM(force_nrounds = 100L),
-    verbosity = 0L
-  )
+  mod <- .lgb_regression()
   x <- explain(mod, .regression_dat[1:3, .explain_feats], verbosity = 0L)
   expect_s7_class(x, SHAP)
   expect_identical(x@algorithm, "LightGBM")
@@ -103,11 +116,7 @@ test_that("explain() decomposes a LightRF regression on the prediction's scale",
 test_that("a binary explanation is on the margin, not the probability", {
   # Correction 6, as a test: `predict.Supervised` normalizes classification to
   # probabilities via `prob_matrix()`, and contributions live on the margin.
-  mod <- train(
-    .binary_dat,
-    hyperparameters = setup_LightGBM(force_nrounds = 100L),
-    verbosity = 0L
-  )
+  mod <- .lgb_binary()
   x <- explain(mod, .binary_dat[1:3, .explain_feats], verbosity = 0L)
   expect_identical(x@scale, "margin")
   expect_additive(x)
@@ -133,11 +142,7 @@ test_that("a binary explanation is named for the positive class", {
   # The same rule `prob_matrix()` uses, so a SHAP's classes and a predicted
   # probability matrix's columns agree. The negative class's contributions are
   # the exact negation, so storing them would store one thing twice.
-  mod <- train(
-    .binary_dat,
-    hyperparameters = setup_LightGBM(force_nrounds = 100L),
-    verbosity = 0L
-  )
+  mod <- .lgb_binary()
   x <- explain(mod, .binary_dat[1:3, .explain_feats], verbosity = 0L)
   expect_length(x@phi, 1L)
   expect_named(x@phi, levels(mod@y_training)[[mod@binclasspos]])
@@ -146,11 +151,7 @@ test_that("a binary explanation is named for the positive class", {
 
 # %% LightGBM: multiclass ----
 test_that("a multiclass explanation is one matrix per class, each additive", {
-  mod <- train(
-    .multiclass_dat,
-    hyperparameters = setup_LightGBM(force_nrounds = 100L),
-    verbosity = 0L
-  )
+  mod <- .lgb_multiclass()
   x <- explain(mod, .multiclass_dat[1:3, .explain_feats], verbosity = 0L)
   expect_named(x@phi, levels(mod@y_training))
   expect_identical(dim(x@predicted), c(3L, 3L))
@@ -162,21 +163,9 @@ test_that("regression, binary and multiclass differ only in length", {
   # The structure promise: a consumer written for multiclass handles the others
   # without special-casing.
   models <- list(
-    regression = train(
-      .regression_dat,
-      hyperparameters = setup_LightGBM(force_nrounds = 100L),
-      verbosity = 0L
-    ),
-    binary = train(
-      .binary_dat,
-      hyperparameters = setup_LightGBM(force_nrounds = 100L),
-      verbosity = 0L
-    ),
-    multiclass = train(
-      .multiclass_dat,
-      hyperparameters = setup_LightGBM(force_nrounds = 100L),
-      verbosity = 0L
-    )
+    regression = .lgb_regression(),
+    binary = .lgb_binary(),
+    multiclass = .lgb_multiclass()
   )
   for (name in names(models)) {
     x <- explain(
@@ -218,11 +207,7 @@ test_that("a factor predictor gets one contribution, not one per level", {
 
 # %% Resolution ----
 test_that("estimator, value function and scale are resolved and recorded", {
-  mod <- train(
-    .regression_dat,
-    hyperparameters = setup_LightGBM(force_nrounds = 100L),
-    verbosity = 0L
-  )
+  mod <- .lgb_regression()
   x <- explain(mod, .regression_dat[1:3, .explain_feats], verbosity = 0L)
   # Asked for "auto" and got the concrete estimator; the two vocabularies do
   # not overlap, so the pair is unambiguous.
@@ -240,11 +225,7 @@ test_that("estimator, value function and scale are resolved and recorded", {
 
 
 test_that("explain() records what it explained and what it explained against", {
-  mod <- train(
-    .regression_dat,
-    hyperparameters = setup_LightGBM(force_nrounds = 100L),
-    verbosity = 0L
-  )
+  mod <- .lgb_regression()
   newdata <- .regression_dat[1:3, .explain_feats]
   background <- .regression_dat[, .explain_feats]
   x <- explain(mod, newdata, background = background, verbosity = 0L)
@@ -284,11 +265,7 @@ test_that("an interventional TreeSHAP is refused rather than relabeled", {
   # The booster's contributions are path-dependent. Returning them under an
   # interventional label is exactly the silent mislabeling the perturbation
   # decision exists to prevent.
-  mod <- train(
-    .regression_dat,
-    hyperparameters = setup_LightGBM(force_nrounds = 100L),
-    verbosity = 0L
-  )
+  mod <- .lgb_regression()
   expect_error(
     explain(
       mod,
@@ -302,11 +279,7 @@ test_that("an interventional TreeSHAP is refused rather than relabeled", {
 
 
 test_that("the probability scale is refused, differently, per outcome type", {
-  regression <- train(
-    .regression_dat,
-    hyperparameters = setup_LightGBM(force_nrounds = 100L),
-    verbosity = 0L
-  )
+  regression <- .lgb_regression()
   # Not a thing a regression has.
   expect_error(
     explain(
@@ -317,11 +290,7 @@ test_that("the probability scale is refused, differently, per outcome type", {
     ),
     class = "rtemis_value_error"
   )
-  classification <- train(
-    .binary_dat,
-    hyperparameters = setup_LightGBM(force_nrounds = 100L),
-    verbosity = 0L
-  )
+  classification <- .lgb_binary()
   # A thing a classification has, which is not implemented yet.
   expect_error(
     explain(
@@ -1551,11 +1520,7 @@ test_that("importance is the magnitude, so cancelling contributions still count"
 
 
 test_that("a multiclass explanation gives one importance measure per class", {
-  mod <- train(
-    .multiclass_dat,
-    hyperparameters = setup_LightGBM(force_nrounds = 100L),
-    verbosity = 0L
-  )
+  mod <- .lgb_multiclass()
   x <- explain(
     mod,
     .multiclass_dat[1:5, .explain_feats],
@@ -1781,11 +1746,7 @@ test_that("a routed explanation's baseline is its own expert's", {
 
 test_that("a constant baseline still fills a row per case", {
   # One shape for both kinds of estimator, so no consumer branches on it.
-  mod <- train(
-    .regression_dat,
-    hyperparameters = setup_LightGBM(force_nrounds = 100L),
-    verbosity = 0L
-  )
+  mod <- .lgb_regression()
   x <- explain(mod, .regression_dat[1:3, .explain_feats], verbosity = 0L)
   expect_identical(dim(x@baseline), c(3L, 1L))
   expect_length(unique(x@baseline[, 1L]), 1L)
@@ -1950,11 +1911,7 @@ test_that("collapse_by_term sums design columns into their term", {
 
 
 test_that("explain() inherits predict()'s strictness about columns", {
-  mod <- train(
-    .regression_dat,
-    hyperparameters = setup_LightGBM(force_nrounds = 100L),
-    verbosity = 0L
-  )
+  mod <- .lgb_regression()
   # Predictors only, in training order -- the same contract `predict()` states.
   expect_error(
     explain(mod, .regression_dat[1:3, ], verbosity = 0L),
