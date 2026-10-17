@@ -101,6 +101,9 @@ test_that("every registered algorithm has a setup_ function and decomp_ method",
 
 
 test_that("every DecompositionConfig subclass has a traits row", {
+  # Reads every class in the namespace; depends only on the package source,
+  # and CI runs it.
+  skip_on_cran()
   registered <- paste0(traits[["name"]], "Config")
   expect_setequal(decomposition_config_classes(), registered)
 })

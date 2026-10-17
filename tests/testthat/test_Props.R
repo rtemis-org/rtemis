@@ -317,6 +317,9 @@ prop_accepts <- function(property, value) {
 
 
 testthat::test_that("every declared type, bound and enum is enforced", {
+  # Reads every class in the namespace; depends only on the package source,
+  # and CI runs it.
+  skip_on_cran()
   ns <- asNamespace("rtemis")
   classes <- mget(ns[[".class_names"]], envir = ns, inherits = FALSE)
 
@@ -1847,6 +1850,9 @@ test_that("the applies_when note spells its values as JSON, not as R", {
 
 
 test_that("every applies_when gate names a real, ungated sibling", {
+  # Reads every class in the namespace; depends only on the package source,
+  # and CI runs it.
+  skip_on_cran()
   # A gate naming a missing property would fail only when that class is
   # constructed; a chain of gates would need a topological sort in every form
   # builder that reads the schema.
@@ -1864,6 +1870,9 @@ test_that("every applies_when gate names a real, ungated sibling", {
 
 
 test_that("no class redeclares an inherited property with a different default", {
+  # Reads every class in the namespace; depends only on the package source,
+  # and CI runs it.
+  skip_on_cran()
   # S7 records a subclass's redeclared property on the class but generates the
   # constructor with the *parent's* default, so the two disagree in silence:
   #

@@ -177,18 +177,17 @@ test_that("a forest whose trees all split is returned unchanged", {
 
 # %% Through train() ----
 test_that("LightRF on a small sample predicts around the outcome, not around 0", {
-  mod <- train(
-    mtcars[1:22, ],
-    hyperparameters = setup_LightRF(),
-    verbosity = 0L
+  expect_message(
+    mod <- train(
+      mtcars[1:22, ],
+      hyperparameters = setup_LightRF(),
+      verbosity = 1L
+    ),
+    "set min_data_in_leaf to at most 6"
   )
   outcome_mean <- mean(mtcars[["carb"]][1:22])
   # Every tree is a stump predicting its bagged sample's mean.
   expect_lt(abs(mean(mod@predicted_training) - outcome_mean), 0.1)
-  expect_message(
-    train(mtcars[1:22, ], hyperparameters = setup_LightRF(), verbosity = 1L),
-    "set min_data_in_leaf to at most 6"
-  )
   # Rescored trees survive prediction on new data, and a saved model.
   path <- tempfile(fileext = ".rds")
   on.exit(unlink(path), add = TRUE)

@@ -122,9 +122,27 @@ method(decomp_, NMFConfig) <- function(
   check_dependencies("NMF")
   check_unsupervised_data(x = x, allow_missing = FALSE, verbosity = verbosity)
 
+  xm <- as.matrix(x)
+  # A basis with more components than features cannot have full column rank,
+  # so this is refused before fitting; `nmf_scores()` checks the rank of the
+  # fitted basis for every other `k`.
+  if (config[["k"]] > NCOL(xm)) {
+    rtemis.core::abort(
+      "NMF with k = ",
+      config[["k"]],
+      " components needs at least ",
+      config[["k"]],
+      " features, and the data has ",
+      NCOL(xm),
+      ". Set `k` to at most ",
+      NCOL(xm),
+      ".",
+      class = c("rtemis_value_error", "rtemis_data_error")
+    )
+  }
+
   # Decompose ----
   msg("Decomposing with", config@algorithm, "...", verbosity = verbosity)
-  xm <- as.matrix(x)
   # `NMF::nmf()` takes features in rows and cases in columns.
   # Sequential (`.opt = "-p"`). With `nrun > 1`, NMF's default is to run in
   # parallel, and its parallel setup requires the package to be attached, which

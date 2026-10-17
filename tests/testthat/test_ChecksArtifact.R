@@ -191,6 +191,8 @@ test_that("every message slot names a value the rule carries", {
 
 # %% Traits ----
 test_that("the traits artifact answers for every supervised algorithm", {
+  # Depends only on the package source; CI runs it.
+  skip_on_cran()
   skip_if_no_artifact()
   traits <- jsonlite::fromJSON(.traits_path, simplifyVector = FALSE)[["traits"]]
   expect_setequal(

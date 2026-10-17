@@ -114,6 +114,8 @@ test_that("DecompositionConfig generates its JSON Schema", {
 )
 
 test_that("setup_* clustering defaults do not drift from property defaults", {
+  # Depends only on the package source; CI runs it.
+  skip_on_cran()
   for (nm in names(.clust_classes)) {
     setup_defaults <- get(paste0("setup_", nm))()@config
     class_defaults <- .clust_classes[[nm]]()@config
