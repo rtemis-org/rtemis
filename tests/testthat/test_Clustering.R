@@ -181,14 +181,30 @@ test_that("setup_HOPACH() throws error with bad values or wrong types", {
 })
 
 # cluster HOPACH ----
+# One HOPACH fit on iris serves the tests that read a fitted HOPACH clustering;
+# it is fit on first use, after the caller's `skip_if_not_installed()`.
+.hopach_fit <- local({
+  fit <- NULL
+  function() {
+    if (is.null(fit)) {
+      fit <<- cluster(
+        x,
+        algorithm = "HOPACH",
+        config = setup_HOPACH(
+          dist = "euclid",
+          max_levels = 3L,
+          max_children = 5L
+        ),
+        verbosity = 0L
+      )
+    }
+    fit
+  }
+})
+
 test_that("cluster_HOPACH() succeeds", {
   skip_if_not_installed("hopach")
-  iris_hopach <- cluster(
-    x,
-    algorithm = "HOPACH",
-    config = setup_HOPACH(dist = "euclid", max_levels = 3L, max_children = 5L),
-    verbosity = 0L
-  )
+  iris_hopach <- .hopach_fit()
   expect_s7_class(iris_hopach, Clustering)
   # HOPACH discovers k rather than taking one, so `@k` must be what the run
   # found and not a configured bound.
@@ -205,12 +221,7 @@ test_that("cluster_HOPACH() succeeds", {
 # HOPACH refuses new data ----
 test_that("clustpredict_HOPACH() refuses newdata", {
   skip_if_not_installed("hopach")
-  iris_hopach <- cluster(
-    x,
-    algorithm = "HOPACH",
-    config = setup_HOPACH(dist = "euclid", max_levels = 3L, max_children = 5L),
-    verbosity = 0L
-  )
+  iris_hopach <- .hopach_fit()
   expect_error(
     clustpredict_HOPACH(iris_hopach@clust, newdata = x),
     class = "rtemis_unsupported_error"
@@ -725,7 +736,11 @@ test_that("every algorithm produces the variant the roster claims", {
   )
   for (nm in names(.clust_capabilities)) {
     skip_if_not_installed(pkgs[[nm]])
-    cl <- cluster(x, algorithm = nm, config = configs[[nm]], verbosity = 0L)
+    cl <- if (nm == "HOPACH") {
+      .hopach_fit()
+    } else {
+      cluster(x, algorithm = nm, config = configs[[nm]], verbosity = 0L)
+    }
     want <- if (.clust_capabilities[[nm]][["soft"]]) {
       SoftClustering
     } else {

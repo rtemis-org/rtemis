@@ -4,19 +4,6 @@
 
 x <- exc(iris, "Species")
 
-# One UMAP fit serves both tests that need one, fit on first use after the
-# caller's `skip_if_not_installed()`. uwot runs four full garbage collections
-# per fit.
-.umap_fit <- local({
-  fit <- NULL
-  function() {
-    if (is.null(fit)) {
-      fit <<- decomp(x, config = setup_UMAP(n_epochs = 50L), verbosity = 0L)
-    }
-    fit
-  }
-})
-
 # Derivation ----
 test_that("applicable_metrics() is derived from the traits table", {
   matrix_form <- applicable_metrics()
@@ -62,8 +49,8 @@ test_that("the metrics computed are exactly the metrics derived as applicable", 
   # traits table has stopped describing the code.
   for (algorithm in c("PCA", "ICA", "NMF", "UMAP", "Isomap")) {
     skip_if_not_installed(decomposition_traits(algorithm)[["package"]])
-    decom <- if (algorithm == "UMAP") {
-      .umap_fit()
+    decom <- if (algorithm %in% c("NMF", "UMAP")) {
+      shared_decomposition(algorithm)
     } else {
       decomp(x, algorithm = algorithm, verbosity = 0L)
     }
@@ -219,7 +206,7 @@ test_that("effective_dimensionality never lands below its declared minimum of 1"
 
 test_that("component metrics are defined for a non-invertible embedding", {
   skip_if_not_installed("uwot")
-  decom <- .umap_fit()
+  decom <- shared_decomposition("UMAP")
   expect_false(is.na(decom@metrics[["max_abs_component_correlation"]]))
   expect_false(is.na(decom@metrics[["effective_dimensionality"]]))
   expect_true(is.na(decom@metrics[["explained_variance_ratio"]]))

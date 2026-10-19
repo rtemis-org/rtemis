@@ -5,22 +5,6 @@
 # Data ----
 x <- iris[, -5]
 
-# Fits shared by the tests that need a fitted decomposition but test neither the
-# fit's settings nor its output. Each is fit on first use, after the calling
-# test's `skip_if_not_installed()`. uwot runs four full garbage collections per
-# fit, so a UMAP fit costs about a second once the namespace is loaded.
-.shared_fit <- function(config) {
-  fit <- NULL
-  function() {
-    if (is.null(fit)) {
-      fit <<- decomp(x, config = config, verbosity = 0L)
-    }
-    fit
-  }
-}
-.umap_fit <- .shared_fit(setup_UMAP(n_neighbors = 20L, n_epochs = 50L))
-.nmf_fit <- .shared_fit(setup_NMF(k = 3L))
-
 # PCA ----
 test_that("setup_PCA() succeeds", {
   config <- setup_PCA()
@@ -53,12 +37,12 @@ test_that("setup_NMF() succeeds", {
 
 test_that("decomp() NMF succeeds", {
   skip_if_not_installed("NMF")
-  expect_s7_class(.nmf_fit(), Decomposition)
+  expect_s7_class(shared_decomposition("NMF"), Decomposition)
 })
 
 test_that("NMF scores are non-negative and reproduce on their own data", {
   skip_if_not_installed("NMF")
-  iris_nmf <- .nmf_fit()
+  iris_nmf <- shared_decomposition("NMF")
   transformed <- iris_nmf@transformed
   expect_true(all(transformed >= 0))
   expect_identical(dim(transformed), c(nrow(x), 3L))
@@ -73,7 +57,7 @@ test_that("NMF scores are non-negative and reproduce on their own data", {
 
 test_that("NMF scores reconstruct the data through the basis", {
   skip_if_not_installed("NMF")
-  iris_nmf <- .nmf_fit()
+  iris_nmf <- shared_decomposition("NMF")
   basis <- NMF::basis(iris_nmf@decom)
   reconstructed <- iris_nmf@transformed %*% t(basis)
   # The scores solve the least squares problem on this basis, so the
@@ -90,12 +74,7 @@ test_that("NMF scores reconstruct the data through the basis", {
 
 test_that("setup_NMF(method=) reaches NMF::nmf()", {
   skip_if_not_installed("NMF")
-  iris_nmf <- decomp(
-    x,
-    algorithm = "nmf",
-    config = setup_NMF(k = 2L, method = "lee"),
-    verbosity = 0L
-  )
+  iris_nmf <- shared_decomposition("NMF_lee_full_rank")
   expect_identical(NMF::algorithm(iris_nmf@decom), "lee")
 })
 
@@ -103,6 +82,7 @@ test_that("NMF rejects more components than the basis can identify", {
   skip_if_not_installed("NMF")
   # A basis with more columns than the data has features cannot have full
   # column rank, so the non-negative coefficients are not identified.
+  # Refused before fitting, from the shape of the data.
   expect_error(
     decomp(
       x,
@@ -110,6 +90,14 @@ test_that("NMF rejects more components than the basis can identify", {
       config = setup_NMF(k = ncol(x) + 2L),
       verbosity = 0L
     ),
+    "Set `k` to at most 4",
+    class = "rtemis_value_error"
+  )
+  # A fitted basis can lose rank with fewer components than features.
+  basis <- cbind(c(1, 2, 3, 4), c(2, 4, 6, 8))
+  expect_error(
+    nmf_scores(basis, as.matrix(x)),
+    "has rank 1 for 2 components",
     class = "rtemis_value_error"
   )
 })
@@ -206,12 +194,7 @@ test_that("ICA reconstruction rejects a mismatched number of cases", {
 
 test_that("NMF reconstructs through its basis in input units", {
   skip_if_not_installed("NMF")
-  decom <- decomp(
-    x,
-    algorithm = "nmf",
-    config = setup_NMF(k = ncol(x)),
-    verbosity = 0L
-  )
+  decom <- shared_decomposition("NMF_lee_full_rank")
   expect_lt(relative_error(reconstruct_decomp(decom, x), x), 0.05)
 })
 
@@ -276,7 +259,7 @@ test_that("reconstruct() passes through columns the fit did not decompose", {
 test_that("reconstruct() refuses algorithms with no inverse", {
   skip_if_not_installed("uwot")
   expect_error(
-    reconstruct(.umap_fit(), x, verbosity = 0L),
+    reconstruct(shared_decomposition("UMAP"), x, verbosity = 0L),
     class = "rtemis_unsupported_error"
   )
 })
@@ -329,7 +312,7 @@ test_that("setup_UMAP() succeeds", {
 
 test_that("decomp() UMAP succeeds", {
   skip_if_not_installed("uwot")
-  expect_s7_class(.umap_fit(), Decomposition)
+  expect_s7_class(shared_decomposition("UMAP"), Decomposition)
 })
 
 
@@ -344,13 +327,7 @@ test_that("UMAP fits on the execution config's threads and applies on the applie
     },
     .package = "uwot"
   )
-  decom <- decomp(
-    x,
-    algorithm = "umap",
-    config = setup_UMAP(n_epochs = 50L),
-    execution_config = setup_SerialExecution(n_workers_algorithm = 2L),
-    verbosity = 0L
-  )
+  decom <- shared_decomposition("UMAP")
   apply_decomp(
     decom,
     x,

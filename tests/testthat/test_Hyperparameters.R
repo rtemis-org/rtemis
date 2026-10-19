@@ -123,6 +123,8 @@ test_that("setup_* defaults do not drift from the property defaults", {
 })
 
 test_that("every algorithm class exposes spec-derived views", {
+  # Depends only on the package source; CI runs it.
+  skip_on_cran()
   for (nm in names(.hp_classes)) {
     cls <- .hp_classes[[nm]]
     h <- get(paste0("setup_", nm))()

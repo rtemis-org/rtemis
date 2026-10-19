@@ -1595,14 +1595,15 @@ test_that("node_test keeps a ridge fit on data wider than it is long", {
       verbosity = 0L
     )
   }
+  bic <- fit(node_test = "bic")
   root_slopes <- function(mod) sum(abs(mod@model@coefficients[1L, -1L]) > 1e-10)
-  expect_equal(root_slopes(fit(node_test = "bic")), p)
+  expect_equal(root_slopes(bic), p)
   rsq <- function(mod) {
     1 -
       sum((X[["y"]] - predict(mod, X[, seq_len(p)]))^2) /
         sum((X[["y"]] - mean(X[["y"]]))^2)
   }
-  expect_gt(rsq(fit(node_test = "bic")), rsq(fit()) - 0.05)
+  expect_gt(rsq(bic), rsq(fit()) - 0.05)
 })
 
 
