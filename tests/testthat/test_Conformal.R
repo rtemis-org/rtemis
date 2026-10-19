@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # The load-bearing tests here are the coverage simulations. Everything else --
 # shapes, refusals, resolved names -- can be right while the arithmetic is
 # wrong, and only repeated sampling can tell the difference between a valid

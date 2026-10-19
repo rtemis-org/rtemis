@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # Data ----
 x <- iris[, -5]
 # Few epochs: these tests check the pipeline's contracts, not the fit's quality.

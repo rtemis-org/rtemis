@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # A set is a union of search spaces over one algorithm. What the tests hold to:
 # every member expands and gates on its own, a row fully specifies the
 # configuration it came from, the winner is named, and a set collapses to a

@@ -51,6 +51,48 @@ test_that("new tests enter the default CI group automatically", {
 })
 
 
+test_that("CRAN runs exactly the listed files, each in its own group", {
+  path <- test_path()
+  groups <- ci_test_groups(path)
+  expect_true(all(cran_test_files %in% names(groups)))
+  selected <- lapply(c("general", "supervised", "fitting"), function(group) {
+    testthat::find_test_scripts(
+      path,
+      filter = ci_test_filter(group, path, cran = TRUE),
+      full.names = FALSE
+    )
+  })
+  expect_identical(anyDuplicated(unlist(selected)), 0L)
+  expect_setequal(
+    unlist(selected),
+    testthat::find_test_scripts(
+      path,
+      filter = ci_test_filter("all", path, cran = TRUE),
+      full.names = FALSE
+    )
+  )
+  expect_length(unlist(selected), length(cran_test_files))
+  withr::with_envvar(c(NOT_CRAN = "true"), expect_false(ci_on_cran()))
+  withr::with_envvar(
+    c(NOT_CRAN = NA),
+    expect_identical(ci_on_cran(), !interactive())
+  )
+})
+
+
+test_that("CRAN runs testthat-cran.R alone, and only CRAN runs it", {
+  skip_if(interactive(), "ci_on_cran() is FALSE in an interactive session")
+  withr::with_envvar(c(NOT_CRAN = "true"), {
+    expect_message(run_test_group("cran"), "not a CRAN check")
+  })
+  withr::with_envvar(c(NOT_CRAN = NA, RTEMIS_TEST_GROUP = NA), {
+    for (group in c("general", "supervised", "fitting")) {
+      expect_message(run_test_group(group), "testthat-cran.R runs")
+    }
+  })
+})
+
+
 test_that("parallel integration requires explicit opt-in in automated runs", {
   withr::local_envvar(c(CI = NA, CODEX_CI = NA, RTEMIS_RUN_PARALLEL_TESTS = NA))
   expect_no_error(skip_ci_parallel_integration())

@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-testthat::skip_on_cran()
-
 # library(testthat)
 
 # Tuning dispatches through the same `progress_plapply()` as outer resampling, so a grid

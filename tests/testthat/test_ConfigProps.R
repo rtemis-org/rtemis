@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # Shared invariants for the DecompositionConfig / ClusteringConfig families,
 # migrated to the prop_* factories (see 150_DecompositionConfig.R,
 # 120_ClusteringConfig.R). Mirrors the Hyperparameters drift/serialization

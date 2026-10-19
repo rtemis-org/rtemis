@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # %% Statistical helpers, each against an independent computation ----
 test_that("review_binom_interval() is the Clopper-Pearson interval", {
   # The beta-quantile form of Clopper-Pearson, written out independently of
