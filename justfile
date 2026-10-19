@@ -196,11 +196,18 @@ check *flags: build
     rm -f {{ tarball_glob }}
     @just _msg "Done"
 
-# Run R CMD check --as-cran
-check-cran: (check "--as-cran")
+# NOT_CRAN unset selects the CRAN tests; _R_CHECK_DONTTEST_EXAMPLES_=false runs
+# one examples pass without \donttest code, as win-builder does (`--as-cran` adds
+# a second pass with --run-donttest).
+[doc("Run R CMD check --as-cran as CRAN runs it")]
+check-cran *flags: build
+    @just _msg "─── Running R CMD check --as-cran {{ flags }} on {{ pkg }}... ───"
+    env -u NOT_CRAN _R_CHECK_DONTTEST_EXAMPLES_=false {{ r }} CMD check {{ tarball_glob }} --as-cran {{ flags }}
+    rm -f {{ tarball_glob }}
+    @just _msg "Done"
 
-# Run R CMD check --as-cran --no-tests
-check-cran-no-tests: (check "--as-cran" "--no-tests")
+# Run R CMD check --as-cran --no-tests, as `check-cran`
+check-cran-no-tests: (check-cran "--no-tests")
 
 # Check URLs in package documentation with urlchecker
 urls:

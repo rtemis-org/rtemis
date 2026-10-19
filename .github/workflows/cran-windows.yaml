@@ -63,6 +63,9 @@ jobs:
         run: R CMD build --no-manual .
       # _R_CHECK_TIMINGS_=0 reports the time of every timed stage;
       # --as-cran reports only those of 10 s or more.
+      # _R_CHECK_DONTTEST_EXAMPLES_=false runs the examples once, without
+      # \donttest code, as win-builder does; --as-cran otherwise adds a second
+      # pass over every example with --run-donttest.
       - name: Check as CRAN
         id: check
         shell: bash
@@ -72,7 +75,7 @@ jobs:
           set +e
           env -u CI -u NOT_CRAN -u GITHUB_PAT \
             -u RTEMIS_TEST_GROUP -u RTEMIS_RUN_PARALLEL_TESTS \
-            _R_CHECK_TIMINGS_=0 \
+            _R_CHECK_TIMINGS_=0 _R_CHECK_DONTTEST_EXAMPLES_=false \
             sh -c 'env | grep -E "^(CI|NOT_CRAN|RTEMIS_|_R_)" | sort; R CMD check --as-cran --timings rtemis_*.tar.gz'
           status=$?
           echo "elapsed=$((SECONDS - start))" >> "$GITHUB_OUTPUT"
