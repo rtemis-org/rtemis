@@ -98,6 +98,9 @@ test_that("ai_review() builds an AISupervisedReview from a checked answer", {
   )
 })
 
+# On CRAN, the file ends here.
+skip_on_cran()
+
 test_that("the provenance records model, provider, settings, prompt and review hash", {
   llm <- .llm()
   sent <- .stub_generate(.answer())

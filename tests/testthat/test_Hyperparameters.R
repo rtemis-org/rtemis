@@ -2,6 +2,9 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
+# CRAN checks skip this file; CI and local runs execute it.
+skip_on_cran()
+
 # Hyperparameters ----
 # The superclass is abstract: only algorithm subclasses can be instantiated.
 test_that("Hyperparameters superclass is abstract", {
@@ -123,8 +126,6 @@ test_that("setup_* defaults do not drift from the property defaults", {
 })
 
 test_that("every algorithm class exposes spec-derived views", {
-  # Depends only on the package source; CI runs it.
-  skip_on_cran()
   for (nm in names(.hp_classes)) {
     cls <- .hp_classes[[nm]]
     h <- get(paste0("setup_", nm))()

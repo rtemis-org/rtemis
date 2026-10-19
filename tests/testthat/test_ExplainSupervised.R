@@ -93,6 +93,55 @@ test_that("explain() decomposes a LightGBM regression exactly", {
 })
 
 
+# %% KernelSHAP ----
+set.seed(4L)
+.kernel_n <- 40L
+.kernel_dat <- data.frame(
+  a = rnorm(.kernel_n),
+  b = rnorm(.kernel_n),
+  c = rnorm(.kernel_n)
+)
+.kernel_feats <- c("a", "b", "c")
+.kernel_regression <- within(
+  .kernel_dat,
+  y <- 2 * a - b + 0.5 * c + rnorm(.kernel_n, sd = 0.3)
+)
+
+
+test_that("KernelSHAP agrees with the exact LinearSHAP on the same model", {
+  # The check that validates the exact tier against an implementation we did
+  # not write. For a linear model the interventional Shapley value has a closed
+  # form, and shapr's `independence` approach computes the same quantity by an
+  # entirely different route, so the two must agree.
+  skip_if_not_installed("shapr")
+  mod <- train(
+    .kernel_regression,
+    hyperparameters = setup_GLM(),
+    verbosity = 0L
+  )
+  newdata <- .kernel_regression[1:3, .kernel_feats]
+  background <- .kernel_regression[, .kernel_feats]
+  exact <- explain(mod, newdata, background = background, verbosity = 0L)
+  kernel <- explain(
+    mod,
+    newdata,
+    background = background,
+    config = setup_SHAP(estimator = "kernel"),
+    verbosity = 0L
+  )
+  expect_identical(exact@estimator, "LinearSHAP")
+  expect_identical(kernel@estimator, "KernelSHAP")
+  expect_identical(exact@perturbation, kernel@perturbation)
+  expect_equal(kernel@phi[[1L]], exact@phi[[1L]], tolerance = 1e-6)
+  expect_equal(kernel@baseline, exact@baseline, tolerance = 1e-8)
+})
+
+
+# On CRAN, the file ends here: the tests above explain one tree ensemble
+# exactly and one model through shapr.
+skip_on_cran()
+
+
 # %% LightRF: regression ----
 test_that("explain() decomposes a LightRF regression on the prediction's scale", {
   # LightGBM sums a random forest's trees in raw scores and contributions
@@ -1142,49 +1191,6 @@ test_that("HAL's default fit is refused, naming the setting that fixes it", {
 
 
 # %% KernelSHAP ----
-set.seed(4L)
-.kernel_n <- 40L
-.kernel_dat <- data.frame(
-  a = rnorm(.kernel_n),
-  b = rnorm(.kernel_n),
-  c = rnorm(.kernel_n)
-)
-.kernel_feats <- c("a", "b", "c")
-.kernel_regression <- within(
-  .kernel_dat,
-  y <- 2 * a - b + 0.5 * c + rnorm(.kernel_n, sd = 0.3)
-)
-
-
-test_that("KernelSHAP agrees with the exact LinearSHAP on the same model", {
-  # The check that validates the exact tier against an implementation we did
-  # not write. For a linear model the interventional Shapley value has a closed
-  # form, and shapr's `independence` approach computes the same quantity by an
-  # entirely different route, so the two must agree.
-  skip_if_not_installed("shapr")
-  mod <- train(
-    .kernel_regression,
-    hyperparameters = setup_GLM(),
-    verbosity = 0L
-  )
-  newdata <- .kernel_regression[1:3, .kernel_feats]
-  background <- .kernel_regression[, .kernel_feats]
-  exact <- explain(mod, newdata, background = background, verbosity = 0L)
-  kernel <- explain(
-    mod,
-    newdata,
-    background = background,
-    config = setup_SHAP(estimator = "kernel"),
-    verbosity = 0L
-  )
-  expect_identical(exact@estimator, "LinearSHAP")
-  expect_identical(kernel@estimator, "KernelSHAP")
-  expect_identical(exact@perturbation, kernel@perturbation)
-  expect_equal(kernel@phi[[1L]], exact@phi[[1L]], tolerance = 1e-6)
-  expect_equal(kernel@baseline, exact@baseline, tolerance = 1e-8)
-})
-
-
 test_that("KernelSHAP answers for the algorithms with no exact estimator", {
   skip_if_not_installed("shapr")
   for (algorithm in c("Ranger", "RadialSVM", "KNN")) {

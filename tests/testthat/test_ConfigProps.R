@@ -2,8 +2,8 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# Tests that sweep every published class check the schema contract, which
-# depends only on the package source. They run in CI and skip on CRAN.
+# CRAN checks skip this file; CI and local runs execute it.
+skip_on_cran()
 
 # Shared invariants for the DecompositionConfig / ClusteringConfig families,
 # migrated to the prop_* factories (see 150_DecompositionConfig.R,
@@ -114,8 +114,6 @@ test_that("DecompositionConfig generates its JSON Schema", {
 )
 
 test_that("setup_* clustering defaults do not drift from property defaults", {
-  # Depends only on the package source; CI runs it.
-  skip_on_cran()
   for (nm in names(.clust_classes)) {
     setup_defaults <- get(paste0("setup_", nm))()@config
     class_defaults <- .clust_classes[[nm]]()@config
@@ -549,7 +547,6 @@ test_that("settings nested under a settings key are refused with the fix", {
 
 # %% x-rtemis annotations ----
 test_that("x-rtemis agrees with the standard keywords, for every property", {
-  skip_on_cran()
   targets <- schema_reference_urls(
     schema_catalog(),
     "https://schema.rtemis.org"

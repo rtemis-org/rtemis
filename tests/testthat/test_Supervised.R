@@ -84,6 +84,105 @@ tuner_2fold <- setup_GridSearch(
   resampler_config = setup_KFold(n_resamples = N_RESAMPLES)
 )
 
+# %% One fit per algorithm ----
+# Each supervised algorithm trains once on `datr_train` with small settings and
+# predicts `datr_test`, so every backend package in `SUPERVISED_BACKENDS` is
+# exercised. These tests run on CRAN; the `skip_on_cran()` below them ends the
+# file there, and everywhere else the file continues with the full matrix.
+one_fit_meta_res <- setup_KFold(n_resamples = N_RESAMPLES, seed = 2026L)
+one_fit <- list(
+  BART = function() {
+    setup_BART(num_trees = 10L, num_gfr = 2L, num_mcmc = 10L, seed = 2026L)
+  },
+  CART = function() setup_CART(),
+  ConditionalSuperLearner = function() {
+    setup_ConditionalSuperLearner(
+      base_learners = list(setup_GLM(), setup_CART(maxdepth = 1L)),
+      inner_resampling_config = one_fit_meta_res,
+      n_iterations = 2L
+    )
+  },
+  GAM = function() setup_GAM(),
+  GLM = function() setup_GLM(),
+  GLMNET = function() setup_GLMNET(lambda = 0.01),
+  GLMTree = function() setup_GLMTree(),
+  HAL = function() {
+    setup_HAL(max_degree = 1L, num_knots = 10L, nfolds = 3L, seed = 2026L)
+  },
+  Isotonic = function() setup_Isotonic(),
+  MonotonicHAL = function() {
+    setup_MonotonicHAL(num_knots = 10L, nfolds = 3L, seed = 2026L)
+  },
+  KNN = function() setup_KNN(k = 5L),
+  LightCART = function() setup_LightCART(),
+  LightGBM = function() setup_LightGBM(force_nrounds = 50L),
+  LightRF = function() setup_LightRF(nrounds = 20L),
+  LightRuleFit = function() {
+    setup_LightRuleFit(nrounds = 20L, lambda_glmnet = 0.01)
+  },
+  LINAD = function() setup_LINAD(max_leaves = 6L),
+  LINADForest = function() setup_LINADForest(n_trees = 5L, max_leaves = 4L),
+  MARS = function() setup_MARS(degree = 1L, nprune = 8L),
+  MLP = function() setup_MLP(hidden_units = 8L, max_epochs = 2L, seed = 2025L),
+  ModalityStacking = function() {
+    setup_ModalityStacking(
+      feature_groups = list(m1 = c("V1", "V2", "V3"), m2 = c("V4", "V5", "g")),
+      base_learners = list(m1 = setup_GLM(), m2 = setup_CART()),
+      inner_resampling_config = one_fit_meta_res
+    )
+  },
+  NNLS = function() setup_NNLS(),
+  Ranger = function() setup_Ranger(num_trees = 10L),
+  SuperLearner = function() {
+    setup_SuperLearner(
+      base_learners = list(setup_GLM(), setup_CART()),
+      inner_resampling_config = one_fit_meta_res
+    )
+  },
+  LinearSVM = function() setup_LinearSVM(),
+  RadialSVM = function() setup_RadialSVM(),
+  SPLS = function() setup_SPLS(k = 2L, eta = 0.3),
+  TabNet = function() setup_TabNet(epochs = 3L, learn_rate = .01)
+)
+# Isotonic fits one feature; NNLS takes numeric features only.
+one_fit_features <- list(Isotonic = "V3", NNLS = paste0("V", 1:5))
+
+test_that("one fit is declared for every supervised algorithm", {
+  expect_setequal(names(one_fit), supervised_algorithms[["name"]])
+})
+
+for (algorithm in names(one_fit)) {
+  test_that(paste("train()", algorithm, "fits and predicts held-out cases"), {
+    backends <- SUPERVISED_BACKENDS[[algorithm]]
+    for (pkg in backends) {
+      skip_if_not_installed(pkg)
+    }
+    if ("torch" %in% backends) {
+      skip_if_no_torch()
+    }
+    columns <- c(
+      one_fit_features[[algorithm]] %||% setdiff(names(datr_train), "y"),
+      "y"
+    )
+    training <- datr_train[, columns, with = FALSE]
+    test <- datr_test[, columns, with = FALSE]
+    mod <- train(
+      training,
+      dat_test = test,
+      hyperparameters = one_fit[[algorithm]](),
+      verbosity = 0L
+    )
+    expect_s7_class(mod, Regression)
+    expect_equal(
+      predict(mod, features(test), verbosity = 0L),
+      mod@predicted_test
+    )
+  })
+}
+
+# On CRAN, the file ends here.
+skip_on_cran()
+
 # Utils ----
 test_that("class_imbalance() works", {
   expect_type(class_imbalance(outcome(datc2)), "double")
@@ -203,8 +302,6 @@ test_that(
   ),
   {
     # for local testing only, can't assume multisession or multicore are available
-    # Worker startup dominates this test; CI runs it.
-    skip_on_cran()
     # Simulate user has set plan to multisession with 2 workers
     # with(future::plan("multisession", workers = 2L), local = TRUE)
     # Simulate user has set plan to sequential
@@ -248,8 +345,6 @@ test_that("sequential with >1 worker throws error", {
 
 ## {GLMNET}[train]<Regression> auto-lambda grid search using mirai ----
 test_that("train() GLMNET Regression with auto-lambda grid search using mirai succeeds", {
-  # Worker startup dominates this test; CI runs it.
-  skip_on_cran()
   skip_if_not_installed("mirai")
   modt_r_glmnet <- train(
     x = datr_train,

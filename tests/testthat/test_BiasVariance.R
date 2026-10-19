@@ -2,6 +2,9 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
+# CRAN checks skip this file; CI and local runs execute it.
+skip_on_cran()
+
 # `bias_variance()` estimates two quantities whose *relative* behavior theory
 # pins down exactly, so the tests assert the theory rather than stored numbers:
 # a deeper tree must trade bias for variance, bagging must cut a tree's variance
@@ -125,8 +128,6 @@ test_that("bias_variance() is reproducible, and parallel matches sequential", {
   again <- .bv(setup_CART())
   expect_identical(once@variance, again@variance)
   expect_identical(once@bias_squared, again@bias_squared)
-  # Worker startup dominates this comparison; CI runs it.
-  skip_on_cran()
   skip_if_not_installed("mirai")
   parallel <- .bv(
     setup_CART(),

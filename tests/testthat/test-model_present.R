@@ -1,3 +1,6 @@
+# CRAN checks skip this file; CI and local runs execute it.
+skip_on_cran()
+
 present_model_fixture <- function(
   classification = FALSE,
   resamples = NULL,

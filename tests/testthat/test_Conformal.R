@@ -2,6 +2,9 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
+# CRAN checks skip this file; CI and local runs execute it.
+skip_on_cran()
+
 # The load-bearing tests here are the coverage simulations. Everything else --
 # shapes, refusals, resolved names -- can be right while the arithmetic is
 # wrong, and only repeated sampling can tell the difference between a valid
@@ -222,7 +225,6 @@ test_that("split conformal coverage lands in the right region", {
   # `1 - alpha`, so a handful of replications is averaged and checked against a
   # band wide enough to be stable and narrow enough to catch a construction that
   # is off by an order statistic or not covering at all.
-  skip_on_cran()
   set.seed(4242L)
   coverage <- vapply(
     seq_len(5L),
@@ -243,7 +245,6 @@ test_that("split conformal coverage lands in the right region", {
 
 
 test_that("CV+ coverage clears its guarantee over replications", {
-  skip_on_cran()
   set.seed(5252L)
   coverage <- vapply(
     seq_len(5L),
@@ -276,7 +277,6 @@ test_that("a misspecified model keeps coverage and pays in width", {
   # model fitted to the wrong functional form must still cover -- with
   # intervals wide enough to say so, which is the whole "width is the quality
   # measure" point.
-  skip_on_cran()
   set.seed(6262L)
   n <- 400L
   x <- data.frame(a = stats::runif(n, -3, 3), b = stats::rnorm(n))
@@ -312,7 +312,6 @@ test_that("a shifted test distribution loses coverage", {
   # like: the same model, the same calibration set, the same alpha, and no
   # symptom anywhere in the returned numbers. Tested so the limitation is a
   # documented property rather than a surprise.
-  skip_on_cran()
   set.seed(7272L)
   x <- .conformal_hetero(400L, seed = 7272L)
   mod <- .split_model(x, 200L, 150L, setup_Ranger())
@@ -380,7 +379,6 @@ test_that("randomized APS discriminates where the deterministic score cannot", {
 
 
 test_that("APS and LAC are both valid and trade set size for adaptivity", {
-  skip_on_cran()
   x <- .conformal_clf(900L, seed = 2026L)
   mod <- .split_model(x, 400L, 250L, setup_Ranger())
   held_out <- x[651:900, ]
@@ -404,7 +402,6 @@ test_that("APS and LAC are both valid and trade set size for adaptivity", {
 
 
 test_that("classification coverage lands in the right region", {
-  skip_on_cran()
   set.seed(8282L)
   coverage <- vapply(
     seq_len(5L),
@@ -709,7 +706,6 @@ test_that("CV+ takes no calibration data, and split conformal no resamples", {
 # %% CQR ----
 
 test_that("CQR adapts its width where split conformal cannot", {
-  skip_on_cran()
   x <- .conformal_hetero(900L, seed = 2026L)
   mod <- train(
     x[1:400, ],
