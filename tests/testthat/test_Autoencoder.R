@@ -2,6 +2,9 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
+# CRAN checks skip this file; CI and local runs execute it.
+skip_on_cran()
+
 # Data ----
 x <- iris[, -5]
 # Few epochs: these tests check the pipeline's contracts, not the fit's quality.
@@ -210,7 +213,6 @@ test_that("reconstruct() agrees with the metrics' own reconstruction", {
 
 test_that("a trained autoencoder reconstructs iris about as well as PCA", {
   skip_if_no_torch()
-  skip_on_cran()
   decom <- decomp(
     x,
     config = setup_Autoencoder(),
@@ -609,7 +611,6 @@ test_that("a variational reconstruction is in input units", {
 
 test_that("a larger beta pulls the latent means toward the prior", {
   skip_if_no_torch()
-  skip_on_cran()
   second_moment <- function(beta) {
     mean(
       decomp(

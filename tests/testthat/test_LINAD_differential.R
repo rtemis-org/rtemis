@@ -2,6 +2,9 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
+# CRAN checks skip this file; CI and local runs execute it.
+skip_on_cran()
+
 # The engine's fast paths checked against slow implementations of the same
 # quantity. The fast paths exist because the obvious computation is too
 # expensive to run at every candidate split; these tests run the obvious

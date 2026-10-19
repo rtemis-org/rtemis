@@ -2,6 +2,9 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
+# CRAN checks skip this file; CI and local runs execute it.
+testthat::skip_on_cran()
+
 # library(testthat)
 
 # Tuning dispatches through the same `progress_plapply()` as outer resampling, so a grid
@@ -51,7 +54,6 @@ tuning_metrics <- function(mod) {
 # %% Cross-backend reproducibility ----
 testthat::test_that("tuning reproduces across backends", {
   skip_ci_parallel_integration()
-  testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   sequential <- tuning_metrics(fit_tuned("none", 1L))
   expect_identical(sequential, tuning_metrics(fit_tuned("mirai", 2L)))
@@ -61,7 +63,6 @@ testthat::test_that("tuning reproduces across backends", {
 
 testthat::test_that("the future backend agrees with the others", {
   skip_ci_parallel_integration()
-  testthat::skip_on_cran()
   testthat::skip_if_not_installed("future")
   expect_identical(
     tuning_metrics(fit_tuned("none", 1L)),
@@ -73,7 +74,6 @@ testthat::test_that("the future backend agrees with the others", {
 
 testthat::test_that("a tuned run picks the same hyperparameters either way", {
   skip_ci_parallel_integration()
-  testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   expect_identical(
     fit_tuned("none", 1L)@hyperparameters@hyperparameters[["maxdepth"]],
@@ -153,7 +153,6 @@ fit_failing_tune <- function(on_error) {
 
 testthat::test_that("unscorable combinations are reported, not passed over", {
   skip_ci_parallel_integration()
-  testthat::skip_on_cran()
   testthat::skip_if_not_installed("mirai")
   # Every combination fails on at least one inner resample here, so none can be ranked.
   # The empty selection does not stay empty -- it becomes NA_integer_, and every tuned

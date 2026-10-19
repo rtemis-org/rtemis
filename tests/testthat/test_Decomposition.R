@@ -5,6 +5,50 @@
 # Data ----
 x <- iris[, -5]
 
+# %% One fit per algorithm ----
+# Each decomposition algorithm fits once on the iris measurements, so every
+# backend package in the traits table is exercised. These tests run on CRAN;
+# the `skip_on_cran()` below them ends the file there. NMF and UMAP use the
+# shared fits that later tests read.
+one_fit <- list(
+  Autoencoder = function() setup_Autoencoder(max_epochs = 2L),
+  ICA = function() setup_ICA(),
+  Isomap = function() setup_Isomap(),
+  MDS = function() setup_MDS(k = 2L, nstart = 1L),
+  PCA = function() setup_PCA(),
+  PCoA = function() setup_PCoA(k = 2L),
+  tSNE = function() setup_tSNE(),
+  VariationalAutoencoder = function() {
+    setup_VariationalAutoencoder(max_epochs = 2L)
+  }
+)
+one_fit_shared <- c("NMF", "UMAP")
+
+test_that("one fit is declared for every decomposition algorithm", {
+  expect_setequal(c(names(one_fit), one_fit_shared), decom_algorithms[["name"]])
+})
+
+for (algorithm in c(names(one_fit), one_fit_shared)) {
+  test_that(paste("decomp()", algorithm, "fits"), {
+    package <- decomposition_traits(algorithm)[["package"]]
+    skip_if_not_installed(package)
+    if (package == "torch") {
+      skip_if_no_torch()
+    }
+    decom <- if (algorithm %in% one_fit_shared) {
+      shared_decomposition(algorithm)
+    } else {
+      # t-SNE refuses duplicate cases, and iris has one.
+      decomp(unique(x), config = one_fit[[algorithm]](), verbosity = 0L)
+    }
+    expect_s7_class(decom, Decomposition)
+    expect_identical(decom@algorithm, algorithm)
+  })
+}
+
+# On CRAN, the file ends here.
+skip_on_cran()
+
 # PCA ----
 test_that("setup_PCA() succeeds", {
   config <- setup_PCA()
@@ -372,9 +416,6 @@ test_that("decomp() prints one resources line, with threads only for a threaded 
     "// CPU | serial | 1 worker: algorithm 1 thread",
     fixed = TRUE
   )
-  # The UMAP fit's garbage collections dominate this half; the test of UMAP's
-  # thread use runs a threaded fit on CRAN.
-  skip_on_cran()
   skip_if_not_installed("uwot")
   expect_match(
     resources("UMAP"),

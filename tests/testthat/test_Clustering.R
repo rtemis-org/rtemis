@@ -5,6 +5,134 @@
 # Data ----
 x <- iris[, -5]
 
+# %% Shared HOPACH fit ----
+# One HOPACH fit on iris serves the tests that read a fitted HOPACH clustering;
+# it is fit on first use, after the caller's `skip_if_not_installed()`.
+.hopach_fit <- local({
+  fit <- NULL
+  function() {
+    if (is.null(fit)) {
+      fit <<- cluster(
+        x,
+        algorithm = "HOPACH",
+        config = setup_HOPACH(
+          dist = "euclid",
+          max_levels = 3L,
+          max_children = 5L
+        ),
+        verbosity = 0L
+      )
+    }
+    fit
+  }
+})
+
+# %% Capability roster ----
+# Hand-written, and required to name every registered algorithm exactly. Never
+# derived from the registered methods: deriving it would conceal the omission
+# the roster exists to catch.
+.clust_capabilities <- list(
+  KMeans = list(soft = FALSE, prescribes_k = TRUE),
+  HardCL = list(soft = FALSE, prescribes_k = TRUE),
+  NeuralGas = list(soft = FALSE, prescribes_k = TRUE),
+  CMeans = list(soft = TRUE, prescribes_k = TRUE),
+  DBSCAN = list(soft = FALSE, prescribes_k = FALSE),
+  # The hybrid: `k` is nullable, so unset means BIC selects it and GMM must
+  # register `cluster_k()`. `prescribes_k` asks whether the config *always*
+  # prescribes one, and GMM does not.
+  GMM = list(soft = TRUE, prescribes_k = FALSE),
+  HOPACH = list(soft = FALSE, prescribes_k = FALSE),
+  PAM = list(soft = FALSE, prescribes_k = TRUE),
+  PAMK = list(soft = FALSE, prescribes_k = FALSE),
+  SpectralRBF = list(soft = FALSE, prescribes_k = TRUE),
+  SpectralLaplace = list(soft = FALSE, prescribes_k = TRUE),
+  SpectralLocal = list(soft = FALSE, prescribes_k = TRUE)
+)
+
+test_that("the capability roster covers every registered algorithm", {
+  expect_setequal(names(.clust_capabilities), clust_algorithms[, 1])
+  expect_false(anyDuplicated(names(.clust_capabilities)) > 0L)
+})
+
+test_that("membership and k methods are registered exactly where expected", {
+  # `S7::method()` performs dispatch and therefore inherits, so "a method
+  # resolves" is true for every class once a default exists. Specialization is
+  # the resolved method differing from the base fallback.
+  fallback_membership <- method(cluster_membership, ClusteringConfig)
+  fallback_k <- method(cluster_k, ClusteringConfig)
+  expect_null(fallback_membership(setup_KMeans(), list()))
+
+  for (nm in names(.clust_capabilities)) {
+    cfg <- get_default_clusterparams(nm)
+    cls <- S7_class(cfg)
+    caps <- .clust_capabilities[[nm]]
+
+    specialized_membership <- !identical(
+      method(cluster_membership, cls),
+      fallback_membership
+    )
+    expect_identical(specialized_membership, caps[["soft"]], info = nm)
+
+    # A prescribed-k algorithm never reaches `cluster_k()`, so it must not
+    # register one; a discovering algorithm must.
+    specialized_k <- !identical(method(cluster_k, cls), fallback_k)
+    expect_identical(specialized_k, !caps[["prescribes_k"]], info = nm)
+  }
+})
+
+test_that("every algorithm produces the variant the roster claims", {
+  configs <- list(
+    KMeans = setup_KMeans(k = 3L),
+    HardCL = setup_HardCL(k = 3L),
+    NeuralGas = setup_NeuralGas(k = 3L),
+    CMeans = setup_CMeans(k = 3L),
+    DBSCAN = setup_DBSCAN(eps = 0.3, min_points = 5L),
+    GMM = setup_GMM(k = 3L),
+    HOPACH = setup_HOPACH(dist = "euclid", max_levels = 3L, max_children = 5L),
+    PAM = setup_PAM(k = 3L),
+    PAMK = setup_PAMK(krange = 2:5),
+    SpectralRBF = setup_SpectralRBF(k = 3L),
+    SpectralLaplace = setup_SpectralLaplace(k = 3L),
+    SpectralLocal = setup_SpectralLocal(k = 3L)
+  )
+  pkgs <- c(
+    KMeans = "flexclust",
+    HardCL = "flexclust",
+    NeuralGas = "flexclust",
+    CMeans = "e1071",
+    DBSCAN = "dbscan",
+    GMM = "mclust",
+    HOPACH = "hopach",
+    PAM = "cluster",
+    PAMK = "fpc",
+    SpectralRBF = "kernlab",
+    SpectralLaplace = "kernlab",
+    SpectralLocal = "kernlab"
+  )
+  for (nm in names(.clust_capabilities)) {
+    skip_if_not_installed(pkgs[[nm]])
+    cl <- if (nm == "HOPACH") {
+      .hopach_fit()
+    } else {
+      cluster(x, algorithm = nm, config = configs[[nm]], verbosity = 0L)
+    }
+    want <- if (.clust_capabilities[[nm]][["soft"]]) {
+      SoftClustering
+    } else {
+      HardClustering
+    }
+    expect_s7_class(cl, want)
+    expect_type(cl@k, "integer")
+    expect_length(cl@clusters, nrow(x))
+  }
+})
+
+
+# On CRAN, the file ends here: the roster test above clusters with every
+# algorithm once.
+skip_on_cran()
+
+
 # setup_KMeans ----
 test_that("setup_KMeans() succeeds", {
   expect_s7_class(setup_KMeans(), KMeansConfig)
@@ -181,26 +309,6 @@ test_that("setup_HOPACH() throws error with bad values or wrong types", {
 })
 
 # cluster HOPACH ----
-# One HOPACH fit on iris serves the tests that read a fitted HOPACH clustering;
-# it is fit on first use, after the caller's `skip_if_not_installed()`.
-.hopach_fit <- local({
-  fit <- NULL
-  function() {
-    if (is.null(fit)) {
-      fit <<- cluster(
-        x,
-        algorithm = "HOPACH",
-        config = setup_HOPACH(
-          dist = "euclid",
-          max_levels = 3L,
-          max_children = 5L
-        ),
-        verbosity = 0L
-      )
-    }
-    fit
-  }
-})
 
 test_that("cluster_HOPACH() succeeds", {
   skip_if_not_installed("hopach")
@@ -649,107 +757,6 @@ test_that("DBSCAN noise reaches the metrics as a fraction, not a cluster", {
   )
   expect_gt(cl@metrics@metrics[["noise_fraction"]], 0)
   expect_identical(cl@metrics@metrics[["n_clusters"]], cl@k)
-})
-
-
-# %% Capability roster ----
-# Hand-written, and required to name every registered algorithm exactly. Never
-# derived from the registered methods: deriving it would conceal the omission
-# the roster exists to catch.
-.clust_capabilities <- list(
-  KMeans = list(soft = FALSE, prescribes_k = TRUE),
-  HardCL = list(soft = FALSE, prescribes_k = TRUE),
-  NeuralGas = list(soft = FALSE, prescribes_k = TRUE),
-  CMeans = list(soft = TRUE, prescribes_k = TRUE),
-  DBSCAN = list(soft = FALSE, prescribes_k = FALSE),
-  # The hybrid: `k` is nullable, so unset means BIC selects it and GMM must
-  # register `cluster_k()`. `prescribes_k` asks whether the config *always*
-  # prescribes one, and GMM does not.
-  GMM = list(soft = TRUE, prescribes_k = FALSE),
-  HOPACH = list(soft = FALSE, prescribes_k = FALSE),
-  PAM = list(soft = FALSE, prescribes_k = TRUE),
-  PAMK = list(soft = FALSE, prescribes_k = FALSE),
-  SpectralRBF = list(soft = FALSE, prescribes_k = TRUE),
-  SpectralLaplace = list(soft = FALSE, prescribes_k = TRUE),
-  SpectralLocal = list(soft = FALSE, prescribes_k = TRUE)
-)
-
-test_that("the capability roster covers every registered algorithm", {
-  expect_setequal(names(.clust_capabilities), clust_algorithms[, 1])
-  expect_false(anyDuplicated(names(.clust_capabilities)) > 0L)
-})
-
-test_that("membership and k methods are registered exactly where expected", {
-  # `S7::method()` performs dispatch and therefore inherits, so "a method
-  # resolves" is true for every class once a default exists. Specialization is
-  # the resolved method differing from the base fallback.
-  fallback_membership <- method(cluster_membership, ClusteringConfig)
-  fallback_k <- method(cluster_k, ClusteringConfig)
-  expect_null(fallback_membership(setup_KMeans(), list()))
-
-  for (nm in names(.clust_capabilities)) {
-    cfg <- get_default_clusterparams(nm)
-    cls <- S7_class(cfg)
-    caps <- .clust_capabilities[[nm]]
-
-    specialized_membership <- !identical(
-      method(cluster_membership, cls),
-      fallback_membership
-    )
-    expect_identical(specialized_membership, caps[["soft"]], info = nm)
-
-    # A prescribed-k algorithm never reaches `cluster_k()`, so it must not
-    # register one; a discovering algorithm must.
-    specialized_k <- !identical(method(cluster_k, cls), fallback_k)
-    expect_identical(specialized_k, !caps[["prescribes_k"]], info = nm)
-  }
-})
-
-test_that("every algorithm produces the variant the roster claims", {
-  configs <- list(
-    KMeans = setup_KMeans(k = 3L),
-    HardCL = setup_HardCL(k = 3L),
-    NeuralGas = setup_NeuralGas(k = 3L),
-    CMeans = setup_CMeans(k = 3L),
-    DBSCAN = setup_DBSCAN(eps = 0.3, min_points = 5L),
-    GMM = setup_GMM(k = 3L),
-    HOPACH = setup_HOPACH(dist = "euclid", max_levels = 3L, max_children = 5L),
-    PAM = setup_PAM(k = 3L),
-    PAMK = setup_PAMK(krange = 2:5),
-    SpectralRBF = setup_SpectralRBF(k = 3L),
-    SpectralLaplace = setup_SpectralLaplace(k = 3L),
-    SpectralLocal = setup_SpectralLocal(k = 3L)
-  )
-  pkgs <- c(
-    KMeans = "flexclust",
-    HardCL = "flexclust",
-    NeuralGas = "flexclust",
-    CMeans = "e1071",
-    DBSCAN = "dbscan",
-    GMM = "mclust",
-    HOPACH = "hopach",
-    PAM = "cluster",
-    PAMK = "fpc",
-    SpectralRBF = "kernlab",
-    SpectralLaplace = "kernlab",
-    SpectralLocal = "kernlab"
-  )
-  for (nm in names(.clust_capabilities)) {
-    skip_if_not_installed(pkgs[[nm]])
-    cl <- if (nm == "HOPACH") {
-      .hopach_fit()
-    } else {
-      cluster(x, algorithm = nm, config = configs[[nm]], verbosity = 0L)
-    }
-    want <- if (.clust_capabilities[[nm]][["soft"]]) {
-      SoftClustering
-    } else {
-      HardClustering
-    }
-    expect_s7_class(cl, want)
-    expect_type(cl@k, "integer")
-    expect_length(cl@clusters, nrow(x))
-  }
 })
 
 

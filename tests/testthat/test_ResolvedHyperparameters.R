@@ -2,6 +2,9 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
+# CRAN checks skip this file; CI and local runs execute it.
+skip_on_cran()
+
 # A fitted model records the value its backend used for an eligible unset
 # hyperparameter, read from the fitted object or from the installed backend's
 # resolution rule. A hyperparameter whose unset value means all, none or a
@@ -136,7 +139,6 @@ test_that("LightGBM parameters are read from a model text longer than 1e6 charac
 
 test_that("each objective-specific LightGBM parameter changes the fit exactly under its listed objectives", {
   skip_if_not_installed("lightgbm")
-  skip_on_cran()
   # A differential check of LIGHTGBM_OBJECTIVE_PARAMETERS against the
   # installed LightGBM: a parameter is in effect under an objective when
   # changing it changes the predictions. The L2 penalty keeps the sigmoid

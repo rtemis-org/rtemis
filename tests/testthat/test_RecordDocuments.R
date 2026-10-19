@@ -2,6 +2,9 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
+# CRAN checks skip this file; CI and local runs execute it.
+skip_on_cran()
+
 # Does a record rtemis *writes* validate against the schema rtemis *publishes*?
 #
 # `test_SchemaContract.R` asks structural questions -- does the schema have the

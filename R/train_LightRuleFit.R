@@ -142,7 +142,8 @@ method(train_, LightRuleFitHyperparameters) <- function(
     mod_lgbm@model,
     n_iter = NULL,
     xnames = names(x),
-    factor_levels = get_factor_levels(x)
+    factor_levels = get_factor_levels(x),
+    verbosity = verbosity
   )
   # A tree with no split yields an empty rule, which selects no subset.
   lgbm_rules <- lgbm_rules[nzchar(lgbm_rules)]
