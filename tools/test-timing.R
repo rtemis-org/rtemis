@@ -3,7 +3,9 @@
 # 2026- EDG rtemis.org
 
 # Time every test under the settings of a CRAN check: the installed package,
-# `NOT_CRAN` false, cores limited, the full test group. Writes `tests.csv`
+# `NOT_CRAN` false, cores limited. The optional second argument selects the
+# files: `cran` (the default), the files a CRAN check runs (`cran_test_files`
+# in `tests/ci/test-groups.R`); `all`, every file. Writes `tests.csv`
 # (one row per test) and `files.csv` (per-file totals, slowest first) to the
 # output directory given as the first argument. In `files.csv`, `wall` is the
 # elapsed time of the whole file and `setup` is the part spent outside
@@ -11,7 +13,13 @@
 #
 # Run via `just test-timing <out>`, or on Windows via the test-timing workflow.
 
-out <- commandArgs(TRUE)[[1L]]
+args <- commandArgs(TRUE)
+out <- args[[1L]]
+files <- if (length(args) > 1L) args[[2L]] else "cran"
+if (!files %in% c("cran", "all")) {
+  stop("The second argument must be 'cran' or 'all', not '", files, "'.")
+}
+source(file.path("tests", "ci", "test-groups.R"))
 dir.create(out, showWarnings = FALSE, recursive = TRUE)
 Sys.setenv(NOT_CRAN = "false", `_R_CHECK_LIMIT_CORES_` = "TRUE", CI = "")
 Sys.unsetenv(c("RTEMIS_TEST_GROUP", "RTEMIS_RUN_PARALLEL_TESTS"))
@@ -42,6 +50,9 @@ testthat::test_dir(
   "tests/testthat",
   package = "rtemis",
   load_package = "installed",
+  filter = if (files == "cran") {
+    ci_test_filter("all", "tests/testthat", cran = TRUE)
+  },
   reporter = testthat::MultiReporter$new(list(list_reporter, clock)),
   stop_on_failure = FALSE,
   stop_on_warning = FALSE

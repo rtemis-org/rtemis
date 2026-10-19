@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # Hyperparameters ----
 # The superclass is abstract: only algorithm subclasses can be instantiated.
 test_that("Hyperparameters superclass is abstract", {

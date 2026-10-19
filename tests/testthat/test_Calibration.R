@@ -2,9 +2,6 @@
 # ::rtemis::
 # EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # Key
 # {Algorithm}[method]<Class> Further conditions
 

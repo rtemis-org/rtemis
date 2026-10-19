@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # %% storage_fixture ----
 #' Construct a small artifact-only report from source declarations
 #' @param directory Character: Temporary registry directory.

@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2025- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # Note: Tuning is tested in test_Supervised.R with `train()`
 
 # TunerConfig ----

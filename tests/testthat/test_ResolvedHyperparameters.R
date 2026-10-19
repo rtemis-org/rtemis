@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # A fitted model records the value its backend used for an eligible unset
 # hyperparameter, read from the fitted object or from the installed backend's
 # resolution rule. A hyperparameter whose unset value means all, none or a

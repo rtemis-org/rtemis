@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # %% Models ----
 set.seed(2026)
 .bin <- iris[51:150, ]

@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # Engine-level tests for the Linear Additive Tree. The pipeline-level train and
 # predict blocks live in test_Supervised.R; what is checked here is the
 # arithmetic underneath, and in particular the invariants whose absence let the

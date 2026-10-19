@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # The learning curve is one shape across algorithms whose units of progress
 # differ, and the early stopping that reads it must be inert when unused.
 

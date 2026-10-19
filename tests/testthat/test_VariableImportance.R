@@ -2,9 +2,6 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# CRAN checks skip this file; CI and local runs execute it.
-skip_on_cran()
-
 # %% helpers ----
 .measure <- function(value = c(0.75, NA_real_), kind = "split_gain", ...) {
   importance_measure(
