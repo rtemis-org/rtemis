@@ -757,6 +757,32 @@ reconstruct_ <- new_generic(
 ) # /rtemis::reconstruct_
 
 
+# %% loadings_ ----
+#' Generic for the loadings of a fitted decomposition
+#'
+#' Dispatches on the `DecompositionConfig` subclass. Implemented only for
+#' algorithms whose `linear` trait is TRUE in `decom_algorithms`.
+#'
+#' @details
+#' A method returns the features-by-components matrix `L` such that
+#' `transformed %*% t(L)` is the reconstruction in the space the backend fits
+#' in: the PCA rotation, the transposed ICA mixing matrix, or the NMF basis.
+#' Row and column order follow the features and the components of the fit;
+#' `get_loadings()` assigns the names.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+loadings_ <- new_generic(
+  "loadings_",
+  "config",
+  function(config, decom) {
+    force_supplied()
+    S7_dispatch()
+  }
+) # /rtemis::loadings_
+
+
 # %% cluster_ ----
 #' Generic for clustering
 #'

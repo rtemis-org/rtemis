@@ -1,14 +1,19 @@
-# Runs the CRAN Windows check (win-builder R-devel) on a GitHub Windows runner:
-# R CMD check --as-cran on the built tarball, with CI, NOT_CRAN, and the
-# RTEMIS_* test switches unset, so tests skip what they skip on CRAN and
-# run_test_group() lists each test that takes at least 2 s. The step summary
-# reports the check's elapsed time, its timed stages, and the slowest examples
-# and tests (tools/check-timing.R); the check directory is uploaded.
+# Runs the two checks of CRAN's incoming auto-check service on GitHub runners:
+# r-devel-linux-x86_64-debian-gcc on Ubuntu and r-devel-windows-x86_64
+# (win-builder R-devel) on Windows. Each job runs R CMD check --as-cran on the
+# built tarball, with CI, NOT_CRAN, and the RTEMIS_* test switches unset, so
+# tests skip what they skip on CRAN and run_test_group() lists each test that
+# takes at least 2 s. Each job's step summary reports the check's elapsed time,
+# its timed stages, and the slowest examples and tests (tools/check-timing.R);
+# the check directory is uploaded.
 #
-# As on win-builder, dependencies come from CRAN (and Bioconductor), and the
-# check builds the PDF manual with TinyTeX. GitHub Windows runners differ in
-# hardware and load from win-builder, so times compare between runs of this
-# workflow, not one to one with CRAN.
+# As on CRAN, dependencies come from CRAN (and Bioconductor), and the check
+# builds the PDF manual with TinyTeX. On Linux, dependencies install as Posit
+# Public Package Manager binaries of CRAN packages, and the check reports
+# examples whose CPU time exceeds 2.5 times their elapsed time, as the Debian
+# check does. GitHub runners differ in hardware and load from CRAN's check
+# machines, so times compare between runs of this workflow, not one to one
+# with CRAN.
 
 on:
   workflow_dispatch:
@@ -19,7 +24,7 @@ on:
         options: [devel, release]
         default: devel
 
-name: cran-windows
+name: cran-incoming
 
 permissions:
   contents: read
@@ -28,14 +33,30 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 concurrency:
-  group: cran-windows-${{ github.ref }}-${{ inputs.r-version }}
+  group: cran-incoming-${{ github.ref }}-${{ inputs.r-version }}
   cancel-in-progress: true
 
 jobs:
   check:
-    name: R CMD check --as-cran (Windows, R ${{ inputs.r-version }})
-    runs-on: windows-latest
+    name: R CMD check --as-cran (${{ matrix.name }}, R ${{ inputs.r-version }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # http-user-agent release lets R-devel install the package manager's
+          # binaries, which are built for R release.
+          - name: Linux
+            os: ubuntu-latest
+            use-public-rspm: true
+            http-user-agent: release
+            check-env: _R_CHECK_EXAMPLE_TIMING_CPU_TO_ELAPSED_THRESHOLD_=2.5
+          - name: Windows
+            os: windows-latest
+            use-public-rspm: false
+            http-user-agent: default
+            check-env: ""
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -45,10 +66,16 @@ jobs:
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: ${{ inputs.r-version }}
+          use-public-rspm: ${{ matrix.use-public-rspm }}
+          http-user-agent: ${{ matrix.http-user-agent }}
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           needs: check
           cache: always
+      # R CMD check validates the HTML manual with tidy and notes its absence.
+      - name: Install HTML Tidy
+        if: ${{ runner.os == 'Linux' }}
+        run: sudo apt-get update && sudo apt-get install -y tidy
       # makeindex builds the manual's index and is outside the TinyTeX-1
       # package list.
       - uses: r-lib/actions/setup-tinytex@v2
@@ -64,8 +91,8 @@ jobs:
       # _R_CHECK_TIMINGS_=0 reports the time of every timed stage;
       # --as-cran reports only those of 10 s or more.
       # _R_CHECK_DONTTEST_EXAMPLES_=false runs the examples once, without
-      # \donttest code, as win-builder does; --as-cran otherwise adds a second
-      # pass over every example with --run-donttest.
+      # \donttest code, as CRAN's incoming checks do; --as-cran otherwise adds
+      # a second pass over every example with --run-donttest.
       - name: Check as CRAN
         id: check
         shell: bash
@@ -76,6 +103,7 @@ jobs:
           env -u CI -u NOT_CRAN -u GITHUB_PAT \
             -u RTEMIS_TEST_GROUP -u RTEMIS_RUN_PARALLEL_TESTS \
             _R_CHECK_TIMINGS_=0 _R_CHECK_DONTTEST_EXAMPLES_=false \
+            ${{ matrix.check-env }} \
             sh -c 'env | grep -E "^(CI|NOT_CRAN|RTEMIS_|_R_)" | sort; R CMD check --as-cran --timings rtemis_*.tar.gz'
           status=$?
           echo "elapsed=$((SECONDS - start))" >> "$GITHUB_OUTPUT"
@@ -89,7 +117,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: cran-windows-${{ inputs.r-version }}
+          name: cran-incoming-${{ matrix.os }}-${{ inputs.r-version }}
           path: |
             rtemis.Rcheck
             !rtemis.Rcheck/rtemis

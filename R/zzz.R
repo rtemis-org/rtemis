@@ -46,7 +46,7 @@ utils::globalVariables("self")
       " v.",
       rtemis_version,
       " \Ub7 ",
-      utils::sessionInfo()[[2]],
+      utils::sessionInfo()[["platform"]],
       " (",
       ncores,
       ngettext(ncores, " core", " cores"),
@@ -84,9 +84,9 @@ utils::globalVariables("self")
         pkgname,
         " ",
         rtemis_version,
-        " \U1F30A",
+        " \Ub7",
         " ",
-        utils::sessionInfo()[[2]]
+        utils::sessionInfo()[["platform"]]
       )
     )
   }

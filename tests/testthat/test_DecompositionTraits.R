@@ -4,7 +4,7 @@
 
 # The traits table states facts about each decomposition algorithm that the
 # metrics layer reads to decide which metrics apply. A trait that disagrees
-# with the code silently gives an algorithm the wrong metrics, so the two
+# with the code silently gives an algorithm the wrong metrics, so the three
 # columns that correspond to a dispatched method are asserted equal to the
 # existence of that method, in both directions.
 
@@ -128,6 +128,18 @@ test_that("invertible is TRUE exactly when a reconstruct_ method exists", {
     expect_identical(
       has_method(reconstruct_, algorithm),
       traits[["invertible"]][i],
+      info = algorithm
+    )
+  }
+})
+
+
+test_that("linear is TRUE exactly when a loadings_ method exists", {
+  for (i in seq_len(nrow(traits))) {
+    algorithm <- traits[["name"]][i]
+    expect_identical(
+      has_method(loadings_, algorithm),
+      traits[["linear"]][i],
       info = algorithm
     )
   }

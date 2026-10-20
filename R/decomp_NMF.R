@@ -223,3 +223,19 @@ method(reconstruct_, NMFConfig) <- function(
   check_dependencies("NMF")
   as.matrix(transformed) %*% t(nmf_basis(decom))
 } # /rtemis::reconstruct_.NMFConfig
+
+
+# %% loadings_.NMFConfig ----
+#' Loadings of a fitted NMF decomposition
+#'
+#' @param config `NMFConfig` object.
+#' @param decom Fitted NMF object.
+#'
+#' @return Numeric matrix: NMF basis, features by components.
+#'
+#' @keywords internal
+#' @noRd
+method(loadings_, NMFConfig) <- function(config, decom) {
+  check_dependencies("NMF")
+  nmf_basis(decom)
+} # /rtemis::loadings_.NMFConfig

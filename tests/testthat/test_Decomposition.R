@@ -309,6 +309,54 @@ test_that("reconstruct() refuses algorithms with no inverse", {
 })
 
 
+test_that("get_loadings() names features and components and reconstructs", {
+  skip_if_not_installed("fastICA")
+  skip_if_not_installed("NMF")
+  for (decom in list(
+    decomp(x, config = setup_PCA(k = 2L), verbosity = 0L),
+    decomp(x, config = setup_ICA(k = 2L), verbosity = 0L),
+    shared_decomposition("NMF")
+  )) {
+    loadings <- get_loadings(decom)
+    expect_true(is.matrix(loadings) && is.numeric(loadings))
+    expect_identical(rownames(loadings), names(x), info = decom@algorithm)
+    expect_identical(
+      colnames(loadings),
+      colnames(decom@transformed),
+      info = decom@algorithm
+    )
+  }
+  # PCA: the components map back through the loadings to the standardized
+  # data, the space `prcomp()` fits in under the default `center` and `scale`.
+  pca <- decomp(x, config = setup_PCA(k = ncol(x)), verbosity = 0L)
+  expect_equal(
+    pca@transformed %*% t(get_loadings(pca)),
+    scale(as.matrix(x)),
+    ignore_attr = TRUE
+  )
+  expect_true(all(get_loadings(shared_decomposition("NMF")) >= 0))
+})
+
+
+test_that("get_loadings() follows config@features", {
+  decom <- decomp(
+    x,
+    config = setup_PCA(k = 2L, features = c("Sepal.Length", "Petal.Width")),
+    verbosity = 0L
+  )
+  expect_identical(
+    rownames(get_loadings(decom)),
+    c("Sepal.Length", "Petal.Width")
+  )
+})
+
+
+test_that("get_loadings() is NULL for a decomposition with no loadings", {
+  skip_if_not_installed("uwot")
+  expect_null(get_loadings(shared_decomposition("UMAP")))
+})
+
+
 test_that("reconstruct() agrees with the metrics' own reconstruction", {
   # `decomp()` scores using `@transformed` directly while `reconstruct()`
   # re-encodes `x`; if the two maps ever diverged, the reported reconstruction

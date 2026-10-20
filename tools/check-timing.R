@@ -9,7 +9,7 @@
 # Arguments: the check directory (`<pkg>.Rcheck`) and, optionally, the elapsed
 # seconds of the check.
 #
-# The cran-windows workflow writes this summary to the job's step summary.
+# The cran-incoming workflow writes this summary to each job's step summary.
 
 args <- commandArgs(TRUE)
 check_dir <- args[[1L]]

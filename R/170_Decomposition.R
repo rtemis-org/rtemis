@@ -366,6 +366,57 @@ reconstruct <- function(decom, x, execution_config = NULL, verbosity = 1L) {
 } # /rtemis::reconstruct
 
 
+# %% get_loadings ----
+#' Get Decomposition Loadings
+#'
+#' The loadings of a linear decomposition: the weight of each feature on each
+#' component.
+#'
+#' @details
+#' Loadings are defined for algorithms whose `linear` trait is TRUE; see
+#' [decomposition_traits]. The loadings matrix `L` is the one through which the
+#' components map back to the data, `transformed %*% t(L)`, in the space the
+#' backend fits in:
+#'
+#' \describe{
+#'   \item{PCA}{The rotation, whose columns are the principal axes.}
+#'   \item{ICA}{The transposed mixing matrix.}
+#'   \item{NMF}{The basis matrix, non-negative.}
+#' }
+#'
+#' Rows are named by the features the decomposition was fitted on and columns
+#' by its components, as in `decom@transformed`.
+#'
+#' @param decom `Decomposition` object.
+#'
+#' @return Numeric matrix, features by components, or NULL when the algorithm
+#' has no loadings.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA", verbosity = 0L)
+#' get_loadings(iris_pca)
+get_loadings <- function(decom) {
+  check_is_S7(decom, Decomposition)
+  if (!decomposition_traits(decom@algorithm)[["linear"]]) {
+    return(NULL)
+  }
+  loadings <- as.matrix(loadings_(config = decom@config, decom = decom@decom))
+  features <- decom@config@features
+  if (!is.null(features)) {
+    stopifnot(NROW(loadings) == length(features))
+    rownames(loadings) <- features
+  }
+  components <- colnames(decom@transformed)
+  if (!is.null(components)) {
+    stopifnot(NCOL(loadings) == length(components))
+    colnames(loadings) <- components
+  }
+  loadings
+} # /rtemis::get_loadings
+
+
 # %% check_decom_applicable ----
 #' Require a decomposition that can be applied to new data
 #'

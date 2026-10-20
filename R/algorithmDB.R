@@ -941,7 +941,8 @@ get_decom_setup_fn <- function(algorithm) {
 #' \describe{
 #'   \item{`name`}{The name used by `setup_<name>()` and `decomp(algorithm =)`.}
 #'   \item{`description`}{Full name of the algorithm.}
-#'   \item{`linear`}{The map from input space to component space is linear.}
+#'   \item{`linear`}{The data is modeled as the components times a loadings
+#'     matrix, which [get_loadings] returns.}
 #'   \item{`can_apply`}{A fitted result can be applied to new data with
 #'     [apply_decomp].}
 #'   \item{`invertible`}{There is an inverse map from component space back to

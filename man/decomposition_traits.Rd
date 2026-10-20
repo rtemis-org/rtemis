@@ -24,7 +24,8 @@ The columns:
 \describe{
 \item{\code{name}}{The name used by \verb{setup_<name>()} and \code{decomp(algorithm =)}.}
 \item{\code{description}}{Full name of the algorithm.}
-\item{\code{linear}}{The map from input space to component space is linear.}
+\item{\code{linear}}{The data is modeled as the components times a loadings
+matrix, which \link{get_loadings} returns.}
 \item{\code{can_apply}}{A fitted result can be applied to new data with
 \link{apply_decomp}.}
 \item{\code{invertible}}{There is an inverse map from component space back to

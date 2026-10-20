@@ -174,3 +174,23 @@ method(reconstruct_, ICAConfig) <- function(
   }
   sweep(reconstructed, 2L, decom[["rtemis_center"]], FUN = "+")
 } # /rtemis::reconstruct_.ICAConfig
+
+
+# %% loadings_.ICAConfig ----
+#' Loadings of a fitted ICA decomposition
+#'
+#' @details
+#' fastICA models the preprocessed data as `S %*% A`, with `A` the mixing
+#' matrix, components by features; its transpose is the loadings matrix.
+#'
+#' @param config `ICAConfig` object.
+#' @param decom Fitted fastICA list.
+#'
+#' @return Numeric matrix: Transposed mixing matrix, features by components.
+#'
+#' @keywords internal
+#' @noRd
+method(loadings_, ICAConfig) <- function(config, decom) {
+  check_inherits(decom, "list")
+  t(decom[["A"]])
+} # /rtemis::loadings_.ICAConfig

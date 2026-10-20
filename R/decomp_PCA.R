@@ -98,3 +98,19 @@ method(reconstruct_, PCAConfig) <- function(
   }
   reconstructed
 } # /rtemis::reconstruct_.PCAConfig
+
+
+# %% loadings_.PCAConfig ----
+#' Loadings of a fitted PCA decomposition
+#'
+#' @param config `PCAConfig` object.
+#' @param decom Fitted `prcomp` object.
+#'
+#' @return Numeric matrix: Rotation, features by components.
+#'
+#' @keywords internal
+#' @noRd
+method(loadings_, PCAConfig) <- function(config, decom) {
+  check_inherits(decom, "prcomp")
+  decom[["rotation"]]
+} # /rtemis::loadings_.PCAConfig

@@ -1,5 +1,9 @@
 # rtemis news
 
+## 1.4.3
+
+- `get_loadings()` returns the loadings of a linear decomposition, features by components: the rotation for PCA, the transposed mixing matrix for ICA, and the basis for NMF. It returns NULL for the other algorithms; the `linear` column of `decomposition_traits()` states which algorithms have loadings.
+
 ## 1.4.2
 
 - The standalone Plotly, networkD3, threejs and leaflet `draw_*()` functions move to the 'rtemis.dplot' package on r-universe, with their themes (`theme_*()`, `choose_theme()`, `available_themes()`), palettes (`get_palette()`), color utilities (`col2grayscale()`, `color_adjust()`, `previewcolor()`), `available_draw()`, `uniprot_get()`, `xtdescribe()`, the `xt_example` data and the `rtemis_theme`, `rtemis_palette` and `rtemis_font` options. 'rtemis.draw' provides their replacements. rtemis keeps `draw_linad()`, which takes an 'rtemis.draw' `Theme`, and `roc_curve()`.
