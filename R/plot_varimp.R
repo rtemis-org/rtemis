@@ -16,15 +16,14 @@
 #' other folds are unavailable scores. The full fold list is passed to the
 #' renderer, including folds with no importance result.
 #'
-#' CART's `importance` and LightGBM's `Gain`, `Cover`, and `Frequency` come
-#' from sparse split summaries: omitted variables in a reporting fold have
-#' zero importance. These measures use `absent = "zero"`. Other measures use
-#' `absent = "missing"`; pass `absent` explicitly to declare another contract.
-#' Explicit NA values and wholly unavailable folds are always kept missing.
+#' Every producer reports a value for each predictor it scores, including
+#' zeros, so an NA value or a wholly unavailable fold is an unavailable score
+#' and is excluded from the summary. [varimp_ranking()] returns the summary and
+#' ranking drawn here.
 #'
 #' Use `type = "boxplot"` for resampled fold distributions with all contributing
 #' scores overlaid. Summary bars remain the default. Both views share selection,
-#' ranking, and the producer's missing-score contract. Ordinary models have no
+#' ranking, and missing-score handling. Ordinary models have no
 #' fold distribution and require the bar view.
 #'
 #' A `SHAP` explanation is drawn from the mean absolute contribution of each
@@ -37,8 +36,8 @@
 #' @param x `rtemis::Supervised`, `rtemis::SupervisedRes` or `rtemis::SHAP`:
 #'   Fitted model result or explanation.
 #' @param ... Additional arguments to [rtemis.draw::draw_varimp()], including `measure`,
-#'   `type`, `top_n`, `rank_by`, `decreasing`, `bar_width`, `summary`, `absent`,
-#'   and `title`. Fold IDs come from
+#'   `type`, `top_n`, `rank_by`, `decreasing`, `bar_width`, `summary`, and
+#'   `title`. Fold IDs come from
 #'   the model and cannot be overridden.
 #' @return htmlwidget: ECharts importance bars or fold distributions.
 #' @export
@@ -183,33 +182,19 @@ VARIMP_RANKING <- list(
 )
 
 
-# %% draw_model_varimp ----
-#' Render a model's importance records
+# %% varimp_measure_direction ----
+#' The ranking direction of one measure in a model's importance
 #'
-#' Bars are ranked as the measure's `direction` declares -- larger values
-#' first, larger magnitudes first, or smaller values first -- unless `rank_by`
-#' or `decreasing` is given. A measure that does not rank predictors (a
-#' spread) is drawn in decreasing order and titled as descriptive.
+#' @param x `Supervised`, `SupervisedRes` or `SHAP` object.
+#' @param measure Character: The measure's column in the wide table.
 #'
-#' @inheritParams plot_varimp
-#' @param measure Optional Character: Named importance measure.
-#' @param absent Optional Character: Override the producer's omission contract.
-#' @param title Optional Character: Chart title.
-#' @return htmlwidget: ECharts importance bars or fold distributions.
+#' @return Character: The `direction` every result with the measure declares,
+#'   or "absolute" when no result describes it.
+#'
+#' @author EDG
 #' @keywords internal
 #' @noRd
-draw_model_varimp <- function(
-  x,
-  measure = NULL,
-  absent = NULL,
-  title = paste(x@algorithm, "variable importance"),
-  ...
-) {
-  records <- varimp_plot_data(x)
-  measure <- measure %||%
-    setdiff(names(records[["data"]]), c("variable", "fold"))[[1L]]
-  check_character_scalar(measure)
-  check_enum(measure, setdiff(names(records[["data"]]), c("variable", "fold")))
+varimp_measure_direction <- function(x, measure) {
   descriptors <- varimp_measure_descriptors(x, measure)
   directions <- unique(vapply(
     descriptors,
@@ -222,11 +207,40 @@ draw_model_varimp <- function(
       "Measure '",
       measure,
       "' has different kinds or directions across resamples, so its values ",
-      "cannot be drawn together. Choose another measure.",
+      "cannot be summarized together. Choose another measure.",
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-  direction <- if (length(directions) == 1L) directions else "absolute"
+  if (length(directions) == 1L) directions else "absolute"
+} # /rtemis::varimp_measure_direction
+
+
+# %% draw_model_varimp ----
+#' Render a model's importance records
+#'
+#' Bars are ranked as the measure's `direction` declares -- larger values
+#' first, larger magnitudes first, or smaller values first -- unless `rank_by`
+#' or `decreasing` is given. A measure that does not rank predictors (a
+#' spread) is drawn in decreasing order and titled as descriptive.
+#'
+#' @inheritParams plot_varimp
+#' @param measure Optional Character: Named importance measure.
+#' @param title Optional Character: Chart title.
+#' @return htmlwidget: ECharts importance bars or fold distributions.
+#' @keywords internal
+#' @noRd
+draw_model_varimp <- function(
+  x,
+  measure = NULL,
+  title = paste(x@algorithm, "variable importance"),
+  ...
+) {
+  records <- varimp_plot_data(x)
+  measure <- measure %||%
+    setdiff(names(records[["data"]]), c("variable", "fold"))[[1L]]
+  check_character_scalar(measure)
+  check_enum(measure, setdiff(names(records[["data"]]), c("variable", "fold")))
+  direction <- varimp_measure_direction(x, measure)
   dots <- list(...)
   ranking <- VARIMP_RANKING[[direction]]
   for (nm in names(ranking)) {
@@ -235,27 +249,12 @@ draw_model_varimp <- function(
   if (missing(title) && direction == "none") {
     title <- paste0(x@algorithm, " ", measure, " (descriptive, not a ranking)")
   }
-  # These specific measures sum split contributions; their native producers
-  # emit only credited variables. Unknown measures get no zero assumption. A
-  # SHAP measure is named for its class and holds a value for every feature.
-  sparse_measures <- if (S7_inherits(x, SHAP)) {
-    character()
-  } else {
-    switch(
-      x@algorithm,
-      CART = "importance",
-      LightGBM = c("Gain", "Cover", "Frequency"),
-      character()
-    )
-  }
-  absent <- absent %||% if (measure %in% sparse_measures) "zero" else "missing"
   do.call(
     rtemis.draw::draw_varimp,
     c(
       list(
         records[["data"]],
         measure = measure,
-        absent = absent,
         folds = records[["folds"]],
         title = title
       ),

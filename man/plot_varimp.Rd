@@ -11,8 +11,8 @@ plot_varimp(x, ...)
 Fitted model result or explanation.}
 
 \item{...}{Additional arguments to \code{\link[rtemis.draw:draw_varimp]{rtemis.draw::draw_varimp()}}, including \code{measure},
-\code{type}, \code{top_n}, \code{rank_by}, \code{decreasing}, \code{bar_width}, \code{summary}, \code{absent},
-and \code{title}. Fold IDs come from
+\code{type}, \code{top_n}, \code{rank_by}, \code{decreasing}, \code{bar_width}, \code{summary}, and
+\code{title}. Fold IDs come from
 the model and cannot be overridden.}
 }
 \value{
@@ -30,15 +30,14 @@ available fold is selected when \code{measure} is omitted; columns missing in
 other folds are unavailable scores. The full fold list is passed to the
 renderer, including folds with no importance result.
 
-CART's \code{importance} and LightGBM's \code{Gain}, \code{Cover}, and \code{Frequency} come
-from sparse split summaries: omitted variables in a reporting fold have
-zero importance. These measures use \code{absent = "zero"}. Other measures use
-\code{absent = "missing"}; pass \code{absent} explicitly to declare another contract.
-Explicit NA values and wholly unavailable folds are always kept missing.
+Every producer reports a value for each predictor it scores, including
+zeros, so an NA value or a wholly unavailable fold is an unavailable score
+and is excluded from the summary. \code{\link[=varimp_ranking]{varimp_ranking()}} returns the summary and
+ranking drawn here.
 
 Use \code{type = "boxplot"} for resampled fold distributions with all contributing
 scores overlaid. Summary bars remain the default. Both views share selection,
-ranking, and the producer's missing-score contract. Ordinary models have no
+ranking, and missing-score handling. Ordinary models have no
 fold distribution and require the bar view.
 
 A \code{SHAP} explanation is drawn from the mean absolute contribution of each

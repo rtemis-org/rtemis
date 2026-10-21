@@ -231,18 +231,64 @@ test_that("typed additional members retain validation and defaults recursively",
 })
 
 
-test_that("a LightGBM model without splits has unset variable importance", {
-  skip_if_not_installed("lightgbm")
-  dataset <- lightgbm::lgb.Dataset(
-    matrix(1, nrow = 10L, ncol = 2L),
-    label = seq_len(10L)
+test_that("CART and LightGBM report importance zero for predictors in no split", {
+  x <- data.frame(
+    signal = rep(1:2, each = 20L),
+    constant = 1,
+    `my var` = rep(1, 40L),
+    check.names = FALSE
   )
+  x[["y"]] <- x[["signal"]] * 10 + rep(c(-0.1, 0.1), 20L)
+  cart <- varimp_super(rpart::rpart(
+    y ~ .,
+    data = x,
+    control = rpart::rpart.control(minsplit = 2L, maxsurrogate = 0L)
+  ))@measures[["importance"]]
+  expect_identical(names(cart@values), c("signal", "constant", "my var"))
+  expect_gt(cart@values[["signal"]], 0)
+  expect_equal(
+    cart@values[c("constant", "my var")],
+    c(constant = 0, `my var` = 0)
+  )
+  stump <- varimp_super(rpart::rpart(
+    y ~ .,
+    data = x,
+    control = rpart::rpart.control(cp = 1)
+  ))@measures[["importance"]]
+  expect_equal(unname(stump@values), c(0, 0, 0))
+
+  skip_if_not_installed("lightgbm")
+  matrix_x <- as.matrix(x[c("signal", "constant")])
   model <- lightgbm::lgb.train(
+    params = list(
+      objective = "regression",
+      verbosity = -1L,
+      num_threads = 1L,
+      min_data_in_leaf = 2L
+    ),
+    data = lightgbm::lgb.Dataset(matrix_x, label = x[["y"]]),
+    nrounds = 3L
+  )
+  lgb <- varimp_super(model)
+  for (measure in lgb@measures) {
+    expect_identical(names(measure@values), c("signal", "constant"))
+    expect_equal(measure@values[["constant"]], 0)
+  }
+  expect_equal(lgb@measures[["Gain"]]@values[["signal"]], 1)
+  flat <- lightgbm::lgb.train(
     params = list(objective = "regression", verbosity = -1L, num_threads = 1L),
-    data = dataset,
+    data = lightgbm::lgb.Dataset(
+      matrix(1, nrow = 10L, ncol = 2L),
+      label = seq_len(10L)
+    ),
     nrounds = 1L
   )
-  expect_null(varimp_super(model))
+  flat <- varimp_super(flat)
+  expect_identical(
+    names(flat@measures[["Gain"]]@values),
+    c("Column_0", "Column_1")
+  )
+  expect_equal(unname(flat@measures[["Gain"]]@values), c(0, 0))
 })
 
 

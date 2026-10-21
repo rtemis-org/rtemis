@@ -216,15 +216,26 @@ method(learning_curve_super, class_lgb.Booster) <- function(model) {
 method(varimp_super, class_lgb.Booster) <- function(model) {
   check_inherits(model, "lgb.Booster")
   vi <- lightgbm::lgb.importance(model, percentage = TRUE) # -> data.table
-  if (nrow(vi) == 0L) {
-    return(NULL)
+  # lgb.importance() lists only the features in a split; every other feature
+  # has importance zero. The dump of the first tree carries every feature name.
+  features <- jsonlite::fromJSON(
+    model[["dump_model"]](num_iteration = 1L),
+    simplifyVector = TRUE
+  )[["feature_names"]]
+  at <- match(vi[["Feature"]], features)
+  complete <- function(column) {
+    out <- numeric(length(features))
+    if (length(at)) {
+      out[at] <- vi[[column]]
+    }
+    out
   }
-  omitted <- " Predictors in no split are omitted."
+  omitted <- " Predictors in no split have importance zero."
   VariableImportance(
     measures = list(
       Gain = importance_measure(
-        vi[["Feature"]],
-        vi[["Gain"]],
+        features,
+        complete("Gain"),
         kind = "split_gain",
         description = paste0(
           "Share of the total gain of all splits, over all trees, that comes ",
@@ -233,8 +244,8 @@ method(varimp_super, class_lgb.Booster) <- function(model) {
         )
       ),
       Cover = importance_measure(
-        vi[["Feature"]],
-        vi[["Cover"]],
+        features,
+        complete("Cover"),
         kind = "split_cover",
         description = paste0(
           "Share of the training cases reaching split nodes, summed over all ",
@@ -243,8 +254,8 @@ method(varimp_super, class_lgb.Booster) <- function(model) {
         )
       ),
       Frequency = importance_measure(
-        vi[["Feature"]],
-        vi[["Frequency"]],
+        features,
+        complete("Frequency"),
         kind = "split_frequency",
         description = paste0(
           "Share of all splits, over all trees, that use the predictor ",
