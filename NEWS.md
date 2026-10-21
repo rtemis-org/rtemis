@@ -3,6 +3,8 @@
 ## 1.4.3
 
 - `get_loadings()` returns the loadings of a linear decomposition, features by components: the rotation for PCA, the transposed mixing matrix for ICA, and the basis for NMF. It returns NULL for the other algorithms; the `linear` column of `decomposition_traits()` states which algorithms have loadings.
+- `varimp_ranking()` returns a model's variable importance in rank order for every measure: each variable's score per resample, its mean across resamples, and its rank, ranked as the measure's direction declares. `plot_varimp()` draws the same ranking.
+- CART and the LightGBM-based learners report importance zero for predictors in no split, so resampled importance averages over every resample; `plot_varimp()` drops the `absent` argument.
 
 ## 1.4.2
 

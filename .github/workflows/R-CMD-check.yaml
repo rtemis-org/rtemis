@@ -63,7 +63,7 @@ jobs:
           extra-packages: any::rcmdcheck
           needs: check
           cache: always
-          cache-version: 5
+          cache-version: 6
       - uses: r-lib/actions/check-r-package@v2
         timeout-minutes: 25
         with:

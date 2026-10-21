@@ -107,7 +107,7 @@ test_that("fold extraction aligns named measures and retains unavailable folds",
   records <- varimp_plot_data(mod)
   expect_identical(records[["folds"]], c("A", "B"))
   expect_identical(records[["data"]][["fold"]], c("B", "B"))
-  option <- plot_varimp(mod, absent = "zero")[["x"]][["option"]]
+  option <- plot_varimp(mod)[["x"]][["option"]]
   expect_equal(unlist(option[["series"]][[1L]][["data"]]), c(2, 8))
   expect_identical(
     option[["yAxis"]][["data"]],
@@ -115,30 +115,20 @@ test_that("fold extraction aligns named measures and retains unavailable folds",
   )
 })
 
-test_that("only verified sparse producer measures imply structural zeros", {
+test_that("an omitted row is an unavailable score for every algorithm", {
   mod <- varimp_model_fixture(TRUE)
   vi <- .varimp_from_table
-  for (case in list(
-    c("CART", "importance"),
-    c("LightGBM", "Gain"),
-    c("LightGBM", "Cover"),
-    c("LightGBM", "Frequency")
-  )) {
-    mod@algorithm <- case[[1L]]
-    first <- data.table::data.table(variable = c("a", "b"), score = c(8, 2))
-    second <- data.table::data.table(variable = "b", score = 4)
-    data.table::setnames(first, "score", case[[2L]])
-    data.table::setnames(second, "score", case[[2L]])
-    mod@varimp <- list(vi(first), vi(second))
+  for (algorithm in c("CART", "LightGBM", "GLM")) {
+    mod@algorithm <- algorithm
+    mod@varimp <- list(
+      vi(data.table::data.table(variable = c("a", "b"), Gain = c(8, 2))),
+      vi(data.table::data.table(variable = "b", Gain = 4))
+    )
     option <- plot_varimp(mod)[["x"]][["option"]]
-    expect_equal(unlist(option[["series"]][[1L]][["data"]]), c(3, 4))
-    expect_identical(option[["yAxis"]][["data"]], c("b", "a"))
-    option <- plot_varimp(mod, absent = "missing")[["x"]][["option"]]
     expect_equal(unlist(option[["series"]][[1L]][["data"]]), c(3, 8))
+    expect_identical(option[["yAxis"]][["data"]], c("b", "a"))
+    expect_error(plot_varimp(mod, absent = "zero"), "unused argument")
   }
-  mod@algorithm <- "Unknown"
-  option <- plot_varimp(mod)[["x"]][["option"]]
-  expect_equal(unlist(option[["series"]][[1L]][["data"]]), c(3, 8))
 })
 
 test_that("missing importance and inconsistent fold records fail informatively", {
@@ -177,8 +167,8 @@ test_that("model distributions preserve producer omissions and legacy dispatch",
       S7::method(rtemis::plot_varimp, S7::S7_class(mod))
     )
     expect_identical(before, mod@varimp)
-    # Known sparse measures add only the absent row, preserving explicit NA
-    # and entire unavailable folds. List names do not reorder producer IDs.
+    # Explicit NA, omitted rows, and entire unavailable folds are unavailable
+    # scores. List names do not reorder producer IDs.
     vi <- .varimp_from_table
     mod@algorithm <- "CART"
     mod@varimp <- list(
@@ -191,10 +181,10 @@ test_that("model distributions preserve producer omissions and legacy dispatch",
     opt <- suppressMessages(plot_varimp(mod, type = "boxplot"))[["x"]][[
       "option"
     ]]
-    expect_length(opt[["series"]][[2]][["data"]], 3)
-    expect_equal(
-      opt[["series"]][[2]][["data"]][[3]][["value"]][2:3],
-      list(0, "B")
+    expect_length(opt[["series"]][[2]][["data"]], 2)
+    expect_setequal(
+      vapply(opt[["series"]][[2]][["data"]], function(p) p[["value"]][[3]], ""),
+      c("A", "B")
     )
     mod@varimp <- list(NULL, mod@varimp[[2]])
     opt <- suppressMessages(plot_varimp(mod, type = "boxplot"))[["x"]][[
@@ -230,4 +220,71 @@ test_that("a SHAP explanation plots its mean absolute contributions", {
   )
   option <- plot_varimp(shap)[["x"]][["option"]]
   expect_setequal(option[["yAxis"]][["data"]], c("age", "bmi"))
+})
+
+
+test_that("varimp_ranking() ranks each measure by its direction and the mean", {
+  for (classification in c(FALSE, TRUE)) {
+    ranking <- varimp_ranking(varimp_model_fixture(TRUE, classification))
+    expect_identical(
+      names(ranking),
+      c("measure", "variable", "fold", "value", "summary", "rank")
+    )
+    expect_identical(ranking[["measure"]], rep(c("gain", "other"), each = 3))
+    expect_identical(ranking[["variable"]], c("a", "a", "b", "b", "a", "a"))
+    expect_identical(ranking[["fold"]], c("A", "B", "A", "A", "A", "B"))
+    expect_equal(ranking[["value"]], c(8, 4, 2, 4, -3, 5))
+    expect_equal(ranking[["summary"]], c(6, 6, 2, 4, 1, 1))
+    expect_identical(ranking[["rank"]], c(1L, 1L, 2L, 1L, 2L, 2L))
+
+    single <- varimp_ranking(varimp_model_fixture(FALSE, classification))
+    expect_identical(
+      names(single),
+      c("measure", "variable", "value", "summary", "rank")
+    )
+    expect_identical(single[["variable"]], c("a", "b", "b", "a"))
+    expect_equal(single[["summary"]], single[["value"]])
+    expect_identical(single[["rank"]], c(1L, 2L, 1L, 2L))
+  }
+})
+
+test_that("varimp_ranking() agrees with the order plot_varimp() draws", {
+  mod <- varimp_model_fixture(TRUE)
+  ranking <- varimp_ranking(mod)
+  for (measure in c("gain", "other")) {
+    rows <- ranking[ranking[["measure"]] == measure, ]
+    option <- plot_varimp(mod, measure = measure)[["x"]][["option"]]
+    expect_identical(
+      rev(unlist(option[["yAxis"]][["data"]])),
+      unique(rows[["variable"]])
+    )
+  }
+})
+
+test_that("varimp_ranking() orders by smaller values and omits unavailable scores", {
+  mod <- varimp_model_fixture(TRUE)
+  ns <- asNamespace("rtemis")
+  pvalue <- function(variable, value) {
+    ns[["VariableImportance"]](
+      measures = list(
+        p = ns[["importance_measure"]](
+          variable,
+          value,
+          kind = "model_selection",
+          direction = "smaller",
+          description = "Test measure."
+        )
+      )
+    )
+  }
+  mod@varimp <- list(
+    pvalue(c("a", "b"), c(0.5, 0.01)),
+    pvalue(c("a", "b"), c(NA, 0.03))
+  )
+  ranking <- varimp_ranking(mod)
+  expect_identical(ranking[["variable"]], c("b", "b", "a"))
+  expect_equal(ranking[["summary"]], c(0.02, 0.02, 0.5))
+  expect_identical(ranking[["rank"]], c(1L, 1L, 2L))
+  mod@varimp <- NULL
+  expect_error(varimp_ranking(mod), "No variable importance")
 })

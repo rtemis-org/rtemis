@@ -123,11 +123,12 @@ method(predict_super, class_rpart) <- function(
 #' @keywords internal
 #' @noRd
 method(varimp_super, class_rpart) <- function(model) {
-  vi <- model[["variable.importance"]]
-  # A tree with no split has no importance.
-  if (length(vi) == 0L) {
-    return(NULL)
-  }
+  # rpart lists only the predictors in a split; every other predictor, and
+  # every predictor of a tree with no split, has importance zero.
+  predictors <- all.vars(stats::delete.response(model[["terms"]]))
+  vi <- stats::setNames(numeric(length(predictors)), predictors)
+  credited <- model[["variable.importance"]]
+  vi[names(credited)] <- credited
   impurity <- if (model[["method"]] == "class") {
     if (identical(as.integer(model[["parms"]][["split"]]), 2L)) {
       "information (entropy)"
@@ -149,7 +150,7 @@ method(varimp_super, class_rpart) <- function(model) {
           ") summed over the splits on the predictor as the primary variable, ",
           "plus the reduction times the adjusted agreement over the splits ",
           "where it is a surrogate, on the training cases (rpart). Predictors ",
-          "in no split are omitted."
+          "in no split have importance zero."
         )
       )
     )
