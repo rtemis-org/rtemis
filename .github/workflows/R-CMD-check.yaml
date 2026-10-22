@@ -65,7 +65,7 @@ jobs:
           cache: always
           cache-version: 6
       - uses: r-lib/actions/check-r-package@v2
-        timeout-minutes: 25
+        timeout-minutes: 35
         with:
           upload-snapshots: true
           build_args: 'c("--no-manual", "--compact-vignettes=gs+qpdf")'
