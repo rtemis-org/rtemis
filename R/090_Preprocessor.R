@@ -1103,8 +1103,20 @@ method(`[[`, Preprocessor) <- function(x, name) {
 
 # %% preprocessed.Preprocessor ----
 method(preprocessed, Preprocessor) <- function(x) {
-  x@preprocessed
-}
+  out <- x@preprocessed
+  # A data.table is a reference: `:=` on the returned object would modify the
+  # stored data. `copy()` also copies data.tables inside the list of training,
+  # validation, and test sets. A data.frame or tibble is copied on modify.
+  if (
+    data.table::is.data.table(out) ||
+      (!is.data.frame(out) &&
+        any(vapply(out, data.table::is.data.table, logical(1L))))
+  ) {
+    data.table::copy(out)
+  } else {
+    out
+  }
+} # /rtemis::preprocessed.Preprocessor
 
 
 # %% .list_to_PreprocessorConfig ----

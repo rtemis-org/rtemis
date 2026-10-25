@@ -972,7 +972,7 @@ test_that("a stated origin never overrides what the run was seen to do", {
 
 test_that("a learned preprocessor value is `derived`, a supplied one `user`", {
   prp <- preprocess(iris[, 1:4], scale = TRUE, center = TRUE, verbosity = 0L)
-  rec <- config_record(prp@config, fitted_config(prp))
+  rec <- config_record(prp@config, get_fitted_config(prp))
   expect_identical(rec[["origin"]][["scale"]], "user")
   # `preprocess()` computed these; the config alone would report NULL.
   expect_identical(rec[["origin"]][["scale_centers"]], "derived")

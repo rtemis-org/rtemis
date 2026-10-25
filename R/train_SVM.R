@@ -73,7 +73,7 @@ method(train_, LinearSVMHyperparameters) <- function(
       config = setup_Preprocessor(one_hot = TRUE),
       verbosity = verbosity
     )
-    x <- preprocessed(prp)
+    x <- prp@preprocessed
   } else {
     prp <- NULL
   }
@@ -182,7 +182,7 @@ method(train_, RadialSVMHyperparameters) <- function(
       config = setup_Preprocessor(one_hot = TRUE),
       verbosity = verbosity
     )
-    x <- preprocessed(prp)
+    x <- prp@preprocessed
   } else {
     prp <- NULL
   }

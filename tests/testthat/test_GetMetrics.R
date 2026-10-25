@@ -157,6 +157,86 @@ test_that("get_metric() reads one metric through get_metrics()", {
   expect_length(get_metric(mod_c_res, "test", "balanced_accuracy"), 3L)
 })
 
+# get_predictions<Supervised> ----
+test_that("get_predictions() stacks every stored sample of a regression", {
+  p <- get_predictions(mod_r)
+  expect_true(data.table::is.data.table(p))
+  expect_identical(names(p), c("sample", "true", "predicted"))
+  expect_identical(unique(p[["sample"]]), c("training", "validation", "test"))
+  test <- p[p[["sample"]] == "test"]
+  expect_identical(test[["true"]], unname(mod_r@y_test))
+  expect_identical(test[["predicted"]], unname(mod_r@predicted_test))
+  # The training predictions are the fitted values.
+  expect_identical(
+    get_predictions(mod_r, "training")[["predicted"]],
+    unname(fitted(mod_r))
+  )
+  # The samples are those get_metrics() stores metrics for.
+  expect_identical(
+    unique(get_predictions(mod_r_notest)[["sample"]]),
+    "training"
+  )
+  expect_error(
+    get_predictions(mod_r_notest, "test"),
+    "stores no test predictions. It stores predictions for: 'training'",
+    class = "rtemis_value_error"
+  )
+})
+
+test_that("get_predictions() carries the stored class probabilities", {
+  p <- get_predictions(mod_c, "test")
+  prob <- mod_c@predicted_prob_test
+  expect_identical(
+    names(p),
+    c("sample", "true", "predicted", paste0("prob_", colnames(prob)))
+  )
+  expect_identical(p[["true"]], unname(mod_c@y_test))
+  expect_identical(
+    p[[paste0("prob_", colnames(prob)[[1L]])]],
+    unname(prob[, 1L])
+  )
+})
+
+test_that("get_predictions() returns the calibrated predictions of a calibrated classifier", {
+  cal <- calibrate(
+    mod_c,
+    predicted_probabilities = mod_c@predicted_prob_training,
+    true_labels = mod_c@y_training,
+    verbosity = 0L
+  )
+  p <- get_predictions(cal, "test", calibrated = TRUE)
+  expect_identical(p[["predicted"]], unname(cal@predicted_test_calibrated))
+  prob <- as.matrix(cal@predicted_prob_test_calibrated)
+  expect_identical(
+    p[[paste0("prob_", colnames(prob)[[1L]])]],
+    unname(prob[, 1L])
+  )
+  expect_error(
+    get_predictions(mod_c, "test", calibrated = TRUE),
+    class = "rtemis_value_error"
+  )
+})
+
+# get_predictions<SupervisedRes> ----
+test_that("get_predictions() labels each row of a resampled model with its resample", {
+  p <- get_predictions(mod_c_res, "test")
+  expect_identical(names(p)[1:4], c("sample", "resample", "true", "predicted"))
+  expect_identical(unique(p[["resample"]]), mod_c_res@resample_ids)
+  for (id in mod_c_res@resample_ids) {
+    rows <- p[p[["resample"]] == id]
+    expect_identical(rows[["true"]], unname(mod_c_res@y_test[[id]]), info = id)
+    expect_identical(
+      rows[["predicted"]],
+      unname(mod_c_res@predicted_test[[id]]),
+      info = id
+    )
+  }
+  expect_identical(
+    unique(get_predictions(mod_c_res)[["sample"]]),
+    c("training", "test")
+  )
+})
+
 # get_metrics<Clustering> ----
 test_that("get_metrics() returns the stored metrics of a clustering", {
   clust <- cluster(
@@ -192,7 +272,7 @@ test_that("get_metrics() returns the stored metrics of a decomposition", {
   expect_identical(get_metrics(pca, "training"), pca@metrics)
   expect_error(
     get_metrics(pca, "test"),
-    "decomp_metrics\\(\\)",
+    "decomposition_metrics\\(\\)",
     class = "rtemis_value_error"
   )
 })

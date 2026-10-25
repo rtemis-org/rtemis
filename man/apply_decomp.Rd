@@ -2,12 +2,12 @@
 % Please edit documentation in R/170_Decomposition.R
 \name{apply_decomp}
 \alias{apply_decomp}
-\title{Apply Decomposition to New Data}
+\title{Apply Decomposition to New Data (Deprecated)}
 \usage{
 apply_decomp(decom, new_data, execution_config = NULL, verbosity = 1L)
 }
 \arguments{
-\item{decom}{Decomposition object.}
+\item{decom}{\code{Decomposition} object.}
 
 \item{new_data}{Tabular data (data.frame, data.table, or tibble): New data to which the
 decomposition will be applied.}
@@ -16,27 +16,18 @@ decomposition will be applied.}
 algorithm whose \code{threaded} trait is TRUE are its \code{n_workers_algorithm}, or
 its worker count. \code{NULL} uses the host's default worker count.}
 
-\item{verbosity}{Integer: Verbosity level}
+\item{verbosity}{Integer: Verbosity level.}
 }
 \value{
-A data.frame of the learned components for \code{new_data}, preceded by any
-feature columns that were not decomposed.
+As \code{\link[=apply_decomposition]{apply_decomposition()}}.
 }
 \description{
-Apply a fitted decomposition to new data for algorithms that support this.
-}
-\details{
-A fit is learned on the columns \code{decom@config@features} names, so only those
-columns of \code{new_data} are transformed; the remaining columns are returned
-unchanged, alongside the learned components, in the layout
-\verb{[kept features, components]}. \code{decomp()} resolves an unset \code{features} to
-the numeric columns and records them, so a fit it produced always names
-them. A \code{Decomposition} assembled by hand with no \code{features} transforms
-every column of \code{new_data} and returns only the components.
+\code{apply_decomp()} is deprecated. Use \code{\link[=apply_decomposition]{apply_decomposition()}}, which takes the
+same arguments.
 }
 \examples{
-iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")
-apply_decomp(iris_pca, exc(iris, "Species"))
+iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA", verbosity = 0L)
+suppressWarnings(apply_decomp(iris_pca, exc(iris, "Species")))
 }
 \author{
 EDG

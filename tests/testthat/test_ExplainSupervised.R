@@ -268,7 +268,7 @@ test_that("estimator, value function and scale are resolved and recorded", {
   expect_identical(x@perturbation, "conditional")
   expect_identical(
     x@perturbation,
-    explanation_methods("LightGBM")[["perturbation"]]
+    explanation_traits("LightGBM")[["perturbation"]]
   )
 })
 

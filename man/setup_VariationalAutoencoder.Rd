@@ -99,7 +99,7 @@ reconstruction for components closer to independent; \code{beta = 0} drops the
 prior and leaves a noisy autoencoder.
 
 \strong{Components} are the means of the latent distributions, so \link{decomp},
-\link{apply_decomp} and \link{reconstruct} are deterministic: sampling happens only in
+\code{\link[=apply_decomposition]{apply_decomposition()}} and \link{reconstruct} are deterministic: sampling happens only in
 training. \link{reconstruct} decodes the means.
 
 Architecture, input standardization, denoising, early stopping, and the

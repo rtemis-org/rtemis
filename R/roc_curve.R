@@ -134,3 +134,95 @@ roc_curve <- function(
   }
   out
 } # /rtemis::roc_curve
+
+
+# %% roc_table ----
+#' ROC Curves of a Classification Model
+#'
+#' The ROC curves of a fitted classification model for each sample it stores
+#' predicted probabilities for: the data [plot_roc()] draws, as a table.
+#'
+#' @details
+#' Binary models have one curve, for the positive class; multiclass models have
+#' one one-vs-rest curve per class. For a resampled model, `variant =
+#' "aggregate"` pools the predictions of every outer resample into one curve
+#' per sample and class, and `variant = "per_resample"` gives one curve per
+#' resample, labeled in the `resample` column. A resample whose probabilities
+#' are missing has an undefined curve, with `auc` NA. `omitted` counts the
+#' cases whose probability or label is missing.
+#'
+#' [roc_curve()] computes the curve of supplied labels and probabilities.
+#'
+#' @param x `Classification` or `ClassificationRes` object.
+#' @param sample Optional Character \{"training", "validation", "test"\}: The
+#'   sample whose curves to return. `NULL` returns every sample with predicted
+#'   probabilities.
+#' @param variant Character \{"aggregate", "per_resample"\}: For a resampled
+#'   model, pooled curves or one curve per resample. An ordinary model has
+#'   aggregate curves only.
+#' @param positive Optional Character: Positive class of a binary model. `NULL`
+#'   uses the second level of the outcome.
+#' @param max_points Optional Integer \[2, Inf): Cap on the number of vertices
+#'   per curve. `NULL` keeps every vertex.
+#'
+#' @return data.table with columns `sample`; `resample`, for `variant =
+#'   "per_resample"`; `class`; `fpr`; `tpr`; `auc`, constant within a curve;
+#'   and `omitted`.
+#'
+#' @author EDG
+#' @export
+#' @examplesIf requireNamespace("rpart", quietly = TRUE)
+#' mod <- train(iris, hyperparameters = setup_CART(), verbosity = 0L)
+#' roc_table(mod)
+roc_table <- function(
+  x,
+  sample = NULL,
+  variant = "aggregate",
+  positive = NULL,
+  max_points = NULL
+) {
+  if (!S7_inherits(x, Classification) && !S7_inherits(x, ClassificationRes)) {
+    rtemis.core::abort(
+      "`x` must be a Classification or ClassificationRes model.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
+  if (!is.null(sample)) {
+    check_character_scalar(sample)
+  }
+  if (!is.null(max_points)) {
+    max_points <- clean_posint(max_points)
+    if (max_points < 2L) {
+      rtemis.core::abort(
+        "`max_points` must be at least 2.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+  }
+  curves <- data.table::as.data.table(roc_plot_data(
+    x,
+    what = sample %||% "all",
+    variant = variant,
+    positive = positive,
+    labelify = FALSE
+  ))
+  data.table::setnames(curves, c("split", "fold"), c("sample", "resample"))
+  # Down-sampled within each curve, keeping its first and last vertex.
+  if (!is.null(max_points)) {
+    curves <- curves[,
+      .SD[unique(round(seq(1, .N, length.out = min(.N, max_points))))],
+      by = c("sample", "resample", "class")
+    ]
+  }
+  if (variant == "aggregate") {
+    data.table::set(curves, j = "resample", value = NULL)
+  }
+  data.table::setcolorder(
+    curves,
+    intersect(
+      c("sample", "resample", "class", "fpr", "tpr", "auc", "omitted"),
+      names(curves)
+    )
+  )
+  curves[]
+} # /rtemis::roc_table

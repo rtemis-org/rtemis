@@ -37,7 +37,7 @@ calibrated predictions, selected with \code{calibrated = TRUE}.
 
 A \code{Clustering} or \code{Decomposition} stores metrics for the data it was fitted
 on, which \code{sample = NULL} and \code{sample = "training"} both select. For a
-decomposition, \link{decomp_metrics} computes the metrics of new data.
+decomposition, \code{\link[=decomposition_metrics]{decomposition_metrics()}} computes the metrics of new data.
 
 Requesting a sample the object does not store raises an error that names the
 samples it does store.

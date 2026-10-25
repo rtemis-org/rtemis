@@ -256,7 +256,7 @@ rules2medmod <- function(rules, x, .ddSci = TRUE, verbosity = 1L) {
         var <- gsub("\\s", "", strsplit(sub[j], "%in%")[[1]][1])
         vals <- dat[[var]]
         value <- paste0(
-          get_mode(vals),
+          mode_value(vals),
           " (",
           paste(levels(droplevels(vals)), collapse = ", "),
           ")"

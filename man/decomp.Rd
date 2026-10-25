@@ -25,7 +25,7 @@ with \code{config} is an error.}
 \item{config}{DecompositionConfig: Algorithm-specific config. Its \code{features}
 selects the columns of \code{x} to decompose; \code{NULL} selects every numeric column,
 since a decomposition reads a numeric matrix. The returned object's config
-carries the resolved names, and \code{apply_decomp()} replays that selection.}
+carries the resolved names, and \code{apply_decomposition()} replays that selection.}
 
 \item{execution_config}{\code{ExecutionConfig} object: Execution settings, e.g.
 \link{setup_FutureExecution} or \link{setup_SerialExecution}. A decomposition dispatches

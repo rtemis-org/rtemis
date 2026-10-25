@@ -129,15 +129,31 @@ test_that("session_timeline disambiguates duplicate labels", {
   expect_equal(anyDuplicated(tl[["label"]]), 0L)
 })
 
-test_that("session_timeline rejects invalid input", {
-  expect_error(
-    session_timeline(list()),
-    class = "rtemis_type_error"
+test_that("session_timeline rejects an object that is not a session or a model", {
+  expect_error(session_timeline(list()), class = "S7_error_method_not_found")
+})
+
+test_that("a session with no recorded nodes has an empty timeline", {
+  tl <- session_timeline(make_session(list()))
+  expect_identical(NROW(tl), 0L)
+  expect_identical(
+    names(tl),
+    c("label", "start", "end", "kind", "status", "failed", "tip")
   )
   expect_error(
-    session_timeline(make_session(list())),
+    plot(make_session(list())),
+    "no recorded events",
     class = "rtemis_value_error"
   )
+})
+
+test_that("session_timeline reads the session a model carries", {
+  mod <- train(iris[, 1:4], hyperparameters = setup_GLM(), verbosity = 0L)
+  expect_identical(session_timeline(mod), session_timeline(mod@session))
+  expect_gt(NROW(session_timeline(mod)), 0L)
+  no_session <- mod
+  no_session@session <- NULL
+  expect_identical(NROW(session_timeline(no_session)), 0L)
 })
 
 test_that("session_kind_colors maps known kinds and recycles for unknown", {

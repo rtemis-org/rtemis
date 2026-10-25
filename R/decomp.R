@@ -19,7 +19,7 @@
 #' @param config DecompositionConfig: Algorithm-specific config. Its `features`
 #' selects the columns of `x` to decompose; `NULL` selects every numeric column,
 #' since a decomposition reads a numeric matrix. The returned object's config
-#' carries the resolved names, and `apply_decomp()` replays that selection.
+#' carries the resolved names, and `apply_decomposition()` replays that selection.
 #' @param execution_config `ExecutionConfig` object: Execution settings, e.g.
 #' [setup_FutureExecution] or [setup_SerialExecution]. A decomposition dispatches
 #' no work to other processes: an algorithm whose `threaded` trait is TRUE (see
@@ -95,7 +95,7 @@ decomp <- function(
   given_config <- config
 
   # Feature selection ----
-  # `apply_decomp()` subsets new data by `config@features`, so the fit must use
+  # `apply_decomposition()` subsets new data by `config@features`, so the fit must use
   # exactly those columns or the replay transforms a different matrix.
   # `x` is features-only here: there is no outcome column to exclude. Unset
   # means every numeric column, resolved here and written back so the fit, the
@@ -172,7 +172,7 @@ decomp <- function(
 
   # Data identity ----
   # Fingerprinted through `decomp_matrix()`, so
-  # that a later `decomp_metrics()` call reducing the caller's frame the same way
+  # that a later `decomposition_metrics()` call reducing the caller's frame the same way
   # arrives at the same hash. Feeds the record's provenance block.
   out@data_fingerprint <- data_fingerprint(decomp_matrix(out, x))
 
@@ -180,7 +180,7 @@ decomp <- function(
   # The set an algorithm's traits support, on the data just fitted. Bounded by
   # the cost of one reconstruction, O(n * p * k), so it does not change this
   # function's complexity. Out-of-sample metrics need a second data matrix and
-  # are `decomp_metrics()`'s job.
+  # are `decomposition_metrics()`'s job.
   out@metrics <- compute_decomposition_metrics(
     decom = out,
     x = x,

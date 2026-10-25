@@ -104,15 +104,7 @@ method(cluster_k, HOPACHConfig) <- function(config, clust) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-clustpredict_HOPACH <- function(clust, newdata = NULL) {
-  # HOPACH fits a tree over the training elements and exposes no way to place
-  # an unseen case in it, so new data is refused.
-  if (!is.null(newdata)) {
-    rtemis.core::abort(
-      "HOPACH cannot assign new data to fitted clusters.",
-      class = c("rtemis_unsupported_error", "rtemis_error")
-    )
-  }
+clustpredict_HOPACH <- function(clust) {
   labels <- clust[["clustering"]][["labels"]]
   # HOPACH labels encode a path down the tree (11, 21, 211, ...) and arrive as
   # numeric or integer depending on the depth reached, so they are neither 1:k

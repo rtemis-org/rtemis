@@ -3921,6 +3921,202 @@ method(get_metrics, SupervisedRes) <- function(
 } # /rtemis::get_metrics.SupervisedRes
 
 
+# %% stored_supervised_predictions ----
+#' Predictions stored on a supervised model
+#'
+#' Implements `get_predictions()` for `Supervised` and `SupervisedRes` models.
+#' A sample is stored when its predicted values are; its true values and
+#' probabilities are read beside them.
+#'
+#' @param x `Supervised` or `SupervisedRes` object.
+#' @param sample Optional Character: Sample name.
+#' @param calibrated Logical: If TRUE, read the calibrated predictions.
+#' @param samples Character: Samples the class of `x` can store.
+#'
+#' @return data.table, as `get_predictions()`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+stored_supervised_predictions <- function(x, sample, calibrated, samples) {
+  check_logical_scalar(calibrated)
+  suffix <- if (calibrated) "_calibrated" else ""
+  stored <- samples[vapply(
+    samples,
+    function(s) {
+      name <- paste0("predicted_", s, suffix)
+      prop_exists(x, name) && !is.null(prop(x, name))
+    },
+    logical(1L)
+  )]
+  class_name <- S7_class(x)@name
+  if (calibrated && length(stored) == 0L) {
+    abort(
+      "`calibrated = TRUE` requires a calibrated classifier; this is a ",
+      class_name,
+      " object. Use calibrate() to calibrate a Classification or ",
+      "ClassificationRes model.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  if (!is.null(sample)) {
+    check_character_scalar(sample)
+    if (!sample %in% stored) {
+      abort(
+        "This ",
+        class_name,
+        " object stores no ",
+        sample,
+        " predictions. It stores predictions for: ",
+        paste(encodeString(stored, quote = "'"), collapse = ", "),
+        ".",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+    stored <- sample
+  }
+  resampled <- S7_inherits(x, SupervisedRes)
+  pieces <- lapply(stored, function(s) {
+    true <- prop(x, paste0("y_", s))
+    predicted <- prop(x, paste0("predicted_", s, suffix))
+    prob_name <- paste0("predicted_prob_", s, suffix)
+    prob <- if (prop_exists(x, prob_name)) prop(x, prob_name)
+    if (!resampled) {
+      return(prediction_rows(s, NULL, true, predicted, prob))
+    }
+    ids <- x@resample_ids
+    data.table::rbindlist(
+      lapply(seq_along(ids), function(i) {
+        prediction_rows(
+          s,
+          ids[[i]],
+          resample_entry(true, ids, i),
+          resample_entry(predicted, ids, i),
+          resample_entry(prob, ids, i)
+        )
+      }),
+      use.names = TRUE,
+      fill = TRUE
+    )
+  })
+  # A resample whose probabilities are missing has none of the probability
+  # columns; `fill` gives its rows NA there.
+  data.table::rbindlist(pieces, use.names = TRUE, fill = TRUE)
+} # /rtemis::stored_supervised_predictions
+
+
+# %% resample_entry ----
+#' One resample's entry of a per-resample property
+#'
+#' Per-resample properties are lists in the order of `resample_ids`, named by
+#' them where names are present.
+#'
+#' @param x Optional list: Per-resample values.
+#' @param ids Character: Resample identifiers in model order.
+#' @param i Integer: Position in `ids`.
+#'
+#' @return The entry for `ids[[i]]`, or NULL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+resample_entry <- function(x, ids, i) {
+  if (is.null(x)) {
+    return(NULL)
+  }
+  if (!is.null(names(x))) {
+    return(x[[ids[[i]]]])
+  }
+  x[[i]]
+} # /rtemis::resample_entry
+
+
+# %% prediction_rows ----
+#' Rows of a predictions table for one sample, or one resample of it
+#'
+#' @param sample Character: Sample name.
+#' @param resample Optional Character: Resample identifier.
+#' @param true Factor or numeric: True values.
+#' @param predicted Factor or numeric: Predicted values.
+#' @param prob Optional numeric matrix or vector: Predicted probabilities, one
+#'   column per class it holds.
+#'
+#' @return data.table.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+prediction_rows <- function(sample, resample, true, predicted, prob) {
+  n <- length(predicted)
+  out <- data.table::data.table(sample = rep(sample, n))
+  if (!is.null(resample)) {
+    out[["resample"]] <- rep(resample, n)
+  }
+  out[["true"]] <- unname(true)
+  out[["predicted"]] <- unname(predicted)
+  if (!is.null(prob)) {
+    prob <- as.matrix(prob)
+    stopifnot(NROW(prob) == n, !is.null(colnames(prob)))
+    for (j in seq_len(NCOL(prob))) {
+      out[[paste0("prob_", colnames(prob)[[j]])]] <- unname(prob[, j])
+    }
+  }
+  out
+} # /rtemis::prediction_rows
+
+
+# %% get_predictions.Supervised ----
+method(get_predictions, Supervised) <- function(
+  x,
+  sample = NULL,
+  calibrated = FALSE
+) {
+  stored_supervised_predictions(
+    x,
+    sample = sample,
+    calibrated = calibrated,
+    samples = c("training", "validation", "test")
+  )
+} # /rtemis::get_predictions.Supervised
+
+
+# %% get_predictions.SupervisedRes ----
+method(get_predictions, SupervisedRes) <- function(
+  x,
+  sample = NULL,
+  calibrated = FALSE
+) {
+  stored_supervised_predictions(
+    x,
+    sample = sample,
+    calibrated = calibrated,
+    samples = c("training", "test")
+  )
+} # /rtemis::get_predictions.SupervisedRes
+
+
+# %% session_timeline.{Supervised,SupervisedRes} ----
+#' The timeline of the session a model carries
+#'
+#' @param x `Supervised` or `SupervisedRes` object.
+#'
+#' @return data.table, as `session_timeline()`: zero rows for a model that
+#'   carries no session.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+model_session_timeline <- function(x) {
+  if (is.null(x@session)) {
+    return(empty_session_timeline())
+  }
+  session_timeline(x@session)
+} # /rtemis::model_session_timeline
+
+method(session_timeline, Supervised) <- model_session_timeline
+method(session_timeline, SupervisedRes) <- model_session_timeline
+
+
 # Describe list of Supervised/Res ----
 #' Describe multiple Supervised or SupervisedRes objects
 #'

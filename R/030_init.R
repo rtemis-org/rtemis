@@ -419,7 +419,7 @@ quantile_super <- new_generic(
 #' Internal S7 generic dispatching on the fitted backend's class.
 #'
 #' Unlike `varimp_super()`, the method does **not** choose what to compute: the
-#' estimator is resolved from the algorithm's row in `explanation_methods()` and
+#' estimator is resolved from the algorithm's row in `explanation_traits()` and
 #' passed in. One backend class can back two algorithms warranting different
 #' estimators -- LinearSVM and RadialSVM are both `e1071::svm` -- so the fitted
 #' object cannot decide.
@@ -501,7 +501,7 @@ explain_super <- new_generic(
 #' **`config` chooses the method**, built by [setup_SHAP]:
 #' `setup_SHAP(perturbation = "conditional")` picks the value function,
 #' `setup_SHAP(estimator = "kernel")` overrides the estimator the algorithm
-#' would otherwise get. [explanation_methods] reports which estimator applies to
+#' would otherwise get. [explanation_traits] reports which estimator applies to
 #' which algorithm, whether it is exact, and why.
 #'
 #' A `SupervisedRes` additionally takes `type`: `"avg"` (the default) averages
@@ -824,6 +824,27 @@ cluster_membership <- new_generic(
 ) # /rtemis::cluster_membership
 
 
+# %% assign_clusters_ ----
+#' Generic for assigning new cases to a fitted clustering's clusters
+#'
+#' Dispatches on the *config* class, which a `Clustering` holds. The default
+#' method aborts with `rtemis_unsupported_error`, so an algorithm assigns new
+#' data only where it registers a method. A method returns one integer label
+#' per row of `newdata`, in the label order of `Clustering@clusters`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+assign_clusters_ <- new_generic(
+  "assign_clusters_",
+  "config",
+  function(config, clust, newdata) {
+    force_supplied()
+    S7_dispatch()
+  }
+) # /rtemis::assign_clusters_
+
+
 # %% cluster_k ----
 #' Generic for the number of clusters a fit produced
 #'
@@ -875,7 +896,7 @@ desc <- new_generic("desc", "x")
 #'
 #' A `Clustering` or `Decomposition` stores metrics for the data it was fitted
 #' on, which `sample = NULL` and `sample = "training"` both select. For a
-#' decomposition, [decomp_metrics] computes the metrics of new data.
+#' decomposition, [decomposition_metrics()] computes the metrics of new data.
 #'
 #' Requesting a sample the object does not store raises an error that names the
 #' samples it does store.
@@ -911,6 +932,58 @@ desc <- new_generic("desc", "x")
 #' get_metrics(mod, "test")$rsq
 get_metrics <- new_generic(
   "get_metrics",
+  "x",
+  function(x, sample = NULL, calibrated = FALSE) {
+    force_supplied()
+    S7_dispatch()
+  }
+)
+
+
+# %% get_predictions ----
+#' Get predictions
+#'
+#' @description
+#' The true and predicted values stored on a fitted supervised model, with the
+#' predicted class probabilities of a classifier, one row per case.
+#'
+#' @details
+#' A `Supervised` model stores predictions for the training sample, and for the
+#' validation and test samples when [train] received `dat_validation` and
+#' `dat_test`. A `SupervisedRes` model stores the training and test
+#' predictions of each outer resample. The training predictions are the model's
+#' fitted values, [stats::fitted()]. A calibrated classifier also stores its
+#' calibrated predictions, selected with `calibrated = TRUE`.
+#'
+#' `sample = NULL` returns every stored sample, stacked in the order training,
+#' validation, test. The samples are the same ones [get_metrics()] stores
+#' metrics for. Requesting a sample the model does not store raises an error
+#' that names the samples it does store.
+#'
+#' @param x `Supervised` or `SupervisedRes` object.
+#' @param sample Optional Character \{"training", "validation", "test"\}: The
+#'   sample whose predictions to return.
+#' @param calibrated Logical: If TRUE, return the calibrated predictions of a
+#'   calibrated classifier.
+#'
+#' @return data.table with one row per case of each selected sample and the
+#'   columns `sample`; `resample`, the outer resample identifier, for a
+#'   `SupervisedRes` model; `true`; `predicted`; and, for a classifier, one
+#'   `prob_<class>` column per stored probability column: the positive class of
+#'   a binary classifier, every class of a multiclass one.
+#'
+#' @author EDG
+#' @export
+#' @examplesIf requireNamespace("rpart", quietly = TRUE)
+#' mod <- train(
+#'   iris[1:120, ],
+#'   dat_test = iris[121:150, ],
+#'   hyperparameters = setup_CART(),
+#'   verbosity = 0L
+#' )
+#' head(get_predictions(mod, "test"))
+get_predictions <- new_generic(
+  "get_predictions",
   "x",
   function(x, sample = NULL, calibrated = FALSE) {
     force_supplied()
@@ -1828,28 +1901,27 @@ check_factor_levels <- new_generic("check_factor_levels", c("x"))
 
 
 # %% get_factor_names ----
-#' Get factor names
+#' Get factor names (Deprecated)
 #'
-#' @details
-#' This applied to tabular datasets used for supervised learning in rtemis,
-#' where, by convention, the last column is the outcome variable and all other columns
-#' are features.
+#' `get_factor_names()` is deprecated. Use [getfactornames()], which returns the
+#' names of every factor column of `x`.
 #'
 #' @param x tabular data.
 #'
-#' @return Character vector of factor names.
+#' @return Character vector of the names of the factor columns of `x`.
 #'
 #' @author EDG
 #' @export
 #' @examples
-#' get_factor_names(iris)
-get_factor_names <- new_generic("get_factor_names", "x", function(x) {
-  S7_dispatch()
-}) # /rtemis::get_factor_names
-
-method(get_factor_names, class_data.frame) <- function(x) {
-  names(x)[sapply(x, is.factor)]
-}
+#' suppressWarnings(get_factor_names(iris))
+get_factor_names <- function(x) {
+  base::.Deprecated(
+    new = "getfactornames",
+    package = "rtemis",
+    old = "get_factor_names"
+  )
+  getfactornames(x)
+} # /rtemis::get_factor_names
 
 
 # %% calibrate ----
@@ -2074,10 +2146,19 @@ one_hot <- new_generic("one_hot", "x")
 #'
 #' Returns the preprocessed data from a `Preprocessor` object.
 #'
+#' @details
+#' A data.table is returned as a copy made with [data.table::copy()], so
+#' modifying the result by reference, with `:=` or `set()`, leaves `x`
+#' unchanged.
+#'
 #' @param x `Preprocessor`: A `Preprocessor` object.
 #'
-#' @return data.frame: The preprocessed data.
+#' @return The preprocessed data, as a data.frame, data.table, or tibble,
+#' matching the data passed to [preprocess()]. When validation or test data were
+#' also preprocessed, a named list with elements `training`, `validation`, and
+#' `test`, as supplied.
 #'
+#' @author EDG
 #' @export
 #' @examples
 #' prp <- preprocess(iris, setup_Preprocessor(scale = TRUE, center = TRUE))
@@ -2085,6 +2166,86 @@ one_hot <- new_generic("one_hot", "x")
 preprocessed <- new_generic("preprocessed", "x", function(x) {
   S7_dispatch()
 }) # /rtemis::preprocessed
+
+
+# %% transformed ----
+#' Get transformed data from `Decomposition`
+#'
+#' Returns the components a `Decomposition` computed for the data it was fitted
+#' on.
+#'
+#' @details
+#' Each call returns a new data.table, so modifying the result by reference,
+#' with `:=` or `set()`, leaves `x` unchanged. The columns are the components
+#' only, named as in the output of [apply_decomposition()], which computes the
+#' components of new data.
+#'
+#' @param x `Decomposition`: A `Decomposition` object.
+#'
+#' @return data.table: One row per case, one column per component.
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA", verbosity = 0L)
+#' transformed(iris_pca)
+transformed <- new_generic("transformed", "x", function(x) {
+  S7_dispatch()
+}) # /rtemis::transformed
+
+
+# %% clusters ----
+#' Get cluster assignments from `Clustering`
+#'
+#' Returns the cluster each case of the data a `Clustering` was fitted on is
+#' assigned to.
+#'
+#' @details
+#' Cluster labels are integers from 1 to the number of clusters fitted. An
+#' algorithm with a noise label, such as DBSCAN, labels noise cases 0. A soft
+#' clustering assigns each case to the cluster of its highest membership;
+#' [get_membership()] returns the membership matrix.
+#'
+#' @param x `Clustering`: A `Clustering` object.
+#'
+#' @return Integer vector: One cluster label per case.
+#'
+#' @author EDG
+#' @export
+#' @examplesIf requireNamespace("flexclust", quietly = TRUE)
+#' iris_km <- cluster(exc(iris, "Species"), algorithm = "KMeans", verbosity = 0L)
+#' clusters(iris_km)
+clusters <- new_generic("clusters", "x", function(x) {
+  S7_dispatch()
+}) # /rtemis::clusters
+
+
+# %% get_membership ----
+#' Get cluster membership from a soft `Clustering`
+#'
+#' Returns, for each case of the data a soft clustering was fitted on, its
+#' weight on each cluster: a fuzzy membership degree for c-means, a posterior
+#' probability for a Gaussian mixture model.
+#'
+#' @details
+#' Column `j` is named `"j"` and corresponds to cluster label `j` in the output
+#' of [clusters()]. Each row sums to 1. Each call returns a new data.table, so
+#' modifying the result by reference leaves `x` unchanged. A hard clustering, which assigns
+#' each case to one cluster with no weights, raises an error.
+#'
+#' @param x `Clustering`: A soft `Clustering` object, produced by an algorithm
+#' such as CMeans or GMM.
+#'
+#' @return data.table: One row per case, one column per cluster.
+#'
+#' @author EDG
+#' @export
+#' @examplesIf requireNamespace("e1071", quietly = TRUE)
+#' iris_cm <- cluster(exc(iris, "Species"), algorithm = "CMeans", verbosity = 0L)
+#' get_membership(iris_cm)
+get_membership <- new_generic("get_membership", "x", function(x) {
+  S7_dispatch()
+}) # /rtemis::get_membership
 
 
 # --- Internal functions ---------------------------------------------------------------------------

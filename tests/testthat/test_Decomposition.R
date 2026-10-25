@@ -43,6 +43,10 @@ for (algorithm in c(names(one_fit), one_fit_shared)) {
     }
     expect_s7_class(decom, Decomposition)
     expect_identical(decom@algorithm, algorithm)
+    # Components are named by algorithm, PCA keeping prcomp's names.
+    k <- NCOL(decom@transformed)
+    prefix <- if (algorithm == "PCA") "PC" else paste0(algorithm, "_")
+    expect_identical(colnames(decom@transformed), paste0(prefix, seq_len(k)))
   })
 }
 
@@ -93,7 +97,7 @@ test_that("NMF scores are non-negative and reproduce on their own data", {
   # Applying a fit to its own training data must return what the fit returned:
   # both go through the same non-negative least squares solve on the basis.
   expect_equal(
-    as.matrix(apply_decomp(iris_nmf, x, verbosity = 0L)),
+    as.matrix(apply_decomposition(iris_nmf, x, verbosity = 0L)),
     transformed,
     tolerance = 1e-8
   )
@@ -373,7 +377,7 @@ test_that("reconstruct() agrees with the metrics' own reconstruction", {
 })
 
 
-test_that("apply_decomp() on training data reproduces the fitted components", {
+test_that("apply_decomposition() on training data reproduces the fitted components", {
   # Fit and apply must be the same map, or a fit-on-train apply-to-both-splits
   # workflow silently compares two different embeddings.
   configs <- list(setup_PCA(k = 3L), setup_ICA(k = 3L))
@@ -386,13 +390,30 @@ test_that("apply_decomp() on training data reproduces the fitted components", {
   for (config in configs) {
     decom <- decomp(x, config = config, verbosity = 0L)
     expect_equal(
-      as.matrix(apply_decomp(decom, x, verbosity = 0L)),
+      as.matrix(apply_decomposition(decom, x, verbosity = 0L)),
       as.matrix(decom@transformed),
       tolerance = 1e-8,
       ignore_attr = TRUE,
       info = decom@algorithm
     )
   }
+})
+
+
+test_that("transformed() returns the fitted components as a new data.table", {
+  decom <- decomp(x, config = setup_PCA(k = 3L), verbosity = 0L)
+  out <- transformed(decom)
+  expect_true(data.table::is.data.table(out))
+  expect_identical(dim(out), c(NROW(x), 3L))
+  expect_identical(
+    names(out),
+    names(apply_decomposition(decom, x, verbosity = 0L))
+  )
+  expect_equal(as.matrix(out), decom@transformed, ignore_attr = TRUE)
+  # Each call returns a new table; modifying it leaves the decomposition intact.
+  out[, marker := 1]
+  expect_identical(NCOL(decom@transformed), 3L)
+  expect_false("marker" %in% names(transformed(decom)))
 })
 
 
@@ -408,6 +429,15 @@ test_that("decomp() UMAP succeeds", {
 })
 
 
+test_that("UMAP names applied components as it names fitted ones", {
+  skip_if_not_installed("uwot")
+  decom <- shared_decomposition("UMAP")
+  applied <- apply_decomposition(decom, x, verbosity = 0L)
+  expect_identical(names(applied), colnames(decom@transformed))
+  expect_identical(names(applied), names(transformed(decom)))
+})
+
+
 test_that("UMAP fits on the execution config's threads and applies on the applier's", {
   skip_if_not_installed("uwot")
   # uwot's own default is half the hardware threads, whatever the core limit.
@@ -420,14 +450,14 @@ test_that("UMAP fits on the execution config's threads and applies on the applie
     .package = "uwot"
   )
   decom <- shared_decomposition("UMAP")
-  apply_decomp(
+  apply_decomposition(
     decom,
     x,
     execution_config = setup_SerialExecution(n_workers_algorithm = 1L),
     verbosity = 0L
   )
   expect_identical(requested, 1L)
-  apply_decomp(decom, x, verbosity = 0L)
+  apply_decomposition(decom, x, verbosity = 0L)
   expect_identical(requested, c(1L, default_n_workers()))
 })
 
@@ -587,7 +617,11 @@ test_that("PCoA applied to new data under euclidean equals the PCA projection", 
     FUN = "*"
   )
   expect_equal(
-    unname(as.matrix(apply_decomp(decom, x[-train_rows, ], verbosity = 0L))),
+    unname(as.matrix(apply_decomposition(
+      decom,
+      x[-train_rows, ],
+      verbosity = 0L
+    ))),
     unname(expected),
     tolerance = 1e-8
   )
@@ -602,10 +636,10 @@ test_that("PCoA applies each case independently of the batch it arrives in", {
     config = setup_PCoA(k = 2L, dist_method = "bray"),
     verbosity = 0L
   )
-  all_cases <- as.matrix(apply_decomp(decom, x, verbosity = 0L))
+  all_cases <- as.matrix(apply_decomposition(decom, x, verbosity = 0L))
   some <- c(3L, 77L, 150L)
   expect_equal(
-    as.matrix(apply_decomp(decom, x[some, ], verbosity = 0L)),
+    as.matrix(apply_decomposition(decom, x[some, ], verbosity = 0L)),
     all_cases[some, ],
     tolerance = 1e-12,
     ignore_attr = TRUE
@@ -650,7 +684,7 @@ test_that("non-negative dissimilarities reject negative and all-zero cases", {
     verbosity = 0L
   )
   expect_error(
-    apply_decomp(decom, zero[151L, ], verbosity = 0L),
+    apply_decomposition(decom, zero[151L, ], verbosity = 0L),
     class = "rtemis_data_error"
   )
 })
@@ -735,12 +769,12 @@ test_that("MDS warns when the best start reaches max_iter", {
 
 
 # features selection ----
-test_that("decomp() fits on config@features, so apply_decomp() replays it", {
+test_that("decomp() fits on config@features, so apply_decomposition() replays it", {
   config <- setup_PCA(k = 2L, features = c("Sepal.Length", "Sepal.Width"))
   fit <- decomp(x, algorithm = "PCA", config = config, verbosity = 0L)
   # Fitted on the two selected columns only: applying to the same data must
   # work, and the undecomposed columns come back alongside the components.
-  applied <- apply_decomp(fit, x, verbosity = 0L)
+  applied <- apply_decomposition(fit, x, verbosity = 0L)
   expect_identical(
     names(applied),
     c("Petal.Length", "Petal.Width", "PC1", "PC2")
@@ -780,14 +814,17 @@ test_that("an unset features decomposes every numeric column, resolved onto the 
     verbosity = 0L
   )
   expect_identical(fit@config@features, names(x))
-  expect_identical(names(apply_decomp(fit, x, verbosity = 0L)), c("PC1", "PC2"))
+  expect_identical(
+    names(apply_decomposition(fit, x, verbosity = 0L)),
+    c("PC1", "PC2")
+  )
 
   # A column the backend cannot read is not decomposed, and does not stop the
   # run: `iris`' species column comes back beside the components.
   mixed <- decomp(iris, config = setup_PCA(k = 2L), verbosity = 0L)
   expect_identical(mixed@config@features, names(x))
   expect_identical(
-    names(apply_decomp(mixed, iris, verbosity = 0L)),
+    names(apply_decomposition(mixed, iris, verbosity = 0L)),
     c("Species", "PC1", "PC2")
   )
 })

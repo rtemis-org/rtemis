@@ -620,7 +620,7 @@ fold_record <- function(model, index, input = model@config) {
   if (!is.null(model@preprocessor)) {
     out[["preprocessor_config"]] <- nested_record(
       if (is.null(input)) NULL else input@preprocessor_config,
-      fitted_config(model@preprocessor)
+      get_fitted_config(model@preprocessor)
     )
   }
   if (!is.null(model@decomposition)) {

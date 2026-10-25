@@ -156,9 +156,10 @@ filter_order <- function(x, idl, decreasing = FALSE) {
 }
 
 
-#' Get the mode of a factor or integer
+# %% mode_value ----
+#' Mode of a vector
 #'
-#' Returns the mode of a factor or integer
+#' Returns the most frequent value of a vector.
 #'
 #' @param x Vector, factor or integer: Input data.
 #' @param na.rm Logical: If TRUE, exclude NAs (using `na.exclude(x)`).
@@ -171,11 +172,11 @@ filter_order <- function(x, idl, decreasing = FALSE) {
 #' @export
 #' @examples
 #' x <- c(9, 3, 4, 4, 0, 2, 2, NA)
-#' get_mode(x)
+#' mode_value(x)
 #' x <- c(9, 3, 2, 2, 0, 4, 4, NA)
-#' get_mode(x)
-#' get_mode(x, getlast = FALSE)
-get_mode <- function(
+#' mode_value(x)
+#' mode_value(x, getlast = FALSE)
+mode_value <- function(
   x,
   na.rm = TRUE,
   getlast = TRUE,
@@ -210,6 +211,31 @@ get_mode <- function(
     }
   }
   out
+} # /rtemis::mode_value
+
+
+# %% get_mode ----
+#' Mode of a vector (Deprecated)
+#'
+#' `get_mode()` is deprecated. Use [mode_value()], which takes the same
+#' arguments.
+#'
+#' @inheritParams mode_value
+#'
+#' @return As [mode_value()].
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' suppressWarnings(get_mode(c(9, 3, 4, 4, 0, 2, 2, NA)))
+get_mode <- function(
+  x,
+  na.rm = TRUE,
+  getlast = TRUE,
+  retain_class = TRUE
+) {
+  base::.Deprecated(new = "mode_value", package = "rtemis", old = "get_mode")
+  mode_value(x, na.rm = na.rm, getlast = getlast, retain_class = retain_class)
 } # /rtemis::get_mode
 
 

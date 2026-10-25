@@ -2,7 +2,7 @@
 % Please edit documentation in R/040_DataFingerprint.R
 \name{same_data}
 \alias{same_data}
-\title{Do two fingerprints identify the same dataset?}
+\title{same_data() (Deprecated)}
 \usage{
 same_data(x, y)
 }
@@ -10,14 +10,13 @@ same_data(x, y)
 \item{x, y}{\code{DataFingerprint} objects.}
 }
 \value{
-Logical.
+As \code{\link[=is_same_data]{is_same_data()}}.
 }
 \description{
-Two fingerprints are comparable only if they were produced the same way, so
-this is FALSE when \code{encoding} or \code{algorithm} differ.
+\code{same_data()} is deprecated. Use \code{\link[=is_same_data]{is_same_data()}}, which takes the same arguments.
 }
 \examples{
-same_data(data_fingerprint(iris), data_fingerprint(iris))
+suppressWarnings(same_data(data_fingerprint(iris), data_fingerprint(iris)))
 }
 \author{
 EDG

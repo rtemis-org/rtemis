@@ -51,7 +51,9 @@ method(decomp_, UMAPConfig) <- function(
   )
   # ret_model = TRUE returns list
   check_inherits(decom, "list")
-  list(decom = decom, transformed = decom[["embedding"]])
+  transformed <- decom[["embedding"]]
+  colnames(transformed) <- paste0("UMAP_", seq_len(NCOL(transformed)))
+  list(decom = decom, transformed = transformed)
 } # /rtemis::decomp_.UMAPConfig
 
 
@@ -69,7 +71,8 @@ method(decomp_, UMAPConfig) <- function(
 #' work runs.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return Matrix of UMAP embedding coordinates.
+#' @return Matrix of UMAP embedding coordinates, columns named `UMAP_1`,
+#' `UMAP_2`, ... as in `decomp_.UMAPConfig`.
 #'
 #' @keywords internal
 #' @noRd
@@ -81,9 +84,11 @@ method(apply_decomp_, UMAPConfig) <- function(
   verbosity = 1L
 ) {
   check_dependencies("uwot")
-  uwot::umap_transform(
+  transformed <- uwot::umap_transform(
     X = new_data,
     model = decom,
     n_threads = algorithm_threads(execution_config)
   )
+  colnames(transformed) <- paste0("UMAP_", seq_len(NCOL(transformed)))
+  transformed
 } # /rtemis::apply_decomp_.UMAPConfig

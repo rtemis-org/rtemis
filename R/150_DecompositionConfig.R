@@ -938,7 +938,7 @@ AutoencoderConfig <- schema_class(
 #' **Denoising.** `input_noise` adds Gaussian noise of that standard deviation to
 #' the standardized inputs, and `input_dropout` zeroes each input with that
 #' probability, during training only. The model learns to reconstruct the
-#' uncorrupted input, which regularizes the components; [apply_decomp] and
+#' uncorrupted input, which regularizes the components; [apply_decomposition()] and
 #' [reconstruct] never corrupt.
 #'
 #' **Early stopping.** `validation_fraction` of the cases, drawn at random, are
@@ -1100,7 +1100,7 @@ VariationalAutoencoderConfig <- schema_class(
 #' prior and leaves a noisy autoencoder.
 #'
 #' **Components** are the means of the latent distributions, so [decomp],
-#' [apply_decomp] and [reconstruct] are deterministic: sampling happens only in
+#' [apply_decomposition()] and [reconstruct] are deterministic: sampling happens only in
 #' training. [reconstruct] decodes the means.
 #'
 #' Architecture, input standardization, denoising, early stopping, and the

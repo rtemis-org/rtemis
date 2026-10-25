@@ -25,7 +25,7 @@ method(cluster_, CMeansConfig) <- function(
     x = x,
     centers = config[["k"]],
     iter.max = config[["max_iter"]],
-    verbose = verbosity > 0L,
+    verbose = verbosity > 1L,
     dist = config[["dist"]],
     method = config[["method"]],
     m = config[["m"]],

@@ -38,5 +38,7 @@ method(decomp_, tSNEConfig) <- function(
     verbosity = verbosity
   )
   check_inherits(decom, "Rtsne")
-  list(decom = decom, transformed = decom[["Y"]])
+  transformed <- decom[["Y"]]
+  colnames(transformed) <- paste0("tSNE_", seq_len(NCOL(transformed)))
+  list(decom = decom, transformed = transformed)
 } # /rtemis::decomp_.tSNEConfig

@@ -8,7 +8,7 @@
     {
       "id": "every dtype, with gaps, a constant and duplicate rows",
       "data": "profile/v1/fixtures/mixed.parquet",
-      "sha256": "b369a89f6a39aaa1e91c09b3d2ec86c16f83f30ac1e2b02aa543f2c8dc7f41f7",
+      "sha256": "058b8bcf9fe25abfc18e964534dfd8eae66b87e354832a1626f7a473ba7b5f16",
       "profile": {
         "n_rows": 26,
         "columns": [
@@ -95,7 +95,7 @@
     {
       "id": "a column above PROFILE_MAX_LEVELS carries no level counts",
       "data": "profile/v1/fixtures/wide.parquet",
-      "sha256": "50f4249e906a267bf00f97117e0149ea0bafc32e1475d9da634ee697d10bc9be",
+      "sha256": "81fa9b9d3049ecfa6091960b03ab9011fe0625329969bbbeb4e1ac0ff1d4623a",
       "profile": {
         "n_rows": 70,
         "columns": [

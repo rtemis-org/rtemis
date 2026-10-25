@@ -997,7 +997,7 @@ train <- function(
       # An explicit selection is validated by `decomp()` against `feat`.
       decomp_features <- decomposition_config@features %||%
         resolve_unsupervised_features(feat, "Decomposition")
-      # Persist the resolved names so apply_decomp() replays the same selection
+      # Persist the resolved names so apply_decomposition() replays the same selection
       # on validation/test here and on new data at predict() time. `decomp()`
       # subsets `feat` by them, so the fit and the replay cannot disagree.
       decomposition_config@features <- decomp_features

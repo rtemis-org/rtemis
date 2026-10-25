@@ -5,7 +5,7 @@
 # %% decomposition_metric_columns ----
 # The decomposition metric set, declared once. Every column is nullable and
 # every column is declared for every algorithm: which ones are *populated*
-# follows from the algorithm's traits, via `applicable_metrics()`. Declaring
+# follows from the algorithm's traits, via `decomposition_metric_traits()`. Declaring
 # them all is what keeps the table schema-expressible; a column that an
 # algorithm cannot support is NA, not a missing column.
 decomposition_metric_columns <- function() {
@@ -77,7 +77,7 @@ decomposition_metric_columns <- function() {
 #' Metrics subclass for decompositions.
 #'
 #' The unprefixed columns describe the data the decomposition was fitted on;
-#' the `oos_` columns describe the new data passed to `decomp_metrics()`, and
+#' the `oos_` columns describe the new data passed to `decomposition_metrics()`, and
 #' are NULL unless it was.
 #'
 #' @author EDG

@@ -103,7 +103,7 @@ data, comparable with any other decomposition's.
 \strong{Denoising.} \code{input_noise} adds Gaussian noise of that standard deviation to
 the standardized inputs, and \code{input_dropout} zeroes each input with that
 probability, during training only. The model learns to reconstruct the
-uncorrupted input, which regularizes the components; \link{apply_decomp} and
+uncorrupted input, which regularizes the components; \code{\link[=apply_decomposition]{apply_decomposition()}} and
 \link{reconstruct} never corrupt.
 
 \strong{Early stopping.} \code{validation_fraction} of the cases, drawn at random, are

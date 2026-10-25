@@ -62,7 +62,7 @@ the probability scale do \strong{not} sum to the predicted probability.
 
 \strong{\code{estimator} is normally best left alone.} \code{"auto"} uses the exact
 estimator wherever the algorithm has one and the model-agnostic kernel
-estimator otherwise; \code{explanation_methods()} reports which applies where.
+estimator otherwise; \code{explanation_traits()} reports which applies where.
 
 \code{approach} and \code{n_coalitions} apply only to the kernel estimator, and
 \code{approach} only when \code{perturbation} is \code{"conditional"} -- the interventional

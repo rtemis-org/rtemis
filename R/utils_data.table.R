@@ -676,7 +676,7 @@ dt_describe <- function(x, verbosity = 1L) {
         x[, index_cf, with = FALSE],
         \(col) length(unique(col))
       ),
-      Mode = sapply(x[, index_cf, with = FALSE], get_mode),
+      Mode = sapply(x[, index_cf, with = FALSE], mode_value),
       Counts = sapply(x[, index_cf, with = FALSE], describe),
       Pct_missing = sapply(
         x[, index_cf, with = FALSE],

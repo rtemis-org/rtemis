@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{get_mode}
 \alias{get_mode}
-\title{Get the mode of a factor or integer}
+\title{Mode of a vector (Deprecated)}
 \usage{
 get_mode(x, na.rm = TRUE, getlast = TRUE, retain_class = TRUE)
 }
@@ -16,17 +16,14 @@ get_mode(x, na.rm = TRUE, getlast = TRUE, retain_class = TRUE)
 \item{retain_class}{Logical: If TRUE, output is always same class as input.}
 }
 \value{
-The mode of \code{x}
+As \code{\link[=mode_value]{mode_value()}}.
 }
 \description{
-Returns the mode of a factor or integer
+\code{get_mode()} is deprecated. Use \code{\link[=mode_value]{mode_value()}}, which takes the same
+arguments.
 }
 \examples{
-x <- c(9, 3, 4, 4, 0, 2, 2, NA)
-get_mode(x)
-x <- c(9, 3, 2, 2, 0, 4, 4, NA)
-get_mode(x)
-get_mode(x, getlast = FALSE)
+suppressWarnings(get_mode(c(9, 3, 4, 4, 0, 2, 2, NA)))
 }
 \author{
 EDG

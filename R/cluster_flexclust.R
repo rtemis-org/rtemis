@@ -106,9 +106,35 @@ method(cluster_, NeuralGasConfig) <- function(
 #' @keywords internal
 #' @noRd
 clustpredict_KMeans <- clustpredict_HardCL <- clustpredict_NeuralGas <- function(
-  clust,
-  newdata = NULL
+  clust
 ) {
   check_inherits(clust, "kcca")
-  flexclust::clusters(clust, newdata = newdata)
+  as.integer(flexclust::clusters(clust))
 } # /rtemis::clustpredict_{KMeans,HardCL,NeuralGas}
+
+
+# %% assign_kcca ----
+#' Assign new cases to the clusters of a flexclust fit
+#'
+#' `flexclust::clusters()` assigns each new case to its closest centroid under
+#' the distance the fit used, which is the assignment rule of KMeans, HardCL,
+#' and NeuralGas.
+#'
+#' @param config `ClusteringConfig` of the fit.
+#' @param clust `kcca` object.
+#' @param newdata data.frame: New cases, holding the fitted features.
+#'
+#' @return Integer vector: One cluster label per case.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+assign_kcca <- function(config, clust, newdata) {
+  check_inherits(clust, "kcca")
+  as.integer(flexclust::clusters(clust, newdata = as.matrix(newdata)))
+} # /rtemis::assign_kcca
+
+# %% assign_clusters_.{KMeans,HardCL,NeuralGas}Config ----
+method(assign_clusters_, KMeansConfig) <- assign_kcca
+method(assign_clusters_, HardCLConfig) <- assign_kcca
+method(assign_clusters_, NeuralGasConfig) <- assign_kcca

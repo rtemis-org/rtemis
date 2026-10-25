@@ -1,4 +1,4 @@
-# decomp_metrics.R
+# decomposition_metrics.R
 # ::rtemis::
 # 2026- EDG rtemis.org
 
@@ -42,7 +42,7 @@ decom_metrics <- data.frame(
     c("can_apply", "invertible")
   )),
   # Whether the metric needs data the fit never saw. The ones that do are the
-  # only reason `decomp_metrics()` exists beside the set `decomp()` computes.
+  # only reason `decomposition_metrics()` exists beside the set `decomp()` computes.
   needs_new_data = c(
     FALSE,
     FALSE,
@@ -77,7 +77,7 @@ decom_metrics <- data.frame(
 )
 
 
-# %% applicable_metrics ----
+# %% decomposition_metric_traits ----
 #' Which Decomposition Metrics Apply to Which Algorithm
 #'
 #' Derived from [decomposition_traits] and the metric registry: a metric applies
@@ -103,10 +103,10 @@ decom_metrics <- data.frame(
 #' @export
 #' @examples
 #' # Every metric, and which algorithms support it
-#' applicable_metrics()
+#' decomposition_metric_traits()
 #' # What can be computed for a UMAP embedding, which does not invert
-#' applicable_metrics("UMAP")
-applicable_metrics <- function(algorithm = NULL) {
+#' decomposition_metric_traits("UMAP")
+decomposition_metric_traits <- function(algorithm = NULL) {
   if (!is.null(algorithm)) {
     return(decom_metrics[metric_applies(decomposition_traits(algorithm)), ])
   }
@@ -120,6 +120,29 @@ applicable_metrics <- function(algorithm = NULL) {
     matrix_columns,
     stringsAsFactors = FALSE
   )
+} # /rtemis::decomposition_metric_traits
+
+
+# %% applicable_metrics ----
+#' applicable_metrics() (Deprecated)
+#'
+#' `applicable_metrics()` is deprecated. Use [decomposition_metric_traits()], which takes the same arguments.
+#'
+#' @inheritParams decomposition_metric_traits
+#'
+#' @return As [decomposition_metric_traits()].
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' suppressWarnings(applicable_metrics("UMAP"))
+applicable_metrics <- function(algorithm = NULL) {
+  base::.Deprecated(
+    new = "decomposition_metric_traits",
+    package = "rtemis",
+    old = "applicable_metrics"
+  )
+  decomposition_metric_traits(algorithm = algorithm)
 } # /rtemis::applicable_metrics
 
 
@@ -241,7 +264,7 @@ compute_decomposition_metrics <- function(
   scores <- list()
   # The fit learned on `config@features` only, so the reconstruction it produces
   # spans those columns. Comparing it against anything wider is a dimension
-  # mismatch; reducing here is what `apply_decomp()` and `reconstruct()` do.
+  # mismatch; reducing here is what `apply_decomposition()` and `reconstruct()` do.
   xm <- decomp_matrix(decom, x)
   transformed <- as.matrix(decom@transformed)
   # Every metric below reads the fit's own component matrix as `x`'s components,
@@ -390,7 +413,7 @@ warn_data_mismatch <- function(decom, x, verbosity = 1L) {
 } # /rtemis::warn_data_mismatch
 
 
-# %% decomp_metrics ----
+# %% decomposition_metrics ----
 #' Decomposition Metrics
 #'
 #' Quantify a fitted decomposition: how much of the data its components
@@ -399,7 +422,7 @@ warn_data_mismatch <- function(decom, x, verbosity = 1L) {
 #'
 #' @details
 #' Which metrics are computed follows from the algorithm's traits; see
-#' [applicable_metrics]. A metric its algorithm cannot support is `NA`.
+#' [decomposition_metric_traits]. A metric its algorithm cannot support is `NA`.
 #'
 #' The unprefixed metrics describe the fitted data, so `x` must be that data:
 #' they are computed against the components `decom` already holds. A different
@@ -429,7 +452,7 @@ warn_data_mismatch <- function(decom, x, verbosity = 1L) {
 #' @param new_data Optional tabular data: Data the fit never saw. Its columns
 #' must match those `decom` was fitted on.
 #' @param execution_config Optional `ExecutionConfig` object: Threads and
-#' device for encoding and reconstructing, as in [apply_decomp]. `NULL` uses
+#' device for encoding and reconstructing, as in [apply_decomposition()]. `NULL` uses
 #' the host's default worker count.
 #' @param verbosity Integer: Verbosity level.
 #'
@@ -440,8 +463,8 @@ warn_data_mismatch <- function(decom, x, verbosity = 1L) {
 #' @examples
 #' x <- exc(iris, "Species")
 #' iris_pca <- decomp(x, algorithm = "PCA", verbosity = 0L)
-#' decomp_metrics(iris_pca, x, verbosity = 0L)
-decomp_metrics <- function(
+#' decomposition_metrics(iris_pca, x, verbosity = 0L)
+decomposition_metrics <- function(
   decom,
   x,
   new_data = NULL,
@@ -456,6 +479,44 @@ decomp_metrics <- function(
   compute_decomposition_metrics(
     decom = decom,
     x = x,
+    new_data = new_data,
+    execution_config = execution_config,
+    verbosity = verbosity
+  )
+} # /rtemis::decomposition_metrics
+
+
+# %% decomp_metrics ----
+#' Decomposition Metrics (Deprecated)
+#'
+#' `decomp_metrics()` is deprecated. Use [decomposition_metrics()], which takes
+#' the same arguments.
+#'
+#' @inheritParams decomposition_metrics
+#'
+#' @return As [decomposition_metrics()].
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' x <- exc(iris, "Species")
+#' iris_pca <- decomp(x, algorithm = "PCA", verbosity = 0L)
+#' suppressWarnings(decomp_metrics(iris_pca, x, verbosity = 0L))
+decomp_metrics <- function(
+  decom,
+  x,
+  new_data = NULL,
+  execution_config = NULL,
+  verbosity = 1L
+) {
+  base::.Deprecated(
+    new = "decomposition_metrics",
+    package = "rtemis",
+    old = "decomp_metrics"
+  )
+  decomposition_metrics(
+    decom,
+    x,
     new_data = new_data,
     execution_config = execution_config,
     verbosity = verbosity

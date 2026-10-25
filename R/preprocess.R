@@ -1336,16 +1336,16 @@ apply_preprocessor <- function(preprocessor, new_data, verbosity = 1L) {
       class = c("rtemis_unsupported_error", "rtemis_input_error")
     )
   }
-  preprocessed(preprocess_data(
+  preprocess_data(
     new_data,
-    fitted_config(preprocessor),
+    get_fitted_config(preprocessor),
     imputer = preprocessor@imputer,
     verbosity = verbosity
-  ))
+  )@preprocessed
 } # /rtemis::apply_preprocessor
 
 
-# %% fitted_config ----
+# %% get_fitted_config ----
 #' A `Preprocessor`'s config with its learned values filled in
 #'
 #' `@config` holds what the user asked for and `@values` what preprocessing
@@ -1369,8 +1369,8 @@ apply_preprocessor <- function(preprocessor, new_data, verbosity = 1L) {
 #' iris_pre <- preprocess(iris, setup_Preprocessor(scale = TRUE, center = TRUE))
 #' # The config as supplied carries no centers; the fitted one carries the
 #' # centers `preprocess()` computed.
-#' fitted_config(iris_pre)@scale_centers
-fitted_config <- function(preprocessor) {
+#' get_fitted_config(iris_pre)@scale_centers
+get_fitted_config <- function(preprocessor) {
   config <- preprocessor@config
   for (nm in c(
     "impute_numeric_values",
@@ -1387,6 +1387,30 @@ fitted_config <- function(preprocessor) {
     }
   }
   config
+} # /rtemis::get_fitted_config
+
+
+# %% fitted_config ----
+#' fitted_config() (Deprecated)
+#'
+#' `fitted_config()` is deprecated. Use [get_fitted_config()], which takes the same arguments.
+#'
+#' @inheritParams get_fitted_config
+#'
+#' @return As [get_fitted_config()].
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' iris_pre <- preprocess(iris, setup_Preprocessor(scale = TRUE), verbosity = 0L)
+#' suppressWarnings(fitted_config(iris_pre))
+fitted_config <- function(preprocessor) {
+  base::.Deprecated(
+    new = "get_fitted_config",
+    package = "rtemis",
+    old = "fitted_config"
+  )
+  get_fitted_config(preprocessor)
 } # /rtemis::fitted_config
 
 
@@ -1909,9 +1933,6 @@ binmat2lvec <- function(x, labels = colnames(x), return.list = FALSE) {
 #' x <- set_outcome(iris, "Sepal.Length")
 #' feature_matrix(x) |> head()
 feature_matrix <- function(x) {
-  x |>
-    features() |>
-    preprocess(setup_Preprocessor(one_hot = TRUE)) |>
-    preprocessed() |>
-    as.matrix()
+  prp <- preprocess(features(x), setup_Preprocessor(one_hot = TRUE))
+  as.matrix(prp@preprocessed)
 } # /rtemis::feature_matrix

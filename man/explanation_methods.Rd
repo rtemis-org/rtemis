@@ -2,7 +2,7 @@
 % Please edit documentation in R/algorithmDB.R
 \name{explanation_methods}
 \alias{explanation_methods}
-\title{Explanation Methods per Algorithm}
+\title{explanation_methods() (Deprecated)}
 \usage{
 explanation_methods(algorithm = NULL)
 }
@@ -11,42 +11,13 @@ explanation_methods(algorithm = NULL)
 case-insensitively. NULL returns every algorithm.}
 }
 \value{
-data.frame: One row per algorithm.
+As \code{\link[=explanation_traits]{explanation_traits()}}.
 }
 \description{
-What \link{explain} does to a model fitted by each supervised algorithm: which
-estimator \code{setup_SHAP(estimator = "auto")} resolves to, whether that answer
-is exact, which value function it computes, and why.
-}
-\details{
-The columns:
-
-\describe{
-\item{\code{name}}{The algorithm, as named by \verb{setup_<name>()}.}
-\item{\code{estimator}}{The estimator \code{"auto"} resolves to. \code{"KernelSHAP"} is
-the model-agnostic fallback and applies to every algorithm; the others
-are exact and algorithm-specific.}
-\item{\code{exact}}{TRUE if the estimator returns Shapley values rather than an
-estimate of them, NA where that depends on the fitted model rather than
-on the algorithm -- an ensemble whose meta-learner turned out to be
-linear, or a model that has one linear map for a regression or binary
-outcome but not for a multiclass one. An NA row explains what it did
-when asked, and refuses with a message naming the reason when it cannot.}
-\item{\code{perturbation}}{The value function computed when
-\code{setup_SHAP(perturbation = )} is left NULL.}
-\item{\code{rationale}}{Why this estimator, in one line.}
-}
-
-\code{estimator = "kernel"} is always available, so a row whose \code{exact} is FALSE
-is saying that \code{estimator = "exact"} has nothing to offer for it -- not that
-the algorithm cannot be explained.
+\code{explanation_methods()} is deprecated. Use \code{\link[=explanation_traits]{explanation_traits()}}, which takes the same arguments.
 }
 \examples{
-explanation_methods()
-explanation_methods("Ranger")
-# Which algorithms have an exact estimator?
-em <- explanation_methods()
-em[["name"]][!is.na(em[["exact"]]) & em[["exact"]]]
+suppressWarnings(explanation_methods("Ranger"))
 }
 \author{
 EDG
