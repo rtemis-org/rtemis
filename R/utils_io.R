@@ -264,3 +264,162 @@ sanitize_path <- function(
     path
   }
 } # /rtemis::sanitize_path
+
+
+# %% is_url ----
+#' Test whether a path is an HTTP or HTTPS URL
+#'
+#' @param path Character: Path or URL.
+#'
+#' @return Logical scalar: TRUE if `path` starts with `http://` or `https://`,
+#' in any case.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+is_url <- function(path) {
+  is.character(path) &&
+    length(path) == 1L &&
+    !is.na(path) &&
+    grepl("^https?://", path, ignore.case = TRUE)
+} # /rtemis::is_url
+
+
+# %% url_filename ----
+#' The file name a URL's path ends in
+#'
+#' @param url Character: HTTP or HTTPS URL.
+#'
+#' @return Character: the last segment of the URL path, with the query and
+#' fragment removed and every character outside `[A-Za-z0-9._-]` replaced by
+#' `_`, so that it is a safe local file name that keeps the remote extension.
+#' A URL carrying user credentials is an input error.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+url_filename <- function(url) {
+  # User information in the authority, as in `https://user:pass@host/`, would
+  # reach messages and the ingest manifest.
+  if (grepl("^[a-zA-Z][a-zA-Z0-9+.-]*://[^/?#]*@", url)) {
+    rtemis.core::abort(
+      "The URL carries user credentials. ",
+      "Use a URL without a `user:password@` part.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  url_path <- sub("^[a-zA-Z][a-zA-Z0-9+.-]*://[^/?#]*", "", url)
+  url_path <- sub("[?#].*$", "", url_path)
+  name <- gsub("[^A-Za-z0-9._-]", "_", basename(url_path))
+  if (!nzchar(name) || grepl("^\\.+$", name)) {
+    rtemis.core::abort(
+      "The URL path names no file: `",
+      url,
+      "`. Use a URL whose path ends in the file name, such as ",
+      "`https://example.org/data/iris.csv`.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  name
+} # /rtemis::url_filename
+
+
+# %% download_file ----
+#' Download a URL to a local file
+#'
+#' One call site for `utils::download.file()`, which tests replace to run
+#' offline.
+#'
+#' @param url Character: HTTP or HTTPS URL.
+#' @param destfile Character: Local path to write to.
+#' @param quiet Logical: If TRUE, suppress the progress display.
+#'
+#' @return Integer: 0 on success, as `utils::download.file()` returns.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+download_file <- function(url, destfile, quiet) {
+  utils::download.file(url, destfile = destfile, mode = "wb", quiet = quiet)
+} # /rtemis::download_file
+
+
+# %% download_url ----
+#' Download a URL to a temporary file named after the remote file
+#'
+#' The file is written to a new temporary directory under the name
+#' `url_filename()` returns, so its extension, including a compound one such as
+#' `.csv.gz`, selects the reader. The caller deletes the directory,
+#' `dirname()` of the returned path, once the file is read. The download is
+#' bounded by `getOption("timeout")`.
+#'
+#' @param url Character: HTTP or HTTPS URL.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Character: Path to the downloaded file.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+download_url <- function(url, verbosity = 1L) {
+  if (!is_url(url)) {
+    rtemis.core::abort(
+      "Expected an http:// or https:// URL. Got: `",
+      url,
+      "`",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  name <- url_filename(url)
+  dir <- tempfile("rtemis_download_")
+  dir.create(dir)
+  destfile <- file.path(dir, name)
+  downloaded <- FALSE
+  on.exit(
+    if (!downloaded) unlink(dir, recursive = TRUE),
+    add = TRUE
+  )
+  msg0(
+    bold(highlight("▶")),
+    " Downloading ",
+    highlight(name),
+    "...",
+    verbosity = verbosity
+  )
+  # The condition is returned, not handled, so the error is raised from this
+  # function and names it as the caller.
+  status <- tryCatch(
+    download_file(url, destfile, quiet = verbosity < 1L),
+    error = identity,
+    warning = identity
+  )
+  if (inherits(status, "condition")) {
+    cause <- conditionMessage(status)
+    rtemis.core::abort(
+      "Downloading `",
+      url,
+      "` failed: ",
+      cause,
+      if (grepl("timeout|timed out", cause, ignore.case = TRUE)) {
+        paste0(
+          " The download is bounded by `getOption(\"timeout\")`, ",
+          getOption("timeout"),
+          " seconds; set `options(timeout = )` to a larger value."
+        )
+      },
+      class = "rtemis_io_error"
+    )
+  }
+  if (!identical(as.integer(status), 0L) || !file.exists(destfile)) {
+    rtemis.core::abort(
+      "Downloading `",
+      url,
+      "` failed with status ",
+      status,
+      ".",
+      class = "rtemis_io_error"
+    )
+  }
+  downloaded <- TRUE
+  destfile
+} # /rtemis::download_url

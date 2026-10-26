@@ -332,7 +332,7 @@ method(ai_review, SupervisedReview) <- function(
         as.character(utils::packageVersion("rtemis.llm"))
       ),
       prompt = prompt,
-      review_sha256 = as.character(openssl::sha256(review_json)),
+      review_sha256 = .hash_bytes(review_json, "sha256"),
       created = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
     )
   )

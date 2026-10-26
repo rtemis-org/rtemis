@@ -537,7 +537,8 @@ setup_ARFFIngest <- function(
 # %% ingest_format ----
 #' The ingest format a file's extension names
 #'
-#' @param path Character: Path to the file.
+#' @param path Character: Path to the file, or an HTTP or HTTPS URL, whose
+#' extension is read from the last segment of the URL path.
 #'
 #' @return Character, or NULL where the extension names no supported format.
 #'
@@ -545,6 +546,9 @@ setup_ARFFIngest <- function(
 #' @keywords internal
 #' @noRd
 ingest_format <- function(path) {
+  if (is_url(path)) {
+    path <- url_filename(path)
+  }
   ext <- tolower(tools::file_ext(path))
   switch(
     ext,
@@ -562,6 +566,22 @@ ingest_format <- function(path) {
     NULL
   )
 } # /rtemis::ingest_format
+
+
+# %% ingest_display_name ----
+#' The file name of an ingest input, for messages
+#'
+#' @param path Character: Path to the file, or an HTTP or HTTPS URL.
+#'
+#' @return Character: the base name of a local path, or `url_filename()` of a
+#' URL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+ingest_display_name <- function(path) {
+  if (is_url(path)) url_filename(path) else basename(path)
+} # /rtemis::ingest_display_name
 
 
 # %% apply_declared_types ----
@@ -623,20 +643,33 @@ apply_declared_types <- function(x, columns) {
 #' error: a config written for a delimited file sets options a Parquet reader
 #' would ignore.
 #'
+#' `path` may be an `http://` or `https://` URL or an `hf://datasets/` path, as
+#' `read()` accepts them, downloaded to a temporary file; the extension of the
+#' file names the format. The manifest records the path as given in `input`,
+#' the time resolution started in `retrieved_at`, and, for an `hf://` path, the
+#' path pinned to the resolved commit and file in `input_resolved`. Later steps
+#' read the Parquet file, whose content is fixed.
+#'
 #' Returns a manifest describing what happened: the file in, the file out, a
 #' `DataFingerprint` of the data, the config, and which engine ran it. The
 #' engine is named from the start because it is unrecoverable later -- once a
 #' second implementation exists, nothing else could say which produced a given
 #' Parquet.
 #'
-#' @param path Character: Path to the input file.
+#' @param path Character: Path to the input file, an `http://` or `https://`
+#' URL, or an `hf://datasets/` path.
 #' @param outfile Character: Path to write the Parquet file to.
 #' @param config Optional `IngestConfig`: How to read it. If `NULL`, the
 #' defaults for the file's own format.
 #' @param overwrite Logical: If TRUE, overwrite `outfile` if it exists.
 #' @param verbosity Integer: Verbosity level.
 #'
-#' @return Named list: the ingest manifest.
+#' @return Named list: the ingest manifest, with `input`, `input_resolved`
+#' (`hf://datasets/<repo>@<commit>/<file>` for an `hf://` input, otherwise
+#' NULL), `input_sha256` (SHA-256 of the input file's bytes), `retrieved_at`
+#' (ISO 8601 UTC time the download started, or NULL for a local file), `output`,
+#' `format`, `config`, `engine`, `rtemis_version`, `data_input`, `n_rows`, and
+#' `n_cols`.
 #'
 #' @author EDG
 #' @export
@@ -644,6 +677,8 @@ apply_declared_types <- function(x, columns) {
 #' \dontrun{
 #' ingest("data.csv", "data.parquet")
 #' ingest("data.csv", "data.parquet", setup_DelimitedIngest(sep = ";"))
+#' ingest("https://example.org/data/iris.csv", "iris.parquet")
+#' ingest("hf://datasets/rtemis/tcga-pancan-hiseq", "tcga.parquet")
 #' }
 ingest <- function(
   path,
@@ -653,7 +688,10 @@ ingest <- function(
   verbosity = 1L
 ) {
   check_dependencies("arrow")
-  path <- sanitize_path(path, must_exist = TRUE)
+  remote <- is_url(path) || is_hf(path)
+  if (!remote) {
+    path <- sanitize_path(path, must_exist = TRUE)
+  }
   outfile <- sanitize_path(outfile, must_exist = FALSE, normalize = FALSE)
   if (file.exists(outfile) && !overwrite) {
     rtemis.core::abort(
@@ -664,11 +702,20 @@ ingest <- function(
     )
   }
 
-  format <- ingest_format(path)
+  retrieved_at <- if (remote) iso8601(Sys.time())
+  # An `hf://` path is resolved to a commit and a file before the format check:
+  # a path naming the repository only carries no extension.
+  hf <- if (is_hf(path)) resolve_hf(path, verbosity = verbosity)
+  name <- if (is.null(hf)) {
+    ingest_display_name(path)
+  } else {
+    basename(hf[["file"]])
+  }
+  format <- ingest_format(name)
   if (is.null(format)) {
     rtemis.core::abort(
       "Cannot ingest '",
-      basename(path),
+      name,
       "': its extension names no supported format.",
       class = c("rtemis_value_error", "rtemis_input_error")
     )
@@ -680,7 +727,7 @@ ingest <- function(
       "The config is for a '",
       config@format,
       "' file but '",
-      basename(path),
+      name,
       "' is ",
       format,
       ". Its settings would not apply.",
@@ -692,8 +739,19 @@ ingest <- function(
   # deliberately not relied on: a default that is not in the config is a
   # decision the record cannot report. Only the arguments this format has are
   # passed, which is what makes the family worth having.
+  local_path <- if (!is.null(hf)) {
+    download_hf(hf, verbosity = verbosity)
+  } else if (remote) {
+    download_url(path, verbosity = verbosity)
+  } else {
+    path
+  }
+  if (remote) {
+    on.exit(unlink(dirname(local_path), recursive = TRUE), add = TRUE)
+  }
+  input_sha256 <- file_sha256(local_path)
   args <- list(
-    path,
+    local_path,
     character2factor = config@character2factor,
     clean_colnames = config@clean_colnames,
     remove_duplicates = config@remove_duplicates,
@@ -720,7 +778,7 @@ ingest <- function(
   msg0(
     bold(highlight("\U25B6")),
     " Ingested ",
-    highlight(basename(path)),
+    highlight(name),
     " to ",
     highlight(basename(outfile)),
     verbosity = verbosity
@@ -729,6 +787,18 @@ ingest <- function(
   # Returned as a manifest; an ingest node has no published record schema.
   list(
     input = path,
+    input_resolved = if (!is.null(hf)) {
+      paste0(
+        "hf://datasets/",
+        hf[["repo"]],
+        "@",
+        hf[["commit"]],
+        "/",
+        hf[["file"]]
+      )
+    },
+    input_sha256 = input_sha256,
+    retrieved_at = retrieved_at,
     output = outfile,
     format = format,
     config = S7_to_list(config),

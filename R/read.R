@@ -20,9 +20,31 @@
 #' - **FASTA** files using `seqinr::read.fasta()`
 #' - **RDS** files using `readRDS()`
 #'
-#' @param filename Character: filename or full path if `datadir = NULL`.
+#' An `http://` or `https://` URL is downloaded with [utils::download.file()]
+#' to a temporary file named after the last segment of the URL path, read like
+#' a local file, and deleted. The file extension in the URL path selects the
+#' reader, as it does for a local file. The download is bounded by
+#' `getOption("timeout")`, in seconds. A URL with user credentials
+#' (`user:password@host`) and any scheme other than `http`, `https`, and `hf`
+#' is rejected.
+#'
+#' An `hf://datasets/<owner>/<name>[@<revision>][/<file>]` path reads a file
+#' from a public dataset repository on the Hugging Face Hub, in the path form of
+#' `huggingface_hub`'s `HfFileSystem`. The revision is a branch, tag, or commit,
+#' `main` when none is given; a revision containing `/` is written URL-encoded,
+#' as `refs%2Fconvert%2Fparquet`. A path that names the repository only reads
+#' the repository's one data file (`.parquet`, `.csv`, `.tsv`, `.csv.gz`,
+#' `.tsv.gz`, `.rds`, `.xlsx`, `.dta`, `.arff`, or `.fasta`) and is an error when the repository holds more
+#' than one. The revision is resolved to a commit through the Hub API, the file
+#' is downloaded at that commit, and its size and hash are checked against the
+#' Hub's listing. The `HF_ENDPOINT` environment variable sets the Hub endpoint.
+#' Reading `hf://` paths requires the `jsonlite` package.
+#'
+#' @param filename Character: filename, full path if `datadir = NULL`, an
+#' `http://` or `https://` URL, or an `hf://datasets/` path.
 #' @param datadir Character: Optional path to directory where `filename`
-#' is located. If not specified, `filename` must be the full path.
+#' is located. If not specified, `filename` must be the full path. Must be
+#' `NULL` when `filename` is a URL or an `hf://` path.
 #' @param remove_duplicates Logical: If TRUE, keep unique rows only.
 #' @param character2factor Logical: If TRUE, convert character variables to
 #' factors.
@@ -57,6 +79,10 @@
 #' # Replace with your own data directory and filename
 #' datadir <- "/Data"
 #' dat <- read("iris.csv", datadir)
+#' # Read from a URL
+#' dat <- read("https://example.org/data/iris.csv")
+#' # Read from a Hugging Face dataset
+#' dat <- read("hf://datasets/rtemis/tcga-pancan-hiseq")
 #' }
 read <- function(
   filename,
@@ -87,12 +113,28 @@ read <- function(
   if (output == "tibble") {
     check_dependencies("tibble")
   }
-  ext <- tools::file_ext(filename)
-  path <- if (is.null(datadir)) {
-    filename
+  if (is_url(filename) || is_hf(filename)) {
+    if (!is.null(datadir)) {
+      rtemis.core::abort(
+        "`datadir` applies to local files only. ",
+        "Pass `datadir = NULL` with a URL or an `hf://` path.",
+        class = c("rtemis_value_error", "rtemis_input_error")
+      )
+    }
+    path <- if (is_hf(filename)) {
+      download_hf(resolve_hf(filename, verbosity = verbosity), verbosity)
+    } else {
+      download_url(filename, verbosity = verbosity)
+    }
+    on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
   } else {
-    file.path(datadir, filename)
+    path <- if (is.null(datadir)) {
+      filename
+    } else {
+      file.path(datadir, filename)
+    }
   }
+  ext <- tools::file_ext(path)
 
   # Sanitize path for security
   path <- sanitize_path(path, must_exist = TRUE)

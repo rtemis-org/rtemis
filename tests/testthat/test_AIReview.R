@@ -118,7 +118,7 @@ test_that("the provenance records model, provider, settings, prompt and review h
   ))
   expect_identical(
     p[["review_sha256"]],
-    as.character(openssl::sha256(review_json))
+    as.vector(as.character(openssl::sha256(review_json)))
   )
   expect_match(p[["created"]], "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$")
   # A per-call temperature is recorded as given.
